@@ -244,7 +244,7 @@ export function BookDetailsManager({
 
       {groupedDetails.length === 0 ? (
         <p className="py-4 text-center text-sm text-gray-900">
-          목차가 없습니다. "+ 대단원 추가" 버튼을 클릭하여 추가하세요.
+          목차가 없습니다. &quot;+ 대단원 추가&quot; 버튼을 클릭하여 추가하세요.
         </p>
       ) : (
         <div className="flex flex-col gap-2">
@@ -384,7 +384,7 @@ const MinorUnitList = memo(function MinorUnitList({
   if (items.length === 0) {
     return (
       <div className="px-3 py-4 text-center text-sm text-gray-900">
-        중단원이 없습니다. "+ 중단원" 버튼을 클릭하여 추가하세요.
+        중단원이 없습니다. &quot;+ 중단원&quot; 버튼을 클릭하여 추가하세요.
       </div>
     );
   }

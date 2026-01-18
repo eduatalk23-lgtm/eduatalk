@@ -149,7 +149,7 @@ export function AttendanceSMSSettingsForm() {
                   <br />
                   <span className="text-gray-400">
                     ※ 관리자가 직접 체크인한 경우에만 발송됩니다. 학생이 직접
-                    체크인한 경우는 "학생 직접 체크인 시 발송" 설정도 확인해야
+                    체크인한 경우는 &quot;학생 직접 체크인 시 발송&quot; 설정도 확인해야
                     합니다.
                   </span>
                 </p>
@@ -174,7 +174,7 @@ export function AttendanceSMSSettingsForm() {
                   <br />
                   <span className="text-gray-400">
                     ※ 관리자가 직접 체크아웃한 경우에만 발송됩니다. 학생이 직접
-                    체크아웃한 경우는 "학생 직접 체크인 시 발송" 설정도 확인해야
+                    체크아웃한 경우는 &quot;학생 직접 체크인 시 발송&quot; 설정도 확인해야
                     합니다.
                   </span>
                 </p>
@@ -250,7 +250,7 @@ export function AttendanceSMSSettingsForm() {
                   <div className="rounded-lg bg-amber-50 border border-amber-200 p-2">
                     <p className="text-xs text-amber-800">
                       ⚠️ 이 설정이 꺼져 있으면 학생이 직접 체크인해도 SMS가
-                      발송되지 않습니다. "입실 알림"이 켜져 있어도 이 설정이
+                      발송되지 않습니다. &quot;입실 알림&quot;이 켜져 있어도 이 설정이
                       꺼져 있으면 발송되지 않으니 주의하세요.
                     </p>
                   </div>

@@ -106,7 +106,7 @@ export function LectureEpisodesManager({
 
       {sortedEpisodes.length === 0 ? (
         <p className="py-4 text-center text-sm text-gray-500">
-          회차 정보가 없습니다. "+ 회차 추가" 버튼을 클릭하여 추가하세요.
+          회차 정보가 없습니다. &quot;+ 회차 추가&quot; 버튼을 클릭하여 추가하세요.
         </p>
       ) : (
         <div className="flex flex-col gap-3">

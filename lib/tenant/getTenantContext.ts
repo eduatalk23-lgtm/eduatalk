@@ -41,7 +41,8 @@ export const getTenantContext = cache(async (): Promise<TenantContext | null> =>
         .eq("id", user.id)
         .maybeSingle();
 
-    let { data: admin, error: adminError } = await selectAdmin();
+    const { data: initialAdmin, error: adminError } = await selectAdmin();
+    let admin = initialAdmin;
 
     if (adminError && adminError.code === "42703") {
       // fallback: 컬럼이 없는 경우

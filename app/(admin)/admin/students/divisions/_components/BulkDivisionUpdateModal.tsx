@@ -158,7 +158,7 @@ export function BulkDivisionUpdateModal({
                   변경 예정
                 </p>
                 <p className={cn("text-xs", "text-blue-700 dark:text-blue-300")}>
-                  {studentIds.length}명의 학생이 "{selectedDivision || "미설정"}"으로 변경됩니다.
+                  {studentIds.length}명의 학생이 &quot;{selectedDivision || "미설정"}&quot;으로 변경됩니다.
                 </p>
               </div>
             </div>

@@ -48,7 +48,8 @@ export async function getAcademySchedules(
     query = query.eq("tenant_id", tenantId);
   }
 
-  let { data, error } = await query;
+  const { data, error: queryError } = await query;
+  let error = queryError;
   let schedulesData: AcademySchedule[] | null = data as AcademySchedule[] | null;
 
   // tenant_id 컬럼 없는 경우 재시도
@@ -154,7 +155,8 @@ export async function getStudentAcademySchedules(
     query = query.eq("tenant_id", tenantId);
   }
 
-  let { data, error } = await query;
+  const { data, error: queryError } = await query;
+  let error = queryError;
   let studentSchedulesData: AcademySchedule[] | null = (data as AcademySchedule[] | null) ?? null;
 
   if (error && ErrorCodeCheckers.isColumnNotFound(error)) {

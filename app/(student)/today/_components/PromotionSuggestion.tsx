@@ -106,7 +106,7 @@ export function PromotionSuggestion({
             </h3>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
               <span className="font-medium text-indigo-600 dark:text-indigo-400">
-                "{topCandidate.contentTitle}"
+                &quot;{topCandidate.contentTitle}&quot;
               </span>
               을(를) {topCandidate.occurrenceCount}번 반복해서 학습하셨네요!
               정규 플랜으로 전환하면 체계적인 학습 관리가 가능해요.

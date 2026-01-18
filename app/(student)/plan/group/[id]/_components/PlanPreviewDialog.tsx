@@ -389,7 +389,7 @@ export function PlanPreviewDialog({
           {plans.length === 0 && !loading && (
             <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
               <p className="text-sm text-gray-800">
-                "플랜 미리보기" 버튼을 클릭하여 생성될 플랜을 확인하세요.
+                &quot;플랜 미리보기&quot; 버튼을 클릭하여 생성될 플랜을 확인하세요.
               </p>
             </div>
           )}

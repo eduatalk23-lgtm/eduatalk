@@ -128,7 +128,7 @@ export function LectureEpisodesSection({
       ) : (
         <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
           <p className="text-sm text-gray-500">
-            회차 정보가 없습니다. "회차 추가" 버튼을 클릭하여 추가하세요.
+            회차 정보가 없습니다. &quot;회차 추가&quot; 버튼을 클릭하여 추가하세요.
           </p>
         </div>
       )}

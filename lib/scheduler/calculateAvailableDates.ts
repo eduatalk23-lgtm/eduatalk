@@ -906,12 +906,11 @@ export function calculateAvailableDates(
   }
 
   // 날짜별 타입 분류 및 주차 정보 계산
-  let dayTypeMap: Map<string, DayType>;
   const weekMap: Map<string, number> = new Map(); // 날짜 -> 주차 번호 매핑 (모든 날짜 포함)
-  
+
   const studyDays = options.scheduler_options?.study_days || 6;
   const reviewDays = options.scheduler_options?.review_days || 1;
-  dayTypeMap = classifyDaysFor1730(dates, exclusions, studyDays, reviewDays);
+  const dayTypeMap = classifyDaysFor1730(dates, exclusions, studyDays, reviewDays);
   
   // 주차 정보 매핑 (학습일/복습일 분류용)
   // 모든 날짜를 주차에 매핑 (제외일 포함)

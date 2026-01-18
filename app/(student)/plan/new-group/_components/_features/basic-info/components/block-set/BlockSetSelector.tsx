@@ -58,7 +58,7 @@ export function BlockSetSelector({
   if (uniqueBlockSets.length === 0) {
     return (
       <p className="text-xs text-gray-600">
-        등록된 블록 세트가 없습니다. "+" 버튼을 클릭하여 생성하세요.
+        등록된 블록 세트가 없습니다. &quot;+&quot; 버튼을 클릭하여 생성하세요.
       </p>
     );
   }

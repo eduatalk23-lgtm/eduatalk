@@ -270,10 +270,11 @@ async function fetchContentsByTab(
 
       // 전체 개수 조회 (필터 적용된 쿼리 사용)
       const countQuery = selectBooks();
-      let { count, error: countError } = await (countQuery
+      const { count: initialCount, error: countError } = await (countQuery
         .eq("student_id", studentId)
         .select("*") as any).select("*", { count: "exact", head: true });
-      
+      let count = initialCount;
+
       if (ErrorCodeCheckers.isColumnNotFound(countError)) {
         const countQuery2 = selectBooks();
         const { count: count2 } = await (countQuery2.select("*") as any).select("*", { count: "exact", head: true });
@@ -349,10 +350,11 @@ async function fetchContentsByTab(
 
       // 전체 개수 조회 (필터 적용된 쿼리 사용)
       const countQuery = selectLectures();
-      let { count, error: countError } = await (countQuery
+      const { count: initialCount, error: countError } = await (countQuery
         .eq("student_id", studentId)
         .select("*") as any).select("*", { count: "exact", head: true });
-      
+      let count = initialCount;
+
       if (ErrorCodeCheckers.isColumnNotFound(countError)) {
         const countQuery2 = selectLectures();
         const { count: count2 } = await (countQuery2.select("*") as any).select("*", { count: "exact", head: true });
@@ -413,10 +415,11 @@ async function fetchContentsByTab(
 
       // 전체 개수 조회
       const countQuery = selectCustomContents();
-      let { count, error: countError } = await (countQuery
+      const { count: initialCount, error: countError } = await (countQuery
         .eq("student_id", studentId)
         .select("*") as any).select("*", { count: "exact", head: true });
-      
+      let count = initialCount;
+
       if (ErrorCodeCheckers.isColumnNotFound(countError)) {
         const countQuery2 = selectCustomContents();
         const { count: count2 } = await (countQuery2.select("*") as any).select("*", { count: "exact", head: true });

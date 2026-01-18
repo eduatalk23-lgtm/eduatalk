@@ -608,9 +608,24 @@ function WizardInner({
           });
 
           if ("success" in result && result.success === false) {
+            // [DIAGNOSTIC] 상세 에러 디버깅 - 문제 해결 후 제거
+            console.error("[AdminWizard] Full result:", JSON.stringify(result));
+            console.error("[AdminWizard] Error type:", typeof result.error);
+            console.error("[AdminWizard] Error keys:", Object.keys(result.error || {}));
+            console.error("[AdminWizard] Error stringified:", JSON.stringify(result.error));
             console.error("[AdminWizard] 플랜 그룹 생성 실패:", result.error);
+
             if (!firstError) {
-              firstError = result.error?.message || `${content.title} 플랜 그룹 생성 실패`;
+              // 더 방어적인 에러 추출
+              const errorMessage =
+                typeof result.error === "string"
+                  ? result.error
+                  : result.error?.message ||
+                    (Object.keys(result.error || {}).length === 0
+                      ? "서버에서 빈 에러 객체가 반환되었습니다"
+                      : JSON.stringify(result.error)) ||
+                    `${content.title} 플랜 그룹 생성 실패`;
+              firstError = errorMessage;
             }
             continue;
           }

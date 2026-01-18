@@ -139,7 +139,7 @@ export function BookDetailsSection({
         isCollapsed ? (
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-6 text-center">
             <p className="text-sm text-gray-600">
-              {details.length}개의 목차 항목이 있습니다. "전체 펼치기" 버튼을 클릭하여 확인하세요.
+              {details.length}개의 목차 항목이 있습니다. &quot;전체 펼치기&quot; 버튼을 클릭하여 확인하세요.
             </p>
           </div>
         ) : (
@@ -148,7 +148,7 @@ export function BookDetailsSection({
       ) : (
         <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
           <p className="text-sm text-gray-500">
-            목차 정보가 없습니다. "목차 추가" 버튼을 클릭하여 추가하세요.
+            목차 정보가 없습니다. &quot;목차 추가&quot; 버튼을 클릭하여 추가하세요.
           </p>
         </div>
       )}

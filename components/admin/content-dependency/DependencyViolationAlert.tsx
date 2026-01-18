@@ -114,7 +114,7 @@ export function DependencyViolationAlert({
                   >
                     <p>{violation.message}</p>
                     <p className="mt-1 text-xs text-amber-700">
-                      "{violation.prerequisiteTitle}"을(를) 플랜에 추가하는 것을 권장합니다.
+                      &quot;{violation.prerequisiteTitle}&quot;을(를) 플랜에 추가하는 것을 권장합니다.
                     </p>
                   </li>
                 ))}

@@ -507,7 +507,7 @@ export function CurriculumHierarchyManager() {
           )}
           {!loading && revisions.length === 0 && (
             <p className="text-sm text-gray-700">
-              개정교육과정이 없습니다. 위의 "+ 추가" 버튼을 클릭하여 생성해주세요.
+              개정교육과정이 없습니다. 위의 &quot;+ 추가&quot; 버튼을 클릭하여 생성해주세요.
             </p>
           )}
         </div>
