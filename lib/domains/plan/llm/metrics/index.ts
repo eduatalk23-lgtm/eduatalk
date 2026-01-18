@@ -56,3 +56,24 @@ export {
   logRecommendationError,
   logCacheHit,
 } from "./logger";
+
+// 저장소 export
+export {
+  getMetricsStore,
+  resetMetricsStore,
+  configureMetricsStore,
+  type MetricsFilterOptions,
+} from "./store";
+
+// 집계 export
+export {
+  getAggregatedMetrics,
+  getMetricsBySource,
+  getMetricsTimeSeries,
+  getErrorStats,
+  getCostAnalysis,
+  aggregateMetrics,
+  type AggregationOptions,
+  type SourceBreakdown,
+  type TimeSeriesPoint,
+} from "./aggregator";
