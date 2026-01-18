@@ -115,6 +115,60 @@ Supabase with PostgreSQL. Migrations in `supabase/migrations/`. Uses Row Level S
 
 Key tables: `students`, `student_plans`, `scores`, `plan_groups`, `blocks`, `tenants`
 
+## AI & Cold Start System
+
+### Cold Start 콘텐츠 추천
+
+신규 사용자(학습 이력 없음)에게 교과/과목/난이도 기반으로 콘텐츠를 추천하는 시스템.
+
+**핵심 파일:**
+```
+lib/domains/plan/llm/actions/coldStart/
+├── pipeline.ts           # 메인 파이프라인
+├── types.ts              # 타입 정의
+├── persistence/          # DB 저장 모듈
+└── batch/                # 배치 처리 모듈
+```
+
+**사용법:**
+```typescript
+import { runColdStartPipeline } from "@/lib/domains/plan/llm/actions/coldStart";
+
+const result = await runColdStartPipeline({
+  subjectCategory: "수학",
+  subject: "미적분",
+  difficulty: "개념",
+  contentType: "book",
+}, {
+  saveToDb: true,      // DB에 저장
+  enableFallback: true // Rate limit 시 DB 캐시 사용
+});
+```
+
+**Rate Limit 보호:**
+- Gemini Free Tier: 일 20회, 분 15회 제한
+- 자동 DB fallback: API 한도 초과 시 캐시된 콘텐츠 반환
+- 할당량 추적: `getGeminiQuotaStatus()` 함수
+
+**관련 API:**
+- `POST /api/plan/content-recommendation` - 콘텐츠 추천
+- `GET /api/admin/gemini-quota` - Gemini 할당량 확인
+- `GET /api/admin/cache-stats` - 캐시 통계
+
+**문서:** `docs/cold-start-system-guide.md`
+
+### 배치 처리 (GitHub Actions)
+
+```bash
+# CLI 스크립트
+npx tsx scripts/cold-start-batch.ts core --dry-run  # 드라이런
+npx tsx scripts/cold-start-batch.ts math --limit=5  # 수학 5개만
+```
+
+**자동 실행:** 매일 새벽 3시 (KST) - `.github/workflows/cold-start-batch.yml`
+
+**수동 실행:** GitHub Actions → "Cold Start Batch Processing" → Run workflow
+
 ## Agent Workflow Rules (자동 서브에이전트 활용)
 
 Claude가 작업 수행 시 **반드시** 아래 워크플로우를 따른다.
