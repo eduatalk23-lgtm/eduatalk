@@ -6,6 +6,12 @@
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { GroundingMetadata, WebSearchResult } from "../providers/base";
+import {
+  buildContentAnalysisData,
+  toJsonField,
+  hasValidChapters,
+  type ChapterInfo,
+} from "./contentStructureUtils";
 
 // ============================================
 // 타입 정의
@@ -40,6 +46,18 @@ export interface WebSearchContent {
   searchQuery: string;
   /** 검색 일시 */
   searchDate: string;
+
+  // ---- 구조 정보 (optional) ----
+  /** 총 범위 (페이지 수 또는 에피소드 수) */
+  totalRange?: number;
+  /** 챕터/에피소드 정보 */
+  chapters?: ChapterInfo[];
+  /** 저자/강사 */
+  author?: string;
+  /** 출판사/플랫폼 */
+  publisher?: string;
+  /** 난이도 레벨 */
+  difficultyLevel?: string;
 }
 
 /**
@@ -68,6 +86,43 @@ export interface TransformContext {
   subjectCategory?: string;
   /** 테넌트 ID */
   tenantId: string;
+}
+
+/**
+ * 기존 콘텐츠 조회 옵션
+ */
+export interface FindExistingContentOptions {
+  /** 교과 필터 (예: 수학, 영어) */
+  subjectCategory?: string;
+  /** 과목 필터 (예: 미적분, 영어독해) */
+  subject?: string;
+  /** 난이도 필터 (예: 개념, 기본, 심화) */
+  difficulty?: string;
+  /** 콘텐츠 타입 필터 */
+  contentType?: "book" | "lecture" | "all";
+  /** 구조 정보(total_pages/episodes) 있는 것만 */
+  hasStructure?: boolean;
+  /** 데이터 출처 필터 */
+  source?: "cold_start" | "web_search" | "all";
+  /** 공유 카탈로그 포함 여부 (tenant_id IS NULL) */
+  includeSharedCatalog?: boolean;
+  /** 최대 조회 개수 */
+  limit?: number;
+}
+
+/**
+ * 통합 콘텐츠 결과 아이템
+ */
+export interface ExistingContentItem {
+  id: string;
+  title: string;
+  contentType: "book" | "lecture";
+  subjectCategory: string | null;
+  subject: string | null;
+  difficultyLevel: string | null;
+  totalRange: number | null;
+  source: string | null;
+  createdAt: string;
 }
 
 // ============================================
@@ -232,7 +287,19 @@ export class WebSearchContentService {
               subject: content.subject,
               subject_category: content.subjectCategory,
               notes: content.snippet,
-              total_episodes: 1, // 필수 필드 기본값
+              // 구조 정보
+              total_episodes:
+                content.totalRange && content.totalRange > 0
+                  ? content.totalRange
+                  : 1,
+              instructor_name: content.author ?? null,
+              platform_name: content.publisher ?? null,
+              difficulty_level: content.difficultyLevel ?? null,
+              episode_analysis: hasValidChapters(content.chapters)
+                ? toJsonField(
+                    buildContentAnalysisData(content.chapters!, "web_search")
+                  )
+                : null,
               is_active: true,
             })
             .select("id")
@@ -256,6 +323,16 @@ export class WebSearchContentService {
               subject_category: content.subjectCategory,
               notes: content.snippet,
               description: `웹 검색 결과 - 검색어: ${content.searchQuery}`,
+              // 구조 정보
+              total_pages: content.totalRange ?? null,
+              author: content.author ?? null,
+              publisher_name: content.publisher ?? null,
+              difficulty_level: content.difficultyLevel ?? null,
+              page_analysis: hasValidChapters(content.chapters)
+                ? toJsonField(
+                    buildContentAnalysisData(content.chapters!, "web_search")
+                  )
+                : null,
               is_active: true,
             })
             .select("id")
@@ -285,37 +362,180 @@ export class WebSearchContentService {
   /**
    * 기존에 저장된 웹 검색 콘텐츠 조회
    *
-   * @param tenantId - 테넌트 ID
-   * @param options - 조회 옵션
-   * @returns 웹 검색 콘텐츠 목록
+   * master_books와 master_lectures 테이블에서 조건에 맞는 콘텐츠를 조회합니다.
+   * cold_start 및 web_search 출처 모두 지원합니다.
+   *
+   * @param tenantId - 테넌트 ID (null이면 공유 카탈로그만 조회)
+   * @param options - 조회 옵션 (다중 필터 지원)
+   * @returns 통합 콘텐츠 목록
+   *
+   * @example
+   * ```typescript
+   * // 수학 교과의 구조 정보 있는 교재만 조회
+   * const books = await service.findExistingWebContent(tenantId, {
+   *   subjectCategory: '수학',
+   *   contentType: 'book',
+   *   hasStructure: true,
+   *   source: 'cold_start',
+   * });
+   * ```
    */
   async findExistingWebContent(
-    tenantId: string,
-    options?: {
-      subject?: string;
-      limit?: number;
-    }
-  ) {
+    tenantId: string | null,
+    options?: FindExistingContentOptions
+  ): Promise<ExistingContentItem[]> {
     const supabase = await createSupabaseAdminClient();
     if (!supabase) {
       return [];
     }
 
+    const limit = options?.limit ?? 20;
+    const contentType = options?.contentType ?? "all";
+    const results: ExistingContentItem[] = [];
+
+    // 교재 조회 (book 또는 all)
+    if (contentType === "book" || contentType === "all") {
+      const bookResults = await this.queryBooks(supabase, tenantId, options);
+      results.push(...bookResults);
+    }
+
+    // 강의 조회 (lecture 또는 all)
+    if (contentType === "lecture" || contentType === "all") {
+      const lectureResults = await this.queryLectures(supabase, tenantId, options);
+      results.push(...lectureResults);
+    }
+
+    // 생성일 기준 정렬 후 limit 적용
+    return results
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, limit);
+  }
+
+  /**
+   * master_books 테이블 조회 (내부 헬퍼)
+   */
+  private async queryBooks(
+    supabase: NonNullable<Awaited<ReturnType<typeof createSupabaseAdminClient>>>,
+    tenantId: string | null,
+    options?: FindExistingContentOptions
+  ): Promise<ExistingContentItem[]> {
     let query = supabase
       .from("master_books")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .eq("source", "web_search")
+      .select("id, title, subject_category, subject, difficulty_level, total_pages, source, created_at")
       .eq("is_active", true)
-      .order("created_at", { ascending: false })
-      .limit(options?.limit || 20);
+      .order("created_at", { ascending: false });
 
+    // 테넌트 필터
+    if (options?.includeSharedCatalog && tenantId) {
+      // 테넌트 + 공유 카탈로그
+      query = query.or(`tenant_id.eq.${tenantId},tenant_id.is.null`);
+    } else if (tenantId === null) {
+      // 공유 카탈로그만
+      query = query.is("tenant_id", null);
+    } else {
+      // 특정 테넌트만
+      query = query.eq("tenant_id", tenantId);
+    }
+
+    // 출처 필터
+    if (options?.source && options.source !== "all") {
+      query = query.eq("source", options.source);
+    } else if (!options?.source) {
+      // 기본: cold_start 또는 web_search
+      query = query.in("source", ["cold_start", "web_search"]);
+    }
+
+    // 교과 필터
+    if (options?.subjectCategory) {
+      query = query.eq("subject_category", options.subjectCategory);
+    }
+
+    // 과목 필터
     if (options?.subject) {
       query = query.eq("subject", options.subject);
     }
 
-    const { data } = await query;
-    return data || [];
+    // 난이도 필터
+    if (options?.difficulty) {
+      query = query.eq("difficulty_level", options.difficulty);
+    }
+
+    // 구조 정보 필터
+    if (options?.hasStructure) {
+      query = query.not("total_pages", "is", null);
+    }
+
+    const { data } = await query.limit(options?.limit ?? 50);
+
+    return (data ?? []).map((item) => ({
+      id: item.id,
+      title: item.title,
+      contentType: "book" as const,
+      subjectCategory: item.subject_category,
+      subject: item.subject,
+      difficultyLevel: item.difficulty_level,
+      totalRange: item.total_pages,
+      source: item.source,
+      createdAt: item.created_at ?? new Date().toISOString(),
+    }));
+  }
+
+  /**
+   * master_lectures 테이블 조회 (내부 헬퍼)
+   */
+  private async queryLectures(
+    supabase: NonNullable<Awaited<ReturnType<typeof createSupabaseAdminClient>>>,
+    tenantId: string | null,
+    options?: FindExistingContentOptions
+  ): Promise<ExistingContentItem[]> {
+    let query = supabase
+      .from("master_lectures")
+      .select("id, title, subject_category, subject, difficulty_level, total_episodes, created_at")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false });
+
+    // 테넌트 필터
+    if (options?.includeSharedCatalog && tenantId) {
+      query = query.or(`tenant_id.eq.${tenantId},tenant_id.is.null`);
+    } else if (tenantId === null) {
+      query = query.is("tenant_id", null);
+    } else {
+      query = query.eq("tenant_id", tenantId);
+    }
+
+    // 교과 필터
+    if (options?.subjectCategory) {
+      query = query.eq("subject_category", options.subjectCategory);
+    }
+
+    // 과목 필터
+    if (options?.subject) {
+      query = query.eq("subject", options.subject);
+    }
+
+    // 난이도 필터
+    if (options?.difficulty) {
+      query = query.eq("difficulty_level", options.difficulty);
+    }
+
+    // 구조 정보 필터
+    if (options?.hasStructure) {
+      query = query.not("total_episodes", "is", null);
+    }
+
+    const { data } = await query.limit(options?.limit ?? 50);
+
+    return (data ?? []).map((item) => ({
+      id: item.id,
+      title: item.title,
+      contentType: "lecture" as const,
+      subjectCategory: item.subject_category,
+      subject: item.subject,
+      difficultyLevel: item.difficulty_level,
+      totalRange: item.total_episodes,
+      source: null, // master_lectures에는 source 컬럼 없음
+      createdAt: item.created_at ?? new Date().toISOString(),
+    }));
   }
 
   /**

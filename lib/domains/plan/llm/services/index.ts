@@ -103,4 +103,15 @@ export {
   type WebSearchContent,
   type SaveWebContentResult,
   type TransformContext,
+  type FindExistingContentOptions,
+  type ExistingContentItem,
 } from "./webSearchContentService";
+
+// 콘텐츠 구조 정보 공유 유틸리티
+export {
+  buildContentAnalysisData,
+  toJsonField,
+  hasValidChapters,
+  type ChapterInfo,
+  type ContentAnalysisData,
+} from "./contentStructureUtils";
