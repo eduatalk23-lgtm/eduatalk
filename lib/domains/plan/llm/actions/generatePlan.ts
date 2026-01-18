@@ -11,6 +11,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { revalidatePath } from "next/cache";
 import { logActionError } from "@/lib/logging/actionLogger";
+import { MetricsBuilder, logRecommendationError } from "../metrics";
 
 // LLM & Types
 import { createMessage, estimateCost, type WebSearchResult } from "@/lib/domains/plan/llm/client";
@@ -108,6 +109,13 @@ export interface GeneratePlanInput extends PlanGenerationSettings {
 export async function generatePlanWithAI(
   input: GeneratePlanInput
 ): Promise<GeneratePlanResult> {
+  // 메트릭스 빌더 초기화
+  const metricsBuilder = MetricsBuilder.create("generatePlan")
+    .setRequestParams({
+      contentType: input.planningMode,
+      maxRecommendations: input.contentIds.length,
+    });
+
   const supabase = await createSupabaseServerClient();
   const { data: { user: authUser } } = await supabase.auth.getUser();
   const user = authUser ? { userId: authUser.id } : null;
@@ -115,6 +123,9 @@ export async function generatePlanWithAI(
   if (!user) {
     return { success: false, error: "로그인이 필요합니다." };
   }
+
+  // 메트릭스에 userId 추가
+  metricsBuilder.setContext({ userId: user.userId });
 
   try {
     // 0. 대상 학생 ID 결정 및 권한 확인
@@ -334,6 +345,31 @@ export async function generatePlanWithAI(
       success: true,
     });
 
+    // 15. 성공 메트릭스 로깅
+    metricsBuilder
+      .setContext({ studentId: student.id, tenantId })
+      .setTokenUsage({
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+        totalTokens: result.usage.inputTokens + result.usage.outputTokens,
+      })
+      .setCost({
+        estimatedUSD: estimatedCostValue,
+        modelTier,
+      })
+      .setRecommendation({
+        count: allPlans.length,
+        strategy: "recommend",
+        usedFallback: false,
+      })
+      .setWebSearch({
+        enabled: shouldEnableWebSearch ?? false,
+        queriesCount: webSearchResults?.searchQueries.length ?? 0,
+        resultsCount: webSearchResults?.resultsCount ?? 0,
+        savedCount: webSearchResults?.savedCount,
+      })
+      .log();
+
     return {
       success: true,
       data: parsedResponse,
@@ -342,6 +378,18 @@ export async function generatePlanWithAI(
 
   } catch (error) {
     logActionError({ domain: "plan", action: "generatePlanWithAI" }, error);
+
+    // 에러 메트릭스 로깅
+    logRecommendationError(
+      "generatePlan",
+      error instanceof Error ? error : String(error),
+      {
+        studentId: input.studentId,
+        strategy: "recommend",
+        stage: "execution",
+      }
+    );
+
     return { success: false, error: error instanceof Error ? error.message : "알 수 없는 오류" };
   }
 }

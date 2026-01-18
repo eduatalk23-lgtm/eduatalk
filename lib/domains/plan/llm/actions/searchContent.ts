@@ -2,6 +2,7 @@
 
 import { getGeminiProvider } from "../providers/gemini";
 import { logActionError } from "@/lib/utils/serverActionLogger";
+import { MetricsBuilder, logRecommendationError } from "../metrics";
 
 export interface VirtualContentItem {
   title: string;
@@ -58,6 +59,12 @@ export async function searchExternalContentAction(
   query: string,
   subject?: string
 ): Promise<SearchContentResult> {
+  // 메트릭스 빌더 초기화
+  const metricsBuilder = MetricsBuilder.create("searchContent")
+    .setRequestParams({
+      subjectCategory: subject,
+    });
+
   if (!query || query.trim() === "") {
     return { success: false, error: "Search query is required." };
   }
@@ -88,11 +95,35 @@ export async function searchExternalContentAction(
       // Parse JSON from response
       const cleanJson = response.content.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(cleanJson);
-      
+
       if (!parsed.results || !Array.isArray(parsed.results)) {
         console.warn("Invalid structure returned from AI:", parsed);
         return { success: false, error: "Failed to parse content structure." };
       }
+
+      // 성공 메트릭스 로깅
+      metricsBuilder
+        .setTokenUsage({
+          inputTokens: response.usage?.inputTokens ?? 0,
+          outputTokens: response.usage?.outputTokens ?? 0,
+          totalTokens: (response.usage?.inputTokens ?? 0) + (response.usage?.outputTokens ?? 0),
+        })
+        .setCost({
+          estimatedUSD: 0, // Gemini 비용은 별도 계산
+          modelTier: "standard",
+          provider: "gemini",
+        })
+        .setRecommendation({
+          count: parsed.results.length,
+          strategy: "recommend",
+          usedFallback: false,
+        })
+        .setWebSearch({
+          enabled: true,
+          queriesCount: 1,
+          resultsCount: parsed.results.length,
+        })
+        .log();
 
       return {
         success: true,
@@ -101,11 +132,33 @@ export async function searchExternalContentAction(
 
     } catch (parseError) {
       console.error("JSON Parse Error:", parseError, response.content);
+
+      // 파싱 에러 메트릭스 로깅
+      logRecommendationError(
+        "searchContent",
+        parseError instanceof Error ? parseError : String(parseError),
+        {
+          strategy: "recommend",
+          stage: "parsing",
+        }
+      );
+
       return { success: false, error: "AI response was not valid JSON." };
     }
 
   } catch (error) {
     logActionError("searchExternalContentAction", error instanceof Error ? error.message : String(error));
+
+    // 에러 메트릭스 로깅
+    logRecommendationError(
+      "searchContent",
+      error instanceof Error ? error : String(error),
+      {
+        strategy: "recommend",
+        stage: "search",
+      }
+    );
+
     return {
       success: false,
       error: error instanceof Error ? error.message : "An unexpected error occurred during search.",

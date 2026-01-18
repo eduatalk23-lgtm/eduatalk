@@ -18,6 +18,7 @@
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { AppError, ErrorCode, withErrorHandlingSafe } from "@/lib/errors";
+import { MetricsBuilder, logRecommendationError } from "../metrics";
 import {
   generatePlansWithServices,
   type AISchedulerOptionsOverride,
@@ -153,6 +154,14 @@ async function _generateHybridPlanComplete(
   input: GenerateHybridPlanCompleteInput
 ): Promise<GenerateHybridPlanCompleteResult> {
   const totalStartTime = Date.now();
+
+  // 메트릭스 빌더 초기화
+  const metricsBuilder = MetricsBuilder.create("generateHybridPlanComplete")
+    .setContext({ studentId: input.student.id })
+    .setRequestParams({
+      contentType: "hybridComplete",
+      maxRecommendations: input.contents.length,
+    });
 
   // 테넌트 컨텍스트 및 권한 확인
   const tenant = await requireTenantContext();
@@ -309,6 +318,17 @@ async function _generateHybridPlanComplete(
 
   // 에러 처리 (withErrorHandlingSafe 래핑 결과)
   if (!frameworkResult.success) {
+    // 에러 메트릭스 로깅
+    logRecommendationError(
+      "generateHybridPlanComplete",
+      extractErrorMessage(frameworkResult.error),
+      {
+        studentId: input.student.id,
+        strategy: "recommend",
+        stage: "ai_framework",
+      }
+    );
+
     return {
       success: false,
       error: extractErrorMessage(frameworkResult.error),
@@ -370,7 +390,31 @@ async function _generateHybridPlanComplete(
     };
   }
 
-  // Phase 4: 성공 결과 반환
+  // Phase 4: 성공 메트릭스 로깅
+  metricsBuilder
+    .setContext({ tenantId: tenant.tenantId })
+    .setTokenUsage({
+      inputTokens: frameworkResult.tokensUsed?.input ?? 0,
+      outputTokens: frameworkResult.tokensUsed?.output ?? 0,
+      totalTokens: (frameworkResult.tokensUsed?.input ?? 0) + (frameworkResult.tokensUsed?.output ?? 0),
+    })
+    .setCost({
+      estimatedUSD: 0, // 상위 레벨에서 집계
+      modelTier: input.modelTier || "standard",
+    })
+    .setRecommendation({
+      count: planResult.count ?? 0,
+      strategy: "recommend",
+      usedFallback: false,
+    })
+    .setWebSearch({
+      enabled: input.enableWebSearch ?? false,
+      queriesCount: frameworkResult.webSearchResults?.searchQueries.length ?? 0,
+      resultsCount: frameworkResult.webSearchResults?.resultsCount ?? 0,
+    })
+    .log();
+
+  // Phase 5: 성공 결과 반환
   return {
     success: true,
     planCount: planResult.count,

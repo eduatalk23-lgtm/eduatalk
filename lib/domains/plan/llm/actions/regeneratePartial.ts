@@ -7,6 +7,7 @@
 "use server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { createMessage, estimateCost } from "../client";
+import { MetricsBuilder, logRecommendationError } from "../metrics";
 import {
   PARTIAL_REGENERATION_SYSTEM_PROMPT,
   buildPartialRegenerationPrompt,
@@ -104,6 +105,13 @@ function parsePartialResponse(
 export async function regeneratePartialPlan(
   input: PartialRegenerateInput
 ): Promise<PartialRegenerateResult> {
+  // 메트릭스 빌더 초기화
+  const metricsBuilder = MetricsBuilder.create("regeneratePartial")
+    .setRequestParams({
+      contentType: input.scope.type,
+      maxRecommendations: input.existingPlans.length,
+    });
+
   try {
     // 인증 확인
     const user = await getCurrentUser();
@@ -151,6 +159,24 @@ export async function regeneratePartialPlan(
       modelTier
     );
 
+    // 성공 메트릭스 로깅
+    metricsBuilder
+      .setTokenUsage({
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+        totalTokens: result.usage.inputTokens + result.usage.outputTokens,
+      })
+      .setCost({
+        estimatedUSD,
+        modelTier,
+      })
+      .setRecommendation({
+        count: parsed.regeneratedPlans.length,
+        strategy: "recommend",
+        usedFallback: false,
+      })
+      .log();
+
     return {
       success: true,
       regeneratedPlans: parsed.regeneratedPlans,
@@ -165,6 +191,17 @@ export async function regeneratePartialPlan(
     };
   } catch (error) {
     console.error("Partial regeneration error:", error);
+
+    // 에러 메트릭스 로깅
+    logRecommendationError(
+      "regeneratePartial",
+      error instanceof Error ? error : String(error),
+      {
+        strategy: "recommend",
+        stage: "regeneration",
+      }
+    );
+
     return {
       success: false,
       error:

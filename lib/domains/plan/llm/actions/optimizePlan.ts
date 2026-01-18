@@ -18,6 +18,7 @@ import {
 } from "@/lib/cache/memoryCache";
 
 import { createMessage, extractJSON, estimateCost } from "../client";
+import { MetricsBuilder, logCacheHit, logRecommendationError } from "../metrics";
 import {
   PLAN_OPTIMIZATION_SYSTEM_PROMPT,
   buildPlanOptimizationPrompt,
@@ -466,6 +467,13 @@ function calculateIncompletePattern(
 export async function analyzePlanEfficiency(
   input: OptimizePlanInput
 ): Promise<OptimizePlanResult> {
+  // 메트릭스 빌더 초기화
+  const metricsBuilder = MetricsBuilder.create("optimizePlan")
+    .setContext({ studentId: input.studentId })
+    .setRequestParams({
+      focusArea: input.planGroupId ? "specific_group" : "all",
+    });
+
   const supabase = await createSupabaseServerClient();
   const user = await getCurrentUser();
 
@@ -480,6 +488,13 @@ export async function analyzePlanEfficiency(
   const cachedData = await getCachedOptimization(input.studentId, analysisDays);
   if (cachedData) {
     logActionDebug("optimizePlan.analyzePlanEfficiency", "캐시 히트");
+
+    // 캐시 히트 메트릭스 로깅
+    logCacheHit("optimizePlan", {
+      count: 1,
+      studentId: input.studentId,
+    });
+
     return { success: true, data: cachedData };
   }
 
@@ -577,12 +592,42 @@ export async function analyzePlanEfficiency(
     await cacheOptimization(input.studentId, analysisDays, resultData);
     logActionDebug("optimizePlan.analyzePlanEfficiency", "결과 캐시 저장 완료");
 
+    // 성공 메트릭스 로깅
+    metricsBuilder
+      .setTokenUsage({
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+        totalTokens: result.usage.inputTokens + result.usage.outputTokens,
+      })
+      .setCost({
+        estimatedUSD: estimatedCost,
+        modelTier,
+      })
+      .setRecommendation({
+        count: 1, // 분석 결과 1개
+        strategy: "recommend",
+        usedFallback: false,
+      })
+      .log();
+
     return {
       success: true,
       data: resultData,
     };
   } catch (error) {
     logActionError("optimizePlan.analyzePlanEfficiency", `오류: ${error instanceof Error ? error.message : String(error)}`);
+
+    // 에러 메트릭스 로깅
+    logRecommendationError(
+      "optimizePlan",
+      error instanceof Error ? error : String(error),
+      {
+        studentId: input.studentId,
+        strategy: "recommend",
+        stage: "analysis",
+      }
+    );
+
     return {
       success: false,
       error:

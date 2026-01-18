@@ -18,6 +18,7 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { AppError, ErrorCode, withErrorHandlingSafe } from "@/lib/errors";
 import { getModelConfig, createMessage } from "../client";
+import { MetricsBuilder, logRecommendationError } from "../metrics";
 import {
   FRAMEWORK_SYSTEM_PROMPT,
   buildFrameworkUserPrompt,
@@ -134,6 +135,14 @@ async function _generateAIFramework(
   input: GenerateFrameworkInput
 ): Promise<GenerateFrameworkResult> {
   const startTime = Date.now();
+
+  // 메트릭스 빌더 초기화
+  const metricsBuilder = MetricsBuilder.create("generateHybridPlan")
+    .setContext({ studentId: input.student.id })
+    .setRequestParams({
+      contentType: "hybrid",
+      maxRecommendations: input.contents.length,
+    });
 
   // 권한 확인
   const user = await getCurrentUser();
@@ -260,6 +269,29 @@ async function _generateAIFramework(
       };
     }
 
+    // 성공 메트릭스 로깅
+    metricsBuilder
+      .setTokenUsage({
+        inputTokens: response.usage.inputTokens,
+        outputTokens: response.usage.outputTokens,
+        totalTokens: response.usage.inputTokens + response.usage.outputTokens,
+      })
+      .setCost({
+        estimatedUSD: 0, // estimateCost 미사용 (별도 처리)
+        modelTier,
+      })
+      .setRecommendation({
+        count: input.contents.length,
+        strategy: "recommend",
+        usedFallback: false,
+      })
+      .setWebSearch({
+        enabled: input.enableWebSearch ?? false,
+        queriesCount: webSearchResults?.searchQueries.length ?? 0,
+        resultsCount: webSearchResults?.resultsCount ?? 0,
+      })
+      .log();
+
     return {
       success: true,
       framework,
@@ -275,6 +307,17 @@ async function _generateAIFramework(
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "프레임워크 생성 실패";
+
+    // 에러 메트릭스 로깅
+    logRecommendationError(
+      "generateHybridPlan",
+      error instanceof Error ? error : String(error),
+      {
+        studentId: input.student.id,
+        strategy: "recommend",
+        stage: "ai_framework",
+      }
+    );
 
     if (error instanceof AppError) {
       throw error;

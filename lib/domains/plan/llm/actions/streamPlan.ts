@@ -9,6 +9,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getModelConfig, streamMessage, estimateCost, type WebSearchResult } from "../client";
+import { MetricsBuilder, logRecommendationError } from "../metrics";
 import { SYSTEM_PROMPT, buildUserPrompt } from "../prompts/planGeneration";
 import { parseLLMResponse } from "../transformers/responseParser";
 import type { ModelTier, LLMPlanGenerationResponse } from "../types";
@@ -130,6 +131,13 @@ async function fetchContentsData(
 export async function* streamPlanGeneration(
   input: StreamPlanInput
 ): AsyncGenerator<StreamEvent, void, unknown> {
+  // 메트릭스 빌더 초기화
+  const metricsBuilder = MetricsBuilder.create("streamPlan")
+    .setRequestParams({
+      contentType: input.planningMode,
+      maxRecommendations: input.contentIds.length,
+    });
+
   // 시작 이벤트
   yield {
     type: "start",
@@ -327,6 +335,39 @@ export async function* streamPlanGeneration(
         }
       : undefined;
 
+    // 플랜 수 계산
+    let planCount = 0;
+    if (parseResult.response?.weeklyMatrices) {
+      for (const matrix of parseResult.response.weeklyMatrices) {
+        for (const day of matrix.days) {
+          planCount += day.plans.length;
+        }
+      }
+    }
+
+    // 성공 메트릭스 로깅
+    metricsBuilder
+      .setTokenUsage({
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+        totalTokens: result.usage.inputTokens + result.usage.outputTokens,
+      })
+      .setCost({
+        estimatedUSD,
+        modelTier: input.modelTier || "standard",
+      })
+      .setRecommendation({
+        count: planCount,
+        strategy: "recommend",
+        usedFallback: false,
+      })
+      .setWebSearch({
+        enabled: input.enableWebSearch ?? false,
+        queriesCount: webSearchResults?.searchQueries.length ?? 0,
+        resultsCount: webSearchResults?.resultsCount ?? 0,
+      })
+      .log();
+
     // 완료 이벤트
     yield {
       type: "complete",
@@ -342,6 +383,17 @@ export async function* streamPlanGeneration(
     };
   } catch (error) {
     console.error("Stream plan generation error:", error);
+
+    // 에러 메트릭스 로깅
+    logRecommendationError(
+      "streamPlan",
+      error instanceof Error ? error : String(error),
+      {
+        strategy: "recommend",
+        stage: "streaming",
+      }
+    );
+
     yield {
       type: "error",
       data: {

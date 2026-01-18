@@ -15,11 +15,19 @@ export type RecommendationStrategy = "cache" | "recommend" | "coldStart" | "enha
  * 메트릭스 소스 (어떤 액션에서 발생했는지)
  */
 export type MetricsSource =
+  // 콘텐츠 추천
   | "recommendContent"
   | "unifiedContentRecommendation"
   | "coldStartPipeline"
   | "enhancedRecommendContent"
-  | "generatePlan";
+  // 플랜 생성
+  | "generatePlan"
+  | "streamPlan"
+  | "generateHybridPlan"
+  | "generateHybridPlanComplete"
+  | "regeneratePartial"
+  | "optimizePlan"
+  | "searchContent";
 
 /**
  * LLM 토큰 사용량
