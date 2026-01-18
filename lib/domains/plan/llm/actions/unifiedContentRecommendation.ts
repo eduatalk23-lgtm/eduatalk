@@ -27,6 +27,14 @@ import {
   type RecommendationItem,
 } from "./coldStart";
 
+import {
+  recommendContentWithAI,
+  type RecommendContentInput,
+  type RecommendContentResult,
+} from "./recommendContent";
+
+import type { RecommendedContentResult } from "../prompts/contentRecommendation";
+
 import type { ChapterInfo } from "../services/contentStructureUtils";
 
 // ============================================
@@ -202,6 +210,27 @@ function mapColdStartToRecommended(
   };
 }
 
+/**
+ * RecommendedContentResult(AI 추천)을 RecommendedContent로 변환
+ */
+function mapAIRecommendToRecommended(
+  item: RecommendedContentResult
+): RecommendedContent {
+  // priority를 matchScore로 변환 (priority 1 = 100점, 5 = 20점)
+  const matchScore = Math.max(0, 120 - item.priority * 20);
+
+  return {
+    id: item.contentId,
+    title: item.title,
+    contentType: item.contentType,
+    totalRange: null, // AI 추천 결과에는 totalRange가 없음 (필요 시 별도 조회)
+    matchScore,
+    reason: item.reason,
+    difficultyLevel: item.difficultyFit >= 4 ? "적합" : item.difficultyFit >= 2 ? "보통" : "부적합",
+    source: "recommend",
+  };
+}
+
 // ============================================
 // 메인 액션
 // ============================================
@@ -337,13 +366,12 @@ export async function getUnifiedContentRecommendation(
       const dataAvailability = await checkStudentDataAvailability(studentId);
 
       if (dataAvailability.hasScores && dataAvailability.hasLearningHistory) {
-        // 충분한 데이터 → 기존 추천 시스템 사용 가능
-        // TODO: recommendContentWithAI 연동 (현재는 콜드 스타트로 fallback)
+        // 충분한 데이터 → AI 추천 시스템 사용
         logActionDebug(
           "unifiedRecommend",
-          "학생 데이터 있음 (현재 콜드 스타트로 처리)"
+          "학생 데이터 충분 → AI 추천 사용"
         );
-        strategy = "coldStart";
+        strategy = "recommend";
       } else {
         logActionDebug("unifiedRecommend", "학생 데이터 부족 → 콜드 스타트");
         strategy = "coldStart";
@@ -356,11 +384,71 @@ export async function getUnifiedContentRecommendation(
       strategy = "coldStart";
     }
 
+    const neededCount = maxResults - stats.fromCache;
+
     // ────────────────────────────────────────────────────────────────────
-    // Step 3: 콜드 스타트 실행
+    // Step 3a: AI 추천 실행 (학생 데이터 충분 시)
     // ────────────────────────────────────────────────────────────────────
 
-    const neededCount = maxResults - stats.fromCache;
+    if (strategy === "recommend" && studentId) {
+      logActionDebug("unifiedRecommend", `AI 추천 실행 (최대 ${neededCount}개)`);
+
+      const aiResult = await recommendContentWithAI({
+        studentId,
+        subjectCategories: [subjectCategory],
+        maxRecommendations: neededCount,
+        focusArea: "all_subjects",
+        modelTier: "fast",
+        enableWebSearch: false, // 콜드 스타트와 중복 방지
+      });
+
+      if (aiResult.success && aiResult.data?.recommendations.length) {
+        logActionDebug(
+          "unifiedRecommend",
+          `AI 추천 성공: ${aiResult.data.recommendations.length}개`
+        );
+
+        const recommendations: RecommendedContent[] =
+          aiResult.data.recommendations.map(mapAIRecommendToRecommended);
+
+        // 캐시 결과와 병합
+        if (stats.fromCache > 0) {
+          const existingContent = await webContentService.findExistingWebContent(
+            tenantId,
+            {
+              subjectCategory,
+              subject,
+              difficulty: difficultyLevel,
+              hasStructure: true,
+              includeSharedCatalog: true,
+              limit: stats.fromCache,
+            }
+          );
+          recommendations.unshift(...existingContent.map(mapExistingToRecommended));
+        }
+
+        return {
+          success: true,
+          strategy: "recommend",
+          recommendations: recommendations.slice(0, maxResults),
+          stats: {
+            ...stats,
+            fromWebSearch: aiResult.data.recommendations.length,
+          },
+        };
+      }
+
+      // AI 추천 실패 시 콜드 스타트로 폴백
+      logActionDebug(
+        "unifiedRecommend",
+        `AI 추천 실패, 콜드 스타트로 폴백: ${aiResult.error}`
+      );
+      strategy = "coldStart";
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // Step 3b: 콜드 스타트 실행
+    // ────────────────────────────────────────────────────────────────────
 
     const coldStartResult = await runColdStartPipeline(
       {
