@@ -16,6 +16,11 @@ import {
   llmRecommendationCache,
   createCacheKey,
 } from "@/lib/cache/memoryCache";
+import {
+  MetricsBuilder,
+  logCacheHit,
+  logRecommendationError,
+} from "../metrics";
 
 import { createMessage, extractJSON, estimateCost, type GroundingMetadata } from "../client";
 import { getWebSearchContentService } from "../services/webSearchContentService";
@@ -126,12 +131,27 @@ export interface RecommendContentResult {
 export async function recommendContentWithAI(
   input: RecommendContentInput
 ): Promise<RecommendContentResult> {
+  // 메트릭스 빌더 초기화
+  const metricsBuilder = MetricsBuilder.create("recommendContent")
+    .setContext({ studentId: input.studentId })
+    .setRequestParams({
+      subjectCategory: input.subjectCategories?.[0],
+      maxRecommendations: input.maxRecommendations,
+      focusArea: input.focusArea,
+    });
+
   const supabase = await createSupabaseServerClient();
   const user = await getCurrentUser();
 
   if (!user) {
     return { success: false, error: "로그인이 필요합니다." };
   }
+
+  // 메트릭스에 userId 추가
+  metricsBuilder.setContext({
+    studentId: input.studentId,
+    userId: user.userId,
+  });
 
   // 관리자 권한 확인 (선택적)
   // const role = await getCurrentUserRole();
@@ -146,6 +166,13 @@ export async function recommendContentWithAI(
   );
   if (cachedData) {
     logActionDebug("recommendContent", "캐시 히트");
+
+    // 캐시 히트 메트릭스 로깅
+    logCacheHit("recommendContent", {
+      count: cachedData.recommendations?.length ?? 0,
+      studentId: input.studentId,
+    });
+
     return { success: true, data: cachedData };
   }
 
@@ -309,12 +336,48 @@ export async function recommendContentWithAI(
     await cacheRecommendations(input.studentId, input.focusArea, resultData);
     logActionDebug("recommendContent", "결과 캐시 저장 완료");
 
+    // 성공 메트릭스 로깅
+    metricsBuilder
+      .setTokenUsage({
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+        totalTokens: result.usage.inputTokens + result.usage.outputTokens,
+      })
+      .setCost({
+        estimatedUSD: estimatedCost,
+        modelTier,
+      })
+      .setRecommendation({
+        count: validRecommendations.length,
+        strategy: "recommend",
+        usedFallback: false,
+      })
+      .setWebSearch({
+        enabled: input.enableWebSearch ?? false,
+        queriesCount: webSearchResults?.searchQueries.length ?? 0,
+        resultsCount: webSearchResults?.resultsCount ?? 0,
+        savedCount: webSearchResults?.savedCount,
+      })
+      .log();
+
     return {
       success: true,
       data: resultData,
     };
   } catch (error) {
     logActionError("recommendContent", `오류: ${error instanceof Error ? error.message : String(error)}`);
+
+    // 에러 메트릭스 로깅
+    logRecommendationError(
+      "recommendContent",
+      error instanceof Error ? error : String(error),
+      {
+        studentId: input.studentId,
+        strategy: "recommend",
+        stage: "execution",
+      }
+    );
+
     return {
       success: false,
       error: error instanceof Error ? error.message : "추천 생성 중 오류가 발생했습니다.",
