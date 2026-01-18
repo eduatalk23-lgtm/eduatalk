@@ -33,15 +33,16 @@ import {
   type ContentCompletionHistory,
 } from "../prompts/enhancedContentRecommendation";
 
-import type {
-  StudentProfile,
-  SubjectScoreInfo,
-  LearningPatternInfo,
-  OwnedContentInfo,
-  ContentCandidate,
-} from "../prompts/contentRecommendation";
-
 import type { ModelTier } from "../types";
+
+import {
+  loadStudentProfile,
+  loadScoreInfo,
+  loadLearningPattern,
+  loadOwnedContents,
+  loadCandidateContents,
+  type SupabaseClient,
+} from "../loaders";
 
 // ============================================
 // 타입 정의
@@ -83,133 +84,11 @@ export interface EnhancedRecommendContentResult {
 }
 
 // ============================================
-// 데이터 로드 함수
+// 향상된 데이터 로드 함수 (고유)
 // ============================================
 
-async function loadStudentProfile(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  studentId: string
-): Promise<StudentProfile | null> {
-  const { data: student } = await supabase
-    .from("students")
-    .select("id, name, grade, school_name, target_university, target_major")
-    .eq("id", studentId)
-    .single();
-
-  if (!student) return null;
-
-  return {
-    id: student.id,
-    name: student.name,
-    grade: student.grade,
-    school: student.school_name ?? undefined,
-    targetUniversity: student.target_university ?? undefined,
-    targetMajor: student.target_major ?? undefined,
-  };
-}
-
-async function loadScoreInfo(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  studentId: string
-): Promise<SubjectScoreInfo[]> {
-  const { data: scores } = await supabase
-    .from("scores")
-    .select(`
-      id,
-      subject,
-      subject_category,
-      grade,
-      percentile,
-      score_type,
-      created_at
-    `)
-    .eq("student_id", studentId)
-    .order("created_at", { ascending: false })
-    .limit(50);
-
-  if (!scores || scores.length === 0) return [];
-
-  const subjectMap = new Map<string, SubjectScoreInfo>();
-
-  scores.forEach((score) => {
-    const key = `${score.subject_category}-${score.subject}`;
-
-    if (!subjectMap.has(key)) {
-      subjectMap.set(key, {
-        subjectId: score.id,
-        subject: score.subject,
-        subjectCategory: score.subject_category,
-        latestGrade: score.grade ?? undefined,
-        latestPercentile: score.percentile ?? undefined,
-      });
-    }
-  });
-
-  // 위험도 분석 데이터
-  const { data: riskData } = await supabase
-    .from("student_risk_analysis")
-    .select("subject, risk_score, recent_grade_trend")
-    .eq("student_id", studentId);
-
-  if (riskData) {
-    riskData.forEach((risk) => {
-      subjectMap.forEach((info, key) => {
-        if (info.subject === risk.subject || key.includes(risk.subject)) {
-          info.riskScore = risk.risk_score ?? undefined;
-          info.recentTrend = risk.recent_grade_trend > 0
-            ? "improving"
-            : risk.recent_grade_trend < 0
-              ? "declining"
-              : "stable";
-          info.isWeak = (risk.risk_score ?? 0) >= 60;
-        }
-      });
-    });
-  }
-
-  return Array.from(subjectMap.values());
-}
-
-async function loadLearningPattern(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  studentId: string
-): Promise<LearningPatternInfo | undefined> {
-  const { data: pattern } = await supabase
-    .from("student_learning_patterns")
-    .select("preferred_study_times, strong_days, weak_days")
-    .eq("student_id", studentId)
-    .single();
-
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-  const { data: plans } = await supabase
-    .from("student_plan")
-    .select("status, progress, estimated_minutes")
-    .eq("student_id", studentId)
-    .gte("plan_date", thirtyDaysAgo.toISOString().split("T")[0]);
-
-  if (!plans || plans.length === 0) {
-    return pattern
-      ? { preferredStudyTimes: pattern.preferred_study_times ?? undefined }
-      : undefined;
-  }
-
-  const completed = plans.filter((p) => p.status === "completed").length;
-  const completionRate = Math.round((completed / plans.length) * 100);
-  const avgMinutes = Math.round(
-    plans.reduce((sum, p) => sum + (p.estimated_minutes || 0), 0) / 30
-  );
-
-  return {
-    preferredStudyTimes: pattern?.preferred_study_times ?? undefined,
-    averageDailyMinutes: avgMinutes,
-    completionRate,
-  };
-}
-
 async function loadLearningVelocity(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  supabase: SupabaseClient,
   studentId: string
 ): Promise<LearningVelocity | undefined> {
   // 최근 30일 학습 속도 계산
@@ -250,7 +129,7 @@ async function loadLearningVelocity(
 }
 
 async function loadExams(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  supabase: SupabaseClient,
   studentId: string
 ): Promise<ExamInfo[]> {
   const today = new Date().toISOString().split("T")[0];
@@ -277,7 +156,7 @@ async function loadExams(
 }
 
 async function loadCompletionHistory(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  supabase: SupabaseClient,
   studentId: string
 ): Promise<ContentCompletionHistory[]> {
   // 최근 3개월 내 완료한 콘텐츠
@@ -315,139 +194,6 @@ async function loadCompletionHistory(
       difficulty: "medium" as const,
     };
   });
-}
-
-async function loadOwnedContents(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  studentId: string
-): Promise<OwnedContentInfo[]> {
-  const { data: books } = await supabase
-    .from("student_books")
-    .select(`id, title, subject, subject_group_name, completed_pages, total_pages`)
-    .eq("student_id", studentId);
-
-  const { data: lectures } = await supabase
-    .from("student_lectures")
-    .select(`id, title, subject, subject_group_name, completed_episodes, total_episodes`)
-    .eq("student_id", studentId);
-
-  const contents: OwnedContentInfo[] = [];
-
-  if (books) {
-    books.forEach((b) => {
-      const completedPercentage = b.total_pages && b.completed_pages
-        ? Math.round((b.completed_pages / b.total_pages) * 100)
-        : undefined;
-
-      contents.push({
-        id: b.id,
-        title: b.title,
-        subject: b.subject ?? "",
-        subjectCategory: b.subject_group_name ?? "",
-        contentType: "book",
-        completedPercentage,
-      });
-    });
-  }
-
-  if (lectures) {
-    lectures.forEach((l) => {
-      const completedPercentage = l.total_episodes && l.completed_episodes
-        ? Math.round((l.completed_episodes / l.total_episodes) * 100)
-        : undefined;
-
-      contents.push({
-        id: l.id,
-        title: l.title,
-        subject: l.subject ?? "",
-        subjectCategory: l.subject_group_name ?? "",
-        contentType: "lecture",
-        completedPercentage,
-      });
-    });
-  }
-
-  return contents;
-}
-
-async function loadCandidateContents(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  subjectCategories?: string[],
-  limit: number = 50
-): Promise<ContentCandidate[]> {
-  // master_books와 master_lectures에서 각각 조회 후 병합
-  const halfLimit = Math.ceil(limit / 2);
-
-  // 책 조회
-  let booksQuery = supabase
-    .from("master_books")
-    .select(`
-      id,
-      title,
-      subject,
-      subject_category,
-      difficulty_level,
-      publisher_name,
-      total_pages,
-      description
-    `)
-    .eq("is_active", true)
-    .limit(halfLimit);
-
-  if (subjectCategories && subjectCategories.length > 0) {
-    booksQuery = booksQuery.in("subject_category", subjectCategories);
-  }
-
-  // 강의 조회
-  let lecturesQuery = supabase
-    .from("master_lectures")
-    .select(`
-      id,
-      title,
-      subject,
-      subject_category,
-      difficulty_level,
-      platform,
-      total_episodes,
-      notes
-    `)
-    .eq("is_active", true)
-    .limit(halfLimit);
-
-  if (subjectCategories && subjectCategories.length > 0) {
-    lecturesQuery = lecturesQuery.in("subject_category", subjectCategories);
-  }
-
-  const [{ data: books }, { data: lectures }] = await Promise.all([
-    booksQuery,
-    lecturesQuery,
-  ]);
-
-  const bookContents: ContentCandidate[] = (books || []).map((b) => ({
-    id: b.id,
-    title: b.title,
-    subject: b.subject ?? "",
-    subjectCategory: b.subject_category ?? "",
-    contentType: "book" as const,
-    difficulty: b.difficulty_level as "easy" | "medium" | "hard" | undefined,
-    publisher: b.publisher_name ?? undefined,
-    description: b.description ?? undefined,
-    totalPages: b.total_pages ?? undefined,
-  }));
-
-  const lectureContents: ContentCandidate[] = (lectures || []).map((l) => ({
-    id: l.id,
-    title: l.title,
-    subject: l.subject ?? "",
-    subjectCategory: l.subject_category ?? "",
-    contentType: "lecture" as const,
-    difficulty: l.difficulty_level as "easy" | "medium" | "hard" | undefined,
-    platform: l.platform ?? undefined,
-    description: l.notes ?? undefined,
-    totalLectures: l.total_episodes ?? undefined,
-  }));
-
-  return [...bookContents, ...lectureContents];
 }
 
 // ============================================
