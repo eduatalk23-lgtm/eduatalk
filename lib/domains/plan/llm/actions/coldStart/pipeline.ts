@@ -70,7 +70,22 @@ import { parseSearchResults } from "./parseResults";
 import { rankAndFilterResults } from "./rankResults";
 import { saveRecommendationsToMasterContent } from "./persistence";
 import { MetricsBuilder, logRecommendationError } from "../../metrics";
+import { logActionWarn } from "@/lib/utils/serverActionLogger";
 import { getWebSearchContentService } from "../../services";
+
+/**
+ * Rate limit 관련 에러인지 확인
+ */
+function isRateLimitError(error: string): boolean {
+  const lowerError = error.toLowerCase();
+  return (
+    lowerError.includes("429") ||
+    lowerError.includes("quota") ||
+    lowerError.includes("rate limit") ||
+    lowerError.includes("한도") ||
+    lowerError.includes("too many requests")
+  );
+}
 
 /**
  * 파이프라인 옵션
@@ -87,6 +102,9 @@ export interface ColdStartPipelineOptions {
 
   /** 테넌트 ID (null = 공유 카탈로그) */
   tenantId?: string | null;
+
+  /** Rate limit 시 DB 캐시 fallback 사용 (기본: true) */
+  enableFallback?: boolean;
 }
 
 /**
@@ -150,6 +168,7 @@ export async function runColdStartPipeline(
     useMock = false,
     saveToDb = false,
     tenantId,
+    enableFallback = true,
   } = options ?? {};
 
   // ────────────────────────────────────────────────────────────────────
@@ -187,7 +206,83 @@ export async function runColdStartPipeline(
     ? getMockSearchResult(searchQuery)
     : await executeWebSearch(searchQuery);
 
+  // Rate limit 발생 시 DB 캐시 fallback 시도
   if (!searchResult.success) {
+    const isRateLimit = isRateLimitError(searchResult.error);
+
+    // Rate limit이고 fallback이 활성화된 경우 DB에서 기존 콘텐츠 조회
+    if (isRateLimit && enableFallback) {
+      logActionWarn(
+        "coldStartPipeline",
+        `Rate limit 발생, DB fallback 시도: ${searchResult.error}`
+      );
+
+      const webContentService = getWebSearchContentService();
+      const cachedContent = await webContentService.findExistingWebContent(
+        tenantId ?? null,
+        {
+          subjectCategory: validatedInput.subjectCategory,
+          subject: validatedInput.subject ?? undefined,
+          difficulty: validatedInput.difficulty ?? undefined,
+          contentType: validatedInput.contentType ?? "all",
+          includeSharedCatalog: true,
+          limit: 10,
+        }
+      );
+
+      if (cachedContent.length > 0) {
+        logActionWarn(
+          "coldStartPipeline",
+          `DB fallback 성공: ${cachedContent.length}개 캐시된 콘텐츠 반환`
+        );
+
+        // 캐시된 콘텐츠를 RecommendationItem 형태로 변환
+        const fallbackRecommendations = cachedContent.map((item, index) => ({
+          title: item.title,
+          contentType: item.contentType,
+          totalRange: item.totalRange ?? 0,
+          author: undefined,
+          publisher: undefined,
+          reason: "이전에 저장된 추천 콘텐츠입니다.",
+          matchScore: 70 - index * 5, // 순서대로 점수 감소
+          rank: index + 1,
+          chapters: [],
+        }));
+
+        // 메트릭스 로깅 (fallback 사용)
+        metricsBuilder
+          .setRecommendation({
+            count: fallbackRecommendations.length,
+            strategy: "coldStart",
+            usedFallback: true,
+          })
+          .setWebSearch({
+            enabled: !useMock,
+            queriesCount: 1,
+            resultsCount: 0,
+            rateLimitHit: true,
+          })
+          .log();
+
+        return {
+          success: true,
+          recommendations: fallbackRecommendations,
+          stats: {
+            totalFound: cachedContent.length,
+            filtered: 0,
+            searchQuery: searchQuery.query,
+            usedFallback: true,
+          },
+        };
+      }
+
+      // fallback도 실패한 경우
+      logActionWarn(
+        "coldStartPipeline",
+        "DB fallback 실패: 캐시된 콘텐츠 없음"
+      );
+    }
+
     logRecommendationError("coldStartPipeline", searchResult.error, {
       stage: "search",
       strategy: "coldStart",

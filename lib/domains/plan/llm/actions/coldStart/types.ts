@@ -298,6 +298,8 @@ export type ColdStartPipelineResult =
         totalFound: number;
         filtered: number;
         searchQuery: string;
+        /** Rate limit 시 DB fallback을 사용했는지 */
+        usedFallback?: boolean;
       };
       /** DB 저장 통계 (saveToDb 옵션 사용 시에만 포함) */
       persistence?: PersistenceStats;

@@ -65,6 +65,8 @@ export interface WebSearchMetrics {
   resultsCount: number;
   /** DB에 저장된 결과 수 */
   savedCount?: number;
+  /** Rate limit 발생 여부 */
+  rateLimitHit?: boolean;
 }
 
 /**

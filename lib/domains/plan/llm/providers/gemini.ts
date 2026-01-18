@@ -147,6 +147,150 @@ class GeminiRateLimiter {
 const geminiRateLimiter = new GeminiRateLimiter(4000);
 
 // ============================================
+// Gemini API 일일 할당량 트래커
+// ============================================
+
+/**
+ * Gemini API 일일 할당량 추적
+ *
+ * Free Tier 기준: 일일 20 요청 제한
+ * Pay-as-you-go: 제한 없음 (비용 기반)
+ */
+class GeminiQuotaTracker {
+  private dailyRequestCount: number = 0;
+  private lastResetDate: string = "";
+  private rateLimitHitCount: number = 0;
+  private lastRateLimitTime: number = 0;
+
+  /** Free Tier 일일 할당량 (기본값) */
+  private readonly dailyQuota: number;
+
+  /** 할당량 경고 임계값 (%) */
+  private readonly warningThreshold: number;
+
+  constructor(dailyQuota: number = 20, warningThreshold: number = 80) {
+    this.dailyQuota = dailyQuota;
+    this.warningThreshold = warningThreshold;
+    this.resetIfNewDay();
+  }
+
+  /**
+   * 날짜가 바뀌면 카운터 리셋
+   */
+  private resetIfNewDay(): void {
+    const today = new Date().toISOString().split("T")[0];
+    if (this.lastResetDate !== today) {
+      this.dailyRequestCount = 0;
+      this.rateLimitHitCount = 0;
+      this.lastResetDate = today;
+    }
+  }
+
+  /**
+   * API 요청 기록
+   */
+  recordRequest(): void {
+    this.resetIfNewDay();
+    this.dailyRequestCount++;
+
+    // 경고 임계값 도달 시 로그
+    const usagePercent = (this.dailyRequestCount / this.dailyQuota) * 100;
+    if (usagePercent >= this.warningThreshold && usagePercent < 100) {
+      logActionWarn(
+        "GeminiQuotaTracker",
+        `일일 할당량 ${usagePercent.toFixed(0)}% 사용 (${this.dailyRequestCount}/${this.dailyQuota})`
+      );
+    } else if (usagePercent >= 100) {
+      logActionWarn(
+        "GeminiQuotaTracker",
+        `⚠️ 일일 할당량 초과! (${this.dailyRequestCount}/${this.dailyQuota})`
+      );
+    }
+  }
+
+  /**
+   * Rate limit 에러 기록
+   */
+  recordRateLimitHit(): void {
+    this.resetIfNewDay();
+    this.rateLimitHitCount++;
+    this.lastRateLimitTime = Date.now();
+  }
+
+  /**
+   * 현재 할당량 상태 조회
+   */
+  getQuotaStatus(): GeminiQuotaStatus {
+    this.resetIfNewDay();
+
+    const remaining = Math.max(0, this.dailyQuota - this.dailyRequestCount);
+    const usagePercent = (this.dailyRequestCount / this.dailyQuota) * 100;
+
+    return {
+      dailyQuota: this.dailyQuota,
+      used: this.dailyRequestCount,
+      remaining,
+      usagePercent: Math.round(usagePercent * 100) / 100,
+      isNearLimit: usagePercent >= this.warningThreshold,
+      isExceeded: usagePercent >= 100,
+      rateLimitHits: this.rateLimitHitCount,
+      lastRateLimitTime: this.lastRateLimitTime || undefined,
+      resetDate: this.lastResetDate,
+    };
+  }
+
+  /**
+   * 카운터 수동 리셋 (테스트용)
+   */
+  reset(): void {
+    this.dailyRequestCount = 0;
+    this.rateLimitHitCount = 0;
+    this.lastResetDate = new Date().toISOString().split("T")[0];
+  }
+}
+
+/**
+ * 할당량 상태 타입
+ */
+export interface GeminiQuotaStatus {
+  /** 일일 할당량 */
+  dailyQuota: number;
+  /** 오늘 사용한 요청 수 */
+  used: number;
+  /** 남은 요청 수 */
+  remaining: number;
+  /** 사용률 (%) */
+  usagePercent: number;
+  /** 경고 임계값 도달 여부 */
+  isNearLimit: boolean;
+  /** 할당량 초과 여부 */
+  isExceeded: boolean;
+  /** Rate limit 에러 발생 횟수 (오늘) */
+  rateLimitHits: number;
+  /** 마지막 rate limit 발생 시간 */
+  lastRateLimitTime?: number;
+  /** 리셋 날짜 */
+  resetDate: string;
+}
+
+// 싱글톤 할당량 트래커 인스턴스
+const geminiQuotaTracker = new GeminiQuotaTracker();
+
+/**
+ * Gemini API 할당량 상태 조회
+ */
+export function getGeminiQuotaStatus(): GeminiQuotaStatus {
+  return geminiQuotaTracker.getQuotaStatus();
+}
+
+/**
+ * 할당량 트래커 리셋 (테스트용)
+ */
+export function resetGeminiQuotaTracker(): void {
+  geminiQuotaTracker.reset();
+}
+
+// ============================================
 // GeminiProvider 클래스
 // ============================================
 
@@ -516,6 +660,10 @@ export class GeminiProvider extends BaseLLMProvider {
         const result = await geminiRateLimiter.execute(() =>
           chat.sendMessage(lastMessage.parts)
         );
+
+        // 요청 성공 시 할당량 트래커에 기록
+        geminiQuotaTracker.recordRequest();
+
         const response = result.response;
         const content = response.text();
 
@@ -556,6 +704,9 @@ export class GeminiProvider extends BaseLLMProvider {
 
         // Rate Limit 에러인 경우 재시도
         if (this.isRateLimitError(error) && attempt < maxRetries) {
+          // Rate limit 발생 기록
+          geminiQuotaTracker.recordRateLimitHit();
+
           const delay = this.extractRetryDelay(error, attempt);
           logActionWarn("GeminiProvider.createMessage", `Rate limit 에러 발생. ${delay}ms 후 재시도 (${attempt + 1}/${maxRetries}): ${lastError.message}`);
           await new Promise((resolve) => setTimeout(resolve, delay));
@@ -619,6 +770,9 @@ export class GeminiProvider extends BaseLLMProvider {
           chat.sendMessageStream(lastMessage.parts)
         );
 
+        // 요청 성공 시 할당량 트래커에 기록
+        geminiQuotaTracker.recordRequest();
+
         for await (const chunk of result.stream) {
           const text = chunk.text();
           if (text) {
@@ -665,6 +819,9 @@ export class GeminiProvider extends BaseLLMProvider {
 
         // Rate Limit 에러인 경우 재시도
         if (this.isRateLimitError(error) && attempt < maxRetries) {
+          // Rate limit 발생 기록
+          geminiQuotaTracker.recordRateLimitHit();
+
           const delay = this.extractRetryDelay(error, attempt);
           logActionWarn("GeminiProvider.streamMessage", `Rate limit 에러 발생. ${delay}ms 후 재시도 (${attempt + 1}/${maxRetries}): ${lastError.message}`);
           await new Promise((resolve) => setTimeout(resolve, delay));
