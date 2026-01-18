@@ -64,6 +64,7 @@ export type {
 
   // 파이프라인
   ColdStartPipelineResult,
+  PersistenceStats,
 } from "./types";
 
 // 상수 내보내기
@@ -129,3 +130,22 @@ export {
   runColdStartPipeline,
   type ColdStartPipelineOptions,
 } from "./pipeline";
+
+// ============================================================================
+// DB 영속화 (추천 결과 저장)
+// ============================================================================
+
+export {
+  // 메인 저장 함수
+  saveRecommendationsToMasterContent,
+  // 타입
+  type SaveRecommendationOptions,
+  type SavedContentItem,
+  type SaveRecommendationsResult,
+  type DuplicateCheckResult,
+  // 고급 사용자용
+  mapToBookInsert,
+  mapToLectureInsert,
+  checkBookDuplicate,
+  checkLectureDuplicate,
+} from "./persistence";

@@ -271,6 +271,23 @@ export interface RankResultsResult {
 // ============================================================================
 
 /**
+ * DB 저장 통계 (파이프라인에서 saveToDb 옵션 사용 시)
+ */
+export interface PersistenceStats {
+  /** 새로 저장된 콘텐츠 수 */
+  newlySaved: number;
+
+  /** 중복으로 스킵된 수 */
+  duplicatesSkipped: number;
+
+  /** 저장된 콘텐츠 ID 목록 */
+  savedIds: string[];
+
+  /** 저장 에러 목록 */
+  errors: Array<{ title: string; error: string }>;
+}
+
+/**
  * 콜드 스타트 파이프라인 최종 결과
  */
 export type ColdStartPipelineResult =
@@ -282,10 +299,12 @@ export type ColdStartPipelineResult =
         filtered: number;
         searchQuery: string;
       };
+      /** DB 저장 통계 (saveToDb 옵션 사용 시에만 포함) */
+      persistence?: PersistenceStats;
     }
   | {
       success: false;
       error: string;
       /** 어느 단계에서 실패했는지 */
-      failedAt: "validation" | "query" | "search" | "parse" | "rank";
+      failedAt: "validation" | "query" | "search" | "parse" | "rank" | "persistence";
     };

@@ -14,7 +14,9 @@
  *     ↓ 실패 시 → { success: false, failedAt: "parse" }
  * Task 5: rankAndFilterResults(items, preferences, validatedInput)
  *     ↓ (항상 성공)
- * 성공 → { success: true, recommendations, stats }
+ * Task 6: (선택) saveRecommendationsToMasterContent(recommendations)
+ *     ↓ 실패 시 → 경고만 (파이프라인은 계속 성공)
+ * 성공 → { success: true, recommendations, stats, persistence? }
  *
  * @example
  * // 기본 사용법
@@ -37,12 +39,28 @@
  *   { subjectCategory: "수학" },
  *   { useMock: true }
  * );
+ *
+ * @example
+ * // DB 저장 모드
+ * const result = await runColdStartPipeline(
+ *   { subjectCategory: "수학", subject: "미적분" },
+ *   {
+ *     saveToDb: true,
+ *     tenantId: null,  // 공유 카탈로그
+ *   }
+ * );
+ *
+ * if (result.success && result.persistence) {
+ *   console.log(`새로 저장: ${result.persistence.newlySaved}개`);
+ *   console.log(`중복 스킵: ${result.persistence.duplicatesSkipped}개`);
+ * }
  */
 
 import type {
   ColdStartRawInput,
   UserPreferences,
   ColdStartPipelineResult,
+  PersistenceStats,
 } from "./types";
 
 import { validateColdStartInput } from "./validateInput";
@@ -50,6 +68,7 @@ import { buildSearchQuery } from "./buildQuery";
 import { executeWebSearch, getMockSearchResult } from "./executeSearch";
 import { parseSearchResults } from "./parseResults";
 import { rankAndFilterResults } from "./rankResults";
+import { saveRecommendationsToMasterContent } from "./persistence";
 
 /**
  * 파이프라인 옵션
@@ -60,6 +79,12 @@ export interface ColdStartPipelineOptions {
 
   /** Mock 모드 사용 여부 (기본: false) */
   useMock?: boolean;
+
+  /** DB 저장 여부 (기본: false) */
+  saveToDb?: boolean;
+
+  /** 테넌트 ID (null = 공유 카탈로그) */
+  tenantId?: string | null;
 }
 
 /**
@@ -109,7 +134,12 @@ export async function runColdStartPipeline(
   input: ColdStartRawInput,
   options?: ColdStartPipelineOptions
 ): Promise<ColdStartPipelineResult> {
-  const { preferences = {}, useMock = false } = options ?? {};
+  const {
+    preferences = {},
+    useMock = false,
+    saveToDb = false,
+    tenantId,
+  } = options ?? {};
 
   // ────────────────────────────────────────────────────────────────────
   // Task 1: 입력 검증
@@ -174,6 +204,31 @@ export async function runColdStartPipeline(
   );
 
   // ────────────────────────────────────────────────────────────────────
+  // Task 6: DB 저장 (선택적)
+  // ────────────────────────────────────────────────────────────────────
+
+  let persistence: PersistenceStats | undefined;
+
+  if (saveToDb && rankResult.recommendations.length > 0) {
+    const saveResult = await saveRecommendationsToMasterContent(
+      rankResult.recommendations,
+      {
+        tenantId: tenantId ?? null,
+        subjectCategory: validatedInput.subjectCategory,
+        subject: validatedInput.subject ?? undefined,
+        difficultyLevel: validatedInput.difficulty ?? undefined,
+      }
+    );
+
+    persistence = {
+      newlySaved: saveResult.savedItems.filter((i) => i.isNew).length,
+      duplicatesSkipped: saveResult.skippedDuplicates,
+      savedIds: saveResult.savedItems.map((i) => i.id),
+      errors: saveResult.errors,
+    };
+  }
+
+  // ────────────────────────────────────────────────────────────────────
   // 최종 결과 반환
   // ────────────────────────────────────────────────────────────────────
 
@@ -185,5 +240,6 @@ export async function runColdStartPipeline(
       filtered: rankResult.filtered,
       searchQuery: searchQuery.query,
     },
+    persistence,
   };
 }
