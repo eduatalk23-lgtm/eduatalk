@@ -14,6 +14,12 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { logActionDebug, logActionError } from "@/lib/utils/serverActionLogger";
+import {
+  MetricsBuilder,
+  logCacheHit,
+  logRecommendationFallback,
+  logRecommendationError,
+} from "../metrics";
 
 import { getWebSearchContentService } from "../services/webSearchContentService";
 import type {
@@ -23,15 +29,10 @@ import type {
 
 import {
   runColdStartPipeline,
-  type ColdStartPipelineResult,
   type RecommendationItem,
 } from "./coldStart";
 
-import {
-  recommendContentWithAI,
-  type RecommendContentInput,
-  type RecommendContentResult,
-} from "./recommendContent";
+import { recommendContentWithAI } from "./recommendContent";
 
 import type { RecommendedContentResult } from "../prompts/contentRecommendation";
 
@@ -271,6 +272,9 @@ function mapAIRecommendToRecommended(
 export async function getUnifiedContentRecommendation(
   input: UnifiedRecommendInput
 ): Promise<UnifiedRecommendResult> {
+  // 메트릭스 빌더 초기화 (성능 측정 시작)
+  const metricsBuilder = MetricsBuilder.create("unifiedContentRecommendation");
+
   const user = await getCurrentUser();
 
   if (!user) {
@@ -290,6 +294,11 @@ export async function getUnifiedContentRecommendation(
     saveResults = true,
     studentId,
   } = input;
+
+  // 메트릭스 컨텍스트 설정
+  metricsBuilder
+    .setContext({ studentId, tenantId, userId: user.userId })
+    .setRequestParams({ subjectCategory, subject, contentType, maxRecommendations: maxResults });
 
   // 필수 입력 검증
   if (!tenantId) {
@@ -337,6 +346,13 @@ export async function getUnifiedContentRecommendation(
         );
 
         stats.fromCache = existingContent.length;
+
+        // 캐시 히트 메트릭스 로깅
+        logCacheHit("unifiedContentRecommendation", {
+          count: existingContent.length,
+          studentId,
+          tenantId,
+        });
 
         return {
           success: true,
@@ -443,6 +459,18 @@ export async function getUnifiedContentRecommendation(
         "unifiedRecommend",
         `AI 추천 실패, 콜드 스타트로 폴백: ${aiResult.error}`
       );
+
+      // 폴백 메트릭스 로깅
+      logRecommendationFallback("unifiedContentRecommendation", {
+        originalStrategy: "recommend",
+        fallbackStrategy: "coldStart",
+        fallbackReason: aiResult.error || "AI 추천 결과 없음",
+        count: 0,
+        durationMs: Math.round(performance.now() - metricsBuilder.build().durationMs),
+        studentId,
+        tenantId,
+      });
+
       strategy = "coldStart";
     }
 
@@ -542,6 +570,16 @@ export async function getUnifiedContentRecommendation(
       `완료: ${recommendations.length}개 (캐시: ${stats.fromCache}, 웹검색: ${stats.fromWebSearch}, 저장: ${stats.newlySaved})`
     );
 
+    // 성공 메트릭스 로깅
+    metricsBuilder
+      .setRecommendation({
+        count: recommendations.length,
+        strategy: strategy,
+        usedFallback: false,
+      })
+      .setCache({ hit: stats.fromCache > 0 })
+      .log();
+
     return {
       success: true,
       strategy,
@@ -552,6 +590,13 @@ export async function getUnifiedContentRecommendation(
     logActionError(
       "unifiedRecommend",
       `오류: ${error instanceof Error ? error.message : String(error)}`
+    );
+
+    // 에러 메트릭스 로깅
+    logRecommendationError(
+      "unifiedContentRecommendation",
+      error instanceof Error ? error : String(error),
+      { studentId, tenantId, stage: "execution" }
     );
 
     return {

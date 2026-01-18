@@ -69,6 +69,7 @@ import { executeWebSearch, getMockSearchResult } from "./executeSearch";
 import { parseSearchResults } from "./parseResults";
 import { rankAndFilterResults } from "./rankResults";
 import { saveRecommendationsToMasterContent } from "./persistence";
+import { MetricsBuilder, logRecommendationError } from "../../metrics";
 
 /**
  * 파이프라인 옵션
@@ -134,6 +135,15 @@ export async function runColdStartPipeline(
   input: ColdStartRawInput,
   options?: ColdStartPipelineOptions
 ): Promise<ColdStartPipelineResult> {
+  // 메트릭스 빌더 초기화
+  const metricsBuilder = MetricsBuilder.create("coldStartPipeline")
+    .setContext({ tenantId: options?.tenantId ?? undefined })
+    .setRequestParams({
+      subjectCategory: input.subjectCategory,
+      subject: input.subject,
+      contentType: input.contentType,
+    });
+
   const {
     preferences = {},
     useMock = false,
@@ -148,6 +158,11 @@ export async function runColdStartPipeline(
   const validationResult = validateColdStartInput(input);
 
   if (!validationResult.success) {
+    logRecommendationError("coldStartPipeline", validationResult.error, {
+      stage: "validation",
+      strategy: "coldStart",
+    });
+
     return {
       success: false,
       error: validationResult.error,
@@ -172,6 +187,11 @@ export async function runColdStartPipeline(
     : await executeWebSearch(searchQuery);
 
   if (!searchResult.success) {
+    logRecommendationError("coldStartPipeline", searchResult.error, {
+      stage: "search",
+      strategy: "coldStart",
+    });
+
     return {
       success: false,
       error: searchResult.error,
@@ -186,6 +206,11 @@ export async function runColdStartPipeline(
   const parseResult = parseSearchResults(searchResult.rawContent);
 
   if (!parseResult.success) {
+    logRecommendationError("coldStartPipeline", parseResult.error, {
+      stage: "parse",
+      strategy: "coldStart",
+    });
+
     return {
       success: false,
       error: parseResult.error,
@@ -231,6 +256,21 @@ export async function runColdStartPipeline(
   // ────────────────────────────────────────────────────────────────────
   // 최종 결과 반환
   // ────────────────────────────────────────────────────────────────────
+
+  // 성공 메트릭스 로깅
+  metricsBuilder
+    .setRecommendation({
+      count: rankResult.recommendations.length,
+      strategy: "coldStart",
+      usedFallback: false,
+    })
+    .setWebSearch({
+      enabled: !useMock,
+      queriesCount: 1,
+      resultsCount: rankResult.totalFound,
+      savedCount: persistence?.newlySaved,
+    })
+    .log();
 
   return {
     success: true,
