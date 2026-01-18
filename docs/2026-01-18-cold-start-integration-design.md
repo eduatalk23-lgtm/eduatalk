@@ -1,7 +1,8 @@
 # 콜드 스타트 및 콘텐츠 추천 통합 설계
 
 > 작성일: 2026-01-18
-> 상태: 설계 완료, 구현 대기
+> 최종 업데이트: 2026-01-18
+> 상태: ✅ 구현 완료 (269개 테스트 통과)
 
 ## 1. 현재 시스템 아키텍처
 
@@ -38,7 +39,7 @@
 |--------|------|---------|---------|------|
 | `recommendContent` | 학생 데이터 기반 추천 | ✅ Gemini Grounding | ✅ master_books/lectures | 연결됨 |
 | `enhancedRecommendContent` | 향상된 추천 (시너지, 난이도) | ❌ | ❌ | 연결됨 |
-| `coldStart Pipeline` | 신규 학생/데이터 없을 때 | ✅ Tavily/Gemini | ✅ persistence 모듈 | **미연결** |
+| `coldStart Pipeline` | 신규 학생/데이터 없을 때 | ✅ Tavily/Gemini | ✅ persistence 모듈 | ✅ **연결됨** |
 | `WebSearchContentService` | 웹 검색 결과 관리 | - | ✅ | 부분 연결 |
 
 ### 1.3 콜드 스타트 파이프라인 현황
@@ -61,12 +62,12 @@ lib/domains/plan/llm/actions/coldStart/
     └── saveRecommendations.ts
 ```
 
-**현재 상태:**
-- ✅ 파이프라인 구현 완료 (172개 테스트 통과)
-- ✅ DB 저장 기능 완료
-- ❌ UI 연동 없음
-- ❌ Server Action 없음
-- ❌ API Route 없음
+**현재 상태:** ✅ 구현 완료
+- ✅ 파이프라인 구현 완료 (269개 테스트 통과)
+- ✅ DB 저장 기능 완료 (persistence 모듈)
+- ✅ UI 연동 완료 (WebSearchPanel)
+- ✅ Server Action 완료 (getUnifiedContentRecommendation)
+- ✅ 시나리오 테스트 완료 (scenarios.test.ts)
 
 ---
 
