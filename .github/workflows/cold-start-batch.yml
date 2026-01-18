@@ -1,0 +1,108 @@
+name: Cold Start Batch Processing
+
+on:
+  # 매일 새벽 3시 (KST) = UTC 18:00 실행
+  schedule:
+    - cron: '0 18 * * *'
+
+  # 수동 실행 가능
+  workflow_dispatch:
+    inputs:
+      preset:
+        description: '배치 프리셋'
+        required: true
+        default: 'core'
+        type: choice
+        options:
+          - core
+          - math
+          - english
+          - science
+          - all
+      limit:
+        description: '처리 대상 제한 (0 = 전체)'
+        required: false
+        default: '0'
+        type: string
+      dry_run:
+        description: '드라이런 모드 (실제 API 호출 없음)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+
+jobs:
+  batch:
+    name: Run Cold Start Batch
+    runs-on: ubuntu-latest
+    timeout-minutes: 60  # 최대 1시간
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Cold Start Batch (Scheduled)
+        if: github.event_name == 'schedule'
+        run: |
+          echo "🚀 스케줄 배치 실행: core 프리셋"
+          npx tsx scripts/cold-start-batch.ts core --delay=5000
+        env:
+          NODE_ENV: production
+
+      - name: Run Cold Start Batch (Manual)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          PRESET="${{ github.event.inputs.preset }}"
+          LIMIT="${{ github.event.inputs.limit }}"
+          DRY_RUN="${{ github.event.inputs.dry_run }}"
+
+          echo "🚀 수동 배치 실행"
+          echo "  - 프리셋: $PRESET"
+          echo "  - 제한: $LIMIT"
+          echo "  - 드라이런: $DRY_RUN"
+
+          CMD="npx tsx scripts/cold-start-batch.ts $PRESET --delay=5000"
+
+          if [ "$LIMIT" != "0" ] && [ -n "$LIMIT" ]; then
+            CMD="$CMD --limit=$LIMIT"
+          fi
+
+          if [ "$DRY_RUN" == "true" ]; then
+            CMD="$CMD --dry-run"
+          fi
+
+          echo "실행 명령: $CMD"
+          eval $CMD
+        env:
+          NODE_ENV: production
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Cold Start Batch 완료" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **실행 시간**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "- **트리거**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "- **프리셋**: ${{ github.event.inputs.preset }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **프리셋**: core (스케줄)" >> $GITHUB_STEP_SUMMARY
+          fi
