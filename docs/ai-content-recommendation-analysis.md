@@ -867,28 +867,37 @@ lib/domains/plan/
 
 ### 10.1 중복 로직 발견
 
-#### 완전히 동일한 함수 (리팩토링 필수)
+#### 완전히 동일한 함수 (리팩토링 완료 ✅)
 
-| 함수명 | 파일 1 (위치) | 파일 2 (위치) | 상태 |
-|--------|--------------|--------------|------|
-| `loadStudentProfile` | recommendContent.ts (91-111) | enhancedRecommendContent.ts (88-108) | ❌ 중복 |
-| `loadScoreInfo` | recommendContent.ts | enhancedRecommendContent.ts | ❌ 중복 |
-| `loadLearningPattern` | recommendContent.ts | enhancedRecommendContent.ts | ❌ 중복 |
-| `loadOwnedContents` | recommendContent.ts | enhancedRecommendContent.ts | ❌ 중복 |
-| `loadCandidateContents` | recommendContent.ts (288-366) | enhancedRecommendContent.ts (372-450) | ❌ 중복 |
+> ✅ **리팩토링 완료** (2026-01-18)
 
-#### 권장 리팩토링
+| 함수명 | 공통 모듈 위치 | 상태 |
+|--------|---------------|------|
+| `loadStudentProfile` | `loaders/studentLoader.ts` | ✅ 추출 완료 |
+| `loadScoreInfo` | `loaders/studentLoader.ts` | ✅ 추출 완료 |
+| `loadLearningPattern` | `loaders/patternLoader.ts` | ✅ 추출 완료 |
+| `loadOwnedContents` | `loaders/contentLoader.ts` | ✅ 추출 완료 |
+| `loadCandidateContents` | `loaders/contentLoader.ts` | ✅ 추출 완료 |
+
+#### 구현된 구조
 
 ```
 lib/domains/plan/llm/
-├── loaders/                       # 신규: 공통 데이터 로더
-│   ├── studentLoader.ts           # loadStudentProfile, loadScoreInfo
-│   ├── contentLoader.ts           # loadCandidateContents, loadOwnedContents
-│   └── patternLoader.ts           # loadLearningPattern
+├── loaders/                        # ✅ 신규: 공통 데이터 로더
+│   ├── types.ts                    # SupabaseClient 타입 정의
+│   ├── studentLoader.ts            # loadStudentProfile, loadScoreInfo
+│   ├── patternLoader.ts            # loadLearningPattern
+│   ├── contentLoader.ts            # loadOwnedContents, loadCandidateContents
+│   └── index.ts                    # Barrel export
 ├── actions/
-│   ├── recommendContent.ts        # 공통 로더 import
-│   └── enhancedRecommendContent.ts # 공통 로더 import
+│   ├── recommendContent.ts         # ✅ 공통 로더 import (~275줄 감소)
+│   └── enhancedRecommendContent.ts # ✅ 공통 로더 import (~255줄 감소)
 ```
+
+**효과:**
+- 순 코드 감소: ~210줄
+- 중복 제거: 5개 함수
+- 유지보수성 향상: 로더 수정 시 한 곳만 변경
 
 ### 10.2 분산된 웹 검색 저장 로직
 
@@ -931,12 +940,12 @@ lib/domains/plan/llm/
 
 ## 11. 개선 우선순위 (업데이트)
 
-### Phase 0: 리팩토링 (선행 작업)
+### Phase 0: 리팩토링 (선행 작업) ✅ 완료 (2026-01-18)
 
-| 순위 | 작업 | 설명 | 영향 파일 |
-|------|------|------|----------|
-| **0-1** | 공통 로더 추출 | 중복 함수를 `loaders/`로 분리 | 2개 |
-| **0-2** | WebSearchContentService 확장 | 구조 정보 저장 지원 추가 | 1개 |
+| 순위 | 작업 | 설명 | 영향 파일 | 상태 |
+|------|------|------|----------|------|
+| **0-1** | 공통 로더 추출 | 중복 함수를 `loaders/`로 분리 | 2개 | ✅ 완료 |
+| **0-2** | WebSearchContentService 확장 | 구조 정보 저장 지원 추가 | 1개 | 진행 예정 |
 
 ### Phase 1: 기능 개선 (본작업)
 
@@ -955,7 +964,7 @@ lib/domains/plan/llm/
 
 ### 안전한 변경 (사이드 이펙트 낮음)
 
-- [ ] 공통 로더 추출 후 기존 함수를 wrapper로 유지
+- [x] 공통 로더 추출 후 기존 함수를 wrapper로 유지 ✅ (2026-01-18)
 - [ ] WebSearchContentService에 새 메서드 추가 (기존 메서드 유지)
 - [ ] searchExternalContentAction에 optional 저장 파라미터 추가
 
@@ -1457,7 +1466,7 @@ lib/domains/plan/llm/actions/coldStart/
 ### 13.9 구현 순서 체크리스트
 
 > 🕐 마지막 업데이트: 2026-01-18
-> ✅ **MVP 구현 완료** - 105개 테스트 통과
+> ✅ **MVP + DB 저장 구현 완료** - 172개 테스트 통과
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1492,6 +1501,13 @@ lib/domains/plan/llm/actions/coldStart/
 │  │ [✅] 엣지 케이스 확인 (빈 결과, 잘린 JSON 복구 등)                   │ │
 │  │ [ ] 실제 API 호출 테스트 (GOOGLE_API_KEY 필요)                       │ │
 │  └───────────────────────────────────────────────────────────────────────┘ │
+│                         ↓                                                   │
+│  Phase E: DB 저장 연동 ✅ 완료 (2026-01-18)                                 │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │ [✅] persistence/ 모듈 테스트 - 50개 테스트 통과                     │ │
+│  │ [✅] pipeline에 saveToDb 옵션 추가                                   │ │
+│  │ [✅] 파이프라인 + 저장 통합 테스트 - 17개 테스트 통과                │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -1501,13 +1517,19 @@ lib/domains/plan/llm/actions/coldStart/
 ```
 lib/domains/plan/llm/actions/coldStart/
 ├── index.ts                    # 통합 export ✅
-├── types.ts                    # 타입 정의 ✅
+├── types.ts                    # 타입 정의 (PersistenceStats 추가) ✅
 ├── validateInput.ts            # Task 1: 입력 검증 ✅
 ├── buildQuery.ts               # Task 2: 쿼리 생성 ✅
 ├── executeSearch.ts            # Task 3: 웹 검색 ✅
 ├── parseResults.ts             # Task 4: 결과 파싱 ✅
 ├── rankResults.ts              # Task 5: 정렬/필터 ✅
-├── pipeline.ts                 # 전체 파이프라인 ✅
+├── pipeline.ts                 # 전체 파이프라인 (saveToDb 지원) ✅
+├── persistence/                # DB 저장 모듈 ✅
+│   ├── index.ts                # 모듈 export
+│   ├── types.ts                # 저장 관련 타입
+│   ├── mappers.ts              # RecommendationItem → DB 변환
+│   ├── duplicateCheck.ts       # 중복 검사
+│   └── saveRecommendations.ts  # 저장 함수
 └── __tests__/
     ├── validateInput.test.ts   # 17개 테스트 ✅
     ├── buildQuery.test.ts      # 13개 테스트 ✅
@@ -1515,7 +1537,12 @@ lib/domains/plan/llm/actions/coldStart/
     ├── parseResults.test.ts    # 25개 테스트 ✅
     ├── rankResults.test.ts     # 19개 테스트 ✅
     ├── pipeline.test.ts        # 20개 테스트 ✅
-    └── integration.test.ts     # 5개 테스트 ✅ (API 키 필요)
+    ├── pipeline-persistence.test.ts  # 17개 테스트 ✅
+    ├── integration.test.ts     # 5개 테스트 ✅ (API 키 필요)
+    └── persistence/            # DB 저장 테스트 ✅
+        ├── mappers.test.ts     # 23개 테스트
+        ├── duplicateCheck.test.ts  # 14개 테스트
+        └── saveRecommendations.test.ts  # 13개 테스트
 ```
 
 ### 13.11 테스트 현황
@@ -1529,32 +1556,39 @@ lib/domains/plan/llm/actions/coldStart/
 | C | rankResults.test.ts | 19 | ✅ 통과 |
 | C | pipeline.test.ts | 20 | ✅ 통과 |
 | D | integration.test.ts | 5 | ✅ 통과 (API 키 필요) |
-| **합계** | | **105** | **✅ 전체 통과** |
+| E | persistence/mappers.test.ts | 23 | ✅ 통과 |
+| E | persistence/duplicateCheck.test.ts | 14 | ✅ 통과 |
+| E | persistence/saveRecommendations.test.ts | 13 | ✅ 통과 |
+| E | pipeline-persistence.test.ts | 17 | ✅ 통과 |
+| **합계** | | **172** | **✅ 전체 통과** |
 
 ---
 
-## 14. 이후 단계 (MVP 완료)
+## 14. 이후 단계 (DB 저장 연동 완료)
 
-> ✅ **콜드 스타트 MVP 구현 완료** (2026-01-18)
-> - 5단계 파이프라인 구현 완료
-> - 105개 테스트 통과
+> ✅ **콜드 스타트 + DB 저장 구현 완료** (2026-01-18)
+> - 5단계 파이프라인 + DB 저장 구현 완료
+> - 172개 테스트 통과
 > - Mock 모드 및 실제 API 호출 모두 지원
+> - master_books / master_lectures에 자동 저장
 
 ### 14.1 남은 작업
 
-1. [ ] **[리팩토링]** 공통 로더 추출 (`loaders/studentLoader.ts`, `loaders/contentLoader.ts`)
+1. [x] **[리팩토링]** 공통 로더 추출 (`loaders/studentLoader.ts`, `loaders/contentLoader.ts`) ✅ (2026-01-18)
 2. [ ] **[개선]** `WebSearchContentService.saveToDatabase()` 구조 정보 저장 지원
-3. [ ] **[개선]** `findExistingWebContent` 다중 조건 필터 추가
-4. [ ] **[연동]** DB 저장 기능 추가 - 웹 검색 결과를 master_books/master_lectures에 저장
-5. [ ] **[UI]** 단계별 선택 UI 컴포넌트 개발 (`ContentRecommendationWizard`)
-6. [ ] **[연동]** 플랜 생성 시 구조 정보 활용 연동
+3. [x] **[개선]** `findExistingWebContent` 다중 조건 필터 추가 ✅ (2026-01-18)
+4. [x] **[연동]** DB 저장 기능 추가 - 웹 검색 결과를 master_books/master_lectures에 저장 ✅ (2026-01-18)
+5. [x] **[테스트]** Persistence 모듈 테스트 50개 추가 ✅ (2026-01-18)
+6. [x] **[연동]** 파이프라인에 saveToDb 옵션 통합 ✅ (2026-01-18)
+7. [ ] **[UI]** 단계별 선택 UI 컴포넌트 개발 (`ContentRecommendationWizard`)
+8. [ ] **[연동]** 플랜 생성 시 구조 정보 활용 연동
 
 ### 14.2 사용 방법
 
 ```typescript
 import { runColdStartPipeline } from "@/lib/domains/plan/llm/actions/coldStart";
 
-// 전체 파이프라인 실행
+// 기본 사용 (DB 저장 없음)
 const result = await runColdStartPipeline(
   {
     subjectCategory: "수학",
@@ -1576,5 +1610,26 @@ if (result.success) {
   });
 } else {
   console.error(`${result.failedAt}에서 실패: ${result.error}`);
+}
+
+// DB 저장 모드
+const resultWithSave = await runColdStartPipeline(
+  {
+    subjectCategory: "수학",
+    subject: "미적분",
+    difficulty: "개념",
+    contentType: "book",
+  },
+  {
+    useMock: false,
+    saveToDb: true,      // DB 저장 활성화
+    tenantId: null,      // 공유 카탈로그 (또는 특정 테넌트 ID)
+  }
+);
+
+if (resultWithSave.success && resultWithSave.persistence) {
+  console.log(`새로 저장: ${resultWithSave.persistence.newlySaved}개`);
+  console.log(`중복 스킵: ${resultWithSave.persistence.duplicatesSkipped}개`);
+  console.log(`저장된 ID: ${resultWithSave.persistence.savedIds.join(', ')}`);
 }
 ```

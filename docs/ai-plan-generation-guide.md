@@ -21,6 +21,20 @@ AI를 활용하여 학생 맞춤형 학습 플랜을 자동 생성하는 기능�
 | `actions/enhancedRecommendContent.ts` | 향상된 콘텐츠 추천 |
 | `actions/coldStart/` | 콜드 스타트 추천 파이프라인 (웹 검색 기반) |
 
+### 공통 로더 (신규)
+
+> ✅ **리팩토링 완료** (2026-01-18)
+
+| 파일 | 설명 |
+|------|------|
+| `loaders/types.ts` | SupabaseClient 타입 정의 |
+| `loaders/studentLoader.ts` | loadStudentProfile, loadScoreInfo |
+| `loaders/patternLoader.ts` | loadLearningPattern |
+| `loaders/contentLoader.ts` | loadOwnedContents, loadCandidateContents |
+| `loaders/index.ts` | Barrel export |
+
+기존 `recommendContent.ts`와 `enhancedRecommendContent.ts`에 중복되어 있던 5개 로더 함수를 공통 모듈로 추출하여 약 210줄 감소 및 중복 제거.
+
 ### Provider
 
 | 파일 | 설명 |
@@ -55,6 +69,7 @@ AI를 활용하여 학생 맞춤형 학습 플랜을 자동 생성하는 기능�
 | `services/providerSelectionService.ts` | Provider 선택 |
 | `services/llmCacheService.ts` | LLM 캐시 |
 | `services/tokenOptimizationService.ts` | 토큰 최적화 |
+| `services/webSearchContentService.ts` | 웹 검색 콘텐츠 저장/조회 (다중 필터 지원) |
 
 ### 컴포넌트
 
@@ -416,6 +431,91 @@ Task 5: rankAndFilterResults (점수화/정렬/필터링)
 | `rankResults.ts` | Task 5: 점수 계산 및 정렬 |
 | `pipeline.ts` | 전체 파이프라인 통합 |
 | `index.ts` | 모듈 export |
+| `persistence/` | DB 저장 모듈 (2026-01-18 추가) |
+
+### Persistence 모듈 (DB 저장)
+
+> 위치: `lib/domains/plan/llm/actions/coldStart/persistence/`
+> ✅ **구현 완료** (2026-01-18)
+
+추천 결과를 `master_books`/`master_lectures` 테이블에 저장하여 데이터를 축적합니다.
+
+| 파일 | 설명 |
+|------|------|
+| `types.ts` | 저장 옵션/결과 타입 |
+| `mappers.ts` | RecommendationItem → DB Insert 변환 |
+| `duplicateCheck.ts` | 제목+교과 기반 중복 검사 |
+| `saveRecommendations.ts` | 메인 저장 함수 |
+| `index.ts` | 모듈 export |
+
+```typescript
+import {
+  runColdStartPipeline,
+  saveRecommendationsToMasterContent
+} from "@/lib/domains/plan/llm/actions/coldStart";
+
+// 1. 파이프라인 실행
+const result = await runColdStartPipeline({
+  subjectCategory: "수학",
+  subject: "미적분",
+  contentType: "book",
+});
+
+// 2. 결과 저장
+if (result.success) {
+  const saveResult = await saveRecommendationsToMasterContent(
+    result.recommendations,
+    {
+      tenantId: null,  // 공유 카탈로그
+      subjectCategory: "수학",
+      subject: "미적분",
+      difficultyLevel: "개념",
+    }
+  );
+  console.log(`새로 저장: ${saveResult.savedItems.filter(i => i.isNew).length}개`);
+  console.log(`중복 스킵: ${saveResult.skippedDuplicates}개`);
+}
+```
+
+### 기존 콘텐츠 조회 (findExistingWebContent)
+
+> ✅ **다중 필터 지원** (2026-01-18 개선)
+
+저장된 콜드 스타트/웹 검색 결과를 다양한 조건으로 조회합니다.
+
+```typescript
+import { getWebSearchContentService } from "@/lib/domains/plan/llm/services";
+
+const service = getWebSearchContentService();
+
+// 수학 교과의 구조 정보 있는 교재만 조회
+const books = await service.findExistingWebContent(tenantId, {
+  subjectCategory: "수학",
+  contentType: "book",
+  hasStructure: true,       // total_pages NOT NULL
+  source: "cold_start",     // cold_start 출처만
+  limit: 20,
+});
+
+// 공유 카탈로그 + 테넌트 통합 조회
+const all = await service.findExistingWebContent(tenantId, {
+  includeSharedCatalog: true,
+  contentType: "all",
+});
+```
+
+**지원 필터:**
+
+| 옵션 | 설명 |
+|------|------|
+| `subjectCategory` | 교과 필터 (수학, 영어 등) |
+| `subject` | 과목 필터 (미적분 등) |
+| `difficulty` | 난이도 필터 (개념, 기본, 심화) |
+| `contentType` | `book`, `lecture`, `all` |
+| `hasStructure` | 구조 정보(total_pages/episodes) 있는 것만 |
+| `source` | `cold_start`, `web_search`, `all` |
+| `includeSharedCatalog` | 공유 카탈로그(tenant_id=null) 포함 |
+| `limit` | 최대 조회 개수 (기본: 20) |
 
 ### 사용법
 
