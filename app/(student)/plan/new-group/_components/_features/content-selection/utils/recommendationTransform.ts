@@ -114,3 +114,60 @@ export function hasScoreDataInRecommendations(
       r.scoreDetails
   );
 }
+
+/**
+ * 통합 추천 API 결과 타입 (콜드 스타트/웹 검색)
+ */
+type UnifiedRecommendationResult = {
+  id: string;
+  title: string;
+  contentType: "book" | "lecture";
+  totalRange: number | null;
+  chapters?: Array<{ title: string; startRange: number; endRange: number }>;
+  author?: string;
+  publisher?: string;
+  difficultyLevel?: string;
+  matchScore?: number;
+  reason?: string;
+  source: "cache" | "recommend" | "cold_start";
+};
+
+/**
+ * 통합 추천 결과를 RecommendedContent 타입으로 변환
+ *
+ * 콜드 스타트/웹 검색 추천 결과를 기존 UI와 호환되는 형식으로 변환합니다.
+ */
+export function transformUnifiedRecommendation(
+  r: UnifiedRecommendationResult,
+  subjectCategory?: string
+): RecommendedContent {
+  // matchScore를 priority로 변환 (0-100 → 1-10)
+  const priority = r.matchScore ? Math.ceil(r.matchScore / 10) : 5;
+
+  return {
+    id: r.id,
+    contentType: r.contentType,
+    title: r.title,
+    subject_category: subjectCategory ?? null,
+    subject: null, // 콜드 스타트에서는 세부 과목 정보 없음
+    semester: null,
+    revision: null,
+    publisher: r.contentType === "book" ? (r.publisher ?? null) : null,
+    platform: r.contentType === "lecture" ? (r.publisher ?? null) : null,
+    difficulty_level: r.difficultyLevel ?? null,
+    reason: r.reason || `AI가 추천한 ${r.contentType === "book" ? "교재" : "강의"}입니다.`,
+    priority,
+    // 콜드 스타트에서는 성적 기반 상세 정보 없음
+    scoreDetails: undefined,
+  };
+}
+
+/**
+ * 통합 추천 결과 배열 변환
+ */
+export function transformUnifiedRecommendations(
+  results: UnifiedRecommendationResult[],
+  subjectCategory?: string
+): RecommendedContent[] {
+  return results.map((r) => transformUnifiedRecommendation(r, subjectCategory));
+}

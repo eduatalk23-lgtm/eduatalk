@@ -451,23 +451,32 @@ export type RecommendedContentsPanelProps = {
   // 데이터
   recommendedContents: RecommendedContent[];
   allRecommendedContents: RecommendedContent[];
-  
+
   // 선택된 콘텐츠
   selectedContents: SelectedContent[];
   selectedRecommendedIds: Set<string>;
-  
+
   // 제한
   maxContents: number;
   currentTotal: number; // student + recommended
-  
+
   // 추천 설정
   settings: RecommendationSettings;
   onSettingsChange: (settings: RecommendationSettings) => void;
-  
+
   // 이벤트 핸들러
   onUpdate: (contents: SelectedContent[]) => void;
   onRequestRecommendations: () => Promise<void>;
-  
+  /** 웹 검색 기반 AI 추천 (콜드 스타트) */
+  onWebSearchRecommendations?: (
+    subjectCategory: string,
+    options?: {
+      difficultyLevel?: string;
+      contentType?: "book" | "lecture" | "all";
+      maxResults?: number;
+    }
+  ) => Promise<{ fromCache: number; fromWebSearch: number; newlySaved: number } | undefined>;
+
   // 상태
   isEditMode?: boolean;
   isCampMode?: boolean;

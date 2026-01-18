@@ -6,6 +6,7 @@ import type {
 import { getRecommendedMasterContentsAction } from "@/lib/domains/content";
 import {
   transformRecommendations,
+  transformUnifiedRecommendations,
   hasScoreDataInRecommendations,
 } from "../utils/recommendationTransform";
 import {
@@ -13,9 +14,11 @@ import {
   applyAutoAssignmentLimit,
 } from "../utils/autoAssignment";
 import type { WizardData } from "@/lib/schemas/planWizardSchema";
+import { getUnifiedContentRecommendation } from "@/lib/domains/plan/llm/actions/unifiedContentRecommendation";
 
 interface UseRecommendedContentsProps {
   studentId?: string;
+  tenantId?: string;
   data: {
     student_contents: WizardData["student_contents"];
     recommended_contents: WizardData["recommended_contents"];
@@ -26,6 +29,7 @@ interface UseRecommendedContentsProps {
 
 export function useRecommendedContents({
   studentId,
+  tenantId,
   data,
   onUpdate,
   recommendationSettings,
@@ -200,6 +204,137 @@ export function useRecommendedContents({
     onUpdate,
   ]);
 
+  // 웹 검색 기반 AI 추천 (콜드 스타트)
+  const handleWebSearchRecommendations = useCallback(async (
+    subjectCategory: string,
+    options?: {
+      difficultyLevel?: string;
+      contentType?: "book" | "lecture" | "all";
+      maxResults?: number;
+    }
+  ) => {
+    if (!tenantId) {
+      alert("테넌트 정보가 없습니다.");
+      return;
+    }
+
+    if (!subjectCategory) {
+      alert("교과를 선택해주세요.");
+      return;
+    }
+
+    setRecommendationLoading(true);
+
+    try {
+      const result = await getUnifiedContentRecommendation({
+        tenantId,
+        studentId,
+        subjectCategory,
+        difficultyLevel: options?.difficultyLevel,
+        contentType: options?.contentType ?? "all",
+        maxResults: options?.maxResults ?? 5,
+        forceColdStart: true, // 웹 검색 강제
+        saveResults: true,
+      });
+
+      if (!result.success || !result.recommendations) {
+        alert(result.error ?? "웹 검색 추천에 실패했습니다.");
+        return;
+      }
+
+      // 통합 추천 결과를 RecommendedContent로 변환
+      const recommendations = transformUnifiedRecommendations(
+        result.recommendations,
+        subjectCategory
+      );
+
+      // 콜드 스타트는 성적 데이터 없음
+      setHasScoreData(false);
+
+      // 중복 제거
+      const existingIds = new Set([
+        ...data.student_contents.map((c) => c.content_id),
+        ...data.recommended_contents.map((c) => c.content_id),
+      ]);
+
+      const filteredRecommendations = recommendations.filter(
+        (r) => !existingIds.has(r.id)
+      );
+
+      // 전체 목록 업데이트
+      setAllRecommendedContents((prev) => {
+        const merged = new Map<string, RecommendedContent>();
+        prev.forEach((c) => merged.set(c.id, c));
+        filteredRecommendations.forEach((c) => merged.set(c.id, c));
+        return Array.from(merged.values());
+      });
+
+      setRecommendedContents(filteredRecommendations);
+      setHasRequestedRecommendations(true);
+
+      // 자동 배정 실행
+      const shouldAutoAssign =
+        recommendationSettings.autoAssignContents &&
+        filteredRecommendations.length > 0;
+
+      if (shouldAutoAssign) {
+        try {
+          const contentsToAutoAdd = await prepareAutoAssignment(
+            filteredRecommendations
+          );
+
+          const currentTotal =
+            data.student_contents.length + data.recommended_contents.length;
+          const autoResult = applyAutoAssignmentLimit(
+            contentsToAutoAdd,
+            currentTotal,
+            9
+          );
+
+          if (autoResult.added.length > 0) {
+            onUpdate({
+              recommended_contents: [
+                ...data.recommended_contents,
+                ...autoResult.added,
+              ],
+            });
+
+            setTimeout(() => {
+              alert(autoResult.message);
+            }, 0);
+
+            const autoAssignedIds = new Set(
+              filteredRecommendations.map((r) => r.id)
+            );
+            setRecommendedContents((prev) =>
+              prev.filter((r) => !autoAssignedIds.has(r.id))
+            );
+          } else {
+            setTimeout(() => {
+              alert(autoResult.message);
+            }, 0);
+          }
+        } catch (error) {
+          console.error("[useRecommendedContents] 자동 배정 중 오류:", error);
+        }
+      }
+
+      return result.stats;
+    } catch (error) {
+      console.error("[useRecommendedContents] 웹 검색 추천 실패:", error);
+      alert("웹 검색 추천 중 오류가 발생했습니다.");
+    } finally {
+      setRecommendationLoading(false);
+    }
+  }, [
+    tenantId,
+    studentId,
+    recommendationSettings,
+    data.student_contents,
+    data.recommended_contents,
+    onUpdate,
+  ]);
+
   return {
     recommendedContents,
     allRecommendedContents,
@@ -208,6 +343,7 @@ export function useRecommendedContents({
     hasRequestedRecommendations,
     hasScoreData,
     handleRequestRecommendations,
+    handleWebSearchRecommendations,
     setSelectedRecommendedIds,
   };
 }

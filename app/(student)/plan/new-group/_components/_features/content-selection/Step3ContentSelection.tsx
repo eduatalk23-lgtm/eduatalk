@@ -166,9 +166,11 @@ function Step3ContentSelectionComponent({
     hasRequestedRecommendations,
     hasScoreData,
     handleRequestRecommendations,
+    handleWebSearchRecommendations,
     setSelectedRecommendedIds,
   } = useRecommendedContents({
     studentId,
+    tenantId: user?.tenantId ?? undefined,
     data: data as {
       student_contents: WizardData["student_contents"];
       recommended_contents: WizardData["recommended_contents"];
@@ -372,6 +374,7 @@ function Step3ContentSelectionComponent({
         onSettingsChange={setRecommendationSettings}
         onUpdate={handleRecommendedContentsUpdate}
         onRequestRecommendations={handleRequestRecommendations}
+        onWebSearchRecommendations={handleWebSearchRecommendations}
         isEditMode={isEditMode}
         isCampMode={isCampMode}
         loading={recommendationLoading}
@@ -393,6 +396,7 @@ function Step3ContentSelectionComponent({
       setRecommendationSettings,
       handleRecommendedContentsUpdate,
       handleRequestRecommendations,
+      handleWebSearchRecommendations,
       isEditMode,
       isCampMode,
       recommendationLoading,

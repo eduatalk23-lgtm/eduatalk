@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useMemo, useRef } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   RecommendedContentsPanelProps,
   SelectedContent,
@@ -9,8 +9,11 @@ import {
 } from "@/lib/types/content-selection";
 import { ContentCard } from "./ContentCard";
 import { RangeSettingModal } from "./RangeSettingModal";
-import { Sparkles, AlertCircle, CheckCircle } from "lucide-react";
+import { Sparkles, AlertCircle, CheckCircle, Globe, Search } from "lucide-react";
 import { cn } from "@/lib/cn";
+
+/** 추천 모드 타입 */
+type RecommendMode = "score-based" | "web-search";
 
 /**
  * RecommendedContentsPanel - 추천 콘텐츠 선택 패널
@@ -18,6 +21,21 @@ import { cn } from "@/lib/cn";
  * Phase 3.4에서 구현
  * Step4RecommendedContents.tsx의 로직을 분리하여 재사용 가능하게 구현
  */
+/** 난이도 옵션 */
+const DIFFICULTY_OPTIONS = [
+  { value: "", label: "전체" },
+  { value: "개념", label: "개념" },
+  { value: "기본", label: "기본" },
+  { value: "심화", label: "심화" },
+] as const;
+
+/** 콘텐츠 타입 옵션 */
+const CONTENT_TYPE_OPTIONS = [
+  { value: "all", label: "전체" },
+  { value: "book", label: "교재" },
+  { value: "lecture", label: "강의" },
+] as const;
+
 export function RecommendedContentsPanel({
   recommendedContents,
   allRecommendedContents,
@@ -29,6 +47,7 @@ export function RecommendedContentsPanel({
   onSettingsChange,
   onUpdate,
   onRequestRecommendations,
+  onWebSearchRecommendations,
   isEditMode = false,
   isCampMode = false,
   loading = false,
@@ -38,6 +57,19 @@ export function RecommendedContentsPanel({
   isAdminContinueMode = false,
   editable = true,
 }: RecommendedContentsPanelProps) {
+  // 추천 모드 상태
+  const [recommendMode, setRecommendMode] = useState<RecommendMode>("score-based");
+
+  // 웹 검색 추천 옵션
+  const [webSearchSubject, setWebSearchSubject] = useState("");
+  const [webSearchDifficulty, setWebSearchDifficulty] = useState("");
+  const [webSearchContentType, setWebSearchContentType] = useState<"book" | "lecture" | "all">("all");
+  const [webSearchStats, setWebSearchStats] = useState<{
+    fromCache: number;
+    fromWebSearch: number;
+    newlySaved: number;
+  } | null>(null);
+
   // 범위 설정 모달
   const [rangeModalOpen, setRangeModalOpen] = useState(false);
   const [rangeModalContent, setRangeModalContent] = useState<{
@@ -258,6 +290,28 @@ export function RecommendedContentsPanel({
     [rangeModalContent, selectedContents, onUpdate, editable]
   );
 
+  // 웹 검색 추천 핸들러
+  const handleWebSearchRecommend = useCallback(async () => {
+    if (!onWebSearchRecommendations) return;
+    if (!webSearchSubject) {
+      alert("교과를 선택해주세요.");
+      return;
+    }
+
+    const stats = await onWebSearchRecommendations(webSearchSubject, {
+      difficultyLevel: webSearchDifficulty || undefined,
+      contentType: webSearchContentType,
+      maxResults: 5,
+    });
+
+    if (stats) {
+      setWebSearchStats(stats);
+    }
+  }, [onWebSearchRecommendations, webSearchSubject, webSearchDifficulty, webSearchContentType]);
+
+  // 웹 검색 추천 사용 가능 여부
+  const canUseWebSearch = !!onWebSearchRecommendations;
+
   // 추천 요청 폼 표시 조건: 관리자 모드일 때는 항상 표시, 그 외에는 추천을 받기 전이거나, 추천을 받았지만 목록이 비어있을 때
   const shouldShowRecommendationForm =
     isAdminContinueMode || // 관리자 모드일 때는 항상 표시
@@ -271,126 +325,306 @@ export function RecommendedContentsPanel({
       {/* 추천 받기 설정 */}
       {shouldShowRecommendationForm && (
         <div className="rounded-xl border border-gray-200 bg-white p-6">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-blue-600" />
-            <h3 className="text-lg font-semibold text-gray-900">
-              AI 추천 콘텐츠 받기
-            </h3>
-          </div>
-
-          {/* 성적 데이터 안내 */}
-          {!hasScoreData && (
-            <div className="flex items-start gap-2 rounded-lg bg-yellow-50 p-3">
-              <AlertCircle className="h-5 w-5 flex-shrink-0 text-yellow-600" />
-              <div className="flex flex-col gap-0.5 text-sm text-yellow-800">
-                <p className="font-medium">성적 데이터가 없습니다</p>
-                <p>
-                  성적을 입력하면 더 정확한 추천을 받을 수 있습니다.
-                </p>
-              </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-blue-600" />
+              <h3 className="text-lg font-semibold text-gray-900">
+                AI 추천 콘텐츠 받기
+              </h3>
             </div>
-          )}
 
-          {/* 과목 선택 */}
-          <div className="flex flex-col gap-2">
-            <label className="block text-sm font-medium text-gray-800">
-              추천받을 과목 선택
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {["국어", "수학", "영어", "과학", "사회"].map((subject) => (
+            {/* 추천 모드 토글 (웹 검색 사용 가능 시에만) */}
+            {canUseWebSearch && (
+              <div className="flex rounded-lg border border-gray-200 p-1">
                 <button
-                  key={subject}
                   type="button"
-                  onClick={() => handleSubjectToggle(subject)}
+                  onClick={() => setRecommendMode("score-based")}
                   className={cn(
-                    "rounded-lg border-2 px-4 py-2 text-sm font-medium transition-colors",
-                    settings.selectedSubjects.has(subject)
-                      ? "border-blue-500 bg-blue-50 text-blue-800"
-                      : "border-gray-300 bg-white text-gray-800 hover:border-gray-400"
+                    "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                    recommendMode === "score-based"
+                      ? "bg-blue-100 text-blue-800"
+                      : "text-gray-600 hover:text-gray-900"
                   )}
                 >
-                  {subject}
+                  <Search className="h-4 w-4" />
+                  성적 기반
                 </button>
-              ))}
-            </div>
+                <button
+                  type="button"
+                  onClick={() => setRecommendMode("web-search")}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                    recommendMode === "web-search"
+                      ? "bg-purple-100 text-purple-800"
+                      : "text-gray-600 hover:text-gray-900"
+                  )}
+                >
+                  <Globe className="h-4 w-4" />
+                  웹 검색
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* 과목별 추천 개수 */}
-          {settings.selectedSubjects.size > 0 && (
-            <div className="flex flex-col gap-3">
-              <label className="block text-sm font-medium text-gray-800">
-                과목별 추천 개수
-              </label>
-              {Array.from(settings.selectedSubjects).map((subject) => (
-                <div key={subject} className="flex items-center gap-3">
-                  <span className="w-16 text-sm font-medium text-gray-800">
-                    {subject}
-                  </span>
-                  <input
-                    type="number"
-                    min="1"
-                    max="5"
-                    value={settings.recommendationCounts.get(subject) || 1}
-                    onChange={(e) =>
-                      handleCountChange(subject, Number(e.target.value))
-                    }
-                    className="w-20 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
-                  />
-                  <span className="text-sm text-gray-600">개</span>
+          {/* 성적 기반 추천 모드 */}
+          {recommendMode === "score-based" && (
+            <>
+              {/* 성적 데이터 안내 */}
+              {!hasScoreData && (
+                <div className="mt-4 flex items-start gap-2 rounded-lg bg-yellow-50 p-3">
+                  <AlertCircle className="h-5 w-5 flex-shrink-0 text-yellow-600" />
+                  <div className="flex flex-col gap-0.5 text-sm text-yellow-800">
+                    <p className="font-medium">성적 데이터가 없습니다</p>
+                    <p>
+                      성적을 입력하면 더 정확한 추천을 받을 수 있습니다.
+                    </p>
+                  </div>
                 </div>
-              ))}
-            </div>
+              )}
+
+              {/* 과목 선택 */}
+              <div className="mt-4 flex flex-col gap-2">
+                <label className="block text-sm font-medium text-gray-800">
+                  추천받을 과목 선택
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {["국어", "수학", "영어", "과학", "사회"].map((subject) => (
+                    <button
+                      key={subject}
+                      type="button"
+                      onClick={() => handleSubjectToggle(subject)}
+                      className={cn(
+                        "rounded-lg border-2 px-4 py-2 text-sm font-medium transition-colors",
+                        settings.selectedSubjects.has(subject)
+                          ? "border-blue-500 bg-blue-50 text-blue-800"
+                          : "border-gray-300 bg-white text-gray-800 hover:border-gray-400"
+                      )}
+                    >
+                      {subject}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 과목별 추천 개수 */}
+              {settings.selectedSubjects.size > 0 && (
+                <div className="mt-4 flex flex-col gap-3">
+                  <label className="block text-sm font-medium text-gray-800">
+                    과목별 추천 개수
+                  </label>
+                  {Array.from(settings.selectedSubjects).map((subject) => (
+                    <div key={subject} className="flex items-center gap-3">
+                      <span className="w-16 text-sm font-medium text-gray-800">
+                        {subject}
+                      </span>
+                      <input
+                        type="number"
+                        min="1"
+                        max="5"
+                        value={settings.recommendationCounts.get(subject) || 1}
+                        onChange={(e) =>
+                          handleCountChange(subject, Number(e.target.value))
+                        }
+                        className="w-20 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
+                      />
+                      <span className="text-sm text-gray-600">개</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 자동 배정 옵션 */}
+              <div className="mt-4 flex flex-col gap-1">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={settings.autoAssignContents}
+                    onChange={(e) =>
+                      onSettingsChange({
+                        ...settings,
+                        autoAssignContents: e.target.checked,
+                      })
+                    }
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-800">
+                    추천 콘텐츠 자동 배정 (전체 범위)
+                  </span>
+                </label>
+                <p className="pl-6 text-xs text-gray-600">
+                  체크하면 추천받은 콘텐츠가 자동으로 추가됩니다 (범위: 전체)
+                </p>
+              </div>
+
+              {/* 추천 받기 버튼 */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (!editable) return;
+                  onRequestRecommendations();
+                }}
+                disabled={!editable || !canRequestRecommendations || loading || maxReached}
+                className={cn(
+                  "mt-4 w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700",
+                  (!editable || !canRequestRecommendations || loading || maxReached) &&
+                    "cursor-not-allowed opacity-50"
+                )}
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    추천 분석 중...
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    추천 받기
+                  </span>
+                )}
+              </button>
+            </>
           )}
 
-          {/* 자동 배정 옵션 */}
-          <div className="flex flex-col gap-1">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={settings.autoAssignContents}
-                onChange={(e) =>
-                  onSettingsChange({
-                    ...settings,
-                    autoAssignContents: e.target.checked,
-                  })
-                }
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span className="text-sm font-medium text-gray-800">
-                추천 콘텐츠 자동 배정 (전체 범위)
-              </span>
-            </label>
-            <p className="pl-6 text-xs text-gray-600">
-              체크하면 추천받은 콘텐츠가 자동으로 추가됩니다 (범위: 전체)
-            </p>
-          </div>
+          {/* 웹 검색 기반 추천 모드 */}
+          {recommendMode === "web-search" && (
+            <div className="mt-4 space-y-4">
+              {/* 안내 메시지 */}
+              <div className="flex items-start gap-2 rounded-lg bg-purple-50 p-3">
+                <Globe className="h-5 w-5 flex-shrink-0 text-purple-600" />
+                <div className="flex flex-col gap-0.5 text-sm text-purple-800">
+                  <p className="font-medium">웹 검색 AI 추천</p>
+                  <p>
+                    인터넷에서 최신 교재와 강의를 검색하여 추천합니다.
+                  </p>
+                </div>
+              </div>
 
-          {/* 추천 받기 버튼 */}
-          <button
-            type="button"
-            onClick={() => {
-              if (!editable) return;
-              onRequestRecommendations();
-            }}
-            disabled={!editable || !canRequestRecommendations || loading || maxReached}
-            className={cn(
-              "w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700",
-              (!editable || !canRequestRecommendations || loading || maxReached) &&
-                "cursor-not-allowed opacity-50"
-            )}
-          >
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                추천 분석 중...
-              </span>
-            ) : (
-              <span className="flex items-center justify-center gap-2">
-                <Sparkles className="h-4 w-4" />
-                추천 받기
-              </span>
-            )}
-          </button>
+              {/* 교과 선택 */}
+              <div className="flex flex-col gap-2">
+                <label className="block text-sm font-medium text-gray-800">
+                  교과 선택 (필수)
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {["국어", "수학", "영어", "과학", "사회"].map((subject) => (
+                    <button
+                      key={subject}
+                      type="button"
+                      onClick={() => setWebSearchSubject(subject)}
+                      className={cn(
+                        "rounded-lg border-2 px-4 py-2 text-sm font-medium transition-colors",
+                        webSearchSubject === subject
+                          ? "border-purple-500 bg-purple-50 text-purple-800"
+                          : "border-gray-300 bg-white text-gray-800 hover:border-gray-400"
+                      )}
+                    >
+                      {subject}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 난이도 선택 */}
+              <div className="flex flex-col gap-2">
+                <label className="block text-sm font-medium text-gray-800">
+                  난이도 (선택)
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {DIFFICULTY_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setWebSearchDifficulty(option.value)}
+                      className={cn(
+                        "rounded-lg border px-3 py-1.5 text-sm transition-colors",
+                        webSearchDifficulty === option.value
+                          ? "border-purple-500 bg-purple-50 text-purple-800"
+                          : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
+                      )}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 콘텐츠 타입 선택 */}
+              <div className="flex flex-col gap-2">
+                <label className="block text-sm font-medium text-gray-800">
+                  콘텐츠 유형 (선택)
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {CONTENT_TYPE_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setWebSearchContentType(option.value as "book" | "lecture" | "all")}
+                      className={cn(
+                        "rounded-lg border px-3 py-1.5 text-sm transition-colors",
+                        webSearchContentType === option.value
+                          ? "border-purple-500 bg-purple-50 text-purple-800"
+                          : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
+                      )}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 자동 배정 옵션 */}
+              <div className="flex flex-col gap-1">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={settings.autoAssignContents}
+                    onChange={(e) =>
+                      onSettingsChange({
+                        ...settings,
+                        autoAssignContents: e.target.checked,
+                      })
+                    }
+                    className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  />
+                  <span className="text-sm font-medium text-gray-800">
+                    추천 콘텐츠 자동 배정 (전체 범위)
+                  </span>
+                </label>
+              </div>
+
+              {/* 웹 검색 추천 받기 버튼 */}
+              <button
+                type="button"
+                onClick={handleWebSearchRecommend}
+                disabled={!editable || !webSearchSubject || loading || maxReached}
+                className={cn(
+                  "w-full rounded-lg bg-purple-600 py-3 text-sm font-medium text-white transition-colors hover:bg-purple-700",
+                  (!editable || !webSearchSubject || loading || maxReached) &&
+                    "cursor-not-allowed opacity-50"
+                )}
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    웹 검색 중...
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center gap-2">
+                    <Globe className="h-4 w-4" />
+                    웹 검색 추천 받기
+                  </span>
+                )}
+              </button>
+
+              {/* 검색 통계 */}
+              {webSearchStats && (
+                <div className="mt-2 flex items-center justify-center gap-4 text-xs text-gray-500">
+                  <span>캐시: {webSearchStats.fromCache}개</span>
+                  <span>웹 검색: {webSearchStats.fromWebSearch}개</span>
+                  <span>새로 저장: {webSearchStats.newlySaved}개</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
