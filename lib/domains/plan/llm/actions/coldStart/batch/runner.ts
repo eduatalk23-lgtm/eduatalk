@@ -63,6 +63,7 @@ export async function runColdStartBatch(
     maxRetries = DEFAULT_MAX_RETRIES,
     onProgress,
     onError,
+    onItemComplete,
     onComplete,
     limit,
   } = options;
@@ -228,6 +229,8 @@ export async function runColdStartBatch(
 
     if (itemResult) {
       items.push(itemResult);
+      // 개별 항목 완료 콜백 호출 (실시간 진행 표시용)
+      onItemComplete?.(itemResult, i, total);
     }
 
     // 다음 요청 전 대기 (마지막 항목 제외)

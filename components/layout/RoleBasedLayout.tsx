@@ -79,7 +79,7 @@ export function RoleBasedLayout({
             transition={{ duration: 0.2, ease: "easeInOut" }}
             className={cn(
               sidebarStyles.container,
-              "hidden md:block fixed left-0 top-0 h-screen overflow-hidden", // overflow-hidden 추가
+              "hidden md:block fixed left-0 top-0 h-screen overflow-x-hidden", // 수평 overflow만 숨김 (애니메이션용)
               // width 클래스는 motion.animate로 제어하므로 제거
               // isCollapsed && isHovered 스타일도 motion.animate로 이동
             )}
@@ -87,7 +87,7 @@ export function RoleBasedLayout({
               borderRightWidth: isCollapsed && isHovered ? 0 : 1
             }}
           >
-            <div className="relative h-full flex flex-col w-[20rem]"> {/* 내부 컨텐츠는 항상 20rem 너비 유지하여 찌그러짐 방지 */}
+            <div className="relative h-full flex flex-col w-[20rem] overflow-y-auto"> {/* 내부 컨텐츠는 항상 20rem 너비 유지하여 찌그러짐 방지, 스크롤 가능 */}
               {/* Collapsed && Not Hovered: 햄버거 아이콘만 표시 */}
               {isCollapsed && !isHovered ? (
                 <div className="flex flex-col items-center py-4 w-16"> {/* w-16 고정 */}

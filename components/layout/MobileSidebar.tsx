@@ -124,6 +124,7 @@ export function MobileSidebar({
           onNavigate={closeMobile}
           roleLabel={roleLabel}
           userName={userName}
+          isCollapsed={false}  // 모바일은 항상 펼쳐진 상태
         />
       </aside>
     </>

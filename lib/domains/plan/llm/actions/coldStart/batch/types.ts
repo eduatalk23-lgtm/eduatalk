@@ -43,6 +43,9 @@ export interface BatchOptions {
   /** 에러 콜백 */
   onError?: (error: BatchError) => void;
 
+  /** 개별 항목 완료 콜백 (실시간 진행 표시용) */
+  onItemComplete?: (item: BatchItemResult, index: number, total: number) => void;
+
   /** 완료 콜백 */
   onComplete?: (result: BatchResult) => void;
 
