@@ -23,6 +23,7 @@ export {
 export {
   createBatchQuickPlans,
   createBatchPlanGroups,
+  createBatchUnifiedPlans,
   addBatchContents,
   type BatchStudentInput,
   type BatchResult,
@@ -31,4 +32,7 @@ export {
   type PlanGroupBatchInput,
   type ContentBatchInput,
   type ContentInfo,
+  type UnifiedPlanBatchInput,
+  type UnifiedPlanBatchResult,
+  type UnifiedPlanBatchResponse,
 } from "./batchActions";

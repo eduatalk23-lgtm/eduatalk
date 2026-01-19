@@ -5,6 +5,10 @@
  *
  * 여러 학생에게 동일한 설정으로 플랜 그룹을 생성할 수 있는 래퍼
  * 공유 설정을 먼저 구성한 후 각 학생에게 순차적으로 적용
+ *
+ * AI 플랜 생성 모드:
+ * - Unified Pipeline을 사용하여 AI 콘텐츠 추천 + 스케줄 자동 생성
+ * - 1730 Timetable 알고리즘 적용 (6일 학습 + 1일 복습)
  */
 
 import { useState, useCallback, useMemo } from "react";
@@ -18,13 +22,20 @@ import {
   ArrowRight,
   Settings,
   Play,
+  Sparkles,
+  BookOpen,
+  GraduationCap,
 } from "lucide-react";
 import type { StudentListRow } from "@/app/(admin)/admin/students/_components/types";
 import type { CreationResult } from "../../_context/types";
 import type { BatchItemResult } from "../../_types";
 import { useBatchProcessor } from "../../_hooks";
 import { ProgressTracker } from "../progress";
-import { createBatchPlanGroups, type BatchStudentInput } from "../../_actions";
+import {
+  createBatchPlanGroups,
+  createBatchUnifiedPlans,
+  type BatchStudentInput,
+} from "../../_actions";
 
 interface PlanGroupWizardWrapperProps {
   selectedStudents: StudentListRow[];
@@ -40,7 +51,19 @@ interface SharedSettings {
   endDate: string;
   dailyStudyMinutes: number;
   daysPerWeek: number[];
-  // 추가 설정은 Phase 3에서 확장
+
+  // AI 플랜 생성 모드
+  useAIPlan: boolean;
+
+  // AI 플랜 설정 (useAIPlan === true일 때 사용)
+  planPurpose: "내신대비" | "모의고사" | "수능" | "기타";
+  subjectCategory: string;
+  subject: string;
+  difficulty: "개념" | "기본" | "심화";
+  studentLevel: "high" | "medium" | "low";
+  studyType: "strategy" | "weakness";
+  studyDays: number;
+  reviewDays: number;
 }
 
 type WrapperStep = "settings" | "confirm" | "processing" | "complete";
@@ -65,6 +88,17 @@ export function PlanGroupWizardWrapper({
       endDate: thirtyDaysLater.toISOString().split("T")[0],
       dailyStudyMinutes: 120,
       daysPerWeek: [1, 2, 3, 4, 5], // 월~금
+
+      // AI 플랜 설정 기본값
+      useAIPlan: false,
+      planPurpose: "내신대비",
+      subjectCategory: "수학",
+      subject: "",
+      difficulty: "개념",
+      studentLevel: "medium",
+      studyType: "weakness",
+      studyDays: 6,
+      reviewDays: 1,
     };
   });
 
@@ -86,6 +120,51 @@ export function PlanGroupWizardWrapper({
           studentName: student.name ?? "",
         };
 
+        // AI 플랜 모드일 경우 Unified Pipeline 사용
+        if (sharedSettings.useAIPlan) {
+          const response = await createBatchUnifiedPlans([studentInput], {
+            name: sharedSettings.title,
+            planPurpose: sharedSettings.planPurpose,
+            periodStart: sharedSettings.startDate,
+            periodEnd: sharedSettings.endDate,
+            contentSelection: {
+              subjectCategory: sharedSettings.subjectCategory,
+              subject: sharedSettings.subject || undefined,
+              difficulty: sharedSettings.difficulty,
+              contentType: "book",
+            },
+            schedulerOptions: {
+              study_days: sharedSettings.studyDays,
+              review_days: sharedSettings.reviewDays,
+              student_level: sharedSettings.studentLevel,
+            },
+            studyType: sharedSettings.studyType,
+            generateMarkdown: true,
+          });
+
+          if (!response.success || response.results.length === 0) {
+            return {
+              status: "error",
+              message: response.error || "AI 플랜 생성 중 오류가 발생했습니다",
+            };
+          }
+
+          const result = response.results[0];
+          if (!result.success) {
+            return {
+              status: "error",
+              message: result.error || result.message,
+            };
+          }
+
+          return {
+            status: "success",
+            message: result.message,
+            planGroupId: result.planGroupId,
+          };
+        }
+
+        // 기본 모드: 기존 createBatchPlanGroups 사용
         const response = await createBatchPlanGroups([studentInput], {
           name: sharedSettings.title,
           startDate: sharedSettings.startDate,
@@ -117,7 +196,7 @@ export function PlanGroupWizardWrapper({
       } catch (err) {
         return {
           status: "error",
-          message: err instanceof Error ? err.message : "플랜 그룹 생성 중 오류가 발생했습니다",
+          message: err instanceof Error ? err.message : "플랜 생성 중 오류가 발생했습니다",
         };
       }
     },
@@ -162,14 +241,30 @@ export function PlanGroupWizardWrapper({
 
   // 설정 유효성 검사
   const isSettingsValid = useMemo(() => {
-    return (
+    const baseValid =
       settings.title.trim().length > 0 &&
       settings.startDate &&
       settings.endDate &&
-      new Date(settings.startDate) <= new Date(settings.endDate) &&
-      settings.dailyStudyMinutes > 0 &&
-      settings.daysPerWeek.length > 0
-    );
+      new Date(settings.startDate) <= new Date(settings.endDate);
+
+    // AI 플랜 모드일 경우 추가 검증
+    if (settings.useAIPlan) {
+      // 최소 7일 기간 필요
+      const start = new Date(settings.startDate);
+      const end = new Date(settings.endDate);
+      const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+      return (
+        baseValid &&
+        days >= 7 &&
+        settings.subjectCategory.trim().length > 0 &&
+        settings.studyDays > 0 &&
+        settings.studyDays + settings.reviewDays >= 1
+      );
+    }
+
+    // 기본 모드
+    return baseValid && settings.dailyStudyMinutes > 0 && settings.daysPerWeek.length > 0;
   }, [settings]);
 
   // 요일 토글
@@ -233,6 +328,54 @@ export function PlanGroupWizardWrapper({
       {/* 설정 단계 */}
       {currentStep === "settings" && (
         <div className="space-y-6">
+          {/* AI 플랜 모드 토글 */}
+          <div
+            className={cn(
+              "rounded-lg border p-4",
+              settings.useAIPlan
+                ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20"
+                : borderInput
+            )}
+          >
+            <label className="flex cursor-pointer items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div
+                  className={cn(
+                    "flex h-10 w-10 items-center justify-center rounded-lg",
+                    settings.useAIPlan
+                      ? "bg-indigo-100 dark:bg-indigo-800"
+                      : "bg-gray-100 dark:bg-gray-800"
+                  )}
+                >
+                  <Sparkles
+                    className={cn(
+                      "h-5 w-5",
+                      settings.useAIPlan
+                        ? "text-indigo-600 dark:text-indigo-400"
+                        : "text-gray-400"
+                    )}
+                  />
+                </div>
+                <div>
+                  <span className={cn("font-medium", textPrimary)}>
+                    AI 플랜 생성
+                  </span>
+                  <p className={cn("text-sm", textSecondary)}>
+                    AI가 콘텐츠를 추천하고 자동으로 스케줄을 배분합니다
+                  </p>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.useAIPlan}
+                onChange={(e) =>
+                  setSettings((prev) => ({ ...prev, useAIPlan: e.target.checked }))
+                }
+                className="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+            </label>
+          </div>
+
           {/* 플랜 그룹 제목 */}
           <div>
             <label className={cn("mb-2 block text-sm font-medium", textPrimary)}>
@@ -277,7 +420,7 @@ export function PlanGroupWizardWrapper({
             </div>
             <div>
               <label className={cn("mb-2 block text-sm font-medium", textPrimary)}>
-                종료일 *
+                종료일 * {settings.useAIPlan && "(최소 7일)"}
               </label>
               <input
                 type="date"
@@ -295,43 +438,246 @@ export function PlanGroupWizardWrapper({
             </div>
           </div>
 
-          {/* 일일 학습 시간 */}
-          <div>
-            <label className={cn("mb-2 block text-sm font-medium", textPrimary)}>
-              일일 학습 시간 (분)
-            </label>
-            <div className="flex items-center gap-4">
-              <input
-                type="range"
-                min={30}
-                max={300}
-                step={30}
-                value={settings.dailyStudyMinutes}
-                onChange={(e) =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    dailyStudyMinutes: Number(e.target.value),
-                  }))
-                }
-                className="flex-1"
-              />
+          {/* AI 플랜 모드 설정 */}
+          {settings.useAIPlan && (
+            <>
+              {/* 학습 목적 */}
+              <div>
+                <label className={cn("mb-2 block text-sm font-medium", textPrimary)}>
+                  학습 목적 *
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {(["내신대비", "모의고사", "수능", "기타"] as const).map((purpose) => (
+                    <button
+                      key={purpose}
+                      type="button"
+                      onClick={() =>
+                        setSettings((prev) => ({ ...prev, planPurpose: purpose }))
+                      }
+                      className={cn(
+                        "rounded-lg border px-3 py-2 text-sm font-medium transition",
+                        settings.planPurpose === purpose
+                          ? "border-indigo-500 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400"
+                          : cn(borderInput, textSecondary, "hover:bg-gray-100 dark:hover:bg-gray-800")
+                      )}
+                    >
+                      {purpose}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 교과/과목 선택 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={cn("mb-2 block text-sm font-medium", textPrimary)}>
+                    <BookOpen className="mr-1 inline h-4 w-4" />
+                    교과 *
+                  </label>
+                  <select
+                    value={settings.subjectCategory}
+                    onChange={(e) =>
+                      setSettings((prev) => ({ ...prev, subjectCategory: e.target.value }))
+                    }
+                    className={cn(
+                      "w-full rounded-lg border px-4 py-2.5",
+                      borderInput,
+                      "bg-white dark:bg-gray-800",
+                      textPrimary
+                    )}
+                  >
+                    <option value="수학">수학</option>
+                    <option value="영어">영어</option>
+                    <option value="국어">국어</option>
+                    <option value="과학">과학</option>
+                    <option value="사회">사회</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={cn("mb-2 block text-sm font-medium", textPrimary)}>
+                    과목 (선택)
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.subject}
+                    onChange={(e) =>
+                      setSettings((prev) => ({ ...prev, subject: e.target.value }))
+                    }
+                    placeholder="예: 미적분, 영어독해"
+                    className={cn(
+                      "w-full rounded-lg border px-4 py-2.5",
+                      borderInput,
+                      "bg-white dark:bg-gray-800",
+                      textPrimary
+                    )}
+                  />
+                </div>
+              </div>
+
+              {/* 난이도 & 학생 수준 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={cn("mb-2 block text-sm font-medium", textPrimary)}>
+                    난이도
+                  </label>
+                  <div className="flex gap-2">
+                    {(["개념", "기본", "심화"] as const).map((level) => (
+                      <button
+                        key={level}
+                        type="button"
+                        onClick={() =>
+                          setSettings((prev) => ({ ...prev, difficulty: level }))
+                        }
+                        className={cn(
+                          "flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition",
+                          settings.difficulty === level
+                            ? "border-indigo-500 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400"
+                            : cn(borderInput, textSecondary, "hover:bg-gray-100 dark:hover:bg-gray-800")
+                        )}
+                      >
+                        {level}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className={cn("mb-2 block text-sm font-medium", textPrimary)}>
+                    <GraduationCap className="mr-1 inline h-4 w-4" />
+                    학생 수준
+                  </label>
+                  <div className="flex gap-2">
+                    {([
+                      { value: "high", label: "상" },
+                      { value: "medium", label: "중" },
+                      { value: "low", label: "하" },
+                    ] as const).map(({ value, label }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() =>
+                          setSettings((prev) => ({ ...prev, studentLevel: value }))
+                        }
+                        className={cn(
+                          "flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition",
+                          settings.studentLevel === value
+                            ? "border-indigo-500 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400"
+                            : cn(borderInput, textSecondary, "hover:bg-gray-100 dark:hover:bg-gray-800")
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* 학습일/복습일 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={cn("mb-2 block text-sm font-medium", textPrimary)}>
+                    학습일 (1-7일)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={7}
+                    value={settings.studyDays}
+                    onChange={(e) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        studyDays: Math.min(7, Math.max(1, Number(e.target.value))),
+                      }))
+                    }
+                    className={cn(
+                      "w-full rounded-lg border px-4 py-2.5",
+                      borderInput,
+                      "bg-white dark:bg-gray-800",
+                      textPrimary
+                    )}
+                  />
+                </div>
+                <div>
+                  <label className={cn("mb-2 block text-sm font-medium", textPrimary)}>
+                    복습일 (0-3일)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={3}
+                    value={settings.reviewDays}
+                    onChange={(e) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        reviewDays: Math.min(3, Math.max(0, Number(e.target.value))),
+                      }))
+                    }
+                    className={cn(
+                      "w-full rounded-lg border px-4 py-2.5",
+                      borderInput,
+                      "bg-white dark:bg-gray-800",
+                      textPrimary
+                    )}
+                  />
+                </div>
+              </div>
+
+              {/* 학습 사이클 안내 */}
               <div
                 className={cn(
-                  "flex w-24 items-center justify-center rounded-lg border px-3 py-2",
+                  "rounded-lg border p-3",
                   borderInput,
-                  "bg-white dark:bg-gray-800"
+                  "bg-gray-50 dark:bg-gray-800/30"
                 )}
               >
-                <Clock className="mr-2 h-4 w-4 text-gray-400" />
-                <span className={textPrimary}>{settings.dailyStudyMinutes}분</span>
+                <p className={cn("text-sm", textSecondary)}>
+                  <Sparkles className="mr-1 inline h-4 w-4 text-indigo-500" />
+                  <strong>{settings.studyDays}일 학습 + {settings.reviewDays}일 복습</strong> 사이클로
+                  AI가 콘텐츠를 추천하고 스케줄을 자동 배분합니다.
+                </p>
               </div>
-            </div>
-          </div>
+            </>
+          )}
 
-          {/* 학습 요일 */}
-          <div>
-            <label className={cn("mb-2 block text-sm font-medium", textPrimary)}>
-              학습 요일
+          {/* 기본 모드 설정 (AI 모드가 아닐 때만 표시) */}
+          {!settings.useAIPlan && (
+            <>
+              {/* 일일 학습 시간 */}
+              <div>
+                <label className={cn("mb-2 block text-sm font-medium", textPrimary)}>
+                  일일 학습 시간 (분)
+                </label>
+                <div className="flex items-center gap-4">
+                  <input
+                    type="range"
+                    min={30}
+                    max={300}
+                    step={30}
+                    value={settings.dailyStudyMinutes}
+                    onChange={(e) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        dailyStudyMinutes: Number(e.target.value),
+                      }))
+                    }
+                    className="flex-1"
+                  />
+                  <div
+                    className={cn(
+                      "flex w-24 items-center justify-center rounded-lg border px-3 py-2",
+                      borderInput,
+                      "bg-white dark:bg-gray-800"
+                    )}
+                  >
+                    <Clock className="mr-2 h-4 w-4 text-gray-400" />
+                    <span className={textPrimary}>{settings.dailyStudyMinutes}분</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 학습 요일 */}
+              <div>
+                <label className={cn("mb-2 block text-sm font-medium", textPrimary)}>
+                  학습 요일
             </label>
             <div className="flex gap-2">
               {DAY_LABELS.map((label, index) => (
@@ -350,6 +696,8 @@ export function PlanGroupWizardWrapper({
               ))}
             </div>
           </div>
+            </>
+          )}
 
           {/* 대상 학생 요약 */}
           <div
@@ -411,17 +759,75 @@ export function PlanGroupWizardWrapper({
                 </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className={textSecondary}>일일 학습 시간</span>
+                <span className={textSecondary}>생성 모드</span>
                 <span className={cn("font-medium", textPrimary)}>
-                  {settings.dailyStudyMinutes}분
+                  {settings.useAIPlan ? (
+                    <span className="flex items-center gap-1">
+                      <Sparkles className="h-3 w-3 text-indigo-500" />
+                      AI 플랜 생성
+                    </span>
+                  ) : (
+                    "기본 모드"
+                  )}
                 </span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className={textSecondary}>학습 요일</span>
-                <span className={cn("font-medium", textPrimary)}>
-                  {settings.daysPerWeek.map((d) => DAY_LABELS[d]).join(", ")}
-                </span>
-              </div>
+
+              {/* AI 모드 설정 요약 */}
+              {settings.useAIPlan ? (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className={textSecondary}>학습 목적</span>
+                    <span className={cn("font-medium", textPrimary)}>
+                      {settings.planPurpose}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className={textSecondary}>교과/과목</span>
+                    <span className={cn("font-medium", textPrimary)}>
+                      {settings.subjectCategory}
+                      {settings.subject && ` / ${settings.subject}`}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className={textSecondary}>난이도</span>
+                    <span className={cn("font-medium", textPrimary)}>
+                      {settings.difficulty}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className={textSecondary}>학생 수준</span>
+                    <span className={cn("font-medium", textPrimary)}>
+                      {settings.studentLevel === "high"
+                        ? "상"
+                        : settings.studentLevel === "medium"
+                          ? "중"
+                          : "하"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className={textSecondary}>학습 사이클</span>
+                    <span className={cn("font-medium", textPrimary)}>
+                      {settings.studyDays}일 학습 + {settings.reviewDays}일 복습
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className={textSecondary}>일일 학습 시간</span>
+                    <span className={cn("font-medium", textPrimary)}>
+                      {settings.dailyStudyMinutes}분
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className={textSecondary}>학습 요일</span>
+                    <span className={cn("font-medium", textPrimary)}>
+                      {settings.daysPerWeek.map((d) => DAY_LABELS[d]).join(", ")}
+                    </span>
+                  </div>
+                </>
+              )}
+
               <div className="flex justify-between text-sm">
                 <span className={textSecondary}>대상 학생 수</span>
                 <span className={cn("font-medium", textPrimary)}>
