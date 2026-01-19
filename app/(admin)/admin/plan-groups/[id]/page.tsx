@@ -28,6 +28,7 @@ import {
   getAdminPlanGroupBackPath,
   getAdminPlanGroupBackLabel,
 } from "@/lib/navigation/adminPlanNavigation";
+import { MarkdownExportButton } from "@/components/plan";
 
 type AdminPlanGroupDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -252,6 +253,16 @@ export default async function AdminPlanGroupDetailPage({
             </svg>
             {backLabel}
           </Link>
+
+          {/* 내보내기 버튼 */}
+          {hasPlans && (
+            <MarkdownExportButton
+              planGroupId={id}
+              planGroupName={group.name || "학습 플랜"}
+              variant="outline"
+              size="sm"
+            />
+          )}
         </div>
 
         {/* 학생 정보 카드 */}
