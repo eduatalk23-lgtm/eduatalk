@@ -8,7 +8,7 @@
  * @module lib/domains/plan/services/AvailabilityService
  */
 
-import type { TimeRange, DailySchedule } from "@/lib/scheduler/calculateAvailableDates";
+import type { TimeRange, DailySchedule } from "@/lib/scheduler/utils/scheduleCalculator";
 import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
 
 // ============================================

@@ -11,7 +11,7 @@ import type {
   DailySchedule,
   ScheduleAvailabilityResult,
   ScheduleSummary,
-} from "@/lib/scheduler/calculateAvailableDates";
+} from "@/lib/scheduler/utils/scheduleCalculator";
 import { logActionDebug } from "@/lib/logging/actionLogger";
 
 /**

@@ -9,7 +9,7 @@
  * @module lib/domains/plan/services/AutoSlotPlacementService
  */
 
-import type { TimeRange } from "@/lib/scheduler/calculateAvailableDates";
+import type { TimeRange } from "@/lib/scheduler/utils/scheduleCalculator";
 import type { DailyAvailabilityInfo, ExistingPlan } from "./AvailabilityService";
 import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
 

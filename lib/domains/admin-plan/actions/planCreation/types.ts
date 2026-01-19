@@ -7,7 +7,7 @@
  * @module lib/domains/admin-plan/actions/planCreation/types
  */
 
-import type { TimeRange } from "@/lib/scheduler/calculateAvailableDates";
+import type { TimeRange } from "@/lib/scheduler/utils/scheduleCalculator";
 
 // ============================================
 // 기본 타입

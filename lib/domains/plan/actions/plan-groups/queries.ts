@@ -10,7 +10,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { timeToMinutes } from "./utils";
 import { logActionError, logActionDebug, logActionWarn } from "@/lib/logging/actionLogger";
-import type { CalculateOptions } from "@/lib/scheduler/calculateAvailableDates";
+import type { CalculateOptions } from "@/lib/scheduler/utils/scheduleCalculator";
 import { getBlockSetForPlanGroup } from "@/lib/plan/blocks";
 import type { DailyScheduleInfo, PlanGroup } from "@/lib/types/plan";
 import { fetchBlocksWithFallback } from "@/lib/utils/databaseFallback";

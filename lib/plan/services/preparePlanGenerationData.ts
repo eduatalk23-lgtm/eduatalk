@@ -10,7 +10,7 @@
 import { getPlanGroupWithDetailsByRole } from "@/lib/auth/planGroupAuth";
 import { getBlockSetForPlanGroup } from "@/lib/plan/blocks";
 import { getMergedSchedulerSettings } from "@/lib/data/schedulerSettings";
-import { calculateAvailableDates } from "@/lib/scheduler/calculateAvailableDates";
+import { calculateAvailableDates } from "@/lib/scheduler/utils/scheduleCalculator";
 import { extractScheduleMaps } from "@/lib/plan/planDataLoader";
 import { getSchedulerOptionsWithTimeSettings } from "@/lib/utils/schedulerOptions";
 import {

@@ -7,11 +7,11 @@ import {
   scheduleCache,
   type ScheduleCalculationParams,
 } from "@/lib/utils/scheduleCache";
-import type { Exclusion } from "@/lib/scheduler/calculateAvailableDates";
 import type {
+  Exclusion,
   ScheduleAvailabilityResult,
   DailySchedule,
-} from "@/lib/scheduler/calculateAvailableDates";
+} from "@/lib/scheduler/utils/scheduleCalculator";
 import { getDefaultBlocks } from "@/lib/utils/defaultBlockSet";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 

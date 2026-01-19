@@ -189,7 +189,7 @@ export async function adaptScheduleGeneration(
   // 기존 스케줄러 호출
   // NOTE: blocks는 빈 배열로 전달 (기존 generatePlansRefactored와 동일)
   // 실제 시간 정보는 dateAvailableTimeRanges와 dateTimeSlots에서 사용
-  const scheduledPlans = await schedulerGeneratePlans(
+  const generateResult = await schedulerGeneratePlans(
     group,
     contents,
     exclusions,
@@ -200,8 +200,13 @@ export async function adaptScheduleGeneration(
     dateAvailableTimeRanges,
     dateTimeSlots,
     contentDurationMap,
-    chapterMap
+    chapterMap,
+    undefined, // periodStart
+    undefined, // periodEnd
+    undefined, // existingPlans (어댑터에서는 미사용)
+    { autoAdjustOverlaps: true } // Phase 4: 시간 충돌 자동 조정
   );
+  const scheduledPlans = generateResult.plans;
 
   // ScheduledPlan 타입으로 변환
   return scheduledPlans.map((plan) => ({

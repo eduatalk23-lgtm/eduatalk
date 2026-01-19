@@ -14,7 +14,7 @@ import {
   type Exclusion,
   type AcademySchedule,
   type CalculateOptions,
-} from "@/lib/scheduler/calculateAvailableDates";
+} from "@/lib/scheduler/utils/scheduleCalculator";
 import {
   getExclusionTypeHierarchy,
   getHigherPriorityExclusionType,

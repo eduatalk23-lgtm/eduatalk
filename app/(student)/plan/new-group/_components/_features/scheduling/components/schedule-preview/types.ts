@@ -8,7 +8,7 @@ import type { WizardData } from "../../../../PlanGroupWizard";
 import type {
   ScheduleAvailabilityResult,
   DailySchedule,
-} from "@/lib/scheduler/calculateAvailableDates";
+} from "@/lib/scheduler/utils/scheduleCalculator";
 
 export type SchedulePreviewPanelProps = {
   data: WizardData;

@@ -3,7 +3,7 @@
 import React, { useMemo } from "react";
 import { cn } from "@/lib/cn";
 import type { DailyAvailabilityInfo, OccupiedSlot } from "@/lib/domains/plan/services/AvailabilityService";
-import type { TimeRange } from "@/lib/scheduler/calculateAvailableDates";
+import type { TimeRange } from "@/lib/scheduler/utils/scheduleCalculator";
 
 // ============================================
 // 타입 정의

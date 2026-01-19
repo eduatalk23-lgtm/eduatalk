@@ -21,7 +21,7 @@ import { calculateUncompletedRangeBounds, applyUncompletedRangeToContents } from
 import { getTodayDateString, calculateAdjustedPeriodUnified, PeriodCalculationError } from "@/lib/reschedule/periodCalculator";
 import { generatePreviewCacheKey, getCachedPreview, cachePreviewResult } from "@/lib/reschedule/previewCache";
 import { getMergedSchedulerSettings } from "@/lib/data/schedulerSettings";
-import { calculateAvailableDates } from "@/lib/scheduler/calculateAvailableDates";
+import { calculateAvailableDates } from "@/lib/scheduler/utils/scheduleCalculator";
 import { getSchedulerOptionsWithTimeSettings } from "@/lib/utils/schedulerOptions";
 
 // ============================================
@@ -452,7 +452,7 @@ export async function calculateReschedulePreview(
   const contentSubjects = new Map<string, { subject?: string | null; subject_category?: string | null }>();
 
   // 실제 플랜 생성
-  const generatedPlans = await generatePlansFromGroup(
+  const generateResult = await generatePlansFromGroup(
     group,
     contentsWithUncompleted,
     exclusions.map((e) => ({
@@ -476,8 +476,11 @@ export async function calculateReschedulePreview(
     undefined, // contentDurationMap
     undefined, // contentChapterMap
     adjustedPeriod.start,
-    adjustedPeriod.end
+    adjustedPeriod.end,
+    undefined, // existingPlans (재조정 시에는 기존 플랜 삭제 후 재생성)
+    { autoAdjustOverlaps: true } // Phase 4: 시간 충돌 자동 조정
   );
+  const generatedPlans = generateResult.plans;
 
   // 조정된 기간 내의 플랜만 필터링
   const filteredPlans = generatedPlans.filter(

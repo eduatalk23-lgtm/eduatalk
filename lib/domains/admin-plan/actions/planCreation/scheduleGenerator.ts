@@ -8,7 +8,7 @@
  */
 
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { calculateAvailableDates, type NonStudyTimeBlock } from '@/lib/scheduler/calculateAvailableDates';
+import { calculateAvailableDates, type NonStudyTimeBlock } from '@/lib/scheduler/utils/scheduleCalculator';
 import { extractScheduleMaps } from '@/lib/plan/planDataLoader';
 import type { DateTimeSlots } from './timelineAdjustment';
 

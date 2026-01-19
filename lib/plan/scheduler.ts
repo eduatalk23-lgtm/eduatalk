@@ -17,8 +17,12 @@ import {
 import { validateAllocations, getEffectiveAllocation } from "@/lib/utils/subjectAllocation";
 import { SchedulerEngine, type SchedulerContext, type ExistingPlanInfo } from "@/lib/scheduler/SchedulerEngine";
 import { generateScheduledPlans, type SchedulerInput } from "@/lib/scheduler";
+import type { GeneratePlansResult, OverlapValidationResult } from "@/lib/scheduler/types";
 import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
 import { calculateContentDuration } from "@/lib/plan/contentDuration";
+import { calculateAvailableDateStrings } from "@/lib/scheduler/utils/scheduleCalculator";
+import { validateNoTimeOverlaps, adjustOverlappingTimes } from "@/lib/scheduler/utils/timeOverlapValidator";
+import { logActionWarn } from "@/lib/utils/serverActionLogger";
 
 export type BlockInfo = {
   id: string;
@@ -86,6 +90,16 @@ export type ContentDurationInfo = {
 
 export type ContentDurationMap = Map<string, ContentDurationInfo>;
 
+/**
+ * 플랜 생성 옵션
+ */
+export interface GeneratePlansOptions {
+  /** 충돌 시 자동으로 시간 조정 여부 (기본값: false) */
+  autoAdjustOverlaps?: boolean;
+  /** 자동 조정 시 최대 종료 시간 (기본값: "23:59") */
+  maxEndTime?: string;
+}
+
 export async function generatePlansFromGroup(
   group: PlanGroup,
   contents: PlanContent[],
@@ -100,14 +114,15 @@ export async function generatePlansFromGroup(
   contentChapterMap?: Map<string, string | null>, // 콘텐츠 chapter 정보 (원본 content_id -> chapter 문자열)
   periodStart?: string, // 재조정 시 사용할 기간 시작일 (선택사항)
   periodEnd?: string, // 재조정 시 사용할 기간 종료일 (선택사항)
-  existingPlans?: ExistingPlanInfo[] // Phase 4: 기존 플랜 정보 (시간 충돌 방지)
-): Promise<ScheduledPlan[]> {
+  existingPlans?: ExistingPlanInfo[], // Phase 4: 기존 플랜 정보 (시간 충돌 방지)
+  options?: GeneratePlansOptions // 플랜 생성 옵션
+): Promise<GeneratePlansResult> {
   // 1. 학습 가능한 날짜 목록 생성 (제외일 제외)
   // 재조정 시에는 전달된 periodStart/periodEnd 사용, 아니면 group의 기간 사용
   const startDate = periodStart || group.period_start;
   const endDate = periodEnd || group.period_end;
   
-  const availableDates = calculateAvailableDates(
+  const availableDates = calculateAvailableDateStrings(
     startDate,
     endDate,
     exclusions
@@ -153,6 +168,43 @@ export async function generatePlansFromGroup(
     };
   });
 
+  // 2.5. subject_type 선계산 (스케줄링 우선순위에 사용)
+  const schedulerOptions = group.scheduler_options as SchedulerOptions | null;
+  const contentAllocations = schedulerOptions?.content_allocations as
+    | Array<{
+        content_type: "book" | "lecture" | "custom";
+        content_id: string;
+        subject_type: "strategy" | "weakness";
+        weekly_days?: number;
+      }>
+    | undefined;
+  const subjectAllocations = schedulerOptions?.subject_allocations as
+    | Array<{
+        subject_id?: string;
+        subject_name: string;
+        subject_type: "strategy" | "weakness";
+        weekly_days?: number;
+      }>
+    | undefined;
+
+  const subjectTypeMap = new Map<string, "strategy" | "weakness">();
+  for (const content of contentInfos) {
+    const allocation = getEffectiveAllocation(
+      {
+        content_type: content.content_type,
+        content_id: content.content_id,
+        subject_category: content.subject_category || undefined,
+        subject: content.subject || undefined,
+        subject_id: undefined,
+      },
+      contentAllocations,
+      subjectAllocations,
+      undefined,
+      false
+    );
+    subjectTypeMap.set(content.content_id, allocation.subject_type);
+  }
+
   // 3. 스케줄러 유형별로 플랜 생성 (Factory 패턴 사용)
   const schedulerInput: SchedulerInput = {
     availableDates,
@@ -162,6 +214,7 @@ export async function generatePlansFromGroup(
     exclusions,
     options: group.scheduler_options ?? undefined,
     riskIndexMap,
+    subjectTypeMap,
     dateAvailableTimeRanges,
     dateTimeSlots,
     contentDurationMap,
@@ -195,43 +248,52 @@ export async function generatePlansFromGroup(
     plans = [...plans, ...reallocatedPlans];
   }
 
-  // 5. 각 플랜에 subject_type 계산 및 할당
-  const schedulerOptions = group.scheduler_options as SchedulerOptions | null;
-  const contentAllocations = schedulerOptions?.content_allocations as
-    | Array<{
-        content_type: "book" | "lecture" | "custom";
-        content_id: string;
-        subject_type: "strategy" | "weakness";
-        weekly_days?: number;
-      }>
-    | undefined;
-  const subjectAllocations = schedulerOptions?.subject_allocations as
-    | Array<{
-        subject_id?: string;
-        subject_name: string;
-        subject_type: "strategy" | "weakness";
-        weekly_days?: number;
-      }>
-    | undefined;
-
-  // 각 플랜에 대해 subject_type 계산
+  // 5. 각 플랜에 subject_type 할당 (선계산된 값 사용, 폴백용)
   for (const plan of plans) {
-    const content = contentInfos.find((c) => c.content_id === plan.content_id);
-    if (content) {
-      const allocation = getEffectiveAllocation(
-        {
-          content_type: content.content_type,
-          content_id: content.content_id,
-          subject_category: content.subject_category || undefined,
-          subject: content.subject || undefined,
-          subject_id: undefined, // 필요시 추가
-        },
-        contentAllocations,
-        subjectAllocations,
-        undefined, // contentSlots (슬롯 모드 설정)
-        false // 프로덕션에서는 로깅 비활성화
-      );
-      plan.subject_type = allocation.subject_type;
+    if (!plan.subject_type) {
+      plan.subject_type = subjectTypeMap.get(plan.content_id) || "weakness";
+    }
+  }
+
+  // 5.5. Phase 4: 기존 플랜과의 시간 충돌 검증 및 자동 조정
+  let overlapValidation: OverlapValidationResult | undefined;
+  let wasAutoAdjusted = false;
+  let autoAdjustedCount = 0;
+  let unadjustablePlans: Array<{ plan: ScheduledPlan; reason: string }> | undefined;
+
+  if (existingPlans && existingPlans.length > 0) {
+    overlapValidation = validateNoTimeOverlaps(plans, existingPlans);
+
+    if (overlapValidation.hasOverlaps) {
+      // 자동 조정 옵션이 활성화된 경우
+      if (options?.autoAdjustOverlaps) {
+        const adjustmentResult = adjustOverlappingTimes(
+          plans,
+          existingPlans,
+          options.maxEndTime || "23:59"
+        );
+
+        plans = adjustmentResult.adjustedPlans;
+        wasAutoAdjusted = adjustmentResult.adjustedCount > 0;
+        autoAdjustedCount = adjustmentResult.adjustedCount;
+        unadjustablePlans = adjustmentResult.unadjustablePlans.length > 0
+          ? adjustmentResult.unadjustablePlans
+          : undefined;
+
+        // 조정 후 재검증
+        overlapValidation = validateNoTimeOverlaps(plans, existingPlans);
+
+        logActionWarn(
+          "plan.generatePlansFromGroup",
+          `시간 충돌 자동 조정: ${autoAdjustedCount}개 플랜 조정됨` +
+          (unadjustablePlans ? `, ${unadjustablePlans.length}개 조정 불가` : "")
+        );
+      } else {
+        logActionWarn(
+          "plan.generatePlansFromGroup",
+          `${overlapValidation.overlaps.length} time overlaps detected (total: ${overlapValidation.totalOverlapMinutes}min)`
+        );
+      }
     }
   }
 
@@ -278,7 +340,13 @@ export async function generatePlansFromGroup(
     );
   }
 
-  return plans;
+  return {
+    plans,
+    overlapValidation,
+    wasAutoAdjusted: wasAutoAdjusted || undefined,
+    autoAdjustedCount: autoAdjustedCount > 0 ? autoAdjustedCount : undefined,
+    unadjustablePlans,
+  };
 }
 
 /**
@@ -338,7 +406,7 @@ function generateAdditionalPeriodReallocationPlans(
     : null;
 
   // 4. 추가 기간의 날짜 목록 생성 (제외일 제외)
-  const additionalDates = calculateAvailableDatesSimple(
+  const additionalDates = calculateAvailableDateStrings(
     reallocation.period_start,
     reallocation.period_end,
     exclusions
@@ -530,76 +598,6 @@ function generateAdditionalPeriodReallocationPlans(
   }
 
   return reallocatedPlans;
-}
-
-/**
- * 날짜 범위의 모든 날짜 생성 (제외일 제외) - 간단한 버전
- */
-function calculateAvailableDatesSimple(
-  periodStart: string,
-  periodEnd: string,
-  exclusions: PlanExclusion[]
-): string[] {
-  const startDate = new Date(periodStart);
-  const endDate = new Date(periodEnd);
-  const dates: string[] = [];
-  const exclusionDates = new Set(exclusions.map(e => e.exclusion_date));
-
-  const current = new Date(startDate);
-  current.setHours(0, 0, 0, 0);
-
-  const end = new Date(endDate);
-  end.setHours(23, 59, 59, 999);
-
-  while (current <= end) {
-    const dateStr = formatDateSimple(current);
-    if (!exclusionDates.has(dateStr)) {
-      dates.push(dateStr);
-    }
-    current.setDate(current.getDate() + 1);
-  }
-
-  return dates;
-}
-
-/**
- * 날짜를 YYYY-MM-DD 형식으로 변환 - 간단한 버전
- */
-function formatDateSimple(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-
-
-/**
- * 학습 가능한 날짜 목록 계산 (제외일 제외)
- */
-function calculateAvailableDates(
-  periodStart: string,
-  periodEnd: string,
-  exclusions: PlanExclusion[]
-): string[] {
-  const start = new Date(periodStart);
-  const end = new Date(periodEnd);
-  const exclusionDates = new Set(
-    exclusions.map((e) => e.exclusion_date.split("T")[0])
-  );
-
-  const dates: string[] = [];
-  const current = new Date(start);
-
-  while (current <= end) {
-    const dateStr = current.toISOString().split("T")[0];
-    if (!exclusionDates.has(dateStr)) {
-      dates.push(dateStr);
-    }
-    current.setDate(current.getDate() + 1);
-  }
-
-  return dates;
 }
 
 /**

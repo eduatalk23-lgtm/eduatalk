@@ -28,7 +28,7 @@ import {
   getBlockSetErrorMessage,
 } from "@/lib/plan/blocks";
 import { isDummyContent } from "@/lib/utils/planUtils";
-import { calculateAvailableDates } from "@/lib/scheduler/calculateAvailableDates";
+import { calculateAvailableDates } from "@/lib/scheduler/utils/scheduleCalculator";
 import { generatePlansFromGroup } from "@/lib/plan/scheduler";
 import { extractScheduleMaps } from "@/lib/plan/planDataLoader";
 import { getMergedSchedulerSettings } from "@/lib/data/schedulerSettings";
@@ -420,6 +420,7 @@ async function _generatePlansWithServices(
   // 6. 스케줄러 호출 (플랜 생성)
   // ============================================
   let scheduledPlans: import("@/lib/plan/scheduler").ScheduledPlan[];
+  let overlapValidation: import("@/lib/scheduler/types").OverlapValidationResult | undefined;
   try {
     // contents의 content_id를 변환하여 스케줄러에 전달
     const transformedContents = contents
@@ -441,7 +442,7 @@ async function _generatePlansWithServices(
       );
     }
 
-    scheduledPlans = await generatePlansFromGroup(
+    const generateResult = await generatePlansFromGroup(
       group,
       transformedContents,
       exclusions,
@@ -455,12 +456,16 @@ async function _generatePlansWithServices(
       resolution.chapterMap,
       undefined,           // periodStart
       undefined,           // periodEnd
-      existingPlanInfos    // Phase 2: 기존 플랜 정보 전달 (시간 충돌 방지)
+      existingPlanInfos,   // Phase 2: 기존 플랜 정보 전달 (시간 충돌 방지)
+      { autoAdjustOverlaps: true }  // Phase 4: 시간 충돌 자동 조정
     );
+    scheduledPlans = generateResult.plans;
+    overlapValidation = generateResult.overlapValidation;
 
     logActionDebug(
       { domain: "plan", action: "generatePlansWithServices" },
-      `스케줄러 출력: ${scheduledPlans.length}개 플랜 생성`
+      `스케줄러 출력: ${scheduledPlans.length}개 플랜 생성`,
+      overlapValidation?.hasOverlaps ? { overlapsCount: overlapValidation.overlaps.length } : undefined
     );
   } catch (error) {
     if (error instanceof PlanGroupError) {

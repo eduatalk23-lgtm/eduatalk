@@ -592,7 +592,7 @@ export async function createPlanFromContentWithScheduler(
       start_time: p.start_time,
       end_time: p.end_time,
     }));
-    const scheduledPlans = await generatePlansFromGroup(
+    const generateResult = await generatePlansFromGroup(
       planGroup,
       planContents,
       exclusions || [],
@@ -606,8 +606,19 @@ export async function createPlanFromContentWithScheduler(
       undefined, // contentChapterMap
       input.targetDate,
       input.periodEndDate,
-      existingPlansForScheduler // Phase 4: 기존 플랜 정보 전달
+      existingPlansForScheduler, // Phase 4: 기존 플랜 정보 전달
+      { autoAdjustOverlaps: true } // Phase 4: 시간 충돌 자동 조정
     );
+    const scheduledPlans = generateResult.plans;
+
+    // 충돌 정보 로깅 (있는 경우)
+    if (generateResult.overlapValidation?.hasOverlaps) {
+      logActionDebug(
+        { domain: 'admin-plan', action: 'createPlanFromContentWithScheduler' },
+        `시간 충돌 감지: ${generateResult.overlapValidation.overlaps.length}건`,
+        { totalOverlapMinutes: generateResult.overlapValidation.totalOverlapMinutes }
+      );
+    }
 
     if (scheduledPlans.length === 0) {
       logActionDebug(

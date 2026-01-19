@@ -10,7 +10,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPlanGroupWithDetailsByRole } from "@/lib/auth/planGroupAuth";
 import { getBlockSetForPlanGroup } from "@/lib/plan/blocks";
 import { getMergedSchedulerSettings } from "@/lib/data/schedulerSettings";
-import { calculateAvailableDates } from "@/lib/scheduler/calculateAvailableDates";
+import { calculateAvailableDates } from "@/lib/scheduler/utils/scheduleCalculator";
 import { getSchedulerOptionsWithTimeSettings } from "@/lib/utils/schedulerOptions";
 import type {
   LoadedPlanGroupData,

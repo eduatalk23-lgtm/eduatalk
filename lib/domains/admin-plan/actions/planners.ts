@@ -14,7 +14,7 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { logActionError, logActionWarn } from "@/lib/utils/serverActionLogger";
-import type { TimeRange } from "@/lib/scheduler/calculateAvailableDates";
+import type { TimeRange } from "@/lib/scheduler/utils/scheduleCalculator";
 
 // ============================================
 // 타입 정의
