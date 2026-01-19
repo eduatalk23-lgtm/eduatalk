@@ -12,6 +12,8 @@ vi.mock("@/lib/domains/chat/repository", () => ({
   findSendersByIds: vi.fn(),
   insertMessage: vi.fn(),
   findRoomById: vi.fn(),
+  findOtherMemberInDirectRoom: vi.fn(),
+  getSenderInfoForInsert: vi.fn(),
 }));
 
 // Supabase 모킹
@@ -26,13 +28,16 @@ vi.mock("@/lib/supabase/server", () => ({
 
 import * as repository from "@/lib/domains/chat/repository";
 import { sendMessage, getMessages } from "@/lib/domains/chat/service";
-import type { ChatRoomMember, ChatMessage } from "@/lib/domains/chat/types";
+import type { ChatRoomMember, ChatMessage, ChatRoom } from "@/lib/domains/chat/types";
 
 const mockFindMember = vi.mocked(repository.findMember);
 const mockFindBlocksByUser = vi.mocked(repository.findBlocksByUser);
 const mockFindMessagesByRoom = vi.mocked(repository.findMessagesByRoom);
 const mockFindSendersByIds = vi.mocked(repository.findSendersByIds);
 const mockInsertMessage = vi.mocked(repository.insertMessage);
+const mockFindRoomById = vi.mocked(repository.findRoomById);
+const mockFindOtherMemberInDirectRoom = vi.mocked(repository.findOtherMemberInDirectRoom);
+const mockGetSenderInfoForInsert = vi.mocked(repository.getSenderInfoForInsert);
 
 describe("Chat Service", () => {
   beforeEach(() => {
@@ -61,19 +66,26 @@ describe("Chat Service", () => {
 
       it("1000자 이하 메시지는 허용", async () => {
         const maxContent = "x".repeat(1000);
-        mockFindMember.mockResolvedValue({
-          id: "member-1",
-          room_id: "room-1",
-          user_id: "user-1",
-          user_type: "student",
-          role: "member",
-          last_read_at: new Date().toISOString(),
-          is_muted: false,
-          left_at: null,
+        mockFindRoomById.mockResolvedValue({
+          id: "room-1",
+          tenant_id: "tenant-1",
+          type: "direct",
+          name: null,
+          created_by: "user-1",
+          created_by_type: "student",
+          is_active: true,
+          announcement: null,
+          announcement_by: null,
+          announcement_by_type: null,
+          announcement_at: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        } as ChatRoomMember);
-
+        } as ChatRoom);
+        mockFindOtherMemberInDirectRoom.mockResolvedValue(null);
+        mockGetSenderInfoForInsert.mockResolvedValue({
+          name: "Test User",
+          profileImageUrl: null,
+        });
         mockInsertMessage.mockResolvedValue({
           id: "msg-1",
           room_id: "room-1",
@@ -129,8 +141,29 @@ describe("Chat Service", () => {
     });
 
     describe("멤버십 검증", () => {
-      it("채팅방 멤버가 아니면 거부", async () => {
-        mockFindMember.mockResolvedValue(null);
+      it("채팅방 멤버가 아니면 거부 (RLS 에러)", async () => {
+        // sendMessage는 RLS를 통해 멤버십을 검증하므로 insertMessage에서 RLS 에러 발생
+        mockFindRoomById.mockResolvedValue({
+          id: "room-1",
+          tenant_id: "tenant-1",
+          type: "direct",
+          name: null,
+          created_by: "user-1",
+          created_by_type: "student",
+          is_active: true,
+          announcement: null,
+          announcement_by: null,
+          announcement_by_type: null,
+          announcement_at: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } as ChatRoom);
+        mockFindOtherMemberInDirectRoom.mockResolvedValue(null);
+        mockGetSenderInfoForInsert.mockResolvedValue({
+          name: "Test User",
+          profileImageUrl: null,
+        });
+        mockInsertMessage.mockRejectedValue(new Error("row-level security policy violation"));
 
         const result = await sendMessage("user-1", "student", validRequest);
 
@@ -139,19 +172,26 @@ describe("Chat Service", () => {
       });
 
       it("채팅방 멤버이면 메시지 전송 성공", async () => {
-        mockFindMember.mockResolvedValue({
-          id: "member-1",
-          room_id: "room-1",
-          user_id: "user-1",
-          user_type: "student",
-          role: "member",
-          last_read_at: new Date().toISOString(),
-          is_muted: false,
-          left_at: null,
+        mockFindRoomById.mockResolvedValue({
+          id: "room-1",
+          tenant_id: "tenant-1",
+          type: "direct",
+          name: null,
+          created_by: "user-1",
+          created_by_type: "student",
+          is_active: true,
+          announcement: null,
+          announcement_by: null,
+          announcement_by_type: null,
+          announcement_at: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        } as ChatRoomMember);
-
+        } as ChatRoom);
+        mockFindOtherMemberInDirectRoom.mockResolvedValue(null);
+        mockGetSenderInfoForInsert.mockResolvedValue({
+          name: "Test User",
+          profileImageUrl: null,
+        });
         mockInsertMessage.mockResolvedValue({
           id: "msg-1",
           room_id: "room-1",

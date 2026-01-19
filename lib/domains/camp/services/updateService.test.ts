@@ -200,7 +200,8 @@ describe("updateService", () => {
             exclusion_type: "exam",
             reason: null,
           }),
-        ])
+        ]),
+        true // useAdminClient
       );
     });
 
