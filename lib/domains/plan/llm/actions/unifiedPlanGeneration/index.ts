@@ -94,3 +94,10 @@ export {
   buildMarkdownExportData,
   renderMarkdown,
 } from "./utils/markdownHelpers";
+
+// Admin Wizard Integration
+export {
+  mapWizardToUnifiedInput,
+  mapSelectedContentsToResolved,
+  validateWizardDataForPipeline,
+} from "./utils/wizardMapper";
