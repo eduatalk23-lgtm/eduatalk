@@ -3,8 +3,8 @@
 -- This avoids expensive JOIN queries when fetching messages
 
 ALTER TABLE chat_messages
-ADD COLUMN IF NOT EXISTS sender_name text DEFAULT '사용자',
-ADD COLUMN IF NOT EXISTS sender_profile_url text DEFAULT NULL;
+ADD COLUMN sender_name text DEFAULT '사용자',
+ADD COLUMN sender_profile_url text DEFAULT NULL;
 
 -- Add comment for documentation
 COMMENT ON COLUMN chat_messages.sender_name IS 'Denormalized sender name (snapshot at message creation)';
