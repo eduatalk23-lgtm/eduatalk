@@ -40,6 +40,19 @@ import {
 import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
 import { calculateContentDuration } from "@/lib/plan/contentDuration";
 import { logActionWarn } from "@/lib/utils/serverActionLogger";
+import { SCHEDULER_CONFIG } from "@/lib/config/schedulerConfig";
+import type {
+  CycleDayMap,
+  PlanItem,
+  PlanWithDuration,
+  StudyPlansByDate,
+  SlotAvailability,
+} from "@/lib/scheduler/types";
+import {
+  type ContentAllocationStrategy,
+  RiskBasedAllocationStrategy,
+} from "@/lib/scheduler/strategies";
+import { MinHeap } from "@/lib/scheduler/utils/MinHeap";
 
 /**
  * 기존 플랜 정보 (시간 충돌 방지용)
@@ -62,6 +75,8 @@ export type SchedulerContext = {
   contents: ContentInfo[];
   options?: SchedulerOptions;
   riskIndexMap?: Map<string, { riskScore: number }>;
+  /** 콘텐츠별 subject_type 정보 (전략/취약 구분, 스케줄링 우선순위에 사용) */
+  subjectTypeMap?: Map<string, "strategy" | "weakness">;
   dateAvailableTimeRanges?: DateAvailableTimeRanges;
   dateTimeSlots?: DateTimeSlots;
   contentDurationMap?: ContentDurationMap;
@@ -89,8 +104,15 @@ export class SchedulerEngine {
   private filteredContents: ContentInfo[] | null = null;
   private failureReasons: PlanGenerationFailureReason[] = [];
 
+  /** Episode duration 캐시 (클래스 수준 - 성능 최적화) */
+  private episodeMapCache: Map<string, Map<number, number>> = new Map();
+
+  /** 콘텐츠 배분 전략 */
+  private allocationStrategy: ContentAllocationStrategy;
+
   constructor(context: SchedulerContext) {
     this.context = context;
+    this.allocationStrategy = new RiskBasedAllocationStrategy();
   }
 
   /**
@@ -864,8 +886,584 @@ export class SchedulerEngine {
     return weeks;
   }
 
+  // ============================================
+  // Study Day Plan Generation Helper Methods
+  // ============================================
+
+  /**
+   * 주기 정보 맵 생성
+   *
+   * cycleDays 배열에서 날짜를 키로 하는 맵을 생성합니다.
+   */
+  private buildCycleDayMap(): CycleDayMap {
+    const cycleDayMap: CycleDayMap = new Map();
+    this.cycleDays?.forEach((cd) => {
+      cycleDayMap.set(cd.date, {
+        cycle_day_number: cd.cycle_day_number,
+        day_type: cd.day_type,
+      });
+    });
+    return cycleDayMap;
+  }
+
+  /**
+   * 날짜별 플랜 맵 구성
+   *
+   * rangeMap에서 현재 주차의 학습일에 해당하는 범위만 추출합니다.
+   */
+  private buildStudyPlansByDate(
+    sortedContents: ContentInfo[],
+    studyDaysList: string[],
+    rangeMap: Map<string, Map<string, { start: number; end: number }>>
+  ): StudyPlansByDate {
+    const studyPlansByDate: StudyPlansByDate = new Map();
+
+    sortedContents.forEach((content) => {
+      const contentRangeMap = rangeMap.get(content.content_id);
+      if (!contentRangeMap) {
+        logActionWarn(
+          "SchedulerEngine.buildStudyPlansByDate",
+          `콘텐츠에 rangeMap이 없음 - content_id:${content.content_id}, type:${content.content_type}`
+        );
+        return;
+      }
+
+      const unmatchedDates: string[] = [];
+
+      contentRangeMap.forEach((range, date) => {
+        if (!studyDaysList.includes(date)) {
+          unmatchedDates.push(date);
+          return;
+        }
+
+        if (!studyPlansByDate.has(date)) {
+          studyPlansByDate.set(date, []);
+        }
+        studyPlansByDate.get(date)!.push({
+          content,
+          start: range.start,
+          end: range.end,
+        });
+      });
+
+      if (unmatchedDates.length > 0) {
+        logActionWarn(
+          "SchedulerEngine.buildStudyPlansByDate",
+          `rangeMap 날짜가 studyDaysList에 없어 자동 조정 - content_id:${content.content_id}, unmatchedCount:${unmatchedDates.length}`
+        );
+      }
+    });
+
+    return studyPlansByDate;
+  }
+
+  /**
+   * 강의 콘텐츠를 개별 에피소드로 확장
+   *
+   * lecture 타입은 각 회차를 개별 플랜으로 분할합니다.
+   */
+  private expandLectureToEpisodes(datePlans: PlanItem[]): PlanItem[] {
+    const expandedPlans: PlanItem[] = [];
+
+    datePlans.forEach((dp) => {
+      if (dp.content.content_type === "lecture") {
+        for (let ep = dp.start; ep < dp.end; ep++) {
+          expandedPlans.push({
+            content: dp.content,
+            start: ep,
+            end: ep + 1,
+          });
+        }
+      } else {
+        expandedPlans.push(dp);
+      }
+    });
+
+    return expandedPlans;
+  }
+
+  /**
+   * 플랜별 소요시간 계산
+   *
+   * Episode 캐싱과 학생 수준 보정을 적용합니다.
+   */
+  private calculatePlanDurations(
+    expandedPlans: PlanItem[],
+    contentDurationMap: ContentDurationMap | undefined,
+    studentLevel: "high" | "medium" | "low" | undefined
+  ): PlanWithDuration[] {
+    return expandedPlans.map(({ content, start, end: endAmount }) => {
+      const durationInfo = contentDurationMap?.get(content.content_id);
+      const amount = endAmount - start;
+      let requiredMinutes: number;
+
+      if (durationInfo) {
+        if (content.content_type === "lecture" && durationInfo.episodes) {
+          let episodeMap = this.episodeMapCache.get(content.content_id);
+          if (!episodeMap) {
+            episodeMap = new Map<number, number>();
+            for (const ep of durationInfo.episodes) {
+              if (
+                ep.duration !== null &&
+                ep.duration !== undefined &&
+                ep.duration > 0 &&
+                ep.episode_number > 0
+              ) {
+                episodeMap.set(ep.episode_number, ep.duration);
+              }
+            }
+            this.episodeMapCache.set(content.content_id, episodeMap);
+          }
+
+          if (amount === 1) {
+            const episodeDuration = episodeMap.get(start);
+            let baseDuration =
+              episodeDuration !== undefined && episodeDuration > 0
+                ? episodeDuration
+                : 30;
+            if (studentLevel) {
+              const levelFactor =
+                SCHEDULER_CONFIG.STUDENT_LEVEL[studentLevel] ?? 1.0;
+              baseDuration = Math.round(baseDuration * levelFactor);
+            }
+            requiredMinutes = baseDuration;
+          } else {
+            requiredMinutes = calculateContentDuration(
+              {
+                content_type: content.content_type,
+                content_id: content.content_id,
+                start_range: start,
+                end_range: endAmount - 1,
+              },
+              durationInfo,
+              undefined,
+              undefined,
+              studentLevel
+            );
+          }
+        } else {
+          requiredMinutes = calculateContentDuration(
+            {
+              content_type: content.content_type,
+              content_id: content.content_id,
+              start_range: start,
+              end_range: endAmount - 1,
+            },
+            durationInfo,
+            undefined,
+            undefined,
+            studentLevel
+          );
+        }
+      } else {
+        let baseDuration =
+          amount > 0
+            ? content.content_type === "lecture"
+              ? amount * 30
+              : amount * 2
+            : 60;
+        if (studentLevel) {
+          const levelFactor =
+            SCHEDULER_CONFIG.STUDENT_LEVEL[studentLevel] ?? 1.0;
+          baseDuration = Math.round(baseDuration * levelFactor);
+        }
+        requiredMinutes = baseDuration;
+      }
+
+      return {
+        content,
+        start,
+        end: endAmount,
+        requiredMinutes,
+        remainingMinutes: requiredMinutes,
+      };
+    });
+  }
+
+  /**
+   * Best Fit 알고리즘으로 플랜을 시간 슬롯에 배치
+   *
+   * @returns 생성된 플랜 배열과 배치되지 못한 플랜 정보
+   */
+  private allocatePlansWithBestFit(
+    plansWithDuration: PlanWithDuration[],
+    slotAvailability: SlotAvailability[],
+    date: string,
+    cycleDayMap: CycleDayMap,
+    startBlockIndex: number
+  ): { plans: ScheduledPlan[]; blockIndex: number; totalAvailableMinutes: number } {
+    const plans: ScheduledPlan[] = [];
+    let blockIndex = startBlockIndex;
+    let totalAvailableMinutes = 0;
+
+    slotAvailability.forEach(({ slot, usedTime }) => {
+      const slotStart = timeToMinutes(slot.start);
+      const slotEnd = timeToMinutes(slot.end);
+      totalAvailableMinutes += slotEnd - slotStart - usedTime;
+    });
+
+    for (const planInfo of plansWithDuration) {
+      if (planInfo.remainingMinutes <= 0) continue;
+
+      let bestSlotIndex = -1;
+      let bestRemainingSpace = Infinity;
+
+      for (let i = 0; i < slotAvailability.length; i++) {
+        const { slot, usedTime } = slotAvailability[i];
+        const slotStart = timeToMinutes(slot.start);
+        const slotEnd = timeToMinutes(slot.end);
+        const slotDuration = slotEnd - slotStart;
+        const availableTime = slotDuration - usedTime;
+
+        if (
+          availableTime >= planInfo.remainingMinutes &&
+          availableTime < bestRemainingSpace
+        ) {
+          bestSlotIndex = i;
+          bestRemainingSpace = availableTime;
+        }
+      }
+
+      if (bestSlotIndex === -1) {
+        for (let i = 0; i < slotAvailability.length; i++) {
+          const { slot, usedTime } = slotAvailability[i];
+          const slotStart = timeToMinutes(slot.start);
+          const slotEnd = timeToMinutes(slot.end);
+          const slotDuration = slotEnd - slotStart;
+          const availableTime = slotDuration - usedTime;
+
+          if (availableTime > 0) {
+            bestSlotIndex = i;
+            break;
+          }
+        }
+      }
+
+      while (planInfo.remainingMinutes > 0 && bestSlotIndex >= 0) {
+        const { slot, usedTime } = slotAvailability[bestSlotIndex];
+        const slotStart = timeToMinutes(slot.start);
+        const slotEnd = timeToMinutes(slot.end);
+        const slotDuration = slotEnd - slotStart;
+        const availableTime = slotDuration - usedTime;
+        const slotUsed = Math.min(planInfo.remainingMinutes, availableTime);
+
+        if (slotUsed > 0) {
+          const planStartTime = minutesToTime(slotStart + usedTime);
+          const planEndTime = minutesToTime(slotStart + usedTime + slotUsed);
+          const cycleInfo = cycleDayMap.get(date);
+
+          plans.push({
+            plan_date: date,
+            block_index: blockIndex,
+            content_type: planInfo.content.content_type,
+            content_id: planInfo.content.content_id,
+            planned_start_page_or_time: planInfo.start,
+            planned_end_page_or_time: planInfo.end - 1,
+            chapter: planInfo.content.chapter || null,
+            is_reschedulable: true,
+            start_time: planStartTime,
+            end_time: planEndTime,
+            cycle_day_number: cycleInfo?.cycle_day_number ?? null,
+            date_type: cycleInfo?.day_type ?? null,
+          });
+
+          planInfo.remainingMinutes -= slotUsed;
+          slotAvailability[bestSlotIndex].usedTime += slotUsed;
+          blockIndex++;
+
+          if (slotAvailability[bestSlotIndex].usedTime >= slotDuration) {
+            bestSlotIndex = -1;
+            for (let i = 0; i < slotAvailability.length; i++) {
+              const { slot: nextSlot, usedTime: nextUsedTime } =
+                slotAvailability[i];
+              const nextSlotStart = timeToMinutes(nextSlot.start);
+              const nextSlotEnd = timeToMinutes(nextSlot.end);
+              const nextSlotDuration = nextSlotEnd - nextSlotStart;
+              const nextAvailableTime = nextSlotDuration - nextUsedTime;
+
+              if (nextAvailableTime > 0) {
+                bestSlotIndex = i;
+                break;
+              }
+            }
+          }
+        } else {
+          break;
+        }
+      }
+
+      if (planInfo.remainingMinutes > 0) {
+        const week = calculateWeekNumber(date, this.context.periodStart);
+        const dayOfWeek = getDayOfWeekName(new Date(date).getDay());
+
+        this.addFailureReason({
+          type: "insufficient_time",
+          week,
+          dayOfWeek,
+          date,
+          requiredMinutes: planInfo.requiredMinutes,
+          availableMinutes: totalAvailableMinutes,
+        });
+      }
+    }
+
+    return { plans, blockIndex, totalAvailableMinutes };
+  }
+
+  /**
+   * Heap 기반 Best Fit 알고리즘으로 플랜을 시간 슬롯에 배치
+   *
+   * 기존 O(n²) → O(n log n) 최적화
+   * MinHeap을 사용하여 가용 시간이 가장 적은 슬롯을 빠르게 찾습니다.
+   *
+   * @returns 생성된 플랜 배열과 배치되지 못한 플랜 정보
+   */
+  private allocatePlansWithHeapBestFit(
+    plansWithDuration: PlanWithDuration[],
+    slotAvailability: SlotAvailability[],
+    date: string,
+    cycleDayMap: CycleDayMap,
+    startBlockIndex: number
+  ): { plans: ScheduledPlan[]; blockIndex: number; totalAvailableMinutes: number } {
+    const plans: ScheduledPlan[] = [];
+    let blockIndex = startBlockIndex;
+
+    // 슬롯별 가용 시간 계산 및 힙 초기화
+    const slotInfos = slotAvailability.map((sa, index) => {
+      const slotStart = timeToMinutes(sa.slot.start);
+      const slotEnd = timeToMinutes(sa.slot.end);
+      const slotDuration = slotEnd - slotStart;
+      const availableTime = slotDuration - sa.usedTime;
+      return {
+        priority: availableTime, // 가용 시간이 적을수록 우선 (Best Fit)
+        data: { ...sa, slotDuration, availableTime },
+        index,
+      };
+    });
+
+    // 가용 시간이 있는 슬롯만 힙에 추가
+    const validSlots = slotInfos.filter((s) => s.data.availableTime > 0);
+    const slotHeap = MinHeap.fromArray(validSlots);
+
+    let totalAvailableMinutes = slotInfos.reduce(
+      (sum, s) => sum + s.data.availableTime,
+      0
+    );
+
+    for (const planInfo of plansWithDuration) {
+      if (planInfo.remainingMinutes <= 0) continue;
+
+      // Best Fit: 힙에서 가장 적합한 슬롯 찾기
+      let allocated = false;
+
+      while (planInfo.remainingMinutes > 0 && !slotHeap.isEmpty()) {
+        const minNode = slotHeap.peek();
+        if (!minNode) break;
+
+        const slotData = minNode.data;
+        const slotIndex = minNode.index;
+
+        // 플랜이 들어갈 수 있는지 확인
+        if (slotData.availableTime <= 0) {
+          slotHeap.extractMin(); // 가용 시간이 없는 슬롯 제거
+          continue;
+        }
+
+        const slotUsed = Math.min(planInfo.remainingMinutes, slotData.availableTime);
+
+        if (slotUsed > 0) {
+          const slotStart = timeToMinutes(slotData.slot.start);
+          const usedTime = slotAvailability[slotIndex].usedTime;
+          const planStartTime = minutesToTime(slotStart + usedTime);
+          const planEndTime = minutesToTime(slotStart + usedTime + slotUsed);
+          const cycleInfo = cycleDayMap.get(date);
+
+          plans.push({
+            plan_date: date,
+            block_index: blockIndex,
+            content_type: planInfo.content.content_type,
+            content_id: planInfo.content.content_id,
+            planned_start_page_or_time: planInfo.start,
+            planned_end_page_or_time: planInfo.end - 1,
+            chapter: planInfo.content.chapter || null,
+            is_reschedulable: true,
+            start_time: planStartTime,
+            end_time: planEndTime,
+            cycle_day_number: cycleInfo?.cycle_day_number ?? null,
+            date_type: cycleInfo?.day_type ?? null,
+          });
+
+          planInfo.remainingMinutes -= slotUsed;
+          slotAvailability[slotIndex].usedTime += slotUsed;
+          slotData.availableTime -= slotUsed;
+          blockIndex++;
+          allocated = true;
+
+          // 힙에서 슬롯 업데이트
+          if (slotData.availableTime <= 0) {
+            slotHeap.extractMin(); // 가득 찬 슬롯 제거
+          } else {
+            // 우선순위 업데이트 (가용 시간 감소)
+            const found = slotHeap.findByIndex(slotIndex);
+            if (found) {
+              slotHeap.updatePriority(found.heapIndex, slotData.availableTime);
+            }
+          }
+        } else {
+          break;
+        }
+      }
+
+      // 시간 부족 감지
+      if (planInfo.remainingMinutes > 0) {
+        const week = calculateWeekNumber(date, this.context.periodStart);
+        const dayOfWeek = getDayOfWeekName(new Date(date).getDay());
+
+        this.addFailureReason({
+          type: "insufficient_time",
+          week,
+          dayOfWeek,
+          date,
+          requiredMinutes: planInfo.requiredMinutes,
+          availableMinutes: totalAvailableMinutes,
+        });
+      }
+    }
+
+    return { plans, blockIndex, totalAvailableMinutes };
+  }
+
+  /**
+   * First Fit 알고리즘으로 플랜을 시간 범위에 배치 (폴백)
+   */
+  private allocatePlansWithFirstFit(
+    plansWithDuration: PlanWithDuration[],
+    availableRanges: Array<{ start: string; end: string }>,
+    date: string,
+    cycleDayMap: CycleDayMap,
+    startBlockIndex: number
+  ): { plans: ScheduledPlan[]; blockIndex: number } {
+    const plans: ScheduledPlan[] = [];
+    let blockIndex = startBlockIndex;
+    let slotIndex = 0;
+    let currentSlotPosition = 0;
+
+    let totalAvailableMinutes = 0;
+    availableRanges.forEach((range) => {
+      const startMinutes = timeToMinutes(range.start);
+      const endMinutes = timeToMinutes(range.end);
+      totalAvailableMinutes +=
+        endMinutes > startMinutes ? endMinutes - startMinutes : 60;
+    });
+
+    for (const planInfo of plansWithDuration) {
+      let remainingMinutes = planInfo.remainingMinutes;
+
+      while (remainingMinutes > 0 && slotIndex < availableRanges.length) {
+        const timeRange = availableRanges[slotIndex] || {
+          start: "10:00",
+          end: "19:00",
+        };
+        const startMinutes = timeToMinutes(timeRange.start);
+        const endMinutes = timeToMinutes(timeRange.end);
+        const rangeDuration =
+          endMinutes > startMinutes ? endMinutes - startMinutes : 60;
+        const slotAvailable = rangeDuration - currentSlotPosition;
+        const actualDuration = Math.min(remainingMinutes, slotAvailable);
+        const planStartTime = minutesToTime(startMinutes + currentSlotPosition);
+        const planEndTime = minutesToTime(
+          startMinutes + currentSlotPosition + actualDuration
+        );
+
+        const cycleInfo = cycleDayMap.get(date);
+
+        plans.push({
+          plan_date: date,
+          block_index: blockIndex,
+          content_type: planInfo.content.content_type,
+          content_id: planInfo.content.content_id,
+          planned_start_page_or_time: planInfo.start,
+          planned_end_page_or_time: planInfo.end - 1,
+          chapter: planInfo.content.chapter || null,
+          is_reschedulable: true,
+          start_time: planStartTime,
+          end_time: planEndTime,
+          cycle_day_number: cycleInfo?.cycle_day_number ?? null,
+          date_type: cycleInfo?.day_type ?? null,
+        });
+
+        remainingMinutes -= actualDuration;
+        currentSlotPosition += actualDuration;
+        blockIndex++;
+
+        if (currentSlotPosition >= rangeDuration) {
+          slotIndex++;
+          currentSlotPosition = 0;
+        }
+      }
+
+      if (remainingMinutes > 0) {
+        const week = calculateWeekNumber(date, this.context.periodStart);
+        const dayOfWeek = getDayOfWeekName(new Date(date).getDay());
+
+        this.addFailureReason({
+          type: "insufficient_time",
+          week,
+          dayOfWeek,
+          date,
+          requiredMinutes: planInfo.requiredMinutes,
+          availableMinutes: totalAvailableMinutes,
+        });
+      }
+    }
+
+    return { plans, blockIndex };
+  }
+
+  /**
+   * 주차별 콘텐츠 범위 맵 구성
+   *
+   * 학습일에 배정된 콘텐츠의 시작/종료 범위를 집계합니다. (복습용)
+   */
+  private buildWeekContentRanges(
+    studyPlansByDate: StudyPlansByDate | undefined,
+    studyDaysList: string[]
+  ): Map<string, { startAmount: number; endAmount: number }> {
+    const weekContentRanges = new Map<
+      string,
+      { startAmount: number; endAmount: number }
+    >();
+
+    if (!studyPlansByDate) return weekContentRanges;
+
+    studyPlansByDate.forEach((datePlans, date) => {
+      if (!studyDaysList.includes(date)) return;
+
+      datePlans.forEach(({ content, start, end: endAmount }) => {
+        if (!weekContentRanges.has(content.content_id)) {
+          weekContentRanges.set(content.content_id, {
+            startAmount: start,
+            endAmount: endAmount,
+          });
+        } else {
+          const existing = weekContentRanges.get(content.content_id)!;
+          existing.startAmount = Math.min(existing.startAmount, start);
+          existing.endAmount = Math.max(existing.endAmount, endAmount);
+        }
+      });
+    });
+
+    return weekContentRanges;
+  }
+
+  // ============================================
+  // Main Study Day Plan Generation
+  // ============================================
+
   /**
    * 학습일 플랜 생성
+   *
+   * 헬퍼 메서드를 활용하여 가독성과 유지보수성을 향상시킵니다.
    *
    * @returns 플랜 배열과 studyPlansByDate 맵을 반환합니다.
    */
@@ -879,109 +1477,34 @@ export class SchedulerEngine {
     riskIndexMap?: Map<string, { riskScore: number }>
   ): {
     plans: ScheduledPlan[];
-    studyPlansByDate: Map<
-      string,
-      Array<{ content: ContentInfo; start: number; end: number }>
-    >;
+    studyPlansByDate: StudyPlansByDate;
   } {
     const plans: ScheduledPlan[] = [];
 
-    // 1730 Timetable: 학생 수준 및 날짜별 주기 정보 추출
+    // 1. 학생 수준 추출
     const studentLevel = this.context.options?.student_level as
       | "high"
       | "medium"
       | "low"
       | undefined;
 
-    // cycleDays에서 날짜별 주기 정보 조회를 위한 Map 생성
-    const cycleDayMap = new Map<
-      string,
-      { cycle_day_number: number; day_type: "study" | "review" | "exclusion" }
-    >();
-    this.cycleDays?.forEach((cd) => {
-      cycleDayMap.set(cd.date, {
-        cycle_day_number: cd.cycle_day_number,
-        day_type: cd.day_type,
-      });
-    });
+    // 2. 주기 정보 맵 생성 (헬퍼 메서드)
+    const cycleDayMap = this.buildCycleDayMap();
 
-    // 취약과목 우선 배정 (정렬)
-    const sortedContents = [...contents].sort((a, b) => {
-      const aSubject = a.subject?.toLowerCase().trim() || "";
-      const bSubject = b.subject?.toLowerCase().trim() || "";
-      const aRisk = riskIndexMap?.get(aSubject)?.riskScore || 0;
-      const bRisk = riskIndexMap?.get(bSubject)?.riskScore || 0;
-      return bRisk - aRisk;
-    });
+    // 3. 콘텐츠 정렬 (Strategy 패턴)
+    const sortedContents = this.allocationStrategy.sortContents(
+      contents,
+      riskIndexMap
+    );
 
-    // 배정된 날짜별로 플랜 생성
-    const studyPlansByDate = new Map<
-      string,
-      Array<{
-        content: ContentInfo;
-        start: number;
-        end: number;
-      }>
-    >();
+    // 4. 날짜별 플랜 맵 구성 (헬퍼 메서드)
+    const studyPlansByDate = this.buildStudyPlansByDate(
+      sortedContents,
+      studyDaysList,
+      rangeMap
+    );
 
-    // 날짜 배열에서 가장 가까운 날짜 찾기 (헬퍼 함수)
-    const findClosestDate = (targetDate: string, dateList: string[]): string | null => {
-      if (dateList.length === 0) return null;
-      
-      const target = new Date(targetDate).getTime();
-      let closestDate = dateList[0];
-      let minDiff = Math.abs(new Date(closestDate).getTime() - target);
-      
-      for (const date of dateList) {
-        const diff = Math.abs(new Date(date).getTime() - target);
-        if (diff < minDiff) {
-          minDiff = diff;
-          closestDate = date;
-        }
-      }
-      
-      return closestDate;
-    };
-
-    // studyPlansByDate 구성
-    sortedContents.forEach((content) => {
-      const contentRangeMap = rangeMap.get(content.content_id);
-      if (!contentRangeMap) {
-        logActionWarn("SchedulerEngine.generateStudyDayPlans", `콘텐츠에 rangeMap이 없음 - content_id:${content.content_id}, type:${content.content_type}`);
-        return;
-      }
-
-      const rangeMapDates = Array.from(contentRangeMap.keys());
-      const matchedDates: string[] = [];
-      const unmatchedDates: string[] = [];
-      const adjustedDates: Map<string, string> = new Map(); // 원본 날짜 -> 조정된 날짜
-
-      // 현재 주차의 학습일에 해당하는 범위만 사용 (다른 주차 범위 제외)
-      contentRangeMap.forEach((range, date) => {
-        // 현재 주차의 학습일이 아니면 무시 (다른 주차는 별도로 처리됨)
-        if (!studyDaysList.includes(date)) {
-          unmatchedDates.push(date);
-          return; // 다른 주차의 범위는 무시
-        }
-
-        matchedDates.push(date);
-        if (!studyPlansByDate.has(date)) {
-          studyPlansByDate.set(date, []);
-        }
-        studyPlansByDate.get(date)!.push({
-          content,
-          start: range.start,
-          end: range.end,
-        });
-      });
-
-      // 디버깅: 날짜 불일치 감지 및 조정 로그
-      if (unmatchedDates.length > 0) {
-        logActionWarn("SchedulerEngine.generateStudyDayPlans", `rangeMap 날짜가 studyDaysList에 없어 자동 조정 - content_id:${content.content_id}, unmatchedCount:${unmatchedDates.length}, studyDaysCount:${studyDaysList.length}`);
-      }
-    });
-
-    // 학습일 플랜이 없는 경우 경고
+    // 5. 학습일 플랜이 없는 경우 경고
     if (studyPlansByDate.size === 0) {
       const allRangeMapDates = new Set<string>();
       rangeMap.forEach((contentRangeMap) => {
@@ -993,8 +1516,14 @@ export class SchedulerEngine {
       const rangeMapDatesNotInStudyDays = Array.from(allRangeMapDates).filter(
         (date) => !studyDaysList.includes(date)
       );
-      logActionWarn("SchedulerEngine.generateStudyDayPlans", `학습일 플랜이 생성되지 않음 - studyDaysCount:${studyDaysList.length}, contentsCount:${sortedContents.length}, rangeMapCount:${rangeMap.size}, unmatchedDates:${rangeMapDatesNotInStudyDays.length}`);
+      logActionWarn(
+        "SchedulerEngine.generateStudyDayPlans",
+        `학습일 플랜이 생성되지 않음 - studyDaysCount:${studyDaysList.length}, contentsCount:${sortedContents.length}, rangeMapCount:${rangeMap.size}, unmatchedDates:${rangeMapDatesNotInStudyDays.length}`
+      );
     }
+
+    // 6. 날짜별 플랜 생성 및 시간 슬롯 배치
+    let globalBlockIndex = 1;
 
     studyPlansByDate.forEach((datePlans, date) => {
       const availableRanges = dateAvailableTimeRanges?.get(date) || [];
@@ -1003,341 +1532,51 @@ export class SchedulerEngine {
         (slot) => slot.type === "학습시간"
       );
 
-      // Best Fit 알고리즘을 위한 플랜 정렬: 소요시간 내림차순 (큰 것부터 배치)
-      // If Content Type is Lecture, we might need to SPLIT the range into individual episodes here.
-      // The user wants "1 episode per learning history".
-      
-      const expandedPlans: Array<{
-          content: ContentInfo;
-          start: number;
-          end: number;
-      }> = [];
+      // 6-1. 강의 콘텐츠를 에피소드로 확장 (헬퍼 메서드)
+      const expandedPlans = this.expandLectureToEpisodes(datePlans);
 
-      datePlans.forEach(dp => {
-         if (dp.content.content_type === "lecture") {
-             // Split range into individual episodes
-             for (let ep = dp.start; ep < dp.end; ep++) {
-                 expandedPlans.push({
-                     content: dp.content,
-                     start: ep,
-                     end: ep + 1
-                 });
-             }
-         } else {
-             // Keep as range
-             expandedPlans.push(dp);
-         }
-      });
+      // 6-2. 플랜별 소요시간 계산 (헬퍼 메서드)
+      const plansWithDuration = this.calculatePlanDurations(
+        expandedPlans,
+        contentDurationMap,
+        studentLevel
+      ).sort((a, b) => a.start - b.start); // 순서대로 배치 (페이지/회차 순)
 
-      // Episode Map 캐싱 (성능 최적화: 같은 콘텐츠의 episode 정보를 재사용)
-      const episodeMapCache = new Map<string, Map<number, number>>();
-      
-      const plansWithDuration = expandedPlans.map(({ content, start, end: endAmount }) => {
-        const durationInfo = contentDurationMap?.get(content.content_id);
-        const amount = endAmount - start;
-        
-        let requiredMinutes: number;
-        
-        // duration 정보가 있으면 통합 함수 사용, 없으면 기본값 계산
-        if (durationInfo) {
-          // 강의이고 episode 정보가 있는 경우, 캐시된 Map 사용
-          if (content.content_type === "lecture" && durationInfo.episodes) {
-            // Episode Map 캐싱 확인
-            let episodeMap = episodeMapCache.get(content.content_id);
-            if (!episodeMap) {
-              // Map 생성 및 캐싱
-              episodeMap = new Map<number, number>();
-              for (const ep of durationInfo.episodes) {
-                if (
-                  ep.duration !== null &&
-                  ep.duration !== undefined &&
-                  ep.duration > 0 &&
-                  ep.episode_number > 0
-                ) {
-                  episodeMap.set(ep.episode_number, ep.duration);
-                }
-              }
-              episodeMapCache.set(content.content_id, episodeMap);
-            }
-            
-            // 단일 episode인 경우 직접 Map에서 조회 (calculateContentDuration 호출 생략)
-            if (amount === 1) {
-              const episodeDuration = episodeMap.get(start);
-              let baseDuration = episodeDuration !== undefined && episodeDuration > 0
-                ? episodeDuration
-                : 30; // 기본값: 30분
-              // 학생 수준 보정 적용
-              if (studentLevel) {
-                const { SCHEDULER_CONFIG } = require("@/lib/config/schedulerConfig");
-                const levelFactor = SCHEDULER_CONFIG.STUDENT_LEVEL[studentLevel] ?? 1.0;
-                baseDuration = Math.round(baseDuration * levelFactor);
-              }
-              requiredMinutes = baseDuration;
-            } else {
-              // 범위인 경우 calculateContentDuration 사용 (studentLevel 전달)
-              requiredMinutes = calculateContentDuration(
-                {
-                  content_type: content.content_type,
-                  content_id: content.content_id,
-                  start_range: start,
-                  end_range: endAmount - 1, // Convert Exclusive to Inclusive for calculation
-                },
-                durationInfo,
-                undefined, // dayType
-                undefined, // reviewTimeRatio
-                studentLevel // studentLevel 전달
-              );
-            }
-          } else {
-            // 강의가 아니거나 episode 정보가 없는 경우 기존 로직 사용 (studentLevel 전달)
-            requiredMinutes = calculateContentDuration(
-              {
-                content_type: content.content_type,
-                content_id: content.content_id,
-                start_range: start,
-                end_range: endAmount - 1, // Convert Exclusive to Inclusive for calculation
-              },
-              durationInfo,
-              undefined, // dayType
-              undefined, // reviewTimeRatio
-              studentLevel // studentLevel 전달
-            );
-          }
-        } else {
-          // duration 정보가 없으면 기본값 계산
-          let baseDuration = amount > 0
-            ? content.content_type === "lecture"
-              ? amount * 30 // 강의: 회차당 30분
-              : amount * 2 // 책/커스텀: 페이지당 2분
-            : 60; // 기본값: 1시간
-          // 학생 수준 보정 적용
-          if (studentLevel) {
-            const { SCHEDULER_CONFIG } = require("@/lib/config/schedulerConfig");
-            const levelFactor = SCHEDULER_CONFIG.STUDENT_LEVEL[studentLevel] ?? 1.0;
-            baseDuration = Math.round(baseDuration * levelFactor);
-          }
-          requiredMinutes = baseDuration;
-        }
-
-        return {
-          content,
-          start,
-          end: endAmount,
-          requiredMinutes,
-          remainingMinutes: requiredMinutes,
-        };
-      }).sort((a, b) => a.start - b.start); // 순서대로 배치 (페이지/회차 순)
-
-      let blockIndex = 1;
-      let totalAvailableMinutes = 0;
-
-      // 학습시간 슬롯이 있으면 사용, 없으면 available_time_ranges 사용
+      // 6-3. 시간 슬롯 배치
       if (studyTimeSlots.length > 0) {
-        // 사용 가능한 총 시간 계산
-        studyTimeSlots.forEach((slot) => {
-          const slotStart = timeToMinutes(slot.start);
-          const slotEnd = timeToMinutes(slot.end);
-          totalAvailableMinutes += slotEnd - slotStart;
-        });
+        // Heap 기반 Best Fit 알고리즘 사용 (O(n log n) 최적화)
+        const existingPlansForDate =
+          this.context.existingPlans?.filter((p) => p.date === date) || [];
 
-        // 슬롯별 사용 가능한 시간 추적 (기존 플랜이 사용한 시간 반영 - Phase 4)
-        const existingPlansForDate = this.context.existingPlans?.filter(
-          (p) => p.date === date
-        ) || [];
-        const slotAvailability: Array<{ slot: typeof studyTimeSlots[0]; usedTime: number }> = studyTimeSlots.map((slot) => ({
-          slot,
-          usedTime: this.calculateUsedTimeForSlot(slot, existingPlansForDate),
-        }));
+        const slotAvailability: SlotAvailability[] = studyTimeSlots.map(
+          (slot) => ({
+            slot,
+            usedTime: this.calculateUsedTimeForSlot(slot, existingPlansForDate),
+          })
+        );
 
-        // Best Fit 알고리즘: 각 플랜을 가장 적합한 슬롯에 배치
-        for (const planInfo of plansWithDuration) {
-          if (planInfo.remainingMinutes <= 0) continue;
+        const result = this.allocatePlansWithHeapBestFit(
+          plansWithDuration,
+          slotAvailability,
+          date,
+          cycleDayMap,
+          globalBlockIndex
+        );
 
-          // Best Fit: 남은 시간이 가장 적은 슬롯 찾기 (하지만 플랜이 들어갈 수 있어야 함)
-          let bestSlotIndex = -1;
-          let bestRemainingSpace = Infinity;
-
-          for (let i = 0; i < slotAvailability.length; i++) {
-            const { slot, usedTime } = slotAvailability[i];
-            const slotStart = timeToMinutes(slot.start);
-            const slotEnd = timeToMinutes(slot.end);
-            const slotDuration = slotEnd - slotStart;
-            const availableTime = slotDuration - usedTime;
-
-            // 플랜이 들어갈 수 있고, 남은 공간이 가장 적은 슬롯 선택
-            if (availableTime >= planInfo.remainingMinutes && availableTime < bestRemainingSpace) {
-              bestSlotIndex = i;
-              bestRemainingSpace = availableTime;
-            }
-          }
-
-          // Best Fit 슬롯을 찾지 못한 경우, First Fit으로 폴백
-          if (bestSlotIndex === -1) {
-            for (let i = 0; i < slotAvailability.length; i++) {
-              const { slot, usedTime } = slotAvailability[i];
-              const slotStart = timeToMinutes(slot.start);
-              const slotEnd = timeToMinutes(slot.end);
-              const slotDuration = slotEnd - slotStart;
-              const availableTime = slotDuration - usedTime;
-
-              if (availableTime > 0) {
-                bestSlotIndex = i;
-                break;
-              }
-            }
-          }
-
-          // 플랜 배치
-          while (planInfo.remainingMinutes > 0 && bestSlotIndex >= 0) {
-            const { slot, usedTime } = slotAvailability[bestSlotIndex];
-            const slotStart = timeToMinutes(slot.start);
-            const slotEnd = timeToMinutes(slot.end);
-            const slotDuration = slotEnd - slotStart;
-            const availableTime = slotDuration - usedTime;
-            const slotUsed = Math.min(planInfo.remainingMinutes, availableTime);
-
-            if (slotUsed > 0) {
-              const planStartTime = minutesToTime(slotStart + usedTime);
-              const planEndTime = minutesToTime(slotStart + usedTime + slotUsed);
-
-              // 1730 Timetable: 날짜별 주기 정보 조회
-              const cycleInfo = cycleDayMap.get(date);
-
-              plans.push({
-                plan_date: date,
-                block_index: blockIndex,
-                content_type: planInfo.content.content_type,
-                content_id: planInfo.content.content_id,
-                planned_start_page_or_time: planInfo.start,
-                planned_end_page_or_time: planInfo.end - 1, // Convert Exclusive to Inclusive for DB
-                chapter: planInfo.content.chapter || null, // ContentInfo의 chapter 정보 사용
-                is_reschedulable: true,
-                start_time: planStartTime,
-                end_time: planEndTime,
-                // 1730 Timetable 추가 필드
-                cycle_day_number: cycleInfo?.cycle_day_number ?? null,
-                date_type: cycleInfo?.day_type ?? null,
-              });
-
-              planInfo.remainingMinutes -= slotUsed;
-              slotAvailability[bestSlotIndex].usedTime += slotUsed;
-              blockIndex++;
-
-              // 슬롯이 가득 찬 경우 다음 슬롯 찾기
-              if (slotAvailability[bestSlotIndex].usedTime >= slotDuration) {
-                bestSlotIndex = -1;
-                // 다음 사용 가능한 슬롯 찾기
-                for (let i = 0; i < slotAvailability.length; i++) {
-                  const { slot: nextSlot, usedTime: nextUsedTime } = slotAvailability[i];
-                  const nextSlotStart = timeToMinutes(nextSlot.start);
-                  const nextSlotEnd = timeToMinutes(nextSlot.end);
-                  const nextSlotDuration = nextSlotEnd - nextSlotStart;
-                  const nextAvailableTime = nextSlotDuration - nextUsedTime;
-
-                  if (nextAvailableTime > 0) {
-                    bestSlotIndex = i;
-                    break;
-                  }
-                }
-              }
-            } else {
-              break;
-            }
-          }
-
-          // 시간 부족 감지
-          if (planInfo.remainingMinutes > 0) {
-            const week = calculateWeekNumber(date, this.context.periodStart);
-            const dayOfWeek = getDayOfWeekName(new Date(date).getDay());
-
-            this.addFailureReason({
-              type: "insufficient_time",
-              week,
-              dayOfWeek,
-              date,
-              requiredMinutes: planInfo.requiredMinutes,
-              availableMinutes: totalAvailableMinutes,
-            });
-          }
-        }
+        plans.push(...result.plans);
+        globalBlockIndex = result.blockIndex;
       } else {
-        // 학습시간 슬롯이 없으면 available_time_ranges 사용 (First Fit 유지)
-        let slotIndex = 0;
-        let currentSlotPosition = 0;
+        // First Fit 폴백 (헬퍼 메서드)
+        const result = this.allocatePlansWithFirstFit(
+          plansWithDuration,
+          availableRanges,
+          date,
+          cycleDayMap,
+          globalBlockIndex
+        );
 
-        // 사용 가능한 총 시간 계산
-        availableRanges.forEach((range) => {
-          const startMinutes = timeToMinutes(range.start);
-          const endMinutes = timeToMinutes(range.end);
-          totalAvailableMinutes +=
-            endMinutes > startMinutes ? endMinutes - startMinutes : 60;
-        });
-
-        for (const planInfo of plansWithDuration) {
-          let remainingMinutes = planInfo.remainingMinutes;
-
-          while (remainingMinutes > 0 && slotIndex < availableRanges.length) {
-            const timeRange = availableRanges[slotIndex] || {
-              start: "10:00",
-              end: "19:00",
-            };
-            const startMinutes = timeToMinutes(timeRange.start);
-            const endMinutes = timeToMinutes(timeRange.end);
-            const rangeDuration =
-              endMinutes > startMinutes ? endMinutes - startMinutes : 60;
-            const slotAvailable = rangeDuration - currentSlotPosition;
-            const actualDuration = Math.min(remainingMinutes, slotAvailable);
-            const planStartTime = minutesToTime(
-              startMinutes + currentSlotPosition
-            );
-            const planEndTime = minutesToTime(
-              startMinutes + currentSlotPosition + actualDuration
-            );
-
-            // 1730 Timetable: 날짜별 주기 정보 조회
-            const cycleInfo = cycleDayMap.get(date);
-
-            plans.push({
-              plan_date: date,
-              block_index: blockIndex,
-              content_type: planInfo.content.content_type,
-              content_id: planInfo.content.content_id,
-              planned_start_page_or_time: planInfo.start,
-              planned_end_page_or_time: planInfo.end - 1, // Convert Exclusive to Inclusive for DB
-              chapter: planInfo.content.chapter || null, // ContentInfo의 chapter 정보 사용
-              is_reschedulable: true,
-              start_time: planStartTime,
-              end_time: planEndTime,
-              // 1730 Timetable 추가 필드
-              cycle_day_number: cycleInfo?.cycle_day_number ?? null,
-              date_type: cycleInfo?.day_type ?? null,
-            });
-
-            remainingMinutes -= actualDuration;
-            currentSlotPosition += actualDuration;
-            blockIndex++;
-
-            if (currentSlotPosition >= rangeDuration) {
-              slotIndex++;
-              currentSlotPosition = 0;
-            }
-          }
-
-          // 시간 부족 감지
-          if (remainingMinutes > 0) {
-            const week = calculateWeekNumber(date, this.context.periodStart);
-            const dayOfWeek = getDayOfWeekName(new Date(date).getDay());
-
-            this.addFailureReason({
-              type: "insufficient_time",
-              week,
-              dayOfWeek,
-              date,
-              requiredMinutes: planInfo.requiredMinutes,
-              availableMinutes: totalAvailableMinutes,
-            });
-          }
-        }
+        plans.push(...result.plans);
+        globalBlockIndex = result.blockIndex;
       }
     });
 
@@ -1346,112 +1585,75 @@ export class SchedulerEngine {
 
   /**
    * 복습일 플랜 생성
+   *
+   * 헬퍼 메서드를 활용하여 가독성과 유지보수성을 향상시킵니다.
    */
   private generateReviewDayPlans(
     reviewDaysList: string[],
     studyDaysList: string[],
     contents: ContentInfo[],
-    rangeMap: Map<string, Map<string, { start: number; end: number }>>,
+    _rangeMap: Map<string, Map<string, { start: number; end: number }>>,
     dateAvailableTimeRanges?: DateAvailableTimeRanges,
-    studyPlansByDate?: Map<
-      string,
-      Array<{ content: ContentInfo; start: number; end: number }>
-    >
+    studyPlansByDate?: StudyPlansByDate
   ): ScheduledPlan[] {
     const plans: ScheduledPlan[] = [];
 
-    // 1730 Timetable: 날짜별 주기 정보 조회를 위한 Map 생성
-    const cycleDayMap = new Map<
-      string,
-      { cycle_day_number: number; day_type: "study" | "review" | "exclusion" }
-    >();
-    this.cycleDays?.forEach((cd) => {
-      cycleDayMap.set(cd.date, {
-        cycle_day_number: cd.cycle_day_number,
-        day_type: cd.day_type,
-      });
-    });
+    // 1. 주기 정보 맵 생성 (헬퍼 메서드 재사용)
+    const cycleDayMap = this.buildCycleDayMap();
 
-    // 학습일에 실제로 플랜이 생성되었는지 확인
+    // 2. 학습일 플랜 검증
     const hasStudyPlans = studyPlansByDate && studyPlansByDate.size > 0;
-    const studyPlansCount = studyPlansByDate
+    const studyPlansCount = hasStudyPlans
       ? Array.from(studyPlansByDate.values()).reduce(
-          (sum, plans) => sum + plans.length,
+          (sum, datePlans) => sum + datePlans.length,
           0
         )
       : 0;
 
-    if (
-      reviewDaysList.length > 0 &&
-      (!hasStudyPlans || studyPlansCount === 0)
-    ) {
-      logActionWarn("SchedulerEngine.generateReviewDayPlans", `복습일 플랜 생성 불가 (학습일 플랜 없음) - reviewDaysCount:${reviewDaysList.length}, studyPlansCount:${studyPlansCount}`);
+    if (reviewDaysList.length > 0 && studyPlansCount === 0) {
+      logActionWarn(
+        "SchedulerEngine.generateReviewDayPlans",
+        `복습일 플랜 생성 불가 (학습일 플랜 없음) - reviewDaysCount:${reviewDaysList.length}`
+      );
       return plans;
     }
 
-    // 이번 주 학습일에 배정된 콘텐츠 범위 저장 (복습용)
-    const weekContentRanges = new Map<
-      string,
-      {
-        startAmount: number;
-        endAmount: number;
-      }
-    >();
+    // 3. 주차별 콘텐츠 범위 맵 구성 (헬퍼 메서드)
+    const weekContentRanges = this.buildWeekContentRanges(
+      studyPlansByDate,
+      studyDaysList
+    );
 
-    if (studyPlansByDate) {
-      studyPlansByDate.forEach((datePlans, date) => {
-        if (!studyDaysList.includes(date)) return;
-
-        datePlans.forEach(({ content, start, end: endAmount }) => {
-          if (!weekContentRanges.has(content.content_id)) {
-            weekContentRanges.set(content.content_id, {
-              startAmount: start,
-              endAmount: endAmount,
-            });
-          } else {
-            const existing = weekContentRanges.get(content.content_id)!;
-            existing.startAmount = Math.min(existing.startAmount, start);
-            existing.endAmount = Math.max(existing.endAmount, endAmount);
-          }
-        });
-      });
+    if (weekContentRanges.size === 0) {
+      return plans;
     }
 
-    reviewDaysList.forEach((reviewDay) => {
-      if (
-        !reviewDay ||
-        weekContentRanges.size === 0 ||
-        !hasStudyPlans ||
-        studyPlansCount === 0
-      ) {
-        return;
-      }
+    // 4. 복습 콘텐츠 필터링 (이번 주에 학습한 콘텐츠만)
+    const reviewContents = contents.filter((content) =>
+      weekContentRanges.has(content.content_id)
+    );
 
-      // 복습 콘텐츠 목록 생성 (이번 주에 학습한 콘텐츠만)
-      const reviewContents = contents.filter((content) =>
-        weekContentRanges.has(content.content_id)
+    if (reviewContents.length === 0) {
+      logActionWarn(
+        "SchedulerEngine.generateReviewDayPlans",
+        `복습 콘텐츠 없음 - weekContentRangesCount:${weekContentRanges.size}`
       );
+      return plans;
+    }
 
-      if (reviewContents.length === 0) {
-        logActionWarn("SchedulerEngine.generateReviewDayPlans", `복습일 플랜 생성 스킵 (복습 콘텐츠 없음) - reviewDay:${reviewDay}, weekContentRangesCount:${weekContentRanges.size}`);
-        return;
-      }
+    // 5. 각 복습일에 플랜 생성
+    reviewDaysList.forEach((reviewDay) => {
+      if (!reviewDay) return;
 
       const availableRanges = dateAvailableTimeRanges?.get(reviewDay) || [];
-      let rangeIndex = 0;
+      const cycleInfo = cycleDayMap.get(reviewDay);
       let blockIndex = 1;
 
-      // 1730 Timetable: 날짜별 주기 정보 조회
-      const cycleInfo = cycleDayMap.get(reviewDay);
-
-      reviewContents.forEach((content) => {
+      reviewContents.forEach((content, index) => {
         const range = weekContentRanges.get(content.content_id);
         if (!range) return;
 
-        if (rangeIndex >= availableRanges.length) {
-          rangeIndex = availableRanges.length - 1;
-        }
-
+        const rangeIndex = Math.min(index, availableRanges.length - 1);
         const timeRange = availableRanges[rangeIndex] || {
           start: "10:00",
           end: "19:00",
@@ -1463,18 +1665,16 @@ export class SchedulerEngine {
           content_type: content.content_type,
           content_id: content.content_id,
           planned_start_page_or_time: range.startAmount,
-          planned_end_page_or_time: range.endAmount - 1, // Convert Exclusive to Inclusive for DB
-          chapter: content.chapter || null, // ContentInfo의 chapter 정보 사용
+          planned_end_page_or_time: range.endAmount - 1,
+          chapter: content.chapter || null,
           is_reschedulable: true,
           start_time: timeRange.start,
           end_time: timeRange.end,
-          // 1730 Timetable 추가 필드
           cycle_day_number: cycleInfo?.cycle_day_number ?? null,
           date_type: cycleInfo?.day_type ?? null,
         });
 
         blockIndex++;
-        rangeIndex++;
       });
     });
 
@@ -1494,6 +1694,7 @@ export class SchedulerEngine {
       dateTimeSlots,
       contentDurationMap,
       riskIndexMap,
+      subjectTypeMap,
     } = this.context;
 
     const plans: ScheduledPlan[] = [];
@@ -1505,8 +1706,17 @@ export class SchedulerEngine {
       const studyDaysList = week.studyDays;
       const reviewDaysList = week.reviewDays;
 
-      // 취약과목 우선 배정 (정렬)
+      // subject_type 기반 정렬: strategy 우선, 같은 type 내에서는 riskScore로 정렬
       const sortedContents = [...contents].sort((a, b) => {
+        const aType = subjectTypeMap?.get(a.content_id) || "weakness";
+        const bType = subjectTypeMap?.get(b.content_id) || "weakness";
+
+        // strategy 콘텐츠를 우선 배정
+        if (aType !== bType) {
+          return aType === "strategy" ? -1 : 1;
+        }
+
+        // 같은 type 내에서는 riskScore로 정렬 (높은 순)
         const aSubject = a.subject?.toLowerCase().trim() || "";
         const bSubject = b.subject?.toLowerCase().trim() || "";
         const aRisk = riskIndexMap?.get(aSubject)?.riskScore || 0;

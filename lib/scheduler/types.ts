@@ -24,6 +24,36 @@ import type {
 import type { ExistingPlanInfo } from "@/lib/scheduler/SchedulerEngine";
 
 // ============================================
+// Overlap Validation Types
+// ============================================
+
+/**
+ * 시간 겹침 정보
+ */
+export interface TimeOverlap {
+  /** 겹침이 발생한 날짜 (YYYY-MM-DD) */
+  date: string;
+  /** 새로 생성된 플랜 정보 */
+  newPlan: { content_id: string; start_time: string; end_time: string };
+  /** 기존 플랜 정보 */
+  existingPlan: { start_time: string; end_time: string };
+  /** 겹치는 시간 (분) */
+  overlapMinutes: number;
+}
+
+/**
+ * 겹침 검증 결과
+ */
+export interface OverlapValidationResult {
+  /** 겹침이 있는지 여부 */
+  hasOverlaps: boolean;
+  /** 겹침 목록 */
+  overlaps: TimeOverlap[];
+  /** 총 겹침 시간 (분) */
+  totalOverlapMinutes: number;
+}
+
+// ============================================
 // SchedulerType - Single Source of Truth
 // ============================================
 
@@ -80,6 +110,9 @@ export interface SchedulerInput {
   /** 콘텐츠별 위험도 정보 */
   riskIndexMap?: Map<string, { riskScore: number }>;
 
+  /** 콘텐츠별 subject_type 정보 (전략/취약 구분, 스케줄링 우선순위에 사용) */
+  subjectTypeMap?: Map<string, "strategy" | "weakness">;
+
   /** 날짜별 사용 가능 시간 범위 (Step 2.5 스케줄 결과) */
   dateAvailableTimeRanges?: DateAvailableTimeRanges;
 
@@ -113,6 +146,34 @@ export interface SchedulerOutput {
 
   /** 플랜 생성 실패 원인 목록 */
   failureReasons: PlanGenerationFailureReason[];
+
+  /** 기존 플랜과의 시간 겹침 검증 결과 (Phase 4) */
+  overlapValidation?: OverlapValidationResult;
+}
+
+/**
+ * generatePlansFromGroup 함수의 반환 타입
+ *
+ * 생성된 플랜과 함께 충돌 검증 결과를 반환합니다.
+ */
+export interface GeneratePlansResult {
+  /** 생성된 플랜 목록 */
+  plans: ScheduledPlan[];
+
+  /** 기존 플랜과의 시간 겹침 검증 결과 */
+  overlapValidation?: OverlapValidationResult;
+
+  /** 자동 조정이 적용되었는지 여부 */
+  wasAutoAdjusted?: boolean;
+
+  /** 자동 조정된 플랜 개수 */
+  autoAdjustedCount?: number;
+
+  /** 조정 불가능한 플랜 목록 (시간대 부족 등) */
+  unadjustablePlans?: Array<{
+    plan: ScheduledPlan;
+    reason: string;
+  }>;
 }
 
 // ============================================
@@ -147,6 +208,54 @@ export interface IScheduler {
    * @returns 생성된 플랜과 실패 원인
    */
   generate(input: SchedulerInput): SchedulerOutput;
+}
+
+// ============================================
+// Study Day Plan Generation Helper Types
+// ============================================
+
+/**
+ * 주기 정보 맵 타입
+ */
+export type CycleDayMap = Map<
+  string,
+  { cycle_day_number: number; day_type: "study" | "review" | "exclusion" }
+>;
+
+/**
+ * 플랜 항목 (콘텐츠 + 범위)
+ */
+export interface PlanItem {
+  content: ContentInfo;
+  start: number;
+  end: number;
+}
+
+/**
+ * 소요시간이 포함된 플랜 항목
+ */
+export interface PlanWithDuration extends PlanItem {
+  requiredMinutes: number;
+  remainingMinutes: number;
+}
+
+/**
+ * 날짜별 플랜 맵 타입
+ */
+export type StudyPlansByDate = Map<string, PlanItem[]>;
+
+/**
+ * 시간 슬롯 가용성 추적 타입
+ */
+export interface SlotAvailability {
+  slot: {
+    start: string;
+    end: string;
+    type: string;
+    label?: string;
+    source?: string;
+  };
+  usedTime: number;
 }
 
 // ============================================

@@ -1,6 +1,9 @@
 /**
  * 스케줄 가능 날짜 및 시간 계산 모듈
  * 1730 Timetable 기반 학습 가능 날짜 산출
+ *
+ * NOTE: 이 모듈의 함수들은 '@/lib/scheduler/utils/scheduleCalculator'에서
+ * re-export됩니다. 새 코드에서는 scheduleCalculator를 사용하세요.
  */
 
 import {
