@@ -16,7 +16,11 @@ import {
   SubjectConstraints,
   NonStudyTimeBlock,
 } from "@/lib/types/plan";
-import { getEffectiveAllocation } from "@/lib/utils/subjectAllocation";
+import {
+  getEffectiveAllocation,
+  type ContentAllocation,
+  type SubjectAllocation as UtilSubjectAllocation,
+} from "@/lib/utils/subjectAllocation";
 import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
 
 export type DayType = "study" | "review" | "exclusion";
@@ -811,4 +815,223 @@ function formatDate(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+// ============================================
+// Phase 2: Planner 기반 스케줄러 지원 함수
+// ============================================
+
+/**
+ * 콘텐츠 정보 (스케줄러 입력용)
+ */
+export type ContentInfoForScheduler = {
+  content_id: string;
+  content_type: "book" | "lecture" | "custom";
+  subject?: string | null;
+  subject_category?: string | null;
+  subject_id?: string;
+};
+
+/**
+ * SchedulerOptions 타입 (scheduler_options JSON에서 추출)
+ */
+export type SchedulerOptionsForAllocation = {
+  content_allocations?: ContentAllocation[];
+  subject_allocations?: UtilSubjectAllocation[];
+};
+
+/**
+ * 콘텐츠별 배정 날짜 계산 (SchedulerOptions 기반)
+ *
+ * Phase 2: Planner 단위 스케줄링을 위해 추가
+ * - contentInfo와 schedulerOptions를 받아 내부에서 allocation 조회
+ * - 기존 calculateContentAllocationDates와 호환 가능
+ *
+ * @param cycleDays - 주기 일자 정보 배열
+ * @param contentInfo - 콘텐츠 정보 (content_id, subject_category 등)
+ * @param schedulerOptions - 스케줄러 옵션 (content_allocations, subject_allocations 포함)
+ * @returns 배정된 날짜 문자열 배열
+ */
+export function calculateContentAllocationDatesWithOptions(
+  cycleDays: CycleDayInfo[],
+  contentInfo: ContentInfoForScheduler,
+  schedulerOptions: SchedulerOptionsForAllocation
+): string[] {
+  const { content_allocations, subject_allocations } = schedulerOptions;
+
+  // getEffectiveAllocation으로 allocation 정보 조회
+  const allocation = getEffectiveAllocation(
+    {
+      content_id: contentInfo.content_id,
+      content_type: contentInfo.content_type,
+      subject: contentInfo.subject,
+      subject_category: contentInfo.subject_category,
+      subject_id: contentInfo.subject_id,
+    },
+    content_allocations,
+    subject_allocations,
+    undefined, // contentSlots는 사용하지 않음
+    false // 로깅 비활성화
+  );
+
+  // 학습일만 필터링
+  const studyDays = cycleDays.filter((d) => d.day_type === "study");
+
+  // 취약과목: 모든 학습일
+  if (allocation.subject_type === "weakness") {
+    return studyDays.map((d) => d.date);
+  }
+
+  // 전략과목: 주당 weekly_days일만 배정
+  const weeklyDays = allocation.weekly_days ?? 3; // 기본값 3일
+
+  // 주차별로 그룹화하여 배정
+  const weekGroups = groupByWeek(studyDays);
+  const allocatedDates: string[] = [];
+
+  for (const [, days] of weekGroups) {
+    // 각 주에서 weeklyDays만큼 선택 (균등 분포)
+    const selectedDays = selectDatesEvenly(days, weeklyDays);
+    allocatedDates.push(...selectedDays);
+  }
+
+  return allocatedDates;
+}
+
+/**
+ * 날짜 문자열을 균등하게 선택
+ */
+function selectDatesEvenly(dates: string[], count: number): string[] {
+  if (dates.length <= count) {
+    return dates;
+  }
+
+  const result: string[] = [];
+  const step = dates.length / count;
+
+  for (let i = 0; i < count; i++) {
+    const index = Math.floor(i * step);
+    result.push(dates[index]);
+  }
+
+  return result;
+}
+
+/**
+ * 학습 플랜 정보 (복습 시간 계산용)
+ */
+export type StudyPlanForReview = {
+  content_id: string;
+  plan_date: string;
+  duration_minutes: number;
+};
+
+/**
+ * 여러 콘텐츠의 복습 시간 조율 계산
+ *
+ * Phase 2: Planner 단위 스케줄링을 위해 추가
+ * - 모든 콘텐츠의 복습을 한 날짜에 함께 고려
+ * - 블록 시간 내에 맞추기 위해 조율
+ *
+ * @param contentStudyPlans - 콘텐츠별 학습 플랜 맵 (content_id -> 플랜 배열)
+ * @param reviewDate - 복습 날짜
+ * @param blockDurationMinutes - 해당 날짜 블록 총 시간 (분)
+ * @param reviewCoefficient - 복습 계수 (기본: 0.4)
+ * @returns 콘텐츠별 조율된 복습 시간 맵 (content_id -> 분)
+ */
+export function calculateReviewDurations(
+  contentStudyPlans: Map<string, StudyPlanForReview[]>,
+  reviewDate: string,
+  blockDurationMinutes: number,
+  reviewCoefficient: number = 0.4
+): Map<string, number> {
+  // 1. 각 콘텐츠의 기본 복습 시간 계산
+  const baseDurations = new Map<string, number>();
+
+  for (const [contentId, plans] of contentStudyPlans) {
+    // 해당 복습일 이전의 학습 플랜만 고려
+    const relevantPlans = plans.filter((p) => p.plan_date < reviewDate);
+    const totalStudyTime = relevantPlans.reduce(
+      (sum, p) => sum + p.duration_minutes,
+      0
+    );
+    const reviewTime = Math.round(totalStudyTime * reviewCoefficient);
+    baseDurations.set(contentId, reviewTime);
+  }
+
+  // 2. 총 복습 시간 계산
+  let totalReviewTime = 0;
+  for (const duration of baseDurations.values()) {
+    totalReviewTime += duration;
+  }
+
+  // 3. 블록 시간 초과 시 비율 조정
+  if (totalReviewTime > blockDurationMinutes && totalReviewTime > 0) {
+    const ratio = blockDurationMinutes / totalReviewTime;
+    const adjustedDurations = new Map<string, number>();
+
+    for (const [contentId, duration] of baseDurations) {
+      adjustedDurations.set(contentId, Math.floor(duration * ratio));
+    }
+
+    return adjustedDurations;
+  }
+
+  return baseDurations;
+}
+
+/**
+ * 복습의 복습 (추가 기간) 시간 계산
+ *
+ * Phase 2: 추가 기간 복습 시간 조율
+ *
+ * @param contentStudyPlans - 콘텐츠별 학습 플랜 맵
+ * @param additionalReviewDate - 추가 복습 날짜
+ * @param blockDurationMinutes - 블록 총 시간 (분)
+ * @param additionalReviewCoefficient - 복습의 복습 계수 (기본: 0.25)
+ * @returns 콘텐츠별 추가 복습 시간 맵
+ */
+export function calculateAdditionalReviewDurations(
+  contentStudyPlans: Map<string, StudyPlanForReview[]>,
+  additionalReviewDate: string,
+  blockDurationMinutes: number,
+  additionalReviewCoefficient: number = 0.25
+): Map<string, number> {
+  // 복습의 복습은 더 낮은 계수 사용
+  return calculateReviewDurations(
+    contentStudyPlans,
+    additionalReviewDate,
+    blockDurationMinutes,
+    additionalReviewCoefficient
+  );
+}
+
+/**
+ * 블록 시간 내 콘텐츠 배치 순서 결정
+ *
+ * Phase 2: 여러 콘텐츠를 블록 내에 순차 배치
+ * - 취약과목 우선 배치 (더 많은 학습 필요)
+ * - 동일 유형 내에서는 duration 기준 정렬
+ *
+ * @param contentDurations - 콘텐츠별 소요시간 배열
+ * @returns 정렬된 콘텐츠 ID 배열
+ */
+export function sortContentsForBlockPlacement(
+  contentDurations: Array<{
+    content_id: string;
+    duration_minutes: number;
+    subject_type: "strategy" | "weakness";
+  }>
+): string[] {
+  // 취약과목 우선, 그 다음 시간 긴 순서
+  const sorted = [...contentDurations].sort((a, b) => {
+    // 1. 취약과목 우선
+    if (a.subject_type !== b.subject_type) {
+      return a.subject_type === "weakness" ? -1 : 1;
+    }
+    // 2. 시간 긴 순서
+    return b.duration_minutes - a.duration_minutes;
+  });
+
+  return sorted.map((c) => c.content_id);
 }

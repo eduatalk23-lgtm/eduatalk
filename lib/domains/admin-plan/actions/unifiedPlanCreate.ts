@@ -232,6 +232,8 @@ export async function ensurePlanGroup(input: {
       plan_mode: input.isAdhoc ? "quick" : "content_based",
       is_single_day: true,
       creation_mode: input.isAdhoc ? "quick" : "content_based",
+      // Phase 3.3: 단일 콘텐츠 모드 기본값
+      is_single_content: true,
     })
     .select("id")
     .single();

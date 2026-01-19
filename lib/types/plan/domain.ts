@@ -215,7 +215,7 @@ export type SchedulerOptions = {
     weekly_days?: number;
   }>;
   content_allocations?: Array<{
-    content_type: "book" | "lecture";
+    content_type: "book" | "lecture" | "custom";
     content_id: string;
     subject_type: "strategy" | "weakness";
     weekly_days?: number;
@@ -351,6 +351,31 @@ export type PlanGroup = {
   is_calendar_only?: boolean | null; // 캘린더 전용 (콘텐츠 없이 생성)
   content_status?: 'pending' | 'partial' | 'complete' | null; // 콘텐츠 상태
   schedule_generated_at?: string | null; // 일정 생성 시점
+  // ============================================
+  // 단일 콘텐츠 모드 필드 (Phase 1: 플랜 시스템 통합)
+  // plan_contents 테이블 대체, planner 중심 구조로 전환
+  // ============================================
+  /** 단일 콘텐츠 모드: 콘텐츠 유형 (book, lecture, custom) */
+  content_type?: string | null;
+  /** 단일 콘텐츠 모드: 콘텐츠 ID */
+  content_id?: string | null;
+  /** 단일 콘텐츠 모드: 마스터 콘텐츠 ID */
+  master_content_id?: string | null;
+  /** 단일 콘텐츠 모드: 학습 범위 시작 (페이지/에피소드) */
+  start_range?: number | null;
+  /** 단일 콘텐츠 모드: 학습 범위 종료 */
+  end_range?: number | null;
+  /** 단일 콘텐츠 모드: 세부 시작 위치 ID (목차 항목 등) */
+  start_detail_id?: string | null;
+  /** 단일 콘텐츠 모드: 세부 종료 위치 ID */
+  end_detail_id?: string | null;
+  /**
+   * 단일 콘텐츠 모드 플래그
+   * - true: 새 구조 (content_* 컬럼 사용)
+   * - false/null: 레거시 (plan_contents 테이블 사용)
+   * Phase 5에서 제거 예정
+   */
+  is_single_content?: boolean | null;
   created_at: string;
   updated_at: string;
 };
@@ -448,7 +473,12 @@ export type Plan = {
 };
 
 /**
- * 플랜 그룹 콘텐츠 관계 (기존 테이블)
+ * 플랜 그룹 콘텐츠 관계 (plan_contents 테이블)
+ *
+ * @deprecated Phase 3.5: 새로운 플랜 그룹은 is_single_content=true로 생성되며,
+ * 콘텐츠 정보는 plan_groups 테이블의 필드(content_type, content_id 등)에 직접 저장됩니다.
+ * 이 타입은 레거시 다중 콘텐츠 모드(캠프 등)에서만 사용됩니다.
+ * @see PlanGroup.content_type, PlanGroup.content_id (단일 콘텐츠 모드)
  */
 export type PlanContent = {
   id: string;

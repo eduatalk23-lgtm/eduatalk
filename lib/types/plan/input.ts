@@ -65,6 +65,15 @@ export type PlanGroupCreationData = {
   // 플랜 그룹 레벨 학습 유형 설정
   study_type?: StudyType | null; // 전략 학습 또는 취약 보완
   strategy_days_per_week?: 2 | 3 | 4 | null; // 전략 학습 시 주간 학습일 (study_type이 'strategy'일 때만 사용)
+  // Phase 3: 단일 콘텐츠 모드 필드 (is_single_content=true 시 contents 대신 사용)
+  is_single_content?: boolean; // 단일 콘텐츠 모드 여부
+  single_content_type?: ContentType | null; // 단일 콘텐츠 타입
+  single_content_id?: string | null; // 단일 콘텐츠 ID
+  single_master_content_id?: string | null; // 단일 마스터 콘텐츠 ID
+  single_start_range?: number | null; // 단일 콘텐츠 시작 범위
+  single_end_range?: number | null; // 단일 콘텐츠 종료 범위
+  single_start_detail_id?: string | null; // 단일 콘텐츠 시작 상세 ID
+  single_end_detail_id?: string | null; // 단일 콘텐츠 종료 상세 ID
 };
 
 /**

@@ -181,7 +181,7 @@ async function _generatePlansWithServices(
   }
 
   // 플랜 그룹 및 관련 데이터 조회
-  const { group, contents, exclusions, academySchedules } =
+  const { group, contents: originalContents, exclusions, academySchedules } =
     await getPlanGroupWithDetailsByRole(
       groupId,
       access.user.userId,
@@ -196,6 +196,61 @@ async function _generatePlansWithServices(
       404,
       true
     );
+  }
+
+  // ============================================
+  // Phase 3: 단일 콘텐츠 모드 처리
+  // is_single_content=true일 때 plan_groups 필드에서 합성 콘텐츠 생성
+  // ============================================
+  const groupRecord = group as Record<string, unknown>;
+  const isSingleContentMode = groupRecord.is_single_content === true;
+
+  let contents = originalContents;
+
+  if (isSingleContentMode && originalContents.length === 0) {
+    // 단일 콘텐츠 모드: plan_groups 필드에서 합성 PlanContent 생성
+    const singleContentId = groupRecord.content_id as string | null;
+    const singleContentType = groupRecord.content_type as string | null;
+
+    if (singleContentId && singleContentType) {
+      logActionDebug(
+        { domain: "plan", action: "generatePlansWithServices" },
+        "단일 콘텐츠 모드: plan_groups 필드에서 콘텐츠 정보 생성",
+        { contentId: singleContentId, contentType: singleContentType }
+      );
+
+      // 합성 PlanContent 객체 생성 (PlanContent 타입에 맞게)
+      const syntheticContent: typeof originalContents[number] = {
+        id: `synthetic-${singleContentId}`,
+        tenant_id: group.tenant_id,
+        plan_group_id: group.id,
+        content_type: singleContentType as "book" | "lecture" | "custom",
+        content_id: singleContentId,
+        master_content_id: (groupRecord.master_content_id as string | null) ?? null,
+        start_range: (groupRecord.start_range as number | null) ?? 0,
+        end_range: (groupRecord.end_range as number | null) ?? 0,
+        start_detail_id: (groupRecord.start_detail_id as string | null) ?? null,
+        end_detail_id: (groupRecord.end_detail_id as string | null) ?? null,
+        display_order: 0,
+        is_auto_recommended: false,
+        recommendation_source: null,
+        recommendation_reason: null,
+        recommendation_metadata: null,
+        recommended_by: null,
+        recommended_at: null,
+        created_at: group.created_at,
+        updated_at: group.updated_at ?? group.created_at,
+      };
+
+      contents = [syntheticContent];
+    } else {
+      throw new AppError(
+        "단일 콘텐츠 모드이지만 콘텐츠 정보가 없습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
   }
 
   // 학생 ID 및 상태 검증

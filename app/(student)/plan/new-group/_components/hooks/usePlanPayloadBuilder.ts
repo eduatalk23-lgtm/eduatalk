@@ -27,12 +27,38 @@ type UsePlanPayloadBuilderOptions = {
   isCampMode?: boolean;
 };
 
+/**
+ * 단일 콘텐츠 페이로드 (Phase 3.1)
+ * 각 콘텐츠별로 별도의 plan_group을 생성하기 위한 페이로드
+ */
+export type SingleContentPayload = PlanGroupCreationData & {
+  is_single_content: true;
+  single_content_type: ContentType;
+  single_content_id: string;
+  single_master_content_id: string | null;
+  single_start_range: number;
+  single_end_range: number;
+  single_start_detail_id: string | null;
+  single_end_detail_id: string | null;
+  /** 콘텐츠 제목 (plan_group.name에 사용) */
+  contentTitle?: string;
+  /** 교과 (스케줄링용) */
+  subjectCategory?: string;
+  /** 과목 (스케줄링용) */
+  subject?: string;
+};
+
 type PayloadBuildResult = {
   payload: PlanGroupCreationData | null;
   isValid: boolean;
   errors: string[];
   warnings: string[];
+  /** 기존 방식: 하나의 plan_group에 여러 콘텐츠 */
   build: () => PlanGroupCreationData;
+  /** Phase 3.1: 여러 plan_group (각각 단일 콘텐츠) */
+  buildSingleContentPayloads: () => SingleContentPayload[];
+  /** 중복 제거된 콘텐츠 개수 */
+  contentCount: number;
 };
 
 export function usePlanPayloadBuilder(
@@ -79,7 +105,7 @@ export function usePlanPayloadBuilder(
     const uniqueContents: ExtendedPlanContentInput[] = [];
     const duplicateNames: string[] = [];
 
-    allContents.forEach((c, idx) => {
+    allContents.forEach((c) => {
       // Key by type + id
       const key = `${c.content_type}:${c.content_id}`;
       
@@ -132,7 +158,7 @@ export function usePlanPayloadBuilder(
     // We try to flatten where possible but must respect PlanGroupCreationData structure.
     
     // Construct base scheduler options
-    let schedulerOptions: Record<string, any> = {
+    let schedulerOptions: Record<string, unknown> = {
       ...(wizardData.scheduler_options || {}),
     };
 
@@ -273,5 +299,119 @@ export function usePlanPayloadBuilder(
     return payload;
   };
 
-  return { payload, isValid, errors, warnings, build };
+  /**
+   * Phase 3.1: 단일 콘텐츠 페이로드 배열 생성
+   *
+   * 각 콘텐츠마다 별도의 plan_group을 생성하기 위한 페이로드를 반환합니다.
+   * 모든 plan_group은 동일한 planner_id를 공유하며, Planner 단위로 조율됩니다.
+   */
+  const buildSingleContentPayloads = (): SingleContentPayload[] => {
+    if (!isValid && options.validateOnBuild) {
+      throw new PlanGroupError(
+        `데이터 유효성 검증 실패: ${errors.join(", ")}`,
+        PlanGroupErrorCodes.VALIDATION_FAILED,
+        "입력된 데이터에 오류가 있어 저장할 수 없습니다."
+      );
+    }
+    if (!payload) {
+      throw new PlanGroupError(
+        "Payload 생성 실패",
+        PlanGroupErrorCodes.DATA_TRANSFORMATION_FAILED,
+        ErrorUserMessages[PlanGroupErrorCodes.DATA_TRANSFORMATION_FAILED]
+      );
+    }
+
+    // 콘텐츠 정보 수집 (uniqueContents에서)
+    const allContents = [
+      ...wizardData.student_contents,
+      ...(wizardData.recommended_contents || []),
+    ];
+
+    const contentKeys = new Set<string>();
+    const uniqueContentsForPayload: ExtendedPlanContentInput[] = [];
+
+    allContents.forEach((c) => {
+      const key = `${c.content_type}:${c.content_id}`;
+      if (!contentKeys.has(key)) {
+        contentKeys.add(key);
+        const contentWithExtras = c as typeof c & {
+          is_auto_recommended?: boolean;
+          master_content_id?: string | null;
+        };
+        uniqueContentsForPayload.push({
+          ...contentWithExtras,
+          display_order: uniqueContentsForPayload.length,
+          title: contentWithExtras.title,
+          subject_category: contentWithExtras.subject_category,
+          subject: contentWithExtras.subject,
+          master_content_id: contentWithExtras.master_content_id,
+        });
+      }
+    });
+
+    // 각 콘텐츠별로 단일 콘텐츠 페이로드 생성
+    return uniqueContentsForPayload.map((content, index): SingleContentPayload => {
+      // master_content_id 결정
+      let masterId = content.master_content_id;
+      if (!masterId && content.is_auto_recommended) {
+        masterId = content.content_id;
+      }
+
+      // 플랜 그룹 이름: 콘텐츠 제목 사용 (없으면 기본 이름)
+      const groupName = content.title || `${wizardData.name || "학습 플랜"} (${index + 1})`;
+
+      return {
+        // 기본 필드 (payload에서 복사)
+        name: groupName,
+        plan_purpose: payload.plan_purpose,
+        scheduler_type: payload.scheduler_type,
+        period_start: payload.period_start,
+        period_end: payload.period_end,
+        target_date: payload.target_date,
+        block_set_id: payload.block_set_id,
+
+        // Phase 3.1: 단일 콘텐츠 모드 필드
+        is_single_content: true,
+        single_content_type: content.content_type,
+        single_content_id: content.content_id,
+        single_master_content_id: masterId ?? null,
+        single_start_range: content.start_range,
+        single_end_range: content.end_range,
+        single_start_detail_id: content.start_detail_id ?? null,
+        single_end_detail_id: content.end_detail_id ?? null,
+
+        // 메타데이터 (스케줄링용)
+        contentTitle: content.title,
+        subjectCategory: content.subject_category,
+        subject: content.subject,
+
+        // contents는 빈 배열 (단일 콘텐츠 모드에서는 사용 안 함)
+        contents: [],
+
+        // 제외일 및 학원 일정 (모든 plan_group에 공유)
+        exclusions: payload.exclusions,
+        academy_schedules: payload.academy_schedules,
+
+        // 스케줄러 설정 (모든 plan_group에 공유)
+        study_review_cycle: payload.study_review_cycle,
+        student_level: payload.student_level,
+        subject_allocations: payload.subject_allocations,
+        additional_period_reallocation: payload.additional_period_reallocation,
+        non_study_time_blocks: payload.non_study_time_blocks,
+        scheduler_options: payload.scheduler_options,
+        subject_constraints: payload.subject_constraints,
+        daily_schedule: payload.daily_schedule,
+
+        // 캠프 관련 (모든 plan_group에 공유)
+        plan_type: payload.plan_type,
+        camp_template_id: payload.camp_template_id,
+        camp_invitation_id: payload.camp_invitation_id,
+      };
+    });
+  };
+
+  // 콘텐츠 개수 계산 (useMemo 내부에서 이미 계산된 uniqueContents 사용)
+  const contentCount = payload?.contents?.length ?? 0;
+
+  return { payload, isValid, errors, warnings, build, buildSingleContentPayloads, contentCount };
 }

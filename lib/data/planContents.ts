@@ -1,4 +1,14 @@
-// 플랜 콘텐츠 데이터 액세스 레이어
+/**
+ * 플랜 콘텐츠 데이터 액세스 레이어
+ *
+ * @deprecated Phase 3.5: 이 모듈은 plan_contents 테이블을 사용합니다.
+ * 새로운 코드에서는 plan_groups 테이블의 단일 콘텐츠 필드를 사용하세요.
+ * - is_single_content=true: plan_groups.content_type, content_id 등 직접 사용
+ * - is_single_content=false (캠프): 레거시 plan_contents 사용
+ *
+ * 마이그레이션 완료 후 이 모듈은 제거될 예정입니다.
+ * @see docs/architecture/plan-system-unification.md
+ */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";

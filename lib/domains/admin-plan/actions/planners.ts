@@ -15,6 +15,7 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { logActionError, logActionWarn } from "@/lib/utils/serverActionLogger";
 import type { TimeRange } from "@/lib/scheduler/utils/scheduleCalculator";
+import type { SchedulerOptions } from "@/lib/types/plan/domain";
 
 // ============================================
 // 타입 정의
@@ -138,6 +139,18 @@ export interface Planner {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+  // ============================================
+  // 스케줄러 조율 옵션 (Phase 1: 플랜 시스템 통합)
+  // plan_groups에서 planner로 이동, 여러 plan_group 조율 역할
+  // ============================================
+  /**
+   * 스케줄러 조율 옵션
+   * - subject_allocations: 과목별 전략/취약 배정
+   * - content_allocations: 콘텐츠별 배정 설정
+   * - 여러 plan_group을 함께 조율하는 정보 저장
+   * Phase 2에서 활성화됨
+   */
+  schedulerOptions?: SchedulerOptions | null;
   // 관계 데이터
   exclusions?: PlannerExclusion[];
   academySchedules?: PlannerAcademySchedule[];

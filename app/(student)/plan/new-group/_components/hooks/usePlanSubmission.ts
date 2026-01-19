@@ -13,7 +13,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { WizardData, WizardStep } from "../PlanGroupWizard";
 import { validatePeriod } from "../utils/validationUtils";
 import { usePlanDraft } from "./usePlanDraft";
-import { usePlanGenerator } from "./usePlanGenerator";
+import { usePlanGenerator, type MultipleGroupsCreationResult } from "./usePlanGenerator";
 import { useWizardNavigation } from "./useWizardNavigation";
 import { useAutoSave, type AutoSaveStatus } from "./useAutoSave";
 import {
@@ -105,7 +105,14 @@ export function usePlanSubmission({
     onSaveSuccess, // 저장 성공 시 콜백 전달
   });
 
-  const { generatePlans, createOrUpdatePlanGroup, isGenerating } = usePlanGenerator({
+  const {
+    generatePlans,
+    createOrUpdatePlanGroup,
+    isGenerating,
+    // Phase 3.1: 여러 plan_group 생성 지원
+    createMultiplePlanGroups,
+    generatePlansForMultipleGroups,
+  } = usePlanGenerator({
     wizardData,
     draftGroupId,
     setValidationErrors,
@@ -149,6 +156,13 @@ export function usePlanSubmission({
   // A3 개선: 제출 진행 단계 추적
   const [submissionPhase, setSubmissionPhase] = useState<SubmissionPhase>("idle");
   const [submissionError, setSubmissionError] = useState<SubmissionErrorInfo | undefined>(undefined);
+
+  // Phase 3.1: 여러 그룹 생성 진행 상태
+  const [multipleGroupsProgress, setMultipleGroupsProgress] = useState<{
+    current: number;
+    total: number;
+    phase: string;
+  } | null>(null);
 
   /* -------------------------------------------------------------------------- */
   /*                             Draft Save Logic                               */
@@ -317,7 +331,141 @@ export function usePlanSubmission({
   const resetSubmissionPhase = useCallback(() => {
     setSubmissionPhase("idle");
     setSubmissionError(undefined);
+    setMultipleGroupsProgress(null);
   }, []);
+
+  /* -------------------------------------------------------------------------- */
+  /*               Phase 3.1: Multiple Groups Submit Logic                      */
+  /* -------------------------------------------------------------------------- */
+  /**
+   * Phase 3.1: 여러 단일 콘텐츠 plan_group 생성 및 플랜 생성
+   *
+   * 각 콘텐츠마다 별도의 plan_group을 생성하고, 동일한 Planner에 연결합니다.
+   *
+   * @param generatePlansFlag 플랜 생성 여부 (기본값: true)
+   * @returns 생성 결과 또는 undefined (에러 시)
+   */
+  const handleMultipleGroupsSubmit = useCallback(
+    async (generatePlansFlag: boolean = true): Promise<MultipleGroupsCreationResult | undefined> => {
+      if (isSubmitting) return;
+      setValidationErrors([]);
+      setSubmissionError(undefined);
+      setMultipleGroupsProgress(null);
+
+      try {
+        // 검증 단계
+        setSubmissionPhase("validating");
+
+        const periodValidation = validatePeriod(wizardData, mode.isCampMode);
+        if (!periodValidation.isValid && periodValidation.error) {
+          setValidationErrors([periodValidation.error]);
+          setSubmissionPhase("error");
+          setSubmissionError({
+            message: periodValidation.error,
+            code: PlanGroupErrorCodes.VALIDATION_FAILED,
+          });
+          return;
+        }
+
+        // 템플릿 모드 체크
+        if (mode.isTemplateMode) {
+          setSubmissionPhase("idle");
+          goNext();
+          return;
+        }
+
+        // 진행 상태 콜백
+        const onProgress = (current: number, total: number, phase: string) => {
+          setMultipleGroupsProgress({ current, total, phase });
+
+          // 단계별 UI 상태 업데이트
+          if (phase === "ensuring_planner") {
+            setSubmissionPhase("ensuring_planner");
+          } else if (phase === "creating_groups") {
+            setSubmissionPhase("creating_groups");
+          } else if (phase === "generating_plans") {
+            setSubmissionPhase("generating_plans");
+          } else if (phase === "finalizing") {
+            setSubmissionPhase("finalizing");
+          }
+        };
+
+        // 여러 plan_group 생성
+        const result = await createMultiplePlanGroups(onProgress);
+
+        planSubmissionLogger.info("Multiple groups created", {
+          hook: "usePlanSubmission",
+          data: {
+            plannerId: result.plannerId,
+            groupCount: result.totalCount,
+            groupIds: result.groupIds,
+          },
+        });
+
+        // 플랜 생성
+        if (generatePlansFlag) {
+          setSubmissionPhase("generating_plans");
+
+          const genResult = await generatePlansForMultipleGroups(
+            result.groupIds,
+            onProgress
+          );
+
+          planSubmissionLogger.info("Plans generated for multiple groups", {
+            hook: "usePlanSubmission",
+            data: {
+              totalPlans: genResult.totalPlans,
+              successCount: genResult.successCount,
+              failedCount: genResult.failedCount,
+            },
+          });
+
+          setSubmissionPhase("finalizing");
+
+          // 캠프 모드가 아닐 때만 결과 페이지로 이동
+          if (!mode.isCampMode) {
+            setSubmissionPhase("completed");
+            goToStep(WIZARD_STEPS.RESULT as WizardStep);
+          } else {
+            setSubmissionPhase("completed");
+          }
+        } else {
+          setSubmissionPhase("idle");
+          goNext();
+        }
+
+        return result;
+      } catch (error) {
+        planSubmissionLogger.error("Multiple groups submit failed", error, {
+          hook: "usePlanSubmission",
+        });
+        const planGroupError = toPlanGroupError(
+          error,
+          PlanGroupErrorCodes.UNKNOWN_ERROR
+        );
+        setSubmissionPhase("error");
+        setSubmissionError({
+          message: planGroupError.userMessage,
+          code: planGroupError.code as PlanGroupErrorCode,
+        });
+        toast.showError(planGroupError.userMessage);
+        setValidationErrors([planGroupError.userMessage]);
+        return undefined;
+      }
+    },
+    [
+      isSubmitting,
+      wizardData,
+      mode.isCampMode,
+      mode.isTemplateMode,
+      createMultiplePlanGroups,
+      generatePlansForMultipleGroups,
+      setValidationErrors,
+      goNext,
+      goToStep,
+      toast,
+    ]
+  );
 
   return {
     isSubmitting,
@@ -330,6 +478,9 @@ export function usePlanSubmission({
     // A4 개선: 오토세이브 상태
     autoSaveStatus,
     autoSaveLastSavedAt,
+    // Phase 3.1: 여러 plan_group 생성 지원
+    handleMultipleGroupsSubmit,
+    multipleGroupsProgress,
   };
 }
 

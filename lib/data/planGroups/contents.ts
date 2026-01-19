@@ -1,5 +1,13 @@
 /**
  * 플랜 그룹 콘텐츠 관련 함수
+ *
+ * @deprecated Phase 3.5: 이 모듈은 plan_contents 테이블을 사용합니다.
+ * 새로운 코드에서는 plan_groups 테이블의 단일 콘텐츠 필드(content_type, content_id, etc.)를 사용하세요.
+ * - 단일 콘텐츠 모드(is_single_content=true): plan_groups 필드 직접 사용
+ * - 다중 콘텐츠 모드(캠프 등): 기존 plan_contents 사용 (레거시)
+ *
+ * 마이그레이션 완료 후 이 모듈은 제거될 예정입니다.
+ * @see docs/architecture/plan-system-unification.md
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -11,6 +19,10 @@ import type { PlanContent, PlanContentWithDetails } from "./types";
 
 /**
  * 플랜 그룹의 콘텐츠 목록 조회
+ *
+ * @deprecated Phase 3.5: plan_contents 테이블 대신 plan_groups의 단일 콘텐츠 필드를 사용하세요.
+ * is_single_content=true인 경우: plan_groups.content_type, content_id 등 사용
+ * is_single_content=false인 경우(캠프 등): 이 함수 사용 (레거시 지원)
  */
 export async function getPlanContents(
   groupId: string,
@@ -86,6 +98,10 @@ export async function getPlanContents(
 
 /**
  * 플랜 그룹에 콘텐츠 일괄 생성
+ *
+ * @deprecated Phase 3.5: 새 플랜 그룹은 is_single_content=true로 생성되며
+ * plan_groups 테이블의 content_* 필드에 직접 저장됩니다.
+ * 이 함수는 레거시 다중 콘텐츠 모드(캠프 등)에서만 사용됩니다.
  */
 export async function createPlanContents(
   groupId: string,

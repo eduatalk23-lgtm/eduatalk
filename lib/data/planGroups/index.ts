@@ -46,8 +46,17 @@ export {
   deletePlanGroupsByTemplateId,
 } from "./deletion";
 
-// Contents
+// Contents (레거시 - 다중 콘텐츠 모드에서만 사용)
 export { getPlanContents, createPlanContents } from "./contents";
+
+// Unified Content (권장 - 단일/다중 콘텐츠 모드 통합 처리)
+export {
+  getUnifiedContents,
+  getSingleContentFromGroup,
+  hasContent,
+  getContentMode,
+} from "./unifiedContent";
+export type { UnifiedContentInfo, ContentMode } from "./unifiedContent";
 
 // Exclusions
 export {

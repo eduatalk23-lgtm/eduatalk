@@ -17,11 +17,17 @@ import { cn } from "@/lib/cn";
 
 /**
  * 제출 단계 타입
+ *
+ * Phase 3.1 추가:
+ * - ensuring_planner: 플래너 확보 중
+ * - creating_groups: 여러 플랜 그룹 생성 중 (단일 콘텐츠 모드)
  */
 export type SubmissionPhase =
   | "idle"
   | "validating"
-  | "creating_group"
+  | "ensuring_planner"      // Phase 3.1: 플래너 확보 중
+  | "creating_group"        // 기존: 단일 그룹 생성
+  | "creating_groups"       // Phase 3.1: 여러 그룹 생성
   | "generating_plans"
   | "finalizing"
   | "completed"
@@ -39,9 +45,19 @@ const PHASE_METADATA: Record<
     description: "입력 데이터를 검증하고 있습니다",
     icon: "spinner",
   },
+  ensuring_planner: {
+    label: "플래너 준비",
+    description: "학습 플래너를 준비하고 있습니다",
+    icon: "spinner",
+  },
   creating_group: {
     label: "그룹 생성",
     description: "플랜 그룹을 생성하고 있습니다",
+    icon: "spinner",
+  },
+  creating_groups: {
+    label: "그룹 생성",
+    description: "플랜 그룹들을 생성하고 있습니다",
     icon: "spinner",
   },
   generating_plans: {
@@ -68,10 +84,15 @@ const PHASE_METADATA: Record<
 
 /**
  * 단계 순서 (진행률 계산용)
+ *
+ * Note: creating_group과 creating_groups는 동일한 순서로 취급
+ * (둘 중 하나만 사용되므로 UI에서는 같은 단계로 표시)
  */
 const PHASE_ORDER: SubmissionPhase[] = [
   "validating",
+  "ensuring_planner",
   "creating_group",
+  // "creating_groups" is treated as equivalent to "creating_group" in progress calculation
   "generating_plans",
   "finalizing",
   "completed",
@@ -161,7 +182,9 @@ function ErrorIcon({ className }: { className?: string }) {
  * 진행률 계산
  */
 function calculateProgress(phase: SubmissionPhase): number {
-  const index = PHASE_ORDER.indexOf(phase);
+  // creating_groups는 creating_group과 동일한 진행률로 처리
+  const effectivePhase = phase === "creating_groups" ? "creating_group" : phase;
+  const index = PHASE_ORDER.indexOf(effectivePhase);
   if (index === -1) return 0;
   return Math.round(((index + 1) / PHASE_ORDER.length) * 100);
 }

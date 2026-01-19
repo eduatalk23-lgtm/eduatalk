@@ -689,6 +689,8 @@ export const submitCampParticipation = withErrorHandling(
         camp_invitation_id: invitationId,
         content_slots: contentSlotsForDraft,
         use_slot_mode: contentSlotsForDraft !== null && contentSlotsForDraft.length > 0,
+        // Phase 3.4: 캠프는 슬롯 모드(다중 콘텐츠)이므로 명시적으로 false 설정
+        is_single_content: false,
       };
 
       type SchedulerOptionsWithTemplateBlockSet = SchedulerOptions & {
@@ -774,6 +776,8 @@ export const submitCampParticipation = withErrorHandling(
         camp_invitation_id: invitationId,
         content_slots: contentSlots,
         use_slot_mode: contentSlots !== null && contentSlots.length > 0,
+        // Phase 3.4: 캠프는 슬롯 모드(다중 콘텐츠)이므로 명시적으로 false 설정
+        is_single_content: false,
       };
 
       type SchedulerOptionsWithTemplateBlockSet = SchedulerOptions & {

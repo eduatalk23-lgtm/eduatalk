@@ -76,6 +76,15 @@ interface PlanGroupAtomicInput {
   // Plan group level study type settings
   study_type: string | null;
   strategy_days_per_week: number | null;
+  // Phase 3: 단일 콘텐츠 모드 필드
+  content_type: string | null;
+  content_id: string | null;
+  master_content_id: string | null;
+  start_range: number | null;
+  end_range: number | null;
+  start_detail_id: string | null;
+  end_detail_id: string | null;
+  is_single_content: boolean | null;
 }
 
 interface ContentInput {
@@ -473,6 +482,70 @@ async function _createPlanGroup(
     is_locked: s.is_locked ?? false,
   }));
 
+  // Phase 3.2: 단일 콘텐츠 모드 기본값 적용
+  // - is_single_content: true → 단일 콘텐츠 모드 (명시적)
+  // - is_single_content: false → 기존 plan_contents 모드 (명시적 opt-out)
+  // - is_single_content: undefined → 콘텐츠 1개 또는 single_content_id 있을 때 자동 단일 콘텐츠 모드
+  const isSingleContent =
+    data.is_single_content === true ||
+    (data.is_single_content !== false &&
+      (processedContents.length === 1 || !!data.single_content_id));
+
+  // 단일 콘텐츠 모드 자동 적용 로깅 (디버깅용)
+  if (isSingleContent && data.is_single_content !== true) {
+    logActionDebug(
+      { domain: "plan", action: "createPlanGroup", userId: studentId },
+      "Phase 3.2: 단일 콘텐츠 모드 자동 적용",
+      {
+        reason: data.single_content_id
+          ? "single_content_id 제공"
+          : "콘텐츠 1개",
+        contentsCount: processedContents.length,
+        hasSingleContentId: !!data.single_content_id,
+      }
+    );
+  }
+
+  // 단일 콘텐츠 모드일 때 콘텐츠 정보 추출
+  // 1순위: single_* 필드에서 직접 가져오기
+  // 2순위: contents[0]에서 가져오기 (하위 호환성)
+  let singleContentData = {
+    content_type: null as string | null,
+    content_id: null as string | null,
+    master_content_id: null as string | null,
+    start_range: null as number | null,
+    end_range: null as number | null,
+    start_detail_id: null as string | null,
+    end_detail_id: null as string | null,
+  };
+
+  if (isSingleContent) {
+    if (data.single_content_id) {
+      // single_* 필드에서 직접 가져오기
+      singleContentData = {
+        content_type: data.single_content_type ?? null,
+        content_id: data.single_content_id,
+        master_content_id: data.single_master_content_id ?? null,
+        start_range: data.single_start_range ?? null,
+        end_range: data.single_end_range ?? null,
+        start_detail_id: data.single_start_detail_id ?? null,
+        end_detail_id: data.single_end_detail_id ?? null,
+      };
+    } else if (processedContents.length === 1) {
+      // 하위 호환성: contents[0]에서 가져오기
+      const firstContent = processedContents[0];
+      singleContentData = {
+        content_type: firstContent.content_type,
+        content_id: firstContent.content_id,
+        master_content_id: firstContent.master_content_id,
+        start_range: firstContent.start_range,
+        end_range: firstContent.end_range,
+        start_detail_id: null, // ContentInput에는 detail_id가 없음
+        end_detail_id: null,
+      };
+    }
+  }
+
   // 플랜 그룹 데이터 준비
   const planGroupData: PlanGroupAtomicInput = {
     name: data.name || null,
@@ -504,15 +577,28 @@ async function _createPlanGroup(
     // Plan group level study type settings
     study_type: data.study_type || null,
     strategy_days_per_week: data.strategy_days_per_week || null,
+    // Phase 3: 단일 콘텐츠 모드 필드
+    content_type: singleContentData.content_type,
+    content_id: singleContentData.content_id,
+    master_content_id: singleContentData.master_content_id,
+    start_range: singleContentData.start_range,
+    end_range: singleContentData.end_range,
+    start_detail_id: singleContentData.start_detail_id,
+    end_detail_id: singleContentData.end_detail_id,
+    is_single_content: isSingleContent,
   };
+
+  // 단일 콘텐츠 모드일 때는 plan_contents 테이블에 저장하지 않음
+  const contentsForRpc = isSingleContent ? [] : processedContents;
 
   // 원자적 플랜 그룹 생성 (plan_groups + plan_contents + plan_exclusions + academy_schedules)
   // 하나의 트랜잭션 내에서 모든 테이블에 데이터 삽입, 실패 시 자동 롤백
+  // Phase 3: 단일 콘텐츠 모드일 때는 plan_contents 테이블 대신 plan_groups 필드에 저장
   const atomicResult = await createPlanGroupAtomic(
     tenantContext.tenantId,
     studentId,
     planGroupData,
-    processedContents,
+    contentsForRpc, // 단일 콘텐츠 모드면 빈 배열, 아니면 processedContents
     exclusionsData,
     schedulesData
   );
@@ -710,6 +796,55 @@ async function _savePlanGroupDraft(
     study_review_cycle: data.study_review_cycle,
   });
 
+  // Phase 3: 단일 콘텐츠 모드 판단
+  const isSingleContentDraft = data.is_single_content === true;
+
+  // 콘텐츠 데이터 준비 (먼저 수행)
+  const processedContentsDraft: ContentInput[] = data.contents?.map((c) => ({
+    content_type: c.content_type,
+    content_id: c.content_id,
+    master_content_id: c.master_content_id ?? null,
+    start_range: c.start_range ?? null,
+    end_range: c.end_range ?? null,
+    display_order: c.display_order ?? 0,
+  })) ?? [];
+
+  // 단일 콘텐츠 모드일 때 콘텐츠 정보 추출
+  let singleContentDataDraft = {
+    content_type: null as string | null,
+    content_id: null as string | null,
+    master_content_id: null as string | null,
+    start_range: null as number | null,
+    end_range: null as number | null,
+    start_detail_id: null as string | null,
+    end_detail_id: null as string | null,
+  };
+
+  if (isSingleContentDraft) {
+    if (data.single_content_id) {
+      singleContentDataDraft = {
+        content_type: data.single_content_type ?? null,
+        content_id: data.single_content_id,
+        master_content_id: data.single_master_content_id ?? null,
+        start_range: data.single_start_range ?? null,
+        end_range: data.single_end_range ?? null,
+        start_detail_id: data.single_start_detail_id ?? null,
+        end_detail_id: data.single_end_detail_id ?? null,
+      };
+    } else if (processedContentsDraft.length === 1) {
+      const firstContent = processedContentsDraft[0];
+      singleContentDataDraft = {
+        content_type: firstContent.content_type,
+        content_id: firstContent.content_id,
+        master_content_id: firstContent.master_content_id,
+        start_range: firstContent.start_range,
+        end_range: firstContent.end_range,
+        start_detail_id: null,
+        end_detail_id: null,
+      };
+    }
+  }
+
   // 플랜 그룹 데이터 준비 (RPC용)
   const planGroupData: PlanGroupAtomicInput = {
     name: data.name || null,
@@ -743,17 +878,19 @@ async function _savePlanGroupDraft(
     // Plan group level study type settings
     study_type: data.study_type || null,
     strategy_days_per_week: data.strategy_days_per_week || null,
+    // Phase 3: 단일 콘텐츠 모드 필드
+    content_type: singleContentDataDraft.content_type,
+    content_id: singleContentDataDraft.content_id,
+    master_content_id: singleContentDataDraft.master_content_id,
+    start_range: singleContentDataDraft.start_range,
+    end_range: singleContentDataDraft.end_range,
+    start_detail_id: singleContentDataDraft.start_detail_id,
+    end_detail_id: singleContentDataDraft.end_detail_id,
+    is_single_content: isSingleContentDraft,
   };
 
-  // 콘텐츠 데이터 준비
-  const processedContents: ContentInput[] = data.contents?.map((c) => ({
-    content_type: c.content_type,
-    content_id: c.content_id,
-    master_content_id: c.master_content_id ?? null,
-    start_range: c.start_range ?? null,
-    end_range: c.end_range ?? null,
-    display_order: c.display_order ?? 0,
-  })) ?? [];
+  // 단일 콘텐츠 모드일 때는 plan_contents 테이블에 저장하지 않음
+  const contentsForRpcDraft = isSingleContentDraft ? [] : processedContentsDraft;
 
   // 제외일 데이터 준비
   const isCampMode = data.plan_type === "camp";
@@ -775,11 +912,12 @@ async function _savePlanGroupDraft(
   })) ?? [];
 
   // 원자적 플랜 그룹 생성 (트랜잭션 보장)
+  // Phase 3: 단일 콘텐츠 모드일 때는 plan_contents 테이블 대신 plan_groups 필드에 저장
   const atomicResult = await createPlanGroupAtomic(
     tenantContext.tenantId,
     studentId,
     planGroupData,
-    processedContents,
+    contentsForRpcDraft, // 단일 콘텐츠 모드면 빈 배열, 아니면 processedContentsDraft
     exclusionsData,
     schedulesData
   );
@@ -846,6 +984,9 @@ async function _copyPlanGroup(groupId: string): Promise<{ groupId: string }> {
     );
   }
 
+  // Phase 3: 원본 그룹의 단일 콘텐츠 모드 여부 확인
+  const isSingleContentCopy = (group as Record<string, unknown>).is_single_content === true;
+
   // 플랜 그룹 데이터 준비 (RPC용)
   const planGroupData: PlanGroupAtomicInput = {
     name: `${group.name || "플랜 그룹"} (복사본)`,
@@ -874,6 +1015,15 @@ async function _copyPlanGroup(groupId: string): Promise<{ groupId: string }> {
     // Plan group level study type settings (복사 시 원본 설정 유지)
     study_type: group.study_type ?? null,
     strategy_days_per_week: group.strategy_days_per_week ?? null,
+    // Phase 3: 단일 콘텐츠 모드 필드 복사
+    content_type: ((group as Record<string, unknown>).content_type as string | null) ?? null,
+    content_id: ((group as Record<string, unknown>).content_id as string | null) ?? null,
+    master_content_id: ((group as Record<string, unknown>).master_content_id as string | null) ?? null,
+    start_range: ((group as Record<string, unknown>).start_range as number | null) ?? null,
+    end_range: ((group as Record<string, unknown>).end_range as number | null) ?? null,
+    start_detail_id: ((group as Record<string, unknown>).start_detail_id as string | null) ?? null,
+    end_detail_id: ((group as Record<string, unknown>).end_detail_id as string | null) ?? null,
+    is_single_content: isSingleContentCopy,
   };
 
   // 콘텐츠 데이터 준비
@@ -904,12 +1054,16 @@ async function _copyPlanGroup(groupId: string): Promise<{ groupId: string }> {
   // 학원 일정은 복사하지 않음 (학생별 전역 관리)
   const schedulesData: ScheduleInput[] = [];
 
+  // 단일 콘텐츠 모드일 때는 plan_contents 테이블에 저장하지 않음
+  const contentsForRpcCopy = isSingleContentCopy ? [] : processedContents;
+
   // 원자적 플랜 그룹 생성 (트랜잭션 보장)
+  // Phase 3: 단일 콘텐츠 모드일 때는 plan_contents 테이블 대신 plan_groups 필드에 저장
   const atomicResult = await createPlanGroupAtomic(
     tenantContext.tenantId,
     user.userId,
     planGroupData,
-    processedContents,
+    contentsForRpcCopy, // 단일 콘텐츠 모드면 빈 배열
     exclusionsData,
     schedulesData
   );
@@ -1038,6 +1192,15 @@ async function _saveCalendarOnlyPlanGroup(
     // Plan group level study type settings - 캘린더 전용에서는 미사용
     study_type: null,
     strategy_days_per_week: null,
+    // Phase 3: 단일 콘텐츠 모드 필드 - 캘린더 전용이므로 모두 null
+    content_type: null,
+    content_id: null,
+    master_content_id: null,
+    start_range: null,
+    end_range: null,
+    start_detail_id: null,
+    end_detail_id: null,
+    is_single_content: false,
   };
 
   // 콘텐츠 없음 (캘린더 전용)

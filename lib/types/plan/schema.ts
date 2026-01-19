@@ -28,16 +28,19 @@ export type PlanGroupUpdate = TablesUpdate<"plan_groups">;
 
 /**
  * plan_contents 테이블 Row 타입
+ * @deprecated Phase 3.5: 단일 콘텐츠 모드에서는 plan_groups 필드 사용
  */
 export type PlanContentRow = Tables<"plan_contents">;
 
 /**
  * plan_contents 테이블 Insert 타입
+ * @deprecated Phase 3.5: 단일 콘텐츠 모드에서는 plan_groups 필드 사용
  */
 export type PlanContentInsert = TablesInsert<"plan_contents">;
 
 /**
  * plan_contents 테이블 Update 타입
+ * @deprecated Phase 3.5: 단일 콘텐츠 모드에서는 plan_groups 필드 사용
  */
 export type PlanContentUpdate = TablesUpdate<"plan_contents">;
 

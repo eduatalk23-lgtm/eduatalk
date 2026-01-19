@@ -129,6 +129,8 @@ async function _createAutoContentPlanGroup(
     camp_invitation_id: null,
     use_slot_mode: false,
     content_slots: null,
+    // Phase 3.3: 단일 콘텐츠 모드 기본값
+    is_single_content: true,
   };
 
   // 4. RPC를 통한 원자적 플랜그룹 생성
