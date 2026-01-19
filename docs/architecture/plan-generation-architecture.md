@@ -335,6 +335,139 @@ interface PlanTimeSegment {
 }
 ```
 
+## 4.4 generatePlansFromGroup API (Phase 4 완료)
+
+### 함수 시그니처
+
+```typescript
+async function generatePlansFromGroup(
+  group: PlanGroup,
+  contents: PlanContent[],
+  exclusions: PlanExclusion[],
+  academySchedules: AcademySchedule[],
+  blocks: BlockInfo[],
+  contentSubjects?: Map<string, { subject?: string | null; subject_category?: string | null }>,
+  riskIndexMap?: Map<string, { riskScore: number }>,
+  dateAvailableTimeRanges?: DateAvailableTimeRanges,
+  dateTimeSlots?: DateTimeSlots,
+  contentDurationMap?: ContentDurationMap,
+  contentChapterMap?: Map<string, string | null>,
+  periodStart?: string,
+  periodEnd?: string,
+  existingPlans?: ExistingPlanInfo[],  // Phase 4: 기존 플랜 정보
+  options?: GeneratePlansOptions        // Phase 4: 생성 옵션
+): Promise<GeneratePlansResult>
+```
+
+### 옵션 타입
+
+```typescript
+// 플랜 생성 옵션
+interface GeneratePlansOptions {
+  /** 기존 플랜과 충돌 시 자동으로 시간 조정 */
+  autoAdjustOverlaps?: boolean;
+  /** 자동 조정 시 최대 종료 시간 (기본값: "23:59") */
+  maxEndTime?: string;
+}
+```
+
+### 반환 타입
+
+```typescript
+// 플랜 생성 결과
+interface GeneratePlansResult {
+  /** 생성된 플랜 목록 */
+  plans: ScheduledPlan[];
+  /** 기존 플랜과의 시간 겹침 검증 결과 */
+  overlapValidation?: OverlapValidationResult;
+  /** 자동 조정이 적용되었는지 여부 */
+  wasAutoAdjusted?: boolean;
+  /** 자동 조정된 플랜 개수 */
+  autoAdjustedCount?: number;
+  /** 조정 불가능한 플랜 목록 (시간대 부족 등) */
+  unadjustablePlans?: Array<{
+    plan: ScheduledPlan;
+    reason: string;
+  }>;
+}
+
+// 시간 겹침 검증 결과
+interface OverlapValidationResult {
+  hasOverlaps: boolean;
+  overlaps: TimeOverlap[];
+  totalOverlapMinutes: number;
+}
+
+// 개별 시간 겹침 정보
+interface TimeOverlap {
+  date: string;
+  newPlan: { content_id: string; start_time: string; end_time: string };
+  existingPlan: { start_time: string; end_time: string };
+  overlapMinutes: number;
+}
+```
+
+### 사용 예시
+
+```typescript
+import { generatePlansFromGroup } from "@/lib/plan/scheduler";
+
+// 기본 사용 (충돌 검증만, 자동 조정 없음)
+const result = await generatePlansFromGroup(
+  group, contents, exclusions, academySchedules, blocks,
+  contentSubjects, riskIndexMap, dateAvailableTimeRanges,
+  dateTimeSlots, contentDurationMap, contentChapterMap,
+  periodStart, periodEnd, existingPlans
+);
+
+if (result.overlapValidation?.hasOverlaps) {
+  console.warn(`${result.overlapValidation.overlaps.length}개 시간 충돌 감지`);
+}
+
+// 자동 조정 활성화
+const resultWithAutoAdjust = await generatePlansFromGroup(
+  group, contents, exclusions, academySchedules, blocks,
+  contentSubjects, riskIndexMap, dateAvailableTimeRanges,
+  dateTimeSlots, contentDurationMap, contentChapterMap,
+  periodStart, periodEnd, existingPlans,
+  { autoAdjustOverlaps: true, maxEndTime: "22:00" }
+);
+
+if (resultWithAutoAdjust.wasAutoAdjusted) {
+  console.log(`${resultWithAutoAdjust.autoAdjustedCount}개 플랜 시간 자동 조정됨`);
+}
+
+if (resultWithAutoAdjust.unadjustablePlans?.length) {
+  console.warn("조정 불가능한 플랜:", resultWithAutoAdjust.unadjustablePlans);
+}
+```
+
+### 관련 유틸리티 함수
+
+```typescript
+// lib/scheduler/utils/timeOverlapValidator.ts
+
+// 새 플랜과 기존 플랜 간의 시간 충돌 검증
+function validateNoTimeOverlaps(
+  newPlans: ScheduledPlan[],
+  existingPlans: ExistingPlanInfo[]
+): OverlapValidationResult;
+
+// 새 플랜들 간의 내부 충돌 검증
+function validateNoInternalOverlaps(
+  plans: ScheduledPlan[]
+): OverlapValidationResult;
+
+// 충돌하는 플랜 시간 자동 조정
+function adjustOverlappingTimes(
+  newPlans: ScheduledPlan[],
+  existingPlans: ExistingPlanInfo[],
+  maxEndTime?: string  // 기본값: "23:59"
+): TimeAdjustmentResult;
+```
+
+---
+
 ## 5. 알려진 문제점
 
 ### 5.1 권한 및 RLS 문제
@@ -503,7 +636,7 @@ describe('경계 조건', () => {
 ### Phase 4: 안정화 ✅ 완료
 
 ```
-목표: 에러 처리 통일 및 모니터링
+목표: 에러 처리 통일, 모니터링, 기존 플랜 충돌 검증
 
 [✅] ServiceError 클래스 구현 (errors.ts)
     - ServiceErrorCodes: 표준화된 에러 코드
@@ -515,6 +648,16 @@ describe('경계 조건', () => {
     - ServiceLogger: 구조화된 로깅
     - PerformanceTracker: 성능 측정
     - globalPerformanceTracker: 전역 성능 추적
+
+[✅] 기존 플랜 충돌 검증 (timeOverlapValidator.ts) - 2026-01-18 추가
+    - validateNoTimeOverlaps(): 새 플랜과 기존 플랜 간 시간 충돌 검증
+    - validateNoInternalOverlaps(): 새 플랜들 간의 내부 충돌 검증
+    - adjustOverlappingTimes(): 충돌하는 플랜 시간 자동 조정
+
+[✅] generatePlansFromGroup 반환 타입 개선
+    - GeneratePlansResult: 플랜 + 충돌 검증 결과 반환
+    - GeneratePlansOptions: 자동 조정 옵션 지원
+    - 기존 플랜 시간 충돌 시 자동 조정 기능
 ```
 
 ### Phase 5: 코드 최적화 ✅ 완료 (2025-12-22)
@@ -666,24 +809,46 @@ lib/plan/services/
 
 lib/types/
 └── plan-generation.ts                # 플랜 생성 공통 타입 정의
+
+lib/scheduler/
+├── types.ts                          # 스케줄러 타입 정의 (Single Source of Truth)
+│   ├── SchedulerType
+│   ├── SchedulerInput / SchedulerOutput
+│   ├── IScheduler
+│   ├── GeneratePlansResult           # Phase 4: 플랜 생성 결과
+│   ├── GeneratePlansOptions          # Phase 4: 생성 옵션
+│   └── OverlapValidationResult       # Phase 4: 충돌 검증 결과
+│
+├── SchedulerEngine.ts                # 스케줄러 엔진 (1730 타임테이블)
+├── calculateAvailableDates.ts        # 날짜/시간 계산
+│
+└── utils/
+    ├── scheduleCalculator.ts         # 중앙화된 스케줄 계산 유틸리티
+    │   ├── calculateAvailableDateStrings()
+    │   └── Re-exports from calculateAvailableDates
+    │
+    └── timeOverlapValidator.ts       # Phase 4: 시간 충돌 검증
+        ├── validateNoTimeOverlaps()
+        ├── validateNoInternalOverlaps()
+        └── adjustOverlappingTimes()
 ```
 
 ### A.3 테스트 파일
 
 ```
 __tests__/lib/plan/
-└── services.test.ts                  # 서비스 레이어 테스트 (33개)
-    ├── describe("기본 서비스 export")
-    ├── describe("ContentResolutionService")
-    ├── describe("ScheduleGenerationService")
-    ├── describe("TimeAllocationService")
-    ├── describe("PlanPersistenceService")
-    ├── describe("PlanGenerationOrchestrator")
-    ├── describe("서비스 어댑터")
-    ├── describe("통합 에러 시스템")
-    ├── describe("로깅 시스템")
-    ├── describe("Phase 5: timeToMinutes")
-    ├── describe("Phase 5: preparePlanGenerationData 타입")
-    ├── describe("previewPlansWithServices 타입")
-    └── describe("타입 호환성")
+├── services.test.ts                  # 서비스 레이어 테스트 (33개)
+├── scheduler.test.ts                 # 스케줄러 로직 테스트
+└── generatePlansFromGroup.integration.test.ts  # Phase 4 통합 테스트 (13개)
+    ├── describe("기존 플랜 충돌 검증")
+    ├── describe("자동 조정 기능")
+    ├── describe("maxEndTime 제한")
+    ├── describe("복합 시나리오")
+    └── describe("내부 플랜 간 충돌 검증")
+
+__tests__/lib/scheduler/
+├── schedulerEngine.integration.test.ts  # SchedulerEngine 통합 테스트 (9개)
+└── utils/
+    ├── scheduleCalculator.test.ts       # 스케줄 계산 테스트 (13개)
+    └── timeOverlapValidator.test.ts     # 시간 충돌 검증 테스트 (21개)
 ```
