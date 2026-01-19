@@ -32,6 +32,7 @@ import {
   AlertTriangle,
   UserCircle,
   ListPlus,
+  Sparkles,
 } from "lucide-react";
 
 export const adminCategories: NavigationCategory[] = [
@@ -316,6 +317,13 @@ export const adminCategories: NavigationCategory[] = [
         label: "추천 시스템 설정",
         href: "/admin/recommendation-settings",
         icon: <Target className="w-4 h-4" />,
+        roles: ["admin"], // admin만 접근
+      },
+      {
+        id: "admin-cold-start",
+        label: "콜드 스타트 관리",
+        href: "/admin/cold-start",
+        icon: <Sparkles className="w-4 h-4" />,
         roles: ["admin"], // admin만 접근
       },
       {
