@@ -99,17 +99,15 @@ describe("getWeakSubjects", () => {
       mockCustomData = [];
       mockAnalysisData = [];
 
-      const result = await getWeakSubjects(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getWeakSubjects(mockSupabase, { studentId, weekStart, weekEnd });
 
       // 수학: 60분, 영어: 30분
-      expect(result.subjectStudyTime.get("수학")).toBe(60);
-      expect(result.subjectStudyTime.get("영어")).toBe(30);
-      expect(result.totalStudyTime).toBe(90);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.subjectStudyTime.get("수학")).toBe(60);
+        expect(result.data.subjectStudyTime.get("영어")).toBe(30);
+        expect(result.data.totalStudyTime).toBe(90);
+      }
     });
 
     it("직접 세션의 content_type/content_id를 통해 과목을 매핑해야 함", async () => {
@@ -134,15 +132,13 @@ describe("getWeakSubjects", () => {
       mockCustomData = [];
       mockAnalysisData = [];
 
-      const result = await getWeakSubjects(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getWeakSubjects(mockSupabase, { studentId, weekStart, weekEnd });
 
-      expect(result.subjectStudyTime.get("국어")).toBe(30);
-      expect(result.totalStudyTime).toBe(30);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.subjectStudyTime.get("국어")).toBe(30);
+        expect(result.data.totalStudyTime).toBe(30);
+      }
     });
 
     it("같은 과목의 여러 세션을 합산해야 함", async () => {
@@ -175,16 +171,14 @@ describe("getWeakSubjects", () => {
       mockCustomData = [];
       mockAnalysisData = [];
 
-      const result = await getWeakSubjects(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getWeakSubjects(mockSupabase, { studentId, weekStart, weekEnd });
 
       // 수학: 30분 + 60분 = 90분
-      expect(result.subjectStudyTime.get("수학")).toBe(90);
-      expect(result.totalStudyTime).toBe(90);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.subjectStudyTime.get("수학")).toBe(90);
+        expect(result.data.totalStudyTime).toBe(90);
+      }
     });
   });
 
@@ -207,19 +201,17 @@ describe("getWeakSubjects", () => {
       mockCustomData = [];
       mockAnalysisData = mockAnalyses;
 
-      const result = await getWeakSubjects(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getWeakSubjects(mockSupabase, { studentId, weekStart, weekEnd });
 
       // 수학(60), 국어(50)만 취약 과목
-      expect(result.weakSubjects).toHaveLength(2);
-      expect(result.weakSubjects).toContain("수학");
-      expect(result.weakSubjects).toContain("국어");
-      expect(result.weakSubjects).not.toContain("영어");
-      expect(result.weakSubjects).not.toContain("과학");
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.weakSubjects).toHaveLength(2);
+        expect(result.data.weakSubjects).toContain("수학");
+        expect(result.data.weakSubjects).toContain("국어");
+        expect(result.data.weakSubjects).not.toContain("영어");
+        expect(result.data.weakSubjects).not.toContain("과학");
+      }
     });
 
     it("constants.ts의 RISK_SCORE_THRESHOLD 값을 사용해야 함", async () => {
@@ -244,17 +236,15 @@ describe("getWeakSubjects", () => {
       mockCustomData = [];
       mockAnalysisData = mockAnalyses;
 
-      const result = await getWeakSubjects(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getWeakSubjects(mockSupabase, { studentId, weekStart, weekEnd });
 
       // RISK_SCORE_THRESHOLD(50) 이상만 취약 과목
-      expect(result.weakSubjects).toHaveLength(1);
-      expect(result.weakSubjects).toContain("영어");
-      expect(result.weakSubjects).not.toContain("수학");
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.weakSubjects).toHaveLength(1);
+        expect(result.data.weakSubjects).toContain("영어");
+        expect(result.data.weakSubjects).not.toContain("수학");
+      }
     });
   });
 
@@ -305,19 +295,17 @@ describe("getWeakSubjects", () => {
       mockCustomData = [];
       mockAnalysisData = mockAnalyses;
 
-      const result = await getWeakSubjects(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getWeakSubjects(mockSupabase, { studentId, weekStart, weekEnd });
 
       // 전체: 120분, 취약 과목(수학 60분 + 국어 30분): 90분
       // 비율: 90/120 * 100 = 75%
-      expect(result.totalStudyTime).toBe(120);
-      expect(result.weakSubjectStudyTimeRatio).toBe(75);
-      expect(result.weakSubjects).toContain("수학");
-      expect(result.weakSubjects).toContain("국어");
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.totalStudyTime).toBe(120);
+        expect(result.data.weakSubjectStudyTimeRatio).toBe(75);
+        expect(result.data.weakSubjects).toContain("수학");
+        expect(result.data.weakSubjects).toContain("국어");
+      }
     });
 
     it("전체 학습시간이 0이면 비율도 0이어야 함", async () => {
@@ -333,15 +321,13 @@ describe("getWeakSubjects", () => {
       mockCustomData = [];
       mockAnalysisData = mockAnalyses;
 
-      const result = await getWeakSubjects(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getWeakSubjects(mockSupabase, { studentId, weekStart, weekEnd });
 
-      expect(result.totalStudyTime).toBe(0);
-      expect(result.weakSubjectStudyTimeRatio).toBe(0);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.totalStudyTime).toBe(0);
+        expect(result.data.weakSubjectStudyTimeRatio).toBe(0);
+      }
     });
   });
 
@@ -379,17 +365,15 @@ describe("getWeakSubjects", () => {
       mockCustomData = [];
       mockAnalysisData = [];
 
-      const result = await getWeakSubjects(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getWeakSubjects(mockSupabase, { studentId, weekStart, weekEnd });
 
       // duration_seconds가 null인 세션은 무시
-      expect(result.subjectStudyTime.get("수학")).toBeUndefined();
-      expect(result.subjectStudyTime.get("영어")).toBe(30);
-      expect(result.totalStudyTime).toBe(30);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.subjectStudyTime.get("수학")).toBeUndefined();
+        expect(result.data.subjectStudyTime.get("영어")).toBe(30);
+        expect(result.data.totalStudyTime).toBe(30);
+      }
     });
 
     it("플랜에 content_type이나 content_id가 null이면 무시해야 함", async () => {
@@ -414,16 +398,14 @@ describe("getWeakSubjects", () => {
       mockCustomData = [];
       mockAnalysisData = [];
 
-      const result = await getWeakSubjects(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getWeakSubjects(mockSupabase, { studentId, weekStart, weekEnd });
 
       // content_type이 null이면 매핑되지 않음
-      expect(result.totalStudyTime).toBe(0);
-      expect(result.subjectStudyTime.size).toBe(0);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.totalStudyTime).toBe(0);
+        expect(result.data.subjectStudyTime.size).toBe(0);
+      }
     });
 
     it("콘텐츠에 subject가 null이면 무시해야 함", async () => {
@@ -450,16 +432,14 @@ describe("getWeakSubjects", () => {
       mockCustomData = [];
       mockAnalysisData = [];
 
-      const result = await getWeakSubjects(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getWeakSubjects(mockSupabase, { studentId, weekStart, weekEnd });
 
       // subject가 null이면 학습시간에 포함되지 않음
-      expect(result.totalStudyTime).toBe(0);
-      expect(result.subjectStudyTime.size).toBe(0);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.totalStudyTime).toBe(0);
+        expect(result.data.subjectStudyTime.size).toBe(0);
+      }
     });
 
     it("빈 세션 배열에 대해 빈 결과를 반환해야 함", async () => {
@@ -472,38 +452,30 @@ describe("getWeakSubjects", () => {
       mockCustomData = [];
       mockAnalysisData = [];
 
-      const result = await getWeakSubjects(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getWeakSubjects(mockSupabase, { studentId, weekStart, weekEnd });
 
-      expect(result.weakSubjects).toEqual([]);
-      expect(result.subjectStudyTime.size).toBe(0);
-      expect(result.totalStudyTime).toBe(0);
-      expect(result.weakSubjectStudyTimeRatio).toBe(0);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.weakSubjects).toEqual([]);
+        expect(result.data.subjectStudyTime.size).toBe(0);
+        expect(result.data.totalStudyTime).toBe(0);
+        expect(result.data.weakSubjectStudyTimeRatio).toBe(0);
+      }
     });
   });
 
   describe("에러 처리", () => {
-    it("에러 발생 시 빈 결과를 반환해야 함", async () => {
+    it("에러 발생 시 실패 결과를 반환해야 함", async () => {
       vi.mocked(getSessionsByDateRange).mockRejectedValue(
         new Error("Database error")
       );
 
-      const result = await getWeakSubjects(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getWeakSubjects(mockSupabase, { studentId, weekStart, weekEnd });
 
-      expect(result.weakSubjects).toEqual([]);
-      expect(result.subjectStudyTime.size).toBe(0);
-      expect(result.totalStudyTime).toBe(0);
-      expect(result.weakSubjectStudyTimeRatio).toBe(0);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toBeDefined();
+      }
     });
   });
 });
-

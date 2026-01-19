@@ -45,18 +45,13 @@ describe("getStudyTime", () => {
 
       vi.mocked(getSessionsByDateRange).mockResolvedValue(mockSessions as any);
 
-      const result = await getStudyTime(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getStudyTime(mockSupabase, { studentId, weekStart, weekEnd });
 
       // 이번 주: 60분, 지난 주: 30분
-      expect(result.thisWeekMinutes).toBe(60);
-      expect(result.lastWeekMinutes).toBe(30);
-      expect(result.changeMinutes).toBe(30);
-      expect(result.changePercent).toBe(100); // (30/30) * 100
+      expect(result.data?.thisWeekMinutes).toBe(60);
+      expect(result.data?.lastWeekMinutes).toBe(30);
+      expect(result.data?.changeMinutes).toBe(30);
+      expect(result.data?.changePercent).toBe(100); // (30/30) * 100
     });
 
     it("KST 기준 날짜를 UTC로 올바르게 변환해야 함", async () => {
@@ -71,15 +66,10 @@ describe("getStudyTime", () => {
 
       vi.mocked(getSessionsByDateRange).mockResolvedValue(mockSessions as any);
 
-      const result = await getStudyTime(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getStudyTime(mockSupabase, { studentId, weekStart, weekEnd });
 
       // KST 기준으로 이번 주에 포함되어야 함
-      expect(result.thisWeekMinutes).toBe(60);
+      expect(result.data?.thisWeekMinutes).toBe(60);
     });
 
     it("지난 주 범위를 정확히 7일 전으로 계산해야 함", async () => {
@@ -106,17 +96,12 @@ describe("getStudyTime", () => {
 
       vi.mocked(getSessionsByDateRange).mockResolvedValue(mockSessions as any);
 
-      const result = await getStudyTime(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getStudyTime(mockSupabase, { studentId, weekStart, weekEnd });
 
       // 지난 주 세션들만 카운트 (session-1, session-2)
       // 실제 함수는 UTC 날짜 문자열로 비교하므로 정확한 날짜 범위 확인 필요
-      expect(result.lastWeekMinutes).toBeGreaterThanOrEqual(30);
-      expect(result.thisWeekMinutes).toBeGreaterThanOrEqual(30);
+      expect(result.data?.lastWeekMinutes).toBeGreaterThanOrEqual(30);
+      expect(result.data?.thisWeekMinutes).toBeGreaterThanOrEqual(30);
     });
   });
 
@@ -150,22 +135,17 @@ describe("getStudyTime", () => {
 
       vi.mocked(getSessionsByDateRange).mockResolvedValue(mockSessions as any);
 
-      const result = await getStudyTime(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getStudyTime(mockSupabase, { studentId, weekStart, weekEnd });
 
       // 핵심 로직 검증: 세션이 올바르게 분리되고 합산되는지
       // 변화량은 이번주 - 지난주
-      expect(result.changeMinutes).toBe(
-        result.thisWeekMinutes - result.lastWeekMinutes
+      expect(result.data?.changeMinutes).toBe(
+        result.data?.thisWeekMinutes - result.data?.lastWeekMinutes
       );
       // 결과가 올바른 구조를 가지는지 확인
-      expect(result.thisWeekMinutes).toBeGreaterThanOrEqual(0);
-      expect(result.lastWeekMinutes).toBeGreaterThanOrEqual(0);
-      expect(typeof result.changePercent).toBe("number");
+      expect(result.data?.thisWeekMinutes).toBeGreaterThanOrEqual(0);
+      expect(result.data?.lastWeekMinutes).toBeGreaterThanOrEqual(0);
+      expect(typeof result.data?.changePercent).toBe("number");
     });
 
     it("같은 날짜의 여러 세션을 합산해야 함", async () => {
@@ -189,15 +169,10 @@ describe("getStudyTime", () => {
 
       vi.mocked(getSessionsByDateRange).mockResolvedValue(mockSessions as any);
 
-      const result = await getStudyTime(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getStudyTime(mockSupabase, { studentId, weekStart, weekEnd });
 
       // 같은 날 3개 세션 합산: 30 + 30 + 30 = 90분
-      expect(result.thisWeekMinutes).toBe(90);
+      expect(result.data?.thisWeekMinutes).toBe(90);
     });
 
     it("duration_seconds가 null이면 0으로 처리해야 함", async () => {
@@ -216,15 +191,10 @@ describe("getStudyTime", () => {
 
       vi.mocked(getSessionsByDateRange).mockResolvedValue(mockSessions as any);
 
-      const result = await getStudyTime(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getStudyTime(mockSupabase, { studentId, weekStart, weekEnd });
 
       // null은 0으로 처리
-      expect(result.thisWeekMinutes).toBe(30);
+      expect(result.data?.thisWeekMinutes).toBe(30);
     });
   });
 
@@ -245,17 +215,12 @@ describe("getStudyTime", () => {
 
       vi.mocked(getSessionsByDateRange).mockResolvedValue(mockSessions as any);
 
-      const result = await getStudyTime(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getStudyTime(mockSupabase, { studentId, weekStart, weekEnd });
 
       // 변화량: 100 - 50 = 50분
       // 변화율: (50/50) * 100 = 100%
-      expect(result.changeMinutes).toBe(50);
-      expect(result.changePercent).toBe(100);
+      expect(result.data?.changeMinutes).toBe(50);
+      expect(result.data?.changePercent).toBe(100);
     });
 
     it("지난주 대비 감소 시 변화율을 올바르게 계산해야 함", async () => {
@@ -274,17 +239,12 @@ describe("getStudyTime", () => {
 
       vi.mocked(getSessionsByDateRange).mockResolvedValue(mockSessions as any);
 
-      const result = await getStudyTime(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getStudyTime(mockSupabase, { studentId, weekStart, weekEnd });
 
       // 변화량: 30 - 100 = -70분
       // 변화율: (-70/100) * 100 = -70%
-      expect(result.changeMinutes).toBe(-70);
-      expect(result.changePercent).toBe(-70);
+      expect(result.data?.changeMinutes).toBe(-70);
+      expect(result.data?.changePercent).toBe(-70);
     });
 
     it("지난주 학습시간이 0이면 변화율은 100% 또는 0%여야 함", async () => {
@@ -299,34 +259,24 @@ describe("getStudyTime", () => {
 
       vi.mocked(getSessionsByDateRange).mockResolvedValue(mockSessions as any);
 
-      const result = await getStudyTime(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getStudyTime(mockSupabase, { studentId, weekStart, weekEnd });
 
       // 지난주 0분, 이번주 60분
       // 변화율: 이번주 > 0이면 100%
-      expect(result.lastWeekMinutes).toBe(0);
-      expect(result.thisWeekMinutes).toBe(60);
-      expect(result.changePercent).toBe(100);
+      expect(result.data?.lastWeekMinutes).toBe(0);
+      expect(result.data?.thisWeekMinutes).toBe(60);
+      expect(result.data?.changePercent).toBe(100);
     });
 
     it("이번주와 지난주 모두 0이면 변화율은 0%여야 함", async () => {
       vi.mocked(getSessionsByDateRange).mockResolvedValue([]);
 
-      const result = await getStudyTime(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getStudyTime(mockSupabase, { studentId, weekStart, weekEnd });
 
-      expect(result.thisWeekMinutes).toBe(0);
-      expect(result.lastWeekMinutes).toBe(0);
-      expect(result.changePercent).toBe(0);
-      expect(result.changeMinutes).toBe(0);
+      expect(result.data?.thisWeekMinutes).toBe(0);
+      expect(result.data?.lastWeekMinutes).toBe(0);
+      expect(result.data?.changePercent).toBe(0);
+      expect(result.data?.changeMinutes).toBe(0);
     });
 
     it("변화율은 반올림되어야 함", async () => {
@@ -345,16 +295,11 @@ describe("getStudyTime", () => {
 
       vi.mocked(getSessionsByDateRange).mockResolvedValue(mockSessions as any);
 
-      const result = await getStudyTime(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getStudyTime(mockSupabase, { studentId, weekStart, weekEnd });
 
       // 변화량: 55 - 50 = 5분
       // 변화율: (5/50) * 100 = 10%
-      expect(result.changePercent).toBe(10);
+      expect(result.data?.changePercent).toBe(10);
     });
   });
 
@@ -370,15 +315,10 @@ describe("getStudyTime", () => {
 
       vi.mocked(getSessionsByDateRange).mockResolvedValue(mockSessions as any);
 
-      const result = await getStudyTime(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getStudyTime(mockSupabase, { studentId, weekStart, weekEnd });
 
       // 3660초 = 61분 (Math.floor 사용)
-      expect(result.thisWeekMinutes).toBe(61);
+      expect(result.data?.thisWeekMinutes).toBe(61);
     });
 
     it("초 단위가 60 미만이면 0분으로 처리해야 함", async () => {
@@ -392,15 +332,10 @@ describe("getStudyTime", () => {
 
       vi.mocked(getSessionsByDateRange).mockResolvedValue(mockSessions as any);
 
-      const result = await getStudyTime(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getStudyTime(mockSupabase, { studentId, weekStart, weekEnd });
 
       // 59초 = 0분 (Math.floor(59/60) = 0)
-      expect(result.thisWeekMinutes).toBe(0);
+      expect(result.data?.thisWeekMinutes).toBe(0);
     });
   });
 
@@ -408,17 +343,12 @@ describe("getStudyTime", () => {
     it("빈 세션 배열에 대해 0을 반환해야 함", async () => {
       vi.mocked(getSessionsByDateRange).mockResolvedValue([]);
 
-      const result = await getStudyTime(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getStudyTime(mockSupabase, { studentId, weekStart, weekEnd });
 
-      expect(result.thisWeekMinutes).toBe(0);
-      expect(result.lastWeekMinutes).toBe(0);
-      expect(result.changePercent).toBe(0);
-      expect(result.changeMinutes).toBe(0);
+      expect(result.data?.thisWeekMinutes).toBe(0);
+      expect(result.data?.lastWeekMinutes).toBe(0);
+      expect(result.data?.changePercent).toBe(0);
+      expect(result.data?.changeMinutes).toBe(0);
     });
 
     it("날짜 범위 밖의 세션은 무시해야 함", async () => {
@@ -437,34 +367,24 @@ describe("getStudyTime", () => {
 
       vi.mocked(getSessionsByDateRange).mockResolvedValue(mockSessions as any);
 
-      const result = await getStudyTime(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getStudyTime(mockSupabase, { studentId, weekStart, weekEnd });
 
       // 범위 밖 세션은 무시
-      expect(result.thisWeekMinutes).toBe(0);
-      expect(result.lastWeekMinutes).toBe(0);
+      expect(result.data?.thisWeekMinutes).toBe(0);
+      expect(result.data?.lastWeekMinutes).toBe(0);
     });
 
-    it("에러 발생 시 빈 결과를 반환해야 함", async () => {
+    it("에러 발생 시 실패 결과를 반환해야 함", async () => {
       vi.mocked(getSessionsByDateRange).mockRejectedValue(
         new Error("Database error")
       );
 
-      const result = await getStudyTime(
-        mockSupabase,
-        studentId,
-        weekStart,
-        weekEnd
-      );
+      const result = await getStudyTime(mockSupabase, { studentId, weekStart, weekEnd });
 
-      expect(result.thisWeekMinutes).toBe(0);
-      expect(result.lastWeekMinutes).toBe(0);
-      expect(result.changePercent).toBe(0);
-      expect(result.changeMinutes).toBe(0);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toBeDefined();
+      }
     });
   });
 });

@@ -124,14 +124,17 @@ describe("getGoalStatus", () => {
         };
       });
 
-      const result = await getGoalStatus(mockSupabase, studentId, todayDate);
+      const result = await getGoalStatus(mockSupabase, { studentId, todayDate });
 
       // goal-1: 50 + 30 = 80 / 100 = 80%
       // goal-2: 100 / 200 = 50%
-      expect(result.totalActiveGoals).toBe(2);
-      expect(result.goals).toHaveLength(2);
-      expect(result.goals.find((g) => g.id === "goal-1")?.progressPercentage).toBe(80);
-      expect(result.goals.find((g) => g.id === "goal-2")?.progressPercentage).toBe(50);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.totalActiveGoals).toBe(2);
+        expect(result.data.goals).toHaveLength(2);
+        expect(result.data.goals.find((g) => g.id === "goal-1")?.progressPercentage).toBe(80);
+        expect(result.data.goals.find((g) => g.id === "goal-2")?.progressPercentage).toBe(50);
+      }
     });
 
     it("진행률 데이터가 없는 목표도 처리해야 함", async () => {
@@ -168,10 +171,13 @@ describe("getGoalStatus", () => {
         recent3DaysAmount: 0,
       });
 
-      const result = await getGoalStatus(mockSupabase, studentId, todayDate);
+      const result = await getGoalStatus(mockSupabase, { studentId, todayDate });
 
-      expect(result.totalActiveGoals).toBe(1);
-      expect(result.goals[0].progressPercentage).toBe(0);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.totalActiveGoals).toBe(1);
+        expect(result.data.goals[0].progressPercentage).toBe(0);
+      }
     });
   });
 
@@ -232,10 +238,10 @@ describe("getGoalStatus", () => {
         };
       });
 
-      const result = await getGoalStatus(mockSupabase, studentId, todayDate);
+      const result = await getGoalStatus(mockSupabase, { studentId, todayDate });
 
       // goal-1: 7일 남음 (D-7 이내), goal-2: 10일 남음 (D-7 초과)
-      expect(result.goalsNearDeadline).toBe(1);
+      expect(result.data?.goalsNearDeadline).toBe(1);
     });
 
     it("D-3 이내 목표를 올바르게 카운트해야 함", async () => {
@@ -294,10 +300,10 @@ describe("getGoalStatus", () => {
         };
       });
 
-      const result = await getGoalStatus(mockSupabase, studentId, todayDate);
+      const result = await getGoalStatus(mockSupabase, { studentId, todayDate });
 
       // goal-1: 3일 남음 (D-3 이내), goal-2: 5일 남음 (D-3 초과)
-      expect(result.goalsVeryNearDeadline).toBe(1);
+      expect(result.data?.goalsVeryNearDeadline).toBe(1);
     });
 
     it("진행률 30% 미만 목표를 올바르게 카운트해야 함", async () => {
@@ -370,10 +376,10 @@ describe("getGoalStatus", () => {
         };
       });
 
-      const result = await getGoalStatus(mockSupabase, studentId, todayDate);
+      const result = await getGoalStatus(mockSupabase, { studentId, todayDate });
 
       // goal-1만 30% 미만
-      expect(result.lowProgressGoals).toBe(1);
+      expect(result.data?.lowProgressGoals).toBe(1);
     });
 
     it("진행률 50% 미만 목표를 올바르게 카운트해야 함", async () => {
@@ -431,10 +437,10 @@ describe("getGoalStatus", () => {
         };
       });
 
-      const result = await getGoalStatus(mockSupabase, studentId, todayDate);
+      const result = await getGoalStatus(mockSupabase, { studentId, todayDate });
 
       // goal-1만 50% 미만
-      expect(result.veryLowProgressGoals).toBe(1);
+      expect(result.data?.veryLowProgressGoals).toBe(1);
     });
 
     it("constants.ts의 기준값을 사용해야 함", async () => {
@@ -471,12 +477,12 @@ describe("getGoalStatus", () => {
         recent3DaysAmount: 0,
       });
 
-      const result = await getGoalStatus(mockSupabase, studentId, todayDate);
+      const result = await getGoalStatus(mockSupabase, { studentId, todayDate });
 
       // LOW_PROGRESS_THRESHOLD(30) 미만
-      expect(result.lowProgressGoals).toBe(1);
+      expect(result.data?.lowProgressGoals).toBe(1);
       // NEAR_DEADLINE_DAYS(7) 이내
-      expect(result.goalsNearDeadline).toBe(1);
+      expect(result.data?.goalsNearDeadline).toBe(1);
     });
   });
 
@@ -551,19 +557,22 @@ describe("getGoalStatus", () => {
         };
       });
 
-      const result = await getGoalStatus(mockSupabase, studentId, todayDate);
+      const result = await getGoalStatus(mockSupabase, { studentId, todayDate });
 
       // (30 + 50 + 70) / 3 = 50
-      expect(result.averageProgress).toBe(50);
+      expect(result.data?.averageProgress).toBe(50);
     });
 
     it("목표가 없으면 평균 진행률은 0이어야 함", async () => {
       vi.mocked(getActiveGoals).mockResolvedValue([]);
 
-      const result = await getGoalStatus(mockSupabase, studentId, todayDate);
+      const result = await getGoalStatus(mockSupabase, { studentId, todayDate });
 
-      expect(result.averageProgress).toBe(0);
-      expect(result.totalActiveGoals).toBe(0);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.averageProgress).toBe(0);
+        expect(result.data.totalActiveGoals).toBe(0);
+      }
     });
   });
 
@@ -571,15 +580,18 @@ describe("getGoalStatus", () => {
     it("빈 목표 배열에 대해 빈 결과를 반환해야 함", async () => {
       vi.mocked(getActiveGoals).mockResolvedValue([]);
 
-      const result = await getGoalStatus(mockSupabase, studentId, todayDate);
+      const result = await getGoalStatus(mockSupabase, { studentId, todayDate });
 
-      expect(result.totalActiveGoals).toBe(0);
-      expect(result.goalsNearDeadline).toBe(0);
-      expect(result.goalsVeryNearDeadline).toBe(0);
-      expect(result.averageProgress).toBe(0);
-      expect(result.lowProgressGoals).toBe(0);
-      expect(result.veryLowProgressGoals).toBe(0);
-      expect(result.goals).toEqual([]);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.totalActiveGoals).toBe(0);
+        expect(result.data.goalsNearDeadline).toBe(0);
+        expect(result.data.goalsVeryNearDeadline).toBe(0);
+        expect(result.data.averageProgress).toBe(0);
+        expect(result.data.lowProgressGoals).toBe(0);
+        expect(result.data.veryLowProgressGoals).toBe(0);
+        expect(result.data.goals).toEqual([]);
+      }
     });
 
     it("진행률 데이터가 null이거나 undefined인 경우 처리해야 함", async () => {
@@ -616,10 +628,13 @@ describe("getGoalStatus", () => {
         recent3DaysAmount: 0,
       });
 
-      const result = await getGoalStatus(mockSupabase, studentId, todayDate);
+      const result = await getGoalStatus(mockSupabase, { studentId, todayDate });
 
-      expect(result.totalActiveGoals).toBe(1);
-      expect(result.goals[0].progressPercentage).toBe(0);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.totalActiveGoals).toBe(1);
+        expect(result.data.goals[0].progressPercentage).toBe(0);
+      }
     });
 
     it("daysRemaining이 null인 경우 처리해야 함", async () => {
@@ -656,27 +671,24 @@ describe("getGoalStatus", () => {
         recent3DaysAmount: 0,
       });
 
-      const result = await getGoalStatus(mockSupabase, studentId, todayDate);
+      const result = await getGoalStatus(mockSupabase, { studentId, todayDate });
 
-      expect(result.goals[0].daysRemaining).toBeNull();
-      expect(result.goalsNearDeadline).toBe(0); // null은 카운트되지 않음
-      expect(result.goalsVeryNearDeadline).toBe(0);
+      expect(result.data?.goals[0].daysRemaining).toBeNull();
+      expect(result.data?.goalsNearDeadline).toBe(0); // null은 카운트되지 않음
+      expect(result.data?.goalsVeryNearDeadline).toBe(0);
     });
   });
 
   describe("에러 처리", () => {
-    it("에러 발생 시 빈 결과를 반환해야 함", async () => {
+    it("에러 발생 시 실패 결과를 반환해야 함", async () => {
       vi.mocked(getActiveGoals).mockRejectedValue(new Error("Database error"));
 
-      const result = await getGoalStatus(mockSupabase, studentId, todayDate);
+      const result = await getGoalStatus(mockSupabase, { studentId, todayDate });
 
-      expect(result.totalActiveGoals).toBe(0);
-      expect(result.goalsNearDeadline).toBe(0);
-      expect(result.goalsVeryNearDeadline).toBe(0);
-      expect(result.averageProgress).toBe(0);
-      expect(result.lowProgressGoals).toBe(0);
-      expect(result.veryLowProgressGoals).toBe(0);
-      expect(result.goals).toEqual([]);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toBeDefined();
+      }
     });
   });
 });

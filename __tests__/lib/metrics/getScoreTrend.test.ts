@@ -64,13 +64,13 @@ describe("getScoreTrend", () => {
         .mockResolvedValueOnce(mockInternalRows as any) // 내신 성적
         .mockResolvedValueOnce(mockMockRows as any); // 모의고사 성적
 
-      const result = await getScoreTrend(mockSupabase, studentId);
+      const result = await getScoreTrend(mockSupabase, { studentId });
 
       // 날짜순 정렬: 2025-01-15 > 2025-01-10 > 2025-01-05
-      expect(result.recentScores).toHaveLength(3);
-      expect(result.recentScores[0].testDate).toBe("2025-01-15");
-      expect(result.recentScores[1].testDate).toBe("2025-01-10");
-      expect(result.recentScores[2].testDate).toBe("2025-01-05");
+      expect(result.data?.recentScores).toHaveLength(3);
+      expect(result.data?.recentScores[0].testDate).toBe("2025-01-15");
+      expect(result.data?.recentScores[1].testDate).toBe("2025-01-10");
+      expect(result.data?.recentScores[2].testDate).toBe("2025-01-05");
     });
 
     it("과목별로 성적을 올바르게 그룹화해야 함", async () => {
@@ -86,12 +86,12 @@ describe("getScoreTrend", () => {
         .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows);
 
-      const result = await getScoreTrend(mockSupabase, studentId);
+      const result = await getScoreTrend(mockSupabase, { studentId });
 
       // 수학: 2개, 영어: 1개
-      expect(result.recentScores).toHaveLength(3);
-      const mathScores = result.recentScores.filter((s) => s.subject === "수학");
-      const englishScores = result.recentScores.filter(
+      expect(result.data?.recentScores).toHaveLength(3);
+      const mathScores = result.data?.recentScores.filter((s) => s.subject === "수학");
+      const englishScores = result.data?.recentScores.filter(
         (s) => s.subject === "영어"
       );
       expect(mathScores).toHaveLength(2);
@@ -111,12 +111,12 @@ describe("getScoreTrend", () => {
         .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows as any);
 
-      const result = await getScoreTrend(mockSupabase, studentId);
+      const result = await getScoreTrend(mockSupabase, { studentId });
 
-      const internalScore = result.recentScores.find(
+      const internalScore = result.data?.recentScores.find(
         (s) => s.scoreType === "internal"
       );
-      const mockScore = result.recentScores.find(
+      const mockScore = result.data?.recentScores.find(
         (s) => s.scoreType === "mock"
       );
 
@@ -139,11 +139,11 @@ describe("getScoreTrend", () => {
         .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows);
 
-      const result = await getScoreTrend(mockSupabase, studentId);
+      const result = await getScoreTrend(mockSupabase, { studentId });
 
       // 5등급 > 4등급 (하락)
-      expect(result.hasDecliningTrend).toBe(true);
-      expect(result.decliningSubjects).toContain("수학");
+      expect(result.data?.hasDecliningTrend).toBe(true);
+      expect(result.data?.decliningSubjects).toContain("수학");
     });
 
     it("2회 미만이면 하락으로 판단하지 않아야 함", async () => {
@@ -158,11 +158,11 @@ describe("getScoreTrend", () => {
         .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows);
 
-      const result = await getScoreTrend(mockSupabase, studentId);
+      const result = await getScoreTrend(mockSupabase, { studentId });
 
       // 2회 미만이면 하락으로 판단하지 않음
-      expect(result.hasDecliningTrend).toBe(false);
-      expect(result.decliningSubjects).toHaveLength(0);
+      expect(result.data?.hasDecliningTrend).toBe(false);
+      expect(result.data?.decliningSubjects).toHaveLength(0);
     });
 
     it("하락이 아니면 하락 목록에 포함하지 않아야 함", async () => {
@@ -177,11 +177,11 @@ describe("getScoreTrend", () => {
         .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows);
 
-      const result = await getScoreTrend(mockSupabase, studentId);
+      const result = await getScoreTrend(mockSupabase, { studentId });
 
       // 3등급 < 4등급 (상승)
-      expect(result.hasDecliningTrend).toBe(false);
-      expect(result.decliningSubjects).toHaveLength(0);
+      expect(result.data?.hasDecliningTrend).toBe(false);
+      expect(result.data?.decliningSubjects).toHaveLength(0);
     });
 
     it("여러 과목의 하락을 모두 감지해야 함", async () => {
@@ -198,12 +198,12 @@ describe("getScoreTrend", () => {
         .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows);
 
-      const result = await getScoreTrend(mockSupabase, studentId);
+      const result = await getScoreTrend(mockSupabase, { studentId });
 
-      expect(result.hasDecliningTrend).toBe(true);
-      expect(result.decliningSubjects).toContain("수학");
-      expect(result.decliningSubjects).toContain("영어");
-      expect(result.decliningSubjects).toHaveLength(2);
+      expect(result.data?.hasDecliningTrend).toBe(true);
+      expect(result.data?.decliningSubjects).toContain("수학");
+      expect(result.data?.decliningSubjects).toContain("영어");
+      expect(result.data?.decliningSubjects).toHaveLength(2);
     });
 
     it("constants.ts의 DECLINING_TREND_THRESHOLD 값을 사용해야 함", async () => {
@@ -218,11 +218,11 @@ describe("getScoreTrend", () => {
         .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows);
 
-      const result = await getScoreTrend(mockSupabase, studentId);
+      const result = await getScoreTrend(mockSupabase, { studentId });
 
       // DECLINING_TREND_THRESHOLD(2) 이상이므로 하락 감지
-      expect(result.hasDecliningTrend).toBe(true);
-      expect(result.decliningSubjects.length).toBeGreaterThanOrEqual(1);
+      expect(result.data?.hasDecliningTrend).toBe(true);
+      expect(result.data?.decliningSubjects.length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -240,12 +240,12 @@ describe("getScoreTrend", () => {
         .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows);
 
-      const result = await getScoreTrend(mockSupabase, studentId);
+      const result = await getScoreTrend(mockSupabase, { studentId });
 
       // 7등급 이상만 저등급
-      expect(result.lowGradeSubjects).toContain("수학");
-      expect(result.lowGradeSubjects).toContain("영어");
-      expect(result.lowGradeSubjects).not.toContain("국어");
+      expect(result.data?.lowGradeSubjects).toContain("수학");
+      expect(result.data?.lowGradeSubjects).toContain("영어");
+      expect(result.data?.lowGradeSubjects).not.toContain("국어");
     });
 
     it("constants.ts의 LOW_GRADE_THRESHOLD 값을 사용해야 함", async () => {
@@ -260,11 +260,11 @@ describe("getScoreTrend", () => {
         .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows);
 
-      const result = await getScoreTrend(mockSupabase, studentId);
+      const result = await getScoreTrend(mockSupabase, { studentId });
 
       // LOW_GRADE_THRESHOLD(7) 이상만 저등급
-      expect(result.lowGradeSubjects).toContain("수학");
-      expect(result.lowGradeSubjects).not.toContain("영어");
+      expect(result.data?.lowGradeSubjects).toContain("수학");
+      expect(result.data?.lowGradeSubjects).not.toContain("영어");
     });
 
     it("최신 성적 기준으로 저등급을 판단해야 함", async () => {
@@ -279,10 +279,10 @@ describe("getScoreTrend", () => {
         .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows);
 
-      const result = await getScoreTrend(mockSupabase, studentId);
+      const result = await getScoreTrend(mockSupabase, { studentId });
 
       // 최신 성적(7등급) 기준으로 저등급 판단
-      expect(result.lowGradeSubjects).toContain("수학");
+      expect(result.data?.lowGradeSubjects).toContain("수학");
     });
   });
 
@@ -301,11 +301,11 @@ describe("getScoreTrend", () => {
         .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows);
 
-      const result = await getScoreTrend(mockSupabase, studentId);
+      const result = await getScoreTrend(mockSupabase, { studentId });
 
       // null 값이 있는 성적은 제외
-      expect(result.recentScores).toHaveLength(1);
-      expect(result.recentScores[0].subject).toBe("국어");
+      expect(result.data?.recentScores).toHaveLength(1);
+      expect(result.data?.recentScores[0].subject).toBe("국어");
     });
 
     it("undefined 값이 있는 성적은 무시해야 함", async () => {
@@ -320,11 +320,11 @@ describe("getScoreTrend", () => {
         .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows);
 
-      const result = await getScoreTrend(mockSupabase, studentId);
+      const result = await getScoreTrend(mockSupabase, { studentId });
 
       // undefined 값이 있는 성적은 제외
-      expect(result.recentScores).toHaveLength(1);
-      expect(result.recentScores[0].subject).toBe("영어");
+      expect(result.data?.recentScores).toHaveLength(1);
+      expect(result.data?.recentScores[0].subject).toBe("영어");
     });
 
     it("빈 성적 배열에 대해 빈 결과를 반환해야 함", async () => {
@@ -332,12 +332,12 @@ describe("getScoreTrend", () => {
         .mockResolvedValueOnce([]) // 내신 성적
         .mockResolvedValueOnce([]); // 모의고사 성적
 
-      const result = await getScoreTrend(mockSupabase, studentId);
+      const result = await getScoreTrend(mockSupabase, { studentId });
 
-      expect(result.hasDecliningTrend).toBe(false);
-      expect(result.decliningSubjects).toEqual([]);
-      expect(result.lowGradeSubjects).toEqual([]);
-      expect(result.recentScores).toEqual([]);
+      expect(result.data?.hasDecliningTrend).toBe(false);
+      expect(result.data?.decliningSubjects).toEqual([]);
+      expect(result.data?.lowGradeSubjects).toEqual([]);
+      expect(result.data?.recentScores).toEqual([]);
     });
 
     it("최근 성적 개수 제한을 적용해야 함", async () => {
@@ -351,25 +351,25 @@ describe("getScoreTrend", () => {
         .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows);
 
-      const result = await getScoreTrend(mockSupabase, studentId);
+      const result = await getScoreTrend(mockSupabase, { studentId });
 
       // RETURN_SCORES_LIMIT(10) 개만 반환
-      expect(result.recentScores.length).toBeLessThanOrEqual(
+      expect(result.data?.recentScores.length).toBeLessThanOrEqual(
         SCORE_TREND_CONSTANTS.RETURN_SCORES_LIMIT
       );
     });
   });
 
   describe("에러 처리", () => {
-    it("에러 발생 시 빈 결과를 반환해야 함", async () => {
+    it("에러 발생 시 실패 결과를 반환해야 함", async () => {
       vi.mocked(safeQueryArray).mockRejectedValue(new Error("Database error"));
 
-      const result = await getScoreTrend(mockSupabase, studentId);
+      const result = await getScoreTrend(mockSupabase, { studentId });
 
-      expect(result.hasDecliningTrend).toBe(false);
-      expect(result.decliningSubjects).toEqual([]);
-      expect(result.lowGradeSubjects).toEqual([]);
-      expect(result.recentScores).toEqual([]);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toBeDefined();
+      }
     });
   });
 });

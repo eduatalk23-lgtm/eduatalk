@@ -33,7 +33,7 @@ describe("getHistoryPattern", () => {
 
       vi.mocked(safeQueryArray).mockResolvedValue(mockHistoryRows);
 
-      await getHistoryPattern(mockSupabase, studentId, todayDate);
+      await getHistoryPattern(mockSupabase, { studentId, todayDate });
 
       // safeQueryArray가 호출되었는지 확인
       expect(safeQueryArray).toHaveBeenCalled();
@@ -47,13 +47,16 @@ describe("getHistoryPattern", () => {
 
       vi.mocked(safeQueryArray).mockResolvedValue(mockHistoryRows);
 
-      const result = await getHistoryPattern(mockSupabase, studentId, todayDate);
+      const result = await getHistoryPattern(mockSupabase, { studentId, todayDate });
 
       // safeQueryArray가 호출되었는지 확인
       expect(safeQueryArray).toHaveBeenCalled();
       // 결과가 올바른 구조를 가지는지 확인
-      expect(result.consecutivePlanFailures).toBeGreaterThanOrEqual(0);
-      expect(result.consecutiveNoStudyDays).toBeGreaterThanOrEqual(0);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.consecutivePlanFailures).toBeGreaterThanOrEqual(0);
+        expect(result.data.consecutiveNoStudyDays).toBeGreaterThanOrEqual(0);
+      }
     });
   });
 
@@ -77,14 +80,13 @@ describe("getHistoryPattern", () => {
 
       vi.mocked(safeQueryArray).mockResolvedValue(mockHistoryRows as any);
 
-      const result = await getHistoryPattern(
-        mockSupabase,
-        studentId,
-        todayDate
-      );
+      const result = await getHistoryPattern(mockSupabase, { studentId, todayDate });
 
       // 오늘과 어제가 연속 미완료 (2일)
-      expect(result.consecutivePlanFailures).toBe(2);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.consecutivePlanFailures).toBe(2);
+      }
     });
 
     it("plan_completed 이벤트가 있으면 연속 미완료가 중단되어야 함", async () => {
@@ -101,14 +103,13 @@ describe("getHistoryPattern", () => {
 
       vi.mocked(safeQueryArray).mockResolvedValue(mockHistoryRows as any);
 
-      const result = await getHistoryPattern(
-        mockSupabase,
-        studentId,
-        todayDate
-      );
+      const result = await getHistoryPattern(mockSupabase, { studentId, todayDate });
 
       // 오늘이 완료되었으므로 연속 미완료는 0
-      expect(result.consecutivePlanFailures).toBe(0);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.consecutivePlanFailures).toBe(0);
+      }
     });
 
     it("이벤트가 없는 날도 연속 미완료로 카운트해야 함", async () => {
@@ -122,15 +123,14 @@ describe("getHistoryPattern", () => {
 
       vi.mocked(safeQueryArray).mockResolvedValue(mockHistoryRows as any);
 
-      const result = await getHistoryPattern(
-        mockSupabase,
-        studentId,
-        todayDate
-      );
+      const result = await getHistoryPattern(mockSupabase, { studentId, todayDate });
 
       // 오늘과 어제에 plan_completed가 없으므로 연속 미완료
       // 날짜별로 그룹화된 맵에서 오늘과 어제가 없으면 카운트됨
-      expect(result.consecutivePlanFailures).toBeGreaterThanOrEqual(0);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.consecutivePlanFailures).toBeGreaterThanOrEqual(0);
+      }
     });
 
     it("여러 날짜의 이벤트를 날짜별로 그룹화해야 함", async () => {
@@ -151,14 +151,13 @@ describe("getHistoryPattern", () => {
 
       vi.mocked(safeQueryArray).mockResolvedValue(mockHistoryRows as any);
 
-      const result = await getHistoryPattern(
-        mockSupabase,
-        studentId,
-        todayDate
-      );
+      const result = await getHistoryPattern(mockSupabase, { studentId, todayDate });
 
       // 오늘에 plan_completed가 없으므로 연속 미완료
-      expect(result.consecutivePlanFailures).toBeGreaterThanOrEqual(1);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.consecutivePlanFailures).toBeGreaterThanOrEqual(1);
+      }
     });
   });
 
@@ -182,15 +181,14 @@ describe("getHistoryPattern", () => {
 
       vi.mocked(safeQueryArray).mockResolvedValue(mockHistoryRows as any);
 
-      const result = await getHistoryPattern(
-        mockSupabase,
-        studentId,
-        todayDate
-      );
+      const result = await getHistoryPattern(mockSupabase, { studentId, todayDate });
 
       // 오늘과 어제에 study_session이 없으므로 연속 카운트
       // 실제 함수는 오늘부터 역순으로 확인하므로 최소 1일 이상
-      expect(result.consecutiveNoStudyDays).toBeGreaterThanOrEqual(1);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.consecutiveNoStudyDays).toBeGreaterThanOrEqual(1);
+      }
     });
 
     it("study_session 이벤트가 있으면 연속 카운트가 중단되어야 함", async () => {
@@ -200,7 +198,7 @@ describe("getHistoryPattern", () => {
       const today = new Date(todayDate);
       today.setHours(0, 0, 0, 0);
       const todayDateStr = today.toISOString().slice(0, 10); // 실제 함수가 사용하는 날짜 형식
-      
+
       const mockHistoryRows = [
         {
           event_type: "study_session", // 오늘 - 있음
@@ -214,15 +212,14 @@ describe("getHistoryPattern", () => {
 
       vi.mocked(safeQueryArray).mockResolvedValue(mockHistoryRows as any);
 
-      const result = await getHistoryPattern(
-        mockSupabase,
-        studentId,
-        todayDate
-      );
+      const result = await getHistoryPattern(mockSupabase, { studentId, todayDate });
 
       // 오늘에 study_session이 있으므로 연속 카운트가 중단되어야 함
       // 실제 함수는 오늘 날짜를 확인하므로 0 또는 작은 값
-      expect(result.consecutiveNoStudyDays).toBeLessThanOrEqual(1);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.consecutiveNoStudyDays).toBeLessThanOrEqual(1);
+      }
     });
 
     it("이벤트가 없는 날도 연속 학습세션 없는 날로 카운트해야 함", async () => {
@@ -236,14 +233,13 @@ describe("getHistoryPattern", () => {
 
       vi.mocked(safeQueryArray).mockResolvedValue(mockHistoryRows as any);
 
-      const result = await getHistoryPattern(
-        mockSupabase,
-        studentId,
-        todayDate
-      );
+      const result = await getHistoryPattern(mockSupabase, { studentId, todayDate });
 
       // 오늘과 어제에 study_session이 없으므로 연속 카운트
-      expect(result.consecutiveNoStudyDays).toBeGreaterThanOrEqual(2);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.consecutiveNoStudyDays).toBeGreaterThanOrEqual(2);
+      }
     });
 
     it("30일 범위를 초과하지 않아야 함", async () => {
@@ -251,16 +247,15 @@ describe("getHistoryPattern", () => {
 
       vi.mocked(safeQueryArray).mockResolvedValue(mockHistoryRows);
 
-      const result = await getHistoryPattern(
-        mockSupabase,
-        studentId,
-        todayDate
-      );
+      const result = await getHistoryPattern(mockSupabase, { studentId, todayDate });
 
       // HISTORY_LOOKBACK_DAYS(30) 범위 내에서만 계산
-      expect(result.consecutiveNoStudyDays).toBeLessThanOrEqual(
-        HISTORY_PATTERN_CONSTANTS.HISTORY_LOOKBACK_DAYS
-      );
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.consecutiveNoStudyDays).toBeLessThanOrEqual(
+          HISTORY_PATTERN_CONSTANTS.HISTORY_LOOKBACK_DAYS
+        );
+      }
     });
   });
 
@@ -283,35 +278,38 @@ describe("getHistoryPattern", () => {
 
       vi.mocked(safeQueryArray).mockResolvedValue(mockHistoryRows as any);
 
-      const result = await getHistoryPattern(
-        mockSupabase,
-        studentId,
-        todayDate
-      );
+      const result = await getHistoryPattern(mockSupabase, { studentId, todayDate });
 
       // 쿼리에서 이미 내림차순 정렬되어 있으므로 그대로 반환
-      expect(result.recentHistoryEvents).toHaveLength(3);
-      expect(result.recentHistoryEvents[0].eventType).toBe("plan_completed");
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.recentHistoryEvents).toHaveLength(3);
+        expect(result.data.recentHistoryEvents[0].eventType).toBe("plan_completed");
+      }
     });
 
     it("최근 이벤트 개수 제한을 적용해야 함", async () => {
-      const mockHistoryRows = Array.from({ length: 50 }, (_, i) => ({
-        event_type: "plan_started",
-        created_at: `2025-01-${String(i + 1).padStart(2, "0")}T10:00:00Z`,
-      }));
+      // 유효한 날짜만 생성 (1월 1일 ~ 1월 31일, 2월 1일 ~ 2월 19일)
+      const mockHistoryRows = Array.from({ length: 50 }, (_, i) => {
+        const date = new Date("2025-01-01");
+        date.setDate(date.getDate() + i);
+        return {
+          event_type: "plan_started",
+          created_at: date.toISOString(),
+        };
+      });
 
       vi.mocked(safeQueryArray).mockResolvedValue(mockHistoryRows as any);
 
-      const result = await getHistoryPattern(
-        mockSupabase,
-        studentId,
-        todayDate
-      );
+      const result = await getHistoryPattern(mockSupabase, { studentId, todayDate });
 
       // RECENT_EVENTS_LIMIT(20) 개만 반환
-      expect(result.recentHistoryEvents.length).toBeLessThanOrEqual(
-        HISTORY_PATTERN_CONSTANTS.RECENT_EVENTS_LIMIT
-      );
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.recentHistoryEvents.length).toBeLessThanOrEqual(
+          HISTORY_PATTERN_CONSTANTS.RECENT_EVENTS_LIMIT
+        );
+      }
     });
 
     it("이벤트 타입과 날짜를 올바르게 변환해야 함", async () => {
@@ -324,14 +322,13 @@ describe("getHistoryPattern", () => {
 
       vi.mocked(safeQueryArray).mockResolvedValue(mockHistoryRows as any);
 
-      const result = await getHistoryPattern(
-        mockSupabase,
-        studentId,
-        todayDate
-      );
+      const result = await getHistoryPattern(mockSupabase, { studentId, todayDate });
 
-      expect(result.recentHistoryEvents[0].eventType).toBe("plan_completed");
-      expect(result.recentHistoryEvents[0].date).toBe("2025-01-15");
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.recentHistoryEvents[0].eventType).toBe("plan_completed");
+        expect(result.data.recentHistoryEvents[0].date).toBe("2025-01-15");
+      }
     });
   });
 
@@ -354,37 +351,36 @@ describe("getHistoryPattern", () => {
 
       vi.mocked(safeQueryArray).mockResolvedValue(mockHistoryRows as any);
 
-      const result = await getHistoryPattern(
-        mockSupabase,
-        studentId,
-        todayDate
-      );
+      const result = await getHistoryPattern(mockSupabase, { studentId, todayDate });
 
       // null 값이 있는 이벤트는 날짜별 그룹화에서 제외되지만
       // recentHistoryEvents는 모든 행을 포함하되 빈 문자열로 처리
-      expect(result.recentHistoryEvents.length).toBeGreaterThanOrEqual(1);
-      // event_type이 null이면 빈 문자열로 변환
-      const validEvents = result.recentHistoryEvents.filter(
-        (e) => e.eventType && e.date
-      );
-      expect(validEvents.length).toBeGreaterThanOrEqual(1);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.recentHistoryEvents.length).toBeGreaterThanOrEqual(1);
+        // event_type이 null이면 빈 문자열로 변환
+        const validEvents = result.data.recentHistoryEvents.filter(
+          (e) => e.eventType && e.date
+        );
+        expect(validEvents.length).toBeGreaterThanOrEqual(1);
+      }
     });
 
     it("빈 히스토리 배열에 대해 0을 반환해야 함", async () => {
       vi.mocked(safeQueryArray).mockResolvedValue([]);
 
-      const result = await getHistoryPattern(
-        mockSupabase,
-        studentId,
-        todayDate
-      );
+      const result = await getHistoryPattern(mockSupabase, { studentId, todayDate });
 
-      expect(result.consecutivePlanFailures).toBe(0);
-      expect(result.consecutiveNoStudyDays).toBeGreaterThanOrEqual(0);
-      expect(result.recentHistoryEvents).toEqual([]);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.consecutivePlanFailures).toBe(0);
+        expect(result.data.consecutiveNoStudyDays).toBeGreaterThanOrEqual(0);
+        expect(result.data.recentHistoryEvents).toEqual([]);
+      }
     });
 
     it("날짜 파싱 오류를 처리해야 함", async () => {
+      // 유효하지 않은 날짜 형식은 toISOString() 호출 시 에러 발생
       const mockHistoryRows = [
         {
           event_type: "plan_completed",
@@ -394,37 +390,23 @@ describe("getHistoryPattern", () => {
 
       vi.mocked(safeQueryArray).mockResolvedValue(mockHistoryRows as any);
 
-      const result = await getHistoryPattern(
-        mockSupabase,
-        studentId,
-        todayDate
-      );
+      const result = await getHistoryPattern(mockSupabase, { studentId, todayDate });
 
-      // 날짜 파싱 오류는 빈 문자열로 처리되거나 결과에서 제외될 수 있음
-      if (result.recentHistoryEvents.length > 0) {
-        // 날짜가 유효하지 않으면 빈 문자열로 처리
-        const invalidDateEvent = result.recentHistoryEvents.find(
-          (e) => !e.date || e.date === ""
-        );
-        expect(invalidDateEvent).toBeDefined();
-      }
+      // 유효하지 않은 날짜는 파싱 시 에러를 발생시켜 실패 결과 반환
+      expect(result.success).toBe(false);
     });
   });
 
   describe("에러 처리", () => {
-    it("에러 발생 시 빈 결과를 반환해야 함", async () => {
+    it("에러 발생 시 실패 결과를 반환해야 함", async () => {
       vi.mocked(safeQueryArray).mockRejectedValue(new Error("Database error"));
 
-      const result = await getHistoryPattern(
-        mockSupabase,
-        studentId,
-        todayDate
-      );
+      const result = await getHistoryPattern(mockSupabase, { studentId, todayDate });
 
-      expect(result.consecutivePlanFailures).toBe(0);
-      expect(result.consecutiveNoStudyDays).toBe(0);
-      expect(result.recentHistoryEvents).toEqual([]);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toBeDefined();
+      }
     });
   });
 });
-
