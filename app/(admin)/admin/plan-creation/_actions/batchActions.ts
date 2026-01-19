@@ -448,3 +448,254 @@ function calculateMinutesDiff(startTime: string, endTime: string): number {
   const [endH, endM] = endTime.split(":").map(Number);
   return (endH * 60 + endM) - (startH * 60 + startM);
 }
+
+// ============================================
+// Unified Pipeline 배치 생성
+// ============================================
+
+import {
+  runUnifiedPlanGenerationPipeline,
+  mapWizardToUnifiedInput,
+  validateWizardDataForPipeline,
+} from "@/lib/domains/plan/llm/actions/unifiedPlanGeneration";
+
+/**
+ * Unified Pipeline 입력 타입
+ * (AdminWizardData의 간소화 버전)
+ */
+export interface UnifiedPlanBatchInput {
+  // 기본 정보
+  name: string;
+  planPurpose: "내신대비" | "모의고사" | "수능" | "기타" | "";
+  periodStart: string;
+  periodEnd: string;
+
+  // 시간 설정
+  studyHours?: { start: string; end: string } | null;
+  lunchTime?: { start: string; end: string } | null;
+  academySchedules?: Array<{
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
+    academy_name?: string;
+    subject?: string;
+  }>;
+  exclusions?: Array<{
+    exclusion_date: string;
+    reason?: string;
+  }>;
+
+  // 콘텐츠 선택 (AI 추천용)
+  contentSelection?: {
+    subjectCategory: string;
+    subject?: string;
+    difficulty?: "개념" | "기본" | "심화";
+    contentType?: "book" | "lecture";
+  };
+
+  // 이미 선택된 콘텐츠 (수동 선택용)
+  selectedContents?: Array<{
+    contentId: string;
+    contentType: "book" | "lecture" | "custom";
+    title: string;
+    subject?: string;
+    subjectCategory?: string;
+    startRange: number;
+    endRange: number;
+    totalRange: number;
+    subjectType?: "strategy" | "weakness";
+    weeklyDays?: 2 | 3 | 4 | null;
+  }>;
+
+  // 스케줄러 설정
+  schedulerOptions?: {
+    study_days?: number;
+    review_days?: number;
+    student_level?: "high" | "medium" | "low";
+  };
+  studyType?: "strategy" | "weakness";
+  strategyDaysPerWeek?: 2 | 3 | 4 | null;
+
+  // 생성 옵션
+  generateMarkdown?: boolean;
+}
+
+export interface UnifiedPlanBatchResult extends BatchResult {
+  markdown?: string;
+  planCount?: number;
+  warnings?: string[];
+}
+
+export interface UnifiedPlanBatchResponse {
+  success: boolean;
+  results: UnifiedPlanBatchResult[];
+  successCount: number;
+  failedCount: number;
+  error?: string;
+}
+
+/**
+ * Unified Pipeline을 사용하여 여러 학생에게 AI 기반 학습 플랜 생성
+ *
+ * @example
+ * const response = await createBatchUnifiedPlans(
+ *   [{ studentId: "...", studentName: "홍길동" }],
+ *   {
+ *     name: "1학기 수학 플랜",
+ *     planPurpose: "내신대비",
+ *     periodStart: "2025-03-01",
+ *     periodEnd: "2025-03-31",
+ *     contentSelection: {
+ *       subjectCategory: "수학",
+ *       subject: "미적분",
+ *       difficulty: "개념",
+ *     },
+ *     schedulerOptions: {
+ *       study_days: 6,
+ *       review_days: 1,
+ *       student_level: "medium",
+ *     },
+ *   }
+ * );
+ */
+export async function createBatchUnifiedPlans(
+  students: BatchStudentInput[],
+  settings: UnifiedPlanBatchInput
+): Promise<UnifiedPlanBatchResponse> {
+  try {
+    const { tenantId } = await requireAdminOrConsultant({ requireTenant: true });
+    const results: UnifiedPlanBatchResult[] = [];
+
+    // 입력 검증
+    const validation = validateWizardDataForPipeline({
+      name: settings.name,
+      planPurpose: settings.planPurpose,
+      periodStart: settings.periodStart,
+      periodEnd: settings.periodEnd,
+      studyHours: settings.studyHours,
+      lunchTime: settings.lunchTime,
+      academySchedules: settings.academySchedules,
+      exclusions: settings.exclusions,
+      selectedContents: settings.selectedContents,
+      schedulerOptions: settings.schedulerOptions,
+      studyType: settings.studyType,
+      strategyDaysPerWeek: settings.strategyDaysPerWeek,
+    });
+
+    if (!validation.valid) {
+      return {
+        success: false,
+        results: [],
+        successCount: 0,
+        failedCount: students.length,
+        error: `입력 검증 실패: ${validation.errors.join(", ")}`,
+      };
+    }
+
+    for (const student of students) {
+      try {
+        const studentTenantId = student.tenantId ?? tenantId;
+
+        if (!studentTenantId) {
+          results.push({
+            studentId: student.studentId,
+            studentName: student.studentName,
+            success: false,
+            message: "테넌트 ID가 필요합니다",
+            error: "tenant_id_required",
+          });
+          continue;
+        }
+
+        // Wizard 데이터를 Unified Pipeline 입력으로 변환
+        const pipelineInput = mapWizardToUnifiedInput(
+          {
+            name: settings.name,
+            planPurpose: settings.planPurpose,
+            periodStart: settings.periodStart,
+            periodEnd: settings.periodEnd,
+            studyHours: settings.studyHours,
+            lunchTime: settings.lunchTime,
+            academySchedules: settings.academySchedules,
+            exclusions: settings.exclusions,
+            selectedContents: settings.selectedContents,
+            schedulerOptions: settings.schedulerOptions,
+            studyType: settings.studyType,
+            strategyDaysPerWeek: settings.strategyDaysPerWeek,
+          },
+          student.studentId,
+          studentTenantId,
+          {
+            saveToDb: true,
+            generateMarkdown: settings.generateMarkdown ?? true,
+            dryRun: false,
+          }
+        );
+
+        // AI 콘텐츠 추천 설정 추가 (contentSelection이 있는 경우)
+        if (settings.contentSelection) {
+          pipelineInput.contentSelection = {
+            subjectCategory: settings.contentSelection.subjectCategory,
+            subject: settings.contentSelection.subject,
+            difficulty: settings.contentSelection.difficulty ?? "개념",
+            contentType: settings.contentSelection.contentType ?? "book",
+            maxResults: 5,
+          };
+        }
+
+        // Unified Pipeline 실행
+        const pipelineResult = await runUnifiedPlanGenerationPipeline(pipelineInput);
+
+        if (pipelineResult.success) {
+          results.push({
+            studentId: student.studentId,
+            studentName: student.studentName,
+            success: true,
+            message: `"${settings.name}" 플랜이 생성되었습니다 (${pipelineResult.plans?.length ?? 0}개 일정)`,
+            planGroupId: pipelineResult.planGroup?.id,
+            planCount: pipelineResult.plans?.length,
+            markdown: pipelineResult.markdown,
+            warnings: pipelineResult.validation?.warnings?.map((w) => w.message),
+          });
+        } else {
+          results.push({
+            studentId: student.studentId,
+            studentName: student.studentName,
+            success: false,
+            message: `플랜 생성 실패: ${pipelineResult.failedAt}`,
+            error: pipelineResult.error,
+          });
+        }
+      } catch (err) {
+        results.push({
+          studentId: student.studentId,
+          studentName: student.studentName,
+          success: false,
+          message: "플랜 생성 중 오류 발생",
+          error: err instanceof Error ? err.message : "알 수 없는 오류",
+        });
+      }
+    }
+
+    revalidatePath("/admin/students");
+    revalidatePath("/admin/plan-creation");
+
+    const successCount = results.filter((r) => r.success).length;
+    const failedCount = results.filter((r) => !r.success).length;
+
+    return {
+      success: failedCount === 0,
+      results,
+      successCount,
+      failedCount,
+    };
+  } catch (err) {
+    return {
+      success: false,
+      results: [],
+      successCount: 0,
+      failedCount: students.length,
+      error: err instanceof Error ? err.message : "배치 처리 실패",
+    };
+  }
+}
