@@ -1107,7 +1107,30 @@ export interface StudentAdHocPlanInput {
  * 학생용 향상된 Ad-hoc 플랜 생성 (콘텐츠 연결, 반복 지원)
  * 관리자 권한 없이 자신의 플랜만 생성 가능
  *
- * @deprecated Use createUnifiedPlan from './unifiedPlanCreate' instead.
+ * @deprecated Phase 3.1: ad_hoc_plans 테이블 대신 student_plan 테이블 사용으로 전환됨.
+ *
+ * 대체 API:
+ * - 학생/관리자 공통: `createQuickPlan` from '@/lib/domains/plan/actions/contentPlanGroup'
+ * - 관리자 전용: `createUnifiedPlan` from './unifiedPlanCreate'
+ *
+ * 새 API 장점:
+ * - student_plan 테이블 단일화 (ad_hoc_plans 테이블 사용 안 함)
+ * - Planner 자동 연동
+ * - Plan Group 자동 선택/생성
+ * - is_adhoc: true 마킹으로 단발성 구분
+ *
+ * 마이그레이션 예시:
+ * ```typescript
+ * // Before
+ * const result = await createStudentAdHocPlan({
+ *   student_id, tenant_id, plan_group_id, plan_date, title, ...
+ * });
+ *
+ * // After
+ * const result = await createQuickPlan({
+ *   planDate, title, planGroupId, isFreeLearning: true, ...
+ * });
+ * ```
  */
 export async function createStudentAdHocPlan(
   input: StudentAdHocPlanInput

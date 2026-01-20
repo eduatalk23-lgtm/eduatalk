@@ -19,7 +19,7 @@ import {
   History,
   Wand2,
 } from "lucide-react";
-import { createStudentAdHocPlan } from "@/lib/domains/admin-plan/actions/adHocPlan";
+import { createQuickPlan } from "@/lib/domains/plan/actions/contentPlanGroup";
 import { getRecentFreeLearningItems } from "@/lib/domains/content/actions/freeItems";
 import { parseNaturalInput } from "@/lib/domains/content/utils";
 import { PlanGroupSelector } from "@/components/plan/PlanGroupSelector";
@@ -216,22 +216,24 @@ export function QuickAddPlanModal({
         const parsed = parseNaturalInput(title);
         const finalMinutes = parsed.estimatedMinutes ?? estimatedMinutes;
 
-        const result = await createStudentAdHocPlan({
-          student_id: studentId,
-          tenant_id: tenantId,
+        // 통합 API 사용 (student_plan 테이블, Planner 연동)
+        const result = await createQuickPlan({
           title: parsed.title ?? title.trim(),
+          planDate: date,
+          estimatedMinutes: finalMinutes,
           description: description.trim() || undefined,
-          plan_date: date,
-          estimated_minutes: finalMinutes,
-          container_type: "daily",
-          // 자유 학습 아이템은 DB CHECK 제약 조건에 따라 'custom' 타입으로 저장
-          // 세부 유형은 color/icon으로 구분
-          content_type: activeTab === "free" ? "custom" : legacyContentType,
+          containerType: "daily",
+          // 자유 학습 여부 및 유형
+          isFreeLearning: activeTab === "free",
+          freeLearningType: activeTab === "free" ? freeItemType : undefined,
+          // 콘텐츠 유형 (기존 콘텐츠 탭 사용 시)
+          contentType: activeTab === "free" ? "free" : legacyContentType,
           // 자유 학습 항목의 색상 및 아이콘 자동 설정
           color: activeTab === "free" ? FREE_LEARNING_ITEM_COLORS[freeItemType] : undefined,
           icon: activeTab === "free" ? FREE_LEARNING_ITEM_ICONS[freeItemType] : undefined,
-          // 캘린더 연결
-          plan_group_id: selectedPlanGroupId,
+          // 캘린더 연결 (선택된 Plan Group 사용)
+          planGroupId: selectedPlanGroupId,
+          // studentId 생략 시 현재 로그인한 학생 자동 사용
         });
 
         if (result.success) {

@@ -14,7 +14,7 @@ import {
   Search,
   ChevronRight,
 } from "lucide-react";
-import { createStudentAdHocPlan } from "@/lib/domains/admin-plan/actions/adHocPlan";
+import { createQuickPlan } from "@/lib/domains/plan/actions/contentPlanGroup";
 import { listCustomContents } from "@/lib/domains/content/actions/custom";
 import type { CustomContent } from "@/lib/domains/content/types";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -128,16 +128,16 @@ export function EnhancedAddPlanModal({
     }
 
     startTransition(async () => {
-      const result = await createStudentAdHocPlan({
-        tenant_id: tenantId,
-        student_id: studentId,
-        plan_group_id: planGroupId,
-        plan_date: planDate,
+      // 통합 API 사용 (student_plan 테이블, Planner 연동)
+      const result = await createQuickPlan({
         title: title.trim(),
-        description: description.trim() || null,
-        estimated_minutes: estimatedMinutes ? Number(estimatedMinutes) : null,
-        container_type: containerType,
-        recurrence_rule: buildRecurrenceRule(),
+        planDate: planDate,
+        description: description.trim() || undefined,
+        estimatedMinutes: estimatedMinutes ? Number(estimatedMinutes) : undefined,
+        containerType: containerType,
+        planGroupId: planGroupId,
+        isFreeLearning: true, // Quick 탭은 자유 학습으로 처리
+        // Note: recurrence_rule은 현재 통합 API 미지원
       });
 
       if (!result.success) {
@@ -175,25 +175,24 @@ export function EnhancedAddPlanModal({
     startTransition(async () => {
       const planTitle = `${selectedContent.title} (${start}-${end})`;
 
-      const result = await createStudentAdHocPlan({
-        tenant_id: tenantId,
-        student_id: studentId,
-        plan_group_id: planGroupId,
-        plan_date: planDate,
+      // 통합 API 사용 (student_plan 테이블, Planner 연동)
+      const result = await createQuickPlan({
         title: planTitle,
-        description: description.trim() || null,
-        estimated_minutes: estimatedMinutes
+        planDate: planDate,
+        description: description.trim() || undefined,
+        estimatedMinutes: estimatedMinutes
           ? Number(estimatedMinutes)
           : Math.ceil((end - start + 1) * 5),
-        container_type: containerType,
-        recurrence_rule: buildRecurrenceRule(),
-        content_link: {
-          content_type: contentType,
-          content_id: selectedContent.id,
-          content_title: selectedContent.title,
-          range_start: start,
-          range_end: end,
-        },
+        containerType: containerType,
+        planGroupId: planGroupId,
+        // 콘텐츠 연결 정보
+        contentType: contentType,
+        contentId: selectedContent.id,
+        contentTitle: selectedContent.title,
+        rangeStart: start,
+        rangeEnd: end,
+        isFreeLearning: false, // 콘텐츠 기반
+        // Note: recurrence_rule은 현재 통합 API 미지원
       });
 
       if (!result.success) {

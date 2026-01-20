@@ -75,6 +75,12 @@ export type CreateQuickPlanInput = {
    */
   plannerId?: string;
   /**
+   * 플랜 그룹 ID (옵션)
+   * 캘린더 UI에서 특정 Plan Group이 이미 선택된 경우 사용
+   * 생략 시 Planner 기반으로 자동 선택/생성
+   */
+  planGroupId?: string;
+  /**
    * 시작 시간 (HH:mm)
    */
   startTime?: string;

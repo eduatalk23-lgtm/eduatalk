@@ -669,50 +669,58 @@ export async function createQuickPlan(
       });
     }
 
-    // 4. Plan Group 확보/생성 (Planner 연동, is_single_content: true)
+    // 4. Plan Group 확보/생성
+    // - planGroupId가 제공되면 그대로 사용 (캘린더 UI 선택)
+    // - 없으면 Planner 기반으로 자동 선택/생성 (is_single_content: true)
     let planGroupId: string;
     let isNewGroup = false;
 
-    // 플래너 기반으로 적합한 Plan Group 찾기
-    const selectResult = await selectPlanGroupForPlanner(plannerId, {
-      studentId,
-      preferPeriod: { start: input.planDate, end: input.planDate },
-    });
-
-    if (selectResult.status === "found" || selectResult.status === "multiple") {
-      // 기존 Plan Group 사용
-      planGroupId = selectResult.planGroupId!;
-      logActionDebug(LOG_CTX, "기존 Plan Group 선택", { planGroupId });
+    if (input.planGroupId) {
+      // 캘린더 UI에서 선택된 Plan Group 사용
+      planGroupId = input.planGroupId;
+      logActionDebug(LOG_CTX, "지정된 Plan Group 사용", { planGroupId });
     } else {
-      // 새 Plan Group 생성 (is_single_content: true 포함)
-      const createResult = await createPlanGroupForPlanner({
-        plannerId,
+      // 플래너 기반으로 적합한 Plan Group 찾기
+      const selectResult = await selectPlanGroupForPlanner(plannerId, {
         studentId,
-        tenantId,
-        name: `${input.title} (${input.planDate})`,
-        periodStart: input.planDate,
-        periodEnd: input.planDate,
-        options: {
-          planMode: "quick",
-          isSingleDay: true,
-          isSingleContent: true,
-          creationMode: isFreeLearning ? "free_learning" : "content_based",
-        },
+        preferPeriod: { start: input.planDate, end: input.planDate },
       });
 
-      if (!createResult.success || !createResult.planGroupId) {
-        // 롤백: flexible_contents 삭제
-        if (isFreeLearning && flexibleContentId) {
-          await supabase.from("flexible_contents").delete().eq("id", flexibleContentId);
+      if (selectResult.status === "found" || selectResult.status === "multiple") {
+        // 기존 Plan Group 사용
+        planGroupId = selectResult.planGroupId!;
+        logActionDebug(LOG_CTX, "기존 Plan Group 선택", { planGroupId });
+      } else {
+        // 새 Plan Group 생성 (is_single_content: true 포함)
+        const createResult = await createPlanGroupForPlanner({
+          plannerId,
+          studentId,
+          tenantId,
+          name: `${input.title} (${input.planDate})`,
+          periodStart: input.planDate,
+          periodEnd: input.planDate,
+          options: {
+            planMode: "quick",
+            isSingleDay: true,
+            isSingleContent: true,
+            creationMode: isFreeLearning ? "free_learning" : "content_based",
+          },
+        });
+
+        if (!createResult.success || !createResult.planGroupId) {
+          // 롤백: flexible_contents 삭제
+          if (isFreeLearning && flexibleContentId) {
+            await supabase.from("flexible_contents").delete().eq("id", flexibleContentId);
+          }
+          return {
+            success: false,
+            error: createResult.error ?? "플랜그룹 생성에 실패했습니다.",
+          };
         }
-        return {
-          success: false,
-          error: createResult.error ?? "플랜그룹 생성에 실패했습니다.",
-        };
+        planGroupId = createResult.planGroupId;
+        isNewGroup = true;
+        logActionDebug(LOG_CTX, "새 Plan Group 생성", { planGroupId });
       }
-      planGroupId = createResult.planGroupId;
-      isNewGroup = true;
-      logActionDebug(LOG_CTX, "새 Plan Group 생성", { planGroupId });
     }
 
     // 5. student_plan 생성 (is_adhoc: true)
