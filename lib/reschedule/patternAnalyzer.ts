@@ -543,6 +543,15 @@ export async function detectRescheduleNeeds(
         completed_at: plan.completed_at ?? null,
         actual_minutes: plan.actual_minutes ?? null,
         paused_at: plan.paused_at ?? null,
+        // 추가 필드
+        adhoc_source_id: plan.adhoc_source_id ?? null,
+        created_by: plan.created_by ?? null,
+        cycle_day_number: plan.cycle_day_number ?? null,
+        date_type: plan.date_type ?? null,
+        is_recurring: plan.is_recurring ?? null,
+        recurrence_parent_id: plan.recurrence_parent_id ?? null,
+        recurrence_rule: plan.recurrence_rule ?? null,
+        time_slot_type: plan.time_slot_type ?? null,
       }));
 
       // 4. 지연 분석 수행

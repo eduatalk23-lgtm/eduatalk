@@ -1078,6 +1078,345 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_blocks: {
+        Row: {
+          blocked_id: string
+          blocked_type: string
+          blocker_id: string
+          blocker_type: string
+          created_at: string | null
+          id: string
+        }
+        Insert: {
+          blocked_id: string
+          blocked_type: string
+          blocker_id: string
+          blocker_type: string
+          created_at?: string | null
+          id?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocked_type?: string
+          blocker_id?: string
+          blocker_type?: string
+          created_at?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      chat_message_reactions: {
+        Row: {
+          created_at: string | null
+          emoji: string
+          id: string
+          message_id: string
+          user_id: string
+          user_type: string
+        }
+        Insert: {
+          created_at?: string | null
+          emoji: string
+          id?: string
+          message_id: string
+          user_id: string
+          user_type: string
+        }
+        Update: {
+          created_at?: string | null
+          emoji?: string
+          id?: string
+          message_id?: string
+          user_id?: string
+          user_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          deleted_at: string | null
+          id: string
+          is_deleted: boolean | null
+          message_type: string | null
+          reply_to_id: string | null
+          room_id: string
+          sender_id: string
+          sender_name: string | null
+          sender_profile_url: string | null
+          sender_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          message_type?: string | null
+          reply_to_id?: string | null
+          room_id: string
+          sender_id: string
+          sender_name?: string | null
+          sender_profile_url?: string | null
+          sender_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          message_type?: string | null
+          reply_to_id?: string | null
+          room_id?: string
+          sender_id?: string
+          sender_name?: string | null
+          sender_profile_url?: string | null
+          sender_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_reply_to_id_fkey"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_pinned_messages: {
+        Row: {
+          created_at: string | null
+          id: string
+          message_id: string
+          pin_order: number
+          pinned_by: string
+          pinned_by_type: string
+          room_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message_id: string
+          pin_order?: number
+          pinned_by: string
+          pinned_by_type: string
+          room_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message_id?: string
+          pin_order?: number
+          pinned_by?: string
+          pinned_by_type?: string
+          room_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_pinned_messages_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_pinned_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_reports: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          reason: string
+          reported_message_id: string | null
+          reported_user_id: string | null
+          reported_user_type: string | null
+          reporter_id: string
+          reporter_type: string
+          resolution_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          reason: string
+          reported_message_id?: string | null
+          reported_user_id?: string | null
+          reported_user_type?: string | null
+          reporter_id: string
+          reporter_type: string
+          resolution_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          reason?: string
+          reported_message_id?: string | null
+          reported_user_id?: string | null
+          reported_user_type?: string | null
+          reporter_id?: string
+          reporter_type?: string
+          resolution_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_reports_reported_message_id_fkey"
+            columns: ["reported_message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_reports_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_room_members: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_muted: boolean | null
+          last_read_at: string | null
+          left_at: string | null
+          role: string | null
+          room_id: string
+          updated_at: string | null
+          user_id: string
+          user_type: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_muted?: boolean | null
+          last_read_at?: string | null
+          left_at?: string | null
+          role?: string | null
+          room_id: string
+          updated_at?: string | null
+          user_id: string
+          user_type: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_muted?: boolean | null
+          last_read_at?: string | null
+          left_at?: string | null
+          role?: string | null
+          room_id?: string
+          updated_at?: string | null
+          user_id?: string
+          user_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_room_members_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_rooms: {
+        Row: {
+          announcement: string | null
+          announcement_at: string | null
+          announcement_by: string | null
+          announcement_by_type: string | null
+          created_at: string | null
+          created_by: string
+          created_by_type: string
+          id: string
+          is_active: boolean | null
+          name: string | null
+          tenant_id: string
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          announcement?: string | null
+          announcement_at?: string | null
+          announcement_by?: string | null
+          announcement_by_type?: string | null
+          created_at?: string | null
+          created_by: string
+          created_by_type: string
+          id?: string
+          is_active?: boolean | null
+          name?: string | null
+          tenant_id: string
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          announcement?: string | null
+          announcement_at?: string | null
+          announcement_by?: string | null
+          announcement_by_type?: string | null
+          created_at?: string | null
+          created_by?: string
+          created_by_type?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string | null
+          tenant_id?: string
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_rooms_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       content_ai_extraction_logs: {
         Row: {
           confidence_scores: Json | null
@@ -1240,63 +1579,6 @@ export type Database = {
           },
         ]
       }
-      content_dependencies: {
-        Row: {
-          id: string
-          tenant_id: string
-          prerequisite_content_id: string
-          prerequisite_content_type: string
-          dependent_content_id: string
-          dependent_content_type: string
-          scope: string
-          plan_group_id: string | null
-          note: string | null
-          created_at: string
-          created_by: string | null
-        }
-        Insert: {
-          id?: string
-          tenant_id: string
-          prerequisite_content_id: string
-          prerequisite_content_type: string
-          dependent_content_id: string
-          dependent_content_type: string
-          scope?: string
-          plan_group_id?: string | null
-          note?: string | null
-          created_at?: string
-          created_by?: string | null
-        }
-        Update: {
-          id?: string
-          tenant_id?: string
-          prerequisite_content_id?: string
-          prerequisite_content_type?: string
-          dependent_content_id?: string
-          dependent_content_type?: string
-          scope?: string
-          plan_group_id?: string | null
-          note?: string | null
-          created_at?: string
-          created_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "content_dependencies_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "content_dependencies_plan_group_id_fkey"
-            columns: ["plan_group_id"]
-            isOneToOne: false
-            referencedRelation: "plan_groups"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       content_concepts: {
         Row: {
           created_at: string | null
@@ -1349,6 +1631,63 @@ export type Database = {
             columns: ["subject_id"]
             isOneToOne: false
             referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_dependencies: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          dependent_content_id: string
+          dependent_content_type: string
+          id: string
+          note: string | null
+          plan_group_id: string | null
+          prerequisite_content_id: string
+          prerequisite_content_type: string
+          scope: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          dependent_content_id: string
+          dependent_content_type: string
+          id?: string
+          note?: string | null
+          plan_group_id?: string | null
+          prerequisite_content_id: string
+          prerequisite_content_type: string
+          scope?: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          dependent_content_id?: string
+          dependent_content_type?: string
+          id?: string
+          note?: string | null
+          plan_group_id?: string | null
+          prerequisite_content_id?: string
+          prerequisite_content_type?: string
+          scope?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_dependencies_plan_group_id_fkey"
+            columns: ["plan_group_id"]
+            isOneToOne: false
+            referencedRelation: "plan_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_dependencies_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -3522,6 +3861,57 @@ export type Database = {
           },
         ]
       }
+      plan_group_backups: {
+        Row: {
+          backup_data: Json
+          created_at: string | null
+          deleted_by: string | null
+          id: string
+          plan_group_id: string
+          restored_at: string | null
+          restored_by: string | null
+          student_id: string
+          tenant_id: string
+        }
+        Insert: {
+          backup_data: Json
+          created_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          plan_group_id: string
+          restored_at?: string | null
+          restored_by?: string | null
+          student_id: string
+          tenant_id: string
+        }
+        Update: {
+          backup_data?: Json
+          created_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          plan_group_id?: string
+          restored_at?: string | null
+          restored_by?: string | null
+          student_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_plan_group_backups_student"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_plan_group_backups_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plan_group_items: {
         Row: {
           content_id: string
@@ -3607,19 +3997,26 @@ export type Database = {
           camp_invitation_id: string | null
           camp_template_id: string | null
           consultation_status: string | null
+          content_id: string | null
           content_slots: Json | null
           content_status: string | null
+          content_type: string | null
           created_at: string | null
           creation_mode: string | null
           daily_schedule: Json | null
           default_scheduler_options: Json | null
           deleted_at: string | null
+          end_detail_id: string | null
+          end_range: number | null
           id: string
           is_calendar_only: boolean | null
           is_locked: boolean | null
+          is_single_content: boolean | null
           is_single_day: boolean | null
           is_timezone_only: boolean | null
           last_admin_id: string | null
+          lunch_time: Json | null
+          master_content_id: string | null
           migrated_from_adhoc_id: string | null
           modification_history: Json | null
           name: string | null
@@ -3634,10 +4031,14 @@ export type Database = {
           schedule_generated_at: string | null
           scheduler_options: Json | null
           scheduler_type: string | null
+          self_study_hours: Json | null
+          start_detail_id: string | null
+          start_range: number | null
           status: string | null
           strategy_days_per_week: number | null
           student_id: string
           student_permissions: Json | null
+          study_hours: Json | null
           study_type: string | null
           subject_constraints: Json | null
           target_date: string | null
@@ -3658,19 +4059,26 @@ export type Database = {
           camp_invitation_id?: string | null
           camp_template_id?: string | null
           consultation_status?: string | null
+          content_id?: string | null
           content_slots?: Json | null
           content_status?: string | null
+          content_type?: string | null
           created_at?: string | null
           creation_mode?: string | null
           daily_schedule?: Json | null
           default_scheduler_options?: Json | null
           deleted_at?: string | null
+          end_detail_id?: string | null
+          end_range?: number | null
           id?: string
           is_calendar_only?: boolean | null
           is_locked?: boolean | null
+          is_single_content?: boolean | null
           is_single_day?: boolean | null
           is_timezone_only?: boolean | null
           last_admin_id?: string | null
+          lunch_time?: Json | null
+          master_content_id?: string | null
           migrated_from_adhoc_id?: string | null
           modification_history?: Json | null
           name?: string | null
@@ -3685,10 +4093,14 @@ export type Database = {
           schedule_generated_at?: string | null
           scheduler_options?: Json | null
           scheduler_type?: string | null
+          self_study_hours?: Json | null
+          start_detail_id?: string | null
+          start_range?: number | null
           status?: string | null
           strategy_days_per_week?: number | null
           student_id: string
           student_permissions?: Json | null
+          study_hours?: Json | null
           study_type?: string | null
           subject_constraints?: Json | null
           target_date?: string | null
@@ -3709,19 +4121,26 @@ export type Database = {
           camp_invitation_id?: string | null
           camp_template_id?: string | null
           consultation_status?: string | null
+          content_id?: string | null
           content_slots?: Json | null
           content_status?: string | null
+          content_type?: string | null
           created_at?: string | null
           creation_mode?: string | null
           daily_schedule?: Json | null
           default_scheduler_options?: Json | null
           deleted_at?: string | null
+          end_detail_id?: string | null
+          end_range?: number | null
           id?: string
           is_calendar_only?: boolean | null
           is_locked?: boolean | null
+          is_single_content?: boolean | null
           is_single_day?: boolean | null
           is_timezone_only?: boolean | null
           last_admin_id?: string | null
+          lunch_time?: Json | null
+          master_content_id?: string | null
           migrated_from_adhoc_id?: string | null
           modification_history?: Json | null
           name?: string | null
@@ -3736,10 +4155,14 @@ export type Database = {
           schedule_generated_at?: string | null
           scheduler_options?: Json | null
           scheduler_type?: string | null
+          self_study_hours?: Json | null
+          start_detail_id?: string | null
+          start_range?: number | null
           status?: string | null
           strategy_days_per_week?: number | null
           student_id?: string
           student_permissions?: Json | null
+          study_hours?: Json | null
           study_type?: string | null
           subject_constraints?: Json | null
           target_date?: string | null
@@ -3810,57 +4233,6 @@ export type Database = {
           },
           {
             foreignKeyName: "plan_groups_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      plan_group_backups: {
-        Row: {
-          id: string
-          plan_group_id: string
-          student_id: string
-          tenant_id: string
-          backup_data: Json
-          deleted_by: string | null
-          created_at: string | null
-          restored_at: string | null
-          restored_by: string | null
-        }
-        Insert: {
-          id?: string
-          plan_group_id: string
-          student_id: string
-          tenant_id: string
-          backup_data: Json
-          deleted_by?: string | null
-          created_at?: string | null
-          restored_at?: string | null
-          restored_by?: string | null
-        }
-        Update: {
-          id?: string
-          plan_group_id?: string
-          student_id?: string
-          tenant_id?: string
-          backup_data?: Json
-          deleted_by?: string | null
-          created_at?: string | null
-          restored_at?: string | null
-          restored_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fk_plan_group_backups_student"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_plan_group_backups_tenant"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -4096,71 +4468,6 @@ export type Database = {
           },
         ]
       }
-      plan_timer_logs: {
-        Row: {
-          created_at: string | null
-          duration_seconds: number | null
-          event_type: string
-          id: string
-          note: string | null
-          plan_id: string
-          student_id: string
-          tenant_id: string | null
-          timestamp: string
-        }
-        Insert: {
-          created_at?: string | null
-          duration_seconds?: number | null
-          event_type: string
-          id?: string
-          note?: string | null
-          plan_id: string
-          student_id: string
-          tenant_id?: string | null
-          timestamp?: string
-        }
-        Update: {
-          created_at?: string | null
-          duration_seconds?: number | null
-          event_type?: string
-          id?: string
-          note?: string | null
-          plan_id?: string
-          student_id?: string
-          tenant_id?: string | null
-          timestamp?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "plan_timer_logs_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "student_plan"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "plan_timer_logs_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "today_plan_view"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "plan_timer_logs_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "plan_timer_logs_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       plan_views: {
         Row: {
           created_at: string | null
@@ -4345,6 +4652,7 @@ export type Database = {
           non_study_time_blocks: Json | null
           period_end: string
           period_start: string
+          scheduler_options: Json | null
           self_study_hours: Json | null
           status: string | null
           student_id: string
@@ -4368,6 +4676,7 @@ export type Database = {
           non_study_time_blocks?: Json | null
           period_end: string
           period_start: string
+          scheduler_options?: Json | null
           self_study_hours?: Json | null
           status?: string | null
           student_id: string
@@ -4391,6 +4700,7 @@ export type Database = {
           non_study_time_blocks?: Json | null
           period_end?: string
           period_start?: string
+          scheduler_options?: Json | null
           self_study_hours?: Json | null
           status?: string | null
           student_id?: string
@@ -6183,12 +6493,16 @@ export type Database = {
       student_plan: {
         Row: {
           actual_end_time: string | null
+          actual_minutes: number | null
           actual_start_time: string | null
+          adhoc_source_id: string | null
           block_index: number
           carryover_count: number | null
           carryover_from_date: string | null
           chapter: string | null
+          color: string | null
           completed_amount: number | null
+          completed_at: string | null
           container_type: string | null
           content_category: string | null
           content_id: string | null
@@ -6197,18 +6511,25 @@ export type Database = {
           content_title: string | null
           content_type: string
           created_at: string | null
+          created_by: string | null
           custom_range_display: string | null
           custom_title: string | null
+          cycle_day_number: number | null
+          date_type: string | null
           day: number | null
           day_type: string | null
+          description: string | null
           end_time: string | null
           estimated_minutes: number | null
           flexible_content_id: string | null
+          icon: string | null
           id: string
           is_active: boolean | null
+          is_adhoc: boolean | null
           is_continued: boolean | null
           is_locked: boolean | null
           is_partial: boolean | null
+          is_recurring: boolean | null
           is_reschedulable: boolean | null
           is_virtual: boolean | null
           memo: string | null
@@ -6216,13 +6537,17 @@ export type Database = {
           origin_plan_item_id: string | null
           original_volume: number | null
           pause_count: number | null
+          paused_at: string | null
           paused_duration_seconds: number | null
           plan_date: string
           plan_group_id: string | null
           plan_number: number | null
           planned_end_page_or_time: number | null
           planned_start_page_or_time: number | null
+          priority: number | null
           progress: number | null
+          recurrence_parent_id: string | null
+          recurrence_rule: Json | null
           review_group_id: string | null
           review_source_content_ids: string[] | null
           sequence: number | null
@@ -6230,10 +6555,13 @@ export type Database = {
           simple_completion: boolean | null
           slot_index: number | null
           start_time: string | null
+          started_at: string | null
           status: string | null
           student_id: string
           subject_type: string | null
+          tags: string[] | null
           tenant_id: string
+          time_slot_type: string | null
           total_duration_seconds: number | null
           updated_at: string | null
           version: number | null
@@ -6241,26 +6569,19 @@ export type Database = {
           virtual_description: string | null
           virtual_subject_category: string | null
           week: number | null
-          // Phase 3.1: ad-hoc 플랜 통합 지원 컬럼
-          is_adhoc: boolean | null
-          description: string | null
-          color: string | null
-          icon: string | null
-          tags: string[] | null
-          priority: number | null
-          started_at: string | null
-          completed_at: string | null
-          actual_minutes: number | null
-          paused_at: string | null
         }
         Insert: {
           actual_end_time?: string | null
+          actual_minutes?: number | null
           actual_start_time?: string | null
+          adhoc_source_id?: string | null
           block_index: number
           carryover_count?: number | null
           carryover_from_date?: string | null
           chapter?: string | null
+          color?: string | null
           completed_amount?: number | null
+          completed_at?: string | null
           container_type?: string | null
           content_category?: string | null
           content_id?: string | null
@@ -6269,18 +6590,25 @@ export type Database = {
           content_title?: string | null
           content_type: string
           created_at?: string | null
+          created_by?: string | null
           custom_range_display?: string | null
           custom_title?: string | null
+          cycle_day_number?: number | null
+          date_type?: string | null
           day?: number | null
           day_type?: string | null
+          description?: string | null
           end_time?: string | null
           estimated_minutes?: number | null
           flexible_content_id?: string | null
+          icon?: string | null
           id?: string
           is_active?: boolean | null
+          is_adhoc?: boolean | null
           is_continued?: boolean | null
           is_locked?: boolean | null
           is_partial?: boolean | null
+          is_recurring?: boolean | null
           is_reschedulable?: boolean | null
           is_virtual?: boolean | null
           memo?: string | null
@@ -6288,13 +6616,17 @@ export type Database = {
           origin_plan_item_id?: string | null
           original_volume?: number | null
           pause_count?: number | null
+          paused_at?: string | null
           paused_duration_seconds?: number | null
           plan_date: string
           plan_group_id?: string | null
           plan_number?: number | null
           planned_end_page_or_time?: number | null
           planned_start_page_or_time?: number | null
+          priority?: number | null
           progress?: number | null
+          recurrence_parent_id?: string | null
+          recurrence_rule?: Json | null
           review_group_id?: string | null
           review_source_content_ids?: string[] | null
           sequence?: number | null
@@ -6302,10 +6634,13 @@ export type Database = {
           simple_completion?: boolean | null
           slot_index?: number | null
           start_time?: string | null
+          started_at?: string | null
           status?: string | null
           student_id: string
           subject_type?: string | null
+          tags?: string[] | null
           tenant_id: string
+          time_slot_type?: string | null
           total_duration_seconds?: number | null
           updated_at?: string | null
           version?: number | null
@@ -6313,26 +6648,19 @@ export type Database = {
           virtual_description?: string | null
           virtual_subject_category?: string | null
           week?: number | null
-          // Phase 3.1: ad-hoc 플랜 통합 지원 컬럼
-          is_adhoc?: boolean | null
-          description?: string | null
-          color?: string | null
-          icon?: string | null
-          tags?: string[] | null
-          priority?: number | null
-          started_at?: string | null
-          completed_at?: string | null
-          actual_minutes?: number | null
-          paused_at?: string | null
         }
         Update: {
           actual_end_time?: string | null
+          actual_minutes?: number | null
           actual_start_time?: string | null
+          adhoc_source_id?: string | null
           block_index?: number
           carryover_count?: number | null
           carryover_from_date?: string | null
           chapter?: string | null
+          color?: string | null
           completed_amount?: number | null
+          completed_at?: string | null
           container_type?: string | null
           content_category?: string | null
           content_id?: string | null
@@ -6341,18 +6669,25 @@ export type Database = {
           content_title?: string | null
           content_type?: string
           created_at?: string | null
+          created_by?: string | null
           custom_range_display?: string | null
           custom_title?: string | null
+          cycle_day_number?: number | null
+          date_type?: string | null
           day?: number | null
           day_type?: string | null
+          description?: string | null
           end_time?: string | null
           estimated_minutes?: number | null
           flexible_content_id?: string | null
+          icon?: string | null
           id?: string
           is_active?: boolean | null
+          is_adhoc?: boolean | null
           is_continued?: boolean | null
           is_locked?: boolean | null
           is_partial?: boolean | null
+          is_recurring?: boolean | null
           is_reschedulable?: boolean | null
           is_virtual?: boolean | null
           memo?: string | null
@@ -6360,13 +6695,17 @@ export type Database = {
           origin_plan_item_id?: string | null
           original_volume?: number | null
           pause_count?: number | null
+          paused_at?: string | null
           paused_duration_seconds?: number | null
           plan_date?: string
           plan_group_id?: string | null
           plan_number?: number | null
           planned_end_page_or_time?: number | null
           planned_start_page_or_time?: number | null
+          priority?: number | null
           progress?: number | null
+          recurrence_parent_id?: string | null
+          recurrence_rule?: Json | null
           review_group_id?: string | null
           review_source_content_ids?: string[] | null
           sequence?: number | null
@@ -6374,10 +6713,13 @@ export type Database = {
           simple_completion?: boolean | null
           slot_index?: number | null
           start_time?: string | null
+          started_at?: string | null
           status?: string | null
           student_id?: string
           subject_type?: string | null
+          tags?: string[] | null
           tenant_id?: string
+          time_slot_type?: string | null
           total_duration_seconds?: number | null
           updated_at?: string | null
           version?: number | null
@@ -6385,19 +6727,29 @@ export type Database = {
           virtual_description?: string | null
           virtual_subject_category?: string | null
           week?: number | null
-          // Phase 3.1: ad-hoc 플랜 통합 지원 컬럼
-          is_adhoc?: boolean | null
-          description?: string | null
-          color?: string | null
-          icon?: string | null
-          tags?: string[] | null
-          priority?: number | null
-          started_at?: string | null
-          completed_at?: string | null
-          actual_minutes?: number | null
-          paused_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_student_plan_adhoc_source"
+            columns: ["adhoc_source_id"]
+            isOneToOne: false
+            referencedRelation: "ad_hoc_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_student_plan_recurrence_parent"
+            columns: ["recurrence_parent_id"]
+            isOneToOne: false
+            referencedRelation: "student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_student_plan_recurrence_parent"
+            columns: ["recurrence_parent_id"]
+            isOneToOne: false
+            referencedRelation: "today_plan_view"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "student_plan_flexible_content_id_fkey"
             columns: ["flexible_content_id"]
@@ -7737,6 +8089,17 @@ export type Database = {
         }
         Returns: Json
       }
+      count_unread_by_room_ids: {
+        Args: {
+          p_membership_data: Json
+          p_room_ids: string[]
+          p_user_id: string
+        }
+        Returns: {
+          room_id: string
+          unread_count: number
+        }[]
+      }
       create_admin_user: {
         Args: { user_email: string; user_role?: string }
         Returns: string
@@ -7756,9 +8119,63 @@ export type Database = {
         }
         Returns: Json
       }
+      find_existing_members_batch: {
+        Args: {
+          p_member_ids: string[]
+          p_member_types: string[]
+          p_room_id: string
+        }
+        Returns: {
+          user_id: string
+          user_type: string
+        }[]
+      }
       generate_plans_atomic: {
         Args: { p_group_id: string; p_plans: Json; p_update_status_to?: string }
         Returns: Json
+      }
+      get_chat_messages_since: {
+        Args: { p_limit?: number; p_room_id: string; p_since: string }
+        Returns: {
+          content: string
+          created_at: string
+          deleted_at: string
+          id: string
+          is_deleted: boolean
+          message_type: string
+          reply_to_id: string
+          room_id: string
+          sender_id: string
+          sender_type: string
+          updated_at: string
+        }[]
+      }
+      get_last_messages_by_room_ids: {
+        Args: { p_room_ids: string[] }
+        Returns: {
+          content: string
+          created_at: string
+          deleted_at: string
+          id: string
+          is_deleted: boolean
+          message_type: string
+          reply_to_id: string
+          room_id: string
+          sender_id: string
+          sender_type: string
+          updated_at: string
+        }[]
+      }
+      get_message_read_counts: {
+        Args: {
+          p_message_ids: string[]
+          p_room_id: string
+          p_sender_id: string
+        }
+        Returns: {
+          message_id: string
+          unread_count: number
+        }[]
       }
       get_next_analysis_item: {
         Args: never
@@ -7767,6 +8184,15 @@ export type Database = {
           content_type: string
           queue_id: string
           request_context: Json
+        }[]
+      }
+      get_senders_by_ids: {
+        Args: { p_admin_ids: string[]; p_student_ids: string[] }
+        Returns: {
+          id: string
+          name: string
+          profile_image_url: string
+          user_type: string
         }[]
       }
       get_user_tenant_id: { Args: never; Returns: string }
@@ -7788,6 +8214,10 @@ export type Database = {
       seed_subject_data: { Args: { tenant_uuid: string }; Returns: undefined }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      upsert_plan_contents_atomic: {
+        Args: { p_contents: Json; p_group_id: string; p_tenant_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       adjustment_type_enum: "range" | "replace" | "full"

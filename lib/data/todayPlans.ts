@@ -410,6 +410,15 @@ async function getPlansFromView(options: {
       completed_at: null,
       actual_minutes: null,
       paused_at: null,
+      // 추가 필드 (View에서 제공되지 않음)
+      adhoc_source_id: null,
+      created_by: null,
+      cycle_day_number: null,
+      date_type: null,
+      is_recurring: null,
+      recurrence_parent_id: null,
+      recurrence_rule: null,
+      time_slot_type: null,
     };
   });
 

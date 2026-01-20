@@ -403,8 +403,8 @@ export type Plan = {
   is_reschedulable?: boolean | null; // DB에서는 nullable
   // 1730 Timetable 추가 필드
   cycle_day_number?: number | null; // 주기 내 일자 번호
-  date_type?: "study" | "review" | "exclusion" | null; // 날짜 유형
-  time_slot_type?: "study" | "self_study" | null; // 시간대 유형
+  date_type?: "study" | "review" | "exclusion" | string | null; // 날짜 유형 (DB에서 string으로 저장)
+  time_slot_type?: "study" | "self_study" | string | null; // 시간대 유형 (DB에서 string으로 저장)
   duration_info?: DurationInfo | null; // JSONB: 소요시간 정보
   review_info?: ReviewInfo | null; // JSONB: 복습일 정보
   allocation_type?: AllocationType | null; // JSONB: 배정 방식 정보
@@ -470,6 +470,38 @@ export type Plan = {
   review_group_id?: string | null;
   /** 복습 원본 콘텐츠 IDs */
   review_source_content_ids?: string[] | null;
+  // Phase 3.1: ad-hoc 플랜 통합 지원 컬럼
+  /** 단발성(빠른 추가) 플랜 여부 */
+  is_adhoc?: boolean | null;
+  /** 플랜 설명 */
+  description?: string | null;
+  /** 플랜 색상 (CSS 색상값) */
+  color?: string | null;
+  /** 플랜 아이콘 (lucide 아이콘명) */
+  icon?: string | null;
+  /** 태그 배열 */
+  tags?: string[] | null;
+  /** 우선순위 */
+  priority?: number | null;
+  /** 타이머 시작 시간 */
+  started_at?: string | null;
+  /** 타이머 완료 시간 */
+  completed_at?: string | null;
+  /** 실제 학습 시간 (분) */
+  actual_minutes?: number | null;
+  /** 일시정지 시간 */
+  paused_at?: string | null;
+  // 추가 DB 컬럼
+  /** ad_hoc_plans 마이그레이션 원본 ID */
+  adhoc_source_id?: string | null;
+  /** 플랜 생성자 ID */
+  created_by?: string | null;
+  /** 반복 플랜 여부 */
+  is_recurring?: boolean | null;
+  /** 반복 부모 플랜 ID */
+  recurrence_parent_id?: string | null;
+  /** 반복 규칙 (JSONB) */
+  recurrence_rule?: unknown | null;
 };
 
 /**
