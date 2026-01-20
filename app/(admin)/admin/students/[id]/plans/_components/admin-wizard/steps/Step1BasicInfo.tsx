@@ -206,7 +206,7 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
     async (id: string | undefined) => {
       setShowPlannerDropdown(false);
 
-      // 플래너 선택 해제 시: 상속 설정 정리
+      // 플래너 선택 해제 시: 상속 설정 정리 및 기본값 복구
       if (!id) {
         updateData({
           plannerId: undefined,
@@ -215,6 +215,11 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
           selfStudyHours: null,
           lunchTime: null,
           nonStudyTimeBlocks: [],
+          // 스케줄러 옵션 기본값 복구
+          schedulerOptions: {
+            study_days: 6,
+            review_days: 1,
+          },
           // is_locked 항목만 제거 (수동 추가 항목 유지)
           exclusions: wizardData.exclusions.filter(e => !e.is_locked),
           academySchedules: wizardData.academySchedules.filter(s => !s.is_locked),
@@ -340,22 +345,36 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
 
   return (
     <div className="space-y-6">
-      {/* 플래너 선택 (강화된 UI - Phase 5) */}
-      <div className="rounded-xl border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 shadow-sm">
+      {/* 플래너 선택 (강화된 UI - Phase 5, Phase 2 필수화) */}
+      <div className={cn(
+        "rounded-xl border-2 p-4 shadow-sm",
+        selectedPlanner
+          ? "border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50"
+          : "border-red-200 bg-gradient-to-r from-red-50 to-orange-50"
+      )}>
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500 text-white">
+            <div className={cn(
+              "flex h-8 w-8 items-center justify-center rounded-lg text-white",
+              selectedPlanner ? "bg-blue-500" : "bg-red-500"
+            )}>
               <FolderOpen className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900">플래너 선택</h3>
+              <h3 className="font-semibold text-gray-900">
+                플래너 선택 <span className="text-red-500">*</span>
+              </h3>
               <p className="text-xs text-gray-500">시간 설정, 제외일, 학원일정이 자동 상속됩니다</p>
             </div>
           </div>
-          {selectedPlanner && (
+          {selectedPlanner ? (
             <div className="flex items-center gap-1.5 rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700">
               <CheckCircle2 className="h-3.5 w-3.5" />
               선택됨
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-700">
+              필수
             </div>
           )}
         </div>
@@ -370,7 +389,7 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
               "flex w-full items-center justify-between rounded-lg border-2 px-4 py-3 text-sm font-medium transition",
               selectedPlanner
                 ? "border-blue-500 bg-white text-blue-700 shadow-sm"
-                : "border-gray-300 bg-white text-gray-600 hover:border-blue-400"
+                : "border-red-300 bg-white text-red-600 hover:border-red-400"
             )}
           >
             <span>
@@ -378,7 +397,7 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
                 ? "불러오는 중..."
                 : selectedPlanner
                   ? selectedPlanner.name
-                  : "플래너를 선택하세요"}
+                  : "⚠️ 플래너를 선택하세요 (필수)"}
             </span>
             <ChevronDown
               className={cn(
@@ -390,21 +409,11 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
 
           {showPlannerDropdown && (
             <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg">
-              {/* 선택 안 함 옵션 */}
-              <button
-                type="button"
-                onClick={() => handlePlannerSelect(undefined)}
-                className={cn(
-                  "flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-gray-50",
-                  !plannerId && "bg-blue-50 text-blue-700"
-                )}
-              >
-                선택 안 함 (새로 설정)
-              </button>
-
+              {/* 플래너 필수 안내 - 선택 안 함 옵션 제거됨 (Phase 2) */}
               {planners.length === 0 && !isLoadingPlanners ? (
                 <div className="px-3 py-4 text-center text-sm text-gray-500">
-                  <p>활성 플래너가 없습니다.</p>
+                  <p className="font-medium text-red-600">활성 플래너가 없습니다.</p>
+                  <p className="mt-1 text-xs">플랜 그룹을 생성하려면 먼저 플래너를 생성해주세요.</p>
                 </div>
               ) : (
                 planners.map((planner) => (

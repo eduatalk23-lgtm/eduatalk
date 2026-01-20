@@ -35,6 +35,24 @@ export type AtomicPlanGroupInput = {
   camp_invitation_id: string | null;
   use_slot_mode: boolean;
   content_slots: unknown[] | null;
+
+  // Phase 3 플래너 연계 필드
+  planner_id?: string | null;
+  creation_mode?: string | null;
+  plan_mode?: string | null;
+  is_single_day?: boolean;
+  study_type?: string | null;
+  strategy_days_per_week?: number | null;
+
+  // 단일 콘텐츠 모드 필드
+  content_type?: string | null;
+  content_id?: string | null;
+  master_content_id?: string | null;
+  start_range?: number | null;
+  end_range?: number | null;
+  start_detail_id?: string | null;
+  end_detail_id?: string | null;
+  is_single_content?: boolean;
 };
 
 /**
@@ -142,6 +160,24 @@ export async function createPlanGroupAtomic(
     content_slots: groupData.content_slots
       ? JSON.parse(JSON.stringify(groupData.content_slots))
       : null,
+
+    // Phase 3 플래너 연계 필드
+    planner_id: groupData.planner_id ?? null,
+    creation_mode: groupData.creation_mode ?? null,
+    plan_mode: groupData.plan_mode ?? null,
+    is_single_day: groupData.is_single_day ?? false,
+    study_type: groupData.study_type ?? null,
+    strategy_days_per_week: groupData.strategy_days_per_week ?? null,
+
+    // 단일 콘텐츠 모드 필드
+    content_type: groupData.content_type ?? null,
+    content_id: groupData.content_id ?? null,
+    master_content_id: groupData.master_content_id ?? null,
+    start_range: groupData.start_range ?? null,
+    end_range: groupData.end_range ?? null,
+    start_detail_id: groupData.start_detail_id ?? null,
+    end_detail_id: groupData.end_detail_id ?? null,
+    is_single_content: groupData.is_single_content ?? false,
   };
 
   const { data, error } = await supabase.rpc("create_plan_group_atomic", {

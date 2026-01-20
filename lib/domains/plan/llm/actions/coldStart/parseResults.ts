@@ -560,6 +560,105 @@ function parseChapters(
 // 유틸리티 함수들
 // ============================================================================
 
+// P3-2: 콘텐츠 검증 상수
+const VALIDATION_LIMITS = {
+  MIN_TITLE_LENGTH: 2,
+  MAX_TITLE_LENGTH: 200,
+  MIN_TOTAL_RANGE: 1,
+  MAX_TOTAL_RANGE: 10000, // 교재 최대 10000페이지, 강의 최대 10000개
+  MAX_CHAPTERS: 500,
+  MAX_CHAPTER_RANGE: 5000,
+} as const;
+
+/**
+ * P3-2: 콘텐츠 검증 결과
+ */
+export interface ContentValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+/**
+ * P3-2: 파싱된 콘텐츠를 상세 검증합니다.
+ *
+ * 검증 항목:
+ * - 필수 필드 존재 여부
+ * - 필드값 범위 유효성
+ * - 목차 구조 유효성
+ * - 비정상적 데이터 경고
+ *
+ * @param item - 파싱된 콘텐츠 아이템
+ * @returns 검증 결과 (에러/경고 포함)
+ */
+export function validateContentItem(item: ParsedContentItem): ContentValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // 1. 필수 필드 검증
+  if (!item.title || item.title.length < VALIDATION_LIMITS.MIN_TITLE_LENGTH) {
+    errors.push(`제목이 너무 짧습니다 (최소 ${VALIDATION_LIMITS.MIN_TITLE_LENGTH}자)`);
+  }
+  if (item.title && item.title.length > VALIDATION_LIMITS.MAX_TITLE_LENGTH) {
+    warnings.push(`제목이 매우 깁니다 (${item.title.length}자)`);
+  }
+
+  // 2. 범위 검증
+  if (!item.totalRange || item.totalRange < VALIDATION_LIMITS.MIN_TOTAL_RANGE) {
+    errors.push("총 범위가 설정되지 않았습니다");
+  }
+  if (item.totalRange > VALIDATION_LIMITS.MAX_TOTAL_RANGE) {
+    warnings.push(`총 범위가 비정상적으로 큽니다 (${item.totalRange})`);
+  }
+
+  // 3. 목차 검증
+  if (!item.chapters || item.chapters.length === 0) {
+    errors.push("목차 정보가 없습니다");
+  } else {
+    if (item.chapters.length > VALIDATION_LIMITS.MAX_CHAPTERS) {
+      warnings.push(`목차가 매우 많습니다 (${item.chapters.length}개)`);
+    }
+
+    for (let i = 0; i < item.chapters.length; i++) {
+      const ch = item.chapters[i];
+
+      if (!ch.title || ch.title.length === 0) {
+        errors.push(`목차 ${i + 1}의 제목이 없습니다`);
+      }
+
+      if (ch.startRange <= 0) {
+        errors.push(`목차 ${i + 1}의 시작 범위가 유효하지 않습니다`);
+      }
+
+      if (ch.endRange < ch.startRange) {
+        errors.push(`목차 ${i + 1}의 범위가 역전되었습니다 (${ch.startRange} > ${ch.endRange})`);
+      }
+
+      if (ch.endRange - ch.startRange > VALIDATION_LIMITS.MAX_CHAPTER_RANGE) {
+        warnings.push(`목차 ${i + 1}의 범위가 비정상적으로 큽니다 (${ch.endRange - ch.startRange})`);
+      }
+    }
+
+    // 목차 순서 검증
+    for (let i = 1; i < item.chapters.length; i++) {
+      if (item.chapters[i].startRange < item.chapters[i - 1].endRange) {
+        warnings.push(`목차 ${i}와 ${i + 1}의 범위가 겹칩니다`);
+      }
+    }
+  }
+
+  // 4. 콘텐츠 타입별 추가 검증
+  if (item.contentType === "lecture" && item.totalRange > 1000) {
+    warnings.push(`강의 수가 비정상적으로 많습니다 (${item.totalRange}개)`);
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    warnings,
+  };
+}
+
 /**
  * 파싱된 결과가 플랜 생성에 충분한지 검증합니다.
  *
@@ -572,17 +671,8 @@ function parseChapters(
  * @returns 플랜 생성 가능 여부
  */
 export function isValidForPlanCreation(item: ParsedContentItem): boolean {
-  return (
-    item.title.length > 0 &&
-    item.totalRange > 0 &&
-    item.chapters.length > 0 &&
-    item.chapters.every(
-      (ch) =>
-        ch.title.length > 0 &&
-        ch.startRange > 0 &&
-        ch.endRange >= ch.startRange
-    )
-  );
+  const result = validateContentItem(item);
+  return result.isValid;
 }
 
 /**
@@ -593,4 +683,35 @@ export function isValidForPlanCreation(item: ParsedContentItem): boolean {
  */
 export function filterValidItems(items: ParsedContentItem[]): ParsedContentItem[] {
   return items.filter(isValidForPlanCreation);
+}
+
+/**
+ * P3-2: 파싱 결과를 상세 검증하고 결과를 반환합니다.
+ *
+ * @param items - 파싱된 콘텐츠 목록
+ * @returns 각 항목의 검증 결과와 유효한 항목 목록
+ */
+export function validateAndFilterItems(items: ParsedContentItem[]): {
+  validItems: ParsedContentItem[];
+  invalidCount: number;
+  allWarnings: Array<{ title: string; warnings: string[] }>;
+} {
+  const validItems: ParsedContentItem[] = [];
+  const allWarnings: Array<{ title: string; warnings: string[] }> = [];
+  let invalidCount = 0;
+
+  for (const item of items) {
+    const result = validateContentItem(item);
+
+    if (result.isValid) {
+      validItems.push(item);
+      if (result.warnings.length > 0) {
+        allWarnings.push({ title: item.title, warnings: result.warnings });
+      }
+    } else {
+      invalidCount++;
+    }
+  }
+
+  return { validItems, invalidCount, allWarnings };
 }

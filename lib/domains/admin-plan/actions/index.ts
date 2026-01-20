@@ -185,3 +185,11 @@ export {
   type AddExclusionInput,
   type TimeManagementActionResult,
 } from './timeManagement';
+
+// Data Integrity Actions (Phase 4)
+export {
+  generateDataIntegrityReportAction,
+  linkOrphanPlanGroupsAction,
+  syncSchedulerOptionsAction,
+  type DataIntegrityReport,
+} from './dataIntegrity';

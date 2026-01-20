@@ -349,11 +349,12 @@ function WizardInner({
   // ============================================
 
   const isStepValid = useMemo(() => {
-    const { periodStart, periodEnd, selectedContents, skipContents } = wizardData;
+    const { periodStart, periodEnd, selectedContents, skipContents, plannerId } = wizardData;
 
     switch (currentStep) {
       case 1: {
-        // 기본 정보: 기간 필수
+        // 기본 정보: 플래너 및 기간 필수
+        if (!plannerId) return false;
         if (!periodStart || !periodEnd) return false;
         const start = new Date(periodStart);
         const end = new Date(periodEnd);

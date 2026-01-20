@@ -320,12 +320,13 @@ export function usePlanGenerator({
         options.studentId = initialData.student_id;
       }
 
-      // 기간 정보를 옵션에 추가
+      // 기간 정보 및 스케줄러 옵션을 추가
       const plannerOptions = {
         ...options,
         periodStart: wizardData.period_start,
         periodEnd: wizardData.period_end,
         name: `${wizardData.name || "학습"} 플래너`,
+        schedulerOptions: wizardData.scheduler_options,
       };
 
       const result = await getOrCreateDefaultPlannerAction(plannerOptions);

@@ -15,7 +15,7 @@
  * @module lib/domains/plan/llm/actions/generateHybridPlanComplete
  */
 
-import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
+import { logActionError, logActionDebug, logActionWarn } from "@/lib/logging/actionLogger";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { AppError, ErrorCode, withErrorHandlingSafe } from "@/lib/errors";
 import { MetricsBuilder, logRecommendationError } from "../metrics";
@@ -33,6 +33,7 @@ import type { WebSearchResult } from "../providers/base";
 import type { VirtualContentItem } from "./searchContent";
 import { createBook, createLecture } from "@/lib/data/studentContents";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getOrCreateDefaultPlannerAction } from "@/lib/domains/plan/actions/planners/autoCreate";
 
 /**
  * 에러 메시지 추출 헬퍼
@@ -46,6 +47,17 @@ function extractErrorMessage(error: unknown): string {
 }
 
 /**
+ * 콘텐츠 타입 안전 검증 헬퍼
+ * 타입 어서션 대신 런타임 검증으로 타입 안전성 강화
+ */
+function safeContentType(type: string): "book" | "lecture" | "custom" {
+  if (type === "book" || type === "lecture") {
+    return type;
+  }
+  return "custom";
+}
+
+/**
  * 가상 콘텐츠 입력 (AI 검색 결과 + 임시 ID)
  */
 export interface VirtualContentInput extends VirtualContentItem {
@@ -56,6 +68,14 @@ export interface VirtualContentInput extends VirtualContentItem {
 // ============================================
 // 입력/출력 타입
 // ============================================
+
+/**
+ * 플래너 검증 모드
+ * - warn: 경고만 로깅 (기본값, 레거시 호환)
+ * - strict: 플래너 미연결 시 에러 반환
+ * - auto_create: 플래너 미연결 시 자동 생성 후 연결
+ */
+export type PlannerValidationMode = "warn" | "strict" | "auto_create";
 
 /**
  * 하이브리드 플랜 완전 생성 입력
@@ -91,6 +111,8 @@ export interface GenerateHybridPlanCompleteInput {
     dynamicThreshold?: number;
     saveResults?: boolean;
   };
+  /** Phase 3: 플래너 검증 모드 (기본: warn) */
+  plannerValidationMode?: PlannerValidationMode;
 }
 
 /**
@@ -174,6 +196,171 @@ async function _generateHybridPlanComplete(
       400,
       true
     );
+  }
+
+  // Phase 0.5: Plan Group 정보 조회 및 플래너 연계 검증
+  const supabaseForValidation = await createSupabaseServerClient();
+  const { data: planGroup, error: planGroupError } = await supabaseForValidation
+    .from("plan_groups")
+    .select("id, name, planner_id, is_single_content, content_type, content_id, start_range, end_range")
+    .eq("id", input.planGroupId)
+    .single();
+
+  if (planGroupError || !planGroup) {
+    throw new AppError(
+      `플랜 그룹을 찾을 수 없습니다: ${input.planGroupId}`,
+      ErrorCode.NOT_FOUND,
+      404,
+      true
+    );
+  }
+
+  // Phase 3: 플래너 연결 확인 (검증 모드에 따라 다르게 처리)
+  const validationMode = input.plannerValidationMode ?? "warn";
+
+  if (!planGroup.planner_id) {
+    if (validationMode === "strict") {
+      // strict 모드: 플래너 미연결 시 에러 반환
+      return {
+        success: false,
+        error: "플래너 미연결 Plan Group입니다. 플래너를 먼저 연결하세요.",
+        errorPhase: "ai_framework",
+      };
+    }
+
+    if (validationMode === "auto_create") {
+      // auto_create 모드: 플래너 자동 생성 후 Plan Group 업데이트
+      try {
+        // getOrCreateDefaultPlannerAction은 성공 시 직접 결과 반환, 실패 시 throw
+        const plannerResult = await getOrCreateDefaultPlannerAction({
+          studentId: input.student.id,
+          periodStart: input.period.startDate,
+          periodEnd: input.period.endDate,
+        });
+
+        const { error: updateError } = await supabaseForValidation
+          .from("plan_groups")
+          .update({ planner_id: plannerResult.plannerId })
+          .eq("id", input.planGroupId);
+
+        if (!updateError) {
+          logActionDebug(
+            { domain: "plan", action: "generateHybridPlanComplete" },
+            "플래너 자동 생성 및 연결 완료",
+            {
+              planGroupId: input.planGroupId,
+              plannerId: plannerResult.plannerId,
+              isNewPlanner: plannerResult.isNew,
+            }
+          );
+        } else {
+          logActionWarn(
+            { domain: "plan", action: "generateHybridPlanComplete" },
+            "플래너 연결 실패 (계속 진행)",
+            { error: updateError.message }
+          );
+        }
+      } catch (plannerError) {
+        logActionWarn(
+          { domain: "plan", action: "generateHybridPlanComplete" },
+          "플래너 자동 생성 실패 (계속 진행)",
+          { error: plannerError instanceof Error ? plannerError.message : "Unknown error" }
+        );
+      }
+    } else {
+      // warn 모드 (기본값): 경고만 로깅, 레거시 호환성 유지
+      // P3-3: 레거시 데이터 경고 개선
+      logActionWarn(
+        { domain: "plan", action: "generateHybridPlanComplete" },
+        "[레거시] 플래너 미연결 Plan Group에서 AI 플랜 생성",
+        {
+          planGroupId: input.planGroupId,
+          planGroupName: planGroup.name,
+          studentId: input.student.id,
+          legacyInfo: {
+            reason: "플래너 없이 생성된 Plan Group (레거시 워크플로우)",
+            recommendation: "plannerValidationMode: 'auto_create' 사용 권장",
+            impact: "학생별 학습 계획 통합 관리 불가",
+          },
+        }
+      );
+    }
+  }
+
+  // P2-2: 단일 콘텐츠 모드 검증 강화
+  // P3-3: 레거시 데이터 경고 개선 - 더 상세한 안내 제공
+  if (!planGroup.is_single_content) {
+    logActionWarn(
+      { domain: "plan", action: "generateHybridPlanComplete" },
+      "[레거시] 다중 콘텐츠 Plan Group 감지 - 마이그레이션 권장",
+      {
+        planGroupId: input.planGroupId,
+        planGroupName: planGroup.name,
+        isSingleContent: planGroup.is_single_content,
+        legacyInfo: {
+          reason: "plan_contents 테이블을 사용하는 레거시 구조",
+          recommendation: "단일 콘텐츠 모드(is_single_content: true)로 마이그레이션 권장",
+          migrationPath: "Plan Group 재생성 또는 data migration script 실행",
+          affectedFeatures: ["플래너 통합", "콘텐츠 범위 직접 참조", "성능 최적화"],
+        },
+      }
+    );
+  } else {
+    // 단일 콘텐츠 모드일 때 데이터 무결성 검증
+    const contentValidationIssues: string[] = [];
+
+    if (!planGroup.content_type) {
+      contentValidationIssues.push("content_type 누락");
+    }
+    if (!planGroup.content_id) {
+      contentValidationIssues.push("content_id 누락");
+    }
+
+    // 범위 검증
+    const startRange = planGroup.start_range;
+    const endRange = planGroup.end_range;
+
+    if (startRange != null && endRange != null) {
+      if (startRange > endRange) {
+        contentValidationIssues.push(`범위 역전 (start: ${startRange} > end: ${endRange})`);
+      }
+      if (startRange < 0 || endRange < 0) {
+        contentValidationIssues.push(`음수 범위값 (start: ${startRange}, end: ${endRange})`);
+      }
+    } else if (planGroup.content_type && planGroup.content_id) {
+      // 콘텐츠는 있지만 범위가 없는 경우 (경고)
+      if (startRange == null && endRange == null) {
+        contentValidationIssues.push("범위 정보 미설정");
+      }
+    }
+
+    if (contentValidationIssues.length > 0) {
+      logActionWarn(
+        { domain: "plan", action: "generateHybridPlanComplete" },
+        "단일 콘텐츠 모드 데이터 불완전",
+        {
+          planGroupId: input.planGroupId,
+          planGroupName: planGroup.name,
+          issues: contentValidationIssues,
+          contentType: planGroup.content_type,
+          contentId: planGroup.content_id,
+          startRange,
+          endRange,
+        }
+      );
+    } else {
+      logActionDebug(
+        { domain: "plan", action: "generateHybridPlanComplete" },
+        "단일 콘텐츠 Plan Group 확인",
+        {
+          planGroupId: input.planGroupId,
+          contentType: planGroup.content_type,
+          contentId: planGroup.content_id,
+          startRange,
+          endRange,
+        }
+      );
+    }
   }
 
   // Phase 0: 가상 콘텐츠 영구 저장 (DB Persist)
@@ -285,7 +472,7 @@ async function _generateHybridPlanComplete(
     input.contents = input.contents.map(c => {
       const realId = idMap.get(c.id);
       if (realId) {
-        return { ...c, id: realId, contentType: c.contentType === "custom" ? "custom" : c.contentType as "book" | "lecture" }; 
+        return { ...c, id: realId, contentType: safeContentType(c.contentType) }; 
       }
       return c;
     });

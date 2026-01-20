@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Wand2, AlertCircle, Loader2, CheckCircle2, Sparkles, Zap, Lightbulb, Globe } from 'lucide-react';
+import { X, Wand2, AlertCircle, Loader2, CheckCircle2, Sparkles, Zap, Lightbulb, Globe, Users } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { AIPlanGeneratorPanel } from '@/app/(student)/plan/new-group/_components/_features/ai-mode';
 // 직접 경로에서 타입 import (barrel export 회피 - 서버/클라이언트 분리)
@@ -11,9 +11,11 @@ import {
   getPlanGroupDetailsForAdminAction,
   saveAIGeneratedPlansAction,
   getStudentContentsForAIPlanAction,
+  getStudentPlannersAction,
 } from '@/lib/domains/admin-plan/actions';
+import type { Planner } from '@/lib/domains/admin-plan/actions/planners';
 // Server Action 직접 import (barrel export 회피)
-import { generateHybridPlanCompleteAction } from '@/lib/domains/plan/llm/actions/generateHybridPlanComplete';
+import { generateHybridPlanCompleteAction, type PlannerValidationMode } from '@/lib/domains/plan/llm/actions/generateHybridPlanComplete';
 import { isErrorResult } from '@/lib/errors';
 import { WebSearchResultsPanel } from '@/components/plan';
 import type { WebSearchResult } from '@/lib/domains/plan/llm/providers/base';
@@ -101,6 +103,13 @@ export function AdminAIPlanModal({
   const [webSearchResults, setWebSearchResults] = useState<WebSearchResult[] | null>(null);
   const [webSearchQueries, setWebSearchQueries] = useState<string[]>([]);
 
+  // Phase 4: 플래너 연결 상태
+  const [planners, setPlanners] = useState<Planner[]>([]);
+  const [selectedPlannerId, setSelectedPlannerId] = useState<string | null>(null);
+  const [selectedPlanner, setSelectedPlanner] = useState<Planner | null>(null);
+  const [existingPlannerId, setExistingPlannerId] = useState<string | null>(null);
+  const [plannerValidationMode, setPlannerValidationMode] = useState<PlannerValidationMode>('auto_create');
+
   // 플랜 그룹 및 학생/콘텐츠 데이터 로드
   useEffect(() => {
     async function loadData() {
@@ -119,7 +128,7 @@ export function AdminAIPlanModal({
 
         // 성공 시 결과 처리
         const data = result as {
-          group: { period_start: string; period_end: string } | null;
+          group: { period_start: string; period_end: string; planner_id?: string | null } | null;
           contents: { content_id: string }[];
           exclusions: { exclusion_type: string; exclusion_date: string }[];
         };
@@ -163,6 +172,27 @@ export function AdminAIPlanModal({
           setStudentData(studentContentsResult.student);
           setContentsData(studentContentsResult.contents);
           setScoresData(studentContentsResult.scores);
+        }
+
+        // Phase 4: 플래너 목록 로드
+        const plannersResult = await getStudentPlannersAction(studentId, {
+          status: ['draft', 'active', 'paused'],
+          includeArchived: false,
+        });
+
+        if (plannersResult?.data) {
+          setPlanners(plannersResult.data);
+
+          // Plan Group에 이미 플래너가 연결되어 있는지 확인
+          const planGroupPlannerId = data.group?.planner_id;
+          if (planGroupPlannerId) {
+            setExistingPlannerId(planGroupPlannerId);
+            const connected = plannersResult.data.find(p => p.id === planGroupPlannerId);
+            if (connected) {
+              setSelectedPlannerId(planGroupPlannerId);
+              setSelectedPlanner(connected);
+            }
+          }
         }
       } catch (err) {
         console.error('Failed to load data:', err);
@@ -217,6 +247,15 @@ export function AdminAIPlanModal({
       return;
     }
 
+    // 디버깅 로그: 하이브리드 생성 시작 시 상태 확인
+    console.log("[AdminAIPlanModal] 하이브리드 생성 시작", {
+      planGroupId,
+      existingPlannerId,
+      plannerValidationMode,
+      enableWebSearch,
+      contentCount: contentsData.length,
+    });
+
     try {
       setIsGeneratingHybrid(true);
       setError(null);
@@ -245,6 +284,8 @@ export function AdminAIPlanModal({
           mode: 'dynamic',
           saveResults: saveWebResults,
         } : undefined,
+        // Phase 4: 플래너 검증 모드
+        plannerValidationMode,
       });
 
       if (!result.success) {
@@ -579,6 +620,73 @@ export function AdminAIPlanModal({
                   </div>
                 )}
               </div>
+
+              {/* Phase 4: 플래너 연결 - 기존 플래너 없을 때만 표시 */}
+              {!existingPlannerId && (
+                <div className="p-4 rounded-lg border border-gray-200 bg-white space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm font-medium text-gray-700">플래너 연결</span>
+                  </div>
+
+                  <select
+                    value={selectedPlannerId || ''}
+                    onChange={(e) => {
+                      const id = e.target.value || null;
+                      setSelectedPlannerId(id);
+                      setSelectedPlanner(planners.find(p => p.id === id) || null);
+                    }}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    <option value="">플래너 선택 (선택사항)</option>
+                    {planners.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.periodStart} ~ {p.periodEnd})
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Validation Mode 선택 */}
+                  <div className="flex gap-2">
+                    {[
+                      { value: 'auto_create' as const, label: '자동 생성', desc: '플래너 미연결 시 자동 생성' },
+                      { value: 'warn' as const, label: '경고만', desc: '경고 로깅 후 진행' },
+                      { value: 'strict' as const, label: '엄격', desc: '플래너 필수' },
+                    ].map(opt => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setPlannerValidationMode(opt.value)}
+                        title={opt.desc}
+                        className={cn(
+                          'flex-1 px-2 py-1.5 text-xs rounded border transition-colors',
+                          plannerValidationMode === opt.value
+                            ? 'border-purple-500 bg-purple-50 text-purple-700'
+                            : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    플래너가 없으면 &apos;자동 생성&apos; 모드에서 기본 플래너를 생성합니다.
+                  </p>
+                </div>
+              )}
+
+              {/* 기존 플래너 연결 정보 */}
+              {existingPlannerId && selectedPlanner && (
+                <div className="p-4 rounded-lg border border-green-200 bg-green-50">
+                  <div className="flex items-center gap-2 text-green-700">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span className="text-sm font-medium">연결된 플래너: {selectedPlanner.name}</span>
+                  </div>
+                  <p className="mt-1 text-xs text-green-600">
+                    {selectedPlanner.periodStart} ~ {selectedPlanner.periodEnd}
+                  </p>
+                </div>
+              )}
 
               {/* 버튼 */}
               <div className="flex gap-3">

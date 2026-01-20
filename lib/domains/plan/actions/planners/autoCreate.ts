@@ -44,6 +44,11 @@ export interface CreateDefaultPlannerOptions {
   periodEnd?: string;
   /** 플래너 이름 (기본값: "기본 플래너") */
   name?: string;
+  /** 스케줄러 옵션 (기본값: study_days: 6, review_days: 1) */
+  schedulerOptions?: {
+    study_days?: number;
+    review_days?: number;
+  };
 }
 
 // ============================================
@@ -123,8 +128,8 @@ async function _createDefaultPlanner(
       non_study_time_blocks: [],
       default_scheduler_type: "1730_timetable",
       default_scheduler_options: {
-        study_days: 6,
-        review_days: 1,
+        study_days: options.schedulerOptions?.study_days ?? 6,
+        review_days: options.schedulerOptions?.review_days ?? 1,
       },
       status: "active" as PlannerStatus,
       created_by: userId,
@@ -213,3 +218,142 @@ async function _getOrCreateDefaultPlanner(
 export const getOrCreateDefaultPlannerAction = withErrorHandling(
   _getOrCreateDefaultPlanner
 );
+
+// ============================================
+// Pipeline 공통 유틸리티
+// ============================================
+
+/**
+ * 플래너 검증 모드
+ */
+export type PlannerValidationMode = "warn" | "strict" | "auto_create";
+
+/**
+ * 파이프라인용 플래너 확보 옵션
+ */
+export interface EnsurePlannerOptions {
+  /** 기존 플래너 ID (있으면 검증만 수행) */
+  existingPlannerId?: string | null;
+  /** 학생 ID */
+  studentId: string;
+  /** 기간 시작일 */
+  periodStart: string;
+  /** 기간 종료일 */
+  periodEnd: string;
+  /** 검증 모드 (기본값: "auto_create") */
+  validationMode?: PlannerValidationMode;
+  /** 스케줄러 옵션 */
+  schedulerOptions?: {
+    study_days?: number;
+    review_days?: number;
+  };
+}
+
+/**
+ * 파이프라인용 플래너 확보 결과
+ */
+export interface EnsurePlannerResult {
+  /** 성공 여부 */
+  success: boolean;
+  /** 플래너 ID (성공 시) */
+  plannerId: string | null;
+  /** 신규 생성 여부 */
+  isNew: boolean;
+  /** 에러 메시지 (strict 모드 실패 시) */
+  error?: string;
+  /** 경고 여부 (warn 모드에서 플래너 없을 때) */
+  hasWarning?: boolean;
+}
+
+/**
+ * AI 플랜 파이프라인용 플래너 확보 유틸리티
+ *
+ * 모든 파이프라인(Unified, Hybrid, Batch)에서 일관된 플래너 처리를 제공합니다.
+ *
+ * @param options 플래너 확보 옵션
+ * @returns 플래너 확보 결과
+ *
+ * @example
+ * // Unified Pipeline
+ * const result = await ensurePlannerForPipeline({
+ *   existingPlannerId: input.plannerId,
+ *   studentId: input.studentId,
+ *   periodStart: input.periodStart,
+ *   periodEnd: input.periodEnd,
+ *   validationMode: input.plannerValidationMode ?? "auto_create",
+ * });
+ *
+ * if (!result.success) {
+ *   return { success: false, error: result.error };
+ * }
+ *
+ * const plannerId = result.plannerId;
+ */
+export async function ensurePlannerForPipeline(
+  options: EnsurePlannerOptions
+): Promise<EnsurePlannerResult> {
+  const {
+    existingPlannerId,
+    studentId,
+    periodStart,
+    periodEnd,
+    validationMode = "auto_create",
+    schedulerOptions,
+  } = options;
+
+  // 이미 플래너가 있으면 그대로 반환
+  if (existingPlannerId) {
+    return {
+      success: true,
+      plannerId: existingPlannerId,
+      isNew: false,
+    };
+  }
+
+  // 검증 모드별 처리
+  switch (validationMode) {
+    case "strict":
+      // strict 모드: 플래너 없으면 즉시 에러
+      return {
+        success: false,
+        plannerId: null,
+        isNew: false,
+        error: "플래너 미연결 상태입니다. 플래너를 먼저 연결하세요.",
+      };
+
+    case "warn":
+      // warn 모드: 플래너 없어도 계속 진행 (경고만)
+      return {
+        success: true,
+        plannerId: null,
+        isNew: false,
+        hasWarning: true,
+      };
+
+    case "auto_create":
+    default:
+      // auto_create 모드: 플래너 자동 생성
+      try {
+        const plannerResult = await getOrCreateDefaultPlannerAction({
+          studentId,
+          periodStart,
+          periodEnd,
+          schedulerOptions,
+        });
+
+        return {
+          success: true,
+          plannerId: plannerResult.plannerId,
+          isNew: plannerResult.isNew,
+        };
+      } catch (error) {
+        // 생성 실패 시에도 계속 진행 (레거시 호환성)
+        return {
+          success: true,
+          plannerId: null,
+          isNew: false,
+          hasWarning: true,
+        };
+      }
+  }
+}

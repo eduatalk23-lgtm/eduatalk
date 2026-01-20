@@ -139,6 +139,11 @@ export function validateInput(
     // 계산된 메타데이터
     totalDays,
     availableDays,
+
+    // Phase 3: 플래너 연계 필드
+    plannerId: validated.plannerId ?? null,
+    creationMode: validated.creationMode ?? "unified",
+    plannerValidationMode: validated.plannerValidationMode ?? "auto_create",
   };
 
   return { success: true, data: result };

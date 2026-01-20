@@ -8,10 +8,14 @@
  * - 진행 상태 표시
  * - 결과 및 다음 단계 안내
  *
+ * Phase 4: 플래너 연계 개선
+ * - 학생 데이터 자동 로드 (학년, 성적)
+ * - plannerValidationMode 전달
+ *
  * @module app/(admin)/admin/students/[id]/plans/_components/admin-wizard/steps/Step7GenerateResult
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Loader2,
   CheckCircle2,
@@ -31,6 +35,7 @@ import {
 } from "../_context";
 
 import { generateHybridPlanCompleteAction } from "@/lib/domains/plan/llm/actions/generateHybridPlanComplete";
+import { getStudentContentsForAIPlanAction } from "@/lib/domains/admin-plan/actions";
 
 /**
  * Dock에 배치된 플랜 정보
@@ -91,10 +96,68 @@ export function Step7GenerateResult({
   const { prevStep } = useAdminWizardStep();
   const { hasErrors, validationErrors } = useAdminWizardValidation();
 
-  const { generateAIPlan, selectedContents, skipContents, periodStart, periodEnd } = wizardData;
+  const { generateAIPlan, selectedContents, skipContents, periodStart, periodEnd, plannerId } = wizardData;
 
   const [phase, setPhase] = useState<GenerationPhase>("idle");
   const [progress, setProgress] = useState(0);
+
+  // Phase 4: 학생 데이터 상태
+  const [studentGrade, setStudentGrade] = useState<string>("고등");
+  const [studentScores, setStudentScores] = useState<Array<{
+    subject: string;
+    subjectCategory: string;
+    score: number;
+  }>>([]);
+  const [dataLoaded, setDataLoaded] = useState(false);
+
+  // Phase 4: 컴포넌트 마운트 시 학생 데이터 로드
+  useEffect(() => {
+    async function loadStudentData() {
+      if (!generateAIPlan || selectedContents.length === 0) {
+        return; // AI 플랜 생성을 사용하지 않으면 로드 불필요
+      }
+
+      try {
+        const contentIds = selectedContents.map(c => c.contentId);
+        const result = await getStudentContentsForAIPlanAction({
+          studentId,
+          tenantId,
+          contentIds,
+        });
+
+        // 에러 확인 (타입 가드)
+        if ("success" in result && result.success === false) {
+          console.warn("[Step7] Student data load failed");
+          return;
+        }
+
+        // 성공 시 학생 데이터 설정 (result는 GetStudentContentsForAIPlanResult 타입)
+        const successResult = result as { student: { grade: string } | null; scores: Array<{ subject: string; subjectCategory: string; score: number }> };
+
+        if (successResult.student?.grade) {
+          setStudentGrade(successResult.student.grade);
+        }
+
+        if (successResult.scores && successResult.scores.length > 0) {
+          setStudentScores(successResult.scores.map(s => ({
+            subject: s.subject,
+            subjectCategory: s.subjectCategory,
+            score: s.score,
+          })));
+        }
+
+        setDataLoaded(true);
+        console.log("[Step7] Student data loaded", {
+          grade: successResult.student?.grade,
+          scoresCount: successResult.scores?.length ?? 0,
+        });
+      } catch (err) {
+        console.warn("[Step7] Error loading student data:", err);
+      }
+    }
+
+    loadStudentData();
+  }, [generateAIPlan, selectedContents, studentId, tenantId]);
 
   // 디버그: Step7 상태 확인
   console.log("[Step7] 렌더링 상태", {
@@ -141,15 +204,15 @@ export function Step7GenerateResult({
         setPhase("generating_ai");
         setProgress(70);
 
-        // AI 학습 일정 생성
+        // AI 학습 일정 생성 (Phase 4: 실제 학생 데이터 및 plannerValidationMode 적용)
         const aiResult = await generateHybridPlanCompleteAction({
           planGroupId: groupId,
           student: {
             id: studentId,
             name: studentName,
-            grade: "고등", // TODO: 실제 학년 정보 필요
+            grade: studentGrade, // Phase 4: 실제 학년 정보
           },
-          scores: [], // TODO: 성적 정보 연동 필요
+          scores: studentScores, // Phase 4: 실제 성적 정보
           contents: selectedContents.map(c => ({
             id: c.contentId,
             title: c.title,
@@ -179,6 +242,8 @@ export function Step7GenerateResult({
              contentType: c.contentType as "book" | "lecture",
            })),
            modelTier: "standard",
+           // Phase 4: 플래너 검증 모드 - 플래너가 선택된 경우 warn, 없으면 auto_create
+           plannerValidationMode: plannerId ? "warn" : "auto_create",
         });
 
         if (!aiResult.success) {
@@ -196,7 +261,7 @@ export function Step7GenerateResult({
       setPhase("error");
       setError(err instanceof Error ? err.message : "플랜 생성 중 오류가 발생했습니다.");
     }
-  }, [hasErrors, generateAIPlan, onSubmit, setError, studentId, studentName, selectedContents, periodStart, periodEnd]);
+  }, [hasErrors, generateAIPlan, onSubmit, setError, studentId, studentName, selectedContents, periodStart, periodEnd, studentGrade, studentScores, plannerId]);
 
   // 재시도
   const handleRetry = useCallback(() => {

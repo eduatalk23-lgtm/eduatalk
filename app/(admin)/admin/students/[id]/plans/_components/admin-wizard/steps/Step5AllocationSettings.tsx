@@ -21,6 +21,7 @@ import {
   Zap,
   BookOpen,
   AlertTriangle,
+  Lock,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useAdminWizardData } from "../_context";
@@ -88,8 +89,8 @@ export function Step5AllocationSettings({
   // 현재 설정 값
   const studentLevel = schedulerOptions.student_level || "medium";
   const weakSubjectFocus = schedulerOptions.weak_subject_focus || "medium";
-  const studyDays = schedulerOptions.study_days || 5;
-  const reviewDays = schedulerOptions.review_days || 2;
+  const studyDays = schedulerOptions.study_days || 6;
+  const reviewDays = schedulerOptions.review_days || 1;
 
   // 플랜 그룹 학습 유형
   const handleStudyTypeChange = useCallback(
@@ -160,27 +161,23 @@ export function Step5AllocationSettings({
           </div>
         </div>
 
-        {/* 기본 설정 */}
+        {/* 기본 설정 - 플래너에서 상속 (Phase 3: 읽기 전용) */}
         <div className="space-y-4">
-          <h3 className="text-sm font-medium text-gray-700">기본 스케줄러 설정</h3>
-
-          {/* 학습일수 */}
-          <div className="space-y-2">
-            <label className="text-xs text-gray-600">주간 학습일수</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="range"
-                min={1}
-                max={7}
-                value={studyDays}
-                onChange={(e) =>
-                  handleUpdateOptions({ study_days: Number(e.target.value) })
-                }
-                className="flex-1"
-              />
-              <span className="w-12 text-center text-sm font-medium text-gray-900">
-                {studyDays}일
-              </span>
+          <h3 className="text-sm font-medium text-gray-700">스케줄러 설정</h3>
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+            <div className="flex items-center gap-2 text-xs font-medium text-blue-700 mb-3">
+              <Lock className="h-3.5 w-3.5" />
+              플래너에서 상속된 설정
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-lg bg-white p-3 shadow-sm">
+                <p className="text-xs text-gray-500">주간 학습일</p>
+                <p className="mt-1 text-lg font-semibold text-gray-900">{studyDays}일</p>
+              </div>
+              <div className="rounded-lg bg-white p-3 shadow-sm">
+                <p className="text-xs text-gray-500">복습 주기</p>
+                <p className="mt-1 text-lg font-semibold text-gray-900">{reviewDays}일</p>
+              </div>
             </div>
           </div>
         </div>

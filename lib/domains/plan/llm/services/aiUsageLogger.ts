@@ -12,6 +12,7 @@ import type { ModelTier } from "../types";
 // 타입 정의
 // ============================================
 
+// P3-4: AI 액션 타입 확장
 export type AIActionType =
   | "generate_plan"
   | "stream_plan"
@@ -19,9 +20,23 @@ export type AIActionType =
   | "recommend_content"
   | "optimize_plan"
   | "regenerate_partial"
-  | "search_content";
+  | "search_content"
+  // P3-4: 새로운 파이프라인 액션 타입
+  | "generate_hybrid_plan"
+  | "generate_unified_plan"
+  | "batch_generate_plan"
+  | "cold_start_recommendation"
+  | "web_search_content";
 
-export type PlanningMode = "strategy" | "schedule";
+export type PlanningMode = "strategy" | "schedule" | "hybrid" | "unified";
+
+// P3-4: 파이프라인 식별자
+export type PipelineType =
+  | "hybrid_complete"
+  | "unified"
+  | "batch"
+  | "cold_start"
+  | "legacy";
 
 export interface AIUsageLogEntry {
   tenantId: string;
@@ -40,6 +55,31 @@ export interface AIUsageLogEntry {
   errorMessage?: string | null;
   requestDurationMs?: number | null;
   metadata?: Record<string, unknown>;
+  // P3-4: 확장 필드
+  pipelineType?: PipelineType | null;
+  batchId?: string | null;
+  planGroupId?: string | null;
+  plannerId?: string | null;
+  contentIds?: string[] | null;
+  isFallback?: boolean;
+  fallbackReason?: string | null;
+  cacheHit?: boolean;
+  retryCount?: number;
+}
+
+// P3-4: 배치 작업 요약 타입
+export interface BatchUsageSummary {
+  batchId: string;
+  totalStudents: number;
+  successfulStudents: number;
+  failedStudents: number;
+  totalTokens: number;
+  totalCostUsd: number;
+  averageTokensPerStudent: number;
+  averageCostPerStudent: number;
+  startedAt: string;
+  completedAt?: string;
+  durationMs?: number;
 }
 
 export interface UsageSummary {
@@ -68,10 +108,27 @@ export interface UsageSummary {
 /**
  * AI 사용량을 DB에 기록합니다.
  * 비동기로 실행되며, 실패해도 메인 플로우에 영향을 주지 않습니다.
+ *
+ * P3-4: 확장 필드 지원 (pipelineType, batchId, planGroupId 등)
  */
 export async function logAIUsage(entry: AIUsageLogEntry): Promise<void> {
   try {
     const supabase = await createSupabaseServerClient();
+
+    // P3-4: 확장 필드를 metadata에 병합
+    const extendedMetadata = {
+      ...(entry.metadata || {}),
+      // 확장 필드들 (DB 스키마에 컬럼이 없으면 metadata에 저장)
+      ...(entry.pipelineType && { pipeline_type: entry.pipelineType }),
+      ...(entry.batchId && { batch_id: entry.batchId }),
+      ...(entry.planGroupId && { plan_group_id: entry.planGroupId }),
+      ...(entry.plannerId && { planner_id: entry.plannerId }),
+      ...(entry.contentIds && { content_ids: entry.contentIds }),
+      ...(entry.isFallback !== undefined && { is_fallback: entry.isFallback }),
+      ...(entry.fallbackReason && { fallback_reason: entry.fallbackReason }),
+      ...(entry.cacheHit !== undefined && { cache_hit: entry.cacheHit }),
+      ...(entry.retryCount !== undefined && { retry_count: entry.retryCount }),
+    };
 
     const { error } = await supabase.from("ai_usage_logs").insert({
       tenant_id: entry.tenantId,
@@ -89,7 +146,7 @@ export async function logAIUsage(entry: AIUsageLogEntry): Promise<void> {
       success: entry.success,
       error_message: entry.errorMessage || null,
       request_duration_ms: entry.requestDurationMs || null,
-      metadata: entry.metadata || {},
+      metadata: extendedMetadata,
     });
 
     if (error) {
@@ -274,4 +331,183 @@ export async function getDailyStats(
     console.error("[aiUsageLogger] Unexpected error in getDailyStats:", err);
     return [];
   }
+}
+
+// ============================================
+// P3-4: 배치 작업 로깅 헬퍼
+// ============================================
+
+/**
+ * 배치 작업의 사용량 요약을 조회합니다.
+ */
+export async function getBatchUsageSummary(
+  tenantId: string,
+  batchId: string
+): Promise<BatchUsageSummary | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    const { data, error } = await supabase
+      .from("ai_usage_logs")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .contains("metadata", { batch_id: batchId });
+
+    if (error || !data || data.length === 0) {
+      return null;
+    }
+
+    const studentIds = new Set<string>();
+    const successfulStudentIds = new Set<string>();
+    const failedStudentIds = new Set<string>();
+    let totalTokens = 0;
+    let totalCost = 0;
+    let earliestTime: string | null = null;
+    let latestTime: string | null = null;
+
+    for (const log of data) {
+      const studentId = log.student_id;
+      if (studentId) {
+        studentIds.add(studentId);
+        if (log.success) {
+          successfulStudentIds.add(studentId);
+        } else {
+          failedStudentIds.add(studentId);
+        }
+      }
+      totalTokens += (log.input_tokens || 0) + (log.output_tokens || 0);
+      totalCost += parseFloat(log.estimated_cost_usd || "0");
+
+      if (!earliestTime || log.created_at < earliestTime) {
+        earliestTime = log.created_at;
+      }
+      if (!latestTime || log.created_at > latestTime) {
+        latestTime = log.created_at;
+      }
+    }
+
+    const totalStudents = studentIds.size;
+    const durationMs = earliestTime && latestTime
+      ? new Date(latestTime).getTime() - new Date(earliestTime).getTime()
+      : undefined;
+
+    return {
+      batchId,
+      totalStudents,
+      successfulStudents: successfulStudentIds.size,
+      failedStudents: failedStudentIds.size,
+      totalTokens,
+      totalCostUsd: totalCost,
+      averageTokensPerStudent: totalStudents > 0 ? totalTokens / totalStudents : 0,
+      averageCostPerStudent: totalStudents > 0 ? totalCost / totalStudents : 0,
+      startedAt: earliestTime || new Date().toISOString(),
+      completedAt: latestTime || undefined,
+      durationMs,
+    };
+  } catch (err) {
+    console.error("[aiUsageLogger] Unexpected error in getBatchUsageSummary:", err);
+    return null;
+  }
+}
+
+/**
+ * 파이프라인별 사용량 통계를 조회합니다.
+ */
+export async function getUsageByPipeline(
+  tenantId: string,
+  dateRange?: { start: string; end: string }
+): Promise<Record<string, { count: number; tokens: number; cost: number; avgDurationMs: number }>> {
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    let query = supabase
+      .from("ai_usage_logs")
+      .select("metadata, input_tokens, output_tokens, estimated_cost_usd, request_duration_ms")
+      .eq("tenant_id", tenantId);
+
+    if (dateRange) {
+      query = query
+        .gte("created_at", dateRange.start)
+        .lte("created_at", dateRange.end);
+    }
+
+    const { data, error } = await query;
+
+    if (error || !data) {
+      return {};
+    }
+
+    const pipelineStats: Record<string, {
+      count: number;
+      tokens: number;
+      cost: number;
+      totalDurationMs: number;
+      durationCount: number;
+    }> = {};
+
+    for (const log of data) {
+      const metadata = log.metadata as Record<string, unknown> | null;
+      const pipelineType = (metadata?.pipeline_type as string) || "legacy";
+
+      if (!pipelineStats[pipelineType]) {
+        pipelineStats[pipelineType] = {
+          count: 0,
+          tokens: 0,
+          cost: 0,
+          totalDurationMs: 0,
+          durationCount: 0,
+        };
+      }
+
+      pipelineStats[pipelineType].count++;
+      pipelineStats[pipelineType].tokens +=
+        (log.input_tokens || 0) + (log.output_tokens || 0);
+      pipelineStats[pipelineType].cost +=
+        parseFloat(log.estimated_cost_usd || "0");
+
+      if (log.request_duration_ms) {
+        pipelineStats[pipelineType].totalDurationMs += log.request_duration_ms;
+        pipelineStats[pipelineType].durationCount++;
+      }
+    }
+
+    // 평균 계산
+    const result: Record<string, { count: number; tokens: number; cost: number; avgDurationMs: number }> = {};
+    for (const [pipeline, stats] of Object.entries(pipelineStats)) {
+      result[pipeline] = {
+        count: stats.count,
+        tokens: stats.tokens,
+        cost: stats.cost,
+        avgDurationMs: stats.durationCount > 0
+          ? Math.round(stats.totalDurationMs / stats.durationCount)
+          : 0,
+      };
+    }
+
+    return result;
+  } catch (err) {
+    console.error("[aiUsageLogger] Unexpected error in getUsageByPipeline:", err);
+    return {};
+  }
+}
+
+/**
+ * 콘솔에 사용량 요약을 출력합니다 (디버깅용).
+ */
+export function logUsageSummaryToConsole(
+  action: string,
+  entry: Partial<AIUsageLogEntry>
+): void {
+  const tokens = (entry.inputTokens || 0) + (entry.outputTokens || 0);
+  const cost = entry.estimatedCostUsd || 0;
+  const duration = entry.requestDurationMs || 0;
+
+  console.log(
+    `[AI Usage] ${action} | ` +
+    `Tokens: ${tokens.toLocaleString()} (in: ${(entry.inputTokens || 0).toLocaleString()}, out: ${(entry.outputTokens || 0).toLocaleString()}) | ` +
+    `Cost: $${cost.toFixed(6)} | ` +
+    `Duration: ${duration}ms | ` +
+    `Model: ${entry.modelId || entry.modelTier || "unknown"} | ` +
+    `Success: ${entry.success ?? "N/A"}`
+  );
 }

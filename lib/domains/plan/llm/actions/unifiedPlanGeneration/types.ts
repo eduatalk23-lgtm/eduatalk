@@ -129,6 +129,14 @@ export interface UnifiedPlanGenerationInput {
 
   // 생성 옵션
   generationOptions?: GenerationOptions;
+
+  // Phase 3: 플래너 연계 필드
+  /** 연결할 플래너 ID (없으면 자동 생성) */
+  plannerId?: string | null;
+  /** 생성 모드 */
+  creationMode?: "unified" | "unified_batch";
+  /** 플래너 검증 모드 (기본값: "auto_create") */
+  plannerValidationMode?: "warn" | "strict" | "auto_create";
 }
 
 /**
@@ -154,6 +162,14 @@ export interface ValidatedPlanInput {
   // 계산된 메타데이터
   totalDays: number;
   availableDays: number;
+
+  // Phase 3: 플래너 연계 필드
+  /** 연결할 플래너 ID (없으면 자동 생성) */
+  plannerId?: string | null;
+  /** 생성 모드 */
+  creationMode?: "unified" | "unified_batch";
+  /** 플래너 검증 모드 (기본값: "auto_create") */
+  plannerValidationMode?: "warn" | "strict" | "auto_create";
 }
 
 // ============================================================================
@@ -354,8 +370,26 @@ export interface MarkdownExportData {
 // 파이프라인 통합 타입
 // ============================================================================
 
+// P2-1: 공통 에러 타입 re-export
+export type {
+  PipelineErrorStage,
+  PipelineErrorCode,
+  PipelineWarning as CommonPipelineWarning,
+  PipelineResultBase,
+} from "@/lib/domains/plan/llm/types";
+
+export {
+  PIPELINE_ERROR_CODES,
+  PIPELINE_ERROR_STAGES,
+  createPipelineError,
+  createPipelineWarning,
+  extractErrorMessage,
+} from "@/lib/domains/plan/llm/types";
+
 /**
- * 파이프라인 실패 단계
+ * 파이프라인 실패 단계 (Unified 전용)
+ *
+ * @deprecated 공통 PipelineErrorStage 사용 권장
  */
 export type PipelineFailureStage =
   | "validation"
@@ -384,6 +418,8 @@ export interface UnifiedPlanGenerationSuccessOutput {
     autoAdjustedCount: number;
     overlapValidation?: OverlapValidationResult;
   };
+  // P2-1: 공통 필드 추가
+  warnings?: import("@/lib/domains/plan/llm/types").PipelineWarning[];
 }
 
 /**
@@ -394,6 +430,8 @@ export interface UnifiedPlanGenerationFailureOutput {
   error: string;
   failedAt: PipelineFailureStage;
   details?: Record<string, unknown>;
+  // P2-1: 에러 코드 추가
+  errorCode?: import("@/lib/domains/plan/llm/types").PipelineErrorCode;
 }
 
 /**

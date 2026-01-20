@@ -530,15 +530,21 @@ export function Step6FinalReview({ studentName }: Step6FinalReviewProps) {
                 </div>
               )}
               <div className="flex justify-between">
-                <span className="text-gray-500">주간 학습일</span>
+                <span className="flex items-center gap-1 text-gray-500">
+                  <Lock className="h-3 w-3 text-blue-500" />
+                  주간 학습일
+                </span>
                 <span className="font-medium text-gray-900">
-                  {schedulerOptions.study_days || 5}일
+                  {schedulerOptions.study_days || 6}일
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">복습 주기</span>
+                <span className="flex items-center gap-1 text-gray-500">
+                  <Lock className="h-3 w-3 text-blue-500" />
+                  복습 주기
+                </span>
                 <span className="font-medium text-gray-900">
-                  {schedulerOptions.review_days || 2}일
+                  {schedulerOptions.review_days || 1}일
                 </span>
               </div>
             </div>

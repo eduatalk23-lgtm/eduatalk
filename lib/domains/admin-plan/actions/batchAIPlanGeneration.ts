@@ -4,10 +4,14 @@
  * 배치 AI 플랜 생성 액션
  *
  * 여러 학생에게 동시에 AI 플랜을 생성합니다.
- * API 레이트 리밋을 고려하여 동시에 최대 3명씩 처리합니다.
+ * P3-1: API 레이트 리밋을 고려하여 동시에 최대 5명씩 처리합니다.
  *
  * @module lib/domains/admin-plan/actions/batchAIPlanGeneration
  */
+
+// P3-1: 배치 동시 처리 수 제한 (3 → 5 확대)
+// Rate limit 고려: Claude API는 분당 요청 제한이 있으므로 적절한 값 유지 필요
+const BATCH_CONCURRENCY_LIMIT = 5;
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
@@ -40,6 +44,12 @@ import {
   type AtomicPlanGroupInput,
 } from "@/lib/domains/plan/transactions";
 import { batchPlanItemsToAtomicPayloads } from "@/lib/domains/admin-plan/transformers/llmResponseTransformer";
+
+// Phase 3: 플래너 자동 생성 유틸리티
+import {
+  ensurePlannerForPipeline,
+  type PlannerValidationMode,
+} from "@/lib/domains/plan/actions/planners/autoCreate";
 
 // ============================================
 // 타입 정의
@@ -80,6 +90,8 @@ export interface BatchPlanSettings {
     /** 검색 결과를 DB에 저장할지 여부 */
     saveResults?: boolean;
   };
+  /** 플래너 검증 모드 (기본값: "auto_create") */
+  plannerValidationMode?: "warn" | "strict" | "auto_create";
 }
 
 /**
@@ -104,7 +116,10 @@ export interface StudentPlanResult {
   studentId: string;
   studentName: string;
   status: "success" | "error" | "skipped";
+  /** @deprecated 단일 Plan Group ID (하위 호환성). planGroupIds 사용 권장 */
   planGroupId?: string;
+  /** 콘텐츠별 생성된 Plan Group ID 목록 */
+  planGroupIds?: string[];
   totalPlans?: number;
   cost?: {
     inputTokens: number;
@@ -188,6 +203,7 @@ async function loadStudentData(
 
   return student;
 }
+
 
 async function loadScores(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
@@ -362,6 +378,48 @@ export async function generatePlanForStudent(
       };
     }
 
+    // 2.5. 플래너 확보 (Phase 3 플래너 연계) - 공통 유틸리티 사용
+    currentStep = "ensure_planner";
+    logActionDebug("generatePlanForStudent", `단계: ${currentStep} - ${studentName}`);
+
+    const plannerResult = await ensurePlannerForPipeline({
+      studentId,
+      periodStart: settings.startDate,
+      periodEnd: settings.endDate,
+      validationMode: (settings.plannerValidationMode as PlannerValidationMode) ?? "auto_create",
+    });
+
+    // strict 모드에서 플래너 확보 실패 시 에러 반환
+    if (!plannerResult.success) {
+      return {
+        studentId,
+        studentName: student.name,
+        status: "error",
+        error: plannerResult.error || "플래너 확보에 실패했습니다.",
+        failedStep: currentStep,
+      };
+    }
+
+    const plannerId = plannerResult.plannerId;
+
+    if (plannerResult.isNew) {
+      logActionDebug(
+        "generatePlanForStudent",
+        `플래너 자동 생성 완료 - ${studentName}: plannerId=${plannerId}`
+      );
+    } else if (plannerResult.hasWarning) {
+      // P3-3: 레거시 데이터 경고 개선
+      logActionWarn(
+        "generatePlanForStudent",
+        `[레거시] 플래너 미연결 상태 - ${studentName} (studentId: ${studentId}) | 원인: 플래너 자동 생성 비활성화/실패 | 영향: 통합 관리 불가 | 권장: 배치 설정에서 플래너 자동 생성 활성화`
+      );
+    } else {
+      logActionDebug(
+        "generatePlanForStudent",
+        `기존 플래너 사용 - ${studentName}: plannerId=${plannerId}`
+      );
+    }
+
     // 3. 관련 데이터 로드
     currentStep = "load_data";
     logActionDebug("generatePlanForStudent", `단계: ${currentStep} - ${studentName}`);
@@ -492,7 +550,13 @@ export async function generatePlanForStudent(
       };
 
       // DB 저장 옵션이 활성화된 경우
-      if (settings.webSearchConfig?.saveResults && tenantId) {
+      if (settings.webSearchConfig?.saveResults) {
+        if (!tenantId) {
+          logActionWarn(
+            "generatePlanForStudent",
+            `[웹 검색] tenantId 누락으로 콘텐츠 저장 스킵 - ${student.name}`
+          );
+        } else {
         try {
           const webContentService = getWebSearchContentService();
 
@@ -532,6 +596,7 @@ export async function generatePlanForStudent(
           );
           webSearchResults.saveError = errorMessage;
         }
+        }
       }
     } else if (settings.enableWebSearch) {
       // 웹 검색이 활성화되었지만 결과가 없는 경우 로깅
@@ -555,62 +620,9 @@ export async function generatePlanForStudent(
       };
     }
 
-    // 8. 플랜 그룹 원자적 생성
-    currentStep = "create_plan_group";
+    // 8. 플랜 수집 및 콘텐츠별 그룹화
+    currentStep = "collect_plans";
     logActionDebug("generatePlanForStudent", `단계: ${currentStep} - ${studentName}`);
-
-    const groupName = planGroupNameTemplate
-      .replace("{startDate}", settings.startDate)
-      .replace("{endDate}", settings.endDate)
-      .replace("{studentName}", student.name);
-
-    const groupInput: AtomicPlanGroupInput = {
-      tenant_id: tenantId,
-      student_id: studentId,
-      name: groupName,
-      plan_purpose: null,
-      scheduler_type: "ai_batch",
-      scheduler_options: null,
-      period_start: settings.startDate,
-      period_end: settings.endDate,
-      target_date: null,
-      block_set_id: null,
-      status: "active",
-      subject_constraints: null,
-      additional_period_reallocation: null,
-      non_study_time_blocks: null,
-      daily_schedule: null,
-      plan_type: "ai",
-      camp_template_id: null,
-      camp_invitation_id: null,
-      use_slot_mode: false,
-      content_slots: null,
-    };
-
-    const groupResult = await createPlanGroupAtomic(
-      groupInput,
-      [], // contents (콘텐츠는 플랜과 함께 저장)
-      [], // exclusions
-      [], // academySchedules
-      true // useAdmin
-    );
-
-    if (!groupResult.success || !groupResult.group_id) {
-      logActionError("generatePlanForStudent", `플랜 그룹 생성 실패 - ${studentName}: ${groupResult.error || "unknown"}`);
-      return {
-        studentId,
-        studentName: student.name,
-        status: "error",
-        error: groupResult.error || "플랜 그룹 생성에 실패했습니다.",
-        failedStep: currentStep,
-      };
-    }
-
-    const planGroupId = groupResult.group_id;
-
-    // 9. 플랜 원자적 저장
-    currentStep = "save_plans";
-    logActionDebug("generatePlanForStudent", `단계: ${currentStep} - ${studentName}, planGroupId: ${planGroupId}`);
 
     const allPlans: GeneratedPlanItem[] = [];
     for (const matrix of parsed.response.weeklyMatrices) {
@@ -619,31 +631,167 @@ export async function generatePlanForStudent(
       }
     }
 
-    logActionDebug("generatePlanForStudent", `플랜 변환 중 - ${studentName}, 총 ${allPlans.length}개 플랜`);
+    logActionDebug("generatePlanForStudent", `총 ${allPlans.length}개 플랜 수집 완료 - ${studentName}`);
 
-    // LLM 응답을 AtomicPlanPayload로 변환
-    const atomicPlans = batchPlanItemsToAtomicPayloads(
-      allPlans,
-      planGroupId,
-      studentId,
-      tenantId
+    // 플랜을 contentId별로 그룹화
+    const plansByContent = new Map<string, GeneratedPlanItem[]>();
+    for (const plan of allPlans) {
+      const existing = plansByContent.get(plan.contentId) || [];
+      existing.push(plan);
+      plansByContent.set(plan.contentId, existing);
+    }
+
+    // contents를 Map으로 변환 (빠른 조회용)
+    const contentsMap = new Map(contents.map((c) => [c.id, c]));
+
+    logActionDebug(
+      "generatePlanForStudent",
+      `콘텐츠별 분할: ${plansByContent.size}개 콘텐츠 - ${studentName}`
     );
 
-    const plansResult = await generatePlansAtomic(
-      planGroupId,
-      atomicPlans,
-      "active", // 플랜 상태를 active로 설정
-      true // useAdmin
-    );
+    // 9. 콘텐츠별 Plan Group 생성 및 플랜 저장 (병렬 처리 최적화)
+    currentStep = "create_plan_groups_per_content";
 
-    if (!plansResult.success) {
-      // 플랜 저장 실패 시 생성된 그룹 삭제 시도
-      logActionError("generatePlanForStudent", `플랜 저장 실패 - ${studentName}, 그룹 롤백 시도: ${planGroupId}: ${plansResult.error || "unknown"}`);
+    // 9.1 유효한 콘텐츠 데이터 준비
+    type ContentPlanData = {
+      contentId: string;
+      content: NonNullable<ReturnType<typeof contentsMap.get>>;
+      contentPlans: GeneratedPlanItem[];
+      groupInput: AtomicPlanGroupInput;
+    };
+
+    const validContentData: ContentPlanData[] = [];
+    for (const [contentId, contentPlans] of plansByContent) {
+      const content = contentsMap.get(contentId);
+      if (!content) {
+        // P3-3: 레거시 데이터 경고 개선
+        logActionWarn(
+          "generatePlanForStudent",
+          `[데이터 불일치] 콘텐츠 매핑 실패 - ${studentName} | contentId: ${contentId} | 건너뛴 플랜: ${contentPlans.length}개 | 원인: AI 응답의 contentId가 콘텐츠 목록에 없음 (삭제됨 또는 파싱 오류)`
+        );
+        continue;
+      }
+
+      // 콘텐츠별 Plan Group 이름 생성
+      const groupName = `${content.title} (${settings.startDate} ~ ${settings.endDate})`;
+
+      // 콘텐츠의 범위 계산 (플랜에서 최소/최대 추출)
+      const ranges = contentPlans
+        .filter((p) => p.rangeStart !== undefined && p.rangeEnd !== undefined)
+        .map((p) => ({ start: p.rangeStart!, end: p.rangeEnd! }));
+      const startRange = ranges.length > 0 ? Math.min(...ranges.map((r) => r.start)) : 1;
+      const endRange = ranges.length > 0
+        ? Math.max(...ranges.map((r) => r.end))
+        : content.total_pages ?? content.total_lectures ?? 1;
+
+      const groupInput: AtomicPlanGroupInput = {
+        tenant_id: tenantId,
+        student_id: studentId,
+        name: groupName,
+        plan_purpose: null,
+        scheduler_type: "ai_batch",
+        scheduler_options: null,
+        period_start: settings.startDate,
+        period_end: settings.endDate,
+        target_date: null,
+        block_set_id: null,
+        status: "active",
+        subject_constraints: null,
+        additional_period_reallocation: null,
+        non_study_time_blocks: null,
+        daily_schedule: null,
+        plan_type: "ai",
+        camp_template_id: null,
+        camp_invitation_id: null,
+        use_slot_mode: false,
+        content_slots: null,
+
+        // Phase 3 플래너 연계 필드
+        planner_id: plannerId,
+        creation_mode: "ai_batch",
+        is_single_content: true,
+
+        // 단일 콘텐츠 정보
+        content_type: content.content_type,
+        content_id: content.id,
+        master_content_id: content.id,
+        start_range: startRange,
+        end_range: endRange,
+      };
+
+      validContentData.push({ contentId, content, contentPlans, groupInput });
+    }
+
+    // 9.2 Phase 1: 모든 Plan Group 병렬 생성
+    const groupCreationPromises = validContentData.map(async (data) => {
+      const groupResult = await createPlanGroupAtomic(
+        data.groupInput,
+        [],
+        [],
+        [],
+        true
+      );
+
+      if (!groupResult.success || !groupResult.group_id) {
+        logActionError(
+          "generatePlanForStudent",
+          `Plan Group 생성 실패 - ${data.content.title}, ${studentName}: ${groupResult.error || "unknown"}`
+        );
+        return { ...data, groupId: null as string | null };
+      }
+
+      return { ...data, groupId: groupResult.group_id };
+    });
+
+    const groupResults = await Promise.all(groupCreationPromises);
+    const successfulGroups = groupResults.filter((r) => r.groupId !== null);
+
+    // 9.3 Phase 2: 모든 플랜 병렬 저장
+    const planCreationPromises = successfulGroups.map(async (data) => {
+      const atomicPlans = batchPlanItemsToAtomicPayloads(
+        data.contentPlans,
+        data.groupId!,
+        studentId,
+        tenantId
+      );
+
+      const plansResult = await generatePlansAtomic(
+        data.groupId!,
+        atomicPlans,
+        "active",
+        true
+      );
+
+      if (!plansResult.success) {
+        logActionError(
+          "generatePlanForStudent",
+          `플랜 저장 실패 - ${data.content.title}, ${studentName}: ${plansResult.error || "unknown"}`
+        );
+        return { groupId: data.groupId!, planCount: 0, success: false };
+      }
+
+      logActionDebug(
+        "generatePlanForStudent",
+        `Plan Group 생성 완료 - ${data.content.title}: ${data.contentPlans.length}개 플랜, groupId: ${data.groupId}`
+      );
+
+      return { groupId: data.groupId!, planCount: data.contentPlans.length, success: true };
+    });
+
+    const planResults = await Promise.all(planCreationPromises);
+
+    // 9.4 결과 집계
+    const createdGroupIds = planResults.filter((r) => r.success).map((r) => r.groupId);
+    const totalSavedPlans = planResults.reduce((sum, r) => sum + r.planCount, 0);
+
+    // 생성된 그룹이 없으면 에러
+    if (createdGroupIds.length === 0) {
+      logActionError("generatePlanForStudent", `모든 Plan Group 생성 실패 - ${studentName}`);
       return {
         studentId,
         studentName: student.name,
         status: "error",
-        error: plansResult.error || "플랜 저장에 실패했습니다.",
+        error: "Plan Group 생성에 실패했습니다.",
         failedStep: currentStep,
       };
     }
@@ -659,8 +807,9 @@ export async function generatePlanForStudent(
       studentId,
       studentName: student.name,
       status: "success",
-      planGroupId,
-      totalPlans: allPlans.length,
+      planGroupId: createdGroupIds[0], // 하위 호환성
+      planGroupIds: createdGroupIds,
+      totalPlans: totalSavedPlans,
       cost: {
         inputTokens: result.usage.inputTokens,
         outputTokens: result.usage.outputTokens,
@@ -688,7 +837,7 @@ export async function generatePlanForStudent(
 /**
  * 여러 학생에게 AI 플랜을 배치로 생성합니다
  *
- * API 레이트 리밋을 고려하여 동시에 최대 3명씩 처리합니다.
+ * API 레이트 리밋을 고려하여 동시에 최대 5명씩 처리합니다.
  *
  * @param {BatchPlanGenerationInput} input - 배치 생성 입력
  * @returns {Promise<BatchPlanGenerationResult>} 배치 생성 결과
@@ -763,13 +912,12 @@ async function _generateBatchPlansWithAI(
   }
 
   const results: StudentPlanResult[] = [];
-  const CONCURRENCY_LIMIT = 3; // 동시 처리 수 제한
   const groupNameTemplate =
     planGroupNameTemplate || "AI 학습 계획 ({startDate} ~ {endDate})";
 
-  // 배치 처리 (동시에 최대 3명씩)
-  for (let i = 0; i < students.length; i += CONCURRENCY_LIMIT) {
-    const batch = students.slice(i, i + CONCURRENCY_LIMIT);
+  // P3-1: 배치 처리 (동시에 최대 5명씩)
+  for (let i = 0; i < students.length; i += BATCH_CONCURRENCY_LIMIT) {
+    const batch = students.slice(i, i + BATCH_CONCURRENCY_LIMIT);
 
     const batchResults = await Promise.all(
       batch.map((s) =>
@@ -787,7 +935,7 @@ async function _generateBatchPlansWithAI(
     results.push(...batchResults);
 
     // 레이트 리밋 방지를 위한 짧은 대기 (배치 사이)
-    if (i + CONCURRENCY_LIMIT < students.length) {
+    if (i + BATCH_CONCURRENCY_LIMIT < students.length) {
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
   }
@@ -999,7 +1147,6 @@ export async function generateBatchPlansWithStreaming(
   }
 
   const results: StudentPlanResult[] = [];
-  const CONCURRENCY_LIMIT = 3;
   const groupNameTemplate =
     planGroupNameTemplate || "AI 학습 계획 ({startDate} ~ {endDate})";
 
@@ -1028,14 +1175,14 @@ export async function generateBatchPlansWithStreaming(
 
   let processedCount = 0;
 
-  // 배치 처리 (동시에 최대 3명씩)
-  for (let i = 0; i < students.length; i += CONCURRENCY_LIMIT) {
+  // 배치 처리 (동시에 최대 5명씩)
+  for (let i = 0; i < students.length; i += BATCH_CONCURRENCY_LIMIT) {
     // 취소 확인
     if (signal?.aborted) {
       throw new AppError("처리가 취소되었습니다.", ErrorCode.BUSINESS_LOGIC_ERROR, 499, true);
     }
 
-    const batch = students.slice(i, i + CONCURRENCY_LIMIT);
+    const batch = students.slice(i, i + BATCH_CONCURRENCY_LIMIT);
 
     // 시작 이벤트 발행 (배치 내 각 학생)
     for (const s of batch) {
@@ -1092,7 +1239,7 @@ export async function generateBatchPlansWithStreaming(
     results.push(...batchResults);
 
     // 레이트 리밋 방지를 위한 짧은 대기 (배치 사이)
-    if (i + CONCURRENCY_LIMIT < students.length) {
+    if (i + BATCH_CONCURRENCY_LIMIT < students.length) {
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
   }

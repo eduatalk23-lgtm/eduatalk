@@ -328,7 +328,7 @@ export class WebSearchContentService {
    * 웹 검색 콘텐츠를 DB에 저장
    *
    * master_books 또는 master_lectures 테이블에 저장합니다.
-   * 중복 URL은 건너뜁니다.
+   * P2-3: 배치 중복 검사로 최적화 (URL 및 제목 기반)
    *
    * @param contents - 저장할 웹 콘텐츠 배열
    * @param tenantId - 테넌트 ID
@@ -349,34 +349,95 @@ export class WebSearchContentService {
       };
     }
 
+    if (contents.length === 0) {
+      return {
+        success: true,
+        savedCount: 0,
+        savedIds: [],
+        duplicateCount: 0,
+        errors: [],
+      };
+    }
+
     const savedIds: string[] = [];
     const errors: string[] = [];
     let duplicateCount = 0;
 
+    // P2-3: 배치 중복 검사 - 모든 URL과 제목을 한 번에 조회
+    const allUrls = contents.map((c) => c.url).filter(Boolean);
+
+    // 기존 URL 조회 (배치)
+    const existingUrlSet = new Set<string>();
+    const existingTitleSet = new Set<string>();
+
+    if (allUrls.length > 0) {
+      // master_books에서 기존 URL 조회
+      const { data: existingBooks } = await supabase
+        .from("master_books")
+        .select("source_url, title")
+        .eq("tenant_id", tenantId)
+        .in("source_url", allUrls);
+
+      if (existingBooks) {
+        existingBooks.forEach((b) => {
+          if (b.source_url) existingUrlSet.add(b.source_url);
+          if (b.title) existingTitleSet.add(b.title.toLowerCase().trim());
+        });
+      }
+
+      // master_lectures에서 기존 URL 조회
+      const { data: existingLectures } = await supabase
+        .from("master_lectures")
+        .select("lecture_source_url, title")
+        .eq("tenant_id", tenantId)
+        .in("lecture_source_url", allUrls);
+
+      if (existingLectures) {
+        existingLectures.forEach((l) => {
+          if (l.lecture_source_url) existingUrlSet.add(l.lecture_source_url);
+          if (l.title) existingTitleSet.add(l.title.toLowerCase().trim());
+        });
+      }
+    }
+
+    // P2-3: 제목 유사도 기반 추가 중복 검사 (URL이 다르더라도)
+    const { data: similarTitleBooks } = await supabase
+      .from("master_books")
+      .select("title")
+      .eq("tenant_id", tenantId)
+      .eq("source", "web_search")
+      .limit(500);
+
+    if (similarTitleBooks) {
+      similarTitleBooks.forEach((b) => {
+        if (b.title) existingTitleSet.add(b.title.toLowerCase().trim());
+      });
+    }
+
+    const { data: similarTitleLectures } = await supabase
+      .from("master_lectures")
+      .select("title")
+      .eq("tenant_id", tenantId)
+      .limit(500);
+
+    if (similarTitleLectures) {
+      similarTitleLectures.forEach((l) => {
+        if (l.title) existingTitleSet.add(l.title.toLowerCase().trim());
+      });
+    }
+
+    // 중복 필터링된 콘텐츠 저장
     for (const content of contents) {
       try {
-        // URL 기반 중복 체크 (master_books)
-        const { data: existingBook } = await supabase
-          .from("master_books")
-          .select("id")
-          .eq("source_url", content.url)
-          .eq("tenant_id", tenantId)
-          .maybeSingle();
-
-        if (existingBook) {
+        // URL 기반 중복 체크
+        if (content.url && existingUrlSet.has(content.url)) {
           duplicateCount++;
           continue;
         }
 
-        // URL 기반 중복 체크 (master_lectures)
-        const { data: existingLecture } = await supabase
-          .from("master_lectures")
-          .select("id")
-          .eq("lecture_source_url", content.url)
-          .eq("tenant_id", tenantId)
-          .maybeSingle();
-
-        if (existingLecture) {
+        // 제목 기반 중복 체크 (정확히 일치하는 경우만)
+        const normalizedTitle = content.title.toLowerCase().trim();
+        if (existingTitleSet.has(normalizedTitle)) {
           duplicateCount++;
           continue;
         }
@@ -392,7 +453,6 @@ export class WebSearchContentService {
               subject: content.subject,
               subject_category: content.subjectCategory,
               notes: content.snippet,
-              // 구조 정보
               total_episodes:
                 content.totalRange && content.totalRange > 0
                   ? content.totalRange
@@ -414,6 +474,9 @@ export class WebSearchContentService {
             errors.push(`강의 저장 실패 (${content.title}): ${error.message}`);
           } else {
             savedIds.push(data.id);
+            // 저장된 제목을 Set에 추가하여 동일 배치 내 중복 방지
+            existingTitleSet.add(normalizedTitle);
+            if (content.url) existingUrlSet.add(content.url);
           }
         } else {
           // web_book, web_article -> master_books에 저장
@@ -428,7 +491,6 @@ export class WebSearchContentService {
               subject_category: content.subjectCategory,
               notes: content.snippet,
               description: `웹 검색 결과 - 검색어: ${content.searchQuery}`,
-              // 구조 정보
               total_pages: content.totalRange ?? null,
               author: content.author ?? null,
               publisher_name: content.publisher ?? null,
@@ -447,6 +509,9 @@ export class WebSearchContentService {
             errors.push(`교재 저장 실패 (${content.title}): ${error.message}`);
           } else {
             savedIds.push(data.id);
+            // 저장된 제목을 Set에 추가하여 동일 배치 내 중복 방지
+            existingTitleSet.add(normalizedTitle);
+            if (content.url) existingUrlSet.add(content.url);
           }
         }
       } catch (error) {
