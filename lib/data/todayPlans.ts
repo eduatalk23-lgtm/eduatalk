@@ -28,7 +28,9 @@ import type { PostgrestError } from "@supabase/supabase-js";
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * 특정 날짜의 ad_hoc_plans 조회
+ * 특정 날짜의 ad-hoc 플랜 통합 조회
+ *
+ * Phase 3.1: student_plan (is_adhoc=true)와 ad_hoc_plans 모두 조회
  */
 async function getAdHocPlansForDate(options: {
   studentId: string;
@@ -37,10 +39,67 @@ async function getAdHocPlansForDate(options: {
   supabase: SupabaseServerClient;
 }): Promise<AdHocPlan[]> {
   const { studentId, tenantId, planDate, supabase } = options;
+  const results: AdHocPlan[] = [];
 
-  // ad_hoc_plans 테이블에서 해당 날짜의 플랜 조회
-  // plan_date가 해당 날짜인 플랜들을 가져옴
-  let query = supabase
+  // 1. student_plan에서 is_adhoc=true 조회 (새 데이터)
+  let studentPlanQuery = supabase
+    .from("student_plan")
+    .select("*")
+    .eq("student_id", studentId)
+    .eq("plan_date", planDate)
+    .eq("is_adhoc", true)
+    .order("created_at", { ascending: false });
+
+  if (tenantId) {
+    studentPlanQuery = studentPlanQuery.eq("tenant_id", tenantId);
+  }
+
+  const { data: studentPlans, error: spError } = await studentPlanQuery;
+
+  if (!spError && studentPlans) {
+    // student_plan을 AdHocPlan 형식으로 변환
+    const mapped = studentPlans.map((sp) => ({
+      id: sp.id,
+      student_id: sp.student_id,
+      tenant_id: sp.tenant_id,
+      plan_group_id: sp.plan_group_id ?? "",
+      plan_date: sp.plan_date,
+      title: sp.content_title ?? "",
+      description: sp.description,
+      content_type: sp.content_type,
+      estimated_minutes: sp.estimated_minutes,
+      actual_minutes: sp.actual_minutes,
+      status: sp.status ?? "pending",
+      container_type: sp.container_type ?? "daily",
+      start_time: sp.start_time,
+      end_time: sp.end_time,
+      started_at: sp.started_at,
+      completed_at: sp.completed_at,
+      simple_completed_at: sp.simple_completed_at,
+      simple_completion: sp.simple_completion,
+      paused_at: sp.paused_at,
+      paused_duration_seconds: sp.paused_duration_seconds,
+      pause_count: sp.pause_count,
+      color: sp.color,
+      icon: sp.icon,
+      tags: sp.tags,
+      priority: sp.priority,
+      order_index: sp.order_index,
+      page_range_start: sp.planned_start_page_or_time,
+      page_range_end: sp.planned_end_page_or_time,
+      flexible_content_id: sp.flexible_content_id,
+      created_at: sp.created_at,
+      updated_at: sp.updated_at,
+      created_by: null, // student_plan에는 없음
+      is_recurring: null,
+      recurrence_rule: null,
+      recurrence_parent_id: null,
+    })) as AdHocPlan[];
+    results.push(...mapped);
+  }
+
+  // 2. ad_hoc_plans 테이블에서 레거시 데이터 조회
+  let adHocQuery = supabase
     .from("ad_hoc_plans")
     .select("*")
     .eq("student_id", studentId)
@@ -48,22 +107,30 @@ async function getAdHocPlansForDate(options: {
     .order("created_at", { ascending: false });
 
   if (tenantId) {
-    query = query.eq("tenant_id", tenantId);
+    adHocQuery = adHocQuery.eq("tenant_id", tenantId);
   } else {
-    query = query.is("tenant_id", null);
+    adHocQuery = adHocQuery.is("tenant_id", null);
   }
 
-  const { data, error } = await query;
+  const { data, error } = await adHocQuery;
 
   if (error) {
     handleQueryError(error, {
-      context: "[data/todayPlans] getAdHocPlansForDate",
+      context: "[data/todayPlans] getAdHocPlansForDate (ad_hoc_plans)",
       logError: false,
     });
-    return [];
+  } else if (data) {
+    results.push(...(data as AdHocPlan[]));
   }
 
-  return (data ?? []) as AdHocPlan[];
+  // 3. created_at 기준 정렬 (최신 우선)
+  results.sort((a, b) => {
+    const aDate = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const bDate = b.created_at ? new Date(b.created_at).getTime() : 0;
+    return bDate - aDate;
+  });
+
+  return results;
 }
 
 function normalizeIsoDate(value: string | null): string | null {
@@ -332,6 +399,17 @@ async function getPlansFromView(options: {
       // Simple completion fields
       simple_completion: row.simple_completion ?? null,
       simple_completed_at: row.simple_completed_at ?? null,
+      // Phase 3.1: ad-hoc 플랜 통합 지원 컬럼 (View에서 제공되지 않음)
+      is_adhoc: null,
+      description: null,
+      color: null,
+      icon: null,
+      tags: null,
+      priority: null,
+      started_at: null,
+      completed_at: null,
+      actual_minutes: null,
+      paused_at: null,
     };
   });
 

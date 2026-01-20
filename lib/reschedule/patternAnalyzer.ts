@@ -532,6 +532,17 @@ export async function detectRescheduleNeeds(
         // Simple completion fields
         simple_completion: plan.simple_completion ?? null,
         simple_completed_at: plan.simple_completed_at ?? null,
+        // Phase 3.1: ad-hoc 플랜 통합 지원 컬럼
+        is_adhoc: plan.is_adhoc ?? null,
+        description: plan.description ?? null,
+        color: plan.color ?? null,
+        icon: plan.icon ?? null,
+        tags: plan.tags ?? null,
+        priority: plan.priority ?? null,
+        started_at: plan.started_at ?? null,
+        completed_at: plan.completed_at ?? null,
+        actual_minutes: plan.actual_minutes ?? null,
+        paused_at: plan.paused_at ?? null,
       }));
 
       // 4. 지연 분석 수행

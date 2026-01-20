@@ -365,7 +365,7 @@ export async function getPlanById(
     supabase
       .from("student_plan")
       .select(
-        "id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,memo,created_at,updated_at,is_active,origin_plan_item_id,status,subject_type,version,version_group_id,is_virtual,slot_index,virtual_subject_category,virtual_description,container_type,is_locked,estimated_minutes,order_index,flexible_content_id,original_volume,carryover_from_date,carryover_count,custom_title,custom_range_display,review_group_id,review_source_content_ids,simple_completion,simple_completed_at"
+        "id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,memo,created_at,updated_at,is_active,origin_plan_item_id,status,subject_type,version,version_group_id,is_virtual,slot_index,virtual_subject_category,virtual_description,container_type,is_locked,estimated_minutes,order_index,flexible_content_id,original_volume,carryover_from_date,carryover_count,custom_title,custom_range_display,review_group_id,review_source_content_ids,simple_completion,simple_completed_at,is_adhoc,description,color,icon,tags,priority,started_at,completed_at,actual_minutes,paused_at"
       )
       .eq("id", planId)
       .eq("student_id", studentId);
@@ -845,6 +845,67 @@ export async function getAdHocPlansForCalendar(
 }[]> {
   const supabase = await createSupabaseServerClient();
 
+  type CalendarAdHocPlan = {
+    id: string;
+    plan_date: string;
+    title: string;
+    content_type: string | null;
+    status: string;
+    started_at: string | null;
+    completed_at: string | null;
+    estimated_minutes: number | null;
+    actual_minutes: number | null;
+    color: string | null;
+    icon: string | null;
+    planType: "ad_hoc_plan";
+  };
+
+  const results: CalendarAdHocPlan[] = [];
+
+  // 1. student_plan에서 is_adhoc=true 조회 (새 데이터)
+  const { data: studentPlans, error: spError } = await supabase
+    .from("student_plan")
+    .select(
+      `
+      id,
+      plan_date,
+      content_title,
+      content_type,
+      status,
+      started_at,
+      completed_at,
+      estimated_minutes,
+      actual_minutes,
+      color,
+      icon
+    `
+    )
+    .eq("student_id", studentId)
+    .eq("is_adhoc", true)
+    .gte("plan_date", dateRange.start)
+    .lte("plan_date", dateRange.end)
+    .order("plan_date", { ascending: true });
+
+  if (!spError && studentPlans) {
+    results.push(
+      ...studentPlans.map((plan) => ({
+        id: plan.id,
+        plan_date: plan.plan_date,
+        title: plan.content_title ?? "",
+        content_type: plan.content_type,
+        status: plan.status ?? "pending",
+        started_at: plan.started_at,
+        completed_at: plan.completed_at,
+        estimated_minutes: plan.estimated_minutes,
+        actual_minutes: plan.actual_minutes,
+        color: plan.color,
+        icon: plan.icon,
+        planType: "ad_hoc_plan" as const,
+      }))
+    );
+  }
+
+  // 2. ad_hoc_plans 테이블에서 레거시 데이터 조회
   const { data, error } = await supabase
     .from("ad_hoc_plans")
     .select(
@@ -868,15 +929,20 @@ export async function getAdHocPlansForCalendar(
     .order("plan_date", { ascending: true });
 
   if (error) {
-    logActionError("studentPlans.getAdHocPlansForCalendar", `오류: ${error.message}`);
-    return [];
+    logActionError("studentPlans.getAdHocPlansForCalendar", `ad_hoc_plans 오류: ${error.message}`);
+  } else if (data) {
+    results.push(
+      ...data.map((plan) => ({
+        ...plan,
+        planType: "ad_hoc_plan" as const,
+      }))
+    );
   }
 
-  // planType 추가하여 반환
-  return (data ?? []).map((plan) => ({
-    ...plan,
-    planType: "ad_hoc_plan" as const,
-  }));
+  // 3. plan_date 기준 정렬
+  results.sort((a, b) => a.plan_date.localeCompare(b.plan_date));
+
+  return results;
 }
 
 /**

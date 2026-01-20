@@ -6241,6 +6241,17 @@ export type Database = {
           virtual_description: string | null
           virtual_subject_category: string | null
           week: number | null
+          // Phase 3.1: ad-hoc 플랜 통합 지원 컬럼
+          is_adhoc: boolean | null
+          description: string | null
+          color: string | null
+          icon: string | null
+          tags: string[] | null
+          priority: number | null
+          started_at: string | null
+          completed_at: string | null
+          actual_minutes: number | null
+          paused_at: string | null
         }
         Insert: {
           actual_end_time?: string | null
@@ -6302,6 +6313,17 @@ export type Database = {
           virtual_description?: string | null
           virtual_subject_category?: string | null
           week?: number | null
+          // Phase 3.1: ad-hoc 플랜 통합 지원 컬럼
+          is_adhoc?: boolean | null
+          description?: string | null
+          color?: string | null
+          icon?: string | null
+          tags?: string[] | null
+          priority?: number | null
+          started_at?: string | null
+          completed_at?: string | null
+          actual_minutes?: number | null
+          paused_at?: string | null
         }
         Update: {
           actual_end_time?: string | null
@@ -6363,6 +6385,17 @@ export type Database = {
           virtual_description?: string | null
           virtual_subject_category?: string | null
           week?: number | null
+          // Phase 3.1: ad-hoc 플랜 통합 지원 컬럼
+          is_adhoc?: boolean | null
+          description?: string | null
+          color?: string | null
+          icon?: string | null
+          tags?: string[] | null
+          priority?: number | null
+          started_at?: string | null
+          completed_at?: string | null
+          actual_minutes?: number | null
+          paused_at?: string | null
         }
         Relationships: [
           {
