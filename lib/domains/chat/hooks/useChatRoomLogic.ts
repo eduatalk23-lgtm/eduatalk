@@ -83,7 +83,7 @@ export interface UseChatRoomLogicReturn {
   };
   actions: {
     sendMessage: (content: string, replyToId?: string | null) => void;
-    editMessage: (messageId: string, content: string) => void;
+    editMessage: (messageId: string, content: string, expectedUpdatedAt?: string) => void;
     deleteMessage: (messageId: string) => void;
     toggleReaction: (messageId: string, emoji: ReactionEmoji) => void;
     togglePin: (messageId: string, isPinned: boolean) => void;
@@ -393,17 +393,26 @@ export function useChatRoomLogic({
     // 대신 onSuccess에서 setQueryData로 직접 업데이트
   });
 
-  // 메시지 편집 (낙관적 업데이트)
+  // 메시지 편집 (낙관적 업데이트 + 충돌 감지)
   const editMutation = useMutation({
     mutationFn: async ({
       messageId,
       content,
+      expectedUpdatedAt,
     }: {
       messageId: string;
       content: string;
+      expectedUpdatedAt?: string;
     }) => {
-      const result = await editMessageAction(messageId, content);
-      if (!result.success) throw new Error(result.error);
+      const result = await editMessageAction(messageId, content, expectedUpdatedAt);
+      if (!result.success) {
+        // 충돌 에러는 특별 처리를 위해 코드 포함
+        const error = new Error(result.error);
+        if (result.code === "CONFLICT_EDIT") {
+          (error as Error & { code?: string }).code = "CONFLICT_EDIT";
+        }
+        throw error;
+      }
       return result.data;
     },
     onMutate: async ({ messageId, content }) => {
@@ -755,8 +764,8 @@ export function useChatRoomLogic({
   );
 
   const editMessage = useCallback(
-    (messageId: string, content: string) => {
-      editMutation.mutate({ messageId, content });
+    (messageId: string, content: string, expectedUpdatedAt?: string) => {
+      editMutation.mutate({ messageId, content, expectedUpdatedAt });
     },
     [editMutation]
   );

@@ -1032,19 +1032,36 @@ export async function findMessageById(
 
 /**
  * 메시지 내용 수정
+ *
+ * @param messageId 메시지 ID
+ * @param content 새 내용
+ * @param expectedUpdatedAt 낙관적 잠금용 - 편집 시작 시점의 updated_at 값
+ * @returns 수정된 메시지 또는 충돌 시 null
  */
 export async function updateMessageContent(
   messageId: string,
-  content: string
-): Promise<ChatMessage> {
+  content: string,
+  expectedUpdatedAt?: string
+): Promise<ChatMessage | null> {
   const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("chat_messages")
     .update({ content })
-    .eq("id", messageId)
-    .select(CHAT_MESSAGE_COLUMNS)
-    .single();
+    .eq("id", messageId);
+
+  // 낙관적 잠금: expectedUpdatedAt가 제공되면 충돌 감지
+  if (expectedUpdatedAt) {
+    query = query.eq("updated_at", expectedUpdatedAt);
+  }
+
+  const { data, error } = await query.select(CHAT_MESSAGE_COLUMNS).single();
+
+  // 충돌 감지: 조건에 맞는 row가 없으면 null 반환
+  if (error?.code === "PGRST116") {
+    // "JSON object requested, multiple (or no) rows returned"
+    return null;
+  }
 
   if (error) throw error;
 

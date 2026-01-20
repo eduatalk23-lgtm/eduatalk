@@ -153,7 +153,8 @@ export async function markAsReadAction(
  */
 export async function editMessageAction(
   messageId: string,
-  newContent: string
+  newContent: string,
+  expectedUpdatedAt?: string
 ): Promise<ChatActionResult<ChatMessage>> {
   try {
     const { userId, role } = await getCurrentUserRole();
@@ -164,7 +165,13 @@ export async function editMessageAction(
 
     const userType = getUserType(role);
 
-    return await chatService.editMessage(userId, userType, messageId, newContent);
+    return await chatService.editMessage(
+      userId,
+      userType,
+      messageId,
+      newContent,
+      expectedUpdatedAt
+    );
   } catch (error) {
     console.error("[editMessageAction] Error:", error);
     return {

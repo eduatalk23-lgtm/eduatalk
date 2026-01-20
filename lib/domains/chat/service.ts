@@ -829,7 +829,8 @@ export async function editMessage(
   userId: string,
   userType: ChatUserType,
   messageId: string,
-  newContent: string
+  newContent: string,
+  expectedUpdatedAt?: string
 ): Promise<ChatActionResult<ChatMessage>> {
   try {
     // 1. 메시지 조회
@@ -871,8 +872,21 @@ export async function editMessage(
       };
     }
 
-    // 7. 수정 실행
-    const updated = await repository.updateMessageContent(messageId, trimmedContent);
+    // 7. 수정 실행 (낙관적 잠금 적용)
+    const updated = await repository.updateMessageContent(
+      messageId,
+      trimmedContent,
+      expectedUpdatedAt
+    );
+
+    // 8. 충돌 감지
+    if (!updated) {
+      return {
+        success: false,
+        error: "다른 사용자가 이미 메시지를 수정했습니다. 최신 내용을 확인해주세요.",
+        code: "CONFLICT_EDIT",
+      };
+    }
 
     return { success: true, data: updated };
   } catch (error) {

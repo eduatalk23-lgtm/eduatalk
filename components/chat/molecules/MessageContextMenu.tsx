@@ -20,6 +20,8 @@ export interface MessageMenuContext {
   messageId: string;
   /** 메시지 내용 */
   content: string;
+  /** 메시지 수정 시각 (충돌 감지용) */
+  updatedAt: string;
   /** 본인 메시지 여부 */
   isOwn: boolean;
   /** 편집 가능 여부 */

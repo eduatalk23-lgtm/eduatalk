@@ -11,6 +11,7 @@ export type ChatErrorCategory =
   | "validation"
   | "permission"
   | "rate_limit"
+  | "conflict"
   | "server"
   | "unknown";
 
@@ -31,6 +32,8 @@ export type ChatErrorCode =
   | "PERMISSION_DENIED"
   // 속도 제한
   | "RATE_LIMIT_EXCEEDED"
+  // 충돌 오류
+  | "CONFLICT_EDIT"
   // 서버 오류
   | "SERVER_ERROR"
   | "SERVER_UNAVAILABLE"
@@ -107,6 +110,14 @@ export class ChatError extends Error {
         return new ChatError({ code: "PERMISSION_LEFT_ROOM" });
       }
 
+      if (
+        errorMessage.includes("conflict") ||
+        errorMessage.includes("충돌") ||
+        errorMessage.includes("이미 수정")
+      ) {
+        return new ChatError({ code: "CONFLICT_EDIT" });
+      }
+
       if (errorMessage.includes("blocked") || errorMessage.includes("차단")) {
         return new ChatError({ code: "PERMISSION_BLOCKED" });
       }
@@ -159,6 +170,7 @@ function getCategory(code: ChatErrorCode): ChatErrorCategory {
   if (code.startsWith("VALIDATION_")) return "validation";
   if (code.startsWith("PERMISSION_")) return "permission";
   if (code.startsWith("RATE_LIMIT_")) return "rate_limit";
+  if (code.startsWith("CONFLICT_")) return "conflict";
   if (code.startsWith("SERVER_")) return "server";
   return "unknown";
 }
@@ -179,6 +191,7 @@ function getDefaultMessage(code: ChatErrorCode): string {
     PERMISSION_MUTED: "User is muted",
     PERMISSION_DENIED: "Permission denied",
     RATE_LIMIT_EXCEEDED: "Rate limit exceeded",
+    CONFLICT_EDIT: "Message was modified by another user",
     SERVER_ERROR: "Server error occurred",
     SERVER_UNAVAILABLE: "Server is unavailable",
     UNKNOWN: "An unknown error occurred",
@@ -202,6 +215,7 @@ function getUserMessage(code: ChatErrorCode): string {
     PERMISSION_MUTED: "음소거 상태에서는 메시지를 보낼 수 없습니다.",
     PERMISSION_DENIED: "메시지를 보낼 권한이 없습니다.",
     RATE_LIMIT_EXCEEDED: "메시지를 너무 빠르게 보내고 있습니다. 잠시 후 다시 시도해주세요.",
+    CONFLICT_EDIT: "다른 사용자가 이미 메시지를 수정했습니다. 최신 내용을 확인해주세요.",
     SERVER_ERROR: "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
     SERVER_UNAVAILABLE: "서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.",
     UNKNOWN: "오류가 발생했습니다. 다시 시도해주세요.",
@@ -219,6 +233,7 @@ function isRecoverable(code: ChatErrorCode): boolean {
     "VALIDATION_INVALID_CONTENT",
     "PERMISSION_LEFT_ROOM",
     "PERMISSION_BLOCKED",
+    "CONFLICT_EDIT",
   ];
   return !nonRecoverable.includes(code);
 }
@@ -231,6 +246,7 @@ export const ERROR_CATEGORY_ICONS: Record<ChatErrorCategory, string> = {
   validation: "AlertTriangle",
   permission: "Lock",
   rate_limit: "Timer",
+  conflict: "RefreshCw",
   server: "Server",
   unknown: "AlertCircle",
 };
@@ -267,6 +283,12 @@ export function getErrorSummary(error: ChatError): {
         title: "속도 제한",
         description: error.userMessage,
         canRetry: true,
+      };
+    case "conflict":
+      return {
+        title: "편집 충돌",
+        description: error.userMessage,
+        canRetry: false,
       };
     case "server":
       return {

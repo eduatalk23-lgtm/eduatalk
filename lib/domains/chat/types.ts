@@ -407,6 +407,8 @@ export interface ChatActionResult<T = void> {
   success: boolean;
   data?: T;
   error?: string;
+  /** 에러 코드 (충돌 감지 등) */
+  code?: string;
 }
 
 /** 페이지네이션 결과 */

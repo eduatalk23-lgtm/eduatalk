@@ -5,16 +5,19 @@
  *
  * 검색어 입력 및 결과 표시
  * 검색 결과 클릭 시 해당 메시지로 스크롤
+ * 페이지네이션 지원 (더 보기)
  */
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { Search, X, Loader2 } from "lucide-react";
 import { searchMessagesAction } from "@/lib/domains/chat/actions/messages";
 import type { ChatMessageWithSender } from "@/lib/domains/chat/types";
 import { formatDistanceToNow } from "date-fns";
 import { ko } from "date-fns/locale";
+
+const SEARCH_PAGE_SIZE = 20;
 
 interface MessageSearchProps {
   /** 채팅방 ID */
@@ -48,19 +51,41 @@ export function MessageSearch({
     return () => clearTimeout(timer);
   }, [query]);
 
-  // 검색 쿼리
-  const { data, isLoading, error } = useQuery({
+  // 검색 쿼리 (무한 스크롤)
+  const {
+    data,
+    isLoading,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ["chat-search", roomId, debouncedQuery],
-    queryFn: async () => {
+    queryFn: async ({ pageParam = 0 }) => {
       if (!debouncedQuery) return null;
       const result = await searchMessagesAction(roomId, debouncedQuery, {
-        limit: 20,
+        limit: SEARCH_PAGE_SIZE,
+        offset: pageParam,
       });
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage) return undefined;
+      const loadedCount = allPages.reduce(
+        (sum, page) => sum + (page?.messages.length ?? 0),
+        0
+      );
+      // 더 불러올 데이터가 있으면 다음 offset 반환
+      return loadedCount < lastPage.total ? loadedCount : undefined;
+    },
     enabled: debouncedQuery.length > 0,
   });
+
+  // 모든 페이지의 메시지 합치기
+  const allMessages = data?.pages.flatMap((page) => page?.messages ?? []) ?? [];
+  const total = data?.pages[0]?.total ?? 0;
 
   // 검색어 하이라이트
   const highlightText = useCallback(
@@ -130,21 +155,19 @@ export function MessageSearch({
           <div className="flex items-center justify-center py-8 text-text-tertiary">
             검색어를 입력하세요
           </div>
-        ) : data?.messages.length === 0 ? (
+        ) : allMessages.length === 0 ? (
           <div className="flex items-center justify-center py-8 text-text-tertiary">
             &ldquo;{debouncedQuery}&rdquo; 검색 결과가 없습니다
           </div>
         ) : (
           <div className="divide-y divide-border">
             {/* 검색 결과 헤더 */}
-            {data && (
-              <div className="px-4 py-2 text-xs text-text-tertiary bg-bg-secondary">
-                {data.total}개의 결과
-              </div>
-            )}
+            <div className="px-4 py-2 text-xs text-text-tertiary bg-bg-secondary">
+              {total}개의 결과
+            </div>
 
             {/* 결과 목록 */}
-            {data?.messages.map((message) => (
+            {allMessages.map((message) => (
               <SearchResultItem
                 key={message.id}
                 message={message}
@@ -153,6 +176,31 @@ export function MessageSearch({
                 onSelect={() => onSelectMessage(message.id)}
               />
             ))}
+
+            {/* 더 보기 버튼 */}
+            {hasNextPage && (
+              <div className="px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => fetchNextPage()}
+                  disabled={isFetchingNextPage}
+                  className={cn(
+                    "w-full py-2 text-sm text-primary hover:text-primary/80",
+                    "disabled:opacity-50 disabled:cursor-not-allowed",
+                    "flex items-center justify-center gap-2"
+                  )}
+                >
+                  {isFetchingNextPage ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      불러오는 중...
+                    </>
+                  ) : (
+                    `더 보기 (${allMessages.length}/${total})`
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

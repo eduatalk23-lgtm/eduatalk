@@ -55,7 +55,7 @@ interface ChatRoomUIState {
   // 작업 대상
   menuContext: MessageMenuContext | null;
   deleteTarget: string | null;
-  editingMessage: { id: string; content: string } | null;
+  editingMessage: { id: string; content: string; updatedAt: string } | null;
 }
 
 type ChatRoomUIAction =
@@ -69,7 +69,7 @@ type ChatRoomUIAction =
   | { type: "SET_INFO_OPEN"; value: boolean }
   | { type: "SET_MENU_CONTEXT"; context: MessageMenuContext | null }
   | { type: "SET_DELETE_TARGET"; id: string | null }
-  | { type: "SET_EDITING_MESSAGE"; message: { id: string; content: string } | null }
+  | { type: "SET_EDITING_MESSAGE"; message: { id: string; content: string; updatedAt: string } | null }
   | { type: "OPEN_CONTEXT_MENU"; context: MessageMenuContext }
   | { type: "CLOSE_MENU" };
 
@@ -372,8 +372,8 @@ function ChatRoomComponent({
     });
   }, [setReplyTarget]);
 
-  const handleEdit = useCallback((messageId: string, currentContent: string) => {
-    dispatch({ type: "SET_EDITING_MESSAGE", message: { id: messageId, content: currentContent } });
+  const handleEdit = useCallback((messageId: string, currentContent: string, updatedAt: string) => {
+    dispatch({ type: "SET_EDITING_MESSAGE", message: { id: messageId, content: currentContent, updatedAt } });
   }, []);
 
   const handleDelete = useCallback((messageId: string) => {
@@ -389,7 +389,7 @@ function ChatRoomComponent({
 
   const handleEditSave = useCallback((newContent: string) => {
     if (editingMessage) {
-      actions.editMessage(editingMessage.id, newContent);
+      actions.editMessage(editingMessage.id, newContent, editingMessage.updatedAt);
     }
     dispatch({ type: "SET_EDITING_MESSAGE", message: null });
   }, [editingMessage, actions]);
@@ -404,6 +404,7 @@ function ChatRoomComponent({
       context: {
         messageId: message.id,
         content: message.content,
+        updatedAt: message.updated_at,
         isOwn,
         canEdit: isOwn && canEditMessage(message.created_at),
         canPin: canPin && message.message_type !== "system",
@@ -429,7 +430,7 @@ function ChatRoomComponent({
 
   const handleMenuEdit = useCallback(() => {
     if (menuContext?.canEdit) {
-      handleEdit(menuContext.messageId, menuContext.content);
+      handleEdit(menuContext.messageId, menuContext.content, menuContext.updatedAt);
     }
     dispatch({ type: "CLOSE_MENU" });
   }, [menuContext, handleEdit]);
@@ -482,7 +483,7 @@ function ChatRoomComponent({
             }
             break;
           case "edit":
-            handleEdit(message.id, message.content);
+            handleEdit(message.id, message.content, message.updated_at);
             break;
           case "delete":
             handleDelete(message.id);
