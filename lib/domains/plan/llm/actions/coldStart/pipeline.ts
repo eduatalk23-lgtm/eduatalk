@@ -4,7 +4,7 @@
  * 이 파일은 콜드 스타트 추천의 전체 5단계 파이프라인을 통합합니다.
  *
  * 파이프라인 흐름:
- * Task 1: validateColdStartInput(input)
+ * Task 1: validateColdStartInputAsync(input) - DB 기반 교과/과목 검증
  *     ↓ 실패 시 → { success: false, failedAt: "validation" }
  * Task 2: buildSearchQuery(validatedInput)
  *     ↓ (항상 성공)
@@ -63,7 +63,7 @@ import type {
   PersistenceStats,
 } from "./types";
 
-import { validateColdStartInput } from "./validateInput";
+import { validateColdStartInputAsync } from "./validateInput";
 import { buildSearchQuery } from "./buildQuery";
 import { executeWebSearch, getMockSearchResult } from "./executeSearch";
 import { parseSearchResults } from "./parseResults";
@@ -172,10 +172,10 @@ export async function runColdStartPipeline(
   } = options ?? {};
 
   // ────────────────────────────────────────────────────────────────────
-  // Task 1: 입력 검증
+  // Task 1: 입력 검증 (DB 기반, fallback: 하드코딩)
   // ────────────────────────────────────────────────────────────────────
 
-  const validationResult = validateColdStartInput(input);
+  const validationResult = await validateColdStartInputAsync(input);
 
   if (!validationResult.success) {
     logRecommendationError("coldStartPipeline", validationResult.error, {

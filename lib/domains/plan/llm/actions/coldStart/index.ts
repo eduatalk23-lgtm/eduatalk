@@ -80,12 +80,34 @@ export {
 // ============================================================================
 
 export {
+  // 동기 버전 (하드코딩 기반, 하위 호환성)
   validateColdStartInput,
   getSupportedSubjectCategories,
   getSubjectsForCategory,
   getSupportedDifficultyLevels,
   getSupportedContentTypes,
+  // 비동기 버전 (DB 기반, 권장)
+  validateColdStartInputAsync,
+  getSupportedSubjectCategoriesAsync,
+  getSubjectsForCategoryAsync,
 } from "./validateInput";
+
+// ============================================================================
+// 교과/과목 데이터 서비스 (DB 기반)
+// ============================================================================
+
+export {
+  getSubjectDataFromDB,
+  getSubjectsForCategory as getSubjectsForCategoryFromDB,
+  isValidSubjectCategory as isValidSubjectCategoryFromDB,
+  isValidSubject as isValidSubjectFromDB,
+  getSubjectCategoriesForUI,
+  getSubjectsForUI,
+  resetSubjectDataCache,
+  getSupportedSubjectCategoriesSync,
+  getSubjectsByCategorySync,
+  type SubjectDataResult,
+} from "./subjectDataService";
 
 // ============================================================================
 // Task 2: 쿼리 생성

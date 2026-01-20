@@ -225,7 +225,7 @@ export function AdminPlanHeader({
             <Plus className="h-4 w-4" />
             플랜 그룹
           </button>
-          {activePlanGroupId && (
+          {selectedPlannerId && (
             <button
               onClick={() => setShowAIPlanModal(true)}
               className="flex items-center gap-2 rounded-lg bg-info-50 px-3 py-2 text-sm font-medium text-info-700 hover:bg-info-100"

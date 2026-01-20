@@ -325,7 +325,7 @@ function AdminPlanManagementContent({
       },
       {
         key: "i",
-        action: () => activePlanGroupId && setShowAIPlanModal(true),
+        action: () => selectedPlannerId && setShowAIPlanModal(true),
         description: "AI 플랜 생성",
         category: "modal",
       },
@@ -441,11 +441,11 @@ function AdminPlanManagementContent({
             />
           )}
 
-          {showAIPlanModal && activePlanGroupId && (
+          {/* AI 플랜 모달: 통합 위저드 플로우 (플래너→콘텐츠→생성) */}
+          {showAIPlanModal && !newGroupIdForAI && (
             <AdminAIPlanModal
               studentId={studentId}
               tenantId={tenantId}
-              planGroupId={activePlanGroupId}
               onClose={() => setShowAIPlanModal(false)}
               onSuccess={() => {
                 setShowAIPlanModal(false);
@@ -508,11 +508,11 @@ function AdminPlanManagementContent({
             />
           )}
 
-          {showAIPlanModal && newGroupIdForAI && !activePlanGroupId && (
+          {/* AI 플랜 모달: 위저드에서 생성된 새 그룹용 (레거시 - 통합 모달 사용 권장) */}
+          {showAIPlanModal && newGroupIdForAI && (
             <AdminAIPlanModal
               studentId={studentId}
               tenantId={tenantId}
-              planGroupId={newGroupIdForAI}
               onClose={() => {
                 setShowAIPlanModal(false);
                 setNewGroupIdForAI(null);
