@@ -119,6 +119,20 @@ export async function selectPlanGroupForPlanner(
 }
 
 /**
+ * Plan Group 생성 옵션
+ */
+export interface CreatePlanGroupOptions {
+  /** 플랜 모드 (quick, calendar_only 등) */
+  planMode?: string;
+  /** 단일 날짜 여부 */
+  isSingleDay?: boolean;
+  /** 단일 콘텐츠 모드 (Phase 3.1) */
+  isSingleContent?: boolean;
+  /** 생성 모드 */
+  creationMode?: string;
+}
+
+/**
  * 플래너에 새 Plan Group 생성
  *
  * @param input - 생성 입력값
@@ -131,12 +145,14 @@ export async function createPlanGroupForPlanner(input: {
   name: string;
   periodStart: string;
   periodEnd: string;
+  /** 추가 옵션 (Phase 3.1 지원) */
+  options?: CreatePlanGroupOptions;
 }): Promise<{
   success: boolean;
   planGroupId?: string;
   error?: string;
 }> {
-  const { plannerId, studentId, tenantId, name, periodStart, periodEnd } =
+  const { plannerId, studentId, tenantId, name, periodStart, periodEnd, options } =
     input;
 
   // 입력 검증
@@ -198,7 +214,7 @@ export async function createPlanGroupForPlanner(input: {
     // 플래너 설정을 플랜 그룹 생성용 설정으로 변환
     const inheritedConfig = inheritPlannerConfigFromRaw(planner as PlannerConfigRaw);
 
-    // Plan Group 생성 (플래너 설정 상속)
+    // Plan Group 생성 (플래너 설정 상속 + 옵션 적용)
     const { data: planGroup, error: insertError } = await supabase
       .from("plan_groups")
       .insert({
@@ -209,9 +225,13 @@ export async function createPlanGroupForPlanner(input: {
         period_start: periodStart,
         period_end: periodEnd,
         status: "active",
-        creation_mode: "calendar_only",
+        creation_mode: options?.creationMode ?? "calendar_only",
         // 플래너에서 설정 상속 (일관된 기본값 사용)
         ...inheritedConfig,
+        // Phase 3.1: 추가 옵션 적용
+        ...(options?.planMode && { plan_mode: options.planMode }),
+        ...(options?.isSingleDay !== undefined && { is_single_day: options.isSingleDay }),
+        ...(options?.isSingleContent !== undefined && { is_single_content: options.isSingleContent }),
         // 메타데이터
         created_by: user.userId,
       })

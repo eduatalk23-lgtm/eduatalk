@@ -570,26 +570,45 @@ export async function quickCreateFromContent(
 
 /**
  * 단일 빠른 플랜 생성 (하루짜리)
+ *
+ * Phase 3.1 통합 API:
+ * - 학생이 직접 호출 가능
+ * - 관리자가 학생 대신 호출 가능 (studentId 파라미터)
+ * - Planner 자동 연동
+ * - is_single_content: true 적용
+ * - is_adhoc: true 마킹
+ *
+ * @param input 빠른 플랜 생성 입력
+ * @returns 생성 결과
  */
 export async function createQuickPlan(
   input: CreateQuickPlanInput
 ): Promise<CreateQuickPlanResult> {
-  const user = await getCurrentUser();
-  if (!user) {
-    return { success: false, error: "로그인이 필요합니다." };
-  }
-
-  // tenant_id 필수 검증
-  if (!user.tenantId) {
-    return { success: false, error: "테넌트 정보가 없습니다. 관리자에게 문의하세요." };
-  }
-  const tenantId = user.tenantId;
-
-  const supabase = await createSupabaseServerClient();
+  const LOG_CTX = { domain: "plan", action: "createQuickPlan" };
 
   try {
-    // 0. content_id 확보 (자유 학습인 경우 flexible_contents 생성)
-    let resolvedContentId: string;
+    // 1. 인증 (학생/관리자 모두 지원)
+    const auth = await resolveAuthContext({ studentId: input.studentId });
+    const studentId = auth.studentId;
+    const tenantId = auth.tenantId;
+    const actorType = isAdminContext(auth) ? "admin" : "student";
+
+    logActionDebug(LOG_CTX, "빠른 플랜 생성 시작", {
+      studentId,
+      actorType,
+      title: input.title,
+      planDate: input.planDate,
+    });
+
+    if (!tenantId) {
+      return { success: false, error: "테넌트 정보가 없습니다. 관리자에게 문의하세요." };
+    }
+
+    const supabase = await createSupabaseServerClient();
+
+    // 2. content_id 확보 (자유 학습인 경우 flexible_contents 생성)
+    let resolvedContentId: string | null = null;
+    let flexibleContentId: string | undefined;
     const isFreeLearning = input.isFreeLearning || !input.contentId || input.contentId === "";
 
     if (isFreeLearning) {
@@ -598,7 +617,7 @@ export async function createQuickPlan(
         .from("flexible_contents")
         .insert({
           tenant_id: tenantId,
-          student_id: user.userId,
+          student_id: studentId,
           content_type: "free",
           title: input.title,
           item_type: input.freeLearningType ?? "free",
@@ -608,171 +627,202 @@ export async function createQuickPlan(
         .single();
 
       if (fcError || !flexibleContent) {
-        logActionError(
-          { domain: "plan", action: "createQuickPlan" },
-          fcError ?? new Error("flexibleContent is null"),
-          { userId: user.userId, step: "flexible_contents" }
-        );
+        logActionError(LOG_CTX, fcError ?? new Error("flexibleContent is null"), {
+          studentId,
+          step: "flexible_contents",
+        });
         return {
           success: false,
           error: fcError?.message ?? "자유 학습 콘텐츠 생성에 실패했습니다.",
         };
       }
       resolvedContentId = flexibleContent.id;
-    } else {
+      flexibleContentId = flexibleContent.id;
+    } else if (input.contentId) {
       // 기존 콘텐츠 사용: UUID 형식 검증
-      // isFreeLearning이 false이면 input.contentId는 truthy하고 빈 문자열이 아님
-      const contentId = input.contentId as string;
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (!uuidRegex.test(contentId)) {
+      if (!uuidRegex.test(input.contentId)) {
         return {
           success: false,
           error: "유효하지 않은 콘텐츠 ID입니다.",
         };
       }
-      resolvedContentId = contentId;
+      resolvedContentId = input.contentId;
     }
 
-    // 1. plan_group 생성 (plan_mode='quick', is_single_day=true)
-    const { data: planGroup, error: groupError } = await supabase
-      .from("plan_groups")
-      .insert({
-        student_id: user.userId,
-        tenant_id: tenantId,
-        name: input.title,
-        plan_purpose: "기타",
-        period_start: input.planDate,
-        period_end: input.planDate,
-        status: "active",
-        plan_mode: "quick",
-        is_single_day: true,
-        creation_mode: isFreeLearning ? "free_learning" : "content_based",
-      })
-      .select("id")
-      .single();
+    // 3. Planner 확보 (없으면 자동 생성)
+    let plannerId = input.plannerId;
+    if (!plannerId) {
+      const { getOrCreateDefaultPlannerAction } = await import("../planners/autoCreate");
+      const plannerResult = await getOrCreateDefaultPlannerAction({ studentId });
 
-    if (groupError || !planGroup) {
-      logActionError(
-        { domain: "plan", action: "createQuickPlan" },
-        groupError ?? new Error("planGroup is null"),
-        { userId: user.userId, step: "plan_groups" }
-      );
-      return {
-        success: false,
-        error: groupError?.message ?? "플랜그룹 생성에 실패했습니다.",
-      };
+      if (!plannerResult.plannerId) {
+        return {
+          success: false,
+          error: "기본 플래너 생성에 실패했습니다.",
+        };
+      }
+      plannerId = plannerResult.plannerId;
+      logActionDebug(LOG_CTX, "기본 플래너 확보", {
+        plannerId,
+        isNew: plannerResult.isNew,
+      });
     }
 
-    // 2. student_plan 생성
-    const estimatedMinutes = input.estimatedMinutes ?? 30;
+    // 4. Plan Group 확보/생성 (Planner 연동, is_single_content: true)
+    let planGroupId: string;
+    let isNewGroup = false;
+
+    // 플래너 기반으로 적합한 Plan Group 찾기
+    const selectResult = await selectPlanGroupForPlanner(plannerId, {
+      studentId,
+      preferPeriod: { start: input.planDate, end: input.planDate },
+    });
+
+    if (selectResult.status === "found" || selectResult.status === "multiple") {
+      // 기존 Plan Group 사용
+      planGroupId = selectResult.planGroupId!;
+      logActionDebug(LOG_CTX, "기존 Plan Group 선택", { planGroupId });
+    } else {
+      // 새 Plan Group 생성 (is_single_content: true 포함)
+      const createResult = await createPlanGroupForPlanner({
+        plannerId,
+        studentId,
+        tenantId,
+        name: `${input.title} (${input.planDate})`,
+        periodStart: input.planDate,
+        periodEnd: input.planDate,
+        options: {
+          planMode: "quick",
+          isSingleDay: true,
+          isSingleContent: true,
+          creationMode: isFreeLearning ? "free_learning" : "content_based",
+        },
+      });
+
+      if (!createResult.success || !createResult.planGroupId) {
+        // 롤백: flexible_contents 삭제
+        if (isFreeLearning && flexibleContentId) {
+          await supabase.from("flexible_contents").delete().eq("id", flexibleContentId);
+        }
+        return {
+          success: false,
+          error: createResult.error ?? "플랜그룹 생성에 실패했습니다.",
+        };
+      }
+      planGroupId = createResult.planGroupId;
+      isNewGroup = true;
+      logActionDebug(LOG_CTX, "새 Plan Group 생성", { planGroupId });
+    }
+
+    // 5. student_plan 생성 (is_adhoc: true)
     const contentType = isFreeLearning
-      ? input.freeLearningType ?? "free"
-      : input.contentType ?? "custom";
+      ? (input.freeLearningType ?? "free")
+      : (input.contentType ?? "custom");
+
+    const planData = {
+      student_id: studentId,
+      tenant_id: tenantId,
+      plan_group_id: planGroupId,
+      plan_date: input.planDate,
+      block_index: 0,
+      content_type: contentType,
+      content_id: resolvedContentId,
+      content_title: input.title,
+      container_type: input.containerType ?? "daily",
+      status: "pending",
+      is_virtual: false,
+      is_adhoc: true, // 단발성 마킹
+      flexible_content_id: flexibleContentId ?? null,
+      planned_start_page_or_time: input.rangeStart ?? null,
+      planned_end_page_or_time: input.rangeEnd ?? null,
+      estimated_minutes: input.estimatedMinutes ?? 30,
+      start_time: input.startTime ?? null,
+      end_time: input.endTime ?? null,
+      description: input.description ?? null,
+      tags: input.tags ?? [],
+      color: input.color ?? null,
+      icon: input.icon ?? null,
+      priority: input.priority ?? 0,
+    };
 
     const { data: plan, error: planError } = await supabase
       .from("student_plan")
-      .insert({
-        student_id: user.userId,
-        tenant_id: tenantId,
-        plan_group_id: planGroup.id,
-        plan_date: input.planDate,
-        block_index: 0, // NOT NULL 필수
-        content_type: contentType,
-        content_id: resolvedContentId,
-        content_title: input.title,
-        container_type: input.containerType ?? "daily",
-        status: "pending",
-        is_virtual: false,
-        flexible_content_id: isFreeLearning ? resolvedContentId : null,
-        planned_start_page_or_time: input.rangeStart ?? null,
-        planned_end_page_or_time: input.rangeEnd ?? null,
-      })
+      .insert(planData)
       .select("id")
       .single();
 
     if (planError || !plan) {
-      logActionError(
-        { domain: "plan", action: "createQuickPlan" },
-        planError ?? new Error("plan is null"),
-        { planGroupId: planGroup.id, step: "student_plan" }
-      );
-      // 롤백: plan_group 삭제
-      const rollback = await rollbackQuickCreate(supabase, planGroup.id, {
-        deleteStudentPlans: false,
-        deletePlanContents: false,
-        deletePlanGroup: true,
+      logActionError(LOG_CTX, planError ?? new Error("plan is null"), {
+        planGroupId,
+        step: "student_plan",
       });
-      if (!rollback.success) {
-        logActionWarn(
-          { domain: "plan", action: "createQuickPlan" },
-          "Rollback partial failure",
-          { planGroupId: planGroup.id, errors: rollback.errors }
-        );
+
+      // 롤백: 새로 생성한 Plan Group과 flexible_contents 삭제
+      if (isNewGroup) {
+        await rollbackQuickCreate(supabase, planGroupId, {
+          deleteStudentPlans: false,
+          deletePlanContents: false,
+          deletePlanGroup: true,
+        });
       }
-      // 자유 학습인 경우 flexible_contents도 삭제
-      if (isFreeLearning) {
-        const { error: fcDeleteError } = await supabase
-          .from("flexible_contents")
-          .delete()
-          .eq("id", resolvedContentId);
-        if (fcDeleteError) {
-          logActionError(
-            { domain: "plan", action: "createQuickPlan" },
-            fcDeleteError,
-            { resolvedContentId, step: "rollback_flexible_contents" }
-          );
-        }
+      if (isFreeLearning && flexibleContentId) {
+        await supabase.from("flexible_contents").delete().eq("id", flexibleContentId);
       }
+
       return {
         success: false,
         error: planError?.message ?? "플랜 생성에 실패했습니다.",
       };
     }
 
-    revalidatePlanCache({ groupId: planGroup.id, studentId: user.userId });
+    // 6. 캐시 재검증
+    revalidatePlanCache({
+      groupId: planGroupId,
+      studentId,
+      includeAdmin: actorType === "admin",
+    });
 
-    // 이벤트 로깅 (비동기, 실패해도 플랜 생성에 영향 없음)
+    // 7. 이벤트 로깅 (비동기)
     logQuickPlanCreated(
       tenantId,
-      user.userId,
+      studentId,
       plan.id,
-      planGroup.id,
+      planGroupId,
       {
         title: input.title,
         plan_date: input.planDate,
-        content_type: isFreeLearning
-          ? (input.freeLearningType ?? "free")
-          : (input.contentType ?? "custom"),
+        content_type: contentType,
         is_free_learning: isFreeLearning,
         container_type: input.containerType ?? "daily",
       },
-      user.userId,
-      "student"
+      auth.userId,
+      actorType
     ).catch((err) => {
-      logActionError(
-        { domain: "plan", action: "createQuickPlan" },
-        err,
-        { planId: plan.id, step: "event_logging" }
-      );
+      logActionError(LOG_CTX, err, { planId: plan.id, step: "event_logging" });
+    });
+
+    logActionSuccess(LOG_CTX, {
+      planId: plan.id,
+      planGroupId,
+      studentId,
+      plannerId,
+      actorType,
+      isNewGroup,
     });
 
     return {
       success: true,
-      planGroupId: planGroup.id,
+      planGroupId,
       planId: plan.id,
-      flexibleContentId: isFreeLearning ? resolvedContentId : undefined,
-      ...buildPlanCreationHints({ studentId: user.userId, groupId: planGroup.id }),
+      flexibleContentId,
+      ...buildPlanCreationHints({ studentId, groupId: planGroupId }),
     };
   } catch (error) {
-    logActionError(
-      { domain: "plan", action: "createQuickPlan" },
-      error,
-      { userId: user.userId }
-    );
+    logActionError(LOG_CTX, error, { studentId: input.studentId });
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
+      error: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
     };
   }
 }

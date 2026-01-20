@@ -64,6 +64,44 @@ export type CreateQuickPlanInput = {
   containerType?: "daily" | "weekly";
   isFreeLearning?: boolean;
   freeLearningType?: string;
+  /**
+   * 대상 학생 ID (관리자가 학생 대신 생성 시 사용)
+   * 학생이 직접 호출 시 생략하면 본인 ID 자동 사용
+   */
+  studentId?: string;
+  /**
+   * 플래너 ID (옵션)
+   * 생략 시 기본 플래너 자동 생성/사용
+   */
+  plannerId?: string;
+  /**
+   * 시작 시간 (HH:mm)
+   */
+  startTime?: string;
+  /**
+   * 종료 시간 (HH:mm)
+   */
+  endTime?: string;
+  /**
+   * 설명
+   */
+  description?: string;
+  /**
+   * 태그
+   */
+  tags?: string[];
+  /**
+   * 색상
+   */
+  color?: string;
+  /**
+   * 아이콘
+   */
+  icon?: string;
+  /**
+   * 우선순위
+   */
+  priority?: number;
 };
 
 export type CreateQuickPlanResult = {
