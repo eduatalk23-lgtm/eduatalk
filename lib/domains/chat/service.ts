@@ -331,19 +331,23 @@ export async function getRoomDetail(
       return { success: false, error: "채팅방에 참여하지 않았습니다" };
     }
 
-    // 멤버 목록 + 사용자 정보
+    // 멤버 목록 + 사용자 정보 (배치 쿼리로 N+1 해결)
     const members = await repository.findMembersByRoom(roomId);
-    const membersWithUser: ChatRoomMemberWithUser[] = await Promise.all(
-      members.map(async (member) => ({
+    const senderKeys = members.map((m) => ({ id: m.user_id, type: m.user_type }));
+    const senderMap = await repository.findSendersByIds(senderKeys);
+
+    const membersWithUser: ChatRoomMemberWithUser[] = members.map((member) => {
+      const senderInfo = senderMap.get(`${member.user_id}_${member.user_type}`);
+      return {
         ...member,
-        user: await getUserInfo(member.user_id, member.user_type) ?? {
+        user: {
           id: member.user_id,
           type: member.user_type,
-          name: "알 수 없음",
-          profileImageUrl: null,
+          name: senderInfo?.name ?? "알 수 없음",
+          profileImageUrl: senderInfo?.profileImageUrl ?? null,
         },
-      }))
-    );
+      };
+    });
 
     // 1:1 채팅에서 상대방 퇴장 상태 확인
     let otherMemberLeft = false;
