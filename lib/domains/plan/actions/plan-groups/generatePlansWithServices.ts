@@ -202,15 +202,14 @@ async function _generatePlansWithServices(
   // Phase 3: 단일 콘텐츠 모드 처리
   // is_single_content=true일 때 plan_groups 필드에서 합성 콘텐츠 생성
   // ============================================
-  const groupRecord = group as Record<string, unknown>;
-  const isSingleContentMode = groupRecord.is_single_content === true;
+  const isSingleContentMode = group.is_single_content === true;
 
   let contents = originalContents;
 
   if (isSingleContentMode && originalContents.length === 0) {
     // 단일 콘텐츠 모드: plan_groups 필드에서 합성 PlanContent 생성
-    const singleContentId = groupRecord.content_id as string | null;
-    const singleContentType = groupRecord.content_type as string | null;
+    const singleContentId = group.content_id;
+    const singleContentType = group.content_type;
 
     if (singleContentId && singleContentType) {
       logActionDebug(
@@ -226,11 +225,11 @@ async function _generatePlansWithServices(
         plan_group_id: group.id,
         content_type: singleContentType as "book" | "lecture" | "custom",
         content_id: singleContentId,
-        master_content_id: (groupRecord.master_content_id as string | null) ?? null,
-        start_range: (groupRecord.start_range as number | null) ?? 0,
-        end_range: (groupRecord.end_range as number | null) ?? 0,
-        start_detail_id: (groupRecord.start_detail_id as string | null) ?? null,
-        end_detail_id: (groupRecord.end_detail_id as string | null) ?? null,
+        master_content_id: group.master_content_id ?? null,
+        start_range: group.start_range ?? 0,
+        end_range: group.end_range ?? 0,
+        start_detail_id: group.start_detail_id ?? null,
+        end_detail_id: group.end_detail_id ?? null,
         display_order: 0,
         is_auto_recommended: false,
         recommendation_source: null,

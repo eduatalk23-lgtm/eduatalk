@@ -93,6 +93,8 @@ interface ContentInput {
   master_content_id: string | null;
   start_range: number | null;
   end_range: number | null;
+  start_detail_id: string | null;
+  end_detail_id: string | null;
   display_order: number;
 }
 
@@ -459,6 +461,8 @@ async function _createPlanGroup(
     master_content_id: c.master_content_id ?? (masterContentIdMap.get(c.content_id) || null),
     start_range: c.start_range ?? null,
     end_range: c.end_range ?? null,
+    start_detail_id: c.start_detail_id ?? null,
+    end_detail_id: c.end_detail_id ?? null,
     display_order: c.display_order ?? 0,
   }));
 
@@ -540,8 +544,8 @@ async function _createPlanGroup(
         master_content_id: firstContent.master_content_id,
         start_range: firstContent.start_range,
         end_range: firstContent.end_range,
-        start_detail_id: null, // ContentInput에는 detail_id가 없음
-        end_detail_id: null,
+        start_detail_id: firstContent.start_detail_id,
+        end_detail_id: firstContent.end_detail_id,
       };
     }
   }
@@ -806,6 +810,8 @@ async function _savePlanGroupDraft(
     master_content_id: c.master_content_id ?? null,
     start_range: c.start_range ?? null,
     end_range: c.end_range ?? null,
+    start_detail_id: c.start_detail_id ?? null,
+    end_detail_id: c.end_detail_id ?? null,
     display_order: c.display_order ?? 0,
   })) ?? [];
 
@@ -839,8 +845,8 @@ async function _savePlanGroupDraft(
         master_content_id: firstContent.master_content_id,
         start_range: firstContent.start_range,
         end_range: firstContent.end_range,
-        start_detail_id: null,
-        end_detail_id: null,
+        start_detail_id: firstContent.start_detail_id,
+        end_detail_id: firstContent.end_detail_id,
       };
     }
   }
@@ -985,7 +991,7 @@ async function _copyPlanGroup(groupId: string): Promise<{ groupId: string }> {
   }
 
   // Phase 3: 원본 그룹의 단일 콘텐츠 모드 여부 확인
-  const isSingleContentCopy = (group as Record<string, unknown>).is_single_content === true;
+  const isSingleContentCopy = group.is_single_content === true;
 
   // 플랜 그룹 데이터 준비 (RPC용)
   const planGroupData: PlanGroupAtomicInput = {
@@ -1009,6 +1015,7 @@ async function _copyPlanGroup(groupId: string): Promise<{ groupId: string }> {
     use_slot_mode: group.use_slot_mode ?? false,
     content_slots: (group.content_slots as Record<string, unknown>[] | null) ?? null,
     // NEW: Time settings (복사 시 원본 설정 유지)
+    // Note: PlanGroup과 PlanGroupAtomicInput의 타입이 다르므로 type assertion 필요
     study_hours: (group.study_hours as TimeRange | null) ?? null,
     self_study_hours: (group.self_study_hours as TimeRange | null) ?? null,
     lunch_time: (group.lunch_time as TimeRange | null) ?? null,
@@ -1016,13 +1023,13 @@ async function _copyPlanGroup(groupId: string): Promise<{ groupId: string }> {
     study_type: group.study_type ?? null,
     strategy_days_per_week: group.strategy_days_per_week ?? null,
     // Phase 3: 단일 콘텐츠 모드 필드 복사
-    content_type: ((group as Record<string, unknown>).content_type as string | null) ?? null,
-    content_id: ((group as Record<string, unknown>).content_id as string | null) ?? null,
-    master_content_id: ((group as Record<string, unknown>).master_content_id as string | null) ?? null,
-    start_range: ((group as Record<string, unknown>).start_range as number | null) ?? null,
-    end_range: ((group as Record<string, unknown>).end_range as number | null) ?? null,
-    start_detail_id: ((group as Record<string, unknown>).start_detail_id as string | null) ?? null,
-    end_detail_id: ((group as Record<string, unknown>).end_detail_id as string | null) ?? null,
+    content_type: group.content_type ?? null,
+    content_id: group.content_id ?? null,
+    master_content_id: group.master_content_id ?? null,
+    start_range: group.start_range ?? null,
+    end_range: group.end_range ?? null,
+    start_detail_id: group.start_detail_id ?? null,
+    end_detail_id: group.end_detail_id ?? null,
     is_single_content: isSingleContentCopy,
   };
 
@@ -1033,6 +1040,8 @@ async function _copyPlanGroup(groupId: string): Promise<{ groupId: string }> {
     master_content_id: c.master_content_id ?? null,
     start_range: c.start_range ?? null,
     end_range: c.end_range ?? null,
+    start_detail_id: c.start_detail_id ?? null,
+    end_detail_id: c.end_detail_id ?? null,
     display_order: c.display_order ?? 0,
   })) ?? [];
 

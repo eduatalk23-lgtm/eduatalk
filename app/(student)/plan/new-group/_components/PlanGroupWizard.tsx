@@ -474,6 +474,9 @@ function PlanGroupWizardInner({
     resetSubmissionPhase,
     autoSaveStatus,
     autoSaveLastSavedAt,
+    // Phase 3.1: 여러 plan_group 생성 지원
+    handleMultipleGroupsSubmit,
+    multipleGroupsProgress,
   } = usePlanSubmission({
       wizardData,
       draftGroupId,
@@ -617,11 +620,19 @@ function PlanGroupWizardInner({
 
     // Step 6 (최종 확인)에서 다음 버튼 클릭 시
     if (currentStep === 6) {
-      // 템플릿 모드가 아닐 때만 handleSubmit 호출
+      // 템플릿 모드가 아닐 때만 제출 처리
       if (!isTemplateMode) {
         // 관리자 continue 모드: 데이터만 저장 후 Step 7로 이동
-        // 일반 모드: 플랜 생성 후 Step 7로 이동
-        await handleSubmit(shouldSaveOnlyWithoutPlanGeneration(mode) ? false : true);
+        if (shouldSaveOnlyWithoutPlanGeneration(mode)) {
+          await handleSubmit(false);
+        } else if (mode.isCampMode) {
+          // 캠프 모드: 기존 로직 사용 (submitCampParticipation 내부 로직)
+          await handleSubmit(true);
+        } else {
+          // Phase 3.1: 일반 모드 - 여러 단일 콘텐츠 plan_group 생성
+          // 각 콘텐츠마다 별도의 plan_group을 생성하고 동일한 Planner에 연결
+          await handleMultipleGroupsSubmit(true);
+        }
       }
       return;
     }
@@ -640,7 +651,7 @@ function PlanGroupWizardInner({
         nextStep();
       }
     }
-  }, [currentStep, validateStep, mode, handleSubmit, handleSaveDraft, isTemplateMode, setStep, nextStep, handleValidationFailed]);
+  }, [currentStep, validateStep, mode, handleSubmit, handleMultipleGroupsSubmit, handleSaveDraft, isTemplateMode, setStep, nextStep, handleValidationFailed]);
 
   const handleBack = useCallback(() => {
     if (canGoBack(currentStep, mode)) {
