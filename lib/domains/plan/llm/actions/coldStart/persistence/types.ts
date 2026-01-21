@@ -83,6 +83,8 @@ export interface ColdStartBookInsert {
   source: string;
   page_analysis: Json | null;
   is_active: boolean;
+  /** 총 예상 소요시간 (시간 단위) */
+  estimated_hours?: number | null;
 }
 
 /**
@@ -93,12 +95,16 @@ export interface ColdStartLectureInsert {
   title: string;
   total_episodes: number;
   instructor_name: string | null;
-  platform_name: string | null;
+  platform: string | null;
   subject_category: string | null;
   subject: string | null;
   difficulty_level: string | null;
   notes: string | null;
   episode_analysis: Json | null;
+  /** 총 예상 소요시간 (시간 단위) */
+  estimated_hours?: number | null;
+  /** 총 소요시간 (분 단위) */
+  total_duration?: number | null;
 }
 
 /**
@@ -110,6 +116,8 @@ export interface ChapterAnalysisData {
     title: string;
     startRange: number;
     endRange: number;
+    /** 해당 챕터/에피소드 소요시간 (분) */
+    duration?: number;
   }>;
   source: "cold_start";
   createdAt: string;

@@ -254,9 +254,10 @@ export function getLearningRange(plans: PlanWithContent[]): string {
   
   if (firstPlan.content_type === "book") {
     return `p.${start} ~ p.${end}`;
+  } else if (firstPlan.content_type === "lecture") {
+    return `${start}강 ~ ${end}강`;
   } else {
-    // 강의나 커스텀 콘텐츠는 시간 형식
-    return `${formatTime(start)} ~ ${formatTime(end)}`;
+    return `${start} ~ ${end}`;
   }
 }
 

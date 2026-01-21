@@ -132,7 +132,7 @@ export function TodayPlanItem({ plan, campMode = false }: TodayPlanItemProps) {
                 <span>
                   {plan.planned_start_page_or_time} ~{" "}
                   {plan.planned_end_page_or_time}
-                  {plan.content_type === "book" ? "페이지" : "분"}
+                  {plan.content_type === "book" ? "페이지" : plan.content_type === "lecture" ? "강" : ""}
                 </span>
               )}
           </div>

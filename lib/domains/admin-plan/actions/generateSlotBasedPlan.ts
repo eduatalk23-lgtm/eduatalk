@@ -1,6 +1,7 @@
 'use server';
 
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { getCurrentUser } from '@/lib/auth/getCurrentUser';
 import { createPlanGroupForPlanner } from '../utils/planGroupSelector';
 import { generateHybridPlanCompleteAction } from '@/lib/domains/plan/llm/actions/generateHybridPlanComplete';
@@ -22,6 +23,25 @@ interface GenerateSlotBasedPlanResult {
   results?: SlotGenerationResult[];
   totalPlans?: number;
   error?: string;
+}
+
+// ============================================================================
+// 유틸리티 함수
+// ============================================================================
+
+/**
+ * 콘텐츠 타입에 따른 예상 학습 시간 계산
+ * - 강의: 에피소드당 30분 기준 (2에피소드 = 1시간)
+ * - 교재: 페이지당 3분 기준 (20페이지 = 1시간)
+ */
+function calculateEstimatedHours(content: ConfirmedSlot['content']): number {
+  if (content.contentType === 'lecture') {
+    // 강의: 에피소드당 30분 기준
+    return Math.max(1, Math.ceil(content.totalRange * 0.5));
+  } else {
+    // 교재: 페이지당 3분 기준
+    return Math.max(1, Math.ceil(content.totalRange * 0.05));
+  }
 }
 
 // ============================================================================
@@ -98,9 +118,14 @@ export async function generateSlotBasedPlanAction(
       `슬롯 기반 플랜 부분 성공: ${successCount}/${slots.length}개 슬롯`
     );
   } else {
+    const failureSummary = results.map(r => ({
+      slotId: r.slotId,
+      title: r.contentTitle,
+      error: r.error,
+    }));
     logActionError(
       'generateSlotBasedPlan',
-      '슬롯 기반 플랜 생성 전체 실패'
+      `슬롯 기반 플랜 생성 전체 실패 - 결과: ${JSON.stringify(failureSummary)}`
     );
   }
 
@@ -131,6 +156,8 @@ async function processSlot(params: {
     const contentTitle = slot.content.title;
 
     // Step 1: AI 추천 콘텐츠면 DB에 저장
+    let masterContentId: string | null = null;
+
     if (slot.type === 'ai_recommendation' && !slot.content.id) {
       const persistResult = await persistVirtualContent({
         content: slot.content,
@@ -138,6 +165,10 @@ async function processSlot(params: {
       });
 
       if (!persistResult.success || !persistResult.contentId) {
+        logActionError(
+          'generateSlotBasedPlan',
+          `[Step1] AI 콘텐츠 저장 실패 - slotId: ${slot.id}, title: ${contentTitle}, error: ${persistResult.error}`
+        );
         return {
           slotId: slot.id,
           contentId: '',
@@ -149,7 +180,109 @@ async function processSlot(params: {
         };
       }
 
-      contentId = persistResult.contentId;
+      masterContentId = persistResult.contentId;
+
+      // Step 1.5: lectures/books 테이블에 학생용 콘텐츠 레코드 생성 (RLS 우회)
+      const supabaseForContent = createSupabaseAdminClient();
+      if (!supabaseForContent) {
+        logActionError('generateSlotBasedPlan', '[Step1.5] Admin 클라이언트 생성 실패');
+        return {
+          slotId: slot.id,
+          contentId: '',
+          contentTitle,
+          planGroupId: '',
+          planCount: 0,
+          success: false,
+          error: 'Admin 클라이언트 생성 실패: Service Role Key 미설정',
+        };
+      }
+
+      if (slot.content.contentType === 'lecture') {
+        // master_lectures에서 추가 정보 조회
+        const { data: masterData } = await supabaseForContent
+          .from('master_lectures')
+          .select('episode_analysis, estimated_hours, difficulty_level, total_duration')
+          .eq('id', masterContentId)
+          .single();
+
+        const { data: lectureData, error: lectureError } = await supabaseForContent
+          .from('lectures')
+          .insert({
+            tenant_id: tenantId,
+            student_id: studentId,
+            master_content_id: masterContentId,
+            title: contentTitle,
+            platform: slot.content.publisher || null,
+            subject: slot.content.subject || null,
+            subject_category: slot.content.subjectCategory || null,
+            total_episodes: slot.content.totalRange || 1,
+            difficulty_level: masterData?.difficulty_level || 'medium',
+            episode_analysis: masterData?.episode_analysis || null,
+            total_duration: masterData?.total_duration || (masterData?.estimated_hours ? masterData.estimated_hours * 60 : null),
+          })
+          .select('id')
+          .single();
+
+        if (lectureError || !lectureData) {
+          logActionError(
+            'generateSlotBasedPlan',
+            `[Step1.5] lectures 레코드 생성 실패 - error: ${lectureError?.message}`
+          );
+          return {
+            slotId: slot.id,
+            contentId: '',
+            contentTitle,
+            planGroupId: '',
+            planCount: 0,
+            success: false,
+            error: `학생용 강의 레코드 생성 실패: ${lectureError?.message}`,
+          };
+        }
+        contentId = lectureData.id;
+      } else {
+        // book type
+        // master_books에서 추가 정보 조회
+        const { data: masterData } = await supabaseForContent
+          .from('master_books')
+          .select('page_analysis, estimated_hours, difficulty_level')
+          .eq('id', masterContentId)
+          .single();
+
+        const { data: bookData, error: bookError } = await supabaseForContent
+          .from('books')
+          .insert({
+            tenant_id: tenantId,
+            student_id: studentId,
+            master_content_id: masterContentId,
+            title: contentTitle,
+            publisher: slot.content.publisher || null,
+            author: slot.content.author || null,
+            subject: slot.content.subject || null,
+            subject_category: slot.content.subjectCategory || null,
+            total_pages: slot.content.totalRange || null,
+            difficulty_level: masterData?.difficulty_level || 'medium',
+            page_analysis: masterData?.page_analysis || null,
+          })
+          .select('id')
+          .single();
+
+        if (bookError || !bookData) {
+          logActionError(
+            'generateSlotBasedPlan',
+            `[Step1.5] books 레코드 생성 실패 - error: ${bookError?.message}`
+          );
+          return {
+            slotId: slot.id,
+            contentId: '',
+            contentTitle,
+            planGroupId: '',
+            planCount: 0,
+            success: false,
+            error: `학생용 교재 레코드 생성 실패: ${bookError?.message}`,
+          };
+        }
+        contentId = bookData.id;
+      }
     } else {
       // 기존 콘텐츠
       contentId = slot.content.id!;
@@ -165,11 +298,15 @@ async function processSlot(params: {
       periodEnd,
       options: {
         isSingleContent: true,
-        creationMode: 'ai_slot_based',
+        creationMode: 'content_based',
       },
     });
 
     if (!planGroupResult.success || !planGroupResult.planGroupId) {
+      logActionError(
+        'generateSlotBasedPlan',
+        `[Step2] Plan Group 생성 실패 - slotId: ${slot.id}, title: ${contentTitle}, error: ${planGroupResult.error}`
+      );
       return {
         slotId: slot.id,
         contentId,
@@ -190,20 +327,55 @@ async function processSlot(params: {
       .update({
         content_id: contentId,
         content_type: slot.content.contentType,
-        master_content_id: contentId,
+        master_content_id: masterContentId || contentId,
         // 범위 설정 저장
-        start_page: slot.rangeConfig.startRange,
-        end_page: slot.rangeConfig.endRange,
+        start_range: slot.rangeConfig.startRange,
+        end_range: slot.rangeConfig.endRange,
         // 전략/취약 과목 정보 저장
-        subject_type: slot.subjectClassification === 'strategic' ? 'strategy' : 'weakness',
+        study_type: slot.subjectClassification === 'strategic' ? 'strategy' : 'weakness',
         ...(slot.subjectClassification === 'strategic' && slot.strategicConfig && {
-          study_days: slot.strategicConfig.weeklyDays,
+          strategy_days_per_week: slot.strategicConfig.weeklyDays,
         }),
       })
       .eq('id', planGroupId);
 
     if (updateError) {
       logActionWarn('generateSlotBasedPlan', `Plan Group 업데이트 실패: ${updateError.message}`);
+    }
+
+    // Step 3.5: plan_contents 테이블에 콘텐츠 레코드 추가
+    const { error: contentInsertError } = await supabase
+      .from('plan_contents')
+      .insert({
+        tenant_id: tenantId,
+        plan_group_id: planGroupId,
+        content_type: slot.content.contentType,
+        content_id: contentId,
+        master_content_id: masterContentId || contentId,
+        start_range: slot.rangeConfig.startRange,
+        end_range: slot.rangeConfig.endRange,
+        display_order: 1,
+        content_name: contentTitle,
+        subject_name: slot.content.subject || null,
+        subject_category: slot.content.subjectCategory || null,
+        is_auto_recommended: true,
+        recommendation_source: 'auto',
+      });
+
+    if (contentInsertError) {
+      logActionError(
+        'generateSlotBasedPlan',
+        `[Step3.5] plan_contents 삽입 실패 - planGroupId: ${planGroupId}, error: ${contentInsertError.message}`
+      );
+      return {
+        slotId: slot.id,
+        contentId,
+        contentTitle,
+        planGroupId,
+        planCount: 0,
+        success: false,
+        error: `콘텐츠 연결 실패: ${contentInsertError.message}`,
+      };
     }
 
     // Step 4: 기간 계산
@@ -226,7 +398,7 @@ async function processSlot(params: {
         subject: slot.content.subject || '',
         subjectCategory: slot.content.subjectCategory || '',
         contentType: slot.content.contentType,
-        estimatedHours: 10, // 기본값
+        estimatedHours: calculateEstimatedHours(slot.content),
         difficulty: 'medium',
       }],
       period: {
@@ -243,6 +415,15 @@ async function processSlot(params: {
     });
 
     if (!hybridResult.success) {
+      const errorMsg = typeof hybridResult.error === 'string'
+        ? hybridResult.error
+        : hybridResult.error
+          ? JSON.stringify(hybridResult.error)
+          : 'Hybrid 플랜 생성 실패';
+      logActionError(
+        'generateSlotBasedPlan',
+        `[Step4] Hybrid 플랜 생성 실패 - slotId: ${slot.id}, title: ${contentTitle}, planGroupId: ${planGroupId}, error: ${errorMsg}`
+      );
       return {
         slotId: slot.id,
         contentId,
@@ -315,9 +496,19 @@ async function persistVirtualContent(params: {
     );
 
     if (saveResult.savedItems.length === 0) {
+      // errors 배열에서 상세 에러 메시지 추출
+      const errorDetail = saveResult.errors.length > 0
+        ? saveResult.errors.map(e => `${e.title}: ${e.error}`).join(', ')
+        : '원인 불명';
+
+      logActionError(
+        'generateSlotBasedPlan',
+        `[persistVirtualContent] 콘텐츠 저장 실패 - title: ${content.title}, errorDetail: ${errorDetail}`
+      );
+
       return {
         success: false,
-        error: '콘텐츠 저장에 실패했습니다.',
+        error: `콘텐츠 저장에 실패했습니다: ${errorDetail}`,
       };
     }
 

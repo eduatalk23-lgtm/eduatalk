@@ -178,6 +178,9 @@ export interface ChapterInfo {
 
   /** 종료 범위 (페이지 번호 또는 강의 번호) */
   endRange: number;
+
+  /** 해당 챕터/에피소드 소요시간 (분) */
+  duration?: number;
 }
 
 /**
@@ -206,6 +209,12 @@ export interface ParsedContentItem {
 
   /** 설명 또는 특징 */
   description?: string;
+
+  /** 총 예상 소요시간 (시간 단위) */
+  estimatedHours?: number;
+
+  /** 평균 에피소드 길이 (분 단위) - 강의 콘텐츠용 */
+  averageEpisodeDuration?: number;
 }
 
 /**
@@ -298,8 +307,10 @@ export type ColdStartPipelineResult =
         totalFound: number;
         filtered: number;
         searchQuery: string;
-        /** Rate limit 시 DB fallback을 사용했는지 */
+        /** Rate limit 또는 Parse 실패 시 DB fallback을 사용했는지 */
         usedFallback?: boolean;
+        /** Fallback 사용 이유 */
+        fallbackReason?: "rate_limit" | "parse_failure";
       };
       /** DB 저장 통계 (saveToDb 옵션 사용 시에만 포함) */
       persistence?: PersistenceStats;
