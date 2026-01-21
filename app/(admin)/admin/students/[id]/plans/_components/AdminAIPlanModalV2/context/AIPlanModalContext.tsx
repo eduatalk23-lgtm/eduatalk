@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useReducer, type ReactNode, type Dispatch } from 'react';
+import { createContext, useContext, useReducer, useMemo, type ReactNode, type Dispatch } from 'react';
 import {
   type ModalState,
   type ModalAction,
@@ -283,7 +283,7 @@ export function useAIPlanModal() {
 export function useAIPlanModalActions() {
   const { dispatch } = useAIPlanModal();
 
-  return {
+  return useMemo(() => ({
     // 스텝 관련
     setStep: (step: WizardStep) => dispatch({ type: 'SET_STEP', step }),
     nextStep: () => dispatch({ type: 'SET_STEP', step: 2 }), // Placeholder
@@ -333,7 +333,7 @@ export function useAIPlanModalActions() {
     setGenerationResult: (result: NonNullable<ModalState['generationResult']>) =>
       dispatch({ type: 'SET_GENERATION_RESULT', result }),
     reset: () => dispatch({ type: 'RESET' }),
-  };
+  }), [dispatch]);
 }
 
 // ============================================================================

@@ -2,7 +2,8 @@
 
 import { useState, useCallback } from 'react';
 import { useAIPlanModalActions, useAIPlanModalSelectors } from '../context/AIPlanModalContext';
-import { runColdStartPipeline, type ColdStartRawInput, type RecommendationItem } from '@/lib/domains/plan/llm/actions/coldStart';
+import type { ColdStartRawInput, RecommendationItem } from '@/lib/domains/plan/llm/actions/coldStart';
+import { runColdStartPipelineAction } from '../../../_actions/aiPlanActions';
 import type { RecommendedContent, AIResult } from '@/lib/domains/admin-plan/types/aiPlanSlot';
 
 // ============================================================================
@@ -109,7 +110,7 @@ export function useAIRecommendation(): UseAIRecommendationReturn {
         contentType: slot.aiConfig.contentType === 'all' ? undefined : slot.aiConfig.contentType,
       };
 
-      const result = await runColdStartPipeline(input, {
+      const result = await runColdStartPipelineAction(input, {
         enableFallback: true,
         saveToDb: false, // 나중에 확정 시 저장
       });
@@ -171,7 +172,7 @@ export function useAIRecommendation(): UseAIRecommendationReturn {
           contentType: slot.aiConfig!.contentType === 'all' ? undefined : slot.aiConfig!.contentType,
         };
 
-        const result = await runColdStartPipeline(input, {
+        const result = await runColdStartPipelineAction(input, {
           enableFallback: true,
           saveToDb: false,
         });

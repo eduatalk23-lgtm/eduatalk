@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Loader2, CheckCircle2, AlertCircle, Sparkles, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, Sparkles, BookOpen, ChevronDown, ChevronUp, RefreshCw, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useAIPlanModalActions, useAIPlanModalSelectors } from '../context/AIPlanModalContext';
 import { useAIRecommendation } from '../hooks/useAIRecommendation';
@@ -18,7 +18,7 @@ export function Step3AIRecommendation({ studentId: _studentId, tenantId: _tenant
   void _studentId;
   void _tenantId;
   const { slots, confirmedCount, totalStrategicDays } = useAIPlanModalSelectors();
-  const { executeAllRecommendations, isExecuting, progress } = useAIRecommendation();
+  const { executeAllRecommendations, executeSingleRecommendation, isExecuting, progress } = useAIRecommendation();
 
   // AI 추천 자동 실행 (스텝 진입 시)
   const aiSlots = slots.filter(s => s.type === 'ai_recommendation');
@@ -60,6 +60,7 @@ export function Step3AIRecommendation({ studentId: _studentId, tenantId: _tenant
             key={slot.id}
             slot={slot}
             index={index}
+            onRetry={executeSingleRecommendation}
           />
         ))}
       </div>
@@ -101,11 +102,22 @@ export function Step3AIRecommendation({ studentId: _studentId, tenantId: _tenant
 interface SlotConfigCardProps {
   slot: ContentSlot;
   index: number;
+  onRetry: (slotId: string) => Promise<void>;
 }
 
-function SlotConfigCard({ slot, index }: SlotConfigCardProps) {
+function SlotConfigCard({ slot, index, onRetry }: SlotConfigCardProps) {
   const [isExpanded, setIsExpanded] = useState(true);
-  const { selectRecommendation, setRangeConfig, setSubjectClassification, setStrategicConfig, confirmSlot } = useAIPlanModalActions();
+  const [isRetrying, setIsRetrying] = useState(false);
+  const { selectRecommendation, setRangeConfig, setSubjectClassification, setStrategicConfig, confirmSlot, removeSlot } = useAIPlanModalActions();
+
+  async function handleRetry() {
+    setIsRetrying(true);
+    try {
+      await onRetry(slot.id);
+    } finally {
+      setIsRetrying(false);
+    }
+  }
 
   const isAI = slot.type === 'ai_recommendation';
   const isLoading = slot.status === 'loading';
@@ -179,6 +191,30 @@ function SlotConfigCard({ slot, index }: SlotConfigCardProps) {
         </div>
         {isExpanded ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
       </button>
+
+      {/* 에러 상태: 재시도/삭제 버튼 */}
+      {isExpanded && hasError && (
+        <div className="px-4 pb-4 pt-4 border-t border-red-100">
+          <p className="text-sm text-red-600 mb-3">{slot.errorMessage || '오류가 발생했습니다.'}</p>
+          <div className="flex gap-2">
+            <button
+              onClick={handleRetry}
+              disabled={isRetrying}
+              className="flex-1 px-3 py-2 text-sm bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+            >
+              <RefreshCw className={cn('h-4 w-4', isRetrying && 'animate-spin')} />
+              {isRetrying ? '재시도 중...' : '다시 시도'}
+            </button>
+            <button
+              onClick={() => removeSlot(slot.id)}
+              className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-1"
+            >
+              <Trash2 className="h-4 w-4" />
+              삭제
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 내용 */}
       {isExpanded && !isLoading && !hasError && (

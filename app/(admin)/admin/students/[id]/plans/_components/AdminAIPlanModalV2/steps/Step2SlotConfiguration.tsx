@@ -281,6 +281,7 @@ function SlotCard({
       {/* AI 추천 설정 */}
       {isAI && slot.aiConfig && (
         <AIConfigForm
+          slotId={slot.id}
           config={slot.aiConfig}
           onChange={onUpdateAIConfig}
         />
@@ -308,11 +309,12 @@ function SlotCard({
 // ============================================================================
 
 interface AIConfigFormProps {
+  slotId: string;
   config: AIConfig;
   onChange: (config: AIConfig) => void;
 }
 
-function AIConfigForm({ config, onChange }: AIConfigFormProps) {
+function AIConfigForm({ slotId, config, onChange }: AIConfigFormProps) {
   const subjectOptions = config.subjectCategory
     ? SUBJECTS_BY_CATEGORY[config.subjectCategory as SubjectCategory] || []
     : [];
@@ -378,7 +380,7 @@ function AIConfigForm({ config, onChange }: AIConfigFormProps) {
             <label key={type} className="flex items-center gap-1.5 cursor-pointer">
               <input
                 type="radio"
-                name="contentType"
+                name={`contentType-${slotId}`}
                 value={type}
                 checked={config.contentType === type}
                 onChange={() => onChange({ ...config, contentType: type })}

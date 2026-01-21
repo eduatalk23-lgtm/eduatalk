@@ -191,6 +191,10 @@ export function Step4GenerationResult({
 
   // 실패
   if (generationResult && !generationResult.success) {
+    const hasResults = generationResult.results.length > 0;
+    const hasPartialSuccess = hasResults && generationResult.results.some(r => r.success);
+    const allFailed = hasResults && generationResult.results.every(r => !r.success);
+
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
@@ -201,27 +205,45 @@ export function Step4GenerationResult({
           플랜 생성 중 오류가 발생했습니다.
         </p>
 
-        {/* 부분 성공 결과 */}
-        {generationResult.results.some(r => r.success) && (
-          <div className="mt-6 w-full max-w-sm">
-            <p className="text-sm text-gray-600 mb-2">부분 성공 결과:</p>
-            <div className="border border-gray-200 rounded-lg divide-y">
+        {/* 결과 상세 - 부분 성공 또는 전체 실패 모두 표시 */}
+        {hasResults ? (
+          <div className="mt-6 w-full max-w-md">
+            <p className="text-sm text-gray-600 mb-2">
+              {hasPartialSuccess ? '부분 성공 결과:' : '실패 상세:'}
+            </p>
+            <div className="border border-gray-200 rounded-lg divide-y max-h-60 overflow-y-auto">
               {generationResult.results.map((result) => (
-                <div key={result.slotId} className="p-3 flex items-center gap-2">
-                  {result.success ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <XCircle className="h-4 w-4 text-red-500" />
+                <div key={result.slotId} className="p-3">
+                  <div className="flex items-center gap-2">
+                    {result.success ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                    )}
+                    <span className="text-sm text-gray-700 truncate flex-1">
+                      {result.contentTitle}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {result.success ? `${result.planCount}개` : '실패'}
+                    </span>
+                  </div>
+                  {/* 개별 슬롯 에러 메시지 표시 */}
+                  {!result.success && result.error && (
+                    <p className="mt-1 ml-6 text-xs text-red-500 break-words">
+                      {result.error}
+                    </p>
                   )}
-                  <span className="text-sm text-gray-700 truncate flex-1">
-                    {result.contentTitle}
-                  </span>
-                  <span className="text-xs text-gray-400">
-                    {result.success ? `${result.planCount}개` : '실패'}
-                  </span>
                 </div>
               ))}
             </div>
+          </div>
+        ) : (
+          <div className="mt-6 w-full max-w-md">
+            <p className="text-sm text-red-600 text-center">
+              서버에서 상세 에러 정보를 확인할 수 없습니다.
+              <br />
+              <span className="text-xs text-gray-500">브라우저 개발자 도구 콘솔 또는 서버 로그를 확인해주세요.</span>
+            </p>
           </div>
         )}
 
