@@ -141,7 +141,7 @@ JSON 형식으로만 응답해주세요.
       system: COLD_START_SEARCH_PROMPT,
       messages: [{ role: "user", content: userPrompt }],
       temperature: 0.2, // 사실적인 정보 추출을 위해 낮은 temperature
-      maxTokens: 3000, // 여러 콘텐츠 정보를 담기에 충분한 토큰
+      maxTokens: 4096, // JSON 응답이 잘리지 않도록 충분한 토큰 확보
       grounding: { enabled: true, mode: "always" }, // 웹 검색 활성화
     });
 

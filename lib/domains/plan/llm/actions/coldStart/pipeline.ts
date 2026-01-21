@@ -301,6 +301,79 @@ export async function runColdStartPipeline(
 
   const parseResult = parseSearchResults(searchResult.rawContent);
 
+  // Parse 실패 시 DB fallback 시도
+  if (!parseResult.success && enableFallback) {
+    logActionWarn(
+      "coldStartPipeline",
+      `Parse 실패, DB fallback 시도: ${parseResult.error}`
+    );
+
+    const webContentService = getWebSearchContentService();
+    const cachedContent = await webContentService.findExistingWebContent(
+      tenantId ?? null,
+      {
+        subjectCategory: validatedInput.subjectCategory,
+        subject: validatedInput.subject ?? undefined,
+        difficulty: validatedInput.difficulty ?? undefined,
+        contentType: validatedInput.contentType ?? "all",
+        includeSharedCatalog: true,
+        limit: 10,
+      }
+    );
+
+    if (cachedContent.length > 0) {
+      logActionWarn(
+        "coldStartPipeline",
+        `DB fallback 성공 (parse 실패 후): ${cachedContent.length}개 캐시된 콘텐츠 반환`
+      );
+
+      // 캐시된 콘텐츠를 RecommendationItem 형태로 변환
+      const fallbackRecommendations = cachedContent.map((item, index) => ({
+        title: item.title,
+        contentType: item.contentType,
+        totalRange: item.totalRange ?? 0,
+        author: undefined,
+        publisher: undefined,
+        reason: "이전에 저장된 추천 콘텐츠입니다.",
+        matchScore: 70 - index * 5, // 순서대로 점수 감소
+        rank: index + 1,
+        chapters: [],
+      }));
+
+      // 메트릭스 로깅 (fallback 사용)
+      metricsBuilder
+        .setRecommendation({
+          count: fallbackRecommendations.length,
+          strategy: "coldStart",
+          usedFallback: true,
+        })
+        .setWebSearch({
+          enabled: !useMock,
+          queriesCount: 1,
+          resultsCount: 0,
+        })
+        .log();
+
+      return {
+        success: true,
+        recommendations: fallbackRecommendations,
+        stats: {
+          totalFound: cachedContent.length,
+          filtered: 0,
+          searchQuery: searchQuery.query,
+          usedFallback: true,
+          fallbackReason: "parse_failure",
+        },
+      };
+    }
+
+    // Parse fallback도 실패한 경우
+    logActionWarn(
+      "coldStartPipeline",
+      "DB fallback 실패 (parse 실패 후): 캐시된 콘텐츠 없음"
+    );
+  }
+
   if (!parseResult.success) {
     logRecommendationError("coldStartPipeline", parseResult.error, {
       stage: "parse",
