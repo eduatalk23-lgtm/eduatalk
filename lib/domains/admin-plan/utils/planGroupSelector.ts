@@ -233,7 +233,7 @@ export async function createPlanGroupForPlanner(input: {
         ...(options?.isSingleDay !== undefined && { is_single_day: options.isSingleDay }),
         ...(options?.isSingleContent !== undefined && { is_single_content: options.isSingleContent }),
         // 메타데이터
-        created_by: user.userId,
+        last_admin_id: user.userId,
       })
       .select("id")
       .single();

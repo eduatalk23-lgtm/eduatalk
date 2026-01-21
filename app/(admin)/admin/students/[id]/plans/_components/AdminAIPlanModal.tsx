@@ -12,10 +12,10 @@ import { searchMasterLectures } from '@/lib/data/contentMasters/lectures';
 import { createPlanGroupForPlanner } from '@/lib/domains/admin-plan/utils/planGroupSelector';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import {
-  runUnifiedPlanGenerationPipeline,
   type DifficultyLevel,
   type ContentType,
 } from '@/lib/domains/plan/llm/actions/unifiedPlanGeneration';
+import { runUnifiedPlanGenerationPipelineAction } from '../_actions/aiPlanActions';
 import { generateHybridPlanCompleteAction } from '@/lib/domains/plan/llm/actions/generateHybridPlanComplete';
 import type { Planner } from '@/lib/domains/admin-plan/actions/planners';
 import type { AIRecommendations } from '@/lib/domains/plan/llm/types/aiFramework';
@@ -350,7 +350,7 @@ export function AdminAIPlanModal({
 
     const planName = `AI 생성 플랜 (${subjectCategory}${subject ? ` - ${subject}` : ''})`;
 
-    const result = await runUnifiedPlanGenerationPipeline({
+    const result = await runUnifiedPlanGenerationPipelineAction({
       studentId,
       tenantId,
       planName,
@@ -374,8 +374,13 @@ export function AdminAIPlanModal({
         studentLevel: 'medium',
         subjectType: 'weakness',
       },
+      generationOptions: {
+        saveToDb: true,
+        generateMarkdown: true,
+        dryRun: false,
+      },
       plannerId: selectedPlannerId!,
-      creationMode: 'unified',
+      creationMode: 'content_based',
       plannerValidationMode: 'auto_create',
     });
 

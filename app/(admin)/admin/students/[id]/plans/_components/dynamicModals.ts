@@ -38,6 +38,11 @@ export const AdminAIPlanModal = dynamic(
   { ssr: false }
 );
 
+export const AdminAIPlanModalV2 = dynamic(
+  () => import('./AdminAIPlanModalV2').then((mod) => ({ default: mod.AdminAIPlanModalV2 })),
+  { ssr: false }
+);
+
 export const AdminPlanCreationWizard7Step = dynamic(
   () => import('./admin-wizard').then((mod) => ({ default: mod.AdminPlanCreationWizard7Step })),
   { ssr: false }

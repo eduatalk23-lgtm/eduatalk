@@ -21,7 +21,7 @@ import {
   AddAdHocModal,
   RedistributeModal,
   ShortcutsHelpModal,
-  AdminAIPlanModal,
+  AdminAIPlanModalV2,
   AdminPlanCreationWizard7Step,
   AdminQuickPlanModal,
   UnifiedPlanAddModal,
@@ -441,9 +441,9 @@ function AdminPlanManagementContent({
             />
           )}
 
-          {/* AI 플랜 모달: 통합 위저드 플로우 (플래너→콘텐츠→생성) */}
+          {/* AI 플랜 모달: V2 슬롯 기반 위저드 (플래너→슬롯→AI추천→생성) */}
           {showAIPlanModal && !newGroupIdForAI && (
-            <AdminAIPlanModal
+            <AdminAIPlanModalV2
               studentId={studentId}
               tenantId={tenantId}
               onClose={() => setShowAIPlanModal(false)}
@@ -508,9 +508,9 @@ function AdminPlanManagementContent({
             />
           )}
 
-          {/* AI 플랜 모달: 위저드에서 생성된 새 그룹용 (레거시 - 통합 모달 사용 권장) */}
+          {/* AI 플랜 모달: 위저드에서 생성된 새 그룹용 */}
           {showAIPlanModal && newGroupIdForAI && (
-            <AdminAIPlanModal
+            <AdminAIPlanModalV2
               studentId={studentId}
               tenantId={tenantId}
               onClose={() => {
