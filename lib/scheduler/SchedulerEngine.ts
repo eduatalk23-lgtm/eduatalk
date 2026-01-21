@@ -946,12 +946,8 @@ export class SchedulerEngine {
         });
       });
 
-      if (unmatchedDates.length > 0) {
-        logActionWarn(
-          "SchedulerEngine.buildStudyPlansByDate",
-          `rangeMap 날짜가 studyDaysList에 없어 자동 조정 - content_id:${content.content_id}, unmatchedCount:${unmatchedDates.length}`
-        );
-      }
+      // Note: unmatchedDates는 다른 주차의 날짜들이므로 정상 동작
+      // (rangeMap은 전체 기간, studyDaysList는 현재 주차만 포함)
     });
 
     return studyPlansByDate;

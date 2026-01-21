@@ -274,7 +274,9 @@ export interface GeminiQuotaStatus {
 }
 
 // 싱글톤 할당량 트래커 인스턴스
-const geminiQuotaTracker = new GeminiQuotaTracker();
+// Pay-as-you-go 티어: 실질적으로 무제한 (비용 기반)
+// Free Tier였다면 20으로 설정
+const geminiQuotaTracker = new GeminiQuotaTracker(10000, 95);
 
 /**
  * Gemini API 할당량 상태 조회

@@ -118,7 +118,10 @@ export function logActionError(
         }
       : {
           name: 'UnknownError',
-          message: String(error),
+          message:
+            typeof error === 'object' && error !== null
+              ? JSON.stringify(error)
+              : String(error),
         };
 
   const entry = createLogEntry('error', context, `Action failed: ${errorInfo.message}`, metadata);
