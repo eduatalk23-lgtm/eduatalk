@@ -86,3 +86,4 @@ python/*.egg-info/
 .mypy_cache/
 playwright-report/
 test-results/
+.serena/
