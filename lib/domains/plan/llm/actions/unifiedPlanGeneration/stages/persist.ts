@@ -43,7 +43,7 @@ function createPersistContext(
  */
 interface CreatePlanGroupOptions {
   plannerId: string | null;
-  creationMode: "unified" | "unified_batch";
+  creationMode: "wizard" | "content_based" | "template" | "camp" | "free_learning";
   isSingleContent: boolean;
   singleContent?: ResolvedContentItem;
 }
@@ -111,13 +111,12 @@ async function createPlanContents(
   planGroupId: string,
   contents: ContentResolutionResult["items"],
   tenantId: string,
-  studentId: string,
+  _studentId: string, // Note: plan_contents 테이블에 student_id 컬럼 없음
   ctx: ActionContext
 ): Promise<{ success: boolean; ids: string[] }> {
   const contentRecords = contents.map((content, index) => ({
     id: crypto.randomUUID(),
     tenant_id: tenantId,
-    student_id: studentId,
     plan_group_id: planGroupId,
     content_type: content.contentType,
     content_id: content.id,
@@ -288,7 +287,7 @@ export async function persist(
   // 단일 콘텐츠 여부 판단
   const isSingleContent = contentResolution.items.length === 1;
   const singleContent = isSingleContent ? contentResolution.items[0] : undefined;
-  const creationMode = input.creationMode ?? "unified";
+  const creationMode = input.creationMode ?? "content_based";
 
   // 1. Plan Group 생성 (플래너 연계)
   const planGroup = await createPlanGroup(supabase, input, {

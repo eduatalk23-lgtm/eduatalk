@@ -142,7 +142,7 @@ export function validateInput(
 
     // Phase 3: 플래너 연계 필드
     plannerId: validated.plannerId ?? null,
-    creationMode: validated.creationMode ?? "unified",
+    creationMode: validated.creationMode ?? "content_based",
     plannerValidationMode: validated.plannerValidationMode ?? "auto_create",
   };
 

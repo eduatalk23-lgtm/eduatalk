@@ -152,7 +152,7 @@ export const unifiedPlanGenerationInputSchema = z
 
     // Phase 3: 플래너 연계 필드
     plannerId: z.string().uuid().nullable().optional(),
-    creationMode: z.enum(["unified", "unified_batch"]).optional(),
+    creationMode: z.enum(["wizard", "content_based", "template", "camp", "free_learning"]).optional(),
     plannerValidationMode: z.enum(["warn", "strict", "auto_create"]).optional(),
   })
   .refine(
