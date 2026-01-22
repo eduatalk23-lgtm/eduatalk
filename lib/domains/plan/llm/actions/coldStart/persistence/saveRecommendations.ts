@@ -1,8 +1,11 @@
 /**
- * 콜드 스타트 추천 결과 DB 저장
+ * 콜드 스타트 추천 결과 DB 저장 (배치 처리)
  *
  * 추천 파이프라인에서 생성된 결과를 master_books / master_lectures 테이블에 저장합니다.
- * 중복 검사를 수행하여 이미 존재하는 콘텐츠는 스킵합니다.
+ * 배치 중복 검사 + 배치 INSERT로 쿼리 수를 최소화합니다.
+ *
+ * 기존: N개 항목 → 2N개 쿼리 (중복검사 N + INSERT N)
+ * 개선: N개 항목 → 4개 쿼리 (교재 중복검사 + 강의 중복검사 + 교재 INSERT + 강의 INSERT)
  */
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -13,7 +16,10 @@ import type {
   SavedContentItem,
 } from "./types";
 import { mapToBookInsert, mapToLectureInsert } from "./mappers";
-import { checkBookDuplicate, checkLectureDuplicate } from "./duplicateCheck";
+import {
+  checkBookDuplicatesBatch,
+  checkLectureDuplicatesBatch,
+} from "./duplicateCheck";
 
 /**
  * 추천 결과를 master 콘텐츠 테이블에 저장
@@ -60,89 +66,112 @@ export async function saveRecommendationsToMasterContent(
   const tenantId = options.tenantId ?? null;
   const subjectCategory = options.subjectCategory ?? null;
 
-  for (const item of recommendations) {
-    try {
-      if (item.contentType === "book") {
-        // 교재 중복 검사
-        const duplicateCheck = await checkBookDuplicate(
-          item.title,
+  // 1. 교재/강의 분류
+  const books = recommendations.filter((r) => r.contentType === "book");
+  const lectures = recommendations.filter((r) => r.contentType === "lecture");
+
+  // 2. 배치 중복 검사 (병렬 실행 - 2개 쿼리)
+  const [bookDuplicates, lectureDuplicates] = await Promise.all([
+    books.length > 0
+      ? checkBookDuplicatesBatch(
+          books.map((b) => b.title),
           subjectCategory,
           tenantId
-        );
+        )
+      : { existingMap: new Map<string, string>(), duplicateTitles: [] },
+    lectures.length > 0
+      ? checkLectureDuplicatesBatch(
+          lectures.map((l) => l.title),
+          subjectCategory,
+          tenantId
+        )
+      : { existingMap: new Map<string, string>(), duplicateTitles: [] },
+  ]);
 
-        if (duplicateCheck.isDuplicate && duplicateCheck.existingId) {
-          // 중복인 경우 기존 ID 반환
-          savedItems.push({
-            id: duplicateCheck.existingId,
-            title: item.title,
-            contentType: "book",
-            isNew: false,
-          });
-          skippedDuplicates++;
-          continue;
-        }
+  // 3. 중복 항목 처리 (교재)
+  for (const book of books) {
+    const existingId = bookDuplicates.existingMap.get(book.title);
+    if (existingId) {
+      savedItems.push({
+        id: existingId,
+        title: book.title,
+        contentType: "book",
+        isNew: false,
+      });
+      skippedDuplicates++;
+    }
+  }
 
-        // 새 교재 생성
-        const insertData = mapToBookInsert(item, options);
-        const { data, error } = await supabase
-          .from("master_books")
-          .insert(insertData)
-          .select("id")
-          .single();
+  // 4. 중복 항목 처리 (강의)
+  for (const lecture of lectures) {
+    const existingId = lectureDuplicates.existingMap.get(lecture.title);
+    if (existingId) {
+      savedItems.push({
+        id: existingId,
+        title: lecture.title,
+        contentType: "lecture",
+        isNew: false,
+      });
+      skippedDuplicates++;
+    }
+  }
 
-        if (error) {
-          throw new Error(error.message);
-        }
+  // 5. 신규 항목 필터링
+  const newBooks = books.filter(
+    (b) => !bookDuplicates.existingMap.has(b.title)
+  );
+  const newLectures = lectures.filter(
+    (l) => !lectureDuplicates.existingMap.has(l.title)
+  );
 
+  // 6. 배치 INSERT (교재 - 1개 쿼리)
+  if (newBooks.length > 0) {
+    const bookInserts = newBooks.map((b) => mapToBookInsert(b, options));
+
+    const { data, error } = await supabase
+      .from("master_books")
+      .insert(bookInserts)
+      .select("id, title");
+
+    if (error) {
+      // 배치 실패 시 개별 에러 기록
+      for (const book of newBooks) {
+        errors.push({ title: book.title, error: error.message });
+      }
+    } else if (data) {
+      for (const row of data) {
         savedItems.push({
-          id: data.id,
-          title: item.title,
+          id: row.id,
+          title: row.title,
           contentType: "book",
           isNew: true,
         });
-      } else {
-        // 강의 중복 검사
-        const duplicateCheck = await checkLectureDuplicate(
-          item.title,
-          subjectCategory,
-          tenantId
-        );
+      }
+    }
+  }
 
-        if (duplicateCheck.isDuplicate && duplicateCheck.existingId) {
-          savedItems.push({
-            id: duplicateCheck.existingId,
-            title: item.title,
-            contentType: "lecture",
-            isNew: false,
-          });
-          skippedDuplicates++;
-          continue;
-        }
+  // 7. 배치 INSERT (강의 - 1개 쿼리)
+  if (newLectures.length > 0) {
+    const lectureInserts = newLectures.map((l) => mapToLectureInsert(l, options));
 
-        // 새 강의 생성
-        const insertData = mapToLectureInsert(item, options);
-        const { data, error } = await supabase
-          .from("master_lectures")
-          .insert(insertData)
-          .select("id")
-          .single();
+    const { data, error } = await supabase
+      .from("master_lectures")
+      .insert(lectureInserts)
+      .select("id, title");
 
-        if (error) {
-          throw new Error(error.message);
-        }
-
+    if (error) {
+      for (const lecture of newLectures) {
+        errors.push({ title: lecture.title, error: error.message });
+      }
+    } else if (data) {
+      for (const row of data) {
         savedItems.push({
-          id: data.id,
-          title: item.title,
+          id: row.id,
+          title: row.title,
           contentType: "lecture",
           isNew: true,
         });
       }
-    } catch (err) {
-      errors.push({
-        title: item.title,
-        error: err instanceof Error ? err.message : "알 수 없는 오류",
-      });
     }
   }
 

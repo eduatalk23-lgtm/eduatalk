@@ -68,6 +68,17 @@ export interface DuplicateCheckResult {
 }
 
 /**
+ * 배치 중복 검사 결과
+ */
+export interface BatchDuplicateCheckResult {
+  /** 제목 → 기존 ID 맵 (중복인 항목만 포함) */
+  existingMap: Map<string, string>;
+
+  /** 중복된 제목 목록 */
+  duplicateTitles: string[];
+}
+
+/**
  * 교재 DB Insert 데이터 (cold_start용 최소 필드)
  */
 export interface ColdStartBookInsert {

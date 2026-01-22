@@ -102,18 +102,27 @@ export async function runColdStartBatch(
   let usedFallbackCount = 0;
   let completedCount = 0;
 
-  // Rate limit 상태 추적
-  let consecutiveRateLimits = 0;
+  // Rate limit 상태 추적 (청크 단위로 관리, 병렬 처리 내부에서 수정하지 않음)
+  let consecutiveRateLimitChunks = 0;
   let currentDelay = delayBetweenRequests;
+
+  /** 처리 결과 + Rate limit 여부 */
+  interface ProcessItemResult {
+    itemResult: BatchItemResult;
+    hitRateLimit: boolean;
+  }
 
   /**
    * 단일 항목 처리 함수
+   * - 공유 상태를 수정하지 않음 (병렬 안전)
+   * - Rate limit 발생 여부를 반환하여 청크 완료 후 처리
    */
   async function processItem(
     target: BatchTarget,
     index: number
-  ): Promise<BatchItemResult> {
+  ): Promise<ProcessItemResult> {
     const itemStartTime = Date.now();
+    let hitRateLimit = false;
 
     logActionDebug(
       "ColdStartBatch",
@@ -158,10 +167,6 @@ export async function runColdStartBatch(
             durationMs: Date.now() - itemStartTime,
           };
 
-          // Rate limit 연속 카운터 리셋
-          consecutiveRateLimits = 0;
-          currentDelay = SUCCESS_DELAY_MS;
-
           success = true;
 
           logActionDebug(
@@ -182,18 +187,16 @@ export async function runColdStartBatch(
             lastError.includes("RATE_LIMIT");
 
           if (isRateLimit) {
-            consecutiveRateLimits++;
-            currentDelay = Math.min(
-              RATE_LIMIT_DELAY_MS * Math.pow(1.5, consecutiveRateLimits),
-              30000
-            );
+            hitRateLimit = true;
 
             if (attempt < maxRetries) {
+              // 재시도 시 고정 딜레이 사용 (공유 상태 미참조)
+              const retryDelay = RATE_LIMIT_DELAY_MS * Math.pow(1.5, attempt);
               logActionWarn(
                 "ColdStartBatch",
-                `[${index + 1}/${total}] Rate limit, ${currentDelay}ms 대기 후 재시도 ${attempt + 1}/${maxRetries}`
+                `[${index + 1}/${total}] Rate limit, ${retryDelay}ms 대기 후 재시도 ${attempt + 1}/${maxRetries}`
               );
-              await delay(currentDelay);
+              await delay(retryDelay);
               continue;
             }
           }
@@ -230,7 +233,7 @@ export async function runColdStartBatch(
       );
     }
 
-    return itemResult!;
+    return { itemResult: itemResult!, hitRateLimit };
   }
 
   /**
@@ -249,17 +252,24 @@ export async function runColdStartBatch(
 
     const chunkResults = await Promise.allSettled(chunkPromises);
 
+    // 청크 내 rate limit 발생 여부 추적
+    let chunkHadRateLimit = false;
+    let chunkHadSuccess = false;
+
     // 결과 수집
     for (let i = 0; i < chunkResults.length; i++) {
       const result = chunkResults[i];
       const index = chunkStartIndex + i;
 
       if (result.status === "fulfilled") {
-        const itemResult = result.value;
+        const { itemResult, hitRateLimit } = result.value;
         items.push(itemResult);
+
+        if (hitRateLimit) chunkHadRateLimit = true;
 
         if (itemResult.success) {
           successCount++;
+          chunkHadSuccess = true;
           totalNewlySaved += itemResult.newlySaved;
           totalDuplicatesSkipped += itemResult.duplicatesSkipped;
           if (itemResult.usedFallback) usedFallbackCount++;
@@ -313,6 +323,18 @@ export async function runColdStartBatch(
       }
 
       completedCount++;
+    }
+
+    // 청크 완료 후 rate limit 상태 업데이트 (병렬 안전)
+    if (chunkHadRateLimit) {
+      consecutiveRateLimitChunks++;
+      currentDelay = Math.min(
+        RATE_LIMIT_DELAY_MS * Math.pow(1.5, consecutiveRateLimitChunks),
+        30000
+      );
+    } else if (chunkHadSuccess) {
+      consecutiveRateLimitChunks = 0;
+      currentDelay = SUCCESS_DELAY_MS;
     }
 
     // 진행 상황 콜백
