@@ -21,7 +21,7 @@ import type { BatchPreset } from "@/lib/domains/plan/llm/actions/coldStart/batch
 import { apiSuccess, apiUnauthorized, handleApiError } from "@/lib/api";
 
 export const runtime = "nodejs";
-export const maxDuration = 600; // 10분 타임아웃
+export const maxDuration = 300; // 5분 타임아웃 (Vercel Hobby 플랜 최대값)
 
 /**
  * 유효한 프리셋인지 확인
