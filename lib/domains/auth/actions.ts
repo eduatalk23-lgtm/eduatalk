@@ -34,6 +34,63 @@ import { signInSchema, signUpSchema, type SignInResult, type AuthResult } from "
 // ============================================
 
 /**
+ * Supabase 로그인 에러 메시지를 사용자 친화적으로 변환
+ */
+function getLoginErrorMessage(errorMessage: string): string {
+  const lowerMessage = errorMessage.toLowerCase();
+
+  // 잘못된 자격 증명
+  if (
+    lowerMessage.includes("invalid login credentials") ||
+    lowerMessage.includes("invalid credentials") ||
+    lowerMessage.includes("invalid email or password")
+  ) {
+    return "이메일 또는 비밀번호가 올바르지 않습니다.";
+  }
+
+  // 사용자를 찾을 수 없음
+  if (
+    lowerMessage.includes("user not found") ||
+    lowerMessage.includes("no user found")
+  ) {
+    return "등록되지 않은 이메일입니다. 회원가입을 진행해주세요.";
+  }
+
+  // 비밀번호 오류
+  if (lowerMessage.includes("invalid password")) {
+    return "비밀번호가 올바르지 않습니다.";
+  }
+
+  // 너무 많은 시도
+  if (
+    lowerMessage.includes("too many requests") ||
+    lowerMessage.includes("rate limit")
+  ) {
+    return "로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.";
+  }
+
+  // 계정 잠김
+  if (
+    lowerMessage.includes("account locked") ||
+    lowerMessage.includes("user locked")
+  ) {
+    return "계정이 잠겼습니다. 관리자에게 문의해주세요.";
+  }
+
+  // 네트워크 오류
+  if (
+    lowerMessage.includes("network") ||
+    lowerMessage.includes("fetch failed") ||
+    lowerMessage.includes("connection")
+  ) {
+    return "네트워크 연결을 확인해주세요.";
+  }
+
+  // 기타 에러
+  return "로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.";
+}
+
+/**
  * Admin 클라이언트 생성 및 null 체크 헬퍼
  * 회원가입 시 RLS 우회가 필요한 경우 사용
  */
@@ -472,8 +529,11 @@ export async function signIn(formData: FormData): Promise<SignInResult> {
       { email: validation.data.email }
     );
 
+    // 사용자 친화적 에러 메시지로 변환
+    const friendlyMessage = getLoginErrorMessage(errorMessage);
+
     throw new AppError(
-      error.message || "로그인에 실패했습니다.",
+      friendlyMessage,
       ErrorCode.UNAUTHORIZED,
       401,
       true
@@ -744,6 +804,21 @@ export async function updatePassword(newPassword: string): Promise<AuthResult> {
   try {
     const supabase = await createSupabaseServerClient();
 
+    // 먼저 세션 확인
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      logActionError(
+        { domain: "auth", action: "updatePassword" },
+        userError || new Error("No user session"),
+        { hasUser: !!user }
+      );
+      return {
+        success: false,
+        error: "세션이 만료되었습니다. 비밀번호 재설정을 다시 요청해주세요.",
+      };
+    }
+
     const { error } = await supabase.auth.updateUser({
       password: newPassword,
     });
@@ -753,9 +828,12 @@ export async function updatePassword(newPassword: string): Promise<AuthResult> {
         { domain: "auth", action: "updatePassword" },
         error
       );
+
+      // 사용자 친화적 에러 메시지
+      const friendlyMessage = getPasswordUpdateErrorMessage(error.message);
       return {
         success: false,
-        error: error.message || "비밀번호 변경에 실패했습니다.",
+        error: friendlyMessage,
       };
     }
 
@@ -775,6 +853,31 @@ export async function updatePassword(newPassword: string): Promise<AuthResult> {
       error: error instanceof Error ? error.message : "비밀번호 변경에 실패했습니다.",
     };
   }
+}
+
+/**
+ * 비밀번호 업데이트 에러 메시지를 사용자 친화적으로 변환
+ */
+function getPasswordUpdateErrorMessage(errorMessage: string): string {
+  const lowerMessage = errorMessage.toLowerCase();
+
+  if (lowerMessage.includes("session") || lowerMessage.includes("not logged in")) {
+    return "세션이 만료되었습니다. 비밀번호 재설정을 다시 요청해주세요.";
+  }
+
+  if (lowerMessage.includes("password") && lowerMessage.includes("weak")) {
+    return "비밀번호가 너무 약합니다. 더 강력한 비밀번호를 사용해주세요.";
+  }
+
+  if (lowerMessage.includes("same password") || lowerMessage.includes("different")) {
+    return "새 비밀번호는 이전 비밀번호와 달라야 합니다.";
+  }
+
+  if (lowerMessage.includes("too short") || lowerMessage.includes("at least")) {
+    return "비밀번호는 최소 8자 이상이어야 합니다.";
+  }
+
+  return "비밀번호 변경에 실패했습니다. 다시 시도해주세요.";
 }
 
 /**

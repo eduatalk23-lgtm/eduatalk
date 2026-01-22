@@ -49,3 +49,15 @@ export type { AvatarProps, AvatarSize, AvatarVariant } from "./Avatar";
 export { TextArea, default as TextAreaDefault } from "./TextArea";
 export type { TextAreaProps, TextAreaSize, TextAreaResize } from "./TextArea";
 
+// PasswordInput
+export { default as PasswordInput } from "./PasswordInput";
+export type { PasswordInputProps, PasswordInputSize } from "./PasswordInput";
+
+// PasswordStrengthIndicator
+export { default as PasswordStrengthIndicator, calculatePasswordStrength } from "./PasswordStrengthIndicator";
+export type {
+  PasswordStrengthIndicatorProps,
+  PasswordStrength,
+  PasswordStrengthResult,
+} from "./PasswordStrengthIndicator";
+

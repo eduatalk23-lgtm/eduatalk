@@ -9,6 +9,7 @@ import { getTenantOptionsForSignup, type TenantOption } from "@/lib/domains/tena
 import type { ActionResponse } from "@/lib/types/actionResponse";
 import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
 import FormInput from "@/components/ui/FormInput";
+import FormPasswordInput from "@/components/ui/FormPasswordInput";
 import FormMessage from "@/components/ui/FormMessage";
 import FormSubmitButton from "@/components/ui/FormSubmitButton";
 import FormCheckbox from "@/components/ui/FormCheckbox";
@@ -109,12 +110,13 @@ export default function SignupPage() {
           placeholder="you@example.com"
         />
 
-        <FormInput
+        <FormPasswordInput
           label="비밀번호"
           name="password"
-          type="password"
           required
-          placeholder="최소 6자 이상"
+          placeholder="최소 8자 이상"
+          showStrengthIndicator
+          showChecklist
         />
 
         {/* 기관 선택 */}
