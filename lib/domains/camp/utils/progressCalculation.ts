@@ -19,6 +19,7 @@ export interface Plan {
   completed_amount?: number | null;
   subject?: string | null;
   status?: string | null;
+  actual_end_time?: string | null;
 }
 
 export interface ProgressStats {
@@ -78,16 +79,12 @@ export function calculateTotalStudyMinutes(
 
 /**
  * 플랜 완료 여부 확인
+ * 완료 기준: status === 'completed' OR actual_end_time이 설정됨
  * @param plan 플랜 객체
  * @returns 완료 여부
  */
 export function isPlanCompleted(plan: Plan): boolean {
-  return (
-    plan.status === "completed" ||
-    (plan.completed_amount !== null &&
-     plan.completed_amount !== undefined &&
-     plan.completed_amount > 0)
-  );
+  return plan.status === "completed" || plan.actual_end_time != null;
 }
 
 /**

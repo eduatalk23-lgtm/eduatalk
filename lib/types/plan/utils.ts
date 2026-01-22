@@ -68,12 +68,16 @@ export function isVirtualPlan(plan: { is_virtual?: boolean | null }): boolean {
 /**
  * 플랜이 완료되었는지 확인합니다.
  *
- * @param plan - 플랜 객체 (progress 또는 actual_end_time 필드 필요)
+ * 완료 기준 (우선순위 순):
+ * 1. status === 'completed' (명시적 상태 완료)
+ * 2. actual_end_time이 설정됨 (타이머 완료, backward compatibility)
+ *
+ * @param plan - 플랜 객체 (status 또는 actual_end_time 필드 필요)
  * @returns 완료 여부
  */
 export function isPlanCompleted(plan: {
-  progress?: number | null;
+  status?: string | null;
   actual_end_time?: string | null;
 }): boolean {
-  return (plan.progress != null && plan.progress >= 100) || !!plan.actual_end_time;
+  return plan.status === "completed" || !!plan.actual_end_time;
 }

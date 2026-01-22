@@ -21,7 +21,11 @@ import type { GeneratePlansResult, OverlapValidationResult } from "@/lib/schedul
 import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
 import { calculateContentDuration } from "@/lib/plan/contentDuration";
 import { calculateAvailableDateStrings } from "@/lib/scheduler/utils/scheduleCalculator";
-import { validateNoTimeOverlaps, adjustOverlappingTimes } from "@/lib/scheduler/utils/timeOverlapValidator";
+import {
+  validateNoTimeOverlaps,
+  adjustOverlappingTimes,
+  adjustInternalOverlaps,
+} from "@/lib/scheduler/utils/timeOverlapValidator";
 import { logActionWarn } from "@/lib/utils/serverActionLogger";
 
 export type BlockInfo = {
@@ -252,6 +256,21 @@ export async function generatePlansFromGroup(
   for (const plan of plans) {
     if (!plan.subject_type) {
       plan.subject_type = subjectTypeMap.get(plan.content_id) || "weakness";
+    }
+  }
+
+  // 5.4. 같은 배치 내 플랜들 간의 내부 시간 충돌 자동 조정
+  if (options?.autoAdjustOverlaps && plans.length > 1) {
+    const internalAdjustResult = adjustInternalOverlaps(
+      plans,
+      options.maxEndTime || "23:59"
+    );
+    plans = internalAdjustResult.adjustedPlans;
+    if (internalAdjustResult.adjustedCount > 0) {
+      logActionWarn(
+        "plan.generatePlansFromGroup",
+        `내부 시간 충돌 자동 조정: ${internalAdjustResult.adjustedCount}개 플랜 조정됨`
+      );
     }
   }
 

@@ -97,21 +97,7 @@ export type {
   TemplateLockContext,
 } from "./templateLockService";
 
-// 진행률 계산 서비스
-export {
-  calculateProgress,
-  calculateCompletionProgress,
-  determineStatusFromProgress,
-  formatMinutesToTime,
-  getProgressStatusLabel,
-  getProgressColorClass,
-} from "./progressCalculator";
-
-export type {
-  ProgressCalculationInput,
-  ProgressCalculationResult,
-  ProgressWeights,
-} from "./progressCalculator";
+// NOTE: progressCalculator removed - using binary completion (status + actual_end_time) instead
 
 // 적응형 스케줄러 서비스
 export {

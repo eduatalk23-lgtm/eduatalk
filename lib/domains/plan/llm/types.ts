@@ -149,6 +149,17 @@ export interface LLMPlanGenerationRequest {
     startTime: string;
     endTime: string;
   }>;
+
+  /**
+   * 점유된 시간대 (다른 플랜 그룹의 기존 플랜)
+   * AI는 이 시간대를 피해서 플랜을 생성해야 함
+   */
+  occupiedSlots?: Array<{
+    date: string;
+    startTime: string;
+    endTime: string;
+    contentTitle?: string; // 어떤 콘텐츠가 점유하고 있는지 (참고용)
+  }>;
 }
 
 // ============================================
@@ -176,6 +187,11 @@ export interface GeneratedPlanItem {
   isReview?: boolean;
   notes?: string;
   priority?: "high" | "medium" | "low";
+
+  // 콘텐츠 분할 관련 필드
+  partIndex?: number;        // 현재 파트 번호 (1-based, 예: 1, 2, 3...)
+  totalParts?: number;       // 총 파트 수 (예: 2이면 1/2, 2/2)
+  isPartialContent?: boolean; // 분할된 콘텐츠 여부 (명시적으로 true일 때만)
 }
 
 /**
@@ -371,6 +387,8 @@ export interface TransformContext {
   excludeDays?: number[];
   /** 제외 날짜 (YYYY-MM-DD) */
   excludeDates?: string[];
+  /** 날짜 -> day_type 매핑 (study_days/review_days 기반) */
+  dayTypeMap?: Map<string, "학습일" | "복습일">;
 }
 
 // ============================================

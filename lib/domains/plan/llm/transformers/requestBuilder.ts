@@ -291,6 +291,13 @@ export interface BuildRequestOptions {
     startTime: string;
     endTime: string;
   }>;
+  /** 점유된 시간대 (다른 플랜 그룹의 기존 플랜) */
+  occupiedSlots?: Array<{
+    date: string;
+    startTime: string;
+    endTime: string;
+    contentTitle?: string;
+  }>;
   // Phase 2: 추가 컨텍스트 정보
   blocks?: DBBlock[];
   academySchedules?: DBAcademySchedule[];
@@ -379,6 +386,7 @@ export function buildLLMRequest(
     additionalInstructions: options.additionalInstructions,
     planningMode: options.planningMode || "strategy",
     availableSlots: options.availableSlots,
+    occupiedSlots: options.occupiedSlots,
   };
 }
 

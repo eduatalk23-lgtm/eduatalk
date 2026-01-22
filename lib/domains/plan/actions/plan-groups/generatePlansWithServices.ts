@@ -99,8 +99,7 @@ async function fetchExistingPlans(
     .gte("plan_date", periodStart)
     .lte("plan_date", periodEnd)
     .neq("plan_group_id", excludePlanGroupId)
-    .eq("is_active", true)
-    .is("deleted_at", null);
+    .eq("is_active", true);
 
   if (error) {
     console.error("[fetchExistingPlans] 기존 플랜 조회 실패:", error);

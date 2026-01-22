@@ -40,10 +40,10 @@ describe("플랜 그룹 완료율 계산: planUtils + date", () => {
       // 플랜 데이터
       const plans: (PlanCompletionFields & { content_id?: string | null })[] =
         [
-          { actual_end_time: "2025-01-05T10:00:00Z", progress: 100 },
-          { actual_end_time: "2025-01-10T10:00:00Z", progress: 100 },
-          { actual_end_time: null, progress: 50 },
-          { actual_end_time: null, progress: null },
+          { actual_end_time: "2025-01-05T10:00:00Z", status: "completed" },
+          { actual_end_time: "2025-01-10T10:00:00Z", status: "completed" },
+          { actual_end_time: null, status: "in_progress" },
+          { actual_end_time: null, status: null },
         ];
 
       // 완료율 계산
@@ -65,20 +65,20 @@ describe("플랜 그룹 완료율 계산: planUtils + date", () => {
         [
           {
             actual_end_time: "2025-01-05T10:00:00Z",
-            progress: 100,
+            status: "completed",
             content_id: "content-1",
           },
           {
             actual_end_time: "2025-01-10T10:00:00Z",
-            progress: 100,
+            status: "completed",
             content_id: "content-2",
           },
           {
             actual_end_time: "2025-02-05T10:00:00Z",
-            progress: 100,
+            status: "completed",
             content_id: "content-3",
           }, // 기간 밖
-          { actual_end_time: null, progress: 50, content_id: "content-4" },
+          { actual_end_time: null, status: "in_progress", content_id: "content-4" },
         ];
 
       // 기간 내 완료된 플랜 필터링
@@ -111,9 +111,9 @@ describe("플랜 그룹 완료율 계산: planUtils + date", () => {
 
       const plans: (PlanCompletionFields & { content_id?: string | null })[] =
         [
-          { actual_end_time: null, progress: 100 },
-          { actual_end_time: null, progress: 50 },
-          { actual_end_time: null, progress: null },
+          { actual_end_time: null, status: "completed" },
+          { actual_end_time: null, status: "in_progress" },
+          { actual_end_time: null, status: null },
         ];
 
       // D-day 계산
@@ -141,8 +141,8 @@ describe("플랜 그룹 완료율 계산: planUtils + date", () => {
 
       const plans: (PlanCompletionFields & { content_id?: string | null })[] =
         [
-          { actual_end_time: null, progress: 100 },
-          { actual_end_time: null, progress: 50 },
+          { actual_end_time: null, status: "completed" },
+          { actual_end_time: null, status: "in_progress" },
         ];
 
       const dday = calculateDday(pastDate);
@@ -223,22 +223,22 @@ describe("날짜 범위 내 완료율 계산", () => {
       {
         content_id: "content-1",
         actual_end_time: "2025-01-05T10:00:00Z",
-        progress: 100,
+        status: "completed",
       },
       {
         content_id: "content-2",
         actual_end_time: "2025-01-10T10:00:00Z",
-        progress: 100,
+        status: "completed",
       },
       {
         content_id: "content-3",
         actual_end_time: "2025-02-05T10:00:00Z",
-        progress: 100,
+        status: "completed",
       }, // 기간 밖
       {
         content_id: "content-4",
         actual_end_time: null,
-        progress: 50,
+        status: "in_progress",
       },
     ];
 
@@ -270,17 +270,17 @@ describe("날짜 범위 내 완료율 계산", () => {
       {
         content_id: "content-1",
         actual_end_time: "2025-01-05T10:00:00Z",
-        progress: 100,
+        status: "completed",
       },
       {
         content_id: "content-2",
         actual_end_time: null,
-        progress: 100,
+        status: "completed",
       },
       {
         content_id: "content-3",
         actual_end_time: null,
-        progress: 50,
+        status: "in_progress",
       },
     ];
 

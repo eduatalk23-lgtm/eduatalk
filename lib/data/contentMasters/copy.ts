@@ -96,6 +96,21 @@ export async function copyMasterBookToStudent(
     .single();
 
   if (error) {
+    // Unique constraint 위반 (Race Condition): 다른 요청이 먼저 생성함
+    if (error.code === "23505") {
+      // 다시 조회해서 기존 레코드 반환
+      const { data: raceBook } = await supabase
+        .from("books")
+        .select("id")
+        .eq("student_id", studentId)
+        .eq("master_content_id", bookId)
+        .maybeSingle();
+
+      if (raceBook) {
+        return { bookId: raceBook.id };
+      }
+    }
+
     logActionError(
       { domain: "data", action: "copyMasterBookToStudent" },
       error,
@@ -247,6 +262,21 @@ export async function copyMasterLectureToStudent(
     .single();
 
   if (error) {
+    // Unique constraint 위반 (Race Condition): 다른 요청이 먼저 생성함
+    if (error.code === "23505") {
+      // 다시 조회해서 기존 레코드 반환
+      const { data: raceLecture } = await supabase
+        .from("lectures")
+        .select("id")
+        .eq("student_id", studentId)
+        .eq("master_lecture_id", lectureId)
+        .maybeSingle();
+
+      if (raceLecture) {
+        return { lectureId: raceLecture.id };
+      }
+    }
+
     logActionError(
       { domain: "data", action: "copyMasterLectureToStudent" },
       error,

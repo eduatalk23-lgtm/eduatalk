@@ -139,7 +139,7 @@ describe("콜드 스타트 콘텐츠 - 저장 형식 검증", () => {
       expect(result.title).toBe("수학 I 개념 완성");
       expect(result.total_episodes).toBe(50);
       expect(result.instructor_name).toBe("현우진");
-      expect(result.platform_name).toBe("메가스터디");
+      expect(result.platform).toBe("메가스터디");
     });
 
     it("totalRange가 0이면 total_episodes가 1", () => {
@@ -333,7 +333,7 @@ describe("콜드 스타트 콘텐츠 - 마스터→학생 복사 호환성", () 
       "title",
       "total_episodes",
       "instructor_name",
-      "platform_name",
+      "platform",
       "subject_category",
       "subject",
       "difficulty_level",

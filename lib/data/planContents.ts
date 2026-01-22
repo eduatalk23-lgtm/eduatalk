@@ -1372,6 +1372,9 @@ export async function getPlansByPlanContent(
       planned_end_page_or_time,
       completed_amount,
       progress,
+      status,
+      actual_start_time,
+      actual_end_time,
       content_title,
       content_subject,
       total_duration_seconds
@@ -1403,12 +1406,11 @@ export async function getPlansByPlanContent(
 
   // 3. 플랜 상태 계산 및 통계 생성
   const plans = (plansData || []).map((plan) => {
-    // 진행률 기반 상태 결정
-    const progress = plan.progress ?? 0;
+    // status 필드 또는 actual_end_time 기반 완료 판별 (binary completion)
     let status: "pending" | "in_progress" | "completed" = "pending";
-    if (progress >= 100) {
+    if (plan.status === "completed" || plan.actual_end_time != null) {
       status = "completed";
-    } else if (progress > 0) {
+    } else if (plan.status === "in_progress" || plan.actual_start_time != null) {
       status = "in_progress";
     }
 

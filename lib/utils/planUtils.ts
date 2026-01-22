@@ -82,17 +82,19 @@ export function getDummyContentMetadata(contentId: string | null | undefined) {
  */
 export type PlanCompletionFields = {
   actual_end_time?: string | null;
+  status?: string | null;
+  /** @deprecated Use status instead */
   progress?: number | null;
 };
 
 /**
  * 주어진 플랜이 완료되었는지 확인
  *
- * 완료 기준 (OR 조건):
- * 1. actual_end_time이 설정됨 (타이머 완료)
- * 2. progress >= 100 (진행률 완료)
+ * 완료 기준 (OR 조건, 우선순위 순):
+ * 1. status === 'completed' (명시적 상태 완료)
+ * 2. actual_end_time이 설정됨 (타이머 완료)
  *
- * @param plan - 확인할 플랜 (actual_end_time, progress 필드 포함)
+ * @param plan - 확인할 플랜 (status, actual_end_time 필드 포함)
  * @returns 완료 여부
  *
  * @example
@@ -102,17 +104,13 @@ export type PlanCompletionFields = {
  * ```
  */
 export function isCompletedPlan(plan: PlanCompletionFields): boolean {
-  // 기본 기준: actual_end_time 설정됨
-  if (plan.actual_end_time !== null && plan.actual_end_time !== undefined) {
+  // 기본 기준: status === 'completed'
+  if (plan.status === "completed") {
     return true;
   }
 
-  // 대체 기준: progress >= 100
-  if (
-    plan.progress !== null &&
-    plan.progress !== undefined &&
-    plan.progress >= PLAN_COMPLETION_CRITERIA.MIN_PROGRESS_FOR_COMPLETION
-  ) {
+  // 대체 기준: actual_end_time 설정됨 (backward compatibility)
+  if (plan.actual_end_time !== null && plan.actual_end_time !== undefined) {
     return true;
   }
 

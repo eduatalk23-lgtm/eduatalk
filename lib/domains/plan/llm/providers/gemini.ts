@@ -79,8 +79,10 @@ const GEMINI_PRICING: Record<ModelTier, CostInfo> = {
  */
 class GeminiRateLimiter {
   private lastRequestTime: number = 0;
-  private requestQueue: Array<() => void> = [];
-  private isProcessing: boolean = false;
+  /** 순차 처리를 위한 Promise 체인 */
+  private pendingChain: Promise<void> = Promise.resolve();
+  /** 현재 대기 중인 요청 수 */
+  private queueLength: number = 0;
 
   /**
    * @param minIntervalMs - 요청 간 최소 간격 (밀리초)
@@ -98,26 +100,44 @@ class GeminiRateLimiter {
   }
 
   /**
-   * Rate Limit을 준수하며 요청 실행
+   * Rate Limit을 준수하며 요청 실행 (동시 요청 시 순차 처리 보장)
    *
    * @param fn - 실행할 비동기 함수
    * @returns 함수 실행 결과
    */
   async execute<T>(fn: () => Promise<T>): Promise<T> {
-    const waitTime = this.getWaitTime();
+    this.queueLength++;
 
-    if (waitTime > 0) {
-      logActionDebug("GeminiRateLimiter", `${waitTime}ms 대기 중...`);
-      await this.delay(waitTime);
-    }
+    // 이전 요청들이 완료될 때까지 대기
+    const previousChain = this.pendingChain;
 
-    this.lastRequestTime = Date.now();
+    let resolveCurrentChain: () => void;
+    this.pendingChain = new Promise<void>((resolve) => {
+      resolveCurrentChain = resolve;
+    });
 
     try {
+      // 이전 요청 완료 대기
+      await previousChain;
+
+      // Rate limit 간격 대기
+      const waitTime = this.getWaitTime();
+      if (waitTime > 0) {
+        logActionDebug(
+          "GeminiRateLimiter",
+          `${waitTime}ms 대기 중... (대기열: ${this.queueLength})`
+        );
+        await this.delay(waitTime);
+      }
+
+      this.lastRequestTime = Date.now();
+
       return await fn();
     } finally {
-      // 요청 완료 후 시간 갱신 (에러 발생해도)
+      // 요청 완료 후 시간 갱신 및 체인 해제
       this.lastRequestTime = Date.now();
+      this.queueLength--;
+      resolveCurrentChain!();
     }
   }
 
@@ -140,6 +160,13 @@ class GeminiRateLimiter {
    */
   getElapsedSinceLastRequest(): number {
     return Date.now() - this.lastRequestTime;
+  }
+
+  /**
+   * 현재 대기 중인 요청 수 반환
+   */
+  getQueueLength(): number {
+    return this.queueLength;
   }
 }
 

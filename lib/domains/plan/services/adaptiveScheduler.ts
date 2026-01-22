@@ -190,13 +190,10 @@ function getDayOfWeek(dateStr: string): number {
 
 /**
  * 플랜이 완료되었는지 확인합니다.
+ * 완료 기준: status === 'completed' OR actual_end_time이 설정됨
  */
 function isPlanCompleted(plan: Plan): boolean {
-  return (
-    plan.progress !== null &&
-    plan.progress >= 100 &&
-    plan.actual_end_time !== null
-  );
+  return plan.status === "completed" || plan.actual_end_time !== null;
 }
 
 // ============================================

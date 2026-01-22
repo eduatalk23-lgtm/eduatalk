@@ -144,15 +144,14 @@ export function calculateVirtualTimeline(
   // 기간 추출
   const period = extractPeriodFromSchedules(dailySchedules);
 
-  // 기본 학습-복습 주기 설정
-  const defaultStudyReviewCycle: StudyReviewCycle = {
-    study_days: 5,
-    review_days: 2,
-  };
+  // dailySchedules에서 첫 주기의 학습일/복습일 개수를 추론
+  // 첫 번째 복습일이 나오기 전까지의 학습일 개수 = study_days
+  // 복습일 개수 = 첫 주기 내 복습일 개수
+  const studyReviewCycle = inferStudyReviewCycleFromSchedules(dailySchedules);
 
   // V2 옵션 구성
   const options = {
-    studyReviewCycle: defaultStudyReviewCycle,
+    studyReviewCycle,
     periodStart: period.start,
     periodEnd: period.end,
     dailySchedule: dailySchedules,
@@ -164,6 +163,55 @@ export function calculateVirtualTimeline(
 
   // V1 형식으로 변환하여 반환
   return convertV2ResultToV1(v2Result);
+}
+
+/**
+ * dailySchedules에서 학습/복습 주기 추론
+ * 첫 주기의 패턴을 분석하여 study_days, review_days 반환
+ */
+function inferStudyReviewCycleFromSchedules(
+  dailySchedules: DailyScheduleInfo[]
+): StudyReviewCycle {
+  // 기본값
+  const defaultCycle: StudyReviewCycle = { study_days: 6, review_days: 1 };
+
+  if (dailySchedules.length === 0) {
+    return defaultCycle;
+  }
+
+  // 학습일/복습일만 필터링 (제외일 제외)
+  const activeDays = dailySchedules.filter(
+    (d) => d.day_type === "학습일" || d.day_type === "복습일"
+  );
+
+  if (activeDays.length === 0) {
+    return defaultCycle;
+  }
+
+  // 첫 번째 주기 분석: 첫 복습일이 나오기 전까지의 학습일 개수
+  let studyDays = 0;
+  let reviewDays = 0;
+  let foundFirstReview = false;
+
+  for (const day of activeDays) {
+    if (day.day_type === "학습일" && !foundFirstReview) {
+      studyDays++;
+    } else if (day.day_type === "복습일") {
+      foundFirstReview = true;
+      reviewDays++;
+      // 첫 주기가 끝났으면 (다시 학습일이 나오면) 중단
+      const nextIdx = activeDays.indexOf(day) + 1;
+      if (nextIdx < activeDays.length && activeDays[nextIdx].day_type === "학습일") {
+        break;
+      }
+    }
+  }
+
+  // 유효성 검사
+  if (studyDays === 0) studyDays = 6;
+  if (reviewDays === 0) reviewDays = 1;
+
+  return { study_days: studyDays, review_days: reviewDays };
 }
 
 /**

@@ -18,25 +18,6 @@ import {
 } from "@/lib/domains/plan/llm/services/contentStructureUtils";
 
 /**
- * 콘텐츠 타입에 따른 기본 예상 시간 계산
- * - 강의: 에피소드당 평균 30분 가정
- * - 교재: 페이지당 평균 3분 가정 (시간당 약 20페이지)
- */
-function calculateDefaultHours(item: RecommendationItem): number {
-  if (item.estimatedHours && item.estimatedHours > 0) {
-    return item.estimatedHours;
-  }
-
-  if (item.contentType === "lecture") {
-    // 강의: 에피소드당 30분 기준 → 2에피소드 = 1시간
-    return Math.ceil(item.totalRange * 0.5);
-  } else {
-    // 교재: 페이지당 3분 기준 → 20페이지 = 1시간
-    return Math.ceil(item.totalRange * 0.05);
-  }
-}
-
-/**
  * 총 소요시간(분) 계산
  * - 강의: averageEpisodeDuration이 있으면 사용, 없으면 에피소드당 30분
  */
@@ -96,7 +77,7 @@ export function mapToBookInsert(
       ? (toJsonField(buildContentAnalysisData(item.chapters, "cold_start")) as Json)
       : null,
     is_active: true,
-    estimated_hours: calculateDefaultHours(item),
+    // estimated_hours는 GENERATED 컬럼이므로 삽입하지 않음
   };
 }
 
@@ -122,7 +103,7 @@ export function mapToLectureInsert(
     episode_analysis: hasChapters
       ? (toJsonField(buildContentAnalysisData(item.chapters, "cold_start")) as Json)
       : null,
-    estimated_hours: calculateDefaultHours(item),
+    // estimated_hours는 GENERATED 컬럼이므로 삽입하지 않음
     total_duration: calculateTotalDurationMinutes(item),
   };
 }

@@ -62,32 +62,33 @@ export const DUMMY_CONTENT_METADATA = {
 
 /**
  * 플랜 완료 기준 정의
- * 
- * 통일된 완료 기준:
- * - 기본 기준: actual_end_time이 설정된 경우 (타이머 완료 = 플랜 완료)
- * - 대체 기준: progress >= 100 (진행률 100% 도달)
- * 
+ *
+ * 이진 완료 기준 (2026-01-21 단순화):
+ * - 기본 기준: status === 'completed' (명시적 상태 완료)
+ * - 대체 기준: actual_end_time이 설정됨 (backward compatibility)
+ *
  * @example
  * ```typescript
  * import { isCompletedPlan } from '@/lib/utils/planUtils';
- * 
+ *
  * const completed = plans.filter(plan => isCompletedPlan(plan));
  * ```
  */
 export const PLAN_COMPLETION_CRITERIA = {
   /**
-   * 기본 완료 기준: actual_end_time이 설정됨
-   * 타이머를 통해 플랜을 완료한 경우
+   * 기본 완료 기준: status === 'completed'
+   * 명시적 상태 완료
    */
-  PRIMARY: "actual_end_time",
+  PRIMARY: "status",
 
   /**
-   * 대체 완료 기준: progress >= 100
-   * 수동으로 진행률을 설정한 경우
+   * 대체 완료 기준: actual_end_time이 설정됨
+   * 타이머를 통해 플랜을 완료한 경우 (backward compatibility)
    */
-  SECONDARY: "progress",
+  SECONDARY: "actual_end_time",
 
   /**
+   * @deprecated progress 기반 완료 판별 제거됨. status 사용 권장.
    * 완료로 인정하는 최소 진행률
    */
   MIN_PROGRESS_FOR_COMPLETION: 100,

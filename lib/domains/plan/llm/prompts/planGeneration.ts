@@ -74,6 +74,25 @@ export const SYSTEM_PROMPT = `당신은 한국의 대학 입시를 준비하는 
               "isReview": false,
               "notes": "집중력이 높은 아침에 수학 배치",
               "priority": "high"
+            },
+            {
+              "date": "YYYY-MM-DD",
+              "dayOfWeek": 0,
+              "startTime": "09:00",
+              "endTime": "09:30",
+              "contentId": "lecture-uuid",
+              "contentTitle": "영어 강의",
+              "contentType": "lecture",
+              "subject": "영어",
+              "rangeStart": 5,
+              "rangeEnd": 5,
+              "rangeDisplay": "5강 (1/2)",
+              "partIndex": 1,
+              "totalParts": 2,
+              "isPartialContent": true,
+              "estimatedMinutes": 30,
+              "priority": "medium",
+              "notes": "60분 강의 전반부"
             }
           ],
           "dailySummary": "오늘의 핵심: 수학 개념 정리 및 국어 문학 복습"
@@ -100,6 +119,12 @@ export const SYSTEM_PROMPT = `당신은 한국의 대학 입시를 준비하는 
   }
 }
 \`\`\`
+
+**분할된 콘텐츠 필드 설명:**
+- \`partIndex\`: 분할된 파트 번호 (1부터 시작)
+- \`totalParts\`: 총 분할 파트 수
+- \`isPartialContent\`: true (분할된 콘텐츠인 경우에만)
+- \`rangeDisplay\`: "N강 (1/2)" 형식으로 분할 상태 표시
 
 ## 시간 슬롯 활용 규칙
 
@@ -130,6 +155,51 @@ export const SYSTEM_PROMPT = `당신은 한국의 대학 입시를 준비하는 
 - **강의**: 1강당 평균 30-50분 소요 가정, 하루 1-2강 권장
 - 난이도가 "hard"(🔴)인 콘텐츠는 더 많은 시간 할당
 - 각 콘텐츠의 rangeStart는 이전 플랜의 rangeEnd+1부터 시작
+
+## 콘텐츠 분할 규칙 (CRITICAL)
+
+콘텐츠(특히 강의)의 학습 시간이 슬롯 시간보다 긴 경우 **여러 슬롯에 분할 배치**해야 합니다:
+
+### 분할 필드 규칙
+- **partIndex**: 현재 파트 번호 (1-based: 1, 2, 3...)
+- **totalParts**: 총 파트 수
+- **isPartialContent**: true (분할된 콘텐츠임을 명시)
+- **rangeDisplay**: "N강 (1/2)", "N강 (2/2)" 형식으로 표시
+
+### 분할 예시
+60분 강의를 30분 슬롯 2개에 배치하는 경우:
+\`\`\`json
+// 슬롯1 (11:30-12:00)
+{
+  "contentId": "lecture-001",
+  "contentTitle": "수학의 시작",
+  "rangeStart": 5,
+  "rangeEnd": 5,
+  "rangeDisplay": "5강 (1/2)",
+  "partIndex": 1,
+  "totalParts": 2,
+  "isPartialContent": true,
+  "estimatedMinutes": 30
+}
+// 슬롯2 (13:00-13:30)
+{
+  "contentId": "lecture-001",
+  "contentTitle": "수학의 시작",
+  "rangeStart": 5,
+  "rangeEnd": 5,
+  "rangeDisplay": "5강 (2/2)",
+  "partIndex": 2,
+  "totalParts": 2,
+  "isPartialContent": true,
+  "estimatedMinutes": 30
+}
+\`\`\`
+
+### 분할 시 주의사항
+- **같은 rangeStart/rangeEnd 유지**: 분할된 플랜들은 동일한 범위(강 번호)를 공유
+- **partIndex로 순서 구분**: 첫 번째 파트는 1, 두 번째는 2...
+- **rangeDisplay로 명확히 표시**: "5강 (1/2)"처럼 분할 상태 표시
+- 분할하지 않은 일반 플랜에는 partIndex, totalParts, isPartialContent 필드를 포함하지 않음
 
 ## 제외 규칙
 
@@ -373,6 +443,26 @@ export const SCHEDULE_SYSTEM_PROMPT = `당신은 학생의 학습 스케줄을 �
 1. **우선순위**: priority가 높은 콘텐츠부터 순서대로 빈 슬롯에 채워 넣습니다.
 2. **순차 배정**: 슬롯은 날짜/시간 순으로 채웁니다. (월요일 오전 -> 월요일 오후 -> 화요일...)
 3. **자투리 활용**: 10분, 20분 단위의 작은 슬롯에도 암기나 복습 등 짧은 호흡의 콘텐츠를 적극 배치하세요.
+
+## 콘텐츠 분할 규칙 (CRITICAL)
+
+콘텐츠의 학습 시간이 슬롯보다 긴 경우 **반드시** 분할 배치:
+
+### 분할 필드
+- **partIndex**: 현재 파트 번호 (1, 2, 3...)
+- **totalParts**: 총 파트 수
+- **isPartialContent**: true
+- **rangeDisplay**: "N강 (1/2)" 형식
+
+### 예시: 60분 강의 → 30분 × 2 슬롯
+\`\`\`json
+// 첫 번째 슬롯
+{ "rangeStart": 5, "rangeEnd": 5, "rangeDisplay": "5강 (1/2)", "partIndex": 1, "totalParts": 2, "isPartialContent": true }
+// 두 번째 슬롯
+{ "rangeStart": 5, "rangeEnd": 5, "rangeDisplay": "5강 (2/2)", "partIndex": 2, "totalParts": 2, "isPartialContent": true }
+\`\`\`
+
+**중요**: 분할된 플랜은 같은 rangeStart/rangeEnd를 유지하고, partIndex로 구분합니다.
 `;
 
 
@@ -734,6 +824,35 @@ ${phaseGuide}
 /**
  * 사용 가능한 시간 슬롯 포맷 (Schedule 모드)
  */
+/**
+ * 점유된 시간대 포맷팅 (다른 플랜 그룹의 기존 플랜)
+ */
+function formatOccupiedSlots(slots: { date: string; startTime: string; endTime: string; contentTitle?: string }[]): string {
+  if (slots.length === 0) return "";
+
+  // 날짜별 그룹화
+  const slotsByDate = new Map<string, string[]>();
+  for (const slot of slots) {
+    const daySlots = slotsByDate.get(slot.date) || [];
+    const timeRange = slot.contentTitle
+      ? `${slot.startTime}-${slot.endTime} (${slot.contentTitle})`
+      : `${slot.startTime}-${slot.endTime}`;
+    daySlots.push(timeRange);
+    slotsByDate.set(slot.date, daySlots);
+  }
+
+  const lines: string[] = [];
+  for (const [date, timeRanges] of slotsByDate) {
+    lines.push(`- ${date}: ${timeRanges.join(", ")}`);
+  }
+
+  return `
+## 🔴 점유된 시간대 (Occupied Slots - DO NOT USE!)
+**이미 다른 학습이 배정된 시간입니다. 아래 시간대와 절대로 겹치지 않도록 플랜을 생성하세요!**
+${lines.join("\n")}
+`.trim();
+}
+
 function formatAvailableSlots(slots: { date: string; startTime: string; endTime: string }[]): string {
   if (slots.length === 0) return "";
 
@@ -787,6 +906,8 @@ export function buildUserPrompt(request: LLMPlanGenerationRequest | ExtendedLLMP
     hasBlocks ? formatBlocks(extRequest.blocks!) : "",
     hasAllocations ? formatSubjectAllocations(extRequest.subjectAllocations!) : "",
     request.availableSlots ? formatAvailableSlots(request.availableSlots) : "",
+    // 점유된 시간대 (다른 플랜 그룹의 기존 플랜)
+    request.occupiedSlots?.length ? formatOccupiedSlots(request.occupiedSlots) : "",
   ].filter(Boolean);
 
   let prompt = sections.join("\n\n");
@@ -814,12 +935,19 @@ export function buildUserPrompt(request: LLMPlanGenerationRequest | ExtendedLLMP
     academyNote = "\n**중요: 학원 일정 시간에는 절대로 학습 플랜을 배치하지 마세요!**";
   }
 
+  // 점유된 시간대 강조
+  const hasOccupiedSlots = request.occupiedSlots && request.occupiedSlots.length > 0;
+  let occupiedNote = "";
+  if (hasOccupiedSlots) {
+    occupiedNote = "\n**경고: 점유된 시간대(🔴)와 겹치는 플랜은 절대 생성하지 마세요! 시간 충돌은 허용되지 않습니다.**";
+  }
+
   prompt += `
 
 ---
 
 위 정보를 바탕으로 ${request.settings.startDate}부터 ${request.settings.endDate}까지의 ${contextNote}최적화된 학습 계획을 JSON 형식으로 생성해주세요.
-각 콘텐츠의 진도를 적절히 분배하고, 학생의 취약점과 선호도를 고려해주세요.${academyNote}
+각 콘텐츠의 진도를 적절히 분배하고, 학생의 취약점과 선호도를 고려해주세요.${academyNote}${occupiedNote}
 `;
 
   return prompt;

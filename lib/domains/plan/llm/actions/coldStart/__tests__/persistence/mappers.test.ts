@@ -199,14 +199,14 @@ describe("mapToLectureInsert", () => {
       expect(result.instructor_name).toBe("현우진");
     });
 
-    it("publisher가 platform_name으로 매핑된다", () => {
+    it("publisher가 platform으로 매핑된다", () => {
       const item = createMockRecommendation({
         publisher: "메가스터디",
         contentType: "lecture",
       });
       const result = mapToLectureInsert(item);
 
-      expect(result.platform_name).toBe("메가스터디");
+      expect(result.platform).toBe("메가스터디");
     });
 
     it("totalRange가 total_episodes로 매핑된다", () => {

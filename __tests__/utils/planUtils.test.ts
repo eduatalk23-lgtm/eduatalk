@@ -19,7 +19,6 @@ import {
   DUMMY_SELF_STUDY_CONTENT_ID,
   DUMMY_CONTENT_IDS,
   DUMMY_CONTENT_METADATA,
-  PLAN_COMPLETION_CRITERIA,
   DUMMY_CONTENT_AGGREGATION_POLICY,
 } from "@/lib/constants/plan";
 
@@ -179,10 +178,21 @@ describe("getDummyContentMetadata", () => {
 
 describe("isCompletedPlan", () => {
   describe("정상 케이스", () => {
+    it("status가 completed이면 완료", () => {
+      const plan: PlanCompletionFields = {
+        status: "completed",
+        actual_end_time: null,
+      };
+
+      const result = isCompletedPlan(plan);
+
+      expect(result).toBe(true);
+    });
+
     it("actual_end_time이 설정되면 완료", () => {
       const plan: PlanCompletionFields = {
         actual_end_time: "2025-01-01T10:00:00Z",
-        progress: null,
+        status: null,
       };
 
       const result = isCompletedPlan(plan);
@@ -190,32 +200,10 @@ describe("isCompletedPlan", () => {
       expect(result).toBe(true);
     });
 
-    it("progress가 100 이상이면 완료", () => {
+    it("status가 completed이고 actual_end_time도 있으면 완료", () => {
       const plan: PlanCompletionFields = {
-        actual_end_time: null,
-        progress: 100,
-      };
-
-      const result = isCompletedPlan(plan);
-
-      expect(result).toBe(true);
-    });
-
-    it("progress가 100 초과여도 완료", () => {
-      const plan: PlanCompletionFields = {
-        actual_end_time: null,
-        progress: 150,
-      };
-
-      const result = isCompletedPlan(plan);
-
-      expect(result).toBe(true);
-    });
-
-    it("actual_end_time과 progress 모두 있으면 완료", () => {
-      const plan: PlanCompletionFields = {
+        status: "completed",
         actual_end_time: "2025-01-01T10:00:00Z",
-        progress: 100,
       };
 
       const result = isCompletedPlan(plan);
@@ -225,10 +213,10 @@ describe("isCompletedPlan", () => {
   });
 
   describe("경계값 테스트", () => {
-    it("progress가 99면 미완료", () => {
+    it("status가 in_progress이면 미완료", () => {
       const plan: PlanCompletionFields = {
+        status: "in_progress",
         actual_end_time: null,
-        progress: 99,
       };
 
       const result = isCompletedPlan(plan);
@@ -236,21 +224,10 @@ describe("isCompletedPlan", () => {
       expect(result).toBe(false);
     });
 
-    it("progress가 정확히 100이면 완료", () => {
+    it("status가 pending이면 미완료", () => {
       const plan: PlanCompletionFields = {
+        status: "pending",
         actual_end_time: null,
-        progress: PLAN_COMPLETION_CRITERIA.MIN_PROGRESS_FOR_COMPLETION,
-      };
-
-      const result = isCompletedPlan(plan);
-
-      expect(result).toBe(true);
-    });
-
-    it("actual_end_time이 null이면 미완료 (progress도 없을 때)", () => {
-      const plan: PlanCompletionFields = {
-        actual_end_time: null,
-        progress: null,
       };
 
       const result = isCompletedPlan(plan);
@@ -258,10 +235,21 @@ describe("isCompletedPlan", () => {
       expect(result).toBe(false);
     });
 
-    it("actual_end_time이 undefined면 미완료 (progress도 없을 때)", () => {
+    it("actual_end_time이 null이면 미완료 (status도 없을 때)", () => {
+      const plan: PlanCompletionFields = {
+        actual_end_time: null,
+        status: null,
+      };
+
+      const result = isCompletedPlan(plan);
+
+      expect(result).toBe(false);
+    });
+
+    it("actual_end_time이 undefined면 미완료 (status도 없을 때)", () => {
       const plan: PlanCompletionFields = {
         actual_end_time: undefined,
-        progress: undefined,
+        status: undefined,
       };
 
       const result = isCompletedPlan(plan);
@@ -269,10 +257,24 @@ describe("isCompletedPlan", () => {
       expect(result).toBe(false);
     });
 
-    it("progress가 0이면 미완료", () => {
+    it("status가 null이고 actual_end_time도 null이면 미완료", () => {
       const plan: PlanCompletionFields = {
         actual_end_time: null,
-        progress: 0,
+        status: null,
+      };
+
+      const result = isCompletedPlan(plan);
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("deprecated progress 필드 무시", () => {
+    it("progress만 있고 status/actual_end_time이 없으면 미완료", () => {
+      const plan: PlanCompletionFields = {
+        progress: 100,
+        status: null,
+        actual_end_time: null,
       };
 
       const result = isCompletedPlan(plan);
@@ -371,22 +373,22 @@ describe("countCompletedLearningPlans", () => {
         {
           content_id: "content-1",
           actual_end_time: "2025-01-01T10:00:00Z",
-          progress: null,
+          status: "completed",
         },
         {
           content_id: DUMMY_NON_LEARNING_CONTENT_ID,
           actual_end_time: "2025-01-01T10:00:00Z",
-          progress: null,
+          status: "completed",
         },
         {
           content_id: "content-2",
           actual_end_time: null,
-          progress: 100,
+          status: "completed",
         },
         {
           content_id: "content-3",
           actual_end_time: null,
-          progress: 50,
+          status: "in_progress",
         },
       ];
 
@@ -417,12 +419,12 @@ describe("countCompletedLearningPlans", () => {
         {
           content_id: "content-1",
           actual_end_time: null,
-          progress: 50,
+          status: "in_progress",
         },
         {
           content_id: "content-2",
           actual_end_time: null,
-          progress: null,
+          status: null,
         },
       ];
 
@@ -440,22 +442,22 @@ describe("calculateCompletionRate", () => {
         {
           content_id: "content-1",
           actual_end_time: "2025-01-01T10:00:00Z",
-          progress: null,
+          status: "completed",
         },
         {
           content_id: DUMMY_NON_LEARNING_CONTENT_ID,
           actual_end_time: "2025-01-01T10:00:00Z",
-          progress: null,
+          status: "completed",
         },
         {
           content_id: "content-2",
           actual_end_time: null,
-          progress: 100,
+          status: "completed",
         },
         {
           content_id: "content-3",
           actual_end_time: null,
-          progress: 50,
+          status: "in_progress",
         },
       ];
 
@@ -474,12 +476,12 @@ describe("calculateCompletionRate", () => {
         {
           content_id: "content-1",
           actual_end_time: "2025-01-01T10:00:00Z",
-          progress: null,
+          status: "completed",
         },
         {
           content_id: "content-2",
           actual_end_time: null,
-          progress: 100,
+          status: "completed",
         },
       ];
 
@@ -493,12 +495,12 @@ describe("calculateCompletionRate", () => {
         {
           content_id: "content-1",
           actual_end_time: null,
-          progress: 50,
+          status: "in_progress",
         },
         {
           content_id: "content-2",
           actual_end_time: null,
-          progress: null,
+          status: null,
         },
       ];
 
@@ -524,17 +526,17 @@ describe("calculateCompletionRate", () => {
         {
           content_id: "content-1",
           actual_end_time: "2025-01-01T10:00:00Z",
-          progress: null,
+          status: "completed",
         },
         {
           content_id: "content-2",
           actual_end_time: null,
-          progress: null,
+          status: null,
         },
         {
           content_id: "content-3",
           actual_end_time: null,
-          progress: null,
+          status: null,
         },
       ];
 
@@ -551,17 +553,17 @@ describe("calculateCompletionRate", () => {
         {
           content_id: "content-1",
           actual_end_time: "2025-01-01T10:00:00Z",
-          progress: null,
+          status: "completed",
         },
         {
           content_id: DUMMY_NON_LEARNING_CONTENT_ID,
           actual_end_time: "2025-01-01T10:00:00Z",
-          progress: null,
+          status: "completed",
         },
         {
           content_id: "content-2",
           actual_end_time: null,
-          progress: null,
+          status: null,
         },
       ];
 

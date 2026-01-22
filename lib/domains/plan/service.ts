@@ -580,13 +580,14 @@ export async function getTodayPlans(
 }
 
 /**
- * 플랜 진행률 계산
+ * 플랜 완료율 계산
+ * 완료 기준: status === 'completed' OR actual_end_time 설정됨 (binary completion)
  */
 export function calculatePlanProgress(plans: Plan[]): number {
   if (plans.length === 0) return 0;
 
   const completedCount = plans.filter(
-    (plan) => plan.progress != null && plan.progress >= 100
+    (plan) => plan.status === "completed" || plan.actual_end_time != null
   ).length;
 
   return Math.round((completedCount / plans.length) * 100);

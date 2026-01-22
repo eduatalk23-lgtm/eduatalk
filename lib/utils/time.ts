@@ -125,3 +125,88 @@ export function minutesToTime(minutes: number): string {
   return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
 }
 
+// ============================================
+// 시간 범위 계산 함수
+// ============================================
+
+/**
+ * 시간 슬롯 타입
+ */
+export interface TimeSlot {
+  start: string;
+  end: string;
+}
+
+/**
+ * 기본 시간 슬롯에서 점유된 시간을 제외한 가용 시간을 계산합니다.
+ *
+ * @param baseSlots - 기본 시간 슬롯 (예: 학습 시간)
+ * @param occupiedSlots - 점유된 시간 슬롯 (예: 기존 플랜)
+ * @param minDuration - 최소 시간 (분, 기본값: 15)
+ * @returns 남은 가용 시간 슬롯
+ *
+ * @example
+ * ```typescript
+ * // 10:00~12:00 슬롯에서 10:30~11:00이 점유된 경우
+ * subtractTimeRanges(
+ *   [{ start: "10:00", end: "12:00" }],
+ *   [{ start: "10:30", end: "11:00" }]
+ * )
+ * // 결과: [{ start: "10:00", end: "10:30" }, { start: "11:00", end: "12:00" }]
+ * ```
+ */
+export function subtractTimeRanges(
+  baseSlots: TimeSlot[],
+  occupiedSlots: TimeSlot[],
+  minDuration: number = 15
+): TimeSlot[] {
+  if (occupiedSlots.length === 0) return baseSlots;
+
+  const result: TimeSlot[] = [];
+
+  for (const base of baseSlots) {
+    let remainingRanges = [{ start: timeToMinutes(base.start), end: timeToMinutes(base.end) }];
+
+    for (const occupied of occupiedSlots) {
+      const occStart = timeToMinutes(occupied.start);
+      const occEnd = timeToMinutes(occupied.end);
+      const newRanges: Array<{ start: number; end: number }> = [];
+
+      for (const range of remainingRanges) {
+        // 겹치지 않는 경우 - 그대로 유지
+        if (occEnd <= range.start || occStart >= range.end) {
+          newRanges.push(range);
+        }
+        // 완전히 포함되는 경우 - 제거 (아무것도 추가 안함)
+        else if (occStart <= range.start && occEnd >= range.end) {
+          // 범위 전체가 점유됨 - 스킵
+        }
+        // 시작 부분만 점유
+        else if (occStart <= range.start && occEnd < range.end) {
+          newRanges.push({ start: occEnd, end: range.end });
+        }
+        // 끝 부분만 점유
+        else if (occStart > range.start && occEnd >= range.end) {
+          newRanges.push({ start: range.start, end: occStart });
+        }
+        // 중간 부분만 점유 - 두 개로 분할
+        else if (occStart > range.start && occEnd < range.end) {
+          newRanges.push({ start: range.start, end: occStart });
+          newRanges.push({ start: occEnd, end: range.end });
+        }
+      }
+
+      remainingRanges = newRanges;
+    }
+
+    // 최소 시간 이상인 슬롯만 포함
+    for (const range of remainingRanges) {
+      if (range.end - range.start >= minDuration) {
+        result.push({ start: minutesToTime(range.start), end: minutesToTime(range.end) });
+      }
+    }
+  }
+
+  return result;
+}
+

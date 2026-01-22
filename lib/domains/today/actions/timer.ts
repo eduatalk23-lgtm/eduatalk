@@ -15,11 +15,7 @@ import {
   determineTimerStatus,
   type TimerAction,
 } from "@/lib/utils/timerUtils";
-import {
-  validateAndFetchContentTotal,
-  processProgressUpdates,
-  type ProgressCalculationInput,
-} from "../services/progressService";
+// Progress calculation imports removed - using binary completion (status + actual_end_time)
 import type {
   PlanRecordPayload,
   StartPlanResult,
@@ -284,11 +280,10 @@ export async function completePlan(
       samePlanNumberPlans = [{ id: planId }];
     }
 
-    // TODAY-001: 진행률 관련 로직 progressService로 분리
-    // 1. planIds 추출
+    // Simplified completion: binary status + actual_end_time (no progress percentage)
     const planIds = samePlanNumberPlans.map((p) => p.id);
 
-    // 2. student의 tenant_id 조회 (tenant_id가 없어도 진행 가능하도록)
+    // Get tenant_id for gamification (optional)
     const { data: student } = await supabase
       .from("students")
       .select("tenant_id")
@@ -296,39 +291,6 @@ export async function completePlan(
       .maybeSingle();
 
     const tenantId = student?.tenant_id || tenantContext?.tenantId || null;
-
-    // 3. 콘텐츠 총량 조회 및 검증
-    const contentValidation = await validateAndFetchContentTotal(
-      supabase,
-      user.userId,
-      plan.content_type,
-      plan.content_id,
-      planId
-    );
-
-    if (!contentValidation.success) {
-      return { success: false, error: contentValidation.error };
-    }
-
-    const totalAmount = contentValidation.totalAmount!;
-
-    // 4. 진행률 계산 및 모든 업데이트 일괄 처리
-    const progressInput: ProgressCalculationInput = {
-      planId,
-      studentId: user.userId,
-      tenantId,
-      contentType: plan.content_type,
-      contentId: plan.content_id,
-      startPageOrTime: payload.startPageOrTime,
-      endPageOrTime: payload.endPageOrTime,
-      planIds,
-    };
-
-    const { completedAmount, progress } = await processProgressUpdates(
-      supabase,
-      progressInput,
-      totalAmount
-    );
 
     // 플랜의 actual_end_time 및 시간 정보 업데이트
     // 항상 현재 시간을 사용하여 정확한 종료 시간 기록

@@ -4,6 +4,7 @@
 
 import type { PostgrestError } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { handleQueryError } from "@/lib/data/core/errorHandler";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { logActionDebug, logActionWarn } from "@/lib/logging/actionLogger";
@@ -15,16 +16,48 @@ import { getPlanExclusions } from "./exclusions";
 import { getAcademySchedules } from "./academies";
 
 /**
- * 관리자용 플랜 그룹 조회 (tenant_id 기반)
+ * 관리자용 플랜 그룹 조회 (tenant_id 기반, RLS 우회)
+ *
+ * Admin Client를 사용하여 RLS를 우회합니다.
+ * Server Client로는 관리자가 학생의 플랜 그룹을 조회할 수 없는 RLS 정책 문제를 해결합니다.
  */
 export async function getPlanGroupByIdForAdmin(
   groupId: string,
   tenantId: string
 ): Promise<PlanGroup | null> {
-  const supabase = await createSupabaseServerClient();
+  // Admin Client 사용 (RLS 우회)
+  const adminClient = createSupabaseAdminClient();
+
+  if (!adminClient) {
+    // Admin 클라이언트 생성 실패 시 Server Client로 fallback
+    logActionWarn(
+      { domain: "data", action: "getPlanGroupByIdForAdmin" },
+      "Admin 클라이언트를 생성할 수 없어 Server 클라이언트로 fallback"
+    );
+    const supabase = await createSupabaseServerClient();
+
+    const { data, error } = await supabase
+      .from("plan_groups")
+      .select(
+        "id,tenant_id,student_id,name,plan_purpose,scheduler_type,scheduler_options,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,subject_constraints,additional_period_reallocation,non_study_time_blocks,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at,study_hours,self_study_hours,lunch_time,planner_id"
+      )
+      .eq("id", groupId)
+      .eq("tenant_id", tenantId)
+      .is("deleted_at", null)
+      .maybeSingle<PlanGroup>();
+
+    if (error && !ErrorCodeCheckers.isNoRowsReturned(error)) {
+      handleQueryError(error, {
+        context: "[data/planGroups] getPlanGroupByIdForAdmin (fallback)",
+      });
+      return null;
+    }
+
+    return data ?? null;
+  }
 
   const selectGroup = () =>
-    supabase
+    adminClient
       .from("plan_groups")
       .select(
         "id,tenant_id,student_id,name,plan_purpose,scheduler_type,scheduler_options,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,subject_constraints,additional_period_reallocation,non_study_time_blocks,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at,study_hours,self_study_hours,lunch_time,planner_id"
@@ -38,7 +71,7 @@ export async function getPlanGroupByIdForAdmin(
   if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
     // 컬럼이 없는 경우 fallback
     const fallbackSelect = () =>
-      supabase
+      adminClient
         .from("plan_groups")
         .select(
           "id,tenant_id,student_id,name,plan_purpose,scheduler_type,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,subject_constraints,additional_period_reallocation,non_study_time_blocks,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at"

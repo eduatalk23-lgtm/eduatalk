@@ -179,6 +179,80 @@ export function validateNoInternalOverlaps(
 }
 
 /**
+ * 같은 배치에서 생성된 플랜들 간의 내부 시간 충돌을 자동으로 조정합니다.
+ *
+ * 같은 날짜에 배정된 플랜들이 서로 겹치는 경우,
+ * 시작 시간 순으로 정렬 후 겹치는 플랜을 이전 플랜 종료 후로 이동시킵니다.
+ *
+ * @param plans - 조정할 플랜 목록
+ * @param maxEndTime - 하루 최대 종료 시간 (기본값: "23:59")
+ * @returns 조정 결과
+ */
+export function adjustInternalOverlaps(
+  plans: ScheduledPlan[],
+  maxEndTime: string = "23:59"
+): TimeAdjustmentResult {
+  const maxEndMinutes = timeToMinutes(maxEndTime);
+  const unadjustablePlans: TimeAdjustmentResult["unadjustablePlans"] = [];
+  let adjustedCount = 0;
+
+  // 플랜을 날짜별로 그룹화
+  const plansByDate = new Map<string, ScheduledPlan[]>();
+  for (const plan of plans) {
+    const date = plan.plan_date;
+    if (!plansByDate.has(date)) {
+      plansByDate.set(date, []);
+    }
+    plansByDate.get(date)!.push(plan);
+  }
+
+  // 각 날짜별로 시간순 정렬 후 내부 충돌 조정
+  for (const [, datePlans] of plansByDate) {
+    // 시간 정보가 있는 플랜만 필터링하고 시작 시간순 정렬
+    const plansWithTime = datePlans.filter(p => p.start_time && p.end_time);
+    plansWithTime.sort((a, b) =>
+      timeToMinutes(a.start_time!) - timeToMinutes(b.start_time!)
+    );
+
+    // 순차적으로 충돌 조정
+    for (let i = 1; i < plansWithTime.length; i++) {
+      const prevPlan = plansWithTime[i - 1];
+      const currPlan = plansWithTime[i];
+
+      const prevEnd = timeToMinutes(prevPlan.end_time!);
+      let currStart = timeToMinutes(currPlan.start_time!);
+      let currEnd = timeToMinutes(currPlan.end_time!);
+      const duration = currEnd - currStart;
+
+      // 이전 플랜과 겹치는지 확인
+      if (currStart < prevEnd) {
+        // 충돌 - 이전 플랜 종료 시간으로 시작점 이동
+        currStart = prevEnd;
+        currEnd = currStart + duration;
+
+        // 최대 종료 시간 초과 확인
+        if (currEnd > maxEndMinutes) {
+          unadjustablePlans.push({
+            plan: currPlan,
+            reason: `내부 충돌 조정 후 종료 시간(${minutesToTime(currEnd)})이 최대 허용 시간(${maxEndTime})을 초과합니다.`,
+          });
+        } else {
+          currPlan.start_time = minutesToTime(currStart);
+          currPlan.end_time = minutesToTime(currEnd);
+          adjustedCount++;
+        }
+      }
+    }
+  }
+
+  return {
+    adjustedPlans: plans,
+    adjustedCount,
+    unadjustablePlans,
+  };
+}
+
+/**
  * 충돌하는 플랜의 시간을 자동으로 조정합니다.
  *
  * 기존 플랜과 충돌하는 새 플랜을 기존 플랜 종료 시간 이후로 이동시킵니다.

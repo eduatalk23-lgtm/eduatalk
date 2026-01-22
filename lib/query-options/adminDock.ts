@@ -15,8 +15,11 @@ export interface DailyPlan {
   planned_start_page_or_time: number | null;
   planned_end_page_or_time: number | null;
   completed_amount: number | null;
+  /** @deprecated Use status instead */
   progress: number | null;
   status: string | null;
+  // Binary completion support
+  actual_end_time: string | null;
   custom_title: string | null;
   custom_range_display: string | null;
   sequence: number | null;
@@ -141,6 +144,7 @@ export function dailyPlansQueryOptions(studentId: string, date: string, plannerI
             completed_amount,
             progress,
             status,
+            actual_end_time,
             custom_title,
             custom_range_display,
             sequence,
@@ -160,7 +164,8 @@ export function dailyPlansQueryOptions(studentId: string, date: string, plannerI
           .eq('container_type', 'daily')
           .eq('is_active', true)
           .eq('plan_groups.planner_id', plannerId)
-          .order('sequence', { ascending: true });
+          .order('sequence', { ascending: true, nullsFirst: false })
+          .order('created_at', { ascending: true });
 
         if (error) throw error;
         // plan_groups 필드 제거하고 반환
@@ -180,6 +185,7 @@ export function dailyPlansQueryOptions(studentId: string, date: string, plannerI
           completed_amount,
           progress,
           status,
+          actual_end_time,
           custom_title,
           custom_range_display,
           sequence,
@@ -197,7 +203,8 @@ export function dailyPlansQueryOptions(studentId: string, date: string, plannerI
         .eq('plan_date', date)
         .eq('container_type', 'daily')
         .eq('is_active', true)
-        .order('sequence', { ascending: true });
+        .order('sequence', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: true });
 
       if (error) throw error;
       return data ?? [];
@@ -278,6 +285,7 @@ export function weeklyPlansQueryOptions(
           .gte('plan_date', weekStart)
           .lte('plan_date', weekEnd)
           .eq('plan_groups.planner_id', plannerId)
+          .order('sequence', { ascending: true, nullsFirst: false })
           .order('created_at', { ascending: true });
 
         if (error) throw error;
@@ -309,6 +317,7 @@ export function weeklyPlansQueryOptions(
         .eq('is_active', true)
         .gte('plan_date', weekStart)
         .lte('plan_date', weekEnd)
+        .order('sequence', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: true });
 
       if (error) throw error;
@@ -388,7 +397,9 @@ export function unfinishedPlansQueryOptions(studentId: string, plannerId?: strin
           .eq('container_type', 'unfinished')
           .eq('is_active', true)
           .eq('plan_groups.planner_id', plannerId)
-          .order('plan_date', { ascending: true });
+          .order('plan_date', { ascending: true })
+          .order('sequence', { ascending: true, nullsFirst: false })
+          .order('created_at', { ascending: true });
 
         if (error) throw error;
         return (data ?? []).map(({ plan_groups, ...rest }) => rest);
@@ -419,7 +430,9 @@ export function unfinishedPlansQueryOptions(studentId: string, plannerId?: strin
         .eq('student_id', studentId)
         .eq('container_type', 'unfinished')
         .eq('is_active', true)
-        .order('plan_date', { ascending: true });
+        .order('plan_date', { ascending: true })
+        .order('sequence', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: true });
 
       if (error) throw error;
       return data ?? [];

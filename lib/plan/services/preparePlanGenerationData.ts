@@ -19,11 +19,14 @@ import {
   getAdapterConfig,
 } from "./ServiceAdapter";
 import { assignPlanTimes } from "@/lib/plan/assignPlanTimes";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { ServiceContext } from "@/lib/plan/shared";
 import type {
   ContentDurationMap,
   ContentMetadataMap,
 } from "@/lib/types/plan-generation";
+import type { ExistingPlanInfo } from "@/lib/scheduler/SchedulerEngine";
+import { subtractTimeRanges } from "@/lib/utils/time";
 import { ServiceErrorCodes } from "./errors";
 import type { ServiceLogger } from "./logging";
 
@@ -141,6 +144,45 @@ export type PlanGenerationPreparedResult =
   | PlanGenerationPreparedError;
 
 /**
+ * 기존 플랜 조회 (다른 플랜 그룹의 플랜)
+ * 충돌 방지를 위해 동일 학생의 동일 기간 내 플랜을 조회
+ */
+async function fetchExistingPlans(
+  studentId: string,
+  periodStart: string,
+  periodEnd: string,
+  excludePlanGroupId: string
+): Promise<ExistingPlanInfo[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("student_plan")
+    .select(`
+      id,
+      plan_date,
+      start_time,
+      end_time
+    `)
+    .eq("student_id", studentId)
+    .gte("plan_date", periodStart)
+    .lte("plan_date", periodEnd)
+    .neq("plan_group_id", excludePlanGroupId)
+    .eq("is_active", true);
+
+  if (error) {
+    console.error("[fetchExistingPlans] 기존 플랜 조회 실패:", error);
+    return [];
+  }
+
+  return (data || [])
+    .filter((p) => p.start_time && p.end_time) // 시간 정보 있는 플랜만
+    .map((p) => ({
+      date: p.plan_date,
+      start_time: p.start_time!,
+      end_time: p.end_time!,
+    }));
+}
+
+/**
  * 시간 문자열을 분으로 변환
  */
 export function timeToMinutes(time: string): number {
@@ -166,12 +208,30 @@ export async function preparePlanGenerationData(
   const { groupId, context, accessInfo, aiSchedulerOptionsOverride } = input;
   const config = getAdapterConfig();
 
-  // AI 스케줄러 옵션 오버라이드 로깅
+  // AI 오버라이드에서 study_days/review_days를 항상 제거
+  // 이유: 플래너 설정(plan_group.scheduler_options)의 study_days/review_days가 우선되어야 함
+  // AI가 생성한 값이 플래너 설정과 다르면 day_type이 잘못 계산됨
+  let sanitizedAIOverride = aiSchedulerOptionsOverride;
   if (aiSchedulerOptionsOverride) {
+    const { study_days, review_days, ...rest } = aiSchedulerOptionsOverride;
+    sanitizedAIOverride = rest as AISchedulerOptionsOverride;
+
+    if (study_days !== undefined || review_days !== undefined) {
+      logger.debug("preparePlanGenerationData", "AI 오버라이드 study_days/review_days 무시 (플래너 설정 우선)", {
+        aiStudyDays: study_days,
+        aiReviewDays: review_days,
+        reason: "플래너 설정의 study_days/review_days를 사용",
+      });
+    }
+  }
+
+  // AI 스케줄러 옵션 오버라이드 로깅
+  if (sanitizedAIOverride) {
     logger.debug("preparePlanGenerationData", "AI 스케줄러 옵션 오버라이드 적용", {
-      hasWeakSubjectFocus: !!aiSchedulerOptionsOverride.weak_subject_focus,
-      hasSubjectAllocations: !!aiSchedulerOptionsOverride.subject_allocations?.length,
-      hasContentAllocations: !!aiSchedulerOptionsOverride.content_allocations?.length,
+      hasWeakSubjectFocus: !!sanitizedAIOverride.weak_subject_focus,
+      hasSubjectAllocations: !!sanitizedAIOverride.subject_allocations?.length,
+      hasContentAllocations: !!sanitizedAIOverride.content_allocations?.length,
+      hasStudyReviewCycle: sanitizedAIOverride.study_days !== undefined,
     });
   }
 
@@ -249,11 +309,11 @@ export async function preparePlanGenerationData(
   });
 
   // 3. 병합된 스케줄러 설정
-  // AI 오버라이드가 있으면 그룹 옵션과 병합
-  const effectiveGroupOptions = aiSchedulerOptionsOverride
+  // sanitizedAIOverride를 사용 (유효하지 않은 study_days/review_days는 이미 제거됨)
+  const effectiveGroupOptions = sanitizedAIOverride
     ? {
         ...(group.scheduler_options as Record<string, unknown>),
-        ...aiSchedulerOptionsOverride,
+        ...sanitizedAIOverride,
       }
     : (group.scheduler_options as Record<string, unknown>);
 
@@ -271,24 +331,30 @@ export async function preparePlanGenerationData(
     ? { start: group.self_study_hours.start_time, end: group.self_study_hours.end_time }
     : null;
 
+  // mergedSettings에서 study_days/review_days 사용 (sanitizedAIOverride가 이미 적용됨)
   const schedulerOptions = {
-    // 기본 설정에서 가져오되, AI 오버라이드 우선 적용
-    study_days: aiSchedulerOptionsOverride?.study_days ?? mergedSettings.study_review_ratio.study_days,
-    review_days: aiSchedulerOptionsOverride?.review_days ?? mergedSettings.study_review_ratio.review_days,
-    weak_subject_focus: aiSchedulerOptionsOverride?.weak_subject_focus ?? mergedSettings.weak_subject_focus,
+    study_days: mergedSettings.study_review_ratio.study_days,
+    review_days: mergedSettings.study_review_ratio.review_days,
+    weak_subject_focus: sanitizedAIOverride?.weak_subject_focus ?? mergedSettings.weak_subject_focus,
     review_scope: mergedSettings.review_scope,
     // 시간 설정: plan_group 컬럼 우선, 없으면 merged settings 사용
     lunch_time: group.lunch_time || mergedSettings.lunch_time,
     camp_study_hours: groupStudyHours || mergedSettings.study_hours,
     self_study_hours: groupSelfStudyHours || mergedSettings.self_study_hours,
     // AI에서 생성된 과목/콘텐츠 할당 (있는 경우)
-    ...(aiSchedulerOptionsOverride?.subject_allocations && {
-      subject_allocations: aiSchedulerOptionsOverride.subject_allocations,
+    ...(sanitizedAIOverride?.subject_allocations && {
+      subject_allocations: sanitizedAIOverride.subject_allocations,
     }),
-    ...(aiSchedulerOptionsOverride?.content_allocations && {
-      content_allocations: aiSchedulerOptionsOverride.content_allocations,
+    ...(sanitizedAIOverride?.content_allocations && {
+      content_allocations: sanitizedAIOverride.content_allocations,
     }),
   };
+
+  logger.debug("preparePlanGenerationData", "스케줄러 옵션 결정됨", {
+    studyDays: schedulerOptions.study_days,
+    reviewDays: schedulerOptions.review_days,
+    weakSubjectFocus: schedulerOptions.weak_subject_focus,
+  });
 
   const groupSchedulerOptions = getSchedulerOptionsWithTimeSettings(group);
 
@@ -375,7 +441,19 @@ export async function preparePlanGenerationData(
     logger.debug("preparePlanGenerationData", "슬롯 모드: 콘텐츠 없이 진행 (가상 플랜 생성 예정)");
   }
 
-  // 7. 스케줄 생성 (어댑터 통해 기존 함수 호출)
+  // 7. 기존 플랜 조회 (시간 충돌 방지용)
+  const existingPlans = await fetchExistingPlans(
+    context.studentId,
+    group.period_start,
+    group.period_end,
+    groupId
+  );
+
+  if (existingPlans.length > 0) {
+    logger.debug("preparePlanGenerationData", `기존 플랜 ${existingPlans.length}개 발견, 스케줄러에 전달`);
+  }
+
+  // 8. 스케줄 생성 (어댑터 통해 기존 함수 호출)
   // 슬롯 모드에서 콘텐츠가 없으면 스케줄 생성 스킵 (가상 플랜 생성 시)
   let scheduledPlans: Awaited<ReturnType<typeof adaptScheduleGeneration>> = [];
 
@@ -391,6 +469,15 @@ export async function preparePlanGenerationData(
       chapterMap,
       dateAvailableTimeRanges,
       dateTimeSlots,
+      existingPlans, // 기존 플랜 정보 전달 (시간 충돌 방지)
+      // 스케줄러 옵션 오버라이드 전달 (study_days/review_days가 스케줄러에도 적용됨)
+      schedulerOptionsOverride: {
+        study_days: schedulerOptions.study_days,
+        review_days: schedulerOptions.review_days,
+        weak_subject_focus: typeof schedulerOptions.weak_subject_focus === "string"
+          ? schedulerOptions.weak_subject_focus as "low" | "medium" | "high"
+          : undefined,
+      },
     });
 
     if (scheduledPlans.length === 0) {
@@ -421,13 +508,32 @@ export async function preparePlanGenerationData(
   const dateAllocations: DateAllocationResult[] = [];
   const sortedDates = Array.from(plansByDate.keys()).sort();
 
+  // 기존 플랜을 날짜별로 그룹화 (시간 차감용)
+  const existingPlansByDate = new Map<string, Array<{ start: string; end: string }>>();
+  for (const plan of existingPlans) {
+    const date = plan.date;
+    if (!existingPlansByDate.has(date)) {
+      existingPlansByDate.set(date, []);
+    }
+    existingPlansByDate.get(date)!.push({
+      start: plan.start_time,
+      end: plan.end_time,
+    });
+  }
+
   for (const date of sortedDates) {
     const datePlans = plansByDate.get(date)!;
     const timeSlotsForDate = dateTimeSlots.get(date) || [];
-    const studyTimeSlots = timeSlotsForDate
+    let studyTimeSlots = timeSlotsForDate
       .filter((slot) => slot.type === "학습시간")
       .map((slot) => ({ start: slot.start, end: slot.end }))
       .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+
+    // 기존 플랜 시간 차감 (시간 충돌 방지)
+    const existingTimesForDate = existingPlansByDate.get(date);
+    if (existingTimesForDate && existingTimesForDate.length > 0) {
+      studyTimeSlots = subtractTimeRanges(studyTimeSlots, existingTimesForDate);
+    }
 
     const dateMetadata = dateMetadataMap.get(date) || {
       day_type: null,

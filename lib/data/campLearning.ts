@@ -594,16 +594,16 @@ export async function getCampDatePlans(
       }
     }
 
-    // 상태 판단
-    let status: "completed" | "in_progress" | "not_started" = "not_started";
+    // 진행률 관련 값 (UI 표시용, backward compatibility)
     const completedAmount = plan.completed_amount ?? 0;
     const progress = plan.progress ?? 0;
-    if (completedAmount > 0) {
-      if (progress >= 100) {
-        status = "completed";
-      } else {
-        status = "in_progress";
-      }
+
+    // 상태 판단 - binary completion (status + actual_end_time)
+    let status: "completed" | "in_progress" | "not_started" = "not_started";
+    if (plan.status === "completed" || plan.actual_end_time != null) {
+      status = "completed";
+    } else if (plan.status === "in_progress" || plan.actual_start_time != null) {
+      status = "in_progress";
     }
 
     return {

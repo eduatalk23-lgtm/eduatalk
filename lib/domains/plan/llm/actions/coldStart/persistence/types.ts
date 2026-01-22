@@ -83,8 +83,7 @@ export interface ColdStartBookInsert {
   source: string;
   page_analysis: Json | null;
   is_active: boolean;
-  /** 총 예상 소요시간 (시간 단위) */
-  estimated_hours?: number | null;
+  // estimated_hours는 GENERATED 컬럼이므로 제외
 }
 
 /**
@@ -101,8 +100,7 @@ export interface ColdStartLectureInsert {
   difficulty_level: string | null;
   notes: string | null;
   episode_analysis: Json | null;
-  /** 총 예상 소요시간 (시간 단위) */
-  estimated_hours?: number | null;
+  // estimated_hours는 GENERATED 컬럼이므로 제외
   /** 총 소요시간 (분 단위) */
   total_duration?: number | null;
 }

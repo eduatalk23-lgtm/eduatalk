@@ -396,7 +396,9 @@ export type Plan = {
   chapter?: string | null;
   planned_start_page_or_time?: number | null;
   planned_end_page_or_time?: number | null;
+  /** @deprecated Use status instead. Will be removed in future version. */
   completed_amount?: number | null;
+  /** @deprecated Use status instead. Will be removed in future version. */
   progress?: number | null;
   start_time?: string | null; // HH:mm 형식 - 플랜 생성 시 계산된 시작 시간
   end_time?: string | null; // HH:mm 형식 - 플랜 생성 시 계산된 종료 시간

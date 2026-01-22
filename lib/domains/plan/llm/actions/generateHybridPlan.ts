@@ -214,7 +214,7 @@ async function _generateAIFramework(
         },
       ],
       modelTier,
-      maxTokens: 4000, // 프레임워크는 상대적으로 작은 출력
+      maxTokens: 8000, // 복잡한 콘텐츠의 경우 큰 출력 필요
       grounding: groundingConfig,
     });
 

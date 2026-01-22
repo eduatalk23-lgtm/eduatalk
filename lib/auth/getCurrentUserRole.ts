@@ -64,24 +64,12 @@ async function fetchAdminRole(
     return null;
   }
 
-  // 개발 환경에서만 로깅
-  if (process.env.NODE_ENV === "development") {
-    logActionDebug("auth.fetchAdminRole", `admin_users 조회 결과 - id:${admin.id}, role:${admin.role}, tenant_id:${(admin as { tenant_id?: string | null })?.tenant_id}`);
-  }
-
   // superadmin인 경우 tenant_id는 null이어야 함
   if (admin.role === "superadmin") {
-    if (process.env.NODE_ENV === "development") {
-      logActionDebug("auth.fetchAdminRole", "superadmin으로 인식");
-    }
     return {
       role: "superadmin",
       tenantId: null,
     };
-  }
-
-  if (process.env.NODE_ENV === "development") {
-    logActionDebug("auth.fetchAdminRole", `admin/consultant로 인식: ${admin.role}`);
   }
 
   return {

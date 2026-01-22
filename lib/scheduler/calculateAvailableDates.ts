@@ -420,11 +420,11 @@ function classifyDaysFor1730(
 
   // 3. 각 주차에서 학습일과 복습일 분류
   // 주차에 포함된 날짜는 이미 제외일이 아니므로 바로 분류 가능
-  for (const [weekNum, weekDates] of weeks.entries()) {
+  for (const [, weekDates] of weeks.entries()) {
     for (let i = 0; i < weekDates.length; i++) {
       const date = weekDates[i];
       const dateStr = formatDate(date);
-      
+
       // 주차에 포함된 날짜는 제외일이 아니므로 학습일/복습일로 분류
       if (i < studyDays) {
         dayTypeMap.set(dateStr, "학습일");
@@ -913,6 +913,7 @@ export function calculateAvailableDates(
 
   const studyDays = options.scheduler_options?.study_days || 6;
   const reviewDays = options.scheduler_options?.review_days || 1;
+
   const dayTypeMap = classifyDaysFor1730(dates, exclusions, studyDays, reviewDays);
   
   // 주차 정보 매핑 (학습일/복습일 분류용)

@@ -91,10 +91,10 @@ async function validatePlanOwnership(
  */
 function validatePlanStatus(plan: Record<string, unknown>): { valid: boolean; error?: string } {
   const status = plan.status as string;
-  const progress = plan.progress as number | null;
+  const actualEndTime = plan.actual_end_time as string | null;
 
-  // 완료된 플랜은 이동 불가
-  if (status === "completed" || (progress !== null && progress >= 100)) {
+  // 완료된 플랜은 이동 불가 (binary completion: status + actual_end_time)
+  if (status === "completed" || actualEndTime != null) {
     return { valid: false, error: "완료된 플랜은 이동할 수 없습니다." };
   }
 

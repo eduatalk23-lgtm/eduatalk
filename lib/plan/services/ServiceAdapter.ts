@@ -37,6 +37,7 @@ import type {
   AcademySchedule,
 } from "@/lib/types/plan";
 import type { ServiceContext, ScheduledPlan } from "@/lib/plan/shared";
+import type { ExistingPlanInfo } from "@/lib/scheduler/SchedulerEngine";
 
 /**
  * 콘텐츠 해석 어댑터
@@ -152,6 +153,15 @@ export type ScheduleGenerationAdapterInput = {
   chapterMap: Map<string, string | null>;
   dateAvailableTimeRanges: DateAvailableTimeRangesMap;
   dateTimeSlots: Map<string, Array<{ type: "학습시간" | "점심시간" | "학원일정" | "이동시간" | "자율학습"; start: string; end: string; label?: string }>>;
+  /** 기존 플랜 정보 (시간 충돌 방지용) */
+  existingPlans?: ExistingPlanInfo[];
+  /** 스케줄러 옵션 오버라이드 (study_days/review_days 등) */
+  schedulerOptionsOverride?: {
+    study_days?: number;
+    review_days?: number;
+    weak_subject_focus?: "low" | "medium" | "high";
+    [key: string]: unknown;
+  };
 };
 
 /**
@@ -178,7 +188,21 @@ export async function adaptScheduleGeneration(
     chapterMap,
     dateAvailableTimeRanges,
     dateTimeSlots,
+    existingPlans,
+    schedulerOptionsOverride,
   } = input;
+
+  // schedulerOptionsOverride가 있으면 group을 복사하여 scheduler_options 오버라이드
+  // 이렇게 하면 generatePlansFromGroup에서 올바른 study_days/review_days가 사용됨
+  const effectiveGroup: PlanGroup = schedulerOptionsOverride
+    ? {
+        ...group,
+        scheduler_options: {
+          ...(group.scheduler_options as Record<string, unknown> | null),
+          ...schedulerOptionsOverride,
+        },
+      }
+    : group;
 
   // 콘텐츠 과목 정보 맵 생성
   const contentSubjects = new Map<
@@ -190,7 +214,7 @@ export async function adaptScheduleGeneration(
   // NOTE: blocks는 빈 배열로 전달 (기존 generatePlansRefactored와 동일)
   // 실제 시간 정보는 dateAvailableTimeRanges와 dateTimeSlots에서 사용
   const generateResult = await schedulerGeneratePlans(
-    group,
+    effectiveGroup, // 오버라이드된 group 사용
     contents,
     exclusions,
     academySchedules,
@@ -203,7 +227,7 @@ export async function adaptScheduleGeneration(
     chapterMap,
     undefined, // periodStart
     undefined, // periodEnd
-    undefined, // existingPlans (어댑터에서는 미사용)
+    existingPlans, // 기존 플랜 정보 (시간 충돌 방지)
     { autoAdjustOverlaps: true } // Phase 4: 시간 충돌 자동 조정
   );
   const scheduledPlans = generateResult.plans;

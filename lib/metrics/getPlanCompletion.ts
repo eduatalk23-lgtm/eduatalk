@@ -96,7 +96,7 @@ export async function getPlanCompletion(
     const learningPlans = filterLearningPlans(safePlanRows);
 
     const totalPlans = learningPlans.length;
-    // 통일된 완료 기준 사용 (actual_end_time 또는 progress >= 100)
+    // 통일된 완료 기준 사용: status === 'completed' OR actual_end_time 설정됨
     const completedPlans = learningPlans.filter((p) => isCompletedPlan(p)).length;
     const completionRate =
       totalPlans > 0 ? Math.round((completedPlans / totalPlans) * 100) : 0;

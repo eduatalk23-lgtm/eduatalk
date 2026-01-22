@@ -187,49 +187,6 @@ export function assignPlanTimes(
   const plansWithInfo = plans.map((plan) => {
     // Episode 정보 전달 확인 (개발 환경에서만, 강의 콘텐츠만)
     if (process.env.NODE_ENV === "development" && plan.content_type === "lecture") {
-      const durationInfo = contentDurationMap.get(plan.content_id);
-      const hasEpisodes =
-        durationInfo?.episodes !== null &&
-        durationInfo?.episodes !== undefined &&
-        Array.isArray(durationInfo.episodes) &&
-        durationInfo.episodes.length > 0;
-      
-      if (hasEpisodes && durationInfo.episodes) {
-        const episodeCount = durationInfo.episodes.length;
-        const rangeStart = plan.planned_start_page_or_time;
-        const rangeEnd = plan.planned_end_page_or_time;
-        const rangeEpisodes = durationInfo.episodes.filter(
-          (ep) => ep.episode_number >= rangeStart && ep.episode_number <= rangeEnd
-        ).length;
-        
-        console.log(
-          `[assignPlanTimes] 강의 플랜 episode 정보 확인:`,
-          {
-            content_id: plan.content_id,
-            range: `${rangeStart}~${rangeEnd}`,
-            total_episodes: episodeCount,
-            range_episodes: rangeEpisodes,
-            episodes_in_range: durationInfo.episodes
-              .filter((ep) => ep.episode_number >= rangeStart && ep.episode_number <= rangeEnd)
-              .map((ep) => ({
-                episode_number: ep.episode_number,
-                duration: ep.duration,
-              })),
-          }
-        );
-      } else {
-        console.warn(
-          `[assignPlanTimes] 강의 플랜 episode 정보 없음:`,
-          {
-            content_id: plan.content_id,
-            range: `${plan.planned_start_page_or_time}~${plan.planned_end_page_or_time}`,
-            has_duration: !!(durationInfo?.duration && durationInfo.duration > 0),
-            total_episodes: durationInfo?.total_episodes ?? null,
-            episodes_array_exists: Array.isArray(durationInfo?.episodes),
-            episodes_length: durationInfo?.episodes?.length ?? 0,
-          }
-        );
-      }
     }
 
     const estimatedTime = calculatePlanEstimatedTime(plan, contentDurationMap, dayType);
@@ -576,23 +533,6 @@ function assignEpisodeBasedTimes(
 ): PlanTimeSegment[] {
   const segments: PlanTimeSegment[] = [];
 
-  // DEBUG: Log input plans to verify precalculated times
-  if (process.env.NODE_ENV === "development") {
-    console.log(
-      `[assignEpisodeBasedTimes] 입력 플랜 분석:`,
-      {
-        totalPlans: plansWithInfo.length,
-        plansDetail: plansWithInfo.map((p) => ({
-          content_id: p.plan.content_id,
-          range: `${p.plan.planned_start_page_or_time}~${p.plan.planned_end_page_or_time}`,
-          precalc_start: p.plan._precalculated_start,
-          precalc_end: p.plan._precalculated_end,
-          has_precalc: !!(p.plan._precalculated_start && p.plan._precalculated_end),
-        })),
-      }
-    );
-  }
-
   // 0. Precalculated time이 있는 플랜과 없는 플랜 분리
   const plansWithPrecalc: typeof plansWithInfo = [];
   const plansWithoutPrecalc: typeof plansWithInfo = [];
@@ -603,23 +543,6 @@ function assignEpisodeBasedTimes(
     } else {
       plansWithoutPrecalc.push(planInfo);
     }
-  }
-
-  // DEBUG: Log separation results
-  if (process.env.NODE_ENV === "development") {
-    console.log(
-      `[assignEpisodeBasedTimes] Precalculated time 분리 결과:`,
-      {
-        withPrecalc: plansWithPrecalc.length,
-        withoutPrecalc: plansWithoutPrecalc.length,
-        precalcPlans: plansWithPrecalc.map((p) => ({
-          content_id: p.plan.content_id,
-          range: `${p.plan.planned_start_page_or_time}~${p.plan.planned_end_page_or_time}`,
-          start: p.plan._precalculated_start,
-          end: p.plan._precalculated_end,
-        })),
-      }
-    );
   }
 
   // 0.1 Precalculated time이 있는 플랜은 바로 세그먼트 생성
