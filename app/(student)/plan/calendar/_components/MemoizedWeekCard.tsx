@@ -121,7 +121,7 @@ function MemoizedWeekCardComponent({
               addedPlanIds.add(plan.id);
 
               const ContentTypeIcon = getContentTypeIcon(plan.content_type);
-              const isCompleted = plan.progress != null && plan.progress >= 100;
+              const isCompleted = plan.status === "completed" || plan.actual_end_time != null;
               const isActive = plan.actual_start_time && !plan.actual_end_time;
               const isConnected = connectedPlanIds.has(plan.id);
 
@@ -251,7 +251,7 @@ function MemoizedWeekCardComponent({
               </div>
               <div className="text-center">
                 <div className="font-bold text-green-600">
-                  {dayPlans.filter((p) => p.progress != null && p.progress >= 100).length}
+                  {dayPlans.filter((p) => p.status === "completed" || p.actual_end_time != null).length}
                 </div>
                 <div className="text-gray-500">완료</div>
               </div>

@@ -11,12 +11,9 @@ type CalendarStatsProps = {
 
 export function CalendarStats({ plans }: CalendarStatsProps) {
   const totalPlans = plans.length;
-  const completedPlans = plans.filter((p) => p.progress != null && p.progress >= 100).length;
+  const completedPlans = plans.filter((p) => p.status === "completed" || p.actual_end_time != null).length;
   const activePlans = plans.filter((p) => p.actual_start_time && !p.actual_end_time).length;
-  const averageProgress =
-    totalPlans > 0
-      ? Math.round(plans.reduce((sum, p) => sum + (p.progress || 0), 0) / totalPlans)
-      : 0;
+  const averageProgress = totalPlans > 0 ? Math.round((completedPlans / totalPlans) * 100) : 0;
 
   return (
     <div className={cn("flex flex-col gap-4 rounded-xl border p-4", borderDefault, bgSurface)}>

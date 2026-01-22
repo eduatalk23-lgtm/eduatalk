@@ -158,10 +158,10 @@ export function DayViewTableLegacy({
                   {blockPlans.length > 0 ? (
                     blockPlans.map((plan, planIndex) => {
                       const ContentTypeIcon = getContentTypeIcon(plan.content_type);
-                      const isCompleted =
-                        plan.progress != null && plan.progress >= 100;
+                      const isCompleted = plan.status === "completed" || plan.actual_end_time != null;
                       const isActive =
                         plan.actual_start_time && !plan.actual_end_time;
+                      // Keep progress for UI display (backwards compatibility)
                       const progressPercentage =
                         plan.progress != null ? Math.round(plan.progress) : null;
 

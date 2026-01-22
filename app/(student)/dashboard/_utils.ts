@@ -398,9 +398,9 @@ export function calculateTodayProgress(plans: TodayPlan[]): number {
 
 // 전체 학습 통계
 export type LearningStatistics = {
-  weekProgress: number; // 이번 주 진행률 (평균)
-  completedCount: number; // 완료된 콘텐츠 수 (progress = 100)
-  inProgressCount: number; // 진행 중 콘텐츠 수 (0 < progress < 100)
+  weekProgress: number; // 이번 주 콘텐츠 학습 진행률 (평균)
+  completedCount: number; // 학습 완료된 콘텐츠 수 (콘텐츠 진행률 100%)
+  inProgressCount: number; // 학습 진행 중 콘텐츠 수 (0 < 콘텐츠 진행률 < 100)
 };
 
 export async function fetchLearningStatistics(

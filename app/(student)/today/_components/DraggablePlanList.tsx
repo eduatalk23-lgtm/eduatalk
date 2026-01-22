@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { GripVertical, ChevronUp, ChevronDown } from "lucide-react";
+import { ChevronUp, ChevronDown } from "lucide-react";
 import { updatePlanOrder } from "../actions/planOrderActions";
 import { PlanTimerCard } from "./PlanTimerCard";
 import { TodayPlanItem } from "./TodayPlanItem";
@@ -376,25 +376,14 @@ export function DraggablePlanList({ plans: initialPlans, planDate, serverNow = D
               onTouchMove={(e) => canMove && handleTouchMove(e, index)}
               onTouchEnd={handleTouchEnd}
               className={cn(
-                "relative flex items-start gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition outline-none",
+                "relative flex items-start gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-all outline-none",
                 isDragging && "opacity-50 cursor-grabbing",
                 isDragOver && "ring-2 ring-indigo-500 ring-offset-2",
-                !isPending && "hover:shadow-md cursor-grab",
+                !isPending && "hover:ring-1 hover:ring-gray-200 hover:shadow-md cursor-grab",
                 focusedIndex === index && "ring-2 ring-indigo-400 ring-offset-1",
                 isTouchDragging && "scale-[1.02] shadow-lg touch-none"
               )}
             >
-              {/* 드래그 핸들 */}
-              <div
-                className={cn(
-                  "text-gray-400 transition self-start touch-none",
-                  isDragging ? "cursor-grabbing" : "cursor-grab"
-                )}
-                aria-hidden="true"
-              >
-                <GripVertical className="h-5 w-5" />
-              </div>
-
               {/* 모바일용 순서 변경 버튼 */}
               <div className="flex flex-col gap-1 sm:hidden">
                 <button

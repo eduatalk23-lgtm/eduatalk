@@ -221,14 +221,12 @@ export default async function CampCalendarPage({
         schedule !== null && schedule !== undefined && Array.isArray(schedule)
       );
 
-    // 통계 계산
+    // 통계 계산 - binary completion (status + actual_end_time)
     const totalPlans = plansWithContent.length;
-    const completedPlans = plansWithContent.filter((p) => p.progress != null && p.progress >= 100).length;
+    const completedPlans = plansWithContent.filter((p) => p.status === "completed" || p.actual_end_time != null).length;
     const activePlans = plansWithContent.filter((p) => p.actual_start_time && !p.actual_end_time).length;
     const averageProgress = totalPlans > 0
-      ? Math.round(
-          plansWithContent.reduce((sum, p) => sum + (p.progress || 0), 0) / totalPlans
-        )
+      ? Math.round((completedPlans / totalPlans) * 100)
       : 0;
 
     return (

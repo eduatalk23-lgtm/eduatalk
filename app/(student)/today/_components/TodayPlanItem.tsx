@@ -5,7 +5,7 @@ import { Check } from "lucide-react";
 import { Plan } from "@/lib/data/studentPlans";
 import { Book, Lecture, CustomContent } from "@/lib/data/studentContents";
 import { Badge } from "@/components/atoms/Badge";
-import { ProgressBar } from "@/components/atoms/ProgressBar";
+// ProgressBar removed - using binary completion (status + actual_end_time)
 import { buildPlanExecutionUrl } from "../_utils/navigationUtils";
 import { cn } from "@/lib/cn";
 import {
@@ -16,7 +16,6 @@ import {
 type TodayPlanItemProps = {
   plan: Plan & {
     content?: Book | Lecture | CustomContent;
-    progress?: number | null;
   };
   campMode?: boolean;
 };
@@ -34,11 +33,11 @@ const statusLabels = {
   incomplete: "미완료",
 };
 
-function getPlanStatus(plan: Plan & { progress?: number | null }): keyof typeof statusLabels {
-  if (plan.progress !== null && plan.progress !== undefined && plan.progress >= 100) {
+function getPlanStatus(plan: Plan): keyof typeof statusLabels {
+  if (plan.status === "completed" || plan.actual_end_time != null) {
     return "completed";
   }
-  if (plan.progress !== null && plan.progress !== undefined && plan.progress > 0) {
+  if (plan.status === "in_progress") {
     return "in_progress";
   }
   return "scheduled";
@@ -111,19 +110,6 @@ export function TodayPlanItem({ plan, campMode = false }: TodayPlanItemProps) {
           </div>
         </div>
 
-        {plan.progress !== null && plan.progress !== undefined && (
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
-              <span>진행률</span>
-              <span>{plan.progress}%</span>
-            </div>
-            <ProgressBar
-              value={plan.progress}
-              height="sm"
-              color={isCompleted ? "green" : plan.progress > 0 ? "blue" : undefined}
-            />
-          </div>
-        )}
 
         <div className="flex items-center justify-between">
           <div className="text-xs text-gray-500 dark:text-gray-400">

@@ -122,7 +122,7 @@ export async function fetchWeeklyLearningSummary(
 
     const { data: plansData, error: plansError } = await supabase
       .from("student_plan")
-      .select("id,content_type,content_id,completed_amount,plan_date")
+      .select("id,content_type,content_id,completed_amount,plan_date,status,actual_end_time")
       .gte("plan_date", startDateStr)
       .lte("plan_date", endDateStr)
       .eq("student_id", studentId);
@@ -144,6 +144,8 @@ export async function fetchWeeklyLearningSummary(
       content_id?: string | null;
       completed_amount?: number | null;
       plan_date?: string | null;
+      status?: string | null;
+      actual_end_time?: string | null;
     }>;
 
     const planRows = plans;
@@ -205,10 +207,9 @@ export async function fetchWeeklyLearningSummary(
       return sum + (plan.completed_amount ?? 0);
     }, 0);
 
+    // binary completion: status + actual_end_time
     const completedPlans = planRows.filter((plan) => {
-      const key = `${plan.content_type}:${plan.content_id}`;
-      const progress = progressMap.get(key) ?? 0;
-      return progress >= 100;
+      return plan.status === "completed" || plan.actual_end_time != null;
     }).length;
 
     const subjects = new Set<string>();

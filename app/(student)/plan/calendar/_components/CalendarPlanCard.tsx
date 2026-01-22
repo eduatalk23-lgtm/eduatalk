@@ -56,8 +56,9 @@ export function CalendarPlanCard({
   onClick,
 }: PlanCardProps) {
   const ContentTypeIcon = getContentTypeIcon(plan.content_type);
-  const isCompleted = plan.progress != null && plan.progress >= 100;
+  const isCompleted = plan.status === "completed" || plan.actual_end_time != null;
   const isActive = plan.actual_start_time && !plan.actual_end_time;
+  // Keep progress for UI display (backwards compatibility), completion is binary
   const progressPercentage = plan.progress != null ? Math.round(plan.progress) : null;
 
   // 가상 플랜 확인 (is_virtual 필드 또는 Plan 타입 확장)

@@ -57,14 +57,11 @@ export function DayTimelineModal({
     false // 모달에서는 항상 전체 표시
   );
 
-  // 통계 계산
+  // 통계 계산 - binary completion (status + actual_end_time)
   const totalPlans = plans.length;
-  const completedPlans = plans.filter((p) => p.progress != null && p.progress >= 100).length;
+  const completedPlans = plans.filter((p) => p.status === "completed" || p.actual_end_time != null).length;
   const activePlans = plans.filter((p) => p.actual_start_time && !p.actual_end_time).length;
-  const averageProgress =
-    totalPlans > 0
-      ? Math.round(plans.reduce((sum, p) => sum + (p.progress || 0), 0) / totalPlans)
-      : 0;
+  const averageProgress = totalPlans > 0 ? Math.round((completedPlans / totalPlans) * 100) : 0;
 
   // 날짜 타입별 스타일링 (공통 유틸리티 사용)
   const {

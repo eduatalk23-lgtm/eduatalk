@@ -185,16 +185,14 @@ function DayViewComponent({ plans, adHocPlans = [], currentDate, exclusions, aca
     dayTypeBadgeClass,
   } = getDayTypeStyling(currentDate, dayTypeInfo, dayExclusions);
 
-  // 플랜 통계 계산 (ad-hoc 플랜 포함)
+  // 플랜 통계 계산 (ad-hoc 플랜 포함) - binary completion based
   const totalPlans = dayPlans.length + dayAdHocPlans.length;
-  const completedPlans = dayPlans.filter((p) => p.progress != null && p.progress >= 100).length
+  const completedPlans = dayPlans.filter((p) => p.status === "completed" || p.actual_end_time != null).length
     + dayAdHocPlans.filter((p) => p.status === "completed" || !!p.completed_at).length;
   const activePlans = dayPlans.filter((p) => p.actual_start_time && !p.actual_end_time).length
     + dayAdHocPlans.filter((p) => p.status === "in_progress" && !!p.started_at).length;
-  const averageProgress = dayPlans.length > 0
-    ? Math.round(
-        dayPlans.reduce((sum, p) => sum + (p.progress || 0), 0) / dayPlans.length
-      )
+  const averageProgress = totalPlans > 0
+    ? Math.round((completedPlans / totalPlans) * 100)
     : 0;
 
   // 컨테이너별 플랜 그룹화
