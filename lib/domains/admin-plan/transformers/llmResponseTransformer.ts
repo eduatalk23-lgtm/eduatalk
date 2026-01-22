@@ -17,6 +17,11 @@ import type {
   ContentType,
 } from "@/lib/types/plan-generation";
 import { timeToMinutes } from "@/lib/utils/time";
+import {
+  createSplitPlanGroupKey,
+  groupPlansByKey,
+  sortByStartTimeInPlace,
+} from "@/lib/utils/splitPlanGrouping";
 import { logActionWarn } from "@/lib/utils/serverActionLogger";
 
 /**
@@ -28,6 +33,9 @@ export type TransformedPlanPayload = PlanPayloadBase & {
   content_subject?: string | null;
   content_subject_category?: string | null;
   content_category?: string | null;
+  // 분할 정보 (UI 표시용)
+  part_index?: number | null;
+  total_parts?: number | null;
 };
 
 // ============================================
@@ -234,8 +242,22 @@ export function transformLLMResponseToPlans(
           context?.allocationMap
         );
 
-        // day_type 결정
-        const dayType: DayType = item.isReview ? "복습일" : "학습일";
+        // day_type 결정 (날짜 기준 - study_days/review_days 설정 기반)
+        // context.dayTypeMap이 있으면 사용, 없으면 기본값 "학습일"
+        const dayType: DayType = context?.dayTypeMap?.get(item.date) ?? "학습일";
+
+        // 분할 콘텐츠 판별
+        // 1. LLM이 명시적으로 isPartialContent=true를 반환한 경우
+        // 2. totalParts가 1보다 큰 경우 (분할된 콘텐츠)
+        const isPartial =
+          item.isPartialContent === true ||
+          (item.totalParts !== undefined && item.totalParts > 1);
+
+        // is_continued: 분할된 콘텐츠의 첫 번째 파트가 아닌 경우 (2번째 파트부터)
+        const isContinued =
+          isPartial &&
+          item.partIndex !== undefined &&
+          item.partIndex > 1;
 
         plans.push({
           plan_date: item.date,
@@ -250,20 +272,24 @@ export function transformLLMResponseToPlans(
           day_type: dayType,
           week: weekMatrix.weekNumber,
           day: item.dayOfWeek,
-          is_partial: false,
-          is_continued: false,
+          is_partial: isPartial,
+          is_continued: isContinued,
           plan_number: planNumber,
           subject_type: subjectType,
           content_title: item.contentTitle ?? null,
           content_subject: item.subject ?? null,
           content_subject_category: item.subjectCategory ?? null,
           content_category: null,
+          // 분할 정보 추가 (UI 표시용)
+          part_index: isPartial ? (item.partIndex ?? 1) : null,
+          total_parts: isPartial ? (item.totalParts ?? 1) : null,
         });
       });
     }
   }
 
-  return plans;
+  // 방어적 후처리: LLM이 분할 정보를 누락한 경우 자동 감지
+  return detectAndMarkSplitPlans(plans);
 }
 
 /**
@@ -317,6 +343,87 @@ export function buildAllocationMap(
     map.set(allocation.contentId, allocation);
   }
   return map;
+}
+
+// ============================================
+// 분할 플랜 후처리 감지 (방어적)
+// ============================================
+
+/**
+ * 분할 플랜 후처리 감지 및 마킹
+ *
+ * LLM이 분할 정보(partIndex, totalParts, isPartialContent)를 누락한 경우
+ * 패턴을 분석하여 자동으로 is_partial, is_continued를 설정합니다.
+ *
+ * 감지 조건:
+ * - 같은 날짜 (plan_date)
+ * - 같은 콘텐츠 (content_id)
+ * - 같은 범위 (planned_start_page_or_time, planned_end_page_or_time)
+ * - 연속된 시간 (end_time -> start_time 간격 <= 10분)
+ *
+ * @param plans 변환된 플랜 배열
+ * @returns 분할 정보가 마킹된 플랜 배열
+ */
+export function detectAndMarkSplitPlans(
+  plans: TransformedPlanPayload[]
+): TransformedPlanPayload[] {
+  if (plans.length === 0) return plans;
+
+  // 공통 유틸리티로 그룹화
+  const groups = groupPlansByKey(plans, (plan) =>
+    createSplitPlanGroupKey(
+      plan.plan_date,
+      plan.content_id,
+      plan.planned_start_page_or_time,
+      plan.planned_end_page_or_time
+    )
+  );
+
+  // 각 그룹에서 분할 감지
+  for (const [, groupPlans] of groups) {
+    // 이미 분할 정보가 설정된 경우 스킵
+    if (groupPlans.some((p) => p.is_partial || p.is_continued)) {
+      continue;
+    }
+
+    // 2개 이상의 플랜이 같은 그룹에 있으면 분할로 판단
+    if (groupPlans.length >= 2) {
+      // 시간순 정렬 (원본 배열 수정)
+      sortByStartTimeInPlace(groupPlans);
+
+      // 연속성 확인 (end_time -> start_time 간격 <= 10분)
+      let isConsecutive = true;
+      for (let i = 0; i < groupPlans.length - 1; i++) {
+        const currentEnd = timeToMinutes(groupPlans[i].end_time ?? "00:00");
+        const nextStart = timeToMinutes(groupPlans[i + 1].start_time ?? "00:00");
+        const gap = nextStart - currentEnd;
+
+        // 10분 이내 간격 또는 겹침은 연속으로 판단
+        if (gap > 10) {
+          isConsecutive = false;
+          break;
+        }
+      }
+
+      // 연속된 플랜들만 분할로 마킹
+      if (isConsecutive) {
+        const totalParts = groupPlans.length;
+        groupPlans.forEach((plan, index) => {
+          plan.is_partial = true;
+          plan.is_continued = index > 0; // 첫 번째 이후는 continued
+          plan.part_index = index + 1;
+          plan.total_parts = totalParts;
+        });
+
+        logActionWarn(
+          "llmResponseTransformer.detectAndMarkSplitPlans",
+          `분할 플랜 자동 감지: ${groupPlans[0].content_title} (${totalParts}개 파트)`
+        );
+      }
+    }
+  }
+
+  return plans;
 }
 
 // ============================================
@@ -399,42 +506,58 @@ export function batchPlanItemsToAtomicPayloads(
     isReview?: boolean;
     notes?: string;
     priority?: string;
+    // 분할 콘텐츠 필드
+    partIndex?: number;
+    totalParts?: number;
+    isPartialContent?: boolean;
   }>,
   groupId: string,
   studentId: string,
-  tenantId: string
+  tenantId: string,
+  dayTypeMap?: Map<string, "학습일" | "복습일">
 ): AtomicPlanPayload[] {
-  return plans.map((plan, index) => ({
-    plan_group_id: groupId,
-    student_id: studentId,
-    tenant_id: tenantId,
-    plan_date: plan.date,
-    block_index: index, // 배치에서는 순차 인덱스 사용
-    status: "pending",
-    content_type: "book" as const, // 기본값, 실제로는 콘텐츠 타입에 따라 결정
-    content_id: plan.contentId,
-    planned_start_page_or_time: plan.rangeStart ?? 0,
-    planned_end_page_or_time: plan.rangeEnd ?? 0,
-    chapter: null,
-    start_time: plan.startTime,
-    end_time: plan.endTime,
-    day_type: plan.isReview ? "복습일" : "학습일",
-    week: null,
-    day: new Date(plan.date).getDay(),
-    is_partial: false,
-    is_continued: false,
-    content_title: plan.contentTitle,
-    content_subject: plan.subject,
-    content_subject_category: plan.subjectCategory ?? null,
-    sequence: index,
-    is_virtual: false,
-    slot_index: null,
-    virtual_subject_category: null,
-    virtual_description: null,
-    subject_type: null,
-    review_group_id: null,
-    review_source_content_ids: null,
-    container_type: null,
-    is_active: true,
-  }));
+  return plans.map((plan, index) => {
+    // 분할 콘텐츠 판별
+    const isPartial =
+      plan.isPartialContent === true ||
+      (plan.totalParts !== undefined && plan.totalParts > 1);
+    const isContinued =
+      isPartial &&
+      plan.partIndex !== undefined &&
+      plan.partIndex > 1;
+
+    return {
+      plan_group_id: groupId,
+      student_id: studentId,
+      tenant_id: tenantId,
+      plan_date: plan.date,
+      block_index: index, // 배치에서는 순차 인덱스 사용
+      status: "pending",
+      content_type: "book" as const, // 기본값, 실제로는 콘텐츠 타입에 따라 결정
+      content_id: plan.contentId,
+      planned_start_page_or_time: plan.rangeStart ?? 0,
+      planned_end_page_or_time: plan.rangeEnd ?? 0,
+      chapter: null,
+      start_time: plan.startTime,
+      end_time: plan.endTime,
+      day_type: dayTypeMap?.get(plan.date) ?? "학습일",
+      week: null,
+      day: new Date(plan.date).getDay(),
+      is_partial: isPartial,
+      is_continued: isContinued,
+      content_title: plan.contentTitle,
+      content_subject: plan.subject,
+      content_subject_category: plan.subjectCategory ?? null,
+      sequence: index,
+      is_virtual: false,
+      slot_index: null,
+      virtual_subject_category: null,
+      virtual_description: null,
+      subject_type: null,
+      review_group_id: null,
+      review_source_content_ids: null,
+      container_type: null,
+      is_active: true,
+    };
+  });
 }

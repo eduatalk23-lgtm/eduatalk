@@ -1,32 +1,58 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  useTransition,
-  useReducer,
-  useMemo,
-  type ReactNode,
-} from "react";
-import { useRouter } from "next/navigation";
-import { useToast } from "@/components/ui/ToastProvider";
-import { useAdminPlanRealtime } from "@/lib/realtime";
-import { useInvalidateAllDockQueries } from "@/lib/hooks/useAdminDockQueries";
-import {
-  modalReducer,
-  initialModalState,
-  type ModalType,
-  type ModalState,
-} from "../types/modalState";
-import { useModalSetters } from "../hooks/useModalSetters";
+/**
+ * AdminPlanContext - 통합 Context Provider
+ *
+ * 5개의 분리된 Context를 조합하여 제공합니다:
+ * 1. BasicContext - 정적 정보 (studentId, tenantId, planner data)
+ * 2. FilterContext - 필터 상태 (date, group, contentType)
+ * 3. ModalContext - 모달 표시 상태 (22개 모달)
+ * 4. ModalDataContext - 모달 데이터 (선택된 플랜 등)
+ * 5. ActionsContext - 액션 핸들러 (handleOpenEdit 등)
+ *
+ * 성능 최적화:
+ * - 모달 열기 → ModalContext만 변경 → Dock 컴포넌트 리렌더링 없음
+ * - 날짜 변경 → FilterContext만 변경 → 모달 컴포넌트 리렌더링 없음
+ *
+ * 사용법:
+ * - 기존 API: useAdminPlan() - 모든 값 제공 (하위 호환)
+ * - 최적화 API: useAdminPlanBasic(), useAdminPlanFilter(), useAdminPlanModal() 등
+ */
+
+import { type ReactNode } from "react";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
-import type { PlanStatus } from "@/lib/types/plan";
 import type { TimeSlot } from "@/lib/types/plan-generation";
 
-// 콘텐츠 유형 필터 타입
-export type ContentTypeFilter = "all" | "book" | "lecture" | "custom";
+// Split contexts
+import {
+  AdminPlanBasicProvider,
+  useAdminPlanBasic,
+  type AdminPlanBasicContextValue,
+} from "./AdminPlanBasicContext";
+import {
+  AdminPlanFilterProvider,
+  useAdminPlanFilter,
+  type AdminPlanFilterContextValue,
+  type ContentTypeFilter,
+} from "./AdminPlanFilterContext";
+import {
+  AdminPlanModalProvider,
+  useAdminPlanModal,
+  type AdminPlanModalContextValue,
+} from "./AdminPlanModalContext";
+import {
+  AdminPlanModalDataProvider,
+  useAdminPlanModalData,
+  type AdminPlanModalDataContextValue,
+} from "./AdminPlanModalDataContext";
+import {
+  AdminPlanActionsProvider,
+  useAdminPlanActions,
+  type AdminPlanActionsContextValue,
+} from "./AdminPlanActionsContext";
+
+// Re-export types
+export type { ContentTypeFilter };
 
 // 플랜 그룹 요약 정보 타입
 export interface PlanGroupSummary {
@@ -45,176 +71,12 @@ export interface PlannerExclusion {
   reason?: string | null;
 }
 
-// Context 값 타입
-export interface AdminPlanContextValue {
-  // 기본 정보
-  studentId: string;
-  studentName: string;
-  tenantId: string;
-  selectedPlannerId?: string;
-  activePlanGroupId: string | null;
-
-  // 플랜 그룹 선택
-  allPlanGroups: PlanGroupSummary[];
-  selectedGroupId: string | null;
-  setSelectedGroupId: (id: string | null) => void;
-
-  // 날짜 상태
-  selectedDate: string;
-  handleDateChange: (date: string) => void;
-
-  // 새로고침
-  handleRefresh: () => void;
-  isPending: boolean;
-
-  // 콘텐츠 필터
-  contentTypeFilter: ContentTypeFilter;
-  setContentTypeFilter: (filter: ContentTypeFilter) => void;
-
-  // 모달 상태 및 핸들러
-  modals: ModalState;
-  openModal: (type: ModalType) => void;
-  closeModal: (type: ModalType) => void;
-  closeAllModals: () => void;
-
-  // 모달 개별 setter (기존 API 호환)
-  showAddContentModal: boolean;
-  setShowAddContentModal: (show: boolean) => void;
-  showAddAdHocModal: boolean;
-  setShowAddAdHocModal: (show: boolean) => void;
-  showRedistributeModal: boolean;
-  setShowRedistributeModal: (show: boolean) => void;
-  showShortcutsHelp: boolean;
-  setShowShortcutsHelp: (show: boolean) => void;
-  showAIPlanModal: boolean;
-  setShowAIPlanModal: (show: boolean) => void;
-  showCreateWizard: boolean;
-  setShowCreateWizard: (show: boolean) => void;
-  showOptimizationPanel: boolean;
-  setShowOptimizationPanel: (show: boolean) => void;
-  showQuickPlanModal: boolean;
-  setShowQuickPlanModal: (show: boolean) => void;
-  showEditModal: boolean;
-  setShowEditModal: (show: boolean) => void;
-  showReorderModal: boolean;
-  setShowReorderModal: (show: boolean) => void;
-  showConditionalDeleteModal: boolean;
-  setShowConditionalDeleteModal: (show: boolean) => void;
-  showTemplateModal: boolean;
-  setShowTemplateModal: (show: boolean) => void;
-  showMoveToGroupModal: boolean;
-  setShowMoveToGroupModal: (show: boolean) => void;
-  showCopyModal: boolean;
-  setShowCopyModal: (show: boolean) => void;
-  showStatusModal: boolean;
-  setShowStatusModal: (show: boolean) => void;
-  showBulkEditModal: boolean;
-  setShowBulkEditModal: (show: boolean) => void;
-  showUnifiedAddModal: boolean;
-  setShowUnifiedAddModal: (show: boolean) => void;
-  showPlanGroupManageModal: boolean;
-  setShowPlanGroupManageModal: (show: boolean) => void;
-  showContentDependencyModal: boolean;
-  setShowContentDependencyModal: (show: boolean) => void;
-  showBatchOperationsModal: boolean;
-  setShowBatchOperationsModal: (show: boolean) => void;
-  showBlockSetCreateModal: boolean;
-  setShowBlockSetCreateModal: (show: boolean) => void;
-
-  // 통합 모달 모드
-  unifiedModalMode: "quick" | "content";
-  openUnifiedModal: (mode: "quick" | "content") => void;
-
-  // 모달 데이터 상태
-  selectedPlanForRedistribute: string | null;
-  setSelectedPlanForRedistribute: (id: string | null) => void;
-  selectedPlanForEdit: string | null;
-  setSelectedPlanForEdit: (id: string | null) => void;
-  reorderContainerType: "daily" | "weekly" | "unfinished";
-  setReorderContainerType: (type: "daily" | "weekly" | "unfinished") => void;
-  templatePlanIds: string[];
-  setTemplatePlanIds: (ids: string[]) => void;
-  selectedPlansForMove: string[];
-  setSelectedPlansForMove: (ids: string[]) => void;
-  currentGroupIdForMove: string | null;
-  setCurrentGroupIdForMove: (id: string | null) => void;
-  selectedPlansForCopy: string[];
-  setSelectedPlansForCopy: (ids: string[]) => void;
-  selectedPlanForStatus: { id: string; status: PlanStatus; title: string } | null;
-  setSelectedPlanForStatus: (
-    data: { id: string; status: PlanStatus; title: string } | null
-  ) => void;
-  selectedPlansForBulkEdit: string[];
-  setSelectedPlansForBulkEdit: (ids: string[]) => void;
-  newGroupIdForAI: string | null;
-  setNewGroupIdForAI: (id: string | null) => void;
-
-  // 콘텐츠 의존성 모달 데이터
-  selectedContentForDependency: {
-    contentId: string;
-    contentType: "book" | "lecture" | "custom";
-    contentName: string;
-  } | null;
-  setSelectedContentForDependency: (
-    content: {
-      contentId: string;
-      contentType: "book" | "lecture" | "custom";
-      contentName: string;
-    } | null
-  ) => void;
-
-  // 배치 작업 모달 데이터
-  selectedPlansForBatch: string[];
-  setSelectedPlansForBatch: (planIds: string[]) => void;
-  batchOperationMode: "date" | "status" | null;
-  setBatchOperationMode: (mode: "date" | "status" | null) => void;
-
-  // 모달 열기 헬퍼
-  handleOpenRedistribute: (planId: string) => void;
-  handleOpenEdit: (planId: string) => void;
-  handleOpenReorder: (containerType: "daily" | "weekly" | "unfinished") => void;
-  handleOpenTemplateWithPlans: (planIds: string[]) => void;
-  handleOpenMoveToGroup: (
-    planIds: string[],
-    currentGroupId?: string | null
-  ) => void;
-  handleOpenCopy: (planIds: string[]) => void;
-  handleOpenStatusChange: (
-    planId: string,
-    currentStatus: PlanStatus,
-    title: string
-  ) => void;
-  handleOpenBulkEdit: (planIds: string[]) => void;
-  handleOpenContentDependency: (content: {
-    contentId: string;
-    contentType: "book" | "lecture" | "custom";
-    contentName: string;
-  }) => void;
-  handleOpenBatchOperations: (
-    planIds: string[],
-    mode: "date" | "status"
-  ) => void;
-
-  // 플래너 데이터
-  plannerDailySchedules?: DailyScheduleInfo[][];
-  plannerExclusions?: PlannerExclusion[];
-  /** 플래너 레벨에서 계산된 스케줄 (플랜 그룹 없이도 주차/일차 표시용) */
-  plannerCalculatedSchedule?: DailyScheduleInfo[];
-  /** 플래너 레벨에서 계산된 시간대별 타임슬롯 (날짜별 학습시간, 점심, 학원 등) */
-  plannerDateTimeSlots?: Record<string, TimeSlot[]>;
-
-  // 타임라인 모달 상태
-  dayTimelineModalDate: string | null;
-  setDayTimelineModalDate: (date: string | null) => void;
-
-  // Toast
-  toast: ReturnType<typeof useToast>;
-
-  // 플랜 생성 가능 여부
-  canCreatePlans: boolean;
-}
-
-const AdminPlanContext = createContext<AdminPlanContextValue | null>(null);
+// 기존 통합 Context 값 타입 (하위 호환용)
+export type AdminPlanContextValue = AdminPlanBasicContextValue &
+  AdminPlanFilterContextValue &
+  AdminPlanModalContextValue &
+  AdminPlanModalDataContextValue &
+  AdminPlanActionsContextValue;
 
 // Provider Props
 interface AdminPlanProviderProps {
@@ -228,12 +90,13 @@ interface AdminPlanProviderProps {
   selectedPlannerId?: string;
   plannerDailySchedules?: DailyScheduleInfo[][];
   plannerExclusions?: PlannerExclusion[];
-  /** 플래너 레벨에서 계산된 스케줄 (플랜 그룹 없이도 주차/일차 표시용) */
   plannerCalculatedSchedule?: DailyScheduleInfo[];
-  /** 플래너 레벨에서 계산된 시간대별 타임슬롯 */
   plannerDateTimeSlots?: Record<string, TimeSlot[]>;
 }
 
+/**
+ * 통합 Provider - 5개의 분리된 Provider를 중첩
+ */
 export function AdminPlanProvider({
   children,
   studentId,
@@ -241,394 +104,84 @@ export function AdminPlanProvider({
   tenantId,
   initialDate,
   activePlanGroupId,
-  allPlanGroups: initialPlanGroups,
+  allPlanGroups = [],
   selectedPlannerId,
   plannerDailySchedules,
   plannerExclusions,
   plannerCalculatedSchedule,
   plannerDateTimeSlots,
 }: AdminPlanProviderProps) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const toast = useToast();
-
-  // 상태 관리
-  const [selectedDate, setSelectedDate] = useState(initialDate);
-  const [contentTypeFilter, setContentTypeFilter] =
-    useState<ContentTypeFilter>("all");
-
-  // 플랜 그룹 선택 상태 (null = 전체 보기, 초기값은 활성 그룹)
-  const allPlanGroups = initialPlanGroups ?? [];
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
-    activePlanGroupId
-  );
-
-  // 모달 상태 관리 (useReducer 패턴)
-  const [modals, dispatchModal] = useReducer(modalReducer, initialModalState);
-
-  // 타임라인 모달 상태
-  const [dayTimelineModalDate, setDayTimelineModalDate] = useState<string | null>(null);
-
-  // 모달 열기/닫기 헬퍼
-  const openModal = useCallback((type: ModalType) => {
-    dispatchModal({ type: "OPEN_MODAL", payload: type });
-  }, []);
-
-  const closeModal = useCallback((type: ModalType) => {
-    dispatchModal({ type: "CLOSE_MODAL", payload: type });
-  }, []);
-
-  const closeAllModals = useCallback(() => {
-    dispatchModal({ type: "CLOSE_ALL" });
-  }, []);
-
-  // 기존 API 호환 모달 상태 및 setter
-  const modalSetters = useModalSetters(modals, dispatchModal);
-
-  // 통합 모달 모드
-  const [unifiedModalMode, setUnifiedModalMode] = useState<"quick" | "content">(
-    "quick"
-  );
-
-  const openUnifiedModal = useCallback(
-    (mode: "quick" | "content") => {
-      setUnifiedModalMode(mode);
-      modalSetters.setShowUnifiedAddModal(true);
-    },
-    [modalSetters]
-  );
-
-  // 모달 관련 데이터 상태
-  const [selectedPlanForRedistribute, setSelectedPlanForRedistribute] =
-    useState<string | null>(null);
-  const [selectedPlanForEdit, setSelectedPlanForEdit] = useState<string | null>(
-    null
-  );
-  const [reorderContainerType, setReorderContainerType] = useState<
-    "daily" | "weekly" | "unfinished"
-  >("daily");
-  const [templatePlanIds, setTemplatePlanIds] = useState<string[]>([]);
-  const [selectedPlansForMove, setSelectedPlansForMove] = useState<string[]>(
-    []
-  );
-  const [currentGroupIdForMove, setCurrentGroupIdForMove] = useState<
-    string | null
-  >(null);
-  const [selectedPlansForCopy, setSelectedPlansForCopy] = useState<string[]>(
-    []
-  );
-  const [selectedPlanForStatus, setSelectedPlanForStatus] = useState<{
-    id: string;
-    status: PlanStatus;
-    title: string;
-  } | null>(null);
-  const [selectedPlansForBulkEdit, setSelectedPlansForBulkEdit] = useState<
-    string[]
-  >([]);
-  const [newGroupIdForAI, setNewGroupIdForAI] = useState<string | null>(null);
-
-  // 콘텐츠 의존성 모달 상태
-  const [selectedContentForDependency, setSelectedContentForDependency] =
-    useState<{
-      contentId: string;
-      contentType: "book" | "lecture" | "custom";
-      contentName: string;
-    } | null>(null);
-
-  // 배치 작업 모달 상태
-  const [selectedPlansForBatch, setSelectedPlansForBatch] = useState<string[]>(
-    []
-  );
-  const [batchOperationMode, setBatchOperationMode] = useState<
-    "date" | "status" | null
-  >(null);
-
-  // React Query 캐시 무효화
-  const invalidateAllDocks = useInvalidateAllDockQueries();
-
-  // 날짜 변경 핸들러
-  const handleDateChange = useCallback(
-    (date: string) => {
-      setSelectedDate(date);
-      startTransition(() => {
-        const basePath = selectedPlannerId
-          ? `/admin/students/${studentId}/plans/${selectedPlannerId}`
-          : `/admin/students/${studentId}/plans`;
-        router.push(`${basePath}?date=${date}`);
-      });
-    },
-    [router, studentId, selectedPlannerId]
-  );
-
-  // 새로고침 핸들러
-  const handleRefresh = useCallback(() => {
-    invalidateAllDocks();
-    startTransition(() => {
-      router.refresh();
-    });
-  }, [router, invalidateAllDocks]);
-
-  // 실시간 업데이트 구독
-  useAdminPlanRealtime({
-    studentId,
-    onRefresh: handleRefresh,
-    debounceMs: 1000,
-  });
-
-  // 모달 열기 헬퍼 함수들
-  const handleOpenRedistribute = useCallback(
-    (planId: string) => {
-      setSelectedPlanForRedistribute(planId);
-      modalSetters.setShowRedistributeModal(true);
-    },
-    [modalSetters]
-  );
-
-  const handleOpenEdit = useCallback(
-    (planId: string) => {
-      setSelectedPlanForEdit(planId);
-      modalSetters.setShowEditModal(true);
-    },
-    [modalSetters]
-  );
-
-  const handleOpenReorder = useCallback(
-    (containerType: "daily" | "weekly" | "unfinished") => {
-      setReorderContainerType(containerType);
-      modalSetters.setShowReorderModal(true);
-    },
-    [modalSetters]
-  );
-
-  const handleOpenTemplateWithPlans = useCallback(
-    (planIds: string[]) => {
-      setTemplatePlanIds(planIds);
-      modalSetters.setShowTemplateModal(true);
-    },
-    [modalSetters]
-  );
-
-  const handleOpenMoveToGroup = useCallback(
-    (planIds: string[], currentGroupId?: string | null) => {
-      setSelectedPlansForMove(planIds);
-      setCurrentGroupIdForMove(currentGroupId ?? null);
-      modalSetters.setShowMoveToGroupModal(true);
-    },
-    [modalSetters]
-  );
-
-  const handleOpenCopy = useCallback(
-    (planIds: string[]) => {
-      setSelectedPlansForCopy(planIds);
-      modalSetters.setShowCopyModal(true);
-    },
-    [modalSetters]
-  );
-
-  const handleOpenStatusChange = useCallback(
-    (planId: string, currentStatus: PlanStatus, title: string) => {
-      setSelectedPlanForStatus({ id: planId, status: currentStatus, title });
-      modalSetters.setShowStatusModal(true);
-    },
-    [modalSetters]
-  );
-
-  const handleOpenBulkEdit = useCallback(
-    (planIds: string[]) => {
-      setSelectedPlansForBulkEdit(planIds);
-      modalSetters.setShowBulkEditModal(true);
-    },
-    [modalSetters]
-  );
-
-  const handleOpenContentDependency = useCallback(
-    (content: {
-      contentId: string;
-      contentType: "book" | "lecture" | "custom";
-      contentName: string;
-    }) => {
-      setSelectedContentForDependency(content);
-      modalSetters.setShowContentDependencyModal(true);
-    },
-    [modalSetters]
-  );
-
-  const handleOpenBatchOperations = useCallback(
-    (planIds: string[], mode: "date" | "status") => {
-      setSelectedPlansForBatch(planIds);
-      setBatchOperationMode(mode);
-      modalSetters.setShowBatchOperationsModal(true);
-    },
-    [modalSetters]
-  );
-
-  // 플랜 생성 가능 여부
-  const canCreatePlans = !!selectedPlannerId;
-
-  const value = useMemo<AdminPlanContextValue>(
-    () => ({
-      // 기본 정보
-      studentId,
-      studentName,
-      tenantId,
-      selectedPlannerId,
-      activePlanGroupId,
-
-      // 플랜 그룹 선택
-      allPlanGroups,
-      selectedGroupId,
-      setSelectedGroupId,
-
-      // 날짜 상태
-      selectedDate,
-      handleDateChange,
-
-      // 새로고침
-      handleRefresh,
-      isPending,
-
-      // 콘텐츠 필터
-      contentTypeFilter,
-      setContentTypeFilter,
-
-      // 모달 상태 및 핸들러
-      modals,
-      openModal,
-      closeModal,
-      closeAllModals,
-
-      // 모달 개별 setter
-      ...modalSetters,
-
-      // 통합 모달 모드
-      unifiedModalMode,
-      openUnifiedModal,
-
-      // 모달 데이터 상태
-      selectedPlanForRedistribute,
-      setSelectedPlanForRedistribute,
-      selectedPlanForEdit,
-      setSelectedPlanForEdit,
-      reorderContainerType,
-      setReorderContainerType,
-      templatePlanIds,
-      setTemplatePlanIds,
-      selectedPlansForMove,
-      setSelectedPlansForMove,
-      currentGroupIdForMove,
-      setCurrentGroupIdForMove,
-      selectedPlansForCopy,
-      setSelectedPlansForCopy,
-      selectedPlanForStatus,
-      setSelectedPlanForStatus,
-      selectedPlansForBulkEdit,
-      setSelectedPlansForBulkEdit,
-      newGroupIdForAI,
-      setNewGroupIdForAI,
-
-      // 콘텐츠 의존성 모달 데이터
-      selectedContentForDependency,
-      setSelectedContentForDependency,
-
-      // 배치 작업 모달 데이터
-      selectedPlansForBatch,
-      setSelectedPlansForBatch,
-      batchOperationMode,
-      setBatchOperationMode,
-
-      // 모달 열기 헬퍼
-      handleOpenRedistribute,
-      handleOpenEdit,
-      handleOpenReorder,
-      handleOpenTemplateWithPlans,
-      handleOpenMoveToGroup,
-      handleOpenCopy,
-      handleOpenStatusChange,
-      handleOpenBulkEdit,
-      handleOpenContentDependency,
-      handleOpenBatchOperations,
-
-      // 플래너 데이터
-      plannerDailySchedules,
-      plannerExclusions,
-      plannerCalculatedSchedule,
-      plannerDateTimeSlots,
-
-      // 타임라인 모달
-      dayTimelineModalDate,
-      setDayTimelineModalDate,
-
-      // Toast
-      toast,
-
-      // 플랜 생성 가능 여부
-      canCreatePlans,
-    }),
-    [
-      studentId,
-      studentName,
-      tenantId,
-      selectedPlannerId,
-      activePlanGroupId,
-      allPlanGroups,
-      selectedGroupId,
-      selectedDate,
-      handleDateChange,
-      handleRefresh,
-      isPending,
-      contentTypeFilter,
-      modals,
-      openModal,
-      closeModal,
-      closeAllModals,
-      modalSetters,
-      unifiedModalMode,
-      openUnifiedModal,
-      selectedPlanForRedistribute,
-      selectedPlanForEdit,
-      reorderContainerType,
-      templatePlanIds,
-      selectedPlansForMove,
-      currentGroupIdForMove,
-      selectedPlansForCopy,
-      selectedPlanForStatus,
-      selectedPlansForBulkEdit,
-      newGroupIdForAI,
-      handleOpenRedistribute,
-      handleOpenEdit,
-      handleOpenReorder,
-      handleOpenTemplateWithPlans,
-      handleOpenMoveToGroup,
-      handleOpenCopy,
-      handleOpenStatusChange,
-      handleOpenBulkEdit,
-      handleOpenContentDependency,
-      handleOpenBatchOperations,
-      selectedContentForDependency,
-      selectedPlansForBatch,
-      batchOperationMode,
-      plannerDailySchedules,
-      plannerExclusions,
-      plannerCalculatedSchedule,
-      plannerDateTimeSlots,
-      dayTimelineModalDate,
-      toast,
-      canCreatePlans,
-    ]
-  );
-
   return (
-    <AdminPlanContext.Provider value={value}>
-      {children}
-    </AdminPlanContext.Provider>
+    <AdminPlanBasicProvider
+      studentId={studentId}
+      studentName={studentName}
+      tenantId={tenantId}
+      selectedPlannerId={selectedPlannerId}
+      activePlanGroupId={activePlanGroupId}
+      allPlanGroups={allPlanGroups}
+      plannerDailySchedules={plannerDailySchedules}
+      plannerExclusions={plannerExclusions}
+      plannerCalculatedSchedule={plannerCalculatedSchedule}
+      plannerDateTimeSlots={plannerDateTimeSlots}
+    >
+      <AdminPlanFilterProvider
+        studentId={studentId}
+        selectedPlannerId={selectedPlannerId}
+        initialDate={initialDate}
+        activePlanGroupId={activePlanGroupId}
+      >
+        <AdminPlanModalProvider>
+          <AdminPlanModalDataProvider>
+            <AdminPlanActionsProvider>
+              {children}
+            </AdminPlanActionsProvider>
+          </AdminPlanModalDataProvider>
+        </AdminPlanModalProvider>
+      </AdminPlanFilterProvider>
+    </AdminPlanBasicProvider>
   );
 }
 
-// Hook to use the context
-export function useAdminPlan() {
-  const context = useContext(AdminPlanContext);
-  if (!context) {
-    throw new Error("useAdminPlan must be used within AdminPlanProvider");
-  }
-  return context;
+/**
+ * 통합 Hook - 모든 Context 값을 하나로 합쳐서 반환 (하위 호환)
+ *
+ * @deprecated 성능 최적화를 위해 개별 훅 사용을 권장합니다:
+ * - useAdminPlanBasic() - 정적 정보만 필요할 때
+ * - useAdminPlanFilter() - 필터/날짜 상태만 필요할 때
+ * - useAdminPlanModal() - 모달 표시 상태만 필요할 때
+ * - useAdminPlanModalData() - 모달 데이터만 필요할 때
+ * - useAdminPlanActions() - 액션 핸들러만 필요할 때
+ */
+export function useAdminPlan(): AdminPlanContextValue {
+  const basic = useAdminPlanBasic();
+  const filter = useAdminPlanFilter();
+  const modal = useAdminPlanModal();
+  const modalData = useAdminPlanModalData();
+  const actions = useAdminPlanActions();
+
+  return {
+    ...basic,
+    ...filter,
+    ...modal,
+    ...modalData,
+    ...actions,
+  };
 }
+
+// Re-export individual hooks for optimized access
+export {
+  useAdminPlanBasic,
+  useAdminPlanFilter,
+  useAdminPlanModal,
+  useAdminPlanModalData,
+  useAdminPlanActions,
+};
+
+// Re-export types
+export type {
+  AdminPlanBasicContextValue,
+  AdminPlanFilterContextValue,
+  AdminPlanModalContextValue,
+  AdminPlanModalDataContextValue,
+  AdminPlanActionsContextValue,
+};

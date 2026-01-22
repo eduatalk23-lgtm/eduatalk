@@ -38,6 +38,7 @@ export interface ModalSettersReturn {
   showContentDependencyModal: boolean;
   showBatchOperationsModal: boolean;
   showBlockSetCreateModal: boolean;
+  showMarkdownExportModal: boolean;
   // Setters
   setShowAddContentModal: ModalSetter;
   setShowAddAdHocModal: ModalSetter;
@@ -60,6 +61,7 @@ export interface ModalSettersReturn {
   setShowContentDependencyModal: ModalSetter;
   setShowBatchOperationsModal: ModalSetter;
   setShowBlockSetCreateModal: ModalSetter;
+  setShowMarkdownExportModal: ModalSetter;
 }
 
 /**
@@ -87,6 +89,7 @@ const MODAL_MAPPINGS: Array<{ type: ModalType; showKey: keyof ModalSettersReturn
   { type: 'contentDependency', showKey: 'showContentDependencyModal', setKey: 'setShowContentDependencyModal' },
   { type: 'batchOperations', showKey: 'showBatchOperationsModal', setKey: 'setShowBatchOperationsModal' },
   { type: 'blockSetCreate', showKey: 'showBlockSetCreateModal', setKey: 'setShowBlockSetCreateModal' },
+  { type: 'markdownExport', showKey: 'showMarkdownExportModal', setKey: 'setShowMarkdownExportModal' },
 ];
 
 /**

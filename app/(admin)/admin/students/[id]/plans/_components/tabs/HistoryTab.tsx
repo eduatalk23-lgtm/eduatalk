@@ -3,7 +3,7 @@
 import { PlanHistoryViewer } from "../PlanHistoryViewer";
 import { DeletedPlansView } from "../DeletedPlansView";
 import { DeletedPlanGroupsView } from "../DeletedPlanGroupsView";
-import { useAdminPlan } from "../context/AdminPlanContext";
+import { useAdminPlanBasic, useAdminPlanFilter } from "../context/AdminPlanContext";
 
 interface HistoryTabProps {
   tab: "history";
@@ -16,9 +16,12 @@ interface HistoryTabProps {
  * - PlanHistoryViewer: 플랜 변경 이력
  * - DeletedPlansView: 삭제된 플랜 복구
  * - DeletedPlanGroupsView: 삭제된 플랜 그룹 복구
+ *
+ * 성능 최적화: Modal 상태 변경에 리렌더링되지 않음
  */
 export function HistoryTab({ tab: _tab }: HistoryTabProps) {
-  const { studentId, selectedPlannerId, handleRefresh } = useAdminPlan();
+  const { studentId, selectedPlannerId } = useAdminPlanBasic();
+  const { handleRefresh } = useAdminPlanFilter();
 
   return (
     <div className="space-y-6">

@@ -57,6 +57,11 @@ interface SaveAIPlanInput {
     allocations?: AllocationInfoForContext[];
     excludeDays?: number[];
     excludeDates?: string[];
+    /** day_type 계산을 위한 기간 정보 */
+    periodStart?: string;
+    periodEnd?: string;
+    studyDays?: number;
+    reviewDays?: number;
   };
 }
 
@@ -66,6 +71,33 @@ interface SaveAIPlanInput {
 interface SaveAIPlanResult {
   success: boolean;
   savedCount: number;
+}
+
+/**
+ * 날짜 범위에 대한 day_type 맵 생성
+ */
+function buildDayTypeMap(
+  periodStart: string,
+  periodEnd: string,
+  studyDays: number = 6,
+  reviewDays: number = 1
+): Map<string, "학습일" | "복습일"> {
+  const dayTypeMap = new Map<string, "학습일" | "복습일">();
+  const cycleLength = studyDays + reviewDays;
+
+  const start = new Date(periodStart);
+  const end = new Date(periodEnd);
+  let dayIndex = 0;
+
+  for (let current = new Date(start); current <= end; current.setDate(current.getDate() + 1)) {
+    const dateStr = current.toISOString().split("T")[0];
+    const cyclePosition = dayIndex % cycleLength;
+    const dayType = cyclePosition < studyDays ? "학습일" : "복습일";
+    dayTypeMap.set(dateStr, dayType);
+    dayIndex++;
+  }
+
+  return dayTypeMap;
 }
 
 /**
@@ -97,6 +129,16 @@ function buildTransformContext(
   // 할당 맵 빌드
   if (contextData.allocations && contextData.allocations.length > 0) {
     context.allocationMap = buildAllocationMap(contextData.allocations);
+  }
+
+  // day_type 맵 빌드 (기간 정보가 있는 경우)
+  if (contextData.periodStart && contextData.periodEnd) {
+    context.dayTypeMap = buildDayTypeMap(
+      contextData.periodStart,
+      contextData.periodEnd,
+      contextData.studyDays ?? 6,
+      contextData.reviewDays ?? 1
+    );
   }
 
   return context;

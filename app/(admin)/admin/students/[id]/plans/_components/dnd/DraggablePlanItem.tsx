@@ -55,7 +55,7 @@ export function DraggablePlanItem({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'transition-shadow',
+        'flex-1 transition-shadow',
         isDragging && 'opacity-50 shadow-lg z-50',
         !disabled && 'cursor-grab active:cursor-grabbing'
       )}

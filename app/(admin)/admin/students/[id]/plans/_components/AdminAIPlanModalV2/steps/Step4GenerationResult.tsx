@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Loader2, CheckCircle2, AlertCircle, Sparkles, XCircle, RefreshCcw } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useAIPlanModalSelectors, useAIPlanModalActions } from '../context/AIPlanModalContext';
@@ -32,9 +32,14 @@ export function Step4GenerationResult({
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentProgress, setCurrentProgress] = useState(0);
 
+  // 중복 실행 방지를 위한 ref (state와 달리 동기적으로 업데이트됨)
+  const hasInitiatedRef = useRef(false);
+
   // 생성 자동 실행 (마운트 시 1회만 실행)
   useEffect(() => {
-    if (!generationResult && !isGenerating && confirmedSlots.length > 0) {
+    // ref로 중복 실행 방지 (React.StrictMode 및 기타 재렌더링 대응)
+    if (!generationResult && !isGenerating && confirmedSlots.length > 0 && !hasInitiatedRef.current) {
+      hasInitiatedRef.current = true;
       handleGenerate();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

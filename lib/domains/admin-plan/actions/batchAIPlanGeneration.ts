@@ -52,6 +52,371 @@ import {
 } from "@/lib/domains/plan/actions/planners/autoCreate";
 
 // ============================================
+// 헬퍼 함수
+// ============================================
+
+/**
+ * 날짜 범위에 대한 day_type 맵 생성
+ * study_days/review_days 주기에 따라 각 날짜의 day_type 결정
+ */
+function buildDayTypeMap(
+  periodStart: string,
+  periodEnd: string,
+  studyDays: number = 6,
+  reviewDays: number = 1
+): Map<string, "학습일" | "복습일"> {
+  const dayTypeMap = new Map<string, "학습일" | "복습일">();
+  const cycleLength = studyDays + reviewDays;
+
+  const start = new Date(periodStart);
+  const end = new Date(periodEnd);
+  let dayIndex = 0;
+
+  for (let current = new Date(start); current <= end; current.setDate(current.getDate() + 1)) {
+    const dateStr = current.toISOString().split("T")[0];
+    const cyclePosition = dayIndex % cycleLength;
+    const dayType = cyclePosition < studyDays ? "학습일" : "복습일";
+    dayTypeMap.set(dateStr, dayType);
+    dayIndex++;
+  }
+
+  return dayTypeMap;
+}
+
+/**
+ * 시간 문자열을 분으로 변환
+ */
+function timeToMinutes(time: string): number {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+/**
+ * 분을 시간 문자열로 변환
+ */
+function minutesToTime(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}`;
+}
+
+/**
+ * 시간 범위에서 점유된 시간을 제외한 가용 시간 계산
+ * @param baseSlots 기본 시간 슬롯 (예: 학습 시간)
+ * @param occupiedSlots 점유된 시간 슬롯 (예: 기존 플랜)
+ * @returns 남은 가용 시간 슬롯
+ */
+function subtractTimeRanges(
+  baseSlots: Array<{ start: string; end: string }>,
+  occupiedSlots: Array<{ start: string; end: string }>
+): Array<{ start: string; end: string }> {
+  if (occupiedSlots.length === 0) return baseSlots;
+
+  const result: Array<{ start: string; end: string }> = [];
+
+  for (const base of baseSlots) {
+    let remainingRanges = [{ start: timeToMinutes(base.start), end: timeToMinutes(base.end) }];
+
+    for (const occupied of occupiedSlots) {
+      const occStart = timeToMinutes(occupied.start);
+      const occEnd = timeToMinutes(occupied.end);
+      const newRanges: Array<{ start: number; end: number }> = [];
+
+      for (const range of remainingRanges) {
+        // 겹치지 않는 경우 - 그대로 유지
+        if (occEnd <= range.start || occStart >= range.end) {
+          newRanges.push(range);
+        }
+        // 완전히 포함되는 경우 - 제거 (아무것도 추가 안함)
+        else if (occStart <= range.start && occEnd >= range.end) {
+          // 범위 전체가 점유됨 - 스킵
+        }
+        // 시작 부분만 점유
+        else if (occStart <= range.start && occEnd < range.end) {
+          newRanges.push({ start: occEnd, end: range.end });
+        }
+        // 끝 부분만 점유
+        else if (occStart > range.start && occEnd >= range.end) {
+          newRanges.push({ start: range.start, end: occStart });
+        }
+        // 중간 부분만 점유 - 두 개로 분할
+        else if (occStart > range.start && occEnd < range.end) {
+          newRanges.push({ start: range.start, end: occStart });
+          newRanges.push({ start: occEnd, end: range.end });
+        }
+      }
+
+      remainingRanges = newRanges;
+    }
+
+    // 최소 15분 이상인 슬롯만 포함
+    for (const range of remainingRanges) {
+      if (range.end - range.start >= 15) {
+        result.push({ start: minutesToTime(range.start), end: minutesToTime(range.end) });
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * 학생의 기존 플랜 조회 (시간 충돌 방지용)
+ */
+async function fetchExistingPlansForStudent(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  studentId: string,
+  periodStart: string,
+  periodEnd: string
+): Promise<Map<string, Array<{ start: string; end: string }>>> {
+  const { data, error } = await supabase
+    .from("student_plan")
+    .select(`
+      plan_date,
+      start_time,
+      end_time
+    `)
+    .eq("student_id", studentId)
+    .gte("plan_date", periodStart)
+    .lte("plan_date", periodEnd)
+    .eq("is_active", true)
+    .not("start_time", "is", null)
+    .not("end_time", "is", null);
+
+  if (error) {
+    logActionWarn("fetchExistingPlansForStudent", `기존 플랜 조회 실패: ${error.message}`);
+    return new Map();
+  }
+
+  // 날짜별로 그룹화
+  const occupiedByDate = new Map<string, Array<{ start: string; end: string }>>();
+  for (const p of data || []) {
+    const date = p.plan_date;
+    const slots = occupiedByDate.get(date) || [];
+    slots.push({
+      start: p.start_time!.slice(0, 5),
+      end: p.end_time!.slice(0, 5),
+    });
+    occupiedByDate.set(date, slots);
+  }
+
+  return occupiedByDate;
+}
+
+/**
+ * 날짜별 가용 시간 슬롯 계산
+ * - 기본 학습 시간에서 기존 플랜 시간을 제외
+ */
+function calculateAvailableSlots(
+  periodStart: string,
+  periodEnd: string,
+  baseTimeSlots: Array<{ start_time: string; end_time: string; slot_type?: string | null }>,
+  occupiedByDate: Map<string, Array<{ start: string; end: string }>>
+): Array<{ date: string; startTime: string; endTime: string }> {
+  const result: Array<{ date: string; startTime: string; endTime: string }> = [];
+
+  // 학습 시간 슬롯만 필터링
+  const studySlots = baseTimeSlots
+    .filter((s) => s.slot_type === "study" || !s.slot_type)
+    .map((s) => ({
+      start: s.start_time.slice(0, 5),
+      end: s.end_time.slice(0, 5),
+    }));
+
+  if (studySlots.length === 0) {
+    // 기본 학습 시간이 없으면 09:00-18:00 사용
+    studySlots.push({ start: "09:00", end: "18:00" });
+  }
+
+  // 날짜별로 가용 시간 계산
+  const start = new Date(periodStart);
+  const end = new Date(periodEnd);
+
+  for (let current = new Date(start); current <= end; current.setDate(current.getDate() + 1)) {
+    const dateStr = current.toISOString().split("T")[0];
+    const occupied = occupiedByDate.get(dateStr) || [];
+
+    // 기본 슬롯에서 점유된 시간 제외
+    const available = subtractTimeRanges(studySlots, occupied);
+
+    // 결과에 추가
+    for (const slot of available) {
+      result.push({
+        date: dateStr,
+        startTime: slot.start,
+        endTime: slot.end,
+      });
+    }
+  }
+
+  return result;
+}
+
+/**
+ * AI 생성 플랜의 시간을 가용 슬롯에 맞게 강제 조정
+ * - AI가 가용 슬롯을 무시하고 시간을 배치한 경우 강제로 조정
+ * - 각 날짜별로 순차적으로 슬롯 할당
+ */
+function enforceAvailableSlots<T extends {
+  date: string;
+  startTime: string;
+  endTime: string;
+  estimatedMinutes: number;
+}>(
+  plans: T[],
+  availableSlots: Array<{ date: string; startTime: string; endTime: string }>
+): T[] {
+  // 날짜별 가용 슬롯 맵 생성
+  const slotsByDate = new Map<string, Array<{ start: number; end: number; used: number }>>();
+  for (const slot of availableSlots) {
+    const dateSlots = slotsByDate.get(slot.date) || [];
+    dateSlots.push({
+      start: timeToMinutes(slot.startTime),
+      end: timeToMinutes(slot.endTime),
+      used: 0, // 이 슬롯에서 이미 사용된 시간 (분)
+    });
+    slotsByDate.set(slot.date, dateSlots);
+  }
+
+  // 플랜을 날짜별로 정렬
+  const sortedPlans = [...plans].sort((a, b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    return timeToMinutes(a.startTime) - timeToMinutes(b.startTime);
+  });
+
+  const adjustedPlans: T[] = [];
+  let adjustedCount = 0;
+
+  for (const plan of sortedPlans) {
+    const dateSlots = slotsByDate.get(plan.date);
+
+    if (!dateSlots || dateSlots.length === 0) {
+      // 해당 날짜에 가용 슬롯이 없으면 스킵
+      logActionWarn("enforceAvailableSlots", `${plan.date}에 가용 슬롯 없음, 플랜 스킵`);
+      continue;
+    }
+
+    const duration = plan.estimatedMinutes || 50; // 기본 50분
+    const originalStart = timeToMinutes(plan.startTime);
+    const originalEnd = timeToMinutes(plan.endTime);
+
+    // 원래 시간이 가용 슬롯 내에 있는지 확인
+    let fitsInSlot = false;
+    for (const slot of dateSlots) {
+      const availableStart = slot.start + slot.used;
+      const availableEnd = slot.end;
+      if (originalStart >= availableStart && originalEnd <= availableEnd) {
+        fitsInSlot = true;
+        // 슬롯 사용량 업데이트
+        slot.used += (originalEnd - originalStart);
+        break;
+      }
+    }
+
+    if (fitsInSlot) {
+      // 원래 시간 그대로 사용
+      adjustedPlans.push(plan);
+    } else {
+      // 가용 슬롯 중 충분한 공간이 있는 첫 번째 슬롯에 배치
+      let placed = false;
+      for (const slot of dateSlots) {
+        const availableStart = slot.start + slot.used;
+        const availableEnd = slot.end;
+        const availableDuration = availableEnd - availableStart;
+
+        if (availableDuration >= duration) {
+          // 이 슬롯에 배치
+          const newStart = availableStart;
+          const newEnd = Math.min(availableStart + duration, availableEnd);
+
+          adjustedPlans.push({
+            ...plan,
+            startTime: minutesToTime(newStart),
+            endTime: minutesToTime(newEnd),
+          } as T);
+
+          // 슬롯 사용량 업데이트
+          slot.used += (newEnd - newStart);
+          placed = true;
+          adjustedCount++;
+          break;
+        }
+      }
+
+      if (!placed) {
+        // 충분한 슬롯이 없으면 가장 큰 남은 슬롯에 가능한 만큼 배치
+        let bestSlot = null;
+        let maxAvailable = 0;
+        for (const slot of dateSlots) {
+          const available = slot.end - slot.start - slot.used;
+          if (available > maxAvailable) {
+            maxAvailable = available;
+            bestSlot = slot;
+          }
+        }
+
+        if (bestSlot && maxAvailable >= 15) { // 최소 15분
+          const newStart = bestSlot.start + bestSlot.used;
+          const newEnd = Math.min(newStart + duration, bestSlot.end);
+
+          adjustedPlans.push({
+            ...plan,
+            startTime: minutesToTime(newStart),
+            endTime: minutesToTime(newEnd),
+            estimatedMinutes: newEnd - newStart, // 조정된 시간
+          } as T);
+
+          bestSlot.used += (newEnd - newStart);
+          adjustedCount++;
+        } else {
+          // 배치할 수 없음 - 스킵
+          logActionWarn("enforceAvailableSlots", `${plan.date}에 플랜 배치 불가 (공간 부족)`);
+        }
+      }
+    }
+  }
+
+  if (adjustedCount > 0) {
+    logActionDebug("enforceAvailableSlots", `${adjustedCount}개 플랜 시간 강제 조정됨`);
+  }
+
+  return adjustedPlans;
+}
+
+/**
+ * 동일 조건의 기존 플랜 그룹 존재 여부 확인
+ * - 같은 학생, 콘텐츠, 기간으로 이미 플랜 그룹이 있으면 해당 ID 반환
+ */
+async function findExistingPlanGroup(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  studentId: string,
+  contentId: string,
+  periodStart: string,
+  periodEnd: string
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("plan_groups")
+    .select("id")
+    .eq("student_id", studentId)
+    .eq("content_id", contentId)
+    .eq("period_start", periodStart)
+    .eq("period_end", periodEnd)
+    .is("deleted_at", null)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    logActionWarn(
+      "findExistingPlanGroup",
+      `기존 플랜 그룹 조회 실패: ${error.message}`
+    );
+    return null;
+  }
+
+  return data?.id ?? null;
+}
+
+// ============================================
 // 타입 정의
 // ============================================
 
@@ -92,6 +457,10 @@ export interface BatchPlanSettings {
   };
   /** 플래너 검증 모드 (기본값: "auto_create") */
   plannerValidationMode?: "warn" | "strict" | "auto_create";
+  /** 학습일 수 (기본값: 6) - 1730 타임테이블 사이클 */
+  studyDays?: number;
+  /** 복습일 수 (기본값: 1) - 1730 타임테이블 사이클 */
+  reviewDays?: number;
 }
 
 /**
@@ -424,14 +793,25 @@ export async function generatePlanForStudent(
     currentStep = "load_data";
     logActionDebug("generatePlanForStudent", `단계: ${currentStep} - ${studentName}`);
 
-    const [scores, contents, timeSlots, learningStats] = await Promise.all([
+    const [scores, contents, timeSlots, learningStats, occupiedByDate] = await Promise.all([
       loadScores(supabase, studentId),
       loadContents(supabase, contentIds),
       loadTimeSlots(supabase, tenantId),
       loadLearningStats(supabase, studentId),
+      // 시간 충돌 방지: 기존 플랜 조회
+      fetchExistingPlansForStudent(supabase, studentId, settings.startDate, settings.endDate),
     ]);
 
-    logActionDebug("generatePlanForStudent", `데이터 로드 완료 - scores: ${scores.length}, contents: ${contents.length}, timeSlots: ${timeSlots.length}`);
+    // 가용 시간 슬롯 계산 (기존 플랜 시간 제외)
+    const availableSlots = calculateAvailableSlots(
+      settings.startDate,
+      settings.endDate,
+      timeSlots,
+      occupiedByDate
+    );
+
+    const occupiedCount = Array.from(occupiedByDate.values()).flat().length;
+    logActionDebug("generatePlanForStudent", `데이터 로드 완료 - scores: ${scores.length}, contents: ${contents.length}, timeSlots: ${timeSlots.length}, occupiedPlans: ${occupiedCount}, availableSlots: ${availableSlots.length}`);
 
     if (contents.length === 0) {
       return {
@@ -486,7 +866,17 @@ export async function generatePlanForStudent(
         reviewRatio: settings.reviewRatio,
       },
       additionalInstructions: settings.additionalInstructions,
+      // 시간 충돌 방지: 사전 계산된 가용 슬롯만 전달 (AI는 이 슬롯에만 배치 가능)
+      availableSlots: availableSlots.length > 0 ? availableSlots : undefined,
     });
+
+    // 가용 슬롯 정보 로그
+    if (occupiedCount > 0) {
+      logActionDebug(
+        "generatePlanForStudent",
+        `기존 플랜 ${occupiedCount}개 시간 제외, 가용 슬롯 ${availableSlots.length}개 AI에게 전달 - ${studentName}`
+      );
+    }
 
     // 5. 요청 유효성 검사
     currentStep = "validate_request";
@@ -624,14 +1014,24 @@ export async function generatePlanForStudent(
     currentStep = "collect_plans";
     logActionDebug("generatePlanForStudent", `단계: ${currentStep} - ${studentName}`);
 
-    const allPlans: GeneratedPlanItem[] = [];
+    let allPlans: GeneratedPlanItem[] = [];
     for (const matrix of parsed.response.weeklyMatrices) {
       for (const day of matrix.days) {
         allPlans.push(...day.plans);
       }
     }
 
-    logActionDebug("generatePlanForStudent", `총 ${allPlans.length}개 플랜 수집 완료 - ${studentName}`);
+    logActionDebug("generatePlanForStudent", `총 ${allPlans.length}개 플랜 수집 완료 (조정 전) - ${studentName}`);
+
+    // 8-1. 시간 충돌 방지: AI 생성 플랜을 가용 슬롯에 맞게 강제 조정
+    if (availableSlots.length > 0) {
+      const beforeCount = allPlans.length;
+      allPlans = enforceAvailableSlots(allPlans, availableSlots);
+      logActionDebug(
+        "generatePlanForStudent",
+        `시간 강제 조정 완료 - 조정 전: ${beforeCount}개, 조정 후: ${allPlans.length}개 - ${studentName}`
+      );
+    }
 
     // 플랜을 contentId별로 그룹화
     const plansByContent = new Map<string, GeneratedPlanItem[]>();
@@ -722,8 +1122,26 @@ export async function generatePlanForStudent(
       validContentData.push({ contentId, content, contentPlans, groupInput });
     }
 
-    // 9.2 Phase 1: 모든 Plan Group 병렬 생성
+    // 9.2 Phase 1: 모든 Plan Group 병렬 생성 (중복 체크 포함)
     const groupCreationPromises = validContentData.map(async (data) => {
+      // 중복 체크: 같은 학생, 콘텐츠, 기간의 플랜 그룹이 이미 존재하는지 확인
+      const existingGroupId = await findExistingPlanGroup(
+        supabase,
+        studentId,
+        data.content.id,
+        settings.startDate,
+        settings.endDate
+      );
+
+      if (existingGroupId) {
+        logActionDebug(
+          "generatePlanForStudent",
+          `기존 Plan Group 발견 - ${data.content.title}, ${studentName}: groupId=${existingGroupId} (스킵)`
+        );
+        // 기존 그룹이 있으면 스킵 (중복 생성 방지)
+        return { ...data, groupId: null as string | null, skipped: true };
+      }
+
       const groupResult = await createPlanGroupAtomic(
         data.groupInput,
         [],
@@ -737,22 +1155,42 @@ export async function generatePlanForStudent(
           "generatePlanForStudent",
           `Plan Group 생성 실패 - ${data.content.title}, ${studentName}: ${groupResult.error || "unknown"}`
         );
-        return { ...data, groupId: null as string | null };
+        return { ...data, groupId: null as string | null, skipped: false };
       }
 
-      return { ...data, groupId: groupResult.group_id };
+      return { ...data, groupId: groupResult.group_id, skipped: false };
     });
 
     const groupResults = await Promise.all(groupCreationPromises);
-    const successfulGroups = groupResults.filter((r) => r.groupId !== null);
+    // 새로 생성된 그룹만 필터 (스킵된 것 제외)
+    const successfulGroups = groupResults.filter(
+      (r) => r.groupId !== null && !r.skipped
+    );
+    const skippedCount = groupResults.filter((r) => r.skipped).length;
+
+    if (skippedCount > 0) {
+      logActionDebug(
+        "generatePlanForStudent",
+        `중복으로 스킵된 콘텐츠: ${skippedCount}개 - ${studentName}`
+      );
+    }
 
     // 9.3 Phase 2: 모든 플랜 병렬 저장
+    // day_type 맵 생성 (settings에서 studyDays/reviewDays 사용, 기본값: 6:1)
+    const dayTypeMap = buildDayTypeMap(
+      settings.startDate,
+      settings.endDate,
+      settings.studyDays ?? 6,
+      settings.reviewDays ?? 1
+    );
+
     const planCreationPromises = successfulGroups.map(async (data) => {
       const atomicPlans = batchPlanItemsToAtomicPayloads(
         data.contentPlans,
         data.groupId!,
         studentId,
-        tenantId
+        tenantId,
+        dayTypeMap
       );
 
       const plansResult = await generatePlansAtomic(

@@ -61,8 +61,9 @@ function formatDuration(minutes: number): string {
   return `${hours}시간 ${mins}분`;
 }
 
-function getPlanColor(status: string, progress: number): string {
-  if (status === 'completed' || progress >= 100) return 'bg-emerald-500 shadow-emerald-200';
+function getPlanColor(status: string, actualEndTime?: string | null): string {
+  // binary completion: status + actual_end_time
+  if (status === 'completed' || actualEndTime != null) return 'bg-emerald-500 shadow-emerald-200';
   if (status === 'deferred') return 'bg-amber-500 shadow-amber-200';
   if (status === 'missed') return 'bg-rose-500 shadow-rose-200';
   return 'bg-blue-500 shadow-blue-200';
@@ -288,7 +289,7 @@ export function DailyDockTimeline({
         end: plan.end_time!,
         title: plan.custom_title ?? plan.content_title ?? '플랜',
         status: plan.status ?? 'pending',
-        color: getPlanColor(plan.status ?? 'pending', plan.progress ?? 0),
+        color: getPlanColor(plan.status ?? 'pending', plan.actual_end_time),
         level: 0, // 초기값
         totalLevels: 1, // 초기값
         originalPlan: plan,

@@ -39,6 +39,7 @@ import {
   BatchOperationsModal,
   AdminBlockSetCreateModal,
 } from "./dynamicModals";
+import { MarkdownExportModal } from "./MarkdownExportModal";
 import { getTodayInTimezone } from "@/lib/utils/dateUtils";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
 import type { TimeSlot } from "@/lib/types/plan-generation";
@@ -46,7 +47,7 @@ import type { TimeSlot } from "@/lib/types/plan-generation";
 // Context & Tabs
 import { AdminPlanProvider, useAdminPlan } from "./context/AdminPlanContext";
 import { AdminPlanTabs, TabContent } from "./AdminPlanTabs";
-import { PlannerTab, CalendarTab, AnalyticsTab, HistoryTab } from "./tabs";
+import { PlannerTab, AnalyticsTab, HistoryTab } from "./tabs";
 
 // Components
 import { AdminPlanHeader } from "./AdminPlanHeader";
@@ -179,6 +180,8 @@ function AdminPlanManagementContent({
     setShowBatchOperationsModal,
     showBlockSetCreateModal,
     setShowBlockSetCreateModal,
+    showMarkdownExportModal,
+    setShowMarkdownExportModal,
     // Modal data
     selectedPlanForRedistribute,
     setSelectedPlanForRedistribute,
@@ -375,9 +378,6 @@ function AdminPlanManagementContent({
           <AdminPlanTabs>
             <TabContent tab="planner">
               <PlannerTab tab="planner" />
-            </TabContent>
-            <TabContent tab="calendar">
-              <CalendarTab tab="calendar" />
             </TabContent>
             <TabContent tab="analytics">
               <AnalyticsTab tab="analytics" />
@@ -751,6 +751,13 @@ function AdminPlanManagementContent({
                 setShowBlockSetCreateModal(false);
                 handleRefresh();
               }}
+            />
+          )}
+
+          {showMarkdownExportModal && (
+            <MarkdownExportModal
+              isOpen={showMarkdownExportModal}
+              onClose={() => setShowMarkdownExportModal(false)}
             />
           )}
 

@@ -152,13 +152,23 @@ async function processSlot(params: {
   const { slot, studentId, tenantId, plannerId, periodStart, periodEnd } = params;
 
   try {
-    let contentId: string;
+    let contentId: string = '';
     const contentTitle = slot.content.title;
 
     // Step 1: AI 추천 콘텐츠면 DB에 저장
     let masterContentId: string | null = null;
 
-    if (slot.type === 'ai_recommendation' && !slot.content.id) {
+    // UUID 유효성 검사 헬퍼
+    const isValidUUID = (id: unknown): id is string => {
+      if (typeof id !== 'string' || !id) return false;
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      return uuidRegex.test(id);
+    };
+
+    // AI 추천 콘텐츠인지 판단 (id가 없거나 유효하지 않은 UUID)
+    const isAIRecommendation = slot.type === 'ai_recommendation' && !isValidUUID(slot.content.id);
+
+    if (isAIRecommendation) {
       const persistResult = await persistVirtualContent({
         content: slot.content,
         tenantId,
@@ -198,35 +208,103 @@ async function processSlot(params: {
       }
 
       if (slot.content.contentType === 'lecture') {
-        // master_lectures에서 추가 정보 조회
-        const { data: masterData } = await supabaseForContent
-          .from('master_lectures')
-          .select('episode_analysis, estimated_hours, difficulty_level, total_duration')
-          .eq('id', masterContentId)
-          .single();
-
-        const { data: lectureData, error: lectureError } = await supabaseForContent
+        // 중복 체크: 같은 master_lecture_id를 가진 학생 강의가 이미 있는지 확인
+        const { data: existingLecture } = await supabaseForContent
           .from('lectures')
-          .insert({
-            tenant_id: tenantId,
-            student_id: studentId,
-            master_content_id: masterContentId,
-            title: contentTitle,
-            platform: slot.content.publisher || null,
-            subject: slot.content.subject || null,
-            subject_category: slot.content.subjectCategory || null,
-            total_episodes: slot.content.totalRange || 1,
-            difficulty_level: masterData?.difficulty_level || 'medium',
-            episode_analysis: masterData?.episode_analysis || null,
-            total_duration: masterData?.total_duration || (masterData?.estimated_hours ? masterData.estimated_hours * 60 : null),
-          })
           .select('id')
-          .single();
+          .eq('student_id', studentId)
+          .eq('master_lecture_id', masterContentId)
+          .maybeSingle();
 
-        if (lectureError || !lectureData) {
+        if (existingLecture) {
+          // 이미 존재하면 기존 ID 사용
+          contentId = existingLecture.id;
+          logActionDebug(
+            'generateSlotBasedPlan',
+            `[Step1.5] 기존 lectures 레코드 사용 - id: ${existingLecture.id}, masterContentId: ${masterContentId}`
+          );
+        } else {
+          // master_lectures에서 추가 정보 조회
+          const { data: masterData } = await supabaseForContent
+            .from('master_lectures')
+            .select('episode_analysis, estimated_hours, difficulty_level, total_duration')
+            .eq('id', masterContentId)
+            .single();
+
+          const { data: lectureData, error: lectureError } = await supabaseForContent
+            .from('lectures')
+            .insert({
+              tenant_id: tenantId,
+              student_id: studentId,
+              master_lecture_id: masterContentId, // master_content_id → master_lecture_id로 변경
+              title: contentTitle,
+              platform: slot.content.publisher || null,
+              subject: slot.content.subject || null,
+              subject_category: slot.content.subjectCategory || null,
+              total_episodes: slot.content.totalRange || 1,
+              difficulty_level: masterData?.difficulty_level || 'medium',
+              episode_analysis: masterData?.episode_analysis || null,
+              total_duration: masterData?.total_duration || (masterData?.estimated_hours ? masterData.estimated_hours * 60 : null),
+            })
+            .select('id')
+            .single();
+
+          if (lectureError) {
+            // Unique constraint 위반 (Race Condition)
+            if (lectureError.code === '23505') {
+              const { data: raceLecture } = await supabaseForContent
+                .from('lectures')
+                .select('id')
+                .eq('student_id', studentId)
+                .eq('master_lecture_id', masterContentId)
+                .maybeSingle();
+
+              if (raceLecture) {
+                contentId = raceLecture.id;
+                logActionDebug(
+                  'generateSlotBasedPlan',
+                  `[Step1.5] Race condition 처리 - 기존 lectures 레코드 사용: ${raceLecture.id}`
+                );
+              } else {
+                logActionError(
+                  'generateSlotBasedPlan',
+                  `[Step1.5] lectures 레코드 생성 실패 (unique 위반 후 조회 실패) - error: ${lectureError.message}`
+                );
+                return {
+                  slotId: slot.id,
+                  contentId: '',
+                  contentTitle,
+                  planGroupId: '',
+                  planCount: 0,
+                  success: false,
+                  error: `학생용 강의 레코드 생성 실패: ${lectureError.message}`,
+                };
+              }
+            } else {
+              logActionError(
+                'generateSlotBasedPlan',
+                `[Step1.5] lectures 레코드 생성 실패 - error: ${lectureError.message}`
+              );
+              return {
+                slotId: slot.id,
+                contentId: '',
+                contentTitle,
+                planGroupId: '',
+                planCount: 0,
+                success: false,
+                error: `학생용 강의 레코드 생성 실패: ${lectureError.message}`,
+              };
+            }
+          } else if (lectureData) {
+            contentId = lectureData.id;
+          }
+        }
+
+        // contentId가 설정되지 않았으면 에러
+        if (!contentId) {
           logActionError(
             'generateSlotBasedPlan',
-            `[Step1.5] lectures 레코드 생성 실패 - error: ${lectureError?.message}`
+            `[Step1.5] lectures 레코드 생성 실패 - contentId가 설정되지 않음`
           );
           return {
             slotId: slot.id,
@@ -235,41 +313,108 @@ async function processSlot(params: {
             planGroupId: '',
             planCount: 0,
             success: false,
-            error: `학생용 강의 레코드 생성 실패: ${lectureError?.message}`,
+            error: `학생용 강의 레코드 생성 실패`,
           };
         }
-        contentId = lectureData.id;
       } else {
         // book type
-        // master_books에서 추가 정보 조회
-        const { data: masterData } = await supabaseForContent
-          .from('master_books')
-          .select('page_analysis, estimated_hours, difficulty_level')
-          .eq('id', masterContentId)
-          .single();
-
-        const { data: bookData, error: bookError } = await supabaseForContent
+        // 중복 체크: 같은 master_content_id를 가진 학생 교재가 이미 있는지 확인
+        const { data: existingBook } = await supabaseForContent
           .from('books')
-          .insert({
-            tenant_id: tenantId,
-            student_id: studentId,
-            master_content_id: masterContentId,
-            title: contentTitle,
-            publisher: slot.content.publisher || null,
-            author: slot.content.author || null,
-            subject: slot.content.subject || null,
-            subject_category: slot.content.subjectCategory || null,
-            total_pages: slot.content.totalRange || null,
-            difficulty_level: masterData?.difficulty_level || 'medium',
-            page_analysis: masterData?.page_analysis || null,
-          })
           .select('id')
-          .single();
+          .eq('student_id', studentId)
+          .eq('master_content_id', masterContentId)
+          .maybeSingle();
 
-        if (bookError || !bookData) {
+        if (existingBook) {
+          // 이미 존재하면 기존 ID 사용
+          contentId = existingBook.id;
+          logActionDebug(
+            'generateSlotBasedPlan',
+            `[Step1.5] 기존 books 레코드 사용 - id: ${existingBook.id}, masterContentId: ${masterContentId}`
+          );
+        } else {
+          // master_books에서 추가 정보 조회
+          const { data: masterData } = await supabaseForContent
+            .from('master_books')
+            .select('page_analysis, estimated_hours, difficulty_level')
+            .eq('id', masterContentId)
+            .single();
+
+          const { data: bookData, error: bookError } = await supabaseForContent
+            .from('books')
+            .insert({
+              tenant_id: tenantId,
+              student_id: studentId,
+              master_content_id: masterContentId,
+              title: contentTitle,
+              publisher: slot.content.publisher || null,
+              author: slot.content.author || null,
+              subject: slot.content.subject || null,
+              subject_category: slot.content.subjectCategory || null,
+              total_pages: slot.content.totalRange || null,
+              difficulty_level: masterData?.difficulty_level || 'medium',
+              page_analysis: masterData?.page_analysis || null,
+            })
+            .select('id')
+            .single();
+
+          if (bookError) {
+            // Unique constraint 위반 (Race Condition)
+            if (bookError.code === '23505') {
+              const { data: raceBook } = await supabaseForContent
+                .from('books')
+                .select('id')
+                .eq('student_id', studentId)
+                .eq('master_content_id', masterContentId)
+                .maybeSingle();
+
+              if (raceBook) {
+                contentId = raceBook.id;
+                logActionDebug(
+                  'generateSlotBasedPlan',
+                  `[Step1.5] Race condition 처리 - 기존 books 레코드 사용: ${raceBook.id}`
+                );
+              } else {
+                logActionError(
+                  'generateSlotBasedPlan',
+                  `[Step1.5] books 레코드 생성 실패 (unique 위반 후 조회 실패) - error: ${bookError.message}`
+                );
+                return {
+                  slotId: slot.id,
+                  contentId: '',
+                  contentTitle,
+                  planGroupId: '',
+                  planCount: 0,
+                  success: false,
+                  error: `학생용 교재 레코드 생성 실패: ${bookError.message}`,
+                };
+              }
+            } else {
+              logActionError(
+                'generateSlotBasedPlan',
+                `[Step1.5] books 레코드 생성 실패 - error: ${bookError.message}`
+              );
+              return {
+                slotId: slot.id,
+                contentId: '',
+                contentTitle,
+                planGroupId: '',
+                planCount: 0,
+                success: false,
+                error: `학생용 교재 레코드 생성 실패: ${bookError.message}`,
+              };
+            }
+          } else if (bookData) {
+            contentId = bookData.id;
+          }
+        }
+
+        // contentId가 설정되지 않았으면 에러
+        if (!contentId) {
           logActionError(
             'generateSlotBasedPlan',
-            `[Step1.5] books 레코드 생성 실패 - error: ${bookError?.message}`
+            `[Step1.5] books 레코드 생성 실패 - contentId가 설정되지 않음`
           );
           return {
             slotId: slot.id,
@@ -278,51 +423,87 @@ async function processSlot(params: {
             planGroupId: '',
             planCount: 0,
             success: false,
-            error: `학생용 교재 레코드 생성 실패: ${bookError?.message}`,
+            error: `학생용 교재 레코드 생성 실패`,
           };
         }
-        contentId = bookData.id;
       }
     } else {
-      // 기존 콘텐츠
-      contentId = slot.content.id!;
+      // 기존 콘텐츠 - UUID 유효성 검사
+      if (!isValidUUID(slot.content.id)) {
+        logActionError(
+          'generateSlotBasedPlan',
+          `[기존 콘텐츠] 유효하지 않은 contentId - slotId: ${slot.id}, contentId: ${slot.content.id}, type: ${typeof slot.content.id}`
+        );
+        return {
+          slotId: slot.id,
+          contentId: '',
+          contentTitle,
+          planGroupId: '',
+          planCount: 0,
+          success: false,
+          error: `유효하지 않은 콘텐츠 ID: ${slot.content.id}`,
+        };
+      }
+      contentId = slot.content.id;
     }
 
-    // Step 2: Plan Group 생성
-    const planGroupResult = await createPlanGroupForPlanner({
-      plannerId,
-      studentId,
-      tenantId,
-      name: contentTitle,
-      periodStart,
-      periodEnd,
-      options: {
-        isSingleContent: true,
-        creationMode: 'content_based',
-      },
-    });
+    // Step 2: Plan Group 생성 (중복 체크 먼저)
+    const supabaseForPlanGroup = await createSupabaseServerClient();
+    const masterIdForCheck = masterContentId || contentId;
 
-    if (!planGroupResult.success || !planGroupResult.planGroupId) {
-      logActionError(
+    // 중복 체크: 같은 planner_id + master_content_id 조합의 plan_group이 이미 있는지 확인
+    const { data: existingPlanGroup } = await supabaseForPlanGroup
+      .from('plan_groups')
+      .select('id')
+      .eq('planner_id', plannerId)
+      .eq('master_content_id', masterIdForCheck)
+      .maybeSingle();
+
+    let planGroupId: string;
+
+    if (existingPlanGroup) {
+      // 이미 존재하면 기존 ID 사용
+      planGroupId = existingPlanGroup.id;
+      logActionDebug(
         'generateSlotBasedPlan',
-        `[Step2] Plan Group 생성 실패 - slotId: ${slot.id}, title: ${contentTitle}, error: ${planGroupResult.error}`
+        `[Step2] 기존 Plan Group 사용 - id: ${existingPlanGroup.id}, masterContentId: ${masterIdForCheck}`
       );
-      return {
-        slotId: slot.id,
-        contentId,
-        contentTitle,
-        planGroupId: '',
-        planCount: 0,
-        success: false,
-        error: planGroupResult.error || 'Plan Group 생성 실패',
-      };
-    }
+    } else {
+      // 새로 생성
+      const planGroupResult = await createPlanGroupForPlanner({
+        plannerId,
+        studentId,
+        tenantId,
+        name: contentTitle,
+        periodStart,
+        periodEnd,
+        options: {
+          isSingleContent: true,
+          creationMode: 'content_based',
+        },
+      });
 
-    const planGroupId = planGroupResult.planGroupId;
+      if (!planGroupResult.success || !planGroupResult.planGroupId) {
+        logActionError(
+          'generateSlotBasedPlan',
+          `[Step2] Plan Group 생성 실패 - slotId: ${slot.id}, title: ${contentTitle}, error: ${planGroupResult.error}`
+        );
+        return {
+          slotId: slot.id,
+          contentId,
+          contentTitle,
+          planGroupId: '',
+          planCount: 0,
+          success: false,
+          error: planGroupResult.error || 'Plan Group 생성 실패',
+        };
+      }
+
+      planGroupId = planGroupResult.planGroupId;
+    }
 
     // Step 3: Plan Group에 콘텐츠 정보 연결
-    const supabase = await createSupabaseServerClient();
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseForPlanGroup
       .from('plan_groups')
       .update({
         content_id: contentId,
@@ -344,7 +525,7 @@ async function processSlot(params: {
     }
 
     // Step 3.5: plan_contents 테이블에 콘텐츠 레코드 추가
-    const { error: contentInsertError } = await supabase
+    const { error: contentInsertError } = await supabaseForPlanGroup
       .from('plan_contents')
       .insert({
         tenant_id: tenantId,
@@ -424,11 +605,36 @@ async function processSlot(params: {
         'generateSlotBasedPlan',
         `[Step4] Hybrid 플랜 생성 실패 - slotId: ${slot.id}, title: ${contentTitle}, planGroupId: ${planGroupId}, error: ${errorMsg}`
       );
+
+      // 롤백: 빈 Plan Group 삭제 (플랜 생성 실패 시)
+      try {
+        const supabaseForRollback = await createSupabaseServerClient();
+        // plan_contents 먼저 삭제
+        await supabaseForRollback
+          .from('plan_contents')
+          .delete()
+          .eq('plan_group_id', planGroupId);
+        // plan_groups 삭제
+        await supabaseForRollback
+          .from('plan_groups')
+          .delete()
+          .eq('id', planGroupId);
+        logActionDebug(
+          'generateSlotBasedPlan',
+          `[Rollback] 빈 Plan Group 삭제 완료 - planGroupId: ${planGroupId}`
+        );
+      } catch (rollbackErr) {
+        logActionWarn(
+          'generateSlotBasedPlan',
+          `[Rollback] Plan Group 삭제 실패 - planGroupId: ${planGroupId}, error: ${rollbackErr}`
+        );
+      }
+
       return {
         slotId: slot.id,
         contentId,
         contentTitle,
-        planGroupId,
+        planGroupId: '', // 롤백됨
         planCount: 0,
         success: false,
         error: typeof hybridResult.error === 'string' ? hybridResult.error : 'Hybrid 플랜 생성 실패',

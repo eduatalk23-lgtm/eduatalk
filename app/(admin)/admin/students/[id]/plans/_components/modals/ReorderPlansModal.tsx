@@ -6,6 +6,7 @@ import { cn } from '@/lib/cn';
 import { useToast } from '@/components/ui/ToastProvider';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { formatDateString } from '@/lib/date/calendarUtils';
+import { formatPlanLearningAmount } from '@/lib/utils/planFormatting';
 import { SUCCESS, ERROR, formatError } from '@/lib/domains/admin-plan/utils/toastMessages';
 import { ModalWrapper, ModalButton } from './ModalWrapper';
 
@@ -21,6 +22,7 @@ interface PlanItem {
   id: string;
   content_title: string | null;
   custom_title: string | null;
+  content_type: string | null;
   sequence: number | null;
   planned_start_page_or_time: number | null;
   planned_end_page_or_time: number | null;
@@ -61,7 +63,7 @@ export function ReorderPlansModal({
 
       const query = supabase
         .from('student_plan')
-        .select('id, content_title, custom_title, sequence, planned_start_page_or_time, planned_end_page_or_time')
+        .select('id, content_title, custom_title, content_type, sequence, planned_start_page_or_time, planned_end_page_or_time')
         .eq('student_id', studentId)
         .eq('is_active', true)
         .eq('container_type', containerType);
@@ -181,7 +183,11 @@ export function ReorderPlansModal({
           {plans.map((plan, index) => {
             const range =
               plan.planned_start_page_or_time != null && plan.planned_end_page_or_time != null
-                ? `p.${plan.planned_start_page_or_time}-${plan.planned_end_page_or_time}`
+                ? formatPlanLearningAmount({
+                    content_type: plan.content_type || 'book',
+                    planned_start_page_or_time: plan.planned_start_page_or_time,
+                    planned_end_page_or_time: plan.planned_end_page_or_time,
+                  })
                 : null;
 
             return (

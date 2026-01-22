@@ -4,7 +4,7 @@ import { PlanStatsCards } from "../PlanStatsCards";
 import { PlanTypeStats } from "../PlanTypeStats";
 import { SummaryDashboard } from "../SummaryDashboard";
 import { PlanQualityDashboard } from "../PlanQualityDashboard";
-import { useAdminPlan } from "../context/AdminPlanContext";
+import { useAdminPlanBasic, useAdminPlanFilter } from "../context/AdminPlanContext";
 
 interface AnalyticsTabProps {
   tab: "analytics";
@@ -18,10 +18,12 @@ interface AnalyticsTabProps {
  * - PlanTypeStats: 유형별 통계 (교재/강의/직접입력)
  * - SummaryDashboard: 요약 대시보드
  * - PlanQualityDashboard: 플랜 품질 분석 (activePlanGroupId 있을 때만)
+ *
+ * 성능 최적화: Modal 상태 변경에 리렌더링되지 않음
  */
 export function AnalyticsTab({ tab: _tab }: AnalyticsTabProps) {
-  const { studentId, selectedDate, selectedPlannerId, activePlanGroupId } =
-    useAdminPlan();
+  const { studentId, selectedPlannerId, activePlanGroupId } = useAdminPlanBasic();
+  const { selectedDate } = useAdminPlanFilter();
 
   return (
     <div className="space-y-6">

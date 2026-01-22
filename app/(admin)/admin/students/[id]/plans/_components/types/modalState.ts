@@ -30,7 +30,8 @@ export type ModalType =
   | 'planGroupManage'
   | 'contentDependency'
   | 'batchOperations'
-  | 'blockSetCreate';
+  | 'blockSetCreate'
+  | 'markdownExport';
 
 /**
  * 모달 상태
@@ -57,6 +58,7 @@ export interface ModalState {
   contentDependency: boolean;
   batchOperations: boolean;
   blockSetCreate: boolean;
+  markdownExport: boolean;
 }
 
 /**
@@ -92,6 +94,7 @@ export const initialModalState: ModalState = {
   contentDependency: false,
   batchOperations: false,
   blockSetCreate: false,
+  markdownExport: false,
 };
 
 /**
@@ -135,4 +138,5 @@ export const modalKeyMap: Record<string, ModalType> = {
   showContentDependencyModal: 'contentDependency',
   showBatchOperationsModal: 'batchOperations',
   showBlockSetCreateModal: 'blockSetCreate',
+  showMarkdownExportModal: 'markdownExport',
 };

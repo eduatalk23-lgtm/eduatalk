@@ -1,15 +1,15 @@
 'use client';
 
-import { useState, useTransition, useMemo } from 'react';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { useState, useTransition, useMemo, memo } from 'react';
 import { cn } from '@/lib/cn';
 import { DroppableContainer } from './dnd';
 import { usePlanToast } from './PlanToast';
 import { BulkRedistributeModal } from './BulkRedistributeModal';
 import { PlanItemCard, toPlanItemData } from './items';
-import { DailyDockTimeline } from './DailyDockTimeline';
 import { useDailyDockQuery } from '@/lib/hooks/useAdminDockQueries';
-import { detectTimeConflicts, type ConflictInfo } from '@/lib/domains/admin-plan/utils/conflictDetection';
+import { detectTimeConflicts } from '@/lib/domains/admin-plan/utils/conflictDetection';
+import { ConfirmDialog } from '@/components/ui/Dialog';
+import { deletePlan, movePlanToContainer } from '@/lib/domains/plan/actions/dock';
 import type { ContentTypeFilter } from './AdminPlanManagement';
 import type { PlanStatus } from '@/lib/types/plan';
 
@@ -30,10 +30,18 @@ interface DailyDockProps {
   onMoveToGroup?: (planIds: string[], currentGroupId?: string | null) => void;
   onCopy?: (planIds: string[]) => void;
   onStatusChange?: (planId: string, currentStatus: PlanStatus, title: string) => void;
+  /** 전체 새로고침 (기본) */
   onRefresh: () => void;
+  /** Daily + Weekly만 새로고침 (컨테이너 이동 시 사용) */
+  onRefreshDailyAndWeekly?: () => void;
 }
 
-export function DailyDock({
+/**
+ * DailyDock - 일일 플랜 Dock 컴포넌트
+ *
+ * React.memo로 감싸서 props가 변경되지 않으면 리렌더링을 방지합니다.
+ */
+export const DailyDock = memo(function DailyDock({
   studentId,
   tenantId,
   plannerId,
@@ -48,9 +56,10 @@ export function DailyDock({
   onCopy,
   onStatusChange,
   onRefresh,
+  onRefreshDailyAndWeekly,
 }: DailyDockProps) {
   // React Query 훅 사용 (캐싱 및 중복 요청 방지)
-  const { plans: allPlans, adHocPlans, isLoading, invalidate } = useDailyDockQuery(
+  const { plans: allPlans, adHocPlans, isLoading } = useDailyDockQuery(
     studentId,
     selectedDate,
     plannerId
@@ -82,56 +91,70 @@ export function DailyDock({
   const [isPending, startTransition] = useTransition();
   const { showToast } = usePlanToast();
 
+  // 선택 모드 상태 (기본: off → QuickComplete 버튼 표시)
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+
   // 선택 관련 상태
   const [selectedPlans, setSelectedPlans] = useState<Set<string>>(new Set());
   const [showBulkModal, setShowBulkModal] = useState(false);
 
+  // 선택 모드 토글
+  const handleToggleSelectionMode = () => {
+    if (isSelectionMode) {
+      // 선택 모드 종료 시 선택 초기화
+      setSelectedPlans(new Set());
+    }
+    setIsSelectionMode(!isSelectionMode);
+  };
+
+  // 삭제 확인 모달 상태
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    open: boolean;
+    planId: string | null;
+    isAdHoc: boolean;
+  }>({ open: false, planId: null, isAdHoc: false });
+
   const handleMoveToWeekly = async (planId: string) => {
-    const supabase = createSupabaseBrowserClient();
-
     startTransition(async () => {
-      const { error } = await supabase
-        .from('student_plan')
-        .update({
-          container_type: 'weekly',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', planId);
+      const result = await movePlanToContainer({
+        planId,
+        targetContainer: 'weekly',
+      });
 
-      if (error) {
-        showToast('Weekly 이동 실패: ' + error.message, 'error');
+      if (!result.success) {
+        showToast(result.error ?? 'Weekly 이동 실패', 'error');
         return;
       }
 
       showToast('Weekly Dock으로 이동했습니다.', 'success');
-      onRefresh();
+      // 타겟 새로고침: Daily + Weekly만 (Unfinished는 영향 없음)
+      (onRefreshDailyAndWeekly ?? onRefresh)();
     });
   };
 
-  const handleDelete = async (planId: string, isAdHoc = false) => {
-    if (!confirm('정말 삭제하시겠습니까?')) return;
+  // 삭제 확인 모달 열기
+  const handleDeleteRequest = (planId: string, isAdHoc = false) => {
+    setDeleteConfirm({ open: true, planId, isAdHoc });
+  };
 
-    const supabase = createSupabaseBrowserClient();
+  // 삭제 실행
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm.planId) return;
 
     startTransition(async () => {
-      let error;
-      if (isAdHoc) {
-        const result = await supabase.from('ad_hoc_plans').delete().eq('id', planId);
-        error = result.error;
-      } else {
-        const result = await supabase
-          .from('student_plan')
-          .update({ is_active: false, updated_at: new Date().toISOString() })
-          .eq('id', planId);
-        error = result.error;
-      }
+      const result = await deletePlan({
+        planId: deleteConfirm.planId!,
+        isAdHoc: deleteConfirm.isAdHoc,
+      });
 
-      if (error) {
-        showToast('삭제 실패: ' + error.message, 'error');
+      if (!result.success) {
+        showToast(result.error ?? '삭제 실패', 'error');
+        setDeleteConfirm({ open: false, planId: null, isAdHoc: false });
         return;
       }
 
       showToast('플랜이 삭제되었습니다.', 'success');
+      setDeleteConfirm({ open: false, planId: null, isAdHoc: false });
       onRefresh();
     });
   };
@@ -207,7 +230,22 @@ export function DailyDock({
           )}
         </div>
         <div className="flex items-center gap-2">
+          {/* 선택 모드 토글 */}
           {plans.filter((p) => p.status !== 'completed').length > 0 && (
+            <button
+              onClick={handleToggleSelectionMode}
+              className={cn(
+                'px-2 py-1 text-xs rounded transition-colors',
+                isSelectionMode
+                  ? 'bg-blue-500 text-white hover:bg-blue-600'
+                  : 'text-gray-600 hover:bg-gray-100'
+              )}
+            >
+              {isSelectionMode ? '선택 모드 종료' : '선택'}
+            </button>
+          )}
+          {/* 선택 모드일 때만 전체 선택/해제 버튼 표시 */}
+          {isSelectionMode && plans.filter((p) => p.status !== 'completed').length > 0 && (
             <button
               onClick={handleSelectAll}
               className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded"
@@ -217,7 +255,7 @@ export function DailyDock({
                 : '전체 선택'}
             </button>
           )}
-          {selectedPlans.size > 0 && (
+          {isSelectionMode && selectedPlans.size > 0 && (
             <>
               <button
                 onClick={handleBulkRedistribute}
@@ -255,13 +293,6 @@ export function DailyDock({
         </div>
       </div>
 
-      {/* 타임라인 */}
-      {allPlans.length > 0 && (
-        <div className="px-4 pt-3">
-          <DailyDockTimeline plans={allPlans} />
-        </div>
-      )}
-
       {/* 플랜 목록 */}
       <div className="p-4">
         {isLoading ? (
@@ -290,7 +321,7 @@ export function DailyDock({
                   container="daily"
                   showProgress={true}
                   showTime={true}
-                  selectable={!isCompleted}
+                  selectable={isSelectionMode && !isCompleted}
                   isSelected={selectedPlans.has(plan.id)}
                   conflictInfo={conflictInfo}
                   onSelect={handleToggleSelect}
@@ -300,7 +331,7 @@ export function DailyDock({
                   onMoveToGroup={onMoveToGroup ? (id) => onMoveToGroup([id]) : undefined}
                   onCopy={onCopy ? (id) => onCopy([id]) : undefined}
                   onStatusChange={onStatusChange}
-                  onDelete={handleDelete}
+                  onDelete={handleDeleteRequest}
                   onRefresh={onRefresh}
                 />
               );
@@ -316,7 +347,7 @@ export function DailyDock({
                   plan={planData}
                   container="daily"
                   showProgress={false}
-                  onDelete={handleDelete}
+                  onDelete={(id) => handleDeleteRequest(id, true)}
                   onRefresh={onRefresh}
                 />
               );
@@ -336,6 +367,23 @@ export function DailyDock({
           onSuccess={handleBulkSuccess}
         />
       )}
+
+      {/* 삭제 확인 모달 */}
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteConfirm({ open: false, planId: null, isAdHoc: false });
+          }
+        }}
+        title="플랜 삭제"
+        description="이 플랜을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+        confirmLabel="삭제"
+        cancelLabel="취소"
+        variant="destructive"
+        isLoading={isPending}
+        onConfirm={handleDeleteConfirm}
+      />
     </DroppableContainer>
   );
-}
+});

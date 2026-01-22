@@ -1,26 +1,27 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition, memo } from 'react';
 import { cn } from '@/lib/cn';
 import { DraggablePlanItem } from '../dnd';
-import { QuickCompleteButton, InlineVolumeEditor, QuickProgressInput } from '../QuickActions';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { QuickCompleteButton, InlineVolumeEditor } from '../QuickActions';
 import { useToast } from '@/components/ui/ToastProvider';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
-import { MoreVertical, Calendar, Edit3, Copy, Trash2, ArrowRight, RefreshCw, FolderInput, ToggleLeft, AlertTriangle, ChevronRight, Check, Clock, Circle, XCircle } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/Dialog';
+import { MoreVertical, Calendar, Edit3, Copy, Trash2, ArrowRight, RefreshCw, FolderInput, ToggleLeft, AlertTriangle, ChevronRight, Check, Circle, XCircle } from 'lucide-react';
 import { getTodayInTimezone } from '@/lib/utils/dateUtils';
+import { formatPlanLearningAmount } from '@/lib/utils/planFormatting';
+import { movePlanToContainer, deletePlan, updatePlanStatus } from '@/lib/domains/plan/actions/dock';
 import type { ConflictInfo } from '@/lib/domains/admin-plan/utils/conflictDetection';
 import type { PlanStatus } from '@/lib/types/plan';
 
-/** 빠른 상태 변경 옵션 */
+/** 빠른 상태 변경 옵션 (이진 완료 기준) */
 const QUICK_STATUS_OPTIONS: Array<{
   status: PlanStatus;
   label: string;
   icon: typeof Check;
   colorClass: string;
 }> = [
-  { status: 'pending', label: '대기', icon: Circle, colorClass: 'text-gray-500' },
-  { status: 'in_progress', label: '진행중', icon: Clock, colorClass: 'text-blue-500' },
+  { status: 'pending', label: '미완료', icon: Circle, colorClass: 'text-gray-500' },
   { status: 'completed', label: '완료', icon: Check, colorClass: 'text-green-500' },
   { status: 'cancelled', label: '취소', icon: XCircle, colorClass: 'text-red-500' },
 ];
@@ -35,6 +36,8 @@ export interface PlanItemData {
   type: PlanItemType;
   title: string;
   subject?: string;
+  /** 콘텐츠 타입 (book/lecture/custom) - 범위 표시 형식 결정에 사용 */
+  contentType?: 'book' | 'lecture' | 'custom' | string;
   pageRangeStart?: number | null;
   pageRangeEnd?: number | null;
   completedAmount?: number | null;
@@ -86,18 +89,44 @@ interface PlanItemCardProps {
 
 const containerColors = {
   daily: {
-    border: 'border-blue-100',
-    borderCompleted: 'border-green-200 bg-green-50/50',
+    border: 'border-gray-200',
+    borderCompleted: 'border-gray-200 bg-green-50/30',
   },
   weekly: {
-    border: 'border-green-100 hover:border-green-300',
-    borderCompleted: 'border-green-300 bg-green-50/50',
+    border: 'border-gray-200 hover:border-gray-300',
+    borderCompleted: 'border-gray-200 bg-green-50/30',
   },
   unfinished: {
-    border: 'border-red-100',
-    borderCompleted: 'border-green-200 bg-green-50/50',
+    border: 'border-gray-200',
+    borderCompleted: 'border-gray-200 bg-green-50/30',
   },
 };
+
+/**
+ * 좌측 상태 보더 색상 결정
+ * - 기본: pending=gray, completed=green
+ * - 이월 오버라이드: 1회=yellow, 2회=orange, 3회+=red
+ */
+function getLeftBorderColor(isCompleted: boolean, carryoverCount: number = 0): string {
+  // 완료 상태는 항상 green
+  if (isCompleted) {
+    return 'border-l-4 border-l-green-400';
+  }
+
+  // 이월 횟수에 따른 오버라이드 (pending 상태일 때만)
+  if (carryoverCount >= 3) {
+    return 'border-l-4 border-l-red-500';
+  }
+  if (carryoverCount === 2) {
+    return 'border-l-4 border-l-orange-400';
+  }
+  if (carryoverCount === 1) {
+    return 'border-l-4 border-l-yellow-400';
+  }
+
+  // 기본 pending 상태
+  return 'border-l-4 border-l-gray-300';
+}
 
 /**
  * Phase 4: 시간대 유형별 색상 스타일
@@ -113,7 +142,13 @@ const timeSlotColors = {
   },
 };
 
-export function PlanItemCard({
+/**
+ * PlanItemCard - 플랜 아이템 카드 컴포넌트
+ *
+ * React.memo로 감싸서 props가 변경되지 않으면 리렌더링을 방지합니다.
+ * 리스트에서 다수의 카드가 렌더링되므로 메모이제이션 효과가 큽니다.
+ */
+export const PlanItemCard = memo(function PlanItemCard({
   plan,
   container,
   variant = 'default',
@@ -144,30 +179,29 @@ export function PlanItemCard({
   const isCompleted = plan.isCompleted || plan.status === 'completed';
   const hasPageRange = plan.pageRangeStart != null && plan.pageRangeEnd != null;
 
-  const rangeDisplay = plan.customRangeDisplay ??
-    (hasPageRange ? `p.${plan.pageRangeStart}-${plan.pageRangeEnd}` : undefined);
+  // 삭제 확인 모달 상태 (onDelete가 없을 때 내부에서 처리)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // 범위 표시: customRangeDisplay 우선, 없으면 contentType에 따라 포맷팅
+  const rangeDisplay = plan.customRangeDisplay ?? (hasPageRange
+    ? formatPlanLearningAmount({
+        content_type: plan.contentType || 'book',
+        planned_start_page_or_time: plan.pageRangeStart!,
+        planned_end_page_or_time: plan.pageRangeEnd!,
+      })
+    : undefined);
 
   const handleMoveContainer = async (targetContainer: ContainerType) => {
-    const supabase = createSupabaseBrowserClient();
-    const table = isAdHoc ? 'ad_hoc_plans' : 'student_plan';
-
     startTransition(async () => {
-      const updateData: Record<string, unknown> = {
-        container_type: targetContainer,
-        updated_at: new Date().toISOString(),
-      };
+      const result = await movePlanToContainer({
+        planId: plan.id,
+        targetContainer,
+        isAdHoc,
+        targetDate: targetContainer === 'daily' ? getTodayInTimezone() : undefined,
+      });
 
-      if (targetContainer === 'daily') {
-        updateData.plan_date = getTodayInTimezone();
-      }
-
-      const { error } = await supabase
-        .from(table)
-        .update(updateData)
-        .eq('id', plan.id);
-
-      if (error) {
-        showError('이동 실패: ' + error.message);
+      if (!result.success) {
+        showError(result.error ?? '이동 실패');
         return;
       }
 
@@ -178,30 +212,33 @@ export function PlanItemCard({
     });
   };
 
-  const handleDelete = async () => {
-    if (!confirm('정말 삭제하시겠습니까?')) return;
+  // 삭제 요청 (확인 모달 열기 또는 부모 콜백 호출)
+  const handleDeleteRequest = () => {
+    if (onDelete) {
+      // 부모에서 ConfirmDialog 처리
+      onDelete(plan.id, isAdHoc);
+    } else {
+      // 내부 ConfirmDialog 사용
+      setShowDeleteConfirm(true);
+    }
+  };
 
-    const supabase = createSupabaseBrowserClient();
-
+  // 삭제 실행 (내부 ConfirmDialog에서 확인 시)
+  const handleDeleteConfirm = async () => {
     startTransition(async () => {
-      let error;
-      if (isAdHoc) {
-        const result = await supabase.from('ad_hoc_plans').delete().eq('id', plan.id);
-        error = result.error;
-      } else {
-        const result = await supabase
-          .from('student_plan')
-          .update({ is_active: false, updated_at: new Date().toISOString() })
-          .eq('id', plan.id);
-        error = result.error;
-      }
+      const result = await deletePlan({
+        planId: plan.id,
+        isAdHoc,
+      });
 
-      if (error) {
-        showError('삭제 실패: ' + error.message);
+      if (!result.success) {
+        showError(result.error ?? '삭제 실패');
+        setShowDeleteConfirm(false);
         return;
       }
 
       showSuccess('플랜이 삭제되었습니다.');
+      setShowDeleteConfirm(false);
       onRefresh?.();
     });
   };
@@ -222,19 +259,16 @@ export function PlanItemCard({
       return;
     }
 
-    // 기본 구현: 직접 DB 업데이트
-    const supabase = createSupabaseBrowserClient();
+    // Server Action 사용
     startTransition(async () => {
-      const { error } = await supabase
-        .from('student_plan')
-        .update({
-          status: newStatus,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', plan.id);
+      const result = await updatePlanStatus({
+        planId: plan.id,
+        status: newStatus,
+        isAdHoc,
+      });
 
-      if (error) {
-        showError('상태 변경 실패: ' + error.message);
+      if (!result.success) {
+        showError(result.error ?? '상태 변경 실패');
         return;
       }
 
@@ -248,25 +282,62 @@ export function PlanItemCard({
   // Compact variant (for grid/weekly view)
   if (variant === 'compact' || variant === 'grid') {
     return (
-      <DraggablePlanItem
-        id={plan.id}
-        type={plan.type}
-        containerId={container}
-        title={plan.title}
-        subject={plan.subject}
-        range={rangeDisplay}
-        planDate={plan.planDate}
-        disabled={isCompleted || isPending}
-      >
-        <div
-          className={cn(
-            'flex flex-col gap-2 bg-white rounded-lg p-3 border transition-opacity',
-            isCompleted ? colors.borderCompleted : colors.border,
-            isPending && 'opacity-50 pointer-events-none'
-          )}
+    <>
+      {/* 외부 래퍼: 선택 모드일 때 체크박스를 카드 외부에 배치 */}
+      <div className="flex items-start gap-2">
+        {/* 선택 모드 체크박스 (카드 외부) */}
+        {selectable && (
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onSelect?.(plan.id)}
+            className="w-4 h-4 mt-3 rounded border-gray-300 shrink-0"
+            onClick={(e) => e.stopPropagation()}
+          />
+        )}
+
+        <DraggablePlanItem
+          id={plan.id}
+          type={plan.type}
+          containerId={container}
+          title={plan.title}
+          subject={plan.subject}
+          range={rangeDisplay}
+          planDate={plan.planDate}
+          disabled={isCompleted || isPending}
         >
-          <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
+          <div
+            className={cn(
+              'flex flex-col gap-2 bg-white rounded-lg p-3 border transition-opacity flex-1',
+              getLeftBorderColor(isCompleted, plan.carryoverCount),
+              isCompleted ? colors.borderCompleted : colors.border,
+              isPending && 'opacity-50 pointer-events-none'
+            )}
+          >
+            <div className="flex items-start justify-between gap-2">
+              {/* QuickComplete 버튼 (항상 표시) */}
+              <QuickCompleteButton
+                planId={plan.id}
+                planType={isAdHoc ? 'adhoc' : 'plan'}
+                isCompleted={isCompleted}
+                onSuccess={onRefresh ?? (() => {})}
+                size="sm"
+              />
+
+              {/* Time display for compact - 좌측 시간 블록 */}
+              {showTime && plan.startTime && (
+                <div className="flex flex-col items-center justify-center w-12 shrink-0 py-1 px-1 bg-blue-50 rounded border border-blue-100">
+                  <span className="text-xs font-semibold text-blue-700 tabular-nums">
+                    {plan.startTime.substring(0, 5)}
+                  </span>
+                  {plan.endTime && (
+                    <span className="text-[9px] text-blue-500 tabular-nums">
+                      ~{plan.endTime.substring(0, 5)}
+                    </span>
+                  )}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1 flex-wrap mb-1">
                 {isAdHoc && (
                   <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
@@ -422,7 +493,7 @@ export function PlanItemCard({
                   )}
                   <DropdownMenu.Separator />
                   <DropdownMenu.Item
-                    onClick={() => onDelete?.(plan.id, isAdHoc) ?? handleDelete()}
+                    onClick={handleDeleteRequest}
                     className="text-red-600 hover:bg-red-50"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
@@ -431,67 +502,102 @@ export function PlanItemCard({
                 </DropdownMenu.Content>
               </DropdownMenu.Root>
             </div>
-          )}
-        </div>
-      </DraggablePlanItem>
+            )}
+          </div>
+        </DraggablePlanItem>
+      </div>
+
+      {/* 삭제 확인 모달 (내부 처리용 - onDelete가 없을 때만 사용) */}
+      {showDeleteConfirm && (
+        <ConfirmDialog
+          open={showDeleteConfirm}
+          onOpenChange={setShowDeleteConfirm}
+          title="플랜 삭제"
+          description="이 플랜을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+          confirmLabel="삭제"
+          cancelLabel="취소"
+          variant="destructive"
+          isLoading={isPending}
+          onConfirm={handleDeleteConfirm}
+        />
+      )}
+    </>
     );
   }
 
   // Default variant (full)
   return (
-    <DraggablePlanItem
-      id={plan.id}
-      type={plan.type}
-      containerId={container}
-      title={plan.title}
-      subject={plan.subject}
-      range={rangeDisplay}
-      planDate={plan.planDate}
-      disabled={isCompleted || isPending}
-    >
-      <div
-        className={cn(
-          'flex items-center gap-3 bg-white rounded-lg p-3 border transition-opacity',
-          isCompleted ? colors.borderCompleted : colors.border,
-          isPending && 'opacity-50 pointer-events-none',
-          // 충돌 시 주황색 테두리
-          conflictInfo && !isCompleted && 'border-orange-400 border-2 bg-orange-50/30'
-        )}
-      >
-        {/* 충돌 경고 아이콘 */}
-        {conflictInfo && !isCompleted && (
-          <div className="relative group shrink-0">
-            <AlertTriangle className="w-4 h-4 text-orange-500" />
-            {/* 툴팁 */}
-            <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50">
-              <div className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
-                {conflictInfo.message}
-              </div>
-              <div className="absolute left-2 top-full border-4 border-transparent border-t-gray-900" />
-            </div>
-          </div>
-        )}
+  <>
+    {/* 외부 래퍼: 선택 모드일 때 체크박스를 카드 외부에 배치 */}
+    <div className="flex items-center gap-2">
+      {/* 선택 모드 체크박스 (카드 외부) */}
+      {selectable && (
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={() => onSelect?.(plan.id)}
+          className="w-4 h-4 rounded border-gray-300 shrink-0"
+          onClick={(e) => e.stopPropagation()}
+        />
+      )}
 
-        {/* Checkbox for selection or completion */}
-        {selectable ? (
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={() => onSelect?.(plan.id)}
-            className="w-4 h-4 rounded border-gray-300"
-            onClick={(e) => e.stopPropagation()}
-          />
-        ) : (
+      <DraggablePlanItem
+        id={plan.id}
+        type={plan.type}
+        containerId={container}
+        title={plan.title}
+        subject={plan.subject}
+        range={rangeDisplay}
+        planDate={plan.planDate}
+        disabled={isCompleted || isPending}
+      >
+        <div
+          className={cn(
+            'flex items-center gap-3 bg-white rounded-lg p-3 border transition-all flex-1',
+            getLeftBorderColor(isCompleted, plan.carryoverCount),
+            isCompleted ? colors.borderCompleted : colors.border,
+            isPending && 'opacity-50 pointer-events-none',
+            !isCompleted && 'hover:ring-1 hover:ring-gray-300 hover:shadow-sm cursor-grab',
+            // 충돌 시 주황색 테두리 (좌측 보더는 유지)
+            conflictInfo && !isCompleted && 'border-t-orange-400 border-r-orange-400 border-b-orange-400 border-t-2 border-r-2 border-b-2 bg-orange-50/30'
+          )}
+        >
+          {/* 충돌 경고 아이콘 */}
+          {conflictInfo && !isCompleted && (
+            <div className="relative group shrink-0">
+              <AlertTriangle className="w-4 h-4 text-orange-500" />
+              {/* 툴팁 */}
+              <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50">
+                <div className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
+                  {conflictInfo.message}
+                </div>
+                <div className="absolute left-2 top-full border-4 border-transparent border-t-gray-900" />
+              </div>
+            </div>
+          )}
+
+          {/* QuickComplete 버튼 (항상 표시) */}
           <QuickCompleteButton
             planId={plan.id}
             planType={isAdHoc ? 'adhoc' : 'plan'}
             isCompleted={isCompleted}
             onSuccess={onRefresh ?? (() => {})}
           />
-        )}
 
-        {/* Drag handle */}
-        <span className="text-gray-400 cursor-grab">☰</span>
+
+        {/* Time display - 강화된 시간 표시 */}
+        {showTime && plan.startTime && (
+          <div className="flex flex-col items-center justify-center w-14 shrink-0 py-0.5 px-1.5 bg-blue-50 rounded-md border border-blue-100">
+            <span className="text-sm font-semibold text-blue-700 tabular-nums">
+              {plan.startTime.substring(0, 5)}
+            </span>
+            {plan.endTime && (
+              <span className="text-[10px] text-blue-500 tabular-nums">
+                ~{plan.endTime.substring(0, 5)}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Ad-hoc badge */}
         {isAdHoc && (
@@ -513,12 +619,6 @@ export function PlanItemCard({
         {/* Plan info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            {/* Time display */}
-            {showTime && plan.startTime && (
-              <span className="text-xs text-gray-500 shrink-0">
-                {plan.startTime.substring(0, 5)}
-              </span>
-            )}
             {/* Carryover date */}
             {showCarryover && plan.planDate && (
               <span className="text-xs text-gray-500 shrink-0">
@@ -543,6 +643,7 @@ export function PlanItemCard({
                 planId={plan.id}
                 currentStart={plan.pageRangeStart!}
                 currentEnd={plan.pageRangeEnd!}
+                contentType={plan.contentType}
                 onSuccess={onRefresh}
               />
             ) : rangeDisplay ? (
@@ -552,19 +653,6 @@ export function PlanItemCard({
               <span className="text-gray-500">약 {plan.estimatedMinutes}분</span>
             )}
           </div>
-          {/* Progress bar */}
-          {showProgress && hasPageRange && !isCompleted && onRefresh && (
-            <div className="mt-1">
-              <QuickProgressInput
-                planId={plan.id}
-                plannedStart={plan.pageRangeStart!}
-                plannedEnd={plan.pageRangeEnd!}
-                completedStart={plan.pageRangeStart ?? 0}
-                completedEnd={(plan.pageRangeStart ?? 0) + (plan.completedAmount ?? 0)}
-                onSuccess={onRefresh}
-              />
-            </div>
-          )}
           {/* Carryover / Dock reason indicator */}
           {showCarryover && (
             plan.carryoverCount && plan.carryoverCount > 0 ? (
@@ -696,7 +784,7 @@ export function PlanItemCard({
                 )}
                 <DropdownMenu.Separator />
                 <DropdownMenu.Item
-                  onClick={() => onDelete?.(plan.id, isAdHoc) ?? handleDelete()}
+                  onClick={handleDeleteRequest}
                   className="text-red-600 hover:bg-red-50"
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
@@ -705,11 +793,28 @@ export function PlanItemCard({
               </DropdownMenu.Content>
             </DropdownMenu.Root>
           </div>
-        ) : null}
-      </div>
-    </DraggablePlanItem>
+          ) : null}
+        </div>
+      </DraggablePlanItem>
+    </div>
+
+    {/* 삭제 확인 모달 (내부 처리용 - onDelete가 없을 때만 사용) */}
+    {showDeleteConfirm && (
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title="플랜 삭제"
+        description="이 플랜을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+        confirmLabel="삭제"
+        cancelLabel="취소"
+        variant="destructive"
+        isLoading={isPending}
+        onConfirm={handleDeleteConfirm}
+      />
+    )}
+  </>
   );
-}
+});
 
 function formatDateShort(dateStr: string): string {
   const date = new Date(dateStr + 'T00:00:00');
@@ -741,12 +846,13 @@ export function toPlanItemData(
     type: 'plan',
     title: raw.custom_title ?? raw.content_title ?? '제목 없음',
     subject: raw.content_subject ?? undefined,
+    contentType: raw.content_type ?? undefined, // 콘텐츠 타입 (book/lecture/custom)
     pageRangeStart: raw.planned_start_page_or_time,
     pageRangeEnd: raw.planned_end_page_or_time,
     completedAmount: raw.completed_amount,
     progress: raw.progress,
     status: raw.status ?? 'pending',
-    isCompleted: raw.status === 'completed' || (raw.progress ?? 0) >= 100,
+    isCompleted: raw.status === 'completed' || raw.actual_end_time != null,
     customTitle: raw.custom_title,
     customRangeDisplay: raw.custom_range_display,
     estimatedMinutes: raw.estimated_minutes, // Phase 3: 소요시간 추가

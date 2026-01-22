@@ -22,6 +22,29 @@ import { generatePlansFromGroup, type DateTimeSlots as SchedulerDateTimeSlots } 
 
 export type DistributionMode = 'today' | 'period' | 'weekly';
 
+/**
+ * 현재 날짜/컨테이너 타입에서 최대 sequence를 조회하여 다음 값 반환
+ */
+async function getNextSequence(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  studentId: string,
+  planDate: string,
+  containerType: ContainerType
+): Promise<number> {
+  const { data } = await supabase
+    .from('student_plan')
+    .select('sequence')
+    .eq('student_id', studentId)
+    .eq('plan_date', planDate)
+    .eq('container_type', containerType)
+    .eq('is_active', true)
+    .order('sequence', { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();  // 데이터가 없어도 에러 발생하지 않음
+
+  return (data?.sequence ?? 0) + 1;
+}
+
 export interface CreatePlanFromContentInput {
   // 콘텐츠 정보
   flexibleContentId: string;
@@ -175,6 +198,9 @@ export async function createPlanFromContent(
         }
       }
 
+      // 현재 날짜/컨테이너의 최대 sequence 조회 후 다음 값 설정
+      const nextSequence = await getNextSequence(supabase, input.studentId, input.targetDate, 'daily');
+
       plansToCreate.push(createPlanRecord({
         ...input,
         contentType: flexibleContent.content_type,
@@ -187,9 +213,13 @@ export async function createPlanFromContent(
         startTime,
         endTime,
         now,
+        sequence: nextSequence,
       }));
     } else if (input.distributionMode === 'weekly') {
       // Weekly Dock에 단일 플랜 추가
+      // 현재 날짜/컨테이너의 최대 sequence 조회 후 다음 값 설정
+      const nextSequence = await getNextSequence(supabase, input.studentId, input.targetDate, 'weekly');
+
       plansToCreate.push(createPlanRecord({
         ...input,
         contentType: flexibleContent.content_type,
@@ -200,6 +230,7 @@ export async function createPlanFromContent(
         endPage: input.rangeEnd,
         planGroupId: effectivePlanGroupId,
         now,
+        sequence: nextSequence,
       }));
     } else if (input.distributionMode === 'period' && input.periodEndDate) {
       // 기간에 걸쳐 분배

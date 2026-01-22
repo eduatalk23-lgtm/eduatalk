@@ -100,7 +100,7 @@ export async function getPlanGroupSummaryAction(
       .from('student_plan')
       .select('status')
       .eq('plan_group_id', planGroupId)
-      .is('deleted_at', null);
+      .eq('is_active', true);
 
     if (plansError) {
       logActionError(
@@ -148,6 +148,134 @@ export async function getPlanGroupSummaryAction(
       { domain: 'admin-plan', action: 'getPlanGroupSummaryAction' },
       error,
       { planGroupId, tenantId }
+    );
+    return null;
+  }
+}
+
+/**
+ * 전체 플랜 그룹 통합 요약 (전체 보기용)
+ */
+export interface AllGroupsSummary {
+  groupCount: number;
+  totalCount: number;
+  completedCount: number;
+  inProgressCount: number;
+  pendingCount: number;
+  periodStart: string | null;
+  periodEnd: string | null;
+}
+
+/**
+ * 플래너의 전체 플랜 그룹 통합 요약 조회
+ * - 전체 보기 모드에서 모든 그룹의 플랜 상태를 집계
+ */
+export async function getAllPlanGroupsSummaryAction(
+  plannerId: string,
+  tenantId: string
+): Promise<AllGroupsSummary | null> {
+  try {
+    await requireAdminOrConsultant();
+    const supabase = await createSupabaseServerClient();
+
+    // 1. 해당 플래너의 모든 플랜 그룹 조회
+    const { data: planGroups, error: groupsError } = await supabase
+      .from('plan_groups')
+      .select('id, period_start, period_end')
+      .eq('planner_id', plannerId)
+      .eq('tenant_id', tenantId)
+      .is('deleted_at', null);
+
+    if (groupsError) {
+      logActionError(
+        { domain: 'admin-plan', action: 'getAllPlanGroupsSummaryAction' },
+        groupsError,
+        { plannerId, tenantId }
+      );
+      return null;
+    }
+
+    if (!planGroups || planGroups.length === 0) {
+      return {
+        groupCount: 0,
+        totalCount: 0,
+        completedCount: 0,
+        inProgressCount: 0,
+        pendingCount: 0,
+        periodStart: null,
+        periodEnd: null,
+      };
+    }
+
+    // 2. 전체 기간 계산 (가장 빠른 시작일 ~ 가장 늦은 종료일)
+    let periodStart: string | null = null;
+    let periodEnd: string | null = null;
+
+    for (const group of planGroups) {
+      if (group.period_start) {
+        if (!periodStart || group.period_start < periodStart) {
+          periodStart = group.period_start;
+        }
+      }
+      if (group.period_end) {
+        if (!periodEnd || group.period_end > periodEnd) {
+          periodEnd = group.period_end;
+        }
+      }
+    }
+
+    // 3. 모든 그룹의 플랜 상태 집계
+    const groupIds = planGroups.map(g => g.id);
+    const { data: plans, error: plansError } = await supabase
+      .from('student_plan')
+      .select('status')
+      .in('plan_group_id', groupIds)
+      .eq('is_active', true);
+
+    if (plansError) {
+      logActionError(
+        { domain: 'admin-plan', action: 'getAllPlanGroupsSummaryAction' },
+        plansError,
+        { plannerId, groupIds }
+      );
+      return null;
+    }
+
+    // 4. 상태별 집계
+    let completedCount = 0;
+    let inProgressCount = 0;
+    let pendingCount = 0;
+
+    if (plans) {
+      for (const plan of plans) {
+        switch (plan.status) {
+          case 'completed':
+            completedCount++;
+            break;
+          case 'in_progress':
+            inProgressCount++;
+            break;
+          case 'pending':
+            pendingCount++;
+            break;
+        }
+      }
+    }
+
+    return {
+      groupCount: planGroups.length,
+      totalCount: plans?.length ?? 0,
+      completedCount,
+      inProgressCount,
+      pendingCount,
+      periodStart,
+      periodEnd,
+    };
+  } catch (error) {
+    logActionError(
+      { domain: 'admin-plan', action: 'getAllPlanGroupsSummaryAction' },
+      error,
+      { plannerId, tenantId }
     );
     return null;
   }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useMemo } from 'react';
+import { useState, useTransition, useMemo, memo } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
 import { DroppableContainer } from './dnd';
@@ -27,10 +27,18 @@ interface UnfinishedDockProps {
   onMoveToGroup?: (planIds: string[], currentGroupId?: string | null) => void;
   onCopy?: (planIds: string[]) => void;
   onStatusChange?: (planId: string, currentStatus: PlanStatus, title: string) => void;
+  /** 전체 새로고침 (기본) */
   onRefresh: () => void;
+  /** Daily + Unfinished만 새로고침 (Daily로 이동 시 사용) */
+  onRefreshDailyAndUnfinished?: () => void;
 }
 
-export function UnfinishedDock({
+/**
+ * UnfinishedDock - 미완료 플랜 Dock 컴포넌트
+ *
+ * React.memo로 감싸서 props가 변경되지 않으면 리렌더링을 방지합니다.
+ */
+export const UnfinishedDock = memo(function UnfinishedDock({
   studentId,
   tenantId,
   plannerId,
@@ -43,6 +51,7 @@ export function UnfinishedDock({
   onCopy,
   onStatusChange,
   onRefresh,
+  onRefreshDailyAndUnfinished,
 }: UnfinishedDockProps) {
   // React Query 훅 사용 (캐싱 및 중복 요청 방지)
   const { plans: allPlans, isLoading, invalidate } = useUnfinishedDockQuery(studentId, plannerId);
@@ -59,10 +68,22 @@ export function UnfinishedDock({
     return groupFilteredPlans.filter(plan => plan.content_type === contentTypeFilter);
   }, [groupFilteredPlans, contentTypeFilter]);
 
+  // 선택 모드 상태 (기본: off → QuickComplete 버튼 표시)
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+
   const [selectedPlans, setSelectedPlans] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
   const [showBulkModal, setShowBulkModal] = useState(false);
   const { showToast } = usePlanToast();
+
+  // 선택 모드 토글
+  const handleToggleSelectionMode = () => {
+    if (isSelectionMode) {
+      // 선택 모드 종료 시 선택 초기화
+      setSelectedPlans(new Set());
+    }
+    setIsSelectionMode(!isSelectionMode);
+  };
 
   const handleToggleSelect = (planId: string) => {
     setSelectedPlans((prev) => {
@@ -90,7 +111,8 @@ export function UnfinishedDock({
         })
         .eq('id', planId);
 
-      onRefresh();
+      // 타겟 새로고침: Daily + Unfinished만 (Weekly는 영향 없음)
+      (onRefreshDailyAndUnfinished ?? onRefresh)();
     });
   };
 
@@ -159,8 +181,17 @@ export function UnfinishedDock({
     );
   }
 
+  // 빈 상태: 최소 헤더만 표시
   if (plans.length === 0) {
-    return null;
+    return (
+      <div className="bg-gray-50 rounded-lg border border-gray-200 px-4 py-2">
+        <div className="flex items-center gap-2">
+          <span className="text-lg opacity-50">⏰</span>
+          <span className="font-medium text-gray-400">밀린 플랜</span>
+          <span className="text-sm text-gray-400">0건</span>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -174,20 +205,35 @@ export function UnfinishedDock({
         {/* 헤더 */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-red-200">
           <div className="flex items-center gap-2">
-            <span className="text-lg">🔴</span>
-            <span className="font-medium text-red-700">Unfinished</span>
+            <span className="text-lg">⏰</span>
+            <span className="font-medium text-red-700">밀린 플랜</span>
             <span className="text-sm text-red-600 bg-red-100 px-2 py-0.5 rounded-full">
               {plans.length}건
             </span>
           </div>
           <div className="flex items-center gap-2">
+            {/* 선택 모드 토글 */}
             <button
-              onClick={handleSelectAll}
-              className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded"
+              onClick={handleToggleSelectionMode}
+              className={cn(
+                'px-2 py-1 text-xs rounded transition-colors',
+                isSelectionMode
+                  ? 'bg-red-500 text-white hover:bg-red-600'
+                  : 'text-gray-600 hover:bg-gray-100'
+              )}
             >
-              {selectedPlans.size === plans.length ? '전체 해제' : '전체 선택'}
+              {isSelectionMode ? '선택 모드 종료' : '선택'}
             </button>
-            {selectedPlans.size > 0 && (
+            {/* 선택 모드일 때만 전체 선택/해제 버튼 표시 */}
+            {isSelectionMode && (
+              <button
+                onClick={handleSelectAll}
+                className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded"
+              >
+                {selectedPlans.size === plans.length ? '전체 해제' : '전체 선택'}
+              </button>
+            )}
+            {isSelectionMode && selectedPlans.size > 0 && (
               <>
                 <button
                   onClick={handleBulkRedistribute}
@@ -237,7 +283,7 @@ export function UnfinishedDock({
                 container="unfinished"
                 showProgress={false}
                 showCarryover={true}
-                selectable={true}
+                selectable={isSelectionMode}
                 isSelected={selectedPlans.has(plan.id)}
                 onSelect={handleToggleSelect}
                 onMoveToDaily={handleMoveToDaily}
@@ -267,4 +313,4 @@ export function UnfinishedDock({
       )}
     </DroppableContainer>
   );
-}
+});

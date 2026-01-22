@@ -112,7 +112,7 @@ export function useAIRecommendation(): UseAIRecommendationReturn {
 
       const result = await runColdStartPipelineAction(input, {
         enableFallback: true,
-        saveToDb: false, // 나중에 확정 시 저장
+        saveToDb: true, // 검색 결과 전체 DB 저장 (중복 자동 스킵)
       });
 
       if (!result.success) {
@@ -174,7 +174,7 @@ export function useAIRecommendation(): UseAIRecommendationReturn {
 
         const result = await runColdStartPipelineAction(input, {
           enableFallback: true,
-          saveToDb: false,
+          saveToDb: true, // 검색 결과 전체 DB 저장 (중복 자동 스킵)
         });
 
         if (result.success) {

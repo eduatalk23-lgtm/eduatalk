@@ -2,7 +2,12 @@
 
 import { useState, useCallback } from "react";
 import { cn } from "@/lib/cn";
-import { useAdminPlan } from "./context/AdminPlanContext";
+import {
+  useAdminPlanBasic,
+  useAdminPlanFilter,
+  useAdminPlanModal,
+  type ContentTypeFilter,
+} from "./context/AdminPlanContext";
 import { CarryoverButton } from "./CarryoverButton";
 import { PlanGroupSelector } from "./PlanGroupSelector";
 import type { ShortcutConfig } from "./useKeyboardShortcuts";
@@ -22,7 +27,6 @@ import {
   Keyboard,
   Settings2,
 } from "lucide-react";
-import type { ContentTypeFilter } from "./context/AdminPlanContext";
 
 // 필터 옵션 정의
 const CONTENT_TYPE_FILTERS: {
@@ -49,18 +53,24 @@ interface AdminPlanHeaderProps {
 export function AdminPlanHeader({
   studentName,
 }: AdminPlanHeaderProps) {
+  // 분리된 Context 사용 (ModalData, Actions 제외 → 불필요한 리렌더링 방지)
   const {
     studentId,
     tenantId,
     selectedPlannerId,
-    activePlanGroupId,
     allPlanGroups,
+    canCreatePlans,
+  } = useAdminPlanBasic();
+
+  const {
     selectedGroupId,
     setSelectedGroupId,
-    canCreatePlans,
     contentTypeFilter,
     setContentTypeFilter,
     handleRefresh,
+  } = useAdminPlanFilter();
+
+  const {
     openUnifiedModal,
     setShowCreateWizard,
     setShowAIPlanModal,
@@ -69,7 +79,8 @@ export function AdminPlanHeader({
     setShowConditionalDeleteModal,
     setShowShortcutsHelp,
     setShowPlanGroupManageModal,
-  } = useAdminPlan();
+    setShowMarkdownExportModal,
+  } = useAdminPlanModal();
 
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
 
@@ -265,6 +276,13 @@ export function AdminPlanHeader({
               >
                 <Settings2 className="h-4 w-4" />
                 플랜 그룹 관리
+              </button>
+              <button
+                onClick={() => setShowMarkdownExportModal(true)}
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-left"
+              >
+                <FileText className="h-4 w-4" />
+                마크다운 내보내기
               </button>
               <button
                 onClick={() => setShowConditionalDeleteModal(true)}

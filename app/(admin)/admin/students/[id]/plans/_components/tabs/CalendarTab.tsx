@@ -1,7 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useAdminPlan } from "../context/AdminPlanContext";
+import {
+  useAdminPlanBasic,
+  useAdminPlanFilter,
+  useAdminPlanModalData,
+} from "../context/AdminPlanContext";
 import { DayTimelineModal } from "../DayTimelineModal";
 
 // 캘린더 뷰 동적 임포트
@@ -26,23 +30,31 @@ interface CalendarTabProps {
  *
  * 월간/간트 캘린더 뷰를 전체 화면으로 표시합니다.
  * AdminCalendarView 내부에서 월간/간트 뷰 전환이 가능합니다.
+ *
+ * 성능 최적화: Modal 표시 상태 변경에 리렌더링되지 않음
  */
 export function CalendarTab(_props: CalendarTabProps) {
   const {
     studentId,
     tenantId,
     selectedPlannerId,
-    selectedGroupId,
-    selectedDate,
-    handleDateChange,
     plannerExclusions,
     plannerDailySchedules,
     plannerCalculatedSchedule,
     plannerDateTimeSlots,
+  } = useAdminPlanBasic();
+
+  const {
+    selectedGroupId,
+    selectedDate,
+    handleDateChange,
+    handleRefresh,
+  } = useAdminPlanFilter();
+
+  const {
     dayTimelineModalDate,
     setDayTimelineModalDate,
-    handleRefresh,
-  } = useAdminPlan();
+  } = useAdminPlanModalData();
 
   // 플래너 레벨 스케줄 우선 사용 (플랜 그룹 없어도 주차/일차 표시)
   const effectiveDailySchedules = plannerCalculatedSchedule

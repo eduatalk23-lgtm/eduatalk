@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useMemo } from 'react';
+import { useState, useTransition, useMemo, memo } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
 import { DroppableContainer } from './dnd';
@@ -26,10 +26,18 @@ interface WeeklyDockProps {
   onMoveToGroup?: (planIds: string[], currentGroupId?: string | null) => void;
   onCopy?: (planIds: string[]) => void;
   onStatusChange?: (planId: string, currentStatus: PlanStatus, title: string) => void;
+  /** 전체 새로고침 (기본) */
   onRefresh: () => void;
+  /** Daily + Weekly만 새로고침 (컨테이너 이동 시 사용) */
+  onRefreshDailyAndWeekly?: () => void;
 }
 
-export function WeeklyDock({
+/**
+ * WeeklyDock - 주간 플랜 Dock 컴포넌트
+ *
+ * React.memo로 감싸서 props가 변경되지 않으면 리렌더링을 방지합니다.
+ */
+export const WeeklyDock = memo(function WeeklyDock({
   studentId,
   tenantId,
   plannerId,
@@ -43,6 +51,7 @@ export function WeeklyDock({
   onCopy,
   onStatusChange,
   onRefresh,
+  onRefreshDailyAndWeekly,
 }: WeeklyDockProps) {
   // React Query 훅 사용 (캐싱 및 중복 요청 방지)
   const { plans: allPlans, adHocPlans, isLoading, weekRange, invalidate } = useWeeklyDockQuery(
@@ -65,9 +74,21 @@ export function WeeklyDock({
 
   const [isPending, startTransition] = useTransition();
 
+  // 선택 모드 상태 (기본: off → QuickComplete 버튼 표시)
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+
   // 선택 관련 상태
   const [selectedPlans, setSelectedPlans] = useState<Set<string>>(new Set());
   const [showBulkModal, setShowBulkModal] = useState(false);
+
+  // 선택 모드 토글
+  const handleToggleSelectionMode = () => {
+    if (isSelectionMode) {
+      // 선택 모드 종료 시 선택 초기화
+      setSelectedPlans(new Set());
+    }
+    setIsSelectionMode(!isSelectionMode);
+  };
 
   const handleMoveToDaily = async (planId: string, targetDate: string) => {
     const supabase = createSupabaseBrowserClient();
@@ -82,7 +103,8 @@ export function WeeklyDock({
         })
         .eq('id', planId);
 
-      onRefresh();
+      // 타겟 새로고침: Daily + Weekly만 (Unfinished는 영향 없음)
+      (onRefreshDailyAndWeekly ?? onRefresh)();
     });
   };
 
@@ -168,7 +190,22 @@ export function WeeklyDock({
             )}
           </div>
           <div className="flex items-center gap-2">
+            {/* 선택 모드 토글 */}
             {plans.filter((p) => p.status !== 'completed').length > 0 && (
+              <button
+                onClick={handleToggleSelectionMode}
+                className={cn(
+                  'px-2 py-1 text-xs rounded transition-colors',
+                  isSelectionMode
+                    ? 'bg-green-500 text-white hover:bg-green-600'
+                    : 'text-gray-600 hover:bg-gray-100'
+                )}
+              >
+                {isSelectionMode ? '선택 모드 종료' : '선택'}
+              </button>
+            )}
+            {/* 선택 모드일 때만 전체 선택/해제 버튼 표시 */}
+            {isSelectionMode && plans.filter((p) => p.status !== 'completed').length > 0 && (
               <button
                 onClick={handleSelectAll}
                 className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded"
@@ -178,7 +215,7 @@ export function WeeklyDock({
                   : '전체 선택'}
               </button>
             )}
-            {selectedPlans.size > 0 && (
+            {isSelectionMode && selectedPlans.size > 0 && (
               <>
                 <button
                   onClick={handleBulkRedistribute}
@@ -233,7 +270,7 @@ export function WeeklyDock({
               <p className="text-sm mt-1">Daily에서 플랜을 이동하거나 추가하세요</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-2">
               {/* 일반 플랜 */}
               {plans.map((plan) => {
                 const planData = toPlanItemData(plan, 'plan');
@@ -244,9 +281,9 @@ export function WeeklyDock({
                     key={plan.id}
                     plan={planData}
                     container="weekly"
-                    variant="compact"
                     showProgress={false}
-                    selectable={!isCompleted}
+                    showCarryover={true}
+                    selectable={isSelectionMode && !isCompleted}
                     isSelected={selectedPlans.has(plan.id)}
                     onSelect={handleToggleSelect}
                     onMoveToDaily={(id) => handleMoveToDaily(id, selectedDate)}
@@ -270,7 +307,6 @@ export function WeeklyDock({
                     key={adHoc.id}
                     plan={planData}
                     container="weekly"
-                    variant="compact"
                     showProgress={false}
                     onDelete={handleDelete}
                     onRefresh={onRefresh}
@@ -294,4 +330,4 @@ export function WeeklyDock({
       )}
     </DroppableContainer>
   );
-}
+});
