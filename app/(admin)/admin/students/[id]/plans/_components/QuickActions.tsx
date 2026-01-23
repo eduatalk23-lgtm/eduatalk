@@ -5,6 +5,7 @@ import { cn } from '@/lib/cn';
 import { Check, Circle } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastProvider';
 import { togglePlanComplete, updatePlanRange } from '@/lib/domains/plan/actions/dock';
+import { formatPlanLearningAmount } from '@/lib/utils/planFormatting';
 
 interface QuickCompleteButtonProps {
   planId: string;
@@ -189,17 +190,11 @@ export function InlineVolumeEditor({
   };
 
   if (!isEditing) {
-    // 같은 범위면 단일 값으로, 다른 범위면 시작-끝 형식
-    const isSingle = currentStart === currentEnd;
-    let displayText: string;
-
-    if (contentType === 'lecture') {
-      // 강의: "5강" 또는 "1-5강"
-      displayText = isSingle ? `${currentStart}강` : `${currentStart}-${currentEnd}강`;
-    } else {
-      // 교재: "p.5" 또는 "p.1-5"
-      displayText = isSingle ? `p.${currentStart}` : `p.${currentStart}-${currentEnd}`;
-    }
+    const displayText = formatPlanLearningAmount({
+      content_type: contentType,
+      planned_start_page_or_time: currentStart,
+      planned_end_page_or_time: currentEnd,
+    });
 
     return (
       <button
