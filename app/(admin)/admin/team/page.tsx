@@ -99,7 +99,7 @@ export default async function TeamPage() {
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
           팀원 ({members.length})
         </h2>
-        <TeamMembersList members={members} canManage={canInvite} />
+        <TeamMembersList members={members} canManage={canInvite} currentUserId={userId} />
       </div>
 
       {/* Pending Invitations */}

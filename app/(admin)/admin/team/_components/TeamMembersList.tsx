@@ -8,9 +8,11 @@ import type { TeamMember, InvitationRole } from "@/lib/domains/team/types";
 type TeamMembersListProps = {
   members: TeamMember[];
   canManage: boolean;
+  /** 현재 로그인한 사용자 ID (자신 구분용) */
+  currentUserId: string;
 };
 
-export function TeamMembersList({ members, canManage }: TeamMembersListProps) {
+export function TeamMembersList({ members, canManage, currentUserId }: TeamMembersListProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [actioningId, setActioningId] = useState<string | null>(null);
@@ -88,6 +90,7 @@ export function TeamMembersList({ members, canManage }: TeamMembersListProps) {
           {members.map((member) => {
             const isActioning = actioningId === member.id;
             const roleLabel = member.role === "admin" ? "관리자" : "컨설턴트";
+            const isSelf = member.id === currentUserId;
 
             return (
               <div
@@ -102,8 +105,13 @@ export function TeamMembersList({ members, canManage }: TeamMembersListProps) {
 
                   {/* Info */}
                   <div>
-                    <div className="font-medium text-gray-900 dark:text-gray-100">
+                    <div className="flex items-center gap-2 font-medium text-gray-900 dark:text-gray-100">
                       {member.displayName || member.email.split("@")[0]}
+                      {isSelf && (
+                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                          나
+                        </span>
+                      )}
                     </div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">
                       {member.email}
@@ -113,7 +121,7 @@ export function TeamMembersList({ members, canManage }: TeamMembersListProps) {
 
                 <div className="flex items-center gap-3">
                   {/* Role Badge / Select */}
-                  {canManage ? (
+                  {canManage && !isSelf ? (
                     <select
                       value={member.role}
                       onChange={(e) =>
@@ -137,8 +145,8 @@ export function TeamMembersList({ members, canManage }: TeamMembersListProps) {
                     </span>
                   )}
 
-                  {/* Remove Button */}
-                  {canManage && (
+                  {/* Remove Button - 자신은 제거 불가 */}
+                  {canManage && !isSelf && (
                     <button
                       onClick={() =>
                         handleRemove(
