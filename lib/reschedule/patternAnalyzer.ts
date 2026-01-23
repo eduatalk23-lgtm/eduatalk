@@ -552,6 +552,7 @@ export async function detectRescheduleNeeds(
         recurrence_parent_id: plan.recurrence_parent_id ?? null,
         recurrence_rule: plan.recurrence_rule ?? null,
         time_slot_type: plan.time_slot_type ?? null,
+        deleted_at: plan.deleted_at ?? null,
       }));
 
       // 4. 지연 분석 수행

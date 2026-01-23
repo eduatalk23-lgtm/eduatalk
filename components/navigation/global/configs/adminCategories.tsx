@@ -33,6 +33,7 @@ import {
   UserCircle,
   ListPlus,
   Sparkles,
+  UserPlus,
 } from "lucide-react";
 
 export const adminCategories: NavigationCategory[] = [
@@ -284,6 +285,26 @@ export const adminCategories: NavigationCategory[] = [
         label: "학생 통합 관리",
         href: "/admin/camp-students",
         icon: <UserCircle className="w-4 h-4" />,
+      },
+    ],
+  },
+  {
+    id: "admin-team",
+    label: "팀 관리",
+    icon: <UserPlus className="w-4 h-4" />,
+    items: [
+      {
+        id: "admin-team-list",
+        label: "팀원 관리",
+        href: "/admin/team",
+        icon: <UsersRound className="w-4 h-4" />,
+      },
+      {
+        id: "admin-team-invite",
+        label: "팀원 초대",
+        href: "/admin/team/invite",
+        icon: <UserPlus className="w-4 h-4" />,
+        roles: ["admin"], // admin만 접근
       },
     ],
   },

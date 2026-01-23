@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       academies: {
@@ -344,18 +369,21 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          name: string
           role: string
           tenant_id: string | null
         }
         Insert: {
           created_at?: string
           id: string
+          name: string
           role: string
           tenant_id?: string | null
         }
         Update: {
           created_at?: string
           id?: string
+          name?: string
           role?: string
           tenant_id?: string | null
         }
@@ -3710,7 +3738,28 @@ export type Database = {
             foreignKeyName: "plan_events_student_plan_id_fkey"
             columns: ["student_plan_id"]
             isOneToOne: false
+            referencedRelation: "active_student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_events_student_plan_id_fkey"
+            columns: ["student_plan_id"]
+            isOneToOne: false
+            referencedRelation: "deleted_student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_events_student_plan_id_fkey"
+            columns: ["student_plan_id"]
+            isOneToOne: false
             referencedRelation: "student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_events_student_plan_id_fkey"
+            columns: ["student_plan_id"]
+            isOneToOne: false
+            referencedRelation: "student_plan_completion_status"
             referencedColumns: ["id"]
           },
           {
@@ -3835,7 +3884,28 @@ export type Database = {
             foreignKeyName: "plan_execution_logs_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: false
+            referencedRelation: "active_student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_execution_logs_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "deleted_student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_execution_logs_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
             referencedRelation: "student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_execution_logs_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "student_plan_completion_status"
             referencedColumns: ["id"]
           },
           {
@@ -4296,7 +4366,28 @@ export type Database = {
             foreignKeyName: "plan_history_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: false
+            referencedRelation: "active_student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_history_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "deleted_student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_history_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
             referencedRelation: "student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_history_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "student_plan_completion_status"
             referencedColumns: ["id"]
           },
           {
@@ -4401,7 +4492,28 @@ export type Database = {
             foreignKeyName: "plan_satisfaction_ratings_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: true
+            referencedRelation: "active_student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_satisfaction_ratings_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: true
+            referencedRelation: "deleted_student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_satisfaction_ratings_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: true
             referencedRelation: "student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_satisfaction_ratings_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: true
+            referencedRelation: "student_plan_completion_status"
             referencedColumns: ["id"]
           },
           {
@@ -5677,7 +5789,28 @@ export type Database = {
             foreignKeyName: "student_content_progress_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: false
+            referencedRelation: "active_student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_content_progress_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "deleted_student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_content_progress_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
             referencedRelation: "student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_content_progress_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "student_plan_completion_status"
             referencedColumns: ["id"]
           },
           {
@@ -5932,7 +6065,28 @@ export type Database = {
             foreignKeyName: "student_goal_progress_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: false
+            referencedRelation: "active_student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_goal_progress_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "deleted_student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_goal_progress_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
             referencedRelation: "student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_goal_progress_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "student_plan_completion_status"
             referencedColumns: ["id"]
           },
           {
@@ -6257,7 +6411,28 @@ export type Database = {
             foreignKeyName: "student_milestone_logs_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: false
+            referencedRelation: "active_student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_milestone_logs_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "deleted_student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_milestone_logs_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
             referencedRelation: "student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_milestone_logs_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "student_plan_completion_status"
             referencedColumns: ["id"]
           },
           {
@@ -6518,6 +6693,7 @@ export type Database = {
           date_type: string | null
           day: number | null
           day_type: string | null
+          deleted_at: string | null
           description: string | null
           end_time: string | null
           estimated_minutes: number | null
@@ -6597,6 +6773,7 @@ export type Database = {
           date_type?: string | null
           day?: number | null
           day_type?: string | null
+          deleted_at?: string | null
           description?: string | null
           end_time?: string | null
           estimated_minutes?: number | null
@@ -6676,6 +6853,7 @@ export type Database = {
           date_type?: string | null
           day?: number | null
           day_type?: string | null
+          deleted_at?: string | null
           description?: string | null
           end_time?: string | null
           estimated_minutes?: number | null
@@ -6740,7 +6918,28 @@ export type Database = {
             foreignKeyName: "fk_student_plan_recurrence_parent"
             columns: ["recurrence_parent_id"]
             isOneToOne: false
+            referencedRelation: "active_student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_student_plan_recurrence_parent"
+            columns: ["recurrence_parent_id"]
+            isOneToOne: false
+            referencedRelation: "deleted_student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_student_plan_recurrence_parent"
+            columns: ["recurrence_parent_id"]
+            isOneToOne: false
             referencedRelation: "student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_student_plan_recurrence_parent"
+            columns: ["recurrence_parent_id"]
+            isOneToOne: false
+            referencedRelation: "student_plan_completion_status"
             referencedColumns: ["id"]
           },
           {
@@ -6786,6 +6985,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      student_plan_progress_backup: {
+        Row: {
+          actual_end_time: string | null
+          completed_amount: number | null
+          id: string | null
+          progress: number | null
+          status: string | null
+        }
+        Insert: {
+          actual_end_time?: string | null
+          completed_amount?: number | null
+          id?: string | null
+          progress?: number | null
+          status?: string | null
+        }
+        Update: {
+          actual_end_time?: string | null
+          completed_amount?: number | null
+          id?: string | null
+          progress?: number | null
+          status?: string | null
+        }
+        Relationships: []
       }
       student_profiles: {
         Row: {
@@ -7078,7 +7301,28 @@ export type Database = {
             foreignKeyName: "student_study_sessions_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: false
+            referencedRelation: "active_student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_study_sessions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "deleted_student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_study_sessions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
             referencedRelation: "student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_study_sessions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "student_plan_completion_status"
             referencedColumns: ["id"]
           },
           {
@@ -7381,6 +7625,59 @@ export type Database = {
           value?: Json
         }
         Relationships: []
+      }
+      team_invitations: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string
+          role: string
+          status: string
+          tenant_id: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by: string
+          role: string
+          status?: string
+          tenant_id: string
+          token?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          role?: string
+          status?: string
+          tenant_id?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_invitations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tenant_block_sets: {
         Row: {
@@ -7877,6 +8174,327 @@ export type Database = {
       }
     }
     Views: {
+      active_student_plan: {
+        Row: {
+          actual_end_time: string | null
+          actual_minutes: number | null
+          actual_start_time: string | null
+          adhoc_source_id: string | null
+          block_index: number | null
+          carryover_count: number | null
+          carryover_from_date: string | null
+          chapter: string | null
+          color: string | null
+          completed_amount: number | null
+          completed_at: string | null
+          container_type: string | null
+          content_category: string | null
+          content_id: string | null
+          content_subject: string | null
+          content_subject_category: string | null
+          content_title: string | null
+          content_type: string | null
+          created_at: string | null
+          created_by: string | null
+          custom_range_display: string | null
+          custom_title: string | null
+          cycle_day_number: number | null
+          date_type: string | null
+          day: number | null
+          day_type: string | null
+          deleted_at: string | null
+          description: string | null
+          end_time: string | null
+          estimated_minutes: number | null
+          flexible_content_id: string | null
+          icon: string | null
+          id: string | null
+          is_active: boolean | null
+          is_adhoc: boolean | null
+          is_continued: boolean | null
+          is_locked: boolean | null
+          is_partial: boolean | null
+          is_recurring: boolean | null
+          is_reschedulable: boolean | null
+          is_virtual: boolean | null
+          memo: string | null
+          order_index: number | null
+          origin_plan_item_id: string | null
+          original_volume: number | null
+          pause_count: number | null
+          paused_at: string | null
+          paused_duration_seconds: number | null
+          plan_date: string | null
+          plan_group_id: string | null
+          plan_number: number | null
+          planned_end_page_or_time: number | null
+          planned_start_page_or_time: number | null
+          priority: number | null
+          progress: number | null
+          recurrence_parent_id: string | null
+          recurrence_rule: Json | null
+          review_group_id: string | null
+          review_source_content_ids: string[] | null
+          sequence: number | null
+          simple_completed_at: string | null
+          simple_completion: boolean | null
+          slot_index: number | null
+          start_time: string | null
+          started_at: string | null
+          status: string | null
+          student_id: string | null
+          subject_type: string | null
+          tags: string[] | null
+          tenant_id: string | null
+          time_slot_type: string | null
+          total_duration_seconds: number | null
+          updated_at: string | null
+          version: number | null
+          version_group_id: string | null
+          virtual_description: string | null
+          virtual_subject_category: string | null
+          week: number | null
+        }
+        Insert: {
+          actual_end_time?: string | null
+          actual_minutes?: number | null
+          actual_start_time?: string | null
+          adhoc_source_id?: string | null
+          block_index?: number | null
+          carryover_count?: number | null
+          carryover_from_date?: string | null
+          chapter?: string | null
+          color?: string | null
+          completed_amount?: number | null
+          completed_at?: string | null
+          container_type?: string | null
+          content_category?: string | null
+          content_id?: string | null
+          content_subject?: string | null
+          content_subject_category?: string | null
+          content_title?: string | null
+          content_type?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          custom_range_display?: string | null
+          custom_title?: string | null
+          cycle_day_number?: number | null
+          date_type?: string | null
+          day?: number | null
+          day_type?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          end_time?: string | null
+          estimated_minutes?: number | null
+          flexible_content_id?: string | null
+          icon?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          is_adhoc?: boolean | null
+          is_continued?: boolean | null
+          is_locked?: boolean | null
+          is_partial?: boolean | null
+          is_recurring?: boolean | null
+          is_reschedulable?: boolean | null
+          is_virtual?: boolean | null
+          memo?: string | null
+          order_index?: number | null
+          origin_plan_item_id?: string | null
+          original_volume?: number | null
+          pause_count?: number | null
+          paused_at?: string | null
+          paused_duration_seconds?: number | null
+          plan_date?: string | null
+          plan_group_id?: string | null
+          plan_number?: number | null
+          planned_end_page_or_time?: number | null
+          planned_start_page_or_time?: number | null
+          priority?: number | null
+          progress?: number | null
+          recurrence_parent_id?: string | null
+          recurrence_rule?: Json | null
+          review_group_id?: string | null
+          review_source_content_ids?: string[] | null
+          sequence?: number | null
+          simple_completed_at?: string | null
+          simple_completion?: boolean | null
+          slot_index?: number | null
+          start_time?: string | null
+          started_at?: string | null
+          status?: string | null
+          student_id?: string | null
+          subject_type?: string | null
+          tags?: string[] | null
+          tenant_id?: string | null
+          time_slot_type?: string | null
+          total_duration_seconds?: number | null
+          updated_at?: string | null
+          version?: number | null
+          version_group_id?: string | null
+          virtual_description?: string | null
+          virtual_subject_category?: string | null
+          week?: number | null
+        }
+        Update: {
+          actual_end_time?: string | null
+          actual_minutes?: number | null
+          actual_start_time?: string | null
+          adhoc_source_id?: string | null
+          block_index?: number | null
+          carryover_count?: number | null
+          carryover_from_date?: string | null
+          chapter?: string | null
+          color?: string | null
+          completed_amount?: number | null
+          completed_at?: string | null
+          container_type?: string | null
+          content_category?: string | null
+          content_id?: string | null
+          content_subject?: string | null
+          content_subject_category?: string | null
+          content_title?: string | null
+          content_type?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          custom_range_display?: string | null
+          custom_title?: string | null
+          cycle_day_number?: number | null
+          date_type?: string | null
+          day?: number | null
+          day_type?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          end_time?: string | null
+          estimated_minutes?: number | null
+          flexible_content_id?: string | null
+          icon?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          is_adhoc?: boolean | null
+          is_continued?: boolean | null
+          is_locked?: boolean | null
+          is_partial?: boolean | null
+          is_recurring?: boolean | null
+          is_reschedulable?: boolean | null
+          is_virtual?: boolean | null
+          memo?: string | null
+          order_index?: number | null
+          origin_plan_item_id?: string | null
+          original_volume?: number | null
+          pause_count?: number | null
+          paused_at?: string | null
+          paused_duration_seconds?: number | null
+          plan_date?: string | null
+          plan_group_id?: string | null
+          plan_number?: number | null
+          planned_end_page_or_time?: number | null
+          planned_start_page_or_time?: number | null
+          priority?: number | null
+          progress?: number | null
+          recurrence_parent_id?: string | null
+          recurrence_rule?: Json | null
+          review_group_id?: string | null
+          review_source_content_ids?: string[] | null
+          sequence?: number | null
+          simple_completed_at?: string | null
+          simple_completion?: boolean | null
+          slot_index?: number | null
+          start_time?: string | null
+          started_at?: string | null
+          status?: string | null
+          student_id?: string | null
+          subject_type?: string | null
+          tags?: string[] | null
+          tenant_id?: string | null
+          time_slot_type?: string | null
+          total_duration_seconds?: number | null
+          updated_at?: string | null
+          version?: number | null
+          version_group_id?: string | null
+          virtual_description?: string | null
+          virtual_subject_category?: string | null
+          week?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_student_plan_adhoc_source"
+            columns: ["adhoc_source_id"]
+            isOneToOne: false
+            referencedRelation: "ad_hoc_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_student_plan_recurrence_parent"
+            columns: ["recurrence_parent_id"]
+            isOneToOne: false
+            referencedRelation: "active_student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_student_plan_recurrence_parent"
+            columns: ["recurrence_parent_id"]
+            isOneToOne: false
+            referencedRelation: "deleted_student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_student_plan_recurrence_parent"
+            columns: ["recurrence_parent_id"]
+            isOneToOne: false
+            referencedRelation: "student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_student_plan_recurrence_parent"
+            columns: ["recurrence_parent_id"]
+            isOneToOne: false
+            referencedRelation: "student_plan_completion_status"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_student_plan_recurrence_parent"
+            columns: ["recurrence_parent_id"]
+            isOneToOne: false
+            referencedRelation: "today_plan_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_plan_flexible_content_id_fkey"
+            columns: ["flexible_content_id"]
+            isOneToOne: false
+            referencedRelation: "flexible_contents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_plan_origin_plan_item_id_fkey"
+            columns: ["origin_plan_item_id"]
+            isOneToOne: false
+            referencedRelation: "plan_group_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_plan_plan_group_id_fkey"
+            columns: ["plan_group_id"]
+            isOneToOne: false
+            referencedRelation: "plan_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_plan_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_plan_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       all_schools_view: {
         Row: {
           address: string | null
@@ -7898,6 +8516,327 @@ export type Database = {
           website: string | null
         }
         Relationships: []
+      }
+      deleted_student_plan: {
+        Row: {
+          actual_end_time: string | null
+          actual_minutes: number | null
+          actual_start_time: string | null
+          adhoc_source_id: string | null
+          block_index: number | null
+          carryover_count: number | null
+          carryover_from_date: string | null
+          chapter: string | null
+          color: string | null
+          completed_amount: number | null
+          completed_at: string | null
+          container_type: string | null
+          content_category: string | null
+          content_id: string | null
+          content_subject: string | null
+          content_subject_category: string | null
+          content_title: string | null
+          content_type: string | null
+          created_at: string | null
+          created_by: string | null
+          custom_range_display: string | null
+          custom_title: string | null
+          cycle_day_number: number | null
+          date_type: string | null
+          day: number | null
+          day_type: string | null
+          deleted_at: string | null
+          description: string | null
+          end_time: string | null
+          estimated_minutes: number | null
+          flexible_content_id: string | null
+          icon: string | null
+          id: string | null
+          is_active: boolean | null
+          is_adhoc: boolean | null
+          is_continued: boolean | null
+          is_locked: boolean | null
+          is_partial: boolean | null
+          is_recurring: boolean | null
+          is_reschedulable: boolean | null
+          is_virtual: boolean | null
+          memo: string | null
+          order_index: number | null
+          origin_plan_item_id: string | null
+          original_volume: number | null
+          pause_count: number | null
+          paused_at: string | null
+          paused_duration_seconds: number | null
+          plan_date: string | null
+          plan_group_id: string | null
+          plan_number: number | null
+          planned_end_page_or_time: number | null
+          planned_start_page_or_time: number | null
+          priority: number | null
+          progress: number | null
+          recurrence_parent_id: string | null
+          recurrence_rule: Json | null
+          review_group_id: string | null
+          review_source_content_ids: string[] | null
+          sequence: number | null
+          simple_completed_at: string | null
+          simple_completion: boolean | null
+          slot_index: number | null
+          start_time: string | null
+          started_at: string | null
+          status: string | null
+          student_id: string | null
+          subject_type: string | null
+          tags: string[] | null
+          tenant_id: string | null
+          time_slot_type: string | null
+          total_duration_seconds: number | null
+          updated_at: string | null
+          version: number | null
+          version_group_id: string | null
+          virtual_description: string | null
+          virtual_subject_category: string | null
+          week: number | null
+        }
+        Insert: {
+          actual_end_time?: string | null
+          actual_minutes?: number | null
+          actual_start_time?: string | null
+          adhoc_source_id?: string | null
+          block_index?: number | null
+          carryover_count?: number | null
+          carryover_from_date?: string | null
+          chapter?: string | null
+          color?: string | null
+          completed_amount?: number | null
+          completed_at?: string | null
+          container_type?: string | null
+          content_category?: string | null
+          content_id?: string | null
+          content_subject?: string | null
+          content_subject_category?: string | null
+          content_title?: string | null
+          content_type?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          custom_range_display?: string | null
+          custom_title?: string | null
+          cycle_day_number?: number | null
+          date_type?: string | null
+          day?: number | null
+          day_type?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          end_time?: string | null
+          estimated_minutes?: number | null
+          flexible_content_id?: string | null
+          icon?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          is_adhoc?: boolean | null
+          is_continued?: boolean | null
+          is_locked?: boolean | null
+          is_partial?: boolean | null
+          is_recurring?: boolean | null
+          is_reschedulable?: boolean | null
+          is_virtual?: boolean | null
+          memo?: string | null
+          order_index?: number | null
+          origin_plan_item_id?: string | null
+          original_volume?: number | null
+          pause_count?: number | null
+          paused_at?: string | null
+          paused_duration_seconds?: number | null
+          plan_date?: string | null
+          plan_group_id?: string | null
+          plan_number?: number | null
+          planned_end_page_or_time?: number | null
+          planned_start_page_or_time?: number | null
+          priority?: number | null
+          progress?: number | null
+          recurrence_parent_id?: string | null
+          recurrence_rule?: Json | null
+          review_group_id?: string | null
+          review_source_content_ids?: string[] | null
+          sequence?: number | null
+          simple_completed_at?: string | null
+          simple_completion?: boolean | null
+          slot_index?: number | null
+          start_time?: string | null
+          started_at?: string | null
+          status?: string | null
+          student_id?: string | null
+          subject_type?: string | null
+          tags?: string[] | null
+          tenant_id?: string | null
+          time_slot_type?: string | null
+          total_duration_seconds?: number | null
+          updated_at?: string | null
+          version?: number | null
+          version_group_id?: string | null
+          virtual_description?: string | null
+          virtual_subject_category?: string | null
+          week?: number | null
+        }
+        Update: {
+          actual_end_time?: string | null
+          actual_minutes?: number | null
+          actual_start_time?: string | null
+          adhoc_source_id?: string | null
+          block_index?: number | null
+          carryover_count?: number | null
+          carryover_from_date?: string | null
+          chapter?: string | null
+          color?: string | null
+          completed_amount?: number | null
+          completed_at?: string | null
+          container_type?: string | null
+          content_category?: string | null
+          content_id?: string | null
+          content_subject?: string | null
+          content_subject_category?: string | null
+          content_title?: string | null
+          content_type?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          custom_range_display?: string | null
+          custom_title?: string | null
+          cycle_day_number?: number | null
+          date_type?: string | null
+          day?: number | null
+          day_type?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          end_time?: string | null
+          estimated_minutes?: number | null
+          flexible_content_id?: string | null
+          icon?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          is_adhoc?: boolean | null
+          is_continued?: boolean | null
+          is_locked?: boolean | null
+          is_partial?: boolean | null
+          is_recurring?: boolean | null
+          is_reschedulable?: boolean | null
+          is_virtual?: boolean | null
+          memo?: string | null
+          order_index?: number | null
+          origin_plan_item_id?: string | null
+          original_volume?: number | null
+          pause_count?: number | null
+          paused_at?: string | null
+          paused_duration_seconds?: number | null
+          plan_date?: string | null
+          plan_group_id?: string | null
+          plan_number?: number | null
+          planned_end_page_or_time?: number | null
+          planned_start_page_or_time?: number | null
+          priority?: number | null
+          progress?: number | null
+          recurrence_parent_id?: string | null
+          recurrence_rule?: Json | null
+          review_group_id?: string | null
+          review_source_content_ids?: string[] | null
+          sequence?: number | null
+          simple_completed_at?: string | null
+          simple_completion?: boolean | null
+          slot_index?: number | null
+          start_time?: string | null
+          started_at?: string | null
+          status?: string | null
+          student_id?: string | null
+          subject_type?: string | null
+          tags?: string[] | null
+          tenant_id?: string | null
+          time_slot_type?: string | null
+          total_duration_seconds?: number | null
+          updated_at?: string | null
+          version?: number | null
+          version_group_id?: string | null
+          virtual_description?: string | null
+          virtual_subject_category?: string | null
+          week?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_student_plan_adhoc_source"
+            columns: ["adhoc_source_id"]
+            isOneToOne: false
+            referencedRelation: "ad_hoc_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_student_plan_recurrence_parent"
+            columns: ["recurrence_parent_id"]
+            isOneToOne: false
+            referencedRelation: "active_student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_student_plan_recurrence_parent"
+            columns: ["recurrence_parent_id"]
+            isOneToOne: false
+            referencedRelation: "deleted_student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_student_plan_recurrence_parent"
+            columns: ["recurrence_parent_id"]
+            isOneToOne: false
+            referencedRelation: "student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_student_plan_recurrence_parent"
+            columns: ["recurrence_parent_id"]
+            isOneToOne: false
+            referencedRelation: "student_plan_completion_status"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_student_plan_recurrence_parent"
+            columns: ["recurrence_parent_id"]
+            isOneToOne: false
+            referencedRelation: "today_plan_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_plan_flexible_content_id_fkey"
+            columns: ["flexible_content_id"]
+            isOneToOne: false
+            referencedRelation: "flexible_contents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_plan_origin_plan_item_id_fkey"
+            columns: ["origin_plan_item_id"]
+            isOneToOne: false
+            referencedRelation: "plan_group_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_plan_plan_group_id_fkey"
+            columns: ["plan_group_id"]
+            isOneToOne: false
+            referencedRelation: "plan_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_plan_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_plan_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       llm_cache_stats: {
         Row: {
@@ -7945,6 +8884,47 @@ export type Database = {
           updated_at: string | null
         }
         Relationships: []
+      }
+      student_plan_completion_status: {
+        Row: {
+          actual_end_time: string | null
+          id: string | null
+          is_completed: boolean | null
+          legacy_completed_amount: number | null
+          legacy_progress: number | null
+          plan_date: string | null
+          status: string | null
+          student_id: string | null
+        }
+        Insert: {
+          actual_end_time?: string | null
+          id?: string | null
+          is_completed?: never
+          legacy_completed_amount?: number | null
+          legacy_progress?: number | null
+          plan_date?: string | null
+          status?: string | null
+          student_id?: string | null
+        }
+        Update: {
+          actual_end_time?: string | null
+          id?: string | null
+          is_completed?: never
+          legacy_completed_amount?: number | null
+          legacy_progress?: number | null
+          plan_date?: string | null
+          status?: string | null
+          student_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_plan_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       today_plan_view: {
         Row: {
@@ -8119,6 +9099,17 @@ export type Database = {
         }
         Returns: Json
       }
+      delete_planner_cascade: {
+        Args: { p_planner_id: string; p_tenant_id?: string }
+        Returns: Database["public"]["CompositeTypes"]["delete_planner_result"]
+        SetofOptions: {
+          from: "*"
+          to: "delete_planner_result"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      expire_old_invitations: { Args: never; Returns: undefined }
       find_existing_members_batch: {
         Args: {
           p_member_ids: string[]
@@ -8230,7 +9221,16 @@ export type Database = {
         | "rolled_back"
     }
     CompositeTypes: {
-      [_ in never]: never
+      delete_planner_result: {
+        success: boolean | null
+        planner_id: string | null
+        deleted_plan_groups_count: number | null
+        deleted_student_plans_count: number | null
+        deleted_exclusions_count: number | null
+        deleted_academy_schedules_count: number | null
+        error: string | null
+        error_code: string | null
+      }
     }
   }
 }
@@ -8353,6 +9353,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       adjustment_type_enum: ["range", "replace", "full"],
@@ -8367,4 +9370,3 @@ export const Constants = {
     },
   },
 } as const
-

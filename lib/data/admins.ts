@@ -6,6 +6,7 @@ import {
 
 export type Admin = {
   id: string;
+  name: string;
   tenant_id?: string | null;
   role: "admin" | "consultant";
   created_at?: string | null;
@@ -24,7 +25,7 @@ export async function getAdminById(
     async () => {
       let query = supabase
         .from("admin_users")
-        .select("id,tenant_id,role,created_at")
+        .select("id,name,tenant_id,role,created_at")
         .eq("id", adminId);
 
       if (tenantId) {
@@ -60,7 +61,7 @@ export async function listAdminsByTenant(
     async () => {
       const queryResult = await supabase
         .from("admin_users")
-        .select("id,tenant_id,role,created_at")
+        .select("id,name,tenant_id,role,created_at")
         .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false });
 
