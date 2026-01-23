@@ -12,6 +12,7 @@ const PUBLIC_PATHS = [
   "/reset-password",
   "/auth/callback",
   "/signup/verify-email",
+  "/invite",  // 팀 초대 페이지 (비로그인 상태에서도 접근 가능)
 ];
 
 /**
