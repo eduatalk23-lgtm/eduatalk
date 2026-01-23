@@ -485,9 +485,26 @@ export const signUpAndAcceptInvitation = withErrorHandling(
       })
       .eq("id", invitation.id);
 
+    // 자동 로그인 (세션 설정)
+    const supabase = await createSupabaseServerClient();
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (signInError) {
+      // 로그인 실패해도 회원가입은 완료됨 - 로그인 페이지로 안내
+      console.warn("[signUpAndAcceptInvitation] 자동 로그인 실패:", signInError.message);
+      return {
+        success: true,
+        redirectTo: `/login?message=${encodeURIComponent("회원가입이 완료되었습니다. 로그인해주세요.")}`,
+      };
+    }
+
+    // 자동 로그인 성공 - 대시보드로 이동
     return {
       success: true,
-      redirectTo: `/login?message=${encodeURIComponent("회원가입이 완료되었습니다. 로그인해주세요.")}`,
+      redirectTo: "/admin/dashboard",
     };
   }
 );
