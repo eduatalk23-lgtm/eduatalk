@@ -710,6 +710,32 @@ export async function deleteMessage(
   if (error) throw error;
 }
 
+/** 학년 표시 변환 (예: HIGH + 2 → "고2") */
+function formatGradeDisplay(
+  schoolType: string | null,
+  grade: number | null
+): string | null {
+  if (!grade) return null;
+
+  const prefix: Record<string, string> = {
+    ELEMENTARY: "초",
+    MIDDLE: "중",
+    HIGH: "고",
+  };
+
+  const p = schoolType ? prefix[schoolType] : null;
+  return p ? `${p}${grade}` : `${grade}학년`;
+}
+
+/** 발신자 정보 타입 (학교/학년 포함) */
+type SenderInfo = {
+  id: string;
+  name: string;
+  profileImageUrl?: string | null;
+  schoolName?: string | null;
+  gradeDisplay?: string | null;
+};
+
 /**
  * 발신자 정보 배치 조회 (N+1 쿼리 최적화)
  * sender_id + sender_type 조합으로 한 번에 조회
@@ -717,7 +743,7 @@ export async function deleteMessage(
  */
 export async function findSendersByIds(
   senderKeys: Array<{ id: string; type: ChatUserType }>
-): Promise<Map<string, { id: string; name: string; profileImageUrl?: string | null }>> {
+): Promise<Map<string, SenderInfo>> {
   if (senderKeys.length === 0) return new Map();
 
   const supabase = await createSupabaseServerClient();
@@ -731,15 +757,15 @@ export async function findSendersByIds(
   const studentIds = uniqueKeys.filter((k) => k.type === "student").map((k) => k.id);
   const adminIds = uniqueKeys.filter((k) => k.type === "admin").map((k) => k.id);
 
-  const result = new Map<string, { id: string; name: string; profileImageUrl?: string | null }>();
+  const result = new Map<string, SenderInfo>();
 
   // 병렬로 학생 + 관리자 정보 조회 (students는 profiles와 JOIN)
   const [studentsResult, adminsResult] = await Promise.all([
-    // 학생 정보 + 프로필 이미지 (JOIN으로 한 번에 조회)
+    // 학생 정보 + 프로필 이미지 + 학교/학년 정보
     studentIds.length > 0
       ? supabase
           .from("students")
-          .select("id, name, student_profiles(profile_image_url)")
+          .select("id, name, grade, school_type, school_id, student_profiles(profile_image_url)")
           .in("id", studentIds)
       : Promise.resolve({ data: null, error: null }),
     // 관리자 정보
@@ -751,15 +777,44 @@ export async function findSendersByIds(
       : Promise.resolve({ data: null, error: null }),
   ]);
 
+  // 학교 정보 조회 (학생이 있는 경우에만)
+  let schoolsMap = new Map<string, string>();
+  if (studentsResult.data && studentsResult.data.length > 0) {
+    const schoolIds = [
+      ...new Set(
+        studentsResult.data
+          .map((s) => s.school_id)
+          .filter((id): id is string => !!id)
+      ),
+    ];
+
+    if (schoolIds.length > 0) {
+      const { data: schoolsData } = await supabase
+        .from("all_schools_view")
+        .select("id, name")
+        .in("id", schoolIds);
+
+      if (schoolsData) {
+        schoolsMap = new Map(schoolsData.map((s) => [s.id, s.name]));
+      }
+    }
+  }
+
   // 학생 결과 처리
   if (studentsResult.data) {
     for (const student of studentsResult.data) {
       const profileImageUrl = extractProfileImageUrl(student.student_profiles);
+      const schoolName = student.school_id
+        ? schoolsMap.get(student.school_id) ?? null
+        : null;
+      const gradeDisplay = formatGradeDisplay(student.school_type, student.grade);
 
       result.set(`${student.id}_student`, {
         id: student.id,
         name: student.name,
         profileImageUrl,
+        schoolName,
+        gradeDisplay,
       });
     }
   }

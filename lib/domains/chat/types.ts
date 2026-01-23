@@ -297,6 +297,10 @@ export interface ChatUser {
   type: ChatUserType;
   name: string;
   profileImageUrl?: string | null;
+  /** 학생인 경우 학교명 */
+  schoolName?: string | null;
+  /** 학생인 경우 학년 표시 (예: "고2") */
+  gradeDisplay?: string | null;
 }
 
 /** 답장 원본 메시지 정보 (UI용) */

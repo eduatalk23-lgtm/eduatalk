@@ -74,18 +74,19 @@ async function getUserInfo(
     // admin (admin_users 테이블에서 조회)
     const { data } = await supabase
       .from("admin_users")
-      .select("id")
+      .select("id, name, role")
       .eq("id", userId)
       .maybeSingle();
 
     if (!data) return null;
 
-    // auth.users에서 이름 가져오기
-    // 참고: admin 이름은 user_metadata에서 가져와야 할 수 있음
+    // 이름이 없는 경우 역할 기반 기본값 사용
+    const displayName = data.name || (data.role === "consultant" ? "상담사" : "관리자");
+
     return {
       id: data.id,
       type: "admin",
-      name: "관리자", // TODO: 실제 이름 조회 로직 추가
+      name: displayName,
       profileImageUrl: null,
     };
   }
@@ -273,6 +274,8 @@ export async function getRoomList(
             type: otherMember.user_type,
             name: senderInfo.name,
             profileImageUrl: senderInfo.profileImageUrl,
+            schoolName: senderInfo.schoolName,
+            gradeDisplay: senderInfo.gradeDisplay,
           };
         }
       }

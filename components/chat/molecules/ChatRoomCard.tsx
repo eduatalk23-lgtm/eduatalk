@@ -52,6 +52,14 @@ function ChatRoomCardComponent({
       ? room.otherUser?.name ?? "알 수 없음"
       : room.name ?? `그룹 (${room.memberCount}명)`;
 
+  // 학생 정보 (1:1 채팅에서 상대방이 학생인 경우)
+  const studentInfo =
+    room.type === "direct" && room.otherUser?.type === "student"
+      ? [room.otherUser.schoolName, room.otherUser.gradeDisplay]
+          .filter(Boolean)
+          .join(" · ")
+      : null;
+
   // 시간 포맷
   const timeDisplay = room.lastMessage
     ? formatDistanceToNow(new Date(room.lastMessage.createdAt), {
@@ -89,9 +97,16 @@ function ChatRoomCardComponent({
       {/* 정보 */}
       <div className="flex-1 min-w-0 flex flex-col gap-0.5">
         <div className="flex items-center justify-between gap-2">
-          <span className="font-medium text-text-primary truncate">
-            {displayName}
-          </span>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-medium text-text-primary truncate">
+              {displayName}
+            </span>
+            {studentInfo && (
+              <span className="text-xs text-text-tertiary flex-shrink-0">
+                {studentInfo}
+              </span>
+            )}
+          </div>
           {timeDisplay && (
             <span className="text-xs text-text-tertiary flex-shrink-0">
               {timeDisplay}
