@@ -237,7 +237,11 @@ export async function generatePlansForContent(
 
     // 플랜 생성
     const plans = [];
+    // 날짜별 sequence 추적
+    const dateSequenceMap = new Map<string, number>();
     for (const [date, range] of rangeMap) {
+      const currentSeq = (dateSequenceMap.get(date) ?? 0) + 1;
+      dateSequenceMap.set(date, currentSeq);
       plans.push({
         plan_group_id: timezoneId,
         student_id: ctx.studentId,
@@ -250,6 +254,7 @@ export async function generatePlansForContent(
         range_end: range.end,
         status: "pending" as const,
         plan_content_id: contentId,
+        sequence: currentSeq,
       });
     }
 
@@ -722,6 +727,7 @@ async function generateReviewPlansForContentInternal(
         plan_content_id: contentId,
         review_group_id: crypto.randomUUID(),
         review_source_content_ids: weekStudyPlans.map(() => contentId),
+        sequence: 1, // 복습은 별도 날짜에 생성
       });
     }
   }

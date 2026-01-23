@@ -323,4 +323,177 @@ describe("validateAndAdjust", () => {
       }
     });
   });
+
+  describe("Plan Quality Validation", () => {
+    describe("Duplicate Content Detection", () => {
+      it("should detect duplicate plans with same date, content, and range", () => {
+        const input = createMockValidatedInput();
+        const duplicatePlans = [
+          createMockScheduledPlan({
+            plan_date: "2025-03-03",
+            content_id: "bk_test_content",
+            planned_start_page_or_time: 1,
+            planned_end_page_or_time: 35,
+          }),
+          createMockScheduledPlan({
+            plan_date: "2025-03-03",
+            content_id: "bk_test_content",
+            planned_start_page_or_time: 1,
+            planned_end_page_or_time: 35,
+          }),
+        ];
+        const scheduleResult = createMockScheduleResult({ plans: duplicatePlans });
+
+        const result = validateAndAdjust(input, scheduleResult);
+
+        expect(result.success).toBe(true);
+        if (result.success) {
+          const duplicateWarnings = result.data.warnings.filter(
+            (w) => w.code === "DUPLICATE_CONTENT_SAME_DATE"
+          );
+          expect(duplicateWarnings.length).toBeGreaterThan(0);
+        }
+      });
+
+      it("should NOT flag split plans with different ranges as duplicates", () => {
+        const input = createMockValidatedInput();
+        // 같은 날짜, 같은 콘텐츠지만 다른 범위 = 분할된 플랜
+        const splitPlans = [
+          createMockScheduledPlan({
+            plan_date: "2025-03-03",
+            content_id: "bk_test_content",
+            planned_start_page_or_time: 1,
+            planned_end_page_or_time: 35,
+          }),
+          createMockScheduledPlan({
+            plan_date: "2025-03-03",
+            content_id: "bk_test_content",
+            planned_start_page_or_time: 36,
+            planned_end_page_or_time: 70,
+          }),
+        ];
+        const scheduleResult = createMockScheduleResult({ plans: splitPlans });
+
+        const result = validateAndAdjust(input, scheduleResult);
+
+        expect(result.success).toBe(true);
+        if (result.success) {
+          const duplicateWarnings = result.data.warnings.filter(
+            (w) => w.code === "DUPLICATE_CONTENT_SAME_DATE"
+          );
+          expect(duplicateWarnings).toHaveLength(0);
+        }
+      });
+    });
+
+    describe("Unnecessary Split Detection", () => {
+      it("should detect unnecessary splits when episode duration fits in slot", () => {
+        const contentDurations = new Map<string, number>([
+          ["lec_test_content", 30], // 30분 강의
+        ]);
+        const input = createMockValidatedInput();
+        // 같은 날짜에 2개로 분할됨 (60분 슬롯에 30분 강의)
+        const splitPlans = [
+          createMockScheduledPlan({
+            plan_date: "2025-03-03",
+            content_id: "lec_test_content",
+            content_type: "lecture",
+            planned_start_page_or_time: 1,
+            planned_end_page_or_time: 1,
+            start_time: "09:00",
+            end_time: "10:00", // 60분 슬롯
+          }),
+          createMockScheduledPlan({
+            plan_date: "2025-03-03",
+            content_id: "lec_test_content",
+            content_type: "lecture",
+            planned_start_page_or_time: 2,
+            planned_end_page_or_time: 2,
+            start_time: "10:00",
+            end_time: "11:00", // 60분 슬롯
+          }),
+        ];
+        const scheduleResult = createMockScheduleResult({ plans: splitPlans });
+
+        const result = validateAndAdjust(input, scheduleResult, { contentDurations });
+
+        expect(result.success).toBe(true);
+        if (result.success) {
+          const unnecessarySplitWarnings = result.data.warnings.filter(
+            (w) => w.code === "UNNECESSARY_SPLIT"
+          );
+          expect(unnecessarySplitWarnings.length).toBeGreaterThan(0);
+        }
+      });
+
+      it("should NOT flag splits when episode duration exceeds slot time", () => {
+        const contentDurations = new Map<string, number>([
+          ["lec_test_content", 90], // 90분 강의
+        ]);
+        const input = createMockValidatedInput();
+        // 90분 강의가 60분 슬롯에 안 맞으니 분할 필요
+        const splitPlans = [
+          createMockScheduledPlan({
+            plan_date: "2025-03-03",
+            content_id: "lec_test_content",
+            content_type: "lecture",
+            planned_start_page_or_time: 1,
+            planned_end_page_or_time: 1,
+            start_time: "09:00",
+            end_time: "10:00", // 60분 슬롯
+          }),
+          createMockScheduledPlan({
+            plan_date: "2025-03-03",
+            content_id: "lec_test_content",
+            content_type: "lecture",
+            planned_start_page_or_time: 2,
+            planned_end_page_or_time: 2,
+            start_time: "10:00",
+            end_time: "11:00", // 60분 슬롯
+          }),
+        ];
+        const scheduleResult = createMockScheduleResult({ plans: splitPlans });
+
+        const result = validateAndAdjust(input, scheduleResult, { contentDurations });
+
+        expect(result.success).toBe(true);
+        if (result.success) {
+          const unnecessarySplitWarnings = result.data.warnings.filter(
+            (w) => w.code === "UNNECESSARY_SPLIT"
+          );
+          expect(unnecessarySplitWarnings).toHaveLength(0);
+        }
+      });
+
+      it("should skip split validation when contentDurations is empty", () => {
+        const input = createMockValidatedInput();
+        const splitPlans = [
+          createMockScheduledPlan({
+            plan_date: "2025-03-03",
+            content_id: "lec_test_content",
+            start_time: "09:00",
+            end_time: "10:00",
+          }),
+          createMockScheduledPlan({
+            plan_date: "2025-03-03",
+            content_id: "lec_test_content",
+            start_time: "10:00",
+            end_time: "11:00",
+          }),
+        ];
+        const scheduleResult = createMockScheduleResult({ plans: splitPlans });
+
+        // 빈 Map을 전달하여 테스트
+        const result = validateAndAdjust(input, scheduleResult, { contentDurations: new Map() });
+
+        expect(result.success).toBe(true);
+        if (result.success) {
+          const unnecessarySplitWarnings = result.data.warnings.filter(
+            (w) => w.code === "UNNECESSARY_SPLIT"
+          );
+          expect(unnecessarySplitWarnings).toHaveLength(0);
+        }
+      });
+    });
+  });
 });

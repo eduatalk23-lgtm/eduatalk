@@ -284,7 +284,7 @@ export const PlanItemCard = memo(function PlanItemCard({
     return (
     <>
       {/* 외부 래퍼: 선택 모드일 때 체크박스를 카드 외부에 배치 */}
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-2 min-w-0">
         {/* 선택 모드 체크박스 (카드 외부) */}
         {selectable && (
           <input
@@ -529,7 +529,7 @@ export const PlanItemCard = memo(function PlanItemCard({
   return (
   <>
     {/* 외부 래퍼: 선택 모드일 때 체크박스를 카드 외부에 배치 */}
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 min-w-0">
       {/* 선택 모드 체크박스 (카드 외부) */}
       {selectable && (
         <input

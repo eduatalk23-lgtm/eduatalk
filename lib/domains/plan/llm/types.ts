@@ -46,6 +46,8 @@ export interface ContentInfo {
   totalPages?: number;
   totalLectures?: number;
   estimatedHoursTotal?: number;
+  /** 평균 에피소드 시간 (분) - 강의 콘텐츠용. estimatedHoursTotal / totalLectures로 계산 */
+  averageEpisodeDurationMinutes?: number;
   difficulty?: "easy" | "medium" | "hard";
   priority?: "high" | "medium" | "low";
 }

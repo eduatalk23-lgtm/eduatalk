@@ -428,6 +428,7 @@ export function validateContentDuplicates(
 
   plans.forEach((plan, index) => {
     if (plan.isReview) return; // 복습은 중복 허용
+    if (plan.isPartialContent) return; // 분할된 콘텐츠는 중복 아님
 
     const key = `${plan.date}:${plan.contentId}`;
     const existing = seen.get(key) || [];
@@ -437,7 +438,7 @@ export function validateContentDuplicates(
 
   seen.forEach((indices, key) => {
     if (indices.length > 1) {
-      const [date, contentId] = key.split(":");
+      const [date] = key.split(":");
       const plan = plans[indices[0]];
       issues.push({
         type: "content_duplicate",

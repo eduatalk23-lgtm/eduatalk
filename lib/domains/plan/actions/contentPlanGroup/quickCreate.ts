@@ -410,6 +410,7 @@ export async function quickCreateFromContent(
         container_type: "daily",
         subject_type: input.schedule.studyType,
         is_active: true,
+        sequence: 1, // 날짜별 첫 번째 플랜
       };
     });
 
@@ -499,6 +500,7 @@ export async function quickCreateFromContent(
             container_type: "daily",
             subject_type: "review",
             is_active: true,
+            sequence: 1, // 복습은 별도 날짜에 생성
           };
         })
         .filter((p): p is NonNullable<typeof p> => p !== null);

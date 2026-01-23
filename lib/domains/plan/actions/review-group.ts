@@ -339,6 +339,7 @@ export async function regenerateReviewForWeek(
       plan_content_id: contentId,
       review_group_id: reviewGroupId,
       review_source_content_ids: weekPlans.map((p) => p.id),
+      sequence: 1, // 복습은 별도 날짜에 생성
     });
 
     if (insertError) throw insertError;

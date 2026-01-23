@@ -121,6 +121,18 @@ export async function runUnifiedPlanGenerationPipeline(
 
   context.contentResolution = contentResult.data;
 
+  // 콘텐츠별 에피소드 시간 맵 빌드 (Stage 5 검증용)
+  // PipelineContext에 별도 필드로 저장 (input 불변성 유지)
+  const contentDurations = new Map<string, number>();
+  for (const item of context.contentResolution.items) {
+    if (item.averageEpisodeDurationMinutes) {
+      contentDurations.set(item.id, item.averageEpisodeDurationMinutes);
+    }
+  }
+  if (contentDurations.size > 0) {
+    context.contentDurations = contentDurations;
+  }
+
   // ────────────────────────────────────────────────────────────────────
   // Stage 3: 스케줄러 컨텍스트 빌딩
   // ────────────────────────────────────────────────────────────────────
@@ -161,7 +173,8 @@ export async function runUnifiedPlanGenerationPipeline(
   // ────────────────────────────────────────────────────────────────────
   const adjustmentResult = validateAndAdjust(
     context.input,
-    context.scheduleGeneration
+    context.scheduleGeneration,
+    { contentDurations: context.contentDurations }
   );
 
   if (!adjustmentResult.success) {

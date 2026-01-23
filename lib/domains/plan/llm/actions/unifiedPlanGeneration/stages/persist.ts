@@ -25,6 +25,46 @@ import type {
   ResolvedContentItem,
 } from "../types";
 
+// ============================================================================
+// Exported Utilities
+// ============================================================================
+
+/**
+ * 플랜 배열에 날짜별 sequence를 할당합니다.
+ *
+ * 같은 날짜 내에서 1부터 순차 증가하며, 다른 날짜는 1로 리셋됩니다.
+ * 원본 배열의 순서를 유지하면서 sequence 필드를 추가합니다.
+ *
+ * @param plans - plan_date 필드를 가진 플랜 배열
+ * @returns sequence 필드가 추가된 플랜 배열
+ *
+ * @example
+ * const plans = [
+ *   { plan_date: "2025-03-03", content_id: "a" },
+ *   { plan_date: "2025-03-03", content_id: "b" },
+ *   { plan_date: "2025-03-04", content_id: "c" },
+ * ];
+ * const result = assignSequencesToPlans(plans);
+ * // result[0].sequence = 1 (03-03 첫 번째)
+ * // result[1].sequence = 2 (03-03 두 번째)
+ * // result[2].sequence = 1 (03-04 첫 번째, 리셋)
+ */
+export function assignSequencesToPlans<T extends { plan_date: string }>(
+  plans: T[]
+): Array<T & { sequence: number }> {
+  const dateSequenceMap = new Map<string, number>();
+
+  return plans.map((plan) => {
+    const currentSeq = (dateSequenceMap.get(plan.plan_date) ?? 0) + 1;
+    dateSequenceMap.set(plan.plan_date, currentSeq);
+    return { ...plan, sequence: currentSeq };
+  });
+}
+
+// ============================================================================
+// Internal Helpers
+// ============================================================================
+
 // 로깅 컨텍스트 생성 헬퍼
 function createPersistContext(
   tenantId?: string,
@@ -151,28 +191,38 @@ async function createStudentPlans(
   studentId: string,
   ctx: ActionContext
 ): Promise<number> {
-  const planRecords = plans.map((plan) => ({
-    id: crypto.randomUUID(),
-    tenant_id: tenantId,
-    student_id: studentId,
-    plan_group_id: planGroupId,
-    plan_date: plan.plan_date,
-    block_index: plan.block_index,
-    content_type: plan.content_type,
-    content_id: plan.content_id,
-    planned_start_page_or_time: plan.planned_start_page_or_time,
-    planned_end_page_or_time: plan.planned_end_page_or_time,
-    start_time: plan.start_time ?? null,
-    end_time: plan.end_time ?? null,
-    is_reschedulable: plan.is_reschedulable,
-    status: "pending",
-    cycle_day_number: plan.cycle_day_number ?? null,
-    date_type: plan.date_type ?? null,
-    // Unified 파이프라인은 항상 실제 콘텐츠 기반 (Virtual Content 미지원)
-    is_virtual: false,
-  }));
+  // 날짜별로 sequence 할당 (같은 날짜 내에서 1부터 순차 증가)
+  const dateSequenceMap = new Map<string, number>();
 
-  const { error } = await supabase.from("student_plans").insert(planRecords);
+  const planRecords = plans.map((plan) => {
+    const currentSeq = (dateSequenceMap.get(plan.plan_date) ?? 0) + 1;
+    dateSequenceMap.set(plan.plan_date, currentSeq);
+
+    return {
+      id: crypto.randomUUID(),
+      tenant_id: tenantId,
+      student_id: studentId,
+      plan_group_id: planGroupId,
+      plan_date: plan.plan_date,
+      block_index: plan.block_index,
+      content_type: plan.content_type,
+      content_id: plan.content_id,
+      planned_start_page_or_time: plan.planned_start_page_or_time,
+      planned_end_page_or_time: plan.planned_end_page_or_time,
+      start_time: plan.start_time ?? null,
+      end_time: plan.end_time ?? null,
+      is_reschedulable: plan.is_reschedulable,
+      status: "pending",
+      cycle_day_number: plan.cycle_day_number ?? null,
+      date_type: plan.date_type ?? null,
+      // Unified 파이프라인은 항상 실제 콘텐츠 기반 (Virtual Content 미지원)
+      is_virtual: false,
+      // 날짜별 sequence 할당 (정렬 순서 유지용)
+      sequence: currentSeq,
+    };
+  });
+
+  const { error } = await supabase.from("student_plan").insert(planRecords);
 
   if (error) {
     logActionError(ctx, error, {

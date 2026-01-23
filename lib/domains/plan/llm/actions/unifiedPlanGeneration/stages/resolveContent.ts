@@ -22,6 +22,20 @@ function mapRecommendationToResolvedContent(
   subjectCategory: string,
   subject?: string
 ): ResolvedContentItem {
+  // 강의의 경우 평균 에피소드 시간 계산
+  // 1. averageEpisodeDuration이 있으면 사용 (양수인 경우만)
+  // 2. 없으면 estimatedHours / totalRange로 계산
+  // 3. 최소 1분 보장 (0분 에피소드 방지)
+  let averageEpisodeDurationMinutes: number | undefined;
+  if (rec.contentType === "lecture") {
+    if (rec.averageEpisodeDuration && rec.averageEpisodeDuration > 0) {
+      averageEpisodeDurationMinutes = rec.averageEpisodeDuration;
+    } else if (rec.estimatedHours && rec.estimatedHours > 0 && rec.totalRange > 0) {
+      const calculated = Math.round((rec.estimatedHours * 60) / rec.totalRange);
+      averageEpisodeDurationMinutes = Math.max(1, calculated);
+    }
+  }
+
   return {
     id: generateContentId(rec.title, rec.contentType),
     title: rec.title,
@@ -41,6 +55,7 @@ function mapRecommendationToResolvedContent(
     source: "ai_recommendation",
     matchScore: rec.matchScore,
     reason: rec.reason,
+    averageEpisodeDurationMinutes,
   };
 }
 

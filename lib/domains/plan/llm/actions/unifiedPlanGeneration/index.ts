@@ -82,8 +82,11 @@ export { validateInput } from "./stages/validateInput";
 export { resolveContent } from "./stages/resolveContent";
 export { buildSchedulerContext } from "./stages/buildSchedulerContext";
 export { generateSchedule } from "./stages/generateSchedule";
-export { validateAndAdjust } from "./stages/validateAndAdjust";
-export { persist } from "./stages/persist";
+export {
+  validateAndAdjust,
+  type ValidateAndAdjustOptions,
+} from "./stages/validateAndAdjust";
+export { persist, assignSequencesToPlans } from "./stages/persist";
 export { exportMarkdown } from "./stages/exportMarkdown";
 
 // Utilities

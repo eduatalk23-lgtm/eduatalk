@@ -198,6 +198,8 @@ export interface ResolvedContentItem {
   source: "ai_recommendation" | "db_cache";
   matchScore?: number;
   reason?: string;
+  /** 평균 에피소드 시간 (분) - 강의 콘텐츠용 */
+  averageEpisodeDurationMinutes?: number;
 }
 
 /**
@@ -458,6 +460,8 @@ export type StageResult<T> =
 export interface PipelineContext {
   input: ValidatedPlanInput;
   contentResolution?: ContentResolutionResult;
+  /** 콘텐츠별 에피소드 시간 맵 (Stage 5 검증용) */
+  contentDurations?: Map<string, number>;
   schedulerContext?: SchedulerContextResult;
   scheduleGeneration?: ScheduleGenerationResult;
   validation?: ValidationResult;

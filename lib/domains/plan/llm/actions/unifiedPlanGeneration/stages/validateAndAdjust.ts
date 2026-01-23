@@ -96,15 +96,127 @@ function validateBusinessRules(
 }
 
 /**
+ * 플랜 품질 검증을 수행합니다.
+ * - 중복 콘텐츠 검증 (같은 날짜에 동일 콘텐츠가 동일 범위로 배치)
+ * - 불필요한 분할 여부 (슬롯 시간이 충분한데 분할된 경우)
+ */
+function validatePlanQuality(
+  plans: ScheduledPlan[],
+  contentDurations?: Map<string, number>
+): ValidationWarning[] {
+  const warnings: ValidationWarning[] = [];
+
+  // 그룹핑용 Map (한 번 순회로 두 가지 검증에 사용)
+  // Key에 "|"를 구분자로 사용 (content_id에 ":"가 포함될 수 있음)
+  const dateContentRangeMap = new Map<string, ScheduledPlan[]>();
+  const dateContentMap = new Map<string, ScheduledPlan[]>();
+
+  for (const plan of plans) {
+    // 중복 검증용 키: 날짜|콘텐츠|범위
+    const rangeKey = `${plan.plan_date}|${plan.content_id}|${plan.planned_start_page_or_time}-${plan.planned_end_page_or_time}`;
+    const rangeGroup = dateContentRangeMap.get(rangeKey) || [];
+    rangeGroup.push(plan);
+    dateContentRangeMap.set(rangeKey, rangeGroup);
+
+    // 분할 검증용 키: 날짜|콘텐츠
+    const contentKey = `${plan.plan_date}|${plan.content_id}`;
+    const contentGroup = dateContentMap.get(contentKey) || [];
+    contentGroup.push(plan);
+    dateContentMap.set(contentKey, contentGroup);
+  }
+
+  // 1. 동일 날짜+콘텐츠+범위 중복 검증
+  // 같은 날짜에 같은 콘텐츠가 같은 범위로 배치되면 진짜 중복
+  // 다른 범위면 의도적 분할 (partial)로 판단
+  for (const duplicatePlans of dateContentRangeMap.values()) {
+    if (duplicatePlans.length > 1) {
+      // 원본 플랜에서 직접 추출 (key 파싱 불필요)
+      const firstPlan = duplicatePlans[0];
+      const date = firstPlan.plan_date;
+      const contentId = firstPlan.content_id;
+      const range = `${firstPlan.planned_start_page_or_time}-${firstPlan.planned_end_page_or_time}`;
+      warnings.push({
+        code: "DUPLICATE_CONTENT_SAME_DATE",
+        message: `${date}에 동일 콘텐츠(${contentId})가 같은 범위(${range})로 ${duplicatePlans.length}번 배치되었습니다.`,
+        severity: "warning",
+        context: { date, contentId, range, count: duplicatePlans.length },
+      });
+    }
+  }
+
+  // 2. 불필요한 분할 검증 (에피소드 시간이 슬롯 시간보다 작은데 분할된 경우)
+  // 같은 날짜+콘텐츠에 여러 범위가 있으면 분할된 것으로 간주
+  if (contentDurations && contentDurations.size > 0) {
+    for (const sameDatePlans of dateContentMap.values()) {
+      // 같은 날짜에 같은 콘텐츠가 2개 이상이면 분할된 것
+      if (sameDatePlans.length < 2) continue;
+
+      // 원본 플랜에서 직접 추출
+      const firstPlan = sameDatePlans[0];
+      const contentId = firstPlan.content_id;
+      const planDate = firstPlan.plan_date;
+
+      const episodeDuration = contentDurations.get(contentId);
+      if (!episodeDuration) continue;
+
+      // 각 플랜의 슬롯 시간 확인
+      for (const plan of sameDatePlans) {
+        if (plan.start_time && plan.end_time) {
+          const slotMinutes = calculateSlotMinutes(plan.start_time, plan.end_time);
+
+          // 에피소드 시간이 슬롯 시간보다 작거나 같은데 분할된 경우
+          if (episodeDuration <= slotMinutes) {
+            warnings.push({
+              code: "UNNECESSARY_SPLIT",
+              message: `콘텐츠(${contentId})가 불필요하게 분할되었습니다. 에피소드 시간(${episodeDuration}분) ≤ 슬롯 시간(${slotMinutes}분)`,
+              severity: "info",
+              context: {
+                contentId,
+                episodeDuration,
+                slotMinutes,
+                planDate,
+                splitCount: sameDatePlans.length,
+              },
+            });
+            break; // 한 번만 경고
+          }
+        }
+      }
+    }
+  }
+
+  return warnings;
+}
+
+/**
+ * 슬롯 시간을 분 단위로 계산합니다.
+ */
+function calculateSlotMinutes(startTime: string, endTime: string): number {
+  const [startHour, startMin] = startTime.split(":").map(Number);
+  const [endHour, endMin] = endTime.split(":").map(Number);
+  return (endHour * 60 + endMin) - (startHour * 60 + startMin);
+}
+
+/**
+ * Stage 5 검증 옵션
+ */
+export interface ValidateAndAdjustOptions {
+  /** 콘텐츠별 에피소드 시간 맵 (불필요 분할 검증용) */
+  contentDurations?: Map<string, number>;
+}
+
+/**
  * Stage 5: 검증 및 조정
  *
  * @param input - 검증된 입력 데이터
  * @param scheduleResult - 스케줄 생성 결과
+ * @param options - 검증 옵션 (contentDurations 등)
  * @returns 검증 결과 또는 에러
  */
 export function validateAndAdjust(
   input: ValidatedPlanInput,
-  scheduleResult: ScheduleGenerationResult
+  scheduleResult: ScheduleGenerationResult,
+  options?: ValidateAndAdjustOptions
 ): StageResult<ValidationResult> {
   let plans = [...scheduleResult.plans];
   const warnings: ValidationWarning[] = [];
@@ -154,6 +266,10 @@ export function validateAndAdjust(
   // 2. 비즈니스 규칙 검증
   const businessWarnings = validateBusinessRules(plans, input);
   warnings.push(...businessWarnings);
+
+  // 3. 플랜 품질 검증 (중복, 불필요 분할)
+  const qualityWarnings = validatePlanQuality(plans, options?.contentDurations);
+  warnings.push(...qualityWarnings);
 
   // 3. 스케줄 생성 중 발생한 실패 원인을 경고로 변환
   for (const failure of scheduleResult.failureReasons) {

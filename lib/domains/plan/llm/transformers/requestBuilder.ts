@@ -142,17 +142,34 @@ export function transformScores(
  * 콘텐츠 정보 변환
  */
 export function transformContents(dbContents: DBContent[]): ContentInfo[] {
-  return dbContents.map((c) => ({
-    id: c.id,
-    title: c.title || "제목 없음",
-    subject: c.subject || "기타",
-    subjectCategory: c.subject_category || undefined,
-    contentType: (c.content_type as ContentInfo["contentType"]) || "custom",
-    totalPages: c.total_pages || undefined,
-    totalLectures: c.total_lectures || undefined,
-    estimatedHoursTotal: c.estimated_hours || undefined,
-    difficulty: (c.difficulty as ContentInfo["difficulty"]) || undefined,
-  }));
+  return dbContents.map((c) => {
+    // 강의 콘텐츠의 경우 평균 에피소드 시간 계산
+    let averageEpisodeDurationMinutes: number | undefined;
+    if (
+      c.content_type === "lecture" &&
+      c.estimated_hours &&
+      c.total_lectures &&
+      c.total_lectures > 0
+    ) {
+      // estimated_hours를 분으로 변환 후 강의 수로 나눔
+      averageEpisodeDurationMinutes = Math.round(
+        (c.estimated_hours * 60) / c.total_lectures
+      );
+    }
+
+    return {
+      id: c.id,
+      title: c.title || "제목 없음",
+      subject: c.subject || "기타",
+      subjectCategory: c.subject_category || undefined,
+      contentType: (c.content_type as ContentInfo["contentType"]) || "custom",
+      totalPages: c.total_pages || undefined,
+      totalLectures: c.total_lectures || undefined,
+      estimatedHoursTotal: c.estimated_hours || undefined,
+      averageEpisodeDurationMinutes,
+      difficulty: (c.difficulty as ContentInfo["difficulty"]) || undefined,
+    };
+  });
 }
 
 /**
