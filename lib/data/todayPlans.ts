@@ -419,6 +419,7 @@ async function getPlansFromView(options: {
       recurrence_parent_id: null,
       recurrence_rule: null,
       time_slot_type: null,
+      deleted_at: null,
     };
   });
 

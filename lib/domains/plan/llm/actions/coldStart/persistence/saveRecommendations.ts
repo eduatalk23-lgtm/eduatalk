@@ -134,9 +134,24 @@ export async function saveRecommendationsToMasterContent(
       .select("id, title");
 
     if (error) {
-      // 배치 실패 시 개별 에러 기록
+      // 배치 실패 시 개별 INSERT로 폴백
       for (const book of newBooks) {
-        errors.push({ title: book.title, error: error.message });
+        const { data: singleData, error: singleError } = await supabase
+          .from("master_books")
+          .insert(mapToBookInsert(book, options))
+          .select("id, title")
+          .single();
+
+        if (singleError) {
+          errors.push({ title: book.title, error: singleError.message });
+        } else if (singleData) {
+          savedItems.push({
+            id: singleData.id,
+            title: singleData.title,
+            contentType: "book",
+            isNew: true,
+          });
+        }
       }
     } else if (data) {
       for (const row of data) {
@@ -160,8 +175,24 @@ export async function saveRecommendationsToMasterContent(
       .select("id, title");
 
     if (error) {
+      // 배치 실패 시 개별 INSERT로 폴백
       for (const lecture of newLectures) {
-        errors.push({ title: lecture.title, error: error.message });
+        const { data: singleData, error: singleError } = await supabase
+          .from("master_lectures")
+          .insert(mapToLectureInsert(lecture, options))
+          .select("id, title")
+          .single();
+
+        if (singleError) {
+          errors.push({ title: lecture.title, error: singleError.message });
+        } else if (singleData) {
+          savedItems.push({
+            id: singleData.id,
+            title: singleData.title,
+            contentType: "lecture",
+            isNew: true,
+          });
+        }
       }
     } else if (data) {
       for (const row of data) {

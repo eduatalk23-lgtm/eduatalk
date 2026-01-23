@@ -96,7 +96,6 @@ export async function runColdStartBatch(
   const errors: BatchError[] = [];
   let successCount = 0;
   let failureCount = 0;
-  const skippedCount = 0;
   let totalNewlySaved = 0;
   let totalDuplicatesSkipped = 0;
   let usedFallbackCount = 0;
@@ -345,7 +344,7 @@ export async function runColdStartBatch(
       percentComplete: Math.round((completedCount / total) * 100),
       successCount,
       failureCount,
-      skippedCount,
+      skippedCount: 0,
     };
     onProgress?.(progress);
 

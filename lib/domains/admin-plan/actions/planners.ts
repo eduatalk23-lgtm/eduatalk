@@ -571,17 +571,38 @@ async function _updatePlanner(
 export const updatePlannerAction = withErrorHandling(_updatePlanner);
 
 /**
- * 플래너 삭제 (소프트 삭제)
+ * 플래너 삭제 결과 타입
  */
-async function _deletePlanner(plannerId: string): Promise<void> {
-  await checkAdminOrConsultant();
+export interface DeletePlannerResult {
+  plannerId: string;
+  deletedPlanGroupsCount: number;
+  deletedStudentPlansCount: number;
+  deletedExclusionsCount: number;
+  deletedAcademySchedulesCount: number;
+}
+
+/**
+ * 플래너 삭제 (Cascade 소프트 삭제) - 트랜잭션 보장
+ *
+ * PostgreSQL RPC 함수를 통해 원자적으로 처리됩니다.
+ * 부분 실패 시 자동 롤백됩니다.
+ *
+ * 삭제 순서:
+ * 1. student_plan (소프트 삭제) - plan_group_id로 연결된 플랜들
+ * 2. plan_groups (소프트 삭제) - planner_id로 연결된 그룹들
+ * 3. planner_exclusions (하드 삭제) - 설정 데이터
+ * 4. planner_academy_schedules (하드 삭제) - 설정 데이터
+ * 5. planners (소프트 삭제)
+ */
+async function _deletePlanner(plannerId: string): Promise<DeletePlannerResult> {
+  const { tenantId } = await checkAdminOrConsultant();
   const supabase = await createSupabaseServerClient();
 
-  const { error } = await supabase
-    .from("planners")
-    .update({ deleted_at: new Date().toISOString() })
-    .eq("id", plannerId)
-    .is("deleted_at", null);
+  // RPC 함수를 통한 원자적 삭제
+  const { data, error } = await supabase.rpc("delete_planner_cascade", {
+    p_planner_id: plannerId,
+    p_tenant_id: tenantId,
+  });
 
   if (error) {
     throw new AppError(
@@ -591,6 +612,45 @@ async function _deletePlanner(plannerId: string): Promise<void> {
       true
     );
   }
+
+  // RPC 함수 결과 파싱
+  const result = data as {
+    success: boolean;
+    planner_id: string;
+    deleted_plan_groups_count: number;
+    deleted_student_plans_count: number;
+    deleted_exclusions_count: number;
+    deleted_academy_schedules_count: number;
+    error?: string;
+    error_code?: string;
+  };
+
+  if (!result.success) {
+    // NOT_FOUND 에러 처리
+    if (result.error_code === "NOT_FOUND") {
+      throw new AppError(
+        result.error || "플래너를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    throw new AppError(
+      result.error || "플래너 삭제 중 오류가 발생했습니다.",
+      ErrorCode.DATABASE_ERROR,
+      500,
+      true
+    );
+  }
+
+  return {
+    plannerId: result.planner_id,
+    deletedPlanGroupsCount: result.deleted_plan_groups_count,
+    deletedStudentPlansCount: result.deleted_student_plans_count,
+    deletedExclusionsCount: result.deleted_exclusions_count,
+    deletedAcademySchedulesCount: result.deleted_academy_schedules_count,
+  };
 }
 
 export const deletePlannerAction = withErrorHandling(_deletePlanner);

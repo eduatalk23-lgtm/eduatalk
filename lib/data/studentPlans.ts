@@ -236,8 +236,9 @@ export async function getPlansForStudent(
   const buildFallbackQuery = () => {
     let fallbackQuery = supabase
       .from("student_plan")
-      .select("id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,memo,created_at,updated_at,is_active,origin_plan_item_id,status,subject_type,version,version_group_id,is_virtual,slot_index,virtual_subject_category,virtual_description,container_type,is_locked,estimated_minutes,order_index,flexible_content_id,original_volume,carryover_from_date,carryover_count,custom_title,custom_range_display,review_group_id,review_source_content_ids,simple_completion,simple_completed_at,is_adhoc,description,color,icon,tags,priority,started_at,completed_at,actual_minutes,paused_at,adhoc_source_id,created_by,cycle_day_number,date_type,is_recurring,recurrence_parent_id,recurrence_rule,time_slot_type")
-      .eq("student_id", filters.studentId);
+      .select("id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,memo,created_at,updated_at,is_active,origin_plan_item_id,status,subject_type,version,version_group_id,is_virtual,slot_index,virtual_subject_category,virtual_description,container_type,is_locked,estimated_minutes,order_index,flexible_content_id,original_volume,carryover_from_date,carryover_count,custom_title,custom_range_display,review_group_id,review_source_content_ids,simple_completion,simple_completed_at,is_adhoc,description,color,icon,tags,priority,started_at,completed_at,actual_minutes,paused_at,adhoc_source_id,created_by,cycle_day_number,date_type,is_recurring,recurrence_parent_id,recurrence_rule,time_slot_type,deleted_at")
+      .eq("student_id", filters.studentId)
+      .is("deleted_at", null);
 
     if (filters.tenantId) {
       fallbackQuery = fallbackQuery.eq("tenant_id", filters.tenantId);
@@ -365,10 +366,11 @@ export async function getPlanById(
     supabase
       .from("student_plan")
       .select(
-        "id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,memo,created_at,updated_at,is_active,origin_plan_item_id,status,subject_type,version,version_group_id,is_virtual,slot_index,virtual_subject_category,virtual_description,container_type,is_locked,estimated_minutes,order_index,flexible_content_id,original_volume,carryover_from_date,carryover_count,custom_title,custom_range_display,review_group_id,review_source_content_ids,simple_completion,simple_completed_at,is_adhoc,description,color,icon,tags,priority,started_at,completed_at,actual_minutes,paused_at,adhoc_source_id,created_by,cycle_day_number,date_type,is_recurring,recurrence_parent_id,recurrence_rule,time_slot_type"
+        "id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,memo,created_at,updated_at,is_active,origin_plan_item_id,status,subject_type,version,version_group_id,is_virtual,slot_index,virtual_subject_category,virtual_description,container_type,is_locked,estimated_minutes,order_index,flexible_content_id,original_volume,carryover_from_date,carryover_count,custom_title,custom_range_display,review_group_id,review_source_content_ids,simple_completion,simple_completed_at,is_adhoc,description,color,icon,tags,priority,started_at,completed_at,actual_minutes,paused_at,adhoc_source_id,created_by,cycle_day_number,date_type,is_recurring,recurrence_parent_id,recurrence_rule,time_slot_type,deleted_at"
       )
       .eq("id", planId)
-      .eq("student_id", studentId);
+      .eq("student_id", studentId)
+      .is("deleted_at", null);
 
   let query = selectPlan();
   if (tenantId) {
@@ -882,6 +884,7 @@ export async function getAdHocPlansForCalendar(
     )
     .eq("student_id", studentId)
     .eq("is_adhoc", true)
+    .is("deleted_at", null)
     .gte("plan_date", dateRange.start)
     .lte("plan_date", dateRange.end)
     .order("plan_date", { ascending: true });

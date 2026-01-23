@@ -318,7 +318,8 @@ export async function findStudentPlans(
     .select(
       "id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,memo,subject_type,status,created_at,updated_at"
     )
-    .eq("student_id", filters.studentId);
+    .eq("student_id", filters.studentId)
+    .is("deleted_at", null);
 
   // Tenant 필터
   if (filters.tenantId) {
@@ -403,7 +404,8 @@ export async function countStudentPlans(
   let query = supabase
     .from("student_plan")
     .select("id", { count: "exact", head: true })
-    .eq("student_id", filters.studentId);
+    .eq("student_id", filters.studentId)
+    .is("deleted_at", null);
 
   if (filters.tenantId) {
     query = query.eq("tenant_id", filters.tenantId);
@@ -467,7 +469,8 @@ export async function getStudentPlanStats(
   let query = supabase
     .from("student_plan")
     .select("status, progress")
-    .eq("student_id", studentId);
+    .eq("student_id", studentId)
+    .is("deleted_at", null);
 
   if (dateRange) {
     const startStr = dateRange.start.slice(0, 10);
@@ -513,6 +516,7 @@ export async function findStudentPlanById(
     .select("*")
     .eq("id", planId)
     .eq("student_id", studentId)
+    .is("deleted_at", null)
     .maybeSingle();
 
   if (error) throw error;
