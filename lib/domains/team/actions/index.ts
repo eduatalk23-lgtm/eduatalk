@@ -3,6 +3,7 @@ export {
   cancelInvitation,
   resendInvitation,
   acceptInvitation,
+  signUpAndAcceptInvitation,
   getInvitationByToken,
 } from "./invitations";
 

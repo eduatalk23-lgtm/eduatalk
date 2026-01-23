@@ -20,6 +20,8 @@ import type {
   CreateInvitationResult,
   AcceptInvitationInput,
   AcceptInvitationResult,
+  SignUpAndAcceptInput,
+  SignUpAndAcceptResult,
   InvitationRole,
 } from "../types";
 
@@ -329,6 +331,164 @@ export const resendInvitation = withErrorHandling(
     }
 
     return { success: true };
+  }
+);
+
+/**
+ * 회원가입과 동시에 초대 수락
+ * - 새 계정 생성
+ * - admin_users에 역할 부여
+ * - 초대 상태 업데이트
+ */
+export const signUpAndAcceptInvitation = withErrorHandling(
+  async (input: SignUpAndAcceptInput): Promise<SignUpAndAcceptResult> => {
+    const { token, email, password, name } = input;
+
+    // 입력 검증
+    if (!token || !email || !password || !name) {
+      throw new AppError(
+        "모든 필드를 입력해주세요.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
+    if (password.length < 6) {
+      throw new AppError(
+        "비밀번호는 6자 이상이어야 합니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
+    // UUID 형식 검증
+    if (!isValidUUID(token)) {
+      throw new AppError(
+        "유효하지 않은 초대 토큰입니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
+    const adminClient = createSupabaseAdminClient();
+    if (!adminClient) {
+      throw new AppError(
+        "서버 오류가 발생했습니다.",
+        ErrorCode.INTERNAL_ERROR,
+        500,
+        true
+      );
+    }
+
+    // 초대 정보 조회
+    const { data: invitation, error: fetchError } = await adminClient
+      .from("team_invitations")
+      .select("*")
+      .eq("token", token)
+      .eq("status", "pending")
+      .single();
+
+    if (fetchError || !invitation) {
+      throw new AppError(
+        "유효하지 않거나 만료된 초대입니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    // 만료 확인
+    if (new Date(invitation.expires_at) < new Date()) {
+      await adminClient
+        .from("team_invitations")
+        .update({ status: "expired" })
+        .eq("id", invitation.id);
+
+      throw new AppError(
+        "초대가 만료되었습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
+    // 이메일 일치 확인
+    if (email.toLowerCase() !== invitation.email.toLowerCase()) {
+      throw new AppError(
+        "초대받은 이메일 주소와 일치하지 않습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
+    // Supabase Auth로 회원가입
+    const { data: authData, error: signUpError } = await adminClient.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true, // 이메일 인증 건너뛰기 (초대를 통한 가입이므로)
+      user_metadata: {
+        display_name: name,
+        name: name,
+      },
+    });
+
+    if (signUpError || !authData.user) {
+      // 이미 존재하는 이메일인 경우
+      if (signUpError?.message?.includes("already") || signUpError?.message?.includes("exists")) {
+        throw new AppError(
+          "이미 가입된 이메일입니다. 로그인해주세요.",
+          ErrorCode.VALIDATION_ERROR,
+          400,
+          true
+        );
+      }
+      throw new AppError(
+        signUpError?.message || "회원가입에 실패했습니다.",
+        ErrorCode.INTERNAL_ERROR,
+        500,
+        true
+      );
+    }
+
+    const userId = authData.user.id;
+
+    // admin_users에 역할 부여
+    const { error: insertError } = await adminClient.from("admin_users").insert({
+      id: userId,
+      role: invitation.role,
+      tenant_id: invitation.tenant_id,
+      name: name,
+    });
+
+    if (insertError) {
+      // 롤백: 생성된 사용자 삭제
+      await adminClient.auth.admin.deleteUser(userId);
+      throw new AppError(
+        "팀원 등록에 실패했습니다.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
+      );
+    }
+
+    // 초대 상태 업데이트
+    await adminClient
+      .from("team_invitations")
+      .update({
+        status: "accepted",
+        accepted_at: new Date().toISOString(),
+        accepted_by: userId,
+      })
+      .eq("id", invitation.id);
+
+    return {
+      success: true,
+      redirectTo: `/login?message=${encodeURIComponent("회원가입이 완료되었습니다. 로그인해주세요.")}`,
+    };
   }
 );
 

@@ -70,6 +70,21 @@ export interface AcceptInvitationResult {
   redirectTo?: string;
 }
 
+// 회원가입 + 초대 수락 입력
+export interface SignUpAndAcceptInput {
+  token: string;
+  email: string;
+  password: string;
+  name: string;
+}
+
+// 회원가입 + 초대 수락 결과
+export interface SignUpAndAcceptResult {
+  success: boolean;
+  error?: string;
+  redirectTo?: string;
+}
+
 // 팀 개요 (대시보드용)
 export interface TeamOverview {
   totalMembers: number;
