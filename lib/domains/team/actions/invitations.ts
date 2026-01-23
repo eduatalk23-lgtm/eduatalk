@@ -3,7 +3,7 @@
 /**
  * 팀 초대 Server Actions
  *
- * - createTeamInvitation: 초대 생성 및 이메일 발송
+ * - createTeamInvitation: 초대 생성 및 이메일 발송 (Supabase Auth 사용)
  * - cancelInvitation: 초대 취소
  * - resendInvitation: 초대 이메일 재발송
  * - acceptInvitation: 초대 수락 (역할 부여)
@@ -13,7 +13,6 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth/guards";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
-import { sendEmail } from "@/lib/services/emailService";
 import { env } from "@/lib/env";
 import type {
   CreateInvitationInput,
@@ -130,7 +129,14 @@ export const createTeamInvitation = withErrorHandling(
       );
     }
 
-    // 5. 초대 생성
+    // 5. 테넌트 이름 조회
+    const { data: tenant } = await supabase
+      .from("tenants")
+      .select("name")
+      .eq("id", tenantId)
+      .single();
+
+    // 6. 초대 생성 (DB 기록)
     const { data: invitation, error: insertError } = await supabase
       .from("team_invitations")
       .insert({
@@ -152,31 +158,32 @@ export const createTeamInvitation = withErrorHandling(
       );
     }
 
-    // 6. 테넌트 이름 조회
-    const { data: tenant } = await supabase
-      .from("tenants")
-      .select("name")
-      .eq("id", tenantId)
-      .single();
+    // 7. Supabase Auth로 초대 이메일 발송
+    const baseUrl = env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_VERCEL_URL || "http://localhost:3000";
+    const redirectUrl = `${baseUrl}/invite/${invitation.token}`;
 
-    // 7. 이메일 발송
-    const inviteUrl = `${env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_VERCEL_URL || "http://localhost:3000"}/invite/${invitation.token}`;
-    const roleLabel = role === "admin" ? "관리자" : "컨설턴트";
+    const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(
+      email,
+      {
+        redirectTo: redirectUrl,
+        data: {
+          invited_role: role,
+          tenant_id: tenantId,
+          tenant_name: tenant?.name || "팀",
+          invitation_token: invitation.token,
+        },
+      }
+    );
 
-    const emailResult = await sendEmail({
-      to: email,
-      subject: `[TimeLevelUp] ${tenant?.name || "팀"}에 ${roleLabel}로 초대되었습니다`,
-      html: generateInviteEmailHtml({
-        tenantName: tenant?.name || "팀",
-        role: roleLabel,
-        inviteUrl,
-        expiresAt: invitation.expires_at,
-      }),
-    });
-
-    if (!emailResult.success) {
-      // 이메일 발송 실패해도 초대는 생성됨 - 재발송 가능
-      console.warn("[createTeamInvitation] 이메일 발송 실패:", emailResult.error);
+    if (inviteError) {
+      // 이미 가입된 사용자인 경우 (User already registered)
+      if (inviteError.message?.includes("already") || inviteError.message?.includes("registered")) {
+        console.warn("[createTeamInvitation] 이미 가입된 사용자, 직접 초대 링크로 안내 필요:", email);
+        // 초대 자체는 생성되었으므로 성공 처리 (사용자가 링크로 직접 수락 가능)
+      } else {
+        console.warn("[createTeamInvitation] Supabase 초대 이메일 발송 실패:", inviteError.message);
+        // 다른 오류는 경고만 하고 계속 진행 (초대는 DB에 생성됨)
+      }
     }
 
     return {
@@ -238,7 +245,7 @@ export const cancelInvitation = withErrorHandling(
 );
 
 /**
- * 초대 이메일 재발송
+ * 초대 이메일 재발송 (Supabase Auth 사용)
  */
 export const resendInvitation = withErrorHandling(
   async (invitationId: string): Promise<{ success: boolean; error?: string }> => {
@@ -254,6 +261,16 @@ export const resendInvitation = withErrorHandling(
     }
 
     const supabase = await createSupabaseServerClient();
+    const adminClient = createSupabaseAdminClient();
+
+    if (!adminClient) {
+      throw new AppError(
+        "관리자 클라이언트를 초기화할 수 없습니다.",
+        ErrorCode.INTERNAL_ERROR,
+        500,
+        true
+      );
+    }
 
     // 초대 정보 조회
     const { data: invitation, error: fetchError } = await supabase
@@ -291,29 +308,39 @@ export const resendInvitation = withErrorHandling(
       );
     }
 
-    // 이메일 재발송
-    const inviteUrl = `${env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_VERCEL_URL || "http://localhost:3000"}/invite/${invitation.token}`;
-    const roleLabel = invitation.role === "admin" ? "관리자" : "컨설턴트";
+    // Supabase Auth로 초대 이메일 재발송
+    const baseUrl = env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_VERCEL_URL || "http://localhost:3000";
+    const redirectUrl = `${baseUrl}/invite/${invitation.token}`;
     const tenantName = (invitation.tenants as { name: string } | null)?.name || "팀";
 
-    const emailResult = await sendEmail({
-      to: invitation.email,
-      subject: `[TimeLevelUp] ${tenantName}에 ${roleLabel}로 초대되었습니다 (재발송)`,
-      html: generateInviteEmailHtml({
-        tenantName,
-        role: roleLabel,
-        inviteUrl,
-        expiresAt: newExpiresAt.toISOString(),
-      }),
-    });
+    const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(
+      invitation.email,
+      {
+        redirectTo: redirectUrl,
+        data: {
+          invited_role: invitation.role,
+          tenant_id: tenantId,
+          tenant_name: tenantName,
+          invitation_token: invitation.token,
+        },
+      }
+    );
 
-    if (!emailResult.success) {
+    if (inviteError) {
+      // 이미 가입된 사용자인 경우
+      if (inviteError.message?.includes("already") || inviteError.message?.includes("registered")) {
+        // 이미 가입된 사용자에게는 Supabase 초대가 안 됨
+        // 하지만 초대 링크는 유효하므로 성공으로 처리
+        console.warn("[resendInvitation] 이미 가입된 사용자:", invitation.email);
+        return { success: true };
+      }
+
       throw new AppError(
         "이메일 발송에 실패했습니다.",
         ErrorCode.INTERNAL_ERROR,
         500,
         true,
-        { originalError: emailResult.error }
+        { originalError: inviteError.message }
       );
     }
 
@@ -536,94 +563,3 @@ function isValidUUID(str: string): boolean {
   return uuidRegex.test(str);
 }
 
-/**
- * HTML 특수문자 이스케이프 (XSS 방지)
- */
-function escapeHtml(str: string): string {
-  const htmlEscapes: Record<string, string> = {
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;",
-  };
-  return str.replace(/[&<>"']/g, (char) => htmlEscapes[char] || char);
-}
-
-/**
- * 초대 이메일 HTML 생성
- */
-function generateInviteEmailHtml(params: {
-  tenantName: string;
-  role: string;
-  inviteUrl: string;
-  expiresAt: string;
-}): string {
-  const { tenantName, role, inviteUrl, expiresAt } = params;
-  const expiresDate = new Date(expiresAt).toLocaleDateString("ko-KR", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-
-  // XSS 방지를 위해 모든 동적 값 이스케이프
-  const safeTenantName = escapeHtml(tenantName);
-  const safeRole = escapeHtml(role);
-  const safeInviteUrl = escapeHtml(inviteUrl);
-  const safeExpiresDate = escapeHtml(expiresDate);
-
-  return `
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f5;">
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0 auto;">
-    <tr>
-      <td style="padding: 40px 20px;">
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 480px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-          <!-- Header -->
-          <tr>
-            <td style="padding: 32px 32px 24px; text-align: center; border-bottom: 1px solid #e4e4e7;">
-              <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: #18181b;">TimeLevelUp</h1>
-            </td>
-          </tr>
-
-          <!-- Content -->
-          <tr>
-            <td style="padding: 32px;">
-              <h2 style="margin: 0 0 16px; font-size: 20px; font-weight: 600; color: #18181b;">
-                팀 초대 안내
-              </h2>
-              <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #3f3f46;">
-                <strong>${safeTenantName}</strong>에서 <strong>${safeRole}</strong>로 초대했습니다.
-              </p>
-
-              <a href="${safeInviteUrl}" style="display: inline-block; padding: 14px 28px; background-color: #2563eb; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 8px;">
-                초대 수락하기
-              </a>
-
-              <p style="margin: 24px 0 0; font-size: 14px; color: #71717a;">
-                이 초대는 <strong>${safeExpiresDate}</strong>까지 유효합니다.
-              </p>
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td style="padding: 24px 32px; background-color: #fafafa; border-top: 1px solid #e4e4e7; border-radius: 0 0 12px 12px;">
-              <p style="margin: 0; font-size: 13px; color: #71717a; text-align: center;">
-                본 메일은 발신 전용입니다. 문의사항은 관리자에게 연락해주세요.
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-  `.trim();
-}
