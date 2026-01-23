@@ -5,6 +5,8 @@ import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { getAdminById, listAdminsByTenant } from "@/lib/data/admins";
+import { getMyProfile } from "@/lib/domains/team/actions/profile";
+import ProfileEditForm from "./_components/ProfileEditForm";
 
 export default async function AdminSettingsPage() {
   const { userId, role } = await getCurrentUserRole();
@@ -19,11 +21,14 @@ export default async function AdminSettingsPage() {
   const currentAdmin = await getAdminById(userId, null);
 
   // 기관 관리자 목록 조회 (admin만)
-  let allAdmins: Array<{ id: string; role: string }> = [];
+  let allAdmins: Array<{ id: string; name: string; role: string }> = [];
   if (role === "admin" && currentAdmin?.tenant_id) {
     const admins = await listAdminsByTenant(currentAdmin.tenant_id);
-    allAdmins = admins.map((a) => ({ id: a.id, role: a.role }));
+    allAdmins = admins.map((a) => ({ id: a.id, name: a.name, role: a.role }));
   }
+
+  // 내 프로필 정보 조회
+  const myProfile = await getMyProfile();
 
   return (
     <div className="flex flex-col gap-8 p-6 md:p-10">
@@ -33,22 +38,14 @@ export default async function AdminSettingsPage() {
       </div>
 
       <div className="flex flex-col gap-6">
-        {/* 현재 계정 정보 */}
-        <div className="flex flex-col gap-4 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm">
-          <h2 className="text-h2 text-gray-900 dark:text-gray-100">현재 계정 정보</h2>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="flex flex-col gap-1">
-              <div className="text-sm text-gray-500 dark:text-gray-400">역할</div>
-              <div className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                {currentAdmin?.role === "admin" ? "관리자" : "상담사"}
-              </div>
-            </div>
-            <div className="flex flex-col gap-1">
-              <div className="text-sm text-gray-500 dark:text-gray-400">계정 ID</div>
-              <div className="text-lg font-medium text-gray-900 dark:text-gray-100">{userId}</div>
-            </div>
-          </div>
-        </div>
+        {/* 내 프로필 */}
+        {myProfile && (
+          <ProfileEditForm
+            initialName={myProfile.name}
+            email={myProfile.email}
+            role={myProfile.role}
+          />
+        )}
 
         {/* 기관 설정 */}
         {role === "admin" && (
@@ -131,9 +128,11 @@ export default async function AdminSettingsPage() {
                   >
                     <div>
                       <div className="font-medium text-gray-900 dark:text-gray-100">
+                        {admin.name || (admin.role === "admin" ? "관리자" : "상담사")}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
                         {admin.role === "admin" ? "관리자" : "상담사"}
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">{admin.id}</div>
                     </div>
                   </div>
                 ))}
