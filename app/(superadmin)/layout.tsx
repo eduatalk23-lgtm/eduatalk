@@ -13,14 +13,14 @@ import { RoleBasedLayout } from "@/components/layout/RoleBasedLayout";
  */
 export default async function SuperAdminLayout({ children }: { children: ReactNode }) {
   // 권한 검증
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role, tenantId } = await getCurrentUserRole();
 
   if (!userId || role !== "superadmin") {
     redirect("/login");
   }
 
-  // 사용자 이름 조회
-  const userName = await getCurrentUserName();
+  // 사용자 이름 조회 (이미 조회한 정보 재사용)
+  const userName = await getCurrentUserName({ userId, role, tenantId });
 
   return (
     <RoleBasedLayout

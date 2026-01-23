@@ -14,16 +14,16 @@ import { RoleBasedLayout } from "@/components/layout/RoleBasedLayout";
  */
 export default async function ParentLayout({ children }: { children: ReactNode }) {
   // 권한 검증
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role, tenantId } = await getCurrentUserRole();
 
   if (!userId || role !== "parent") {
     redirect("/login");
   }
 
-  // 기관 정보 및 사용자 이름 조회
+  // 기관 정보 및 사용자 이름 조회 (이미 조회한 정보 재사용)
   const [tenantInfo, userName] = await Promise.all([
     getTenantInfo(),
-    getCurrentUserName(),
+    getCurrentUserName({ userId, role, tenantId }),
   ]);
 
   return (
