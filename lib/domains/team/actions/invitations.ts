@@ -160,7 +160,8 @@ export const createTeamInvitation = withErrorHandling(
 
     // 7. Supabase Auth로 초대 이메일 발송
     const baseUrl = env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_VERCEL_URL || "http://localhost:3000";
-    const redirectUrl = `${baseUrl}/invite/${invitation.token}`;
+    // Supabase는 /auth/callback으로 먼저 리다이렉트하고, next 파라미터로 최종 목적지 전달
+    const redirectUrl = `${baseUrl}/auth/callback?next=/invite/${invitation.token}`;
 
     const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(
       email,
@@ -322,7 +323,8 @@ export const resendInvitation = withErrorHandling(
 
     // Supabase Auth로 초대 이메일 재발송
     const baseUrl = env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_VERCEL_URL || "http://localhost:3000";
-    const redirectUrl = `${baseUrl}/invite/${invitation.token}`;
+    // Supabase는 /auth/callback으로 먼저 리다이렉트하고, next 파라미터로 최종 목적지 전달
+    const redirectUrl = `${baseUrl}/auth/callback?next=/invite/${invitation.token}`;
     const tenantName = (invitation.tenants as { name: string } | null)?.name || "팀";
 
     const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(
