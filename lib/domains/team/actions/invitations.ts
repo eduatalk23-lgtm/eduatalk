@@ -175,19 +175,31 @@ export const createTeamInvitation = withErrorHandling(
       }
     );
 
+    // 이메일 발송 결과 처리
+    let emailSent = true;
+    let emailError: string | undefined;
+
     if (inviteError) {
+      emailSent = false;
+      emailError = inviteError.message;
+
       // 이미 가입된 사용자인 경우 (User already registered)
       if (inviteError.message?.includes("already") || inviteError.message?.includes("registered")) {
-        console.warn("[createTeamInvitation] 이미 가입된 사용자, 직접 초대 링크로 안내 필요:", email);
-        // 초대 자체는 생성되었으므로 성공 처리 (사용자가 링크로 직접 수락 가능)
+        console.log("[createTeamInvitation] 이미 가입된 사용자:", email);
+        console.log("[createTeamInvitation] 초대 링크:", `${baseUrl}/invite/${invitation.token}`);
       } else {
-        console.warn("[createTeamInvitation] Supabase 초대 이메일 발송 실패:", inviteError.message);
-        // 다른 오류는 경고만 하고 계속 진행 (초대는 DB에 생성됨)
+        console.error("[createTeamInvitation] Supabase 초대 이메일 발송 실패!");
+        console.error("[createTeamInvitation] 에러:", inviteError.message);
+        console.error("[createTeamInvitation] 에러 코드:", inviteError.status);
       }
+    } else {
+      console.log("[createTeamInvitation] 초대 이메일 발송 성공:", email);
     }
 
     return {
       success: true,
+      emailSent,
+      emailError,
       invitation: {
         id: invitation.id,
         tenantId: invitation.tenant_id,

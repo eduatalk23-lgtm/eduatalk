@@ -11,12 +11,16 @@ export function InviteForm() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<InvitationRole>("consultant");
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [successData, setSuccessData] = useState<{
+    emailSent: boolean;
+    emailError?: string;
+    inviteToken?: string;
+  } | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSuccess(false);
+    setSuccessData(null);
 
     if (!email.trim()) {
       setError("이메일을 입력해주세요.");
@@ -27,19 +31,91 @@ export function InviteForm() {
       const result = await createTeamInvitation({ email: email.trim(), role });
 
       if (result.success) {
-        setSuccess(true);
+        setSuccessData({
+          emailSent: result.emailSent ?? false,
+          emailError: result.emailError,
+          inviteToken: result.invitation?.token,
+        });
         setEmail("");
-        // 3초 후 팀 페이지로 이동
-        setTimeout(() => {
-          router.push("/admin/team");
-        }, 2000);
+        // 이메일이 성공적으로 발송된 경우에만 자동 이동
+        if (result.emailSent) {
+          setTimeout(() => {
+            router.push("/admin/team");
+          }, 2000);
+        }
       } else {
         setError(result.error || "초대 생성에 실패했습니다.");
       }
     });
   };
 
-  if (success) {
+  // 초대 링크 복사
+  const handleCopyLink = async (token: string) => {
+    const baseUrl = window.location.origin;
+    const inviteUrl = `${baseUrl}/invite/${token}`;
+    await navigator.clipboard.writeText(inviteUrl);
+    alert("초대 링크가 복사되었습니다!");
+  };
+
+  if (successData) {
+    const { emailSent, emailError, inviteToken } = successData;
+
+    // 이메일 발송 실패한 경우
+    if (!emailSent) {
+      return (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-8 dark:border-amber-800 dark:bg-amber-900/20">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+            <svg
+              className="h-8 w-8 text-amber-600 dark:text-amber-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+          </div>
+          <h3 className="text-center text-lg font-semibold text-amber-800 dark:text-amber-300">
+            초대가 생성되었습니다
+          </h3>
+          <p className="mt-2 text-center text-sm text-amber-700 dark:text-amber-400">
+            이메일 발송에 실패했습니다. 아래 링크를 직접 공유해주세요.
+          </p>
+          {emailError && (
+            <p className="mt-2 text-center text-xs text-amber-600 dark:text-amber-500">
+              사유: {emailError}
+            </p>
+          )}
+          {inviteToken && (
+            <div className="mt-4 flex flex-col gap-2">
+              <div className="rounded-lg bg-white p-3 dark:bg-gray-800">
+                <p className="break-all text-xs text-gray-600 dark:text-gray-400">
+                  {typeof window !== "undefined" && `${window.location.origin}/invite/${inviteToken}`}
+                </p>
+              </div>
+              <button
+                onClick={() => handleCopyLink(inviteToken)}
+                className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
+              >
+                초대 링크 복사
+              </button>
+            </div>
+          )}
+          <button
+            onClick={() => router.push("/admin/team")}
+            className="mt-4 w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+          >
+            팀 페이지로 이동
+          </button>
+        </div>
+      );
+    }
+
+    // 이메일 발송 성공
     return (
       <div className="rounded-xl border border-green-200 bg-green-50 p-8 text-center dark:border-green-800 dark:bg-green-900/20">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">

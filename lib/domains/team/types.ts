@@ -52,6 +52,10 @@ export interface CreateInvitationResult {
   success: boolean;
   invitation?: TeamInvitation;
   error?: string;
+  /** 이메일 발송 성공 여부 */
+  emailSent?: boolean;
+  /** 이메일 발송 실패 시 에러 메시지 */
+  emailError?: string;
 }
 
 // 초대 수락 입력
