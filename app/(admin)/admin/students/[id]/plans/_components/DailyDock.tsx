@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useMemo, memo } from 'react';
+import { useState, useTransition, useMemo, useCallback, memo } from 'react';
 import { cn } from '@/lib/cn';
 import { DroppableContainer } from './dnd';
 import { usePlanToast } from './PlanToast';
@@ -13,13 +13,15 @@ import { deletePlan, movePlanToContainer } from '@/lib/domains/plan/actions/dock
 import type { ContentTypeFilter } from './AdminPlanManagement';
 import type { PlanStatus } from '@/lib/types/plan';
 
+/** 스켈레톤 로딩 UI용 상수 배열 (매 렌더마다 새 배열 생성 방지) */
+const SKELETON_ITEMS = [1, 2] as const;
+
 interface DailyDockProps {
   studentId: string;
   tenantId: string;
   /** 플래너 ID (플래너 기반 필터링용) */
   plannerId?: string;
   selectedDate: string;
-  activePlanGroupId: string | null;
   /** 선택된 플랜 그룹 ID (null = 전체 보기) */
   selectedGroupId?: string | null;
   /** 콘텐츠 유형 필터 */
@@ -46,7 +48,6 @@ export const DailyDock = memo(function DailyDock({
   tenantId,
   plannerId,
   selectedDate,
-  activePlanGroupId,
   selectedGroupId,
   contentTypeFilter = 'all',
   onRedistribute,
@@ -76,6 +77,12 @@ export const DailyDock = memo(function DailyDock({
     if (contentTypeFilter === 'all') return groupFilteredPlans;
     return groupFilteredPlans.filter(plan => plan.content_type === contentTypeFilter);
   }, [groupFilteredPlans, contentTypeFilter]);
+
+  // 미완료 플랜 목록 (선택 모드에서 사용) - 매 렌더마다 필터링 방지
+  const uncompletedPlans = useMemo(
+    () => plans.filter((p) => p.status !== 'completed'),
+    [plans]
+  );
 
   // 시간 충돌 감지 (필터링된 플랜 기준)
   const conflictMap = useMemo(() => {
@@ -182,7 +189,6 @@ export const DailyDock = memo(function DailyDock({
 
   const handleSelectAll = () => {
     // 완료되지 않은 일반 플랜만 선택 (adhoc 제외)
-    const uncompletedPlans = plans.filter((p) => p.status !== 'completed');
     if (selectedPlans.size === uncompletedPlans.length) {
       setSelectedPlans(new Set());
     } else {
@@ -202,10 +208,47 @@ export const DailyDock = memo(function DailyDock({
     onRefresh();
   };
 
+  // 선택된 플랜 ID 배열 메모이제이션 (Array.from 반복 호출 방지)
+  const selectedPlanIds = useMemo(
+    () => Array.from(selectedPlans),
+    [selectedPlans]
+  );
+
+  // 그룹 이동 핸들러 메모이제이션
+  const handleMoveToGroupBulk = useCallback(() => {
+    if (onMoveToGroup) {
+      onMoveToGroup(selectedPlanIds);
+    }
+  }, [onMoveToGroup, selectedPlanIds]);
+
+  // 복사 핸들러 메모이제이션
+  const handleCopyBulk = useCallback(() => {
+    if (onCopy) {
+      onCopy(selectedPlanIds);
+    }
+  }, [onCopy, selectedPlanIds]);
+
+  // 단일 플랜 그룹 이동 핸들러 메모이제이션
+  const handleMoveToGroupSingle = useCallback(
+    (id: string) => onMoveToGroup?.([id]),
+    [onMoveToGroup]
+  );
+
+  // 단일 플랜 복사 핸들러 메모이제이션
+  const handleCopySingle = useCallback(
+    (id: string) => onCopy?.([id]),
+    [onCopy]
+  );
+
   const totalCount = plans.length + adHocPlans.length;
-  const completedCount =
-    plans.filter((p) => p.status === 'completed').length +
-    adHocPlans.filter((p) => p.status === 'completed').length;
+
+  // 완료된 플랜 수 메모이제이션
+  const completedCount = useMemo(
+    () =>
+      plans.filter((p) => p.status === 'completed').length +
+      adHocPlans.filter((p) => p.status === 'completed').length,
+    [plans, adHocPlans]
+  );
 
   return (
     <DroppableContainer id="daily">
@@ -231,7 +274,7 @@ export const DailyDock = memo(function DailyDock({
         </div>
         <div className="flex items-center gap-2">
           {/* 선택 모드 토글 */}
-          {plans.filter((p) => p.status !== 'completed').length > 0 && (
+          {uncompletedPlans.length > 0 && (
             <button
               onClick={handleToggleSelectionMode}
               className={cn(
@@ -245,12 +288,12 @@ export const DailyDock = memo(function DailyDock({
             </button>
           )}
           {/* 선택 모드일 때만 전체 선택/해제 버튼 표시 */}
-          {isSelectionMode && plans.filter((p) => p.status !== 'completed').length > 0 && (
+          {isSelectionMode && uncompletedPlans.length > 0 && (
             <button
               onClick={handleSelectAll}
               className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded"
             >
-              {selectedPlans.size === plans.filter((p) => p.status !== 'completed').length
+              {selectedPlans.size === uncompletedPlans.length
                 ? '전체 해제'
                 : '전체 선택'}
             </button>
@@ -265,7 +308,7 @@ export const DailyDock = memo(function DailyDock({
               </button>
               {onMoveToGroup && (
                 <button
-                  onClick={() => onMoveToGroup(Array.from(selectedPlans))}
+                  onClick={handleMoveToGroupBulk}
                   className="px-3 py-1.5 text-sm bg-indigo-500 text-white rounded-md hover:bg-indigo-600"
                 >
                   그룹 이동
@@ -273,7 +316,7 @@ export const DailyDock = memo(function DailyDock({
               )}
               {onCopy && (
                 <button
-                  onClick={() => onCopy(Array.from(selectedPlans))}
+                  onClick={handleCopyBulk}
                   className="px-3 py-1.5 text-sm bg-teal-500 text-white rounded-md hover:bg-teal-600"
                 >
                   복사
@@ -297,7 +340,7 @@ export const DailyDock = memo(function DailyDock({
       <div className="p-4">
         {isLoading ? (
           <div className="space-y-2">
-            {[1, 2].map((i) => (
+            {SKELETON_ITEMS.map((i) => (
               <div key={i} className="h-16 bg-blue-100 rounded animate-pulse" />
             ))}
           </div>
@@ -328,8 +371,8 @@ export const DailyDock = memo(function DailyDock({
                   onMoveToWeekly={handleMoveToWeekly}
                   onRedistribute={onRedistribute}
                   onEdit={onEdit}
-                  onMoveToGroup={onMoveToGroup ? (id) => onMoveToGroup([id]) : undefined}
-                  onCopy={onCopy ? (id) => onCopy([id]) : undefined}
+                  onMoveToGroup={onMoveToGroup ? handleMoveToGroupSingle : undefined}
+                  onCopy={onCopy ? handleCopySingle : undefined}
                   onStatusChange={onStatusChange}
                   onDelete={handleDeleteRequest}
                   onRefresh={onRefresh}
@@ -360,7 +403,7 @@ export const DailyDock = memo(function DailyDock({
       {/* 일괄 작업 모달 */}
       {showBulkModal && (
         <BulkRedistributeModal
-          planIds={Array.from(selectedPlans)}
+          planIds={selectedPlanIds}
           studentId={studentId}
           tenantId={tenantId}
           onClose={() => setShowBulkModal(false)}

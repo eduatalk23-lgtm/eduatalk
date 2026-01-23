@@ -1,30 +1,33 @@
 'use client';
 
-import { useState, useTransition, memo } from 'react';
+import { useState, useTransition, memo, useCallback } from 'react';
 import { cn } from '@/lib/cn';
 import { DraggablePlanItem } from '../dnd';
 import { QuickCompleteButton, InlineVolumeEditor } from '../QuickActions';
 import { useToast } from '@/components/ui/ToastProvider';
-import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { ConfirmDialog } from '@/components/ui/Dialog';
-import { MoreVertical, Calendar, Edit3, Copy, Trash2, ArrowRight, RefreshCw, FolderInput, ToggleLeft, AlertTriangle, ChevronRight, Check, Circle, XCircle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
+import { PlanActionMenu } from './PlanActionMenu';
 import { getTodayInTimezone } from '@/lib/utils/dateUtils';
 import { formatPlanLearningAmount } from '@/lib/utils/planFormatting';
 import { movePlanToContainer, deletePlan, updatePlanStatus } from '@/lib/domains/plan/actions/dock';
 import type { ConflictInfo } from '@/lib/domains/admin-plan/utils/conflictDetection';
 import type { PlanStatus } from '@/lib/types/plan';
 
-/** 빠른 상태 변경 옵션 (이진 완료 기준) */
-const QUICK_STATUS_OPTIONS: Array<{
-  status: PlanStatus;
-  label: string;
-  icon: typeof Check;
-  colorClass: string;
-}> = [
-  { status: 'pending', label: '미완료', icon: Circle, colorClass: 'text-gray-500' },
-  { status: 'completed', label: '완료', icon: Check, colorClass: 'text-green-500' },
-  { status: 'cancelled', label: '취소', icon: XCircle, colorClass: 'text-red-500' },
-];
+/** 성능 최적화: 인라인 빈 함수 생성 방지를 위한 상수 */
+const NOOP = () => {};
+
+/** 상태 라벨 매핑 */
+const STATUS_LABELS: Partial<Record<PlanStatus, string>> = {
+  pending: '미완료',
+  completed: '완료',
+  cancelled: '취소',
+  in_progress: '진행 중',
+  draft: '초안',
+  active: '활성',
+  paused: '일시정지',
+  saved: '저장됨',
+};
 
 export type PlanItemType = 'plan' | 'adhoc';
 export type ContainerType = 'daily' | 'weekly' | 'unfinished';
@@ -244,15 +247,17 @@ export const PlanItemCard = memo(function PlanItemCard({
   };
 
   /** 빠른 상태 변경 핸들러 */
-  const handleQuickStatusChange = async (newStatus: PlanStatus) => {
+  const handleQuickStatusChange = useCallback(async (newStatus: PlanStatus) => {
     // 같은 상태면 무시
     if (plan.status === newStatus) return;
+
+    const statusLabel = STATUS_LABELS[newStatus] ?? newStatus;
 
     // 외부 콜백이 있으면 사용
     if (onQuickStatusUpdate) {
       try {
         await onQuickStatusUpdate(plan.id, newStatus);
-        showSuccess(`상태가 '${QUICK_STATUS_OPTIONS.find(o => o.status === newStatus)?.label}'(으)로 변경되었습니다.`);
+        showSuccess(`상태가 '${statusLabel}'(으)로 변경되었습니다.`);
       } catch (error) {
         showError('상태 변경 실패: ' + (error instanceof Error ? error.message : '알 수 없는 오류'));
       }
@@ -272,12 +277,23 @@ export const PlanItemCard = memo(function PlanItemCard({
         return;
       }
 
-      showSuccess(`상태가 '${QUICK_STATUS_OPTIONS.find(o => o.status === newStatus)?.label}'(으)로 변경되었습니다.`);
+      showSuccess(`상태가 '${statusLabel}'(으)로 변경되었습니다.`);
       onRefresh?.();
     });
-  };
+  }, [plan.id, plan.status, isAdHoc, onQuickStatusUpdate, onRefresh, showSuccess, showError]);
 
   const colors = containerColors[container];
+
+  // 컨테이너 이동 핸들러 메모이제이션
+  const handleMoveToDailyWithId = useCallback(
+    (id: string) => onMoveToDaily?.(id) ?? handleMoveContainer('daily'),
+    [onMoveToDaily]
+  );
+
+  const handleMoveToWeeklyWithId = useCallback(
+    (id: string) => onMoveToWeekly?.(id) ?? handleMoveContainer('weekly'),
+    [onMoveToWeekly]
+  );
 
   // Compact variant (for grid/weekly view)
   if (variant === 'compact' || variant === 'grid') {
@@ -320,7 +336,7 @@ export const PlanItemCard = memo(function PlanItemCard({
                 planId={plan.id}
                 planType={isAdHoc ? 'adhoc' : 'plan'}
                 isCompleted={isCompleted}
-                onSuccess={onRefresh ?? (() => {})}
+                onSuccess={onRefresh ?? NOOP}
                 size="sm"
               />
 
@@ -399,108 +415,22 @@ export const PlanItemCard = memo(function PlanItemCard({
               </div>
 
               {/* 드롭다운 메뉴 */}
-              <DropdownMenu.Root>
-                <DropdownMenu.Trigger className="p-1 rounded hover:bg-gray-100">
-                  <MoreVertical className="w-4 h-4 text-gray-500" />
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Content align="end" className="min-w-[160px]">
-                  {container !== 'weekly' && (
-                    <DropdownMenu.Item onClick={() => onMoveToWeekly?.(plan.id) ?? handleMoveContainer('weekly')}>
-                      <ArrowRight className="w-4 h-4 mr-2" />
-                      Weekly로 이동
-                    </DropdownMenu.Item>
-                  )}
-                  {container !== 'daily' && container !== 'weekly' && (
-                    <DropdownMenu.Item onClick={() => onMoveToDaily?.(plan.id) ?? handleMoveContainer('daily')}>
-                      <ArrowRight className="w-4 h-4 mr-2" />
-                      Daily로 이동
-                    </DropdownMenu.Item>
-                  )}
-                  {!isAdHoc && onRedistribute && (
-                    <DropdownMenu.Item onClick={() => onRedistribute(plan.id)}>
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      볼륨 재분배
-                    </DropdownMenu.Item>
-                  )}
-                  <DropdownMenu.Separator />
-                  {!isAdHoc && onEdit && (
-                    <DropdownMenu.Item onClick={() => onEdit(plan.id)}>
-                      <Edit3 className="w-4 h-4 mr-2" />
-                      수정
-                    </DropdownMenu.Item>
-                  )}
-                  {!isAdHoc && (onStatusChange || true) && (
-                    <div className="relative group/status">
-                      <div className="relative flex w-full cursor-pointer select-none items-center gap-2 rounded-sm px-4 py-2 text-body-2 outline-none transition-base text-[var(--text-secondary)] dark:text-[var(--text-primary)] hover:bg-[rgb(var(--color-secondary-50))] dark:hover:bg-[rgb(var(--color-secondary-800))]">
-                        <ToggleLeft className="w-4 h-4" />
-                        <span className="flex-1">상태 변경</span>
-                        <ChevronRight className="w-4 h-4 text-gray-400" />
-                      </div>
-                      {/* 서브메뉴 */}
-                      <div className="absolute left-full top-0 ml-1 hidden group-hover/status:block z-50">
-                        <div className="min-w-[140px] rounded-lg border shadow-lg bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 py-1">
-                          {QUICK_STATUS_OPTIONS.map((option) => {
-                            const Icon = option.icon;
-                            const isCurrentStatus = plan.status === option.status;
-                            return (
-                              <button
-                                key={option.status}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleQuickStatusChange(option.status);
-                                }}
-                                className={cn(
-                                  'w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700',
-                                  isCurrentStatus && 'bg-gray-100 dark:bg-gray-700'
-                                )}
-                              >
-                                <Icon className={cn('w-4 h-4', option.colorClass)} />
-                                <span>{option.label}</span>
-                                {isCurrentStatus && <Check className="w-3 h-3 ml-auto text-green-500" />}
-                              </button>
-                            );
-                          })}
-                          {onStatusChange && (
-                            <>
-                              <div className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onStatusChange(plan.id, plan.status, plan.title);
-                                }}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                              >
-                                <Edit3 className="w-4 h-4" />
-                                <span>상세 변경...</span>
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {onCopy && (
-                    <DropdownMenu.Item onClick={() => onCopy(plan.id)}>
-                      <Copy className="w-4 h-4 mr-2" />
-                      복사
-                    </DropdownMenu.Item>
-                  )}
-                  {!isAdHoc && onMoveToGroup && (
-                    <DropdownMenu.Item onClick={() => onMoveToGroup(plan.id)}>
-                      <FolderInput className="w-4 h-4 mr-2" />
-                      그룹 이동
-                    </DropdownMenu.Item>
-                  )}
-                  <DropdownMenu.Separator />
-                  <DropdownMenu.Item
-                    onClick={handleDeleteRequest}
-                    className="text-red-600 hover:bg-red-50"
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    삭제
-                  </DropdownMenu.Item>
-                </DropdownMenu.Content>
-              </DropdownMenu.Root>
+              <PlanActionMenu
+                planId={plan.id}
+                plan={plan}
+                container={container}
+                isAdHoc={isAdHoc}
+                variant="compact"
+                onMoveToDaily={handleMoveToDailyWithId}
+                onMoveToWeekly={handleMoveToWeeklyWithId}
+                onRedistribute={onRedistribute}
+                onEdit={onEdit}
+                onCopy={onCopy}
+                onMoveToGroup={onMoveToGroup}
+                onStatusChange={handleQuickStatusChange}
+                onDetailedStatusChange={onStatusChange ? () => onStatusChange(plan.id, plan.status, plan.title) : undefined}
+                onDelete={handleDeleteRequest}
+              />
             </div>
             )}
           </div>
@@ -581,7 +511,7 @@ export const PlanItemCard = memo(function PlanItemCard({
             planId={plan.id}
             planType={isAdHoc ? 'adhoc' : 'plan'}
             isCompleted={isCompleted}
-            onSuccess={onRefresh ?? (() => {})}
+            onSuccess={onRefresh ?? NOOP}
           />
 
 
@@ -697,101 +627,22 @@ export const PlanItemCard = memo(function PlanItemCard({
             )}
 
             {/* 드롭다운 메뉴 (나머지 액션) */}
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger className="p-1.5 rounded hover:bg-gray-100" title="더보기">
-                <MoreVertical className="w-4 h-4 text-gray-500" />
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Content align="end" className="min-w-[180px]">
-                {!isAdHoc && onRedistribute && (
-                  <DropdownMenu.Item onClick={() => onRedistribute(plan.id)}>
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    볼륨 재분배
-                  </DropdownMenu.Item>
-                )}
-                {!isAdHoc && onEdit && (
-                  <DropdownMenu.Item onClick={() => onEdit(plan.id)}>
-                    <Edit3 className="w-4 h-4 mr-2" />
-                    수정
-                  </DropdownMenu.Item>
-                )}
-                {!isAdHoc && (onStatusChange || true) && (
-                  <div className="relative group/status">
-                    <div className="relative flex w-full cursor-pointer select-none items-center gap-2 rounded-sm px-4 py-2 text-body-2 outline-none transition-base text-[var(--text-secondary)] dark:text-[var(--text-primary)] hover:bg-[rgb(var(--color-secondary-50))] dark:hover:bg-[rgb(var(--color-secondary-800))]">
-                      <ToggleLeft className="w-4 h-4" />
-                      <span className="flex-1">상태 변경</span>
-                      <ChevronRight className="w-4 h-4 text-gray-400" />
-                    </div>
-                    {/* 서브메뉴 */}
-                    <div className="absolute left-full top-0 ml-1 hidden group-hover/status:block z-50">
-                      <div className="min-w-[140px] rounded-lg border shadow-lg bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 py-1">
-                        {QUICK_STATUS_OPTIONS.map((option) => {
-                          const Icon = option.icon;
-                          const isCurrentStatus = plan.status === option.status;
-                          return (
-                            <button
-                              key={option.status}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleQuickStatusChange(option.status);
-                              }}
-                              className={cn(
-                                'w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700',
-                                isCurrentStatus && 'bg-gray-100 dark:bg-gray-700'
-                              )}
-                            >
-                              <Icon className={cn('w-4 h-4', option.colorClass)} />
-                              <span>{option.label}</span>
-                              {isCurrentStatus && <Check className="w-3 h-3 ml-auto text-green-500" />}
-                            </button>
-                          );
-                        })}
-                        {onStatusChange && (
-                          <>
-                            <div className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onStatusChange(plan.id, plan.status, plan.title);
-                              }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                            >
-                              <Edit3 className="w-4 h-4" />
-                              <span>상세 변경...</span>
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {onEditDate && (
-                  <DropdownMenu.Item onClick={() => onEditDate(plan.id)}>
-                    <Calendar className="w-4 h-4 mr-2" />
-                    날짜 변경
-                  </DropdownMenu.Item>
-                )}
-                {onCopy && (
-                  <DropdownMenu.Item onClick={() => onCopy(plan.id)}>
-                    <Copy className="w-4 h-4 mr-2" />
-                    복사
-                  </DropdownMenu.Item>
-                )}
-                {!isAdHoc && onMoveToGroup && (
-                  <DropdownMenu.Item onClick={() => onMoveToGroup(plan.id)}>
-                    <FolderInput className="w-4 h-4 mr-2" />
-                    그룹 이동
-                  </DropdownMenu.Item>
-                )}
-                <DropdownMenu.Separator />
-                <DropdownMenu.Item
-                  onClick={handleDeleteRequest}
-                  className="text-red-600 hover:bg-red-50"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  삭제
-                </DropdownMenu.Item>
-              </DropdownMenu.Content>
-            </DropdownMenu.Root>
+            <PlanActionMenu
+              planId={plan.id}
+              plan={plan}
+              container={container}
+              isAdHoc={isAdHoc}
+              variant="default"
+              onMoveToWeekly={handleMoveToWeeklyWithId}
+              onRedistribute={onRedistribute}
+              onEdit={onEdit}
+              onEditDate={onEditDate}
+              onCopy={onCopy}
+              onMoveToGroup={onMoveToGroup}
+              onStatusChange={handleQuickStatusChange}
+              onDetailedStatusChange={onStatusChange ? () => onStatusChange(plan.id, plan.status, plan.title) : undefined}
+              onDelete={handleDeleteRequest}
+            />
           </div>
           ) : null}
         </div>

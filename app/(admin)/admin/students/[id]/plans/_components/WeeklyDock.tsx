@@ -1,14 +1,19 @@
 'use client';
 
-import { useState, useTransition, useMemo, memo } from 'react';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { useState, useTransition, useMemo, useCallback, memo } from 'react';
 import { cn } from '@/lib/cn';
 import { DroppableContainer } from './dnd';
+import { usePlanToast } from './PlanToast';
 import { BulkRedistributeModal } from './BulkRedistributeModal';
 import { PlanItemCard, toPlanItemData } from './items';
 import { useWeeklyDockQuery } from '@/lib/hooks/useAdminDockQueries';
+import { ConfirmDialog } from '@/components/ui/Dialog';
+import { deletePlan, movePlanToContainer } from '@/lib/domains/plan/actions/dock';
 import type { ContentTypeFilter } from './AdminPlanManagement';
 import type { PlanStatus } from '@/lib/types/plan';
+
+/** 스켈레톤 로딩 UI용 상수 배열 (매 렌더마다 새 배열 생성 방지) */
+const SKELETON_ITEMS = [1, 2] as const;
 
 interface WeeklyDockProps {
   studentId: string;
@@ -54,7 +59,7 @@ export const WeeklyDock = memo(function WeeklyDock({
   onRefreshDailyAndWeekly,
 }: WeeklyDockProps) {
   // React Query 훅 사용 (캐싱 및 중복 요청 방지)
-  const { plans: allPlans, adHocPlans, isLoading, weekRange, invalidate } = useWeeklyDockQuery(
+  const { plans: allPlans, adHocPlans, isLoading, weekRange } = useWeeklyDockQuery(
     studentId,
     selectedDate,
     plannerId
@@ -72,7 +77,14 @@ export const WeeklyDock = memo(function WeeklyDock({
     return groupFilteredPlans.filter(plan => plan.content_type === contentTypeFilter);
   }, [groupFilteredPlans, contentTypeFilter]);
 
+  // 미완료 플랜 목록 (선택 모드에서 사용) - 매 렌더마다 필터링 방지
+  const uncompletedPlans = useMemo(
+    () => plans.filter((p) => p.status !== 'completed'),
+    [plans]
+  );
+
   const [isPending, startTransition] = useTransition();
+  const { showToast } = usePlanToast();
 
   // 선택 모드 상태 (기본: off → QuickComplete 버튼 표시)
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -80,6 +92,13 @@ export const WeeklyDock = memo(function WeeklyDock({
   // 선택 관련 상태
   const [selectedPlans, setSelectedPlans] = useState<Set<string>>(new Set());
   const [showBulkModal, setShowBulkModal] = useState(false);
+
+  // 삭제 확인 모달 상태
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    open: boolean;
+    planId: string | null;
+    isAdHoc: boolean;
+  }>({ open: false, planId: null, isAdHoc: false });
 
   // 선택 모드 토글
   const handleToggleSelectionMode = () => {
@@ -90,39 +109,48 @@ export const WeeklyDock = memo(function WeeklyDock({
     setIsSelectionMode(!isSelectionMode);
   };
 
-  const handleMoveToDaily = async (planId: string, targetDate: string) => {
-    const supabase = createSupabaseBrowserClient();
-
+  const handleMoveToDaily = useCallback(async (planId: string, targetDate: string) => {
     startTransition(async () => {
-      await supabase
-        .from('student_plan')
-        .update({
-          container_type: 'daily',
-          plan_date: targetDate,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', planId);
+      const result = await movePlanToContainer({
+        planId,
+        targetContainer: 'daily',
+        targetDate,
+      });
 
+      if (!result.success) {
+        showToast(result.error ?? 'Daily 이동 실패', 'error');
+        return;
+      }
+
+      showToast('Daily Dock으로 이동했습니다.', 'success');
       // 타겟 새로고침: Daily + Weekly만 (Unfinished는 영향 없음)
       (onRefreshDailyAndWeekly ?? onRefresh)();
     });
+  }, [showToast, onRefreshDailyAndWeekly, onRefresh]);
+
+  // 삭제 확인 모달 열기
+  const handleDeleteRequest = (planId: string, isAdHoc = false) => {
+    setDeleteConfirm({ open: true, planId, isAdHoc });
   };
 
-  const handleDelete = async (planId: string, isAdHoc = false) => {
-    if (!confirm('정말 삭제하시겠습니까?')) return;
-
-    const supabase = createSupabaseBrowserClient();
+  // 삭제 실행
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm.planId) return;
 
     startTransition(async () => {
-      if (isAdHoc) {
-        await supabase.from('ad_hoc_plans').delete().eq('id', planId);
-      } else {
-        await supabase
-          .from('student_plan')
-          .update({ is_active: false, updated_at: new Date().toISOString() })
-          .eq('id', planId);
+      const result = await deletePlan({
+        planId: deleteConfirm.planId!,
+        isAdHoc: deleteConfirm.isAdHoc,
+      });
+
+      if (!result.success) {
+        showToast(result.error ?? '삭제 실패', 'error');
+        setDeleteConfirm({ open: false, planId: null, isAdHoc: false });
+        return;
       }
 
+      showToast('플랜이 삭제되었습니다.', 'success');
+      setDeleteConfirm({ open: false, planId: null, isAdHoc: false });
       onRefresh();
     });
   };
@@ -141,7 +169,6 @@ export const WeeklyDock = memo(function WeeklyDock({
   };
 
   const handleSelectAll = () => {
-    const uncompletedPlans = plans.filter((p) => p.status !== 'completed');
     if (selectedPlans.size === uncompletedPlans.length) {
       setSelectedPlans(new Set());
     } else {
@@ -160,6 +187,44 @@ export const WeeklyDock = memo(function WeeklyDock({
     setSelectedPlans(new Set());
     onRefresh();
   };
+
+  // 선택된 플랜 ID 배열 메모이제이션 (Array.from 반복 호출 방지)
+  const selectedPlanIds = useMemo(
+    () => Array.from(selectedPlans),
+    [selectedPlans]
+  );
+
+  // 그룹 이동 핸들러 메모이제이션
+  const handleMoveToGroupBulk = useCallback(() => {
+    if (onMoveToGroup) {
+      onMoveToGroup(selectedPlanIds);
+    }
+  }, [onMoveToGroup, selectedPlanIds]);
+
+  // 복사 핸들러 메모이제이션
+  const handleCopyBulk = useCallback(() => {
+    if (onCopy) {
+      onCopy(selectedPlanIds);
+    }
+  }, [onCopy, selectedPlanIds]);
+
+  // 단일 플랜 그룹 이동 핸들러 메모이제이션
+  const handleMoveToGroupSingle = useCallback(
+    (id: string) => onMoveToGroup?.([id]),
+    [onMoveToGroup]
+  );
+
+  // 단일 플랜 복사 핸들러 메모이제이션
+  const handleCopySingle = useCallback(
+    (id: string) => onCopy?.([id]),
+    [onCopy]
+  );
+
+  // Daily 이동 핸들러 메모이제이션 (selectedDate, handleMoveToDaily 의존)
+  const handleMoveToDailySingle = useCallback(
+    (id: string) => handleMoveToDaily(id, selectedDate),
+    [selectedDate, handleMoveToDaily]
+  );
 
   const formatWeekRange = () => {
     const start = new Date(weekRange.start + 'T00:00:00');
@@ -191,7 +256,7 @@ export const WeeklyDock = memo(function WeeklyDock({
           </div>
           <div className="flex items-center gap-2">
             {/* 선택 모드 토글 */}
-            {plans.filter((p) => p.status !== 'completed').length > 0 && (
+            {uncompletedPlans.length > 0 && (
               <button
                 onClick={handleToggleSelectionMode}
                 className={cn(
@@ -205,12 +270,12 @@ export const WeeklyDock = memo(function WeeklyDock({
               </button>
             )}
             {/* 선택 모드일 때만 전체 선택/해제 버튼 표시 */}
-            {isSelectionMode && plans.filter((p) => p.status !== 'completed').length > 0 && (
+            {isSelectionMode && uncompletedPlans.length > 0 && (
               <button
                 onClick={handleSelectAll}
                 className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded"
               >
-                {selectedPlans.size === plans.filter((p) => p.status !== 'completed').length
+                {selectedPlans.size === uncompletedPlans.length
                   ? '전체 해제'
                   : '전체 선택'}
               </button>
@@ -225,7 +290,7 @@ export const WeeklyDock = memo(function WeeklyDock({
                 </button>
                 {onMoveToGroup && (
                   <button
-                    onClick={() => onMoveToGroup(Array.from(selectedPlans))}
+                    onClick={handleMoveToGroupBulk}
                     className="px-3 py-1.5 text-sm bg-indigo-500 text-white rounded-md hover:bg-indigo-600"
                   >
                     그룹 이동
@@ -233,7 +298,7 @@ export const WeeklyDock = memo(function WeeklyDock({
                 )}
                 {onCopy && (
                   <button
-                    onClick={() => onCopy(Array.from(selectedPlans))}
+                    onClick={handleCopyBulk}
                     className="px-3 py-1.5 text-sm bg-teal-500 text-white rounded-md hover:bg-teal-600"
                   >
                     복사
@@ -260,7 +325,7 @@ export const WeeklyDock = memo(function WeeklyDock({
         <div className="p-4">
           {isLoading ? (
             <div className="space-y-2">
-              {[1, 2].map((i) => (
+              {SKELETON_ITEMS.map((i) => (
                 <div key={i} className="h-16 bg-green-100 rounded animate-pulse" />
               ))}
             </div>
@@ -286,13 +351,13 @@ export const WeeklyDock = memo(function WeeklyDock({
                     selectable={isSelectionMode && !isCompleted}
                     isSelected={selectedPlans.has(plan.id)}
                     onSelect={handleToggleSelect}
-                    onMoveToDaily={(id) => handleMoveToDaily(id, selectedDate)}
+                    onMoveToDaily={handleMoveToDailySingle}
                     onRedistribute={onRedistribute}
                     onEdit={onEdit}
-                    onMoveToGroup={onMoveToGroup ? (id) => onMoveToGroup([id]) : undefined}
-                    onCopy={onCopy ? (id) => onCopy([id]) : undefined}
+                    onMoveToGroup={onMoveToGroup ? handleMoveToGroupSingle : undefined}
+                    onCopy={onCopy ? handleCopySingle : undefined}
                     onStatusChange={onStatusChange}
-                    onDelete={handleDelete}
+                    onDelete={handleDeleteRequest}
                     onRefresh={onRefresh}
                   />
                 );
@@ -308,7 +373,7 @@ export const WeeklyDock = memo(function WeeklyDock({
                     plan={planData}
                     container="weekly"
                     showProgress={false}
-                    onDelete={handleDelete}
+                    onDelete={(id) => handleDeleteRequest(id, true)}
                     onRefresh={onRefresh}
                   />
                 );
@@ -321,13 +386,30 @@ export const WeeklyDock = memo(function WeeklyDock({
       {/* 일괄 작업 모달 */}
       {showBulkModal && (
         <BulkRedistributeModal
-          planIds={Array.from(selectedPlans)}
+          planIds={selectedPlanIds}
           studentId={studentId}
           tenantId={tenantId}
           onClose={() => setShowBulkModal(false)}
           onSuccess={handleBulkSuccess}
         />
       )}
+
+      {/* 삭제 확인 모달 */}
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteConfirm({ open: false, planId: null, isAdHoc: false });
+          }
+        }}
+        title="플랜 삭제"
+        description="이 플랜을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+        confirmLabel="삭제"
+        cancelLabel="취소"
+        variant="destructive"
+        isLoading={isPending}
+        onConfirm={handleDeleteConfirm}
+      />
     </DroppableContainer>
   );
 });

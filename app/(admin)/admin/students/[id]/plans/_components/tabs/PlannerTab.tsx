@@ -144,7 +144,6 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
           tenantId={tenantId}
           plannerId={selectedPlannerId}
           selectedDate={selectedDate}
-          activePlanGroupId={activePlanGroupId}
           selectedGroupId={selectedGroupId}
           contentTypeFilter={contentTypeFilter}
           onRedistribute={handleOpenRedistribute}
