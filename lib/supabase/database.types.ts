@@ -3938,6 +3938,7 @@ export type Database = {
           deleted_by: string | null
           id: string
           plan_group_id: string
+          planner_id: string | null
           restored_at: string | null
           restored_by: string | null
           student_id: string
@@ -3949,6 +3950,7 @@ export type Database = {
           deleted_by?: string | null
           id?: string
           plan_group_id: string
+          planner_id?: string | null
           restored_at?: string | null
           restored_by?: string | null
           student_id: string
@@ -3960,6 +3962,7 @@ export type Database = {
           deleted_by?: string | null
           id?: string
           plan_group_id?: string
+          planner_id?: string | null
           restored_at?: string | null
           restored_by?: string | null
           student_id?: string
@@ -3978,6 +3981,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_group_backups_planner_id_fkey"
+            columns: ["planner_id"]
+            isOneToOne: false
+            referencedRelation: "planners"
             referencedColumns: ["id"]
           },
         ]

@@ -5,6 +5,7 @@ import { Providers } from "./providers";
 import InstallPrompt from "@/components/ui/InstallPrompt";
 import { SkipLink } from "@/components/layout/SkipLink";
 import { GlobalErrorBoundary } from "@/components/errors/GlobalErrorBoundary";
+import { FloatingChatWidget } from "@/components/chat/FloatingChatWidget";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -126,6 +127,7 @@ export default function RootLayout({
             <SkipLink />
             {children}
             <InstallPrompt />
+            <FloatingChatWidget />
           </Providers>
         </GlobalErrorBoundary>
       </body>

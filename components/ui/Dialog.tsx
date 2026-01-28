@@ -11,6 +11,7 @@ import {
   textSecondaryVar,
 } from "@/lib/utils/darkMode";
 import { trapFocus, focusFirst } from "@/lib/accessibility";
+import { lockScroll, unlockScroll } from "@/lib/utils/scrollLock";
 
 export type DialogSize =
   | "sm"
@@ -87,7 +88,7 @@ export function Dialog({
     };
 
     document.addEventListener("keydown", handleEscape);
-    document.body.style.overflow = "hidden";
+    lockScroll();
 
     // 포커스 트랩 설정: Tab 키로 포커스가 다이얼로그 외부로 나가지 않도록 함
     const dialogElement = dialogRef.current;
@@ -105,7 +106,7 @@ export function Dialog({
 
     return () => {
       document.removeEventListener("keydown", handleEscape);
-      document.body.style.overflow = "";
+      unlockScroll();
       cleanupTrap?.();
     };
   }, [open, onOpenChange]);

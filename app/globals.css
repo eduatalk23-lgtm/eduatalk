@@ -343,9 +343,21 @@
   --color-risk-medium: rgb(var(--color-risk-medium));
   --color-risk-high: rgb(var(--color-risk-high));
   --color-risk-critical: rgb(var(--color-risk-critical));
+
+  /* Background Colors (bg-bg-*) */
+  --color-bg-primary: var(--background);
+  --color-bg-secondary: rgb(var(--color-secondary-50));
+  --color-bg-tertiary: rgb(var(--color-secondary-100));
+
+  /* Border Color */
+  --color-border: rgb(var(--color-secondary-200));
 }
 
 /* Global Reset & Base Styles */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
