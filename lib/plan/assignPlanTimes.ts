@@ -151,6 +151,8 @@ export type PlanTimeSegment = {
   isContinued: boolean;
   /** 원래 예상 소요시간 (분) */
   originalEstimatedTime: number;
+  /** 실제 학습시간 (분) - 병합 시 비학습시간 제외한 실학습 시간 */
+  estimatedMinutes?: number | null;
 };
 
 /**
@@ -475,6 +477,112 @@ function assignNonLecturePlans(
   segments.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
 
   return segments;
+}
+
+/**
+ * 비학습시간으로 분할된 연속 세그먼트를 병합
+ *
+ * 같은 콘텐츠(content_id + planned_start/end_page_or_time)가
+ * isPartial → isContinued 관계로 분할된 경우 하나의 세그먼트로 병합합니다.
+ *
+ * 다른 콘텐츠가 사이에 끼어도 올바르게 병합합니다:
+ * [A partial 10:00~12:00] [B normal 12:00~12:30] [A continued 13:00~14:00]
+ * → [A merged 10:00~14:00, estimatedMinutes=180] [B normal 12:00~12:30]
+ *
+ * @param segments - assignPlanTimes에서 반환된 세그먼트 배열 (시간순 정렬)
+ * @returns 병합된 세그먼트 배열 (시간순 정렬 유지)
+ *
+ * @example
+ * // 점심시간으로 분할된 2시간 교재:
+ * // [10:00~12:00, isPartial=true] + [13:00~14:00, isContinued=true]
+ * // → [10:00~14:00, estimatedMinutes=120]
+ */
+export function mergeConsecutiveSegments(
+  segments: PlanTimeSegment[]
+): PlanTimeSegment[] {
+  if (segments.length <= 1) return segments;
+
+  // content_id + range 기준으로 분할 세그먼트 그룹핑
+  // key: "content_id:start-end"
+  type MergeGroup = { segments: PlanTimeSegment[]; indices: number[] };
+  const mergeGroups = new Map<string, MergeGroup>();
+  const mergedIndices = new Set<number>();
+
+  // 1단계: partial/continued 세그먼트를 content key로 그룹핑
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    if (!seg.isPartial && !seg.isContinued) continue;
+
+    const key = `${seg.plan.content_id}:${seg.plan.planned_start_page_or_time}-${seg.plan.planned_end_page_or_time}`;
+    let group = mergeGroups.get(key);
+    if (!group) {
+      group = { segments: [], indices: [] };
+      mergeGroups.set(key, group);
+    }
+    group.segments.push(seg);
+    group.indices.push(i);
+  }
+
+  // 2단계: 2개 이상 모인 그룹만 병합 (시간순 정렬 후)
+  const mergedResults: Array<{ merged: PlanTimeSegment; firstIndex: number }> = [];
+
+  for (const [, group] of mergeGroups) {
+    if (group.segments.length < 2) continue;
+
+    // 그룹 내 시간순 정렬
+    const sorted = group.segments
+      .map((seg, i) => ({ seg, idx: group.indices[i] }))
+      .sort((a, b) => timeToMinutes(a.seg.start) - timeToMinutes(b.seg.start));
+
+    // 병합 유효성 확인: 첫 세그먼트가 partial이고 나머지가 continued인지
+    const first = sorted[0].seg;
+    const rest = sorted.slice(1);
+    const isValidChain = first.isPartial && rest.every((s) => s.seg.isContinued);
+
+    if (!isValidChain) continue;
+
+    // 실학습 시간 합산 (각 세그먼트의 end - start)
+    const totalStudyMinutes = sorted.reduce((sum, s) => {
+      return sum + (timeToMinutes(s.seg.end) - timeToMinutes(s.seg.start));
+    }, 0);
+
+    const last = sorted[sorted.length - 1].seg;
+
+    mergedResults.push({
+      merged: {
+        plan: first.plan,
+        start: first.start,
+        end: last.end,
+        isPartial: last.isPartial,
+        isContinued: first.isContinued,
+        originalEstimatedTime: first.originalEstimatedTime,
+        estimatedMinutes: totalStudyMinutes,
+      },
+      firstIndex: sorted[0].idx,
+    });
+
+    // 병합된 인덱스 마킹
+    for (const s of sorted) {
+      mergedIndices.add(s.idx);
+    }
+  }
+
+  // 3단계: 결과 조합 (병합되지 않은 세그먼트 + 병합 결과)
+  const result: Array<{ seg: PlanTimeSegment; sortKey: number }> = [];
+
+  for (let i = 0; i < segments.length; i++) {
+    if (mergedIndices.has(i)) continue;
+    result.push({ seg: segments[i], sortKey: timeToMinutes(segments[i].start) });
+  }
+
+  for (const { merged } of mergedResults) {
+    result.push({ seg: merged, sortKey: timeToMinutes(merged.start) });
+  }
+
+  // 시간순 정렬 유지
+  result.sort((a, b) => a.sortKey - b.sortKey);
+
+  return result.map((r) => r.seg);
 }
 
 /**

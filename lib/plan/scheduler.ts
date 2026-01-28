@@ -102,6 +102,8 @@ export interface GeneratePlansOptions {
   autoAdjustOverlaps?: boolean;
   /** 자동 조정 시 최대 종료 시간 (기본값: "23:59") */
   maxEndTime?: string;
+  /** 점심시간 (시간 조정 시 점심시간 경계를 넘지 않도록) */
+  lunchTime?: { start: string; end: string };
 }
 
 export async function generatePlansFromGroup(
@@ -165,7 +167,8 @@ export async function generatePlansFromGroup(
       content_id: c.content_id,
       start_range: c.start_range,
       end_range: c.end_range,
-      total_amount: c.end_range - c.start_range,
+      // DB의 end_range는 inclusive이므로, total_amount = end - start + 1
+      total_amount: c.end_range - c.start_range + 1,
       subject: subjectInfo?.subject || null,
       subject_category: subjectInfo?.subject_category || null,
       chapter: chapter, // contentChapterMap에서 조회한 chapter 정보 사용
@@ -252,6 +255,22 @@ export async function generatePlansFromGroup(
     plans = [...plans, ...reallocatedPlans];
   }
 
+  // 4.5. 방어적 제외일 필터 (safety net): 제외일에 생성된 플랜 제거
+  if (exclusions.length > 0) {
+    const exclusionDateSet = new Set(
+      exclusions.map((e) => e.exclusion_date.split("T")[0])
+    );
+    const beforeCount = plans.length;
+    plans = plans.filter((p) => !exclusionDateSet.has(p.plan_date));
+    const removedCount = beforeCount - plans.length;
+    if (removedCount > 0) {
+      logActionWarn(
+        "plan.generatePlansFromGroup",
+        `제외일 방어 필터: ${removedCount}개 플랜 제거됨`
+      );
+    }
+  }
+
   // 5. 각 플랜에 subject_type 할당 (선계산된 값 사용, 폴백용)
   for (const plan of plans) {
     if (!plan.subject_type) {
@@ -263,7 +282,8 @@ export async function generatePlansFromGroup(
   if (options?.autoAdjustOverlaps && plans.length > 1) {
     const internalAdjustResult = adjustInternalOverlaps(
       plans,
-      options.maxEndTime || "23:59"
+      options.maxEndTime || "23:59",
+      options.lunchTime
     );
     plans = internalAdjustResult.adjustedPlans;
     if (internalAdjustResult.adjustedCount > 0) {
@@ -289,7 +309,8 @@ export async function generatePlansFromGroup(
         const adjustmentResult = adjustOverlappingTimes(
           plans,
           existingPlans,
-          options.maxEndTime || "23:59"
+          options.maxEndTime || "23:59",
+          options.lunchTime
         );
 
         plans = adjustmentResult.adjustedPlans;
@@ -298,6 +319,24 @@ export async function generatePlansFromGroup(
         unadjustablePlans = adjustmentResult.unadjustablePlans.length > 0
           ? adjustmentResult.unadjustablePlans
           : undefined;
+
+        // 5.5.1: 외부 충돌 조정으로 인해 발생한 내부 시간 충돌 재조정
+        // adjustOverlappingTimes가 플랜을 이동시키면 같은 날의 다른 플랜과
+        // 새로운 내부 충돌이 발생할 수 있으므로 재조정 필요
+        if (adjustmentResult.adjustedCount > 0 && plans.length > 1) {
+          const internalReadjustResult = adjustInternalOverlaps(
+            plans,
+            options.maxEndTime || "23:59",
+            options.lunchTime
+          );
+          plans = internalReadjustResult.adjustedPlans;
+          if (internalReadjustResult.adjustedCount > 0) {
+            logActionWarn(
+              "plan.generatePlansFromGroup",
+              `외부 충돌 조정 후 내부 시간 재조정: ${internalReadjustResult.adjustedCount}개 플랜 조정됨`
+            );
+          }
+        }
 
         // 조정 후 재검증
         overlapValidation = validateNoTimeOverlaps(plans, existingPlans);

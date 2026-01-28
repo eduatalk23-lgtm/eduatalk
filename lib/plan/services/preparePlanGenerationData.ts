@@ -18,7 +18,7 @@ import {
   adaptScheduleGeneration,
   getAdapterConfig,
 } from "./ServiceAdapter";
-import { assignPlanTimes } from "@/lib/plan/assignPlanTimes";
+import { assignPlanTimes, mergeConsecutiveSegments } from "@/lib/plan/assignPlanTimes";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { ServiceContext } from "@/lib/plan/shared";
 import type {
@@ -85,6 +85,7 @@ export type AllocatedPlanSegment = {
   end: string;
   isPartial: boolean;
   isContinued: boolean;
+  estimatedMinutes?: number | null;
 };
 
 /**
@@ -151,22 +152,55 @@ async function fetchExistingPlans(
   studentId: string,
   periodStart: string,
   periodEnd: string,
-  excludePlanGroupId: string
+  excludePlanGroupId: string,
+  plannerId?: string | null
 ): Promise<ExistingPlanInfo[]> {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("student_plan")
-    .select(`
-      id,
-      plan_date,
-      start_time,
-      end_time
-    `)
-    .eq("student_id", studentId)
-    .gte("plan_date", periodStart)
-    .lte("plan_date", periodEnd)
-    .neq("plan_group_id", excludePlanGroupId)
-    .eq("is_active", true);
+
+  let data: Array<{
+    id: string;
+    plan_date: string;
+    start_time: string | null;
+    end_time: string | null;
+  }> | null = null;
+  let error: { message: string } | null = null;
+
+  if (plannerId) {
+    // 플래너 ID가 있으면 같은 플래너의 플랜만 조회 (다른 플래너 플랜 무시)
+    const result = await supabase
+      .from("student_plan")
+      .select(`
+        id,
+        plan_date,
+        start_time,
+        end_time,
+        plan_groups!inner(planner_id)
+      `)
+      .eq("student_id", studentId)
+      .gte("plan_date", periodStart)
+      .lte("plan_date", periodEnd)
+      .neq("plan_group_id", excludePlanGroupId)
+      .eq("is_active", true)
+      .eq("plan_groups.planner_id", plannerId);
+    data = result.data;
+    error = result.error;
+  } else {
+    const result = await supabase
+      .from("student_plan")
+      .select(`
+        id,
+        plan_date,
+        start_time,
+        end_time
+      `)
+      .eq("student_id", studentId)
+      .gte("plan_date", periodStart)
+      .lte("plan_date", periodEnd)
+      .neq("plan_group_id", excludePlanGroupId)
+      .eq("is_active", true);
+    data = result.data;
+    error = result.error;
+  }
 
   if (error) {
     console.error("[fetchExistingPlans] 기존 플랜 조회 실패:", error);
@@ -296,10 +330,11 @@ export async function preparePlanGenerationData(
     context.tenantId
   );
 
-  if (baseBlocks.length === 0) {
+  const hasStudyHours = !!(group.study_hours as Record<string, string> | null);
+  if (baseBlocks.length === 0 && !hasStudyHours) {
     return {
       success: false,
-      error: "블록 세트가 설정되지 않았습니다.",
+      error: "블록 세트 또는 학습 시간이 설정되지 않았습니다.",
       errorCode: ServiceErrorCodes.INVALID_INPUT,
     };
   }
@@ -324,11 +359,23 @@ export async function preparePlanGenerationData(
   );
 
   // plan_group의 시간 설정을 TimeRange 형식으로 변환
-  const groupStudyHours = group.study_hours
-    ? { start: group.study_hours.start_time, end: group.study_hours.end_time }
+  // TimeRange({start,end})와 StudyHours({start_time,end_time}) 모두 지원
+  const rawStudyHours = group.study_hours as Record<string, string> | null;
+  const groupStudyHours = rawStudyHours
+    ? (() => {
+        const start = rawStudyHours.start_time || rawStudyHours.start;
+        const end = rawStudyHours.end_time || rawStudyHours.end;
+        return (start && end) ? { start, end } : null;
+      })()
     : null;
-  const groupSelfStudyHours = group.self_study_hours
-    ? { start: group.self_study_hours.start_time, end: group.self_study_hours.end_time }
+
+  const rawSelfStudyHours = group.self_study_hours as Record<string, string> | null;
+  const groupSelfStudyHours = rawSelfStudyHours
+    ? (() => {
+        const start = rawSelfStudyHours.start_time || rawSelfStudyHours.start;
+        const end = rawSelfStudyHours.end_time || rawSelfStudyHours.end;
+        return (start && end) ? { start, end } : null;
+      })()
     : null;
 
   // mergedSettings에서 study_days/review_days 사용 (sanitizedAIOverride가 이미 적용됨)
@@ -446,11 +493,39 @@ export async function preparePlanGenerationData(
     context.studentId,
     group.period_start,
     group.period_end,
-    groupId
+    groupId,
+    group.planner_id
   );
+
+  // 기존 플랜을 날짜별로 그룹화 (시간 차감용 - 이후 스케줄러 및 시간 할당에서 재사용)
+  const existingPlansByDate = new Map<string, Array<{ start: string; end: string }>>();
+  for (const plan of existingPlans) {
+    const date = plan.date;
+    if (!existingPlansByDate.has(date)) {
+      existingPlansByDate.set(date, []);
+    }
+    existingPlansByDate.get(date)!.push({
+      start: plan.start_time,
+      end: plan.end_time,
+    });
+  }
 
   if (existingPlans.length > 0) {
     logger.debug("preparePlanGenerationData", `기존 플랜 ${existingPlans.length}개 발견, 스케줄러에 전달`);
+
+    // dateAvailableTimeRanges에서 기존 플랜 시간 차감
+    // (복습일 시간 충돌 방지: SchedulerEngine.generateReviewDayPlans가 이 범위를 직접 사용)
+    for (const [date, ranges] of dateAvailableTimeRanges) {
+      const existingTimes = existingPlansByDate.get(date);
+      if (existingTimes && existingTimes.length > 0) {
+        const adjusted = subtractTimeRanges(ranges, existingTimes);
+        if (adjusted.length > 0) {
+          dateAvailableTimeRanges.set(date, adjusted);
+        } else {
+          dateAvailableTimeRanges.delete(date);
+        }
+      }
+    }
   }
 
   // 8. 스케줄 생성 (어댑터 통해 기존 함수 호출)
@@ -508,19 +583,6 @@ export async function preparePlanGenerationData(
   const dateAllocations: DateAllocationResult[] = [];
   const sortedDates = Array.from(plansByDate.keys()).sort();
 
-  // 기존 플랜을 날짜별로 그룹화 (시간 차감용)
-  const existingPlansByDate = new Map<string, Array<{ start: string; end: string }>>();
-  for (const plan of existingPlans) {
-    const date = plan.date;
-    if (!existingPlansByDate.has(date)) {
-      existingPlansByDate.set(date, []);
-    }
-    existingPlansByDate.get(date)!.push({
-      start: plan.start_time,
-      end: plan.end_time,
-    });
-  }
-
   for (const date of sortedDates) {
     const datePlans = plansByDate.get(date)!;
     const timeSlotsForDate = dateTimeSlots.get(date) || [];
@@ -544,7 +606,7 @@ export async function preparePlanGenerationData(
     const totalStudyHours = dailySchedule?.study_hours || 0;
     const dayType = dateMetadata.day_type || "학습일";
 
-    // 시간 할당
+    // 시간 할당 (SchedulerEngine의 precalculated 시간이 있으면 bypass)
     const segments = assignPlanTimes(
       datePlans.map((plan) => ({
         content_id: plan.content_id,
@@ -552,12 +614,17 @@ export async function preparePlanGenerationData(
         planned_start_page_or_time: plan.planned_start_page_or_time,
         planned_end_page_or_time: plan.planned_end_page_or_time,
         block_index: plan.block_index,
+        _precalculated_start: plan.start_time || null,
+        _precalculated_end: plan.end_time || null,
       })),
       studyTimeSlots,
       contentDurationMap,
       dayType,
       totalStudyHours
     );
+
+    // 비학습시간으로 분할된 연속 세그먼트 병합
+    const mergedSegments = mergeConsecutiveSegments(segments);
 
     // subject_type을 content_id 기반으로 조회하기 위한 맵 생성
     const subjectTypeMap = new Map<string, "strategy" | "weakness" | null>();
@@ -567,20 +634,28 @@ export async function preparePlanGenerationData(
 
     dateAllocations.push({
       date,
-      segments: segments.map((seg) => ({
-        plan: {
-          content_id: seg.plan.content_id,
-          content_type: seg.plan.content_type,
-          planned_start_page_or_time: seg.plan.planned_start_page_or_time,
-          planned_end_page_or_time: seg.plan.planned_end_page_or_time,
-          block_index: seg.plan.block_index ?? 0,
-          subject_type: subjectTypeMap.get(seg.plan.content_id) ?? null,
-        },
-        start: seg.start,
-        end: seg.end,
-        isPartial: seg.isPartial,
-        isContinued: seg.isContinued,
-      })),
+      segments: mergedSegments.map((seg) => {
+        // estimatedMinutes 계산: 병합된 경우 합산값 사용, 아니면 end-start 시간차
+        const timeRangeMinutes = timeToMinutes(seg.end) - timeToMinutes(seg.start);
+        const estimatedMinutes = seg.estimatedMinutes ?? timeRangeMinutes;
+
+        return {
+          plan: {
+            content_id: seg.plan.content_id,
+            content_type: seg.plan.content_type,
+            planned_start_page_or_time: seg.plan.planned_start_page_or_time,
+            planned_end_page_or_time: seg.plan.planned_end_page_or_time,
+            block_index: seg.plan.block_index ?? 0,
+            subject_type: subjectTypeMap.get(seg.plan.content_id) ?? null,
+          },
+          start: seg.start,
+          end: seg.end,
+          isPartial: seg.isPartial,
+          isContinued: seg.isContinued,
+          // 시간 범위와 실학습 시간이 다를 때만 estimatedMinutes 기록
+          estimatedMinutes: estimatedMinutes !== timeRangeMinutes ? estimatedMinutes : null,
+        };
+      }),
       dateMetadata,
       dayType,
     });

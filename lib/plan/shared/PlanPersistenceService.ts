@@ -531,6 +531,7 @@ export class PlanPersistenceService implements IPlanPersistenceService {
       is_continued: plan.is_continued,
       plan_number: plan.plan_number,
       subject_type: plan.subject_type ?? null,
+      estimated_minutes: plan.estimated_minutes ?? null,
       // 콘텐츠 메타데이터 (옵션)
       content_title: plan.content_title ?? null,
       content_subject: plan.content_subject ?? null,

@@ -162,6 +162,7 @@ export async function generatePlansWithServices(
           is_continued: segment.isContinued,
           plan_number: planNumber,
           subject_type: segment.plan.subject_type ?? null,
+          estimated_minutes: segment.estimatedMinutes ?? null,
           content_title: metadata?.title ?? null,
           custom_title: customTitle,
           content_subject: metadata?.subject ?? null,

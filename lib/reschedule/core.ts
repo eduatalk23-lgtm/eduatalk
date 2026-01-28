@@ -478,7 +478,7 @@ export async function calculateReschedulePreview(
     adjustedPeriod.start,
     adjustedPeriod.end,
     undefined, // existingPlans (재조정 시에는 기존 플랜 삭제 후 재생성)
-    { autoAdjustOverlaps: true } // Phase 4: 시간 충돌 자동 조정
+    { autoAdjustOverlaps: true, lunchTime: schedulerOptions.lunch_time } // Phase 4: 시간 충돌 자동 조정 + 점심시간 보호
   );
   const generatedPlans = generateResult.plans;
 

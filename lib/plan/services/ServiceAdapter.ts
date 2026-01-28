@@ -210,6 +210,16 @@ export async function adaptScheduleGeneration(
     { subject?: string | null; subject_category?: string | null }
   >();
 
+  // group의 lunch_time 추출 (시간 충돌 조정 시 점심시간 경계 보호)
+  const rawLunchTime = effectiveGroup.lunch_time as Record<string, string> | null;
+  const lunchTime = rawLunchTime
+    ? (() => {
+        const start = rawLunchTime.start_time || rawLunchTime.start;
+        const end = rawLunchTime.end_time || rawLunchTime.end;
+        return (start && end) ? { start, end } : undefined;
+      })()
+    : undefined;
+
   // 기존 스케줄러 호출
   // NOTE: blocks는 빈 배열로 전달 (기존 generatePlansRefactored와 동일)
   // 실제 시간 정보는 dateAvailableTimeRanges와 dateTimeSlots에서 사용
@@ -228,7 +238,7 @@ export async function adaptScheduleGeneration(
     undefined, // periodStart
     undefined, // periodEnd
     existingPlans, // 기존 플랜 정보 (시간 충돌 방지)
-    { autoAdjustOverlaps: true } // Phase 4: 시간 충돌 자동 조정
+    { autoAdjustOverlaps: true, lunchTime } // Phase 4: 시간 충돌 자동 조정 + 점심시간 보호
   );
   const scheduledPlans = generateResult.plans;
 

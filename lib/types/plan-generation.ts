@@ -264,6 +264,7 @@ export type PlanPayloadBase = {
   plan_number: number | null;
   subject_type?: "strategy" | "weakness" | null; // 전략/취약 정보
   cycle_day_number?: number | null; // 1730 Timetable: 주기 내 일자 번호 (1~7)
+  estimated_minutes?: number | null; // 실제 학습시간 (분) - 비학습시간 제외
 };
 
 /**

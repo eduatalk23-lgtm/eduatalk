@@ -210,9 +210,10 @@ export function divideContentRange(
   for (let i = 0; i < allocatedDates.length; i++) {
     const date = allocatedDates[i];
     const isLast = i === allocatedDates.length - 1;
+    // 누적 반올림 (Bresenham): 오차가 마지막 날에 집중되지 않도록
     const dayRange = isLast
       ? totalRange - currentStart
-      : Math.round(dailyRange);
+      : Math.round(dailyRange * (i + 1)) - currentStart;
     const dayEnd = currentStart + dayRange;
 
     result.set(date, {

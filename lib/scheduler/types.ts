@@ -256,6 +256,7 @@ export interface SlotAvailability {
     source?: string;
   };
   usedTime: number;
+  occupiedIntervals: [number, number][];
 }
 
 // ============================================

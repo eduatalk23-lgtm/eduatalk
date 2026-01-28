@@ -38,6 +38,7 @@ export type PreviewPlan = {
   is_partial: boolean;
   is_continued: boolean;
   plan_number: number | null;
+  estimated_minutes?: number | null;
 };
 
 /**
@@ -204,6 +205,7 @@ export async function previewPlansWithServices(
           is_partial: segment.isPartial,
           is_continued: segment.isContinued,
           plan_number: planNumber,
+          estimated_minutes: segment.estimatedMinutes ?? null,
         });
 
         blockIndex++;

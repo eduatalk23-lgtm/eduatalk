@@ -53,6 +53,12 @@ import {
   RiskBasedAllocationStrategy,
 } from "@/lib/scheduler/strategies";
 import { MinHeap } from "@/lib/scheduler/utils/MinHeap";
+import {
+  findFirstFreeGap,
+  findLargestFreeGap,
+  insertOccupiedInterval,
+  buildOccupiedIntervals,
+} from "@/lib/scheduler/utils/slotIntervalHelpers";
 
 /**
  * 기존 플랜 정보 (시간 충돌 방지용)
@@ -135,28 +141,25 @@ export class SchedulerEngine {
    * @param existingPlansForDate 해당 날짜의 기존 플랜 목록
    * @returns 기존 플랜이 사용한 시간 (분)
    */
-  private calculateUsedTimeForSlot(
+  private calculateSlotOccupancy(
     slot: { start: string; end: string },
     existingPlansForDate: ExistingPlanInfo[]
-  ): number {
-    let usedTime = 0;
+  ): { usedTime: number; occupiedIntervals: [number, number][] } {
     const slotStart = timeToMinutes(slot.start);
     const slotEnd = timeToMinutes(slot.end);
 
-    for (const plan of existingPlansForDate) {
-      const planStart = timeToMinutes(plan.start_time);
-      const planEnd = timeToMinutes(plan.end_time);
+    const occupiedIntervals = buildOccupiedIntervals(
+      slotStart,
+      slotEnd,
+      existingPlansForDate
+    );
 
-      // 슬롯과 기존 플랜의 겹치는 부분 계산
-      const overlapStart = Math.max(slotStart, planStart);
-      const overlapEnd = Math.min(slotEnd, planEnd);
+    const usedTime = occupiedIntervals.reduce(
+      (sum, [s, e]) => sum + (e - s),
+      0
+    );
 
-      if (overlapEnd > overlapStart) {
-        usedTime += overlapEnd - overlapStart;
-      }
-    }
-
-    return usedTime;
+    return { usedTime, occupiedIntervals };
   }
 
   /**
@@ -328,6 +331,7 @@ export class SchedulerEngine {
       total_pages?: number | null;
       duration?: number | null;
       total_page_or_time?: number | null;
+      total_episodes?: number | null;
       episodes?: Array<{
         episode_number: number;
         duration: number | null;
@@ -369,7 +373,8 @@ export class SchedulerEngine {
 
     // 2. Distribute content units
     let currentStart = content.start_range;
-    const totalEnd = content.end_range;
+    // DB의 end_range는 inclusive → exclusive 상한으로 변환 (+1)
+    const totalEnd = content.end_range + 1;
     const totalRange = totalEnd - currentStart; // 총 회차/페이지 수
     
     // Sort dates chronologically
@@ -379,7 +384,7 @@ export class SchedulerEngine {
     // 강의 콘텐츠의 경우: 학습일 수에 맞춰 균등 분배
     // 학습일이 30일이고 회차가 30개면 하루 1개씩 분배
     // divideContentRange 패턴 사용하여 연속성 보장
-    if (content.content_type === "lecture" && durationInfo.episodes && totalStudyDays > 0 && totalRange > 0) {
+    if (content.content_type === "lecture" && totalStudyDays > 0 && totalRange > 0) {
       // 실제 에피소드 수 확인 및 범위 제한
       const actualEpisodes = durationInfo.episodes || [];
       const maxEpisodeNumber = actualEpisodes.length > 0
@@ -387,46 +392,71 @@ export class SchedulerEngine {
         : null;
       
       // 실제 존재하는 에피소드 수를 기준으로 end_range 제한
-      // end_range는 exclusive이므로, maxEpisodeNumber가 있으면 maxEpisodeNumber + 1로 제한
+      // DB의 end_range는 inclusive (e.g., 12 = 12강까지 포함)
+      // 내부 계산에서는 exclusive 상한으로 변환 (+1)
+      const contentEndExclusive = content.end_range + 1;
       const actualEndRange = maxEpisodeNumber !== null
-        ? Math.min(content.end_range, maxEpisodeNumber + 1)
-        : content.end_range;
-      
-      // 실제 totalRange 재계산 (end_range는 exclusive)
+        ? Math.min(contentEndExclusive, maxEpisodeNumber + 1)
+        : durationInfo.total_episodes != null
+          ? Math.min(contentEndExclusive, content.start_range + durationInfo.total_episodes)
+          : contentEndExclusive;
+
+      // 실제 totalRange 재계산 (exclusive 상한 기준)
       const actualTotalRange = actualEndRange - content.start_range;
       
       if (actualTotalRange <= 0) {
         return result;
       }
-      
+
+      // 콘텐츠 수가 학습일보다 적으면: N개 날짜를 균등 선별하여 1개씩 배정
+      // calculateSubjectAllocationDates()의 균등 분산 공식과 동일한 패턴
+      if (actualTotalRange < totalStudyDays) {
+        const selectedCount = actualTotalRange;
+        const step = totalStudyDays / selectedCount;
+        for (let i = 0; i < selectedCount; i++) {
+          const dateIndex = Math.min(
+            Math.floor((i + 0.5) * step),
+            totalStudyDays - 1
+          );
+          const date = sortedDates[dateIndex];
+          const episodeStart = content.start_range + i;
+          result.set(date, { start: episodeStart, end: episodeStart + 1 });
+        }
+        return result;
+      }
+
+      // 기존 로직 (콘텐츠 수 >= 학습일 수): 누적 반올림으로 균등 분할
+      // Bresenham 방식: 매일 동일한 Math.round(dailyRange) 대신
+      // 누적 목표에서 역산하여 반올림 오차가 마지막 날에 집중되지 않도록 함
       const dailyRange = actualTotalRange / totalStudyDays;
       let currentPos = 0; // 0부터 시작하는 상대 위치 (정수로 관리)
-      
+
       for (let i = 0; i < sortedDates.length; i++) {
         const date = sortedDates[i];
         const isLastDay = i === sortedDates.length - 1;
-        
-        // 마지막 날이 아니면 dailyRange를 반올림, 마지막 날이면 남은 모든 회차 배정
+
+        // 누적 반올림: round(dailyRange * (i+1)) - currentPos
+        // 마지막 날은 남은 전부 배정 (소수점 보정)
         const dayRange = isLastDay
           ? actualTotalRange - currentPos
-          : Math.round(dailyRange);
-        
+          : Math.round(dailyRange * (i + 1)) - currentPos;
+
         const dayEnd = currentPos + dayRange;
-        
+
         // 실제 회차 범위 (start_range 오프셋 적용)
         // divideContentRange 패턴: end는 exclusive이므로 그대로 사용
         const actualStart = content.start_range + currentPos;
         const actualEnd = content.start_range + dayEnd;
-        
+
         // 회차가 있는 경우만 배정 (실제 에피소드 수 범위 내)
         if (actualEnd > actualStart && (maxEpisodeNumber === null || actualEnd <= maxEpisodeNumber + 1)) {
           result.set(date, { start: actualStart, end: actualEnd });
         }
-        
+
         // 다음 날을 위해 현재 위치 업데이트 (정확한 연속성 보장)
         currentPos = dayEnd;
       }
-      
+
       return result;
     }
     
@@ -434,38 +464,53 @@ export class SchedulerEngine {
     // 버그 수정: 기존 Capacity-Aware 로직은 용량이 차면 조기 종료되어 
     // 20일 학습 기간인데 3일만에 플랜이 끝나는 문제가 있었음
     if (content.content_type === "book" && totalStudyDays > 0 && totalRange > 0) {
+      // 페이지 수가 학습일보다 적으면: N개 날짜를 균등 선별하여 1페이지씩 배정
+      if (totalRange < totalStudyDays) {
+        const selectedCount = totalRange;
+        const step = totalStudyDays / selectedCount;
+        for (let i = 0; i < selectedCount; i++) {
+          const dateIndex = Math.min(
+            Math.floor((i + 0.5) * step),
+            totalStudyDays - 1
+          );
+          const date = sortedDates[dateIndex];
+          const pageStart = content.start_range + i;
+          result.set(date, { start: pageStart, end: pageStart + 1 });
+        }
+        return result;
+      }
+
+      // 기존 로직 (페이지 수 >= 학습일 수): 누적 반올림으로 균등 분할
       const dailyRange = totalRange / totalStudyDays;
       let currentPos = 0; // 0부터 시작하는 상대 위치
-      
+
       for (let i = 0; i < sortedDates.length; i++) {
         const date = sortedDates[i];
         const isLastDay = i === sortedDates.length - 1;
-        
-        // 마지막 날이 아니면 dailyRange를 반올림, 마지막 날이면 남은 모든 페이지 배정
+
+        // 누적 반올림: 마지막 날이 아니면 누적 목표에서 역산
         const dayRange = isLastDay
           ? totalRange - currentPos
-          : Math.round(dailyRange);
-        
-        // 최소 1페이지는 배정되도록 보장
-        const effectiveDayRange = Math.max(1, dayRange);
-        const dayEnd = Math.min(currentPos + effectiveDayRange, totalRange);
-        
+          : Math.round(dailyRange * (i + 1)) - currentPos;
+
+        const dayEnd = currentPos + dayRange;
+
         // 실제 페이지 범위 (start_range 오프셋 적용)
         const actualStart = content.start_range + currentPos;
         const actualEnd = content.start_range + dayEnd;
-        
+
         // 페이지가 있는 경우만 배정
         if (actualEnd > actualStart) {
           result.set(date, { start: actualStart, end: actualEnd });
         }
-        
+
         // 다음 날을 위해 현재 위치 업데이트
         currentPos = dayEnd;
-        
+
         // 모든 페이지가 배정되면 종료
         if (currentPos >= totalRange) break;
       }
-      
+
       return result;
     }
     
@@ -598,24 +643,17 @@ export class SchedulerEngine {
       const sortedDates = [...allocatedDates].sort();
 
       let currentUnit = content.start_range;
-      const totalEnd = content.end_range;
+      // DB의 end_range는 inclusive → exclusive 상한으로 변환 (+1)
+      const totalEnd = content.end_range + 1;
 
       // Round-Robin 분산 배정: 각 날짜에 최소 1단위씩 배정 후, 남은 용량에 맞게 추가 배정
       const dateAssignments = new Map<string, { start: number; end: number }>();
 
-      // 4.1 먼저 각 날짜에 배정 가능한 단위 수 계산 (사용률 기반)
-      const getDateScore = (date: string): number => {
-        const capacity = dateCapacities.get(date) || 120;
-        const used = dateUsage.get(date) || 0;
-        const remaining = capacity - used;
-        // 남은 용량이 많을수록 높은 점수
-        return remaining;
-      };
-
-      // 4.2 균등 분산을 위해 날짜별로 순환하며 배정
+      // 4.1 균등 분산을 위해 날짜별로 순환하며 배정 (누적 반올림)
       let dateIndex = 0;
       const totalUnits = totalEnd - content.start_range;
-      const unitsPerDate = Math.ceil(totalUnits / sortedDates.length);
+      const unitsPerDate = totalUnits / sortedDates.length;
+      let assignedUnits = 0; // 지금까지 배정된 총 단위 수
 
       for (const date of sortedDates) {
         if (currentUnit >= totalEnd) break;
@@ -625,10 +663,16 @@ export class SchedulerEngine {
         const dateCurrentUsage = dateUsage.get(date) || 0;
         const remainingCapacity = dateCapacity - dateCurrentUsage;
 
-        // 목표 단위 수: 균등 분산 또는 마지막 날짜는 나머지 전부
+        // 목표 단위 수: 누적 반올림으로 균등 분산 (음수 방지)
         const targetUnits = isLastDate
           ? totalEnd - currentUnit
-          : Math.min(unitsPerDate, totalEnd - currentUnit);
+          : Math.max(
+              0,
+              Math.min(
+                Math.round(unitsPerDate * (dateIndex + 1)) - assignedUnits,
+                totalEnd - currentUnit
+              )
+            );
 
         // 용량 제한 확인
         let usedTime = 0;
@@ -660,29 +704,21 @@ export class SchedulerEngine {
           // 사용량 업데이트
           dateUsage.set(date, dateCurrentUsage + usedTime);
           currentUnit += actualUnits;
+          assignedUnits += actualUnits;
         }
 
         dateIndex++;
       }
 
-      // 4.3 남은 단위가 있으면 용량이 남은 날짜에 추가 배정
+      // 4.3 남은 단위가 있으면 시간순으로 추가 배정 (범위 연속성 보장)
       if (currentUnit < totalEnd) {
-        // 남은 용량이 많은 날짜 순으로 정렬
-        const datesWithCapacity = sortedDates
-          .filter((date) => {
-            const capacity = dateCapacities.get(date) || 120;
-            const used = dateUsage.get(date) || 0;
-            return capacity - used > 0;
-          })
-          .sort((a, b) => getDateScore(b) - getDateScore(a));
-
-        for (const date of datesWithCapacity) {
+        for (const date of sortedDates) {
           if (currentUnit >= totalEnd) break;
 
-          const existing = dateAssignments.get(date);
           const dateCapacity = dateCapacities.get(date) || 120;
           const dateCurrentUsage = dateUsage.get(date) || 0;
           const remainingCapacity = dateCapacity - dateCurrentUsage;
+          if (remainingCapacity <= 0) continue;
 
           let usedTime = 0;
           let additionalUnits = 0;
@@ -698,17 +734,22 @@ export class SchedulerEngine {
           }
 
           if (additionalUnits > 0) {
-            if (existing) {
-              // 기존 배정에 추가
+            const existing = dateAssignments.get(date);
+            if (existing && existing.end === currentUnit) {
+              // 연속 확장 가능
               dateAssignments.set(date, {
                 start: existing.start,
-                end: existing.end + additionalUnits,
+                end: currentUnit + additionalUnits,
               });
-            } else {
+            } else if (!existing) {
+              // 새 범위 생성
               dateAssignments.set(date, {
                 start: currentUnit,
                 end: currentUnit + additionalUnits,
               });
+            } else {
+              // 비연속 → 건너뜀 (범위 무결성 보호)
+              continue;
             }
 
             dateUsage.set(date, dateCurrentUsage + usedTime);
@@ -1098,108 +1139,210 @@ export class SchedulerEngine {
       totalAvailableMinutes += slotEnd - slotStart - usedTime;
     });
 
-    for (const planInfo of plansWithDuration) {
-      if (planInfo.remainingMinutes <= 0) continue;
+    // 콘텐츠별 그룹으로 분리 (입력이 content_id순 정렬 전제)
+    const contentGroups: PlanWithDuration[][] = [];
+    let currentGroup: PlanWithDuration[] = [];
+    let currentContentId: string | null = null;
 
-      let bestSlotIndex = -1;
-      let bestRemainingSpace = Infinity;
-
-      for (let i = 0; i < slotAvailability.length; i++) {
-        const { slot, usedTime } = slotAvailability[i];
-        const slotStart = timeToMinutes(slot.start);
-        const slotEnd = timeToMinutes(slot.end);
-        const slotDuration = slotEnd - slotStart;
-        const availableTime = slotDuration - usedTime;
-
-        if (
-          availableTime >= planInfo.remainingMinutes &&
-          availableTime < bestRemainingSpace
-        ) {
-          bestSlotIndex = i;
-          bestRemainingSpace = availableTime;
-        }
+    for (const plan of plansWithDuration) {
+      if (plan.content.content_id !== currentContentId) {
+        if (currentGroup.length > 0) contentGroups.push(currentGroup);
+        currentGroup = [plan];
+        currentContentId = plan.content.content_id;
+      } else {
+        currentGroup.push(plan);
       }
+    }
+    if (currentGroup.length > 0) contentGroups.push(currentGroup);
 
-      if (bestSlotIndex === -1) {
-        for (let i = 0; i < slotAvailability.length; i++) {
-          const { slot, usedTime } = slotAvailability[i];
-          const slotStart = timeToMinutes(slot.start);
-          const slotEnd = timeToMinutes(slot.end);
-          const slotDuration = slotEnd - slotStart;
-          const availableTime = slotDuration - usedTime;
+    // 그룹별 배치
+    for (const group of contentGroups) {
+      const totalRequired = group.reduce((sum, p) => sum + p.requiredMinutes, 0);
 
-          if (availableTime > 0) {
-            bestSlotIndex = i;
-            break;
+      // 1단계: 그룹 전체가 들어가는 연속 gap 탐색 (시간순 슬롯 순회)
+      let batchPlaced = false;
+      for (let si = 0; si < slotAvailability.length; si++) {
+        const sa = slotAvailability[si];
+        const sStart = timeToMinutes(sa.slot.start);
+        const sEnd = timeToMinutes(sa.slot.end);
+        const available = (sEnd - sStart) - sa.usedTime;
+        if (available < totalRequired) continue;
+
+        const gapStart = findFirstFreeGap(sStart, sEnd, sa.occupiedIntervals, totalRequired);
+        if (gapStart !== null) {
+          // 전체 그룹을 이 gap에 연속 배치
+          let cursor = gapStart;
+          for (const planInfo of group) {
+            const slotUsed = planInfo.requiredMinutes;
+            const planStartTime = minutesToTime(cursor);
+            const planEndTime = minutesToTime(cursor + slotUsed);
+            const cycleInfo = cycleDayMap.get(date);
+
+            plans.push({
+              plan_date: date,
+              block_index: blockIndex,
+              content_type: planInfo.content.content_type,
+              content_id: planInfo.content.content_id,
+              planned_start_page_or_time: planInfo.start,
+              planned_end_page_or_time: planInfo.end - 1,
+              chapter: planInfo.content.chapter || null,
+              is_reschedulable: true,
+              start_time: planStartTime,
+              end_time: planEndTime,
+              cycle_day_number: cycleInfo?.cycle_day_number ?? null,
+              date_type: cycleInfo?.day_type ?? null,
+            });
+
+            planInfo.remainingMinutes = 0;
+            cursor += slotUsed;
+            blockIndex++;
           }
+
+          // 슬롯 상태 업데이트
+          slotAvailability[si].occupiedIntervals = insertOccupiedInterval(
+            sa.occupiedIntervals, gapStart, gapStart + totalRequired
+          );
+          slotAvailability[si].usedTime += totalRequired;
+
+          batchPlaced = true;
+          break;
         }
       }
 
-      while (planInfo.remainingMinutes > 0 && bestSlotIndex >= 0) {
-        const { slot, usedTime } = slotAvailability[bestSlotIndex];
-        const slotStart = timeToMinutes(slot.start);
-        const slotEnd = timeToMinutes(slot.end);
-        const slotDuration = slotEnd - slotStart;
-        const availableTime = slotDuration - usedTime;
-        const slotUsed = Math.min(planInfo.remainingMinutes, availableTime);
+      // 2단계: 배치 실패 시 기존 개별 배치
+      if (!batchPlaced) {
+        for (const planInfo of group) {
+          if (planInfo.remainingMinutes <= 0) continue;
 
-        if (slotUsed > 0) {
-          const planStartTime = minutesToTime(slotStart + usedTime);
-          const planEndTime = minutesToTime(slotStart + usedTime + slotUsed);
-          const cycleInfo = cycleDayMap.get(date);
+          let bestSlotIndex = -1;
+          let bestRemainingSpace = Infinity;
 
-          plans.push({
-            plan_date: date,
-            block_index: blockIndex,
-            content_type: planInfo.content.content_type,
-            content_id: planInfo.content.content_id,
-            planned_start_page_or_time: planInfo.start,
-            planned_end_page_or_time: planInfo.end - 1,
-            chapter: planInfo.content.chapter || null,
-            is_reschedulable: true,
-            start_time: planStartTime,
-            end_time: planEndTime,
-            cycle_day_number: cycleInfo?.cycle_day_number ?? null,
-            date_type: cycleInfo?.day_type ?? null,
-          });
+          for (let i = 0; i < slotAvailability.length; i++) {
+            const { slot, usedTime } = slotAvailability[i];
+            const slotStart = timeToMinutes(slot.start);
+            const slotEnd = timeToMinutes(slot.end);
+            const slotDuration = slotEnd - slotStart;
+            const availableTime = slotDuration - usedTime;
 
-          planInfo.remainingMinutes -= slotUsed;
-          slotAvailability[bestSlotIndex].usedTime += slotUsed;
-          blockIndex++;
+            if (
+              availableTime >= planInfo.remainingMinutes &&
+              availableTime < bestRemainingSpace
+            ) {
+              bestSlotIndex = i;
+              bestRemainingSpace = availableTime;
+            }
+          }
 
-          if (slotAvailability[bestSlotIndex].usedTime >= slotDuration) {
-            bestSlotIndex = -1;
+          if (bestSlotIndex === -1) {
             for (let i = 0; i < slotAvailability.length; i++) {
-              const { slot: nextSlot, usedTime: nextUsedTime } =
-                slotAvailability[i];
-              const nextSlotStart = timeToMinutes(nextSlot.start);
-              const nextSlotEnd = timeToMinutes(nextSlot.end);
-              const nextSlotDuration = nextSlotEnd - nextSlotStart;
-              const nextAvailableTime = nextSlotDuration - nextUsedTime;
+              const { slot, usedTime } = slotAvailability[i];
+              const slotStart = timeToMinutes(slot.start);
+              const slotEnd = timeToMinutes(slot.end);
+              const slotDuration = slotEnd - slotStart;
+              const availableTime = slotDuration - usedTime;
 
-              if (nextAvailableTime > 0) {
+              if (availableTime > 0) {
                 bestSlotIndex = i;
                 break;
               }
             }
           }
-        } else {
-          break;
+
+          while (planInfo.remainingMinutes > 0 && bestSlotIndex >= 0) {
+            const { slot, usedTime } = slotAvailability[bestSlotIndex];
+            const slotStartMin = timeToMinutes(slot.start);
+            const slotEndMin = timeToMinutes(slot.end);
+            const slotDuration = slotEndMin - slotStartMin;
+            const availableTime = slotDuration - usedTime;
+            let slotUsed = Math.min(planInfo.remainingMinutes, availableTime);
+
+            if (slotUsed <= 0) break;
+
+            const occupied = slotAvailability[bestSlotIndex].occupiedIntervals;
+
+            let gapStart = findFirstFreeGap(slotStartMin, slotEndMin, occupied, slotUsed);
+            if (gapStart === null) {
+              const largest = findLargestFreeGap(slotStartMin, slotEndMin, occupied);
+              if (largest && largest.size > 0) {
+                gapStart = largest.start;
+                slotUsed = Math.min(slotUsed, largest.size);
+              } else {
+                bestSlotIndex = -1;
+                for (let i = 0; i < slotAvailability.length; i++) {
+                  const { slot: nextSlot, usedTime: nextUsedTime } =
+                    slotAvailability[i];
+                  const nextSlotStart = timeToMinutes(nextSlot.start);
+                  const nextSlotEnd = timeToMinutes(nextSlot.end);
+                  const nextAvailableTime = nextSlotEnd - nextSlotStart - nextUsedTime;
+
+                  if (nextAvailableTime > 0) {
+                    bestSlotIndex = i;
+                    break;
+                  }
+                }
+                continue;
+              }
+            }
+
+            const planStartTime = minutesToTime(gapStart);
+            const planEndTime = minutesToTime(gapStart + slotUsed);
+            const cycleInfo = cycleDayMap.get(date);
+
+            plans.push({
+              plan_date: date,
+              block_index: blockIndex,
+              content_type: planInfo.content.content_type,
+              content_id: planInfo.content.content_id,
+              planned_start_page_or_time: planInfo.start,
+              planned_end_page_or_time: planInfo.end - 1,
+              chapter: planInfo.content.chapter || null,
+              is_reschedulable: true,
+              start_time: planStartTime,
+              end_time: planEndTime,
+              cycle_day_number: cycleInfo?.cycle_day_number ?? null,
+              date_type: cycleInfo?.day_type ?? null,
+            });
+
+            planInfo.remainingMinutes -= slotUsed;
+            slotAvailability[bestSlotIndex].usedTime += slotUsed;
+            slotAvailability[bestSlotIndex].occupiedIntervals = insertOccupiedInterval(
+              slotAvailability[bestSlotIndex].occupiedIntervals,
+              gapStart,
+              gapStart + slotUsed
+            );
+            blockIndex++;
+
+            if (slotAvailability[bestSlotIndex].usedTime >= slotDuration) {
+              bestSlotIndex = -1;
+              for (let i = 0; i < slotAvailability.length; i++) {
+                const { slot: nextSlot, usedTime: nextUsedTime } =
+                  slotAvailability[i];
+                const nextSlotStart = timeToMinutes(nextSlot.start);
+                const nextSlotEnd = timeToMinutes(nextSlot.end);
+                const nextAvailableTime = nextSlotEnd - nextSlotStart - nextUsedTime;
+
+                if (nextAvailableTime > 0) {
+                  bestSlotIndex = i;
+                  break;
+                }
+              }
+            }
+          }
+
+          if (planInfo.remainingMinutes > 0) {
+            const week = calculateWeekNumber(date, this.context.periodStart);
+            const dayOfWeek = getDayOfWeekName(new Date(date).getDay());
+
+            this.addFailureReason({
+              type: "insufficient_time",
+              week,
+              dayOfWeek,
+              date,
+              requiredMinutes: planInfo.requiredMinutes,
+              availableMinutes: totalAvailableMinutes,
+            });
+          }
         }
-      }
-
-      if (planInfo.remainingMinutes > 0) {
-        const week = calculateWeekNumber(date, this.context.periodStart);
-        const dayOfWeek = getDayOfWeekName(new Date(date).getDay());
-
-        this.addFailureReason({
-          type: "insufficient_time",
-          week,
-          dayOfWeek,
-          date,
-          requiredMinutes: planInfo.requiredMinutes,
-          availableMinutes: totalAvailableMinutes,
-        });
       }
     }
 
@@ -1241,88 +1384,185 @@ export class SchedulerEngine {
     const validSlots = slotInfos.filter((s) => s.data.availableTime > 0);
     const slotHeap = MinHeap.fromArray(validSlots);
 
-    let totalAvailableMinutes = slotInfos.reduce(
+    const totalAvailableMinutes = slotInfos.reduce(
       (sum, s) => sum + s.data.availableTime,
       0
     );
 
-    for (const planInfo of plansWithDuration) {
-      if (planInfo.remainingMinutes <= 0) continue;
+    // 콘텐츠별 그룹으로 분리 (입력이 content_id순 정렬 전제)
+    const contentGroups: PlanWithDuration[][] = [];
+    let currentGroup: PlanWithDuration[] = [];
+    let currentContentId: string | null = null;
 
-      // Best Fit: 힙에서 가장 적합한 슬롯 찾기
-      let allocated = false;
+    for (const plan of plansWithDuration) {
+      if (plan.content.content_id !== currentContentId) {
+        if (currentGroup.length > 0) contentGroups.push(currentGroup);
+        currentGroup = [plan];
+        currentContentId = plan.content.content_id;
+      } else {
+        currentGroup.push(plan);
+      }
+    }
+    if (currentGroup.length > 0) contentGroups.push(currentGroup);
 
-      while (planInfo.remainingMinutes > 0 && !slotHeap.isEmpty()) {
-        const minNode = slotHeap.peek();
-        if (!minNode) break;
+    // 그룹별 배치
+    for (const group of contentGroups) {
+      const totalRequired = group.reduce((sum, p) => sum + p.requiredMinutes, 0);
 
-        const slotData = minNode.data;
-        const slotIndex = minNode.index;
+      // 1단계: 그룹 전체가 들어가는 연속 gap 탐색 (시간순 슬롯 순회)
+      let batchPlaced = false;
+      for (let si = 0; si < slotAvailability.length; si++) {
+        const sa = slotAvailability[si];
+        const sStart = timeToMinutes(sa.slot.start);
+        const sEnd = timeToMinutes(sa.slot.end);
+        const available = (sEnd - sStart) - sa.usedTime;
+        if (available < totalRequired) continue;
 
-        // 플랜이 들어갈 수 있는지 확인
-        if (slotData.availableTime <= 0) {
-          slotHeap.extractMin(); // 가용 시간이 없는 슬롯 제거
-          continue;
-        }
+        const gapStart = findFirstFreeGap(sStart, sEnd, sa.occupiedIntervals, totalRequired);
+        if (gapStart !== null) {
+          // 전체 그룹을 이 gap에 연속 배치
+          let cursor = gapStart;
+          for (const planInfo of group) {
+            const slotUsed = planInfo.requiredMinutes;
+            const planStartTime = minutesToTime(cursor);
+            const planEndTime = minutesToTime(cursor + slotUsed);
+            const cycleInfo = cycleDayMap.get(date);
 
-        const slotUsed = Math.min(planInfo.remainingMinutes, slotData.availableTime);
+            plans.push({
+              plan_date: date,
+              block_index: blockIndex,
+              content_type: planInfo.content.content_type,
+              content_id: planInfo.content.content_id,
+              planned_start_page_or_time: planInfo.start,
+              planned_end_page_or_time: planInfo.end - 1,
+              chapter: planInfo.content.chapter || null,
+              is_reschedulable: true,
+              start_time: planStartTime,
+              end_time: planEndTime,
+              cycle_day_number: cycleInfo?.cycle_day_number ?? null,
+              date_type: cycleInfo?.day_type ?? null,
+            });
 
-        if (slotUsed > 0) {
-          const slotStart = timeToMinutes(slotData.slot.start);
-          const usedTime = slotAvailability[slotIndex].usedTime;
-          const planStartTime = minutesToTime(slotStart + usedTime);
-          const planEndTime = minutesToTime(slotStart + usedTime + slotUsed);
-          const cycleInfo = cycleDayMap.get(date);
+            planInfo.remainingMinutes = 0;
+            cursor += slotUsed;
+            blockIndex++;
+          }
 
-          plans.push({
-            plan_date: date,
-            block_index: blockIndex,
-            content_type: planInfo.content.content_type,
-            content_id: planInfo.content.content_id,
-            planned_start_page_or_time: planInfo.start,
-            planned_end_page_or_time: planInfo.end - 1,
-            chapter: planInfo.content.chapter || null,
-            is_reschedulable: true,
-            start_time: planStartTime,
-            end_time: planEndTime,
-            cycle_day_number: cycleInfo?.cycle_day_number ?? null,
-            date_type: cycleInfo?.day_type ?? null,
-          });
+          // 슬롯 상태 업데이트
+          slotAvailability[si].occupiedIntervals = insertOccupiedInterval(
+            sa.occupiedIntervals, gapStart, gapStart + totalRequired
+          );
+          slotAvailability[si].usedTime += totalRequired;
 
-          planInfo.remainingMinutes -= slotUsed;
-          slotAvailability[slotIndex].usedTime += slotUsed;
-          slotData.availableTime -= slotUsed;
-          blockIndex++;
-          allocated = true;
-
-          // 힙에서 슬롯 업데이트
-          if (slotData.availableTime <= 0) {
-            slotHeap.extractMin(); // 가득 찬 슬롯 제거
-          } else {
-            // 우선순위 업데이트 (가용 시간 감소)
-            const found = slotHeap.findByIndex(slotIndex);
-            if (found) {
-              slotHeap.updatePriority(found.heapIndex, slotData.availableTime);
+          // 힙 업데이트 (data.availableTime도 함께 갱신)
+          const found = slotHeap.findByIndex(si);
+          if (found) {
+            const newAvailable = (sEnd - sStart) - slotAvailability[si].usedTime;
+            found.node.data.availableTime = newAvailable;
+            if (newAvailable <= 0) {
+              slotHeap.removeByHeapIndex(found.heapIndex);
+            } else {
+              slotHeap.updatePriority(found.heapIndex, newAvailable);
             }
           }
-        } else {
+
+          batchPlaced = true;
           break;
         }
       }
 
-      // 시간 부족 감지
-      if (planInfo.remainingMinutes > 0) {
-        const week = calculateWeekNumber(date, this.context.periodStart);
-        const dayOfWeek = getDayOfWeekName(new Date(date).getDay());
+      // 2단계: 배치 실패 시 기존 개별 배치 (동일 슬롯 우선)
+      if (!batchPlaced) {
+        for (const planInfo of group) {
+          if (planInfo.remainingMinutes <= 0) continue;
 
-        this.addFailureReason({
-          type: "insufficient_time",
-          week,
-          dayOfWeek,
-          date,
-          requiredMinutes: planInfo.requiredMinutes,
-          availableMinutes: totalAvailableMinutes,
-        });
+          while (planInfo.remainingMinutes > 0 && !slotHeap.isEmpty()) {
+            const minNode = slotHeap.peek();
+            if (!minNode) break;
+
+            const slotData = minNode.data;
+            const slotIndex = minNode.index;
+
+            if (slotData.availableTime <= 0) {
+              slotHeap.extractMin();
+              continue;
+            }
+
+            const slotStartMin = timeToMinutes(slotData.slot.start);
+            const slotEndMin = timeToMinutes(slotData.slot.end);
+            const occupied = slotAvailability[slotIndex].occupiedIntervals;
+
+            let slotUsed = Math.min(planInfo.remainingMinutes, slotData.availableTime);
+
+            let gapStart = findFirstFreeGap(slotStartMin, slotEndMin, occupied, slotUsed);
+            if (gapStart === null) {
+              const largest = findLargestFreeGap(slotStartMin, slotEndMin, occupied);
+              if (largest && largest.size > 0) {
+                gapStart = largest.start;
+                slotUsed = Math.min(slotUsed, largest.size);
+              } else {
+                slotHeap.extractMin();
+                continue;
+              }
+            }
+
+            if (slotUsed > 0) {
+              const planStartTime = minutesToTime(gapStart);
+              const planEndTime = minutesToTime(gapStart + slotUsed);
+              const cycleInfo = cycleDayMap.get(date);
+
+              plans.push({
+                plan_date: date,
+                block_index: blockIndex,
+                content_type: planInfo.content.content_type,
+                content_id: planInfo.content.content_id,
+                planned_start_page_or_time: planInfo.start,
+                planned_end_page_or_time: planInfo.end - 1,
+                chapter: planInfo.content.chapter || null,
+                is_reschedulable: true,
+                start_time: planStartTime,
+                end_time: planEndTime,
+                cycle_day_number: cycleInfo?.cycle_day_number ?? null,
+                date_type: cycleInfo?.day_type ?? null,
+              });
+
+              planInfo.remainingMinutes -= slotUsed;
+              slotAvailability[slotIndex].usedTime += slotUsed;
+              slotAvailability[slotIndex].occupiedIntervals = insertOccupiedInterval(
+                slotAvailability[slotIndex].occupiedIntervals,
+                gapStart,
+                gapStart + slotUsed
+              );
+              slotData.availableTime -= slotUsed;
+              blockIndex++;
+
+              if (slotData.availableTime <= 0) {
+                slotHeap.extractMin();
+              } else {
+                const found = slotHeap.findByIndex(slotIndex);
+                if (found) {
+                  slotHeap.updatePriority(found.heapIndex, slotData.availableTime);
+                }
+              }
+            } else {
+              break;
+            }
+          }
+
+          if (planInfo.remainingMinutes > 0) {
+            const week = calculateWeekNumber(date, this.context.periodStart);
+            const dayOfWeek = getDayOfWeekName(new Date(date).getDay());
+
+            this.addFailureReason({
+              type: "insufficient_time",
+              week,
+              dayOfWeek,
+              date,
+              requiredMinutes: planInfo.requiredMinutes,
+              availableMinutes: totalAvailableMinutes,
+            });
+          }
+        }
       }
     }
 
@@ -1536,7 +1776,24 @@ export class SchedulerEngine {
         expandedPlans,
         contentDurationMap,
         studentLevel
-      ).sort((a, b) => a.start - b.start); // 순서대로 배치 (페이지/회차 순)
+      );
+
+      // 콘텐츠 우선순위 보존 + 동일 콘텐츠 그룹화 (연속 배치를 위해)
+      // expandedPlans 순서가 콘텐츠 우선순위(리스크 기반)를 반영하므로
+      // 첫 등장 인덱스를 기준으로 그룹화하면 우선순위가 유지됨
+      const contentOrderMap = new Map<string, number>();
+      plansWithDuration.forEach((p, idx) => {
+        if (!contentOrderMap.has(p.content.content_id)) {
+          contentOrderMap.set(p.content.content_id, idx);
+        }
+      });
+
+      plansWithDuration.sort((a, b) => {
+        const orderA = contentOrderMap.get(a.content.content_id) ?? 0;
+        const orderB = contentOrderMap.get(b.content.content_id) ?? 0;
+        if (orderA !== orderB) return orderA - orderB;
+        return a.start - b.start;
+      });
 
       // 6-3. 시간 슬롯 배치
       if (studyTimeSlots.length > 0) {
@@ -1545,10 +1802,11 @@ export class SchedulerEngine {
           this.context.existingPlans?.filter((p) => p.date === date) || [];
 
         const slotAvailability: SlotAvailability[] = studyTimeSlots.map(
-          (slot) => ({
-            slot,
-            usedTime: this.calculateUsedTimeForSlot(slot, existingPlansForDate),
-          })
+          (slot) => {
+            const { usedTime, occupiedIntervals } =
+              this.calculateSlotOccupancy(slot, existingPlansForDate);
+            return { slot, usedTime, occupiedIntervals };
+          }
         );
 
         const result = this.allocatePlansWithHeapBestFit(

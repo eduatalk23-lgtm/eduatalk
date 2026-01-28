@@ -16,3 +16,10 @@ export {
   adjustOverlappingTimes,
   type TimeAdjustmentResult,
 } from "./timeOverlapValidator";
+
+export {
+  findFirstFreeGap,
+  findLargestFreeGap,
+  insertOccupiedInterval,
+  buildOccupiedIntervals,
+} from "./slotIntervalHelpers";

@@ -190,9 +190,12 @@ export function validateNoInternalOverlaps(
  */
 export function adjustInternalOverlaps(
   plans: ScheduledPlan[],
-  maxEndTime: string = "23:59"
+  maxEndTime: string = "23:59",
+  lunchTime?: { start: string; end: string }
 ): TimeAdjustmentResult {
   const maxEndMinutes = timeToMinutes(maxEndTime);
+  const lunchStart = lunchTime ? timeToMinutes(lunchTime.start) : -1;
+  const lunchEnd = lunchTime ? timeToMinutes(lunchTime.end) : -1;
   const unadjustablePlans: TimeAdjustmentResult["unadjustablePlans"] = [];
   let adjustedCount = 0;
 
@@ -230,6 +233,12 @@ export function adjustInternalOverlaps(
         currStart = prevEnd;
         currEnd = currStart + duration;
 
+        // 점심시간과 겹치면 점심 끝 이후로 이동
+        if (lunchTime && currStart < lunchEnd && currEnd > lunchStart) {
+          currStart = lunchEnd;
+          currEnd = currStart + duration;
+        }
+
         // 최대 종료 시간 초과 확인
         if (currEnd > maxEndMinutes) {
           unadjustablePlans.push({
@@ -266,13 +275,16 @@ export function adjustInternalOverlaps(
 export function adjustOverlappingTimes(
   newPlans: ScheduledPlan[],
   existingPlans: ExistingPlanInfo[],
-  maxEndTime: string = "23:59"
+  maxEndTime: string = "23:59",
+  lunchTime?: { start: string; end: string }
 ): TimeAdjustmentResult {
   const adjustedPlans: ScheduledPlan[] = [];
   const unadjustablePlans: TimeAdjustmentResult["unadjustablePlans"] = [];
   let adjustedCount = 0;
 
   const maxEndMinutes = timeToMinutes(maxEndTime);
+  const lunchStartMin = lunchTime ? timeToMinutes(lunchTime.start) : -1;
+  const lunchEndMin = lunchTime ? timeToMinutes(lunchTime.end) : -1;
 
   // 기존 플랜을 날짜별로 그룹화하고 종료 시간순 정렬
   const existingPlansByDate = new Map<string, ExistingPlanInfo[]>();
@@ -325,6 +337,12 @@ export function adjustOverlappingTimes(
         planEnd = planStart + duration;
         wasAdjusted = true;
       }
+    }
+
+    // 점심시간과 겹치면 점심 끝 이후로 이동
+    if (wasAdjusted && lunchTime && planStart < lunchEndMin && planEnd > lunchStartMin) {
+      planStart = lunchEndMin;
+      planEnd = planStart + duration;
     }
 
     // 최대 종료 시간 초과 확인
