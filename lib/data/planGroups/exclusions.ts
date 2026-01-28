@@ -32,13 +32,13 @@ export async function getPlanExclusions(
     return [];
   }
 
-  // 전역 관리: 학생의 모든 제외일 조회 (plan_group_id IS NULL)
+  // 전역 관리 + 플래너 상속: plan_group_id가 NULL이거나 해당 groupId인 제외일 모두 조회
   const selectExclusions = () =>
     supabase
       .from("plan_exclusions")
       .select("id,tenant_id,student_id,plan_group_id,exclusion_date,exclusion_type,reason,created_at")
       .eq("student_id", planGroup.student_id)
-      .is("plan_group_id", null)
+      .or(`plan_group_id.is.null,plan_group_id.eq.${groupId}`)
       .order("exclusion_date", { ascending: true });
 
   let query = selectExclusions();

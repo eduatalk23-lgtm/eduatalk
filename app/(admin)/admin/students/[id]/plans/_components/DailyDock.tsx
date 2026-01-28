@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useTransition, useMemo, useCallback, memo } from 'react';
+import { useState, useTransition, useMemo, useCallback, useEffect, memo } from 'react';
 import { cn } from '@/lib/cn';
 import { DroppableContainer } from './dnd';
 import { usePlanToast } from './PlanToast';
 import { BulkRedistributeModal } from './BulkRedistributeModal';
-import { PlanItemCard, toPlanItemData } from './items';
-import { useDailyDockQuery } from '@/lib/hooks/useAdminDockQueries';
+import { PlanItemCard, toPlanItemData, NonStudyTimeCard } from './items';
+import { useDailyDockQuery, useNonStudyTimeQuery } from '@/lib/hooks/useAdminDockQueries';
 import { detectTimeConflicts } from '@/lib/domains/admin-plan/utils/conflictDetection';
+import type { NonStudyItem } from '@/lib/query-options/adminDock';
 import { ConfirmDialog } from '@/components/ui/Dialog';
 import { deletePlan, movePlanToContainer } from '@/lib/domains/plan/actions/dock';
 import type { ContentTypeFilter } from './AdminPlanManagement';
@@ -66,6 +67,25 @@ export const DailyDock = memo(function DailyDock({
     plannerId
   );
 
+  // 비학습시간 데이터 조회 (플랜 로딩 완료 후에만 실행하여 플리커 방지)
+  const { nonStudyItems } = useNonStudyTimeQuery(studentId, selectedDate, allPlans, !isLoading);
+
+  // 보기 모드: "all" = 플랜 + 비학습시간, "plans" = 플랜만
+  // SSR hydration 안전: 항상 'all'로 시작, 클라이언트에서 localStorage 복원
+  const [viewMode, setViewMode] = useState<'plans' | 'all'>('all');
+
+  useEffect(() => {
+    const saved = localStorage.getItem('dailyDock_viewMode');
+    if (saved === 'plans' || saved === 'all') {
+      setViewMode(saved);
+    }
+  }, []);
+
+  const handleViewModeChange = useCallback((mode: 'plans' | 'all') => {
+    setViewMode(mode);
+    localStorage.setItem('dailyDock_viewMode', mode);
+  }, []);
+
   // 그룹 필터링 적용
   const groupFilteredPlans = useMemo(() => {
     if (selectedGroupId === null || selectedGroupId === undefined) return allPlans;
@@ -94,6 +114,39 @@ export const DailyDock = memo(function DailyDock({
     }));
     return detectTimeConflicts(timeSlots);
   }, [allPlans]);
+
+  // 플랜 + 비학습시간 시간순 병합 아이템
+  type MergedItem =
+    | { kind: 'plan'; plan: typeof plans[number]; sortKey: number }
+    | { kind: 'nonStudy'; item: NonStudyItem; sortKey: number };
+
+  const mergedItems = useMemo<MergedItem[]>(() => {
+    if (viewMode === 'plans') return [];
+
+    const parseTime = (t: string) => {
+      const [h, m] = t.substring(0, 5).split(':').map(Number);
+      return h * 60 + m;
+    };
+
+    const items: MergedItem[] = [];
+    for (const plan of plans) {
+      items.push({
+        kind: 'plan',
+        plan,
+        sortKey: plan.start_time ? parseTime(plan.start_time) : 9999,
+      });
+    }
+    for (const item of nonStudyItems) {
+      items.push({
+        kind: 'nonStudy',
+        item,
+        sortKey: parseTime(item.start_time),
+      });
+    }
+
+    items.sort((a, b) => a.sortKey - b.sortKey);
+    return items;
+  }, [plans, nonStudyItems, viewMode]);
 
   const [isPending, startTransition] = useTransition();
   const { showToast } = usePlanToast();
@@ -336,6 +389,36 @@ export const DailyDock = memo(function DailyDock({
         </div>
       </div>
 
+      {/* 보기 토글 */}
+      {nonStudyItems.length > 0 && (
+        <div className="flex items-center justify-end px-4 py-1.5 border-b border-blue-100">
+          <div className="flex rounded-md overflow-hidden border border-gray-200 text-xs">
+            <button
+              onClick={() => handleViewModeChange('all')}
+              className={cn(
+                'px-3 py-1 transition-colors',
+                viewMode === 'all'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              )}
+            >
+              전체 보기
+            </button>
+            <button
+              onClick={() => handleViewModeChange('plans')}
+              className={cn(
+                'px-3 py-1 transition-colors',
+                viewMode === 'plans'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              )}
+            >
+              플랜만
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 플랜 목록 */}
       <div className="p-4">
         {isLoading ? (
@@ -349,9 +432,63 @@ export const DailyDock = memo(function DailyDock({
             <p>이 날짜에 플랜이 없습니다</p>
             <p className="text-sm mt-1">플랜을 추가해주세요</p>
           </div>
+        ) : viewMode === 'all' && mergedItems.length > 0 ? (
+          <div className="space-y-2">
+            {/* 시간순 병합 (플랜 + 비학습시간) */}
+            {mergedItems.map((item) => {
+              if (item.kind === 'nonStudy') {
+                return (
+                  <NonStudyTimeCard
+                    key={`ns-${item.item.type}-${item.item.start_time}`}
+                    item={item.item}
+                  />
+                );
+              }
+              const planData = toPlanItemData(item.plan, 'plan');
+              const isCompleted = item.plan.status === 'completed' || (item.plan.progress ?? 0) >= 100;
+              const conflictInfo = conflictMap.get(item.plan.id);
+
+              return (
+                <PlanItemCard
+                  key={item.plan.id}
+                  plan={planData}
+                  container="daily"
+                  showProgress={true}
+                  showTime={true}
+                  selectable={isSelectionMode && !isCompleted}
+                  isSelected={selectedPlans.has(item.plan.id)}
+                  conflictInfo={conflictInfo}
+                  onSelect={handleToggleSelect}
+                  onMoveToWeekly={handleMoveToWeekly}
+                  onRedistribute={onRedistribute}
+                  onEdit={onEdit}
+                  onMoveToGroup={onMoveToGroup ? handleMoveToGroupSingle : undefined}
+                  onCopy={onCopy ? handleCopySingle : undefined}
+                  onStatusChange={onStatusChange}
+                  onDelete={handleDeleteRequest}
+                  onRefresh={onRefresh}
+                />
+              );
+            })}
+
+            {/* Ad-hoc 플랜 (시간순 병합 대상 아님) */}
+            {adHocPlans.map((adHoc) => {
+              const planData = toPlanItemData(adHoc, 'adhoc');
+              return (
+                <PlanItemCard
+                  key={adHoc.id}
+                  plan={planData}
+                  container="daily"
+                  showProgress={false}
+                  onDelete={(id) => handleDeleteRequest(id, true)}
+                  onRefresh={onRefresh}
+                />
+              );
+            })}
+          </div>
         ) : (
           <div className="space-y-2">
-            {/* 일반 플랜 */}
+            {/* 플랜만 보기 (기존 동작) */}
             {plans.map((plan) => {
               const planData = toPlanItemData(plan, 'plan');
               const isCompleted = plan.status === 'completed' || (plan.progress ?? 0) >= 100;
@@ -383,7 +520,6 @@ export const DailyDock = memo(function DailyDock({
             {/* Ad-hoc 플랜 */}
             {adHocPlans.map((adHoc) => {
               const planData = toPlanItemData(adHoc, 'adhoc');
-
               return (
                 <PlanItemCard
                   key={adHoc.id}

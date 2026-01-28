@@ -252,12 +252,11 @@ export async function createPlanGroupForPlanner(input: {
     if (plannerExclusions && plannerExclusions.length > 0) {
       const exclusionsToInsert = plannerExclusions.map((e) => ({
         tenant_id: tenantId,
+        student_id: studentId,
         plan_group_id: planGroupId,
         exclusion_date: e.exclusion_date,
         exclusion_type: e.exclusion_type,
-        reason: e.reason,
-        source: "inherited",
-        is_locked: false,
+        reason: e.reason || null,
       }));
 
       const { error: exclusionError } = await supabase
@@ -274,8 +273,9 @@ export async function createPlanGroupForPlanner(input: {
     if (plannerSchedules && plannerSchedules.length > 0) {
       const schedulesToInsert = plannerSchedules.map((s) => ({
         tenant_id: tenantId,
+        student_id: studentId,
         plan_group_id: planGroupId,
-        academy_id: s.academy_id,
+        academy_id: s.academy_id || "",
         academy_name: s.academy_name,
         day_of_week: s.day_of_week,
         start_time: s.start_time,

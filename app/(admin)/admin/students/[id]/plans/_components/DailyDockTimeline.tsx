@@ -258,6 +258,12 @@ function PlanSegmentBlock({
                 <span className="w-px h-2 bg-gray-600" />
                 <span>{formatDuration(duration)}</span>
               </div>
+              {segment.originalPlan.estimated_minutes != null &&
+                segment.originalPlan.estimated_minutes !== duration && (
+                <div className="text-amber-300 text-[10px] mt-0.5">
+                  실학습 {formatDuration(segment.originalPlan.estimated_minutes)}
+                </div>
+              )}
             </div>
           </motion.div>
         )}

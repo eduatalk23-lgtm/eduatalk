@@ -86,6 +86,37 @@ export interface AdHocPlan {
   estimated_minutes: number | null;
 }
 
+// ============================================
+// 비학습시간 관련 타입
+// ============================================
+
+export type NonStudyTimeBlock = {
+  type: string; // "아침식사" | "점심식사" | "저녁식사" | "수면" | "기타"
+  start_time: string; // HH:mm
+  end_time: string; // HH:mm
+};
+
+export type LunchTime = {
+  start: string; // HH:mm
+  end: string; // HH:mm
+};
+
+export interface AcademySchedule {
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  academy_name: string | null;
+  subject: string | null;
+  travel_time: number | null; // minutes
+}
+
+export type NonStudyItem = {
+  type: "아침식사" | "점심식사" | "저녁식사" | "수면" | "학원" | "이동시간" | "기타";
+  start_time: string;
+  end_time: string;
+  label?: string;
+};
+
 // Query key factory
 export const adminDockKeys = {
   all: ['adminDock'] as const,
@@ -93,6 +124,8 @@ export const adminDockKeys = {
     [...adminDockKeys.all, 'daily', studentId, date, plannerId ?? 'all'] as const,
   dailyAdHoc: (studentId: string, date: string) =>
     [...adminDockKeys.all, 'dailyAdHoc', studentId, date] as const,
+  dailyNonStudy: (studentId: string, date: string, planGroupIds: string[]) =>
+    [...adminDockKeys.all, 'dailyNonStudy', studentId, date, ...planGroupIds.slice().sort()] as const,
   weekly: (studentId: string, weekStart: string, weekEnd: string, plannerId?: string) =>
     [...adminDockKeys.all, 'weekly', studentId, weekStart, weekEnd, plannerId ?? 'all'] as const,
   weeklyAdHoc: (studentId: string, weekStart: string, weekEnd: string) =>
@@ -436,6 +469,126 @@ export function unfinishedPlansQueryOptions(studentId: string, plannerId?: strin
 
       if (error) throw error;
       return data ?? [];
+    },
+    staleTime: CACHE_STALE_TIME_DYNAMIC,
+    gcTime: CACHE_GC_TIME_DYNAMIC,
+  });
+}
+
+// ============================================
+// 비학습시간 데이터 조회
+// ============================================
+
+/**
+ * 비학습시간 데이터 조회 (plan_groups의 non_study_time_blocks/lunch_time + academy_schedules)
+ */
+export function nonStudyTimeQueryOptions(
+  studentId: string,
+  date: string,
+  planGroupIds: string[]
+) {
+  // 날짜로부터 요일 계산 (0=일, 1=월, ..., 6=토)
+  const dayOfWeek = new Date(date + 'T00:00:00').getDay();
+
+  return queryOptions({
+    queryKey: adminDockKeys.dailyNonStudy(studentId, date, planGroupIds),
+    queryFn: async (): Promise<NonStudyItem[]> => {
+      const supabase = createSupabaseBrowserClient();
+      const items: NonStudyItem[] = [];
+
+      // 1. plan_groups에서 non_study_time_blocks, lunch_time 가져오기
+      if (planGroupIds.length > 0) {
+        const uniqueIds = [...new Set(planGroupIds)];
+        const { data: groups } = await supabase
+          .from('plan_groups')
+          .select('non_study_time_blocks, lunch_time')
+          .in('id', uniqueIds);
+
+        if (groups) {
+          const seen = new Set<string>(); // 중복 방지 키
+          for (const group of groups) {
+            // lunch_time
+            const lunch = group.lunch_time as LunchTime | null;
+            if (lunch?.start && lunch?.end) {
+              const key = `점심식사:${lunch.start}-${lunch.end}`;
+              if (!seen.has(key)) {
+                seen.add(key);
+                items.push({
+                  type: "점심식사",
+                  start_time: lunch.start,
+                  end_time: lunch.end,
+                  label: "점심식사",
+                });
+              }
+            }
+            // non_study_time_blocks
+            const blocks = group.non_study_time_blocks as NonStudyTimeBlock[] | null;
+            if (blocks) {
+              for (const block of blocks) {
+                const key = `${block.type}:${block.start_time}-${block.end_time}`;
+                if (!seen.has(key)) {
+                  seen.add(key);
+                  const type = (["아침식사", "점심식사", "저녁식사", "수면"].includes(block.type)
+                    ? block.type
+                    : "기타") as NonStudyItem["type"];
+                  items.push({
+                    type,
+                    start_time: block.start_time,
+                    end_time: block.end_time,
+                    label: block.type,
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // 2. academy_schedules에서 학원 일정 + 이동시간 가져오기
+      const { data: academies } = await supabase
+        .from('academy_schedules')
+        .select('day_of_week, start_time, end_time, academy_name, subject, travel_time')
+        .eq('student_id', studentId)
+        .eq('day_of_week', dayOfWeek);
+
+      if (academies) {
+        for (const schedule of academies) {
+          const name = schedule.academy_name ?? '학원';
+          const subjectLabel = schedule.subject ? ` (${schedule.subject})` : '';
+
+          // 이동시간 (학원 시작 전)
+          if (schedule.travel_time && schedule.travel_time > 0) {
+            const [h, m] = schedule.start_time.split(':').map(Number);
+            const travelStartMinutes = h * 60 + m - schedule.travel_time;
+            const travelStartH = Math.floor(Math.max(0, travelStartMinutes) / 60);
+            const travelStartM = Math.max(0, travelStartMinutes) % 60;
+            const travelStart = `${String(travelStartH).padStart(2, '0')}:${String(travelStartM).padStart(2, '0')}`;
+            items.push({
+              type: "이동시간",
+              start_time: travelStart,
+              end_time: schedule.start_time.substring(0, 5),
+              label: `이동시간 (${name})`,
+            });
+          }
+
+          // 학원 일정
+          items.push({
+            type: "학원",
+            start_time: schedule.start_time.substring(0, 5),
+            end_time: schedule.end_time.substring(0, 5),
+            label: `${name}${subjectLabel}`,
+          });
+        }
+      }
+
+      // start_time 기준 정렬
+      items.sort((a, b) => {
+        const [ah, am] = a.start_time.split(':').map(Number);
+        const [bh, bm] = b.start_time.split(':').map(Number);
+        return (ah * 60 + am) - (bh * 60 + bm);
+      });
+
+      return items;
     },
     staleTime: CACHE_STALE_TIME_DYNAMIC,
     gcTime: CACHE_GC_TIME_DYNAMIC,

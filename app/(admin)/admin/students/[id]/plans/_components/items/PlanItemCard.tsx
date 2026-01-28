@@ -17,6 +17,24 @@ import type { PlanStatus } from '@/lib/types/plan';
 /** 성능 최적화: 인라인 빈 함수 생성 방지를 위한 상수 */
 const NOOP = () => {};
 
+/** HH:mm → 분 변환 */
+function parseTimeToMinutes(time: string): number {
+  const [h, m] = time.substring(0, 5).split(':').map(Number);
+  return h * 60 + m;
+}
+
+/** 실학습 시간 표시 여부 판단 + 값 반환 */
+function getActualStudyMinutes(
+  startTime: string | null | undefined,
+  endTime: string | null | undefined,
+  estimatedMinutes: number | null | undefined
+): number | null {
+  if (!estimatedMinutes || !startTime || !endTime) return null;
+  const timeRange = parseTimeToMinutes(endTime) - parseTimeToMinutes(startTime);
+  if (timeRange <= 0 || estimatedMinutes === timeRange) return null;
+  return estimatedMinutes;
+}
+
 /** 상태 라벨 매핑 */
 const STATUS_LABELS: Partial<Record<PlanStatus, string>> = {
   pending: '미완료',
@@ -351,6 +369,14 @@ export const PlanItemCard = memo(function PlanItemCard({
                       ~{plan.endTime.substring(0, 5)}
                     </span>
                   )}
+                  {(() => {
+                    const actual = getActualStudyMinutes(plan.startTime, plan.endTime, plan.estimatedMinutes);
+                    return actual ? (
+                      <span className="text-[8px] text-amber-600 font-medium tabular-nums">
+                        실{actual}분
+                      </span>
+                    ) : null;
+                  })()}
                 </div>
               )}
               <div className="flex-1 min-w-0">
@@ -526,6 +552,14 @@ export const PlanItemCard = memo(function PlanItemCard({
                 ~{plan.endTime.substring(0, 5)}
               </span>
             )}
+            {(() => {
+              const actual = getActualStudyMinutes(plan.startTime, plan.endTime, plan.estimatedMinutes);
+              return actual ? (
+                <span className="text-[9px] text-amber-600 font-medium tabular-nums">
+                  실{actual}분
+                </span>
+              ) : null;
+            })()}
           </div>
         )}
 

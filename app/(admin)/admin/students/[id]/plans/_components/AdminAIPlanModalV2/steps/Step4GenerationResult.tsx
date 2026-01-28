@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { Loader2, CheckCircle2, AlertCircle, Sparkles, XCircle, RefreshCcw } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, Sparkles, XCircle, RefreshCcw, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useAIPlanModalSelectors, useAIPlanModalActions } from '../context/AIPlanModalContext';
 import { generateSlotBasedPlanAction } from '@/lib/domains/admin-plan/actions/generateSlotBasedPlan';
@@ -181,6 +181,12 @@ export function Step4GenerationResult({
                       ? `${result.planCount}개 플랜 생성`
                       : result.error || '생성 실패'}
                   </div>
+                  {result.warning && (
+                    <div className="flex items-center gap-1 mt-1 text-xs text-amber-600">
+                      <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+                      <span>{result.warning}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

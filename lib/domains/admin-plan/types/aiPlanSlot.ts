@@ -240,6 +240,7 @@ export interface SlotGenerationResult {
   planCount: number;
   success: boolean;
   error?: string;
+  warning?: string;
 }
 
 // ============================================================================

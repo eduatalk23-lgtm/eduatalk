@@ -19,7 +19,7 @@ import type {
 export async function getDeletedPlanGroups(
   options: GetDeletedPlanGroupsOptions
 ): Promise<DeletedPlanGroupInfo[]> {
-  const { studentId, tenantId, offset = 0, limit = 50, includeRestored = false } = options;
+  const { studentId, tenantId, plannerId, offset = 0, limit = 50, includeRestored = false } = options;
   const supabase = await createSupabaseServerClient();
 
   let query = supabase
@@ -31,6 +31,10 @@ export async function getDeletedPlanGroups(
 
   if (tenantId) {
     query = query.eq("tenant_id", tenantId);
+  }
+
+  if (plannerId) {
+    query = query.eq("planner_id", plannerId);
   }
 
   if (!includeRestored) {
@@ -64,6 +68,7 @@ export async function getDeletedPlanGroups(
       planCount: backupData.plans?.length || 0,
       contentCount: backupData.contents?.length || 0,
       isRestored: backup.restored_at !== null,
+      plannerId: backup.planner_id ?? null,
     };
   });
 }
@@ -410,7 +415,7 @@ export async function permanentlyDeleteBackup(
 export async function getDeletedPlanGroupsForAdmin(
   options: GetDeletedPlanGroupsOptions
 ): Promise<DeletedPlanGroupInfo[]> {
-  const { studentId, tenantId, offset = 0, limit = 50, includeRestored = false } = options;
+  const { studentId, tenantId, plannerId, offset = 0, limit = 50, includeRestored = false } = options;
   const supabase = createSupabaseAdminClient();
 
   if (!supabase) {
@@ -427,6 +432,10 @@ export async function getDeletedPlanGroupsForAdmin(
 
   if (tenantId) {
     query = query.eq("tenant_id", tenantId);
+  }
+
+  if (plannerId) {
+    query = query.eq("planner_id", plannerId);
   }
 
   if (!includeRestored) {
@@ -460,6 +469,7 @@ export async function getDeletedPlanGroupsForAdmin(
       planCount: backupData.plans?.length || 0,
       contentCount: backupData.contents?.length || 0,
       isRestored: backup.restored_at !== null,
+      plannerId: backup.planner_id ?? null,
     };
   });
 }

@@ -34,6 +34,7 @@ export interface GetDeletedPlanGroupsOptions {
   offset?: number;
   limit?: number;
   includeRestored?: boolean;
+  plannerId?: string;
 }
 
 export interface RestorePlanGroupResult {
@@ -57,11 +58,12 @@ export async function getDeletedPlanGroupsAdmin(
   try {
     const { tenantId } = await requireAdminOrConsultant({ requireTenant: true });
 
-    const { offset = 0, limit = DEFAULT_LIMIT, includeRestored = false } = options;
+    const { offset = 0, limit = DEFAULT_LIMIT, includeRestored = false, plannerId } = options;
 
     const deletedGroups = await getDeletedPlanGroupsForAdmin({
       studentId,
       tenantId: tenantId || undefined,
+      plannerId,
       offset,
       limit: limit + 1, // hasMore 체크를 위해 1개 더 조회
       includeRestored,

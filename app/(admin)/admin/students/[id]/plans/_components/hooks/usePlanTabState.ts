@@ -4,7 +4,7 @@ import { useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
 // 탭 키 타입
-export type PlanTabKey = "planner" | "analytics" | "history";
+export type PlanTabKey = "planner" | "analytics" | "progress" | "history";
 
 // 탭 정보 타입
 export interface PlanTab {
@@ -17,6 +17,7 @@ export interface PlanTab {
 export const PLAN_TABS: PlanTab[] = [
   { key: "planner", label: "플래너", icon: "📋" },
   { key: "analytics", label: "분석", icon: "📊" },
+  { key: "progress", label: "진도관리", icon: "📈" },
   { key: "history", label: "히스토리", icon: "📜" },
 ];
 

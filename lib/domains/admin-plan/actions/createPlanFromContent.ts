@@ -638,7 +638,16 @@ export async function createPlanFromContentWithScheduler(
       input.targetDate,
       input.periodEndDate,
       existingPlansForScheduler, // Phase 4: 기존 플랜 정보 전달
-      { autoAdjustOverlaps: true } // Phase 4: 시간 충돌 자동 조정
+      {
+        autoAdjustOverlaps: true,
+        lunchTime: (() => {
+          const raw = planGroup.lunch_time as Record<string, string> | null;
+          if (!raw) return undefined;
+          const start = raw.start_time || raw.start;
+          const end = raw.end_time || raw.end;
+          return (start && end) ? { start, end } : undefined;
+        })(),
+      } // Phase 4: 시간 충돌 자동 조정 + 점심시간 보호
     );
     const scheduledPlans = generateResult.plans;
 

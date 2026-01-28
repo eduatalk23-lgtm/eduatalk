@@ -510,7 +510,7 @@ async function _generatePlansWithServices(
       undefined,           // periodStart
       undefined,           // periodEnd
       existingPlanInfos,   // Phase 2: 기존 플랜 정보 전달 (시간 충돌 방지)
-      { autoAdjustOverlaps: true }  // Phase 4: 시간 충돌 자동 조정
+      { autoAdjustOverlaps: true, lunchTime: schedulerOptions.lunch_time }  // Phase 4: 시간 충돌 자동 조정 + 점심시간 보호
     );
     scheduledPlans = generateResult.plans;
     overlapValidation = generateResult.overlapValidation;

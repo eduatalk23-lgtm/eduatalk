@@ -120,6 +120,7 @@ export async function deletePlanGroupAdmin(
         plan_group_id: planGroupId,
         student_id: studentId,
         tenant_id: tenantId,
+        planner_id: planGroup.planner_id ?? null,
         backup_data: backupData,
         deleted_by: userId,
         created_at: new Date().toISOString(),

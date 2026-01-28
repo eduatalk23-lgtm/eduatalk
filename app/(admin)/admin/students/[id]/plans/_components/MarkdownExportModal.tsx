@@ -51,6 +51,7 @@ export function MarkdownExportModal({
   } = useAdminPlan();
 
   const [exportRange, setExportRange] = useState<ExportRange>("week");
+  const [exportFormat, setExportFormat] = useState<"table" | "timetable">("table");
   const [options, setOptions] = useState<ExportOptions>(DEFAULT_OPTIONS);
   const [isLoading, setIsLoading] = useState(false);
   const [markdown, setMarkdown] = useState<string | null>(null);
@@ -214,6 +215,7 @@ export function MarkdownExportModal({
           selectedDate,
           selectedWeek: exportRange === "week" ? selectedWeek : undefined,
           options,
+          exportFormat,
         }),
       });
 
@@ -239,6 +241,7 @@ export function MarkdownExportModal({
     selectedDate,
     selectedWeek,
     options,
+    exportFormat,
   ]);
 
   const handleCopy = useCallback(async () => {
@@ -388,6 +391,55 @@ export function MarkdownExportModal({
                       </div>
                     </label>
                   ))}
+                </div>
+              </div>
+
+              {/* 내보내기 형식 */}
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 mb-3">
+                  내보내기 형식
+                </h3>
+                <div className="flex gap-3">
+                  <label
+                    className={cn(
+                      "flex items-center gap-2 flex-1 p-3 rounded-lg border cursor-pointer transition",
+                      exportFormat === "table"
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="exportFormat"
+                      value="table"
+                      checked={exportFormat === "table"}
+                      onChange={() => setExportFormat("table")}
+                    />
+                    <div>
+                      <span className="font-medium text-gray-900">표 형식</span>
+                      <p className="text-xs text-gray-500">날짜별 목록 테이블</p>
+                    </div>
+                  </label>
+                  <label
+                    className={cn(
+                      "flex items-center gap-2 flex-1 p-3 rounded-lg border cursor-pointer transition",
+                      exportFormat === "timetable"
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="exportFormat"
+                      value="timetable"
+                      checked={exportFormat === "timetable"}
+                      onChange={() => setExportFormat("timetable")}
+                    />
+                    <div>
+                      <span className="font-medium text-gray-900">시간표 형식</span>
+                      <p className="text-xs text-gray-500">시간 x 요일 그리드</p>
+                    </div>
+                  </label>
                 </div>
               </div>
 

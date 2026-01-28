@@ -47,7 +47,7 @@ import type { TimeSlot } from "@/lib/types/plan-generation";
 // Context & Tabs
 import { AdminPlanProvider, useAdminPlan } from "./context/AdminPlanContext";
 import { AdminPlanTabs, TabContent } from "./AdminPlanTabs";
-import { PlannerTab, AnalyticsTab, HistoryTab } from "./tabs";
+import { PlannerTab, AnalyticsTab, ProgressTab, HistoryTab } from "./tabs";
 
 // Components
 import { AdminPlanHeader } from "./AdminPlanHeader";
@@ -381,6 +381,9 @@ function AdminPlanManagementContent({
             </TabContent>
             <TabContent tab="analytics">
               <AnalyticsTab tab="analytics" />
+            </TabContent>
+            <TabContent tab="progress">
+              <ProgressTab tab="progress" />
             </TabContent>
             <TabContent tab="history">
               <HistoryTab tab="history" />

@@ -54,6 +54,8 @@ interface MasterContentSearchModalProps {
   studentId: string;
   tenantId: string;
   existingContentIds: Set<string>;
+  /** true이면 학생 콘텐츠 복사를 건너뛰고 마스터 콘텐츠 ID를 직접 반환 */
+  skipStudentCopy?: boolean;
 }
 
 // ============================================
@@ -67,6 +69,7 @@ export function MasterContentSearchModal({
   studentId,
   tenantId,
   existingContentIds,
+  skipStudentCopy = false,
 }: MasterContentSearchModalProps) {
   // 검색 상태
   const [searchQuery, setSearchQuery] = useState("");
@@ -292,35 +295,43 @@ export function MasterContentSearchModal({
     setIsAdding(true);
 
     try {
-      // 마스터 콘텐츠를 학생 콘텐츠로 복사
-      const result = await copyMasterToStudentContentAction(
-        selectedMaster.id,
-        studentId,
-        selectedMaster.content_type
-      );
-
-      if (!result) {
-        throw new Error("콘텐츠 복사에 실패했습니다.");
-      }
-
-      // 복사된 학생 콘텐츠 ID
-      const newContentId =
-        selectedMaster.content_type === "book"
-          ? result.bookId
-          : result.lectureId;
-
-      if (!newContentId) {
-        throw new Error("콘텐츠 ID를 찾을 수 없습니다.");
-      }
-
       const totalRange =
         selectedMaster.content_type === "book"
           ? selectedMaster.total_pages || 100
           : selectedMaster.total_episodes || 10;
 
+      let contentId: string;
+
+      if (skipStudentCopy) {
+        // 학생 콘텐츠 복사 없이 마스터 콘텐츠 ID 직접 사용
+        contentId = selectedMaster.id;
+      } else {
+        // 마스터 콘텐츠를 학생 콘텐츠로 복사
+        const result = await copyMasterToStudentContentAction(
+          selectedMaster.id,
+          studentId,
+          selectedMaster.content_type
+        );
+
+        if (!result) {
+          throw new Error("콘텐츠 복사에 실패했습니다.");
+        }
+
+        const newContentId =
+          selectedMaster.content_type === "book"
+            ? result.bookId
+            : result.lectureId;
+
+        if (!newContentId) {
+          throw new Error("콘텐츠 ID를 찾을 수 없습니다.");
+        }
+
+        contentId = newContentId;
+      }
+
       // 위자드에 추가할 SelectedContent 생성
       const newContent: SelectedContent = {
-        contentId: newContentId,
+        contentId,
         contentType: selectedMaster.content_type,
         title: selectedMaster.title,
         subject: selectedMaster.subject || undefined,
@@ -339,7 +350,7 @@ export function MasterContentSearchModal({
     } finally {
       setIsAdding(false);
     }
-  }, [selectedMaster, studentId, rangeStart, rangeEnd, onSelect]);
+  }, [selectedMaster, studentId, rangeStart, rangeEnd, onSelect, skipStudentCopy]);
 
   // 검색 비활성화 조건
   const searchDisabled =

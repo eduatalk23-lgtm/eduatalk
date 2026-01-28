@@ -1,11 +1,12 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   adminDockKeys,
   dailyPlansQueryOptions,
   dailyAdHocPlansQueryOptions,
+  nonStudyTimeQueryOptions,
   weeklyPlansQueryOptions,
   weeklyAdHocPlansQueryOptions,
   unfinishedPlansQueryOptions,
@@ -14,6 +15,7 @@ import {
   type WeeklyPlan,
   type UnfinishedPlan,
   type AdHocPlan,
+  type NonStudyItem,
 } from '@/lib/query-options/adminDock';
 
 /**
@@ -44,6 +46,38 @@ export function useDailyDockQuery(studentId: string, date: string, plannerId?: s
       plansQuery.refetch();
       adHocQuery.refetch();
     },
+  };
+}
+
+/**
+ * 비학습시간 쿼리 훅
+ * @param studentId 학생 ID
+ * @param date 날짜
+ * @param plans 플랜 목록 (plan_group_id 추출용)
+ * @param plansLoaded 플랜 로딩 완료 여부 (false면 쿼리 비활성화하여 플리커 방지)
+ */
+export function useNonStudyTimeQuery(
+  studentId: string,
+  date: string,
+  plans: DailyPlan[],
+  plansLoaded: boolean = true
+) {
+  const planGroupIds = useMemo(() => {
+    const ids = plans
+      .map(p => p.plan_group_id)
+      .filter((id): id is string => id != null);
+    return [...new Set(ids)];
+  }, [plans]);
+
+  const queryOpts = nonStudyTimeQueryOptions(studentId, date, planGroupIds);
+  const query = useQuery({
+    ...queryOpts,
+    enabled: plansLoaded,
+  });
+
+  return {
+    nonStudyItems: query.data ?? [],
+    isLoading: query.isLoading,
   };
 }
 
@@ -228,4 +262,4 @@ export function useTargetedDockInvalidation() {
 }
 
 // Re-export types
-export type { DailyPlan, WeeklyPlan, UnfinishedPlan, AdHocPlan };
+export type { DailyPlan, WeeklyPlan, UnfinishedPlan, AdHocPlan, NonStudyItem };

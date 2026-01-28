@@ -1,151 +1,69 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Sparkles, BookOpen, Trash2, Loader2, Search } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Sparkles, BookOpen, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useAIPlanModalActions, useAIPlanModalSelectors } from '../context/AIPlanModalContext';
-import type { ContentSlot, AIConfig, ExistingContentConfig } from '@/lib/domains/admin-plan/types/aiPlanSlot';
+import type { ContentSlot, AIConfig, ExistingContentConfig, RangeConfig } from '@/lib/domains/admin-plan/types/aiPlanSlot';
 import { SUPPORTED_SUBJECT_CATEGORIES, SUBJECTS_BY_CATEGORY, type SubjectCategory, type DifficultyLevel } from '@/lib/domains/plan/llm/actions/coldStart/types';
-import { getFlexibleContents } from '@/lib/domains/admin-plan/actions';
-import { searchMasterBooks } from '@/lib/data/contentMasters/books';
-import { searchMasterLectures } from '@/lib/data/contentMasters/lectures';
+import { MasterContentSearchModal } from '../../admin-wizard/steps/_components/MasterContentSearchModal';
+import type { SelectedContent } from '../../admin-wizard/_context/types';
 
 interface Step2SlotConfigurationProps {
   studentId: string;
   tenantId: string;
 }
 
-interface SelectableContent {
-  id: string;
-  title: string;
-  subject: string;
-  subjectCategory: string;
-  contentType: 'book' | 'lecture';
-  totalRange?: number;
-}
-
 export function Step2SlotConfiguration({ studentId, tenantId }: Step2SlotConfigurationProps) {
   const { slots } = useAIPlanModalSelectors();
-  const { addSlot, removeSlot, setAIConfig, setExistingContent } = useAIPlanModalActions();
+  const { addSlot, removeSlot, setAIConfig, setExistingContent, setRangeConfig } = useAIPlanModalActions();
 
-  // 기존 콘텐츠 관련 상태
-  const [existingContents, setExistingContents] = useState<SelectableContent[]>([]);
-  const [isLoadingContents, setIsLoadingContents] = useState(false);
-  const [contentSearchQuery, setContentSearchQuery] = useState('');
-  const [selectingSlotId, setSelectingSlotId] = useState<string | null>(null);
+  // 마스터 콘텐츠 검색 모달 상태
+  const [isMasterSearchOpen, setIsMasterSearchOpen] = useState(false);
+  const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
 
-  // 기존 콘텐츠 로드
-  useEffect(() => {
-    const hasExistingSlot = slots.some(s => s.type === 'existing_content');
-    if (hasExistingSlot && existingContents.length === 0) {
-      loadExistingContents();
+  // 이미 추가된 콘텐츠 ID Set (중복 방지용)
+  const existingContentIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const slot of slots) {
+      if (slot.existingContent?.contentId) {
+        ids.add(slot.existingContent.contentId);
+      }
     }
+    return ids;
   }, [slots]);
 
-  async function loadExistingContents() {
-    try {
-      setIsLoadingContents(true);
-
-      const [flexibleResult, booksResult, lecturesResult] = await Promise.all([
-        getFlexibleContents({ student_id: studentId }),
-        searchMasterBooks({ tenantId, limit: 50 }),
-        searchMasterLectures({ tenantId, limit: 50 }),
-      ]);
-
-      const contents: SelectableContent[] = [];
-
-      // Flexible contents
-      if (flexibleResult.success && flexibleResult.data?.data) {
-        flexibleResult.data.data.forEach((fc: {
-          id: string;
-          title?: string | null;
-          subject?: string | null;
-          subject_area?: string | null;
-          content_type?: string | null;
-          total_pages?: number | null;
-          total_episodes?: number | null;
-        }) => {
-          contents.push({
-            id: fc.id,
-            title: fc.title || '제목 없음',
-            subject: fc.subject || '',
-            subjectCategory: fc.subject_area || '',
-            contentType: fc.content_type === 'lecture' ? 'lecture' : 'book',
-            totalRange: fc.total_pages || fc.total_episodes || undefined,
-          });
-        });
-      }
-
-      // Master books
-      if (booksResult.data) {
-        booksResult.data.forEach((book: {
-          id: string;
-          title: string;
-          subject?: string | null;
-          subject_category?: string | null;
-          total_pages?: number | null;
-        }) => {
-          contents.push({
-            id: book.id,
-            title: book.title,
-            subject: book.subject || '',
-            subjectCategory: book.subject_category || '',
-            contentType: 'book',
-            totalRange: book.total_pages || undefined,
-          });
-        });
-      }
-
-      // Master lectures
-      if (lecturesResult.data) {
-        lecturesResult.data.forEach((lecture: {
-          id: string;
-          title: string;
-          subject?: string | null;
-          subject_category?: string | null;
-          total_episodes?: number | null;
-        }) => {
-          contents.push({
-            id: lecture.id,
-            title: lecture.title,
-            subject: lecture.subject || '',
-            subjectCategory: lecture.subject_category || '',
-            contentType: 'lecture',
-            totalRange: lecture.total_episodes || undefined,
-          });
-        });
-      }
-
-      setExistingContents(contents);
-    } catch (err) {
-      console.error('Failed to load contents:', err);
-    } finally {
-      setIsLoadingContents(false);
-    }
+  function openMasterSearch(slotId: string) {
+    setActiveSlotId(slotId);
+    setIsMasterSearchOpen(true);
   }
 
-  const filteredContents = existingContents.filter(content => {
-    if (!contentSearchQuery) return true;
-    const query = contentSearchQuery.toLowerCase();
-    return (
-      content.title.toLowerCase().includes(query) ||
-      content.subject.toLowerCase().includes(query) ||
-      content.subjectCategory.toLowerCase().includes(query)
-    );
-  });
+  function handleMasterContentSelected(content: SelectedContent) {
+    if (!activeSlotId) return;
 
-  function handleSelectExistingContent(slotId: string, content: SelectableContent) {
+    // SelectedContent → ExistingContentConfig 매핑
+    // MasterContentSearchModal은 book/lecture만 반환하므로 안전한 캐스팅
     const existingConfig: ExistingContentConfig = {
-      contentId: content.id,
-      contentType: content.contentType,
+      contentId: content.contentId,
+      contentType: content.contentType as "book" | "lecture",
       title: content.title,
-      totalRange: content.totalRange ?? 100,
+      totalRange: content.totalRange,
       subjectCategory: content.subjectCategory,
       subject: content.subject,
     };
-    setExistingContent(slotId, existingConfig);
-    setSelectingSlotId(null);
-    setContentSearchQuery('');
+
+    // RangeConfig 설정 (모달에서 범위 선택됨)
+    const rangeConfig: RangeConfig = {
+      startRange: content.startRange,
+      endRange: content.endRange,
+    };
+
+    setExistingContent(activeSlotId, existingConfig);
+    setRangeConfig(activeSlotId, rangeConfig);
+
+    // 모달 닫기
+    setIsMasterSearchOpen(false);
+    setActiveSlotId(null);
   }
 
   return (
@@ -178,13 +96,7 @@ export function Step2SlotConfiguration({ studentId, tenantId }: Step2SlotConfigu
               index={index}
               onRemove={() => removeSlot(slot.id)}
               onUpdateAIConfig={(config) => setAIConfig(slot.id, config)}
-              onSelectContent={() => setSelectingSlotId(slot.id)}
-              isSelectingContent={selectingSlotId === slot.id}
-              filteredContents={filteredContents}
-              contentSearchQuery={contentSearchQuery}
-              onSearchChange={setContentSearchQuery}
-              onContentSelect={(content) => handleSelectExistingContent(slot.id, content)}
-              isLoadingContents={isLoadingContents}
+              onOpenMasterSearch={() => openMasterSearch(slot.id)}
             />
           ))}
         </div>
@@ -213,6 +125,20 @@ export function Step2SlotConfiguration({ studentId, tenantId }: Step2SlotConfigu
           </div>
         </div>
       )}
+
+      {/* 마스터 콘텐츠 검색 모달 */}
+      <MasterContentSearchModal
+        open={isMasterSearchOpen}
+        onClose={() => {
+          setIsMasterSearchOpen(false);
+          setActiveSlotId(null);
+        }}
+        onSelect={handleMasterContentSelected}
+        studentId={studentId}
+        tenantId={tenantId}
+        existingContentIds={existingContentIds}
+        skipStudentCopy
+      />
     </div>
   );
 }
@@ -226,13 +152,7 @@ interface SlotCardProps {
   index: number;
   onRemove: () => void;
   onUpdateAIConfig: (config: AIConfig) => void;
-  onSelectContent: () => void;
-  isSelectingContent: boolean;
-  filteredContents: SelectableContent[];
-  contentSearchQuery: string;
-  onSearchChange: (query: string) => void;
-  onContentSelect: (content: SelectableContent) => void;
-  isLoadingContents: boolean;
+  onOpenMasterSearch: () => void;
 }
 
 function SlotCard({
@@ -240,13 +160,7 @@ function SlotCard({
   index,
   onRemove,
   onUpdateAIConfig,
-  onSelectContent,
-  isSelectingContent,
-  filteredContents,
-  contentSearchQuery,
-  onSearchChange,
-  onContentSelect,
-  isLoadingContents,
+  onOpenMasterSearch,
 }: SlotCardProps) {
   const isAI = slot.type === 'ai_recommendation';
 
@@ -289,15 +203,10 @@ function SlotCard({
 
       {/* 기존 콘텐츠 선택 */}
       {!isAI && (
-        <ExistingContentSelector
+        <ExistingContentDisplay
           selectedContent={slot.existingContent}
-          onSelectClick={onSelectContent}
-          isSelecting={isSelectingContent}
-          filteredContents={filteredContents}
-          searchQuery={contentSearchQuery}
-          onSearchChange={onSearchChange}
-          onContentSelect={onContentSelect}
-          isLoading={isLoadingContents}
+          rangeConfig={slot.rangeConfig}
+          onOpenMasterSearch={onOpenMasterSearch}
         />
       )}
     </div>
@@ -398,30 +307,20 @@ function AIConfigForm({ slotId, config, onChange }: AIConfigFormProps) {
 }
 
 // ============================================================================
-// 기존 콘텐츠 선택기
+// 기존 콘텐츠 표시 (모달로 선택)
 // ============================================================================
 
-interface ExistingContentSelectorProps {
+interface ExistingContentDisplayProps {
   selectedContent?: ExistingContentConfig;
-  onSelectClick: () => void;
-  isSelecting: boolean;
-  filteredContents: SelectableContent[];
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
-  onContentSelect: (content: SelectableContent) => void;
-  isLoading: boolean;
+  rangeConfig?: RangeConfig;
+  onOpenMasterSearch: () => void;
 }
 
-function ExistingContentSelector({
+function ExistingContentDisplay({
   selectedContent,
-  onSelectClick,
-  isSelecting,
-  filteredContents,
-  searchQuery,
-  onSearchChange,
-  onContentSelect,
-  isLoading,
-}: ExistingContentSelectorProps) {
+  rangeConfig,
+  onOpenMasterSearch,
+}: ExistingContentDisplayProps) {
   if (selectedContent) {
     return (
       <div className="flex items-center justify-between p-3 bg-white rounded-md border border-blue-200">
@@ -431,10 +330,11 @@ function ExistingContentSelector({
             {selectedContent.subjectCategory}
             {selectedContent.subject && ` · ${selectedContent.subject}`}
             {selectedContent.totalRange && ` · ${selectedContent.totalRange}${selectedContent.contentType === 'book' ? '페이지' : '강'}`}
+            {rangeConfig && ` · 범위: ${rangeConfig.startRange}~${rangeConfig.endRange}`}
           </div>
         </div>
         <button
-          onClick={onSelectClick}
+          onClick={onOpenMasterSearch}
           className="text-xs text-blue-600 hover:text-blue-800"
         >
           변경
@@ -443,59 +343,9 @@ function ExistingContentSelector({
     );
   }
 
-  if (isSelecting) {
-    return (
-      <div className="space-y-2">
-        {/* 검색 */}
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="콘텐츠 검색..."
-            className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            autoFocus
-          />
-        </div>
-
-        {/* 콘텐츠 목록 */}
-        {isLoading ? (
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
-          </div>
-        ) : (
-          <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-md divide-y">
-            {filteredContents.length > 0 ? (
-              filteredContents.slice(0, 20).map((content) => (
-                <button
-                  key={content.id}
-                  onClick={() => onContentSelect(content)}
-                  className="w-full p-2.5 text-left hover:bg-blue-50 transition-colors"
-                >
-                  <div className="font-medium text-gray-900 text-sm truncate">
-                    {content.title}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {content.subjectCategory} · {content.contentType === 'book' ? '교재' : '강의'}
-                    {content.totalRange && ` · ${content.totalRange}${content.contentType === 'book' ? 'p' : '강'}`}
-                  </div>
-                </button>
-              ))
-            ) : (
-              <div className="p-4 text-center text-sm text-gray-500">
-                검색 결과가 없습니다.
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  }
-
   return (
     <button
-      onClick={onSelectClick}
+      onClick={onOpenMasterSearch}
       className="w-full p-3 border-2 border-dashed border-gray-300 rounded-md text-gray-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/50 transition-colors"
     >
       콘텐츠 선택하기

@@ -54,6 +54,7 @@ export function HistoryTab({ tab: _tab }: HistoryTabProps) {
         </h2>
         <DeletedPlanGroupsView
           studentId={studentId}
+          plannerId={selectedPlannerId}
           onRefresh={handleRefresh}
         />
       </section>

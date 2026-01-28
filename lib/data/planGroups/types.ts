@@ -148,6 +148,7 @@ export type PlanGroupBackupData = {
     target_date: string | null;
     block_set_id: string | null;
     status: string;
+    planner_id?: string | null;
     created_at: string;
     updated_at: string;
   };
@@ -210,6 +211,7 @@ export type DeletedPlanGroupInfo = {
   planCount: number;
   contentCount: number;
   isRestored: boolean;
+  plannerId?: string | null;
 };
 
 /**
@@ -228,6 +230,7 @@ export type RestorePlanGroupResult = {
 export type GetDeletedPlanGroupsOptions = {
   studentId: string;
   tenantId?: string;
+  plannerId?: string;
   offset?: number;
   limit?: number;
   includeRestored?: boolean;

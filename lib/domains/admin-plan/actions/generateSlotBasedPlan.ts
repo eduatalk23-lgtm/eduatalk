@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { getCurrentUser } from '@/lib/auth/getCurrentUser';
 import { createPlanGroupForPlanner } from '../utils/planGroupSelector';
-import { generateHybridPlanCompleteAction } from '@/lib/domains/plan/llm/actions/generateHybridPlanComplete';
+import { generatePlansWithServices } from '@/lib/plan/services/generatePlansWithServices';
 import { saveRecommendationsToMasterContent } from '@/lib/domains/plan/llm/actions/coldStart/persistence';
 import { logActionDebug, logActionError, logActionWarn } from '@/lib/utils/serverActionLogger';
 import type {
@@ -26,25 +26,6 @@ interface GenerateSlotBasedPlanResult {
 }
 
 // ============================================================================
-// 유틸리티 함수
-// ============================================================================
-
-/**
- * 콘텐츠 타입에 따른 예상 학습 시간 계산
- * - 강의: 에피소드당 30분 기준 (2에피소드 = 1시간)
- * - 교재: 페이지당 3분 기준 (20페이지 = 1시간)
- */
-function calculateEstimatedHours(content: ConfirmedSlot['content']): number {
-  if (content.contentType === 'lecture') {
-    // 강의: 에피소드당 30분 기준
-    return Math.max(1, Math.ceil(content.totalRange * 0.5));
-  } else {
-    // 교재: 페이지당 3분 기준
-    return Math.max(1, Math.ceil(content.totalRange * 0.05));
-  }
-}
-
-// ============================================================================
 // 메인 Server Action
 // ============================================================================
 
@@ -53,8 +34,8 @@ function calculateEstimatedHours(content: ConfirmedSlot['content']): number {
  *
  * 각 확정된 슬롯에 대해:
  * 1. AI 추천 콘텐츠 → Master Content DB에 저장
- * 2. Plan Group 생성
- * 3. Hybrid Pipeline으로 플랜 생성
+ * 2. Plan Group 생성 (scheduler_options에 content_allocations 포함)
+ * 3. 코드 기반 스케줄러로 플랜 생성 (LLM 우회)
  */
 export async function generateSlotBasedPlanAction(
   input: GenerateSlotBasedPlanInput
@@ -93,6 +74,7 @@ export async function generateSlotBasedPlanAction(
       plannerId,
       periodStart,
       periodEnd,
+      userId: user.userId,
     });
 
     results.push(slotResult);
@@ -148,8 +130,9 @@ async function processSlot(params: {
   plannerId: string;
   periodStart: string;
   periodEnd: string;
+  userId: string;
 }): Promise<SlotGenerationResult> {
-  const { slot, studentId, tenantId, plannerId, periodStart, periodEnd } = params;
+  const { slot, studentId, tenantId, plannerId, periodStart, periodEnd, userId } = params;
 
   try {
     let contentId: string = '';
@@ -227,9 +210,16 @@ async function processSlot(params: {
           // master_lectures에서 추가 정보 조회
           const { data: masterData } = await supabaseForContent
             .from('master_lectures')
-            .select('episode_analysis, estimated_hours, difficulty_level, total_duration')
+            .select('episode_analysis, estimated_hours, difficulty_level, total_duration, total_episodes')
             .eq('id', masterContentId)
             .single();
+
+          // 총 에피소드 수: master_lectures 우선, fallback으로 slot 데이터 사용
+          const totalEpisodes = masterData?.total_episodes || slot.content.totalRange || 1;
+
+          // 총 소요시간 계산 (분 단위)
+          const totalDuration = masterData?.total_duration
+            || (masterData?.estimated_hours ? Math.round(masterData.estimated_hours * 60) : null);
 
           const { data: lectureData, error: lectureError } = await supabaseForContent
             .from('lectures')
@@ -241,10 +231,10 @@ async function processSlot(params: {
               platform: slot.content.publisher || null,
               subject: slot.content.subject || null,
               subject_category: slot.content.subjectCategory || null,
-              total_episodes: slot.content.totalRange || 1,
+              total_episodes: totalEpisodes,
               difficulty_level: masterData?.difficulty_level || 'medium',
               episode_analysis: masterData?.episode_analysis || null,
-              total_duration: masterData?.total_duration || (masterData?.estimated_hours ? masterData.estimated_hours * 60 : null),
+              total_duration: totalDuration,
             })
             .select('id')
             .single();
@@ -447,62 +437,69 @@ async function processSlot(params: {
       contentId = slot.content.id;
     }
 
-    // Step 2: Plan Group 생성 (중복 체크 먼저)
+    // Step 2: Plan Group 생성 (항상 새로 생성)
     const supabaseForPlanGroup = await createSupabaseServerClient();
     const masterIdForCheck = masterContentId || contentId;
 
-    // 중복 체크: 같은 planner_id + master_content_id 조합의 plan_group이 이미 있는지 확인
+    // 중복 경고: 같은 planner + content 조합이 이미 있는지 확인
+    let duplicateWarning: string | undefined;
     const { data: existingPlanGroup } = await supabaseForPlanGroup
       .from('plan_groups')
-      .select('id')
+      .select('id, name')
       .eq('planner_id', plannerId)
       .eq('master_content_id', masterIdForCheck)
       .maybeSingle();
 
-    let planGroupId: string;
-
     if (existingPlanGroup) {
-      // 이미 존재하면 기존 ID 사용
-      planGroupId = existingPlanGroup.id;
-      logActionDebug(
+      duplicateWarning = `같은 콘텐츠(${contentTitle})의 플랜 그룹이 이미 존재합니다. 새 플랜 그룹이 별도로 생성됩니다.`;
+      logActionWarn(
         'generateSlotBasedPlan',
-        `[Step2] 기존 Plan Group 사용 - id: ${existingPlanGroup.id}, masterContentId: ${masterIdForCheck}`
+        `[Step2] 동일 콘텐츠 Plan Group 중복 감지 - 기존: ${existingPlanGroup.id}, 새로 생성 진행`
       );
-    } else {
-      // 새로 생성
-      const planGroupResult = await createPlanGroupForPlanner({
-        plannerId,
-        studentId,
-        tenantId,
-        name: contentTitle,
-        periodStart,
-        periodEnd,
-        options: {
-          isSingleContent: true,
-          creationMode: 'content_based',
-        },
-      });
-
-      if (!planGroupResult.success || !planGroupResult.planGroupId) {
-        logActionError(
-          'generateSlotBasedPlan',
-          `[Step2] Plan Group 생성 실패 - slotId: ${slot.id}, title: ${contentTitle}, error: ${planGroupResult.error}`
-        );
-        return {
-          slotId: slot.id,
-          contentId,
-          contentTitle,
-          planGroupId: '',
-          planCount: 0,
-          success: false,
-          error: planGroupResult.error || 'Plan Group 생성 실패',
-        };
-      }
-
-      planGroupId = planGroupResult.planGroupId;
     }
 
-    // Step 3: Plan Group에 콘텐츠 정보 연결
+    const planGroupResult = await createPlanGroupForPlanner({
+      plannerId,
+      studentId,
+      tenantId,
+      name: contentTitle,
+      periodStart,
+      periodEnd,
+      options: {
+        isSingleContent: true,
+        creationMode: 'content_based',
+      },
+    });
+
+    if (!planGroupResult.success || !planGroupResult.planGroupId) {
+      logActionError(
+        'generateSlotBasedPlan',
+        `[Step2] Plan Group 생성 실패 - slotId: ${slot.id}, title: ${contentTitle}, error: ${planGroupResult.error}`
+      );
+      return {
+        slotId: slot.id,
+        contentId,
+        contentTitle,
+        planGroupId: '',
+        planCount: 0,
+        success: false,
+        error: planGroupResult.error || 'Plan Group 생성 실패',
+      };
+    }
+
+    const planGroupId = planGroupResult.planGroupId;
+
+    // Step 3: Plan Group에 콘텐츠 정보 연결 + scheduler_options에 content_allocations 주입
+    // 기존 scheduler_options를 읽어서 content_allocations를 병합
+    const { data: currentGroup } = await supabaseForPlanGroup
+      .from('plan_groups')
+      .select('scheduler_options')
+      .eq('id', planGroupId)
+      .single();
+
+    const existingSchedulerOptions = (currentGroup?.scheduler_options as Record<string, unknown>) || {};
+    const subjectType = slot.subjectClassification === 'strategic' ? 'strategy' : 'weakness';
+
     const { error: updateError } = await supabaseForPlanGroup
       .from('plan_groups')
       .update({
@@ -513,10 +510,22 @@ async function processSlot(params: {
         start_range: slot.rangeConfig.startRange,
         end_range: slot.rangeConfig.endRange,
         // 전략/취약 과목 정보 저장
-        study_type: slot.subjectClassification === 'strategic' ? 'strategy' : 'weakness',
+        study_type: subjectType,
         ...(slot.subjectClassification === 'strategic' && slot.strategicConfig && {
           strategy_days_per_week: slot.strategicConfig.weeklyDays,
         }),
+        // 스케줄러가 읽는 content_allocations에 사용자 설정값 직접 반영
+        scheduler_options: {
+          ...existingSchedulerOptions,
+          content_allocations: [{
+            content_type: slot.content.contentType,
+            content_id: contentId,
+            subject_type: subjectType,
+            ...(slot.subjectClassification === 'strategic' && slot.strategicConfig && {
+              weekly_days: slot.strategicConfig.weeklyDays,
+            }),
+          }],
+        },
       })
       .eq('id', planGroupId);
 
@@ -559,63 +568,41 @@ async function processSlot(params: {
       };
     }
 
-    // Step 4: 기간 계산
-    const startDate = new Date(periodStart);
-    const endDate = new Date(periodEnd);
-    const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-
-    // Step 5: Hybrid Pipeline으로 플랜 생성
-    const hybridResult = await generateHybridPlanCompleteAction({
-      planGroupId,
-      student: {
-        id: studentId,
-        name: '',
-        grade: '',
+    // Step 4: 코드 기반 스케줄러로 플랜 생성 (LLM 우회)
+    // scheduler_options.content_allocations에 사용자 설정이 이미 반영되어 있으므로
+    // AI Framework 없이 코드 스케줄러만으로 정확한 날짜/시간 배치 가능
+    const planResult = await generatePlansWithServices({
+      groupId: planGroupId,
+      context: {
+        studentId,
+        tenantId,
+        userId,
+        role: 'admin',
+        isCampMode: false,
       },
-      scores: [],
-      contents: [{
-        id: contentId,
-        title: contentTitle,
-        subject: slot.content.subject || '',
-        subjectCategory: slot.content.subjectCategory || '',
-        contentType: slot.content.contentType,
-        estimatedHours: calculateEstimatedHours(slot.content),
-        difficulty: 'medium',
-      }],
-      period: {
-        startDate: periodStart,
-        endDate: periodEnd,
-        totalDays,
-        studyDays: slot.subjectClassification === 'strategic'
-          ? (slot.strategicConfig?.weeklyDays ?? 3) * Math.ceil(totalDays / 7)
-          : Math.floor(totalDays * 6 / 7), // 취약 과목: 주 6일
+      accessInfo: {
+        userId,
+        role: 'admin',
       },
-      modelTier: 'standard',
-      role: 'admin',
-      plannerValidationMode: 'warn',
+      // aiSchedulerOptionsOverride 없음 → Plan Group의 scheduler_options만 사용
     });
 
-    if (!hybridResult.success) {
-      const errorMsg = typeof hybridResult.error === 'string'
-        ? hybridResult.error
-        : hybridResult.error
-          ? JSON.stringify(hybridResult.error)
-          : 'Hybrid 플랜 생성 실패';
+    if (!planResult.success) {
+      const errorMsg = planResult.error || '플랜 생성 실패';
       logActionError(
         'generateSlotBasedPlan',
-        `[Step4] Hybrid 플랜 생성 실패 - slotId: ${slot.id}, title: ${contentTitle}, planGroupId: ${planGroupId}, error: ${errorMsg}`
+        `[Step4] 플랜 생성 실패 - slotId: ${slot.id}, title: ${contentTitle}, planGroupId: ${planGroupId}, error: ${errorMsg}`
       );
 
       // 롤백: 빈 Plan Group 삭제 (플랜 생성 실패 시)
       try {
-        const supabaseForRollback = await createSupabaseServerClient();
         // plan_contents 먼저 삭제
-        await supabaseForRollback
+        await supabaseForPlanGroup
           .from('plan_contents')
           .delete()
           .eq('plan_group_id', planGroupId);
         // plan_groups 삭제
-        await supabaseForRollback
+        await supabaseForPlanGroup
           .from('plan_groups')
           .delete()
           .eq('id', planGroupId);
@@ -637,7 +624,7 @@ async function processSlot(params: {
         planGroupId: '', // 롤백됨
         planCount: 0,
         success: false,
-        error: typeof hybridResult.error === 'string' ? hybridResult.error : 'Hybrid 플랜 생성 실패',
+        error: errorMsg,
       };
     }
 
@@ -646,8 +633,9 @@ async function processSlot(params: {
       contentId,
       contentTitle,
       planGroupId,
-      planCount: hybridResult.planCount || 0,
+      planCount: planResult.count || 0,
       success: true,
+      warning: duplicateWarning,
     };
   } catch (error) {
     logActionError(
