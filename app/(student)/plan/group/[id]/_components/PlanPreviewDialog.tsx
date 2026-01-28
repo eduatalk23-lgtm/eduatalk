@@ -4,6 +4,20 @@ import { useState, useTransition, useMemo } from "react";
 import { X } from "lucide-react";
 import { previewPlansFromGroupAction, generatePlansFromGroupAction, checkPlansExistAction } from "@/lib/domains/plan";
 
+/** 실학습 시간이 시간 범위와 다른 경우에만 값을 반환 */
+function getActualStudyMinutes(
+  startTime: string | null,
+  endTime: string | null,
+  estimatedMinutes: number | null | undefined
+): number | null {
+  if (estimatedMinutes == null || !startTime || !endTime) return null;
+  const [sh, sm] = startTime.split(':').map(Number);
+  const [eh, em] = endTime.split(':').map(Number);
+  const range = (eh * 60 + em) - (sh * 60 + sm);
+  if (range <= 0 || estimatedMinutes === range) return null;
+  return estimatedMinutes;
+}
+
 type PlanPreview = {
   plan_date: string;
   block_index: number;
@@ -24,6 +38,7 @@ type PlanPreview = {
   is_partial: boolean;
   is_continued: boolean;
   plan_number: number | null;
+  estimated_minutes?: number | null;
 };
 
 type PlanPreviewDialogProps = {
@@ -348,7 +363,15 @@ export function PlanPreviewDialog({
                           {plan.start_time || "-"}
                         </td>
                         <td className="px-3 py-2 border border-blue-200 text-blue-700">
-                          {plan.end_time || "-"}
+                          <div className="flex flex-col">
+                            <span>{plan.end_time || "-"}</span>
+                            {(() => {
+                              const actual = getActualStudyMinutes(plan.start_time, plan.end_time, plan.estimated_minutes);
+                              return actual ? (
+                                <span className="text-amber-600 text-[10px]">실{actual}분</span>
+                              ) : null;
+                            })()}
+                          </div>
                         </td>
                         <td className="px-3 py-2 border border-blue-200 text-blue-700">
                           {plan.content_subject_category || "-"}

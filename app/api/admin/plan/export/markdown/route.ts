@@ -16,6 +16,11 @@ import {
   groupPlansByKey,
   sortByStartTimeInPlace,
 } from "@/lib/utils/splitPlanGrouping";
+import {
+  generateTimetableMarkdown,
+  type TimetableWeek,
+  type TimetableEntry,
+} from "@/lib/utils/timetableMarkdown";
 
 type ExportRange = "today" | "week" | "planGroup" | "planner";
 
@@ -27,6 +32,8 @@ interface ExportOptions {
   includeStatistics: boolean;
 }
 
+type ExportFormat = "table" | "timetable";
+
 interface RequestBody {
   studentId: string;
   plannerId: string;
@@ -35,6 +42,7 @@ interface RequestBody {
   selectedDate: string;
   selectedWeek?: number;
   options: ExportOptions;
+  exportFormat?: ExportFormat;
 }
 
 export async function POST(request: NextRequest) {
@@ -57,6 +65,7 @@ export async function POST(request: NextRequest) {
       selectedDate,
       selectedWeek,
       options,
+      exportFormat = "table",
     } = body;
 
     if (!studentId || !plannerId) {
@@ -325,18 +334,28 @@ export async function POST(request: NextRequest) {
     }
 
     // 8. 마크다운 생성
-    const markdown = generateMarkdown({
-      student: options.includeStudentInfo ? student : null,
-      planner,
-      planGroups: planGroups || [],
-      plans: plans || [],
-      contentMap,
-      exclusions,
-      academySchedules,
-      options,
-      exportRange,
-      selectedDate,
-    });
+    const markdown =
+      exportFormat === "timetable"
+        ? generateTimetableExport({
+            planner,
+            plans: plans || [],
+            contentMap,
+            academySchedules,
+            exportRange,
+            selectedDate,
+          })
+        : generateMarkdown({
+            student: options.includeStudentInfo ? student : null,
+            planner,
+            planGroups: planGroups || [],
+            plans: plans || [],
+            contentMap,
+            exclusions,
+            academySchedules,
+            options,
+            exportRange,
+            selectedDate,
+          });
 
     return NextResponse.json({
       success: true,
@@ -353,6 +372,175 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * 시간표 형식 마크다운 생성 (Admin 내보내기용 어댑터)
+ */
+function generateTimetableExport(data: {
+  planner: {
+    name: string;
+    period_start: string;
+    period_end: string;
+    lunch_time: { start: string; end: string } | null;
+  };
+  plans: Array<{
+    id: string;
+    plan_date: string;
+    start_time: string | null;
+    end_time: string | null;
+    status: string;
+    day_type: string | null;
+    week: number | null;
+    planned_start_page_or_time: number | null;
+    planned_end_page_or_time: number | null;
+    content_id: string;
+    is_partial: boolean | null;
+  }>;
+  contentMap: Map<string, { title: string; content_type: string; subject?: string }>;
+  academySchedules: Array<{
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
+    academy_name: string | null;
+    subject: string | null;
+  }>;
+  exportRange: ExportRange;
+  selectedDate: string;
+}): string {
+  const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
+
+  // 분할 플랜 part 정보 계산
+  const partInfoMap = calculatePartInfo(data.plans);
+
+  // 주차별 그룹화 (week=null → 0 = 미배정)
+  const plansByWeek = new Map<number, typeof data.plans>();
+  for (const plan of data.plans) {
+    const weekNum = plan.week ?? 0;
+    const list = plansByWeek.get(weekNum) ?? [];
+    list.push(plan);
+    plansByWeek.set(weekNum, list);
+  }
+
+  const sortedWeekNums = Array.from(plansByWeek.keys()).sort((a, b) => a - b);
+
+  // 학원 일정을 요일별로 매핑 (day_of_week → schedules)
+  const academyByDay = new Map<number, typeof data.academySchedules>();
+  for (const s of data.academySchedules) {
+    const list = academyByDay.get(s.day_of_week) ?? [];
+    list.push(s);
+    academyByDay.set(s.day_of_week, list);
+  }
+
+  const timetableWeeks: TimetableWeek[] = sortedWeekNums.map((weekNum) => {
+    const weekPlans = plansByWeek.get(weekNum)!;
+    const weekLabel = weekNum === 0 ? "미배정" : `${weekNum}주차`;
+
+    // 날짜별 그룹
+    const dateSet = new Map<string, typeof data.plans>();
+    for (const p of weekPlans) {
+      const list = dateSet.get(p.plan_date) ?? [];
+      list.push(p);
+      dateSet.set(p.plan_date, list);
+    }
+    const sortedDates = Array.from(dateSet.keys()).sort();
+    const dateRange =
+      sortedDates.length > 0
+        ? `${sortedDates[0]} ~ ${sortedDates[sortedDates.length - 1]}`
+        : "";
+
+    const entries: TimetableEntry[] = [];
+
+    for (const date of sortedDates) {
+      const dayOfWeekIdx = new Date(date + "T00:00:00").getDay();
+      const dayOfWeek = dayNames[dayOfWeekIdx];
+      const datePlans = dateSet.get(date)!;
+
+      // 학습 플랜 → entries
+      for (const plan of datePlans) {
+        const content = data.contentMap.get(plan.content_id);
+        const title = content?.title || plan.content_id;
+        const prefix = plan.day_type === "복습일" ? "복습: " : "";
+
+        let rangeStr = "";
+        if (
+          plan.planned_start_page_or_time != null &&
+          plan.planned_end_page_or_time != null
+        ) {
+          rangeStr = ` ${formatPlanLearningAmount({
+            content_type: content?.content_type || "book",
+            planned_start_page_or_time: plan.planned_start_page_or_time,
+            planned_end_page_or_time: plan.planned_end_page_or_time,
+          })}`;
+
+          const partInfo = partInfoMap.get(plan.id);
+          if (plan.is_partial && partInfo) {
+            rangeStr += ` (${partInfo.partIndex}/${partInfo.totalParts})`;
+          }
+        }
+
+        entries.push({
+          date,
+          dayOfWeek,
+          startTime: plan.start_time ? plan.start_time.slice(0, 5) : null,
+          endTime: plan.end_time ? plan.end_time.slice(0, 5) : null,
+          label: `${prefix}${title}${rangeStr}`,
+          isNonStudy: false,
+          status: plan.status,
+        });
+      }
+
+      // 학원 일정 → entries (해당 요일에 학원이 있으면)
+      const dayAcademies = academyByDay.get(dayOfWeekIdx);
+      if (dayAcademies) {
+        for (const a of dayAcademies) {
+          entries.push({
+            date,
+            dayOfWeek,
+            startTime: a.start_time.slice(0, 5),
+            endTime: a.end_time.slice(0, 5),
+            label: `\u{1F3EB} ${a.academy_name || a.subject || "학원"}`,
+            isNonStudy: true,
+          });
+        }
+      }
+    }
+
+    // 점심 시간 → dailyNonStudy
+    const dailyNonStudy: TimetableWeek["dailyNonStudy"] = [];
+    if (data.planner.lunch_time) {
+      dailyNonStudy.push({
+        startTime: data.planner.lunch_time.start,
+        endTime: data.planner.lunch_time.end,
+        label: "점심",
+      });
+    }
+
+    return {
+      weekLabel,
+      dateRange,
+      entries,
+      dailyNonStudy: dailyNonStudy.length > 0 ? dailyNonStudy : undefined,
+    };
+  });
+
+  // 빈 주차 필터링
+  const filteredWeeks = timetableWeeks.filter((w) => w.entries.length > 0);
+
+  const rangeLabel =
+    data.exportRange === "today"
+      ? `일일 시간표 (${data.selectedDate})`
+      : data.exportRange === "week"
+        ? "주간 시간표"
+        : data.exportRange === "planGroup"
+          ? "플랜 그룹 시간표"
+          : "전체 시간표";
+
+  return generateTimetableMarkdown(
+    filteredWeeks,
+    `${data.planner.name} - ${rangeLabel}`,
+    {}
+  );
 }
 
 /**
