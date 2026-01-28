@@ -417,10 +417,23 @@ function convertToContentItem(
   const contentType = parseContentType(obj.contentType, obj.title as string);
 
   // ────────────────────────────────────────────────────────────────────
+  // 시간 정보 파싱
+  // ────────────────────────────────────────────────────────────────────
+
+  const estimatedHours = parseNumber(obj.estimatedHours) ?? undefined;
+  const averageEpisodeDuration =
+    parseNumber(obj.averageEpisodeDuration) ?? undefined;
+
+  // ────────────────────────────────────────────────────────────────────
   // 챕터 정보 파싱
   // ────────────────────────────────────────────────────────────────────
 
-  const chapters = parseChapters(obj.chapters, totalRange);
+  const chapters = parseChapters(
+    obj.chapters,
+    totalRange,
+    estimatedHours,
+    averageEpisodeDuration
+  );
 
   // ────────────────────────────────────────────────────────────────────
   // ParsedContentItem 생성
@@ -444,6 +457,14 @@ function convertToContentItem(
 
   if (obj.description && typeof obj.description === "string") {
     item.description = obj.description.trim();
+  }
+
+  if (estimatedHours !== undefined && estimatedHours > 0) {
+    item.estimatedHours = estimatedHours;
+  }
+
+  if (averageEpisodeDuration !== undefined && averageEpisodeDuration > 0) {
+    item.averageEpisodeDuration = averageEpisodeDuration;
   }
 
   return { success: true, item };
@@ -504,15 +525,32 @@ function parseContentType(value: unknown, title: string): ContentType {
  */
 function parseChapters(
   rawChapters: unknown,
-  totalRange: number
+  totalRange: number,
+  estimatedHours?: number,
+  averageEpisodeDuration?: number
 ): ChapterInfo[] {
+  // 기본 챕터의 duration 계산
+  const calculateDefaultDuration = (): number | undefined => {
+    if (averageEpisodeDuration && averageEpisodeDuration > 0) {
+      // 평균 에피소드 길이 × 총 범위
+      return averageEpisodeDuration * totalRange;
+    }
+    if (estimatedHours && estimatedHours > 0) {
+      // 예상 소요시간을 분으로 변환
+      return Math.round(estimatedHours * 60);
+    }
+    return undefined;
+  };
+
   if (!Array.isArray(rawChapters) || rawChapters.length === 0) {
     // 챕터 정보가 없으면 기본 챕터 생성
+    const defaultDuration = calculateDefaultDuration();
     return [
       {
         title: "전체",
         startRange: 1,
         endRange: totalRange,
+        ...(defaultDuration !== undefined && { duration: defaultDuration }),
       },
     ];
   }
@@ -535,20 +573,26 @@ function parseChapters(
     const startRange = parseNumber(ch.startRange) ?? 1;
     const endRange = parseNumber(ch.endRange) ?? totalRange;
 
+    // 소요시간 파싱 (분 단위)
+    const duration = parseNumber(ch.duration) ?? undefined;
+
     chapters.push({
       title: ch.title.trim(),
       startRange,
       endRange,
+      ...(duration !== undefined && { duration }),
     });
   }
 
   // 파싱된 챕터가 없으면 기본 챕터
   if (chapters.length === 0) {
+    const defaultDuration = calculateDefaultDuration();
     return [
       {
         title: "전체",
         startRange: 1,
         endRange: totalRange,
+        ...(defaultDuration !== undefined && { duration: defaultDuration }),
       },
     ];
   }

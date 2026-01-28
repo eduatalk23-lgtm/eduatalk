@@ -26,11 +26,27 @@ function calculateTotalDurationMinutes(item: RecommendationItem): number | null 
     return null;
   }
 
+  // 방식 1: 회차별 duration 합계 (가장 정확)
+  if (item.chapters && item.chapters.length > 0) {
+    const sum = item.chapters.reduce((acc, ch) => {
+      return acc + (ch.duration ?? 0);
+    }, 0);
+    if (sum > 0) {
+      return sum;
+    }
+  }
+
+  // 방식 2: 평균 에피소드 길이 × 강의 수
   if (item.averageEpisodeDuration && item.averageEpisodeDuration > 0) {
     return item.averageEpisodeDuration * item.totalRange;
   }
 
-  // 기본값: 에피소드당 30분
+  // 방식 3: estimatedHours 사용
+  if (item.estimatedHours && item.estimatedHours > 0) {
+    return Math.round(item.estimatedHours * 60);
+  }
+
+  // 방식 4: 기본값 (에피소드당 30분)
   return item.totalRange * 30;
 }
 

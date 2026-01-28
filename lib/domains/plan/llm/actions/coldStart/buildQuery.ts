@@ -100,7 +100,7 @@ function getContentTypeSuffix(contentType: ContentType | null): string {
     case "book":
       return "교재 추천 목차";
     case "lecture":
-      return "인강 추천 강의 목록";
+      return "인강 추천 강의 목록 (회차 구성, 총 강의 수, 평균 강의시간 포함)";
     default:
       return "학습자료 추천";
   }
