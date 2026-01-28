@@ -27,6 +27,8 @@ interface AdminCreateChatModalProps {
   isOpen: boolean;
   onClose: () => void;
   basePath: string;
+  /** 위젯 내에서 채팅방 생성 후 이동할 때 사용 (없으면 router.push) */
+  onRoomCreated?: (roomId: string) => void;
 }
 
 interface Student {
@@ -73,6 +75,7 @@ export function AdminCreateChatModal({
   isOpen,
   onClose,
   basePath,
+  onRoomCreated,
 }: AdminCreateChatModalProps) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -267,8 +270,13 @@ export function AdminCreateChatModal({
       }
     },
     onSuccess: (room) => {
-      handleClose();
-      router.push(`${basePath}/${room?.id}`);
+      resetState();
+      if (onRoomCreated && room?.id) {
+        onRoomCreated(room.id);
+      } else {
+        onClose();
+        router.push(`${basePath}/${room?.id}`);
+      }
     },
     onError: (error) => {
       showToast(
@@ -284,13 +292,17 @@ export function AdminCreateChatModal({
     }
   };
 
-  const handleClose = () => {
+  const resetState = () => {
     setSearchQuery("");
     setSelectedStudentId(null);
     setGroupName("");
     setSelectedStudentIds(new Set());
     setSelectedTeamMemberId(null);
     setActiveTab("direct");
+  };
+
+  const handleClose = () => {
+    resetState();
     onClose();
   };
 

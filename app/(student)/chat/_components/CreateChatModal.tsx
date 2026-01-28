@@ -20,6 +20,8 @@ interface CreateChatModalProps {
   isOpen: boolean;
   onClose: () => void;
   basePath: string;
+  /** 위젯 내에서 채팅방 생성 후 이동할 때 사용 (없으면 router.push) */
+  onRoomCreated?: (roomId: string) => void;
 }
 
 interface AdminUser {
@@ -32,6 +34,7 @@ export function CreateChatModal({
   isOpen,
   onClose,
   basePath,
+  onRoomCreated,
 }: CreateChatModalProps) {
   const router = useRouter();
   const [selectedAdminId, setSelectedAdminId] = useState<string | null>(null);
@@ -60,8 +63,13 @@ export function CreateChatModal({
       return result.data;
     },
     onSuccess: (room) => {
-      onClose();
-      router.push(`${basePath}/${room?.id}`);
+      setSelectedAdminId(null);
+      if (onRoomCreated && room?.id) {
+        onRoomCreated(room.id);
+      } else {
+        onClose();
+        router.push(`${basePath}/${room?.id}`);
+      }
     },
   });
 

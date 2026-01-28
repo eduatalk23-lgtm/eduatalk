@@ -23,6 +23,8 @@ interface ChatListProps {
   onNewChat?: () => void;
   /** 라우트 기본 경로 (예: /chat 또는 /admin/chat) */
   basePath?: string;
+  /** 헤더 숨기기 (Popover 등 외부에서 자체 헤더를 제공할 때) */
+  hideHeader?: boolean;
 }
 
 function ChatListComponent({
@@ -30,6 +32,7 @@ function ChatListComponent({
   onRoomClick,
   onNewChat,
   basePath = "/chat",
+  hideHeader = false,
 }: ChatListProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
@@ -84,19 +87,21 @@ function ChatListComponent({
   return (
     <div className="flex flex-col h-full">
       {/* 헤더 */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <h2 className="font-semibold text-lg text-text-primary">채팅</h2>
-        {onNewChat && (
-          <button
-            type="button"
-            onClick={onNewChat}
-            className="p-2 rounded-lg hover:bg-bg-secondary transition-colors"
-            title="새 채팅"
-          >
-            <MessageSquarePlus className="w-5 h-5 text-text-secondary" />
-          </button>
-        )}
-      </div>
+      {!hideHeader && (
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <h2 className="font-semibold text-lg text-text-primary">채팅</h2>
+          {onNewChat && (
+            <button
+              type="button"
+              onClick={onNewChat}
+              className="p-2 rounded-lg hover:bg-bg-secondary transition-colors"
+              title="새 채팅"
+            >
+              <MessageSquarePlus className="w-5 h-5 text-text-secondary" />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* 검색창 */}
       <div className="px-4 py-2">

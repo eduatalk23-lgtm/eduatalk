@@ -7,3 +7,5 @@ export {
   type UseChatRoomLogicOptions,
   type UseChatRoomLogicReturn,
 } from "./useChatRoomLogic";
+
+export { useTotalUnreadCount } from "./useTotalUnreadCount";

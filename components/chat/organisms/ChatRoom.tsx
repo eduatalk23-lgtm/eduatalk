@@ -181,6 +181,8 @@ interface ChatRoomProps {
   onMenuClick?: () => void;
   /** 채팅 목록 경로 (기본값: /chat) - 나가기 시 이동 */
   basePath?: string;
+  /** 헤더 우측에 추가할 액션 버튼 (Popover 등에서 닫기/전체화면 버튼 주입용) */
+  headerActions?: React.ReactNode;
 }
 
 function ChatRoomComponent({
@@ -188,6 +190,7 @@ function ChatRoomComponent({
   userId,
   onBack,
   basePath = "/chat",
+  headerActions,
 }: ChatRoomProps) {
   // ============================================
   // UI 상태 (useReducer로 통합)
@@ -689,6 +692,8 @@ function ChatRoomComponent({
         >
           <MoreVertical className="w-5 h-5 text-text-secondary" />
         </button>
+
+        {headerActions}
       </div>
 
       {/* 공지 배너 */}
@@ -719,7 +724,7 @@ function ChatRoomComponent({
 
       {/* 검색 모드 */}
       {isSearchMode && (
-        <div className="absolute inset-0 z-10">
+        <div className="absolute inset-0 z-20">
           <MessageSearch
             roomId={roomId}
             onClose={() => dispatch({ type: "SET_SEARCH_MODE", value: false })}
@@ -804,7 +809,8 @@ function ChatRoomComponent({
       {/* 맨 아래로 스크롤 버튼 */}
       <div
         className={cn(
-          "absolute bottom-28 right-4 z-10",
+          "absolute right-4 z-10",
+          "bottom-20 md:bottom-28",
           "transition-all duration-300 ease-out",
           isAtBottom
             ? "opacity-0 translate-y-4 pointer-events-none"

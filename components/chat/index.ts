@@ -15,3 +15,7 @@ export { ChatRoomCard } from "./molecules/ChatRoomCard";
 // Organisms
 export { ChatList } from "./organisms/ChatList";
 export { ChatRoom } from "./organisms/ChatRoom";
+export { ChatPopover } from "./organisms/ChatPopover";
+
+// Widget
+export { FloatingChatWidget } from "./FloatingChatWidget";
