@@ -44,6 +44,7 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
     plannerDailySchedules,
     plannerExclusions,
     plannerCalculatedSchedule,
+    plannerDateTimeSlots,
   } = useAdminPlanBasic();
 
   const {
@@ -63,6 +64,7 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
     handleOpenMoveToGroup,
     handleOpenCopy,
     handleOpenStatusChange,
+    handleCreatePlanAtSlot,
   } = useAdminPlanActions();
 
   // 플래너 레벨 스케줄 우선 사용 (플랜 그룹 없어도 주차/일차 표시)
@@ -146,6 +148,7 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
           selectedDate={selectedDate}
           selectedGroupId={selectedGroupId}
           contentTypeFilter={contentTypeFilter}
+          timeSlots={plannerDateTimeSlots?.[selectedDate]}
           onRedistribute={handleOpenRedistribute}
           onEdit={handleOpenEdit}
           onReorder={() => handleOpenReorder("daily")}
@@ -154,6 +157,8 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
           onStatusChange={handleOpenStatusChange}
           onRefresh={handleRefresh}
           onRefreshDailyAndWeekly={refreshDailyAndWeekly}
+          onCreatePlanAtSlot={handleCreatePlanAtSlot}
+          enableNonStudyDrag={!!selectedPlannerId}
         />
 
         {/* Weekly Dock */}

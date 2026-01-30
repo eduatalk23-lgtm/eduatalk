@@ -55,12 +55,14 @@ export function useDailyDockQuery(studentId: string, date: string, plannerId?: s
  * @param date 날짜
  * @param plans 플랜 목록 (plan_group_id 추출용)
  * @param plansLoaded 플랜 로딩 완료 여부 (false면 쿼리 비활성화하여 플리커 방지)
+ * @param plannerId 플래너 ID (오버라이드 적용용)
  */
 export function useNonStudyTimeQuery(
   studentId: string,
   date: string,
   plans: DailyPlan[],
-  plansLoaded: boolean = true
+  plansLoaded: boolean = true,
+  plannerId?: string
 ) {
   const planGroupIds = useMemo(() => {
     const ids = plans
@@ -69,7 +71,7 @@ export function useNonStudyTimeQuery(
     return [...new Set(ids)];
   }, [plans]);
 
-  const queryOpts = nonStudyTimeQueryOptions(studentId, date, planGroupIds);
+  const queryOpts = nonStudyTimeQueryOptions(studentId, date, planGroupIds, plannerId);
   const query = useQuery({
     ...queryOpts,
     enabled: plansLoaded,

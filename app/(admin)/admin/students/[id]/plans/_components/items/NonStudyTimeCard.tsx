@@ -25,18 +25,41 @@ const NON_STUDY_STYLES: Record<NonStudyItem['type'], { bg: string; border: strin
 
 interface NonStudyTimeCardProps {
   item: NonStudyItem;
+  /** 클릭 핸들러 (편집 모달 열기용) */
+  onClick?: () => void;
+  /** 편집 가능 여부 */
+  editable?: boolean;
 }
 
-export function NonStudyTimeCard({ item }: NonStudyTimeCardProps) {
+export function NonStudyTimeCard({ item, onClick, editable = false }: NonStudyTimeCardProps) {
   const icon = NON_STUDY_ICONS[item.type] ?? '⏸️';
   const styles = NON_STUDY_STYLES[item.type] ?? NON_STUDY_STYLES['기타'];
 
+  const handleClick = () => {
+    if (editable && onClick) {
+      onClick();
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (editable && onClick && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      onClick();
+    }
+  };
+
   return (
     <div
+      role={editable ? 'button' : undefined}
+      tabIndex={editable ? 0 : undefined}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
       className={cn(
         'flex items-center gap-3 rounded-lg border px-3 py-2 opacity-80',
         styles.bg,
         styles.border,
+        editable && 'cursor-pointer hover:opacity-100 hover:shadow-sm transition-all',
+        editable && 'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1'
       )}
     >
       {/* Time box */}
@@ -54,12 +77,29 @@ export function NonStudyTimeCard({ item }: NonStudyTimeCardProps) {
       </div>
 
       {/* Icon + Label */}
-      <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-center gap-2 min-w-0 flex-1">
         <span className="text-base shrink-0">{icon}</span>
         <span className="text-sm text-gray-600 truncate">
           {item.label ?? item.type}
         </span>
       </div>
+
+      {/* Edit indicator */}
+      {editable && (
+        <svg
+          className="w-4 h-4 text-gray-400 shrink-0"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.5}
+            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+          />
+        </svg>
+      )}
     </div>
   );
 }
