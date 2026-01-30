@@ -226,6 +226,7 @@ export type SchedulerOptions = {
  * 시간 설정
  */
 export type TimeSettings = {
+  /** @deprecated non_study_time_blocks의 "점심식사" 타입으로 통합됨 */
   lunch_time?: { start: string; end: string };
   camp_study_hours?: { start: string; end: string };
   camp_self_study_hours?: { start: string; end: string };
@@ -327,9 +328,10 @@ export type PlanGroup = {
   daily_schedule?: DailyScheduleInfo[] | null; // JSONB: 일별 스케줄 정보 (Step7에서 생성)
   subject_constraints?: SubjectConstraints | null; // JSONB: 교과 제약 조건
   additional_period_reallocation?: AdditionalPeriodReallocation | null; // JSONB: 추가 기간 재배치 정보
-  non_study_time_blocks?: NonStudyTimeBlock[] | null; // JSONB: 학습 시간 제외 항목
+  non_study_time_blocks?: NonStudyTimeBlock[] | null; // JSONB: 학습 시간 제외 항목 (점심식사 포함)
   study_hours?: StudyHours | null; // JSONB: 학습 시간 설정
   self_study_hours?: SelfStudyHours | null; // JSONB: 자율학습 시간 설정
+  /** @deprecated non_study_time_blocks의 "점심식사" 타입으로 통합됨. 하위 호환용. */
   lunch_time?: TimeRange | null; // JSONB: 점심 시간 설정 (Planner 상속)
   // 캠프 관련 필드
   plan_type?: PlanType | null;

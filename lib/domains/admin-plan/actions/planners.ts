@@ -10,12 +10,14 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { logActionError, logActionWarn } from "@/lib/utils/serverActionLogger";
 import type { TimeRange } from "@/lib/scheduler/utils/scheduleCalculator";
 import type { SchedulerOptions } from "@/lib/types/plan/domain";
+import {
+  mergeLunchTimeIntoNonStudyBlocks,
+  extractLunchTimeFromBlocks,
+} from "../utils/plannerConfigInheritance";
 
 // ============================================
 // 타입 정의
@@ -195,10 +197,10 @@ export interface PlannerAcademySchedule {
 // ============================================
 
 async function checkAdminOrConsultant() {
+  // getCurrentUser()가 이미 role, tenantId를 포함하므로 단일 호출로 처리
   const user = await getCurrentUser();
-  const { role } = await getCurrentUserRole();
 
-  if (!user || (role !== "admin" && role !== "consultant")) {
+  if (!user || (user.role !== "admin" && user.role !== "consultant")) {
     throw new AppError(
       "관리자 또는 컨설턴트 권한이 필요합니다.",
       ErrorCode.UNAUTHORIZED,
@@ -207,8 +209,7 @@ async function checkAdminOrConsultant() {
     );
   }
 
-  const tenantContext = await getTenantContext();
-  if (!tenantContext?.tenantId) {
+  if (!user.tenantId) {
     throw new AppError(
       "기관 정보를 찾을 수 없습니다.",
       ErrorCode.VALIDATION_ERROR,
@@ -217,7 +218,7 @@ async function checkAdminOrConsultant() {
     );
   }
 
-  return { user, tenantId: tenantContext.tenantId };
+  return { user, tenantId: user.tenantId };
 }
 
 // ============================================
@@ -233,6 +234,18 @@ async function _createPlanner(input: CreatePlannerInput): Promise<Planner> {
   const { user, tenantId } = await checkAdminOrConsultant();
   const supabase = await createSupabaseServerClient();
 
+  // lunch_time을 non_study_time_blocks에 통합
+  const mergedNonStudyBlocks = mergeLunchTimeIntoNonStudyBlocks(
+    input.lunchTime || { start: "12:00", end: "13:00" },
+    input.nonStudyTimeBlocks
+  );
+
+  // 하위 호환성을 위해 lunch_time 필드도 설정 (non_study_time_blocks에서 추출)
+  const lunchTime =
+    extractLunchTimeFromBlocks(mergedNonStudyBlocks) ||
+    input.lunchTime ||
+    { start: "12:00", end: "13:00" };
+
   const { data, error } = await supabase
     .from("planners")
     .insert({
@@ -245,9 +258,9 @@ async function _createPlanner(input: CreatePlannerInput): Promise<Planner> {
       target_date: input.targetDate || null,
       study_hours: input.studyHours || { start: "10:00", end: "19:00" },
       self_study_hours: input.selfStudyHours || { start: "19:00", end: "22:00" },
-      lunch_time: input.lunchTime || { start: "12:00", end: "13:00" },
+      lunch_time: lunchTime, // 하위 호환성 유지
       block_set_id: input.blockSetId || null,
-      non_study_time_blocks: input.nonStudyTimeBlocks || [],
+      non_study_time_blocks: mergedNonStudyBlocks, // 통합된 비학습시간 블록
       default_scheduler_type: input.defaultSchedulerType || "1730_timetable",
       default_scheduler_options: input.defaultSchedulerOptions || {
         study_days: 6,
@@ -484,8 +497,41 @@ async function _getStudentPlanners(
     );
   }
 
+  const planners = (data || []).map(mapPlannerFromDB);
+
+  // 플랜그룹 수 조회 (RPC 함수로 DB 수준에서 집계)
+  if (planners.length > 0) {
+    const plannerIds = planners.map((p) => p.id);
+
+    const { data: groupCounts, error: groupCountError } = await supabase.rpc(
+      "get_plan_group_counts",
+      { p_planner_ids: plannerIds }
+    );
+
+    if (groupCountError) {
+      logActionWarn(
+        "planners._getStudentPlanners",
+        `플랜그룹 수 조회 실패: ${groupCountError.message}`
+      );
+      // 메인 데이터는 반환, 그룹 수는 0으로 처리
+    }
+
+    // DB에서 집계된 결과를 Map으로 변환
+    const countMap = new Map<string, number>();
+    (groupCounts || []).forEach(
+      (row: { planner_id: string; group_count: number }) => {
+        countMap.set(row.planner_id, row.group_count);
+      }
+    );
+
+    // 각 플래너에 그룹 수 할당
+    planners.forEach((planner) => {
+      planner.planGroupCount = countMap.get(planner.id) || 0;
+    });
+  }
+
   return {
-    data: (data || []).map(mapPlannerFromDB),
+    data: planners,
     total: count || 0,
   };
 }
@@ -512,12 +558,41 @@ async function _updatePlanner(
   if (updates.targetDate !== undefined) updateData.target_date = updates.targetDate;
   if (updates.studyHours !== undefined) updateData.study_hours = updates.studyHours;
   if (updates.selfStudyHours !== undefined) updateData.self_study_hours = updates.selfStudyHours;
-  if (updates.lunchTime !== undefined) updateData.lunch_time = updates.lunchTime;
   if (updates.blockSetId !== undefined) updateData.block_set_id = updates.blockSetId;
-  if (updates.nonStudyTimeBlocks !== undefined) updateData.non_study_time_blocks = updates.nonStudyTimeBlocks;
   if (updates.defaultSchedulerType !== undefined) updateData.default_scheduler_type = updates.defaultSchedulerType;
   if (updates.defaultSchedulerOptions !== undefined) updateData.default_scheduler_options = updates.defaultSchedulerOptions;
   if (updates.adminMemo !== undefined) updateData.admin_memo = updates.adminMemo;
+
+  // lunch_time과 non_study_time_blocks 통합 처리
+  if (updates.lunchTime !== undefined || updates.nonStudyTimeBlocks !== undefined) {
+    // 현재 플래너의 non_study_time_blocks 조회 (lunchTime만 변경되는 경우 필요)
+    let currentBlocks = updates.nonStudyTimeBlocks;
+
+    if (updates.lunchTime !== undefined && currentBlocks === undefined) {
+      // lunchTime만 변경되는 경우, 기존 블록 조회
+      const { data: currentPlanner } = await supabase
+        .from("planners")
+        .select("non_study_time_blocks")
+        .eq("id", plannerId)
+        .single();
+
+      currentBlocks = currentPlanner?.non_study_time_blocks as NonStudyTimeBlock[] | undefined;
+    }
+
+    // lunch_time을 non_study_time_blocks에 통합
+    const mergedBlocks = mergeLunchTimeIntoNonStudyBlocks(
+      updates.lunchTime,
+      currentBlocks
+    );
+
+    // 하위 호환성을 위해 lunch_time 필드도 설정
+    const lunchTime = extractLunchTimeFromBlocks(mergedBlocks);
+
+    updateData.non_study_time_blocks = mergedBlocks;
+    if (lunchTime) {
+      updateData.lunch_time = lunchTime;
+    }
+  }
 
   const { data, error } = await supabase
     .from("planners")
@@ -543,8 +618,9 @@ async function _updatePlanner(
     // 시간 설정 동기화
     if (updates.studyHours !== undefined) planGroupUpdateData.study_hours = updates.studyHours;
     if (updates.selfStudyHours !== undefined) planGroupUpdateData.self_study_hours = updates.selfStudyHours;
-    if (updates.lunchTime !== undefined) planGroupUpdateData.lunch_time = updates.lunchTime;
-    if (updates.nonStudyTimeBlocks !== undefined) planGroupUpdateData.non_study_time_blocks = updates.nonStudyTimeBlocks;
+    // lunch_time과 non_study_time_blocks는 통합된 값 사용 (위에서 이미 처리됨)
+    if (updateData.lunch_time !== undefined) planGroupUpdateData.lunch_time = updateData.lunch_time;
+    if (updateData.non_study_time_blocks !== undefined) planGroupUpdateData.non_study_time_blocks = updateData.non_study_time_blocks;
     if (updates.defaultSchedulerType !== undefined) planGroupUpdateData.scheduler_type = updates.defaultSchedulerType;
     if (updates.defaultSchedulerOptions !== undefined) planGroupUpdateData.scheduler_options = updates.defaultSchedulerOptions;
     if (updates.blockSetId !== undefined) planGroupUpdateData.block_set_id = updates.blockSetId;

@@ -61,6 +61,7 @@ export type PlanGroupCreationData = {
   // NEW: 플래너 상속 시간 설정 (Planner와 동일한 구조)
   study_hours?: TimeRange | null; // 학습 시간 (예: {start: "10:00", end: "19:00"})
   self_study_hours?: TimeRange | null; // 자율학습 시간 (예: {start: "19:00", end: "22:00"})
+  /** @deprecated non_study_time_blocks의 "점심식사" 타입으로 통합됨 */
   lunch_time?: TimeRange | null; // 점심 시간 (예: {start: "12:00", end: "13:00"})
   // 플랜 그룹 레벨 학습 유형 설정
   study_type?: StudyType | null; // 전략 학습 또는 취약 보완

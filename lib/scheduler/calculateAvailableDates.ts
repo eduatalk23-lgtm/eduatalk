@@ -229,6 +229,55 @@ function getNonStudyTimeBlocksForDate(
 }
 
 /**
+ * 점심시간 추출 (통합 로직)
+ *
+ * 우선순위:
+ * 1. non_study_time_blocks에서 "점심식사" 타입 찾기
+ * 2. 없으면 레거시 lunch_time 옵션 사용
+ * 3. 둘 다 없으면 DEFAULT_CAMP_LUNCH_TIME 사용
+ *
+ * @param date 날짜 (요일별 필터링용)
+ * @param options 스케줄러 옵션
+ * @returns 점심시간 범위
+ */
+function getLunchTimeFromOptions(
+  date: Date,
+  options: CalculateOptions
+): TimeRange {
+  // 1. non_study_time_blocks에서 "점심식사" 타입 찾기
+  const dateNonStudyBlocks = getNonStudyTimeBlocksForDate(date, options.non_study_time_blocks);
+  const lunchBlock = dateNonStudyBlocks.find((block) => block.type === "점심식사");
+
+  if (lunchBlock) {
+    return {
+      start: lunchBlock.start_time,
+      end: lunchBlock.end_time,
+    };
+  }
+
+  // 2. 레거시 lunch_time 옵션 사용
+  if (options.lunch_time) {
+    return options.lunch_time;
+  }
+
+  // 3. 기본값 사용
+  return DEFAULT_CAMP_LUNCH_TIME;
+}
+
+/**
+ * 특정 날짜에 적용되는 학습 시간 제외 항목 조회 (점심식사 제외)
+ * 점심식사는 getLunchTimeFromOptions로 별도 처리되므로 중복 방지
+ */
+function getNonStudyTimeBlocksForDateExcludingLunch(
+  date: Date,
+  nonStudyTimeBlocks?: NonStudyTimeBlock[]
+): NonStudyTimeBlock[] {
+  const blocks = getNonStudyTimeBlocksForDate(date, nonStudyTimeBlocks);
+  // 점심식사는 별도 처리되므로 제외
+  return blocks.filter((block) => block.type !== "점심식사");
+}
+
+/**
  * 학원일정 그룹화 (학원명 기준)
  * 같은 학원의 모든 과목을 하나로 묶어서 학원 단위로 통계 계산
  */
@@ -461,15 +510,16 @@ function generateTimeSlots(
   const slots: TimeSlot[] = [];
   const dateBlocks = getBlocksForDate(date, blocks);
   const dateAcademySchedules = getAcademySchedulesForDate(date, academySchedules);
-  const dateNonStudyTimeBlocks = getNonStudyTimeBlocksForDate(date, options.non_study_time_blocks);
+  // 점심식사는 getLunchTimeFromOptions로 별도 처리되므로 제외
+  const dateNonStudyTimeBlocks = getNonStudyTimeBlocksForDateExcludingLunch(date, options.non_study_time_blocks);
 
   // 기본 설정값 (중앙화된 상수 사용)
   const campStudyHours: TimeRange =
     options.camp_study_hours || DEFAULT_CAMP_STUDY_HOURS;
   const campSelfStudyHours: TimeRange =
     options.camp_self_study_hours || DEFAULT_CAMP_SELF_STUDY_HOURS;
-  const lunchTime: TimeRange =
-    options.lunch_time || DEFAULT_CAMP_LUNCH_TIME;
+  // 점심시간: non_study_time_blocks의 "점심식사" 우선, 없으면 레거시 lunch_time, 둘 다 없으면 기본값
+  const lunchTime: TimeRange = getLunchTimeFromOptions(date, options);
   const designatedHolidayHours: TimeRange =
     options.designated_holiday_hours || DEFAULT_DESIGNATED_HOLIDAY_HOURS;
 
@@ -706,8 +756,8 @@ function calculateAvailableTimeForDate(
     options.camp_study_hours || DEFAULT_CAMP_STUDY_HOURS;
   const campSelfStudyHours: TimeRange =
     options.camp_self_study_hours || DEFAULT_CAMP_SELF_STUDY_HOURS;
-  const lunchTime: TimeRange =
-    options.lunch_time || DEFAULT_CAMP_LUNCH_TIME;
+  // 점심시간: non_study_time_blocks의 "점심식사" 우선, 없으면 레거시 lunch_time, 둘 다 없으면 기본값
+  const lunchTime: TimeRange = getLunchTimeFromOptions(date, options);
   const designatedHolidayHours: TimeRange =
     options.designated_holiday_hours || DEFAULT_DESIGNATED_HOLIDAY_HOURS;
 
@@ -771,8 +821,8 @@ function calculateAvailableTimeForDate(
       );
     }
 
-    // 학습 시간 제외 항목 제외
-    const dateNonStudyTimeBlocks = getNonStudyTimeBlocksForDate(date, options.non_study_time_blocks);
+    // 학습 시간 제외 항목 제외 (점심식사는 위에서 이미 처리되었으므로 제외)
+    const dateNonStudyTimeBlocks = getNonStudyTimeBlocksForDateExcludingLunch(date, options.non_study_time_blocks);
     for (const block of dateNonStudyTimeBlocks) {
       const blockRange: TimeRange = {
         start: block.start_time,

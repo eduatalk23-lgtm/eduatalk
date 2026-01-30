@@ -33,6 +33,7 @@ export type SchedulerSettings = {
   review_scope?: ReviewScope;
 
   // 시간 설정
+  /** @deprecated non_study_time_blocks의 "점심식사" 타입으로 통합됨. 하위 호환성 유지용. */
   lunch_time?: TimeRange;
   study_hours?: TimeRange;
   self_study_hours?: TimeRange;
@@ -48,6 +49,7 @@ export type PartialSchedulerSettings = Partial<{
   study_review_ratio: Partial<StudyReviewRatio>;
   weak_subject_focus: WeakSubjectFocus | boolean;
   review_scope: ReviewScope;
+  /** @deprecated non_study_time_blocks의 "점심식사" 타입으로 통합됨 */
   lunch_time: TimeRange;
   study_hours: TimeRange;
   self_study_hours: TimeRange;
@@ -73,6 +75,7 @@ export type TenantSchedulerSettings = {
   default_review_days: number;
   default_weak_subject_focus: WeakSubjectFocus;
   default_review_scope: ReviewScope;
+  /** @deprecated non_study_time_blocks의 "점심식사" 타입으로 통합됨 */
   default_lunch_time: TimeRange;
   default_study_hours: TimeRange;
   default_self_study_hours?: TimeRange;
@@ -96,8 +99,9 @@ export type PlanGroupSchedulerOptions = {
   review_days?: number;
   weak_subject_focus?: WeakSubjectFocus | boolean;
   review_scope?: ReviewScope;
-  
+
   // 기존 옵션 유지
+  /** @deprecated non_study_time_blocks의 "점심식사" 타입으로 통합됨 */
   lunch_time?: TimeRange;
   camp_study_hours?: TimeRange;
   self_study_hours?: TimeRange;
@@ -117,6 +121,7 @@ export const DEFAULT_SCHEDULER_SETTINGS: SchedulerSettings = {
   },
   weak_subject_focus: "medium",
   review_scope: "full",
+  // @deprecated: non_study_time_blocks의 "점심식사"로 통합됨. 하위 호환용.
   lunch_time: {
     start: "12:00",
     end: "13:00",
