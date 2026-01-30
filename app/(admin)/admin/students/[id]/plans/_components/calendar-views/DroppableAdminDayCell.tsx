@@ -186,10 +186,13 @@ function DroppableAdminDayCellComponent({
       onContextMenu={handleContextMenu}
       className={cn(
         "relative bg-white p-2 min-h-[100px] cursor-pointer transition-colors",
-        "hover:bg-gray-50",
-        !status.isCurrentMonth && "bg-gray-50",
-        status.isSelected && "ring-2 ring-blue-500 ring-inset",
-        status.isExclusion && "bg-gray-100",
+        // 기본 상태별 배경 및 호버
+        !status.isCurrentMonth && "bg-gray-50 hover:bg-gray-100",
+        status.isCurrentMonth && !status.isExclusion && !status.isSelected && "hover:bg-blue-50/40",
+        // 선택된 날짜 - 에메랄드로 오늘(파랑)과 구분
+        status.isSelected && "ring-2 ring-emerald-500 ring-inset bg-emerald-50/30 hover:bg-emerald-50/60",
+        // 제외일
+        status.isExclusion && "bg-gray-100 hover:bg-gray-200",
         // 드롭 관련 스타일 - 펄스 애니메이션 추가
         showDropIndicator && canDrop && "ring-2 ring-dashed ring-blue-300 animate-pulse",
         isOver && canDrop && "bg-blue-50 ring-2 ring-blue-500 animate-none",

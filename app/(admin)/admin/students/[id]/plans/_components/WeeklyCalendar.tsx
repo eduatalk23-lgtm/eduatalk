@@ -61,6 +61,8 @@ export function WeeklyCalendar({
 }: WeeklyCalendarProps) {
   const [planCounts, setPlanCounts] = useState<Map<string, { total: number; completed: number }>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
+  // 표시 주차 인덱스 (선택 날짜와 독립적으로 관리)
+  const [displayedWeekIndex, setDisplayedWeekIndex] = useState<number | null>(null);
 
   // 1730 주차별 날짜 그룹화
   const weekGroups = useMemo(() => {
@@ -100,67 +102,61 @@ export function WeeklyCalendar({
     return groups;
   }, [dailySchedules]);
 
-  // 현재 선택된 날짜의 주차 번호 찾기
-  const currentWeekNumber = useMemo(() => {
-    if (!dailySchedules) return null;
+  // 선택된 날짜가 속한 주차 인덱스 계산 (초기값 설정용)
+  const selectedDateWeekIndex = useMemo(() => {
+    if (!dailySchedules || weekGroups.length === 0) return 0;
 
+    // 선택된 날짜의 주차 번호 찾기
     for (const scheduleArray of dailySchedules) {
       for (const schedule of scheduleArray) {
         if (schedule.date === selectedDate && schedule.week_number != null) {
-          return schedule.week_number;
+          const idx = weekGroups.findIndex((g) => g.weekNumber === schedule.week_number);
+          return idx >= 0 ? idx : 0;
         }
       }
     }
 
     // 선택된 날짜가 스케줄에 없으면 가장 가까운 주차 찾기
-    if (weekGroups.length > 0) {
-      for (const group of weekGroups) {
-        if (selectedDate >= group.startDate && selectedDate <= group.endDate) {
-          return group.weekNumber;
-        }
-        if (selectedDate < group.startDate) {
-          return group.weekNumber;
-        }
+    for (let i = 0; i < weekGroups.length; i++) {
+      const group = weekGroups[i];
+      if (selectedDate >= group.startDate && selectedDate <= group.endDate) {
+        return i;
       }
-      return weekGroups[weekGroups.length - 1].weekNumber;
+      if (selectedDate < group.startDate) {
+        return i;
+      }
     }
 
-    return null;
+    return weekGroups.length - 1;
   }, [selectedDate, dailySchedules, weekGroups]);
+
+  // 실제 사용할 주차 인덱스 (null이면 선택 날짜 기준)
+  const effectiveWeekIndex = displayedWeekIndex ?? selectedDateWeekIndex;
+
+  // 현재 표시 주차 정보
+  const currentWeekGroup = weekGroups[effectiveWeekIndex] ?? null;
+  const currentWeekNumber = currentWeekGroup?.weekNumber ?? null;
 
   // 현재 주차의 날짜들
   const currentWeekDates = useMemo(() => {
-    const group = weekGroups.find((g) => g.weekNumber === currentWeekNumber);
-    return group?.dates || [];
-  }, [weekGroups, currentWeekNumber]);
-
-  // 현재 주차 정보
-  const currentWeekGroup = useMemo(() => {
-    return weekGroups.find((g) => g.weekNumber === currentWeekNumber);
-  }, [weekGroups, currentWeekNumber]);
+    return currentWeekGroup?.dates ?? [];
+  }, [currentWeekGroup]);
 
   // 이전/다음 주차 이동 가능 여부
-  const currentWeekIndex = weekGroups.findIndex((g) => g.weekNumber === currentWeekNumber);
-  const canGoPrevWeek = currentWeekIndex > 0;
-  const canGoNextWeek = currentWeekIndex >= 0 && currentWeekIndex < weekGroups.length - 1;
+  const canGoPrevWeek = effectiveWeekIndex > 0;
+  const canGoNextWeek = effectiveWeekIndex >= 0 && effectiveWeekIndex < weekGroups.length - 1;
 
-  // 이전 주차 이동
+  // 이전 주차 이동 (날짜 선택 없이 주차만 변경)
   const handlePrevWeek = useCallback(() => {
     if (!canGoPrevWeek) return;
-    const prevWeek = weekGroups[currentWeekIndex - 1];
-    if (prevWeek && prevWeek.dates.length > 0) {
-      onDateSelect(prevWeek.dates[0]);
-    }
-  }, [canGoPrevWeek, weekGroups, currentWeekIndex, onDateSelect]);
+    setDisplayedWeekIndex(effectiveWeekIndex - 1);
+  }, [canGoPrevWeek, effectiveWeekIndex]);
 
-  // 다음 주차 이동
+  // 다음 주차 이동 (날짜 선택 없이 주차만 변경)
   const handleNextWeek = useCallback(() => {
     if (!canGoNextWeek) return;
-    const nextWeek = weekGroups[currentWeekIndex + 1];
-    if (nextWeek && nextWeek.dates.length > 0) {
-      onDateSelect(nextWeek.dates[0]);
-    }
-  }, [canGoNextWeek, weekGroups, currentWeekIndex, onDateSelect]);
+    setDisplayedWeekIndex(effectiveWeekIndex + 1);
+  }, [canGoNextWeek, effectiveWeekIndex]);
 
   // 날짜별 스케줄 정보 맵
   const scheduleInfoMap = useMemo(() => {
@@ -389,11 +385,11 @@ export function WeeklyCalendar({
         </button>
       </div>
 
-      {/* 날짜 그리드 - 동적 컬럼 수 */}
+      {/* 날짜 그리드 - 동적 컬럼 수 (최대 10개) */}
       <div
         className="grid gap-2"
         style={{
-          gridTemplateColumns: `repeat(${Math.min(weekDays.length, 7)}, minmax(0, 1fr))`,
+          gridTemplateColumns: `repeat(${Math.min(weekDays.length, 10)}, minmax(0, 1fr))`,
         }}
       >
         {weekDays.map((day) => {
@@ -416,13 +412,13 @@ export function WeeklyCalendar({
                 className={cn(
                   'w-full flex flex-col items-center p-2 rounded-lg border transition-all min-h-[100px]',
                   isSelected
-                    ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                    ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200 hover:bg-emerald-100/60'
                     : day.isExclusionDay
-                    ? 'border-orange-300 bg-orange-50 hover:border-orange-400'
+                    ? 'border-orange-300 bg-orange-50 hover:border-orange-400 hover:bg-orange-100/60'
                     : day.rawDayType === 'review' || day.rawDayType === '복습일' || day.dayType === '복습일'
-                    ? 'border-purple-200 bg-purple-50/50 hover:border-purple-300'
+                    ? 'border-purple-200 bg-purple-50/50 hover:border-purple-300 hover:bg-purple-100/60'
                     : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50',
-                  day.isToday && !isSelected && !day.isExclusionDay && 'border-blue-300 bg-blue-50/50'
+                  day.isToday && !isSelected && !day.isExclusionDay && 'border-blue-300 bg-blue-50/50 hover:bg-blue-100/50'
                 )}
                 title={day.isExclusionDay ? `${day.exclusionType}${day.exclusionReason ? `: ${day.exclusionReason}` : ''}` : undefined}
               >
@@ -492,11 +488,11 @@ export function WeeklyCalendar({
                   </div>
                 )}
 
-                {/* 휴일 아이콘 */}
+                {/* 제외일 사유 - 플랜 상태와 동일한 스타일 */}
                 {day.isExclusionDay && (
-                  <span className="text-base mt-1" title={day.exclusionReason ?? day.exclusionType}>
-                    {day.exclusionType === '휴가' ? '🏖' : day.exclusionType === '개인사정' ? '📅' : '-'}
-                  </span>
+                  <div className="mt-1 text-xs text-orange-600 text-center truncate max-w-full px-1">
+                    {day.exclusionReason || day.exclusionType}
+                  </div>
                 )}
 
                 {/* 오늘 표시 */}
