@@ -41,9 +41,9 @@ export const zIndexLayers = {
  * 애니메이션 duration 상수
  */
 export const animationDurations = {
-  fast: "duration-200",
-  normal: "duration-300",
-  slow: "duration-500",
+  fast: "duration-100",
+  normal: "duration-150",
+  slow: "duration-200",
 } as const;
 
 /**
@@ -347,8 +347,8 @@ export const layoutStyles = {
   // Focus
   focusRing: designTokens.focus.ring,
 
-  // 스크롤 가능한 컨테이너
-  scrollableContainer: "overflow-y-auto",
+  // 스크롤 가능한 컨테이너 (overscroll-y-contain으로 스크롤 체이닝 방지)
+  scrollableContainer: "overflow-y-auto overscroll-y-contain",
 
   // 전체 화면 높이
   fullHeight: "h-screen",

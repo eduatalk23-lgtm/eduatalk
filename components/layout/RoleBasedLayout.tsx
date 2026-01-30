@@ -87,7 +87,7 @@ export function RoleBasedLayout({
               borderRightWidth: isCollapsed && isHovered ? 0 : 1
             }}
           >
-            <div className="relative h-full flex flex-col w-[20rem] overflow-y-auto"> {/* 내부 컨텐츠는 항상 20rem 너비 유지하여 찌그러짐 방지, 스크롤 가능 */}
+            <div className="relative h-full flex flex-col w-[20rem] overflow-y-auto overscroll-y-contain"> {/* 내부 컨텐츠는 항상 20rem 너비 유지하여 찌그러짐 방지, 스크롤 가능, 스크롤 체이닝 방지 */}
               {/* Collapsed && Not Hovered: 햄버거 아이콘만 표시 */}
               {isCollapsed && !isHovered ? (
                 <div className="flex flex-col items-center py-4 w-16"> {/* w-16 고정 */}

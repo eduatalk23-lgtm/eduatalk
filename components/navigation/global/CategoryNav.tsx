@@ -172,11 +172,11 @@ export function CategoryNav({ role, className, onNavigate, isCollapsed: propIsCo
               >
                 {category.icon && <span className="flex-shrink-0" aria-hidden="true">{category.icon}</span>}
                 {!isCollapsed ? (
-                  <motion.span 
+                  <motion.span
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
+                    transition={{ duration: 0.1 }}
                   >
                     {category.label}
                   </motion.span>
@@ -215,12 +215,12 @@ export function CategoryNav({ role, className, onNavigate, isCollapsed: propIsCo
                     {category.icon && <span className="flex-shrink-0" aria-hidden="true">{category.icon}</span>}
                     <AnimatePresence mode="wait">
                       {!isCollapsed ? (
-                        <motion.span 
+                        <motion.span
                           className="origin-left"
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
-                          transition={{ duration: 0.2 }}
+                          transition={{ duration: 0.1 }}
                         >
                           {category.label}
                         </motion.span>
@@ -233,7 +233,7 @@ export function CategoryNav({ role, className, onNavigate, isCollapsed: propIsCo
                     <motion.svg
                       className="h-4 w-4 flex-shrink-0"
                       animate={{ rotate: isExpanded ? 180 : 0 }}
-                      transition={{ duration: 0.3, ease: "easeInOut" }}
+                      transition={{ duration: 0.15, ease: "easeOut" }}
                       fill="none"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -268,8 +268,8 @@ export function CategoryNav({ role, className, onNavigate, isCollapsed: propIsCo
                     animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     transition={{
-                      height: { duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98] },
-                      opacity: { duration: 0.2, delay: 0.1 }
+                      height: { duration: 0.15, ease: [0.04, 0.62, 0.23, 0.98] },
+                      opacity: { duration: 0.1, delay: 0.03 }
                     }}
                     role="group"
                     aria-label={`${category.label} 하위 메뉴`}
@@ -298,11 +298,11 @@ export function CategoryNav({ role, className, onNavigate, isCollapsed: propIsCo
                             item.href.length >= longestActiveHref.length;
 
                           return (
-                            <motion.div 
+                            <motion.div
                               key={item.id}
-                              initial={{ opacity: 0, x: -10 }}
+                              initial={{ opacity: 0, x: -8 }}
                               animate={{ opacity: 1, x: 0 }}
-                              transition={{ duration: 0.2, delay: itemIndex * 0.05 }}
+                              transition={{ duration: 0.1, delay: itemIndex * 0.02 }}
                             >
                               {/* 메인 아이템 */}
                               <Link
