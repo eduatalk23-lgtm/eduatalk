@@ -231,27 +231,75 @@ export async function completePlan(
   try {
     const supabase = await createSupabaseServerClient();
 
-    // 플랜 조회
-    const plan = await getPlanById(
-      planId,
-      user.userId,
-      tenantContext?.tenantId || null
-    );
+    // ========================================
+    // 1단계: 플랜 조회 + tenant_id 조회 (병렬)
+    // ========================================
+    const [plan, studentResult] = await Promise.all([
+      getPlanById(planId, user.userId, tenantContext?.tenantId || null),
+      supabase
+        .from("students")
+        .select("tenant_id")
+        .eq("id", user.userId)
+        .maybeSingle(),
+    ]);
 
     if (!plan || !plan.content_type || !plan.content_id) {
       return { success: false, error: "플랜을 찾을 수 없습니다." };
     }
 
-    // 활성 세션 조회 (상태 판별용)
-    const { data: stateCheckSession } = await supabase
-      .from("student_study_sessions")
-      .select("paused_at, resumed_at, ended_at")
-      .eq("plan_id", planId)
-      .eq("student_id", user.userId)
-      .is("ended_at", null)
-      .order("started_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const tenantId = studentResult.data?.tenant_id || tenantContext?.tenantId || null;
+
+    // ========================================
+    // 2단계: 상태 검증용 쿼리들 (병렬)
+    // ========================================
+    const hasPlanNumber = plan.plan_number !== null && plan.plan_number !== undefined;
+
+    const [
+      stateCheckSessionResult,
+      samePlanNumberResult,
+      planDataResult,
+      activeSessionsResult,
+    ] = await Promise.all([
+      // 활성 세션 조회 (상태 판별용)
+      supabase
+        .from("student_study_sessions")
+        .select("paused_at, resumed_at, ended_at")
+        .eq("plan_id", planId)
+        .eq("student_id", user.userId)
+        .is("ended_at", null)
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      // 같은 plan_number를 가진 모든 플랜 조회
+      hasPlanNumber
+        ? supabase
+            .from("student_plan")
+            .select("id")
+            .eq("student_id", user.userId)
+            .eq("plan_number", plan.plan_number)
+            .eq("plan_date", plan.plan_date)
+        : Promise.resolve({ data: [{ id: planId }], error: null }),
+      // 플랜의 actual_start_time 조회
+      supabase
+        .from("student_plan")
+        .select("actual_start_time, paused_duration_seconds, pause_count")
+        .eq("id", planId)
+        .eq("student_id", user.userId)
+        .maybeSingle(),
+      // 활성 세션 조회 (일시정지 정보)
+      supabase
+        .from("student_study_sessions")
+        .select("id, paused_duration_seconds, paused_at, resumed_at")
+        .eq("plan_id", planId)
+        .eq("student_id", user.userId)
+        .is("ended_at", null)
+        .order("started_at", { ascending: false }),
+    ]);
+
+    const stateCheckSession = stateCheckSessionResult.data;
+    const samePlanNumberPlans = samePlanNumberResult.data || [{ id: planId }];
+    const planData = planDataResult.data;
+    const activeSessions = activeSessionsResult.data;
 
     // 상태 머신 검증: COMPLETE 액션이 허용되는지 확인
     const validationError = validateTimerAction(plan, stateCheckSession, "COMPLETE");
@@ -264,46 +312,12 @@ export async function completePlan(
       return { success: false, error: validationError };
     }
 
-    // 같은 plan_number를 가진 모든 플랜 조회 (같은 논리적 플랜)
-    let samePlanNumberPlans: Array<{ id: string }> = [];
-    if (plan.plan_number !== null && plan.plan_number !== undefined) {
-      const { data: plansWithSameNumber } = await supabase
-        .from("student_plan")
-        .select("id")
-        .eq("student_id", user.userId)
-        .eq("plan_number", plan.plan_number)
-        .eq("plan_date", plan.plan_date);
-
-      samePlanNumberPlans = plansWithSameNumber || [];
-    } else {
-      // plan_number가 없으면 현재 플랜만 처리
-      samePlanNumberPlans = [{ id: planId }];
-    }
-
     // Simplified completion: binary status + actual_end_time (no progress percentage)
     const planIds = samePlanNumberPlans.map((p) => p.id);
 
-    // Get tenant_id for gamification (optional)
-    const { data: student } = await supabase
-      .from("students")
-      .select("tenant_id")
-      .eq("id", user.userId)
-      .maybeSingle();
-
-    const tenantId = student?.tenant_id || tenantContext?.tenantId || null;
-
     // 플랜의 actual_end_time 및 시간 정보 업데이트
-    // 항상 현재 시간을 사용하여 정확한 종료 시간 기록
     const now = new Date();
     const actualEndTime = now.toISOString();
-
-    // 플랜의 actual_start_time 조회
-    const { data: planData } = await supabase
-      .from("student_plan")
-      .select("actual_start_time, paused_duration_seconds, pause_count")
-      .eq("id", planId)
-      .eq("student_id", user.userId)
-      .maybeSingle();
 
     let totalDurationSeconds: number | null = null;
     if (planData?.actual_start_time) {
@@ -311,15 +325,6 @@ export async function completePlan(
       const endTime = new Date(actualEndTime);
       totalDurationSeconds = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
     }
-
-    // 활성 세션 조회하여 일시정지 정보 가져오기 및 종료 (여러 개일 수 있으므로 배열로 조회)
-    const { data: activeSessions, error: sessionError } = await supabase
-      .from("student_study_sessions")
-      .select("id, paused_duration_seconds, paused_at, resumed_at")
-      .eq("plan_id", planId)
-      .eq("student_id", user.userId)
-      .is("ended_at", null)
-      .order("started_at", { ascending: false }); // 최신 세션 우선
 
     // 여러 세션이 있는 경우 가장 최근 세션 사용
     const activeSession = activeSessions && activeSessions.length > 0 ? activeSessions[0] : null;
@@ -329,30 +334,32 @@ export async function completePlan(
 
     // 현재 일시정지 중인 경우, 아직 플랜에 반영되지 않은 현재 일시정지 시간 추가
     if (activeSession && isSessionPaused(activeSession)) {
-      // isSessionPaused가 true면 paused_at은 반드시 존재
       const pausedAt = new Date(activeSession.paused_at!);
-      const now = new Date();
       const currentPauseSeconds = Math.max(0, Math.floor((now.getTime() - pausedAt.getTime()) / 1000));
       totalPausedDuration += currentPauseSeconds;
     }
 
     const pauseCount = planData?.pause_count || 0;
 
-    // 같은 plan_number를 가진 모든 플랜의 시간 정보 업데이트 (N+1 → 배치 쿼리 최적화)
-    // 1. 모든 플랜 데이터 배치 조회
-    const { data: allPlanData } = await supabase
-      .from("student_plan")
-      .select("id, actual_start_time, paused_duration_seconds, pause_count")
-      .in("id", planIds)
-      .eq("student_id", user.userId);
+    // ========================================
+    // 3단계: 배치 쿼리 (병렬)
+    // ========================================
+    const [allPlanDataResult, allActiveSessionsResult] = await Promise.all([
+      supabase
+        .from("student_plan")
+        .select("id, actual_start_time, paused_duration_seconds, pause_count")
+        .in("id", planIds)
+        .eq("student_id", user.userId),
+      supabase
+        .from("student_study_sessions")
+        .select("id, plan_id, paused_duration_seconds, paused_at, resumed_at")
+        .in("plan_id", planIds)
+        .eq("student_id", user.userId)
+        .is("ended_at", null),
+    ]);
 
-    // 2. 모든 활성 세션 배치 조회
-    const { data: allActiveSessions } = await supabase
-      .from("student_study_sessions")
-      .select("id, plan_id, paused_duration_seconds, paused_at, resumed_at")
-      .in("plan_id", planIds)
-      .eq("student_id", user.userId)
-      .is("ended_at", null);
+    const allPlanData = allPlanDataResult.data;
+    const allActiveSessions = allActiveSessionsResult.data;
 
     // 3. plan_id별로 세션 그룹화 (일시정지 시간 계산용)
     const sessionsByPlanId = new Map<string, typeof allActiveSessions>();
@@ -428,68 +435,74 @@ export async function completePlan(
     // 서버 현재 시간 반환
     const serverNow = Date.now();
 
-    // 게이미피케이션 업데이트 (비동기로 처리, 실패해도 플랜 완료에 영향 없음)
     const studyDurationMinutes = Math.floor(finalDuration / 60);
-    try {
-      const gamificationResult = await updateGamificationOnPlanComplete({
+
+    // ========================================
+    // 4단계: 후처리 작업들 (병렬)
+    // 게이미피케이션, 캐시 무효화, 플랜 정보, 진행률을 동시에 실행
+    // ========================================
+    const [, , completedPlanInfo, dailyProgress] = await Promise.all([
+      // 게이미피케이션 업데이트 (실패해도 무시)
+      updateGamificationOnPlanComplete({
         studentId: user.userId,
         tenantId: tenantId || "",
         eventType: "plan_completed",
         studyDurationMinutes,
         completedAt: new Date(),
         planId,
-      });
+      })
+        .then((result) => {
+          if (result.success && result.data) {
+            timerLogger.info("게이미피케이션 업데이트 성공", {
+              action: "completePlan",
+              id: planId,
+              data: result.data,
+            });
+          }
+          return result;
+        })
+        .catch((error) => {
+          timerLogger.warn("게이미피케이션 업데이트 실패", {
+            action: "completePlan",
+            id: planId,
+            error: error instanceof Error ? error : new Error(String(error)),
+          });
+          return null;
+        }),
+      // 캐시 무효화
+      revalidateTimerPaths(false, true),
+      // 완료된 플랜 정보 조회 (다음 플랜 추천용)
+      getCompletedPlanInfo(planId, user.userId).catch(() => ({
+        subject: undefined as string | undefined,
+        contentType: undefined as string | undefined,
+      })),
+      // 일일 진행률 조회
+      getDailyProgress(user.userId).catch(() => undefined),
+    ]);
 
-      if (gamificationResult.success && gamificationResult.data) {
-        timerLogger.info("게이미피케이션 업데이트 성공", {
-          action: "completePlan",
-          id: planId,
-          data: gamificationResult.data,
-        });
-      }
-    } catch (gamificationError) {
-      // 게이미피케이션 오류는 플랜 완료에 영향을 주지 않음
-      timerLogger.warn("게이미피케이션 업데이트 실패", {
-        action: "completePlan",
-        id: planId,
-        error: gamificationError instanceof Error ? gamificationError : new Error(String(gamificationError)),
-      });
-    }
-
-    // 현재 경로만 재검증 (성능 최적화)
-    // 완료 시에는 대시보드도 업데이트 필요
-    await revalidateTimerPaths(false, true);
-
-    // 다음 플랜 추천 및 일일 진행률 계산 (비동기 처리, 실패해도 플랜 완료에 영향 없음)
+    // 다음 플랜 추천 (completedPlanInfo 필요)
     let nextPlanSuggestion;
-    let dailyProgress;
     try {
-      // 완료된 플랜 정보 조회
-      const completedPlanInfo = await getCompletedPlanInfo(planId, user.userId);
-
-      // 다음 플랜 추천 계산
       nextPlanSuggestion = await getNextPlanSuggestion({
         studentId: user.userId,
         completedPlanId: planId,
         studyDurationMinutes,
-        completedPlanSubject: completedPlanInfo.subject || undefined,
-        completedPlanContentType: completedPlanInfo.contentType || undefined,
+        completedPlanSubject: completedPlanInfo?.subject || undefined,
+        completedPlanContentType: completedPlanInfo?.contentType || undefined,
       });
 
-      // 일일 진행률 조회
-      dailyProgress = await getDailyProgress(user.userId);
-
-      timerLogger.info("다음 플랜 추천 계산 완료", {
-        action: "completePlan",
-        id: planId,
-        data: {
-          suggestionType: nextPlanSuggestion.type,
-          completedCount: dailyProgress.completedCount,
-          totalCount: dailyProgress.totalCount,
-        },
-      });
+      if (dailyProgress) {
+        timerLogger.info("다음 플랜 추천 계산 완료", {
+          action: "completePlan",
+          id: planId,
+          data: {
+            suggestionType: nextPlanSuggestion.type,
+            completedCount: dailyProgress.completedCount,
+            totalCount: dailyProgress.totalCount,
+          },
+        });
+      }
     } catch (suggestionError) {
-      // 추천 계산 오류는 플랜 완료에 영향을 주지 않음
       timerLogger.warn("다음 플랜 추천 계산 실패", {
         action: "completePlan",
         id: planId,

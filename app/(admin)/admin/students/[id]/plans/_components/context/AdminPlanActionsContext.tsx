@@ -28,6 +28,8 @@ export interface AdminPlanActionsContextValue {
     contentName: string;
   }) => void;
   handleOpenBatchOperations: (planIds: string[], mode: "date" | "status") => void;
+  /** 빈 시간 슬롯에 새 플랜 생성 (UnifiedAddModal 열기) */
+  handleCreatePlanAtSlot: (startTime: string, endTime: string) => void;
 }
 
 const AdminPlanActionsContext = createContext<AdminPlanActionsContextValue | null>(null);
@@ -126,6 +128,14 @@ export function AdminPlanActionsProvider({ children }: AdminPlanActionsProviderP
     [modal, modalData]
   );
 
+  const handleCreatePlanAtSlot = useCallback(
+    (startTime: string, endTime: string) => {
+      modalData.setSlotTimeForNewPlan({ startTime, endTime });
+      modal.openUnifiedModal("quick");
+    },
+    [modal, modalData]
+  );
+
   const value = useMemo<AdminPlanActionsContextValue>(
     () => ({
       handleOpenRedistribute,
@@ -138,6 +148,7 @@ export function AdminPlanActionsProvider({ children }: AdminPlanActionsProviderP
       handleOpenBulkEdit,
       handleOpenContentDependency,
       handleOpenBatchOperations,
+      handleCreatePlanAtSlot,
     }),
     [
       handleOpenRedistribute,
@@ -150,6 +161,7 @@ export function AdminPlanActionsProvider({ children }: AdminPlanActionsProviderP
       handleOpenBulkEdit,
       handleOpenContentDependency,
       handleOpenBatchOperations,
+      handleCreatePlanAtSlot,
     ]
   );
 

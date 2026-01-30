@@ -49,6 +49,10 @@ interface UnifiedPlanAddModalProps {
   planGroupId?: string;
   /** 초기 모드 */
   initialMode?: UnifiedPlanMode;
+  /** 빈 시간 슬롯 시작 시간 (HH:mm) - 슬롯에서 플랜 추가 시 전달 */
+  slotStartTime?: string;
+  /** 빈 시간 슬롯 종료 시간 (HH:mm) - 슬롯에서 플랜 추가 시 전달 */
+  slotEndTime?: string;
 }
 
 // 자유 학습 유형 (DB CHECK 제약조건과 일치해야 함)
@@ -118,9 +122,23 @@ export function UnifiedPlanAddModal({
   targetDate,
   planGroupId,
   initialMode = 'quick',
+  slotStartTime,
+  slotEndTime,
 }: UnifiedPlanAddModalProps) {
   const { showToast } = usePlanToast();
   const [isPending, startTransition] = useTransition();
+
+  // 슬롯 시간에서 기본 소요시간 계산
+  const defaultEstimatedMinutes = (() => {
+    if (slotStartTime && slotEndTime) {
+      const [startH, startM] = slotStartTime.split(':').map(Number);
+      const [endH, endM] = slotEndTime.split(':').map(Number);
+      const duration = (endH * 60 + endM) - (startH * 60 + startM);
+      // 최소 15분, 최대 180분
+      return String(Math.min(Math.max(duration, 15), 180));
+    }
+    return '30';
+  })();
 
   // 모드 상태
   const [mode, setMode] = useState<UnifiedPlanMode>(initialMode);
@@ -128,7 +146,7 @@ export function UnifiedPlanAddModal({
   // 공통 필드
   const [title, setTitle] = useState('');
   const [planDate, setPlanDate] = useState(targetDate);
-  const [estimatedMinutes, setEstimatedMinutes] = useState('30');
+  const [estimatedMinutes, setEstimatedMinutes] = useState(defaultEstimatedMinutes);
   const [description, setDescription] = useState('');
 
   // 빠른 추가 필드

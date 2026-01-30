@@ -29,12 +29,16 @@ export interface UpdatePlanStatusInput {
   status: PlanStatus;
   /** Ad-hoc 플랜인 경우 true */
   isAdHoc?: boolean;
+  /** React Query 등 클라이언트 캐시로 관리할 때 true로 설정하면 revalidatePath 호출 생략 */
+  skipRevalidation?: boolean;
 }
 
 export interface DeletePlanInput {
   planId: string;
   /** Ad-hoc 플랜인 경우 true */
   isAdHoc?: boolean;
+  /** React Query 등 클라이언트 캐시로 관리할 때 true로 설정하면 revalidatePath 호출 생략 */
+  skipRevalidation?: boolean;
 }
 
 export interface MovePlanToContainerInput {
@@ -44,12 +48,16 @@ export interface MovePlanToContainerInput {
   isAdHoc?: boolean;
   /** daily로 이동할 때 설정할 날짜 (YYYY-MM-DD) */
   targetDate?: string;
+  /** React Query 등 클라이언트 캐시로 관리할 때 true로 설정하면 revalidatePath 호출 생략 */
+  skipRevalidation?: boolean;
 }
 
 export interface UpdatePlanRangeInput {
   planId: string;
   startValue: number;
   endValue: number;
+  /** React Query 등 클라이언트 캐시로 관리할 때 true로 설정하면 revalidatePath 호출 생략 */
+  skipRevalidation?: boolean;
 }
 
 // ============================================
@@ -65,33 +73,17 @@ function isAdmin(user: { role: string }): boolean {
 
 /**
  * 플랜 소유권 검증 (학생인 경우 본인 플랜만 조작 가능)
+ * @returns studentId를 함께 반환하여 캐시 무효화에 활용
  */
 async function verifyPlanAccess(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   planId: string,
   isAdHoc: boolean,
   user: { userId: string; role: string }
-): Promise<{ allowed: boolean; error?: string }> {
-  // 관리자는 모든 플랜에 접근 가능
-  if (isAdmin(user)) {
-    return { allowed: true };
-  }
-
-  // 학생인 경우 본인 플랜인지 확인
+): Promise<{ allowed: boolean; error?: string; studentId?: string }> {
   const table = isAdHoc ? "ad_hoc_plans" : "student_plan";
 
-  // 먼저 학생 ID 조회
-  const { data: student } = await supabase
-    .from("students")
-    .select("id")
-    .eq("user_id", user.userId)
-    .single();
-
-  if (!student) {
-    return { allowed: false, error: "학생 정보를 찾을 수 없습니다." };
-  }
-
-  // 플랜 소유권 확인
+  // 플랜 조회 (studentId는 캐시 무효화에 필요하므로 항상 조회)
   const { data: plan } = await supabase
     .from(table)
     .select("student_id")
@@ -102,11 +94,27 @@ async function verifyPlanAccess(
     return { allowed: false, error: "플랜을 찾을 수 없습니다." };
   }
 
+  // 관리자는 모든 플랜에 접근 가능
+  if (isAdmin(user)) {
+    return { allowed: true, studentId: plan.student_id };
+  }
+
+  // 학생인 경우 본인 플랜인지 확인
+  const { data: student } = await supabase
+    .from("students")
+    .select("id")
+    .eq("user_id", user.userId)
+    .single();
+
+  if (!student) {
+    return { allowed: false, error: "학생 정보를 찾을 수 없습니다." };
+  }
+
   if (plan.student_id !== student.id) {
     return { allowed: false, error: "이 플랜에 대한 권한이 없습니다." };
   }
 
-  return { allowed: true };
+  return { allowed: true, studentId: plan.student_id };
 }
 
 // ============================================
@@ -119,7 +127,7 @@ async function verifyPlanAccess(
 export async function updatePlanStatus(
   input: UpdatePlanStatusInput
 ): Promise<ActionResult> {
-  const { planId, status, isAdHoc = false } = input;
+  const { planId, status, isAdHoc = false, skipRevalidation = false } = input;
   const supabase = await createSupabaseServerClient();
   const user = await getCurrentUser();
 
@@ -161,10 +169,14 @@ export async function updatePlanStatus(
       return { success: false, error: "상태 변경에 실패했습니다." };
     }
 
-    // 캐시 무효화
-    revalidatePath("/admin/students");
-    revalidatePath("/today");
-    revalidatePath("/plan");
+    // 캐시 무효화 - React Query로 관리하는 경우 생략 가능
+    if (!skipRevalidation) {
+      if (access.studentId) {
+        revalidatePath(`/admin/students/${access.studentId}`);
+      }
+      revalidatePath("/today");
+      revalidatePath("/plan");
+    }
 
     return { success: true };
   } catch (error) {
@@ -178,14 +190,16 @@ export async function updatePlanStatus(
 
 /**
  * 플랜 완료 상태를 토글합니다.
+ * @param skipRevalidation React Query 등 클라이언트 캐시로 관리할 때 true
  */
 export async function togglePlanComplete(
   planId: string,
   isCurrentlyCompleted: boolean,
-  isAdHoc: boolean = false
+  isAdHoc: boolean = false,
+  skipRevalidation: boolean = false
 ): Promise<ActionResult> {
   const newStatus: PlanStatus = isCurrentlyCompleted ? "pending" : "completed";
-  return updatePlanStatus({ planId, status: newStatus, isAdHoc });
+  return updatePlanStatus({ planId, status: newStatus, isAdHoc, skipRevalidation });
 }
 
 // ============================================
@@ -198,7 +212,7 @@ export async function togglePlanComplete(
  * - ad_hoc_plans: hard delete
  */
 export async function deletePlan(input: DeletePlanInput): Promise<ActionResult> {
-  const { planId, isAdHoc = false } = input;
+  const { planId, isAdHoc = false, skipRevalidation = false } = input;
   const supabase = await createSupabaseServerClient();
   const user = await getCurrentUser();
 
@@ -236,10 +250,14 @@ export async function deletePlan(input: DeletePlanInput): Promise<ActionResult> 
       return { success: false, error: "삭제에 실패했습니다." };
     }
 
-    // 캐시 무효화
-    revalidatePath("/admin/students");
-    revalidatePath("/today");
-    revalidatePath("/plan");
+    // 캐시 무효화 - React Query로 관리하는 경우 생략 가능
+    if (!skipRevalidation) {
+      if (access.studentId) {
+        revalidatePath(`/admin/students/${access.studentId}`);
+      }
+      revalidatePath("/today");
+      revalidatePath("/plan");
+    }
 
     return { success: true };
   } catch (error) {
@@ -261,7 +279,7 @@ export async function deletePlan(input: DeletePlanInput): Promise<ActionResult> 
 export async function movePlanToContainer(
   input: MovePlanToContainerInput
 ): Promise<ActionResult> {
-  const { planId, targetContainer, isAdHoc = false, targetDate } = input;
+  const { planId, targetContainer, isAdHoc = false, targetDate, skipRevalidation = false } = input;
   const supabase = await createSupabaseServerClient();
   const user = await getCurrentUser();
 
@@ -336,10 +354,14 @@ export async function movePlanToContainer(
       return { success: false, error: "이동에 실패했습니다." };
     }
 
-    // 캐시 무효화
-    revalidatePath("/admin/students");
-    revalidatePath("/today");
-    revalidatePath("/plan");
+    // 캐시 무효화 - React Query로 관리하는 경우 생략 가능
+    if (!skipRevalidation) {
+      if (access.studentId) {
+        revalidatePath(`/admin/students/${access.studentId}`);
+      }
+      revalidatePath("/today");
+      revalidatePath("/plan");
+    }
 
     return { success: true };
   } catch (error) {
@@ -361,7 +383,7 @@ export async function movePlanToContainer(
 export async function updatePlanRange(
   input: UpdatePlanRangeInput
 ): Promise<ActionResult> {
-  const { planId, startValue, endValue } = input;
+  const { planId, startValue, endValue, skipRevalidation = false } = input;
   const supabase = await createSupabaseServerClient();
   const user = await getCurrentUser();
 
@@ -395,10 +417,14 @@ export async function updatePlanRange(
       return { success: false, error: "범위 업데이트에 실패했습니다." };
     }
 
-    // 캐시 무효화
-    revalidatePath("/admin/students");
-    revalidatePath("/today");
-    revalidatePath("/plan");
+    // 캐시 무효화 - React Query로 관리하는 경우 생략 가능
+    if (!skipRevalidation) {
+      if (access.studentId) {
+        revalidatePath(`/admin/students/${access.studentId}`);
+      }
+      revalidatePath("/today");
+      revalidatePath("/plan");
+    }
 
     return { success: true };
   } catch (error) {
@@ -438,6 +464,16 @@ export async function deletePlans(
   }
 
   try {
+    const table = isAdHoc ? "ad_hoc_plans" : "student_plan";
+
+    // student_id 조회 (캐시 무효화용)
+    const { data: plansData } = await supabase
+      .from(table)
+      .select("student_id")
+      .in("id", planIds);
+
+    const studentIds = [...new Set(plansData?.map((p) => p.student_id) ?? [])];
+
     let error;
     let count = 0;
 
@@ -447,7 +483,7 @@ export async function deletePlans(
         .delete()
         .in("id", planIds);
       error = result.error;
-      count = planIds.length; // delete doesn't return count
+      count = planIds.length;
     } else {
       const result = await supabase
         .from("student_plan")
@@ -465,7 +501,10 @@ export async function deletePlans(
       return { success: false, deletedCount: 0, error: "삭제에 실패했습니다." };
     }
 
-    revalidatePath("/admin/students");
+    // 캐시 무효화 - 관련 학생 경로만 무효화
+    for (const studentId of studentIds) {
+      revalidatePath(`/admin/students/${studentId}`);
+    }
     revalidatePath("/today");
     revalidatePath("/plan");
 
@@ -565,7 +604,11 @@ export async function movePlansToContainer(
       }
     }
 
-    revalidatePath("/admin/students");
+    // 캐시 무효화 - 관련 학생 경로만 무효화
+    const studentIds = [...new Set(plans.map((p) => p.student_id))];
+    for (const studentId of studentIds) {
+      revalidatePath(`/admin/students/${studentId}`);
+    }
     revalidatePath("/today");
     revalidatePath("/plan");
 

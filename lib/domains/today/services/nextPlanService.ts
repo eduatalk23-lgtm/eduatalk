@@ -142,10 +142,12 @@ export async function getRemainingPlansForToday(
 
 /**
  * 오늘의 플랜 일일 진행률 조회
+ * @param includeRemainingPlans true면 남은 플랜 목록 포함 (추가 쿼리 발생), 기본값 false
  */
 export async function getDailyProgress(
   studentId: string,
-  date?: string
+  date?: string,
+  includeRemainingPlans: boolean = false
 ): Promise<DailyProgress> {
   const supabase = await createSupabaseServerClient();
   const targetDate = date || formatDateString(new Date());
@@ -171,8 +173,10 @@ export async function getDailyProgress(
   const completedCount = allPlans.filter((p) => p.actual_end_time !== null).length;
   const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
-  // 남은 플랜 조회
-  const remainingPlans = await getRemainingPlansForToday(studentId, targetDate);
+  // 남은 플랜 조회 (필요한 경우에만 - 추가 쿼리 방지)
+  const remainingPlans = includeRemainingPlans
+    ? await getRemainingPlansForToday(studentId, targetDate)
+    : [];
 
   return {
     completedCount,

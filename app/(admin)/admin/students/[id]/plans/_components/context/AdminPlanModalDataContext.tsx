@@ -75,6 +75,10 @@ export interface AdminPlanModalDataContextValue {
   // 타임라인 모달
   dayTimelineModalDate: string | null;
   setDayTimelineModalDate: (date: string | null) => void;
+
+  // 빈 시간 슬롯에 플랜 추가
+  slotTimeForNewPlan: { startTime: string; endTime: string } | null;
+  setSlotTimeForNewPlan: (data: { startTime: string; endTime: string } | null) => void;
 }
 
 const AdminPlanModalDataContext = createContext<AdminPlanModalDataContextValue | null>(null);
@@ -130,6 +134,12 @@ export function AdminPlanModalDataProvider({ children }: AdminPlanModalDataProvi
   // 타임라인 모달
   const [dayTimelineModalDate, setDayTimelineModalDate] = useState<string | null>(null);
 
+  // 빈 시간 슬롯에 플랜 추가
+  const [slotTimeForNewPlan, setSlotTimeForNewPlan] = useState<{
+    startTime: string;
+    endTime: string;
+  } | null>(null);
+
   const value = useMemo<AdminPlanModalDataContextValue>(
     () => ({
       selectedPlanForRedistribute,
@@ -160,6 +170,8 @@ export function AdminPlanModalDataProvider({ children }: AdminPlanModalDataProvi
       setBatchOperationMode,
       dayTimelineModalDate,
       setDayTimelineModalDate,
+      slotTimeForNewPlan,
+      setSlotTimeForNewPlan,
     }),
     [
       selectedPlanForRedistribute,
@@ -176,6 +188,7 @@ export function AdminPlanModalDataProvider({ children }: AdminPlanModalDataProvi
       selectedPlansForBatch,
       batchOperationMode,
       dayTimelineModalDate,
+      slotTimeForNewPlan,
     ]
   );
 

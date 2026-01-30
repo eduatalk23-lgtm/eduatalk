@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, memo, useCallback } from 'react';
+import { useState, useTransition, memo, useCallback, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 import { DraggablePlanItem } from '../dnd';
 import { QuickCompleteButton, InlineVolumeEditor } from '../QuickActions';
@@ -16,6 +16,50 @@ import type { PlanStatus } from '@/lib/types/plan';
 
 /** 성능 최적화: 인라인 빈 함수 생성 방지를 위한 상수 */
 const NOOP = () => {};
+
+/** 드래그 래퍼 - disableDrag가 true면 단순 div, false면 DraggablePlanItem 사용 */
+function DragWrapper({
+  disableDrag,
+  id,
+  type,
+  containerId,
+  title,
+  subject,
+  range,
+  planDate,
+  disabled,
+  children,
+}: {
+  disableDrag: boolean;
+  id: string;
+  type: 'plan' | 'adhoc';
+  containerId: ContainerType;
+  title: string;
+  subject?: string;
+  range?: string;
+  planDate?: string;
+  disabled: boolean;
+  children: ReactNode;
+}) {
+  if (disableDrag) {
+    return <div className="flex-1 min-w-0">{children}</div>;
+  }
+
+  return (
+    <DraggablePlanItem
+      id={id}
+      type={type}
+      containerId={containerId}
+      title={title}
+      subject={subject}
+      range={range}
+      planDate={planDate}
+      disabled={disabled}
+    >
+      {children}
+    </DraggablePlanItem>
+  );
+}
 
 /** HH:mm → 분 변환 */
 function parseTimeToMinutes(time: string): number {
@@ -92,6 +136,8 @@ interface PlanItemCardProps {
   isSelected?: boolean;
   /** 시간 충돌 정보 (optional, DailyDock에서만 전달) */
   conflictInfo?: ConflictInfo;
+  /** 드래그 기능 비활성화 (SortablePlanItem 사용 시 true) */
+  disableDrag?: boolean;
   onSelect?: (id: string) => void;
   onMoveToDaily?: (id: string, date?: string) => void;
   onMoveToWeekly?: (id: string) => void;
@@ -180,6 +226,7 @@ export const PlanItemCard = memo(function PlanItemCard({
   selectable = false,
   isSelected = false,
   conflictInfo,
+  disableDrag = false,
   onSelect,
   onMoveToDaily,
   onMoveToWeekly,
@@ -330,7 +377,8 @@ export const PlanItemCard = memo(function PlanItemCard({
           />
         )}
 
-        <DraggablePlanItem
+        <DragWrapper
+          disableDrag={disableDrag}
           id={plan.id}
           type={plan.type}
           containerId={container}
@@ -460,7 +508,7 @@ export const PlanItemCard = memo(function PlanItemCard({
             </div>
             )}
           </div>
-        </DraggablePlanItem>
+        </DragWrapper>
       </div>
 
       {/* 삭제 확인 모달 (내부 처리용 - onDelete가 없을 때만 사용) */}
@@ -497,7 +545,8 @@ export const PlanItemCard = memo(function PlanItemCard({
         />
       )}
 
-      <DraggablePlanItem
+      <DragWrapper
+        disableDrag={disableDrag}
         id={plan.id}
         type={plan.type}
         containerId={container}
@@ -513,7 +562,7 @@ export const PlanItemCard = memo(function PlanItemCard({
             getLeftBorderColor(isCompleted, plan.carryoverCount),
             isCompleted ? colors.borderCompleted : colors.border,
             isPending && 'opacity-50 pointer-events-none',
-            !isCompleted && 'hover:ring-1 hover:ring-gray-300 hover:shadow-sm cursor-grab',
+            !isCompleted && !disableDrag && 'hover:ring-1 hover:ring-gray-300 hover:shadow-sm cursor-grab',
             // 충돌 시 주황색 테두리 (좌측 보더는 유지)
             conflictInfo && !isCompleted && 'border-t-orange-400 border-r-orange-400 border-b-orange-400 border-t-2 border-r-2 border-b-2 bg-orange-50/30'
           )}
@@ -680,7 +729,7 @@ export const PlanItemCard = memo(function PlanItemCard({
           </div>
           ) : null}
         </div>
-      </DraggablePlanItem>
+      </DragWrapper>
     </div>
 
     {/* 삭제 확인 모달 (내부 처리용 - onDelete가 없을 때만 사용) */}

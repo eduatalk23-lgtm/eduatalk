@@ -13,6 +13,8 @@ interface QuickCompleteButtonProps {
   isCompleted: boolean;
   onSuccess: () => void;
   size?: 'sm' | 'md' | 'lg';
+  /** React Query 등 클라이언트 캐시로 관리할 때 true로 설정 */
+  skipRevalidation?: boolean;
 }
 
 /**
@@ -24,6 +26,7 @@ export function QuickCompleteButton({
   isCompleted,
   onSuccess,
   size = 'md',
+  skipRevalidation = false,
 }: QuickCompleteButtonProps) {
   const [isPending, startTransition] = useTransition();
   const [isAnimating, setIsAnimating] = useState(false);
@@ -52,7 +55,8 @@ export function QuickCompleteButton({
       const result = await togglePlanComplete(
         planId,
         isCompleted,
-        planType === 'adhoc'
+        planType === 'adhoc',
+        skipRevalidation
       );
 
       if (result.success) {

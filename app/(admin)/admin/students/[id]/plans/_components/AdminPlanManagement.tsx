@@ -3,6 +3,8 @@
 import { useCallback, useMemo, useEffect, useRef } from "react";
 import { cn } from "@/lib/cn";
 import { movePlanToContainer } from "@/lib/domains/admin-plan/actions";
+import { reorderPlansWithTimeRecalculation } from "@/lib/domains/plan/actions/reorder";
+import { placePlanAtTime } from "@/lib/domains/plan/actions/move";
 import { generatePlansFromGroupAction } from "@/lib/domains/plan/actions/plan-groups/plans";
 import { checkPlansExistAction } from "@/lib/domains/plan/actions/plan-groups";
 import { updatePlanGroupStatus } from "@/lib/domains/plan/actions/plan-groups/status";
@@ -10,6 +12,7 @@ import {
   PlanDndProvider,
   getBaseContainerType,
   type ContainerType,
+  type EmptySlotDropData,
 } from "./dnd";
 import { PlanToastProvider } from "./PlanToast";
 import {
@@ -210,6 +213,9 @@ function AdminPlanManagementContent({
     setSelectedPlansForBatch,
     batchOperationMode,
     setBatchOperationMode,
+    // 빈 시간 슬롯 플랜 추가
+    slotTimeForNewPlan,
+    setSlotTimeForNewPlan,
     toast,
   } = ctx;
 
@@ -266,6 +272,57 @@ function AdminPlanManagementContent({
       }
     },
     [studentId, tenantId, selectedDate, handleRefresh, handleDateChange]
+  );
+
+  // DnD 재정렬 핸들러 (같은 컨테이너 내에서 순서 변경)
+  const handleReorderItems = useCallback(
+    async (
+      containerId: ContainerType,
+      activeId: string,
+      overId: string
+    ) => {
+      // containerId가 없으면 무시
+      if (!containerId) return;
+
+      // daily 컨테이너에서만 재정렬 지원
+      if (containerId !== "daily" && !containerId.startsWith("daily-")) {
+        return;
+      }
+
+      // 현재 플랜 목록에서 순서 계산은 DailyDock 내부에서 처리
+      // 여기서는 단순히 새로고침만 수행 (DailyDock이 내부적으로 처리)
+      // Note: 실제 재정렬 로직은 DailyDock의 handleReorderPlans에서 처리됨
+      handleRefresh();
+    },
+    [handleRefresh]
+  );
+
+  // 빈 시간 슬롯에 드롭 시 핸들러 (해당 시간에 플랜 배치)
+  const handleDropOnEmptySlot = useCallback(
+    async (
+      itemId: string,
+      itemType: "plan" | "adhoc",
+      fromContainer: ContainerType,
+      slotData: EmptySlotDropData
+    ) => {
+      const result = await placePlanAtTime(
+        itemId,
+        itemType,
+        slotData.startTime,
+        slotData.endTime,
+        selectedDate
+      );
+
+      if (result.success) {
+        toast.showSuccess(
+          `플랜을 ${slotData.startTime} ~ ${result.endTime}에 배치했습니다.`
+        );
+        handleRefresh();
+      } else {
+        toast.showError(result.error || "플랜 배치에 실패했습니다.");
+      }
+    },
+    [selectedDate, handleRefresh, toast]
   );
 
   // 키보드 단축키 설정
@@ -364,7 +421,11 @@ function AdminPlanManagementContent({
 
   return (
     <PlanToastProvider>
-      <PlanDndProvider onMoveItem={handleMoveItem}>
+      <PlanDndProvider
+          onMoveItem={handleMoveItem}
+          onReorderItems={handleReorderItems}
+          onDropOnEmptySlot={handleDropOnEmptySlot}
+        >
         <div
           className={cn(
             "space-y-6",
@@ -552,9 +613,15 @@ function AdminPlanManagementContent({
               plannerId={selectedPlannerId}
               planGroupId={activePlanGroupId ?? undefined}
               initialMode={unifiedModalMode}
-              onClose={() => setShowUnifiedAddModal(false)}
+              slotStartTime={slotTimeForNewPlan?.startTime}
+              slotEndTime={slotTimeForNewPlan?.endTime}
+              onClose={() => {
+                setShowUnifiedAddModal(false);
+                setSlotTimeForNewPlan(null);
+              }}
               onSuccess={() => {
                 setShowUnifiedAddModal(false);
+                setSlotTimeForNewPlan(null);
                 handleRefresh();
               }}
             />
