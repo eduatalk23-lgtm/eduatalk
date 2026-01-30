@@ -45,7 +45,7 @@ export async function logColdStartResult(
     let booksCount = 0;
     let lecturesCount = 0;
     let newItemsCount = 0;
-    let updatedItemsCount = 0;
+    const updatedItemsCount = 0;
     let skippedItemsCount = 0;
 
     if (result.success && result.recommendations) {
