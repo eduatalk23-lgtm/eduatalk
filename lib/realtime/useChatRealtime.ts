@@ -1149,7 +1149,7 @@ export function useChatRoomListRealtime({
         }
 
         if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-          console.error(`[ChatRealtime] Room list connection error: ${status}`);
+          console.warn(`[ChatRealtime] Room list connection error: ${status}`);
         }
       });
 

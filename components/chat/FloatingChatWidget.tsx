@@ -62,6 +62,7 @@ export function FloatingChatWidget() {
 
   // 역할 기반 설정
   const chatUserType = user?.role ? toChatUserType(user.role) : null;
+  const isAuthenticated = !!user && !!chatUserType;
 
   const basePath = chatUserType === "admin" ? "/admin/chat" : "/chat";
 
@@ -69,11 +70,11 @@ export function FloatingChatWidget() {
   useChatRoomListRealtime({
     userId: user?.userId ?? "",
     userType: chatUserType ?? "student",
-    enabled: !!user && !!chatUserType,
+    enabled: isAuthenticated,
   });
 
-  // 전체 unread count
-  const unreadCount = useTotalUnreadCount();
+  // 전체 unread count (인증된 상태에서만 쿼리 실행)
+  const unreadCount = useTotalUnreadCount({ enabled: isAuthenticated });
 
   // 렌더링 조건 체크
   if (isLoading) return null;

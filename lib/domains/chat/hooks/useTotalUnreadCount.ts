@@ -10,8 +10,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { chatRoomsQueryOptions } from "@/lib/query-options/chatRooms";
 
-export function useTotalUnreadCount(): number {
-  const { data: rooms } = useQuery(chatRoomsQueryOptions());
+interface UseTotalUnreadCountOptions {
+  /** 인증된 상태에서만 쿼리 실행 (기본값: true) */
+  enabled?: boolean;
+}
+
+export function useTotalUnreadCount(
+  options: UseTotalUnreadCountOptions = {}
+): number {
+  const { enabled = true } = options;
+
+  const { data: rooms } = useQuery({
+    ...chatRoomsQueryOptions(),
+    enabled,
+  });
 
   if (!rooms || rooms.length === 0) return 0;
 
