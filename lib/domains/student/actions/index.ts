@@ -14,15 +14,6 @@ export {
   getStudentsByDivisionAction,
   getStudentDivisionStatsAction,
   batchUpdateStudentDivisionAction,
-  // 학생 구분 항목 관리 Actions
-  getStudentDivisionsAction,
-  getActiveStudentDivisionsAction,
-  createStudentDivisionItemAction,
-  updateStudentDivisionItemAction,
-  deleteStudentDivisionItemAction,
-  // Legacy 호환성
-  createStudentDivisionAction,
-  deleteStudentDivisionAction,
 } from "./divisions";
 
 // ============================================

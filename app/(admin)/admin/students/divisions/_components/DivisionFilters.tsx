@@ -1,16 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { cn } from "@/lib/cn";
 import {
   borderInput,
   bgSurface,
   textPrimary,
-  textSecondary,
 } from "@/lib/utils/darkMode";
-import { getActiveStudentDivisionsAction } from "@/lib/domains/student/actions";
-import type { StudentDivision } from "@/lib/constants/students";
-import { isSuccessResponse } from "@/lib/types/actionResponse";
+import { STUDENT_DIVISIONS, type StudentDivision } from "@/lib/constants/students";
 
 type DivisionFiltersProps = {
   divisionFilter: StudentDivision | null | "all";
@@ -25,29 +21,6 @@ export function DivisionFilters({
   onDivisionFilterChange,
   onSearchChange,
 }: DivisionFiltersProps) {
-  const [divisions, setDivisions] = useState<Array<{ value: StudentDivision; label: string }>>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function loadDivisions() {
-      try {
-        const result = await getActiveStudentDivisionsAction();
-        if (isSuccessResponse(result) && result.data) {
-          setDivisions(
-            result.data.map((d) => ({
-              value: d.name as StudentDivision,
-              label: d.name,
-            }))
-          );
-        }
-      } catch (error) {
-        console.error("학생 구분 목록 로드 실패:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadDivisions();
-  }, []);
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-gray-300 bg-white p-6 dark:border-gray-700 dark:bg-gray-900 md:flex-row md:items-center md:justify-between">
@@ -65,25 +38,21 @@ export function DivisionFilters({
         >
           전체
         </button>
-        {loading ? (
-          <div className="text-body-2 text-gray-500">로딩 중...</div>
-        ) : (
-          divisions.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => onDivisionFilterChange(option.value)}
-              className={cn(
-                "rounded-lg px-4 py-2 text-body-2 font-semibold transition",
-                divisionFilter === option.value
-                  ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-              )}
-            >
-              {option.label}
-            </button>
-          ))
-        )}
+        {STUDENT_DIVISIONS.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onDivisionFilterChange(option.value)}
+            className={cn(
+              "rounded-lg px-4 py-2 text-body-2 font-semibold transition",
+              divisionFilter === option.value
+                ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
         <button
           type="button"
           onClick={() => onDivisionFilterChange(null)}
@@ -92,8 +61,8 @@ export function DivisionFilters({
             divisionFilter === null
               ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
               : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-            )}
-          >
+          )}
+        >
           미설정
         </button>
       </div>

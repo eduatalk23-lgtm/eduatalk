@@ -1,12 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback } from "react";
 import Label from "@/components/atoms/Label";
 import Input from "@/components/atoms/Input";
 import Button from "@/components/atoms/Button";
-import { getActiveStudentDivisionsAction } from "@/lib/domains/student/actions";
-import type { StudentDivision } from "@/lib/constants/students";
-import { isSuccessResponse } from "@/lib/types/actionResponse";
+import { STUDENT_DIVISIONS, type StudentDivision } from "@/lib/constants/students";
 
 export type RecipientType = "student" | "mother" | "father";
 
@@ -37,58 +35,18 @@ const RECIPIENT_TYPE_OPTIONS: Array<{
   { value: "father", label: "아버지" },
 ];
 
+// 구분 옵션 (상수에서 가져와서 미설정 추가)
+const DIVISION_OPTIONS: Array<{ value: StudentDivision | null; label: string }> = [
+  ...STUDENT_DIVISIONS,
+  { value: null, label: "미설정" },
+];
+
 export default function SMSFilterPanel({
   filter,
   onFilterChange,
   onSearch,
   isLoading = false,
 }: SMSFilterPanelProps) {
-  const [availableDivisions, setAvailableDivisions] = useState<
-    Array<{ value: StudentDivision | null; label: string }>
-  >([]);
-
-  // 구분 목록 로드
-  useEffect(() => {
-    const loadDivisions = async () => {
-      try {
-        const result = await getActiveStudentDivisionsAction();
-        if (isSuccessResponse(result) && result.data) {
-          const divisionOptions: Array<{
-            value: StudentDivision | null;
-            label: string;
-          }> = result.data.map((d) => ({
-            value: d.name as StudentDivision,
-            label: d.name,
-          }));
-
-          // 미설정 옵션 추가
-          divisionOptions.push({ value: null, label: "미설정" });
-
-          setAvailableDivisions(divisionOptions);
-        } else {
-          console.error("[SMSFilterPanel] 구분 목록 로드 실패:", result);
-          // 기본 옵션 설정
-          setAvailableDivisions([
-            { value: "고등부", label: "고등부" },
-            { value: "중등부", label: "중등부" },
-            { value: "기타", label: "기타" },
-            { value: null, label: "미설정" },
-          ]);
-        }
-      } catch (error) {
-        console.error("[SMSFilterPanel] 구분 목록 로드 실패:", error);
-        // 기본 옵션 설정
-        setAvailableDivisions([
-          { value: "고등부", label: "고등부" },
-          { value: "중등부", label: "중등부" },
-          { value: "기타", label: "기타" },
-          { value: null, label: "미설정" },
-        ]);
-      }
-    };
-
-    loadDivisions();
-  }, []);
 
   // 학년 토글
   const handleGradeToggle = useCallback(
@@ -133,15 +91,15 @@ export default function SMSFilterPanel({
   }, [filter, onFilterChange]);
 
   const handleSelectAllDivisions = useCallback(() => {
-    if (filter.divisions.length === availableDivisions.length) {
+    if (filter.divisions.length === DIVISION_OPTIONS.length) {
       onFilterChange({ ...filter, divisions: [] });
     } else {
       onFilterChange({
         ...filter,
-        divisions: availableDivisions.map((d) => d.value),
+        divisions: DIVISION_OPTIONS.map((d) => d.value),
       });
     }
-  }, [filter, onFilterChange, availableDivisions]);
+  }, [filter, onFilterChange]);
 
   const handleSelectAllRecipientTypes = useCallback(() => {
     if (filter.recipientTypes.length === RECIPIENT_TYPE_OPTIONS.length) {
@@ -244,13 +202,13 @@ export default function SMSFilterPanel({
               onClick={handleSelectAllDivisions}
               className="text-xs text-indigo-600 hover:text-indigo-700"
             >
-              {filter.divisions.length === availableDivisions.length
+              {filter.divisions.length === DIVISION_OPTIONS.length
                 ? "전체 해제"
                 : "전체 선택"}
             </button>
           </div>
           <div className="flex flex-wrap gap-3">
-            {availableDivisions.map((division) => (
+            {DIVISION_OPTIONS.map((division) => (
               <label
                 key={division.value ?? "null"}
                 className="flex cursor-pointer items-center gap-2"

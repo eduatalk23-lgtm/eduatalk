@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { cn } from "@/lib/cn";
 import {
@@ -12,12 +12,10 @@ import {
   tableCellBase,
   tableHeaderBase,
   getGrayBgClasses,
-  getIndigoTextClasses,
   borderInput,
 } from "@/lib/utils/darkMode";
-import { updateStudentDivisionAction, getActiveStudentDivisionsAction } from "@/lib/domains/student/actions";
-import type { StudentDivision } from "@/lib/constants/students";
-import { isSuccessResponse } from "@/lib/types/actionResponse";
+import { updateStudentDivisionAction } from "@/lib/domains/student/actions";
+import { STUDENT_DIVISIONS, type StudentDivision } from "@/lib/constants/students";
 import type { Student } from "@/lib/data/students";
 
 type DivisionStudentListProps = {
@@ -34,29 +32,6 @@ export function DivisionStudentList({
   const { showSuccess, showError } = useToast();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
-  const [divisions, setDivisions] = useState<Array<{ value: StudentDivision; label: string }>>([]);
-  const [loadingDivisions, setLoadingDivisions] = useState(true);
-
-  useEffect(() => {
-    async function loadDivisions() {
-      try {
-        const result = await getActiveStudentDivisionsAction();
-        if (isSuccessResponse(result) && result.data) {
-          setDivisions(
-            result.data.map((d) => ({
-              value: d.name as StudentDivision,
-              label: d.name,
-            }))
-          );
-        }
-      } catch (error) {
-        console.error("학생 구분 목록 로드 실패:", error);
-      } finally {
-        setLoadingDivisions(false);
-      }
-    }
-    loadDivisions();
-  }, []);
 
   const updateSelectedIds = useCallback(
     (newIds: Set<string>) => {
@@ -257,15 +232,11 @@ export function DivisionStudentList({
                         )}
                       >
                         <option value="">미설정</option>
-                        {loadingDivisions ? (
-                          <option disabled>로딩 중...</option>
-                        ) : (
-                          divisions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))
-                        )}
+                        {STUDENT_DIVISIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
                       </select>
                     </td>
                   </tr>

@@ -7,12 +7,9 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
-import { AppError, ErrorCode } from "@/lib/errors";
 import { logActionError } from "@/lib/logging/actionLogger";
-import { withActionResponse } from "@/lib/utils/serverActionHandler";
 import type { StudentDivision } from "@/lib/constants/students";
 import * as repository from "../repository";
 
@@ -200,113 +197,3 @@ export async function batchUpdateStudentDivisionAction(
 
   return result;
 }
-
-// ============================================
-// 학생 구분 항목 관리 Actions (구분 목록 CRUD)
-// from: app/actions/studentDivisionsActions.ts
-// ============================================
-
-/**
- * 학생 구분 항목 목록 조회
- */
-export const getStudentDivisionsAction = withActionResponse(async () => {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "admin") {
-    throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
-  }
-  return await repository.getStudentDivisions();
-});
-
-/**
- * 활성 학생 구분 항목만 조회
- */
-export const getActiveStudentDivisionsAction = withActionResponse(async () => {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "admin") {
-    throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
-  }
-  return await repository.getActiveStudentDivisions();
-});
-
-/**
- * 학생 구분 항목 생성
- */
-export const createStudentDivisionItemAction = withActionResponse(
-  async (name: string, displayOrder?: number) => {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "admin") {
-      throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
-    }
-
-    let finalDisplayOrder = displayOrder;
-    if (finalDisplayOrder === undefined) {
-      const existingDivisions = await repository.getStudentDivisions();
-      finalDisplayOrder =
-        existingDivisions.length > 0
-          ? Math.max(...existingDivisions.map((d) => d.display_order ?? 0)) + 1
-          : 0;
-    }
-
-    const result = await repository.createStudentDivision(name, finalDisplayOrder);
-    revalidatePath("/admin/settings");
-    return result;
-  }
-);
-
-/**
- * 학생 구분 항목 수정
- */
-export const updateStudentDivisionItemAction = withActionResponse(
-  async (
-    id: string,
-    updates: Partial<{
-      name: string;
-      display_order: number;
-      is_active: boolean;
-    }>
-  ) => {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "admin") {
-      throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
-    }
-
-    const result = await repository.updateStudentDivisionItem(id, updates);
-    revalidatePath("/admin/settings");
-    return result;
-  }
-);
-
-/**
- * 학생 구분 항목 삭제
- */
-export const deleteStudentDivisionItemAction = withActionResponse(
-  async (id: string) => {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "admin") {
-      throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
-    }
-
-    const result = await repository.deleteStudentDivision(id);
-    revalidatePath("/admin/settings");
-    return result;
-  }
-);
-
-// ============================================
-// Legacy 호환성 (deprecated)
-// ============================================
-
-/**
- * @deprecated createStudentDivisionItemAction 사용
- */
-export const createStudentDivisionAction = createStudentDivisionItemAction;
-
-/**
- * @deprecated updateStudentDivisionItemAction 사용
- */
-export const updateStudentDivisionItemActionLegacy = updateStudentDivisionItemAction;
-
-/**
- * @deprecated deleteStudentDivisionItemAction 사용
- */
-export const deleteStudentDivisionAction = deleteStudentDivisionItemAction;

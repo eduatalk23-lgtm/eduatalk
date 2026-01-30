@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import {
@@ -11,9 +10,7 @@ import {
   textSecondary,
   inlineButtonPrimary,
 } from "@/lib/utils/darkMode";
-import { STUDENT_SORT_OPTIONS, type StudentSortOption, type StudentDivision } from "@/lib/constants/students";
-import { getActiveStudentDivisionsAction } from "@/lib/domains/student/actions";
-import { isSuccessResponse } from "@/lib/types/actionResponse";
+import { STUDENT_SORT_OPTIONS, STUDENT_DIVISIONS, type StudentSortOption, type StudentDivision } from "@/lib/constants/students";
 
 type StudentSearchFilterProps = {
   searchQuery: string;
@@ -34,29 +31,6 @@ export function StudentSearchFilter({
   showInactiveFilter,
   sortBy,
 }: StudentSearchFilterProps) {
-  const [divisions, setDivisions] = useState<Array<{ value: StudentDivision; label: string }>>([]);
-  const [loadingDivisions, setLoadingDivisions] = useState(true);
-
-  useEffect(() => {
-    async function loadDivisions() {
-      try {
-        const result = await getActiveStudentDivisionsAction();
-        if (isSuccessResponse(result) && result.data) {
-          setDivisions(
-            result.data.map((d) => ({
-              value: d.name as StudentDivision,
-              label: d.name,
-            }))
-          );
-        }
-      } catch (error) {
-        console.error("학생 구분 목록 로드 실패:", error);
-      } finally {
-        setLoadingDivisions(false);
-      }
-    }
-    loadDivisions();
-  }, []);
 
   const hasActiveFilters =
     searchQuery ||
@@ -140,33 +114,24 @@ export function StudentSearchFilter({
         <div className="flex flex-col gap-1">
           <label className={cn("text-sm font-medium", textSecondary)}>
             구분
-            {loadingDivisions && (
-              <span className="ml-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-600" />
-            )}
           </label>
           <select
             name="division"
             defaultValue={divisionFilter || ""}
-            disabled={loadingDivisions}
             className={cn(
               "rounded-lg border px-4 py-2 focus:outline-none focus:ring-2",
               borderInput,
               bgSurface,
               textPrimary,
-              "focus:border-indigo-500 focus:ring-indigo-200 dark:focus:ring-indigo-800",
-              loadingDivisions && "opacity-60 cursor-wait"
+              "focus:border-indigo-500 focus:ring-indigo-200 dark:focus:ring-indigo-800"
             )}
           >
             <option value="">전체</option>
-            {loadingDivisions ? (
-              <option disabled>로딩 중...</option>
-            ) : (
-              divisions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))
-            )}
+            {STUDENT_DIVISIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </div>
 

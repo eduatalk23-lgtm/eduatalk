@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition } from "react";
 import { Dialog } from "@/components/ui/Dialog";
 import { useToast } from "@/components/ui/ToastProvider";
 import Button from "@/components/atoms/Button";
-import { batchUpdateStudentDivisionAction, getActiveStudentDivisionsAction } from "@/lib/domains/student/actions";
-import type { StudentDivision } from "@/lib/constants/students";
-import { isSuccessResponse } from "@/lib/types/actionResponse";
+import { batchUpdateStudentDivisionAction } from "@/lib/domains/student/actions";
+import { STUDENT_DIVISIONS, type StudentDivision } from "@/lib/constants/students";
 import { cn } from "@/lib/cn";
 import {
   borderInput,
@@ -32,31 +31,6 @@ export function BulkDivisionUpdateModal({
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [selectedDivision, setSelectedDivision] = useState<StudentDivision | null | "">("");
-  const [divisions, setDivisions] = useState<Array<{ value: StudentDivision; label: string }>>([]);
-  const [loadingDivisions, setLoadingDivisions] = useState(true);
-
-  useEffect(() => {
-    async function loadDivisions() {
-      try {
-        const result = await getActiveStudentDivisionsAction();
-        if (isSuccessResponse(result) && result.data) {
-          setDivisions(
-            result.data.map((d) => ({
-              value: d.name as StudentDivision,
-              label: d.name,
-            }))
-          );
-        }
-      } catch (error) {
-        console.error("학생 구분 목록 로드 실패:", error);
-      } finally {
-        setLoadingDivisions(false);
-      }
-    }
-    if (open) {
-      loadDivisions();
-    }
-  }, [open]);
 
   const handleSubmit = () => {
     if (studentIds.length === 0) {
@@ -138,15 +112,11 @@ export function BulkDivisionUpdateModal({
               )}
             >
               <option value="">미설정</option>
-              {loadingDivisions ? (
-                <option disabled>로딩 중...</option>
-              ) : (
-                divisions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))
-              )}
+              {STUDENT_DIVISIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </div>
 

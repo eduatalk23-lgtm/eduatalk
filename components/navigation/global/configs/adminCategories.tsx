@@ -80,12 +80,6 @@ export const adminCategories: NavigationCategory[] = [
         href: "/admin/students/divisions",
         icon: <UsersRound className="w-4 h-4" />,
       },
-      {
-        id: "admin-students-divisions-items",
-        label: "구분 항목 관리",
-        href: "/admin/students/divisions/items",
-        icon: <Settings className="w-4 h-4" />,
-      },
     ],
   },
   {
