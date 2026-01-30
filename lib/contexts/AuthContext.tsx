@@ -1,10 +1,12 @@
 "use client";
 
-import { createContext, useContext, ReactNode } from "react";
-import { useQuery, queryOptions } from "@tanstack/react-query";
+import { createContext, useContext, useEffect, ReactNode } from "react";
+import { useQuery, useQueryClient, queryOptions } from "@tanstack/react-query";
+import { usePathname } from "next/navigation";
 import type { CurrentUser } from "@/lib/auth/getCurrentUser";
 import { CACHE_STALE_TIME_STABLE, CACHE_GC_TIME_STABLE } from "@/lib/constants/queryCache";
 import { isApiSuccess } from "@/lib/api";
+import { supabase } from "@/lib/supabase/client";
 
 /**
  * 사용자 정보 조회 쿼리 옵션
@@ -88,6 +90,8 @@ interface AuthProviderProps {
  * React Query를 통해 자동 캐싱 및 갱신을 처리합니다.
  */
 export function AuthProvider({ children }: AuthProviderProps) {
+  const queryClient = useQueryClient();
+  const pathname = usePathname();
   const {
     data: user = null,
     isLoading,
@@ -95,6 +99,46 @@ export function AuthProvider({ children }: AuthProviderProps) {
     error,
     refetch,
   } = useQuery(authQueryOptions());
+
+  // 경로 변경 시 Supabase 세션과 React Query 캐시 동기화
+  // Server Action redirect 후 soft navigation에서 캐시가 stale 상태일 수 있음
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const cachedUser = queryClient.getQueryData(["auth", "me"]);
+
+      // 세션이 있는데 캐시가 없거나 null이면 refetch
+      if (session?.user && !cachedUser) {
+        queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+      }
+      // 세션이 없는데 캐시가 있으면 캐시 클리어
+      else if (!session?.user && cachedUser) {
+        queryClient.setQueryData(["auth", "me"], null);
+      }
+    });
+  }, [pathname, queryClient]);
+
+  // Supabase auth state 변경 리스너 (로그인/로그아웃/토큰 갱신)
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        // 로그아웃 시 auth 캐시 즉시 무효화
+        queryClient.setQueryData(["auth", "me"], null);
+        queryClient.removeQueries({ queryKey: ["auth", "me"], exact: true });
+        // 관련 사용자 데이터 쿼리도 무효화
+        queryClient.invalidateQueries({ queryKey: ["chat"] });
+        queryClient.invalidateQueries({ queryKey: ["unread"] });
+      } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        // 로그인 또는 토큰 갱신 시 사용자 정보 리페치
+        refetch();
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [queryClient, refetch]);
 
   const value: AuthContextValue = {
     user,

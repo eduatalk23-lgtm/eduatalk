@@ -1,15 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { sendPasswordResetEmail } from "@/lib/domains/auth/actions";
 import { Mail, ArrowLeft, Check } from "lucide-react";
 
-export default function ForgotPasswordPage() {
+function ForgotPasswordContent() {
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEmailSent, setIsEmailSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // URL에서 에러 파라미터 읽기
+  useEffect(() => {
+    const errorParam = searchParams.get("error");
+    if (errorParam) {
+      setError(errorParam);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -135,5 +145,20 @@ export default function ForgotPasswordPage() {
         </Link>
       </div>
     </section>
+  );
+}
+
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense fallback={
+      <section className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-4">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <div className="h-16 w-16 animate-pulse rounded-full bg-gray-200" />
+          <div className="h-8 w-48 animate-pulse rounded bg-gray-200" />
+        </div>
+      </section>
+    }>
+      <ForgotPasswordContent />
+    </Suspense>
   );
 }

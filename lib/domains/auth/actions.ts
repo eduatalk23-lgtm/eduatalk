@@ -763,8 +763,9 @@ export async function sendPasswordResetEmail(email: string): Promise<AuthResult>
     const supabase = await createSupabaseServerClient();
     const emailRedirectTo = await getEmailRedirectUrl();
 
+    // type=recovery를 명시적으로 포함하여 callback에서 recovery 플로우 감지
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: emailRedirectTo,
+      redirectTo: `${emailRedirectTo}?type=recovery`,
     });
 
     if (error) {

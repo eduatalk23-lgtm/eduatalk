@@ -56,22 +56,21 @@ export async function GET(request: Request) {
       }
 
       // PKCE code_verifier 누락 에러인 경우 (다른 브라우저에서 이메일 링크 클릭)
-      // 이메일은 확인되었으므로 로그인 페이지로 성공 메시지와 함께 리다이렉트
       const isPKCEError = exchangeError.message?.includes("code verifier") ||
         exchangeError.message?.includes("code_verifier");
 
       if (isPKCEError) {
-        const successMessage = encodeURIComponent("이메일 인증이 완료되었습니다. 로그인해주세요.");
-        const forwardedHost = request.headers.get("x-forwarded-host");
-        const isLocalEnv = process.env.NODE_ENV === "development";
-
-        if (isLocalEnv) {
-          return NextResponse.redirect(`${origin}/login?message=${successMessage}`);
-        } else if (forwardedHost) {
-          return NextResponse.redirect(`https://${forwardedHost}/login?message=${successMessage}`);
-        } else {
-          return NextResponse.redirect(`${origin}/login?message=${successMessage}`);
+        // 비밀번호 재설정 플로우인 경우: 다시 요청하도록 안내
+        if (type === "recovery") {
+          const errorMessage = encodeURIComponent("링크가 만료되었습니다. 비밀번호 재설정을 다시 요청해주세요.");
+          next = `/forgot-password?error=${errorMessage}`;
+          return redirectToNext();
         }
+
+        // 일반 이메일 인증: 로그인 페이지로 리다이렉트
+        const successMessage = encodeURIComponent("이메일 인증이 완료되었습니다. 로그인해주세요.");
+        next = `/login?message=${successMessage}`;
+        return redirectToNext();
       }
 
       // 다른 에러의 경우 세션이 이미 있을 수 있으므로 리다이렉트 시도
