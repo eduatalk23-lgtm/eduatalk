@@ -38,6 +38,10 @@ export type {
   ColdStartBookInsert,
   ColdStartLectureInsert,
   ChapterAnalysisData,
+  // 강사 관련 타입
+  ColdStartInstructorInsert,
+  SavedInstructorItem,
+  SaveInstructorsResult,
 } from "./types";
 
 // ============================================================================
@@ -57,3 +61,72 @@ export { mapToBookInsert, mapToLectureInsert } from "./mappers";
 // ============================================================================
 
 export { checkBookDuplicate, checkLectureDuplicate } from "./duplicateCheck";
+
+// ============================================================================
+// 맞춤 추천 조회 함수
+// ============================================================================
+
+export {
+  getPersonalizedRecommendations,
+  getTopRatedContent,
+  getContentForStudentType,
+  getRecommendationMetadataById,
+  getRecommendationReasons,
+  // 어드민 교재 추천 관리
+  getBookRecommendations,
+  getBookRecommendationById,
+  searchBookRecommendations,
+  getAvailablePublishersForRecommendations,
+  // 어드민 강의 추천 관리
+  getLectureRecommendations,
+  getLectureRecommendationById,
+  searchLectureRecommendations,
+  getAvailablePlatformsForRecommendations,
+} from "./recommendationQueries";
+
+export type {
+  PersonalizedRecommendationOptions,
+  RecommendedBook,
+  RecommendedLecture,
+  PersonalizedRecommendationResult,
+  // 어드민 교재 추천 관리
+  BookRecommendationQueryOptions,
+  BookRecommendationDetail,
+  BookRecommendationResult,
+  // 어드민 강의 추천 관리
+  LectureRecommendationQueryOptions,
+  LectureRecommendationDetail,
+  LectureRecommendationResult,
+} from "./recommendationQueries";
+
+// ============================================================================
+// 강사 저장 함수
+// ============================================================================
+
+export { saveInstructorsAndLinkLectures } from "./instructorPersistence";
+
+// ============================================================================
+// 강사 조회/추천 함수
+// ============================================================================
+
+export {
+  getInstructors,
+  getInstructorById,
+  getInstructorWithLectures,
+  getInstructorsByPlatform,
+  getTopRatedInstructors,
+  getInstructorsForStudentType,
+  getInstructorsByStyle,
+  searchInstructors,
+  getInstructorRecommendationReasons,
+  getAvailablePlatforms,
+  getInstructorCountBySubject,
+} from "./instructorQueries";
+
+export type {
+  InstructorQueryOptions,
+  InstructorResult,
+  InstructorMetadata,
+  InstructorWithLectures,
+  InstructorRecommendationResult,
+} from "./instructorQueries";

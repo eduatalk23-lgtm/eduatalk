@@ -161,11 +161,63 @@ export const ContentCard = React.memo(function ContentCard({
               </div>
             )}
 
+            {/* 리뷰 점수 (콜드 스타트) */}
+            {recommended?.reviewScore !== undefined && recommended.reviewScore !== null && (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-0.5">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={star}
+                      className={cn(
+                        "h-3.5 w-3.5",
+                        star <= Math.round(recommended.reviewScore!)
+                          ? "fill-yellow-400 text-yellow-400"
+                          : "fill-gray-200 text-gray-200"
+                      )}
+                    />
+                  ))}
+                </div>
+                <span className="text-xs font-medium text-gray-700">
+                  {recommended.reviewScore.toFixed(1)}
+                </span>
+                {recommended.reviewCount !== undefined && recommended.reviewCount > 0 && (
+                  <span className="text-xs text-gray-500">
+                    ({recommended.reviewCount.toLocaleString()}개 리뷰)
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* 대상 학생 유형 (콜드 스타트) */}
+            {recommended?.targetStudents && recommended.targetStudents.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {recommended.targetStudents.slice(0, 3).map((target, idx) => (
+                  <span
+                    key={idx}
+                    className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700"
+                  >
+                    {target}
+                  </span>
+                ))}
+              </div>
+            )}
+
             {/* 추천 사유 */}
             {recommended && recommended.reason && (
-              <div className="flex flex-col gap-0.5 rounded-lg bg-yellow-50 p-2 text-sm text-gray-600">
+              <div className="flex flex-col gap-1 rounded-lg bg-yellow-50 p-2 text-sm">
                 <p className="font-medium text-yellow-800">추천 이유:</p>
                 <p className="text-gray-600">{recommended.reason}</p>
+                {/* 추가 추천 이유 (콜드 스타트) */}
+                {recommended.recommendationReasons && recommended.recommendationReasons.length > 1 && (
+                  <ul className="mt-1 space-y-0.5 text-xs text-gray-500">
+                    {recommended.recommendationReasons.slice(1, 3).map((reason, idx) => (
+                      <li key={idx} className="flex items-start gap-1">
+                        <span className="text-yellow-600">•</span>
+                        <span>{reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
 

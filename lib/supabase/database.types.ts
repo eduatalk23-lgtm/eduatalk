@@ -1445,6 +1445,57 @@ export type Database = {
           },
         ]
       }
+      cold_start_logs: {
+        Row: {
+          books_count: number | null
+          created_at: string | null
+          duration_ms: number | null
+          error_message: string | null
+          id: string
+          input_params: Json
+          items_count: number | null
+          lectures_count: number | null
+          new_items_count: number | null
+          output_result: Json | null
+          raw_response_sample: string | null
+          skipped_items_count: number | null
+          success: boolean
+          updated_items_count: number | null
+        }
+        Insert: {
+          books_count?: number | null
+          created_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          input_params: Json
+          items_count?: number | null
+          lectures_count?: number | null
+          new_items_count?: number | null
+          output_result?: Json | null
+          raw_response_sample?: string | null
+          skipped_items_count?: number | null
+          success: boolean
+          updated_items_count?: number | null
+        }
+        Update: {
+          books_count?: number | null
+          created_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          input_params?: Json
+          items_count?: number | null
+          lectures_count?: number | null
+          new_items_count?: number | null
+          output_result?: Json | null
+          raw_response_sample?: string | null
+          skipped_items_count?: number | null
+          success?: boolean
+          updated_items_count?: number | null
+        }
+        Relationships: []
+      }
       content_ai_extraction_logs: {
         Row: {
           confidence_scores: Json | null
@@ -2834,6 +2885,8 @@ export type Database = {
       master_books: {
         Row: {
           author: string | null
+          cold_start_update_count: number | null
+          cold_start_updated_at: string | null
           content_category: string | null
           cover_image_url: string | null
           created_at: string | null
@@ -2858,6 +2911,9 @@ export type Database = {
           publisher_id: string | null
           publisher_name: string | null
           publisher_review: string | null
+          recommendation_metadata: Json | null
+          review_count: number | null
+          review_score: number | null
           revision: string | null
           school_type: string | null
           series_name: string | null
@@ -2871,6 +2927,7 @@ export type Database = {
           subtitle: string | null
           tags: string[] | null
           target_exam_type: string[] | null
+          target_students: string[] | null
           tenant_id: string | null
           title: string
           toc: string | null
@@ -2879,6 +2936,8 @@ export type Database = {
         }
         Insert: {
           author?: string | null
+          cold_start_update_count?: number | null
+          cold_start_updated_at?: string | null
           content_category?: string | null
           cover_image_url?: string | null
           created_at?: string | null
@@ -2903,6 +2962,9 @@ export type Database = {
           publisher_id?: string | null
           publisher_name?: string | null
           publisher_review?: string | null
+          recommendation_metadata?: Json | null
+          review_count?: number | null
+          review_score?: number | null
           revision?: string | null
           school_type?: string | null
           series_name?: string | null
@@ -2916,6 +2978,7 @@ export type Database = {
           subtitle?: string | null
           tags?: string[] | null
           target_exam_type?: string[] | null
+          target_students?: string[] | null
           tenant_id?: string | null
           title: string
           toc?: string | null
@@ -2924,6 +2987,8 @@ export type Database = {
         }
         Update: {
           author?: string | null
+          cold_start_update_count?: number | null
+          cold_start_updated_at?: string | null
           content_category?: string | null
           cover_image_url?: string | null
           created_at?: string | null
@@ -2948,6 +3013,9 @@ export type Database = {
           publisher_id?: string | null
           publisher_name?: string | null
           publisher_review?: string | null
+          recommendation_metadata?: Json | null
+          review_count?: number | null
+          review_score?: number | null
           revision?: string | null
           school_type?: string | null
           series_name?: string | null
@@ -2961,6 +3029,7 @@ export type Database = {
           subtitle?: string | null
           tags?: string[] | null
           target_exam_type?: string[] | null
+          target_students?: string[] | null
           tenant_id?: string | null
           title?: string
           toc?: string | null
@@ -3108,8 +3177,96 @@ export type Database = {
           },
         ]
       }
+      master_instructors: {
+        Row: {
+          created_at: string | null
+          difficulty_focus: string | null
+          explanation_style: string | null
+          id: string
+          instructor_metadata: Json | null
+          is_active: boolean | null
+          lecture_pace: string | null
+          name: string
+          platform: string | null
+          profile_image_url: string | null
+          profile_summary: string | null
+          review_count: number | null
+          review_score: number | null
+          source: string | null
+          specialty: string | null
+          strengths: string[] | null
+          subject_categories: string[] | null
+          subjects: string[] | null
+          target_students: string[] | null
+          teaching_style: string | null
+          tenant_id: string | null
+          updated_at: string | null
+          weaknesses: string[] | null
+        }
+        Insert: {
+          created_at?: string | null
+          difficulty_focus?: string | null
+          explanation_style?: string | null
+          id?: string
+          instructor_metadata?: Json | null
+          is_active?: boolean | null
+          lecture_pace?: string | null
+          name: string
+          platform?: string | null
+          profile_image_url?: string | null
+          profile_summary?: string | null
+          review_count?: number | null
+          review_score?: number | null
+          source?: string | null
+          specialty?: string | null
+          strengths?: string[] | null
+          subject_categories?: string[] | null
+          subjects?: string[] | null
+          target_students?: string[] | null
+          teaching_style?: string | null
+          tenant_id?: string | null
+          updated_at?: string | null
+          weaknesses?: string[] | null
+        }
+        Update: {
+          created_at?: string | null
+          difficulty_focus?: string | null
+          explanation_style?: string | null
+          id?: string
+          instructor_metadata?: Json | null
+          is_active?: boolean | null
+          lecture_pace?: string | null
+          name?: string
+          platform?: string | null
+          profile_image_url?: string | null
+          profile_summary?: string | null
+          review_count?: number | null
+          review_score?: number | null
+          source?: string | null
+          specialty?: string | null
+          strengths?: string[] | null
+          subject_categories?: string[] | null
+          subjects?: string[] | null
+          target_students?: string[] | null
+          teaching_style?: string | null
+          tenant_id?: string | null
+          updated_at?: string | null
+          weaknesses?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "master_instructors_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       master_lectures: {
         Row: {
+          cold_start_update_count: number | null
+          cold_start_updated_at: string | null
           content_category: string | null
           created_at: string | null
           curriculum_revision_id: string | null
@@ -3119,6 +3276,7 @@ export type Database = {
           estimated_hours: number | null
           grade_level: string | null
           id: string
+          instructor_id: string | null
           instructor_name: string | null
           is_active: boolean
           lecture_source_url: string | null
@@ -3128,11 +3286,15 @@ export type Database = {
           overall_difficulty: number | null
           platform: string | null
           platform_id: string | null
+          recommendation_metadata: Json | null
+          review_count: number | null
+          review_score: number | null
           revision: string | null
           subject: string | null
           subject_category: string | null
           subject_group_id: string | null
           subject_id: string | null
+          target_students: string[] | null
           tenant_id: string | null
           title: string
           total_duration: number | null
@@ -3142,6 +3304,8 @@ export type Database = {
           video_url: string | null
         }
         Insert: {
+          cold_start_update_count?: number | null
+          cold_start_updated_at?: string | null
           content_category?: string | null
           created_at?: string | null
           curriculum_revision_id?: string | null
@@ -3151,6 +3315,7 @@ export type Database = {
           estimated_hours?: number | null
           grade_level?: string | null
           id?: string
+          instructor_id?: string | null
           instructor_name?: string | null
           is_active?: boolean
           lecture_source_url?: string | null
@@ -3160,11 +3325,15 @@ export type Database = {
           overall_difficulty?: number | null
           platform?: string | null
           platform_id?: string | null
+          recommendation_metadata?: Json | null
+          review_count?: number | null
+          review_score?: number | null
           revision?: string | null
           subject?: string | null
           subject_category?: string | null
           subject_group_id?: string | null
           subject_id?: string | null
+          target_students?: string[] | null
           tenant_id?: string | null
           title: string
           total_duration?: number | null
@@ -3174,6 +3343,8 @@ export type Database = {
           video_url?: string | null
         }
         Update: {
+          cold_start_update_count?: number | null
+          cold_start_updated_at?: string | null
           content_category?: string | null
           created_at?: string | null
           curriculum_revision_id?: string | null
@@ -3183,6 +3354,7 @@ export type Database = {
           estimated_hours?: number | null
           grade_level?: string | null
           id?: string
+          instructor_id?: string | null
           instructor_name?: string | null
           is_active?: boolean
           lecture_source_url?: string | null
@@ -3192,11 +3364,15 @@ export type Database = {
           overall_difficulty?: number | null
           platform?: string | null
           platform_id?: string | null
+          recommendation_metadata?: Json | null
+          review_count?: number | null
+          review_score?: number | null
           revision?: string | null
           subject?: string | null
           subject_category?: string | null
           subject_group_id?: string | null
           subject_id?: string | null
+          target_students?: string[] | null
           tenant_id?: string | null
           title?: string
           total_duration?: number | null
@@ -3218,6 +3394,13 @@ export type Database = {
             columns: ["curriculum_revision_id"]
             isOneToOne: false
             referencedRelation: "curriculum_revisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "master_lectures_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "master_instructors"
             referencedColumns: ["id"]
           },
           {
@@ -8527,6 +8710,36 @@ export type Database = {
         }
         Relationships: []
       }
+      cold_start_parse_failures: {
+        Row: {
+          created_at: string | null
+          duration_ms: number | null
+          error_message: string | null
+          failed_at: string | null
+          id: string | null
+          input_params: Json | null
+          raw_response_sample: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          failed_at?: never
+          id?: string | null
+          input_params?: Json | null
+          raw_response_sample?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          failed_at?: never
+          id?: string | null
+          input_params?: Json | null
+          raw_response_sample?: string | null
+        }
+        Relationships: []
+      }
       deleted_student_plan: {
         Row: {
           actual_end_time: string | null
@@ -9149,6 +9362,19 @@ export type Database = {
           sender_id: string
           sender_type: string
           updated_at: string
+        }[]
+      }
+      get_distinct_instructor_platforms: {
+        Args: never
+        Returns: {
+          platform: string
+        }[]
+      }
+      get_instructor_count_by_subject: {
+        Args: never
+        Returns: {
+          instructor_count: number
+          subject_category: string
         }[]
       }
       get_last_messages_by_room_ids: {

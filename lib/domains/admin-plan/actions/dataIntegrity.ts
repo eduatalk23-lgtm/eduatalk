@@ -113,7 +113,7 @@ export async function generateDataIntegrityReportAction(options?: {
   const planGroupsWithPlanner = (planGroups ?? []).filter((pg) => pg.planner_id);
   const plannerIds = [...new Set(planGroupsWithPlanner.map((pg) => pg.planner_id).filter((id): id is string => id !== null))];
 
-  let schedulerOptionsInconsistencies: DataIntegrityReport["schedulerOptionsInconsistencies"] = [];
+  const schedulerOptionsInconsistencies: DataIntegrityReport["schedulerOptionsInconsistencies"] = [];
 
   if (plannerIds.length > 0) {
     const { data: planners, error: plannerError } = await supabase

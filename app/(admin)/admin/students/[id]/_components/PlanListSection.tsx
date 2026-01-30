@@ -1,20 +1,6 @@
 import { getStudentPlansForAdmin } from "@/lib/data/admin/studentData";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
 
-type Plan = {
-  id: string;
-  plan_date: string;
-  block_index: number;
-  content_type: "book" | "lecture" | "custom" | "free" | string;
-  content_id: string | null; // Calendar-First: nullable for free learning
-  chapter?: string | null;
-  planned_start_page_or_time?: number | null;
-  planned_end_page_or_time?: number | null;
-  completed_amount?: number | null;
-  progress?: number | null;
-  is_reschedulable?: boolean | null;
-};
-
 const contentTypeLabels: Record<string, string> = {
   book: "책",
   lecture: "강의",
@@ -52,7 +38,7 @@ export async function PlanListSection({
 
     return (
       <div className="flex flex-col gap-3">
-        {recentPlans.map((plan: Plan) => (
+        {recentPlans.map((plan) => (
           <div
             key={plan.id}
             className="flex flex-col gap-2 rounded-lg border border-gray-200 p-4 transition hover:bg-gray-50"

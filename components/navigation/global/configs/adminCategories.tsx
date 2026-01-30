@@ -34,6 +34,7 @@ import {
   ListPlus,
   Sparkles,
   UserPlus,
+  GraduationCap,
 } from "lucide-react";
 
 export const adminCategories: NavigationCategory[] = [
@@ -223,6 +224,24 @@ export const adminCategories: NavigationCategory[] = [
         label: "강의 관리",
         href: "/admin/master-lectures",
         icon: <Headphones className="w-4 h-4" />,
+      },
+      {
+        id: "admin-master-instructors",
+        label: "강사 추천 관리",
+        href: "/admin/master-instructors",
+        icon: <GraduationCap className="w-4 h-4" />,
+      },
+      {
+        id: "admin-book-recommendations",
+        label: "교재 추천 관리",
+        href: "/admin/book-recommendations",
+        icon: <Sparkles className="w-4 h-4" />,
+      },
+      {
+        id: "admin-lecture-recommendations",
+        label: "강의 추천 관리",
+        href: "/admin/lecture-recommendations",
+        icon: <Sparkles className="w-4 h-4" />,
       },
       {
         id: "admin-schools",

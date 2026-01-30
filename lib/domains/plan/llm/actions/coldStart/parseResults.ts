@@ -19,6 +19,8 @@ import type {
   ParsedContentItem,
   ChapterInfo,
   ContentType,
+  ReviewSummary,
+  InstructorInfo,
 } from "./types";
 
 /**
@@ -57,10 +59,12 @@ export function parseSearchResults(rawContent: string): ParseResultsResult {
   }
 
   // ────────────────────────────────────────────────────────────────────
-  // 2단계: 마크다운 코드 블록 제거
+  // 2단계: 마크다운 코드 블록 제거 및 괄호 오류 수정
   // ────────────────────────────────────────────────────────────────────
 
-  const cleanedContent = cleanJsonString(rawContent);
+  let cleanedContent = cleanJsonString(rawContent);
+  // AI가 배열을 }로 닫는 등의 흔한 오류 수정
+  cleanedContent = fixMismatchedBrackets(cleanedContent);
 
   // ────────────────────────────────────────────────────────────────────
   // 3단계: JSON 파싱
@@ -85,7 +89,11 @@ export function parseSearchResults(rawContent: string): ParseResultsResult {
   // 아직 파싱되지 않았으면 다른 방법 시도
   if (parsed === undefined) {
     // JSON 파싱 실패 시, 부분적으로 JSON을 추출 시도
-    const extractedJson = extractJsonFromText(rawContent);
+    let extractedJson = extractJsonFromText(rawContent);
+    if (extractedJson) {
+      // 추출된 JSON에도 괄호 오류 수정 적용
+      extractedJson = fixMismatchedBrackets(extractedJson);
+    }
 
     if (extractedJson) {
       try {
@@ -188,26 +196,86 @@ export function parseSearchResults(rawContent: string): ParseResultsResult {
  * JSON 문자열에서 마크다운 코드 블록을 제거합니다.
  *
  * AI 응답이 다음과 같은 형식일 수 있습니다:
- * - ```json { ... } ```
- * - ``` { ... } ```
+ * - ```json { ... } ``` (완전한 코드 블록)
+ * - ``` { ... } ``` (언어 지정 없는 코드 블록)
+ * - ```json { ... (토큰 한도로 잘린 경우 - 닫는 ``` 없음)
  * - { ... } (이미 순수 JSON)
  */
 function cleanJsonString(input: string): string {
   let cleaned = input.trim();
 
-  // ```json 또는 ``` 블록 제거
+  // 1. 완전한 코드 블록 (열림 + 닫힘 모두 있는 경우)
   // 패턴: ```json ... ``` 또는 ``` ... ```
-  const codeBlockRegex = /^```(?:json)?\s*([\s\S]*?)\s*```$/;
-  const match = cleaned.match(codeBlockRegex);
+  const completeBlockRegex = /^```(?:json)?\s*([\s\S]*?)\s*```$/;
+  const completeMatch = cleaned.match(completeBlockRegex);
 
-  if (match) {
-    cleaned = match[1].trim();
+  if (completeMatch) {
+    return completeMatch[1].trim();
   }
 
-  // 앞뒤 ```만 있는 경우 제거
-  cleaned = cleaned.replace(/^```(?:json)?/g, "").replace(/```$/g, "").trim();
+  // 2. 열림 코드 블록만 있는 경우 (잘린 응답)
+  // 패턴: ```json\n... 또는 ```\n...
+  const openingBlockRegex = /^```(?:json)?[\s\n]*([\s\S]*)$/;
+  const openingMatch = cleaned.match(openingBlockRegex);
+
+  if (openingMatch) {
+    // 열림 블록 제거 후, 혹시 있을 수 있는 닫힘 블록도 제거
+    cleaned = openingMatch[1].replace(/\s*```\s*$/, "").trim();
+    return cleaned;
+  }
+
+  // 3. 닫힘 ```만 있는 경우 (드문 케이스)
+  cleaned = cleaned.replace(/```\s*$/, "").trim();
 
   return cleaned;
+}
+
+/**
+ * AI가 생성한 JSON의 흔한 괄호 오류를 수정합니다.
+ *
+ * AI가 배열을 }로 닫거나, 객체를 ]로 닫는 경우가 있습니다.
+ * 예: "weaknesses": ["item1", "item2" } → "weaknesses": ["item1", "item2" ]
+ */
+function fixMismatchedBrackets(json: string): string {
+  let result = json;
+  
+  // 최대 반복 횟수 제한 (무한 루프 방지)
+  const MAX_ITERATIONS = 10;
+  let iterations = 0;
+
+  // 반복해서 수정 (중첩된 오류 처리)
+  while (iterations < MAX_ITERATIONS) {
+    iterations++;
+    const previousResult = result;
+
+    // 배열이 }로 잘못 닫힌 경우 수정
+    // 패턴: [ ... "문자열" } 또는 [ ... 숫자 }
+    // 문자열로 끝나고 }로 닫힌 경우
+    result = result.replace(
+      /(\[[^\[\]]*"[^"]*")\s*\}/g,
+      "$1 ]"
+    );
+
+    // 숫자로 끝나고 }로 닫힌 경우
+    result = result.replace(
+      /(\[[^\[\]]*\d)\s*\}/g,
+      "$1 ]"
+    );
+
+    // 객체가 ]로 잘못 닫힌 경우 수정 (덜 흔함)
+    // 패턴: { ... "key": "value" ] 또는 { ... "key": 숫자 ]
+    result = result.replace(
+      /(\{[^\{\}]*"[^"]*"\s*:\s*(?:"[^"]*"|\d+))\s*\]/g,
+      "$1 }"
+    );
+
+    // 변경이 없으면 루프 종료
+    if (result === previousResult) {
+      break;
+    }
+  }
+
+  return result;
 }
 
 /**
@@ -465,6 +533,51 @@ function convertToContentItem(
 
   if (averageEpisodeDuration !== undefined && averageEpisodeDuration > 0) {
     item.averageEpisodeDuration = averageEpisodeDuration;
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  // 추천 근거 필드 파싱
+  // ────────────────────────────────────────────────────────────────────
+
+  // 추천 이유 목록
+  const recommendationReasons = parseStringArray(obj.recommendationReasons);
+  if (recommendationReasons.length > 0) {
+    item.recommendationReasons = recommendationReasons;
+  }
+
+  // 추천 대상 학생 유형
+  const targetStudents = parseStringArray(obj.targetStudents);
+  if (targetStudents.length > 0) {
+    item.targetStudents = targetStudents;
+  }
+
+  // 장점 목록
+  const strengths = parseStringArray(obj.strengths);
+  if (strengths.length > 0) {
+    item.strengths = strengths;
+  }
+
+  // 단점/주의사항 목록
+  const weaknesses = parseStringArray(obj.weaknesses);
+  if (weaknesses.length > 0) {
+    item.weaknesses = weaknesses;
+  }
+
+  // 후기/리뷰 요약
+  const reviewSummary = parseReviewSummary(obj.reviewSummary);
+  if (reviewSummary) {
+    item.reviewSummary = reviewSummary;
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  // 강사 정보 파싱 (lecture 콘텐츠 전용)
+  // ────────────────────────────────────────────────────────────────────
+
+  if (contentType === "lecture" && obj.instructorInfo) {
+    const instructorInfo = parseInstructorInfo(obj.instructorInfo);
+    if (instructorInfo) {
+      item.instructorInfo = instructorInfo;
+    }
   }
 
   return { success: true, item };
@@ -758,4 +871,240 @@ export function validateAndFilterItems(items: ParsedContentItem[]): {
   }
 
   return { validItems, invalidCount, allWarnings };
+}
+
+// ============================================================================
+// 추천 근거 파싱 헬퍼 함수들
+// ============================================================================
+
+/**
+ * 문자열 배열을 파싱합니다.
+ *
+ * @param value - 파싱할 값 (배열 또는 문자열)
+ * @returns 정제된 문자열 배열
+ */
+function parseStringArray(value: unknown): string[] {
+  if (!value) return [];
+
+  // 이미 배열인 경우
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+  }
+
+  // 문자열인 경우 (쉼표로 구분된 목록)
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+  }
+
+  return [];
+}
+
+/**
+ * 후기/리뷰 요약 정보를 파싱합니다.
+ *
+ * @param value - 파싱할 reviewSummary 객체
+ * @returns 파싱된 ReviewSummary 또는 undefined
+ */
+function parseReviewSummary(value: unknown): ReviewSummary | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const obj = value as Record<string, unknown>;
+  const result: ReviewSummary = {};
+
+  // 평균 평점
+  const averageRating = parseNumber(obj.averageRating);
+  if (averageRating !== null && averageRating >= 0 && averageRating <= 5) {
+    result.averageRating = averageRating;
+  }
+
+  // 리뷰 수
+  const reviewCount = parseNumber(obj.reviewCount);
+  if (reviewCount !== null && reviewCount >= 0) {
+    result.reviewCount = reviewCount;
+  }
+
+  // 긍정적 후기
+  const positives = parseStringArray(obj.positives);
+  if (positives.length > 0) {
+    result.positives = positives;
+  }
+
+  // 부정적 후기
+  const negatives = parseStringArray(obj.negatives);
+  if (negatives.length > 0) {
+    result.negatives = negatives;
+  }
+
+  // 키워드
+  const keywords = parseStringArray(obj.keywords);
+  if (keywords.length > 0) {
+    result.keywords = keywords;
+  }
+
+  // 하이라이트 (상세 후기)
+  if (Array.isArray(obj.highlights)) {
+    const highlights = obj.highlights
+      .filter(
+        (h): h is { type: string; text: string; source?: string } =>
+          typeof h === "object" &&
+          h !== null &&
+          "type" in h &&
+          "text" in h &&
+          typeof h.text === "string"
+      )
+      .map((h) => ({
+        type: (h.type === "positive" || h.type === "negative" || h.type === "neutral"
+          ? h.type
+          : "neutral") as "positive" | "negative" | "neutral",
+        text: h.text.trim(),
+        ...(h.source && typeof h.source === "string" && { source: h.source.trim() }),
+      }));
+
+    if (highlights.length > 0) {
+      result.highlights = highlights;
+    }
+  }
+
+  // 최소한 하나의 정보라도 있으면 반환
+  if (Object.keys(result).length > 0) {
+    return result;
+  }
+
+  return undefined;
+}
+
+/**
+ * 강사 정보를 파싱합니다.
+ *
+ * @param value - 파싱할 instructorInfo 객체
+ * @returns 파싱된 InstructorInfo 또는 undefined
+ */
+function parseInstructorInfo(value: unknown): InstructorInfo | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const obj = value as Record<string, unknown>;
+
+  // 강사명은 필수
+  if (!obj.name || typeof obj.name !== "string" || obj.name.trim() === "") {
+    return undefined;
+  }
+
+  const result: InstructorInfo = {
+    name: obj.name.trim(),
+  };
+
+  // 플랫폼
+  if (obj.platform && typeof obj.platform === "string") {
+    result.platform = obj.platform.trim();
+  }
+
+  // 프로필 요약
+  if (obj.profileSummary && typeof obj.profileSummary === "string") {
+    result.profileSummary = obj.profileSummary.trim();
+  }
+
+  // 담당 교과
+  const subjectCategories = parseStringArray(obj.subjectCategories);
+  if (subjectCategories.length > 0) {
+    result.subjectCategories = subjectCategories;
+  }
+
+  // 담당 세부 과목
+  const subjects = parseStringArray(obj.subjects);
+  if (subjects.length > 0) {
+    result.subjects = subjects;
+  }
+
+  // 전문 영역
+  if (obj.specialty && typeof obj.specialty === "string") {
+    result.specialty = obj.specialty.trim();
+  }
+
+  // 강의 스타일
+  if (obj.teachingStyle && typeof obj.teachingStyle === "string") {
+    const style = obj.teachingStyle.trim();
+    if (["개념형", "문풀형", "속성형", "심화형", "균형형"].includes(style)) {
+      result.teachingStyle = style as InstructorInfo["teachingStyle"];
+    } else {
+      result.teachingStyle = style;
+    }
+  }
+
+  // 주력 난이도
+  if (obj.difficultyFocus && typeof obj.difficultyFocus === "string") {
+    const focus = obj.difficultyFocus.trim();
+    if (["개념", "기본", "심화", "최상위"].includes(focus)) {
+      result.difficultyFocus = focus as InstructorInfo["difficultyFocus"];
+    } else {
+      result.difficultyFocus = focus;
+    }
+  }
+
+  // 강의 속도
+  if (obj.lecturePace && typeof obj.lecturePace === "string") {
+    const pace = obj.lecturePace.trim();
+    if (["빠름", "보통", "느림"].includes(pace)) {
+      result.lecturePace = pace as InstructorInfo["lecturePace"];
+    } else {
+      result.lecturePace = pace;
+    }
+  }
+
+  // 설명 방식
+  if (obj.explanationStyle && typeof obj.explanationStyle === "string") {
+    const style = obj.explanationStyle.trim();
+    if (["친절함", "핵심만", "반복강조", "비유활용"].includes(style)) {
+      result.explanationStyle = style as InstructorInfo["explanationStyle"];
+    } else {
+      result.explanationStyle = style;
+    }
+  }
+
+  // 리뷰 점수
+  const reviewScore = parseNumber(obj.reviewScore);
+  if (reviewScore !== null && reviewScore >= 0 && reviewScore <= 5) {
+    result.reviewScore = reviewScore;
+  }
+
+  // 리뷰 수
+  const reviewCount = parseNumber(obj.reviewCount);
+  if (reviewCount !== null && reviewCount >= 0) {
+    result.reviewCount = reviewCount;
+  }
+
+  // 추천 대상 학생 유형
+  const targetStudents = parseStringArray(obj.targetStudents);
+  if (targetStudents.length > 0) {
+    result.targetStudents = targetStudents;
+  }
+
+  // 강사 장점
+  const strengths = parseStringArray(obj.strengths);
+  if (strengths.length > 0) {
+    result.strengths = strengths;
+  }
+
+  // 강사 단점/주의사항
+  const weaknesses = parseStringArray(obj.weaknesses);
+  if (weaknesses.length > 0) {
+    result.weaknesses = weaknesses;
+  }
+
+  // 추천 이유
+  const recommendationReasons = parseStringArray(obj.recommendationReasons);
+  if (recommendationReasons.length > 0) {
+    result.recommendationReasons = recommendationReasons;
+  }
+
+  return result;
 }

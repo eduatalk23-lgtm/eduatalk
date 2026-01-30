@@ -174,6 +174,10 @@ export function UnifiedContentsView({
                   priority: originalContent.priority,
                   reason: originalContent.reason,
                   scoreDetails: originalContent.scoreDetails,
+                  reviewScore: originalContent.reviewScore,
+                  reviewCount: originalContent.reviewCount,
+                  targetStudents: originalContent.targetStudents,
+                  recommendationReasons: originalContent.recommendationReasons,
                 }
               : undefined
           }

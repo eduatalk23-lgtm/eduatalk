@@ -164,6 +164,225 @@ export type ExecuteSearchResult =
 // Task 4: 결과 파싱
 // ============================================================================
 
+// ============================================================================
+// 추천 근거 관련 타입 (Recommendation Metadata)
+// ============================================================================
+
+/**
+ * 추천 이유 카테고리
+ * - quality: 콘텐츠 품질 관련
+ * - popularity: 인기도/평판 관련
+ * - suitability: 학습자 적합성 관련
+ * - structure: 구성/체계 관련
+ */
+export type RecommendationReasonCategory =
+  | "quality"
+  | "popularity"
+  | "suitability"
+  | "structure";
+
+/**
+ * 추천 이유 항목
+ */
+export interface RecommendationReason {
+  /** 카테고리 */
+  category: RecommendationReasonCategory;
+
+  /** 추천 이유 텍스트 */
+  text: string;
+
+  /** 신뢰도 (0-1) */
+  confidence?: number;
+}
+
+/**
+ * 후기/리뷰 하이라이트
+ */
+export interface ReviewHighlight {
+  /** 후기 유형 */
+  type: "positive" | "negative" | "neutral";
+
+  /** 후기 내용 */
+  text: string;
+
+  /** 출처 (네이버, 인터파크 등) */
+  source?: string;
+}
+
+/**
+ * 후기/리뷰 요약 정보
+ */
+export interface ReviewSummary {
+  /** 평균 평점 (5점 만점) */
+  averageRating?: number;
+
+  /** 총 리뷰 수 */
+  reviewCount?: number;
+
+  /** 긍정적 후기 요약 */
+  positives?: string[];
+
+  /** 부정적 후기 요약 */
+  negatives?: string[];
+
+  /** 핵심 후기 하이라이트 */
+  highlights?: ReviewHighlight[];
+
+  /** 자주 언급되는 키워드 */
+  keywords?: string[];
+}
+
+/**
+ * 콘텐츠 특성 정보
+ */
+export interface ContentCharacteristics {
+  /** 장점 */
+  strengths?: string[];
+
+  /** 단점/주의사항 */
+  weaknesses?: string[];
+
+  /** 난이도 분포 (%) */
+  difficultyBreakdown?: {
+    basic: number;
+    standard: number;
+    advanced: number;
+  };
+
+  /** 학습 스타일 적합도 (0-100) */
+  learningStyles?: {
+    visual: number;
+    conceptual: number;
+    practice: number;
+  };
+}
+
+/**
+ * 추천 메타데이터 (DB 저장용)
+ */
+export interface RecommendationMetadata {
+  /** 추천 정보 */
+  recommendation: {
+    /** 추천 점수 (0-100) */
+    score: number;
+
+    /** 추천 이유 요약 */
+    summary: string;
+
+    /** 상세 추천 이유 */
+    reasons: RecommendationReason[];
+
+    /** 추천 대상 학생 유형 */
+    targetStudents: string[];
+  };
+
+  /** 후기/리뷰 정보 */
+  reviews?: ReviewSummary;
+
+  /** 콘텐츠 특성 */
+  characteristics?: ContentCharacteristics;
+
+  /** 메타 정보 */
+  meta: {
+    /** 데이터 수집 일시 */
+    collectedAt: string;
+
+    /** 데이터 소스 */
+    sources: string[];
+
+    /** 신뢰도 (0-1) */
+    reliability: number;
+  };
+}
+
+// ============================================================================
+// Task 4: 결과 파싱 - 강사 정보 (lecture 콘텐츠용)
+// ============================================================================
+
+/**
+ * 강사 정보 (AI 검색에서 수집)
+ *
+ * lecture 콘텐츠의 경우 강사에 대한 상세 정보를 함께 수집합니다.
+ * 이 정보는 master_instructors 테이블에 저장될 수 있습니다.
+ */
+export interface InstructorInfo {
+  /** 강사명 (필수) */
+  name: string;
+
+  /** 플랫폼 (메가스터디, 이투스, 대성마이맥, EBS 등) */
+  platform?: string;
+
+  /** 프로필 요약 (경력, 소개) */
+  profileSummary?: string;
+
+  /** 담당 교과 목록 */
+  subjectCategories?: string[];
+
+  /** 담당 세부 과목 목록 */
+  subjects?: string[];
+
+  /** 전문 영역 (개념 설명, 문제풀이, 실전 대비 등) */
+  specialty?: string;
+
+  /**
+   * 강의 스타일
+   * - 개념형: 개념 설명 위주
+   * - 문풀형: 문제 풀이 위주
+   * - 속성형: 빠른 진도, 핵심만
+   * - 심화형: 깊이 있는 설명
+   * - 균형형: 개념과 문제 풀이 균형
+   */
+  teachingStyle?: "개념형" | "문풀형" | "속성형" | "심화형" | "균형형" | string;
+
+  /**
+   * 주력 난이도
+   * - 개념: 기초 개념 설명
+   * - 기본: 중간 난이도
+   * - 심화: 고난도
+   * - 최상위: 최고 난이도
+   */
+  difficultyFocus?: "개념" | "기본" | "심화" | "최상위" | string;
+
+  /**
+   * 강의 속도
+   * - 빠름: 빠른 진행
+   * - 보통: 평균 속도
+   * - 느림: 천천히 설명
+   */
+  lecturePace?: "빠름" | "보통" | "느림" | string;
+
+  /**
+   * 설명 방식
+   * - 친절함: 상세하고 친절한 설명
+   * - 핵심만: 핵심 위주 간결한 설명
+   * - 반복강조: 중요 내용 반복
+   * - 비유활용: 비유와 예시 활용
+   */
+  explanationStyle?: "친절함" | "핵심만" | "반복강조" | "비유활용" | string;
+
+  /** 평균 리뷰 점수 (5점 만점) */
+  reviewScore?: number;
+
+  /** 총 리뷰 수 */
+  reviewCount?: number;
+
+  /** 추천 대상 학생 유형 */
+  targetStudents?: string[];
+
+  /** 강사 장점 */
+  strengths?: string[];
+
+  /** 강사 단점/주의사항 */
+  weaknesses?: string[];
+
+  /** 추천 이유 */
+  recommendationReasons?: string[];
+}
+
+// ============================================================================
+// Task 4: 결과 파싱 - 콘텐츠 정보
+// ============================================================================
+
 /**
  * 챕터/강의 정보
  * - 목차의 각 항목을 나타냄
@@ -215,6 +434,36 @@ export interface ParsedContentItem {
 
   /** 평균 에피소드 길이 (분 단위) - 강의 콘텐츠용 */
   averageEpisodeDuration?: number;
+
+  // ────────────────────────────────────────────────────────────────────
+  // 추천 근거 정보 (AI 검색에서 수집)
+  // ────────────────────────────────────────────────────────────────────
+
+  /** 추천 이유 목록 */
+  recommendationReasons?: string[];
+
+  /** 추천 대상 학생 유형 */
+  targetStudents?: string[];
+
+  /** 후기/리뷰 요약 */
+  reviewSummary?: ReviewSummary;
+
+  /** 장점 목록 */
+  strengths?: string[];
+
+  /** 단점/주의사항 목록 */
+  weaknesses?: string[];
+
+  // ────────────────────────────────────────────────────────────────────
+  // 강사 정보 (lecture 콘텐츠 전용)
+  // ────────────────────────────────────────────────────────────────────
+
+  /**
+   * 강사 상세 정보 (lecture 콘텐츠인 경우)
+   *
+   * 이 정보는 master_instructors 테이블에 저장됩니다.
+   */
+  instructorInfo?: InstructorInfo;
 }
 
 /**
@@ -257,8 +506,11 @@ export interface RecommendationItem extends ParsedContentItem {
   /** 일치도 점수 (0-100) */
   matchScore: number;
 
-  /** 추천 이유 */
+  /** 추천 이유 (간단 요약) */
   reason: string;
+
+  /** 추천 메타데이터 (DB 저장용 상세 정보) */
+  recommendationMetadata?: RecommendationMetadata;
 }
 
 /**

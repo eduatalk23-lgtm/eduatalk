@@ -66,6 +66,7 @@ export function ReorderPlansModal({
         .select('id, content_title, custom_title, content_type, sequence, planned_start_page_or_time, planned_end_page_or_time')
         .eq('student_id', studentId)
         .eq('is_active', true)
+        .is('deleted_at', null)
         .eq('container_type', containerType);
 
       // 컨테이너 타입별 날짜 필터링

@@ -152,6 +152,153 @@ describe("parseSearchResults", () => {
         expect(result.items[0].contentType).toBe("book");
       }
     });
+
+    it("추천 근거 필드 파싱 - recommendationReasons", () => {
+      const rawContent = JSON.stringify({
+        results: [
+          {
+            title: "개념원리 미적분",
+            totalRange: 320,
+            contentType: "book",
+            recommendationReasons: [
+              "기초 개념을 단계별로 설명",
+              "풍부한 예제와 연습문제",
+              "수능 출제 경향 반영",
+            ],
+          },
+        ],
+      });
+
+      const result = parseSearchResults(rawContent);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.items[0].recommendationReasons).toHaveLength(3);
+        expect(result.items[0].recommendationReasons![0]).toBe("기초 개념을 단계별로 설명");
+      }
+    });
+
+    it("추천 근거 필드 파싱 - targetStudents", () => {
+      const rawContent = JSON.stringify({
+        results: [
+          {
+            title: "개념원리 미적분",
+            totalRange: 320,
+            contentType: "book",
+            targetStudents: ["기초가 부족한 학생", "수능 준비생"],
+          },
+        ],
+      });
+
+      const result = parseSearchResults(rawContent);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.items[0].targetStudents).toHaveLength(2);
+        expect(result.items[0].targetStudents![0]).toBe("기초가 부족한 학생");
+      }
+    });
+
+    it("추천 근거 필드 파싱 - reviewSummary", () => {
+      const rawContent = JSON.stringify({
+        results: [
+          {
+            title: "개념원리 미적분",
+            totalRange: 320,
+            contentType: "book",
+            reviewSummary: {
+              averageRating: 4.5,
+              reviewCount: 1200,
+              positives: ["설명이 쉽다", "구성이 체계적"],
+              negatives: ["문제 수가 적다"],
+              keywords: ["기초", "개념", "입문"],
+            },
+          },
+        ],
+      });
+
+      const result = parseSearchResults(rawContent);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.items[0].reviewSummary).toBeDefined();
+        expect(result.items[0].reviewSummary!.averageRating).toBe(4.5);
+        expect(result.items[0].reviewSummary!.reviewCount).toBe(1200);
+        expect(result.items[0].reviewSummary!.positives).toHaveLength(2);
+        expect(result.items[0].reviewSummary!.negatives).toHaveLength(1);
+        expect(result.items[0].reviewSummary!.keywords).toHaveLength(3);
+      }
+    });
+
+    it("추천 근거 필드 파싱 - strengths와 weaknesses", () => {
+      const rawContent = JSON.stringify({
+        results: [
+          {
+            title: "개념원리 미적분",
+            totalRange: 320,
+            contentType: "book",
+            strengths: ["단계별 학습 가능", "핵심 정리 제공"],
+            weaknesses: ["심화 문제 부족"],
+          },
+        ],
+      });
+
+      const result = parseSearchResults(rawContent);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.items[0].strengths).toHaveLength(2);
+        expect(result.items[0].weaknesses).toHaveLength(1);
+      }
+    });
+
+    it("추천 근거 필드 - 전체 통합 파싱", () => {
+      const rawContent = JSON.stringify({
+        results: [
+          {
+            title: "개념원리 미적분",
+            author: "이홍섭",
+            publisher: "개념원리",
+            contentType: "book",
+            totalRange: 320,
+            chapters: [
+              { title: "1. 수열의 극한", startRange: 1, endRange: 100 },
+            ],
+            description: "개념 설명이 자세한 기본서",
+            recommendationReasons: [
+              "기초 개념을 단계별로 설명",
+              "풍부한 예제와 연습문제",
+            ],
+            targetStudents: ["기초가 부족한 학생", "수능 준비생"],
+            reviewSummary: {
+              averageRating: 4.5,
+              reviewCount: 1200,
+              positives: ["설명이 쉽다"],
+              negatives: ["문제 수가 적다"],
+              keywords: ["기초", "개념"],
+            },
+            strengths: ["단계별 학습 가능"],
+            weaknesses: ["심화 문제 부족"],
+          },
+        ],
+      });
+
+      const result = parseSearchResults(rawContent);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        const item = result.items[0];
+        // 기본 필드
+        expect(item.title).toBe("개념원리 미적분");
+        expect(item.author).toBe("이홍섭");
+        // 추천 근거 필드
+        expect(item.recommendationReasons).toHaveLength(2);
+        expect(item.targetStudents).toHaveLength(2);
+        expect(item.reviewSummary).toBeDefined();
+        expect(item.strengths).toHaveLength(1);
+        expect(item.weaknesses).toHaveLength(1);
+      }
+    });
   });
 
   // ──────────────────────────────────────────────────────────────────

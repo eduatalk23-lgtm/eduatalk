@@ -54,7 +54,8 @@ export default function InternalGPAChart({ data, scores = [] }: InternalGPAChart
       }, {} as Record<string, { grade: number; semester: number; scores: number[]; credits: number[] }>);
       
       // GPA 계산
-      trends[subjectName] = Object.values(groupedByTerm)
+      type TermData = { grade: number; semester: number; scores: number[]; credits: number[] };
+      trends[subjectName] = (Object.values(groupedByTerm) as TermData[])
         .map((term) => {
           const totalCredits = term.credits.reduce((sum, c) => sum + c, 0);
           const weightedSum = term.scores.reduce(

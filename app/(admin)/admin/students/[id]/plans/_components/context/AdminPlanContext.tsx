@@ -128,7 +128,6 @@ export function AdminPlanProvider({
         studentId={studentId}
         selectedPlannerId={selectedPlannerId}
         initialDate={initialDate}
-        activePlanGroupId={activePlanGroupId}
       >
         <AdminPlanModalProvider>
           <AdminPlanModalDataProvider>

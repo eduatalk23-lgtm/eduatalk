@@ -39,7 +39,8 @@ export function calculateGPATrend(scores: EnrichedInternalScore[]): Array<{
   }, {} as Record<string, { grade: number; semester: number; scores: number[]; credits: number[] }>);
 
   // GPA 계산 (학점 가중 평균)
-  return Object.values(groupedByTerm)
+  type TermData = { grade: number; semester: number; scores: number[]; credits: number[] };
+  return (Object.values(groupedByTerm) as TermData[])
     .map((term) => {
       const totalCredits = term.credits.reduce((sum, c) => sum + c, 0);
       const weightedSum = term.scores.reduce(
@@ -96,7 +97,8 @@ export function calculateSubjectRanking(
   }, {} as Record<string, { subject_id: string; subject_name: string; subject_group_name: string; grades: number[] }>);
 
   // 평균 등급 계산 및 정렬
-  return Object.values(groupedBySubject)
+  type SubjectData = { subject_id: string; subject_name: string; subject_group_name: string; grades: number[] };
+  return (Object.values(groupedBySubject) as SubjectData[])
     .map((subject) => ({
       subject_id: subject.subject_id,
       subject_name: subject.subject_name,
@@ -312,7 +314,8 @@ export function compareTwoRecentMockScores(
   }, {} as Record<string, { subject_id: string; subject_name: string; scores: EnrichedMockScore[] }>);
 
   // 최근 2회 비교
-  return Object.values(groupedBySubject).map((subject) => {
+  type MockSubjectData = { subject_id: string; subject_name: string; scores: EnrichedMockScore[] };
+  return (Object.values(groupedBySubject) as MockSubjectData[]).map((subject) => {
     const sortedScores = subject.scores.sort(
       (a, b) =>
         new Date(b.exam_date).getTime() - new Date(a.exam_date).getTime()

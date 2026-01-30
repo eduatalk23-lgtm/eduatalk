@@ -51,7 +51,6 @@ interface AdminPlanFilterProviderProps {
   studentId: string;
   selectedPlannerId?: string;
   initialDate: string;
-  activePlanGroupId: string | null;
 }
 
 export function AdminPlanFilterProvider({
@@ -59,7 +58,6 @@ export function AdminPlanFilterProvider({
   studentId,
   selectedPlannerId,
   initialDate,
-  activePlanGroupId,
 }: AdminPlanFilterProviderProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -67,7 +65,8 @@ export function AdminPlanFilterProvider({
   // 상태 관리
   const [selectedDate, setSelectedDate] = useState(initialDate);
   const [contentTypeFilter, setContentTypeFilter] = useState<ContentTypeFilter>("all");
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(activePlanGroupId);
+  // 기본값: 전체 보기 (null)
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
 
   // React Query 타겟 캐시 무효화
   const {

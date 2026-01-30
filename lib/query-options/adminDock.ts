@@ -196,6 +196,7 @@ export function dailyPlansQueryOptions(studentId: string, date: string, plannerI
           .eq('plan_date', date)
           .eq('container_type', 'daily')
           .eq('is_active', true)
+          .is('deleted_at', null)
           .eq('plan_groups.planner_id', plannerId)
           .order('sequence', { ascending: true, nullsFirst: false })
           .order('created_at', { ascending: true });
@@ -236,6 +237,7 @@ export function dailyPlansQueryOptions(studentId: string, date: string, plannerI
         .eq('plan_date', date)
         .eq('container_type', 'daily')
         .eq('is_active', true)
+        .is('deleted_at', null)
         .order('sequence', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: true });
 
@@ -315,6 +317,7 @@ export function weeklyPlansQueryOptions(
           .eq('student_id', studentId)
           .eq('container_type', 'weekly')
           .eq('is_active', true)
+          .is('deleted_at', null)
           .gte('plan_date', weekStart)
           .lte('plan_date', weekEnd)
           .eq('plan_groups.planner_id', plannerId)
@@ -348,6 +351,7 @@ export function weeklyPlansQueryOptions(
         .eq('student_id', studentId)
         .eq('container_type', 'weekly')
         .eq('is_active', true)
+        .is('deleted_at', null)
         .gte('plan_date', weekStart)
         .lte('plan_date', weekEnd)
         .order('sequence', { ascending: true, nullsFirst: false })
@@ -429,6 +433,7 @@ export function unfinishedPlansQueryOptions(studentId: string, plannerId?: strin
           .eq('student_id', studentId)
           .eq('container_type', 'unfinished')
           .eq('is_active', true)
+          .is('deleted_at', null)
           .eq('plan_groups.planner_id', plannerId)
           .order('plan_date', { ascending: true })
           .order('sequence', { ascending: true, nullsFirst: false })
@@ -463,6 +468,7 @@ export function unfinishedPlansQueryOptions(studentId: string, plannerId?: strin
         .eq('student_id', studentId)
         .eq('container_type', 'unfinished')
         .eq('is_active', true)
+        .is('deleted_at', null)
         .order('plan_date', { ascending: true })
         .order('sequence', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: true });

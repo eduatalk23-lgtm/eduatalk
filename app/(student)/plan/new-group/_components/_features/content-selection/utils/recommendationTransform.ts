@@ -130,6 +130,11 @@ type UnifiedRecommendationResult = {
   matchScore?: number;
   reason?: string;
   source: "cache" | "recommend" | "cold_start";
+  // 콜드 스타트 추천 메타데이터
+  reviewScore?: number | null;
+  reviewCount?: number;
+  targetStudents?: string[];
+  recommendationReasons?: string[];
 };
 
 /**
@@ -159,6 +164,11 @@ export function transformUnifiedRecommendation(
     priority,
     // 콜드 스타트에서는 성적 기반 상세 정보 없음
     scoreDetails: undefined,
+    // 콜드 스타트 추천 메타데이터
+    reviewScore: r.reviewScore,
+    reviewCount: r.reviewCount,
+    targetStudents: r.targetStudents,
+    recommendationReasons: r.recommendationReasons,
   };
 }
 

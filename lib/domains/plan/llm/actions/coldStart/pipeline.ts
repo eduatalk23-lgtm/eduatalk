@@ -69,6 +69,7 @@ import { executeWebSearch, getMockSearchResult } from "./executeSearch";
 import { parseSearchResults } from "./parseResults";
 import { rankAndFilterResults } from "./rankResults";
 import { saveRecommendationsToMasterContent } from "./persistence";
+import { logColdStartResult } from "./logging";
 import { MetricsBuilder, logRecommendationError } from "../../metrics";
 import { logActionWarn } from "@/lib/utils/serverActionLogger";
 import { getWebSearchContentService } from "../../services";
@@ -154,6 +155,23 @@ export async function runColdStartPipeline(
   input: ColdStartRawInput,
   options?: ColdStartPipelineOptions
 ): Promise<ColdStartPipelineResult> {
+  // 실행 시간 측정 시작
+  const startTime = Date.now();
+
+  // 결과 로깅 헬퍼 (모든 return 전에 호출)
+  const logAndReturn = async (
+    result: ColdStartPipelineResult,
+    rawResponseSample?: string
+  ): Promise<ColdStartPipelineResult> => {
+    const durationMs = Date.now() - startTime;
+    // 비동기로 로깅 (응답 지연 방지)
+    logColdStartResult(input, result, durationMs, rawResponseSample).catch(() => {});
+    return result;
+  };
+
+  // 검색 결과 저장 (파싱 실패 시 로깅용)
+  let lastRawContent: string | undefined;
+
   // 메트릭스 빌더 초기화
   const metricsBuilder = MetricsBuilder.create("coldStartPipeline")
     .setContext({ tenantId: options?.tenantId ?? undefined })
@@ -183,11 +201,11 @@ export async function runColdStartPipeline(
       strategy: "coldStart",
     });
 
-    return {
+    return logAndReturn({
       success: false,
       error: validationResult.error,
       failedAt: "validation",
-    };
+    });
   }
 
   const validatedInput = validationResult.validatedInput;
@@ -264,7 +282,7 @@ export async function runColdStartPipeline(
           })
           .log();
 
-        return {
+        return logAndReturn({
           success: true,
           recommendations: fallbackRecommendations,
           stats: {
@@ -273,7 +291,7 @@ export async function runColdStartPipeline(
             searchQuery: searchQuery.query,
             usedFallback: true,
           },
-        };
+        });
       }
 
       // fallback도 실패한 경우
@@ -288,16 +306,19 @@ export async function runColdStartPipeline(
       strategy: "coldStart",
     });
 
-    return {
+    return logAndReturn({
       success: false,
       error: searchResult.error,
       failedAt: "search",
-    };
+    });
   }
 
   // ────────────────────────────────────────────────────────────────────
   // Task 4: 결과 파싱
   // ────────────────────────────────────────────────────────────────────
+
+  // 파싱 실패 시 로깅을 위해 원본 응답 저장
+  lastRawContent = searchResult.rawContent;
 
   const parseResult = parseSearchResults(searchResult.rawContent);
 
@@ -354,17 +375,21 @@ export async function runColdStartPipeline(
         })
         .log();
 
-      return {
-        success: true,
-        recommendations: fallbackRecommendations,
-        stats: {
-          totalFound: cachedContent.length,
-          filtered: 0,
-          searchQuery: searchQuery.query,
-          usedFallback: true,
-          fallbackReason: "parse_failure",
+      // 파싱 실패 시 AI 응답 샘플 로깅 (fallback 성공해도 원인 분석용)
+      return logAndReturn(
+        {
+          success: true,
+          recommendations: fallbackRecommendations,
+          stats: {
+            totalFound: cachedContent.length,
+            filtered: 0,
+            searchQuery: searchQuery.query,
+            usedFallback: true,
+            fallbackReason: "parse_failure",
+          },
         },
-      };
+        lastRawContent // 파싱 실패한 AI 응답 샘플
+      );
     }
 
     // Parse fallback도 실패한 경우
@@ -380,11 +405,15 @@ export async function runColdStartPipeline(
       strategy: "coldStart",
     });
 
-    return {
-      success: false,
-      error: parseResult.error,
-      failedAt: "parse",
-    };
+    // 파싱 실패 시 AI 응답 샘플 로깅
+    return logAndReturn(
+      {
+        success: false,
+        error: parseResult.error,
+        failedAt: "parse",
+      },
+      lastRawContent // 파싱 실패한 AI 응답 샘플
+    );
   }
 
   // ────────────────────────────────────────────────────────────────────
@@ -450,7 +479,7 @@ export async function runColdStartPipeline(
     })
     .log();
 
-  return {
+  return logAndReturn({
     success: true,
     recommendations: rankResult.recommendations,
     stats: {
@@ -459,5 +488,5 @@ export async function runColdStartPipeline(
       searchQuery: searchQuery.query,
     },
     persistence,
-  };
+  });
 }

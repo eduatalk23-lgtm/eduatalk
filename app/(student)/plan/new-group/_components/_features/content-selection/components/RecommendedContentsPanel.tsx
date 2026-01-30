@@ -664,6 +664,10 @@ export function RecommendedContentsPanel({
                   priority: content.priority,
                   reason: content.reason,
                   scoreDetails: content.scoreDetails,
+                  reviewScore: content.reviewScore,
+                  reviewCount: content.reviewCount,
+                  targetStudents: content.targetStudents,
+                  recommendationReasons: content.recommendationReasons,
                 }}
                 onToggle={() => handleRecommendedSelect(content)}
                 disabled={maxReached}
@@ -736,6 +740,10 @@ export function RecommendedContentsPanel({
                           priority: originalContent.priority,
                           reason: originalContent.reason,
                           scoreDetails: originalContent.scoreDetails,
+                          reviewScore: originalContent.reviewScore,
+                          reviewCount: originalContent.reviewCount,
+                          targetStudents: originalContent.targetStudents,
+                          recommendationReasons: originalContent.recommendationReasons,
                         }
                       : undefined
                   }

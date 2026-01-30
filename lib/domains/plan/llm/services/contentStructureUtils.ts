@@ -21,6 +21,8 @@ export interface ChapterInfo {
   startRange: number;
   /** 종료 범위 */
   endRange: number;
+  /** 소요시간 (분 단위, 선택) */
+  duration?: number;
 }
 
 /**
@@ -66,6 +68,8 @@ export function buildContentAnalysisData(
       title: ch.title,
       startRange: ch.startRange,
       endRange: ch.endRange,
+      // duration이 있으면 포함
+      ...(ch.duration !== undefined && { duration: ch.duration }),
     })),
     source,
     createdAt: new Date().toISOString(),

@@ -226,6 +226,15 @@ export type RecommendedContent = {
     mockGrade?: number | null;
     riskScore?: number;
   };
+  // 콜드 스타트 추천 메타데이터
+  /** 리뷰 평균 점수 (5점 만점) */
+  reviewScore?: number | null;
+  /** 리뷰 수 */
+  reviewCount?: number;
+  /** 추천 대상 학생 유형 */
+  targetStudents?: string[];
+  /** 상세 추천 이유 목록 */
+  recommendationReasons?: string[];
 };
 
 /**
@@ -301,6 +310,15 @@ export type ContentCardProps = {
     priority: number;
     reason: string;
     scoreDetails?: RecommendedContent["scoreDetails"];
+    // 콜드 스타트 추천 메타데이터
+    /** 리뷰 평균 점수 (5점 만점) */
+    reviewScore?: number | null;
+    /** 리뷰 수 */
+    reviewCount?: number;
+    /** 추천 대상 학생 유형 */
+    targetStudents?: string[];
+    /** 상세 추천 이유 목록 */
+    recommendationReasons?: string[];
   };
   
   // 메타데이터 로딩 상태 (Optimistic UI)
