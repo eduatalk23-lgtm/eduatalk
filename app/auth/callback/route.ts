@@ -81,6 +81,43 @@ export async function GET(request: Request) {
 
       // 세션 정보를 확인하여 recovery 여부 판단
       const session = data?.session;
+      const user = session?.user;
+
+      // OAuth 로그인인 경우 역할 확인
+      if (user) {
+        const provider = user.app_metadata?.provider;
+        const isOAuth = provider && provider !== "email";
+
+        if (isOAuth) {
+          // 역할 테이블에서 사용자 확인
+          const { data: student } = await supabase
+            .from("students")
+            .select("id")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          const { data: parent } = await supabase
+            .from("parent_users")
+            .select("id")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          const { data: admin } = await supabase
+            .from("admin_users")
+            .select("id")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          // 역할이 없으면 역할 선택 페이지로 리다이렉트
+          if (!student && !parent && !admin) {
+            if (process.env.NODE_ENV === "development") {
+              console.log("[auth/callback] OAuth 사용자 역할 없음, 역할 선택 페이지로 리다이렉트");
+            }
+            next = "/onboarding/select-role";
+            return redirectToNext();
+          }
+        }
+      }
       if (process.env.NODE_ENV === "development") {
         console.log("[auth/callback] 세션 정보:", {
           user_id: session?.user?.id,

@@ -13,6 +13,7 @@ const PUBLIC_PATHS = [
   "/auth/callback",
   "/signup/verify-email",
   "/invite",  // 팀 초대 페이지 (비로그인 상태에서도 접근 가능)
+  "/onboarding",  // OAuth 사용자 역할 선택 페이지
 ];
 
 /**
@@ -219,9 +220,9 @@ export async function proxy(request: NextRequest) {
   if (isAuthenticated && user && !isPublicPath) {
     const role = await getUserRole(supabase, user.id);
 
-    // 역할이 없는 사용자는 일단 통과 (layout에서 처리)
+    // 역할이 없는 사용자는 역할 선택 페이지로 리다이렉트
     if (!role) {
-      return getResponse();
+      return NextResponse.redirect(new URL("/onboarding/select-role", request.url));
     }
 
     // 현재 경로에 접근 권한이 없는 경우

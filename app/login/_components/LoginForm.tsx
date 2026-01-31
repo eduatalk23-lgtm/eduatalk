@@ -6,6 +6,8 @@ import { useSearchParams } from "next/navigation";
 import { signIn } from "@/lib/domains/auth/actions";
 import { ResendEmailButton } from "./ResendEmailButton";
 import { StyledInput } from "./StyledInput";
+import { GoogleLoginButton } from "./GoogleLoginButton";
+import { KakaoLoginButton } from "./KakaoLoginButton";
 import { motion } from "framer-motion";
 
 type LoginFormProps = {
@@ -151,6 +153,22 @@ export function LoginForm({ returnUrl }: LoginFormProps) {
           )}
         </button>
       </form>
+
+      {/* 구분선 */}
+      <div className="relative my-6">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-gray-200" />
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="bg-white px-4 text-gray-500">또는</span>
+        </div>
+      </div>
+
+      {/* 소셜 로그인 */}
+      <div className="flex flex-col gap-3">
+        <GoogleLoginButton />
+        <KakaoLoginButton />
+      </div>
     </>
   );
 }

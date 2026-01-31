@@ -1062,3 +1062,112 @@ export async function changeUserRole(newRole: "student" | "parent"): Promise<Act
     );
   }
 }
+
+/**
+ * OAuth 사용자 역할 설정
+ * OAuth 로그인 후 역할이 없는 사용자가 역할을 선택할 때 사용
+ */
+export async function setupOAuthUserRole(
+  formData: FormData
+): Promise<ActionResponse<{ redirect: string }>> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return createErrorResponse("로그인이 필요합니다.");
+    }
+
+    const role = String(formData.get("role") ?? "").trim() as "student" | "parent";
+    const tenantId = String(formData.get("tenant_id") ?? "").trim() || null;
+    const displayName = String(formData.get("displayName") ?? "").trim() ||
+      user.user_metadata?.full_name ||
+      user.user_metadata?.name ||
+      user.email?.split("@")[0] ||
+      "";
+
+    // 약관 동의
+    const consentTerms = formData.get("consent_terms") === "on";
+    const consentPrivacy = formData.get("consent_privacy") === "on";
+    const consentMarketing = formData.get("consent_marketing") === "on";
+
+    if (!consentTerms || !consentPrivacy) {
+      return createErrorResponse("필수 약관에 동의해주세요.");
+    }
+
+    if (!role || (role !== "student" && role !== "parent")) {
+      return createErrorResponse("회원 유형을 선택해주세요.");
+    }
+
+    // 이미 역할이 있는지 확인
+    const { data: existingStudent } = await supabase
+      .from("students")
+      .select("id")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const { data: existingParent } = await supabase
+      .from("parent_users")
+      .select("id")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (existingStudent || existingParent) {
+      return createErrorResponse("이미 역할이 설정되어 있습니다.");
+    }
+
+    // 역할 레코드 생성
+    if (role === "student") {
+      const result = await createStudentRecord(user.id, tenantId, displayName);
+      if (!result.success) {
+        return createErrorResponse(result.error || "학생 등록에 실패했습니다.");
+      }
+    } else if (role === "parent") {
+      const result = await createParentRecord(user.id, tenantId, displayName);
+      if (!result.success) {
+        return createErrorResponse(result.error || "학부모 등록에 실패했습니다.");
+      }
+    }
+
+    // user_metadata 업데이트 (signup_role 저장)
+    await supabase.auth.updateUser({
+      data: {
+        signup_role: role,
+        display_name: displayName,
+        tenant_id: tenantId,
+      },
+    });
+
+    // 약관 동의 저장
+    await saveUserConsents(
+      user.id,
+      {
+        terms: consentTerms,
+        privacy: consentPrivacy,
+        marketing: consentMarketing,
+      },
+      undefined,
+      true
+    );
+
+    logActionSuccess(
+      { domain: "auth", action: "setupOAuthUserRole", userId: user.id },
+      { role, tenantId }
+    );
+
+    // 역할에 따른 리다이렉트
+    const redirectPath = role === "student" ? "/dashboard" : "/parent/dashboard";
+    return createSuccessResponse(
+      { redirect: redirectPath },
+      "회원 설정이 완료되었습니다."
+    );
+  } catch (error) {
+    logActionError(
+      { domain: "auth", action: "setupOAuthUserRole" },
+      error
+    );
+    return createErrorResponse(
+      error instanceof Error ? error.message : "회원 설정 중 오류가 발생했습니다."
+    );
+  }
+}
