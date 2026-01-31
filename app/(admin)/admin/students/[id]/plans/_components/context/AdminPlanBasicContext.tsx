@@ -5,6 +5,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
 import type { TimeSlot } from "@/lib/types/plan-generation";
 import type { PlanGroupSummary, PlannerExclusion } from "./AdminPlanContext";
+import type { PrefetchedDockData } from "@/lib/domains/admin-plan/actions";
 
 /**
  * Basic Context - 거의 변하지 않는 정적 정보
@@ -25,6 +26,8 @@ export interface AdminPlanBasicContextValue {
   plannerDateTimeSlots?: Record<string, TimeSlot[]>;
   canCreatePlans: boolean;
   toast: ReturnType<typeof useToast>;
+  /** SSR 프리페치된 Dock 데이터 */
+  initialDockData?: PrefetchedDockData;
 }
 
 const AdminPlanBasicContext = createContext<AdminPlanBasicContextValue | null>(null);
@@ -41,6 +44,7 @@ interface AdminPlanBasicProviderProps {
   plannerExclusions?: PlannerExclusion[];
   plannerCalculatedSchedule?: DailyScheduleInfo[];
   plannerDateTimeSlots?: Record<string, TimeSlot[]>;
+  initialDockData?: PrefetchedDockData;
 }
 
 export function AdminPlanBasicProvider({
@@ -55,6 +59,7 @@ export function AdminPlanBasicProvider({
   plannerExclusions,
   plannerCalculatedSchedule,
   plannerDateTimeSlots,
+  initialDockData,
 }: AdminPlanBasicProviderProps) {
   const toast = useToast();
   const canCreatePlans = !!selectedPlannerId;
@@ -73,6 +78,7 @@ export function AdminPlanBasicProvider({
       plannerDateTimeSlots,
       canCreatePlans,
       toast,
+      initialDockData,
     }),
     [
       studentId,
@@ -87,6 +93,7 @@ export function AdminPlanBasicProvider({
       plannerDateTimeSlots,
       canCreatePlans,
       toast,
+      initialDockData,
     ]
   );
 

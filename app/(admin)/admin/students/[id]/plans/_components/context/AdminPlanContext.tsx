@@ -22,6 +22,7 @@
 import { type ReactNode } from "react";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
 import type { TimeSlot } from "@/lib/types/plan-generation";
+import type { PrefetchedDockData } from "@/lib/domains/admin-plan/actions";
 
 // Split contexts
 import {
@@ -92,6 +93,8 @@ interface AdminPlanProviderProps {
   plannerExclusions?: PlannerExclusion[];
   plannerCalculatedSchedule?: DailyScheduleInfo[];
   plannerDateTimeSlots?: Record<string, TimeSlot[]>;
+  /** SSR 프리페치된 Dock 데이터 */
+  initialDockData?: PrefetchedDockData;
 }
 
 /**
@@ -110,6 +113,7 @@ export function AdminPlanProvider({
   plannerExclusions,
   plannerCalculatedSchedule,
   plannerDateTimeSlots,
+  initialDockData,
 }: AdminPlanProviderProps) {
   return (
     <AdminPlanBasicProvider
@@ -123,6 +127,7 @@ export function AdminPlanProvider({
       plannerExclusions={plannerExclusions}
       plannerCalculatedSchedule={plannerCalculatedSchedule}
       plannerDateTimeSlots={plannerDateTimeSlots}
+      initialDockData={initialDockData}
     >
       <AdminPlanFilterProvider
         studentId={studentId}

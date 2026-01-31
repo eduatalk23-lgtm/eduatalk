@@ -35,6 +35,10 @@ export interface DailyPlan {
   day: number | null;
   day_type: string | null;
   cycle_day_number: number | null;
+  // 오버듀 판단용 필드
+  plan_date: string;
+  carryover_count: number | null;
+  carryover_from_date: string | null;
 }
 
 export interface WeeklyPlan {
@@ -77,6 +81,8 @@ export interface UnfinishedPlan {
   day: number | null;
   day_type: string | null;
   cycle_day_number: number | null;
+  // 오버듀 플랜 구분용 (daily 컨테이너의 과거 미완료 플랜)
+  container_type: 'unfinished' | 'daily';
 }
 
 export interface AdHocPlan {
@@ -194,6 +200,9 @@ export function dailyPlansQueryOptions(studentId: string, date: string, plannerI
             day,
             day_type,
             cycle_day_number,
+            plan_date,
+            carryover_count,
+            carryover_from_date,
             plan_groups!inner(planner_id)
           `)
           .eq('student_id', studentId)
@@ -235,7 +244,10 @@ export function dailyPlansQueryOptions(studentId: string, date: string, plannerI
           week,
           day,
           day_type,
-          cycle_day_number
+          cycle_day_number,
+          plan_date,
+          carryover_count,
+          carryover_from_date
         `)
         .eq('student_id', studentId)
         .eq('plan_date', date)
@@ -401,14 +413,23 @@ export function weeklyAdHocPlansQueryOptions(
 
 /**
  * Unfinished Dock 플랜 조회
+ * - container_type = 'unfinished' 플랜
+ * - container_type = 'daily' 이면서 plan_date < 오늘이고 미완료인 플랜 (오버듀)
+ *
  * @param studentId 학생 ID
  * @param plannerId 플래너 ID (선택, 플래너 기반 필터링용)
  */
 export function unfinishedPlansQueryOptions(studentId: string, plannerId?: string) {
+  // 오늘 날짜 (YYYY-MM-DD)
+  const today = formatDateString(new Date());
+
   return queryOptions({
     queryKey: adminDockKeys.unfinished(studentId, plannerId),
     queryFn: async (): Promise<UnfinishedPlan[]> => {
       const supabase = createSupabaseBrowserClient();
+
+      // OR 조건: unfinished 컨테이너 OR (daily 컨테이너 + 과거 날짜 + 미완료)
+      const orFilter = `container_type.eq.unfinished,and(container_type.eq.daily,plan_date.lt.${today},status.neq.completed)`;
 
       // 플래너 필터링이 필요한 경우 plan_groups와 조인
       if (plannerId) {
@@ -432,10 +453,11 @@ export function unfinishedPlansQueryOptions(studentId: string, plannerId?: strin
             day,
             day_type,
             cycle_day_number,
+            container_type,
             plan_groups!inner(planner_id)
           `)
           .eq('student_id', studentId)
-          .eq('container_type', 'unfinished')
+          .or(orFilter)
           .eq('is_active', true)
           .is('deleted_at', null)
           .eq('plan_groups.planner_id', plannerId)
@@ -444,7 +466,7 @@ export function unfinishedPlansQueryOptions(studentId: string, plannerId?: strin
           .order('created_at', { ascending: true });
 
         if (error) throw error;
-        return (data ?? []).map(({ plan_groups, ...rest }) => rest);
+        return (data ?? []).map(({ plan_groups, ...rest }) => rest as UnfinishedPlan);
       }
 
       // 플래너 필터링 없이 조회
@@ -467,10 +489,11 @@ export function unfinishedPlansQueryOptions(studentId: string, plannerId?: strin
           week,
           day,
           day_type,
-          cycle_day_number
+          cycle_day_number,
+          container_type
         `)
         .eq('student_id', studentId)
-        .eq('container_type', 'unfinished')
+        .or(orFilter)
         .eq('is_active', true)
         .is('deleted_at', null)
         .order('plan_date', { ascending: true })
@@ -478,7 +501,7 @@ export function unfinishedPlansQueryOptions(studentId: string, plannerId?: strin
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as UnfinishedPlan[];
     },
     staleTime: CACHE_STALE_TIME_DYNAMIC,
     gcTime: CACHE_GC_TIME_DYNAMIC,

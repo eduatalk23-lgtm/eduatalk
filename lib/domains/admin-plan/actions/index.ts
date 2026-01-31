@@ -193,3 +193,14 @@ export {
   syncSchedulerOptionsAction,
   type DataIntegrityReport,
 } from './dataIntegrity';
+
+// Dock Prefetch (SSR)
+export {
+  prefetchDailyPlans,
+  prefetchDailyAdHocPlans,
+  prefetchWeeklyPlans,
+  prefetchWeeklyAdHocPlans,
+  prefetchUnfinishedPlans,
+  prefetchAllDockData,
+  type PrefetchedDockData,
+} from './dockPrefetch';

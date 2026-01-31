@@ -9,6 +9,7 @@ import { PlanItemCard, toPlanItemData } from './items';
 import { useWeeklyDockQuery } from '@/lib/hooks/useAdminDockQueries';
 import { ConfirmDialog } from '@/components/ui/Dialog';
 import { deletePlan, movePlanToContainer } from '@/lib/domains/plan/actions/dock';
+import { CollapsedDockCard } from './CollapsedDockCard';
 import type { ContentTypeFilter } from './AdminPlanManagement';
 import type { PlanStatus } from '@/lib/types/plan';
 
@@ -35,6 +36,15 @@ interface WeeklyDockProps {
   onRefresh: () => void;
   /** Daily + Weekly만 새로고침 (컨테이너 이동 시 사용) */
   onRefreshDailyAndWeekly?: () => void;
+  /** SSR 프리페치된 데이터 */
+  initialData?: {
+    plans?: import('@/lib/query-options/adminDock').WeeklyPlan[];
+    adHocPlans?: import('@/lib/query-options/adminDock').AdHocPlan[];
+  };
+  /** 축소 상태 여부 (가로 아코디언 레이아웃용) */
+  isCollapsed?: boolean;
+  /** 확장 클릭 핸들러 (축소 상태에서만 사용) */
+  onExpand?: () => void;
 }
 
 /**
@@ -57,12 +67,16 @@ export const WeeklyDock = memo(function WeeklyDock({
   onStatusChange,
   onRefresh,
   onRefreshDailyAndWeekly,
+  initialData,
+  isCollapsed = false,
+  onExpand,
 }: WeeklyDockProps) {
-  // React Query 훅 사용 (캐싱 및 중복 요청 방지)
+  // React Query 훅 사용 (캐싱 및 중복 요청 방지, SSR 프리페치 데이터 활용)
   const { plans: allPlans, adHocPlans, isLoading, weekRange } = useWeeklyDockQuery(
     studentId,
     selectedDate,
-    plannerId
+    plannerId,
+    initialData
   );
 
   // 그룹 필터링 적용
@@ -234,16 +248,30 @@ export const WeeklyDock = memo(function WeeklyDock({
 
   const totalCount = plans.length + adHocPlans.length;
 
+  // 축소 상태 (가로 아코디언 레이아웃)
+  if (isCollapsed) {
+    return (
+      <CollapsedDockCard
+        type="weekly"
+        icon="📋"
+        title="Weekly"
+        count={totalCount}
+        completedCount={0}
+        onClick={onExpand ?? (() => {})}
+      />
+    );
+  }
+
   return (
     <DroppableContainer id="weekly">
       <div
         className={cn(
-          'bg-green-50 rounded-lg border border-green-200',
+          'bg-green-50 rounded-lg border border-green-200 h-full flex flex-col',
           isPending && 'opacity-50 pointer-events-none'
         )}
       >
-        {/* 헤더 */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-green-200">
+        {/* 헤더 (고정) */}
+        <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-green-200">
           <div className="flex items-center gap-2">
             <span className="text-lg">📋</span>
             <span className="font-medium text-green-700">Weekly Dock</span>
@@ -321,8 +349,8 @@ export const WeeklyDock = memo(function WeeklyDock({
           </div>
         </div>
 
-        {/* 플랜 목록 */}
-        <div className="p-4">
+        {/* 플랜 목록 (스크롤 영역) */}
+        <div className="flex-1 overflow-y-auto p-4">
           {isLoading ? (
             <div className="space-y-2">
               {SKELETON_ITEMS.map((i) => (

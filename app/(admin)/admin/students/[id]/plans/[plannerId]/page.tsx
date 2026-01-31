@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { getPlannerAction } from '@/lib/domains/admin-plan/actions';
+import { getPlannerAction, prefetchAllDockData } from '@/lib/domains/admin-plan/actions';
 import { AdminPlanManagement } from '../_components/AdminPlanManagement';
 import { AdminPlanManagementSkeleton } from '../_components/AdminPlanManagementSkeleton';
 import { PlannerHeader } from '../_components/PlannerHeader';
@@ -114,6 +114,9 @@ export default async function PlannerPlanManagementPage({
     reason: exc.reason,
   })) ?? [];
 
+  // 7. Dock 데이터 SSR 프리페치 (초기 로딩 최적화)
+  const initialDockData = await prefetchAllDockData(studentId, targetDate, plannerId);
+
   return (
     <div className="container mx-auto py-6 px-4">
       {/* 플래너 헤더: 뒤로가기 + 플래너 정보 */}
@@ -138,6 +141,7 @@ export default async function PlannerPlanManagementPage({
           plannerExclusions={plannerExclusions}
           plannerCalculatedSchedule={plannerCalculatedSchedule}
           plannerDateTimeSlots={plannerDateTimeSlots}
+          initialDockData={initialDockData}
         />
       </Suspense>
     </div>

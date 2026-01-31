@@ -23,12 +23,24 @@ import {
  * @param studentId 학생 ID
  * @param date 날짜
  * @param plannerId 플래너 ID (선택, 플래너 기반 필터링용)
+ * @param initialData SSR 프리페치 데이터
  */
-export function useDailyDockQuery(studentId: string, date: string, plannerId?: string) {
+export function useDailyDockQuery(
+  studentId: string,
+  date: string,
+  plannerId?: string,
+  initialData?: { plans?: DailyPlan[]; adHocPlans?: AdHocPlan[] }
+) {
   const queryClient = useQueryClient();
 
-  const plansQuery = useQuery(dailyPlansQueryOptions(studentId, date, plannerId));
-  const adHocQuery = useQuery(dailyAdHocPlansQueryOptions(studentId, date));
+  const plansQuery = useQuery({
+    ...dailyPlansQueryOptions(studentId, date, plannerId),
+    initialData: initialData?.plans,
+  });
+  const adHocQuery = useQuery({
+    ...dailyAdHocPlansQueryOptions(studentId, date),
+    initialData: initialData?.adHocPlans,
+  });
 
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: adminDockKeys.daily(studentId, date, plannerId) });
@@ -56,13 +68,15 @@ export function useDailyDockQuery(studentId: string, date: string, plannerId?: s
  * @param plans 플랜 목록 (plan_group_id 추출용)
  * @param plansLoaded 플랜 로딩 완료 여부 (false면 쿼리 비활성화하여 플리커 방지)
  * @param plannerId 플래너 ID (오버라이드 적용용)
+ * @param initialData SSR 프리페치 데이터
  */
 export function useNonStudyTimeQuery(
   studentId: string,
   date: string,
   plans: DailyPlan[],
   plansLoaded: boolean = true,
-  plannerId?: string
+  plannerId?: string,
+  initialData?: NonStudyItem[]
 ) {
   const planGroupIds = useMemo(() => {
     const ids = plans
@@ -72,9 +86,15 @@ export function useNonStudyTimeQuery(
   }, [plans]);
 
   const queryOpts = nonStudyTimeQueryOptions(studentId, date, planGroupIds, plannerId);
+
+  // initialData가 있으면 즉시 사용, plansLoaded와 무관하게 활성화
+  const hasInitialData = initialData && initialData.length > 0;
+
   const query = useQuery({
     ...queryOpts,
-    enabled: plansLoaded,
+    initialData,
+    // initialData가 있으면 즉시 활성화, 없으면 기존 로직 유지
+    enabled: hasInitialData || plansLoaded,
   });
 
   return {
@@ -88,17 +108,25 @@ export function useNonStudyTimeQuery(
  * @param studentId 학생 ID
  * @param selectedDate 선택된 날짜
  * @param plannerId 플래너 ID (선택, 플래너 기반 필터링용)
+ * @param initialData SSR 프리페치 데이터
  */
-export function useWeeklyDockQuery(studentId: string, selectedDate: string, plannerId?: string) {
+export function useWeeklyDockQuery(
+  studentId: string,
+  selectedDate: string,
+  plannerId?: string,
+  initialData?: { plans?: WeeklyPlan[]; adHocPlans?: AdHocPlan[] }
+) {
   const queryClient = useQueryClient();
   const weekRange = getWeekRange(selectedDate);
 
-  const plansQuery = useQuery(
-    weeklyPlansQueryOptions(studentId, weekRange.start, weekRange.end, plannerId)
-  );
-  const adHocQuery = useQuery(
-    weeklyAdHocPlansQueryOptions(studentId, weekRange.start, weekRange.end)
-  );
+  const plansQuery = useQuery({
+    ...weeklyPlansQueryOptions(studentId, weekRange.start, weekRange.end, plannerId),
+    initialData: initialData?.plans,
+  });
+  const adHocQuery = useQuery({
+    ...weeklyAdHocPlansQueryOptions(studentId, weekRange.start, weekRange.end),
+    initialData: initialData?.adHocPlans,
+  });
 
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({
@@ -128,11 +156,19 @@ export function useWeeklyDockQuery(studentId: string, selectedDate: string, plan
  * Unfinished Dock 쿼리 훅
  * @param studentId 학생 ID
  * @param plannerId 플래너 ID (선택, 플래너 기반 필터링용)
+ * @param initialData SSR 프리페치 데이터
  */
-export function useUnfinishedDockQuery(studentId: string, plannerId?: string) {
+export function useUnfinishedDockQuery(
+  studentId: string,
+  plannerId?: string,
+  initialData?: UnfinishedPlan[]
+) {
   const queryClient = useQueryClient();
 
-  const plansQuery = useQuery(unfinishedPlansQueryOptions(studentId, plannerId));
+  const plansQuery = useQuery({
+    ...unfinishedPlansQueryOptions(studentId, plannerId),
+    initialData,
+  });
 
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: adminDockKeys.unfinished(studentId, plannerId) });

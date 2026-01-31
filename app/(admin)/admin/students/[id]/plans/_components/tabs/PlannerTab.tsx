@@ -1,11 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { UnfinishedDock } from "../UnfinishedDock";
 import { DailyDock } from "../DailyDock";
 import { WeeklyDock } from "../WeeklyDock";
 import { WeeklyCalendar } from "../WeeklyCalendar";
 import { PlanGroupSummaryCard } from "../PlanGroupSummaryCard";
 import { AllGroupsSummaryCard } from "../AllGroupsSummaryCard";
+import { HorizontalDockLayout } from "../HorizontalDockLayout";
+import type { DockType } from "../CollapsedDockCard";
 import {
   useAdminPlanBasic,
   useAdminPlanFilter,
@@ -34,6 +37,9 @@ interface PlannerTabProps {
  * - Modal Context 미사용 → 모달 상태 변경 시 리렌더링 없음
  */
 export function PlannerTab({ tab: _tab }: PlannerTabProps) {
+  // 아코디언 상태 (Daily 기본 확장)
+  const [expandedDock, setExpandedDock] = useState<DockType>("daily");
+
   // 분리된 Context 사용 (Modal 제외 → 모달 열림/닫힘에 리렌더링 안 함)
   const {
     studentId,
@@ -45,6 +51,7 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
     plannerExclusions,
     plannerCalculatedSchedule,
     plannerDateTimeSlots,
+    initialDockData,
   } = useAdminPlanBasic();
 
   const {
@@ -94,29 +101,13 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
 
   return (
     <div className="space-y-4">
-      {/* 미완료 Dock */}
-      <UnfinishedDock
-        studentId={studentId}
-        tenantId={tenantId}
-        plannerId={selectedPlannerId}
-        selectedGroupId={selectedGroupId}
-        contentTypeFilter={contentTypeFilter}
-        onRedistribute={handleOpenRedistribute}
-        onEdit={handleOpenEdit}
-        onReorder={() => handleOpenReorder("unfinished")}
-        onMoveToGroup={handleOpenMoveToGroup}
-        onCopy={handleOpenCopy}
-        onStatusChange={handleOpenStatusChange}
-        onRefresh={handleRefresh}
-        onRefreshDailyAndUnfinished={refreshDailyAndUnfinished}
-      />
-
-      {/* 주간 캘린더 미니뷰 */}
+      {/* 주간 캘린더 미니뷰 (상단 유지) */}
       <WeeklyCalendar
         studentId={studentId}
         selectedDate={selectedDate}
         onDateSelect={handleDateChange}
         plannerId={selectedPlannerId}
+        selectedGroupId={selectedGroupId}
         dailySchedules={effectiveDailySchedules}
         exclusions={plannerExclusions}
         plannerPeriodStart={plannerPeriodStart}
@@ -138,47 +129,83 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
         )
       )}
 
-      {/* Daily & Weekly Docks */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Daily Dock */}
-        <DailyDock
-          studentId={studentId}
-          tenantId={tenantId}
-          plannerId={selectedPlannerId}
-          selectedDate={selectedDate}
-          selectedGroupId={selectedGroupId}
-          contentTypeFilter={contentTypeFilter}
-          timeSlots={plannerDateTimeSlots?.[selectedDate]}
-          onRedistribute={handleOpenRedistribute}
-          onEdit={handleOpenEdit}
-          onReorder={() => handleOpenReorder("daily")}
-          onMoveToGroup={handleOpenMoveToGroup}
-          onCopy={handleOpenCopy}
-          onStatusChange={handleOpenStatusChange}
-          onRefresh={handleRefresh}
-          onRefreshDailyAndWeekly={refreshDailyAndWeekly}
-          onCreatePlanAtSlot={handleCreatePlanAtSlot}
-          enableNonStudyDrag={!!selectedPlannerId}
-        />
-
-        {/* Weekly Dock */}
-        <WeeklyDock
-          studentId={studentId}
-          tenantId={tenantId}
-          plannerId={selectedPlannerId}
-          selectedDate={selectedDate}
-          selectedGroupId={selectedGroupId}
-          contentTypeFilter={contentTypeFilter}
-          onRedistribute={handleOpenRedistribute}
-          onEdit={handleOpenEdit}
-          onReorder={() => handleOpenReorder("weekly")}
-          onMoveToGroup={handleOpenMoveToGroup}
-          onCopy={handleOpenCopy}
-          onStatusChange={handleOpenStatusChange}
-          onRefresh={handleRefresh}
-          onRefreshDailyAndWeekly={refreshDailyAndWeekly}
-        />
-      </div>
+      {/* 3-Dock 가로 아코디언 레이아웃 */}
+      <HorizontalDockLayout
+        expandedDock={expandedDock}
+        onDockClick={setExpandedDock}
+        unfinished={
+          <UnfinishedDock
+            studentId={studentId}
+            tenantId={tenantId}
+            plannerId={selectedPlannerId}
+            selectedGroupId={selectedGroupId}
+            contentTypeFilter={contentTypeFilter}
+            onRedistribute={handleOpenRedistribute}
+            onEdit={handleOpenEdit}
+            onReorder={() => handleOpenReorder("unfinished")}
+            onMoveToGroup={handleOpenMoveToGroup}
+            onCopy={handleOpenCopy}
+            onStatusChange={handleOpenStatusChange}
+            onRefresh={handleRefresh}
+            onRefreshDailyAndUnfinished={refreshDailyAndUnfinished}
+            initialData={initialDockData?.unfinishedPlans}
+            isCollapsed={expandedDock !== "unfinished"}
+            onExpand={() => setExpandedDock("unfinished")}
+          />
+        }
+        daily={
+          <DailyDock
+            studentId={studentId}
+            tenantId={tenantId}
+            plannerId={selectedPlannerId}
+            selectedDate={selectedDate}
+            selectedGroupId={selectedGroupId}
+            contentTypeFilter={contentTypeFilter}
+            timeSlots={plannerDateTimeSlots?.[selectedDate]}
+            onRedistribute={handleOpenRedistribute}
+            onEdit={handleOpenEdit}
+            onReorder={() => handleOpenReorder("daily")}
+            onMoveToGroup={handleOpenMoveToGroup}
+            onCopy={handleOpenCopy}
+            onStatusChange={handleOpenStatusChange}
+            onRefresh={handleRefresh}
+            onRefreshDailyAndWeekly={refreshDailyAndWeekly}
+            onCreatePlanAtSlot={handleCreatePlanAtSlot}
+            enableNonStudyDrag={!!selectedPlannerId}
+            initialData={{
+              plans: initialDockData?.dailyPlans,
+              adHocPlans: initialDockData?.dailyAdHocPlans,
+              nonStudyItems: initialDockData?.nonStudyItems,
+            }}
+            isCollapsed={expandedDock !== "daily"}
+            onExpand={() => setExpandedDock("daily")}
+          />
+        }
+        weekly={
+          <WeeklyDock
+            studentId={studentId}
+            tenantId={tenantId}
+            plannerId={selectedPlannerId}
+            selectedDate={selectedDate}
+            selectedGroupId={selectedGroupId}
+            contentTypeFilter={contentTypeFilter}
+            onRedistribute={handleOpenRedistribute}
+            onEdit={handleOpenEdit}
+            onReorder={() => handleOpenReorder("weekly")}
+            onMoveToGroup={handleOpenMoveToGroup}
+            onCopy={handleOpenCopy}
+            onStatusChange={handleOpenStatusChange}
+            onRefresh={handleRefresh}
+            onRefreshDailyAndWeekly={refreshDailyAndWeekly}
+            initialData={{
+              plans: initialDockData?.weeklyPlans,
+              adHocPlans: initialDockData?.weeklyAdHocPlans,
+            }}
+            isCollapsed={expandedDock !== "weekly"}
+            onExpand={() => setExpandedDock("weekly")}
+          />
+        }
+      />
     </div>
   );
 }

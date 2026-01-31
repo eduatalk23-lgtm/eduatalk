@@ -14,6 +14,8 @@ interface WeeklyCalendarProps {
   selectedDate: string;
   onDateSelect: (date: string) => void;
   plannerId?: string;
+  /** 선택된 플랜 그룹 ID (null = 전체 보기) */
+  selectedGroupId?: string | null;
   /** 플랜 그룹의 daily_schedule (1730 Timetable 방법론 준수) */
   dailySchedules?: DailyScheduleInfo[][];
   /** 플래너 제외일 목록 */
@@ -56,6 +58,7 @@ export function WeeklyCalendar({
   selectedDate,
   onDateSelect,
   plannerId,
+  selectedGroupId,
   dailySchedules,
   exclusions,
 }: WeeklyCalendarProps) {
@@ -243,7 +246,24 @@ export function WeeklyCalendar({
       type PlanData = { plan_date: string; status: string };
       let plans: PlanData[] = [];
 
-      if (plannerId) {
+      // 플랜 그룹 필터링 우선순위:
+      // 1. selectedGroupId가 있으면 특정 그룹만 필터링
+      // 2. plannerId만 있으면 해당 플래너의 모든 그룹
+      // 3. 둘 다 없으면 전체
+      if (selectedGroupId) {
+        // 특정 플랜 그룹으로 필터링
+        const { data } = await supabase
+          .from('student_plan')
+          .select('plan_date, status')
+          .eq('student_id', studentId)
+          .eq('is_active', true)
+          .eq('container_type', 'daily')
+          .eq('plan_group_id', selectedGroupId)
+          .gte('plan_date', weekStartStr)
+          .lte('plan_date', weekEndStr);
+        plans = (data ?? []) as PlanData[];
+      } else if (plannerId) {
+        // 플래너 내 모든 그룹으로 필터링
         const { data } = await supabase
           .from('student_plan')
           .select('plan_date, status, plan_groups!inner(planner_id)')
@@ -255,6 +275,7 @@ export function WeeklyCalendar({
           .eq('plan_groups.planner_id', plannerId);
         plans = (data ?? []) as unknown as PlanData[];
       } else {
+        // 필터 없이 전체
         const { data } = await supabase
           .from('student_plan')
           .select('plan_date, status')
@@ -283,7 +304,7 @@ export function WeeklyCalendar({
 
     setIsLoading(true);
     fetchPlanData();
-  }, [studentId, plannerId, currentWeekDates]);
+  }, [studentId, plannerId, selectedGroupId, currentWeekDates]);
 
   // 요일 라벨
   const getDayLabel = (dateStr: string) => {

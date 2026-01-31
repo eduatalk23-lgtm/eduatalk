@@ -17,6 +17,7 @@ import { ConfirmDialog } from '@/components/ui/Dialog';
 import { deletePlan, movePlanToContainer } from '@/lib/domains/plan/actions/dock';
 import { reorderPlansWithTimeRecalculation } from '@/lib/domains/plan/actions/reorder';
 import { NonStudyTimeEditModal } from './modals/NonStudyTimeEditModal';
+import { CollapsedDockCard } from './CollapsedDockCard';
 import type { ContentTypeFilter } from './AdminPlanManagement';
 import type { PlanStatus } from '@/lib/types/plan';
 
@@ -53,6 +54,16 @@ interface DailyDockProps {
   onPlaceWeeklyAtSlot?: (slotStartTime: string, slotEndTime: string) => void;
   /** 비학습시간 드래그로 시간 변경 가능 여부 */
   enableNonStudyDrag?: boolean;
+  /** SSR 프리페치된 데이터 */
+  initialData?: {
+    plans?: import('@/lib/query-options/adminDock').DailyPlan[];
+    adHocPlans?: import('@/lib/query-options/adminDock').AdHocPlan[];
+    nonStudyItems?: import('@/lib/query-options/adminDock').NonStudyItem[];
+  };
+  /** 축소 상태 여부 (가로 아코디언 레이아웃용) */
+  isCollapsed?: boolean;
+  /** 확장 클릭 핸들러 (축소 상태에서만 사용) */
+  onExpand?: () => void;
 }
 
 /**
@@ -80,16 +91,27 @@ export const DailyDock = memo(function DailyDock({
   onPlaceUnfinishedAtSlot,
   onPlaceWeeklyAtSlot,
   enableNonStudyDrag = false,
+  initialData,
+  isCollapsed = false,
+  onExpand,
 }: DailyDockProps) {
-  // React Query 훅 사용 (캐싱 및 중복 요청 방지)
+  // React Query 훅 사용 (캐싱 및 중복 요청 방지, SSR 프리페치 데이터 활용)
   const { plans: allPlans, adHocPlans, isLoading } = useDailyDockQuery(
     studentId,
     selectedDate,
-    plannerId
+    plannerId,
+    initialData
   );
 
-  // 비학습시간 데이터 조회 (플랜 로딩 완료 후에만 실행하여 플리커 방지)
-  const { nonStudyItems } = useNonStudyTimeQuery(studentId, selectedDate, allPlans, !isLoading, plannerId);
+  // 비학습시간 데이터 조회 (SSR 프리페치 데이터 활용, 플랜 로딩 완료 후 실행)
+  const { nonStudyItems } = useNonStudyTimeQuery(
+    studentId,
+    selectedDate,
+    allPlans,
+    !isLoading,
+    plannerId,
+    initialData?.nonStudyItems
+  );
 
   // 보기 모드: "all" = 플랜 + 비학습시간, "plans" = 플랜만
   // SSR hydration 안전: 항상 'all'로 시작, 클라이언트에서 localStorage 복원
@@ -321,7 +343,7 @@ export const DailyDock = memo(function DailyDock({
         if (slot.type === '학습시간' || slot.type === '자율학습') {
           // 학습시간/자율학습 슬롯: 플랜과 빈 시간 계산
 
-          // 해당 슬롯 내의 플랜들 (시간순 정렬)
+          // 렌더링용: 필터링된 플랜만 (시간순 정렬)
           const plansInSlot = plans
             .filter(plan => {
               if (!plan.start_time || !plan.end_time) return false;
@@ -332,36 +354,49 @@ export const DailyDock = memo(function DailyDock({
             })
             .sort((a, b) => parseTime(a.start_time!) - parseTime(b.start_time!));
 
-          // 해당 슬롯과 겹치는 nonStudyItems (빈 시간 계산에서 제외해야 함)
-          const nonStudyInSlot = nonStudyItems
-            .filter(ns => {
+          // 빈 시간 계산용: 전체 플랜의 occupied 구간 (parseTime 중복 호출 최적화)
+          const allPlanOccupied = allPlans
+            .reduce<{ start: number; end: number }[]>((acc, plan) => {
+              if (!plan.start_time || !plan.end_time) return acc;
+              const planStart = parseTime(plan.start_time);
+              const planEnd = parseTime(plan.end_time);
+              // 슬롯과 겹치는 플랜만 포함
+              if (planStart < slotEnd && planEnd > slotStart) {
+                acc.push({
+                  start: Math.max(planStart, slotStart),
+                  end: Math.min(planEnd, slotEnd),
+                });
+              }
+              return acc;
+            }, []);
+
+          // 해당 슬롯과 겹치는 nonStudyItems의 occupied 구간 (parseTime 중복 호출 최적화)
+          const nonStudyOccupied = nonStudyItems
+            .reduce<{ start: number; end: number }[]>((acc, ns) => {
               const nsStart = parseTime(ns.start_time);
               const nsEnd = parseTime(ns.end_time);
-              return nsStart < slotEnd && nsEnd > slotStart;
-            })
-            .map(ns => ({
-              start: Math.max(parseTime(ns.start_time), slotStart),
-              end: Math.min(parseTime(ns.end_time), slotEnd),
-            }));
+              if (nsStart < slotEnd && nsEnd > slotStart) {
+                acc.push({
+                  start: Math.max(nsStart, slotStart),
+                  end: Math.min(nsEnd, slotEnd),
+                });
+              }
+              return acc;
+            }, []);
 
-          // 플랜과 nonStudyItems를 합쳐서 "occupied" 구간 생성
-          type OccupiedSlot = { start: number; end: number; plan?: typeof plansInSlot[number] };
-          const occupiedSlots: OccupiedSlot[] = [
-            ...plansInSlot.map(plan => ({
-              start: Math.max(parseTime(plan.start_time!), slotStart),
-              end: Math.min(parseTime(plan.end_time!), slotEnd),
-              plan,
-            })),
-            ...nonStudyInSlot.map(ns => ({ start: ns.start, end: ns.end })),
-          ].sort((a, b) => a.start - b.start);
+          // 빈 시간 계산용: 전체 플랜 + nonStudyItems로 "occupied" 구간 생성
+          // (특정 그룹 필터 시에도 실제 빈 시간만 표시하기 위함)
+          const allOccupiedSlots = [...allPlanOccupied, ...nonStudyOccupied]
+            .sort((a, b) => a.start - b.start);
 
-          // 슬롯 내 시간을 순회하며 플랜과 빈 시간 배치
-          let currentTime = slotStart;
+          // 빈 시간 계산: allOccupiedSlots 기준 (전체 플랜 + 비학습시간)
+          // 특정 그룹 필터 시에도 실제로 비어있는 시간만 빈 시간으로 표시
+          let currentTimeForEmpty = slotStart;
 
-          for (const occupied of occupiedSlots) {
+          for (const occupied of allOccupiedSlots) {
             // occupied 시작 전 빈 시간이 있으면 1시간 단위로 분할하여 추가
-            if (occupied.start > currentTime) {
-              const emptySlots = splitEmptyTimeByHour(currentTime, occupied.start);
+            if (occupied.start > currentTimeForEmpty) {
+              const emptySlots = splitEmptyTimeByHour(currentTimeForEmpty, occupied.start);
               for (const emptySlot of emptySlots) {
                 items.push({
                   kind: 'emptySlot',
@@ -370,22 +405,12 @@ export const DailyDock = memo(function DailyDock({
                 });
               }
             }
-
-            // 플랜인 경우만 추가 (nonStudyItems는 별도로 추가됨)
-            if (occupied.plan) {
-              items.push({
-                kind: 'plan',
-                plan: occupied.plan,
-                sortKey: occupied.start,
-              });
-            }
-
-            currentTime = Math.max(currentTime, occupied.end);
+            currentTimeForEmpty = Math.max(currentTimeForEmpty, occupied.end);
           }
 
           // 슬롯 끝까지 남은 빈 시간을 1시간 단위로 분할하여 추가
-          if (currentTime < slotEnd) {
-            const emptySlots = splitEmptyTimeByHour(currentTime, slotEnd);
+          if (currentTimeForEmpty < slotEnd) {
+            const emptySlots = splitEmptyTimeByHour(currentTimeForEmpty, slotEnd);
             for (const emptySlot of emptySlots) {
               items.push({
                 kind: 'emptySlot',
@@ -393,6 +418,15 @@ export const DailyDock = memo(function DailyDock({
                 sortKey: parseTime(emptySlot.startTime),
               });
             }
+          }
+
+          // 플랜 렌더링: 필터링된 플랜만 추가 (nonStudyItems는 아래에서 별도로 추가됨)
+          for (const plan of plansInSlot) {
+            items.push({
+              kind: 'plan',
+              plan,
+              sortKey: parseTime(plan.start_time!),
+            });
           }
         } else {
           // 비학습시간 슬롯 (점심시간, 학원일정, 이동시간 등)
@@ -707,16 +741,30 @@ export const DailyDock = memo(function DailyDock({
     [plans, adHocPlans]
   );
 
+  // 축소 상태 (가로 아코디언 레이아웃)
+  if (isCollapsed) {
+    return (
+      <CollapsedDockCard
+        type="daily"
+        icon="📦"
+        title="Daily"
+        count={totalCount}
+        completedCount={completedCount}
+        onClick={onExpand ?? (() => {})}
+      />
+    );
+  }
+
   return (
     <DroppableContainer id="daily">
       <div
         className={cn(
-          'bg-blue-50 rounded-lg border border-blue-200',
+          'bg-blue-50 rounded-lg border border-blue-200 h-full flex flex-col',
           isPending && 'opacity-50 pointer-events-none'
         )}
       >
-      {/* 헤더 */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-blue-200">
+      {/* 헤더 (고정) */}
+      <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-blue-200">
         <div className="flex items-center gap-2">
           <span className="text-lg">📦</span>
           <span className="font-medium text-blue-700">Daily Dock</span>
@@ -793,9 +841,9 @@ export const DailyDock = memo(function DailyDock({
         </div>
       </div>
 
-      {/* 보기 토글 */}
+      {/* 보기 토글 (고정) */}
       {nonStudyItems.length > 0 && (
-        <div className="flex items-center justify-end px-4 py-1.5 border-b border-blue-100">
+        <div className="flex-shrink-0 flex items-center justify-end px-4 py-1.5 border-b border-blue-100">
           <div className="flex rounded-md overflow-hidden border border-gray-200 text-xs">
             <button
               onClick={() => handleViewModeChange('all')}
@@ -823,8 +871,8 @@ export const DailyDock = memo(function DailyDock({
         </div>
       )}
 
-      {/* 플랜 목록 */}
-      <div className="p-4">
+      {/* 플랜 목록 (스크롤 영역) */}
+      <div className="flex-1 overflow-y-auto p-4">
         {isLoading ? (
           <div className="space-y-2">
             {SKELETON_ITEMS.map((i) => (

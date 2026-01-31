@@ -46,6 +46,7 @@ import { MarkdownExportModal } from "./MarkdownExportModal";
 import { getTodayInTimezone } from "@/lib/utils/dateUtils";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
 import type { TimeSlot } from "@/lib/types/plan-generation";
+import type { PrefetchedDockData } from "@/lib/domains/admin-plan/actions";
 
 // Context & Tabs
 import { AdminPlanProvider, useAdminPlan } from "./context/AdminPlanContext";
@@ -90,6 +91,8 @@ interface AdminPlanManagementProps {
   plannerCalculatedSchedule?: DailyScheduleInfo[];
   /** 플래너 레벨에서 계산된 시간대별 타임슬롯 */
   plannerDateTimeSlots?: Record<string, TimeSlot[]>;
+  /** SSR 프리페치된 Dock 데이터 (초기 로딩 최적화) */
+  initialDockData?: PrefetchedDockData;
 }
 
 export function AdminPlanManagement(props: AdminPlanManagementProps) {
@@ -106,6 +109,7 @@ export function AdminPlanManagement(props: AdminPlanManagementProps) {
       plannerExclusions={props.plannerExclusions}
       plannerCalculatedSchedule={props.plannerCalculatedSchedule}
       plannerDateTimeSlots={props.plannerDateTimeSlots}
+      initialDockData={props.initialDockData}
     >
       <AdminPlanManagementContent
         autoOpenWizard={props.autoOpenWizard}
