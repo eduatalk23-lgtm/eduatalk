@@ -8,7 +8,6 @@ import {
   useAdminPlanModal,
   type ContentTypeFilter,
 } from "./context/AdminPlanContext";
-import { CarryoverButton } from "./CarryoverButton";
 import { PlanGroupSelector } from "./PlanGroupSelector";
 import type { ShortcutConfig } from "./useKeyboardShortcuts";
 import {
@@ -301,11 +300,6 @@ export function AdminPlanHeader({
               </button>
             </div>
           </div>
-          <CarryoverButton
-            studentId={studentId}
-            tenantId={tenantId}
-            onSuccess={handleRefresh}
-          />
         </div>
       </div>
     </>

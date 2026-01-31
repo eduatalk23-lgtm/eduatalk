@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useTransition, useMemo, memo } from 'react';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { useState, useTransition, useMemo, memo, useCallback } from 'react';
 import { cn } from '@/lib/cn';
 import { DroppableContainer } from './dnd';
 import { BulkRedistributeModal } from './BulkRedistributeModal';
@@ -9,6 +8,9 @@ import { usePlanToast } from './PlanToast';
 import { PlanItemCard, toPlanItemData } from './items';
 import { useUnfinishedDockQuery } from '@/lib/hooks/useAdminDockQueries';
 import { getTodayInTimezone } from '@/lib/utils/dateUtils';
+import { CollapsedDockCard } from './CollapsedDockCard';
+import { ConfirmDialog } from '@/components/ui/Dialog';
+import { movePlanToContainer, deletePlan } from '@/lib/domains/plan/actions/dock';
 import type { ContentTypeFilter } from './AdminPlanManagement';
 import type { PlanStatus } from '@/lib/types/plan';
 
@@ -31,6 +33,12 @@ interface UnfinishedDockProps {
   onRefresh: () => void;
   /** Daily + Unfinished만 새로고침 (Daily로 이동 시 사용) */
   onRefreshDailyAndUnfinished?: () => void;
+  /** SSR 프리페치된 데이터 */
+  initialData?: import('@/lib/query-options/adminDock').UnfinishedPlan[];
+  /** 축소 상태 여부 (가로 아코디언 레이아웃용) */
+  isCollapsed?: boolean;
+  /** 확장 클릭 핸들러 (축소 상태에서만 사용) */
+  onExpand?: () => void;
 }
 
 /**
@@ -52,9 +60,12 @@ export const UnfinishedDock = memo(function UnfinishedDock({
   onStatusChange,
   onRefresh,
   onRefreshDailyAndUnfinished,
+  initialData,
+  isCollapsed = false,
+  onExpand,
 }: UnfinishedDockProps) {
-  // React Query 훅 사용 (캐싱 및 중복 요청 방지)
-  const { plans: allPlans, isLoading, invalidate } = useUnfinishedDockQuery(studentId, plannerId);
+  // React Query 훅 사용 (캐싱 및 중복 요청 방지, SSR 프리페치 데이터 활용)
+  const { plans: allPlans, isLoading } = useUnfinishedDockQuery(studentId, plannerId, initialData);
 
   // 그룹 필터링 적용
   const groupFilteredPlans = useMemo(() => {
@@ -75,6 +86,12 @@ export const UnfinishedDock = memo(function UnfinishedDock({
   const [isPending, startTransition] = useTransition();
   const [showBulkModal, setShowBulkModal] = useState(false);
   const { showToast } = usePlanToast();
+
+  // 삭제 확인 모달 상태
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    open: boolean;
+    planId: string | null;
+  }>({ open: false, planId: null });
 
   // 선택 모드 토글
   const handleToggleSelectionMode = () => {
@@ -97,55 +114,66 @@ export const UnfinishedDock = memo(function UnfinishedDock({
     });
   };
 
-  const handleMoveToDaily = async (planId: string) => {
-    const supabase = createSupabaseBrowserClient();
-    const today = getTodayInTimezone();
-
+  const handleMoveToDaily = useCallback(async (planId: string) => {
     startTransition(async () => {
-      await supabase
-        .from('student_plan')
-        .update({
-          container_type: 'daily',
-          plan_date: today,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', planId);
+      const result = await movePlanToContainer({
+        planId,
+        targetContainer: 'daily',
+        targetDate: getTodayInTimezone(),
+      });
 
-      // 타겟 새로고침: Daily + Unfinished만 (Weekly는 영향 없음)
+      if (!result.success) {
+        showToast(result.error ?? 'Daily 이동 실패', 'error');
+        return;
+      }
+
+      showToast('Daily Dock으로 이동했습니다.', 'success');
       (onRefreshDailyAndUnfinished ?? onRefresh)();
     });
-  };
+  }, [showToast, onRefreshDailyAndUnfinished, onRefresh]);
 
-  const handleMoveToWeekly = async (planId: string) => {
-    const supabase = createSupabaseBrowserClient();
-
+  const handleMoveToWeekly = useCallback(async (planId: string) => {
     startTransition(async () => {
-      await supabase
-        .from('student_plan')
-        .update({
-          container_type: 'weekly',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', planId);
+      const result = await movePlanToContainer({
+        planId,
+        targetContainer: 'weekly',
+      });
 
+      if (!result.success) {
+        showToast(result.error ?? 'Weekly 이동 실패', 'error');
+        return;
+      }
+
+      showToast('Weekly Dock으로 이동했습니다.', 'success');
       onRefresh();
     });
-  };
+  }, [showToast, onRefresh]);
 
-  const handleDelete = async (planId: string) => {
-    if (!confirm('정말 삭제하시겠습니까?')) return;
+  // 삭제 요청 핸들러
+  const handleDeleteRequest = useCallback((planId: string) => {
+    setDeleteConfirm({ open: true, planId });
+  }, []);
 
-    const supabase = createSupabaseBrowserClient();
+  // 삭제 실행 핸들러
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteConfirm.planId) return;
 
     startTransition(async () => {
-      await supabase
-        .from('student_plan')
-        .update({ is_active: false, updated_at: new Date().toISOString() })
-        .eq('id', planId);
+      const result = await deletePlan({
+        planId: deleteConfirm.planId!,
+      });
 
+      if (!result.success) {
+        showToast(result.error ?? '삭제 실패', 'error');
+        setDeleteConfirm({ open: false, planId: null });
+        return;
+      }
+
+      showToast('플랜이 삭제되었습니다.', 'success');
+      setDeleteConfirm({ open: false, planId: null });
       onRefresh();
     });
-  };
+  }, [deleteConfirm.planId, showToast, onRefresh]);
 
   const handleBulkRedistribute = () => {
     if (selectedPlans.size === 0) {
@@ -168,6 +196,20 @@ export const UnfinishedDock = memo(function UnfinishedDock({
       setSelectedPlans(new Set(plans.map((p) => p.id)));
     }
   };
+
+  // 축소 상태 (가로 아코디언 레이아웃)
+  if (isCollapsed) {
+    return (
+      <CollapsedDockCard
+        type="unfinished"
+        icon="⏰"
+        title="밀린 플랜"
+        count={plans.length}
+        completedCount={0}
+        onClick={onExpand ?? (() => {})}
+      />
+    );
+  }
 
   if (isLoading) {
     return (
@@ -198,12 +240,12 @@ export const UnfinishedDock = memo(function UnfinishedDock({
     <DroppableContainer id="unfinished">
       <div
         className={cn(
-          'bg-red-50 rounded-lg border border-red-200',
+          'bg-red-50 rounded-lg border border-red-200 h-full flex flex-col',
           isPending && 'opacity-50 pointer-events-none'
         )}
       >
-        {/* 헤더 */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-red-200">
+        {/* 헤더 (고정) */}
+        <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-red-200">
           <div className="flex items-center gap-2">
             <span className="text-lg">⏰</span>
             <span className="font-medium text-red-700">밀린 플랜</span>
@@ -271,8 +313,8 @@ export const UnfinishedDock = memo(function UnfinishedDock({
           </div>
         </div>
 
-        {/* 플랜 목록 */}
-        <div className="p-4 space-y-2">
+        {/* 플랜 목록 (스크롤 영역) */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {plans.map((plan) => {
             const planData = toPlanItemData(plan, 'plan');
 
@@ -293,7 +335,7 @@ export const UnfinishedDock = memo(function UnfinishedDock({
                 onMoveToGroup={onMoveToGroup ? (id) => onMoveToGroup([id]) : undefined}
                 onCopy={onCopy ? (id) => onCopy([id]) : undefined}
                 onStatusChange={onStatusChange}
-                onDelete={handleDelete}
+                onDelete={handleDeleteRequest}
                 onRefresh={onRefresh}
               />
             );
@@ -311,6 +353,23 @@ export const UnfinishedDock = memo(function UnfinishedDock({
           onSuccess={handleBulkSuccess}
         />
       )}
+
+      {/* 삭제 확인 모달 */}
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteConfirm({ open: false, planId: null });
+          }
+        }}
+        title="플랜 삭제"
+        description="이 플랜을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+        confirmLabel="삭제"
+        cancelLabel="취소"
+        variant="destructive"
+        isLoading={isPending}
+        onConfirm={handleDeleteConfirm}
+      />
     </DroppableContainer>
   );
 });
