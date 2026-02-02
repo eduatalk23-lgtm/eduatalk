@@ -1,12 +1,15 @@
 "use client";
 
-import { createContext, useContext, useEffect, ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, ReactNode } from "react";
 import { useQuery, useQueryClient, queryOptions } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
 import type { CurrentUser } from "@/lib/auth/getCurrentUser";
 import { CACHE_STALE_TIME_STABLE, CACHE_GC_TIME_STABLE } from "@/lib/constants/queryCache";
 import { isApiSuccess } from "@/lib/api";
 import { supabase } from "@/lib/supabase/client";
+
+// 인증 관련 페이지 경로 (로그인/가입 후 리다이렉트 소스)
+const AUTH_PAGES = ["/login", "/signup", "/auth/callback", "/onboarding"];
 
 /**
  * 사용자 정보 조회 쿼리 옵션
@@ -92,6 +95,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const queryClient = useQueryClient();
   const pathname = usePathname();
+  const prevPathnameRef = useRef<string | null>(null);
   const {
     data: user = null,
     isLoading,
@@ -101,17 +105,45 @@ export function AuthProvider({ children }: AuthProviderProps) {
   } = useQuery(authQueryOptions());
 
   // 경로 변경 시 Supabase 세션과 React Query 캐시 동기화
-  // Server Action redirect 후 soft navigation에서 캐시가 stale 상태일 수 있음
+  // Server Action redirect 후 soft navigation에서 쿠키가 즉시 동기화되지 않을 수 있음
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const prevPathname = prevPathnameRef.current;
+    prevPathnameRef.current = pathname;
+
+    // 인증 페이지에서 다른 페이지로 이동한 경우 (로그인/가입 후)
+    const isFromAuthPage = prevPathname && AUTH_PAGES.some((p) => prevPathname.startsWith(p));
+    const isToNonAuthPage = !AUTH_PAGES.some((p) => pathname.startsWith(p));
+
+    // 인증 페이지에서 벗어난 경우, 쿠키 동기화를 위해 지연 후 세션 확인
+    if (isFromAuthPage && isToNonAuthPage) {
+      // 첫 번째 시도: 즉시
+      const checkAndSync = (attempt: number = 1) => {
+        supabase.auth.getUser().then(({ data: { user } }) => {
+          const cachedUser = queryClient.getQueryData(["auth", "me"]);
+
+          if (user && !cachedUser) {
+            // 사용자가 있고 캐시가 없으면 리페치
+            queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+          } else if (!user && attempt < 3) {
+            // 사용자가 아직 없으면 재시도 (쿠키 동기화 대기)
+            setTimeout(() => checkAndSync(attempt + 1), 100 * attempt);
+          }
+        });
+      };
+      checkAndSync();
+      return;
+    }
+
+    // 일반적인 경로 변경: 기존 로직
+    supabase.auth.getUser().then(({ data: { user } }) => {
       const cachedUser = queryClient.getQueryData(["auth", "me"]);
 
-      // 세션이 있는데 캐시가 없거나 null이면 refetch
-      if (session?.user && !cachedUser) {
+      // 사용자가 있는데 캐시가 없거나 null이면 refetch
+      if (user && !cachedUser) {
         queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
       }
-      // 세션이 없는데 캐시가 있으면 캐시 클리어
-      else if (!session?.user && cachedUser) {
+      // 사용자가 없는데 캐시가 있으면 캐시 클리어
+      else if (!user && cachedUser) {
         queryClient.setQueryData(["auth", "me"], null);
       }
     });

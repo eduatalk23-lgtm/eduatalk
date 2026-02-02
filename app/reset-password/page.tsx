@@ -22,20 +22,20 @@ function ResetPasswordContent() {
   const [error, setError] = useState<string | null>(null);
   const [pageState, setPageState] = useState<PageState>("loading");
 
-  // 세션 확인
+  // 사용자 인증 확인
   useEffect(() => {
-    const checkSession = async () => {
+    const checkUser = async () => {
       try {
         const supabase = createSupabaseBrowserClient();
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-        if (sessionError) {
-          console.error("[reset-password] 세션 확인 에러:", sessionError.message);
+        if (userError) {
+          console.error("[reset-password] 사용자 확인 에러:", userError.message);
           setPageState("no_session");
           return;
         }
 
-        if (!session) {
+        if (!user) {
           // URL에서 에러 파라미터 확인 (이메일 링크 만료 등)
           const errorParam = searchParams.get("error");
           const errorCode = searchParams.get("error_code");
@@ -48,15 +48,15 @@ function ResetPasswordContent() {
           return;
         }
 
-        // 세션이 있으면 준비 완료
+        // 사용자가 인증되면 준비 완료
         setPageState("ready");
       } catch (err) {
-        console.error("[reset-password] 세션 확인 실패:", err);
+        console.error("[reset-password] 사용자 확인 실패:", err);
         setPageState("no_session");
       }
     };
 
-    checkSession();
+    checkUser();
   }, [searchParams]);
 
   const validatePassword = () => {
