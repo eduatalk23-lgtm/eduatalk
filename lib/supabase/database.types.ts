@@ -2165,6 +2165,93 @@ export type Database = {
           },
         ]
       }
+      family_groups: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          family_name: string | null
+          id: string
+          notes: string | null
+          primary_contact_parent_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          family_name?: string | null
+          id?: string
+          notes?: string | null
+          primary_contact_parent_id?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          family_name?: string | null
+          id?: string
+          notes?: string | null
+          primary_contact_parent_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_groups_primary_contact_parent_id_fkey"
+            columns: ["primary_contact_parent_id"]
+            isOneToOne: false
+            referencedRelation: "parent_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "family_groups_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      family_parent_memberships: {
+        Row: {
+          created_at: string
+          family_id: string
+          id: string
+          parent_id: string
+          role: string
+        }
+        Insert: {
+          created_at?: string
+          family_id: string
+          id?: string
+          parent_id: string
+          role?: string
+        }
+        Update: {
+          created_at?: string
+          family_id?: string
+          id?: string
+          parent_id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_parent_memberships_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "family_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "family_parent_memberships_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "parent_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       flexible_contents: {
         Row: {
           archived_at: string | null
@@ -3522,21 +3609,34 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          phone: string | null
+          primary_family_id: string | null
           tenant_id: string
         }
         Insert: {
           created_at?: string
           id: string
           name: string
+          phone?: string | null
+          primary_family_id?: string | null
           tenant_id: string
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
+          phone?: string | null
+          primary_family_id?: string | null
           tenant_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "parent_users_primary_family_id_fkey"
+            columns: ["primary_family_id"]
+            isOneToOne: false
+            referencedRelation: "family_groups"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "parent_users_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -4861,6 +4961,120 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      planner_daily_overrides: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          end_time_override: string | null
+          id: string
+          is_disabled: boolean | null
+          override_date: string
+          override_type: string
+          planner_id: string
+          reason: string | null
+          source_academy_id: string | null
+          source_index: number | null
+          start_time_override: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          end_time_override?: string | null
+          id?: string
+          is_disabled?: boolean | null
+          override_date: string
+          override_type: string
+          planner_id: string
+          reason?: string | null
+          source_academy_id?: string | null
+          source_index?: number | null
+          start_time_override?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          end_time_override?: string | null
+          id?: string
+          is_disabled?: boolean | null
+          override_date?: string
+          override_type?: string
+          planner_id?: string
+          reason?: string | null
+          source_academy_id?: string | null
+          source_index?: number | null
+          start_time_override?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planner_daily_overrides_planner_id_fkey"
+            columns: ["planner_id"]
+            isOneToOne: false
+            referencedRelation: "planners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planner_daily_overrides_source_academy_id_fkey"
+            columns: ["source_academy_id"]
+            isOneToOne: false
+            referencedRelation: "academies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      planner_exclusion_overrides: {
+        Row: {
+          created_at: string
+          exclusion_date: string
+          exclusion_type: string | null
+          id: string
+          override_type: string
+          plan_group_id: string | null
+          planner_id: string | null
+          reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          exclusion_date: string
+          exclusion_type?: string | null
+          id?: string
+          override_type: string
+          plan_group_id?: string | null
+          planner_id?: string | null
+          reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          exclusion_date?: string
+          exclusion_type?: string | null
+          id?: string
+          override_type?: string
+          plan_group_id?: string | null
+          planner_id?: string | null
+          reason?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planner_exclusion_overrides_plan_group_id_fkey"
+            columns: ["plan_group_id"]
+            isOneToOne: false
+            referencedRelation: "plan_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planner_exclusion_overrides_planner_id_fkey"
+            columns: ["planner_id"]
+            isOneToOne: false
+            referencedRelation: "planners"
             referencedColumns: ["id"]
           },
         ]
@@ -7564,12 +7778,15 @@ export type Database = {
           created_at: string | null
           division: string | null
           enrolled_at: string | null
+          family_id: string | null
           grade: number | null
           id: string
           is_active: boolean
           memo: string | null
           name: string
+          phone: string | null
           school_id: string | null
+          school_name: string | null
           school_type: string | null
           status: string | null
           student_number: string | null
@@ -7583,12 +7800,15 @@ export type Database = {
           created_at?: string | null
           division?: string | null
           enrolled_at?: string | null
+          family_id?: string | null
           grade?: number | null
           id?: string
           is_active?: boolean
           memo?: string | null
           name: string
+          phone?: string | null
           school_id?: string | null
+          school_name?: string | null
           school_type?: string | null
           status?: string | null
           student_number?: string | null
@@ -7602,12 +7822,15 @@ export type Database = {
           created_at?: string | null
           division?: string | null
           enrolled_at?: string | null
+          family_id?: string | null
           grade?: number | null
           id?: string
           is_active?: boolean
           memo?: string | null
           name?: string
+          phone?: string | null
           school_id?: string | null
+          school_name?: string | null
           school_type?: string | null
           status?: string | null
           student_number?: string | null
@@ -7620,6 +7843,13 @@ export type Database = {
             columns: ["active_block_set_id"]
             isOneToOne: false
             referencedRelation: "student_block_sets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "students_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "family_groups"
             referencedColumns: ["id"]
           },
           {
@@ -9281,6 +9511,10 @@ export type Database = {
         }
       }
       expire_old_invitations: { Args: never; Returns: undefined }
+      extract_school_id_number: {
+        Args: { school_id_str: string }
+        Returns: number
+      }
       find_existing_members_batch: {
         Args: {
           p_member_ids: string[]
@@ -9359,6 +9593,13 @@ export type Database = {
           content_type: string
           queue_id: string
           request_context: Json
+        }[]
+      }
+      get_plan_group_counts: {
+        Args: { p_planner_ids: string[] }
+        Returns: {
+          group_count: number
+          planner_id: string
         }[]
       }
       get_senders_by_ids: {
@@ -9551,4 +9792,3 @@ export const Constants = {
     },
   },
 } as const
-
