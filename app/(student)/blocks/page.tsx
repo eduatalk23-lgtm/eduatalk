@@ -24,10 +24,13 @@ export default async function BlocksPage() {
     console.error("학생 정보 조회 실패:", studentError);
   }
 
-  // 블록 세트 목록 조회
-  const { data: blockSetsData, error: blockSetsError } = await supabase
+  // 블록 세트와 블록을 조인하여 한 번에 조회 (N+1 쿼리 방지)
+  const { data: blockSetsWithBlocks, error: blockSetsError } = await supabase
     .from("student_block_sets")
-    .select("id, name, description, display_order")
+    .select(`
+      id, name, description, display_order,
+      student_block_schedule(id, day_of_week, start_time, end_time)
+    `)
     .eq("student_id", user.id)
     .order("display_order", { ascending: true })
     .order("created_at", { ascending: true });
@@ -36,25 +39,37 @@ export default async function BlocksPage() {
     console.error("블록 세트 조회 실패:", blockSetsError);
   }
 
-  // 각 블록 세트의 시간 블록 조회
-  const blockSets = blockSetsData
-    ? await Promise.all(
-        blockSetsData.map(async (set) => {
-          const { data: blocks } = await supabase
-            .from("student_block_schedule")
-            .select("id, day_of_week, start_time, end_time")
-            .eq("block_set_id", set.id)
-            .eq("student_id", user.id)
-            .order("day_of_week", { ascending: true })
-            .order("start_time", { ascending: true });
+  // 조인 데이터를 기존 형식으로 변환
+  type BlockSetWithSchedule = {
+    id: string;
+    name: string;
+    description: string | null;
+    display_order: number;
+    student_block_schedule: Array<{
+      id: string;
+      day_of_week: number;
+      start_time: string;
+      end_time: string;
+    }> | null;
+  };
 
-          return {
-            ...set,
-            blocks: (blocks as Array<{ id: string; day_of_week: number; start_time: string; end_time: string }>) ?? [],
-          };
-        })
-      )
-    : [];
+  const blockSets = (blockSetsWithBlocks as BlockSetWithSchedule[] | null)?.map((set) => {
+    // 블록을 요일, 시작 시간 순으로 정렬
+    const sortedBlocks = (set.student_block_schedule ?? []).sort((a, b) => {
+      if (a.day_of_week !== b.day_of_week) {
+        return a.day_of_week - b.day_of_week;
+      }
+      return a.start_time.localeCompare(b.start_time);
+    });
+
+    return {
+      id: set.id,
+      name: set.name,
+      description: set.description,
+      display_order: set.display_order,
+      blocks: sortedBlocks,
+    };
+  }) ?? [];
 
   // 활성 세트 결정
   let activeSetId: string | null = student?.active_block_set_id ?? null;
