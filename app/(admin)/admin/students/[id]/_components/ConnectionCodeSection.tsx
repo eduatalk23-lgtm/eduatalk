@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Button from "@/components/atoms/Button";
-import { Copy, RefreshCw } from "lucide-react";
+import { Copy, RefreshCw, Link2, ExternalLink } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   regenerateConnectionCode,
@@ -52,8 +52,28 @@ export function ConnectionCodeSection({ studentId }: ConnectionCodeSectionProps)
     try {
       await navigator.clipboard.writeText(connectionCode.connection_code);
       showSuccess("연결 코드가 클립보드에 복사되었습니다.");
-    } catch (error) {
+    } catch {
       showError("연결 코드 복사에 실패했습니다.");
+    }
+  };
+
+  // 로그인/회원가입 URL 생성 (로그인 페이지 기준)
+  const getLoginUrl = () => {
+    if (!connectionCode?.connection_code) return "";
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+    return `${baseUrl}/login?code=${connectionCode.connection_code}`;
+  };
+
+  // URL 복사
+  const handleCopyUrl = async () => {
+    const url = getLoginUrl();
+    if (!url) return;
+
+    try {
+      await navigator.clipboard.writeText(url);
+      showSuccess("가입 URL이 클립보드에 복사되었습니다.");
+    } catch {
+      showError("URL 복사에 실패했습니다.");
     }
   };
 
@@ -108,32 +128,69 @@ export function ConnectionCodeSection({ studentId }: ConnectionCodeSectionProps)
         </div>
 
         {connectionCode && !isUsed && !isExpired ? (
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <div className="flex-1 p-3 bg-white border rounded-lg font-mono text-lg">
-                {connectionCode.connection_code}
+          <div className="flex flex-col gap-4">
+            {/* 연결 코드 */}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-gray-700">연결 코드</label>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 p-3 bg-white border rounded-lg font-mono text-lg">
+                  {connectionCode.connection_code}
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={handleCopy}
+                  className="flex items-center gap-2"
+                >
+                  <Copy size={16} />
+                  복사
+                </Button>
+              </div>
+            </div>
+
+            {/* 가입 URL */}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-gray-700">가입 URL</label>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 p-3 bg-white border rounded-lg text-sm text-gray-600 truncate">
+                  {getLoginUrl()}
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={handleCopyUrl}
+                  className="flex items-center gap-2"
+                >
+                  <Link2 size={16} />
+                  복사
+                </Button>
+                <a
+                  href={getLoginUrl()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  <ExternalLink size={16} />
+                  열기
+                </a>
+              </div>
+              <p className="text-xs text-gray-500">
+                이 URL을 학생이나 학부모에게 공유하면 로그인/회원가입 시 연결 코드가 자동으로 적용됩니다.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t">
+              <div className="text-sm text-gray-600">
+                만료일: {new Date(connectionCode.expires_at).toLocaleDateString("ko-KR")}
               </div>
               <Button
                 variant="outline"
-                onClick={handleCopy}
+                onClick={handleRegenerate}
+                isLoading={isRegenerating}
                 className="flex items-center gap-2"
               >
-                <Copy size={16} />
-                복사
+                <RefreshCw size={16} />
+                재발급
               </Button>
             </div>
-            <div className="text-sm text-gray-600">
-              만료일: {new Date(connectionCode.expires_at).toLocaleDateString("ko-KR")}
-            </div>
-            <Button
-              variant="outline"
-              onClick={handleRegenerate}
-              isLoading={isRegenerating}
-              className="flex items-center gap-2 w-fit"
-            >
-              <RefreshCw size={16} />
-              재발급
-            </Button>
           </div>
         ) : (
           <div className="flex flex-col gap-3">

@@ -34,12 +34,16 @@ import { ConsultingNotesSectionSkeleton } from "./_components/ConsultingNotesSec
 import { ParentLinksSection } from "./_components/ParentLinksSection";
 import { ParentLinksSectionSkeleton } from "./_components/ParentLinksSectionSkeleton";
 import { ConnectionCodeSection } from "./_components/ConnectionCodeSection";
+import { FamilySection } from "./_components/FamilySection";
+import { FamilySectionSkeleton } from "./_components/FamilySectionSkeleton";
+import { TimeManagementSection } from "./_components/time-management/TimeManagementSection";
+import { TimeManagementSectionSkeleton } from "./_components/time-management/TimeManagementSectionSkeleton";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
 >;
 
-type TabType = "basic" | "plan" | "content" | "score" | "session" | "analysis" | "consulting" | "attendance";
+type TabType = "basic" | "plan" | "content" | "score" | "session" | "analysis" | "consulting" | "attendance" | "time";
 
 export default async function AdminStudentDetailPage({
   params,
@@ -72,7 +76,7 @@ export default async function AdminStudentDetailPage({
   const [studentResult, profileResult, careerGoalResult] = await Promise.all([
     supabase
       .from("students")
-      .select("id,name,grade,class,birth_date,school_id,school_type,division,memo,status,is_active,created_at,updated_at")
+      .select("id,name,grade,class,birth_date,school_id,school_name,school_type,division,memo,status,is_active,created_at,updated_at")
       .eq("id", studentId)
       .maybeSingle(),
     adminClient
@@ -109,6 +113,7 @@ export default async function AdminStudentDetailPage({
     class: student.class,
     birth_date: student.birth_date,
     school_id: student.school_id,
+    school_name: student.school_name,
     school_type: student.school_type as "MIDDLE" | "HIGH" | "UNIVERSITY" | null,
     division: student.division as "고등부" | "중등부" | "기타" | null,
     memo: student.memo ?? null,
@@ -160,6 +165,9 @@ export default async function AdminStudentDetailPage({
                 isAdmin={role === "admin"}
                 studentEmail={email}
               />
+              <Suspense fallback={<FamilySectionSkeleton />}>
+                <FamilySection studentId={studentId} />
+              </Suspense>
               <Suspense fallback={<ParentLinksSectionSkeleton />}>
                 <ParentLinksSection studentId={studentId} />
               </Suspense>
@@ -230,6 +238,13 @@ export default async function AdminStudentDetailPage({
                 studentId={studentId}
                 studentName={student.name}
               />
+            </Suspense>
+          </TabContent>
+
+          {/* 시간관리 탭 */}
+          <TabContent tab="time">
+            <Suspense fallback={<TimeManagementSectionSkeleton />}>
+              <TimeManagementSection studentId={studentId} />
             </Suspense>
           </TabContent>
         </StudentDetailTabs>

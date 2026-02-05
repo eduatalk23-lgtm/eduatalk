@@ -1,16 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { useController, type Control } from "react-hook-form";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
 import SchoolSelect from "@/components/ui/SchoolSelect";
 import type { AdminStudentFormData } from "../../_types/studentFormTypes";
 import { STUDENT_DIVISIONS } from "@/lib/constants/students";
-import { GENDER_OPTIONS } from "@/lib/utils/studentProfile";
 
 type BasicInfoSectionProps = {
   control: Control<AdminStudentFormData>;
   schoolType?: "중학교" | "고등학교" | undefined;
   setSchoolType: (type: "중학교" | "고등학교" | undefined) => void;
+  displaySchoolName?: string | null;
 };
 
 const STATUS_OPTIONS = [
@@ -24,7 +25,9 @@ export default function BasicInfoSection({
   control,
   schoolType,
   setSchoolType,
+  displaySchoolName,
 }: BasicInfoSectionProps) {
+  const [isEditingSchool, setIsEditingSchool] = useState(false);
   const nameField = useController({
     name: "name",
     control,
@@ -71,12 +74,18 @@ export default function BasicInfoSection({
     control,
   });
 
+  // 현재 표시할 학교명 (선택된 학교가 있으면 그것, 없으면 displaySchoolName)
+  const [selectedSchoolName, setSelectedSchoolName] = useState<string | null>(null);
+  const currentSchoolName = selectedSchoolName ?? displaySchoolName;
+
   const handleSchoolSelect = async (school: {
     id: string;
     name: string;
     type?: "중학교" | "고등학교" | "대학교" | null;
   }) => {
     schoolIdField.field.onChange(school.id || "");
+    setSelectedSchoolName(school.name);
+    setIsEditingSchool(false);
     if (school.type === "중학교" || school.type === "고등학교") {
       setSchoolType(school.type);
     } else {
@@ -100,12 +109,36 @@ export default function BasicInfoSection({
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               학교
             </label>
-            <SchoolSelect
-              value={schoolIdField.field.value}
-              onChange={schoolIdField.field.onChange}
-              onSchoolSelect={handleSchoolSelect}
-              placeholder="학교를 검색하세요"
-            />
+            {isEditingSchool ? (
+              <div className="space-y-2">
+                <SchoolSelect
+                  value={schoolIdField.field.value}
+                  onChange={schoolIdField.field.onChange}
+                  onSchoolSelect={handleSchoolSelect}
+                  placeholder="학교를 검색하세요"
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsEditingSchool(false)}
+                  className="text-sm text-gray-500 hover:text-gray-700"
+                >
+                  취소
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-gray-900">
+                  {currentSchoolName || "학교 미등록"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingSchool(true)}
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  변경
+                </button>
+              </div>
+            )}
           </div>
 
           <FormField

@@ -2,6 +2,7 @@
 
 import { requireParent } from "@/lib/auth/guards";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { extractJoinResult } from "@/lib/supabase/queryHelpers";
 import { revalidatePath } from "next/cache";
 import { getAutoApproveSettings } from "@/lib/domains/tenant";
@@ -132,7 +133,7 @@ async function _createLinkRequest(
     );
   }
 
-  // relation 값 검증
+  // relation 값 검증 및 매핑 ("other"는 "guardian"으로 매핑)
   const validRelations: ParentRelation[] = ["father", "mother", "guardian", "other"];
   if (!validRelations.includes(relation)) {
     throw new AppError(
@@ -142,6 +143,8 @@ async function _createLinkRequest(
       true
     );
   }
+  // DB 제약조건은 'father', 'mother', 'guardian'만 허용하므로 "other"를 "guardian"으로 매핑
+  const dbRelation = relation === "other" ? "guardian" : relation;
 
   const supabase = await createSupabaseServerClient();
 
@@ -183,8 +186,20 @@ async function _createLinkRequest(
   }
 
   // 자동 승인 로직: 학생과 학부모의 tenant_id 조회 (병렬 처리)
+  // 학생 조회는 RLS를 우회해야 하므로 admin client 사용
+  const adminClient = createSupabaseAdminClient();
+
+  if (!adminClient) {
+    throw new AppError(
+      "서버 설정 오류가 발생했습니다.",
+      ErrorCode.CONFIGURATION_ERROR,
+      500,
+      true
+    );
+  }
+
   const [studentResult, parentResult] = await Promise.all([
-    supabase
+    adminClient
       .from("students")
       .select("tenant_id")
       .eq("id", studentId)
@@ -236,18 +251,30 @@ async function _createLinkRequest(
     }
   }
 
+  // tenant_id 검증 (학생의 tenant_id 사용)
+  if (!student?.tenant_id) {
+    throw new AppError(
+      "학생 정보를 찾을 수 없습니다.",
+      ErrorCode.NOT_FOUND,
+      404,
+      true
+    );
+  }
+
   // 연결 요청 생성 (자동 승인 조건 만족 시 is_approved: true)
   const insertData: {
     student_id: string;
     parent_id: string;
     relation: string;
     is_approved: boolean;
+    tenant_id: string;
     approved_at?: string;
   } = {
     student_id: studentId,
     parent_id: parentId,
-    relation: relation,
+    relation: dbRelation,
     is_approved: shouldAutoApprove,
+    tenant_id: student.tenant_id,
   };
 
   if (shouldAutoApprove) {

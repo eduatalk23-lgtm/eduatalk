@@ -104,10 +104,10 @@ export function AdminCreateChatModal({
     queryFn: async () => {
       const supabase = createSupabaseBrowserClient();
 
-      // 1. 학생 기본 정보 조회
+      // 1. 학생 기본 정보 조회 (school_name 비정규화 컬럼 사용)
       const { data: studentsData, error: studentsError } = await supabase
         .from("students")
-        .select("id, name, grade, school_type, school_id")
+        .select("id, name, grade, school_type, school_name")
         .order("name");
 
       if (studentsError) throw studentsError;
@@ -120,26 +120,9 @@ export function AdminCreateChatModal({
         .select("id, phone")
         .in("id", studentIds);
 
-      // 3. 학교 정보 조회
-      const schoolIds = [
-        ...new Set(
-          studentsData.map((s) => s.school_id).filter(Boolean) as string[]
-        ),
-      ];
-      const { data: schoolsData } =
-        schoolIds.length > 0
-          ? await supabase
-              .from("all_schools_view")
-              .select("id, name")
-              .in("id", schoolIds)
-          : { data: [] };
-
-      // 4. 데이터 병합
+      // 3. 데이터 병합 (school_name은 비정규화 컬럼으로 직접 사용)
       const profilesMap = new Map(
         profilesData?.map((p) => [p.id, p.phone]) || []
-      );
-      const schoolsMap = new Map(
-        schoolsData?.map((s) => [s.id, s.name]) || []
       );
 
       return studentsData.map((student) => ({
@@ -147,9 +130,7 @@ export function AdminCreateChatModal({
         name: student.name,
         grade: student.grade,
         school_type: student.school_type,
-        school_name: student.school_id
-          ? (schoolsMap.get(student.school_id) ?? null)
-          : null,
+        school_name: student.school_name,
         phone: profilesMap.get(student.id) ?? null,
       })) as Student[];
     },

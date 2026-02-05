@@ -34,6 +34,7 @@ export type StudentInfoData = {
   class?: string | null;
   birth_date?: string | null;
   school_id?: string | null;
+  school_name?: string | null;
   school_type?: "MIDDLE" | "HIGH" | "UNIVERSITY" | null;
   division?: "고등부" | "중등부" | "기타" | null;
   memo?: string | null;

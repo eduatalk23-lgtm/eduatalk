@@ -128,6 +128,7 @@ export default function StudentInfoEditForm({
                 control={control}
                 schoolType={schoolType}
                 setSchoolType={setSchoolType}
+                displaySchoolName={initialData?.school_name}
               />
             </div>
 

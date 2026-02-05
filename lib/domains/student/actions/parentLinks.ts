@@ -762,7 +762,7 @@ export async function approveLinkRequest(
     // 먼저 요청 존재 여부 확인
     const { data: link, error: fetchError } = await supabase
       .from("parent_student_links")
-      .select("id, student_id, is_approved")
+      .select("id, student_id, parent_id, relation, is_approved")
       .eq("id", linkId)
       .maybeSingle();
 
@@ -822,8 +822,22 @@ export async function approveLinkRequest(
       };
     }
 
+    // 가족 통합 처리 (형제자매 자동 감지)
+    try {
+      const { handleParentLinkApproval } = await import("@/lib/domains/family");
+      await handleParentLinkApproval(link.parent_id, link.student_id, link.relation);
+    } catch (familyError) {
+      // 가족 통합 실패는 연결 승인에 영향을 주지 않음
+      logActionError(
+        { domain: "student", action: "approveLinkRequest" },
+        familyError,
+        { linkId, context: "가족 통합 처리 실패 (무시됨)" }
+      );
+    }
+
     revalidatePath("/admin/parent-links");
     revalidatePath(`/admin/students/${link.student_id}`);
+    revalidatePath("/admin/families");
 
     return { success: true };
   } catch (error) {
