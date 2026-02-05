@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { getTenantlessUsers } from "@/lib/domains/superadmin";
+import { getTenantlessUsers, getIncompleteSignupUsers } from "@/lib/domains/superadmin";
 import { TenantlessUsersList } from "./_components/TenantlessUsersList";
+import { IncompleteSignupUsersList } from "./_components/IncompleteSignupUsersList";
 import Link from "next/link";
 import { isErrorResponse } from "@/lib/types/actionResponse";
 
@@ -24,8 +25,13 @@ export default async function TenantlessUsersPage({
   const page = parseInt(params.page || "1", 10);
   const pageSize = 20;
 
-  // 테넌트 미할당 사용자 조회
-  const result = await getTenantlessUsers(userTypeFilter === "all" ? undefined : userTypeFilter);
+  // 테넌트 미할당 사용자 & 미완료 가입 사용자 조회 (병렬)
+  const [result, incompleteResult] = await Promise.all([
+    getTenantlessUsers(userTypeFilter === "all" ? undefined : userTypeFilter),
+    getIncompleteSignupUsers(),
+  ]);
+
+  const incompleteUsers = incompleteResult.success ? incompleteResult.data || [] : [];
 
   if (!result.success || !result.data) {
     return (
@@ -104,9 +110,9 @@ export default async function TenantlessUsersPage({
         </div>
 
         {/* 통계 */}
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-5">
           <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm flex flex-col gap-2">
-            <div className="text-sm font-medium text-gray-500">전체 사용자</div>
+            <div className="text-sm font-medium text-gray-500">테넌트 미할당</div>
             <div className="text-3xl font-bold text-gray-900">{stats.total}</div>
           </div>
           <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm flex flex-col gap-2">
@@ -121,9 +127,29 @@ export default async function TenantlessUsersPage({
             <div className="text-sm font-medium text-gray-500">관리자</div>
             <div className="text-3xl font-bold text-indigo-600">{stats.admins}</div>
           </div>
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-6 shadow-sm flex flex-col gap-2">
+            <div className="text-sm font-medium text-amber-700">미완료 가입</div>
+            <div className="text-3xl font-bold text-amber-600">{incompleteUsers.length}</div>
+          </div>
         </div>
 
-        {/* 사용자 목록 */}
+        {/* 미완료 가입 사용자 목록 */}
+        {incompleteUsers.length > 0 && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-6 shadow-sm flex flex-col gap-4">
+            <div className="flex items-center gap-2">
+              <svg className="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <h2 className="text-lg font-semibold text-amber-900">미완료 가입 사용자</h2>
+            </div>
+            <p className="text-sm text-amber-700">
+              가입 절차를 완료하지 않은 사용자입니다. 역할 선택을 완료하지 않아 서비스를 이용할 수 없는 상태입니다.
+            </p>
+            <IncompleteSignupUsersList users={incompleteUsers} />
+          </div>
+        )}
+
+        {/* 테넌트 미할당 사용자 목록 */}
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm flex flex-col gap-4">
           <h2 className="text-lg font-semibold text-gray-900">테넌트 미할당 사용자 목록</h2>
           <TenantlessUsersList

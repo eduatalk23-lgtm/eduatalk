@@ -12,6 +12,12 @@ export {
   getActiveTenants,
 } from "./tenantlessUsers";
 
+// Incomplete Signup Users Actions
+export {
+  getIncompleteSignupUsers,
+  deleteIncompleteSignupUser,
+} from "./incompleteSignupUsers";
+
 // Curriculum Settings Actions
 export { getCurriculumSettings, updateCurriculumSettings } from "./curriculumSettings";
 

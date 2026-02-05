@@ -30,6 +30,19 @@ export type Tenant = {
 };
 
 // ============================================================================
+// Incomplete Signup Users Types
+// ============================================================================
+
+export type IncompleteSignupUser = {
+  id: string;
+  email: string;
+  name: string | null;
+  provider: string | null;
+  signupRole: string | null;
+  created_at: string;
+};
+
+// ============================================================================
 // Curriculum Settings Types
 // ============================================================================
 

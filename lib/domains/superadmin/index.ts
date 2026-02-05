@@ -12,6 +12,7 @@ export type {
   UserType,
   TenantAssignment,
   Tenant,
+  IncompleteSignupUser,
   CurriculumSetting,
   CurriculumSettingsData,
   TermsContentType,
@@ -26,6 +27,9 @@ export {
   assignTenantToUser,
   assignTenantToMultipleUsers,
   getActiveTenants,
+  // Incomplete Signup Users
+  getIncompleteSignupUsers,
+  deleteIncompleteSignupUser,
   // Curriculum Settings
   getCurriculumSettings,
   updateCurriculumSettings,
