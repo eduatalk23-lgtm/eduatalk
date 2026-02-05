@@ -92,6 +92,7 @@ export interface NonStudyTimeBlock {
   start_time: string;  // HH:mm format
   end_time: string;    // HH:mm format
   day_of_week?: number[];  // 0-6 (일-토), 비어있으면 매일
+  specific_dates?: string[];  // 특정 날짜 지정 (YYYY-MM-DD)
   description?: string;
 }
 

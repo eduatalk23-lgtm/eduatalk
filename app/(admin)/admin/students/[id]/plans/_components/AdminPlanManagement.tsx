@@ -46,12 +46,12 @@ import { MarkdownExportModal } from "./MarkdownExportModal";
 import { getTodayInTimezone } from "@/lib/utils/dateUtils";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
 import type { TimeSlot } from "@/lib/types/plan-generation";
-import type { PrefetchedDockData } from "@/lib/domains/admin-plan/actions";
+import type { PrefetchedDockData, Planner } from "@/lib/domains/admin-plan/actions";
 
 // Context & Tabs
-import { AdminPlanProvider, useAdminPlan } from "./context/AdminPlanContext";
+import { AdminPlanProvider, useAdminPlan, type ViewMode } from "./context/AdminPlanContext";
 import { AdminPlanTabs, TabContent } from "./AdminPlanTabs";
-import { PlannerTab, AnalyticsTab, ProgressTab, HistoryTab } from "./tabs";
+import { PlannerTab, SettingsTab, AnalyticsTab, ProgressTab, HistoryTab } from "./tabs";
 
 // Components
 import { AdminPlanHeader } from "./AdminPlanHeader";
@@ -93,6 +93,12 @@ interface AdminPlanManagementProps {
   plannerDateTimeSlots?: Record<string, TimeSlot[]>;
   /** SSR 프리페치된 Dock 데이터 (초기 로딩 최적화) */
   initialDockData?: PrefetchedDockData;
+  /** 뷰 모드 (admin: 관리자, student: 학생) */
+  viewMode?: ViewMode;
+  /** 현재 사용자 ID (권한 확인용) */
+  currentUserId?: string;
+  /** 선택된 플래너 데이터 (권한 확인용) */
+  selectedPlanner?: Planner | null;
 }
 
 export function AdminPlanManagement(props: AdminPlanManagementProps) {
@@ -110,6 +116,9 @@ export function AdminPlanManagement(props: AdminPlanManagementProps) {
       plannerCalculatedSchedule={props.plannerCalculatedSchedule}
       plannerDateTimeSlots={props.plannerDateTimeSlots}
       initialDockData={props.initialDockData}
+      viewMode={props.viewMode}
+      currentUserId={props.currentUserId}
+      selectedPlanner={props.selectedPlanner}
     >
       <AdminPlanManagementContent
         autoOpenWizard={props.autoOpenWizard}
@@ -443,6 +452,9 @@ function AdminPlanManagementContent({
           <AdminPlanTabs>
             <TabContent tab="planner">
               <PlannerTab tab="planner" />
+            </TabContent>
+            <TabContent tab="settings">
+              <SettingsTab tab="settings" />
             </TabContent>
             <TabContent tab="analytics">
               <AnalyticsTab tab="analytics" />

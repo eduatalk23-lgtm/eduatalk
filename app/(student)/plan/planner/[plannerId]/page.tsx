@@ -1,48 +1,56 @@
 import { Suspense } from 'react';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
+import { getCurrentUser } from '@/lib/auth/getCurrentUser';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { getPlannerAction, prefetchAllDockData } from '@/lib/domains/admin-plan/actions';
-import { AdminPlanManagement } from '../_components/AdminPlanManagement';
-import { AdminPlanManagementSkeleton } from '../_components/AdminPlanManagementSkeleton';
-import { PlannerHeader } from '../_components/PlannerHeader';
+import { AdminPlanManagement } from '@/app/(admin)/admin/students/[id]/plans/_components/AdminPlanManagement';
+import { AdminPlanManagementSkeleton } from '@/app/(admin)/admin/students/[id]/plans/_components/AdminPlanManagementSkeleton';
+import { StudentPlannerHeader } from '../_components/StudentPlannerHeader';
 import { getTodayInTimezone } from '@/lib/utils/dateUtils';
 import { generateScheduleForPlanner } from '@/lib/domains/admin-plan/actions/planCreation/scheduleGenerator';
 import type { DailyScheduleInfo } from '@/lib/types/plan';
 import type { TimeSlot } from '@/lib/types/plan-generation';
 
 interface Props {
-  params: Promise<{ id: string; plannerId: string }>;
+  params: Promise<{ plannerId: string }>;
   searchParams: Promise<{ date?: string; openWizard?: string }>;
 }
 
-async function getStudentInfo(studentId: string) {
+async function getStudentName(studentId: string): Promise<string> {
   const supabase = await createSupabaseServerClient();
-
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from('students')
-    .select('id, name, tenant_id')
+    .select('name')
     .eq('id', studentId)
     .single();
 
-  if (error || !data) {
-    return null;
-  }
-
-  return data;
+  return data?.name ?? '학생';
 }
 
-export default async function PlannerPlanManagementPage({
+/**
+ * 학생용 플래너 상세 페이지
+ * - 학생 자신의 플래너에 대한 플랜 관리
+ * - viewMode="student"로 Admin 전용 기능 숨김
+ */
+export default async function StudentPlannerDetailPage({
   params,
   searchParams,
 }: Props) {
-  const { id: studentId, plannerId } = await params;
+  const { plannerId } = await params;
   const { date, openWizard } = await searchParams;
 
-  // 1. 학생 정보 조회
-  const student = await getStudentInfo(studentId);
-  if (!student) {
-    notFound();
+  // 1. 현재 사용자 확인
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect('/login');
   }
+
+  if (user.role !== 'student') {
+    redirect('/dashboard');
+  }
+
+  const studentId = user.userId;
+  const studentName = await getStudentName(studentId);
 
   // 2. 플래너 조회 (관계 데이터 포함)
   const planner = await getPlannerAction(plannerId, true);
@@ -70,11 +78,10 @@ export default async function PlannerPlanManagementPage({
       plannerCalculatedSchedule = scheduleResult.dailySchedule.map((d) => ({
         date: d.date,
         day_type: d.day_type as DailyScheduleInfo['day_type'],
-        study_hours: 0, // 계산된 스케줄에서는 기본값 사용
+        study_hours: 0,
         week_number: d.week_number ?? undefined,
         cycle_day_number: d.cycle_day_number ?? undefined,
       }));
-      // Map을 Object로 변환 (Server→Client 직렬화)
       plannerDateTimeSlots = Object.fromEntries(scheduleResult.dateTimeSlots);
     }
   }
@@ -102,7 +109,7 @@ export default async function PlannerPlanManagementPage({
   // 현재 플래너의 활성 플랜 그룹 ID 추출
   const activePlanGroupId = plannerGroups?.find(g => g.status === 'active')?.id ?? null;
 
-  // daily_schedule 추출 (여러 그룹이 있을 수 있음)
+  // daily_schedule 추출
   const plannerDailySchedules: DailyScheduleInfo[][] = (plannerGroups ?? [])
     .map((g) => g.daily_schedule as DailyScheduleInfo[] | null)
     .filter((s): s is DailyScheduleInfo[] => Array.isArray(s) && s.length > 0);
@@ -119,19 +126,15 @@ export default async function PlannerPlanManagementPage({
 
   return (
     <div className="container mx-auto py-6 px-4">
-      {/* 플래너 헤더: 뒤로가기 + 플래너 정보 */}
-      <PlannerHeader
-        studentId={studentId}
-        studentName={student.name}
-        planner={planner}
-      />
+      {/* 플래너 헤더: 뒤로가기 + 플래너 정보 (학생용) */}
+      <StudentPlannerHeader planner={planner} />
 
-      {/* 플랜 관리 컴포넌트 */}
+      {/* 플랜 관리 컴포넌트 (학생 모드) */}
       <Suspense fallback={<AdminPlanManagementSkeleton />}>
         <AdminPlanManagement
-          studentId={student.id}
-          studentName={student.name}
-          tenantId={student.tenant_id}
+          studentId={studentId}
+          studentName={studentName}
+          tenantId={user.tenantId ?? ''}
           initialDate={targetDate}
           activePlanGroupId={activePlanGroupId}
           allPlanGroups={allPlanGroups}
@@ -142,7 +145,8 @@ export default async function PlannerPlanManagementPage({
           plannerCalculatedSchedule={plannerCalculatedSchedule}
           plannerDateTimeSlots={plannerDateTimeSlots}
           initialDockData={initialDockData}
-          viewMode="admin"
+          viewMode="student"
+          currentUserId={user.userId}
           selectedPlanner={planner}
         />
       </Suspense>

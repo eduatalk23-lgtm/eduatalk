@@ -59,6 +59,7 @@ export function AdminPlanHeader({
     selectedPlannerId,
     allPlanGroups,
     canCreatePlans,
+    isAdminMode,
   } = useAdminPlanBasic();
 
   const {
@@ -134,7 +135,9 @@ export function AdminPlanHeader({
       {/* 헤더 영역 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-xl font-bold">{studentName} 플랜 관리</h1>
+          <h1 className="text-xl font-bold">
+            {isAdminMode ? `${studentName} 플랜 관리` : "내 플랜 관리"}
+          </h1>
 
           {/* 플랜 그룹 선택 */}
           <PlanGroupSelector
@@ -283,13 +286,15 @@ export function AdminPlanHeader({
                 <FileText className="h-4 w-4" />
                 마크다운 내보내기
               </button>
-              <button
-                onClick={() => setShowConditionalDeleteModal(true)}
-                className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-left text-red-600"
-              >
-                <Trash2 className="h-4 w-4" />
-                조건부 삭제
-              </button>
+              {isAdminMode && (
+                <button
+                  onClick={() => setShowConditionalDeleteModal(true)}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-left text-red-600"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  조건부 삭제
+                </button>
+              )}
               <hr className="my-1" />
               <button
                 onClick={() => setShowShortcutsHelp(true)}

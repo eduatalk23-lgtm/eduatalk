@@ -22,13 +22,14 @@
 import { type ReactNode } from "react";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
 import type { TimeSlot } from "@/lib/types/plan-generation";
-import type { PrefetchedDockData } from "@/lib/domains/admin-plan/actions";
+import type { PrefetchedDockData, Planner } from "@/lib/domains/admin-plan/actions";
 
 // Split contexts
 import {
   AdminPlanBasicProvider,
   useAdminPlanBasic,
   type AdminPlanBasicContextValue,
+  type ViewMode,
 } from "./AdminPlanBasicContext";
 import {
   AdminPlanFilterProvider,
@@ -53,7 +54,7 @@ import {
 } from "./AdminPlanActionsContext";
 
 // Re-export types
-export type { ContentTypeFilter };
+export type { ContentTypeFilter, ViewMode };
 
 // 플랜 그룹 요약 정보 타입
 export interface PlanGroupSummary {
@@ -95,6 +96,12 @@ interface AdminPlanProviderProps {
   plannerDateTimeSlots?: Record<string, TimeSlot[]>;
   /** SSR 프리페치된 Dock 데이터 */
   initialDockData?: PrefetchedDockData;
+  /** 뷰 모드 (admin: 관리자, student: 학생) */
+  viewMode?: ViewMode;
+  /** 현재 사용자 ID (권한 확인용) */
+  currentUserId?: string;
+  /** 선택된 플래너 데이터 (권한 확인용) */
+  selectedPlanner?: Planner | null;
 }
 
 /**
@@ -114,6 +121,9 @@ export function AdminPlanProvider({
   plannerCalculatedSchedule,
   plannerDateTimeSlots,
   initialDockData,
+  viewMode = "admin",
+  currentUserId,
+  selectedPlanner,
 }: AdminPlanProviderProps) {
   return (
     <AdminPlanBasicProvider
@@ -128,6 +138,9 @@ export function AdminPlanProvider({
       plannerCalculatedSchedule={plannerCalculatedSchedule}
       plannerDateTimeSlots={plannerDateTimeSlots}
       initialDockData={initialDockData}
+      viewMode={viewMode}
+      currentUserId={currentUserId}
+      selectedPlanner={selectedPlanner}
     >
       <AdminPlanFilterProvider
         studentId={studentId}

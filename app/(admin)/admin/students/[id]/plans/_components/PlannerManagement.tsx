@@ -44,6 +44,9 @@ import { PlannerStats } from "./PlannerStats";
 // 타입 정의
 // ============================================
 
+/** 뷰 모드 타입 */
+type ViewMode = 'admin' | 'student';
+
 interface PlannerManagementProps {
   studentId: string;
   tenantId: string;
@@ -56,6 +59,12 @@ interface PlannerManagementProps {
    * - 'inline': 기존 인라인 모드 (기본값)
    */
   mode?: 'selection' | 'inline';
+  /**
+   * 뷰 모드
+   * - 'admin': 관리자 모드 (모든 기능 표시)
+   * - 'student': 학생 모드 (Admin 전용 기능 숨김)
+   */
+  viewMode?: ViewMode;
 }
 
 // ============================================
@@ -427,7 +436,9 @@ export function PlannerManagement({
   onPlannerSelect,
   selectedPlannerId,
   mode = 'inline',
+  viewMode = 'admin',
 }: PlannerManagementProps) {
+  const isAdminMode = viewMode === 'admin';
   const [planners, setPlanners] = useState<Planner[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -524,7 +535,7 @@ export function PlannerManagement({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h3 className="text-xl font-bold text-gray-900">
-            {studentName}의 플래너
+            {isAdminMode ? `${studentName}의 플래너` : "내 플래너"}
           </h3>
           <p className="text-sm text-gray-500 mt-1">
             학습 플랜을 관리할 플래너를 선택하세요
