@@ -119,6 +119,7 @@ export type NonStudyTimeBlock = {
   start_time: string; // HH:mm
   end_time: string; // HH:mm
   day_of_week?: number[]; // 0-6, 없으면 매일
+  specific_dates?: string[]; // 특정 날짜 지정 (YYYY-MM-DD)
   description?: string;
 };
 
@@ -217,14 +218,20 @@ function getNonStudyTimeBlocksForDate(
     return [];
   }
 
+  const dateStr = formatDate(date);
   const dayOfWeek = getDayOfWeek(date);
+
   return nonStudyTimeBlocks.filter((block) => {
-    // day_of_week가 없으면 매일 적용
-    if (!block.day_of_week || block.day_of_week.length === 0) {
-      return true;
+    // 1. specific_dates가 있으면 해당 날짜만 적용
+    if (block.specific_dates && block.specific_dates.length > 0) {
+      return block.specific_dates.includes(dateStr);
     }
-    // day_of_week에 포함되어 있으면 적용
-    return block.day_of_week.includes(dayOfWeek);
+    // 2. day_of_week가 있으면 해당 요일만 적용
+    if (block.day_of_week && block.day_of_week.length > 0) {
+      return block.day_of_week.includes(dayOfWeek);
+    }
+    // 3. 둘 다 없으면 매일 적용
+    return true;
   });
 }
 

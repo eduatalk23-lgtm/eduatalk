@@ -22,6 +22,7 @@ export interface NonStudyTimeBlock {
   start_time: string; // HH:mm
   end_time: string; // HH:mm
   day_of_week?: number[]; // 0-6, 없으면 매일
+  specific_dates?: string[]; // 특정 날짜 지정 (YYYY-MM-DD)
   description?: string;
 }
 

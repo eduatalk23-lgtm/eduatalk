@@ -121,10 +121,26 @@ async function _syncTimeManagementExclusions(
     }
   }
 
+  // 관리자 모드일 때는 학생의 tenant_id를 직접 조회
+  let effectiveTenantId = tenantContext.tenantId;
+  if (isAdminOrConsultant && targetStudentId) {
+    const { data: studentData } = await supabase
+      .from("students")
+      .select("tenant_id")
+      .eq("id", targetStudentId)
+      .maybeSingle();
+
+    if (studentData?.tenant_id) {
+      effectiveTenantId = studentData.tenant_id;
+    }
+  }
+
   // 학생의 모든 제외일 조회 (시간 관리에 등록된 모든 제외일)
+  // 관리자/컨설턴트 모드에서는 Admin 클라이언트 사용 (RLS 우회)
   const allExclusions = await getStudentExclusions(
     targetStudentId,
-    tenantContext.tenantId
+    effectiveTenantId,
+    { useAdminClient: isAdminOrConsultant }
   );
 
   // 기간에 해당하는 제외일 필터링
@@ -658,4 +674,554 @@ export const getRecurringExclusions = withErrorHandling(_getRecurringExclusions)
 export const createRecurringExclusion = withErrorHandling(_createRecurringExclusion);
 export const deleteRecurringExclusion = withErrorHandling(_deleteRecurringExclusion);
 export const expandRecurringExclusions = withErrorHandling(_expandRecurringExclusions);
+
+// ============================================================================
+// 플래너별 제외일 오버라이드 관리
+// ============================================================================
+
+import {
+  // Plan Group용 (기존)
+  getEffectiveExclusions as getEffectiveExclusionsData,
+  savePlannerOverrides as savePlannerOverridesData,
+  getPlannerOverrides as getPlannerOverridesData,
+  upsertPlannerOverride as upsertPlannerOverrideData,
+  deletePlannerOverride as deletePlannerOverrideData,
+  // Planner용 (신규)
+  getEffectiveExclusionsForPlanner as getEffectiveExclusionsForPlannerData,
+  savePlannerOverridesForPlanner as savePlannerOverridesForPlannerData,
+  getPlannerOverridesForPlanner as getPlannerOverridesForPlannerData,
+  upsertPlannerOverrideForPlanner as upsertPlannerOverrideForPlannerData,
+  deletePlannerOverrideForPlanner as deletePlannerOverrideForPlannerData,
+} from "@/lib/data/planGroups/exclusionOverrides";
+import type {
+  EffectiveExclusion,
+  PlannerExclusionOverride,
+  ExclusionType,
+} from "@/lib/types/plan";
+
+/**
+ * 플래너의 실제 적용될 제외일 조회
+ *
+ * 전역 제외일(시간관리)과 플래너 오버라이드를 병합하여
+ * 최종 적용될 제외일 목록을 반환합니다.
+ */
+async function _getEffectiveExclusionsAction(
+  planGroupId: string,
+  periodStart: string,
+  periodEnd: string,
+  studentId?: string
+): Promise<{
+  success: boolean;
+  data?: EffectiveExclusion[];
+  error?: string;
+}> {
+  const { role, userId } = await getCurrentUserRole();
+  const tenantContext = await getTenantContext();
+
+  if (!userId) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  const supabase = await createSupabaseServerClient();
+
+  // 플랜 그룹 조회하여 student_id 확인
+  const { data: planGroup, error: groupError } = await supabase
+    .from("plan_groups")
+    .select("student_id, tenant_id")
+    .eq("id", planGroupId)
+    .maybeSingle();
+
+  if (groupError || !planGroup) {
+    return { success: false, error: "플랜 그룹을 찾을 수 없습니다." };
+  }
+
+  // 권한 확인
+  const targetStudentId = studentId || planGroup.student_id;
+  if (!isAdminOrConsultant && planGroup.student_id !== userId) {
+    return { success: false, error: "권한이 없습니다." };
+  }
+
+  const effectiveExclusions = await getEffectiveExclusionsData(
+    planGroupId,
+    targetStudentId,
+    periodStart,
+    periodEnd,
+    planGroup.tenant_id || tenantContext?.tenantId,
+    { useAdminClient: isAdminOrConsultant }
+  );
+
+  return { success: true, data: effectiveExclusions };
+}
+
+/**
+ * 플래너의 오버라이드 목록 조회
+ */
+async function _getPlannerOverridesAction(
+  planGroupId: string
+): Promise<{
+  success: boolean;
+  data?: PlannerExclusionOverride[];
+  error?: string;
+}> {
+  const { role, userId } = await getCurrentUserRole();
+
+  if (!userId) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  const supabase = await createSupabaseServerClient();
+
+  // 권한 확인: 플랜 그룹 조회
+  const { data: planGroup, error: groupError } = await supabase
+    .from("plan_groups")
+    .select("student_id")
+    .eq("id", planGroupId)
+    .maybeSingle();
+
+  if (groupError || !planGroup) {
+    return { success: false, error: "플랜 그룹을 찾을 수 없습니다." };
+  }
+
+  if (!isAdminOrConsultant && planGroup.student_id !== userId) {
+    return { success: false, error: "권한이 없습니다." };
+  }
+
+  const overrides = await getPlannerOverridesData(planGroupId, {
+    useAdminClient: isAdminOrConsultant,
+  });
+
+  return { success: true, data: overrides };
+}
+
+/**
+ * 플래너 오버라이드 저장 (기존 오버라이드 교체)
+ */
+async function _savePlannerOverridesAction(
+  planGroupId: string,
+  overrides: Array<{
+    exclusion_date: string;
+    override_type: "add" | "remove";
+    exclusion_type?: ExclusionType;
+    reason?: string;
+  }>
+): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const { role, userId } = await getCurrentUserRole();
+
+  if (!userId) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  const supabase = await createSupabaseServerClient();
+
+  // 권한 확인
+  const { data: planGroup, error: groupError } = await supabase
+    .from("plan_groups")
+    .select("student_id")
+    .eq("id", planGroupId)
+    .maybeSingle();
+
+  if (groupError || !planGroup) {
+    return { success: false, error: "플랜 그룹을 찾을 수 없습니다." };
+  }
+
+  if (!isAdminOrConsultant && planGroup.student_id !== userId) {
+    return { success: false, error: "권한이 없습니다." };
+  }
+
+  const result = await savePlannerOverridesData(planGroupId, overrides, {
+    useAdminClient: isAdminOrConsultant,
+  });
+
+  if (result.success) {
+    revalidatePath("/plan");
+    revalidatePath("/blocks");
+  }
+
+  return result;
+}
+
+/**
+ * 단일 플래너 오버라이드 추가/업데이트
+ */
+async function _upsertPlannerOverrideAction(
+  planGroupId: string,
+  override: {
+    exclusion_date: string;
+    override_type: "add" | "remove";
+    exclusion_type?: ExclusionType;
+    reason?: string;
+  }
+): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const { role, userId } = await getCurrentUserRole();
+
+  if (!userId) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  const supabase = await createSupabaseServerClient();
+
+  // 권한 확인
+  const { data: planGroup, error: groupError } = await supabase
+    .from("plan_groups")
+    .select("student_id")
+    .eq("id", planGroupId)
+    .maybeSingle();
+
+  if (groupError || !planGroup) {
+    return { success: false, error: "플랜 그룹을 찾을 수 없습니다." };
+  }
+
+  if (!isAdminOrConsultant && planGroup.student_id !== userId) {
+    return { success: false, error: "권한이 없습니다." };
+  }
+
+  const result = await upsertPlannerOverrideData(planGroupId, override, {
+    useAdminClient: isAdminOrConsultant,
+  });
+
+  if (result.success) {
+    revalidatePath("/plan");
+    revalidatePath("/blocks");
+  }
+
+  return result;
+}
+
+/**
+ * 단일 플래너 오버라이드 삭제
+ */
+async function _deletePlannerOverrideAction(
+  planGroupId: string,
+  exclusionDate: string
+): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const { role, userId } = await getCurrentUserRole();
+
+  if (!userId) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  const supabase = await createSupabaseServerClient();
+
+  // 권한 확인
+  const { data: planGroup, error: groupError } = await supabase
+    .from("plan_groups")
+    .select("student_id")
+    .eq("id", planGroupId)
+    .maybeSingle();
+
+  if (groupError || !planGroup) {
+    return { success: false, error: "플랜 그룹을 찾을 수 없습니다." };
+  }
+
+  if (!isAdminOrConsultant && planGroup.student_id !== userId) {
+    return { success: false, error: "권한이 없습니다." };
+  }
+
+  const result = await deletePlannerOverrideData(planGroupId, exclusionDate, {
+    useAdminClient: isAdminOrConsultant,
+  });
+
+  if (result.success) {
+    revalidatePath("/plan");
+    revalidatePath("/blocks");
+  }
+
+  return result;
+}
+
+export const getEffectiveExclusionsAction = withErrorHandling(
+  _getEffectiveExclusionsAction
+);
+export const getPlannerOverridesAction = withErrorHandling(
+  _getPlannerOverridesAction
+);
+export const savePlannerOverridesAction = withErrorHandling(
+  _savePlannerOverridesAction
+);
+export const upsertPlannerOverrideAction = withErrorHandling(
+  _upsertPlannerOverrideAction
+);
+export const deletePlannerOverrideAction = withErrorHandling(
+  _deletePlannerOverrideAction
+);
+
+// ============================================================================
+// 플래너(Planner) 기반 제외일 오버라이드 관리 (신규)
+// PlannerCreationModal에서 사용
+// ============================================================================
+
+/**
+ * 플래너(Planner)의 실제 적용될 제외일 조회
+ *
+ * 전역 제외일(시간관리)과 플래너 오버라이드를 병합하여
+ * 최종 적용될 제외일 목록을 반환합니다.
+ */
+async function _getEffectiveExclusionsForPlannerAction(
+  plannerId: string,
+  periodStart: string,
+  periodEnd: string,
+  studentId?: string
+): Promise<{
+  success: boolean;
+  data?: EffectiveExclusion[];
+  error?: string;
+}> {
+  const { role, userId } = await getCurrentUserRole();
+  const tenantContext = await getTenantContext();
+
+  if (!userId) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  const supabase = await createSupabaseServerClient();
+
+  // 플래너 조회하여 student_id 확인
+  const { data: planner, error: plannerError } = await supabase
+    .from("planners")
+    .select("student_id, tenant_id")
+    .eq("id", plannerId)
+    .maybeSingle();
+
+  if (plannerError || !planner) {
+    return { success: false, error: "플래너를 찾을 수 없습니다." };
+  }
+
+  // 권한 확인
+  const targetStudentId = studentId || planner.student_id;
+  if (!isAdminOrConsultant && planner.student_id !== userId) {
+    return { success: false, error: "권한이 없습니다." };
+  }
+
+  const effectiveExclusions = await getEffectiveExclusionsForPlannerData(
+    plannerId,
+    targetStudentId,
+    periodStart,
+    periodEnd,
+    planner.tenant_id || tenantContext?.tenantId,
+    { useAdminClient: isAdminOrConsultant }
+  );
+
+  return { success: true, data: effectiveExclusions };
+}
+
+/**
+ * 플래너(Planner)의 오버라이드 목록 조회
+ */
+async function _getPlannerOverridesForPlannerAction(
+  plannerId: string
+): Promise<{
+  success: boolean;
+  data?: PlannerExclusionOverride[];
+  error?: string;
+}> {
+  const { role, userId } = await getCurrentUserRole();
+
+  if (!userId) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  const supabase = await createSupabaseServerClient();
+
+  // 권한 확인: 플래너 조회
+  const { data: planner, error: plannerError } = await supabase
+    .from("planners")
+    .select("student_id")
+    .eq("id", plannerId)
+    .maybeSingle();
+
+  if (plannerError || !planner) {
+    return { success: false, error: "플래너를 찾을 수 없습니다." };
+  }
+
+  if (!isAdminOrConsultant && planner.student_id !== userId) {
+    return { success: false, error: "권한이 없습니다." };
+  }
+
+  const overrides = await getPlannerOverridesForPlannerData(plannerId, {
+    useAdminClient: isAdminOrConsultant,
+  });
+
+  return { success: true, data: overrides };
+}
+
+/**
+ * 플래너(Planner) 오버라이드 저장 (기존 오버라이드 교체)
+ */
+async function _savePlannerOverridesForPlannerAction(
+  plannerId: string,
+  overrides: Array<{
+    exclusion_date: string;
+    override_type: "add" | "remove";
+    exclusion_type?: ExclusionType;
+    reason?: string;
+  }>
+): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const { role, userId } = await getCurrentUserRole();
+
+  if (!userId) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  const supabase = await createSupabaseServerClient();
+
+  // 권한 확인
+  const { data: planner, error: plannerError } = await supabase
+    .from("planners")
+    .select("student_id")
+    .eq("id", plannerId)
+    .maybeSingle();
+
+  if (plannerError || !planner) {
+    return { success: false, error: "플래너를 찾을 수 없습니다." };
+  }
+
+  if (!isAdminOrConsultant && planner.student_id !== userId) {
+    return { success: false, error: "권한이 없습니다." };
+  }
+
+  const result = await savePlannerOverridesForPlannerData(plannerId, overrides, {
+    useAdminClient: isAdminOrConsultant,
+  });
+
+  if (result.success) {
+    revalidatePath("/plan");
+    revalidatePath("/blocks");
+  }
+
+  return result;
+}
+
+/**
+ * 단일 플래너(Planner) 오버라이드 추가/업데이트
+ */
+async function _upsertPlannerOverrideForPlannerAction(
+  plannerId: string,
+  override: {
+    exclusion_date: string;
+    override_type: "add" | "remove";
+    exclusion_type?: ExclusionType;
+    reason?: string;
+  }
+): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const { role, userId } = await getCurrentUserRole();
+
+  if (!userId) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  const supabase = await createSupabaseServerClient();
+
+  // 권한 확인
+  const { data: planner, error: plannerError } = await supabase
+    .from("planners")
+    .select("student_id")
+    .eq("id", plannerId)
+    .maybeSingle();
+
+  if (plannerError || !planner) {
+    return { success: false, error: "플래너를 찾을 수 없습니다." };
+  }
+
+  if (!isAdminOrConsultant && planner.student_id !== userId) {
+    return { success: false, error: "권한이 없습니다." };
+  }
+
+  const result = await upsertPlannerOverrideForPlannerData(plannerId, override, {
+    useAdminClient: isAdminOrConsultant,
+  });
+
+  if (result.success) {
+    revalidatePath("/plan");
+    revalidatePath("/blocks");
+  }
+
+  return result;
+}
+
+/**
+ * 단일 플래너(Planner) 오버라이드 삭제
+ */
+async function _deletePlannerOverrideForPlannerAction(
+  plannerId: string,
+  exclusionDate: string
+): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const { role, userId } = await getCurrentUserRole();
+
+  if (!userId) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  const supabase = await createSupabaseServerClient();
+
+  // 권한 확인
+  const { data: planner, error: plannerError } = await supabase
+    .from("planners")
+    .select("student_id")
+    .eq("id", plannerId)
+    .maybeSingle();
+
+  if (plannerError || !planner) {
+    return { success: false, error: "플래너를 찾을 수 없습니다." };
+  }
+
+  if (!isAdminOrConsultant && planner.student_id !== userId) {
+    return { success: false, error: "권한이 없습니다." };
+  }
+
+  const result = await deletePlannerOverrideForPlannerData(plannerId, exclusionDate, {
+    useAdminClient: isAdminOrConsultant,
+  });
+
+  if (result.success) {
+    revalidatePath("/plan");
+    revalidatePath("/blocks");
+  }
+
+  return result;
+}
+
+// Planner용 액션 export
+export const getEffectiveExclusionsForPlannerAction = withErrorHandling(
+  _getEffectiveExclusionsForPlannerAction
+);
+export const getPlannerOverridesForPlannerAction = withErrorHandling(
+  _getPlannerOverridesForPlannerAction
+);
+export const savePlannerOverridesForPlannerAction = withErrorHandling(
+  _savePlannerOverridesForPlannerAction
+);
+export const upsertPlannerOverrideForPlannerAction = withErrorHandling(
+  _upsertPlannerOverrideForPlannerAction
+);
+export const deletePlannerOverrideForPlannerAction = withErrorHandling(
+  _deletePlannerOverrideForPlannerAction
+);
 

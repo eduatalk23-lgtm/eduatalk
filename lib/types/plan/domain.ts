@@ -197,6 +197,7 @@ export type NonStudyTimeBlock = {
   start_time: string; // HH:mm
   end_time: string; // HH:mm
   day_of_week?: number[]; // 요일 적용 범위 (0-6, 없으면 매일)
+  specific_dates?: string[]; // 특정 날짜 지정 (YYYY-MM-DD)
   description?: string; // 설명
 };
 
@@ -606,6 +607,35 @@ export type PlanExclusion = {
 };
 
 /**
+ * 플래너 제외일 오버라이드
+ *
+ * 전역 제외일(시간관리)을 플래너별로 커스터마이징할 때 사용.
+ * - 'add': 전역에 없지만 이 플래너에만 추가
+ * - 'remove': 전역에 있지만 이 플래너에서는 제외
+ */
+export type PlannerExclusionOverride = {
+  id: string;
+  plan_group_id: string;
+  exclusion_date: string; // date (YYYY-MM-DD)
+  override_type: "add" | "remove";
+  exclusion_type?: ExclusionType; // 'add'일 때만 필수
+  reason?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/**
+ * 실제 적용될 제외일 (전역 + 오버라이드 병합 결과)
+ */
+export type EffectiveExclusion = {
+  exclusion_date: string; // date (YYYY-MM-DD)
+  exclusion_type: ExclusionType;
+  reason?: string | null;
+  /** 제외일 출처: 'global' = 전역 제외일, 'override_add' = 플래너 오버라이드로 추가 */
+  source: "global" | "override_add";
+};
+
+/**
  * 학원 (학생별 전역 관리)
  */
 export type Academy = {
@@ -635,6 +665,53 @@ export type AcademySchedule = {
   // 하위 호환성을 위한 필드 (deprecated)
   academy_name?: string | null;
   travel_time?: number | null;
+};
+
+/**
+ * 플래너 학원 일정 오버라이드 타입
+ */
+export type AcademyOverrideType = "add" | "remove" | "modify";
+
+/**
+ * 플래너 학원 일정 오버라이드
+ *
+ * 전역 학원 일정(시간관리)을 플래너별로 커스터마이징할 때 사용.
+ * - 'add': 전역에 없지만 이 플래너에만 추가
+ * - 'remove': 전역에 있지만 이 플래너에서는 제외
+ * - 'modify': 전역 일정의 시간/메타데이터 변경
+ */
+export type PlannerAcademyOverride = {
+  id: string;
+  planner_id?: string | null;
+  plan_group_id?: string | null;
+  source_schedule_id?: string | null; // 원본 전역 학원 일정 ID (remove/modify 시 필수)
+  override_type: AcademyOverrideType;
+  day_of_week?: number | null; // 0-6 (add/modify 시 사용)
+  start_time?: string | null; // time (add/modify 시 사용)
+  end_time?: string | null; // time (add/modify 시 사용)
+  academy_name?: string | null;
+  subject?: string | null;
+  travel_time?: number | null;
+  reason?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/**
+ * 실제 적용될 학원 일정 (전역 + 오버라이드 병합 결과)
+ */
+export type EffectiveAcademySchedule = {
+  id: string; // 원본 ID 또는 오버라이드 ID
+  day_of_week: number; // 0-6 (일-토)
+  start_time: string; // time
+  end_time: string; // time
+  academy_name?: string | null;
+  subject?: string | null;
+  travel_time?: number | null;
+  /** 출처: 'global' = 전역, 'override_add' = 오버라이드로 추가, 'override_modify' = 오버라이드로 수정 */
+  source: "global" | "override_add" | "override_modify";
+  /** 원본 전역 일정 ID (override_modify 시 존재) */
+  source_schedule_id?: string | null;
 };
 
 /**

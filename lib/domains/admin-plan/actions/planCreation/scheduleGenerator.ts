@@ -11,6 +11,10 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { calculateAvailableDates, type NonStudyTimeBlock } from '@/lib/scheduler/utils/scheduleCalculator';
 import { extractScheduleMaps } from '@/lib/plan/planDataLoader';
 import type { DateTimeSlots } from './timelineAdjustment';
+import {
+  getEffectiveAcademySchedulesForPlanner,
+  getEffectiveAcademySchedules,
+} from '@/lib/data/planGroups/academyOverrides';
 
 /**
  * 플래너 정보 타입
@@ -66,18 +70,20 @@ export async function generateScheduleForPlanner(
 ): Promise<ScheduleGenerationResult> {
   const supabase = await createSupabaseServerClient();
 
-  // 1. 플래너 정보 조회
+  // 1. 플래너 정보 조회 (student_id 포함)
   const { data: planner, error: plannerError } = await supabase
     .from('planners')
     .select(`
       id,
+      student_id,
       default_scheduler_type,
       default_scheduler_options,
       study_hours,
       self_study_hours,
       lunch_time,
       block_set_id,
-      non_study_time_blocks
+      non_study_time_blocks,
+      students!inner(tenant_id)
     `)
     .eq('id', plannerId)
     .single();
@@ -92,11 +98,16 @@ export async function generateScheduleForPlanner(
     };
   }
 
-  // 2. 플래너 학원일정 조회
-  const { data: academySchedules } = await supabase
-    .from('planner_academy_schedules')
-    .select('day_of_week, start_time, end_time, academy_name, subject, travel_time')
-    .eq('planner_id', plannerId);
+  // 2. 플래너 학원일정 조회 (전역 + 오버라이드 병합)
+  type StudentInfo = { tenant_id: string | null };
+  const studentsData = planner.students as StudentInfo | StudentInfo[] | null;
+  const studentInfo = Array.isArray(studentsData) ? studentsData[0] : studentsData;
+  const effectiveAcademySchedules = await getEffectiveAcademySchedulesForPlanner(
+    plannerId,
+    planner.student_id,
+    studentInfo?.tenant_id ?? null,
+    { useAdminClient: true }
+  );
 
   // 3. 플래너 제외일 조회 (기간 내)
   const { data: exclusions } = await supabase
@@ -137,7 +148,7 @@ export async function generateScheduleForPlanner(
       exclusion_type: e.exclusion_type as '휴가' | '개인사정' | '휴일지정' | '기타',
       reason: e.reason || undefined,
     })),
-    (academySchedules || []).map((a) => ({
+    effectiveAcademySchedules.map((a) => ({
       day_of_week: a.day_of_week,
       start_time: a.start_time,
       end_time: a.end_time,
@@ -217,11 +228,12 @@ export async function generateScheduleForPlanGroup(
 ): Promise<ScheduleGenerationResult> {
   const supabase = await createSupabaseServerClient();
 
-  // 1. 플랜 그룹 정보 조회
+  // 1. 플랜 그룹 정보 조회 (student_id 포함)
   const { data: planGroup, error: groupError } = await supabase
     .from('plan_groups')
     .select(`
       id,
+      student_id,
       period_start,
       period_end,
       scheduler_type,
@@ -231,7 +243,8 @@ export async function generateScheduleForPlanGroup(
       lunch_time,
       block_set_id,
       non_study_time_blocks,
-      planner_id
+      planner_id,
+      students!inner(tenant_id)
     `)
     .eq('id', planGroupId)
     .single();
@@ -246,11 +259,16 @@ export async function generateScheduleForPlanGroup(
     };
   }
 
-  // 2. 플랜 그룹의 학원일정 조회
-  const { data: academySchedules } = await supabase
-    .from('plan_group_academy_schedules')
-    .select('day_of_week, start_time, end_time, academy_name, subject, travel_time')
-    .eq('plan_group_id', planGroupId);
+  // 2. 플랜 그룹의 학원일정 조회 (전역 + 오버라이드 병합)
+  type PlanGroupStudentInfo = { tenant_id: string | null };
+  const planGroupStudentsData = planGroup.students as PlanGroupStudentInfo | PlanGroupStudentInfo[] | null;
+  const planGroupStudentInfo = Array.isArray(planGroupStudentsData) ? planGroupStudentsData[0] : planGroupStudentsData;
+  const effectivePlanGroupAcademySchedules = await getEffectiveAcademySchedules(
+    planGroupId,
+    planGroup.student_id,
+    planGroupStudentInfo?.tenant_id ?? null,
+    { useAdminClient: true }
+  );
 
   // 3. 플랜 그룹의 제외일 조회
   const { data: exclusions } = await supabase
@@ -296,7 +314,7 @@ export async function generateScheduleForPlanGroup(
       exclusion_type: e.exclusion_type as '휴가' | '개인사정' | '휴일지정' | '기타',
       reason: e.reason || undefined,
     })),
-    (academySchedules || []).map((a) => ({
+    effectivePlanGroupAcademySchedules.map((a) => ({
       day_of_week: a.day_of_week,
       start_time: a.start_time,
       end_time: a.end_time,

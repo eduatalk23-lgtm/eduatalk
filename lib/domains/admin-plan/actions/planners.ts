@@ -18,6 +18,19 @@ import {
   mergeLunchTimeIntoNonStudyBlocks,
   extractLunchTimeFromBlocks,
 } from "../utils/plannerConfigInheritance";
+import {
+  getPlannerOverridesForPlanner,
+  getEffectiveExclusionsForPlanner,
+  savePlannerOverridesForPlanner,
+  upsertPlannerOverrideForPlanner,
+  deletePlannerOverrideForPlanner,
+} from "@/lib/data/planGroups/exclusionOverrides";
+import { getStudentExclusions } from "@/lib/data/planGroups/exclusions";
+import type {
+  PlannerExclusionOverride,
+  EffectiveExclusion,
+  PlanExclusion,
+} from "@/lib/types/plan";
 
 // ============================================
 // 타입 정의
@@ -40,7 +53,8 @@ export interface NonStudyTimeBlock {
   type: "아침식사" | "점심식사" | "저녁식사" | "수면" | "기타";
   start_time: string;
   end_time: string;
-  day_of_week?: number[];
+  day_of_week?: number[]; // 요일 적용 범위 (0-6)
+  specific_dates?: string[]; // 특정 날짜 지정 (YYYY-MM-DD)
   description?: string;
 }
 
@@ -221,6 +235,41 @@ async function checkAdminOrConsultant() {
   return { user, tenantId: user.tenantId };
 }
 
+/**
+ * 플래너 접근 권한 체크 (Admin/Consultant 또는 해당 학생 본인)
+ *
+ * @param targetStudentId - 대상 학생 ID
+ * @returns 사용자 정보와 tenantId, isAdmin 여부
+ */
+async function checkPlannerAccess(targetStudentId: string) {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    throw new AppError("인증이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
+  }
+
+  if (!user.tenantId) {
+    throw new AppError(
+      "기관 정보를 찾을 수 없습니다.",
+      ErrorCode.VALIDATION_ERROR,
+      400,
+      true
+    );
+  }
+
+  // Admin/Consultant는 모든 학생 접근 가능
+  if (user.role === "admin" || user.role === "consultant") {
+    return { user, tenantId: user.tenantId, isAdmin: true };
+  }
+
+  // 학생은 자신의 플래너만 접근 가능
+  if (user.role === "student" && user.userId === targetStudentId) {
+    return { user, tenantId: user.tenantId, isAdmin: false };
+  }
+
+  throw new AppError("접근 권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
+}
+
 // ============================================
 // 플래너 CRUD
 // ============================================
@@ -229,9 +278,11 @@ async function checkAdminOrConsultant() {
  * 플래너 생성
  *
  * academySchedules, exclusions가 제공되면 플래너 생성 후 함께 저장합니다.
+ * - Admin/Consultant: 모든 학생 플래너 생성 가능
+ * - Student: 자신의 플래너만 생성 가능
  */
 async function _createPlanner(input: CreatePlannerInput): Promise<Planner> {
-  const { user, tenantId } = await checkAdminOrConsultant();
+  const { user, tenantId } = await checkPlannerAccess(input.studentId);
   const supabase = await createSupabaseServerClient();
 
   // lunch_time을 non_study_time_blocks에 통합
@@ -382,14 +433,16 @@ export const createPlannerAction = withErrorHandling(_createPlanner);
 
 /**
  * 플래너 조회
+ * - Admin/Consultant: 모든 플래너 조회 가능
+ * - Student: 자신의 플래너만 조회 가능
  */
 async function _getPlanner(
   plannerId: string,
   includeRelations = false
 ): Promise<Planner | null> {
-  await checkAdminOrConsultant();
   const supabase = await createSupabaseServerClient();
 
+  // 먼저 플래너 조회
   const { data, error } = await supabase
     .from("planners")
     .select("*")
@@ -406,6 +459,9 @@ async function _getPlanner(
       true
     );
   }
+
+  // 플래너의 studentId로 권한 체크
+  await checkPlannerAccess(data.student_id as string);
 
   const planner = mapPlannerFromDB(data);
 
@@ -445,6 +501,8 @@ export const getPlannerAction = withErrorHandling(_getPlanner);
 
 /**
  * 학생의 플래너 목록 조회
+ * - Admin/Consultant: 모든 학생 플래너 조회 가능
+ * - Student: 자신의 플래너만 조회 가능
  */
 async function _getStudentPlanners(
   studentId: string,
@@ -455,7 +513,7 @@ async function _getStudentPlanners(
     offset?: number;
   }
 ): Promise<{ data: Planner[]; total: number }> {
-  const { tenantId } = await checkAdminOrConsultant();
+  const { tenantId } = await checkPlannerAccess(studentId);
   const supabase = await createSupabaseServerClient();
 
   let query = supabase
@@ -540,13 +598,34 @@ export const getStudentPlannersAction = withErrorHandling(_getStudentPlanners);
 
 /**
  * 플래너 수정
+ * - Admin/Consultant: 모든 플래너 수정 가능
+ * - Student: 자신의 플래너만 수정 가능
  */
 async function _updatePlanner(
   plannerId: string,
   updates: UpdatePlannerInput
 ): Promise<Planner> {
-  await checkAdminOrConsultant();
   const supabase = await createSupabaseServerClient();
+
+  // 먼저 플래너 조회하여 studentId 확인
+  const { data: existingPlanner, error: fetchError } = await supabase
+    .from("planners")
+    .select("student_id")
+    .eq("id", plannerId)
+    .is("deleted_at", null)
+    .single();
+
+  if (fetchError || !existingPlanner) {
+    throw new AppError(
+      "플래너를 찾을 수 없습니다.",
+      ErrorCode.NOT_FOUND,
+      404,
+      true
+    );
+  }
+
+  // 플래너의 studentId로 권한 체크
+  await checkPlannerAccess(existingPlanner.student_id as string);
 
   const updateData: Record<string, unknown> = {};
 
@@ -669,10 +748,34 @@ export interface DeletePlannerResult {
  * 3. planner_exclusions (하드 삭제) - 설정 데이터
  * 4. planner_academy_schedules (하드 삭제) - 설정 데이터
  * 5. planners (소프트 삭제)
+ *
+ * - Admin/Consultant: 모든 플래너 삭제 가능
+ * - Student: 자신의 플래너만 삭제 가능
  */
 async function _deletePlanner(plannerId: string): Promise<DeletePlannerResult> {
-  const { tenantId } = await checkAdminOrConsultant();
   const supabase = await createSupabaseServerClient();
+
+  // 먼저 플래너 조회하여 studentId 확인
+  const { data: existingPlanner, error: fetchError } = await supabase
+    .from("planners")
+    .select("student_id, tenant_id")
+    .eq("id", plannerId)
+    .is("deleted_at", null)
+    .single();
+
+  if (fetchError || !existingPlanner) {
+    throw new AppError(
+      "플래너를 찾을 수 없습니다.",
+      ErrorCode.NOT_FOUND,
+      404,
+      true
+    );
+  }
+
+  // 플래너의 studentId로 권한 체크
+  await checkPlannerAccess(existingPlanner.student_id as string);
+
+  const tenantId = existingPlanner.tenant_id as string;
 
   // RPC 함수를 통한 원자적 삭제
   const { data, error } = await supabase.rpc("delete_planner_cascade", {
@@ -989,6 +1092,172 @@ async function _setPlannerAcademySchedules(
 
 export const setPlannerAcademySchedulesAction = withErrorHandling(
   _setPlannerAcademySchedules
+);
+
+// ============================================
+// 제외일 오버라이드 관리 (Phase 5)
+// ============================================
+
+/**
+ * 제외일 오버라이드 입력 타입
+ */
+export interface ExclusionOverrideInput {
+  exclusionDate: string;
+  overrideType: "add" | "remove";
+  exclusionType?: ExclusionType;
+  reason?: string;
+}
+
+/**
+ * 플래너의 제외일 오버라이드 목록 조회
+ */
+async function _getPlannerExclusionOverrides(
+  plannerId: string
+): Promise<PlannerExclusionOverride[]> {
+  await checkAdminOrConsultant();
+
+  const overrides = await getPlannerOverridesForPlanner(plannerId, {
+    useAdminClient: true,
+  });
+
+  return overrides;
+}
+
+export const getPlannerExclusionOverridesAction = withErrorHandling(
+  _getPlannerExclusionOverrides
+);
+
+/**
+ * 학생의 전역 제외일 목록 조회 (시간관리에서 설정된 제외일)
+ */
+async function _getStudentGlobalExclusions(
+  studentId: string,
+  periodStart: string,
+  periodEnd: string
+): Promise<PlanExclusion[]> {
+  const { tenantId } = await checkAdminOrConsultant();
+
+  const exclusions = await getStudentExclusions(studentId, tenantId, {
+    useAdminClient: true,
+  });
+
+  // 기간 필터링
+  const periodStartDate = new Date(periodStart);
+  periodStartDate.setHours(0, 0, 0, 0);
+  const periodEndDate = new Date(periodEnd);
+  periodEndDate.setHours(23, 59, 59, 999);
+
+  return exclusions.filter((e) => {
+    const exclusionDate = new Date(e.exclusion_date);
+    exclusionDate.setHours(0, 0, 0, 0);
+    return exclusionDate >= periodStartDate && exclusionDate <= periodEndDate;
+  });
+}
+
+export const getStudentGlobalExclusionsAction = withErrorHandling(
+  _getStudentGlobalExclusions
+);
+
+/**
+ * 플래너에 실제 적용될 제외일 계산 (전역 + 오버라이드 병합)
+ */
+async function _getEffectivePlannerExclusions(
+  plannerId: string,
+  studentId: string,
+  periodStart: string,
+  periodEnd: string
+): Promise<EffectiveExclusion[]> {
+  const { tenantId } = await checkAdminOrConsultant();
+
+  const effectiveExclusions = await getEffectiveExclusionsForPlanner(
+    plannerId,
+    studentId,
+    periodStart,
+    periodEnd,
+    tenantId,
+    { useAdminClient: true }
+  );
+
+  return effectiveExclusions;
+}
+
+export const getEffectivePlannerExclusionsAction = withErrorHandling(
+  _getEffectivePlannerExclusions
+);
+
+/**
+ * 플래너 제외일 오버라이드 일괄 저장 (기존 오버라이드 교체)
+ */
+async function _savePlannerExclusionOverrides(
+  plannerId: string,
+  overrides: ExclusionOverrideInput[]
+): Promise<{ success: boolean; error?: string }> {
+  await checkAdminOrConsultant();
+
+  // 입력을 데이터 레이어 형식으로 변환
+  const dataOverrides = overrides.map((o) => ({
+    exclusion_date: o.exclusionDate,
+    override_type: o.overrideType,
+    exclusion_type: o.exclusionType,
+    reason: o.reason,
+  }));
+
+  const result = await savePlannerOverridesForPlanner(plannerId, dataOverrides, {
+    useAdminClient: true,
+  });
+
+  return result;
+}
+
+export const savePlannerExclusionOverridesAction = withErrorHandling(
+  _savePlannerExclusionOverrides
+);
+
+/**
+ * 단일 제외일 오버라이드 추가/업데이트
+ */
+async function _upsertPlannerExclusionOverride(
+  plannerId: string,
+  override: ExclusionOverrideInput
+): Promise<{ success: boolean; error?: string }> {
+  await checkAdminOrConsultant();
+
+  const result = await upsertPlannerOverrideForPlanner(
+    plannerId,
+    {
+      exclusion_date: override.exclusionDate,
+      override_type: override.overrideType,
+      exclusion_type: override.exclusionType,
+      reason: override.reason,
+    },
+    { useAdminClient: true }
+  );
+
+  return result;
+}
+
+export const upsertPlannerExclusionOverrideAction = withErrorHandling(
+  _upsertPlannerExclusionOverride
+);
+
+/**
+ * 단일 제외일 오버라이드 삭제
+ */
+async function _deletePlannerExclusionOverride(
+  plannerId: string,
+  exclusionDate: string
+): Promise<{ success: boolean; error?: string }> {
+  await checkAdminOrConsultant();
+
+  const result = await deletePlannerOverrideForPlanner(plannerId, exclusionDate, {
+    useAdminClient: true,
+  });
+
+  return result;
+}
+
+export const deletePlannerExclusionOverrideAction = withErrorHandling(
+  _deletePlannerExclusionOverride
 );
 
 // ============================================

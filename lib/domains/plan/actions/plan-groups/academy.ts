@@ -124,10 +124,26 @@ async function _syncTimeManagementAcademySchedules(
     }
   }
 
+  // 관리자 모드일 때는 학생의 tenant_id를 직접 조회
+  let effectiveTenantId = tenantContext.tenantId;
+  if (isAdminOrConsultant && targetStudentId) {
+    const { data: studentData } = await supabase
+      .from("students")
+      .select("tenant_id")
+      .eq("id", targetStudentId)
+      .maybeSingle();
+
+    if (studentData?.tenant_id) {
+      effectiveTenantId = studentData.tenant_id;
+    }
+  }
+
   // 학생의 모든 학원일정 조회 (시간 관리에 등록된 모든 학원일정)
+  // 관리자/컨설턴트 모드에서는 Admin 클라이언트 사용 (RLS 우회)
   const allAcademySchedules = await getStudentAcademySchedules(
     targetStudentId,
-    tenantContext.tenantId
+    effectiveTenantId,
+    { useAdminClient: isAdminOrConsultant }
   );
 
   // 최신 학원일정 데이터 반환 (source 필드 추가)

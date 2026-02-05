@@ -66,7 +66,7 @@ async function loadStudentData(
 ) {
   let query = supabase
     .from("students")
-    .select("id, name, grade, school_id, school_type")
+    .select("id, name, grade, school_name, school_type")
     .eq("id", studentId);
 
   // tenant_id가 제공된 경우 추가 필터링
@@ -404,7 +404,7 @@ async function generatePreviewForStudent(
         id: student.id,
         name: student.name,
         grade: student.grade,
-        school_name: undefined, // students 테이블에 해당 컬럼 없음
+        school_name: student.school_name ?? undefined,
         target_university: undefined,
         target_major: undefined,
       },

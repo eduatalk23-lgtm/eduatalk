@@ -125,12 +125,20 @@ export async function getPlanExclusions(
 
 /**
  * 학생의 전체 제외일 목록 조회 (모든 플랜 그룹)
+ *
+ * @param studentId - 학생 ID
+ * @param tenantId - 테넌트 ID (선택적)
+ * @param options - 추가 옵션
+ * @param options.useAdminClient - Admin 클라이언트 사용 여부 (RLS 우회, 관리자 모드에서 학생 데이터 조회 시 필요)
  */
 export async function getStudentExclusions(
   studentId: string,
-  tenantId?: string | null
+  tenantId?: string | null,
+  options?: { useAdminClient?: boolean }
 ): Promise<PlanExclusion[]> {
-  const supabase = await createSupabaseServerClient();
+  const supabase = options?.useAdminClient
+    ? await getSupabaseClient(true)
+    : await createSupabaseServerClient();
 
   const selectExclusions = () =>
     supabase
@@ -140,8 +148,9 @@ export async function getStudentExclusions(
       .order("exclusion_date", { ascending: true });
 
   let query = selectExclusions();
+  // tenant_id 필터: NULL 데이터도 포함하도록 OR 조건 사용
   if (tenantId) {
-    query = query.eq("tenant_id", tenantId);
+    query = query.or(`tenant_id.eq.${tenantId},tenant_id.is.null`);
   }
 
   let { data, error } = await query;

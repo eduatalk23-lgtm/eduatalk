@@ -241,6 +241,7 @@ export type NonStudyTimeBlock = {
   start_time: string;
   end_time: string;
   day_of_week?: number[];
+  specific_dates?: string[]; // 특정 날짜 지정 (YYYY-MM-DD)
   description?: string;
 };
 

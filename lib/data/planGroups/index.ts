@@ -66,6 +66,24 @@ export {
   createStudentExclusions,
 } from "./exclusions";
 
+// Exclusion Overrides (플래너별 제외일 커스터마이징)
+export {
+  // Plan Group용 (기존 - 하위 호환성)
+  getPlannerOverrides,
+  getEffectiveExclusions,
+  savePlannerOverrides,
+  upsertPlannerOverride,
+  deletePlannerOverride,
+  hasPlannerOverrides,
+  // Planner용 (신규)
+  getPlannerOverridesForPlanner,
+  getEffectiveExclusionsForPlanner,
+  savePlannerOverridesForPlanner,
+  upsertPlannerOverrideForPlanner,
+  deletePlannerOverrideForPlanner,
+  hasPlannerOverridesForPlanner,
+} from "./exclusionOverrides";
+
 // Academies
 export {
   getAcademySchedules,
@@ -75,6 +93,26 @@ export {
   createPlanAcademySchedules,
   createStudentAcademySchedules,
 } from "./academies";
+
+// Academy Overrides (플래너별 학원 일정 커스터마이징)
+export {
+  // Plan Group용 (기존 패턴과 일관성)
+  getAcademyOverrides,
+  getEffectiveAcademySchedules,
+  saveAcademyOverrides,
+  upsertAcademyOverride,
+  deleteAcademyOverride,
+  hasAcademyOverrides,
+  // Planner용
+  getAcademyOverridesForPlanner,
+  getEffectiveAcademySchedulesForPlanner,
+  saveAcademyOverridesForPlanner,
+  upsertAcademyOverrideForPlanner,
+  deleteAcademyOverrideForPlanner,
+  hasAcademyOverridesForPlanner,
+  // 헬퍼
+  toEffectiveSchedule,
+} from "./academyOverrides";
 
 // Admin
 export {

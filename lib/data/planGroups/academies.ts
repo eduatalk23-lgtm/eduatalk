@@ -132,12 +132,20 @@ export async function getAcademySchedules(
 
 /**
  * 학생의 전체 학원 일정 조회 (모든 플랜 그룹)
+ *
+ * @param studentId - 학생 ID
+ * @param tenantId - 테넌트 ID (선택적)
+ * @param options - 추가 옵션
+ * @param options.useAdminClient - Admin 클라이언트 사용 여부 (RLS 우회, 관리자 모드에서 학생 데이터 조회 시 필요)
  */
 export async function getStudentAcademySchedules(
   studentId: string,
-  tenantId?: string | null
+  tenantId?: string | null,
+  options?: { useAdminClient?: boolean }
 ): Promise<AcademySchedule[]> {
-  const supabase = await createSupabaseServerClient();
+  const supabase = options?.useAdminClient
+    ? await getSupabaseClient(true)
+    : await createSupabaseServerClient();
 
   // academies와 조인하여 travel_time 가져오기
   const selectSchedules = () =>
@@ -151,8 +159,9 @@ export async function getStudentAcademySchedules(
       .order("start_time", { ascending: true });
 
   let query = selectSchedules();
+  // tenant_id 필터: NULL 데이터도 포함하도록 OR 조건 사용
   if (tenantId) {
-    query = query.eq("tenant_id", tenantId);
+    query = query.or(`tenant_id.eq.${tenantId},tenant_id.is.null`);
   }
 
   const { data, error: queryError } = await query;
@@ -172,8 +181,9 @@ export async function getStudentAcademySchedules(
         .order("start_time", { ascending: true });
 
     let fallbackQuery = fallbackSelect();
+    // tenant_id 필터: NULL 데이터도 포함하도록 OR 조건 사용
     if (tenantId) {
-      fallbackQuery = fallbackQuery.eq("tenant_id", tenantId);
+      fallbackQuery = fallbackQuery.or(`tenant_id.eq.${tenantId},tenant_id.is.null`);
     }
     const fallbackResult = await fallbackQuery;
     error = fallbackResult.error;

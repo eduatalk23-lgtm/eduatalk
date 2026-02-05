@@ -73,8 +73,13 @@ export type {
   PlanContent,
   PlanGroupItem,
   PlanExclusion,
+  PlannerExclusionOverride,
+  EffectiveExclusion,
   Academy,
   AcademySchedule,
+  AcademyOverrideType,
+  PlannerAcademyOverride,
+  EffectiveAcademySchedule,
   CampTemplate,
   CampInvitation,
   // 콘텐츠 관련 타입
@@ -213,3 +218,6 @@ export {
   toMatrixTimeSlot,
   toPlanView,
 } from "./views";
+
+// Planner 권한 시스템
+export type PlannerPermission = "full" | "execute_only" | "view_only";
