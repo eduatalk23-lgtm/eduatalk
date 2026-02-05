@@ -18,6 +18,10 @@ export function LoginForm({ returnUrl }: LoginFormProps) {
   const searchParams = useSearchParams();
   const message = searchParams.get("message");
   const errorParam = searchParams.get("error");
+  const connectionCode = searchParams.get("code");
+
+  // 회원가입 링크에 연결 코드 유지
+  const signupUrl = connectionCode ? `/signup?code=${connectionCode}` : "/signup";
   const [error, setError] = useState<string | null>(errorParam);
   const [needsEmailVerification, setNeedsEmailVerification] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState<string>("");
@@ -67,7 +71,7 @@ export function LoginForm({ returnUrl }: LoginFormProps) {
         <h1 className="text-3xl font-bold tracking-tight">Welcome Back</h1>
         <p className="mt-2 text-neutral-500">
           계정이 없다면{" "}
-          <Link href="/signup" className="font-medium text-black underline-offset-4 hover:underline">
+          <Link href={signupUrl} className="font-medium text-black underline-offset-4 hover:underline">
             회원가입
           </Link>
           을 진행해주세요.

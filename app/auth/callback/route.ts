@@ -15,6 +15,7 @@ export async function GET(request: Request) {
   const error = searchParams.get("error"); // Supabase가 전달한 에러 파라미터
   const errorCode = searchParams.get("error_code"); // Supabase가 전달한 에러 코드 (예: otp_expired)
   const type = searchParams.get("type"); // 인증 타입 (recovery, signup 등)
+  const connectionCode = searchParams.get("connection_code"); // 회원가입 시 연결 코드
   let next = searchParams.get("next") ?? "/";
 
   // 상대 경로가 아닌 경우 기본값 사용 (보안)
@@ -113,7 +114,10 @@ export async function GET(request: Request) {
             if (process.env.NODE_ENV === "development") {
               console.log("[auth/callback] OAuth 사용자 역할 없음, 역할 선택 페이지로 리다이렉트");
             }
-            next = "/onboarding/select-role";
+            // 연결 코드가 있으면 함께 전달
+            next = connectionCode
+              ? `/onboarding/select-role?code=${encodeURIComponent(connectionCode)}`
+              : "/onboarding/select-role";
             return redirectToNext();
           }
         }

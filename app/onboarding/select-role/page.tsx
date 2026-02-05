@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useActionState, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { setupOAuthUserRole } from "@/lib/domains/auth/actions";
 import { getTenantOptionsForSignup, type TenantOption } from "@/lib/domains/tenant";
@@ -11,17 +11,38 @@ import FormInput from "@/components/ui/FormInput";
 import FormMessage from "@/components/ui/FormMessage";
 import FormSubmitButton from "@/components/ui/FormSubmitButton";
 import FormCheckbox from "@/components/ui/FormCheckbox";
+import { RoleSelectCards } from "@/components/ui/RoleSelectCards";
 
 const initialState: ActionResponse<{ redirect: string }> | null = null;
 
-export default function SelectRolePage() {
+function SelectRoleContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const codeFromUrl = searchParams.get("code") || "";
+
   const [state, formAction] = useActionState(setupOAuthUserRole, initialState);
   const [tenants, setTenants] = useState<TenantOption[]>([]);
   const [loadingTenants, setLoadingTenants] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTenantId, setSelectedTenantId] = useState("");
   const [selectedRole, setSelectedRole] = useState<"student" | "parent" | "">("");
+  const [selectedRelation, setSelectedRelation] = useState<"father" | "mother" | "guardian" | "">("");
+  const [connectionCode, setConnectionCode] = useState(codeFromUrl);
+
+  // localStorage에서 연결 코드 읽기 (OAuth 플로우에서 전달된 경우)
+  useEffect(() => {
+    if (!codeFromUrl) {
+      const storedCode = localStorage.getItem("signup_connection_code");
+      if (storedCode) {
+        setConnectionCode(storedCode);
+        // 사용 후 삭제
+        localStorage.removeItem("signup_connection_code");
+      }
+    } else {
+      // URL에 코드가 있으면 localStorage 정리
+      localStorage.removeItem("signup_connection_code");
+    }
+  }, [codeFromUrl]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [userInfo, setUserInfo] = useState<{
     email: string;
@@ -73,9 +94,10 @@ export default function SelectRolePage() {
   // 성공 시 리다이렉트
   useEffect(() => {
     if (state && isSuccessResponse(state) && state.data?.redirect) {
-      router.push(state.data.redirect);
+      // 하드 네비게이션으로 전체 페이지 새로고침 (auth 캐시 동기화 보장)
+      window.location.href = state.data.redirect;
     }
-  }, [state, router]);
+  }, [state]);
 
   // 검색 필터링
   const filteredTenants = tenants.filter((tenant) =>
@@ -203,26 +225,50 @@ export default function SelectRolePage() {
         </div>
 
         {/* 역할 선택 */}
-        <div className="flex flex-col gap-2">
-          <label htmlFor="role" className="text-sm font-medium text-gray-700">
-            회원 유형 <span className="text-red-500">*</span>
-          </label>
-          <select
-            id="role"
-            name="role"
-            required
-            value={selectedRole}
-            onChange={(e) => setSelectedRole(e.target.value as "student" | "parent")}
-            className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm"
-          >
-            <option value="">회원 유형을 선택하세요</option>
-            <option value="student">학생</option>
-            <option value="parent">학부모</option>
-          </select>
-          <p className="text-xs text-gray-500">
-            학생: 학습 계획 및 성적 관리를 사용합니다. 학부모: 자녀의 학습 현황을 확인합니다.
-          </p>
-        </div>
+        <RoleSelectCards
+          value={selectedRole}
+          onChange={(role) => {
+            setSelectedRole(role);
+            if (role === "student") {
+              setSelectedRelation("");
+            }
+          }}
+          relation={selectedRelation}
+          onRelationChange={(relation) => setSelectedRelation(relation)}
+        />
+
+        {/* 핸드폰 번호 입력 */}
+        {selectedRole && (
+          <FormInput
+            label="핸드폰 번호"
+            name="phone"
+            type="tel"
+            placeholder="010-0000-0000"
+          />
+        )}
+
+        {/* 연결 코드 입력 (학생/학부모 모두) */}
+        {selectedRole && (
+          <div className="flex flex-col gap-2">
+            <label htmlFor="connection_code" className="text-sm font-medium text-gray-700">
+              연결 코드 <span className="text-gray-500">(선택사항)</span>
+            </label>
+            <input
+              id="connection_code"
+              name="connection_code"
+              type="text"
+              value={connectionCode}
+              onChange={(e) => setConnectionCode(e.target.value.toUpperCase())}
+              placeholder="STU-XXXX-XXXX"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm uppercase"
+            />
+            <p className="text-xs text-gray-500">
+              {selectedRole === "student"
+                ? "관리자가 발급한 연결 코드가 있다면 입력하세요. 기존 학생 정보와 계정이 자동으로 연결됩니다."
+                : "자녀의 연결 코드가 있다면 입력하세요. 자녀 계정과 자동으로 연결됩니다."}
+            </p>
+          </div>
+        )}
 
         {/* 약관 동의 */}
         <div className="flex flex-col gap-3 rounded-lg border border-gray-200 p-4">
@@ -286,5 +332,21 @@ export default function SelectRolePage() {
         </button>
       </div>
     </section>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <section className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4">
+      <div className="text-center text-gray-500">로딩 중...</div>
+    </section>
+  );
+}
+
+export default function SelectRolePage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <SelectRoleContent />
+    </Suspense>
   );
 }

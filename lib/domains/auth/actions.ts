@@ -291,12 +291,122 @@ async function linkStudentWithConnectionCode(
 }
 
 /**
+ * 학부모 회원가입 시 연결 코드로 자녀(학생) 연결
+ * 연결 코드로 학생을 찾아 parent_student_links에 레코드 추가
+ */
+async function linkParentWithConnectionCode(
+  parentId: string,
+  connectionCode: string,
+  relation: string,
+  tenantId: string
+): Promise<AuthResult> {
+  try {
+    const adminResult = getAdminClientOrError();
+    if (!adminResult.success) {
+      logActionError(
+        { domain: "auth", action: "linkParentWithConnectionCode", userId: parentId },
+        new Error(adminResult.error),
+        { connectionCode }
+      );
+      return { success: false, error: adminResult.error };
+    }
+    const supabase = adminResult.client;
+
+    // 1. 연결 코드로 학생 찾기
+    const { data: codeData, error: codeError } = await supabase
+      .from("student_connection_codes")
+      .select("student_id, expires_at, used_at")
+      .eq("connection_code", connectionCode.toUpperCase())
+      .maybeSingle();
+
+    if (codeError) {
+      logActionError(
+        { domain: "auth", action: "linkParentWithConnectionCode", userId: parentId },
+        codeError,
+        { connectionCode }
+      );
+      return { success: false, error: "연결 코드 확인 중 오류가 발생했습니다." };
+    }
+
+    if (!codeData) {
+      return { success: false, error: "유효하지 않은 연결 코드입니다." };
+    }
+
+    // 2. 만료 확인
+    if (new Date(codeData.expires_at) < new Date()) {
+      return { success: false, error: "만료된 연결 코드입니다." };
+    }
+
+    // 3. 이미 연결되어 있는지 확인
+    const { data: existingLink } = await supabase
+      .from("parent_student_links")
+      .select("id")
+      .eq("parent_id", parentId)
+      .eq("student_id", codeData.student_id)
+      .maybeSingle();
+
+    if (existingLink) {
+      return { success: true }; // 이미 연결됨
+    }
+
+    // 4. parent_student_links에 레코드 추가
+    const { error: linkError } = await supabase
+      .from("parent_student_links")
+      .insert({
+        parent_id: parentId,
+        student_id: codeData.student_id,
+        relation: relation,
+        tenant_id: tenantId,
+        is_approved: true, // 연결 코드 사용 시 자동 승인
+        approved_at: new Date().toISOString(),
+      });
+
+    if (linkError) {
+      logActionError(
+        { domain: "auth", action: "linkParentWithConnectionCode", userId: parentId },
+        linkError,
+        { connectionCode, studentId: codeData.student_id }
+      );
+      return { success: false, error: "자녀 연결에 실패했습니다." };
+    }
+
+    // 5. 가족 통합 처리 (형제자매 자동 감지)
+    try {
+      const { handleParentLinkApproval } = await import("@/lib/domains/family");
+      await handleParentLinkApproval(parentId, codeData.student_id, relation);
+    } catch (familyError) {
+      // 가족 통합 실패는 연결 성공에 영향을 주지 않음
+      logActionDebug(
+        { domain: "auth", action: "linkParentWithConnectionCode", userId: parentId },
+        "가족 통합 처리 실패 (무시됨)",
+        { error: familyError instanceof Error ? familyError.message : String(familyError) }
+      );
+    }
+
+    logActionSuccess(
+      { domain: "auth", action: "linkParentWithConnectionCode", userId: parentId },
+      { connectionCode, studentId: codeData.student_id, relation }
+    );
+
+    return { success: true };
+  } catch (error) {
+    logActionError(
+      { domain: "auth", action: "linkParentWithConnectionCode", userId: parentId },
+      error,
+      { connectionCode }
+    );
+    return { success: false, error: "자녀 연결 중 오류가 발생했습니다." };
+  }
+}
+
+/**
  * 회원가입 시 학생 레코드 생성
  */
 async function createStudentRecord(
   userId: string,
   tenantId: string | null | undefined,
-  displayName?: string | null
+  displayName?: string | null,
+  phone?: string | null
 ): Promise<AuthResult> {
   try {
     const adminResult = getAdminClientOrError();
@@ -322,6 +432,7 @@ async function createStudentRecord(
       id: userId,
       tenant_id: finalTenantId,
       name: displayName || "",
+      phone: phone || null,
     });
 
     if (error) {
@@ -371,7 +482,8 @@ async function createStudentRecord(
 async function createParentRecord(
   userId: string,
   tenantId: string | null | undefined,
-  displayName?: string | null
+  displayName?: string | null,
+  phone?: string | null
 ): Promise<AuthResult> {
   try {
     const adminResult = getAdminClientOrError();
@@ -401,6 +513,7 @@ async function createParentRecord(
       id: userId,
       tenant_id: finalTenantId,
       name: displayName || "",
+      phone: phone || null,
     });
 
     if (error) {
@@ -560,6 +673,8 @@ export async function signUp(
   const tenantId = String(formData.get("tenant_id") ?? "").trim();
   const role = String(formData.get("role") ?? "").trim() as "student" | "parent" | "";
   const connectionCode = String(formData.get("connection_code") ?? "").trim();
+  const phone = String(formData.get("phone") ?? "").trim();
+  const relation = String(formData.get("relation") ?? "").trim() as "father" | "mother" | "guardian" | "";
 
   const consentTerms = formData.get("consent_terms") === "on";
   const consentPrivacy = formData.get("consent_privacy") === "on";
@@ -630,21 +745,46 @@ export async function signUp(
               new Error(linkResult.error || "연결 코드 검증 실패"),
               { connectionCode }
             );
-            const result = await createStudentRecord(authData.user.id, userTenantId, userDisplayName);
+            const result = await createStudentRecord(authData.user.id, userTenantId, userDisplayName, phone || null);
             if (!result.success) {
               // createStudentRecord에서 이미 로깅됨
             }
           }
         } else {
-          const result = await createStudentRecord(authData.user.id, userTenantId, userDisplayName);
+          const result = await createStudentRecord(authData.user.id, userTenantId, userDisplayName, phone || null);
           if (!result.success) {
             // createStudentRecord에서 이미 로깅됨
           }
         }
       } else if (userRole === "parent") {
-        const result = await createParentRecord(authData.user.id, userTenantId, userDisplayName);
+        // 학부모 레코드 생성
+        const result = await createParentRecord(authData.user.id, userTenantId, userDisplayName, phone || null);
         if (!result.success) {
           // createParentRecord에서 이미 로깅됨
+        }
+
+        // 연결 코드가 있으면 자녀와 연결
+        if (connectionCode && userTenantId) {
+          const relationValue = relation || "guardian";
+          const linkResult = await linkParentWithConnectionCode(
+            authData.user.id,
+            connectionCode,
+            relationValue,
+            userTenantId
+          );
+          if (linkResult.success) {
+            logActionSuccess(
+              { domain: "auth", action: "signUp", userId: authData.user.id },
+              { connectionCode, context: "학부모-자녀 연결 성공", relation: relationValue }
+            );
+          } else {
+            logActionError(
+              { domain: "auth", action: "signUp", userId: authData.user.id },
+              new Error(linkResult.error || "학부모-자녀 연결 실패"),
+              { connectionCode }
+            );
+            // 연결 실패해도 가입은 진행 (나중에 연결 가능)
+          }
         }
       }
 
@@ -1068,6 +1208,7 @@ export async function changeUserRole(newRole: "student" | "parent"): Promise<Act
  * OAuth 로그인 후 역할이 없는 사용자가 역할을 선택할 때 사용
  */
 export async function setupOAuthUserRole(
+  _prevState: ActionResponse<{ redirect: string }> | null,
   formData: FormData
 ): Promise<ActionResponse<{ redirect: string }>> {
   try {
@@ -1085,6 +1226,9 @@ export async function setupOAuthUserRole(
       user.user_metadata?.name ||
       user.email?.split("@")[0] ||
       "";
+    const phone = String(formData.get("phone") ?? "").trim();
+    const connectionCode = String(formData.get("connection_code") ?? "").trim();
+    const relation = String(formData.get("relation") ?? "").trim() as "father" | "mother" | "guardian" | "";
 
     // 약관 동의
     const consentTerms = formData.get("consent_terms") === "on";
@@ -1097,6 +1241,11 @@ export async function setupOAuthUserRole(
 
     if (!role || (role !== "student" && role !== "parent")) {
       return createErrorResponse("회원 유형을 선택해주세요.");
+    }
+
+    // 연결 코드가 없는 경우 기관(테넌트) 필수
+    if (!connectionCode && !tenantId) {
+      return createErrorResponse("소속 기관을 선택해주세요.");
     }
 
     // 이미 역할이 있는지 확인
@@ -1118,14 +1267,60 @@ export async function setupOAuthUserRole(
 
     // 역할 레코드 생성
     if (role === "student") {
-      const result = await createStudentRecord(user.id, tenantId, displayName);
-      if (!result.success) {
-        return createErrorResponse(result.error || "학생 등록에 실패했습니다.");
+      if (connectionCode) {
+        // 연결 코드로 기존 학생 계정 연결 시도
+        const linkResult = await linkStudentWithConnectionCode(user.id, connectionCode);
+        if (linkResult.success) {
+          logActionSuccess(
+            { domain: "auth", action: "setupOAuthUserRole", userId: user.id },
+            { connectionCode, context: "연결 코드 연결 성공" }
+          );
+        } else {
+          // 연결 실패 시 새 학생 레코드 생성
+          logActionError(
+            { domain: "auth", action: "setupOAuthUserRole", userId: user.id },
+            new Error(linkResult.error || "연결 코드 검증 실패"),
+            { connectionCode }
+          );
+          const result = await createStudentRecord(user.id, tenantId, displayName, phone || null);
+          if (!result.success) {
+            return createErrorResponse(result.error || "학생 등록에 실패했습니다.");
+          }
+        }
+      } else {
+        const result = await createStudentRecord(user.id, tenantId, displayName, phone || null);
+        if (!result.success) {
+          return createErrorResponse(result.error || "학생 등록에 실패했습니다.");
+        }
       }
     } else if (role === "parent") {
-      const result = await createParentRecord(user.id, tenantId, displayName);
+      const result = await createParentRecord(user.id, tenantId, displayName, phone || null);
       if (!result.success) {
         return createErrorResponse(result.error || "학부모 등록에 실패했습니다.");
+      }
+
+      // 연결 코드가 있으면 자녀와 연결
+      if (connectionCode && tenantId) {
+        const relationValue = relation || "guardian";
+        const linkResult = await linkParentWithConnectionCode(
+          user.id,
+          connectionCode,
+          relationValue,
+          tenantId
+        );
+        if (linkResult.success) {
+          logActionSuccess(
+            { domain: "auth", action: "setupOAuthUserRole", userId: user.id },
+            { connectionCode, context: "학부모-자녀 연결 성공", relation: relationValue }
+          );
+        } else {
+          logActionError(
+            { domain: "auth", action: "setupOAuthUserRole", userId: user.id },
+            new Error(linkResult.error || "학부모-자녀 연결 실패"),
+            { connectionCode }
+          );
+          // 연결 실패해도 가입은 진행 (나중에 연결 가능)
+        }
       }
     }
 

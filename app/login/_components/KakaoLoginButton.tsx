@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export function KakaoLoginButton() {
+  const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -13,6 +15,13 @@ export function KakaoLoginButton() {
 
     try {
       const supabase = createSupabaseBrowserClient();
+
+      // 연결 코드가 있으면 localStorage에 저장 (OAuth 플로우 후 사용)
+      const connectionCode = searchParams.get("code");
+      if (connectionCode) {
+        localStorage.setItem("signup_connection_code", connectionCode);
+      }
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "kakao",
         options: {
