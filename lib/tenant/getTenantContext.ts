@@ -120,6 +120,48 @@ export const getTenantContext = cache(async (): Promise<TenantContext | null> =>
       };
     }
 
+    // 3. parent_users 테이블에서 조회
+    const selectParent = () =>
+      supabase
+        .from("parent_users")
+        .select("id,tenant_id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+    const { data: parent, error: parentError } = await selectParent();
+
+    if (parentError && parentError.code === "42703") {
+      // fallback: tenant_id 컬럼이 없는 경우
+      const fallbackSelect = () =>
+        supabase
+          .from("parent_users")
+          .select("id")
+          .eq("id", user.id)
+          .maybeSingle<{ id: string }>();
+      const fallbackResult = await fallbackSelect();
+      const fallbackParent = fallbackResult.data;
+
+      if (fallbackParent) {
+        return {
+          tenantId: null, // tenant_id 컬럼이 없는 경우
+          role: "parent",
+          userId: user.id,
+        };
+      }
+    }
+
+    if (parentError && parentError.code !== "PGRST116") {
+      logActionError("tenant.getTenantContext", `parent_users 조회 실패: ${parentError.message}`);
+    }
+
+    if (parent) {
+      return {
+        tenantId: (parent as { tenant_id?: string | null })?.tenant_id ?? null,
+        role: "parent",
+        userId: user.id,
+      };
+    }
+
     // 어떤 테이블에도 없으면 null 반환
     return null;
   } catch (error) {

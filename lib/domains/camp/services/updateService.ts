@@ -322,8 +322,9 @@ export async function updateAcademySchedules(
   if (academySchedules === undefined) return;
 
   // 기존 학원 일정 조회 (중복 체크용)
+  // Admin 클라이언트 사용 (캠프 모드는 관리자가 학생 데이터를 조회하므로 RLS 우회 필요)
   const { getStudentAcademySchedules } = await import("@/lib/data/planGroups");
-  const existingSchedules = await getStudentAcademySchedules(studentId, tenantId);
+  const existingSchedules = await getStudentAcademySchedules(studentId, tenantId, { useAdminClient: true });
 
   // 기존 학원 일정을 키로 매핑
   const existingKeys = new Set(

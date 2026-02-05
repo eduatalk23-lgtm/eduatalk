@@ -40,6 +40,7 @@ import {
   Home,
   CalendarCheck,
   CalendarX,
+  FolderKanban,
 } from "lucide-react";
 
 export const studentCategories: NavigationCategory[] = [
@@ -79,6 +80,12 @@ export const studentCategories: NavigationCategory[] = [
     label: "플랜 관리",
     icon: <ClipboardList className="w-4 h-4" />,
     items: [
+      {
+        id: "plan-planner",
+        label: "플래너",
+        href: "/plan/planner",
+        icon: <FolderKanban className="w-4 h-4" />,
+      },
       {
         id: "plan-list",
         label: "플랜 목록",

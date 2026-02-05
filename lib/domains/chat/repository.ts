@@ -759,13 +759,13 @@ export async function findSendersByIds(
 
   const result = new Map<string, SenderInfo>();
 
-  // 병렬로 학생 + 관리자 정보 조회 (students는 profiles와 JOIN)
+  // 병렬로 학생 + 관리자 정보 조회 (students는 profiles와 JOIN, school_name 비정규화 컬럼 사용)
   const [studentsResult, adminsResult] = await Promise.all([
     // 학생 정보 + 프로필 이미지 + 학교/학년 정보
     studentIds.length > 0
       ? supabase
           .from("students")
-          .select("id, name, grade, school_type, school_id, student_profiles(profile_image_url)")
+          .select("id, name, grade, school_type, school_name, student_profiles(profile_image_url)")
           .in("id", studentIds)
       : Promise.resolve({ data: null, error: null }),
     // 관리자 정보
@@ -777,36 +777,11 @@ export async function findSendersByIds(
       : Promise.resolve({ data: null, error: null }),
   ]);
 
-  // 학교 정보 조회 (학생이 있는 경우에만)
-  let schoolsMap = new Map<string, string>();
-  if (studentsResult.data && studentsResult.data.length > 0) {
-    const schoolIds = [
-      ...new Set(
-        studentsResult.data
-          .map((s) => s.school_id)
-          .filter((id): id is string => !!id)
-      ),
-    ];
-
-    if (schoolIds.length > 0) {
-      const { data: schoolsData } = await supabase
-        .from("all_schools_view")
-        .select("id, name")
-        .in("id", schoolIds);
-
-      if (schoolsData) {
-        schoolsMap = new Map(schoolsData.map((s) => [s.id, s.name]));
-      }
-    }
-  }
-
   // 학생 결과 처리
   if (studentsResult.data) {
     for (const student of studentsResult.data) {
       const profileImageUrl = extractProfileImageUrl(student.student_profiles);
-      const schoolName = student.school_id
-        ? schoolsMap.get(student.school_id) ?? null
-        : null;
+      const schoolName = student.school_name;
       const gradeDisplay = formatGradeDisplay(student.school_type, student.grade);
 
       result.set(`${student.id}_student`, {
