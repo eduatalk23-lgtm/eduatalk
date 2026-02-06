@@ -382,6 +382,8 @@ interface DailyOverride {
 }
 
 export type NonStudyItem = {
+  /** 레코드 ID (새 테이블에서 조회 시 UUID, 레거시는 undefined) */
+  id?: string;
   type: "아침식사" | "점심식사" | "저녁식사" | "수면" | "학원" | "이동시간" | "기타";
   start_time: string;
   end_time: string;
@@ -393,6 +395,10 @@ export type NonStudyItem = {
 /**
  * 비학습시간 프리페치 (서버용)
  * plannerId가 있으면 planGroupIds 없이도 조회 가능
+ *
+ * 조회 우선순위:
+ * 1. student_non_study_time 테이블 (새 방식)
+ * 2. 레거시 오버라이드 + 템플릿 방식 (폴백)
  */
 export async function prefetchNonStudyTime(
   studentId: string,
@@ -405,6 +411,54 @@ export async function prefetchNonStudyTime(
   }
 
   const supabase = await createSupabaseServerClient();
+
+  // 1. 새 테이블에서 직접 조회 (새 방식)
+  const { data: nonStudyRecords, error: nonStudyError } = await supabase
+    .from('student_non_study_time')
+    .select('id, type, start_time, end_time, label, sequence')
+    .eq('planner_id', plannerId)
+    .eq('plan_date', date)
+    .order('start_time', { ascending: true });
+
+  console.log('[prefetchNonStudyTime] SSR query result:', {
+    plannerId,
+    date,
+    recordCount: nonStudyRecords?.length ?? 0,
+    error: nonStudyError?.message,
+    firstRecord: nonStudyRecords?.[0] ? { id: nonStudyRecords[0].id, type: nonStudyRecords[0].type } : null,
+  });
+
+  // 레코드가 있으면 새 방식 사용
+  if (!nonStudyError && nonStudyRecords && nonStudyRecords.length > 0) {
+    return nonStudyRecords.map((record) => {
+      // TIME 형식(HH:mm:ss)을 HH:mm으로 변환
+      const startTime = record.start_time.substring(0, 5);
+      const endTime = record.end_time.substring(0, 5);
+
+      // type 매핑 (점심식사, 학원, 이동시간 등)
+      const typeMap: Record<string, NonStudyItem['type']> = {
+        '점심식사': '점심식사',
+        '아침식사': '아침식사',
+        '저녁식사': '저녁식사',
+        '수면': '수면',
+        '학원': '학원',
+        '이동시간': '이동시간',
+      };
+      const type = typeMap[record.type] ?? '기타';
+
+      return {
+        id: record.id, // 새 테이블 레코드 UUID
+        type,
+        start_time: startTime,
+        end_time: endTime,
+        label: record.label ?? record.type,
+        sourceIndex: record.sequence,
+        hasOverride: false, // 새 방식에서는 오버라이드 개념 없음
+      };
+    });
+  }
+
+  // 2. 새 테이블에 레코드가 없으면 레거시 방식으로 폴백
   const items: NonStudyItem[] = [];
   const seen = new Set<string>();
   const dayOfWeek = new Date(date + 'T00:00:00').getDay();

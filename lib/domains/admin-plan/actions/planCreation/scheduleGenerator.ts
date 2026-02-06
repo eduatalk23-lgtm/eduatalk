@@ -161,7 +161,7 @@ export async function generateScheduleForPlanner(
       scheduler_options: undefined, // study_days, review_days는 기본값 사용
       use_self_study_with_blocks: true,
       enable_self_study_for_holidays: schedulerOptions?.enable_self_study_for_holidays === true,
-      enable_self_study_for_study_days: schedulerOptions?.enable_self_study_for_study_days === true,
+      enable_self_study_for_study_days: schedulerOptions?.enable_self_study_for_study_days === true || !!schedulerOptions?.self_study_hours,
       lunch_time: schedulerOptions?.lunch_time ?? undefined,
       camp_study_hours: schedulerOptions?.study_hours ?? undefined,
       camp_self_study_hours: schedulerOptions?.self_study_hours ?? undefined,
@@ -327,7 +327,7 @@ export async function generateScheduleForPlanGroup(
       scheduler_options: undefined, // study_days, review_days는 기본값 사용
       use_self_study_with_blocks: true,
       enable_self_study_for_holidays: rawSchedulerOptions?.enable_self_study_for_holidays === true,
-      enable_self_study_for_study_days: rawSchedulerOptions?.enable_self_study_for_study_days === true,
+      enable_self_study_for_study_days: rawSchedulerOptions?.enable_self_study_for_study_days === true || !!schedulerOptions?.self_study_hours,
       lunch_time: schedulerOptions?.lunch_time ?? undefined,
       camp_study_hours: schedulerOptions?.study_hours ?? undefined,
       camp_self_study_hours: schedulerOptions?.self_study_hours ?? undefined,

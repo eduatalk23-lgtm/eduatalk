@@ -46,7 +46,9 @@ export function buildPlanQuery(
   let query = supabase
     .from(tableName)
     .select(selectFields)
-    .eq("student_id", options.studentId);
+    .eq("student_id", options.studentId)
+    .eq("is_active", true)
+    .is("deleted_at", null);
 
   if (options.tenantId) {
     query = query.eq("tenant_id", options.tenantId);

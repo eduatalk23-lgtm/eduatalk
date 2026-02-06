@@ -117,6 +117,8 @@ export interface AcademySchedule {
 }
 
 export type NonStudyItem = {
+  /** 레코드 ID (새 테이블에서 조회 시 UUID, 레거시는 undefined) */
+  id?: string;
   type: "아침식사" | "점심식사" | "저녁식사" | "수면" | "학원" | "이동시간" | "기타";
   start_time: string;
   end_time: string;
@@ -134,8 +136,11 @@ export const adminDockKeys = {
     [...adminDockKeys.all, 'daily', studentId, date, plannerId ?? 'all'] as const,
   dailyAdHoc: (studentId: string, date: string) =>
     [...adminDockKeys.all, 'dailyAdHoc', studentId, date] as const,
+  // plannerId가 있으면 planGroupIds 무시 (새 테이블 직접 조회이므로 planGroupIds 불필요)
   dailyNonStudy: (studentId: string, date: string, planGroupIds: string[], plannerId?: string) =>
-    [...adminDockKeys.all, 'dailyNonStudy', studentId, date, plannerId ?? 'all', ...planGroupIds.slice().sort()] as const,
+    plannerId
+      ? [...adminDockKeys.all, 'dailyNonStudy', studentId, date, plannerId] as const
+      : [...adminDockKeys.all, 'dailyNonStudy', studentId, date, 'legacy', ...planGroupIds.slice().sort()] as const,
   weekly: (studentId: string, weekStart: string, weekEnd: string, plannerId?: string) =>
     [...adminDockKeys.all, 'weekly', studentId, weekStart, weekEnd, plannerId ?? 'all'] as const,
   weeklyAdHoc: (studentId: string, weekStart: string, weekEnd: string) =>
@@ -512,10 +517,10 @@ export function unfinishedPlansQueryOptions(studentId: string, plannerId?: strin
 // 비학습시간 데이터 조회
 // ============================================
 
-/** 오버라이드 타입 */
+/** 오버라이드 타입 (레거시 호환용) */
 type OverrideType = 'non_study_time' | 'academy' | 'lunch';
 
-/** 오버라이드 레코드 */
+/** 오버라이드 레코드 (레거시 호환용) */
 interface DailyOverride {
   override_type: OverrideType;
   source_index: number | null;
@@ -525,17 +530,25 @@ interface DailyOverride {
 }
 
 /**
+ * student_non_study_time 테이블 레코드
+ */
+interface NonStudyTimeRecord {
+  id: string;
+  type: string;
+  start_time: string;
+  end_time: string;
+  label: string | null;
+  sequence: number;
+}
+
+/**
  * 비학습시간 데이터 조회
  *
- * Phase 4-1: 플래너 우선 조회 방식으로 전환
- * - plannerId가 있으면 planner에서 non_study_time_blocks 우선 조회
- * - plannerId가 없으면 plan_groups에서 조회 (레거시 호환)
+ * Phase 5: 새 테이블 우선 조회 방식으로 전환
+ * - student_non_study_time 테이블에서 해당 날짜 레코드 직접 조회
+ * - 레코드가 없으면 레거시 방식으로 폴백 (플래너 템플릿 + 오버라이드)
  *
- * lunch_time 통합:
- * - 레거시 lunch_time 필드는 non_study_time_blocks의 "점심식사" 타입으로 변환
- * - non_study_time_blocks에 "점심식사"가 이미 있으면 lunch_time 무시 (중복 방지)
- *
- * 핵심 원칙: "학생의 하루는 하나" - 비학습시간은 플래너 레벨에서 단일 관리
+ * 핵심 원칙: "학생의 하루는 하나" - 비학습시간은 날짜별 레코드로 관리
  */
 export function nonStudyTimeQueryOptions(
   studentId: string,
@@ -550,208 +563,290 @@ export function nonStudyTimeQueryOptions(
     queryKey: adminDockKeys.dailyNonStudy(studentId, date, planGroupIds, plannerId),
     queryFn: async (): Promise<NonStudyItem[]> => {
       const supabase = createSupabaseBrowserClient();
-      const items: NonStudyItem[] = [];
-      const seen = new Set<string>(); // 중복 방지 키
 
-      // 0. 오버라이드 조회 (plannerId가 있는 경우에만)
-      let overrides: DailyOverride[] = [];
+      // 1. 새 테이블에서 직접 조회 (plannerId가 있는 경우)
       if (plannerId) {
-        const { data: overrideData } = await supabase
-          .from('planner_daily_overrides')
-          .select('override_type, source_index, is_disabled, start_time_override, end_time_override')
+        const { data: nonStudyRecords, error } = await supabase
+          .from('student_non_study_time')
+          .select('id, type, start_time, end_time, label, sequence')
           .eq('planner_id', plannerId)
-          .eq('override_date', date)
-          .order('created_at', { ascending: false });
+          .eq('plan_date', date)
+          .order('start_time', { ascending: true });
 
-        if (overrideData) {
-          overrides = overrideData as DailyOverride[];
-        }
-      }
+        console.log('[nonStudyTimeQueryOptions] New table query result:', {
+          plannerId,
+          date,
+          recordCount: nonStudyRecords?.length ?? 0,
+          error: error?.message,
+          firstRecord: nonStudyRecords?.[0] ? { id: nonStudyRecords[0].id, type: nonStudyRecords[0].type } : null,
+        });
 
-      // 오버라이드 찾기 헬퍼 (lunch 타입도 non_study_time으로 통합 처리)
-      const findOverride = (type: OverrideType, sourceIndex?: number): DailyOverride | undefined => {
-        // 점심식사의 경우 'lunch' 타입 오버라이드도 확인 (레거시 호환)
-        const override = overrides.find(o =>
-          o.override_type === type &&
-          (sourceIndex === undefined ? o.source_index === null : o.source_index === sourceIndex)
-        );
-        return override;
-      };
+        // 레코드가 있으면 바로 반환 (새 방식)
+        if (!error && nonStudyRecords && nonStudyRecords.length > 0) {
+          return (nonStudyRecords as NonStudyTimeRecord[]).map((record) => {
+            // TIME 형식을 HH:mm으로 변환
+            const startTime = record.start_time.substring(0, 5);
+            const endTime = record.end_time.substring(0, 5);
 
-      // 레거시 lunch 오버라이드 찾기 (lunch_time 필드용)
-      const findLegacyLunchOverride = (): DailyOverride | undefined => {
-        return overrides.find(o => o.override_type === 'lunch' && o.source_index === null);
-      };
+            // type을 NonStudyItem type으로 매핑
+            const type = mapToNonStudyItemType(record.type);
 
-      /**
-       * 비학습시간 블록 처리 (통합 헬퍼)
-       * lunch_time을 non_study_time_blocks 형식으로 변환하여 함께 처리
-       */
-      const processNonStudyData = (
-        blocks: NonStudyTimeBlock[] | null,
-        legacyLunchTime: LunchTime | null
-      ) => {
-        // 1. non_study_time_blocks 먼저 처리
-        const hasLunchInBlocks = blocks?.some(b => b.type === "점심식사") ?? false;
-
-        if (blocks) {
-          for (let i = 0; i < blocks.length; i++) {
-            const block = blocks[i];
-
-            // 비학습시간 오버라이드 확인
-            const blockOverride = findOverride('non_study_time', i);
-
-            // 비활성화된 경우 스킵
-            if (blockOverride?.is_disabled) {
-              continue;
-            }
-
-            const startTime = blockOverride?.start_time_override ?? block.start_time;
-            const endTime = blockOverride?.end_time_override ?? block.end_time;
-            const key = `${block.type}:${startTime}-${endTime}`;
-
-            if (!seen.has(key)) {
-              seen.add(key);
-              const type = (["아침식사", "점심식사", "저녁식사", "수면"].includes(block.type)
-                ? block.type
-                : "기타") as NonStudyItem["type"];
-              items.push({
-                type,
-                start_time: startTime,
-                end_time: endTime,
-                label: block.type,
-                sourceIndex: i,
-                hasOverride: !!blockOverride,
-              });
-            }
-          }
-        }
-
-        // 2. 레거시 lunch_time 처리 (non_study_time_blocks에 점심식사가 없는 경우에만)
-        if (!hasLunchInBlocks && legacyLunchTime?.start && legacyLunchTime?.end) {
-          // 레거시 lunch 오버라이드 확인
-          const lunchOverride = findLegacyLunchOverride();
-
-          // 비활성화된 경우 스킵
-          if (lunchOverride?.is_disabled) return;
-
-          const startTime = lunchOverride?.start_time_override ?? legacyLunchTime.start;
-          const endTime = lunchOverride?.end_time_override ?? legacyLunchTime.end;
-          const key = `점심식사:${startTime}-${endTime}`;
-
-          if (!seen.has(key)) {
-            seen.add(key);
-            items.push({
-              type: "점심식사",
+            return {
+              id: record.id, // DnD에서 아이템 식별용
+              type,
               start_time: startTime,
               end_time: endTime,
-              label: "점심식사",
-              // 레거시 lunch_time은 sourceIndex 없음 (구분용)
-              hasOverride: !!lunchOverride,
-            });
-          }
-        }
-      };
-
-      // 1. 플래너 우선 조회 (Phase 4-1 핵심 변경)
-      let plannerDataLoaded = false;
-      if (plannerId) {
-        const { data: planner } = await supabase
-          .from('planners')
-          .select('non_study_time_blocks, lunch_time')
-          .eq('id', plannerId)
-          .single();
-
-        if (planner) {
-          plannerDataLoaded = true;
-          processNonStudyData(
-            planner.non_study_time_blocks as NonStudyTimeBlock[] | null,
-            planner.lunch_time as LunchTime | null
-          );
-        }
-      }
-
-      // 2. 플래너가 없거나 데이터가 없는 경우 plan_groups에서 폴백 조회 (레거시 호환)
-      if (!plannerDataLoaded && planGroupIds.length > 0) {
-        const uniqueIds = [...new Set(planGroupIds)];
-        const { data: groups } = await supabase
-          .from('plan_groups')
-          .select('non_study_time_blocks, lunch_time')
-          .in('id', uniqueIds);
-
-        if (groups) {
-          for (const group of groups) {
-            processNonStudyData(
-              group.non_study_time_blocks as NonStudyTimeBlock[] | null,
-              group.lunch_time as LunchTime | null
-            );
-          }
-        }
-      }
-
-      // 3. academy_schedules에서 학원 일정 + 이동시간 가져오기
-      const { data: academies } = await supabase
-        .from('academy_schedules')
-        .select('id, day_of_week, start_time, end_time, academy_name, subject, travel_time')
-        .eq('student_id', studentId)
-        .eq('day_of_week', dayOfWeek);
-
-      if (academies) {
-        for (let i = 0; i < academies.length; i++) {
-          const schedule = academies[i];
-          const name = schedule.academy_name ?? '학원';
-          const subjectLabel = schedule.subject ? ` (${schedule.subject})` : '';
-
-          // 학원 오버라이드 확인
-          const academyOverride = findOverride('academy', i);
-
-          // 비활성화된 경우 스킵 (학원 + 이동시간 모두)
-          if (academyOverride?.is_disabled) {
-            continue;
-          }
-
-          const academyStartTime = academyOverride?.start_time_override ?? schedule.start_time.substring(0, 5);
-          const academyEndTime = academyOverride?.end_time_override ?? schedule.end_time.substring(0, 5);
-
-          // 이동시간 (학원 시작 전)
-          if (schedule.travel_time && schedule.travel_time > 0) {
-            const [h, m] = academyStartTime.split(':').map(Number);
-            const travelStartMinutes = h * 60 + m - schedule.travel_time;
-            const travelStartH = Math.floor(Math.max(0, travelStartMinutes) / 60);
-            const travelStartM = Math.max(0, travelStartMinutes) % 60;
-            const travelStart = `${String(travelStartH).padStart(2, '0')}:${String(travelStartM).padStart(2, '0')}`;
-            items.push({
-              type: "이동시간",
-              start_time: travelStart,
-              end_time: academyStartTime,
-              label: `이동시간 (${name})`,
-              sourceIndex: i,
-              hasOverride: !!academyOverride,
-            });
-          }
-
-          // 학원 일정
-          items.push({
-            type: "학원",
-            start_time: academyStartTime,
-            end_time: academyEndTime,
-            label: `${name}${subjectLabel}`,
-            sourceIndex: i,
-            hasOverride: !!academyOverride,
+              label: record.label ?? record.type,
+              sourceIndex: record.sequence,
+              hasOverride: false, // 새 방식에서는 오버라이드 개념 없음
+            };
           });
         }
       }
 
-      // start_time 기준 정렬
-      items.sort((a, b) => {
-        const [ah, am] = a.start_time.split(':').map(Number);
-        const [bh, bm] = b.start_time.split(':').map(Number);
-        return (ah * 60 + am) - (bh * 60 + bm);
-      });
-
-      return items;
+      // 2. 새 테이블에 레코드가 없으면 레거시 방식으로 폴백
+      return fetchNonStudyTimesLegacy(
+        supabase,
+        studentId,
+        date,
+        planGroupIds,
+        plannerId,
+        dayOfWeek
+      );
     },
     staleTime: CACHE_STALE_TIME_DYNAMIC,
     gcTime: CACHE_GC_TIME_DYNAMIC,
   });
+}
+
+/**
+ * type 문자열을 NonStudyItem type으로 매핑
+ */
+function mapToNonStudyItemType(type: string): NonStudyItem['type'] {
+  const validTypes = ['아침식사', '점심식사', '저녁식사', '수면', '학원', '이동시간', '기타'] as const;
+  if (validTypes.includes(type as typeof validTypes[number])) {
+    return type as NonStudyItem['type'];
+  }
+  return '기타';
+}
+
+/**
+ * 레거시 방식으로 비학습시간 조회
+ * (플래너 템플릿 + 오버라이드 병합)
+ */
+async function fetchNonStudyTimesLegacy(
+  supabase: ReturnType<typeof createSupabaseBrowserClient>,
+  studentId: string,
+  date: string,
+  planGroupIds: string[],
+  plannerId: string | undefined,
+  dayOfWeek: number
+): Promise<NonStudyItem[]> {
+  const items: NonStudyItem[] = [];
+  const seen = new Set<string>(); // 중복 방지 키
+
+  // 0. 오버라이드 조회 (plannerId가 있는 경우에만)
+  let overrides: DailyOverride[] = [];
+  if (plannerId) {
+    const { data: overrideData } = await supabase
+      .from('planner_daily_overrides')
+      .select('override_type, source_index, is_disabled, start_time_override, end_time_override')
+      .eq('planner_id', plannerId)
+      .eq('override_date', date)
+      .order('created_at', { ascending: false });
+
+    if (overrideData) {
+      overrides = overrideData as DailyOverride[];
+    }
+  }
+
+  // 오버라이드 찾기 헬퍼 (lunch 타입도 non_study_time으로 통합 처리)
+  const findOverride = (type: OverrideType, sourceIndex?: number): DailyOverride | undefined => {
+    // 점심식사의 경우 'lunch' 타입 오버라이드도 확인 (레거시 호환)
+    const override = overrides.find(o =>
+      o.override_type === type &&
+      (sourceIndex === undefined ? o.source_index === null : o.source_index === sourceIndex)
+    );
+    return override;
+  };
+
+  // 레거시 lunch 오버라이드 찾기 (lunch_time 필드용)
+  const findLegacyLunchOverride = (): DailyOverride | undefined => {
+    return overrides.find(o => o.override_type === 'lunch' && o.source_index === null);
+  };
+
+  /**
+   * 비학습시간 블록 처리 (통합 헬퍼)
+   * lunch_time을 non_study_time_blocks 형식으로 변환하여 함께 처리
+   */
+  const processNonStudyData = (
+    blocks: NonStudyTimeBlock[] | null,
+    legacyLunchTime: LunchTime | null
+  ) => {
+    // 1. non_study_time_blocks 먼저 처리
+    const hasLunchInBlocks = blocks?.some(b => b.type === "점심식사") ?? false;
+
+    if (blocks) {
+      for (let i = 0; i < blocks.length; i++) {
+        const block = blocks[i];
+
+        // 비학습시간 오버라이드 확인
+        // 점심식사의 경우 'lunch' 타입 오버라이드도 확인 (통합 재정렬에서 'lunch' 타입으로 저장됨)
+        let blockOverride = findOverride('non_study_time', i);
+        if (!blockOverride && block.type === '점심식사') {
+          // 점심식사 블록의 레거시 lunch 오버라이드 확인 (source_index가 null)
+          blockOverride = overrides.find(o =>
+            o.override_type === 'lunch' && o.source_index === null
+          );
+        }
+
+        // 비활성화된 경우 스킵
+        if (blockOverride?.is_disabled) {
+          continue;
+        }
+
+        const startTime = blockOverride?.start_time_override ?? block.start_time;
+        const endTime = blockOverride?.end_time_override ?? block.end_time;
+        const key = `${block.type}:${startTime}-${endTime}`;
+
+        if (!seen.has(key)) {
+          seen.add(key);
+          const type = (["아침식사", "점심식사", "저녁식사", "수면"].includes(block.type)
+            ? block.type
+            : "기타") as NonStudyItem["type"];
+          items.push({
+            type,
+            start_time: startTime,
+            end_time: endTime,
+            label: block.type,
+            sourceIndex: i,
+            hasOverride: !!blockOverride,
+          });
+        }
+      }
+    }
+
+    // 2. 레거시 lunch_time 처리 (non_study_time_blocks에 점심식사가 없는 경우에만)
+    if (!hasLunchInBlocks && legacyLunchTime?.start && legacyLunchTime?.end) {
+      // 레거시 lunch 오버라이드 확인
+      const lunchOverride = findLegacyLunchOverride();
+
+      // 비활성화된 경우 스킵
+      if (lunchOverride?.is_disabled) return;
+
+      const startTime = lunchOverride?.start_time_override ?? legacyLunchTime.start;
+      const endTime = lunchOverride?.end_time_override ?? legacyLunchTime.end;
+      const key = `점심식사:${startTime}-${endTime}`;
+
+      if (!seen.has(key)) {
+        seen.add(key);
+        items.push({
+          type: "점심식사",
+          start_time: startTime,
+          end_time: endTime,
+          label: "점심식사",
+          // 레거시 lunch_time은 sourceIndex 없음 (구분용)
+          hasOverride: !!lunchOverride,
+        });
+      }
+    }
+  };
+
+  // 1. 플래너 우선 조회
+  let plannerDataLoaded = false;
+  if (plannerId) {
+    const { data: planner } = await supabase
+      .from('planners')
+      .select('non_study_time_blocks, lunch_time')
+      .eq('id', plannerId)
+      .single();
+
+    if (planner) {
+      plannerDataLoaded = true;
+      processNonStudyData(
+        planner.non_study_time_blocks as NonStudyTimeBlock[] | null,
+        planner.lunch_time as LunchTime | null
+      );
+    }
+  }
+
+  // 2. 플래너가 없거나 데이터가 없는 경우 plan_groups에서 폴백 조회 (레거시 호환)
+  if (!plannerDataLoaded && planGroupIds.length > 0) {
+    const uniqueIds = [...new Set(planGroupIds)];
+    const { data: groups } = await supabase
+      .from('plan_groups')
+      .select('non_study_time_blocks, lunch_time')
+      .in('id', uniqueIds);
+
+    if (groups) {
+      for (const group of groups) {
+        processNonStudyData(
+          group.non_study_time_blocks as NonStudyTimeBlock[] | null,
+          group.lunch_time as LunchTime | null
+        );
+      }
+    }
+  }
+
+  // 3. academy_schedules에서 학원 일정 + 이동시간 가져오기
+  const { data: academies } = await supabase
+    .from('academy_schedules')
+    .select('id, day_of_week, start_time, end_time, academy_name, subject, travel_time')
+    .eq('student_id', studentId)
+    .eq('day_of_week', dayOfWeek);
+
+  if (academies) {
+    for (let i = 0; i < academies.length; i++) {
+      const schedule = academies[i];
+      const name = schedule.academy_name ?? '학원';
+      const subjectLabel = schedule.subject ? ` (${schedule.subject})` : '';
+
+      // 학원 오버라이드 확인
+      const academyOverride = findOverride('academy', i);
+
+      // 비활성화된 경우 스킵 (학원 + 이동시간 모두)
+      if (academyOverride?.is_disabled) {
+        continue;
+      }
+
+      const academyStartTime = academyOverride?.start_time_override ?? schedule.start_time.substring(0, 5);
+      const academyEndTime = academyOverride?.end_time_override ?? schedule.end_time.substring(0, 5);
+
+      // 이동시간 (학원 시작 전)
+      if (schedule.travel_time && schedule.travel_time > 0) {
+        const [h, m] = academyStartTime.split(':').map(Number);
+        const travelStartMinutes = h * 60 + m - schedule.travel_time;
+        const travelStartH = Math.floor(Math.max(0, travelStartMinutes) / 60);
+        const travelStartM = Math.max(0, travelStartMinutes) % 60;
+        const travelStart = `${String(travelStartH).padStart(2, '0')}:${String(travelStartM).padStart(2, '0')}`;
+        items.push({
+          type: "이동시간",
+          start_time: travelStart,
+          end_time: academyStartTime,
+          label: `이동시간 (${name})`,
+          sourceIndex: i,
+          hasOverride: !!academyOverride,
+        });
+      }
+
+      // 학원 일정
+      items.push({
+        type: "학원",
+        start_time: academyStartTime,
+        end_time: academyEndTime,
+        label: `${name}${subjectLabel}`,
+        sourceIndex: i,
+        hasOverride: !!academyOverride,
+      });
+    }
+  }
+
+  // start_time 기준 정렬
+  items.sort((a, b) => {
+    const [ah, am] = a.start_time.split(':').map(Number);
+    const [bh, bm] = b.start_time.split(':').map(Number);
+    return (ah * 60 + am) - (bh * 60 + bm);
+  });
+
+  return items;
 }

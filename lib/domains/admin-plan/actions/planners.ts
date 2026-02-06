@@ -19,6 +19,10 @@ import {
   extractLunchTimeFromBlocks,
 } from "../utils/plannerConfigInheritance";
 import {
+  generateNonStudyRecordsForDateRange,
+  type AcademyScheduleInput,
+} from "../utils/nonStudyTimeGenerator";
+import {
   getPlannerOverridesForPlanner,
   getEffectiveExclusionsForPlanner,
   savePlannerOverridesForPlanner,
@@ -355,6 +359,18 @@ async function _createPlanner(input: CreatePlannerInput): Promise<Planner> {
     );
   }
 
+  // 비학습시간 날짜별 레코드 생성
+  await _generateNonStudyTimeRecordsInternal(
+    supabase,
+    tenantId,
+    plannerId,
+    input.periodStart,
+    input.periodEnd,
+    mergedNonStudyBlocks,
+    input.academySchedules,
+    input.exclusions?.map((e) => e.exclusionDate)
+  );
+
   // 관계 데이터를 포함하여 조회 후 반환
   const hasRelations = !!(input.academySchedules?.length || input.exclusions?.length);
   if (hasRelations) {
@@ -426,6 +442,63 @@ async function _setPlannerExclusionsInternal(
   if (error) {
     logActionError("planners._createPlanner", `제외일 저장 실패: ${error.message}`);
     // 플래너는 이미 생성되었으므로 에러를 던지지 않고 로깅만 함
+  }
+}
+
+/**
+ * 내부용: 비학습시간 날짜별 레코드 생성 (인증 체크 없이)
+ */
+async function _generateNonStudyTimeRecordsInternal(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  tenantId: string,
+  plannerId: string,
+  startDate: string,
+  endDate: string,
+  nonStudyTimeBlocks: NonStudyTimeBlock[],
+  academySchedules?: PlannerAcademyScheduleInput[],
+  excludedDates?: string[]
+): Promise<void> {
+  // 학원 일정 변환
+  const academyScheduleInputs: AcademyScheduleInput[] = (academySchedules || []).map((s) => ({
+    id: undefined, // 아직 DB에 저장 전이므로 ID 없음
+    academyId: s.academyId,
+    academyName: s.academyName,
+    dayOfWeek: s.dayOfWeek,
+    startTime: s.startTime,
+    endTime: s.endTime,
+    subject: s.subject,
+    travelTime: s.travelTime,
+  }));
+
+  // 비학습시간 레코드 생성
+  const records = generateNonStudyRecordsForDateRange(
+    plannerId,
+    tenantId,
+    startDate,
+    endDate,
+    nonStudyTimeBlocks,
+    {
+      academySchedules: academyScheduleInputs,
+      excludedDates,
+    }
+  );
+
+  if (records.length === 0) return;
+
+  // 배치 삽입 (대량 데이터를 위해 청크 처리)
+  const BATCH_SIZE = 500;
+  for (let i = 0; i < records.length; i += BATCH_SIZE) {
+    const batch = records.slice(i, i + BATCH_SIZE);
+    const { error } = await supabase.from("student_non_study_time").insert(batch);
+
+    if (error) {
+      logActionError(
+        "planners._createPlanner",
+        `비학습시간 레코드 저장 실패 (batch ${Math.floor(i / BATCH_SIZE) + 1}): ${error.message}`
+      );
+      // 플래너는 이미 생성되었으므로 에러를 던지지 않고 로깅만 함
+      // 부분 실패 시 계속 진행하여 가능한 많은 레코드 저장
+    }
   }
 }
 
@@ -607,10 +680,10 @@ async function _updatePlanner(
 ): Promise<Planner> {
   const supabase = await createSupabaseServerClient();
 
-  // 먼저 플래너 조회하여 studentId 확인
+  // 먼저 플래너 조회하여 studentId, created_by 확인
   const { data: existingPlanner, error: fetchError } = await supabase
     .from("planners")
-    .select("student_id")
+    .select("student_id, created_by")
     .eq("id", plannerId)
     .is("deleted_at", null)
     .single();
@@ -625,7 +698,17 @@ async function _updatePlanner(
   }
 
   // 플래너의 studentId로 권한 체크
-  await checkPlannerAccess(existingPlanner.student_id as string);
+  const { user, isAdmin } = await checkPlannerAccess(existingPlanner.student_id as string);
+
+  // 학생은 자신이 생성한 플래너만 수정 가능
+  if (!isAdmin && existingPlanner.created_by !== user.userId) {
+    throw new AppError(
+      "관리자가 생성한 플래너는 수정할 수 없습니다.",
+      ErrorCode.FORBIDDEN,
+      403,
+      true
+    );
+  }
 
   const updateData: Record<string, unknown> = {};
 
@@ -755,10 +838,10 @@ export interface DeletePlannerResult {
 async function _deletePlanner(plannerId: string): Promise<DeletePlannerResult> {
   const supabase = await createSupabaseServerClient();
 
-  // 먼저 플래너 조회하여 studentId 확인
+  // 먼저 플래너 조회하여 studentId, tenant_id, created_by 확인
   const { data: existingPlanner, error: fetchError } = await supabase
     .from("planners")
-    .select("student_id, tenant_id")
+    .select("student_id, tenant_id, created_by")
     .eq("id", plannerId)
     .is("deleted_at", null)
     .single();
@@ -773,7 +856,17 @@ async function _deletePlanner(plannerId: string): Promise<DeletePlannerResult> {
   }
 
   // 플래너의 studentId로 권한 체크
-  await checkPlannerAccess(existingPlanner.student_id as string);
+  const { user, isAdmin } = await checkPlannerAccess(existingPlanner.student_id as string);
+
+  // 학생은 자신이 생성한 플래너만 삭제 가능
+  if (!isAdmin && existingPlanner.created_by !== user.userId) {
+    throw new AppError(
+      "관리자가 생성한 플래너는 삭제할 수 없습니다.",
+      ErrorCode.FORBIDDEN,
+      403,
+      true
+    );
+  }
 
   const tenantId = existingPlanner.tenant_id as string;
 

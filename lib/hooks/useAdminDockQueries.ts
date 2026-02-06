@@ -87,14 +87,24 @@ export function useNonStudyTimeQuery(
 
   const queryOpts = nonStudyTimeQueryOptions(studentId, date, planGroupIds, plannerId);
 
-  // initialData가 있으면 즉시 사용, plansLoaded와 무관하게 활성화
-  const hasInitialData = initialData && initialData.length > 0;
+  // plannerId가 있으면 새 테이블 사용 - initialData에 UUID가 있는지 확인
+  // UUID가 없으면 레거시 데이터이므로 refetch 필요
+  const hasValidInitialData = useMemo(() => {
+    if (!initialData || initialData.length === 0) return false;
+    // plannerId가 있고 새 테이블을 사용하면 첫 번째 아이템에 id(UUID)가 있어야 함
+    if (plannerId && !initialData[0].id) {
+      console.log('[useNonStudyTimeQuery] initialData missing UUID, will refetch');
+      return false;
+    }
+    return true;
+  }, [initialData, plannerId]);
 
   const query = useQuery({
     ...queryOpts,
-    initialData,
-    // initialData가 있으면 즉시 활성화, 없으면 기존 로직 유지
-    enabled: hasInitialData || plansLoaded,
+    // UUID가 있는 유효한 initialData만 사용
+    initialData: hasValidInitialData ? initialData : undefined,
+    // initialData가 유효하거나 plans가 로드되면 활성화
+    enabled: hasValidInitialData || plansLoaded,
   });
 
   return {

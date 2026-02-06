@@ -48,6 +48,8 @@ async function getAdHocPlansForDate(options: {
     .eq("student_id", studentId)
     .eq("plan_date", planDate)
     .eq("is_adhoc", true)
+    .eq("is_active", true)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
   if (tenantId) {
