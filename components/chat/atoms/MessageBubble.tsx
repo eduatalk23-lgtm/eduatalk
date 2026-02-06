@@ -129,6 +129,7 @@ function MessageBubbleComponent({
   // 에러 상태 여부 (UI 표시용)
   const hasError = derivedStatus === "error";
   const isSending = derivedStatus === "sending";
+  const isQueued = derivedStatus === "queued";
 
   // 에러 메시지 결정 (상세 에러 정보가 있으면 사용, 아니면 기본 메시지)
   const errorMessage = errorInfo?.message ?? "전송 실패";
@@ -223,9 +224,9 @@ function MessageBubbleComponent({
   const ariaLabel = useMemo(() => {
     const sender = isOwn ? "나" : senderName ?? "알 수 없음";
     const time = format(new Date(createdAt), "a h시 mm분", { locale: ko });
-    const statusText = hasError ? ", 전송 실패" : isSending ? ", 전송 중" : "";
+    const statusText = hasError ? ", 전송 실패" : isSending ? ", 전송 중" : isQueued ? ", 대기 중" : "";
     return `${sender}의 메시지, ${time}${statusText}`;
-  }, [isOwn, senderName, createdAt, hasError, isSending]);
+  }, [isOwn, senderName, createdAt, hasError, isSending, isQueued]);
 
   return (
     <article
@@ -272,11 +273,19 @@ function MessageBubbleComponent({
               ? "bg-primary-500 text-white rounded-br-sm"
               : "bg-secondary-100 dark:bg-secondary-800 text-text-primary rounded-bl-sm",
             replyTarget && "rounded-t-none",
-            hasError && "opacity-60"
+            (hasError || isQueued) && "opacity-60"
           )}
         >
           {content}
         </div>
+
+        {/* 오프라인 대기 표시 (본인 메시지 + queued 상태) */}
+        {isOwn && isQueued && (
+          <div className="flex items-center gap-1.5 text-xs text-text-tertiary">
+            <MessageStatusIndicator status="queued" className="w-3 h-3" />
+            <span>네트워크 연결 시 자동 전송</span>
+          </div>
+        )}
 
         {/* 전송 실패 표시 (본인 메시지 + 에러 상태) */}
         {isOwn && hasError && (
@@ -379,8 +388,8 @@ function MessageBubbleComponent({
             isOwn ? "flex-row-reverse" : "flex-row"
           )}
         >
-          {/* 본인 메시지 상태 표시 (에러가 아닐 때만, 에러는 별도 표시) */}
-          {isOwn && derivedStatus && !hasError && (
+          {/* 본인 메시지 상태 표시 (에러/queued가 아닐 때만, 별도 표시 영역 있음) */}
+          {isOwn && derivedStatus && !hasError && !isQueued && (
             <MessageStatusIndicator
               status={derivedStatus}
               className="w-3.5 h-3.5"
@@ -461,4 +470,61 @@ function MessageBubbleComponent({
   );
 }
 
-export const MessageBubble = memo(MessageBubbleComponent);
+/** 커스텀 memo 비교: 인라인 객체 참조 변경에도 실제 값이 같으면 re-render 방지 */
+function areMessageBubblePropsEqual(
+  prev: MessageBubbleProps,
+  next: MessageBubbleProps
+): boolean {
+  const pm = prev.message;
+  const nm = next.message;
+
+  if (
+    pm.content !== nm.content ||
+    pm.createdAt !== nm.createdAt ||
+    pm.isOwn !== nm.isOwn ||
+    pm.senderName !== nm.senderName ||
+    pm.isSystem !== nm.isSystem ||
+    pm.isDeleted !== nm.isDeleted ||
+    pm.isEdited !== nm.isEdited ||
+    pm.unreadCount !== nm.unreadCount ||
+    pm.isPinned !== nm.isPinned ||
+    pm.status !== nm.status ||
+    pm.isError !== nm.isError ||
+    pm.isRetrying !== nm.isRetrying ||
+    pm.replyTarget?.id !== nm.replyTarget?.id
+  )
+    return false;
+
+  // reactions 배열 값 비교
+  const pr = pm.reactions ?? [];
+  const nr = nm.reactions ?? [];
+  if (pr.length !== nr.length) return false;
+  for (let i = 0; i < pr.length; i++) {
+    if (
+      pr[i].emoji !== nr[i].emoji ||
+      pr[i].count !== nr[i].count ||
+      pr[i].hasReacted !== nr[i].hasReacted
+    )
+      return false;
+  }
+
+  // displayOptions 비교
+  const pd = prev.displayOptions;
+  const nd = next.displayOptions;
+  if (
+    pd?.showName !== nd?.showName ||
+    pd?.showTime !== nd?.showTime ||
+    pd?.isGrouped !== nd?.isGrouped
+  )
+    return false;
+
+  // permissions 비교
+  const pp = prev.permissions;
+  const np = next.permissions;
+  if (pp?.canEdit !== np?.canEdit || pp?.canPin !== np?.canPin) return false;
+
+  // onAction은 항상 새 참조이므로 비교 스킵
+  return true;
+}
+
+export const MessageBubble = memo(MessageBubbleComponent, areMessageBubblePropsEqual);

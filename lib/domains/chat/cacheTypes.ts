@@ -18,7 +18,7 @@ import type {
  * 낙관적 업데이트 status를 포함한 캐시 메시지 타입
  */
 export type CacheMessage = ChatMessageWithSender & {
-  status?: "sending" | "sent" | "error";
+  status?: "sending" | "sent" | "error" | "queued";
 };
 
 /**

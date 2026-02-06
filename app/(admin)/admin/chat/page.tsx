@@ -21,16 +21,9 @@ export default async function AdminChatPage() {
     redirect("/login");
   }
 
-  // SSR 프리패칭 (실패해도 클라이언트에서 재시도)
+  // SSR 프리패칭 (non-blocking: HTML 스트리밍과 병렬, 실패 시 클라이언트에서 재시도)
   const queryClient = getQueryClient();
-  try {
-    await queryClient.prefetchQuery(chatRoomsQueryOptions());
-  } catch (error) {
-    console.error("[AdminChatPage] Prefetch failed:", {
-      message: error instanceof Error ? error.message : (error as { message?: string })?.message,
-      raw: JSON.stringify(error),
-    });
-  }
+  void queryClient.prefetchQuery(chatRoomsQueryOptions());
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>

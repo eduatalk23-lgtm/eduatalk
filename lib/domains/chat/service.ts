@@ -49,20 +49,18 @@ async function getUserInfo(
   const supabase = await createSupabaseServerClient();
 
   if (userType === "student") {
+    // JOIN으로 1회 쿼리 (기존 2회 → 1회)
     const { data } = await supabase
       .from("students")
-      .select("id, name")
+      .select("id, name, student_profiles(profile_image_url)")
       .eq("id", userId)
       .maybeSingle();
 
     if (!data) return null;
 
-    // 프로필 이미지 조회
-    const { data: profile } = await supabase
-      .from("student_profiles")
-      .select("profile_image_url")
-      .eq("id", userId)
-      .maybeSingle();
+    const profile = Array.isArray(data.student_profiles)
+      ? data.student_profiles[0]
+      : data.student_profiles;
 
     return {
       id: data.id,
@@ -386,7 +384,7 @@ export async function sendMessage(
   request: SendMessageRequest
 ): Promise<ChatActionResult<ChatMessage>> {
   try {
-    const { roomId, content, messageType = "text", replyToId } = request;
+    const { roomId, content, messageType = "text", replyToId, clientMessageId } = request;
 
     // 메시지 길이 검증
     if (content.length > MAX_MESSAGE_LENGTH) {
@@ -436,6 +434,7 @@ export async function sendMessage(
 
     // 메시지 생성 (발신자 스냅샷 포함)
     const message = await repository.insertMessage({
+      ...(clientMessageId && { id: clientMessageId }),
       room_id: roomId,
       sender_id: senderId,
       sender_type: senderType,

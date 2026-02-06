@@ -821,7 +821,7 @@ export async function countUnreadMessages(
 
   const { count, error } = await supabase
     .from("chat_messages")
-    .select("*", { count: "exact", head: true })
+    .select("id", { count: "exact", head: true })
     .eq("room_id", roomId)
     .neq("sender_id", userId)
     .eq("is_deleted", false)

@@ -19,7 +19,8 @@ export type MessageDeliveryStatus =
   | "sent"
   | "delivered"
   | "read"
-  | "error";
+  | "error"
+  | "queued";
 
 interface MessageStatusIndicatorProps {
   /** 메시지 상태 */
@@ -120,6 +121,14 @@ function MessageStatusIndicatorComponent({
         />
       );
 
+    case "queued":
+      return (
+        <Clock
+          className={cn(baseClass, "text-text-tertiary", className)}
+          aria-label="대기 중"
+        />
+      );
+
     case "error":
       return (
         <AlertCircle
@@ -144,4 +153,5 @@ export const MESSAGE_STATUS_LABELS: Record<MessageDeliveryStatus, string> = {
   delivered: "전달됨",
   read: "읽음",
   error: "전송 실패",
+  queued: "대기 중",
 };

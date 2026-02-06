@@ -26,6 +26,7 @@ export {
   searchMessagesAction,
   getMessagesWithReadStatusAction,
   getSenderInfoAction,
+  getSenderInfoBatchAction,
   getMessagesSinceAction,
 } from "./messages";
 

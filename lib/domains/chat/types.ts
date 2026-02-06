@@ -184,6 +184,7 @@ export interface ChatMessage {
 
 /** 메시지 생성 입력 타입 */
 export interface ChatMessageInsert {
+  id?: string;
   room_id: string;
   sender_id: string;
   sender_type: ChatUserType;
@@ -387,6 +388,7 @@ export interface SendMessageRequest {
   content: string;
   messageType?: ChatMessageType;
   replyToId?: string | null;
+  clientMessageId?: string;
 }
 
 /** 메시지 목록 조회 옵션 */

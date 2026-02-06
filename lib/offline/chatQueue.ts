@@ -38,7 +38,8 @@ export interface ChatMessageQueueItem {
 type MessageSender = (
   roomId: string,
   content: string,
-  replyToId: string | null
+  replyToId: string | null,
+  clientMessageId?: string
 ) => Promise<{ success: boolean; error?: string; data?: { id: string } }>;
 
 let messageSender: MessageSender | null = null;
@@ -122,9 +123,10 @@ export async function getChatQueueForRoom(
 export async function enqueueChatMessage(
   roomId: string,
   content: string,
-  replyToId?: string | null
+  replyToId?: string | null,
+  clientMessageId?: string
 ): Promise<string> {
-  const tempId = `temp-offline-${Date.now()}`;
+  const tempId = clientMessageId ?? `temp-offline-${Date.now()}`;
 
   const action: OfflineAction = {
     id: crypto.randomUUID(),
@@ -135,6 +137,7 @@ export async function enqueueChatMessage(
       content,
       replyToId: replyToId ?? null,
       tempId,
+      clientMessageId: tempId,
     },
     timestamp: new Date().toISOString(),
     retryCount: 0,
@@ -184,14 +187,15 @@ async function processMessage(action: OfflineAction): Promise<boolean> {
     return false;
   }
 
-  const { roomId, content, replyToId } = action.payload as {
+  const { roomId, content, replyToId, clientMessageId } = action.payload as {
     roomId: string;
     content: string;
     replyToId: string | null;
+    clientMessageId?: string;
   };
 
   try {
-    const result = await messageSender(roomId, content, replyToId);
+    const result = await messageSender(roomId, content, replyToId, clientMessageId);
 
     if (result.success) {
       await deleteOfflineAction(action.id);

@@ -14,6 +14,8 @@ type PendingOperationType = "send" | "reaction" | "edit" | "delete";
 interface PendingOperation {
   type: PendingOperationType;
   startedAt: number;
+  /** 작업이 속한 채팅방 ID */
+  roomId?: string;
   /** 메시지 전송 시: content */
   content?: string;
   /** 리액션 시: emoji, isAdd */
@@ -59,12 +61,14 @@ class OperationTracker {
    * 메시지 전송 시작
    * @param tempId 낙관적 업데이트용 임시 ID
    * @param content 메시지 내용 (중복 판단용)
+   * @param roomId 채팅방 ID (clearForRoom 필터링용)
    */
-  startSend(tempId: string, content: string): void {
+  startSend(tempId: string, content: string, roomId?: string): void {
     this.pending.set(tempId, {
       type: "send",
       startedAt: Date.now(),
       content,
+      roomId,
     });
   }
 
@@ -137,13 +141,14 @@ class OperationTracker {
   /**
    * 리액션 토글 시작
    */
-  startReaction(messageId: string, emoji: string, isAdd: boolean): void {
+  startReaction(messageId: string, emoji: string, isAdd: boolean, roomId?: string): void {
     const key = getReactionKey(messageId, emoji);
     this.pending.set(key, {
       type: "reaction",
       startedAt: Date.now(),
       emoji,
       isAdd,
+      roomId,
     });
   }
 
@@ -180,10 +185,11 @@ class OperationTracker {
   /**
    * 메시지 편집 시작
    */
-  startEdit(messageId: string): void {
+  startEdit(messageId: string, roomId?: string): void {
     this.pending.set(`edit:${messageId}`, {
       type: "edit",
       startedAt: Date.now(),
+      roomId,
     });
   }
 
@@ -204,10 +210,11 @@ class OperationTracker {
   /**
    * 메시지 삭제 시작
    */
-  startDelete(messageId: string): void {
+  startDelete(messageId: string, roomId?: string): void {
     this.pending.set(`delete:${messageId}`, {
       type: "delete",
       startedAt: Date.now(),
+      roomId,
     });
   }
 
@@ -276,14 +283,21 @@ class OperationTracker {
    * 특정 채팅방 관련 데이터 모두 정리
    * (채팅방 나갈 때 호출)
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  clearForRoom(_roomId: string): void {
-    // tempId 매핑 정리 (roomId 기반 필터링은 별도 구현 필요시)
-    this.tempToReal.clear();
-    this.realToTemp.clear();
-
-    // pending 작업 정리
-    this.pending.clear();
+  clearForRoom(roomId: string): void {
+    // roomId가 있는 pending 작업만 정리 (다른 방의 작업은 유지)
+    for (const [key, operation] of this.pending) {
+      if (operation.roomId === roomId) {
+        // send 타입이면 매핑도 정리
+        if (operation.type === "send") {
+          const realId = this.tempToReal.get(key);
+          if (realId) {
+            this.realToTemp.delete(realId);
+            this.tempToReal.delete(key);
+          }
+        }
+        this.pending.delete(key);
+      }
+    }
   }
 }
 

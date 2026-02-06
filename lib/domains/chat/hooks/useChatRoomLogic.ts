@@ -17,17 +17,19 @@ import {
 import { useToast } from "@/components/ui/ToastProvider";
 import { chatMessagesQueryOptions } from "@/lib/query-options/chatMessages";
 import {
+  chatRoomDetailQueryOptions,
+  chatPinnedQueryOptions,
+  chatAnnouncementQueryOptions,
+} from "@/lib/query-options/chatRoom";
+import {
   sendMessageAction,
   markAsReadAction,
-  getChatRoomDetailAction,
   editMessageAction,
   deleteMessageAction,
   toggleReactionAction,
-  getPinnedMessagesAction,
   pinMessageAction,
   unpinMessageAction,
   canPinMessagesAction,
-  getAnnouncementAction,
   setAnnouncementAction,
   canSetAnnouncementAction,
 } from "@/lib/domains/chat/actions";
@@ -42,6 +44,7 @@ import {
   type ChatRoomMemberWithUser,
   type PresenceUser,
   type ChatUser,
+  type ChatRoomListItem,
 } from "@/lib/domains/chat/types";
 import {
   type InfiniteMessagesCache,
@@ -57,6 +60,12 @@ import { processMessagesWithGrouping } from "@/lib/domains/chat/messageGrouping"
 import { useChatRealtime, useChatPresence } from "@/lib/realtime";
 import { useThrottledCallback } from "@/lib/hooks/useThrottle";
 import { operationTracker } from "../operationTracker";
+import { isOnline, isNetworkError } from "@/lib/offline/networkStatus";
+import {
+  enqueueChatMessage,
+  registerMessageSender,
+  initChatQueueProcessor,
+} from "@/lib/offline/chatQueue";
 
 export interface UseChatRoomLogicOptions {
   roomId: string;
@@ -135,29 +144,22 @@ export function useChatRoomLogic({
     isAtBottomRef.current = isAtBottom;
   }, [isAtBottom]);
 
+  // 오프라인 큐 프로세서 초기화 + sender 등록 (마운트 시 1회)
+  useEffect(() => {
+    registerMessageSender(sendMessageAction);
+    const cleanup = initChatQueueProcessor();
+    return cleanup;
+  }, []);
+
   // ============================================
   // Queries
   // ============================================
 
-  // 채팅방 정보 조회
-  const { data: roomData } = useQuery({
-    queryKey: ["chat-room", roomId],
-    queryFn: async () => {
-      const result = await getChatRoomDetailAction(roomId);
-      if (!result.success) throw new Error(result.error);
-      return result.data;
-    },
-  });
+  // 채팅방 정보 조회 (SSR prefetch 활용)
+  const { data: roomData } = useQuery(chatRoomDetailQueryOptions(roomId));
 
-  // 고정 메시지 목록 조회
-  const { data: pinnedMessages = [] } = useQuery({
-    queryKey: ["chat-pinned", roomId],
-    queryFn: async () => {
-      const result = await getPinnedMessagesAction(roomId);
-      if (!result.success) return [];
-      return result.data ?? [];
-    },
-  });
+  // 고정 메시지 목록 조회 (SSR prefetch 활용)
+  const { data: pinnedMessages = [] } = useQuery(chatPinnedQueryOptions(roomId));
 
   // 고정 권한 확인
   const { data: canPinData } = useQuery({
@@ -171,15 +173,8 @@ export function useChatRoomLogic({
 
   const canPin = canPinData?.canPin ?? false;
 
-  // 공지 조회
-  const { data: announcementData } = useQuery({
-    queryKey: ["chat-announcement", roomId],
-    queryFn: async () => {
-      const result = await getAnnouncementAction(roomId);
-      if (!result.success) return null;
-      return result.data;
-    },
-  });
+  // 공지 조회 (SSR prefetch 활용)
+  const { data: announcementData } = useQuery(chatAnnouncementQueryOptions(roomId));
 
   // 공지 설정 권한 확인
   const { data: canSetAnnouncementData } = useQuery({
@@ -220,26 +215,66 @@ export function useChatRoomLogic({
   const cachedReadCountsRef = useRef<Record<string, number>>({});
 
   // 모든 페이지의 메시지를 시간순 정렬로 병합
-  // Note: 이전에는 증분 병합 최적화를 사용했으나, Realtime으로 첫 페이지에
-  // 메시지가 추가될 때 캐시된 결과를 반환하여 UI가 업데이트되지 않는 버그가 있었음.
-  // 메시지 목록이 수백 개가 아니라면 전체 재계산의 성능 영향은 미미함.
+  // pages는 [newest, ..., oldest] 순서 → 역순 순회로 [oldest, ..., newest]
+  // 단일 패스 역순 순회로 중간 배열 복사(slice+reverse+flatMap) 제거
   const allMessages = useMemo(() => {
-    if (!messagesData?.pages) {
-      return [];
-    }
+    if (!messagesData?.pages) return [];
 
-    // 항상 전체 재계산 (Realtime 업데이트 반영 보장)
-    // pages는 [newest, ..., oldest] 순서이므로 역순으로 평탄화하여
-    // [oldest, ..., newest] 시간순 정렬
-    return messagesData.pages
-      .slice()
-      .reverse()
-      .flatMap((page) => page?.messages ?? []);
+    const pages = messagesData.pages;
+    const result: CacheMessage[] = [];
+    for (let i = pages.length - 1; i >= 0; i--) {
+      const messages = pages[i]?.messages;
+      if (messages) {
+        for (let j = 0; j < messages.length; j++) {
+          result.push(messages[j]);
+        }
+      }
+    }
+    return result;
   }, [messagesData?.pages]);
 
   // 메시지에 그룹핑 정보 추가 (날짜 구분선, 이름/시간 표시 여부)
+  // 증분 최적화: 끝에 메시지가 추가된 경우 마지막 2개만 재계산
+  const prevAllMessagesRef = useRef<typeof allMessages>([]);
+  const prevGroupedRef = useRef<ChatMessageWithGrouping[]>([]);
+
   const messagesWithGrouping = useMemo(() => {
-    return processMessagesWithGrouping(allMessages);
+    if (allMessages.length === 0) {
+      prevAllMessagesRef.current = [];
+      prevGroupedRef.current = [];
+      return [];
+    }
+
+    const prev = prevAllMessagesRef.current;
+    const prevGrouped = prevGroupedRef.current;
+
+    // Fast path: 끝에 메시지 1~3개 추가 (가장 흔한 realtime 케이스)
+    const appendCount = allMessages.length - prev.length;
+    if (
+      appendCount > 0 &&
+      appendCount <= 3 &&
+      prev.length > 0 &&
+      prev[prev.length - 1]?.id === allMessages[prev.length - 1]?.id
+    ) {
+      // 이전 결과 재사용 + 경계부터 재계산 (마지막 1개 + 새 메시지들)
+      const regroupStart = Math.max(0, prev.length - 1);
+      const tailMessages = allMessages.slice(regroupStart);
+      const tailGrouped = processMessagesWithGrouping(tailMessages);
+
+      const result = [
+        ...prevGrouped.slice(0, regroupStart),
+        ...tailGrouped,
+      ];
+      prevAllMessagesRef.current = allMessages;
+      prevGroupedRef.current = result;
+      return result;
+    }
+
+    // Full recompute (페이지네이션, 리셋 등)
+    const result = processMessagesWithGrouping(allMessages);
+    prevAllMessagesRef.current = allMessages;
+    prevGroupedRef.current = result;
+    return result;
   }, [allMessages]);
 
   // readCounts 병합 (증분 최적화)
@@ -295,20 +330,22 @@ export function useChatRoomLogic({
   // Mutations
   // ============================================
 
-  // 메시지 전송 (Optimistic Updates 적용)
+  // 메시지 전송 (Broadcast-first + Optimistic Updates 적용)
   const sendMutation = useMutation({
     mutationFn: async ({
       content,
       replyToId,
+      clientMessageId,
     }: {
       content: string;
       replyToId?: string | null;
+      clientMessageId?: string;
     }) => {
-      const result = await sendMessageAction(roomId, content, replyToId);
+      const result = await sendMessageAction(roomId, content, replyToId, clientMessageId);
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
-    onMutate: async ({ content, replyToId }) => {
+    onMutate: async ({ content, replyToId, clientMessageId }) => {
       // 1. 진행 중인 쿼리 취소 (낙관적 업데이트와 충돌 방지)
       await queryClient.cancelQueries({ queryKey: ["chat-messages", roomId] });
 
@@ -319,16 +356,26 @@ export function useChatRoomLogic({
       const previousReplyTarget = replyTarget;
 
       // 3. 낙관적 업데이트 (즉시 UI 반영) - InfiniteQuery 구조
-      const tempId = `temp-${Date.now()}`;
+      // Broadcast-first: clientMessageId를 tempId로 사용 (UUID 공유)
+      const tempId = clientMessageId ?? `temp-${Date.now()}`;
 
       // Operation Tracker에 전송 시작 등록 (Race Condition 방지)
-      operationTracker.startSend(tempId, content);
+      operationTracker.startSend(tempId, content, roomId);
       const now = new Date().toISOString();
+
+      // 발신자 정보 조회 (roomData.members에서)
+      const currentMember = roomData?.members?.find(
+        (m) => m.user_id === userId
+      );
+      const senderName = currentMember?.user?.name ?? "나";
+      const senderProfileUrl = currentMember?.user?.profileImageUrl ?? null;
+      const senderType = currentMember?.user?.type ?? ("student" as const);
+
       const optimisticMessage: CacheMessage = {
         id: tempId,
         content,
         sender_id: userId,
-        sender_type: "student" as const,
+        sender_type: senderType,
         message_type: "text" as const,
         created_at: now,
         updated_at: now,
@@ -337,18 +384,40 @@ export function useChatRoomLogic({
         is_deleted: false,
         reply_to_id: replyToId ?? null,
         replyTarget: replyTarget,
-        sender: { name: "나", type: "student" as const, id: userId },
+        sender: { name: senderName, type: senderType, id: userId },
         reactions: [],
         status: "sending" as const,
         // 비정규화 필드 (낙관적 업데이트용)
-        sender_name: "나",
-        sender_profile_url: null,
+        sender_name: senderName,
+        sender_profile_url: senderProfileUrl,
       };
 
       queryClient.setQueryData<InfiniteMessagesCache>(
         ["chat-messages", roomId],
         (old) => addMessageToFirstPage(old, optimisticMessage)
       );
+
+      // Broadcast-first: DB INSERT 전에 수신자에게 즉시 전송 (~6ms)
+      if (clientMessageId) {
+        broadcastInsert({
+          id: clientMessageId,
+          room_id: roomId,
+          sender_id: userId,
+          sender_type: senderType,
+          sender_name: senderName,
+          sender_profile_url: senderProfileUrl,
+          content,
+          message_type: "text",
+          reply_to_id: replyToId ?? null,
+          created_at: now,
+          updated_at: now,
+          is_deleted: false,
+          deleted_at: null,
+        });
+
+        // 발신자 측 DB trigger broadcast dedup을 위해 미리 마킹
+        operationTracker.markRealtimeProcessed(`insert:${clientMessageId}`);
+      }
 
       // 답장 상태 초기화
       setReplyTarget(null);
@@ -371,17 +440,33 @@ export function useChatRoomLogic({
         );
       }
     },
-    onError: (_err, _variables, context) => {
-      // 6. 실패 시 롤백 대신 status를 error로 변경
+    onError: (_err, variables, context) => {
+      // 6. 실패 시 네트워크 에러면 큐로 전환, 아니면 에러 표시
       const tempId = context?.tempId;
       if (tempId) {
-        // Operation Tracker에 전송 실패 등록
-        operationTracker.failSend(tempId);
-        queryClient.setQueryData<InfiniteMessagesCache>(
-          ["chat-messages", roomId],
-          (old) =>
-            updateMessageInCache(old, tempId, (m) => ({ ...m, status: "error" }))
-        );
+        if (isNetworkError(_err)) {
+          // 네트워크 에러 → tracker 해제 + "queued"로 전환 + IndexedDB 큐 저장
+          operationTracker.failSend(tempId);
+          queryClient.setQueryData<InfiniteMessagesCache>(
+            ["chat-messages", roomId],
+            (old) =>
+              updateMessageInCache(old, tempId, (m) => ({ ...m, status: "queued" }))
+          );
+          enqueueChatMessage(
+            roomId,
+            variables.content,
+            variables.replyToId,
+            variables.clientMessageId ?? tempId
+          );
+        } else {
+          // 비즈니스 에러 → 기존 "error" 처리
+          operationTracker.failSend(tempId);
+          queryClient.setQueryData<InfiniteMessagesCache>(
+            ["chat-messages", roomId],
+            (old) =>
+              updateMessageInCache(old, tempId, (m) => ({ ...m, status: "error" }))
+          );
+        }
       }
 
       // 답장 상태 복원
@@ -556,7 +641,7 @@ export function useChatRoomLogic({
       }
 
       // Operation Tracker에 리액션 시작 등록 (Race Condition 방지)
-      operationTracker.startReaction(messageId, emoji, isAdd);
+      operationTracker.startReaction(messageId, emoji, isAdd, roomId);
 
       // 낙관적 업데이트
       queryClient.setQueryData<InfiniteMessagesCache>(
@@ -689,8 +774,33 @@ export function useChatRoomLogic({
     mutationFn: async () => {
       await markAsReadAction(roomId);
     },
-    onSuccess: () => {
-      // 채팅방 목록의 unread count 업데이트
+    onMutate: async () => {
+      // 1. 진행 중인 refetch 취소 (낙관적 업데이트 덮어쓰기 방지)
+      await queryClient.cancelQueries({ queryKey: ["chat-rooms"] });
+
+      // 2. 이전 값 스냅샷 (롤백용)
+      const previousRooms = queryClient.getQueryData<ChatRoomListItem[]>(["chat-rooms"]);
+
+      // 3. 캐시 즉시 업데이트: 해당 방의 unreadCount를 0으로
+      if (previousRooms) {
+        queryClient.setQueryData<ChatRoomListItem[]>(
+          ["chat-rooms"],
+          previousRooms.map((room) =>
+            room.id === roomId ? { ...room, unreadCount: 0 } : room
+          )
+        );
+      }
+
+      return { previousRooms };
+    },
+    onError: (_err, _vars, context) => {
+      // 4. 실패 시 롤백
+      if (context?.previousRooms) {
+        queryClient.setQueryData(["chat-rooms"], context.previousRooms);
+      }
+    },
+    onSettled: () => {
+      // 5. 성공/실패 무관하게 서버 데이터로 최종 동기화
       queryClient.invalidateQueries({ queryKey: ["chat-rooms"] });
     },
   });
@@ -719,8 +829,8 @@ export function useChatRoomLogic({
     return cache;
   }, [roomData?.members]);
 
-  // 실시간 구독
-  useChatRealtime({
+  // 실시간 구독 (Broadcast-first: broadcastInsert 반환)
+  const { broadcastInsert } = useChatRealtime({
     roomId,
     userId,
     senderCache,
@@ -733,6 +843,7 @@ export function useChatRoomLogic({
       throttledMarkAsRead();
     }, [onNewMessageArrived, throttledMarkAsRead]),
   });
+
 
   // 현재 사용자 이름 (Presence용)
   const currentUserName =
@@ -758,9 +869,52 @@ export function useChatRoomLogic({
 
   const sendMessage = useCallback(
     (content: string, replyToId?: string | null) => {
-      sendMutation.mutate({ content, replyToId });
+      const clientMessageId = crypto.randomUUID();
+
+      if (!isOnline()) {
+        // 오프라인: 캐시에 "queued" 상태로 추가 + IndexedDB 큐 저장
+        const now = new Date().toISOString();
+        const currentMember = roomData?.members?.find(
+          (m) => m.user_id === userId
+        );
+        const senderName = currentMember?.user?.name ?? "나";
+        const senderProfileUrl = currentMember?.user?.profileImageUrl ?? null;
+        const senderType = currentMember?.user?.type ?? ("student" as const);
+
+        const queuedMessage: CacheMessage = {
+          id: clientMessageId,
+          content,
+          sender_id: userId,
+          sender_type: senderType,
+          message_type: "text" as const,
+          created_at: now,
+          updated_at: now,
+          deleted_at: null,
+          room_id: roomId,
+          is_deleted: false,
+          reply_to_id: replyToId ?? null,
+          replyTarget: replyTarget,
+          sender: { name: senderName, type: senderType, id: userId },
+          reactions: [],
+          status: "queued" as const,
+          sender_name: senderName,
+          sender_profile_url: senderProfileUrl,
+        };
+
+        queryClient.setQueryData<InfiniteMessagesCache>(
+          ["chat-messages", roomId],
+          (old) => addMessageToFirstPage(old, queuedMessage)
+        );
+        enqueueChatMessage(roomId, content, replyToId, clientMessageId);
+        setReplyTarget(null);
+        setTimeout(() => onNewMessageArrived?.(), 0);
+        return;
+      }
+
+      // 온라인: 기존 mutation 로직
+      sendMutation.mutate({ content, replyToId, clientMessageId });
     },
-    [sendMutation]
+    [sendMutation, roomId, userId, roomData, queryClient, onNewMessageArrived, replyTarget]
   );
 
   const editMessage = useCallback(

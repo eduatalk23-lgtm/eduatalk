@@ -8,6 +8,7 @@ import { redirect } from "next/navigation";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { getQueryClient } from "@/lib/providers/getQueryClient";
 import { chatMessagesQueryOptions } from "@/lib/query-options/chatMessages";
+import { chatRoomDetailQueryOptions, chatPinnedQueryOptions, chatAnnouncementQueryOptions } from "@/lib/query-options/chatRoom";
 import { AdminChatRoomPage } from "./_components/AdminChatRoomPage";
 
 export const metadata = {
@@ -26,18 +27,12 @@ export default async function AdminChatRoomPageRoute({ params }: PageProps) {
     redirect("/login");
   }
 
-  // SSR 프리패칭 (실패해도 클라이언트에서 재시도)
+  // SSR 프리패칭 (non-blocking: HTML 스트리밍과 병렬, 실패 시 클라이언트에서 재시도)
   const queryClient = getQueryClient();
-  try {
-    await queryClient.prefetchInfiniteQuery(chatMessagesQueryOptions(roomId));
-  } catch (error) {
-    console.error("[AdminChatRoomPage] Prefetch failed:", {
-      message: error instanceof Error ? error.message : (error as { message?: string })?.message,
-      code: (error as { code?: string })?.code,
-      roomId,
-      raw: JSON.stringify(error),
-    });
-  }
+  void queryClient.prefetchInfiniteQuery(chatMessagesQueryOptions(roomId));
+  void queryClient.prefetchQuery(chatRoomDetailQueryOptions(roomId));
+  void queryClient.prefetchQuery(chatPinnedQueryOptions(roomId));
+  void queryClient.prefetchQuery(chatAnnouncementQueryOptions(roomId));
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>

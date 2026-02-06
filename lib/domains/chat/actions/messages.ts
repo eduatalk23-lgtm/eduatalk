@@ -32,7 +32,8 @@ import {
 export async function sendMessageAction(
   roomId: string,
   content: string,
-  replyToId?: string | null
+  replyToId?: string | null,
+  clientMessageId?: string
 ): Promise<ChatActionResult<ChatMessage>> {
   try {
     const { userId, role } = await getCurrentUserRole();
@@ -47,6 +48,7 @@ export async function sendMessageAction(
       roomId,
       content,
       replyToId,
+      clientMessageId,
     });
   } catch (error) {
     console.error("[sendMessageAction] Error:", error);
@@ -297,6 +299,44 @@ export async function getSenderInfoAction(
     return {
       success: false,
       error: error instanceof Error ? error.message : "발신자 정보 조회 실패",
+    };
+  }
+}
+
+/**
+ * 발신자 정보 배치 조회 (실시간 이벤트에서 sender 정보 보강용)
+ *
+ * @param senderKeys 발신자 ID와 타입 배열
+ */
+export async function getSenderInfoBatchAction(
+  senderKeys: Array<{ id: string; type: ChatUserType }>
+): Promise<ChatActionResult<Record<string, ChatUser>>> {
+  try {
+    const { userId, role } = await getCurrentUserRole();
+
+    if (!userId || !role) {
+      return { success: false, error: "인증이 필요합니다." };
+    }
+
+    const result = await repository.findSendersByIds(senderKeys);
+
+    // Server Action은 Map을 직렬화할 수 없으므로 Record로 변환
+    const chatUsers: Record<string, ChatUser> = {};
+    for (const [key, info] of result) {
+      chatUsers[key] = {
+        id: info.id,
+        type: key.endsWith("_admin") ? "admin" : "student",
+        name: info.name,
+        profileImageUrl: info.profileImageUrl,
+      };
+    }
+
+    return { success: true, data: chatUsers };
+  } catch (error) {
+    console.error("[getSenderInfoBatchAction] Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "발신자 배치 조회 실패",
     };
   }
 }

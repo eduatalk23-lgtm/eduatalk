@@ -467,59 +467,60 @@ function ChatRoomComponent({
     else messageRefs.current.delete(messageId);
   }, []);
 
-  // 메시지 액션 핸들러 생성
+  // 메시지 액션 핸들러 의존성을 ref로 추적하여 안정적 참조 유지
+  const actionDepsRef = useRef({
+    toggleReaction, handleReply, scrollToMessage, handleEdit, handleDelete,
+    togglePin, pinnedMessageIds, handleMessageLongPress, retryMessage, removeFailedMessage,
+  });
+  useEffect(() => {
+    actionDepsRef.current = {
+      toggleReaction, handleReply, scrollToMessage, handleEdit, handleDelete,
+      togglePin, pinnedMessageIds, handleMessageLongPress, retryMessage, removeFailedMessage,
+    };
+  });
+
+  // 안정적 참조: 의존성 변경에도 함수 참조가 바뀌지 않음
   const createMessageActionHandler = useCallback(
     (message: (typeof messages)[number]) =>
       (action: MessageAction) => {
+        const deps = actionDepsRef.current;
         const messageReplyTarget = (message as { replyTarget?: ReplyTargetInfo | null }).replyTarget;
 
         switch (action.type) {
           case "toggleReaction":
-            toggleReaction(message.id, action.emoji);
+            deps.toggleReaction(message.id, action.emoji);
             break;
           case "reply":
-            handleReply(message);
+            deps.handleReply(message);
             break;
           case "replyTargetClick":
             if (messageReplyTarget?.id) {
-              scrollToMessage(messageReplyTarget.id);
+              deps.scrollToMessage(messageReplyTarget.id);
             }
             break;
           case "edit":
-            handleEdit(message.id, message.content, message.updated_at);
+            deps.handleEdit(message.id, message.content, message.updated_at);
             break;
           case "delete":
-            handleDelete(message.id);
+            deps.handleDelete(message.id);
             break;
           case "report":
-            // 신고 기능 (추후 구현 시 추가)
             break;
           case "togglePin":
-            togglePin(message.id, pinnedMessageIds.has(message.id));
+            deps.togglePin(message.id, deps.pinnedMessageIds.has(message.id));
             break;
           case "longPress":
-            handleMessageLongPress(message);
+            deps.handleMessageLongPress(message);
             break;
           case "retry":
-            retryMessage(message);
+            deps.retryMessage(message);
             break;
           case "removeFailed":
-            removeFailedMessage(message.id);
+            deps.removeFailedMessage(message.id);
             break;
         }
       },
-    [
-      toggleReaction,
-      handleReply,
-      scrollToMessage,
-      handleEdit,
-      handleDelete,
-      togglePin,
-      pinnedMessageIds,
-      handleMessageLongPress,
-      retryMessage,
-      removeFailedMessage,
-    ]
+    []
   );
 
   const renderMessage = useCallback((_index: number, message: (typeof messages)[number]) => {
