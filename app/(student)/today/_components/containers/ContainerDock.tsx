@@ -23,8 +23,8 @@ interface ContainerDockProps {
 
 const containerConfig = {
   unfinished: {
-    title: '미완료',
-    description: '먼저 해결하세요',
+    title: '미완료 플랜',
+    description: '우선 처리가 필요해요',
     icon: '🔴',
     bgColor: 'bg-red-50',
     borderColor: 'border-red-200',
@@ -33,8 +33,8 @@ const containerConfig = {
     priority: 1,
   },
   daily: {
-    title: '오늘 할 일',
-    description: '오늘의 학습 플랜',
+    title: '오늘 플랜',
+    description: '오늘 진행할 플랜',
     icon: '📦',
     bgColor: 'bg-blue-50',
     borderColor: 'border-blue-200',
@@ -43,8 +43,8 @@ const containerConfig = {
     priority: 2,
   },
   weekly: {
-    title: '이번 주 유동',
-    description: '이번 주 내 자유롭게 소화',
+    title: '주간 플랜',
+    description: '이번 주 내 자유롭게 진행',
     icon: '📅',
     bgColor: 'bg-green-50',
     borderColor: 'border-green-200',
@@ -205,7 +205,12 @@ export function ContainerDock({
         <div className="px-4 pb-4 space-y-2 relative">
           {/* 순서 변경 모드 안내 */}
           {isReorderMode && (
-            <div className="text-xs text-blue-600 bg-blue-50 px-3 py-2 rounded-lg mb-2">
+            <div className={cn(
+              'text-xs px-3 py-2 rounded-lg mb-2',
+              type === 'unfinished' ? 'text-red-600 bg-red-50' :
+              type === 'daily' ? 'text-blue-600 bg-blue-50' :
+              'text-green-600 bg-green-50'
+            )}>
               플랜을 드래그하여 순서를 변경하세요
             </div>
           )}

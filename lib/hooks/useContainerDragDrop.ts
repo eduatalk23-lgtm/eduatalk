@@ -29,9 +29,9 @@ interface UseContainerDragDropOptions {
  * HTML5 Drag and Drop API를 사용하여 플랜을 다른 컨테이너로 이동합니다.
  *
  * 컨테이너:
- * - unfinished: 미완료 (이월된 플랜)
- * - daily: 오늘 할 일
- * - weekly: 이번 주 유동
+ * - unfinished: 미완료 플랜 (이월된 플랜)
+ * - daily: 오늘 플랜
+ * - weekly: 주간 플랜
  */
 export function useContainerDragDrop(options?: UseContainerDragDropOptions) {
   const router = useRouter();
@@ -282,11 +282,11 @@ export function useContainerDragDrop(options?: UseContainerDragDropOptions) {
 function getContainerDisplayName(container: ContainerType): string {
   switch (container) {
     case 'unfinished':
-      return '미완료';
+      return '미완료 플랜';
     case 'daily':
-      return '오늘 할 일';
+      return '오늘 플랜';
     case 'weekly':
-      return '주간 유동';
+      return '주간 플랜';
     default:
       return container;
   }

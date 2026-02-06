@@ -113,7 +113,7 @@ export function useContainerMoveActions(initialData: ContainerSummary) {
         try {
           const result = await moveToDaily(planId, planType);
           if (result.success) {
-            showToast('오늘 할 일로 이동했습니다', 'success');
+            showToast('오늘 플랜으로 이동했습니다', 'success');
           } else {
             showToast(result.error ?? '이동에 실패했습니다', 'error');
           }
@@ -141,7 +141,7 @@ export function useContainerMoveActions(initialData: ContainerSummary) {
         try {
           const result = await moveToWeekly(planId, planType);
           if (result.success) {
-            showToast('주간 유동으로 이동했습니다', 'success');
+            showToast('주간 플랜으로 이동했습니다', 'success');
           } else {
             showToast(result.error ?? '이동에 실패했습니다', 'error');
           }

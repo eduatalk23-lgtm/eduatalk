@@ -9,8 +9,9 @@ import {
 import { ActiveLearningWidget } from "./_components/ActiveLearningWidget";
 import { SmartInsightsCard } from "./_components/SmartInsightsCard";
 import { LearningStatsCard } from "./_components/LearningStatsCard";
-import { MLPredictionCard } from "./_components/MLPredictionCard";
-import { AIRecommendationCard } from "./_components/AIRecommendationCard";
+// TODO: AI 기능 정상화 후 재활성화
+// import { MLPredictionCard } from "./_components/MLPredictionCard";
+// import { AIRecommendationCard } from "./_components/AIRecommendationCard";
 import { perfTime } from "@/lib/utils/perfLog";
 import { getDashboardCategories } from "@/lib/navigation/dashboardUtils";
 import { getContainerClass } from "@/lib/constants/layout";
@@ -100,11 +101,12 @@ export default async function DashboardPage() {
             <LearningStatsCard />
           </div>
 
-          {/* AI 분석 위젯 */}
+          {/* TODO: AI 기능 정상화 후 재활성화
           <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
             <MLPredictionCard studentId={user.id} />
             <AIRecommendationCard studentId={user.id} />
           </div>
+          */}
 
           {/* 주요 기능 바로가기 */}
           <div className="flex flex-col gap-4 md:gap-6">

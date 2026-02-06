@@ -81,14 +81,29 @@ export const ReorderableContainerList = memo(function ReorderableContainerList({
             {...reorderProps}
             className={cn(
               'transition-all duration-200',
-              isDragging && !isDragged && 'hover:ring-2 hover:ring-blue-200',
-              isDropTarget && 'ring-2 ring-blue-400 bg-blue-50/50',
+              isDragging && !isDragged && cn(
+                'hover:ring-2',
+                containerType === 'unfinished' ? 'hover:ring-red-200' :
+                containerType === 'weekly' ? 'hover:ring-green-200' :
+                'hover:ring-blue-200'
+              ),
+              isDropTarget && cn(
+                'ring-2',
+                containerType === 'unfinished' ? 'ring-red-400 bg-red-50/50' :
+                containerType === 'weekly' ? 'ring-green-400 bg-green-50/50' :
+                'ring-blue-400 bg-blue-50/50'
+              ),
               isDragged && 'opacity-50 scale-98'
             )}
           >
             {/* 드롭 인디케이터 (상단) */}
             {isDropTarget && (
-              <div className="h-0.5 bg-blue-500 rounded-full mb-1 animate-pulse" />
+              <div className={cn(
+                'h-0.5 rounded-full mb-1 animate-pulse',
+                containerType === 'unfinished' ? 'bg-red-500' :
+                containerType === 'weekly' ? 'bg-green-500' :
+                'bg-blue-500'
+              )} />
             )}
 
             {item.type === 'student_plan' && item.plan ? (

@@ -73,7 +73,7 @@ export const ContainerPlanItem = memo(function ContainerPlanItem({
 
   const draggableProps = canDrag ? getDraggableProps(dragItem) : {};
 
-  const containerLabel = containerType === 'unfinished' ? '미완료' : containerType === 'daily' ? '오늘 할 일' : '주간 유동';
+  const containerLabel = containerType === 'unfinished' ? '미완료 플랜' : containerType === 'daily' ? '오늘 플랜' : '주간 플랜';
   const statusLabel = isCompleted ? '완료됨' : isInProgress ? '진행 중' : '대기 중';
   const ariaLabel = `${title}, ${statusLabel}, ${containerLabel}${canDrag ? ', 다른 섹션으로 드래그하여 이동 가능' : ''}`;
 
@@ -110,7 +110,7 @@ export const ContainerPlanItem = memo(function ContainerPlanItem({
             ) : isInProgress ? (
               <span className="text-blue-500 animate-pulse">●</span>
             ) : containerType === 'unfinished' ? (
-              <span className="text-amber-500">⚠️</span>
+              <span className="text-red-500">⏰</span>
             ) : (
               <span className="text-gray-400">○</span>
             )}
@@ -228,10 +228,10 @@ export const ContainerPlanItem = memo(function ContainerPlanItem({
                           onMoveToDaily();
                         }}
                         role="menuitem"
-                        aria-label={`${title}을(를) 오늘 할 일로 이동`}
+                        aria-label={`${title}을(를) 오늘 플랜으로 이동`}
                         className="w-full px-3 py-1.5 text-sm text-left hover:bg-gray-50"
                       >
-                        오늘로 이동
+                        오늘 플랜으로
                       </button>
                     )}
                     {onMoveToWeekly && (
@@ -241,10 +241,10 @@ export const ContainerPlanItem = memo(function ContainerPlanItem({
                           onMoveToWeekly();
                         }}
                         role="menuitem"
-                        aria-label={`${title}을(를) 주간 유동으로 이동`}
+                        aria-label={`${title}을(를) 주간 플랜으로 이동`}
                         className="w-full px-3 py-1.5 text-sm text-left hover:bg-gray-50"
                       >
-                        주간으로 이동
+                        주간 플랜으로
                       </button>
                     )}
                   </div>

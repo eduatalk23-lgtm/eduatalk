@@ -115,7 +115,7 @@ export function IncompleteReminder({
               )}
             >
               {hasDelayed
-                ? `${delayedPlans.length}개의 플랜이 밀려있어요`
+                ? `미완료 플랜이 ${delayedPlans.length}건 있어요`
                 : `오늘 ${todayIncomplete.length}개의 플랜이 남았어요`}
             </h3>
             <p
@@ -175,7 +175,7 @@ export function IncompleteReminder({
               {hasDelayed && (
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-orange-700">
-                    지연된 플랜
+                    미완료 플랜
                   </p>
                   {delayedPlans.slice(0, 3).map((plan) => (
                     <button
@@ -275,7 +275,7 @@ export function IncompleteReminder({
           )}
         >
           <span>
-            {hasDelayed ? "밀린 플랜 처리하기" : "지금 시작하기"}
+            {hasDelayed ? "미완료 플랜 처리하기" : "지금 시작하기"}
           </span>
           <ChevronRight className="h-4 w-4" />
         </button>
@@ -317,7 +317,7 @@ export function IncompleteReminderCompact({
         <Clock className="h-3.5 w-3.5" />
       )}
       <span>
-        {hasDelayed ? `${count}개 밀림` : `${count}개 남음`}
+        {hasDelayed ? `미완료 ${count}건` : `${count}건 남음`}
       </span>
     </button>
   );
