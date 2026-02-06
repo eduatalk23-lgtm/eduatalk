@@ -11,7 +11,7 @@
 
 import { useEffect, useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 // ============================================
@@ -253,8 +253,7 @@ export function useNotificationRealtime({
       return;
     }
 
-    const supabase = createSupabaseBrowserClient();
-
+    // 싱글톤 클라이언트 사용 (모듈 레벨에서 import)
     // 알림 테이블 변경 및 브로드캐스트 구독
     const channel = supabase
       .channel(`notifications-${userId}`)

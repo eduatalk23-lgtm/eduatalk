@@ -6,7 +6,7 @@
 
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 
 type UseAttendanceRealtimeOptions = {
   studentId: string;
@@ -30,8 +30,7 @@ export function useAttendanceRealtime({
       return;
     }
 
-    const supabase = createSupabaseBrowserClient();
-
+    // 싱글톤 클라이언트 사용 (모듈 레벨에서 import)
     const channel = supabase
       .channel(`attendance-${studentId}`)
       .on(
@@ -75,8 +74,7 @@ export function useAdminAttendanceRealtime({
       return;
     }
 
-    const supabase = createSupabaseBrowserClient();
-
+    // 싱글톤 클라이언트 사용 (모듈 레벨에서 import)
     const channel = supabase
       .channel(`admin-attendance-${tenantId}`)
       .on(

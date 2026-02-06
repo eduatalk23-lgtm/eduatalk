@@ -9,8 +9,8 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase/client";
+import type { RealtimePostgresChangesPayload, RealtimeChannel } from "@supabase/supabase-js";
 import type {
   ChatUserType,
   ChatMessageType,
@@ -21,7 +21,7 @@ import {
   type InfiniteMessagesCache,
   type CacheMessage,
 } from "@/lib/domains/chat/cacheTypes";
-import { getSenderInfoAction, getMessagesSinceAction } from "@/lib/domains/chat/actions";
+import { getSenderInfoBatchAction, getMessagesSinceAction } from "@/lib/domains/chat/actions";
 import { operationTracker } from "@/lib/domains/chat/operationTracker";
 import { connectionManager } from "./connectionManager";
 import { useDebouncedCallback } from "@/lib/hooks/useDebounce";
@@ -136,6 +136,9 @@ export function useChatRealtime({
   // 재연결 트리거 (수동 재연결 시 증가하여 useEffect 재실행)
   const [reconnectTrigger, setReconnectTrigger] = useState(0);
 
+  // Broadcast-first: 채널 참조 (broadcastInsert에서 사용)
+  const channelRef = useRef<RealtimeChannel | null>(null);
+
   // 콜백을 ref로 저장하여 의존성 변경 방지
   const callbacksRef = useRef({ onNewMessage, onMessageDeleted });
   useEffect(() => {
@@ -145,8 +148,15 @@ export function useChatRealtime({
   // 발신자 정보 캐시 (LRU로 메모리 누수 방지)
   const senderCacheRef = useRef(new LRUCache<string, ChatUser>(SENDER_CACHE_MAX_SIZE));
 
-  // 진행 중인 요청 Promise 캐시 (동일 발신자 중복 요청 방지)
-  const pendingRequestsRef = useRef(new Map<string, Promise<ChatUser>>());
+  // 배치 수집기 ref (100ms 윈도우로 sender 요청 배치 처리)
+  const batchRef = useRef<{
+    pending: Map<string, {
+      senderId: string;
+      senderType: ChatUserType;
+      resolvers: Array<{ resolve: (v: ChatUser) => void; reject: (e: Error) => void }>;
+    }>;
+    timer: ReturnType<typeof setTimeout> | null;
+  }>({ pending: new Map(), timer: null });
 
   // 외부 senderCache가 변경되면 ref 업데이트
   useEffect(() => {
@@ -182,107 +192,87 @@ export function useChatRealtime({
     [queryClient, roomId]
   );
 
-  // 발신자 정보 조회 (캐시 우선, 중복 요청 방지, 재시도 로직 포함)
-  const fetchSenderInfo = useCallback(
-    async (senderId: string, senderType: ChatUserType): Promise<ChatUser> => {
-      const cacheKey = `${senderId}_${senderType}`;
-      const MAX_RETRIES = 3;
-      const BASE_DELAY_MS = 1000;
+  // 배치 플러시: 100ms 윈도우 내 수집된 요청을 한 번에 처리
+  const flushBatch = useCallback(async () => {
+    const batch = new Map(batchRef.current.pending);
+    batchRef.current.pending.clear();
+    batchRef.current.timer = null;
 
-      // 1. 완료된 캐시 확인
-      const cached = senderCacheRef.current.get(cacheKey);
-      if (cached) return cached;
+    if (batch.size === 0) return;
 
-      // 2. 진행 중인 요청이 있으면 해당 Promise 재사용 (중복 요청 방지)
-      const pending = pendingRequestsRef.current.get(cacheKey);
-      if (pending) return pending;
+    const keys = [...batch.values()].map(({ senderId, senderType }) => ({
+      id: senderId,
+      type: senderType,
+    }));
 
-      // 네트워크 오류 여부 판별
-      const isNetworkError = (error: unknown): boolean => {
-        if (error instanceof Error) {
-          const msg = error.message.toLowerCase();
-          return (
-            msg.includes("network") ||
-            msg.includes("fetch") ||
-            msg.includes("timeout") ||
-            msg.includes("offline") ||
-            msg.includes("failed to fetch") ||
-            error.name === "TypeError"
-          );
-        }
-        return false;
-      };
-
-      // 3. 새 요청 시작 및 Promise 캐시에 저장 (재시도 포함)
-      const fetchPromise = (async (): Promise<ChatUser> => {
-        let lastError: unknown = null;
-
-        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-          try {
-            const result = await getSenderInfoAction(senderId, senderType);
-
-            if (result.success && result.data) {
-              senderCacheRef.current.set(cacheKey, result.data);
-              return result.data;
-            }
-
-            // API 성공했지만 데이터 없음 (사용자 삭제됨 등) - 재시도 불필요
-            if (result.success && !result.data) {
-              console.warn(`[ChatRealtime] Sender not found: ${senderId}`);
-              const fallback: ChatUser = {
-                id: senderId,
-                type: senderType,
-                name: "탈퇴한 사용자",
-              };
-              senderCacheRef.current.set(cacheKey, fallback);
-              return fallback;
-            }
-
-            // API 실패 - 에러 메시지 확인 후 재시도 여부 결정
-            lastError = new Error(result.error || "Unknown error");
-
-            // 권한 오류 등 재시도해도 의미 없는 경우
-            if (result.error?.includes("permission") || result.error?.includes("denied")) {
-              console.warn(`[ChatRealtime] Permission error for sender ${senderId}: ${result.error}`);
-              break;
-            }
-          } catch (error) {
-            lastError = error;
-
-            // 네트워크 오류가 아니면 재시도 불필요
-            if (!isNetworkError(error)) {
-              console.error(`[ChatRealtime] Non-network error for sender ${senderId}:`, error);
-              break;
-            }
-          }
-
-          // 마지막 시도가 아니면 대기 후 재시도
-          if (attempt < MAX_RETRIES) {
-            const delay = BASE_DELAY_MS * Math.pow(2, attempt);
-            console.log(`[ChatRealtime] Retrying sender fetch (${attempt + 1}/${MAX_RETRIES}) in ${delay}ms...`);
-            await new Promise((resolve) => setTimeout(resolve, delay));
+    try {
+      const result = await getSenderInfoBatchAction(keys);
+      if (result.success && result.data) {
+        // Server Action은 Record<string, ChatUser>를 반환 (Map 직렬화 불가)
+        const data = result.data;
+        for (const [cacheKey, entry] of batch) {
+          const user = data[cacheKey];
+          if (user) {
+            senderCacheRef.current.set(cacheKey, user);
+            entry.resolvers.forEach((r) => r.resolve(user));
+          } else {
+            const fallback: ChatUser = {
+              id: entry.senderId,
+              type: entry.senderType,
+              name: "탈퇴한 사용자",
+            };
+            senderCacheRef.current.set(cacheKey, fallback);
+            entry.resolvers.forEach((r) => r.resolve(fallback));
           }
         }
-
-        // 모든 재시도 실패 - 폴백 반환
-        console.error(`[ChatRealtime] All retries failed for sender ${senderId}:`, lastError);
-        const fallback: ChatUser = {
-          id: senderId,
-          type: senderType,
-          name: "로딩 실패",
-        };
-        // 실패한 경우에도 캐시하여 반복 요청 방지 (짧은 TTL로 관리 가능)
+      } else {
+        // 배치 실패 → 폴백
+        for (const [cacheKey, { senderId, senderType, resolvers }] of batch) {
+          const fallback: ChatUser = { id: senderId, type: senderType, name: "로딩 실패" };
+          senderCacheRef.current.set(cacheKey, fallback);
+          resolvers.forEach((r) => r.resolve(fallback));
+        }
+      }
+    } catch {
+      // 네트워크 에러 등 → 폴백 + 캐시 저장 (반복 요청 방지)
+      for (const [cacheKey, { senderId, senderType, resolvers }] of batch) {
+        const fallback: ChatUser = { id: senderId, type: senderType, name: "로딩 실패" };
         senderCacheRef.current.set(cacheKey, fallback);
-        return fallback;
-      })().finally(() => {
-        // 요청 완료 후 pending에서 제거
-        pendingRequestsRef.current.delete(cacheKey);
-      });
+        resolvers.forEach((r) => r.resolve(fallback));
+      }
+    }
+  }, []);
 
-      pendingRequestsRef.current.set(cacheKey, fetchPromise);
-      return fetchPromise;
+  // 발신자 정보 조회 (캐시 우선, 100ms 배치 수집)
+  const fetchSenderInfo = useCallback(
+    (senderId: string, senderType: ChatUserType): Promise<ChatUser> => {
+      const cacheKey = `${senderId}_${senderType}`;
+
+      // 1. 캐시 확인
+      const cached = senderCacheRef.current.get(cacheKey);
+      if (cached) return Promise.resolve(cached);
+
+      // 2. 이미 pending이면 같은 Promise에 리스너 추가
+      return new Promise((resolve, reject) => {
+        const existing = batchRef.current.pending.get(cacheKey);
+        if (existing) {
+          existing.resolvers.push({ resolve, reject });
+          return;
+        }
+
+        // 3. 배치에 추가 + 100ms 타이머
+        batchRef.current.pending.set(cacheKey, {
+          senderId,
+          senderType,
+          resolvers: [{ resolve, reject }],
+        });
+
+        if (!batchRef.current.timer) {
+          batchRef.current.timer = setTimeout(() => flushBatch(), 100);
+        }
+      });
     },
-    []
+    [flushBatch]
   );
 
   // 쿼리 무효화 함수
@@ -530,13 +520,38 @@ export function useChatRealtime({
     }
   }, [roomId, queryClient, getLatestMessageTimestamp, invalidateMessages]);
 
+  // 초기 마운트 추적 (자동 재연결과 구분하기 위해 별도 ref 사용)
+  const isInitialMountRef = useRef(true);
+
+  // 메인 useEffect에서 사용하는 함수들을 ref로 추적
+  // → 함수 참조 변경 시 채널 재구독을 방지
+  const fnRef = useRef({
+    syncMessagesSince,
+    invalidateRoomList,
+    invalidatePinnedMessages,
+    invalidateAnnouncement,
+    fetchSenderInfo,
+    findSenderFromExistingMessages,
+  });
+  useEffect(() => {
+    fnRef.current = {
+      syncMessagesSince,
+      invalidateRoomList,
+      invalidatePinnedMessages,
+      invalidateAnnouncement,
+      fetchSenderInfo,
+      findSenderFromExistingMessages,
+    };
+  });
+
   useEffect(() => {
     if (!enabled || !roomId || !userId) {
       return;
     }
 
-    const supabase = createSupabaseBrowserClient();
+    // 싱글톤 클라이언트 사용 (모듈 레벨에서 import)
     const channelName = connectionManager.getChannelKey(roomId);
+    const currentBatch = batchRef.current;
 
     // 재연결 콜백 등록 (수동 재연결 버튼용)
     connectionManager.registerReconnectCallback(channelName, async () => {
@@ -545,8 +560,248 @@ export function useChatRealtime({
       setReconnectTrigger((prev) => prev + 1);
     });
 
+    // 공지 변경 감지용 (announcement_at 추적)
+    const lastAnnouncementAtRef = { current: null as string | null };
+
+    // 지연 invalidation 타이머 (cleanup용)
+    let delayedInvalidationTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // === 핸들러 함수 추출 (broadcast + postgres_changes 양쪽에서 재사용) ===
+    const handleMessageInsert = (newMessage: ChatMessagePayload) => {
+      // 이벤트 ID 생성 (중복 처리 방지)
+      const eventId = `insert:${newMessage.id}`;
+
+      // 1. 이미 처리된 Realtime 이벤트 스킵
+      if (operationTracker.isRealtimeProcessed(eventId)) {
+        console.log("[ChatRealtime] Skipping already processed event:", eventId);
+        return;
+      }
+
+      // 2. 낙관적 업데이트로 이미 처리 중인 메시지 스킵 (completeSend 완료 전)
+      if (operationTracker.isMessageBeingSent(newMessage.id)) {
+        console.log("[ChatRealtime] Skipping message being sent:", newMessage.id);
+        operationTracker.markRealtimeProcessed(eventId);
+        return;
+      }
+
+      // 3. 발신자 자신의 메시지: 아직 전송 중인 낙관적 메시지가 있으면 스킵
+      //    (onSuccess가 tempId→realId 교체를 처리, broadcast보다 깔끔)
+      if (newMessage.sender_id === userId) {
+        const cache = queryClient.getQueryData<InfiniteMessagesCache>(["chat-messages", roomId]);
+        const hasPendingTemp = cache?.pages?.[0]?.messages.some(
+          (m) =>
+            m.id.startsWith("temp-") &&
+            m.content === newMessage.content &&
+            m.sender_id === newMessage.sender_id &&
+            m.status !== "error"
+        );
+        if (hasPendingTemp) {
+          console.log("[ChatRealtime] Skipping broadcast for own pending message:", newMessage.id);
+          operationTracker.markRealtimeProcessed(eventId);
+          return;
+        }
+      }
+
+      // 4. tempId → realId 매핑으로 교체가 필요한지 확인
+      const tempId = operationTracker.getTempIdForRealId(newMessage.id);
+
+      // setQueryData로 캐시에 직접 추가 (서버 재요청 없음) - InfiniteQuery 구조
+      queryClient.setQueryData<InfiniteMessagesCache>(
+        ["chat-messages", roomId],
+        (old) => {
+          if (!old?.pages?.length) return old;
+
+          // 첫 번째 페이지(최신 메시지들)에서 중복 체크 및 추가
+          const firstPage = old.pages[0];
+
+          // tempId 매핑이 있으면 해당 temp 메시지를 찾음
+          const existingIndex = firstPage.messages.findIndex(
+            (m) =>
+              m.id === newMessage.id ||
+              (tempId && m.id === tempId) ||
+              (m.id.startsWith("temp-") &&
+                m.content === newMessage.content &&
+                m.sender_id === newMessage.sender_id)
+          );
+
+          if (existingIndex !== -1) {
+            // 낙관적 메시지 → 실제 메시지로 교체
+            const updatedMessages = [...firstPage.messages];
+            const existingMessage = updatedMessages[existingIndex];
+            updatedMessages[existingIndex] = {
+              ...existingMessage,
+              ...newMessage,
+              sender: existingMessage.sender,
+              status: "sent" as const,
+            };
+            return {
+              ...old,
+              pages: [
+                { ...firstPage, messages: updatedMessages },
+                ...old.pages.slice(1),
+              ],
+            };
+          }
+
+          // 타인의 새 메시지 추가 (기존 캐시에서 sender 정보 조회 우선)
+          const cacheKey = `${newMessage.sender_id}_${newMessage.sender_type}`;
+          const existingSender = fnRef.current.findSenderFromExistingMessages(
+            newMessage.sender_id
+          );
+          const senderFromCache = senderCacheRef.current.get(cacheKey);
+
+          // 비정규화 필드에서 sender 정보 구성 (DB trigger payload에 포함)
+          const tempSender: ChatUser =
+            existingSender ??
+            senderFromCache ?? {
+              id: newMessage.sender_id,
+              type: newMessage.sender_type,
+              name: newMessage.sender_name ?? "로딩 중...",
+            };
+
+          const newCacheMessage: CacheMessage = {
+            ...newMessage,
+            sender: tempSender,
+            reactions: [],
+            replyTarget: null,
+            sender_name: newMessage.sender_name ?? tempSender.name,
+            sender_profile_url: newMessage.sender_profile_url ?? tempSender.profileImageUrl ?? null,
+          };
+
+          return {
+            ...old,
+            pages: [
+              {
+                ...firstPage,
+                messages: [...firstPage.messages, newCacheMessage],
+              },
+              ...old.pages.slice(1),
+            ],
+          };
+        }
+      );
+
+      // 타인 메시지인 경우 sender 정보가 없을 때만 비동기로 보강
+      if (newMessage?.sender_id && newMessage.sender_id !== userId) {
+        const cacheKey = `${newMessage.sender_id}_${newMessage.sender_type}`;
+        const hasSenderInfo =
+          fnRef.current.findSenderFromExistingMessages(newMessage.sender_id) ??
+          senderCacheRef.current.get(cacheKey);
+
+        // sender 정보가 없을 때만 서버에서 조회
+        if (!hasSenderInfo) {
+          fnRef.current.fetchSenderInfo(newMessage.sender_id, newMessage.sender_type)
+            .then((senderInfo) => {
+              queryClient.setQueryData<InfiniteMessagesCache>(
+                ["chat-messages", roomId],
+                (old) => {
+                  if (!old?.pages?.length) return old;
+                  return {
+                    ...old,
+                    pages: old.pages.map((page) => ({
+                      ...page,
+                      messages: page.messages.map((m) =>
+                        m.id === newMessage.id
+                          ? { ...m, sender: senderInfo }
+                          : m
+                      ),
+                    })),
+                  };
+                }
+              );
+            })
+            .catch((error) => {
+              console.warn(
+                "[ChatRealtime] Failed to fetch sender info:",
+                error
+              );
+            });
+        }
+      }
+
+      // 채팅방 목록도 무효화 (마지막 메시지 업데이트)
+      fnRef.current.invalidateRoomList();
+
+      // 콜백 호출 (타인의 메시지만)
+      if (newMessage.sender_id !== userId) {
+        callbacksRef.current.onNewMessage?.(newMessage);
+      }
+
+      // 이벤트 처리 완료 표시 (중복 방지)
+      operationTracker.markRealtimeProcessed(eventId);
+    };
+
+    const handleMessageUpdate = (updatedMessage: ChatMessagePayload) => {
+      // UPDATE dedup: broadcast와 postgres_changes 양쪽에서 수신되므로 중복 방지
+      const eventId = `update:${updatedMessage.id}:${updatedMessage.updated_at}`;
+      if (operationTracker.isRealtimeProcessed(eventId)) {
+        console.log("[ChatRealtime] Skipping already processed update:", eventId);
+        return;
+      }
+
+      // setQueryData로 해당 메시지만 업데이트 (서버 재요청 없음) - InfiniteQuery 구조
+      queryClient.setQueryData<InfiniteMessagesCache>(
+        ["chat-messages", roomId],
+        (old) => {
+          if (!old?.pages?.length) return old;
+
+          // 모든 페이지에서 해당 메시지 찾아서 업데이트
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              messages: page.messages.map((m) =>
+                m.id === updatedMessage.id
+                  ? {
+                      ...m,
+                      content: updatedMessage.content,
+                      is_deleted: updatedMessage.is_deleted,
+                      updated_at: updatedMessage.updated_at,
+                      deleted_at: updatedMessage.deleted_at,
+                    }
+                  : m
+              ),
+            })),
+          };
+        }
+      );
+
+      // 삭제된 경우 콜백 호출
+      if (updatedMessage.is_deleted && updatedMessage.id) {
+        callbacksRef.current.onMessageDeleted?.(updatedMessage.id);
+      }
+
+      operationTracker.markRealtimeProcessed(eventId);
+    };
+
     const channel = supabase
-      .channel(`chat-room-${roomId}`)
+      .channel(`chat-room-${roomId}`, { config: { private: true } })
+      // === Broadcast 리스너 (DB trigger → realtime.send(), 빠름 ~150ms) ===
+      .on(
+        "broadcast",
+        { event: "INSERT" },
+        (event: { payload: ChatMessagePayload }) => {
+          const msg = event.payload;
+          if (msg?.id) {
+            const latency = Date.now() - new Date(msg.created_at).getTime();
+            console.log(`[ChatRealtime] Broadcast INSERT: ${msg.id} (latency: ${latency}ms)`);
+            handleMessageInsert(msg);
+          }
+        }
+      )
+      .on(
+        "broadcast",
+        { event: "UPDATE" },
+        (event: { payload: ChatMessagePayload }) => {
+          const msg = event.payload;
+          if (msg?.id) {
+            const latency = Date.now() - new Date(msg.updated_at).getTime();
+            console.log(`[ChatRealtime] Broadcast UPDATE: ${msg.id} (latency: ${latency}ms)`);
+            handleMessageUpdate(msg);
+          }
+        }
+      )
+      // === postgres_changes 리스너 (백업, dedup으로 스킵) ===
       // 새 메시지 INSERT
       .on(
         "postgres_changes",
@@ -557,155 +812,12 @@ export function useChatRealtime({
           filter: `room_id=eq.${roomId}`,
         },
         (payload: RealtimePostgresChangesPayload<ChatMessagePayload>) => {
-          console.log("[ChatRealtime] New message:", payload.new);
           const newMessage = payload.new as ChatMessagePayload | undefined;
-          if (!newMessage) return;
-
-          // 이벤트 ID 생성 (중복 처리 방지)
-          const eventId = `insert:${newMessage.id}`;
-
-          // 1. 이미 처리된 Realtime 이벤트 스킵
-          if (operationTracker.isRealtimeProcessed(eventId)) {
-            console.log("[ChatRealtime] Skipping already processed event:", eventId);
-            return;
+          if (newMessage) {
+            const latency = Date.now() - new Date(newMessage.created_at).getTime();
+            console.log(`[ChatRealtime] postgres_changes INSERT: ${newMessage.id} (latency: ${latency}ms)`);
+            handleMessageInsert(newMessage);
           }
-
-          // 2. 낙관적 업데이트로 이미 처리 중인 메시지 스킵 (completeSend 완료 전)
-          if (operationTracker.isMessageBeingSent(newMessage.id)) {
-            console.log("[ChatRealtime] Skipping message being sent:", newMessage.id);
-            operationTracker.markRealtimeProcessed(eventId);
-            return;
-          }
-
-          // 3. tempId → realId 매핑으로 교체가 필요한지 확인
-          const tempId = operationTracker.getTempIdForRealId(newMessage.id);
-
-          // setQueryData로 캐시에 직접 추가 (서버 재요청 없음) - InfiniteQuery 구조
-          queryClient.setQueryData<InfiniteMessagesCache>(
-            ["chat-messages", roomId],
-            (old) => {
-              if (!old?.pages?.length) return old;
-
-              // 첫 번째 페이지(최신 메시지들)에서 중복 체크 및 추가
-              const firstPage = old.pages[0];
-
-              // tempId 매핑이 있으면 해당 temp 메시지를 찾음
-              const existingIndex = firstPage.messages.findIndex(
-                (m) =>
-                  m.id === newMessage.id ||
-                  (tempId && m.id === tempId) ||
-                  (m.id.startsWith("temp-") &&
-                    m.content === newMessage.content &&
-                    m.sender_id === newMessage.sender_id)
-              );
-
-              if (existingIndex !== -1) {
-                // 낙관적 메시지 → 실제 메시지로 교체
-                const updatedMessages = [...firstPage.messages];
-                const existingMessage = updatedMessages[existingIndex];
-                updatedMessages[existingIndex] = {
-                  ...existingMessage,
-                  ...newMessage,
-                  sender: existingMessage.sender,
-                  status: "sent" as const,
-                };
-                return {
-                  ...old,
-                  pages: [
-                    { ...firstPage, messages: updatedMessages },
-                    ...old.pages.slice(1),
-                  ],
-                };
-              }
-
-              // 타인의 새 메시지 추가 (기존 캐시에서 sender 정보 조회 우선)
-              const cacheKey = `${newMessage.sender_id}_${newMessage.sender_type}`;
-              const existingSender = findSenderFromExistingMessages(
-                newMessage.sender_id
-              );
-              const senderFromCache = senderCacheRef.current.get(cacheKey);
-
-              const tempSender: ChatUser =
-                existingSender ??
-                senderFromCache ?? {
-                  id: newMessage.sender_id,
-                  type: newMessage.sender_type,
-                  name: "로딩 중...",
-                };
-
-              const newCacheMessage: CacheMessage = {
-                ...newMessage,
-                sender: tempSender,
-                reactions: [],
-                replyTarget: null,
-                // 비정규화 필드 (Realtime 이벤트에서는 message에 포함됨, 없으면 fallback)
-                sender_name: newMessage.sender_name ?? tempSender.name,
-                sender_profile_url: newMessage.sender_profile_url ?? tempSender.profileImageUrl ?? null,
-              };
-
-              return {
-                ...old,
-                pages: [
-                  {
-                    ...firstPage,
-                    messages: [...firstPage.messages, newCacheMessage],
-                  },
-                  ...old.pages.slice(1),
-                ],
-              };
-            }
-          );
-
-          // 타인 메시지인 경우 sender 정보가 없을 때만 비동기로 보강
-          if (newMessage?.sender_id && newMessage.sender_id !== userId) {
-            const cacheKey = `${newMessage.sender_id}_${newMessage.sender_type}`;
-            const hasSenderInfo =
-              findSenderFromExistingMessages(newMessage.sender_id) ??
-              senderCacheRef.current.get(cacheKey);
-
-            // sender 정보가 없을 때만 서버에서 조회
-            if (!hasSenderInfo) {
-              fetchSenderInfo(newMessage.sender_id, newMessage.sender_type)
-                .then((senderInfo) => {
-                  // sender 정보로 캐시 업데이트
-                  queryClient.setQueryData<InfiniteMessagesCache>(
-                    ["chat-messages", roomId],
-                    (old) => {
-                      if (!old?.pages?.length) return old;
-                      return {
-                        ...old,
-                        pages: old.pages.map((page) => ({
-                          ...page,
-                          messages: page.messages.map((m) =>
-                            m.id === newMessage.id
-                              ? { ...m, sender: senderInfo }
-                              : m
-                          ),
-                        })),
-                      };
-                    }
-                  );
-                })
-                .catch((error) => {
-                  // 발신자 정보 조회 실패 시 로깅만 (UI는 "알 수 없음"으로 표시됨)
-                  console.warn(
-                    "[ChatRealtime] Failed to fetch sender info:",
-                    error
-                  );
-                });
-            }
-          }
-
-          // 채팅방 목록도 무효화 (마지막 메시지 업데이트)
-          invalidateRoomList();
-
-          // 콜백 호출 (타인의 메시지만)
-          if (newMessage.sender_id !== userId) {
-            callbacksRef.current.onNewMessage?.(newMessage);
-          }
-
-          // 이벤트 처리 완료 표시 (중복 방지)
-          operationTracker.markRealtimeProcessed(eventId);
         }
       )
       // 메시지 UPDATE (삭제/수정 등)
@@ -718,39 +830,11 @@ export function useChatRealtime({
           filter: `room_id=eq.${roomId}`,
         },
         (payload: RealtimePostgresChangesPayload<ChatMessagePayload>) => {
-          console.log("[ChatRealtime] Message updated:", payload.new);
           const updatedMessage = payload.new as ChatMessagePayload | undefined;
-
-          // setQueryData로 해당 메시지만 업데이트 (서버 재요청 없음) - InfiniteQuery 구조
-          queryClient.setQueryData<InfiniteMessagesCache>(
-            ["chat-messages", roomId],
-            (old) => {
-              if (!old?.pages?.length || !updatedMessage) return old;
-
-              // 모든 페이지에서 해당 메시지 찾아서 업데이트
-              return {
-                ...old,
-                pages: old.pages.map((page) => ({
-                  ...page,
-                  messages: page.messages.map((m) =>
-                    m.id === updatedMessage.id
-                      ? {
-                          ...m,
-                          content: updatedMessage.content,
-                          is_deleted: updatedMessage.is_deleted,
-                          updated_at: updatedMessage.updated_at,
-                          deleted_at: updatedMessage.deleted_at,
-                        }
-                      : m
-                  ),
-                })),
-              };
-            }
-          );
-
-          // 삭제된 경우 콜백 호출
-          if (updatedMessage?.is_deleted && updatedMessage.id) {
-            callbacksRef.current.onMessageDeleted?.(updatedMessage.id);
+          if (updatedMessage) {
+            const latency = Date.now() - new Date(updatedMessage.created_at).getTime();
+            console.log(`[ChatRealtime] postgres_changes UPDATE: ${updatedMessage.id} (latency: ${latency}ms)`);
+            handleMessageUpdate(updatedMessage);
           }
         }
       )
@@ -928,7 +1012,7 @@ export function useChatRealtime({
         },
         () => {
           console.log("[ChatRealtime] Message pinned");
-          invalidatePinnedMessages();
+          fnRef.current.invalidatePinnedMessages();
         }
       )
       // 고정 메시지 DELETE
@@ -941,10 +1025,10 @@ export function useChatRealtime({
         },
         () => {
           console.log("[ChatRealtime] Message unpinned");
-          invalidatePinnedMessages();
+          fnRef.current.invalidatePinnedMessages();
         }
       )
-      // 채팅방 UPDATE (공지 변경)
+      // 채팅방 UPDATE (공지 변경 시에만 invalidate)
       .on(
         "postgres_changes",
         {
@@ -953,9 +1037,17 @@ export function useChatRealtime({
           table: "chat_rooms",
           filter: `id=eq.${roomId}`,
         },
-        () => {
-          console.log("[ChatRealtime] Room updated (announcement)");
-          invalidateAnnouncement();
+        (payload) => {
+          const newRoom = payload.new as { announcement_at?: string | null } | undefined;
+          const announcementAt = newRoom?.announcement_at ?? null;
+
+          // announcement_at이 변경된 경우에만 공지 무효화
+          // (매 메시지마다 updated_at만 변경되는 경우 스킵)
+          if (announcementAt !== lastAnnouncementAtRef.current) {
+            lastAnnouncementAtRef.current = announcementAt;
+            console.log("[ChatRealtime] Announcement changed");
+            fnRef.current.invalidateAnnouncement();
+          }
         }
       )
       // 채팅방 멤버 UPDATE (멤버 나가기 등)
@@ -983,16 +1075,29 @@ export function useChatRealtime({
           // ConnectionManager에 연결 상태 알림
           connectionManager.setChannelState(channelName, "connected");
 
-          // 연결 성공 또는 재연결(Recovery) 시 최신 데이터 동기화
-          // 소켓 연결이 끊긴 동안 누락된 메시지나 변경사항을 불러옵니다.
-          console.log("[ChatRealtime] Connected/Reconnected. Syncing data...");
+          if (isInitialMountRef.current) {
+            isInitialMountRef.current = false;
+            // 첫 마운트: SSR prefetch 데이터가 있으면 메시지 sync 불필요
+            const hasCache = queryClient.getQueryData(["chat-messages", roomId]);
+            if (hasCache) {
+              console.log("[ChatRealtime] Initial mount with SSR cache, skipping sync");
+            } else {
+              console.log("[ChatRealtime] Initial mount without cache, syncing...");
+              fnRef.current.syncMessagesSince();
+            }
+            // roomList은 스킵 (방금 목록에서 왔으므로 최신)
+          } else {
+            // 재연결 또는 자동 복구: 누락 메시지 복구 필요
+            console.log("[ChatRealtime] Reconnected. Syncing missed messages...");
+            fnRef.current.syncMessagesSince();
+          }
 
-          // 증분 동기화: 마지막 동기화 시점 이후 메시지만 조회
-          // 타임스탬프 없거나 실패 시 자동으로 전체 무효화 fallback
-          syncMessagesSince();
-          invalidateRoomList();
-          invalidatePinnedMessages();
-          invalidateAnnouncement();
+          // 부가 데이터는 항상 가져오되 지연 실행 (메시지 처리 우선)
+          delayedInvalidationTimer = setTimeout(() => {
+            delayedInvalidationTimer = null;
+            fnRef.current.invalidatePinnedMessages();
+            fnRef.current.invalidateAnnouncement();
+          }, 1000);
         }
 
         if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
@@ -1002,17 +1107,32 @@ export function useChatRealtime({
         }
       });
 
+    // Broadcast-first: 채널 참조 저장
+    channelRef.current = channel;
+
     return () => {
       console.log(`[ChatRealtime] Unsubscribing from room ${roomId}`);
+      // Broadcast-first: 채널 참조 초기화
+      channelRef.current = null;
+      // 지연 invalidation 타이머 정리
+      if (delayedInvalidationTimer) {
+        clearTimeout(delayedInvalidationTimer);
+        delayedInvalidationTimer = null;
+      }
+      // 배치 타이머 정리
+      if (currentBatch.timer) {
+        clearTimeout(currentBatch.timer);
+        currentBatch.timer = null;
+      }
       supabase.removeChannel(channel);
       // 재연결 콜백 해제
       connectionManager.unregisterReconnectCallback(channelName);
       // 방 나갈 때 해당 방 관련 pending 작업 정리
       operationTracker.clearForRoom(roomId);
     };
-  }, [roomId, userId, enabled, queryClient, syncMessagesSince, invalidateRoomList, invalidatePinnedMessages, invalidateAnnouncement, fetchSenderInfo, findSenderFromExistingMessages, reconnectTrigger]);
+  }, [roomId, userId, enabled, queryClient, reconnectTrigger]);
 
-  // 주기적 cleanup (5분마다 타임아웃된 작업 정리)
+  // 주기적 cleanup (5분마다 타임아웃된 작업 + 오래된 pending 요청 정리)
   useEffect(() => {
     if (!enabled) return;
 
@@ -1022,6 +1142,24 @@ export function useChatRealtime({
 
     return () => clearInterval(cleanupInterval);
   }, [enabled]);
+
+  // Broadcast-first: 클라이언트에서 직접 broadcast 전송 (DB INSERT 전)
+  const broadcastInsert = useCallback(
+    (message: ChatMessagePayload) => {
+      if (!channelRef.current) {
+        console.warn("[ChatRealtime] No channel for broadcast");
+        return;
+      }
+      channelRef.current.send({
+        type: "broadcast",
+        event: "INSERT",
+        payload: message,
+      });
+    },
+    []
+  );
+
+  return { broadcastInsert };
 }
 
 // ============================================
@@ -1091,7 +1229,7 @@ export function useChatRoomListRealtime({
       return;
     }
 
-    const supabase = createSupabaseBrowserClient();
+    // 싱글톤 클라이언트 사용 (모듈 레벨에서 import)
 
     const channel = supabase
       .channel(`chat-rooms-${userId}`)
@@ -1109,7 +1247,7 @@ export function useChatRoomListRealtime({
           invalidateRoomList();
         }
       )
-      // 멤버십 변경 (나가기 등)
+      // 멤버십 변경 (나가기 등) - markAsRead의 last_read_at 업데이트는 무시
       .on(
         "postgres_changes",
         {
@@ -1119,8 +1257,13 @@ export function useChatRoomListRealtime({
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          console.log("[ChatRealtime] Membership updated:", payload);
-          invalidateRoomList();
+          const newRecord = payload.new as { left_at?: string | null } | undefined;
+          // left_at 변경(나가기)만 처리, last_read_at 변경(읽음 처리)은 무시
+          // → markAsReadMutation의 onMutate가 이미 낙관적 업데이트 처리함
+          if (newRecord?.left_at !== undefined && newRecord.left_at !== null) {
+            console.log("[ChatRealtime] Member left room, refreshing list");
+            invalidateRoomList();
+          }
         }
       )
       // 채팅방 업데이트 (새 메시지 시 트리거로 updated_at 갱신됨)

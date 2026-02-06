@@ -6,7 +6,7 @@
 
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 
 type UsePlanGroupRealtimeOptions = {
   studentId: string;
@@ -28,8 +28,7 @@ export function usePlanGroupRealtime({
       return;
     }
 
-    const supabase = createSupabaseBrowserClient();
-
+    // 싱글톤 클라이언트 사용 (모듈 레벨에서 import)
     const channel = supabase
       .channel(`plan-groups-${studentId}`)
       .on(
@@ -104,8 +103,7 @@ export function usePlanProgressRealtime({
       return;
     }
 
-    const supabase = createSupabaseBrowserClient();
-
+    // 싱글톤 클라이언트 사용 (모듈 레벨에서 import)
     const channelName = planGroupId
       ? `plan-progress-${studentId}-${planGroupId}`
       : `plan-progress-${studentId}`;

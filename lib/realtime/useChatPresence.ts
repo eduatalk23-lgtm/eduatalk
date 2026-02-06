@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { PresenceUser } from "@/lib/domains/chat/types";
 
@@ -47,11 +47,21 @@ export function useChatPresence({
   const channelRef = useRef<RealtimeChannel | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // userName을 ref로 추적 (useEffect 의존성에서 제외하여 채널 재생성 방지)
+  const userNameRef = useRef(userName);
+  useEffect(() => {
+    userNameRef.current = userName;
+  }, [userName]);
+
+  // 이전 상태와 비교하여 불필요한 re-render 방지
+  const prevOnlineKeyRef = useRef("");
+  const prevTypingKeyRef = useRef("");
+
   // Presence 채널 구독
   useEffect(() => {
-    if (!enabled || !roomId || !userId || !userName) return;
+    if (!enabled || !roomId || !userId) return;
 
-    const supabase = createSupabaseBrowserClient();
+    // 싱글톤 클라이언트 사용 (모듈 레벨에서 import)
     const channel = supabase.channel(`presence-${roomId}`, {
       config: {
         presence: {
@@ -69,19 +79,19 @@ export function useChatPresence({
           .flat()
           .filter((u) => u.userId !== userId);
 
-        setOnlineUsers(allUsers);
-        setTypingUsers(allUsers.filter((u) => u.isTyping));
-      })
-      .on("presence", { event: "join" }, ({ newPresences }) => {
-        // 새 사용자 입장 시 로그 (디버깅용)
-        if (process.env.NODE_ENV === "development") {
-          console.log("[Presence] User joined:", newPresences);
+        // 온라인 사용자: userId 기준으로 비교 (불필요한 re-render 방지)
+        const onlineKey = allUsers.map((u) => u.userId).join(",");
+        if (onlineKey !== prevOnlineKeyRef.current) {
+          prevOnlineKeyRef.current = onlineKey;
+          setOnlineUsers(allUsers);
         }
-      })
-      .on("presence", { event: "leave" }, ({ leftPresences }) => {
-        // 사용자 퇴장 시 로그 (디버깅용)
-        if (process.env.NODE_ENV === "development") {
-          console.log("[Presence] User left:", leftPresences);
+
+        // 타이핑 사용자: userId+isTyping 기준으로 비교
+        const typing = allUsers.filter((u) => u.isTyping);
+        const typingKey = typing.map((u) => u.userId).join(",");
+        if (typingKey !== prevTypingKeyRef.current) {
+          prevTypingKeyRef.current = typingKey;
+          setTypingUsers(typing);
         }
       })
       .subscribe(async (status) => {
@@ -89,9 +99,8 @@ export function useChatPresence({
           // 초기 상태 등록
           await channel.track({
             userId,
-            name: userName,
+            name: userNameRef.current,
             isTyping: false,
-            lastSeen: new Date().toISOString(),
           });
         }
       });
@@ -109,7 +118,17 @@ export function useChatPresence({
       supabase.removeChannel(channel);
       channelRef.current = null;
     };
-  }, [roomId, userId, userName, enabled]);
+  }, [roomId, userId, enabled]);
+
+  // userName이 변경되면 현재 presence 상태 업데이트 (채널 재생성 없이)
+  useEffect(() => {
+    if (!channelRef.current || !userName) return;
+    channelRef.current.track({
+      userId,
+      name: userName,
+      isTyping: false,
+    });
+  }, [userName, userId]);
 
   // 타이핑 상태 업데이트
   const setTyping = useCallback(
@@ -125,9 +144,8 @@ export function useChatPresence({
       // 상태 업데이트
       channelRef.current.track({
         userId,
-        name: userName,
+        name: userNameRef.current,
         isTyping,
-        lastSeen: new Date().toISOString(),
       });
 
       // 타이핑 중이면 자동 해제 타이머 설정
@@ -135,14 +153,13 @@ export function useChatPresence({
         typingTimeoutRef.current = setTimeout(() => {
           channelRef.current?.track({
             userId,
-            name: userName,
+            name: userNameRef.current,
             isTyping: false,
-            lastSeen: new Date().toISOString(),
           });
         }, TYPING_TIMEOUT);
       }
     },
-    [userId, userName]
+    [userId]
   );
 
   return {

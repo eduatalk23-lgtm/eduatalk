@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 
 type UsePlanRealtimeUpdatesOptions = {
   planDate: string;
@@ -22,8 +22,7 @@ export function usePlanRealtimeUpdates({
       return;
     }
 
-    const supabase = createSupabaseBrowserClient();
-
+    // 싱글톤 클라이언트 사용 (모듈 레벨에서 import)
     // 플랜 변경 구독
     const planChannel = supabase
       .channel(`plan-updates-${userId}-${planDate}`)
@@ -44,7 +43,8 @@ export function usePlanRealtimeUpdates({
               (query.queryKey[0] === "todayPlans" ||
                 query.queryKey[0] === "todayContainerPlans" ||
                 query.queryKey[0] === "today" ||
-                query.queryKey[0] === "plans"),
+                query.queryKey[0] === "plans" ||
+                query.queryKey[0] === "adminDock"),
           });
         }
       )
@@ -69,7 +69,8 @@ export function usePlanRealtimeUpdates({
               Array.isArray(query.queryKey) &&
               (query.queryKey[0] === "todayPlans" ||
                 query.queryKey[0] === "today" ||
-                query.queryKey[0] === "sessions"),
+                query.queryKey[0] === "sessions" ||
+                query.queryKey[0] === "adminDock"),
           });
         }
       )

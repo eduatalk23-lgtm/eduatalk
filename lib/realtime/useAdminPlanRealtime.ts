@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 
 type UseAdminPlanRealtimeOptions = {
   studentId: string;
@@ -48,8 +48,7 @@ export function useAdminPlanRealtime({
       return;
     }
 
-    const supabase = createSupabaseBrowserClient();
-
+    // 싱글톤 클라이언트 사용 (모듈 레벨에서 import)
     // student_plan 테이블 변경 구독
     const planChannel = supabase
       .channel(`admin-plan-${studentId}`)
