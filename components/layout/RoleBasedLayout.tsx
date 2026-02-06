@@ -10,7 +10,8 @@ import { Menu } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { mapRoleForNavigation } from "@/lib/navigation/utils";
 import { layoutStyles, sidebarStyles } from "@/components/navigation/global/navStyles";
-import { motion } from "framer-motion";
+// Framer Motion 제거: motion.aside/div의 CSS transform이 @dnd-kit DragOverlay의
+// position:fixed를 깨뜨리는 문제 방지. CSS transition으로 대체.
 import { SidebarContent } from "./SidebarContent";
 import { MobileSidebar } from "./MobileSidebar";
 import type { RoleBasedLayoutProps } from "./types";
@@ -56,35 +57,27 @@ export function RoleBasedLayout({
       {showSidebar && (
         <>
           {/* 1. Layout Spacer: 본문 콘텐츠 위치를 잡기 위한 투명 공간 */}
-          <motion.div 
-            className="hidden md:block flex-shrink-0"
-            initial={false}
-            animate={{ width: isCollapsed ? "4rem" : "20rem" }}
-            transition={{ duration: 0.2, ease: "easeInOut" }}
+          <div
+            className="hidden md:block flex-shrink-0 transition-[width] duration-200 ease-in-out"
+            style={{ width: isCollapsed ? "4rem" : "20rem" }}
           />
 
           {/* 2. Visual Panel: 실제 사이드바 UI (Hover 시 확장) */}
-          <motion.aside
+          <aside
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-            initial={false}
-            animate={{ 
-              width: isCollapsed && !isHovered ? "4rem" : "20rem",
-              // Hover 확장 시 z-index와 그림자 처리 필요
-              zIndex: isCollapsed && isHovered ? 50 : 10,
-              boxShadow: isCollapsed && isHovered 
-                ? "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)" // shadow-xl
-                : "none"
-            }}
-            transition={{ duration: 0.2, ease: "easeInOut" }}
             className={cn(
               sidebarStyles.container,
-              "hidden md:block fixed left-0 top-0 h-screen overflow-x-hidden", // 수평 overflow만 숨김 (애니메이션용)
-              // width 클래스는 motion.animate로 제어하므로 제거
-              // isCollapsed && isHovered 스타일도 motion.animate로 이동
+              "hidden md:block fixed left-0 top-0 h-screen overflow-x-hidden",
+              "transition-[width,box-shadow] duration-200 ease-in-out",
             )}
             style={{
-              borderRightWidth: isCollapsed && isHovered ? 0 : 1
+              width: isCollapsed && !isHovered ? "4rem" : "20rem",
+              zIndex: isCollapsed && isHovered ? 50 : 10,
+              boxShadow: isCollapsed && isHovered
+                ? "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)"
+                : "none",
+              borderRightWidth: isCollapsed && isHovered ? 0 : 1,
             }}
           >
             <div className="relative h-full flex flex-col w-[20rem] overflow-y-auto overscroll-y-contain"> {/* 내부 컨텐츠는 항상 20rem 너비 유지하여 찌그러짐 방지, 스크롤 가능, 스크롤 체이닝 방지 */}
@@ -115,7 +108,7 @@ export function RoleBasedLayout({
                 />
               )}
             </div>
-          </motion.aside>
+          </aside>
         </>
       )}
 

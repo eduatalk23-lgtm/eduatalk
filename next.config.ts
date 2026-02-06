@@ -30,6 +30,10 @@ const pwaConfig = withPWA({
 });
 
 const nextConfig: NextConfig = {
+  // @dnd-kit과 React 19 Concurrent Mode 호환성 문제로 비활성화
+  // 드래그 중 컴포넌트가 반복적으로 마운트/언마운트되는 문제 방지
+  reactStrictMode: false,
+
   // 컴파일러 최적화 설정
   compiler: {
     // 프로덕션 빌드에서 console.log 제거 (console.error는 유지)
