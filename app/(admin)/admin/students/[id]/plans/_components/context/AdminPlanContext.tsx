@@ -138,6 +138,7 @@ export function AdminPlanProvider({
       plannerCalculatedSchedule={plannerCalculatedSchedule}
       plannerDateTimeSlots={plannerDateTimeSlots}
       initialDockData={initialDockData}
+      initialDate={initialDate}
       viewMode={viewMode}
       currentUserId={currentUserId}
       selectedPlanner={selectedPlanner}

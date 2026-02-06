@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import { useTransition } from "react";
+import type { ReactNode } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
 type TabKey =
@@ -37,10 +38,11 @@ export function StudentDetailTabs({
   children,
 }: {
   defaultTab?: TabKey;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
 
   // URL에서 직접 탭 값을 읽어서 사용 (상태 동기화 불필요)
   const activeTab = (searchParams.get("tab") as TabKey) || defaultTab;
@@ -48,7 +50,9 @@ export function StudentDetailTabs({
   const handleTabChange = (tab: TabKey) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", tab);
-    router.push(`?${params.toString()}`, { scroll: false });
+    startTransition(() => {
+      router.push(`?${params.toString()}`, { scroll: false });
+    });
   };
 
   return (
@@ -73,21 +77,21 @@ export function StudentDetailTabs({
         </nav>
       </div>
 
-      {/* 탭 컨텐츠 */}
-      <div>
-        {React.Children.map(children, (child) => {
-          if (
-            React.isValidElement(child) &&
-            typeof child.props === "object" &&
-            child.props !== null &&
-            "tab" in child.props &&
-            (child.props as { tab?: TabKey }).tab === activeTab
-          ) {
-            return child;
-          }
-          return null;
-        })}
-      </div>
+      {/* 탭 컨텐츠 - 서버에서 활성 탭만 렌더링됨 */}
+      {isPending ? (
+        <div className="space-y-4">
+          <div className="h-7 w-40 animate-pulse rounded bg-gray-200" />
+          <div className="rounded-lg border border-gray-200 bg-white p-6">
+            <div className="space-y-3">
+              <div className="h-4 w-3/4 animate-pulse rounded bg-gray-200" />
+              <div className="h-4 w-1/2 animate-pulse rounded bg-gray-200" />
+              <div className="h-4 w-2/3 animate-pulse rounded bg-gray-200" />
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div>{children}</div>
+      )}
     </div>
   );
 }

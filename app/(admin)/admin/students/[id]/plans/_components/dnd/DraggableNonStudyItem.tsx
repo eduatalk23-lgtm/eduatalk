@@ -2,7 +2,7 @@
 
 import { useDraggable } from '@dnd-kit/core';
 import { cn } from '@/lib/cn';
-import type { ReactNode } from 'react';
+import { type ReactNode, useMemo } from 'react';
 import type { DragItem } from './DndContext';
 
 interface DraggableNonStudyItemProps {
@@ -16,6 +16,8 @@ interface DraggableNonStudyItemProps {
     originalStartTime: string;
     originalEndTime: string;
     sourceIndex?: number;
+    /** 새 테이블 레코드 ID (student_non_study_time.id) */
+    recordId?: string;
   };
 }
 
@@ -30,8 +32,8 @@ export function DraggableNonStudyItem({
   children,
   dragData,
 }: DraggableNonStudyItemProps) {
-  // DragItem 형식으로 data 구성
-  const data: DragItem = {
+  // DragItem 형식으로 data 구성 (useMemo로 참조 안정화)
+  const data: DragItem = useMemo(() => ({
     id,
     type: 'non_study',
     containerId: 'daily',
@@ -41,8 +43,9 @@ export function DraggableNonStudyItem({
       originalEndTime: dragData.originalEndTime,
       itemType: dragData.itemType,
       sourceIndex: dragData.sourceIndex,
+      recordId: dragData.recordId,
     },
-  };
+  }), [id, dragData.title, dragData.originalStartTime, dragData.originalEndTime, dragData.itemType, dragData.sourceIndex, dragData.recordId]);
 
   const {
     attributes,

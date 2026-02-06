@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { UnfinishedDock } from "../UnfinishedDock";
 import { DailyDock } from "../DailyDock";
 import { WeeklyDock } from "../WeeklyDock";
@@ -52,6 +52,7 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
     plannerCalculatedSchedule,
     plannerDateTimeSlots,
     initialDockData,
+    initialDate,
   } = useAdminPlanBasic();
 
   const {
@@ -75,9 +76,14 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
   } = useAdminPlanActions();
 
   // 플래너 레벨 스케줄 우선 사용 (플랜 그룹 없어도 주차/일차 표시)
-  const effectiveDailySchedules = plannerCalculatedSchedule
-    ? [plannerCalculatedSchedule]
-    : plannerDailySchedules;
+  // useMemo로 참조 안정화 → WeeklyCalendar 내부 useMemo/useEffect 연쇄 무효화 방지
+  const effectiveDailySchedules = useMemo(
+    () =>
+      plannerCalculatedSchedule
+        ? [plannerCalculatedSchedule]
+        : plannerDailySchedules,
+    [plannerCalculatedSchedule, plannerDailySchedules]
+  );
 
   // 선택된 플랜 그룹의 기간 정보 추출 (전체 보기 시 전체 기간)
   const selectedPlanGroup = selectedGroupId
@@ -98,6 +104,38 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
         if (!latest || group.periodEnd > latest) return group.periodEnd;
         return latest;
       }, undefined);
+
+  // 독 아코디언 확장 핸들러 (참조 안정화)
+  const handleExpandUnfinished = useCallback(() => setExpandedDock("unfinished"), []);
+  const handleExpandDaily = useCallback(() => setExpandedDock("daily"), []);
+  const handleExpandWeekly = useCallback(() => setExpandedDock("weekly"), []);
+
+  // 독 순서변경 핸들러 (참조 안정화)
+  const handleReorderUnfinished = useCallback(() => handleOpenReorder("unfinished"), [handleOpenReorder]);
+  const handleReorderDaily = useCallback(() => handleOpenReorder("daily"), [handleOpenReorder]);
+  const handleReorderWeekly = useCallback(() => handleOpenReorder("weekly"), [handleOpenReorder]);
+
+  // initialDockData는 initialDate에 대한 데이터이므로, selectedDate가 변경되면 무시
+  const useInitialData = selectedDate === initialDate;
+
+  // DailyDock initialData (참조 안정화, 날짜가 변경되면 undefined)
+  const dailyInitialData = useMemo(() => {
+    if (!useInitialData) return undefined;
+    return {
+      plans: initialDockData?.dailyPlans,
+      adHocPlans: initialDockData?.dailyAdHocPlans,
+      nonStudyItems: initialDockData?.nonStudyItems,
+    };
+  }, [useInitialData, initialDockData?.dailyPlans, initialDockData?.dailyAdHocPlans, initialDockData?.nonStudyItems]);
+
+  // WeeklyDock initialData (참조 안정화, 날짜가 변경되면 undefined)
+  const weeklyInitialData = useMemo(() => {
+    if (!useInitialData) return undefined;
+    return {
+      plans: initialDockData?.weeklyPlans,
+      adHocPlans: initialDockData?.weeklyAdHocPlans,
+    };
+  }, [useInitialData, initialDockData?.weeklyPlans, initialDockData?.weeklyAdHocPlans]);
 
   return (
     <div className="space-y-4">
@@ -142,7 +180,7 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
             contentTypeFilter={contentTypeFilter}
             onRedistribute={handleOpenRedistribute}
             onEdit={handleOpenEdit}
-            onReorder={() => handleOpenReorder("unfinished")}
+            onReorder={handleReorderUnfinished}
             onMoveToGroup={handleOpenMoveToGroup}
             onCopy={handleOpenCopy}
             onStatusChange={handleOpenStatusChange}
@@ -150,7 +188,7 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
             onRefreshDailyAndUnfinished={refreshDailyAndUnfinished}
             initialData={initialDockData?.unfinishedPlans}
             isCollapsed={expandedDock !== "unfinished"}
-            onExpand={() => setExpandedDock("unfinished")}
+            onExpand={handleExpandUnfinished}
           />
         }
         daily={
@@ -164,7 +202,7 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
             timeSlots={plannerDateTimeSlots?.[selectedDate]}
             onRedistribute={handleOpenRedistribute}
             onEdit={handleOpenEdit}
-            onReorder={() => handleOpenReorder("daily")}
+            onReorder={handleReorderDaily}
             onMoveToGroup={handleOpenMoveToGroup}
             onCopy={handleOpenCopy}
             onStatusChange={handleOpenStatusChange}
@@ -172,13 +210,10 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
             onRefreshDailyAndWeekly={refreshDailyAndWeekly}
             onCreatePlanAtSlot={handleCreatePlanAtSlot}
             enableNonStudyDrag={!!selectedPlannerId}
-            initialData={{
-              plans: initialDockData?.dailyPlans,
-              adHocPlans: initialDockData?.dailyAdHocPlans,
-              nonStudyItems: initialDockData?.nonStudyItems,
-            }}
+            enableUnifiedReorder={!!selectedPlannerId}
+            initialData={dailyInitialData}
             isCollapsed={expandedDock !== "daily"}
-            onExpand={() => setExpandedDock("daily")}
+            onExpand={handleExpandDaily}
           />
         }
         weekly={
@@ -191,18 +226,15 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
             contentTypeFilter={contentTypeFilter}
             onRedistribute={handleOpenRedistribute}
             onEdit={handleOpenEdit}
-            onReorder={() => handleOpenReorder("weekly")}
+            onReorder={handleReorderWeekly}
             onMoveToGroup={handleOpenMoveToGroup}
             onCopy={handleOpenCopy}
             onStatusChange={handleOpenStatusChange}
             onRefresh={handleRefresh}
             onRefreshDailyAndWeekly={refreshDailyAndWeekly}
-            initialData={{
-              plans: initialDockData?.weeklyPlans,
-              adHocPlans: initialDockData?.weeklyAdHocPlans,
-            }}
+            initialData={weeklyInitialData}
             isCollapsed={expandedDock !== "weekly"}
-            onExpand={() => setExpandedDock("weekly")}
+            onExpand={handleExpandWeekly}
           />
         }
       />

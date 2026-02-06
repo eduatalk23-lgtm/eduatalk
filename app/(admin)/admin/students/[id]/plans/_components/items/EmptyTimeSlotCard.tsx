@@ -9,6 +9,8 @@ export interface EmptyTimeSlotCardProps {
   slot: EmptySlot;
   /** 드롭 가능 여부 (DnD 활성화) */
   droppable?: boolean;
+  /** 외부에서 전달받는 isOver 상태 (droppable=false일 때 사용) */
+  externalIsOver?: boolean;
   /** 새 플랜 생성 클릭 */
   onCreatePlan?: (slot: EmptySlot) => void;
   /** 미완료 플랜 배치 클릭 */
@@ -29,6 +31,7 @@ export interface EmptyTimeSlotCardProps {
 export const EmptyTimeSlotCard = memo(function EmptyTimeSlotCard({
   slot,
   droppable = true,
+  externalIsOver,
   onCreatePlan,
   onPlaceUnfinished,
   onPlaceFromWeekly,
@@ -40,7 +43,7 @@ export const EmptyTimeSlotCard = memo(function EmptyTimeSlotCard({
 
   // 드롭 가능한 영역으로 설정 (슬롯 ID = empty-{startTime}-{endTime})
   const droppableId = `empty-slot-${slot.startTime}-${slot.endTime}`;
-  const { isOver, setNodeRef } = useDroppable({
+  const { isOver: internalIsOver, setNodeRef, node, rect } = useDroppable({
     id: droppableId,
     disabled: !droppable,
     data: {
@@ -48,6 +51,10 @@ export const EmptyTimeSlotCard = memo(function EmptyTimeSlotCard({
       slot,
     },
   });
+
+  // 외부 isOver가 있으면 사용, 없으면 내부 isOver 사용
+  const isOver = externalIsOver ?? internalIsOver;
+
 
   // 외부 클릭 시 팝오버 닫기
   useEffect(() => {
@@ -185,7 +192,7 @@ export const EmptyTimeSlotCard = memo(function EmptyTimeSlotCard({
                 <div>
                   <div className="font-medium text-gray-700">미완료 플랜 배치</div>
                   <div className="text-xs text-gray-500">
-                    Unfinished Dock에서 가져오기
+                    미완료 플랜에서 가져오기
                   </div>
                 </div>
               </button>
@@ -199,9 +206,9 @@ export const EmptyTimeSlotCard = memo(function EmptyTimeSlotCard({
               >
                 <span className="text-green-500">&#x1F4E6;</span>
                 <div>
-                  <div className="font-medium text-gray-700">주간독에서 가져오기</div>
+                  <div className="font-medium text-gray-700">주간 플랜에서 가져오기</div>
                   <div className="text-xs text-gray-500">
-                    Weekly Dock에서 배치
+                    주간 플랜에서 배치
                   </div>
                 </div>
               </button>

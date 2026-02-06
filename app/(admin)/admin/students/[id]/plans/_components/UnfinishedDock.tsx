@@ -120,14 +120,15 @@ export const UnfinishedDock = memo(function UnfinishedDock({
         planId,
         targetContainer: 'daily',
         targetDate: getTodayInTimezone(),
+        skipRevalidation: true,
       });
 
       if (!result.success) {
-        showToast(result.error ?? 'Daily 이동 실패', 'error');
+        showToast(result.error ?? '오늘 플랜으로 이동 실패', 'error');
         return;
       }
 
-      showToast('Daily Dock으로 이동했습니다.', 'success');
+      showToast('오늘 플랜으로 이동했습니다.', 'success');
       (onRefreshDailyAndUnfinished ?? onRefresh)();
     });
   }, [showToast, onRefreshDailyAndUnfinished, onRefresh]);
@@ -137,14 +138,15 @@ export const UnfinishedDock = memo(function UnfinishedDock({
       const result = await movePlanToContainer({
         planId,
         targetContainer: 'weekly',
+        skipRevalidation: true,
       });
 
       if (!result.success) {
-        showToast(result.error ?? 'Weekly 이동 실패', 'error');
+        showToast(result.error ?? '주간 플랜으로 이동 실패', 'error');
         return;
       }
 
-      showToast('Weekly Dock으로 이동했습니다.', 'success');
+      showToast('주간 플랜으로 이동했습니다.', 'success');
       onRefresh();
     });
   }, [showToast, onRefresh]);
@@ -161,6 +163,7 @@ export const UnfinishedDock = memo(function UnfinishedDock({
     startTransition(async () => {
       const result = await deletePlan({
         planId: deleteConfirm.planId!,
+        skipRevalidation: true,
       });
 
       if (!result.success) {
@@ -203,7 +206,7 @@ export const UnfinishedDock = memo(function UnfinishedDock({
       <CollapsedDockCard
         type="unfinished"
         icon="⏰"
-        title="밀린 플랜"
+        title="미완료"
         count={plans.length}
         completedCount={0}
         onClick={onExpand ?? (() => {})}
@@ -226,18 +229,18 @@ export const UnfinishedDock = memo(function UnfinishedDock({
   // 빈 상태: 최소 헤더만 표시
   if (plans.length === 0) {
     return (
-      <div className="bg-gray-50 rounded-lg border border-gray-200 px-4 py-2">
+      <div className="bg-red-50/50 rounded-lg border border-red-200 px-4 py-2">
         <div className="flex items-center gap-2">
-          <span className="text-lg opacity-50">⏰</span>
-          <span className="font-medium text-gray-400">밀린 플랜</span>
-          <span className="text-sm text-gray-400">0건</span>
+          <span className="text-lg">⏰</span>
+          <span className="font-medium text-red-300">미완료 플랜</span>
+          <span className="text-sm text-red-300">0건</span>
         </div>
       </div>
     );
   }
 
   return (
-    <DroppableContainer id="unfinished">
+    <DroppableContainer id="unfinished" className="h-full">
       <div
         className={cn(
           'bg-red-50 rounded-lg border border-red-200 h-full flex flex-col',
@@ -248,7 +251,7 @@ export const UnfinishedDock = memo(function UnfinishedDock({
         <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-red-200">
           <div className="flex items-center gap-2">
             <span className="text-lg">⏰</span>
-            <span className="font-medium text-red-700">밀린 플랜</span>
+            <span className="font-medium text-red-700">미완료 플랜</span>
             <span className="text-sm text-red-600 bg-red-100 px-2 py-0.5 rounded-full">
               {plans.length}건
             </span>

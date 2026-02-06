@@ -147,6 +147,9 @@ function AdminPlanManagementContent({
     selectedDate,
     handleDateChange,
     handleRefresh,
+    refreshDaily,
+    refreshDailyAndWeekly,
+    refreshDailyAndUnfinished,
     isPending,
     canCreatePlans,
     // Modal setters
@@ -281,10 +284,18 @@ function AdminPlanManagementContent({
       if (targetDate && targetDate !== selectedDate) {
         handleDateChange(targetDate);
       } else {
-        handleRefresh();
+        // 영향받는 컨테이너만 타겟 무효화
+        const containers = new Set([fromBaseType, toBaseType]);
+        if (containers.has('daily') && containers.has('weekly')) {
+          refreshDailyAndWeekly();
+        } else if (containers.has('daily') && containers.has('unfinished')) {
+          refreshDailyAndUnfinished();
+        } else {
+          handleRefresh();
+        }
       }
     },
-    [studentId, tenantId, selectedDate, handleRefresh, handleDateChange]
+    [studentId, tenantId, selectedDate, handleRefresh, refreshDailyAndWeekly, refreshDailyAndUnfinished, handleDateChange]
   );
 
   // DnD 재정렬 핸들러 (같은 컨테이너 내에서 순서 변경)
@@ -305,9 +316,9 @@ function AdminPlanManagementContent({
       // 현재 플랜 목록에서 순서 계산은 DailyDock 내부에서 처리
       // 여기서는 단순히 새로고침만 수행 (DailyDock이 내부적으로 처리)
       // Note: 실제 재정렬 로직은 DailyDock의 handleReorderPlans에서 처리됨
-      handleRefresh();
+      refreshDaily();
     },
-    [handleRefresh]
+    [refreshDaily]
   );
 
   // 빈 시간 슬롯에 드롭 시 핸들러 (해당 시간에 플랜 배치)
@@ -330,12 +341,20 @@ function AdminPlanManagementContent({
         toast.showSuccess(
           `플랜을 ${slotData.startTime} ~ ${result.endTime}에 배치했습니다.`
         );
-        handleRefresh();
+        // source 컨테이너에 따라 타겟 무효화
+        const fromBase = getBaseContainerType(fromContainer);
+        if (fromBase === 'weekly') {
+          refreshDailyAndWeekly();
+        } else if (fromBase === 'unfinished') {
+          refreshDailyAndUnfinished();
+        } else {
+          refreshDaily();
+        }
       } else {
         toast.showError(result.error || "플랜 배치에 실패했습니다.");
       }
     },
-    [selectedDate, handleRefresh, toast]
+    [selectedDate, refreshDaily, refreshDailyAndWeekly, refreshDailyAndUnfinished, toast]
   );
 
   // 키보드 단축키 설정
@@ -492,7 +511,7 @@ function AdminPlanManagementContent({
               onClose={() => setShowAddAdHocModal(false)}
               onSuccess={() => {
                 setShowAddAdHocModal(false);
-                handleRefresh();
+                refreshDaily();
               }}
             />
           )}
@@ -615,7 +634,7 @@ function AdminPlanManagementContent({
               onClose={() => setShowQuickPlanModal(false)}
               onSuccess={() => {
                 setShowQuickPlanModal(false);
-                handleRefresh();
+                refreshDaily();
               }}
             />
           )}
@@ -638,7 +657,7 @@ function AdminPlanManagementContent({
               onSuccess={() => {
                 setShowUnifiedAddModal(false);
                 setSlotTimeForNewPlan(null);
-                handleRefresh();
+                refreshDaily();
               }}
             />
           )}
@@ -772,7 +791,7 @@ function AdminPlanManagementContent({
               onSuccess={() => {
                 setShowStatusModal(false);
                 setSelectedPlanForStatus(null);
-                handleRefresh();
+                refreshDailyAndUnfinished();
               }}
             />
           )}

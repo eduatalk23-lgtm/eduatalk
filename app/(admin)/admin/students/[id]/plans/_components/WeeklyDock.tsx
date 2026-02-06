@@ -129,14 +129,15 @@ export const WeeklyDock = memo(function WeeklyDock({
         planId,
         targetContainer: 'daily',
         targetDate,
+        skipRevalidation: true,
       });
 
       if (!result.success) {
-        showToast(result.error ?? 'Daily 이동 실패', 'error');
+        showToast(result.error ?? '오늘 플랜으로 이동 실패', 'error');
         return;
       }
 
-      showToast('Daily Dock으로 이동했습니다.', 'success');
+      showToast('오늘 플랜으로 이동했습니다.', 'success');
       // 타겟 새로고침: Daily + Weekly만 (Unfinished는 영향 없음)
       (onRefreshDailyAndWeekly ?? onRefresh)();
     });
@@ -155,6 +156,7 @@ export const WeeklyDock = memo(function WeeklyDock({
       const result = await deletePlan({
         planId: deleteConfirm.planId!,
         isAdHoc: deleteConfirm.isAdHoc,
+        skipRevalidation: true,
       });
 
       if (!result.success) {
@@ -254,7 +256,7 @@ export const WeeklyDock = memo(function WeeklyDock({
       <CollapsedDockCard
         type="weekly"
         icon="📋"
-        title="Weekly"
+        title="주간"
         count={totalCount}
         completedCount={0}
         onClick={onExpand ?? (() => {})}
@@ -263,7 +265,7 @@ export const WeeklyDock = memo(function WeeklyDock({
   }
 
   return (
-    <DroppableContainer id="weekly">
+    <DroppableContainer id="weekly" className="h-full">
       <div
         className={cn(
           'bg-green-50 rounded-lg border border-green-200 h-full flex flex-col',
@@ -274,11 +276,11 @@ export const WeeklyDock = memo(function WeeklyDock({
         <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-green-200">
           <div className="flex items-center gap-2">
             <span className="text-lg">📋</span>
-            <span className="font-medium text-green-700">Weekly Dock</span>
+            <span className="font-medium text-green-700">주간 플랜</span>
             <span className="text-sm text-gray-600">{formatWeekRange()}</span>
             {totalCount > 0 && (
               <span className="text-sm text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
-                {totalCount}개
+                {totalCount}건
               </span>
             )}
           </div>
@@ -344,7 +346,7 @@ export const WeeklyDock = memo(function WeeklyDock({
               </button>
             )}
             <span className="text-xs text-gray-500">
-              드래그하여 Daily로 이동
+              드래그하여 오늘로 이동
             </span>
           </div>
         </div>
@@ -359,8 +361,8 @@ export const WeeklyDock = memo(function WeeklyDock({
             </div>
           ) : totalCount === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              <p>이번 주 Weekly Dock이 비어있습니다</p>
-              <p className="text-sm mt-1">Daily에서 플랜을 이동하거나 추가하세요</p>
+              <p>이번 주 주간 플랜이 비어있습니다</p>
+              <p className="text-sm mt-1">오늘 플랜에서 이동하거나 추가하세요</p>
             </div>
           ) : (
             <div className="space-y-2">

@@ -160,13 +160,13 @@ export const PlanActionMenu = memo(function PlanActionMenu({
         {container !== 'weekly' && onMoveToWeekly && (
           <DropdownMenu.Item onClick={() => onMoveToWeekly(planId)}>
             <ArrowRight className="w-4 h-4 mr-2" />
-            Weekly로 이동
+            주간 플랜으로 이동
           </DropdownMenu.Item>
         )}
         {isCompact && container !== 'daily' && container !== 'weekly' && onMoveToDaily && (
           <DropdownMenu.Item onClick={() => onMoveToDaily(planId)}>
             <ArrowRight className="w-4 h-4 mr-2" />
-            Daily로 이동
+            오늘 플랜으로 이동
           </DropdownMenu.Item>
         )}
 

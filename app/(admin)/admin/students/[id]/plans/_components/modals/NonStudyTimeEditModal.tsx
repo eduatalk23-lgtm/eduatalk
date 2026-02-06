@@ -35,9 +35,20 @@ type ApplyScope = 'today' | 'planner';
 // Helper: NonStudyItem.type → OverrideType
 // ============================================
 
-function mapToOverrideType(itemType: NonStudyItem['type']): OverrideType {
-  if (itemType === '점심식사') return 'lunch';
+/**
+ * NonStudyItem → OverrideType 매핑.
+ *
+ * non_study_time_blocks 배열 항목(sourceIndex가 존재)은 항상 'non_study_time'으로 저장해야
+ * nonStudyTimeQueryOptions의 findOverride('non_study_time', i)와 일치한다.
+ * 레거시 lunch_time(sourceIndex 없음)만 'lunch'로 저장한다.
+ */
+function mapToOverrideType(itemType: NonStudyItem['type'], sourceIndex?: number): OverrideType {
+  // 학원/이동시간은 academy_schedules에서 온 것 → 'academy'
   if (itemType === '학원' || itemType === '이동시간') return 'academy';
+  // sourceIndex가 있으면 non_study_time_blocks 배열 항목 (점심식사 포함) → 'non_study_time'
+  if (sourceIndex !== undefined) return 'non_study_time';
+  // sourceIndex가 없는 점심식사 = 레거시 lunch_time → 'lunch'
+  if (itemType === '점심식사') return 'lunch';
   return 'non_study_time';
 }
 
@@ -112,7 +123,7 @@ export function NonStudyTimeEditModal({
       const result = await createNonStudyOverride({
         plannerId,
         overrideDate: selectedDate,
-        overrideType: mapToOverrideType(item.type),
+        overrideType: mapToOverrideType(item.type, sourceIndex),
         sourceIndex,
         isDisabled,
         startTimeOverride: isDisabled ? undefined : startTime,
@@ -125,15 +136,16 @@ export function NonStudyTimeEditModal({
         const scopeLabel = applyScope === 'today' ? '오늘' : '플래너 전체';
         const actionLabel = isDisabled ? '비활성화' : '시간 변경';
         toast.showSuccess(`${item.label ?? item.type} ${actionLabel}됨 (${scopeLabel})`);
-        onSuccess?.();
+        // 모달을 먼저 닫은 후 데이터 리프레시 (중첩 transition 간섭 방지)
         onClose();
+        onSuccess?.();
       } else {
         toast.showError(result.error || '저장에 실패했습니다.');
       }
     });
   };
 
-  const overrideType = mapToOverrideType(item.type);
+  const overrideType = mapToOverrideType(item.type, sourceIndex);
   const isAcademy = overrideType === 'academy';
 
   return (

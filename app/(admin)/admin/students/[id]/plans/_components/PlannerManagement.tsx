@@ -105,6 +105,8 @@ function PlannerCard({
   onDelete,
   onEdit,
   onDuplicate,
+  viewMode = 'admin',
+  studentId,
 }: {
   planner: Planner;
   isSelected: boolean;
@@ -113,10 +115,17 @@ function PlannerCard({
   onDelete: () => void;
   onEdit: () => void;
   onDuplicate: () => void;
+  viewMode?: ViewMode;
+  studentId?: string;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  // 학생 모드: 관리자 생성 플래너는 메뉴 숨김
+  const isStudentMode = viewMode === 'student';
+  const isStudentCreated = isStudentMode && planner.createdBy === studentId;
+  const showMenu = !isStudentMode || isStudentCreated;
 
   // 메뉴 열기 (스마트 위치 계산)
   const handleMenuOpen = (e: React.MouseEvent) => {
@@ -240,23 +249,25 @@ function PlannerCard({
             )}
           </div>
 
-          {/* 메뉴 버튼 */}
-          <button
-            ref={menuButtonRef}
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              handleMenuOpen(e);
-            }}
-            className={cn(
-              "p-2 rounded-lg transition-all shrink-0",
-              "text-gray-400 hover:text-gray-600",
-              menuOpen ? "bg-gray-200 text-gray-600" : "hover:bg-gray-200/70"
-            )}
-          >
-            <MoreVertical className="w-4 h-4" />
-          </button>
+          {/* 메뉴 버튼 (학생 모드 + 관리자 생성 플래너: 숨김) */}
+          {showMenu && (
+            <button
+              ref={menuButtonRef}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleMenuOpen(e);
+              }}
+              className={cn(
+                "p-2 rounded-lg transition-all shrink-0",
+                "text-gray-400 hover:text-gray-600",
+                menuOpen ? "bg-gray-200 text-gray-600" : "hover:bg-gray-200/70"
+              )}
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         {/* 기간 정보 */}
@@ -325,29 +336,35 @@ function PlannerCard({
             className="fixed z-50 w-44 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 max-h-[300px] overflow-y-auto"
             style={{ top: menuPosition.top, left: menuPosition.left }}
           >
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setMenuOpen(false);
-                onEdit();
-              }}
-              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-gray-50 transition-colors"
-            >
-              <Edit className="w-4 h-4 text-gray-400" />
-              수정
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setMenuOpen(false);
-                onDuplicate();
-              }}
-              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-gray-50 transition-colors"
-            >
-              <Copy className="w-4 h-4 text-gray-400" />
-              복제
-            </button>
-            <hr className="my-1.5 mx-3" />
+            {/* 수정/복제: 관리자 전용 */}
+            {!isStudentMode && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuOpen(false);
+                    onEdit();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-gray-50 transition-colors"
+                >
+                  <Edit className="w-4 h-4 text-gray-400" />
+                  수정
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuOpen(false);
+                    onDuplicate();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-gray-50 transition-colors"
+                >
+                  <Copy className="w-4 h-4 text-gray-400" />
+                  복제
+                </button>
+                <hr className="my-1.5 mx-3" />
+              </>
+            )}
+            {/* 상태 변경: 활성화/일시정지/재개 */}
             {planner.status === "draft" && (
               <button
                 onClick={(e) => {
@@ -384,28 +401,33 @@ function PlannerCard({
                 재개
               </button>
             )}
-            {planner.status !== "completed" && planner.status !== "archived" && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleStatusAction("completed");
-                }}
-                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-blue-50 text-blue-600 transition-colors"
-              >
-                <Check className="w-4 h-4" />
-                완료 처리
-              </button>
+            {/* 완료 처리/보관: 관리자 전용 */}
+            {!isStudentMode && (
+              <>
+                {planner.status !== "completed" && planner.status !== "archived" && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStatusAction("completed");
+                    }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-blue-50 text-blue-600 transition-colors"
+                  >
+                    <Check className="w-4 h-4" />
+                    완료 처리
+                  </button>
+                )}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleStatusAction("archived");
+                  }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-gray-50 transition-colors"
+                >
+                  <Archive className="w-4 h-4 text-gray-400" />
+                  보관
+                </button>
+              </>
             )}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleStatusAction("archived");
-              }}
-              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-gray-50 transition-colors"
-            >
-              <Archive className="w-4 h-4 text-gray-400" />
-              보관
-            </button>
             <hr className="my-1.5 mx-3" />
             <button
               onClick={(e) => {
@@ -542,15 +564,17 @@ export function PlannerManagement({
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={showArchived}
-              onChange={(e) => setShowArchived(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            보관됨 포함
-          </label>
+          {isAdminMode && (
+            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showArchived}
+                onChange={(e) => setShowArchived(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              보관됨 포함
+            </label>
+          )}
           <button
             onClick={() => setCreateModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all hover:shadow-xl hover:shadow-blue-600/30"
@@ -620,6 +644,8 @@ export function PlannerManagement({
               onDelete={() => handleDelete(planner.id, planner.name)}
               onEdit={() => setEditPlanner(planner)}
               onDuplicate={() => setDuplicatePlanner(planner)}
+              viewMode={viewMode}
+              studentId={studentId}
             />
           ))}
         </div>
@@ -644,6 +670,7 @@ export function PlannerManagement({
         studentName={studentName}
         editPlanner={editPlanner}
         duplicateFrom={duplicatePlanner}
+        viewMode={viewMode}
       />
     </div>
   );

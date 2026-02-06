@@ -120,6 +120,8 @@ interface PlannerCreationModalProps {
   editPlanner?: Planner;
   /** 복제 모드: 기존 플래너를 복제할 때 사용 */
   duplicateFrom?: Planner;
+  /** 뷰 모드 (admin: 관리자, student: 학생) */
+  viewMode?: 'admin' | 'student';
 }
 
 interface FormData {
@@ -213,7 +215,9 @@ export function PlannerCreationModal({
   studentName,
   editPlanner,
   duplicateFrom,
+  viewMode = 'admin',
 }: PlannerCreationModalProps) {
+  const isAdminMode = viewMode === 'admin';
   const [formData, setFormData] = useState<FormData>(getDefaultFormData);
   const [nonStudyBlocks, setNonStudyBlocks] = useState<NonStudyTimeBlock[]>([]);
   const [showSelfStudy, setShowSelfStudy] = useState(false);
@@ -1770,20 +1774,22 @@ export function PlannerCreationModal({
               </div>
             </section>
 
-            {/* 관리자 메모 */}
-            <section>
-              <label className="block text-sm text-gray-600 mb-1">
-                관리자 메모
-              </label>
-              <textarea
-                value={formData.adminMemo}
-                onChange={(e) => handleChange("adminMemo", e.target.value)}
-                placeholder="관리자용 메모 (학생에게 표시되지 않음)"
-                rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                disabled={isSubmitting}
-              />
-            </section>
+            {/* 관리자 메모 (학생 모드에서 숨김) */}
+            {isAdminMode && (
+              <section>
+                <label className="block text-sm text-gray-600 mb-1">
+                  관리자 메모
+                </label>
+                <textarea
+                  value={formData.adminMemo}
+                  onChange={(e) => handleChange("adminMemo", e.target.value)}
+                  placeholder="관리자용 메모 (학생에게 표시되지 않음)"
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  disabled={isSubmitting}
+                />
+              </section>
+            )}
 
             {/* 수정 모드: 기존 플랜 그룹 동기화 옵션 */}
             {mode === "edit" && (

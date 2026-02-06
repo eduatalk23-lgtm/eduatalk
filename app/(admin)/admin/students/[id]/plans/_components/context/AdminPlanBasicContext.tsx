@@ -36,6 +36,8 @@ export interface AdminPlanBasicContextValue {
   toast: ReturnType<typeof useToast>;
   /** SSR 프리페치된 Dock 데이터 */
   initialDockData?: PrefetchedDockData;
+  /** SSR 프리페치 시점의 초기 날짜 */
+  initialDate: string;
   /** 뷰 모드 (admin: 관리자, student: 학생) */
   viewMode: ViewMode;
   /** Admin 모드인지 여부 (편의 getter) */
@@ -71,6 +73,8 @@ interface AdminPlanBasicProviderProps {
   plannerCalculatedSchedule?: DailyScheduleInfo[];
   plannerDateTimeSlots?: Record<string, TimeSlot[]>;
   initialDockData?: PrefetchedDockData;
+  /** SSR 프리페치 시점의 초기 날짜 */
+  initialDate: string;
   /** 뷰 모드 (admin: 관리자, student: 학생) */
   viewMode?: ViewMode;
   /** 현재 사용자 ID (권한 확인용) */
@@ -92,6 +96,7 @@ export function AdminPlanBasicProvider({
   plannerCalculatedSchedule,
   plannerDateTimeSlots,
   initialDockData,
+  initialDate,
   viewMode = "admin",
   currentUserId,
   selectedPlanner,
@@ -131,6 +136,7 @@ export function AdminPlanBasicProvider({
       canCreatePlans,
       toast,
       initialDockData,
+      initialDate,
       viewMode,
       isAdminMode,
       // 권한 시스템
@@ -154,6 +160,7 @@ export function AdminPlanBasicProvider({
       canCreatePlans,
       toast,
       initialDockData,
+      initialDate,
       viewMode,
       isAdminMode,
       currentUserId,

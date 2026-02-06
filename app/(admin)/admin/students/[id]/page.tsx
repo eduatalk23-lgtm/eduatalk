@@ -3,13 +3,11 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import PageContainer from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { DashboardSubTabs } from "@/app/(student)/scores/dashboard/_components/DashboardSubTabs";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { StudentDetailWrapper } from "./_components/StudentDetailWrapper";
 import { StudentDetailTabs } from "./_components/StudentDetailTabs";
-import { TabContent } from "./_components/TabContent";
 import StudentInfoEditForm from "./_components/StudentInfoEditForm";
 import { getStudentById } from "@/lib/data/students";
 import { getStudentProfileById } from "@/lib/data/studentProfiles";
@@ -60,7 +58,9 @@ export default async function AdminStudentDetailPage({
 
   const { id: studentId } = await params;
   const paramsObj = await searchParams;
-  const defaultTab: TabType = (paramsObj.tab as TabType) || "basic";
+  const VALID_TABS: TabType[] = ["basic", "plan", "content", "score", "session", "analysis", "consulting", "attendance", "time"];
+  const rawTab = paramsObj.tab as TabType;
+  const defaultTab: TabType = VALID_TABS.includes(rawTab) ? rawTab : "basic";
 
   // 학생 정보 통합 조회 (3개 테이블)
   // 관리자는 memo와 is_active 필드도 조회해야 함
@@ -153,101 +153,101 @@ export default async function AdminStudentDetailPage({
 
           {/* 탭 구조 */}
           <StudentDetailTabs defaultTab={defaultTab}>
-          {/* 기본정보 탭 */}
-          <TabContent tab="basic">
-            <div className="space-y-6">
-              <ConnectionCodeSection studentId={studentId} />
-              <StudentInfoEditForm
+            {/* 기본정보 탭 */}
+            {defaultTab === "basic" && (
+              <div className="space-y-6">
+                <ConnectionCodeSection studentId={studentId} />
+                <StudentInfoEditForm
+                  studentId={studentId}
+                  studentName={student.name}
+                  isActive={student.is_active ?? true}
+                  initialData={studentInfoData}
+                  isAdmin={role === "admin"}
+                  studentEmail={email}
+                />
+                <Suspense fallback={<FamilySectionSkeleton />}>
+                  <FamilySection studentId={studentId} />
+                </Suspense>
+                <Suspense fallback={<ParentLinksSectionSkeleton />}>
+                  <ParentLinksSection studentId={studentId} />
+                </Suspense>
+              </div>
+            )}
+
+            {/* 학습계획 탭 */}
+            {defaultTab === "plan" && (
+              <PlanListSectionClient
                 studentId={studentId}
-                studentName={student.name}
-                isActive={student.is_active ?? true}
-                initialData={studentInfoData}
-                isAdmin={role === "admin"}
-                studentEmail={email}
-              />
-              <Suspense fallback={<FamilySectionSkeleton />}>
-                <FamilySection studentId={studentId} />
+                tenantId={tenantId}
+                studentName={student.name ?? ""}
+              >
+                <Suspense fallback={<PlanListSectionSkeleton />}>
+                  <PlanListSection studentId={studentId} tenantId={tenantId} />
+                </Suspense>
+              </PlanListSectionClient>
+            )}
+
+            {/* 콘텐츠 탭 */}
+            {defaultTab === "content" && (
+              <Suspense fallback={<ContentListSectionSkeleton />}>
+                <ContentListSection studentId={studentId} />
               </Suspense>
-              <Suspense fallback={<ParentLinksSectionSkeleton />}>
-                <ParentLinksSection studentId={studentId} />
+            )}
+
+            {/* 성적 탭 */}
+            {defaultTab === "score" && (
+              <Suspense fallback={<ScoreTrendSectionSkeleton />}>
+                <ScoreTrendSection studentId={studentId} />
               </Suspense>
-            </div>
-          </TabContent>
+            )}
 
-          {/* 학습계획 탭 */}
-          <TabContent tab="plan">
-            <PlanListSectionClient
-              studentId={studentId}
-              tenantId={tenantId}
-              studentName={student.name ?? ""}
-            >
-              <Suspense fallback={<PlanListSectionSkeleton />}>
-                <PlanListSection studentId={studentId} tenantId={tenantId} />
+            {/* 학습기록 탭 */}
+            {defaultTab === "session" && (
+              <Suspense fallback={<SessionListSectionSkeleton />}>
+                <SessionListSection studentId={studentId} />
               </Suspense>
-            </PlanListSectionClient>
-          </TabContent>
+            )}
 
-          {/* 콘텐츠 탭 */}
-          <TabContent tab="content">
-            <Suspense fallback={<ContentListSectionSkeleton />}>
-              <ContentListSection studentId={studentId} />
-            </Suspense>
-          </TabContent>
+            {/* 분석 리포트 탭 */}
+            {defaultTab === "analysis" && (
+              <Suspense fallback={<AnalysisReportSectionSkeleton />}>
+                <AnalysisReportSection studentId={studentId} />
+              </Suspense>
+            )}
 
-          {/* 성적 탭 */}
-          <TabContent tab="score">
-            <Suspense fallback={<ScoreTrendSectionSkeleton />}>
-              <ScoreTrendSection studentId={studentId} />
-            </Suspense>
-          </TabContent>
+            {/* 상담노트 탭 */}
+            {defaultTab === "consulting" && (
+              <Suspense fallback={<ConsultingNotesSectionSkeleton />}>
+                <ConsultingNotesSection
+                  studentId={studentId}
+                  consultantId={userId}
+                />
+              </Suspense>
+            )}
 
-          {/* 학습기록 탭 */}
-          <TabContent tab="session">
-            <Suspense fallback={<SessionListSectionSkeleton />}>
-              <SessionListSection studentId={studentId} />
-            </Suspense>
-          </TabContent>
+            {/* 출석 탭 */}
+            {defaultTab === "attendance" && (
+              <Suspense
+                fallback={
+                  <div className="rounded-lg border border-gray-200 bg-white p-6">
+                    <div className="text-sm text-gray-500">로딩 중...</div>
+                  </div>
+                }
+              >
+                <AttendanceSection
+                  studentId={studentId}
+                  studentName={student.name}
+                />
+              </Suspense>
+            )}
 
-          {/* 분석 리포트 탭 */}
-          <TabContent tab="analysis">
-            <Suspense fallback={<AnalysisReportSectionSkeleton />}>
-              <AnalysisReportSection studentId={studentId} />
-            </Suspense>
-          </TabContent>
-
-          {/* 상담노트 탭 */}
-          <TabContent tab="consulting">
-            <Suspense fallback={<ConsultingNotesSectionSkeleton />}>
-              <ConsultingNotesSection
-                studentId={studentId}
-                consultantId={userId}
-              />
-            </Suspense>
-          </TabContent>
-
-          {/* 출석 탭 */}
-          <TabContent tab="attendance">
-            <Suspense
-              fallback={
-                <div className="rounded-lg border border-gray-200 bg-white p-6">
-                  <div className="text-sm text-gray-500">로딩 중...</div>
-                </div>
-              }
-            >
-              <AttendanceSection
-                studentId={studentId}
-                studentName={student.name}
-              />
-            </Suspense>
-          </TabContent>
-
-          {/* 시간관리 탭 */}
-          <TabContent tab="time">
-            <Suspense fallback={<TimeManagementSectionSkeleton />}>
-              <TimeManagementSection studentId={studentId} />
-            </Suspense>
-          </TabContent>
-        </StudentDetailTabs>
+            {/* 시간관리 탭 */}
+            {defaultTab === "time" && (
+              <Suspense fallback={<TimeManagementSectionSkeleton />}>
+                <TimeManagementSection studentId={studentId} />
+              </Suspense>
+            )}
+          </StudentDetailTabs>
         </div>
       </PageContainer>
     </StudentDetailWrapper>

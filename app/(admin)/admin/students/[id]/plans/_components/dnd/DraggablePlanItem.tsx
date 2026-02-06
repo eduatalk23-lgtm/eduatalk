@@ -3,6 +3,7 @@
 import { useDraggable } from '@dnd-kit/core';
 import { cn } from '@/lib/cn';
 import type { ContainerType, DragItem } from './DndContext';
+import type { PlanItemData } from '@/lib/types/planItem';
 import { ReactNode } from 'react';
 
 interface DraggablePlanItemProps {
@@ -13,6 +14,7 @@ interface DraggablePlanItemProps {
   subject?: string;
   range?: string;
   planDate?: string;
+  planItemData?: PlanItemData; // 오버레이용 전체 데이터
   disabled?: boolean;
   children: ReactNode;
 }
@@ -25,6 +27,7 @@ export function DraggablePlanItem({
   subject,
   range,
   planDate,
+  planItemData,
   disabled = false,
   children,
 }: DraggablePlanItemProps) {
@@ -36,6 +39,7 @@ export function DraggablePlanItem({
     subject,
     range,
     planDate,
+    planData: planItemData,
   };
 
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({

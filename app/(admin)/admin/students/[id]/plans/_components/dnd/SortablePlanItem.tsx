@@ -3,7 +3,7 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/lib/cn';
-import type { ReactNode } from 'react';
+import { type ReactNode, useMemo } from 'react';
 import type { DragItem, ContainerType } from './DndContext';
 
 interface SortablePlanItemProps {
@@ -18,6 +18,7 @@ interface SortablePlanItemProps {
     subject?: string;
     range?: string;
     planDate?: string;
+    planData?: import('@/lib/types/planItem').PlanItemData; // 오버레이용 전체 데이터
   };
 }
 
@@ -32,8 +33,8 @@ export function SortablePlanItem({
   children,
   dragData,
 }: SortablePlanItemProps) {
-  // DragItem 형식으로 data 구성
-  const data: DragItem | undefined = dragData ? {
+  // DragItem 형식으로 data 구성 (useMemo로 참조 안정화)
+  const data: DragItem | undefined = useMemo(() => dragData ? {
     id,
     type: dragData.type,
     containerId: dragData.containerId,
@@ -41,7 +42,17 @@ export function SortablePlanItem({
     subject: dragData.subject,
     range: dragData.range,
     planDate: dragData.planDate,
-  } : undefined;
+    planData: dragData.planData,
+  } : undefined, [
+    id,
+    dragData?.type,
+    dragData?.containerId,
+    dragData?.title,
+    dragData?.subject,
+    dragData?.range,
+    dragData?.planDate,
+    dragData?.planData,
+  ]);
 
   const {
     attributes,

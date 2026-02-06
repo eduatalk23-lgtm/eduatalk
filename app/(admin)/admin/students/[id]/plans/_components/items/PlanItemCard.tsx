@@ -27,6 +27,7 @@ function DragWrapper({
   subject,
   range,
   planDate,
+  planItemData,
   disabled,
   children,
 }: {
@@ -38,6 +39,7 @@ function DragWrapper({
   subject?: string;
   range?: string;
   planDate?: string;
+  planItemData?: PlanItemData;
   disabled: boolean;
   children: ReactNode;
 }) {
@@ -54,6 +56,7 @@ function DragWrapper({
       subject={subject}
       range={range}
       planDate={planDate}
+      planItemData={planItemData} // pass through
       disabled={disabled}
     >
       {children}
@@ -91,38 +94,10 @@ const STATUS_LABELS: Partial<Record<PlanStatus, string>> = {
   saved: '저장됨',
 };
 
-export type PlanItemType = 'plan' | 'adhoc';
-export type ContainerType = 'daily' | 'weekly' | 'unfinished';
-
-export type TimeSlotType = "study" | "self_study" | null;
-
-export interface PlanItemData {
-  id: string;
-  type: PlanItemType;
-  title: string;
-  subject?: string;
-  /** 콘텐츠 타입 (book/lecture/custom) - 범위 표시 형식 결정에 사용 */
-  contentType?: 'book' | 'lecture' | 'custom' | string;
-  pageRangeStart?: number | null;
-  pageRangeEnd?: number | null;
-  completedAmount?: number | null;
-  progress?: number | null;
-  status: PlanStatus;
-  isCompleted: boolean;
-  customTitle?: string | null;
-  customRangeDisplay?: string | null;
-  estimatedMinutes?: number | null;
-  planDate?: string;
-  startTime?: string | null;
-  endTime?: string | null;
-  carryoverCount?: number;
-  carryoverFromDate?: string | null;
-  planGroupId?: string | null;
-  /** Phase 4: 시간대 유형 (학습시간/자율학습시간) */
-  timeSlotType?: TimeSlotType;
-  /** Phase 4: 배치 사유 */
-  allocationReason?: string | null;
-}
+// Re-export shared types from lib/types/planItem
+export type { PlanItemType, ContainerType, TimeSlotType, PlanItemData } from '@/lib/types/planItem';
+import type { PlanItemType, ContainerType, PlanItemData } from '@/lib/types/planItem';
+import type { TimeSlotType } from '@/lib/types/planItem';
 
 interface PlanItemCardProps {
   plan: PlanItemData;
@@ -273,9 +248,9 @@ export const PlanItemCard = memo(function PlanItemCard({
         return;
       }
 
-      const containerName = targetContainer === 'daily' ? 'Daily' :
-                           targetContainer === 'weekly' ? 'Weekly' : 'Unfinished';
-      showSuccess(`${containerName} Dock으로 이동했습니다.`);
+      const containerName = targetContainer === 'daily' ? '오늘 플랜' :
+                           targetContainer === 'weekly' ? '주간 플랜' : '미완료 플랜';
+      showSuccess(`${containerName}으로 이동했습니다.`);
       onRefresh?.();
     });
   };
@@ -386,6 +361,7 @@ export const PlanItemCard = memo(function PlanItemCard({
           subject={plan.subject}
           range={rangeDisplay}
           planDate={plan.planDate}
+          planItemData={plan} // Pass full plan data for overlay
           disabled={isCompleted || isPending}
         >
           <div
@@ -483,7 +459,7 @@ export const PlanItemCard = memo(function PlanItemCard({
                     onClick={() => onMoveToDaily?.(plan.id) ?? handleMoveContainer('daily')}
                     className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                   >
-                    →Daily
+                    →오늘
                   </button>
                 )}
               </div>
@@ -554,6 +530,7 @@ export const PlanItemCard = memo(function PlanItemCard({
         subject={plan.subject}
         range={rangeDisplay}
         planDate={plan.planDate}
+        planItemData={plan} // Pass full plan data for overlay
         disabled={isCompleted || isPending}
       >
         <div
@@ -694,7 +671,7 @@ export const PlanItemCard = memo(function PlanItemCard({
               <button
                 onClick={() => onMoveToDaily?.(plan.id) ?? handleMoveContainer('daily')}
                 className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                title="Daily로 이동"
+                title="오늘 플랜으로 이동"
               >
                 →D
               </button>
@@ -703,7 +680,7 @@ export const PlanItemCard = memo(function PlanItemCard({
               <button
                 onClick={() => onMoveToWeekly?.(plan.id) ?? handleMoveContainer('weekly')}
                 className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
-                title="Weekly로 이동"
+                title="주간 플랜으로 이동"
               >
                 →W
               </button>
@@ -755,49 +732,5 @@ function formatDateShort(dateStr: string): string {
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
-// Helper to convert raw plan data to PlanItemData
-export function toPlanItemData(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  raw: any,
-  type: PlanItemType
-): PlanItemData {
-  if (type === 'adhoc') {
-    return {
-      id: raw.id,
-      type: 'adhoc',
-      title: raw.title,
-      status: raw.status ?? 'pending',
-      isCompleted: raw.status === 'completed',
-      estimatedMinutes: raw.estimated_minutes,
-      planDate: raw.plan_date,
-      startTime: raw.start_time,
-      endTime: raw.end_time,
-    };
-  }
-
-  return {
-    id: raw.id,
-    type: 'plan',
-    title: raw.custom_title ?? raw.content_title ?? '제목 없음',
-    subject: raw.content_subject ?? undefined,
-    contentType: raw.content_type ?? undefined, // 콘텐츠 타입 (book/lecture/custom)
-    pageRangeStart: raw.planned_start_page_or_time,
-    pageRangeEnd: raw.planned_end_page_or_time,
-    completedAmount: raw.completed_amount,
-    progress: raw.progress,
-    status: raw.status ?? 'pending',
-    isCompleted: raw.status === 'completed' || raw.actual_end_time != null,
-    customTitle: raw.custom_title,
-    customRangeDisplay: raw.custom_range_display,
-    estimatedMinutes: raw.estimated_minutes, // Phase 3: 소요시간 추가
-    planDate: raw.plan_date,
-    startTime: raw.start_time,
-    endTime: raw.end_time,
-    carryoverCount: raw.carryover_count ?? 0,
-    carryoverFromDate: raw.carryover_from_date,
-    planGroupId: raw.plan_group_id,
-    // Phase 4: 시간대 유형 시각화
-    timeSlotType: raw.time_slot_type ?? null,
-    allocationReason: raw.allocation_type?.reason ?? null,
-  };
-}
+// Re-export toPlanItemData from shared module
+export { toPlanItemData } from '@/lib/types/planItem';
