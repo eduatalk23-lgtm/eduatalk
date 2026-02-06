@@ -137,7 +137,7 @@ async function updatePlannerNonStudyTime(input: CreateOverrideInput): Promise<{
     // 플래너 조회
     const { data: planner, error: fetchError } = await supabase
       .from('planners')
-      .select('id, non_study_times, lunch_time')
+      .select('id, non_study_time_blocks, lunch_time')
       .eq('id', input.plannerId)
       .single();
 
@@ -168,32 +168,32 @@ async function updatePlannerNonStudyTime(input: CreateOverrideInput): Promise<{
     }
 
     if (input.overrideType === 'non_study_time' && input.sourceIndex !== undefined) {
-      // non_study_times 배열 업데이트
-      const nonStudyTimes = (planner.non_study_times as Array<{
+      // non_study_time_blocks 배열 업데이트
+      const nonStudyBlocks = (planner.non_study_time_blocks as Array<{
         type: string;
         start_time: string;
         end_time: string;
       }>) ?? [];
 
-      if (input.sourceIndex < 0 || input.sourceIndex >= nonStudyTimes.length) {
+      if (input.sourceIndex < 0 || input.sourceIndex >= nonStudyBlocks.length) {
         return { success: false, error: '잘못된 인덱스입니다.' };
       }
 
       if (input.isDisabled) {
         // 해당 항목 삭제
-        nonStudyTimes.splice(input.sourceIndex, 1);
+        nonStudyBlocks.splice(input.sourceIndex, 1);
       } else {
         // 시간 업데이트
-        nonStudyTimes[input.sourceIndex] = {
-          ...nonStudyTimes[input.sourceIndex],
-          start_time: input.startTimeOverride ?? nonStudyTimes[input.sourceIndex].start_time,
-          end_time: input.endTimeOverride ?? nonStudyTimes[input.sourceIndex].end_time,
+        nonStudyBlocks[input.sourceIndex] = {
+          ...nonStudyBlocks[input.sourceIndex],
+          start_time: input.startTimeOverride ?? nonStudyBlocks[input.sourceIndex].start_time,
+          end_time: input.endTimeOverride ?? nonStudyBlocks[input.sourceIndex].end_time,
         };
       }
 
       const { error: updateError } = await supabase
         .from('planners')
-        .update({ non_study_times: nonStudyTimes })
+        .update({ non_study_time_blocks: nonStudyBlocks })
         .eq('id', input.plannerId);
 
       if (updateError) {
