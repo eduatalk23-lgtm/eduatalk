@@ -11,19 +11,22 @@ import type { ReactElement } from "react";
 let resendClient: Resend | null = null;
 
 function getResendClient(): Resend | null {
-  // 진단 로그: env.ts 캐싱 vs 실제 환경변수 비교
-  console.log("[emailService] ENV 진단:", {
+  // 진단 로그 (console.error로 Vercel 로그에 확실히 표시)
+  const directKey = process.env.RESEND_API_KEY;
+  console.error("[emailService] ENV 진단:", {
     fromEnvTs: !!env.RESEND_API_KEY,
-    fromProcessEnv: !!process.env.RESEND_API_KEY,
-    nodeEnv: process.env.NODE_ENV,
+    fromProcessEnv: !!directKey,
+    keyLength: directKey?.length ?? 0,
+    keyPrefix: directKey?.substring(0, 5) ?? "없음",
     vercelEnv: process.env.VERCEL_ENV,
+    hasResendInKeys: Object.keys(process.env).filter(k => k.includes("RESEND")).join(",") || "없음",
   });
 
   // env.ts 캐싱 문제 대비: process.env에서 직접 읽기 시도
-  const apiKey = env.RESEND_API_KEY || process.env.RESEND_API_KEY;
+  const apiKey = env.RESEND_API_KEY || directKey;
 
   if (!apiKey) {
-    console.warn(
+    console.error(
       "[emailService] RESEND_API_KEY가 설정되지 않았습니다. 이메일 발송 기능이 비활성화됩니다."
     );
     return null;
