@@ -11,17 +11,26 @@ import type { ReactElement } from "react";
 let resendClient: Resend | null = null;
 
 function getResendClient(): Resend | null {
-  if (!env.RESEND_API_KEY) {
-    if (process.env.NODE_ENV === "development") {
-      console.warn(
-        "[emailService] RESEND_API_KEY가 설정되지 않았습니다. 이메일 발송 기능이 비활성화됩니다."
-      );
-    }
+  // 진단 로그: env.ts 캐싱 vs 실제 환경변수 비교
+  console.log("[emailService] ENV 진단:", {
+    fromEnvTs: !!env.RESEND_API_KEY,
+    fromProcessEnv: !!process.env.RESEND_API_KEY,
+    nodeEnv: process.env.NODE_ENV,
+    vercelEnv: process.env.VERCEL_ENV,
+  });
+
+  // env.ts 캐싱 문제 대비: process.env에서 직접 읽기 시도
+  const apiKey = env.RESEND_API_KEY || process.env.RESEND_API_KEY;
+
+  if (!apiKey) {
+    console.warn(
+      "[emailService] RESEND_API_KEY가 설정되지 않았습니다. 이메일 발송 기능이 비활성화됩니다."
+    );
     return null;
   }
 
   if (!resendClient) {
-    resendClient = new Resend(env.RESEND_API_KEY);
+    resendClient = new Resend(apiKey);
   }
 
   return resendClient;
