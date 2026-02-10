@@ -64,6 +64,7 @@ import { isOnline, isNetworkError } from "@/lib/offline/networkStatus";
 import {
   enqueueChatMessage,
   registerMessageSender,
+  registerQueueEventCallbacks,
   initChatQueueProcessor,
 } from "@/lib/offline/chatQueue";
 
@@ -150,6 +151,32 @@ export function useChatRoomLogic({
     const cleanup = initChatQueueProcessor();
     return cleanup;
   }, []);
+
+  // 큐 이벤트 콜백 등록 (큐 전송 성공/실패 → 캐시 갱신)
+  useEffect(() => {
+    registerQueueEventCallbacks({
+      onMessageSent: (sentRoomId, clientMessageId, data) => {
+        if (sentRoomId !== roomId) return;
+        // "queued" 메시지를 실제 서버 메시지로 교체 (id 갱신 + status → "sent")
+        queryClient.setQueryData<InfiniteMessagesCache>(
+          ["chat-messages", roomId],
+          (old) => replaceMessageInFirstPage(old, clientMessageId, { id: data.id })
+        );
+      },
+      onMessageFailed: (failedRoomId, clientMessageId, error) => {
+        if (failedRoomId !== roomId) return;
+        queryClient.setQueryData<InfiniteMessagesCache>(
+          ["chat-messages", roomId],
+          (old) =>
+            updateMessageInCache(old, clientMessageId, (m) => ({
+              ...m,
+              status: "error" as const,
+            }))
+        );
+        showError(`메시지 전송 실패: ${error}`);
+      },
+    });
+  }, [roomId, queryClient, showError]);
 
   // ============================================
   // Queries
@@ -341,7 +368,17 @@ export function useChatRoomLogic({
       replyToId?: string | null;
       clientMessageId?: string;
     }) => {
-      const result = await sendMessageAction(roomId, content, replyToId, clientMessageId);
+      const SEND_TIMEOUT_MS = 15_000;
+
+      const result = await Promise.race([
+        sendMessageAction(roomId, content, replyToId, clientMessageId),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error("메시지 전송 시간이 초과되었습니다. (timeout)")),
+            SEND_TIMEOUT_MS
+          )
+        ),
+      ]);
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
@@ -398,25 +435,31 @@ export function useChatRoomLogic({
       );
 
       // Broadcast-first: DB INSERT 전에 수신자에게 즉시 전송 (~6ms)
+      // try-catch로 감싸서 채널 에러 시에도 context(tempId)가 반환되도록 보장
       if (clientMessageId) {
-        broadcastInsert({
-          id: clientMessageId,
-          room_id: roomId,
-          sender_id: userId,
-          sender_type: senderType,
-          sender_name: senderName,
-          sender_profile_url: senderProfileUrl,
-          content,
-          message_type: "text",
-          reply_to_id: replyToId ?? null,
-          created_at: now,
-          updated_at: now,
-          is_deleted: false,
-          deleted_at: null,
-        });
+        try {
+          broadcastInsert({
+            id: clientMessageId,
+            room_id: roomId,
+            sender_id: userId,
+            sender_type: senderType,
+            sender_name: senderName,
+            sender_profile_url: senderProfileUrl,
+            content,
+            message_type: "text",
+            reply_to_id: replyToId ?? null,
+            created_at: now,
+            updated_at: now,
+            is_deleted: false,
+            deleted_at: null,
+          });
 
-        // 발신자 측 DB trigger broadcast dedup을 위해 미리 마킹
-        operationTracker.markRealtimeProcessed(`insert:${clientMessageId}`);
+          // 발신자 측 DB trigger broadcast dedup을 위해 미리 마킹
+          operationTracker.markRealtimeProcessed(`insert:${clientMessageId}`);
+        } catch {
+          // Realtime 채널 에러 시 broadcast만 실패 — DB 전송은 계속 진행
+          console.warn("[ChatRoom] broadcastInsert failed, continuing with DB send");
+        }
       }
 
       // 답장 상태 초기화
@@ -434,17 +477,24 @@ export function useChatRoomLogic({
       if (tempId && data) {
         // Operation Tracker에 전송 완료 등록 (tempId → realId 매핑)
         operationTracker.completeSend(tempId, data.id);
-        queryClient.setQueryData<InfiniteMessagesCache>(
+        const updated = queryClient.setQueryData<InfiniteMessagesCache>(
           ["chat-messages", roomId],
           (old) => replaceMessageInFirstPage(old, tempId, data)
         );
+        // Fallback: temp 메시지를 못 찾은 경우 (캐시 경쟁 조건) → 서버에서 최신 데이터 refetch
+        if (!findMessageInCache(updated, data.id)) {
+          queryClient.invalidateQueries({ queryKey: ["chat-messages", roomId] });
+        }
       }
     },
     onError: (_err, variables, context) => {
       // 6. 실패 시 네트워크 에러면 큐로 전환, 아니면 에러 표시
+      // 단, timeout 에러는 원래 요청이 서버에서 성공했을 수 있으므로 큐잉하지 않음
       const tempId = context?.tempId;
+      const isSendTimeout =
+        _err instanceof Error && _err.message.includes("(timeout)");
       if (tempId) {
-        if (isNetworkError(_err)) {
+        if (!isSendTimeout && isNetworkError(_err)) {
           // 네트워크 에러 → tracker 해제 + "queued"로 전환 + IndexedDB 큐 저장
           operationTracker.failSend(tempId);
           queryClient.setQueryData<InfiniteMessagesCache>(
@@ -863,6 +913,73 @@ export function useChatRoomLogic({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
 
+  // "sending" 상태 메시지 자동 복구 (30초 이상 stuck 감지)
+  useEffect(() => {
+    const STALE_THRESHOLD_MS = 30_000;
+    const CHECK_INTERVAL_MS = 10_000;
+
+    const interval = setInterval(() => {
+      const cache = queryClient.getQueryData<InfiniteMessagesCache>([
+        "chat-messages",
+        roomId,
+      ]);
+      if (!cache?.pages) return;
+
+      const now = Date.now();
+      let hasStale = false;
+
+      for (const page of cache.pages) {
+        for (const msg of page.messages) {
+          if (
+            msg.status === "sending" &&
+            now - new Date(msg.created_at).getTime() > STALE_THRESHOLD_MS
+          ) {
+            hasStale = true;
+            break;
+          }
+        }
+        if (hasStale) break;
+      }
+
+      if (hasStale) {
+        // side effect를 updater 밖에서 실행 (updater는 순수 함수여야 함)
+        const staleIds: string[] = [];
+        for (const page of cache.pages) {
+          for (const msg of page.messages) {
+            if (
+              msg.status === "sending" &&
+              now - new Date(msg.created_at).getTime() > STALE_THRESHOLD_MS
+            ) {
+              staleIds.push(msg.id);
+            }
+          }
+        }
+        staleIds.forEach((id) => operationTracker.failSend(id));
+
+        const staleIdSet = new Set(staleIds);
+        queryClient.setQueryData<InfiniteMessagesCache>(
+          ["chat-messages", roomId],
+          (old) => {
+            if (!old?.pages) return old;
+            return {
+              ...old,
+              pages: old.pages.map((page) => ({
+                ...page,
+                messages: page.messages.map((m) =>
+                  staleIdSet.has(m.id)
+                    ? { ...m, status: "error" as const }
+                    : m
+                ),
+              })),
+            };
+          }
+        );
+      }
+    }, CHECK_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [roomId, queryClient]);
+
   // ============================================
   // Actions
   // ============================================
@@ -960,40 +1077,18 @@ export function useChatRoomLogic({
   // 메시지 재전송 핸들러
   const retryMessage = useCallback(
     (message: ChatMessageWithGrouping) => {
-      // 1. status를 sending으로 변경
+      // 1. 기존 실패 메시지를 캐시에서 제거 (중복 방지)
       queryClient.setQueryData<InfiniteMessagesCache>(
         ["chat-messages", roomId],
-        (old) =>
-          updateMessageInCache(old, message.id, (m) => ({ ...m, status: "sending" }))
+        (old) => removeMessageFromCache(old, message.id)
       );
 
-      // 2. 재전송 (기존 메시지 제거 후 새 메시지 추가)
+      // 2. sendMessage로 완전히 새로운 전송 흐름 실행
+      //    (새 clientMessageId 생성 → 낙관적 업데이트 → 전송)
       const replyToId = (message as { reply_to_id?: string | null }).reply_to_id;
-      sendMutation.mutate(
-        { content: message.content, replyToId },
-        {
-          onSuccess: () => {
-            // 기존 실패 메시지 제거 (새 메시지가 낙관적 업데이트로 추가됨)
-            queryClient.setQueryData<InfiniteMessagesCache>(
-              ["chat-messages", roomId],
-              (old) => removeMessageFromCache(old, message.id)
-            );
-          },
-          onError: () => {
-            // 다시 error 상태로
-            queryClient.setQueryData<InfiniteMessagesCache>(
-              ["chat-messages", roomId],
-              (old) =>
-                updateMessageInCache(old, message.id, (m) => ({
-                  ...m,
-                  status: "error",
-                }))
-            );
-          },
-        }
-      );
+      sendMessage(message.content, replyToId);
     },
-    [roomId, queryClient, sendMutation]
+    [roomId, queryClient, sendMessage]
   );
 
   // 전송 실패 메시지 삭제 핸들러

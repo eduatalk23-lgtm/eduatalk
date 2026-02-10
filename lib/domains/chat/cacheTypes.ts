@@ -106,7 +106,13 @@ export function addMessageToFirstPage(
   cache: InfiniteMessagesCache | undefined,
   message: CacheMessage
 ): InfiniteMessagesCache | undefined {
-  if (!cache?.pages?.length) return cache;
+  // 캐시가 아직 hydration되지 않은 경우 (로딩 중 전송) 초기 페이지 구조 생성
+  if (!cache?.pages?.length) {
+    return {
+      pages: [{ messages: [message], readCounts: {}, hasMore: false }],
+      pageParams: [undefined],
+    };
+  }
 
   const firstPage = cache.pages[0];
   return {

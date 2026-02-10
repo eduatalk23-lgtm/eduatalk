@@ -4,7 +4,7 @@
  * 연속된 메시지를 그룹핑하고 날짜 구분선을 처리합니다.
  */
 
-import { isSameDay, differenceInSeconds, format } from "date-fns";
+import { isSameDay, differenceInSeconds, format, isValid } from "date-fns";
 import { ko } from "date-fns/locale";
 import type {
   ChatMessageWithSender,
@@ -16,10 +16,23 @@ import type {
 const GROUPING_THRESHOLD_SECONDS = 60;
 
 /**
+ * 안전한 날짜 파싱 (broadcast payload의 비정상 날짜 방어)
+ * @returns 유효한 Date 객체 또는 null
+ */
+function safeParseDate(dateStr: string | null | undefined): Date | null {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  return isValid(d) ? d : null;
+}
+
+/**
  * 두 메시지가 같은 날인지 확인
  */
 export function isSameMessageDay(date1: string, date2: string): boolean {
-  return isSameDay(new Date(date1), new Date(date2));
+  const d1 = safeParseDate(date1);
+  const d2 = safeParseDate(date2);
+  if (!d1 || !d2) return false;
+  return isSameDay(d1, d2);
 }
 
 /**
@@ -29,9 +42,10 @@ export function isWithinGroupingThreshold(
   date1: string,
   date2: string
 ): boolean {
-  const diff = Math.abs(
-    differenceInSeconds(new Date(date1), new Date(date2))
-  );
+  const d1 = safeParseDate(date1);
+  const d2 = safeParseDate(date2);
+  if (!d1 || !d2) return false;
+  const diff = Math.abs(differenceInSeconds(d1, d2));
   return diff <= GROUPING_THRESHOLD_SECONDS;
 }
 
@@ -39,14 +53,18 @@ export function isWithinGroupingThreshold(
  * 날짜 구분선용 포맷 (예: "2024년 1월 15일 월요일")
  */
 export function formatDateDivider(dateStr: string): string {
-  return format(new Date(dateStr), "yyyy년 M월 d일 EEEE", { locale: ko });
+  const d = safeParseDate(dateStr);
+  if (!d) return "";
+  return format(d, "yyyy년 M월 d일 EEEE", { locale: ko });
 }
 
 /**
  * 메시지 시간 포맷 (예: "오후 3:45")
  */
 export function formatMessageTime(dateStr: string): string {
-  return format(new Date(dateStr), "a h:mm", { locale: ko });
+  const d = safeParseDate(dateStr);
+  if (!d) return "";
+  return format(d, "a h:mm", { locale: ko });
 }
 
 /**

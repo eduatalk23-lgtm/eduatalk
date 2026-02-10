@@ -42,8 +42,15 @@ type MessageSender = (
   clientMessageId?: string
 ) => Promise<{ success: boolean; error?: string; data?: { id: string } }>;
 
+/** 큐 이벤트 콜백 (전송 성공/실패 시 UI 갱신용) */
+export interface QueueEventCallbacks {
+  onMessageSent?: (roomId: string, clientMessageId: string, data: { id: string }) => void;
+  onMessageFailed?: (roomId: string, clientMessageId: string, error: string) => void;
+}
+
 let messageSender: MessageSender | null = null;
 let isProcessing = false;
+let queueEventCallbacks: QueueEventCallbacks = {};
 
 /** 큐 상태 리스너 */
 type ChatQueueStatusListener = (pendingCount: number, isProcessing: boolean) => void;
@@ -54,6 +61,13 @@ const queueStatusListeners = new Set<ChatQueueStatusListener>();
  */
 export function registerMessageSender(sender: MessageSender): void {
   messageSender = sender;
+}
+
+/**
+ * 큐 이벤트 콜백 등록 (전송 성공/실패 시 UI 캐시 갱신용)
+ */
+export function registerQueueEventCallbacks(callbacks: QueueEventCallbacks): void {
+  queueEventCallbacks = callbacks;
 }
 
 /**
@@ -203,6 +217,14 @@ async function processMessage(action: OfflineAction): Promise<boolean> {
         "ChatQueue.processMessage",
         `Message sent successfully: ${action.id}`
       );
+      // UI 캐시 갱신: "queued" → "sent"
+      if (result.data && clientMessageId) {
+        queueEventCallbacks.onMessageSent?.(
+          roomId,
+          clientMessageId,
+          result.data as { id: string }
+        );
+      }
       return true;
     }
 
@@ -213,6 +235,14 @@ async function processMessage(action: OfflineAction): Promise<boolean> {
         `Business error, removing message: ${result.error}`
       );
       await deleteOfflineAction(action.id);
+      // UI에 에러 알림: "queued" → "error" + 에러 사유 전달
+      if (clientMessageId) {
+        queueEventCallbacks.onMessageFailed?.(
+          roomId,
+          clientMessageId,
+          result.error ?? "알 수 없는 오류"
+        );
+      }
       return true;
     }
 

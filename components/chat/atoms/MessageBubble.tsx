@@ -9,8 +9,15 @@
 
 import { memo, useState, useCallback, useMemo } from "react";
 import { cn } from "@/lib/cn";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 import { ko } from "date-fns/locale";
+
+/** 안전한 날짜 포맷 (비정상 날짜 방어) */
+function safeFormatDate(dateStr: string, pattern: string): string {
+  const d = new Date(dateStr);
+  if (!isValid(d)) return "";
+  return format(d, pattern, { locale: ko });
+}
 import { Loader2 } from "lucide-react";
 import type { ReactionSummary, ReactionEmoji, ReplyTargetInfo } from "@/lib/domains/chat/types";
 import { ReactionPills } from "./ReactionPills";
@@ -205,7 +212,7 @@ function MessageBubbleComponent({
         {/* 시간 표시 */}
         {showTime && (
           <span className="text-xs text-text-tertiary">
-            {format(new Date(createdAt), "a h:mm", { locale: ko })}
+            {safeFormatDate(createdAt, "a h:mm")}
           </span>
         )}
       </div>
@@ -213,7 +220,7 @@ function MessageBubbleComponent({
   }
 
   // 시간 포맷 (절대 시간: "오후 3:45")
-  const formattedTime = format(new Date(createdAt), "a h:mm", { locale: ko });
+  const formattedTime = safeFormatDate(createdAt, "a h:mm");
 
   const handleReactionSelect = (emoji: ReactionEmoji) => {
     dispatch({ type: "toggleReaction", emoji });
@@ -223,7 +230,7 @@ function MessageBubbleComponent({
   // 스크린 리더용 메시지 요약 생성
   const ariaLabel = useMemo(() => {
     const sender = isOwn ? "나" : senderName ?? "알 수 없음";
-    const time = format(new Date(createdAt), "a h시 mm분", { locale: ko });
+    const time = safeFormatDate(createdAt, "a h시 mm분");
     const statusText = hasError ? ", 전송 실패" : isSending ? ", 전송 중" : isQueued ? ", 대기 중" : "";
     return `${sender}의 메시지, ${time}${statusText}`;
   }, [isOwn, senderName, createdAt, hasError, isSending, isQueued]);

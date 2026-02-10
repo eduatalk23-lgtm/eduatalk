@@ -768,11 +768,11 @@ export async function findSendersByIds(
           .select("id, name, grade, school_type, school_name, student_profiles(profile_image_url)")
           .in("id", studentIds)
       : Promise.resolve({ data: null, error: null }),
-    // 관리자 정보
+    // 관리자 정보 + 프로필 이미지
     adminIds.length > 0
       ? supabase
           .from("admin_users")
-          .select("id, name")
+          .select("id, name, profile_image_url")
           .in("id", adminIds)
       : Promise.resolve({ data: null, error: null }),
   ]);
@@ -800,7 +800,7 @@ export async function findSendersByIds(
       result.set(`${admin.id}_admin`, {
         id: admin.id,
         name: admin.name ?? "관리자",
-        profileImageUrl: null,
+        profileImageUrl: admin.profile_image_url,
       });
     }
   }
@@ -1589,7 +1589,7 @@ export async function findSenderById(
   } else {
     const { data } = await supabase
       .from("admin_users")
-      .select("id, name")
+      .select("id, name, profile_image_url")
       .eq("id", senderId)
       .maybeSingle();
 
@@ -1598,7 +1598,7 @@ export async function findSenderById(
     return {
       id: data.id,
       name: data.name ?? "관리자",
-      profileImageUrl: null,
+      profileImageUrl: data.profile_image_url,
     };
   }
 }
@@ -1657,13 +1657,13 @@ export async function getSenderInfoForInsert(
   } else {
     const { data } = await supabase
       .from("admin_users")
-      .select("name")
+      .select("name, profile_image_url")
       .eq("id", senderId)
       .maybeSingle();
 
     return {
       name: data?.name ?? "관리자",
-      profileImageUrl: null,
+      profileImageUrl: data?.profile_image_url ?? null,
     };
   }
 }

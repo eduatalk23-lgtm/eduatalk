@@ -858,6 +858,8 @@ function ChatRoomComponent({
         onTypingChange={setTyping}
         replyTarget={replyTarget}
         onCancelReply={() => setReplyTarget(null)}
+        disabled={isLoading}
+        placeholder={isLoading ? "메시지를 불러오는 중..." : undefined}
       />
 
       {/* 공지 설정 다이얼로그 */}

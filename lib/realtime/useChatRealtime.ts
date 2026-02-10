@@ -4,13 +4,13 @@
  * 채팅 메시지 실시간 구독 훅
  *
  * 특정 채팅방의 새 메시지를 실시간으로 수신합니다.
- * Supabase Realtime postgres_changes 사용.
+ * Supabase Realtime broadcast (DB trigger) 사용.
  */
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase/client";
-import type { RealtimePostgresChangesPayload, RealtimeChannel } from "@supabase/supabase-js";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import type {
   ChatUserType,
   ChatMessageType,
@@ -476,15 +476,13 @@ export function useChatRealtime({
 
           const firstPage = old.pages[0];
 
-          // 모든 페이지의 메시지 ID 수집 (중복 방지)
-          const existingIds = new Set<string>();
-          for (const page of old.pages) {
-            for (const msg of page.messages) {
-              existingIds.add(msg.id);
-            }
-          }
+          // 첫 번째 페이지(최신)의 ID만 수집하여 중복 방지
+          // maxPages 제한으로 페이지 수가 적고, 증분 동기화는 최근 메시지만 가져오므로
+          // 첫 페이지만 확인해도 충분
+          const existingIds = new Set<string>(
+            firstPage.messages.map((m) => m.id)
+          );
 
-          // 중복 제거 후 새 메시지만 추가
           const uniqueNewMessages = allNewMessages.filter(
             (m) => !existingIds.has(m.id)
           );
@@ -566,26 +564,140 @@ export function useChatRealtime({
     // 지연 invalidation 타이머 (cleanup용)
     let delayedInvalidationTimer: ReturnType<typeof setTimeout> | null = null;
 
-    // === 핸들러 함수 추출 (broadcast + postgres_changes 양쪽에서 재사용) ===
+    // === 메시지 INSERT 배치 버퍼 (50ms 윈도우로 setQueryData 호출 최소화) ===
+    const INSERT_BATCH_WINDOW_MS = 50;
+    const insertBuffer: Array<{ msg: ChatMessagePayload; tempId: string | undefined }> = [];
+    let insertBufferTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const flushInsertBuffer = () => {
+      const batch = insertBuffer.splice(0);
+      insertBufferTimer = null;
+
+      if (batch.length === 0) return;
+
+      console.log(`[ChatRealtime] Flushing ${batch.length} buffered inserts`);
+
+      // 한 번의 setQueryData로 모든 메시지 적용 (1 React 리렌더)
+      queryClient.setQueryData<InfiniteMessagesCache>(
+        ["chat-messages", roomId],
+        (old) => {
+          if (!old?.pages?.length) return old;
+
+          const firstPage = old.pages[0];
+          const messages = [...firstPage.messages];
+
+          for (const { msg: newMessage, tempId } of batch) {
+            // 중복 체크 (temp 교체 또는 이미 존재하는 메시지)
+            const existingIndex = messages.findIndex(
+              (m) =>
+                m.id === newMessage.id ||
+                (tempId && m.id === tempId) ||
+                (m.id.startsWith("temp-") &&
+                  m.content === newMessage.content &&
+                  m.sender_id === newMessage.sender_id)
+            );
+
+            if (existingIndex !== -1) {
+              // 낙관적 메시지 → 실제 메시지로 교체
+              const existingMessage = messages[existingIndex];
+              messages[existingIndex] = {
+                ...existingMessage,
+                ...newMessage,
+                sender: existingMessage.sender,
+                status: "sent" as const,
+              };
+            } else {
+              // 새 메시지 추가
+              const cacheKey = `${newMessage.sender_id}_${newMessage.sender_type}`;
+              const existingSender = fnRef.current.findSenderFromExistingMessages(
+                newMessage.sender_id
+              );
+              const senderFromCache = senderCacheRef.current.get(cacheKey);
+
+              const tempSender: ChatUser =
+                existingSender ??
+                senderFromCache ?? {
+                  id: newMessage.sender_id,
+                  type: newMessage.sender_type,
+                  name: newMessage.sender_name ?? "로딩 중...",
+                };
+
+              messages.push({
+                ...newMessage,
+                sender: tempSender,
+                reactions: [],
+                replyTarget: null,
+                sender_name: newMessage.sender_name ?? tempSender.name,
+                sender_profile_url: newMessage.sender_profile_url ?? tempSender.profileImageUrl ?? null,
+              } as CacheMessage);
+            }
+          }
+
+          return {
+            ...old,
+            pages: [
+              { ...firstPage, messages },
+              ...old.pages.slice(1),
+            ],
+          };
+        }
+      );
+
+      // 후처리: 한 번만 실행 (배치 전체에 대해)
+      fnRef.current.invalidateRoomList();
+
+      // 개별 메시지별 후처리
+      for (const { msg: newMessage } of batch) {
+        // 타인 메시지 sender 정보 보강
+        if (newMessage.sender_id && newMessage.sender_id !== userId) {
+          const cacheKey = `${newMessage.sender_id}_${newMessage.sender_type}`;
+          const hasSenderInfo =
+            fnRef.current.findSenderFromExistingMessages(newMessage.sender_id) ??
+            senderCacheRef.current.get(cacheKey);
+
+          if (!hasSenderInfo) {
+            fnRef.current.fetchSenderInfo(newMessage.sender_id, newMessage.sender_type)
+              .then((senderInfo) => {
+                queryClient.setQueryData<InfiniteMessagesCache>(
+                  ["chat-messages", roomId],
+                  (old) => {
+                    if (!old?.pages?.length) return old;
+                    return {
+                      ...old,
+                      pages: old.pages.map((page) => ({
+                        ...page,
+                        messages: page.messages.map((m) =>
+                          m.id === newMessage.id ? { ...m, sender: senderInfo } : m
+                        ),
+                      })),
+                    };
+                  }
+                );
+              })
+              .catch((error) => {
+                console.warn("[ChatRealtime] Failed to fetch sender info:", error);
+              });
+          }
+
+          callbacksRef.current.onNewMessage?.(newMessage);
+        }
+      }
+    };
+
+    // === 핸들러 함수 추출 (클라이언트 broadcast + DB trigger broadcast 양쪽에서 재사용) ===
     const handleMessageInsert = (newMessage: ChatMessagePayload) => {
-      // 이벤트 ID 생성 (중복 처리 방지)
+      // 이벤트 ID 생성 (중복 처리 방지) — dedup은 즉시 실행
       const eventId = `insert:${newMessage.id}`;
 
-      // 1. 이미 처리된 Realtime 이벤트 스킵
       if (operationTracker.isRealtimeProcessed(eventId)) {
-        console.log("[ChatRealtime] Skipping already processed event:", eventId);
         return;
       }
 
-      // 2. 낙관적 업데이트로 이미 처리 중인 메시지 스킵 (completeSend 완료 전)
       if (operationTracker.isMessageBeingSent(newMessage.id)) {
-        console.log("[ChatRealtime] Skipping message being sent:", newMessage.id);
         operationTracker.markRealtimeProcessed(eventId);
         return;
       }
 
-      // 3. 발신자 자신의 메시지: 아직 전송 중인 낙관적 메시지가 있으면 스킵
-      //    (onSuccess가 tempId→realId 교체를 처리, broadcast보다 깔끔)
       if (newMessage.sender_id === userId) {
         const cache = queryClient.getQueryData<InfiniteMessagesCache>(["chat-messages", roomId]);
         const hasPendingTemp = cache?.pages?.[0]?.messages.some(
@@ -596,143 +708,24 @@ export function useChatRealtime({
             m.status !== "error"
         );
         if (hasPendingTemp) {
-          console.log("[ChatRealtime] Skipping broadcast for own pending message:", newMessage.id);
           operationTracker.markRealtimeProcessed(eventId);
           return;
         }
       }
 
-      // 4. tempId → realId 매핑으로 교체가 필요한지 확인
       const tempId = operationTracker.getTempIdForRealId(newMessage.id);
 
-      // setQueryData로 캐시에 직접 추가 (서버 재요청 없음) - InfiniteQuery 구조
-      queryClient.setQueryData<InfiniteMessagesCache>(
-        ["chat-messages", roomId],
-        (old) => {
-          if (!old?.pages?.length) return old;
-
-          // 첫 번째 페이지(최신 메시지들)에서 중복 체크 및 추가
-          const firstPage = old.pages[0];
-
-          // tempId 매핑이 있으면 해당 temp 메시지를 찾음
-          const existingIndex = firstPage.messages.findIndex(
-            (m) =>
-              m.id === newMessage.id ||
-              (tempId && m.id === tempId) ||
-              (m.id.startsWith("temp-") &&
-                m.content === newMessage.content &&
-                m.sender_id === newMessage.sender_id)
-          );
-
-          if (existingIndex !== -1) {
-            // 낙관적 메시지 → 실제 메시지로 교체
-            const updatedMessages = [...firstPage.messages];
-            const existingMessage = updatedMessages[existingIndex];
-            updatedMessages[existingIndex] = {
-              ...existingMessage,
-              ...newMessage,
-              sender: existingMessage.sender,
-              status: "sent" as const,
-            };
-            return {
-              ...old,
-              pages: [
-                { ...firstPage, messages: updatedMessages },
-                ...old.pages.slice(1),
-              ],
-            };
-          }
-
-          // 타인의 새 메시지 추가 (기존 캐시에서 sender 정보 조회 우선)
-          const cacheKey = `${newMessage.sender_id}_${newMessage.sender_type}`;
-          const existingSender = fnRef.current.findSenderFromExistingMessages(
-            newMessage.sender_id
-          );
-          const senderFromCache = senderCacheRef.current.get(cacheKey);
-
-          // 비정규화 필드에서 sender 정보 구성 (DB trigger payload에 포함)
-          const tempSender: ChatUser =
-            existingSender ??
-            senderFromCache ?? {
-              id: newMessage.sender_id,
-              type: newMessage.sender_type,
-              name: newMessage.sender_name ?? "로딩 중...",
-            };
-
-          const newCacheMessage: CacheMessage = {
-            ...newMessage,
-            sender: tempSender,
-            reactions: [],
-            replyTarget: null,
-            sender_name: newMessage.sender_name ?? tempSender.name,
-            sender_profile_url: newMessage.sender_profile_url ?? tempSender.profileImageUrl ?? null,
-          };
-
-          return {
-            ...old,
-            pages: [
-              {
-                ...firstPage,
-                messages: [...firstPage.messages, newCacheMessage],
-              },
-              ...old.pages.slice(1),
-            ],
-          };
-        }
-      );
-
-      // 타인 메시지인 경우 sender 정보가 없을 때만 비동기로 보강
-      if (newMessage?.sender_id && newMessage.sender_id !== userId) {
-        const cacheKey = `${newMessage.sender_id}_${newMessage.sender_type}`;
-        const hasSenderInfo =
-          fnRef.current.findSenderFromExistingMessages(newMessage.sender_id) ??
-          senderCacheRef.current.get(cacheKey);
-
-        // sender 정보가 없을 때만 서버에서 조회
-        if (!hasSenderInfo) {
-          fnRef.current.fetchSenderInfo(newMessage.sender_id, newMessage.sender_type)
-            .then((senderInfo) => {
-              queryClient.setQueryData<InfiniteMessagesCache>(
-                ["chat-messages", roomId],
-                (old) => {
-                  if (!old?.pages?.length) return old;
-                  return {
-                    ...old,
-                    pages: old.pages.map((page) => ({
-                      ...page,
-                      messages: page.messages.map((m) =>
-                        m.id === newMessage.id
-                          ? { ...m, sender: senderInfo }
-                          : m
-                      ),
-                    })),
-                  };
-                }
-              );
-            })
-            .catch((error) => {
-              console.warn(
-                "[ChatRealtime] Failed to fetch sender info:",
-                error
-              );
-            });
-        }
-      }
-
-      // 채팅방 목록도 무효화 (마지막 메시지 업데이트)
-      fnRef.current.invalidateRoomList();
-
-      // 콜백 호출 (타인의 메시지만)
-      if (newMessage.sender_id !== userId) {
-        callbacksRef.current.onNewMessage?.(newMessage);
-      }
-
-      // 이벤트 처리 완료 표시 (중복 방지)
+      // 버퍼에 추가 (setQueryData는 50ms 후 배치 실행)
+      insertBuffer.push({ msg: newMessage, tempId });
       operationTracker.markRealtimeProcessed(eventId);
+
+      if (!insertBufferTimer) {
+        insertBufferTimer = setTimeout(flushInsertBuffer, INSERT_BATCH_WINDOW_MS);
+      }
     };
 
     const handleMessageUpdate = (updatedMessage: ChatMessagePayload) => {
-      // UPDATE dedup: broadcast와 postgres_changes 양쪽에서 수신되므로 중복 방지
+      // UPDATE dedup: 클라이언트 broadcast와 DB trigger broadcast 양쪽에서 수신되므로 중복 방지
       const eventId = `update:${updatedMessage.id}:${updatedMessage.updated_at}`;
       if (operationTracker.isRealtimeProcessed(eventId)) {
         console.log("[ChatRealtime] Skipping already processed update:", eventId);
@@ -774,16 +767,35 @@ export function useChatRealtime({
       operationTracker.markRealtimeProcessed(eventId);
     };
 
+    // broadcast_changes payload 노멀라이저:
+    // - 클라이언트 broadcastInsert: event.payload = flat ChatMessagePayload (id 필드 있음)
+    // - DB trigger (realtime.broadcast_changes): event.payload = { record: {...}, old_record: {...}, ... }
+    type BroadcastPayload = Record<string, unknown>;
+    /** 메시지용: client broadcast(flat) 또는 DB trigger(nested record) 양쪽 지원 */
+    const normalizeMessagePayload = (raw: BroadcastPayload): ChatMessagePayload | undefined => {
+      if (raw.record) return raw.record as ChatMessagePayload;
+      if (raw.id) return raw as unknown as ChatMessagePayload;
+      return undefined;
+    };
+    /** DB trigger 전용: record 필드에서 추출 */
+    const extractRecord = <T>(raw: BroadcastPayload): T | undefined =>
+      raw.record as T | undefined;
+    const extractOldRecord = <T>(raw: BroadcastPayload): T | undefined =>
+      raw.old_record as T | undefined;
+
     const channel = supabase
-      .channel(`chat-room-${roomId}`, { config: { private: true } })
-      // === Broadcast 리스너 (DB trigger → realtime.send(), 빠름 ~150ms) ===
+      .channel(`chat-room-${roomId}`, {
+        config: { private: true, broadcast: { ack: true } },
+      })
+      // === 메시지: broadcast from client (broadcastInsert) + DB trigger ===
       .on(
         "broadcast",
         { event: "INSERT" },
-        (event: { payload: ChatMessagePayload }) => {
-          const msg = event.payload;
+        (event: { payload: BroadcastPayload }) => {
+          const msg = normalizeMessagePayload(event.payload);
           if (msg?.id) {
-            const latency = Date.now() - new Date(msg.created_at).getTime();
+            const ts = new Date(msg.created_at).getTime();
+            const latency = Number.isNaN(ts) ? "?" : `${Date.now() - ts}`;
             console.log(`[ChatRealtime] Broadcast INSERT: ${msg.id} (latency: ${latency}ms)`);
             handleMessageInsert(msg);
           }
@@ -792,78 +804,35 @@ export function useChatRealtime({
       .on(
         "broadcast",
         { event: "UPDATE" },
-        (event: { payload: ChatMessagePayload }) => {
-          const msg = event.payload;
+        (event: { payload: BroadcastPayload }) => {
+          const msg = normalizeMessagePayload(event.payload);
           if (msg?.id) {
-            const latency = Date.now() - new Date(msg.updated_at).getTime();
+            const ts = new Date(msg.updated_at).getTime();
+            const latency = Number.isNaN(ts) ? "?" : `${Date.now() - ts}`;
             console.log(`[ChatRealtime] Broadcast UPDATE: ${msg.id} (latency: ${latency}ms)`);
             handleMessageUpdate(msg);
           }
         }
       )
-      // === postgres_changes 리스너 (백업, dedup으로 스킵) ===
-      // 새 메시지 INSERT
+      // === 리액션: broadcast from DB trigger ===
       .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "chat_messages",
-          filter: `room_id=eq.${roomId}`,
-        },
-        (payload: RealtimePostgresChangesPayload<ChatMessagePayload>) => {
-          const newMessage = payload.new as ChatMessagePayload | undefined;
-          if (newMessage) {
-            const latency = Date.now() - new Date(newMessage.created_at).getTime();
-            console.log(`[ChatRealtime] postgres_changes INSERT: ${newMessage.id} (latency: ${latency}ms)`);
-            handleMessageInsert(newMessage);
-          }
-        }
-      )
-      // 메시지 UPDATE (삭제/수정 등)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "chat_messages",
-          filter: `room_id=eq.${roomId}`,
-        },
-        (payload: RealtimePostgresChangesPayload<ChatMessagePayload>) => {
-          const updatedMessage = payload.new as ChatMessagePayload | undefined;
-          if (updatedMessage) {
-            const latency = Date.now() - new Date(updatedMessage.created_at).getTime();
-            console.log(`[ChatRealtime] postgres_changes UPDATE: ${updatedMessage.id} (latency: ${latency}ms)`);
-            handleMessageUpdate(updatedMessage);
-          }
-        }
-      )
-      // 리액션 INSERT (타겟 캐시 업데이트, 낙관적 업데이트 중복 방지)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "chat_message_reactions",
-        },
-        (payload: RealtimePostgresChangesPayload<ChatReactionPayload>) => {
-          const reaction = payload.new as ChatReactionPayload | undefined;
+        "broadcast",
+        { event: "REACTION_INSERT" },
+        (event: { payload: BroadcastPayload }) => {
+          const reaction = extractRecord<ChatReactionPayload>(event.payload);
           console.log("[ChatRealtime] Reaction added:", reaction?.message_id);
 
           if (reaction?.message_id) {
-            // Operation Tracker로 pending 상태 체크 (낙관적 업데이트 중복 방지)
             const pendingState = operationTracker.isReactionPending(
               reaction.message_id,
               reaction.emoji
             );
 
-            // 현재 사용자의 리액션 추가가 pending 상태이면 스킵
             if (reaction.user_id === userId && pendingState.isPending && pendingState.isAdd) {
               console.log("[ChatRealtime] Skipping pending reaction add:", reaction.message_id, reaction.emoji);
               return;
             }
 
-            // 해당 메시지에만 리액션 추가 (전체 무효화 대신)
             queryClient.setQueryData<InfiniteMessagesCache>(
               ["chat-messages", roomId],
               (old) => {
@@ -875,22 +844,19 @@ export function useChatRealtime({
                     messages: page.messages.map((m) => {
                       if (m.id !== reaction.message_id) return m;
 
-                      // 기존 리액션에서 같은 이모지 찾기
                       const existingReactions = m.reactions ?? [];
                       const existingIdx = existingReactions.findIndex(
                         (r) => r.emoji === reaction.emoji
                       );
 
                       if (existingIdx >= 0) {
-                        // 현재 사용자의 리액션이고 이미 낙관적 업데이트로 처리됨
                         if (
                           reaction.user_id === userId &&
                           existingReactions[existingIdx].hasReacted
                         ) {
-                          return m; // 스킵
+                          return m;
                         }
 
-                        // 기존 이모지 카운트 증가
                         const updated = [...existingReactions];
                         updated[existingIdx] = {
                           ...updated[existingIdx],
@@ -901,7 +867,6 @@ export function useChatRealtime({
                         };
                         return { ...m, reactions: updated };
                       } else {
-                        // 새 이모지 추가
                         return {
                           ...m,
                           reactions: [
@@ -922,32 +887,24 @@ export function useChatRealtime({
           }
         }
       )
-      // 리액션 DELETE (타겟 캐시 업데이트, 낙관적 업데이트 중복 방지)
       .on(
-        "postgres_changes",
-        {
-          event: "DELETE",
-          schema: "public",
-          table: "chat_message_reactions",
-        },
-        (payload: RealtimePostgresChangesPayload<ChatReactionPayload>) => {
-          const reaction = payload.old as ChatReactionPayload | undefined;
+        "broadcast",
+        { event: "REACTION_DELETE" },
+        (event: { payload: BroadcastPayload }) => {
+          const reaction = extractOldRecord<ChatReactionPayload>(event.payload) ?? extractRecord<ChatReactionPayload>(event.payload);
           console.log("[ChatRealtime] Reaction removed:", reaction?.message_id);
 
           if (reaction?.message_id) {
-            // Operation Tracker로 pending 상태 체크 (낙관적 업데이트 중복 방지)
             const pendingState = operationTracker.isReactionPending(
               reaction.message_id,
               reaction.emoji
             );
 
-            // 현재 사용자의 리액션 제거가 pending 상태이면 스킵
             if (reaction.user_id === userId && pendingState.isPending && !pendingState.isAdd) {
               console.log("[ChatRealtime] Skipping pending reaction remove:", reaction.message_id, reaction.emoji);
               return;
             }
 
-            // 해당 메시지에서만 리액션 제거 (전체 무효화 대신)
             queryClient.setQueryData<InfiniteMessagesCache>(
               ["chat-messages", roomId],
               (old) => {
@@ -965,22 +922,19 @@ export function useChatRealtime({
                       );
 
                       if (existingIdx >= 0) {
-                        // 현재 사용자의 리액션 취소이고 이미 낙관적 업데이트로 처리됨
                         if (
                           reaction.user_id === userId &&
                           !existingReactions[existingIdx].hasReacted
                         ) {
-                          return m; // 스킵
+                          return m;
                         }
 
                         const updated = [...existingReactions];
                         const newCount = updated[existingIdx].count - 1;
 
                         if (newCount <= 0) {
-                          // 카운트가 0이면 제거
                           updated.splice(existingIdx, 1);
                         } else {
-                          // 카운트 감소
                           updated[existingIdx] = {
                             ...updated[existingIdx],
                             count: newCount,
@@ -1001,48 +955,31 @@ export function useChatRealtime({
           }
         }
       )
-      // 고정 메시지 INSERT
+      // === 고정 메시지: broadcast from DB trigger ===
       .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "chat_pinned_messages",
-          filter: `room_id=eq.${roomId}`,
-        },
+        "broadcast",
+        { event: "PIN_INSERT" },
         () => {
           console.log("[ChatRealtime] Message pinned");
           fnRef.current.invalidatePinnedMessages();
         }
       )
-      // 고정 메시지 DELETE
       .on(
-        "postgres_changes",
-        {
-          event: "DELETE",
-          schema: "public",
-          table: "chat_pinned_messages",
-        },
+        "broadcast",
+        { event: "PIN_DELETE" },
         () => {
           console.log("[ChatRealtime] Message unpinned");
           fnRef.current.invalidatePinnedMessages();
         }
       )
-      // 채팅방 UPDATE (공지 변경 시에만 invalidate)
+      // === 채팅방 공지: broadcast from DB trigger ===
       .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "chat_rooms",
-          filter: `id=eq.${roomId}`,
-        },
-        (payload) => {
-          const newRoom = payload.new as { announcement_at?: string | null } | undefined;
+        "broadcast",
+        { event: "ROOM_UPDATE" },
+        (event: { payload: BroadcastPayload }) => {
+          const newRoom = extractRecord<{ announcement_at?: string | null }>(event.payload);
           const announcementAt = newRoom?.announcement_at ?? null;
 
-          // announcement_at이 변경된 경우에만 공지 무효화
-          // (매 메시지마다 updated_at만 변경되는 경우 스킵)
           if (announcementAt !== lastAnnouncementAtRef.current) {
             lastAnnouncementAtRef.current = announcementAt;
             console.log("[ChatRealtime] Announcement changed");
@@ -1050,20 +987,14 @@ export function useChatRealtime({
           }
         }
       )
-      // 채팅방 멤버 UPDATE (멤버 나가기 등)
+      // === 채팅방 멤버: broadcast from DB trigger ===
       .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "chat_room_members",
-          filter: `room_id=eq.${roomId}`,
-        },
-        (payload) => {
-          const member = payload.new as { left_at: string | null; user_id: string } | undefined;
-          if (member?.left_at !== null) {
-            console.log("[ChatRealtime] Member left room:", member?.user_id);
-            // 멤버 목록 캐시 무효화 (남은 멤버들의 UI 갱신)
+        "broadcast",
+        { event: "MEMBER_UPDATE" },
+        (event: { payload: BroadcastPayload }) => {
+          const member = extractRecord<{ left_at: string | null; user_id: string }>(event.payload);
+          if (member && member.left_at !== null) {
+            console.log("[ChatRealtime] Member left room:", member.user_id);
             queryClient.invalidateQueries({ queryKey: ["chat-room", roomId] });
           }
         }
@@ -1119,7 +1050,15 @@ export function useChatRealtime({
         clearTimeout(delayedInvalidationTimer);
         delayedInvalidationTimer = null;
       }
-      // 배치 타이머 정리
+      // 메시지 INSERT 배치 버퍼 정리 (남은 메시지 즉시 플러시)
+      if (insertBufferTimer) {
+        clearTimeout(insertBufferTimer);
+        insertBufferTimer = null;
+        if (insertBuffer.length > 0) {
+          flushInsertBuffer();
+        }
+      }
+      // sender 배치 타이머 정리
       if (currentBatch.timer) {
         clearTimeout(currentBatch.timer);
         currentBatch.timer = null;
@@ -1145,16 +1084,23 @@ export function useChatRealtime({
 
   // Broadcast-first: 클라이언트에서 직접 broadcast 전송 (DB INSERT 전)
   const broadcastInsert = useCallback(
-    (message: ChatMessagePayload) => {
+    async (message: ChatMessagePayload) => {
       if (!channelRef.current) {
         console.warn("[ChatRealtime] No channel for broadcast");
         return;
       }
-      channelRef.current.send({
-        type: "broadcast",
-        event: "INSERT",
-        payload: message,
-      });
+      try {
+        const status = await channelRef.current.send({
+          type: "broadcast",
+          event: "INSERT",
+          payload: message,
+        });
+        if (status !== "ok") {
+          console.warn("[ChatRealtime] Broadcast ack failed:", status);
+        }
+      } catch (error) {
+        console.warn("[ChatRealtime] Broadcast send error:", error);
+      }
     },
     []
   );
