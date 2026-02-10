@@ -4,9 +4,7 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import Link from "next/link";
-import { EmptyState } from "@/components/molecules/EmptyState";
 import { SMSResultsClient } from "./_components/SMSResultsClient";
 
 type SMSLogRow = {
@@ -21,6 +19,9 @@ type SMSLogRow = {
   delivered_at?: string | null;
   error_message?: string | null;
   created_at?: string | null;
+  message_key?: string | null;
+  ref_key?: string | null;
+  ppurio_result_code?: string | null;
 };
 
 type StudentRow = {
@@ -42,20 +43,20 @@ export default async function SMSResultsPage({
   }
 
   const supabase = await createSupabaseServerClient();
-  const tenantContext = await getTenantContext();
   const params = await searchParams;
   const searchQuery = params.search?.trim() ?? "";
   const statusFilter = params.status?.trim() ?? "";
+  const startDate = params.startDate?.trim() ?? "";
+  const endDate = params.endDate?.trim() ?? "";
   const page = parseInt(params.page || "1", 10);
   const offset = (page - 1) * ITEMS_PER_PAGE;
 
   // SMS 로그 조회 (페이지네이션 적용)
-  // 검색 쿼리가 있으면 먼저 모든 로그를 가져와서 필터링 (Supabase의 텍스트 검색 제한으로 인해)
   const selectLogs = () =>
     supabase
       .from("sms_logs")
       .select(
-        "id,tenant_id,recipient_id,recipient_phone,message_content,template_id,status,sent_at,delivered_at,error_message,created_at",
+        "id,tenant_id,recipient_id,recipient_phone,message_content,template_id,status,sent_at,delivered_at,error_message,created_at,message_key,ref_key,ppurio_result_code",
         { count: "exact" }
       )
       .order("created_at", { ascending: false });
@@ -67,6 +68,14 @@ export default async function SMSResultsPage({
     query = query.eq("status", statusFilter);
   }
 
+  // 날짜 범위 필터
+  if (startDate) {
+    query = query.gte("created_at", `${startDate}T00:00:00`);
+  }
+  if (endDate) {
+    query = query.lte("created_at", `${endDate}T23:59:59`);
+  }
+
   let { data: allLogs, error, count } = await query;
 
   if (ErrorCodeCheckers.isColumnNotFound(error)) {
@@ -74,6 +83,8 @@ export default async function SMSResultsPage({
     if (statusFilter && ["pending", "sent", "delivered", "failed"].includes(statusFilter)) {
       retryQuery.eq("status", statusFilter);
     }
+    if (startDate) retryQuery.gte("created_at", `${startDate}T00:00:00`);
+    if (endDate) retryQuery.lte("created_at", `${endDate}T23:59:59`);
     ({ data: allLogs, error, count } = await retryQuery);
   }
 
@@ -167,8 +178,6 @@ export default async function SMSResultsPage({
     .select("*", { count: "exact", head: true })
     .eq("status", "failed");
 
-
-  // 필터링된 통계
   const stats = {
     total: totalStats ?? 0,
     pending: pendingStats ?? 0,
@@ -195,6 +204,8 @@ export default async function SMSResultsPage({
         stats={stats}
         searchQuery={searchQuery}
         statusFilter={statusFilter}
+        startDate={startDate}
+        endDate={endDate}
         currentPage={page}
         totalPages={totalPages}
         totalCount={totalCount}
@@ -202,4 +213,3 @@ export default async function SMSResultsPage({
     </div>
   );
 }
-

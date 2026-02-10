@@ -459,6 +459,8 @@ export async function sendSMS(
         .update({
           status: "sent",
           sent_at: new Date().toISOString(),
+          message_key: messageResponse.messageKey || null,
+          ref_key: refKeyValue || null,
         })
         .eq("id", smsLog.id);
 
@@ -860,4 +862,169 @@ export async function sendBulkSMS(
   }
 
   return results;
+}
+
+
+// ============================================================
+// 뿌리오 POLLING - 발송 결과 조회
+// ============================================================
+
+/**
+ * 뿌리오 발송 결과 보고서 항목
+ */
+export interface DeliveryReport {
+  device: string;
+  cmsgid: string;   // 고객사 메시지 ID (= ref_key)
+  msgid: string;     // 뿌리오 메시지 ID (= message_key)
+  phone: string;
+  media: string;
+  unixtime: string;
+  result: string;    // "4100" = 성공
+  userdata: string;
+  wapinfo: string;
+  refkey: string;
+}
+
+/**
+ * 뿌리오 결과코드를 내부 상태로 매핑
+ */
+export function mapPpurioResultToStatus(resultCode: string): "delivered" | "failed" {
+  return resultCode === "4100" ? "delivered" : "failed";
+}
+
+/**
+ * 뿌리오 결과코드 한글 설명 매핑
+ */
+export const PPURIO_RESULT_DESCRIPTIONS: Record<string, string> = {
+  "4100": "전달 성공",
+  "4400": "음영지역",
+  "4410": "전원 꺼짐",
+  "4420": "수신 거부",
+  "4430": "착신 정지",
+  "4500": "전송 실패",
+  "4510": "번호 오류",
+  "4520": "서비스 불가 지역",
+  "4530": "콘텐츠 에러",
+  "4600": "스팸 차단",
+};
+
+/**
+ * 뿌리오 POLLING - 발송 결과 요청
+ * POST {baseUrl}/v1/result/request
+ * 최대 1000건 배치 반환
+ */
+export async function fetchDeliveryResults(): Promise<DeliveryReport[]> {
+  if (!env.PPURIO_ACCOUNT || !env.PPURIO_AUTH_KEY) {
+    throw new Error(
+      "SMS 발송 설정이 완료되지 않았습니다. (PPURIO_ACCOUNT, PPURIO_AUTH_KEY 확인)"
+    );
+  }
+
+  const baseUrl = env.PPURIO_API_BASE_URL || "https://message.ppurio.com";
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const accessToken = await getAccessToken();
+
+    const response = await fetch(`${baseUrl}/v1/result/request`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        account: env.PPURIO_ACCOUNT,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`발송 결과 조회 실패 (HTTP ${response.status}): ${errorText}`);
+    }
+
+    const data = await response.json();
+
+    // 뿌리오 응답: 결과가 없으면 빈 배열 또는 빈 객체 반환 가능
+    if (!data || (Array.isArray(data) && data.length === 0)) {
+      return [];
+    }
+
+    // 배열이 아닌 경우 (단일 결과를 객체로 반환할 수 있음)
+    if (!Array.isArray(data)) {
+      // data가 결과 목록을 포함하는 wrapper인 경우 처리
+      if (data.results && Array.isArray(data.results)) {
+        return data.results as DeliveryReport[];
+      }
+      // data 자체가 단일 결과인 경우
+      if (data.msgid || data.cmsgid) {
+        return [data as DeliveryReport];
+      }
+      return [];
+    }
+
+    return data as DeliveryReport[];
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error) {
+      if (error.name === "AbortError") {
+        throw new Error("발송 결과 조회 요청 시간이 초과되었습니다.");
+      }
+      if (error.message === "fetch failed" || error.message.includes("fetch")) {
+        throw new Error(
+          `뿌리오 API 서버에 연결할 수 없습니다. 네트워크 연결 및 API 엔드포인트(${baseUrl})를 확인하세요.`
+        );
+      }
+    }
+    throw error;
+  }
+}
+
+/**
+ * 뿌리오 POLLING - 결과 수신 확인
+ * POST {baseUrl}/v1/result/confirm
+ * 수신 완료를 알리지 않으면 동일 결과가 재반환됨
+ */
+export async function confirmDeliveryResults(): Promise<void> {
+  const baseUrl = env.PPURIO_API_BASE_URL || "https://message.ppurio.com";
+  const accessToken = await getAccessToken();
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+  try {
+    const response = await fetch(`${baseUrl}/v1/result/confirm`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        account: env.PPURIO_ACCOUNT,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      logActionError(
+        { domain: "service", action: "confirmDeliveryResults" },
+        new Error(`결과 확인 실패 (HTTP ${response.status}): ${errorText}`),
+        {}
+      );
+    }
+  } catch (error) {
+    clearTimeout(timeoutId);
+    logActionError(
+      { domain: "service", action: "confirmDeliveryResults" },
+      error,
+      {}
+    );
+  }
 }
