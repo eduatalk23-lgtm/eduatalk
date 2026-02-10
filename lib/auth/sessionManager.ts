@@ -198,32 +198,6 @@ export async function getUserSessions(): Promise<UserSession[]> {
       return [];
     }
 
-    // 세션 정보 가져오기 (에러 발생 시 빈 배열 반환)
-    let session = null;
-    try {
-      const {
-        data: { session: currentSession },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
-      if (sessionError) {
-        // 세션이 없는 것은 정상적인 상황일 수 있음
-        const isSessionMissing =
-          sessionError.message?.includes("session") ||
-          sessionError.message?.includes("Session") ||
-          sessionError.name === "AuthSessionMissingError";
-
-        if (!isSessionMissing) {
-          logActionWarn("session.getUserSessions", `getSession 실패: ${sanitizeError(sessionError).message}`);
-        }
-      } else {
-        session = currentSession;
-      }
-    } catch (error) {
-      // getSession 실패 시 조용히 처리
-      logActionWarn("session.getUserSessions", `getSession 예외: ${sanitizeError(error).message}`);
-    }
-
     // 현재 세션 조회
     const { data: existingSessions, error: fetchError } = await supabase
       .from("user_sessions")
@@ -239,8 +213,8 @@ export async function getUserSessions(): Promise<UserSession[]> {
     const sessions = (existingSessions || []) as UserSession[];
     const hasCurrentSession = sessions.some((s) => s.is_current_session);
 
-    // 현재 세션이 없고 Supabase 세션이 있으면 현재 세션 등록
-    if (!hasCurrentSession && session) {
+    // 현재 세션이 DB에 없으면 자동 등록 (getUser()로 이미 검증된 상태)
+    if (!hasCurrentSession) {
       try {
         const userAgent = await getHeaderValue("user-agent");
         const ipAddress = await getClientIP();
@@ -255,13 +229,10 @@ export async function getUserSessions(): Promise<UserSession[]> {
             .eq("is_current_session", true);
         }
 
-        // 현재 세션 저장
-        const expiresAt = session.expires_at
-          ? new Date(session.expires_at * 1000)
-          : null;
-
-        // 세션 토큰 해싱 (보안 강화)
-        const hashedToken = await hashSessionToken(session.access_token);
+        // 고유 세션 식별자 생성 (deprecated getSession() 대신 crypto 사용)
+        const crypto = await import("crypto");
+        const sessionIdentifier = crypto.randomUUID();
+        const hashedToken = await hashSessionToken(sessionIdentifier);
 
         const { data: newSession, error: insertError } = await supabase
           .from("user_sessions")
@@ -272,7 +243,7 @@ export async function getUserSessions(): Promise<UserSession[]> {
             user_agent: userAgent,
             ip_address: ipAddress,
             is_current_session: true,
-            expires_at: expiresAt?.toISOString() || null,
+            expires_at: null,
           })
           .select()
           .single();
@@ -280,7 +251,6 @@ export async function getUserSessions(): Promise<UserSession[]> {
         if (insertError) {
           logActionError("session.getUserSessions", `현재 세션 자동 등록 실패: ${sanitizeError(insertError).message}`);
         } else if (newSession) {
-          // 새로 등록된 세션을 목록에 추가
           sessions.unshift(newSession as UserSession);
         }
       } catch (error) {

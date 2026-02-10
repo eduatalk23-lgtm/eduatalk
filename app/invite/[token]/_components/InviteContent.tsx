@@ -18,12 +18,14 @@ type InviteContentProps = {
   };
   token: string;
   isLoggedIn: boolean;
+  currentUserEmail?: string | null;
 };
 
 export function InviteContent({
   invitation,
   token,
   isLoggedIn,
+  currentUserEmail,
 }: InviteContentProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -35,7 +37,10 @@ export function InviteContent({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
 
+  const [showSwitchAccount, setShowSwitchAccount] = useState(false);
+
   const roleLabel = invitation.role === "admin" ? "관리자" : "컨설턴트";
+  const isEmailMismatch = isLoggedIn && currentUserEmail && currentUserEmail !== invitation.email;
   const expiresDate = new Date(invitation.expiresAt).toLocaleDateString("ko-KR", {
     year: "numeric",
     month: "long",
@@ -43,6 +48,13 @@ export function InviteContent({
     hour: "2-digit",
     minute: "2-digit",
   });
+
+  // 로그아웃 후 초대 페이지에 머무름
+  const handleLogoutAndStay = async () => {
+    const supabase = createSupabaseBrowserClient();
+    await supabase.auth.signOut();
+    router.refresh();
+  };
 
   // 로그인된 상태에서 초대 수락
   const handleAccept = () => {
@@ -170,12 +182,36 @@ export function InviteContent({
 
       {/* Actions */}
       {isLoggedIn ? (
-        // 로그인된 상태: 초대 수락 버튼만
-        <div className="space-y-3">
+        // 로그인된 상태: 현재 계정 정보 + 이메일 불일치 경고 + 계정 전환 옵션
+        <div className="space-y-4">
+          {/* 현재 로그인 계정 표시 */}
+          <div className="rounded-xl bg-blue-50 p-4 space-y-1">
+            <p className="text-xs text-blue-600 font-medium">현재 로그인된 계정</p>
+            <p className="text-sm font-semibold text-blue-900">{currentUserEmail || "알 수 없음"}</p>
+          </div>
+
+          {/* 이메일 불일치 경고 */}
+          {isEmailMismatch && (
+            <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 space-y-1">
+              <p className="text-sm font-medium text-amber-800">
+                초대받은 이메일과 현재 계정이 다릅니다
+              </p>
+              <p className="text-xs text-amber-600">
+                이 초대는 <strong>{invitation.email}</strong>에게 발송되었습니다.
+                현재 계정({currentUserEmail})으로 수락하면 이 계정이 팀에 등록됩니다.
+              </p>
+            </div>
+          )}
+
+          {/* 이 계정으로 수락 */}
           <button
             onClick={handleAccept}
             disabled={isPending}
-            className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className={`w-full rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
+              isEmailMismatch
+                ? "bg-amber-500 hover:bg-amber-600 focus:ring-amber-500"
+                : "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
+            }`}
           >
             {isPending ? (
               <span className="flex items-center justify-center gap-2">
@@ -197,6 +233,8 @@ export function InviteContent({
                 </svg>
                 처리 중...
               </span>
+            ) : isEmailMismatch ? (
+              `${currentUserEmail} 계정으로 수락`
             ) : (
               "초대 수락하기"
             )}
@@ -204,6 +242,64 @@ export function InviteContent({
           <p className="text-center text-xs text-gray-500">
             수락하면 {invitation.tenantName || "팀"}의 {roleLabel}로 참여하게 됩니다
           </p>
+
+          {/* 다른 계정으로 진행 */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-white px-2 text-gray-500">또는</span>
+            </div>
+          </div>
+
+          {!showSwitchAccount ? (
+            <button
+              type="button"
+              onClick={() => setShowSwitchAccount(true)}
+              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
+            >
+              다른 계정으로 진행
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-center text-xs text-gray-500">
+                로그아웃 후 다른 계정으로 가입하거나 로그인합니다
+              </p>
+              <button
+                type="button"
+                onClick={() => handleSocialLogin("google")}
+                disabled={isPending}
+                className="flex w-full items-center justify-center gap-3 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 24 24">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                </svg>
+                Google 계정으로 진행
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSocialLogin("kakao")}
+                disabled={isPending}
+                className="flex w-full items-center justify-center gap-3 rounded-xl border border-yellow-300 bg-[#FEE500] px-4 py-3 text-sm font-medium text-[#191919] shadow-sm hover:bg-[#FDD800] focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="#191919">
+                  <path d="M12 3C6.477 3 2 6.463 2 10.691c0 2.724 1.8 5.113 4.508 6.459-.2.742-.723 2.688-.828 3.105-.13.52.19.513.4.374.164-.109 2.612-1.773 3.666-2.494.718.106 1.464.163 2.254.163 5.523 0 10-3.463 10-7.691S17.523 3 12 3z" />
+                </svg>
+                카카오 계정으로 진행
+              </button>
+              <button
+                type="button"
+                onClick={handleLogoutAndStay}
+                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors"
+              >
+                로그아웃 후 이메일로 진행
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         // 로그인 안 된 상태: 회원가입/로그인 탭

@@ -177,13 +177,67 @@ export const deleteAdminUser = withErrorHandling(
 
     const supabase = await createSupabaseServerClient();
 
-    // 삭제 쿼리 (일반 Admin은 자기 tenant 내에서만 삭제 가능)
-    let deleteQuery = supabase
+    // 삭제 대상 확인
+    const { data: targetUser } = await supabase
+      .from("admin_users")
+      .select("id, role, tenant_id, is_owner")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (!targetUser) {
+      throw new AppError(
+        "대상 관리자를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    // Owner 보호: 대표 관리자는 superadmin만 제거 가능
+    if (targetUser.is_owner && currentRole !== "superadmin") {
+      throw new AppError(
+        "대표 관리자는 제거할 수 없습니다.",
+        ErrorCode.FORBIDDEN,
+        403,
+        true
+      );
+    }
+
+    // Non-owner admin은 consultant만 제거 가능
+    if (currentRole === "admin") {
+      const { data: currentAdmin } = await supabase
+        .from("admin_users")
+        .select("is_owner")
+        .eq("id", currentUserId)
+        .maybeSingle();
+
+      if (!currentAdmin?.is_owner && targetUser.role !== "consultant") {
+        throw new AppError(
+          "관리자를 제거할 권한이 없습니다.",
+          ErrorCode.FORBIDDEN,
+          403,
+          true
+        );
+      }
+    }
+
+    // 삭제 쿼리 (RLS에 DELETE 정책이 없으므로 admin client 사용, 권한 검증은 위에서 완료)
+    const adminDeleteClient = createSupabaseAdminClient();
+    if (!adminDeleteClient) {
+      throw new AppError(
+        "서버 오류가 발생했습니다.",
+        ErrorCode.INTERNAL_ERROR,
+        500,
+        true
+      );
+    }
+
+    let deleteQuery = adminDeleteClient
       .from("admin_users")
       .delete()
       .eq("id", userId);
 
-    // 일반 Admin인 경우 tenant_id로 필터링
+    // 일반 Admin인 경우 tenant_id로 필터링 (추가 안전장치)
     if (currentRole === "admin" && tenantId) {
       deleteQuery = deleteQuery.eq("tenant_id", tenantId);
     }

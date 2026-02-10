@@ -15,7 +15,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { AppError, ErrorCode, withErrorHandling, logError } from "@/lib/errors";
+import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { logActionSuccess, logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { saveUserSession } from "@/lib/auth/sessionManager";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
@@ -199,201 +199,73 @@ async function ensureUserRecord(user: UserWithSignupMetadata): Promise<void> {
 }
 
 /**
- * 연결 코드로 학생 계정 연결
+ * 초대 코드로 학생 계정 연결
  */
-async function linkStudentWithConnectionCode(
+async function linkStudentWithInviteCode(
   userId: string,
-  connectionCode: string
+  inviteCode: string
 ): Promise<AuthResult> {
   try {
-    const adminResult = getAdminClientOrError();
-    if (!adminResult.success) {
-      const studentError = toStudentError(
-        new Error(adminResult.error),
-        StudentErrorCodes.RLS_POLICY_VIOLATION,
-        { userId, connectionCode }
-      );
-      logError(studentError, {
-        function: "linkStudentWithConnectionCode",
-        userId,
-        connectionCode,
-        reason: "Admin client creation failed",
-      });
-      return { success: false, error: studentError.userMessage };
-    }
-    const supabase = adminResult.client;
+    const { useInviteCode } = await import("@/lib/domains/invite");
+    const result = await useInviteCode(inviteCode, userId);
 
-    const { data, error } = await supabase.rpc(
-      "link_student_with_connection_code",
-      {
-        p_user_id: userId,
-        p_connection_code: connectionCode,
-      }
-    );
-
-    if (error) {
-      const studentError = toStudentError(
-        error,
-        StudentErrorCodes.LINK_STUDENT_FAILED,
-        { userId, connectionCode }
+    if (!result.success) {
+      logActionError(
+        { domain: "auth", action: "linkStudentWithInviteCode", userId },
+        new Error(result.error || "초대 코드 연결 실패"),
+        { inviteCode }
       );
-      logError(studentError, {
-        function: "linkStudentWithConnectionCode",
-        userId,
-        connectionCode,
-        supabaseError: error,
-      });
-      return { success: false, error: studentError.userMessage };
-    }
-
-    // RPC 응답을 타입 캐스팅
-    const rpcResponse = data as { success?: boolean; error?: string; student_id?: string } | null;
-    if (!rpcResponse || !rpcResponse.success) {
-      const errorMessage = rpcResponse?.error || "학생 계정 연결에 실패했습니다.";
-      const studentError = toStudentError(
-        new Error(errorMessage),
-        StudentErrorCodes.LINK_STUDENT_FAILED,
-        { userId, connectionCode, functionError: errorMessage }
-      );
-      logError(studentError, {
-        function: "linkStudentWithConnectionCode",
-        userId,
-        connectionCode,
-        functionResponse: rpcResponse,
-      });
-      return { success: false, error: studentError.userMessage };
+      return { success: false, error: result.error || "학생 계정 연결에 실패했습니다." };
     }
 
     logActionSuccess(
-      { domain: "auth", action: "linkStudentWithConnectionCode", userId },
-      {
-        connectionCode,
-        studentId: rpcResponse.student_id,
-        oldStudentId: (rpcResponse as Record<string, unknown>).old_student_id,
-      }
-    );
-
-    return { success: true };
-  } catch (error) {
-    const studentError = toStudentError(
-      error,
-      StudentErrorCodes.UNKNOWN_ERROR,
-      { userId, connectionCode }
-    );
-    logError(studentError, {
-      function: "linkStudentWithConnectionCode",
-      userId,
-      connectionCode,
-      exception: true,
-    });
-    return { success: false, error: studentError.userMessage };
-  }
-}
-
-/**
- * 학부모 회원가입 시 연결 코드로 자녀(학생) 연결
- * 연결 코드로 학생을 찾아 parent_student_links에 레코드 추가
- */
-async function linkParentWithConnectionCode(
-  parentId: string,
-  connectionCode: string,
-  relation: string,
-  tenantId: string
-): Promise<AuthResult> {
-  try {
-    const adminResult = getAdminClientOrError();
-    if (!adminResult.success) {
-      logActionError(
-        { domain: "auth", action: "linkParentWithConnectionCode", userId: parentId },
-        new Error(adminResult.error),
-        { connectionCode }
-      );
-      return { success: false, error: adminResult.error };
-    }
-    const supabase = adminResult.client;
-
-    // 1. 연결 코드로 학생 찾기
-    const { data: codeData, error: codeError } = await supabase
-      .from("student_connection_codes")
-      .select("student_id, expires_at, used_at")
-      .eq("connection_code", connectionCode.toUpperCase())
-      .maybeSingle();
-
-    if (codeError) {
-      logActionError(
-        { domain: "auth", action: "linkParentWithConnectionCode", userId: parentId },
-        codeError,
-        { connectionCode }
-      );
-      return { success: false, error: "연결 코드 확인 중 오류가 발생했습니다." };
-    }
-
-    if (!codeData) {
-      return { success: false, error: "유효하지 않은 연결 코드입니다." };
-    }
-
-    // 2. 만료 확인
-    if (new Date(codeData.expires_at) < new Date()) {
-      return { success: false, error: "만료된 연결 코드입니다." };
-    }
-
-    // 3. 이미 연결되어 있는지 확인
-    const { data: existingLink } = await supabase
-      .from("parent_student_links")
-      .select("id")
-      .eq("parent_id", parentId)
-      .eq("student_id", codeData.student_id)
-      .maybeSingle();
-
-    if (existingLink) {
-      return { success: true }; // 이미 연결됨
-    }
-
-    // 4. parent_student_links에 레코드 추가
-    const { error: linkError } = await supabase
-      .from("parent_student_links")
-      .insert({
-        parent_id: parentId,
-        student_id: codeData.student_id,
-        relation: relation,
-        tenant_id: tenantId,
-        is_approved: true, // 연결 코드 사용 시 자동 승인
-        approved_at: new Date().toISOString(),
-      });
-
-    if (linkError) {
-      logActionError(
-        { domain: "auth", action: "linkParentWithConnectionCode", userId: parentId },
-        linkError,
-        { connectionCode, studentId: codeData.student_id }
-      );
-      return { success: false, error: "자녀 연결에 실패했습니다." };
-    }
-
-    // 5. 가족 통합 처리 (형제자매 자동 감지)
-    try {
-      const { handleParentLinkApproval } = await import("@/lib/domains/family");
-      await handleParentLinkApproval(parentId, codeData.student_id, relation);
-    } catch (familyError) {
-      // 가족 통합 실패는 연결 성공에 영향을 주지 않음
-      logActionDebug(
-        { domain: "auth", action: "linkParentWithConnectionCode", userId: parentId },
-        "가족 통합 처리 실패 (무시됨)",
-        { error: familyError instanceof Error ? familyError.message : String(familyError) }
-      );
-    }
-
-    logActionSuccess(
-      { domain: "auth", action: "linkParentWithConnectionCode", userId: parentId },
-      { connectionCode, studentId: codeData.student_id, relation }
+      { domain: "auth", action: "linkStudentWithInviteCode", userId },
+      { inviteCode, studentId: result.studentId }
     );
 
     return { success: true };
   } catch (error) {
     logActionError(
-      { domain: "auth", action: "linkParentWithConnectionCode", userId: parentId },
+      { domain: "auth", action: "linkStudentWithInviteCode", userId },
       error,
-      { connectionCode }
+      { inviteCode }
+    );
+    return { success: false, error: "학생 계정 연결 중 오류가 발생했습니다." };
+  }
+}
+
+/**
+ * 학부모 회원가입 시 초대 코드로 자녀(학생) 연결
+ */
+async function linkParentWithInviteCode(
+  parentId: string,
+  inviteCode: string,
+  relation: string
+): Promise<AuthResult> {
+  try {
+    const { useInviteCode } = await import("@/lib/domains/invite");
+    const result = await useInviteCode(inviteCode, parentId, relation);
+
+    if (!result.success) {
+      logActionError(
+        { domain: "auth", action: "linkParentWithInviteCode", userId: parentId },
+        new Error(result.error || "초대 코드 연결 실패"),
+        { inviteCode }
+      );
+      return { success: false, error: result.error || "자녀 연결에 실패했습니다." };
+    }
+
+    logActionSuccess(
+      { domain: "auth", action: "linkParentWithInviteCode", userId: parentId },
+      { inviteCode, studentId: result.studentId, relation }
+    );
+
+    return { success: true };
+  } catch (error) {
+    logActionError(
+      { domain: "auth", action: "linkParentWithInviteCode", userId: parentId },
+      error,
+      { inviteCode }
     );
     return { success: false, error: "자녀 연결 중 오류가 발생했습니다." };
   }
@@ -730,7 +602,7 @@ export async function signUp(
 
       if (userRole === "student") {
         if (connectionCode) {
-          const linkResult = await linkStudentWithConnectionCode(
+          const linkResult = await linkStudentWithInviteCode(
             authData.user.id,
             connectionCode
           );
@@ -763,14 +635,13 @@ export async function signUp(
           // createParentRecord에서 이미 로깅됨
         }
 
-        // 연결 코드가 있으면 자녀와 연결
-        if (connectionCode && userTenantId) {
+        // 초대 코드가 있으면 자녀와 연결
+        if (connectionCode) {
           const relationValue = relation || "guardian";
-          const linkResult = await linkParentWithConnectionCode(
+          const linkResult = await linkParentWithInviteCode(
             authData.user.id,
             connectionCode,
-            relationValue,
-            userTenantId
+            relationValue
           );
           if (linkResult.success) {
             logActionSuccess(
@@ -1269,7 +1140,7 @@ export async function setupOAuthUserRole(
     if (role === "student") {
       if (connectionCode) {
         // 연결 코드로 기존 학생 계정 연결 시도
-        const linkResult = await linkStudentWithConnectionCode(user.id, connectionCode);
+        const linkResult = await linkStudentWithInviteCode(user.id, connectionCode);
         if (linkResult.success) {
           logActionSuccess(
             { domain: "auth", action: "setupOAuthUserRole", userId: user.id },
@@ -1299,14 +1170,13 @@ export async function setupOAuthUserRole(
         return createErrorResponse(result.error || "학부모 등록에 실패했습니다.");
       }
 
-      // 연결 코드가 있으면 자녀와 연결
-      if (connectionCode && tenantId) {
+      // 초대 코드가 있으면 자녀와 연결
+      if (connectionCode) {
         const relationValue = relation || "guardian";
-        const linkResult = await linkParentWithConnectionCode(
+        const linkResult = await linkParentWithInviteCode(
           user.id,
           connectionCode,
-          relationValue,
-          tenantId
+          relationValue
         );
         if (linkResult.success) {
           logActionSuccess(

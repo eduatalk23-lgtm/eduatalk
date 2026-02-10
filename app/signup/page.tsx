@@ -255,11 +255,11 @@ function SignupContent() {
           />
         )}
 
-        {/* 연결 코드 입력 (학생/학부모 모두) */}
+        {/* 초대 코드 입력 (학생/학부모 모두) */}
         {selectedRole && (
           <div className="flex flex-col gap-2">
             <label htmlFor="connection_code" className="text-sm font-medium text-gray-700">
-              연결 코드 <span className="text-gray-500">(선택사항)</span>
+              초대 코드 <span className="text-gray-500">(선택사항)</span>
             </label>
             <input
               id="connection_code"
@@ -267,13 +267,13 @@ function SignupContent() {
               type="text"
               value={connectionCode}
               onChange={(e) => setConnectionCode(e.target.value.toUpperCase())}
-              placeholder="STU-XXXX-XXXX"
+              placeholder="INV-XXXX-XXXX"
               className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm uppercase"
             />
             <p className="text-xs text-gray-500">
               {selectedRole === "student"
-                ? "관리자가 발급한 연결 코드가 있다면 입력하세요. 기존 학생 정보와 계정이 자동으로 연결됩니다."
-                : "자녀의 연결 코드가 있다면 입력하세요. 자녀 계정과 자동으로 연결됩니다."}
+                ? "관리자가 발급한 초대 코드가 있다면 입력하세요. 기존 학생 정보와 계정이 자동으로 연결됩니다."
+                : "자녀의 초대 코드가 있다면 입력하세요. 자녀 계정과 자동으로 연결됩니다."}
             </p>
           </div>
         )}

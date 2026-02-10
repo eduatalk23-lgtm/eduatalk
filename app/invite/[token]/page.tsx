@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getInvitationByToken } from "@/lib/domains/team/actions/invitations";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AnimatedBackground } from "@/app/login/_components/AnimatedBackground";
 import { GlassCard } from "@/app/login/_components/GlassCard";
 import { InviteContent } from "./_components/InviteContent";
@@ -49,9 +50,15 @@ export default async function InvitePage({ params }: InvitePageProps) {
     userId: null,
     role: null,
   };
+  let currentUserEmail: string | null = null;
 
   try {
     currentUser = await getCurrentUserRole();
+    if (currentUser.userId) {
+      const supabase = await createSupabaseServerClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      currentUserEmail = user?.email ?? null;
+    }
   } catch {
     // 로그인 안 된 상태 - 정상적인 케이스
   }
@@ -70,6 +77,7 @@ export default async function InvitePage({ params }: InvitePageProps) {
           }}
           token={token}
           isLoggedIn={!!currentUser.userId}
+          currentUserEmail={currentUserEmail}
         />
       </GlassCard>
     </section>
