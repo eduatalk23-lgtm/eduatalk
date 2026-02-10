@@ -16,7 +16,6 @@ import { StudentActions } from "../../_components/StudentActions";
 type StudentInfoEditFormProps = {
   studentId: string;
   studentName: string | null;
-  isActive: boolean | null;
   initialData: StudentInfoData | null;
   isAdmin: boolean;
   studentEmail: string | null;
@@ -25,7 +24,6 @@ type StudentInfoEditFormProps = {
 export default function StudentInfoEditForm({
   studentId,
   studentName,
-  isActive,
   initialData,
   isAdmin,
   studentEmail,
@@ -111,7 +109,6 @@ export default function StudentInfoEditForm({
         <StudentActions
           studentId={studentId}
           studentName={studentName ?? "이름 없음"}
-          isActive={isActive !== false}
           isAdmin={isAdmin}
         />
       </div>
@@ -128,7 +125,6 @@ export default function StudentInfoEditForm({
                 control={control}
                 schoolType={schoolType}
                 setSchoolType={setSchoolType}
-                displaySchoolName={initialData?.school_name}
               />
             </div>
 
@@ -137,7 +133,7 @@ export default function StudentInfoEditForm({
             </div>
           </div>
 
-          {/* 오른쪽: 프로필 정보 */}
+          {/* 오른쪽: 계정 정보 */}
           <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <ProfileInfoSection control={control} studentEmail={studentEmail} />
           </div>

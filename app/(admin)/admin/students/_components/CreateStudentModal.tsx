@@ -22,7 +22,7 @@ export function CreateStudentModal({
 
   const handleSuccess = (studentId: string, connectionCode: string) => {
     showSuccess(
-      `학생이 등록되었습니다. 연결 코드: ${connectionCode} (연결 코드를 복사하세요)`
+      `학생이 등록되었습니다. 초대 코드: ${connectionCode} (초대 코드를 복사하세요)`
     );
     onSuccess?.(studentId, connectionCode);
     onOpenChange(false);
@@ -37,7 +37,7 @@ export function CreateStudentModal({
       open={open}
       onOpenChange={onOpenChange}
       title="신규 학생 등록"
-      description="학생 정보를 입력하고 연결 코드를 생성합니다."
+      description="학생 정보를 입력하고 초대 코드를 생성합니다."
       size="4xl"
       showCloseButton
     >

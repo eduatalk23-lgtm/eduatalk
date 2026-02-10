@@ -30,6 +30,7 @@ export function transformStudentToFormData(
       desired_university_ids: [],
       desired_career_field: "",
       // 관리자 전용 필드
+      class: "",
       division: "",
       memo: "",
       status: "",

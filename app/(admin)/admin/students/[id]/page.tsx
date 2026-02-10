@@ -29,11 +29,7 @@ import { ScoreTrendSectionSkeleton } from "./_components/ScoreTrendSectionSkelet
 import { SessionListSectionSkeleton } from "./_components/SessionListSectionSkeleton";
 import { AnalysisReportSectionSkeleton } from "./_components/AnalysisReportSectionSkeleton";
 import { ConsultingNotesSectionSkeleton } from "./_components/ConsultingNotesSectionSkeleton";
-import { ParentLinksSection } from "./_components/ParentLinksSection";
-import { ParentLinksSectionSkeleton } from "./_components/ParentLinksSectionSkeleton";
-import { ConnectionCodeSection } from "./_components/ConnectionCodeSection";
-import { FamilySection } from "./_components/FamilySection";
-import { FamilySectionSkeleton } from "./_components/FamilySectionSkeleton";
+import { ConnectionSection } from "./_components/ConnectionSection";
 import { TimeManagementSection } from "./_components/time-management/TimeManagementSection";
 import { TimeManagementSectionSkeleton } from "./_components/time-management/TimeManagementSectionSkeleton";
 
@@ -41,7 +37,7 @@ type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
 >;
 
-type TabType = "basic" | "plan" | "content" | "score" | "session" | "analysis" | "consulting" | "attendance" | "time";
+type TabType = "basic" | "plan" | "content" | "score" | "session" | "analysis" | "consulting" | "attendance" | "time" | "risk";
 
 export default async function AdminStudentDetailPage({
   params,
@@ -58,7 +54,7 @@ export default async function AdminStudentDetailPage({
 
   const { id: studentId } = await params;
   const paramsObj = await searchParams;
-  const VALID_TABS: TabType[] = ["basic", "plan", "content", "score", "session", "analysis", "consulting", "attendance", "time"];
+  const VALID_TABS: TabType[] = ["basic", "plan", "content", "score", "session", "analysis", "consulting", "attendance", "time", "risk"];
   const rawTab = paramsObj.tab as TabType;
   const defaultTab: TabType = VALID_TABS.includes(rawTab) ? rawTab : "basic";
 
@@ -73,7 +69,8 @@ export default async function AdminStudentDetailPage({
     throw new Error("Admin client를 초기화할 수 없습니다. SUPABASE_SERVICE_ROLE_KEY를 확인해주세요.");
   }
   
-  const [studentResult, profileResult, careerGoalResult] = await Promise.all([
+  // 4개 쿼리 병렬 실행 (이메일은 getUserById로 단건 조회)
+  const [studentResult, profileResult, careerGoalResult, authUserResult] = await Promise.all([
     supabase
       .from("students")
       .select("id,name,grade,class,birth_date,school_id,school_name,school_type,division,memo,status,is_active,created_at,updated_at")
@@ -89,6 +86,7 @@ export default async function AdminStudentDetailPage({
       .select("*")
       .eq("student_id", studentId)
       .maybeSingle(),
+    adminClient.auth.admin.getUserById(studentId),
   ]);
 
   if (studentResult.error || !studentResult.data) {
@@ -98,11 +96,7 @@ export default async function AdminStudentDetailPage({
   const student = studentResult.data;
   const profile = profileResult.data;
   const careerGoal = careerGoalResult.data;
-
-  // 이메일 조회
-  const { getAuthUserMetadata } = await import("@/lib/utils/authUserMetadata");
-  const userMetadata = await getAuthUserMetadata(adminClient, [studentId]);
-  const email = userMetadata.get(studentId)?.email ?? null;
+  const email = authUserResult.data?.user?.email ?? null;
 
   // 통합 데이터 구성
   const studentInfoData: StudentInfoData = {
@@ -145,32 +139,19 @@ export default async function AdminStudentDetailPage({
             backLabel="학생 목록으로"
           />
 
-          {/* 위험 분석 및 추천 (항상 표시) */}
-          <div className="grid gap-6 md:grid-cols-2">
-            <RiskCard studentId={studentId} />
-            <RecommendationPanel studentId={studentId} />
-          </div>
-
           {/* 탭 구조 */}
           <StudentDetailTabs defaultTab={defaultTab}>
             {/* 기본정보 탭 */}
             {defaultTab === "basic" && (
               <div className="space-y-6">
-                <ConnectionCodeSection studentId={studentId} />
                 <StudentInfoEditForm
                   studentId={studentId}
                   studentName={student.name}
-                  isActive={student.is_active ?? true}
                   initialData={studentInfoData}
                   isAdmin={role === "admin"}
                   studentEmail={email}
                 />
-                <Suspense fallback={<FamilySectionSkeleton />}>
-                  <FamilySection studentId={studentId} />
-                </Suspense>
-                <Suspense fallback={<ParentLinksSectionSkeleton />}>
-                  <ParentLinksSection studentId={studentId} />
-                </Suspense>
+                <ConnectionSection studentId={studentId} />
               </div>
             )}
 
@@ -245,6 +226,33 @@ export default async function AdminStudentDetailPage({
             {defaultTab === "time" && (
               <Suspense fallback={<TimeManagementSectionSkeleton />}>
                 <TimeManagementSection studentId={studentId} />
+              </Suspense>
+            )}
+
+            {/* 위험도/추천 탭 */}
+            {defaultTab === "risk" && (
+              <Suspense
+                fallback={
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <div className="rounded-lg border border-gray-200 bg-white p-6">
+                      <div className="space-y-3">
+                        <div className="h-4 w-1/2 animate-pulse rounded bg-gray-200" />
+                        <div className="h-4 w-3/4 animate-pulse rounded bg-gray-200" />
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-gray-200 bg-white p-6">
+                      <div className="space-y-3">
+                        <div className="h-4 w-1/2 animate-pulse rounded bg-gray-200" />
+                        <div className="h-4 w-3/4 animate-pulse rounded bg-gray-200" />
+                      </div>
+                    </div>
+                  </div>
+                }
+              >
+                <div className="grid gap-6 md:grid-cols-2">
+                  <RiskCard studentId={studentId} />
+                  <RecommendationPanel studentId={studentId} />
+                </div>
               </Suspense>
             )}
           </StudentDetailTabs>

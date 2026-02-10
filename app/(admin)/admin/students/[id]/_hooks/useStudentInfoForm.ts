@@ -29,12 +29,10 @@ export function useStudentInfoForm({
     shouldUnregister: false,
   });
 
-  // 초기 데이터가 변경되면 폼 리셋
+  // 초기 데이터가 변경되면 폼 리셋 (null → 빈 폼 포함)
   useEffect(() => {
-    if (initialData) {
-      const newDefaultValues = transformStudentToFormData(initialData);
-      form.reset(newDefaultValues);
-    }
+    const newDefaultValues = transformStudentToFormData(initialData);
+    form.reset(newDefaultValues);
   }, [initialData, form]);
 
   // 필드별 유효성 검증

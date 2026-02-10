@@ -754,74 +754,9 @@ export async function updateStudentInfo(
   return { success: true };
 }
 
-/**
- * 연결 코드 생성 (STU-XXXX-XXXX 형식)
- * crypto.getRandomValues를 사용하여 보안 강화
- */
-function generateConnectionCode(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  
-  // crypto.getRandomValues를 사용하여 보안 강화
-  const getRandomChar = () => {
-    const randomArray = new Uint32Array(1);
-    crypto.getRandomValues(randomArray);
-    const index = randomArray[0] % chars.length;
-    return chars[index];
-  };
-  
-  const part1 = Array.from({ length: 4 }, getRandomChar).join("");
-  const part2 = Array.from({ length: 4 }, getRandomChar).join("");
-  
-  return `STU-${part1}-${part2}`;
-}
+// Connection code helpers removed - now using invite domain
 
-/**
- * 고유 연결 코드 생성 (중복 체크 포함)
- * 
- * @param supabase - Supabase 클라이언트
- * @param maxRetries - 최대 재시도 횟수 (기본값: 10)
- * @returns 고유한 연결 코드
- */
-async function generateUniqueConnectionCode(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  maxRetries = 10
-): Promise<string> {
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const code = generateConnectionCode();
-    
-    // 중복 체크
-    const { data, error } = await supabase
-      .from("student_connection_codes")
-      .select("id")
-      .eq("connection_code", code)
-      .maybeSingle();
-    
-    if (error && error.code !== "PGRST116") {
-      // PGRST116은 "no rows returned" 에러이므로 정상
-      logActionError(
-        { domain: "student", action: "generateUniqueConnectionCode" },
-        error,
-        { code, attempt }
-      );
-      throw new Error("연결 코드 생성 중 오류가 발생했습니다.");
-    }
-    
-    // 중복이 없으면 반환
-    if (!data) {
-      return code;
-    }
-    
-    // 중복이 있으면 재시도
-    logActionWarn(
-      { domain: "student", action: "generateUniqueConnectionCode" },
-      `연결 코드 중복 감지, 재시도 ${attempt + 1}/${maxRetries}`,
-      { code, attempt }
-    );
-  }
-  
-  // 최대 재시도 횟수 초과
-  throw new Error("고유한 연결 코드를 생성할 수 없습니다. 다시 시도해주세요.");
-}
+// generateUniqueConnectionCode removed - now using invite domain
 
 /**
  * 신규 학생 등록 (인증 계정 없이)
@@ -968,31 +903,25 @@ export async function createStudent(
       }
     }
 
-    // 4. 연결 코드 생성 및 저장 (고유 코드 생성 함수 사용)
-    const connectionCode = await generateUniqueConnectionCode(supabase);
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30); // 30일 후 만료
+    // 4. 초대 코드 생성 (invite_codes 테이블)
+    const { createInviteCode } = await import("@/lib/domains/invite");
+    const inviteResult = await createInviteCode({
+      studentId,
+      targetRole: "student",
+    });
 
-    const { error: codeError } = await supabase
-      .from("student_connection_codes")
-      .insert({
-        student_id: studentId,
-        connection_code: connectionCode,
-        expires_at: expiresAt.toISOString(),
-        created_by: userId,
-      });
-
-    if (codeError) {
+    if (!inviteResult.success) {
       logActionError(
         { domain: "student", action: "createStudent" },
-        codeError,
-        { studentId, step: "student_connection_codes" }
+        new Error(inviteResult.error || "초대 코드 생성 실패"),
+        { studentId, step: "invite_codes" }
       );
       return {
         success: false,
-        error: `연결 코드 저장에 실패했습니다: ${codeError.message}`,
+        error: inviteResult.error || "초대 코드 생성에 실패했습니다.",
       };
     }
+    const connectionCode = inviteResult.code;
 
     revalidatePath("/admin/students");
 
@@ -1016,117 +945,6 @@ export async function createStudent(
 // validateConnectionCode 함수는 lib/utils/connectionCodeUtils.ts로 이동되었습니다.
 // 사용처가 없으므로 제거되었습니다.
 
-/**
- * 연결 코드 재발급
- * 
- * @param studentId - 학생 ID
- * @returns 새로운 연결 코드
- */
-export async function regenerateConnectionCode(
-  studentId: string
-): Promise<{
-  success: boolean;
-  connectionCode?: string;
-  error?: string;
-}> {
-  const { role, tenantId, userId } = await getCurrentUserRole();
+// regenerateConnectionCode removed - use createInviteCode from invite domain
 
-  if (role !== "admin" && role !== "consultant") {
-    return { success: false, error: "권한이 없습니다." };
-  }
-
-  if (!tenantId || !userId) {
-    return { success: false, error: "사용자 정보를 찾을 수 없습니다." };
-  }
-
-  const supabase = await createSupabaseServerClient();
-
-  // 기존 코드 비활성화 (used_at 설정)
-  await supabase
-    .from("student_connection_codes")
-    .update({ used_at: new Date().toISOString() })
-    .eq("student_id", studentId)
-    .is("used_at", null);
-
-  // 새 코드 생성 (고유 코드 생성 함수 사용)
-  const connectionCode = await generateUniqueConnectionCode(supabase);
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 30); // 30일 후 만료
-
-  const { error: codeError } = await supabase
-    .from("student_connection_codes")
-    .insert({
-      student_id: studentId,
-      connection_code: connectionCode,
-      expires_at: expiresAt.toISOString(),
-      created_by: userId,
-    });
-
-  if (codeError) {
-    logActionError(
-      { domain: "student", action: "regenerateConnectionCode" },
-      codeError,
-      { studentId }
-    );
-    return {
-      success: false,
-      error: `연결 코드 재발급에 실패했습니다: ${codeError.message}`,
-    };
-  }
-
-  revalidatePath(`/admin/students/${studentId}`);
-
-  return {
-    success: true,
-    connectionCode,
-  };
-}
-
-/**
- * 학생의 연결 코드 조회
- * 
- * @param studentId - 학생 ID
- * @returns 연결 코드 정보
- */
-export async function getStudentConnectionCode(
-  studentId: string
-): Promise<{
-  success: boolean;
-  data?: {
-    connection_code: string;
-    expires_at: string;
-    used_at: string | null;
-  } | null;
-  error?: string;
-}> {
-  const { role } = await getCurrentUserRole();
-
-  if (role !== "admin" && role !== "consultant") {
-    return { success: false, error: "권한이 없습니다." };
-  }
-
-  const supabase = await createSupabaseServerClient();
-
-  const { data, error } = await supabase
-    .from("student_connection_codes")
-    .select("connection_code, expires_at, used_at")
-    .eq("student_id", studentId)
-    .is("used_at", null)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    logActionError(
-      { domain: "student", action: "getStudentConnectionCode" },
-      error,
-      { studentId }
-    );
-    return { success: false, error: error.message || "연결 코드를 조회할 수 없습니다." };
-  }
-
-  return {
-    success: true,
-    data: data ?? null,
-  };
-}
+// getStudentConnectionCode removed - use getStudentInviteCodes from invite domain

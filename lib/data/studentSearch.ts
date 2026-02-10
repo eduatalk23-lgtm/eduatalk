@@ -34,6 +34,8 @@ export type StudentSearchResult = {
   phone: string | null;
   mother_phone: string | null;
   father_phone: string | null;
+  school_name: string | null;
+  gender: "남" | "여" | null;
   matched_field: "name" | "phone" | "mother_phone" | "father_phone" | null;
 };
 
@@ -337,7 +339,7 @@ export async function searchStudentsUnified(
   const baseQuery = buildBaseQuery(adminClient, filters, excludeStudentIds, tenantId);
   const { data: students, error: studentsError } = await baseQuery
     .in("id", studentIds)
-    .select("id, name, grade, class, division, is_active");
+    .select("id, name, grade, class, division, is_active, school_name");
 
   if (studentsError) {
     console.error("[studentSearch] 학생 데이터 조회 실패", studentsError);
@@ -348,10 +350,16 @@ export async function searchStudentsUnified(
     return { students: [], total: 0 };
   }
 
-  // 4단계: 연락처 정보 일괄 조회
+  // 4단계: 연락처 + 성별 정보 일괄 조회
   const { getStudentPhonesBatch } = await import("@/lib/utils/studentPhoneUtils");
-  const phoneDataList = await getStudentPhonesBatch(studentIds);
+  const [phoneDataList, genderResult] = await Promise.all([
+    getStudentPhonesBatch(studentIds),
+    adminClient.from("student_profiles").select("id, gender").in("id", studentIds),
+  ]);
   const phoneDataMap = new Map(phoneDataList.map((p) => [p.id, p]));
+  const genderMap = new Map(
+    (genderResult.data ?? []).map((p: { id: string; gender: string | null }) => [p.id, p.gender])
+  );
 
   // 5단계: 결과 매핑 및 matched_field 설정
   const results: StudentSearchResult[] = students.map((student) => {
@@ -373,6 +381,8 @@ export async function searchStudentsUnified(
       phone: phoneData?.phone ?? null,
       mother_phone: phoneData?.mother_phone ?? null,
       father_phone: phoneData?.father_phone ?? null,
+      school_name: student.school_name ?? null,
+      gender: (genderMap.get(student.id) as "남" | "여" | null) ?? null,
       matched_field: matchedField,
     };
   });

@@ -112,7 +112,6 @@ export function BasicInfoSection({
         <StudentActions
           studentId={student.id}
           studentName={student.name ?? "이름 없음"}
-          isActive={student.is_active !== false}
           isAdmin={isAdmin}
         />
       </div>

@@ -28,8 +28,6 @@ export {
   updateStudentClass,
   updateStudentInfo,
   createStudent,
-  regenerateConnectionCode,
-  getStudentConnectionCode,
 } from "./management";
 
 // ============================================
@@ -40,17 +38,11 @@ export {
   type StudentParent,
   type SearchableParent,
   type ParentRelation,
-  type PendingLinkRequest,
   getStudentParents,
   searchParents,
   createParentStudentLink,
   deleteParentStudentLink,
   updateLinkRelation,
-  getPendingLinkRequests,
-  approveLinkRequest,
-  rejectLinkRequest,
-  approveLinkRequests,
-  rejectLinkRequests,
 } from "./parentLinks";
 
 // ============================================
@@ -92,3 +84,18 @@ export {
   type NotificationSettings,
   updateNotificationSettings,
 } from "./notifications";
+
+// ============================================
+// Student Search & Detail (학생 검색/상세 - Admin)
+// ============================================
+
+export {
+  type StudentSearchItem,
+  type SearchStudentsResult,
+  searchStudentsAction,
+} from "./search";
+
+export {
+  type StudentDetailResult,
+  getStudentDetailAction,
+} from "./detail";

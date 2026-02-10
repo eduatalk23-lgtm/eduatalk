@@ -31,7 +31,6 @@ import {
   Radio,
   AlertTriangle,
   UserCircle,
-  ListPlus,
   Sparkles,
   UserPlus,
   GraduationCap,
@@ -58,21 +57,9 @@ export const adminCategories: NavigationCategory[] = [
     items: [
       {
         id: "admin-students-list",
-        label: "학생 목록",
+        label: "학생 조회",
         href: "/admin/students",
         icon: <Users className="w-4 h-4" />,
-      },
-      {
-        id: "admin-plan-creation",
-        label: "플랜 생성",
-        href: "/admin/plan-creation",
-        icon: <ListPlus className="w-4 h-4" />,
-      },
-      {
-        id: "admin-parent-links",
-        label: "학부모 연결 관리",
-        href: "/admin/parent-links",
-        icon: <UsersRound className="w-4 h-4" />,
       },
       {
         id: "admin-students-divisions",
@@ -298,6 +285,31 @@ export const adminCategories: NavigationCategory[] = [
         label: "학생 통합 관리",
         href: "/admin/camp-students",
         icon: <UserCircle className="w-4 h-4" />,
+      },
+    ],
+  },
+  {
+    id: "admin-crm",
+    label: "세일즈 관리",
+    icon: <Target className="w-4 h-4" />,
+    items: [
+      {
+        id: "admin-crm-pipeline",
+        label: "파이프라인",
+        href: "/admin/crm",
+        icon: <BarChart3 className="w-4 h-4" />,
+      },
+      {
+        id: "admin-crm-leads",
+        label: "리드 목록",
+        href: "/admin/crm/leads",
+        icon: <Users className="w-4 h-4" />,
+      },
+{
+        id: "admin-crm-tasks",
+        label: "태스크 센터",
+        href: "/admin/crm/tasks",
+        icon: <CheckCircle className="w-4 h-4" />,
       },
     ],
   },
