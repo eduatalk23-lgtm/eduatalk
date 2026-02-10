@@ -44,6 +44,10 @@ export default async function AdminSettingsPage() {
             initialName={myProfile.name}
             email={myProfile.email}
             role={myProfile.role}
+            initialProfileImageUrl={myProfile.profileImageUrl}
+            initialJobTitle={myProfile.jobTitle}
+            initialDepartment={myProfile.department}
+            initialPhone={myProfile.phone}
           />
         )}
 
