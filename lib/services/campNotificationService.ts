@@ -469,8 +469,7 @@ async function getLinkedParentIds(studentId: string): Promise<string[]> {
     const { data, error } = await adminClient
       .from("parent_student_links")
       .select("parent_id")
-      .eq("student_id", studentId)
-      .eq("is_approved", true);
+      .eq("student_id", studentId);
 
     if (error) {
       logActionError(

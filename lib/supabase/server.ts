@@ -1,4 +1,4 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { env } from "@/lib/env";
@@ -83,55 +83,40 @@ export async function createSupabaseServerClient(
           fetch: rateLimitedFetch, // Rate limit 처리된 fetch 사용
         },
         cookies: {
-          get(name: string) {
-            return store.get(name)?.value;
+          getAll() {
+            return store.getAll();
           },
-          set(name: string, value: string, cookieOptions: CookieOptions) {
-            // Next.js 15에서는 Server Component에서 쿠키를 수정할 수 없습니다.
-            // 쿠키 설정은 Server Action이나 Route Handler에서만 가능합니다.
-            // 인증 토큰 갱신은 클라이언트 사이드에서 처리되므로,
-            // Server Component에서는 쿠키 설정을 건너뜁니다.
+          setAll(cookiesToSet) {
             try {
-              // Supabase 인증 관련 쿠키인 경우 자동로그인 옵션 적용
-              // Supabase는 보통 'sb-*-auth-token' 형식의 쿠키를 사용합니다
-              const isAuthCookie =
-                name.includes("auth-token") ||
-                name.includes("auth-token-code-verifier");
+              cookiesToSet.forEach(({ name, value, options }) => {
+                // Supabase 인증 관련 쿠키인 경우 자동로그인 옵션 적용
+                const isAuthCookie =
+                  name.includes("auth-token") ||
+                  name.includes("auth-token-code-verifier");
 
-              // 자동로그인 옵션이 있고 인증 쿠키인 경우 쿠키 만료 시간을 길게 설정 (30일)
-              const finalCookieOptions =
-                rememberMe && isAuthCookie
-                  ? {
-                      ...cookieOptions,
-                      maxAge: 60 * 60 * 24 * 30, // 30일 (초 단위)
-                      expires: new Date(Date.now() + 60 * 60 * 24 * 30 * 1000), // 30일 후
-                    }
-                  : cookieOptions;
+                const finalOptions =
+                  rememberMe && isAuthCookie
+                    ? {
+                        ...options,
+                        maxAge: 60 * 60 * 24 * 30, // 30일
+                        expires: new Date(
+                          Date.now() + 60 * 60 * 24 * 30 * 1000
+                        ),
+                      }
+                    : options;
 
-              // 디버깅: 자동로그인 쿠키 설정 로그
-              if (rememberMe && isAuthCookie) {
-                console.log("[auth] 자동로그인 쿠키 설정:", {
-                  cookieName: name,
-                  maxAge: finalCookieOptions.maxAge,
-                  expires: finalCookieOptions.expires,
-                });
-              }
+                if (rememberMe && isAuthCookie) {
+                  console.log("[auth] 자동로그인 쿠키 설정:", {
+                    cookieName: name,
+                    maxAge: finalOptions.maxAge,
+                    expires: finalOptions.expires,
+                  });
+                }
 
-              // 쿠키 설정 시도 (Server Action이나 Route Handler에서만 성공)
-              store.set(name, value, finalCookieOptions);
-            } catch (error) {
+                store.set(name, value, finalOptions);
+              });
+            } catch {
               // Server Component에서는 쿠키를 수정할 수 없으므로 조용히 무시
-              // 이는 정상적인 동작이며, 인증 토큰 갱신은 클라이언트에서 처리됩니다
-              // 에러를 무시하여 unhandled rejection을 방지합니다
-            }
-          },
-          remove(name: string, options: CookieOptions) {
-            // Next.js 15에서는 Server Component에서 쿠키를 수정할 수 없습니다.
-            try {
-              store.set(name, "", { ...options, maxAge: 0 });
-            } catch (error) {
-              // Server Component에서는 쿠키를 수정할 수 없으므로 조용히 무시
-              // 에러를 무시하여 unhandled rejection을 방지합니다
             }
           },
         },
@@ -178,11 +163,10 @@ export async function createSupabaseServerClient(
             persistSession: false, // 서버에서는 세션을 쿠키에 저장하지 않음
           },
           cookies: {
-            get() {
-              return undefined;
+            getAll() {
+              return [];
             },
-            set() {},
-            remove() {},
+            setAll() {},
           },
         }
       );
@@ -195,15 +179,14 @@ export async function createSupabaseServerClient(
       // 최후의 수단: 빈 URL과 키로 클라이언트 생성 (사용 시 에러 발생)
       return createServerClient("", "", {
         auth: {
-          autoRefreshToken: false, // 자동 토큰 갱신 비활성화 (서버에서는 불필요)
-          persistSession: false, // 서버에서는 세션을 쿠키에 저장하지 않음
+          autoRefreshToken: false,
+          persistSession: false,
         },
         cookies: {
-          get() {
-            return undefined;
+          getAll() {
+            return [];
           },
-          set() {},
-          remove() {},
+          setAll() {},
         },
       });
     }
