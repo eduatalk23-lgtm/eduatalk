@@ -43,8 +43,13 @@ export interface TeamMember {
   email: string;
   displayName: string | null;
   role: "admin" | "consultant";
+  isOwner: boolean;
   tenantId: string;
   createdAt: string;
+  profileImageUrl: string | null;
+  jobTitle: string | null;
+  department: string | null;
+  phone: string | null;
 }
 
 // 초대 생성 결과

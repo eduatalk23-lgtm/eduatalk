@@ -17,10 +17,17 @@ export type ProfileData = {
   name: string;
   email: string | null;
   role: string;
+  profileImageUrl: string | null;
+  jobTitle: string | null;
+  department: string | null;
+  phone: string | null;
 };
 
 export type UpdateProfileInput = {
   name: string;
+  jobTitle?: string;
+  department?: string;
+  phone?: string;
 };
 
 export type UpdateProfileResult = {
@@ -42,7 +49,7 @@ export async function getMyProfile(): Promise<ProfileData | null> {
 
   const { data: adminUser, error } = await supabase
     .from("admin_users")
-    .select("id, name, role")
+    .select("id, name, role, profile_image_url, job_title, department, phone")
     .eq("id", userId)
     .maybeSingle();
 
@@ -60,6 +67,10 @@ export async function getMyProfile(): Promise<ProfileData | null> {
     name: adminUser.name,
     email: user?.email || null,
     role: adminUser.role,
+    profileImageUrl: adminUser.profile_image_url,
+    jobTitle: adminUser.job_title,
+    department: adminUser.department,
+    phone: adminUser.phone,
   };
 }
 
@@ -79,7 +90,7 @@ export const updateMyProfile = withErrorHandling(
       );
     }
 
-    const { name } = input;
+    const { name, jobTitle, department, phone } = input;
 
     // 입력 검증
     if (!name || name.trim().length === 0) {
@@ -102,9 +113,14 @@ export const updateMyProfile = withErrorHandling(
 
     const supabase = await createSupabaseServerClient();
 
+    const updateData: Record<string, string | null> = { name: name.trim() };
+    if (jobTitle !== undefined) updateData.job_title = jobTitle?.trim() || null;
+    if (department !== undefined) updateData.department = department?.trim() || null;
+    if (phone !== undefined) updateData.phone = phone?.trim() || null;
+
     const { error } = await supabase
       .from("admin_users")
-      .update({ name: name.trim() })
+      .update(updateData)
       .eq("id", userId);
 
     if (error) {
@@ -124,3 +140,99 @@ export const updateMyProfile = withErrorHandling(
     return { success: true };
   }
 );
+
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+
+/**
+ * 프로필 이미지 업로드
+ */
+export async function uploadProfileImage(formData: FormData): Promise<{ success: boolean; url?: string; error?: string }> {
+  const { userId, role } = await getCurrentUserRole();
+
+  if (!userId || !["admin", "consultant", "superadmin"].includes(role || "")) {
+    return { success: false, error: "권한이 없습니다." };
+  }
+
+  const file = formData.get("file") as File | null;
+  if (!file) {
+    return { success: false, error: "파일을 선택해주세요." };
+  }
+
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    return { success: false, error: "지원하지 않는 이미지 형식입니다. (JPG, PNG, WebP, GIF)" };
+  }
+
+  if (file.size > MAX_IMAGE_SIZE) {
+    return { success: false, error: "이미지 크기는 5MB 이하여야 합니다." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const ext = file.name.split(".").pop() || "jpg";
+  const filePath = `${userId}/avatar.${ext}`;
+
+  // 기존 파일 삭제 (upsert 효과)
+  await supabase.storage.from("admin-avatars").remove([filePath]);
+
+  const { error: uploadError } = await supabase.storage
+    .from("admin-avatars")
+    .upload(filePath, file, { upsert: true });
+
+  if (uploadError) {
+    return { success: false, error: "이미지 업로드에 실패했습니다." };
+  }
+
+  const { data: publicUrlData } = supabase.storage
+    .from("admin-avatars")
+    .getPublicUrl(filePath);
+
+  const publicUrl = publicUrlData.publicUrl;
+
+  // DB에 URL 저장
+  const { error: updateError } = await supabase
+    .from("admin_users")
+    .update({ profile_image_url: publicUrl })
+    .eq("id", userId);
+
+  if (updateError) {
+    return { success: false, error: "프로필 이미지 URL 저장에 실패했습니다." };
+  }
+
+  revalidatePath("/admin/settings");
+  revalidatePath("/admin");
+
+  return { success: true, url: publicUrl };
+}
+
+/**
+ * 프로필 이미지 삭제
+ */
+export async function deleteProfileImage(): Promise<{ success: boolean; error?: string }> {
+  const { userId, role } = await getCurrentUserRole();
+
+  if (!userId || !["admin", "consultant", "superadmin"].includes(role || "")) {
+    return { success: false, error: "권한이 없습니다." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  // Storage에서 파일 삭제 (확장자를 모르므로 가능한 모든 확장자 시도)
+  const extensions = ["jpg", "jpeg", "png", "webp", "gif"];
+  const paths = extensions.map((ext) => `${userId}/avatar.${ext}`);
+  await supabase.storage.from("admin-avatars").remove(paths);
+
+  // DB에서 URL 제거
+  const { error } = await supabase
+    .from("admin_users")
+    .update({ profile_image_url: null })
+    .eq("id", userId);
+
+  if (error) {
+    return { success: false, error: "프로필 이미지 삭제에 실패했습니다." };
+  }
+
+  revalidatePath("/admin/settings");
+  revalidatePath("/admin");
+
+  return { success: true };
+}

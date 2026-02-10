@@ -2,17 +2,28 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { removeTeamMember, updateMemberRole } from "@/lib/domains/team/actions";
+import { removeTeamMember, updateMemberRole, transferOwnership } from "@/lib/domains/team/actions";
 import type { TeamMember, InvitationRole } from "@/lib/domains/team/types";
+import { Avatar } from "@/components/atoms/Avatar";
 
 type TeamMembersListProps = {
   members: TeamMember[];
   canManage: boolean;
   /** 현재 로그인한 사용자 ID (자신 구분용) */
   currentUserId: string;
+  /** 현재 사용자가 대표 관리자인지 */
+  currentUserIsOwner: boolean;
+  /** 현재 사용자가 superadmin인지 */
+  isSuperadmin: boolean;
 };
 
-export function TeamMembersList({ members, canManage, currentUserId }: TeamMembersListProps) {
+export function TeamMembersList({
+  members,
+  canManage,
+  currentUserId,
+  currentUserIsOwner,
+  isSuperadmin,
+}: TeamMembersListProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [actioningId, setActioningId] = useState<string | null>(null);
@@ -50,6 +61,54 @@ export function TeamMembersList({ members, canManage, currentUserId }: TeamMembe
         setError(result.error || "역할 변경에 실패했습니다.");
       }
     });
+  };
+
+  const handleTransferOwnership = (memberId: string, memberName: string) => {
+    if (
+      !confirm(
+        `${memberName}님에게 대표 관리자 권한을 이양하시겠습니까?\n\n이양 후에는 일반 관리자로 변경됩니다.`
+      )
+    ) {
+      return;
+    }
+
+    setError(null);
+    setActioningId(memberId);
+    startTransition(async () => {
+      const result = await transferOwnership(memberId);
+      setActioningId(null);
+
+      if (result.success) {
+        router.refresh();
+      } else {
+        setError(result.error || "권한 이양에 실패했습니다.");
+      }
+    });
+  };
+
+  /**
+   * 멤버별 관리 가능 여부 판단
+   * - superadmin: owner 포함 모든 멤버 관리 가능
+   * - owner: 본인 외 모든 멤버 관리 가능
+   * - non-owner admin: consultant만 관리 가능
+   */
+  const canManageMember = (member: TeamMember): boolean => {
+    if (!canManage) return false;
+    if (member.id === currentUserId) return false;
+    if (isSuperadmin) return true;
+    if (currentUserIsOwner) return true;
+    // non-owner admin은 consultant만 관리 가능
+    return member.role === "consultant";
+  };
+
+  /**
+   * 멤버 삭제 가능 여부
+   * - owner 멤버는 superadmin만 삭제 가능
+   */
+  const canRemoveMember = (member: TeamMember): boolean => {
+    if (!canManageMember(member)) return false;
+    if (member.isOwner && !isSuperadmin) return false;
+    return true;
   };
 
   if (members.length === 0) {
@@ -91,6 +150,14 @@ export function TeamMembersList({ members, canManage, currentUserId }: TeamMembe
             const isActioning = actioningId === member.id;
             const roleLabel = member.role === "admin" ? "관리자" : "컨설턴트";
             const isSelf = member.id === currentUserId;
+            const showManageControls = canManageMember(member);
+            const showRemoveButton = canRemoveMember(member);
+            // 이양 버튼: owner가 다른 admin에게만 표시
+            const showTransferButton =
+              currentUserIsOwner &&
+              !isSelf &&
+              member.role === "admin" &&
+              !member.isOwner;
 
             return (
               <div
@@ -99,9 +166,11 @@ export function TeamMembersList({ members, canManage, currentUserId }: TeamMembe
               >
                 <div className="flex items-center gap-3">
                   {/* Avatar */}
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                    {member.displayName?.[0] || member.email[0].toUpperCase()}
-                  </div>
+                  <Avatar
+                    src={member.profileImageUrl}
+                    name={member.displayName || member.email}
+                    size="md"
+                  />
 
                   {/* Info */}
                   <div>
@@ -112,16 +181,26 @@ export function TeamMembersList({ members, canManage, currentUserId }: TeamMembe
                           나
                         </span>
                       )}
+                      {member.isOwner && (
+                        <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                          대표
+                        </span>
+                      )}
                     </div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">
                       {member.email}
                     </div>
+                    {(member.jobTitle || member.department) && (
+                      <div className="text-xs text-gray-400 dark:text-gray-500">
+                        {[member.jobTitle, member.department].filter(Boolean).join(" · ")}
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3">
                   {/* Role Badge / Select */}
-                  {canManage && !isSelf ? (
+                  {showManageControls && !member.isOwner ? (
                     <select
                       value={member.role}
                       onChange={(e) =>
@@ -145,8 +224,25 @@ export function TeamMembersList({ members, canManage, currentUserId }: TeamMembe
                     </span>
                   )}
 
-                  {/* Remove Button - 자신은 제거 불가 */}
-                  {canManage && !isSelf && (
+                  {/* Transfer Ownership Button */}
+                  {showTransferButton && (
+                    <button
+                      onClick={() =>
+                        handleTransferOwnership(
+                          member.id,
+                          member.displayName || member.email
+                        )
+                      }
+                      disabled={isActioning || isPending}
+                      className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-purple-600 transition hover:bg-purple-50 disabled:opacity-50 dark:text-purple-400 dark:hover:bg-purple-900/20"
+                      title="대표 관리자 권한 이양"
+                    >
+                      권한 이양
+                    </button>
+                  )}
+
+                  {/* Remove Button */}
+                  {showRemoveButton && (
                     <button
                       onClick={() =>
                         handleRemove(

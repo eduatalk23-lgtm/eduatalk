@@ -64,6 +64,25 @@ export const createTeamInvitation = withErrorHandling(
       );
     }
 
+    // Non-owner admin은 consultant만 초대 가능
+    if (currentRole === "admin" && role === "admin") {
+      const supabaseForOwnerCheck = await createSupabaseServerClient();
+      const { data: currentUser } = await supabaseForOwnerCheck
+        .from("admin_users")
+        .select("is_owner")
+        .eq("id", userId)
+        .single();
+
+      if (!currentUser?.is_owner) {
+        throw new AppError(
+          "관리자 역할로 초대할 권한이 없습니다. 대표 관리자만 관리자를 초대할 수 있습니다.",
+          ErrorCode.FORBIDDEN,
+          403,
+          true
+        );
+      }
+    }
+
     // 이메일 형식 검증
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {

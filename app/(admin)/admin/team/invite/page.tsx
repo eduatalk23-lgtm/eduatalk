@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { InviteForm } from "./_components/InviteForm";
 
@@ -10,6 +11,18 @@ export default async function InvitePage() {
   // admin 또는 superadmin만 초대 가능
   if (!userId || (role !== "admin" && role !== "superadmin")) {
     redirect("/admin/team");
+  }
+
+  // owner 또는 superadmin만 admin 역할로 초대 가능
+  let canInviteAdmin = role === "superadmin";
+  if (role === "admin") {
+    const supabase = await createSupabaseServerClient();
+    const { data: currentUser } = await supabase
+      .from("admin_users")
+      .select("is_owner")
+      .eq("id", userId)
+      .single();
+    canInviteAdmin = currentUser?.is_owner ?? false;
   }
 
   return (
@@ -42,7 +55,7 @@ export default async function InvitePage() {
 
       {/* Invite Form */}
       <div className="mx-auto w-full max-w-lg">
-        <InviteForm />
+        <InviteForm canInviteAdmin={canInviteAdmin} />
       </div>
     </div>
   );

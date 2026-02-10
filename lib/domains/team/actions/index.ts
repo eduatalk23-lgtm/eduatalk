@@ -7,4 +7,11 @@ export {
   getInvitationByToken,
 } from "./invitations";
 
-export { removeTeamMember, updateMemberRole } from "./members";
+export { removeTeamMember, updateMemberRole, transferOwnership } from "./members";
+
+export {
+  getMyProfile,
+  updateMyProfile,
+  uploadProfileImage,
+  deleteProfileImage,
+} from "./profile";

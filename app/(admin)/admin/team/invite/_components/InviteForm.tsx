@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import { createTeamInvitation } from "@/lib/domains/team/actions";
 import type { InvitationRole } from "@/lib/domains/team/types";
 
-export function InviteForm() {
+type InviteFormProps = {
+  /** 관리자 역할로 초대할 수 있는지 (owner 또는 superadmin만 가능) */
+  canInviteAdmin: boolean;
+};
+
+export function InviteForm({ canInviteAdmin }: InviteFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [email, setEmail] = useState("");
@@ -224,24 +229,26 @@ export function InviteForm() {
 
               <button
                 type="button"
-                onClick={() => setRole("admin")}
-                disabled={isPending}
-                className={`flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition ${
-                  role === "admin"
-                    ? "border-blue-500 bg-blue-50 dark:border-blue-600 dark:bg-blue-900/20"
-                    : "border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600"
+                onClick={() => canInviteAdmin && setRole("admin")}
+                disabled={isPending || !canInviteAdmin}
+                className={`relative flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition ${
+                  !canInviteAdmin
+                    ? "cursor-not-allowed border-gray-200 opacity-50 dark:border-gray-700"
+                    : role === "admin"
+                      ? "border-blue-500 bg-blue-50 dark:border-blue-600 dark:bg-blue-900/20"
+                      : "border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600"
                 }`}
               >
                 <div
                   className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                    role === "admin"
+                    role === "admin" && canInviteAdmin
                       ? "bg-blue-100 dark:bg-blue-900/30"
                       : "bg-gray-100 dark:bg-gray-800"
                   }`}
                 >
                   <svg
                     className={`h-5 w-5 ${
-                      role === "admin"
+                      role === "admin" && canInviteAdmin
                         ? "text-blue-600 dark:text-blue-400"
                         : "text-gray-500 dark:text-gray-400"
                     }`}
@@ -259,7 +266,7 @@ export function InviteForm() {
                 </div>
                 <span
                   className={`text-sm font-medium ${
-                    role === "admin"
+                    role === "admin" && canInviteAdmin
                       ? "text-blue-800 dark:text-blue-300"
                       : "text-gray-700 dark:text-gray-300"
                   }`}
@@ -267,7 +274,7 @@ export function InviteForm() {
                   관리자
                 </span>
                 <span className="text-xs text-gray-500 dark:text-gray-400">
-                  전체 관리 권한
+                  {canInviteAdmin ? "전체 관리 권한" : "대표 관리자만 초대 가능"}
                 </span>
               </button>
             </div>

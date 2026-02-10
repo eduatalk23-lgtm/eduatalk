@@ -23,6 +23,11 @@ export default async function TeamPage() {
     getTeamOverview(),
   ]);
 
+  // 현재 사용자의 owner 여부 확인
+  const currentMember = members.find((m) => m.id === userId);
+  const currentUserIsOwner = currentMember?.isOwner ?? false;
+  const isSuperadmin = role === "superadmin";
+
   return (
     <div className="flex flex-col gap-8 p-6 md:p-10">
       {/* Header */}
@@ -99,7 +104,13 @@ export default async function TeamPage() {
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
           팀원 ({members.length})
         </h2>
-        <TeamMembersList members={members} canManage={canInvite} currentUserId={userId} />
+        <TeamMembersList
+          members={members}
+          canManage={canInvite}
+          currentUserId={userId}
+          currentUserIsOwner={currentUserIsOwner}
+          isSuperadmin={isSuperadmin}
+        />
       </div>
 
       {/* Pending Invitations */}
