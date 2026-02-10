@@ -19,7 +19,7 @@ export function LinkRequestList({
 
   const { execute: executeCancel, isPending } = useServerAction(cancelLinkRequest, {
     onSuccess: () => {
-      showSuccess("연결 요청이 취소되었습니다.");
+      showSuccess("연결이 해제되었습니다.");
       onCancel?.();
     },
     onError: (error) => {
@@ -29,28 +29,6 @@ export function LinkRequestList({
 
   function handleCancel(requestId: string) {
     executeCancel(requestId, parentId);
-  }
-
-  function getStatusBadge(isApproved: boolean | null) {
-    if (isApproved === true) {
-      return (
-        <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-          승인됨
-        </span>
-      );
-    }
-    if (isApproved === false) {
-      return (
-        <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
-          거부됨
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
-        대기 중
-      </span>
-    );
   }
 
   function getRelationText(relation: string) {
@@ -75,7 +53,7 @@ export function LinkRequestList({
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-gray-900">
-        연결 요청 목록
+        연결 목록
       </h2>
       <div className="flex flex-col gap-3">
         {requests.map((request) => (
@@ -84,11 +62,8 @@ export function LinkRequestList({
             className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4"
           >
             <div className="flex flex-col gap-1 flex-1">
-              <div className="flex items-center gap-2">
-                <div className="text-base font-semibold text-gray-900">
-                  {request.studentName || "이름 없음"}
-                </div>
-                {getStatusBadge(request.is_approved)}
+              <div className="text-base font-semibold text-gray-900">
+                {request.studentName || "이름 없음"}
               </div>
               {request.grade && request.class && (
                 <div className="text-sm text-gray-500">
@@ -96,23 +71,20 @@ export function LinkRequestList({
                 </div>
               )}
               <div className="text-xs text-gray-400">
-                관계: {getRelationText(request.relation)} · 요청일:{" "}
+                관계: {getRelationText(request.relation)} · 연결일:{" "}
                 {new Date(request.created_at).toLocaleDateString("ko-KR")}
               </div>
             </div>
-            {request.is_approved !== true && (
-              <button
-                onClick={() => handleCancel(request.id)}
-                disabled={isPending}
-                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isPending ? "취소 중..." : "요청 취소"}
-              </button>
-            )}
+            <button
+              onClick={() => handleCancel(request.id)}
+              disabled={isPending}
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isPending ? "해제 중..." : "연결 해제"}
+            </button>
           </div>
         ))}
       </div>
     </div>
   );
 }
-

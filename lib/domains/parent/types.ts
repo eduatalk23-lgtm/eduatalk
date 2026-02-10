@@ -25,7 +25,6 @@ export type LinkRequest = {
   grade: string | null;
   class: string | null;
   relation: string;
-  is_approved: boolean | null;
   created_at: string;
 };
 

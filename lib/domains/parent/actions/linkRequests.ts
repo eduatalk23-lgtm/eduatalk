@@ -5,8 +5,6 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { extractJoinResult } from "@/lib/supabase/queryHelpers";
 import { revalidatePath } from "next/cache";
-import { getAutoApproveSettings } from "@/lib/domains/tenant";
-import { checkAutoApproveConditions } from "@/lib/utils/autoApprove";
 import { PARENT_STUDENT_LINK_MESSAGES } from "@/lib/constants/parentStudentLinkMessages";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { AppError, ErrorCode } from "@/lib/errors";
@@ -15,14 +13,12 @@ import { withActionResponse } from "@/lib/utils/serverActionHandler";
 import type { SearchableStudent, LinkRequest, ParentRelation } from "../types";
 
 /**
- * Supabase 쿼리 결과 타입: parent_student_link_requests with students join
- * Note: Supabase 조인 쿼리는 students를 배열로 반환할 수 있음
+ * Supabase 쿼리 결과 타입: parent_student_links with students join
  */
 type LinkRequestWithStudent = {
   id: string;
   student_id: string;
   relation: string | null;
-  is_approved: boolean | null;
   created_at: string;
   students:
     | {
@@ -42,7 +38,7 @@ type LinkRequestWithStudent = {
 
 /**
  * 학부모가 학생을 검색 (이름, 학년, 반)
- * 이미 연결된 학생과 요청 중인 학생은 제외
+ * 이미 연결된 학생은 제외
  */
 async function _searchStudentsForLink(
   query: string,
@@ -68,7 +64,7 @@ async function _searchStudentsForLink(
   const supabase = await createSupabaseServerClient();
   const searchQuery = query.trim();
 
-  // 이미 연결되거나 요청 중인 학생 ID 조회
+  // 이미 연결된 학생 ID 조회
   const { data: existingLinks, error: linksError } = await supabase
     .from("parent_student_links")
     .select("student_id")
@@ -76,7 +72,6 @@ async function _searchStudentsForLink(
 
   if (linksError) {
     logActionError({ domain: "parent", action: "searchStudentsForLink" }, linksError);
-    // 에러가 있어도 계속 진행 (RLS 정책 문제일 수 있음)
   }
 
   const excludedStudentIds = new Set(
@@ -114,7 +109,7 @@ async function _searchStudentsForLink(
 export const searchStudentsForLink = withActionResponse(_searchStudentsForLink);
 
 /**
- * 연결 요청 생성
+ * 연결 요청 생성 (즉시 연결 - 승인 워크플로우 제거됨)
  */
 async function _createLinkRequest(
   studentId: string,
@@ -148,10 +143,10 @@ async function _createLinkRequest(
 
   const supabase = await createSupabaseServerClient();
 
-  // 중복 체크 (이미 연결되거나 요청 중인 경우)
+  // 중복 체크 (이미 연결된 경우)
   const { data: existing, error: checkError } = await supabase
     .from("parent_student_links")
-    .select("id, is_approved")
+    .select("id")
     .eq("student_id", studentId)
     .eq("parent_id", parentId)
     .maybeSingle();
@@ -167,26 +162,15 @@ async function _createLinkRequest(
   }
 
   if (existing) {
-    // 이미 승인된 경우
-    if (existing.is_approved === true) {
-      throw new AppError(
-        PARENT_STUDENT_LINK_MESSAGES.errors.ALREADY_LINKED,
-        ErrorCode.VALIDATION_ERROR,
-        400,
-        true
-      );
-    }
-    // 대기 중인 경우
     throw new AppError(
-      PARENT_STUDENT_LINK_MESSAGES.errors.REQUEST_ALREADY_EXISTS,
+      PARENT_STUDENT_LINK_MESSAGES.errors.ALREADY_LINKED,
       ErrorCode.VALIDATION_ERROR,
       400,
       true
     );
   }
 
-  // 자동 승인 로직: 학생과 학부모의 tenant_id 조회 (병렬 처리)
-  // 학생 조회는 RLS를 우회해야 하므로 admin client 사용
+  // tenant_id 조회 (학생의 tenant_id 사용)
   const adminClient = createSupabaseAdminClient();
 
   if (!adminClient) {
@@ -198,60 +182,16 @@ async function _createLinkRequest(
     );
   }
 
-  const [studentResult, parentResult] = await Promise.all([
-    adminClient
-      .from("students")
-      .select("tenant_id")
-      .eq("id", studentId)
-      .maybeSingle(),
-    supabase
-      .from("parent_users")
-      .select("tenant_id")
-      .eq("id", parentId)
-      .maybeSingle(),
-  ]);
-
-  const { data: student, error: studentError } = studentResult;
-  const { data: parent, error: parentError } = parentResult;
+  const { data: student, error: studentError } = await adminClient
+    .from("students")
+    .select("tenant_id")
+    .eq("id", studentId)
+    .maybeSingle();
 
   if (studentError) {
     logActionError({ domain: "parent", action: "createLinkRequest.fetchStudent" }, studentError);
-    // 에러가 있어도 계속 진행 (자동 승인 실패 시 수동 승인으로 폴백)
   }
 
-  if (parentError) {
-    logActionError({ domain: "parent", action: "createLinkRequest.fetchParent" }, parentError);
-    // 에러가 있어도 계속 진행 (자동 승인 실패 시 수동 승인으로 폴백)
-  }
-
-  // 자동 승인 설정 조회 및 조건 확인
-  let shouldAutoApprove = false;
-  if (student?.tenant_id) {
-    try {
-      const autoApproveResult = await getAutoApproveSettings(
-        student.tenant_id
-      );
-
-      if (
-        autoApproveResult.success &&
-        autoApproveResult.data &&
-        student?.tenant_id &&
-        parent?.tenant_id
-      ) {
-        shouldAutoApprove = checkAutoApproveConditions(
-          autoApproveResult.data,
-          student.tenant_id,
-          parent.tenant_id,
-          relation
-        );
-      }
-    } catch (error) {
-      logActionError({ domain: "parent", action: "createLinkRequest.autoApprove" }, error);
-      // 에러 발생 시 수동 승인으로 폴백
-    }
-  }
-
-  // tenant_id 검증 (학생의 tenant_id 사용)
   if (!student?.tenant_id) {
     throw new AppError(
       "학생 정보를 찾을 수 없습니다.",
@@ -261,29 +201,15 @@ async function _createLinkRequest(
     );
   }
 
-  // 연결 요청 생성 (자동 승인 조건 만족 시 is_approved: true)
-  const insertData: {
-    student_id: string;
-    parent_id: string;
-    relation: string;
-    is_approved: boolean;
-    tenant_id: string;
-    approved_at?: string;
-  } = {
-    student_id: studentId,
-    parent_id: parentId,
-    relation: dbRelation,
-    is_approved: shouldAutoApprove,
-    tenant_id: student.tenant_id,
-  };
-
-  if (shouldAutoApprove) {
-    insertData.approved_at = new Date().toISOString();
-  }
-
+  // 연결 생성 (즉시 연결)
   const { data, error } = await supabase
     .from("parent_student_links")
-    .insert(insertData)
+    .insert({
+      student_id: studentId,
+      parent_id: parentId,
+      relation: dbRelation,
+      tenant_id: student.tenant_id,
+    })
     .select("id")
     .single();
 
@@ -300,7 +226,7 @@ async function _createLinkRequest(
 
     logActionError({ domain: "parent", action: "createLinkRequest" }, error);
     throw new AppError(
-      error.message || "연결 요청 생성에 실패했습니다.",
+      error.message || "연결 생성에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,
       500,
       true
@@ -315,7 +241,7 @@ async function _createLinkRequest(
 export const createLinkRequest = withActionResponse(_createLinkRequest);
 
 /**
- * 학부모의 연결 요청 목록 조회
+ * 학부모의 연결 목록 조회
  */
 async function _getLinkRequests(parentId: string): Promise<LinkRequest[]> {
   const { userId } = await requireParent();
@@ -339,7 +265,6 @@ async function _getLinkRequests(parentId: string): Promise<LinkRequest[]> {
         id,
         student_id,
         relation,
-        is_approved,
         created_at,
         students:student_id(
           id,
@@ -361,7 +286,7 @@ async function _getLinkRequests(parentId: string): Promise<LinkRequest[]> {
   if (error) {
     logActionError({ domain: "parent", action: "getLinkRequests" }, error);
     throw new AppError(
-      error.message || "요청 목록을 조회할 수 없습니다.",
+      error.message || "연결 목록을 조회할 수 없습니다.",
       ErrorCode.DATABASE_ERROR,
       500,
       true
@@ -385,24 +310,10 @@ async function _getLinkRequests(parentId: string): Promise<LinkRequest[]> {
         grade: student.grade,
         class: student.class,
         relation: link.relation || "other",
-        is_approved: link.is_approved,
         created_at: link.created_at,
       };
     })
     .filter((r): r is LinkRequest => r !== null);
-
-  // 상태별 정렬: 대기 중(null/false) → 승인됨(true) → 거부됨(false, 최신순)
-  requests.sort((a, b) => {
-    // 대기 중인 요청을 먼저
-    if (a.is_approved === null || a.is_approved === false) {
-      if (b.is_approved === true) return -1;
-    }
-    if (b.is_approved === null || b.is_approved === false) {
-      if (a.is_approved === true) return 1;
-    }
-    // 같은 상태면 최신순
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-  });
 
   return requests;
 }
@@ -410,12 +321,12 @@ async function _getLinkRequests(parentId: string): Promise<LinkRequest[]> {
 export const getLinkRequests = withActionResponse(_getLinkRequests);
 
 /**
- * 대기 중인 연결 요청 취소
+ * 연결 해제 (삭제)
  */
 async function _cancelLinkRequest(requestId: string, parentId: string): Promise<void> {
   const { userId } = await requireParent();
 
-  // 본인만 취소 가능
+  // 본인만 해제 가능
   if (userId !== parentId) {
     throw new AppError(
       PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED,
@@ -427,10 +338,10 @@ async function _cancelLinkRequest(requestId: string, parentId: string): Promise<
 
   const supabase = await createSupabaseServerClient();
 
-  // 먼저 요청 정보 조회 (본인 요청인지, 대기 중인지 확인)
+  // 본인 연결인지 확인
   const { data: link, error: fetchError } = await supabase
     .from("parent_student_links")
-    .select("id, parent_id, is_approved")
+    .select("id, parent_id")
     .eq("id", requestId)
     .eq("parent_id", parentId)
     .maybeSingle();
@@ -438,7 +349,7 @@ async function _cancelLinkRequest(requestId: string, parentId: string): Promise<
   if (fetchError) {
     logActionError({ domain: "parent", action: "cancelLinkRequest.fetch" }, fetchError);
     throw new AppError(
-      "요청 정보를 찾을 수 없습니다.",
+      "연결 정보를 찾을 수 없습니다.",
       ErrorCode.NOT_FOUND,
       404,
       true
@@ -446,20 +357,10 @@ async function _cancelLinkRequest(requestId: string, parentId: string): Promise<
   }
 
   if (!link) {
-    throw new AppError("요청을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+    throw new AppError("연결을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
   }
 
-  // 대기 중인 요청만 취소 가능
-  if (link.is_approved === true) {
-    throw new AppError(
-      PARENT_STUDENT_LINK_MESSAGES.errors.CANNOT_CANCEL_APPROVED,
-      ErrorCode.VALIDATION_ERROR,
-      400,
-      true
-    );
-  }
-
-  // 요청 삭제
+  // 연결 삭제
   const { error } = await supabase
     .from("parent_student_links")
     .delete()
@@ -469,7 +370,7 @@ async function _cancelLinkRequest(requestId: string, parentId: string): Promise<
   if (error) {
     logActionError({ domain: "parent", action: "cancelLinkRequest" }, error);
     throw new AppError(
-      error.message || "요청 취소에 실패했습니다.",
+      error.message || "연결 해제에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,
       500,
       true
