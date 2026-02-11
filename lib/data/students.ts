@@ -15,7 +15,8 @@ export type Student = {
   birth_date?: string | null;
   school_id?: string | null; // 통합 ID (SCHOOL_123 또는 UNIV_456)
   school_type?: "MIDDLE" | "HIGH" | "UNIVERSITY" | null;
-  division?: "고등부" | "중등부" | "기타" | null;
+  division?: "고등부" | "중등부" | "졸업" | null;
+  school_name?: string | null;
   student_number?: string | null;
   enrolled_at?: string | null;
   status?: "enrolled" | "on_leave" | "graduated" | "transferred" | null;
@@ -26,7 +27,7 @@ export type Student = {
 /**
  * 학생 기본 필드 목록 (동적 필드 포함)
  */
-const STUDENT_BASE_FIELDS = "id,tenant_id,name,grade,class,birth_date,school_id,student_number,enrolled_at,status,created_at,updated_at";
+const STUDENT_BASE_FIELDS = "id,tenant_id,name,grade,class,birth_date,school_id,school_name,student_number,enrolled_at,status,created_at,updated_at";
 const STUDENT_OPTIONAL_FIELDS = ["school_type", "division"];
 
 /**
@@ -383,7 +384,7 @@ export async function getActiveStudentsForSMS(): Promise<{
 }
 
 /**
- * 학생 구분 업데이트
+ * 학부 업데이트
  */
 export async function updateStudentDivision(
   studentId: string,
@@ -391,13 +392,44 @@ export async function updateStudentDivision(
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
+  const updatePayload: Record<string, unknown> = { division };
+  if (division === "졸업") {
+    updatePayload.grade = null;
+  }
+
   const { error } = await supabase
     .from("students")
-    .update({ division })
+    .update(updatePayload)
     .eq("id", studentId);
 
   if (error) {
-    logActionError("students.updateStudentDivision", `학생 구분 업데이트 실패 - studentId:${studentId}, division:${division}, ${error.message}`);
+    logActionError("students.updateStudentDivision", `학생 학부 업데이트 실패 - studentId:${studentId}, division:${division}, ${error.message}`);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
+/**
+ * 학년 개별 업데이트
+ */
+export async function updateStudentGrade(
+  studentId: string,
+  grade: number | null
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+
+  if (grade !== null && (grade < 1 || grade > 3)) {
+    return { success: false, error: "학년은 1~3 범위여야 합니다." };
+  }
+
+  const { error } = await supabase
+    .from("students")
+    .update({ grade, updated_at: new Date().toISOString() })
+    .eq("id", studentId);
+
+  if (error) {
+    logActionError("students.updateStudentGrade", `학년 업데이트 실패 - studentId:${studentId}, grade:${grade}, ${error.message}`);
     return { success: false, error: error.message };
   }
 
@@ -406,7 +438,7 @@ export async function updateStudentDivision(
 
 /**
  * 구분별 학생 목록 조회
- * @param division - 구분 필터 (undefined: 전체, null: 미설정, "고등부"|"중등부"|"기타": 특정 구분)
+ * @param division - 학부 필터 (undefined: 전체, null: 미설정, "고등부"|"중등부": 특정 학부)
  */
 export async function getStudentsByDivision(
   division: StudentDivision | null | undefined
@@ -440,34 +472,36 @@ export async function getStudentsByDivision(
 }
 
 /**
- * 구분별 학생 통계 조회
+ * 학부별 학생 통계 조회 (학년 분포 포함)
  */
-export async function getStudentDivisionStats(): Promise<Array<{
+export type DivisionStatItem = {
   division: StudentDivision | null;
   count: number;
-}>> {
+  gradeBreakdown: Record<number, number>; // grade -> count
+};
+
+export async function getStudentDivisionStats(): Promise<DivisionStatItem[]> {
   const supabase = await createSupabaseServerClient();
 
   // division 필드 존재 여부 확인
   try {
     const testQuery = supabase.from("students").select("division").limit(1);
     const { error: testError } = await testQuery;
-    
+
     if (testError && testError.code === "42703") {
-      // division 컬럼이 없으면 빈 배열 반환
       return [];
     }
   } catch (e) {
     return [];
   }
 
-  // 구분별 통계 조회
+  // division + grade 조회
   const { data, error } = await supabase
     .from("students")
-    .select("division");
+    .select("division, grade");
 
   if (error) {
-    logActionError("students.getStudentDivisionStats", `구분별 통계 조회 실패: ${error.message}`);
+    logActionError("students.getStudentDivisionStats", `학부별 통계 조회 실패: ${error.message}`);
     return [];
   }
 
@@ -476,26 +510,35 @@ export async function getStudentDivisionStats(): Promise<Array<{
   }
 
   // 통계 집계
-  const stats = new Map<StudentDivision | null, number>();
-  stats.set("고등부", 0);
-  stats.set("중등부", 0);
-  stats.set("기타", 0);
-  stats.set(null, 0);
+  type StatAccum = { count: number; gradeBreakdown: Record<number, number> };
+  const stats = new Map<StudentDivision | null, StatAccum>();
+  stats.set("고등부", { count: 0, gradeBreakdown: {} });
+  stats.set("중등부", { count: 0, gradeBreakdown: {} });
+  stats.set("졸업", { count: 0, gradeBreakdown: {} });
+  stats.set(null, { count: 0, gradeBreakdown: {} });
 
   for (const student of data) {
     const division = student.division as StudentDivision | null;
-    const current = stats.get(division) ?? 0;
-    stats.set(division, current + 1);
+    const accum = stats.get(division) ?? { count: 0, gradeBreakdown: {} };
+    accum.count += 1;
+
+    const grade = student.grade != null ? Number(student.grade) : null;
+    if (grade != null && !isNaN(grade)) {
+      accum.gradeBreakdown[grade] = (accum.gradeBreakdown[grade] ?? 0) + 1;
+    }
+
+    stats.set(division, accum);
   }
 
-  return Array.from(stats.entries()).map(([division, count]) => ({
+  return Array.from(stats.entries()).map(([division, accum]) => ({
     division,
-    count,
+    count: accum.count,
+    gradeBreakdown: accum.gradeBreakdown,
   }));
 }
 
 /**
- * 학생 구분 일괄 업데이트
+ * 학부 일괄 업데이트
  * 배치 처리로 성능 최적화 (500개씩)
  */
 export async function batchUpdateStudentDivision(
@@ -523,7 +566,7 @@ export async function batchUpdateStudentDivision(
   const uniqueStudentIds = Array.from(new Set(studentIds));
 
   // division 값 검증
-  if (division !== null && division !== "고등부" && division !== "중등부" && division !== "기타") {
+  if (division !== null && division !== "고등부" && division !== "중등부" && division !== "졸업") {
     return {
       success: false,
       successCount: 0,
@@ -545,7 +588,11 @@ export async function batchUpdateStudentDivision(
 
     const { error: updateError } = await supabase
       .from("students")
-      .update({ division, updated_at: new Date().toISOString() })
+      .update({
+        division,
+        updated_at: new Date().toISOString(),
+        ...(division === "졸업" ? { grade: null } : {}),
+      })
       .in("id", batch);
 
     if (updateError) {
@@ -565,6 +612,155 @@ export async function batchUpdateStudentDivision(
 
   const failureCount = errors.length;
 
+  return {
+    success: failureCount === 0,
+    successCount,
+    failureCount,
+    errors: failureCount > 0 ? errors : undefined,
+  };
+}
+
+/**
+ * 학생 학년 일괄 업데이트
+ * @param studentIds - 대상 학생 ID 배열
+ * @param mode - "promote": 진급 (+1), "set": 직접 지정
+ * @param targetGrade - 직접 지정 모드 시 목표 학년 (1~3)
+ */
+export async function batchUpdateStudentGrade(
+  studentIds: string[],
+  mode: "promote" | "set",
+  targetGrade?: number | null
+): Promise<{
+  success: boolean;
+  successCount: number;
+  failureCount: number;
+  errors?: Array<{ studentId: string; error: string }>;
+}> {
+  const supabase = await createSupabaseServerClient();
+
+  // 입력 검증
+  if (!Array.isArray(studentIds) || studentIds.length === 0) {
+    return {
+      success: false,
+      successCount: 0,
+      failureCount: 0,
+      errors: [{ studentId: "", error: "학생을 선택해주세요." }],
+    };
+  }
+
+  const uniqueStudentIds = Array.from(new Set(studentIds));
+
+  if (mode === "set") {
+    if (targetGrade == null || targetGrade < 1 || targetGrade > 3) {
+      return {
+        success: false,
+        successCount: 0,
+        failureCount: uniqueStudentIds.length,
+        errors: uniqueStudentIds.map((id) => ({
+          studentId: id,
+          error: "학년은 1~3 범위여야 합니다.",
+        })),
+      };
+    }
+
+    // 직접 지정: 전체 학생을 targetGrade로 변경
+    const errors: Array<{ studentId: string; error: string }> = [];
+    let successCount = 0;
+    const batchSize = 500;
+
+    for (let i = 0; i < uniqueStudentIds.length; i += batchSize) {
+      const batch = uniqueStudentIds.slice(i, i + batchSize);
+      const { error: updateError } = await supabase
+        .from("students")
+        .update({ grade: targetGrade, updated_at: new Date().toISOString() })
+        .in("id", batch);
+
+      if (updateError) {
+        logActionError("students.batchUpdateStudentGrade", `학년 일괄 업데이트 실패 (set) - batchSize:${batch.length}, ${updateError.message}`);
+        batch.forEach((studentId) => {
+          errors.push({ studentId, error: updateError.message || "학년 업데이트에 실패했습니다." });
+        });
+      } else {
+        successCount += batch.length;
+      }
+    }
+
+    const failureCount = errors.length;
+    return {
+      success: failureCount === 0,
+      successCount,
+      failureCount,
+      errors: failureCount > 0 ? errors : undefined,
+    };
+  }
+
+  // 진급 모드: grade < 3인 학생만 grade + 1
+  // RPC 없이 현재 학년 조회 후 배치 업데이트
+  const { data: studentsData, error: fetchError } = await supabase
+    .from("students")
+    .select("id, grade")
+    .in("id", uniqueStudentIds);
+
+  if (fetchError) {
+    logActionError("students.batchUpdateStudentGrade", `학생 조회 실패: ${fetchError.message}`);
+    return {
+      success: false,
+      successCount: 0,
+      failureCount: uniqueStudentIds.length,
+      errors: uniqueStudentIds.map((id) => ({
+        studentId: id,
+        error: "학생 정보 조회에 실패했습니다.",
+      })),
+    };
+  }
+
+  // grade < 3인 학생만 필터
+  const promotable = (studentsData ?? []).filter(
+    (s) => s.grade != null && Number(s.grade) < 3
+  );
+
+  if (promotable.length === 0) {
+    return {
+      success: true,
+      successCount: 0,
+      failureCount: 0,
+    };
+  }
+
+  // 학년별로 그룹핑하여 배치 업데이트
+  const gradeGroups = new Map<number, string[]>();
+  for (const s of promotable) {
+    const currentGrade = Number(s.grade);
+    const ids = gradeGroups.get(currentGrade) ?? [];
+    ids.push(s.id);
+    gradeGroups.set(currentGrade, ids);
+  }
+
+  const errors: Array<{ studentId: string; error: string }> = [];
+  let successCount = 0;
+  const batchSize = 500;
+
+  for (const [currentGrade, ids] of gradeGroups) {
+    const newGrade = currentGrade + 1;
+    for (let i = 0; i < ids.length; i += batchSize) {
+      const batch = ids.slice(i, i + batchSize);
+      const { error: updateError } = await supabase
+        .from("students")
+        .update({ grade: newGrade, updated_at: new Date().toISOString() })
+        .in("id", batch);
+
+      if (updateError) {
+        logActionError("students.batchUpdateStudentGrade", `학년 진급 실패 - grade:${currentGrade}→${newGrade}, batchSize:${batch.length}, ${updateError.message}`);
+        batch.forEach((studentId) => {
+          errors.push({ studentId, error: updateError.message || "학년 업데이트에 실패했습니다." });
+        });
+      } else {
+        successCount += batch.length;
+      }
+    }
+  }
+
+  const failureCount = errors.length;
   return {
     success: failureCount === 0,
     successCount,
