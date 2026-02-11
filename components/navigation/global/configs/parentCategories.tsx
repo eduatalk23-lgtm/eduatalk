@@ -14,6 +14,7 @@ import {
   Target,
   History,
   Settings,
+  CreditCard,
 } from "lucide-react";
 
 export const parentCategories: NavigationCategory[] = [
@@ -71,6 +72,19 @@ export const parentCategories: NavigationCategory[] = [
         label: "이력",
         href: "/parent/history",
         icon: <History className="w-4 h-4" />,
+      },
+    ],
+  },
+  {
+    id: "parent-payments",
+    label: "결제",
+    icon: <CreditCard className="w-4 h-4" />,
+    items: [
+      {
+        id: "parent-payments-main",
+        label: "결제",
+        href: "/parent/payments",
+        icon: <CreditCard className="w-4 h-4" />,
       },
     ],
   },

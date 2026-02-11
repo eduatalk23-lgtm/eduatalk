@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/auto-billing",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/payment-reminders",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/enrollment-expiry",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}

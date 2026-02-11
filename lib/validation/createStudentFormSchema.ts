@@ -19,7 +19,7 @@ export const createStudentFormSchema = z.object({
   birth_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "생년월일은 YYYY-MM-DD 형식이어야 합니다"),
   school_id: z.string().default(""),
   school_type: z.enum(["MIDDLE", "HIGH", "UNIVERSITY"]).optional(),
-  division: z.enum(["고등부", "중등부", "기타"]).optional(),
+  division: z.enum(["고등부", "중등부", "졸업"]).optional(),
   student_number: z.string().default(""),
   enrolled_at: z.string().default(""),
   status: z.enum(["enrolled", "on_leave", "graduated", "transferred"]).default("enrolled"),

@@ -51,6 +51,10 @@ export function Dialog({
   const [mounted, setMounted] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const onOpenChangeRef = useRef(onOpenChange);
+  useEffect(() => {
+    onOpenChangeRef.current = onOpenChange;
+  });
   const uniqueId = useId();
   const titleId = title ? `dialog-title-${uniqueId}` : undefined;
   const descriptionId = description ? `dialog-desc-${uniqueId}` : undefined;
@@ -83,7 +87,7 @@ export function Dialog({
 
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onOpenChange(false);
+        onOpenChangeRef.current(false);
       }
     };
 
@@ -109,7 +113,7 @@ export function Dialog({
       unlockScroll();
       cleanupTrap?.();
     };
-  }, [open, onOpenChange]);
+  }, [open]);
 
   if (!mounted || !open) return null;
 

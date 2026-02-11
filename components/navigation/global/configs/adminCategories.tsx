@@ -34,6 +34,8 @@ import {
   Sparkles,
   UserPlus,
   GraduationCap,
+  Package,
+  Receipt,
 } from "lucide-react";
 
 export const adminCategories: NavigationCategory[] = [
@@ -63,8 +65,27 @@ export const adminCategories: NavigationCategory[] = [
       },
       {
         id: "admin-students-divisions",
-        label: "학생 구분 관리",
+        label: "학부·학년 관리",
         href: "/admin/students/divisions",
+        icon: <UsersRound className="w-4 h-4" />,
+      },
+      {
+        id: "admin-programs",
+        label: "프로그램 관리",
+        href: "/admin/programs",
+        icon: <Package className="w-4 h-4" />,
+      },
+    ],
+  },
+  {
+    id: "admin-parents",
+    label: "학부모 관리",
+    icon: <UsersRound className="w-4 h-4" />,
+    items: [
+      {
+        id: "admin-parents-list",
+        label: "학부모 조회",
+        href: "/admin/parents",
         icon: <UsersRound className="w-4 h-4" />,
       },
     ],
@@ -310,6 +331,25 @@ export const adminCategories: NavigationCategory[] = [
         label: "태스크 센터",
         href: "/admin/crm/tasks",
         icon: <CheckCircle className="w-4 h-4" />,
+      },
+    ],
+  },
+  {
+    id: "admin-billing",
+    label: "수납관리",
+    icon: <Receipt className="w-4 h-4" />,
+    items: [
+      {
+        id: "admin-billing-dashboard",
+        label: "수납 현황",
+        href: "/admin/billing",
+        icon: <Receipt className="w-4 h-4" />,
+      },
+      {
+        id: "admin-billing-revenue",
+        label: "매출 리포트",
+        href: "/admin/reports/revenue",
+        icon: <BarChart3 className="w-4 h-4" />,
       },
     ],
   },

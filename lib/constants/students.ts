@@ -25,12 +25,12 @@ export const STUDENT_SORT_OPTIONS: Record<
 } as const;
 
 /**
- * 학생 구분 타입
+ * 학부 타입
  */
-export type StudentDivision = "고등부" | "중등부" | "기타";
+export type StudentDivision = "고등부" | "중등부" | "졸업";
 
 /**
- * 학생 구분 옵션 상수
+ * 학부 옵션 상수
  */
 export const STUDENT_DIVISIONS: Array<{
   value: StudentDivision;
@@ -38,6 +38,6 @@ export const STUDENT_DIVISIONS: Array<{
 }> = [
   { value: "고등부", label: "고등부" },
   { value: "중등부", label: "중등부" },
-  { value: "기타", label: "기타" },
+  { value: "졸업", label: "졸업" },
 ] as const;
 

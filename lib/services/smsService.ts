@@ -8,6 +8,7 @@ import { env } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
+import { proxyFetch } from "@/lib/services/proxyFetch";
 
 export interface SendSMSOptions {
   recipientPhone: string;
@@ -82,7 +83,7 @@ async function getAccessToken(): Promise<string> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
 
-    const response = await fetch(tokenEndpoint, {
+    const response = await proxyFetch(tokenEndpoint, {
       method: "POST",
       headers: {
         Authorization: `Basic ${credentials}`,
@@ -357,7 +358,7 @@ export async function sendSMS(
       { requestBody }
     );
 
-    const response = await fetch(messageEndpoint, {
+    const response = await proxyFetch(messageEndpoint, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -710,7 +711,7 @@ export async function cancelScheduledMessage(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-    const response = await fetch(cancelEndpoint, {
+    const response = await proxyFetch(cancelEndpoint, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -928,7 +929,7 @@ export async function fetchDeliveryResults(): Promise<DeliveryReport[]> {
   try {
     const accessToken = await getAccessToken();
 
-    const response = await fetch(`${baseUrl}/v1/result/request`, {
+    const response = await proxyFetch(`${baseUrl}/v1/result/request`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -997,7 +998,7 @@ export async function confirmDeliveryResults(): Promise<void> {
   const timeoutId = setTimeout(() => controller.abort(), 10000);
 
   try {
-    const response = await fetch(`${baseUrl}/v1/result/confirm`, {
+    const response = await proxyFetch(`${baseUrl}/v1/result/confirm`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,

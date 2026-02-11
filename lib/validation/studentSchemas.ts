@@ -17,7 +17,7 @@ export const studentBasicSchema = z.object({
   birth_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "생년월일은 YYYY-MM-DD 형식이어야 합니다"),
   school_id: z.string().optional().nullable(),
   school_type: z.enum(["MIDDLE", "HIGH", "UNIVERSITY"]).optional().nullable(),
-  division: z.enum(["고등부", "중등부", "기타"]).optional().nullable(),
+  division: z.enum(["고등부", "중등부", "졸업"]).optional().nullable(),
   student_number: z.string().optional().nullable(),
   enrolled_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "입학일은 YYYY-MM-DD 형식이어야 합니다").optional().nullable(),
   status: z.enum(["enrolled", "on_leave", "graduated", "transferred"]).optional().nullable().default("enrolled"),

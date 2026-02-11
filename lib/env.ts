@@ -28,6 +28,11 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().optional(), // Resend API 키
   EMAIL_FROM: z.string().email().optional(), // 발신 이메일 주소
   EMAIL_REPLY_TO: z.string().email().optional(), // 회신 이메일 주소
+  // Fixie 프록시 (Vercel 고정 IP용)
+  FIXIE_URL: z.string().optional(), // Fixie 프록시 URL (예: http://fixie:TOKEN@velodrome.usefixie.com:80)
+  // 토스페이먼츠 결제 연동
+  NEXT_PUBLIC_TOSS_CLIENT_KEY: z.string().optional(), // 토스페이먼츠 클라이언트 키 (위젯용)
+  TOSS_SECRET_KEY: z.string().optional(), // 토스페이먼츠 시크릿 키 (서버 승인/취소용)
 });
 
 /**
@@ -55,6 +60,11 @@ export const env = (() => {
       RESEND_API_KEY: process.env.RESEND_API_KEY,
       EMAIL_FROM: process.env.EMAIL_FROM,
       EMAIL_REPLY_TO: process.env.EMAIL_REPLY_TO,
+      // Fixie 프록시
+      FIXIE_URL: process.env.FIXIE_URL,
+      // 토스페이먼츠
+      NEXT_PUBLIC_TOSS_CLIENT_KEY: process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY,
+      TOSS_SECRET_KEY: process.env.TOSS_SECRET_KEY,
     };
 
     // 빌드 시점 체크 (Next.js 빌드 프로세스 감지)
@@ -91,6 +101,11 @@ export const env = (() => {
         RESEND_API_KEY: envValues.RESEND_API_KEY,
         EMAIL_FROM: envValues.EMAIL_FROM,
         EMAIL_REPLY_TO: envValues.EMAIL_REPLY_TO,
+        // Fixie 프록시
+        FIXIE_URL: envValues.FIXIE_URL,
+        // 토스페이먼츠
+        NEXT_PUBLIC_TOSS_CLIENT_KEY: envValues.NEXT_PUBLIC_TOSS_CLIENT_KEY,
+        TOSS_SECRET_KEY: envValues.TOSS_SECRET_KEY,
       };
     }
 
