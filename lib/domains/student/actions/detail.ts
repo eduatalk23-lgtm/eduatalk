@@ -73,7 +73,7 @@ export async function getStudentDetailAction(
         | "HIGH"
         | "UNIVERSITY"
         | null,
-      division: student.division as "고등부" | "중등부" | "기타" | null,
+      division: student.division as "고등부" | "중등부" | "졸업" | null,
       memo: student.memo ?? null,
       status: student.status as
         | "enrolled"

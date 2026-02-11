@@ -12,7 +12,7 @@ import type { StudentFormData as BaseStudentFormData } from "@/app/(student)/set
 export type AdminStudentFormData = BaseStudentFormData & {
   // 관리자 전용 필드
   class?: string; // 반 정보
-  division?: "고등부" | "중등부" | "기타" | "";
+  division?: "고등부" | "중등부" | "졸업" | "";
   memo?: string;
   status?: "enrolled" | "on_leave" | "graduated" | "transferred" | "";
   is_active?: boolean;
@@ -36,7 +36,7 @@ export type StudentInfoData = {
   school_id?: string | null;
   school_name?: string | null;
   school_type?: "MIDDLE" | "HIGH" | "UNIVERSITY" | null;
-  division?: "고등부" | "중등부" | "기타" | null;
+  division?: "고등부" | "중등부" | "졸업" | null;
   memo?: string | null;
   status?: "enrolled" | "on_leave" | "graduated" | "transferred" | null;
   is_active?: boolean | null;

@@ -248,6 +248,11 @@ export async function createParentStudentLink(
     };
   }
 
+  const tenantContext = await getTenantContext();
+  if (!tenantContext?.tenantId) {
+    return { success: false, error: "기관 정보를 찾을 수 없습니다." };
+  }
+
   const supabase = await createSupabaseServerClient();
 
   try {
@@ -285,6 +290,7 @@ export async function createParentStudentLink(
         student_id: studentId,
         parent_id: parentId,
         relation: relation,
+        tenant_id: tenantContext.tenantId,
       })
       .select("id")
       .single();

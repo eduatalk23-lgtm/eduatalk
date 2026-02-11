@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
-  searchParents,
   createParentStudentLink,
   type SearchableParent,
   type StudentParent,
@@ -32,7 +31,7 @@ export function ParentSearchModal({
   const [searchResults, setSearchResults] = useState<SearchableParent[]>([]);
   const [selectedRelation, setSelectedRelation] = useState<ParentRelation>("mother");
   const [isSearching, setIsSearching] = useState(false);
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const searchCounterRef = useRef(0);
 
   const { execute: executeLink, isPending } = useServerAction(createParentStudentLink, {
     onSuccess: () => {
@@ -46,55 +45,61 @@ export function ParentSearchModal({
   });
 
   // 이미 연결된 학부모 ID 목록
-  const existingParentIds = new Set(existingParents.map((p) => p.parentId));
-
-  // 검색 실행
-  const performSearch = useCallback(
-    async (query: string) => {
-      if (!query || query.trim().length < 2) {
-        setSearchResults([]);
-        setIsSearching(false);
-        return;
-      }
-
-      setIsSearching(true);
-      const result = await searchParents(query.trim());
-
-      if (result.success && result.data) {
-        // 이미 연결된 학부모 필터링
-        const filtered = result.data.filter(
-          (parent) => !existingParentIds.has(parent.id)
-        );
-        setSearchResults(filtered);
-      } else {
-        setSearchResults([]);
-        if (result.error) {
-          showError(result.error);
-        }
-      }
-      setIsSearching(false);
-    },
-    [existingParentIds, showError]
+  const existingParentIds = useMemo(
+    () => new Set(existingParents.map((p) => p.parentId)),
+    [existingParents]
   );
 
-  // Debounce 검색
+  // Ref로 최신 값 유지 (effect 의존성에서 제외하기 위해)
+  const existingParentIdsRef = useRef(existingParentIds);
+  existingParentIdsRef.current = existingParentIds;
+
+  const showErrorRef = useRef(showError);
+  showErrorRef.current = showError;
+
+  // Debounce + 검색을 하나의 effect로 통합 (searchQuery만 의존)
   useEffect(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
+    const query = searchQuery.trim();
+
+    if (query.length < 2) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
     }
 
-    const timer = setTimeout(() => {
-      performSearch(searchQuery);
+    setIsSearching(true);
+    const currentSearch = ++searchCounterRef.current;
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/parents/search?q=${encodeURIComponent(query)}`
+        );
+        const json = await res.json();
+
+        // 이미 다른 검색이 시작된 경우 무시 (stale response 방지)
+        if (currentSearch !== searchCounterRef.current) return;
+
+        if (json.success && json.data) {
+          const filtered = (json.data as SearchableParent[]).filter(
+            (parent) => !existingParentIdsRef.current.has(parent.id)
+          );
+          setSearchResults(filtered);
+        } else {
+          setSearchResults([]);
+        }
+      } catch {
+        if (currentSearch !== searchCounterRef.current) return;
+        setSearchResults([]);
+        showErrorRef.current("학부모 검색 중 오류가 발생했습니다.");
+      }
+      setIsSearching(false);
     }, 300);
 
-    debounceTimerRef.current = timer;
-
     return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
+      clearTimeout(timer);
     };
-  }, [searchQuery, performSearch]);
+  }, [searchQuery]);
 
   // 모달 닫을 때 초기화
   useEffect(() => {
@@ -103,16 +108,15 @@ export function ParentSearchModal({
       setSearchResults([]);
       setSelectedRelation("mother");
       setIsSearching(false);
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-        debounceTimerRef.current = null;
-      }
+      searchCounterRef.current = 0;
     }
   }, [isOpen]);
 
   function handleLink(parentId: string) {
     executeLink(studentId, parentId, selectedRelation);
   }
+
+  const hasQuery = searchQuery.trim().length >= 2;
 
   return (
     <Dialog
@@ -171,22 +175,13 @@ export function ParentSearchModal({
           </div>
 
           {/* 검색 결과 */}
-          {isSearching && (
-            <div className="py-8 text-center text-sm text-gray-500">
-              검색 중...
-            </div>
-          )}
-
-          {!isSearching && searchQuery.length >= 2 && searchResults.length === 0 && (
-            <div className="py-8 text-center text-sm text-gray-500">
-              검색 결과가 없습니다.
-            </div>
-          )}
-
-          {!isSearching && searchResults.length > 0 && (
+          {searchResults.length > 0 && (
             <div className="space-y-2">
-              <div className="text-sm font-medium text-gray-700">
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
                 검색 결과 ({searchResults.length}개)
+                {isSearching && (
+                  <span className="text-xs text-gray-400">업데이트 중...</span>
+                )}
               </div>
               <div className="max-h-64 space-y-2 overflow-y-auto">
                 {searchResults.map((parent) => (
@@ -214,6 +209,18 @@ export function ParentSearchModal({
               </div>
             </div>
           )}
+
+          {isSearching && searchResults.length === 0 && (
+            <div className="py-8 text-center text-sm text-gray-500">
+              검색 중...
+            </div>
+          )}
+
+          {!isSearching && hasQuery && searchResults.length === 0 && (
+            <div className="py-8 text-center text-sm text-gray-500">
+              검색 결과가 없습니다.
+            </div>
+          )}
         </div>
       </DialogContent>
       <DialogFooter>
@@ -228,4 +235,3 @@ export function ParentSearchModal({
     </Dialog>
   );
 }
-

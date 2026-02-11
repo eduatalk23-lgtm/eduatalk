@@ -11,9 +11,11 @@ export {
   listStudentsByTenant,
   upsertStudent,
   getActiveStudentsForSMS,
-  // Division 관련 (학생에게 구분 할당)
+  // Division 관련 (학부·학년 관리)
   updateStudentDivision,
+  updateStudentGrade,
   getStudentsByDivision,
   getStudentDivisionStats,
   batchUpdateStudentDivision,
+  batchUpdateStudentGrade,
 } from "@/lib/data/students";

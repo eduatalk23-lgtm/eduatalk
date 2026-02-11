@@ -2,18 +2,19 @@
 
 import { cn } from "@/lib/cn";
 import type { StudentDivision } from "@/lib/constants/students";
-import { bgSurface, borderDefault, textPrimary, textSecondary } from "@/lib/utils/darkMode";
-
-type DivisionStats = {
-  division: StudentDivision | null;
-  count: number;
-};
+import type { DivisionStatItem } from "@/lib/data/students";
+import { textPrimary, textSecondary } from "@/lib/utils/darkMode";
 
 type DivisionStatsCardsProps = {
-  stats: DivisionStats[];
+  stats: DivisionStatItem[];
   total: number;
   onDivisionClick?: (division: StudentDivision | null) => void;
   selectedDivision?: StudentDivision | null;
+};
+
+const GRADE_PREFIX: Record<string, string> = {
+  고등부: "고",
+  중등부: "중",
 };
 
 export function DivisionStatsCards({
@@ -34,8 +35,8 @@ export function DivisionStatsCards({
     if (division === "중등부") {
       return "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20";
     }
-    if (division === "기타") {
-      return "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/20";
+    if (division === "졸업") {
+      return "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20";
     }
     return "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/20";
   };
@@ -45,12 +46,12 @@ export function DivisionStatsCards({
     return Math.round((count / total) * 100);
   };
 
-  // 구분 순서: 고등부, 중등부, 기타, 미설정
+  // 순서: 고등부, 중등부, 졸업, 미설정
   const orderedStats = [
-    stats.find((s) => s.division === "고등부") || { division: "고등부" as StudentDivision, count: 0 },
-    stats.find((s) => s.division === "중등부") || { division: "중등부" as StudentDivision, count: 0 },
-    stats.find((s) => s.division === "기타") || { division: "기타" as StudentDivision, count: 0 },
-    stats.find((s) => s.division === null) || { division: null, count: 0 },
+    stats.find((s) => s.division === "고등부") || { division: "고등부" as StudentDivision, count: 0, gradeBreakdown: {} },
+    stats.find((s) => s.division === "중등부") || { division: "중등부" as StudentDivision, count: 0, gradeBreakdown: {} },
+    stats.find((s) => s.division === "졸업") || { division: "졸업" as StudentDivision, count: 0, gradeBreakdown: {} },
+    stats.find((s) => s.division === null) || { division: null, count: 0, gradeBreakdown: {} },
   ];
 
   return (
@@ -58,6 +59,18 @@ export function DivisionStatsCards({
       {orderedStats.map((stat) => {
         const isSelected = selectedDivision === stat.division;
         const percentage = getPercentage(stat.count);
+        const prefix = stat.division ? GRADE_PREFIX[stat.division] : null;
+
+        // 학년 1,2,3 (0명 포함)
+        const gradeEntries = [1, 2, 3].map((g) => ({
+          grade: g,
+          count: stat.gradeBreakdown[g] ?? 0,
+        }));
+
+        const getGradePercent = (count: number): number => {
+          if (stat.count === 0) return 0;
+          return Math.round((count / stat.count) * 100);
+        };
 
         return (
           <button
@@ -80,10 +93,19 @@ export function DivisionStatsCards({
                 전체의 {percentage}%
               </div>
             )}
+            {/* 학년 분포 */}
+            {prefix && (
+              <div className={cn("flex gap-3 pt-1 text-xs", textSecondary)}>
+                {gradeEntries.map((e) => (
+                  <span key={e.grade}>
+                    {prefix}{e.grade} {e.count}명({getGradePercent(e.count)}%)
+                  </span>
+                ))}
+              </div>
+            )}
           </button>
         );
       })}
     </div>
   );
 }
-

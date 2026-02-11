@@ -5,15 +5,17 @@
  */
 
 // ============================================
-// Division Management (학생 구분)
+// Division Management (학부·학년 관리)
 // ============================================
 
 export {
-  // 학생 구분 할당 Actions
+  // 학부·학년 관리 Actions
   updateStudentDivisionAction,
+  updateStudentGradeAction,
   getStudentsByDivisionAction,
   getStudentDivisionStatsAction,
   batchUpdateStudentDivisionAction,
+  batchUpdateStudentGradeAction,
 } from "./divisions";
 
 // ============================================

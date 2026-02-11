@@ -33,6 +33,16 @@ export async function addConsultingNote(
       return { success: false, error: "상담 내용을 입력해주세요." };
     }
 
+    // 확장 필드 (마이그레이션 적용 후 활성화)
+    const sessionType = String(formData.get("session_type") ?? "기타");
+    const sessionDurationRaw = formData.get("session_duration");
+    const sessionDuration = sessionDurationRaw ? Number(sessionDurationRaw) : null;
+    const sessionDate = String(formData.get("session_date") ?? new Date().toISOString().slice(0, 10));
+    const nextAction = formData.get("next_action") ? String(formData.get("next_action")).trim() : null;
+    const followUpDate = formData.get("follow_up_date") ? String(formData.get("follow_up_date")) : null;
+    const enrollmentId = formData.get("enrollment_id") ? String(formData.get("enrollment_id")) : null;
+    const isVisibleToParent = formData.get("is_visible_to_parent") === "true";
+
     const supabase = await createSupabaseServerClient();
 
     // 테넌트 격리: 학생이 해당 테넌트에 속하는지 확인
@@ -55,6 +65,13 @@ export async function addConsultingNote(
       student_id: studentId,
       consultant_id: consultantId,
       note,
+      session_type: sessionType,
+      session_duration: sessionDuration,
+      session_date: sessionDate,
+      next_action: nextAction,
+      follow_up_date: followUpDate,
+      enrollment_id: enrollmentId,
+      is_visible_to_parent: isVisibleToParent,
     });
 
     if (error) {

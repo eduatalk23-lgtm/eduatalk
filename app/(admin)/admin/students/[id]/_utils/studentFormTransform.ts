@@ -103,7 +103,7 @@ export function transformFormDataToUpdatePayload(
       class?: string | null;
       birth_date?: string;
       school_id?: string | null;
-      division?: "고등부" | "중등부" | "기타" | null;
+      division?: "고등부" | "중등부" | "졸업" | null;
       memo?: string | null;
       status?: "enrolled" | "on_leave" | "graduated" | "transferred" | null;
       is_active?: boolean;
@@ -156,7 +156,7 @@ export function transformFormDataToUpdatePayload(
     }
     if (shouldInclude("division")) {
       payload.basic.division =
-        (formData.division as "고등부" | "중등부" | "기타" | null) || null;
+        (formData.division as "고등부" | "중등부" | "졸업" | null) || null;
     }
     if (shouldInclude("memo")) {
       payload.basic.memo = formData.memo || null;

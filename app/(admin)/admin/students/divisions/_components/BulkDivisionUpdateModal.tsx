@@ -49,7 +49,7 @@ export function BulkDivisionUpdateModal({
 
         if (result.success) {
           toast.showSuccess(
-            `${result.successCount}명의 학생 구분이 업데이트되었습니다.`
+            `${result.successCount}명의 학부가 업데이트되었습니다.`
           );
           onSuccess?.();
           onOpenChange(false);
@@ -68,7 +68,7 @@ export function BulkDivisionUpdateModal({
           }
         }
       } catch (error) {
-        console.error("일괄 구분 업데이트 실패:", error);
+        console.error("학부 일괄 업데이트 실패:", error);
         toast.showError(
           error instanceof Error ? error.message : "일괄 업데이트에 실패했습니다."
         );
@@ -81,17 +81,17 @@ export function BulkDivisionUpdateModal({
       <div className="flex flex-col gap-6 p-6">
         <div className="flex flex-col gap-2">
           <h2 className="text-h2 text-gray-900 dark:text-gray-100">
-            학생 구분 일괄 변경
+            학부 일괄 변경
           </h2>
           <p className={cn("text-body-2", textSecondary)}>
-            선택된 {studentIds.length}명의 학생 구분을 일괄 변경합니다.
+            선택된 {studentIds.length}명의 학부를 일괄 변경합니다.
           </p>
         </div>
 
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <label className={cn("text-body-2 font-semibold", textPrimary)}>
-              구분 선택
+              학부 선택
             </label>
             <select
               value={selectedDivision === "" ? "" : selectedDivision || ""}

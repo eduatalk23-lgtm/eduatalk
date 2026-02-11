@@ -3,7 +3,7 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { EmptyState } from "@/components/molecules/EmptyState";
+
 import { ErrorState } from "@/components/ui/ErrorState";
 import { getSalesLeads } from "@/lib/data/salesLeads";
 import { getProgramsByTenant } from "@/lib/data/programs";
@@ -97,19 +97,12 @@ export default async function LeadListPage({
           adminUsers={adminUsers}
         />
 
-        {leadsResult.items.length === 0 ? (
-          <EmptyState
-            title="리드가 없습니다"
-            description="조건에 맞는 리드가 없습니다."
-          />
-        ) : (
-          <LeadListClient
-            leads={leadsResult.items}
-            programs={programs}
-            adminUsers={adminUsers}
-            currentUserId={userId}
-          />
-        )}
+        <LeadListClient
+          leads={leadsResult.items}
+          programs={programs}
+          adminUsers={adminUsers}
+          currentUserId={userId}
+        />
 
         <CrmPagination
           currentPage={page}

@@ -12,6 +12,7 @@ type TabKey =
   | "session"
   | "analysis"
   | "consulting"
+  | "enrollment"
   | "attendance"
   | "time"
   | "risk";
@@ -30,6 +31,7 @@ const tabs: Tab[] = [
   { key: "session", label: "학습기록", icon: "⏱️" },
   { key: "analysis", label: "분석 리포트", icon: "📈" },
   { key: "consulting", label: "상담노트", icon: "📝" },
+  { key: "enrollment", label: "수강", icon: "📋" },
   { key: "attendance", label: "출석", icon: "✓" },
   { key: "time", label: "시간관리", icon: "⏰" },
   { key: "risk", label: "위험도/추천", icon: "⚠️" },

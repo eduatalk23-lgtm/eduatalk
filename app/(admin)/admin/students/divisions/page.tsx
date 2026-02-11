@@ -44,8 +44,8 @@ export default async function StudentDivisionsPage({
     <div className="p-6 md:p-10">
       <div className="flex flex-col gap-6">
         <PageHeader
-          title="학생 구분 관리"
-          description="학생 구분을 관리하고 일괄 변경할 수 있습니다."
+          title="학부·학년 관리"
+          description="학부와 학년을 관리하고 일괄 변경할 수 있습니다."
         />
 
         {/* 통계 카드 */}

@@ -32,12 +32,14 @@ import { ConsultingNotesSectionSkeleton } from "./_components/ConsultingNotesSec
 import { ConnectionSection } from "./_components/ConnectionSection";
 import { TimeManagementSection } from "./_components/time-management/TimeManagementSection";
 import { TimeManagementSectionSkeleton } from "./_components/time-management/TimeManagementSectionSkeleton";
+import { EnrollmentSection } from "./_components/EnrollmentSection";
+import { ConsultantAssignmentPanel } from "./_components/ConsultantAssignmentPanel";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
 >;
 
-type TabType = "basic" | "plan" | "content" | "score" | "session" | "analysis" | "consulting" | "attendance" | "time" | "risk";
+type TabType = "basic" | "plan" | "content" | "score" | "session" | "analysis" | "consulting" | "enrollment" | "attendance" | "time" | "risk";
 
 export default async function AdminStudentDetailPage({
   params,
@@ -54,7 +56,7 @@ export default async function AdminStudentDetailPage({
 
   const { id: studentId } = await params;
   const paramsObj = await searchParams;
-  const VALID_TABS: TabType[] = ["basic", "plan", "content", "score", "session", "analysis", "consulting", "attendance", "time", "risk"];
+  const VALID_TABS: TabType[] = ["basic", "plan", "content", "score", "session", "analysis", "consulting", "enrollment", "attendance", "time", "risk"];
   const rawTab = paramsObj.tab as TabType;
   const defaultTab: TabType = VALID_TABS.includes(rawTab) ? rawTab : "basic";
 
@@ -109,7 +111,7 @@ export default async function AdminStudentDetailPage({
     school_id: student.school_id,
     school_name: student.school_name,
     school_type: student.school_type as "MIDDLE" | "HIGH" | "UNIVERSITY" | null,
-    division: student.division as "고등부" | "중등부" | "기타" | null,
+    division: student.division as "고등부" | "중등부" | "졸업" | null,
     memo: student.memo ?? null,
     status: student.status as "enrolled" | "on_leave" | "graduated" | "transferred" | null,
     is_active: student.is_active ?? true,
@@ -198,11 +200,27 @@ export default async function AdminStudentDetailPage({
 
             {/* 상담노트 탭 */}
             {defaultTab === "consulting" && (
-              <Suspense fallback={<ConsultingNotesSectionSkeleton />}>
-                <ConsultingNotesSection
-                  studentId={studentId}
-                  consultantId={userId}
-                />
+              <div className="space-y-6">
+                <ConsultantAssignmentPanel studentId={studentId} />
+                <Suspense fallback={<ConsultingNotesSectionSkeleton />}>
+                  <ConsultingNotesSection
+                    studentId={studentId}
+                    consultantId={userId}
+                  />
+                </Suspense>
+              </div>
+            )}
+
+            {/* 수강 탭 */}
+            {defaultTab === "enrollment" && (
+              <Suspense
+                fallback={
+                  <div className="rounded-lg border border-gray-200 bg-white p-6">
+                    <div className="text-sm text-gray-500">로딩 중...</div>
+                  </div>
+                }
+              >
+                <EnrollmentSection studentId={studentId} tenantId={tenantId!} />
               </Suspense>
             )}
 

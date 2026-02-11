@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Button from "@/components/atoms/Button";
+import { EmptyState } from "@/components/molecules/EmptyState";
 import type { SalesLeadWithRelations, Program } from "@/lib/domains/crm/types";
 import { LeadTable } from "./LeadTable";
 import { ConsultationFormDialog } from "./ConsultationFormDialog";
@@ -29,7 +30,14 @@ export function LeadListClient({
         </Button>
       </div>
 
-      <LeadTable leads={leads} />
+      {leads.length === 0 ? (
+        <EmptyState
+          title="리드가 없습니다"
+          description="조건에 맞는 리드가 없습니다."
+        />
+      ) : (
+        <LeadTable leads={leads} />
+      )}
 
       <ConsultationFormDialog
         open={showForm}

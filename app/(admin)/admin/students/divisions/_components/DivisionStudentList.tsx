@@ -14,7 +14,10 @@ import {
   getGrayBgClasses,
   borderInput,
 } from "@/lib/utils/darkMode";
-import { updateStudentDivisionAction } from "@/lib/domains/student/actions";
+import {
+  updateStudentDivisionAction,
+  updateStudentGradeAction,
+} from "@/lib/domains/student/actions";
 import { STUDENT_DIVISIONS, type StudentDivision } from "@/lib/constants/students";
 import type { Student } from "@/lib/data/students";
 
@@ -76,15 +79,44 @@ export function DivisionStudentList({
         const result = await updateStudentDivisionAction(studentId, division);
 
         if (result.success) {
-          showSuccess("구분이 업데이트되었습니다.");
+          showSuccess("학부가 업데이트되었습니다.");
           onUpdate?.();
         } else {
-          showError(result.error || "구분 업데이트에 실패했습니다.");
+          showError(result.error || "학부 업데이트에 실패했습니다.");
         }
       } catch (error) {
-        console.error("구분 업데이트 실패:", error);
+        console.error("학부 업데이트 실패:", error);
         showError(
-          error instanceof Error ? error.message : "구분 업데이트에 실패했습니다."
+          error instanceof Error ? error.message : "학부 업데이트에 실패했습니다."
+        );
+      } finally {
+        setUpdatingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(studentId);
+          return next;
+        });
+      }
+    },
+    [showSuccess, showError, onUpdate]
+  );
+
+  const handleGradeChange = useCallback(
+    async (studentId: string, grade: number | null) => {
+      setUpdatingIds((prev) => new Set(prev).add(studentId));
+
+      try {
+        const result = await updateStudentGradeAction(studentId, grade);
+
+        if (result.success) {
+          showSuccess("학년이 업데이트되었습니다.");
+          onUpdate?.();
+        } else {
+          showError(result.error || "학년 업데이트에 실패했습니다.");
+        }
+      } catch (error) {
+        console.error("학년 업데이트 실패:", error);
+        showError(
+          error instanceof Error ? error.message : "학년 업데이트에 실패했습니다."
         );
       } finally {
         setUpdatingIds((prev) => {
@@ -143,25 +175,27 @@ export function DivisionStudentList({
                   )}
                 />
               </th>
+              <th className={tableHeaderBase}>No.</th>
               <th className={tableHeaderBase}>이름</th>
+              <th className={tableHeaderBase}>학교</th>
               <th className={tableHeaderBase}>학년</th>
-              <th className={tableHeaderBase}>반</th>
-              <th className={tableHeaderBase}>현재 구분</th>
-              <th className={tableHeaderBase}>구분 변경</th>
+              <th className={tableHeaderBase}>학년변경</th>
+              <th className={tableHeaderBase}>학부</th>
+              <th className={tableHeaderBase}>학부변경</th>
             </tr>
           </thead>
           <tbody className={cn("divide-y", divideDefaultVar, bgSurface)}>
             {students.length === 0 ? (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={8}
                   className={cn(tableCellBase, "text-center", textMuted)}
                 >
                   학생이 없습니다.
                 </td>
               </tr>
             ) : (
-              students.map((student) => {
+              students.map((student, index) => {
                 const isSelected = selectedIds.has(student.id);
                 const isUpdating = updatingIds.has(student.id);
 
@@ -184,14 +218,48 @@ export function DivisionStudentList({
                         )}
                       />
                     </td>
+                    <td className={cn(tableCellBase, textMuted)}>
+                      {index + 1}
+                    </td>
                     <td className={cn(tableCellBase, "font-medium", textPrimary)}>
                       {student.name ?? "이름 없음"}
                     </td>
                     <td className={cn(tableCellBase, textMuted)}>
-                      {student.grade ?? "-"}
+                      <span
+                        className="max-w-[80px] truncate inline-block"
+                        title={student.school_name ?? "-"}
+                      >
+                        {student.school_name ?? "-"}
+                      </span>
                     </td>
                     <td className={cn(tableCellBase, textMuted)}>
-                      {student.class ?? "-"}
+                      {student.grade != null ? `${student.grade}학년` : "-"}
+                    </td>
+                    <td className={tableCellBase}>
+                      <select
+                        value={student.grade != null ? String(student.grade) : ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          handleGradeChange(
+                            student.id,
+                            value === "" ? null : Number(value)
+                          );
+                        }}
+                        disabled={isUpdating}
+                        className={cn(
+                          "rounded-lg border px-3 py-1.5 text-sm focus:outline-none focus:ring-2",
+                          borderInput,
+                          bgSurface,
+                          textPrimary,
+                          "focus:border-indigo-500 focus:ring-indigo-200 dark:focus:ring-indigo-800",
+                          isUpdating && "opacity-50 cursor-not-allowed"
+                        )}
+                      >
+                        <option value="">미설정</option>
+                        <option value="1">1학년</option>
+                        <option value="2">2학년</option>
+                        <option value="3">3학년</option>
+                      </select>
                     </td>
                     <td className={cn(tableCellBase, textMuted)}>
                       {student.division ? (
@@ -200,9 +268,9 @@ export function DivisionStudentList({
                             "rounded-full px-2 py-1 text-xs font-semibold",
                             student.division === "고등부"
                               ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                              : student.division === "중등부"
-                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                              : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
+                              : student.division === "졸업"
+                                ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
+                                : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                           )}
                         >
                           {student.division}
@@ -249,4 +317,3 @@ export function DivisionStudentList({
     </div>
   );
 }
-
