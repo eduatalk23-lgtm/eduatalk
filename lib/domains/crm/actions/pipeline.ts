@@ -234,6 +234,29 @@ export async function convertLead(
       };
     }
 
+    // 수강 등록 자동 생성
+    if (lead.program_id) {
+      const { error: enrollmentError } = await supabase
+        .from("enrollments")
+        .insert({
+          tenant_id: tenantId,
+          student_id: studentId,
+          program_id: lead.program_id,
+          status: "active",
+          start_date: new Date().toISOString().slice(0, 10),
+          created_by: userId,
+          notes: "CRM 리드 전환 자동 등록",
+        });
+      if (enrollmentError) {
+        logActionError(
+          { domain: "crm", action: "convertLead", tenantId, userId },
+          enrollmentError,
+          { leadId, studentId, context: "enrollment auto-creation" }
+        );
+        // Non-fatal: 전환 자체는 실패하지 않음
+      }
+    }
+
     // 리드를 전환 상태로 업데이트
     const previousStatus = lead.pipeline_status;
     const { error: updateError } = await supabase
