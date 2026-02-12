@@ -50,7 +50,7 @@ export const ALIMTALK_TEMPLATE_MAP: Partial<
     smsTemplateType: "payment_overdue",
   },
   consultation_scheduled: {
-    templateCode: "CONSULTATION_SCHEDULED",
+    templateCode: "ppur_2026021214391312712009904",
     smsTemplateType: "consultation_scheduled",
   },
   consultation_changed: {
@@ -64,6 +64,22 @@ export const ALIMTALK_TEMPLATE_MAP: Partial<
   consultation_reminder: {
     templateCode: "CONSULTATION_REMINDER",
     smsTemplateType: "consultation_reminder",
+  },
+  consultation_scheduled_remote: {
+    templateCode: "CONSULTATION_SCHEDULED_REMOTE",
+    smsTemplateType: "consultation_scheduled_remote",
+  },
+  consultation_changed_remote: {
+    templateCode: "CONSULTATION_CHANGED_REMOTE",
+    smsTemplateType: "consultation_changed_remote",
+  },
+  consultation_reminder_remote: {
+    templateCode: "CONSULTATION_REMINDER_REMOTE",
+    smsTemplateType: "consultation_reminder_remote",
+  },
+  consultation_missed_call: {
+    templateCode: "CONSULTATION_MISSED_CALL",
+    smsTemplateType: "consultation_missed_call",
   },
   notice: {
     templateCode: "NOTICE",

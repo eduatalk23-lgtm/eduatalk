@@ -27,6 +27,12 @@ export const SESSION_TYPE_COLORS: Record<SessionType, string> = {
   기타: "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-300",
 };
 
+// ── 상담 방식 (Consultation Mode) ──
+
+export type ConsultationMode = "대면" | "원격";
+
+export const CONSULTATION_MODES: ConsultationMode[] = ["대면", "원격"];
+
 // ── 상담 일정 (Consultation Schedule) ──
 
 export type ScheduleStatus = "scheduled" | "completed" | "cancelled" | "no_show";
@@ -42,6 +48,8 @@ export interface ConsultationSchedule {
   start_time: string;
   end_time: string;
   duration_minutes: number | null;
+  consultation_mode: ConsultationMode;
+  meeting_link: string | null;
   visitor: string | null;
   location: string | null;
   description: string | null;

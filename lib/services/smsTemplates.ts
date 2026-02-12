@@ -14,6 +14,10 @@ export type SMSTemplateType =
   | "consultation_reminder"
   | "consultation_changed"
   | "consultation_cancelled"
+  | "consultation_scheduled_remote"
+  | "consultation_changed_remote"
+  | "consultation_reminder_remote"
+  | "consultation_missed_call"
   | "notice";
 
 export interface SMSTemplate {
@@ -182,6 +186,113 @@ export const SMS_TEMPLATES: Record<SMSTemplateType, SMSTemplate> = {
       "상담장소",
       "대표번호",
     ],
+  },
+  consultation_scheduled_remote: {
+    id: "consultation_scheduled_remote",
+    type: "consultation_scheduled_remote",
+    title: "원격 상담 일정 안내",
+    content:
+      `[{학원명}] {학생명} 학생
+<"{상담유형}" 원격 상담일정안내>
+
+▶ 담당 컨설턴트
+    {컨설턴트명}
+▶ 방문 상담자
+    {방문상담자}
+▶ 상담시간
+    {상담시간}분
+▶ 상담일정
+    {상담일정}
+▶ 참가 링크
+    {참가링크}
+
+▷ 기타 문의사항
+    대표번호 {대표번호}`,
+    variables: [
+      "학원명",
+      "학생명",
+      "상담유형",
+      "컨설턴트명",
+      "방문상담자",
+      "상담시간",
+      "상담일정",
+      "참가링크",
+      "대표번호",
+    ],
+  },
+  consultation_changed_remote: {
+    id: "consultation_changed_remote",
+    type: "consultation_changed_remote",
+    title: "원격 상담 일정 변경 안내",
+    content:
+      `[{학원명}] {학생명} 학생
+<"{상담유형}" 원격 상담일정 변경안내>
+
+▶ 변경된 상담일정
+    {상담일정}
+▶ 담당 컨설턴트
+    {컨설턴트명}
+▶ 방문 상담자
+    {방문상담자}
+▶ 참가 링크
+    {참가링크}
+
+▷ 기타 문의사항
+    대표번호 {대표번호}`,
+    variables: [
+      "학원명",
+      "학생명",
+      "상담유형",
+      "컨설턴트명",
+      "방문상담자",
+      "상담일정",
+      "참가링크",
+      "대표번호",
+    ],
+  },
+  consultation_reminder_remote: {
+    id: "consultation_reminder_remote",
+    type: "consultation_reminder_remote",
+    title: "원격 상담 일정 리마인더",
+    content:
+      `[{학원명}] {학생명} 학생
+<내일 "{상담유형}" 원격 상담일정 안내>
+
+▶ 상담일정
+    {상담일정}
+▶ 담당 컨설턴트
+    {컨설턴트명}
+▶ 방문 상담자
+    {방문상담자}
+▶ 참가 링크
+    {참가링크}
+
+▷ 기타 문의사항
+    대표번호 {대표번호}`,
+    variables: [
+      "학원명",
+      "학생명",
+      "상담유형",
+      "컨설턴트명",
+      "방문상담자",
+      "상담일정",
+      "참가링크",
+      "대표번호",
+    ],
+  },
+  consultation_missed_call: {
+    id: "consultation_missed_call",
+    type: "consultation_missed_call",
+    title: "상담 부재 안내",
+    content:
+      `[{학원명}] 안녕하세요
+수시에서 합격하는 절대법칙 에듀엣톡입니다.
+상담 안내로 연락드렸으나 부재로 확인되었습니다.
+
+추후 상담 원하실 경우
+☎ {대표번호}
+전화주시면 안내해드리겠습니다.`,
+    variables: ["학원명", "대표번호"],
   },
   notice: {
     id: "notice",

@@ -9,7 +9,12 @@ import {
   textPrimary,
   textSecondary,
 } from "@/lib/utils/darkMode";
-import { SESSION_TYPES, type SessionType } from "@/lib/domains/consulting/types";
+import {
+  SESSION_TYPES,
+  CONSULTATION_MODES,
+  type SessionType,
+  type ConsultationMode,
+} from "@/lib/domains/consulting/types";
 import { createConsultationSchedule } from "@/lib/domains/consulting/actions/schedule";
 
 type EnrollmentOption = {
@@ -36,6 +41,7 @@ export function ConsultationScheduleForm({
   const [success, setSuccess] = useState(false);
   const [sendNotification, setSendNotification] = useState(true);
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState("");
+  const [consultationMode, setConsultationMode] = useState<ConsultationMode>("대면");
 
   const inputClass = cn(
     "w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2",
@@ -67,10 +73,16 @@ export function ConsultationScheduleForm({
     const endTime = formData.get("end_time") as string;
     const visitor = (formData.get("visitor") as string) || undefined;
     const location = (formData.get("location") as string) || undefined;
+    const meetingLink = (formData.get("meeting_link") as string) || undefined;
     const description = (formData.get("description") as string) || undefined;
 
     if (!consultantId || !scheduledDate || !startTime || !endTime) {
       setError("필수 항목을 모두 입력해주세요.");
+      return;
+    }
+
+    if (endTime <= startTime) {
+      setError("종료 시간은 시작 시간 이후여야 합니다.");
       return;
     }
 
@@ -84,6 +96,8 @@ export function ConsultationScheduleForm({
         scheduledDate,
         startTime,
         endTime,
+        consultationMode,
+        meetingLink,
         visitor,
         location,
         description,
@@ -93,6 +107,7 @@ export function ConsultationScheduleForm({
       if (result.success) {
         setSuccess(true);
         setSelectedEnrollmentId("");
+        setConsultationMode("대면");
         form.reset();
         router.refresh();
         setTimeout(() => setSuccess(false), 3000);
@@ -168,6 +183,7 @@ export function ConsultationScheduleForm({
             type="date"
             name="scheduled_date"
             required
+            min={new Date().toISOString().split("T")[0]}
             className={inputClass}
           />
         </div>
@@ -193,8 +209,23 @@ export function ConsultationScheduleForm({
         </div>
       </div>
 
-      {/* Row 3: 방문상담자, 상담장소, 메모 */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      {/* Row 3: 상담방식, 방문상담자, 장소/링크 */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+        <div className="flex flex-col gap-1">
+          <label className={labelClass}>상담 방식</label>
+          <select
+            value={consultationMode}
+            onChange={(e) => setConsultationMode(e.target.value as ConsultationMode)}
+            className={inputClass}
+          >
+            {CONSULTATION_MODES.map((mode) => (
+              <option key={mode} value={mode}>
+                {mode}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div className="flex flex-col gap-1">
           <label className={labelClass}>방문 상담자</label>
           <input
@@ -205,15 +236,27 @@ export function ConsultationScheduleForm({
           />
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label className={labelClass}>상담 장소</label>
-          <input
-            type="text"
-            name="location"
-            placeholder="미입력 시 학원 주소 사용"
-            className={inputClass}
-          />
-        </div>
+        {consultationMode === "대면" ? (
+          <div className="flex flex-col gap-1">
+            <label className={labelClass}>상담 장소</label>
+            <input
+              type="text"
+              name="location"
+              placeholder="미입력 시 학원 주소 사용"
+              className={inputClass}
+            />
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1">
+            <label className={labelClass}>참가 링크</label>
+            <input
+              type="url"
+              name="meeting_link"
+              placeholder="https://zoom.us/j/..."
+              className={inputClass}
+            />
+          </div>
+        )}
 
         <div className="flex flex-col gap-1">
           <label className={labelClass}>메모</label>

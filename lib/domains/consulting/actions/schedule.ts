@@ -11,8 +11,10 @@ import { formatSMSTemplate } from "@/lib/services/smsTemplates";
 import { getAlimtalkTemplate } from "@/lib/services/alimtalkTemplates";
 import { sendAlimtalk } from "@/lib/services/alimtalkService";
 import { sendSMS } from "@/lib/services/smsService";
+import type { SMSTemplateType } from "@/lib/services/smsTemplates";
 import type {
   SessionType,
+  ConsultationMode,
   ConsultationSchedule,
 } from "../types";
 import { enqueueGoogleCalendarSync } from "@/lib/domains/googleCalendar";
@@ -42,6 +44,8 @@ export async function createConsultationSchedule(input: {
   startTime: string;
   endTime: string;
   durationMinutes?: number;
+  consultationMode?: ConsultationMode;
+  meetingLink?: string;
   visitor?: string;
   location?: string;
   description?: string;
@@ -72,9 +76,35 @@ export async function createConsultationSchedule(input: {
       return { success: false, error: "권한이 없습니다." };
     }
 
-    // duration 자동 계산
+    // 과거 날짜 예약 방지
+    const todayKST = getTodayKST();
+    if (input.scheduledDate < todayKST) {
+      return { success: false, error: "과거 날짜에는 상담 일정을 생성할 수 없습니다." };
+    }
+
+    // duration 자동 계산 + 유효성 검증
     const durationMinutes =
       input.durationMinutes ?? calculateDuration(input.startTime, input.endTime);
+
+    if (durationMinutes <= 0) {
+      return { success: false, error: "종료 시간은 시작 시간 이후여야 합니다." };
+    }
+
+    // 컨설턴트 일정 충돌 감지
+    const { data: conflicts } = await scheduleTable(supabase)
+      .select("id")
+      .eq("consultant_id", input.consultantId)
+      .eq("scheduled_date", input.scheduledDate)
+      .neq("status", "cancelled")
+      .lt("start_time", input.endTime)
+      .gt("end_time", input.startTime);
+
+    if (conflicts && conflicts.length > 0) {
+      return {
+        success: false,
+        error: "해당 시간에 이미 예약된 상담이 있습니다.",
+      };
+    }
 
     // DB INSERT
     const { data: schedule, error: insertError } = await scheduleTable(supabase)
@@ -88,6 +118,8 @@ export async function createConsultationSchedule(input: {
         start_time: input.startTime,
         end_time: input.endTime,
         duration_minutes: durationMinutes,
+        consultation_mode: input.consultationMode || "대면",
+        meeting_link: input.meetingLink || null,
         visitor: input.visitor || null,
         location: input.location || null,
         description: input.description || null,
@@ -120,6 +152,8 @@ export async function createConsultationSchedule(input: {
         startTime: input.startTime,
         endTime: input.endTime,
         durationMinutes,
+        consultationMode: input.consultationMode,
+        meetingLink: input.meetingLink,
         visitor: input.visitor,
         location: input.location,
       });
@@ -216,6 +250,8 @@ export async function updateConsultationSchedule(input: {
   scheduledDate: string;
   startTime: string;
   endTime: string;
+  consultationMode?: ConsultationMode;
+  meetingLink?: string;
   visitor?: string;
   location?: string;
   description?: string;
@@ -233,11 +269,32 @@ export async function updateConsultationSchedule(input: {
 
     // 기존 일정 조회 (변경 감지용)
     const { data: existing } = await scheduleTable(supabase)
-      .select("scheduled_date, start_time, end_time, location, session_type")
+      .select("scheduled_date, start_time, end_time, location, session_type, consultation_mode, meeting_link")
       .eq("id", input.scheduleId)
       .single();
 
     const durationMinutes = calculateDuration(input.startTime, input.endTime);
+
+    if (durationMinutes <= 0) {
+      return { success: false, error: "종료 시간은 시작 시간 이후여야 합니다." };
+    }
+
+    // 컨설턴트 일정 충돌 감지 (자기 자신 제외)
+    const { data: conflicts } = await scheduleTable(supabase)
+      .select("id")
+      .eq("consultant_id", input.consultantId)
+      .eq("scheduled_date", input.scheduledDate)
+      .neq("status", "cancelled")
+      .neq("id", input.scheduleId)
+      .lt("start_time", input.endTime)
+      .gt("end_time", input.startTime);
+
+    if (conflicts && conflicts.length > 0) {
+      return {
+        success: false,
+        error: "해당 시간에 이미 예약된 상담이 있습니다.",
+      };
+    }
 
     const { error: updateError } = await scheduleTable(supabase)
       .update({
@@ -248,6 +305,8 @@ export async function updateConsultationSchedule(input: {
         start_time: input.startTime,
         end_time: input.endTime,
         duration_minutes: durationMinutes,
+        consultation_mode: input.consultationMode || "대면",
+        meeting_link: input.meetingLink || null,
         visitor: input.visitor || null,
         location: input.location || null,
         description: input.description || null,
@@ -270,17 +329,25 @@ export async function updateConsultationSchedule(input: {
         start_time: string;
         end_time: string;
         location: string | null;
+        consultation_mode: string | null;
+        meeting_link: string | null;
         session_type: string;
       };
       const changed =
         old.scheduled_date !== input.scheduledDate ||
         old.start_time !== input.startTime ||
         old.end_time !== input.endTime ||
-        (old.location ?? "") !== (input.location ?? "");
+        (old.location ?? "") !== (input.location ?? "") ||
+        (old.consultation_mode ?? "대면") !== (input.consultationMode ?? "대면") ||
+        (old.meeting_link ?? "") !== (input.meetingLink ?? "");
 
       if (changed) {
+        const mode = input.consultationMode ?? "대면";
+        const changedTemplateType: SMSTemplateType =
+          mode === "원격" ? "consultation_changed_remote" : "consultation_changed";
+
         await sendChangeNotification({
-          templateType: "consultation_changed",
+          templateType: changedTemplateType,
           scheduleId: input.scheduleId,
           tenantId: tenantContext.tenantId,
           studentId: input.studentId,
@@ -290,6 +357,8 @@ export async function updateConsultationSchedule(input: {
           scheduledDate: input.scheduledDate,
           startTime: input.startTime,
           endTime: input.endTime,
+          consultationMode: input.consultationMode,
+          meetingLink: input.meetingLink,
           visitor: input.visitor,
           location: input.location,
         });
@@ -345,7 +414,7 @@ export async function deleteConsultationSchedule(input: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const row = existing as any;
 
-    // Google Calendar 이벤트 삭제 (삭제 전에 수행 - FK 제약 때문)
+    // Google Calendar 이벤트 취소 (삭제 전에 수행 - FK 제약 때문)
     if (row.google_calendar_event_id) {
       await enqueueGoogleCalendarSync({
         scheduleId: input.scheduleId,
@@ -353,6 +422,29 @@ export async function deleteConsultationSchedule(input: {
         consultantId: row.consultant_id,
         action: "cancel",
       });
+    }
+
+    // 취소 알림을 DB 삭제 전에 발송 (삭제 후 발송 실패 시 데이터 유실 방지)
+    if (input.sendNotification !== false && row.status === "scheduled") {
+      try {
+        await sendChangeNotification({
+          templateType: "consultation_cancelled",
+          scheduleId: input.scheduleId,
+          tenantId: tenantContext.tenantId,
+          studentId: input.studentId,
+          consultantId: row.consultant_id,
+          sessionType: row.session_type,
+          scheduledDate: row.scheduled_date,
+          startTime: row.start_time,
+          endTime: row.end_time,
+        });
+      } catch (notifyError) {
+        // 알림 실패가 삭제를 막지 않도록 로깅만 수행
+        logActionError(ACTION_CTX, notifyError, {
+          context: "삭제 취소 알림 발송 실패 (삭제는 계속 진행)",
+          scheduleId: input.scheduleId,
+        });
+      }
     }
 
     const { error: deleteError } = await scheduleTable(supabase)
@@ -365,21 +457,6 @@ export async function deleteConsultationSchedule(input: {
         scheduleId: input.scheduleId,
       });
       return { success: false, error: "상담 일정 삭제에 실패했습니다." };
-    }
-
-    // 예정 상태였던 일정만 취소 알림 발송
-    if (input.sendNotification !== false && row.status === "scheduled") {
-      await sendChangeNotification({
-        templateType: "consultation_cancelled",
-        scheduleId: input.scheduleId,
-        tenantId: tenantContext.tenantId,
-        studentId: input.studentId,
-        consultantId: row.consultant_id,
-        sessionType: row.session_type,
-        scheduledDate: row.scheduled_date,
-        startTime: row.start_time,
-        endTime: row.end_time,
-      });
     }
 
     revalidatePath(`/admin/students/${input.studentId}`);
@@ -467,6 +544,8 @@ async function sendScheduleNotification(params: {
   startTime: string;
   endTime: string;
   durationMinutes: number | null;
+  consultationMode?: ConsultationMode;
+  meetingLink?: string;
   visitor?: string;
   location?: string;
 }): Promise<void> {
@@ -523,6 +602,11 @@ async function sendScheduleNotification(params: {
     // 알림톡 상담유형: 프로그램명 우선, 없으면 세션 유형
     const consultationType = params.programName || params.sessionType;
 
+    const isRemote = params.consultationMode === "원격";
+    const smsTemplateType: SMSTemplateType = isRemote
+      ? "consultation_scheduled_remote"
+      : "consultation_scheduled";
+
     const templateVariables: Record<string, string> = {
       학원명: tenant?.name ?? "",
       학생명: params.studentName,
@@ -531,14 +615,16 @@ async function sendScheduleNotification(params: {
       방문상담자: params.visitor || "학생 & 학부모",
       상담시간: String(params.durationMinutes ?? ""),
       상담일정: scheduleFormatted,
-      상담장소: params.location || tenant?.address || "",
+      ...(isRemote
+        ? { 참가링크: params.meetingLink || "" }
+        : { 상담장소: params.location || tenant?.address || "" }),
       대표번호: tenant?.representative_phone || "",
     };
 
-    const message = formatSMSTemplate("consultation_scheduled", templateVariables);
+    const message = formatSMSTemplate(smsTemplateType, templateVariables);
 
     // 알림톡 우선, 없으면 SMS
-    const alimtalkTemplate = getAlimtalkTemplate("consultation_scheduled");
+    const alimtalkTemplate = getAlimtalkTemplate(smsTemplateType);
 
     let sent = false;
 
@@ -590,7 +676,7 @@ async function sendScheduleNotification(params: {
 // ── 내부: 변경/취소 알림 발송 ──
 
 async function sendChangeNotification(params: {
-  templateType: "consultation_changed" | "consultation_cancelled";
+  templateType: SMSTemplateType;
   scheduleId: string;
   tenantId: string;
   studentId: string;
@@ -600,6 +686,8 @@ async function sendChangeNotification(params: {
   scheduledDate: string;
   startTime: string;
   endTime: string;
+  consultationMode?: ConsultationMode;
+  meetingLink?: string;
   visitor?: string;
   location?: string;
 }): Promise<void> {
@@ -636,6 +724,8 @@ async function sendChangeNotification(params: {
       params.endTime
     );
 
+    const isRemote = params.consultationMode === "원격";
+
     const templateVariables: Record<string, string> = {
       학원명: tenant?.name ?? "",
       학생명: studentResult.data?.name ?? "",
@@ -643,7 +733,9 @@ async function sendChangeNotification(params: {
       컨설턴트명: consultantResult.data?.name ?? "",
       방문상담자: params.visitor || "학생 & 학부모",
       상담일정: scheduleFormatted,
-      상담장소: params.location || tenant?.address || "",
+      ...(isRemote
+        ? { 참가링크: params.meetingLink || "" }
+        : { 상담장소: params.location || tenant?.address || "" }),
       대표번호: tenant?.representative_phone || "",
     };
 
@@ -686,6 +778,16 @@ async function sendChangeNotification(params: {
 }
 
 // ── 유틸 ──
+
+function getTodayKST(): string {
+  const kstNow = new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" })
+  );
+  const y = kstNow.getFullYear();
+  const m = String(kstNow.getMonth() + 1).padStart(2, "0");
+  const d = String(kstNow.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
 
 function calculateDuration(startTime: string, endTime: string): number {
   const [sh, sm] = startTime.split(":").map(Number);

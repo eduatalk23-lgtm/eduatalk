@@ -5,7 +5,7 @@
 
 import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
-import { formatSMSTemplate } from "@/lib/services/smsTemplates";
+import { formatSMSTemplate, type SMSTemplateType } from "@/lib/services/smsTemplates";
 import { getAlimtalkTemplate } from "@/lib/services/alimtalkTemplates";
 import { sendAlimtalk } from "@/lib/services/alimtalkService";
 import { sendSMS } from "@/lib/services/smsService";
@@ -107,6 +107,8 @@ export async function processConsultationReminders(): Promise<{
         scheduledDate: row.scheduled_date as string,
         startTime: row.start_time as string,
         endTime: row.end_time as string,
+        consultationMode: (row.consultation_mode as string | null) ?? "대면",
+        meetingLink: row.meeting_link as string | null,
         visitor: row.visitor as string | null,
         location: row.location as string | null,
         tenant: tenantMap.get(row.tenant_id as string) ?? null,
@@ -153,6 +155,8 @@ async function sendReminderNotification(params: {
   scheduledDate: string;
   startTime: string;
   endTime: string;
+  consultationMode: string;
+  meetingLink: string | null;
   visitor: string | null;
   location: string | null;
   tenant: TenantExtended | null;
@@ -168,6 +172,11 @@ async function sendReminderNotification(params: {
 
     const consultationType = params.programName || params.sessionType;
 
+    const isRemote = params.consultationMode === "원격";
+    const smsTemplateType: SMSTemplateType = isRemote
+      ? "consultation_reminder_remote"
+      : "consultation_reminder";
+
     const templateVariables: Record<string, string> = {
       학원명: params.tenant?.name ?? "",
       학생명: params.studentName,
@@ -175,14 +184,16 @@ async function sendReminderNotification(params: {
       컨설턴트명: params.consultantName,
       방문상담자: params.visitor || "학생 & 학부모",
       상담일정: scheduleFormatted,
-      상담장소: params.location || params.tenant?.address || "",
+      ...(isRemote
+        ? { 참가링크: params.meetingLink || "" }
+        : { 상담장소: params.location || params.tenant?.address || "" }),
       대표번호: params.tenant?.representative_phone || "",
     };
 
-    const message = formatSMSTemplate("consultation_reminder", templateVariables);
+    const message = formatSMSTemplate(smsTemplateType, templateVariables);
 
     // 알림톡 우선, 실패 시 SMS
-    const alimtalkTemplate = getAlimtalkTemplate("consultation_reminder");
+    const alimtalkTemplate = getAlimtalkTemplate(smsTemplateType);
 
     let sent = false;
 
@@ -297,13 +308,14 @@ function extractProgramName(enrollment: unknown): string | undefined {
  * 내일 날짜 (KST 기준) "YYYY-MM-DD" 형식
  */
 function getTomorrowDateKST(): string {
-  const now = new Date();
-  // UTC + 9시간 = KST
-  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-  kst.setDate(kst.getDate() + 1);
-  const year = kst.getFullYear();
-  const month = String(kst.getMonth() + 1).padStart(2, "0");
-  const day = String(kst.getDate()).padStart(2, "0");
+  // 서버 TZ에 무관하게 KST 기준으로 "내일" 계산
+  const kstNow = new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" })
+  );
+  kstNow.setDate(kstNow.getDate() + 1);
+  const year = kstNow.getFullYear();
+  const month = String(kstNow.getMonth() + 1).padStart(2, "0");
+  const day = String(kstNow.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 
