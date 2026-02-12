@@ -11,6 +11,7 @@ export type SMSTemplateType =
   | "payment_due"
   | "payment_overdue"
   | "consultation_scheduled"
+  | "consultation_reminder"
   | "notice";
 
 export interface SMSTemplate {
@@ -94,6 +95,36 @@ export const SMS_TEMPLATES: Record<SMSTemplateType, SMSTemplate> = {
       "컨설턴트명",
       "방문상담자",
       "상담시간",
+      "상담일정",
+      "상담장소",
+      "대표번호",
+    ],
+  },
+  consultation_reminder: {
+    id: "consultation_reminder",
+    type: "consultation_reminder",
+    title: "상담 일정 리마인더",
+    content:
+      `[{학원명}] {학생명} 학생
+<내일 "{상담유형}" 상담일정 안내>
+
+▶ 상담일정
+    {상담일정}
+▶ 담당 컨설턴트
+    {컨설턴트명}
+▶ 방문 상담자
+    {방문상담자}
+▶ 상담장소
+    {상담장소}
+
+▷ 기타 문의사항
+    대표번호 {대표번호}`,
+    variables: [
+      "학원명",
+      "학생명",
+      "상담유형",
+      "컨설턴트명",
+      "방문상담자",
       "상담일정",
       "상담장소",
       "대표번호",

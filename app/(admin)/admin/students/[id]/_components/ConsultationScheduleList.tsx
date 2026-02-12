@@ -115,6 +115,11 @@ function ScheduleCard({
               알림 발송됨
             </span>
           )}
+          {schedule.reminder_sent && (
+            <span className="rounded bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
+              리마인더 발송됨
+            </span>
+          )}
         </div>
 
         {/* 상태 변경 버튼 */}

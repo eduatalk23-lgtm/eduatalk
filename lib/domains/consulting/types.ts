@@ -47,6 +47,8 @@ export interface ConsultationSchedule {
   description: string | null;
   notification_sent: boolean;
   notification_sent_at: string | null;
+  reminder_sent: boolean;
+  reminder_sent_at: string | null;
   status: ScheduleStatus;
   created_by: string | null;
   created_at: string;
