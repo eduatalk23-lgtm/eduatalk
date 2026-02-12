@@ -15,6 +15,7 @@ import type {
   SessionType,
   ConsultationSchedule,
 } from "../types";
+import { enqueueGoogleCalendarSync } from "@/lib/domains/googleCalendar";
 
 const ACTION_CTX = { domain: "consulting", action: "schedule" };
 
@@ -123,6 +124,14 @@ export async function createConsultationSchedule(input: {
         location: input.location,
       });
     }
+
+    // Google Calendar 동기화 (fire-and-forget)
+    await enqueueGoogleCalendarSync({
+      scheduleId,
+      tenantId: tenantContext.tenantId,
+      consultantId: input.consultantId,
+      action: "create",
+    });
 
     revalidatePath(`/admin/students/${input.studentId}`);
     return { success: true, scheduleId };
@@ -287,6 +296,14 @@ export async function updateConsultationSchedule(input: {
       }
     }
 
+    // Google Calendar 동기화 (fire-and-forget)
+    await enqueueGoogleCalendarSync({
+      scheduleId: input.scheduleId,
+      tenantId: tenantContext.tenantId,
+      consultantId: input.consultantId,
+      action: "update",
+    });
+
     revalidatePath(`/admin/students/${input.studentId}`);
     return { success: true };
   } catch (error) {
@@ -325,6 +342,19 @@ export async function deleteConsultationSchedule(input: {
       return { success: false, error: "일정을 찾을 수 없습니다." };
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const row = existing as any;
+
+    // Google Calendar 이벤트 삭제 (삭제 전에 수행 - FK 제약 때문)
+    if (row.google_calendar_event_id) {
+      await enqueueGoogleCalendarSync({
+        scheduleId: input.scheduleId,
+        tenantId: tenantContext.tenantId,
+        consultantId: row.consultant_id,
+        action: "cancel",
+      });
+    }
+
     const { error: deleteError } = await scheduleTable(supabase)
       .delete()
       .eq("id", input.scheduleId);
@@ -336,9 +366,6 @@ export async function deleteConsultationSchedule(input: {
       });
       return { success: false, error: "상담 일정 삭제에 실패했습니다." };
     }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const row = existing as any;
 
     // 예정 상태였던 일정만 취소 알림 발송
     if (input.sendNotification !== false && row.status === "scheduled") {
@@ -376,7 +403,18 @@ export async function updateScheduleStatus(
   try {
     await requireAdminOrConsultant();
 
+    const tenantContext = await getTenantContext();
     const supabase = await createSupabaseServerClient();
+
+    // 취소 시 Google Calendar 동기화용으로 consultant_id 조회
+    let consultantId: string | null = null;
+    if (status === "cancelled" && tenantContext?.tenantId) {
+      const { data: existing } = await scheduleTable(supabase)
+        .select("consultant_id")
+        .eq("id", scheduleId)
+        .maybeSingle();
+      consultantId = (existing as { consultant_id: string } | null)?.consultant_id ?? null;
+    }
 
     const { error } = await scheduleTable(supabase)
       .update({
@@ -392,6 +430,16 @@ export async function updateScheduleStatus(
         status,
       });
       return { success: false, error: "상태 변경에 실패했습니다." };
+    }
+
+    // 취소 시 Google Calendar 이벤트도 취소 (fire-and-forget)
+    if (status === "cancelled" && tenantContext?.tenantId && consultantId) {
+      await enqueueGoogleCalendarSync({
+        scheduleId,
+        tenantId: tenantContext.tenantId,
+        consultantId,
+        action: "cancel",
+      });
     }
 
     revalidatePath(`/admin/students/${studentId}`);

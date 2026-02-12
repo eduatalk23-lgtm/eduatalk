@@ -114,6 +114,22 @@ export default async function AdminSettingsPage() {
                 상담사 역할이 수행할 수 있는 작업을 설정합니다. 캠프, 학생, 콘텐츠 등의 권한을 관리할 수 있습니다.
               </p>
             </div>
+
+            {/* Google Calendar 연동 */}
+            <div className="flex flex-col gap-4 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm">
+              <div className="flex items-center justify-between">
+                <h2 className="text-h2 text-gray-900 dark:text-gray-100">Google Calendar 연동</h2>
+                <Link
+                  href="/admin/settings/google-calendar"
+                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                >
+                  캘린더 설정 관리
+                </Link>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                상담 일정을 Google Calendar와 자동으로 동기화합니다. 개인 캘린더 연결 및 동기화 설정을 관리할 수 있습니다.
+              </p>
+            </div>
           </>
         )}
 
