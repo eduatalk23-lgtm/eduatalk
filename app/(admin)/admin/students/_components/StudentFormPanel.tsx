@@ -20,7 +20,11 @@ type FormMode = "register" | "selected";
 
 type StudentFormPanelProps = {
   selectedStudentId: string | null;
-  studentData: (StudentInfoData & { email: string | null }) | null;
+  studentData: (StudentInfoData & {
+    email: string | null;
+    authProvider: string;
+    lastSignInAt: string | null;
+  }) | null;
   isLoading: boolean;
   formMode: FormMode;
   onNewStudent: () => void;
@@ -292,6 +296,8 @@ export function StudentFormPanel({
           <ProfileInfoSection
             control={control}
             studentEmail={studentData?.email ?? null}
+            authProvider={studentData?.authProvider}
+            lastSignInAt={studentData?.lastSignInAt}
           />
         </div>
       </form>

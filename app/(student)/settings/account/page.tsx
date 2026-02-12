@@ -1,140 +1,34 @@
-"use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { changePassword as updatePassword } from "@/lib/domains/auth";
-import { handleSupabaseError } from "@/lib/utils/errorHandling";
-import { useToast } from "@/components/ui/ToastProvider";
+import { redirect } from "next/navigation";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { extractPrimaryProvider } from "@/lib/utils/authProvider";
 import PageContainer from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
+import AccountSettingsClient from "./_components/AccountSettingsClient";
 
-export default function AccountSettingsPage() {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const { showSuccess, showError } = useToast();
+export default async function AccountSettingsPage() {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setLoading(true);
+  if (error || !user) {
+    redirect("/login");
+  }
 
-    const formData = new FormData(e.currentTarget);
-    const currentPassword = String(
-      formData.get("current_password") ?? ""
-    ).trim();
-    const newPassword = String(formData.get("new_password") ?? "").trim();
-    const confirmPassword = String(
-      formData.get("confirm_password") ?? ""
-    ).trim();
-
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      showError("모든 필드를 입력해주세요.");
-      setLoading(false);
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      showError("새 비밀번호는 최소 6자 이상이어야 합니다.");
-      setLoading(false);
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      showError("새 비밀번호와 확인 비밀번호가 일치하지 않습니다.");
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const result = await updatePassword(currentPassword, newPassword);
-
-      if (result.success) {
-        showSuccess("비밀번호가 변경되었습니다.");
-        setTimeout(() => {
-          router.push("/settings");
-        }, 2000);
-      } else {
-        showError(result.error || "비밀번호 변경에 실패했습니다.");
-      }
-    } catch (err: unknown) {
-      const errorMessage = handleSupabaseError(err);
-      showError(errorMessage || "비밀번호 변경 중 오류가 발생했습니다.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const primaryProvider = extractPrimaryProvider(user.identities);
 
   return (
     <PageContainer widthType="FORM">
       <div className="flex flex-col gap-6">
         <PageHeader title="계정 관리" />
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-          <section className="flex flex-col gap-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
-            <h2 className="text-h2">비밀번호 변경</h2>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                현재 비밀번호 <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="password"
-                name="current_password"
-                required
-                className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800"
-                placeholder="현재 비밀번호를 입력하세요"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                새 비밀번호 <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="password"
-                name="new_password"
-                required
-                minLength={6}
-                className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800"
-                placeholder="새 비밀번호를 입력하세요 (최소 6자)"
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                비밀번호는 최소 6자 이상이어야 합니다.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                새 비밀번호 확인 <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="password"
-                name="confirm_password"
-                required
-                minLength={6}
-                className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800"
-                placeholder="새 비밀번호를 다시 입력하세요"
-              />
-            </div>
-          </section>
-
-          {/* 저장 버튼 */}
-          <div className="flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-            >
-              취소
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:bg-indigo-400"
-            >
-              {loading ? "변경 중..." : "비밀번호 변경"}
-            </button>
-          </div>
-        </form>
+        <AccountSettingsClient
+          email={user.email ?? null}
+          provider={primaryProvider}
+          lastSignInAt={user.last_sign_in_at ?? null}
+          emailConfirmedAt={user.email_confirmed_at ?? null}
+        />
       </div>
     </PageContainer>
   );

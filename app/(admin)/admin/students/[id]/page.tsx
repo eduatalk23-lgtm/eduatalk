@@ -38,6 +38,7 @@ import {
   ConsultationScheduleSection,
   ConsultationScheduleSectionSkeleton,
 } from "./_components/ConsultationScheduleSection";
+import { extractPrimaryProvider } from "@/lib/utils/authProvider";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -102,7 +103,10 @@ export default async function AdminStudentDetailPage({
   const student = studentResult.data;
   const profile = profileResult.data;
   const careerGoal = careerGoalResult.data;
-  const email = authUserResult.data?.user?.email ?? null;
+  const authUser = authUserResult.data?.user;
+  const email = authUser?.email ?? null;
+  const primaryProvider = extractPrimaryProvider(authUser?.identities);
+  const lastSignInAt = authUser?.last_sign_in_at ?? null;
 
   // 통합 데이터 구성
   const studentInfoData: StudentInfoData = {
@@ -156,6 +160,8 @@ export default async function AdminStudentDetailPage({
                   initialData={studentInfoData}
                   isAdmin={role === "admin"}
                   studentEmail={email}
+                  authProvider={primaryProvider}
+                  lastSignInAt={lastSignInAt}
                 />
                 <ConnectionSection studentId={studentId} />
               </div>

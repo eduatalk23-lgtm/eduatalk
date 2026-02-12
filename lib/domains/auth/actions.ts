@@ -769,9 +769,39 @@ export async function resendConfirmationEmail(email: string): Promise<ActionResp
 /**
  * 비밀번호 재설정 이메일 발송
  */
-export async function sendPasswordResetEmail(email: string): Promise<AuthResult> {
+export async function sendPasswordResetEmail(
+  email: string
+): Promise<AuthResult> {
   try {
     const supabase = await createSupabaseServerClient();
+
+    // 이메일 존재 여부를 확인하되, 결과와 무관하게 동일한 성공 메시지를 반환
+    // (이메일 열거 공격 방지)
+    const { data: exists, error: checkError } = await supabase.rpc(
+      "check_email_exists",
+      { target_email: email }
+    );
+
+    if (checkError) {
+      logActionError(
+        { domain: "auth", action: "requestPasswordReset" },
+        checkError,
+        { email }
+      );
+      // 에러 시에도 성공으로 응답 (이메일 존재 여부 노출 방지)
+      return { success: true };
+    }
+
+    if (!exists) {
+      // 미등록 이메일이라도 동일한 성공 응답 (이메일 열거 방지)
+      logActionDebug(
+        { domain: "auth", action: "requestPasswordReset" },
+        "미등록 이메일 재설정 요청 (무시됨)",
+        { email }
+      );
+      return { success: true };
+    }
+
     const emailRedirectTo = await getEmailRedirectUrl();
 
     // type=recovery를 명시적으로 포함하여 callback에서 recovery 플로우 감지
@@ -787,7 +817,8 @@ export async function sendPasswordResetEmail(email: string): Promise<AuthResult>
       );
       return {
         success: false,
-        error: error.message || "비밀번호 재설정 이메일 발송에 실패했습니다.",
+        error:
+          error.message || "비밀번호 재설정 이메일 발송에 실패했습니다.",
       };
     }
 
@@ -804,7 +835,10 @@ export async function sendPasswordResetEmail(email: string): Promise<AuthResult>
     );
     return {
       success: false,
-      error: error instanceof Error ? error.message : "비밀번호 재설정 이메일 발송에 실패했습니다.",
+      error:
+        error instanceof Error
+          ? error.message
+          : "비밀번호 재설정 이메일 발송에 실패했습니다.",
     };
   }
 }

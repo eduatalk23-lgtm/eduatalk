@@ -4,10 +4,15 @@ import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { StudentInfoData } from "@/app/(admin)/admin/students/[id]/_types/studentFormTypes";
+import { extractPrimaryProvider } from "@/lib/utils/authProvider";
 
 export type StudentDetailResult = {
   success: boolean;
-  data?: StudentInfoData & { email: string | null };
+  data?: StudentInfoData & {
+    email: string | null;
+    authProvider: string;
+    lastSignInAt: string | null;
+  };
   error?: string;
 };
 
@@ -58,9 +63,16 @@ export async function getStudentDetailAction(
     const student = studentResult.data;
     const profile = profileResult.data;
     const careerGoal = careerGoalResult.data;
-    const email = authUserResult.data?.user?.email ?? null;
+    const authUser = authUserResult.data?.user;
+    const email = authUser?.email ?? null;
+    const authProvider = extractPrimaryProvider(authUser?.identities);
+    const lastSignInAt = authUser?.last_sign_in_at ?? null;
 
-    const studentInfoData: StudentInfoData & { email: string | null } = {
+    const studentInfoData: StudentInfoData & {
+      email: string | null;
+      authProvider: string;
+      lastSignInAt: string | null;
+    } = {
       id: student.id,
       name: student.name,
       grade: student.grade,
@@ -100,8 +112,10 @@ export async function getStudentDetailAction(
         | null,
       desired_university_ids: careerGoal?.desired_university_ids ?? null,
       desired_career_field: careerGoal?.desired_career_field ?? null,
-      // email
+      // auth
       email,
+      authProvider,
+      lastSignInAt,
     };
 
     return { success: true, data: studentInfoData };
