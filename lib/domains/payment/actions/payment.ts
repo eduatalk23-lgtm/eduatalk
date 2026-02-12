@@ -7,6 +7,7 @@ import { logActionError } from "@/lib/logging/actionLogger";
 import type {
   PaymentStatus,
   PaymentMethod,
+  DiscountType,
   PaymentRecordWithEnrollment,
   CreatePaymentInput,
   ConfirmPaymentInput,
@@ -41,35 +42,43 @@ export async function getStudentPaymentsAction(
     }
 
     const payments: PaymentRecordWithEnrollment[] = (data ?? []).map((row) => {
-      const enrollment = row.enrollments as {
+      const r = row as typeof row & {
+        original_amount?: number | null;
+        discount_type?: string | null;
+        discount_value?: number | null;
+      };
+      const enrollment = r.enrollments as {
         program_id: string;
         programs: { name: string; code: string } | null;
       } | null;
       return {
-        id: row.id,
-        tenant_id: row.tenant_id,
-        enrollment_id: row.enrollment_id,
-        student_id: row.student_id,
-        amount: row.amount,
-        paid_amount: row.paid_amount,
-        status: row.status as PaymentStatus,
-        payment_method: row.payment_method as PaymentMethod | null,
-        due_date: row.due_date,
-        paid_date: row.paid_date,
-        billing_period: row.billing_period,
-        memo: row.memo,
-        created_by: row.created_by,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        toss_order_id: row.toss_order_id ?? null,
-        toss_payment_key: row.toss_payment_key ?? null,
-        toss_method: row.toss_method ?? null,
-        toss_receipt_url: row.toss_receipt_url ?? null,
-        toss_approved_at: row.toss_approved_at ?? null,
-        cash_receipt_url: row.cash_receipt_url ?? null,
-        cash_receipt_key: row.cash_receipt_key ?? null,
-        cash_receipt_type: row.cash_receipt_type as "소득공제" | "지출증빙" | null ?? null,
-        payment_order_id: row.payment_order_id ?? null,
+        id: r.id,
+        tenant_id: r.tenant_id,
+        enrollment_id: r.enrollment_id,
+        student_id: r.student_id,
+        amount: r.amount,
+        paid_amount: r.paid_amount,
+        status: r.status as PaymentStatus,
+        payment_method: r.payment_method as PaymentMethod | null,
+        due_date: r.due_date,
+        paid_date: r.paid_date,
+        billing_period: r.billing_period,
+        memo: r.memo,
+        created_by: r.created_by,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+        toss_order_id: r.toss_order_id ?? null,
+        toss_payment_key: r.toss_payment_key ?? null,
+        toss_method: r.toss_method ?? null,
+        toss_receipt_url: r.toss_receipt_url ?? null,
+        toss_approved_at: r.toss_approved_at ?? null,
+        cash_receipt_url: r.cash_receipt_url ?? null,
+        cash_receipt_key: r.cash_receipt_key ?? null,
+        cash_receipt_type: r.cash_receipt_type as "소득공제" | "지출증빙" | null ?? null,
+        payment_order_id: r.payment_order_id ?? null,
+        original_amount: r.original_amount ?? null,
+        discount_type: (r.discount_type as DiscountType | null) ?? null,
+        discount_value: r.discount_value != null ? Number(r.discount_value) : null,
         program_name: enrollment?.programs?.name ?? "",
         program_code: enrollment?.programs?.code ?? "",
       };
@@ -116,13 +125,45 @@ export async function createPaymentAction(
       return { success: false, error: "권한이 없습니다." };
     }
 
+    // 할인 계산
+    let finalAmount = input.amount;
+    let originalAmount: number | null = null;
+    let discountType: string | null = null;
+    let discountValue: number | null = null;
+
+    if (input.discount_type && input.discount_value != null && input.discount_value > 0) {
+      if (input.discount_type === "rate" && input.discount_value > 100) {
+        return { success: false, error: "할인율은 100% 이하여야 합니다." };
+      }
+      if (input.discount_type === "fixed" && input.discount_value >= input.amount) {
+        return { success: false, error: "할인 금액은 원가보다 작아야 합니다." };
+      }
+
+      originalAmount = input.amount;
+      discountType = input.discount_type;
+      discountValue = input.discount_value;
+
+      if (input.discount_type === "fixed") {
+        finalAmount = input.amount - input.discount_value;
+      } else {
+        finalAmount = Math.round(input.amount * (1 - input.discount_value / 100));
+      }
+
+      if (finalAmount <= 0) {
+        return { success: false, error: "할인 후 금액은 0원보다 커야 합니다." };
+      }
+    }
+
     const { data, error } = await adminClient
       .from("payment_records")
       .insert({
         tenant_id: tenantId,
         enrollment_id: input.enrollment_id,
         student_id: input.student_id,
-        amount: input.amount,
+        amount: finalAmount,
+        original_amount: originalAmount,
+        discount_type: discountType,
+        discount_value: discountValue,
         due_date: input.due_date ?? null,
         billing_period: input.billing_period ?? null,
         memo: input.memo ?? null,
@@ -153,7 +194,7 @@ export async function createPaymentAction(
   }
 }
 
-/** 납부 확인 (결제 완료 처리) */
+/** 수납 처리 (오프라인 결제 기록) */
 export async function confirmPaymentAction(
   input: ConfirmPaymentInput
 ): Promise<ActionResult> {
@@ -206,10 +247,11 @@ export async function confirmPaymentAction(
         error,
         { paymentId: input.payment_id }
       );
-      return { success: false, error: "납부 확인에 실패했습니다." };
+      return { success: false, error: "수납 처리에 실패했습니다." };
     }
 
     revalidatePath("/admin/students");
+    revalidatePath("/parent/payments");
     return { success: true };
   } catch (error) {
     return {
@@ -217,7 +259,7 @@ export async function confirmPaymentAction(
       error:
         error instanceof Error
           ? error.message
-          : "납부 확인 중 오류가 발생했습니다.",
+          : "수납 처리 중 오류가 발생했습니다.",
     };
   }
 }
@@ -263,7 +305,13 @@ export async function updatePaymentAmountAction(
       };
     }
 
-    const updateData: Record<string, unknown> = { amount: newAmount };
+    // 금액 직접 수정 시 할인 정보 초기화 (정합성 유지)
+    const updateData: Record<string, unknown> = {
+      amount: newAmount,
+      original_amount: null,
+      discount_type: null,
+      discount_value: null,
+    };
     if (memo !== undefined) {
       updateData.memo = memo;
     }

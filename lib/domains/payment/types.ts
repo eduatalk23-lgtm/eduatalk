@@ -7,6 +7,8 @@ export type PaymentStatus =
 
 export type PaymentMethod = "cash" | "card" | "transfer" | "other";
 
+export type DiscountType = "fixed" | "rate";
+
 export type PaymentRecord = {
   id: string;
   tenant_id: string;
@@ -35,6 +37,10 @@ export type PaymentRecord = {
   cash_receipt_type: "소득공제" | "지출증빙" | null;
   // 일괄 결제 주문
   payment_order_id: string | null;
+  // 할인 정보
+  original_amount: number | null;
+  discount_type: DiscountType | null;
+  discount_value: number | null;
 };
 
 export type PaymentRecordWithEnrollment = PaymentRecord & {
@@ -50,6 +56,8 @@ export type CreatePaymentInput = {
   due_date?: string;
   billing_period?: string;
   memo?: string;
+  discount_type?: DiscountType;
+  discount_value?: number;
 };
 
 export type ConfirmPaymentInput = {
@@ -81,6 +89,11 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   card: "카드",
   transfer: "계좌이체",
   other: "기타",
+};
+
+export const DISCOUNT_TYPE_LABELS: Record<DiscountType, string> = {
+  fixed: "정액 할인",
+  rate: "비율 할인",
 };
 
 // 일괄 결제 주문

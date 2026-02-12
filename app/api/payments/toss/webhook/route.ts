@@ -7,6 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getPaymentByOrderId } from "@/lib/services/tossPayments";
 import type { PaymentStatus } from "@/lib/domains/payment/types";
@@ -102,6 +103,9 @@ export async function POST(request: NextRequest) {
         })
         .eq("id", record.id)
         .eq("status", "unpaid"); // optimistic lock: 이미 처리된 건 방지
+
+      revalidatePath("/admin/students");
+      revalidatePath("/parent/payments");
     }
   } catch (error) {
     console.error("[api/payments/toss/webhook] 웹훅 처리 오류:", error);

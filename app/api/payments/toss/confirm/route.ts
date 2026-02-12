@@ -8,6 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import {
   apiSuccess,
@@ -88,7 +89,7 @@ async function handleSingleConfirm(
 
   const { data: record, error: fetchError } = await adminClient
     .from("payment_records")
-    .select("id, amount, status, toss_order_id, tenant_id, student_id")
+    .select("id, amount, paid_amount, status, toss_order_id, tenant_id, student_id")
     .eq("toss_order_id", orderId)
     .maybeSingle();
 
@@ -110,16 +111,23 @@ async function handleSingleConfirm(
     }
   }
 
-  // 금액 일치 검증
-  if (record.amount !== amount) {
-    return apiBadRequest(
-      "결제 금액이 일치하지 않습니다.",
-      { expected: record.amount, received: amount }
-    );
-  }
-
   if (record.status === "paid") {
     return apiBadRequest("이미 결제가 완료된 건입니다.");
+  }
+
+  // 금액 일치 검증 (부분납 상태면 잔액 기준)
+  const existingPaid = record.paid_amount ?? 0;
+  const expectedAmount = record.amount - existingPaid;
+
+  if (expectedAmount <= 0) {
+    return apiBadRequest("이미 완납된 결제 건입니다.");
+  }
+
+  if (amount !== expectedAmount) {
+    return apiBadRequest(
+      "결제 금액이 일치하지 않습니다.",
+      { expected: expectedAmount, received: amount }
+    );
   }
 
   // 토스 API 결제 승인
@@ -134,15 +142,16 @@ async function handleSingleConfirm(
     return apiBadRequest(message);
   }
 
-  // DB 업데이트
+  // DB 업데이트 (기존 납부액 + 이번 결제액)
+  const newPaidAmount = existingPaid + amount;
   const paidStatus: PaymentStatus =
-    amount >= record.amount ? "paid" : "partial";
+    newPaidAmount >= record.amount ? "paid" : "partial";
 
   const { error: updateError } = await adminClient
     .from("payment_records")
     .update({
       status: paidStatus,
-      paid_amount: amount,
+      paid_amount: newPaidAmount,
       paid_date: new Date().toISOString().split("T")[0],
       payment_method: "card",
       toss_payment_key: tossResponse.paymentKey,
@@ -160,6 +169,9 @@ async function handleSingleConfirm(
       "결제는 승인되었으나 DB 업데이트에 실패했습니다. 관리자에게 문의하세요."
     );
   }
+
+  revalidatePath("/admin/students");
+  revalidatePath("/parent/payments");
 
   return apiSuccess({
     paymentKey: tossResponse.paymentKey,
@@ -273,6 +285,9 @@ async function handleBatchConfirm(
       "결제는 승인되었으나 결제 내역 업데이트에 실패했습니다. 관리자에게 문의하세요."
     );
   }
+
+  revalidatePath("/admin/students");
+  revalidatePath("/parent/payments");
 
   return apiSuccess({
     paymentKey: tossResponse.paymentKey,

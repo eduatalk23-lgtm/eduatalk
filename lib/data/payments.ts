@@ -149,6 +149,9 @@ function mapPaymentRow(row: Record<string, unknown>): PaymentRecordWithEnrollmen
     cash_receipt_key: (row.cash_receipt_key as string) ?? null,
     cash_receipt_type: (row.cash_receipt_type as "소득공제" | "지출증빙") ?? null,
     payment_order_id: (row.payment_order_id as string) ?? null,
+    original_amount: (row.original_amount as number) ?? null,
+    discount_type: (row.discount_type as "fixed" | "rate") ?? null,
+    discount_value: row.discount_value != null ? Number(row.discount_value) : null,
     program_name: enrollment?.programs?.name ?? "",
     program_code: enrollment?.programs?.code ?? "",
   };

@@ -13,6 +13,7 @@ import {
   PAYMENT_STATUS_COLORS,
   type PaymentRecordWithEnrollment,
 } from "@/lib/domains/payment/types";
+import { DiscountBadge } from "@/components/payment/DiscountBadge";
 import { cn } from "@/lib/cn";
 import {
   bgSurface,
@@ -67,6 +68,25 @@ export function ParentPaymentContent() {
     fetchPayments();
   }, [fetchPayments]);
 
+  // 탭 전환 시 자동 새로고침 (관리자 수납 처리 반영, 30초 쓰로틀)
+  useEffect(() => {
+    let lastFetchedAt = 0;
+    const THROTTLE_MS = 30_000;
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        const now = Date.now();
+        if (now - lastFetchedAt >= THROTTLE_MS) {
+          lastFetchedAt = now;
+          fetchPayments();
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibility);
+  }, [fetchPayments]);
+
   const handlePaymentSuccess = () => {
     setPaymentTarget(null);
     setSelectedPaymentIds(new Set());
@@ -91,7 +111,7 @@ export function ParentPaymentContent() {
   }, [data, selectedStudentId]);
 
   const totalUnpaidAmount = useMemo(
-    () => filteredUnpaid.reduce((sum, p) => sum + p.amount, 0),
+    () => filteredUnpaid.reduce((sum, p) => sum + (p.amount - p.paid_amount), 0),
     [filteredUnpaid]
   );
 
@@ -104,7 +124,7 @@ export function ParentPaymentContent() {
       return {
         ...s,
         count: studentUnpaid.length,
-        total: studentUnpaid.reduce((sum, p) => sum + p.amount, 0),
+        total: studentUnpaid.reduce((sum, p) => sum + (p.amount - p.paid_amount), 0),
       };
     });
   }, [data]);
@@ -146,12 +166,12 @@ export function ParentPaymentContent() {
     }
   }, [isAllSelected, filteredUnpaid]);
 
-  // 선택된 항목 합산 금액
+  // 선택된 항목 합산 금액 (잔액 기준)
   const selectedAmount = useMemo(
     () =>
       filteredUnpaid
         .filter((p) => selectedPaymentIds.has(p.id))
-        .reduce((sum, p) => sum + p.amount, 0),
+        .reduce((sum, p) => sum + (p.amount - p.paid_amount), 0),
     [filteredUnpaid, selectedPaymentIds]
   );
 
@@ -338,7 +358,7 @@ export function ParentPaymentContent() {
           }}
           paymentId={paymentTarget.id}
           programName={paymentTarget.program_name}
-          amount={paymentTarget.amount}
+          amount={paymentTarget.amount - paymentTarget.paid_amount}
           onSuccess={handlePaymentSuccess}
         />
       )}
@@ -529,6 +549,9 @@ function UnpaidPaymentCard({
   onToggleSelect: () => void;
   onPay: () => void;
 }) {
+  const isPartial = payment.status === "partial";
+  const remaining = payment.amount - payment.paid_amount;
+
   return (
     <div
       className={cn(
@@ -578,9 +601,28 @@ function UnpaidPaymentCard({
               {payment.program_name}
             </span>
           </div>
+          {payment.original_amount != null && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm text-gray-400 line-through dark:text-gray-500">
+                {payment.original_amount.toLocaleString()}원
+              </span>
+              {payment.discount_type && payment.discount_value != null && (
+                <DiscountBadge
+                  discountType={payment.discount_type}
+                  discountValue={payment.discount_value}
+                />
+              )}
+            </div>
+          )}
           <span className={cn("text-lg font-bold", textPrimary)}>
-            {payment.amount.toLocaleString()}원
+            {remaining.toLocaleString()}원
           </span>
+          {isPartial && (
+            <p className={cn("text-xs", textSecondary)}>
+              총 {payment.amount.toLocaleString()}원 중{" "}
+              {payment.paid_amount.toLocaleString()}원 납부됨
+            </p>
+          )}
           <div className="flex items-center gap-2">
             {payment.billing_period && (
               <span className={cn("text-xs", textSecondary)}>
@@ -652,9 +694,20 @@ function PaidPaymentRow({
       </div>
       {/* 2행: 금액 + 결제수단 + 날짜 */}
       <div className="mt-1.5 flex items-center gap-3">
+        {payment.original_amount != null && (
+          <span className="text-xs text-gray-400 line-through dark:text-gray-500">
+            {payment.original_amount.toLocaleString()}원
+          </span>
+        )}
         <span className={cn("text-sm font-medium", textPrimary)}>
           {payment.paid_amount.toLocaleString()}원
         </span>
+        {payment.discount_type && payment.discount_value != null && (
+          <DiscountBadge
+            discountType={payment.discount_type}
+            discountValue={payment.discount_value}
+          />
+        )}
         {payment.toss_method && (
           <span className={cn("text-xs", textMuted)}>{payment.toss_method}</span>
         )}
@@ -665,3 +718,4 @@ function PaidPaymentRow({
     </div>
   );
 }
+

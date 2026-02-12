@@ -7,6 +7,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type {
   PaymentStatus,
   PaymentMethod,
+  DiscountType,
   PaymentRecordWithEnrollment,
 } from "../types";
 
@@ -64,41 +65,49 @@ export async function getParentPaymentsAction(): Promise<
     }
 
     const payments: PaymentRecordWithEnrollment[] = (data ?? []).map((row) => {
-      const enrollment = row.enrollments as {
+      const r = row as typeof row & {
+        original_amount?: number | null;
+        discount_type?: string | null;
+        discount_value?: number | null;
+      };
+      const enrollment = r.enrollments as {
         program_id: string;
         programs: { name: string; code: string } | null;
       } | null;
       return {
-        id: row.id,
-        tenant_id: row.tenant_id,
-        enrollment_id: row.enrollment_id,
-        student_id: row.student_id,
-        amount: row.amount,
-        paid_amount: row.paid_amount,
-        status: row.status as PaymentStatus,
-        payment_method: row.payment_method as PaymentMethod | null,
-        due_date: row.due_date,
-        paid_date: row.paid_date,
-        billing_period: row.billing_period,
-        memo: row.memo,
-        created_by: row.created_by,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        toss_order_id: row.toss_order_id ?? null,
-        toss_payment_key: row.toss_payment_key ?? null,
-        toss_method: row.toss_method ?? null,
-        toss_receipt_url: row.toss_receipt_url ?? null,
-        toss_approved_at: row.toss_approved_at ?? null,
-        cash_receipt_url: row.cash_receipt_url ?? null,
-        cash_receipt_key: row.cash_receipt_key ?? null,
-        cash_receipt_type: (row.cash_receipt_type as
+        id: r.id,
+        tenant_id: r.tenant_id,
+        enrollment_id: r.enrollment_id,
+        student_id: r.student_id,
+        amount: r.amount,
+        paid_amount: r.paid_amount,
+        status: r.status as PaymentStatus,
+        payment_method: r.payment_method as PaymentMethod | null,
+        due_date: r.due_date,
+        paid_date: r.paid_date,
+        billing_period: r.billing_period,
+        memo: r.memo,
+        created_by: r.created_by,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+        toss_order_id: r.toss_order_id ?? null,
+        toss_payment_key: r.toss_payment_key ?? null,
+        toss_method: r.toss_method ?? null,
+        toss_receipt_url: r.toss_receipt_url ?? null,
+        toss_approved_at: r.toss_approved_at ?? null,
+        cash_receipt_url: r.cash_receipt_url ?? null,
+        cash_receipt_key: r.cash_receipt_key ?? null,
+        cash_receipt_type: (r.cash_receipt_type as
           | "소득공제"
           | "지출증빙"
           | null) ?? null,
-        payment_order_id: row.payment_order_id ?? null,
+        payment_order_id: r.payment_order_id ?? null,
+        original_amount: r.original_amount ?? null,
+        discount_type: (r.discount_type as DiscountType | null) ?? null,
+        discount_value: r.discount_value != null ? Number(r.discount_value) : null,
         program_name: enrollment?.programs?.name ?? "",
         program_code: enrollment?.programs?.code ?? "",
-        student_name: studentNameMap.get(row.student_id) ?? "이름 없음",
+        student_name: studentNameMap.get(r.student_id) ?? "이름 없음",
       };
     });
 

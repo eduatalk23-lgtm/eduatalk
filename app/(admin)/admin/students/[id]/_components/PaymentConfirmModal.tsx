@@ -57,42 +57,52 @@ export function PaymentConfirmModal({
     if (!isOpen) resetForm();
   };
 
+  const remaining = payment ? payment.amount - payment.paid_amount : 0;
+
   const handleSubmit = () => {
     if (!payment) return;
 
     const paidAmount = parseInt(paidAmountStr, 10);
     if (!paidAmount || paidAmount <= 0) {
-      toast.showError("납부 금액을 입력해주세요.");
+      toast.showError("수납 금액을 입력해주세요.");
       return;
     }
     if (!paymentMethod) {
-      toast.showError("결제 방법을 선택해주세요.");
+      toast.showError("수납 방법을 선택해주세요.");
       return;
     }
+    if (paidAmount > remaining) {
+      const confirmed = window.confirm(
+        `잔액(${formatPrice(remaining)})보다 큰 금액입니다. 계속하시겠습니까?`
+      );
+      if (!confirmed) return;
+    }
+
+    const newPaidAmount = payment.paid_amount + paidAmount;
 
     startTransition(async () => {
       try {
         const result = await confirmPaymentAction({
           payment_id: payment.id,
-          paid_amount: payment.paid_amount + paidAmount,
+          paid_amount: newPaidAmount,
           payment_method: paymentMethod,
           paid_date: paidDate,
           memo: memo || undefined,
         });
 
         if (result.success) {
-          toast.showSuccess("납부가 확인되었습니다.");
+          toast.showSuccess("수납이 처리되었습니다.");
           onSuccess?.();
           onOpenChange(false);
           resetForm();
         } else {
-          toast.showError(result.error ?? "납부 확인에 실패했습니다.");
+          toast.showError(result.error ?? "수납 처리에 실패했습니다.");
         }
       } catch (error) {
         toast.showError(
           error instanceof Error
             ? error.message
-            : "납부 확인에 실패했습니다."
+            : "수납 처리에 실패했습니다."
         );
       }
     });
@@ -107,14 +117,17 @@ export function PaymentConfirmModal({
     isPending && "opacity-50 cursor-not-allowed"
   );
 
-  const remaining = payment ? payment.amount - payment.paid_amount : 0;
+  const paidAmountNum = parseInt(paidAmountStr, 10) || 0;
+  const isFullPayment = remaining > 0 && paidAmountNum >= remaining;
+  const isPartialPayment = paidAmountNum > 0 && paidAmountNum < remaining;
 
   return (
     <Dialog open={open} onOpenChange={handleOpen} maxWidth="md">
       <div className="flex flex-col gap-6 p-6">
+        {/* 헤더 */}
         <div className="flex flex-col gap-2">
           <h2 className="text-h2 text-gray-900 dark:text-gray-100">
-            납부 확인
+            수납 처리
           </h2>
           {payment && (
             <p className={cn("text-body-2", textSecondary)}>
@@ -129,11 +142,40 @@ export function PaymentConfirmModal({
           )}
         </div>
 
+        {/* 안내 문구 */}
+        <div className="flex items-start gap-2.5 rounded-lg bg-blue-50 px-4 py-3 dark:bg-blue-950/30">
+          <span className="mt-0.5 text-sm text-blue-500">i</span>
+          <p className="text-xs leading-relaxed text-blue-700 dark:text-blue-300">
+            현금, 계좌이체 등 오프라인으로 수납한 금액을 기록합니다.
+            <br />
+            Toss 온라인 결제 건은 자동으로 처리되므로 별도 입력이 필요 없습니다.
+          </p>
+        </div>
+
+        {/* 기납부 / 잔액 요약 (부분납 상태일 때) */}
+        {payment && payment.paid_amount > 0 && (
+          <div className="flex items-center gap-4 rounded-lg bg-gray-50 px-4 py-3 dark:bg-gray-800/50">
+            <div className="flex flex-col">
+              <span className={cn("text-[11px]", textSecondary)}>기납부</span>
+              <span className="text-sm font-semibold text-green-600 dark:text-green-400">
+                {formatPrice(payment.paid_amount)}
+              </span>
+            </div>
+            <div className="h-6 w-px bg-gray-200 dark:bg-gray-700" />
+            <div className="flex flex-col">
+              <span className={cn("text-[11px]", textSecondary)}>잔액</span>
+              <span className="text-sm font-semibold text-red-600 dark:text-red-400">
+                {formatPrice(remaining)}
+              </span>
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-col gap-4">
-          {/* 납부 금액 */}
+          {/* 이번 수납 금액 */}
           <div className="flex flex-col gap-2">
             <label className={cn("text-body-2 font-semibold", textPrimary)}>
-              납부 금액 (원) <span className="text-red-500">*</span>
+              이번 수납 금액 (원) <span className="text-red-500">*</span>
             </label>
             <input
               type="number"
@@ -142,20 +184,25 @@ export function PaymentConfirmModal({
               disabled={isPending}
               min={0}
               step={10000}
-              placeholder="실제 납부 금액"
+              placeholder="이번에 수납한 금액"
               className={inputClass}
             />
             {remaining > 0 && (
               <p className={cn("text-xs", textSecondary)}>
-                잔액: {formatPrice(remaining)}
+                {isFullPayment && "잔액 전액으로 완납 처리됩니다."}
+                {isPartialPayment &&
+                  `잔액 ${formatPrice(remaining)} 중 일부만 입력하면 부분 수납으로 처리됩니다.`}
+                {!isFullPayment &&
+                  !isPartialPayment &&
+                  `잔액: ${formatPrice(remaining)}`}
               </p>
             )}
           </div>
 
-          {/* 결제 방법 */}
+          {/* 수납 방법 */}
           <div className="flex flex-col gap-2">
             <label className={cn("text-body-2 font-semibold", textPrimary)}>
-              결제 방법 <span className="text-red-500">*</span>
+              수납 방법 <span className="text-red-500">*</span>
             </label>
             <select
               value={paymentMethod}
@@ -179,10 +226,10 @@ export function PaymentConfirmModal({
             </select>
           </div>
 
-          {/* 납부일 */}
+          {/* 수납일 */}
           <div className="flex flex-col gap-2">
             <label className={cn("text-body-2 font-semibold", textPrimary)}>
-              납부일 <span className="text-red-500">*</span>
+              수납일 <span className="text-red-500">*</span>
             </label>
             <input
               type="date"
@@ -228,7 +275,7 @@ export function PaymentConfirmModal({
             disabled={isPending || !paidAmountStr || !paymentMethod}
             isLoading={isPending}
           >
-            {isPending ? "확인 중..." : "납부 확인"}
+            {isPending ? "처리 중..." : "수납 처리"}
           </Button>
         </div>
       </div>

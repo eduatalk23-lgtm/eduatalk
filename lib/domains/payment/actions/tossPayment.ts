@@ -42,7 +42,7 @@ export async function prepareTossPaymentAction(
     // 결제 레코드 조회 (프로그램명 포함)
     const { data: record, error } = await adminClient
       .from("payment_records")
-      .select("id, amount, status, toss_order_id, enrollment_id, enrollments(program_id, programs(name))")
+      .select("id, amount, paid_amount, status, toss_order_id, enrollment_id, enrollments(program_id, programs(name))")
       .eq("id", paymentId)
       .maybeSingle();
 
@@ -78,11 +78,18 @@ export async function prepareTossPaymentAction(
     } | null;
     const programName = enrollment?.programs?.name ?? "수강료";
 
+    // 부분납 상태면 잔액만 결제
+    const remaining = (record.amount as number) - ((record.paid_amount as number) ?? 0);
+
+    if (remaining <= 0) {
+      return { success: false, error: "이미 완납된 결제 건입니다." };
+    }
+
     return {
       success: true,
       data: {
         orderId,
-        amount: record.amount as number,
+        amount: remaining,
         orderName: programName,
       },
     };
@@ -130,7 +137,7 @@ export async function prepareBatchTossPaymentAction(
     const { data: records, error } = await adminClient
       .from("payment_records")
       .select(
-        "id, amount, status, tenant_id, student_id, payment_order_id, enrollment_id, enrollments(program_id, programs(name))"
+        "id, amount, paid_amount, status, tenant_id, student_id, payment_order_id, enrollment_id, enrollments(program_id, programs(name))"
       )
       .in("id", paymentIds);
 
@@ -174,8 +181,15 @@ export async function prepareBatchTossPaymentAction(
       };
     }
 
-    // 4. 총 금액 계산
-    const totalAmount = records.reduce((sum, r) => sum + (r.amount as number), 0);
+    // 4. 총 금액 계산 (부분납 상태면 잔액 기준)
+    const totalAmount = records.reduce((sum, r) => {
+      const remaining = (r.amount as number) - ((r.paid_amount as number) ?? 0);
+      return sum + (remaining > 0 ? remaining : 0);
+    }, 0);
+
+    if (totalAmount <= 0) {
+      return { success: false, error: "결제할 잔액이 없습니다." };
+    }
     const tenantId = records[0].tenant_id;
 
     // 5. payment_orders INSERT

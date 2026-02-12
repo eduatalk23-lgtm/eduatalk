@@ -29,6 +29,7 @@ import {
 } from "@/lib/domains/payment/types";
 import type { Program } from "@/lib/domains/crm/types";
 import { formatPrice } from "@/app/(admin)/admin/programs/_components/priceUtils";
+import { DiscountBadge } from "@/components/payment/DiscountBadge";
 import { EnrollmentAddModal } from "./EnrollmentAddModal";
 import { EnrollmentStatusSelect } from "./EnrollmentStatusSelect";
 import { PaymentAddModal } from "./PaymentAddModal";
@@ -594,10 +595,23 @@ function PaymentRow({
 
         {/* 금액 */}
         <span className={cn("text-sm", textPrimary)}>
+          {payment.original_amount != null && (
+            <span className="mr-1 text-gray-400 line-through dark:text-gray-500">
+              {formatPrice(payment.original_amount)}
+            </span>
+          )}
           {payment.status === "partial"
             ? `${formatPrice(payment.paid_amount)} / ${formatPrice(payment.amount)}`
             : formatPrice(payment.amount)}
         </span>
+
+        {/* 할인 배지 */}
+        {payment.discount_type && payment.discount_value != null && (
+          <DiscountBadge
+            discountType={payment.discount_type}
+            discountValue={payment.discount_value}
+          />
+        )}
 
         {/* 결제 방법 (토스 결제수단 우선 표시) */}
         {payment.toss_method ? (
@@ -668,7 +682,7 @@ function PaymentRow({
               "text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20"
             )}
           >
-            납부확인
+            수납 처리
           </button>
         )}
         {canRefund && onRefund && (
