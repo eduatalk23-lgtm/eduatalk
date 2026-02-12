@@ -12,6 +12,8 @@ type Tenant = {
   id: string;
   name: string;
   type: string;
+  address: string | null;
+  representative_phone: string | null;
 };
 
 type TenantSettingsFormProps = {
@@ -26,6 +28,8 @@ type TenantSettingsFormProps = {
 export function TenantSettingsForm({ tenant, stats }: TenantSettingsFormProps) {
   const [name, setName] = useState(tenant.name);
   const [type, setType] = useState(tenant.type);
+  const [address, setAddress] = useState(tenant.address ?? "");
+  const [representativePhone, setRepresentativePhone] = useState(tenant.representative_phone ?? "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -75,7 +79,12 @@ export function TenantSettingsForm({ tenant, stats }: TenantSettingsFormProps) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name, type }),
+        body: JSON.stringify({
+          name,
+          type,
+          address: address || null,
+          representative_phone: representativePhone || null,
+        }),
       });
 
       if (!response.ok) {
@@ -209,6 +218,34 @@ export function TenantSettingsForm({ tenant, stats }: TenantSettingsFormProps) {
               <option value="enterprise">기업</option>
               <option value="other">기타</option>
             </select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium">주소</label>
+            <input
+              type="text"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="w-full rounded border px-3 py-2"
+              placeholder="예: 서울시 강남구 역삼동 123-45"
+            />
+            <p className="text-xs text-gray-500">
+              상담 일정 알림톡에 상담 장소로 사용됩니다.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium">대표번호</label>
+            <input
+              type="tel"
+              value={representativePhone}
+              onChange={(e) => setRepresentativePhone(e.target.value)}
+              className="w-full rounded border px-3 py-2"
+              placeholder="예: 02-1234-5678"
+            />
+            <p className="text-xs text-gray-500">
+              알림톡 발송 시 문의 연락처로 표시됩니다.
+            </p>
           </div>
 
           <div className="flex justify-end">

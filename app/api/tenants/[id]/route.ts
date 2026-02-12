@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { isAdminRole } from "@/lib/auth/isAdminRole";
 import {
   apiSuccess,
   apiNoContent,
@@ -16,6 +17,8 @@ type Tenant = {
   name: string;
   type: string;
   status?: string | null;
+  address?: string | null;
+  representative_phone?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -35,17 +38,22 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role, tenantId } = await getCurrentUserRole();
 
     console.log("[api/tenants] 수정 요청:", { id, userId, role });
 
-    // Super Admin만 접근 가능
-    if (!userId || role !== "superadmin") {
-      return apiForbidden("Super Admin만 기관을 수정할 수 있습니다.");
+    // Super Admin 또는 해당 기관의 Admin만 접근 가능
+    if (!userId || !isAdminRole(role)) {
+      return apiForbidden("관리자 권한이 필요합니다.");
+    }
+
+    // Admin/Consultant는 자기 기관만 수정 가능
+    if (role !== "superadmin" && tenantId !== id) {
+      return apiForbidden("자기 기관만 수정할 수 있습니다.");
     }
 
     const body = await request.json();
-    const { name, type, status } = body;
+    const { name, type, status, address, representative_phone } = body;
 
     // 입력 검증
     if (!name || typeof name !== "string" || name.trim().length === 0) {
@@ -95,24 +103,23 @@ export async function PUT(
     }
 
     // 테넌트 업데이트
-    const updateData: { name: string; type: string; status?: string; updated_at: string } = {
+    const updateData: Record<string, unknown> = {
       name: name.trim(),
       type: type || "academy",
       updated_at: new Date().toISOString(),
     };
 
-    // status 컬럼이 있는지 확인 후 업데이트
-    try {
-      const { error: testError } = await adminClient
-        .from("tenants")
-        .select("status")
-        .limit(1);
-      
-      if (!testError && status !== undefined) {
-        updateData.status = status;
-      }
-    } catch (e) {
-      // status 컬럼이 없으면 무시
+    // status는 superadmin만 변경 가능
+    if (status !== undefined && role === "superadmin") {
+      updateData.status = status;
+    }
+
+    // 주소, 대표번호 (마이그레이션 후 추가 컬럼)
+    if (address !== undefined) {
+      updateData.address = address;
+    }
+    if (representative_phone !== undefined) {
+      updateData.representative_phone = representative_phone;
     }
 
     const { data, error } = await adminClient

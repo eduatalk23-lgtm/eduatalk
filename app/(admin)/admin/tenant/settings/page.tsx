@@ -26,11 +26,22 @@ export default async function TenantSettingsPage() {
   }
 
   const supabase = await createSupabaseServerClient();
-  const { data: tenant, error } = await supabase
+  const { data: tenantRaw, error } = await supabase
     .from("tenants")
-    .select("id, name, type")
+    .select("*")
     .eq("id", tenantContext.tenantId)
     .single();
+
+  // address, representative_phone은 마이그레이션 후 추가 컬럼
+  const tenant = tenantRaw
+    ? {
+        id: tenantRaw.id,
+        name: tenantRaw.name,
+        type: tenantRaw.type ?? "academy",
+        address: (tenantRaw as Record<string, unknown>).address as string | null ?? null,
+        representative_phone: (tenantRaw as Record<string, unknown>).representative_phone as string | null ?? null,
+      }
+    : null;
 
   if (error) {
     console.error("[tenant] 기관 정보 조회 실패", error);
