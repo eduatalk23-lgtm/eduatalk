@@ -1,6 +1,8 @@
 export {
   createConsultationSchedule,
   getConsultationSchedules,
+  updateConsultationSchedule,
+  deleteConsultationSchedule,
   updateScheduleStatus,
 } from "./actions/schedule";
 

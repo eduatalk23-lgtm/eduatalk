@@ -12,6 +12,8 @@ export type SMSTemplateType =
   | "payment_overdue"
   | "consultation_scheduled"
   | "consultation_reminder"
+  | "consultation_changed"
+  | "consultation_cancelled"
   | "notice";
 
 export interface SMSTemplate {
@@ -97,6 +99,57 @@ export const SMS_TEMPLATES: Record<SMSTemplateType, SMSTemplate> = {
       "상담시간",
       "상담일정",
       "상담장소",
+      "대표번호",
+    ],
+  },
+  consultation_changed: {
+    id: "consultation_changed",
+    type: "consultation_changed",
+    title: "상담 일정 변경 안내",
+    content:
+      `[{학원명}] {학생명} 학생
+<"{상담유형}" 상담일정 변경안내>
+
+▶ 변경된 상담일정
+    {상담일정}
+▶ 담당 컨설턴트
+    {컨설턴트명}
+▶ 방문 상담자
+    {방문상담자}
+▶ 상담장소
+    {상담장소}
+
+▷ 기타 문의사항
+    대표번호 {대표번호}`,
+    variables: [
+      "학원명",
+      "학생명",
+      "상담유형",
+      "컨설턴트명",
+      "방문상담자",
+      "상담일정",
+      "상담장소",
+      "대표번호",
+    ],
+  },
+  consultation_cancelled: {
+    id: "consultation_cancelled",
+    type: "consultation_cancelled",
+    title: "상담 일정 취소 안내",
+    content:
+      `[{학원명}] {학생명} 학생
+<"{상담유형}" 상담일정 취소안내>
+
+▶ 취소된 일정
+    {상담일정}
+
+▷ 기타 문의사항
+    대표번호 {대표번호}`,
+    variables: [
+      "학원명",
+      "학생명",
+      "상담유형",
+      "상담일정",
       "대표번호",
     ],
   },

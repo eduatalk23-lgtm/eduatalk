@@ -71,6 +71,8 @@ export async function ConsultationScheduleSection({
       <ConsultationScheduleList
         schedules={schedules}
         studentId={studentId}
+        consultants={consultants}
+        enrollments={enrollments}
       />
     </div>
   );

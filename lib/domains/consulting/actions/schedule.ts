@@ -195,6 +195,177 @@ export async function getConsultationSchedules(
   }
 }
 
+// ── 상담 일정 수정 + 변경 알림 ──
+
+export async function updateConsultationSchedule(input: {
+  scheduleId: string;
+  studentId: string;
+  consultantId: string;
+  sessionType: SessionType;
+  enrollmentId?: string;
+  programName?: string;
+  scheduledDate: string;
+  startTime: string;
+  endTime: string;
+  visitor?: string;
+  location?: string;
+  description?: string;
+  sendNotification?: boolean;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireAdminOrConsultant();
+
+    const tenantContext = await getTenantContext();
+    if (!tenantContext?.tenantId) {
+      return { success: false, error: "기관 정보를 찾을 수 없습니다." };
+    }
+
+    const supabase = await createSupabaseServerClient();
+
+    // 기존 일정 조회 (변경 감지용)
+    const { data: existing } = await scheduleTable(supabase)
+      .select("scheduled_date, start_time, end_time, location, session_type")
+      .eq("id", input.scheduleId)
+      .single();
+
+    const durationMinutes = calculateDuration(input.startTime, input.endTime);
+
+    const { error: updateError } = await scheduleTable(supabase)
+      .update({
+        consultant_id: input.consultantId,
+        session_type: input.sessionType,
+        enrollment_id: input.enrollmentId || null,
+        scheduled_date: input.scheduledDate,
+        start_time: input.startTime,
+        end_time: input.endTime,
+        duration_minutes: durationMinutes,
+        visitor: input.visitor || null,
+        location: input.location || null,
+        description: input.description || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", input.scheduleId);
+
+    if (updateError) {
+      logActionError(ACTION_CTX, updateError, {
+        context: "일정 수정",
+        scheduleId: input.scheduleId,
+      });
+      return { success: false, error: "상담 일정 수정에 실패했습니다." };
+    }
+
+    // 날짜/시간/장소가 변경된 경우에만 변경 알림 발송
+    if (input.sendNotification !== false && existing) {
+      const old = existing as {
+        scheduled_date: string;
+        start_time: string;
+        end_time: string;
+        location: string | null;
+        session_type: string;
+      };
+      const changed =
+        old.scheduled_date !== input.scheduledDate ||
+        old.start_time !== input.startTime ||
+        old.end_time !== input.endTime ||
+        (old.location ?? "") !== (input.location ?? "");
+
+      if (changed) {
+        await sendChangeNotification({
+          templateType: "consultation_changed",
+          scheduleId: input.scheduleId,
+          tenantId: tenantContext.tenantId,
+          studentId: input.studentId,
+          consultantId: input.consultantId,
+          sessionType: input.sessionType,
+          programName: input.programName,
+          scheduledDate: input.scheduledDate,
+          startTime: input.startTime,
+          endTime: input.endTime,
+          visitor: input.visitor,
+          location: input.location,
+        });
+      }
+    }
+
+    revalidatePath(`/admin/students/${input.studentId}`);
+    return { success: true };
+  } catch (error) {
+    logActionError(ACTION_CTX, error, {
+      context: "updateConsultationSchedule",
+      scheduleId: input.scheduleId,
+    });
+    return { success: false, error: "상담 일정 수정 중 오류가 발생했습니다." };
+  }
+}
+
+// ── 상담 일정 삭제 + 취소 알림 ──
+
+export async function deleteConsultationSchedule(input: {
+  scheduleId: string;
+  studentId: string;
+  sendNotification?: boolean;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireAdminOrConsultant();
+
+    const tenantContext = await getTenantContext();
+    if (!tenantContext?.tenantId) {
+      return { success: false, error: "기관 정보를 찾을 수 없습니다." };
+    }
+
+    const supabase = await createSupabaseServerClient();
+
+    // 삭제 전 일정 정보 조회 (알림용)
+    const { data: existing } = await scheduleTable(supabase)
+      .select("*, consultant:admin_users!consultant_id(name)")
+      .eq("id", input.scheduleId)
+      .single();
+
+    if (!existing) {
+      return { success: false, error: "일정을 찾을 수 없습니다." };
+    }
+
+    const { error: deleteError } = await scheduleTable(supabase)
+      .delete()
+      .eq("id", input.scheduleId);
+
+    if (deleteError) {
+      logActionError(ACTION_CTX, deleteError, {
+        context: "일정 삭제",
+        scheduleId: input.scheduleId,
+      });
+      return { success: false, error: "상담 일정 삭제에 실패했습니다." };
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const row = existing as any;
+
+    // 예정 상태였던 일정만 취소 알림 발송
+    if (input.sendNotification !== false && row.status === "scheduled") {
+      await sendChangeNotification({
+        templateType: "consultation_cancelled",
+        scheduleId: input.scheduleId,
+        tenantId: tenantContext.tenantId,
+        studentId: input.studentId,
+        consultantId: row.consultant_id,
+        sessionType: row.session_type,
+        scheduledDate: row.scheduled_date,
+        startTime: row.start_time,
+        endTime: row.end_time,
+      });
+    }
+
+    revalidatePath(`/admin/students/${input.studentId}`);
+    return { success: true };
+  } catch (error) {
+    logActionError(ACTION_CTX, error, {
+      context: "deleteConsultationSchedule",
+      scheduleId: input.scheduleId,
+    });
+    return { success: false, error: "상담 일정 삭제 중 오류가 발생했습니다." };
+  }
+}
+
 // ── 상담 일정 상태 변경 ──
 
 export async function updateScheduleStatus(
@@ -363,6 +534,104 @@ async function sendScheduleNotification(params: {
     // 알림 발송 실패는 일정 생성 자체를 실패시키지 않음
     logActionError(ACTION_CTX, error, {
       context: "sendScheduleNotification",
+      scheduleId: params.scheduleId,
+    });
+  }
+}
+
+// ── 내부: 변경/취소 알림 발송 ──
+
+async function sendChangeNotification(params: {
+  templateType: "consultation_changed" | "consultation_cancelled";
+  scheduleId: string;
+  tenantId: string;
+  studentId: string;
+  consultantId: string;
+  sessionType: SessionType | string;
+  programName?: string;
+  scheduledDate: string;
+  startTime: string;
+  endTime: string;
+  visitor?: string;
+  location?: string;
+}): Promise<void> {
+  try {
+    const studentPhones = await getStudentPhones(params.studentId);
+    const recipientPhone =
+      studentPhones?.mother_phone || studentPhones?.father_phone;
+
+    if (!recipientPhone) return;
+
+    const adminClient = await getSupabaseClientForRLSBypass({
+      forceAdmin: true,
+      fallbackToServer: false,
+    });
+    if (!adminClient) return;
+
+    type TenantExtended = {
+      name: string | null;
+      address?: string | null;
+      representative_phone?: string | null;
+    };
+
+    const [tenantResult, consultantResult, studentResult] = await Promise.all([
+      adminClient.from("tenants").select("*").eq("id", params.tenantId).maybeSingle(),
+      adminClient.from("admin_users").select("name").eq("id", params.consultantId).maybeSingle(),
+      adminClient.from("students").select("name").eq("id", params.studentId).maybeSingle(),
+    ]);
+
+    const tenant = tenantResult.data as TenantExtended | null;
+    const consultationType = params.programName || params.sessionType;
+    const scheduleFormatted = formatScheduleDateTime(
+      params.scheduledDate,
+      params.startTime,
+      params.endTime
+    );
+
+    const templateVariables: Record<string, string> = {
+      학원명: tenant?.name ?? "",
+      학생명: studentResult.data?.name ?? "",
+      상담유형: consultationType,
+      컨설턴트명: consultantResult.data?.name ?? "",
+      방문상담자: params.visitor || "학생 & 학부모",
+      상담일정: scheduleFormatted,
+      상담장소: params.location || tenant?.address || "",
+      대표번호: tenant?.representative_phone || "",
+    };
+
+    const message = formatSMSTemplate(params.templateType, templateVariables);
+    const alimtalkTemplate = getAlimtalkTemplate(params.templateType);
+
+    let sent = false;
+
+    if (alimtalkTemplate) {
+      const result = await sendAlimtalk({
+        recipientPhone,
+        message,
+        tenantId: params.tenantId,
+        templateCode: alimtalkTemplate.templateCode,
+        recipientId: params.studentId,
+      });
+      sent = result.success;
+    }
+
+    if (!sent && !alimtalkTemplate) {
+      const smsResult = await sendSMS({
+        recipientPhone,
+        message,
+        recipientId: params.studentId,
+        tenantId: params.tenantId,
+      });
+      sent = smsResult.success;
+    }
+
+    logActionDebug(ACTION_CTX, `${params.templateType} 알림 발송`, {
+      scheduleId: params.scheduleId,
+      sent,
+    });
+  } catch (error) {
+    logActionError(ACTION_CTX, error, {
+      context: "sendChangeNotification",
       scheduleId: params.scheduleId,
     });
   }

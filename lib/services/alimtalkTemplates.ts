@@ -53,6 +53,14 @@ export const ALIMTALK_TEMPLATE_MAP: Partial<
     templateCode: "CONSULTATION_SCHEDULED",
     smsTemplateType: "consultation_scheduled",
   },
+  consultation_changed: {
+    templateCode: "CONSULTATION_CHANGED",
+    smsTemplateType: "consultation_changed",
+  },
+  consultation_cancelled: {
+    templateCode: "CONSULTATION_CANCELLED",
+    smsTemplateType: "consultation_cancelled",
+  },
   consultation_reminder: {
     templateCode: "CONSULTATION_REMINDER",
     smsTemplateType: "consultation_reminder",
