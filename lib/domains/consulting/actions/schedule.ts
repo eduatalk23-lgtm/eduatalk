@@ -35,6 +35,8 @@ export async function createConsultationSchedule(input: {
   studentId: string;
   consultantId: string;
   sessionType: SessionType;
+  enrollmentId?: string;
+  programName?: string;
   scheduledDate: string;
   startTime: string;
   endTime: string;
@@ -80,6 +82,7 @@ export async function createConsultationSchedule(input: {
         student_id: input.studentId,
         consultant_id: input.consultantId,
         session_type: input.sessionType,
+        enrollment_id: input.enrollmentId || null,
         scheduled_date: input.scheduledDate,
         start_time: input.startTime,
         end_time: input.endTime,
@@ -111,6 +114,7 @@ export async function createConsultationSchedule(input: {
         studentName: student.name ?? "",
         consultantId: input.consultantId,
         sessionType: input.sessionType,
+        programName: input.programName,
         scheduledDate: input.scheduledDate,
         startTime: input.startTime,
         endTime: input.endTime,
@@ -145,7 +149,8 @@ export async function getConsultationSchedules(
       .select(
         `
         *,
-        consultant:admin_users!consultant_id(name)
+        consultant:admin_users!consultant_id(name),
+        enrollment:enrollments!enrollment_id(id, programs(name))
       `
       )
       .eq("student_id", studentId)
@@ -163,10 +168,22 @@ export async function getConsultationSchedules(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return ((data as any[]) ?? []).map((row) => {
       const consultant = row.consultant as { name: string } | null;
+      // enrollment → programs JOIN 결과에서 프로그램명 추출
+      const enrollment = row.enrollment as {
+        id: string;
+        programs: { name: string } | { name: string }[] | null;
+      } | null;
+      let programName: string | undefined;
+      if (enrollment?.programs) {
+        const prog = enrollment.programs;
+        programName = Array.isArray(prog) ? prog[0]?.name : prog.name;
+      }
       return {
         ...row,
         consultant_name: consultant?.name ?? undefined,
+        program_name: programName,
         consultant: undefined,
+        enrollment: undefined,
       } as ConsultationSchedule;
     });
   } catch (error) {
@@ -226,6 +243,7 @@ async function sendScheduleNotification(params: {
   studentName: string;
   consultantId: string;
   sessionType: SessionType;
+  programName?: string;
   scheduledDate: string;
   startTime: string;
   endTime: string;
@@ -283,10 +301,13 @@ async function sendScheduleNotification(params: {
       params.endTime
     );
 
+    // 알림톡 상담유형: 프로그램명 우선, 없으면 세션 유형
+    const consultationType = params.programName || params.sessionType;
+
     const templateVariables: Record<string, string> = {
       학원명: tenant?.name ?? "",
       학생명: params.studentName,
-      상담유형: params.sessionType,
+      상담유형: consultationType,
       컨설턴트명: consultant?.name ?? "",
       방문상담자: params.visitor || "학생 & 학부모",
       상담시간: String(params.durationMinutes ?? ""),

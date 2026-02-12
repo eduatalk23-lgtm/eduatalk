@@ -37,6 +37,7 @@ export interface ConsultationSchedule {
   student_id: string;
   consultant_id: string;
   session_type: SessionType;
+  enrollment_id: string | null;
   scheduled_date: string;
   start_time: string;
   end_time: string;
@@ -52,6 +53,7 @@ export interface ConsultationSchedule {
   updated_at: string;
   // JOIN 결과
   consultant_name?: string;
+  program_name?: string;
 }
 
 export const SCHEDULE_STATUS_LABELS: Record<ScheduleStatus, string> = {

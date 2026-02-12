@@ -12,15 +12,22 @@ import {
 import { SESSION_TYPES, type SessionType } from "@/lib/domains/consulting/types";
 import { createConsultationSchedule } from "@/lib/domains/consulting/actions/schedule";
 
+type EnrollmentOption = {
+  id: string;
+  program_name: string;
+};
+
 type ConsultationScheduleFormProps = {
   studentId: string;
   consultants: { id: string; name: string }[];
+  enrollments?: EnrollmentOption[];
   defaultConsultantId?: string;
 };
 
 export function ConsultationScheduleForm({
   studentId,
   consultants,
+  enrollments = [],
   defaultConsultantId,
 }: ConsultationScheduleFormProps) {
   const router = useRouter();
@@ -28,6 +35,7 @@ export function ConsultationScheduleForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [sendNotification, setSendNotification] = useState(true);
+  const [selectedEnrollmentId, setSelectedEnrollmentId] = useState("");
 
   const inputClass = cn(
     "w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2",
@@ -38,6 +46,11 @@ export function ConsultationScheduleForm({
   );
 
   const labelClass = cn("text-xs font-medium", textSecondary);
+
+  // 선택된 enrollment의 프로그램명
+  const selectedProgramName = enrollments.find(
+    (e) => e.id === selectedEnrollmentId
+  )?.program_name;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -66,6 +79,8 @@ export function ConsultationScheduleForm({
         studentId,
         consultantId,
         sessionType,
+        enrollmentId: selectedEnrollmentId || undefined,
+        programName: selectedProgramName,
         scheduledDate,
         startTime,
         endTime,
@@ -77,6 +92,7 @@ export function ConsultationScheduleForm({
 
       if (result.success) {
         setSuccess(true);
+        setSelectedEnrollmentId("");
         form.reset();
         router.refresh();
         setTimeout(() => setSuccess(false), 3000);
@@ -88,7 +104,7 @@ export function ConsultationScheduleForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      {/* Row 1: 상담유형, 컨설턴트, 상담일 */}
+      {/* Row 1: 상담유형, 관련 프로그램, 컨설턴트 */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="flex flex-col gap-1">
           <label className={labelClass}>상담 유형</label>
@@ -103,6 +119,27 @@ export function ConsultationScheduleForm({
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label className={labelClass}>관련 프로그램</label>
+          <select
+            value={selectedEnrollmentId}
+            onChange={(e) => setSelectedEnrollmentId(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">선택 안 함</option>
+            {enrollments.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.program_name}
+              </option>
+            ))}
+          </select>
+          {selectedProgramName && (
+            <p className={cn("text-xs", textSecondary)}>
+              알림톡 상담유형: &quot;{selectedProgramName}&quot;
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col gap-1">
@@ -121,7 +158,10 @@ export function ConsultationScheduleForm({
             ))}
           </select>
         </div>
+      </div>
 
+      {/* Row 2: 상담일, 시작시간, 종료시간 */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="flex flex-col gap-1">
           <label className={labelClass}>상담일</label>
           <input
@@ -131,10 +171,7 @@ export function ConsultationScheduleForm({
             className={inputClass}
           />
         </div>
-      </div>
 
-      {/* Row 2: 시작시간, 종료시간, 방문상담자 */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="flex flex-col gap-1">
           <label className={labelClass}>시작 시간</label>
           <input
@@ -154,7 +191,10 @@ export function ConsultationScheduleForm({
             className={inputClass}
           />
         </div>
+      </div>
 
+      {/* Row 3: 방문상담자, 상담장소, 메모 */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="flex flex-col gap-1">
           <label className={labelClass}>방문 상담자</label>
           <input
@@ -164,10 +204,7 @@ export function ConsultationScheduleForm({
             className={inputClass}
           />
         </div>
-      </div>
 
-      {/* Row 3: 상담장소, 메모 */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <label className={labelClass}>상담 장소</label>
           <input

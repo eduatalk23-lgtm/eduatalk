@@ -20,20 +20,36 @@ export async function ConsultationScheduleSection({
   const { userId } = await getCurrentUserRole();
   const supabase = await createSupabaseServerClient();
 
-  // 컨설턴트 목록 조회 (같은 테넌트)
-  const { data: consultantsData } = await supabase
-    .from("admin_users")
-    .select("id, name")
-    .in("role", ["consultant", "admin"])
-    .order("name");
+  // 컨설턴트 목록 + 수강 프로그램 + 일정 병렬 조회
+  const [consultantsResult, enrollmentResult, schedules] = await Promise.all([
+    supabase
+      .from("admin_users")
+      .select("id, name")
+      .in("role", ["consultant", "admin"])
+      .order("name"),
+    supabase
+      .from("enrollments")
+      .select("id, programs(name)")
+      .eq("student_id", studentId)
+      .eq("status", "active"),
+    getConsultationSchedules(studentId),
+  ]);
 
-  const consultants = (consultantsData ?? []).map((c) => ({
+  const consultants = (consultantsResult.data ?? []).map((c) => ({
     id: c.id,
     name: c.name ?? "이름 없음",
   }));
 
-  // 일정 목록 조회
-  const schedules = await getConsultationSchedules(studentId);
+  const enrollments = (enrollmentResult.data ?? []).map((e) => {
+    const prog = e.programs as unknown;
+    const name =
+      prog && typeof prog === "object" && "name" in prog
+        ? (prog as { name: string }).name
+        : Array.isArray(prog) && prog.length > 0
+          ? (prog[0] as { name: string }).name
+          : "프로그램";
+    return { id: e.id, program_name: name };
+  });
 
   return (
     <div
@@ -48,6 +64,7 @@ export async function ConsultationScheduleSection({
       <ConsultationScheduleForm
         studentId={studentId}
         consultants={consultants}
+        enrollments={enrollments}
         defaultConsultantId={userId ?? undefined}
       />
 
