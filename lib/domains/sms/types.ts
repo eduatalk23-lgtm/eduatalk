@@ -14,6 +14,7 @@ export type SMSRecipientType = 'student' | 'mother' | 'father';
 
 export interface SMSResult {
   msgId?: string;
+  channel?: "alimtalk" | "sms";
 }
 
 export interface BulkSMSResult {

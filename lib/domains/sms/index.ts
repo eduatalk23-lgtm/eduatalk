@@ -31,6 +31,13 @@ export {
   sendBulkGeneralSMS,
 } from "./actions";
 
+// ============================================
+// 알림톡 서비스 (직접 사용 시)
+// ============================================
+
+export { sendAlimtalk, sendBulkAlimtalk } from "@/lib/services/alimtalkService";
+export { getAlimtalkTemplate } from "@/lib/services/alimtalkTemplates";
+
 /**
  * 사용 예시:
  *

@@ -34,6 +34,10 @@ import { TimeManagementSection } from "./_components/time-management/TimeManagem
 import { TimeManagementSectionSkeleton } from "./_components/time-management/TimeManagementSectionSkeleton";
 import { EnrollmentSection } from "./_components/EnrollmentSection";
 import { ConsultantAssignmentPanel } from "./_components/ConsultantAssignmentPanel";
+import {
+  ConsultationScheduleSection,
+  ConsultationScheduleSectionSkeleton,
+} from "./_components/ConsultationScheduleSection";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -201,6 +205,9 @@ export default async function AdminStudentDetailPage({
             {/* 상담노트 탭 */}
             {defaultTab === "consulting" && (
               <div className="space-y-6">
+                <Suspense fallback={<ConsultationScheduleSectionSkeleton />}>
+                  <ConsultationScheduleSection studentId={studentId} />
+                </Suspense>
                 <ConsultantAssignmentPanel studentId={studentId} />
                 <Suspense fallback={<ConsultingNotesSectionSkeleton />}>
                   <ConsultingNotesSection

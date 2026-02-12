@@ -6,10 +6,10 @@
 
 import { revalidatePath } from "next/cache";
 import { sendSMS, sendBulkSMS } from "@/lib/services/smsService";
-import {
-  formatSMSTemplate,
-  type SMSTemplateType,
-} from "@/lib/services/smsTemplates";
+import { sendAlimtalk, sendBulkAlimtalk } from "@/lib/services/alimtalkService";
+import { getAlimtalkTemplate } from "@/lib/services/alimtalkTemplates";
+import { formatSMSTemplate } from "@/lib/services/smsTemplates";
+import { env } from "@/lib/env";
 import { requireAdmin as requireAdminAuth } from "@/lib/auth/guards";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -144,30 +144,60 @@ async function _sendAttendanceSMSInternal(
     학생명: studentPhoneData.name || "학생",
   });
 
-  // SMS 발송 (여러 수신자인 경우 각각 발송)
+  // 발송 (알림톡 우선, 미설정 시 SMS fallback)
   let lastMsgId: string | undefined;
+  let lastChannel: "alimtalk" | "sms" | undefined;
+  const alimtalkTemplate = getAlimtalkTemplate(templateType);
+
   for (const recipientPhone of recipientPhones) {
-    const result = await sendSMS({
-      recipientPhone,
-      message,
-      recipientId: studentId,
-      tenantId: tenantContext.tenantId,
-    });
+    if (alimtalkTemplate && env.BIZPPURIO_ACCOUNT) {
+      // 알림톡 우선 발송 (API 레벨에서 SMS fallback 자동 처리)
+      const result = await sendAlimtalk({
+        recipientPhone,
+        message,
+        smsFallbackMessage: message,
+        recipientId: studentId,
+        tenantId: tenantContext.tenantId,
+        templateCode: alimtalkTemplate.templateCode,
+        buttons: alimtalkTemplate.buttons,
+      });
 
-    if (!result.success) {
-      throw new AppError(
-        result.error || "SMS 발송에 실패했습니다.",
-        ErrorCode.EXTERNAL_SERVICE_ERROR,
-        500,
-        true
-      );
+      if (!result.success) {
+        throw new AppError(
+          result.error || "알림톡 발송에 실패했습니다.",
+          ErrorCode.EXTERNAL_SERVICE_ERROR,
+          500,
+          true
+        );
+      }
+
+      lastMsgId = result.messageKey;
+      lastChannel = result.channel;
+    } else {
+      // 비즈뿌리오 미설정 시 기존 SMS 발송
+      const result = await sendSMS({
+        recipientPhone,
+        message,
+        recipientId: studentId,
+        tenantId: tenantContext.tenantId,
+      });
+
+      if (!result.success) {
+        throw new AppError(
+          result.error || "SMS 발송에 실패했습니다.",
+          ErrorCode.EXTERNAL_SERVICE_ERROR,
+          500,
+          true
+        );
+      }
+
+      lastMsgId = result.messageKey;
+      lastChannel = "sms";
     }
-
-    lastMsgId = result.messageKey;
   }
 
   revalidatePath("/admin/sms");
-  return { msgId: lastMsgId };
+  return { msgId: lastMsgId, channel: lastChannel };
 }
 
 export const sendAttendanceSMSInternal = withActionResponse(_sendAttendanceSMSInternal);
@@ -280,11 +310,23 @@ async function _sendBulkAttendanceSMS(
     );
   }
 
-  // 대량 발송
-  const result = await sendBulkSMS(
-    recipients,
-    tenantContext.tenantId
-  );
+  // 알림톡 우선 대량 발송
+  const alimtalkTemplate = getAlimtalkTemplate(templateType);
+  let result: { success: number; failed: number; errors: Array<{ phone: string; error: string }> };
+
+  if (alimtalkTemplate && env.BIZPPURIO_ACCOUNT) {
+    result = await sendBulkAlimtalk(
+      recipients.map((r) => ({
+        phone: r.phone,
+        message: r.message,
+        recipientId: r.recipientId,
+      })),
+      tenantContext.tenantId,
+      alimtalkTemplate.templateCode
+    );
+  } else {
+    result = await sendBulkSMS(recipients, tenantContext.tenantId);
+  }
 
   // 결과 매핑 (studentId 포함)
   const errors = result.errors.map((err, index) => {
@@ -464,8 +506,24 @@ async function _sendBulkGeneralSMS(
     );
   }
 
-  // 대량 발송
-  const result = await sendBulkSMS(recipients, tenantContext.tenantId);
+  // 일반 SMS는 알림톡 템플릿이 없으므로 기존 SMS 발송
+  // (notice 템플릿이 매칭되면 알림톡으로 발송)
+  const alimtalkTemplate = getAlimtalkTemplate("notice");
+  let result: { success: number; failed: number; errors: Array<{ phone: string; error: string }> };
+
+  if (alimtalkTemplate && env.BIZPPURIO_ACCOUNT) {
+    result = await sendBulkAlimtalk(
+      recipients.map((r) => ({
+        phone: r.phone,
+        message: r.message,
+        recipientId: r.recipientId,
+      })),
+      tenantContext.tenantId,
+      alimtalkTemplate.templateCode
+    );
+  } else {
+    result = await sendBulkSMS(recipients, tenantContext.tenantId);
+  }
 
   // 결과 매핑 (studentId 포함)
   const errors = result.errors.map((err, index) => {

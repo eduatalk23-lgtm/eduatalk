@@ -47,7 +47,7 @@ let tokenCache: {
 /**
  * Base64 인코딩
  */
-function base64Encode(str: string): string {
+export function base64Encode(str: string): string {
   if (typeof Buffer !== "undefined") {
     return Buffer.from(str).toString("base64");
   }

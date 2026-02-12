@@ -7,6 +7,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin as requireAdminAuth } from "@/lib/auth/guards";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { sendSMS, sendBulkSMS } from "@/lib/services/smsService";
+import { sendAlimtalk, sendBulkAlimtalk } from "@/lib/services/alimtalkService";
+import { getAlimtalkTemplate } from "@/lib/services/alimtalkTemplates";
+import { env } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   formatSMSTemplate,
@@ -55,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     // 요청 본문 파싱
     const body = await request.json();
-    const { type, phone, message, studentIds, recipients, templateVariables, recipientType } = body;
+    const { type, phone, message, templateVariables, recipientType, smsTemplateType } = body;
 
     // 입력값 검증
     if (!type || (type !== "single" && type !== "bulk")) {
@@ -80,6 +83,40 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // 알림톡 우선 발송 시도
+      const alimtalkTemplate = smsTemplateType
+        ? getAlimtalkTemplate(smsTemplateType as SMSTemplateType)
+        : null;
+
+      if (alimtalkTemplate && env.BIZPPURIO_ACCOUNT) {
+        const result = await sendAlimtalk({
+          recipientPhone: phone,
+          message,
+          smsFallbackMessage: message,
+          recipientId: body.recipientId,
+          tenantId: tenantContext.tenantId,
+          templateCode: alimtalkTemplate.templateCode,
+          buttons: alimtalkTemplate.buttons,
+        });
+
+        if (!result.success) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: result.error || "알림톡 발송에 실패했습니다.",
+            },
+            { status: 500 }
+          );
+        }
+
+        return NextResponse.json({
+          success: true,
+          msgId: result.messageKey,
+          channel: result.channel,
+        });
+      }
+
+      // 알림톡 미설정 시 기존 SMS 발송
       const result = await sendSMS({
         recipientPhone: phone,
         message,
@@ -100,6 +137,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         msgId: result.messageKey,
+        channel: "sms",
       });
     } else {
       // 일괄 발송
@@ -302,8 +340,26 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // 대량 발송
-      const result = await sendBulkSMS(finalRecipients, tenantContext.tenantId);
+      // 알림톡 우선 대량 발송
+      const alimtalkTemplate = smsTemplateType
+        ? getAlimtalkTemplate(smsTemplateType as SMSTemplateType)
+        : null;
+
+      let result: { success: number; failed: number; errors: Array<{ phone: string; error: string }> };
+
+      if (alimtalkTemplate && env.BIZPPURIO_ACCOUNT) {
+        result = await sendBulkAlimtalk(
+          finalRecipients.map((r) => ({
+            phone: r.phone,
+            message: r.message,
+            recipientId: r.recipientId,
+          })),
+          tenantContext.tenantId,
+          alimtalkTemplate.templateCode
+        );
+      } else {
+        result = await sendBulkSMS(finalRecipients, tenantContext.tenantId);
+      }
 
       // 결과 매핑 (studentId 포함)
       const errors = result.errors.map((err, index) => {

@@ -33,6 +33,11 @@ const envSchema = z.object({
   // 토스페이먼츠 결제 연동
   NEXT_PUBLIC_TOSS_CLIENT_KEY: z.string().optional(), // 토스페이먼츠 클라이언트 키 (위젯용)
   TOSS_SECRET_KEY: z.string().optional(), // 토스페이먼츠 시크릿 키 (서버 승인/취소용)
+  // 비즈뿌리오 (카카오 알림톡)
+  BIZPPURIO_ACCOUNT: z.string().optional(), // 비즈뿌리오 계정
+  BIZPPURIO_PASSWORD: z.string().optional(), // 비즈뿌리오 암호
+  BIZPPURIO_API_BASE_URL: z.string().url().optional(), // API 기본 URL (기본값: https://api.bizppurio.com)
+  BIZPPURIO_SENDER_KEY: z.string().optional(), // 카카오 발신프로필 키 (40자)
 });
 
 /**
@@ -65,6 +70,11 @@ export const env = (() => {
       // 토스페이먼츠
       NEXT_PUBLIC_TOSS_CLIENT_KEY: process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY,
       TOSS_SECRET_KEY: process.env.TOSS_SECRET_KEY,
+      // 비즈뿌리오 (카카오 알림톡)
+      BIZPPURIO_ACCOUNT: process.env.BIZPPURIO_ACCOUNT,
+      BIZPPURIO_PASSWORD: process.env.BIZPPURIO_PASSWORD,
+      BIZPPURIO_API_BASE_URL: process.env.BIZPPURIO_API_BASE_URL || "https://api.bizppurio.com",
+      BIZPPURIO_SENDER_KEY: process.env.BIZPPURIO_SENDER_KEY,
     };
 
     // 빌드 시점 체크 (Next.js 빌드 프로세스 감지)
@@ -106,6 +116,11 @@ export const env = (() => {
         // 토스페이먼츠
         NEXT_PUBLIC_TOSS_CLIENT_KEY: envValues.NEXT_PUBLIC_TOSS_CLIENT_KEY,
         TOSS_SECRET_KEY: envValues.TOSS_SECRET_KEY,
+        // 비즈뿌리오 (카카오 알림톡)
+        BIZPPURIO_ACCOUNT: envValues.BIZPPURIO_ACCOUNT,
+        BIZPPURIO_PASSWORD: envValues.BIZPPURIO_PASSWORD,
+        BIZPPURIO_API_BASE_URL: envValues.BIZPPURIO_API_BASE_URL,
+        BIZPPURIO_SENDER_KEY: envValues.BIZPPURIO_SENDER_KEY,
       };
     }
 
