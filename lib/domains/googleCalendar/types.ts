@@ -22,7 +22,6 @@ export interface GoogleOAuthToken {
 export type SyncAction = "create" | "update" | "cancel";
 export type SyncTarget = "personal" | "shared" | "both";
 export type SyncQueueStatus = "pending" | "processing" | "completed" | "failed";
-export type GoogleSyncStatus = "pending" | "synced" | "failed" | "not_applicable";
 
 export interface SyncQueueItem {
   id: string;

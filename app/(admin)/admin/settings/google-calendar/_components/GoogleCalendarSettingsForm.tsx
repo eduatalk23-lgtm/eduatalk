@@ -75,7 +75,11 @@ export default function GoogleCalendarSettingsForm({
 
   const handleCalendarChange = async (calendarId: string) => {
     setSelectedCalendar(calendarId);
-    // TODO: API로 캘린더 ID 업데이트 (Phase 2에서 추가)
+    await fetch("/api/admin/google-calendar/calendar", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ calendarId }),
+    });
   };
 
   return (

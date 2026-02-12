@@ -72,27 +72,39 @@ export async function getConnectionStatus(
   }
 }
 
-/** 동기화 큐 통계 조회 */
+/** 동기화 큐 통계 조회 (status별 COUNT) */
 export async function getSyncQueueStats(
   client: SupabaseAny,
   tenantId: string
 ): Promise<{ pending: number; failed: number; completed: number }> {
+  const result = { pending: 0, failed: 0, completed: 0 };
+
   try {
-    const { data, error } = await client
-      .from("google_calendar_sync_queue")
-      .select("status")
-      .eq("tenant_id", tenantId);
+    const counts = await Promise.all([
+      client
+        .from("google_calendar_sync_queue")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .eq("status", "pending"),
+      client
+        .from("google_calendar_sync_queue")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .eq("status", "failed"),
+      client
+        .from("google_calendar_sync_queue")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .eq("status", "completed"),
+    ]);
 
-    if (error || !data) return { pending: 0, failed: 0, completed: 0 };
+    result.pending = counts[0].count ?? 0;
+    result.failed = counts[1].count ?? 0;
+    result.completed = counts[2].count ?? 0;
 
-    const rows = data as Array<{ status: string }>;
-    return {
-      pending: rows.filter((r) => r.status === "pending").length,
-      failed: rows.filter((r) => r.status === "failed").length,
-      completed: rows.filter((r) => r.status === "completed").length,
-    };
+    return result;
   } catch (error) {
     logActionError(ACTION_CTX, error, { context: "getSyncQueueStats" });
-    return { pending: 0, failed: 0, completed: 0 };
+    return result;
   }
 }
