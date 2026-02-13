@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     // 요청 본문 파싱
     const body = await request.json();
-    const { type, phone, message, templateVariables, recipientType, smsTemplateType } = body;
+    const { type, phone, message, templateVariables, recipientType, smsTemplateType, sendTime } = body;
 
     // 입력값 검증
     if (!type || (type !== "single" && type !== "bulk")) {
@@ -69,6 +69,24 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 }
       );
+    }
+
+    // 예약 시간 검증
+    if (sendTime) {
+      const sendTimeRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
+      if (!sendTimeRegex.test(sendTime)) {
+        return NextResponse.json(
+          { success: false, error: "예약 시간 형식이 올바르지 않습니다." },
+          { status: 400 }
+        );
+      }
+      const scheduledDate = new Date(sendTime + "+09:00");
+      if (scheduledDate.getTime() < Date.now() + 10 * 60 * 1000) {
+        return NextResponse.json(
+          { success: false, error: "예약 시간은 현재로부터 최소 10분 이후여야 합니다." },
+          { status: 400 }
+        );
+      }
     }
 
     if (type === "single") {
@@ -83,12 +101,12 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // 알림톡 우선 발송 시도
-      const alimtalkTemplate = smsTemplateType
+      // 알림톡 우선 발송 시도 (예약 발송 시 알림톡 건너뛰기)
+      const alimtalkTemplate = (!sendTime && smsTemplateType)
         ? getAlimtalkTemplate(smsTemplateType as SMSTemplateType)
         : null;
 
-      if (alimtalkTemplate && env.BIZPPURIO_ACCOUNT) {
+      if (alimtalkTemplate && env.PPURIO_KAKAO_SENDER_PROFILE) {
         const result = await sendAlimtalk({
           recipientPhone: phone,
           message,
@@ -122,6 +140,7 @@ export async function POST(request: NextRequest) {
         message,
         recipientId: body.recipientId,
         tenantId: tenantContext.tenantId,
+        sendTime,
       });
 
       if (!result.success) {
@@ -138,6 +157,7 @@ export async function POST(request: NextRequest) {
         success: true,
         msgId: result.messageKey,
         channel: "sms",
+        scheduled: !!sendTime,
       });
     } else {
       // 일괄 발송
@@ -340,14 +360,14 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // 알림톡 우선 대량 발송
-      const alimtalkTemplate = smsTemplateType
+      // 알림톡 우선 대량 발송 (예약 발송 시 알림톡 건너뛰기)
+      const alimtalkTemplate = (!sendTime && smsTemplateType)
         ? getAlimtalkTemplate(smsTemplateType as SMSTemplateType)
         : null;
 
       let result: { success: number; failed: number; errors: Array<{ phone: string; error: string }> };
 
-      if (alimtalkTemplate && env.BIZPPURIO_ACCOUNT) {
+      if (alimtalkTemplate && env.PPURIO_KAKAO_SENDER_PROFILE) {
         result = await sendBulkAlimtalk(
           finalRecipients.map((r) => ({
             phone: r.phone,
@@ -358,7 +378,7 @@ export async function POST(request: NextRequest) {
           alimtalkTemplate.templateCode
         );
       } else {
-        result = await sendBulkSMS(finalRecipients, tenantContext.tenantId);
+        result = await sendBulkSMS(finalRecipients, tenantContext.tenantId, undefined, sendTime);
       }
 
       // 결과 매핑 (studentId 포함)

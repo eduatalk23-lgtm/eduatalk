@@ -13,12 +13,14 @@ import { proxyFetch } from "@/lib/services/proxyFetch";
 export interface SendSMSOptions {
   recipientPhone: string;
   message: string;
+  subject?: string; // LMS 제목 (90byte 초과 시 자동 LMS 전환되므로 해당 시에만 사용)
   recipientId?: string;
   tenantId: string;
   templateId?: string;
   refKey?: string; // 고객사에서 부여한 키
   sendTime?: string; // 예약 발송 시간 (yyyy-MM-ddTHH:mm:ss)
   consultationScheduleId?: string; // 상담 일정 FK (발송 이력 추적용)
+  notificationTarget?: string; // 알림 대상 (학생/부/모) — 발송 시점 기록
 }
 
 interface TokenResponse {
@@ -60,7 +62,7 @@ export function base64Encode(str: string): string {
  * 뿌리오 API 엑세스 토큰 발급
  * Basic Authentication 사용 (계정:뿌리오 개발 인증키)
  */
-async function getAccessToken(): Promise<string> {
+export async function getAccessToken(): Promise<string> {
   // 캐시된 토큰이 있고 아직 유효한 경우 재사용
   if (tokenCache && tokenCache.expiresAt > Date.now()) {
     return tokenCache.token;
@@ -221,12 +223,14 @@ export async function sendSMS(
   const {
     recipientPhone,
     message,
+    subject,
     recipientId,
     tenantId,
     templateId,
     refKey,
     sendTime,
     consultationScheduleId,
+    notificationTarget,
   } = options;
 
   // 환경 변수 확인
@@ -282,6 +286,7 @@ export async function sendSMS(
         template_id: templateId,
         status: "pending",
         consultation_schedule_id: consultationScheduleId ?? null,
+        notification_target: notificationTarget ?? null,
       })
       .select()
       .single();
@@ -351,6 +356,7 @@ export async function sendSMS(
         },
       ],
       refKey: refKeyValue,
+      ...(messageType === "LMS" && subject ? { subject: subject.slice(0, 30) } : {}),
       ...(sendTime && { sendTime }), // 예약 발송 시간
     };
 
@@ -457,12 +463,14 @@ export async function sendSMS(
       // messageKey가 있으면 명시적으로 성공
       // messageKey가 없어도 code가 1000이면 성공으로 간주 (일부 API는 messageKey를 반환하지 않을 수 있음)
       const messageKey = messageResponse.messageKey || `ref-${refKeyValue}`;
+      const isScheduled = !!sendTime;
 
       await logClient
         .from("sms_logs")
         .update({
-          status: "sent",
-          sent_at: new Date().toISOString(),
+          status: isScheduled ? "scheduled" : "sent",
+          sent_at: isScheduled ? null : new Date().toISOString(),
+          scheduled_at: isScheduled ? new Date(sendTime + "+09:00").toISOString() : null,
           message_key: messageResponse.messageKey || null,
           ref_key: refKeyValue || null,
         })
@@ -790,8 +798,8 @@ export async function cancelScheduledMessage(
             status: "failed",
             error_message: "예약 발송이 취소되었습니다.",
           })
-          .eq("tenant_id", tenantId)
-          .eq("status", "pending");
+          .eq("message_key", messageKey)
+          .eq("tenant_id", tenantId);
       }
 
       return { success: true };
@@ -829,7 +837,8 @@ export async function sendBulkSMS(
     recipientId?: string;
   }>,
   tenantId: string,
-  templateId?: string
+  templateId?: string,
+  sendTime?: string
 ): Promise<{
   success: number;
   failed: number;
@@ -849,6 +858,7 @@ export async function sendBulkSMS(
       recipientId: recipient.recipientId,
       tenantId,
       templateId,
+      sendTime,
     });
 
     if (result.success) {

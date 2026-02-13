@@ -8,7 +8,7 @@ import Button from "@/components/atoms/Button";
 import { useToast } from "@/components/ui/ToastProvider";
 import { handleSupabaseError } from "@/lib/utils/errorHandling";
 import { TemplateSelector } from "./TemplateSelector";
-import { validateSingleSendForm } from "./utils/validateSMSForm";
+import { validateSingleSendForm, validateScheduledTime } from "./utils/validateSMSForm";
 import type { SMSTemplateType, SMSTemplate } from "@/lib/services/smsTemplates";
 
 type SingleSendFormProps = {
@@ -22,6 +22,7 @@ type SingleSendFormProps = {
   templateVariables: Record<string, string>;
   templates: SMSTemplate[];
   academyName: string;
+  sendTime?: string;
 
   // 핸들러
   onRecipientTypeChange: (type: "student" | "mother" | "father") => void;
@@ -42,6 +43,7 @@ export function SingleSendForm({
   templateVariables,
   templates,
   academyName,
+  sendTime,
   onRecipientTypeChange,
   onCustomPhoneChange,
   onSelectedStudentNameChange,
@@ -75,6 +77,7 @@ export function SingleSendForm({
             type: "single",
             phone: customPhone.trim(),
             message: message.trim(),
+            ...(sendTime && { sendTime }),
           }),
         });
 
@@ -85,7 +88,7 @@ export function SingleSendForm({
           return;
         }
 
-        showSuccess("SMS가 성공적으로 발송되었습니다.");
+        showSuccess(sendTime ? "SMS가 예약 발송되었습니다." : "SMS가 성공적으로 발송되었습니다.");
         // 결과 페이지로 이동
         setTimeout(() => {
           router.push("/admin/sms/results");
@@ -203,7 +206,7 @@ export function SingleSendForm({
           type="submit"
           disabled={isPending || !message.trim() || !customPhone.trim()}
         >
-          {isPending ? "발송 중..." : "SMS 발송"}
+          {isPending ? "발송 중..." : sendTime ? "예약 발송" : "SMS 발송"}
         </Button>
       </div>
     </form>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
+
 import {
   getAllSMSTemplates,
   formatSMSTemplate,
@@ -27,6 +28,16 @@ export function useSMSFormState({
   const [templateVariables, setTemplateVariables] = useState<
     Record<string, string>
   >({});
+
+  // 예약 발송 관련 상태
+  const [sendType, setSendType] = useState<"immediate" | "scheduled">("immediate");
+  const [scheduledDate, setScheduledDate] = useState("");
+  const [scheduledTime, setScheduledTime] = useState("");
+
+  const sendTime = useMemo(() => {
+    if (sendType !== "scheduled" || !scheduledDate || !scheduledTime) return undefined;
+    return `${scheduledDate}T${scheduledTime}:00`;
+  }, [sendType, scheduledDate, scheduledTime]);
 
   // 단일 발송 관련 상태
   const [customPhone, setCustomPhone] = useState("");
@@ -148,6 +159,9 @@ export function useSMSFormState({
     setTemplateVariables({});
     setCustomPhone("");
     setSelectedStudentName("");
+    setSendType("immediate");
+    setScheduledDate("");
+    setScheduledTime("");
   }, []);
 
   return {
@@ -161,6 +175,10 @@ export function useSMSFormState({
     selectedStudentName,
     recipientType,
     templates,
+    sendType,
+    scheduledDate,
+    scheduledTime,
+    sendTime,
 
     // 핸들러
     setSendMode: handleSendModeChange,
@@ -170,6 +188,9 @@ export function useSMSFormState({
     setCustomPhone,
     setSelectedStudentName,
     setRecipientType,
+    setSendType,
+    setScheduledDate,
+    setScheduledTime,
     resetForm,
   };
 }

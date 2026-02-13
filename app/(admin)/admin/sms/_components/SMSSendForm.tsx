@@ -5,6 +5,7 @@ import Label from "@/components/atoms/Label";
 import { useSMSFormState } from "./hooks/useSMSFormState";
 import { SingleSendForm } from "./SingleSendForm";
 import { BulkSendForm } from "./BulkSendForm";
+import { SchedulePicker } from "./SchedulePicker";
 import type { SMSFilter } from "./SMSFilterPanel";
 
 type SMSSendFormProps = {
@@ -65,6 +66,16 @@ export function SMSSendForm({ academyName = "학원" }: SMSSendFormProps) {
         </div>
       </div>
 
+      {/* 예약 발송 선택 */}
+      <SchedulePicker
+        sendType={formState.sendType}
+        scheduledDate={formState.scheduledDate}
+        scheduledTime={formState.scheduledTime}
+        onSendTypeChange={formState.setSendType}
+        onScheduledDateChange={formState.setScheduledDate}
+        onScheduledTimeChange={formState.setScheduledTime}
+      />
+
       {/* 발송 모드에 따라 폼 표시 */}
       {formState.sendMode === "single" ? (
         <SingleSendForm
@@ -77,6 +88,7 @@ export function SMSSendForm({ academyName = "학원" }: SMSSendFormProps) {
           templateVariables={formState.templateVariables}
           templates={formState.templates}
           academyName={academyName}
+          sendTime={formState.sendTime}
           onRecipientTypeChange={formState.setRecipientType}
           onCustomPhoneChange={formState.setCustomPhone}
           onSelectedStudentNameChange={formState.setSelectedStudentName}
@@ -93,6 +105,7 @@ export function SMSSendForm({ academyName = "학원" }: SMSSendFormProps) {
           templateVariables={formState.templateVariables}
           templates={formState.templates}
           academyName={academyName}
+          sendTime={formState.sendTime}
           onFilterChange={setFilter}
           onMessageChange={formState.setMessage}
           onTemplateChange={formState.setSelectedTemplate}

@@ -150,7 +150,7 @@ async function _sendAttendanceSMSInternal(
   const alimtalkTemplate = getAlimtalkTemplate(templateType);
 
   for (const recipientPhone of recipientPhones) {
-    if (alimtalkTemplate && env.BIZPPURIO_ACCOUNT) {
+    if (alimtalkTemplate && env.PPURIO_KAKAO_SENDER_PROFILE) {
       // 알림톡 우선 발송 (API 레벨에서 SMS fallback 자동 처리)
       const result = await sendAlimtalk({
         recipientPhone,

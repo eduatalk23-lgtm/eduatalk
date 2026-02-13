@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { EmptyState } from "@/components/molecules/EmptyState";
+import { useToast } from "@/components/ui/ToastProvider";
 
 // 뿌리오 결과코드 한글 매핑
 const RESULT_DESCRIPTIONS: Record<string, string> = {
@@ -26,7 +27,7 @@ type SMSLog = {
   recipient_phone?: string | null;
   message_content?: string | null;
   template_id?: string | null;
-  status?: "pending" | "sent" | "delivered" | "failed" | null;
+  status?: "pending" | "sent" | "delivered" | "failed" | "scheduled" | null;
   sent_at?: string | null;
   delivered_at?: string | null;
   error_message?: string | null;
@@ -34,6 +35,7 @@ type SMSLog = {
   message_key?: string | null;
   ref_key?: string | null;
   ppurio_result_code?: string | null;
+  scheduled_at?: string | null;
 };
 
 type SMSResultsClientProps = {
@@ -45,6 +47,7 @@ type SMSResultsClientProps = {
     sent: number;
     delivered: number;
     failed: number;
+    scheduled: number;
   };
   searchQuery: string;
   statusFilter: string;
@@ -75,6 +78,9 @@ export function SMSResultsClient({
   const [statusInput, setStatusInput] = useState(statusFilter);
   const [startDateInput, setStartDateInput] = useState(startDate);
   const [endDateInput, setEndDateInput] = useState(endDate);
+
+  const { showSuccess, showError } = useToast();
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   // 동기화 상태
   const [isSyncing, setIsSyncing] = useState(false);
@@ -186,6 +192,31 @@ export function SMSResultsClient({
     }
   };
 
+  const handleCancelScheduled = async (logId: string, messageKey: string) => {
+    if (!confirm("예약 발송을 취소하시겠습니까?")) return;
+
+    setCancellingId(logId);
+    try {
+      const res = await fetch("/api/purio/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageKey }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        showSuccess("예약 발송이 취소되었습니다.");
+        router.refresh();
+      } else {
+        showError(data.error || "예약 취소에 실패했습니다.");
+      }
+    } catch {
+      showError("네트워크 오류가 발생했습니다.");
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
   const getStatusBadgeClass = (status: string | null | undefined) => {
     switch (status) {
       case "delivered":
@@ -194,6 +225,8 @@ export function SMSResultsClient({
         return "bg-green-100 text-green-800";
       case "pending":
         return "bg-yellow-100 text-yellow-800";
+      case "scheduled":
+        return "bg-indigo-100 text-indigo-800";
       case "failed":
         return "bg-red-100 text-red-800";
       default:
@@ -209,6 +242,8 @@ export function SMSResultsClient({
         return "전달 완료";
       case "pending":
         return "대기 중";
+      case "scheduled":
+        return "예약 대기";
       case "failed":
         return "실패";
       default:
@@ -258,7 +293,7 @@ export function SMSResultsClient({
   return (
     <div className="flex flex-col gap-6">
       {/* 통계 */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-6">
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <div className="text-sm text-gray-600">전체</div>
           <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
@@ -266,6 +301,10 @@ export function SMSResultsClient({
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <div className="text-sm text-gray-600">대기 중</div>
           <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="text-sm text-gray-600">예약 대기</div>
+          <div className="text-2xl font-bold text-indigo-600">{stats.scheduled}</div>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <div className="text-sm text-gray-600">발송 완료</div>
@@ -326,6 +365,7 @@ export function SMSResultsClient({
             >
               <option value="">전체 상태</option>
               <option value="pending">대기 중</option>
+              <option value="scheduled">예약 대기</option>
               <option value="sent">발송 완료</option>
               <option value="delivered">전달 완료</option>
               <option value="failed">실패</option>
@@ -448,7 +488,13 @@ export function SMSResultsClient({
                           </span>
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-500">
-                          {formatShortDateTime(log.sent_at || log.created_at)}
+                          {log.status === "scheduled" && log.scheduled_at ? (
+                            <span className="text-indigo-600">
+                              {formatShortDateTime(log.scheduled_at)} (예약)
+                            </span>
+                          ) : (
+                            formatShortDateTime(log.sent_at || log.created_at)
+                          )}
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-500">
                           {log.delivered_at
@@ -542,6 +588,16 @@ export function SMSResultsClient({
                                   </div>
                                 )}
                               </div>
+                              {log.status === "scheduled" && log.scheduled_at && (
+                                <div>
+                                  <span className="font-medium text-gray-600">
+                                    예약 시간:
+                                  </span>
+                                  <p className="text-indigo-600">
+                                    {formatDateTime(log.scheduled_at)}
+                                  </p>
+                                </div>
+                              )}
                               {log.error_message && (
                                 <div>
                                   <span className="text-xs font-medium text-red-600">
@@ -550,6 +606,20 @@ export function SMSResultsClient({
                                   <p className="text-sm text-red-700">
                                     {log.error_message}
                                   </p>
+                                </div>
+                              )}
+                              {log.status === "scheduled" && log.message_key && (
+                                <div className="pt-2">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleCancelScheduled(log.id, log.message_key!);
+                                    }}
+                                    disabled={cancellingId === log.id}
+                                    className="rounded-lg border border-red-300 bg-red-50 px-4 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    {cancellingId === log.id ? "취소 중..." : "예약 취소"}
+                                  </button>
                                 </div>
                               )}
                             </div>
@@ -616,7 +686,13 @@ export function SMSResultsClient({
                     </p>
                     <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
                       <span>
-                        {formatShortDateTime(log.sent_at || log.created_at)}
+                        {log.status === "scheduled" && log.scheduled_at ? (
+                          <span className="text-indigo-600">
+                            {formatShortDateTime(log.scheduled_at)} (예약)
+                          </span>
+                        ) : (
+                          formatShortDateTime(log.sent_at || log.created_at)
+                        )}
                       </span>
                       {resultDesc && (
                         <span
@@ -664,6 +740,16 @@ export function SMSResultsClient({
                             </p>
                           </div>
                         )}
+                        {log.status === "scheduled" && log.scheduled_at && (
+                          <div>
+                            <span className="text-xs font-medium text-gray-600">
+                              예약 시간:
+                            </span>
+                            <p className="text-sm text-indigo-600">
+                              {formatDateTime(log.scheduled_at)}
+                            </p>
+                          </div>
+                        )}
                         {log.error_message && (
                           <div>
                             <span className="text-xs font-medium text-red-600">
@@ -673,6 +759,18 @@ export function SMSResultsClient({
                               {log.error_message}
                             </p>
                           </div>
+                        )}
+                        {log.status === "scheduled" && log.message_key && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCancelScheduled(log.id, log.message_key!);
+                            }}
+                            disabled={cancellingId === log.id}
+                            className="rounded-lg border border-red-300 bg-red-50 px-4 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {cancellingId === log.id ? "취소 중..." : "예약 취소"}
+                          </button>
                         )}
                         <div className="text-xs text-gray-500">
                           로그 ID: {log.id.slice(0, 8)}...

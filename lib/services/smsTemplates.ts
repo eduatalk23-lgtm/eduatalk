@@ -85,8 +85,6 @@ export const SMS_TEMPLATES: Record<SMSTemplateType, SMSTemplate> = {
     {컨설턴트명}
 ▶ 방문 상담자
     {방문상담자}
-▶ 상담시간
-    {상담시간}분
 ▶ 상담일정
     {상담일정}
 ▶ 상담장소
@@ -100,7 +98,6 @@ export const SMS_TEMPLATES: Record<SMSTemplateType, SMSTemplate> = {
       "상담유형",
       "컨설턴트명",
       "방문상담자",
-      "상담시간",
       "상담일정",
       "상담장소",
       "대표번호",
@@ -199,8 +196,6 @@ export const SMS_TEMPLATES: Record<SMSTemplateType, SMSTemplate> = {
     {컨설턴트명}
 ▶ 방문 상담자
     {방문상담자}
-▶ 상담시간
-    {상담시간}분
 ▶ 상담일정
     {상담일정}
 ▶ 참가 링크
@@ -214,7 +209,6 @@ export const SMS_TEMPLATES: Record<SMSTemplateType, SMSTemplate> = {
       "상담유형",
       "컨설턴트명",
       "방문상담자",
-      "상담시간",
       "상담일정",
       "참가링크",
       "대표번호",
@@ -286,8 +280,8 @@ export const SMS_TEMPLATES: Record<SMSTemplateType, SMSTemplate> = {
     title: "상담 부재 안내",
     content:
       `[{학원명}] 안녕하세요
-수시에서 합격하는 절대법칙 에듀엣톡입니다.
-상담 안내로 연락드렸으나 부재로 확인되었습니다.
+수시에서 합격하는 절대법칙 {학원명}입니다.
+요청하신 상담 안내로 연락드렸으나 부재로 확인되었습니다.
 
 추후 상담 원하실 경우
 ☎ {대표번호}

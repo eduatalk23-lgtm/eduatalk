@@ -15,6 +15,7 @@ type SMSPreviewModalProps = {
   templateVariables?: Record<string, string>;
   academyName?: string;
   isSending?: boolean;
+  sendTime?: string;
 };
 
 export function SMSPreviewModal({
@@ -27,6 +28,7 @@ export function SMSPreviewModal({
   templateVariables = {},
   academyName = "학원",
   isSending = false,
+  sendTime,
 }: SMSPreviewModalProps) {
   const recipientCount = selectedRecipients.length;
 
@@ -94,7 +96,7 @@ export function SMSPreviewModal({
 
         {/* 발송 요약 */}
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className={`grid gap-4 ${sendTime ? "grid-cols-3" : "grid-cols-2"}`}>
             <div>
               <div className="text-sm text-gray-600">발송 대상자</div>
               <div className="text-lg font-semibold text-gray-900">
@@ -107,6 +109,14 @@ export function SMSPreviewModal({
                 {message.length}자
               </div>
             </div>
+            {sendTime && (
+              <div>
+                <div className="text-sm text-gray-600">예약 시간</div>
+                <div className="text-lg font-semibold text-indigo-600">
+                  {new Date(sendTime + "+09:00").toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -161,7 +171,7 @@ export function SMSPreviewModal({
             isLoading={isSending}
             disabled={isSending}
           >
-            {isSending ? "발송 중..." : "발송하기"}
+            {isSending ? "발송 중..." : sendTime ? "예약 발송하기" : "발송하기"}
           </Button>
         </div>
       </div>

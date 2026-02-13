@@ -99,6 +99,56 @@ export function validateBulkSendForm({
   };
 }
 
+type ValidateScheduledTimeParams = {
+  sendType: "immediate" | "scheduled";
+  scheduledDate: string;
+  scheduledTime: string;
+};
+
+/**
+ * 예약 시간 유효성 검사
+ */
+export function validateScheduledTime({
+  sendType,
+  scheduledDate,
+  scheduledTime,
+}: ValidateScheduledTimeParams): SMSFormValidationResult {
+  if (sendType !== "scheduled") {
+    return { isValid: true, errors: [] };
+  }
+
+  const errors: SMSFormValidationError[] = [];
+
+  if (!scheduledDate) {
+    errors.push({
+      field: "scheduledDate",
+      message: "예약 날짜를 선택해주세요.",
+    });
+  }
+
+  if (!scheduledTime) {
+    errors.push({
+      field: "scheduledTime",
+      message: "예약 시간을 선택해주세요.",
+    });
+  }
+
+  if (scheduledDate && scheduledTime) {
+    const scheduledDateTime = new Date(`${scheduledDate}T${scheduledTime}:00+09:00`);
+    if (scheduledDateTime.getTime() < Date.now() + 10 * 60 * 1000) {
+      errors.push({
+        field: "scheduledTime",
+        message: "예약 시간은 현재로부터 최소 10분 이후여야 합니다.",
+      });
+    }
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+}
+
 /**
  * 통합 SMS 폼 유효성 검사
  */

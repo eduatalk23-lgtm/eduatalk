@@ -14,7 +14,7 @@ type SMSLogRow = {
   recipient_phone?: string | null;
   message_content?: string | null;
   template_id?: string | null;
-  status?: "pending" | "sent" | "delivered" | "failed" | null;
+  status?: "pending" | "sent" | "delivered" | "failed" | "scheduled" | null;
   sent_at?: string | null;
   delivered_at?: string | null;
   error_message?: string | null;
@@ -22,6 +22,7 @@ type SMSLogRow = {
   message_key?: string | null;
   ref_key?: string | null;
   ppurio_result_code?: string | null;
+  scheduled_at?: string | null;
 };
 
 type StudentRow = {
@@ -56,7 +57,7 @@ export default async function SMSResultsPage({
     supabase
       .from("sms_logs")
       .select(
-        "id,tenant_id,recipient_id,recipient_phone,message_content,template_id,status,sent_at,delivered_at,error_message,created_at,message_key,ref_key,ppurio_result_code",
+        "id,tenant_id,recipient_id,recipient_phone,message_content,template_id,status,sent_at,delivered_at,error_message,created_at,message_key,ref_key,ppurio_result_code,scheduled_at",
         { count: "exact" }
       )
       .order("created_at", { ascending: false });
@@ -64,7 +65,7 @@ export default async function SMSResultsPage({
   let query = selectLogs();
 
   // 상태 필터링
-  if (statusFilter && ["pending", "sent", "delivered", "failed"].includes(statusFilter)) {
+  if (statusFilter && ["pending", "sent", "delivered", "failed", "scheduled"].includes(statusFilter)) {
     query = query.eq("status", statusFilter);
   }
 
@@ -80,7 +81,7 @@ export default async function SMSResultsPage({
 
   if (ErrorCodeCheckers.isColumnNotFound(error)) {
     const retryQuery = selectLogs();
-    if (statusFilter && ["pending", "sent", "delivered", "failed"].includes(statusFilter)) {
+    if (statusFilter && ["pending", "sent", "delivered", "failed", "scheduled"].includes(statusFilter)) {
       retryQuery.eq("status", statusFilter);
     }
     if (startDate) retryQuery.gte("created_at", `${startDate}T00:00:00`);
@@ -178,12 +179,18 @@ export default async function SMSResultsPage({
     .select("*", { count: "exact", head: true })
     .eq("status", "failed");
 
+  const { count: scheduledStats } = await supabase
+    .from("sms_logs")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "scheduled");
+
   const stats = {
     total: totalStats ?? 0,
     pending: pendingStats ?? 0,
     sent: sentStats ?? 0,
     delivered: deliveredStats ?? 0,
     failed: failedStats ?? 0,
+    scheduled: scheduledStats ?? 0,
   };
 
   return (

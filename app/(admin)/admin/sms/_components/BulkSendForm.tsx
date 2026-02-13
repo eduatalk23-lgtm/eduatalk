@@ -26,6 +26,7 @@ type BulkSendFormProps = {
   templateVariables: Record<string, string>;
   templates: SMSTemplate[];
   academyName: string;
+  sendTime?: string;
 
   // 핸들러
   onFilterChange: (filter: SMSFilter) => void;
@@ -42,6 +43,7 @@ export function BulkSendForm({
   templateVariables,
   templates,
   academyName,
+  sendTime,
   onFilterChange,
   onMessageChange,
   onTemplateChange,
@@ -129,6 +131,7 @@ export function BulkSendForm({
               ...templateVariables,
               학원명: academyName,
             },
+            ...(sendTime && { sendTime }),
           }),
         });
 
@@ -140,8 +143,9 @@ export function BulkSendForm({
         }
 
         if (result.success > 0) {
+          const actionText = sendTime ? "예약 발송" : "발송";
           showSuccess(
-            `${result.success}명에게 SMS가 성공적으로 발송되었습니다.${
+            `${result.success}명에게 SMS가 성공적으로 ${actionText}되었습니다.${
               result.failed > 0 ? ` (${result.failed}명 실패)` : ""
             }`
           );
@@ -167,6 +171,7 @@ export function BulkSendForm({
     message,
     templateVariables,
     academyName,
+    sendTime,
     startTransition,
     showSuccess,
     showError,
@@ -274,6 +279,7 @@ export function BulkSendForm({
           <SMSSendSummary
             recipientCount={selectedRecipients.size}
             messageLength={message.length}
+            sendTime={sendTime}
           />
         )}
 
@@ -297,7 +303,7 @@ export function BulkSendForm({
               selectedRecipients.size === 0
             }
           >
-            {isPending ? "발송 중..." : "SMS 발송"}
+            {isPending ? "발송 중..." : sendTime ? "예약 발송" : "SMS 발송"}
           </Button>
         </div>
       </form>
@@ -313,6 +319,7 @@ export function BulkSendForm({
         templateVariables={templateVariables}
         academyName={academyName}
         isSending={isPending}
+        sendTime={sendTime}
       />
     </>
   );
