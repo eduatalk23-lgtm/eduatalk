@@ -12,7 +12,7 @@ import type { StudentInfoData, AdminStudentFormData } from "../[id]/_types/stude
 import BasicInfoSection from "../[id]/_components/sections/BasicInfoSection";
 import ProfileInfoSection from "../[id]/_components/sections/ProfileInfoSection";
 import CareerInfoSection from "../[id]/_components/sections/CareerInfoSection";
-import { Plus, Trash2, ExternalLink, CalendarDays, Loader2, RotateCcw, Save, Wallet, Users } from "lucide-react";
+import { Plus, Trash2, ExternalLink, CalendarDays, Loader2, RotateCcw, Save, Wallet, Users, MessageSquare } from "lucide-react";
 import Link from "next/link";
 
 type FormMode = "register" | "selected";
@@ -31,6 +31,7 @@ type StudentFormPanelProps = {
   onStudentDeleted: () => void;
   onOpenEnrollment?: () => void;
   onOpenFamily?: () => void;
+  onOpenConsultation?: () => void;
   isAdmin: boolean;
 };
 
@@ -44,6 +45,7 @@ export function StudentFormPanel({
   onStudentDeleted,
   onOpenEnrollment,
   onOpenFamily,
+  onOpenConsultation,
   isAdmin,
 }: StudentFormPanelProps) {
   const queryClient = useQueryClient();
@@ -247,6 +249,16 @@ export function StudentFormPanel({
                   >
                     <Users className="h-4 w-4" />
                     가족
+                  </button>
+                )}
+                {onOpenConsultation && (
+                  <button
+                    type="button"
+                    onClick={onOpenConsultation}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700 transition hover:bg-amber-100"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    상담
                   </button>
                 )}
                 <Link

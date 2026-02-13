@@ -169,7 +169,7 @@ export async function upsertStudent(
     name?: string | null;
     grade: string;
     class: string;
-    birth_date: string;
+    birth_date: string | null;
     school_id?: string | null;
     school_type?: "MIDDLE" | "HIGH" | "UNIVERSITY" | null;
     division?: StudentDivision | null;
@@ -253,12 +253,12 @@ export async function upsertStudent(
     id: student.id,
     tenant_id: tenantId,
     grade: student.grade,
-    class: student.class,
-    birth_date: student.birth_date,
-    school_id: student.school_id ?? null,
-    student_number: student.student_number ?? null,
-    enrolled_at: student.enrolled_at ?? null,
-    status: student.status ?? "enrolled",
+    class: student.class || null,
+    birth_date: student.birth_date || null,
+    school_id: student.school_id || null,
+    student_number: student.student_number || null,
+    enrolled_at: student.enrolled_at || null,
+    status: student.status || "enrolled",
   };
   
   // name이 있으면 payload에 추가

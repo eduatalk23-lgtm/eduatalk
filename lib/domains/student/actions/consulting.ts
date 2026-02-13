@@ -41,6 +41,7 @@ export async function addConsultingNote(
     const nextAction = formData.get("next_action") ? String(formData.get("next_action")).trim() : null;
     const followUpDate = formData.get("follow_up_date") ? String(formData.get("follow_up_date")) : null;
     const enrollmentId = formData.get("enrollment_id") ? String(formData.get("enrollment_id")) : null;
+    const consultationScheduleId = formData.get("consultation_schedule_id") ? String(formData.get("consultation_schedule_id")) : null;
     const isVisibleToParent = formData.get("is_visible_to_parent") === "true";
 
     const supabase = await createSupabaseServerClient();
@@ -62,6 +63,7 @@ export async function addConsultingNote(
     }
 
     const { error } = await supabase.from("student_consulting_notes").insert({
+      tenant_id: tenantContext.tenantId,
       student_id: studentId,
       consultant_id: consultantId,
       note,
@@ -71,6 +73,7 @@ export async function addConsultingNote(
       next_action: nextAction,
       follow_up_date: followUpDate,
       enrollment_id: enrollmentId,
+      consultation_schedule_id: consultationScheduleId,
       is_visible_to_parent: isVisibleToParent,
     });
 

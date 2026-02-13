@@ -197,7 +197,7 @@ export async function updateStudentProfile(
   const birthDate =
     String(formData.get("birth_date") ?? "").trim() ||
     existingStudent.birth_date ||
-    "";
+    null;
 
   // name이 없으면 기존 값 또는 user_metadata의 display_name 사용
   let nameValue = name || null;
@@ -206,14 +206,14 @@ export async function updateStudentProfile(
       existingStudent.name || user.user_metadata?.display_name || null;
   }
 
+  const klass = String(formData.get("class") ?? "").trim() || existingStudent.class || "";
+
   const basicResult = await upsertStudent({
     id: user.id,
     tenant_id: existingStudent.tenant_id ?? null,
     name: nameValue,
     grade,
-    // 반 필드는 관리자만 수정 가능하므로 항상 기존 값 유지
-    // 학생은 마이페이지에서 반 정보를 수정할 수 없음
-    class: existingStudent.class || "",
+    class: klass,
     birth_date: birthDate,
     school_id: schoolId,
   });
@@ -287,6 +287,8 @@ export async function updateStudentProfile(
     };
   }
 
+  const address = String(formData.get("address") ?? "").trim() || null;
+
   const profileResult = await upsertStudentProfile({
     id: user.id,
     tenant_id: existingStudent.tenant_id,
@@ -294,6 +296,7 @@ export async function updateStudentProfile(
     phone,
     mother_phone: motherPhone,
     father_phone: fatherPhone,
+    address,
   });
 
   if (!profileResult.success) {

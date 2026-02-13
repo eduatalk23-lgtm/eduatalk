@@ -580,7 +580,7 @@ export async function updateStudentInfo(
       name: payload.basic.name,
       grade: payload.basic.grade ?? existingStudent.grade ?? "",
       class: payload.basic.class ?? existingStudent.class ?? "",
-      birth_date: payload.basic.birth_date ?? existingStudent.birth_date ?? "",
+      birth_date: payload.basic.birth_date ?? existingStudent.birth_date ?? null,
       school_id: payload.basic.school_id !== undefined 
         ? payload.basic.school_id 
         : existingStudent.school_id ?? null,
@@ -678,32 +678,35 @@ export async function updateStudentInfo(
       }
     }
 
-    // 전화번호 정규화
-    const phone = phoneRaw ? normalizePhoneNumber(phoneRaw) : null;
-    const motherPhone = motherPhoneRaw ? normalizePhoneNumber(motherPhoneRaw) : null;
-    const fatherPhone = fatherPhoneRaw ? normalizePhoneNumber(fatherPhoneRaw) : null;
-    const emergencyPhone = emergencyPhoneRaw ? normalizePhoneNumber(emergencyPhoneRaw) : null;
+    // 전화번호 정규화 (undefined → 미변경, null/빈값 → null, 유효값 → 정규화)
+    const normalizeOptional = (raw: string | null | undefined) =>
+      raw !== undefined ? (raw ? normalizePhoneNumber(raw) : null) : undefined;
 
-    // 정규화 실패 시 에러 반환
-    if (phoneRaw && !phone) {
+    const phone = normalizeOptional(phoneRaw);
+    const motherPhone = normalizeOptional(motherPhoneRaw);
+    const fatherPhone = normalizeOptional(fatherPhoneRaw);
+    const emergencyPhone = normalizeOptional(emergencyPhoneRaw);
+
+    // 정규화 실패 시 에러 반환 (값이 있는데 정규화 결과가 null인 경우)
+    if (phoneRaw && phone === null) {
       return {
         success: false,
         error: "본인 연락처 형식이 올바르지 않습니다 (010-1234-5678)",
       };
     }
-    if (motherPhoneRaw && !motherPhone) {
+    if (motherPhoneRaw && motherPhone === null) {
       return {
         success: false,
         error: "모 연락처 형식이 올바르지 않습니다 (010-1234-5678)",
       };
     }
-    if (fatherPhoneRaw && !fatherPhone) {
+    if (fatherPhoneRaw && fatherPhone === null) {
       return {
         success: false,
         error: "부 연락처 형식이 올바르지 않습니다 (010-1234-5678)",
       };
     }
-    if (emergencyPhoneRaw && !emergencyPhone) {
+    if (emergencyPhoneRaw && emergencyPhone === null) {
       return {
         success: false,
         error: "비상연락처 형식이 올바르지 않습니다 (010-1234-5678)",

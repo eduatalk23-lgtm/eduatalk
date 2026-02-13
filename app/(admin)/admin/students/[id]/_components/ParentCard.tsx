@@ -72,7 +72,9 @@ export function ParentCard({ parent, onRefresh }: ParentCardProps) {
         <div className="text-base font-semibold text-gray-900">
           {parent.parentName || "이름 없음"}
         </div>
-        <div className="text-sm text-gray-500">{parent.parentEmail || "-"}</div>
+        <div className="text-sm text-gray-500">
+          {parent.parentPhone || parent.parentEmail || "-"}
+        </div>
       </div>
 
       <div className="flex items-center gap-3">
@@ -93,7 +95,7 @@ export function ParentCard({ parent, onRefresh }: ParentCardProps) {
         <button
           onClick={handleDeleteLink}
           disabled={isPending}
-          className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-400"
+          className="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-400 transition hover:text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? "처리 중..." : "연결 해제"}
         </button>

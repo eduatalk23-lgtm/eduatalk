@@ -99,9 +99,9 @@ export async function processConsultationReminders(): Promise<{
       }
 
       const targets = (row.notification_targets as NotificationTarget[] | null) ?? ["mother"];
-      const phones = resolveTargetPhones(phoneData, targets);
+      const recipients = resolveTargetPhones(phoneData, targets);
 
-      if (phones.length === 0) {
+      if (recipients.length === 0) {
         logActionDebug(ACTION_CTX, "알림 대상 전화번호 없음, 건너뜀", { studentId, targets });
         result.skipped++;
         continue;
@@ -109,7 +109,7 @@ export async function processConsultationReminders(): Promise<{
 
       let anySuccess = false;
 
-      for (const recipientPhone of phones) {
+      for (const { phone: recipientPhone, targetLabel } of recipients) {
         const sent = await sendReminderNotification({
           scheduleId: row.id as string,
           tenantId: row.tenant_id as string,
@@ -127,6 +127,7 @@ export async function processConsultationReminders(): Promise<{
           tenant: tenantMap.get(row.tenant_id as string) ?? null,
           recipientPhone,
           studentId,
+          notificationTarget: targetLabel,
         });
 
         if (sent) {
@@ -180,6 +181,7 @@ async function sendReminderNotification(params: {
   tenant: TenantExtended | null;
   recipientPhone: string;
   studentId: string;
+  notificationTarget?: string;
 }): Promise<boolean> {
   try {
     const scheduleFormatted = formatScheduleDateTime(
@@ -219,10 +221,15 @@ async function sendReminderNotification(params: {
       const result = await sendAlimtalk({
         recipientPhone: params.recipientPhone,
         message,
+        smsFallbackMessage: message,
+        smsFallbackSubject: "상담 리마인더",
         tenantId: params.tenantId,
         templateCode: alimtalkTemplate.templateCode,
         recipientId: params.studentId,
         consultationScheduleId: params.scheduleId,
+        templateVariables,
+        variableOrder: alimtalkTemplate.variableOrder,
+        notificationTarget: params.notificationTarget,
       });
       sent = result.success;
     }
@@ -232,9 +239,11 @@ async function sendReminderNotification(params: {
       const smsResult = await sendSMS({
         recipientPhone: params.recipientPhone,
         message,
+        subject: "상담 리마인더",
         recipientId: params.studentId,
         tenantId: params.tenantId,
         consultationScheduleId: params.scheduleId,
+        notificationTarget: params.notificationTarget,
       });
       sent = smsResult.success;
     }
@@ -321,17 +330,27 @@ async function fetchStudentPhoneMap(
   return map;
 }
 
+const TARGET_LABELS: Record<NotificationTarget, string> = {
+  student: "학생",
+  mother: "모",
+  father: "부",
+};
+
 function resolveTargetPhones(
   phones: StudentPhoneEntry,
   targets: NotificationTarget[]
-): string[] {
-  const result: string[] = [];
+): { phone: string; targetLabel: string }[] {
+  const result: { phone: string; targetLabel: string }[] = [];
+  const seen = new Set<string>();
   for (const target of targets) {
     const phone =
       target === "student" ? phones.phone :
       target === "mother" ? phones.mother_phone :
       target === "father" ? phones.father_phone : null;
-    if (phone && !result.includes(phone)) result.push(phone);
+    if (phone && !seen.has(phone)) {
+      seen.add(phone);
+      result.push({ phone, targetLabel: TARGET_LABELS[target] });
+    }
   }
   return result;
 }
@@ -366,7 +385,8 @@ function getTomorrowDateKST(): string {
 function formatScheduleDateTime(
   date: string,
   startTime: string,
-  endTime: string
+  endTime: string,
+  durationMinutes?: number | null
 ): string {
   const d = new Date(date + "T00:00:00");
   const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
@@ -375,5 +395,6 @@ function formatScheduleDateTime(
   const weekday = weekdays[d.getDay()];
   const start = startTime.slice(0, 5);
   const end = endTime.slice(0, 5);
-  return `${month}/${day}(${weekday}) ${start}~${end}`;
+  const base = `${month}/${day}(${weekday}) ${start}~${end}`;
+  return durationMinutes ? `${base} (${durationMinutes}분)` : base;
 }

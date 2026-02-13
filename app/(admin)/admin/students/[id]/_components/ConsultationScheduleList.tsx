@@ -15,21 +15,25 @@ import {
   type ConsultationMode,
   type NotificationTarget,
   type NotificationLogEntry,
+  type NotificationChannel,
   SCHEDULE_STATUS_LABELS,
   SCHEDULE_STATUS_COLORS,
   SESSION_TYPE_COLORS,
-  SESSION_TYPES,
+  SESSION_TYPE_PRESETS,
   CONSULTATION_MODES,
   NOTIFICATION_TARGETS,
   NOTIFICATION_TARGET_LABELS,
+  NOTIFICATION_CHANNELS,
+  NOTIFICATION_CHANNEL_LABELS,
   type SessionType,
 } from "@/lib/domains/consulting/types";
+import { Combobox } from "@/components/ui/Combobox";
 import {
   updateScheduleStatus,
   updateConsultationSchedule,
   deleteConsultationSchedule,
 } from "@/lib/domains/consulting/actions/schedule";
-import type { PhoneAvailability } from "./ConsultationScheduleSection";
+import type { PhoneAvailability } from "./ConsultationScheduleForm";
 
 type EnrollmentOption = { id: string; program_name: string };
 type ConsultantOption = { id: string; name: string };
@@ -106,6 +110,8 @@ function ScheduleCard({
   const [isPending, startTransition] = useTransition();
   const [isEditing, setIsEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [cancelChannel, setCancelChannel] = useState<NotificationChannel>("alimtalk");
   const [showLogs, setShowLogs] = useState(false);
 
   const sessionType = schedule.session_type as SessionType;
@@ -114,19 +120,25 @@ function ScheduleCard({
   const statusColor = SCHEDULE_STATUS_COLORS[schedule.status];
   const statusLabel = SCHEDULE_STATUS_LABELS[schedule.status];
 
-  function handleStatusChange(newStatus: "completed" | "cancelled" | "no_show") {
+  function handleStatusChange(newStatus: "completed" | "no_show") {
     startTransition(async () => {
       await updateScheduleStatus(schedule.id, newStatus, studentId);
       router.refresh();
     });
   }
 
-  function handleDelete(sendNotification: boolean) {
+  function handleCancel(sendNotification: boolean, channel?: NotificationChannel) {
+    startTransition(async () => {
+      await updateScheduleStatus(schedule.id, "cancelled", studentId, sendNotification, channel);
+      router.refresh();
+    });
+  }
+
+  function handleDelete() {
     startTransition(async () => {
       await deleteConsultationSchedule({
         scheduleId: schedule.id,
         studentId,
-        sendNotification,
       });
       router.refresh();
     });
@@ -231,7 +243,7 @@ function ScheduleCard({
             </button>
             <button
               type="button"
-              onClick={() => handleStatusChange("cancelled")}
+              onClick={() => setConfirmCancel(true)}
               disabled={isPending}
               className="rounded px-2 py-1 text-xs font-medium text-gray-600 transition hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700"
             >
@@ -249,27 +261,70 @@ function ScheduleCard({
         )}
       </div>
 
+      {/* 취소 확인 */}
+      {confirmCancel && (
+        <div className="flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
+          <div className="flex items-center gap-2">
+            <span className={cn("text-xs font-medium", textPrimary)}>
+              이 일정을 취소하시겠습니까?
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className={cn("text-xs font-medium", textSecondary)}>발송 채널</span>
+            {NOTIFICATION_CHANNELS.map((ch) => (
+              <label key={ch} className="flex items-center gap-1">
+                <input
+                  type="radio"
+                  checked={cancelChannel === ch}
+                  onChange={() => setCancelChannel(ch)}
+                  className="h-3.5 w-3.5 border-gray-300 text-amber-600 focus:ring-amber-500"
+                />
+                <span className={cn("text-xs", textSecondary)}>
+                  {NOTIFICATION_CHANNEL_LABELS[ch]}
+                </span>
+              </label>
+            ))}
+            <button
+              type="button"
+              onClick={() => handleCancel(true, cancelChannel)}
+              disabled={isPending}
+              className="ml-auto rounded bg-amber-600 px-3 py-1 text-xs font-medium text-white transition hover:bg-amber-700"
+            >
+              {isPending ? "취소 중..." : "취소 + 알림"}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleCancel(false)}
+              disabled={isPending}
+              className="rounded bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700 transition hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-300"
+            >
+              알림 없이 취소
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmCancel(false)}
+              disabled={isPending}
+              className="rounded px-3 py-1 text-xs font-medium text-gray-600 transition hover:bg-gray-200 dark:text-gray-400"
+            >
+              돌아가기
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 삭제 확인 */}
       {confirmDelete && (
         <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
           <span className={cn("text-xs font-medium", textPrimary)}>
-            이 일정을 삭제하시겠습니까?
+            이 일정을 삭제하시겠습니까? (알림 없이 레코드가 삭제됩니다)
           </span>
           <button
             type="button"
-            onClick={() => handleDelete(true)}
+            onClick={() => handleDelete()}
             disabled={isPending}
             className="rounded bg-red-600 px-3 py-1 text-xs font-medium text-white transition hover:bg-red-700"
           >
-            {isPending ? "삭제 중..." : "삭제 + 알림"}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleDelete(false)}
-            disabled={isPending}
-            className="rounded bg-red-100 px-3 py-1 text-xs font-medium text-red-700 transition hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300"
-          >
-            알림 없이 삭제
+            {isPending ? "삭제 중..." : "삭제"}
           </button>
           <button
             type="button"
@@ -434,20 +489,22 @@ function formatLogDateTime(dateStr: string | null): string {
 
 // ── 수정 폼 ──
 
-function EditScheduleForm({
+export function EditScheduleForm({
   schedule,
   studentId,
   consultants,
   enrollments,
   phoneAvailability,
   onCancel,
+  onSuccess,
 }: {
   schedule: ConsultationSchedule;
   studentId: string;
-  consultants: ConsultantOption[];
-  enrollments: EnrollmentOption[];
+  consultants: { id: string; name: string }[];
+  enrollments: { id: string; program_name: string }[];
   phoneAvailability: PhoneAvailability;
   onCancel: () => void;
+  onSuccess?: () => void;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -457,9 +514,9 @@ function EditScheduleForm({
       (t) => phoneAvailability[PHONE_KEY_MAP[t]]
     )
   );
-  const [selectedEnrollmentId, setSelectedEnrollmentId] = useState(
-    schedule.enrollment_id ?? ""
-  );
+  const [notificationChannel, setNotificationChannel] = useState<NotificationChannel>("alimtalk");
+  const [sessionTypeValue, setSessionTypeValue] = useState(schedule.session_type ?? "정기상담");
+  const [programNameValue, setProgramNameValue] = useState(schedule.program_name ?? "");
   const [consultationMode, setConsultationMode] = useState<ConsultationMode>(
     schedule.consultation_mode ?? "대면"
   );
@@ -473,9 +530,7 @@ function EditScheduleForm({
   );
   const labelClass = cn("text-xs font-medium", textSecondary);
 
-  const selectedProgramName = enrollments.find(
-    (e) => e.id === selectedEnrollmentId
-  )?.program_name;
+  const programOptions = enrollments.map((e) => e.program_name);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -485,7 +540,6 @@ function EditScheduleForm({
     const formData = new FormData(form);
 
     const consultantId = formData.get("consultant_id") as string;
-    const sessionType = formData.get("session_type") as SessionType;
     const scheduledDate = formData.get("scheduled_date") as string;
     const startTime = formData.get("start_time") as string;
     const endTime = formData.get("end_time") as string;
@@ -499,19 +553,29 @@ function EditScheduleForm({
       return;
     }
 
+    if (!programNameValue.trim()) {
+      setError("프로그램을 입력해주세요.");
+      return;
+    }
+
     if (endTime <= startTime) {
       setError("종료 시간은 시작 시간 이후여야 합니다.");
       return;
     }
+
+    // enrollment 매칭
+    const matchedEnrollment = enrollments.find(
+      (e) => e.program_name === programNameValue.trim()
+    );
 
     startTransition(async () => {
       const result = await updateConsultationSchedule({
         scheduleId: schedule.id,
         studentId,
         consultantId,
-        sessionType,
-        enrollmentId: selectedEnrollmentId || undefined,
-        programName: selectedProgramName,
+        sessionType: sessionTypeValue.trim() || "정기상담",
+        enrollmentId: matchedEnrollment?.id,
+        programName: programNameValue.trim(),
         scheduledDate,
         startTime,
         endTime,
@@ -522,11 +586,12 @@ function EditScheduleForm({
         description,
         sendNotification: notificationTargets.length > 0,
         notificationTargets,
+        notificationChannel,
       });
 
       if (result.success) {
         onCancel();
-        router.refresh();
+        onSuccess ? onSuccess() : router.refresh();
       } else {
         setError(result.error ?? "수정에 실패했습니다.");
       }
@@ -558,33 +623,25 @@ function EditScheduleForm({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="flex flex-col gap-1">
           <label className={labelClass}>상담 유형</label>
-          <select
-            name="session_type"
-            defaultValue={schedule.session_type}
-            className={inputClass}
-          >
-            {SESSION_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
+          <Combobox
+            value={sessionTypeValue}
+            onChange={setSessionTypeValue}
+            options={[...SESSION_TYPE_PRESETS]}
+            placeholder="상담 유형 선택 또는 입력"
+          />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className={labelClass}>관련 프로그램</label>
-          <select
-            value={selectedEnrollmentId}
-            onChange={(e) => setSelectedEnrollmentId(e.target.value)}
-            className={inputClass}
-          >
-            <option value="">선택 안 함</option>
-            {enrollments.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.program_name}
-              </option>
-            ))}
-          </select>
+          <label className={labelClass}>
+            프로그램 <span className="text-red-500">*</span>
+          </label>
+          <Combobox
+            value={programNameValue}
+            onChange={setProgramNameValue}
+            options={programOptions}
+            placeholder="프로그램 선택 또는 입력"
+            required
+          />
         </div>
 
         <div className="flex flex-col gap-1">
@@ -705,7 +762,7 @@ function EditScheduleForm({
         </div>
       </div>
 
-      {/* 알림 대상 + 저장 */}
+      {/* 알림 대상 + 채널 + 저장 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <span className={cn("text-xs font-medium", textSecondary)}>알림 대상</span>
@@ -742,6 +799,25 @@ function EditScheduleForm({
               </label>
             );
           })}
+
+          <span className={cn("ml-2 border-l border-gray-300 pl-4 text-xs font-medium dark:border-gray-600", textSecondary)}>
+            발송 채널
+          </span>
+          {NOTIFICATION_CHANNELS.map((ch) => (
+            <label key={ch} className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="edit_notification_channel"
+                checked={notificationChannel === ch}
+                onChange={() => setNotificationChannel(ch)}
+                disabled={notificationTargets.length === 0}
+                className="h-3.5 w-3.5 border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
+              />
+              <span className={cn("text-xs", textSecondary)}>
+                {NOTIFICATION_CHANNEL_LABELS[ch]}
+              </span>
+            </label>
+          ))}
         </div>
 
         <div className="flex items-center gap-2">

@@ -7,6 +7,7 @@ import { ConfirmDialog } from "@/components/ui/Dialog";
 import { deleteEnrollmentAction } from "@/lib/domains/enrollment/actions";
 import type { EnrollmentWithProgram } from "@/lib/domains/enrollment/types";
 import { deletePaymentAction } from "@/lib/domains/payment/actions";
+import { syncTossPaymentStatusAction } from "@/lib/domains/payment/actions/tossPayment";
 import type { PaymentRecordWithEnrollment } from "@/lib/domains/payment/types";
 import type { Program } from "@/lib/domains/crm/types";
 import { cancelCashReceiptAction } from "@/lib/domains/payment/actions/cashReceipt";
@@ -67,6 +68,7 @@ export function EnrollmentSectionClient({
     useState<PaymentRecordWithEnrollment | null>(null);
   const [cashReceiptTarget, setCashReceiptTarget] =
     useState<PaymentRecordWithEnrollment | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const isAllView = selectedEnrollmentId === null;
 
@@ -211,6 +213,37 @@ export function EnrollmentSectionClient({
     }
   };
 
+  /** 토스페이먼츠 상태 동기화 */
+  const handleSyncTossStatus = async () => {
+    setIsSyncing(true);
+    try {
+      const result = await syncTossPaymentStatusAction(studentId);
+      if (result.success && result.data) {
+        const { synced, checked, failed } = result.data;
+        if (synced > 0) {
+          toast.showSuccess(
+            `${synced}건 환불 동기화 완료` +
+              (failed > 0 ? ` (${failed}건 조회 실패 건너뜀)` : "")
+          );
+          router.refresh();
+        } else if (failed === checked) {
+          toast.showError("토스 API 조회에 모두 실패했습니다.");
+        } else {
+          toast.showSuccess(
+            `${checked - failed}건 확인 완료. 동기화할 환불 건이 없습니다.` +
+              (failed > 0 ? ` (${failed}건 조회 실패)` : "")
+          );
+        }
+      } else {
+        toast.showError(result.error ?? "동기화에 실패했습니다.");
+      }
+    } catch {
+      toast.showError("동기화 중 오류가 발생했습니다.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6">
       {/* 1-Row-1-Section Layout */}
@@ -241,6 +274,8 @@ export function EnrollmentSectionClient({
           onRefundPayment={setRefundTarget}
           onCashReceipt={setCashReceiptTarget}
           onCancelCashReceipt={handleCancelCashReceipt}
+          onSyncTossStatus={handleSyncTossStatus}
+          isSyncing={isSyncing}
         />
       </div>
 

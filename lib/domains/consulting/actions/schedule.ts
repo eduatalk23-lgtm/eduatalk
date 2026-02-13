@@ -13,10 +13,10 @@ import { sendAlimtalk } from "@/lib/services/alimtalkService";
 import { sendSMS } from "@/lib/services/smsService";
 import type { SMSTemplateType } from "@/lib/services/smsTemplates";
 import type {
-  SessionType,
   ConsultationMode,
   ConsultationSchedule,
   NotificationTarget,
+  NotificationChannel,
 } from "../types";
 import { enqueueGoogleCalendarSync } from "@/lib/domains/googleCalendar";
 
@@ -38,9 +38,9 @@ function scheduleTable(client: { from: (...args: unknown[]) => unknown }) {
 export async function createConsultationSchedule(input: {
   studentId: string;
   consultantId: string;
-  sessionType: SessionType;
+  sessionType: string;
   enrollmentId?: string;
-  programName?: string;
+  programName: string;
   scheduledDate: string;
   startTime: string;
   endTime: string;
@@ -52,6 +52,7 @@ export async function createConsultationSchedule(input: {
   description?: string;
   sendNotification?: boolean;
   notificationTargets?: NotificationTarget[];
+  notificationChannel?: NotificationChannel;
 }): Promise<{ success: boolean; scheduleId?: string; error?: string }> {
   try {
     const { userId, role } = await requireAdminOrConsultant();
@@ -116,6 +117,7 @@ export async function createConsultationSchedule(input: {
         consultant_id: input.consultantId,
         session_type: input.sessionType,
         enrollment_id: input.enrollmentId || null,
+        program_name: input.programName || null,
         scheduled_date: input.scheduledDate,
         start_time: input.startTime,
         end_time: input.endTime,
@@ -160,6 +162,7 @@ export async function createConsultationSchedule(input: {
         visitor: input.visitor,
         location: input.location,
         notificationTargets: input.notificationTargets,
+        notificationChannel: input.notificationChannel,
       });
     }
 
@@ -215,20 +218,20 @@ export async function getConsultationSchedules(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return ((data as any[]) ?? []).map((row) => {
       const consultant = row.consultant as { name: string } | null;
-      // enrollment → programs JOIN 결과에서 프로그램명 추출
-      const enrollment = row.enrollment as {
-        id: string;
-        programs: { name: string } | { name: string }[] | null;
-      } | null;
-      let programName: string | undefined;
-      if (enrollment?.programs) {
-        const prog = enrollment.programs;
-        programName = Array.isArray(prog) ? prog[0]?.name : prog.name;
+      // program_name DB 컬럼이 null이면 enrollment JOIN에서 fallback
+      let programName = row.program_name as string | null;
+      if (!programName && row.enrollment) {
+        const enr = row.enrollment as { id: string; programs: { name: string } | { name: string }[] | null };
+        if (enr.programs) {
+          programName = Array.isArray(enr.programs)
+            ? enr.programs[0]?.name ?? null
+            : enr.programs.name ?? null;
+        }
       }
       return {
         ...row,
-        consultant_name: consultant?.name ?? undefined,
         program_name: programName,
+        consultant_name: consultant?.name ?? undefined,
         consultant: undefined,
         enrollment: undefined,
       } as ConsultationSchedule;
@@ -248,9 +251,9 @@ export async function updateConsultationSchedule(input: {
   scheduleId: string;
   studentId: string;
   consultantId: string;
-  sessionType: SessionType;
+  sessionType: string;
   enrollmentId?: string;
-  programName?: string;
+  programName: string;
   scheduledDate: string;
   startTime: string;
   endTime: string;
@@ -261,6 +264,7 @@ export async function updateConsultationSchedule(input: {
   description?: string;
   sendNotification?: boolean;
   notificationTargets?: NotificationTarget[];
+  notificationChannel?: NotificationChannel;
 }): Promise<{ success: boolean; error?: string }> {
   try {
     await requireAdminOrConsultant();
@@ -306,6 +310,7 @@ export async function updateConsultationSchedule(input: {
         consultant_id: input.consultantId,
         session_type: input.sessionType,
         enrollment_id: input.enrollmentId || null,
+        program_name: input.programName || null,
         scheduled_date: input.scheduledDate,
         start_time: input.startTime,
         end_time: input.endTime,
@@ -368,6 +373,7 @@ export async function updateConsultationSchedule(input: {
           visitor: input.visitor,
           location: input.location,
           notificationTargets: input.notificationTargets,
+          notificationChannel: input.notificationChannel,
         });
       }
     }
@@ -391,12 +397,11 @@ export async function updateConsultationSchedule(input: {
   }
 }
 
-// ── 상담 일정 삭제 + 취소 알림 ──
+// ── 상담 일정 삭제 (알림 없이 단순 삭제) ──
 
 export async function deleteConsultationSchedule(input: {
   scheduleId: string;
   studentId: string;
-  sendNotification?: boolean;
 }): Promise<{ success: boolean; error?: string }> {
   try {
     await requireAdminOrConsultant();
@@ -408,11 +413,11 @@ export async function deleteConsultationSchedule(input: {
 
     const supabase = await createSupabaseServerClient();
 
-    // 삭제 전 일정 정보 조회 (알림용)
+    // 삭제 전 일정 정보 조회 (Google Calendar 취소용)
     const { data: existing } = await scheduleTable(supabase)
-      .select("*, consultant:admin_users!consultant_id(name)")
+      .select("consultant_id, google_calendar_event_id")
       .eq("id", input.scheduleId)
-      .single();
+      .maybeSingle();
 
     if (!existing) {
       return { success: false, error: "일정을 찾을 수 없습니다." };
@@ -429,30 +434,6 @@ export async function deleteConsultationSchedule(input: {
         consultantId: row.consultant_id,
         action: "cancel",
       });
-    }
-
-    // 취소 알림을 DB 삭제 전에 발송 (삭제 후 발송 실패 시 데이터 유실 방지)
-    if (input.sendNotification !== false && row.status === "scheduled") {
-      try {
-        await sendChangeNotification({
-          templateType: "consultation_cancelled",
-          scheduleId: input.scheduleId,
-          tenantId: tenantContext.tenantId,
-          studentId: input.studentId,
-          consultantId: row.consultant_id,
-          sessionType: row.session_type,
-          scheduledDate: row.scheduled_date,
-          startTime: row.start_time,
-          endTime: row.end_time,
-          notificationTargets: row.notification_targets as NotificationTarget[] | undefined,
-        });
-      } catch (notifyError) {
-        // 알림 실패가 삭제를 막지 않도록 로깅만 수행
-        logActionError(ACTION_CTX, notifyError, {
-          context: "삭제 취소 알림 발송 실패 (삭제는 계속 진행)",
-          scheduleId: input.scheduleId,
-        });
-      }
     }
 
     const { error: deleteError } = await scheduleTable(supabase)
@@ -483,7 +464,9 @@ export async function deleteConsultationSchedule(input: {
 export async function updateScheduleStatus(
   scheduleId: string,
   status: "completed" | "cancelled" | "no_show",
-  studentId: string
+  studentId: string,
+  sendNotification?: boolean,
+  notificationChannel?: NotificationChannel
 ): Promise<{ success: boolean; error?: string }> {
   try {
     await requireAdminOrConsultant();
@@ -491,14 +474,15 @@ export async function updateScheduleStatus(
     const tenantContext = await getTenantContext();
     const supabase = await createSupabaseServerClient();
 
-    // 취소 시 Google Calendar 동기화용으로 consultant_id 조회
-    let consultantId: string | null = null;
+    // 취소 시 알림 발송 + Google Calendar 동기화를 위해 일정 정보 조회
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let existing: any = null;
     if (status === "cancelled" && tenantContext?.tenantId) {
-      const { data: existing } = await scheduleTable(supabase)
-        .select("consultant_id")
+      const { data } = await scheduleTable(supabase)
+        .select("consultant_id, session_type, program_name, scheduled_date, start_time, end_time, notification_targets, status")
         .eq("id", scheduleId)
         .maybeSingle();
-      consultantId = (existing as { consultant_id: string } | null)?.consultant_id ?? null;
+      existing = data;
     }
 
     const { error } = await scheduleTable(supabase)
@@ -517,7 +501,33 @@ export async function updateScheduleStatus(
       return { success: false, error: "상태 변경에 실패했습니다." };
     }
 
+    // 취소 시 알림 발송
+    if (status === "cancelled" && sendNotification && tenantContext?.tenantId && existing) {
+      try {
+        await sendChangeNotification({
+          templateType: "consultation_cancelled",
+          scheduleId,
+          tenantId: tenantContext.tenantId,
+          studentId,
+          consultantId: existing.consultant_id,
+          sessionType: existing.session_type,
+          programName: existing.program_name,
+          scheduledDate: existing.scheduled_date,
+          startTime: existing.start_time,
+          endTime: existing.end_time,
+          notificationTargets: existing.notification_targets as NotificationTarget[] | undefined,
+          notificationChannel,
+        });
+      } catch (notifyError) {
+        logActionError(ACTION_CTX, notifyError, {
+          context: "취소 알림 발송 실패 (상태 변경은 완료됨)",
+          scheduleId,
+        });
+      }
+    }
+
     // 취소 시 Google Calendar 이벤트도 취소 (fire-and-forget)
+    const consultantId = existing?.consultant_id ?? null;
     if (status === "cancelled" && tenantContext?.tenantId && consultantId) {
       await enqueueGoogleCalendarSync({
         scheduleId,
@@ -540,17 +550,27 @@ export async function updateScheduleStatus(
 
 // ── 내부: 알림 대상 전화번호 해석 ──
 
+const TARGET_LABELS: Record<NotificationTarget, string> = {
+  student: "학생",
+  mother: "모",
+  father: "부",
+};
+
 function resolveTargetPhones(
   phones: { phone: string | null; mother_phone: string | null; father_phone: string | null },
   targets: NotificationTarget[]
-): string[] {
-  const result: string[] = [];
+): { phone: string; targetLabel: string }[] {
+  const result: { phone: string; targetLabel: string }[] = [];
+  const seen = new Set<string>();
   for (const target of targets) {
     const phone =
       target === "student" ? phones.phone :
       target === "mother" ? phones.mother_phone :
       target === "father" ? phones.father_phone : null;
-    if (phone && !result.includes(phone)) result.push(phone);
+    if (phone && !seen.has(phone)) {
+      seen.add(phone);
+      result.push({ phone, targetLabel: TARGET_LABELS[target] });
+    }
   }
   return result;
 }
@@ -563,7 +583,7 @@ async function sendScheduleNotification(params: {
   studentId: string;
   studentName: string;
   consultantId: string;
-  sessionType: SessionType;
+  sessionType: string;
   programName?: string;
   scheduledDate: string;
   startTime: string;
@@ -574,6 +594,7 @@ async function sendScheduleNotification(params: {
   visitor?: string;
   location?: string;
   notificationTargets?: NotificationTarget[];
+  notificationChannel?: NotificationChannel;
 }): Promise<void> {
   try {
     // 학생/학부모 전화번호 조회
@@ -586,9 +607,9 @@ async function sendScheduleNotification(params: {
     }
 
     const targets = params.notificationTargets ?? ["mother"];
-    const phones = resolveTargetPhones(studentPhones, targets);
+    const recipients = resolveTargetPhones(studentPhones, targets);
 
-    if (phones.length === 0) {
+    if (recipients.length === 0) {
       logActionDebug(ACTION_CTX, "알림 대상 전화번호 없음, 알림 건너뜀", {
         studentId: params.studentId,
         targets,
@@ -626,11 +647,12 @@ async function sendScheduleNotification(params: {
     const tenant = tenantResult.data as TenantExtended | null;
     const consultant = consultantResult.data;
 
-    // 일정 포맷팅: "2/12(목) 14:00~15:00"
+    // 일정 포맷팅: "2/12(목) 14:00~15:00 (60분)"
     const scheduleFormatted = formatScheduleDateTime(
       params.scheduledDate,
       params.startTime,
-      params.endTime
+      params.endTime,
+      params.durationMinutes
     );
 
     // 알림톡 상담유형: 프로그램명 우선, 없으면 세션 유형
@@ -647,7 +669,6 @@ async function sendScheduleNotification(params: {
       상담유형: consultationType,
       컨설턴트명: consultant?.name ?? "",
       방문상담자: params.visitor || "학생 & 학부모",
-      상담시간: String(params.durationMinutes ?? ""),
       상담일정: scheduleFormatted,
       ...(isRemote
         ? { 참가링크: params.meetingLink || "" }
@@ -657,35 +678,42 @@ async function sendScheduleNotification(params: {
 
     const message = formatSMSTemplate(smsTemplateType, templateVariables);
 
-    // 알림톡 우선, 없으면 SMS
-    const alimtalkTemplate = getAlimtalkTemplate(smsTemplateType);
+    const channel = params.notificationChannel ?? "alimtalk";
+    const alimtalkTemplate = channel === "alimtalk" ? getAlimtalkTemplate(smsTemplateType) : null;
 
     let anySent = false;
 
     // 각 대상에게 개별 발송
-    for (const recipientPhone of phones) {
+    for (const { phone: recipientPhone, targetLabel } of recipients) {
       let sent = false;
 
       if (alimtalkTemplate) {
         const result = await sendAlimtalk({
           recipientPhone,
           message,
+          smsFallbackMessage: message,
+          smsFallbackSubject: "상담 일정 안내",
           tenantId: params.tenantId,
           templateCode: alimtalkTemplate.templateCode,
           recipientId: params.studentId,
           consultationScheduleId: params.scheduleId,
+          templateVariables,
+          variableOrder: alimtalkTemplate.variableOrder,
+          notificationTarget: targetLabel,
         });
         sent = result.success;
       }
 
-      // 알림톡 미사용 또는 실패 시 SMS fallback
+      // 알림톡 미사용 또는 실패 시 SMS fallback (SMS 채널 선택 시 항상 여기로)
       if (!sent) {
         const smsResult = await sendSMS({
           recipientPhone,
           message,
+          subject: "상담 일정 안내",
           recipientId: params.studentId,
           tenantId: params.tenantId,
           consultationScheduleId: params.scheduleId,
+          notificationTarget: targetLabel,
         });
         sent = smsResult.success;
       }
@@ -695,7 +723,9 @@ async function sendScheduleNotification(params: {
       logActionDebug(ACTION_CTX, "알림 발송 결과", {
         scheduleId: params.scheduleId,
         sent,
+        channel,
         recipientPhone,
+        targetLabel,
       });
     }
 
@@ -725,7 +755,7 @@ async function sendChangeNotification(params: {
   tenantId: string;
   studentId: string;
   consultantId: string;
-  sessionType: SessionType | string;
+  sessionType: string;
   programName?: string;
   scheduledDate: string;
   startTime: string;
@@ -735,15 +765,16 @@ async function sendChangeNotification(params: {
   visitor?: string;
   location?: string;
   notificationTargets?: NotificationTarget[];
+  notificationChannel?: NotificationChannel;
 }): Promise<void> {
   try {
     const studentPhones = await getStudentPhones(params.studentId);
     if (!studentPhones) return;
 
     const targets = params.notificationTargets ?? ["mother"];
-    const phones = resolveTargetPhones(studentPhones, targets);
+    const recipients = resolveTargetPhones(studentPhones, targets);
 
-    if (phones.length === 0) return;
+    if (recipients.length === 0) return;
 
     const adminClient = await getSupabaseClientForRLSBypass({
       forceAdmin: true,
@@ -787,32 +818,43 @@ async function sendChangeNotification(params: {
     };
 
     const message = formatSMSTemplate(params.templateType, templateVariables);
-    const alimtalkTemplate = getAlimtalkTemplate(params.templateType);
+    const channel = params.notificationChannel ?? "alimtalk";
+    const alimtalkTemplate = channel === "alimtalk" ? getAlimtalkTemplate(params.templateType) : null;
+
+    // LMS 대체 발송 제목 (변경/취소에 따라 다름)
+    const lmsSubject = params.templateType.includes("cancelled") ? "상담 취소 안내" : "상담 변경 안내";
 
     // 각 대상에게 개별 발송
-    for (const recipientPhone of phones) {
+    for (const { phone: recipientPhone, targetLabel } of recipients) {
       let sent = false;
 
       if (alimtalkTemplate) {
         const result = await sendAlimtalk({
           recipientPhone,
           message,
+          smsFallbackMessage: message,
+          smsFallbackSubject: lmsSubject,
           tenantId: params.tenantId,
           templateCode: alimtalkTemplate.templateCode,
           recipientId: params.studentId,
           consultationScheduleId: params.scheduleId,
+          templateVariables,
+          variableOrder: alimtalkTemplate.variableOrder,
+          notificationTarget: targetLabel,
         });
         sent = result.success;
       }
 
-      // 알림톡 미사용 또는 실패 시 SMS fallback
+      // 알림톡 미사용 또는 실패 시 SMS fallback (SMS 채널 선택 시 항상 여기로)
       if (!sent) {
         const smsResult = await sendSMS({
           recipientPhone,
           message,
+          subject: lmsSubject,
           recipientId: params.studentId,
           tenantId: params.tenantId,
           consultationScheduleId: params.scheduleId,
+          notificationTarget: targetLabel,
         });
         sent = smsResult.success;
       }
@@ -820,7 +862,9 @@ async function sendChangeNotification(params: {
       logActionDebug(ACTION_CTX, `${params.templateType} 알림 발송`, {
         scheduleId: params.scheduleId,
         sent,
+        channel,
         recipientPhone,
+        targetLabel,
       });
     }
   } catch (error) {
@@ -852,7 +896,8 @@ function calculateDuration(startTime: string, endTime: string): number {
 function formatScheduleDateTime(
   date: string,
   startTime: string,
-  endTime: string
+  endTime: string,
+  durationMinutes?: number | null
 ): string {
   const d = new Date(date + "T00:00:00");
   const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
@@ -861,5 +906,6 @@ function formatScheduleDateTime(
   const weekday = weekdays[d.getDay()];
   const start = startTime.slice(0, 5); // "14:00"
   const end = endTime.slice(0, 5);
-  return `${month}/${day}(${weekday}) ${start}~${end}`;
+  const base = `${month}/${day}(${weekday}) ${start}~${end}`;
+  return durationMinutes ? `${base} (${durationMinutes}분)` : base;
 }

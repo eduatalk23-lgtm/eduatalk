@@ -7,31 +7,25 @@ import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { StudentDetailWrapper } from "./_components/StudentDetailWrapper";
 import { StudentDetailTabs } from "./_components/StudentDetailTabs";
-import { PlanListSection } from "./_components/PlanListSection";
-import { PlanListSectionClient } from "./_components/PlanListSectionClient";
 import { ContentListSection } from "./_components/ContentListSection";
 import { ScoreTrendSection } from "./_components/ScoreTrendSection";
 import { SessionListSection } from "./_components/SessionListSection";
 import { AnalysisReportSection } from "./_components/AnalysisReportSection";
-import { ConsultingNotesSection } from "./_components/ConsultingNotesSection";
 import { AttendanceSection } from "./_components/AttendanceSection";
 import { RiskCard } from "./_components/RiskCard";
 import { RecommendationPanel } from "./_components/RecommendationPanel";
-import { PlanListSectionSkeleton } from "./_components/PlanListSectionSkeleton";
 import { ContentListSectionSkeleton } from "./_components/ContentListSectionSkeleton";
 import { ScoreTrendSectionSkeleton } from "./_components/ScoreTrendSectionSkeleton";
 import { SessionListSectionSkeleton } from "./_components/SessionListSectionSkeleton";
 import { AnalysisReportSectionSkeleton } from "./_components/AnalysisReportSectionSkeleton";
-import { ConsultingNotesSectionSkeleton } from "./_components/ConsultingNotesSectionSkeleton";
 import { TimeManagementSection } from "./_components/time-management/TimeManagementSection";
 import { TimeManagementSectionSkeleton } from "./_components/time-management/TimeManagementSectionSkeleton";
-import { ConsultantAssignmentPanel } from "./_components/ConsultantAssignmentPanel";
-import {
-  ConsultationScheduleSection,
-  ConsultationScheduleSectionSkeleton,
-} from "./_components/ConsultationScheduleSection";
+import { ScoreSubTabNav } from "./_components/ScoreSubTabNav";
+import type { ScoreSubTab } from "./_components/ScoreSubTabNav";
+import { AdminScoreInputSection } from "./_components/AdminScoreInputSection";
+import { AdminScoreListSection } from "./_components/AdminScoreListSection";
 
-type TabType = "plan" | "content" | "score" | "session" | "analysis" | "consulting" | "attendance" | "time" | "risk";
+type TabType = "content" | "score" | "session" | "analysis" | "attendance" | "time" | "risk";
 
 export default async function AdminStudentDetailPage({
   params,
@@ -40,7 +34,7 @@ export default async function AdminStudentDetailPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const { userId, role, tenantId } = await getCurrentUserRole();
+  const { userId, role } = await getCurrentUserRole();
 
   if (!userId || !isAdminRole(role)) {
     redirect("/login");
@@ -48,9 +42,14 @@ export default async function AdminStudentDetailPage({
 
   const { id: studentId } = await params;
   const paramsObj = await searchParams;
-  const VALID_TABS: TabType[] = ["plan", "content", "score", "session", "analysis", "consulting", "attendance", "time", "risk"];
+  const VALID_TABS: TabType[] = ["content", "score", "session", "analysis", "attendance", "time", "risk"];
   const rawTab = paramsObj.tab as TabType;
-  const defaultTab: TabType = VALID_TABS.includes(rawTab) ? rawTab : "plan";
+  const defaultTab: TabType = VALID_TABS.includes(rawTab) ? rawTab : "content";
+
+  // 성적 탭 서브탭
+  const rawScoreSubTab = paramsObj.scoreSubTab as ScoreSubTab;
+  const VALID_SCORE_SUB_TABS: ScoreSubTab[] = ["analysis", "list", "input"];
+  const scoreSubTab: ScoreSubTab = VALID_SCORE_SUB_TABS.includes(rawScoreSubTab) ? rawScoreSubTab : "analysis";
 
   // 학생 기본 정보 조회 (이름 등 헤더/탭에 필요한 최소 데이터)
   const supabase = await createSupabaseServerClient();
@@ -78,19 +77,6 @@ export default async function AdminStudentDetailPage({
 
           {/* 탭 구조 */}
           <StudentDetailTabs defaultTab={defaultTab}>
-            {/* 학습계획 탭 */}
-            {defaultTab === "plan" && (
-              <PlanListSectionClient
-                studentId={studentId}
-                tenantId={tenantId}
-                studentName={student.name ?? ""}
-              >
-                <Suspense fallback={<PlanListSectionSkeleton />}>
-                  <PlanListSection studentId={studentId} tenantId={tenantId} />
-                </Suspense>
-              </PlanListSectionClient>
-            )}
-
             {/* 콘텐츠 탭 */}
             {defaultTab === "content" && (
               <Suspense fallback={<ContentListSectionSkeleton />}>
@@ -98,11 +84,26 @@ export default async function AdminStudentDetailPage({
               </Suspense>
             )}
 
-            {/* 성적 탭 */}
+            {/* 성적 탭 (서브탭: 분석 / 입력) */}
             {defaultTab === "score" && (
-              <Suspense fallback={<ScoreTrendSectionSkeleton />}>
-                <ScoreTrendSection studentId={studentId} />
-              </Suspense>
+              <div className="flex flex-col gap-6">
+                <ScoreSubTabNav activeSubTab={scoreSubTab} />
+                {scoreSubTab === "analysis" && (
+                  <Suspense fallback={<ScoreTrendSectionSkeleton />}>
+                    <ScoreTrendSection studentId={studentId} />
+                  </Suspense>
+                )}
+                {scoreSubTab === "list" && (
+                  <Suspense fallback={<ScoreTrendSectionSkeleton />}>
+                    <AdminScoreListSection studentId={studentId} />
+                  </Suspense>
+                )}
+                {scoreSubTab === "input" && (
+                  <Suspense fallback={<ScoreTrendSectionSkeleton />}>
+                    <AdminScoreInputSection studentId={studentId} />
+                  </Suspense>
+                )}
+              </div>
             )}
 
             {/* 학습기록 탭 */}
@@ -117,22 +118,6 @@ export default async function AdminStudentDetailPage({
               <Suspense fallback={<AnalysisReportSectionSkeleton />}>
                 <AnalysisReportSection studentId={studentId} />
               </Suspense>
-            )}
-
-            {/* 상담노트 탭 */}
-            {defaultTab === "consulting" && (
-              <div className="space-y-6">
-                <Suspense fallback={<ConsultationScheduleSectionSkeleton />}>
-                  <ConsultationScheduleSection studentId={studentId} />
-                </Suspense>
-                <ConsultantAssignmentPanel studentId={studentId} />
-                <Suspense fallback={<ConsultingNotesSectionSkeleton />}>
-                  <ConsultingNotesSection
-                    studentId={studentId}
-                    consultantId={userId}
-                  />
-                </Suspense>
-              </div>
             )}
 
             {/* 출석 탭 */}

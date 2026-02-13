@@ -41,6 +41,12 @@ export function EnrollmentStatusSelect({
           toast.showSuccess(
             `상태가 "${ENROLLMENT_STATUS_LABELS[newStatus]}"(으)로 변경되었습니다.`
           );
+          const cancelled = result.data?.cancelledPayments ?? 0;
+          if (cancelled > 0) {
+            toast.showInfo(
+              `미납 수납 ${cancelled}건이 자동 취소되었습니다.`
+            );
+          }
           router.refresh();
         } else {
           toast.showError(result.error ?? "상태 변경에 실패했습니다.");

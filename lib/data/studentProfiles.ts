@@ -83,27 +83,27 @@ export async function upsertStudentProfile(
     return { success: false, error: "Admin client를 초기화할 수 없습니다." };
   }
 
-  const payload = {
-    id: profile.id,
-    tenant_id: profile.tenant_id ?? null,
-    gender: profile.gender ?? null,
-    phone: profile.phone ?? null,
-    profile_image_url: profile.profile_image_url ?? null,
-    mother_phone: profile.mother_phone ?? null,
-    father_phone: profile.father_phone ?? null,
-    address: profile.address ?? null,
-    address_detail: profile.address_detail ?? null,
-    postal_code: profile.postal_code ?? null,
-    emergency_contact: profile.emergency_contact ?? null,
-    emergency_contact_phone: profile.emergency_contact_phone ?? null,
-    medical_info: profile.medical_info ?? null,
-    bio: profile.bio ?? null,
-    interests: profile.interests ?? null,
-  };
+  // 명시적으로 전달된 필드만 payload에 포함 (undefined 필드는 기존 값 보존)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const payload: Record<string, any> = { id: profile.id };
+
+  const optionalFields = [
+    "tenant_id", "gender", "phone", "profile_image_url",
+    "mother_phone", "father_phone", "address", "address_detail",
+    "postal_code", "emergency_contact", "emergency_contact_phone",
+    "medical_info", "bio", "interests",
+  ] as const;
+
+  for (const field of optionalFields) {
+    if (profile[field] !== undefined) {
+      payload[field] = profile[field] ?? null;
+    }
+  }
 
   const { error } = await adminClient
     .from("student_profiles")
-    .upsert(payload, { onConflict: "id" });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .upsert(payload as any, { onConflict: "id" });
 
   if (error) {
     handleQueryError(error, {

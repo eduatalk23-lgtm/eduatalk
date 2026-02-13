@@ -186,7 +186,7 @@ export async function createEnrollmentAction(
 export async function updateEnrollmentStatusAction(
   enrollmentId: string,
   status: EnrollmentStatus
-): Promise<ActionResult> {
+): Promise<ActionResult<{ cancelledPayments: number }>> {
   try {
     const { userId, tenantId } = await requireAdminOrConsultant({
       requireTenant: true,
@@ -231,8 +231,27 @@ export async function updateEnrollmentStatusAction(
       return { success: false, error: "상태 변경에 실패했습니다." };
     }
 
+    // 수료/취소 시 미납 수납 레코드 자동 취소
+    let cancelledPayments = 0;
+
+    if (status === "completed" || status === "cancelled") {
+      const statusLabel = status === "completed" ? "수료" : "취소";
+      const { data: cancelledRecords } = await adminClient
+        .from("payment_records")
+        .update({
+          status: "cancelled",
+          memo: `수강 ${statusLabel} 처리로 자동 취소됨`,
+        })
+        .in("status", ["unpaid", "partial"])
+        .eq("enrollment_id", enrollmentId)
+        .select("id");
+
+      cancelledPayments = cancelledRecords?.length ?? 0;
+    }
+
     revalidatePath("/admin/students");
-    return { success: true };
+    revalidatePath("/admin/billing");
+    return { success: true, data: { cancelledPayments } };
   } catch (error) {
     return {
       success: false,

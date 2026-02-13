@@ -9,7 +9,8 @@ import {
   textPrimary,
   textSecondary,
 } from "@/lib/utils/darkMode";
-import { SESSION_TYPES, type SessionType } from "@/lib/domains/consulting/types";
+import { SESSION_TYPE_PRESETS } from "@/lib/domains/consulting/types";
+import { Combobox } from "@/components/ui/Combobox";
 
 type FormState = {
   success?: boolean;
@@ -31,8 +32,11 @@ export function ConsultingNotesForm({
   enrollments?: EnrollmentOption[];
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [sessionType, setSessionType] = useState("정기상담");
   const [state, formAction] = useActionState<FormState, FormData>(
     async (prevState: FormState, formData: FormData) => {
+      // Combobox 값을 FormData에 주입
+      formData.set("session_type", sessionType.trim() || "정기상담");
       return await addConsultingNote(studentId, consultantId, formData);
     },
     null
@@ -54,17 +58,12 @@ export function ConsultingNotesForm({
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="flex flex-col gap-1">
           <label className={labelClass}>상담 유형</label>
-          <select
-            name="session_type"
-            defaultValue="정기상담"
-            className={inputClass}
-          >
-            {SESSION_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
+          <Combobox
+            value={sessionType}
+            onChange={setSessionType}
+            options={[...SESSION_TYPE_PRESETS]}
+            placeholder="유형 선택 또는 입력"
+          />
         </div>
 
         <div className="flex flex-col gap-1">

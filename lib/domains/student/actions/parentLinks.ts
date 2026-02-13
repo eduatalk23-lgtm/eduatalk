@@ -16,6 +16,7 @@ export type StudentParent = {
   parentId: string;
   parentName: string | null;
   parentEmail: string | null;
+  parentPhone: string | null;
   relation: string;
 };
 
@@ -38,10 +39,12 @@ type ParentStudentLinkRow = {
     | {
         id: string;
         name: string | null;
+        phone: string | null;
       }
     | {
         id: string;
         name: string | null;
+        phone: string | null;
       }[]
     | null;
 };
@@ -75,7 +78,8 @@ export async function getStudentParents(
           parent_id,
           parent_users:parent_id(
             id,
-            name
+            name,
+            phone
           )
         `
         )
@@ -115,6 +119,7 @@ export async function getStudentParents(
           parentId: link.parent_id,
           parentName: parentUser.name,
           parentEmail: null,
+          parentPhone: parentUser.phone ?? null,
           relation: link.relation || "other",
         };
       })

@@ -11,6 +11,7 @@ import { StudentSearchPanel } from "./StudentSearchPanel";
 import { StudentFormPanel } from "./StudentFormPanel";
 import { EnrollmentSlidePanel } from "./EnrollmentSlidePanel";
 import { FamilySlidePanel } from "./FamilySlidePanel";
+import { ConsultationSlidePanel } from "./ConsultationSlidePanel";
 
 type FormMode = "register" | "selected";
 
@@ -28,6 +29,8 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
   const [isEnrollmentPanelOpen, setIsEnrollmentPanelOpen] = useState(false);
   const [familyPanelStudentId, setFamilyPanelStudentId] = useState<string | null>(null);
   const [isFamilyPanelOpen, setIsFamilyPanelOpen] = useState(false);
+  const [consultationPanelStudentId, setConsultationPanelStudentId] = useState<string | null>(null);
+  const [isConsultationPanelOpen, setIsConsultationPanelOpen] = useState(false);
 
   const debouncedQuery = useDebounce(searchQuery, 300);
 
@@ -45,6 +48,13 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
   const total = searchResult.data?.total ?? 0;
   const studentData = detailResult.data?.data ?? null;
   const isDetailLoading = detailResult.isFetching; // isLoading 대신 isFetching 사용 (캐시 stale 포함)
+
+  // 슬라이드 패널 타이틀용 학생 라벨: "고등부 1학년 김지혁 강릉명륜고등학교"
+  const studentLabel = studentData
+    ? [studentData.division, studentData.grade ? `${studentData.grade}학년` : null, studentData.name, studentData.school_name]
+        .filter(Boolean)
+        .join(" ")
+    : undefined;
 
   // 학생 선택
   const handleSelectStudent = useCallback((studentId: string) => {
@@ -94,6 +104,18 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
     setIsFamilyPanelOpen(false);
   }, []);
 
+  // 상담 슬라이드 패널 열기/닫기
+  const handleOpenConsultation = useCallback(() => {
+    if (selectedStudentId) {
+      setConsultationPanelStudentId(selectedStudentId);
+      setIsConsultationPanelOpen(true);
+    }
+  }, [selectedStudentId]);
+
+  const handleCloseConsultation = useCallback(() => {
+    setIsConsultationPanelOpen(false);
+  }, []);
+
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
       {/* 왼쪽: 검색 패널 */}
@@ -118,12 +140,14 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
         onStudentDeleted={handleStudentDeleted}
         onOpenEnrollment={handleOpenEnrollment}
         onOpenFamily={handleOpenFamily}
+        onOpenConsultation={handleOpenConsultation}
         isAdmin={isAdmin}
       />
 
       {enrollmentPanelStudentId && (
         <EnrollmentSlidePanel
           studentId={enrollmentPanelStudentId}
+          studentLabel={studentLabel}
           isOpen={isEnrollmentPanelOpen}
           onClose={handleCloseEnrollment}
         />
@@ -132,8 +156,18 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
       {familyPanelStudentId && (
         <FamilySlidePanel
           studentId={familyPanelStudentId}
+          studentLabel={studentLabel}
           isOpen={isFamilyPanelOpen}
           onClose={handleCloseFamily}
+        />
+      )}
+
+      {consultationPanelStudentId && (
+        <ConsultationSlidePanel
+          studentId={consultationPanelStudentId}
+          studentLabel={studentLabel}
+          isOpen={isConsultationPanelOpen}
+          onClose={handleCloseConsultation}
         />
       )}
     </div>

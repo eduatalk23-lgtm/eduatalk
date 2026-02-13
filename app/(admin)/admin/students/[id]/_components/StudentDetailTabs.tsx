@@ -5,12 +5,10 @@ import type { ReactNode } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
 type TabKey =
-  | "plan"
   | "content"
   | "score"
   | "session"
   | "analysis"
-  | "consulting"
   | "attendance"
   | "time"
   | "risk";
@@ -22,19 +20,17 @@ type Tab = {
 };
 
 const tabs: Tab[] = [
-  { key: "plan", label: "학습계획", icon: "📅" },
   { key: "content", label: "콘텐츠", icon: "📚" },
   { key: "score", label: "성적", icon: "📊" },
   { key: "session", label: "학습기록", icon: "⏱️" },
   { key: "analysis", label: "분석 리포트", icon: "📈" },
-  { key: "consulting", label: "상담노트", icon: "📝" },
   { key: "attendance", label: "출석", icon: "✓" },
   { key: "time", label: "시간관리", icon: "⏰" },
   { key: "risk", label: "위험도/추천", icon: "⚠️" },
 ];
 
 export function StudentDetailTabs({
-  defaultTab = "plan",
+  defaultTab = "content",
   children,
 }: {
   defaultTab?: TabKey;

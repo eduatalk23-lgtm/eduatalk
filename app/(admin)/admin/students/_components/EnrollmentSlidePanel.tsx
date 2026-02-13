@@ -17,12 +17,14 @@ type EnrollmentData = {
 
 type EnrollmentSlidePanelProps = {
   studentId: string;
+  studentLabel?: string;
   isOpen: boolean;
   onClose: () => void;
 };
 
 export function EnrollmentSlidePanel({
   studentId,
+  studentLabel,
   isOpen,
   onClose,
 }: EnrollmentSlidePanelProps) {
@@ -53,7 +55,7 @@ export function EnrollmentSlidePanel({
       id="enrollment-panel"
       isOpen={isOpen}
       onClose={onClose}
-      title="수강 / 수납 관리"
+      title={`수강 / 수납 관리${studentLabel ? ` - ${studentLabel}` : ""}`}
       size="full"
       className="max-w-[66vw]"
     >

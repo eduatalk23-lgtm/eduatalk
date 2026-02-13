@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { ChevronUp, ChevronDown, ChevronsUpDown, RefreshCw } from "lucide-react";
 import Button from "@/components/atoms/Button";
 import { cn } from "@/lib/cn";
 import {
@@ -65,6 +65,8 @@ type PaymentTablePanelProps = {
   onRefundPayment: (payment: PaymentRecordWithEnrollment) => void;
   onCashReceipt: (payment: PaymentRecordWithEnrollment) => void;
   onCancelCashReceipt: (paymentId: string) => void;
+  onSyncTossStatus?: () => void;
+  isSyncing?: boolean;
 };
 
 export function PaymentTablePanel({
@@ -82,6 +84,8 @@ export function PaymentTablePanel({
   onRefundPayment,
   onCashReceipt,
   onCancelCashReceipt,
+  onSyncTossStatus,
+  isSyncing,
 }: PaymentTablePanelProps) {
   return (
     <div className={cn("rounded-lg border p-5", borderDefault, bgSurface)}>
@@ -116,6 +120,20 @@ export function PaymentTablePanel({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {onSyncTossStatus && (
+            <Button
+              variant="secondary"
+              size="xs"
+              onClick={onSyncTossStatus}
+              disabled={isSyncing}
+              className="text-xs text-[var(--text-primary)]"
+            >
+              <RefreshCw
+                className={cn("h-3 w-3", isSyncing && "animate-spin")}
+              />
+              {isSyncing ? "동기화 중..." : "토스 동기화"}
+            </Button>
+          )}
           {(isAllView || selectedEnrollment) && (
             <Button
               variant="primary"

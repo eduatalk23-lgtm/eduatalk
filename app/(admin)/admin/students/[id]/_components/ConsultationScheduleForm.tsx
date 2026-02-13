@@ -10,16 +10,24 @@ import {
   textSecondary,
 } from "@/lib/utils/darkMode";
 import {
-  SESSION_TYPES,
+  SESSION_TYPE_PRESETS,
   CONSULTATION_MODES,
   NOTIFICATION_TARGETS,
   NOTIFICATION_TARGET_LABELS,
-  type SessionType,
+  NOTIFICATION_CHANNELS,
+  NOTIFICATION_CHANNEL_LABELS,
   type ConsultationMode,
   type NotificationTarget,
+  type NotificationChannel,
 } from "@/lib/domains/consulting/types";
+import { Combobox } from "@/components/ui/Combobox";
 import { createConsultationSchedule } from "@/lib/domains/consulting/actions/schedule";
-import type { PhoneAvailability } from "./ConsultationScheduleSection";
+
+export type PhoneAvailability = {
+  student: boolean;
+  mother: boolean;
+  father: boolean;
+};
 
 type EnrollmentOption = {
   id: string;
@@ -32,6 +40,7 @@ type ConsultationScheduleFormProps = {
   enrollments?: EnrollmentOption[];
   defaultConsultantId?: string;
   phoneAvailability: PhoneAvailability;
+  onSuccess?: () => void;
 };
 
 const PHONE_KEY_MAP: Record<NotificationTarget, keyof PhoneAvailability> = {
@@ -46,15 +55,18 @@ export function ConsultationScheduleForm({
   enrollments = [],
   defaultConsultantId,
   phoneAvailability,
+  onSuccess,
 }: ConsultationScheduleFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [sessionType, setSessionType] = useState("정기상담");
+  const [programName, setProgramName] = useState("");
   const [notificationTargets, setNotificationTargets] = useState<NotificationTarget[]>(
     phoneAvailability.mother ? ["mother"] : []
   );
-  const [selectedEnrollmentId, setSelectedEnrollmentId] = useState("");
+  const [notificationChannel, setNotificationChannel] = useState<NotificationChannel>("alimtalk");
   const [consultationMode, setConsultationMode] = useState<ConsultationMode>("대면");
 
   const inputClass = cn(
@@ -67,10 +79,8 @@ export function ConsultationScheduleForm({
 
   const labelClass = cn("text-xs font-medium", textSecondary);
 
-  // 선택된 enrollment의 프로그램명
-  const selectedProgramName = enrollments.find(
-    (e) => e.id === selectedEnrollmentId
-  )?.program_name;
+  // 프로그램 옵션 목록 (수강 프로그램명)
+  const programOptions = enrollments.map((e) => e.program_name);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -81,7 +91,6 @@ export function ConsultationScheduleForm({
     const formData = new FormData(form);
 
     const consultantId = formData.get("consultant_id") as string;
-    const sessionType = formData.get("session_type") as SessionType;
     const scheduledDate = formData.get("scheduled_date") as string;
     const startTime = formData.get("start_time") as string;
     const endTime = formData.get("end_time") as string;
@@ -95,18 +104,28 @@ export function ConsultationScheduleForm({
       return;
     }
 
+    if (!programName.trim()) {
+      setError("프로그램을 입력해주세요.");
+      return;
+    }
+
     if (endTime <= startTime) {
       setError("종료 시간은 시작 시간 이후여야 합니다.");
       return;
     }
 
+    // enrollment 매칭 (프로그램명이 enrollment와 일치하면 enrollmentId 전달)
+    const matchedEnrollment = enrollments.find(
+      (e) => e.program_name === programName.trim()
+    );
+
     startTransition(async () => {
       const result = await createConsultationSchedule({
         studentId,
         consultantId,
-        sessionType,
-        enrollmentId: selectedEnrollmentId || undefined,
-        programName: selectedProgramName,
+        sessionType: sessionType.trim() || "정기상담",
+        enrollmentId: matchedEnrollment?.id,
+        programName: programName.trim(),
         scheduledDate,
         startTime,
         endTime,
@@ -117,15 +136,19 @@ export function ConsultationScheduleForm({
         description,
         sendNotification: notificationTargets.length > 0,
         notificationTargets,
+        notificationChannel,
       });
 
       if (result.success) {
         setSuccess(true);
-        setSelectedEnrollmentId("");
+        setSessionType("정기상담");
+        setProgramName("");
         setConsultationMode("대면");
+        setNotificationChannel("alimtalk");
         setNotificationTargets(phoneAvailability.mother ? ["mother"] : []);
         form.reset();
         router.refresh();
+        onSuccess?.();
         setTimeout(() => setSuccess(false), 3000);
       } else {
         setError(result.error ?? "등록에 실패했습니다.");
@@ -135,40 +158,32 @@ export function ConsultationScheduleForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      {/* Row 1: 상담유형, 관련 프로그램, 컨설턴트 */}
+      {/* Row 1: 상담유형, 프로그램(필수), 컨설턴트 */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="flex flex-col gap-1">
           <label className={labelClass}>상담 유형</label>
-          <select
-            name="session_type"
-            defaultValue="정기상담"
-            className={inputClass}
-          >
-            {SESSION_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
+          <Combobox
+            value={sessionType}
+            onChange={setSessionType}
+            options={[...SESSION_TYPE_PRESETS]}
+            placeholder="상담 유형 선택 또는 입력"
+          />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className={labelClass}>관련 프로그램</label>
-          <select
-            value={selectedEnrollmentId}
-            onChange={(e) => setSelectedEnrollmentId(e.target.value)}
-            className={inputClass}
-          >
-            <option value="">선택 안 함</option>
-            {enrollments.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.program_name}
-              </option>
-            ))}
-          </select>
-          {selectedProgramName && (
+          <label className={labelClass}>
+            프로그램 <span className="text-red-500">*</span>
+          </label>
+          <Combobox
+            value={programName}
+            onChange={setProgramName}
+            options={programOptions}
+            placeholder="프로그램 선택 또는 입력"
+            required
+          />
+          {programName && (
             <p className={cn("text-xs", textSecondary)}>
-              알림톡 상담유형: &quot;{selectedProgramName}&quot;
+              알림톡 상담유형: &quot;{programName}&quot;
             </p>
           )}
         </div>
@@ -225,7 +240,7 @@ export function ConsultationScheduleForm({
         </div>
       </div>
 
-      {/* Row 3: 상담방식, 방문상담자, 장소/링크 */}
+      {/* Row 3: 상담방식, 방문상담자, 장소/링크, 메모 */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
         <div className="flex flex-col gap-1">
           <label className={labelClass}>상담 방식</label>
@@ -285,7 +300,7 @@ export function ConsultationScheduleForm({
         </div>
       </div>
 
-      {/* 알림 대상 + 제출 */}
+      {/* 알림 대상 + 채널 + 제출 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <span className={cn("text-xs font-medium", textSecondary)}>알림 대상</span>
@@ -322,6 +337,25 @@ export function ConsultationScheduleForm({
               </label>
             );
           })}
+
+          <span className={cn("ml-2 border-l border-gray-300 pl-4 text-xs font-medium dark:border-gray-600", textSecondary)}>
+            발송 채널
+          </span>
+          {NOTIFICATION_CHANNELS.map((ch) => (
+            <label key={ch} className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="notification_channel"
+                checked={notificationChannel === ch}
+                onChange={() => setNotificationChannel(ch)}
+                disabled={notificationTargets.length === 0}
+                className="h-3.5 w-3.5 border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
+              />
+              <span className={cn("text-xs", textSecondary)}>
+                {NOTIFICATION_CHANNEL_LABELS[ch]}
+              </span>
+            </label>
+          ))}
         </div>
 
         <button

@@ -11,12 +11,7 @@ import {
   borderDefault,
 } from "@/lib/utils/darkMode";
 import type { NotificationLogEntry } from "@/lib/domains/consulting/types";
-
-export type PhoneAvailability = {
-  student: boolean;
-  mother: boolean;
-  father: boolean;
-};
+import type { PhoneAvailability } from "./ConsultationScheduleForm";
 
 type ConsultationScheduleSectionProps = {
   studentId: string;
@@ -59,7 +54,7 @@ export async function ConsultationScheduleSection({
     const { data: logs } = await supabase
       .from("sms_logs")
       .select(
-        "id, consultation_schedule_id, recipient_phone, status, channel, sent_at, delivered_at, error_message, ppurio_result_code"
+        "id, consultation_schedule_id, recipient_phone, status, channel, sent_at, delivered_at, error_message, ppurio_result_code, notification_target"
       )
       .in("consultation_schedule_id", scheduleIds)
       .order("sent_at", { ascending: false });
@@ -79,6 +74,7 @@ export async function ConsultationScheduleSection({
             delivered_at: log.delivered_at,
             error_message: log.error_message,
             ppurio_result_code: log.ppurio_result_code,
+            notification_target: log.notification_target,
           });
           return acc;
         },

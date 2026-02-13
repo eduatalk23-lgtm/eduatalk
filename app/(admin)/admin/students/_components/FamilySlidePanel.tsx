@@ -5,12 +5,14 @@ import { ConnectionSection } from "../[id]/_components/ConnectionSection";
 
 type FamilySlidePanelProps = {
   studentId: string;
+  studentLabel?: string;
   isOpen: boolean;
   onClose: () => void;
 };
 
 export function FamilySlidePanel({
   studentId,
+  studentLabel,
   isOpen,
   onClose,
 }: FamilySlidePanelProps) {
@@ -19,7 +21,7 @@ export function FamilySlidePanel({
       id="family-panel"
       isOpen={isOpen}
       onClose={onClose}
-      title="가족 관리"
+      title={`가족 관리${studentLabel ? ` - ${studentLabel}` : ""}`}
       size="full"
       className="max-w-[66vw]"
     >

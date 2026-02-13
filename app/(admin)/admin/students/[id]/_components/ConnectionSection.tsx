@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
-import Button from "@/components/atoms/Button";
-import { Copy, Link2, Users, UserPlus, Trash2, GitBranch } from "lucide-react";
+import { Copy, Link2, Users, UserPlus, Trash2, GitBranch, Plus, ChevronDown } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   getStudentParents,
@@ -15,6 +14,13 @@ import type { InviteCode, InviteTargetRole, InviteRelation } from "@/lib/domains
 type ConnectionSectionProps = {
   studentId: string;
 };
+
+const INVITE_OPTIONS: { label: string; targetRole: InviteTargetRole; relation?: InviteRelation }[] = [
+  { label: "학생 초대", targetRole: "student" },
+  { label: "모 초대", targetRole: "parent", relation: "mother" },
+  { label: "부 초대", targetRole: "parent", relation: "father" },
+  { label: "보호자 초대", targetRole: "parent", relation: "guardian" },
+];
 
 export function ConnectionSection({ studentId }: ConnectionSectionProps) {
   const { showSuccess, showError } = useToast();
@@ -38,6 +44,9 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
     relation: string | null;
   }>>([]);
   const [isLoadingSiblings, setIsLoadingSiblings] = useState(true);
+
+  // Invite dropdown state
+  const [isInviteDropdownOpen, setIsInviteDropdownOpen] = useState(false);
 
   // Load invite codes
   useEffect(() => {
@@ -176,7 +185,7 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
   );
 
   return (
-    <>
+    <div className="flex flex-col gap-6">
       {/* 학부모 + 형제/자매: 2열 그리드 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* 학부모 카드 */}
@@ -266,46 +275,48 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
         </div>
       </div>
 
+      {/* 구분선 */}
+      <hr className="border-gray-200" />
+
       {/* 초대 코드: 전체 너비 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
             <Link2 size={16} className="text-gray-500" />
             초대 코드
           </h3>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleCreateInviteCode("student")}
-              isLoading={isCreatingCode}
+          <div className="relative">
+            <button
+              onClick={() => setIsInviteDropdownOpen((prev) => !prev)}
+              disabled={isCreatingCode}
+              className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              학생 초대
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleCreateInviteCode("parent", "mother")}
-              isLoading={isCreatingCode}
-            >
-              모 초대
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleCreateInviteCode("parent", "father")}
-              isLoading={isCreatingCode}
-            >
-              부 초대
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleCreateInviteCode("parent", "guardian")}
-              isLoading={isCreatingCode}
-            >
-              보호자 초대
-            </Button>
+              <Plus size={14} />
+              초대 코드 생성
+              <ChevronDown size={14} />
+            </button>
+            {isInviteDropdownOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setIsInviteDropdownOpen(false)}
+                />
+                <div className="absolute right-0 top-full mt-1 z-20 w-40 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                  {INVITE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.label}
+                      onClick={() => {
+                        setIsInviteDropdownOpen(false);
+                        handleCreateInviteCode(opt.targetRole, opt.relation);
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition"
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -327,7 +338,7 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
               return (
                 <div
                   key={code.id}
-                  className="flex items-center justify-between px-4 py-2.5 bg-gray-50 rounded-lg"
+                  className="flex items-center justify-between px-4 py-2.5 bg-white rounded-lg border border-gray-100"
                 >
                   <div className="flex items-center gap-3">
                     <span className="font-mono text-sm font-medium">{code.code}</span>
@@ -336,27 +347,27 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
                     </span>
                     <span className="text-xs text-gray-500">D-{daysLeft}</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleCopyCode(code.code)}
-                      className="p-1.5 text-gray-400 hover:text-gray-600 rounded"
+                      className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-lg transition"
                       title="코드 복사"
                     >
-                      <Copy size={14} />
+                      <Copy size={16} />
                     </button>
                     <button
                       onClick={() => handleCopyUrl(code.code)}
-                      className="p-1.5 text-gray-400 hover:text-gray-600 rounded"
+                      className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-lg transition"
                       title="URL 복사"
                     >
-                      <Link2 size={14} />
+                      <Link2 size={16} />
                     </button>
                     <button
                       onClick={() => handleRevokeCode(code.id)}
-                      className="p-1.5 text-gray-400 hover:text-red-500 rounded"
-                      title="취소"
+                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+                      title="삭제"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </div>
@@ -373,6 +384,6 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
         existingParents={parents}
         onSuccess={handleParentRefresh}
       />
-    </>
+    </div>
   );
 }
