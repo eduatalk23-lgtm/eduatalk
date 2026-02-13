@@ -20,6 +20,7 @@ import {
   addLeadActivity,
   deleteLeadActivity,
 } from "@/lib/domains/crm/actions/activities";
+import { sendMissedCallNotification } from "@/lib/domains/crm/actions/notifications";
 import type {
   SalesLeadWithRelations,
   LeadActivity,
@@ -75,6 +76,17 @@ export function LeadActivitiesTab({
         showSuccess("활동이 삭제되었습니다.");
       } else {
         showError(result.error ?? "삭제에 실패했습니다.");
+      }
+    });
+  };
+
+  const handleSendMissedCall = () => {
+    startTransition(async () => {
+      const result = await sendMissedCallNotification(lead.id);
+      if (result.success) {
+        showSuccess("부재 안내가 발송되었습니다.");
+      } else {
+        showError(result.error ?? "부재 안내 발송에 실패했습니다.");
       }
     });
   };
@@ -176,13 +188,29 @@ export function LeadActivitiesTab({
                   </span>
                 </div>
                 {activity.activity_type !== "status_change" && (
-                  <button
-                    onClick={() => handleDelete(activity.id)}
-                    disabled={isPending}
-                    className="text-xs text-red-500 hover:text-red-700 dark:text-red-400"
-                  >
-                    삭제
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {(activity.metadata as Record<string, unknown>)
+                      ?.missedCallSent ? (
+                      <span className="text-xs text-gray-400 dark:text-gray-500">
+                        발송완료
+                      </span>
+                    ) : (
+                      <button
+                        onClick={handleSendMissedCall}
+                        disabled={isPending}
+                        className="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
+                      >
+                        부재 안내
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDelete(activity.id)}
+                      disabled={isPending}
+                      className="text-xs text-red-500 hover:text-red-700 dark:text-red-400"
+                    >
+                      삭제
+                    </button>
+                  </div>
                 )}
               </div>
             </div>

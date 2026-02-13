@@ -50,3 +50,5 @@ export {
   createConsultationRecord,
   lookupLeadByPhone,
 } from "./consultations";
+
+export { sendMissedCallNotification } from "./notifications";

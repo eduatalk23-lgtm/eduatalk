@@ -7,6 +7,7 @@ import { logActionError } from "@/lib/logging/actionLogger";
 import { findLeadByPhone } from "@/lib/data/salesLeads";
 import { scoreNewLead, scoreLeadActivity } from "./scoring";
 import { createAutoTask } from "./tasks";
+import { sendMissedCallNotification } from "./notifications";
 import type {
   CrmActionResult,
   ConsultationInput,
@@ -245,6 +246,26 @@ export async function createConsultationRecord(
 
     // 6. 참여도 스코어링 (비동기)
     scoreLeadActivity(leadId, activityType).catch(() => {});
+
+    // 7. 부재 안내 발송 (absent_sms인 경우)
+    if (input.consultationResult === "absent_sms") {
+      sendMissedCallNotification(leadId, { skipActivityLog: true })
+        .then(async (result) => {
+          // 발송 결과를 기존 활동 metadata에 반영
+          await supabase
+            .from("lead_activities")
+            .update({
+              metadata: {
+                consultation_result: input.consultationResult,
+                caller_type: input.callerType,
+                missedCallSent: true,
+                missedCallSuccess: result.success,
+              },
+            })
+            .eq("id", activity.id);
+        })
+        .catch(() => {});
+    }
 
     revalidatePath(CRM_PATH);
     revalidatePath(`${CRM_PATH}/leads`);

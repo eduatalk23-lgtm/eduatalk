@@ -1,15 +1,15 @@
 /**
  * 카카오 알림톡 발송 서비스
- * 비즈뿌리오 v3 API를 사용하여 알림톡 발송 + SMS 대체 발송(fallback)
- * API 문서: https://www.bizppurio.com
+ * 뿌리오 /v1/kakao API를 사용하여 알림톡 발송 + SMS 대체 발송(fallback)
+ * API 문서: https://www.ppurio.com
  */
 
 import { env } from "@/lib/env";
-import { base64Encode, validateAndNormalizePhoneNumber } from "@/lib/services/smsService";
+import { getAccessToken, validateAndNormalizePhoneNumber } from "@/lib/services/smsService";
 import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { proxyFetch } from "@/lib/services/proxyFetch";
-import type { AlimtalkButton } from "./alimtalkTemplates";
+import { buildChangeWord, type AlimtalkButton } from "./alimtalkTemplates";
 
 // ── 타입 정의 ──
 
@@ -24,6 +24,10 @@ export interface SendAlimtalkOptions {
   refKey?: string;
   sendTime?: string;
   consultationScheduleId?: string; // 상담 일정 FK (발송 이력 추적용)
+  templateVariables?: Record<string, string>; // 템플릿 변수 (changeWord 생성용)
+  variableOrder?: string[]; // 변수 순서 (changeWord var1, var2, ... 매핑)
+  smsFallbackSubject?: string; // LMS 대체 발송 시 제목 (30자)
+  notificationTarget?: string; // 알림 대상 (학생/부/모) — 발송 시점 기록
 }
 
 export interface SendAlimtalkResult {
@@ -34,96 +38,16 @@ export interface SendAlimtalkResult {
   error?: string;
 }
 
-interface BizPpurioTokenResponse {
-  token: string;
-  type: string;
-  expired: string; // ISO 날짜 문자열
-}
-
-interface BizPpurioMessageResponse {
-  code: string;
+interface PpurioKakaoResponse {
+  code: number | string;
   description: string;
-  refkey?: string;
-  messagekey?: string;
-}
-
-// ── 토큰 캐시 (smsService와 별도 관리) ──
-
-let bizTokenCache: {
-  token: string;
-  expiresAt: number;
-} | null = null;
-
-/**
- * 비즈뿌리오 v3 API 인증 토큰 발급
- * Basic Auth: Base64(account:password)
- */
-async function getBizPpurioAccessToken(): Promise<string> {
-  if (bizTokenCache && bizTokenCache.expiresAt > Date.now()) {
-    return bizTokenCache.token;
-  }
-
-  const account = env.BIZPPURIO_ACCOUNT;
-  const password = env.BIZPPURIO_PASSWORD;
-  const baseUrl = env.BIZPPURIO_API_BASE_URL || "https://api.bizppurio.com";
-
-  if (!account || !password) {
-    throw new Error(
-      "비즈뿌리오 계정(BIZPPURIO_ACCOUNT) 및 암호(BIZPPURIO_PASSWORD)가 설정되지 않았습니다."
-    );
-  }
-
-  const credentials = base64Encode(`${account}:${password}`);
-  const tokenEndpoint = `${baseUrl}/v1/token`;
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-  try {
-    const response = await proxyFetch(tokenEndpoint, {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${credentials}`,
-        "Content-Type": "application/json",
-      },
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `비즈뿌리오 토큰 발급 실패 (HTTP ${response.status}): ${errorText}`
-      );
-    }
-
-    const result: BizPpurioTokenResponse = await response.json();
-
-    if (!result.token) {
-      throw new Error("비즈뿌리오 토큰 발급 응답에 토큰이 없습니다.");
-    }
-
-    // 토큰 캐싱 (만료 시간 파싱, 여유 1시간 차감)
-    const expiresAt = result.expired
-      ? new Date(result.expired).getTime() - 60 * 60 * 1000
-      : Date.now() + 23 * 60 * 60 * 1000;
-
-    bizTokenCache = { token: result.token, expiresAt };
-
-    return result.token;
-  } catch (error: unknown) {
-    clearTimeout(timeoutId);
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("비즈뿌리오 토큰 발급 요청 시간이 초과되었습니다.");
-    }
-    throw error;
-  }
+  refKey?: string;
+  messageKey?: string;
 }
 
 /**
  * 알림톡 발송 (SMS fallback 포함)
- * 비즈뿌리오 v3 API의 resend 기능으로 알림톡 실패 시 SMS 자동 대체 발송
+ * 뿌리오 /v1/kakao API의 isResend 기능으로 알림톡 실패 시 SMS 자동 대체 발송
  */
 export async function sendAlimtalk(
   options: SendAlimtalkOptions
@@ -135,17 +59,20 @@ export async function sendAlimtalk(
     recipientId,
     tenantId,
     templateCode,
-    buttons,
     refKey,
     consultationScheduleId,
+    templateVariables,
+    variableOrder,
+    smsFallbackSubject,
+    notificationTarget,
   } = options;
 
   // 환경 변수 확인
   if (
-    !env.BIZPPURIO_ACCOUNT ||
-    !env.BIZPPURIO_PASSWORD ||
-    !env.BIZPPURIO_SENDER_KEY ||
-    !env.PPURIO_SENDER_NUMBER
+    !env.PPURIO_ACCOUNT ||
+    !env.PPURIO_AUTH_KEY ||
+    !env.PPURIO_SENDER_NUMBER ||
+    !env.PPURIO_KAKAO_SENDER_PROFILE
   ) {
     return {
       success: false,
@@ -191,6 +118,7 @@ export async function sendAlimtalk(
       channel: "alimtalk",
       alimtalk_template_code: templateCode,
       consultation_schedule_id: consultationScheduleId ?? null,
+      notification_target: notificationTarget ?? null,
     })
     .select()
     .single();
@@ -208,38 +136,47 @@ export async function sendAlimtalk(
     };
   }
 
-  const baseUrl = env.BIZPPURIO_API_BASE_URL || "https://api.bizppurio.com";
-  const messageEndpoint = `${baseUrl}/v3/message`;
+  const baseUrl = env.PPURIO_API_BASE_URL || "https://message.ppurio.com";
+  const messageEndpoint = `${baseUrl}/v1/kakao`;
   const refKeyValue = (refKey || smsLog.id).toString().slice(0, 32);
 
-  // SMS 대체 메시지 (90byte 이하면 SMS, 초과하면 LMS로 자동 처리)
+  // SMS 대체 메시지
   const smsMessage = smsFallbackMessage || message;
+  // 90바이트 초과 시 LMS로 대체 발송
+  const smsMessageBytes = new TextEncoder().encode(smsMessage).length;
+  const resendMessageType = smsMessageBytes <= 90 ? "SMS" : "LMS";
 
   try {
-    const accessToken = await getBizPpurioAccessToken();
+    const accessToken = await getAccessToken();
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-    // 비즈뿌리오 v3 요청 바디
+    // changeWord 생성 (variableOrder + templateVariables)
+    const target: Record<string, unknown> = { to: normalizedPhone };
+    if (variableOrder && templateVariables) {
+      target.changeWord = buildChangeWord(variableOrder, templateVariables);
+    }
+
+    // 뿌리오 /v1/kakao 요청 바디
     const requestBody: Record<string, unknown> = {
-      account: env.BIZPPURIO_ACCOUNT,
-      type: "at", // 알림톡
-      from: env.PPURIO_SENDER_NUMBER,
-      to: normalizedPhone,
-      refkey: refKeyValue,
-      content: {
-        at: {
-          senderkey: env.BIZPPURIO_SENDER_KEY,
-          templatecode: templateCode,
-          message: message,
-          ...(buttons?.length && { button: buttons }),
-        },
+      account: env.PPURIO_ACCOUNT,
+      messageType: "alt", // 알림톡
+      senderProfile: env.PPURIO_KAKAO_SENDER_PROFILE,
+      templateCode: templateCode,
+      duplicateFlag: "N",
+      isResend: "Y", // 알림톡 실패 시 SMS/LMS 자동 대체 발송
+      resend: {
+        messageType: resendMessageType,
+        content: smsMessage,
+        from: env.PPURIO_SENDER_NUMBER,
+        ...(resendMessageType === "LMS" && smsFallbackSubject
+          ? { subject: smsFallbackSubject.slice(0, 30) }
+          : {}),
       },
-      resend: "sms", // 알림톡 실패 시 SMS 대체 발송
-      recontent: {
-        sms: { message: smsMessage },
-      },
+      targetCount: 1,
+      targets: [target],
+      refKey: refKeyValue,
     };
 
     logActionDebug(
@@ -272,7 +209,7 @@ export async function sendAlimtalk(
       }
     );
 
-    let result: BizPpurioMessageResponse;
+    let result: PpurioKakaoResponse;
     try {
       result = JSON.parse(responseText);
     } catch {
@@ -287,17 +224,19 @@ export async function sendAlimtalk(
       );
     }
 
-    const responseCode = parseInt(result.code, 10);
+    const responseCode = typeof result.code === "string"
+      ? parseInt(result.code, 10)
+      : result.code;
 
     if (responseCode === 1000) {
-      const messageKey = result.messagekey || `ref-${refKeyValue}`;
+      const messageKey = result.messageKey || `ref-${refKeyValue}`;
 
       await logClient
         .from("sms_logs")
         .update({
           status: "sent",
           sent_at: new Date().toISOString(),
-          message_key: result.messagekey || null,
+          message_key: result.messageKey || null,
           ref_key: refKeyValue || null,
         })
         .eq("id", smsLog.id);
@@ -391,6 +330,8 @@ export async function sendBulkAlimtalk(
     recipientId?: string;
     templateCode?: string;
     buttons?: AlimtalkButton[];
+    templateVariables?: Record<string, string>;
+    variableOrder?: string[];
   }>,
   tenantId: string,
   defaultTemplateCode: string,
@@ -415,6 +356,8 @@ export async function sendBulkAlimtalk(
       tenantId,
       templateCode: recipient.templateCode || defaultTemplateCode,
       buttons: recipient.buttons,
+      templateVariables: recipient.templateVariables,
+      variableOrder: recipient.variableOrder,
     });
 
     if (result.success) {
