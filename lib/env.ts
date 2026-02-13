@@ -38,6 +38,8 @@ const envSchema = z.object({
   BIZPPURIO_PASSWORD: z.string().optional(), // 비즈뿌리오 암호
   BIZPPURIO_API_BASE_URL: z.string().url().optional(), // API 기본 URL (기본값: https://api.bizppurio.com)
   BIZPPURIO_SENDER_KEY: z.string().optional(), // 카카오 발신프로필 키 (40자)
+  // 뿌리오 카카오 알림톡
+  PPURIO_KAKAO_SENDER_PROFILE: z.string().optional(), // 뿌리오 카카오 발신프로필 (예: @에듀엣톡)
 });
 
 /**
@@ -75,6 +77,8 @@ export const env = (() => {
       BIZPPURIO_PASSWORD: process.env.BIZPPURIO_PASSWORD,
       BIZPPURIO_API_BASE_URL: process.env.BIZPPURIO_API_BASE_URL || "https://api.bizppurio.com",
       BIZPPURIO_SENDER_KEY: process.env.BIZPPURIO_SENDER_KEY,
+      // 뿌리오 카카오 알림톡
+      PPURIO_KAKAO_SENDER_PROFILE: process.env.PPURIO_KAKAO_SENDER_PROFILE,
     };
 
     // 빌드 시점 체크 (Next.js 빌드 프로세스 감지)
@@ -121,6 +125,8 @@ export const env = (() => {
         BIZPPURIO_PASSWORD: envValues.BIZPPURIO_PASSWORD,
         BIZPPURIO_API_BASE_URL: envValues.BIZPPURIO_API_BASE_URL,
         BIZPPURIO_SENDER_KEY: envValues.BIZPPURIO_SENDER_KEY,
+        // 뿌리오 카카오 알림톡
+        PPURIO_KAKAO_SENDER_PROFILE: envValues.PPURIO_KAKAO_SENDER_PROFILE,
       };
     }
 

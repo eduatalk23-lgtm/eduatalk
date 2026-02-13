@@ -169,6 +169,15 @@ npx tsx scripts/cold-start-batch.ts math --limit=5  # 수학 5개만
 
 **수동 실행:** GitHub Actions → "Cold Start Batch Processing" → Run workflow
 
+## Deployment & Hosting
+
+**Vercel (Hobby Plan)**으로 배포. 자동 배포: `main` 브랜치 push 시 트리거.
+
+**주의사항:**
+- **패키지 설치 시 반드시 `pnpm add`로 설치** — `node_modules`에만 존재하고 `package.json`에 없으면 로컬은 동작하지만 Vercel 빌드 실패
+- **Cron 제한**: Hobby 플랜은 **하루 1회(daily) cron만 허용** — `*/5 * * * *`, `0 * * * *` 등 sub-daily 스케줄 사용 불가 (`vercel.json`)
+- 빌드 실패 시 Vercel 대시보드에서 에러 로그 확인 필요
+
 ## Agent Workflow Rules (자동 서브에이전트 활용)
 
 Claude가 작업 수행 시 **반드시** 아래 워크플로우를 따른다.

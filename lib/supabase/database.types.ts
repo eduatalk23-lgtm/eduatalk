@@ -7341,10 +7341,21 @@ export type Database = {
       }
       student_internal_scores: {
         Row: {
+          achievement_level: string | null
+          achievement_ratio_a: number | null
+          achievement_ratio_b: number | null
+          achievement_ratio_c: number | null
+          achievement_ratio_d: number | null
+          achievement_ratio_e: number | null
+          adjusted_grade: number | null
           avg_score: number | null
+          class_rank: number | null
+          converted_grade_9: number | null
           created_at: string | null
           credit_hours: number
           curriculum_revision_id: string
+          estimated_percentile: number | null
+          estimated_std_dev: number | null
           grade: number
           id: string
           notes: string | null
@@ -7362,10 +7373,21 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          achievement_level?: string | null
+          achievement_ratio_a?: number | null
+          achievement_ratio_b?: number | null
+          achievement_ratio_c?: number | null
+          achievement_ratio_d?: number | null
+          achievement_ratio_e?: number | null
+          adjusted_grade?: number | null
           avg_score?: number | null
+          class_rank?: number | null
+          converted_grade_9?: number | null
           created_at?: string | null
           credit_hours: number
           curriculum_revision_id: string
+          estimated_percentile?: number | null
+          estimated_std_dev?: number | null
           grade: number
           id?: string
           notes?: string | null
@@ -7383,10 +7405,21 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          achievement_level?: string | null
+          achievement_ratio_a?: number | null
+          achievement_ratio_b?: number | null
+          achievement_ratio_c?: number | null
+          achievement_ratio_d?: number | null
+          achievement_ratio_e?: number | null
+          adjusted_grade?: number | null
           avg_score?: number | null
+          class_rank?: number | null
+          converted_grade_9?: number | null
           created_at?: string | null
           credit_hours?: number
           curriculum_revision_id?: string
+          estimated_percentile?: number | null
+          estimated_std_dev?: number | null
           grade?: number
           id?: string
           notes?: string | null
@@ -8728,6 +8761,7 @@ export type Database = {
           created_at: string | null
           curriculum_revision_id: string
           id: string
+          is_achievement_only: boolean
           is_active: boolean
           name: string
           updated_at: string | null
@@ -8736,6 +8770,7 @@ export type Database = {
           created_at?: string | null
           curriculum_revision_id: string
           id?: string
+          is_achievement_only?: boolean
           is_active?: boolean
           name: string
           updated_at?: string | null
@@ -8744,6 +8779,7 @@ export type Database = {
           created_at?: string | null
           curriculum_revision_id?: string
           id?: string
+          is_achievement_only?: boolean
           is_active?: boolean
           name?: string
           updated_at?: string | null
@@ -10093,7 +10129,9 @@ export type Database = {
       }
       scores: {
         Row: {
+          achievement_level: string | null
           avg_score: number | null
+          class_rank: number | null
           created_at: string | null
           exam_date: string | null
           exam_title: string | null
