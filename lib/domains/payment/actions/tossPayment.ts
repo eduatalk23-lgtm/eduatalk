@@ -5,7 +5,12 @@ import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { cancelTossPayment } from "@/lib/services/tossPayments";
+import {
+  cancelTossPayment,
+  getPaymentByOrderId,
+  getPaymentByPaymentKey,
+} from "@/lib/services/tossPayments";
+import type { TossPaymentResponse } from "@/lib/services/tossPayments";
 import { getLinkedStudents } from "@/lib/domains/parent/utils";
 import { logActionError } from "@/lib/logging/actionLogger";
 
@@ -374,6 +379,143 @@ export async function refundTossPaymentAction(
         error instanceof Error
           ? error.message
           : "환불 처리 중 오류가 발생했습니다.",
+    };
+  }
+}
+
+/**
+ * 토스페이먼츠 결제 상태 동기화 (관리자 전용)
+ * DB에 paid/partial로 저장된 건 중 토스에서 환불된 건을 찾아 DB에 반영
+ */
+export async function syncTossPaymentStatusAction(
+  studentId?: string
+): Promise<
+  ActionResult<{ synced: number; checked: number; failed: number; errors: string[] }>
+> {
+  try {
+    const { tenantId } = await requireAdminOrConsultant({
+      requireTenant: true,
+    });
+
+    if (!tenantId) {
+      return { success: false, error: "기관 정보를 찾을 수 없습니다." };
+    }
+
+    const adminClient = createSupabaseAdminClient();
+    if (!adminClient) {
+      return { success: false, error: "Admin client 초기화 실패" };
+    }
+
+    // toss_payment_key 또는 toss_order_id가 있고, paid/partial 상태인 레코드 조회
+    let query = adminClient
+      .from("payment_records")
+      .select("id, amount, paid_amount, status, toss_order_id, toss_payment_key")
+      .eq("tenant_id", tenantId)
+      .in("status", ["paid", "partial"])
+      .or("toss_order_id.not.is.null,toss_payment_key.not.is.null");
+
+    if (studentId) {
+      query = query.eq("student_id", studentId);
+    }
+
+    const { data: records, error } = await query;
+
+    if (error || !records) {
+      return { success: false, error: "결제 레코드 조회에 실패했습니다." };
+    }
+
+    if (records.length === 0) {
+      return {
+        success: true,
+        data: { synced: 0, checked: 0, failed: 0, errors: [] },
+      };
+    }
+
+    let synced = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < records.length; i++) {
+      const record = records[i];
+
+      // API 호출 간 간격 (rate limit 방지)
+      if (i > 0) {
+        await new Promise((r) => setTimeout(r, 300));
+      }
+
+      // 토스 API 조회: paymentKey 우선, 실패 시 orderId fallback
+      let tossPayment: TossPaymentResponse | null = null;
+
+      if (record.toss_payment_key) {
+        try {
+          tossPayment = await getPaymentByPaymentKey(record.toss_payment_key);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "알 수 없는 오류";
+          errors.push(
+            `paymentKey(${record.toss_payment_key}) 조회 실패: ${msg}`
+          );
+        }
+      }
+
+      if (!tossPayment && record.toss_order_id) {
+        try {
+          tossPayment = await getPaymentByOrderId(record.toss_order_id);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "알 수 없는 오류";
+          errors.push(
+            `orderId(${record.toss_order_id}) 조회 실패: ${msg}`
+          );
+        }
+      }
+
+      if (!tossPayment) {
+        failed++;
+        continue;
+      }
+
+      // 토스 상태가 취소 관련이면 DB 업데이트
+      if (
+        tossPayment.status === "CANCELED" ||
+        tossPayment.status === "PARTIAL_CANCELED"
+      ) {
+        const remainingAmount = tossPayment.balanceAmount ?? 0;
+        const isFullRefund = remainingAmount <= 0;
+
+        const latestCancel =
+          tossPayment.cancels?.[tossPayment.cancels.length - 1];
+        const cancelReason = latestCancel?.cancelReason ?? "토스 대시보드 환불";
+        const cancelAmount = latestCancel?.cancelAmount ?? record.paid_amount;
+
+        await adminClient
+          .from("payment_records")
+          .update({
+            status: isFullRefund ? "refunded" : ("partial" as const),
+            paid_amount: isFullRefund ? 0 : remainingAmount,
+            memo: `[동기화] 환불: ${cancelReason} (${cancelAmount.toLocaleString()}원)`,
+            toss_raw_response: JSON.parse(JSON.stringify(tossPayment)),
+          })
+          .eq("id", record.id);
+
+        synced++;
+      }
+    }
+
+    if (synced > 0) {
+      revalidatePath("/admin/students");
+      revalidatePath("/parent/payments");
+    }
+
+    return {
+      success: true,
+      data: { synced, checked: records.length, failed, errors },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "동기화 중 오류가 발생했습니다.",
     };
   }
 }

@@ -177,6 +177,35 @@ export async function getPaymentByOrderId(
 }
 
 /**
+ * 토스페이먼츠 결제 조회 (paymentKey 기반)
+ * GET /v1/payments/{paymentKey}
+ */
+export async function getPaymentByPaymentKey(
+  paymentKey: string
+): Promise<TossPaymentResponse> {
+  const response = await fetch(
+    `${TOSS_API_BASE}/payments/${encodeURIComponent(paymentKey)}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: getTossAuthHeader(),
+      },
+    }
+  );
+
+  const body = await response.json();
+
+  if (!response.ok) {
+    const errorBody = body as TossErrorResponse;
+    const error = new Error(errorBody.message) as Error & { code?: string };
+    error.code = errorBody.code;
+    throw error;
+  }
+
+  return body as TossPaymentResponse;
+}
+
+/**
  * 토스페이먼츠 결제 취소(환불)
  * POST /v1/payments/{paymentKey}/cancel
  */
