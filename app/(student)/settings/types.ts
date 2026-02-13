@@ -31,12 +31,14 @@ export type StudentFormData = {
   name: string;
   school_id: string; // school text → school_id FK
   grade: string;
+  class: string;
   birth_date: string;
   // 프로필 정보
   gender: Gender | "";
   phone: string;
   mother_phone: string;
   father_phone: string;
+  address: string;
   // 진로 정보
   exam_year: string;
   curriculum_revision: CurriculumRevision | "";

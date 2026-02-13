@@ -18,11 +18,13 @@ export async function transformStudentToFormData(
       name: userDisplayName || "",
       school_id: "",
       grade: "",
+      class: "",
       birth_date: "",
       gender: "",
       phone: "",
       mother_phone: "",
       father_phone: "",
+      address: "",
       exam_year: "",
       curriculum_revision: "",
       desired_university_ids: [],
@@ -40,11 +42,13 @@ export async function transformStudentToFormData(
     name: displayName,
     school_id: studentData.school_id || "",
     grade: gradeNumber,
+    class: studentData.class || "",
     birth_date: studentData.birth_date || "",
     gender: toFormDataValue(studentData.gender, isGender),
     phone: studentData.phone || "",
     mother_phone: studentData.mother_phone || "",
     father_phone: studentData.father_phone || "",
+    address: studentData.address || "",
     exam_year: studentData.exam_year?.toString() || "",
     curriculum_revision: toFormDataValue(
       studentData.curriculum_revision,
@@ -67,6 +71,7 @@ export function transformFormDataToUpdatePayload(
   basic: {
     name: string | null;
     grade: string;
+    class: string;
     birth_date: string;
     school_id: string | null;
   };
@@ -75,6 +80,7 @@ export function transformFormDataToUpdatePayload(
     phone: string | null;
     mother_phone: string | null;
     father_phone: string | null;
+    address: string | null;
   };
   career: {
     exam_year: number | null;
@@ -87,6 +93,7 @@ export function transformFormDataToUpdatePayload(
     basic: {
       name: formData.name || null,
       grade: formData.grade,
+      class: formData.class || "",
       birth_date: formData.birth_date,
       school_id: formData.school_id || null,
     },
@@ -95,6 +102,7 @@ export function transformFormDataToUpdatePayload(
       phone: formData.phone || null,
       mother_phone: formData.mother_phone || null,
       father_phone: formData.father_phone || null,
+      address: formData.address || null,
     },
     career: {
       exam_year: formData.exam_year ? parseInt(formData.exam_year, 10) : null,

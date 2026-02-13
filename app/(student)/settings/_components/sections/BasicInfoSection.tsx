@@ -1,203 +1,212 @@
 "use client";
 
-import { memo, useMemo, useCallback } from "react";
-import { useSettings } from "../SettingsContext";
-import { SectionCard } from "@/components/ui/SectionCard";
+import { useController, type Control } from "react-hook-form";
+import FormField, { FormSelect } from "@/components/molecules/FormField";
 import SchoolSelect from "@/components/ui/SchoolSelect";
+import type { StudentFormData } from "../../types";
 import { GENDER_OPTIONS } from "@/lib/utils/studentProfile";
-import { cn } from "@/lib/cn";
-import { formatGradeDisplay } from "@/lib/utils/studentFormUtils";
-import {
-  getFormLabelClasses,
-  getFormInputClasses,
-  getFormErrorClasses,
-  textPrimaryVar,
-} from "@/lib/utils/darkMode";
 
-function BasicInfoSection() {
-  const {
-    formData,
-    errors,
-    isInitialSetup,
-    schoolType,
-    updateFormData,
-    setErrors,
-    setSchoolType,
-  } = useSettings();
+type BasicInfoSectionProps = {
+  control: Control<StudentFormData>;
+  schoolType?: "중학교" | "고등학교" | undefined;
+  setSchoolType: (type: "중학교" | "고등학교" | undefined) => void;
+  disabled?: boolean;
+};
 
-  const handleFieldChange = useCallback(
-    (field: keyof typeof formData) => (value: string) => {
-      updateFormData({ [field]: value });
-      if (errors[field]) {
-        setErrors((prev) => ({ ...prev, [field]: undefined }));
-      }
-    },
-    [updateFormData, errors, setErrors]
-  );
+const GRADE_OPTIONS = [
+  { value: "1", label: "1학년" },
+  { value: "2", label: "2학년" },
+  { value: "3", label: "3학년" },
+];
 
-  // SchoolSelect의 onChange 핸들러 - ID 또는 이름을 받아서 school_id 업데이트
-  const handleSchoolChange = useCallback(
-    (value: string) => {
-      // SchoolSelect는 school.id 또는 school.name을 전달
-      // ID 형식인지 확인 (SCHOOL_123 또는 UNIV_456)
-      const isUnifiedId = /^(SCHOOL_|UNIV_)\d+$/.test(value);
-      const schoolId = isUnifiedId ? value : "";
-      
-      updateFormData({ school_id: schoolId });
-      
-      // 에러가 있으면 제거
-      if (errors.school_id) {
-        setErrors((prev) => ({ ...prev, school_id: undefined }));
-      }
-    },
-    [updateFormData, errors, setErrors]
-  );
+export default function BasicInfoSection({
+  control,
+  schoolType,
+  setSchoolType,
+  disabled,
+}: BasicInfoSectionProps) {
+  const nameField = useController({
+    name: "name",
+    control,
+    rules: { required: "이름을 입력해주세요" },
+  });
 
-  // SchoolSelect의 onSchoolSelect 핸들러 - 학교 선택 시 추가 처리
-  const handleSchoolSelect = useCallback(
-    async (school: { id: string; name: string; type?: "중학교" | "고등학교" | "대학교" | null }) => {
-      // school_id 업데이트 (이미 handleSchoolChange에서 처리되지만, 확실히 하기 위해)
-      updateFormData({ school_id: school.id || "" });
-      
-      // 학교 타입 조회 및 설정
-      if (school.type === "중학교" || school.type === "고등학교") {
-        setSchoolType(school.type);
-      } else {
-        setSchoolType(undefined);
-      }
-    },
-    [updateFormData, setSchoolType]
-  );
+  const genderField = useController({
+    name: "gender",
+    control,
+  });
 
-  const gradeDisplay = useMemo(
-    () => formatGradeDisplay(formData.grade, schoolType),
-    [formData.grade, schoolType]
-  );
+  const birthDateField = useController({
+    name: "birth_date",
+    control,
+    rules: { required: "생년월일을 입력해주세요" },
+  });
+
+  const schoolIdField = useController({
+    name: "school_id",
+    control,
+  });
+
+  const gradeField = useController({
+    name: "grade",
+    control,
+    rules: { required: "학년을 선택해주세요" },
+  });
+
+  const classField = useController({
+    name: "class",
+    control,
+  });
+
+  const phoneField = useController({
+    name: "phone",
+    control,
+  });
+
+  const motherPhoneField = useController({
+    name: "mother_phone",
+    control,
+  });
+
+  const fatherPhoneField = useController({
+    name: "father_phone",
+    control,
+  });
+
+  const addressField = useController({
+    name: "address",
+    control,
+  });
+
+  const handleSchoolSelect = (school: {
+    id: string;
+    name: string;
+    type?: "중학교" | "고등학교" | "대학교" | null;
+  }) => {
+    schoolIdField.field.onChange(school.id || "");
+    if (school.type === "중학교" || school.type === "고등학교") {
+      setSchoolType(school.type);
+    } else {
+      setSchoolType(undefined);
+    }
+  };
 
   return (
-    <SectionCard
-      title="기본 정보"
-      description="학생의 기본 정보를 입력하세요"
-    >
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <label className={cn(getFormLabelClasses(), "flex items-center gap-2")}>
-            이름 <span className="text-red-500 dark:text-red-400">*</span>
-            {isInitialSetup && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium">
-                필수
-              </span>
-            )}
-          </label>
-          <input
+    <div className="flex flex-col gap-6">
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">기본 정보</h3>
+        <div className="flex flex-col gap-4">
+          {/* 이름 / 성별 / 생년월일 */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <FormField
+              {...nameField.field}
+              label="이름"
+              required
+              disabled={disabled}
+              error={nameField.fieldState.error?.message}
+            />
+            <FormSelect
+              {...genderField.field}
+              label="성별"
+              disabled={disabled}
+              options={[
+                { value: "", label: "선택 안 함" },
+                ...GENDER_OPTIONS.map((g) => ({
+                  value: g.value,
+                  label: g.label,
+                })),
+              ]}
+              error={genderField.fieldState.error?.message}
+            />
+            <FormField
+              {...birthDateField.field}
+              label="생년월일"
+              type="date"
+              required
+              disabled={disabled}
+              error={birthDateField.fieldState.error?.message}
+            />
+          </div>
+
+          {/* 학교 검색 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              학교
+            </label>
+            <SchoolSelect
+              value={schoolIdField.field.value}
+              onChange={schoolIdField.field.onChange}
+              onSchoolSelect={handleSchoolSelect}
+              placeholder="학교를 검색하세요"
+              disabled={disabled}
+            />
+          </div>
+
+          {/* 학년 / 반 */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <FormSelect
+              {...gradeField.field}
+              label="학년"
+              required
+              disabled={disabled}
+              options={[
+                { value: "", label: "선택 안 함" },
+                ...GRADE_OPTIONS.map((g) => ({
+                  value: g.value,
+                  label: g.label,
+                })),
+              ]}
+              error={gradeField.fieldState.error?.message}
+            />
+            <FormField
+              {...classField.field}
+              label="반"
+              type="text"
+              placeholder="반 번호"
+              disabled={disabled}
+              error={classField.fieldState.error?.message}
+            />
+          </div>
+
+          {/* 연락처 3열 */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <FormField
+              {...phoneField.field}
+              label="본인 연락처"
+              type="tel"
+              placeholder="010-0000-0000"
+              disabled={disabled}
+              error={phoneField.fieldState.error?.message}
+            />
+            <FormField
+              {...motherPhoneField.field}
+              label="모 연락처"
+              type="tel"
+              placeholder="010-0000-0000"
+              disabled={disabled}
+              error={motherPhoneField.fieldState.error?.message}
+            />
+            <FormField
+              {...fatherPhoneField.field}
+              label="부 연락처"
+              type="tel"
+              placeholder="010-0000-0000"
+              disabled={disabled}
+              error={fatherPhoneField.fieldState.error?.message}
+            />
+          </div>
+
+          {/* 주소 */}
+          <FormField
+            {...addressField.field}
+            label="주소"
             type="text"
-            value={formData.name}
-            onChange={(e) => {
-              handleFieldChange("name")(e.target.value);
-            }}
-            className={getFormInputClasses(
-              !!errors.name,
-              isInitialSetup && !formData.name,
-              false
-            )}
-            required
-            placeholder="이름을 입력하세요"
+            placeholder="주소를 입력하세요"
+            disabled={disabled}
+            error={addressField.fieldState.error?.message}
           />
-          {errors.name && (
-            <p className={getFormErrorClasses()}>{errors.name}</p>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label className={getFormLabelClasses()}>학교</label>
-          <SchoolSelect
-            value={formData.school_id}
-            onChange={handleSchoolChange}
-            onSchoolSelect={handleSchoolSelect}
-            placeholder="학교를 검색하세요"
-          />
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label className={cn(getFormLabelClasses(), "flex items-center gap-2")}>
-            학년 <span className="text-red-500 dark:text-red-400">*</span>
-            {isInitialSetup && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium">
-                필수
-              </span>
-            )}
-          </label>
-          <select
-            value={formData.grade}
-            onChange={(e) => {
-              handleFieldChange("grade")(e.target.value);
-            }}
-            className={getFormInputClasses(
-              !!errors.grade,
-              isInitialSetup && !formData.grade,
-              false
-            )}
-            required
-          >
-            <option value="">학년 선택</option>
-            <option value="1">1학년</option>
-            <option value="2">2학년</option>
-            <option value="3">3학년</option>
-          </select>
-          {errors.grade && (
-            <p className={getFormErrorClasses()}>{errors.grade}</p>
-          )}
-          {gradeDisplay && (
-            <p className="text-xs text-gray-500 dark:text-gray-400">표시: {gradeDisplay}</p>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label className={cn(getFormLabelClasses(), "flex items-center gap-2")}>
-            생년월일 <span className="text-red-500 dark:text-red-400">*</span>
-            {isInitialSetup && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium">
-                필수
-              </span>
-            )}
-          </label>
-          <input
-            type="date"
-            value={formData.birth_date}
-            onChange={(e) => {
-              handleFieldChange("birth_date")(e.target.value);
-            }}
-            className={getFormInputClasses(
-              !!errors.birth_date,
-              isInitialSetup && !formData.birth_date,
-              false
-            )}
-            required
-          />
-          {errors.birth_date && (
-            <p className={getFormErrorClasses()}>{errors.birth_date}</p>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label className={getFormLabelClasses()}>성별</label>
-          <select
-            value={formData.gender}
-            onChange={(e) => handleFieldChange("gender")(e.target.value)}
-            className={getFormInputClasses(false, false, false)}
-          >
-            <option value="">선택하세요</option>
-            {GENDER_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
         </div>
       </div>
-    </SectionCard>
+    </div>
   );
 }
-
-export default memo(BasicInfoSection);
-
