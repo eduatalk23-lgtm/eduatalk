@@ -21,6 +21,7 @@ export type SubjectType = {
   name: string; // 과목구분명 (예: 공통, 일반선택, 진로선택)
   display_order?: number;
   is_active: boolean;
+  is_achievement_only: boolean; // 성취평가제 전용 과목구분 여부
   created_at?: string;
   updated_at?: string;
 };
@@ -527,6 +528,32 @@ export async function getActiveCurriculumRevision(): Promise<{
       defaultValue: null,
     }
   );
+}
+
+export type CurriculumRevisionInfo = {
+  id: string;
+  name: string;
+  year: number | null;
+};
+
+/**
+ * 모든 활성화된 개정교육과정 조회 (최신순)
+ */
+export async function getAllActiveCurriculumRevisions(): Promise<CurriculumRevisionInfo[]> {
+  const supabase = await getSupabaseClientForRLSBypass();
+
+  const { data, error } = await supabase
+    .from("curriculum_revisions")
+    .select("id, name, year")
+    .eq("is_active", true)
+    .order("year", { ascending: false, nullsFirst: false });
+
+  if (error) {
+    handleQueryError(error, { context: "[data/subjects] getAllActiveCurriculumRevisions" });
+    return [];
+  }
+
+  return (data ?? []) as CurriculumRevisionInfo[];
 }
 
 /**

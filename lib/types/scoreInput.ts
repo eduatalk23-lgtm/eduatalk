@@ -25,13 +25,22 @@ export type InternalScoreInputForm = {
   grade: number; // 학년 (1~3)
   semester: number; // 학기 (1~2)
   credit_hours: number; // 학점수 (예: 4)
-  rank_grade: number; // 석차등급 (1~9)
+  rank_grade: number | null; // 석차등급 (1~9), 성취평가제 과목은 null
 
   // 선택 필드
   raw_score?: number | null; // 원점수
   avg_score?: number | null; // 과목평균
   std_dev?: number | null; // 표준편차
   total_students?: number | null; // 수강자수
+
+  // 성취평가제 필드
+  achievement_level?: string | null; // 성취도 (A~E)
+  achievement_ratio_a?: number | null; // 성취도비율 A (%)
+  achievement_ratio_b?: number | null; // 성취도비율 B (%)
+  achievement_ratio_c?: number | null; // 성취도비율 C (%)
+  achievement_ratio_d?: number | null; // 성취도비율 D (%)
+  achievement_ratio_e?: number | null; // 성취도비율 E (%)
+  class_rank?: number | null; // 석차
 };
 
 /**

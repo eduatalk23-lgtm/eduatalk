@@ -45,6 +45,27 @@ export const examTypeSchema = z.enum(["수능", "평가원", "교육청", "사�
 // 내신 성적 스키마
 // ============================================
 
+export const achievementLevelSchema = z
+  .string()
+  .length(1)
+  .regex(/^[A-E]$/, "성취도는 A~E 중 하나여야 합니다")
+  .optional()
+  .nullable();
+
+export const achievementRatioSchema = z
+  .number()
+  .min(0, "성취도비율은 0 이상이어야 합니다")
+  .max(100, "성취도비율은 100 이하여야 합니다")
+  .optional()
+  .nullable();
+
+export const classRankSchema = z
+  .number()
+  .int()
+  .positive("석차는 양수여야 합니다")
+  .optional()
+  .nullable();
+
 export const createSchoolScoreSchema = z.object({
   grade: gradeSchema,
   semester: semesterSchema,
@@ -63,6 +84,14 @@ export const createSchoolScoreSchema = z.object({
   grade_score: gradeScoreSchema,
   total_students: z.number().positive("수강자수는 양수여야 합니다").optional().nullable(),
   rank_grade: gradeScoreSchema.optional().nullable(),
+  // 성취평가제 필드
+  achievement_level: achievementLevelSchema,
+  achievement_ratio_a: achievementRatioSchema,
+  achievement_ratio_b: achievementRatioSchema,
+  achievement_ratio_c: achievementRatioSchema,
+  achievement_ratio_d: achievementRatioSchema,
+  achievement_ratio_e: achievementRatioSchema,
+  class_rank: classRankSchema,
 });
 
 export const updateSchoolScoreSchema = createSchoolScoreSchema.partial();

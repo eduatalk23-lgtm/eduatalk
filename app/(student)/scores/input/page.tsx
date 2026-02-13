@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { getActiveCurriculumRevision, getSubjectHierarchyOptimized } from "@/lib/data/subjects";
+import { getAllActiveCurriculumRevisions, getSubjectHierarchyOptimized } from "@/lib/data/subjects";
 import { SectionHeader } from "@/components/ui";
 import ScoreInputLayout from "./_components/ScoreInputLayout";
 import { getContainerClass } from "@/lib/constants/layout";
@@ -12,9 +12,9 @@ export default async function ScoreInputPage() {
     redirect("/login");
   }
 
-  // 활성화된 개정교육과정 조회
-  const activeCurriculum = await getActiveCurriculumRevision();
-  if (!activeCurriculum) {
+  // 모든 활성 교육과정 조회
+  const activeCurricula = await getAllActiveCurriculumRevisions();
+  if (activeCurricula.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="flex flex-col gap-2 text-center">
@@ -29,8 +29,17 @@ export default async function ScoreInputPage() {
     );
   }
 
-  // 교과 계층 구조 조회 (교과군 → 과목 → 과목구분)
-  const hierarchy = await getSubjectHierarchyOptimized(activeCurriculum.id);
+  // 각 교육과정의 과목 계층 구조를 병렬 조회
+  const hierarchies = await Promise.all(
+    activeCurricula.map(async (c) => {
+      const hierarchy = await getSubjectHierarchyOptimized(c.id);
+      return {
+        curriculum: { id: c.id, name: c.name, year: c.year },
+        subjectGroups: hierarchy.subjectGroups,
+        subjectTypes: hierarchy.subjectTypes,
+      };
+    })
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -47,13 +56,10 @@ export default async function ScoreInputPage() {
           <ScoreInputLayout
             studentId={currentUser.userId}
             tenantId={currentUser.tenantId || ""}
-            curriculum={hierarchy.curriculumRevision}
-            subjectGroups={hierarchy.subjectGroups}
-            subjectTypes={hierarchy.subjectTypes}
+            curriculumOptions={hierarchies}
           />
         </div>
       </div>
     </div>
   );
 }
-

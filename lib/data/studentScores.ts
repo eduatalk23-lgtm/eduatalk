@@ -228,7 +228,18 @@ export async function createInternalScore(score: {
   std_dev?: number | null;
   rank_grade?: number | null;
   total_students?: number | null;
-  school_year?: number; // 학년도 (선택사항, 없으면 현재 날짜 기준 계산)
+  achievement_level?: string | null;
+  achievement_ratio_a?: number | null;
+  achievement_ratio_b?: number | null;
+  achievement_ratio_c?: number | null;
+  achievement_ratio_d?: number | null;
+  achievement_ratio_e?: number | null;
+  class_rank?: number | null;
+  school_year?: number;
+  estimated_percentile?: number | null;
+  estimated_std_dev?: number | null;
+  converted_grade_9?: number | null;
+  adjusted_grade?: number | null;
 }): Promise<{ success: boolean; scoreId?: string; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
@@ -274,6 +285,17 @@ export async function createInternalScore(score: {
     std_dev: score.std_dev ?? null,
     rank_grade: score.rank_grade ?? null,
     total_students: score.total_students ?? null,
+    achievement_level: score.achievement_level ?? null,
+    achievement_ratio_a: score.achievement_ratio_a ?? null,
+    achievement_ratio_b: score.achievement_ratio_b ?? null,
+    achievement_ratio_c: score.achievement_ratio_c ?? null,
+    achievement_ratio_d: score.achievement_ratio_d ?? null,
+    achievement_ratio_e: score.achievement_ratio_e ?? null,
+    class_rank: score.class_rank ?? null,
+    estimated_percentile: score.estimated_percentile ?? null,
+    estimated_std_dev: score.estimated_std_dev ?? null,
+    converted_grade_9: score.converted_grade_9 ?? null,
+    adjusted_grade: score.adjusted_grade ?? null,
   };
 
   const result = await createTypedQuery<{ id: string }>(
@@ -343,6 +365,28 @@ export async function updateInternalScore(
     payload.rank_grade = updates.rank_grade;
   if (updates.total_students !== undefined)
     payload.total_students = updates.total_students;
+  if (updates.achievement_level !== undefined)
+    payload.achievement_level = updates.achievement_level;
+  if (updates.achievement_ratio_a !== undefined)
+    payload.achievement_ratio_a = updates.achievement_ratio_a;
+  if (updates.achievement_ratio_b !== undefined)
+    payload.achievement_ratio_b = updates.achievement_ratio_b;
+  if (updates.achievement_ratio_c !== undefined)
+    payload.achievement_ratio_c = updates.achievement_ratio_c;
+  if (updates.achievement_ratio_d !== undefined)
+    payload.achievement_ratio_d = updates.achievement_ratio_d;
+  if (updates.achievement_ratio_e !== undefined)
+    payload.achievement_ratio_e = updates.achievement_ratio_e;
+  if (updates.class_rank !== undefined)
+    payload.class_rank = updates.class_rank;
+  if (updates.estimated_percentile !== undefined)
+    payload.estimated_percentile = updates.estimated_percentile;
+  if (updates.estimated_std_dev !== undefined)
+    payload.estimated_std_dev = updates.estimated_std_dev;
+  if (updates.converted_grade_9 !== undefined)
+    payload.converted_grade_9 = updates.converted_grade_9;
+  if (updates.adjusted_grade !== undefined)
+    payload.adjusted_grade = updates.adjusted_grade;
 
   const result = await createTypedQuery<null>(
     async () => {
@@ -598,11 +642,22 @@ export async function createInternalScoresBatch(
     grade: number;
     semester: number;
     credit_hours: number;
-    rank_grade: number;
+    rank_grade: number | null;
     raw_score?: number | null;
     avg_score?: number | null;
     std_dev?: number | null;
     total_students?: number | null;
+    achievement_level?: string | null;
+    achievement_ratio_a?: number | null;
+    achievement_ratio_b?: number | null;
+    achievement_ratio_c?: number | null;
+    achievement_ratio_d?: number | null;
+    achievement_ratio_e?: number | null;
+    class_rank?: number | null;
+    estimated_percentile?: number | null;
+    estimated_std_dev?: number | null;
+    converted_grade_9?: number | null;
+    adjusted_grade?: number | null;
   }>,
   commonFields: {
     tenant_id: string;
@@ -665,31 +720,49 @@ export async function createInternalScoresBatch(
       avg_score: score.avg_score ?? null,
       std_dev: score.std_dev ?? null,
       total_students: score.total_students ?? null,
+      achievement_level: score.achievement_level ?? null,
+      achievement_ratio_a: score.achievement_ratio_a ?? null,
+      achievement_ratio_b: score.achievement_ratio_b ?? null,
+      achievement_ratio_c: score.achievement_ratio_c ?? null,
+      achievement_ratio_d: score.achievement_ratio_d ?? null,
+      achievement_ratio_e: score.achievement_ratio_e ?? null,
+      class_rank: score.class_rank ?? null,
+      estimated_percentile: score.estimated_percentile ?? null,
+      estimated_std_dev: score.estimated_std_dev ?? null,
+      converted_grade_9: score.converted_grade_9 ?? null,
+      adjusted_grade: score.adjusted_grade ?? null,
     });
   }
 
-  // 일괄 삽입
-  const result = await createTypedQuery<InternalScore[]>(
-    async () => {
-      return await supabase
-        .from("student_internal_scores")
-        .insert(insertedScores)
-        .select();
-    },
-    {
-      context: "[data/studentScores] createInternalScoresBatch",
-      defaultValue: [],
-    }
-  );
+  // 일괄 upsert — 동일 학기+과목 조합이 이미 존재하면 업데이트
+  const { data: insertedData, error: insertError } = await supabase
+    .from("student_internal_scores")
+    .upsert(insertedScores, {
+      onConflict: "tenant_id,student_id,grade,semester,subject_id",
+    })
+    .select();
 
-  if (!result || result.length === 0) {
+  if (insertError) {
+    console.error("[data/studentScores] createInternalScoresBatch 실패:", {
+      code: insertError.code,
+      message: insertError.message,
+      details: insertError.details,
+      hint: insertError.hint,
+    });
     return {
       success: false,
-      error: "내신 성적 등록에 실패했습니다.",
+      error: `내신 성적 등록 실패: ${insertError.message}`,
     };
   }
 
-  return { success: true, scores: result };
+  if (!insertedData || insertedData.length === 0) {
+    return {
+      success: false,
+      error: "내신 성적 등록에 실패했습니다 (데이터 반환 없음).",
+    };
+  }
+
+  return { success: true, scores: insertedData as InternalScore[] };
 }
 
 /**

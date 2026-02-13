@@ -32,6 +32,112 @@ import type {
   ScoreActionResult,
 } from "../types";
 import { recalculateRiskIndex } from "@/lib/domains/analysis/actions/riskIndex";
+import {
+  computeScoreAnalysis,
+  determineSubjectCategory,
+  determineGradeSystem,
+} from "../computation";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+/**
+ * 산출값 계산에 필요한 메타데이터(subject_type is_achievement_only, curriculum year) 조회
+ */
+async function fetchComputationMeta(
+  curriculumRevisionId: string,
+  subjectTypeIds: string[]
+): Promise<{
+  curriculumYear: number | null;
+  subjectTypeMap: Map<string, boolean>;
+}> {
+  const supabase = await createSupabaseServerClient();
+
+  // curriculum year 조회
+  const { data: curriculum } = await supabase
+    .from("curriculum_revisions")
+    .select("year")
+    .eq("id", curriculumRevisionId)
+    .maybeSingle();
+
+  // subject_types의 is_achievement_only 조회
+  const uniqueIds = [...new Set(subjectTypeIds)];
+  const subjectTypeMap = new Map<string, boolean>();
+
+  if (uniqueIds.length > 0) {
+    const { data: types } = await supabase
+      .from("subject_types")
+      .select("id, is_achievement_only")
+      .in("id", uniqueIds);
+
+    for (const t of types ?? []) {
+      subjectTypeMap.set(t.id, t.is_achievement_only);
+    }
+  }
+
+  return {
+    curriculumYear: curriculum?.year ?? null,
+    subjectTypeMap,
+  };
+}
+
+/**
+ * 단일 성적 레코드에 대해 산출값을 계산하여 반환
+ */
+function computeFieldsForScore(
+  score: {
+    raw_score?: number | null;
+    avg_score?: number | null;
+    std_dev?: number | null;
+    rank_grade?: number | null;
+    achievement_level?: string | null;
+    achievement_ratio_a?: number | null;
+    achievement_ratio_b?: number | null;
+    achievement_ratio_c?: number | null;
+    achievement_ratio_d?: number | null;
+    achievement_ratio_e?: number | null;
+    total_students?: number | null;
+    class_rank?: number | null;
+    subject_type_id?: string;
+  },
+  subjectTypeMap: Map<string, boolean>,
+  curriculumYear: number | null
+): {
+  estimated_percentile: number | null;
+  estimated_std_dev: number | null;
+  converted_grade_9: number | null;
+  adjusted_grade: number | null;
+} {
+  const isAchievementOnly = score.subject_type_id
+    ? (subjectTypeMap.get(score.subject_type_id) ?? false)
+    : false;
+
+  const computed = computeScoreAnalysis({
+    rawScore: score.raw_score ?? null,
+    avgScore: score.avg_score ?? null,
+    stdDev: score.std_dev ?? null,
+    rankGrade: score.rank_grade ?? null,
+    achievementLevel: score.achievement_level ?? null,
+    ratioA: score.achievement_ratio_a ?? null,
+    ratioB: score.achievement_ratio_b ?? null,
+    ratioC: score.achievement_ratio_c ?? null,
+    ratioD: score.achievement_ratio_d ?? null,
+    ratioE: score.achievement_ratio_e ?? null,
+    totalStudents: score.total_students ?? null,
+    classRank: score.class_rank ?? null,
+    subjectCategory: determineSubjectCategory(
+      isAchievementOnly,
+      score.rank_grade ?? null,
+      score.std_dev ?? null
+    ),
+    gradeSystem: determineGradeSystem(curriculumYear),
+  });
+
+  return {
+    estimated_percentile: computed.estimatedPercentile,
+    estimated_std_dev: computed.estimatedStdDev,
+    converted_grade_9: computed.convertedGrade9,
+    adjusted_grade: computed.adjustedGrade,
+  };
+}
 
 /**
  * 성적 변경 후 위험도 분석을 비동기적으로 트리거 (fire and forget)
@@ -73,6 +179,13 @@ async function _createInternalScore(formData: FormData) {
   const std_dev = formData.get("std_dev") ? parseFloat(formData.get("std_dev") as string) : null;
   const rank_grade = formData.get("rank_grade") ? parseInt(formData.get("rank_grade") as string) : null;
   const total_students = formData.get("total_students") ? parseInt(formData.get("total_students") as string) : null;
+  const achievement_level = formData.get("achievement_level") as string | null;
+  const achievement_ratio_a = formData.get("achievement_ratio_a") ? parseFloat(formData.get("achievement_ratio_a") as string) : null;
+  const achievement_ratio_b = formData.get("achievement_ratio_b") ? parseFloat(formData.get("achievement_ratio_b") as string) : null;
+  const achievement_ratio_c = formData.get("achievement_ratio_c") ? parseFloat(formData.get("achievement_ratio_c") as string) : null;
+  const achievement_ratio_d = formData.get("achievement_ratio_d") ? parseFloat(formData.get("achievement_ratio_d") as string) : null;
+  const achievement_ratio_e = formData.get("achievement_ratio_e") ? parseFloat(formData.get("achievement_ratio_e") as string) : null;
+  const class_rank = formData.get("class_rank") ? parseInt(formData.get("class_rank") as string) : null;
 
   // 필수 필드 검증
   if (!tenant_id) {
@@ -85,6 +198,22 @@ async function _createInternalScore(formData: FormData) {
   if (!grade || !semester || !credit_hours) {
     throw new AppError("학년, 학기, 이수단위는 필수입니다.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
+
+  // 산출값 계산
+  const { curriculumYear, subjectTypeMap } = await fetchComputationMeta(
+    curriculum_revision_id,
+    [subject_type_id]
+  );
+  const computedFields = computeFieldsForScore(
+    {
+      raw_score, avg_score, std_dev, rank_grade,
+      achievement_level, achievement_ratio_a, achievement_ratio_b,
+      achievement_ratio_c, achievement_ratio_d, achievement_ratio_e,
+      total_students, class_rank, subject_type_id,
+    },
+    subjectTypeMap,
+    curriculumYear
+  );
 
   // lib/data/studentScores.ts의 createInternalScore 사용
   const result = await createInternalScoreData({
@@ -102,7 +231,15 @@ async function _createInternalScore(formData: FormData) {
     std_dev,
     rank_grade,
     total_students,
+    achievement_level,
+    achievement_ratio_a,
+    achievement_ratio_b,
+    achievement_ratio_c,
+    achievement_ratio_d,
+    achievement_ratio_e,
+    class_rank,
     school_year,
+    ...computedFields,
   });
 
   if (!result.success) {
@@ -147,6 +284,13 @@ async function _updateInternalScore(scoreId: string, formData: FormData) {
   const std_dev = formData.get("std_dev") ? parseFloat(formData.get("std_dev") as string) : undefined;
   const rank_grade = formData.get("rank_grade") ? parseInt(formData.get("rank_grade") as string) : undefined;
   const total_students = formData.get("total_students") ? parseInt(formData.get("total_students") as string) : undefined;
+  const achievement_level = formData.has("achievement_level") ? (formData.get("achievement_level") as string || null) : undefined;
+  const achievement_ratio_a = formData.has("achievement_ratio_a") ? (formData.get("achievement_ratio_a") ? parseFloat(formData.get("achievement_ratio_a") as string) : null) : undefined;
+  const achievement_ratio_b = formData.has("achievement_ratio_b") ? (formData.get("achievement_ratio_b") ? parseFloat(formData.get("achievement_ratio_b") as string) : null) : undefined;
+  const achievement_ratio_c = formData.has("achievement_ratio_c") ? (formData.get("achievement_ratio_c") ? parseFloat(formData.get("achievement_ratio_c") as string) : null) : undefined;
+  const achievement_ratio_d = formData.has("achievement_ratio_d") ? (formData.get("achievement_ratio_d") ? parseFloat(formData.get("achievement_ratio_d") as string) : null) : undefined;
+  const achievement_ratio_e = formData.has("achievement_ratio_e") ? (formData.get("achievement_ratio_e") ? parseFloat(formData.get("achievement_ratio_e") as string) : null) : undefined;
+  const class_rank = formData.has("class_rank") ? (formData.get("class_rank") ? parseInt(formData.get("class_rank") as string) : null) : undefined;
 
   if (!tenant_id) {
     throw new AppError("기관 정보를 찾을 수 없습니다. 학생 설정을 완료해주세요.", ErrorCode.VALIDATION_ERROR, 400, true);
@@ -166,6 +310,42 @@ async function _updateInternalScore(scoreId: string, formData: FormData) {
   if (std_dev !== undefined) updates.std_dev = std_dev;
   if (rank_grade !== undefined) updates.rank_grade = rank_grade;
   if (total_students !== undefined) updates.total_students = total_students;
+  if (achievement_level !== undefined) updates.achievement_level = achievement_level;
+  if (achievement_ratio_a !== undefined) updates.achievement_ratio_a = achievement_ratio_a;
+  if (achievement_ratio_b !== undefined) updates.achievement_ratio_b = achievement_ratio_b;
+  if (achievement_ratio_c !== undefined) updates.achievement_ratio_c = achievement_ratio_c;
+  if (achievement_ratio_d !== undefined) updates.achievement_ratio_d = achievement_ratio_d;
+  if (achievement_ratio_e !== undefined) updates.achievement_ratio_e = achievement_ratio_e;
+  if (class_rank !== undefined) updates.class_rank = class_rank;
+
+  // 산출값 재계산: 기존 레코드를 조회하여 병합 후 계산
+  const supabaseForUpdate = await createSupabaseServerClient();
+  const { data: existingScore } = await supabaseForUpdate
+    .from("student_internal_scores")
+    .select("raw_score, avg_score, std_dev, rank_grade, achievement_level, achievement_ratio_a, achievement_ratio_b, achievement_ratio_c, achievement_ratio_d, achievement_ratio_e, total_students, class_rank, subject_type_id, curriculum_revision_id")
+    .eq("id", scoreId)
+    .maybeSingle();
+
+  if (existingScore) {
+    const merged = { ...existingScore, ...updates };
+    const curRevId = (curriculum_revision_id ?? existingScore.curriculum_revision_id) as string;
+    const stId = (subject_type_id ?? existingScore.subject_type_id) as string;
+
+    const { curriculumYear, subjectTypeMap } = await fetchComputationMeta(
+      curRevId,
+      [stId]
+    );
+    const computedFields = computeFieldsForScore(
+      { ...merged, subject_type_id: stId },
+      subjectTypeMap,
+      curriculumYear
+    );
+
+    updates.estimated_percentile = computedFields.estimated_percentile;
+    updates.estimated_std_dev = computedFields.estimated_std_dev;
+    updates.converted_grade_9 = computedFields.converted_grade_9;
+    updates.adjusted_grade = computedFields.adjusted_grade;
+  }
 
   // lib/data/studentScores.ts의 updateInternalScore 사용
   const result = await updateInternalScoreData(scoreId, user.userId, tenant_id, updates);
@@ -191,6 +371,9 @@ export const updateInternalScore = withActionResponse(_updateInternalScore);
 
 /**
  * 내신 성적 삭제
+ *
+ * 레코드에서 실제 student_id를 조회하여 삭제합니다.
+ * admin이 호출해도 올바른 student_id로 삭제됩니다.
  */
 async function _deleteInternalScore(scoreId: string) {
   const user = await getCurrentUser();
@@ -203,8 +386,17 @@ async function _deleteInternalScore(scoreId: string) {
     throw new AppError("기관 정보를 찾을 수 없습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
 
-  // lib/data/studentScores.ts의 deleteInternalScore 사용
-  const result = await deleteInternalScoreData(scoreId, user.userId, user.tenantId);
+  // 레코드에서 실제 student_id를 조회 (admin이 호출할 때 user.userId ≠ student_id)
+  const supabaseForLookup = await createSupabaseServerClient();
+  const { data: scoreRecord } = await supabaseForLookup
+    .from("student_internal_scores")
+    .select("student_id")
+    .eq("id", scoreId)
+    .maybeSingle();
+
+  const targetStudentId = scoreRecord?.student_id ?? user.userId;
+
+  const result = await deleteInternalScoreData(scoreId, targetStudentId, user.tenantId);
 
   if (!result.success) {
     throw new AppError(
@@ -215,10 +407,10 @@ async function _deleteInternalScore(scoreId: string) {
     );
   }
 
-  // 위험도 분석 비동기 트리거
-  triggerRiskAnalysis(user.userId, user.tenantId);
+  triggerRiskAnalysis(targetStudentId, user.tenantId);
 
   revalidatePath("/scores");
+  revalidatePath(`/admin/students/${targetStudentId}`);
   return { success: true };
 }
 
@@ -226,6 +418,8 @@ export const deleteInternalScore = withActionResponse(_deleteInternalScore);
 
 /**
  * 성적 삭제 (타입 자동 감지)
+ *
+ * 내신/모의 자동 감지 후 레코드의 student_id로 삭제합니다.
  */
 async function _deleteScore(scoreId: string) {
   const user = await getCurrentUser();
@@ -234,22 +428,42 @@ async function _deleteScore(scoreId: string) {
     throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }
 
-  // 성적 타입 확인
-  const { detectScoreType } = await import("@/lib/utils/scoreTypeDetector");
-  const scoreType = await detectScoreType(scoreId, user.userId);
-
-  if (!scoreType) {
-    throw new AppError("성적을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+  if (!user.tenantId) {
+    throw new AppError("기관 정보를 찾을 수 없습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
 
-  // 타입에 따라 적절한 삭제 함수 호출
-  if (scoreType === "internal") {
-    await _deleteInternalScore(scoreId);
-  } else {
-    if (!user.tenantId) {
-      throw new AppError("기관 정보를 찾을 수 없습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+  // 내신 테이블에서 먼저 조회
+  const supabaseForLookup = await createSupabaseServerClient();
+  const { data: internalScore } = await supabaseForLookup
+    .from("student_internal_scores")
+    .select("student_id")
+    .eq("id", scoreId)
+    .maybeSingle();
+
+  if (internalScore) {
+    const result = await deleteInternalScoreData(scoreId, internalScore.student_id, user.tenantId);
+    if (!result.success) {
+      throw new AppError(
+        result.error || "내신 성적 삭제에 실패했습니다.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
+      );
     }
-    const result = await deleteMockScoreData(scoreId, user.userId, user.tenantId);
+    triggerRiskAnalysis(internalScore.student_id, user.tenantId);
+  } else {
+    // 모의고사 테이블에서 조회
+    const { data: mockScore } = await supabaseForLookup
+      .from("student_mock_scores")
+      .select("student_id")
+      .eq("id", scoreId)
+      .maybeSingle();
+
+    if (!mockScore) {
+      throw new AppError("성적을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+    }
+
+    const result = await deleteMockScoreData(scoreId, mockScore.student_id, user.tenantId);
     if (!result.success) {
       throw new AppError(
         result.error || "모의고사 성적 삭제에 실패했습니다.",
@@ -258,8 +472,10 @@ async function _deleteScore(scoreId: string) {
         true
       );
     }
+    triggerRiskAnalysis(mockScore.student_id, user.tenantId);
   }
 
+  revalidatePath("/scores");
   return { success: true };
 }
 
@@ -296,11 +512,18 @@ async function _createInternalScoresBatch(formData: FormData) {
     grade: number;
     semester: number;
     credit_hours: number;
-    rank_grade: number;
+    rank_grade: number | null;
     raw_score?: number | null;
     avg_score?: number | null;
     std_dev?: number | null;
     total_students?: number | null;
+    achievement_level?: string | null;
+    achievement_ratio_a?: number | null;
+    achievement_ratio_b?: number | null;
+    achievement_ratio_c?: number | null;
+    achievement_ratio_d?: number | null;
+    achievement_ratio_e?: number | null;
+    class_rank?: number | null;
   }> = JSON.parse(scoresJson);
 
   // 필수 필드 검증
@@ -308,8 +531,20 @@ async function _createInternalScoresBatch(formData: FormData) {
     throw new AppError("필수 필드가 누락되었습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
 
+  // 산출값 계산을 위한 메타데이터 조회
+  const { curriculumYear, subjectTypeMap } = await fetchComputationMeta(
+    curriculum_revision_id,
+    scores.map((s) => s.subject_type_id)
+  );
+
+  // 각 성적에 산출값 추가
+  const enrichedScores = scores.map((score) => {
+    const computed = computeFieldsForScore(score, subjectTypeMap, curriculumYear);
+    return { ...score, ...computed };
+  });
+
   // lib/data/studentScores.ts의 createInternalScoresBatch 사용
-  const result = await createInternalScoresBatchData(scores, {
+  const result = await createInternalScoresBatchData(enrichedScores, {
     tenant_id,
     student_id,
     curriculum_revision_id,
@@ -329,6 +564,7 @@ async function _createInternalScoresBatch(formData: FormData) {
   triggerRiskAnalysis(student_id, tenant_id);
 
   revalidatePath("/scores");
+  revalidatePath(`/admin/students/${student_id}`);
   return { success: true, scores: result.scores };
 }
 
@@ -548,6 +784,60 @@ export async function deleteMockScoreAction(
   }
 
   return result;
+}
+
+// ============================================
+// Admin 전용 Actions (studentId를 파라미터로 받음)
+// ============================================
+
+/**
+ * Admin용 내신 성적 삭제 (studentId 지정 가능)
+ */
+export async function adminDeleteInternalScore(
+  scoreId: string,
+  studentId: string,
+  tenantId: string
+): Promise<ScoreActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  const result = await deleteInternalScoreData(scoreId, studentId, tenantId);
+
+  if (!result.success) {
+    return { success: false, error: result.error || "내신 성적 삭제에 실패했습니다." };
+  }
+
+  triggerRiskAnalysis(studentId, tenantId);
+  revalidatePath("/scores");
+  revalidatePath(`/admin/students/${studentId}`);
+  return { success: true };
+}
+
+/**
+ * Admin용 모의고사 성적 삭제 (studentId 지정 가능)
+ */
+export async function adminDeleteMockScore(
+  scoreId: string,
+  studentId: string,
+  tenantId: string
+): Promise<ScoreActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  const result = await deleteMockScoreData(scoreId, studentId, tenantId);
+
+  if (!result.success) {
+    return { success: false, error: result.error || "모의고사 성적 삭제에 실패했습니다." };
+  }
+
+  triggerRiskAnalysis(studentId, tenantId);
+  revalidatePath("/scores");
+  revalidatePath(`/admin/students/${studentId}`);
+  return { success: true };
 }
 
 // ============================================

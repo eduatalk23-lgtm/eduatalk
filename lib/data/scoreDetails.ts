@@ -11,21 +11,31 @@ import type { InternalScoreWithRelations, MockScoreWithRelations } from "@/lib/t
 
 /**
  * Supabase 조인 쿼리 결과 타입
- * 
- * `select('*, subject_group:subject_groups(name), subject:subjects(name), subject_type:subject_types(name)')` 형태의 쿼리는
- * 각 관계를 배열로 반환합니다.
+ *
+ * PostgREST v12+ (Supabase JS v2.x)에서 many-to-one FK JOIN은
+ * 단일 객체를 반환합니다 (이전 버전은 배열).
+ * 두 형태를 모두 수용하는 유니온 타입을 사용합니다.
  */
+type JoinResult = { name: string } | Array<{ name: string }>;
+
 type InternalScoreWithJoin = Tables<"student_internal_scores"> & {
-  subject_group?: Array<{ name: string }> | null;
-  subject?: Array<{ name: string }> | null;
-  subject_type?: Array<{ name: string }> | null;
+  subject_group?: JoinResult | null;
+  subject?: JoinResult | null;
+  subject_type?: JoinResult | null;
 };
 
 type MockScoreWithJoin = Tables<"student_mock_scores"> & {
-  subject_group?: Array<{ name: string }> | null;
-  subject?: Array<{ name: string }> | null;
-  subject_type?: Array<{ name: string }> | null;
+  subject_group?: JoinResult | null;
+  subject?: JoinResult | null;
+  subject_type?: JoinResult | null;
 };
+
+/** JOIN 결과를 단일 객체로 정규화 (배열/객체 모두 지원) */
+function normalizeJoin(value: JoinResult | null | undefined): { name: string } | null {
+  if (!value) return null;
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value;
+}
 
 /**
  * 학기별 내신 성적 조회
@@ -106,9 +116,9 @@ export async function getInternalScoresByTerm(
     (data as InternalScoreWithJoin[]) ?? []
   ).map((item) => ({
     ...item,
-    subject_group: item.subject_group?.[0] || null,
-    subject: item.subject?.[0] || null,
-    subject_type: item.subject_type?.[0] || null,
+    subject_group: normalizeJoin(item.subject_group),
+    subject: normalizeJoin(item.subject),
+    subject_type: normalizeJoin(item.subject_type),
   }));
 
   return normalizedData;
@@ -198,9 +208,9 @@ export async function getMockScoresByPeriod(
     (data as MockScoreWithJoin[]) ?? []
   ).map((item) => ({
     ...item,
-    subject_group: item.subject_group?.[0] || null,
-    subject: item.subject?.[0] || null,
-    subject_type: item.subject_type?.[0] || null,
+    subject_group: normalizeJoin(item.subject_group),
+    subject: normalizeJoin(item.subject),
+    subject_type: normalizeJoin(item.subject_type),
   }));
 
   return normalizedData;
@@ -295,9 +305,9 @@ export async function getMockScoresByExam(
     (data as MockScoreWithJoin[]) ?? []
   ).map((item) => ({
     ...item,
-    subject_group: item.subject_group?.[0] || null,
-    subject: item.subject?.[0] || null,
-    subject_type: item.subject_type?.[0] || null,
+    subject_group: normalizeJoin(item.subject_group),
+    subject: normalizeJoin(item.subject),
+    subject_type: normalizeJoin(item.subject_type),
   }));
 
   return normalizedData;
