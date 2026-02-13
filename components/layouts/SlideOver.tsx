@@ -12,6 +12,7 @@ import {
 } from "react";
 import { cn } from "@/lib/cn";
 import { useDensityOptional } from "@/lib/contexts";
+import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 
 // ============================================================================
 // Types
@@ -411,6 +412,28 @@ function SlideOverPanelComponent({
 }: SlideOverPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const { getDensityClasses } = useDensityOptional();
+  const reducedMotion = useReducedMotion();
+
+  // 마운트/애니메이션 상태 관리
+  const [mounted, setMounted] = useState(false);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect -- 트랜지션을 위해 동기 마운트 필수
+      setMounted(true);
+      // 다음 프레임에서 visible 전환 → CSS transition 트리거
+      const id = requestAnimationFrame(() => {
+        requestAnimationFrame(() => setVisible(true));
+      });
+      return () => cancelAnimationFrame(id);
+    }
+    // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect -- 트랜지션을 위해 동기 해제 필수
+    setVisible(false);
+    // 트랜지션 완료(200ms) 후 언마운트
+    const timer = setTimeout(() => setMounted(false), 250);
+    return () => clearTimeout(timer);
+  }, [isOpen]);
 
   // ESC 키 처리
   useEffect(() => {
@@ -437,7 +460,7 @@ function SlideOverPanelComponent({
     };
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  if (!mounted) return null;
 
   const offset = depthOffsets[Math.min(depth, depthOffsets.length - 1)];
   const scale = 1 - depth * 0.02;
@@ -446,7 +469,13 @@ function SlideOverPanelComponent({
     <div className="fixed inset-0 z-50">
       {/* Overlay */}
       <div
-        className="absolute inset-0 bg-black/50 dark:bg-black/70 transition-opacity"
+        className={cn(
+          "absolute inset-0 bg-black/50 dark:bg-black/70 transition-opacity",
+          reducedMotion
+            ? "duration-[0.01ms]"
+            : visible ? "duration-300" : "duration-200",
+          visible ? "opacity-100" : "opacity-0"
+        )}
         onClick={preventClose ? undefined : onClose}
         aria-hidden="true"
       />
@@ -461,11 +490,17 @@ function SlideOverPanelComponent({
           "bg-white dark:bg-gray-900",
           "shadow-2xl",
           "flex flex-col",
-          "transition-all duration-300 ease-out",
           className
         )}
         style={{
-          transform: `translateX(${offset}px) scale(${scale})`,
+          transition: reducedMotion
+            ? "transform 0.01ms"
+            : visible
+              ? "transform 300ms cubic-bezier(0.05, 0.7, 0.1, 1)"   // MD3 emphasized-decelerate (열기)
+              : "transform 200ms cubic-bezier(0.3, 0, 0.8, 0.15)",  // MD3 emphasized-accelerate (닫기)
+          transform: visible
+            ? `translateX(${offset}px) scale(${scale})`
+            : `translateX(100%) scale(${scale})`,
         }}
         role="dialog"
         aria-modal="true"

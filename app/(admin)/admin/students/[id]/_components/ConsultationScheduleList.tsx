@@ -13,11 +13,15 @@ import {
 import {
   type ConsultationSchedule,
   type ConsultationMode,
+  type NotificationTarget,
+  type NotificationLogEntry,
   SCHEDULE_STATUS_LABELS,
   SCHEDULE_STATUS_COLORS,
   SESSION_TYPE_COLORS,
   SESSION_TYPES,
   CONSULTATION_MODES,
+  NOTIFICATION_TARGETS,
+  NOTIFICATION_TARGET_LABELS,
   type SessionType,
 } from "@/lib/domains/consulting/types";
 import {
@@ -25,15 +29,24 @@ import {
   updateConsultationSchedule,
   deleteConsultationSchedule,
 } from "@/lib/domains/consulting/actions/schedule";
+import type { PhoneAvailability } from "./ConsultationScheduleSection";
 
 type EnrollmentOption = { id: string; program_name: string };
 type ConsultantOption = { id: string; name: string };
+
+const PHONE_KEY_MAP: Record<NotificationTarget, keyof PhoneAvailability> = {
+  student: "student",
+  mother: "mother",
+  father: "father",
+};
 
 type ConsultationScheduleListProps = {
   schedules: ConsultationSchedule[];
   studentId: string;
   consultants: ConsultantOption[];
   enrollments: EnrollmentOption[];
+  phoneAvailability: PhoneAvailability;
+  notificationLogs: Record<string, NotificationLogEntry[]>;
 };
 
 export function ConsultationScheduleList({
@@ -41,6 +54,8 @@ export function ConsultationScheduleList({
   studentId,
   consultants,
   enrollments,
+  phoneAvailability,
+  notificationLogs,
 }: ConsultationScheduleListProps) {
   if (schedules.length === 0) {
     return (
@@ -64,6 +79,8 @@ export function ConsultationScheduleList({
           studentId={studentId}
           consultants={consultants}
           enrollments={enrollments}
+          phoneAvailability={phoneAvailability}
+          logs={notificationLogs[schedule.id]}
         />
       ))}
     </div>
@@ -75,16 +92,21 @@ function ScheduleCard({
   studentId,
   consultants,
   enrollments,
+  phoneAvailability,
+  logs,
 }: {
   schedule: ConsultationSchedule;
   studentId: string;
   consultants: ConsultantOption[];
   enrollments: EnrollmentOption[];
+  phoneAvailability: PhoneAvailability;
+  logs?: NotificationLogEntry[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [isEditing, setIsEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
 
   const sessionType = schedule.session_type as SessionType;
   const sessionColor =
@@ -120,6 +142,7 @@ function ScheduleCard({
         studentId={studentId}
         consultants={consultants}
         enrollments={enrollments}
+        phoneAvailability={phoneAvailability}
         onCancel={() => setIsEditing(false)}
       />
     );
@@ -170,6 +193,11 @@ function ScheduleCard({
           {schedule.reminder_sent && (
             <span className="rounded bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
               리마인더 발송됨
+            </span>
+          )}
+          {schedule.notification_targets?.length > 0 && (
+            <span className="rounded bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
+              알림: {schedule.notification_targets.map((t) => NOTIFICATION_TARGET_LABELS[t]).join(", ")}
             </span>
           )}
         </div>
@@ -300,8 +328,108 @@ function ScheduleCard({
           {schedule.description}
         </p>
       )}
+
+      {/* 발송 이력 패널 */}
+      {logs && logs.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <button
+            type="button"
+            onClick={() => setShowLogs((v) => !v)}
+            className={cn(
+              "flex items-center gap-1 text-xs font-medium transition hover:underline",
+              textSecondary
+            )}
+          >
+            <span className="inline-block transition-transform" style={{ transform: showLogs ? "rotate(90deg)" : "rotate(0deg)" }}>
+              ▶
+            </span>
+            발송 이력 ({logs.length}건)
+          </button>
+
+          {showLogs && (
+            <div className="flex flex-col gap-1 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900/50">
+              {logs.map((log) => (
+                <div key={log.id} className="flex flex-col gap-0.5">
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <ChannelBadge channel={log.channel} />
+                    <span className={textSecondary}>
+                      {maskPhone(log.recipient_phone)}
+                    </span>
+                    <LogStatusBadge status={log.status} />
+                    {(log.sent_at || log.delivered_at) && (
+                      <span className={cn("text-[11px]", textSecondary)}>
+                        {formatLogDateTime(log.delivered_at || log.sent_at)}
+                      </span>
+                    )}
+                  </div>
+                  {log.status === "failed" && log.error_message && (
+                    <span className="ml-4 text-[11px] text-red-500 dark:text-red-400">
+                      {log.error_message}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
+}
+
+// ── 발송 이력 헬퍼 컴포넌트 ──
+
+function ChannelBadge({ channel }: { channel: NotificationLogEntry["channel"] }) {
+  const styles: Record<string, string> = {
+    alimtalk: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+    friendtalk: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+    sms: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+    lms: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300",
+  };
+  const labels: Record<string, string> = {
+    alimtalk: "알림톡",
+    friendtalk: "친구톡",
+    sms: "SMS",
+    lms: "LMS",
+  };
+  const key = channel ?? "sms";
+  return (
+    <span className={cn("rounded px-1.5 py-0.5 text-[11px] font-medium", styles[key] ?? styles.sms)}>
+      {labels[key] ?? key}
+    </span>
+  );
+}
+
+function LogStatusBadge({ status }: { status: NotificationLogEntry["status"] }) {
+  const config: Record<string, { label: string; style: string }> = {
+    pending: { label: "대기", style: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" },
+    sent: { label: "발송됨", style: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
+    delivered: { label: "전달됨", style: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
+    failed: { label: "실패", style: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" },
+  };
+  const key = status ?? "pending";
+  const c = config[key] ?? config.pending;
+  return (
+    <span className={cn("rounded px-1.5 py-0.5 text-[11px] font-medium", c.style)}>
+      {c.label}
+    </span>
+  );
+}
+
+function maskPhone(phone: string | null): string {
+  if (!phone) return "-";
+  if (phone.length < 8) return phone;
+  return phone.slice(0, 3) + "****" + phone.slice(-4);
+}
+
+function formatLogDateTime(dateStr: string | null): string {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  return `${month}/${day} ${hours}:${minutes}`;
 }
 
 // ── 수정 폼 ──
@@ -311,18 +439,24 @@ function EditScheduleForm({
   studentId,
   consultants,
   enrollments,
+  phoneAvailability,
   onCancel,
 }: {
   schedule: ConsultationSchedule;
   studentId: string;
   consultants: ConsultantOption[];
   enrollments: EnrollmentOption[];
+  phoneAvailability: PhoneAvailability;
   onCancel: () => void;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [sendNotification, setSendNotification] = useState(true);
+  const [notificationTargets, setNotificationTargets] = useState<NotificationTarget[]>(
+    (schedule.notification_targets ?? ["mother"]).filter(
+      (t) => phoneAvailability[PHONE_KEY_MAP[t]]
+    )
+  );
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState(
     schedule.enrollment_id ?? ""
   );
@@ -386,7 +520,8 @@ function EditScheduleForm({
         visitor,
         location,
         description,
-        sendNotification,
+        sendNotification: notificationTargets.length > 0,
+        notificationTargets,
       });
 
       if (result.success) {
@@ -570,19 +705,44 @@ function EditScheduleForm({
         </div>
       </div>
 
-      {/* 알림 + 저장 */}
+      {/* 알림 대상 + 저장 */}
       <div className="flex items-center justify-between">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={sendNotification}
-            onChange={(e) => setSendNotification(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-          />
-          <span className={cn("text-xs", textSecondary)}>
-            일정 변경 시 학부모에게 알림 발송
-          </span>
-        </label>
+        <div className="flex items-center gap-4">
+          <span className={cn("text-xs font-medium", textSecondary)}>알림 대상</span>
+          {NOTIFICATION_TARGETS.map((target) => {
+            const hasPhone = phoneAvailability[PHONE_KEY_MAP[target]];
+            return (
+              <label
+                key={target}
+                className={cn(
+                  "flex items-center gap-1",
+                  !hasPhone && "cursor-not-allowed opacity-50"
+                )}
+                title={!hasPhone ? "등록된 연락처가 없습니다" : undefined}
+              >
+                <input
+                  type="checkbox"
+                  checked={notificationTargets.includes(target)}
+                  disabled={!hasPhone}
+                  onChange={() =>
+                    setNotificationTargets((prev) =>
+                      prev.includes(target)
+                        ? prev.filter((t) => t !== target)
+                        : [...prev, target]
+                    )
+                  }
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
+                />
+                <span className={cn("text-xs", textSecondary)}>
+                  {NOTIFICATION_TARGET_LABELS[target]}
+                </span>
+                {!hasPhone && (
+                  <span className="text-[10px] text-red-500">연락처 없음</span>
+                )}
+              </label>
+            );
+          })}
+        </div>
 
         <div className="flex items-center gap-2">
           <button

@@ -12,10 +12,14 @@ import {
 import {
   SESSION_TYPES,
   CONSULTATION_MODES,
+  NOTIFICATION_TARGETS,
+  NOTIFICATION_TARGET_LABELS,
   type SessionType,
   type ConsultationMode,
+  type NotificationTarget,
 } from "@/lib/domains/consulting/types";
 import { createConsultationSchedule } from "@/lib/domains/consulting/actions/schedule";
+import type { PhoneAvailability } from "./ConsultationScheduleSection";
 
 type EnrollmentOption = {
   id: string;
@@ -27,6 +31,13 @@ type ConsultationScheduleFormProps = {
   consultants: { id: string; name: string }[];
   enrollments?: EnrollmentOption[];
   defaultConsultantId?: string;
+  phoneAvailability: PhoneAvailability;
+};
+
+const PHONE_KEY_MAP: Record<NotificationTarget, keyof PhoneAvailability> = {
+  student: "student",
+  mother: "mother",
+  father: "father",
 };
 
 export function ConsultationScheduleForm({
@@ -34,12 +45,15 @@ export function ConsultationScheduleForm({
   consultants,
   enrollments = [],
   defaultConsultantId,
+  phoneAvailability,
 }: ConsultationScheduleFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [sendNotification, setSendNotification] = useState(true);
+  const [notificationTargets, setNotificationTargets] = useState<NotificationTarget[]>(
+    phoneAvailability.mother ? ["mother"] : []
+  );
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState("");
   const [consultationMode, setConsultationMode] = useState<ConsultationMode>("대면");
 
@@ -101,13 +115,15 @@ export function ConsultationScheduleForm({
         visitor,
         location,
         description,
-        sendNotification,
+        sendNotification: notificationTargets.length > 0,
+        notificationTargets,
       });
 
       if (result.success) {
         setSuccess(true);
         setSelectedEnrollmentId("");
         setConsultationMode("대면");
+        setNotificationTargets(phoneAvailability.mother ? ["mother"] : []);
         form.reset();
         router.refresh();
         setTimeout(() => setSuccess(false), 3000);
@@ -269,19 +285,44 @@ export function ConsultationScheduleForm({
         </div>
       </div>
 
-      {/* 알림 발송 + 제출 */}
+      {/* 알림 대상 + 제출 */}
       <div className="flex items-center justify-between">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={sendNotification}
-            onChange={(e) => setSendNotification(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-          />
-          <span className={cn("text-xs", textSecondary)}>
-            학부모에게 알림 발송
-          </span>
-        </label>
+        <div className="flex items-center gap-4">
+          <span className={cn("text-xs font-medium", textSecondary)}>알림 대상</span>
+          {NOTIFICATION_TARGETS.map((target) => {
+            const hasPhone = phoneAvailability[PHONE_KEY_MAP[target]];
+            return (
+              <label
+                key={target}
+                className={cn(
+                  "flex items-center gap-1",
+                  !hasPhone && "cursor-not-allowed opacity-50"
+                )}
+                title={!hasPhone ? "등록된 연락처가 없습니다" : undefined}
+              >
+                <input
+                  type="checkbox"
+                  checked={notificationTargets.includes(target)}
+                  disabled={!hasPhone}
+                  onChange={() =>
+                    setNotificationTargets((prev) =>
+                      prev.includes(target)
+                        ? prev.filter((t) => t !== target)
+                        : [...prev, target]
+                    )
+                  }
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
+                />
+                <span className={cn("text-xs", textSecondary)}>
+                  {NOTIFICATION_TARGET_LABELS[target]}
+                </span>
+                {!hasPhone && (
+                  <span className="text-[10px] text-red-500">연락처 없음</span>
+                )}
+              </label>
+            );
+          })}
+        </div>
 
         <button
           type="submit"

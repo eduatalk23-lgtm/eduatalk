@@ -23,6 +23,7 @@ export interface SendAlimtalkOptions {
   buttons?: AlimtalkButton[];
   refKey?: string;
   sendTime?: string;
+  consultationScheduleId?: string; // 상담 일정 FK (발송 이력 추적용)
 }
 
 export interface SendAlimtalkResult {
@@ -136,6 +137,7 @@ export async function sendAlimtalk(
     templateCode,
     buttons,
     refKey,
+    consultationScheduleId,
   } = options;
 
   // 환경 변수 확인
@@ -188,6 +190,7 @@ export async function sendAlimtalk(
       status: "pending",
       channel: "alimtalk",
       alimtalk_template_code: templateCode,
+      consultation_schedule_id: consultationScheduleId ?? null,
     })
     .select()
     .single();

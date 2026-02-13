@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useSidebar } from "./SidebarContext";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -8,6 +8,7 @@ import { layoutStyles, mobileNavStyles } from "@/components/navigation/global/na
 import { LogoSection } from "@/components/navigation/global/LogoSection";
 import { SharedSidebarContent } from "./SharedSidebarContent";
 import { useSwipeGesture } from "./useSwipeGesture";
+import { easings } from "@/lib/styles/animations";
 import type { RoleBasedLayoutProps } from "./types";
 
 type MobileSidebarProps = {
@@ -38,6 +39,25 @@ export function MobileSidebar({
     minSwipeDistance: 100,
   });
 
+  // 오버레이 마운트/애니메이션 상태 (fade in/out)
+  const [overlayMounted, setOverlayMounted] = useState(false);
+  const [overlayVisible, setOverlayVisible] = useState(false);
+
+  useEffect(() => {
+    if (isMobileOpen) {
+      // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect, react-hooks/set-state-in-effect -- 트랜지션을 위해 동기 마운트 필수
+      setOverlayMounted(true);
+      const id = requestAnimationFrame(() => {
+        requestAnimationFrame(() => setOverlayVisible(true));
+      });
+      return () => cancelAnimationFrame(id);
+    }
+    // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect -- 트랜지션을 위해 동기 해제 필수
+    setOverlayVisible(false);
+    const timer = setTimeout(() => setOverlayMounted(false), 200);
+    return () => clearTimeout(timer);
+  }, [isMobileOpen]);
+
   return (
     <>
       {/* 햄버거 버튼 */}
@@ -51,18 +71,20 @@ export function MobileSidebar({
         <Menu className="w-6 h-6" aria-hidden="true" />
       </button>
 
-      {/* 오버레이 */}
-      {isMobileOpen && (
+      {/* 오버레이 (fade in/out) */}
+      {overlayMounted && (
         <div
-          className={cn(
-            mobileNavStyles.overlay,
-            swipeProgress > 0 && "transition-opacity duration-300"
-          )}
-          style={
-            swipeProgress > 0
-              ? { opacity: 0.5 * (1 - swipeProgress) }
-              : undefined
-          }
+          className="fixed inset-0 bg-black z-[45] md:hidden"
+          style={{
+            opacity: swipeProgress > 0
+              ? 0.5 * (1 - swipeProgress)
+              : overlayVisible ? 0.5 : 0,
+            transition: swipeProgress === 0
+              ? overlayVisible
+                ? `opacity 200ms ${easings.easeOut}`
+                : `opacity 150ms ${easings.easeIn}`
+              : "none",
+          }}
           onClick={closeMobile}
           onKeyDown={(e) => {
             if (e.key === "Escape") {
@@ -89,13 +111,19 @@ export function MobileSidebar({
             : !isMobileOpen
             ? "-translate-x-full"
             : "", // swipeProgress > 0일 때는 인라인 스타일 사용
-          swipeProgress === 0 && "transition-transform duration-300 ease-in-out"
         )}
-        style={
-          isMobileOpen && swipeProgress > 0
+        style={{
+          ...(swipeProgress === 0
+            ? {
+                transition: isMobileOpen
+                  ? `transform 300ms ${easings.emphasizedDecelerate}`
+                  : `transform 250ms ${easings.emphasizedAccelerate}`,
+              }
+            : undefined),
+          ...(isMobileOpen && swipeProgress > 0
             ? { transform: `translateX(${Math.max(-100, -swipeProgress * 100)}%)` }
-            : undefined
-        }
+            : undefined),
+        }}
         role="navigation"
         aria-label="모바일 메뉴"
         aria-hidden={!isMobileOpen}

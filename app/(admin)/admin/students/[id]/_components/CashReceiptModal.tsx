@@ -160,13 +160,12 @@ export function CashReceiptModal({
       <DialogFooter>
         <Button
           variant="outline"
-          size="sm"
           onClick={() => onOpenChange(false)}
           disabled={isPending}
         >
           취소
         </Button>
-        <Button size="sm" onClick={handleIssue} disabled={isPending}>
+        <Button variant="primary" onClick={handleIssue} disabled={isPending}>
           {isPending ? "발급 중..." : "현금영수증 발급"}
         </Button>
       </DialogFooter>

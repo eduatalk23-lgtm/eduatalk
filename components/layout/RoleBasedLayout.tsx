@@ -10,6 +10,7 @@ import { Menu } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { mapRoleForNavigation } from "@/lib/navigation/utils";
 import { layoutStyles, sidebarStyles } from "@/components/navigation/global/navStyles";
+import { easings } from "@/lib/styles/animations";
 // Framer Motion 제거: motion.aside/div의 CSS transform이 @dnd-kit DragOverlay의
 // position:fixed를 깨뜨리는 문제 방지. CSS transition으로 대체.
 import { SidebarContent } from "./SidebarContent";
@@ -58,8 +59,13 @@ export function RoleBasedLayout({
         <>
           {/* 1. Layout Spacer: 본문 콘텐츠 위치를 잡기 위한 투명 공간 */}
           <div
-            className="hidden md:block flex-shrink-0 transition-[width] duration-200 ease-in-out"
-            style={{ width: isCollapsed ? "4rem" : "20rem" }}
+            className="hidden md:block flex-shrink-0"
+            style={{
+              width: isCollapsed ? "4rem" : "20rem",
+              transition: isCollapsed
+                ? `width 200ms ${easings.emphasizedAccelerate}`
+                : `width 250ms ${easings.emphasizedDecelerate}`,
+            }}
           />
 
           {/* 2. Visual Panel: 실제 사이드바 UI (Hover 시 확장) */}
@@ -69,7 +75,6 @@ export function RoleBasedLayout({
             className={cn(
               sidebarStyles.container,
               "hidden md:block fixed left-0 top-0 h-screen overflow-x-hidden",
-              "transition-[width,box-shadow] duration-200 ease-in-out",
             )}
             style={{
               width: isCollapsed && !isHovered ? "4rem" : "20rem",
@@ -78,6 +83,9 @@ export function RoleBasedLayout({
                 ? "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)"
                 : "none",
               borderRightWidth: isCollapsed && isHovered ? 0 : 1,
+              transition: !isCollapsed || isHovered
+                ? `width 250ms ${easings.emphasizedDecelerate}, box-shadow 250ms ${easings.emphasizedDecelerate}`
+                : `width 200ms ${easings.emphasizedAccelerate}, box-shadow 200ms ${easings.emphasizedAccelerate}`,
             }}
           >
             <div className="relative h-full flex flex-col w-[20rem] overflow-y-auto overscroll-y-contain"> {/* 내부 컨텐츠는 항상 20rem 너비 유지하여 찌그러짐 방지, 스크롤 가능, 스크롤 체이닝 방지 */}

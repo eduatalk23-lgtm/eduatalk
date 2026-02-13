@@ -75,7 +75,13 @@ export async function upsertStudentProfile(
     interests?: string[] | null;
   }
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createSupabaseServerClient();
+  // 관리자가 학생 프로필을 수정할 수 있도록 RLS 우회
+  const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+  const adminClient = createSupabaseAdminClient();
+
+  if (!adminClient) {
+    return { success: false, error: "Admin client를 초기화할 수 없습니다." };
+  }
 
   const payload = {
     id: profile.id,
@@ -95,7 +101,7 @@ export async function upsertStudentProfile(
     interests: profile.interests ?? null,
   };
 
-  const { error } = await supabase
+  const { error } = await adminClient
     .from("student_profiles")
     .upsert(payload, { onConflict: "id" });
 

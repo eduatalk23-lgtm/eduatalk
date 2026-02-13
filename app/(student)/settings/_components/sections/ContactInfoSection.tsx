@@ -35,7 +35,7 @@ function ContactInfoSection() {
               }
             }}
             className={getFormInputClasses(!!errors.phone, false, false)}
-            placeholder="010-1234-5678"
+            placeholder="010-0000-0000"
           />
           {errors.phone && (
             <p className={getFormErrorClasses()}>{errors.phone}</p>
@@ -51,7 +51,7 @@ function ContactInfoSection() {
             value={formData.mother_phone}
             onChange={handlePhoneChange("mother_phone")}
             className={getFormInputClasses(false, false, false)}
-            placeholder="010-1234-5678"
+            placeholder="010-0000-0000"
           />
         </div>
 
@@ -64,7 +64,7 @@ function ContactInfoSection() {
             value={formData.father_phone}
             onChange={handlePhoneChange("father_phone")}
             className={getFormInputClasses(false, false, false)}
-            placeholder="010-1234-5678"
+            placeholder="010-0000-0000"
           />
         </div>
       </div>

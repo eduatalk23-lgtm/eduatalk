@@ -80,6 +80,7 @@ export async function getOutstandingStatsAction(): Promise<
       .from("payment_records")
       .select("amount, paid_amount")
       .eq("tenant_id", tenantId)
+      .not("status", "in", '("cancelled","refunded")')
       .gte("created_at", monthStart)
       .lte("created_at", monthEnd + "T23:59:59");
 

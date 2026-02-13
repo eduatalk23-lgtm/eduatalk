@@ -194,7 +194,7 @@ export default function BasicInfoSection({
               {...phoneField.field}
               label="학생 연락처"
               type="tel"
-              placeholder="010-1234-5678"
+              placeholder="010-0000-0000"
               required
               disabled={disabled}
               error={phoneField.fieldState.error?.message}
@@ -203,7 +203,7 @@ export default function BasicInfoSection({
               {...motherPhoneField.field}
               label="모 연락처"
               type="tel"
-              placeholder="010-1234-5678"
+              placeholder="010-0000-0000"
               disabled={disabled}
               error={motherPhoneField.fieldState.error?.message}
             />
@@ -211,7 +211,7 @@ export default function BasicInfoSection({
               {...fatherPhoneField.field}
               label="부 연락처"
               type="tel"
-              placeholder="010-1234-5678"
+              placeholder="010-0000-0000"
               disabled={disabled}
               error={fatherPhoneField.fieldState.error?.message}
             />

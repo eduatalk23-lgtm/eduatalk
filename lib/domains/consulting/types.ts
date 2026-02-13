@@ -27,6 +27,18 @@ export const SESSION_TYPE_COLORS: Record<SessionType, string> = {
   기타: "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-300",
 };
 
+// ── 알림 대상 (Notification Target) ──
+
+export type NotificationTarget = "student" | "mother" | "father";
+
+export const NOTIFICATION_TARGETS: NotificationTarget[] = ["student", "mother", "father"];
+
+export const NOTIFICATION_TARGET_LABELS: Record<NotificationTarget, string> = {
+  student: "학생",
+  mother: "모",
+  father: "부",
+};
+
 // ── 상담 방식 (Consultation Mode) ──
 
 export type ConsultationMode = "대면" | "원격";
@@ -53,6 +65,7 @@ export interface ConsultationSchedule {
   visitor: string | null;
   location: string | null;
   description: string | null;
+  notification_targets: NotificationTarget[];
   notification_sent: boolean;
   notification_sent_at: string | null;
   reminder_sent: boolean;
@@ -65,6 +78,19 @@ export interface ConsultationSchedule {
   consultant_name?: string;
   program_name?: string;
 }
+
+// ── 알림 발송 로그 (sms_logs 에서 조회) ──
+
+export type NotificationLogEntry = {
+  id: string;
+  recipient_phone: string | null;
+  status: "pending" | "sent" | "delivered" | "failed" | null;
+  channel: "sms" | "lms" | "alimtalk" | "friendtalk" | null;
+  sent_at: string | null;
+  delivered_at: string | null;
+  error_message: string | null;
+  ppurio_result_code: string | null;
+};
 
 export const SCHEDULE_STATUS_LABELS: Record<ScheduleStatus, string> = {
   scheduled: "예정",

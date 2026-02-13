@@ -29,16 +29,15 @@ export default function ProfileInfoSection({
   const provider = toAuthProvider(authProvider ?? "email");
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">계정 정보</h3>
-        <div className="flex flex-col gap-4">
+    <div>
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">계정 정보</h3>
+      <div className="grid grid-cols-3 gap-4">
           {/* 이메일 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               계정 (이메일)
             </label>
-            <div className="rounded-lg border border-gray-300 bg-[rgb(var(--color-secondary-50))] px-3 py-2 text-sm text-[var(--text-disabled)]">
+            <div className="truncate rounded-lg border border-gray-300 bg-[rgb(var(--color-secondary-50))] px-3 py-2 text-sm text-[var(--text-disabled)]">
               {studentEmail ?? "-"}
             </div>
             <p className="mt-1 text-xs text-gray-500">
@@ -51,14 +50,12 @@ export default function ProfileInfoSection({
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               로그인 방식
             </label>
-            <div className="flex items-center gap-3">
-              <ProviderBadge provider={provider} />
-              {lastSignInAt && (
-                <span className="text-xs text-gray-500">
-                  최근 로그인: {formatRelativeTime(lastSignInAt)}
-                </span>
-              )}
-            </div>
+            <ProviderBadge provider={provider} />
+            {lastSignInAt && (
+              <p className="mt-1 text-xs text-gray-500">
+                최근 로그인: {formatRelativeTime(lastSignInAt)}
+              </p>
+            )}
           </div>
 
           {/* 활성 상태 */}
@@ -72,7 +69,7 @@ export default function ProfileInfoSection({
                 disabled={disabled}
                 onClick={() => isActiveField.field.onChange(true)}
                 className={cn(
-                  "rounded-lg border px-4 py-2 text-sm font-medium transition",
+                  "rounded-lg border px-3 py-2 text-sm font-medium transition",
                   isActive
                     ? "border-indigo-500 bg-indigo-50 text-indigo-700"
                     : "border-gray-300 bg-white text-gray-500 hover:bg-gray-50",
@@ -86,7 +83,7 @@ export default function ProfileInfoSection({
                 disabled={disabled}
                 onClick={() => isActiveField.field.onChange(false)}
                 className={cn(
-                  "rounded-lg border px-4 py-2 text-sm font-medium transition",
+                  "rounded-lg border px-3 py-2 text-sm font-medium transition",
                   !isActive
                     ? "border-red-500 bg-red-50 text-red-700"
                     : "border-gray-300 bg-white text-gray-500 hover:bg-gray-50",
@@ -97,7 +94,6 @@ export default function ProfileInfoSection({
               </button>
             </div>
           </div>
-        </div>
       </div>
     </div>
   );

@@ -9,6 +9,8 @@ import {
 } from "@/lib/query-options/students";
 import { StudentSearchPanel } from "./StudentSearchPanel";
 import { StudentFormPanel } from "./StudentFormPanel";
+import { EnrollmentSlidePanel } from "./EnrollmentSlidePanel";
+import { FamilySlidePanel } from "./FamilySlidePanel";
 
 type FormMode = "register" | "selected";
 
@@ -22,6 +24,10 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
     null
   );
   const [formMode, setFormMode] = useState<FormMode>("register");
+  const [enrollmentPanelStudentId, setEnrollmentPanelStudentId] = useState<string | null>(null);
+  const [isEnrollmentPanelOpen, setIsEnrollmentPanelOpen] = useState(false);
+  const [familyPanelStudentId, setFamilyPanelStudentId] = useState<string | null>(null);
+  const [isFamilyPanelOpen, setIsFamilyPanelOpen] = useState(false);
 
   const debouncedQuery = useDebounce(searchQuery, 300);
 
@@ -64,6 +70,30 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
     setFormMode("register");
   }, []);
 
+  // 수강/수납 슬라이드 패널 열기/닫기
+  const handleOpenEnrollment = useCallback(() => {
+    if (selectedStudentId) {
+      setEnrollmentPanelStudentId(selectedStudentId);
+      setIsEnrollmentPanelOpen(true);
+    }
+  }, [selectedStudentId]);
+
+  const handleCloseEnrollment = useCallback(() => {
+    setIsEnrollmentPanelOpen(false);
+  }, []);
+
+  // 가족 슬라이드 패널 열기/닫기
+  const handleOpenFamily = useCallback(() => {
+    if (selectedStudentId) {
+      setFamilyPanelStudentId(selectedStudentId);
+      setIsFamilyPanelOpen(true);
+    }
+  }, [selectedStudentId]);
+
+  const handleCloseFamily = useCallback(() => {
+    setIsFamilyPanelOpen(false);
+  }, []);
+
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
       {/* 왼쪽: 검색 패널 */}
@@ -86,8 +116,26 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
         onNewStudent={handleNewStudent}
         onStudentSaved={handleStudentSaved}
         onStudentDeleted={handleStudentDeleted}
+        onOpenEnrollment={handleOpenEnrollment}
+        onOpenFamily={handleOpenFamily}
         isAdmin={isAdmin}
       />
+
+      {enrollmentPanelStudentId && (
+        <EnrollmentSlidePanel
+          studentId={enrollmentPanelStudentId}
+          isOpen={isEnrollmentPanelOpen}
+          onClose={handleCloseEnrollment}
+        />
+      )}
+
+      {familyPanelStudentId && (
+        <FamilySlidePanel
+          studentId={familyPanelStudentId}
+          isOpen={isFamilyPanelOpen}
+          onClose={handleCloseFamily}
+        />
+      )}
     </div>
   );
 }

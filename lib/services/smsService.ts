@@ -18,6 +18,7 @@ export interface SendSMSOptions {
   templateId?: string;
   refKey?: string; // 고객사에서 부여한 키
   sendTime?: string; // 예약 발송 시간 (yyyy-MM-ddTHH:mm:ss)
+  consultationScheduleId?: string; // 상담 일정 FK (발송 이력 추적용)
 }
 
 interface TokenResponse {
@@ -225,6 +226,7 @@ export async function sendSMS(
     templateId,
     refKey,
     sendTime,
+    consultationScheduleId,
   } = options;
 
   // 환경 변수 확인
@@ -279,6 +281,7 @@ export async function sendSMS(
         message_content: message,
         template_id: templateId,
         status: "pending",
+        consultation_schedule_id: consultationScheduleId ?? null,
       })
       .select()
       .single();

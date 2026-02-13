@@ -143,13 +143,13 @@ export function transformFormDataToUpdatePayload(
       payload.basic.name = formData.name || null;
     }
     if (shouldInclude("grade")) {
-      payload.basic.grade = formData.grade;
+      payload.basic.grade = formData.grade || undefined;
     }
     if (shouldInclude("class")) {
       payload.basic.class = formData.class || null;
     }
     if (shouldInclude("birth_date")) {
-      payload.basic.birth_date = formData.birth_date;
+      payload.basic.birth_date = formData.birth_date || undefined;
     }
     if (shouldInclude("school_id")) {
       payload.basic.school_id = formData.school_id || null;

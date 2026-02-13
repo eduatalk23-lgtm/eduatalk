@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import PageContainer from "@/components/layout/PageContainer";
@@ -8,11 +7,6 @@ import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { StudentDetailWrapper } from "./_components/StudentDetailWrapper";
 import { StudentDetailTabs } from "./_components/StudentDetailTabs";
-import StudentInfoEditForm from "./_components/StudentInfoEditForm";
-import { getStudentById } from "@/lib/data/students";
-import { getStudentProfileById } from "@/lib/data/studentProfiles";
-import { getStudentCareerGoalById } from "@/lib/data/studentCareerGoals";
-import type { StudentInfoData } from "./_types/studentFormTypes";
 import { PlanListSection } from "./_components/PlanListSection";
 import { PlanListSectionClient } from "./_components/PlanListSectionClient";
 import { ContentListSection } from "./_components/ContentListSection";
@@ -29,22 +23,15 @@ import { ScoreTrendSectionSkeleton } from "./_components/ScoreTrendSectionSkelet
 import { SessionListSectionSkeleton } from "./_components/SessionListSectionSkeleton";
 import { AnalysisReportSectionSkeleton } from "./_components/AnalysisReportSectionSkeleton";
 import { ConsultingNotesSectionSkeleton } from "./_components/ConsultingNotesSectionSkeleton";
-import { ConnectionSection } from "./_components/ConnectionSection";
 import { TimeManagementSection } from "./_components/time-management/TimeManagementSection";
 import { TimeManagementSectionSkeleton } from "./_components/time-management/TimeManagementSectionSkeleton";
-import { EnrollmentSection } from "./_components/EnrollmentSection";
 import { ConsultantAssignmentPanel } from "./_components/ConsultantAssignmentPanel";
 import {
   ConsultationScheduleSection,
   ConsultationScheduleSectionSkeleton,
 } from "./_components/ConsultationScheduleSection";
-import { extractPrimaryProvider } from "@/lib/utils/authProvider";
 
-type SupabaseServerClient = Awaited<
-  ReturnType<typeof createSupabaseServerClient>
->;
-
-type TabType = "basic" | "plan" | "content" | "score" | "session" | "analysis" | "consulting" | "enrollment" | "attendance" | "time" | "risk";
+type TabType = "plan" | "content" | "score" | "session" | "analysis" | "consulting" | "attendance" | "time" | "risk";
 
 export default async function AdminStudentDetailPage({
   params,
@@ -61,83 +48,23 @@ export default async function AdminStudentDetailPage({
 
   const { id: studentId } = await params;
   const paramsObj = await searchParams;
-  const VALID_TABS: TabType[] = ["basic", "plan", "content", "score", "session", "analysis", "consulting", "enrollment", "attendance", "time", "risk"];
+  const VALID_TABS: TabType[] = ["plan", "content", "score", "session", "analysis", "consulting", "attendance", "time", "risk"];
   const rawTab = paramsObj.tab as TabType;
-  const defaultTab: TabType = VALID_TABS.includes(rawTab) ? rawTab : "basic";
+  const defaultTab: TabType = VALID_TABS.includes(rawTab) ? rawTab : "plan";
 
-  // 학생 정보 통합 조회 (3개 테이블)
-  // 관리자는 memo와 is_active 필드도 조회해야 함
-  // RLS 정책을 우회하기 위해 Admin Client 사용
+  // 학생 기본 정보 조회 (이름 등 헤더/탭에 필요한 최소 데이터)
   const supabase = await createSupabaseServerClient();
-  const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
-  const adminClient = createSupabaseAdminClient();
-  
-  if (!adminClient) {
-    throw new Error("Admin client를 초기화할 수 없습니다. SUPABASE_SERVICE_ROLE_KEY를 확인해주세요.");
-  }
-  
-  // 4개 쿼리 병렬 실행 (이메일은 getUserById로 단건 조회)
-  const [studentResult, profileResult, careerGoalResult, authUserResult] = await Promise.all([
-    supabase
-      .from("students")
-      .select("id,name,grade,class,birth_date,school_id,school_name,school_type,division,memo,status,is_active,created_at,updated_at")
-      .eq("id", studentId)
-      .maybeSingle(),
-    adminClient
-      .from("student_profiles")
-      .select("*")
-      .eq("id", studentId)
-      .maybeSingle(),
-    adminClient
-      .from("student_career_goals")
-      .select("*")
-      .eq("student_id", studentId)
-      .maybeSingle(),
-    adminClient.auth.admin.getUserById(studentId),
-  ]);
+  const studentResult = await supabase
+    .from("students")
+    .select("id, name")
+    .eq("id", studentId)
+    .maybeSingle();
 
   if (studentResult.error || !studentResult.data) {
     notFound();
   }
 
   const student = studentResult.data;
-  const profile = profileResult.data;
-  const careerGoal = careerGoalResult.data;
-  const authUser = authUserResult.data?.user;
-  const email = authUser?.email ?? null;
-  const primaryProvider = extractPrimaryProvider(authUser?.identities);
-  const lastSignInAt = authUser?.last_sign_in_at ?? null;
-
-  // 통합 데이터 구성
-  const studentInfoData: StudentInfoData = {
-    // students 테이블
-    id: student.id,
-    name: student.name,
-    grade: student.grade,
-    class: student.class,
-    birth_date: student.birth_date,
-    school_id: student.school_id,
-    school_name: student.school_name,
-    school_type: student.school_type as "MIDDLE" | "HIGH" | "UNIVERSITY" | null,
-    division: student.division as "고등부" | "중등부" | "졸업" | null,
-    memo: student.memo ?? null,
-    status: student.status as "enrolled" | "on_leave" | "graduated" | "transferred" | null,
-    is_active: student.is_active ?? true,
-    // student_profiles 테이블
-    gender: profile?.gender as "남" | "여" | null,
-    phone: profile?.phone ?? null,
-    mother_phone: profile?.mother_phone ?? null,
-    father_phone: profile?.father_phone ?? null,
-    address: profile?.address ?? null,
-    emergency_contact: profile?.emergency_contact ?? null,
-    emergency_contact_phone: profile?.emergency_contact_phone ?? null,
-    medical_info: profile?.medical_info ?? null,
-    // student_career_goals 테이블
-    exam_year: careerGoal?.exam_year ?? null,
-    curriculum_revision: careerGoal?.curriculum_revision as "2009 개정" | "2015 개정" | "2022 개정" | null,
-    desired_university_ids: careerGoal?.desired_university_ids ?? null,
-    desired_career_field: careerGoal?.desired_career_field ?? null,
-  };
 
   return (
     <StudentDetailWrapper studentId={studentId} studentName={student.name}>
@@ -151,22 +78,6 @@ export default async function AdminStudentDetailPage({
 
           {/* 탭 구조 */}
           <StudentDetailTabs defaultTab={defaultTab}>
-            {/* 기본정보 탭 */}
-            {defaultTab === "basic" && (
-              <div className="space-y-6">
-                <StudentInfoEditForm
-                  studentId={studentId}
-                  studentName={student.name}
-                  initialData={studentInfoData}
-                  isAdmin={role === "admin"}
-                  studentEmail={email}
-                  authProvider={primaryProvider}
-                  lastSignInAt={lastSignInAt}
-                />
-                <ConnectionSection studentId={studentId} />
-              </div>
-            )}
-
             {/* 학습계획 탭 */}
             {defaultTab === "plan" && (
               <PlanListSectionClient
@@ -222,19 +133,6 @@ export default async function AdminStudentDetailPage({
                   />
                 </Suspense>
               </div>
-            )}
-
-            {/* 수강 탭 */}
-            {defaultTab === "enrollment" && (
-              <Suspense
-                fallback={
-                  <div className="rounded-lg border border-gray-200 bg-white p-6">
-                    <div className="text-sm text-gray-500">로딩 중...</div>
-                  </div>
-                }
-              >
-                <EnrollmentSection studentId={studentId} tenantId={tenantId!} />
-              </Suspense>
             )}
 
             {/* 출석 탭 */}

@@ -100,13 +100,13 @@ async function getRevenueSummaryFallback(
 ): Promise<ActionResult<RevenueSummary>> {
   let query = adminClient
     .from("payment_records")
-    .select("amount, paid_amount, student_id")
+    .select("amount, paid_amount, student_id, enrollments!inner(program_id)")
     .eq("tenant_id", tenantId)
+    .not("status", "in", '("cancelled","refunded")')
     .gte("created_at", `${filters.startDate}T00:00:00`)
     .lte("created_at", `${filters.endDate}T23:59:59`);
 
   if (filters.programId) {
-    // join via enrollments
     query = query.eq("enrollments.program_id", filters.programId);
   }
 
@@ -179,7 +179,8 @@ export async function getMonthlyRevenueAction(
         adminClient,
         tenantId,
         startDate,
-        endDate
+        endDate,
+        programId
       );
     }
 
@@ -212,14 +213,22 @@ async function getMonthlyRevenueFallback(
   adminClient: NonNullable<ReturnType<typeof createSupabaseAdminClient>>,
   tenantId: string,
   startDate: string,
-  endDate: string
+  endDate: string,
+  programId?: string
 ): Promise<ActionResult<MonthlyRevenue[]>> {
-  const { data: records } = await adminClient
+  let query = adminClient
     .from("payment_records")
-    .select("amount, paid_amount, created_at")
+    .select("amount, paid_amount, created_at, enrollments!inner(program_id)")
     .eq("tenant_id", tenantId)
+    .not("status", "in", '("cancelled","refunded")')
     .gte("created_at", `${startDate}T00:00:00`)
     .lte("created_at", `${endDate}T23:59:59`);
+
+  if (programId) {
+    query = query.eq("enrollments.program_id", programId);
+  }
+
+  const { data: records } = await query;
 
   if (!records) {
     return { success: true, data: [] };
@@ -320,6 +329,7 @@ async function getProgramRevenueFallback(
     .from("payment_records")
     .select("amount, paid_amount, enrollment_id, enrollments(program_id, programs(name))")
     .eq("tenant_id", tenantId)
+    .not("status", "in", '("cancelled","refunded")')
     .gte("created_at", `${startDate}T00:00:00`)
     .lte("created_at", `${endDate}T23:59:59`);
 

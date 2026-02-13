@@ -9,6 +9,7 @@ import { formatSMSTemplate, type SMSTemplateType } from "@/lib/services/smsTempl
 import { getAlimtalkTemplate } from "@/lib/services/alimtalkTemplates";
 import { sendAlimtalk } from "@/lib/services/alimtalkService";
 import { sendSMS } from "@/lib/services/smsService";
+import type { NotificationTarget } from "../types";
 
 const ACTION_CTX = { domain: "consulting", action: "reminder" };
 
@@ -82,41 +83,64 @@ export async function processConsultationReminders(): Promise<{
     const tenantIds = [...new Set(rows.map((r) => r.tenant_id as string))];
     const tenantMap = await fetchTenantMap(adminClient, tenantIds);
 
-    // 학생별 학부모 전화번호 일괄 조회
+    // 학생별 전화번호 일괄 조회
     const studentIds = [...new Set(rows.map((r) => r.student_id as string))];
-    const phoneMap = await fetchParentPhoneMap(adminClient, studentIds);
+    const phoneMap = await fetchStudentPhoneMap(adminClient, studentIds);
 
     // 일정별 리마인더 발송
     for (const row of rows) {
       const studentId = row.student_id as string;
-      const recipientPhone = phoneMap.get(studentId);
+      const phoneData = phoneMap.get(studentId);
 
-      if (!recipientPhone) {
-        logActionDebug(ACTION_CTX, "학부모 전화번호 없음, 건너뜀", { studentId });
+      if (!phoneData) {
+        logActionDebug(ACTION_CTX, "전화번호 정보 없음, 건너뜀", { studentId });
         result.skipped++;
         continue;
       }
 
-      const sent = await sendReminderNotification({
-        scheduleId: row.id as string,
-        tenantId: row.tenant_id as string,
-        studentName: row.student?.name ?? "",
-        consultantName: row.consultant?.name ?? "",
-        sessionType: row.session_type as string,
-        programName: extractProgramName(row.enrollment),
-        scheduledDate: row.scheduled_date as string,
-        startTime: row.start_time as string,
-        endTime: row.end_time as string,
-        consultationMode: (row.consultation_mode as string | null) ?? "대면",
-        meetingLink: row.meeting_link as string | null,
-        visitor: row.visitor as string | null,
-        location: row.location as string | null,
-        tenant: tenantMap.get(row.tenant_id as string) ?? null,
-        recipientPhone,
-        studentId,
-      });
+      const targets = (row.notification_targets as NotificationTarget[] | null) ?? ["mother"];
+      const phones = resolveTargetPhones(phoneData, targets);
 
-      if (sent) {
+      if (phones.length === 0) {
+        logActionDebug(ACTION_CTX, "알림 대상 전화번호 없음, 건너뜀", { studentId, targets });
+        result.skipped++;
+        continue;
+      }
+
+      let anySuccess = false;
+
+      for (const recipientPhone of phones) {
+        const sent = await sendReminderNotification({
+          scheduleId: row.id as string,
+          tenantId: row.tenant_id as string,
+          studentName: row.student?.name ?? "",
+          consultantName: row.consultant?.name ?? "",
+          sessionType: row.session_type as string,
+          programName: extractProgramName(row.enrollment),
+          scheduledDate: row.scheduled_date as string,
+          startTime: row.start_time as string,
+          endTime: row.end_time as string,
+          consultationMode: (row.consultation_mode as string | null) ?? "대면",
+          meetingLink: row.meeting_link as string | null,
+          visitor: row.visitor as string | null,
+          location: row.location as string | null,
+          tenant: tenantMap.get(row.tenant_id as string) ?? null,
+          recipientPhone,
+          studentId,
+        });
+
+        if (sent) {
+          anySuccess = true;
+          result.sent++;
+        } else {
+          result.failed++;
+        }
+
+        // Rate limit 방지 (100ms 딜레이)
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+
+      if (anySuccess) {
         // reminder_sent 업데이트
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (adminClient as any)
@@ -126,13 +150,7 @@ export async function processConsultationReminders(): Promise<{
             reminder_sent_at: new Date().toISOString(),
           })
           .eq("id", row.id);
-        result.sent++;
-      } else {
-        result.failed++;
       }
-
-      // Rate limit 방지 (100ms 딜레이)
-      await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
     logActionDebug(ACTION_CTX, "리마인더 처리 완료", result);
@@ -204,16 +222,19 @@ async function sendReminderNotification(params: {
         tenantId: params.tenantId,
         templateCode: alimtalkTemplate.templateCode,
         recipientId: params.studentId,
+        consultationScheduleId: params.scheduleId,
       });
       sent = result.success;
     }
 
-    if (!sent && !alimtalkTemplate) {
+    // 알림톡 미사용 또는 실패 시 SMS fallback
+    if (!sent) {
       const smsResult = await sendSMS({
         recipientPhone: params.recipientPhone,
         message,
         recipientId: params.studentId,
         tenantId: params.tenantId,
+        consultationScheduleId: params.scheduleId,
       });
       sent = smsResult.success;
     }
@@ -256,40 +277,63 @@ async function fetchTenantMap(
   return map;
 }
 
+type StudentPhoneEntry = {
+  phone: string | null;
+  mother_phone: string | null;
+  father_phone: string | null;
+};
+
 /**
- * 학생별 학부모 전화번호 일괄 조회
- * student_profiles 에서 mother_phone, father_phone 조회 (mother 우선)
+ * 학생별 전화번호 일괄 조회
+ * student_profiles 에서 phone, mother_phone, father_phone 조회
  */
-async function fetchParentPhoneMap(
+async function fetchStudentPhoneMap(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   client: any,
   studentIds: string[]
-): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
+): Promise<Map<string, StudentPhoneEntry>> {
+  const map = new Map<string, StudentPhoneEntry>();
 
   if (studentIds.length === 0) return map;
 
   const { data, error } = await client
     .from("student_profiles")
-    .select("id, mother_phone, father_phone")
+    .select("id, phone, mother_phone, father_phone")
     .in("id", studentIds);
 
   if (error) {
-    logActionError(ACTION_CTX, error, { context: "학부모 전화번호 일괄 조회" });
+    logActionError(ACTION_CTX, error, { context: "학생 전화번호 일괄 조회" });
     return map;
   }
 
   for (const row of (data ?? []) as Array<{
     id: string;
+    phone: string | null;
     mother_phone: string | null;
     father_phone: string | null;
   }>) {
-    const phone = row.mother_phone || row.father_phone;
-    if (phone) {
-      map.set(row.id, phone);
-    }
+    map.set(row.id, {
+      phone: row.phone,
+      mother_phone: row.mother_phone,
+      father_phone: row.father_phone,
+    });
   }
   return map;
+}
+
+function resolveTargetPhones(
+  phones: StudentPhoneEntry,
+  targets: NotificationTarget[]
+): string[] {
+  const result: string[] = [];
+  for (const target of targets) {
+    const phone =
+      target === "student" ? phones.phone :
+      target === "mother" ? phones.mother_phone :
+      target === "father" ? phones.father_phone : null;
+    if (phone && !result.includes(phone)) result.push(phone);
+  }
+  return result;
 }
 
 /**

@@ -59,6 +59,7 @@ export function EnrollmentStatusSelect({
     <select
       value={enrollment.status}
       onChange={(e) => handleChange(e.target.value as EnrollmentStatus)}
+      onClick={(e) => e.stopPropagation()}
       disabled={isPending}
       className={cn(
         "rounded-lg border px-2 py-1 text-xs focus:outline-none focus:ring-2",

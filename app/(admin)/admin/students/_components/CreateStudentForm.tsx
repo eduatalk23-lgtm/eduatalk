@@ -381,21 +381,21 @@ function ProfileInfoTab({ control }: { control: FormControl<CreateStudentFormDat
         {...phoneField.field}
         label="본인 연락처"
         type="tel"
-        placeholder="010-1234-5678"
+        placeholder="010-0000-0000"
         error={phoneField.fieldState.error?.message}
       />
       <FormField
         {...motherPhoneField.field}
         label="어머니 연락처"
         type="tel"
-        placeholder="010-1234-5678"
+        placeholder="010-0000-0000"
         error={motherPhoneField.fieldState.error?.message}
       />
       <FormField
         {...fatherPhoneField.field}
         label="아버지 연락처"
         type="tel"
-        placeholder="010-1234-5678"
+        placeholder="010-0000-0000"
         error={fatherPhoneField.fieldState.error?.message}
       />
       <FormField
@@ -414,7 +414,7 @@ function ProfileInfoTab({ control }: { control: FormControl<CreateStudentFormDat
         {...emergencyContactPhoneField.field}
         label="비상연락처 전화번호"
         type="tel"
-        placeholder="010-1234-5678"
+        placeholder="010-0000-0000"
         error={emergencyContactPhoneField.fieldState.error?.message}
       />
     </div>

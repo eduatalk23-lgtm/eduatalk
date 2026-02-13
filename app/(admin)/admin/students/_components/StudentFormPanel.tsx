@@ -12,9 +12,8 @@ import type { StudentInfoData, AdminStudentFormData } from "../[id]/_types/stude
 import BasicInfoSection from "../[id]/_components/sections/BasicInfoSection";
 import ProfileInfoSection from "../[id]/_components/sections/ProfileInfoSection";
 import CareerInfoSection from "../[id]/_components/sections/CareerInfoSection";
-import { Plus, Trash2, ExternalLink, CalendarDays, Loader2, RotateCcw, Save } from "lucide-react";
+import { Plus, Trash2, ExternalLink, CalendarDays, Loader2, RotateCcw, Save, Wallet, Users } from "lucide-react";
 import Link from "next/link";
-import { ConnectionSection } from "../[id]/_components/ConnectionSection";
 
 type FormMode = "register" | "selected";
 
@@ -30,6 +29,8 @@ type StudentFormPanelProps = {
   onNewStudent: () => void;
   onStudentSaved: (studentId: string) => void;
   onStudentDeleted: () => void;
+  onOpenEnrollment?: () => void;
+  onOpenFamily?: () => void;
   isAdmin: boolean;
 };
 
@@ -41,6 +42,8 @@ export function StudentFormPanel({
   onNewStudent,
   onStudentSaved,
   onStudentDeleted,
+  onOpenEnrollment,
+  onOpenFamily,
   isAdmin,
 }: StudentFormPanelProps) {
   const queryClient = useQueryClient();
@@ -226,6 +229,26 @@ export function StudentFormPanel({
             )}
             {selectedStudentId && (
               <div className="ml-auto flex items-center gap-2">
+                {onOpenEnrollment && (
+                  <button
+                    type="button"
+                    onClick={onOpenEnrollment}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
+                  >
+                    <Wallet className="h-4 w-4" />
+                    수강/수납
+                  </button>
+                )}
+                {onOpenFamily && (
+                  <button
+                    type="button"
+                    onClick={onOpenFamily}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 px-3 py-2 text-sm font-medium text-purple-700 transition hover:bg-purple-100"
+                  >
+                    <Users className="h-4 w-4" />
+                    가족
+                  </button>
+                )}
                 <Link
                   href={`/admin/students/${selectedStudentId}/plans`}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100"
@@ -301,11 +324,6 @@ export function StudentFormPanel({
           />
         </div>
       </form>
-
-      {/* 연결 관리 (학부모, 형제/자매, 초대 코드) */}
-      {formMode === "selected" && selectedStudentId && (
-        <ConnectionSection studentId={selectedStudentId} />
-      )}
 
       {/* 변경사항 감지 시 하단 sticky 저장 버튼 (상세보기와 동일 패턴) */}
       {formMode === "selected" && (

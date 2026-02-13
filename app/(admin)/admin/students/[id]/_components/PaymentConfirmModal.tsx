@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Dialog } from "@/components/ui/Dialog";
+import { useState, useTransition, useCallback } from "react";
+import { Dialog, ConfirmDialog } from "@/components/ui/Dialog";
 import { useToast } from "@/components/ui/ToastProvider";
 import Button from "@/components/atoms/Button";
 import { cn } from "@/lib/cn";
@@ -40,6 +40,7 @@ export function PaymentConfirmModal({
     () => new Date().toISOString().slice(0, 10)
   );
   const [memo, setMemo] = useState("");
+  const [showOverpayConfirm, setShowOverpayConfirm] = useState(false);
 
   const resetForm = () => {
     setPaidAmountStr("");
@@ -59,25 +60,10 @@ export function PaymentConfirmModal({
 
   const remaining = payment ? payment.amount - payment.paid_amount : 0;
 
-  const handleSubmit = () => {
+  const executeConfirm = useCallback(() => {
     if (!payment) return;
 
     const paidAmount = parseInt(paidAmountStr, 10);
-    if (!paidAmount || paidAmount <= 0) {
-      toast.showError("수납 금액을 입력해주세요.");
-      return;
-    }
-    if (!paymentMethod) {
-      toast.showError("수납 방법을 선택해주세요.");
-      return;
-    }
-    if (paidAmount > remaining) {
-      const confirmed = window.confirm(
-        `잔액(${formatPrice(remaining)})보다 큰 금액입니다. 계속하시겠습니까?`
-      );
-      if (!confirmed) return;
-    }
-
     const newPaidAmount = payment.paid_amount + paidAmount;
 
     startTransition(async () => {
@@ -85,7 +71,7 @@ export function PaymentConfirmModal({
         const result = await confirmPaymentAction({
           payment_id: payment.id,
           paid_amount: newPaidAmount,
-          payment_method: paymentMethod,
+          payment_method: paymentMethod as PaymentMethod,
           paid_date: paidDate,
           memo: memo || undefined,
         });
@@ -106,6 +92,26 @@ export function PaymentConfirmModal({
         );
       }
     });
+  }, [payment, paidAmountStr, paymentMethod, paidDate, memo, toast, onSuccess, onOpenChange]);
+
+  const handleSubmit = () => {
+    if (!payment) return;
+
+    const paidAmount = parseInt(paidAmountStr, 10);
+    if (!paidAmount || paidAmount <= 0) {
+      toast.showError("수납 금액을 입력해주세요.");
+      return;
+    }
+    if (!paymentMethod) {
+      toast.showError("수납 방법을 선택해주세요.");
+      return;
+    }
+    if (paidAmount > remaining) {
+      setShowOverpayConfirm(true);
+      return;
+    }
+
+    executeConfirm();
   };
 
   const inputClass = cn(
@@ -279,6 +285,18 @@ export function PaymentConfirmModal({
           </Button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={showOverpayConfirm}
+        onOpenChange={setShowOverpayConfirm}
+        title="초과 수납 확인"
+        description={`잔액(${formatPrice(remaining)})보다 큰 금액입니다. 계속하시겠습니까?`}
+        confirmLabel="계속"
+        onConfirm={() => {
+          setShowOverpayConfirm(false);
+          executeConfirm();
+        }}
+      />
     </Dialog>
   );
 }

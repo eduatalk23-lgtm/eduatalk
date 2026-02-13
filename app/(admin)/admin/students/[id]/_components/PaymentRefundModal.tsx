@@ -165,7 +165,6 @@ export function PaymentRefundModal({
       <DialogFooter>
         <Button
           variant="outline"
-          size="sm"
           onClick={() => onOpenChange(false)}
           disabled={isPending}
         >
@@ -173,7 +172,6 @@ export function PaymentRefundModal({
         </Button>
         <Button
           variant="destructive"
-          size="sm"
           onClick={handleRefund}
           disabled={isPending}
         >

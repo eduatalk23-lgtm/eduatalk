@@ -151,7 +151,7 @@ export function SingleSendForm({
         <Input
           id="phone"
           type="tel"
-          placeholder="010-1234-5678"
+          placeholder="010-0000-0000"
           value={customPhone}
           onChange={(e) => {
             onCustomPhoneChange(e.target.value);
