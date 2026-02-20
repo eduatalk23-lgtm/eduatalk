@@ -147,6 +147,8 @@ export const adminDockKeys = {
     [...adminDockKeys.all, 'weeklyAdHoc', studentId, weekStart, weekEnd] as const,
   unfinished: (studentId: string, plannerId?: string) =>
     [...adminDockKeys.all, 'unfinished', studentId, plannerId ?? 'all'] as const,
+  weeklyCalendar: (studentId: string, weekStart: string, weekEnd: string, plannerId?: string, groupId?: string) =>
+    [...adminDockKeys.all, 'weeklyCalendar', studentId, weekStart, weekEnd, plannerId ?? 'all', groupId ?? 'all'] as const,
 };
 
 // Helper: Get week range (Monday to Sunday)
@@ -849,4 +851,89 @@ async function fetchNonStudyTimesLegacy(
   });
 
   return items;
+}
+
+// ============================================
+// WeeklyCalendar planCounts 조회
+// ============================================
+
+type PlanCountData = { plan_date: string; status: string };
+
+/**
+ * WeeklyCalendar용 날짜별 플랜 카운트 queryOptions
+ *
+ * 기존 useEffect 기반 직접 Supabase 호출을 React Query로 전환하여
+ * 캐시 공유, 중복 요청 방지, 정밀 무효화를 지원합니다.
+ */
+export function weeklyPlanCountsQueryOptions(
+  studentId: string,
+  weekStart: string,
+  weekEnd: string,
+  plannerId?: string,
+  selectedGroupId?: string | null
+) {
+  return queryOptions({
+    queryKey: adminDockKeys.weeklyCalendar(
+      studentId,
+      weekStart,
+      weekEnd,
+      plannerId,
+      selectedGroupId ?? undefined
+    ),
+    queryFn: async (): Promise<Map<string, { total: number; completed: number }>> => {
+      const supabase = createSupabaseBrowserClient();
+      let plans: PlanCountData[] = [];
+
+      if (selectedGroupId) {
+        const { data } = await supabase
+          .from('student_plan')
+          .select('plan_date, status')
+          .eq('student_id', studentId)
+          .eq('is_active', true)
+          .is('deleted_at', null)
+          .eq('container_type', 'daily')
+          .eq('plan_group_id', selectedGroupId)
+          .gte('plan_date', weekStart)
+          .lte('plan_date', weekEnd);
+        plans = (data ?? []) as PlanCountData[];
+      } else if (plannerId) {
+        const { data } = await supabase
+          .from('student_plan')
+          .select('plan_date, status, plan_groups!inner(planner_id)')
+          .eq('student_id', studentId)
+          .eq('is_active', true)
+          .is('deleted_at', null)
+          .eq('container_type', 'daily')
+          .gte('plan_date', weekStart)
+          .lte('plan_date', weekEnd)
+          .eq('plan_groups.planner_id', plannerId);
+        plans = (data ?? []) as unknown as PlanCountData[];
+      } else {
+        const { data } = await supabase
+          .from('student_plan')
+          .select('plan_date, status')
+          .eq('student_id', studentId)
+          .eq('is_active', true)
+          .is('deleted_at', null)
+          .eq('container_type', 'daily')
+          .gte('plan_date', weekStart)
+          .lte('plan_date', weekEnd);
+        plans = (data ?? []) as PlanCountData[];
+      }
+
+      const counts = new Map<string, { total: number; completed: number }>();
+      for (const plan of plans) {
+        const existing = counts.get(plan.plan_date) || { total: 0, completed: 0 };
+        existing.total++;
+        if (plan.status === 'completed') {
+          existing.completed++;
+        }
+        counts.set(plan.plan_date, existing);
+      }
+
+      return counts;
+    },
+    staleTime: CACHE_STALE_TIME_DYNAMIC,
+    gcTime: CACHE_GC_TIME_DYNAMIC,
+  });
 }

@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback, memo, type ReactNode, type ComponentType } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { useState, useMemo, useCallback, memo, type ReactNode, type ComponentType } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { ChevronLeft, ChevronRight, Undo2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { buildDayTypesFromDailySchedule, type DayType } from '@/lib/date/calendarDayTypes';
 import { getTodayInTimezone } from '@/lib/utils/dateUtils';
+import { weeklyPlanCountsQueryOptions } from '@/lib/query-options/adminDock';
 import type { DailyScheduleInfo } from '@/lib/types/plan';
 
 /** DateCellWrapper 컴포넌트 인터페이스 (DnD 지원용) */
@@ -76,8 +77,6 @@ export const WeeklyCalendar = memo(function WeeklyCalendar({
   exclusions,
   DateCellWrapper = DefaultDateCellWrapper,
 }: WeeklyCalendarProps) {
-  const [planCounts, setPlanCounts] = useState<Map<string, { total: number; completed: number }>>(new Map());
-  const [isLoading, setIsLoading] = useState(true);
   // 표시 주차 인덱스 (선택 날짜와 독립적으로 관리)
   const [displayedWeekIndex, setDisplayedWeekIndex] = useState<number | null>(null);
 
@@ -175,6 +174,41 @@ export const WeeklyCalendar = memo(function WeeklyCalendar({
     setDisplayedWeekIndex(effectiveWeekIndex + 1);
   }, [canGoNextWeek, effectiveWeekIndex]);
 
+  // 오늘 날짜가 속한 주차 인덱스 계산
+  const today = useMemo(() => getTodayInTimezone(), []);
+
+  const todayWeekIndex = useMemo(() => {
+    if (weekGroups.length === 0) return -1;
+
+    if (dailySchedules) {
+      for (const scheduleArray of dailySchedules) {
+        for (const schedule of scheduleArray) {
+          if (schedule.date === today && schedule.week_number != null) {
+            const idx = weekGroups.findIndex((g) => g.weekNumber === schedule.week_number);
+            if (idx >= 0) return idx;
+          }
+        }
+      }
+    }
+
+    // 스케줄에 없으면 날짜 범위로 탐색
+    for (let i = 0; i < weekGroups.length; i++) {
+      const group = weekGroups[i];
+      if (today >= group.startDate && today <= group.endDate) return i;
+    }
+
+    return -1;
+  }, [today, dailySchedules, weekGroups]);
+
+  // 현재 표시 주차에 오늘이 없으면 "오늘로" 버튼 표시
+  const showGoToToday = todayWeekIndex >= 0 && effectiveWeekIndex !== todayWeekIndex;
+
+  // 오늘 주차로 이동 + 오늘 날짜 선택
+  const handleGoToToday = useCallback(() => {
+    setDisplayedWeekIndex(todayWeekIndex);
+    onDateSelect(today);
+  }, [todayWeekIndex, today, onDateSelect]);
+
   // 날짜별 스케줄 정보 맵
   const scheduleInfoMap = useMemo(() => {
     const map = new Map<string, {
@@ -214,9 +248,17 @@ export const WeeklyCalendar = memo(function WeeklyCalendar({
     );
   }, [dailySchedules, exclusions]);
 
+  // 플랜 데이터 조회 (React Query)
+  const weekStart = currentWeekDates[0] ?? '';
+  const weekEnd = currentWeekDates[currentWeekDates.length - 1] ?? '';
+
+  const { data: planCounts = new Map(), isLoading } = useQuery({
+    ...weeklyPlanCountsQueryOptions(studentId, weekStart, weekEnd, plannerId, selectedGroupId),
+    enabled: currentWeekDates.length > 0,
+  });
+
   // 현재 주차의 DaySummary 배열 생성
   const weekDays = useMemo(() => {
-    const today = getTodayInTimezone();
     const days: DaySummary[] = [];
 
     for (const dateStr of currentWeekDates) {
@@ -243,98 +285,13 @@ export const WeeklyCalendar = memo(function WeeklyCalendar({
     }
 
     return days;
-  }, [currentWeekDates, dayTypeMap, scheduleInfoMap, planCounts]);
-
-  // 플랜 데이터 조회
-  useEffect(() => {
-    async function fetchPlanData() {
-      if (currentWeekDates.length === 0) {
-        setIsLoading(false);
-        return;
-      }
-
-      const supabase = createSupabaseBrowserClient();
-      const weekStartStr = currentWeekDates[0];
-      const weekEndStr = currentWeekDates[currentWeekDates.length - 1];
-
-      type PlanData = { plan_date: string; status: string };
-      let plans: PlanData[] = [];
-
-      // 플랜 그룹 필터링 우선순위:
-      // 1. selectedGroupId가 있으면 특정 그룹만 필터링
-      // 2. plannerId만 있으면 해당 플래너의 모든 그룹
-      // 3. 둘 다 없으면 전체
-      if (selectedGroupId) {
-        // 특정 플랜 그룹으로 필터링
-        const { data } = await supabase
-          .from('student_plan')
-          .select('plan_date, status')
-          .eq('student_id', studentId)
-          .eq('is_active', true)
-          .is('deleted_at', null)
-          .eq('container_type', 'daily')
-          .eq('plan_group_id', selectedGroupId)
-          .gte('plan_date', weekStartStr)
-          .lte('plan_date', weekEndStr);
-        plans = (data ?? []) as PlanData[];
-      } else if (plannerId) {
-        // 플래너 내 모든 그룹으로 필터링
-        const { data } = await supabase
-          .from('student_plan')
-          .select('plan_date, status, plan_groups!inner(planner_id)')
-          .eq('student_id', studentId)
-          .eq('is_active', true)
-          .is('deleted_at', null)
-          .eq('container_type', 'daily')
-          .gte('plan_date', weekStartStr)
-          .lte('plan_date', weekEndStr)
-          .eq('plan_groups.planner_id', plannerId);
-        plans = (data ?? []) as unknown as PlanData[];
-      } else {
-        // 필터 없이 전체
-        const { data } = await supabase
-          .from('student_plan')
-          .select('plan_date, status')
-          .eq('student_id', studentId)
-          .eq('is_active', true)
-          .is('deleted_at', null)
-          .eq('container_type', 'daily')
-          .gte('plan_date', weekStartStr)
-          .lte('plan_date', weekEndStr);
-        plans = (data ?? []) as PlanData[];
-      }
-
-      // 날짜별로 집계
-      const counts = new Map<string, { total: number; completed: number }>();
-      for (const plan of plans) {
-        const existing = counts.get(plan.plan_date) || { total: 0, completed: 0 };
-        existing.total++;
-        if (plan.status === 'completed') {
-          existing.completed++;
-        }
-        counts.set(plan.plan_date, existing);
-      }
-
-      setPlanCounts(counts);
-      setIsLoading(false);
-    }
-
-    setIsLoading(true);
-    fetchPlanData();
-  }, [studentId, plannerId, selectedGroupId, currentWeekDates]);
+  }, [currentWeekDates, dayTypeMap, scheduleInfoMap, planCounts, today]);
 
   // 요일 라벨
   const getDayLabel = (dateStr: string) => {
     const date = new Date(dateStr + 'T00:00:00');
     const labels = ['일', '월', '화', '수', '목', '금', '토'];
     return labels[date.getDay()];
-  };
-
-  // 상태 아이콘 (완료/미완료)
-  const getStatusIcon = (day: DaySummary) => {
-    if (day.totalPlans === 0) return null;
-    if (day.completedPlans === day.totalPlans) return '✓'; // 전부 완료
-    return '○'; // 미완료 있음
   };
 
   // 사이클 라벨 (D1, D2, R1)
@@ -421,6 +378,18 @@ export const WeeklyCalendar = memo(function WeeklyCalendar({
         >
           <ChevronRight className="w-5 h-5" />
         </button>
+
+        {/* 오늘로 돌아가기 버튼 (오늘이 다른 주차에 있을 때만 표시) */}
+        {showGoToToday && (
+          <button
+            onClick={handleGoToToday}
+            className="ml-1 flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-full transition-colors"
+            title="오늘 날짜로 이동"
+          >
+            <Undo2 className="w-3.5 h-3.5" />
+            오늘로
+          </button>
+        )}
       </div>
 
       {/* 날짜 그리드 - 동적 컬럼 수 (최대 10개) */}
