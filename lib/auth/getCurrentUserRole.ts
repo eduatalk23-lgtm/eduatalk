@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { User } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -12,6 +13,7 @@ import {
   type SignupRole,
 } from "@/lib/types/auth";
 import { logActionDebug, logActionWarn, logActionError } from "@/lib/utils/serverActionLogger";
+import { getCachedAuthUser } from "./cachedGetUser";
 
 export type UserRole =
   | "student"
@@ -237,8 +239,18 @@ export async function getCurrentUserRole(
     const signupRole = extractSignupRole(user.user_metadata);
     const tenantIdFromMetadata = extractTenantId(user.user_metadata);
 
+    // 3개 역할 테이블 병렬 조회 (우선순위: admin > parent > student)
+    const [adminResult, parentResult, studentResult] = await Promise.allSettled([
+      fetchAdminRole(supabase, user.id),
+      fetchParentRole(supabase, user.id),
+      fetchStudentRole(supabase, user.id),
+    ]);
+
+    const adminRole = adminResult.status === "fulfilled" ? adminResult.value : null;
+    const parentRole = parentResult.status === "fulfilled" ? parentResult.value : null;
+    const studentRole = studentResult.status === "fulfilled" ? studentResult.value : null;
+
     // 1. admin_users 테이블에서 조회 (최우선)
-    const adminRole = await fetchAdminRole(supabase, user.id);
     if (adminRole) {
       return {
         userId: user.id,
@@ -248,7 +260,6 @@ export async function getCurrentUserRole(
     }
 
     // 2. parent_users 테이블에서 조회
-    const parentRole = await fetchParentRole(supabase, user.id);
     if (parentRole) {
       return {
         userId: user.id,
@@ -258,7 +269,6 @@ export async function getCurrentUserRole(
     }
 
     // 3. students 테이블에서 조회 (tenant_id 포함)
-    const studentRole = await fetchStudentRole(supabase, user.id);
     if (studentRole) {
       return {
         userId: user.id,
@@ -299,3 +309,17 @@ export async function getCurrentUserRole(
     return { userId: null, role: null, tenantId: null };
   }
 }
+
+/**
+ * React.cache()로 래핑된 getCurrentUserRole
+ *
+ * RSC 요청 내에서 getCachedAuthUser()와 결합하여
+ * 인증 + 역할 조회가 한 요청당 1세트만 실행되도록 합니다.
+ */
+export const getCachedUserRole = cache(async (): Promise<CurrentUserRole> => {
+  const user = await getCachedAuthUser();
+  if (!user) {
+    return { userId: null, role: null, tenantId: null };
+  }
+  return getCurrentUserRole(user);
+});
