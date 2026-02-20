@@ -24,8 +24,10 @@ export function StudentPlannerSelectionPage({
 
   /**
    * 플래너 선택 시 학생용 플랜 관리 페이지로 라우팅
+   * 관리자 생성 플래너는 진입 차단 (방어 코드)
    */
-  const handlePlannerSelect = (planner: Planner) => {
+  const handlePlannerSelect = (planner: Planner | null) => {
+    if (!planner || planner.createdBy !== studentId) return;
     router.push(`/plan/planner/${planner.id}`);
   };
 

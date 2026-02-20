@@ -25,7 +25,8 @@ export function PlannerSelectionPage({
   /**
    * 플래너 선택 시 플랜 관리 페이지로 라우팅
    */
-  const handlePlannerSelect = (planner: Planner) => {
+  const handlePlannerSelect = (planner: Planner | null) => {
+    if (!planner) return;
     router.push(`/admin/students/${studentId}/plans/${planner.id}`);
   };
 

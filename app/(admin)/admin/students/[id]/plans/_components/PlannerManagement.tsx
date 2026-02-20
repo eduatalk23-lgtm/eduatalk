@@ -37,6 +37,9 @@ import {
   type Planner,
   type PlannerStatus,
 } from "@/lib/domains/admin-plan/actions";
+import { useToast } from "@/components/ui/ToastProvider";
+import { ConfirmDialog } from "@/components/ui/Dialog";
+import { PlannerStatusBadge } from "@/components/planner/PlannerStatusBadge";
 import { PlannerCreationModal } from "./PlannerCreationModal";
 import { PlannerStats } from "./PlannerStats";
 
@@ -51,7 +54,7 @@ interface PlannerManagementProps {
   studentId: string;
   tenantId: string;
   studentName: string;
-  onPlannerSelect?: (planner: Planner) => void;
+  onPlannerSelect?: (planner: Planner | null) => void;
   selectedPlannerId?: string;
   /**
    * 컴포넌트 모드
@@ -68,27 +71,20 @@ interface PlannerManagementProps {
 }
 
 // ============================================
-// 상태 표시 컴포넌트
+// 생성자 뱃지 컴포넌트
 // ============================================
 
-function StatusBadge({ status }: { status: PlannerStatus }) {
-  const config = {
-    draft: { label: "초안", bg: "bg-gray-100", text: "text-gray-700" },
-    active: { label: "활성", bg: "bg-green-100", text: "text-green-700" },
-    paused: { label: "일시정지", bg: "bg-yellow-100", text: "text-yellow-700" },
-    archived: { label: "보관됨", bg: "bg-slate-100", text: "text-slate-700" },
-    completed: { label: "완료", bg: "bg-blue-100", text: "text-blue-700" },
-  }[status];
-
+function CreatorBadge({ isStudentCreated }: { isStudentCreated: boolean }) {
+  if (isStudentCreated) {
+    return (
+      <span className="px-2 py-0.5 text-xs font-medium rounded bg-sky-100 text-sky-700">
+        내가 만든 플래너
+      </span>
+    );
+  }
   return (
-    <span
-      className={cn(
-        "px-2 py-0.5 text-xs font-medium rounded",
-        config.bg,
-        config.text
-      )}
-    >
-      {config.label}
+    <span className="px-2 py-0.5 text-xs font-medium rounded bg-purple-100 text-purple-700">
+      관리자 생성
     </span>
   );
 }
@@ -107,6 +103,7 @@ function PlannerCard({
   onDuplicate,
   viewMode = 'admin',
   studentId,
+  navigable = true,
 }: {
   planner: Planner;
   isSelected: boolean;
@@ -117,10 +114,25 @@ function PlannerCard({
   onDuplicate: () => void;
   viewMode?: ViewMode;
   studentId?: string;
+  /** 카드 클릭으로 상세 페이지 이동 가능 여부 */
+  navigable?: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Escape 키로 메뉴 닫기
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMenuOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [menuOpen]);
 
   // 학생 모드: 관리자 생성 플래너는 메뉴 숨김
   const isStudentMode = viewMode === 'student';
@@ -205,15 +217,22 @@ function PlannerCard({
   return (
     <div
       className={cn(
-        "group relative overflow-hidden rounded-xl border-2 transition-all duration-200 cursor-pointer",
+        "group relative overflow-hidden rounded-xl border-2 transition-all duration-200",
         "bg-gradient-to-br",
         statusBgColors[planner.status],
+        navigable ? "cursor-pointer" : "cursor-default",
+        navigable && "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
         isSelected
           ? "border-blue-500 shadow-lg shadow-blue-500/20 ring-2 ring-blue-500/20"
-          : "border-transparent hover:border-gray-300 hover:shadow-md",
+          : navigable
+            ? "border-transparent hover:border-gray-300 hover:shadow-md"
+            : "border-transparent",
         menuOpen && "z-30"
       )}
-      onClick={onSelect}
+      role={navigable ? "button" : undefined}
+      tabIndex={navigable ? 0 : undefined}
+      onClick={navigable ? onSelect : undefined}
+      onKeyDown={navigable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(); } } : undefined}
     >
       {/* 상단 컬러 바 */}
       <div
@@ -231,15 +250,18 @@ function PlannerCard({
         {/* 헤더 */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <StatusBadge status={planner.status} />
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <PlannerStatusBadge status={planner.status} variant={isStudentMode ? "student" : "admin"} />
+              {isStudentMode && (
+                <CreatorBadge isStudentCreated={planner.createdBy === studentId} />
+              )}
               {planner.status === "active" && daysRemaining >= 0 && daysRemaining <= 7 && (
                 <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">
                   D-{daysRemaining}
                 </span>
               )}
             </div>
-            <h4 className="text-lg font-semibold text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+            <h4 className={cn("text-lg font-semibold text-gray-900 truncate transition-colors", navigable && "group-hover:text-blue-600")}>
               {planner.name}
             </h4>
             {planner.description && (
@@ -292,7 +314,7 @@ function PlannerCard({
             <span className="text-lg font-bold text-gray-900">
               {planner.planGroupCount ?? 0}
             </span>
-            <span className="text-xs text-gray-500">플랜그룹</span>
+            <span className="text-xs text-gray-500">{isStudentMode ? "학습 계획" : "플랜그룹"}</span>
           </div>
           <div className="flex flex-col items-center p-2.5 bg-white/60 rounded-lg">
             <Clock className="w-4 h-4 text-gray-400 mb-1" />
@@ -315,10 +337,16 @@ function PlannerCard({
           <span className="text-xs text-gray-400">
             {formatFullDate(planner.periodStart)} 시작
           </span>
-          <div className="flex items-center gap-1 text-sm font-medium text-blue-600 group-hover:gap-2 transition-all">
-            <span>관리하기</span>
-            <ChevronRight className="w-4 h-4" />
-          </div>
+          {navigable ? (
+            <div className="flex items-center gap-1 text-sm font-medium text-blue-600 group-hover:gap-2 transition-all">
+              <span>{isStudentMode ? "학습하기" : "관리하기"}</span>
+              <ChevronRight className="w-4 h-4" />
+            </div>
+          ) : (
+            <span className="text-sm text-gray-400">
+              {isStudentMode ? "선생님이 관리하는 플래너예요" : "열람 전용"}
+            </span>
+          )}
         </div>
       </div>
 
@@ -461,6 +489,7 @@ export function PlannerManagement({
   viewMode = 'admin',
 }: PlannerManagementProps) {
   const isAdminMode = viewMode === 'admin';
+  const toast = useToast();
   const [planners, setPlanners] = useState<Planner[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -468,6 +497,8 @@ export function PlannerManagement({
   const [showArchived, setShowArchived] = useState(false);
   const [editPlanner, setEditPlanner] = useState<Planner | undefined>();
   const [duplicatePlanner, setDuplicatePlanner] = useState<Planner | undefined>();
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // 선택된 플래너 객체 계산
   const selectedPlanner = useMemo(
@@ -507,24 +538,32 @@ export function PlannerManagement({
       loadPlanners();
     } catch (err) {
       console.error("[PlannerManagement] 상태 변경 실패:", err);
-      alert(err instanceof Error ? err.message : "상태 변경에 실패했습니다.");
+      toast.showError(err instanceof Error ? err.message : "상태 변경에 실패했습니다.");
     }
   };
 
-  // 플래너 삭제
-  const handleDelete = async (plannerId: string, plannerName: string) => {
-    const confirmed = confirm(`"${plannerName}" 플래너를 삭제하시겠습니까?`);
-    if (!confirmed) return;
+  // 플래너 삭제 확인 다이얼로그 열기
+  const handleDeleteRequest = (plannerId: string, plannerName: string) => {
+    setDeleteTarget({ id: plannerId, name: plannerName });
+  };
+
+  // 플래너 삭제 실행
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
 
     try {
-      await deletePlannerAction(plannerId);
+      await deletePlannerAction(deleteTarget.id);
       loadPlanners();
-      if (selectedPlannerId === plannerId) {
-        onPlannerSelect?.(undefined as unknown as Planner);
+      if (selectedPlannerId === deleteTarget.id) {
+        onPlannerSelect?.(null);
       }
+      setDeleteTarget(null);
     } catch (err) {
       console.error("[PlannerManagement] 삭제 실패:", err);
-      alert(err instanceof Error ? err.message : "삭제에 실패했습니다.");
+      toast.showError(err instanceof Error ? err.message : "삭제에 실패했습니다.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -554,15 +593,20 @@ export function PlannerManagement({
   return (
     <div className="flex flex-col gap-6">
       {/* 헤더 */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h3 className="text-xl font-bold text-gray-900">
-            {isAdminMode ? `${studentName}의 플래너` : "내 플래너"}
-          </h3>
-          <p className="text-sm text-gray-500 mt-1">
-            학습 플랜을 관리할 플래너를 선택하세요
-          </p>
-        </div>
+      <div className={cn(
+        "flex sm:items-center gap-4",
+        mode === 'selection' ? "justify-end" : "flex-col sm:flex-row justify-between"
+      )}>
+        {mode !== 'selection' && (
+          <div>
+            <h3 className="text-xl font-bold text-gray-900">
+              {isAdminMode ? `${studentName}의 플래너` : "내 플래너"}
+            </h3>
+            <p className="text-sm text-gray-500 mt-1">
+              학습 플랜을 관리할 플래너를 선택하세요
+            </p>
+          </div>
+        )}
         <div className="flex items-center gap-3">
           {isAdminMode && (
             <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
@@ -617,8 +661,9 @@ export function PlannerManagement({
               플래너를 시작해보세요
             </h4>
             <p className="text-base text-white/80 mb-8 max-w-md">
-              플래너를 생성하면 학생의 학습 플랜을 체계적으로 관리할 수 있습니다.
-              목표 기간, 학습 일정, 콘텐츠를 한 곳에서 관리하세요.
+              {isAdminMode
+                ? "플래너를 생성하면 학생의 학습 플랜을 체계적으로 관리할 수 있습니다. 목표 기간, 학습 일정, 콘텐츠를 한 곳에서 관리하세요."
+                : "나의 학습 플랜을 체계적으로 관리할 수 있어요. 목표 기간, 학습 일정을 한 곳에서 관리해보세요."}
             </p>
             <button
               onClick={() => setCreateModalOpen(true)}
@@ -634,20 +679,24 @@ export function PlannerManagement({
       {/* 플래너 목록 */}
       {!isLoading && planners.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {planners.map((planner) => (
-            <PlannerCard
-              key={planner.id}
-              planner={planner}
-              isSelected={selectedPlannerId === planner.id}
-              onSelect={() => onPlannerSelect?.(planner)}
-              onStatusChange={(status) => handleStatusChange(planner.id, status)}
-              onDelete={() => handleDelete(planner.id, planner.name)}
-              onEdit={() => setEditPlanner(planner)}
-              onDuplicate={() => setDuplicatePlanner(planner)}
-              viewMode={viewMode}
-              studentId={studentId}
-            />
-          ))}
+          {planners.map((planner) => {
+            const isNavigable = viewMode !== 'student' || planner.createdBy === studentId;
+            return (
+              <PlannerCard
+                key={planner.id}
+                planner={planner}
+                isSelected={selectedPlannerId === planner.id}
+                onSelect={() => onPlannerSelect?.(planner)}
+                onStatusChange={(status) => handleStatusChange(planner.id, status)}
+                onDelete={() => handleDeleteRequest(planner.id, planner.name)}
+                onEdit={() => setEditPlanner(planner)}
+                onDuplicate={() => setDuplicatePlanner(planner)}
+                viewMode={viewMode}
+                studentId={studentId}
+                navigable={isNavigable}
+              />
+            );
+          })}
         </div>
       )}
 
@@ -671,6 +720,19 @@ export function PlannerManagement({
         editPlanner={editPlanner}
         duplicateFrom={duplicatePlanner}
         viewMode={viewMode}
+      />
+
+      {/* 삭제 확인 다이얼로그 */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title="플래너 삭제"
+        description={`"${deleteTarget?.name}" 플래너를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`}
+        confirmLabel="삭제"
+        cancelLabel="취소"
+        onConfirm={handleDeleteConfirm}
+        variant="destructive"
+        isLoading={isDeleting}
       />
     </div>
   );

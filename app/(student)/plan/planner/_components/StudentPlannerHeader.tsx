@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ArrowLeft, Calendar, Clock } from 'lucide-react';
 import type { Planner } from '@/lib/domains/admin-plan/actions';
+import { PlannerStatusBadge } from '@/components/planner/PlannerStatusBadge';
 
 interface StudentPlannerHeaderProps {
   planner: Planner;
@@ -50,48 +51,10 @@ export function StudentPlannerHeader({ planner }: StudentPlannerHeaderProps) {
             </div>
 
             {/* 플래너 상태 뱃지 */}
-            <PlannerStatusBadge status={planner.status} />
+            <PlannerStatusBadge status={planner.status} variant="student" />
           </div>
         </div>
       </div>
     </div>
-  );
-}
-
-/**
- * 플래너 상태 뱃지
- */
-function PlannerStatusBadge({ status }: { status: string }) {
-  const statusConfig: Record<string, { label: string; className: string }> = {
-    draft: {
-      label: '초안',
-      className: 'bg-gray-100 text-gray-700',
-    },
-    active: {
-      label: '진행중',
-      className: 'bg-green-100 text-green-700',
-    },
-    paused: {
-      label: '일시중지',
-      className: 'bg-yellow-100 text-yellow-700',
-    },
-    completed: {
-      label: '완료',
-      className: 'bg-blue-100 text-blue-700',
-    },
-    archived: {
-      label: '보관됨',
-      className: 'bg-gray-100 text-gray-500',
-    },
-  };
-
-  const config = statusConfig[status] || statusConfig.draft;
-
-  return (
-    <span
-      className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded ${config.className}`}
-    >
-      {config.label}
-    </span>
   );
 }

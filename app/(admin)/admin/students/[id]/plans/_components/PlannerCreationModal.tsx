@@ -29,7 +29,6 @@ import {
 } from "@/lib/domains/admin-plan/actions";
 import { NonStudyTimeBlocksEditor } from "./NonStudyTimeBlocksEditor";
 import { AdminAcademyScheduleImportModal } from "./admin-wizard/modals/AdminAcademyScheduleImportModal";
-import { AdminExclusionImportModal } from "./admin-wizard/modals/AdminExclusionImportModal";
 import { syncTimeManagementAcademySchedulesAction } from "@/lib/domains/plan/actions/plan-groups/academy";
 import {
   syncTimeManagementExclusionsAction,
@@ -236,16 +235,10 @@ export function PlannerCreationModal({
   const [isLoadingExclusion, setIsLoadingExclusion] = useState(false);
   const [hasLoadedGlobalExclusions, setHasLoadedGlobalExclusions] = useState(false);
 
-  // 기존 호환성을 위한 레거시 상태 (하위 호환)
-  const [exclusions, setExclusions] = useState<ExclusionSchedule[]>([]);
-  const [availableExclusions, setAvailableExclusions] = useState<ExclusionSchedule[]>([]);
-  const [isExclusionImportModalOpen, setIsExclusionImportModalOpen] = useState(false);
-
   // 직접 추가 관련 상태
   const [showAddAcademy, setShowAddAcademy] = useState(false);
   const [showAddExclusion, setShowAddExclusion] = useState(false);
   const [isAddingAcademy, setIsAddingAcademy] = useState(false);
-  const [isAddingExclusion, setIsAddingExclusion] = useState(false);
 
   const [newAcademy, setNewAcademy] = useState<Partial<AcademySchedule>>({
     day_of_week: 1,
@@ -419,15 +412,6 @@ export function PlannerCreationModal({
             is_locked: s.isLocked,
           }))
         );
-        setExclusions(
-          (editPlanner.exclusions || []).map((e) => ({
-            exclusion_date: e.exclusionDate,
-            exclusion_type: mapExclusionTypeFromTimeManagement(e.exclusionType),
-            reason: e.reason || undefined,
-            source: (e.source as ExclusionSchedule["source"]) || "imported",
-            is_locked: e.isLocked,
-          }))
-        );
       } else if (duplicateFrom) {
         setFormData(plannerToFormData(duplicateFrom, true));
         setNonStudyBlocks(duplicateFrom.nonStudyTimeBlocks || []);
@@ -445,21 +429,11 @@ export function PlannerCreationModal({
             is_locked: false,
           }))
         );
-        setExclusions(
-          (duplicateFrom.exclusions || []).map((e) => ({
-            exclusion_date: e.exclusionDate,
-            exclusion_type: mapExclusionTypeFromTimeManagement(e.exclusionType),
-            reason: e.reason || undefined,
-            source: "imported" as const,
-            is_locked: false,
-          }))
-        );
       } else {
         setFormData(getDefaultFormData());
         setNonStudyBlocks([]);
         setShowSelfStudy(false);
         setAcademySchedules([]);
-        setExclusions([]);
         // 오버라이드 시스템 상태 초기화
         setGlobalExclusions([]);
         setPlannerOnlyExclusions([]);
@@ -675,61 +649,6 @@ export function PlannerCreationModal({
   // ============================================
   // 제외일 Import 핸들러
   // ============================================
-
-  const handleOpenExclusionImportModal = useCallback(async () => {
-    if (!formData.periodStart || !formData.periodEnd) {
-      setError("학습 기간을 먼저 설정해주세요.");
-      return;
-    }
-
-    setIsLoadingExclusion(true);
-    try {
-      const result = await syncTimeManagementExclusionsAction(
-        null,
-        formData.periodStart,
-        formData.periodEnd,
-        studentId
-      );
-      if (!result.exclusions || result.exclusions.length === 0) {
-        setError("해당 기간 내 등록된 제외일이 없습니다.");
-        return;
-      }
-
-      const convertedExclusions: ExclusionSchedule[] = result.exclusions.map((e) => ({
-        exclusion_date: e.exclusion_date,
-        exclusion_type: mapExclusionTypeFromTimeManagement(e.exclusion_type),
-        reason: e.reason,
-        source: "imported" as const,
-      }));
-
-      setAvailableExclusions(convertedExclusions);
-      setIsExclusionImportModalOpen(true);
-    } catch (err) {
-      console.error("[PlannerCreationModal] 제외일 불러오기 실패:", err);
-      setError("제외일을 불러오는 중 오류가 발생했습니다.");
-    } finally {
-      setIsLoadingExclusion(false);
-    }
-  }, [studentId, formData.periodStart, formData.periodEnd]);
-
-  const handleImportExclusions = useCallback((selected: ExclusionSchedule[]) => {
-    // 중복 제거: exclusion_date + exclusion_type 조합으로 판단
-    const existingKeys = new Set(
-      exclusions.map((e) => `${e.exclusion_date}-${e.exclusion_type}`)
-    );
-    const newExclusions = selected.filter(
-      (e) => !existingKeys.has(`${e.exclusion_date}-${e.exclusion_type}`)
-    );
-
-    if (newExclusions.length > 0) {
-      setExclusions((prev) => [...prev, ...newExclusions]);
-    }
-    setIsExclusionImportModalOpen(false);
-  }, [exclusions]);
-
-  const handleRemoveExclusion = useCallback((index: number) => {
-    setExclusions((prev) => prev.filter((_, i) => i !== index));
-  }, []);
 
   /**
    * 제외일 직접 추가 핸들러 (플래너 전용 - 오버라이드 시스템)
@@ -951,7 +870,6 @@ export function PlannerCreationModal({
         setNonStudyBlocks([]);
         setShowSelfStudy(false);
         setAcademySchedules([]);
-        setExclusions([]);
         // 오버라이드 시스템 상태 초기화
         setGlobalExclusions([]);
         setPlannerOnlyExclusions([]);
@@ -977,7 +895,6 @@ export function PlannerCreationModal({
     setNonStudyBlocks([]);
     setShowSelfStudy(false);
     setAcademySchedules([]);
-    setExclusions([]);
     setError(null);
     onClose();
   };
@@ -998,7 +915,7 @@ export function PlannerCreationModal({
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">{modalTitle}</h2>
-            <p className="text-sm text-gray-500">{studentName}</p>
+            {isAdminMode && <p className="text-sm text-gray-500">{studentName}</p>}
           </div>
           <button
             onClick={handleClose}
@@ -1228,30 +1145,32 @@ export function PlannerCreationModal({
                     </span>
                   )}
                 </h3>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleOpenAcademyImportModal}
-                    disabled={isLoadingAcademy || isSubmitting}
-                    className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-700 disabled:text-gray-400 disabled:cursor-not-allowed"
-                  >
-                    {isLoadingAcademy ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Download className="h-4 w-4" />
-                    )}
-                    시간 관리에서 불러오기
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddAcademy(!showAddAcademy)}
-                    disabled={isSubmitting}
-                    className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 disabled:text-gray-400 disabled:cursor-not-allowed"
-                  >
-                    <Plus className="h-4 w-4" />
-                    직접 추가
-                  </button>
-                </div>
+                {isAdminMode && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleOpenAcademyImportModal}
+                      disabled={isLoadingAcademy || isSubmitting}
+                      className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-700 disabled:text-gray-400 disabled:cursor-not-allowed"
+                    >
+                      {isLoadingAcademy ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
+                      시간 관리에서 불러오기
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddAcademy(!showAddAcademy)}
+                      disabled={isSubmitting}
+                      className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 disabled:text-gray-400 disabled:cursor-not-allowed"
+                    >
+                      <Plus className="h-4 w-4" />
+                      직접 추가
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* 직접 추가 인라인 폼 */}
@@ -1490,7 +1409,7 @@ export function PlannerCreationModal({
                         min={formData.periodStart}
                         max={formData.periodEnd}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                        disabled={isAddingExclusion}
+                        disabled={isSubmitting}
                       />
                     </div>
                     <div>
@@ -1499,7 +1418,7 @@ export function PlannerCreationModal({
                         value={newExclusion.exclusion_type || "personal"}
                         onChange={(e) => setNewExclusion({ ...newExclusion, exclusion_type: e.target.value as ExclusionSchedule["exclusion_type"] })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                        disabled={isAddingExclusion}
+                        disabled={isSubmitting}
                       >
                         <option value="holiday">휴일</option>
                         <option value="personal">개인</option>
@@ -1515,7 +1434,7 @@ export function PlannerCreationModal({
                       onChange={(e) => setNewExclusion({ ...newExclusion, reason: e.target.value })}
                       placeholder="예: 가족 여행"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      disabled={isAddingExclusion}
+                      disabled={isSubmitting}
                     />
                   </div>
                   <div className="flex justify-end gap-2">
@@ -1529,7 +1448,7 @@ export function PlannerCreationModal({
                           reason: "",
                         });
                       }}
-                      disabled={isAddingExclusion}
+                      disabled={isSubmitting}
                       className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 disabled:text-gray-400"
                     >
                       취소
@@ -1537,7 +1456,7 @@ export function PlannerCreationModal({
                     <button
                       type="button"
                       onClick={handleAddExclusion}
-                      disabled={isAddingExclusion}
+                      disabled={isSubmitting}
                       className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
                       추가
@@ -1857,16 +1776,6 @@ export function PlannerCreationModal({
         onImport={handleImportAcademySchedules}
       />
 
-      {/* 제외일 Import 모달 */}
-      <AdminExclusionImportModal
-        isOpen={isExclusionImportModalOpen}
-        onClose={() => setIsExclusionImportModalOpen(false)}
-        availableExclusions={availableExclusions}
-        existingExclusions={exclusions}
-        onImport={handleImportExclusions}
-        periodStart={formData.periodStart}
-        periodEnd={formData.periodEnd}
-      />
     </div>
   );
 }
