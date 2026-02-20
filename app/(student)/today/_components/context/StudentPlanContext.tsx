@@ -19,6 +19,8 @@ interface StudentPlanContextValue {
   initialDockData?: PrefetchedDockData;
   /** SSR 프리페치 시점의 초기 날짜 */
   initialDate: string;
+  /** SSR 프리페치 시점의 초기 플래너 ID */
+  initialPlannerId: string | undefined;
 }
 
 const StudentPlanContext = createContext<StudentPlanContextValue | null>(null);
@@ -58,7 +60,8 @@ export function StudentPlanProvider({
     setExpandedDock,
     initialDockData,
     initialDate,
-  }), [studentId, tenantId, planners, selectedPlannerId, selectedDate, expandedDock, initialDockData, initialDate]);
+    initialPlannerId,
+  }), [studentId, tenantId, planners, selectedPlannerId, selectedDate, expandedDock, initialDockData, initialDate, initialPlannerId]);
 
   return (
     <StudentPlanContext.Provider value={value}>

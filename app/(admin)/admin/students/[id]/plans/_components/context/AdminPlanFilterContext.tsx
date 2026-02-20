@@ -12,6 +12,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useAdminPlanRealtime } from "@/lib/realtime";
 import { useTargetedDockInvalidation } from "@/lib/hooks/useAdminDockQueries";
+import type { ViewMode } from "./AdminPlanBasicContext";
 
 /**
  * Filter Context - 필터/선택 상태
@@ -51,6 +52,7 @@ interface AdminPlanFilterProviderProps {
   studentId: string;
   selectedPlannerId?: string;
   initialDate: string;
+  viewMode?: ViewMode;
 }
 
 export function AdminPlanFilterProvider({
@@ -58,6 +60,7 @@ export function AdminPlanFilterProvider({
   studentId,
   selectedPlannerId,
   initialDate,
+  viewMode = "admin",
 }: AdminPlanFilterProviderProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -78,18 +81,21 @@ export function AdminPlanFilterProvider({
     invalidateAll,
   } = useTargetedDockInvalidation();
 
-  // 날짜 변경 핸들러
+  // 날짜 변경 핸들러 (클라이언트 중심: URL만 교체, React Query가 데이터 재조회)
   const handleDateChange = useCallback(
     (date: string) => {
       setSelectedDate(date);
-      startTransition(() => {
-        const basePath = selectedPlannerId
-          ? `/admin/students/${studentId}/plans/${selectedPlannerId}`
-          : `/admin/students/${studentId}/plans`;
-        router.push(`${basePath}?date=${date}`);
-      });
+      const basePath =
+        viewMode === "student"
+          ? selectedPlannerId
+            ? `/plan/planner/${selectedPlannerId}`
+            : `/plan/planner`
+          : selectedPlannerId
+            ? `/admin/students/${studentId}/plans/${selectedPlannerId}`
+            : `/admin/students/${studentId}/plans`;
+      router.replace(`${basePath}?date=${date}`, { scroll: false });
     },
-    [router, studentId, selectedPlannerId]
+    [router, studentId, selectedPlannerId, viewMode]
   );
 
   // 전체 새로고침 핸들러 (모든 Dock)

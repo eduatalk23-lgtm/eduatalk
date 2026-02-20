@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/getCurrentUser';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { getPlannerAction, prefetchAllDockData } from '@/lib/domains/admin-plan/actions';
+import { getStudentName } from '@/lib/data/students';
 import { AdminPlanManagement } from '@/app/(admin)/admin/students/[id]/plans/_components/AdminPlanManagement';
 import { AdminPlanManagementSkeleton } from '@/app/(admin)/admin/students/[id]/plans/_components/AdminPlanManagementSkeleton';
 import { StudentPlannerHeader } from '../_components/StudentPlannerHeader';
@@ -14,17 +15,6 @@ import type { TimeSlot } from '@/lib/types/plan-generation';
 interface Props {
   params: Promise<{ plannerId: string }>;
   searchParams: Promise<{ date?: string; openWizard?: string }>;
-}
-
-async function getStudentName(studentId: string): Promise<string> {
-  const supabase = await createSupabaseServerClient();
-  const { data } = await supabase
-    .from('students')
-    .select('name')
-    .eq('id', studentId)
-    .single();
-
-  return data?.name ?? '학생';
 }
 
 /**

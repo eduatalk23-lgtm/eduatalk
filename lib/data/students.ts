@@ -769,3 +769,18 @@ export async function batchUpdateStudentGrade(
   };
 }
 
+/**
+ * 학생 이름 조회
+ * @param studentId - 학생 ID
+ * @returns 학생 이름 (없으면 '학생')
+ */
+export async function getStudentName(studentId: string): Promise<string> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("students")
+    .select("name")
+    .eq("id", studentId)
+    .single();
+  return data?.name ?? "학생";
+}
+

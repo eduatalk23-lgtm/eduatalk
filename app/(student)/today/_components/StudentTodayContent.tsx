@@ -1,13 +1,17 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { HorizontalDockLayout } from '@/components/planner/HorizontalDockLayout';
 import { WeeklyCalendar } from '@/components/planner/WeeklyCalendar';
 import { usePlanRealtimeUpdates } from '@/lib/realtime/usePlanRealtimeUpdates';
+import {
+  fetchPlannerScheduleAction,
+  type PlannerScheduleData,
+} from '@/lib/domains/admin-plan/actions/plannerScheduleQuery';
 import type { Planner } from '@/lib/domains/admin-plan/actions/planners';
 import type { PrefetchedDockData } from '@/lib/domains/admin-plan/actions/dockPrefetch';
-import type { DailyScheduleInfo } from '@/lib/types/plan';
 import { StudentPlanProvider, useStudentPlan } from './context/StudentPlanContext';
 import { StudentPlannerSelector } from './StudentPlannerSelector';
 import { StudentDailyDock } from './StudentDailyDock';
@@ -22,14 +26,8 @@ interface StudentTodayContentProps {
   initialPlannerId?: string;
   initialDate: string;
   initialDockData?: PrefetchedDockData;
-  /** 플래너별 daily_schedule (WeeklyCalendar용) */
-  plannerDailySchedules?: DailyScheduleInfo[][];
-  /** 플래너 제외일 */
-  plannerExclusions?: Array<{
-    exclusionDate: string;
-    exclusionType: string;
-    reason?: string | null;
-  }>;
+  /** SSR 시점의 플래너 스케줄 데이터 (초기 로딩 최적화) */
+  initialScheduleData?: PlannerScheduleData;
 }
 
 export function StudentTodayContent(props: StudentTodayContentProps) {
@@ -43,23 +41,16 @@ export function StudentTodayContent(props: StudentTodayContentProps) {
       initialDockData={props.initialDockData}
     >
       <StudentTodayContentInner
-        plannerDailySchedules={props.plannerDailySchedules}
-        plannerExclusions={props.plannerExclusions}
+        initialScheduleData={props.initialScheduleData}
       />
     </StudentPlanProvider>
   );
 }
 
 function StudentTodayContentInner({
-  plannerDailySchedules,
-  plannerExclusions,
+  initialScheduleData,
 }: {
-  plannerDailySchedules?: DailyScheduleInfo[][];
-  plannerExclusions?: Array<{
-    exclusionDate: string;
-    exclusionType: string;
-    reason?: string | null;
-  }>;
+  initialScheduleData?: PlannerScheduleData;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -72,7 +63,29 @@ function StudentTodayContentInner({
     setSelectedDate,
     expandedDock,
     setExpandedDock,
+    initialPlannerId,
   } = useStudentPlan();
+
+  // 플래너 스케줄 데이터를 React Query로 관리 (플래너 전환 시 자동 갱신)
+  const { data: scheduleData } = useQuery({
+    queryKey: ['plannerSchedule', selectedPlannerId, studentId],
+    queryFn: () => fetchPlannerScheduleAction(selectedPlannerId!, studentId),
+    enabled: !!selectedPlannerId,
+    // SSR 데이터는 초기 플래너에만 적용
+    initialData: selectedPlannerId === initialPlannerId ? initialScheduleData : undefined,
+    staleTime: 5 * 60 * 1000,
+    // 플래너 전환 시 이전 데이터를 유지하여 로딩 깜빡임 방지
+    placeholderData: (prev) => prev,
+  });
+
+  // fallback: calculatedSchedule → dailySchedules
+  const effectiveDailySchedules = useMemo(
+    () =>
+      scheduleData?.calculatedSchedule
+        ? [scheduleData.calculatedSchedule]
+        : scheduleData?.dailySchedules,
+    [scheduleData]
+  );
 
   // Realtime 구독
   usePlanRealtimeUpdates({
@@ -116,8 +129,8 @@ function StudentTodayContentInner({
         selectedDate={selectedDate}
         onDateSelect={handleDateSelect}
         plannerId={selectedPlannerId}
-        dailySchedules={plannerDailySchedules}
-        exclusions={plannerExclusions}
+        dailySchedules={effectiveDailySchedules}
+        exclusions={scheduleData?.exclusions}
       />
 
       {/* 일간 요약 */}

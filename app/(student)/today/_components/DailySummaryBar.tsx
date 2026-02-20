@@ -6,13 +6,16 @@ import { toPlanItemData } from '@/lib/types/planItem';
 import { useStudentPlan } from './context/StudentPlanContext';
 
 export const DailySummaryBar = memo(function DailySummaryBar() {
-  const { studentId, selectedDate, selectedPlannerId, initialDockData } = useStudentPlan();
+  const { studentId, selectedDate, selectedPlannerId, initialDockData, initialDate } = useStudentPlan();
+
+  // initialDockData는 initialDate에 대한 데이터이므로, selectedDate가 변경되면 무시
+  const useInitialData = selectedDate === initialDate;
 
   const { plans, adHocPlans } = useDailyDockQuery(
     studentId,
     selectedDate,
     selectedPlannerId,
-    initialDockData ? { plans: initialDockData.dailyPlans, adHocPlans: initialDockData.dailyAdHocPlans } : undefined
+    useInitialData && initialDockData ? { plans: initialDockData.dailyPlans, adHocPlans: initialDockData.dailyAdHocPlans } : undefined
   );
 
   const { completedCount, totalCount } = useMemo(() => {

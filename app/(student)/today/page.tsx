@@ -4,12 +4,14 @@ import { getCurrentUserRole } from '@/lib/auth/getCurrentUserRole';
 import { getTenantContext } from '@/lib/tenant/getTenantContext';
 import { getStudentPlannersAction, getPlannerAction, type Planner } from '@/lib/domains/admin-plan/actions/planners';
 import { prefetchAllDockData } from '@/lib/domains/admin-plan/actions/dockPrefetch';
+import { generateScheduleForPlanner } from '@/lib/domains/admin-plan/actions/planCreation/scheduleGenerator';
 import { formatDateString } from '@/lib/date/calendarUtils';
 import { getContainerClass } from '@/lib/constants/layout';
 import { EmptyState } from '@/components/molecules/EmptyState';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { StudentTodayContent } from './_components/StudentTodayContent';
 import type { DailyScheduleInfo } from '@/lib/types/plan';
+import type { PlannerScheduleData } from '@/lib/domains/admin-plan/actions/plannerScheduleQuery';
 
 type TodayPageProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -92,17 +94,44 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
     }),
   ]);
 
-  // daily_schedule 추출
-  const plannerDailySchedules: DailyScheduleInfo[][] = (planGroupsResult.data ?? [])
+  // 7. 초기 플래너 스케줄 데이터 구성 (React Query initialData로 사용)
+  const dailySchedules: DailyScheduleInfo[][] = (planGroupsResult.data ?? [])
     .map((g) => g.daily_schedule as DailyScheduleInfo[] | null)
     .filter((s): s is DailyScheduleInfo[] => Array.isArray(s) && s.length > 0);
 
-  // 제외일 매핑
-  const plannerExclusions = plannerDetail?.exclusions?.map((exc) => ({
+  let calculatedSchedule: DailyScheduleInfo[] | undefined;
+  if (plannerDetail?.periodStart && plannerDetail?.periodEnd) {
+    try {
+      const scheduleResult = await generateScheduleForPlanner(
+        selectedPlannerId,
+        plannerDetail.periodStart,
+        plannerDetail.periodEnd
+      );
+      if (scheduleResult.success) {
+        calculatedSchedule = scheduleResult.dailySchedule.map((d) => ({
+          date: d.date,
+          day_type: d.day_type as DailyScheduleInfo['day_type'],
+          study_hours: 0,
+          week_number: d.week_number ?? undefined,
+          cycle_day_number: d.cycle_day_number ?? undefined,
+        }));
+      }
+    } catch (error) {
+      console.error('[TodayPage] 플래너 스케줄 계산 실패:', error);
+    }
+  }
+
+  const exclusions = plannerDetail?.exclusions?.map((exc) => ({
     exclusionDate: exc.exclusionDate,
     exclusionType: exc.exclusionType,
     reason: exc.reason,
-  }));
+  })) ?? [];
+
+  const initialScheduleData: PlannerScheduleData = {
+    dailySchedules,
+    calculatedSchedule,
+    exclusions,
+  };
 
   return (
     <div className={getContainerClass('DASHBOARD', 'md')}>
@@ -114,8 +143,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
           initialPlannerId={selectedPlannerId}
           initialDate={selectedDate}
           initialDockData={initialDockData}
-          plannerDailySchedules={plannerDailySchedules}
-          plannerExclusions={plannerExclusions}
+          initialScheduleData={initialScheduleData}
         />
       </Suspense>
     </div>
