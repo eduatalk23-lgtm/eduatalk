@@ -1,13 +1,13 @@
 
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import Link from "next/link";
 import { getWeeklyStudyTimeSummary } from "@/lib/reports/weekly";
 import { getWeeklyPlanSummary } from "@/lib/reports/weekly";
-import { getStudentRiskScore } from "@/lib/risk/engine";
+import { getBatchAtRiskStudents } from "@/lib/risk/batch";
 import {
   getCachedStudentStatistics,
   getCachedTopStudents,
@@ -309,74 +309,55 @@ async function getTopGoalAchievementStudents(supabase: SupabaseServerClient) {
   }
 }
 
-// 위험 학생 조회 (Risk Engine 사용)
+// 위험 학생 조회 (배치 방식 — ~9 쿼리로 전체 학생 처리)
 async function getAtRiskStudents(supabase: SupabaseServerClient) {
   try {
-    // 활성화된 모든 학생 조회
     const { data: students, error } = await supabase
       .from("students")
       .select("id,name")
       .eq("is_active", true);
 
-    if (ErrorCodeCheckers.isColumnNotFound(error)) {
-      const { data: retryStudents } = await supabase
-        .from("students")
-        .select("id,name")
-        .eq("is_active", true);
-      if (!retryStudents) return [];
-      const studentRows = retryStudents as Array<{ id: string; name?: string | null }>;
-      const riskResults = await Promise.all(
-        studentRows.map(async (student) => {
-          try {
-            const risk = await getStudentRiskScore(supabase, student.id);
-            return {
-              studentId: student.id,
-              name: student.name ?? "이름 없음",
-              riskScore: risk.riskScore,
-              level: risk.level,
-              reasons: risk.reasons,
-            };
-          } catch (err) {
-            console.error(`[admin/dashboard] 학생 ${student.id} 위험 점수 계산 실패`, err);
-            return null;
-          }
-        })
-      );
-      return riskResults.filter((r): r is NonNullable<typeof r> => r !== null);
+    if (error) {
+      if (ErrorCodeCheckers.isColumnNotFound(error)) {
+        const { data: retryStudents } = await supabase
+          .from("students")
+          .select("id,name")
+          .eq("is_active", true);
+        if (!retryStudents || retryStudents.length === 0) return [];
+        return buildBatchRiskResults(supabase, retryStudents as Array<{ id: string; name?: string | null }>);
+      }
+      throw error;
     }
 
-    if (error) throw error;
-
     const studentRows = (students as Array<{ id: string; name?: string | null }> | null) ?? [];
+    if (studentRows.length === 0) return [];
 
-    // 각 학생의 위험 점수 계산 (병렬 처리)
-    const riskResults = await Promise.all(
-      studentRows.map(async (student) => {
-        try {
-          const risk = await getStudentRiskScore(supabase, student.id);
-          return {
-            studentId: student.id,
-            name: student.name ?? "이름 없음",
-            riskScore: risk.riskScore,
-            level: risk.level,
-            reasons: risk.reasons,
-          };
-        } catch (err) {
-          console.error(`[admin/dashboard] 학생 ${student.id} 위험 점수 계산 실패`, err);
-          return null;
-        }
-      })
-    );
-
-    // null 제거 및 위험 점수 순으로 정렬 (높은 순)
-    return riskResults
-      .filter((r): r is NonNullable<typeof riskResults[0]> => r !== null)
-      .sort((a, b) => b.riskScore - a.riskScore)
-      .slice(0, 5); // 상위 5명만 반환
+    return buildBatchRiskResults(supabase, studentRows);
   } catch (error) {
     console.error("[admin/dashboard] 위험 학생 조회 실패", error);
     return [];
   }
+}
+
+async function buildBatchRiskResults(
+  supabase: SupabaseServerClient,
+  studentRows: Array<{ id: string; name?: string | null }>
+) {
+  const studentIds = studentRows.map((s) => s.id);
+  const nameMap = new Map(studentRows.map((s) => [s.id, s.name ?? "이름 없음"]));
+
+  const riskResults = await getBatchAtRiskStudents(supabase, studentIds);
+
+  return riskResults
+    .map((r) => ({
+      studentId: r.studentId,
+      name: nameMap.get(r.studentId) ?? "이름 없음",
+      riskScore: r.riskScore,
+      level: r.level,
+      reasons: r.reasons,
+    }))
+    .sort((a, b) => b.riskScore - a.riskScore)
+    .slice(0, 5);
 }
 
 // 최근 상담노트 조회
@@ -445,7 +426,7 @@ async function getRecentConsultingNotes(supabase: SupabaseServerClient) {
 }
 
 export default async function AdminDashboardPage() {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId || !isAdminRole(role)) {
     redirect("/login");
