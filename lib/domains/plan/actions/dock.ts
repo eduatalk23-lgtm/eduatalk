@@ -103,7 +103,7 @@ async function verifyPlanAccess(
   const { data: student } = await supabase
     .from("students")
     .select("id")
-    .eq("user_id", user.userId)
+    .eq("id", user.userId)
     .single();
 
   if (!student) {
