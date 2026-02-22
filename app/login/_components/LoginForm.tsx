@@ -8,16 +8,15 @@ import { ResendEmailButton } from "./ResendEmailButton";
 import { StyledInput } from "./StyledInput";
 import { GoogleLoginButton } from "./GoogleLoginButton";
 import { KakaoLoginButton } from "./KakaoLoginButton";
-import { motion } from "framer-motion";
 
-type LoginFormProps = {
-  returnUrl?: string;
-};
-
-export function LoginForm({ returnUrl }: LoginFormProps) {
+export function LoginForm() {
   const searchParams = useSearchParams();
+  const returnUrl = searchParams.get("returnUrl");
   const message = searchParams.get("message");
-  const errorParam = searchParams.get("error");
+  const rawError = searchParams.get("error");
+  const errorParam = rawError === "account_deactivated"
+    ? "비활성화된 계정입니다. 관리자에게 문의해주세요."
+    : rawError;
   const connectionCode = searchParams.get("code");
 
   // 회원가입 링크에 연결 코드 유지
@@ -115,28 +114,20 @@ export function LoginForm({ returnUrl }: LoginFormProps) {
         </div>
 
         {message && (
-          <motion.p
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700 font-medium"
-          >
+          <p className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700 font-medium animate-fade-in-down">
             {message}
-          </motion.p>
+          </p>
         )}
 
         {error && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 font-medium flex flex-col gap-2"
-          >
+          <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 font-medium flex flex-col gap-2 animate-fade-in-down">
             <p>{error}</p>
             {needsEmailVerification && verificationEmail && (
               <div>
                 <ResendEmailButton email={verificationEmail} />
               </div>
             )}
-          </motion.div>
+          </div>
         )}
 
         <button

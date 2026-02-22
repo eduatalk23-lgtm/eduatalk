@@ -96,13 +96,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const queryClient = useQueryClient();
   const pathname = usePathname();
   const prevPathnameRef = useRef<string | null>(null);
+  const isAuthPage = AUTH_PAGES.some((p) => pathname.startsWith(p));
+
   const {
     data: user = null,
     isLoading,
     isError,
     error,
     refetch,
-  } = useQuery(authQueryOptions());
+  } = useQuery({
+    ...authQueryOptions(),
+    enabled: !isAuthPage,
+  });
 
   // 경로 변경 시 Supabase 세션과 React Query 캐시 동기화
   // Server Action redirect 후 soft navigation에서 쿠키가 즉시 동기화되지 않을 수 있음
@@ -110,12 +115,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const prevPathname = prevPathnameRef.current;
     prevPathnameRef.current = pathname;
 
+    // 인증 페이지에서는 세션 동기화 불필요
+    if (isAuthPage) return;
+
     // 인증 페이지에서 다른 페이지로 이동한 경우 (로그인/가입 후)
     const isFromAuthPage = prevPathname && AUTH_PAGES.some((p) => prevPathname.startsWith(p));
-    const isToNonAuthPage = !AUTH_PAGES.some((p) => pathname.startsWith(p));
 
     // 인증 페이지에서 벗어난 경우, 쿠키 동기화를 위해 지연 후 세션 확인
-    if (isFromAuthPage && isToNonAuthPage) {
+    if (isFromAuthPage) {
       // 첫 번째 시도: 즉시
       const checkAndSync = (attempt: number = 1) => {
         supabase.auth.getUser().then(({ data: { user } }) => {
@@ -147,7 +154,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         queryClient.setQueryData(["auth", "me"], null);
       }
     });
-  }, [pathname, queryClient]);
+  }, [pathname, queryClient, isAuthPage]);
 
   // Supabase auth state 변경 리스너 (로그인/로그아웃/토큰 갱신)
   useEffect(() => {
