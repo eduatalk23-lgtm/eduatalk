@@ -21,6 +21,8 @@ import {
   type TimetableWeek,
   type TimetableEntry,
 } from "@/lib/utils/timetableMarkdown";
+import { resolvePrimaryCalendarId } from "@/lib/domains/calendar/helpers";
+import { extractTimeHHMM } from "@/lib/domains/calendar/adapters";
 
 type ExportRange = "today" | "week" | "planGroup" | "planner";
 
@@ -123,22 +125,32 @@ export async function POST(request: NextRequest) {
       .eq("planner_id", plannerId)
       .order("period_start", { ascending: true });
 
-    // 4. 제외일 조회
+    // 4. calendarId resolve (제외일 + 학원 조회용)
+    const calendarId = await resolvePrimaryCalendarId(plannerId);
+
+    // 5. 제외일 조회 (calendar_events)
     let exclusions: Array<{
       exclusion_date: string;
       exclusion_type: string;
       reason: string | null;
     }> = [];
-    if (options.includeExclusions) {
+    if (options.includeExclusions && calendarId) {
       const { data } = await supabase
-        .from("planner_exclusions")
-        .select("exclusion_date, exclusion_type, reason")
-        .eq("planner_id", plannerId)
-        .order("exclusion_date", { ascending: true });
-      exclusions = data || [];
+        .from("calendar_events")
+        .select("start_date, event_subtype, title")
+        .eq("calendar_id", calendarId)
+        .eq("event_type", "exclusion")
+        .eq("is_all_day", true)
+        .is("deleted_at", null)
+        .order("start_date", { ascending: true });
+      exclusions = (data || []).map((row) => ({
+        exclusion_date: row.start_date!,
+        exclusion_type: row.event_subtype ?? "기타",
+        reason: row.title,
+      }));
     }
 
-    // 5. 학원 일정 조회
+    // 6. 학원 일정 조회 (calendar_events)
     let academySchedules: Array<{
       day_of_week: number;
       start_time: string;
@@ -146,13 +158,38 @@ export async function POST(request: NextRequest) {
       academy_name: string | null;
       subject: string | null;
     }> = [];
-    if (options.includeAcademySchedules) {
+    if (options.includeAcademySchedules && calendarId) {
       const { data } = await supabase
-        .from("planner_academy_schedules")
-        .select("day_of_week, start_time, end_time, academy_name, subject")
-        .eq("planner_id", plannerId)
-        .order("day_of_week", { ascending: true });
-      academySchedules = data || [];
+        .from("calendar_events")
+        .select("start_at, end_at, start_date, title")
+        .eq("calendar_id", calendarId)
+        .eq("event_type", "academy")
+        .filter("event_subtype", "eq", "학원")
+        .is("deleted_at", null);
+
+      // plan_date에서 요일 추출, 요일+시간 기준 유니크하게 집약
+      const scheduleMap = new Map<string, { day_of_week: number; start_time: string; end_time: string; academy_name: string | null }>();
+      for (const row of data || []) {
+        const planDate = row.start_date || row.start_at?.split("T")[0] || "";
+        const dayOfWeek = new Date(planDate + "T00:00:00").getDay();
+        const startTime = extractTimeHHMM(row.start_at) ?? "00:00";
+        const endTime = extractTimeHHMM(row.end_at) ?? "00:00";
+        const key = `${dayOfWeek}-${startTime}-${endTime}`;
+        if (!scheduleMap.has(key)) {
+          scheduleMap.set(key, {
+            day_of_week: dayOfWeek,
+            start_time: startTime,
+            end_time: endTime,
+            academy_name: row.title,
+          });
+        }
+      }
+      academySchedules = Array.from(scheduleMap.values())
+        .map((row) => ({
+          ...row,
+          subject: null,
+        }))
+        .sort((a, b) => a.day_of_week - b.day_of_week);
     }
 
     // 6. 플랜 데이터 조회 (범위에 따라)

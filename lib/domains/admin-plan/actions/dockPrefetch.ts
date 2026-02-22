@@ -397,7 +397,7 @@ export type NonStudyItem = {
  * plannerId가 있으면 planGroupIds 없이도 조회 가능
  *
  * 조회 우선순위:
- * 1. student_non_study_time 테이블 (새 방식)
+ * 1. calendar_events 테이블 (calendarId resolve)
  * 2. 레거시 오버라이드 + 템플릿 방식 (폴백)
  */
 export async function prefetchNonStudyTime(
@@ -406,59 +406,65 @@ export async function prefetchNonStudyTime(
   plannerId?: string
 ): Promise<NonStudyItem[]> {
   if (!plannerId) {
-    // plannerId 없으면 프리페치 불가 (planGroupIds 필요)
     return [];
   }
 
   const supabase = await createSupabaseServerClient();
 
-  // 1. 새 테이블에서 직접 조회 (새 방식)
-  const { data: nonStudyRecords, error: nonStudyError } = await supabase
-    .from('student_non_study_time')
-    .select('id, type, start_time, end_time, label, sequence')
+  // 1. calendarId resolve
+  const { data: calendar } = await supabase
+    .from('calendars')
+    .select('id')
     .eq('planner_id', plannerId)
-    .eq('plan_date', date)
-    .order('start_time', { ascending: true });
+    .eq('is_primary', true)
+    .is('deleted_at', null)
+    .maybeSingle();
 
-  console.log('[prefetchNonStudyTime] SSR query result:', {
-    plannerId,
-    date,
-    recordCount: nonStudyRecords?.length ?? 0,
-    error: nonStudyError?.message,
-    firstRecord: nonStudyRecords?.[0] ? { id: nonStudyRecords[0].id, type: nonStudyRecords[0].type } : null,
-  });
+  if (calendar?.id) {
+    const dateStart = `${date}T00:00:00+09:00`;
+    const dateEnd = `${date}T23:59:59+09:00`;
 
-  // 레코드가 있으면 새 방식 사용
-  if (!nonStudyError && nonStudyRecords && nonStudyRecords.length > 0) {
-    return nonStudyRecords.map((record) => {
-      // TIME 형식(HH:mm:ss)을 HH:mm으로 변환
-      const startTime = record.start_time.substring(0, 5);
-      const endTime = record.end_time.substring(0, 5);
+    const { data: events, error } = await supabase
+      .from('calendar_events')
+      .select('id, event_type, event_subtype, start_at, end_at, title, order_index')
+      .eq('calendar_id', calendar.id)
+      .is('deleted_at', null)
+      .eq('is_all_day', false)
+      .in('event_type', ['non_study', 'academy', 'break'])
+      .gte('start_at', dateStart)
+      .lt('start_at', dateEnd)
+      .order('start_at', { ascending: true });
 
-      // type 매핑 (점심식사, 학원, 이동시간 등)
-      const typeMap: Record<string, NonStudyItem['type']> = {
-        '점심식사': '점심식사',
-        '아침식사': '아침식사',
-        '저녁식사': '저녁식사',
-        '수면': '수면',
-        '학원': '학원',
-        '이동시간': '이동시간',
-      };
-      const type = typeMap[record.type] ?? '기타';
+    if (!error && events && events.length > 0) {
+      return events.map((event) => {
+        const startTime = event.start_at?.match(/T(\d{2}:\d{2})/)?.[1] ?? '00:00';
+        const endTime = event.end_at?.match(/T(\d{2}:\d{2})/)?.[1] ?? '00:00';
 
-      return {
-        id: record.id, // 새 테이블 레코드 UUID
-        type,
-        start_time: startTime,
-        end_time: endTime,
-        label: record.label ?? record.type,
-        sourceIndex: record.sequence,
-        hasOverride: false, // 새 방식에서는 오버라이드 개념 없음
-      };
-    });
+        const typeMap: Record<string, NonStudyItem['type']> = {
+          '점심식사': '점심식사',
+          '아침식사': '아침식사',
+          '저녁식사': '저녁식사',
+          '수면': '수면',
+          '학원': '학원',
+          '이동시간': '이동시간',
+        };
+        const subtype = event.event_subtype ?? event.event_type;
+        const type = typeMap[subtype] ?? '기타';
+
+        return {
+          id: event.id,
+          type,
+          start_time: startTime,
+          end_time: endTime,
+          label: event.title ?? subtype,
+          sourceIndex: event.order_index ?? undefined,
+          hasOverride: false,
+        };
+      });
+    }
   }
 
-  // 2. 새 테이블에 레코드가 없으면 레거시 방식으로 폴백
+  // 2. 레거시 방식으로 폴백
   const items: NonStudyItem[] = [];
   const seen = new Set<string>();
   const dayOfWeek = new Date(date + 'T00:00:00').getDay();
@@ -476,7 +482,6 @@ export async function prefetchNonStudyTime(
     overrides = overrideData as DailyOverride[];
   }
 
-  // 오버라이드 찾기 헬퍼
   const findOverride = (type: OverrideType, sourceIndex?: number): DailyOverride | undefined => {
     return overrides.find(o =>
       o.override_type === type &&
@@ -488,7 +493,6 @@ export async function prefetchNonStudyTime(
     return overrides.find(o => o.override_type === 'lunch' && o.source_index === null);
   };
 
-  // 비학습시간 블록 처리 헬퍼
   const processNonStudyData = (
     blocks: NonStudyTimeBlock[] | null,
     legacyLunchTime: LunchTime | null
@@ -544,7 +548,6 @@ export async function prefetchNonStudyTime(
     }
   };
 
-  // 1. 플래너에서 비학습시간 조회
   const { data: planner } = await supabase
     .from('planners')
     .select('non_study_time_blocks, lunch_time')
@@ -558,7 +561,6 @@ export async function prefetchNonStudyTime(
     );
   }
 
-  // 2. 학원 일정 + 이동시간
   const { data: academies } = await supabase
     .from('academy_schedules')
     .select('id, day_of_week, start_time, end_time, academy_name, subject, travel_time')
@@ -577,7 +579,6 @@ export async function prefetchNonStudyTime(
       const academyStartTime = academyOverride?.start_time_override ?? schedule.start_time.substring(0, 5);
       const academyEndTime = academyOverride?.end_time_override ?? schedule.end_time.substring(0, 5);
 
-      // 이동시간
       if (schedule.travel_time && schedule.travel_time > 0) {
         const [h, m] = academyStartTime.split(':').map(Number);
         const travelStartMinutes = h * 60 + m - schedule.travel_time;
@@ -594,7 +595,6 @@ export async function prefetchNonStudyTime(
         });
       }
 
-      // 학원 일정
       items.push({
         type: "학원",
         start_time: academyStartTime,
@@ -606,7 +606,6 @@ export async function prefetchNonStudyTime(
     }
   }
 
-  // 정렬
   items.sort((a, b) => {
     const [ah, am] = a.start_time.split(':').map(Number);
     const [bh, bm] = b.start_time.split(':').map(Number);

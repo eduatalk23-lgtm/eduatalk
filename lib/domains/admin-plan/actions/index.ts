@@ -161,17 +161,6 @@ export {
   updatePlannerStatusAction,
   addPlannerExclusionAction,
   removePlannerExclusionAction,
-  setPlannerExclusionsAction,
-  addPlannerAcademyScheduleAction,
-  removePlannerAcademyScheduleAction,
-  setPlannerAcademySchedulesAction,
-  // Exclusion Override Actions (Phase 5)
-  getPlannerExclusionOverridesAction,
-  getStudentGlobalExclusionsAction,
-  getEffectivePlannerExclusionsAction,
-  savePlannerExclusionOverridesAction,
-  upsertPlannerExclusionOverrideAction,
-  deletePlannerExclusionOverrideAction,
   type PlannerStatus,
   type ExclusionType,
   type NonStudyTimeBlock,
@@ -179,18 +168,10 @@ export {
   type UpdatePlannerInput,
   type PlannerExclusionInput,
   type PlannerAcademyScheduleInput,
-  type ExclusionOverrideInput,
   type Planner,
   type PlannerExclusion,
   type PlannerAcademySchedule,
 } from './planners';
-
-// Re-export types from lib/types/plan for convenience
-export type {
-  PlannerExclusionOverride,
-  EffectiveExclusion,
-  PlanExclusion,
-} from '@/lib/types/plan';
 
 // Time Management Actions (Admin)
 export {

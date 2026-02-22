@@ -2,12 +2,15 @@
  * 비학습시간 날짜별 레코드 생성 유틸리티
  *
  * 플래너 생성 시 템플릿 기반으로 날짜별 비학습시간 레코드를 생성합니다.
+ * calendar_events 테이블 삽입용 레코드를 생성합니다.
  *
  * @module lib/domains/admin-plan/utils/nonStudyTimeGenerator
  */
 
 import { eachDayOfInterval, getDay, format, parseISO } from 'date-fns';
 import type { NonStudyTimeBlock } from './plannerConfigInheritance';
+import type { CalendarEventInsert } from '@/lib/domains/calendar/types';
+import { toTimestamptz, mapNonStudyType, mapExclusionType } from '@/lib/domains/calendar/helpers';
 
 // ============================================
 // 타입 정의
@@ -28,22 +31,6 @@ export interface AcademyScheduleInput {
 }
 
 /**
- * student_non_study_time 테이블 삽입용 레코드
- */
-export interface NonStudyTimeRecord {
-  planner_id: string;
-  tenant_id: string;
-  plan_date: string; // YYYY-MM-DD
-  type: string;
-  start_time: string; // HH:mm:ss
-  end_time: string; // HH:mm:ss
-  label: string | null;
-  academy_schedule_id: string | null;
-  sequence: number;
-  is_template_based: boolean;
-}
-
-/**
  * 비학습시간 생성 옵션
  */
 export interface GenerateNonStudyTimesOptions {
@@ -56,16 +43,6 @@ export interface GenerateNonStudyTimesOptions {
 // ============================================
 // 헬퍼 함수
 // ============================================
-
-/**
- * HH:mm 형식을 HH:mm:ss 형식으로 변환
- */
-function toTimeWithSeconds(time: string): string {
-  if (time.length === 5) {
-    return `${time}:00`;
-  }
-  return time;
-}
 
 /**
  * 시간에서 분을 빼기
@@ -86,18 +63,13 @@ function shouldApplyBlock(
   date: Date,
   dateString: string
 ): boolean {
-  // specific_dates가 있으면 해당 날짜만 적용
   if (block.specific_dates && block.specific_dates.length > 0) {
     return block.specific_dates.includes(dateString);
   }
-
-  // day_of_week가 있으면 해당 요일만 적용
   if (block.day_of_week && block.day_of_week.length > 0) {
     const dayOfWeek = getDay(date);
     return block.day_of_week.includes(dayOfWeek);
   }
-
-  // 둘 다 없으면 매일 적용
   return true;
 }
 
@@ -108,42 +80,29 @@ function shouldApplyBlock(
 /**
  * 플래너 기간 동안의 비학습시간 레코드 생성
  *
- * @param plannerId 플래너 ID
+ * @param calendarId 캘린더 ID (calendars 테이블의 primary calendar)
+ * @param studentId 학생 ID
  * @param tenantId 테넌트 ID
  * @param startDate 시작일 (YYYY-MM-DD)
  * @param endDate 종료일 (YYYY-MM-DD)
  * @param nonStudyTimeBlocks 비학습시간 템플릿 배열
  * @param options 추가 옵션 (학원 일정, 제외일 등)
- * @returns student_non_study_time 테이블 삽입용 레코드 배열
- *
- * @example
- * ```typescript
- * const records = generateNonStudyRecordsForDateRange(
- *   plannerId,
- *   tenantId,
- *   '2026-02-01',
- *   '2026-02-28',
- *   nonStudyTimeBlocks,
- *   { academySchedules, excludedDates }
- * );
- * await supabase.from('student_non_study_time').insert(records);
- * ```
+ * @returns calendar_events 테이블 삽입용 레코드 배열
  */
 export function generateNonStudyRecordsForDateRange(
-  plannerId: string,
+  calendarId: string,
+  studentId: string,
   tenantId: string,
   startDate: string,
   endDate: string,
   nonStudyTimeBlocks: NonStudyTimeBlock[] | null | undefined,
   options: GenerateNonStudyTimesOptions = {}
-): NonStudyTimeRecord[] {
-  const records: NonStudyTimeRecord[] = [];
+): CalendarEventInsert[] {
+  const records: CalendarEventInsert[] = [];
   const { academySchedules = [], excludedDates = [] } = options;
 
-  // 제외일 Set (빠른 조회)
   const excludedDateSet = new Set(excludedDates);
 
-  // 시작일부터 종료일까지 각 날짜에 대해
   const start = parseISO(startDate);
   const end = parseISO(endDate);
   const dateInterval = eachDayOfInterval({ start, end });
@@ -152,36 +111,36 @@ export function generateNonStudyRecordsForDateRange(
     const dateString = format(date, 'yyyy-MM-dd');
     const dayOfWeek = getDay(date);
 
-    // 제외일이면 스킵
     if (excludedDateSet.has(dateString)) {
       continue;
     }
 
-    // 같은 type 내 sequence 추적용 Map
-    const typeSequenceMap = new Map<string, number>();
+    let orderIndex = 0;
 
     // 1. 일반 비학습시간 (점심식사 등)
     if (nonStudyTimeBlocks) {
       for (const block of nonStudyTimeBlocks) {
-        // 해당 날짜에 적용되는지 확인
         if (!shouldApplyBlock(block, date, dateString)) {
           continue;
         }
 
-        const currentSeq = typeSequenceMap.get(block.type) ?? 0;
-        typeSequenceMap.set(block.type, currentSeq + 1);
+        const { eventType, eventSubtype } = mapNonStudyType(block.type);
 
         records.push({
-          planner_id: plannerId,
+          calendar_id: calendarId,
+          student_id: studentId,
           tenant_id: tenantId,
-          plan_date: dateString,
-          type: block.type,
-          start_time: toTimeWithSeconds(block.start_time),
-          end_time: toTimeWithSeconds(block.end_time),
-          label: block.description || null,
-          academy_schedule_id: null,
-          sequence: currentSeq,
-          is_template_based: true,
+          title: block.description || block.type,
+          event_type: eventType,
+          event_subtype: eventSubtype,
+          start_at: toTimestamptz(dateString, block.start_time),
+          end_at: toTimestamptz(dateString, block.end_time),
+          start_date: dateString,
+          is_all_day: false,
+          status: 'confirmed',
+          transparency: 'opaque',
+          source: 'template',
+          order_index: orderIndex++,
         });
       }
     }
@@ -194,45 +153,47 @@ export function generateNonStudyRecordsForDateRange(
 
       // 이동시간 (학원 시작 전)
       if (academy.travelTime && academy.travelTime > 0) {
-        const travelSeq = typeSequenceMap.get('이동시간') ?? 0;
-        typeSequenceMap.set('이동시간', travelSeq + 1);
-
         const travelStart = subtractMinutes(academy.startTime, academy.travelTime);
 
         records.push({
-          planner_id: plannerId,
+          calendar_id: calendarId,
+          student_id: studentId,
           tenant_id: tenantId,
-          plan_date: dateString,
-          type: '이동시간',
-          start_time: toTimeWithSeconds(travelStart),
-          end_time: toTimeWithSeconds(academy.startTime),
-          label: academy.academyName ? `${academy.academyName} 이동` : '학원 이동',
-          academy_schedule_id: academy.id || null,
-          sequence: travelSeq,
-          is_template_based: true,
+          title: academy.academyName ? `${academy.academyName} 이동` : '학원 이동',
+          event_type: 'academy',
+          event_subtype: '이동시간',
+          start_at: toTimestamptz(dateString, travelStart),
+          end_at: toTimestamptz(dateString, academy.startTime),
+          start_date: dateString,
+          is_all_day: false,
+          status: 'confirmed',
+          transparency: 'opaque',
+          source: 'template',
+          order_index: orderIndex++,
         });
       }
 
       // 학원 본 일정
-      const academySeq = typeSequenceMap.get('학원') ?? 0;
-      typeSequenceMap.set('학원', academySeq + 1);
-
       const subjectLabel = academy.subject ? ` (${academy.subject})` : '';
       const academyLabel = academy.academyName
         ? `${academy.academyName}${subjectLabel}`
         : `학원${subjectLabel}`;
 
       records.push({
-        planner_id: plannerId,
+        calendar_id: calendarId,
+        student_id: studentId,
         tenant_id: tenantId,
-        plan_date: dateString,
-        type: '학원',
-        start_time: toTimeWithSeconds(academy.startTime),
-        end_time: toTimeWithSeconds(academy.endTime),
-        label: academyLabel,
-        academy_schedule_id: academy.id || null,
-        sequence: academySeq,
-        is_template_based: true,
+        title: academyLabel,
+        event_type: 'academy',
+        event_subtype: '학원',
+        start_at: toTimestamptz(dateString, academy.startTime),
+        end_at: toTimestamptz(dateString, academy.endTime),
+        start_date: dateString,
+        is_all_day: false,
+        status: 'confirmed',
+        transparency: 'opaque',
+        source: 'template',
+        order_index: orderIndex++,
       });
     }
   }
@@ -242,18 +203,18 @@ export function generateNonStudyRecordsForDateRange(
 
 /**
  * 단일 날짜의 비학습시간 레코드 생성
- *
- * 플랜 생성 시 해당 날짜의 비학습시간 레코드만 생성할 때 사용
  */
 export function generateNonStudyRecordsForDate(
-  plannerId: string,
+  calendarId: string,
+  studentId: string,
   tenantId: string,
   date: string,
   nonStudyTimeBlocks: NonStudyTimeBlock[] | null | undefined,
   options: GenerateNonStudyTimesOptions = {}
-): NonStudyTimeRecord[] {
+): CalendarEventInsert[] {
   return generateNonStudyRecordsForDateRange(
-    plannerId,
+    calendarId,
+    studentId,
     tenantId,
     date,
     date,
@@ -265,31 +226,267 @@ export function generateNonStudyRecordsForDate(
 /**
  * 특정 날짜 범위 확장 시 새 레코드만 생성
  *
- * 플래너 기간이 연장될 때 기존 레코드는 유지하고 새 날짜만 추가
- *
  * @param existingDates 이미 레코드가 있는 날짜들 (YYYY-MM-DD)
  */
 export function generateNonStudyRecordsForNewDates(
-  plannerId: string,
+  calendarId: string,
+  studentId: string,
   tenantId: string,
   startDate: string,
   endDate: string,
   nonStudyTimeBlocks: NonStudyTimeBlock[] | null | undefined,
   existingDates: string[],
   options: GenerateNonStudyTimesOptions = {}
-): NonStudyTimeRecord[] {
-  // 기존 날짜 + 제외일 모두 스킵
+): CalendarEventInsert[] {
   const excludedDates = [
     ...(options.excludedDates || []),
     ...existingDates,
   ];
 
   return generateNonStudyRecordsForDateRange(
-    plannerId,
+    calendarId,
+    studentId,
     tenantId,
     startDate,
     endDate,
     nonStudyTimeBlocks,
     { ...options, excludedDates }
   );
+}
+
+// ============================================
+// 캘린더 통합용 함수
+// ============================================
+
+/**
+ * 제외일 목록으로 CalendarEventInsert 생성 (event_type='exclusion', is_all_day=true)
+ */
+export function generateExclusionRecordsForDates(
+  calendarId: string,
+  studentId: string,
+  tenantId: string,
+  exclusions: Array<{
+    date: string; // YYYY-MM-DD
+    exclusionType: string;
+    reason?: string;
+  }>,
+  source: string = 'imported'
+): CalendarEventInsert[] {
+  return exclusions.map((exc, idx) => ({
+    calendar_id: calendarId,
+    student_id: studentId,
+    tenant_id: tenantId,
+    title: exc.reason || '제외일',
+    event_type: 'exclusion',
+    event_subtype: mapExclusionType(exc.exclusionType),
+    start_date: exc.date,
+    end_date: exc.date,
+    is_all_day: true,
+    status: 'confirmed',
+    transparency: 'transparent',
+    source,
+    order_index: idx,
+  }));
+}
+
+/**
+ * 반복 패턴으로 날짜별 CalendarEventInsert 생성 (metadata.group_id로 묶음)
+ */
+export function generateRecurringNonStudyRecords(
+  calendarId: string,
+  studentId: string,
+  tenantId: string,
+  pattern: {
+    type: string;
+    startTime: string; // HH:mm
+    endTime: string;   // HH:mm
+    daysOfWeek: number[]; // 0-6
+    label?: string;
+    groupId: string;
+  },
+  periodStart: string,
+  periodEnd: string,
+  source: string = 'manual'
+): CalendarEventInsert[] {
+  const records: CalendarEventInsert[] = [];
+  const start = parseISO(periodStart);
+  const end = parseISO(periodEnd);
+  const dateInterval = eachDayOfInterval({ start, end });
+  const daysSet = new Set(pattern.daysOfWeek);
+
+  const { eventType, eventSubtype } = mapNonStudyType(pattern.type);
+
+  let orderIndex = 0;
+  for (const date of dateInterval) {
+    if (!daysSet.has(getDay(date))) continue;
+
+    const dateString = format(date, 'yyyy-MM-dd');
+
+    records.push({
+      calendar_id: calendarId,
+      student_id: studentId,
+      tenant_id: tenantId,
+      title: pattern.label || pattern.type,
+      event_type: eventType,
+      event_subtype: eventSubtype,
+      start_at: toTimestamptz(dateString, pattern.startTime),
+      end_at: toTimestamptz(dateString, pattern.endTime),
+      start_date: dateString,
+      is_all_day: false,
+      status: 'confirmed',
+      transparency: 'opaque',
+      source,
+      order_index: orderIndex++,
+      metadata: { group_id: pattern.groupId },
+    });
+  }
+
+  return records;
+}
+
+// ============================================
+// 날짜 레코드 → 주간 패턴 역변환
+// ============================================
+
+/**
+ * calendar_events의 학원 레코드를 주간 패턴으로 역변환
+ * scheduleCalculator 입력 형식에 맞춤
+ *
+ * event_type='academy' 기반 필터 + start_at/end_at에서 시간 추출
+ */
+export function reconstructAcademyPatternsFromCalendarEvents(
+  records: Array<{
+    start_at: string | null;
+    end_at: string | null;
+    start_date: string | null;
+    event_type: string;
+    event_subtype: string | null;
+    title: string;
+  }>
+): Array<{
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  academy_name?: string;
+  travel_time?: number;
+}> {
+  const academyRecords = records.filter(
+    (r) => r.event_type === 'academy' && r.event_subtype === '학원' && r.start_at && r.end_at
+  );
+
+  const patternMap = new Map<
+    string,
+    {
+      day_of_week: number;
+      start_time: string;
+      end_time: string;
+      academy_name?: string;
+      travel_time?: number;
+    }
+  >();
+
+  for (const rec of academyRecords) {
+    const planDate = rec.start_date || rec.start_at!.split('T')[0];
+    const dayOfWeek = new Date(planDate + 'T00:00:00').getDay();
+    const startTime = rec.start_at!.match(/T(\d{2}:\d{2})/)?.[1] ?? '00:00';
+    const endTime = rec.end_at!.match(/T(\d{2}:\d{2})/)?.[1] ?? '00:00';
+    const key = `${dayOfWeek}-${startTime}-${endTime}`;
+
+    if (!patternMap.has(key)) {
+      // 이동시간 찾기
+      const travelRecord = records.find(
+        (r) =>
+          r.event_type === 'academy' &&
+          r.event_subtype === '이동시간' &&
+          r.start_date === planDate &&
+          r.end_at?.match(/T(\d{2}:\d{2})/)?.[1] === startTime
+      );
+
+      let travelTime: number | undefined;
+      if (travelRecord?.start_at && travelRecord?.end_at) {
+        const tStart = travelRecord.start_at.match(/T(\d{2}:\d{2})/)?.[1] ?? '00:00';
+        const tEnd = travelRecord.end_at.match(/T(\d{2}:\d{2})/)?.[1] ?? '00:00';
+        const [th, tm] = tStart.split(':').map(Number);
+        const [eh, em] = tEnd.split(':').map(Number);
+        travelTime = eh * 60 + em - (th * 60 + tm);
+      }
+
+      patternMap.set(key, {
+        day_of_week: dayOfWeek,
+        start_time: startTime + ':00',
+        end_time: endTime + ':00',
+        academy_name: rec.title ?? undefined,
+        travel_time: travelTime,
+      });
+    }
+  }
+
+  return Array.from(patternMap.values());
+}
+
+/**
+ * @deprecated Use reconstructAcademyPatternsFromCalendarEvents instead.
+ * Legacy compatibility: accepts old-style records with plan_date, type, start_time, end_time.
+ */
+export function reconstructAcademyPatternsFromDateRecords(
+  records: Array<{
+    plan_date: string;
+    type: string;
+    start_time: string | null;
+    end_time: string | null;
+    label: string | null;
+  }>
+): Array<{
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  academy_name?: string;
+  travel_time?: number;
+}> {
+  const academyRecords = records.filter(
+    (r) => r.type === '학원' && r.start_time && r.end_time
+  );
+
+  const patternMap = new Map<
+    string,
+    {
+      day_of_week: number;
+      start_time: string;
+      end_time: string;
+      academy_name?: string;
+      travel_time?: number;
+    }
+  >();
+
+  for (const rec of academyRecords) {
+    const date = new Date(rec.plan_date);
+    const dayOfWeek = date.getDay();
+    const key = `${dayOfWeek}-${rec.start_time}-${rec.end_time}`;
+
+    if (!patternMap.has(key)) {
+      const travelRecord = records.find(
+        (r) =>
+          r.type === '이동시간' &&
+          r.plan_date === rec.plan_date &&
+          r.end_time === rec.start_time
+      );
+
+      let travelTime: number | undefined;
+      if (travelRecord?.start_time && travelRecord?.end_time) {
+        const [th, tm] = travelRecord.start_time.split(':').map(Number);
+        const [eh, em] = travelRecord.end_time.split(':').map(Number);
+        travelTime = eh * 60 + em - (th * 60 + tm);
+      }
+
+      patternMap.set(key, {
+        day_of_week: dayOfWeek,
+        start_time: rec.start_time!,
+        end_time: rec.end_time!,
+        academy_name: rec.label ?? undefined,
+        travel_time: travelTime,
+      });
+    }
+  }
+
+  return Array.from(patternMap.values());
 }

@@ -149,6 +149,8 @@ export const adminDockKeys = {
     [...adminDockKeys.all, 'unfinished', studentId, plannerId ?? 'all'] as const,
   weeklyCalendar: (studentId: string, weekStart: string, weekEnd: string, plannerId?: string, groupId?: string) =>
     [...adminDockKeys.all, 'weeklyCalendar', studentId, weekStart, weekEnd, plannerId ?? 'all', groupId ?? 'all'] as const,
+  dailyAllDay: (studentId: string, date: string, plannerId?: string) =>
+    [...adminDockKeys.all, 'dailyAllDay', studentId, date, plannerId ?? 'all'] as const,
 };
 
 // Helper: Get week range (Monday to Sunday)
@@ -531,26 +533,13 @@ interface DailyOverride {
   end_time_override: string | null;
 }
 
-/**
- * student_non_study_time 테이블 레코드
- */
-interface NonStudyTimeRecord {
-  id: string;
-  type: string;
-  start_time: string;
-  end_time: string;
-  label: string | null;
-  sequence: number;
-}
 
 /**
  * 비학습시간 데이터 조회
  *
- * Phase 5: 새 테이블 우선 조회 방식으로 전환
- * - student_non_study_time 테이블에서 해당 날짜 레코드 직접 조회
+ * calendar_events 테이블 우선 조회 방식
+ * - plannerId → calendarId resolve 후 calendar_events에서 직접 조회
  * - 레코드가 없으면 레거시 방식으로 폴백 (플래너 템플릿 + 오버라이드)
- *
- * 핵심 원칙: "학생의 하루는 하나" - 비학습시간은 날짜별 레코드로 관리
  */
 export function nonStudyTimeQueryOptions(
   studentId: string,
@@ -558,7 +547,6 @@ export function nonStudyTimeQueryOptions(
   planGroupIds: string[],
   plannerId?: string
 ) {
-  // 날짜로부터 요일 계산 (0=일, 1=월, ..., 6=토)
   const dayOfWeek = new Date(date + 'T00:00:00').getDay();
 
   return queryOptions({
@@ -566,47 +554,58 @@ export function nonStudyTimeQueryOptions(
     queryFn: async (): Promise<NonStudyItem[]> => {
       const supabase = createSupabaseBrowserClient();
 
-      // 1. 새 테이블에서 직접 조회 (plannerId가 있는 경우)
+      // 1. calendar_events에서 직접 조회 (plannerId → calendarId resolve)
       if (plannerId) {
-        const { data: nonStudyRecords, error } = await supabase
-          .from('student_non_study_time')
-          .select('id, type, start_time, end_time, label, sequence')
+        // calendarId resolve
+        const { data: calendars } = await supabase
+          .from('calendars')
+          .select('id')
           .eq('planner_id', plannerId)
-          .eq('plan_date', date)
-          .order('start_time', { ascending: true });
+          .eq('is_primary', true)
+          .is('deleted_at', null)
+          .maybeSingle();
 
-        console.log('[nonStudyTimeQueryOptions] New table query result:', {
-          plannerId,
-          date,
-          recordCount: nonStudyRecords?.length ?? 0,
-          error: error?.message,
-          firstRecord: nonStudyRecords?.[0] ? { id: nonStudyRecords[0].id, type: nonStudyRecords[0].type } : null,
-        });
+        const calendarId = calendars?.id;
+        if (calendarId) {
+          const dateStart = `${date}T00:00:00+09:00`;
+          const dateEnd = `${date}T23:59:59+09:00`;
 
-        // 레코드가 있으면 바로 반환 (새 방식)
-        if (!error && nonStudyRecords && nonStudyRecords.length > 0) {
-          return (nonStudyRecords as NonStudyTimeRecord[]).map((record) => {
-            // TIME 형식을 HH:mm으로 변환
-            const startTime = record.start_time.substring(0, 5);
-            const endTime = record.end_time.substring(0, 5);
+          const { data: events, error } = await supabase
+            .from('calendar_events')
+            .select('id, event_type, event_subtype, start_at, end_at, title, order_index')
+            .eq('calendar_id', calendarId)
+            .is('deleted_at', null)
+            .eq('is_all_day', false)
+            .in('event_type', ['non_study', 'academy', 'break'])
+            .gte('start_at', dateStart)
+            .lt('start_at', dateEnd)
+            .order('start_at', { ascending: true });
 
-            // type을 NonStudyItem type으로 매핑
-            const type = mapToNonStudyItemType(record.type);
+          if (!error && events && events.length > 0) {
+            return events.map((event) => {
+              const startTime = event.start_at?.match(/T(\d{2}:\d{2})/)?.[1] ?? '00:00';
+              const endTime = event.end_at?.match(/T(\d{2}:\d{2})/)?.[1] ?? '00:00';
+              const type = mapToNonStudyItemType(
+                event.event_type === 'academy'
+                  ? (event.event_subtype ?? '학원')
+                  : (event.event_subtype ?? event.event_type)
+              );
 
-            return {
-              id: record.id, // DnD에서 아이템 식별용
-              type,
-              start_time: startTime,
-              end_time: endTime,
-              label: record.label ?? record.type,
-              sourceIndex: record.sequence,
-              hasOverride: false, // 새 방식에서는 오버라이드 개념 없음
-            };
-          });
+              return {
+                id: event.id,
+                type,
+                start_time: startTime,
+                end_time: endTime,
+                label: event.title ?? type,
+                sourceIndex: event.order_index ?? undefined,
+                hasOverride: false,
+              };
+            });
+          }
         }
       }
 
-      // 2. 새 테이블에 레코드가 없으면 레거시 방식으로 폴백
+      // 2. 레거시 방식으로 폴백
       return fetchNonStudyTimesLegacy(
         supabase,
         studentId,
@@ -615,6 +614,60 @@ export function nonStudyTimeQueryOptions(
         plannerId,
         dayOfWeek
       );
+    },
+    staleTime: CACHE_STALE_TIME_DYNAMIC,
+    gcTime: CACHE_GC_TIME_DYNAMIC,
+  });
+}
+
+// ============================================
+// 종일 이벤트 (All-day events)
+// ============================================
+
+export interface AllDayItem {
+  id: string;
+  type: string;
+  label: string;
+  exclusionType: string | null;
+}
+
+export function allDayEventsQueryOptions(
+  studentId: string,
+  date: string,
+  plannerId?: string,
+) {
+  return queryOptions({
+    queryKey: adminDockKeys.dailyAllDay(studentId, date, plannerId),
+    queryFn: async (): Promise<AllDayItem[]> => {
+      if (!plannerId) return [];
+      const supabase = createSupabaseBrowserClient();
+
+      // calendarId resolve
+      const { data: calendar } = await supabase
+        .from('calendars')
+        .select('id')
+        .eq('planner_id', plannerId)
+        .eq('is_primary', true)
+        .is('deleted_at', null)
+        .maybeSingle();
+
+      if (!calendar?.id) return [];
+
+      const { data, error } = await supabase
+        .from('calendar_events')
+        .select('id, event_type, event_subtype, title')
+        .eq('calendar_id', calendar.id)
+        .eq('is_all_day', true)
+        .is('deleted_at', null)
+        .or(`start_date.eq.${date},and(start_date.lte.${date},end_date.gte.${date})`);
+
+      if (error || !data) return [];
+      return data.map((row) => ({
+        id: row.id,
+        type: row.event_type,
+        label: row.title ?? row.event_type,
+        exclusionType: row.event_subtype,
+      }));
     },
     staleTime: CACHE_STALE_TIME_DYNAMIC,
     gcTime: CACHE_GC_TIME_DYNAMIC,

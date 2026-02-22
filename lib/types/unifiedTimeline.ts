@@ -88,7 +88,7 @@ export interface ReorderInputItem {
     originalType: NonStudySubType;
     originalStartTime: string;
     originalEndTime: string;
-    /** 새 테이블 레코드 ID (student_non_study_time.id) */
+    /** 레코드 ID (calendar_events.id) */
     recordId?: string;
   };
 }
@@ -137,7 +137,7 @@ export interface UnifiedDragData {
   nonStudyData?: {
     sourceIndex: number;
     originalType: NonStudySubType;
-    /** 새 테이블 레코드 ID (student_non_study_time.id) */
+    /** 레코드 ID (calendar_events.id) */
     recordId?: string;
   };
 }

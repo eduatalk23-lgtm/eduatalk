@@ -16,6 +16,7 @@ import {
   inheritPlannerConfigFromRaw,
   type PlannerConfigRaw,
 } from "./plannerConfigInheritance";
+import { resolvePrimaryCalendarId } from "@/lib/domains/calendar/helpers";
 
 /**
  * 플래너에 연결된 활성 Plan Group 선택
@@ -198,18 +199,51 @@ export async function createPlanGroupForPlanner(input: {
       };
     }
 
-    // 플래너 제외일 조회 (periodStart 이후만)
-    const { data: plannerExclusions } = await supabase
-      .from("planner_exclusions")
-      .select("*")
-      .eq("planner_id", plannerId)
-      .gte("exclusion_date", periodStart);
+    // calendarId resolve
+    const calendarId = await resolvePrimaryCalendarId(plannerId);
 
-    // 플래너 학원일정 조회
-    const { data: plannerSchedules } = await supabase
-      .from("planner_academy_schedules")
-      .select("*")
-      .eq("planner_id", plannerId);
+    // 플래너 제외일 조회 (calendar_events event_type='exclusion')
+    let plannerExclusions: Array<{ plan_date: string; exclusion_type: string | null; label: string | null }> | null = null;
+    if (calendarId) {
+      const { data: exclusionEvents } = await supabase
+        .from("calendar_events")
+        .select("start_date, event_subtype, title")
+        .eq("calendar_id", calendarId)
+        .eq("event_type", "exclusion")
+        .eq("is_all_day", true)
+        .is("deleted_at", null)
+        .gte("start_date", periodStart);
+
+      plannerExclusions = (exclusionEvents || []).map((e) => ({
+        plan_date: e.start_date!,
+        exclusion_type: e.event_subtype,
+        label: e.title,
+      }));
+    }
+
+    // 플래너 학원일정 조회 (calendar_events event_type='academy')
+    const scheduleMap = new Map<string, { day_of_week: number; start_time: string | null; end_time: string | null; label: string | null }>();
+    if (calendarId) {
+      const { data: academyEvents } = await supabase
+        .from("calendar_events")
+        .select("start_at, end_at, start_date, title")
+        .eq("calendar_id", calendarId)
+        .eq("event_type", "academy")
+        .filter("event_subtype", "eq", "학원")
+        .is("deleted_at", null);
+
+      for (const row of academyEvents || []) {
+        const planDate = row.start_date || row.start_at?.split("T")[0] || "";
+        const dayOfWeek = new Date(planDate + "T00:00:00").getDay();
+        const startTime = row.start_at?.match(/T(\d{2}:\d{2})/)?.[1] ?? null;
+        const endTime = row.end_at?.match(/T(\d{2}:\d{2})/)?.[1] ?? null;
+        const key = `${dayOfWeek}-${startTime}-${endTime}`;
+        if (!scheduleMap.has(key)) {
+          scheduleMap.set(key, { day_of_week: dayOfWeek, start_time: startTime ? startTime + ":00" : null, end_time: endTime ? endTime + ":00" : null, label: row.title });
+        }
+      }
+    }
+    const plannerSchedules = Array.from(scheduleMap.values());
 
     // 플래너 설정을 플랜 그룹 생성용 설정으로 변환
     const inheritedConfig = inheritPlannerConfigFromRaw(planner as PlannerConfigRaw);
@@ -254,9 +288,9 @@ export async function createPlanGroupForPlanner(input: {
         tenant_id: tenantId,
         student_id: studentId,
         plan_group_id: planGroupId,
-        exclusion_date: e.exclusion_date,
+        exclusion_date: e.plan_date,
         exclusion_type: e.exclusion_type,
-        reason: e.reason || null,
+        reason: e.label || null,
       }));
 
       const { error: exclusionError } = await supabase
@@ -275,13 +309,13 @@ export async function createPlanGroupForPlanner(input: {
         tenant_id: tenantId,
         student_id: studentId,
         plan_group_id: planGroupId,
-        academy_id: s.academy_id || "",
-        academy_name: s.academy_name,
+        academy_id: "",
+        academy_name: s.label,
         day_of_week: s.day_of_week,
         start_time: s.start_time,
         end_time: s.end_time,
-        subject: s.subject,
-        travel_time: s.travel_time,
+        subject: null,
+        travel_time: 0,
         source: "inherited",
         is_locked: false,
       }));

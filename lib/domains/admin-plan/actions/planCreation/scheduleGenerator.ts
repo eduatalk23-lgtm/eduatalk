@@ -12,9 +12,10 @@ import { calculateAvailableDates, type NonStudyTimeBlock } from '@/lib/scheduler
 import { extractScheduleMaps } from '@/lib/plan/planDataLoader';
 import type { DateTimeSlots } from './timelineAdjustment';
 import {
-  getEffectiveAcademySchedulesForPlanner,
   getEffectiveAcademySchedules,
 } from '@/lib/data/planGroups/academyOverrides';
+import { reconstructAcademyPatternsFromCalendarEvents } from '../../utils/nonStudyTimeGenerator';
+import { resolvePrimaryCalendarId } from '@/lib/domains/calendar/helpers';
 
 /**
  * 플래너 정보 타입
@@ -70,20 +71,18 @@ export async function generateScheduleForPlanner(
 ): Promise<ScheduleGenerationResult> {
   const supabase = await createSupabaseServerClient();
 
-  // 1. 플래너 정보 조회 (student_id 포함)
+  // 1. 플래너 정보 조회
   const { data: planner, error: plannerError } = await supabase
     .from('planners')
     .select(`
       id,
-      student_id,
       default_scheduler_type,
       default_scheduler_options,
       study_hours,
       self_study_hours,
       lunch_time,
       block_set_id,
-      non_study_time_blocks,
-      students!inner(tenant_id)
+      non_study_time_blocks
     `)
     .eq('id', plannerId)
     .single();
@@ -98,24 +97,52 @@ export async function generateScheduleForPlanner(
     };
   }
 
-  // 2. 플래너 학원일정 조회 (전역 + 오버라이드 병합)
-  type StudentInfo = { tenant_id: string | null };
-  const studentsData = planner.students as StudentInfo | StudentInfo[] | null;
-  const studentInfo = Array.isArray(studentsData) ? studentsData[0] : studentsData;
-  const effectiveAcademySchedules = await getEffectiveAcademySchedulesForPlanner(
-    plannerId,
-    planner.student_id,
-    studentInfo?.tenant_id ?? null,
-    { useAdminClient: true }
-  );
+  // 2. calendarId resolve
+  const calendarId = await resolvePrimaryCalendarId(plannerId);
 
-  // 3. 플래너 제외일 조회 (기간 내)
-  const { data: exclusions } = await supabase
-    .from('planner_exclusions')
-    .select('exclusion_date, exclusion_type, reason')
-    .eq('planner_id', plannerId)
-    .gte('exclusion_date', periodStart)
-    .lte('exclusion_date', periodEnd);
+  // 3. 제외일 조회 (calendar_events event_type='exclusion')
+  let exclusions: Array<{ exclusion_date: string; exclusion_type: string; reason: string | null }> = [];
+  if (calendarId) {
+    const { data: exclusionEvents } = await supabase
+      .from('calendar_events')
+      .select('start_date, event_subtype, title')
+      .eq('calendar_id', calendarId)
+      .eq('event_type', 'exclusion')
+      .eq('is_all_day', true)
+      .is('deleted_at', null)
+      .gte('start_date', periodStart)
+      .lte('start_date', periodEnd);
+
+    exclusions = (exclusionEvents || []).map((e) => ({
+      exclusion_date: e.start_date!,
+      exclusion_type: e.event_subtype || '기타',
+      reason: e.title,
+    }));
+  }
+
+  // 4. 학원 일정 조회 (calendar_events event_type='academy')
+  let effectiveAcademySchedules: Array<{
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
+    academy_name?: string;
+    travel_time?: number;
+  }> = [];
+
+  if (calendarId) {
+    const { data: academyEvents } = await supabase
+      .from('calendar_events')
+      .select('start_at, end_at, start_date, event_type, event_subtype, title')
+      .eq('calendar_id', calendarId)
+      .eq('event_type', 'academy')
+      .is('deleted_at', null)
+      .gte('start_date', periodStart)
+      .lte('start_date', periodEnd);
+
+    if (academyEvents && academyEvents.length > 0) {
+      effectiveAcademySchedules = reconstructAcademyPatternsFromCalendarEvents(academyEvents);
+    }
+  }
 
   // 4. 블록 세트 정보 조회
   let blocks: BlockInfo[] = [];
@@ -153,7 +180,6 @@ export async function generateScheduleForPlanner(
       start_time: a.start_time,
       end_time: a.end_time,
       academy_name: a.academy_name || undefined,
-      subject: a.subject || undefined,
       travel_time: a.travel_time || undefined,
     })),
     {

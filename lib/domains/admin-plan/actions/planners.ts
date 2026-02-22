@@ -20,21 +20,11 @@ import {
 } from "../utils/plannerConfigInheritance";
 import {
   generateNonStudyRecordsForDateRange,
+  generateExclusionRecordsForDates,
   type AcademyScheduleInput,
 } from "../utils/nonStudyTimeGenerator";
-import {
-  getPlannerOverridesForPlanner,
-  getEffectiveExclusionsForPlanner,
-  savePlannerOverridesForPlanner,
-  upsertPlannerOverrideForPlanner,
-  deletePlannerOverrideForPlanner,
-} from "@/lib/data/planGroups/exclusionOverrides";
-import { getStudentExclusions } from "@/lib/data/planGroups/exclusions";
-import type {
-  PlannerExclusionOverride,
-  EffectiveExclusion,
-  PlanExclusion,
-} from "@/lib/types/plan";
+import { resolvePrimaryCalendarId, mapExclusionType } from "@/lib/domains/calendar/helpers";
+import { extractTimeHHMM } from "@/lib/domains/calendar/adapters";
 
 // ============================================
 // 타입 정의
@@ -339,36 +329,18 @@ async function _createPlanner(input: CreatePlannerInput): Promise<Planner> {
 
   const plannerId = data.id as string;
 
-  // 학원 일정이 제공된 경우 저장
-  if (input.academySchedules && input.academySchedules.length > 0) {
-    await _setPlannerAcademySchedulesInternal(
-      supabase,
-      tenantId,
-      plannerId,
-      input.academySchedules
-    );
-  }
-
-  // 제외일이 제공된 경우 저장
-  if (input.exclusions && input.exclusions.length > 0) {
-    await _setPlannerExclusionsInternal(
-      supabase,
-      tenantId,
-      plannerId,
-      input.exclusions
-    );
-  }
-
-  // 비학습시간 날짜별 레코드 생성
+  // 비학습시간 날짜별 레코드 생성 (제외일 포함)
   await _generateNonStudyTimeRecordsInternal(
     supabase,
     tenantId,
     plannerId,
+    input.studentId,
     input.periodStart,
     input.periodEnd,
     mergedNonStudyBlocks,
     input.academySchedules,
-    input.exclusions?.map((e) => e.exclusionDate)
+    input.exclusions?.map((e) => e.exclusionDate),
+    input.exclusions
   );
 
   // 관계 데이터를 포함하여 조회 후 반환
@@ -384,83 +356,34 @@ async function _createPlanner(input: CreatePlannerInput): Promise<Planner> {
 }
 
 /**
- * 내부용: 학원일정 저장 (인증 체크 없이)
- */
-async function _setPlannerAcademySchedulesInternal(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  tenantId: string,
-  plannerId: string,
-  schedules: PlannerAcademyScheduleInput[]
-): Promise<void> {
-  if (schedules.length === 0) return;
-
-  const { error } = await supabase.from("planner_academy_schedules").insert(
-    schedules.map((s) => ({
-      tenant_id: tenantId,
-      planner_id: plannerId,
-      academy_id: s.academyId || null,
-      academy_name: s.academyName || null,
-      day_of_week: s.dayOfWeek,
-      start_time: s.startTime,
-      end_time: s.endTime,
-      subject: s.subject || null,
-      travel_time: s.travelTime ?? 60,
-      source: s.source || "imported",
-      is_locked: s.isLocked || false,
-    }))
-  );
-
-  if (error) {
-    logActionError("planners._createPlanner", `학원일정 저장 실패: ${error.message}`);
-    // 플래너는 이미 생성되었으므로 에러를 던지지 않고 로깅만 함
-  }
-}
-
-/**
- * 내부용: 제외일 저장 (인증 체크 없이)
- */
-async function _setPlannerExclusionsInternal(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  tenantId: string,
-  plannerId: string,
-  exclusions: PlannerExclusionInput[]
-): Promise<void> {
-  if (exclusions.length === 0) return;
-
-  const { error } = await supabase.from("planner_exclusions").insert(
-    exclusions.map((e) => ({
-      tenant_id: tenantId,
-      planner_id: plannerId,
-      exclusion_date: e.exclusionDate,
-      exclusion_type: e.exclusionType,
-      reason: e.reason || null,
-      source: e.source || "imported",
-      is_locked: e.isLocked || false,
-    }))
-  );
-
-  if (error) {
-    logActionError("planners._createPlanner", `제외일 저장 실패: ${error.message}`);
-    // 플래너는 이미 생성되었으므로 에러를 던지지 않고 로깅만 함
-  }
-}
-
-/**
  * 내부용: 비학습시간 날짜별 레코드 생성 (인증 체크 없이)
+ * calendar_events 테이블에 삽입
  */
 async function _generateNonStudyTimeRecordsInternal(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   tenantId: string,
   plannerId: string,
+  studentId: string,
   startDate: string,
   endDate: string,
   nonStudyTimeBlocks: NonStudyTimeBlock[],
   academySchedules?: PlannerAcademyScheduleInput[],
-  excludedDates?: string[]
+  excludedDates?: string[],
+  exclusions?: PlannerExclusionInput[]
 ): Promise<void> {
+  // calendarId resolve
+  const calendarId = await resolvePrimaryCalendarId(plannerId);
+  if (!calendarId) {
+    logActionError(
+      "planners._createPlanner",
+      "캘린더를 찾을 수 없어 비학습시간 레코드를 생성할 수 없습니다."
+    );
+    return;
+  }
+
   // 학원 일정 변환
   const academyScheduleInputs: AcademyScheduleInput[] = (academySchedules || []).map((s) => ({
-    id: undefined, // 아직 DB에 저장 전이므로 ID 없음
+    id: undefined,
     academyId: s.academyId,
     academyName: s.academyName,
     dayOfWeek: s.dayOfWeek,
@@ -470,9 +393,10 @@ async function _generateNonStudyTimeRecordsInternal(
     travelTime: s.travelTime,
   }));
 
-  // 비학습시간 레코드 생성
+  // 비학습시간 레코드 생성 (식사, 수면, 학원, 이동시간 등)
   const records = generateNonStudyRecordsForDateRange(
-    plannerId,
+    calendarId,
+    studentId,
     tenantId,
     startDate,
     endDate,
@@ -483,21 +407,35 @@ async function _generateNonStudyTimeRecordsInternal(
     }
   );
 
+  // 제외일 레코드 생성 (event_type='exclusion')
+  if (exclusions && exclusions.length > 0) {
+    const exclusionRecords = generateExclusionRecordsForDates(
+      calendarId,
+      studentId,
+      tenantId,
+      exclusions.map((e) => ({
+        date: e.exclusionDate,
+        exclusionType: e.exclusionType,
+        reason: e.reason,
+      })),
+      "imported"
+    );
+    records.push(...exclusionRecords);
+  }
+
   if (records.length === 0) return;
 
   // 배치 삽입 (대량 데이터를 위해 청크 처리)
   const BATCH_SIZE = 500;
   for (let i = 0; i < records.length; i += BATCH_SIZE) {
     const batch = records.slice(i, i + BATCH_SIZE);
-    const { error } = await supabase.from("student_non_study_time").insert(batch);
+    const { error } = await supabase.from("calendar_events").insert(batch);
 
     if (error) {
       logActionError(
         "planners._createPlanner",
         `비학습시간 레코드 저장 실패 (batch ${Math.floor(i / BATCH_SIZE) + 1}): ${error.message}`
       );
-      // 플래너는 이미 생성되었으므로 에러를 던지지 않고 로깅만 함
-      // 부분 실패 시 계속 진행하여 가능한 많은 레코드 저장
     }
   }
 }
@@ -539,23 +477,81 @@ async function _getPlanner(
   const planner = mapPlannerFromDB(data);
 
   if (includeRelations) {
-    // 제외일 조회
-    const { data: exclusions } = await supabase
-      .from("planner_exclusions")
-      .select("*")
-      .eq("planner_id", plannerId)
-      .order("exclusion_date", { ascending: true });
+    // calendarId resolve
+    const calendarId = await resolvePrimaryCalendarId(plannerId);
 
-    planner.exclusions = (exclusions || []).map(mapExclusionFromDB);
+    if (calendarId) {
+      // 제외일 조회 (calendar_events event_type='exclusion')
+      const { data: exclusions } = await supabase
+        .from("calendar_events")
+        .select("id, calendar_id, start_date, event_subtype, title, source, created_at")
+        .eq("calendar_id", calendarId)
+        .eq("event_type", "exclusion")
+        .eq("is_all_day", true)
+        .is("deleted_at", null)
+        .order("start_date", { ascending: true });
 
-    // 학원일정 조회
-    const { data: schedules } = await supabase
-      .from("planner_academy_schedules")
-      .select("*")
-      .eq("planner_id", plannerId)
-      .order("day_of_week", { ascending: true });
+      planner.exclusions = (exclusions || []).map((row) => ({
+        id: row.id,
+        plannerId,
+        exclusionDate: row.start_date!,
+        exclusionType: (row.event_subtype ?? "기타") as ExclusionType,
+        reason: row.title,
+        source: row.source ?? "template",
+        isLocked: false,
+        createdAt: row.created_at ?? "",
+      }));
 
-    planner.academySchedules = (schedules || []).map(mapAcademyScheduleFromDB);
+      // 학원일정 조회 (calendar_events event_type='academy', event_subtype='학원')
+      const { data: schedules } = await supabase
+        .from("calendar_events")
+        .select("id, calendar_id, start_at, end_at, start_date, title, source, created_at")
+        .eq("calendar_id", calendarId)
+        .eq("event_type", "academy")
+        .filter("event_subtype", "eq", "학원")
+        .is("deleted_at", null)
+        .order("start_date", { ascending: true });
+
+      // 날짜별 레코드를 요일+시간 기준으로 유니크하게 집약
+      const scheduleMap = new Map<string, { id: string; label: string | null; dayOfWeek: number; startTime: string; endTime: string; source: string; createdAt: string }>();
+      for (const row of schedules || []) {
+        const planDate = row.start_date || row.start_at?.split("T")[0] || "";
+        const dayOfWeek = new Date(planDate + "T00:00:00").getDay();
+        const startTime = extractTimeHHMM(row.start_at) ?? "00:00";
+        const endTime = extractTimeHHMM(row.end_at) ?? "00:00";
+        const key = `${dayOfWeek}-${startTime}-${endTime}`;
+        if (!scheduleMap.has(key)) {
+          scheduleMap.set(key, {
+            id: row.id,
+            label: row.title,
+            dayOfWeek,
+            startTime,
+            endTime,
+            source: row.source ?? "template",
+            createdAt: row.created_at ?? "",
+          });
+        }
+      }
+
+      planner.academySchedules = Array.from(scheduleMap.values()).map((row) => ({
+        id: row.id,
+        plannerId,
+        academyId: null,
+        academyName: row.label,
+        dayOfWeek: row.dayOfWeek,
+        startTime: row.startTime,
+        endTime: row.endTime,
+        subject: null,
+        travelTime: 0,
+        source: row.source,
+        isLocked: false,
+        createdAt: row.createdAt,
+        updatedAt: row.createdAt,
+      }));
+    } else {
+      planner.exclusions = [];
+      planner.academySchedules = [];
+    }
 
     // 플랜그룹 수 조회
     const { count } = await supabase
@@ -828,8 +824,8 @@ export interface DeletePlannerResult {
  * 삭제 순서:
  * 1. student_plan (소프트 삭제) - plan_group_id로 연결된 플랜들
  * 2. plan_groups (소프트 삭제) - planner_id로 연결된 그룹들
- * 3. planner_exclusions (하드 삭제) - 설정 데이터
- * 4. planner_academy_schedules (하드 삭제) - 설정 데이터
+ * 3. calendar_events (소프트 삭제) - 비학습시간/제외일/학원 통합 데이터
+ * 4. planner_exclusion_overrides (하드 삭제)
  * 5. planners (소프트 삭제)
  *
  * - Admin/Consultant: 모든 플래너 삭제 가능
@@ -953,16 +949,38 @@ async function _addPlannerExclusion(
   const { tenantId } = await checkAdminOrConsultant();
   const supabase = await createSupabaseServerClient();
 
+  // calendarId + studentId resolve
+  const calendarId = await resolvePrimaryCalendarId(plannerId);
+  if (!calendarId) {
+    throw new AppError("캘린더를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+  }
+
+  const { data: plannerData } = await supabase
+    .from("planners")
+    .select("student_id")
+    .eq("id", plannerId)
+    .single();
+
+  if (!plannerData) {
+    throw new AppError("플래너를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+  }
+
   const { data, error } = await supabase
-    .from("planner_exclusions")
+    .from("calendar_events")
     .insert({
+      calendar_id: calendarId,
       tenant_id: tenantId,
-      planner_id: plannerId,
-      exclusion_date: input.exclusionDate,
-      exclusion_type: input.exclusionType,
-      reason: input.reason || null,
+      student_id: plannerData.student_id,
+      title: input.reason || "제외일",
+      event_type: "exclusion",
+      event_subtype: mapExclusionType(input.exclusionType),
+      start_date: input.exclusionDate,
+      end_date: input.exclusionDate,
+      is_all_day: true,
+      status: "confirmed",
+      transparency: "transparent",
       source: input.source || "manual",
-      is_locked: input.isLocked || false,
+      order_index: 0,
     })
     .select()
     .single();
@@ -976,22 +994,35 @@ async function _addPlannerExclusion(
     );
   }
 
-  return mapExclusionFromDB(data);
+  return {
+    id: data.id as string,
+    plannerId,
+    exclusionDate: data.start_date as string,
+    exclusionType: (data.event_subtype ?? "기타") as ExclusionType,
+    reason: data.title as string | null,
+    source: data.source as string,
+    isLocked: false,
+    createdAt: data.created_at as string,
+  };
 }
 
 export const addPlannerExclusionAction = withErrorHandling(_addPlannerExclusion);
 
 /**
- * 제외일 삭제
+ * 제외일 삭제 (소프트 삭제)
  */
 async function _removePlannerExclusion(exclusionId: string): Promise<void> {
   await checkAdminOrConsultant();
   const supabase = await createSupabaseServerClient();
 
   const { error } = await supabase
-    .from("planner_exclusions")
-    .delete()
-    .eq("id", exclusionId);
+    .from("calendar_events")
+    .update({
+      deleted_at: new Date().toISOString(),
+      status: "cancelled" as const,
+    })
+    .eq("id", exclusionId)
+    .is("deleted_at", null);
 
   if (error) {
     throw new AppError(
@@ -1004,354 +1035,6 @@ async function _removePlannerExclusion(exclusionId: string): Promise<void> {
 }
 
 export const removePlannerExclusionAction = withErrorHandling(_removePlannerExclusion);
-
-/**
- * 제외일 일괄 설정
- */
-async function _setPlannerExclusions(
-  plannerId: string,
-  exclusions: PlannerExclusionInput[]
-): Promise<PlannerExclusion[]> {
-  const { tenantId } = await checkAdminOrConsultant();
-  const supabase = await createSupabaseServerClient();
-
-  // 기존 제외일 삭제 (잠긴 항목 제외)
-  await supabase
-    .from("planner_exclusions")
-    .delete()
-    .eq("planner_id", plannerId)
-    .eq("is_locked", false);
-
-  if (exclusions.length === 0) {
-    return [];
-  }
-
-  // 새 제외일 추가
-  const { data, error } = await supabase
-    .from("planner_exclusions")
-    .insert(
-      exclusions.map((e) => ({
-        tenant_id: tenantId,
-        planner_id: plannerId,
-        exclusion_date: e.exclusionDate,
-        exclusion_type: e.exclusionType,
-        reason: e.reason || null,
-        source: e.source || "manual",
-        is_locked: e.isLocked || false,
-      }))
-    )
-    .select();
-
-  if (error) {
-    throw new AppError(
-      `제외일 일괄 설정 실패: ${error.message}`,
-      ErrorCode.DATABASE_ERROR,
-      500,
-      true
-    );
-  }
-
-  return (data || []).map(mapExclusionFromDB);
-}
-
-export const setPlannerExclusionsAction = withErrorHandling(_setPlannerExclusions);
-
-// ============================================
-// 학원일정 관리
-// ============================================
-
-/**
- * 학원일정 추가
- */
-async function _addPlannerAcademySchedule(
-  plannerId: string,
-  input: PlannerAcademyScheduleInput
-): Promise<PlannerAcademySchedule> {
-  const { tenantId } = await checkAdminOrConsultant();
-  const supabase = await createSupabaseServerClient();
-
-  const { data, error } = await supabase
-    .from("planner_academy_schedules")
-    .insert({
-      tenant_id: tenantId,
-      planner_id: plannerId,
-      academy_id: input.academyId || null,
-      academy_name: input.academyName || null,
-      day_of_week: input.dayOfWeek,
-      start_time: input.startTime,
-      end_time: input.endTime,
-      subject: input.subject || null,
-      travel_time: input.travelTime ?? 60,
-      source: input.source || "manual",
-      is_locked: input.isLocked || false,
-    })
-    .select()
-    .single();
-
-  if (error) {
-    throw new AppError(
-      `학원일정 추가 실패: ${error.message}`,
-      ErrorCode.DATABASE_ERROR,
-      500,
-      true
-    );
-  }
-
-  return mapAcademyScheduleFromDB(data);
-}
-
-export const addPlannerAcademyScheduleAction = withErrorHandling(
-  _addPlannerAcademySchedule
-);
-
-/**
- * 학원일정 삭제
- */
-async function _removePlannerAcademySchedule(scheduleId: string): Promise<void> {
-  await checkAdminOrConsultant();
-  const supabase = await createSupabaseServerClient();
-
-  const { error } = await supabase
-    .from("planner_academy_schedules")
-    .delete()
-    .eq("id", scheduleId);
-
-  if (error) {
-    throw new AppError(
-      `학원일정 삭제 실패: ${error.message}`,
-      ErrorCode.DATABASE_ERROR,
-      500,
-      true
-    );
-  }
-}
-
-export const removePlannerAcademyScheduleAction = withErrorHandling(
-  _removePlannerAcademySchedule
-);
-
-/**
- * 학원일정 일괄 설정
- */
-async function _setPlannerAcademySchedules(
-  plannerId: string,
-  schedules: PlannerAcademyScheduleInput[]
-): Promise<PlannerAcademySchedule[]> {
-  const { tenantId } = await checkAdminOrConsultant();
-  const supabase = await createSupabaseServerClient();
-
-  // 기존 학원일정 삭제 (잠긴 항목 제외)
-  await supabase
-    .from("planner_academy_schedules")
-    .delete()
-    .eq("planner_id", plannerId)
-    .eq("is_locked", false);
-
-  if (schedules.length === 0) {
-    return [];
-  }
-
-  // 새 학원일정 추가
-  const { data, error } = await supabase
-    .from("planner_academy_schedules")
-    .insert(
-      schedules.map((s) => ({
-        tenant_id: tenantId,
-        planner_id: plannerId,
-        academy_id: s.academyId || null,
-        academy_name: s.academyName || null,
-        day_of_week: s.dayOfWeek,
-        start_time: s.startTime,
-        end_time: s.endTime,
-        subject: s.subject || null,
-        travel_time: s.travelTime ?? 60,
-        source: s.source || "manual",
-        is_locked: s.isLocked || false,
-      }))
-    )
-    .select();
-
-  if (error) {
-    throw new AppError(
-      `학원일정 일괄 설정 실패: ${error.message}`,
-      ErrorCode.DATABASE_ERROR,
-      500,
-      true
-    );
-  }
-
-  return (data || []).map(mapAcademyScheduleFromDB);
-}
-
-export const setPlannerAcademySchedulesAction = withErrorHandling(
-  _setPlannerAcademySchedules
-);
-
-// ============================================
-// 제외일 오버라이드 관리 (Phase 5)
-// ============================================
-
-/**
- * 제외일 오버라이드 입력 타입
- */
-export interface ExclusionOverrideInput {
-  exclusionDate: string;
-  overrideType: "add" | "remove";
-  exclusionType?: ExclusionType;
-  reason?: string;
-}
-
-/**
- * 플래너의 제외일 오버라이드 목록 조회
- */
-async function _getPlannerExclusionOverrides(
-  plannerId: string
-): Promise<PlannerExclusionOverride[]> {
-  await checkAdminOrConsultant();
-
-  const overrides = await getPlannerOverridesForPlanner(plannerId, {
-    useAdminClient: true,
-  });
-
-  return overrides;
-}
-
-export const getPlannerExclusionOverridesAction = withErrorHandling(
-  _getPlannerExclusionOverrides
-);
-
-/**
- * 학생의 전역 제외일 목록 조회 (시간관리에서 설정된 제외일)
- */
-async function _getStudentGlobalExclusions(
-  studentId: string,
-  periodStart: string,
-  periodEnd: string
-): Promise<PlanExclusion[]> {
-  const { tenantId } = await checkAdminOrConsultant();
-
-  const exclusions = await getStudentExclusions(studentId, tenantId, {
-    useAdminClient: true,
-  });
-
-  // 기간 필터링
-  const periodStartDate = new Date(periodStart);
-  periodStartDate.setHours(0, 0, 0, 0);
-  const periodEndDate = new Date(periodEnd);
-  periodEndDate.setHours(23, 59, 59, 999);
-
-  return exclusions.filter((e) => {
-    const exclusionDate = new Date(e.exclusion_date);
-    exclusionDate.setHours(0, 0, 0, 0);
-    return exclusionDate >= periodStartDate && exclusionDate <= periodEndDate;
-  });
-}
-
-export const getStudentGlobalExclusionsAction = withErrorHandling(
-  _getStudentGlobalExclusions
-);
-
-/**
- * 플래너에 실제 적용될 제외일 계산 (전역 + 오버라이드 병합)
- */
-async function _getEffectivePlannerExclusions(
-  plannerId: string,
-  studentId: string,
-  periodStart: string,
-  periodEnd: string
-): Promise<EffectiveExclusion[]> {
-  const { tenantId } = await checkAdminOrConsultant();
-
-  const effectiveExclusions = await getEffectiveExclusionsForPlanner(
-    plannerId,
-    studentId,
-    periodStart,
-    periodEnd,
-    tenantId,
-    { useAdminClient: true }
-  );
-
-  return effectiveExclusions;
-}
-
-export const getEffectivePlannerExclusionsAction = withErrorHandling(
-  _getEffectivePlannerExclusions
-);
-
-/**
- * 플래너 제외일 오버라이드 일괄 저장 (기존 오버라이드 교체)
- */
-async function _savePlannerExclusionOverrides(
-  plannerId: string,
-  overrides: ExclusionOverrideInput[]
-): Promise<{ success: boolean; error?: string }> {
-  await checkAdminOrConsultant();
-
-  // 입력을 데이터 레이어 형식으로 변환
-  const dataOverrides = overrides.map((o) => ({
-    exclusion_date: o.exclusionDate,
-    override_type: o.overrideType,
-    exclusion_type: o.exclusionType,
-    reason: o.reason,
-  }));
-
-  const result = await savePlannerOverridesForPlanner(plannerId, dataOverrides, {
-    useAdminClient: true,
-  });
-
-  return result;
-}
-
-export const savePlannerExclusionOverridesAction = withErrorHandling(
-  _savePlannerExclusionOverrides
-);
-
-/**
- * 단일 제외일 오버라이드 추가/업데이트
- */
-async function _upsertPlannerExclusionOverride(
-  plannerId: string,
-  override: ExclusionOverrideInput
-): Promise<{ success: boolean; error?: string }> {
-  await checkAdminOrConsultant();
-
-  const result = await upsertPlannerOverrideForPlanner(
-    plannerId,
-    {
-      exclusion_date: override.exclusionDate,
-      override_type: override.overrideType,
-      exclusion_type: override.exclusionType,
-      reason: override.reason,
-    },
-    { useAdminClient: true }
-  );
-
-  return result;
-}
-
-export const upsertPlannerExclusionOverrideAction = withErrorHandling(
-  _upsertPlannerExclusionOverride
-);
-
-/**
- * 단일 제외일 오버라이드 삭제
- */
-async function _deletePlannerExclusionOverride(
-  plannerId: string,
-  exclusionDate: string
-): Promise<{ success: boolean; error?: string }> {
-  await checkAdminOrConsultant();
-
-  const result = await deletePlannerOverrideForPlanner(plannerId, exclusionDate, {
-    useAdminClient: true,
-  });
-
-  return result;
-}
-
-export const deletePlannerExclusionOverrideAction = withErrorHandling(
-  _deletePlannerExclusionOverride
-);
 
 // ============================================
 // DB 매핑 헬퍼
@@ -1386,35 +1069,3 @@ function mapPlannerFromDB(row: Record<string, unknown>): Planner {
   };
 }
 
-function mapExclusionFromDB(row: Record<string, unknown>): PlannerExclusion {
-  return {
-    id: row.id as string,
-    plannerId: row.planner_id as string,
-    exclusionDate: row.exclusion_date as string,
-    exclusionType: row.exclusion_type as ExclusionType,
-    reason: row.reason as string | null,
-    source: row.source as string,
-    isLocked: row.is_locked as boolean,
-    createdAt: row.created_at as string,
-  };
-}
-
-function mapAcademyScheduleFromDB(
-  row: Record<string, unknown>
-): PlannerAcademySchedule {
-  return {
-    id: row.id as string,
-    plannerId: row.planner_id as string,
-    academyId: row.academy_id as string | null,
-    academyName: row.academy_name as string | null,
-    dayOfWeek: row.day_of_week as number,
-    startTime: row.start_time as string,
-    endTime: row.end_time as string,
-    subject: row.subject as string | null,
-    travelTime: row.travel_time as number,
-    source: row.source as string,
-    isLocked: row.is_locked as boolean,
-    createdAt: row.created_at as string,
-    updatedAt: row.updated_at as string,
-  };
-}

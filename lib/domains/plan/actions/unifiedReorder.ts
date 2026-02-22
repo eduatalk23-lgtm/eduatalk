@@ -209,19 +209,21 @@ export async function executeUnifiedReorder(
 
       // 시간이 변경된 경우에만 업데이트
       if (timeChanged) {
-        // 새 방식: student_non_study_time 테이블 직접 UPDATE
+        // calendar_events 테이블 직접 UPDATE
         // input.orderedItems에서 recordId 찾기
         const recordId = recordIdMap.get(item.id);
         console.log('[DEBUG] Looking for recordId:', { itemId: item.id, foundRecordId: recordId });
 
         if (recordId) {
+          const planDate = input.planDate;
           const { error: updateError } = await supabase
-            .from('student_non_study_time')
+            .from('calendar_events')
             .update({
-              start_time: item.startTime + ':00', // HH:mm -> HH:mm:ss
-              end_time: item.endTime + ':00',
+              start_at: `${planDate}T${item.startTime}:00+09:00`,
+              end_at: `${planDate}T${item.endTime}:00+09:00`,
             })
-            .eq('id', recordId);
+            .eq('id', recordId)
+            .is('deleted_at', null);
 
           if (updateError) {
             logActionError(
@@ -268,7 +270,7 @@ export async function executeUnifiedReorder(
  * 단일 아이템 시간 변경
  *
  * 빈 슬롯에 드롭했을 때 해당 시간에 아이템을 배치합니다.
- * recordId는 student_non_study_time 테이블의 UUID입니다.
+ * recordId는 calendar_events 테이블의 UUID입니다.
  */
 export async function updateItemTime(input: {
   studentId: string;
@@ -278,8 +280,10 @@ export async function updateItemTime(input: {
   itemType: 'plan' | 'nonStudy';
   newStartTime: string;
   newEndTime: string;
-  /** 비학습시간인 경우 student_non_study_time.id */
+  /** 비학습시간인 경우 calendar_events.id */
   recordId?: string;
+  /** 리사이즈 시 예상 소요 시간(분) 함께 업데이트 */
+  estimatedMinutes?: number;
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createSupabaseServerClient();
@@ -296,6 +300,7 @@ export async function updateItemTime(input: {
         .update({
           start_time: input.newStartTime,
           end_time: input.newEndTime,
+          ...(input.estimatedMinutes != null && { estimated_minutes: input.estimatedMinutes }),
         })
         .eq('id', input.itemId);
 
@@ -308,7 +313,7 @@ export async function updateItemTime(input: {
         return { success: false, error: '플랜 업데이트에 실패했습니다.' };
       }
     } else if (input.itemType === 'nonStudy') {
-      // student_non_study_time 테이블 직접 UPDATE
+      // calendar_events 테이블 직접 UPDATE
       if (!input.recordId) {
         logActionError(
           { domain: 'plan', action: 'updateItemTime' },
@@ -319,12 +324,13 @@ export async function updateItemTime(input: {
       }
 
       const { error: updateError } = await supabase
-        .from('student_non_study_time')
+        .from('calendar_events')
         .update({
-          start_time: input.newStartTime + ':00', // HH:mm -> HH:mm:ss
-          end_time: input.newEndTime + ':00',
+          start_at: `${input.planDate}T${input.newStartTime}:00+09:00`,
+          end_at: `${input.planDate}T${input.newEndTime}:00+09:00`,
         })
-        .eq('id', input.recordId);
+        .eq('id', input.recordId)
+        .is('deleted_at', null);
 
       if (updateError) {
         logActionError(
