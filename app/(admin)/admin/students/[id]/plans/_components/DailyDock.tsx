@@ -382,6 +382,7 @@ export const DailyDock = memo(function DailyDock({
               }}
               searchQuery={searchQuery}
               allDayItems={allDayItems}
+              isLoading={isLoading}
             />
           </motion.div>
         )}

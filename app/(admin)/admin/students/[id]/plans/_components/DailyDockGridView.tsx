@@ -60,6 +60,8 @@ interface DailyDockGridViewProps {
   searchQuery?: string;
   /** 종일 이벤트 목록 */
   allDayItems?: AllDayItem[];
+  /** 데이터 로딩 중 오버레이 표시 */
+  isLoading?: boolean;
 }
 
 const ALL_DAY_COLLAPSE_THRESHOLD = 2;
@@ -88,6 +90,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
   onDelete,
   searchQuery,
   allDayItems,
+  isLoading = false,
 }: DailyDockGridViewProps) {
   const { pushUndoable } = useUndo();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -512,6 +515,12 @@ export const DailyDockGridView = memo(function DailyDockGridView({
       className="relative overflow-x-hidden h-full"
       style={{ overflowY: 'auto', scrollbarGutter: 'stable' }}
     >
+      {/* 로딩 오버레이 */}
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-white/60 z-40 pointer-events-none">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+        </div>
+      )}
       {/* 헤더 영역 (sticky) — Google Calendar 일일뷰: 날짜가 거터에, 종일 이벤트가 오른쪽에 */}
       <div className="sticky top-0 z-10 bg-white">
         <div
