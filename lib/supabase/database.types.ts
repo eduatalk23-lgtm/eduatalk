@@ -623,6 +623,110 @@ export type Database = {
           },
         ]
       }
+      availability_schedules: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_default: boolean | null
+          name: string
+          planner_id: string
+          tenant_id: string
+          timezone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          planner_id: string
+          tenant_id: string
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          planner_id?: string
+          tenant_id?: string
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "availability_schedules_planner_id_fkey"
+            columns: ["planner_id"]
+            isOneToOne: false
+            referencedRelation: "planners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "availability_schedules_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      availability_windows: {
+        Row: {
+          academy_schedule_id: string | null
+          created_at: string | null
+          days: number[] | null
+          end_time: string
+          id: string
+          is_disabled: boolean | null
+          label: string | null
+          override_date: string | null
+          schedule_id: string
+          source: string | null
+          start_time: string
+          updated_at: string | null
+          window_type: string
+        }
+        Insert: {
+          academy_schedule_id?: string | null
+          created_at?: string | null
+          days?: number[] | null
+          end_time: string
+          id?: string
+          is_disabled?: boolean | null
+          label?: string | null
+          override_date?: string | null
+          schedule_id: string
+          source?: string | null
+          start_time: string
+          updated_at?: string | null
+          window_type: string
+        }
+        Update: {
+          academy_schedule_id?: string | null
+          created_at?: string | null
+          days?: number[] | null
+          end_time?: string
+          id?: string
+          is_disabled?: boolean | null
+          label?: string | null
+          override_date?: string | null
+          schedule_id?: string
+          source?: string | null
+          start_time?: string
+          updated_at?: string | null
+          window_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "availability_windows_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "availability_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       book_details: {
         Row: {
           book_id: string
@@ -891,6 +995,236 @@ export type Database = {
             columns: ["difficulty_level_id"]
             isOneToOne: false
             referencedRelation: "difficulty_levels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_events: {
+        Row: {
+          calendar_id: string
+          color: string | null
+          container_type: string | null
+          created_at: string | null
+          created_by: string | null
+          deleted_at: string | null
+          description: string | null
+          end_at: string | null
+          end_date: string | null
+          event_subtype: string | null
+          event_type: string
+          exdates: string[] | null
+          ical_uid: string | null
+          icon: string | null
+          id: string
+          is_all_day: boolean | null
+          is_exception: boolean | null
+          location: string | null
+          metadata: Json | null
+          order_index: number | null
+          original_start_at: string | null
+          plan_group_id: string | null
+          priority: number | null
+          recurring_event_id: string | null
+          rrule: string | null
+          sequence: number | null
+          source: string | null
+          start_at: string | null
+          start_date: string | null
+          status: string
+          student_id: string
+          tags: string[] | null
+          tenant_id: string
+          timezone: string | null
+          title: string
+          transparency: string
+          updated_at: string | null
+          visibility: string
+        }
+        Insert: {
+          calendar_id: string
+          color?: string | null
+          container_type?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          end_at?: string | null
+          end_date?: string | null
+          event_subtype?: string | null
+          event_type: string
+          exdates?: string[] | null
+          ical_uid?: string | null
+          icon?: string | null
+          id?: string
+          is_all_day?: boolean | null
+          is_exception?: boolean | null
+          location?: string | null
+          metadata?: Json | null
+          order_index?: number | null
+          original_start_at?: string | null
+          plan_group_id?: string | null
+          priority?: number | null
+          recurring_event_id?: string | null
+          rrule?: string | null
+          sequence?: number | null
+          source?: string | null
+          start_at?: string | null
+          start_date?: string | null
+          status?: string
+          student_id: string
+          tags?: string[] | null
+          tenant_id: string
+          timezone?: string | null
+          title: string
+          transparency?: string
+          updated_at?: string | null
+          visibility?: string
+        }
+        Update: {
+          calendar_id?: string
+          color?: string | null
+          container_type?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          end_at?: string | null
+          end_date?: string | null
+          event_subtype?: string | null
+          event_type?: string
+          exdates?: string[] | null
+          ical_uid?: string | null
+          icon?: string | null
+          id?: string
+          is_all_day?: boolean | null
+          is_exception?: boolean | null
+          location?: string | null
+          metadata?: Json | null
+          order_index?: number | null
+          original_start_at?: string | null
+          plan_group_id?: string | null
+          priority?: number | null
+          recurring_event_id?: string | null
+          rrule?: string | null
+          sequence?: number | null
+          source?: string | null
+          start_at?: string | null
+          start_date?: string | null
+          status?: string
+          student_id?: string
+          tags?: string[] | null
+          tenant_id?: string
+          timezone?: string | null
+          title?: string
+          transparency?: string
+          updated_at?: string | null
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_calendar_id_fkey"
+            columns: ["calendar_id"]
+            isOneToOne: false
+            referencedRelation: "calendars"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_plan_group_id_fkey"
+            columns: ["plan_group_id"]
+            isOneToOne: false
+            referencedRelation: "plan_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_recurring_event_id_fkey"
+            columns: ["recurring_event_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendars: {
+        Row: {
+          calendar_type: string
+          created_at: string | null
+          created_by: string | null
+          default_color: string | null
+          deleted_at: string | null
+          description: string | null
+          external_id: string | null
+          id: string
+          is_primary: boolean | null
+          location: string | null
+          owner_id: string
+          owner_type: string
+          planner_id: string | null
+          source_type: string
+          summary: string
+          tenant_id: string
+          timezone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          calendar_type?: string
+          created_at?: string | null
+          created_by?: string | null
+          default_color?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          external_id?: string | null
+          id?: string
+          is_primary?: boolean | null
+          location?: string | null
+          owner_id: string
+          owner_type: string
+          planner_id?: string | null
+          source_type?: string
+          summary: string
+          tenant_id: string
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          calendar_type?: string
+          created_at?: string | null
+          created_by?: string | null
+          default_color?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          external_id?: string | null
+          id?: string
+          is_primary?: boolean | null
+          location?: string | null
+          owner_id?: string
+          owner_type?: string
+          planner_id?: string | null
+          source_type?: string
+          summary?: string
+          tenant_id?: string
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendars_planner_id_fkey"
+            columns: ["planner_id"]
+            isOneToOne: false
+            referencedRelation: "planners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendars_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -1547,6 +1881,135 @@ export type Database = {
           },
           {
             foreignKeyName: "consultant_assignments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      consultation_schedules: {
+        Row: {
+          consultant_id: string
+          consultation_mode: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          duration_minutes: number | null
+          end_time: string
+          enrollment_id: string | null
+          google_calendar_event_id: string | null
+          google_shared_calendar_event_id: string | null
+          google_sync_status: string | null
+          id: string
+          location: string | null
+          meeting_link: string | null
+          notification_sent: boolean | null
+          notification_sent_at: string | null
+          notification_targets: string[]
+          program_name: string | null
+          reminder_sent: boolean | null
+          reminder_sent_at: string | null
+          scheduled_date: string
+          session_type: string
+          start_time: string
+          status: string
+          student_id: string
+          tenant_id: string
+          updated_at: string | null
+          visitor: string | null
+        }
+        Insert: {
+          consultant_id: string
+          consultation_mode?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          end_time: string
+          enrollment_id?: string | null
+          google_calendar_event_id?: string | null
+          google_shared_calendar_event_id?: string | null
+          google_sync_status?: string | null
+          id?: string
+          location?: string | null
+          meeting_link?: string | null
+          notification_sent?: boolean | null
+          notification_sent_at?: string | null
+          notification_targets?: string[]
+          program_name?: string | null
+          reminder_sent?: boolean | null
+          reminder_sent_at?: string | null
+          scheduled_date: string
+          session_type?: string
+          start_time: string
+          status?: string
+          student_id: string
+          tenant_id: string
+          updated_at?: string | null
+          visitor?: string | null
+        }
+        Update: {
+          consultant_id?: string
+          consultation_mode?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          end_time?: string
+          enrollment_id?: string | null
+          google_calendar_event_id?: string | null
+          google_shared_calendar_event_id?: string | null
+          google_sync_status?: string | null
+          id?: string
+          location?: string | null
+          meeting_link?: string | null
+          notification_sent?: boolean | null
+          notification_sent_at?: string | null
+          notification_targets?: string[]
+          program_name?: string | null
+          reminder_sent?: boolean | null
+          reminder_sent_at?: string | null
+          scheduled_date?: string
+          session_type?: string
+          start_time?: string
+          status?: string
+          student_id?: string
+          tenant_id?: string
+          updated_at?: string | null
+          visitor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consultation_schedules_consultant_id_fkey"
+            columns: ["consultant_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consultation_schedules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consultation_schedules_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consultation_schedules_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consultation_schedules_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -2302,6 +2765,101 @@ export type Database = {
           },
         ]
       }
+      event_study_data: {
+        Row: {
+          actual_minutes: number | null
+          chapter: string | null
+          completed_amount: number | null
+          completed_at: string | null
+          completion_status: string | null
+          content_id: string | null
+          content_title: string | null
+          content_type: string | null
+          estimated_minutes: number | null
+          event_id: string
+          flexible_content_id: string | null
+          id: string
+          master_content_id: string | null
+          memo: string | null
+          origin_plan_item_id: string | null
+          pause_count: number | null
+          paused_at: string | null
+          paused_duration_seconds: number | null
+          planned_end_page: number | null
+          planned_start_page: number | null
+          progress: number | null
+          simple_completed_at: string | null
+          simple_completion: boolean | null
+          started_at: string | null
+          subject_category: string | null
+          subject_name: string | null
+        }
+        Insert: {
+          actual_minutes?: number | null
+          chapter?: string | null
+          completed_amount?: number | null
+          completed_at?: string | null
+          completion_status?: string | null
+          content_id?: string | null
+          content_title?: string | null
+          content_type?: string | null
+          estimated_minutes?: number | null
+          event_id: string
+          flexible_content_id?: string | null
+          id?: string
+          master_content_id?: string | null
+          memo?: string | null
+          origin_plan_item_id?: string | null
+          pause_count?: number | null
+          paused_at?: string | null
+          paused_duration_seconds?: number | null
+          planned_end_page?: number | null
+          planned_start_page?: number | null
+          progress?: number | null
+          simple_completed_at?: string | null
+          simple_completion?: boolean | null
+          started_at?: string | null
+          subject_category?: string | null
+          subject_name?: string | null
+        }
+        Update: {
+          actual_minutes?: number | null
+          chapter?: string | null
+          completed_amount?: number | null
+          completed_at?: string | null
+          completion_status?: string | null
+          content_id?: string | null
+          content_title?: string | null
+          content_type?: string | null
+          estimated_minutes?: number | null
+          event_id?: string
+          flexible_content_id?: string | null
+          id?: string
+          master_content_id?: string | null
+          memo?: string | null
+          origin_plan_item_id?: string | null
+          pause_count?: number | null
+          paused_at?: string | null
+          paused_duration_seconds?: number | null
+          planned_end_page?: number | null
+          planned_start_page?: number | null
+          progress?: number | null
+          simple_completed_at?: string | null
+          simple_completion?: boolean | null
+          started_at?: string | null
+          subject_category?: string | null
+          subject_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_study_data_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       excluded_dates: {
         Row: {
           created_at: string | null
@@ -2473,6 +3031,136 @@ export type Database = {
           },
           {
             foreignKeyName: "flexible_contents_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      google_calendar_sync_queue: {
+        Row: {
+          action: string
+          admin_user_id: string | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          processed_at: string | null
+          retry_count: number | null
+          schedule_id: string
+          status: string
+          target: string
+          tenant_id: string
+        }
+        Insert: {
+          action: string
+          admin_user_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          processed_at?: string | null
+          retry_count?: number | null
+          schedule_id: string
+          status?: string
+          target: string
+          tenant_id: string
+        }
+        Update: {
+          action?: string
+          admin_user_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          processed_at?: string | null
+          retry_count?: number | null
+          schedule_id?: string
+          status?: string
+          target?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_calendar_sync_queue_admin_user_id_fkey"
+            columns: ["admin_user_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "google_calendar_sync_queue_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "consultation_schedules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "google_calendar_sync_queue_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      google_oauth_tokens: {
+        Row: {
+          access_token: string
+          admin_user_id: string
+          calendar_id: string
+          connected_at: string | null
+          created_at: string | null
+          google_email: string | null
+          id: string
+          last_sync_at: string | null
+          refresh_token: string
+          scope: string
+          sync_enabled: boolean | null
+          tenant_id: string
+          token_expires_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          access_token: string
+          admin_user_id: string
+          calendar_id?: string
+          connected_at?: string | null
+          created_at?: string | null
+          google_email?: string | null
+          id?: string
+          last_sync_at?: string | null
+          refresh_token: string
+          scope: string
+          sync_enabled?: boolean | null
+          tenant_id: string
+          token_expires_at: string
+          updated_at?: string | null
+        }
+        Update: {
+          access_token?: string
+          admin_user_id?: string
+          calendar_id?: string
+          connected_at?: string | null
+          created_at?: string | null
+          google_email?: string | null
+          id?: string
+          last_sync_at?: string | null
+          refresh_token?: string
+          scope?: string
+          sync_enabled?: boolean | null
+          tenant_id?: string
+          token_expires_at?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_oauth_tokens_admin_user_id_fkey"
+            columns: ["admin_user_id"]
+            isOneToOne: true
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "google_oauth_tokens_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -3977,52 +4665,52 @@ export type Database = {
       }
       payment_orders: {
         Row: {
-          id: string
-          tenant_id: string
-          toss_order_id: string
-          total_amount: number
-          status: string
-          toss_payment_key: string | null
-          toss_method: string | null
-          toss_receipt_url: string | null
-          toss_raw_response: Json | null
-          toss_requested_at: string | null
-          toss_approved_at: string | null
+          created_at: string | null
           created_by: string | null
-          created_at: string
-          updated_at: string
+          id: string
+          status: string
+          tenant_id: string
+          toss_approved_at: string | null
+          toss_method: string | null
+          toss_order_id: string
+          toss_payment_key: string | null
+          toss_raw_response: Json | null
+          toss_receipt_url: string | null
+          toss_requested_at: string | null
+          total_amount: number
+          updated_at: string | null
         }
         Insert: {
-          id?: string
-          tenant_id: string
-          toss_order_id: string
-          total_amount: number
-          status?: string
-          toss_payment_key?: string | null
-          toss_method?: string | null
-          toss_receipt_url?: string | null
-          toss_raw_response?: Json | null
-          toss_requested_at?: string | null
-          toss_approved_at?: string | null
+          created_at?: string | null
           created_by?: string | null
-          created_at?: string
-          updated_at?: string
+          id?: string
+          status?: string
+          tenant_id: string
+          toss_approved_at?: string | null
+          toss_method?: string | null
+          toss_order_id: string
+          toss_payment_key?: string | null
+          toss_raw_response?: Json | null
+          toss_receipt_url?: string | null
+          toss_requested_at?: string | null
+          total_amount: number
+          updated_at?: string | null
         }
         Update: {
-          id?: string
-          tenant_id?: string
-          toss_order_id?: string
-          total_amount?: number
-          status?: string
-          toss_payment_key?: string | null
-          toss_method?: string | null
-          toss_receipt_url?: string | null
-          toss_raw_response?: Json | null
-          toss_requested_at?: string | null
-          toss_approved_at?: string | null
+          created_at?: string | null
           created_by?: string | null
-          created_at?: string
-          updated_at?: string
+          id?: string
+          status?: string
+          tenant_id?: string
+          toss_approved_at?: string | null
+          toss_method?: string | null
+          toss_order_id?: string
+          toss_payment_key?: string | null
+          toss_raw_response?: Json | null
+          toss_receipt_url?: string | null
+          toss_requested_at?: string | null
+          total_amount?: number
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -4043,10 +4731,13 @@ export type Database = {
           cash_receipt_url: string | null
           created_at: string
           created_by: string | null
+          discount_type: string | null
+          discount_value: number | null
           due_date: string | null
           enrollment_id: string
           id: string
           memo: string | null
+          original_amount: number | null
           paid_amount: number
           paid_date: string | null
           payment_method: string | null
@@ -4072,10 +4763,13 @@ export type Database = {
           cash_receipt_url?: string | null
           created_at?: string
           created_by?: string | null
+          discount_type?: string | null
+          discount_value?: number | null
           due_date?: string | null
           enrollment_id: string
           id?: string
           memo?: string | null
+          original_amount?: number | null
           paid_amount?: number
           paid_date?: string | null
           payment_method?: string | null
@@ -4101,10 +4795,13 @@ export type Database = {
           cash_receipt_url?: string | null
           created_at?: string
           created_by?: string | null
+          discount_type?: string | null
+          discount_value?: number | null
           due_date?: string | null
           enrollment_id?: string
           id?: string
           memo?: string | null
+          original_amount?: number | null
           paid_amount?: number
           paid_date?: string | null
           payment_method?: string | null
@@ -5479,72 +6176,6 @@ export type Database = {
           },
         ]
       }
-      planner_academy_schedules: {
-        Row: {
-          academy_id: string | null
-          academy_name: string | null
-          created_at: string | null
-          day_of_week: number
-          end_time: string
-          id: string
-          is_locked: boolean | null
-          planner_id: string
-          source: string | null
-          start_time: string
-          subject: string | null
-          tenant_id: string
-          travel_time: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          academy_id?: string | null
-          academy_name?: string | null
-          created_at?: string | null
-          day_of_week: number
-          end_time: string
-          id?: string
-          is_locked?: boolean | null
-          planner_id: string
-          source?: string | null
-          start_time: string
-          subject?: string | null
-          tenant_id: string
-          travel_time?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          academy_id?: string | null
-          academy_name?: string | null
-          created_at?: string | null
-          day_of_week?: number
-          end_time?: string
-          id?: string
-          is_locked?: boolean | null
-          planner_id?: string
-          source?: string | null
-          start_time?: string
-          subject?: string | null
-          tenant_id?: string
-          travel_time?: number | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "planner_academy_schedules_planner_id_fkey"
-            columns: ["planner_id"]
-            isOneToOne: false
-            referencedRelation: "planners"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "planner_academy_schedules_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       planner_daily_overrides: {
         Row: {
           created_at: string | null
@@ -5655,57 +6286,6 @@ export type Database = {
             columns: ["planner_id"]
             isOneToOne: false
             referencedRelation: "planners"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      planner_exclusions: {
-        Row: {
-          created_at: string | null
-          exclusion_date: string
-          exclusion_type: string
-          id: string
-          is_locked: boolean | null
-          planner_id: string
-          reason: string | null
-          source: string | null
-          tenant_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          exclusion_date: string
-          exclusion_type: string
-          id?: string
-          is_locked?: boolean | null
-          planner_id: string
-          reason?: string | null
-          source?: string | null
-          tenant_id: string
-        }
-        Update: {
-          created_at?: string | null
-          exclusion_date?: string
-          exclusion_type?: string
-          id?: string
-          is_locked?: boolean | null
-          planner_id?: string
-          reason?: string | null
-          source?: string | null
-          tenant_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "planner_exclusions_planner_id_fkey"
-            columns: ["planner_id"]
-            isOneToOne: false
-            referencedRelation: "planners"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "planner_exclusions_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -6412,54 +6992,79 @@ export type Database = {
       }
       sms_logs: {
         Row: {
+          alimtalk_template_code: string | null
+          channel: string | null
+          consultation_schedule_id: string | null
           created_at: string | null
           delivered_at: string | null
           error_message: string | null
           id: string
+          is_fallback: boolean | null
           message_content: string
           message_key: string | null
+          notification_target: string | null
           ppurio_result_code: string | null
           recipient_id: string | null
           recipient_phone: string
           ref_key: string | null
+          scheduled_at: string | null
           sent_at: string | null
           status: string | null
           template_id: string | null
           tenant_id: string
         }
         Insert: {
+          alimtalk_template_code?: string | null
+          channel?: string | null
+          consultation_schedule_id?: string | null
           created_at?: string | null
           delivered_at?: string | null
           error_message?: string | null
           id?: string
+          is_fallback?: boolean | null
           message_content: string
           message_key?: string | null
+          notification_target?: string | null
           ppurio_result_code?: string | null
           recipient_id?: string | null
           recipient_phone: string
           ref_key?: string | null
+          scheduled_at?: string | null
           sent_at?: string | null
           status?: string | null
           template_id?: string | null
           tenant_id: string
         }
         Update: {
+          alimtalk_template_code?: string | null
+          channel?: string | null
+          consultation_schedule_id?: string | null
           created_at?: string | null
           delivered_at?: string | null
           error_message?: string | null
           id?: string
+          is_fallback?: boolean | null
           message_content?: string
           message_key?: string | null
+          notification_target?: string | null
           ppurio_result_code?: string | null
           recipient_id?: string | null
           recipient_phone?: string
           ref_key?: string | null
+          scheduled_at?: string | null
           sent_at?: string | null
           status?: string | null
           template_id?: string | null
           tenant_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "sms_logs_consultation_schedule_id_fkey"
+            columns: ["consultation_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "consultation_schedules"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sms_logs_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -6809,6 +7414,7 @@ export type Database = {
       student_consulting_notes: {
         Row: {
           consultant_id: string
+          consultation_schedule_id: string | null
           created_at: string
           enrollment_id: string | null
           follow_up_date: string | null
@@ -6824,6 +7430,7 @@ export type Database = {
         }
         Insert: {
           consultant_id: string
+          consultation_schedule_id?: string | null
           created_at?: string
           enrollment_id?: string | null
           follow_up_date?: string | null
@@ -6839,6 +7446,7 @@ export type Database = {
         }
         Update: {
           consultant_id?: string
+          consultation_schedule_id?: string | null
           created_at?: string
           enrollment_id?: string | null
           follow_up_date?: string | null
@@ -6858,6 +7466,13 @@ export type Database = {
             columns: ["consultant_id"]
             isOneToOne: false
             referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_consulting_notes_consultation_schedule_id_fkey"
+            columns: ["consultation_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "consultation_schedules"
             referencedColumns: ["id"]
           },
           {
@@ -7729,58 +8344,60 @@ export type Database = {
       }
       student_non_study_time: {
         Row: {
-          academy_schedule_id: string | null
           created_at: string | null
-          end_time: string
+          end_time: string | null
+          exclusion_type: string | null
+          group_id: string | null
           id: string
+          is_all_day: boolean
           is_template_based: boolean | null
           label: string | null
           plan_date: string
           planner_id: string
           sequence: number | null
-          start_time: string
+          source: string
+          start_time: string | null
           tenant_id: string
           type: string
           updated_at: string | null
         }
         Insert: {
-          academy_schedule_id?: string | null
           created_at?: string | null
-          end_time: string
+          end_time?: string | null
+          exclusion_type?: string | null
+          group_id?: string | null
           id?: string
+          is_all_day?: boolean
           is_template_based?: boolean | null
           label?: string | null
           plan_date: string
           planner_id: string
           sequence?: number | null
-          start_time: string
+          source?: string
+          start_time?: string | null
           tenant_id: string
           type: string
           updated_at?: string | null
         }
         Update: {
-          academy_schedule_id?: string | null
           created_at?: string | null
-          end_time?: string
+          end_time?: string | null
+          exclusion_type?: string | null
+          group_id?: string | null
           id?: string
+          is_all_day?: boolean
           is_template_based?: boolean | null
           label?: string | null
           plan_date?: string
           planner_id?: string
           sequence?: number | null
-          start_time?: string
+          source?: string
+          start_time?: string | null
           tenant_id?: string
           type?: string
           updated_at?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "student_non_study_time_academy_schedule_id_fkey"
-            columns: ["academy_schedule_id"]
-            isOneToOne: false
-            referencedRelation: "planner_academy_schedules"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "student_non_study_time_planner_id_fkey"
             columns: ["planner_id"]
@@ -9038,6 +9655,7 @@ export type Database = {
       }
       tenants: {
         Row: {
+          address: string | null
           attendance_sms_absent_enabled: boolean | null
           attendance_sms_check_in_enabled: boolean | null
           attendance_sms_check_out_enabled: boolean | null
@@ -9052,12 +9670,14 @@ export type Database = {
           location_radius_meters: number | null
           name: string
           qr_code_secret: string | null
+          representative_phone: string | null
           settings: Json | null
           status: string | null
           type: string | null
           updated_at: string
         }
         Insert: {
+          address?: string | null
           attendance_sms_absent_enabled?: boolean | null
           attendance_sms_check_in_enabled?: boolean | null
           attendance_sms_check_out_enabled?: boolean | null
@@ -9072,12 +9692,14 @@ export type Database = {
           location_radius_meters?: number | null
           name: string
           qr_code_secret?: string | null
+          representative_phone?: string | null
           settings?: Json | null
           status?: string | null
           type?: string | null
           updated_at?: string
         }
         Update: {
+          address?: string | null
           attendance_sms_absent_enabled?: boolean | null
           attendance_sms_check_in_enabled?: boolean | null
           attendance_sms_check_out_enabled?: boolean | null
@@ -9092,6 +9714,7 @@ export type Database = {
           location_radius_meters?: number | null
           name?: string
           qr_code_secret?: string | null
+          representative_phone?: string | null
           settings?: Json | null
           status?: string | null
           type?: string | null
@@ -10301,10 +10924,7 @@ export type Database = {
         Args: { plan_updates: Json }
         Returns: undefined
       }
-      confirm_batch_payment: {
-        Args: { p_order_id: string }
-        Returns: number
-      }
+      check_email_exists: { Args: { target_email: string }; Returns: boolean }
       check_idempotency: {
         Args: {
           p_action: string
@@ -10346,6 +10966,7 @@ export type Database = {
         }
         Returns: Json
       }
+      confirm_batch_payment: { Args: { p_order_id: string }; Returns: number }
       count_unread_by_room_ids: {
         Args: {
           p_membership_data: Json
@@ -10707,4 +11328,3 @@ export const Constants = {
     },
   },
 } as const
-

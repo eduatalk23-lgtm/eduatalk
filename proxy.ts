@@ -155,11 +155,26 @@ function canAccessPath(role: string, pathname: string): boolean {
   return allowedPaths.some((path) => pathname.startsWith(path));
 }
 
+/**
+ * 인증 쿠키 존재 여부 확인
+ * Supabase auth 쿠키(sb-*-auth-token)가 있는지 빠르게 판별
+ */
+function hasAuthCookies(request: NextRequest): boolean {
+  return request.cookies.getAll().some((c) => c.name.includes("auth-token"));
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 정적 파일 및 API 경로는 스킵
   if (SKIP_PATHS.some((path) => pathname.startsWith(path))) {
+    return NextResponse.next();
+  }
+
+  const isPublicPath = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
+
+  // 공개 경로 + 인증 쿠키 없음 → getUser() 호출 없이 즉시 반환 (핵심 최적화)
+  if (isPublicPath && !hasAuthCookies(request)) {
     return NextResponse.next();
   }
 
@@ -176,7 +191,6 @@ export async function proxy(request: NextRequest) {
   // 인증 에러 처리 (refresh token 만료 등)
   if (error) {
     // 세션 관련 에러 시 공개 경로가 아니면 로그인으로
-    const isPublicPath = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
     if (!isPublicPath) {
       const loginUrl = new URL("/login", request.url);
       if (pathname !== "/") {
@@ -187,7 +201,6 @@ export async function proxy(request: NextRequest) {
   }
 
   const isAuthenticated = !!user;
-  const isPublicPath = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
   const isAuthPage = AUTH_PAGES.some((path) => pathname.startsWith(path));
 
   // 비밀번호 재설정 페이지는 특별 처리
