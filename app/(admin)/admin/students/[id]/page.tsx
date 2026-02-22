@@ -8,24 +8,16 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { StudentDetailWrapper } from "./_components/StudentDetailWrapper";
 import { StudentDetailTabs } from "./_components/StudentDetailTabs";
 import { ContentListSection } from "./_components/ContentListSection";
-import { ScoreTrendSection } from "./_components/ScoreTrendSection";
 import { SessionListSection } from "./_components/SessionListSection";
 import { AnalysisReportSection } from "./_components/AnalysisReportSection";
 import { AttendanceSection } from "./_components/AttendanceSection";
 import { RiskCard } from "./_components/RiskCard";
 import { RecommendationPanel } from "./_components/RecommendationPanel";
 import { ContentListSectionSkeleton } from "./_components/ContentListSectionSkeleton";
-import { ScoreTrendSectionSkeleton } from "./_components/ScoreTrendSectionSkeleton";
 import { SessionListSectionSkeleton } from "./_components/SessionListSectionSkeleton";
 import { AnalysisReportSectionSkeleton } from "./_components/AnalysisReportSectionSkeleton";
-import { TimeManagementSection } from "./_components/time-management/TimeManagementSection";
-import { TimeManagementSectionSkeleton } from "./_components/time-management/TimeManagementSectionSkeleton";
-import { ScoreSubTabNav } from "./_components/ScoreSubTabNav";
-import type { ScoreSubTab } from "./_components/ScoreSubTabNav";
-import { AdminScoreInputSection } from "./_components/AdminScoreInputSection";
-import { AdminScoreListSection } from "./_components/AdminScoreListSection";
 
-type TabType = "content" | "score" | "session" | "analysis" | "attendance" | "time" | "risk";
+type TabType = "content" | "session" | "analysis" | "attendance" | "risk";
 
 export default async function AdminStudentDetailPage({
   params,
@@ -42,14 +34,9 @@ export default async function AdminStudentDetailPage({
 
   const { id: studentId } = await params;
   const paramsObj = await searchParams;
-  const VALID_TABS: TabType[] = ["content", "score", "session", "analysis", "attendance", "time", "risk"];
+  const VALID_TABS: TabType[] = ["content", "session", "analysis", "attendance", "risk"];
   const rawTab = paramsObj.tab as TabType;
   const defaultTab: TabType = VALID_TABS.includes(rawTab) ? rawTab : "content";
-
-  // 성적 탭 서브탭
-  const rawScoreSubTab = paramsObj.scoreSubTab as ScoreSubTab;
-  const VALID_SCORE_SUB_TABS: ScoreSubTab[] = ["analysis", "list", "input"];
-  const scoreSubTab: ScoreSubTab = VALID_SCORE_SUB_TABS.includes(rawScoreSubTab) ? rawScoreSubTab : "analysis";
 
   // 학생 기본 정보 조회 (이름 등 헤더/탭에 필요한 최소 데이터)
   const supabase = await createSupabaseServerClient();
@@ -84,28 +71,6 @@ export default async function AdminStudentDetailPage({
               </Suspense>
             )}
 
-            {/* 성적 탭 (서브탭: 분석 / 입력) */}
-            {defaultTab === "score" && (
-              <div className="flex flex-col gap-6">
-                <ScoreSubTabNav activeSubTab={scoreSubTab} />
-                {scoreSubTab === "analysis" && (
-                  <Suspense fallback={<ScoreTrendSectionSkeleton />}>
-                    <ScoreTrendSection studentId={studentId} />
-                  </Suspense>
-                )}
-                {scoreSubTab === "list" && (
-                  <Suspense fallback={<ScoreTrendSectionSkeleton />}>
-                    <AdminScoreListSection studentId={studentId} />
-                  </Suspense>
-                )}
-                {scoreSubTab === "input" && (
-                  <Suspense fallback={<ScoreTrendSectionSkeleton />}>
-                    <AdminScoreInputSection studentId={studentId} />
-                  </Suspense>
-                )}
-              </div>
-            )}
-
             {/* 학습기록 탭 */}
             {defaultTab === "session" && (
               <Suspense fallback={<SessionListSectionSkeleton />}>
@@ -133,13 +98,6 @@ export default async function AdminStudentDetailPage({
                   studentId={studentId}
                   studentName={student.name}
                 />
-              </Suspense>
-            )}
-
-            {/* 시간관리 탭 */}
-            {defaultTab === "time" && (
-              <Suspense fallback={<TimeManagementSectionSkeleton />}>
-                <TimeManagementSection studentId={studentId} />
               </Suspense>
             )}
 

@@ -16,11 +16,66 @@ import {
   determineGradeSystem,
 } from "@/lib/domains/score/computation";
 import ScoreConfidenceChart from "@/components/score/ScoreConfidenceChart";
+import { useRecharts, ChartLoadingSkeleton } from "@/components/charts/LazyRecharts";
 import { InternalScoreTable } from "./scoreList/InternalScoreTable";
 import { MockScoreTable } from "./scoreList/MockScoreTable";
 import { cn } from "@/lib/cn";
 
 type ScoreType = "internal" | "mock";
+
+/** 교과 조합별 평균등급 계산용 조합 정의 */
+const SUBJECT_COMBINATIONS: Array<{ label: string; groups: string[] | null }> = [
+  { label: "전과목", groups: null },
+  { label: "국영수사과", groups: ["국어", "영어", "수학", "사회", "과학"] },
+  { label: "국영수", groups: ["국어", "영어", "수학"] },
+  { label: "국영수과", groups: ["국어", "영어", "수학", "과학"] },
+  { label: "국영수사", groups: ["국어", "영어", "수학", "사회"] },
+  { label: "국영과", groups: ["국어", "영어", "과학"] },
+  { label: "국영사", groups: ["국어", "영어", "사회"] },
+  { label: "영수사", groups: ["영어", "수학", "사회"] },
+  { label: "영수과", groups: ["영어", "수학", "과학"] },
+];
+
+/** 학점 가중 평균등급 계산 (term-first: 학기별 먼저 → 학기 수 나눔) */
+function computeTermFirstGPA(
+  scores: InternalScoreWithRelations[],
+  gradeField: "rank_grade" | "converted_grade_9" | "adjusted_grade" = "rank_grade"
+): number | null {
+  const termGroups: Record<string, { gradeCredit: number; credit: number }> = {};
+  for (const s of scores) {
+    const gradeValue = s[gradeField];
+    if (gradeValue == null || s.credit_hours == null) continue;
+    const key = `${s.grade}-${s.semester}`;
+    if (!termGroups[key]) termGroups[key] = { gradeCredit: 0, credit: 0 };
+    termGroups[key].gradeCredit += gradeValue * s.credit_hours;
+    termGroups[key].credit += s.credit_hours;
+  }
+  const termGpas = Object.values(termGroups)
+    .filter((t) => t.credit > 0)
+    .map((t) => t.gradeCredit / t.credit);
+  if (termGpas.length === 0) return null;
+  return termGpas.reduce((sum, g) => sum + g, 0) / termGpas.length;
+}
+
+/** 특정 학기의 학점 가중 평균등급 계산 */
+function computeSingleSemesterGPA(
+  scores: InternalScoreWithRelations[],
+  targetGrade: number,
+  targetSemester: number,
+  gradeField: "rank_grade" | "converted_grade_9" | "adjusted_grade" = "rank_grade"
+): number | null {
+  let totalGradeCredit = 0;
+  let totalCredit = 0;
+  for (const s of scores) {
+    if (s.grade !== targetGrade || s.semester !== targetSemester) continue;
+    const gradeValue = s[gradeField];
+    if (gradeValue == null || s.credit_hours == null) continue;
+    totalGradeCredit += gradeValue * s.credit_hours;
+    totalCredit += s.credit_hours;
+  }
+  if (totalCredit === 0) return null;
+  return totalGradeCredit / totalCredit;
+}
 
 type AdminScoreListClientProps = {
   studentId: string;
@@ -29,6 +84,7 @@ type AdminScoreListClientProps = {
   subjectGroups: SubjectGroup[];
   internalScores: InternalScoreWithRelations[];
   mockScores: MockScoreWithRelations[];
+  onRefresh?: () => void;
 };
 
 export default function AdminScoreListClient({
@@ -38,9 +94,14 @@ export default function AdminScoreListClient({
   subjectGroups,
   internalScores,
   mockScores,
+  onRefresh,
 }: AdminScoreListClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const refreshData = useCallback(() => {
+    if (onRefresh) onRefresh();
+    else router.refresh();
+  }, [onRefresh, router]);
 
   // --- State ---
   const [scoreType, setScoreType] = useState<ScoreType>("internal");
@@ -49,6 +110,8 @@ export default function AdminScoreListClient({
   const [subjectGroupFilter, setSubjectGroupFilter] = useState<string | "all">("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [editingScore, setEditingScore] = useState<InternalScoreWithRelations | MockScoreWithRelations | null>(null);
+
+  const gradeSystem = determineGradeSystem(curriculumYear);
 
   // --- Filtered Data ---
   const filteredInternal = useMemo(() => {
@@ -73,18 +136,17 @@ export default function AdminScoreListClient({
     if (scoreType === "internal") {
       const scores = filteredInternal;
       const totalSubjects = scores.length;
-      const gradesWithValues = scores.filter((s) => s.rank_grade != null);
-      const avgGrade =
-        gradesWithValues.length > 0
-          ? gradesWithValues.reduce((sum, s) => sum + (s.rank_grade ?? 0), 0) / gradesWithValues.length
-          : null;
+      const avgGrade = computeTermFirstGPA(scores, "rank_grade");
+      const avgGrade9 = gradeSystem === 5 ? computeTermFirstGPA(scores, "converted_grade_9") : null;
+      const avgAdjusted = computeTermFirstGPA(scores, "adjusted_grade");
+
       const rawScoresWithValues = scores.filter((s) => s.raw_score != null);
       const avgRawScore =
         rawScoresWithValues.length > 0
           ? rawScoresWithValues.reduce((sum, s) => sum + (s.raw_score ?? 0), 0) / rawScoresWithValues.length
           : null;
       const totalCredits = scores.reduce((sum, s) => sum + (s.credit_hours ?? 0), 0);
-      return { totalSubjects, avgGrade, avgRawScore, totalCredits };
+      return { totalSubjects, avgGrade, avgGrade9, avgAdjusted, avgRawScore, totalCredits };
     } else {
       const scores = filteredMock;
       const totalSubjects = scores.length;
@@ -98,9 +160,9 @@ export default function AdminScoreListClient({
         rawScoresWithValues.length > 0
           ? rawScoresWithValues.reduce((sum, s) => sum + (s.raw_score ?? 0), 0) / rawScoresWithValues.length
           : null;
-      return { totalSubjects, avgGrade, avgRawScore, totalCredits: null };
+      return { totalSubjects, avgGrade, avgGrade9: null as number | null, avgAdjusted: null as number | null, avgRawScore, totalCredits: null };
     }
-  }, [scoreType, filteredInternal, filteredMock]);
+  }, [scoreType, filteredInternal, filteredMock, gradeSystem]);
 
   // --- Computed Preview (for internal editing) ---
   const computedPreview = useMemo(() => {
@@ -165,13 +227,13 @@ export default function AdminScoreListClient({
             : await adminDeleteMockScore(scoreId, studentId, tenantId);
         if (result.success) {
           setEditingScore(null);
-          router.refresh();
+          refreshData();
         } else {
           alert(result.error || "삭제에 실패했습니다.");
         }
       });
     },
-    [scoreType, studentId, tenantId, router]
+    [scoreType, studentId, tenantId, refreshData]
   );
 
   const handleBulkDelete = useCallback(async () => {
@@ -184,11 +246,9 @@ export default function AdminScoreListClient({
       }
       setSelectedIds(new Set());
       setEditingScore(null);
-      router.refresh();
+      refreshData();
     });
-  }, [selectedIds, scoreType, studentId, tenantId, router]);
-
-  const gradeSystem = determineGradeSystem(curriculumYear);
+  }, [selectedIds, scoreType, studentId, tenantId, refreshData]);
 
   const handleCSVDownload = useCallback(() => {
     const BOM = "\uFEFF";
@@ -262,13 +322,13 @@ export default function AdminScoreListClient({
         const result = await updateInternalScore(score.id, formData);
         if (result.success) {
           setEditingScore(null);
-          router.refresh();
+          refreshData();
         } else {
           alert(result.error || "저장에 실패했습니다.");
         }
       });
     },
-    [tenantId, router]
+    [tenantId, refreshData]
   );
 
   const handleSaveMock = useCallback(
@@ -285,13 +345,13 @@ export default function AdminScoreListClient({
         const result = await updateMockScoreAction(formData);
         if (result.success) {
           setEditingScore(null);
-          router.refresh();
+          refreshData();
         } else {
           alert(result.error || "저장에 실패했습니다.");
         }
       });
     },
-    [studentId, router]
+    [studentId, refreshData]
   );
 
   // Available grades
@@ -377,10 +437,38 @@ export default function AdminScoreListClient({
       {/* Summary Cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <SummaryCard label="총 과목수" value={summary.totalSubjects} />
-        <SummaryCard
-          label="평균 등급"
-          value={summary.avgGrade != null ? summary.avgGrade.toFixed(2) : "-"}
-        />
+        {scoreType === "internal" ? (
+          <div className="rounded-lg border border-gray-200 bg-white p-4">
+            <p className="text-xs text-gray-500">평균 등급</p>
+            <div className="mt-1 flex items-baseline gap-1.5">
+              <span className="text-lg font-semibold text-gray-900">
+                {summary.avgGrade != null ? summary.avgGrade.toFixed(2) : "-"}
+              </span>
+              {gradeSystem === 5 && <span className="text-[10px] text-gray-400">(5등급)</span>}
+            </div>
+            {gradeSystem === 5 && summary.avgGrade9 != null && (
+              <div className="mt-0.5 flex items-baseline gap-1.5">
+                <span className="text-sm font-medium text-indigo-600">
+                  {summary.avgGrade9.toFixed(2)}
+                </span>
+                <span className="text-[10px] text-gray-400">(9등급 환산)</span>
+              </div>
+            )}
+            {summary.avgAdjusted != null && (
+              <div className="mt-0.5 flex items-baseline gap-1.5">
+                <span className="text-sm font-medium text-emerald-600">
+                  {summary.avgAdjusted.toFixed(2)}
+                </span>
+                <span className="text-[10px] text-gray-400">(조정등급)</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <SummaryCard
+            label="평균 등급"
+            value={summary.avgGrade != null ? summary.avgGrade.toFixed(2) : "-"}
+          />
+        )}
         <SummaryCard
           label="평균 원점수"
           value={summary.avgRawScore != null ? summary.avgRawScore.toFixed(1) : "-"}
@@ -390,6 +478,22 @@ export default function AdminScoreListClient({
           value={scoreType === "internal" ? (summary.totalCredits ?? 0) : summary.totalSubjects}
         />
       </div>
+
+      {/* GPA Trend Chart (internal only) */}
+      {scoreType === "internal" && internalScores.length >= 2 && (
+        <GpaTrendChart
+          scores={internalScores}
+          gradeSystem={gradeSystem}
+        />
+      )}
+
+      {/* Subject Combination Table (internal only) */}
+      {scoreType === "internal" && internalScores.length >= 2 && (
+        <SubjectCombinationTable
+          scores={internalScores}
+          gradeSystem={gradeSystem}
+        />
+      )}
 
       {/* Table */}
       {scoreType === "internal" ? (
@@ -430,7 +534,7 @@ export default function AdminScoreListClient({
             <InternalEditPanel
               score={editingScore as InternalScoreWithRelations}
               computedPreview={computedPreview}
-              gradeSystem={determineGradeSystem(curriculumYear)}
+              gradeSystem={gradeSystem}
               isPending={isPending}
               onSave={handleSaveInternal}
               onDelete={() => handleDelete(editingScore.id)}
@@ -474,6 +578,238 @@ function SummaryCard({ label, value }: { label: string; value: string | number }
     <div className="rounded-lg border border-gray-200 bg-white p-4">
       <p className="text-xs text-gray-500">{label}</p>
       <p className="mt-1 text-lg font-semibold text-gray-900">{value}</p>
+    </div>
+  );
+}
+
+function GpaTrendChart({
+  scores,
+  gradeSystem,
+}: {
+  scores: InternalScoreWithRelations[];
+  gradeSystem: 5 | 9;
+}) {
+  const { recharts, loading } = useRecharts();
+
+  const chartData = useMemo(() => {
+    const semesters = new Set<string>();
+    for (const s of scores) semesters.add(`${s.grade}-${s.semester}`);
+
+    const sorted = Array.from(semesters)
+      .map((key) => {
+        const [grade, semester] = key.split("-").map(Number);
+        return { grade, semester };
+      })
+      .sort((a, b) => (a.grade !== b.grade ? a.grade - b.grade : a.semester - b.semester));
+
+    return sorted.map((sem) => ({
+      term: `${sem.grade}-${sem.semester}`,
+      rankGrade: computeSingleSemesterGPA(scores, sem.grade, sem.semester, "rank_grade"),
+      grade9: gradeSystem === 5
+        ? computeSingleSemesterGPA(scores, sem.grade, sem.semester, "converted_grade_9")
+        : null,
+      adjusted: computeSingleSemesterGPA(scores, sem.grade, sem.semester, "adjusted_grade"),
+    }));
+  }, [scores, gradeSystem]);
+
+  const overallAvg = useMemo(() => computeTermFirstGPA(scores, "rank_grade"), [scores]);
+
+  if (loading || !recharts) return <ChartLoadingSkeleton height={240} />;
+  if (chartData.length < 2) return null;
+
+  const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, ResponsiveContainer } = recharts;
+
+  const allValues = chartData.flatMap((d) =>
+    [d.rankGrade, d.grade9, d.adjusted].filter((v): v is number => v != null)
+  );
+  if (allValues.length === 0) return null;
+  const minVal = Math.floor(Math.min(...allValues) - 0.5);
+  const maxVal = Math.ceil(Math.max(...allValues) + 0.5);
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white p-4">
+      <h3 className="mb-3 text-sm font-medium text-gray-900">학기별 평균등급 추이</h3>
+      <ResponsiveContainer width="100%" height={240}>
+        <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <XAxis dataKey="term" tick={{ fontSize: 12 }} />
+          <YAxis
+            reversed
+            domain={[minVal, maxVal]}
+            tick={{ fontSize: 12 }}
+            label={{ value: "등급", angle: -90, position: "insideLeft", style: { fontSize: 11, fill: "#9ca3af" } }}
+          />
+          <Tooltip
+            formatter={(value: number) => value?.toFixed(2)}
+            contentStyle={{ fontSize: 12 }}
+          />
+          <Legend wrapperStyle={{ fontSize: 12 }} />
+          {overallAvg != null && (
+            <ReferenceLine
+              y={overallAvg}
+              stroke="#9ca3af"
+              strokeDasharray="4 4"
+              label={{ value: `전체 ${overallAvg.toFixed(2)}`, position: "right", style: { fontSize: 10, fill: "#9ca3af" } }}
+            />
+          )}
+          <Line
+            type="monotone"
+            dataKey="rankGrade"
+            stroke="#3b82f6"
+            strokeWidth={2}
+            dot={{ r: 4 }}
+            name={gradeSystem === 5 ? "석차등급 (5등급)" : "석차등급"}
+            connectNulls
+          />
+          {gradeSystem === 5 && (
+            <Line
+              type="monotone"
+              dataKey="grade9"
+              stroke="#6366f1"
+              strokeWidth={2}
+              dot={{ r: 4 }}
+              name="9등급 환산"
+              connectNulls
+            />
+          )}
+          <Line
+            type="monotone"
+            dataKey="adjusted"
+            stroke="#10b981"
+            strokeWidth={1.5}
+            strokeDasharray="5 3"
+            dot={{ r: 3 }}
+            name="조정등급"
+            connectNulls
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function SubjectCombinationTable({
+  scores,
+  gradeSystem,
+}: {
+  scores: InternalScoreWithRelations[];
+  gradeSystem: 5 | 9;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [displayMode, setDisplayMode] = useState<"rank_grade" | "converted_grade_9">(
+    gradeSystem === 5 ? "converted_grade_9" : "rank_grade"
+  );
+
+  const availableSemesters = useMemo(() => {
+    const semesters = new Set<string>();
+    for (const s of scores) {
+      semesters.add(`${s.grade}-${s.semester}`);
+    }
+    return Array.from(semesters)
+      .map((key) => {
+        const [grade, semester] = key.split("-").map(Number);
+        return { grade, semester, label: `${grade}-${semester}` };
+      })
+      .sort((a, b) => (a.grade !== b.grade ? a.grade - b.grade : a.semester - b.semester));
+  }, [scores]);
+
+  const combinationData = useMemo(() => {
+    return SUBJECT_COMBINATIONS.map((combo) => {
+      const filteredScores = combo.groups
+        ? scores.filter((s) => combo.groups!.includes(s.subject_group?.name ?? ""))
+        : scores;
+
+      const semesterGpas: Record<string, number | null> = {};
+      for (const sem of availableSemesters) {
+        semesterGpas[sem.label] = computeSingleSemesterGPA(
+          filteredScores, sem.grade, sem.semester, displayMode
+        );
+      }
+      const overallGpa = computeTermFirstGPA(filteredScores, displayMode);
+
+      return {
+        label: combo.label,
+        semesterGpas,
+        overallGpa,
+      };
+    });
+  }, [scores, availableSemesters, displayMode]);
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-gray-900 hover:bg-gray-50"
+      >
+        <span>교과 조합별 평균등급</span>
+        <svg
+          className={cn("h-4 w-4 text-gray-500 transition-transform", isOpen && "rotate-180")}
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={2}
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="border-t border-gray-200 px-4 py-3">
+          {gradeSystem === 5 && (
+            <div className="mb-3 flex rounded-lg bg-gray-100 p-0.5 w-fit">
+              <button
+                onClick={() => setDisplayMode("rank_grade")}
+                className={cn(
+                  "rounded-md px-2.5 py-1 text-xs font-medium transition",
+                  displayMode === "rank_grade" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
+                )}
+              >
+                5등급
+              </button>
+              <button
+                onClick={() => setDisplayMode("converted_grade_9")}
+                className={cn(
+                  "rounded-md px-2.5 py-1 text-xs font-medium transition",
+                  displayMode === "converted_grade_9" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
+                )}
+              >
+                9등급
+              </button>
+            </div>
+          )}
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 text-left">
+                  <th className="whitespace-nowrap px-2 py-2 text-xs font-medium text-gray-500">조합</th>
+                  {availableSemesters.map((sem) => (
+                    <th key={sem.label} className="whitespace-nowrap px-2 py-2 text-center text-xs font-medium text-gray-500">
+                      {sem.label}
+                    </th>
+                  ))}
+                  <th className="whitespace-nowrap px-2 py-2 text-center text-xs font-medium text-gray-900">전체</th>
+                </tr>
+              </thead>
+              <tbody>
+                {combinationData.map((row) => (
+                  <tr key={row.label} className="border-b border-gray-100 last:border-0">
+                    <td className="whitespace-nowrap px-2 py-1.5 text-xs font-medium text-gray-700">{row.label}</td>
+                    {availableSemesters.map((sem) => (
+                      <td key={sem.label} className="whitespace-nowrap px-2 py-1.5 text-center text-xs text-gray-600">
+                        {row.semesterGpas[sem.label]?.toFixed(2) ?? "-"}
+                      </td>
+                    ))}
+                    <td className="whitespace-nowrap px-2 py-1.5 text-center text-xs font-semibold text-gray-900">
+                      {row.overallGpa?.toFixed(2) ?? "-"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

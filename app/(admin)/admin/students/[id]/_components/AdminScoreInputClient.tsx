@@ -27,12 +27,14 @@ type AdminScoreInputClientProps = {
   studentId: string;
   tenantId: string;
   curriculumOptions: CurriculumHierarchy[];
+  onRefresh?: () => void;
 };
 
 export default function AdminScoreInputClient({
   studentId,
   tenantId,
   curriculumOptions,
+  onRefresh,
 }: AdminScoreInputClientProps) {
   const router = useRouter();
   const [selectedCurriculumId, setSelectedCurriculumId] = useState(
@@ -44,7 +46,8 @@ export default function AdminScoreInputClient({
   ) ?? curriculumOptions[0];
 
   const handleSuccess = () => {
-    router.refresh();
+    if (onRefresh) onRefresh();
+    else router.refresh();
   };
 
   return (

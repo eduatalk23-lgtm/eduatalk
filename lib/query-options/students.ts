@@ -9,7 +9,8 @@ export function studentSearchQueryOptions(query: string) {
   return queryOptions({
     queryKey: ["studentSearch", query] as const,
     queryFn: () => searchStudentsAction(query),
-    staleTime: 1000 * 30, // 30초
+    staleTime: 1000 * 120, // 2분
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -20,6 +21,7 @@ export function studentDetailQueryOptions(studentId: string) {
   return queryOptions({
     queryKey: ["studentDetail", studentId] as const,
     queryFn: () => getStudentDetailAction(studentId),
-    staleTime: 1000 * 60, // 1분
+    staleTime: 1000 * 300, // 5분
+    refetchOnWindowFocus: false,
   });
 }

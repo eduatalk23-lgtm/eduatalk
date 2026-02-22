@@ -12,6 +12,8 @@ import { StudentFormPanel } from "./StudentFormPanel";
 import { EnrollmentSlidePanel } from "./EnrollmentSlidePanel";
 import { FamilySlidePanel } from "./FamilySlidePanel";
 import { ConsultationSlidePanel } from "./ConsultationSlidePanel";
+import { ScoreSlidePanel } from "./ScoreSlidePanel";
+import { TimeManagementSlidePanel } from "./TimeManagementSlidePanel";
 
 type FormMode = "register" | "selected";
 
@@ -31,6 +33,10 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
   const [isFamilyPanelOpen, setIsFamilyPanelOpen] = useState(false);
   const [consultationPanelStudentId, setConsultationPanelStudentId] = useState<string | null>(null);
   const [isConsultationPanelOpen, setIsConsultationPanelOpen] = useState(false);
+  const [scorePanelStudentId, setScorePanelStudentId] = useState<string | null>(null);
+  const [isScorePanelOpen, setIsScorePanelOpen] = useState(false);
+  const [timeManagementPanelStudentId, setTimeManagementPanelStudentId] = useState<string | null>(null);
+  const [isTimeManagementPanelOpen, setIsTimeManagementPanelOpen] = useState(false);
 
   const debouncedQuery = useDebounce(searchQuery, 300);
 
@@ -116,6 +122,30 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
     setIsConsultationPanelOpen(false);
   }, []);
 
+  // 성적 슬라이드 패널 열기/닫기
+  const handleOpenScore = useCallback(() => {
+    if (selectedStudentId) {
+      setScorePanelStudentId(selectedStudentId);
+      setIsScorePanelOpen(true);
+    }
+  }, [selectedStudentId]);
+
+  const handleCloseScore = useCallback(() => {
+    setIsScorePanelOpen(false);
+  }, []);
+
+  // 시간관리 슬라이드 패널 열기/닫기
+  const handleOpenTimeManagement = useCallback(() => {
+    if (selectedStudentId) {
+      setTimeManagementPanelStudentId(selectedStudentId);
+      setIsTimeManagementPanelOpen(true);
+    }
+  }, [selectedStudentId]);
+
+  const handleCloseTimeManagement = useCallback(() => {
+    setIsTimeManagementPanelOpen(false);
+  }, []);
+
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
       {/* 왼쪽: 검색 패널 */}
@@ -141,6 +171,8 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
         onOpenEnrollment={handleOpenEnrollment}
         onOpenFamily={handleOpenFamily}
         onOpenConsultation={handleOpenConsultation}
+        onOpenScore={handleOpenScore}
+        onOpenTimeManagement={handleOpenTimeManagement}
         isAdmin={isAdmin}
       />
 
@@ -168,6 +200,24 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
           studentLabel={studentLabel}
           isOpen={isConsultationPanelOpen}
           onClose={handleCloseConsultation}
+        />
+      )}
+
+      {scorePanelStudentId && (
+        <ScoreSlidePanel
+          studentId={scorePanelStudentId}
+          studentLabel={studentLabel}
+          isOpen={isScorePanelOpen}
+          onClose={handleCloseScore}
+        />
+      )}
+
+      {timeManagementPanelStudentId && (
+        <TimeManagementSlidePanel
+          studentId={timeManagementPanelStudentId}
+          studentLabel={studentLabel}
+          isOpen={isTimeManagementPanelOpen}
+          onClose={handleCloseTimeManagement}
         />
       )}
     </div>

@@ -45,12 +45,12 @@ export async function getStudentDetailAction(
           .maybeSingle(),
         adminClient
           .from("student_profiles")
-          .select("*")
+          .select("id,gender,phone,mother_phone,father_phone,address,emergency_contact,emergency_contact_phone,medical_info")
           .eq("id", studentId)
           .maybeSingle(),
         adminClient
           .from("student_career_goals")
-          .select("*")
+          .select("student_id,exam_year,curriculum_revision,desired_university_ids,desired_career_field")
           .eq("student_id", studentId)
           .maybeSingle(),
         adminClient.auth.admin.getUserById(studentId),

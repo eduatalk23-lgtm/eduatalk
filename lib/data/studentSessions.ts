@@ -32,6 +32,7 @@ export type SessionFilters = {
   };
   planId?: string;
   isActive?: boolean; // ended_at이 null인 세션만
+  limit?: number;
 };
 
 /**
@@ -76,6 +77,10 @@ export async function getSessionsInRange(
 
   query = query.order("started_at", { ascending: false });
 
+  if (filters.limit) {
+    query = query.limit(filters.limit);
+  }
+
   const buildFallbackQuery = () => {
     let fallbackQuery = supabase
       .from("student_study_sessions")
@@ -100,7 +105,13 @@ export async function getSessionsInRange(
         .lte("started_at", filters.dateRange.end);
     }
 
-    return fallbackQuery.order("started_at", { ascending: false });
+    fallbackQuery = fallbackQuery.order("started_at", { ascending: false });
+
+    if (filters.limit) {
+      fallbackQuery = fallbackQuery.limit(filters.limit);
+    }
+
+    return fallbackQuery;
   };
 
   return safeQueryArray<StudySession>(

@@ -16,14 +16,12 @@ function getRecentDateRange() {
 export async function SessionListSection({ studentId }: { studentId: string }) {
   try {
     const dateRange = getRecentDateRange();
-    const sessions = await getSessionsInRange({
+    const recentSessions = await getSessionsInRange({
       studentId,
       tenantId: null,
       dateRange,
+      limit: 20,
     });
-
-    // 최근 20개만 표시
-    const recentSessions = sessions.slice(0, 20);
 
     const formatDuration = (seconds: number | null | undefined): string => {
       if (!seconds) return "-";

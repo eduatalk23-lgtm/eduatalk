@@ -72,7 +72,7 @@ export type ContentFilters = {
 export async function getBooks(
   studentId: string,
   tenantId?: string | null,
-  filters?: { subject?: string }
+  filters?: { subject?: string; limit?: number }
 ): Promise<Book[]> {
   const supabase = await createSupabaseServerClient();
 
@@ -94,17 +94,27 @@ export async function getBooks(
 
   query = query.order("created_at", { ascending: false });
 
+  if (filters?.limit) {
+    query = query.limit(filters.limit);
+  }
+
   let { data, error } = await query;
 
   if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
     // fallback: tenant_id, student_id 컬럼이 없는 경우
-    const fallbackQuery = supabase.from("books").select("*");
+    let fallbackQuery = supabase.from("books").select("*");
 
     if (filters?.subject) {
-      fallbackQuery.eq("subject", filters.subject);
+      fallbackQuery = fallbackQuery.eq("subject", filters.subject);
     }
 
-    ({ data, error } = await fallbackQuery.order("created_at", { ascending: false }));
+    fallbackQuery = fallbackQuery.order("created_at", { ascending: false });
+
+    if (filters?.limit) {
+      fallbackQuery = fallbackQuery.limit(filters.limit);
+    }
+
+    ({ data, error } = await fallbackQuery);
   }
 
   if (error) {
@@ -121,7 +131,7 @@ export async function getBooks(
 export async function getLectures(
   studentId: string,
   tenantId?: string | null,
-  filters?: { subject?: string }
+  filters?: { subject?: string; limit?: number }
 ): Promise<Lecture[]> {
   const supabase = await createSupabaseServerClient();
 
@@ -143,17 +153,27 @@ export async function getLectures(
 
   query = query.order("created_at", { ascending: false });
 
+  if (filters?.limit) {
+    query = query.limit(filters.limit);
+  }
+
   let { data, error } = await query;
 
   if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
     // fallback: tenant_id, student_id 컬럼이 없는 경우
-    const fallbackQuery = supabase.from("lectures").select("*");
+    let fallbackQuery = supabase.from("lectures").select("*");
 
     if (filters?.subject) {
-      fallbackQuery.eq("subject", filters.subject);
+      fallbackQuery = fallbackQuery.eq("subject", filters.subject);
     }
 
-    ({ data, error } = await fallbackQuery.order("created_at", { ascending: false }));
+    fallbackQuery = fallbackQuery.order("created_at", { ascending: false });
+
+    if (filters?.limit) {
+      fallbackQuery = fallbackQuery.limit(filters.limit);
+    }
+
+    ({ data, error } = await fallbackQuery);
   }
 
   if (error) {
@@ -170,7 +190,7 @@ export async function getLectures(
 export async function getCustomContents(
   studentId: string,
   tenantId?: string | null,
-  filters?: { subject?: string }
+  filters?: { subject?: string; limit?: number }
 ): Promise<CustomContent[]> {
   const supabase = await createSupabaseServerClient();
 
@@ -192,17 +212,27 @@ export async function getCustomContents(
 
   query = query.order("created_at", { ascending: false });
 
+  if (filters?.limit) {
+    query = query.limit(filters.limit);
+  }
+
   let { data, error } = await query;
 
   if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
     // fallback: tenant_id, student_id 컬럼이 없는 경우
-    const fallbackQuery = supabase.from("student_custom_contents").select("*");
+    let fallbackQuery = supabase.from("student_custom_contents").select("*");
 
     if (filters?.subject) {
-      fallbackQuery.eq("subject", filters.subject);
+      fallbackQuery = fallbackQuery.eq("subject", filters.subject);
     }
 
-    ({ data, error } = await fallbackQuery.order("created_at", { ascending: false }));
+    fallbackQuery = fallbackQuery.order("created_at", { ascending: false });
+
+    if (filters?.limit) {
+      fallbackQuery = fallbackQuery.limit(filters.limit);
+    }
+
+    ({ data, error } = await fallbackQuery);
   }
 
   if (error) {

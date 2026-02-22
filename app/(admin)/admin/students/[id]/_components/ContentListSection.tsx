@@ -8,9 +8,9 @@ export async function ContentListSection({ studentId }: { studentId: string }) {
   try {
     const [booksResult, lecturesResult, customResult] =
       await Promise.allSettled([
-        getBooks(studentId, null),
-        getLectures(studentId, null),
-        getCustomContents(studentId, null),
+        getBooks(studentId, null, { limit: 10 }),
+        getLectures(studentId, null, { limit: 10 }),
+        getCustomContents(studentId, null, { limit: 10 }),
       ]);
 
     const books = booksResult.status === "fulfilled" ? booksResult.value : [];
@@ -79,7 +79,7 @@ export async function ContentListSection({ studentId }: { studentId: string }) {
                 <p className="text-sm text-gray-500">등록된 책이 없습니다.</p>
               ) : (
                 <div className="space-y-2">
-                  {books.slice(0, 10).map((book) => (
+                  {books.map((book) => (
                     <div
                       key={book.id}
                       className="rounded-lg border border-gray-200 p-4 transition hover:bg-gray-50"
@@ -111,7 +111,7 @@ export async function ContentListSection({ studentId }: { studentId: string }) {
                 <p className="text-sm text-gray-500">등록된 강의가 없습니다.</p>
               ) : (
                 <div className="space-y-2">
-                  {lectures.slice(0, 10).map((lecture) => (
+                  {lectures.map((lecture) => (
                     <div
                       key={lecture.id}
                       className="rounded-lg border border-gray-200 p-4 transition hover:bg-gray-50"
@@ -149,7 +149,7 @@ export async function ContentListSection({ studentId }: { studentId: string }) {
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {customContents.slice(0, 10).map((content) => (
+                  {customContents.map((content) => (
                     <div
                       key={content.id}
                       className="rounded-lg border border-gray-200 p-4 transition hover:bg-gray-50"

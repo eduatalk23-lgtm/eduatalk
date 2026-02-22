@@ -7,8 +7,59 @@
 import type { EnrichedInternalScore, EnrichedMockScore } from "@/lib/types/scoreAnalysis";
 
 /**
+ * 학기별 학점가중 평균 GPA를 계산하는 내부 유틸리티
+ *
+ * 성적 배열에서 학기별로 그룹화한 뒤
+ * 각 학기의 학점가중 평균(SUM(grade×credit)/SUM(credit))을 반환합니다.
+ */
+function groupByTermWeightedGPA(
+  scores: Array<{ grade: number; semester: number; rank_grade: number | null; credit_hours: number }>
+): Array<{ grade: number; semester: number; gpa: number }> {
+  const termGroups: Record<
+    string,
+    { grade: number; semester: number; gradeCredit: number; credit: number }
+  > = {};
+
+  for (const s of scores) {
+    if (s.rank_grade == null) continue;
+    const key = `${s.grade}-${s.semester}`;
+    if (!termGroups[key]) {
+      termGroups[key] = { grade: s.grade, semester: s.semester, gradeCredit: 0, credit: 0 };
+    }
+    termGroups[key].gradeCredit += s.rank_grade * s.credit_hours;
+    termGroups[key].credit += s.credit_hours;
+  }
+
+  return Object.values(termGroups)
+    .filter((t) => t.credit > 0)
+    .map((t) => ({
+      grade: t.grade,
+      semester: t.semester,
+      gpa: t.gradeCredit / t.credit,
+    }))
+    .sort((a, b) => (a.grade !== b.grade ? a.grade - b.grade : a.semester - b.semester));
+}
+
+/**
+ * 전체 평균 GPA (학기별 먼저 → 학기 수 나눔)
+ *
+ * 엑셀 Z3 수식과 동일: 각 학기의 학점가중 평균을 먼저 구한 뒤
+ * 데이터가 있는 학기 수로 나누어 학기 간 영향력을 균등화합니다.
+ *
+ * @param scores - rank_grade, credit_hours, grade, semester가 있는 성적 배열
+ * @returns 전체 평균 GPA (null = 데이터 없음)
+ */
+export function calculateOverallGPA(
+  scores: Array<{ grade: number; semester: number; rank_grade: number | null; credit_hours: number }>
+): number | null {
+  const termGpas = groupByTermWeightedGPA(scores);
+  if (termGpas.length === 0) return null;
+  return termGpas.reduce((sum, t) => sum + t.gpa, 0) / termGpas.length;
+}
+
+/**
  * GPA 추이 계산 (학기별)
- * 
+ *
  * @param scores - 내신 성적 배열
  * @returns 학기별 GPA 배열
  */
@@ -18,48 +69,12 @@ export function calculateGPATrend(scores: EnrichedInternalScore[]): Array<{
   gpa: number;
   term: string;
 }> {
-  // 학기별로 그룹화
-  const groupedByTerm = scores.reduce((acc, score) => {
-    if (!score.rank_grade) return acc;
-
-    const key = `${score.grade}-${score.semester}`;
-    if (!acc[key]) {
-      acc[key] = {
-        grade: score.grade,
-        semester: score.semester,
-        scores: [],
-        credits: [],
-      };
-    }
-
-    acc[key].scores.push(score.rank_grade);
-    acc[key].credits.push(score.credit_hours);
-
-    return acc;
-  }, {} as Record<string, { grade: number; semester: number; scores: number[]; credits: number[] }>);
-
-  // GPA 계산 (학점 가중 평균)
-  type TermData = { grade: number; semester: number; scores: number[]; credits: number[] };
-  return (Object.values(groupedByTerm) as TermData[])
-    .map((term) => {
-      const totalCredits = term.credits.reduce((sum, c) => sum + c, 0);
-      const weightedSum = term.scores.reduce(
-        (sum, score, idx) => sum + score * term.credits[idx],
-        0
-      );
-      const gpa = totalCredits > 0 ? weightedSum / totalCredits : 0;
-
-      return {
-        grade: term.grade,
-        semester: term.semester,
-        gpa: Math.round(gpa * 100) / 100,
-        term: `${term.grade}학년 ${term.semester}학기`,
-      };
-    })
-    .sort((a, b) => {
-      if (a.grade !== b.grade) return a.grade - b.grade;
-      return a.semester - b.semester;
-    });
+  return groupByTermWeightedGPA(scores).map((t) => ({
+    grade: t.grade,
+    semester: t.semester,
+    gpa: Math.round(t.gpa * 100) / 100,
+    term: `${t.grade}학년 ${t.semester}학기`,
+  }));
 }
 
 /**

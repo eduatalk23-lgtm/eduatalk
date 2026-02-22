@@ -54,6 +54,8 @@ export function InternalScoreTable({
                 className="size-4 rounded border-gray-300"
               />
             </th>
+            <th className="px-3 py-3 text-center font-medium text-gray-600">학년</th>
+            <th className="px-3 py-3 text-center font-medium text-gray-600">학기</th>
             <th className="px-3 py-3 font-medium text-gray-600">교과군</th>
             <th className="px-3 py-3 font-medium text-gray-600">과목명</th>
             <th className="px-3 py-3 font-medium text-gray-600">과목유형</th>
@@ -88,6 +90,8 @@ export function InternalScoreTable({
                     className="size-4 rounded border-gray-300"
                   />
                 </td>
+                <td className="px-3 py-3 text-center text-gray-700">{score.grade}</td>
+                <td className="px-3 py-3 text-center text-gray-700">{score.semester}</td>
                 <td className="px-3 py-3">
                   <span className="inline-flex rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
                     {score.subject_group?.name ?? "-"}

@@ -28,7 +28,8 @@ export interface StudentProfile {
  * 내신 분석 결과
  */
 export interface InternalAnalysis {
-  totalGpa: number | null; // 전체 평균 평점
+  totalGpa: number | null; // 전체 평균 평점 (석차등급 기반)
+  adjustedGpa: number | null; // 조정등급 기반 평균 등급
   zIndex: number | null; // Z-점수 지수
   subjectStrength: Record<string, number>; // 교과군별 GPA (예: { "국어": 3.5, "수학": 4.0 })
 }

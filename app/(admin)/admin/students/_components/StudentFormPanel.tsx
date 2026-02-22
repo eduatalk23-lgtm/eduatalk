@@ -12,7 +12,7 @@ import type { StudentInfoData, AdminStudentFormData } from "../[id]/_types/stude
 import BasicInfoSection from "../[id]/_components/sections/BasicInfoSection";
 import ProfileInfoSection from "../[id]/_components/sections/ProfileInfoSection";
 import CareerInfoSection from "../[id]/_components/sections/CareerInfoSection";
-import { Plus, Trash2, ExternalLink, CalendarDays, Loader2, RotateCcw, Save, Wallet, Users, MessageSquare } from "lucide-react";
+import { Plus, Trash2, ExternalLink, CalendarDays, Loader2, RotateCcw, Save, Wallet, Users, MessageSquare, BarChart3, Clock } from "lucide-react";
 import Link from "next/link";
 
 type FormMode = "register" | "selected";
@@ -32,6 +32,8 @@ type StudentFormPanelProps = {
   onOpenEnrollment?: () => void;
   onOpenFamily?: () => void;
   onOpenConsultation?: () => void;
+  onOpenScore?: () => void;
+  onOpenTimeManagement?: () => void;
   isAdmin: boolean;
 };
 
@@ -46,6 +48,8 @@ export function StudentFormPanel({
   onOpenEnrollment,
   onOpenFamily,
   onOpenConsultation,
+  onOpenScore,
+  onOpenTimeManagement,
   isAdmin,
 }: StudentFormPanelProps) {
   const queryClient = useQueryClient();
@@ -259,6 +263,26 @@ export function StudentFormPanel({
                   >
                     <MessageSquare className="h-4 w-4" />
                     상담
+                  </button>
+                )}
+                {onOpenScore && (
+                  <button
+                    type="button"
+                    onClick={onOpenScore}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
+                  >
+                    <BarChart3 className="h-4 w-4" />
+                    성적
+                  </button>
+                )}
+                {onOpenTimeManagement && (
+                  <button
+                    type="button"
+                    onClick={onOpenTimeManagement}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-sm font-medium text-teal-700 transition hover:bg-teal-100"
+                  >
+                    <Clock className="h-4 w-4" />
+                    시간관리
                   </button>
                 )}
                 <Link
