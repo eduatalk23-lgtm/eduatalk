@@ -34,6 +34,9 @@ export interface AdminPlanFilterContextValue {
   setSelectedGroupId: (id: string | null) => void;
   contentTypeFilter: ContentTypeFilter;
   setContentTypeFilter: (filter: ContentTypeFilter) => void;
+  /** 플랜 검색 쿼리 (클라이언트 사이드 필터링) */
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
   /** 모든 Dock 새로고침 (전체) */
   handleRefresh: () => void;
   /** Daily Dock만 새로고침 */
@@ -70,6 +73,8 @@ export function AdminPlanFilterProvider({
   const [contentTypeFilter, setContentTypeFilter] = useState<ContentTypeFilter>("all");
   // 기본값: 전체 보기 (null)
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  // 플랜 검색 쿼리
+  const [searchQuery, setSearchQuery] = useState("");
 
   // React Query 타겟 캐시 무효화
   const {
@@ -136,6 +141,8 @@ export function AdminPlanFilterProvider({
       setSelectedGroupId,
       contentTypeFilter,
       setContentTypeFilter,
+      searchQuery,
+      setSearchQuery,
       handleRefresh,
       refreshDaily,
       refreshDailyAndWeekly,
@@ -147,6 +154,7 @@ export function AdminPlanFilterProvider({
       handleDateChange,
       selectedGroupId,
       contentTypeFilter,
+      searchQuery,
       handleRefresh,
       refreshDaily,
       refreshDailyAndWeekly,

@@ -41,7 +41,7 @@ export interface DragItem {
     originalEndTime: string;
     itemType: string; // '점심식사', '학원' 등
     sourceIndex?: number;
-    /** 새 테이블 레코드 ID (student_non_study_time.id) */
+    /** 레코드 ID (calendar_events.id) */
     recordId?: string;
   };
   // 통합 아이템 필드 (SortableUnifiedItem에서 사용)

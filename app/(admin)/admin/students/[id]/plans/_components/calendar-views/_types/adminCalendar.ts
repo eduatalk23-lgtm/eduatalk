@@ -244,6 +244,8 @@ export type AdminMonthViewProps = {
   studentId: string;
   tenantId: string;
   plannerId: string;
+  /** 선택된 플랜 그룹 ID (null = 전체 보기) */
+  planGroupId?: string | null;
   currentMonth: Date;
   selectedDate: string;
   onDateSelect: (date: string) => void;
@@ -267,6 +269,8 @@ export type AdminMonthViewProps = {
   selectedPlanIds?: Set<string>;
   /** 플랜 선택 토글 콜백 */
   onPlanSelect?: (planId: string, shiftKey: boolean) => void;
+  /** 검색 하이라이트된 플랜 ID Set */
+  highlightedPlanIds?: Set<string>;
 };
 
 /**

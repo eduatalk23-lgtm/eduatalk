@@ -16,7 +16,7 @@ interface DraggableNonStudyItemProps {
     originalStartTime: string;
     originalEndTime: string;
     sourceIndex?: number;
-    /** 새 테이블 레코드 ID (student_non_study_time.id) */
+    /** 레코드 ID (calendar_events.id) */
     recordId?: string;
   };
 }

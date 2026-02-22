@@ -4,6 +4,12 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { cn } from '@/lib/cn';
 import type { DailyPlan } from '@/lib/query-options/adminDock';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  timeToMinutes,
+  minutesToPercent,
+  formatDurationKo as formatDuration,
+  getPlanColor,
+} from './utils/timeGridUtils';
 
 // ============================================
 // 타입 정의
@@ -32,41 +38,6 @@ interface TimeSegment {
   level: number;      // 겹침 처리를 위한 수직 레벨 (0부터 시작)
   totalLevels: number; // 해당 그룹의 총 레벨 수
   originalPlan: DailyPlan;
-}
-
-// ============================================
-// 유틸리티 함수
-// ============================================
-
-function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(':').map(Number);
-  return hours * 60 + minutes;
-}
-
-function minutesToPercent(
-  minutes: number,
-  rangeStart: number,
-  rangeEnd: number
-): number {
-  const total = rangeEnd - rangeStart;
-  if (total <= 0) return 0;
-  return Math.max(0, Math.min(100, ((minutes - rangeStart) / total) * 100));
-}
-
-function formatDuration(minutes: number): string {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  if (hours === 0) return `${mins}분`;
-  if (mins === 0) return `${hours}시간`;
-  return `${hours}시간 ${mins}분`;
-}
-
-function getPlanColor(status: string, actualEndTime?: string | null): string {
-  // binary completion: status + actual_end_time
-  if (status === 'completed' || actualEndTime != null) return 'bg-emerald-500 shadow-emerald-200';
-  if (status === 'deferred') return 'bg-amber-500 shadow-amber-200';
-  if (status === 'missed') return 'bg-rose-500 shadow-rose-200';
-  return 'bg-blue-500 shadow-blue-200';
 }
 
 // ============================================

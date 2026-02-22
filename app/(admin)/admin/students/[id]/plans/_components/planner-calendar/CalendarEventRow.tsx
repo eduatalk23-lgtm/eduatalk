@@ -1,0 +1,151 @@
+"use client";
+
+import { useState } from "react";
+import { Clock, Trash2, Edit3, X, Check } from "lucide-react";
+import { cn } from "@/lib/cn";
+import type { CalendarEvent } from "@/lib/domains/admin-plan/actions/calendarEvents";
+
+const EVENT_COLORS: Record<string, { bg: string; dot: string; text: string }> = {
+  "제외일": { bg: "bg-red-50", dot: "bg-red-500", text: "text-red-700" },
+  "학원": { bg: "bg-orange-50", dot: "bg-orange-500", text: "text-orange-700" },
+  "이동시간": { bg: "bg-orange-50", dot: "bg-orange-400", text: "text-orange-600" },
+  "아침식사": { bg: "bg-blue-50", dot: "bg-blue-500", text: "text-blue-700" },
+  "점심식사": { bg: "bg-blue-50", dot: "bg-blue-500", text: "text-blue-700" },
+  "저녁식사": { bg: "bg-blue-50", dot: "bg-blue-500", text: "text-blue-700" },
+  "수면": { bg: "bg-purple-50", dot: "bg-purple-500", text: "text-purple-700" },
+  "기타": { bg: "bg-gray-50", dot: "bg-gray-400", text: "text-gray-700" },
+};
+
+interface CalendarEventRowProps {
+  event: CalendarEvent;
+  readOnly?: boolean;
+  onUpdate?: (eventId: string, updates: { startTime?: string; endTime?: string; label?: string }) => void;
+  onDelete?: (eventId: string) => void;
+  onDeleteGroup?: (groupId: string) => void;
+}
+
+export default function CalendarEventRow({
+  event,
+  readOnly = false,
+  onUpdate,
+  onDelete,
+  onDeleteGroup,
+}: CalendarEventRowProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editStart, setEditStart] = useState(event.startTime || "");
+  const [editEnd, setEditEnd] = useState(event.endTime || "");
+
+  const colors = EVENT_COLORS[event.type] || EVENT_COLORS["기타"];
+
+  const handleSave = () => {
+    onUpdate?.(event.id, { startTime: editStart, endTime: editEnd });
+    setIsEditing(false);
+  };
+
+  return (
+    <div className={cn("flex items-center gap-2 rounded-lg px-3 py-2", colors.bg)}>
+      <div className={cn("h-2 w-2 shrink-0 rounded-full", colors.dot)} />
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <span className={cn("text-sm font-medium", colors.text)}>
+            {event.type}
+          </span>
+          {event.label && event.label !== event.type && (
+            <span className="truncate text-xs text-gray-500">
+              {event.label}
+            </span>
+          )}
+          {event.groupId && (
+            <span className="rounded bg-gray-200 px-1 text-[10px] text-gray-500">
+              반복
+            </span>
+          )}
+          {event.source === "migration" && (
+            <span className="rounded bg-yellow-100 px-1 text-[10px] text-yellow-600">
+              마이그레이션
+            </span>
+          )}
+        </div>
+
+        {event.isAllDay ? (
+          <span className="text-xs text-gray-400">종일</span>
+        ) : isEditing ? (
+          <div className="mt-1 flex items-center gap-1">
+            <input
+              type="time"
+              value={editStart}
+              onChange={(e) => setEditStart(e.target.value)}
+              className="rounded border px-1 text-xs"
+            />
+            <span className="text-xs text-gray-400">~</span>
+            <input
+              type="time"
+              value={editEnd}
+              onChange={(e) => setEditEnd(e.target.value)}
+              className="rounded border px-1 text-xs"
+            />
+          </div>
+        ) : (
+          <div className="flex items-center gap-1 text-xs text-gray-500">
+            <Clock className="h-3 w-3" />
+            <span>
+              {event.startTime} ~ {event.endTime}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {!readOnly && (
+        <div className="flex shrink-0 items-center gap-1">
+          {isEditing ? (
+            <>
+              <button
+                onClick={handleSave}
+                className="rounded p-1 text-green-600 hover:bg-green-100"
+                title="저장"
+              >
+                <Check className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => setIsEditing(false)}
+                className="rounded p-1 text-gray-400 hover:bg-gray-100"
+                title="취소"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </>
+          ) : (
+            <>
+              {!event.isAllDay && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="rounded p-1 text-gray-400 hover:bg-gray-100"
+                  title="시간 수정"
+                >
+                  <Edit3 className="h-3.5 w-3.5" />
+                </button>
+              )}
+              <button
+                onClick={() => onDelete?.(event.id)}
+                className="rounded p-1 text-gray-400 hover:bg-red-100 hover:text-red-500"
+                title="삭제"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+              {event.groupId && onDeleteGroup && (
+                <button
+                  onClick={() => onDeleteGroup(event.groupId!)}
+                  className="rounded px-1.5 py-0.5 text-[10px] text-red-400 hover:bg-red-100 hover:text-red-600"
+                  title="반복 일정 전체 삭제"
+                >
+                  전체삭제
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

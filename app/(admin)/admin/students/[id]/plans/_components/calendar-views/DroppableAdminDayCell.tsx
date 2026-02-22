@@ -15,24 +15,20 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/cn";
 import { useAdminCalendarDrag } from "./_context/AdminCalendarDragContext";
 import DraggableAdminPlanCard from "./DraggableAdminPlanCard";
-import { MiniTimelineBar } from "../MiniTimelineBar";
+import { formatTimeKoAmPm } from "../utils/timeGridUtils";
+import type { EmptySlot } from "@/lib/domains/admin-plan/utils/emptySlotCalculation";
 import type {
   CalendarPlan,
   DayCellStatus,
   DayCellStats,
   DroppableTargetData,
 } from "./_types/adminCalendar";
-import type { TimeSlot } from "@/lib/types/plan-generation";
 
 interface DroppableAdminDayCellProps {
   date: Date;
   status: DayCellStatus;
   stats: DayCellStats;
   plans: CalendarPlan[];
-  /** 시간대 타임슬롯 (학습시간, 점심시간, 학원일정 등) */
-  timeSlots?: TimeSlot[];
-  /** 타임라인 클릭 핸들러 */
-  onTimelineClick?: () => void;
   /** 날짜 클릭 핸들러 - dateStr(yyyy-MM-dd)을 인자로 받음 */
   onDateClick: (dateStr: string) => void;
   /** 플랜 클릭 핸들러 */
@@ -45,6 +41,18 @@ interface DroppableAdminDayCellProps {
   selectedPlanIds?: Set<string>;
   /** 플랜 선택 토글 콜백 */
   onPlanSelect?: (planId: string, shiftKey: boolean) => void;
+  /** 검색 하이라이트된 플랜 ID Set */
+  highlightedPlanIds?: Set<string>;
+  /** 오버플로 "+N개 더" 클릭 핸들러 (팝오버용) */
+  onOverflowClick?: (dateStr: string, plans: CalendarPlan[], stats: DayCellStats, anchorRect: DOMRect) => void;
+  /** 빈 영역 클릭 또는 "+" 클릭 → 퀵생성 */
+  onQuickCreate?: (dateStr: string, anchorRect: DOMRect) => void;
+  /** 현재 이 셀이 퀵생성 타겟인지 (팝오버가 열려있는 날짜) */
+  isQuickCreateTarget?: boolean;
+  /** 퀵생성 프리뷰용 슬롯 정보 */
+  quickCreateSlot?: EmptySlot | null;
+  /** 퀵생성이 종일 모드인지 */
+  isQuickCreateAllDay?: boolean;
 }
 
 /**
@@ -128,6 +136,39 @@ function arePropsEqual(
     }
   }
 
+  // 검색 하이라이트 비교 (현재 셀의 플랜만)
+  const prevHighlighted = prevProps.highlightedPlanIds;
+  const nextHighlighted = nextProps.highlightedPlanIds;
+  if (prevHighlighted !== nextHighlighted) {
+    if (prevHighlighted && nextHighlighted) {
+      for (const plan of prevProps.plans) {
+        if (prevHighlighted.has(plan.id) !== nextHighlighted.has(plan.id)) {
+          return false;
+        }
+      }
+    } else {
+      return false;
+    }
+  }
+
+  // onOverflowClick, onQuickCreate 참조 비교
+  if (prevProps.onOverflowClick !== nextProps.onOverflowClick) return false;
+  if (prevProps.onQuickCreate !== nextProps.onQuickCreate) return false;
+
+  // 퀵생성 타겟 비교
+  if (prevProps.isQuickCreateTarget !== nextProps.isQuickCreateTarget) return false;
+
+  // 퀵생성 슬롯 비교
+  const prevSlot = prevProps.quickCreateSlot;
+  const nextSlot = nextProps.quickCreateSlot;
+  if (prevSlot !== nextSlot) {
+    if (!prevSlot || !nextSlot) return false;
+    if (prevSlot.startTime !== nextSlot.startTime || prevSlot.endTime !== nextSlot.endTime) return false;
+  }
+
+  // 퀵생성 종일 모드 비교
+  if (prevProps.isQuickCreateAllDay !== nextProps.isQuickCreateAllDay) return false;
+
   return true;
 }
 
@@ -136,14 +177,18 @@ function DroppableAdminDayCellComponent({
   status,
   stats,
   plans,
-  timeSlots,
-  onTimelineClick,
   onDateClick,
   onPlanClick,
   onContextMenu,
   isSelectionMode = false,
   selectedPlanIds,
   onPlanSelect,
+  highlightedPlanIds,
+  onOverflowClick,
+  onQuickCreate,
+  isQuickCreateTarget,
+  quickCreateSlot,
+  isQuickCreateAllDay,
 }: DroppableAdminDayCellProps) {
   const dateStr = format(date, "yyyy-MM-dd");
   const dayOfWeek = date.getDay();
@@ -167,10 +212,30 @@ function DroppableAdminDayCellComponent({
   const showDropIndicator = isDragging && !status.isExclusion;
   const showInvalidDrop = isDragging && status.isExclusion;
 
-  // 내부 핸들러 - 콜백에 dateStr 전달
-  const handleClick = useCallback(() => {
-    onDateClick(dateStr);
-  }, [onDateClick, dateStr]);
+  // 검색 하이라이트: 이 셀에 매칭 플랜이 있는지
+  const hasHighlightedPlan = highlightedPlanIds
+    ? plans.some((p) => highlightedPlanIds.has(p.id))
+    : false;
+
+  // 셀 빈 영역 클릭 핸들러 (퀵생성 또는 날짜 선택)
+  const handleCellClick = useCallback(
+    (e: React.MouseEvent) => {
+      // 플랜 칩, 날짜 숫자, "+" 버튼, 오버플로 버튼 클릭은 각자 핸들러에서 처리
+      if (
+        (e.target as HTMLElement).closest('[data-plan-chip]') ||
+        (e.target as HTMLElement).closest('[data-date-number]') ||
+        (e.target as HTMLElement).closest('[data-quick-create-btn]') ||
+        (e.target as HTMLElement).closest('[data-overflow-btn]')
+      ) return;
+
+      if (onQuickCreate && status.isCurrentMonth && !status.isExclusion) {
+        onQuickCreate(dateStr, e.currentTarget.getBoundingClientRect());
+      } else {
+        onDateClick(dateStr);
+      }
+    },
+    [onDateClick, dateStr, onQuickCreate, status.isCurrentMonth, status.isExclusion],
+  );
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
@@ -182,10 +247,10 @@ function DroppableAdminDayCellComponent({
   return (
     <div
       ref={setNodeRef}
-      onClick={handleClick}
+      onClick={handleCellClick}
       onContextMenu={handleContextMenu}
       className={cn(
-        "relative bg-white p-2 min-h-[100px] cursor-pointer transition-colors",
+        "group/cell relative bg-white p-1.5 min-h-[90px] cursor-pointer transition-colors",
         // 기본 상태별 배경 및 호버
         !status.isCurrentMonth && "bg-gray-50 hover:bg-gray-100",
         status.isCurrentMonth && !status.isExclusion && !status.isSelected && "hover:bg-blue-50/40",
@@ -193,6 +258,10 @@ function DroppableAdminDayCellComponent({
         status.isSelected && "ring-2 ring-emerald-500 ring-inset bg-emerald-50/30 hover:bg-emerald-50/60",
         // 제외일
         status.isExclusion && "bg-gray-100 hover:bg-gray-200",
+        // 퀵생성 타겟 셀 (팝오버 열려있는 날짜)
+        isQuickCreateTarget && "ring-2 ring-blue-400 ring-inset bg-blue-50/40",
+        // 검색 하이라이트 셀 배경
+        hasHighlightedPlan && "bg-yellow-50/60",
         // 드롭 관련 스타일 - 펄스 애니메이션 추가
         showDropIndicator && canDrop && "ring-2 ring-dashed ring-blue-300 animate-pulse",
         isOver && canDrop && "bg-blue-50 ring-2 ring-blue-500 animate-none",
@@ -200,14 +269,17 @@ function DroppableAdminDayCellComponent({
         isOver && !canDrop && "bg-red-100"
       )}
     >
-      {/* 날짜 숫자 */}
+      {/* 날짜 숫자 + "+" 퀵생성 버튼 */}
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-1">
-          <span
+          <button
+            type="button"
+            data-date-number
+            onClick={(e) => { e.stopPropagation(); onDateClick(dateStr); }}
             className={cn(
-              "text-sm font-medium w-6 h-6 flex items-center justify-center rounded-full",
+              "text-sm font-medium w-6 h-6 flex items-center justify-center rounded-full hover:ring-1 hover:ring-gray-300 transition-shadow",
               !status.isCurrentMonth && "text-gray-400",
-              status.isToday && "bg-blue-600 text-white",
+              status.isToday && "bg-blue-600 text-white hover:ring-blue-400",
               dayOfWeek === 0 &&
                 status.isCurrentMonth &&
                 !status.isToday &&
@@ -219,7 +291,7 @@ function DroppableAdminDayCellComponent({
             )}
           >
             {format(date, "d")}
-          </span>
+          </button>
 
           {/* 주차/일차 정보 (학습일/복습일인 경우에만) */}
           {status.weekNumber != null && status.cycleDayNumber != null && (
@@ -229,16 +301,45 @@ function DroppableAdminDayCellComponent({
           )}
         </div>
 
-        {/* 제외일 또는 날짜 타입 표시 */}
-        {status.isExclusion ? (
-          <span className="text-xs px-1.5 py-0.5 bg-gray-200 text-gray-600 rounded">
-            {status.exclusionType}
-          </span>
-        ) : status.dayType === "복습일" ? (
-          <span className="text-[10px] px-1 py-0.5 bg-purple-100 text-purple-600 rounded font-medium">
-            R
-          </span>
-        ) : null}
+        {/* "+" 퀵생성 버튼 (호버 시 표시) + 제외일/날짜 타입 + 완료 뱃지 */}
+        <div className="flex items-center gap-0.5">
+          {onQuickCreate && status.isCurrentMonth && !status.isExclusion && (
+            <button
+              type="button"
+              data-quick-create-btn
+              className="w-5 h-5 rounded-full
+                bg-gray-100 text-gray-500 text-xs leading-none
+                flex items-center justify-center
+                opacity-0 group-hover/cell:opacity-100
+                transition-opacity hover:bg-blue-500 hover:text-white z-10"
+              onClick={(e) => {
+                e.stopPropagation();
+                onQuickCreate(dateStr, e.currentTarget.getBoundingClientRect());
+              }}
+            >
+              +
+            </button>
+          )}
+          {status.isExclusion ? (
+            <span className="text-xs px-1.5 py-0.5 bg-gray-200 text-gray-600 rounded">
+              {status.exclusionType}
+            </span>
+          ) : status.dayType === "복습일" ? (
+            <span className="text-[10px] px-1 py-0.5 bg-purple-100 text-purple-600 rounded font-medium">
+              R
+            </span>
+          ) : null}
+          {stats.totalPlans > 0 && !status.isExclusion && (
+            <span className={cn(
+              "text-[9px] px-1 py-0.5 rounded font-medium",
+              stats.completionRate === 100
+                ? "bg-green-100 text-green-700"
+                : "bg-gray-100 text-gray-500"
+            )}>
+              {stats.completedPlans}/{stats.totalPlans}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* 드래그 중 드롭 불가 표시 - shake 애니메이션 */}
@@ -262,79 +363,70 @@ function DroppableAdminDayCellComponent({
         )}
       </AnimatePresence>
 
-      {/* 플랜 요약 */}
+      {/* 플랜 칩 목록 */}
       {stats.totalPlans > 0 && !status.isExclusion && (
-        <div className="space-y-1">
-          {/* 진행률 바 */}
-          <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-green-500 transition-all"
-              style={{ width: `${stats.completionRate}%` }}
-            />
-          </div>
-
-          {/* Phase 4: 시간대 유형 분포 바 */}
-          {(stats.studySlotPlans || stats.selfStudySlotPlans || 0) > 0 && (
-            <div className="flex gap-0.5 h-1 mt-0.5" title="학습시간(초록) / 자율학습(청록)">
-              {(stats.studySlotPlans ?? 0) > 0 && (
-                <div
-                  className="bg-green-400 rounded-sm"
-                  style={{ flex: stats.studySlotPlans }}
-                />
-              )}
-              {(stats.selfStudySlotPlans ?? 0) > 0 && (
-                <div
-                  className="bg-teal-400 rounded-sm"
-                  style={{ flex: stats.selfStudySlotPlans }}
-                />
-              )}
-              {(stats.noSlotPlans ?? 0) > 0 && (
-                <div
-                  className="bg-gray-300 rounded-sm"
-                  style={{ flex: stats.noSlotPlans }}
-                />
-              )}
-            </div>
-          )}
-
-          {/* 타임라인 바 (학습시간, 학원일정 등) */}
-          {timeSlots && timeSlots.length > 0 && (
-            <MiniTimelineBar
-              timeSlots={timeSlots}
-              onClick={(e) => {
-                e.stopPropagation();
-                onTimelineClick?.();
-              }}
-              className="mt-0.5"
-            />
-          )}
-
-          {/* 플랜 카운트 */}
-          <div className="flex items-center gap-1 text-xs text-gray-500">
-            <span className="text-green-600">{stats.completedPlans}</span>
-            <span>/</span>
-            <span>{stats.totalPlans}</span>
-          </div>
-
-          {/* 플랜 미리보기 (최대 3개) - 드래그 가능 */}
-          <div className="space-y-0.5">
-            {plans.slice(0, 3).map((plan) => (
+        <div className="space-y-0.5">
+          {plans.slice(0, 4).map((plan) => (
+            <div key={plan.id} data-plan-chip>
               <DraggableAdminPlanCard
-                key={plan.id}
                 plan={plan}
                 onClick={() => onPlanClick(plan.id)}
                 disabled={isSelectionMode}
                 isSelectionMode={isSelectionMode}
                 isSelected={selectedPlanIds?.has(plan.id) ?? false}
                 onSelect={onPlanSelect}
+                isHighlighted={highlightedPlanIds?.has(plan.id) ?? false}
               />
-            ))}
-            {plans.length > 3 && (
-              <div className="text-xs text-gray-400 pl-1">
-                +{plans.length - 3}개 더
-              </div>
-            )}
-          </div>
+            </div>
+          ))}
+          {plans.length > 4 && (
+            <button
+              type="button"
+              data-overflow-btn
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onOverflowClick) {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  onOverflowClick(dateStr, plans, stats, rect);
+                } else {
+                  onDateClick(dateStr);
+                }
+              }}
+              className="text-xs text-blue-600 hover:underline pl-1"
+            >
+              +{plans.length - 4}개 더
+            </button>
+          )}
+
+          {/* 완료율 프로그레스 바 */}
+          {stats.completionRate > 0 && stats.completionRate < 100 && (
+            <div className="h-0.5 bg-gray-200 rounded-full mt-1 overflow-hidden">
+              <div
+                className="h-full bg-green-500 rounded-full transition-all"
+                style={{ width: `${stats.completionRate}%` }}
+              />
+            </div>
+          )}
+          {stats.completionRate === 100 && (
+            <div className="h-0.5 bg-green-500 rounded-full mt-1" />
+          )}
+        </div>
+      )}
+
+      {/* 퀵생성 프리뷰 칩 (Google Calendar 스타일) */}
+      {isQuickCreateTarget && (quickCreateSlot || isQuickCreateAllDay) && (
+        <div className="flex items-center gap-1 px-1 py-px text-xs rounded border-2 border-dashed border-blue-400 bg-blue-500/15 animate-in fade-in-0 duration-150">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
+          {isQuickCreateAllDay ? (
+            <span className="text-blue-700 font-medium truncate">(제목 없음) 종일</span>
+          ) : quickCreateSlot ? (
+            <>
+              <span className="text-blue-600/70 flex-shrink-0 tabular-nums text-[10px]">
+                {formatTimeKoAmPm(quickCreateSlot.startTime)}
+              </span>
+              <span className="text-blue-700 font-medium truncate">(제목 없음)</span>
+            </>
+          ) : null}
         </div>
       )}
 

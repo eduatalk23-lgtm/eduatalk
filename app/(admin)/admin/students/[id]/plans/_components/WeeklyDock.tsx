@@ -8,7 +8,7 @@ import { BulkRedistributeModal } from './BulkRedistributeModal';
 import { PlanItemCard, toPlanItemData } from './items';
 import { useWeeklyDockQuery } from '@/lib/hooks/useAdminDockQueries';
 import { ConfirmDialog } from '@/components/ui/Dialog';
-import { deletePlan, movePlanToContainer } from '@/lib/domains/plan/actions/dock';
+import { deletePlan, movePlanToContainer } from '@/lib/domains/calendar/actions/legacyBridge';
 import { CollapsedDockCard } from './CollapsedDockCard';
 import type { ContentTypeFilter } from './AdminPlanManagement';
 import type { PlanStatus } from '@/lib/types/plan';

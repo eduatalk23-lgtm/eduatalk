@@ -6,11 +6,12 @@ import { DroppableContainer } from './dnd';
 import { BulkRedistributeModal } from './BulkRedistributeModal';
 import { usePlanToast } from './PlanToast';
 import { PlanItemCard, toPlanItemData } from './items';
-import { useUnfinishedDockQuery } from '@/lib/hooks/useAdminDockQueries';
+import { useUnfinishedCalendarEvents } from '@/lib/hooks/useCalendarEventQueries';
+import { calendarEventsToUnfinishedPlans } from '@/lib/domains/calendar/adapters';
 import { getTodayInTimezone } from '@/lib/utils/dateUtils';
 import { CollapsedDockCard } from './CollapsedDockCard';
 import { ConfirmDialog } from '@/components/ui/Dialog';
-import { movePlanToContainer, deletePlan } from '@/lib/domains/plan/actions/dock';
+import { movePlanToContainer, deletePlan } from '@/lib/domains/calendar/actions/legacyBridge';
 import type { ContentTypeFilter } from './AdminPlanManagement';
 import type { PlanStatus } from '@/lib/types/plan';
 
@@ -64,8 +65,9 @@ export const UnfinishedDock = memo(function UnfinishedDock({
   isCollapsed = false,
   onExpand,
 }: UnfinishedDockProps) {
-  // React Query 훅 사용 (캐싱 및 중복 요청 방지, SSR 프리페치 데이터 활용)
-  const { plans: allPlans, isLoading } = useUnfinishedDockQuery(studentId, plannerId, initialData);
+  // 캘린더 이벤트 기반 미완료 조회 → 어댑터로 레거시 타입 변환
+  const { events, isLoading } = useUnfinishedCalendarEvents(studentId, plannerId);
+  const allPlans = useMemo(() => calendarEventsToUnfinishedPlans(events), [events]);
 
   // 그룹 필터링 적용
   const groupFilteredPlans = useMemo(() => {

@@ -624,6 +624,7 @@ export async function createQuickPlan(
           title: input.title,
           item_type: input.freeLearningType ?? "free",
           estimated_minutes: input.estimatedMinutes ?? 30,
+          subject: input.subject ?? null,
         })
         .select("id")
         .single();
@@ -898,6 +899,7 @@ export async function createQuickPlanForStudent(
           title: input.title,
           item_type: input.freeLearningType ?? "free",
           estimated_minutes: input.estimatedMinutes ?? 30,
+          subject: input.subject ?? null,
         })
         .select("id")
         .single();
@@ -1032,6 +1034,9 @@ export async function createQuickPlanForStudent(
         flexible_content_id: isFreeLearning ? resolvedContentId : null,
         planned_start_page_or_time: input.rangeStart ?? null,
         planned_end_page_or_time: input.rangeEnd ?? null,
+        estimated_minutes: input.estimatedMinutes ?? null,
+        start_time: input.startTime ?? null,
+        end_time: input.endTime ?? null,
       })
       .select("id")
       .single();

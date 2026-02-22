@@ -23,10 +23,8 @@ import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/ToastProvider";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import type { DailyScheduleInfo } from "@/lib/types/plan/domain";
-import {
-  removePlannerExclusionAction,
-  deletePlanWithLogging,
-} from "@/lib/domains/admin-plan/actions";
+import { removePlannerExclusionAction } from "@/lib/domains/admin-plan/actions";
+import { deletePlanWithLogging } from "@/lib/domains/calendar/actions/legacyBridge";
 import { AdminCalendarDragProvider } from "./_context/AdminCalendarDragContext";
 import { useAdminCalendarData } from "./_hooks/useAdminCalendarData";
 import { useCalendarSelection } from "./_hooks/useCalendarSelection";
@@ -518,6 +516,7 @@ export default function AdminCalendarView({
               studentId={studentId}
               tenantId={tenantId}
               plannerId={plannerId}
+              planGroupId={selectedGroupId}
               currentMonth={currentMonth}
               selectedDate={selectedDate}
               onDateSelect={handleDateSelect}

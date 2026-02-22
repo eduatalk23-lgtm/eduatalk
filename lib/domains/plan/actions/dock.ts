@@ -24,6 +24,11 @@ export interface ActionResult {
   error?: string;
 }
 
+export interface DeletePlanResult extends ActionResult {
+  /** ad_hoc 삭제 시 복원용 스냅샷 */
+  adHocSnapshot?: Record<string, unknown>;
+}
+
 export interface UpdatePlanStatusInput {
   planId: string;
   status: PlanStatus;
@@ -211,7 +216,7 @@ export async function togglePlanComplete(
  * - student_plan: soft delete (is_active = false)
  * - ad_hoc_plans: hard delete
  */
-export async function deletePlan(input: DeletePlanInput): Promise<ActionResult> {
+export async function deletePlan(input: DeletePlanInput): Promise<DeletePlanResult> {
   const { planId, isAdHoc = false, skipRevalidation = false } = input;
   const supabase = await createSupabaseServerClient();
   const user = await getCurrentUser();
@@ -228,8 +233,20 @@ export async function deletePlan(input: DeletePlanInput): Promise<ActionResult> 
 
   try {
     let error;
+    let adHocSnapshot: Record<string, unknown> | undefined;
 
     if (isAdHoc) {
+      // Ad-hoc 플랜: 삭제 전 스냅샷 캡처 (undo 복원용)
+      const { data: snapshot } = await supabase
+        .from("ad_hoc_plans")
+        .select("*")
+        .eq("id", planId)
+        .single();
+
+      if (snapshot) {
+        adHocSnapshot = snapshot as Record<string, unknown>;
+      }
+
       // Ad-hoc 플랜은 hard delete
       const result = await supabase.from("ad_hoc_plans").delete().eq("id", planId);
       error = result.error;
@@ -259,7 +276,7 @@ export async function deletePlan(input: DeletePlanInput): Promise<ActionResult> 
       revalidatePath("/plan");
     }
 
-    return { success: true };
+    return { success: true, adHocSnapshot };
   } catch (error) {
     logActionError(
       "dock.deletePlan",
@@ -619,5 +636,86 @@ export async function movePlansToContainer(
       `오류: ${error instanceof Error ? error.message : String(error)}`
     );
     return { success: false, movedCount: 0, error: "예기치 않은 오류가 발생했습니다." };
+  }
+}
+
+// ============================================
+// Undo 복원 액션
+// ============================================
+
+/**
+ * soft-deleted student_plan을 복원합니다.
+ */
+export async function restoreStudentPlan(planId: string): Promise<ActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  if (!isAdmin(user)) {
+    return { success: false, error: "관리자 권한이 필요합니다." };
+  }
+
+  try {
+    const { error } = await supabase
+      .from("student_plan")
+      .update({ is_active: true, updated_at: new Date().toISOString() })
+      .eq("id", planId);
+
+    if (error) {
+      logActionError("dock.restoreStudentPlan", `복원 실패: ${error.message}`);
+      return { success: false, error: "플랜 복원에 실패했습니다." };
+    }
+
+    return { success: true };
+  } catch (error) {
+    logActionError(
+      "dock.restoreStudentPlan",
+      `오류: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return { success: false, error: "예기치 않은 오류가 발생했습니다." };
+  }
+}
+
+/**
+ * hard-deleted ad_hoc_plan을 스냅샷에서 복원합니다.
+ */
+export async function restoreAdHocPlan(
+  snapshot: Record<string, unknown>
+): Promise<ActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  if (!isAdmin(user)) {
+    return { success: false, error: "관리자 권한이 필요합니다." };
+  }
+
+  try {
+    // updated_at/created_at 갱신하여 재삽입
+    const insertData = {
+      ...snapshot,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase.from("ad_hoc_plans").insert(insertData);
+
+    if (error) {
+      logActionError("dock.restoreAdHocPlan", `복원 실패: ${error.message}`);
+      return { success: false, error: "플랜 복원에 실패했습니다." };
+    }
+
+    return { success: true };
+  } catch (error) {
+    logActionError(
+      "dock.restoreAdHocPlan",
+      `오류: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return { success: false, error: "예기치 않은 오류가 발생했습니다." };
   }
 }

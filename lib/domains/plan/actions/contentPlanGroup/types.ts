@@ -108,6 +108,10 @@ export type CreateQuickPlanInput = {
    * 우선순위
    */
   priority?: number;
+  /**
+   * 과목 (국어/수학/영어/한국사/사회/과학)
+   */
+  subject?: string;
 };
 
 export type CreateQuickPlanResult = {

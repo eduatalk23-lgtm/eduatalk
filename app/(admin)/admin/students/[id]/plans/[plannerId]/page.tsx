@@ -4,7 +4,6 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { getPlannerAction, prefetchAllDockData } from '@/lib/domains/admin-plan/actions';
 import { AdminPlanManagement } from '../_components/AdminPlanManagement';
 import { AdminPlanManagementSkeleton } from '../_components/AdminPlanManagementSkeleton';
-import { PlannerHeader } from '../_components/PlannerHeader';
 import { getTodayInTimezone } from '@/lib/utils/dateUtils';
 import { generateScheduleForPlanner } from '@/lib/domains/admin-plan/actions/planCreation/scheduleGenerator';
 import type { DailyScheduleInfo } from '@/lib/types/plan';
@@ -118,15 +117,7 @@ export default async function PlannerPlanManagementPage({
   const initialDockData = await prefetchAllDockData(studentId, targetDate, plannerId);
 
   return (
-    <div className="container mx-auto py-6 px-4">
-      {/* 플래너 헤더: 뒤로가기 + 플래너 정보 */}
-      <PlannerHeader
-        studentId={studentId}
-        studentName={student.name}
-        planner={planner}
-      />
-
-      {/* 플랜 관리 컴포넌트 */}
+    <div className="h-[calc(100dvh-4rem)] flex flex-col overflow-hidden">
       <Suspense fallback={<AdminPlanManagementSkeleton />}>
         <AdminPlanManagement
           studentId={student.id}

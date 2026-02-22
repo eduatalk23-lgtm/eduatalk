@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useMemo, useEffect, useRef } from "react";
-import { cn } from "@/lib/cn";
-import { movePlanToContainer } from "@/lib/domains/admin-plan/actions";
-import { reorderPlansWithTimeRecalculation } from "@/lib/domains/plan/actions/reorder";
+import { useState, useCallback, useMemo, useEffect, useRef, type ReactNode } from "react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { movePlanToContainer } from "@/lib/domains/calendar/actions/legacyBridge";
 import { placePlanAtTime } from "@/lib/domains/plan/actions/move";
 import { generatePlansFromGroupAction } from "@/lib/domains/plan/actions/plan-groups/plans";
 import { checkPlansExistAction } from "@/lib/domains/plan/actions/plan-groups";
@@ -15,6 +15,7 @@ import {
   type EmptySlotDropData,
 } from "./dnd";
 import { PlanToastProvider } from "./PlanToast";
+import { UndoProvider, useUndo } from "./UndoSnackbar";
 import {
   useKeyboardShortcuts,
   type ShortcutConfig,
@@ -44,17 +45,22 @@ import {
 } from "./dynamicModals";
 import { MarkdownExportModal } from "./MarkdownExportModal";
 import { getTodayInTimezone } from "@/lib/utils/dateUtils";
+import { shiftDay, shiftWeek, shiftMonth } from "./utils/weekDateUtils";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
 import type { TimeSlot } from "@/lib/types/plan-generation";
 import type { PrefetchedDockData, Planner } from "@/lib/domains/admin-plan/actions";
+import type { CalendarView } from "./CalendarNavHeader";
 
-// Context & Tabs
+// Context
 import { AdminPlanProvider, useAdminPlan, type ViewMode } from "./context/AdminPlanContext";
-import { AdminPlanTabs, TabContent } from "./AdminPlanTabs";
-import { PlannerTab, SettingsTab, AnalyticsTab, ProgressTab, HistoryTab } from "./tabs";
 
-// Components
-import { AdminPlanHeader } from "./AdminPlanHeader";
+// Calendar Layout Components
+import { CalendarLayoutShell } from "./CalendarLayoutShell";
+import { CalendarTopBar } from "./CalendarTopBar";
+import { CalendarSidebar } from "./CalendarSidebar";
+import { CalendarMainContent } from "./CalendarMainContent";
+import { MiniMonthCalendar } from "./MiniMonthCalendar";
+import { TopBarCenterSlotPortal } from "@/components/layout/TopBarCenterSlotContext";
 
 // 뷰 모드 타입 (export for backward compatibility)
 export type AdminViewMode = "dock" | "month" | "gantt";
@@ -120,12 +126,21 @@ export function AdminPlanManagement(props: AdminPlanManagementProps) {
       currentUserId={props.currentUserId}
       selectedPlanner={props.selectedPlanner}
     >
-      <AdminPlanManagementContent
-        autoOpenWizard={props.autoOpenWizard}
-        studentName={props.studentName}
-      />
+      <PlanToastProvider>
+        <UndoProviderWrapper>
+          <AdminPlanManagementContent
+            autoOpenWizard={props.autoOpenWizard}
+            studentName={props.studentName}
+          />
+        </UndoProviderWrapper>
+      </PlanToastProvider>
     </AdminPlanProvider>
   );
+}
+
+function UndoProviderWrapper({ children }: { children: ReactNode }) {
+  const { handleRefresh } = useAdminPlan();
+  return <UndoProvider onRefresh={handleRefresh}>{children}</UndoProvider>;
 }
 
 interface AdminPlanManagementContentProps {
@@ -142,6 +157,7 @@ function AdminPlanManagementContent({
     studentId,
     tenantId,
     selectedPlannerId,
+    selectedPlanner,
     activePlanGroupId,
     allPlanGroups,
     selectedDate,
@@ -150,7 +166,6 @@ function AdminPlanManagementContent({
     refreshDaily,
     refreshDailyAndWeekly,
     refreshDailyAndUnfinished,
-    isPending,
     canCreatePlans,
     // Modal setters
     setShowCreateWizard,
@@ -357,25 +372,97 @@ function AdminPlanManagementContent({
     [selectedDate, refreshDaily, refreshDailyAndWeekly, refreshDailyAndUnfinished, toast]
   );
 
+  // 캘린더 뷰 상태 (PlannerTab에서 리프팅)
+  const [calendarView, setCalendarView] = useState<CalendarView>('weekly');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showGoToDate, setShowGoToDate] = useState(false);
+
+  // localStorage 복원 (캘린더 뷰 + 사이드바)
+  useEffect(() => {
+    const savedView = localStorage.getItem('dailyDock_viewLayout');
+    if (savedView === 'list' || savedView === 'grid') {
+      setCalendarView('daily');
+      localStorage.setItem('dailyDock_viewLayout', 'daily');
+    } else if (savedView === 'weeklyGrid') {
+      setCalendarView('weekly');
+      localStorage.setItem('dailyDock_viewLayout', 'weekly');
+    } else if (savedView === 'daily' || savedView === 'weekly' || savedView === 'month') {
+      setCalendarView(savedView as CalendarView);
+    }
+
+    const savedSidebar = localStorage.getItem('calendarLayout_sidebarOpen');
+    if (savedSidebar !== null) {
+      setSidebarOpen(savedSidebar === 'true');
+    }
+  }, []);
+
+  const handleCalendarViewChange = useCallback((view: CalendarView) => {
+    setCalendarView(view);
+    localStorage.setItem('dailyDock_viewLayout', view);
+  }, []);
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen((prev) => {
+      const next = !prev;
+      localStorage.setItem('calendarLayout_sidebarOpen', String(next));
+      return next;
+    });
+  }, []);
+
+  // Undo 컨텍스트
+  const { triggerUndo } = useUndo();
+
   // 키보드 단축키 설정
   const shortcuts: ShortcutConfig[] = useMemo(
     () => [
       {
         key: "ArrowLeft",
-        action: () => navigateDate(-1),
-        description: "이전 날짜",
+        action: () => {
+          if (calendarView === 'daily') navigateDate(-1);
+          else if (calendarView === 'weekly') handleDateChange(shiftWeek(selectedDate, -1));
+          else handleDateChange(shiftMonth(selectedDate, -1));
+        },
+        description: "이전 기간",
         category: "navigation",
       },
       {
         key: "ArrowRight",
-        action: () => navigateDate(1),
-        description: "다음 날짜",
+        action: () => {
+          if (calendarView === 'daily') navigateDate(1);
+          else if (calendarView === 'weekly') handleDateChange(shiftWeek(selectedDate, 1));
+          else handleDateChange(shiftMonth(selectedDate, 1));
+        },
+        description: "다음 기간",
         category: "navigation",
       },
       {
         key: "t",
         action: () => handleDateChange(getTodayInTimezone()),
         description: "오늘로 이동",
+        category: "navigation",
+      },
+      {
+        key: "d",
+        action: () => handleCalendarViewChange('daily'),
+        description: "일간 뷰",
+        category: "navigation",
+      },
+      {
+        key: "w",
+        action: () => handleCalendarViewChange('weekly'),
+        description: "주간 뷰",
+        category: "navigation",
+      },
+      {
+        key: "m",
+        action: () => handleCalendarViewChange('month'),
+        description: "월간 뷰",
+        category: "navigation",
+      },
+      {
+        key: "[",
+        action: toggleSidebar,
+        description: "사이드바 토글",
         category: "navigation",
       },
       {
@@ -405,9 +492,16 @@ function AdminPlanManagementContent({
       },
       {
         key: "Escape",
-        action: closeAllModals,
+        action: () => { closeAllModals(); setShowGoToDate(false); },
         description: "모달 닫기",
         category: "modal",
+      },
+      {
+        key: "g",
+        shift: true,
+        action: () => setShowGoToDate(true),
+        description: "날짜로 이동",
+        category: "navigation",
       },
       {
         key: "q",
@@ -433,11 +527,28 @@ function AdminPlanManagementContent({
         description: "AI 플랜 최적화",
         category: "modal",
       },
+      {
+        key: "z",
+        ctrl: true,
+        action: triggerUndo,
+        description: "실행취소 (Undo)",
+        category: "action",
+      },
+      {
+        key: "z",
+        action: triggerUndo,
+        description: "실행취소",
+        category: "action",
+      },
     ],
     [
+      calendarView,
+      selectedDate,
       navigateDate,
       handleRefresh,
       handleDateChange,
+      handleCalendarViewChange,
+      toggleSidebar,
       activePlanGroupId,
       canCreatePlans,
       openUnifiedModal,
@@ -446,45 +557,48 @@ function AdminPlanManagementContent({
       setShowAIPlanModal,
       setShowCreateWizard,
       setShowOptimizationPanel,
+      triggerUndo,
     ]
   );
 
   useKeyboardShortcuts({ shortcuts });
 
   return (
-    <PlanToastProvider>
+    <>
       <PlanDndProvider
           onMoveItem={handleMoveItem}
           onReorderItems={handleReorderItems}
           onDropOnEmptySlot={handleDropOnEmptySlot}
         >
-        <div
-          className={cn(
-            "space-y-6",
-            isPending && "opacity-50 pointer-events-none"
-          )}
-        >
-          {/* 헤더 영역 */}
-          <AdminPlanHeader studentName={studentName} shortcuts={shortcuts} />
+        <TopBarCenterSlotPortal>
+          <CalendarTopBar
+            variant="topbar"
+            activeView={calendarView}
+            onViewChange={handleCalendarViewChange}
+            selectedDate={selectedDate}
+            onNavigate={handleDateChange}
+            onToggleSidebar={toggleSidebar}
+            onGoToDate={() => setShowGoToDate(true)}
+          />
+        </TopBarCenterSlotPortal>
 
-          {/* 탭 네비게이션 */}
-          <AdminPlanTabs>
-            <TabContent tab="planner">
-              <PlannerTab tab="planner" />
-            </TabContent>
-            <TabContent tab="settings">
-              <SettingsTab tab="settings" />
-            </TabContent>
-            <TabContent tab="analytics">
-              <AnalyticsTab tab="analytics" />
-            </TabContent>
-            <TabContent tab="progress">
-              <ProgressTab tab="progress" />
-            </TabContent>
-            <TabContent tab="history">
-              <HistoryTab tab="history" />
-            </TabContent>
-          </AdminPlanTabs>
+        <CalendarLayoutShell
+          isSidebarOpen={sidebarOpen}
+          onToggleSidebar={toggleSidebar}
+          header={
+            <CompactPlannerHeader
+              studentId={studentId}
+              studentName={studentName}
+              planner={selectedPlanner}
+            />
+          }
+          sidebar={<CalendarSidebar />}
+        >
+          <CalendarMainContent
+            calendarView={calendarView}
+            onCalendarViewChange={handleCalendarViewChange}
+          />
+        </CalendarLayoutShell>
 
           {/* 모달들 */}
           {showAddContentModal && selectedPlannerId && (
@@ -866,6 +980,28 @@ function AdminPlanManagementContent({
             />
           )}
 
+          {/* 날짜로 이동 다이얼로그 */}
+          {showGoToDate && (
+            <div
+              className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30"
+              onClick={() => setShowGoToDate(false)}
+            >
+              <div
+                className="bg-white rounded-xl shadow-xl p-4 w-[280px]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="text-sm font-medium text-gray-700 mb-2">날짜로 이동</h3>
+                <MiniMonthCalendar
+                  selectedDate={selectedDate}
+                  onDateSelect={(date) => {
+                    handleDateChange(date);
+                    setShowGoToDate(false);
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
           <PlanOptimizationPanel
             studentId={studentId}
             studentName={studentName}
@@ -874,8 +1010,59 @@ function AdminPlanManagementContent({
             onOpenChange={setShowOptimizationPanel}
             hideTrigger
           />
-        </div>
       </PlanDndProvider>
-    </PlanToastProvider>
+    </>
+  );
+}
+
+/**
+ * Compact Planner Header (한 줄 표시)
+ */
+function CompactPlannerHeader({
+  studentId,
+  studentName,
+  planner,
+}: {
+  studentId: string;
+  studentName: string;
+  planner?: Planner | null;
+}) {
+  const statusConfig: Record<string, { label: string; className: string }> = {
+    draft: { label: '초안', className: 'bg-gray-100 text-gray-700' },
+    active: { label: '진행중', className: 'bg-green-100 text-green-700' },
+    paused: { label: '일시중지', className: 'bg-yellow-100 text-yellow-700' },
+    completed: { label: '완료', className: 'bg-blue-100 text-blue-700' },
+    archived: { label: '보관됨', className: 'bg-gray-100 text-gray-500' },
+  };
+
+  const config = statusConfig[planner?.status ?? 'draft'] || statusConfig.draft;
+
+  return (
+    <div className="flex-shrink-0 flex items-center gap-3 px-4 py-2 border-b border-gray-200 bg-white">
+      <Link
+        href={`/admin/students/${studentId}/plans`}
+        className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        <span className="hidden sm:inline">플래너 선택</span>
+      </Link>
+
+      <div className="h-4 w-px bg-gray-300" />
+
+      <h1 className="text-sm font-semibold text-gray-900 truncate">
+        플랜 관리: {studentName}
+      </h1>
+
+      {planner && (
+        <>
+          <span className="text-xs text-gray-500 hidden md:inline">
+            [{planner.name}]
+          </span>
+          <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded ${config.className}`}>
+            {config.label}
+          </span>
+        </>
+      )}
+    </div>
   );
 }

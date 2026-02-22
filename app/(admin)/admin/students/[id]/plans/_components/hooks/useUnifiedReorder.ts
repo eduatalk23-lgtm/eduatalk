@@ -9,7 +9,7 @@ import {
   predictReorderMode,
   validateReorderResultConstraints,
 } from '@/lib/domains/plan/utils/unifiedReorderCalculation';
-import { executeUnifiedReorder, updateItemTime } from '@/lib/domains/plan/actions/unifiedReorder';
+import { executeUnifiedReorder, updateItemTime } from '@/lib/domains/calendar/actions/legacyBridge';
 import type { UnifiedReorderData } from '../dnd';
 import type { TimeSlot } from '@/lib/types/plan-generation';
 import type { NonStudyItem } from '@/lib/query-options/adminDock';
@@ -82,7 +82,7 @@ export interface ReorderInputItem {
     originalType: string;
     originalStartTime: string;
     originalEndTime: string;
-    /** 새 테이블 레코드 ID (student_non_study_time.id) */
+    /** 레코드 ID (calendar_events.id) */
     recordId?: string;
   };
 }

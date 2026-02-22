@@ -8,9 +8,10 @@ import { useToast } from '@/components/ui/ToastProvider';
 import { ConfirmDialog } from '@/components/ui/Dialog';
 import { AlertTriangle } from 'lucide-react';
 import { PlanActionMenu } from './PlanActionMenu';
+import { HoverQuickActions } from './HoverQuickActions';
 import { getTodayInTimezone } from '@/lib/utils/dateUtils';
 import { formatPlanLearningAmount } from '@/lib/utils/planFormatting';
-import { movePlanToContainer, deletePlan, updatePlanStatus } from '@/lib/domains/plan/actions/dock';
+import { movePlanToContainer, deletePlan, updatePlanStatus } from '@/lib/domains/calendar/actions/legacyBridge';
 import type { ConflictInfo } from '@/lib/domains/admin-plan/utils/conflictDetection';
 import type { PlanStatus } from '@/lib/types/plan';
 
@@ -535,7 +536,7 @@ export const PlanItemCard = memo(function PlanItemCard({
       >
         <div
           className={cn(
-            'flex items-center gap-3 bg-white rounded-lg p-3 border transition-all flex-1',
+            'group/plan relative flex items-center gap-3 bg-white rounded-lg p-3 border transition-all flex-1',
             getLeftBorderColor(isCompleted, plan.carryoverCount),
             isCompleted ? colors.borderCompleted : colors.border,
             isPending && 'opacity-50 pointer-events-none',
@@ -544,6 +545,21 @@ export const PlanItemCard = memo(function PlanItemCard({
             conflictInfo && !isCompleted && 'border-t-orange-400 border-r-orange-400 border-b-orange-400 border-t-2 border-r-2 border-b-2 bg-orange-50/30'
           )}
         >
+          {/* 호버 퀵 액션 (터치 기기 제외) */}
+          {!isCompleted && showActions && (
+            <HoverQuickActions
+              planId={plan.id}
+              isAdHoc={isAdHoc}
+              container={container}
+              currentStatus={plan.status}
+              onEdit={onEdit}
+              onMoveToWeekly={onMoveToWeekly ? handleMoveToWeeklyWithId : undefined}
+              onMoveToDaily={onMoveToDaily ? handleMoveToDailyWithId : undefined}
+              onStatusChange={handleQuickStatusChange}
+              onDetailedStatusChange={onStatusChange ? () => onStatusChange(plan.id, plan.status, plan.title) : undefined}
+            />
+          )}
+
           {/* 충돌 경고 아이콘 */}
           {conflictInfo && !isCompleted && (
             <div className="relative group shrink-0">
