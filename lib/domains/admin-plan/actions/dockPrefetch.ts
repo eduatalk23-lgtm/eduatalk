@@ -360,29 +360,8 @@ export async function prefetchUnfinishedPlans(
 // 비학습시간 관련 타입 (adminDock.ts와 동일)
 // ============================================
 
-type NonStudyTimeBlock = {
-  type: string;
-  start_time: string;
-  end_time: string;
-};
-
-type LunchTime = {
-  start: string;
-  end: string;
-};
-
-type OverrideType = 'non_study_time' | 'academy' | 'lunch';
-
-interface DailyOverride {
-  override_type: OverrideType;
-  source_index: number | null;
-  is_disabled: boolean;
-  start_time_override: string | null;
-  end_time_override: string | null;
-}
-
 export type NonStudyItem = {
-  /** 레코드 ID (새 테이블에서 조회 시 UUID, 레거시는 undefined) */
+  /** 레코드 ID (calendar_events.id) */
   id?: string;
   type: "아침식사" | "점심식사" | "저녁식사" | "수면" | "학원" | "이동시간" | "기타";
   start_time: string;
@@ -394,11 +373,7 @@ export type NonStudyItem = {
 
 /**
  * 비학습시간 프리페치 (서버용)
- * plannerId가 있으면 planGroupIds 없이도 조회 가능
- *
- * 조회 우선순위:
- * 1. calendar_events 테이블 (calendarId resolve)
- * 2. 레거시 오버라이드 + 템플릿 방식 (폴백)
+ * calendar_events 테이블에서 직접 조회
  */
 export async function prefetchNonStudyTime(
   studentId: string,
@@ -464,155 +439,8 @@ export async function prefetchNonStudyTime(
     }
   }
 
-  // 2. 레거시 방식으로 폴백
-  const items: NonStudyItem[] = [];
-  const seen = new Set<string>();
-  const dayOfWeek = new Date(date + 'T00:00:00').getDay();
-
-  // 0. 오버라이드 조회
-  let overrides: DailyOverride[] = [];
-  const { data: overrideData } = await supabase
-    .from('planner_daily_overrides')
-    .select('override_type, source_index, is_disabled, start_time_override, end_time_override')
-    .eq('planner_id', plannerId)
-    .eq('override_date', date)
-    .order('created_at', { ascending: false });
-
-  if (overrideData) {
-    overrides = overrideData as DailyOverride[];
-  }
-
-  const findOverride = (type: OverrideType, sourceIndex?: number): DailyOverride | undefined => {
-    return overrides.find(o =>
-      o.override_type === type &&
-      (sourceIndex === undefined ? o.source_index === null : o.source_index === sourceIndex)
-    );
-  };
-
-  const findLegacyLunchOverride = (): DailyOverride | undefined => {
-    return overrides.find(o => o.override_type === 'lunch' && o.source_index === null);
-  };
-
-  const processNonStudyData = (
-    blocks: NonStudyTimeBlock[] | null,
-    legacyLunchTime: LunchTime | null
-  ) => {
-    const hasLunchInBlocks = blocks?.some(b => b.type === "점심식사") ?? false;
-
-    if (blocks) {
-      for (let i = 0; i < blocks.length; i++) {
-        const block = blocks[i];
-        const blockOverride = findOverride('non_study_time', i);
-
-        if (blockOverride?.is_disabled) continue;
-
-        const startTime = blockOverride?.start_time_override ?? block.start_time;
-        const endTime = blockOverride?.end_time_override ?? block.end_time;
-        const key = `${block.type}:${startTime}-${endTime}`;
-
-        if (!seen.has(key)) {
-          seen.add(key);
-          const type = (["아침식사", "점심식사", "저녁식사", "수면"].includes(block.type)
-            ? block.type
-            : "기타") as NonStudyItem["type"];
-          items.push({
-            type,
-            start_time: startTime,
-            end_time: endTime,
-            label: block.type,
-            sourceIndex: i,
-            hasOverride: !!blockOverride,
-          });
-        }
-      }
-    }
-
-    if (!hasLunchInBlocks && legacyLunchTime?.start && legacyLunchTime?.end) {
-      const lunchOverride = findLegacyLunchOverride();
-      if (lunchOverride?.is_disabled) return;
-
-      const startTime = lunchOverride?.start_time_override ?? legacyLunchTime.start;
-      const endTime = lunchOverride?.end_time_override ?? legacyLunchTime.end;
-      const key = `점심식사:${startTime}-${endTime}`;
-
-      if (!seen.has(key)) {
-        seen.add(key);
-        items.push({
-          type: "점심식사",
-          start_time: startTime,
-          end_time: endTime,
-          label: "점심식사",
-          hasOverride: !!lunchOverride,
-        });
-      }
-    }
-  };
-
-  const { data: planner } = await supabase
-    .from('planners')
-    .select('non_study_time_blocks, lunch_time')
-    .eq('id', plannerId)
-    .single();
-
-  if (planner) {
-    processNonStudyData(
-      planner.non_study_time_blocks as NonStudyTimeBlock[] | null,
-      planner.lunch_time as LunchTime | null
-    );
-  }
-
-  const { data: academies } = await supabase
-    .from('academy_schedules')
-    .select('id, day_of_week, start_time, end_time, academy_name, subject, travel_time')
-    .eq('student_id', studentId)
-    .eq('day_of_week', dayOfWeek);
-
-  if (academies) {
-    for (let i = 0; i < academies.length; i++) {
-      const schedule = academies[i];
-      const name = schedule.academy_name ?? '학원';
-      const subjectLabel = schedule.subject ? ` (${schedule.subject})` : '';
-
-      const academyOverride = findOverride('academy', i);
-      if (academyOverride?.is_disabled) continue;
-
-      const academyStartTime = academyOverride?.start_time_override ?? schedule.start_time.substring(0, 5);
-      const academyEndTime = academyOverride?.end_time_override ?? schedule.end_time.substring(0, 5);
-
-      if (schedule.travel_time && schedule.travel_time > 0) {
-        const [h, m] = academyStartTime.split(':').map(Number);
-        const travelStartMinutes = h * 60 + m - schedule.travel_time;
-        const travelStartH = Math.floor(Math.max(0, travelStartMinutes) / 60);
-        const travelStartM = Math.max(0, travelStartMinutes) % 60;
-        const travelStart = `${String(travelStartH).padStart(2, '0')}:${String(travelStartM).padStart(2, '0')}`;
-        items.push({
-          type: "이동시간",
-          start_time: travelStart,
-          end_time: academyStartTime,
-          label: `이동시간 (${name})`,
-          sourceIndex: i,
-          hasOverride: !!academyOverride,
-        });
-      }
-
-      items.push({
-        type: "학원",
-        start_time: academyStartTime,
-        end_time: academyEndTime,
-        label: `${name}${subjectLabel}`,
-        sourceIndex: i,
-        hasOverride: !!academyOverride,
-      });
-    }
-  }
-
-  items.sort((a, b) => {
-    const [ah, am] = a.start_time.split(':').map(Number);
-    const [bh, bm] = b.start_time.split(':').map(Number);
-    return (ah * 60 + am) - (bh * 60 + bm);
-  });
-
-  return items;
+  // calendarId가 없거나 calendar_events에 데이터가 없으면 빈 배열 반환
+  return [];
 }
 
 /**
