@@ -21,7 +21,6 @@ export function LogoSection({
         href={dashboardHref}
         className={`${layoutStyles.flexCenter} text-h2 font-semibold ${layoutStyles.textHeading}`}
       >
-        <span>⏱️</span>
         {!isCollapsed && <span>TimeLevelUp</span>}
       </a>
     </div>

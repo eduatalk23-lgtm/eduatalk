@@ -9,10 +9,6 @@
  *    - Cmd+K / Ctrl+K로 열기
  *    - 검색 및 명령어 실행
  *
- * 2. **Breadcrumb** - 빵가루 네비게이션
- *    - 현재 위치 표시
- *    - 드롭다운 메뉴 지원
- *
  * @module navigation
  */
 
@@ -31,17 +27,3 @@ export {
   type CommandGroup,
   type CommandPaletteProviderProps,
 } from "./CommandPalette";
-
-// ============================================================================
-// Breadcrumb
-// ============================================================================
-
-export {
-  Breadcrumb,
-  AdminBreadcrumb,
-  StudentBreadcrumb,
-  useAutoBreadcrumb,
-  type BreadcrumbItem,
-  type BreadcrumbMenuItem,
-  type BreadcrumbProps,
-} from "./Breadcrumb";

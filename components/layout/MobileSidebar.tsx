@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import { useSidebar } from "./SidebarContext";
-import { Menu, X } from "lucide-react";
+import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { layoutStyles, mobileNavStyles } from "@/components/navigation/global/navStyles";
 import { LogoSection } from "@/components/navigation/global/LogoSection";
@@ -26,10 +26,10 @@ export function MobileSidebar({
   tenantInfo,
   userName,
 }: MobileSidebarProps) {
-  const { isMobileOpen, toggleMobile, closeMobile } = useSidebar();
+  const { isMobileOpen, closeMobile } = useSidebar();
   const drawerRef = useRef<HTMLElement>(null);
 
-  // 터치 제스처 처리 (Hook 사용)
+  // 터치 제스처 처리
   const { onTouchStart, onTouchMove, onTouchEnd, swipeProgress } = useSwipeGesture({
     onSwipeLeft: () => {
       if (isMobileOpen) {
@@ -39,7 +39,7 @@ export function MobileSidebar({
     minSwipeDistance: 100,
   });
 
-  // 오버레이 마운트/애니메이션 상태 (fade in/out)
+  // 오버레이 마운트/애니메이션 상태
   const [overlayMounted, setOverlayMounted] = useState(false);
   const [overlayVisible, setOverlayVisible] = useState(false);
 
@@ -60,17 +60,6 @@ export function MobileSidebar({
 
   return (
     <>
-      {/* 햄버거 버튼 */}
-      <button
-        onClick={toggleMobile}
-        className={mobileNavStyles.hamburgerButton}
-        aria-label="메뉴 열기"
-        aria-expanded={isMobileOpen}
-        aria-controls="mobile-sidebar"
-      >
-        <Menu className="w-6 h-6" aria-hidden="true" />
-      </button>
-
       {/* 오버레이 (fade in/out) */}
       {overlayMounted && (
         <div
@@ -110,7 +99,7 @@ export function MobileSidebar({
             ? "translate-x-0"
             : !isMobileOpen
             ? "-translate-x-full"
-            : "", // swipeProgress > 0일 때는 인라인 스타일 사용
+            : "",
         )}
         style={{
           ...(swipeProgress === 0
@@ -152,7 +141,7 @@ export function MobileSidebar({
           onNavigate={closeMobile}
           roleLabel={roleLabel}
           userName={userName}
-          isCollapsed={false}  // 모바일은 항상 펼쳐진 상태
+          isCollapsed={false}
         />
       </aside>
     </>
