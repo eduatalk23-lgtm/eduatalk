@@ -1,14 +1,53 @@
 
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import LandingPage from "./_components/landing/LandingPage";
+
+const META_TITLE = "TimeLevelUp - AI 맞춤형 학습 관리 시스템";
+const META_DESCRIPTION =
+  "13년 입시 전문 노하우와 AI 기술이 만든 학습 플래너. 학습 플랜 생성부터 성적 분석, 진도 관리까지 한번에 해결하세요.";
+const SITE_URL = "https://timelevelup.com";
+
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: META_TITLE,
+    description: META_DESCRIPTION,
+    openGraph: {
+      title: META_TITLE,
+      description: META_DESCRIPTION,
+      url: SITE_URL,
+      siteName: "TimeLevelUp",
+      type: "website",
+      locale: "ko_KR",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: META_TITLE,
+      description: META_DESCRIPTION,
+    },
+    keywords: [
+      "학습 플래너",
+      "AI 학습",
+      "입시",
+      "학습 관리",
+      "맞춤형 학습",
+      "성적 분석",
+      "학습 타이머",
+      "TimeLevelUp",
+    ],
+    robots: { index: true, follow: true },
+    alternates: { canonical: SITE_URL },
+  };
+}
 
 export default async function Home() {
   const { userId, role } = await getCurrentUserRole();
 
-  // 인증되지 않은 사용자는 로그인 페이지로
+  // 비인증 사용자 → 랜딩 페이지
   if (!userId) {
-    redirect("/login");
+    return <LandingPage />;
   }
 
   // 학생인 경우 is_active 확인
