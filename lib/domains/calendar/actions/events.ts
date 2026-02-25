@@ -109,9 +109,10 @@ export interface UpdateEventInput {
 }
 
 export interface UpdateStudyDataInput {
-  completionStatus?: "pending" | "in_progress" | "completed" | "skipped";
+  done?: boolean;
+  doneAt?: string | null;
+  doneBy?: string | null;
   startedAt?: string;
-  completedAt?: string;
   estimatedMinutes?: number;
   actualMinutes?: number;
   pausedAt?: string | null;
@@ -119,8 +120,6 @@ export interface UpdateStudyDataInput {
   pauseCount?: number;
   completedAmount?: number;
   progress?: number;
-  simpleCompletion?: boolean;
-  simpleCompletedAt?: string;
   memo?: string;
 }
 
@@ -301,7 +300,7 @@ async function _createStudyEvent(
     chapter: sd.chapter ?? null,
     origin_plan_item_id: sd.originPlanItemId ?? null,
     estimated_minutes: sd.estimatedMinutes ?? 30,
-    completion_status: "pending",
+    done: false,
   };
 
   const { data: studyData, error } = await supabase
@@ -424,12 +423,11 @@ async function _updateStudyData(
   const supabase = await createSupabaseServerClient();
 
   const updateData: EventStudyDataUpdate = {};
-  if (updates.completionStatus !== undefined)
-    updateData.completion_status = updates.completionStatus;
+  if (updates.done !== undefined) updateData.done = updates.done;
+  if (updates.doneAt !== undefined) updateData.done_at = updates.doneAt;
+  if (updates.doneBy !== undefined) updateData.done_by = updates.doneBy;
   if (updates.startedAt !== undefined)
     updateData.started_at = updates.startedAt;
-  if (updates.completedAt !== undefined)
-    updateData.completed_at = updates.completedAt;
   if (updates.estimatedMinutes !== undefined)
     updateData.estimated_minutes = updates.estimatedMinutes;
   if (updates.actualMinutes !== undefined)
@@ -442,10 +440,6 @@ async function _updateStudyData(
   if (updates.completedAmount !== undefined)
     updateData.completed_amount = updates.completedAmount;
   if (updates.progress !== undefined) updateData.progress = updates.progress;
-  if (updates.simpleCompletion !== undefined)
-    updateData.simple_completion = updates.simpleCompletion;
-  if (updates.simpleCompletedAt !== undefined)
-    updateData.simple_completed_at = updates.simpleCompletedAt;
   if (updates.memo !== undefined) updateData.memo = updates.memo;
 
   const { data, error } = await supabase

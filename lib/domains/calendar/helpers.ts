@@ -1,7 +1,7 @@
 /**
  * Calendar 도메인 헬퍼 함수
  *
- * student_non_study_time → calendar_events 전환을 위한 공통 유틸리티.
+ * calendar_events 도메인 공통 유틸리티.
  *
  * @module lib/domains/calendar/helpers
  */
@@ -10,30 +10,163 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { EventType } from "./types";
 
 // ============================================
-// planner → calendar_id resolve
+// calendar_id resolve
 // ============================================
 
 /**
- * planner_id → primary calendar_id 해석 (서버용)
+ * student_id → primary calendar_id 해석 (서버용)
  *
- * 서버 액션 내에서 1회 조회 후 재사용하는 패턴 권장.
- * 캘린더가 없으면 null 반환.
+ * Calendar-First 모델: calendars.is_student_primary=true 직접 조회.
+ * Primary 캘린더가 없으면 null 반환.
+ *
+ * ⚠️ maybeSingle() 대신 limit(1) 사용: UNIQUE INDEX로 보호되지만
+ *    방어적 코딩으로 중복 행 시에도 에러 대신 첫 번째 결과 반환.
  */
-export async function resolvePrimaryCalendarId(
-  plannerId: string
+export async function resolveStudentPrimaryCalendarId(
+  studentId: string
 ): Promise<string | null> {
   const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase
     .from("calendars")
     .select("id")
-    .eq("planner_id", plannerId)
+    .eq("owner_id", studentId)
+    .eq("is_student_primary", true)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true })
+    .limit(1);
+
+  if (error || !data || data.length === 0) return null;
+  return data[0].id;
+}
+
+/**
+ * 학생의 Primary Calendar 보장 (없으면 자동 생성)
+ *
+ * Calendar-First 모델: 학생당 1개 Primary Calendar 필수.
+ * calendar_list 엔트리도 함께 생성.
+ */
+export async function ensureStudentPrimaryCalendar(
+  studentId: string,
+  tenantId: string
+): Promise<string> {
+  const existing = await resolveStudentPrimaryCalendarId(studentId);
+  if (existing) return existing;
+
+  const supabase = await createSupabaseServerClient();
+
+  // Primary Calendar 생성
+  const { data: calendar, error: calError } = await supabase
+    .from("calendars")
+    .insert({
+      tenant_id: tenantId,
+      owner_id: studentId,
+      owner_type: "student",
+      summary: "기본 캘린더",
+      is_primary: true,
+      is_student_primary: true,
+      source_type: "local",
+    })
+    .select("id")
+    .single();
+
+  if (calError || !calendar) {
+    throw new Error(`Primary Calendar 생성 실패: ${calError?.message}`);
+  }
+
+  // calendar_list 엔트리 생성
+  await supabase
+    .from("calendar_list")
+    .insert({
+      user_id: studentId,
+      calendar_id: calendar.id,
+      display_name: "기본 캘린더",
+      is_visible: true,
+      access_role: "owner",
+      sort_order: 0,
+    });
+
+  return calendar.id;
+}
+
+// ============================================
+// admin calendar_id resolve
+// ============================================
+
+/**
+ * admin_id → primary calendar_id 해석 (서버용)
+ *
+ * admin 소유 캘린더 중 is_primary=true 조회.
+ * Primary 캘린더가 없으면 null 반환.
+ *
+ * ⚠️ maybeSingle() 대신 limit(1)을 사용: 중복 행이 있으면 maybeSingle()이
+ *    에러를 반환하여 "없음"으로 처리되고 무한 중복 생성이 발생하는 버그 방지.
+ */
+export async function resolveAdminPrimaryCalendarId(
+  adminId: string
+): Promise<string | null> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("calendars")
+    .select("id")
+    .eq("owner_id", adminId)
+    .eq("owner_type", "admin")
     .eq("is_primary", true)
     .is("deleted_at", null)
-    .maybeSingle();
+    .order("created_at", { ascending: true })
+    .limit(1);
 
-  if (error || !data) return null;
-  return data.id;
+  if (error || !data || data.length === 0) return null;
+  return data[0].id;
+}
+
+/**
+ * 관리자의 Primary Calendar 보장 (없으면 자동 생성)
+ *
+ * 관리자용 개인 캘린더. calendar_list 엔트리도 함께 생성.
+ */
+export async function ensureAdminPrimaryCalendar(
+  adminId: string,
+  tenantId: string
+): Promise<string> {
+  const existing = await resolveAdminPrimaryCalendarId(adminId);
+  if (existing) return existing;
+
+  const supabase = await createSupabaseServerClient();
+
+  // Primary Calendar 생성
+  const { data: calendar, error: calError } = await supabase
+    .from("calendars")
+    .insert({
+      tenant_id: tenantId,
+      owner_id: adminId,
+      owner_type: "admin",
+      summary: "내 캘린더",
+      is_primary: true,
+      is_student_primary: false,
+      source_type: "local",
+    })
+    .select("id")
+    .single();
+
+  if (calError || !calendar) {
+    throw new Error(`Admin Primary Calendar 생성 실패: ${calError?.message}`);
+  }
+
+  // calendar_list 엔트리 생성
+  await supabase
+    .from("calendar_list")
+    .insert({
+      user_id: adminId,
+      calendar_id: calendar.id,
+      display_name: "내 캘린더",
+      is_visible: true,
+      access_role: "owner",
+      sort_order: 0,
+    });
+
+  return calendar.id;
 }
 
 // ============================================

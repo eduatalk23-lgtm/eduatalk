@@ -4,41 +4,37 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 import {
   calendarEventKeys,
-  calendarsByPlannerQueryOptions,
+  studentPrimaryCalendarQueryOptions,
   dailyCalendarEventsQueryOptions,
+  multiDailyCalendarEventsQueryOptions,
   weeklyCalendarEventsQueryOptions,
-  unfinishedCalendarEventsQueryOptions,
-  availabilitySchedulesQueryOptions,
+  overdueCalendarEventsQueryOptions,
   getWeekRange,
 } from '@/lib/query-options/calendarEvents';
 import type {
   CalendarEventWithStudyData,
   EventType,
 } from '@/lib/domains/calendar/types';
+import { expandRecurringEvents } from '@/lib/domains/calendar/rrule';
+import { extractDateYMD } from '@/lib/domains/calendar/adapters';
 
 // ============================================
-// Internal Helper: Primary Calendar 해석
+// Calendar-First Helpers
 // ============================================
 
 /**
- * plannerId → primary calendarId 해석
- * calendars 테이블에서 is_primary=true인 캘린더를 찾습니다.
+ * studentId → primary calendarId 해석
+ * Calendar-First: calendars WHERE owner_id=studentId AND is_student_primary=true
  */
-function usePrimaryCalendar(plannerId: string | undefined) {
+export function usePrimaryCalendar(studentId: string | undefined) {
   const query = useQuery({
-    ...calendarsByPlannerQueryOptions(plannerId ?? ''),
-    enabled: !!plannerId,
+    ...studentPrimaryCalendarQueryOptions(studentId ?? ''),
+    enabled: !!studentId,
   });
 
-  const calendarId = useMemo(() => {
-    if (!query.data?.length) return undefined;
-    const primary = query.data.find((c) => c.is_primary);
-    return (primary ?? query.data[0])?.id;
-  }, [query.data]);
-
   return {
-    calendarId,
-    calendars: query.data ?? [],
+    calendarId: query.data?.id,
+    calendar: query.data ?? null,
     isLoading: query.isLoading,
   };
 }
@@ -63,25 +59,40 @@ function filterByType(
 /**
  * 일간 캘린더 이벤트 쿼리
  *
+ * Calendar-First: calendarId를 직접 받습니다.
  * 모든 event_type을 한 번에 fetch 후 클라이언트에서 분리합니다.
- * calendarId가 없으면(plannerId → calendar 해석 대기 중) 쿼리를 비활성화합니다.
  */
 export function useDailyCalendarEvents(
   studentId: string,
-  plannerId: string | undefined,
-  date: string
+  calendarId: string | undefined,
+  date: string,
+  visibleCalendarIds?: string[] | null,
 ) {
   const queryClient = useQueryClient();
-  const { calendarId, isLoading: calendarLoading } = usePrimaryCalendar(plannerId);
+  // visibleCalendarIds가 배열이면 멀티 캘린더 모드 (빈 배열 = 모든 캘린더 숨김)
+  const isMultiCalendar = Array.isArray(visibleCalendarIds);
 
-  const eventsQuery = useQuery({
+  // 단일 캘린더 모드
+  const singleQuery = useQuery({
     ...dailyCalendarEventsQueryOptions(calendarId ?? '', date),
-    enabled: !!calendarId,
+    enabled: !!calendarId && !isMultiCalendar,
   });
 
+  // 멀티 캘린더 모드 (빈 배열이면 queryFn이 [] 반환)
+  const multiQuery = useQuery({
+    ...multiDailyCalendarEventsQueryOptions(visibleCalendarIds ?? [], date),
+    enabled: isMultiCalendar,
+  });
+
+  const rawEvents = useMemo(
+    () => (isMultiCalendar ? multiQuery.data : singleQuery.data) ?? [],
+    [isMultiCalendar, multiQuery.data, singleQuery.data],
+  );
+
+  // RRULE 반복 이벤트 확장 (일간: date~date 범위)
   const events = useMemo(
-    () => eventsQuery.data ?? [],
-    [eventsQuery.data]
+    () => expandRecurringEvents(rawEvents, date, date),
+    [rawEvents, date]
   );
 
   const studyEvents = useMemo(
@@ -107,12 +118,16 @@ export function useDailyCalendarEvents(
   );
 
   const invalidate = useCallback(() => {
-    if (calendarId) {
+    if (isMultiCalendar && visibleCalendarIds) {
+      queryClient.invalidateQueries({
+        queryKey: calendarEventKeys.multiDaily(visibleCalendarIds, date),
+      });
+    } else if (calendarId) {
       queryClient.invalidateQueries({
         queryKey: calendarEventKeys.daily(calendarId, date),
       });
     }
-  }, [queryClient, calendarId, date]);
+  }, [queryClient, calendarId, date, isMultiCalendar, visibleCalendarIds]);
 
   return {
     events,
@@ -121,7 +136,7 @@ export function useDailyCalendarEvents(
     allDayEvents,
     academyEvents,
     calendarId,
-    isLoading: calendarLoading || eventsQuery.isLoading,
+    isLoading: isMultiCalendar ? multiQuery.isLoading : singleQuery.isLoading,
     invalidate,
   };
 }
@@ -129,16 +144,15 @@ export function useDailyCalendarEvents(
 /**
  * 주간 캘린더 이벤트 쿼리
  *
+ * Calendar-First: calendarId를 직접 받습니다.
  * weekStart 기준으로 월~일 범위를 자동 계산합니다.
- * eventsByDate Map을 반환하여 각 날짜별 이벤트 접근을 편리하게 합니다.
  */
 export function useWeeklyCalendarEvents(
   studentId: string,
-  plannerId: string | undefined,
+  calendarId: string | undefined,
   weekStartDate: string
 ) {
   const queryClient = useQueryClient();
-  const { calendarId, isLoading: calendarLoading } = usePrimaryCalendar(plannerId);
   const weekRange = getWeekRange(weekStartDate);
 
   const eventsQuery = useQuery({
@@ -158,7 +172,7 @@ export function useWeeklyCalendarEvents(
   const eventsByDate = useMemo(() => {
     const map = new Map<string, CalendarEventWithStudyData[]>();
     for (const event of events) {
-      const dateKey = event.start_date ?? event.start_at?.split('T')[0] ?? '';
+      const dateKey = event.start_date ?? extractDateYMD(event.start_at) ?? '';
       if (!dateKey) continue;
       const existing = map.get(dateKey) ?? [];
       existing.push(event);
@@ -180,7 +194,7 @@ export function useWeeklyCalendarEvents(
     eventsByDate,
     calendarId,
     weekRange,
-    isLoading: calendarLoading || eventsQuery.isLoading,
+    isLoading: eventsQuery.isLoading,
     invalidate,
   };
 }
@@ -188,24 +202,24 @@ export function useWeeklyCalendarEvents(
 /**
  * 미완료 캘린더 이벤트 쿼리
  *
+ * Calendar-First: calendarId를 직접 받습니다.
  * 오늘 이전의 미완료(confirmed/tentative) 이벤트를 조회합니다.
  */
-export function useUnfinishedCalendarEvents(
+export function useOverdueCalendarEvents(
   studentId: string,
-  plannerId: string | undefined
+  calendarId: string | undefined
 ) {
   const queryClient = useQueryClient();
-  const { calendarId, isLoading: calendarLoading } = usePrimaryCalendar(plannerId);
 
   const eventsQuery = useQuery({
-    ...unfinishedCalendarEventsQueryOptions(calendarId ?? ''),
+    ...overdueCalendarEventsQueryOptions(calendarId ?? ''),
     enabled: !!calendarId,
   });
 
   const invalidate = useCallback(() => {
     if (calendarId) {
       queryClient.invalidateQueries({
-        queryKey: calendarEventKeys.unfinished(calendarId),
+        queryKey: calendarEventKeys.overdue(calendarId),
       });
     }
   }, [queryClient, calendarId]);
@@ -213,46 +227,7 @@ export function useUnfinishedCalendarEvents(
   return {
     events: eventsQuery.data ?? [],
     calendarId,
-    isLoading: calendarLoading || eventsQuery.isLoading,
-    invalidate,
-  };
-}
-
-/**
- * 가용성 스케줄 쿼리
- *
- * 플래너별 availability_schedules + availability_windows를 조회합니다.
- * defaultSchedule: is_default=true인 스케줄을 자동 추출합니다.
- */
-export function useAvailabilitySchedules(plannerId: string | undefined) {
-  const queryClient = useQueryClient();
-
-  const query = useQuery({
-    ...availabilitySchedulesQueryOptions(plannerId ?? ''),
-    enabled: !!plannerId,
-  });
-
-  const schedules = useMemo(
-    () => query.data ?? [],
-    [query.data]
-  );
-
-  const defaultSchedule = useMemo(() => {
-    return schedules.find((s) => s.is_default) ?? schedules[0] ?? null;
-  }, [schedules]);
-
-  const invalidate = useCallback(() => {
-    if (plannerId) {
-      queryClient.invalidateQueries({
-        queryKey: calendarEventKeys.availabilitySchedules(plannerId),
-      });
-    }
-  }, [queryClient, plannerId]);
-
-  return {
-    schedules,
-    defaultSchedule,
-    isLoading: query.isLoading,
+    isLoading: eventsQuery.isLoading,
     invalidate,
   };
 }
@@ -292,10 +267,10 @@ export function useCalendarEventInvalidation() {
     [queryClient]
   );
 
-  const invalidateUnfinished = useCallback(
+  const invalidateOverdue = useCallback(
     (calendarId: string) => {
       queryClient.invalidateQueries({
-        queryKey: calendarEventKeys.unfinished(calendarId),
+        queryKey: calendarEventKeys.overdue(calendarId),
       });
     },
     [queryClient]
@@ -311,21 +286,11 @@ export function useCalendarEventInvalidation() {
     [queryClient]
   );
 
-  const invalidateAvailability = useCallback(
-    (plannerId: string) => {
-      queryClient.invalidateQueries({
-        queryKey: calendarEventKeys.availability(plannerId),
-      });
-    },
-    [queryClient]
-  );
-
   return {
     invalidateDaily,
     invalidateWeekly,
-    invalidateUnfinished,
+    invalidateOverdue,
     invalidateAllEvents,
-    invalidateAvailability,
   };
 }
 

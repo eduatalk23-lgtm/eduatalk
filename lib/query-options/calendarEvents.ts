@@ -10,8 +10,9 @@ import {
 import type {
   Calendar,
   CalendarEventWithStudyData,
-  AvailabilityScheduleWithWindows,
+  CalendarListWithCalendar,
 } from '@/lib/domains/calendar/types';
+import { searchCalendarEventsAction } from '@/lib/domains/admin-plan/actions/searchCalendarEvents';
 
 // ============================================
 // Query Key Factory
@@ -19,24 +20,34 @@ import type {
 
 export const calendarEventKeys = {
   all: ['calendarEvents'] as const,
-  calendars: (plannerId: string) =>
-    [...calendarEventKeys.all, 'calendars', plannerId] as const,
+  /** 학생의 모든 캘린더 목록 (멀티 캘린더 토글용) */
+  studentCalendars: (studentId: string) =>
+    [...calendarEventKeys.all, 'studentCalendars', studentId] as const,
+  /** 학생의 Primary 캘린더 */
+  studentPrimaryCalendar: (studentId: string) =>
+    [...calendarEventKeys.all, 'studentPrimaryCalendar', studentId] as const,
+  /** 사용자 캘린더 리스트 (표시 설정) */
+  calendarList: (userId: string) =>
+    [...calendarEventKeys.all, 'calendarList', userId] as const,
   events: (calendarId: string) =>
     [...calendarEventKeys.all, 'events', calendarId] as const,
+  /** 멀티 캘린더 주간 이벤트 (여러 calendarId 합산) */
+  multiWeekly: (calendarIds: string[], weekStart: string, weekEnd: string) =>
+    [...calendarEventKeys.all, 'multiWeekly', calendarIds.join(','), weekStart, weekEnd] as const,
+  /** 멀티 캘린더 일간 이벤트 */
+  multiDaily: (calendarIds: string[], date: string) =>
+    [...calendarEventKeys.all, 'multiDaily', calendarIds.join(','), date] as const,
   daily: (calendarId: string, date: string) =>
     [...calendarEventKeys.events(calendarId), 'daily', date] as const,
   weekly: (calendarId: string, weekStart: string, weekEnd: string) =>
     [...calendarEventKeys.events(calendarId), 'weekly', weekStart, weekEnd] as const,
   monthly: (calendarId: string, monthStart: string, monthEnd: string) =>
     [...calendarEventKeys.events(calendarId), 'monthly', monthStart, monthEnd] as const,
-  unfinished: (calendarId: string) =>
-    [...calendarEventKeys.events(calendarId), 'unfinished'] as const,
-  availability: (plannerId: string) =>
-    [...calendarEventKeys.all, 'availability', plannerId] as const,
-  availabilitySchedules: (plannerId: string) =>
-    [...calendarEventKeys.availability(plannerId), 'schedules'] as const,
-  effectiveWindows: (scheduleId: string, date: string) =>
-    [...calendarEventKeys.all, 'effectiveWindows', scheduleId, date] as const,
+  overdue: (calendarId: string) =>
+    [...calendarEventKeys.events(calendarId), 'overdue'] as const,
+  /** 캘린더 이벤트 텍스트 검색 */
+  search: (calendarId: string, query: string) =>
+    [...calendarEventKeys.events(calendarId), 'search', query] as const,
 };
 
 // ============================================
@@ -62,23 +73,47 @@ export function getWeekRange(dateStr: string) {
 // ============================================
 
 /**
- * 플래너별 캘린더 목록 조회
- * planner → calendarId 해석에 사용 (is_primary 캘린더 추출)
+ * 학생의 Primary 캘린더 조회
+ * Calendar-First: calendars WHERE owner_id=studentId AND is_student_primary=true
  */
-export function calendarsByPlannerQueryOptions(plannerId: string) {
+export function studentPrimaryCalendarQueryOptions(studentId: string) {
   return queryOptions({
-    queryKey: calendarEventKeys.calendars(plannerId),
-    queryFn: async (): Promise<Calendar[]> => {
+    queryKey: calendarEventKeys.studentPrimaryCalendar(studentId),
+    queryFn: async (): Promise<Calendar | null> => {
       const supabase = createSupabaseBrowserClient();
       const { data, error } = await supabase
         .from('calendars')
         .select('*')
-        .eq('planner_id', plannerId)
+        .eq('owner_id', studentId)
+        .eq('is_student_primary', true)
         .is('deleted_at', null)
-        .order('is_primary', { ascending: false });
+        .maybeSingle();
 
       if (error) throw error;
-      return data ?? [];
+      return data;
+    },
+    staleTime: CACHE_STALE_TIME_STABLE,
+    gcTime: CACHE_GC_TIME_STABLE,
+  });
+}
+
+/**
+ * 사용자 캘린더 리스트 조회 (표시 설정)
+ * calendar_list JOIN calendars
+ */
+export function calendarListQueryOptions(userId: string) {
+  return queryOptions({
+    queryKey: calendarEventKeys.calendarList(userId),
+    queryFn: async (): Promise<CalendarListWithCalendar[]> => {
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from('calendar_list')
+        .select('*, calendars(*)')
+        .eq('user_id', userId)
+        .order('sort_order', { ascending: true });
+
+      if (error) throw error;
+      return (data ?? []) as CalendarListWithCalendar[];
     },
     staleTime: CACHE_STALE_TIME_STABLE,
     gcTime: CACHE_GC_TIME_STABLE,
@@ -181,25 +216,87 @@ export function monthlyCalendarEventsQueryOptions(
 }
 
 /**
- * 미완료 이벤트 조회 (Unfinished Dock)
+ * 미완료(overdue) 이벤트 조회
  * 오늘 이전의 미완료 이벤트
  */
-export function unfinishedCalendarEventsQueryOptions(calendarId: string) {
+export function overdueCalendarEventsQueryOptions(calendarId: string) {
   const today = formatDateString(new Date());
 
   return queryOptions({
-    queryKey: calendarEventKeys.unfinished(calendarId),
+    queryKey: calendarEventKeys.overdue(calendarId),
     queryFn: async (): Promise<CalendarEventWithStudyData[]> => {
       const supabase = createSupabaseBrowserClient();
       const { data, error } = await supabase
         .from('calendar_events')
         .select('*, event_study_data(*)')
         .eq('calendar_id', calendarId)
-        .not('status', 'in', '("completed","cancelled")')
+        .neq('status', 'cancelled')
         .eq('is_all_day', false)
         .lt('start_at', `${today}T00:00:00+09:00`)
         .is('deleted_at', null)
         .order('start_at', { ascending: true });
+
+      if (error) throw error;
+      // Task 완료(done)된 이벤트 제외
+      return ((data ?? []) as CalendarEventWithStudyData[]).filter(
+        (e) => !e.event_study_data?.done
+      );
+    },
+    staleTime: CACHE_STALE_TIME_DYNAMIC,
+    gcTime: CACHE_GC_TIME_DYNAMIC,
+  });
+}
+
+/**
+ * 학생의 모든 캘린더 목록 조회 (멀티 캘린더 토글용)
+ *
+ * Calendar-First: calendars WHERE owner_id=studentId 직접 조회
+ */
+export function studentCalendarsQueryOptions(studentId: string) {
+  return queryOptions({
+    queryKey: calendarEventKeys.studentCalendars(studentId),
+    queryFn: async (): Promise<Calendar[]> => {
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from('calendars')
+        .select('*')
+        .eq('owner_id', studentId)
+        .is('deleted_at', null)
+        .order('is_student_primary', { ascending: false });
+
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: CACHE_STALE_TIME_STABLE,
+    gcTime: CACHE_GC_TIME_STABLE,
+  });
+}
+
+/**
+ * 멀티 캘린더 주간 이벤트 조회
+ * 여러 calendarId에 대해 IN 필터로 한 번에 조회합니다.
+ */
+export function multiWeeklyCalendarEventsQueryOptions(
+  calendarIds: string[],
+  weekStart: string,
+  weekEnd: string
+) {
+  return queryOptions({
+    queryKey: calendarEventKeys.multiWeekly(calendarIds, weekStart, weekEnd),
+    queryFn: async (): Promise<CalendarEventWithStudyData[]> => {
+      if (calendarIds.length === 0) return [];
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from('calendar_events')
+        .select('*, event_study_data(*)')
+        .in('calendar_id', calendarIds)
+        .is('deleted_at', null)
+        .or(
+          `and(is_all_day.eq.false,start_at.gte.${weekStart}T00:00:00+09:00,start_at.lte.${weekEnd}T23:59:59+09:00),` +
+          `and(is_all_day.eq.true,start_date.gte.${weekStart},start_date.lte.${weekEnd})`
+        )
+        .order('start_at', { ascending: true, nullsFirst: false })
+        .order('order_index', { ascending: true });
 
       if (error) throw error;
       return (data ?? []) as CalendarEventWithStudyData[];
@@ -210,24 +307,87 @@ export function unfinishedCalendarEventsQueryOptions(calendarId: string) {
 }
 
 /**
- * 가용성 스케줄 + 윈도우 조회
- * 플래너별 availability_schedules + availability_windows JOIN
+ * 멀티 캘린더 일간 이벤트 조회
  */
-export function availabilitySchedulesQueryOptions(plannerId: string) {
+export function multiDailyCalendarEventsQueryOptions(
+  calendarIds: string[],
+  date: string
+) {
   return queryOptions({
-    queryKey: calendarEventKeys.availabilitySchedules(plannerId),
-    queryFn: async (): Promise<AvailabilityScheduleWithWindows[]> => {
+    queryKey: calendarEventKeys.multiDaily(calendarIds, date),
+    queryFn: async (): Promise<CalendarEventWithStudyData[]> => {
+      if (calendarIds.length === 0) return [];
       const supabase = createSupabaseBrowserClient();
       const { data, error } = await supabase
-        .from('availability_schedules')
-        .select('*, availability_windows(*)')
-        .eq('planner_id', plannerId)
-        .order('is_default', { ascending: false });
+        .from('calendar_events')
+        .select('*, event_study_data(*)')
+        .in('calendar_id', calendarIds)
+        .is('deleted_at', null)
+        .or(
+          `and(is_all_day.eq.false,start_at.gte.${date}T00:00:00+09:00,start_at.lte.${date}T23:59:59+09:00),` +
+          `and(is_all_day.eq.true,start_date.gte.${date},start_date.lte.${date})`
+        )
+        .order('start_at', { ascending: true, nullsFirst: false })
+        .order('order_index', { ascending: true });
 
       if (error) throw error;
-      return (data ?? []) as AvailabilityScheduleWithWindows[];
+      return (data ?? []) as CalendarEventWithStudyData[];
     },
-    staleTime: CACHE_STALE_TIME_STABLE,
-    gcTime: CACHE_GC_TIME_STABLE,
+    staleTime: CACHE_STALE_TIME_DYNAMIC,
+    gcTime: CACHE_GC_TIME_DYNAMIC,
+  });
+}
+
+/**
+ * 멀티 캘린더 월간 이벤트 조회
+ * 여러 calendarId에 대해 IN 필터로 한 번에 조회합니다.
+ */
+export function multiMonthlyCalendarEventsQueryOptions(
+  calendarIds: string[],
+  monthStart: string,
+  monthEnd: string
+) {
+  return queryOptions({
+    queryKey: [...calendarEventKeys.all, 'multiMonthly', calendarIds.join(','), monthStart, monthEnd] as const,
+    queryFn: async (): Promise<CalendarEventWithStudyData[]> => {
+      if (calendarIds.length === 0) return [];
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from('calendar_events')
+        .select('*, event_study_data(*)')
+        .in('calendar_id', calendarIds)
+        .is('deleted_at', null)
+        .or(
+          `and(is_all_day.eq.false,start_at.gte.${monthStart}T00:00:00+09:00,start_at.lte.${monthEnd}T23:59:59+09:00),` +
+          `and(is_all_day.eq.true,start_date.gte.${monthStart},start_date.lte.${monthEnd})`
+        )
+        .order('start_at', { ascending: true, nullsFirst: false })
+        .order('order_index', { ascending: true });
+
+      if (error) throw error;
+      return (data ?? []) as CalendarEventWithStudyData[];
+    },
+    staleTime: CACHE_STALE_TIME_DYNAMIC,
+    gcTime: CACHE_GC_TIME_DYNAMIC,
+  });
+}
+
+/**
+ * 캘린더 이벤트 텍스트 검색
+ *
+ * Server Action을 통해 calendar_events.title, description +
+ * event_study_data.content_title, subject_name, subject_category를
+ * 대소문자 무시하여 검색합니다.
+ */
+export function searchCalendarEventsQueryOptions(
+  studentId: string,
+  calendarId: string,
+  query: string,
+) {
+  return queryOptions({
+    queryKey: calendarEventKeys.search(calendarId, query),
+    queryFn: () => searchCalendarEventsAction(studentId, calendarId, query),
+    enabled: query.length >= 1,
+    staleTime: 1000 * 30,
   });
 }

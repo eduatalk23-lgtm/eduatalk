@@ -25,6 +25,12 @@ export type Calendar = Tables<"calendars">;
 export type CalendarInsert = TablesInsert<"calendars">;
 export type CalendarUpdate = TablesUpdate<"calendars">;
 
+// --- calendar_list ---
+
+export type CalendarList = Tables<"calendar_list">;
+export type CalendarListInsert = TablesInsert<"calendar_list">;
+export type CalendarListUpdate = TablesUpdate<"calendar_list">;
+
 // --- calendar_events ---
 
 export type CalendarEvent = Tables<"calendar_events">;
@@ -37,29 +43,12 @@ export type EventStudyData = Tables<"event_study_data">;
 export type EventStudyDataInsert = TablesInsert<"event_study_data">;
 export type EventStudyDataUpdate = TablesUpdate<"event_study_data">;
 
-// --- availability_schedules ---
-
-export type AvailabilitySchedule = Tables<"availability_schedules">;
-export type AvailabilityScheduleInsert =
-  TablesInsert<"availability_schedules">;
-export type AvailabilityScheduleUpdate =
-  TablesUpdate<"availability_schedules">;
-
-// --- availability_windows ---
-
-export type AvailabilityWindow = Tables<"availability_windows">;
-export type AvailabilityWindowInsert = TablesInsert<"availability_windows">;
-export type AvailabilityWindowUpdate = TablesUpdate<"availability_windows">;
-
 // ============================================
 // 리터럴 타입 (CHECK 제약 조건 대응)
 // ============================================
 
 /** calendars.owner_type */
 export type CalendarOwnerType = "student" | "admin";
-
-/** calendars.calendar_type — Google: Primary/Secondary → 학습 도메인 세분화 */
-export type CalendarType = "study" | "personal" | "academy" | "external";
 
 /** calendars.source_type */
 export type CalendarSourceType = "local" | "google" | "outlook";
@@ -71,14 +60,14 @@ export type EventType =
   | "academy"
   | "break"
   | "exclusion"
-  | "custom";
+  | "custom"
+  | "focus_time";
 
-/** calendar_events.status — Google Event status + 'completed' 확장 */
+/** calendar_events.status — Google Event status (순수 이벤트 상태) */
 export type EventStatus =
   | "confirmed"
   | "tentative"
-  | "cancelled"
-  | "completed";
+  | "cancelled";
 
 /** calendar_events.transparency — Google transparency */
 export type EventTransparency = "opaque" | "transparent";
@@ -91,25 +80,13 @@ export type EventVisibility =
   | "confidential";
 
 /** calendar_events.container_type — Dock 배치용 */
-export type ContainerType = "daily" | "weekly" | "unfinished";
+export type ContainerType = "daily";
 
 /** event_study_data.content_type */
 export type StudyContentType = "book" | "lecture" | "custom";
 
-/** event_study_data.completion_status */
-export type CompletionStatus =
-  | "pending"
-  | "in_progress"
-  | "completed"
-  | "skipped";
-
-/** availability_windows.window_type */
-export type WindowType =
-  | "study"
-  | "self_study"
-  | "break"
-  | "academy"
-  | "blocked";
+/** event_study_data.done — Task 완료 여부 (boolean, 단일 진실 공급원) */
+// CompletionStatus enum은 done boolean으로 대체됨
 
 // ============================================
 // 조합 타입 (조회 결과 + JOIN)
@@ -125,10 +102,13 @@ export type CalendarWithEvents = Calendar & {
   calendar_events: CalendarEvent[];
 };
 
-/** availability_schedules + availability_windows[] 조회 결과 */
-export type AvailabilityScheduleWithWindows = AvailabilitySchedule & {
-  availability_windows: AvailabilityWindow[];
+/** calendar_list + calendars JOIN 결과 */
+export type CalendarListWithCalendar = CalendarList & {
+  calendars: Calendar;
 };
+
+/** CalendarList 엔트리에 access_role 리터럴 적용 */
+export type CalendarAccessRole = "owner" | "writer" | "reader";
 
 // ============================================
 // metadata JSONB 타입 (Google extendedProperties 대응)
@@ -140,10 +120,11 @@ export type EventMetadata = {
   google_etag?: string;
   google_html_link?: string;
   google_event_id?: string;
+  google_sync_status?: 'synced' | 'pending' | 'failed' | 'not_applicable';
 
   /** 마이그레이션 원본 추적 */
   migrated_from?: {
-    table: "student_plan" | "ad_hoc_plans" | "student_non_study_time";
+    table: "student_plan";
     id: string;
     migrated_at: string;
   };
@@ -178,15 +159,6 @@ export type CalendarEventFilters = {
   }[];
   limit?: number;
   offset?: number;
-};
-
-/** 가용성 윈도우 조회 필터 */
-export type AvailabilityWindowFilters = {
-  scheduleId: string;
-  windowType?: WindowType | WindowType[];
-  date?: string; // 특정 날짜의 오버라이드 조회
-  dayOfWeek?: number; // 1=월..7=일
-  includeDisabled?: boolean;
 };
 
 // ============================================

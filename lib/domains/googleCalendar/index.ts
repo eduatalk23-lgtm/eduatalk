@@ -22,6 +22,13 @@ export {
 // Enqueue (fire-and-forget)
 export { enqueueGoogleCalendarSync } from "./enqueue";
 
+// Calendar Events Sync
+export {
+  syncCalendarEventToGoogle,
+  enqueueCalendarEventSync,
+  mapCalendarEventToGoogleEvent,
+} from "./calendarEventSync";
+
 // Settings
 export { getConnectionStatus, getSyncQueueStats } from "./settingsService";
 

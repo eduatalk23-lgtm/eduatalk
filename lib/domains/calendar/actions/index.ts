@@ -1,10 +1,16 @@
 export {
-  getCalendarsByPlannerAction,
-  getCalendarsByOwnerAction,
   createCalendarAction,
-  createPrimaryCalendarAction,
   updateCalendarAction,
   deleteCalendarAction,
+  // CalendarSettings CRUD (Planner 대체)
+  createCalendarWithSettingsAction,
+  getCalendarSettingsAction,
+  getStudentCalendarSettingsAction,
+  updateCalendarSettingsAction,
+  deleteCalendarCascadeAction,
+  getStudentCalendarsAction,
+  getCalendarListAction,
+  updateCalendarListEntryAction,
 } from "./calendars";
 
 export {
@@ -20,14 +26,3 @@ export {
   deleteEventsByPlanGroupAction,
 } from "./events";
 
-export {
-  getSchedulesByPlannerAction,
-  getDefaultScheduleAction,
-  createScheduleAction,
-  createScheduleWithWindowsAction,
-  deleteScheduleAction,
-  createWindowAction,
-  updateWindowAction,
-  deleteWindowAction,
-  getEffectiveWindowsAction,
-} from "./availability";
