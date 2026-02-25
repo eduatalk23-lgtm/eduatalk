@@ -1,0 +1,93 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+import { supabase } from "@/lib/supabase/client";
+
+const HEARTBEAT_INTERVAL = 30_000; // 30초
+
+/**
+ * 앱 전역에서 사용자 온라인 상태를 추적.
+ * 레이아웃에서 한 번만 마운트.
+ *
+ * 두 가지 메커니즘을 병행합니다:
+ * 1. Supabase Presence 채널 — 클라이언트 간 실시간 상태 공유
+ * 2. DB heartbeat (user_presence 테이블) — 서버 사이드 Push 스킵 판단
+ */
+export function useAppPresence(userId: string | null) {
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    // --- 1. Supabase Presence channel ---
+    const channel = supabase.channel("app-presence", {
+      config: { presence: { key: userId } },
+    });
+
+    channel.subscribe(async (status) => {
+      if (status === "SUBSCRIBED") {
+        await channel.track({
+          user_id: userId,
+          online_at: new Date().toISOString(),
+          status: "active",
+        });
+      }
+    });
+
+    // --- 2. DB presence heartbeat ---
+    const upsertPresence = (status: "active" | "idle" | "offline") => {
+      supabase
+        .from("user_presence")
+        .upsert({
+          user_id: userId,
+          status,
+          updated_at: new Date().toISOString(),
+        })
+        .then(({ error }) => {
+          if (error) {
+            console.warn("[Presence] DB upsert failed:", error.message);
+          }
+        });
+    };
+
+    // 초기 active 상태 기록
+    upsertPresence("active");
+
+    // 30초마다 heartbeat (탭이 보이는 동안만)
+    heartbeatRef.current = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        upsertPresence("active");
+      }
+    }, HEARTBEAT_INTERVAL);
+
+    // --- 3. Visibility change ---
+    const handleVisibility = () => {
+      const status = document.hidden ? "idle" : "active";
+
+      // Supabase Presence 업데이트
+      channel.track({
+        user_id: userId,
+        online_at: new Date().toISOString(),
+        status,
+      });
+
+      // DB presence 업데이트
+      upsertPresence(status);
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    // --- 4. Cleanup ---
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      if (heartbeatRef.current) {
+        clearInterval(heartbeatRef.current);
+        heartbeatRef.current = null;
+      }
+      upsertPresence("offline");
+      channel.untrack();
+      supabase.removeChannel(channel);
+    };
+  }, [userId]);
+}
+
