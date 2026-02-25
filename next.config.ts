@@ -1,32 +1,8 @@
 import type { NextConfig } from "next";
-import withPWA from "next-pwa";
 
 // 번들 분석기 설정
 const withBundleAnalyzer = require("@next/bundle-analyzer")({
   enabled: process.env.ANALYZE === "true",
-});
-
-// PWA 설정
-const pwaConfig = withPWA({
-  dest: "public",
-  register: true,
-  skipWaiting: true,
-  disable: process.env.NODE_ENV === "development", // 개발 환경에서는 비활성화
-  buildExcludes: [/app-build-manifest\.json$/],
-  runtimeCaching: [
-    {
-      urlPattern: /^https?.*/,
-      handler: "NetworkFirst",
-      options: {
-        cacheName: "offlineCache",
-        expiration: {
-          maxEntries: 200,
-          maxAgeSeconds: 86400, // 24시간
-        },
-        networkTimeoutSeconds: 10,
-      },
-    },
-  ],
 });
 
 const nextConfig: NextConfig = {
@@ -147,5 +123,5 @@ const nextConfig: NextConfig = {
   },
 };
 
-// PWA와 Bundle Analyzer를 함께 적용
-export default withBundleAnalyzer(pwaConfig(nextConfig));
+// Bundle Analyzer 적용 (SW는 public/sw.js에서 직접 서빙)
+export default withBundleAnalyzer(nextConfig);

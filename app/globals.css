@@ -14,6 +14,9 @@
 */
 @variant dark (&:where(.dark, .dark));
 
+/* Touch-only variant: applies styles only on devices without hover (touch screens) */
+@variant touch (@media (hover: none));
+
 /* 
   CSS Variable System 
   - Supports both system preference and class-based dark mode
@@ -360,6 +363,13 @@
 /* Global Reset & Base Styles */
 html {
   scrollbar-gutter: stable;
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 body {
@@ -666,5 +676,138 @@ input[type="number"] {
 @media (hover: none) {
   .hover-hover-only {
     display: none !important;
+  }
+}
+
+/* Touch-only: hide on hover (pointer) devices */
+@media (hover: hover) {
+  .touch-only {
+    display: none !important;
+  }
+}
+
+/* Ghost block entrance animation (GCal drag style) */
+@keyframes ghost-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+}
+.animate-ghost-enter {
+  animation: ghost-enter 150ms ease-out forwards;
+}
+
+/* ============================================
+   Landing Page Utilities
+   ============================================ */
+
+@utility glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+@utility glass-card-dark {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@utility dot-grid {
+  background-image: radial-gradient(currentColor 0.5px, transparent 0.5px);
+  background-size: 24px 24px;
+  opacity: 0.05;
+}
+
+@utility gradient-blob {
+  filter: blur(80px);
+  z-index: -1;
+}
+
+@utility hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes slide-up-sheet {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@utility animate-slide-up-sheet {
+  animation: slide-up-sheet 0.3s ease-out both;
+}
+
+@keyframes slide-down-sheet {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@utility animate-slide-down-sheet {
+  animation: slide-down-sheet 0.25s ease-in both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-slide-up-sheet,
+  .animate-slide-down-sheet {
+    animation: none;
+  }
+}
+
+/* ============================================
+   Landing Page Scroll Reveal Animations
+   ============================================ */
+
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility animate-reveal-up {
+  animation: reveal-up 0.6s ease-out both;
+}
+
+@keyframes count-in {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@utility animate-count-in {
+  animation: count-in 0.4s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-reveal-up,
+  .animate-count-in {
+    animation: none;
+    opacity: 1;
+    transform: none;
   }
 }

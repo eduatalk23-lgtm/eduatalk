@@ -3,9 +3,12 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import InstallPrompt from "@/components/ui/InstallPrompt";
+import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
 import { SkipLink } from "@/components/layout/SkipLink";
 import { GlobalErrorBoundary } from "@/components/errors/GlobalErrorBoundary";
 import { FloatingChatWidget } from "@/components/chat/FloatingChatWidget";
+import { PushSubscriptionManager } from "@/components/push/PushSubscriptionManager";
+import { AppPresenceProvider } from "@/components/push/AppPresenceProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -127,6 +130,9 @@ export default function RootLayout({
             <SkipLink />
             {children}
             <InstallPrompt />
+            <ServiceWorkerRegistrar />
+            <PushSubscriptionManager />
+            <AppPresenceProvider />
             <FloatingChatWidget />
           </Providers>
         </GlobalErrorBoundary>

@@ -171,7 +171,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const isPublicPath = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
+  const isPublicPath = pathname === "/" || PUBLIC_PATHS.some((path) => pathname.startsWith(path));
 
   // 공개 경로 + 인증 쿠키 없음 → getUser() 호출 없이 즉시 반환 (핵심 최적화)
   if (isPublicPath && !hasAuthCookies(request)) {

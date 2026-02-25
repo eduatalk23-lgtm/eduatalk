@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>성적 조회 탭 UI 시안</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; background: #f8fafc; }
+  .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px; font-size: 12px; font-weight: 600; }
+  .grade-1 { background: #dbeafe; color: #1e40af; }
+  .grade-2 { background: #d1fae5; color: #065f46; }
+  .grade-3 { background: #fef3c7; color: #92400e; }
+  .grade-4 { background: #fed7aa; color: #9a3412; }
+  .grade-5 { background: #fecaca; color: #991b1b; }
+  .grade-6 { background: #e9d5ff; color: #6b21a8; }
+  .grade-7, .grade-8, .grade-9 { background: #f3f4f6; color: #374151; }
+  .tab-active { border-bottom: 2px solid #4f46e5; color: #4f46e5; font-weight: 600; }
+  .tab-inactive { border-bottom: 2px solid transparent; color: #6b7280; }
+  .sub-tab-active { background: #4f46e5; color: white; }
+  .sub-tab-inactive { background: #f3f4f6; color: #374151; }
+  .tooltip { position: relative; }
+  .tooltip:hover::after {
+    content: attr(data-tip);
+    position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+    background: #1f2937; color: white; padding: 4px 8px; border-radius: 6px;
+    font-size: 12px; white-space: nowrap; z-index: 10;
+  }
+  .edit-highlight { background: #eff6ff; }
+  tr:hover { background: #f9fafb; }
+  .section-label { font-size: 11px; color: #9ca3af; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; }
+</style>
+</head>
+<body class="p-4 md:p-8">
+
+<!-- Page Header -->
+<div class="mx-auto max-w-7xl">
+  <div class="mb-6 flex items-center gap-2 text-sm text-gray-500">
+    <span>학생 목록</span> <span>/</span> <span>김민준 학생 상세</span>
+  </div>
+  <h1 class="mb-8 text-2xl font-bold text-gray-900">김민준 학생 상세</h1>
+
+  <!-- Main Tabs -->
+  <div class="mb-6 border-b border-gray-200">
+    <nav class="-mb-px flex gap-8">
+      <button class="tab-inactive whitespace-nowrap px-1 py-4 text-sm">📚 콘텐츠</button>
+      <button class="tab-active whitespace-nowrap px-1 py-4 text-sm">📊 성적</button>
+      <button class="tab-inactive whitespace-nowrap px-1 py-4 text-sm">⏱️ 학습기록</button>
+      <button class="tab-inactive whitespace-nowrap px-1 py-4 text-sm">📈 분석 리포트</button>
+      <button class="tab-inactive whitespace-nowrap px-1 py-4 text-sm">✓ 출석</button>
+      <button class="tab-inactive whitespace-nowrap px-1 py-4 text-sm">⏰ 시간관리</button>
+      <button class="tab-inactive whitespace-nowrap px-1 py-4 text-sm">⚠️ 위험도/추천</button>
+    </nav>
+  </div>
+
+  <!-- Score Sub-Tabs -->
+  <div class="mb-6 flex gap-2">
+    <button class="sub-tab-inactive rounded-lg px-4 py-2 text-sm font-medium">성적 분석</button>
+    <button class="sub-tab-active rounded-lg px-4 py-2 text-sm font-medium">성적 조회</button>
+    <button class="sub-tab-inactive rounded-lg px-4 py-2 text-sm font-medium">성적 입력</button>
+  </div>
+
+  <!-- ===================== -->
+  <!-- 성적 조회 탭 시작      -->
+  <!-- ===================== -->
+
+  <!-- 필터 바 + 요약 카드 -->
+  <div class="mb-6 grid gap-4 md:grid-cols-[1fr_auto]">
+    <!-- 필터 영역 -->
+    <div class="flex flex-wrap items-center gap-3">
+      <!-- 성적 유형 토글 -->
+      <div class="flex rounded-lg border border-gray-200 bg-white p-0.5">
+        <button class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white">내신</button>
+        <button class="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50">모의고사</button>
+      </div>
+
+      <!-- 학년 필터 -->
+      <select class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+        <option>전체 학년</option>
+        <option selected>1학년</option>
+        <option>2학년</option>
+        <option>3학년</option>
+      </select>
+
+      <!-- 학기 필터 -->
+      <select class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+        <option>전체 학기</option>
+        <option selected>1학기</option>
+        <option>2학기</option>
+      </select>
+
+      <!-- 교과군 필터 -->
+      <select class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+        <option>전체 교과군</option>
+        <option>국어</option>
+        <option>수학</option>
+        <option>영어</option>
+        <option>사회</option>
+        <option>과학</option>
+        <option>한국사</option>
+      </select>
+    </div>
+
+    <!-- 액션 영역 -->
+    <div class="flex items-center gap-2">
+      <button class="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600 hover:bg-gray-50">
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        CSV 다운로드
+      </button>
+    </div>
+  </div>
+
+  <!-- 요약 카드 -->
+  <div class="mb-6 grid grid-cols-2 gap-3 md:grid-cols-5">
+    <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+      <div class="section-label mb-1">총 과목 수</div>
+      <div class="text-2xl font-bold text-gray-900">8<span class="ml-1 text-sm font-normal text-gray-400">과목</span></div>
+    </div>
+    <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+      <div class="section-label mb-1">평균 등급</div>
+      <div class="text-2xl font-bold text-indigo-600">2.3</div>
+    </div>
+    <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+      <div class="section-label mb-1">평균 원점수</div>
+      <div class="text-2xl font-bold text-gray-900">87.4<span class="ml-1 text-sm font-normal text-gray-400">점</span></div>
+    </div>
+    <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+      <div class="section-label mb-1">총 이수단위</div>
+      <div class="text-2xl font-bold text-gray-900">27<span class="ml-1 text-sm font-normal text-gray-400">단위</span></div>
+    </div>
+    <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+      <div class="section-label mb-1">추정 백분위 평균</div>
+      <div class="text-2xl font-bold text-emerald-600">89.2<span class="ml-1 text-sm font-normal text-gray-400">%</span></div>
+    </div>
+  </div>
+
+  <!-- ============================= -->
+  <!-- 내신 성적 테이블               -->
+  <!-- ============================= -->
+  <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+    <!-- 테이블 헤더 (선택된 행 액션 바) -->
+    <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+      <div class="flex items-center gap-3">
+        <h3 class="text-sm font-semibold text-gray-900">1학년 1학기 내신 성적</h3>
+        <span class="badge grade-2">8과목</span>
+      </div>
+      <div class="flex items-center gap-2 text-xs text-gray-400">
+        <span>행을 클릭하면 상세/편집 모드로 전환됩니다</span>
+      </div>
+    </div>
+
+    <!-- 메인 테이블 -->
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-gray-100 bg-gray-50/60 text-left">
+            <th class="w-8 px-4 py-3">
+              <input type="checkbox" class="rounded border-gray-300">
+            </th>
+            <th class="px-3 py-3 font-medium text-gray-500">교과군</th>
+            <th class="px-3 py-3 font-medium text-gray-500">과목</th>
+            <th class="px-3 py-3 font-medium text-gray-500">과목 유형</th>
+            <th class="px-3 py-3 text-center font-medium text-gray-500">단위수</th>
+            <th class="px-3 py-3 text-center font-medium text-gray-500">원점수</th>
+            <th class="px-3 py-3 text-center font-medium text-gray-500">과목평균</th>
+            <th class="px-3 py-3 text-center font-medium text-gray-500">표준편차</th>
+            <th class="px-3 py-3 text-center font-medium text-gray-500">석차등급</th>
+            <th class="px-3 py-3 text-center font-medium text-gray-500">성취도</th>
+            <th class="px-3 py-3 text-center font-medium text-gray-500">
+              <span class="tooltip" data-tip="성적 산출 엔진이 자동 계산">추정 백분위</span>
+            </th>
+            <th class="px-3 py-3 text-center font-medium text-gray-500">
+              <span class="tooltip" data-tip="9등급 변환값 (자동 계산)">변환등급</span>
+            </th>
+            <th class="w-10 px-3 py-3"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+          <!-- Row 1 - 국어 -->
+          <tr class="cursor-pointer transition hover:bg-gray-50">
+            <td class="px-4 py-3"><input type="checkbox" class="rounded border-gray-300"></td>
+            <td class="px-3 py-3">
+              <span class="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">국어</span>
+            </td>
+            <td class="px-3 py-3 font-medium text-gray-900">국어</td>
+            <td class="px-3 py-3 text-gray-500">공통과목</td>
+            <td class="px-3 py-3 text-center text-gray-700">4</td>
+            <td class="px-3 py-3 text-center font-semibold text-gray-900">92</td>
+            <td class="px-3 py-3 text-center text-gray-600">68.3</td>
+            <td class="px-3 py-3 text-center text-gray-600">14.2</td>
+            <td class="px-3 py-3 text-center">
+              <span class="badge grade-1">1</span>
+            </td>
+            <td class="px-3 py-3 text-center">
+              <span class="badge grade-1">A</span>
+            </td>
+            <td class="px-3 py-3 text-center font-medium text-emerald-600">95.2%</td>
+            <td class="px-3 py-3 text-center">
+              <span class="badge grade-1">1.0</span>
+            </td>
+            <td class="px-3 py-3 text-center">
+              <button class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01"/></svg>
+              </button>
+            </td>
+          </tr>
+
+          <!-- Row 2 - 수학 -->
+          <tr class="cursor-pointer transition hover:bg-gray-50">
+            <td class="px-4 py-3"><input type="checkbox" class="rounded border-gray-300"></td>
+            <td class="px-3 py-3">
+              <span class="rounded-md bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700">수학</span>
+            </td>
+            <td class="px-3 py-3 font-medium text-gray-900">수학</td>
+            <td class="px-3 py-3 text-gray-500">공통과목</td>
+            <td class="px-3 py-3 text-center text-gray-700">4</td>
+            <td class="px-3 py-3 text-center font-semibold text-gray-900">88</td>
+            <td class="px-3 py-3 text-center text-gray-600">62.1</td>
+            <td class="px-3 py-3 text-center text-gray-600">16.8</td>
+            <td class="px-3 py-3 text-center">
+              <span class="badge grade-2">2</span>
+            </td>
+            <td class="px-3 py-3 text-center">
+              <span class="badge grade-1">A</span>
+            </td>
+            <td class="px-3 py-3 text-center font-medium text-emerald-600">91.5%</td>
+            <td class="px-3 py-3 text-center">
+              <span class="badge grade-1">1.3</span>
+            </td>
+            <td class="px-3 py-3 text-center">
+              <button class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01"/></svg>
+              </button>
+            </td>
+          </tr>
+
+          <!-- Row 3 - 영어 -->
+          <tr class="cursor-pointer transition hover:bg-gray-50">
+            <td class="px-4 py-3"><input type="checkbox" class="rounded border-gray-300"></td>
+            <td class="px-3 py-3">
+              <span class="rounded-md bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">영어</span>
+            </td>
+            <td class="px-3 py-3 font-medium text-gray-900">영어</td>
+            <td class="px-3 py-3 text-gray-500">공통과목</td>
+            <td class="px-3 py-3 text-center text-gray-700">4</td>
+            <td class="px-3 py-3 text-center font-semibold text-gray-900">95</td>
+            <td class="px-3 py-3 text-center text-gray-600">71.5</td>
+            <td class="px-3 py-3 text-center text-gray-600">12.3</td>
+            <td class="px-3 py-3 text-center">
+              <span class="badge grade-1">1</span>
+            </td>
+            <td class="px-3 py-3 text-center">
+              <span class="badge grade-1">A</span>
+            </td>
+            <td class="px-3 py-3 text-center font-medium text-emerald-600">97.1%</td>
+            <td class="px-3 py-3 text-center">
+              <span class="badge grade-1">1.0</span>
+            </td>
+            <td class="px-3 py-3 text-center">
+              <button class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01"/></svg>
+              </button>
+            </td>
+          </tr>
+
+          <!-- Row 4 - 한국사 -->
+          <tr class="cursor-pointer transition hover:bg-gray-50">
+            <td class="px-4 py-3"><input type="checkbox" class="rounded border-gray-300"></td>
+            <td class="px-3 py-3">
+              <span class="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">사회</span>
+            </td>
+            <td class="px-3 py-3 font-medium text-gray-900">한국사</td>
+            <td class="px-3 py-3 text-gray-500">공통과목</td>
+            <td class="px-3 py-3 text-center text-gray-700">3</td>
+            <td class="px-3 py-3 text-center font-semibold text-gray-900">85</td>
+            <td class="px-3 py-3 text-center text-gray-600">65.2</td>
+            <td class="px-3 py-3 text-center text-gray-600">13.5</td>
+            <td class="px-3 py-3 text-center">
+              <span class="badge grade-2">2</span>
+            </td>
+            <td class="px-3 py-3 text-center">
+              <span class="badge grade-2">B</span>
+            </td>
+            <td class="px-3 py-3 text-center font-medium text-emerald-600">88.3%</td>
+            <td class="px-3 py-3 text-center">
+              <span class="badge grade-2">2.1</span>
+            </td>
+            <td class="px-3 py-3 text-center">
+              <button class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01"/></svg>
+              </button>
+            </td>
+          </tr>
+
+          <!-- Row 5 - 통합과학 -->
+          <tr class="cursor-pointer transition hover:bg-gray-50">
+            <td class="px-4 py-3"><input type="checkbox" class="rounded border-gray-300"></td>
+            <td class="px-3 py-3">
+              <span class="rounded-md bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-700">과학</span>
+            </td>
+            <td class="px-3 py-3 font-medium text-gray-900">통합과학</td>
+            <td class="px-3 py-3 text-gray-500">공통과목</td>
+            <td class="px-3 py-3 text-center text-gray-700">4</td>
+            <td class="px-3 py-3 text-center font-semibold text-gray-900">78</td>
+            <td class="px-3 py-3 text-center text-gray-600">59.8</td>
+            <td class="px-3 py-3 text-center text-gray-600">15.7</td>
+            <td class="px-3 py-3 text-center">
+              <span class="badge grade-3">3</span>
+            </td>
+            <td class="px-3 py-3 text-center">
+              <span class="badge grade-2">B</span>
+            </td>
+            <td class="px-3 py-3 text-center font-medium text-yellow-600">82.5%</td>
+            <td class="px-3 py-3 text-center">
+              <span class="badge grade-2">2.8</span>
+            </td>
+            <td class="px-3 py-3 text-center">
+              <button class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01"/></svg>
+              </button>
+            </td>
+          </tr>
+
+          <!-- Row 6 - 과학탐구실험 (성취평가제) -->
+          <tr class="cursor-pointer transition hover:bg-gray-50">
+            <td class="px-4 py-3"><input type="checkbox" class="rounded border-gray-300"></td>
+            <td class="px-3 py-3">
+              <span class="rounded-md bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-700">과학</span>
+            </td>
+            <td class="px-3 py-3">
+              <span class="font-medium text-gray-900">과학탐구실험</span>
+              <span class="ml-1.5 rounded bg-orange-50 px-1.5 py-0.5 text-[10px] font-medium text-orange-600">P/F</span>
+            </td>
+            <td class="px-3 py-3 text-gray-500">공통과목</td>
+            <td class="px-3 py-3 text-center text-gray-700">2</td>
+            <td class="px-3 py-3 text-center text-gray-400">-</td>
+            <td class="px-3 py-3 text-center text-gray-400">-</td>
+            <td class="px-3 py-3 text-center text-gray-400">-</td>
+            <td class="px-3 py-3 text-center text-gray-400">-</td>
+            <td class="px-3 py-3 text-center">
+              <span class="badge grade-1">A</span>
+            </td>
+            <td class="px-3 py-3 text-center text-gray-400">-</td>
+            <td class="px-3 py-3 text-center text-gray-400">-</td>
+            <td class="px-3 py-3 text-center">
+              <button class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01"/></svg>
+              </button>
+            </td>
+          </tr>
+
+          <!-- Row 7 - 통합사회 -->
+          <tr class="cursor-pointer transition hover:bg-gray-50">
+            <td class="px-4 py-3"><input type="checkbox" class="rounded border-gray-300"></td>
+            <td class="px-3 py-3">
+              <span class="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">사회</span>
+            </td>
+            <td class="px-3 py-3 font-medium text-gray-900">통합사회</td>
+            <td class="px-3 py-3 text-gray-500">공통과목</td>
+            <td class="px-3 py-3 text-center text-gray-700">3</td>
+            <td class="px-3 py-3 text-center font-semibold text-gray-900">90</td>
+            <td class="px-3 py-3 text-center text-gray-600">67.1</td>
+            <td class="px-3 py-3 text-center text-gray-600">13.0</td>
+            <td class="px-3 py-3 text-center">
+              <span class="badge grade-2">2</span>
+            </td>
+            <td class="px-3 py-3 text-center">
+              <span class="badge grade-1">A</span>
+            </td>
+            <td class="px-3 py-3 text-center font-medium text-emerald-600">90.8%</td>
+            <td class="px-3 py-3 text-center">
+              <span class="badge grade-1">1.5</span>
+            </td>
+            <td class="px-3 py-3 text-center">
+              <button class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01"/></svg>
+              </button>
+            </td>
+          </tr>
+
+          <!-- Row 8 - 체육 (성취평가제) -->
+          <tr class="cursor-pointer transition hover:bg-gray-50">
+            <td class="px-4 py-3"><input type="checkbox" class="rounded border-gray-300"></td>
+            <td class="px-3 py-3">
+              <span class="rounded-md bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700">체육</span>
+            </td>
+            <td class="px-3 py-3">
+              <span class="font-medium text-gray-900">체육</span>
+              <span class="ml-1.5 rounded bg-orange-50 px-1.5 py-0.5 text-[10px] font-medium text-orange-600">P/F</span>
+            </td>
+            <td class="px-3 py-3 text-gray-500">공통과목</td>
+            <td class="px-3 py-3 text-center text-gray-700">3</td>
+            <td class="px-3 py-3 text-center text-gray-400">-</td>
+            <td class="px-3 py-3 text-center text-gray-400">-</td>
+            <td class="px-3 py-3 text-center text-gray-400">-</td>
+            <td class="px-3 py-3 text-center text-gray-400">-</td>
+            <td class="px-3 py-3 text-center">
+              <span class="badge grade-1">A</span>
+            </td>
+            <td class="px-3 py-3 text-center text-gray-400">-</td>
+            <td class="px-3 py-3 text-center text-gray-400">-</td>
+            <td class="px-3 py-3 text-center">
+              <button class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01"/></svg>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 선택된 행 액션 바 (체크 시 나타남) -->
+    <div class="border-t border-gray-100 bg-indigo-50/50 px-4 py-2.5" id="bulk-action-bar">
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-indigo-700">
+          <strong>2개</strong> 항목 선택됨
+        </span>
+        <div class="flex items-center gap-2">
+          <button class="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50">
+            선택 삭제
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================= -->
+  <!-- 행 클릭 시 상세/편집 패널      -->
+  <!-- ============================= -->
+  <div class="mt-4 mb-8">
+    <div class="rounded-xl border-2 border-indigo-200 bg-white shadow-lg">
+      <!-- 패널 헤더 -->
+      <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+        <div class="flex items-center gap-3">
+          <span class="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">국어</span>
+          <h3 class="text-base font-semibold text-gray-900">국어 - 1학년 1학기</h3>
+          <span class="text-xs text-gray-400">공통과목 | 4단위</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+            저장
+          </button>
+          <button class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
+            취소
+          </button>
+          <button class="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-500 hover:bg-red-50">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- 편집 폼 -->
+      <div class="grid gap-6 p-5 md:grid-cols-2">
+        <!-- 좌측: 입력 성적 -->
+        <div>
+          <h4 class="mb-3 text-sm font-semibold text-gray-700">입력 성적</h4>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="mb-1 block text-xs text-gray-500">원점수</label>
+              <input type="number" value="92" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400">
+            </div>
+            <div>
+              <label class="mb-1 block text-xs text-gray-500">과목평균</label>
+              <input type="number" value="68.3" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400">
+            </div>
+            <div>
+              <label class="mb-1 block text-xs text-gray-500">표준편차</label>
+              <input type="number" value="14.2" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400">
+            </div>
+            <div>
+              <label class="mb-1 block text-xs text-gray-500">석차등급</label>
+              <select class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400">
+                <option selected>1</option>
+                <option>2</option>
+                <option>3</option>
+                <option>4</option>
+                <option>5</option>
+                <option>6</option>
+                <option>7</option>
+                <option>8</option>
+                <option>9</option>
+              </select>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs text-gray-500">수강자수</label>
+              <input type="number" value="350" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400">
+            </div>
+            <div>
+              <label class="mb-1 block text-xs text-gray-500">석차</label>
+              <input type="number" value="12" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400">
+            </div>
+            <div>
+              <label class="mb-1 block text-xs text-gray-500">성취도</label>
+              <select class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400">
+                <option selected>A</option>
+                <option>B</option>
+                <option>C</option>
+                <option>D</option>
+                <option>E</option>
+              </select>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs text-gray-500">이수단위</label>
+              <input type="number" value="4" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400">
+            </div>
+          </div>
+
+          <!-- 성취도 비율 (아코디언) -->
+          <details class="mt-4 rounded-lg border border-gray-100 bg-gray-50/50">
+            <summary class="cursor-pointer px-3 py-2 text-xs font-medium text-gray-500 hover:text-gray-700">
+              성취도 비율 상세 ▾
+            </summary>
+            <div class="grid grid-cols-5 gap-2 px-3 pb-3 pt-1">
+              <div>
+                <label class="mb-0.5 block text-[10px] text-gray-400">A비율(%)</label>
+                <input type="number" value="25.3" class="w-full rounded border border-gray-200 px-2 py-1 text-xs">
+              </div>
+              <div>
+                <label class="mb-0.5 block text-[10px] text-gray-400">B비율(%)</label>
+                <input type="number" value="30.1" class="w-full rounded border border-gray-200 px-2 py-1 text-xs">
+              </div>
+              <div>
+                <label class="mb-0.5 block text-[10px] text-gray-400">C비율(%)</label>
+                <input type="number" value="25.8" class="w-full rounded border border-gray-200 px-2 py-1 text-xs">
+              </div>
+              <div>
+                <label class="mb-0.5 block text-[10px] text-gray-400">D비율(%)</label>
+                <input type="number" value="12.5" class="w-full rounded border border-gray-200 px-2 py-1 text-xs">
+              </div>
+              <div>
+                <label class="mb-0.5 block text-[10px] text-gray-400">E비율(%)</label>
+                <input type="number" value="6.3" class="w-full rounded border border-gray-200 px-2 py-1 text-xs">
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <!-- 우측: 자동 산출 결과 (읽기전용) -->
+        <div>
+          <h4 class="mb-3 text-sm font-semibold text-gray-700">
+            산출 결과
+            <span class="ml-2 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-600">자동 계산</span>
+          </h4>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="rounded-lg border border-emerald-100 bg-emerald-50/50 p-3">
+              <div class="text-xs text-emerald-600">추정 백분위</div>
+              <div class="mt-1 text-xl font-bold text-emerald-700">95.2<span class="text-sm font-normal">%</span></div>
+            </div>
+            <div class="rounded-lg border border-blue-100 bg-blue-50/50 p-3">
+              <div class="text-xs text-blue-600">9등급 변환값</div>
+              <div class="mt-1 text-xl font-bold text-blue-700">1.0</div>
+            </div>
+            <div class="rounded-lg border border-purple-100 bg-purple-50/50 p-3">
+              <div class="text-xs text-purple-600">추정 표준편차</div>
+              <div class="mt-1 text-xl font-bold text-purple-700">14.8</div>
+            </div>
+            <div class="rounded-lg border border-amber-100 bg-amber-50/50 p-3">
+              <div class="text-xs text-amber-600">조정등급</div>
+              <div class="mt-1 text-xl font-bold text-amber-700">1.0</div>
+            </div>
+          </div>
+
+          <!-- 산출 수식 설명 -->
+          <div class="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-3">
+            <div class="text-xs font-medium text-gray-500">산출 방법</div>
+            <div class="mt-1.5 space-y-1 text-xs text-gray-400">
+              <p>Z-score = (92 - 68.3) / 14.2 = <strong class="text-gray-600">1.669</strong></p>
+              <p>백분위 (Z기반) = <strong class="text-gray-600">95.24%</strong></p>
+              <p>석차등급 MEDIAN 백분위 = <strong class="text-gray-600">96.00%</strong></p>
+              <p>조정등급 = min(Z등급, 석차등급) = min(1.0, 1.0) = <strong class="text-gray-600">1.0</strong></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================= -->
+  <!-- 모의고사 탭 (참고)             -->
+  <!-- ============================= -->
+  <div class="mt-8 mb-4">
+    <div class="mb-4 flex items-center gap-2 text-sm text-gray-400">
+      <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      모의고사 토글 시 아래와 같이 표시됩니다
+    </div>
+  </div>
+
+  <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+    <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+      <div class="flex items-center gap-3">
+        <h3 class="text-sm font-semibold text-gray-900">1학년 모의고사 성적</h3>
+        <span class="badge grade-2">3회</span>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-gray-100 bg-gray-50/60 text-left">
+            <th class="w-8 px-4 py-3"><input type="checkbox" class="rounded border-gray-300"></th>
+            <th class="px-3 py-3 font-medium text-gray-500">시험명</th>
+            <th class="px-3 py-3 font-medium text-gray-500">시험일자</th>
+            <th class="px-3 py-3 font-medium text-gray-500">교과군</th>
+            <th class="px-3 py-3 font-medium text-gray-500">과목</th>
+            <th class="px-3 py-3 text-center font-medium text-gray-500">원점수</th>
+            <th class="px-3 py-3 text-center font-medium text-gray-500">표준점수</th>
+            <th class="px-3 py-3 text-center font-medium text-gray-500">백분위</th>
+            <th class="px-3 py-3 text-center font-medium text-gray-500">등급</th>
+            <th class="w-10 px-3 py-3"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+          <tr class="cursor-pointer transition hover:bg-gray-50">
+            <td class="px-4 py-3"><input type="checkbox" class="rounded border-gray-300"></td>
+            <td class="px-3 py-3 font-medium text-gray-900">3월 전국연합</td>
+            <td class="px-3 py-3 text-gray-500">2025-03-06</td>
+            <td class="px-3 py-3"><span class="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">국어</span></td>
+            <td class="px-3 py-3 text-gray-700">국어</td>
+            <td class="px-3 py-3 text-center font-semibold text-gray-900">88</td>
+            <td class="px-3 py-3 text-center text-gray-700">132</td>
+            <td class="px-3 py-3 text-center font-medium text-emerald-600">93%</td>
+            <td class="px-3 py-3 text-center"><span class="badge grade-1">1</span></td>
+            <td class="px-3 py-3 text-center">
+              <button class="rounded p-1 text-gray-400 hover:bg-gray-100"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01"/></svg></button>
+            </td>
+          </tr>
+          <tr class="cursor-pointer transition hover:bg-gray-50">
+            <td class="px-4 py-3"><input type="checkbox" class="rounded border-gray-300"></td>
+            <td class="px-3 py-3 font-medium text-gray-900">3월 전국연합</td>
+            <td class="px-3 py-3 text-gray-500">2025-03-06</td>
+            <td class="px-3 py-3"><span class="rounded-md bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700">수학</span></td>
+            <td class="px-3 py-3 text-gray-700">수학</td>
+            <td class="px-3 py-3 text-center font-semibold text-gray-900">92</td>
+            <td class="px-3 py-3 text-center text-gray-700">138</td>
+            <td class="px-3 py-3 text-center font-medium text-emerald-600">96%</td>
+            <td class="px-3 py-3 text-center"><span class="badge grade-1">1</span></td>
+            <td class="px-3 py-3 text-center">
+              <button class="rounded p-1 text-gray-400 hover:bg-gray-100"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01"/></svg></button>
+            </td>
+          </tr>
+          <tr class="cursor-pointer transition hover:bg-gray-50">
+            <td class="px-4 py-3"><input type="checkbox" class="rounded border-gray-300"></td>
+            <td class="px-3 py-3 font-medium text-gray-900">6월 모의평가</td>
+            <td class="px-3 py-3 text-gray-500">2025-06-04</td>
+            <td class="px-3 py-3"><span class="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">국어</span></td>
+            <td class="px-3 py-3 text-gray-700">국어</td>
+            <td class="px-3 py-3 text-center font-semibold text-gray-900">85</td>
+            <td class="px-3 py-3 text-center text-gray-700">128</td>
+            <td class="px-3 py-3 text-center font-medium text-yellow-600">88%</td>
+            <td class="px-3 py-3 text-center"><span class="badge grade-2">2</span></td>
+            <td class="px-3 py-3 text-center">
+              <button class="rounded p-1 text-gray-400 hover:bg-gray-100"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01"/></svg></button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 페이지 하단 설명 -->
+  <div class="mt-12 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6">
+    <h3 class="mb-4 text-lg font-bold text-gray-800">UI 시안 설명</h3>
+    <div class="space-y-4 text-sm text-gray-600">
+      <div>
+        <h4 class="font-semibold text-gray-700">1. 서브탭 추가</h4>
+        <p>기존 "성적 분석" / "성적 입력" 사이에 <strong>"성적 조회"</strong> 서브탭 추가</p>
+      </div>
+      <div>
+        <h4 class="font-semibold text-gray-700">2. 필터 바</h4>
+        <p>내신/모의고사 토글 + 학년/학기/교과군 드롭다운. CSV 다운로드 버튼 포함</p>
+      </div>
+      <div>
+        <h4 class="font-semibold text-gray-700">3. 요약 카드</h4>
+        <p>필터된 범위의 총 과목수, 평균 등급, 평균 원점수, 총 이수단위, 추정 백분위 평균</p>
+      </div>
+      <div>
+        <h4 class="font-semibold text-gray-700">4. 성적 테이블</h4>
+        <ul class="ml-4 list-disc space-y-1">
+          <li>교과군별 색상 뱃지로 시각 구분</li>
+          <li>성취평가제 과목은 "P/F" 태그 + 원점수/평균/등급 비활성화</li>
+          <li>추정 백분위, 변환등급은 자동 산출값 (computation.ts)</li>
+          <li>체크박스로 다중 선택 → 일괄 삭제</li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="font-semibold text-gray-700">5. 상세/편집 패널</h4>
+        <ul class="ml-4 list-disc space-y-1">
+          <li>행 클릭 시 테이블 아래에 인라인 패널 펼침</li>
+          <li><strong>좌측:</strong> 모든 입력 필드 편집 가능 (성취도 비율은 아코디언)</li>
+          <li><strong>우측:</strong> 산출 엔진 결과 실시간 미리보기 (읽기전용)</li>
+          <li>산출 수식 과정도 표시 (Z-score, 백분위, 조정등급 계산 과정)</li>
+          <li>저장/취소/삭제 버튼</li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="font-semibold text-gray-700">6. 모의고사 뷰</h4>
+        <p>토글 전환 시 시험명/시험일자/원점수/표준점수/백분위/등급 컬럼으로 변경</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
