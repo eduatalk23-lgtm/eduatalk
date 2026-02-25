@@ -1,0 +1,187 @@
+-- ============================================
+-- create_plan_group_atomic() 업데이트
+-- academy_schedules INSERT 제거 (calendar_events로 마이그레이션 완료)
+-- ============================================
+--
+-- 전제:
+--   - 코드에서 p_schedules는 항상 빈 배열 []로 전달됨
+--   - 학원 일정은 RPC 호출 후 calendar_events로 별도 생성됨
+--   - academy_schedules 테이블 DROP 준비
+--
+
+CREATE OR REPLACE FUNCTION public.create_plan_group_atomic(
+  p_tenant_id uuid,
+  p_student_id uuid,
+  p_plan_group jsonb,
+  p_contents jsonb DEFAULT '[]'::jsonb,
+  p_exclusions jsonb DEFAULT '[]'::jsonb,  -- 하위 호환성 유지 (무시됨)
+  p_schedules jsonb DEFAULT '[]'::jsonb    -- 하위 호환성 유지 (무시됨)
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_group_id UUID;
+BEGIN
+  -- 1. plan_groups 생성
+  INSERT INTO plan_groups (
+    tenant_id,
+    student_id,
+    name,
+    plan_purpose,
+    scheduler_type,
+    scheduler_options,
+    period_start,
+    period_end,
+    target_date,
+    block_set_id,
+    status,
+    subject_constraints,
+    additional_period_reallocation,
+    non_study_time_blocks,
+    daily_schedule,
+    plan_type,
+    camp_template_id,
+    camp_invitation_id,
+    use_slot_mode,
+    content_slots,
+    planner_id,
+    creation_mode,
+    plan_mode,
+    is_single_day,
+    study_type,
+    strategy_days_per_week,
+    content_type,
+    content_id,
+    master_content_id,
+    start_range,
+    end_range,
+    start_detail_id,
+    end_detail_id,
+    is_single_content
+  )
+  VALUES (
+    p_tenant_id,
+    p_student_id,
+    p_plan_group->>'name',
+    p_plan_group->>'plan_purpose',
+    p_plan_group->>'scheduler_type',
+    COALESCE(p_plan_group->'scheduler_options', '{}'::JSONB),
+    (p_plan_group->>'period_start')::DATE,
+    (p_plan_group->>'period_end')::DATE,
+    NULLIF(p_plan_group->>'target_date', '')::DATE,
+    NULLIF(p_plan_group->>'block_set_id', '')::UUID,
+    COALESCE(p_plan_group->>'status', 'active'),
+    p_plan_group->'subject_constraints',
+    p_plan_group->'additional_period_reallocation',
+    p_plan_group->'non_study_time_blocks',
+    p_plan_group->'daily_schedule',
+    p_plan_group->>'plan_type',
+    NULLIF(p_plan_group->>'camp_template_id', '')::UUID,
+    NULLIF(p_plan_group->>'camp_invitation_id', '')::UUID,
+    COALESCE((p_plan_group->>'use_slot_mode')::BOOLEAN, false),
+    p_plan_group->'content_slots',
+    NULLIF(p_plan_group->>'planner_id', '')::UUID,
+    p_plan_group->>'creation_mode',
+    p_plan_group->>'plan_mode',
+    COALESCE((p_plan_group->>'is_single_day')::BOOLEAN, false),
+    p_plan_group->>'study_type',
+    (p_plan_group->>'strategy_days_per_week')::INTEGER,
+    p_plan_group->>'content_type',
+    NULLIF(p_plan_group->>'content_id', '')::UUID,
+    NULLIF(p_plan_group->>'master_content_id', '')::UUID,
+    (p_plan_group->>'start_range')::INTEGER,
+    (p_plan_group->>'end_range')::INTEGER,
+    NULLIF(p_plan_group->>'start_detail_id', '')::UUID,
+    NULLIF(p_plan_group->>'end_detail_id', '')::UUID,
+    COALESCE((p_plan_group->>'is_single_content')::BOOLEAN, false)
+  )
+  RETURNING id INTO v_group_id;
+
+  -- 2. plan_contents 생성 (선택적 - is_single_content=false일 때만 사용 권장)
+  IF p_contents IS NOT NULL AND jsonb_array_length(p_contents) > 0 THEN
+    INSERT INTO plan_contents (
+      plan_group_id,
+      tenant_id,
+      content_type,
+      content_id,
+      start_range,
+      end_range,
+      display_order,
+      master_content_id,
+      content_name,
+      subject_name,
+      subject_category,
+      start_detail_id,
+      end_detail_id,
+      priority,
+      is_paused,
+      paused_until,
+      scheduler_mode,
+      individual_schedule,
+      custom_study_days,
+      content_scheduler_options,
+      is_auto_recommended,
+      recommendation_source,
+      recommendation_reason,
+      recommendation_metadata,
+      recommended_by,
+      recommended_at,
+      generation_status
+    )
+    SELECT
+      v_group_id,
+      p_tenant_id,
+      (content->>'content_type')::VARCHAR,
+      (content->>'content_id')::UUID,
+      COALESCE((content->>'start_range')::NUMERIC, 0),
+      COALESCE((content->>'end_range')::NUMERIC, 0),
+      COALESCE((content->>'display_order')::INTEGER, 0),
+      (content->>'master_content_id')::UUID,
+      content->>'content_name',
+      content->>'subject_name',
+      content->>'subject_category',
+      (content->>'start_detail_id')::UUID,
+      (content->>'end_detail_id')::UUID,
+      content->>'priority',
+      COALESCE((content->>'is_paused')::BOOLEAN, false),
+      (content->>'paused_until')::TIMESTAMPTZ,
+      content->>'scheduler_mode',
+      content->'individual_schedule',
+      (content->>'custom_study_days')::INTEGER[],
+      content->'content_scheduler_options',
+      COALESCE((content->>'is_auto_recommended')::BOOLEAN, false),
+      content->>'recommendation_source',
+      content->>'recommendation_reason',
+      content->'recommendation_metadata',
+      (content->>'recommended_by')::UUID,
+      (content->>'recommended_at')::TIMESTAMPTZ,
+      content->>'generation_status'
+    FROM jsonb_array_elements(p_contents) AS content;
+  END IF;
+
+  -- 3. plan_exclusions 제거됨 (calendar_events로 마이그레이션 완료)
+  -- p_exclusions 파라미터는 하위 호환성을 위해 유지하되 무시됨
+
+  -- 4. academy_schedules 제거됨 (calendar_events로 마이그레이션 완료)
+  -- p_schedules 파라미터는 하위 호환성을 위해 유지하되 무시됨
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'group_id', v_group_id
+  );
+
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', SQLERRM,
+      'code', SQLSTATE
+    );
+END;
+$function$;
+-- Note: 플랜 그룹과 관련 데이터를 원자적으로 생성합니다.
+-- plan_groups, plan_contents를 하나의 트랜잭션 내에서 생성.
+-- 제외일(exclusions)과 학원 일정(academy_schedules)은 calendar_events 기반으로 별도 생성됩니다.

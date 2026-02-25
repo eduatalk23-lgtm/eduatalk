@@ -1,0 +1,12 @@
+-- ============================================
+-- plan_exclusions 테이블 삭제
+-- ============================================
+--
+-- 전제:
+--   - 모든 코드가 calendar_events (event_type='exclusion') 기반으로 전환 완료
+--   - 기존 데이터는 20260224100000 마이그레이션에서 calendar_events로 복사됨
+--   - create_plan_group_atomic RPC에서 plan_exclusions INSERT 제거됨
+--   - delete_planner_cascade RPC에서 plan_exclusions 참조 제거됨
+--
+-- CASCADE로 관련 인덱스, RLS 정책 자동 삭제
+DROP TABLE IF EXISTS plan_exclusions CASCADE;

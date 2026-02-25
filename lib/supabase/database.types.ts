@@ -14,127 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      academies: {
-        Row: {
-          created_at: string | null
-          id: string
-          name: string
-          student_id: string
-          tenant_id: string | null
-          travel_time: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          name: string
-          student_id: string
-          tenant_id?: string | null
-          travel_time?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          name?: string
-          student_id?: string
-          tenant_id?: string | null
-          travel_time?: number | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "academies_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      academy_schedules: {
-        Row: {
-          academy_id: string
-          academy_name: string | null
-          created_at: string | null
-          day_of_week: number
-          end_time: string
-          id: string
-          is_locked: boolean | null
-          plan_group_id: string | null
-          source: string | null
-          start_time: string
-          student_id: string
-          subject: string | null
-          tenant_id: string
-          travel_time: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          academy_id: string
-          academy_name?: string | null
-          created_at?: string | null
-          day_of_week: number
-          end_time: string
-          id?: string
-          is_locked?: boolean | null
-          plan_group_id?: string | null
-          source?: string | null
-          start_time: string
-          student_id: string
-          subject?: string | null
-          tenant_id: string
-          travel_time?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          academy_id?: string
-          academy_name?: string | null
-          created_at?: string | null
-          day_of_week?: number
-          end_time?: string
-          id?: string
-          is_locked?: boolean | null
-          plan_group_id?: string | null
-          source?: string | null
-          start_time?: string
-          student_id?: string
-          subject?: string | null
-          tenant_id?: string
-          travel_time?: number | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "academy_schedules_academy_id_fkey"
-            columns: ["academy_id"]
-            isOneToOne: false
-            referencedRelation: "academies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "academy_schedules_plan_group_id_fkey"
-            columns: ["plan_group_id"]
-            isOneToOne: false
-            referencedRelation: "plan_groups"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "academy_schedules_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "academy_schedules_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       achievement_definitions: {
         Row: {
           category: string
@@ -182,163 +61,6 @@ export type Database = {
           xp_reward?: number | null
         }
         Relationships: []
-      }
-      ad_hoc_plans: {
-        Row: {
-          actual_minutes: number | null
-          color: string | null
-          completed_at: string | null
-          container_type: string
-          content_type: string | null
-          created_at: string | null
-          created_by: string | null
-          description: string | null
-          end_time: string | null
-          estimated_minutes: number | null
-          flexible_content_id: string | null
-          icon: string | null
-          id: string
-          is_recurring: boolean | null
-          order_index: number | null
-          page_range_end: number | null
-          page_range_start: number | null
-          pause_count: number | null
-          paused_at: string | null
-          paused_duration_seconds: number | null
-          plan_date: string
-          plan_group_id: string
-          priority: number | null
-          recurrence_parent_id: string | null
-          recurrence_rule: Json | null
-          simple_completed_at: string | null
-          simple_completion: boolean | null
-          start_time: string | null
-          started_at: string | null
-          status: string
-          student_id: string
-          tags: string[] | null
-          tenant_id: string
-          title: string
-          updated_at: string | null
-        }
-        Insert: {
-          actual_minutes?: number | null
-          color?: string | null
-          completed_at?: string | null
-          container_type?: string
-          content_type?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          description?: string | null
-          end_time?: string | null
-          estimated_minutes?: number | null
-          flexible_content_id?: string | null
-          icon?: string | null
-          id?: string
-          is_recurring?: boolean | null
-          order_index?: number | null
-          page_range_end?: number | null
-          page_range_start?: number | null
-          pause_count?: number | null
-          paused_at?: string | null
-          paused_duration_seconds?: number | null
-          plan_date: string
-          plan_group_id: string
-          priority?: number | null
-          recurrence_parent_id?: string | null
-          recurrence_rule?: Json | null
-          simple_completed_at?: string | null
-          simple_completion?: boolean | null
-          start_time?: string | null
-          started_at?: string | null
-          status?: string
-          student_id: string
-          tags?: string[] | null
-          tenant_id: string
-          title: string
-          updated_at?: string | null
-        }
-        Update: {
-          actual_minutes?: number | null
-          color?: string | null
-          completed_at?: string | null
-          container_type?: string
-          content_type?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          description?: string | null
-          end_time?: string | null
-          estimated_minutes?: number | null
-          flexible_content_id?: string | null
-          icon?: string | null
-          id?: string
-          is_recurring?: boolean | null
-          order_index?: number | null
-          page_range_end?: number | null
-          page_range_start?: number | null
-          pause_count?: number | null
-          paused_at?: string | null
-          paused_duration_seconds?: number | null
-          plan_date?: string
-          plan_group_id?: string
-          priority?: number | null
-          recurrence_parent_id?: string | null
-          recurrence_rule?: Json | null
-          simple_completed_at?: string | null
-          simple_completion?: boolean | null
-          start_time?: string | null
-          started_at?: string | null
-          status?: string
-          student_id?: string
-          tags?: string[] | null
-          tenant_id?: string
-          title?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ad_hoc_plans_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "admin_users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ad_hoc_plans_flexible_content_id_fkey"
-            columns: ["flexible_content_id"]
-            isOneToOne: false
-            referencedRelation: "flexible_contents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ad_hoc_plans_plan_group_id_fkey"
-            columns: ["plan_group_id"]
-            isOneToOne: false
-            referencedRelation: "plan_groups"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ad_hoc_plans_recurrence_parent_id_fkey"
-            columns: ["recurrence_parent_id"]
-            isOneToOne: false
-            referencedRelation: "ad_hoc_plans"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ad_hoc_plans_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ad_hoc_plans_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       admin_users: {
         Row: {
@@ -619,110 +341,6 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      availability_schedules: {
-        Row: {
-          created_at: string | null
-          id: string
-          is_default: boolean | null
-          name: string
-          planner_id: string
-          tenant_id: string
-          timezone: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          is_default?: boolean | null
-          name: string
-          planner_id: string
-          tenant_id: string
-          timezone?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          is_default?: boolean | null
-          name?: string
-          planner_id?: string
-          tenant_id?: string
-          timezone?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "availability_schedules_planner_id_fkey"
-            columns: ["planner_id"]
-            isOneToOne: false
-            referencedRelation: "planners"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "availability_schedules_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      availability_windows: {
-        Row: {
-          academy_schedule_id: string | null
-          created_at: string | null
-          days: number[] | null
-          end_time: string
-          id: string
-          is_disabled: boolean | null
-          label: string | null
-          override_date: string | null
-          schedule_id: string
-          source: string | null
-          start_time: string
-          updated_at: string | null
-          window_type: string
-        }
-        Insert: {
-          academy_schedule_id?: string | null
-          created_at?: string | null
-          days?: number[] | null
-          end_time: string
-          id?: string
-          is_disabled?: boolean | null
-          label?: string | null
-          override_date?: string | null
-          schedule_id: string
-          source?: string | null
-          start_time: string
-          updated_at?: string | null
-          window_type: string
-        }
-        Update: {
-          academy_schedule_id?: string | null
-          created_at?: string | null
-          days?: number[] | null
-          end_time?: string
-          id?: string
-          is_disabled?: boolean | null
-          label?: string | null
-          override_date?: string | null
-          schedule_id?: string
-          source?: string | null
-          start_time?: string
-          updated_at?: string | null
-          window_type?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "availability_windows_schedule_id_fkey"
-            columns: ["schedule_id"]
-            isOneToOne: false
-            referencedRelation: "availability_schedules"
             referencedColumns: ["id"]
           },
         ]
@@ -1018,6 +636,7 @@ export type Database = {
           id: string
           is_all_day: boolean | null
           is_exception: boolean | null
+          is_task: boolean
           location: string | null
           metadata: Json | null
           order_index: number | null
@@ -1025,6 +644,7 @@ export type Database = {
           plan_group_id: string | null
           priority: number | null
           recurring_event_id: string | null
+          reminder_minutes: number[] | null
           rrule: string | null
           sequence: number | null
           source: string | null
@@ -1058,6 +678,7 @@ export type Database = {
           id?: string
           is_all_day?: boolean | null
           is_exception?: boolean | null
+          is_task?: boolean
           location?: string | null
           metadata?: Json | null
           order_index?: number | null
@@ -1065,6 +686,7 @@ export type Database = {
           plan_group_id?: string | null
           priority?: number | null
           recurring_event_id?: string | null
+          reminder_minutes?: number[] | null
           rrule?: string | null
           sequence?: number | null
           source?: string | null
@@ -1098,6 +720,7 @@ export type Database = {
           id?: string
           is_all_day?: boolean | null
           is_exception?: boolean | null
+          is_task?: boolean
           location?: string | null
           metadata?: Json | null
           order_index?: number | null
@@ -1105,6 +728,7 @@ export type Database = {
           plan_group_id?: string | null
           priority?: number | null
           recurring_event_id?: string | null
+          reminder_minutes?: number[] | null
           rrule?: string | null
           sequence?: number | null
           source?: string | null
@@ -1151,73 +775,150 @@ export type Database = {
           },
         ]
       }
+      calendar_list: {
+        Row: {
+          access_role: string
+          calendar_id: string
+          color_override: string | null
+          created_at: string | null
+          display_name: string | null
+          id: string
+          is_visible: boolean | null
+          sort_order: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          access_role?: string
+          calendar_id: string
+          color_override?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string
+          is_visible?: boolean | null
+          sort_order?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          access_role?: string
+          calendar_id?: string
+          color_override?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string
+          is_visible?: boolean | null
+          sort_order?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_list_calendar_id_fkey"
+            columns: ["calendar_id"]
+            isOneToOne: false
+            referencedRelation: "calendars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendars: {
         Row: {
-          calendar_type: string
+          admin_memo: string | null
+          block_set_id: string | null
           created_at: string | null
           created_by: string | null
           default_color: string | null
+          default_scheduler_options: Json | null
+          default_scheduler_type: string | null
           deleted_at: string | null
           description: string | null
           external_id: string | null
           id: string
           is_primary: boolean | null
+          is_student_primary: boolean | null
           location: string | null
+          non_study_time_blocks: Json | null
           owner_id: string
           owner_type: string
-          planner_id: string | null
+          period_end: string | null
+          period_start: string | null
+          self_study_hours: Json | null
           source_type: string
+          status: string | null
+          study_hours: Json | null
           summary: string
+          target_date: string | null
           tenant_id: string
           timezone: string | null
           updated_at: string | null
         }
         Insert: {
-          calendar_type?: string
+          admin_memo?: string | null
+          block_set_id?: string | null
           created_at?: string | null
           created_by?: string | null
           default_color?: string | null
+          default_scheduler_options?: Json | null
+          default_scheduler_type?: string | null
           deleted_at?: string | null
           description?: string | null
           external_id?: string | null
           id?: string
           is_primary?: boolean | null
+          is_student_primary?: boolean | null
           location?: string | null
+          non_study_time_blocks?: Json | null
           owner_id: string
           owner_type: string
-          planner_id?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          self_study_hours?: Json | null
           source_type?: string
+          status?: string | null
+          study_hours?: Json | null
           summary: string
+          target_date?: string | null
           tenant_id: string
           timezone?: string | null
           updated_at?: string | null
         }
         Update: {
-          calendar_type?: string
+          admin_memo?: string | null
+          block_set_id?: string | null
           created_at?: string | null
           created_by?: string | null
           default_color?: string | null
+          default_scheduler_options?: Json | null
+          default_scheduler_type?: string | null
           deleted_at?: string | null
           description?: string | null
           external_id?: string | null
           id?: string
           is_primary?: boolean | null
+          is_student_primary?: boolean | null
           location?: string | null
+          non_study_time_blocks?: Json | null
           owner_id?: string
           owner_type?: string
-          planner_id?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          self_study_hours?: Json | null
           source_type?: string
+          status?: string | null
+          study_hours?: Json | null
           summary?: string
+          target_date?: string | null
           tenant_id?: string
           timezone?: string | null
           updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "calendars_planner_id_fkey"
-            columns: ["planner_id"]
+            foreignKeyName: "calendars_block_set_id_fkey"
+            columns: ["block_set_id"]
             isOneToOne: false
-            referencedRelation: "planners"
+            referencedRelation: "student_block_sets"
             referencedColumns: ["id"]
           },
           {
@@ -2770,11 +2471,12 @@ export type Database = {
           actual_minutes: number | null
           chapter: string | null
           completed_amount: number | null
-          completed_at: string | null
-          completion_status: string | null
           content_id: string | null
           content_title: string | null
           content_type: string | null
+          done: boolean
+          done_at: string | null
+          done_by: string | null
           estimated_minutes: number | null
           event_id: string
           flexible_content_id: string | null
@@ -2788,8 +2490,6 @@ export type Database = {
           planned_end_page: number | null
           planned_start_page: number | null
           progress: number | null
-          simple_completed_at: string | null
-          simple_completion: boolean | null
           started_at: string | null
           subject_category: string | null
           subject_name: string | null
@@ -2798,11 +2498,12 @@ export type Database = {
           actual_minutes?: number | null
           chapter?: string | null
           completed_amount?: number | null
-          completed_at?: string | null
-          completion_status?: string | null
           content_id?: string | null
           content_title?: string | null
           content_type?: string | null
+          done?: boolean
+          done_at?: string | null
+          done_by?: string | null
           estimated_minutes?: number | null
           event_id: string
           flexible_content_id?: string | null
@@ -2816,8 +2517,6 @@ export type Database = {
           planned_end_page?: number | null
           planned_start_page?: number | null
           progress?: number | null
-          simple_completed_at?: string | null
-          simple_completion?: boolean | null
           started_at?: string | null
           subject_category?: string | null
           subject_name?: string | null
@@ -2826,11 +2525,12 @@ export type Database = {
           actual_minutes?: number | null
           chapter?: string | null
           completed_amount?: number | null
-          completed_at?: string | null
-          completion_status?: string | null
           content_id?: string | null
           content_title?: string | null
           content_type?: string | null
+          done?: boolean
+          done_at?: string | null
+          done_by?: string | null
           estimated_minutes?: number | null
           event_id?: string
           flexible_content_id?: string | null
@@ -2844,8 +2544,6 @@ export type Database = {
           planned_end_page?: number | null
           planned_start_page?: number | null
           progress?: number | null
-          simple_completed_at?: string | null
-          simple_completion?: boolean | null
           started_at?: string | null
           subject_category?: string | null
           subject_name?: string | null
@@ -2856,38 +2554,6 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: true
             referencedRelation: "calendar_events"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      excluded_dates: {
-        Row: {
-          created_at: string | null
-          date: string
-          id: string
-          reason: string | null
-          student_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          date: string
-          id?: string
-          reason?: string | null
-          student_id: string
-        }
-        Update: {
-          created_at?: string | null
-          date?: string
-          id?: string
-          reason?: string | null
-          student_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "excluded_dates_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
             referencedColumns: ["id"]
           },
         ]
@@ -4526,6 +4192,51 @@ export type Database = {
           },
         ]
       }
+      notification_log: {
+        Row: {
+          body: string
+          channel: string
+          clicked: boolean | null
+          clicked_at: string | null
+          delivered: boolean | null
+          id: string
+          reference_id: string | null
+          sent_at: string | null
+          skipped_reason: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          channel: string
+          clicked?: boolean | null
+          clicked_at?: string | null
+          delivered?: boolean | null
+          id?: string
+          reference_id?: string | null
+          sent_at?: string | null
+          skipped_reason?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          channel?: string
+          clicked?: boolean | null
+          clicked_at?: string | null
+          delivered?: boolean | null
+          id?: string
+          reference_id?: string | null
+          sent_at?: string | null
+          skipped_reason?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string | null
@@ -5176,13 +4887,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "plan_events_ad_hoc_plan_id_fkey"
-            columns: ["ad_hoc_plan_id"]
-            isOneToOne: false
-            referencedRelation: "ad_hoc_plans"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "plan_events_plan_group_id_fkey"
             columns: ["plan_group_id"]
             isOneToOne: false
@@ -5233,61 +4937,6 @@ export type Database = {
           },
           {
             foreignKeyName: "plan_events_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      plan_exclusions: {
-        Row: {
-          created_at: string | null
-          exclusion_date: string
-          exclusion_type: string
-          id: string
-          plan_group_id: string | null
-          reason: string | null
-          student_id: string
-          tenant_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          exclusion_date: string
-          exclusion_type: string
-          id?: string
-          plan_group_id?: string | null
-          reason?: string | null
-          student_id: string
-          tenant_id: string
-        }
-        Update: {
-          created_at?: string | null
-          exclusion_date?: string
-          exclusion_type?: string
-          id?: string
-          plan_group_id?: string | null
-          reason?: string | null
-          student_id?: string
-          tenant_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "plan_exclusions_plan_group_id_fkey"
-            columns: ["plan_group_id"]
-            isOneToOne: false
-            referencedRelation: "plan_groups"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "plan_exclusions_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "plan_exclusions_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -5445,13 +5094,6 @@ export type Database = {
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "plan_group_backups_planner_id_fkey"
-            columns: ["planner_id"]
-            isOneToOne: false
-            referencedRelation: "planners"
-            referencedColumns: ["id"]
-          },
         ]
       }
       plan_group_items: {
@@ -5536,6 +5178,7 @@ export type Database = {
           admin_modified_at: string | null
           admin_stats: Json | null
           block_set_id: string | null
+          calendar_id: string | null
           camp_invitation_id: string | null
           camp_template_id: string | null
           consultation_status: string | null
@@ -5568,7 +5211,6 @@ export type Database = {
           plan_mode: string | null
           plan_purpose: string | null
           plan_type: string | null
-          planner_id: string | null
           request_notes: string | null
           schedule_generated_at: string | null
           scheduler_options: Json | null
@@ -5598,6 +5240,7 @@ export type Database = {
           admin_modified_at?: string | null
           admin_stats?: Json | null
           block_set_id?: string | null
+          calendar_id?: string | null
           camp_invitation_id?: string | null
           camp_template_id?: string | null
           consultation_status?: string | null
@@ -5630,7 +5273,6 @@ export type Database = {
           plan_mode?: string | null
           plan_purpose?: string | null
           plan_type?: string | null
-          planner_id?: string | null
           request_notes?: string | null
           schedule_generated_at?: string | null
           scheduler_options?: Json | null
@@ -5660,6 +5302,7 @@ export type Database = {
           admin_modified_at?: string | null
           admin_stats?: Json | null
           block_set_id?: string | null
+          calendar_id?: string | null
           camp_invitation_id?: string | null
           camp_template_id?: string | null
           consultation_status?: string | null
@@ -5692,7 +5335,6 @@ export type Database = {
           plan_mode?: string | null
           plan_purpose?: string | null
           plan_type?: string | null
-          planner_id?: string | null
           request_notes?: string | null
           schedule_generated_at?: string | null
           scheduler_options?: Json | null
@@ -5725,6 +5367,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "plan_groups_calendar_id_fkey"
+            columns: ["calendar_id"]
+            isOneToOne: false
+            referencedRelation: "calendars"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "plan_groups_camp_invitation_id_fkey"
             columns: ["camp_invitation_id"]
             isOneToOne: true
@@ -5743,20 +5392,6 @@ export type Database = {
             columns: ["last_admin_id"]
             isOneToOne: false
             referencedRelation: "admin_users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "plan_groups_migrated_from_adhoc_id_fkey"
-            columns: ["migrated_from_adhoc_id"]
-            isOneToOne: false
-            referencedRelation: "ad_hoc_plans"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "plan_groups_planner_id_fkey"
-            columns: ["planner_id"]
-            isOneToOne: false
-            referencedRelation: "planners"
             referencedColumns: ["id"]
           },
           {
@@ -6103,290 +5738,6 @@ export type Database = {
           },
         ]
       }
-      planner_academy_overrides: {
-        Row: {
-          academy_name: string | null
-          created_at: string
-          day_of_week: number | null
-          end_time: string | null
-          id: string
-          override_type: string
-          plan_group_id: string | null
-          planner_id: string | null
-          reason: string | null
-          source_schedule_id: string | null
-          start_time: string | null
-          subject: string | null
-          travel_time: number | null
-          updated_at: string
-        }
-        Insert: {
-          academy_name?: string | null
-          created_at?: string
-          day_of_week?: number | null
-          end_time?: string | null
-          id?: string
-          override_type: string
-          plan_group_id?: string | null
-          planner_id?: string | null
-          reason?: string | null
-          source_schedule_id?: string | null
-          start_time?: string | null
-          subject?: string | null
-          travel_time?: number | null
-          updated_at?: string
-        }
-        Update: {
-          academy_name?: string | null
-          created_at?: string
-          day_of_week?: number | null
-          end_time?: string | null
-          id?: string
-          override_type?: string
-          plan_group_id?: string | null
-          planner_id?: string | null
-          reason?: string | null
-          source_schedule_id?: string | null
-          start_time?: string | null
-          subject?: string | null
-          travel_time?: number | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "planner_academy_overrides_plan_group_id_fkey"
-            columns: ["plan_group_id"]
-            isOneToOne: false
-            referencedRelation: "plan_groups"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "planner_academy_overrides_planner_id_fkey"
-            columns: ["planner_id"]
-            isOneToOne: false
-            referencedRelation: "planners"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "planner_academy_overrides_source_schedule_id_fkey"
-            columns: ["source_schedule_id"]
-            isOneToOne: false
-            referencedRelation: "academy_schedules"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      planner_daily_overrides: {
-        Row: {
-          created_at: string | null
-          created_by: string | null
-          end_time_override: string | null
-          id: string
-          is_disabled: boolean | null
-          override_date: string
-          override_type: string
-          planner_id: string
-          reason: string | null
-          source_academy_id: string | null
-          source_index: number | null
-          start_time_override: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          created_by?: string | null
-          end_time_override?: string | null
-          id?: string
-          is_disabled?: boolean | null
-          override_date: string
-          override_type: string
-          planner_id: string
-          reason?: string | null
-          source_academy_id?: string | null
-          source_index?: number | null
-          start_time_override?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          created_by?: string | null
-          end_time_override?: string | null
-          id?: string
-          is_disabled?: boolean | null
-          override_date?: string
-          override_type?: string
-          planner_id?: string
-          reason?: string | null
-          source_academy_id?: string | null
-          source_index?: number | null
-          start_time_override?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "planner_daily_overrides_planner_id_fkey"
-            columns: ["planner_id"]
-            isOneToOne: false
-            referencedRelation: "planners"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "planner_daily_overrides_source_academy_id_fkey"
-            columns: ["source_academy_id"]
-            isOneToOne: false
-            referencedRelation: "academies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      planner_exclusion_overrides: {
-        Row: {
-          created_at: string
-          exclusion_date: string
-          exclusion_type: string | null
-          id: string
-          override_type: string
-          plan_group_id: string | null
-          planner_id: string | null
-          reason: string | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          exclusion_date: string
-          exclusion_type?: string | null
-          id?: string
-          override_type: string
-          plan_group_id?: string | null
-          planner_id?: string | null
-          reason?: string | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          exclusion_date?: string
-          exclusion_type?: string | null
-          id?: string
-          override_type?: string
-          plan_group_id?: string | null
-          planner_id?: string | null
-          reason?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "planner_exclusion_overrides_plan_group_id_fkey"
-            columns: ["plan_group_id"]
-            isOneToOne: false
-            referencedRelation: "plan_groups"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "planner_exclusion_overrides_planner_id_fkey"
-            columns: ["planner_id"]
-            isOneToOne: false
-            referencedRelation: "planners"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      planners: {
-        Row: {
-          admin_memo: string | null
-          block_set_id: string | null
-          created_at: string | null
-          created_by: string | null
-          default_scheduler_options: Json | null
-          default_scheduler_type: string | null
-          deleted_at: string | null
-          description: string | null
-          id: string
-          lunch_time: Json | null
-          name: string
-          non_study_time_blocks: Json | null
-          period_end: string
-          period_start: string
-          scheduler_options: Json | null
-          self_study_hours: Json | null
-          status: string | null
-          student_id: string
-          study_hours: Json | null
-          target_date: string | null
-          tenant_id: string
-          updated_at: string | null
-        }
-        Insert: {
-          admin_memo?: string | null
-          block_set_id?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          default_scheduler_options?: Json | null
-          default_scheduler_type?: string | null
-          deleted_at?: string | null
-          description?: string | null
-          id?: string
-          lunch_time?: Json | null
-          name: string
-          non_study_time_blocks?: Json | null
-          period_end: string
-          period_start: string
-          scheduler_options?: Json | null
-          self_study_hours?: Json | null
-          status?: string | null
-          student_id: string
-          study_hours?: Json | null
-          target_date?: string | null
-          tenant_id: string
-          updated_at?: string | null
-        }
-        Update: {
-          admin_memo?: string | null
-          block_set_id?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          default_scheduler_options?: Json | null
-          default_scheduler_type?: string | null
-          deleted_at?: string | null
-          description?: string | null
-          id?: string
-          lunch_time?: Json | null
-          name?: string
-          non_study_time_blocks?: Json | null
-          period_end?: string
-          period_start?: string
-          scheduler_options?: Json | null
-          self_study_hours?: Json | null
-          status?: string | null
-          student_id?: string
-          study_hours?: Json | null
-          target_date?: string | null
-          tenant_id?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "planners_block_set_id_fkey"
-            columns: ["block_set_id"]
-            isOneToOne: false
-            referencedRelation: "tenant_block_sets"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "planners_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "planners_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       platforms: {
         Row: {
           created_at: string | null
@@ -6494,6 +5845,45 @@ export type Database = {
           is_active?: boolean
           name?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          created_at: string | null
+          device_label: string | null
+          endpoint: string
+          id: string
+          is_active: boolean | null
+          keys_auth: string
+          keys_p256dh: string
+          subscription: Json
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          device_label?: string | null
+          endpoint: string
+          id?: string
+          is_active?: boolean | null
+          keys_auth: string
+          keys_p256dh: string
+          subscription: Json
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          device_label?: string | null
+          endpoint?: string
+          id?: string
+          is_active?: boolean | null
+          keys_auth?: string
+          keys_p256dh?: string
+          subscription?: Json
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -8342,80 +7732,9 @@ export type Database = {
           },
         ]
       }
-      student_non_study_time: {
-        Row: {
-          created_at: string | null
-          end_time: string | null
-          exclusion_type: string | null
-          group_id: string | null
-          id: string
-          is_all_day: boolean
-          is_template_based: boolean | null
-          label: string | null
-          plan_date: string
-          planner_id: string
-          sequence: number | null
-          source: string
-          start_time: string | null
-          tenant_id: string
-          type: string
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          end_time?: string | null
-          exclusion_type?: string | null
-          group_id?: string | null
-          id?: string
-          is_all_day?: boolean
-          is_template_based?: boolean | null
-          label?: string | null
-          plan_date: string
-          planner_id: string
-          sequence?: number | null
-          source?: string
-          start_time?: string | null
-          tenant_id: string
-          type: string
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          end_time?: string | null
-          exclusion_type?: string | null
-          group_id?: string | null
-          id?: string
-          is_all_day?: boolean
-          is_template_based?: boolean | null
-          label?: string | null
-          plan_date?: string
-          planner_id?: string
-          sequence?: number | null
-          source?: string
-          start_time?: string | null
-          tenant_id?: string
-          type?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "student_non_study_time_planner_id_fkey"
-            columns: ["planner_id"]
-            isOneToOne: false
-            referencedRelation: "planners"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "student_non_study_time_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       student_notification_preferences: {
         Row: {
+          achievement_push_enabled: boolean | null
           attendance_absent_enabled: boolean | null
           attendance_check_in_enabled: boolean | null
           attendance_check_out_enabled: boolean | null
@@ -8423,8 +7742,11 @@ export type Database = {
           camp_invitation_enabled: boolean | null
           camp_reminder_enabled: boolean | null
           camp_status_change_enabled: boolean | null
+          chat_group_push_enabled: boolean | null
+          chat_push_enabled: boolean | null
           created_at: string | null
           daily_goal_achieved_enabled: boolean | null
+          event_reminder_push_enabled: boolean | null
           id: string
           notification_time_end: string | null
           notification_time_start: string | null
@@ -8432,14 +7754,17 @@ export type Database = {
           plan_delay_enabled: boolean | null
           plan_delay_threshold_minutes: number | null
           plan_start_enabled: boolean | null
+          plan_update_push_enabled: boolean | null
           quiet_hours_enabled: boolean | null
           quiet_hours_end: string | null
           quiet_hours_start: string | null
           student_id: string
+          study_reminder_push_enabled: boolean | null
           updated_at: string | null
           weekly_report_enabled: boolean | null
         }
         Insert: {
+          achievement_push_enabled?: boolean | null
           attendance_absent_enabled?: boolean | null
           attendance_check_in_enabled?: boolean | null
           attendance_check_out_enabled?: boolean | null
@@ -8447,8 +7772,11 @@ export type Database = {
           camp_invitation_enabled?: boolean | null
           camp_reminder_enabled?: boolean | null
           camp_status_change_enabled?: boolean | null
+          chat_group_push_enabled?: boolean | null
+          chat_push_enabled?: boolean | null
           created_at?: string | null
           daily_goal_achieved_enabled?: boolean | null
+          event_reminder_push_enabled?: boolean | null
           id?: string
           notification_time_end?: string | null
           notification_time_start?: string | null
@@ -8456,14 +7784,17 @@ export type Database = {
           plan_delay_enabled?: boolean | null
           plan_delay_threshold_minutes?: number | null
           plan_start_enabled?: boolean | null
+          plan_update_push_enabled?: boolean | null
           quiet_hours_enabled?: boolean | null
           quiet_hours_end?: string | null
           quiet_hours_start?: string | null
           student_id: string
+          study_reminder_push_enabled?: boolean | null
           updated_at?: string | null
           weekly_report_enabled?: boolean | null
         }
         Update: {
+          achievement_push_enabled?: boolean | null
           attendance_absent_enabled?: boolean | null
           attendance_check_in_enabled?: boolean | null
           attendance_check_out_enabled?: boolean | null
@@ -8471,8 +7802,11 @@ export type Database = {
           camp_invitation_enabled?: boolean | null
           camp_reminder_enabled?: boolean | null
           camp_status_change_enabled?: boolean | null
+          chat_group_push_enabled?: boolean | null
+          chat_push_enabled?: boolean | null
           created_at?: string | null
           daily_goal_achieved_enabled?: boolean | null
+          event_reminder_push_enabled?: boolean | null
           id?: string
           notification_time_end?: string | null
           notification_time_start?: string | null
@@ -8480,10 +7814,12 @@ export type Database = {
           plan_delay_enabled?: boolean | null
           plan_delay_threshold_minutes?: number | null
           plan_start_enabled?: boolean | null
+          plan_update_push_enabled?: boolean | null
           quiet_hours_enabled?: boolean | null
           quiet_hours_end?: string | null
           quiet_hours_start?: string | null
           student_id?: string
+          study_reminder_push_enabled?: boolean | null
           updated_at?: string | null
           weekly_report_enabled?: boolean | null
         }
@@ -8559,8 +7895,6 @@ export type Database = {
           review_group_id: string | null
           review_source_content_ids: string[] | null
           sequence: number | null
-          simple_completed_at: string | null
-          simple_completion: boolean | null
           slot_index: number | null
           start_time: string | null
           started_at: string | null
@@ -8639,8 +7973,6 @@ export type Database = {
           review_group_id?: string | null
           review_source_content_ids?: string[] | null
           sequence?: number | null
-          simple_completed_at?: string | null
-          simple_completion?: boolean | null
           slot_index?: number | null
           start_time?: string | null
           started_at?: string | null
@@ -8719,8 +8051,6 @@ export type Database = {
           review_group_id?: string | null
           review_source_content_ids?: string[] | null
           sequence?: number | null
-          simple_completed_at?: string | null
-          simple_completion?: boolean | null
           slot_index?: number | null
           start_time?: string | null
           started_at?: string | null
@@ -8739,13 +8069,6 @@ export type Database = {
           week?: number | null
         }
         Relationships: [
-          {
-            foreignKeyName: "fk_student_plan_adhoc_source"
-            columns: ["adhoc_source_id"]
-            isOneToOne: false
-            referencedRelation: "ad_hoc_plans"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "fk_student_plan_recurrence_parent"
             columns: ["recurrence_parent_id"]
@@ -9990,6 +9313,24 @@ export type Database = {
         }
         Relationships: []
       }
+      user_presence: {
+        Row: {
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_sessions: {
         Row: {
           created_at: string | null
@@ -10096,8 +9437,6 @@ export type Database = {
           review_group_id: string | null
           review_source_content_ids: string[] | null
           sequence: number | null
-          simple_completed_at: string | null
-          simple_completion: boolean | null
           slot_index: number | null
           start_time: string | null
           started_at: string | null
@@ -10176,8 +9515,6 @@ export type Database = {
           review_group_id?: string | null
           review_source_content_ids?: string[] | null
           sequence?: number | null
-          simple_completed_at?: string | null
-          simple_completion?: boolean | null
           slot_index?: number | null
           start_time?: string | null
           started_at?: string | null
@@ -10256,8 +9593,6 @@ export type Database = {
           review_group_id?: string | null
           review_source_content_ids?: string[] | null
           sequence?: number | null
-          simple_completed_at?: string | null
-          simple_completion?: boolean | null
           slot_index?: number | null
           start_time?: string | null
           started_at?: string | null
@@ -10276,13 +9611,6 @@ export type Database = {
           week?: number | null
         }
         Relationships: [
-          {
-            foreignKeyName: "fk_student_plan_adhoc_source"
-            columns: ["adhoc_source_id"]
-            isOneToOne: false
-            referencedRelation: "ad_hoc_plans"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "fk_student_plan_recurrence_parent"
             columns: ["recurrence_parent_id"]
@@ -10469,8 +9797,6 @@ export type Database = {
           review_group_id: string | null
           review_source_content_ids: string[] | null
           sequence: number | null
-          simple_completed_at: string | null
-          simple_completion: boolean | null
           slot_index: number | null
           start_time: string | null
           started_at: string | null
@@ -10549,8 +9875,6 @@ export type Database = {
           review_group_id?: string | null
           review_source_content_ids?: string[] | null
           sequence?: number | null
-          simple_completed_at?: string | null
-          simple_completion?: boolean | null
           slot_index?: number | null
           start_time?: string | null
           started_at?: string | null
@@ -10629,8 +9953,6 @@ export type Database = {
           review_group_id?: string | null
           review_source_content_ids?: string[] | null
           sequence?: number | null
-          simple_completed_at?: string | null
-          simple_completion?: boolean | null
           slot_index?: number | null
           start_time?: string | null
           started_at?: string | null
@@ -10649,13 +9971,6 @@ export type Database = {
           week?: number | null
         }
         Relationships: [
-          {
-            foreignKeyName: "fk_student_plan_adhoc_source"
-            columns: ["adhoc_source_id"]
-            isOneToOne: false
-            referencedRelation: "ad_hoc_plans"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "fk_student_plan_recurrence_parent"
             columns: ["recurrence_parent_id"]
@@ -10997,12 +10312,12 @@ export type Database = {
         }
         Returns: Json
       }
-      delete_planner_cascade: {
-        Args: { p_planner_id: string; p_tenant_id?: string }
-        Returns: Database["public"]["CompositeTypes"]["delete_planner_result"]
+      delete_calendar_cascade: {
+        Args: { p_calendar_id: string; p_tenant_id?: string }
+        Returns: Database["public"]["CompositeTypes"]["delete_calendar_result"]
         SetofOptions: {
           from: "*"
-          to: "delete_planner_result"
+          to: "delete_calendar_result"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -11182,6 +10497,15 @@ export type Database = {
         | "rolled_back"
     }
     CompositeTypes: {
+      delete_calendar_result: {
+        success: boolean | null
+        calendar_id: string | null
+        deleted_plan_groups_count: number | null
+        deleted_student_plans_count: number | null
+        deleted_events_count: number | null
+        error: string | null
+        error_code: string | null
+      }
       delete_planner_result: {
         success: boolean | null
         planner_id: string | null
@@ -11328,3 +10652,4 @@ export const Constants = {
     },
   },
 } as const
+
