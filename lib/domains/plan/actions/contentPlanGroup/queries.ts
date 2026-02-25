@@ -87,30 +87,33 @@ export async function getTemplateSettings(
     return null;
   }
 
-  // 제외일 조회
+  // 제외일 조회 (calendar_events 기반)
   let exclusions: Array<{ date: string; reason: string }> = [];
-  if (params.includeExclusions) {
+  if (params.includeExclusions && template.student_id) {
     const { data: exclusionData } = await supabase
-      .from("plan_exclusions")
-      .select("exclusion_date, reason")
-      .eq("plan_group_id", params.templatePlanGroupId);
+      .from("calendar_events")
+      .select("start_date, title")
+      .eq("student_id", template.student_id)
+      .eq("event_type", "exclusion")
+      .eq("is_all_day", true)
+      .is("deleted_at", null);
 
     exclusions =
       exclusionData?.map((e) => ({
-        date: e.exclusion_date,
-        reason: e.reason ?? "",
+        date: e.start_date ?? "",
+        reason: e.title ?? "",
       })) ?? [];
   }
 
-  // 학원 일정 조회 (요일 기반 → 날짜로 변환)
-  // academy_schedules는 day_of_week (0=일, 1=월, ..., 6=토) 기반
-  if (params.includeAcademySchedules && template.period_start && template.period_end) {
-    const { data: academySchedules } = await supabase
-      .from("academy_schedules")
-      .select("day_of_week, academy_name")
-      .eq("plan_group_id", params.templatePlanGroupId);
+  // 학원 일정 조회 (calendar_events 기반)
+  if (params.includeAcademySchedules && template.period_start && template.period_end && template.student_id) {
+    const { getStudentAcademySchedules } = await import("@/lib/data/planGroups");
+    const academySchedules = await getStudentAcademySchedules(
+      template.student_id,
+      template.tenant_id
+    );
 
-    if (academySchedules && academySchedules.length > 0) {
+    if (academySchedules.length > 0) {
       // 학원 일정 요일들을 Set으로 변환
       const academyDaysOfWeek = new Set(academySchedules.map(s => s.day_of_week));
 

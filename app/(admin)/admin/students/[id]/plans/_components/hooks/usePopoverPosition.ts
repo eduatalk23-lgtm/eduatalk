@@ -45,14 +45,14 @@ export function usePopoverPosition({
     getBoundingClientRect: () => DOMRect;
   } | null>(null);
 
-  const { refs, floatingStyles, placement: resolvedPlacement, update } = useFloating({
+  const { refs, floatingStyles, placement: resolvedPlacement, isPositioned, update } = useFloating({
     placement,
     strategy: 'fixed', // portal → document.body이므로 viewport 기준 fixed
     open,
     middleware: [
       offset(offsetPx),
       flip({ padding }),
-      shift({ padding }),
+      shift({ padding, crossAxis: true }),
     ],
     whileElementsMounted: autoUpdate,
   });
@@ -78,14 +78,15 @@ export function usePopoverPosition({
     update();
   }, [virtualRect?.x, virtualRect?.y, virtualRect?.width, virtualRect?.height, refs, update]);
 
-  return { refs, floatingStyles, resolvedPlacement };
+  return { refs, floatingStyles, resolvedPlacement, isPositioned };
 }
 
-/** resolvedPlacement → CSS transformOrigin 변환 */
+/** resolvedPlacement → CSS transformOrigin 변환 (GCal 스타일: 이벤트 방향 중앙 기준) */
 export function placementToTransformOrigin(placement: string): string {
-  if (placement.startsWith('right')) return 'left top';
-  if (placement.startsWith('left')) return 'right top';
-  if (placement.startsWith('bottom')) return 'top left';
-  if (placement.startsWith('top')) return 'bottom left';
+  // GCal: 팝오버가 이벤트 방향에서 자연스럽게 나타나도록 반대쪽 중앙 기준 스케일
+  if (placement.startsWith('right')) return 'left center';
+  if (placement.startsWith('left')) return 'right center';
+  if (placement.startsWith('bottom')) return 'center top';
+  if (placement.startsWith('top')) return 'center bottom';
   return 'center center';
 }

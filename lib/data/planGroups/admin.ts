@@ -12,8 +12,8 @@ import type { Database } from "@/lib/supabase/database.types";
 import type { PlanGroup, PlanContent, PlanExclusion, AcademySchedule } from "./types";
 import { getPlanGroupById } from "./core";
 import { getPlanContents } from "./contents";
-import { getPlanExclusions } from "./exclusions";
-import { getAcademySchedules } from "./academies";
+import { getPlanExclusionsFromCalendar as getPlanExclusions } from "../calendarExclusions";
+import { getAcademySchedules } from "./index";
 
 /**
  * 관리자용 플랜 그룹 조회 (tenant_id 기반, RLS 우회)
@@ -39,7 +39,7 @@ export async function getPlanGroupByIdForAdmin(
     const { data, error } = await supabase
       .from("plan_groups")
       .select(
-        "id,tenant_id,student_id,name,plan_purpose,scheduler_type,scheduler_options,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,subject_constraints,additional_period_reallocation,non_study_time_blocks,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at,study_hours,self_study_hours,lunch_time,planner_id"
+        "id,tenant_id,student_id,name,plan_purpose,scheduler_type,scheduler_options,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,subject_constraints,additional_period_reallocation,non_study_time_blocks,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at,study_hours,self_study_hours,lunch_time,calendar_id"
       )
       .eq("id", groupId)
       .eq("tenant_id", tenantId)
@@ -60,7 +60,7 @@ export async function getPlanGroupByIdForAdmin(
     adminClient
       .from("plan_groups")
       .select(
-        "id,tenant_id,student_id,name,plan_purpose,scheduler_type,scheduler_options,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,subject_constraints,additional_period_reallocation,non_study_time_blocks,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at,study_hours,self_study_hours,lunch_time,planner_id"
+        "id,tenant_id,student_id,name,plan_purpose,scheduler_type,scheduler_options,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,subject_constraints,additional_period_reallocation,non_study_time_blocks,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at,study_hours,self_study_hours,lunch_time,calendar_id"
       )
       .eq("id", groupId)
       .eq("tenant_id", tenantId)
@@ -259,111 +259,10 @@ export async function getPlanGroupWithDetailsForAdmin(
     };
   }
 
-  // 관리자용 학원 일정 조회 (RLS 우회를 위해 Admin 클라이언트 사용)
-  // 플랜 그룹별 학원 일정만 조회 (전역 아님)
+  // 관리자용 학원 일정 조회 (calendar_events 기반 어댑터)
   const getAcademySchedulesForAdmin = async (): Promise<AcademySchedule[]> => {
-    let adminSchedulesData: AcademySchedule[] | null = null;
-
-    // 1. Service Role Key로 시도 (RLS 우회)
-    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
-    const adminClient = createSupabaseAdminClient();
-
-    if (!adminClient) {
-      // Admin 클라이언트를 생성할 수 없으면 일반 함수 사용 (fallback)
-      if (process.env.NODE_ENV === "development") {
-        logActionWarn(
-          { domain: "data", action: "getPlanGroupWithDetailsForAdmin" },
-          "Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용"
-        );
-      }
-      return getAcademySchedules(groupId, tenantId); // 플랜 그룹별 조회로 변경
-    }
-
-    // academies와 조인하여 travel_time 가져오기 (plan_group_id로 조회)
-    const selectSchedules = () =>
-      adminClient
-        .from("academy_schedules")
-        .select(
-          "id,tenant_id,student_id,academy_id,day_of_week,start_time,end_time,academy_name,subject,created_at,updated_at,academies(travel_time)"
-        )
-        .eq("plan_group_id", groupId) // 플랜 그룹별 조회로 변경
-        .eq("tenant_id", tenantId)
-        .order("day_of_week", { ascending: true })
-        .order("start_time", { ascending: true });
-
-    const { data, error: initialError } = await selectSchedules();
-    let error = initialError;
-    adminSchedulesData = data as AcademySchedule[] | null;
-
-    if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
-      // academy_id가 없는 경우를 대비한 fallback (plan_group_id로 조회)
-      const fallbackSelect = () =>
-        adminClient
-          .from("academy_schedules")
-          .select(
-            "id,tenant_id,student_id,day_of_week,start_time,end_time,academy_name,subject,created_at,updated_at"
-          )
-          .eq("plan_group_id", groupId) // 플랜 그룹별 조회로 변경
-          .eq("tenant_id", tenantId)
-          .order("day_of_week", { ascending: true })
-          .order("start_time", { ascending: true });
-
-      const fallbackResult = await fallbackSelect();
-      error = fallbackResult.error;
-
-      // academy_id를 빈 문자열로 설정 (fallback 쿼리에는 academy_id가 없음)
-      if (fallbackResult.data && !error) {
-        adminSchedulesData = fallbackResult.data.map((schedule) => ({
-          id: schedule.id,
-          tenant_id: schedule.tenant_id || "",
-          student_id: schedule.student_id,
-          academy_id: "", // fallback 쿼리에는 academy_id가 없으므로 빈 문자열
-          day_of_week: schedule.day_of_week,
-          start_time: schedule.start_time,
-          end_time: schedule.end_time,
-          subject: schedule.subject ?? null,
-          created_at: schedule.created_at,
-          updated_at: schedule.updated_at,
-          academy_name: schedule.academy_name || null,
-          travel_time: null,
-        })) as AcademySchedule[];
-      }
-    }
-
-    if (error) {
-      handleQueryError(error, {
-        context: "[data/planGroups] getPlanGroupWithDetailsForAdmin",
-      });
-      // 에러 발생 시 빈 배열 반환
-      return [];
-    }
-
-    // 데이터 변환: academies 관계 데이터를 travel_time으로 변환
-    type ScheduleWithAcademies = AcademySchedule & {
-      academies?: { travel_time?: number } | null;
-    };
-
-    const schedules = (adminSchedulesData ?? []) as ScheduleWithAcademies[];
-    const academySchedules = schedules.map((schedule) => ({
-      ...schedule,
-      travel_time: schedule.academies?.travel_time ?? 60, // 기본값 60분
-      academies: undefined, // 관계 데이터 제거
-    })) as AcademySchedule[];
-
-    if (process.env.NODE_ENV === "development") {
-      logActionDebug(
-        { domain: "data", action: "getPlanGroupWithDetailsForAdmin" },
-        "관리자용 학원 일정 조회 성공",
-        {
-          groupId,
-          studentId: group.student_id,
-          tenantId,
-          academySchedulesCount: academySchedules.length,
-        }
-      );
-    }
-
-    return academySchedules;
+    // calendar_events 기반: 플랜 그룹 → student_id → 전역 학원 일정 조회
+    return getAcademySchedules(groupId, tenantId);
   };
 
   // 플랜 그룹별 제외일과 학원 일정 조회 (RLS 우회)

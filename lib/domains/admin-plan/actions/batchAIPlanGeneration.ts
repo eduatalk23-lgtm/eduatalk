@@ -45,11 +45,7 @@ import {
 } from "@/lib/domains/plan/transactions";
 import { batchPlanItemsToAtomicPayloads } from "@/lib/domains/admin-plan/transformers/llmResponseTransformer";
 
-// Phase 3: 플래너 자동 생성 유틸리티
-import {
-  ensurePlannerForPipeline,
-  type PlannerValidationMode,
-} from "@/lib/domains/plan/actions/planners/autoCreate";
+import { ensureStudentPrimaryCalendar } from "@/lib/domains/calendar/helpers";
 
 // ============================================
 // 헬퍼 함수
@@ -455,7 +451,7 @@ export interface BatchPlanSettings {
     /** 검색 결과를 DB에 저장할지 여부 */
     saveResults?: boolean;
   };
-  /** 플래너 검증 모드 (기본값: "auto_create") */
+  /** @deprecated Calendar-First에서 무시됨 */
   plannerValidationMode?: "warn" | "strict" | "auto_create";
   /** 학습일 수 (기본값: 6) - 1730 타임테이블 사이클 */
   studyDays?: number;
@@ -747,45 +743,21 @@ export async function generatePlanForStudent(
       };
     }
 
-    // 2.5. 플래너 확보 (Phase 3 플래너 연계) - 공통 유틸리티 사용
-    currentStep = "ensure_planner";
+    // 2.5. 캘린더 확보 (Calendar-First)
+    currentStep = "ensure_calendar";
     logActionDebug("generatePlanForStudent", `단계: ${currentStep} - ${studentName}`);
 
-    const plannerResult = await ensurePlannerForPipeline({
-      studentId,
-      periodStart: settings.startDate,
-      periodEnd: settings.endDate,
-      validationMode: (settings.plannerValidationMode as PlannerValidationMode) ?? "auto_create",
-    });
-
-    // strict 모드에서 플래너 확보 실패 시 에러 반환
-    if (!plannerResult.success) {
-      return {
-        studentId,
-        studentName: student.name,
-        status: "error",
-        error: plannerResult.error || "플래너 확보에 실패했습니다.",
-        failedStep: currentStep,
-      };
-    }
-
-    const plannerId = plannerResult.plannerId;
-
-    if (plannerResult.isNew) {
+    let calendarId: string | null = null;
+    try {
+      calendarId = await ensureStudentPrimaryCalendar(studentId, tenantId);
       logActionDebug(
         "generatePlanForStudent",
-        `플래너 자동 생성 완료 - ${studentName}: plannerId=${plannerId}`
+        `캘린더 확보 완료 - ${studentName}: calendarId=${calendarId}`
       );
-    } else if (plannerResult.hasWarning) {
-      // P3-3: 레거시 데이터 경고 개선
+    } catch (calErr) {
       logActionWarn(
         "generatePlanForStudent",
-        `[레거시] 플래너 미연결 상태 - ${studentName} (studentId: ${studentId}) | 원인: 플래너 자동 생성 비활성화/실패 | 영향: 통합 관리 불가 | 권장: 배치 설정에서 플래너 자동 생성 활성화`
-      );
-    } else {
-      logActionDebug(
-        "generatePlanForStudent",
-        `기존 플래너 사용 - ${studentName}: plannerId=${plannerId}`
+        `캘린더 확보 실패, 캘린더 없이 계속 - ${studentName}: ${calErr instanceof Error ? calErr.message : String(calErr)}`
       );
     }
 
@@ -1106,8 +1078,8 @@ export async function generatePlanForStudent(
         use_slot_mode: false,
         content_slots: null,
 
-        // Phase 3 플래너 연계 필드
-        planner_id: plannerId,
+        // Calendar-First: 캘린더 연계 필드
+        calendar_id: calendarId,
         creation_mode: "ai_batch",
         is_single_content: true,
 

@@ -1,21 +1,17 @@
 'use client';
 
-import { memo, useTransition } from 'react';
+import { memo, useState, useTransition } from 'react';
 import { cn } from '@/lib/cn';
 import { useToast } from '@/components/ui/ToastProvider';
-import { togglePlanComplete, movePlanToContainer } from '@/lib/domains/plan/actions/dock';
+import { togglePlanComplete } from '@/lib/domains/plan/actions/dock';
 import { formatPlanLearningAmount } from '@/lib/utils/planFormatting';
-import { getTodayInTimezone } from '@/lib/utils/dateUtils';
-import type { PlanItemData, ContainerType } from '@/lib/types/planItem';
+import type { PlanItemData } from '@/lib/types/planItem';
 
 interface StudentPlanCardProps {
   plan: PlanItemData;
-  container: ContainerType;
   showTime?: boolean;
   showCarryover?: boolean;
-  onMoveToDaily?: (id: string) => void;
-  onMoveToWeekly?: (id: string) => void;
-  onRefresh?: () => void;
+  onRefresh?: () => void | Promise<unknown>;
 }
 
 function getLeftBorderColor(isCompleted: boolean, carryoverCount: number = 0): string {
@@ -28,16 +24,16 @@ function getLeftBorderColor(isCompleted: boolean, carryoverCount: number = 0): s
 
 export const StudentPlanCard = memo(function StudentPlanCard({
   plan,
-  container,
   showTime = false,
   showCarryover = false,
-  onMoveToDaily,
-  onMoveToWeekly,
   onRefresh,
 }: StudentPlanCardProps) {
   const [isPending, startTransition] = useTransition();
   const { showSuccess, showError } = useToast();
-  const isCompleted = plan.isCompleted || plan.status === 'completed';
+  // 옵티미스틱 상태: null이면 서버 값 사용
+  const [optimisticCompleted, setOptimisticCompleted] = useState<boolean | null>(null);
+  const serverCompleted = plan.isCompleted || plan.status === 'completed';
+  const isCompleted = optimisticCompleted ?? serverCompleted;
   const isAdHoc = plan.type === 'adhoc';
   const hasPageRange = plan.pageRangeStart != null && plan.pageRangeEnd != null;
 
@@ -50,41 +46,20 @@ export const StudentPlanCard = memo(function StudentPlanCard({
     : undefined);
 
   const handleToggle = () => {
+    const newCompleted = !isCompleted;
+    setOptimisticCompleted(newCompleted);
+
     startTransition(async () => {
-      const result = await togglePlanComplete(plan.id, isCompleted, isAdHoc, true);
+      const result = await togglePlanComplete(plan.id, isCompleted, true);
       if (!result.success) {
+        setOptimisticCompleted(null); // 롤백
         showError(result.error ?? '상태 변경 실패');
         return;
       }
-      showSuccess(isCompleted ? '미완료로 변경했습니다.' : '완료 처리했습니다.');
-      onRefresh?.();
-    });
-  };
-
-  const handleMove = (target: ContainerType) => {
-    if (target === 'daily' && onMoveToDaily) {
-      onMoveToDaily(plan.id);
-      return;
-    }
-    if (target === 'weekly' && onMoveToWeekly) {
-      onMoveToWeekly(plan.id);
-      return;
-    }
-    startTransition(async () => {
-      const result = await movePlanToContainer({
-        planId: plan.id,
-        targetContainer: target,
-        isAdHoc,
-        targetDate: target === 'daily' ? getTodayInTimezone() : undefined,
-        skipRevalidation: true,
-      });
-      if (!result.success) {
-        showError(result.error ?? '이동 실패');
-        return;
-      }
-      const label = target === 'daily' ? '오늘 플랜' : target === 'weekly' ? '주간 플랜' : '미완료 플랜';
-      showSuccess(`${label}으로 이동했습니다.`);
-      onRefresh?.();
+      showSuccess(newCompleted ? '완료 처리했습니다.' : '미완료로 변경했습니다.');
+      // refetch 완료 후 옵티미스틱 해제 (refetch 전에 해제하면 stale 데이터로 깜빡임 발생)
+      await onRefresh?.();
+      setOptimisticCompleted(null);
     });
   };
 
@@ -160,30 +135,9 @@ export const StudentPlanCard = memo(function StudentPlanCard({
         )}
       </div>
 
-      {/* 액션 */}
-      {isCompleted ? (
+      {/* 완료 배지 */}
+      {isCompleted && (
         <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded shrink-0">완료</span>
-      ) : (
-        <div className="flex items-center gap-1 shrink-0">
-          {container !== 'daily' && (
-            <button
-              onClick={() => handleMove('daily')}
-              className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-              title="오늘 플랜으로 이동"
-            >
-              →오늘
-            </button>
-          )}
-          {container !== 'weekly' && container === 'daily' && (
-            <button
-              onClick={() => handleMove('weekly')}
-              className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
-              title="주간 플랜으로 이동"
-            >
-              →주간
-            </button>
-          )}
-        </div>
       )}
     </div>
   );

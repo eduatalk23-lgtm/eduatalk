@@ -8,7 +8,7 @@ interface WeeklyCalendarProps {
   studentId: string;
   selectedDate: string;
   onDateSelect: (date: string) => void;
-  plannerId?: string;
+  calendarId?: string;
   selectedGroupId?: string | null;
   dailySchedules?: DailyScheduleInfo[][];
   exclusions?: Array<{
@@ -16,8 +16,8 @@ interface WeeklyCalendarProps {
     exclusionType: string;
     reason?: string | null;
   }>;
-  plannerPeriodStart?: string;
-  plannerPeriodEnd?: string;
+  periodStart?: string;
+  periodEnd?: string;
 }
 
 /**

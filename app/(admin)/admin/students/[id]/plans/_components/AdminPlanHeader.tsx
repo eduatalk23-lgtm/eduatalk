@@ -6,7 +6,6 @@ import {
   useAdminPlanBasic,
   useAdminPlanFilter,
   useAdminPlanModal,
-  type ContentTypeFilter,
 } from "./context/AdminPlanContext";
 import { PlanGroupSelector } from "./PlanGroupSelector";
 import type { ShortcutConfig } from "./useKeyboardShortcuts";
@@ -18,30 +17,11 @@ import {
   ClipboardList,
   MoreHorizontal,
   AlertTriangle,
-  Filter,
-  Book,
-  Video,
   FileText,
   X,
   Keyboard,
   Settings2,
 } from "lucide-react";
-
-// 필터 옵션 정의
-const CONTENT_TYPE_FILTERS: {
-  value: ContentTypeFilter;
-  label: string;
-  icon: React.ReactNode;
-}[] = [
-  { value: "all", label: "전체", icon: null },
-  { value: "book", label: "교재", icon: <Book className="w-3 h-3" /> },
-  { value: "lecture", label: "강의", icon: <Video className="w-3 h-3" /> },
-  {
-    value: "custom",
-    label: "직접입력",
-    icon: <FileText className="w-3 h-3" />,
-  },
-];
 
 interface AdminPlanHeaderProps {
   studentName: string;
@@ -56,7 +36,7 @@ export function AdminPlanHeader({
   const {
     studentId,
     tenantId,
-    selectedPlannerId,
+    selectedCalendarId,
     allPlanGroups,
     canCreatePlans,
     isAdminMode,
@@ -65,8 +45,6 @@ export function AdminPlanHeader({
   const {
     selectedGroupId,
     setSelectedGroupId,
-    contentTypeFilter,
-    setContentTypeFilter,
     handleRefresh,
   } = useAdminPlanFilter();
 
@@ -81,8 +59,6 @@ export function AdminPlanHeader({
     setShowPlanGroupManageModal,
     setShowMarkdownExportModal,
   } = useAdminPlanModal();
-
-  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
 
   // 단축키 힌트 배너 상태 (localStorage 연동)
   const [showShortcutsHint, setShowShortcutsHint] = useState(() => {
@@ -99,12 +75,12 @@ export function AdminPlanHeader({
 
   return (
     <>
-      {/* 플래너 미선택 경고 배너 */}
-      {!selectedPlannerId && (
+      {/* 캘린더 미선택 경고 배너 */}
+      {!selectedCalendarId && (
         <div className="p-3 bg-warning-50 border border-warning-200 rounded-lg flex items-center gap-2">
           <AlertTriangle className="h-4 w-4 flex-shrink-0 text-warning-600" />
           <span className="text-sm text-warning-700">
-            플랜을 생성하려면 먼저 상단에서 플래너를 생성하거나 선택해주세요.
+            플랜을 생성하려면 먼저 캘린더를 선택해주세요.
           </span>
         </div>
       )}
@@ -149,57 +125,6 @@ export function AdminPlanHeader({
             onRefresh={handleRefresh}
           />
 
-          {/* 콘텐츠 유형 필터 */}
-          <div className="relative">
-            <button
-              onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border transition-colors",
-                contentTypeFilter !== "all"
-                  ? "bg-blue-50 border-blue-300 text-blue-700"
-                  : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
-              )}
-            >
-              <Filter className="w-3.5 h-3.5" />
-              <span>
-                {
-                  CONTENT_TYPE_FILTERS.find(
-                    (f) => f.value === contentTypeFilter
-                  )?.label
-                }
-              </span>
-            </button>
-            {showFilterDropdown && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setShowFilterDropdown(false)}
-                />
-                <div className="absolute left-0 top-full mt-1 w-36 bg-white border rounded-lg shadow-lg z-50 py-1">
-                  {CONTENT_TYPE_FILTERS.map((filter) => (
-                    <button
-                      key={filter.value}
-                      onClick={() => {
-                        setContentTypeFilter(filter.value);
-                        setShowFilterDropdown(false);
-                      }}
-                      className={cn(
-                        "w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-50",
-                        contentTypeFilter === filter.value &&
-                          "bg-blue-50 text-blue-700"
-                      )}
-                    >
-                      {filter.icon}
-                      <span>{filter.label}</span>
-                      {contentTypeFilter === filter.value && (
-                        <span className="ml-auto text-blue-500">✓</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -222,23 +147,23 @@ export function AdminPlanHeader({
           </button>
           <button
             onClick={() => setShowCreateWizard(true)}
-            disabled={!selectedPlannerId}
+            disabled={!canCreatePlans}
             className={cn(
               "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",
-              selectedPlannerId
+              canCreatePlans
                 ? "bg-primary-600 text-white hover:bg-primary-700"
                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
             )}
             title={
-              selectedPlannerId
+              canCreatePlans
                 ? "플랜 그룹 생성 (g)"
-                : "먼저 플래너를 선택해주세요"
+                : "먼저 캘린더를 선택해주세요"
             }
           >
             <Plus className="h-4 w-4" />
             플랜 그룹
           </button>
-          {selectedPlannerId && (
+          {canCreatePlans && (
             <button
               onClick={() => setShowAIPlanModal(true)}
               className="flex items-center gap-2 rounded-lg bg-info-50 px-3 py-2 text-sm font-medium text-info-700 hover:bg-info-100"

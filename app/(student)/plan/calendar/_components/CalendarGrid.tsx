@@ -3,7 +3,6 @@
 import { useMemo, useCallback, memo } from "react";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, DailyScheduleInfo, AcademySchedule } from "@/lib/types/plan";
-import type { AdHocPlanForCalendar } from "./PlanCalendarView";
 import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
 import type { GetPlanConnectionStateFn } from "../_hooks/usePlanConnectionState";
 import type { DragItem } from "../_hooks/useCalendarDragDrop";
@@ -18,7 +17,6 @@ type CalendarGridProps = {
   daysInMonth: number;
   startingDayOfWeek: number;
   plansByDate: Map<string, PlanWithContent[]>;
-  adHocPlansByDate: Map<string, AdHocPlanForCalendar[]>;
   exclusionsByDate: Map<string, PlanExclusion[]>;
   academySchedulesByDay: Map<number, AcademySchedule[]>;
   dayTypes: Map<string, DayTypeInfo>;
@@ -56,7 +54,6 @@ function CalendarGridComponent({
   daysInMonth,
   startingDayOfWeek,
   plansByDate,
-  adHocPlansByDate,
   exclusionsByDate,
   academySchedulesByDay,
   dayTypes,
@@ -100,7 +97,6 @@ function CalendarGridComponent({
       const date = new Date(year, month, day);
       const dateStr = formatDateString(date);
       const dayPlans = plansByDate.get(dateStr) || [];
-      const dayAdHocPlans = adHocPlansByDate.get(dateStr) || [];
       const dayExclusions = exclusionsByDate.get(dateStr) || [];
       const dayTypeInfo = dayTypes.get(dateStr);
       const dailySchedule = dailyScheduleMap.get(dateStr);
@@ -114,7 +110,7 @@ function CalendarGridComponent({
         <MemoizedDayCell
           key={day}
           dateInfo={{ day, year, month, dateStr }}
-          dayData={{ dayPlans, dayAdHocPlans, dayExclusions, dayAcademySchedules }}
+          dayData={{ dayPlans, dayExclusions, dayAcademySchedules }}
           metadata={{ dayTypeInfo, dailySchedule, isToday, showOnlyStudyTime, studentId }}
           handlers={{
             getConnectionState: getPlanConnectionState,
@@ -154,7 +150,6 @@ function CalendarGridComponent({
     year,
     month,
     plansByDate,
-    adHocPlansByDate,
     exclusionsByDate,
     dayTypes,
     dailyScheduleMap,

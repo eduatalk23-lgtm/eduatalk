@@ -63,18 +63,32 @@ export default function ExclusionManagement({
 
   const loadData = async () => {
     try {
-      // 학생별 전역 제외일 조회
+      // 학생별 전역 제외일 조회 (calendar_events 기반)
       const { data: exclusions, error } = await supabase
-        .from("plan_exclusions")
-        .select("id,tenant_id,student_id,exclusion_date,exclusion_type,reason,created_at")
+        .from("calendar_events")
+        .select("id,tenant_id,student_id,start_date,event_subtype,title,created_at")
         .eq("student_id", studentId)
-        .order("exclusion_date", { ascending: true });
+        .eq("event_type", "exclusion")
+        .eq("is_all_day", true)
+        .is("deleted_at", null)
+        .order("start_date", { ascending: true });
 
       if (error) {
         console.error("[ExclusionManagement] 제외일 조회 실패", error);
         setPlanExclusions([]);
       } else {
-        setPlanExclusions((exclusions as PlanExclusion[]) ?? []);
+        // calendar_events → PlanExclusion 형태로 매핑
+        const mapped: PlanExclusion[] = (exclusions ?? []).map((e) => ({
+          id: e.id,
+          tenant_id: e.tenant_id ?? "",
+          student_id: e.student_id ?? "",
+          plan_group_id: null,
+          exclusion_date: e.start_date ?? "",
+          exclusion_type: (e.event_subtype ?? "기타") as PlanExclusion["exclusion_type"],
+          reason: e.title ?? null,
+          created_at: e.created_at ?? new Date().toISOString(),
+        }));
+        setPlanExclusions(mapped);
       }
     } catch (error: unknown) {
       console.error("학습 제외 일정 로드 실패:", error);

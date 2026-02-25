@@ -39,7 +39,7 @@ export type PlanGroupCreationData = {
   period_end: string; // date
   target_date?: string | null; // date
   block_set_id?: string | null;
-  planner_id?: string | null; // 플래너 연결
+  calendar_id?: string | null; // 캘린더 연결
   contents: PlanContentInput[];
   exclusions: PlanExclusionInput[];
   academy_schedules: AcademyScheduleInput[];
@@ -112,8 +112,7 @@ export type AcademyInput = {
  * 학원 일정 입력 (학원별 요일별 시간대)
  */
 export type AcademyScheduleInput = {
-  academy_id?: string; // 기존 학원 ID (수정 시)
-  academy_name?: string; // 새 학원명 (생성 시, 하위 호환성)
+  academy_name?: string; // 학원명
   day_of_week: number;
   start_time: string; // time
   end_time: string; // time

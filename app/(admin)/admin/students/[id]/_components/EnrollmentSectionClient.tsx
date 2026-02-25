@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition, useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import { deleteEnrollmentAction } from "@/lib/domains/enrollment/actions";
@@ -33,6 +32,7 @@ type EnrollmentSectionClientProps = {
   programs: Program[];
   payments: PaymentRecordWithEnrollment[];
   consultants?: ConsultantOption[];
+  onRefresh?: () => void;
 };
 
 export function EnrollmentSectionClient({
@@ -41,8 +41,8 @@ export function EnrollmentSectionClient({
   programs,
   payments,
   consultants = [],
+  onRefresh,
 }: EnrollmentSectionClientProps) {
-  const router = useRouter();
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
 
@@ -178,7 +178,7 @@ export function EnrollmentSectionClient({
           ) {
             setSelectedEnrollmentId(null);
           }
-          router.refresh();
+          onRefresh?.();
         } else {
           toast.showError(result.error ?? "삭제에 실패했습니다.");
         }
@@ -207,7 +207,7 @@ export function EnrollmentSectionClient({
     const result = await cancelCashReceiptAction(paymentId);
     if (result.success) {
       toast.showSuccess("현금영수증이 취소되었습니다.");
-      router.refresh();
+      onRefresh?.();
     } else {
       toast.showError(result.error ?? "취소에 실패했습니다.");
     }
@@ -225,7 +225,7 @@ export function EnrollmentSectionClient({
             `${synced}건 환불 동기화 완료` +
               (failed > 0 ? ` (${failed}건 조회 실패 건너뜀)` : "")
           );
-          router.refresh();
+          onRefresh?.();
         } else if (failed === checked) {
           toast.showError("토스 API 조회에 모두 실패했습니다.");
         } else {
@@ -286,7 +286,7 @@ export function EnrollmentSectionClient({
         studentId={studentId}
         programs={programs}
         consultants={consultants}
-        onSuccess={() => router.refresh()}
+        onSuccess={() => onRefresh?.()}
       />
 
       <PaymentAddModal
@@ -298,7 +298,7 @@ export function EnrollmentSectionClient({
         studentId={studentId}
         enrollmentPrice={paymentAddTarget?.price ?? null}
         programName={paymentAddTarget?.program_name ?? ""}
-        onSuccess={() => router.refresh()}
+        onSuccess={() => onRefresh?.()}
       />
 
       <PaymentConfirmModal
@@ -307,7 +307,7 @@ export function EnrollmentSectionClient({
           if (!open) setPaymentConfirmTarget(null);
         }}
         payment={paymentConfirmTarget}
-        onSuccess={() => router.refresh()}
+        onSuccess={() => onRefresh?.()}
       />
 
       {refundTarget && (
@@ -319,6 +319,7 @@ export function EnrollmentSectionClient({
           paymentId={refundTarget.id}
           paidAmount={refundTarget.paid_amount}
           programName={refundTarget.program_name}
+          onSuccess={() => onRefresh?.()}
         />
       )}
 
@@ -331,6 +332,7 @@ export function EnrollmentSectionClient({
           paymentId={cashReceiptTarget.id}
           amount={cashReceiptTarget.paid_amount || cashReceiptTarget.amount}
           programName={cashReceiptTarget.program_name}
+          onSuccess={() => onRefresh?.()}
         />
       )}
 

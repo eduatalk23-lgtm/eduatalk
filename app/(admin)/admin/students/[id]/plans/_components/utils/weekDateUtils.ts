@@ -2,37 +2,71 @@
  * 주간 그리드 뷰용 날짜 유틸리티
  */
 
-/** 주어진 날짜가 포함된 주의 일~토 7일 배열 반환 (YYYY-MM-DD) */
-export function getWeekDates(selectedDate: string): string[] {
+/** 주어진 날짜가 포함된 주의 7일 배열 반환 (YYYY-MM-DD)
+ * @param weekStartsOn 주 시작 요일 (0=일, 1=월, ..., 6=토). 기본값 0(일요일)
+ */
+export function getWeekDates(selectedDate: string, weekStartsOn = 0): string[] {
   const date = new Date(selectedDate + 'T00:00:00');
   const dayOfWeek = date.getDay(); // 0=일, 1=월, ..., 6=토
-  const sundayOffset = -dayOfWeek;
-  const sunday = new Date(date);
-  sunday.setDate(date.getDate() + sundayOffset);
+  const offset = -((dayOfWeek - weekStartsOn + 7) % 7);
+  const weekStart = new Date(date);
+  weekStart.setDate(date.getDate() + offset);
 
   const dates: string[] = [];
   for (let i = 0; i < 7; i++) {
-    const d = new Date(sunday);
-    d.setDate(sunday.getDate() + i);
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + i);
     dates.push(formatDate(d));
   }
   return dates;
 }
 
+/** 커스텀 N일 배열 반환 (selectedDate 중심, weekStartsOn 기반 시작)
+ * dayCount=7이면 getWeekDates와 동일. 2~6이면 selectedDate 중심 N일.
+ */
+export function getCustomDayDates(selectedDate: string, dayCount: number, weekStartsOn = 0): string[] {
+  if (dayCount >= 7) return getWeekDates(selectedDate, weekStartsOn);
+  const date = new Date(selectedDate + 'T00:00:00');
+  // selectedDate 기준 앞뒤로 균등 배치 (앞쪽 우선)
+  const before = Math.floor((dayCount - 1) / 2);
+  const start = new Date(date);
+  start.setDate(date.getDate() - before);
+  const dates: string[] = [];
+  for (let i = 0; i < dayCount; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    dates.push(formatDate(d));
+  }
+  return dates;
+}
+
+/** 커스텀 N일 범위 반환 */
+export function getCustomDayRange(selectedDate: string, dayCount: number, weekStartsOn = 0): { start: string; end: string } {
+  const dates = getCustomDayDates(selectedDate, dayCount, weekStartsOn);
+  return { start: dates[0], end: dates[dates.length - 1] };
+}
+
+/** 커스텀 N일 뷰에서 N일 앞/뒤로 이동 */
+export function shiftCustomDays(date: string, direction: 1 | -1, dayCount: number): string {
+  const d = new Date(date + 'T00:00:00');
+  d.setDate(d.getDate() + direction * dayCount);
+  return formatDate(d);
+}
+
 /** 주간 시작~끝 날짜 범위 */
-export function getWeekRange(date: string): { start: string; end: string } {
-  const dates = getWeekDates(date);
+export function getWeekRange(date: string, weekStartsOn = 0): { start: string; end: string } {
+  const dates = getWeekDates(date, weekStartsOn);
   return { start: dates[0], end: dates[6] };
 }
 
 /**
- * 일~토(Sun-Sat) 주간 범위 반환
+ * 주간 범위 반환 (weekStartsOn 기반)
  *
  * calendarEvents.ts의 getWeekRange(월~일)와 구분하기 위한 명시적 네이밍.
  * weeklyCalendarEventsQueryOptions에 직접 전달 가능.
  */
-export function getWeekRangeSunSat(dateStr: string): { start: string; end: string } {
-  const dates = getWeekDates(dateStr);
+export function getWeekRangeSunSat(dateStr: string, weekStartsOn = 0): { start: string; end: string } {
+  const dates = getWeekDates(dateStr, weekStartsOn);
   return { start: dates[0], end: dates[6] };
 }
 
@@ -65,10 +99,10 @@ export function formatDayHeader(date: string): {
   };
 }
 
-/** 두 날짜가 같은 주(일~토)에 속하는지 확인 */
-export function isSameWeek(dateA: string, dateB: string): boolean {
-  const weekA = getWeekDates(dateA);
-  const weekB = getWeekDates(dateB);
+/** 두 날짜가 같은 주에 속하는지 확인 */
+export function isSameWeek(dateA: string, dateB: string, weekStartsOn = 0): boolean {
+  const weekA = getWeekDates(dateA, weekStartsOn);
+  const weekB = getWeekDates(dateB, weekStartsOn);
   return weekA[0] === weekB[0];
 }
 
@@ -125,7 +159,25 @@ export function shiftWeek(date: string, direction: 1 | -1): string {
   return formatDate(d);
 }
 
+/** 연도를 1년 앞/뒤로 이동 */
+export function shiftYear(date: string, direction: 1 | -1): string {
+  const d = new Date(date + 'T00:00:00');
+  d.setFullYear(d.getFullYear() + direction);
+  return formatDate(d);
+}
+
 /** 오늘 날짜 반환 (YYYY-MM-DD) */
 export function getTodayString(): string {
   return formatDate(new Date());
+}
+
+const BASE_WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
+
+/** weekStartsOn에 맞게 회전된 요일 라벨 반환 */
+export function getRotatedWeekdayLabels(weekStartsOn = 0): string[] {
+  if (weekStartsOn === 0) return BASE_WEEKDAY_LABELS;
+  return [
+    ...BASE_WEEKDAY_LABELS.slice(weekStartsOn),
+    ...BASE_WEEKDAY_LABELS.slice(0, weekStartsOn),
+  ];
 }

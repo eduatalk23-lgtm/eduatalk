@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { requireAdminOrConsultant } from '@/lib/auth/guards';
 import { logActionError, logActionDebug } from '@/lib/logging/actionLogger';
 import type { AdminPlanResponse, ContainerType } from '../types';
+import type { ExclusionType } from '@/lib/types/common';
 import { createAutoContentPlanGroupAction } from './createAutoContentPlanGroup';
 import {
   getExistingPlansForStudent,
@@ -15,7 +16,7 @@ import {
   adjustDateAvailableTimeRangesWithExistingPlans,
   timeToMinutes,
 } from './planCreation/timelineAdjustment';
-import { generateScheduleForPlanner } from './planCreation/scheduleGenerator';
+import { generateScheduleForCalendar } from './planCreation/scheduleGenerator';
 import { findAvailableTimeSlot } from './planCreation/singleDayScheduler';
 import { calculateEstimatedMinutes } from '../utils/durationCalculator';
 import { generatePlansFromGroup, type DateTimeSlots as SchedulerDateTimeSlots } from '@/lib/plan/scheduler';
@@ -66,9 +67,9 @@ export interface CreatePlanFromContentInput {
   studentId: string;
   tenantId: string;
 
-  // 플래너/플랜그룹 연결 (플래너 선택 필수)
-  /** 선택된 플래너 ID (필수 - Plan Group 자동 선택/생성 시 사용) */
-  plannerId: string;
+  // 캘린더/플랜그룹 연결
+  /** 캘린더 ID */
+  calendarId?: string;
   /** 지정된 그룹 ID (없으면 자동 생성) */
   planGroupId?: string;
 
@@ -102,18 +103,19 @@ export async function createPlanFromContent(
     // 플랜그룹 ID 결정 (자동 생성 또는 기존 사용)
     let effectivePlanGroupId: string | undefined = input.planGroupId;
 
-    // plannerId가 있고 planGroupId가 없으면 자동 생성
-    if (input.plannerId && !input.planGroupId) {
+    // calendarId가 있고 planGroupId가 없으면 자동 생성
+    if ((input.calendarId) && !input.planGroupId) {
       logActionDebug(
         { domain: 'admin-plan', action: 'createPlanFromContent' },
         '플랜그룹 자동 생성 시작',
-        { plannerId: input.plannerId, studentId: input.studentId }
+        { calendarId: input.calendarId, studentId: input.studentId }
       );
 
       const autoGroupResult = await createAutoContentPlanGroupAction({
         tenantId: input.tenantId,
         studentId: input.studentId,
-        plannerId: input.plannerId,
+        calendarId: input.calendarId,
+
         contentTitle: input.contentTitle,
         targetDate: input.targetDate,
         planPurpose: 'content',
@@ -168,14 +170,16 @@ export async function createPlanFromContent(
       let endTime: string | undefined;
 
       // 스케줄러 활성화 시 자동 시간 배정
-      if (input.useScheduler && input.plannerId) {
+      if (input.useScheduler && (input.calendarId)) {
         const estimatedMinutes =
           input.estimatedMinutes ||
           calculateEstimatedMinutes(input.totalVolume, flexibleContent.content_type);
 
+        const scheduleCalId = input.calendarId!;
+
         const scheduleResult = await findAvailableTimeSlot({
           studentId: input.studentId,
-          plannerId: input.plannerId,
+          calendarId: scheduleCalId,
           targetDate: input.targetDate,
           estimatedMinutes,
         });
@@ -212,23 +216,6 @@ export async function createPlanFromContent(
         planGroupId: effectivePlanGroupId,
         startTime,
         endTime,
-        now,
-        sequence: nextSequence,
-      }));
-    } else if (input.distributionMode === 'weekly') {
-      // Weekly Dock에 단일 플랜 추가
-      // 현재 날짜/컨테이너의 최대 sequence 조회 후 다음 값 설정
-      const nextSequence = await getNextSequence(supabase, input.studentId, input.targetDate, 'weekly');
-
-      plansToCreate.push(createPlanRecord({
-        ...input,
-        contentType: flexibleContent.content_type,
-        contentId: contentId,
-        planDate: input.targetDate,
-        containerType: 'weekly',
-        startPage: input.rangeStart,
-        endPage: input.rangeEnd,
-        planGroupId: effectivePlanGroupId,
         now,
         sequence: nextSequence,
       }));
@@ -477,7 +464,7 @@ export async function createPlanFromContentWithScheduler(
       { domain: 'admin-plan', action: 'createPlanFromContentWithScheduler' },
       '스케줄러 기반 플랜 생성 시작',
       {
-        plannerId: input.plannerId,
+
         studentId: input.studentId,
         distributionMode: input.distributionMode,
         targetDate: input.targetDate,
@@ -488,11 +475,12 @@ export async function createPlanFromContentWithScheduler(
     // 1. 플랜 그룹 ID 결정 (자동 생성 또는 기존 사용)
     let effectivePlanGroupId: string | undefined = input.planGroupId;
 
-    if (input.plannerId && !input.planGroupId) {
+    if ((input.calendarId) && !input.planGroupId) {
       const autoGroupResult = await createAutoContentPlanGroupAction({
         tenantId: input.tenantId,
         studentId: input.studentId,
-        plannerId: input.plannerId,
+        calendarId: input.calendarId,
+
         contentTitle: input.contentTitle,
         targetDate: input.targetDate,
         planPurpose: 'content',
@@ -508,9 +496,15 @@ export async function createPlanFromContentWithScheduler(
       effectivePlanGroupId = autoGroupResult.groupId;
     }
 
-    // 2. 플래너 기반 스케줄 생성
-    const scheduleResult = await generateScheduleForPlanner(
-      input.plannerId,
+    // 2. 캘린더 기반 스케줄 생성
+    const scheduleCalendarId = input.calendarId || null;
+
+    if (!scheduleCalendarId) {
+      return createPlanFromContent(input);
+    }
+
+    const scheduleResult = await generateScheduleForCalendar(
+      scheduleCalendarId,
       input.targetDate,
       input.periodEndDate
     );
@@ -519,7 +513,7 @@ export async function createPlanFromContentWithScheduler(
       logActionError(
         { domain: 'admin-plan', action: 'createPlanFromContentWithScheduler' },
         new Error(scheduleResult.error || '스케줄 생성 실패'),
-        { plannerId: input.plannerId }
+        { calendarId: scheduleCalendarId }
       );
       // 스케줄 생성 실패 시 기존 로직으로 fallback
       return createPlanFromContent(input);
@@ -575,23 +569,41 @@ export async function createPlanFromContentWithScheduler(
       return { success: false, error: '플랜 그룹을 찾을 수 없습니다.' };
     }
 
-    // 7. 플랜 그룹의 제외일, 학원일정, 블록 조회
-    const { data: exclusions } = await supabase
-      .from('plan_group_exclusions')
-      .select('*')
-      .eq('plan_group_id', effectivePlanGroupId);
+    // 7. 제외일 조회 (calendar_events 기반, student_id로 조회)
+    const { data: calExclusions } = await supabase
+      .from('calendar_events')
+      .select('id, tenant_id, student_id, start_date, event_subtype, title, created_at')
+      .eq('student_id', planGroup.student_id)
+      .eq('event_type', 'exclusion')
+      .eq('is_all_day', true)
+      .is('deleted_at', null);
 
-    const { data: academySchedules } = await supabase
-      .from('plan_group_academy_schedules')
-      .select('*')
-      .eq('plan_group_id', effectivePlanGroupId);
+    const exclusions = (calExclusions ?? []).map((e) => ({
+      id: e.id,
+      tenant_id: e.tenant_id ?? '',
+      student_id: e.student_id ?? '',
+      plan_group_id: null,
+      exclusion_date: e.start_date ?? '',
+      exclusion_type: (e.event_subtype ?? '기타') as ExclusionType,
+      reason: e.title ?? null,
+      created_at: e.created_at ?? new Date().toISOString(),
+    }));
 
+    // 학원 일정 조회 (academy_schedules 기반)
+    const { getEffectiveAcademySchedules } = await import('@/lib/data/planGroups/academyOverrides');
+    const academySchedules = await getEffectiveAcademySchedules(
+      effectivePlanGroupId!,
+      planGroup.student_id,
+      planGroup.tenant_id
+    );
+
+    // 블록 조회 (tenant_blocks)
     let blocks: Array<{ day_of_week: number; start_time: string; end_time: string }> = [];
     if (planGroup.block_set_id) {
       const { data: blockData } = await supabase
-        .from('tenant_block_set_items')
+        .from('tenant_blocks')
         .select('day_of_week, start_time, end_time')
-        .eq('block_set_id', planGroup.block_set_id);
+        .eq('tenant_block_set_id', planGroup.block_set_id);
 
       if (blockData) {
         blocks = blockData;
@@ -623,11 +635,23 @@ export async function createPlanFromContentWithScheduler(
       start_time: p.start_time,
       end_time: p.end_time,
     }));
+    // EffectiveAcademySchedule → AcademySchedule 형태로 변환
+    const academySchedulesForGenerator = (academySchedules || []).map((a) => ({
+      id: a.id,
+      tenant_id: planGroup.tenant_id,
+      student_id: planGroup.student_id,
+      day_of_week: a.day_of_week,
+      start_time: a.start_time,
+      end_time: a.end_time,
+      subject: a.subject ?? null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }));
     const generateResult = await generatePlansFromGroup(
       planGroup,
       planContents,
       exclusions || [],
-      academySchedules || [],
+      academySchedulesForGenerator,
       [],
       undefined, // contentSubjects
       undefined, // riskIndexMap

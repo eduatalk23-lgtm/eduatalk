@@ -22,6 +22,19 @@ export function usePlanRealtimeUpdates({
       return;
     }
 
+    const invalidateAllRelated = () => {
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          (query.queryKey[0] === "todayPlans" ||
+            query.queryKey[0] === "today" ||
+            query.queryKey[0] === "plans" ||
+            query.queryKey[0] === "adminDock" ||
+            query.queryKey[0] === "calendarEvents" ||
+            query.queryKey[0] === "calendarSchedule"),
+      });
+    };
+
     // 싱글톤 클라이언트 사용 (모듈 레벨에서 import)
     // 플랜 변경 구독
     const planChannel = supabase
@@ -34,19 +47,7 @@ export function usePlanRealtimeUpdates({
           table: "student_plan",
           filter: `student_id=eq.${userId}`,
         },
-        (payload) => {
-          console.log("[Realtime] Plan updated:", payload);
-          // predicate 기반 무효화로 모든 관련 쿼리 처리
-          queryClient.invalidateQueries({
-            predicate: (query) =>
-              Array.isArray(query.queryKey) &&
-              (query.queryKey[0] === "todayPlans" ||
-                query.queryKey[0] === "todayContainerPlans" ||
-                query.queryKey[0] === "today" ||
-                query.queryKey[0] === "plans" ||
-                query.queryKey[0] === "adminDock"),
-          });
-        }
+        () => invalidateAllRelated()
       )
       .subscribe();
 
@@ -61,9 +62,7 @@ export function usePlanRealtimeUpdates({
           table: "student_study_sessions",
           filter: `student_id=eq.${userId}`,
         },
-        (payload) => {
-          console.log("[Realtime] Session updated:", payload);
-          // predicate 기반 무효화로 모든 관련 쿼리 처리
+        () => {
           queryClient.invalidateQueries({
             predicate: (query) =>
               Array.isArray(query.queryKey) &&
@@ -76,9 +75,25 @@ export function usePlanRealtimeUpdates({
       )
       .subscribe();
 
+    // 캘린더 이벤트 변경 구독 (관리자가 추가/수정/삭제한 이벤트 실시간 반영)
+    const calendarEventsChannel = supabase
+      .channel(`calendar-events-${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "calendar_events",
+          filter: `student_id=eq.${userId}`,
+        },
+        () => invalidateAllRelated()
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(planChannel);
       supabase.removeChannel(sessionChannel);
+      supabase.removeChannel(calendarEventsChannel);
     };
   }, [planDate, userId, enabled, queryClient]);
 }

@@ -18,7 +18,7 @@ export interface MovePlanInput {
   /** 플랜 ID */
   planId: string;
   /** 플랜 타입 */
-  planType: "student_plan" | "ad_hoc_plan";
+  planType: "student_plan";
   /** 이동할 날짜 (YYYY-MM-DD) */
   targetDate: string;
   /** 이동할 시간 슬롯 ID (optional) */
@@ -66,17 +66,14 @@ function validateTargetDate(targetDate: string): { valid: boolean; error?: strin
 async function validatePlanOwnership(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   planId: string,
-  planType: "student_plan" | "ad_hoc_plan",
+  planType: "student_plan",
   userId: string
 ): Promise<{ valid: boolean; error?: string; plan?: Record<string, unknown> }> {
-  const table = planType === "student_plan" ? "student_plan" : "ad_hoc_plans";
-  const studentIdColumn = planType === "student_plan" ? "student_id" : "student_id";
-
   const { data: plan, error } = await supabase
-    .from(table)
+    .from("student_plan")
     .select("*")
     .eq("id", planId)
-    .eq(studentIdColumn, userId)
+    .eq("student_id", userId)
     .single();
 
   if (error || !plan) {
@@ -113,7 +110,7 @@ async function checkTimeConflict(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   userId: string,
   planId: string,
-  planType: "student_plan" | "ad_hoc_plan",
+  planType: "student_plan",
   targetDate: string,
   targetStartTime?: string,
   targetEndTime?: string
@@ -126,22 +123,14 @@ async function checkTimeConflict(
   // student_plan 충돌 확인
   const { data: studentPlans } = await supabase
     .from("student_plan")
-    .select("id, title, start_time, end_time")
+    .select("id, content_title, start_time, end_time")
     .eq("student_id", userId)
     .eq("plan_date", targetDate)
-    .neq("id", planType === "student_plan" ? planId : "")
+    .neq("id", planId)
+    .eq("is_active", true)
     .not("status", "eq", "cancelled");
 
-  // ad_hoc_plans 충돌 확인
-  const { data: adHocPlans } = await supabase
-    .from("ad_hoc_plans")
-    .select("id, title, start_time, end_time")
-    .eq("student_id", userId)
-    .eq("plan_date", targetDate)
-    .neq("id", planType === "ad_hoc_plan" ? planId : "")
-    .not("status", "eq", "cancelled");
-
-  const allPlans = [...(studentPlans || []), ...(adHocPlans || [])];
+  const allPlans = (studentPlans || []).map(p => ({ ...p, title: p.content_title }));
 
   for (const plan of allPlans) {
     const planStart = plan.start_time;
@@ -217,7 +206,6 @@ export async function movePlan(input: MovePlanInput): Promise<MovePlanResult> {
     }
 
     // 5. 플랜 업데이트
-    const table = planType === "student_plan" ? "student_plan" : "ad_hoc_plans";
     const updateData: Record<string, unknown> = {
       plan_date: targetDate,
       updated_at: new Date().toISOString(),
@@ -231,7 +219,7 @@ export async function movePlan(input: MovePlanInput): Promise<MovePlanResult> {
     }
 
     const { error: updateError } = await supabase
-      .from(table)
+      .from("student_plan")
       .update(updateData)
       .eq("id", planId);
 

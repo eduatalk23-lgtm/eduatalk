@@ -1285,26 +1285,38 @@ export async function monitorPlanGroupProgress(
       return { success: false, error: "플랜 그룹을 찾을 수 없습니다." };
     }
 
-    // 해당 플랜 그룹의 모든 플랜 조회
-    const { data: plans, error: plansError } = await supabase
-      .from("student_plan")
-      .select("id, plan_date, simple_completed, simple_completed_at")
+    // 해당 플랜 그룹의 모든 이벤트 조회 (calendar_events + event_study_data)
+    const { data: events, error: eventsError } = await supabase
+      .from("calendar_events")
+      .select("id, start_at, start_date, event_study_data(done)")
       .eq("student_id", studentId)
       .eq("plan_group_id", planGroupId)
-      .order("plan_date", { ascending: true });
+      .eq("event_type", "study")
+      .is("deleted_at", null)
+      .order("start_at", { ascending: true });
 
-    if (plansError) {
-      return { success: false, error: `플랜 조회 실패: ${plansError.message}` };
+    if (eventsError) {
+      return { success: false, error: `이벤트 조회 실패: ${eventsError.message}` };
     }
 
-    const allPlans = plans || [];
+    const { extractDateYMD } = await import("@/lib/domains/calendar/adapters");
+    type DoneRow = { done: boolean };
+    const allPlans = (events || []).map((e) => {
+      const sdRaw = e.event_study_data;
+      const sd: DoneRow | null = Array.isArray(sdRaw) ? sdRaw[0] ?? null : (sdRaw as DoneRow | null);
+      return {
+        id: e.id,
+        plan_date: e.start_date ?? extractDateYMD(e.start_at) ?? "",
+        isCompleted: sd?.done === true,
+      };
+    });
     const totalPlans = allPlans.length;
 
     if (totalPlans === 0) {
       return { success: false, error: "플랜이 없습니다." };
     }
 
-    const completedPlans = allPlans.filter((p) => p.simple_completed === true).length;
+    const completedPlans = allPlans.filter((p) => p.isCompleted).length;
     const progressRate = Math.round((completedPlans / totalPlans) * 100);
 
     // 예상 진행률 계산 (기간 기준)
@@ -1345,7 +1357,7 @@ export async function monitorPlanGroupProgress(
 
     // 지연 위험 플랜 수 (오늘 이전 미완료 플랜)
     const atRiskPlanCount = allPlans.filter(
-      (p) => !p.simple_completed && new Date(p.plan_date) < today
+      (p) => !p.isCompleted && new Date(p.plan_date) < today
     ).length;
 
     // 권장 조치 결정

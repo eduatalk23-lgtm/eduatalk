@@ -3,7 +3,7 @@
  *
  * 구조 (7개 카테고리):
  * 1. 홈 - 대시보드
- * 2. 오늘 학습 - 핵심 기능 (독립 카테고리)
+ * 2. 캘린더 - 핵심 기능 (GCal 뷰)
  * 3. 플랜 관리 - 플랜 + 콘텐츠 + 시간 통합
  * 4. 캠프 - 캠프 관련 기능
  * 5. 학습 분석 - 분석 + 리포트 통합
@@ -38,7 +38,6 @@ import {
   AlertTriangle,
   Timer,
   Home,
-  CalendarCheck,
   CalendarX,
   FolderKanban,
 } from "lucide-react";
@@ -59,17 +58,17 @@ export const studentCategories: NavigationCategory[] = [
     ],
   },
 
-  // 2. 오늘 학습 (핵심 기능 - 독립 카테고리로 승격)
+  // 2. 캘린더 (핵심 기능 - GCal 뷰)
   {
-    id: "today",
-    label: "오늘 학습",
-    icon: <CalendarCheck className="w-4 h-4" />,
+    id: "calendar",
+    label: "캘린더",
+    icon: <Calendar className="w-4 h-4" />,
     items: [
       {
-        id: "today-main",
-        label: "오늘 학습",
-        href: "/today",
-        icon: <CalendarCheck className="w-4 h-4" />,
+        id: "calendar-main",
+        label: "캘린더",
+        href: "/plan/calendar",
+        icon: <Calendar className="w-4 h-4" />,
       },
     ],
   },
@@ -91,12 +90,6 @@ export const studentCategories: NavigationCategory[] = [
         label: "플랜 목록",
         href: "/plan",
         icon: <ClipboardList className="w-4 h-4" />,
-      },
-      {
-        id: "plan-calendar",
-        label: "플랜 캘린더",
-        href: "/plan/calendar",
-        icon: <Calendar className="w-4 h-4" />,
       },
       {
         id: "plan-adjust",

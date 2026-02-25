@@ -9,7 +9,6 @@ import { formatPlanLearningAmount } from '@/lib/utils/planFormatting';
 
 interface QuickCompleteButtonProps {
   planId: string;
-  planType: 'plan' | 'adhoc';
   isCompleted: boolean;
   onSuccess: () => void;
   size?: 'sm' | 'md' | 'lg';
@@ -22,7 +21,6 @@ interface QuickCompleteButtonProps {
  */
 export function QuickCompleteButton({
   planId,
-  planType,
   isCompleted,
   onSuccess,
   size = 'md',
@@ -55,7 +53,6 @@ export function QuickCompleteButton({
       const result = await togglePlanComplete(
         planId,
         isCompleted,
-        planType === 'adhoc',
         skipRevalidation
       );
 

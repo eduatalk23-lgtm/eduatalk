@@ -15,11 +15,10 @@ import { withErrorHandling } from "@/lib/errors";
 import { logActionSuccess, logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { format } from "date-fns";
 import {
-  inheritPlannerConfigFromRaw,
-  type PlannerConfigRaw,
-} from "../utils/plannerConfigInheritance";
-import { resolvePrimaryCalendarId } from "@/lib/domains/calendar/helpers";
-import { extractTimeHHMM } from "@/lib/domains/calendar/adapters";
+  inheritCalendarConfigFromRaw,
+  type CalendarConfigRaw,
+} from "../utils/calendarConfigInheritance";
+import { extractTimeHHMM, extractDateYMD } from "@/lib/domains/calendar/adapters";
 
 // ============================================
 // 타입 정의
@@ -31,7 +30,8 @@ import { extractTimeHHMM } from "@/lib/domains/calendar/adapters";
 export interface CreateAutoContentPlanGroupInput {
   tenantId: string;
   studentId: string;
-  plannerId: string;
+  /** 캘린더 ID */
+  calendarId?: string;
   contentTitle: string;
   targetDate: string;
   planPurpose?: "content" | "adhoc";
@@ -66,32 +66,42 @@ async function _createAutoContentPlanGroup(
   const tenantContext = await requireTenantContext();
   const supabase = await createSupabaseServerClient();
 
-  // 1. 플래너 정보 조회
-  const { data: planner, error: plannerError } = await supabase
-    .from("planners")
-    .select("*")
-    .eq("id", input.plannerId)
-    .eq("tenant_id", input.tenantId)
-    .is("deleted_at", null)
-    .single();
+  // 1. 캘린더 정보 조회 (Calendar-First)
+  const calendarId: string | null = input.calendarId ?? null;
+  let inheritedConfig: ReturnType<typeof inheritCalendarConfigFromRaw>;
 
-  if (plannerError || !planner) {
-    logActionError(
-      { domain: "admin-plan", action: "createAutoContentPlanGroup" },
-      plannerError || "플래너를 찾을 수 없습니다.",
-      { plannerId: input.plannerId }
-    );
+  if (!calendarId) {
     return {
       success: false,
-      error: "플래너를 찾을 수 없습니다. 먼저 플래너를 선택해주세요.",
+      error: "캘린더 ID가 필요합니다.",
     };
   }
 
-  // 1-0. calendarId resolve
-  const calendarId = await resolvePrimaryCalendarId(input.plannerId);
+  {
+    const { data: calendar, error: calendarError } = await supabase
+      .from("calendars")
+      .select("*")
+      .eq("id", calendarId)
+      .is("deleted_at", null)
+      .single();
+
+    if (calendarError || !calendar) {
+      logActionError(
+        { domain: "admin-plan", action: "createAutoContentPlanGroup" },
+        calendarError || "캘린더를 찾을 수 없습니다.",
+        { calendarId }
+      );
+      return {
+        success: false,
+        error: "캘린더를 찾을 수 없습니다. 먼저 캘린더를 선택해주세요.",
+      };
+    }
+
+    inheritedConfig = inheritCalendarConfigFromRaw(calendar as CalendarConfigRaw);
+  }
 
   // 1-1. 플래너 제외일 조회 (targetDate 이후만, calendar_events)
-  let plannerExclusions: Array<{ plan_date: string; exclusion_type: string | null; label: string | null }> | null = null;
+  let calendarExclusions: Array<{ plan_date: string; exclusion_type: string | null; label: string | null }> | null = null;
   if (calendarId) {
     const { data: exclusionEvents } = await supabase
       .from("calendar_events")
@@ -102,7 +112,7 @@ async function _createAutoContentPlanGroup(
       .is("deleted_at", null)
       .gte("start_date", input.targetDate);
 
-    plannerExclusions = (exclusionEvents || []).map((e) => ({
+    calendarExclusions = (exclusionEvents || []).map((e) => ({
       plan_date: e.start_date!,
       exclusion_type: e.event_subtype,
       label: e.title,
@@ -121,7 +131,7 @@ async function _createAutoContentPlanGroup(
       .is("deleted_at", null);
 
     for (const row of academyEvents || []) {
-      const planDate = row.start_date || row.start_at?.split("T")[0] || "";
+      const planDate = row.start_date || extractDateYMD(row.start_at ?? null) || "";
       const dayOfWeek = new Date(planDate + "T00:00:00").getDay();
       const startTime = extractTimeHHMM(row.start_at);
       const endTime = extractTimeHHMM(row.end_at);
@@ -143,18 +153,16 @@ async function _createAutoContentPlanGroup(
     ? `임시 그룹 (${dateStr})`
     : `${truncatedTitle} (${dateStr})`;
 
-  // 3. 플랜그룹 데이터 준비 (플래너에서 설정 상속 - 일관된 기본값 사용)
-  const inheritedConfig = inheritPlannerConfigFromRaw(planner as PlannerConfigRaw);
-
+  // 3. 플랜그룹 데이터 준비 (캘린더에서 설정 상속 - 일관된 기본값 사용)
   const planGroupData = {
     name: groupName,
     plan_purpose: null,
-    // 플래너에서 상속된 설정 (일관된 기본값 보장)
+    // 캘린더에서 상속된 설정 (일관된 기본값 보장)
     ...inheritedConfig,
     period_start: input.targetDate,
     period_end: input.targetDate, // 단일 날짜 그룹
     target_date: null,
-    planner_id: input.plannerId,
+    calendar_id: null,
     status: "active", // 자동 생성 그룹은 바로 활성화
     subject_constraints: null,
     additional_period_reallocation: null,
@@ -170,7 +178,7 @@ async function _createAutoContentPlanGroup(
 
   // 4. RPC를 통한 원자적 플랜그룹 생성
   // 플래너의 제외일/학원일정을 플랜 그룹에 상속
-  const inheritedExclusions = (plannerExclusions || []).map((e) => ({
+  const inheritedExclusions = (calendarExclusions || []).map((e) => ({
     exclusion_date: e.plan_date,
     exclusion_type: e.exclusion_type,
     reason: e.label,
@@ -183,7 +191,6 @@ async function _createAutoContentPlanGroup(
     start_time: s.start_time,
     end_time: s.end_time,
     academy_name: s.label,
-    academy_id: null,
     subject: null,
     travel_time: 0,
     source: "inherited",
@@ -203,7 +210,7 @@ async function _createAutoContentPlanGroup(
     logActionError(
       { domain: "admin-plan", action: "createAutoContentPlanGroup" },
       error,
-      { plannerId: input.plannerId, studentId: input.studentId }
+      { calendarId, studentId: input.studentId }
     );
     return {
       success: false,
@@ -217,7 +224,7 @@ async function _createAutoContentPlanGroup(
     logActionError(
       { domain: "admin-plan", action: "createAutoContentPlanGroup" },
       result.error || "플랜 그룹 생성 실패",
-      { plannerId: input.plannerId, studentId: input.studentId }
+      { calendarId, studentId: input.studentId }
     );
     return {
       success: false,
@@ -225,12 +232,13 @@ async function _createAutoContentPlanGroup(
     };
   }
 
-  // 5. creation_mode 업데이트 (RPC에서 지원하지 않는 필드)
+  // 5. creation_mode + calendar_id 업데이트 (RPC에서 지원하지 않는 필드)
   await supabase
     .from("plan_groups")
     .update({
       creation_mode: "content_based",
       plan_mode: "content_based",
+      ...(calendarId ? { calendar_id: calendarId } : {}),
     })
     .eq("id", result.group_id);
 
@@ -238,7 +246,7 @@ async function _createAutoContentPlanGroup(
     { domain: "admin-plan", action: "createAutoContentPlanGroup" },
     {
       groupId: result.group_id,
-      plannerId: input.plannerId,
+      calendarId,
       studentId: input.studentId,
       groupName,
       inheritedExclusionsCount: inheritedExclusions.length,
@@ -249,7 +257,7 @@ async function _createAutoContentPlanGroup(
   logActionDebug(
     { domain: "admin-plan", action: "createAutoContentPlanGroup" },
     `자동 플랜그룹 생성 완료: ${groupName} (제외일 ${inheritedExclusions.length}개, 학원일정 ${inheritedSchedules.length}개 상속)`,
-    { groupId: result.group_id }
+    { groupId: result.group_id, calendarId }
   );
 
   return {

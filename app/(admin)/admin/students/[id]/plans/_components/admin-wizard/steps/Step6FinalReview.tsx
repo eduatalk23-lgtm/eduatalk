@@ -65,7 +65,7 @@ export function Step6FinalReview({ studentName }: Step6FinalReviewProps) {
     schedulerOptions,
     generateAIPlan,
     aiMode,
-    plannerId,
+    calendarId,
   } = wizardData;
 
   // 상속된 항목 통계
@@ -265,7 +265,7 @@ export function Step6FinalReview({ studentName }: Step6FinalReviewProps) {
         </div>
 
         {/* 플래너 연결 정보 (있는 경우) */}
-        {plannerId && (
+        {calendarId && (
           <div className="rounded-lg border border-blue-200 bg-blue-50 p-4" data-testid="planner-connection">
             <div className="flex items-center gap-2">
               <FolderOpen className="h-4 w-4 text-blue-600" />
@@ -310,7 +310,7 @@ export function Step6FinalReview({ studentName }: Step6FinalReviewProps) {
             <div className="flex justify-between">
               <span className="flex items-center gap-1 text-gray-500">
                 스케줄러 타입
-                {plannerId && <Lock className="h-3 w-3 text-blue-400" />}
+                {calendarId && <Lock className="h-3 w-3 text-blue-400" />}
               </span>
               <span className="font-medium text-gray-900">
                 {schedulerType === "1730_timetable"

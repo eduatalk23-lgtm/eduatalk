@@ -188,7 +188,6 @@ export async function getPlanGroupContentSummary(
     bookCount: 0,
     lectureCount: 0,
     customCount: 0,
-    adHocCount: 0,
     totalContentCount: 0,
     contentNames: [],
   };
@@ -210,21 +209,7 @@ export async function getPlanGroupContentSummary(
       return defaultSummary;
     }
 
-    // 2. ad_hoc_plans에서 연결된 플랜 개수 조회
-    const { count: adHocCount, error: adHocError } = await supabase
-      .from("ad_hoc_plans")
-      .select("*", { count: "exact", head: true })
-      .eq("plan_group_id", planGroupId);
-
-    if (adHocError) {
-      logActionError(
-        { domain: "data", action: "getPlanGroupContentSummary" },
-        adHocError,
-        { context: "ad_hoc_plans 조회 오류" }
-      );
-    }
-
-    // 3. 콘텐츠 유형별 개수 집계
+    // 2. 콘텐츠 유형별 개수 집계
     let bookCount = 0;
     let lectureCount = 0;
     let customCount = 0;
@@ -253,8 +238,7 @@ export async function getPlanGroupContentSummary(
       bookCount,
       lectureCount,
       customCount,
-      adHocCount: adHocCount ?? 0,
-      totalContentCount: (planContents?.length ?? 0) + (adHocCount ?? 0),
+        totalContentCount: planContents?.length ?? 0,
       contentNames,
     };
   } catch (error) {
@@ -285,8 +269,7 @@ export async function getPlanGroupContentSummaries(
       bookCount: 0,
       lectureCount: 0,
       customCount: 0,
-      adHocCount: 0,
-      totalContentCount: 0,
+        totalContentCount: 0,
       contentNames: [],
     });
   }
@@ -307,32 +290,7 @@ export async function getPlanGroupContentSummaries(
       );
     }
 
-    // 2. ad_hoc_plans 일괄 조회 (plan_group_id별 개수)
-    const { data: adHocCounts, error: adHocError } = await supabase
-      .from("ad_hoc_plans")
-      .select("plan_group_id")
-      .in("plan_group_id", planGroupIds);
-
-    if (adHocError) {
-      logActionError(
-        { domain: "data", action: "getPlanGroupContentSummaries" },
-        adHocError,
-        { context: "ad_hoc_plans 조회 오류" }
-      );
-    }
-
-    // 3. ad_hoc_plans 개수 집계
-    const adHocCountMap = new Map<string, number>();
-    for (const item of adHocCounts || []) {
-      if (item.plan_group_id) {
-        adHocCountMap.set(
-          item.plan_group_id,
-          (adHocCountMap.get(item.plan_group_id) ?? 0) + 1
-        );
-      }
-    }
-
-    // 4. plan_contents 집계
+    // 2. plan_contents 집계
     for (const content of planContents || []) {
       const summary = summaryMap.get(content.plan_group_id);
       if (!summary) continue;
@@ -354,14 +312,12 @@ export async function getPlanGroupContentSummaries(
       }
     }
 
-    // 5. ad_hoc 개수 및 총 개수 계산
-    for (const [id, summary] of summaryMap) {
-      summary.adHocCount = adHocCountMap.get(id) ?? 0;
+    // 3. 총 개수 계산
+    for (const [, summary] of summaryMap) {
       summary.totalContentCount =
         summary.bookCount +
         summary.lectureCount +
-        summary.customCount +
-        summary.adHocCount;
+        summary.customCount;
     }
 
     return summaryMap;

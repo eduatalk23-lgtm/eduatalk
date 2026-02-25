@@ -30,7 +30,7 @@ import {
   TouchSensor,
 } from "@dnd-kit/core";
 import { useToast } from "@/components/ui/ToastProvider";
-import { movePlanToContainer } from "@/lib/domains/calendar/actions/legacyBridge";
+import { movePlanToContainer } from "@/lib/domains/calendar/actions/calendarEventActions";
 import DragOverlayContent from "../DragOverlayContent";
 import type {
   DraggableAdminPlanData,

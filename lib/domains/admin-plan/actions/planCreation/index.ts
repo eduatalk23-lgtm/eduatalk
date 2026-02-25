@@ -11,15 +11,12 @@ export type {
   // 기본 타입
   BasePlanCreationInput,
   PlanCreationResult,
-  // 플래너 검증
-  PlannerValidationResult,
-  ValidatedPlanner,
+  // 캘린더 검증
+  CalendarValidationResult,
+  ValidatedCalendar,
   // 빠른 플랜
   QuickPlanCreationInput,
   QuickPlanCreationResult,
-  // 단발성 플랜
-  AdHocPlanCreationInput,
-  AdHocPlanCreationResult,
   // 콘텐츠 기반 플랜
   ContentPlanCreationInput,
   ContentPlanCreationResult,
@@ -32,13 +29,6 @@ export type {
   PlanGroupSelectorResult,
   PlanGroupInfo,
 } from "./types";
-
-// 플래너 검증 유틸리티
-export {
-  validatePlanner,
-  validatePlannerOwnership,
-  validatePlannerPeriod,
-} from "./validatePlanner";
 
 // 기존 플랜 조회
 export {
@@ -65,7 +55,7 @@ export {
 
 // 스케줄 생성
 export {
-  generateScheduleForPlanner,
+  generateScheduleForCalendar,
   generateScheduleForPlanGroup,
   type ScheduleGenerationResult,
 } from "./scheduleGenerator";

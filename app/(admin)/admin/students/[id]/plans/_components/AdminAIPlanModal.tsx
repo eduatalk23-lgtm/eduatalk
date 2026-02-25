@@ -4,12 +4,12 @@ import { useState, useEffect } from 'react';
 import { X, Wand2, AlertCircle, Loader2, CheckCircle2, Sparkles, Lightbulb, ChevronRight, BookOpen, Search, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import {
-  getStudentPlannersAction,
   getFlexibleContents,
 } from '@/lib/domains/admin-plan/actions';
+import { getStudentCalendarSettingsAction } from '@/lib/domains/calendar/actions/calendars';
 import { searchMasterBooks } from '@/lib/data/contentMasters/books';
 import { searchMasterLectures } from '@/lib/data/contentMasters/lectures';
-import { createPlanGroupForPlanner } from '@/lib/domains/admin-plan/utils/planGroupSelector';
+import { createPlanGroupForCalendar } from '@/lib/domains/admin-plan/utils/planGroupSelector';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import {
   type DifficultyLevel,
@@ -17,7 +17,7 @@ import {
 } from '@/lib/domains/plan/llm/actions/unifiedPlanGeneration';
 import { runUnifiedPlanGenerationPipelineAction } from '../_actions/aiPlanActions';
 import { generateHybridPlanCompleteAction } from '@/lib/domains/plan/llm/actions/generateHybridPlanComplete';
-import type { Planner } from '@/lib/domains/admin-plan/actions/planners';
+import type { CalendarSettings } from '@/lib/domains/admin-plan/types';
 import type { AIRecommendations } from '@/lib/domains/plan/llm/types/aiFramework';
 
 // ============================================================================
@@ -72,9 +72,9 @@ export function AdminAIPlanModal({
   // ============================================================================
   // Step 1: Planner Selection
   // ============================================================================
-  const [planners, setPlanners] = useState<Planner[]>([]);
-  const [selectedPlannerId, setSelectedPlannerId] = useState<string | null>(null);
-  const [selectedPlanner, setSelectedPlanner] = useState<Planner | null>(null);
+  const [planners, setPlanners] = useState<CalendarSettings[]>([]);
+  const [selectedCalendarId, setSelectedCalendarId] = useState<string | null>(null);
+  const [selectedPlanner, setSelectedPlanner] = useState<CalendarSettings | null>(null);
 
   // ============================================================================
   // Step 2: Content Selection
@@ -114,35 +114,35 @@ export function AdminAIPlanModal({
   // Data Loading
   // ============================================================================
 
-  // Load planners on mount
+  // Load calendars on mount
   useEffect(() => {
-    async function loadPlanners() {
+    async function loadCalendars() {
       try {
         setIsLoading(true);
-        const result = await getStudentPlannersAction(studentId);
+        const result = await getStudentCalendarSettingsAction(studentId);
         if (result.data && result.data.length > 0) {
           setPlanners(result.data);
-          // Auto-select if only one planner
+          // Auto-select if only one calendar
           if (result.data.length === 1) {
-            setSelectedPlannerId(result.data[0].id);
+            setSelectedCalendarId(result.data[0].id);
             setSelectedPlanner(result.data[0]);
           }
         }
       } catch (err) {
-        console.error('Failed to load planners:', err);
-        setError('플래너 목록을 불러오는데 실패했습니다.');
+        console.error('Failed to load calendars:', err);
+        setError('캘린더 목록을 불러오는데 실패했습니다.');
       } finally {
         setIsLoading(false);
       }
     }
-    loadPlanners();
+    loadCalendars();
   }, [studentId]);
 
-  // Update period when planner is selected
+  // Update period when calendar is selected
   useEffect(() => {
     if (selectedPlanner) {
-      setPeriodStart(selectedPlanner.periodStart);
-      setPeriodEnd(selectedPlanner.periodEnd);
+      setPeriodStart(selectedPlanner.periodStart ?? '');
+      setPeriodEnd(selectedPlanner.periodEnd ?? '');
     }
   }, [selectedPlanner]);
 
@@ -249,9 +249,9 @@ export function AdminAIPlanModal({
   // Handlers
   // ============================================================================
 
-  function handlePlannerSelect(plannerId: string) {
-    const planner = planners.find(p => p.id === plannerId);
-    setSelectedPlannerId(plannerId);
+  function handlePlannerSelect(id: string) {
+    const planner = planners.find(p => p.id === id);
+    setSelectedCalendarId(id);
     setSelectedPlanner(planner || null);
     setError(null);
   }
@@ -268,7 +268,7 @@ export function AdminAIPlanModal({
 
   function handleNextStep() {
     if (currentStep === 1) {
-      if (!selectedPlannerId) {
+      if (!selectedCalendarId) {
         setError('플래너를 선택해주세요.');
         return;
       }
@@ -304,7 +304,7 @@ export function AdminAIPlanModal({
   // ============================================================================
 
   async function handleGenerate() {
-    if (!selectedPlanner || !selectedPlannerId) {
+    if (!selectedPlanner || !selectedCalendarId) {
       setError('플래너 정보가 없습니다.');
       return;
     }
@@ -346,7 +346,7 @@ export function AdminAIPlanModal({
     if (!selectedPlanner) return;
 
     const studyHours = selectedPlanner.studyHours as { start: string; end: string } | null;
-    const lunchTime = selectedPlanner.lunchTime as { start: string; end: string } | null;
+    const lunchTime: { start: string; end: string } | null = null; // CalendarSettings doesn't have lunchTime
 
     const planName = `AI 생성 플랜 (${subjectCategory}${subject ? ` - ${subject}` : ''})`;
 
@@ -379,9 +379,8 @@ export function AdminAIPlanModal({
         generateMarkdown: true,
         dryRun: false,
       },
-      plannerId: selectedPlannerId!,
+      calendarId: selectedCalendarId!,
       creationMode: 'content_based',
-      plannerValidationMode: 'auto_create',
     });
 
     if (!result.success) {
@@ -401,8 +400,8 @@ export function AdminAIPlanModal({
     // Create Plan Group and generate plans for each content
     for (const content of selectedContents) {
       // 1. Create Plan Group (기본 생성)
-      const planGroupResult = await createPlanGroupForPlanner({
-        plannerId: selectedPlannerId!,
+      const planGroupResult = await createPlanGroupForCalendar({
+        calendarId: selectedCalendarId!,
         studentId,
         tenantId,
         name: content.title,
@@ -643,7 +642,7 @@ export function AdminAIPlanModal({
                         onClick={() => handlePlannerSelect(planner.id)}
                         className={cn(
                           'w-full p-4 rounded-lg border-2 text-left transition-all',
-                          selectedPlannerId === planner.id
+                          selectedCalendarId === planner.id
                             ? 'border-purple-500 bg-purple-50'
                             : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                         )}
@@ -680,10 +679,10 @@ export function AdminAIPlanModal({
               <div className="flex justify-end pt-4">
                 <button
                   onClick={handleNextStep}
-                  disabled={!selectedPlannerId}
+                  disabled={!selectedCalendarId}
                   className={cn(
                     'px-6 py-2.5 rounded-lg font-medium transition-colors flex items-center gap-2',
-                    selectedPlannerId
+                    selectedCalendarId
                       ? 'bg-purple-600 text-white hover:bg-purple-700'
                       : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   )}
@@ -908,7 +907,7 @@ export function AdminAIPlanModal({
                   />
                 </div>
                 <p className="text-xs text-gray-400 mt-1">
-                  플래너 기간: {selectedPlanner?.periodStart} ~ {selectedPlanner?.periodEnd}
+                  캘린더 기간: {selectedPlanner?.periodStart ?? '미설정'} ~ {selectedPlanner?.periodEnd ?? '미설정'}
                 </p>
               </div>
 

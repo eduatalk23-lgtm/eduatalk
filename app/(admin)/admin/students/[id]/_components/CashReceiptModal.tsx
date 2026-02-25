@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 import Button from "@/components/atoms/Button";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -20,6 +19,7 @@ type CashReceiptModalProps = {
   paymentId: string;
   amount: number;
   programName: string;
+  onSuccess?: () => void;
 };
 
 export function CashReceiptModal({
@@ -28,8 +28,8 @@ export function CashReceiptModal({
   paymentId,
   amount,
   programName,
+  onSuccess,
 }: CashReceiptModalProps) {
-  const router = useRouter();
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [identityNumber, setIdentityNumber] = useState("");
@@ -67,7 +67,7 @@ export function CashReceiptModal({
           toast.showSuccess("현금영수증이 발급되었습니다.");
           onOpenChange(false);
           setIdentityNumber("");
-          router.refresh();
+          onSuccess?.();
         } else {
           toast.showError(result.error ?? "발급에 실패했습니다.");
         }

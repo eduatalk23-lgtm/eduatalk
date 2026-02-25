@@ -4,6 +4,8 @@ import { createContext, useContext, useCallback, useMemo, type ReactNode } from 
 import type { PlanStatus } from "@/lib/types/plan";
 import { useAdminPlanModal } from "./AdminPlanModalContext";
 import { useAdminPlanModalData } from "./AdminPlanModalDataContext";
+import { useAdminPlanBasic } from "./AdminPlanBasicContext";
+import { useEventEditModal, type EventEditModalState } from "../hooks/useEventEditModal";
 
 /**
  * Actions Context - 모달 열기 헬퍼 함수들
@@ -16,7 +18,7 @@ import { useAdminPlanModalData } from "./AdminPlanModalDataContext";
 export interface AdminPlanActionsContextValue {
   handleOpenRedistribute: (planId: string) => void;
   handleOpenEdit: (planId: string) => void;
-  handleOpenReorder: (containerType: "daily" | "weekly" | "unfinished") => void;
+  handleOpenReorder: (containerType: "daily") => void;
   handleOpenTemplateWithPlans: (planIds: string[]) => void;
   handleOpenMoveToGroup: (planIds: string[], currentGroupId?: string | null) => void;
   handleOpenCopy: (planIds: string[]) => void;
@@ -30,6 +32,12 @@ export interface AdminPlanActionsContextValue {
   handleOpenBatchOperations: (planIds: string[], mode: "date" | "status") => void;
   /** 빈 시간 슬롯에 새 플랜 생성 (UnifiedAddModal 열기) */
   handleCreatePlanAtSlot: (startTime: string, endTime: string) => void;
+  /** 더블클릭/InlineQuickCreate → 이벤트 편집 모달 열기 (new) */
+  handleOpenEventEditNew: (params: { date?: string; startTime?: string; endTime?: string }) => void;
+  /** 이벤트 편집 모달 상태 */
+  eventEditModalState: EventEditModalState;
+  /** 이벤트 편집 모달 닫기 */
+  closeEventEditModal: () => void;
 }
 
 const AdminPlanActionsContext = createContext<AdminPlanActionsContextValue | null>(null);
@@ -41,6 +49,8 @@ interface AdminPlanActionsProviderProps {
 export function AdminPlanActionsProvider({ children }: AdminPlanActionsProviderProps) {
   const modal = useAdminPlanModal();
   const modalData = useAdminPlanModalData();
+  const { selectedCalendarId } = useAdminPlanBasic();
+  const eventEditModal = useEventEditModal();
 
   const handleOpenRedistribute = useCallback(
     (planId: string) => {
@@ -52,14 +62,29 @@ export function AdminPlanActionsProvider({ children }: AdminPlanActionsProviderP
 
   const handleOpenEdit = useCallback(
     (planId: string) => {
-      modalData.setSelectedPlanForEdit(planId);
-      modal.setShowEditModal(true);
+      eventEditModal.openEdit({
+        eventId: planId,
+        calendarId: selectedCalendarId ?? undefined,
+      });
     },
-    [modal, modalData]
+    [eventEditModal, selectedCalendarId]
+  );
+
+  const handleOpenEventEditNew = useCallback(
+    (params: { date?: string; startTime?: string; endTime?: string }) => {
+      if (!selectedCalendarId) return;
+      eventEditModal.openNew({
+        calendarId: selectedCalendarId,
+        date: params.date,
+        startTime: params.startTime,
+        endTime: params.endTime,
+      });
+    },
+    [eventEditModal, selectedCalendarId]
   );
 
   const handleOpenReorder = useCallback(
-    (containerType: "daily" | "weekly" | "unfinished") => {
+    (containerType: "daily") => {
       modalData.setReorderContainerType(containerType);
       modal.setShowReorderModal(true);
     },
@@ -149,6 +174,9 @@ export function AdminPlanActionsProvider({ children }: AdminPlanActionsProviderP
       handleOpenContentDependency,
       handleOpenBatchOperations,
       handleCreatePlanAtSlot,
+      handleOpenEventEditNew,
+      eventEditModalState: eventEditModal.state,
+      closeEventEditModal: eventEditModal.close,
     }),
     [
       handleOpenRedistribute,
@@ -162,6 +190,9 @@ export function AdminPlanActionsProvider({ children }: AdminPlanActionsProviderP
       handleOpenContentDependency,
       handleOpenBatchOperations,
       handleCreatePlanAtSlot,
+      handleOpenEventEditNew,
+      eventEditModal.state,
+      eventEditModal.close,
     ]
   );
 

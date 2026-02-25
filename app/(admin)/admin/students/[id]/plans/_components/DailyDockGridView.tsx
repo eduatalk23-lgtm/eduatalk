@@ -2,66 +2,87 @@
 
 import { useMemo, useState, useEffect, useRef, useCallback, memo } from 'react';
 import { createPortal } from 'react-dom';
+import { useRouter } from 'next/navigation';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import { GridPlanBlock } from './items/GridPlanBlock';
 import { GridNonStudyBlock } from './items/GridNonStudyBlock';
 import { AllDayItemBar } from './items/AllDayItemBar';
 import { InlineQuickCreate } from './items/InlineQuickCreate';
-import { EventPopover } from './items/EventPopover';
+import { EventDetailPopover } from './items/EventDetailPopover';
+import { useEventDetailPopover } from './hooks/useEventDetailPopover';
+import { RecurringEditChoiceModal, type RecurringEditScope } from './modals/RecurringEditChoiceModal';
+import { deleteRecurringEvent } from '@/lib/domains/calendar/actions/calendarEventActions';
 import { useResizable } from './hooks/useResizable';
 import { useDragToCreate } from './hooks/useDragToCreate';
-import { usePopoverPosition, placementToTransformOrigin } from './hooks/usePopoverPosition';
+import { usePullToRefresh } from './hooks/usePullToRefresh';
+import { useGridKeyboardNav } from './hooks/useGridKeyboardNav';
+import { usePopoverPosition } from './hooks/usePopoverPosition';
 import { toPlanItemData, type PlanItemData } from '@/lib/types/planItem';
 import { formatDayHeader } from './utils/weekDateUtils';
+import { getHolidayName } from '@/lib/domains/calendar/koreanHolidays';
 import {
   timeToMinutes,
   minutesToPx,
   minutesToTime,
   assignLevels,
+  computeZIndex,
+  computeLayoutPosition,
   formatHourLabel,
   createGridBackgroundStyle,
   PX_PER_MINUTE,
   SNAP_MINUTES,
   TIME_GUTTER_WIDTH,
   DEFAULT_DISPLAY_RANGE,
+  SINGLE_RIGHT_GUTTER_PCT,
 } from './utils/timeGridUtils';
-import { updateItemTime, updatePlanStatus } from '@/lib/domains/calendar/actions/legacyBridge';
+import { updateItemTime, updatePlanStatus } from '@/lib/domains/calendar/actions/calendarEventActions';
+import { useOptimisticCalendarUpdate } from '@/lib/hooks/useOptimisticCalendarUpdate';
 import { useUndo } from './UndoSnackbar';
+import { usePlanToast } from './PlanToast';
+import { resolveCalendarColors } from './utils/subjectColors';
 import { cn } from '@/lib/cn';
-import type { DailyPlan, AdHocPlan, NonStudyItem, AllDayItem } from '@/lib/query-options/adminDock';
+import type { DailyPlan, AllDayItem } from '@/lib/query-options/adminDock';
 import type { EmptySlot } from '@/lib/domains/admin-plan/utils/emptySlotCalculation';
-import type { ConflictInfo } from '@/lib/domains/admin-plan/utils/conflictDetection';
 import type { PlanStatus } from '@/lib/types/plan';
 
 interface DailyDockGridViewProps {
   plans: DailyPlan[];
-  adHocPlans: AdHocPlan[];
-  nonStudyItems: NonStudyItem[];
+  customItems: PlanItemData[];
+  nonStudyItems: PlanItemData[];
   selectedDate: string;
   displayRange?: { start: string; end: string };
-  conflictMap?: Map<string, ConflictInfo>;
   // 빈 시간 클릭 → 플랜 생성용
   studentId: string;
   tenantId: string;
-  plannerId?: string;
   planGroupId?: string | null;
+  /** 캘린더 ID */
+  calendarId?: string;
   // 액션 콜백
   onEdit?: (planId: string) => void;
-  onStatusChange?: (planId: string, currentStatus: PlanStatus, title: string) => void;
-  onMoveToWeekly?: (planId: string) => void;
   onRefresh: () => void;
-  onNonStudyClick?: (item: NonStudyItem, sourceIndex?: number) => void;
   onCreatePlanAtSlot?: (slotStartTime: string, slotEndTime: string) => void;
   // P1-4: 리사이즈
   onResizeEnd?: (planId: string, newHeightPx: number) => void;
   // EventPopover 삭제 액션
-  onDelete?: (planId: string, isAdHoc: boolean) => void;
+  onDelete?: (planId: string) => void;
   /** 플랜 검색 쿼리 (하이라이트용) */
   searchQuery?: string;
   /** 종일 이벤트 목록 */
   allDayItems?: AllDayItem[];
   /** 데이터 로딩 중 오버레이 표시 */
   isLoading?: boolean;
+  /** 줌 적용 pxPerMinute (기본 PX_PER_MINUTE) */
+  pxPerMinute?: number;
+  /** 더블클릭/상세설정 → 이벤트 편집 모달 열기 */
+  onOpenEventEditNew?: (params: { date?: string; startTime?: string; endTime?: string }) => void;
+  /** 캘린더 설정의 기본 이벤트 시간 (분) */
+  defaultEstimatedMinutes?: number | null;
+  /** 캘린더 설정의 기본 알림 (분 단위 배열) */
+  defaultReminderMinutes?: number[] | null;
+  /** 공휴일 표시 여부 (사이드바 토글) */
+  showHolidays?: boolean;
+  /** 캘린더별 색상 맵 (calendarId → hex) — 이벤트 블록 + 종일 바에 사용 */
+  calendarColorMap?: Map<string, string>;
 }
 
 const ALL_DAY_COLLAPSE_THRESHOLD = 2;
@@ -72,32 +93,50 @@ const ALL_DAY_COLLAPSE_THRESHOLD = 2;
  */
 export const DailyDockGridView = memo(function DailyDockGridView({
   plans,
-  adHocPlans,
+  customItems,
   nonStudyItems,
   selectedDate,
   displayRange = DEFAULT_DISPLAY_RANGE,
-  conflictMap,
   studentId,
   tenantId,
-  plannerId,
   planGroupId,
+  calendarId,
   onEdit,
-  onStatusChange,
-  onMoveToWeekly,
   onRefresh,
-  onNonStudyClick,
   onCreatePlanAtSlot,
   onDelete,
   searchQuery,
   allDayItems,
   isLoading = false,
+  pxPerMinute: ppmProp,
+  onOpenEventEditNew,
+  defaultEstimatedMinutes,
+  defaultReminderMinutes,
+  showHolidays = true,
+  calendarColorMap,
 }: DailyDockGridViewProps) {
+  const router = useRouter();
+  const ppm = ppmProp ?? PX_PER_MINUTE;
   const { pushUndoable } = useUndo();
+  const { showToast } = usePlanToast();
+  const { optimisticStatusChange, optimisticTimeChange, revalidate } =
+    useOptimisticCalendarUpdate(calendarId);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { pullDistance, pullProgress, isRefreshing: isPtrRefreshing, isPulling } = usePullToRefresh({
+    containerRef,
+    onRefresh,
+    enabled: true,
+  });
+  useGridKeyboardNav(containerRef);
+
+  // 현재 캘린더의 프리뷰 색상 (drag-to-create, quick-create 등)
+  const previewColor = calendarColorMap?.get(calendarId ?? '') ?? '#039be5';
+  const previewColors = resolveCalendarColors(null, previewColor, 'confirmed', false);
+
   const [allDayExpanded, setAllDayExpanded] = useState(false);
   const rangeStartMin = timeToMinutes(displayRange.start);
   const rangeEndMin = timeToMinutes(displayRange.end);
-  const totalHeight = (rangeEndMin - rangeStartMin) * PX_PER_MINUTE;
+  const totalHeight = (rangeEndMin - rangeStartMin) * ppm;
 
   // 시간 라벨 (Weekly와 동일하게 최상단 라벨 생략)
   const hourLabels = useMemo(() => {
@@ -111,9 +150,9 @@ export const DailyDockGridView = memo(function DailyDockGridView({
     return labels;
   }, [rangeStartMin, rangeEndMin]);
 
-  // 플랜 블록 위치 계산 (겹침 포함)
-  const planBlocks = useMemo(() => {
-    const allPlans = [
+  // 플랜 + 비학습 블록 통합 레이아웃 (Google Calendar: 모든 이벤트 동등 컬럼 배치)
+  const { planBlocks, nonStudyBlocks } = useMemo(() => {
+    const planItems = [
       ...plans
         .filter((p) => p.start_time && p.end_time)
         .map((p) => ({
@@ -122,44 +161,72 @@ export const DailyDockGridView = memo(function DailyDockGridView({
           endMinutes: timeToMinutes(p.end_time!),
           plan: toPlanItemData(p, 'plan'),
           original: p,
+          _kind: 'plan' as const,
         })),
-      ...adHocPlans
-        .filter((p): p is AdHocPlan & { start_time: string; end_time: string } =>
-          !!(p as unknown as { start_time?: string }).start_time &&
-          !!(p as unknown as { end_time?: string }).end_time
+      ...customItems
+        .filter((item): item is PlanItemData & { startTime: string; endTime: string } =>
+          !!item.startTime && !!item.endTime
         )
-        .map((p) => ({
-          id: p.id,
-          startMinutes: timeToMinutes((p as unknown as { start_time: string }).start_time),
-          endMinutes: timeToMinutes((p as unknown as { end_time: string }).end_time),
-          plan: toPlanItemData(p, 'adhoc'),
-          original: p,
+        .map((item) => ({
+          id: item.id,
+          startMinutes: timeToMinutes(item.startTime),
+          endMinutes: timeToMinutes(item.endTime),
+          plan: item,
+          original: item,
+          _kind: 'plan' as const,
         })),
     ];
 
-    const withLevels = assignLevels(allPlans);
+    const nsItems = nonStudyItems
+      .filter((item) => item.startTime && item.endTime)
+      .map((item, idx) => ({
+        id: item.id || `ns-${idx}-${item.startTime}`,
+        startMinutes: timeToMinutes(item.startTime!),
+        endMinutes: timeToMinutes(item.endTime!),
+        plan: item,
+        _kind: 'nonStudy' as const,
+      }));
 
-    return withLevels.map((item) => ({
-      ...item,
-      top: minutesToPx(item.startMinutes, rangeStartMin, PX_PER_MINUTE),
-      height: (item.endMinutes - item.startMinutes) * PX_PER_MINUTE,
-      left: (item.level / item.totalLevels) * 100,
-      width: (1 / item.totalLevels) * 100,
-    }));
-  }, [plans, adHocPlans, rangeStartMin]);
+    // 모든 이벤트를 통합하여 컬럼 패킹
+    const allItems = [
+      ...planItems.map((p) => ({ id: p.id, startMinutes: p.startMinutes, endMinutes: p.endMinutes })),
+      ...nsItems.map((n) => ({ id: n.id, startMinutes: n.startMinutes, endMinutes: n.endMinutes })),
+    ];
+    const withLevels = assignLevels(allItems);
+    const levelMap = new Map(withLevels.map((l) => [l.id, l]));
 
-  // 비학습시간 블록 위치 계산
-  const nonStudyBlocks = useMemo(() => {
-    return nonStudyItems.map((item) => {
-      const startMin = timeToMinutes(item.start_time);
-      const endMin = timeToMinutes(item.end_time);
+    const resultPlans = planItems.map((item) => {
+      const lv = levelMap.get(item.id)!;
+      const pos = computeLayoutPosition(lv.level, lv.totalLevels, lv.expandedSpan);
       return {
-        item,
-        top: minutesToPx(startMin, rangeStartMin, PX_PER_MINUTE),
-        height: (endMin - startMin) * PX_PER_MINUTE,
+        ...item,
+        level: lv.level,
+        totalLevels: lv.totalLevels,
+        expandedSpan: lv.expandedSpan,
+        top: minutesToPx(item.startMinutes, rangeStartMin, ppm),
+        height: (item.endMinutes - item.startMinutes) * ppm,
+        left: pos.left,
+        width: pos.width,
       };
     });
-  }, [nonStudyItems, rangeStartMin]);
+
+    const resultNs = nsItems.map((item) => {
+      const lv = levelMap.get(item.id)!;
+      const pos = computeLayoutPosition(lv.level, lv.totalLevels, lv.expandedSpan);
+      return {
+        plan: item.plan,
+        level: lv.level,
+        totalLevels: lv.totalLevels,
+        expandedSpan: lv.expandedSpan,
+        top: minutesToPx(item.startMinutes, rangeStartMin, ppm),
+        height: (item.endMinutes - item.startMinutes) * ppm,
+        left: pos.left,
+        width: pos.width,
+      };
+    });
+
+    return { planBlocks: resultPlans, nonStudyBlocks: resultNs };
+  }, [plans, customItems, nonStudyItems, rangeStartMin, ppm]);
 
   // 현재 시간 인디케이터
   const [nowMinutes, setNowMinutes] = useState<number | null>(null);
@@ -174,18 +241,86 @@ export const DailyDockGridView = memo(function DailyDockGridView({
     return () => clearInterval(timer);
   }, []);
 
-  // 현재 시간으로 자동 스크롤
+  // 현재 시간으로 자동 스크롤 (최초 마운트 시에만)
+  const hasScrolledRef = useRef(false);
   useEffect(() => {
-    if (nowMinutes == null || !containerRef.current) return;
-    const scrollTarget = minutesToPx(nowMinutes, rangeStartMin, PX_PER_MINUTE) - 200;
+    if (nowMinutes == null || !containerRef.current || hasScrolledRef.current) return;
+    const scrollTarget = minutesToPx(nowMinutes, rangeStartMin, ppm) - 200;
     containerRef.current.scrollTop = Math.max(0, scrollTarget);
-  }, [nowMinutes, rangeStartMin]);
+    hasScrolledRef.current = true;
+  }, [nowMinutes, rangeStartMin, ppm]);
 
-  // EventPopover 상태
-  const [popoverState, setPopoverState] = useState<{
-    plan: PlanItemData;
-    anchorRect: DOMRect;
-  } | null>(null);
+  // ★ popover → quick create 레이스 방지: mousedown 시점에 popover 상태 캡처
+  const popoverOpenOnMouseDownRef = useRef(false);
+
+  // EventDetailPopover (useEventDetailPopover 훅)
+  const { showPopover, closePopover, isPopoverOpen, popoverProps, recurringModalState, closeRecurringModal } = useEventDetailPopover({
+    onEdit: (id) => { onEdit?.(id); },
+    onDelete: (id) => { onDelete?.(id); },
+    onQuickStatusChange: (planId, newStatus, prevStatus) => {
+      handleQuickStatusChange(planId, newStatus, prevStatus);
+    },
+    onColorChange: async (planId, color) => {
+      const { updateEventColor } = await import('@/lib/domains/calendar/actions/calendarEventActions');
+      await updateEventColor(planId, color);
+      revalidate();
+    },
+    onDisable: async (id) => {
+      const { deleteCalendarEventAction } = await import('@/lib/domains/admin-plan/actions/calendarEvents');
+      await deleteCalendarEventAction(id);
+      revalidate();
+      pushUndoable({
+        type: 'delete-plan',
+        planId: id,
+        description: '비학습 시간이 비활성화되었습니다.',
+      });
+    },
+  });
+
+  // 반복 이벤트 scope 선택 핸들러
+  const handleRecurringScopeSelect = useCallback(
+    async (scope: RecurringEditScope) => {
+      if (!recurringModalState) return;
+      const { mode, planId, instanceDate } = recurringModalState;
+      closeRecurringModal();
+
+      if (mode === 'delete') {
+        const result = await deleteRecurringEvent({
+          eventId: planId,
+          scope,
+          instanceDate,
+        });
+        if (result.success) {
+          revalidate();
+          const parentId = result.deletedEventIds.length > 0 && scope === 'all'
+            ? result.deletedEventIds[0]
+            : planId;
+          pushUndoable({
+            type: 'recurring-delete',
+            scope,
+            parentEventId: parentId,
+            instanceDate,
+            previousExdates: result.previousExdates,
+            previousRrule: result.previousRrule,
+            deletedEventIds: result.deletedEventIds,
+            description: scope === 'all'
+              ? '모든 반복 일정이 삭제되었습니다.'
+              : scope === 'this_and_following'
+                ? '이후 반복 일정이 삭제되었습니다.'
+                : '반복 일정이 삭제되었습니다.',
+          });
+        } else {
+          showToast(result.error ?? '삭제에 실패했습니다.', 'error');
+        }
+      } else {
+        // 반복 이벤트 편집: instanceDate 포함하여 전체 페이지로 이동
+        const editParams = new URLSearchParams({ instanceDate });
+        if (calendarId) editParams.set('calendarId', calendarId);
+        router.push(`/admin/students/${studentId}/plans/event/${planId}/edit?${editParams}`);
+      }
+    },
+    [recurringModalState, closeRecurringModal, revalidate, pushUndoable, showToast, router, studentId, calendarId],
+  );
 
   // 퀵생성 후 하이라이트 (2초 자동 해제)
   const [newlyCreatedPlanId, setNewlyCreatedPlanId] = useState<string | null>(null);
@@ -202,17 +337,19 @@ export const DailyDockGridView = memo(function DailyDockGridView({
     isAllDay?: boolean;
   } | null>(null);
   const quickCreateOpenRef = useRef(false);
+  /** 더블클릭 판별을 위한 싱글클릭 지연 타이머 */
+  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Drag-to-Create (퀵생성보다 먼저 선언 → clearDragPreview 참조 가능)
   const { dragState, previewStyle: dragPreviewStyle, clearDragPreview } = useDragToCreate({
     containerRef,
     displayRange,
-    pxPerMinute: PX_PER_MINUTE,
+    pxPerMinute: ppm,
     snapMinutes: SNAP_MINUTES,
-    enabled: !!plannerId,
+    enabled: !!calendarId,
     onDragEnd: useCallback(
       (_date: string, startMin: number, endMin: number) => {
-        if (!plannerId) return;
+        if (!calendarId) return;
         const slot: EmptySlot = {
           startTime: minutesToTime(startMin),
           endTime: minutesToTime(endMin),
@@ -226,18 +363,18 @@ export const DailyDockGridView = memo(function DailyDockGridView({
           slot,
           virtualRect: {
             x: colRect ? colRect.left + colRect.width / 2 : 56,
-            y: colRect ? colRect.top + minutesToPx(startMin, rangeStartMin, PX_PER_MINUTE) : 0,
+            y: colRect ? colRect.top + minutesToPx(startMin, rangeStartMin, ppm) : 0,
             width: 0,
             height: 0,
           },
         });
       },
-      [plannerId, rangeStartMin],
+      [calendarId, rangeStartMin],
     ),
   });
 
   // Floating UI 포지셔닝
-  const { refs: quickCreateRefs, floatingStyles: quickCreateStyles, resolvedPlacement: quickCreatePlacement } =
+  const { refs: quickCreateRefs, floatingStyles: quickCreateStyles, isPositioned: isQcPositioned } =
     usePopoverPosition({
       virtualRect: quickCreateState?.virtualRect ?? null,
       placement: 'right-start',
@@ -250,6 +387,13 @@ export const DailyDockGridView = memo(function DailyDockGridView({
     setQuickCreateState(null);
     clearDragPreview();
   }, [clearDragPreview]);
+
+  // 클릭 타이머 cleanup
+  useEffect(() => {
+    return () => {
+      if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+    };
+  }, []);
 
   // 그리드 외부 클릭 시 퀵생성 닫기 (사이드바, 헤더 등)
   useEffect(() => {
@@ -271,7 +415,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
     (e: React.MouseEvent<HTMLDivElement>) => {
       // 이벤트 블록이 클릭된 경우 무시
       if ((e.target as HTMLElement).closest('[data-grid-block]')) return;
-      if (!plannerId) return;
+      if (!calendarId) return;
 
       // 이미 열려있으면 닫기만 하고 리턴 (ref로 즉시 확인 → 클로저/리렌더 무관)
       if (quickCreateOpenRef.current) {
@@ -279,44 +423,304 @@ export const DailyDockGridView = memo(function DailyDockGridView({
         return;
       }
 
-      // EventPopover가 열려있으면 닫기
-      setPopoverState(null);
+      // EventDetailPopover가 열려있거나 "mousedown 시점에 열려있었으면" 퀵생성 열지 않음
+      if (isPopoverOpen || popoverOpenOnMouseDownRef.current) {
+        popoverOpenOnMouseDownRef.current = false;
+        closePopover();
+        return;
+      }
+
+      // 이전 클릭 타이머 취소
+      if (clickTimerRef.current) {
+        clearTimeout(clickTimerRef.current);
+        clickTimerRef.current = null;
+      }
+
+      // 클릭 위치 → 시간 계산 (timeout 안에서 event 참조 불가하므로 미리 추출)
+      const rect = e.currentTarget.getBoundingClientRect();
+      const offsetY = e.clientY - rect.top + e.currentTarget.scrollTop;
+      const clickedMinutes = rangeStartMin + offsetY / ppm;
+      const snappedStart = Math.floor(clickedMinutes / SNAP_MINUTES) * SNAP_MINUTES;
+      const clickDuration = defaultEstimatedMinutes ?? 60;
+      const clampedEnd = Math.min(snappedStart + clickDuration, rangeEndMin);
+      const clientX = e.clientX;
+      const clientY = e.clientY;
+
+      // 더블클릭 판별 대기 (250ms) — GCal: 싱글클릭 = 퀵생성, 더블클릭 = 전체편집
+      clickTimerRef.current = setTimeout(() => {
+        clickTimerRef.current = null;
+        const slot: EmptySlot = {
+          startTime: minutesToTime(snappedStart),
+          endTime: minutesToTime(clampedEnd),
+          durationMinutes: clampedEnd - snappedStart,
+        };
+        quickCreateOpenRef.current = true;
+        setQuickCreateState({
+          slot,
+          virtualRect: { x: clientX, y: clientY, width: 0, height: 0 },
+        });
+      }, 250);
+    },
+    [rangeStartMin, rangeEndMin, ppm, calendarId, closeQuickCreate, closePopover, defaultEstimatedMinutes]
+  );
+
+  // 더블클릭 → 이벤트 편집 모달 (Google Calendar 스타일)
+  const handleGridDoubleClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if ((e.target as HTMLElement).closest('[data-grid-block]')) return;
+      if (!calendarId) return;
+
+      // 싱글클릭 퀵생성 타이머 취소
+      if (clickTimerRef.current) {
+        clearTimeout(clickTimerRef.current);
+        clickTimerRef.current = null;
+      }
+      closeQuickCreate();
 
       const rect = e.currentTarget.getBoundingClientRect();
       const offsetY = e.clientY - rect.top + e.currentTarget.scrollTop;
-      const clickedMinutes = rangeStartMin + offsetY / PX_PER_MINUTE;
+      const clickedMinutes = rangeStartMin + offsetY / ppm;
+      const snappedStart = Math.floor(clickedMinutes / SNAP_MINUTES) * SNAP_MINUTES;
+      const dbClickDuration = defaultEstimatedMinutes ?? 60;
+      const snappedEnd = Math.min(snappedStart + dbClickDuration, rangeEndMin);
 
-      // 15분 단위 스냅
-      const snappedStart = Math.round(clickedMinutes / SNAP_MINUTES) * SNAP_MINUTES;
-      const snappedEnd = snappedStart + 60; // 기본 1시간
-      const clampedEnd = Math.min(snappedEnd, rangeEndMin);
-
-      const startH = Math.floor(snappedStart / 60);
-      const startM = snappedStart % 60;
-      const endH = Math.floor(clampedEnd / 60);
-      const endM = clampedEnd % 60;
-
-      const slot: EmptySlot = {
-        startTime: `${String(startH).padStart(2, '0')}:${String(startM).padStart(2, '0')}`,
-        endTime: `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`,
-        durationMinutes: clampedEnd - snappedStart,
-      };
-
-      quickCreateOpenRef.current = true;
-      setQuickCreateState({
-        slot,
-        virtualRect: { x: e.clientX, y: e.clientY, width: 0, height: 0 },
-      });
+      if (onOpenEventEditNew) {
+        onOpenEventEditNew({
+          date: selectedDate,
+          startTime: minutesToTime(snappedStart),
+          endTime: minutesToTime(snappedEnd),
+        });
+      } else {
+        const params = new URLSearchParams({
+          date: selectedDate,
+          startTime: minutesToTime(snappedStart),
+          endTime: minutesToTime(snappedEnd),
+        });
+        if (calendarId) params.set('calendarId', calendarId);
+        router.push(`/admin/students/${studentId}/plans/event/new?${params}`);
+      }
     },
-    [rangeStartMin, rangeEndMin, plannerId, closeQuickCreate]
+    [calendarId, rangeStartMin, rangeEndMin, ppm, selectedDate, studentId, router, onOpenEventEditNew, closeQuickCreate, closePopover, isPopoverOpen, defaultEstimatedMinutes],
+  );
+
+  // P1-4: 리사이즈 상태 관리
+  const [resizingPlanId, setResizingPlanId] = useState<string | null>(null);
+  const [resizingEdge, setResizingEdge] = useState<'top' | 'bottom'>('bottom');
+  const resizingBlock = resizingPlanId
+    ? planBlocks.find((b) => b.id === resizingPlanId)
+    : null;
+
+  const { currentHeight: resizeHeight, isResizing, resizeHandleProps } = useResizable({
+    initialHeight: resizingBlock?.height ?? 60,
+    minHeight: SNAP_MINUTES * ppm,
+    maxHeight: resizingBlock
+      ? resizingEdge === 'top'
+        ? resizingBlock.top + resizingBlock.height   // top: 위로 확장 한계 (그리드 최상단까지)
+        : totalHeight - resizingBlock.top             // bottom: 아래로 확장 한계
+      : totalHeight,
+    snapIncrement: SNAP_MINUTES * ppm,
+    edge: resizingEdge,
+    onResizeEnd: useCallback(async (newHeightPx: number) => {
+      if (!resizingPlanId || !resizingBlock || !calendarId) {
+        setResizingPlanId(null);
+        return;
+      }
+
+      const newDurationMinutes = newHeightPx / ppm;
+      const plan = resizingBlock.plan;
+      if (!plan.startTime || !plan.endTime) {
+        setResizingPlanId(null);
+        return;
+      }
+
+      // 이전 값 캡처 (undo용)
+      const prevStartTime = plan.startTime;
+      const prevEndTime = plan.endTime;
+      const prevEstimatedMinutes = plan.estimatedMinutes ?? undefined;
+
+      const currentEdge = resizingEdge;
+      let newStartTime: string;
+      let newEndTime: string;
+
+      if (currentEdge === 'top') {
+        // 상단 리사이즈: 종료 시간 유지, 시작 시간 변경
+        const endMin = timeToMinutes(plan.endTime);
+        newStartTime = minutesToTime(endMin - newDurationMinutes);
+        newEndTime = plan.endTime;
+      } else {
+        // 하단 리사이즈: 시작 시간 유지, 종료 시간 변경
+        const startMin = timeToMinutes(plan.startTime);
+        newStartTime = plan.startTime;
+        newEndTime = minutesToTime(startMin + newDurationMinutes);
+      }
+
+      const planId = resizingPlanId;
+      setResizingPlanId(null);
+
+      // 옵티미스틱: 즉시 UI 반영
+      const rollback = optimisticTimeChange(planId, selectedDate, newStartTime, newEndTime, newDurationMinutes);
+
+      try {
+        await updateItemTime({
+          studentId,
+          calendarId,
+          planDate: selectedDate,
+          itemId: planId,
+          itemType: 'plan',
+          newStartTime,
+          newEndTime,
+          estimatedMinutes: newDurationMinutes,
+        });
+        revalidate();
+        pushUndoable({
+          type: 'resize',
+          planId,
+          studentId,
+          calendarId,
+          planDate: selectedDate,
+          prev: {
+            startTime: prevStartTime,
+            endTime: prevEndTime,
+            estimatedMinutes: prevEstimatedMinutes,
+          },
+          description: '시간이 변경되었습니다.',
+        });
+      } catch {
+        rollback();
+      }
+    }, [resizingPlanId, resizingBlock, calendarId, studentId, selectedDate, resizingEdge, optimisticTimeChange, revalidate, pushUndoable]),
+  });
+
+  // 개별 블록에서 리사이즈 시작 (edge별 분기)
+  const makeResizeHandleProps = useCallback(
+    (planId: string, edge: 'top' | 'bottom') => ({
+      onMouseDown: (e: React.MouseEvent) => {
+        setResizingPlanId(planId);
+        setResizingEdge(edge);
+        requestAnimationFrame(() => {
+          resizeHandleProps.onMouseDown(e);
+        });
+      },
+      onTouchStart: (e: React.TouchEvent) => {
+        setResizingPlanId(planId);
+        setResizingEdge(edge);
+        requestAnimationFrame(() => {
+          resizeHandleProps.onTouchStart(e);
+        });
+      },
+    }),
+    [resizeHandleProps]
+  );
+
+  // M-1: 모바일 롱프레스 → 전체 편집 모달 (더블클릭 대체)
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressPosRef = useRef<{ x: number; y: number } | null>(null);
+  const longPressActivatedRef = useRef(false);
+  const LONG_PRESS_THRESHOLD = 15; // px — 모바일 자연스러운 손가락 떨림 허용
+
+  const clearLongPress = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    longPressPosRef.current = null;
+  }, []);
+
+  // cleanup on unmount
+  useEffect(() => clearLongPress, [clearLongPress]);
+
+  const handleGridTouchStart = useCallback(
+    (e: React.TouchEvent<HTMLDivElement>) => {
+      if ((e.target as HTMLElement).closest('[data-grid-block]')) return;
+      if (!calendarId || isResizing || isPopoverOpen || quickCreateState || dragState) return;
+      if (!e.touches || e.touches.length === 0) return;
+
+      longPressActivatedRef.current = false;
+      const touch = e.touches[0];
+      longPressPosRef.current = { x: touch.clientX, y: touch.clientY };
+
+      longPressTimerRef.current = setTimeout(() => {
+        longPressTimerRef.current = null;
+        const pos = longPressPosRef.current;
+        longPressPosRef.current = null;
+        if (!pos) return;
+
+        // 싱글클릭 퀵생성 타이머 취소 (롱프레스가 우선)
+        if (clickTimerRef.current) {
+          clearTimeout(clickTimerRef.current);
+          clickTimerRef.current = null;
+        }
+        closeQuickCreate();
+
+        // 터치 위치에서 시간 슬롯 계산 (스크롤 위치는 타이머 시점에 재계산)
+        const colEl = containerRef.current?.querySelector('[data-column-date]') as HTMLElement | null;
+        if (!colEl) return;
+        const rect = colEl.getBoundingClientRect();
+        const offsetY = pos.y - rect.top;
+        const clickedMinutes = rangeStartMin + offsetY / ppm;
+        const snappedStart = Math.floor(clickedMinutes / SNAP_MINUTES) * SNAP_MINUTES;
+        const longPressDuration = defaultEstimatedMinutes ?? 60;
+        const snappedEnd = Math.min(snappedStart + longPressDuration, rangeEndMin);
+
+        // 햅틱 피드백 (유효한 슬롯 확인 후)
+        if (navigator.vibrate) navigator.vibrate(10);
+        longPressActivatedRef.current = true;
+
+        if (onOpenEventEditNew) {
+          onOpenEventEditNew({
+            date: selectedDate,
+            startTime: minutesToTime(snappedStart),
+            endTime: minutesToTime(snappedEnd),
+          });
+        } else {
+          const params = new URLSearchParams({
+            date: selectedDate,
+            startTime: minutesToTime(snappedStart),
+            endTime: minutesToTime(snappedEnd),
+          });
+          if (calendarId) params.set('calendarId', calendarId);
+          router.push(`/admin/students/${studentId}/plans/event/new?${params}`);
+        }
+      }, 500);
+    },
+    [calendarId, rangeStartMin, rangeEndMin, ppm, selectedDate, studentId, router, onOpenEventEditNew, closeQuickCreate, isResizing, isPopoverOpen, quickCreateState, dragState],
+  );
+
+  const handleGridTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (!longPressPosRef.current) return;
+      if (e.touches.length > 1) { clearLongPress(); return; } // 멀티터치(핀치) 취소
+      const touch = e.touches[0];
+      const dx = Math.abs(touch.clientX - longPressPosRef.current.x);
+      const dy = Math.abs(touch.clientY - longPressPosRef.current.y);
+      if (dx > LONG_PRESS_THRESHOLD || dy > LONG_PRESS_THRESHOLD) clearLongPress();
+    },
+    [clearLongPress],
+  );
+
+  const handleGridTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      if (longPressActivatedRef.current) {
+        e.preventDefault(); // 후속 click 이벤트 방지 (이중 액션 차단)
+        longPressActivatedRef.current = false;
+      }
+      clearLongPress();
+    },
+    [clearLongPress],
   );
 
   // 종일 영역 클릭 → 종일 모드 퀵생성
   const handleAllDayClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if ((e.target as HTMLElement).closest('[data-allday-item]')) return;
-      if (!plannerId) return;
+      if (!calendarId) return;
       if (quickCreateOpenRef.current) { closeQuickCreate(); return; }
+      // popover가 열려있었으면 닫기만 하고 퀵생성은 열지 않음 (GCal 동작)
+      if (isPopoverOpen || popoverOpenOnMouseDownRef.current) {
+        popoverOpenOnMouseDownRef.current = false;
+        closePopover();
+        return;
+      }
 
       const allDaySlot: EmptySlot = { startTime: '00:00', endTime: '23:59', durationMinutes: 1439 };
       quickCreateOpenRef.current = true;
@@ -326,126 +730,63 @@ export const DailyDockGridView = memo(function DailyDockGridView({
         isAllDay: true,
       });
     },
-    [plannerId, closeQuickCreate],
+    [calendarId, closeQuickCreate, isPopoverOpen, closePopover],
   );
 
-  // P1-4: 리사이즈 상태 관리
-  const [resizingPlanId, setResizingPlanId] = useState<string | null>(null);
-  const resizingBlock = resizingPlanId
-    ? planBlocks.find((b) => b.id === resizingPlanId)
-    : null;
-
-  const { currentHeight: resizeHeight, isResizing, resizeHandleProps } = useResizable({
-    initialHeight: resizingBlock?.height ?? 60,
-    minHeight: SNAP_MINUTES * PX_PER_MINUTE,
-    maxHeight: resizingBlock
-      ? totalHeight - resizingBlock.top
-      : totalHeight,
-    snapIncrement: SNAP_MINUTES * PX_PER_MINUTE,
-    onResizeEnd: useCallback(async (newHeightPx: number) => {
-      if (!resizingPlanId || !resizingBlock || !plannerId) {
-        setResizingPlanId(null);
-        return;
-      }
-
-      const newDurationMinutes = newHeightPx / PX_PER_MINUTE;
-      const plan = resizingBlock.plan;
-      if (!plan.startTime) {
-        setResizingPlanId(null);
-        return;
-      }
-
-      // 이전 값 캡처 (undo용)
-      const prevStartTime = plan.startTime;
-      const prevEndTime = plan.endTime ?? '';
-      const prevEstimatedMinutes = plan.estimatedMinutes ?? undefined;
-
-      const startMin = timeToMinutes(plan.startTime);
-      const newEndTime = minutesToTime(startMin + newDurationMinutes);
-
-      await updateItemTime({
-        studentId,
-        plannerId,
-        planDate: selectedDate,
-        itemId: resizingPlanId,
-        itemType: 'plan',
-        newStartTime: plan.startTime,
-        newEndTime,
-        estimatedMinutes: newDurationMinutes,
-      });
-
-      const planId = resizingPlanId;
-      setResizingPlanId(null);
-      onRefresh();
-
-      pushUndoable({
-        type: 'resize',
-        planId,
-        studentId,
-        plannerId,
-        planDate: selectedDate,
-        prev: {
-          startTime: prevStartTime,
-          endTime: prevEndTime,
-          estimatedMinutes: prevEstimatedMinutes,
-        },
-        description: '시간이 변경되었습니다.',
-      });
-    }, [resizingPlanId, resizingBlock, plannerId, studentId, selectedDate, onRefresh, pushUndoable]),
-  });
-
-  // 개별 블록에서 리사이즈 시작
-  const makeResizeHandleProps = useCallback(
-    (planId: string) => ({
-      onMouseDown: (e: React.MouseEvent) => {
-        setResizingPlanId(planId);
-        // 다음 tick에 resizeHandleProps.onMouseDown이 호출되도록 setTimeout 사용
-        // (resizingBlock 상태가 업데이트되어야 initialHeight가 올바르게 설정됨)
-        requestAnimationFrame(() => {
-          resizeHandleProps.onMouseDown(e);
-        });
-      },
-      onTouchStart: (e: React.TouchEvent) => {
-        setResizingPlanId(planId);
-        requestAnimationFrame(() => {
-          resizeHandleProps.onTouchStart(e);
-        });
-      },
-    }),
-    [resizeHandleProps]
+  // 종일 이벤트 클릭 → EventDetailPopover
+  const handleAllDayItemClick = useCallback(
+    (item: AllDayItem, anchorRect: DOMRect) => {
+      if (item.type === 'holiday') return;
+      if (quickCreateOpenRef.current) closeQuickCreate();
+      const planItem: PlanItemData = {
+        id: item.id,
+        type: 'plan',
+        title: item.label,
+        status: 'pending',
+        isCompleted: false,
+        planDate: item.startDate ?? selectedDate,
+        startTime: null,
+        endTime: null,
+        eventKind: item.exclusionType ? 'exclusion' : 'non_study',
+        eventSubtype: item.exclusionType ?? undefined,
+      };
+      showPopover(planItem, anchorRect);
+    },
+    [closeQuickCreate, showPopover, selectedDate],
   );
 
-  // 퀵 상태 변경 핸들러 (HoverQuickActions에서 사용)
+  // 퀵 상태 변경 핸들러 (옵티미스틱: 즉시 색상 반영)
   const handleQuickStatusChange = useCallback(
-    async (planId: string, isAdHoc: boolean, newStatus: PlanStatus, prevStatus?: PlanStatus) => {
+    async (planId: string, newStatus: PlanStatus, prevStatus?: PlanStatus) => {
+      const rollback = optimisticStatusChange(planId, newStatus);
       const result = await updatePlanStatus({
         planId,
         status: newStatus,
-        isAdHoc,
         skipRevalidation: true,
       });
       if (result.success) {
-        onRefresh();
+        revalidate();
         if (prevStatus) {
           pushUndoable({
             type: 'status-change',
             planId,
-            isAdHoc,
             prevStatus,
             description: '상태가 변경되었습니다.',
           });
         }
+      } else {
+        rollback();
       }
     },
-    [onRefresh, pushUndoable]
+    [optimisticStatusChange, revalidate, pushUndoable]
   );
 
   const handleBlockClick = useCallback(
     (plan: PlanItemData, anchorRect: DOMRect) => {
       closeQuickCreate(); // 퀵생성 닫기 (상호 배타)
-      setPopoverState({ plan, anchorRect });
+      showPopover(plan, anchorRect);
     },
-    [closeQuickCreate],
+    [closeQuickCreate, showPopover],
   );
 
   // 빈 영역 호버 피드백
@@ -461,7 +802,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
         }
         return;
       }
-      if (!plannerId || quickCreateState || isResizing || popoverState || dragState) {
+      if (!calendarId || quickCreateState || isResizing || isPopoverOpen || dragState) {
         if (hoveredSlotTopRef.current != null) {
           hoveredSlotTopRef.current = null;
           setHoveredSlotTop(null);
@@ -470,15 +811,15 @@ export const DailyDockGridView = memo(function DailyDockGridView({
       }
       const rect = e.currentTarget.getBoundingClientRect();
       const offsetY = e.clientY - rect.top;
-      const minutes = rangeStartMin + offsetY / PX_PER_MINUTE;
+      const minutes = rangeStartMin + offsetY / ppm;
       const snapped = Math.floor(minutes / SNAP_MINUTES) * SNAP_MINUTES;
-      const top = minutesToPx(snapped, rangeStartMin, PX_PER_MINUTE);
+      const top = minutesToPx(snapped, rangeStartMin, ppm);
       if (top !== hoveredSlotTopRef.current) {
         hoveredSlotTopRef.current = top;
         setHoveredSlotTop(top);
       }
     },
-    [plannerId, quickCreateState, isResizing, popoverState, dragState, rangeStartMin],
+    [calendarId, quickCreateState, isResizing, isPopoverOpen, dragState, rangeStartMin],
   );
 
   const handleGridMouseLeave = useCallback(() => {
@@ -488,7 +829,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
 
   const nowTop =
     nowMinutes != null && nowMinutes >= rangeStartMin && nowMinutes <= rangeEndMin
-      ? minutesToPx(nowMinutes, rangeStartMin, PX_PER_MINUTE)
+      ? minutesToPx(nowMinutes, rangeStartMin, ppm)
       : null;
 
   // 종일 영역 파생 값
@@ -507,48 +848,91 @@ export const DailyDockGridView = memo(function DailyDockGridView({
     8 + allDayVisibleCount * 22 + (allDayShowOverflow ? 18 : 0) + allDayPreviewExtra;
 
   const dayInfo = formatDayHeader(selectedDate);
+  const holidayName = showHolidays ? getHolidayName(selectedDate) : null;
 
   return (
     <>
     <div
       ref={containerRef}
+      role="grid"
+      aria-label="일간 캘린더 그리드"
+      aria-busy={isLoading}
       className="relative overflow-x-hidden h-full"
-      style={{ overflowY: 'auto', scrollbarGutter: 'stable' }}
+      style={{ overflowY: 'auto', scrollbarGutter: 'stable', overscrollBehaviorY: 'contain' }}
     >
+      {/* Pull-to-Refresh 인디케이터 */}
+      {(isPulling || isPtrRefreshing) && (
+        <div
+          className="absolute left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-transform duration-100"
+          style={{ top: `${pullDistance - 36}px` }}
+        >
+          <div className={cn(
+            'w-9 h-9 rounded-full bg-[var(--color-background)] shadow-lg border border-[rgb(var(--color-secondary-200))] flex items-center justify-center',
+          )}>
+            {isPtrRefreshing ? (
+              <div className="w-4 h-4 rounded-full border-2 border-[rgb(var(--color-primary-500))] border-t-transparent animate-spin" />
+            ) : (
+              <svg
+                className="w-4 h-4 text-[var(--text-secondary)] transition-transform duration-100"
+                style={{ transform: `rotate(${pullProgress * 180}deg)` }}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 5v14M19 12l-7 7-7-7" />
+              </svg>
+            )}
+          </div>
+        </div>
+      )}
       {/* 로딩 오버레이 */}
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-white/60 z-40 pointer-events-none">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+        <div className="absolute inset-0 flex items-center justify-center bg-[rgb(var(--color-secondary-50))]/60 z-40 pointer-events-none">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[rgb(var(--color-primary-500))] border-t-transparent" />
         </div>
       )}
       {/* 헤더 영역 (sticky) — Google Calendar 일일뷰: 날짜가 거터에, 종일 이벤트가 오른쪽에 */}
-      <div className="sticky top-0 z-10 bg-white">
+      <div className="sticky top-0 z-10 bg-[rgb(var(--color-secondary-50))]">
         <div
           data-allday-row
-          className="flex border-b border-gray-200"
+          className="flex border-b border-[rgb(var(--color-secondary-200))]"
           style={{ minHeight: Math.max(28, allDayMinHeight) }}
         >
           {/* 거터: 날짜 + 종일 라벨 + 셰브론 */}
           <div
-            className="shrink-0 flex flex-col items-center pt-2 pb-1 border-r border-gray-200"
+            className="shrink-0 flex flex-col items-center pt-2 pb-1 border-r border-[rgb(var(--color-secondary-200))]"
             style={{ width: TIME_GUTTER_WIDTH }}
           >
             <span className={cn('text-xs font-medium',
-              dayInfo.isToday ? 'text-blue-600' : dayInfo.isPast ? 'text-gray-300' : 'text-gray-500')}>
+              dayInfo.isToday ? 'text-blue-600'
+                : holidayName ? 'text-red-500'
+                : dayInfo.isPast ? 'text-[rgb(var(--color-secondary-300))]'
+                : 'text-[var(--text-tertiary)]')}>
               {dayInfo.dayName}
             </span>
             <span className={cn(
               'flex items-center justify-center rounded-full text-[26px] font-medium leading-none mt-0.5 transition-colors',
               'w-[44px] h-[44px]',
-              dayInfo.isToday ? 'bg-blue-600 text-white' : dayInfo.isPast ? 'text-gray-300' : 'text-gray-800',
+              dayInfo.isToday ? 'bg-blue-600 text-white'
+                : holidayName ? 'text-red-500'
+                : dayInfo.isPast ? 'text-[rgb(var(--color-secondary-300))]'
+                : 'text-[var(--text-primary)]',
             )}>
               {dayInfo.dateNum}
             </span>
-            <span className="text-[11px] text-gray-400 font-medium mt-1">종일</span>
+            {holidayName && (
+              <span className="text-[9px] text-red-400 leading-none mt-0.5 truncate max-w-full px-0.5">
+                {holidayName}
+              </span>
+            )}
+            <span className="text-[11px] text-[var(--text-tertiary)] font-medium mt-1">종일</span>
             {allDayItemCount > ALL_DAY_COLLAPSE_THRESHOLD && (
               <button
                 onClick={() => setAllDayExpanded((prev) => !prev)}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-0.5"
+                className="text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors p-0.5"
                 title={allDayExpanded ? '접기' : '펼치기'}
               >
                 {allDayExpanded ? (
@@ -559,20 +943,23 @@ export const DailyDockGridView = memo(function DailyDockGridView({
               </button>
             )}
           </div>
-          {/* 콘텐츠: 종일 이벤트 */}
+          {/* 콘텐츠: 종일 이벤트 — 우측 거터: 시간 블록 이벤트(8%)와 시각적 일관성 */}
           <div
             className={cn(
-              'flex-1 px-0.5 py-0.5 space-y-px',
-              plannerId && 'cursor-cell hover:bg-blue-50/30 transition-colors',
+              'flex-1 py-0.5 space-y-px',
+              calendarId && 'cursor-cell hover:bg-blue-50/30 transition-colors',
             )}
+            onMouseDown={() => { popoverOpenOnMouseDownRef.current = isPopoverOpen; }}
             onClick={handleAllDayClick}
           >
             {allDayVisibleItems?.map((item) => (
-              <AllDayItemBar key={item.id} item={item} />
+              <div key={item.id} style={{ marginLeft: 2, marginRight: `${SINGLE_RIGHT_GUTTER_PCT}%` }}>
+                <AllDayItemBar item={item} calendarColor={calendarColorMap?.get(item.calendarId ?? '')} onClick={handleAllDayItemClick} />
+              </div>
             ))}
             {allDayShowOverflow && (
               <button
-                className="text-[11px] text-gray-500 hover:text-blue-600 font-medium px-1.5 transition-colors"
+                className="text-[11px] text-[var(--text-tertiary)] hover:text-blue-600 font-medium px-1.5 transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
                   setAllDayExpanded(true);
@@ -582,11 +969,15 @@ export const DailyDockGridView = memo(function DailyDockGridView({
               </button>
             )}
             {quickCreateState?.isAllDay && (
-              <div className="flex items-center gap-1 px-1.5 py-0.5 text-xs rounded border-2 border-dashed border-blue-400 bg-blue-500/15 animate-in fade-in-0 duration-150 pointer-events-none">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
-                <span className="text-blue-700 font-medium truncate">
-                  (제목 없음) 종일
-                </span>
+              <div style={{ marginLeft: 2, marginRight: `${SINGLE_RIGHT_GUTTER_PCT}%` }}>
+                <div
+                  className="flex items-center gap-1 px-1.5 py-0.5 text-xs rounded animate-in fade-in-0 duration-150 pointer-events-none"
+                  style={{ backgroundColor: previewColors.bgHex }}
+                >
+                  <span className={cn('font-medium truncate', previewColors.textIsWhite ? 'text-white' : 'text-gray-900')}>
+                    (제목 없음) 종일
+                  </span>
+                </div>
               </div>
             )}
           </div>
@@ -596,22 +987,22 @@ export const DailyDockGridView = memo(function DailyDockGridView({
       <div className="flex" style={{ height: `${totalHeight}px` }}>
         {/* 시간 거터 */}
         <div
-          className="shrink-0 relative border-r border-gray-200"
+          className="shrink-0 relative border-r border-[rgb(var(--color-secondary-200))]"
           style={{ width: TIME_GUTTER_WIDTH }}
         >
           {hourLabels.map((hour) => {
-            const top = minutesToPx(hour * 60, rangeStartMin, PX_PER_MINUTE);
+            const top = minutesToPx(hour * 60, rangeStartMin, ppm);
             return (
               <div key={hour}>
                 <div
-                  className="absolute right-2 text-[11px] text-gray-400 font-medium tabular-nums -translate-y-1/2"
+                  className="absolute right-2 text-[11px] text-[var(--text-tertiary)] font-medium tabular-nums -translate-y-1/2"
                   style={{ top: `${top}px` }}
                 >
                   {formatHourLabel(hour)}
                 </div>
                 {/* 시간 눈금 tick mark */}
                 <div
-                  className="absolute h-px bg-gray-200"
+                  className="absolute h-px bg-[rgb(var(--color-secondary-200))]"
                   style={{ top: `${top}px`, right: '-4px', width: '12px' }}
                 />
               </div>
@@ -622,14 +1013,19 @@ export const DailyDockGridView = memo(function DailyDockGridView({
         {/* 이벤트 컬럼 — 그리드라인은 CSS gradient로 렌더링 */}
         <div
           data-column-date={selectedDate}
-          className={cn('flex-1 relative', plannerId && 'cursor-cell')}
+          className={cn('flex-1 relative', calendarId && 'cursor-cell')}
+          onMouseDown={() => { popoverOpenOnMouseDownRef.current = isPopoverOpen; }}
           onClick={handleGridClick}
+          onDoubleClick={handleGridDoubleClick}
           onMouseMove={handleGridMouseMove}
           onMouseLeave={handleGridMouseLeave}
+          onTouchStart={handleGridTouchStart}
+          onTouchMove={handleGridTouchMove}
+          onTouchEnd={handleGridTouchEnd}
         >
           {/* 과거 컬럼 희미 처리 (WeeklyGridColumn과 동일) */}
           {dayInfo.isPast && (
-            <div className="absolute inset-0 bg-gray-50/40 pointer-events-none" />
+            <div className="absolute inset-0 bg-[rgb(var(--color-secondary-50))]/40 pointer-events-none" />
           )}
 
           {/* 오늘 컬럼 하이라이트 (WeeklyGridColumn과 동일) */}
@@ -638,57 +1034,65 @@ export const DailyDockGridView = memo(function DailyDockGridView({
           )}
 
           {/* 그리드라인 레이어 (오버레이 위, 이벤트 아래 — WeeklyGridColumn과 동일) */}
-          <div className="absolute inset-0 pointer-events-none" style={createGridBackgroundStyle(rangeStartMin)} />
+          <div className="absolute inset-0 pointer-events-none" style={createGridBackgroundStyle(rangeStartMin, ppm)} />
 
           {/* 호버 하이라이트 */}
           {hoveredSlotTop != null && (
             <div
               className="absolute left-0 right-0 bg-blue-100/40 pointer-events-none rounded-sm z-[1]"
-              style={{ top: `${hoveredSlotTop}px`, height: `${SNAP_MINUTES * PX_PER_MINUTE}px` }}
+              style={{ top: `${hoveredSlotTop}px`, height: `${SNAP_MINUTES * ppm}px` }}
             />
           )}
 
           {/* Drag-to-Create 프리뷰 (Google Calendar 스타일) */}
           {dragState && dragPreviewStyle && (
             <div
-              className="absolute left-0 right-0 bg-blue-500/25 border-2 border-blue-500 rounded-md z-20 pointer-events-none"
+              className="absolute left-0 right-0 rounded-lg z-[45] pointer-events-none shadow-sm overflow-hidden"
               style={{
                 top: dragPreviewStyle.top,
                 height: dragPreviewStyle.height,
+                backgroundColor: previewColors.bgHex,
+                border: '1px solid white',
               }}
             >
-              <div className="pl-2 py-0.5 flex flex-col">
-                <span className="text-xs text-blue-700 font-medium">(제목 없음)</span>
-                <span className="text-[10px] text-blue-600/70">
+              <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: previewColors.barHex }} />
+              <div className="pl-3 py-0.5 flex flex-col">
+                <span className={cn('text-xs font-medium', previewColors.textIsWhite ? 'text-white' : 'text-gray-900')}>(제목 없음)</span>
+                <span className={cn('text-[10px]', previewColors.textIsWhite ? 'text-white/70' : 'text-gray-600')}>
                   {minutesToTime(dragState.startMinutes)} – {minutesToTime(dragState.endMinutes)}
                 </span>
               </div>
             </div>
           )}
 
-          {/* 퀵생성 임시 슬롯 블록 — 단순 클릭으로 열린 경우 (Google Calendar 스타일) */}
-          {quickCreateState && !dragState && (
+          {/* 퀵생성 임시 슬롯 블록 — 시간 이벤트 전용 (종일은 종일 영역에서만 프리뷰) */}
+          {quickCreateState && !dragState && !quickCreateState.isAllDay && (
             <div
-              className="absolute left-0 right-0 bg-blue-500/25 border-2 border-blue-500 rounded-md z-20 pointer-events-none"
+              className="absolute left-0 right-0 rounded-lg z-[45] pointer-events-none shadow-sm overflow-hidden"
               style={{
-                top: `${minutesToPx(timeToMinutes(quickCreateState.slot.startTime), rangeStartMin, PX_PER_MINUTE)}px`,
-                height: `${quickCreateState.slot.durationMinutes * PX_PER_MINUTE}px`,
+                top: `${minutesToPx(timeToMinutes(quickCreateState.slot.startTime), rangeStartMin, ppm)}px`,
+                height: `${quickCreateState.slot.durationMinutes * ppm}px`,
+                backgroundColor: previewColors.bgHex,
+                border: '1px solid white',
               }}
             >
-              <div className="pl-2 py-0.5">
-                <span className="text-xs text-blue-700 font-medium">(제목 없음)</span>
+              <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: previewColors.barHex }} />
+              <div className="pl-3 py-0.5">
+                <span className={cn('text-xs font-medium', previewColors.textIsWhite ? 'text-white' : 'text-gray-900')}>(제목 없음)</span>
               </div>
             </div>
           )}
 
-          {/* 비학습시간 블록 (플랜 뒤에 배치) */}
+          {/* 비학습시간 블록 (통합 컬럼 레이아웃) */}
           {nonStudyBlocks.map((block, idx) => (
             <div key={`ns-${idx}`} data-grid-block>
               <GridNonStudyBlock
-                item={block.item}
+                plan={block.plan}
                 top={block.top}
                 height={block.height}
-                onClick={onNonStudyClick}
+                left={block.left}
+                width={block.width}
+                onClick={handleBlockClick}
               />
             </div>
           ))}
@@ -702,30 +1106,38 @@ export const DailyDockGridView = memo(function DailyDockGridView({
                   .some((f) => f?.toLowerCase().includes(queryLower))
               : block.id === newlyCreatedPlanId;
 
+            // 상단 리사이즈 중 시각적 top 계산
+            const currentResizeTop = isThisResizing && resizingEdge === 'top'
+              ? block.top - (resizeHeight - block.height)
+              : undefined;
+
             return (
               <div key={block.id} data-grid-block>
                 <GridPlanBlock
                   plan={block.plan}
+                  calendarColor={calendarColorMap?.get(block.plan.calendarId ?? '') ?? undefined}
                   top={block.top}
                   height={block.height}
                   left={block.left}
                   width={block.width}
-                  conflictInfo={conflictMap?.get(block.id)}
+                  zIndex={computeZIndex(block.level)}
                   onBlockClick={handleBlockClick}
-                  onMoveToWeekly={onMoveToWeekly}
-                  onStatusChange={onStatusChange}
-                  onQuickStatusChange={(newStatus) =>
-                    handleQuickStatusChange(block.plan.id, block.plan.type === 'adhoc', newStatus, block.plan.status)
-                  }
                   resizeHandleProps={
-                    plannerId && !block.plan.isCompleted
-                      ? makeResizeHandleProps(block.id)
+                    calendarId && !block.plan.isCompleted
+                      ? makeResizeHandleProps(block.id, 'bottom')
+                      : undefined
+                  }
+                  topResizeHandleProps={
+                    calendarId && !block.plan.isCompleted
+                      ? makeResizeHandleProps(block.id, 'top')
                       : undefined
                   }
                   currentResizeHeight={isThisResizing ? resizeHeight : undefined}
+                  resizingEdge={isThisResizing ? resizingEdge : undefined}
+                  currentResizeTop={currentResizeTop}
                   isResizing={isThisResizing}
                   isHighlighted={isHighlighted}
-                  isPopoverOpen={!!popoverState}
+                  suppressHover={!!quickCreateState || !!dragState}
                 />
               </div>
             );
@@ -747,28 +1159,30 @@ export const DailyDockGridView = memo(function DailyDockGridView({
     </div>
 
     {/* 인라인 퀵 생성 (Portal) */}
-    {quickCreateState && plannerId && createPortal(
+    {quickCreateState && calendarId && createPortal(
       <div
         ref={quickCreateRefs.setFloating}
-        style={{ ...quickCreateStyles, transformOrigin: placementToTransformOrigin(quickCreatePlacement) }}
+        style={quickCreateStyles}
         data-quick-create
-        className="z-[9999]"
+        className={cn('z-[9999] transition-opacity duration-150', isQcPositioned ? 'opacity-100' : 'opacity-0')}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-white rounded-lg shadow-lg border border-gray-200 animate-in fade-in-0 zoom-in-95 duration-200">
+        <div className="bg-[rgb(var(--color-secondary-50))] rounded-lg shadow-lg border border-[rgb(var(--color-secondary-200))]">
           <InlineQuickCreate
             slot={quickCreateState.slot}
             initialMode={quickCreateState.isAllDay ? 'allDay' : 'timed'}
             studentId={studentId}
             tenantId={tenantId}
-            plannerId={plannerId}
+            calendarId={calendarId}
             planDate={selectedDate}
             planGroupId={planGroupId}
+            defaultEstimatedMinutes={defaultEstimatedMinutes}
+            defaultReminderMinutes={defaultReminderMinutes}
             onSuccess={(createdInfo) => {
               onRefresh();
               if (createdInfo) {
                 setNewlyCreatedPlanId(createdInfo.planId);
-                const targetPx = minutesToPx(timeToMinutes(createdInfo.startTime), rangeStartMin, PX_PER_MINUTE);
+                const targetPx = minutesToPx(timeToMinutes(createdInfo.startTime), rangeStartMin, ppm);
                 setTimeout(() => {
                   containerRef.current?.scrollTo({ top: Math.max(0, targetPx - 100), behavior: 'smooth' });
                 }, 300);
@@ -776,7 +1190,23 @@ export const DailyDockGridView = memo(function DailyDockGridView({
             }}
             onClose={closeQuickCreate}
             onOpenFullModal={(slot) => {
-              onCreatePlanAtSlot?.(slot.startTime, slot.endTime);
+              if (onOpenEventEditNew) {
+                onOpenEventEditNew({
+                  date: selectedDate,
+                  startTime: slot.startTime,
+                  endTime: slot.endTime,
+                });
+              } else if (calendarId) {
+                const params = new URLSearchParams({
+                  date: selectedDate,
+                  startTime: slot.startTime,
+                  endTime: slot.endTime,
+                  calendarId,
+                });
+                router.push(`/admin/students/${studentId}/plans/event/new?${params}`);
+              } else {
+                onCreatePlanAtSlot?.(slot.startTime, slot.endTime);
+              }
               closeQuickCreate();
             }}
           />
@@ -785,32 +1215,16 @@ export const DailyDockGridView = memo(function DailyDockGridView({
       document.body
     )}
 
-    {/* EventPopover (portal) */}
-    {popoverState && (
-      <EventPopover
-        plan={popoverState.plan}
-        anchorRect={popoverState.anchorRect}
-        onClose={() => setPopoverState(null)}
-        onEdit={(id) => {
-          onEdit?.(id);
-          setPopoverState(null);
-        }}
-        onDelete={(id) => {
-          onDelete?.(id, popoverState.plan.type === 'adhoc');
-          setPopoverState(null);
-        }}
-        onStatusChange={(id, status, title) => {
-          onStatusChange?.(id, status, title);
-          setPopoverState(null);
-        }}
-        onQuickStatusChange={(planId, newStatus) => {
-          handleQuickStatusChange(planId, popoverState.plan.type === 'adhoc', newStatus, popoverState.plan.status);
-          setPopoverState(null);
-        }}
-        onMoveToWeekly={(id) => {
-          onMoveToWeekly?.(id);
-          setPopoverState(null);
-        }}
+    {/* EventDetailPopover (portal) */}
+    {popoverProps && <EventDetailPopover {...popoverProps} />}
+
+    {/* 반복 이벤트 scope 선택 모달 */}
+    {recurringModalState && (
+      <RecurringEditChoiceModal
+        isOpen={recurringModalState.isOpen}
+        onClose={closeRecurringModal}
+        mode={recurringModalState.mode}
+        onSelect={handleRecurringScopeSelect}
       />
     )}
     </>

@@ -12,12 +12,12 @@ import {
 export type DragItem = {
   id: string;
   type: "plan" | "adhoc";
-  sourceContainer: "daily" | "weekly" | "unfinished";
+  sourceContainer: "daily";
   index: number;
 };
 
 export type DropZone = {
-  container: "daily" | "weekly" | "unfinished";
+  container: "daily";
   date?: string;
   index?: number;
 };
@@ -61,9 +61,7 @@ export function usePlanDragDrop(options?: UsePlanDragDropOptions) {
           showError(result.error || "이동 실패");
           options?.onError?.(result.error || "Unknown error");
         } else {
-          showSuccess(
-            `${dropZone.container === "daily" ? "Daily" : dropZone.container === "weekly" ? "Weekly" : "Unfinished"} Dock으로 이동했습니다.`
-          );
+          showSuccess("이동했습니다.");
           options?.onSuccess?.();
         }
       } catch (error) {

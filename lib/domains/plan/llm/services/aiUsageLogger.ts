@@ -59,7 +59,7 @@ export interface AIUsageLogEntry {
   pipelineType?: PipelineType | null;
   batchId?: string | null;
   planGroupId?: string | null;
-  plannerId?: string | null;
+  calendarId?: string | null;
   contentIds?: string[] | null;
   isFallback?: boolean;
   fallbackReason?: string | null;
@@ -122,7 +122,7 @@ export async function logAIUsage(entry: AIUsageLogEntry): Promise<void> {
       ...(entry.pipelineType && { pipeline_type: entry.pipelineType }),
       ...(entry.batchId && { batch_id: entry.batchId }),
       ...(entry.planGroupId && { plan_group_id: entry.planGroupId }),
-      ...(entry.plannerId && { planner_id: entry.plannerId }),
+      ...(entry.calendarId && { calendar_id: entry.calendarId }),
       ...(entry.contentIds && { content_ids: entry.contentIds }),
       ...(entry.isFallback !== undefined && { is_fallback: entry.isFallback }),
       ...(entry.fallbackReason && { fallback_reason: entry.fallbackReason }),

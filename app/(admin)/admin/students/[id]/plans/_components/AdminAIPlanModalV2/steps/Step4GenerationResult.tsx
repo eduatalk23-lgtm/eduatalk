@@ -22,7 +22,7 @@ export function Step4GenerationResult({
 }: Step4GenerationResultProps) {
   const {
     confirmedSlots,
-    selectedPlannerId,
+    selectedCalendarId,
     periodStart,
     periodEnd,
     generationResult,
@@ -56,7 +56,7 @@ export function Step4GenerationResult({
   }, [generationResult?.success, onSuccess]);
 
   async function handleGenerate() {
-    if (!selectedPlannerId) {
+    if (!selectedCalendarId) {
       setError('플래너가 선택되지 않았습니다.');
       return;
     }
@@ -83,7 +83,7 @@ export function Step4GenerationResult({
       const result = await generateSlotBasedPlanAction({
         studentId,
         tenantId,
-        plannerId: selectedPlannerId,
+        calendarId: selectedCalendarId,
         periodStart,
         periodEnd,
         slots: confirmedSlotData,

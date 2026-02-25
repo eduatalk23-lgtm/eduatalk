@@ -1,6 +1,6 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { PlannerSelectionPage } from './_components/PlannerSelectionPage';
+import { ensureStudentPrimaryCalendar } from '@/lib/domains/calendar/helpers';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -23,9 +23,8 @@ async function getStudentInfo(studentId: string) {
 }
 
 /**
- * 플래너 선택 페이지
- * - 학생의 플래너 목록을 표시
- * - 플래너 선택 시 /admin/students/[id]/plans/[plannerId]로 이동
+ * 학생 플랜 페이지 → Primary Calendar로 자동 리다이렉트
+ * 캘린더 뷰를 바로 표시
  */
 export default async function StudentPlansPage({ params }: Props) {
   const { id: studentId } = await params;
@@ -36,24 +35,12 @@ export default async function StudentPlansPage({ params }: Props) {
     notFound();
   }
 
-  return (
-    <div className="container mx-auto py-6 px-4">
-      {/* 헤더 */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">
-          플랜 관리: {student.name}
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          플래너를 선택하여 학습 플랜을 관리하세요
-        </p>
-      </div>
-
-      {/* 플래너 선택 컴포넌트 */}
-      <PlannerSelectionPage
-        studentId={student.id}
-        tenantId={student.tenant_id}
-        studentName={student.name}
-      />
-    </div>
+  // Primary Calendar 확보 (없으면 자동 생성)
+  const calendarId = await ensureStudentPrimaryCalendar(
+    student.id,
+    student.tenant_id
   );
+
+  // 캘린더 뷰로 바로 리다이렉트
+  redirect(`/admin/students/${studentId}/plans/calendar/${calendarId}`);
 }

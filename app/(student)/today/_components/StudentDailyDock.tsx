@@ -1,29 +1,24 @@
 'use client';
 
 import { useMemo } from 'react';
-import { CollapsedDockCard } from '@/components/planner/CollapsedDockCard';
 import { useDailyDockQuery, useNonStudyTimeQuery } from '@/lib/hooks/useAdminDockQueries';
 import { toPlanItemData } from '@/lib/types/planItem';
 import { useStudentPlan } from './context/StudentPlanContext';
 import { StudentPlanCard } from './StudentPlanCard';
 import { NonStudyTimeCard } from './NonStudyTimeCard';
 
-interface StudentDailyDockProps {
-  isCollapsed?: boolean;
-  onExpand: () => void;
-}
-
-export function StudentDailyDock({ isCollapsed = false, onExpand }: StudentDailyDockProps) {
-  const { studentId, selectedDate, selectedPlannerId, initialDockData, initialDate } = useStudentPlan();
+export function StudentDailyDock() {
+  const { studentId, selectedDate, selectedCalendarId, initialDockData, initialDate } = useStudentPlan();
 
   // initialDockData는 initialDate에 대한 데이터이므로, selectedDate가 변경되면 무시
   const useInitialData = selectedDate === initialDate;
 
-  const { plans, adHocPlans, isLoading, refetch } = useDailyDockQuery(
+  const { plans, isLoading, refetch } = useDailyDockQuery(
     studentId,
     selectedDate,
-    selectedPlannerId,
-    useInitialData && initialDockData ? { plans: initialDockData.dailyPlans, adHocPlans: initialDockData.dailyAdHocPlans } : undefined
+    selectedCalendarId,
+    useInitialData && initialDockData ? { plans: initialDockData.dailyPlans } : undefined,
+    { useCalendarId: true }
   );
 
   const { nonStudyItems } = useNonStudyTimeQuery(
@@ -31,16 +26,13 @@ export function StudentDailyDock({ isCollapsed = false, onExpand }: StudentDaily
     selectedDate,
     plans,
     !isLoading,
-    selectedPlannerId,
+    selectedCalendarId,
     useInitialData ? initialDockData?.nonStudyItems : undefined
   );
 
   // PlanItemData로 변환
   const planItems = useMemo(() => {
-    const items = [
-      ...plans.map(p => toPlanItemData(p, 'plan')),
-      ...adHocPlans.map(p => toPlanItemData(p, 'adhoc')),
-    ];
+    const items = plans.map(p => toPlanItemData(p, 'plan'));
     // 시간순 정렬 (startTime 기준)
     items.sort((a, b) => {
       if (!a.startTime && !b.startTime) return 0;
@@ -49,7 +41,7 @@ export function StudentDailyDock({ isCollapsed = false, onExpand }: StudentDaily
       return a.startTime.localeCompare(b.startTime);
     });
     return items;
-  }, [plans, adHocPlans]);
+  }, [plans]);
 
   // 비학습시간을 시간순으로 머지
   const mergedItems = useMemo(() => {
@@ -78,19 +70,6 @@ export function StudentDailyDock({ isCollapsed = false, onExpand }: StudentDaily
     completedCount: planItems.filter(p => p.isCompleted).length,
     totalCount: planItems.length,
   }), [planItems]);
-
-  if (isCollapsed) {
-    return (
-      <CollapsedDockCard
-        type="daily"
-        icon="📅"
-        title="오늘"
-        count={totalCount}
-        completedCount={completedCount}
-        onClick={onExpand}
-      />
-    );
-  }
 
   return (
     <div className="h-full flex flex-col bg-white rounded-lg border-2 border-blue-200 overflow-hidden">
@@ -123,7 +102,6 @@ export function StudentDailyDock({ isCollapsed = false, onExpand }: StudentDaily
               <StudentPlanCard
                 key={item.data.id}
                 plan={item.data}
-                container="daily"
                 showTime
                 onRefresh={refetch}
               />

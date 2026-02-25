@@ -44,7 +44,7 @@ export function MarkdownExportModal({
   const {
     studentId,
     studentName,
-    selectedPlannerId,
+    selectedCalendarId,
     activePlanGroupId,
     allPlanGroups,
     selectedDate,
@@ -77,7 +77,7 @@ export function MarkdownExportModal({
   useEffect(() => {
     async function fetchAvailableWeeks() {
       // 플래너가 없으면 조회 불가
-      if (!selectedPlannerId) {
+      if (!selectedCalendarId) {
         setAvailableWeeks([]);
         setSelectedWeek(null);
         return;
@@ -90,9 +90,9 @@ export function MarkdownExportModal({
         // 플랜 그룹이 선택된 경우 해당 그룹만, 아니면 플래너 전체에서 조회
         let query = supabase
           .from("student_plan")
-          .select("week, plan_groups!inner(planner_id)")
+          .select("week, plan_groups!inner(calendar_id)")
           .eq("is_active", true)
-          .eq("plan_groups.planner_id", selectedPlannerId)
+          .eq("plan_groups.calendar_id", selectedCalendarId)
           .not("week", "is", null);
 
         if (selectedPlanGroupId) {
@@ -114,8 +114,8 @@ export function MarkdownExportModal({
           // 선택된 날짜의 플랜에서 주차 확인
           let currentPlanQuery = supabase
             .from("student_plan")
-            .select("week, plan_groups!inner(planner_id)")
-            .eq("plan_groups.planner_id", selectedPlannerId)
+            .select("week, plan_groups!inner(calendar_id)")
+            .eq("plan_groups.calendar_id", selectedCalendarId)
             .eq("plan_date", selectedDate)
             .eq("is_active", true)
             .limit(1);
@@ -143,7 +143,7 @@ export function MarkdownExportModal({
     }
 
     fetchAvailableWeeks();
-  }, [selectedPlannerId, selectedPlanGroupId, selectedDate]);
+  }, [selectedCalendarId, selectedPlanGroupId, selectedDate]);
 
   // 선택된 플랜 그룹 이름
   const selectedPlanGroupName = allPlanGroups?.find(
@@ -194,7 +194,7 @@ export function MarkdownExportModal({
   );
 
   const handleExport = useCallback(async () => {
-    if (!selectedPlannerId) {
+    if (!selectedCalendarId) {
       setError("플래너를 선택해주세요.");
       return;
     }
@@ -209,7 +209,7 @@ export function MarkdownExportModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           studentId,
-          plannerId: selectedPlannerId,
+          calendarId: selectedCalendarId,
           planGroupId: selectedPlanGroupId,
           exportRange,
           selectedDate,
@@ -235,7 +235,7 @@ export function MarkdownExportModal({
     }
   }, [
     studentId,
-    selectedPlannerId,
+    selectedCalendarId,
     selectedPlanGroupId,
     exportRange,
     selectedDate,
@@ -530,10 +530,10 @@ export function MarkdownExportModal({
               </button>
               <button
                 onClick={handleExport}
-                disabled={isLoading || !selectedPlannerId}
+                disabled={isLoading || !selectedCalendarId}
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition",
-                  isLoading || !selectedPlannerId
+                  isLoading || !selectedCalendarId
                     ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                     : "bg-blue-600 text-white hover:bg-blue-700"
                 )}

@@ -115,18 +115,18 @@ export async function createBatchQuickPlans(
           planGroupId = newGroup.id;
         }
 
-        // 2. Ad-hoc 플랜 생성
+        // 2. Ad-hoc 플랜 생성 (student_plan with is_adhoc=true)
         const estimatedMinutes =
           settings.estimatedMinutes ||
           calculateMinutesDiff(settings.startTime, settings.endTime);
 
         const { data: adHocPlan, error: planError } = await supabase
-          .from("ad_hoc_plans")
+          .from("student_plan")
           .insert({
             tenant_id: studentTenantId,
             student_id: student.studentId,
             plan_group_id: planGroupId,
-            title: settings.title,
+            content_title: settings.title,
             description: settings.memo || null,
             plan_date: settings.date,
             start_time: settings.startTime,
@@ -134,7 +134,7 @@ export async function createBatchQuickPlans(
             estimated_minutes: estimatedMinutes,
             container_type: "daily",
             status: "pending",
-            created_by: userId,
+            is_adhoc: true,
           })
           .select("id")
           .single();

@@ -2,36 +2,38 @@
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
-import type { DailyScheduleInfo, PlannerPermission } from "@/lib/types/plan";
+import type { DailyScheduleInfo, CalendarPermission } from "@/lib/types/plan";
 import type { TimeSlot } from "@/lib/types/plan-generation";
-import type { PlanGroupSummary, PlannerExclusion } from "./AdminPlanContext";
-import type { PrefetchedDockData, Planner } from "@/lib/domains/admin-plan/actions";
+import type { PlanGroupSummary, CalendarSettingsExclusion } from "./AdminPlanContext";
+import type { PrefetchedDockData } from "@/lib/domains/admin-plan/actions";
+import type { CalendarSettings } from "@/lib/domains/admin-plan/types";
 import {
-  getPlannerPermission,
-  canEditPlannerSettings,
-  isOwnPlanner as checkIsOwnPlanner,
-} from "@/lib/domains/admin-plan/utils/plannerPermission";
+  getCalendarPermission,
+  canEditCalendarSettings,
+  isOwnCalendar as checkIsOwnCalendar,
+} from "@/lib/domains/admin-plan/utils/calendarPermission";
 
 /** 뷰 모드 타입 */
-export type ViewMode = "admin" | "student";
+export type ViewMode = "admin" | "student" | "personal";
 
 /**
  * Basic Context - 거의 변하지 않는 정적 정보
  *
- * 포함: studentId, tenantId, planner 데이터 등
+ * 포함: studentId, tenantId, calendar 데이터 등
  * 변경 빈도: 매우 낮음 (페이지 로드 시 1회)
  */
 export interface AdminPlanBasicContextValue {
   studentId: string;
   studentName: string;
   tenantId: string;
-  selectedPlannerId?: string;
+  /** Calendar-First: 선택된 캘린더 ID (URL에서 직접 전달) */
+  selectedCalendarId: string | null;
   activePlanGroupId: string | null;
   allPlanGroups: PlanGroupSummary[];
-  plannerDailySchedules?: DailyScheduleInfo[][];
-  plannerExclusions?: PlannerExclusion[];
-  plannerCalculatedSchedule?: DailyScheduleInfo[];
-  plannerDateTimeSlots?: Record<string, TimeSlot[]>;
+  calendarDailySchedules?: DailyScheduleInfo[][];
+  calendarExclusions?: CalendarSettingsExclusion[];
+  calendarCalculatedSchedule?: DailyScheduleInfo[];
+  calendarDateTimeSlots?: Record<string, TimeSlot[]>;
   canCreatePlans: boolean;
   toast: ReturnType<typeof useToast>;
   /** SSR 프리페치된 Dock 데이터 */
@@ -48,12 +50,12 @@ export interface AdminPlanBasicContextValue {
   // ============================================
   /** 현재 사용자 ID */
   currentUserId: string;
-  /** 선택된 플래너 (권한 확인용) */
-  selectedPlanner: Planner | null;
-  /** 플래너 권한 (full | execute_only | view_only) */
-  plannerPermission: PlannerPermission;
-  /** 본인이 생성한 플래너인지 */
-  isOwnPlanner: boolean;
+  /** 선택된 캘린더 설정 (권한 확인용) */
+  selectedCalendarSettings: CalendarSettings | null;
+  /** 캘린더 권한 (full | execute_only | view_only) */
+  calendarPermission: CalendarPermission;
+  /** 본인이 생성한 캘린더인지 */
+  isOwnCalendar: boolean;
   /** 설정 수정 가능 여부 (편의 getter) */
   canEditSettings: boolean;
 }
@@ -65,13 +67,14 @@ interface AdminPlanBasicProviderProps {
   studentId: string;
   studentName: string;
   tenantId: string;
-  selectedPlannerId?: string;
+  /** Calendar-First: URL에서 직접 전달받은 calendarId */
+  calendarId: string | null;
   activePlanGroupId: string | null;
   allPlanGroups: PlanGroupSummary[];
-  plannerDailySchedules?: DailyScheduleInfo[][];
-  plannerExclusions?: PlannerExclusion[];
-  plannerCalculatedSchedule?: DailyScheduleInfo[];
-  plannerDateTimeSlots?: Record<string, TimeSlot[]>;
+  calendarDailySchedules?: DailyScheduleInfo[][];
+  calendarExclusions?: CalendarSettingsExclusion[];
+  calendarCalculatedSchedule?: DailyScheduleInfo[];
+  calendarDateTimeSlots?: Record<string, TimeSlot[]>;
   initialDockData?: PrefetchedDockData;
   /** SSR 프리페치 시점의 초기 날짜 */
   initialDate: string;
@@ -79,8 +82,8 @@ interface AdminPlanBasicProviderProps {
   viewMode?: ViewMode;
   /** 현재 사용자 ID (권한 확인용) */
   currentUserId?: string;
-  /** 선택된 플래너 데이터 (권한 확인용) */
-  selectedPlanner?: Planner | null;
+  /** 선택된 캘린더 설정 데이터 (권한 확인용) */
+  selectedCalendarSettings?: CalendarSettings | null;
 }
 
 export function AdminPlanBasicProvider({
@@ -88,37 +91,38 @@ export function AdminPlanBasicProvider({
   studentId,
   studentName,
   tenantId,
-  selectedPlannerId,
+  calendarId,
   activePlanGroupId,
   allPlanGroups,
-  plannerDailySchedules,
-  plannerExclusions,
-  plannerCalculatedSchedule,
-  plannerDateTimeSlots,
+  calendarDailySchedules,
+  calendarExclusions,
+  calendarCalculatedSchedule,
+  calendarDateTimeSlots,
   initialDockData,
   initialDate,
   viewMode = "admin",
   currentUserId,
-  selectedPlanner,
+  selectedCalendarSettings,
 }: AdminPlanBasicProviderProps) {
   const toast = useToast();
-  const canCreatePlans = !!selectedPlannerId;
-  const isAdminMode = viewMode === "admin";
+  const selectedCalendarId = calendarId;
+  const canCreatePlans = !!selectedCalendarId;
+  const isAdminMode = viewMode !== "student";
 
   // 권한 시스템 계산
-  const plannerPermission = useMemo(
-    () => getPlannerPermission(viewMode, selectedPlanner ?? null, currentUserId ?? null),
-    [viewMode, selectedPlanner, currentUserId]
+  const calendarPermission = useMemo(
+    () => getCalendarPermission(viewMode, selectedCalendarSettings ?? null, currentUserId ?? null),
+    [viewMode, selectedCalendarSettings, currentUserId]
   );
 
   const isOwn = useMemo(
-    () => checkIsOwnPlanner(selectedPlanner ?? null, currentUserId ?? null),
-    [selectedPlanner, currentUserId]
+    () => checkIsOwnCalendar(selectedCalendarSettings ?? null, currentUserId ?? null),
+    [selectedCalendarSettings, currentUserId]
   );
 
   const canEdit = useMemo(
-    () => canEditPlannerSettings(plannerPermission),
-    [plannerPermission]
+    () => canEditCalendarSettings(calendarPermission),
+    [calendarPermission]
   );
 
   const value = useMemo<AdminPlanBasicContextValue>(
@@ -126,13 +130,13 @@ export function AdminPlanBasicProvider({
       studentId,
       studentName,
       tenantId,
-      selectedPlannerId,
+      selectedCalendarId,
       activePlanGroupId,
       allPlanGroups,
-      plannerDailySchedules,
-      plannerExclusions,
-      plannerCalculatedSchedule,
-      plannerDateTimeSlots,
+      calendarDailySchedules,
+      calendarExclusions,
+      calendarCalculatedSchedule,
+      calendarDateTimeSlots,
       canCreatePlans,
       toast,
       initialDockData,
@@ -141,22 +145,22 @@ export function AdminPlanBasicProvider({
       isAdminMode,
       // 권한 시스템
       currentUserId: currentUserId ?? "",
-      selectedPlanner: selectedPlanner ?? null,
-      plannerPermission,
-      isOwnPlanner: isOwn,
+      selectedCalendarSettings: selectedCalendarSettings ?? null,
+      calendarPermission,
+      isOwnCalendar: isOwn,
       canEditSettings: canEdit,
     }),
     [
       studentId,
       studentName,
       tenantId,
-      selectedPlannerId,
+      selectedCalendarId,
       activePlanGroupId,
       allPlanGroups,
-      plannerDailySchedules,
-      plannerExclusions,
-      plannerCalculatedSchedule,
-      plannerDateTimeSlots,
+      calendarDailySchedules,
+      calendarExclusions,
+      calendarCalculatedSchedule,
+      calendarDateTimeSlots,
       canCreatePlans,
       toast,
       initialDockData,
@@ -164,8 +168,8 @@ export function AdminPlanBasicProvider({
       viewMode,
       isAdminMode,
       currentUserId,
-      selectedPlanner,
-      plannerPermission,
+      selectedCalendarSettings,
+      calendarPermission,
       isOwn,
       canEdit,
     ]

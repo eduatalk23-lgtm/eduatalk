@@ -8,7 +8,7 @@ export type DragItem = {
   planId: string;
   planDate: string;
   contentTitle: string;
-  planType?: PlanType; // student_plan | ad_hoc_plan
+  planType?: PlanType;
   startTime?: string | null;
 };
 

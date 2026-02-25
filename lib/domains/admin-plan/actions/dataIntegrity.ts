@@ -1,9 +1,9 @@
 "use server";
 
 /**
- * 플래너/플랜 그룹 데이터 정합성 검증 액션
+ * 캘린더/플랜 그룹 데이터 정합성 검증 액션
  *
- * Phase 4: 데이터 정리/마이그레이션 지원
+ * Calendar-First: planners → calendars 전환 완료
  *
  * @module lib/domains/admin-plan/actions/dataIntegrity
  */
@@ -19,9 +19,9 @@ export interface DataIntegrityReport {
   timestamp: string;
   summary: {
     totalPlanGroups: number;
-    withPlanner: number;
-    withoutPlanner: number;
-    plannerConnectionRate: string;
+    withCalendar: number;
+    withoutCalendar: number;
+    calendarConnectionRate: string;
   };
   orphanPlanGroups: {
     id: string;
@@ -35,12 +35,12 @@ export interface DataIntegrityReport {
   schedulerOptionsInconsistencies: {
     planGroupId: string;
     planGroupName: string;
-    plannerId: string;
-    plannerName: string;
+    calendarId: string;
+    calendarName: string;
     planGroupStudyDays: number | null;
-    plannerStudyDays: number | null;
+    calendarStudyDays: number | null;
     planGroupReviewDays: number | null;
-    plannerReviewDays: number | null;
+    calendarReviewDays: number | null;
   }[];
   recommendations: string[];
 }
@@ -50,7 +50,7 @@ export interface DataIntegrityReport {
 // ============================================
 
 /**
- * 플래너/플랜 그룹 데이터 정합성 리포트 생성
+ * 캘린더/플랜 그룹 데이터 정합성 리포트 생성
  *
  * @param options - 옵션
  * @returns DataIntegrityReport
@@ -75,7 +75,7 @@ export async function generateDataIntegrityReportAction(options?: {
   // 1. 전체 Plan Groups 통계
   let query = supabase
     .from("plan_groups")
-    .select("id, name, student_id, planner_id, period_start, period_end, status, created_at, scheduler_options")
+    .select("id, name, student_id, calendar_id, period_start, period_end, status, created_at, scheduler_options")
     .in("status", statusFilter);
 
   if (options?.studentId) {
@@ -90,15 +90,15 @@ export async function generateDataIntegrityReportAction(options?: {
   }
 
   const totalPlanGroups = planGroups?.length ?? 0;
-  const withPlanner = planGroups?.filter((pg) => pg.planner_id).length ?? 0;
-  const withoutPlanner = totalPlanGroups - withPlanner;
+  const withCalendar = planGroups?.filter((pg) => pg.calendar_id).length ?? 0;
+  const withoutCalendar = totalPlanGroups - withCalendar;
   const connectionRate = totalPlanGroups > 0
-    ? ((withPlanner / totalPlanGroups) * 100).toFixed(1)
+    ? ((withCalendar / totalPlanGroups) * 100).toFixed(1)
     : "0.0";
 
-  // 2. Orphan Plan Groups (planner_id가 없는 그룹)
+  // 2. Orphan Plan Groups (calendar_id가 없는 그룹)
   const orphanPlanGroups = (planGroups ?? [])
-    .filter((pg) => !pg.planner_id)
+    .filter((pg) => !pg.calendar_id)
     .map((pg) => ({
       id: pg.id,
       name: pg.name || "(이름 없음)",
@@ -110,48 +110,48 @@ export async function generateDataIntegrityReportAction(options?: {
     }));
 
   // 3. Scheduler Options 불일치 확인
-  const planGroupsWithPlanner = (planGroups ?? []).filter((pg) => pg.planner_id);
-  const plannerIds = [...new Set(planGroupsWithPlanner.map((pg) => pg.planner_id).filter((id): id is string => id !== null))];
+  const planGroupsWithCalendar = (planGroups ?? []).filter((pg) => pg.calendar_id);
+  const calendarIds = [...new Set(planGroupsWithCalendar.map((pg) => pg.calendar_id).filter((id): id is string => id !== null))];
 
   const schedulerOptionsInconsistencies: DataIntegrityReport["schedulerOptionsInconsistencies"] = [];
 
-  if (plannerIds.length > 0) {
-    const { data: planners, error: plannerError } = await supabase
-      .from("planners")
-      .select("id, name, default_scheduler_options")
-      .in("id", plannerIds);
+  if (calendarIds.length > 0) {
+    const { data: calendars, error: calendarError } = await supabase
+      .from("calendars")
+      .select("id, summary, default_scheduler_options")
+      .in("id", calendarIds);
 
-    if (!plannerError && planners) {
-      const plannerMap = new Map(planners.map((p) => [p.id, p]));
+    if (!calendarError && calendars) {
+      const calendarMap = new Map(calendars.map((c) => [c.id, c]));
 
-      for (const pg of planGroupsWithPlanner) {
-        if (!pg.planner_id) continue;
-        const planner = plannerMap.get(pg.planner_id);
-        if (!planner) continue;
+      for (const pg of planGroupsWithCalendar) {
+        if (!pg.calendar_id) continue;
+        const calendar = calendarMap.get(pg.calendar_id);
+        if (!calendar) continue;
 
         const pgOptions = pg.scheduler_options as Record<string, unknown> | null;
-        const plannerOptions = planner.default_scheduler_options as Record<string, unknown> | null;
+        const calendarOptions = calendar.default_scheduler_options as Record<string, unknown> | null;
 
         const pgStudyDays = pgOptions?.study_days as number | null;
         const pgReviewDays = pgOptions?.review_days as number | null;
-        const plannerStudyDays = plannerOptions?.study_days as number | null;
-        const plannerReviewDays = plannerOptions?.review_days as number | null;
+        const calendarStudyDays = calendarOptions?.study_days as number | null;
+        const calendarReviewDays = calendarOptions?.review_days as number | null;
 
-        // 불일치 체크 (플래너 설정이 있는 경우만)
+        // 불일치 체크 (캘린더 설정이 있는 경우만)
         const hasInconsistency =
-          (plannerStudyDays !== null && pgStudyDays !== plannerStudyDays) ||
-          (plannerReviewDays !== null && pgReviewDays !== plannerReviewDays);
+          (calendarStudyDays !== null && pgStudyDays !== calendarStudyDays) ||
+          (calendarReviewDays !== null && pgReviewDays !== calendarReviewDays);
 
         if (hasInconsistency) {
           schedulerOptionsInconsistencies.push({
             planGroupId: pg.id,
             planGroupName: pg.name || "(이름 없음)",
-            plannerId: planner.id,
-            plannerName: planner.name || "(이름 없음)",
+            calendarId: calendar.id,
+            calendarName: calendar.summary || "(이름 없음)",
             planGroupStudyDays: pgStudyDays,
-            plannerStudyDays: plannerStudyDays,
+            calendarStudyDays: calendarStudyDays,
             planGroupReviewDays: pgReviewDays,
-            plannerReviewDays: plannerReviewDays,
+            calendarReviewDays: calendarReviewDays,
           });
         }
       }
@@ -161,15 +161,15 @@ export async function generateDataIntegrityReportAction(options?: {
   // 4. 권장사항 생성
   const recommendations: string[] = [];
 
-  if (withoutPlanner > 0) {
+  if (withoutCalendar > 0) {
     recommendations.push(
-      `${withoutPlanner}개의 Plan Group에 플래너가 연결되지 않았습니다. 플래너 연결을 권장합니다.`
+      `${withoutCalendar}개의 Plan Group에 캘린더가 연결되지 않았습니다. 캘린더 연결을 권장합니다.`
     );
   }
 
   if (schedulerOptionsInconsistencies.length > 0) {
     recommendations.push(
-      `${schedulerOptionsInconsistencies.length}개의 Plan Group에서 스케줄러 옵션이 플래너와 다릅니다. 동기화를 권장합니다.`
+      `${schedulerOptionsInconsistencies.length}개의 Plan Group에서 스케줄러 옵션이 캘린더와 다릅니다. 동기화를 권장합니다.`
     );
   }
 
@@ -181,22 +181,22 @@ export async function generateDataIntegrityReportAction(options?: {
     timestamp: new Date().toISOString(),
     summary: {
       totalPlanGroups,
-      withPlanner,
-      withoutPlanner,
-      plannerConnectionRate: `${connectionRate}%`,
+      withCalendar,
+      withoutCalendar,
+      calendarConnectionRate: `${connectionRate}%`,
     },
     orphanPlanGroups,
     schedulerOptionsInconsistencies,
     recommendations,
   };
 
-  logActionDebug("[DataIntegrity]", `리포트 생성 완료 - total: ${totalPlanGroups}, withPlanner: ${withPlanner}, withoutPlanner: ${withoutPlanner}, inconsistencies: ${schedulerOptionsInconsistencies.length}`);
+  logActionDebug("[DataIntegrity]", `리포트 생성 완료 - total: ${totalPlanGroups}, withCalendar: ${withCalendar}, withoutCalendar: ${withoutCalendar}, inconsistencies: ${schedulerOptionsInconsistencies.length}`);
 
   return report;
 }
 
 /**
- * Orphan Plan Groups를 적합한 플래너에 자동 연결
+ * Orphan Plan Groups를 적합한 캘린더에 자동 연결
  *
  * @param options - 옵션
  * @returns 연결 결과
@@ -208,7 +208,7 @@ export async function linkOrphanPlanGroupsAction(options?: {
   success: boolean;
   linkedCount: number;
   failedCount: number;
-  details: { planGroupId: string; plannerId: string | null; status: string }[];
+  details: { planGroupId: string; calendarId: string | null; status: string }[];
 }> {
   const supabase = createSupabaseAdminClient();
   if (!supabase) {
@@ -222,7 +222,7 @@ export async function linkOrphanPlanGroupsAction(options?: {
   let query = supabase
     .from("plan_groups")
     .select("id, student_id, period_start, period_end, name")
-    .is("planner_id", null)
+    .is("calendar_id", null)
     .not("status", "in", "(deleted,archived)");
 
   if (options?.studentId) {
@@ -244,59 +244,57 @@ export async function linkOrphanPlanGroupsAction(options?: {
     };
   }
 
-  // 2. 각 orphan에 대해 적합한 플래너 찾기
-  const details: { planGroupId: string; plannerId: string | null; status: string }[] = [];
+  // 2. 각 orphan에 대해 적합한 캘린더 찾기
+  const details: { planGroupId: string; calendarId: string | null; status: string }[] = [];
   let linkedCount = 0;
   let failedCount = 0;
 
   for (const orphan of orphans) {
-    // 적합한 플래너 찾기 (기간 겹침 우선)
-    const { data: matchingPlanners } = await supabase
-      .from("planners")
+    // 학생의 기본 캘린더 찾기
+    const { data: primaryCalendars } = await supabase
+      .from("calendars")
       .select("id")
       .eq("student_id", orphan.student_id)
-      .in("status", ["active", "draft"])
-      .lte("period_start", orphan.period_end)
-      .gte("period_end", orphan.period_start)
-      .order("created_at", { ascending: false })
+      .eq("is_student_primary", true)
+      .is("deleted_at", null)
       .limit(1);
 
-    let plannerId = matchingPlanners?.[0]?.id ?? null;
+    let calendarId = primaryCalendars?.[0]?.id ?? null;
 
-    // 기간 겹침 플래너가 없으면 가장 최근 플래너 사용
-    if (!plannerId) {
-      const { data: recentPlanners } = await supabase
-        .from("planners")
+    // 기본 캘린더가 없으면 가장 최근 캘린더 사용
+    if (!calendarId) {
+      const { data: recentCalendars } = await supabase
+        .from("calendars")
         .select("id")
         .eq("student_id", orphan.student_id)
-        .in("status", ["active", "draft"])
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(1);
 
-      plannerId = recentPlanners?.[0]?.id ?? null;
+      calendarId = recentCalendars?.[0]?.id ?? null;
     }
 
-    if (plannerId) {
+    if (calendarId) {
       if (!dryRun) {
         // 실제 업데이트
         const { error: updateError } = await supabase
           .from("plan_groups")
-          .update({ planner_id: plannerId, updated_at: new Date().toISOString() })
+          .update({ calendar_id: calendarId, updated_at: new Date().toISOString() })
           .eq("id", orphan.id);
 
         if (updateError) {
-          details.push({ planGroupId: orphan.id, plannerId, status: `실패: ${updateError.message}` });
+          details.push({ planGroupId: orphan.id, calendarId, status: `실패: ${updateError.message}` });
           failedCount++;
         } else {
-          details.push({ planGroupId: orphan.id, plannerId, status: "연결 완료" });
+          details.push({ planGroupId: orphan.id, calendarId, status: "연결 완료" });
           linkedCount++;
         }
       } else {
-        details.push({ planGroupId: orphan.id, plannerId, status: "DRY RUN - 연결 가능" });
+        details.push({ planGroupId: orphan.id, calendarId, status: "DRY RUN - 연결 가능" });
         linkedCount++;
       }
     } else {
-      details.push({ planGroupId: orphan.id, plannerId: null, status: "적합한 플래너 없음" });
+      details.push({ planGroupId: orphan.id, calendarId: null, status: "적합한 캘린더 없음" });
       failedCount++;
     }
   }
@@ -312,7 +310,7 @@ export async function linkOrphanPlanGroupsAction(options?: {
 }
 
 /**
- * 플래너 설정을 Plan Groups에 동기화
+ * 캘린더 설정을 Plan Groups에 동기화
  *
  * @param options - 옵션
  * @returns 동기화 결과
@@ -340,13 +338,13 @@ export async function syncSchedulerOptionsAction(options?: {
     .select(`
       id,
       scheduler_options,
-      planner_id,
-      planners!inner (
+      calendar_id,
+      calendars!inner (
         id,
         default_scheduler_options
       )
     `)
-    .not("planner_id", "is", null)
+    .not("calendar_id", "is", null)
     .not("status", "in", "(deleted,archived)");
 
   if (options?.studentId) {
@@ -376,20 +374,20 @@ export async function syncSchedulerOptionsAction(options?: {
   let syncedCount = 0;
 
   for (const pg of planGroups) {
-    const planner = pg.planners as unknown as { id: string; default_scheduler_options: Record<string, unknown> | null };
-    if (!planner?.default_scheduler_options) {
-      details.push({ planGroupId: pg.id, status: "플래너 설정 없음 - 스킵" });
+    const calendar = pg.calendars as unknown as { id: string; default_scheduler_options: Record<string, unknown> | null };
+    if (!calendar?.default_scheduler_options) {
+      details.push({ planGroupId: pg.id, status: "캘린더 설정 없음 - 스킵" });
       continue;
     }
 
     const currentOptions = (pg.scheduler_options as Record<string, number | string | boolean | null>) ?? {};
-    const plannerOptions = planner.default_scheduler_options as Record<string, number | string | boolean | null>;
+    const calendarOptions = calendar.default_scheduler_options as Record<string, number | string | boolean | null>;
 
     // study_days, review_days 동기화
     const newOptions: Record<string, number | string | boolean | null> = {
       ...currentOptions,
-      study_days: (plannerOptions.study_days ?? currentOptions.study_days) as number | null,
-      review_days: (plannerOptions.review_days ?? currentOptions.review_days) as number | null,
+      study_days: (calendarOptions.study_days ?? currentOptions.study_days) as number | null,
+      review_days: (calendarOptions.review_days ?? currentOptions.review_days) as number | null,
     };
 
     // 변경 사항 확인

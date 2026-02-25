@@ -212,41 +212,33 @@ export async function deletePlanContentsByGroupId(
 
 /**
  * 플랜 제외일 삭제 (plan_group_id 기준)
+ *
+ * calendar_events에서는 plan_group_id 개념이 없으므로 no-op.
+ * 제외일은 student_id 기반 글로벌 스코프이므로 플랜 그룹 삭제 시 제외일을 함께 삭제하지 않음.
  */
 export async function deleteExclusionsByGroupId(
-  planGroupId: string
+  _planGroupId: string
 ): Promise<void> {
-  const supabase = await createSupabaseServerClient();
-
-  const { error } = await supabase
-    .from("plan_exclusions")
-    .delete()
-    .eq("plan_group_id", planGroupId);
-
-  if (error) throw error;
+  // calendar_events 기반에서는 제외일이 학생 전역이므로 no-op
 }
 
 /**
  * 학원 일정 삭제 (plan_group_id 기준)
+ *
+ * calendar_events 기반에서는 학원 일정이 학생 전역이므로 no-op.
+ * 플랜 그룹 삭제 시 학원 일정을 함께 삭제하지 않음.
  */
 export async function deleteAcademySchedulesByGroupId(
-  planGroupId: string
+  _planGroupId: string
 ): Promise<void> {
-  const supabase = await createSupabaseServerClient();
-
-  const { error } = await supabase
-    .from("academy_schedules")
-    .delete()
-    .eq("plan_group_id", planGroupId);
-
-  if (error) throw error;
+  // calendar_events 기반에서는 학원 일정이 학생 전역이므로 no-op
 }
 
 /**
  * 플랜 기간 중복 검증
  * 동일 학생의 활성/진행 중인 플랜과 기간이 겹치는지 확인
  *
- * 참고: 관리자 모드(planner_id 있음)에서는 이 함수가 호출되지 않음
+ * 참고: 관리자 모드(calendar_id 있음)에서는 이 함수가 호출되지 않음
  * - 플래너 기반 필터링으로 충돌 없음 → 검증 건너뛰기
  */
 export async function checkPlanPeriodOverlap(
@@ -630,11 +622,11 @@ export async function deletePlanGroupItemsByGroupId(
 }
 
 // ============================================
-// Plan Exclusion Repository
+// Plan Exclusion Repository (calendar_events 기반)
 // ============================================
 
 /**
- * 제외일 목록 조회
+ * 제외일 목록 조회 (calendar_events 기반)
  */
 export async function findPlanExclusions(
   studentId: string,
@@ -643,42 +635,36 @@ export async function findPlanExclusions(
   const supabase = await createSupabaseServerClient();
 
   let query = supabase
-    .from("plan_exclusions")
-    .select("*")
-    .eq("student_id", studentId);
+    .from("calendar_events")
+    .select("id, tenant_id, student_id, start_date, event_subtype, title, created_at")
+    .eq("student_id", studentId)
+    .eq("event_type", "exclusion")
+    .eq("is_all_day", true)
+    .is("deleted_at", null)
+    .order("start_date", { ascending: true });
 
   if (tenantId) {
     query = query.eq("tenant_id", tenantId);
   }
 
-  const { data, error } = await query.order("exclusion_date", {
-    ascending: true,
-  });
+  const { data, error } = await query;
 
   if (error) throw error;
-  return (data as PlanExclusion[]) ?? [];
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    tenant_id: row.tenant_id ?? "",
+    student_id: row.student_id ?? "",
+    plan_group_id: null,
+    exclusion_date: row.start_date ?? "",
+    exclusion_type: (row.event_subtype ?? "기타") as PlanExclusion["exclusion_type"],
+    reason: row.title ?? null,
+    created_at: row.created_at ?? new Date().toISOString(),
+  }));
 }
 
 /**
- * 제외일 생성
- */
-export async function insertPlanExclusion(
-  exclusion: Partial<PlanExclusion>
-): Promise<PlanExclusion> {
-  const supabase = await createSupabaseServerClient();
-
-  const { data, error } = await supabase
-    .from("plan_exclusions")
-    .insert(exclusion)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data as PlanExclusion;
-}
-
-/**
- * 제외일 삭제
+ * 제외일 삭제 (calendar_events soft delete)
  */
 export async function deletePlanExclusionById(
   exclusionId: string,
@@ -687,10 +673,15 @@ export async function deletePlanExclusionById(
   const supabase = await createSupabaseServerClient();
 
   const { error } = await supabase
-    .from("plan_exclusions")
-    .delete()
+    .from("calendar_events")
+    .update({
+      deleted_at: new Date().toISOString(),
+      status: "cancelled",
+    })
     .eq("id", exclusionId)
-    .eq("student_id", studentId);
+    .eq("student_id", studentId)
+    .eq("event_type", "exclusion")
+    .is("deleted_at", null);
 
   if (error) throw error;
 }
@@ -700,28 +691,15 @@ export async function deletePlanExclusionById(
 // ============================================
 
 /**
- * 학원 일정 목록 조회
+ * 학원 일정 목록 조회 (calendar_events 기반 어댑터)
  */
 export async function findAcademySchedules(
   studentId: string,
   tenantId?: string | null
 ): Promise<AcademySchedule[]> {
-  const supabase = await createSupabaseServerClient();
-
-  let query = supabase
-    .from("academy_schedules")
-    .select("*")
-    .eq("student_id", studentId);
-
-  if (tenantId) {
-    query = query.eq("tenant_id", tenantId);
-  }
-
-  const { data, error } = await query
-    .order("day_of_week", { ascending: true })
-    .order("start_time", { ascending: true });
-
-  if (error) throw error;
-  return (data as AcademySchedule[]) ?? [];
+  const { getStudentAcademySchedulesFromCalendar } = await import(
+    "@/lib/data/calendarAcademySchedules"
+  );
+  return getStudentAcademySchedulesFromCalendar(studentId, tenantId);
 }
 

@@ -433,7 +433,7 @@ export async function updateProgress(formData: FormData): Promise<void> {
     });
 
     revalidatePath("/today");
-    redirect("/today");
+    redirect("/plan/calendar");
   } catch (error) {
     logActionError(
       { domain: "plan", action: "updateProgress" },

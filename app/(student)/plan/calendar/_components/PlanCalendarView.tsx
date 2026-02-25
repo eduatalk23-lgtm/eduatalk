@@ -20,26 +20,8 @@ import { PlanFilters, filterPlans, type FilterState } from "./PlanFilters";
 import { CalendarExport } from "./CalendarExport";
 import { CalendarFloatingButton } from "./CalendarFloatingButton";
 
-// Ad-hoc 플랜 타입 (캘린더 표시용)
-export type AdHocPlanForCalendar = {
-  id: string;
-  plan_date: string;
-  title: string;
-  content_type: string | null;
-  status: string;
-  started_at: string | null;
-  completed_at: string | null;
-  estimated_minutes: number | null;
-  actual_minutes: number | null;
-  color: string | null;
-  icon: string | null;
-  planType: "ad_hoc_plan";
-  container_type?: string | null;
-};
-
 type PlanCalendarViewProps = {
   plans: PlanWithContent[];
-  adHocPlans?: AdHocPlanForCalendar[];
   view: "month" | "week" | "day";
   minDate: string;
   maxDate: string;
@@ -85,7 +67,6 @@ function buildDailyScheduleMap(
 
 export function PlanCalendarView({
   plans,
-  adHocPlans = [],
   view: initialView,
   minDate,
   maxDate,
@@ -554,11 +535,11 @@ export function PlanCalendarView({
         className="p-4 md:p-6 lg:p-8"
       >
         {view === "month" ? (
-          <MonthView plans={filteredPlans} adHocPlans={adHocPlans} currentDate={currentDate} exclusions={exclusions} academySchedules={academySchedules} dayTypes={dayTypes} dailyScheduleMap={dailyScheduleMap} showOnlyStudyTime={showOnlyStudyTime} studentId={studentId} tenantId={tenantId} onPlansUpdated={onPlansUpdated} />
+          <MonthView plans={filteredPlans}currentDate={currentDate} exclusions={exclusions} academySchedules={academySchedules} dayTypes={dayTypes} dailyScheduleMap={dailyScheduleMap} showOnlyStudyTime={showOnlyStudyTime} studentId={studentId} tenantId={tenantId} onPlansUpdated={onPlansUpdated} />
         ) : view === "week" ? (
           <WeekView plans={filteredPlans} currentDate={currentDate} exclusions={exclusions} academySchedules={academySchedules} dayTypes={dayTypes} dailyScheduleMap={dailyScheduleMap} showOnlyStudyTime={showOnlyStudyTime} />
         ) : (
-          <DayView plans={filteredPlans} adHocPlans={adHocPlans} currentDate={currentDate} exclusions={exclusions} academySchedules={academySchedules} dayTypes={dayTypes} dailyScheduleMap={dailyScheduleMap} showOnlyStudyTime={showOnlyStudyTime} studentId={studentId} tenantId={tenantId} onPlansUpdated={onPlansUpdated} />
+          <DayView plans={filteredPlans}currentDate={currentDate} exclusions={exclusions} academySchedules={academySchedules} dayTypes={dayTypes} dailyScheduleMap={dailyScheduleMap} showOnlyStudyTime={showOnlyStudyTime} studentId={studentId} tenantId={tenantId} onPlansUpdated={onPlansUpdated} />
         )}
       </div>
 

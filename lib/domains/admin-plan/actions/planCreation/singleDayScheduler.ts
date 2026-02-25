@@ -7,7 +7,7 @@
  * @module lib/domains/admin-plan/actions/planCreation/singleDayScheduler
  */
 
-import { generateScheduleForPlanner } from './scheduleGenerator';
+import { generateScheduleForCalendar } from './scheduleGenerator';
 import { getExistingPlansForStudent, groupExistingPlansByDate } from './existingPlansQuery';
 import { logActionError } from '@/lib/utils/serverActionLogger';
 import {
@@ -23,8 +23,8 @@ import {
 export interface SingleDayScheduleInput {
   /** 학생 ID */
   studentId: string;
-  /** 플래너 ID */
-  plannerId: string;
+  /** 캘린더 ID (Calendar-First) */
+  calendarId: string;
   /** 대상 날짜 (YYYY-MM-DD) */
   targetDate: string;
   /** 예상 소요시간 (분) */
@@ -55,7 +55,7 @@ export interface SingleDayScheduleResult {
  * ```typescript
  * const result = await findAvailableTimeSlot({
  *   studentId: 'student-123',
- *   plannerId: 'planner-456',
+ *   calendarId: 'calendar-456',
  *   targetDate: '2026-01-08',
  *   estimatedMinutes: 60,
  * });
@@ -68,12 +68,19 @@ export interface SingleDayScheduleResult {
 export async function findAvailableTimeSlot(
   input: SingleDayScheduleInput
 ): Promise<SingleDayScheduleResult> {
-  const { studentId, plannerId, targetDate, estimatedMinutes } = input;
+  const { studentId, calendarId, targetDate, estimatedMinutes } = input;
 
   try {
-    // 1. 플래너 기반 단일 날짜 스케줄 생성
-    const scheduleResult = await generateScheduleForPlanner(
-      plannerId,
+    if (!calendarId) {
+      return {
+        success: false,
+        error: '캘린더 ID가 필요합니다.',
+      };
+    }
+
+    // 1. 캘린더 기반 스케줄 생성
+    const scheduleResult = await generateScheduleForCalendar(
+      calendarId,
       targetDate,
       targetDate // 단일 날짜: 시작 = 종료
     );
@@ -192,19 +199,23 @@ function findBestFitSlot(
  * 특정 날짜의 총 사용 가능 시간 조회
  *
  * @param studentId - 학생 ID
- * @param plannerId - 플래너 ID
+ * @param calendarId - 캘린더 ID
  * @param targetDate - 대상 날짜
  * @returns 사용 가능한 총 시간 (분)
  */
 export async function getAvailableMinutesForDate(
   studentId: string,
-  plannerId: string,
+  calendarId: string,
   targetDate: string
 ): Promise<number> {
   try {
-    // 1. 스케줄 생성
-    const scheduleResult = await generateScheduleForPlanner(
-      plannerId,
+    if (!calendarId) {
+      return 0;
+    }
+
+    // 1. 캘린더 기반 스케줄 생성
+    const scheduleResult = await generateScheduleForCalendar(
+      calendarId,
       targetDate,
       targetDate
     );

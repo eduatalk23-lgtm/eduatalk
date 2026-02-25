@@ -10,7 +10,7 @@ import {
   updateAcademySchedule,
   deleteAcademySchedule
 } from "@/lib/domains/plan";
-import type { AcademySchedule, Academy } from "@/lib/types/plan";
+import type { AcademySchedule } from "@/lib/types/plan";
 import { Trash2, Pencil, Plus } from "lucide-react";
 import { EmptyState } from "@/components/molecules/EmptyState";
 import { validateAcademyScheduleOverlap } from "@/lib/validation/scheduleValidator";
@@ -26,7 +26,9 @@ type AcademyScheduleManagementProps = {
 
 const weekdayLabels = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
 
-type AcademyWithSchedules = Academy & {
+type AcademyWithSchedules = {
+  name: string;
+  travel_time: number;
   schedules: AcademySchedule[];
 };
 
@@ -50,12 +52,12 @@ export default function AcademyScheduleManagement({
   const [loading, setLoading] = useState(true);
   
   // 학원 관리 상태
-  const [editingAcademyId, setEditingAcademyId] = useState<string | null>(null);
+  const [editingAcademyName, setEditingAcademyName] = useState<string | null>(null);
   const [newAcademyName, setNewAcademyName] = useState("");
   const [newAcademyTravelTime, setNewAcademyTravelTime] = useState("60");
-  
+
   // 학원 일정 관리 상태
-  const [selectedAcademyId, setSelectedAcademyId] = useState<string | null>(null);
+  const [selectedAcademyName, setSelectedAcademyName] = useState<string | null>(null);
   const [isAddingSchedule, setIsAddingSchedule] = useState(false);
   const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
@@ -68,12 +70,12 @@ export default function AcademyScheduleManagement({
   // Toast & Confirm Dialog
   const { showWarning, showError, showSuccess } = useToast();
   const [deleteAcademyConfirmOpen, setDeleteAcademyConfirmOpen] = useState(false);
-  const [academyToDelete, setAcademyToDelete] = useState<string | null>(null);
+  const [academyToDelete, setAcademyToDelete] = useState<string | null>(null); // academy name
   const [deleteScheduleConfirmOpen, setDeleteScheduleConfirmOpen] = useState(false);
   const [scheduleToDelete, setScheduleToDelete] = useState<string | null>(null);
 
-  // 다중 선택 상태 (학원)
-  const [selectedAcademyIds, setSelectedAcademyIds] = useState<string[]>([]);
+  // 다중 선택 상태 (학원 - name 기반)
+  const [selectedAcademyNames, setSelectedAcademyNames] = useState<string[]>([]);
   const [batchDeleteAcademyConfirmOpen, setBatchDeleteAcademyConfirmOpen] = useState(false);
 
   // 다중 선택 상태 (일정)
@@ -87,56 +89,88 @@ export default function AcademyScheduleManagement({
 
   const loadData = async () => {
     try {
-      // 학원과 일정을 조인하여 한 번에 조회 (N+1 쿼리 방지)
-      const { data: academiesWithSchedulesData, error: academiesError } = await supabase
-        .from("academies")
-        .select(`
-          id, tenant_id, student_id, name, travel_time, created_at, updated_at,
-          academy_schedules(id, tenant_id, student_id, academy_id, day_of_week, start_time, end_time, academy_name, subject, created_at, updated_at)
-        `)
+      // 학원 일정 조회 (calendar_events 기반)
+      const { data: calendarEvents } = await supabase
+        .from("calendar_events")
+        .select("id, tenant_id, student_id, event_subtype, title, day_of_week, start_time, end_time, metadata, created_at, updated_at")
         .eq("student_id", studentId)
-        .order("name", { ascending: true });
+        .eq("event_type", "academy")
+        .eq("event_subtype", "학원")
+        .is("deleted_at", null);
 
-      if (academiesError) {
-        console.error("[AcademyScheduleManagement] 학원 조회 실패", academiesError);
-        setAcademies([]);
-        setLoading(false);
-        return;
+      // calendar_events에서 주간 패턴 재구성 → AcademySchedule 형태로 변환
+      const schedulePatterns: Map<string, AcademySchedule> = new Map();
+      for (const ev of calendarEvents ?? []) {
+        if (ev.day_of_week == null || !ev.start_time || !ev.end_time) continue;
+        let academyName: string | null = null;
+        let subject: string | null = null;
+        if (ev.title) {
+          const match = ev.title.match(/^(.+?)\s*\((.+)\)$/);
+          if (match) {
+            academyName = match[1].trim();
+            subject = match[2].trim();
+          } else {
+            academyName = ev.title;
+          }
+        }
+        const key = `${ev.day_of_week}-${ev.start_time}-${ev.end_time}-${academyName ?? ""}`;
+        if (!schedulePatterns.has(key)) {
+          schedulePatterns.set(key, {
+            id: ev.id,
+            tenant_id: ev.tenant_id,
+            student_id: ev.student_id,
+            day_of_week: ev.day_of_week,
+            start_time: ev.start_time,
+            end_time: ev.end_time,
+            academy_name: academyName,
+            subject,
+            created_at: ev.created_at,
+            updated_at: ev.updated_at,
+          } as AcademySchedule);
+        }
+      }
+      const allSchedules = Array.from(schedulePatterns.values());
+
+      // 학원명 기준 그룹핑 → 가상 학원 목록 도출
+      const academyMap = new Map<string, { travel_time: number; schedules: AcademySchedule[] }>();
+      for (const schedule of allSchedules) {
+        const name = schedule.academy_name || "학원";
+        const existing = academyMap.get(name);
+        if (!existing) {
+          // travel_time은 calendar_events의 metadata에서 추출 (첫 이벤트 기준)
+          const ev = (calendarEvents ?? []).find(
+            (e) => e.title?.startsWith(name) && e.metadata
+          );
+          const travelTime =
+            (ev?.metadata as Record<string, unknown> | null)?.travel_time as number | undefined;
+          academyMap.set(name, {
+            travel_time: travelTime ?? 60,
+            schedules: [schedule],
+          });
+        } else {
+          existing.schedules.push(schedule);
+        }
       }
 
-      // 조인 데이터를 기존 형식으로 변환
-      type AcademyWithJoinedSchedules = Academy & {
-        academy_schedules: AcademySchedule[] | null;
-      };
-
-      const academiesWithSchedules: AcademyWithSchedules[] = (
-        (academiesWithSchedulesData as AcademyWithJoinedSchedules[] | null) ?? []
-      ).map((academy) => {
-        // 일정을 요일, 시작 시간 순으로 정렬
-        const sortedSchedules = (academy.academy_schedules ?? []).sort((a, b) => {
-          if (a.day_of_week !== b.day_of_week) {
-            return a.day_of_week - b.day_of_week;
-          }
-          return a.start_time.localeCompare(b.start_time);
-        });
-
-        return {
-          id: academy.id,
-          tenant_id: academy.tenant_id,
-          student_id: academy.student_id,
-          name: academy.name,
-          travel_time: academy.travel_time,
-          created_at: academy.created_at,
-          updated_at: academy.updated_at,
-          schedules: sortedSchedules,
-        };
-      });
+      // 정렬
+      const academiesWithSchedules: AcademyWithSchedules[] = Array.from(
+        academyMap.entries()
+      )
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([name, info]) => ({
+          name,
+          travel_time: info.travel_time,
+          schedules: info.schedules.sort((a, b) => {
+            if (a.day_of_week !== b.day_of_week) return a.day_of_week - b.day_of_week;
+            return a.start_time.localeCompare(b.start_time);
+          }),
+        }));
 
       setAcademies(academiesWithSchedules);
 
       // 첫 번째 학원을 기본 선택
-      if (academiesWithSchedules.length > 0 && !selectedAcademyId) {
-        setSelectedAcademyId(academiesWithSchedules[0].id);
+      if (academiesWithSchedules.length > 0 && !selectedAcademyName) {
+        setSelectedAcademyName(academiesWithSchedules[0].name);
       }
     } catch (error: unknown) {
       console.error("학원 일정 로드 실패:", error);
@@ -174,8 +208,8 @@ export default function AcademyScheduleManagement({
   };
 
   // 학원 수정 시작
-  const handleStartEditAcademy = (academy: Academy) => {
-    setEditingAcademyId(academy.id);
+  const handleStartEditAcademy = (academy: AcademyWithSchedules) => {
+    setEditingAcademyName(academy.name);
     setNewAcademyName(academy.name);
     setNewAcademyTravelTime(String(academy.travel_time));
     onAddRequest?.(); // isAddingAcademy가 false로 변경되도록 요청
@@ -183,7 +217,7 @@ export default function AcademyScheduleManagement({
 
   // 학원 수정
   const handleUpdateAcademy = async () => {
-    if (!editingAcademyId || !newAcademyName.trim()) {
+    if (!editingAcademyName || !newAcademyName.trim()) {
       showWarning("학원 이름을 입력해주세요.");
       return;
     }
@@ -191,13 +225,18 @@ export default function AcademyScheduleManagement({
     startTransition(async () => {
       try {
         const formData = new FormData();
-        formData.append("academy_id", editingAcademyId);
+        formData.append("academy_name", editingAcademyName);
         formData.append("name", newAcademyName.trim());
         formData.append("travel_time", newAcademyTravelTime);
 
         await updateAcademy(formData);
 
-        setEditingAcademyId(null);
+        // 이름이 변경된 경우 선택 상태 업데이트
+        if (selectedAcademyName === editingAcademyName) {
+          setSelectedAcademyName(newAcademyName.trim());
+        }
+
+        setEditingAcademyName(null);
         setNewAcademyName("");
         setNewAcademyTravelTime("60");
 
@@ -211,8 +250,8 @@ export default function AcademyScheduleManagement({
   };
 
   // 학원 삭제 클릭
-  const handleDeleteAcademyClick = (academyId: string) => {
-    setAcademyToDelete(academyId);
+  const handleDeleteAcademyClick = (academyName: string) => {
+    setAcademyToDelete(academyName);
     setDeleteAcademyConfirmOpen(true);
   };
 
@@ -223,12 +262,12 @@ export default function AcademyScheduleManagement({
     startTransition(async () => {
       try {
         const formData = new FormData();
-        formData.append("academy_id", academyToDelete);
+        formData.append("academy_name", academyToDelete);
 
         await deleteAcademy(formData);
 
-        if (selectedAcademyId === academyToDelete) {
-          setSelectedAcademyId(null);
+        if (selectedAcademyName === academyToDelete) {
+          setSelectedAcademyName(null);
         }
 
         showSuccess("학원이 삭제되었습니다.");
@@ -245,7 +284,7 @@ export default function AcademyScheduleManagement({
 
   // 학원 일정 추가
   const handleAddSchedule = async () => {
-    if (!selectedAcademyId) {
+    if (!selectedAcademyName) {
       showWarning("학원을 선택해주세요.");
       return;
     }
@@ -265,17 +304,17 @@ export default function AcademyScheduleManagement({
       return;
     }
 
-    const selectedAcademy = academies.find((a) => a.id === selectedAcademyId);
-    if (!selectedAcademy) return;
+    const curAcademy = academies.find((a) => a.name === selectedAcademyName);
+    if (!curAcademy) return;
 
     // 겹침 검증
     const newSchedules = selectedDays.map((day) => ({
       day_of_week: day,
       start_time: scheduleStartTime,
       end_time: scheduleEndTime,
-      academy_name: selectedAcademy.name,
+      academy_name: curAcademy.name,
       subject: scheduleSubject.trim(),
-      travel_time: selectedAcademy.travel_time,
+      travel_time: curAcademy.travel_time,
     }));
 
     // 기존 일정과 겹침 확인
@@ -307,7 +346,7 @@ export default function AcademyScheduleManagement({
           formData.append("day_of_week", String(day));
           formData.append("start_time", scheduleStartTime);
           formData.append("end_time", scheduleEndTime);
-          formData.append("academy_name", selectedAcademy.name);
+          formData.append("academy_name", curAcademy.name);
           formData.append("subject", scheduleSubject.trim());
 
           await addAcademySchedule(formData);
@@ -351,8 +390,8 @@ export default function AcademyScheduleManagement({
       return;
     }
 
-    const selectedAcademy = academies.find((a) => a.id === selectedAcademyId);
-    if (!selectedAcademy) return;
+    const curAcademy = academies.find((a) => a.name === selectedAcademyName);
+    if (!curAcademy) return;
 
     startTransition(async () => {
       try {
@@ -361,7 +400,7 @@ export default function AcademyScheduleManagement({
         formData.append("day_of_week", String(selectedDays[0])); // 수정 시에는 첫 번째 요일만
         formData.append("start_time", scheduleStartTime);
         formData.append("end_time", scheduleEndTime);
-        formData.append("academy_name", selectedAcademy.name);
+        formData.append("academy_name", curAcademy.name);
         formData.append("subject", scheduleSubject.trim());
 
         await updateAcademySchedule(formData);
@@ -412,45 +451,45 @@ export default function AcademyScheduleManagement({
   };
 
   // ========== 다중 선택 핸들러 (학원) ==========
-  const toggleAcademySelection = (academyId: string) => {
-    setSelectedAcademyIds((prev) =>
-      prev.includes(academyId)
-        ? prev.filter((id) => id !== academyId)
-        : [...prev, academyId]
+  const toggleAcademySelection = (name: string) => {
+    setSelectedAcademyNames((prev) =>
+      prev.includes(name)
+        ? prev.filter((n) => n !== name)
+        : [...prev, name]
     );
   };
 
   const selectAllAcademies = () => {
-    setSelectedAcademyIds(academies.map((a) => a.id));
+    setSelectedAcademyNames(academies.map((a) => a.name));
   };
 
   const clearAcademySelection = () => {
-    setSelectedAcademyIds([]);
+    setSelectedAcademyNames([]);
   };
 
   const isAllAcademiesSelected =
-    academies.length > 0 && selectedAcademyIds.length === academies.length;
-  const hasAcademySelection = selectedAcademyIds.length > 0;
+    academies.length > 0 && selectedAcademyNames.length === academies.length;
+  const hasAcademySelection = selectedAcademyNames.length > 0;
 
   const handleBatchDeleteAcademyClick = () => {
-    if (selectedAcademyIds.length === 0) return;
+    if (selectedAcademyNames.length === 0) return;
     setBatchDeleteAcademyConfirmOpen(true);
   };
 
   const handleBatchDeleteAcademyConfirm = () => {
-    if (selectedAcademyIds.length === 0) return;
+    if (selectedAcademyNames.length === 0) return;
 
     startTransition(async () => {
       try {
         const results = await Promise.all(
-          selectedAcademyIds.map(async (id) => {
+          selectedAcademyNames.map(async (name) => {
             try {
               const formData = new FormData();
-              formData.append("academy_id", id);
+              formData.append("academy_name", name);
               await deleteAcademy(formData);
-              return { success: true, id };
+              return { success: true, name };
             } catch {
-              return { success: false, id };
+              return { success: false, name };
             }
           })
         );
@@ -464,13 +503,12 @@ export default function AcademyScheduleManagement({
 
         if (successCount > 0) {
           showSuccess(`${successCount}개 학원이 삭제되었습니다.`);
-          // 선택된 학원이 삭제되었으면 선택 해제
-          if (selectedAcademyId && selectedAcademyIds.includes(selectedAcademyId)) {
-            setSelectedAcademyId(null);
+          if (selectedAcademyName && selectedAcademyNames.includes(selectedAcademyName)) {
+            setSelectedAcademyName(null);
           }
         }
 
-        setSelectedAcademyIds([]);
+        setSelectedAcademyNames([]);
         setBatchDeleteAcademyConfirmOpen(false);
         await loadData();
       } catch (error: unknown) {
@@ -481,8 +519,8 @@ export default function AcademyScheduleManagement({
     });
   };
 
-  // 선택된 학원 정보 (다중 선택 핸들러에서 사용)
-  const selectedAcademy = academies.find((a) => a.id === selectedAcademyId);
+  // 선택된 학원 정보
+  const selectedAcademy = academies.find((a) => a.name === selectedAcademyName);
   const selectedAcademySchedules = selectedAcademy?.schedules ?? [];
 
   // ========== 다중 선택 핸들러 (일정) ==========
@@ -603,7 +641,7 @@ export default function AcademyScheduleManagement({
       )}
 
       {/* 학원 목록 및 관리 */}
-      {(academies.length > 0 || isAddingAcademy || editingAcademyId) && (
+      {(academies.length > 0 || isAddingAcademy || editingAcademyName) && (
         <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
           <div className="flex flex-col gap-4">
             {academies.length > 0 && (
@@ -612,7 +650,7 @@ export default function AcademyScheduleManagement({
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">학원 목록</h3>
                   {hasAcademySelection && (
                     <span className="rounded-full bg-indigo-100 dark:bg-indigo-900 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-300">
-                      {selectedAcademyIds.length}개 선택
+                      {selectedAcademyNames.length}개 선택
                     </span>
                   )}
                 </div>
@@ -630,7 +668,7 @@ export default function AcademyScheduleManagement({
                         disabled={isPending}
                         className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
                       >
-                        {selectedAcademyIds.length}개 삭제
+                        {selectedAcademyNames.length}개 삭제
                       </button>
                     </>
                   ) : null}
@@ -639,11 +677,11 @@ export default function AcademyScheduleManagement({
             )}
 
             {/* 학원 추가/수정 폼 */}
-            {(isAddingAcademy || editingAcademyId) && (
+            {(isAddingAcademy || editingAcademyName) && (
               <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 p-4">
                 <div className="flex flex-col gap-3">
                   <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                    {editingAcademyId ? "학원 수정" : "학원 추가"}
+                    {editingAcademyName ? "학원 수정" : "학원 추가"}
                   </h4>
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="flex flex-col gap-1">
@@ -675,17 +713,17 @@ export default function AcademyScheduleManagement({
                   <div className="flex gap-2">
               <button
                 type="button"
-                onClick={editingAcademyId ? handleUpdateAcademy : handleAddAcademy}
+                onClick={editingAcademyName ? handleUpdateAcademy : handleAddAcademy}
                 disabled={isPending || !newAcademyName.trim()}
                 className="rounded-lg bg-gray-900 dark:bg-gray-100 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 disabled:cursor-not-allowed disabled:bg-gray-400 dark:disabled:bg-gray-500"
               >
-                {isPending ? (editingAcademyId ? "수정 중..." : "추가 중...") : (editingAcademyId ? "수정" : "추가")}
+                {isPending ? (editingAcademyName ? "수정 중..." : "추가 중...") : (editingAcademyName ? "수정" : "추가")}
               </button>
               <button
                 type="button"
                 onClick={() => {
                   onAddRequest?.(); // 상위 컴포넌트에 상태 토글 요청
-                  setEditingAcademyId(null);
+                  setEditingAcademyName(null);
                   setNewAcademyName("");
                   setNewAcademyTravelTime("60");
                 }}
@@ -718,19 +756,19 @@ export default function AcademyScheduleManagement({
               </div>
             {academies.map((academy) => (
               <div
-                key={academy.id}
-                onClick={() => setSelectedAcademyId(academy.id)}
-                className={getAcademyCardClassName(selectedAcademyId === academy.id, selectedAcademyIds.includes(academy.id))}
+                key={academy.name}
+                onClick={() => setSelectedAcademyName(academy.name)}
+                className={getAcademyCardClassName(selectedAcademyName === academy.name, selectedAcademyNames.includes(academy.name))}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
-                    setSelectedAcademyId(academy.id);
+                    setSelectedAcademyName(academy.name);
                   }
                 }}
                 aria-label={`${academy.name} 선택`}
-                aria-pressed={selectedAcademyId === academy.id}
+                aria-pressed={selectedAcademyName === academy.name}
               >
                 {/* 체크박스 */}
                 <div
@@ -739,8 +777,8 @@ export default function AcademyScheduleManagement({
                 >
                   <input
                     type="checkbox"
-                    checked={selectedAcademyIds.includes(academy.id)}
-                    onChange={() => toggleAcademySelection(academy.id)}
+                    checked={selectedAcademyNames.includes(academy.name)}
+                    onChange={() => toggleAcademySelection(academy.name)}
                     className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500"
                   />
                 </div>
@@ -749,7 +787,7 @@ export default function AcademyScheduleManagement({
                     <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                       {academy.name}
                     </span>
-                    {selectedAcademyId === academy.id && (
+                    {selectedAcademyName === academy.name && (
                       <span className="text-xs text-gray-500 dark:text-gray-400">(선택됨)</span>
                     )}
                   </div>
@@ -766,7 +804,7 @@ export default function AcademyScheduleManagement({
                   <button
                     type="button"
                     onClick={() => handleStartEditAcademy(academy)}
-                    disabled={isPending || editingAcademyId !== null}
+                    disabled={isPending || editingAcademyName !== null}
                     className="rounded p-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
                     title="수정"
                     aria-label={`${academy.name} 수정`}
@@ -775,8 +813,8 @@ export default function AcademyScheduleManagement({
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleDeleteAcademyClick(academy.id)}
-                    disabled={isPending || editingAcademyId !== null}
+                    onClick={() => handleDeleteAcademyClick(academy.name)}
+                    disabled={isPending || editingAcademyName !== null}
                     className="rounded p-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:cursor-not-allowed disabled:opacity-50"
                     title="삭제"
                     aria-label={`${academy.name} 삭제`}
@@ -1054,7 +1092,7 @@ export default function AcademyScheduleManagement({
         open={deleteAcademyConfirmOpen}
         onOpenChange={setDeleteAcademyConfirmOpen}
         title="학원 삭제"
-        description={`"${academies.find(a => a.id === academyToDelete)?.name ?? "학원"}" 및 모든 일정을 삭제하시겠습니까?`}
+        description={`"${academyToDelete ?? "학원"}" 및 모든 일정을 삭제하시겠습니까?`}
         confirmLabel="삭제"
         cancelLabel="취소"
         onConfirm={handleDeleteAcademyConfirm}
@@ -1083,9 +1121,9 @@ export default function AcademyScheduleManagement({
       <ConfirmDialog
         open={batchDeleteAcademyConfirmOpen}
         onOpenChange={setBatchDeleteAcademyConfirmOpen}
-        title={`학원 ${selectedAcademyIds.length}개 삭제`}
-        description={`선택한 ${selectedAcademyIds.length}개의 학원과 모든 일정을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`}
-        confirmLabel={isPending ? "삭제 중..." : `${selectedAcademyIds.length}개 삭제`}
+        title={`학원 ${selectedAcademyNames.length}개 삭제`}
+        description={`선택한 ${selectedAcademyNames.length}개의 학원과 모든 일정을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`}
+        confirmLabel={isPending ? "삭제 중..." : `${selectedAcademyNames.length}개 삭제`}
         cancelLabel="취소"
         onConfirm={handleBatchDeleteAcademyConfirm}
         variant="destructive"

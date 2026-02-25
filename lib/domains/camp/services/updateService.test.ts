@@ -138,21 +138,13 @@ describe("updateService", () => {
       expect(mockSupabase.from).not.toHaveBeenCalled();
     });
 
-    it("제외일 배열이 비어있으면 삭제만 수행해야 함", async () => {
-      const mockDelete = {
-        eq: vi.fn().mockResolvedValue({ error: null }),
-      };
-      (mockSupabase.from as ReturnType<typeof vi.fn>).mockReturnValue({
-        delete: vi.fn().mockReturnValue(mockDelete),
-      });
-
+    it("제외일 배열이 비어있으면 아무것도 하지 않아야 함", async () => {
       const planGroups = await import("@/lib/data/planGroups");
-      vi.mocked(planGroups.createPlanExclusions).mockResolvedValue({ success: true });
 
       await updatePlanExclusions(mockSupabase, groupId, tenantId, []);
 
-      expect(mockSupabase.from).toHaveBeenCalledWith("plan_exclusions");
-      expect(mockDelete.eq).toHaveBeenCalledWith("plan_group_id", groupId);
+      // calendar_events 기반: 빈 배열이면 createPlanExclusions 호출 안 함
+      expect(planGroups.createPlanExclusions).not.toHaveBeenCalled();
     });
 
     it("새로운 제외일을 생성해야 함", async () => {
@@ -168,13 +160,6 @@ describe("updateService", () => {
           reason: null,
         },
       ];
-
-      const mockDelete = {
-        eq: vi.fn().mockResolvedValue({ error: null }),
-      };
-      (mockSupabase.from as ReturnType<typeof vi.fn>).mockReturnValue({
-        delete: vi.fn().mockReturnValue(mockDelete),
-      });
 
       const planGroups = await import("@/lib/data/planGroups");
       vi.mocked(planGroups.createPlanExclusions).mockResolvedValue({ success: true });
@@ -214,13 +199,6 @@ describe("updateService", () => {
         },
       ];
 
-      const mockDelete = {
-        eq: vi.fn().mockResolvedValue({ error: null }),
-      };
-      (mockSupabase.from as ReturnType<typeof vi.fn>).mockReturnValue({
-        delete: vi.fn().mockReturnValue(mockDelete),
-      });
-
       const planGroups = await import("@/lib/data/planGroups");
       vi.mocked(planGroups.createPlanExclusions).mockResolvedValue({
         success: false,
@@ -257,7 +235,7 @@ describe("updateService", () => {
           id: "schedule-1",
           tenant_id: tenantId,
           student_id: studentId,
-          academy_id: "academy-1",
+
           day_of_week: 1,
           start_time: "09:00",
           end_time: "12:00",
@@ -322,7 +300,7 @@ describe("updateService", () => {
           id: "schedule-1",
           tenant_id: tenantId,
           student_id: studentId,
-          academy_id: "academy-1",
+
           day_of_week: 1,
           start_time: "09:00",
           end_time: "12:00",

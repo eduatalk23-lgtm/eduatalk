@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect, useRef, type ReactNode } from "react";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { movePlanToContainer } from "@/lib/domains/calendar/actions/legacyBridge";
+import { ArrowLeft, Plus, Wand2 } from "lucide-react";
+import { cn } from "@/lib/cn";
+import { movePlanToContainer } from "@/lib/domains/calendar/actions/calendarEventActions";
 import { placePlanAtTime } from "@/lib/domains/plan/actions/move";
 import { generatePlansFromGroupAction } from "@/lib/domains/plan/actions/plan-groups/plans";
 import { checkPlansExistAction } from "@/lib/domains/plan/actions/plan-groups";
@@ -22,7 +22,6 @@ import {
 } from "./useKeyboardShortcuts";
 import {
   AddContentWizard,
-  AddAdHocModal,
   RedistributeModal,
   ShortcutsHelpModal,
   AdminAIPlanModalV2,
@@ -42,13 +41,15 @@ import {
   ContentDependencyModal,
   BatchOperationsModal,
   AdminBlockSetCreateModal,
+  EventEditModal,
 } from "./dynamicModals";
 import { MarkdownExportModal } from "./MarkdownExportModal";
 import { getTodayInTimezone } from "@/lib/utils/dateUtils";
-import { shiftDay, shiftWeek, shiftMonth } from "./utils/weekDateUtils";
+import { shiftDay, shiftWeek, shiftMonth, shiftYear, shiftCustomDays } from "./utils/weekDateUtils";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
 import type { TimeSlot } from "@/lib/types/plan-generation";
-import type { PrefetchedDockData, Planner } from "@/lib/domains/admin-plan/actions";
+import type { PrefetchedDockData } from "@/lib/domains/admin-plan/actions";
+import type { CalendarSettings } from "@/lib/domains/admin-plan/types";
 import type { CalendarView } from "./CalendarNavHeader";
 
 // Context
@@ -63,10 +64,8 @@ import { MiniMonthCalendar } from "./MiniMonthCalendar";
 import { TopBarCenterSlotPortal } from "@/components/layout/TopBarCenterSlotContext";
 
 // 뷰 모드 타입 (export for backward compatibility)
-export type AdminViewMode = "dock" | "month" | "gantt";
+export type AdminViewMode = "dock" | "month";
 
-// 콘텐츠 유형 필터 타입 (export for backward compatibility)
-export type ContentTypeFilter = "all" | "book" | "lecture" | "custom";
 
 // 플랜 그룹 요약 정보 타입
 export interface PlanGroupSummary {
@@ -85,18 +84,19 @@ interface AdminPlanManagementProps {
   initialDate: string;
   activePlanGroupId: string | null;
   allPlanGroups?: PlanGroupSummary[];
-  selectedPlannerId?: string;
+  /** Calendar-First: URL에서 직접 전달받은 calendarId */
+  calendarId?: string;
   autoOpenWizard?: boolean;
-  plannerDailySchedules?: DailyScheduleInfo[][];
-  plannerExclusions?: Array<{
+  calendarDailySchedules?: DailyScheduleInfo[][];
+  calendarExclusions?: Array<{
     exclusionDate: string;
     exclusionType: string;
     reason?: string | null;
   }>;
   /** 플래너 레벨에서 계산된 스케줄 (플랜 그룹 없이도 주차/일차 표시용) */
-  plannerCalculatedSchedule?: DailyScheduleInfo[];
+  calendarCalculatedSchedule?: DailyScheduleInfo[];
   /** 플래너 레벨에서 계산된 시간대별 타임슬롯 */
-  plannerDateTimeSlots?: Record<string, TimeSlot[]>;
+  calendarDateTimeSlots?: Record<string, TimeSlot[]>;
   /** SSR 프리페치된 Dock 데이터 (초기 로딩 최적화) */
   initialDockData?: PrefetchedDockData;
   /** 뷰 모드 (admin: 관리자, student: 학생) */
@@ -104,7 +104,9 @@ interface AdminPlanManagementProps {
   /** 현재 사용자 ID (권한 확인용) */
   currentUserId?: string;
   /** 선택된 플래너 데이터 (권한 확인용) */
-  selectedPlanner?: Planner | null;
+  selectedCalendarSettings?: CalendarSettings | null;
+  /** 학생 전환 드롭다운 (관리자 캘린더 전용) */
+  studentSwitcher?: ReactNode;
 }
 
 export function AdminPlanManagement(props: AdminPlanManagementProps) {
@@ -116,21 +118,22 @@ export function AdminPlanManagement(props: AdminPlanManagementProps) {
       initialDate={props.initialDate}
       activePlanGroupId={props.activePlanGroupId}
       allPlanGroups={props.allPlanGroups}
-      selectedPlannerId={props.selectedPlannerId}
-      plannerDailySchedules={props.plannerDailySchedules}
-      plannerExclusions={props.plannerExclusions}
-      plannerCalculatedSchedule={props.plannerCalculatedSchedule}
-      plannerDateTimeSlots={props.plannerDateTimeSlots}
+      calendarId={props.calendarId ?? null}
+      calendarDailySchedules={props.calendarDailySchedules}
+      calendarExclusions={props.calendarExclusions}
+      calendarCalculatedSchedule={props.calendarCalculatedSchedule}
+      calendarDateTimeSlots={props.calendarDateTimeSlots}
       initialDockData={props.initialDockData}
       viewMode={props.viewMode}
       currentUserId={props.currentUserId}
-      selectedPlanner={props.selectedPlanner}
+      selectedCalendarSettings={props.selectedCalendarSettings}
     >
       <PlanToastProvider>
         <UndoProviderWrapper>
           <AdminPlanManagementContent
             autoOpenWizard={props.autoOpenWizard}
             studentName={props.studentName}
+            studentSwitcher={props.studentSwitcher}
           />
         </UndoProviderWrapper>
       </PlanToastProvider>
@@ -146,27 +149,31 @@ function UndoProviderWrapper({ children }: { children: ReactNode }) {
 interface AdminPlanManagementContentProps {
   autoOpenWizard?: boolean;
   studentName: string;
+  studentSwitcher?: ReactNode;
 }
 
 function AdminPlanManagementContent({
   autoOpenWizard = false,
   studentName,
+  studentSwitcher,
 }: AdminPlanManagementContentProps) {
   const ctx = useAdminPlan();
   const {
     studentId,
     tenantId,
-    selectedPlannerId,
-    selectedPlanner,
+    selectedCalendarId,
+    selectedCalendarSettings,
     activePlanGroupId,
     allPlanGroups,
     selectedDate,
     handleDateChange,
     handleRefresh,
     refreshDaily,
-    refreshDailyAndWeekly,
-    refreshDailyAndUnfinished,
     canCreatePlans,
+    isAdminMode,
+    // Filter (TopBar에서 사용)
+    searchQuery,
+    setSearchQuery,
     // Modal setters
     setShowCreateWizard,
     setShowAIPlanModal,
@@ -177,8 +184,6 @@ function AdminPlanManagementContent({
     // Modal states
     showAddContentModal,
     setShowAddContentModal,
-    showAddAdHocModal,
-    setShowAddAdHocModal,
     showRedistributeModal,
     setShowRedistributeModal,
     showShortcutsHelp,
@@ -296,21 +301,15 @@ function AdminPlanManagementContent({
         console.error("Failed to move plan:", result.error);
       }
 
+      // 캐시 무효화: 날짜 이동 시 월간/주간 캐시도 포함하여 전체 새로고침
       if (targetDate && targetDate !== selectedDate) {
+        handleRefresh();
         handleDateChange(targetDate);
       } else {
-        // 영향받는 컨테이너만 타겟 무효화
-        const containers = new Set([fromBaseType, toBaseType]);
-        if (containers.has('daily') && containers.has('weekly')) {
-          refreshDailyAndWeekly();
-        } else if (containers.has('daily') && containers.has('unfinished')) {
-          refreshDailyAndUnfinished();
-        } else {
-          handleRefresh();
-        }
+        handleRefresh();
       }
     },
-    [studentId, tenantId, selectedDate, handleRefresh, refreshDailyAndWeekly, refreshDailyAndUnfinished, handleDateChange]
+    [studentId, tenantId, selectedDate, handleRefresh, handleDateChange]
   );
 
   // DnD 재정렬 핸들러 (같은 컨테이너 내에서 순서 변경)
@@ -356,24 +355,30 @@ function AdminPlanManagementContent({
         toast.showSuccess(
           `플랜을 ${slotData.startTime} ~ ${result.endTime}에 배치했습니다.`
         );
-        // source 컨테이너에 따라 타겟 무효화
-        const fromBase = getBaseContainerType(fromContainer);
-        if (fromBase === 'weekly') {
-          refreshDailyAndWeekly();
-        } else if (fromBase === 'unfinished') {
-          refreshDailyAndUnfinished();
-        } else {
-          refreshDaily();
-        }
+        refreshDaily();
       } else {
         toast.showError(result.error || "플랜 배치에 실패했습니다.");
       }
     },
-    [selectedDate, refreshDaily, refreshDailyAndWeekly, refreshDailyAndUnfinished, toast]
+    [selectedDate, refreshDaily, toast]
   );
 
-  // 캘린더 뷰 상태 (PlannerTab에서 리프팅)
+  // 탭 네비게이션 (톱바 더보기 메뉴에서 사용)
+  const handleTabNavigate = useCallback(
+    (tab: string) => {
+      const params = new URLSearchParams(window.location.search);
+      params.set('tab', tab);
+      params.delete('view');
+      window.history.pushState(null, '', `${window.location.pathname}?${params.toString()}`);
+      // 강제 리렌더를 위해 router.push 대신 popstate 트리거
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    },
+    []
+  );
+
+  // 캘린더 뷰 상태 (CalendarSettingsTab에서 리프팅)
   const [calendarView, setCalendarView] = useState<CalendarView>('weekly');
+  const [customDayCount, setCustomDayCount] = useState(7);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showGoToDate, setShowGoToDate] = useState(false);
 
@@ -390,6 +395,9 @@ function AdminPlanManagementContent({
       setCalendarView(savedView as CalendarView);
     }
 
+    const savedDayCount = localStorage.getItem('calendarLayout_customDayCount');
+    if (savedDayCount) setCustomDayCount(Number(savedDayCount) || 7);
+
     const savedSidebar = localStorage.getItem('calendarLayout_sidebarOpen');
     if (savedSidebar !== null) {
       setSidebarOpen(savedSidebar === 'true');
@@ -399,6 +407,11 @@ function AdminPlanManagementContent({
   const handleCalendarViewChange = useCallback((view: CalendarView) => {
     setCalendarView(view);
     localStorage.setItem('dailyDock_viewLayout', view);
+  }, []);
+
+  const handleCustomDayCountChange = useCallback((count: number) => {
+    setCustomDayCount(count);
+    localStorage.setItem('calendarLayout_customDayCount', String(count));
   }, []);
 
   const toggleSidebar = useCallback(() => {
@@ -419,7 +432,11 @@ function AdminPlanManagementContent({
         key: "ArrowLeft",
         action: () => {
           if (calendarView === 'daily') navigateDate(-1);
-          else if (calendarView === 'weekly') handleDateChange(shiftWeek(selectedDate, -1));
+          else if (calendarView === 'weekly') {
+            if (customDayCount < 7) handleDateChange(shiftCustomDays(selectedDate, -1, customDayCount));
+            else handleDateChange(shiftWeek(selectedDate, -1));
+          }
+          else if (calendarView === 'year') handleDateChange(shiftYear(selectedDate, -1));
           else handleDateChange(shiftMonth(selectedDate, -1));
         },
         description: "이전 기간",
@@ -429,7 +446,11 @@ function AdminPlanManagementContent({
         key: "ArrowRight",
         action: () => {
           if (calendarView === 'daily') navigateDate(1);
-          else if (calendarView === 'weekly') handleDateChange(shiftWeek(selectedDate, 1));
+          else if (calendarView === 'weekly') {
+            if (customDayCount < 7) handleDateChange(shiftCustomDays(selectedDate, 1, customDayCount));
+            else handleDateChange(shiftWeek(selectedDate, 1));
+          }
+          else if (calendarView === 'year') handleDateChange(shiftYear(selectedDate, 1));
           else handleDateChange(shiftMonth(selectedDate, 1));
         },
         description: "다음 기간",
@@ -457,6 +478,18 @@ function AdminPlanManagementContent({
         key: "m",
         action: () => handleCalendarViewChange('month'),
         description: "월간 뷰",
+        category: "navigation",
+      },
+      {
+        key: "y",
+        action: () => handleCalendarViewChange('year'),
+        description: "연간 뷰",
+        category: "navigation",
+      },
+      {
+        key: "l",
+        action: () => handleCalendarViewChange('agenda'),
+        description: "일정 목록 뷰",
         category: "navigation",
       },
       {
@@ -492,16 +525,41 @@ function AdminPlanManagementContent({
       },
       {
         key: "Escape",
-        action: () => { closeAllModals(); setShowGoToDate(false); },
-        description: "모달 닫기",
+        action: () => {
+          // 검색 활성 상태면 검색 해제, 아니면 모달 닫기
+          if (searchQuery) {
+            setSearchQuery('');
+          } else {
+            closeAllModals();
+            setShowGoToDate(false);
+          }
+        },
+        description: "검색 해제 / 모달 닫기",
         category: "modal",
+      },
+      {
+        key: "/",
+        action: () => {
+          const active = document.activeElement;
+          if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+          const input = document.querySelector<HTMLInputElement>('[data-search-input]');
+          input?.focus();
+        },
+        description: "이벤트 검색",
+        category: "navigation",
+      },
+      {
+        key: "g",
+        action: () => setShowGoToDate(true),
+        description: "날짜로 이동",
+        category: "navigation",
       },
       {
         key: "g",
         shift: true,
-        action: () => setShowGoToDate(true),
-        description: "날짜로 이동",
-        category: "navigation",
+        action: () => canCreatePlans && setShowCreateWizard(true),
+        description: "플랜 그룹 생성",
+        category: "modal",
       },
       {
         key: "q",
@@ -511,14 +569,8 @@ function AdminPlanManagementContent({
       },
       {
         key: "i",
-        action: () => selectedPlannerId && setShowAIPlanModal(true),
+        action: () => selectedCalendarId && setShowAIPlanModal(true),
         description: "AI 플랜 생성",
-        category: "modal",
-      },
-      {
-        key: "g",
-        action: () => canCreatePlans && setShowCreateWizard(true),
-        description: "플랜 그룹 생성",
         category: "modal",
       },
       {
@@ -526,6 +578,26 @@ function AdminPlanManagementContent({
         action: () => setShowOptimizationPanel(true),
         description: "AI 플랜 최적화",
         category: "modal",
+      },
+      {
+        key: "c",
+        action: () => canCreatePlans && setShowCreateWizard(true),
+        description: "플랜 생성 (풀 에디터)",
+        category: "modal",
+      },
+      {
+        key: "p",
+        action: () => {
+          if (calendarView === 'daily') navigateDate(-1);
+          else if (calendarView === 'weekly') {
+            if (customDayCount < 7) handleDateChange(shiftCustomDays(selectedDate, -1, customDayCount));
+            else handleDateChange(shiftWeek(selectedDate, -1));
+          }
+          else if (calendarView === 'year') handleDateChange(shiftYear(selectedDate, -1));
+          else handleDateChange(shiftMonth(selectedDate, -1));
+        },
+        description: "이전 기간 (← 동일)",
+        category: "navigation",
       },
       {
         key: "z",
@@ -558,6 +630,9 @@ function AdminPlanManagementContent({
       setShowCreateWizard,
       setShowOptimizationPanel,
       triggerUndo,
+      searchQuery,
+      setSearchQuery,
+      customDayCount,
     ]
   );
 
@@ -579,53 +654,56 @@ function AdminPlanManagementContent({
             onNavigate={handleDateChange}
             onToggleSidebar={toggleSidebar}
             onGoToDate={() => setShowGoToDate(true)}
+            studentSwitcher={studentSwitcher}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onOpenSettings={() => handleTabNavigate('settings')}
+            onOpenAnalytics={() => handleTabNavigate('analytics')}
+            onOpenProgress={() => handleTabNavigate('progress')}
+            onOpenHistory={() => handleTabNavigate('history')}
+            onOpenTemplate={() => setShowTemplateModal(true)}
+            onOpenPlanGroupManage={() => setShowPlanGroupManageModal(true)}
+            onOpenMarkdownExport={() => setShowMarkdownExportModal(true)}
+            onOpenConditionalDelete={() => setShowConditionalDeleteModal(true)}
+            onOpenShortcutsHelp={() => setShowShortcutsHelp(true)}
+            isAdminMode={isAdminMode}
+            customDayCount={customDayCount}
+            onCustomDayCountChange={handleCustomDayCountChange}
           />
         </TopBarCenterSlotPortal>
 
         <CalendarLayoutShell
           isSidebarOpen={sidebarOpen}
           onToggleSidebar={toggleSidebar}
-          header={
-            <CompactPlannerHeader
-              studentId={studentId}
-              studentName={studentName}
-              planner={selectedPlanner}
-            />
-          }
           sidebar={<CalendarSidebar />}
         >
           <CalendarMainContent
             calendarView={calendarView}
             onCalendarViewChange={handleCalendarViewChange}
+            customDayCount={customDayCount}
+            onCustomDayCountChange={handleCustomDayCountChange}
           />
         </CalendarLayoutShell>
 
+          {/* 모바일 FAB — md 이상에서는 숨김 */}
+          {canCreatePlans && (
+            <AdminCalendarFAB
+              onQuickAdd={() => openUnifiedModal("quick")}
+              onAIPlan={() => selectedCalendarId && setShowAIPlanModal(true)}
+            />
+          )}
+
           {/* 모달들 */}
-          {showAddContentModal && selectedPlannerId && (
+          {showAddContentModal && canCreatePlans && (
             <AddContentWizard
               studentId={studentId}
               tenantId={tenantId}
               targetDate={selectedDate}
-              plannerId={selectedPlannerId}
+              calendarId={selectedCalendarId ?? undefined}
               onClose={() => setShowAddContentModal(false)}
               onSuccess={() => {
                 setShowAddContentModal(false);
                 handleRefresh();
-              }}
-            />
-          )}
-
-          {showAddAdHocModal && selectedPlannerId && (
-            <AddAdHocModal
-              studentId={studentId}
-              tenantId={tenantId}
-              plannerId={selectedPlannerId}
-              planGroupId={activePlanGroupId ?? undefined}
-              targetDate={selectedDate}
-              onClose={() => setShowAddAdHocModal(false)}
-              onSuccess={() => {
-                setShowAddAdHocModal(false);
-                refreshDaily();
               }}
             />
           )}
@@ -667,12 +745,12 @@ function AdminPlanManagementContent({
             />
           )}
 
-          {showCreateWizard && selectedPlannerId && (
+          {showCreateWizard && canCreatePlans && (
             <AdminPlanCreationWizard7Step
               studentId={studentId}
               tenantId={tenantId}
               studentName={studentName}
-              plannerId={selectedPlannerId}
+              calendarId={selectedCalendarId ?? undefined}
               onClose={() => setShowCreateWizard(false)}
               onSuccess={async (groupId, generateAI) => {
                 setShowCreateWizard(false);
@@ -738,13 +816,13 @@ function AdminPlanManagementContent({
             />
           )}
 
-          {showQuickPlanModal && selectedPlannerId && (
+          {showQuickPlanModal && canCreatePlans && (
             <AdminQuickPlanModal
               studentId={studentId}
               tenantId={tenantId}
               studentName={studentName}
               targetDate={selectedDate}
-              plannerId={selectedPlannerId}
+              calendarId={selectedCalendarId ?? ''}
               onClose={() => setShowQuickPlanModal(false)}
               onSuccess={() => {
                 setShowQuickPlanModal(false);
@@ -753,13 +831,13 @@ function AdminPlanManagementContent({
             />
           )}
 
-          {showUnifiedAddModal && selectedPlannerId && (
+          {showUnifiedAddModal && canCreatePlans && (
             <UnifiedPlanAddModal
               isOpen={showUnifiedAddModal}
               studentId={studentId}
               tenantId={tenantId}
               targetDate={selectedDate}
-              plannerId={selectedPlannerId}
+              calendarId={selectedCalendarId ?? undefined}
               planGroupId={activePlanGroupId ?? undefined}
               initialMode={unifiedModalMode}
               slotStartTime={slotTimeForNewPlan?.startTime}
@@ -905,7 +983,7 @@ function AdminPlanManagementContent({
               onSuccess={() => {
                 setShowStatusModal(false);
                 setSelectedPlanForStatus(null);
-                refreshDailyAndUnfinished();
+                refreshDaily();
               }}
             />
           )}
@@ -1010,59 +1088,82 @@ function AdminPlanManagementContent({
             onOpenChange={setShowOptimizationPanel}
             hideTrigger
           />
+
+          {/* 이벤트 편집 모달 (더블클릭/편집 → 풀스크린 오버레이) */}
+          {ctx.eventEditModalState.isOpen && (
+            <EventEditModal
+              state={ctx.eventEditModalState}
+              studentId={studentId}
+              onClose={ctx.closeEventEditModal}
+              onSuccess={() => {
+                ctx.closeEventEditModal();
+                handleRefresh();
+              }}
+            />
+          )}
       </PlanDndProvider>
     </>
   );
 }
 
-/**
- * Compact Planner Header (한 줄 표시)
- */
-function CompactPlannerHeader({
-  studentId,
-  studentName,
-  planner,
-}: {
-  studentId: string;
-  studentName: string;
-  planner?: Planner | null;
-}) {
-  const statusConfig: Record<string, { label: string; className: string }> = {
-    draft: { label: '초안', className: 'bg-gray-100 text-gray-700' },
-    active: { label: '진행중', className: 'bg-green-100 text-green-700' },
-    paused: { label: '일시중지', className: 'bg-yellow-100 text-yellow-700' },
-    completed: { label: '완료', className: 'bg-blue-100 text-blue-700' },
-    archived: { label: '보관됨', className: 'bg-gray-100 text-gray-500' },
-  };
+// ============================================
+// Admin Calendar FAB (모바일 전용)
+// ============================================
 
-  const config = statusConfig[planner?.status ?? 'draft'] || statusConfig.draft;
+function AdminCalendarFAB({
+  onQuickAdd,
+  onAIPlan,
+}: {
+  onQuickAdd: () => void;
+  onAIPlan: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const fabRef = useRef<HTMLDivElement>(null);
+
+  // 외부 클릭 시 메뉴 닫기
+  useEffect(() => {
+    if (!expanded) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (fabRef.current && !fabRef.current.contains(e.target as Node)) {
+        setExpanded(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [expanded]);
 
   return (
-    <div className="flex-shrink-0 flex items-center gap-3 px-4 py-2 border-b border-gray-200 bg-white">
-      <Link
-        href={`/admin/students/${studentId}/plans`}
-        className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        <span className="hidden sm:inline">플래너 선택</span>
-      </Link>
-
-      <div className="h-4 w-px bg-gray-300" />
-
-      <h1 className="text-sm font-semibold text-gray-900 truncate">
-        플랜 관리: {studentName}
-      </h1>
-
-      {planner && (
-        <>
-          <span className="text-xs text-gray-500 hidden md:inline">
-            [{planner.name}]
-          </span>
-          <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded ${config.className}`}>
-            {config.label}
-          </span>
-        </>
+    <div ref={fabRef} className="md:hidden fixed bottom-6 right-6 z-40 flex flex-col-reverse items-end gap-3">
+      {expanded && (
+        <div className="flex flex-col-reverse gap-2 animate-in slide-in-from-bottom-2 fade-in duration-200">
+          <button
+            onClick={() => { onQuickAdd(); setExpanded(false); }}
+            className="flex items-center gap-2 rounded-full px-4 py-3 text-sm font-medium shadow-lg bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-800))] border border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))] text-[var(--text-primary)] hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-700))] transition-colors"
+          >
+            <Plus className="h-5 w-5 text-[rgb(var(--color-primary-500))]" />
+            <span>빠른 플랜 추가</span>
+          </button>
+          <button
+            onClick={() => { onAIPlan(); setExpanded(false); }}
+            className="flex items-center gap-2 rounded-full px-4 py-3 text-sm font-medium shadow-lg bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-800))] border border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))] text-[var(--text-primary)] hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-700))] transition-colors"
+          >
+            <Wand2 className="h-5 w-5 text-[rgb(var(--color-info-500))]" />
+            <span>AI 플랜 생성</span>
+          </button>
+        </div>
       )}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className={cn(
+          "flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all duration-200",
+          expanded
+            ? "rotate-45 bg-[rgb(var(--color-secondary-500))] text-white"
+            : "bg-[rgb(var(--color-primary-600))] text-white hover:bg-[rgb(var(--color-primary-700))]",
+        )}
+        aria-label={expanded ? "닫기" : "플랜 추가"}
+      >
+        <Plus className="h-6 w-6" />
+      </button>
     </div>
   );
 }

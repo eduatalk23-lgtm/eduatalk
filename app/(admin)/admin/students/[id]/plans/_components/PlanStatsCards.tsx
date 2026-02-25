@@ -38,13 +38,16 @@ export function PlanStatsCards({ studentId }: PlanStatsCardsProps) {
       const weekEndStr = formatDateString(weekEnd);
 
       try {
-        // 미완료 플랜 수
+        // 미완료 플랜 수 (오늘 이전 날짜 + 미완료 상태)
+        const todayStr = formatDateString(today);
         const { count: unfinishedCount } = await supabase
           .from('student_plan')
           .select('*', { count: 'exact', head: true })
           .eq('student_id', studentId)
-          .eq('container_type', 'unfinished')
-          .eq('is_active', true);
+          .eq('container_type', 'daily')
+          .eq('is_active', true)
+          .lt('plan_date', todayStr)
+          .neq('status', 'completed');
 
         // 이번 주 플랜 통계
         const { data: weeklyPlans } = await supabase

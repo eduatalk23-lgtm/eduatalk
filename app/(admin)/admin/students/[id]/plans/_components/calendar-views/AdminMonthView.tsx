@@ -7,7 +7,7 @@
  * 드래그앤드롭으로 플랜 날짜 변경 지원
  */
 
-import { useMemo, useCallback, useState, useEffect } from "react";
+import { useMemo, useCallback, useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   startOfMonth,
@@ -26,14 +26,21 @@ import { cn } from "@/lib/cn";
 import DroppableAdminDayCell from "./DroppableAdminDayCell";
 import DayPlanPopover from "./DayPlanPopover";
 import { InlineQuickCreate } from "../items/InlineQuickCreate";
-import { usePopoverPosition, placementToTransformOrigin } from "../hooks/usePopoverPosition";
+import { EventDetailPopover } from "../items/EventDetailPopover";
+import { useEventDetailPopover } from "../hooks/useEventDetailPopover";
+import { usePopoverPosition } from "../hooks/usePopoverPosition";
+import { updatePlanStatus } from "@/lib/domains/calendar/actions/calendarEventActions";
 import { calculateEmptySlots, type EmptySlot, type OccupiedSlot } from "@/lib/domains/admin-plan/utils/emptySlotCalculation";
+import type { PlanItemData } from "@/lib/types/planItem";
+import type { CalendarPlan } from "./_types/adminCalendar";
 import type {
   AdminMonthViewProps,
-  CalendarPlan,
   DayCellStatus,
   DayCellStats,
 } from "./_types/adminCalendar";
+import { useAdminPlanBasic } from "../context/AdminPlanBasicContext";
+import { useAdminPlanFilter } from "../context/AdminPlanFilterContext";
+import { getRotatedWeekdayLabels } from "../utils/weekDateUtils";
 
 // 스마트 기본 슬롯: 기존 플랜의 빈 시간대를 계산하여 기본값 설정
 const FALLBACK_SLOT: EmptySlot = { startTime: '09:00', endTime: '10:00', durationMinutes: 60 };
@@ -63,13 +70,30 @@ function getDefaultQuickCreateSlot(plans: CalendarPlan[]): EmptySlot {
   return { startTime: best.startTime, endTime, durationMinutes: dur };
 }
 
-// 요일 헤더
-const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
+/** CalendarPlan → PlanItemData 어댑터 (월간뷰 팝오버용) */
+function calendarPlanToItem(plan: CalendarPlan): PlanItemData {
+  return {
+    id: plan.id,
+    type: 'plan',
+    title: plan.custom_title || plan.content_title || '플랜',
+    subject: plan.content_subject_category ?? undefined,
+    contentType: plan.content_type ?? undefined,
+    status: (plan.status as PlanItemData['status']) ?? 'pending',
+    isCompleted: plan.status === 'completed',
+    planDate: plan.plan_date ?? undefined,
+    startTime: plan.start_time,
+    endTime: plan.end_time,
+    estimatedMinutes: plan.estimated_minutes,
+    progress: plan.progress,
+    color: plan.color,
+    calendarId: plan.calendar_id,
+  };
+}
 
 export default function AdminMonthView({
   studentId,
   tenantId,
-  plannerId,
+  calendarId,
   planGroupId,
   currentMonth,
   selectedDate,
@@ -79,7 +103,9 @@ export default function AdminMonthView({
   dailySchedulesByDate,
   dateTimeSlots,
   onTimelineClick,
-  onPlanClick,
+  onPlanClick: _onPlanClickLegacy,
+  onPlanEdit,
+  onPlanDelete,
   onContextMenu: onContextMenuProp,
   onExclusionToggle,
   onRefresh,
@@ -87,13 +113,39 @@ export default function AdminMonthView({
   selectedPlanIds,
   onPlanSelect,
   highlightedPlanIds,
+  onDoubleClickDate,
+  showHolidays = true,
 }: AdminMonthViewProps) {
+  // 주 시작 요일 (context에서)
+  const { selectedCalendarSettings } = useAdminPlanBasic();
+  const { calendarColorMap } = useAdminPlanFilter();
+  const weekStartsOn = selectedCalendarSettings?.weekStartsOn ?? 0;
+  const WEEKDAY_LABELS = useMemo(() => getRotatedWeekdayLabels(weekStartsOn), [weekStartsOn]);
+
+  // EventDetailPopover 훅 (GCal 스타일 팝오버)
+  const { showPopover: showEventPopover, closePopover, isPopoverOpen, popoverProps: eventPopoverProps } = useEventDetailPopover({
+    onEdit: (id) => { onPlanEdit?.(id); },
+    onDelete: (id) => { onPlanDelete?.(id); },
+    onQuickStatusChange: async (planId, newStatus) => {
+      await updatePlanStatus({ planId, status: newStatus, skipRevalidation: true });
+      onRefresh();
+    },
+    onColorChange: async (planId, color) => {
+      const { updateEventColor } = await import('@/lib/domains/calendar/actions/calendarEventActions');
+      await updateEventColor(planId, color);
+      onRefresh();
+    },
+  });
+
+  // ★ popover → quick create 레이스 방지: mousedown 시점에 popover 상태 캡처
+  const popoverOpenOnMouseDownRef = useRef(false);
+
   // 캘린더 날짜 배열 생성 (6주 * 7일 = 42일)
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
-    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
-    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
+    const calendarStart = startOfWeek(monthStart, { weekStartsOn: weekStartsOn as 0 | 1 | 2 | 3 | 4 | 5 | 6 });
+    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: weekStartsOn as 0 | 1 | 2 | 3 | 4 | 5 | 6 });
 
     return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
   }, [currentMonth]);
@@ -225,17 +277,46 @@ export default function AdminMonthView({
     virtualRect: { x: number; y: number; width: number; height: number };
     isAllDay: boolean;
   } | null>(null);
+  const quickCreateOpenRef = useRef(false);
+  const gridContainerRef = useRef<HTMLDivElement>(null);
 
-  const { refs: qcRefs, floatingStyles: qcStyles, resolvedPlacement: qcPlacement } =
+  const { refs: qcRefs, floatingStyles: qcStyles, isPositioned: isQcPositioned } =
     usePopoverPosition({
       virtualRect: quickCreateState?.virtualRect ?? null,
       placement: 'bottom-start',
       open: !!quickCreateState,
     });
 
+  // 퀵생성 닫기 헬퍼 (ref + state 동기화)
+  const closeQuickCreate = useCallback(() => {
+    quickCreateOpenRef.current = false;
+    setQuickCreateState(null);
+  }, []);
+
+  // CalendarPlan → EventDetailPopover (월간뷰 전용 핸들러)
+  const handlePlanClick = useCallback(
+    (plan: CalendarPlan, anchorRect: DOMRect) => {
+      closeQuickCreate(); // 퀵생성 열려있으면 닫기 (상호 배타)
+      showEventPopover(calendarPlanToItem(plan), anchorRect);
+    },
+    [showEventPopover, closeQuickCreate],
+  );
+
   const handleQuickCreate = useCallback((dateStr: string, anchorRect: DOMRect) => {
-    setPopoverState(null); // 다른 팝오버 닫기
+    // 이미 열려있으면 닫기만 하고 리턴 (주간뷰 패턴: close → return)
+    if (quickCreateOpenRef.current) {
+      closeQuickCreate();
+      return;
+    }
+    // EventDetailPopover가 열려있거나 "mousedown 시점에 열려있었으면" 퀵생성 열지 않음 (GCal 동작)
+    if (isPopoverOpen || popoverOpenOnMouseDownRef.current) {
+      popoverOpenOnMouseDownRef.current = false;
+      closePopover();
+      return;
+    }
+    setPopoverState(null); // 오버플로 팝오버 닫기
     const datePlans = plansByDate[dateStr] || [];
+    quickCreateOpenRef.current = true;
     setQuickCreateState({
       date: dateStr,
       slot: getDefaultQuickCreateSlot(datePlans),
@@ -247,9 +328,7 @@ export default function AdminMonthView({
       },
       isAllDay: true,
     });
-  }, [plansByDate]);
-
-  const closeQuickCreate = useCallback(() => setQuickCreateState(null), []);
+  }, [plansByDate, closeQuickCreate, isPopoverOpen, closePopover]);
 
   // 퀵생성 후 하이라이트 (2초 자동 해제)
   const [newlyCreatedPlanId, setNewlyCreatedPlanId] = useState<string | null>(null);
@@ -267,16 +346,20 @@ export default function AdminMonthView({
     return merged;
   }, [highlightedPlanIds, newlyCreatedPlanId]);
 
-  // 외부 클릭 닫기
+  // 외부 클릭 닫기 (그리드 내부 클릭은 handleQuickCreate가 처리)
   useEffect(() => {
-    if (!quickCreateState) return;
-    const handleClick = (e: MouseEvent) => {
+    if (!quickCreateOpenRef.current) return;
+
+    const handleDocumentClick = (e: MouseEvent) => {
+      // floating 팝오버 내부 클릭 무시
       const floatingEl = qcRefs.floating.current;
       if (floatingEl?.contains(e.target as Node)) return;
+      // 그리드 내부 클릭은 handleQuickCreate가 처리
+      if (gridContainerRef.current?.contains(e.target as Node)) return;
       closeQuickCreate();
     };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener('click', handleDocumentClick);
+    return () => document.removeEventListener('click', handleDocumentClick);
   }, [quickCreateState, closeQuickCreate, qcRefs.floating]);
 
   // ESC 키 닫기
@@ -289,17 +372,139 @@ export default function AdminMonthView({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [quickCreateState, closeQuickCreate]);
 
+  // --- 월간 드래그-투-크리에이트 ---
+  const monthDragRef = useRef<{ startDate: string; activated: boolean } | null>(null);
+  const suppressClickRef = useRef(false);
+  const [monthDrag, setMonthDrag] = useState<{
+    startDate: string;
+    currentDate: string;
+  } | null>(null);
+
+  // 드래그 선택 날짜 범위 (Set)
+  const dragSelectedDates = useMemo(() => {
+    if (!monthDrag) return null;
+    const { startDate, currentDate } = monthDrag;
+    const from = startDate <= currentDate ? startDate : currentDate;
+    const to = startDate <= currentDate ? currentDate : startDate;
+
+    const dates = new Set<string>();
+    const d = new Date(from + 'T00:00:00');
+    const end = new Date(to + 'T00:00:00');
+    while (d <= end) {
+      dates.add(format(d, 'yyyy-MM-dd'));
+      d.setDate(d.getDate() + 1);
+    }
+    return dates;
+  }, [monthDrag]);
+
+  const getDateFromElement = useCallback((target: EventTarget): string | null => {
+    return (target as HTMLElement).closest?.('[data-date]')?.getAttribute('data-date') ?? null;
+  }, []);
+
+  const handleGridMouseDown = useCallback((e: React.MouseEvent) => {
+    // ★ popover 상태를 mousedown 시점에 캡처 (React batch rerender 전)
+    popoverOpenOnMouseDownRef.current = isPopoverOpen;
+    if (e.button !== 0) return;
+    if ((e.target as HTMLElement).closest('[data-plan-chip], [data-date-number], [data-quick-create-btn], [data-overflow-btn]')) return;
+    const dateStr = getDateFromElement(e.target);
+    if (!dateStr) return;
+    monthDragRef.current = { startDate: dateStr, activated: false };
+  }, [getDateFromElement, isPopoverOpen]);
+
+  const handleGridMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!monthDragRef.current) return;
+    const dateStr = getDateFromElement(e.target);
+    if (!dateStr) return;
+
+    // 다른 셀로 이동해야 드래그 활성화
+    if (!monthDragRef.current.activated) {
+      if (dateStr === monthDragRef.current.startDate) return;
+      monthDragRef.current.activated = true;
+    }
+
+    if (monthDrag?.currentDate === dateStr) return;
+    setMonthDrag({
+      startDate: monthDragRef.current.startDate,
+      currentDate: dateStr,
+    });
+  }, [getDateFromElement, monthDrag?.currentDate]);
+
+  const handleGridMouseUp = useCallback((e: React.MouseEvent) => {
+    const dragInfo = monthDragRef.current;
+    monthDragRef.current = null;
+
+    if (!dragInfo?.activated || !monthDrag) {
+      setMonthDrag(null);
+      return;
+    }
+
+    const { startDate } = dragInfo;
+    const { currentDate } = monthDrag;
+    setMonthDrag(null);
+
+    if (startDate !== currentDate && calendarId) {
+      suppressClickRef.current = true;
+      const from = startDate <= currentDate ? startDate : currentDate;
+      const anchorEl = (e.target as HTMLElement).closest('[data-date]');
+      if (anchorEl) {
+        // 드래그로 생성 시에는 기존 퀵생성 닫고 새로 열기
+        if (quickCreateOpenRef.current) {
+          quickCreateOpenRef.current = false;
+          setQuickCreateState(null);
+        }
+        setPopoverState(null);
+        const datePlans = plansByDate[from] || [];
+        const rect = anchorEl.getBoundingClientRect();
+        quickCreateOpenRef.current = true;
+        setQuickCreateState({
+          date: from,
+          slot: getDefaultQuickCreateSlot(datePlans),
+          virtualRect: { x: rect.left, y: rect.bottom, width: rect.width, height: 0 },
+          isAllDay: true,
+        });
+      }
+    }
+  }, [monthDrag, calendarId, plansByDate]);
+
+  const handleGridMouseLeave = useCallback(() => {
+    if (monthDragRef.current) {
+      monthDragRef.current = null;
+      setMonthDrag(null);
+    }
+  }, []);
+
+  // Capture phase: 드래그 종료 후 클릭 이벤트 억제
+  const handleGridClickCapture = useCallback((e: React.MouseEvent) => {
+    if (suppressClickRef.current) {
+      e.stopPropagation();
+      suppressClickRef.current = false;
+    }
+  }, []);
+
+  // 드래그 중 Escape 취소
+  useEffect(() => {
+    if (!monthDrag) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        monthDragRef.current = null;
+        setMonthDrag(null);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [monthDrag]);
+
   return (
     <div className="flex flex-col h-full p-2">
       {/* 요일 헤더 */}
       <div className="grid grid-cols-7 gap-px">
-        {WEEKDAY_LABELS.map((label, index) => (
+        {WEEKDAY_LABELS.map((label) => (
           <div
             key={label}
             className={cn(
               "text-center text-sm font-medium py-2",
-              index === 0 && "text-red-500",
-              index === 6 && "text-blue-500"
+              label === "일" && "text-red-500",
+              label === "토" && "text-blue-500"
             )}
           >
             {label}
@@ -308,7 +513,16 @@ export default function AdminMonthView({
       </div>
 
       {/* 캘린더 그리드 */}
-      <div className="grid grid-cols-7 gap-px flex-1 bg-gray-200 rounded-lg overflow-hidden">
+      <div
+        ref={gridContainerRef}
+        className="grid grid-cols-7 gap-px flex-1 bg-[rgb(var(--color-secondary-200))] rounded-lg overflow-hidden"
+        onMouseDown={handleGridMouseDown}
+        onMouseMove={handleGridMouseMove}
+        onMouseUp={handleGridMouseUp}
+        onMouseLeave={handleGridMouseLeave}
+        onClickCapture={handleGridClickCapture}
+        style={monthDrag ? { userSelect: 'none', WebkitUserSelect: 'none' } as React.CSSProperties : undefined}
+      >
         {calendarDays.map((date) => {
           const dateStr = format(date, "yyyy-MM-dd");
           const status = getDayCellStatus(date);
@@ -323,17 +537,22 @@ export default function AdminMonthView({
               stats={stats}
               plans={plans}
               onDateClick={handleDateClick}
-              onPlanClick={onPlanClick}
+              onPlanClick={handlePlanClick}
               onContextMenu={handleContextMenu}
               isSelectionMode={isSelectionMode}
               selectedPlanIds={selectedPlanIds}
               onPlanSelect={onPlanSelect}
               highlightedPlanIds={mergedHighlightedPlanIds}
               onOverflowClick={handleOverflowClick}
-              onQuickCreate={plannerId ? handleQuickCreate : undefined}
+              onQuickCreate={calendarId ? handleQuickCreate : undefined}
+              onDoubleClick={onDoubleClickDate}
               isQuickCreateTarget={quickCreateState?.date === dateStr}
               quickCreateSlot={quickCreateState?.date === dateStr ? quickCreateState.slot : null}
               isQuickCreateAllDay={quickCreateState?.date === dateStr ? quickCreateState.isAllDay : undefined}
+              isInDragSelection={dragSelectedDates?.has(dateStr) ?? false}
+              showHolidays={showHolidays}
+              calendarColorMap={calendarColorMap}
+              activeCalendarColor={calendarColorMap.get(calendarId ?? '')}
             />
           );
         })}
@@ -347,26 +566,27 @@ export default function AdminMonthView({
           stats={popoverState.stats}
           anchorRect={popoverState.anchorRect}
           onClose={handlePopoverClose}
-          onPlanClick={onPlanClick}
+          onPlanClick={handlePlanClick}
           onDateClick={handlePopoverDateClick}
+          calendarColorMap={calendarColorMap}
         />
       )}
 
       {/* 월간뷰 인라인 퀵생성 (Portal) */}
-      {quickCreateState && plannerId && createPortal(
+      {quickCreateState && calendarId && createPortal(
         <div
           ref={qcRefs.setFloating}
-          style={{ ...qcStyles, transformOrigin: placementToTransformOrigin(qcPlacement) }}
-          className="z-[9999]"
+          style={qcStyles}
+          className={cn('z-[9999] transition-opacity duration-150', isQcPositioned ? 'opacity-100' : 'opacity-0')}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="bg-white rounded-lg shadow-lg border border-gray-200 animate-in fade-in-0 zoom-in-95 duration-200">
+          <div className="bg-[rgb(var(--color-secondary-50))] rounded-lg shadow-lg border border-[rgb(var(--color-secondary-200))]">
             <InlineQuickCreate
               slot={quickCreateState.slot}
               initialMode={quickCreateState.isAllDay ? 'allDay' : 'timed'}
               studentId={studentId}
               tenantId={tenantId}
-              plannerId={plannerId}
+              calendarId={calendarId}
               planDate={quickCreateState.date}
               planGroupId={planGroupId}
               onSuccess={(createdInfo) => {
@@ -383,6 +603,9 @@ export default function AdminMonthView({
         </div>,
         document.body
       )}
+
+      {/* EventDetailPopover (GCal 스타일) */}
+      {eventPopoverProps && <EventDetailPopover {...eventPopoverProps} />}
     </div>
   );
 }

@@ -50,6 +50,13 @@ export function EnrollmentSlidePanel({
     });
   }, [isOpen, studentId]);
 
+  const handleRefresh = () => {
+    startTransition(async () => {
+      const result = await fetchEnrollmentData(studentId);
+      setData(result);
+    });
+  };
+
   return (
     <SlideOverPanel
       id="enrollment-panel"
@@ -59,7 +66,7 @@ export function EnrollmentSlidePanel({
       size="full"
       className="max-w-[66vw]"
     >
-      {isPending || !data ? (
+      {!data ? (
         <div className="flex flex-col gap-4">
           <div className="h-12 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
           <div className="h-64 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
@@ -71,6 +78,7 @@ export function EnrollmentSlidePanel({
           programs={data.programs}
           payments={data.payments}
           consultants={data.consultants}
+          onRefresh={handleRefresh}
         />
       )}
     </SlideOverPanel>

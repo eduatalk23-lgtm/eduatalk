@@ -80,7 +80,6 @@ export function generateSchedule(
     id: s.id,
     tenant_id: input.tenantId,
     student_id: input.studentId,
-    academy_id: s.id,
     day_of_week: s.day_of_week,
     start_time: s.start_time,
     end_time: s.end_time,

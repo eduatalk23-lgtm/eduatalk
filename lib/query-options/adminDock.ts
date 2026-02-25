@@ -5,6 +5,7 @@ import {
   CACHE_STALE_TIME_DYNAMIC,
   CACHE_GC_TIME_DYNAMIC,
 } from '@/lib/constants/queryCache';
+import { extractTimeHHMM } from '@/lib/domains/calendar/adapters';
 
 // Types
 export interface DailyPlan {
@@ -39,29 +40,25 @@ export interface DailyPlan {
   plan_date: string;
   carryover_count: number | null;
   carryover_from_date: string | null;
+  /** 사용자 커스텀 색상 키 (예: 'peacock', 'tomato') */
+  color?: string | null;
+  /** 이벤트가 속한 캘린더 ID (캘린더 색상 해석용) */
+  calendar_id?: string | null;
+  /** RRULE 반복 규칙 */
+  rrule?: string | null;
+  /** 반복 이벤트 부모 ID */
+  recurring_event_id?: string | null;
+  /** exception 레코드 여부 */
+  is_exception?: boolean | null;
+  /** 반복 이벤트 제외 날짜 (EXDATE) */
+  exdates?: string[] | null;
+  /** 알림 설정 (분 단위 배열) */
+  reminder_minutes?: number[] | null;
+  /** 설명/메모 */
+  description?: string | null;
 }
 
-export interface WeeklyPlan {
-  id: string;
-  content_title: string | null;
-  content_subject: string | null;
-  content_type: string | null;
-  planned_start_page_or_time: number | null;
-  planned_end_page_or_time: number | null;
-  status: string | null;
-  custom_title: string | null;
-  custom_range_display: string | null;
-  plan_group_id: string | null;
-  // Phase 4: 시간대 유형
-  time_slot_type: 'study' | 'self_study' | null;
-  // 1730 Timetable 필드
-  week: number | null;
-  day: number | null;
-  day_type: string | null;
-  cycle_day_number: number | null;
-}
-
-export interface UnfinishedPlan {
+export interface OverduePlan {
   id: string;
   plan_date: string;
   content_title: string | null;
@@ -81,15 +78,7 @@ export interface UnfinishedPlan {
   day: number | null;
   day_type: string | null;
   cycle_day_number: number | null;
-  // 오버듀 플랜 구분용 (daily 컨테이너의 과거 미완료 플랜)
-  container_type: 'unfinished' | 'daily';
-}
-
-export interface AdHocPlan {
-  id: string;
-  title: string;
-  status: string;
-  estimated_minutes: number | null;
+  container_type: 'daily';
 }
 
 // ============================================
@@ -121,22 +110,16 @@ export type NonStudyItem = {
 // Query key factory
 export const adminDockKeys = {
   all: ['adminDock'] as const,
-  daily: (studentId: string, date: string, plannerId?: string) =>
-    [...adminDockKeys.all, 'daily', studentId, date, plannerId ?? 'all'] as const,
-  dailyAdHoc: (studentId: string, date: string) =>
-    [...adminDockKeys.all, 'dailyAdHoc', studentId, date] as const,
-  dailyNonStudy: (studentId: string, date: string, _planGroupIds: string[], plannerId?: string) =>
-    [...adminDockKeys.all, 'dailyNonStudy', studentId, date, plannerId ?? 'none'] as const,
-  weekly: (studentId: string, weekStart: string, weekEnd: string, plannerId?: string) =>
-    [...adminDockKeys.all, 'weekly', studentId, weekStart, weekEnd, plannerId ?? 'all'] as const,
-  weeklyAdHoc: (studentId: string, weekStart: string, weekEnd: string) =>
-    [...adminDockKeys.all, 'weeklyAdHoc', studentId, weekStart, weekEnd] as const,
-  unfinished: (studentId: string, plannerId?: string) =>
-    [...adminDockKeys.all, 'unfinished', studentId, plannerId ?? 'all'] as const,
-  weeklyCalendar: (studentId: string, weekStart: string, weekEnd: string, plannerId?: string, groupId?: string) =>
-    [...adminDockKeys.all, 'weeklyCalendar', studentId, weekStart, weekEnd, plannerId ?? 'all', groupId ?? 'all'] as const,
-  dailyAllDay: (studentId: string, date: string, plannerId?: string) =>
-    [...adminDockKeys.all, 'dailyAllDay', studentId, date, plannerId ?? 'all'] as const,
+  daily: (studentId: string, date: string, calendarIdOrPlannerId?: string) =>
+    [...adminDockKeys.all, 'daily', studentId, date, calendarIdOrPlannerId ?? 'all'] as const,
+  dailyNonStudy: (studentId: string, date: string, _planGroupIds: string[], calendarId?: string) =>
+    [...adminDockKeys.all, 'dailyNonStudy', studentId, date, calendarId ?? 'none'] as const,
+  overdue: (studentId: string, calendarIdOrPlannerId?: string) =>
+    [...adminDockKeys.all, 'overdue', studentId, calendarIdOrPlannerId ?? 'all'] as const,
+  weeklyCalendar: (studentId: string, weekStart: string, weekEnd: string, calendarIdOrPlannerId?: string, groupId?: string) =>
+    [...adminDockKeys.all, 'weeklyCalendar', studentId, weekStart, weekEnd, calendarIdOrPlannerId ?? 'all', groupId ?? 'all'] as const,
+  dailyAllDay: (studentId: string, date: string, calendarId?: string) =>
+    [...adminDockKeys.all, 'dailyAllDay', studentId, date, calendarId ?? 'all'] as const,
 };
 
 // Helper: Get week range (Monday to Sunday)
@@ -160,16 +143,23 @@ export function getWeekRange(dateStr: string) {
  * Daily Dock 플랜 조회
  * @param studentId 학생 ID
  * @param date 날짜
- * @param plannerId 플래너 ID (선택, 플래너 기반 필터링용)
+ * @param calendarIdOrPlannerId 캘린더 ID 또는 플래너 ID (선택)
+ * @param options.useCalendarId true이면 calendar_id 기반 필터
  */
-export function dailyPlansQueryOptions(studentId: string, date: string, plannerId?: string) {
+export function dailyPlansQueryOptions(
+  studentId: string,
+  date: string,
+  calendarIdOrPlannerId?: string,
+  options?: { useCalendarId?: boolean }
+) {
   return queryOptions({
-    queryKey: adminDockKeys.daily(studentId, date, plannerId),
+    queryKey: adminDockKeys.daily(studentId, date, calendarIdOrPlannerId),
     queryFn: async (): Promise<DailyPlan[]> => {
       const supabase = createSupabaseBrowserClient();
 
-      // 플래너 필터링이 필요한 경우 plan_groups와 조인
-      if (plannerId) {
+      // 캘린더/플래너 필터링이 필요한 경우 plan_groups와 조인
+      if (calendarIdOrPlannerId) {
+        const filterField = 'calendar_id';
         const { data, error } = await supabase
           .from('student_plan')
           .select(`
@@ -198,14 +188,14 @@ export function dailyPlansQueryOptions(studentId: string, date: string, plannerI
             plan_date,
             carryover_count,
             carryover_from_date,
-            plan_groups!inner(planner_id)
+            plan_groups!inner(calendar_id)
           `)
           .eq('student_id', studentId)
           .eq('plan_date', date)
           .eq('container_type', 'daily')
           .eq('is_active', true)
           .is('deleted_at', null)
-          .eq('plan_groups.planner_id', plannerId)
+          .eq(`plan_groups.${filterField}`, calendarIdOrPlannerId)
           .order('sequence', { ascending: true, nullsFirst: false })
           .order('created_at', { ascending: true });
 
@@ -261,173 +251,29 @@ export function dailyPlansQueryOptions(studentId: string, date: string, plannerI
 }
 
 /**
- * Daily Dock Ad-hoc 플랜 조회
- */
-export function dailyAdHocPlansQueryOptions(studentId: string, date: string) {
-  return queryOptions({
-    queryKey: adminDockKeys.dailyAdHoc(studentId, date),
-    queryFn: async (): Promise<AdHocPlan[]> => {
-      const supabase = createSupabaseBrowserClient();
-
-      const { data, error } = await supabase
-        .from('ad_hoc_plans')
-        .select('id, title, status, estimated_minutes')
-        .eq('student_id', studentId)
-        .eq('plan_date', date)
-        .eq('container_type', 'daily')
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      return data ?? [];
-    },
-    staleTime: CACHE_STALE_TIME_DYNAMIC,
-    gcTime: CACHE_GC_TIME_DYNAMIC,
-  });
-}
-
-/**
- * Weekly Dock 플랜 조회
- * @param studentId 학생 ID
- * @param weekStart 주 시작일
- * @param weekEnd 주 종료일
- * @param plannerId 플래너 ID (선택, 플래너 기반 필터링용)
- */
-export function weeklyPlansQueryOptions(
-  studentId: string,
-  weekStart: string,
-  weekEnd: string,
-  plannerId?: string
-) {
-  return queryOptions({
-    queryKey: adminDockKeys.weekly(studentId, weekStart, weekEnd, plannerId),
-    queryFn: async (): Promise<WeeklyPlan[]> => {
-      const supabase = createSupabaseBrowserClient();
-
-      // 플래너 필터링이 필요한 경우 plan_groups와 조인
-      if (plannerId) {
-        const { data, error } = await supabase
-          .from('student_plan')
-          .select(`
-            id,
-            content_title,
-            content_subject,
-            content_type,
-            planned_start_page_or_time,
-            planned_end_page_or_time,
-            status,
-            custom_title,
-            custom_range_display,
-            plan_group_id,
-            time_slot_type,
-            week,
-            day,
-            day_type,
-            cycle_day_number,
-            plan_groups!inner(planner_id)
-          `)
-          .eq('student_id', studentId)
-          .eq('container_type', 'weekly')
-          .eq('is_active', true)
-          .is('deleted_at', null)
-          .gte('plan_date', weekStart)
-          .lte('plan_date', weekEnd)
-          .eq('plan_groups.planner_id', plannerId)
-          .order('sequence', { ascending: true, nullsFirst: false })
-          .order('created_at', { ascending: true });
-
-        if (error) throw error;
-        return (data ?? []).map(({ plan_groups, ...rest }) => rest);
-      }
-
-      // 플래너 필터링 없이 조회
-      const { data, error } = await supabase
-        .from('student_plan')
-        .select(`
-          id,
-          content_title,
-          content_subject,
-          content_type,
-          planned_start_page_or_time,
-          planned_end_page_or_time,
-          status,
-          custom_title,
-          custom_range_display,
-          plan_group_id,
-          time_slot_type,
-          week,
-          day,
-          day_type,
-          cycle_day_number
-        `)
-        .eq('student_id', studentId)
-        .eq('container_type', 'weekly')
-        .eq('is_active', true)
-        .is('deleted_at', null)
-        .gte('plan_date', weekStart)
-        .lte('plan_date', weekEnd)
-        .order('sequence', { ascending: true, nullsFirst: false })
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      return data ?? [];
-    },
-    staleTime: CACHE_STALE_TIME_DYNAMIC,
-    gcTime: CACHE_GC_TIME_DYNAMIC,
-  });
-}
-
-/**
- * Weekly Dock Ad-hoc 플랜 조회
- */
-export function weeklyAdHocPlansQueryOptions(
-  studentId: string,
-  weekStart: string,
-  weekEnd: string
-) {
-  return queryOptions({
-    queryKey: adminDockKeys.weeklyAdHoc(studentId, weekStart, weekEnd),
-    queryFn: async (): Promise<AdHocPlan[]> => {
-      const supabase = createSupabaseBrowserClient();
-
-      const { data, error } = await supabase
-        .from('ad_hoc_plans')
-        .select('id, title, status, estimated_minutes')
-        .eq('student_id', studentId)
-        .eq('container_type', 'weekly')
-        .gte('plan_date', weekStart)
-        .lte('plan_date', weekEnd)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      return data ?? [];
-    },
-    staleTime: CACHE_STALE_TIME_DYNAMIC,
-    gcTime: CACHE_GC_TIME_DYNAMIC,
-  });
-}
-
-/**
- * Unfinished Dock 플랜 조회
- * - container_type = 'unfinished' 플랜
- * - container_type = 'daily' 이면서 plan_date < 오늘이고 미완료인 플랜 (오버듀)
+ * Overdue 플랜 조회 (과거 미완료 플랜)
+ * - plan_date < 오늘이고 미완료인 daily 플랜
  *
  * @param studentId 학생 ID
- * @param plannerId 플래너 ID (선택, 플래너 기반 필터링용)
+ * @param calendarIdOrPlannerId 캘린더 ID 또는 플래너 ID (선택)
+ * @param options.useCalendarId true이면 calendar_id 기반 필터
  */
-export function unfinishedPlansQueryOptions(studentId: string, plannerId?: string) {
+export function overduePlansQueryOptions(
+  studentId: string,
+  calendarIdOrPlannerId?: string,
+  options?: { useCalendarId?: boolean }
+) {
   // 오늘 날짜 (YYYY-MM-DD)
   const today = formatDateString(new Date());
 
   return queryOptions({
-    queryKey: adminDockKeys.unfinished(studentId, plannerId),
-    queryFn: async (): Promise<UnfinishedPlan[]> => {
+    queryKey: adminDockKeys.overdue(studentId, calendarIdOrPlannerId),
+    queryFn: async (): Promise<OverduePlan[]> => {
       const supabase = createSupabaseBrowserClient();
 
-      // OR 조건: unfinished 컨테이너 OR (daily 컨테이너 + 과거 날짜 + 미완료)
-      const orFilter = `container_type.eq.unfinished,and(container_type.eq.daily,plan_date.lt.${today},status.neq.completed)`;
-
-      // 플래너 필터링이 필요한 경우 plan_groups와 조인
-      if (plannerId) {
+      // 캘린더/플래너 필터링이 필요한 경우 plan_groups와 조인
+      if (calendarIdOrPlannerId) {
+        const filterField = 'calendar_id';
         const { data, error } = await supabase
           .from('student_plan')
           .select(`
@@ -449,19 +295,21 @@ export function unfinishedPlansQueryOptions(studentId: string, plannerId?: strin
             day_type,
             cycle_day_number,
             container_type,
-            plan_groups!inner(planner_id)
+            plan_groups!inner(calendar_id)
           `)
           .eq('student_id', studentId)
-          .or(orFilter)
+          .eq('container_type', 'daily')
+          .lt('plan_date', today)
+          .neq('status', 'completed')
           .eq('is_active', true)
           .is('deleted_at', null)
-          .eq('plan_groups.planner_id', plannerId)
+          .eq(`plan_groups.${filterField}`, calendarIdOrPlannerId)
           .order('plan_date', { ascending: true })
           .order('sequence', { ascending: true, nullsFirst: false })
           .order('created_at', { ascending: true });
 
         if (error) throw error;
-        return (data ?? []).map(({ plan_groups, ...rest }) => rest as UnfinishedPlan);
+        return (data ?? []).map(({ plan_groups, ...rest }) => rest as OverduePlan);
       }
 
       // 플래너 필터링 없이 조회
@@ -488,7 +336,9 @@ export function unfinishedPlansQueryOptions(studentId: string, plannerId?: strin
           container_type
         `)
         .eq('student_id', studentId)
-        .or(orFilter)
+        .eq('container_type', 'daily')
+        .lt('plan_date', today)
+        .neq('status', 'completed')
         .eq('is_active', true)
         .is('deleted_at', null)
         .order('plan_date', { ascending: true })
@@ -496,7 +346,7 @@ export function unfinishedPlansQueryOptions(studentId: string, plannerId?: strin
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      return (data ?? []) as UnfinishedPlan[];
+      return (data ?? []) as OverduePlan[];
     },
     staleTime: CACHE_STALE_TIME_DYNAMIC,
     gcTime: CACHE_GC_TIME_DYNAMIC,
@@ -510,33 +360,20 @@ export function unfinishedPlansQueryOptions(studentId: string, plannerId?: strin
 /**
  * 비학습시간 데이터 조회
  *
- * calendar_events 테이블에서 직접 조회
- * - plannerId → calendarId resolve 후 calendar_events에서 조회
+ * Calendar-First: calendarId를 직접 받아 calendar_events 테이블에서 조회
  */
 export function nonStudyTimeQueryOptions(
   studentId: string,
   date: string,
   planGroupIds: string[],
-  plannerId?: string
+  calendarId?: string
 ) {
   return queryOptions({
-    queryKey: adminDockKeys.dailyNonStudy(studentId, date, planGroupIds, plannerId),
+    queryKey: adminDockKeys.dailyNonStudy(studentId, date, planGroupIds, calendarId),
     queryFn: async (): Promise<NonStudyItem[]> => {
-      if (!plannerId) return [];
+      if (!calendarId) return [];
 
       const supabase = createSupabaseBrowserClient();
-
-      // calendarId resolve
-      const { data: calendars } = await supabase
-        .from('calendars')
-        .select('id')
-        .eq('planner_id', plannerId)
-        .eq('is_primary', true)
-        .is('deleted_at', null)
-        .maybeSingle();
-
-      const calendarId = calendars?.id;
-      if (!calendarId) return [];
 
       const dateStart = `${date}T00:00:00+09:00`;
       const dateEnd = `${date}T23:59:59+09:00`;
@@ -555,8 +392,8 @@ export function nonStudyTimeQueryOptions(
       if (error || !events) return [];
 
       return events.map((event) => {
-        const startTime = event.start_at?.match(/T(\d{2}:\d{2})/)?.[1] ?? '00:00';
-        const endTime = event.end_at?.match(/T(\d{2}:\d{2})/)?.[1] ?? '00:00';
+        const startTime = extractTimeHHMM(event.start_at ?? null) ?? '00:00';
+        const endTime = extractTimeHHMM(event.end_at ?? null) ?? '00:00';
         const type = mapToNonStudyItemType(
           event.event_type === 'academy'
             ? (event.event_subtype ?? '학원')
@@ -588,34 +425,33 @@ export interface AllDayItem {
   type: string;
   label: string;
   exclusionType: string | null;
+  /** 이벤트 개별 색상 (calendar_events.color) */
+  color?: string | null;
+  /** 소속 캘린더 ID */
+  calendarId?: string | null;
+  /** 멀티데이 이벤트: 시작 날짜 (YYYY-MM-DD) */
+  startDate?: string;
+  /** 멀티데이 이벤트: 종료 날짜 (YYYY-MM-DD) */
+  endDate?: string;
+  /** 멀티데이 이벤트: 총 스팬 일수 */
+  spanDays?: number;
 }
 
 export function allDayEventsQueryOptions(
   studentId: string,
   date: string,
-  plannerId?: string,
+  calendarId?: string,
 ) {
   return queryOptions({
-    queryKey: adminDockKeys.dailyAllDay(studentId, date, plannerId),
+    queryKey: adminDockKeys.dailyAllDay(studentId, date, calendarId),
     queryFn: async (): Promise<AllDayItem[]> => {
-      if (!plannerId) return [];
+      if (!calendarId) return [];
       const supabase = createSupabaseBrowserClient();
-
-      // calendarId resolve
-      const { data: calendar } = await supabase
-        .from('calendars')
-        .select('id')
-        .eq('planner_id', plannerId)
-        .eq('is_primary', true)
-        .is('deleted_at', null)
-        .maybeSingle();
-
-      if (!calendar?.id) return [];
 
       const { data, error } = await supabase
         .from('calendar_events')
-        .select('id, event_type, event_subtype, title')
-        .eq('calendar_id', calendar.id)
+        .select('id, event_type, event_subtype, title, color, calendar_id')
+        .eq('calendar_id', calendarId)
         .eq('is_all_day', true)
         .is('deleted_at', null)
         .or(`start_date.eq.${date},and(start_date.lte.${date},end_date.gte.${date})`);
@@ -626,6 +462,8 @@ export function allDayEventsQueryOptions(
         type: row.event_type,
         label: row.title ?? row.event_type,
         exclusionType: row.event_subtype,
+        color: row.color,
+        calendarId: row.calendar_id,
       }));
     },
     staleTime: CACHE_STALE_TIME_DYNAMIC,
@@ -660,15 +498,16 @@ export function weeklyPlanCountsQueryOptions(
   studentId: string,
   weekStart: string,
   weekEnd: string,
-  plannerId?: string,
-  selectedGroupId?: string | null
+  calendarIdOrPlannerId?: string,
+  selectedGroupId?: string | null,
+  options?: { useCalendarId?: boolean }
 ) {
   return queryOptions({
     queryKey: adminDockKeys.weeklyCalendar(
       studentId,
       weekStart,
       weekEnd,
-      plannerId,
+      calendarIdOrPlannerId,
       selectedGroupId ?? undefined
     ),
     queryFn: async (): Promise<Map<string, { total: number; completed: number }>> => {
@@ -687,17 +526,18 @@ export function weeklyPlanCountsQueryOptions(
           .gte('plan_date', weekStart)
           .lte('plan_date', weekEnd);
         plans = (data ?? []) as PlanCountData[];
-      } else if (plannerId) {
+      } else if (calendarIdOrPlannerId) {
+        const filterField = 'calendar_id';
         const { data } = await supabase
           .from('student_plan')
-          .select('plan_date, status, plan_groups!inner(planner_id)')
+          .select(`plan_date, status, plan_groups!inner(calendar_id)`)
           .eq('student_id', studentId)
           .eq('is_active', true)
           .is('deleted_at', null)
           .eq('container_type', 'daily')
           .gte('plan_date', weekStart)
           .lte('plan_date', weekEnd)
-          .eq('plan_groups.planner_id', plannerId);
+          .eq(`plan_groups.${filterField}`, calendarIdOrPlannerId);
         plans = (data ?? []) as unknown as PlanCountData[];
       } else {
         const { data } = await supabase

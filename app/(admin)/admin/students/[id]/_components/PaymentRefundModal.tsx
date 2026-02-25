@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 import Button from "@/components/atoms/Button";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -20,6 +19,7 @@ type PaymentRefundModalProps = {
   paymentId: string;
   paidAmount: number;
   programName: string;
+  onSuccess?: () => void;
 };
 
 export function PaymentRefundModal({
@@ -28,8 +28,8 @@ export function PaymentRefundModal({
   paymentId,
   paidAmount,
   programName,
+  onSuccess,
 }: PaymentRefundModalProps) {
-  const router = useRouter();
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [cancelReason, setCancelReason] = useState("");
@@ -69,7 +69,7 @@ export function PaymentRefundModal({
           setCancelReason("");
           setCancelAmount("");
           setIsPartial(false);
-          router.refresh();
+          onSuccess?.();
         } else {
           toast.showError(result.error ?? "환불에 실패했습니다.");
         }

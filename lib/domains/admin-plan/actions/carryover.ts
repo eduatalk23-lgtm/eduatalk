@@ -99,11 +99,11 @@ export async function runCarryoverForStudent(
         name: `Carryover plan ${plan.id}`,
         rollbackId: plan.id,
         execute: async () => {
-          // Unfinished로 이동 (tenant 격리)
+          // Daily 유지 (tenant 격리)
           const { error: updateError } = await supabase
             .from('student_plan')
             .update({
-              container_type: 'unfinished',
+              container_type: 'daily',
               carryover_count: newCarryoverCount,
               carryover_from_date: originalDate,
               updated_at: new Date().toISOString(),

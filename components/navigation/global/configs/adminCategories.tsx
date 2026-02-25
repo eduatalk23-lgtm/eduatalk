@@ -7,6 +7,7 @@
 import type { NavigationCategory } from "../types";
 import {
   BarChart3,
+  Bell,
   Users,
   CheckCircle,
   Smartphone,
@@ -19,6 +20,7 @@ import {
   BookOpen,
   ClipboardList,
   Book,
+  Calendar,
   Headphones,
   School,
   Clock,
@@ -49,6 +51,19 @@ export const adminCategories: NavigationCategory[] = [
         label: "대시보드",
         href: "/admin/dashboard",
         icon: <BarChart3 className="w-4 h-4" />,
+      },
+    ],
+  },
+  {
+    id: "admin-calendar",
+    label: "캘린더",
+    icon: <Calendar className="w-4 h-4" />,
+    items: [
+      {
+        id: "admin-calendar-main",
+        label: "학생 캘린더",
+        href: "/admin/calendar",
+        icon: <Calendar className="w-4 h-4" />,
       },
     ],
   },
@@ -169,6 +184,20 @@ export const adminCategories: NavigationCategory[] = [
         label: "SMS 발송 이력",
         href: "/admin/sms/results",
         icon: <Smartphone className="w-4 h-4" />,
+      },
+    ],
+  },
+  {
+    id: "admin-notifications",
+    label: "알림 관리",
+    icon: <Bell className="w-4 h-4" />,
+    items: [
+      {
+        id: "admin-notifications-monitoring",
+        label: "알림 모니터링",
+        href: "/admin/notifications",
+        icon: <Bell className="w-4 h-4" />,
+        roles: ["admin"],
       },
     ],
   },

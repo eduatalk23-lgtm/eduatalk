@@ -61,7 +61,7 @@ export type CreateQuickPlanInput = {
   contentTitle?: string;
   rangeStart?: number;
   rangeEnd?: number;
-  containerType?: "daily" | "weekly";
+  containerType?: "daily";
   isFreeLearning?: boolean;
   freeLearningType?: string;
   /**
@@ -70,14 +70,14 @@ export type CreateQuickPlanInput = {
    */
   studentId?: string;
   /**
-   * 플래너 ID (옵션)
-   * 생략 시 기본 플래너 자동 생성/사용
+   * 캘린더 ID (옵션)
+   * 생략 시 기본 캘린더 자동 생성/사용
    */
-  plannerId?: string;
+  calendarId?: string;
   /**
    * 플랜 그룹 ID (옵션)
    * 캘린더 UI에서 특정 Plan Group이 이미 선택된 경우 사용
-   * 생략 시 Planner 기반으로 자동 선택/생성
+   * 생략 시 Calendar 기반으로 자동 선택/생성
    */
   planGroupId?: string;
   /**
@@ -189,8 +189,8 @@ export type CreateQuickPlanForStudentInput = CreateQuickPlanInput & {
   studentId: string;
   /** 테넌트 ID (옵션 - 없으면 관리자의 테넌트 사용) */
   tenantId?: string;
-  /** 플래너 ID (필수 - Plan Group 자동 선택/생성 시 사용) */
-  plannerId: string;
+  /** 캘린더 ID (필수 - Plan Group 자동 선택/생성 시 사용) */
+  calendarId: string;
 };
 
 /**

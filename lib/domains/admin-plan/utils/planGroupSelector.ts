@@ -3,36 +3,36 @@
 /**
  * Plan Group 선택 및 자동 생성 유틸리티
  *
- * 플래너에 연결된 Plan Group을 자동 선택하거나 새로 생성
+ * 캘린더에 연결된 Plan Group을 자동 선택하거나 새로 생성
  *
  * @module lib/domains/admin-plan/utils/planGroupSelector
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { logActionError, logActionWarn } from "@/lib/utils/serverActionLogger";
+import { logActionError } from "@/lib/utils/serverActionLogger";
 import type { PlanGroupSelectorResult, PlanGroupInfo } from "../actions/planCreation/types";
 import {
-  inheritPlannerConfigFromRaw,
-  type PlannerConfigRaw,
-} from "./plannerConfigInheritance";
-import { resolvePrimaryCalendarId } from "@/lib/domains/calendar/helpers";
+  inheritCalendarConfigFromRaw,
+  type CalendarConfigRaw,
+} from "./calendarConfigInheritance";
+import { extractTimeHHMM, extractDateYMD } from "@/lib/domains/calendar/adapters";
 
 /**
- * 플래너에 연결된 활성 Plan Group 선택
+ * 캘린더에 연결된 활성 Plan Group 선택
  *
  * 선택 로직:
- * 1. 플래너에 연결된 모든 활성 plan_group 조회
+ * 1. 캘린더에 연결된 모든 활성 plan_group 조회
  * 2. 1개만 존재하면 자동 선택
  * 3. 여러 개 존재하면 가장 최근 생성된 것 반환 (UI에서 선택 유도)
  * 4. 없으면 not-found 상태 반환
  *
- * @param plannerId - 플래너 ID
+ * @param calendarId - 캘린더 ID
  * @param options - 추가 옵션
  * @returns Plan Group 선택 결과
  */
-export async function selectPlanGroupForPlanner(
-  plannerId: string,
+export async function selectPlanGroupForCalendar(
+  calendarId: string,
   options?: {
     /** 특정 기간을 선호 */
     preferPeriod?: { start: string; end: string };
@@ -42,10 +42,10 @@ export async function selectPlanGroupForPlanner(
     studentId?: string;
   }
 ): Promise<PlanGroupSelectorResult> {
-  if (!plannerId) {
+  if (!calendarId) {
     return {
       status: "error",
-      message: "플래너 ID가 필요합니다.",
+      message: "캘린더 ID가 필요합니다.",
     };
   }
 
@@ -55,7 +55,7 @@ export async function selectPlanGroupForPlanner(
     let query = supabase
       .from("plan_groups")
       .select("id, name, period_start, period_end, status, created_at")
-      .eq("planner_id", plannerId);
+      .eq("calendar_id", calendarId);
 
     // 학생 ID 필터 (선택적)
     if (options?.studentId) {
@@ -72,7 +72,7 @@ export async function selectPlanGroupForPlanner(
     });
 
     if (error) {
-      logActionError("planGroupSelector.selectPlanGroupForPlanner", `조회 실패: ${error.message}`);
+      logActionError("planGroupSelector.selectPlanGroupForCalendar", `조회 실패: ${error.message}`);
       return {
         status: "error",
         message: error.message,
@@ -111,7 +111,7 @@ export async function selectPlanGroupForPlanner(
       planGroups: data.map(mapToPlanGroupInfo),
     };
   } catch (err) {
-    logActionError("planGroupSelector.selectPlanGroupForPlanner", `예외 발생: ${err instanceof Error ? err.message : String(err)}`);
+    logActionError("planGroupSelector.selectPlanGroupForCalendar", `예외 발생: ${err instanceof Error ? err.message : String(err)}`);
     return {
       status: "error",
       message: err instanceof Error ? err.message : "알 수 없는 오류",
@@ -134,13 +134,15 @@ export interface CreatePlanGroupOptions {
 }
 
 /**
- * 플래너에 새 Plan Group 생성
+ * 캘린더에 새 Plan Group 생성
+ *
+ * calendars 테이블에서 설정을 조회하여 plan_group에 상속합니다.
  *
  * @param input - 생성 입력값
  * @returns 생성 결과
  */
-export async function createPlanGroupForPlanner(input: {
-  plannerId: string;
+export async function createPlanGroupForCalendar(input: {
+  calendarId: string;
   studentId: string;
   tenantId: string;
   name: string;
@@ -153,11 +155,11 @@ export async function createPlanGroupForPlanner(input: {
   planGroupId?: string;
   error?: string;
 }> {
-  const { plannerId, studentId, tenantId, name, periodStart, periodEnd, options } =
+  const { calendarId, studentId, tenantId, name, periodStart, periodEnd, options } =
     input;
 
   // 입력 검증
-  if (!plannerId || !studentId || !tenantId) {
+  if (!calendarId || !studentId || !tenantId) {
     return {
       success: false,
       error: "필수 입력값이 누락되었습니다.",
@@ -175,84 +177,84 @@ export async function createPlanGroupForPlanner(input: {
   }
 
   try {
-    // 플래너 설정 조회 (non_study_time_blocks 포함)
-    const { data: planner, error: plannerError } = await supabase
-      .from("planners")
+    // 캘린더 설정 조회 (non_study_time_blocks 포함)
+    const { data: calendar, error: calendarError } = await supabase
+      .from("calendars")
       .select(
         `
         study_hours,
         self_study_hours,
-        lunch_time,
         default_scheduler_type,
         default_scheduler_options,
         block_set_id,
         non_study_time_blocks
       `
       )
-      .eq("id", plannerId)
+      .eq("id", calendarId)
       .single();
 
-    if (plannerError || !planner) {
+    if (calendarError || !calendar) {
       return {
         success: false,
-        error: "플래너를 찾을 수 없습니다.",
+        error: "캘린더를 찾을 수 없습니다.",
       };
     }
 
-    // calendarId resolve
-    const calendarId = await resolvePrimaryCalendarId(plannerId);
+    // 캘린더 제외일 조회 (calendar_events event_type='exclusion')
+    const { data: exclusionEvents } = await supabase
+      .from("calendar_events")
+      .select("start_date, event_subtype, title")
+      .eq("calendar_id", calendarId)
+      .eq("event_type", "exclusion")
+      .eq("is_all_day", true)
+      .is("deleted_at", null)
+      .gte("start_date", periodStart);
 
-    // 플래너 제외일 조회 (calendar_events event_type='exclusion')
-    let plannerExclusions: Array<{ plan_date: string; exclusion_type: string | null; label: string | null }> | null = null;
-    if (calendarId) {
-      const { data: exclusionEvents } = await supabase
-        .from("calendar_events")
-        .select("start_date, event_subtype, title")
-        .eq("calendar_id", calendarId)
-        .eq("event_type", "exclusion")
-        .eq("is_all_day", true)
-        .is("deleted_at", null)
-        .gte("start_date", periodStart);
+    const _exclusions = (exclusionEvents || []).map((e) => ({
+      plan_date: e.start_date!,
+      exclusion_type: e.event_subtype,
+      label: e.title,
+    }));
 
-      plannerExclusions = (exclusionEvents || []).map((e) => ({
-        plan_date: e.start_date!,
-        exclusion_type: e.event_subtype,
-        label: e.title,
-      }));
-    }
-
-    // 플래너 학원일정 조회 (calendar_events event_type='academy')
+    // 학원일정 조회 (calendar_events event_type='academy')
     const scheduleMap = new Map<string, { day_of_week: number; start_time: string | null; end_time: string | null; label: string | null }>();
-    if (calendarId) {
-      const { data: academyEvents } = await supabase
-        .from("calendar_events")
-        .select("start_at, end_at, start_date, title")
-        .eq("calendar_id", calendarId)
-        .eq("event_type", "academy")
-        .filter("event_subtype", "eq", "학원")
-        .is("deleted_at", null);
+    const { data: academyEvents } = await supabase
+      .from("calendar_events")
+      .select("start_at, end_at, start_date, title")
+      .eq("calendar_id", calendarId)
+      .eq("event_type", "academy")
+      .filter("event_subtype", "eq", "학원")
+      .is("deleted_at", null);
 
-      for (const row of academyEvents || []) {
-        const planDate = row.start_date || row.start_at?.split("T")[0] || "";
-        const dayOfWeek = new Date(planDate + "T00:00:00").getDay();
-        const startTime = row.start_at?.match(/T(\d{2}:\d{2})/)?.[1] ?? null;
-        const endTime = row.end_at?.match(/T(\d{2}:\d{2})/)?.[1] ?? null;
-        const key = `${dayOfWeek}-${startTime}-${endTime}`;
-        if (!scheduleMap.has(key)) {
-          scheduleMap.set(key, { day_of_week: dayOfWeek, start_time: startTime ? startTime + ":00" : null, end_time: endTime ? endTime + ":00" : null, label: row.title });
-        }
+    for (const row of academyEvents || []) {
+      const planDate = row.start_date || extractDateYMD(row.start_at ?? null) || "";
+      const dayOfWeek = new Date(planDate + "T00:00:00").getDay();
+      const startTime = extractTimeHHMM(row.start_at ?? null);
+      const endTime = extractTimeHHMM(row.end_at ?? null);
+      const key = `${dayOfWeek}-${startTime}-${endTime}`;
+      if (!scheduleMap.has(key)) {
+        scheduleMap.set(key, { day_of_week: dayOfWeek, start_time: startTime ? startTime + ":00" : null, end_time: endTime ? endTime + ":00" : null, label: row.title });
       }
     }
-    const plannerSchedules = Array.from(scheduleMap.values());
 
-    // 플래너 설정을 플랜 그룹 생성용 설정으로 변환
-    const inheritedConfig = inheritPlannerConfigFromRaw(planner as PlannerConfigRaw);
+    // 캘린더 설정을 플랜 그룹 생성용 설정으로 변환
+    // calendars에는 lunch_time 컬럼이 없으므로 null 전달
+    const calendarConfig: CalendarConfigRaw = {
+      study_hours: calendar.study_hours as CalendarConfigRaw["study_hours"],
+      self_study_hours: calendar.self_study_hours as CalendarConfigRaw["self_study_hours"],
+      lunch_time: null,
+      default_scheduler_type: calendar.default_scheduler_type as string | null,
+      default_scheduler_options: calendar.default_scheduler_options as Record<string, unknown> | null,
+      block_set_id: calendar.block_set_id as string | null,
+      non_study_time_blocks: calendar.non_study_time_blocks as unknown[] | null,
+    };
+    const inheritedConfig = inheritCalendarConfigFromRaw(calendarConfig);
 
-    // Plan Group 생성 (플래너 설정 상속 + 옵션 적용)
+    // Plan Group 생성 (캘린더 설정 상속 + 옵션 적용)
     const { data: planGroup, error: insertError } = await supabase
       .from("plan_groups")
       .insert({
-        planner_id: plannerId,
+        calendar_id: calendarId,
         student_id: studentId,
         tenant_id: tenantId,
         name: name,
@@ -260,7 +262,7 @@ export async function createPlanGroupForPlanner(input: {
         period_end: periodEnd,
         status: "active",
         creation_mode: options?.creationMode ?? "calendar_only",
-        // 플래너에서 설정 상속 (일관된 기본값 사용)
+        // 캘린더에서 설정 상속 (일관된 기본값 사용)
         ...inheritedConfig,
         // Phase 3.1: 추가 옵션 적용
         ...(options?.planMode && { plan_mode: options.planMode }),
@@ -273,69 +275,21 @@ export async function createPlanGroupForPlanner(input: {
       .single();
 
     if (insertError || !planGroup) {
-      logActionError("planGroupSelector.createPlanGroupForPlanner", `생성 실패: ${insertError?.message ?? "unknown"}`);
+      logActionError("planGroupSelector.createPlanGroupForCalendar", `생성 실패: ${insertError?.message ?? "unknown"}`);
       return {
         success: false,
         error: insertError?.message ?? "Plan Group 생성에 실패했습니다.",
       };
     }
 
-    const planGroupId = planGroup.id;
-
-    // 플래너 제외일을 플랜 그룹에 상속
-    if (plannerExclusions && plannerExclusions.length > 0) {
-      const exclusionsToInsert = plannerExclusions.map((e) => ({
-        tenant_id: tenantId,
-        student_id: studentId,
-        plan_group_id: planGroupId,
-        exclusion_date: e.plan_date,
-        exclusion_type: e.exclusion_type,
-        reason: e.label || null,
-      }));
-
-      const { error: exclusionError } = await supabase
-        .from("plan_exclusions")
-        .insert(exclusionsToInsert);
-
-      if (exclusionError) {
-        logActionWarn("planGroupSelector.createPlanGroupForPlanner", `제외일 상속 실패: ${exclusionError.message}`);
-        // 플랜 그룹은 이미 생성되었으므로 경고만 로깅
-      }
-    }
-
-    // 플래너 학원일정을 플랜 그룹에 상속
-    if (plannerSchedules && plannerSchedules.length > 0) {
-      const schedulesToInsert = plannerSchedules.map((s) => ({
-        tenant_id: tenantId,
-        student_id: studentId,
-        plan_group_id: planGroupId,
-        academy_id: "",
-        academy_name: s.label,
-        day_of_week: s.day_of_week,
-        start_time: s.start_time,
-        end_time: s.end_time,
-        subject: null,
-        travel_time: 0,
-        source: "inherited",
-        is_locked: false,
-      }));
-
-      const { error: scheduleError } = await supabase
-        .from("academy_schedules")
-        .insert(schedulesToInsert);
-
-      if (scheduleError) {
-        logActionWarn("planGroupSelector.createPlanGroupForPlanner", `학원일정 상속 실패: ${scheduleError.message}`);
-        // 플랜 그룹은 이미 생성되었으므로 경고만 로깅
-      }
-    }
+    // 제외일/학원일정은 이미 calendar_events에 존재하므로 별도 상속 불필요
 
     return {
       success: true,
-      planGroupId: planGroupId,
+      planGroupId: planGroup.id,
     };
   } catch (err) {
-    logActionError("planGroupSelector.createPlanGroupForPlanner", `예외 발생: ${err instanceof Error ? err.message : String(err)}`);
+    logActionError("planGroupSelector.createPlanGroupForCalendar", `예외 발생: ${err instanceof Error ? err.message : String(err)}`);
     return {
       success: false,
       error: err instanceof Error ? err.message : "알 수 없는 오류",
@@ -344,15 +298,12 @@ export async function createPlanGroupForPlanner(input: {
 }
 
 /**
- * 플래너의 활성 Plan Group이 있는지 확인
- *
- * @param plannerId - 플래너 ID
- * @returns 존재 여부
+ * 캘린더에 활성 Plan Group이 있는지 확인
  */
-export async function hasPlanGroupForPlanner(
-  plannerId: string
+export async function hasPlanGroupForCalendar(
+  calendarId: string
 ): Promise<boolean> {
-  const result = await selectPlanGroupForPlanner(plannerId);
+  const result = await selectPlanGroupForCalendar(calendarId);
   return result.status === "found" || result.status === "multiple";
 }
 

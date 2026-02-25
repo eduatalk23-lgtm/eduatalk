@@ -50,14 +50,14 @@ export function useDragToCreate({
         const colRect = colEl.getBoundingClientRect();
         const offsetY = clientY - colRect.top;
         const minutes = rangeStartMin + offsetY / pxPerMinute;
-        const snapped = Math.round(minutes / snapMinutes) * snapMinutes;
+        const snapped = Math.floor(minutes / snapMinutes) * snapMinutes;
         return Math.max(rangeStartMin, Math.min(snapped, rangeEndMin));
       }
       // fallback
       const rect = containerRef.current.getBoundingClientRect();
       const offsetY = clientY - rect.top + containerRef.current.scrollTop;
       const minutes = rangeStartMin + offsetY / pxPerMinute;
-      const snapped = Math.round(minutes / snapMinutes) * snapMinutes;
+      const snapped = Math.floor(minutes / snapMinutes) * snapMinutes;
       return Math.max(rangeStartMin, Math.min(snapped, rangeEndMin));
     },
     [containerRef, rangeStartMin, rangeEndMin, pxPerMinute, snapMinutes],
@@ -112,6 +112,8 @@ export function useDragToCreate({
 
       if (!isDraggingRef.current) {
         isDraggingRef.current = true;
+        document.body.style.cursor = 'crosshair';
+        document.body.style.userSelect = 'none';
         // 자동 스크롤 시작
         if (containerRef.current) {
           autoScrollRef.current = createDragAutoScroll(containerRef.current);
@@ -134,6 +136,16 @@ export function useDragToCreate({
     },
     [getMinutesFromY, containerRef],
   );
+
+  const resetDrag = useCallback(() => {
+    autoScrollRef.current?.stop();
+    autoScrollRef.current = null;
+    dragStartRef.current = null;
+    isDraggingRef.current = false;
+    setDragState(null);
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }, []);
 
   const handleMouseUp = useCallback(
     (e: MouseEvent) => {
@@ -168,16 +180,25 @@ export function useDragToCreate({
           // ★ dragState 유지 → QuickCreate 팝오버가 닫힐 때까지 프리뷰 블록 표시
           dragStartRef.current = null;
           isDraggingRef.current = false;
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
           return;
         }
       }
 
       // 무효 드래그 (threshold 미달) → 클리어
-      dragStartRef.current = null;
-      isDraggingRef.current = false;
-      setDragState(null);
+      resetDrag();
     },
-    [getMinutesFromY, snapMinutes, onDragEnd, containerRef],
+    [getMinutesFromY, snapMinutes, onDragEnd, containerRef, resetDrag],
+  );
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && (isDraggingRef.current || dragStartRef.current)) {
+        resetDrag();
+      }
+    },
+    [resetDrag],
   );
 
   useEffect(() => {
@@ -188,13 +209,15 @@ export function useDragToCreate({
     container.addEventListener('mousedown', handleMouseDown);
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('keydown', handleKeyDown);
 
     return () => {
       container.removeEventListener('mousedown', handleMouseDown);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [enabled, containerRef, handleMouseDown, handleMouseMove, handleMouseUp]);
+  }, [enabled, containerRef, handleMouseDown, handleMouseMove, handleMouseUp, handleKeyDown]);
 
   // 프리뷰 스타일 계산
   const previewStyle = dragState

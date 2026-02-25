@@ -22,7 +22,7 @@ interface AnalyticsTabProps {
  * 성능 최적화: Modal 상태 변경에 리렌더링되지 않음
  */
 export function AnalyticsTab({ tab: _tab }: AnalyticsTabProps) {
-  const { studentId, selectedPlannerId, activePlanGroupId } = useAdminPlanBasic();
+  const { studentId, selectedCalendarId, activePlanGroupId } = useAdminPlanBasic();
   const { selectedDate } = useAdminPlanFilter();
 
   return (
@@ -41,7 +41,7 @@ export function AnalyticsTab({ tab: _tab }: AnalyticsTabProps) {
         <PlanTypeStats
           studentId={studentId}
           selectedDate={selectedDate}
-          plannerId={selectedPlannerId}
+          calendarId={selectedCalendarId ?? undefined}
         />
       </section>
 

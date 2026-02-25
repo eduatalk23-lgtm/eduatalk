@@ -16,9 +16,9 @@ import { ChevronLeft, ChevronRight, Calendar, Plus, RefreshCw, Loader2 } from "l
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
-  plannerCalendarEventsQueryOptions,
-  plannerCalendarKeys,
-} from "@/lib/query-options/plannerCalendar";
+  calendarViewEventsQueryOptions,
+  calendarViewKeys,
+} from "@/lib/query-options/calendarViewQueryOptions";
 import {
   addExclusionEventAction,
   addRecurringEventAction,
@@ -34,9 +34,9 @@ import AddExclusionForm from "./AddExclusionForm";
 import AddRecurringEventForm from "./AddRecurringEventForm";
 
 export interface PlannerCalendarViewProps {
-  plannerId: string;
-  plannerPeriodStart: string;
-  plannerPeriodEnd: string;
+  calendarId: string;
+  periodStart: string;
+  periodEnd: string;
   studentId?: string;
   readOnly?: boolean;
 }
@@ -44,9 +44,9 @@ export interface PlannerCalendarViewProps {
 type AddMode = null | "exclusion" | "recurring";
 
 export default function PlannerCalendarView({
-  plannerId,
-  plannerPeriodStart,
-  plannerPeriodEnd,
+  calendarId,
+  periodStart,
+  periodEnd,
   studentId,
   readOnly = false,
 }: PlannerCalendarViewProps) {
@@ -54,10 +54,13 @@ export default function PlannerCalendarView({
   const queryClient = useQueryClient();
   const [isPending, startTransition] = useTransition();
 
-  // 월 네비게이션
-  const periodStart = parseISO(plannerPeriodStart);
-  const periodEnd = parseISO(plannerPeriodEnd);
-  const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(periodStart));
+  // 월 네비게이션 — 빈 문자열이나 유효하지 않은 날짜는 현재 날짜로 대체
+  const now = new Date();
+  const rawStart = periodStart ? parseISO(periodStart) : now;
+  const rawEnd = periodEnd ? parseISO(periodEnd) : now;
+  const parsedStart = isNaN(rawStart.getTime()) ? now : rawStart;
+  const parsedEnd = isNaN(rawEnd.getTime()) ? now : rawEnd;
+  const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(parsedStart));
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [addMode, setAddMode] = useState<AddMode>(null);
 
@@ -65,7 +68,7 @@ export default function PlannerCalendarView({
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth() + 1;
   const { data: events = [], isLoading } = useQuery(
-    plannerCalendarEventsQueryOptions(plannerId, year, month)
+    calendarViewEventsQueryOptions(calendarId, year, month)
   );
 
   // 선택된 날짜의 이벤트
@@ -77,13 +80,13 @@ export default function PlannerCalendarView({
 
   const invalidateMonth = useCallback(() => {
     queryClient.invalidateQueries({
-      queryKey: plannerCalendarKeys.events(plannerId),
+      queryKey: calendarViewKeys.events(calendarId),
     });
-  }, [queryClient, plannerId]);
+  }, [queryClient, calendarId]);
 
   // 월 네비게이션
-  const canGoPrev = !isBefore(subMonths(endOfMonth(currentMonth), 0), startOfMonth(periodStart));
-  const canGoNext = !isAfter(startOfMonth(addMonths(currentMonth, 1)), endOfMonth(periodEnd));
+  const canGoPrev = !isBefore(subMonths(endOfMonth(currentMonth), 0), startOfMonth(parsedStart));
+  const canGoNext = !isAfter(startOfMonth(addMonths(currentMonth, 1)), endOfMonth(parsedEnd));
 
   const goToPrevMonth = () => {
     if (canGoPrev) setCurrentMonth((m) => subMonths(m, 1));
@@ -97,7 +100,7 @@ export default function PlannerCalendarView({
     (date: string, exclusionType: string, reason?: string) => {
       startTransition(async () => {
         try {
-          await addExclusionEventAction(plannerId, date, exclusionType, reason);
+          await addExclusionEventAction(calendarId, date, exclusionType, reason);
           invalidateMonth();
           showSuccess("제외일이 추가되었습니다.");
           setAddMode(null);
@@ -106,7 +109,7 @@ export default function PlannerCalendarView({
         }
       });
     },
-    [plannerId, invalidateMonth, showSuccess, showError]
+    [calendarId, invalidateMonth, showSuccess, showError]
   );
 
   const handleAddRecurring = useCallback(
@@ -119,7 +122,7 @@ export default function PlannerCalendarView({
     }) => {
       startTransition(async () => {
         try {
-          const result = await addRecurringEventAction(plannerId, pattern);
+          const result = await addRecurringEventAction(calendarId, pattern);
           invalidateMonth();
           showSuccess(`반복 일정 ${result.count}개가 추가되었습니다.`);
           setAddMode(null);
@@ -128,7 +131,7 @@ export default function PlannerCalendarView({
         }
       });
     },
-    [plannerId, invalidateMonth, showSuccess, showError]
+    [calendarId, invalidateMonth, showSuccess, showError]
   );
 
   const handleUpdateEvent = useCallback(
@@ -165,7 +168,7 @@ export default function PlannerCalendarView({
     (groupId: string) => {
       startTransition(async () => {
         try {
-          const result = await deleteEventGroupAction(plannerId, groupId);
+          const result = await deleteEventGroupAction(calendarId, groupId);
           invalidateMonth();
           showSuccess(`반복 일정 ${result.deletedCount}개가 삭제되었습니다.`);
         } catch (err) {
@@ -173,14 +176,14 @@ export default function PlannerCalendarView({
         }
       });
     },
-    [plannerId, invalidateMonth, showSuccess, showError]
+    [calendarId, invalidateMonth, showSuccess, showError]
   );
 
   const handleImport = useCallback(() => {
     if (!studentId) return;
     startTransition(async () => {
       try {
-        const result = await importTimeManagementAction(plannerId, studentId);
+        const result = await importTimeManagementAction(calendarId, studentId);
         invalidateMonth();
         showSuccess(
           `마이그레이션 완료: 제외일 ${result.exclusionCount}개, 학원 ${result.academyCount}개`
@@ -189,7 +192,7 @@ export default function PlannerCalendarView({
         showError(err instanceof Error ? err.message : "마이그레이션 실패");
       }
     });
-  }, [plannerId, studentId, invalidateMonth, showSuccess, showError]);
+  }, [calendarId, studentId, invalidateMonth, showSuccess, showError]);
 
   // 통계
   const stats = useMemo(() => {
@@ -261,8 +264,8 @@ export default function PlannerCalendarView({
             currentMonth={currentMonth}
             selectedDate={selectedDate}
             events={events}
-            periodStart={plannerPeriodStart}
-            periodEnd={plannerPeriodEnd}
+            periodStart={periodStart}
+            periodEnd={periodEnd}
             onDateSelect={setSelectedDate}
           />
 
@@ -324,8 +327,8 @@ export default function PlannerCalendarView({
           {/* 폼 영역 */}
           {addMode === "exclusion" && (
             <AddExclusionForm
-              periodStart={plannerPeriodStart}
-              periodEnd={plannerPeriodEnd}
+              periodStart={periodStart}
+              periodEnd={periodEnd}
               onAdd={handleAddExclusion}
               isLoading={isPending}
             />

@@ -4,21 +4,18 @@ import { useMemo, memo } from "react";
 import { useRouter } from "next/navigation";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, DailyScheduleInfo, AcademySchedule } from "@/lib/types/plan";
-import type { AdHocPlanForCalendar } from "./PlanCalendarView";
 import { formatDateString } from "@/lib/date/calendarUtils";
 import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
 import { useCalendarData } from "../_hooks/useCalendarData";
 import { useCalendarDragDrop } from "../_hooks/useCalendarDragDrop";
 import { useMonthViewModals } from "../_hooks/useMonthViewModals";
 import { usePlanConnectionState } from "../_hooks/usePlanConnectionState";
-import { useAdHocPlansByDate } from "../_hooks/useAdHocPlansByDate";
 import { WeekdayHeader } from "./WeekdayHeader";
 import { CalendarGrid } from "./CalendarGrid";
 import { MonthViewModals } from "./MonthViewModals";
 
 type MonthViewProps = {
   plans: PlanWithContent[];
-  adHocPlans?: AdHocPlanForCalendar[];
   currentDate: Date;
   exclusions: PlanExclusion[];
   academySchedules: AcademySchedule[];
@@ -32,7 +29,6 @@ type MonthViewProps = {
 
 function MonthViewComponent({
   plans,
-  adHocPlans = [],
   currentDate,
   exclusions,
   academySchedules,
@@ -76,9 +72,6 @@ function MonthViewComponent({
   // 날짜별 데이터 그룹화 (공통 훅 사용)
   const { plansByDate, exclusionsByDate } = useCalendarData(plans, exclusions, academySchedules);
 
-  // Ad-hoc 플랜 날짜별 그룹화
-  const adHocPlansByDate = useAdHocPlansByDate(adHocPlans);
-
   // 플랜 연결 상태 계산
   const getPlanConnectionState = usePlanConnectionState(plansByDate);
 
@@ -117,7 +110,6 @@ function MonthViewComponent({
           daysInMonth={daysInMonth}
           startingDayOfWeek={startingDayOfWeek}
           plansByDate={plansByDate}
-          adHocPlansByDate={adHocPlansByDate}
           exclusionsByDate={exclusionsByDate}
           academySchedulesByDay={academySchedulesByDay}
           dayTypes={dayTypes}
@@ -180,11 +172,6 @@ export const MonthView = memo(MonthViewComponent, (prevProps, nextProps) => {
 
   // plans 배열 비교 (길이만 비교 - 상세 비교는 MemoizedDayCell에서 수행)
   if (prevProps.plans.length !== nextProps.plans.length) {
-    return false;
-  }
-
-  // adHocPlans 배열 비교
-  if ((prevProps.adHocPlans?.length ?? 0) !== (nextProps.adHocPlans?.length ?? 0)) {
     return false;
   }
 

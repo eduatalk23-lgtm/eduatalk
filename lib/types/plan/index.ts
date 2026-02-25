@@ -73,12 +73,8 @@ export type {
   PlanContent,
   PlanGroupItem,
   PlanExclusion,
-  PlannerExclusionOverride,
-  EffectiveExclusion,
   Academy,
   AcademySchedule,
-  AcademyOverrideType,
-  PlannerAcademyOverride,
   EffectiveAcademySchedule,
   CampTemplate,
   CampInvitation,
@@ -152,21 +148,12 @@ export type {
   StudentPlanSummary,
 } from "./timezone";
 
-// Completion 타입 (간단 완료 모드)
+// Completion 타입
 export type {
-  CompletionMode,
-  SimpleCompletionData,
-  TimerCompletionData,
-  CompletionInfo,
   StudentPlanPermissions,
 } from "./completion";
 export {
   DEFAULT_STUDENT_PERMISSIONS,
-  getCompletionInfo,
-  getAdHocCompletionInfo,
-  isCompleted,
-  isAdHocCompleted,
-  getCompletedAt,
   parseStudentPermissions,
 } from "./completion";
 
@@ -195,29 +182,9 @@ export type {
   PreviewContentPlanGroupParams,
 } from "./contentPlanGroup";
 
-// View 타입 (다중 뷰 시스템)
-export type {
-  ViewType,
-  SlotType,
-  MatrixTimeSlot,
-  TimeSlotRow,
-  PlanView,
-  PlanViewRow,
-  ViewSettings,
-  DayOfWeek,
-  MatrixCell,
-  MatrixPlanItem,
-  MatrixViewData,
-  ViewContextState,
-  ViewContextActions,
-  ViewContextValue,
-} from "./views";
-export {
-  VIEW_TYPE_CONFIG,
-  DEFAULT_VIEW_SETTINGS,
-  toMatrixTimeSlot,
-  toPlanView,
-} from "./views";
-
-// Planner 권한 시스템
-export type PlannerPermission = "full" | "execute_only" | "view_only";
+// 캘린더 권한 시스템
+export type CalendarPermission = "full" | "execute_only" | "view_only";
+/** @deprecated Use CalendarPermission */
+export type PlannerPermission = CalendarPermission;
+/** @deprecated Use CalendarPermission */
+export type CalendarSettingsPermission = CalendarPermission;

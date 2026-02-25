@@ -262,17 +262,34 @@ export class PersonalizedMatchingService {
       .eq("id", studentId)
       .single();
 
-    // 2. 완료한 콘텐츠 조회
-    const { data: completedPlans } = await supabase
-      .from("student_plan")
-      .select("content_id, content_subject, simple_completed_at, total_duration_seconds")
+    // 2. 완료한 콘텐츠 조회 (calendar_events + event_study_data)
+    type StudyDataRow = { done: boolean; done_at: string | null; content_id: string | null; subject_name: string | null; estimated_minutes: number | null };
+    const { data: completedEvents } = await supabase
+      .from("calendar_events")
+      .select("id, start_at, event_study_data(done, done_at, content_id, subject_name, estimated_minutes)")
       .eq("student_id", studentId)
-      .eq("status", "completed")
-      .not("content_id", "is", null)
-      .order("simple_completed_at", { ascending: false })
-      .limit(100);
+      .eq("event_type", "study")
+      .is("deleted_at", null)
+      .order("start_at", { ascending: false })
+      .limit(200);
 
-    const completedContentIds = completedPlans?.map((p) => p.content_id).filter(Boolean) || [];
+    // done=true인 이벤트만 필터 + 플랫 매핑
+    const completedPlans = (completedEvents || [])
+      .map((e) => {
+        const sdRaw = e.event_study_data;
+        const sd: StudyDataRow | null = Array.isArray(sdRaw) ? sdRaw[0] ?? null : (sdRaw as StudyDataRow | null);
+        return { sd };
+      })
+      .filter((x): x is { sd: StudyDataRow } => x.sd?.done === true && !!x.sd.content_id)
+      .map(({ sd }) => ({
+        content_id: sd.content_id!,
+        content_subject: sd.subject_name,
+        done_at: sd.done_at,
+        total_duration_seconds: sd.estimated_minutes ? sd.estimated_minutes * 60 : null,
+      }))
+      .slice(0, 100);
+
+    const completedContentIds: string[] = completedPlans?.map((p) => p.content_id) || [];
 
     // 3. 과목별 성적 조회
     const { data: scores } = await supabase
@@ -369,7 +386,7 @@ export class PersonalizedMatchingService {
   }
 
   private extractRecentInterests(
-    completedPlans: Array<{ content_subject: string | null; simple_completed_at: string | null }>
+    completedPlans: Array<{ content_subject: string | null; done_at?: string | null }>
   ): string[] {
     // 최근 30개 플랜의 과목 추출
     const recentSubjects = completedPlans

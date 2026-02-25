@@ -57,7 +57,6 @@ export function usePlanGroupProgress(
           custom_range_display,
           day_type,
           week,
-          is_adhoc,
           created_at
         `
         )
@@ -83,7 +82,6 @@ export function usePlanGroupProgress(
         customRangeDisplay: row.custom_range_display,
         dayType: row.day_type,
         week: row.week,
-        isAdHoc: row.is_adhoc ?? false,
       }));
     },
     enabled: !!planGroupId,

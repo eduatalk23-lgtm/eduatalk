@@ -1,7 +1,7 @@
 /**
  * 스케줄 생성 함수
  *
- * 플래너 정보를 기반으로 스케줄을 생성하여
+ * 캘린더/플랜그룹 정보를 기반으로 스케줄을 생성하여
  * dateTimeSlots와 dateAvailableTimeRanges를 반환
  *
  * @module lib/domains/admin-plan/actions/planCreation/scheduleGenerator
@@ -15,12 +15,12 @@ import {
   getEffectiveAcademySchedules,
 } from '@/lib/data/planGroups/academyOverrides';
 import { reconstructAcademyPatternsFromCalendarEvents } from '../../utils/nonStudyTimeGenerator';
-import { resolvePrimaryCalendarId } from '@/lib/domains/calendar/helpers';
+// Calendar-First: calendars 테이블에서 직접 조회
 
 /**
- * 플래너 정보 타입
+ * 캘린더 설정 정보 타입
  */
-interface PlannerInfo {
+interface CalendarInfo {
   id: string;
   default_scheduler_type: string | null;
   default_scheduler_options: Record<string, unknown> | null;
@@ -57,52 +57,78 @@ export interface ScheduleGenerationResult {
 }
 
 /**
- * 플래너 기반 스케줄 생성
+ * 스케줄러 옵션 타입
+ */
+interface SchedulerOptions {
+  study_hours?: { start: string; end: string } | null;
+  self_study_hours?: { start: string; end: string } | null;
+  lunch_time?: { start: string; end: string } | null;
+  enable_self_study_for_holidays?: boolean;
+  enable_self_study_for_study_days?: boolean;
+  designated_holiday_hours?: { start: string; end: string } | null;
+  [key: string]: unknown;
+}
+
+/**
+ * 캘린더 설정에서 스케줄러 옵션 구성
+ */
+function buildSchedulerOptions(calendar: CalendarInfo): SchedulerOptions | null {
+  const baseOptions = (calendar.default_scheduler_options || {}) as SchedulerOptions;
+
+  return {
+    ...baseOptions,
+    study_hours: calendar.study_hours,
+    self_study_hours: calendar.self_study_hours,
+    lunch_time: calendar.lunch_time,
+  };
+}
+
+/**
+ * 캘린더 기반 스케줄 생성 (Calendar-First)
  *
- * @param plannerId - 플래너 ID
+ * planners 테이블 대신 calendars 테이블에서 설정을 읽어옵니다.
+ *
+ * @param calendarId - 캘린더 ID
  * @param periodStart - 기간 시작 날짜
  * @param periodEnd - 기간 종료 날짜
  * @returns 스케줄 생성 결과
  */
-export async function generateScheduleForPlanner(
-  plannerId: string,
+export async function generateScheduleForCalendar(
+  calendarId: string,
   periodStart: string,
   periodEnd: string
 ): Promise<ScheduleGenerationResult> {
   const supabase = await createSupabaseServerClient();
 
-  // 1. 플래너 정보 조회
-  const { data: planner, error: plannerError } = await supabase
-    .from('planners')
+  // 1. 캘린더 정보 조회
+  const { data: calendar, error: calendarError } = await supabase
+    .from('calendars')
     .select(`
       id,
       default_scheduler_type,
       default_scheduler_options,
       study_hours,
       self_study_hours,
-      lunch_time,
-      block_set_id,
-      non_study_time_blocks
+      non_study_time_blocks,
+      block_set_id
     `)
-    .eq('id', plannerId)
+    .eq('id', calendarId)
+    .is('deleted_at', null)
     .single();
 
-  if (plannerError || !planner) {
+  if (calendarError || !calendar) {
     return {
       success: false,
-      error: '플래너를 찾을 수 없습니다.',
+      error: '캘린더를 찾을 수 없습니다.',
       dateTimeSlots: new Map(),
       dateAvailableTimeRanges: new Map(),
       dailySchedule: [],
     };
   }
 
-  // 2. calendarId resolve
-  const calendarId = await resolvePrimaryCalendarId(plannerId);
-
-  // 3. 제외일 조회 (calendar_events event_type='exclusion')
+  // 2. 제외일 조회 (calendar_events event_type='exclusion')
   let exclusions: Array<{ exclusion_date: string; exclusion_type: string; reason: string | null }> = [];
-  if (calendarId) {
+  {
     const { data: exclusionEvents } = await supabase
       .from('calendar_events')
       .select('start_date, event_subtype, title')
@@ -120,7 +146,7 @@ export async function generateScheduleForPlanner(
     }));
   }
 
-  // 4. 학원 일정 조회 (calendar_events event_type='academy')
+  // 3. 학원 일정 조회 (calendar_events event_type='academy')
   let effectiveAcademySchedules: Array<{
     day_of_week: number;
     start_time: string;
@@ -128,8 +154,7 @@ export async function generateScheduleForPlanner(
     academy_name?: string;
     travel_time?: number;
   }> = [];
-
-  if (calendarId) {
+  {
     const { data: academyEvents } = await supabase
       .from('calendar_events')
       .select('start_at, end_at, start_date, event_type, event_subtype, title')
@@ -144,13 +169,13 @@ export async function generateScheduleForPlanner(
     }
   }
 
-  // 4. 블록 세트 정보 조회
+  // 4. 블록 세트 정보 조회 (tenant_blocks)
   let blocks: BlockInfo[] = [];
-  if (planner.block_set_id) {
+  if (calendar.block_set_id) {
     const { data: blockData } = await supabase
-      .from('tenant_block_set_items')
+      .from('tenant_blocks')
       .select('day_of_week, start_time, end_time')
-      .eq('block_set_id', planner.block_set_id);
+      .eq('tenant_block_set_id', calendar.block_set_id);
 
     if (blockData) {
       blocks = blockData;
@@ -158,8 +183,17 @@ export async function generateScheduleForPlanner(
   }
 
   // 5. 스케줄러 옵션 구성
-  const plannerInfo = planner as PlannerInfo;
-  const schedulerOptions = buildSchedulerOptions(plannerInfo);
+  const calendarInfo: CalendarInfo = {
+    id: calendar.id,
+    default_scheduler_type: calendar.default_scheduler_type,
+    default_scheduler_options: calendar.default_scheduler_options as Record<string, unknown> | null,
+    study_hours: calendar.study_hours as { start: string; end: string } | null,
+    self_study_hours: calendar.self_study_hours as { start: string; end: string } | null,
+    lunch_time: null, // Calendar-First: non_study_time_blocks에 통합
+    block_set_id: calendar.block_set_id,
+    non_study_time_blocks: calendar.non_study_time_blocks as NonStudyTimeBlock[] | null,
+  };
+  const schedulerOptions = buildSchedulerOptions(calendarInfo);
 
   // 6. calculateAvailableDates 호출
   const scheduleResult = calculateAvailableDates(
@@ -184,7 +218,7 @@ export async function generateScheduleForPlanner(
     })),
     {
       scheduler_type: '1730_timetable',
-      scheduler_options: undefined, // study_days, review_days는 기본값 사용
+      scheduler_options: undefined,
       use_self_study_with_blocks: true,
       enable_self_study_for_holidays: schedulerOptions?.enable_self_study_for_holidays === true,
       enable_self_study_for_study_days: schedulerOptions?.enable_self_study_for_study_days === true || !!schedulerOptions?.self_study_hours,
@@ -192,7 +226,7 @@ export async function generateScheduleForPlanner(
       camp_study_hours: schedulerOptions?.study_hours ?? undefined,
       camp_self_study_hours: schedulerOptions?.self_study_hours ?? undefined,
       designated_holiday_hours: schedulerOptions?.designated_holiday_hours ?? undefined,
-      non_study_time_blocks: plannerInfo.non_study_time_blocks || undefined,
+      non_study_time_blocks: calendarInfo.non_study_time_blocks || undefined,
     }
   );
 
@@ -212,33 +246,6 @@ export async function generateScheduleForPlanner(
     dateTimeSlots: dateTimeSlots as DateTimeSlots,
     dateAvailableTimeRanges,
     dailySchedule,
-  };
-}
-
-/**
- * 스케줄러 옵션 타입
- */
-interface SchedulerOptions {
-  study_hours?: { start: string; end: string } | null;
-  self_study_hours?: { start: string; end: string } | null;
-  lunch_time?: { start: string; end: string } | null;
-  enable_self_study_for_holidays?: boolean;
-  enable_self_study_for_study_days?: boolean;
-  designated_holiday_hours?: { start: string; end: string } | null;
-  [key: string]: unknown;
-}
-
-/**
- * 플래너 정보에서 스케줄러 옵션 구성
- */
-function buildSchedulerOptions(planner: PlannerInfo): SchedulerOptions | null {
-  const baseOptions = (planner.default_scheduler_options || {}) as SchedulerOptions;
-
-  return {
-    ...baseOptions,
-    study_hours: planner.study_hours,
-    self_study_hours: planner.self_study_hours,
-    lunch_time: planner.lunch_time,
   };
 }
 
@@ -269,7 +276,7 @@ export async function generateScheduleForPlanGroup(
       lunch_time,
       block_set_id,
       non_study_time_blocks,
-      planner_id,
+      calendar_id,
       students!inner(tenant_id)
     `)
     .eq('id', planGroupId)
@@ -296,21 +303,33 @@ export async function generateScheduleForPlanGroup(
     { useAdminClient: true }
   );
 
-  // 3. 플랜 그룹의 제외일 조회
-  const { data: exclusions } = await supabase
-    .from('plan_group_exclusions')
-    .select('exclusion_date, exclusion_type, reason')
-    .eq('plan_group_id', planGroupId)
-    .gte('exclusion_date', planGroup.period_start)
-    .lte('exclusion_date', planGroup.period_end);
+  // 3. 플랜 그룹의 제외일 조회 (calendar_events 기반)
+  let exclusions: Array<{ exclusion_date: string; exclusion_type: string; reason: string | null }> = [];
+  {
+    const { data: calExclusions } = await supabase
+      .from('calendar_events')
+      .select('start_date, event_subtype, title')
+      .eq('student_id', planGroup.student_id)
+      .eq('event_type', 'exclusion')
+      .eq('is_all_day', true)
+      .is('deleted_at', null)
+      .gte('start_date', planGroup.period_start)
+      .lte('start_date', planGroup.period_end);
 
-  // 4. 블록 세트 정보 조회
+    exclusions = (calExclusions || []).map((e) => ({
+      exclusion_date: e.start_date!,
+      exclusion_type: e.event_subtype || '기타',
+      reason: e.title,
+    }));
+  }
+
+  // 4. 블록 세트 정보 조회 (tenant_blocks)
   let blocks: BlockInfo[] = [];
   if (planGroup.block_set_id) {
     const { data: blockData } = await supabase
-      .from('tenant_block_set_items')
+      .from('tenant_blocks')
       .select('day_of_week, start_time, end_time')
-      .eq('block_set_id', planGroup.block_set_id);
+      .eq('tenant_block_set_id', planGroup.block_set_id);
 
     if (blockData) {
       blocks = blockData;

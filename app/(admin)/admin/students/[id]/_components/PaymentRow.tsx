@@ -24,6 +24,7 @@ type PaymentRowProps = {
   onRefund?: () => void;
   onCashReceipt: () => void;
   onCancelCashReceipt: (paymentId: string) => void;
+  isGroupChild?: boolean;
 };
 
 function PaymentRowComponent({
@@ -35,6 +36,7 @@ function PaymentRowComponent({
   onRefund,
   onCashReceipt,
   onCancelCashReceipt,
+  isGroupChild,
 }: PaymentRowProps) {
   const statusKey = payment.status as PaymentStatus;
   const isOnlinePayment = !!payment.toss_payment_key;
@@ -43,11 +45,12 @@ function PaymentRowComponent({
     <tr
       className={cn(
         "border-b border-gray-100 dark:border-gray-800",
-        tableRowHover
+        tableRowHover,
+        isGroupChild && "bg-gray-50/50 dark:bg-gray-800/20"
       )}
     >
       {/* No. */}
-      <td className="px-3 py-2.5 text-center text-xs text-gray-400">{index}</td>
+      <td className={cn("px-3 py-2.5 text-center text-xs text-gray-400", isGroupChild && "pl-6")}>{index}</td>
 
       {/* 청구월 */}
       <td className={cn("px-3 py-2.5 text-xs", textPrimary)}>

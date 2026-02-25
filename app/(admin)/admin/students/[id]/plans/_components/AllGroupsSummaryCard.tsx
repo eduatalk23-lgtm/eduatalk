@@ -8,7 +8,7 @@ import { getAllPlanGroupsSummaryAction } from '@/lib/domains/admin-plan/actions/
 import { CACHE_STALE_TIME_STABLE, CACHE_GC_TIME_STABLE } from '@/lib/constants/queryCache';
 
 interface AllGroupsSummaryCardProps {
-  plannerId: string;
+  calendarId: string;
   tenantId: string;
   className?: string;
 }
@@ -31,13 +31,13 @@ function formatDateRange(start: string | null, end: string | null): string {
  * React.memo로 감싸서 props가 변경되지 않으면 리렌더링을 방지합니다.
  */
 export const AllGroupsSummaryCard = memo(function AllGroupsSummaryCard({
-  plannerId,
+  calendarId,
   tenantId,
   className,
 }: AllGroupsSummaryCardProps) {
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['allGroupsSummary', plannerId],
-    queryFn: () => getAllPlanGroupsSummaryAction(plannerId, tenantId),
+    queryKey: ['allGroupsSummary', calendarId],
+    queryFn: () => getAllPlanGroupsSummaryAction(calendarId, tenantId),
     staleTime: CACHE_STALE_TIME_STABLE, // 30분 (플랜 그룹 요약은 자주 변하지 않음)
     gcTime: CACHE_GC_TIME_STABLE,
     refetchOnWindowFocus: false,

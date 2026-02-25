@@ -108,18 +108,7 @@ export async function deletePlanGroupByInvitationId(
     // 콘텐츠 삭제 실패해도 계속 진행 (외래키 제약으로 자동 삭제될 수 있음)
   }
 
-  // 5. plan_exclusions 삭제 (안전을 위해 명시적으로 삭제)
-  const { error: deleteExclusionsError } = await supabase
-    .from("plan_exclusions")
-    .delete()
-    .eq("plan_group_id", groupId);
-
-  if (deleteExclusionsError) {
-    handleQueryError(deleteExclusionsError, {
-      context: "[data/planGroups] deletePlanGroupByInvitationId - deleteExclusions",
-    });
-    // 제외일 삭제 실패해도 계속 진행 (외래키 제약으로 자동 삭제될 수 있음)
-  }
+  // 5. 제외일은 calendar_events 기반 학생 전역 스코프이므로 플랜 그룹 삭제 시 삭제하지 않음
 
   // 6. academy_schedules 삭제는 수행하지 않음
   // 이유:
@@ -217,18 +206,7 @@ export async function deletePlanGroupsByTemplateId(
       // 콘텐츠 삭제 실패해도 계속 진행
     }
 
-    // 2-3. plan_exclusions 삭제 (안전을 위해 명시적으로 삭제)
-    const { error: deleteExclusionsError } = await supabase
-      .from("plan_exclusions")
-      .delete()
-      .eq("plan_group_id", groupId);
-
-    if (deleteExclusionsError) {
-      handleQueryError(deleteExclusionsError, {
-        context: "[data/planGroups] deletePlanGroupsByTemplateId - deleteExclusions",
-      });
-      // 제외일 삭제 실패해도 계속 진행
-    }
+    // 2-3. 제외일은 calendar_events 기반 학생 전역 스코프이므로 삭제하지 않음
 
     // 2-4. plan_groups 삭제 (hard delete)
     const { error: deleteGroupError } = await supabase

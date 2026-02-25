@@ -134,19 +134,19 @@ export default function AdminCalendarContextMenu({
     <div
       ref={menuRef}
       className={cn(
-        "fixed z-50 min-w-[180px] bg-white rounded-lg shadow-lg border border-gray-200",
-        "animate-in fade-in-0 zoom-in-95 duration-100"
+        "fixed z-50 min-w-[180px] bg-[rgb(var(--color-secondary-50))] rounded-lg shadow-lg border border-[rgb(var(--color-secondary-200))]",
+        "animate-in fade-in-0 duration-100"
       )}
       style={menuStyle}
     >
       {/* 헤더 */}
-      <div className="flex items-center justify-between px-3 py-2 border-b bg-gray-50 rounded-t-lg">
-        <span className="text-sm font-medium text-gray-700">{state.date}</span>
+      <div className="flex items-center justify-between px-3 py-2 border-b bg-[rgb(var(--color-secondary-50))] rounded-t-lg">
+        <span className="text-sm font-medium text-[var(--text-secondary)]">{state.date}</span>
         <button
           onClick={onClose}
-          className="p-0.5 hover:bg-gray-200 rounded transition-colors"
+          className="p-0.5 hover:bg-[rgb(var(--color-secondary-200))] rounded transition-colors"
         >
-          <X className="w-4 h-4 text-gray-500" />
+          <X className="w-4 h-4 text-[var(--text-tertiary)]" />
         </button>
       </div>
 
@@ -176,7 +176,7 @@ export default function AdminCalendarContextMenu({
             }}
             className={cn(
               "w-full flex items-center gap-2 px-3 py-2 text-sm text-left",
-              "hover:bg-gray-100 text-gray-700 transition-colors"
+              "hover:bg-[rgb(var(--color-secondary-100))] text-[var(--text-secondary)] transition-colors"
             )}
           >
             <CalendarOff className="w-4 h-4" />

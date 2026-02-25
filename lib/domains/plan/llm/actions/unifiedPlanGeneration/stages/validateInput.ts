@@ -140,10 +140,7 @@ export function validateInput(
     totalDays,
     availableDays,
 
-    // Phase 3: 플래너 연계 필드
-    plannerId: validated.plannerId ?? null,
     creationMode: validated.creationMode ?? "content_based",
-    plannerValidationMode: validated.plannerValidationMode ?? "auto_create",
   };
 
   return { success: true, data: result };

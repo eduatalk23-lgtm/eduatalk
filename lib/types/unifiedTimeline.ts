@@ -99,8 +99,8 @@ export interface ReorderInputItem {
 export interface UnifiedReorderInput {
   /** 학생 ID */
   studentId: string;
-  /** 플래너 ID */
-  plannerId: string;
+  /** 캘린더 ID */
+  calendarId: string;
   /** 플랜 날짜 (YYYY-MM-DD) */
   planDate: string;
   /** 정렬된 아이템 목록 (드래그 후 순서) */

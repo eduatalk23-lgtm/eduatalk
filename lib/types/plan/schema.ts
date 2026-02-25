@@ -45,34 +45,73 @@ export type PlanContentInsert = TablesInsert<"plan_contents">;
 export type PlanContentUpdate = TablesUpdate<"plan_contents">;
 
 /**
- * plan_exclusions 테이블 Row 타입
+ * 제외일 Row 타입 (calendar_events 기반)
+ * @deprecated plan_exclusions 테이블 → calendar_events 마이그레이션 완료. PlanExclusion from domain.ts 사용 권장.
  */
-export type PlanExclusionRow = Tables<"plan_exclusions">;
+export type PlanExclusionRow = import("./domain").PlanExclusion;
 
 /**
- * plan_exclusions 테이블 Insert 타입
+ * 제외일 Insert 타입 (calendar_events 기반)
  */
-export type PlanExclusionInsert = TablesInsert<"plan_exclusions">;
+export type PlanExclusionInsert = {
+  exclusion_date: string;
+  exclusion_type?: string;
+  plan_group_id?: string | null;
+  reason?: string | null;
+};
 
 /**
- * plan_exclusions 테이블 Update 타입
+ * 제외일 Update 타입 (calendar_events 기반)
  */
-export type PlanExclusionUpdate = TablesUpdate<"plan_exclusions">;
+export type PlanExclusionUpdate = {
+  exclusion_date?: string;
+  exclusion_type?: string;
+  reason?: string | null;
+};
 
 /**
- * academy_schedules 테이블 Row 타입
+ * academy_schedules Row 타입 (standalone, 테이블 DROP 후에도 사용 가능)
  */
-export type AcademyScheduleRow = Tables<"academy_schedules">;
+export type AcademyScheduleRow = {
+  id: string;
+  tenant_id: string | null;
+  student_id: string;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  subject: string | null;
+  academy_name: string | null;
+  travel_time: number | null;
+  created_at: string;
+  updated_at: string;
+};
 
 /**
- * academy_schedules 테이블 Insert 타입
+ * academy_schedules Insert 타입 (standalone)
  */
-export type AcademyScheduleInsert = TablesInsert<"academy_schedules">;
+export type AcademyScheduleInsert = {
+  id?: string;
+  tenant_id?: string | null;
+  student_id: string;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  subject?: string | null;
+  academy_name?: string | null;
+  travel_time?: number | null;
+};
 
 /**
- * academy_schedules 테이블 Update 타입
+ * academy_schedules Update 타입 (standalone)
  */
-export type AcademyScheduleUpdate = TablesUpdate<"academy_schedules">;
+export type AcademyScheduleUpdate = {
+  day_of_week?: number;
+  start_time?: string;
+  end_time?: string;
+  subject?: string | null;
+  academy_name?: string | null;
+  travel_time?: number | null;
+};
 
 /**
  * student_plan 테이블 Row 타입
@@ -147,12 +186,12 @@ export type PlanContentQueryResult = PlanContentRow;
 export type PlanContentQueryResults = PlanContentRow[];
 
 /**
- * plan_exclusions 조회 결과 타입 (단일)
+ * 제외일 조회 결과 타입 (단일, calendar_events 기반)
  */
 export type PlanExclusionQueryResult = PlanExclusionRow;
 
 /**
- * plan_exclusions 조회 결과 타입 (배열)
+ * 제외일 조회 결과 타입 (배열, calendar_events 기반)
  */
 export type PlanExclusionQueryResults = PlanExclusionRow[];
 

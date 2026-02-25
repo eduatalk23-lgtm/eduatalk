@@ -1,7 +1,9 @@
 /**
  * 학생 정보 Zod 스키마
- * 
+ *
  * 학생 기본 정보, 프로필, 진로 정보 검증을 위한 스키마 정의
+ *
+ * 필수 항목: 이름, 연락처(학생/모/부) 중 1개
  */
 
 import { z } from "zod";
@@ -12,9 +14,9 @@ import { phone } from "./phoneSchema";
  */
 export const studentBasicSchema = z.object({
   name: z.string().min(1, "이름을 입력해주세요").max(50, "이름은 50자 이하여야 합니다"),
-  grade: z.string().min(1, "학년을 선택해주세요"),
+  grade: z.string().optional().nullable(),
   class: z.string().optional().nullable(),
-  birth_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "생년월일은 YYYY-MM-DD 형식이어야 합니다"),
+  birth_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "생년월일은 YYYY-MM-DD 형식이어야 합니다").optional().nullable(),
   school_id: z.string().optional().nullable(),
   school_type: z.enum(["MIDDLE", "HIGH", "UNIVERSITY"]).optional().nullable(),
   division: z.enum(["고등부", "중등부", "졸업"]).optional().nullable(),
@@ -63,21 +65,28 @@ export const studentCareerSchema = z.object({
 
 /**
  * 학생 신규 등록 통합 스키마
- * 
- * 기본 정보는 필수, 프로필과 진로 정보는 선택사항
+ *
+ * 필수: 이름 + 연락처(학생/모/부) 중 1개
  */
 export const createStudentSchema = z.object({
-  // 기본 정보 (필수)
   basic: studentBasicSchema,
-  // 프로필 정보 (선택)
   profile: studentProfileSchema.optional().nullable(),
-  // 진로 정보 (선택)
   career: studentCareerSchema.optional().nullable(),
-});
+}).refine(
+  (data) => {
+    const p = data.profile;
+    if (!p) return false;
+    return !!(p.phone || p.mother_phone || p.father_phone);
+  },
+  {
+    message: "연락처(학생, 어머니, 아버지) 중 1개 이상 입력해주세요",
+    path: ["profile", "phone"],
+  }
+);
 
 /**
  * 학생 정보 업데이트 스키마
- * 
+ *
  * 모든 필드가 선택사항 (부분 업데이트 허용)
  */
 export const updateStudentSchema = z.object({
@@ -94,4 +103,3 @@ export type StudentProfileInput = z.infer<typeof studentProfileSchema>;
 export type StudentCareerInput = z.infer<typeof studentCareerSchema>;
 export type CreateStudentInput = z.infer<typeof createStudentSchema>;
 export type UpdateStudentInput = z.infer<typeof updateStudentSchema>;
-

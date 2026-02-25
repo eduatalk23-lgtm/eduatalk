@@ -3,6 +3,7 @@
 import { PlanHistoryViewer } from "../PlanHistoryViewer";
 import { DeletedPlansView } from "../DeletedPlansView";
 import { DeletedPlanGroupsView } from "../DeletedPlanGroupsView";
+import { DeletedCalendarEventsView } from "../DeletedCalendarEventsView";
 import { useAdminPlanBasic, useAdminPlanFilter } from "../context/AdminPlanContext";
 
 interface HistoryTabProps {
@@ -20,7 +21,7 @@ interface HistoryTabProps {
  * 성능 최적화: Modal 상태 변경에 리렌더링되지 않음
  */
 export function HistoryTab({ tab: _tab }: HistoryTabProps) {
-  const { studentId, selectedPlannerId } = useAdminPlanBasic();
+  const { studentId, selectedCalendarId } = useAdminPlanBasic();
   const { handleRefresh } = useAdminPlanFilter();
 
   return (
@@ -30,7 +31,7 @@ export function HistoryTab({ tab: _tab }: HistoryTabProps) {
         <h2 className="text-lg font-semibold text-secondary-900">활동 이력</h2>
         <PlanHistoryViewer
           studentId={studentId}
-          plannerId={selectedPlannerId}
+          calendarId={selectedCalendarId ?? undefined}
           limit={50}
         />
       </section>
@@ -42,7 +43,7 @@ export function HistoryTab({ tab: _tab }: HistoryTabProps) {
         </h2>
         <DeletedPlansView
           studentId={studentId}
-          plannerId={selectedPlannerId}
+          calendarId={selectedCalendarId ?? undefined}
           onRefresh={handleRefresh}
         />
       </section>
@@ -54,7 +55,19 @@ export function HistoryTab({ tab: _tab }: HistoryTabProps) {
         </h2>
         <DeletedPlanGroupsView
           studentId={studentId}
-          plannerId={selectedPlannerId}
+          calendarId={selectedCalendarId ?? undefined}
+          onRefresh={handleRefresh}
+        />
+      </section>
+
+      {/* 삭제된 캘린더 이벤트 복구 (휴지통) */}
+      <section className="flex flex-col gap-4">
+        <h2 className="text-lg font-semibold text-secondary-900">
+          삭제된 캘린더 이벤트
+        </h2>
+        <DeletedCalendarEventsView
+          studentId={studentId}
+          calendarId={selectedCalendarId ?? undefined}
           onRefresh={handleRefresh}
         />
       </section>

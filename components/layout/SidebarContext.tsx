@@ -43,10 +43,15 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
   );
 }
 
+const defaultSidebarContext: SidebarContextType = {
+  isCollapsed: true,
+  toggleCollapse: () => {},
+  isMobileOpen: false,
+  toggleMobile: () => {},
+  closeMobile: () => {},
+};
+
 export function useSidebar() {
   const context = useContext(SidebarContext);
-  if (context === undefined) {
-    throw new Error("useSidebar must be used within a SidebarProvider");
-  }
-  return context;
+  return context ?? defaultSidebarContext;
 }

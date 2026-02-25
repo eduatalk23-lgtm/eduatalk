@@ -482,8 +482,34 @@ export async function createPlanExclusion(
       return { success: false, error: "제외일이 필요합니다." };
     }
 
-    const created = await repository.insertPlanExclusion(exclusion);
-    return { success: true, exclusion: created };
+    // Calendar-First: student primary calendar resolve → 단일 캘린더에 제외일 생성
+    const { resolveStudentPrimaryCalendarId } = await import(
+      "@/lib/domains/calendar/helpers"
+    );
+    const calendarId = await resolveStudentPrimaryCalendarId(exclusion.student_id);
+    if (!calendarId) {
+      return { success: false, error: "캘린더를 찾을 수 없습니다." };
+    }
+
+    const { createStudentExclusionsViaCalendar } = await import(
+      "@/lib/data/calendarExclusions"
+    );
+    const result = await createStudentExclusionsViaCalendar(
+      calendarId,
+      exclusion.student_id,
+      exclusion.tenant_id ?? "",
+      [
+        {
+          exclusion_date: exclusion.exclusion_date,
+          exclusion_type: (exclusion.exclusion_type as string) ?? "기타",
+          reason: exclusion.reason ?? null,
+        },
+      ]
+    );
+    if (!result.success) {
+      return { success: false, error: result.error ?? "제외일 생성에 실패했습니다." };
+    }
+    return { success: true, exclusion: exclusion as PlanExclusion };
   } catch (error) {
     logActionError({ domain: "plan", action: "createPlanExclusion" }, error, { studentId: exclusion.student_id, exclusionDate: exclusion.exclusion_date });
     return {

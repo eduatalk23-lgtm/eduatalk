@@ -9,7 +9,7 @@ import {
   predictReorderMode,
   validateReorderResultConstraints,
 } from '@/lib/domains/plan/utils/unifiedReorderCalculation';
-import { executeUnifiedReorder, updateItemTime } from '@/lib/domains/calendar/actions/legacyBridge';
+import { executeUnifiedReorder, updateItemTime } from '@/lib/domains/calendar/actions/calendarEventActions';
 import type { UnifiedReorderData } from '../dnd';
 import type { TimeSlot } from '@/lib/types/plan-generation';
 import type { NonStudyItem } from '@/lib/query-options/adminDock';
@@ -89,7 +89,7 @@ export interface ReorderInputItem {
 
 interface UseUnifiedReorderOptions {
   studentId: string;
-  plannerId?: string;
+  calendarId?: string;
   selectedDate: string;
   timeSlots?: TimeSlot[];
   mergedItems: MergedItem[];
@@ -116,7 +116,7 @@ function parseTime(t: string): number {
  */
 export function useUnifiedReorder({
   studentId,
-  plannerId,
+  calendarId,
   selectedDate,
   timeSlots,
   mergedItems,
@@ -305,7 +305,7 @@ export function useUnifiedReorder({
   // 통합 재정렬 핸들러
   const handleUnifiedReorder = useCallback(
     async (data: UnifiedReorderData) => {
-      if (!plannerId) return;
+      if (!calendarId) return;
 
       // 빈 슬롯에 드롭한 경우: 재정렬 대신 직접 시간 변경
       if (data.overItemType === 'emptySlot' && data.targetSlotTime) {
@@ -360,7 +360,7 @@ export function useUnifiedReorder({
         startTransition(async () => {
           console.log('[useUnifiedReorder] Calling updateItemTime:', {
             studentId,
-            plannerId,
+            calendarId,
             planDate: selectedDate,
             itemId,
             itemType,
@@ -371,7 +371,7 @@ export function useUnifiedReorder({
 
           const result = await updateItemTime({
             studentId,
-            plannerId,
+            calendarId,
             planDate: selectedDate,
             itemId,
             itemType,
@@ -540,7 +540,7 @@ export function useUnifiedReorder({
       startTransition(async () => {
         const result = await executeUnifiedReorder({
           studentId,
-          plannerId,
+          calendarId,
           planDate: selectedDate,
           orderedItems,
           originalItems,
@@ -565,7 +565,7 @@ export function useUnifiedReorder({
         onRefresh();
       });
     },
-    [plannerId, mergedItems, timeSlots, studentId, selectedDate, showToast, onRefresh, getItemId, getItemTimes, toReorderInputItem]
+    [calendarId, mergedItems, timeSlots, studentId, selectedDate, showToast, onRefresh, getItemId, getItemTimes, toReorderInputItem]
   );
 
   // Optimistic 상태 초기화 함수

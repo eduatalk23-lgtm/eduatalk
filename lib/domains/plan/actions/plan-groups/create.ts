@@ -30,8 +30,9 @@ import { DAYS_PER_WEEK, MILLISECONDS_PER_DAY } from "@/lib/utils/time";
 /**
  * 원자적 플랜 그룹 생성을 위한 RPC 호출 헬퍼
  *
- * 이 함수는 Supabase RPC를 통해 plan_groups, plan_contents, plan_exclusions,
+ * 이 함수는 Supabase RPC를 통해 plan_groups, plan_contents,
  * academy_schedules를 하나의 트랜잭션 내에서 생성합니다.
+ * 제외일은 RPC 후 calendar_events로 별도 생성합니다.
  * 어떤 단계에서든 실패하면 전체 트랜잭션이 자동으로 롤백됩니다.
  */
 interface AtomicCreateResult {
@@ -58,7 +59,7 @@ interface PlanGroupAtomicInput {
   period_end: string;
   target_date: string | null;
   block_set_id: string | null;
-  planner_id: string | null;
+  calendar_id: string | null;
   status: string;
   subject_constraints: Record<string, unknown> | null;
   additional_period_reallocation: Record<string, unknown> | null;
@@ -246,10 +247,10 @@ async function _createPlanGroup(
       { adminId: auth.userId, studentId, adminRole: auth.adminRole }
     );
 
-    // 관리자 모드에서는 플래너 선택 필수 (플래너 우선순위 정책)
-    if (!data.planner_id) {
+    // 관리자 모드에서는 캘린더 선택 필수
+    if (!data.calendar_id) {
       throw new AppError(
-        "플래너를 먼저 선택해주세요.",
+        "캘린더를 먼저 선택해주세요.",
         ErrorCode.VALIDATION_ERROR,
         400,
         true
@@ -401,9 +402,9 @@ async function _createPlanGroup(
   }
 
   // 플랜 기간 중복 검증 (학생 자가 생성 시에만)
-  // 관리자 모드 (planner_id 있음): 플래너 기반 필터링으로 충돌 없음 → 검증 건너뛰기
-  // 학생 모드 (planner_id 없음): 기존 검증 유지 (경고 목적)
-  if (!data.planner_id) {
+  // 관리자 모드 (calendar_id 있음): 캘린더 기반 필터링으로 충돌 없음 → 검증 건너뛰기
+  // 학생 모드 (calendar_id 없음): 기존 검증 유지 (경고 목적)
+  if (!data.calendar_id) {
     const overlapResult = await checkPlanPeriodOverlap(
       studentId,
       data.period_start,
@@ -563,7 +564,7 @@ async function _createPlanGroup(
     period_end: data.period_end,
     target_date: data.target_date || null,
     block_set_id: data.block_set_id || null,
-    planner_id: data.planner_id || null,
+    calendar_id: data.calendar_id || null,
     status: "draft",
     subject_constraints: data.subject_constraints || null,
     additional_period_reallocation: data.additional_period_reallocation || null,
@@ -592,19 +593,25 @@ async function _createPlanGroup(
     is_single_content: isSingleContent,
   };
 
+  // calendar_id 결정: planGroupData.calendar_id 우선, 없으면 primary calendar
+  let calendarIdForGroup: string | null = data.calendar_id ?? null;
+  if (!calendarIdForGroup) {
+    const { resolveStudentPrimaryCalendarId } = await import("@/lib/domains/calendar/helpers");
+    calendarIdForGroup = await resolveStudentPrimaryCalendarId(studentId);
+  }
+
   // 단일 콘텐츠 모드일 때는 plan_contents 테이블에 저장하지 않음
   const contentsForRpc = isSingleContent ? [] : processedContents;
 
-  // 원자적 플랜 그룹 생성 (plan_groups + plan_contents + plan_exclusions + academy_schedules)
-  // 하나의 트랜잭션 내에서 모든 테이블에 데이터 삽입, 실패 시 자동 롤백
-  // Phase 3: 단일 콘텐츠 모드일 때는 plan_contents 테이블 대신 plan_groups 필드에 저장
+  // 원자적 플랜 그룹 생성 (plan_groups + plan_contents)
+  // 제외일은 calendar_events로 별도 생성, 학원 일정도 calendar_events로 별도 생성
   const atomicResult = await createPlanGroupAtomic(
     tenantContext.tenantId,
     studentId,
     planGroupData,
     contentsForRpc, // 단일 콘텐츠 모드면 빈 배열, 아니면 processedContents
-    exclusionsData,
-    schedulesData
+    [], // exclusions → calendar_events로 별도 생성
+    [] // schedules → calendar_events로 별도 생성
   );
 
   if (!atomicResult.success || !atomicResult.groupId) {
@@ -633,6 +640,63 @@ async function _createPlanGroup(
   }
 
   const groupId = atomicResult.groupId;
+
+  // calendar_id를 plan_groups에 기록
+  if (calendarIdForGroup) {
+    await supabase
+      .from("plan_groups")
+      .update({ calendar_id: calendarIdForGroup })
+      .eq("id", groupId);
+  }
+
+  // 제외일을 calendar_events에 생성 (비필수: 실패해도 플랜 그룹 생성 결과에 영향 없음)
+  if (exclusionsData.length > 0) {
+    const { resolveStudentPrimaryCalendarId } = await import(
+      "@/lib/domains/calendar/helpers"
+    );
+    const calendarId = await resolveStudentPrimaryCalendarId(studentId);
+    if (calendarId) {
+      const { createStudentExclusionsViaCalendar } = await import(
+        "@/lib/data/calendarExclusions"
+      );
+      await createStudentExclusionsViaCalendar(
+        calendarId,
+        studentId,
+        tenantContext.tenantId,
+        exclusionsData.map((e) => ({
+          exclusion_date: e.exclusion_date,
+          exclusion_type: e.exclusion_type,
+          reason: e.reason ?? null,
+        }))
+      );
+    }
+  }
+
+  // 학원 일정을 calendar_events에 생성 (비필수: 실패해도 플랜 그룹 생성 결과에 영향 없음)
+  if (schedulesData.length > 0) {
+    try {
+      const { createStudentAcademySchedules } = await import(
+        "@/lib/data/planGroups"
+      );
+      await createStudentAcademySchedules(
+        studentId,
+        tenantContext.tenantId,
+        schedulesData.map((s) => ({
+          day_of_week: s.day_of_week,
+          start_time: s.start_time,
+          end_time: s.end_time,
+          academy_name: s.academy_name ?? null,
+          subject: s.subject ?? null,
+        }))
+      );
+    } catch (err) {
+      logActionError(
+        { domain: "plan", action: "createPlanGroup" },
+        err,
+        { groupId, step: "academy_schedules_via_calendar" }
+      );
+    }
+  }
 
   // 이벤트 로깅 (비동기, 실패해도 플랜 그룹 생성에 영향 없음)
   logPlanGroupCreated(
@@ -866,7 +930,7 @@ async function _savePlanGroupDraft(
       formatDateString(new Date(Date.now() + DAYS_PER_WEEK * MILLISECONDS_PER_DAY)),
     target_date: data.target_date || null,
     block_set_id: data.block_set_id || null,
-    planner_id: data.planner_id || null,
+    calendar_id: data.calendar_id || null,
     status: "draft",
     subject_constraints: data.subject_constraints || null,
     additional_period_reallocation: data.additional_period_reallocation || null,
@@ -925,7 +989,7 @@ async function _savePlanGroupDraft(
     planGroupData,
     contentsForRpcDraft, // 단일 콘텐츠 모드면 빈 배열, 아니면 processedContentsDraft
     exclusionsData,
-    schedulesData
+    [] // schedules → calendar_events로 별도 생성
   );
 
   if (!atomicResult.success || !atomicResult.groupId) {
@@ -1003,7 +1067,7 @@ async function _copyPlanGroup(groupId: string): Promise<{ groupId: string }> {
     period_end: group.period_end,
     target_date: group.target_date,
     block_set_id: group.block_set_id,
-    planner_id: group.planner_id ?? null, // 플래너 연결 유지
+    calendar_id: group.calendar_id ?? null, // 캘린더 연결 유지
     status: "draft",
     subject_constraints: group.subject_constraints ?? null,
     additional_period_reallocation: group.additional_period_reallocation ?? null,
@@ -1074,7 +1138,7 @@ async function _copyPlanGroup(groupId: string): Promise<{ groupId: string }> {
     planGroupData,
     contentsForRpcCopy, // 단일 콘텐츠 모드면 빈 배열
     exclusionsData,
-    schedulesData
+    [] // schedules → calendar_events로 별도 생성
   );
 
   if (!atomicResult.success || !atomicResult.groupId) {
@@ -1109,7 +1173,7 @@ type CalendarOnlyPlanGroupInput = {
   period_end: string;
   target_date?: string | null;
   block_set_id?: string | null;
-  planner_id?: string | null;
+  calendar_id?: string | null;
   exclusions?: PlanGroupCreationData["exclusions"];
   academy_schedules?: PlanGroupCreationData["academy_schedules"];
   study_review_cycle?: PlanGroupCreationData["study_review_cycle"];
@@ -1183,7 +1247,7 @@ async function _saveCalendarOnlyPlanGroup(
     period_end: data.period_end,
     target_date: data.target_date || null,
     block_set_id: data.block_set_id || null,
-    planner_id: data.planner_id || null,
+    calendar_id: data.calendar_id || null,
     status: "draft",
     subject_constraints: data.subject_constraints || null,
     additional_period_reallocation: data.additional_period_reallocation || null,
@@ -1241,7 +1305,7 @@ async function _saveCalendarOnlyPlanGroup(
     planGroupData,
     processedContents,
     exclusionsData,
-    schedulesData
+    [] // schedules → calendar_events로 별도 생성
   );
 
   if (!atomicResult.success || !atomicResult.groupId) {

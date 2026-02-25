@@ -67,40 +67,51 @@ export async function createTimezone(
 
     if (error) throw error;
 
-    // 제외일 저장
+    // 제외일 저장 (calendar_events 기반)
     if (input.exclusions && input.exclusions.length > 0) {
-      const exclusionRows = input.exclusions.map((e) => ({
-        plan_group_id: data.id,
-        exclusion_date: e.date,
-        type: e.type,
-        reason: e.reason,
-      }));
-
-      const { error: exclusionError } = await supabase
-        .from("plan_exclusions")
-        .insert(exclusionRows);
-
-      if (exclusionError) throw exclusionError;
+      const { resolveStudentPrimaryCalendarId } = await import(
+        "@/lib/domains/calendar/helpers"
+      );
+      const calendarId = await resolveStudentPrimaryCalendarId(ctx.studentId);
+      if (calendarId) {
+        const { createStudentExclusionsViaCalendar } = await import(
+          "@/lib/data/calendarExclusions"
+        );
+        const exclusionResult = await createStudentExclusionsViaCalendar(
+          calendarId,
+          ctx.studentId,
+          ctx.tenantId ?? "",
+          input.exclusions.map((e) => ({
+            exclusion_date: e.date,
+            exclusion_type: e.type,
+            reason: e.reason,
+          }))
+        );
+        if (!exclusionResult.success) {
+          throw new Error(exclusionResult.error || "제외일 저장 실패");
+        }
+      }
     }
 
-    // 학원 일정 저장
+    // 학원 일정 저장 (calendar_events 기반)
     if (input.academy_schedules && input.academy_schedules.length > 0) {
-      const academyRows = input.academy_schedules.map((a) => ({
-        plan_group_id: data.id,
-        student_id: ctx.studentId,
-        day_of_week: a.day_of_week,
-        start_time: a.start_time,
-        end_time: a.end_time,
-        academy_name: a.academy_name,
-        subject: a.subject,
-        travel_time: a.travel_time || 0,
-      }));
-
-      const { error: academyError } = await supabase
-        .from("academy_schedules")
-        .insert(academyRows);
-
-      if (academyError) throw academyError;
+      const { createStudentAcademySchedules } = await import(
+        "@/lib/data/planGroups"
+      );
+      const result = await createStudentAcademySchedules(
+        ctx.studentId,
+        ctx.tenantId ?? "",
+        input.academy_schedules.map((a) => ({
+          day_of_week: a.day_of_week,
+          start_time: a.start_time,
+          end_time: a.end_time,
+          academy_name: a.academy_name,
+          subject: a.subject,
+        }))
+      );
+      if (!result.success) {
+        throw new Error(result.error || "학원 일정 저장 실패");
+      }
     }
 
     revalidatePath("/plan");
@@ -264,7 +275,7 @@ export async function getTimezoneCalendarData(
       { timezoneId, studentId: ctx.studentId }
     );
 
-    // 타임존 + 콘텐츠 + 플랜 조회
+    // 타임존 + 콘텐츠 조회
     const { data: timezoneData, error: tzError } = await supabase
       .from("plan_groups")
       .select(
@@ -281,18 +292,6 @@ export async function getTimezoneCalendarData(
           scheduler_mode,
           content_scheduler_options,
           generation_status
-        ),
-        plan_exclusions(
-          exclusion_date,
-          exclusion_type,
-          reason
-        ),
-        academy_schedules(
-          day_of_week,
-          start_time,
-          end_time,
-          academy_name,
-          subject
         )
       `
       )
@@ -308,6 +307,24 @@ export async function getTimezoneCalendarData(
       );
       throw tzError;
     }
+
+    // 제외일은 calendar_events에서 조회
+    const { data: calendarExclusions } = await supabase
+      .from("calendar_events")
+      .select("start_date, event_subtype, title")
+      .eq("student_id", ctx.studentId)
+      .eq("event_type", "exclusion")
+      .eq("is_all_day", true)
+      .is("deleted_at", null)
+      .order("start_date", { ascending: true });
+
+    // PlanExclusion 호환 형식으로 매핑
+    const planExclusions = (calendarExclusions ?? []).map((e) => ({
+      exclusion_date: e.start_date ?? "",
+      exclusion_type: e.event_subtype ?? "기타",
+      reason: e.title ?? null,
+    }));
+
     logActionDebug(
       { domain: "plan", action: "getTimezoneCalendarData" },
       "Timezone data fetched successfully",
@@ -352,12 +369,22 @@ export async function getTimezoneCalendarData(
       review_group_id: p.review_group_id,
     }));
 
+    // 학원 일정 조회 (calendar_events 기반)
+    const { getStudentAcademySchedules } = await import("@/lib/data/planGroups");
+    const academySchedules = await getStudentAcademySchedules(ctx.studentId, ctx.tenantId);
+
     // 가용 날짜 계산
     const availableDates = calculateAvailableDates(
       timezoneData.period_start,
       timezoneData.period_end,
-      timezoneData.plan_exclusions || [],
-      timezoneData.academy_schedules || [],
+      planExclusions,
+      academySchedules.map((s) => ({
+        day_of_week: s.day_of_week,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        academy_name: s.academy_name ?? undefined,
+        subject: s.subject ?? undefined,
+      })),
       timezoneData.default_scheduler_options
     );
 

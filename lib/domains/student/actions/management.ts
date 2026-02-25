@@ -768,7 +768,7 @@ export async function updateStudentInfo(
  * @returns 학생 ID와 연결 코드
  */
 export async function createStudent(
-  formData: FormData
+  input: import("@/lib/validation/studentSchemas").CreateStudentInput
 ): Promise<{
   success: boolean;
   studentId?: string;
@@ -791,34 +791,36 @@ export async function createStudent(
 
   const supabase = await createSupabaseServerClient();
 
-  // FormData 필드 분리
-  const { separateStudentFormFields } = await import("@/lib/utils/studentFormDataHelpers");
-  const { formDataToObject } = await import("@/lib/validation/schemas");
   const { createStudentSchema } = await import("@/lib/validation/studentSchemas");
-  
-  // 필드를 기본정보, 프로필, 진로정보로 분리
-  const { basic: basicFormData, profile: profileFormData, career: careerFormData } = 
-    separateStudentFormFields(formData);
-  
-  // 각 필드 그룹을 객체로 변환
-  const basicObj = formDataToObject(basicFormData);
-  
-  // 프로필과 진로 정보는 선택사항이므로 빈 FormData인지 확인
-  const profileObj = profileFormData.keys().next().done ? null : formDataToObject(profileFormData);
-  const careerObj = careerFormData.keys().next().done ? null : formDataToObject(careerFormData);
-  
+
+  // 빈 문자열을 null로 정규화 (Server Action 직렬화에서 null→"" 변환 방지)
+  if (input.basic) {
+    for (const [k, v] of Object.entries(input.basic)) {
+      if (v === "") (input.basic as Record<string, unknown>)[k] = null;
+    }
+  }
+  if (input.profile) {
+    for (const [k, v] of Object.entries(input.profile)) {
+      if (v === "") (input.profile as Record<string, unknown>)[k] = null;
+    }
+  }
+  if (input.career) {
+    for (const [k, v] of Object.entries(input.career)) {
+      if (v === "") (input.career as Record<string, unknown>)[k] = null;
+    }
+  }
+
   // 스키마 검증
-  const validationResult = createStudentSchema.safeParse({
-    basic: basicObj,
-    profile: profileObj,
-    career: careerObj,
-  });
+  const validationResult = createStudentSchema.safeParse(input);
 
   if (!validationResult.success) {
     const firstError = validationResult.error.errors[0];
+    const fieldPath = firstError?.path?.join(".") || "unknown";
     return {
       success: false,
-      error: firstError?.message || "입력 정보가 올바르지 않습니다.",
+      error: firstError
+        ? `${fieldPath}: ${firstError.message}`
+        : "입력 정보가 올바르지 않습니다.",
     };
   }
 
@@ -834,9 +836,9 @@ export async function createStudent(
       id: studentId,
       tenant_id: tenantId,
       name: basic.name,
-      grade: basic.grade,
-      class: basic.class ?? "",
-      birth_date: basic.birth_date,
+      grade: basic.grade ?? null,
+      class: basic.class ?? null,
+      birth_date: basic.birth_date ?? null,
       school_id: basic.school_id ?? null,
       school_type: basic.school_type ?? null,
       division: basic.division ?? null,

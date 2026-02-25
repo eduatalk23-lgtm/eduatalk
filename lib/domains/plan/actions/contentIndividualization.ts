@@ -255,7 +255,7 @@ export async function pauseContent(
     await supabase
       .from("student_plan")
       .update({
-        container_type: "unfinished",
+        container_type: "daily",
         updated_at: new Date().toISOString(),
       })
       .eq("plan_group_id", planGroupId)

@@ -1,7 +1,7 @@
 /**
- * 플랜 상태 및 컨테이너 타입 관련 색상 유틸리티
+ * 플랜 상태 관련 색상 유틸리티
  *
- * PLAN_STATUS_OPTIONS, CONTAINER_TYPE_OPTIONS의 추상화된 색상 이름을
+ * PLAN_STATUS_OPTIONS의 추상화된 색상 이름을
  * Tailwind CSS 클래스로 변환하는 헬퍼 함수들
  */
 

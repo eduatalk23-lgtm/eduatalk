@@ -19,8 +19,20 @@ import type {
 export async function getDeletedPlanGroups(
   options: GetDeletedPlanGroupsOptions
 ): Promise<DeletedPlanGroupInfo[]> {
-  const { studentId, tenantId, plannerId, offset = 0, limit = 50, includeRestored = false } = options;
+  const { studentId, tenantId, calendarId, offset = 0, limit = 50, includeRestored = false } = options;
   const supabase = await createSupabaseServerClient();
+
+  // calendarId가 있으면 해당 캘린더의 plan_group_id 목록을 먼저 조회
+  let planGroupIds: string[] | null = null;
+  if (calendarId) {
+    const { data: groups } = await supabase
+      .from("plan_groups")
+      .select("id")
+      .eq("calendar_id", calendarId)
+      .eq("student_id", studentId);
+    planGroupIds = (groups ?? []).map((g) => g.id);
+    if (planGroupIds.length === 0) return [];
+  }
 
   let query = supabase
     .from("plan_group_backups")
@@ -33,8 +45,8 @@ export async function getDeletedPlanGroups(
     query = query.eq("tenant_id", tenantId);
   }
 
-  if (plannerId) {
-    query = query.eq("planner_id", plannerId);
+  if (planGroupIds) {
+    query = query.in("plan_group_id", planGroupIds);
   }
 
   if (!includeRestored) {
@@ -68,7 +80,7 @@ export async function getDeletedPlanGroups(
       planCount: backupData.plans?.length || 0,
       contentCount: backupData.contents?.length || 0,
       isRestored: backup.restored_at !== null,
-      plannerId: backup.planner_id ?? null,
+      calendarId: (backupData.plan_group as Record<string, unknown> | undefined)?.calendar_id as string ?? null,
     };
   });
 }
@@ -415,12 +427,24 @@ export async function permanentlyDeleteBackup(
 export async function getDeletedPlanGroupsForAdmin(
   options: GetDeletedPlanGroupsOptions
 ): Promise<DeletedPlanGroupInfo[]> {
-  const { studentId, tenantId, plannerId, offset = 0, limit = 50, includeRestored = false } = options;
+  const { studentId, tenantId, calendarId, offset = 0, limit = 50, includeRestored = false } = options;
   const supabase = createSupabaseAdminClient();
 
   if (!supabase) {
     console.error("[data/planGroups/restore] Admin client unavailable");
     return [];
+  }
+
+  // calendarId가 있으면 해당 캘린더의 plan_group_id 목록을 먼저 조회
+  let planGroupIds: string[] | null = null;
+  if (calendarId) {
+    const { data: groups } = await supabase
+      .from("plan_groups")
+      .select("id")
+      .eq("calendar_id", calendarId)
+      .eq("student_id", studentId);
+    planGroupIds = (groups ?? []).map((g) => g.id);
+    if (planGroupIds.length === 0) return [];
   }
 
   let query = supabase
@@ -434,8 +458,8 @@ export async function getDeletedPlanGroupsForAdmin(
     query = query.eq("tenant_id", tenantId);
   }
 
-  if (plannerId) {
-    query = query.eq("planner_id", plannerId);
+  if (planGroupIds) {
+    query = query.in("plan_group_id", planGroupIds);
   }
 
   if (!includeRestored) {
@@ -469,7 +493,7 @@ export async function getDeletedPlanGroupsForAdmin(
       planCount: backupData.plans?.length || 0,
       contentCount: backupData.contents?.length || 0,
       isRestored: backup.restored_at !== null,
-      plannerId: backup.planner_id ?? null,
+      calendarId: (backupData.plan_group as Record<string, unknown> | undefined)?.calendar_id as string ?? null,
     };
   });
 }

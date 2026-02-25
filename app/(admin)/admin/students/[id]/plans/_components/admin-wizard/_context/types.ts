@@ -177,7 +177,7 @@ export interface ContentAllocation {
  */
 export interface AdminWizardData {
   // 플래너 연결 (선택적)
-  plannerId?: string | null;
+  calendarId?: string | null;
 
   // Step 1: 기본 정보
   name: string;
@@ -402,7 +402,7 @@ export interface AdminPlanCreationWizardProps {
   tenantId: string;
   studentName: string;
   /** 플래너 ID (플랜 그룹 생성 시 필수) */
-  plannerId?: string;
+  calendarId?: string;
   onClose: () => void;
   onSuccess: (groupId: string, generateAI: boolean) => void;
 }

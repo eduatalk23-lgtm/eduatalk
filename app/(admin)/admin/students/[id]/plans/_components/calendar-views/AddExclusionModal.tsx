@@ -13,10 +13,9 @@ import { ko } from "date-fns/locale";
 
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/ToastProvider";
-import {
-  addPlannerExclusionAction,
-  type ExclusionType,
-} from "@/lib/domains/admin-plan/actions";
+import { addStudentExclusionForAdmin } from "@/lib/domains/admin-plan/actions";
+
+type ExclusionType = "휴가" | "개인사정" | "휴일지정" | "기타";
 
 // 제외일 유형 옵션
 const EXCLUSION_TYPES: { value: ExclusionType; label: string; description: string }[] = [
@@ -30,7 +29,7 @@ interface AddExclusionModalProps {
   isOpen: boolean;
   onClose: () => void;
   date: string;
-  plannerId: string;
+  studentId: string;
   onSuccess: () => void;
 }
 
@@ -38,7 +37,7 @@ export default function AddExclusionModal({
   isOpen,
   onClose,
   date,
-  plannerId,
+  studentId,
   onSuccess,
 }: AddExclusionModalProps) {
   const [exclusionType, setExclusionType] = useState<ExclusionType>("휴가");
@@ -61,12 +60,16 @@ export default function AddExclusionModal({
 
     startTransition(async () => {
       try {
-        await addPlannerExclusionAction(plannerId, {
-          exclusionDate: date,
-          exclusionType,
+        const result = await addStudentExclusionForAdmin(studentId, {
+          exclusion_date: date,
+          exclusion_type: exclusionType,
           reason: reason.trim() || undefined,
-          source: "manual",
         });
+
+        if (!result.success) {
+          toast.showToast(result.error ?? "제외일 추가에 실패했습니다.", "error");
+          return;
+        }
 
         toast.showToast(`${date} 제외일이 설정되었습니다.`, "success");
         onSuccess();
@@ -96,19 +99,19 @@ export default function AddExclusionModal({
       />
 
       {/* 모달 */}
-      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 animate-in fade-in-0 zoom-in-95 duration-200">
+      <div className="relative bg-[rgb(var(--color-secondary-50))] rounded-xl shadow-xl w-full max-w-md mx-4 animate-in fade-in-0 zoom-in-95 duration-200">
         {/* 헤더 */}
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div className="flex items-center gap-2">
-            <CalendarOff className="w-5 h-5 text-gray-600" />
+            <CalendarOff className="w-5 h-5 text-[var(--text-secondary)]" />
             <h2 className="text-lg font-semibold">제외일 설정</h2>
           </div>
           <button
             onClick={handleClose}
-            className="p-1 hover:bg-gray-100 rounded-md transition-colors"
+            className="p-1 hover:bg-[rgb(var(--color-secondary-100))] rounded-md transition-colors"
             disabled={isPending}
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5 text-[var(--text-tertiary)]" />
           </button>
         </div>
 
@@ -116,17 +119,17 @@ export default function AddExclusionModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {/* 날짜 표시 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
               날짜
             </label>
-            <div className="px-3 py-2 bg-gray-50 rounded-md text-gray-900">
+            <div className="px-3 py-2 bg-[rgb(var(--color-secondary-50))] rounded-md text-[var(--text-primary)]">
               {formattedDate}
             </div>
           </div>
 
           {/* 제외 유형 선택 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
               제외 유형
             </label>
             <div className="grid grid-cols-2 gap-2">
@@ -139,16 +142,16 @@ export default function AddExclusionModal({
                     "flex flex-col items-start p-3 rounded-lg border-2 transition-colors",
                     exclusionType === type.value
                       ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200 hover:border-gray-300"
+                      : "border-[rgb(var(--color-secondary-200))] hover:border-[rgb(var(--color-secondary-300))]"
                   )}
                 >
                   <span className={cn(
                     "font-medium text-sm",
-                    exclusionType === type.value ? "text-blue-700" : "text-gray-700"
+                    exclusionType === type.value ? "text-blue-700" : "text-[var(--text-secondary)]"
                   )}>
                     {type.label}
                   </span>
-                  <span className="text-xs text-gray-500 mt-0.5">
+                  <span className="text-xs text-[var(--text-tertiary)] mt-0.5">
                     {type.description}
                   </span>
                 </button>
@@ -158,8 +161,8 @@ export default function AddExclusionModal({
 
           {/* 사유 입력 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              사유 <span className="text-gray-400 font-normal">(선택)</span>
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
+              사유 <span className="text-[var(--text-tertiary)] font-normal">(선택)</span>
             </label>
             <textarea
               value={reason}
@@ -182,8 +185,8 @@ export default function AddExclusionModal({
               onClick={handleClose}
               className={cn(
                 "flex-1 px-4 py-2.5 text-sm font-medium rounded-lg",
-                "border border-gray-300 text-gray-700",
-                "hover:bg-gray-50 transition-colors",
+                "border border-[rgb(var(--color-secondary-300))] text-[var(--text-secondary)]",
+                "hover:bg-[rgb(var(--color-secondary-50))] transition-colors",
                 "disabled:opacity-50"
               )}
               disabled={isPending}

@@ -15,7 +15,7 @@ export interface DeletePlanGroupCascadeOptions {
   studentId: string;
   /** Hard delete 여부 (기본값: false, soft delete) */
   hardDelete?: boolean;
-  /** plan_exclusions 삭제 여부 (기본값: false, 전역 관리이므로 삭제하지 않음) */
+  /** 제외일 삭제 여부 (기본값: false, calendar_events 기반 전역 관리이므로 삭제하지 않음) */
   deleteExclusions?: boolean;
 }
 
@@ -30,8 +30,7 @@ export interface DeletePlanGroupCascadeResult {
  * 삭제 순서:
  * 1. student_plan 삭제 (hard delete)
  * 2. plan_contents 삭제 (hard delete)
- * 3. plan_exclusions 삭제 (옵션, 기본값: false)
- * 4. plan_groups 삭제 (hard delete 또는 soft delete)
+ * 3. plan_groups 삭제 (hard delete 또는 soft delete)
  *
  * @param groupId 플랜 그룹 ID
  * @param options 삭제 옵션
@@ -82,22 +81,7 @@ export async function deletePlanGroupCascade(
       };
     }
 
-    // 3. plan_exclusions 삭제 (옵션, 기본값: false)
-    if (deleteExclusions) {
-      const { error: deleteExclusionsError } = await supabase
-        .from("plan_exclusions")
-        .delete()
-        .eq("plan_group_id", groupId);
-
-      if (deleteExclusionsError) {
-        logActionError(
-          { domain: "plan", action: "deletePlanGroupCascade" },
-          deleteExclusionsError,
-          { groupId, step: "deleteExclusions" }
-        );
-        // exclusions 삭제 실패해도 계속 진행 (경고만)
-      }
-    }
+    // 3. 제외일은 calendar_events 기반 학생 전역 스코프이므로 플랜 그룹 삭제 시 삭제하지 않음
 
     // 4. plan_groups 삭제 (hard delete 또는 soft delete)
     if (hardDelete) {

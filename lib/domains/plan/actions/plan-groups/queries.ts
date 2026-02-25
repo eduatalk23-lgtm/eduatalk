@@ -881,24 +881,18 @@ async function _getScheduleResultData(groupId: string): Promise<{
           }));
       }
 
-      // 학원 일정은 academy_schedules 테이블에서 조회
+      // 학원 일정은 calendar_events 기반 어댑터로 조회
       try {
-        const { data: academyData } = await supabase
-          .from("academy_schedules")
-          .select(
-            "day_of_week, start_time, end_time, subject, travel_time_minutes, academy_id"
-          )
-          .eq("student_id", targetStudentId);
-
-        if (academyData) {
-          // academy_schedules 형식에 맞게 변환
-          academySchedules = academyData.map((item) => ({
+        const { getStudentAcademySchedules } = await import("@/lib/data/planGroups");
+        const schedules = await getStudentAcademySchedules(targetStudentId, tenantId);
+        if (schedules.length > 0) {
+          academySchedules = schedules.map((item) => ({
             day_of_week: item.day_of_week,
             start_time: item.start_time,
             end_time: item.end_time,
             subject: item.subject,
-            travel_time: item.travel_time_minutes ?? 0,
-            academy_name: null, // academy_id로 조회 필요시 별도 처리
+            travel_time: item.travel_time ?? 0,
+            academy_name: item.academy_name,
           }));
         }
       } catch (academyError) {

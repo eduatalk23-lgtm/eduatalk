@@ -14,12 +14,12 @@
 import { useMemo } from 'react';
 import { Book, Video, FileText, CheckCircle, Clock, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/cn';
-import { useDailyDockQuery, useWeeklyDockQuery, useUnfinishedDockQuery } from '@/lib/hooks/useAdminDockQueries';
+import { useDailyDockQuery, useOverdueDockQuery } from '@/lib/hooks/useAdminDockQueries';
 
 interface PlanTypeStatsProps {
   studentId: string;
   selectedDate: string;
-  plannerId?: string;
+  calendarId?: string;
   className?: string;
 }
 
@@ -37,18 +37,20 @@ interface TypeStat {
 export function PlanTypeStats({
   studentId,
   selectedDate,
-  plannerId,
+  calendarId,
   className,
 }: PlanTypeStatsProps) {
-  // 모든 Dock에서 플랜 데이터 가져오기
-  const { plans: dailyPlans } = useDailyDockQuery(studentId, selectedDate, plannerId);
-  const { plans: weeklyPlans } = useWeeklyDockQuery(studentId, selectedDate, plannerId);
-  const { plans: unfinishedPlans } = useUnfinishedDockQuery(studentId, plannerId);
+  const effectiveId = calendarId;
+  const useCalendarIdOpt = calendarId ? { useCalendarId: true } : undefined;
+
+  // Dock에서 플랜 데이터 가져오기
+  const { plans: dailyPlans } = useDailyDockQuery(studentId, selectedDate, effectiveId, undefined, useCalendarIdOpt);
+  const { plans: overduePlans } = useOverdueDockQuery(studentId, effectiveId, undefined, useCalendarIdOpt);
 
   // 모든 플랜 합치기
   const allPlans = useMemo(() => {
-    return [...dailyPlans, ...weeklyPlans, ...unfinishedPlans];
-  }, [dailyPlans, weeklyPlans, unfinishedPlans]);
+    return [...dailyPlans, ...overduePlans];
+  }, [dailyPlans, overduePlans]);
 
   // 유형별 통계 계산
   const typeStats: TypeStat[] = useMemo(() => {

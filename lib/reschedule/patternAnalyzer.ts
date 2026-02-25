@@ -529,9 +529,6 @@ export async function detectRescheduleNeeds(
         custom_range_display: plan.custom_range_display ?? null,
         review_group_id: plan.review_group_id ?? null,
         review_source_content_ids: plan.review_source_content_ids ?? null,
-        // Simple completion fields
-        simple_completion: plan.simple_completion ?? null,
-        simple_completed_at: plan.simple_completed_at ?? null,
         // Phase 3.1: ad-hoc 플랜 통합 지원 컬럼
         is_adhoc: plan.is_adhoc ?? null,
         description: plan.description ?? null,

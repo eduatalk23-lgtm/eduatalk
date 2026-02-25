@@ -26,7 +26,7 @@ export function AddContentWizard({
   targetDate,
   onClose,
   onSuccess,
-  plannerId,
+  calendarId,
 }: AddContentWizardProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [data, setData] = useState<AddContentWizardData>(() => initialWizardData(targetDate));
@@ -112,7 +112,7 @@ export function AddContentWizard({
 
       // 2. 배치 방식에 따른 플랜 생성
       // period 모드: 스케줄러 활용 (기존 타임라인 고려)
-      // today/weekly 모드: 기존 로직 유지
+      // today 모드: 기존 로직 유지
       const planInput = {
         flexibleContentId: contentResult.data.id,
         contentTitle: data.title.trim(),
@@ -127,8 +127,7 @@ export function AddContentWizard({
         periodEndDate: data.distributionMode === 'period' ? data.periodEnd : undefined,
         studentId,
         tenantId,
-        // 플래너 선택 강제화 - plannerId 전달 (필수)
-        plannerId,
+        calendarId,
         // today 모드에서만 스케줄러 옵션 전달
         useScheduler: data.distributionMode === 'today' ? data.useScheduler : false,
         // 학습 유형
@@ -145,12 +144,7 @@ export function AddContentWizard({
         return;
       }
 
-      const modeLabel =
-        data.distributionMode === 'today'
-          ? 'Daily'
-          : data.distributionMode === 'weekly'
-            ? 'Weekly'
-            : '기간';
+      const modeLabel = data.distributionMode === 'today' ? 'Daily' : '기간';
       showToast(`${modeLabel}에 ${planResult.data?.createdCount || 1}개 플랜 추가됨`, 'success');
       onSuccess();
     });

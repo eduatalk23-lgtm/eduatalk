@@ -3,7 +3,7 @@
 import { X, Wand2, ChevronRight, ChevronLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { AIPlanModalProvider, useAIPlanModalActions, useAIPlanModalSelectors } from './context/AIPlanModalContext';
-import { Step1PlannerSelection } from './steps/Step1PlannerSelection';
+import { Step1CalendarSelection } from './steps/Step1CalendarSelection';
 import { Step2SlotConfiguration } from './steps/Step2SlotConfiguration';
 import { Step3AIRecommendation } from './steps/Step3AIRecommendation';
 import { Step4GenerationResult } from './steps/Step4GenerationResult';
@@ -44,7 +44,7 @@ function AdminAIPlanModalV2Inner({
 }: AdminAIPlanModalV2Props) {
   const {
     currentStep,
-    selectedPlannerId,
+    selectedCalendarId,
     slots,
     confirmedCount,
     canProceedToStep3,
@@ -67,7 +67,7 @@ function AdminAIPlanModalV2Inner({
   function canProceedToNextStep(): boolean {
     switch (currentStep) {
       case 1:
-        return !!selectedPlannerId;
+        return !!selectedCalendarId;
       case 2:
         return slots.length > 0 && canProceedToStep3;
       case 3:
@@ -81,7 +81,7 @@ function AdminAIPlanModalV2Inner({
   function handleNextStep() {
     if (!canProceedToNextStep()) {
       // 에러 메시지 설정
-      if (currentStep === 1 && !selectedPlannerId) {
+      if (currentStep === 1 && !selectedCalendarId) {
         setError('플래너를 선택해주세요.');
       } else if (currentStep === 2 && slots.length === 0) {
         setError('최소 1개의 슬롯을 추가해주세요.');
@@ -179,7 +179,7 @@ function AdminAIPlanModalV2Inner({
 
           {/* 스텝별 컴포넌트 */}
           {currentStep === 1 && (
-            <Step1PlannerSelection studentId={studentId} />
+            <Step1CalendarSelection studentId={studentId} />
           )}
           {currentStep === 2 && (
             <Step2SlotConfiguration studentId={studentId} tenantId={tenantId} />

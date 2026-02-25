@@ -4,7 +4,6 @@
  * ContainerSection - 공통 컨테이너 섹션 컴포넌트
  *
  * 오늘 학습과 캘린더에서 공통으로 사용하는 컨테이너 섹션입니다.
- * 미완료(unfinished), 오늘(daily), 주간(weekly) 컨테이너 타입을 지원합니다.
  */
 
 import { ReactNode, useState } from "react";
@@ -12,7 +11,7 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { bgSurface } from "@/lib/utils/darkMode";
 
-export type ContainerSectionType = "unfinished" | "daily" | "weekly";
+export type ContainerSectionType = "daily";
 
 export interface ContainerSectionProps {
   /** 컨테이너 타입 */
@@ -37,15 +36,6 @@ export interface ContainerSectionProps {
  * 컨테이너 타입별 설정
  */
 export const containerConfig = {
-  unfinished: {
-    title: "미완료",
-    icon: "🔴",
-    borderColor: "border-red-300 dark:border-red-700",
-    headerBg: "bg-red-50 dark:bg-red-900/20",
-    headerBorder: "border-red-200 dark:border-red-800",
-    headerText: "text-red-700 dark:text-red-300",
-    priority: 1,
-  },
   daily: {
     title: "오늘 할 일",
     icon: "🔵",
@@ -53,16 +43,7 @@ export const containerConfig = {
     headerBg: "bg-blue-50 dark:bg-blue-900/20",
     headerBorder: "border-blue-200 dark:border-blue-800",
     headerText: "text-blue-700 dark:text-blue-300",
-    priority: 2,
-  },
-  weekly: {
-    title: "주간 유동",
-    icon: "🟢",
-    borderColor: "border-green-300 dark:border-green-700",
-    headerBg: "bg-green-50 dark:bg-green-900/20",
-    headerBorder: "border-green-200 dark:border-green-800",
-    headerText: "text-green-700 dark:text-green-300",
-    priority: 3,
+    priority: 1,
   },
 } as const;
 
@@ -153,15 +134,6 @@ export function ContainerSection({
 /**
  * 컨테이너 타입별 아이템 테두리 스타일을 반환합니다.
  */
-export function getContainerItemBorderClass(type: ContainerSectionType): string {
-  switch (type) {
-    case "unfinished":
-      return "border-red-200 dark:border-red-800";
-    case "daily":
-      return "border-blue-200 dark:border-blue-800";
-    case "weekly":
-      return "border-green-200 dark:border-green-800";
-    default:
-      return "border-gray-200 dark:border-gray-700";
-  }
+export function getContainerItemBorderClass(_type: ContainerSectionType): string {
+  return "border-blue-200 dark:border-blue-800";
 }

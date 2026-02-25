@@ -33,7 +33,7 @@ export type {
 } from "./planGroups/types";
 
 // Utils
-export { getSupabaseClient, getOrCreateAcademy } from "./planGroups/utils";
+export { getSupabaseClient } from "./planGroups/utils";
 
 // Core CRUD
 export {
@@ -62,23 +62,28 @@ export {
 } from "./planGroups/unifiedContent";
 export type { UnifiedContentInfo, ContentMode } from "./planGroups/unifiedContent";
 
-// Exclusions
+// Exclusions (calendar_events 기반)
 export {
-  getPlanExclusions,
-  getStudentExclusions,
-  createPlanExclusions,
-  createStudentExclusions,
-} from "./planGroups/exclusions";
+  getPlanExclusionsFromCalendar as getPlanExclusions,
+  getStudentExclusionsFromCalendar as getStudentExclusions,
+  createPlanExclusionsViaCalendar as createPlanExclusions,
+  createStudentExclusionsViaCalendar as createStudentExclusions,
+} from "./calendarExclusions";
 
-// Academies
+// Academies (calendar_events 기반 어댑터)
 export {
-  getAcademySchedules,
-  getStudentAcademySchedules,
-  getPlanGroupAcademySchedules,
-  createAcademySchedules,
-  createPlanAcademySchedules,
-  createStudentAcademySchedules,
-} from "./planGroups/academies";
+  getAcademySchedulesFromCalendar as getAcademySchedules,
+  getStudentAcademySchedulesFromCalendar as getStudentAcademySchedules,
+  getPlanGroupAcademySchedulesFromCalendar as getPlanGroupAcademySchedules,
+  createAcademySchedulesViaCalendar as createAcademySchedules,
+  createPlanAcademySchedulesViaCalendar as createPlanAcademySchedules,
+  createStudentAcademySchedulesViaCalendar as createStudentAcademySchedules,
+  // Virtual Academy CRUD (academies 테이블 대체)
+  getDistinctAcademiesFromCalendar,
+  renameAcademyViaCalendar,
+  updateAcademyTravelTimeViaCalendar,
+  deleteAcademyViaCalendar,
+} from "./calendarAcademySchedules";
 
 // Admin
 export {

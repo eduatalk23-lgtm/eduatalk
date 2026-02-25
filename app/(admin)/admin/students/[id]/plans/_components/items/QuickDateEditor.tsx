@@ -8,7 +8,7 @@ import { formatDateString } from '@/lib/date/calendarUtils';
 
 interface QuickDateEditorProps {
   planId: string;
-  planType: 'plan' | 'adhoc';
+
   currentDate: string;
   onSuccess?: () => void;
   className?: string;
@@ -16,7 +16,6 @@ interface QuickDateEditorProps {
 
 export function QuickDateEditor({
   planId,
-  planType,
   currentDate,
   onSuccess,
   className,
@@ -40,7 +39,7 @@ export function QuickDateEditor({
     }
 
     const supabase = createSupabaseBrowserClient();
-    const table = planType === 'adhoc' ? 'ad_hoc_plans' : 'student_plan';
+    const table = 'student_plan' as const;
 
     startTransition(async () => {
       const { error } = await supabase
@@ -98,7 +97,7 @@ export function QuickDateEditor({
     <button
       onClick={() => setIsEditing(true)}
       className={cn(
-        'text-xs text-gray-500 hover:text-blue-600 hover:underline cursor-pointer',
+        'text-xs text-[var(--text-tertiary)] hover:text-blue-600 hover:underline cursor-pointer',
         className
       )}
     >
@@ -109,7 +108,7 @@ export function QuickDateEditor({
 
 interface QuickTimeEditorProps {
   planId: string;
-  planType: 'plan' | 'adhoc';
+
   currentStartTime?: string | null;
   currentEndTime?: string | null;
   onSuccess?: () => void;
@@ -118,7 +117,6 @@ interface QuickTimeEditorProps {
 
 export function QuickTimeEditor({
   planId,
-  planType,
   currentStartTime,
   currentEndTime,
   onSuccess,
@@ -132,7 +130,7 @@ export function QuickTimeEditor({
 
   const handleSave = async () => {
     const supabase = createSupabaseBrowserClient();
-    const table = planType === 'adhoc' ? 'ad_hoc_plans' : 'student_plan';
+    const table = 'student_plan' as const;
 
     startTransition(async () => {
       const { error } = await supabase
@@ -172,7 +170,7 @@ export function QuickTimeEditor({
           className="px-1 py-0.5 text-xs border rounded w-20"
           placeholder="시작"
         />
-        <span className="text-xs text-gray-400">~</span>
+        <span className="text-xs text-[var(--text-tertiary)]">~</span>
         <input
           type="time"
           value={endTime}
@@ -194,7 +192,7 @@ export function QuickTimeEditor({
             setEndTime(currentEndTime ?? '');
             setIsEditing(false);
           }}
-          className="px-1.5 py-0.5 text-xs bg-gray-100 rounded hover:bg-gray-200"
+          className="px-1.5 py-0.5 text-xs bg-[rgb(var(--color-secondary-100))] rounded hover:bg-[rgb(var(--color-secondary-200))]"
         >
           ✕
         </button>
@@ -206,7 +204,7 @@ export function QuickTimeEditor({
     <button
       onClick={() => setIsEditing(true)}
       className={cn(
-        'text-xs text-gray-500 hover:text-blue-600 hover:underline cursor-pointer',
+        'text-xs text-[var(--text-tertiary)] hover:text-blue-600 hover:underline cursor-pointer',
         className
       )}
     >
@@ -220,7 +218,7 @@ interface DatePickerModalProps {
   isOpen: boolean;
   onClose: () => void;
   planId: string;
-  planType: 'plan' | 'adhoc';
+
   currentDate: string;
   onSuccess?: () => void;
 }
@@ -229,7 +227,6 @@ export function DatePickerModal({
   isOpen,
   onClose,
   planId,
-  planType,
   currentDate,
   onSuccess,
 }: DatePickerModalProps) {
@@ -249,7 +246,7 @@ export function DatePickerModal({
 
   const handleSave = async () => {
     const supabase = createSupabaseBrowserClient();
-    const table = planType === 'adhoc' ? 'ad_hoc_plans' : 'student_plan';
+    const table = 'student_plan' as const;
 
     startTransition(async () => {
       const updateData: Record<string, unknown> = {
@@ -281,7 +278,7 @@ export function DatePickerModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl p-6 w-80">
+      <div className="bg-[rgb(var(--color-secondary-50))] rounded-lg shadow-xl p-6 w-80">
         <h3 className="text-lg font-semibold mb-4">날짜 변경</h3>
 
         {/* Quick options */}
@@ -294,7 +291,7 @@ export function DatePickerModal({
                 'px-3 py-1.5 text-sm rounded-full border transition-colors',
                 selectedDate === formatDateString(date)
                   ? 'bg-blue-500 text-white border-blue-500'
-                  : 'bg-white text-gray-700 border-gray-300 hover:border-blue-500'
+                  : 'bg-[rgb(var(--color-secondary-50))] text-[var(--text-secondary)] border-[rgb(var(--color-secondary-300))] hover:border-blue-500'
               )}
             >
               {label}
@@ -304,7 +301,7 @@ export function DatePickerModal({
 
         {/* Calendar input */}
         <div className="mb-4">
-          <label className="block text-sm text-gray-600 mb-1">직접 선택</label>
+          <label className="block text-sm text-[var(--text-secondary)] mb-1">직접 선택</label>
           <input
             type="date"
             value={selectedDate}
@@ -322,7 +319,7 @@ export function DatePickerModal({
               onChange={(e) => setKeepTime(e.target.checked)}
               className="w-4 h-4 rounded"
             />
-            <span className="text-sm text-gray-700">시간 정보 유지</span>
+            <span className="text-sm text-[var(--text-secondary)]">시간 정보 유지</span>
           </label>
         </div>
 
@@ -330,7 +327,7 @@ export function DatePickerModal({
         <div className="flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+            className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] rounded-lg"
           >
             취소
           </button>

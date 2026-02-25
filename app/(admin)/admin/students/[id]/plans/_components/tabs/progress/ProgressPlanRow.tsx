@@ -29,7 +29,6 @@ export function ProgressPlanRow({ plan, onStatusChange }: ProgressPlanRowProps) 
       const result = await togglePlanComplete(
         plan.id,
         completed,
-        plan.isAdHoc,
         true // skipRevalidation: React Query로 캐시 관리하므로 revalidatePath 생략
       );
       if (!result.success) {

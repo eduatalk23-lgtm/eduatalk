@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logActionError } from "@/lib/logging/actionLogger";
-import { pausePlan } from "./timer";
+import { pauseStudySession } from "@/lib/domains/student/actions/sessions";
 import type { PlanRange, ActionResult } from "../types";
 
 /**
@@ -36,7 +36,7 @@ export async function adjustPlanRanges(
 
       // 진행 중이고 일시정지되지 않은 경우 일시정지
       if (activeSession && !activeSession.paused_at) {
-        await pausePlan(planId);
+        await pauseStudySession(activeSession.id);
       }
     }
 

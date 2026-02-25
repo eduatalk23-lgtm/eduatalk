@@ -21,8 +21,8 @@ import {
   type TimetableWeek,
   type TimetableEntry,
 } from "@/lib/utils/timetableMarkdown";
-import { resolvePrimaryCalendarId } from "@/lib/domains/calendar/helpers";
-import { extractTimeHHMM } from "@/lib/domains/calendar/adapters";
+// Calendar-First: planner.calendar_id 직접 사용
+import { extractTimeHHMM, extractDateYMD } from "@/lib/domains/calendar/adapters";
 
 type ExportRange = "today" | "week" | "planGroup" | "planner";
 
@@ -38,7 +38,7 @@ type ExportFormat = "table" | "timetable";
 
 interface RequestBody {
   studentId: string;
-  plannerId: string;
+  calendarId: string;
   planGroupId?: string;
   exportRange: ExportRange;
   selectedDate: string;
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
     const {
       studentId,
-      plannerId,
+      calendarId,
       planGroupId,
       exportRange,
       selectedDate,
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
       exportFormat = "table",
     } = body;
 
-    if (!studentId || !plannerId) {
+    if (!studentId || !calendarId) {
       return NextResponse.json(
         { success: false, error: "필수 파라미터가 누락되었습니다" },
         { status: 400 }
@@ -86,9 +86,9 @@ export async function POST(request: NextRequest) {
       .eq("id", studentId)
       .single();
 
-    // 2. 플래너 정보 조회
-    const { data: planner } = await supabase
-      .from("planners")
+    // 2. 캘린더 정보 조회 (calendar_id 기준)
+    const { data: calendar } = await supabase
+      .from("calendars")
       .select(`
         id,
         name,
@@ -98,17 +98,30 @@ export async function POST(request: NextRequest) {
         default_scheduler_options,
         study_hours,
         self_study_hours,
-        lunch_time
+        non_study_time_blocks
       `)
-      .eq("id", plannerId)
+      .eq("id", calendarId)
+      .is("deleted_at", null)
       .single();
 
-    if (!planner) {
+    if (!calendar) {
       return NextResponse.json(
-        { success: false, error: "플래너를 찾을 수 없습니다" },
+        { success: false, error: "캘린더를 찾을 수 없습니다" },
         { status: 404 }
       );
     }
+
+    // Adapt calendar to planner-like shape for downstream usage
+    const planner = {
+      name: calendar.name ?? "캘린더",
+      period_start: calendar.period_start ?? "",
+      period_end: calendar.period_end ?? "",
+      default_scheduler_type: calendar.default_scheduler_type,
+      default_scheduler_options: calendar.default_scheduler_options as Record<string, unknown> | null,
+      study_hours: calendar.study_hours as { start: string; end: string } | null,
+      self_study_hours: calendar.self_study_hours as { start: string; end: string } | null,
+      lunch_time: null as { start: string; end: string } | null,
+    };
 
     // 3. 플랜 그룹 정보 조회
     const { data: planGroups } = await supabase
@@ -122,11 +135,10 @@ export async function POST(request: NextRequest) {
         status,
         daily_schedule
       `)
-      .eq("planner_id", plannerId)
+      .eq("calendar_id", calendarId)
       .order("period_start", { ascending: true });
 
-    // 4. calendarId resolve (제외일 + 학원 조회용)
-    const calendarId = await resolvePrimaryCalendarId(plannerId);
+    // 4. Calendar-First: calendarId 직접 사용 (요청 파라미터에서 받음)
 
     // 5. 제외일 조회 (calendar_events)
     let exclusions: Array<{
@@ -170,7 +182,7 @@ export async function POST(request: NextRequest) {
       // plan_date에서 요일 추출, 요일+시간 기준 유니크하게 집약
       const scheduleMap = new Map<string, { day_of_week: number; start_time: string; end_time: string; academy_name: string | null }>();
       for (const row of data || []) {
-        const planDate = row.start_date || row.start_at?.split("T")[0] || "";
+        const planDate = row.start_date || extractDateYMD(row.start_at ?? null) || "";
         const dayOfWeek = new Date(planDate + "T00:00:00").getDay();
         const startTime = extractTimeHHMM(row.start_at) ?? "00:00";
         const endTime = extractTimeHHMM(row.end_at) ?? "00:00";
@@ -259,11 +271,11 @@ export async function POST(request: NextRequest) {
         plan_group_id,
         is_partial,
         is_continued,
-        plan_groups!inner(planner_id, name)
+        plan_groups!inner(calendar_id, name)
       `)
       .eq("student_id", studentId)
       .eq("is_active", true)
-      .eq("plan_groups.planner_id", plannerId)
+      .eq("plan_groups.calendar_id", calendarId)
       .order("plan_date", { ascending: true })
       .order("start_time", { ascending: true });
 
@@ -666,7 +678,7 @@ function generateMarkdown(data: {
     plan_group_id: string;
     is_partial: boolean | null;
     is_continued: boolean | null;
-    plan_groups: { planner_id: string; name: string } | { planner_id: string; name: string }[];
+    plan_groups: { calendar_id: string; name: string } | { calendar_id: string; name: string }[];
   }>;
   contentMap: Map<string, { title: string; content_type: string; subject?: string }>;
   exclusions: Array<{

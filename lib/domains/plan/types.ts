@@ -64,19 +64,28 @@ export type PlanContentInsert = TablesInsert<"plan_contents">;
 export type PlanContentUpdate = TablesUpdate<"plan_contents">;
 
 /**
- * 플랜 제외일 타입
+ * 플랜 제외일 타입 (calendar_events 기반)
  */
-export type PlanExclusion = Tables<"plan_exclusions">;
+export type { PlanExclusion } from "@/lib/types/plan/domain";
 
 /**
- * 플랜 제외일 생성 입력 타입
+ * 플랜 제외일 생성 입력 타입 (calendar_events 기반)
  */
-export type PlanExclusionInsert = TablesInsert<"plan_exclusions">;
+export type PlanExclusionInsert = {
+  exclusion_date: string;
+  exclusion_type?: string;
+  plan_group_id?: string | null;
+  reason?: string | null;
+};
 
 /**
- * 플랜 제외일 수정 입력 타입
+ * 플랜 제외일 수정 입력 타입 (calendar_events 기반)
  */
-export type PlanExclusionUpdate = TablesUpdate<"plan_exclusions">;
+export type PlanExclusionUpdate = {
+  exclusion_date?: string;
+  exclusion_type?: string;
+  reason?: string | null;
+};
 
 /**
  * 테넌트 블록 세트 타입
@@ -109,34 +118,59 @@ export type BlockInsert = TablesInsert<"tenant_blocks">;
 export type BlockUpdate = TablesUpdate<"tenant_blocks">;
 
 /**
- * 학원 타입
+ * 학원 타입 (가상 엔티티)
+ *
+ * @deprecated academies 테이블 제거됨. calendar_events에서 학원명 그룹핑으로 도출.
+ * VirtualAcademy (calendarAcademySchedules.ts) 사용 권장.
  */
-export type Academy = Tables<"academies">;
+export type Academy = {
+  name: string;
+  travel_time: number;
+};
 
 /**
- * 학원 생성 입력 타입
+ * 학원 일정 타입 (standalone, calendar_events 기반)
  */
-export type AcademyInsert = TablesInsert<"academies">;
+export type AcademySchedule = {
+  id: string;
+  tenant_id: string | null;
+  student_id: string;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  subject: string | null;
+  academy_name?: string | null;
+  travel_time?: number | null;
+  created_at: string;
+  updated_at: string;
+};
 
 /**
- * 학원 수정 입력 타입
+ * 학원 일정 생성 입력 타입 (standalone)
  */
-export type AcademyUpdate = TablesUpdate<"academies">;
+export type AcademyScheduleInsert = {
+  id?: string;
+  tenant_id?: string | null;
+  student_id: string;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  subject?: string | null;
+  academy_name?: string | null;
+  travel_time?: number | null;
+};
 
 /**
- * 학원 일정 타입
+ * 학원 일정 수정 입력 타입 (standalone)
  */
-export type AcademySchedule = Tables<"academy_schedules">;
-
-/**
- * 학원 일정 생성 입력 타입
- */
-export type AcademyScheduleInsert = TablesInsert<"academy_schedules">;
-
-/**
- * 학원 일정 수정 입력 타입
- */
-export type AcademyScheduleUpdate = TablesUpdate<"academy_schedules">;
+export type AcademyScheduleUpdate = {
+  day_of_week?: number;
+  start_time?: string;
+  end_time?: string;
+  subject?: string | null;
+  academy_name?: string | null;
+  travel_time?: number | null;
+};
 
 // ============================================
 // Enum 타입

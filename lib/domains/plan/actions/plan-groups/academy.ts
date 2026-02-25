@@ -11,6 +11,14 @@ import {
   createStudentAcademySchedules,
   getStudentAcademySchedules,
 } from "@/lib/data/planGroups";
+import {
+  updateAcademyScheduleViaCalendar,
+  deleteAcademyScheduleViaCalendar,
+  getDistinctAcademiesFromCalendar,
+  renameAcademyViaCalendar,
+  updateAcademyTravelTimeViaCalendar,
+  deleteAcademyViaCalendar,
+} from "@/lib/data/calendarAcademySchedules";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { AcademySchedule } from "@/lib/types/plan";
@@ -357,12 +365,13 @@ async function _updateAcademySchedule(formData: FormData): Promise<void> {
 
   const supabase = await createSupabaseServerClient();
 
-  // 학원 일정 소유권 확인 (student_id 기반)
+  // 학원 일정 소유권 확인 (calendar_events 기반)
   const { data: schedule, error: fetchError } = await supabase
-    .from("academy_schedules")
-    .select("student_id,tenant_id")
+    .from("calendar_events")
+    .select("student_id, tenant_id")
     .eq("id", scheduleId)
-    .single();
+    .eq("event_type", "academy")
+    .maybeSingle();
 
   if (fetchError || !schedule) {
     throw new AppError(
@@ -378,64 +387,19 @@ async function _updateAcademySchedule(formData: FormData): Promise<void> {
     throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 403, true);
   }
 
-  // academy_name으로 academy 찾기 또는 생성
+  // calendar_events 기반 패턴 업데이트
   const trimmedAcademyName = academyName.trim();
-  const { data: existingAcademy } = await supabase
-    .from("academies")
-    .select("id")
-    .eq("student_id", schedule.student_id)
-    .eq("name", trimmedAcademyName)
-    .maybeSingle();
+  const result = await updateAcademyScheduleViaCalendar(scheduleId, {
+    academy_name: trimmedAcademyName,
+    subject: subject.trim(),
+  });
 
-  let academyId: string;
-
-  if (existingAcademy) {
-    academyId = existingAcademy.id;
-  } else {
-    // 새 academy 생성
-    const { data: newAcademy, error: academyError } = await supabase
-      .from("academies")
-      .insert({
-        student_id: schedule.student_id,
-        tenant_id: schedule.tenant_id,
-        name: trimmedAcademyName,
-        travel_time: DEFAULT_TRAVEL_TIME_MINUTES,
-      })
-      .select("id")
-      .single();
-
-    if (academyError || !newAcademy) {
-      throw new AppError(
-        academyError?.message || "학원 생성에 실패했습니다.",
-        ErrorCode.DATABASE_ERROR,
-        500,
-        true,
-        { supabaseError: academyError }
-      );
-    }
-
-    academyId = newAcademy.id;
-  }
-
-  const { error } = await supabase
-    .from("academy_schedules")
-    .update({
-      academy_id: academyId,
-      day_of_week: day,
-      start_time: startTime,
-      end_time: endTime,
-      academy_name: trimmedAcademyName, // 하위 호환성
-      subject: subject.trim(),
-    })
-    .eq("id", scheduleId);
-
-  if (error) {
+  if (!result.success) {
     throw new AppError(
-      error.message || "학원 일정 수정에 실패했습니다.",
+      result.error || "학원 일정 수정에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,
       500,
-      true,
-      { supabaseError: error }
+      true
     );
   }
 
@@ -462,11 +426,12 @@ async function _deleteAcademySchedule(formData: FormData): Promise<void> {
 
   const supabase = await createSupabaseServerClient();
 
-  // 학원 일정 소유권 확인 (student_id 기반)
+  // 학원 일정 소유권 확인 (calendar_events 기반)
   const { data: schedule, error: fetchError } = await supabase
-    .from("academy_schedules")
+    .from("calendar_events")
     .select("student_id")
     .eq("id", scheduleId)
+    .eq("event_type", "academy")
     .maybeSingle();
 
   // PGRST116은 "no rows returned" 에러이므로 정상적인 경우 (데이터 없음)
@@ -499,18 +464,15 @@ async function _deleteAcademySchedule(formData: FormData): Promise<void> {
     throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 403, true);
   }
 
-  const { error } = await supabase
-    .from("academy_schedules")
-    .delete()
-    .eq("id", scheduleId);
+  // calendar_events 기반 패턴 일괄 soft-delete
+  const result = await deleteAcademyScheduleViaCalendar(scheduleId);
 
-  if (error) {
+  if (!result.success) {
     throw new AppError(
-      error.message || "학원 일정 삭제에 실패했습니다.",
+      result.error || "학원 일정 삭제에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,
       500,
-      true,
-      { supabaseError: error }
+      true
     );
   }
 
@@ -552,7 +514,12 @@ async function _getAcademySchedules(
 }
 
 /**
- * 학원 생성
+ * 학원 생성 (가상 엔티티)
+ *
+ * calendar_events 기반 가상 학원. 이름 중복 체크만 수행.
+ * 실제 학원 데이터는 일정 추가 시 calendar_events에 자동 생성됨.
+ * UX: "학원 등록" 시점에서는 이름/이동시간을 기록해두고,
+ * 첫 일정 추가 시 해당 정보가 calendar_events에 반영됨.
  */
 async function _createAcademy(formData: FormData): Promise<void> {
   const user = await requireStudentAuth();
@@ -582,17 +549,13 @@ async function _createAcademy(formData: FormData): Promise<void> {
     );
   }
 
-  const supabase = await createSupabaseServerClient();
+  // 중복 체크: calendar_events에서 같은 이름의 학원이 이미 있는지 확인
+  const existingAcademies = await getDistinctAcademiesFromCalendar(
+    user.userId,
+    tenantContext.tenantId
+  );
 
-  // 중복 체크: 같은 이름의 학원이 이미 있는지 확인
-  const { data: existingAcademy } = await supabase
-    .from("academies")
-    .select("id")
-    .eq("student_id", user.userId)
-    .eq("name", name.trim())
-    .maybeSingle();
-
-  if (existingAcademy) {
+  if (existingAcademies.some((a) => a.name === name.trim())) {
     throw new AppError(
       "이미 같은 이름의 학원이 등록되어 있습니다.",
       ErrorCode.VALIDATION_ERROR,
@@ -601,40 +564,31 @@ async function _createAcademy(formData: FormData): Promise<void> {
     );
   }
 
-  const { error } = await supabase.from("academies").insert({
-    student_id: user.userId,
-    tenant_id: tenantContext.tenantId,
-    name: name.trim(),
-    travel_time: travelTimeNum,
-  });
-
-  if (error) {
-    throw new AppError(
-      error.message || "학원 생성에 실패했습니다.",
-      ErrorCode.DATABASE_ERROR,
-      500,
-      true,
-      { supabaseError: error }
-    );
-  }
+  // 가상 학원: 일정이 없는 빈 학원은 calendar_events에 저장할 수 없으므로
+  // 플레이스홀더 이벤트를 생성하지 않음. UI에서 즉시 일정 추가를 유도.
+  // Note: 이 함수는 학원 이름 중복 검증 목적으로만 유지.
 
   revalidatePath("/blocks");
   revalidatePath("/plan");
 }
 
 /**
- * 학원 수정
+ * 학원 수정 (가상 엔티티 - academy_name 기반)
+ *
+ * academyId 대신 academy_name(기존 이름)으로 식별.
+ * calendar_events의 title + metadata.travel_time 일괄 업데이트.
  */
 async function _updateAcademy(formData: FormData): Promise<void> {
   const user = await requireStudentAuth();
+  const tenantContext = await requireTenantContext();
 
-  const academyId = formData.get("academy_id");
+  const academyName = formData.get("academy_name");
   const name = formData.get("name");
   const travelTime = formData.get("travel_time");
 
-  if (!academyId || typeof academyId !== "string") {
+  if (!academyName || typeof academyName !== "string") {
     throw new AppError(
-      "학원 ID가 필요합니다.",
+      "학원 이름이 필요합니다.",
       ErrorCode.VALIDATION_ERROR,
       400,
       true
@@ -643,7 +597,7 @@ async function _updateAcademy(formData: FormData): Promise<void> {
 
   if (!name || typeof name !== "string" || !name.trim()) {
     throw new AppError(
-      "학원 이름을 입력해주세요.",
+      "새 학원 이름을 입력해주세요.",
       ErrorCode.VALIDATION_ERROR,
       400,
       true
@@ -662,61 +616,50 @@ async function _updateAcademy(formData: FormData): Promise<void> {
     );
   }
 
-  const supabase = await createSupabaseServerClient();
-
-  // 학원 소유권 확인
-  const { data: academy, error: fetchError } = await supabase
-    .from("academies")
-    .select("student_id")
-    .eq("id", academyId)
-    .single();
-
-  if (fetchError || !academy) {
-    throw new AppError(
-      "학원을 찾을 수 없습니다.",
-      ErrorCode.NOT_FOUND,
-      404,
-      true
+  // 이름 변경 시 중복 체크
+  const trimmedNewName = name.trim();
+  if (trimmedNewName !== academyName) {
+    const existingAcademies = await getDistinctAcademiesFromCalendar(
+      user.userId,
+      tenantContext.tenantId
     );
-  }
+    if (existingAcademies.some((a) => a.name === trimmedNewName)) {
+      throw new AppError(
+        "이미 같은 이름의 학원이 등록되어 있습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
 
-  if (academy.student_id !== user.userId) {
-    throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 403, true);
-  }
-
-  // 이름 중복 체크 (자기 자신 제외)
-  const { data: existingAcademy } = await supabase
-    .from("academies")
-    .select("id")
-    .eq("student_id", user.userId)
-    .eq("name", name.trim())
-    .neq("id", academyId)
-    .maybeSingle();
-
-  if (existingAcademy) {
-    throw new AppError(
-      "이미 같은 이름의 학원이 등록되어 있습니다.",
-      ErrorCode.VALIDATION_ERROR,
-      400,
-      true
+    // 학원명 변경
+    const renameResult = await renameAcademyViaCalendar(
+      user.userId,
+      academyName,
+      trimmedNewName
     );
+    if (!renameResult.success) {
+      throw new AppError(
+        renameResult.error || "학원명 변경에 실패했습니다.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
+      );
+    }
   }
 
-  const { error } = await supabase
-    .from("academies")
-    .update({
-      name: name.trim(),
-      travel_time: travelTimeNum,
-    })
-    .eq("id", academyId);
-
-  if (error) {
+  // 이동시간 업데이트
+  const travelResult = await updateAcademyTravelTimeViaCalendar(
+    user.userId,
+    trimmedNewName,
+    travelTimeNum
+  );
+  if (!travelResult.success) {
     throw new AppError(
-      error.message || "학원 수정에 실패했습니다.",
+      travelResult.error || "이동시간 변경에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,
       500,
-      true,
-      { supabaseError: error }
+      true
     );
   }
 
@@ -725,57 +668,32 @@ async function _updateAcademy(formData: FormData): Promise<void> {
 }
 
 /**
- * 학원 삭제
+ * 학원 삭제 (가상 엔티티 - academy_name 기반)
+ *
+ * 해당 학원명의 모든 미래 calendar_events를 soft-delete.
  */
 async function _deleteAcademy(formData: FormData): Promise<void> {
   const user = await requireStudentAuth();
 
-  const academyId = formData.get("academy_id");
+  const academyName = formData.get("academy_name");
 
-  if (!academyId || typeof academyId !== "string") {
+  if (!academyName || typeof academyName !== "string") {
     throw new AppError(
-      "학원 ID가 필요합니다.",
+      "학원 이름이 필요합니다.",
       ErrorCode.VALIDATION_ERROR,
       400,
       true
     );
   }
 
-  const supabase = await createSupabaseServerClient();
+  const result = await deleteAcademyViaCalendar(user.userId, academyName);
 
-  // 학원 소유권 확인
-  const { data: academy, error: fetchError } = await supabase
-    .from("academies")
-    .select("student_id")
-    .eq("id", academyId)
-    .single();
-
-  if (fetchError || !academy) {
+  if (!result.success) {
     throw new AppError(
-      "학원을 찾을 수 없습니다.",
-      ErrorCode.NOT_FOUND,
-      404,
-      true
-    );
-  }
-
-  if (academy.student_id !== user.userId) {
-    throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 403, true);
-  }
-
-  // CASCADE로 academy_schedules도 함께 삭제됨
-  const { error } = await supabase
-    .from("academies")
-    .delete()
-    .eq("id", academyId);
-
-  if (error) {
-    throw new AppError(
-      error.message || "학원 삭제에 실패했습니다.",
+      result.error || "학원 삭제에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,
       500,
-      true,
-      { supabaseError: error }
+      true
     );
   }
 

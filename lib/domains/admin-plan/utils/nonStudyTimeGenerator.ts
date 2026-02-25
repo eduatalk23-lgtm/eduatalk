@@ -8,9 +8,10 @@
  */
 
 import { eachDayOfInterval, getDay, format, parseISO } from 'date-fns';
-import type { NonStudyTimeBlock } from './plannerConfigInheritance';
+import type { NonStudyTimeBlock } from './calendarConfigInheritance';
 import type { CalendarEventInsert } from '@/lib/domains/calendar/types';
 import { toTimestamptz, mapNonStudyType, mapExclusionType } from '@/lib/domains/calendar/helpers';
+import { extractTimeHHMM, extractDateYMD } from '@/lib/domains/calendar/adapters';
 
 // ============================================
 // 타입 정의
@@ -135,7 +136,6 @@ export function generateNonStudyRecordsForDateRange(
           event_subtype: eventSubtype,
           start_at: toTimestamptz(dateString, block.start_time),
           end_at: toTimestamptz(dateString, block.end_time),
-          start_date: dateString,
           is_all_day: false,
           status: 'confirmed',
           transparency: 'opaque',
@@ -164,7 +164,6 @@ export function generateNonStudyRecordsForDateRange(
           event_subtype: '이동시간',
           start_at: toTimestamptz(dateString, travelStart),
           end_at: toTimestamptz(dateString, academy.startTime),
-          start_date: dateString,
           is_all_day: false,
           status: 'confirmed',
           transparency: 'opaque',
@@ -188,7 +187,6 @@ export function generateNonStudyRecordsForDateRange(
         event_subtype: '학원',
         start_at: toTimestamptz(dateString, academy.startTime),
         end_at: toTimestamptz(dateString, academy.endTime),
-        start_date: dateString,
         is_all_day: false,
         status: 'confirmed',
         transparency: 'opaque',
@@ -331,7 +329,6 @@ export function generateRecurringNonStudyRecords(
       event_subtype: eventSubtype,
       start_at: toTimestamptz(dateString, pattern.startTime),
       end_at: toTimestamptz(dateString, pattern.endTime),
-      start_date: dateString,
       is_all_day: false,
       status: 'confirmed',
       transparency: 'opaque',
@@ -386,10 +383,10 @@ export function reconstructAcademyPatternsFromCalendarEvents(
   >();
 
   for (const rec of academyRecords) {
-    const planDate = rec.start_date || rec.start_at!.split('T')[0];
+    const planDate = rec.start_date || extractDateYMD(rec.start_at!) || '';
     const dayOfWeek = new Date(planDate + 'T00:00:00').getDay();
-    const startTime = rec.start_at!.match(/T(\d{2}:\d{2})/)?.[1] ?? '00:00';
-    const endTime = rec.end_at!.match(/T(\d{2}:\d{2})/)?.[1] ?? '00:00';
+    const startTime = extractTimeHHMM(rec.start_at!) ?? '00:00';
+    const endTime = extractTimeHHMM(rec.end_at!) ?? '00:00';
     const key = `${dayOfWeek}-${startTime}-${endTime}`;
 
     if (!patternMap.has(key)) {
@@ -398,14 +395,14 @@ export function reconstructAcademyPatternsFromCalendarEvents(
         (r) =>
           r.event_type === 'academy' &&
           r.event_subtype === '이동시간' &&
-          r.start_date === planDate &&
-          r.end_at?.match(/T(\d{2}:\d{2})/)?.[1] === startTime
+          (r.start_date ?? extractDateYMD(r.start_at ?? null)) === planDate &&
+          extractTimeHHMM(r.end_at ?? null) === startTime
       );
 
       let travelTime: number | undefined;
       if (travelRecord?.start_at && travelRecord?.end_at) {
-        const tStart = travelRecord.start_at.match(/T(\d{2}:\d{2})/)?.[1] ?? '00:00';
-        const tEnd = travelRecord.end_at.match(/T(\d{2}:\d{2})/)?.[1] ?? '00:00';
+        const tStart = extractTimeHHMM(travelRecord.start_at) ?? '00:00';
+        const tEnd = extractTimeHHMM(travelRecord.end_at) ?? '00:00';
         const [th, tm] = tStart.split(':').map(Number);
         const [eh, em] = tEnd.split(':').map(Number);
         travelTime = eh * 60 + em - (th * 60 + tm);

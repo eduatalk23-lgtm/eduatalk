@@ -147,8 +147,8 @@ export function validateUUID(id: string): boolean {
  */
 export function validateContainerType(
   containerType: string
-): containerType is 'daily' | 'weekly' | 'unfinished' {
-  return ['daily', 'weekly', 'unfinished'].includes(containerType);
+): containerType is 'daily' {
+  return containerType === 'daily';
 }
 
 /**

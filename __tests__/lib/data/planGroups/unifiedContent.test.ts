@@ -202,7 +202,7 @@ function createMockPlanGroup(overrides: Partial<PlanGroup> = {}): PlanGroup {
     period_end: "2025-01-31",
     target_date: null,
     block_set_id: null,
-    planner_id: "planner-1",
+    calendar_id: "calendar-1",
     status: "active",
     deleted_at: null,
     study_hours: null,

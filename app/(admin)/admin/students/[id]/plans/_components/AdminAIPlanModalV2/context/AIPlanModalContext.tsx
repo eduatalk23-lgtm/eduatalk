@@ -16,7 +16,7 @@ import {
 
 const initialState: ModalState = {
   currentStep: 1,
-  selectedPlannerId: null,
+  selectedCalendarId: null,
   slots: [],
   periodStart: '',
   periodEnd: '',
@@ -34,8 +34,8 @@ function modalReducer(state: ModalState, action: ModalAction): ModalState {
     case 'SET_STEP':
       return { ...state, currentStep: action.step, error: null };
 
-    case 'SET_PLANNER':
-      return { ...state, selectedPlannerId: action.plannerId, error: null };
+    case 'SET_CALENDAR':
+      return { ...state, selectedCalendarId: action.calendarId, error: null };
 
     case 'SET_PERIOD':
       return {
@@ -239,20 +239,20 @@ const AIPlanModalContext = createContext<AIPlanModalContextValue | null>(null);
 
 interface AIPlanModalProviderProps {
   children: ReactNode;
-  initialPlannerId?: string | null;
+  initialCalendarId?: string | null;
   initialPeriodStart?: string;
   initialPeriodEnd?: string;
 }
 
 export function AIPlanModalProvider({
   children,
-  initialPlannerId,
+  initialCalendarId,
   initialPeriodStart,
   initialPeriodEnd,
 }: AIPlanModalProviderProps) {
   const [state, dispatch] = useReducer(modalReducer, {
     ...initialState,
-    selectedPlannerId: initialPlannerId ?? null,
+    selectedCalendarId: initialCalendarId ?? null,
     periodStart: initialPeriodStart ?? '',
     periodEnd: initialPeriodEnd ?? '',
   });
@@ -289,8 +289,8 @@ export function useAIPlanModalActions() {
     nextStep: () => dispatch({ type: 'SET_STEP', step: 2 }), // Placeholder
     prevStep: () => dispatch({ type: 'SET_STEP', step: 1 }), // Placeholder
 
-    // 플래너 관련
-    setPlanner: (plannerId: string) => dispatch({ type: 'SET_PLANNER', plannerId }),
+    // 캘린더 관련
+    setCalendar: (calendarId: string) => dispatch({ type: 'SET_CALENDAR', calendarId }),
     setPeriod: (periodStart: string, periodEnd: string) =>
       dispatch({ type: 'SET_PERIOD', periodStart, periodEnd }),
 
@@ -360,7 +360,7 @@ export function useAIPlanModalSelectors() {
 
     // 상태 관련
     currentStep: state.currentStep,
-    selectedPlannerId: state.selectedPlannerId,
+    selectedCalendarId: state.selectedCalendarId,
     periodStart: state.periodStart,
     periodEnd: state.periodEnd,
     isLoading: state.isLoading,

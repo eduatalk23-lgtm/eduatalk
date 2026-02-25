@@ -33,7 +33,7 @@ import type { WebSearchResult } from "../providers/base";
 import type { VirtualContentItem } from "./searchContent";
 import { createBook, createLecture } from "@/lib/data/studentContents";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getOrCreateDefaultPlannerAction } from "@/lib/domains/plan/actions/planners/autoCreate";
+import { ensureStudentPrimaryCalendar } from "@/lib/domains/calendar/helpers";
 
 /**
  * 에러 메시지 추출 헬퍼
@@ -202,7 +202,7 @@ async function _generateHybridPlanComplete(
   const supabaseForValidation = await createSupabaseServerClient();
   const { data: planGroup, error: planGroupError } = await supabaseForValidation
     .from("plan_groups")
-    .select("id, name, planner_id, is_single_content, content_type, content_id, start_range, end_range")
+    .select("id, name, calendar_id, is_single_content, content_type, content_id, start_range, end_range")
     .eq("id", input.planGroupId)
     .single();
 
@@ -215,74 +215,27 @@ async function _generateHybridPlanComplete(
     );
   }
 
-  // Phase 3: 플래너 연결 확인 (검증 모드에 따라 다르게 처리)
-  const validationMode = input.plannerValidationMode ?? "warn";
+  // Calendar-First: 캘린더 연결 확인 및 자동 연결
+  if (!planGroup.calendar_id) {
+    try {
+      const calendarId = await ensureStudentPrimaryCalendar(input.student.id, tenant.tenantId);
+      const { error: updateError } = await supabaseForValidation
+        .from("plan_groups")
+        .update({ calendar_id: calendarId })
+        .eq("id", input.planGroupId);
 
-  if (!planGroup.planner_id) {
-    if (validationMode === "strict") {
-      // strict 모드: 플래너 미연결 시 에러 반환
-      return {
-        success: false,
-        error: "플래너 미연결 Plan Group입니다. 플래너를 먼저 연결하세요.",
-        errorPhase: "ai_framework",
-      };
-    }
-
-    if (validationMode === "auto_create") {
-      // auto_create 모드: 플래너 자동 생성 후 Plan Group 업데이트
-      try {
-        // getOrCreateDefaultPlannerAction은 성공 시 직접 결과 반환, 실패 시 throw
-        const plannerResult = await getOrCreateDefaultPlannerAction({
-          studentId: input.student.id,
-          periodStart: input.period.startDate,
-          periodEnd: input.period.endDate,
-        });
-
-        const { error: updateError } = await supabaseForValidation
-          .from("plan_groups")
-          .update({ planner_id: plannerResult.plannerId })
-          .eq("id", input.planGroupId);
-
-        if (!updateError) {
-          logActionDebug(
-            { domain: "plan", action: "generateHybridPlanComplete" },
-            "플래너 자동 생성 및 연결 완료",
-            {
-              planGroupId: input.planGroupId,
-              plannerId: plannerResult.plannerId,
-              isNewPlanner: plannerResult.isNew,
-            }
-          );
-        } else {
-          logActionWarn(
-            { domain: "plan", action: "generateHybridPlanComplete" },
-            "플래너 연결 실패 (계속 진행)",
-            { error: updateError.message }
-          );
-        }
-      } catch (plannerError) {
-        logActionWarn(
+      if (!updateError) {
+        logActionDebug(
           { domain: "plan", action: "generateHybridPlanComplete" },
-          "플래너 자동 생성 실패 (계속 진행)",
-          { error: plannerError instanceof Error ? plannerError.message : "Unknown error" }
+          "캘린더 자동 연결 완료",
+          { planGroupId: input.planGroupId, calendarId }
         );
       }
-    } else {
-      // warn 모드 (기본값): 경고만 로깅, 레거시 호환성 유지
-      // P3-3: 레거시 데이터 경고 개선
+    } catch {
       logActionWarn(
         { domain: "plan", action: "generateHybridPlanComplete" },
-        "[레거시] 플래너 미연결 Plan Group에서 AI 플랜 생성",
-        {
-          planGroupId: input.planGroupId,
-          planGroupName: planGroup.name,
-          studentId: input.student.id,
-          legacyInfo: {
-            reason: "플래너 없이 생성된 Plan Group (레거시 워크플로우)",
-            recommendation: "plannerValidationMode: 'auto_create' 사용 권장",
-            impact: "학생별 학습 계획 통합 관리 불가",
-          },
-        }
+        "캘린더 연결 실패 (계속 진행)",
+        { planGroupId: input.planGroupId }
       );
     }
   }

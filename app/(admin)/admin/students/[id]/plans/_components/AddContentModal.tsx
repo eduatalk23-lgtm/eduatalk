@@ -14,19 +14,19 @@ interface AddContentModalProps {
   studentId: string;
   tenantId: string;
   targetDate: string;
-  /** 플래너 ID (필수 - Plan Group 자동 생성 시 연결) */
-  plannerId: string;
+  /** 캘린더 ID */
+  calendarId?: string;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-type DistributionMode = 'today' | 'period' | 'weekly';
+type DistributionMode = 'today' | 'period';
 
 export function AddContentModal({
   studentId,
   tenantId,
   targetDate,
-  plannerId,
+  calendarId,
   onClose,
   onSuccess,
 }: AddContentModalProps) {
@@ -111,7 +111,7 @@ export function AddContentModal({
         periodEndDate: distributionMode === 'period' ? periodEnd : undefined,
         studentId,
         tenantId,
-        plannerId,
+        calendarId,
         // today 모드에서만 스케줄러 옵션 전달
         useScheduler: distributionMode === 'today' ? useScheduler : false,
       };
@@ -126,7 +126,7 @@ export function AddContentModal({
         return;
       }
 
-      const modeLabel = distributionMode === 'today' ? 'Daily' : distributionMode === 'weekly' ? 'Weekly' : '기간';
+      const modeLabel = distributionMode === 'today' ? 'Daily' : '기간';
       showToast(`${modeLabel}에 ${planResult.data?.createdCount || 1}개 플랜 추가됨`, 'success');
       onSuccess();
     });
@@ -386,21 +386,6 @@ export function AddContentModal({
                 </div>
               </label>
 
-              <label
-                className={cn(
-                  'flex items-center gap-3 p-3 border rounded-lg cursor-pointer',
-                  distributionMode === 'weekly' && 'border-blue-500 bg-blue-50'
-                )}
-              >
-                <input
-                  type="radio"
-                  checked={distributionMode === 'weekly'}
-                  onChange={() => setDistributionMode('weekly')}
-                />
-                <div>
-                  <div className="font-medium">Weekly Dock에 추가 (유동)</div>
-                </div>
-              </label>
             </div>
           </div>
 

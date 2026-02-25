@@ -153,7 +153,7 @@ async function fetchExistingPlans(
   periodStart: string,
   periodEnd: string,
   excludePlanGroupId: string,
-  plannerId?: string | null
+  calendarId?: string | null
 ): Promise<ExistingPlanInfo[]> {
   const supabase = await createSupabaseServerClient();
 
@@ -165,8 +165,8 @@ async function fetchExistingPlans(
   }> | null = null;
   let error: { message: string } | null = null;
 
-  if (plannerId) {
-    // 플래너 ID가 있으면 같은 플래너의 플랜만 조회 (다른 플래너 플랜 무시)
+  if (calendarId) {
+    // 캘린더 ID가 있으면 같은 캘린더의 플랜만 조회
     const result = await supabase
       .from("student_plan")
       .select(`
@@ -174,14 +174,14 @@ async function fetchExistingPlans(
         plan_date,
         start_time,
         end_time,
-        plan_groups!inner(planner_id)
+        plan_groups!inner(calendar_id)
       `)
       .eq("student_id", studentId)
       .gte("plan_date", periodStart)
       .lte("plan_date", periodEnd)
       .neq("plan_group_id", excludePlanGroupId)
       .eq("is_active", true)
-      .eq("plan_groups.planner_id", plannerId);
+      .eq("plan_groups.calendar_id", calendarId);
     data = result.data;
     error = result.error;
   } else {
@@ -494,7 +494,7 @@ export async function preparePlanGenerationData(
     group.period_start,
     group.period_end,
     groupId,
-    group.planner_id
+    group.calendar_id
   );
 
   // 기존 플랜을 날짜별로 그룹화 (시간 차감용 - 이후 스케줄러 및 시간 할당에서 재사용)

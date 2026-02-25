@@ -21,7 +21,17 @@ import {
   getStudentAcademySchedules,
   getStudentExclusions,
 } from "@/lib/data/planGroups";
-import type { AcademySchedule, PlanExclusion, Academy } from "@/lib/types/plan/domain";
+import {
+  updateAcademyScheduleViaCalendar,
+  deleteAcademyScheduleViaCalendar,
+  createStudentAcademySchedulesViaCalendar,
+  getDistinctAcademiesFromCalendar,
+  renameAcademyViaCalendar,
+  updateAcademyTravelTimeViaCalendar,
+  deleteAcademyViaCalendar,
+  type VirtualAcademy,
+} from "@/lib/data/calendarAcademySchedules";
+import type { AcademySchedule, PlanExclusion } from "@/lib/types/plan/domain";
 
 // ============================================
 // 타입 정의
@@ -93,9 +103,14 @@ export interface UpdateAcademyInput {
 }
 
 /**
- * 학원과 일정을 함께 반환하는 타입
+ * 학원과 일정을 함께 반환하는 타입 (가상 엔티티 - name 기반)
  */
-export interface AcademyWithSchedules extends Academy {
+export interface AcademyWithSchedules {
+  /** 학원명 (고유 식별자 역할) */
+  name: string;
+  /** 이동시간 (분) */
+  travel_time: number;
+  /** 학원 일정 목록 */
   schedules: AcademySchedule[];
 }
 
@@ -259,8 +274,27 @@ export async function addStudentExclusionForAdmin(
     // 영어 입력 (holiday, personal, event 등) → 한국어 DB 값 (휴일지정, 개인사정, 기타 등)
     const koreanExclusionType = mapExclusionTypeToKorean(exclusion.exclusion_type);
 
+    // Calendar-First: student → primary calendar 직접 조회
+    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+    const adminClient = createSupabaseAdminClient();
+    if (!adminClient) {
+      return { success: false, error: "관리자 클라이언트를 생성할 수 없습니다." };
+    }
+    const { data: calendar } = await adminClient
+      .from("calendars")
+      .select("id")
+      .eq("owner_id", studentId)
+      .eq("is_student_primary", true)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (!calendar?.id) {
+      return { success: false, error: "학생의 캘린더를 찾을 수 없습니다." };
+    }
+
     // 데이터 레이어 함수 호출 (useAdminClient = true)
     const result = await createStudentExclusions(
+      calendar.id,
       studentId,
       tenantId,
       [
@@ -348,6 +382,8 @@ export async function getStudentAcademySchedulesForAdmin(
 
 /**
  * 학생 학원 목록 조회 (일정 포함, 관리자용)
+ *
+ * calendar_events에서 학원명 그룹핑으로 가상 학원 목록을 도출합니다.
  */
 export async function getStudentAcademiesWithSchedulesForAdmin(
   studentId: string
@@ -359,60 +395,37 @@ export async function getStudentAcademiesWithSchedulesForAdmin(
       return { success: false, error: "학생 ID가 필요합니다." };
     }
 
-    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
-    const adminClient = createSupabaseAdminClient();
+    // calendar_events에서 가상 학원 목록 조회
+    const virtualAcademies = await getDistinctAcademiesFromCalendar(
+      studentId,
+      tenantId,
+      { useAdminClient: true }
+    );
 
-    if (!adminClient) {
-      return { success: false, error: "Admin client를 초기화할 수 없습니다." };
+    // calendar_events 기반 학원 일정 패턴 조회
+    const allSchedules = await getStudentAcademySchedules(
+      studentId,
+      tenantId,
+      { useAdminClient: true }
+    );
+
+    // 학원명 기준으로 일정 그룹핑
+    const schedulesByAcademyName = new Map<string, AcademySchedule[]>();
+    for (const schedule of allSchedules) {
+      const name = schedule.academy_name || "학원";
+      const existing = schedulesByAcademyName.get(name) ?? [];
+      existing.push(schedule);
+      schedulesByAcademyName.set(name, existing);
     }
 
-    // 학원 목록 조회
-    let academyQuery = adminClient
-      .from("academies")
-      .select("*")
-      .eq("student_id", studentId)
-      .order("created_at", { ascending: true });
-
-    if (tenantId) {
-      academyQuery = academyQuery.or(`tenant_id.eq.${tenantId},tenant_id.is.null`);
-    }
-
-    const { data: academies, error: academyError } = await academyQuery;
-
-    if (academyError) {
-      console.error("[getStudentAcademiesWithSchedulesForAdmin] Academy Error:", academyError);
-      return { success: false, error: "학원 목록 조회에 실패했습니다." };
-    }
-
-    // 각 학원의 일정 조회
-    const academiesWithSchedules: AcademyWithSchedules[] = [];
-
-    for (const academy of academies || []) {
-      let scheduleQuery = adminClient
-        .from("academy_schedules")
-        .select("*")
-        .eq("academy_id", academy.id)
-        .order("day_of_week", { ascending: true })
-        .order("start_time", { ascending: true });
-
-      const { data: schedules, error: scheduleError } = await scheduleQuery;
-
-      if (scheduleError) {
-        console.error("[getStudentAcademiesWithSchedulesForAdmin] Schedule Error:", scheduleError);
-        continue;
-      }
-
-      academiesWithSchedules.push({
-        id: academy.id,
-        tenant_id: academy.tenant_id,
-        student_id: academy.student_id,
-        name: academy.name,
-        travel_time: academy.travel_time ?? 60,
-        created_at: academy.created_at ?? new Date().toISOString(),
-        updated_at: academy.updated_at ?? new Date().toISOString(),
-        schedules: (schedules || []) as AcademySchedule[],
-      });
-    }
+    // 가상 학원 → AcademyWithSchedules 변환
+    const academiesWithSchedules: AcademyWithSchedules[] = virtualAcademies.map(
+      (va) => ({
+        name: va.name,
+        travel_time: va.travel_time,
+        schedules: schedulesByAcademyName.get(va.name) ?? [],
+      })
+    );
 
     return { success: true, data: academiesWithSchedules };
   } catch (error) {
@@ -456,21 +469,24 @@ export async function updateStudentExclusionForAdmin(
       if (!dateRegex.test(data.exclusion_date)) {
         return { success: false, error: "날짜 형식이 올바르지 않습니다. (YYYY-MM-DD)" };
       }
-      updateData.exclusion_date = data.exclusion_date;
+      updateData.start_date = data.exclusion_date;
+      updateData.end_date = data.exclusion_date;
     }
 
     if (data.exclusion_type) {
-      updateData.exclusion_type = mapExclusionTypeToKorean(data.exclusion_type);
+      updateData.event_subtype = mapExclusionTypeToKorean(data.exclusion_type);
     }
 
     if (data.reason !== undefined) {
-      updateData.reason = data.reason;
+      updateData.title = data.reason;
     }
 
     const { error } = await adminClient
-      .from("plan_exclusions")
+      .from("calendar_events")
       .update(updateData)
-      .eq("id", exclusionId);
+      .eq("id", exclusionId)
+      .eq("event_type", "exclusion")
+      .is("deleted_at", null);
 
     if (error) {
       console.error("[updateStudentExclusionForAdmin] Error:", error);
@@ -507,10 +523,16 @@ export async function deleteStudentExclusionForAdmin(
       return { success: false, error: "Admin client를 초기화할 수 없습니다." };
     }
 
+    // soft delete
     const { error } = await adminClient
-      .from("plan_exclusions")
-      .delete()
-      .eq("id", exclusionId);
+      .from("calendar_events")
+      .update({
+        deleted_at: new Date().toISOString(),
+        status: "cancelled",
+      })
+      .eq("id", exclusionId)
+      .eq("event_type", "exclusion")
+      .is("deleted_at", null);
 
     if (error) {
       console.error("[deleteStudentExclusionForAdmin] Error:", error);
@@ -541,47 +563,25 @@ export async function updateAcademyScheduleForAdmin(
       return { success: false, error: "일정 ID가 필요합니다." };
     }
 
-    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
-    const adminClient = createSupabaseAdminClient();
-
-    if (!adminClient) {
-      return { success: false, error: "Admin client를 초기화할 수 없습니다." };
-    }
-
-    const updateData: Record<string, unknown> = {};
-
+    // 입력 검증
     if (data.day_of_week !== undefined) {
       if (data.day_of_week < 0 || data.day_of_week > 6) {
         return { success: false, error: "요일은 0(일요일)부터 6(토요일) 사이여야 합니다." };
       }
-      updateData.day_of_week = data.day_of_week;
     }
 
-    if (data.start_time) {
-      updateData.start_time = data.start_time;
-    }
-
-    if (data.end_time) {
-      updateData.end_time = data.end_time;
-    }
-
-    if (data.subject !== undefined) {
-      updateData.subject = data.subject;
-    }
-
-    // 시간 검증
     if (data.start_time && data.end_time && data.start_time >= data.end_time) {
       return { success: false, error: "종료 시간은 시작 시간보다 이후여야 합니다." };
     }
 
-    const { error } = await adminClient
-      .from("academy_schedules")
-      .update(updateData)
-      .eq("id", scheduleId);
+    // calendar_events 기반 패턴 일괄 업데이트
+    const result = await updateAcademyScheduleViaCalendar(scheduleId, {
+      subject: data.subject,
+    });
 
-    if (error) {
-      console.error("[updateAcademyScheduleForAdmin] Error:", error);
-      return { success: false, error: "일정 수정에 실패했습니다." };
+    if (!result.success) {
+      console.error("[updateAcademyScheduleForAdmin] Error:", result.error);
+      return { success: false, error: result.error || "일정 수정에 실패했습니다." };
     }
 
     return { success: true };
@@ -607,21 +607,12 @@ export async function deleteAcademyScheduleForAdmin(
       return { success: false, error: "일정 ID가 필요합니다." };
     }
 
-    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
-    const adminClient = createSupabaseAdminClient();
+    // calendar_events 기반 패턴 일괄 soft-delete
+    const result = await deleteAcademyScheduleViaCalendar(scheduleId);
 
-    if (!adminClient) {
-      return { success: false, error: "Admin client를 초기화할 수 없습니다." };
-    }
-
-    const { error } = await adminClient
-      .from("academy_schedules")
-      .delete()
-      .eq("id", scheduleId);
-
-    if (error) {
-      console.error("[deleteAcademyScheduleForAdmin] Error:", error);
-      return { success: false, error: "일정 삭제에 실패했습니다." };
+    if (!result.success) {
+      console.error("[deleteAcademyScheduleForAdmin] Error:", result.error);
+      return { success: false, error: result.error || "일정 삭제에 실패했습니다." };
     }
 
     return { success: true };
@@ -639,12 +630,15 @@ export async function deleteAcademyScheduleForAdmin(
 // ============================================
 
 /**
- * 학원 생성 (관리자용)
+ * 학원 생성 (관리자용, 가상 엔티티)
+ *
+ * calendar_events 기반 가상 학원. 이름 중복 검증만 수행.
+ * 실제 학원 데이터는 일정 추가 시 calendar_events에 자동 생성됨.
  */
 export async function createAcademyForAdmin(
   studentId: string,
   data: CreateAcademyInput
-): Promise<TimeManagementActionResult<Academy>> {
+): Promise<TimeManagementActionResult<AcademyWithSchedules>> {
   try {
     const { tenantId } = await checkAdminOrConsultant();
 
@@ -656,31 +650,26 @@ export async function createAcademyForAdmin(
       return { success: false, error: "학원명을 입력해주세요." };
     }
 
-    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
-    const adminClient = createSupabaseAdminClient();
+    // 중복 체크
+    const existingAcademies = await getDistinctAcademiesFromCalendar(
+      studentId,
+      tenantId,
+      { useAdminClient: true }
+    );
 
-    if (!adminClient) {
-      return { success: false, error: "Admin client를 초기화할 수 없습니다." };
+    if (existingAcademies.some((a) => a.name === data.name.trim())) {
+      return { success: false, error: "이미 같은 이름의 학원이 등록되어 있습니다." };
     }
 
-    const { data: academy, error } = await adminClient
-      .from("academies")
-      .insert({
-        tenant_id: tenantId,
-        student_id: studentId,
-        name: data.name.trim(),
-        travel_time: data.travel_time ?? 60,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error("[createAcademyForAdmin] Error:", error);
-      return { success: false, error: "학원 생성에 실패했습니다." };
-    }
+    // 가상 학원 반환 (UI에서 로컬 상태에 추가)
+    const virtualAcademy: AcademyWithSchedules = {
+      name: data.name.trim(),
+      travel_time: data.travel_time ?? 60,
+      schedules: [],
+    };
 
     revalidatePath(`/admin/students/${studentId}`);
-    return { success: true, data: academy as Academy };
+    return { success: true, data: virtualAcademy };
   } catch (error) {
     console.error("[createAcademyForAdmin] Error:", error);
     if (error instanceof AppError) {
@@ -691,47 +680,53 @@ export async function createAcademyForAdmin(
 }
 
 /**
- * 학원 수정 (관리자용)
+ * 학원 수정 (관리자용, 가상 엔티티 - name 기반)
+ *
+ * @param studentId - 학생 ID
+ * @param currentName - 현재 학원명 (식별자)
+ * @param data - 변경할 데이터
  */
 export async function updateAcademyForAdmin(
-  academyId: string,
+  studentId: string,
+  currentName: string,
   data: UpdateAcademyInput
 ): Promise<TimeManagementActionResult> {
   try {
     await checkAdminOrConsultant();
 
-    if (!academyId) {
-      return { success: false, error: "학원 ID가 필요합니다." };
+    if (!studentId || !currentName) {
+      return { success: false, error: "학생 ID와 학원명이 필요합니다." };
     }
 
-    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
-    const adminClient = createSupabaseAdminClient();
-
-    if (!adminClient) {
-      return { success: false, error: "Admin client를 초기화할 수 없습니다." };
-    }
-
-    const updateData: Record<string, unknown> = {};
-
-    if (data.name !== undefined) {
+    // 이름 변경
+    if (data.name !== undefined && data.name.trim() !== currentName) {
       if (!data.name || data.name.trim() === "") {
         return { success: false, error: "학원명을 입력해주세요." };
       }
-      updateData.name = data.name.trim();
+
+      const result = await renameAcademyViaCalendar(
+        studentId,
+        currentName,
+        data.name.trim(),
+        true // useAdminClient
+      );
+      if (!result.success) {
+        return { success: false, error: result.error || "학원명 변경에 실패했습니다." };
+      }
     }
 
+    // 이동시간 변경
     if (data.travel_time !== undefined) {
-      updateData.travel_time = data.travel_time;
-    }
-
-    const { error } = await adminClient
-      .from("academies")
-      .update(updateData)
-      .eq("id", academyId);
-
-    if (error) {
-      console.error("[updateAcademyForAdmin] Error:", error);
-      return { success: false, error: "학원 수정에 실패했습니다." };
+      const effectiveName = data.name?.trim() || currentName;
+      const result = await updateAcademyTravelTimeViaCalendar(
+        studentId,
+        effectiveName,
+        data.travel_time,
+        true // useAdminClient
+      );
+      if (!result.success) {
+        return { success: false, error: result.error || "이동시간 변경에 실패했습니다." };
+      }
     }
 
     return { success: true };
@@ -745,45 +740,29 @@ export async function updateAcademyForAdmin(
 }
 
 /**
- * 학원 삭제 (관리자용) - cascade로 일정도 함께 삭제
+ * 학원 삭제 (관리자용, 가상 엔티티 - name 기반)
+ *
+ * calendar_events에서 해당 학원명의 모든 미래 이벤트를 soft-delete.
  */
 export async function deleteAcademyForAdmin(
-  academyId: string
+  studentId: string,
+  academyName: string
 ): Promise<TimeManagementActionResult> {
   try {
     await checkAdminOrConsultant();
 
-    if (!academyId) {
-      return { success: false, error: "학원 ID가 필요합니다." };
+    if (!studentId || !academyName) {
+      return { success: false, error: "학생 ID와 학원명이 필요합니다." };
     }
 
-    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
-    const adminClient = createSupabaseAdminClient();
+    const result = await deleteAcademyViaCalendar(
+      studentId,
+      academyName,
+      true // useAdminClient
+    );
 
-    if (!adminClient) {
-      return { success: false, error: "Admin client를 초기화할 수 없습니다." };
-    }
-
-    // 학원에 연결된 일정 먼저 삭제
-    const { error: scheduleError } = await adminClient
-      .from("academy_schedules")
-      .delete()
-      .eq("academy_id", academyId);
-
-    if (scheduleError) {
-      console.error("[deleteAcademyForAdmin] Schedule Delete Error:", scheduleError);
-      return { success: false, error: "학원 일정 삭제에 실패했습니다." };
-    }
-
-    // 학원 삭제
-    const { error } = await adminClient
-      .from("academies")
-      .delete()
-      .eq("id", academyId);
-
-    if (error) {
-      console.error("[deleteAcademyForAdmin] Error:", error);
-      return { success: false, error: "학원 삭제에 실패했습니다." };
+    if (!result.success) {
+      return { success: false, error: result.error || "학원 삭제에 실패했습니다." };
     }
 
     return { success: true };
@@ -797,17 +776,22 @@ export async function deleteAcademyForAdmin(
 }
 
 /**
- * 학원 일정 추가 (관리자용) - 기존 학원에 일정 추가
+ * 학원 일정 추가 (관리자용, 가상 엔티티 - name 기반)
+ *
+ * @param studentId - 학생 ID
+ * @param academyName - 학원명
+ * @param schedule - 일정 정보
  */
 export async function addAcademyScheduleForAdmin(
-  academyId: string,
+  studentId: string,
+  academyName: string,
   schedule: Omit<AddAcademyScheduleInput, "academy_name">
 ): Promise<TimeManagementActionResult> {
   try {
     const { tenantId } = await checkAdminOrConsultant();
 
-    if (!academyId) {
-      return { success: false, error: "학원 ID가 필요합니다." };
+    if (!studentId || !academyName) {
+      return { success: false, error: "학생 ID와 학원명이 필요합니다." };
     }
 
     // 입력 검증
@@ -823,43 +807,26 @@ export async function addAcademyScheduleForAdmin(
       return { success: false, error: "종료 시간은 시작 시간보다 이후여야 합니다." };
     }
 
-    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
-    const adminClient = createSupabaseAdminClient();
-
-    if (!adminClient) {
-      return { success: false, error: "Admin client를 초기화할 수 없습니다." };
-    }
-
-    // 학원 정보 조회 (student_id 확인)
-    const { data: academy, error: academyError } = await adminClient
-      .from("academies")
-      .select("student_id, name")
-      .eq("id", academyId)
-      .single();
-
-    if (academyError || !academy) {
-      return { success: false, error: "학원을 찾을 수 없습니다." };
-    }
-
-    const { error } = await adminClient
-      .from("academy_schedules")
-      .insert({
-        tenant_id: tenantId,
-        student_id: academy.student_id,
-        academy_id: academyId,
-        academy_name: academy.name,
+    // calendar_events 기반 학원 일정 생성
+    const result = await createStudentAcademySchedulesViaCalendar(
+      studentId,
+      tenantId,
+      [{
         day_of_week: schedule.day_of_week,
         start_time: schedule.start_time,
         end_time: schedule.end_time,
+        academy_name: academyName,
         subject: schedule.subject || null,
-      });
+      }],
+      true // useAdminClient
+    );
 
-    if (error) {
-      console.error("[addAcademyScheduleForAdmin] Error:", error);
-      return { success: false, error: "일정 추가에 실패했습니다." };
+    if (!result.success) {
+      console.error("[addAcademyScheduleForAdmin] Error:", result.error);
+      return { success: false, error: result.error || "일정 추가에 실패했습니다." };
     }
 
-    revalidatePath(`/admin/students/${academy.student_id}`);
+    revalidatePath(`/admin/students/${studentId}`);
     return { success: true };
   } catch (error) {
     console.error("[addAcademyScheduleForAdmin] Error:", error);

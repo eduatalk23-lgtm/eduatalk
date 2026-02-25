@@ -7,6 +7,7 @@
 export {
   getStudentPaymentsAction,
   createPaymentAction,
+  createInstallmentPaymentsAction,
   confirmPaymentAction,
   deletePaymentAction,
 } from "./payment";

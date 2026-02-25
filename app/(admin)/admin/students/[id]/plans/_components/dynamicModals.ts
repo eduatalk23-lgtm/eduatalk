@@ -18,11 +18,6 @@ export const AddContentWizard = dynamic(
   { ssr: false }
 );
 
-export const AddAdHocModal = dynamic(
-  () => import('./AddAdHocModal').then((mod) => ({ default: mod.AddAdHocModal })),
-  { ssr: false }
-);
-
 export const RedistributeModal = dynamic(
   () => import('./RedistributeModal').then((mod) => ({ default: mod.RedistributeModal })),
   { ssr: false }
@@ -135,5 +130,10 @@ export const BatchOperationsModal = dynamic(
 
 export const AdminBlockSetCreateModal = dynamic(
   () => import('./modals/AdminBlockSetCreateModal').then((mod) => ({ default: mod.AdminBlockSetCreateModal })),
+  { ssr: false }
+);
+
+export const EventEditModal = dynamic(
+  () => import('./modals/EventEditModal').then((mod) => ({ default: mod.EventEditModal })),
   { ssr: false }
 );

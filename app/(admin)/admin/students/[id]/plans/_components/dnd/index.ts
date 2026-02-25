@@ -8,6 +8,5 @@ export type { ContainerType, BaseContainerType, DragItem, EmptySlotDropData, Non
 export { DraggablePlanItem } from './DraggablePlanItem';
 export { SortablePlanItem } from './SortablePlanItem';
 export { SortableUnifiedItem, createUnifiedId, parseUnifiedId } from './SortableUnifiedItem';
-export { DraggableNonStudyItem } from './DraggableNonStudyItem';
 export { DroppableContainer, DroppableDateCell } from './DroppableContainer';
 export { DroppableEmptySlot } from './DroppableEmptySlot';

@@ -19,7 +19,9 @@ import {
 } from "@/lib/logging/actionLogger";
 import { createPlanEvent } from "./planEvent";
 import { createAutoContentPlanGroupAction } from "./createAutoContentPlanGroup";
-import { selectPlanGroupForPlanner } from "@/lib/domains/admin-plan/utils/planGroupSelector";
+import {
+  selectPlanGroupForCalendar,
+} from "@/lib/domains/admin-plan/utils/planGroupSelector";
 
 // ============================================
 // 타입 정의
@@ -53,12 +55,13 @@ export interface UnifiedPlanInput {
   startTime?: string; // HH:mm
   endTime?: string; // HH:mm
 
-  // 플래너/플랜그룹 연결
-  plannerId?: string;
+  // 캘린더/플랜그룹 연결
+  /** 캘린더 ID */
+  calendarId?: string;
   planGroupId?: string;
 
   // 컨테이너 타입
-  containerType?: "daily" | "weekly";
+  containerType?: "daily";
 
   // 단발성/빠른 추가 옵션
   isAdhoc?: boolean;
@@ -92,7 +95,7 @@ export interface UnifiedPlanInput {
   totalVolume?: number; // 일일 학습량 계산용
 
   // 배치 모드
-  distributionMode?: "today" | "period" | "weekly";
+  distributionMode?: "today" | "period";
   periodStartDate?: string; // 기간 배치 시작일 (YYYY-MM-DD)
   periodEndDate?: string; // 기간 배치 종료일 (YYYY-MM-DD)
 
@@ -137,7 +140,7 @@ const LOG_CONTEXT = { domain: "admin-plan", action: "createUnifiedPlan" };
  * 기존 planGroupId가 있으면 사용하고, 없으면 플래너 기반으로 선택/생성
  */
 export async function ensurePlanGroup(input: {
-  plannerId?: string;
+  calendarId?: string;
   planGroupId?: string;
   studentId: string;
   tenantId: string;
@@ -161,13 +164,15 @@ export async function ensurePlanGroup(input: {
     return { success: true, planGroupId: input.planGroupId, isNewGroup: false };
   }
 
-  // Case 2: plannerId가 제공된 경우 - 플래너 기반 선택/생성
-  if (input.plannerId) {
-    logActionDebug(LOG_CONTEXT, "플래너 기반 플랜그룹 선택 시작", {
-      plannerId: input.plannerId,
+  // Case 2: calendarId가 제공된 경우 - 기반 선택/생성
+  const effectiveCalendarId = input.calendarId;
+
+  if (effectiveCalendarId) {
+    logActionDebug(LOG_CONTEXT, "캘린더 기반 플랜그룹 선택 시작", {
+      calendarId: effectiveCalendarId,
     });
 
-    const selectResult = await selectPlanGroupForPlanner(input.plannerId, {
+    const selectResult = await selectPlanGroupForCalendar(effectiveCalendarId, {
       studentId: input.studentId,
       preferPeriod: { start: input.planDate, end: input.planDate },
     });
@@ -186,13 +191,13 @@ export async function ensurePlanGroup(input: {
 
     // 새 플랜 그룹 생성 - createAutoContentPlanGroupAction 사용
     logActionDebug(LOG_CONTEXT, "새 플랜그룹 자동 생성 시작", {
-      plannerId: input.plannerId,
+      calendarId: effectiveCalendarId,
     });
 
     const createResult = await createAutoContentPlanGroupAction({
       tenantId: input.tenantId,
       studentId: input.studentId,
-      plannerId: input.plannerId,
+      calendarId: effectiveCalendarId,
       contentTitle: input.title,
       targetDate: input.planDate,
       planPurpose: input.isAdhoc ? "adhoc" : "content",
@@ -216,7 +221,7 @@ export async function ensurePlanGroup(input: {
     };
   }
 
-  // Case 3: 레거시 - plannerId 없이 독립 Plan Group 생성
+  // Case 3: calendarId 없이 독립 Plan Group 생성 (레거시)
   logActionDebug(LOG_CONTEXT, "독립 플랜그룹 생성 (레거시 모드)");
 
   const { data: newGroup, error } = await supabase
@@ -345,7 +350,7 @@ async function _createUnifiedPlan(
 
   // 4. 플랜 그룹 확보
   const planGroupResult = await ensurePlanGroup({
-    plannerId: input.plannerId,
+    calendarId: input.calendarId,
     planGroupId: input.planGroupId,
     studentId: input.studentId,
     tenantId: input.tenantId,

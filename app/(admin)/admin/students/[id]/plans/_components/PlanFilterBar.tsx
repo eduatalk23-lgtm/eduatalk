@@ -8,7 +8,7 @@ export interface PlanFilters {
   status: 'all' | 'pending' | 'in_progress' | 'completed';
   subject: string;
   dateRange: 'today' | 'week' | 'month' | 'all';
-  containerType: 'all' | 'daily' | 'weekly' | 'unfinished';
+  containerType: 'all' | 'daily';
 }
 
 interface PlanFilterBarProps {
@@ -189,8 +189,6 @@ export function PlanFilterBar({
             >
               <option value="all">전체</option>
               <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="unfinished">Unfinished</option>
             </select>
           </div>
         </div>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
 import { useController } from "react-hook-form";
 import type { FormControl } from "@/lib/types/forms";
 import { DialogFooter, ConfirmDialog } from "@/components/ui/Dialog";
@@ -9,7 +8,8 @@ import Button from "@/components/atoms/Button";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
 import SchoolSelect from "@/components/ui/SchoolSelect";
 import { useCreateStudentForm } from "../_hooks/useCreateStudentForm";
-import type { CreateStudentFormData } from "../_types/createStudentTypes";
+import type { CreateStudentFormSchema } from "@/lib/validation/createStudentFormSchema";
+import { toCreateStudentInput } from "@/lib/validation/createStudentFormSchema";
 import { createStudent } from "@/lib/domains/student";
 import { STUDENT_DIVISIONS } from "@/lib/constants/students";
 import { GENDER_OPTIONS } from "@/lib/utils/studentProfile";
@@ -46,67 +46,11 @@ export function CreateStudentForm({
     setShowResetConfirm(false);
   };
 
-  const onSubmit = async (data: CreateStudentFormData): Promise<void> => {
+  const onSubmit = async (data: CreateStudentFormSchema): Promise<void> => {
     setIsSubmitting(true);
     try {
-      // FormData로 변환
-      const formData = new FormData();
-      
-      // 기본 정보
-      formData.append("name", data.name);
-      formData.append("grade", data.grade);
-      formData.append("class", data.class || "");
-      formData.append("birth_date", data.birth_date);
-      formData.append("school_id", data.school_id || "");
-      if (data.school_type) {
-        formData.append("school_type", data.school_type);
-      }
-      if (data.division) {
-        formData.append("division", data.division);
-      }
-      formData.append("student_number", data.student_number || "");
-      formData.append("enrolled_at", data.enrolled_at || "");
-      formData.append("status", data.status);
-
-      // 프로필 정보
-      if (data.gender) {
-        formData.append("gender", data.gender);
-      }
-      formData.append("phone", data.phone || "");
-      formData.append("mother_phone", data.mother_phone || "");
-      formData.append("father_phone", data.father_phone || "");
-      formData.append("address", data.address || "");
-      formData.append("address_detail", data.address_detail || "");
-      formData.append("postal_code", data.postal_code || "");
-      formData.append("emergency_contact", data.emergency_contact || "");
-      formData.append("emergency_contact_phone", data.emergency_contact_phone || "");
-      formData.append("medical_info", data.medical_info || "");
-      formData.append("bio", data.bio || "");
-      if (data.interests && data.interests.length > 0) {
-        data.interests.forEach((interest) => {
-          formData.append("interests", interest);
-        });
-      }
-
-      // 진로 정보
-      if (data.exam_year) {
-        formData.append("exam_year", String(data.exam_year));
-      }
-      if (data.curriculum_revision) {
-        formData.append("curriculum_revision", data.curriculum_revision);
-      }
-      if (data.desired_university_ids && data.desired_university_ids.length > 0) {
-        data.desired_university_ids.forEach((id) => {
-          formData.append("desired_university_ids", id);
-        });
-      }
-      formData.append("desired_career_field", data.desired_career_field || "");
-      formData.append("target_major", data.target_major || "");
-      formData.append("target_major_2", data.target_major_2 || "");
-      formData.append("target_university_type", data.target_university_type || "");
-      formData.append("notes", data.notes || "");
-
-      const result = await createStudent(formData);
+      const input = toCreateStudentInput(data);
+      const result = await createStudent(input);
 
       if (result.success && result.studentId && result.connectionCode) {
         onSuccess(result.studentId, result.connectionCode);
@@ -122,7 +66,7 @@ export function CreateStudentForm({
   };
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit as unknown as Parameters<typeof form.handleSubmit>[0])} className="flex flex-col gap-6">
+    <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-6">
       {/* 탭 네비게이션 */}
       <div className="flex gap-2 border-b">
         <button
@@ -163,10 +107,10 @@ export function CreateStudentForm({
       {/* 탭 컨텐츠 */}
       <div className="flex flex-col gap-6 max-h-[60vh] overflow-y-auto">
         {activeTab === "basic" && (
-          <BasicInfoTab control={control as unknown as FormControl<CreateStudentFormData>} schoolType={schoolType} setSchoolType={setSchoolType} />
+          <BasicInfoTab control={control as unknown as FormControl<CreateStudentFormSchema>} schoolType={schoolType} setSchoolType={setSchoolType} />
         )}
-        {activeTab === "profile" && <ProfileInfoTab control={control as unknown as FormControl<CreateStudentFormData>} />}
-        {activeTab === "career" && <CareerInfoTab control={control as unknown as FormControl<CreateStudentFormData>} />}
+        {activeTab === "profile" && <ProfileInfoTab control={control as unknown as FormControl<CreateStudentFormSchema>} />}
+        {activeTab === "career" && <CareerInfoTab control={control as unknown as FormControl<CreateStudentFormSchema>} />}
       </div>
 
       {/* 폼 액션 */}
@@ -205,7 +149,7 @@ function BasicInfoTab({
   schoolType,
   setSchoolType,
 }: {
-  control: FormControl<CreateStudentFormData>;
+  control: FormControl<CreateStudentFormSchema>;
   schoolType?: "중학교" | "고등학교" | undefined;
   setSchoolType: (type: "중학교" | "고등학교" | undefined) => void;
 }) {
@@ -218,13 +162,11 @@ function BasicInfoTab({
   const gradeField = useController({
     name: "grade",
     control,
-    rules: { required: "학년을 선택해주세요" },
   });
 
   const birthDateField = useController({
     name: "birth_date",
     control,
-    rules: { required: "생년월일을 입력해주세요" },
   });
 
   const classField = useController({
@@ -284,14 +226,12 @@ function BasicInfoTab({
         label="학년"
         type="text"
         placeholder="예: 1, 2, 3"
-        required
         error={gradeField.fieldState.error?.message}
       />
       <FormField
         {...birthDateField.field}
         label="생년월일"
         type="date"
-        required
         error={birthDateField.fieldState.error?.message}
       />
       <FormField
@@ -327,7 +267,7 @@ function BasicInfoTab({
 }
 
 // 프로필 정보 탭
-function ProfileInfoTab({ control }: { control: FormControl<CreateStudentFormData> }) {
+function ProfileInfoTab({ control }: { control: FormControl<CreateStudentFormSchema> }) {
   const genderField = useController({
     name: "gender",
     control,
@@ -363,8 +303,15 @@ function ProfileInfoTab({ control }: { control: FormControl<CreateStudentFormDat
     control,
   });
 
+  // 연락처 중 1개 필수 — phone 필드에 refine 에러가 걸림
+  const phoneError = phoneField.fieldState.error?.message;
+  const hasContactError = phoneError === "연락처(학생, 어머니, 아버지) 중 1개 이상 입력해주세요";
+
   return (
     <div className="flex flex-col gap-4">
+      {hasContactError && (
+        <p className="text-sm text-red-500 font-medium">{phoneError}</p>
+      )}
       <FormSelect
         {...genderField.field}
         label="성별"
@@ -382,13 +329,15 @@ function ProfileInfoTab({ control }: { control: FormControl<CreateStudentFormDat
         label="본인 연락처"
         type="tel"
         placeholder="010-0000-0000"
-        error={phoneField.fieldState.error?.message}
+        required
+        error={hasContactError ? undefined : phoneField.fieldState.error?.message}
       />
       <FormField
         {...motherPhoneField.field}
         label="어머니 연락처"
         type="tel"
         placeholder="010-0000-0000"
+        required
         error={motherPhoneField.fieldState.error?.message}
       />
       <FormField
@@ -396,6 +345,7 @@ function ProfileInfoTab({ control }: { control: FormControl<CreateStudentFormDat
         label="아버지 연락처"
         type="tel"
         placeholder="010-0000-0000"
+        required
         error={fatherPhoneField.fieldState.error?.message}
       />
       <FormField
@@ -422,7 +372,7 @@ function ProfileInfoTab({ control }: { control: FormControl<CreateStudentFormDat
 }
 
 // 진로 정보 탭
-function CareerInfoTab({ control }: { control: FormControl<CreateStudentFormData> }) {
+function CareerInfoTab({ control }: { control: FormControl<CreateStudentFormSchema> }) {
   const examYearField = useController({
     name: "exam_year",
     control,
@@ -467,4 +417,3 @@ function CareerInfoTab({ control }: { control: FormControl<CreateStudentFormData
     </div>
   );
 }
-

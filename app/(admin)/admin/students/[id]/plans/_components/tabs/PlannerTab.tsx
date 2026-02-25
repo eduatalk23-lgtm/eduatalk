@@ -1,14 +1,10 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { UnfinishedDock } from "../UnfinishedDock";
 import { DailyDock } from "../DailyDock";
-import { WeeklyDock } from "../WeeklyDock";
 import { WeeklyCalendar } from "../WeeklyCalendar";
 import { PlanGroupSummaryCard } from "../PlanGroupSummaryCard";
 import { AllGroupsSummaryCard } from "../AllGroupsSummaryCard";
-import { HorizontalDockLayout } from "../HorizontalDockLayout";
-import type { DockType } from "../CollapsedDockCard";
 import type { CalendarView } from "../CalendarNavHeader";
 import {
   useAdminPlanBasic,
@@ -38,9 +34,6 @@ interface PlannerTabProps {
  * - Modal Context 미사용 → 모달 상태 변경 시 리렌더링 없음
  */
 export function PlannerTab({ tab: _tab }: PlannerTabProps) {
-  // 아코디언 상태 (Daily 기본 확장)
-  const [expandedDock, setExpandedDock] = useState<DockType>("daily");
-
   // 캘린더 뷰 상태 (리프팅: DailyDock에서 PlannerTab으로)
   const [calendarView, setCalendarView] = useState<CalendarView>('weekly');
 
@@ -69,13 +62,13 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
   const {
     studentId,
     tenantId,
-    selectedPlannerId,
+    selectedCalendarId,
     activePlanGroupId,
     allPlanGroups,
-    plannerDailySchedules,
-    plannerExclusions,
-    plannerCalculatedSchedule,
-    plannerDateTimeSlots,
+    calendarDailySchedules,
+    calendarExclusions,
+    calendarCalculatedSchedule,
+    calendarDateTimeSlots,
     initialDockData,
     initialDate,
   } = useAdminPlanBasic();
@@ -84,7 +77,6 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
     selectedGroupId,
     selectedDate,
     handleDateChange,
-    contentTypeFilter,
     handleRefresh,
     refreshDailyAndWeekly,
     refreshDailyAndUnfinished,
@@ -104,10 +96,10 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
   // useMemo로 참조 안정화 → WeeklyCalendar 내부 useMemo/useEffect 연쇄 무효화 방지
   const effectiveDailySchedules = useMemo(
     () =>
-      plannerCalculatedSchedule
-        ? [plannerCalculatedSchedule]
-        : plannerDailySchedules,
-    [plannerCalculatedSchedule, plannerDailySchedules]
+      calendarCalculatedSchedule
+        ? [calendarCalculatedSchedule]
+        : calendarDailySchedules,
+    [calendarCalculatedSchedule, calendarDailySchedules]
   );
 
   // 선택된 플랜 그룹의 기간 정보 추출 (전체 보기 시 전체 기간)
@@ -116,28 +108,19 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
     : null;
 
   // 전체 보기 시 모든 그룹의 기간을 포함
-  const plannerPeriodStart = selectedPlanGroup?.periodStart
+  const periodStart = selectedPlanGroup?.periodStart
     ?? allPlanGroups?.reduce<string | undefined>((earliest, group) => {
         if (!group.periodStart) return earliest;
         if (!earliest || group.periodStart < earliest) return group.periodStart;
         return earliest;
       }, undefined);
 
-  const plannerPeriodEnd = selectedPlanGroup?.periodEnd
+  const periodEnd = selectedPlanGroup?.periodEnd
     ?? allPlanGroups?.reduce<string | undefined>((latest, group) => {
         if (!group.periodEnd) return latest;
         if (!latest || group.periodEnd > latest) return group.periodEnd;
         return latest;
       }, undefined);
-
-  // 독 아코디언 확장 핸들러 (참조 안정화)
-  const handleExpandUnfinished = useCallback(() => setExpandedDock("unfinished"), []);
-  const handleExpandDaily = useCallback(() => setExpandedDock("daily"), []);
-  const handleExpandWeekly = useCallback(() => setExpandedDock("weekly"), []);
-
-  // 독 순서변경 핸들러 (참조 안정화)
-  const handleReorderUnfinished = useCallback(() => handleOpenReorder("unfinished"), [handleOpenReorder]);
-  const handleReorderWeekly = useCallback(() => handleOpenReorder("weekly"), [handleOpenReorder]);
 
   // initialDockData는 initialDate에 대한 데이터이므로, selectedDate가 변경되면 무시
   const useInitialData = selectedDate === initialDate;
@@ -147,19 +130,8 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
     if (!useInitialData) return undefined;
     return {
       plans: initialDockData?.dailyPlans,
-      adHocPlans: initialDockData?.dailyAdHocPlans,
-      nonStudyItems: initialDockData?.nonStudyItems,
     };
-  }, [useInitialData, initialDockData?.dailyPlans, initialDockData?.dailyAdHocPlans, initialDockData?.nonStudyItems]);
-
-  // WeeklyDock initialData (참조 안정화, 날짜가 변경되면 undefined)
-  const weeklyInitialData = useMemo(() => {
-    if (!useInitialData) return undefined;
-    return {
-      plans: initialDockData?.weeklyPlans,
-      adHocPlans: initialDockData?.weeklyAdHocPlans,
-    };
-  }, [useInitialData, initialDockData?.weeklyPlans, initialDockData?.weeklyAdHocPlans]);
+  }, [useInitialData, initialDockData?.dailyPlans]);
 
   return (
     <div className="space-y-4">
@@ -170,12 +142,12 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
             studentId={studentId}
             selectedDate={selectedDate}
             onDateSelect={handleDateChange}
-            plannerId={selectedPlannerId}
+            calendarId={selectedCalendarId ?? undefined}
             selectedGroupId={selectedGroupId}
             dailySchedules={effectiveDailySchedules}
-            exclusions={plannerExclusions}
-            plannerPeriodStart={plannerPeriodStart}
-            plannerPeriodEnd={plannerPeriodEnd}
+            exclusions={calendarExclusions}
+            periodStart={periodStart}
+            periodEnd={periodEnd}
           />
 
           {selectedGroupId ? (
@@ -184,9 +156,9 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
               tenantId={tenantId}
             />
           ) : (
-            selectedPlannerId && (
+            selectedCalendarId && (
               <AllGroupsSummaryCard
-                plannerId={selectedPlannerId}
+                calendarId={selectedCalendarId ?? undefined}
                 tenantId={tenantId}
               />
             )
@@ -194,96 +166,24 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
         </>
       )}
 
-      {/* 주간/월간: 풀사이즈 | 일간: 3-Dock 아코디언 */}
-      {calendarView === 'daily' ? (
-        <HorizontalDockLayout
-          expandedDock={expandedDock}
-          onDockClick={setExpandedDock}
-          unfinished={
-            <UnfinishedDock
-              studentId={studentId}
-              tenantId={tenantId}
-              plannerId={selectedPlannerId}
-              selectedGroupId={selectedGroupId}
-              contentTypeFilter={contentTypeFilter}
-              onRedistribute={handleOpenRedistribute}
-              onEdit={handleOpenEdit}
-              onReorder={handleReorderUnfinished}
-              onMoveToGroup={handleOpenMoveToGroup}
-              onCopy={handleOpenCopy}
-              onStatusChange={handleOpenStatusChange}
-              onRefresh={handleRefresh}
-              onRefreshDailyAndUnfinished={refreshDailyAndUnfinished}
-              initialData={initialDockData?.unfinishedPlans}
-              isCollapsed={expandedDock !== "unfinished"}
-              onExpand={handleExpandUnfinished}
-            />
-          }
-          daily={
-            <DailyDock
-              studentId={studentId}
-              tenantId={tenantId}
-              plannerId={selectedPlannerId}
-              selectedDate={selectedDate}
-              selectedGroupId={selectedGroupId}
-              contentTypeFilter={contentTypeFilter}
-              onEdit={handleOpenEdit}
-              onStatusChange={handleOpenStatusChange}
-              onRefresh={handleRefresh}
-              onRefreshDailyAndWeekly={refreshDailyAndWeekly}
-              onCreatePlanAtSlot={handleCreatePlanAtSlot}
-              initialData={dailyInitialData}
-              isCollapsed={expandedDock !== "daily"}
-              onExpand={handleExpandDaily}
-              onDateChange={handleDateChange}
-              calendarView="daily"
-              onCalendarViewChange={handleCalendarViewChange}
-            />
-          }
-          weekly={
-            <WeeklyDock
-              studentId={studentId}
-              tenantId={tenantId}
-              plannerId={selectedPlannerId}
-              selectedDate={selectedDate}
-              selectedGroupId={selectedGroupId}
-              contentTypeFilter={contentTypeFilter}
-              onRedistribute={handleOpenRedistribute}
-              onEdit={handleOpenEdit}
-              onReorder={handleReorderWeekly}
-              onMoveToGroup={handleOpenMoveToGroup}
-              onCopy={handleOpenCopy}
-              onStatusChange={handleOpenStatusChange}
-              onRefresh={handleRefresh}
-              onRefreshDailyAndWeekly={refreshDailyAndWeekly}
-              initialData={weeklyInitialData}
-              isCollapsed={expandedDock !== "weekly"}
-              onExpand={handleExpandWeekly}
-            />
-          }
+      {/* 풀사이즈 DailyDock (일간/주간/월간 뷰 전환은 DailyDock 내부에서 처리) */}
+      <div className="h-[calc(100dvh-16rem)] min-h-[400px]">
+        <DailyDock
+          studentId={studentId}
+          tenantId={tenantId}
+          selectedDate={selectedDate}
+          selectedGroupId={selectedGroupId}
+          onEdit={handleOpenEdit}
+          onStatusChange={handleOpenStatusChange}
+          onRefresh={handleRefresh}
+          onRefreshDailyAndWeekly={refreshDailyAndWeekly}
+          onCreatePlanAtSlot={handleCreatePlanAtSlot}
+          initialData={dailyInitialData}
+          onDateChange={handleDateChange}
+          calendarView={calendarView}
+          onCalendarViewChange={handleCalendarViewChange}
         />
-      ) : (
-        <div className="h-[calc(100dvh-16rem)] min-h-[400px]">
-          <DailyDock
-            studentId={studentId}
-            tenantId={tenantId}
-            plannerId={selectedPlannerId}
-            selectedDate={selectedDate}
-            selectedGroupId={selectedGroupId}
-            contentTypeFilter={contentTypeFilter}
-            onEdit={handleOpenEdit}
-            onStatusChange={handleOpenStatusChange}
-            onRefresh={handleRefresh}
-            onRefreshDailyAndWeekly={refreshDailyAndWeekly}
-            onCreatePlanAtSlot={handleCreatePlanAtSlot}
-            initialData={dailyInitialData}
-            isCollapsed={false}
-            onDateChange={handleDateChange}
-            calendarView={calendarView}
-            onCalendarViewChange={handleCalendarViewChange}
-          />
-        </div>
-      )}
+      </div>
     </div>
   );
 }

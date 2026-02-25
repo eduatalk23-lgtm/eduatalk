@@ -7,13 +7,13 @@ import type { AdminPlanResponse, PlanStatus, ContainerType } from '../types';
 
 export interface PlanFilterParams {
   studentId: string;
-  /** 플래너 ID (플래너 기반 필터링용) */
-  plannerId?: string;
+  /** 캘린더 ID (Calendar-First 필터링용) */
+  calendarId?: string;
   search?: string;
   status?: 'all' | 'pending' | 'in_progress' | 'completed';
   subject?: string;
   dateRange?: 'today' | 'week' | 'month' | 'all';
-  containerType?: 'all' | 'daily' | 'weekly' | 'unfinished';
+  containerType?: 'all' | 'daily';
   limit?: number;
   offset?: number;
 }
@@ -67,14 +67,17 @@ export async function getFilteredPlans(
         carryover_count
       `;
 
-    let query = params.plannerId
+    const filterField = params.calendarId ? 'calendar_id' : null;
+    const filterValue = params.calendarId || null;
+
+    let query = filterField && filterValue
       ? supabase
           .from('student_plan')
-          .select(`${selectFields}, plan_groups!inner(planner_id)`, { count: 'exact' })
+          .select(`${selectFields}, plan_groups!inner(${filterField})`, { count: 'exact' })
           .eq('student_id', params.studentId)
           .eq('tenant_id', tenantId)
           .eq('is_active', true)
-          .eq('plan_groups.planner_id', params.plannerId)
+          .eq(`plan_groups.${filterField}`, filterValue)
       : supabase
           .from('student_plan')
           .select(selectFields, { count: 'exact' })
@@ -163,8 +166,8 @@ export async function getFilteredPlans(
       ),
     ] as string[];
 
-    // plan_groups 필드 제거 (플래너 필터링 시 조인된 데이터)
-    const plans = params.plannerId
+    // plan_groups 필드 제거 (필터링 시 조인된 데이터)
+    const plans = filterField
       ? (data ?? []).map(({ plan_groups, ...rest }: FilteredPlan & { plan_groups?: unknown }) => rest)
       : (data ?? []);
 

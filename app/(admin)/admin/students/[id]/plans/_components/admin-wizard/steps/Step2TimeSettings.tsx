@@ -87,7 +87,7 @@ export function Step2TimeSettings({
     periodStart,
     periodEnd,
     // NEW: 플래너 상속 시간 설정
-    plannerId,
+    calendarId,
     studyHours,
     selfStudyHours,
     lunchTime,
@@ -97,14 +97,14 @@ export function Step2TimeSettings({
   } = wizardData;
 
   // 플래너에서 상속된 시간 설정이 있는지 확인
-  const hasInheritedTimeSettings = !!plannerId && (!!studyHours || !!selfStudyHours || !!lunchTime);
+  const hasInheritedTimeSettings = !!calendarId && (!!studyHours || !!selfStudyHours || !!lunchTime);
 
   // 플래너에서 상속된 스케줄러 옵션이 있는지 확인
-  const hasInheritedSchedulerOptions = !!plannerId && !!schedulerOptions &&
+  const hasInheritedSchedulerOptions = !!calendarId && !!schedulerOptions &&
     (schedulerOptions.study_days !== undefined || schedulerOptions.review_days !== undefined);
 
   // 플래너에서 상속된 스케줄러 타입이 있는지 확인
-  const hasInheritedSchedulerType = !!plannerId && !!schedulerType;
+  const hasInheritedSchedulerType = !!calendarId && !!schedulerType;
 
   // 새 제외일/학원 스케줄 입력 상태
   const [newExclusion, setNewExclusion] = useState<Partial<ExclusionSchedule>>({
@@ -609,7 +609,7 @@ export function Step2TimeSettings({
             <label className="text-sm font-medium text-gray-700">
               비학습 시간 블록
             </label>
-            {plannerId && (
+            {calendarId && (
               <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
                 플래너에서 상속
               </span>

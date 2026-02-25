@@ -197,8 +197,8 @@ export interface ModalState {
   /** 현재 스텝 */
   currentStep: WizardStep;
 
-  /** 선택된 플래너 ID */
-  selectedPlannerId: string | null;
+  /** 선택된 캘린더 ID */
+  selectedCalendarId: string | null;
 
   /** 콘텐츠 슬롯 목록 */
   slots: ContentSlot[];
@@ -249,7 +249,7 @@ export interface SlotGenerationResult {
 
 export type ModalAction =
   | { type: 'SET_STEP'; step: WizardStep }
-  | { type: 'SET_PLANNER'; plannerId: string }
+  | { type: 'SET_CALENDAR'; calendarId: string }
   | { type: 'SET_PERIOD'; periodStart: string; periodEnd: string }
   | { type: 'ADD_SLOT'; slotType: SlotType }
   | { type: 'REMOVE_SLOT'; slotId: string }
@@ -281,8 +281,8 @@ export interface GenerateSlotBasedPlanInput {
   studentId: string;
   /** 테넌트 ID */
   tenantId: string;
-  /** 플래너 ID */
-  plannerId: string;
+  /** 캘린더 ID */
+  calendarId: string;
   /** 학습 시작일 */
   periodStart: string;
   /** 학습 종료일 */

@@ -6,13 +6,9 @@ import { DraggablePlanItem } from '../dnd';
 import { QuickCompleteButton, InlineVolumeEditor } from '../QuickActions';
 import { useToast } from '@/components/ui/ToastProvider';
 import { ConfirmDialog } from '@/components/ui/Dialog';
-import { AlertTriangle } from 'lucide-react';
 import { PlanActionMenu } from './PlanActionMenu';
-import { HoverQuickActions } from './HoverQuickActions';
-import { getTodayInTimezone } from '@/lib/utils/dateUtils';
 import { formatPlanLearningAmount } from '@/lib/utils/planFormatting';
-import { movePlanToContainer, deletePlan, updatePlanStatus } from '@/lib/domains/calendar/actions/legacyBridge';
-import type { ConflictInfo } from '@/lib/domains/admin-plan/utils/conflictDetection';
+import { deletePlan, updatePlanStatus } from '@/lib/domains/calendar/actions/calendarEventActions';
 import type { PlanStatus } from '@/lib/types/plan';
 
 /** 성능 최적화: 인라인 빈 함수 생성 방지를 위한 상수 */
@@ -96,9 +92,11 @@ const STATUS_LABELS: Partial<Record<PlanStatus, string>> = {
 };
 
 // Re-export shared types from lib/types/planItem
-export type { PlanItemType, ContainerType, TimeSlotType, PlanItemData } from '@/lib/types/planItem';
-import type { PlanItemType, ContainerType, PlanItemData } from '@/lib/types/planItem';
+export type { PlanItemType, TimeSlotType, PlanItemData } from '@/lib/types/planItem';
+export type { ContainerType } from '@/lib/domains/admin-plan/types';
+import type { PlanItemType, PlanItemData } from '@/lib/types/planItem';
 import type { TimeSlotType } from '@/lib/types/planItem';
+import type { ContainerType } from '@/lib/domains/admin-plan/types';
 
 interface PlanItemCardProps {
   plan: PlanItemData;
@@ -110,16 +108,12 @@ interface PlanItemCardProps {
   showActions?: boolean;
   selectable?: boolean;
   isSelected?: boolean;
-  /** 시간 충돌 정보 (optional, DailyDock에서만 전달) */
-  conflictInfo?: ConflictInfo;
   /** 드래그 기능 비활성화 (SortablePlanItem 사용 시 true) */
   disableDrag?: boolean;
   onSelect?: (id: string) => void;
   onMoveToDaily?: (id: string, date?: string) => void;
-  onMoveToWeekly?: (id: string) => void;
-  onMoveToUnfinished?: (id: string) => void;
   onRedistribute?: (id: string) => void;
-  onDelete?: (id: string, isAdHoc?: boolean) => void;
+  onDelete?: (id: string) => void;
   onEditDate?: (id: string) => void;
   onEdit?: (id: string) => void;
   onCopy?: (id: string) => void;
@@ -132,16 +126,8 @@ interface PlanItemCardProps {
 
 const containerColors = {
   daily: {
-    border: 'border-gray-200',
-    borderCompleted: 'border-gray-200 bg-green-50/30',
-  },
-  weekly: {
-    border: 'border-gray-200 hover:border-gray-300',
-    borderCompleted: 'border-gray-200 bg-green-50/30',
-  },
-  unfinished: {
-    border: 'border-gray-200',
-    borderCompleted: 'border-gray-200 bg-green-50/30',
+    border: 'border-[rgb(var(--color-secondary-200))]',
+    borderCompleted: 'border-[rgb(var(--color-secondary-200))] bg-green-50/30',
   },
 };
 
@@ -168,7 +154,7 @@ function getLeftBorderColor(isCompleted: boolean, carryoverCount: number = 0): s
   }
 
   // 기본 pending 상태
-  return 'border-l-4 border-l-gray-300';
+  return 'border-l-4 border-l-[rgb(var(--color-secondary-300))]';
 }
 
 /**
@@ -201,12 +187,9 @@ export const PlanItemCard = memo(function PlanItemCard({
   showActions = true,
   selectable = false,
   isSelected = false,
-  conflictInfo,
   disableDrag = false,
   onSelect,
   onMoveToDaily,
-  onMoveToWeekly,
-  onMoveToUnfinished,
   onRedistribute,
   onDelete,
   onEditDate,
@@ -235,32 +218,11 @@ export const PlanItemCard = memo(function PlanItemCard({
       })
     : undefined);
 
-  const handleMoveContainer = async (targetContainer: ContainerType) => {
-    startTransition(async () => {
-      const result = await movePlanToContainer({
-        planId: plan.id,
-        targetContainer,
-        isAdHoc,
-        targetDate: targetContainer === 'daily' ? getTodayInTimezone() : undefined,
-      });
-
-      if (!result.success) {
-        showError(result.error ?? '이동 실패');
-        return;
-      }
-
-      const containerName = targetContainer === 'daily' ? '오늘 플랜' :
-                           targetContainer === 'weekly' ? '주간 플랜' : '미완료 플랜';
-      showSuccess(`${containerName}으로 이동했습니다.`);
-      onRefresh?.();
-    });
-  };
-
   // 삭제 요청 (확인 모달 열기 또는 부모 콜백 호출)
   const handleDeleteRequest = () => {
     if (onDelete) {
       // 부모에서 ConfirmDialog 처리
-      onDelete(plan.id, isAdHoc);
+      onDelete(plan.id);
     } else {
       // 내부 ConfirmDialog 사용
       setShowDeleteConfirm(true);
@@ -272,7 +234,6 @@ export const PlanItemCard = memo(function PlanItemCard({
     startTransition(async () => {
       const result = await deletePlan({
         planId: plan.id,
-        isAdHoc,
       });
 
       if (!result.success) {
@@ -310,7 +271,6 @@ export const PlanItemCard = memo(function PlanItemCard({
       const result = await updatePlanStatus({
         planId: plan.id,
         status: newStatus,
-        isAdHoc,
       });
 
       if (!result.success) {
@@ -321,20 +281,9 @@ export const PlanItemCard = memo(function PlanItemCard({
       showSuccess(`상태가 '${statusLabel}'(으)로 변경되었습니다.`);
       onRefresh?.();
     });
-  }, [plan.id, plan.status, isAdHoc, onQuickStatusUpdate, onRefresh, showSuccess, showError]);
+  }, [plan.id, plan.status, onQuickStatusUpdate, onRefresh, showSuccess, showError]);
 
-  const colors = containerColors[container];
-
-  // 컨테이너 이동 핸들러 메모이제이션
-  const handleMoveToDailyWithId = useCallback(
-    (id: string) => onMoveToDaily?.(id) ?? handleMoveContainer('daily'),
-    [onMoveToDaily]
-  );
-
-  const handleMoveToWeeklyWithId = useCallback(
-    (id: string) => onMoveToWeekly?.(id) ?? handleMoveContainer('weekly'),
-    [onMoveToWeekly]
-  );
+  const colors = containerColors.daily;
 
   // Compact variant (for grid/weekly view)
   if (variant === 'compact' || variant === 'grid') {
@@ -348,7 +297,7 @@ export const PlanItemCard = memo(function PlanItemCard({
             type="checkbox"
             checked={isSelected}
             onChange={() => onSelect?.(plan.id)}
-            className="w-4 h-4 mt-3 rounded border-gray-300 shrink-0"
+            className="w-4 h-4 mt-3 rounded border-[rgb(var(--color-secondary-300))] shrink-0"
             onClick={(e) => e.stopPropagation()}
           />
         )}
@@ -367,7 +316,7 @@ export const PlanItemCard = memo(function PlanItemCard({
         >
           <div
             className={cn(
-              'flex flex-col gap-2 bg-white rounded-lg p-3 border transition-opacity flex-1',
+              'flex flex-col gap-2 bg-[rgb(var(--color-secondary-50))] rounded-lg p-3 border transition-opacity flex-1',
               getLeftBorderColor(isCompleted, plan.carryoverCount),
               isCompleted ? colors.borderCompleted : colors.border,
               isPending && 'opacity-50 pointer-events-none'
@@ -377,7 +326,7 @@ export const PlanItemCard = memo(function PlanItemCard({
               {/* QuickComplete 버튼 (항상 표시) */}
               <QuickCompleteButton
                 planId={plan.id}
-                planType={isAdHoc ? 'adhoc' : 'plan'}
+
                 isCompleted={isCompleted}
                 onSuccess={onRefresh ?? NOOP}
                 size="sm"
@@ -424,47 +373,28 @@ export const PlanItemCard = memo(function PlanItemCard({
               <div
                 className={cn(
                   'font-medium text-sm truncate',
-                  isCompleted && 'line-through text-gray-500'
+                  isCompleted && 'line-through text-[var(--text-tertiary)]'
                 )}
               >
                 {plan.title}
               </div>
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-[var(--text-tertiary)]">
                 {plan.subject && <span>{plan.subject} · </span>}
                 {rangeDisplay}
               </div>
               {/* Carryover / Dock reason indicator for compact */}
-              {showCarryover && (
-                plan.carryoverCount && plan.carryoverCount > 0 ? (
-                  <div className="text-xs text-amber-600 mt-0.5 flex items-center gap-1">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" />
-                    {plan.carryoverCount}회 이월됨
-                  </div>
-                ) : container === 'unfinished' ? (
-                  <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-gray-400" />
-                    배치 대기
-                  </div>
-                ) : null
+              {showCarryover && plan.carryoverCount && plan.carryoverCount > 0 && (
+                <div className="text-xs text-amber-600 mt-0.5 flex items-center gap-1">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  {plan.carryoverCount}회 이월됨
+                </div>
               )}
             </div>
           </div>
 
           {/* Actions */}
           {showActions && !isCompleted && (
-            <div className="flex items-center justify-between pt-1 border-t border-gray-100">
-              {/* 주요 액션 버튼 */}
-              <div className="flex items-center gap-1">
-                {container !== 'daily' && (
-                  <button
-                    onClick={() => onMoveToDaily?.(plan.id) ?? handleMoveContainer('daily')}
-                    className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                  >
-                    →오늘
-                  </button>
-                )}
-              </div>
-
+            <div className="flex items-center justify-end pt-1 border-t border-[rgb(var(--color-secondary-100))]">
               {/* 드롭다운 메뉴 */}
               <PlanActionMenu
                 planId={plan.id}
@@ -472,8 +402,6 @@ export const PlanItemCard = memo(function PlanItemCard({
                 container={container}
                 isAdHoc={isAdHoc}
                 variant="compact"
-                onMoveToDaily={handleMoveToDailyWithId}
-                onMoveToWeekly={handleMoveToWeeklyWithId}
                 onRedistribute={onRedistribute}
                 onEdit={onEdit}
                 onCopy={onCopy}
@@ -517,7 +445,7 @@ export const PlanItemCard = memo(function PlanItemCard({
           type="checkbox"
           checked={isSelected}
           onChange={() => onSelect?.(plan.id)}
-          className="w-4 h-4 rounded border-gray-300 shrink-0"
+          className="w-4 h-4 rounded border-[rgb(var(--color-secondary-300))] shrink-0"
           onClick={(e) => e.stopPropagation()}
         />
       )}
@@ -536,48 +464,16 @@ export const PlanItemCard = memo(function PlanItemCard({
       >
         <div
           className={cn(
-            'group/plan relative flex items-center gap-3 bg-white rounded-lg p-3 border transition-all flex-1',
+            'group/plan relative flex items-center gap-3 bg-[rgb(var(--color-secondary-50))] rounded-lg p-3 border transition-all flex-1',
             getLeftBorderColor(isCompleted, plan.carryoverCount),
             isCompleted ? colors.borderCompleted : colors.border,
             isPending && 'opacity-50 pointer-events-none',
-            !isCompleted && !disableDrag && 'hover:ring-1 hover:ring-gray-300 hover:shadow-sm cursor-grab',
-            // 충돌 시 주황색 테두리 (좌측 보더는 유지)
-            conflictInfo && !isCompleted && 'border-t-orange-400 border-r-orange-400 border-b-orange-400 border-t-2 border-r-2 border-b-2 bg-orange-50/30'
+            !isCompleted && !disableDrag && 'hover:ring-1 hover:ring-[rgb(var(--color-secondary-300))] hover:shadow-sm cursor-grab'
           )}
         >
-          {/* 호버 퀵 액션 (터치 기기 제외) */}
-          {!isCompleted && showActions && (
-            <HoverQuickActions
-              planId={plan.id}
-              isAdHoc={isAdHoc}
-              container={container}
-              currentStatus={plan.status}
-              onEdit={onEdit}
-              onMoveToWeekly={onMoveToWeekly ? handleMoveToWeeklyWithId : undefined}
-              onMoveToDaily={onMoveToDaily ? handleMoveToDailyWithId : undefined}
-              onStatusChange={handleQuickStatusChange}
-              onDetailedStatusChange={onStatusChange ? () => onStatusChange(plan.id, plan.status, plan.title) : undefined}
-            />
-          )}
-
-          {/* 충돌 경고 아이콘 */}
-          {conflictInfo && !isCompleted && (
-            <div className="relative group shrink-0">
-              <AlertTriangle className="w-4 h-4 text-orange-500" />
-              {/* 툴팁 */}
-              <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50">
-                <div className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
-                  {conflictInfo.message}
-                </div>
-                <div className="absolute left-2 top-full border-4 border-transparent border-t-gray-900" />
-              </div>
-            </div>
-          )}
-
           {/* QuickComplete 버튼 (항상 표시) */}
           <QuickCompleteButton
             planId={plan.id}
-            planType={isAdHoc ? 'adhoc' : 'plan'}
             isCompleted={isCompleted}
             onSuccess={onRefresh ?? NOOP}
           />
@@ -627,14 +523,14 @@ export const PlanItemCard = memo(function PlanItemCard({
           <div className="flex items-center gap-2">
             {/* Carryover date */}
             {showCarryover && plan.planDate && (
-              <span className="text-xs text-gray-500 shrink-0">
+              <span className="text-xs text-[var(--text-tertiary)] shrink-0">
                 {formatDateShort(plan.carryoverFromDate ?? plan.planDate)}
               </span>
             )}
             <span
               className={cn(
                 'font-medium truncate',
-                isCompleted && 'line-through text-gray-500'
+                isCompleted && 'line-through text-[var(--text-tertiary)]'
               )}
             >
               {plan.title}
@@ -642,7 +538,7 @@ export const PlanItemCard = memo(function PlanItemCard({
           </div>
           <div className="flex items-center gap-2 text-sm">
             {plan.subject && (
-              <span className="text-gray-500">{plan.subject}</span>
+              <span className="text-[var(--text-tertiary)]">{plan.subject}</span>
             )}
             {hasPageRange && !isCompleted && onRefresh ? (
               <InlineVolumeEditor
@@ -653,25 +549,18 @@ export const PlanItemCard = memo(function PlanItemCard({
                 onSuccess={onRefresh}
               />
             ) : rangeDisplay ? (
-              <span className="text-gray-500">{rangeDisplay}</span>
+              <span className="text-[var(--text-tertiary)]">{rangeDisplay}</span>
             ) : null}
             {isAdHoc && plan.estimatedMinutes && (
-              <span className="text-gray-500">약 {plan.estimatedMinutes}분</span>
+              <span className="text-[var(--text-tertiary)]">약 {plan.estimatedMinutes}분</span>
             )}
           </div>
-          {/* Carryover / Dock reason indicator */}
-          {showCarryover && (
-            plan.carryoverCount && plan.carryoverCount > 0 ? (
-              <div className="text-xs text-amber-600 mt-0.5 flex items-center gap-1">
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" />
-                {plan.carryoverCount}회 이월됨
-              </div>
-            ) : container === 'unfinished' ? (
-              <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-gray-400" />
-                배치 대기
-              </div>
-            ) : null
+          {/* Carryover indicator */}
+          {showCarryover && plan.carryoverCount && plan.carryoverCount > 0 && (
+            <div className="text-xs text-amber-600 mt-0.5 flex items-center gap-1">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" />
+              {plan.carryoverCount}회 이월됨
+            </div>
           )}
         </div>
 
@@ -682,34 +571,13 @@ export const PlanItemCard = memo(function PlanItemCard({
           </span>
         ) : showActions ? (
           <div className="flex items-center gap-1 shrink-0">
-            {/* 주요 액션 버튼 (자주 사용하는 것만) */}
-            {container !== 'daily' && (
-              <button
-                onClick={() => onMoveToDaily?.(plan.id) ?? handleMoveContainer('daily')}
-                className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                title="오늘 플랜으로 이동"
-              >
-                →D
-              </button>
-            )}
-            {container !== 'weekly' && (
-              <button
-                onClick={() => onMoveToWeekly?.(plan.id) ?? handleMoveContainer('weekly')}
-                className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
-                title="주간 플랜으로 이동"
-              >
-                →W
-              </button>
-            )}
-
-            {/* 드롭다운 메뉴 (나머지 액션) */}
+            {/* 드롭다운 메뉴 */}
             <PlanActionMenu
               planId={plan.id}
               plan={plan}
               container={container}
               isAdHoc={isAdHoc}
               variant="default"
-              onMoveToWeekly={handleMoveToWeeklyWithId}
               onRedistribute={onRedistribute}
               onEdit={onEdit}
               onEditDate={onEditDate}

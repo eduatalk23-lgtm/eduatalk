@@ -10,8 +10,8 @@ import {
   type StudentPlanUpdateInput,
   type StudentPlanDetail,
 } from '@/lib/domains/admin-plan/actions/editPlan';
-import type { PlanStatus, ContainerType, SubjectType } from '@/lib/domains/admin-plan/types';
-import { SUBJECT_TYPE_OPTIONS, PLAN_STATUS_OPTIONS, CONTAINER_TYPE_OPTIONS } from '@/lib/domains/admin-plan/types';
+import type { PlanStatus, SubjectType } from '@/lib/domains/admin-plan/types';
+import { SUBJECT_TYPE_OPTIONS, PLAN_STATUS_OPTIONS } from '@/lib/domains/admin-plan/types';
 import { VALIDATION, SUCCESS, ERROR, formatError } from '@/lib/domains/admin-plan/utils/toastMessages';
 import { ModalWrapper, ModalButton } from './ModalWrapper';
 
@@ -45,7 +45,6 @@ export function EditPlanModal({
   const [plannedEndPage, setPlannedEndPage] = useState<string>('');
   const [estimatedMinutes, setEstimatedMinutes] = useState<string>('');
   const [status, setStatus] = useState<PlanStatus>('pending');
-  const [containerType, setContainerType] = useState<ContainerType>('daily');
   const [subjectType, setSubjectType] = useState<SubjectType>(null);
 
   // Load plan data
@@ -63,7 +62,6 @@ export function EditPlanModal({
         setPlannedEndPage(data.planned_end_page_or_time?.toString() ?? '');
         setEstimatedMinutes(data.estimated_minutes?.toString() ?? '');
         setStatus((data.status as PlanStatus) ?? 'pending');
-        setContainerType((data.container_type as ContainerType) ?? 'daily');
         setSubjectType(data.subject_type ?? null);
       } else {
         showError(formatError(result.error, ERROR.PLAN_LOAD));
@@ -104,9 +102,6 @@ export function EditPlanModal({
     }
     if (status !== plan?.status) {
       updates.status = status;
-    }
-    if (containerType !== plan?.container_type) {
-      updates.container_type = containerType;
     }
     if (subjectType !== plan?.subject_type) {
       updates.subject_type = subjectType;
@@ -253,24 +248,6 @@ export function EditPlanModal({
           className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         >
           {PLAN_STATUS_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Container Type */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          컨테이너
-        </label>
-        <select
-          value={containerType}
-          onChange={(e) => setContainerType(e.target.value as ContainerType)}
-          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        >
-          {CONTAINER_TYPE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>

@@ -48,7 +48,7 @@ export type SchedulerType = "1730_timetable" | "default" | null;
  * - structured: 7단계 위저드 (전체 설정)
  * - content_based: 4단계 콘텐츠 추가 위저드
  * - quick: 3단계 빠른 생성
- * - adhoc_migrated: ad_hoc_plans에서 마이그레이션됨
+ * - adhoc_migrated: 단발성 플랜에서 마이그레이션됨
  */
 export type PlanMode = "structured" | "content_based" | "quick" | "adhoc_migrated";
 
@@ -323,7 +323,7 @@ export type PlanGroup = {
   period_end: string; // date
   target_date: string | null; // date (D-day)
   block_set_id: string | null;
-  planner_id?: string | null; // 플래너 연결
+  calendar_id?: string | null; // 캘린더 연결
   status: PlanStatus;
   deleted_at: string | null;
   daily_schedule?: DailyScheduleInfo[] | null; // JSONB: 일별 스케줄 정보 (Step7에서 생성)
@@ -349,7 +349,7 @@ export type PlanGroup = {
   // 통합 플랜 생성 모드 필드
   plan_mode?: PlanMode | null; // 플랜 생성 모드 (structured/content_based/quick/adhoc_migrated)
   is_single_day?: boolean | null; // 단일 날짜 플랜 여부 (빠른 생성용)
-  migrated_from_adhoc_id?: string | null; // ad_hoc_plans에서 마이그레이션된 경우 원본 ID
+  migrated_from_adhoc_id?: string | null; // 단발성 플랜에서 마이그레이션된 경우 원본 ID
   // 캘린더 우선 생성 관련 필드
   is_calendar_only?: boolean | null; // 캘린더 전용 (콘텐츠 없이 생성)
   content_status?: 'pending' | 'partial' | 'complete' | null; // 콘텐츠 상태
@@ -451,8 +451,8 @@ export type Plan = {
   /** 가상 플랜 설명 (예: "수학 학습 예정") */
   virtual_description?: string | null;
   // Calendar-First 아키텍처 추가 필드
-  /** 컨테이너 타입 (daily/weekly/unfinished) */
-  container_type?: "daily" | "weekly" | "unfinished" | string | null;
+  /** 컨테이너 타입 */
+  container_type?: "daily" | string | null;
   /** 잠금 상태 (관리자가 잠금 설정) */
   is_locked?: boolean | null;
   /** 예상 학습 시간 (분) */
@@ -497,7 +497,7 @@ export type Plan = {
   /** 일시정지 시간 */
   paused_at?: string | null;
   // 추가 DB 컬럼
-  /** ad_hoc_plans 마이그레이션 원본 ID */
+  /** 단발성 플랜 마이그레이션 원본 ID */
   adhoc_source_id?: string | null;
   /** 플랜 생성자 ID */
   created_by?: string | null;
@@ -607,62 +607,32 @@ export type PlanExclusion = {
 };
 
 /**
- * 플래너 제외일 오버라이드
+ * 학원 (가상 엔티티)
  *
- * 전역 제외일(시간관리)을 플래너별로 커스터마이징할 때 사용.
- * - 'add': 전역에 없지만 이 플래너에만 추가
- * - 'remove': 전역에 있지만 이 플래너에서는 제외
- */
-export type PlannerExclusionOverride = {
-  id: string;
-  plan_group_id: string;
-  exclusion_date: string; // date (YYYY-MM-DD)
-  override_type: "add" | "remove";
-  exclusion_type?: ExclusionType; // 'add'일 때만 필수
-  reason?: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-/**
- * 실제 적용될 제외일 (전역 + 오버라이드 병합 결과)
- */
-export type EffectiveExclusion = {
-  exclusion_date: string; // date (YYYY-MM-DD)
-  exclusion_type: ExclusionType;
-  reason?: string | null;
-  /** 제외일 출처: 'global' = 전역 제외일, 'override_add' = 플래너 오버라이드로 추가 */
-  source: "global" | "override_add";
-};
-
-/**
- * 학원 (학생별 전역 관리)
+ * @deprecated academies 테이블 제거됨. calendar_events에서 학원명 그룹핑으로 도출.
+ * VirtualAcademy (calendarAcademySchedules.ts) 사용 권장.
  */
 export type Academy = {
-  id: string;
-  tenant_id: string | null;
-  student_id: string; // students 참조
-  name: string; // 학원명
+  name: string; // 학원명 (식별자)
   travel_time: number; // 기본 이동시간 (분 단위)
-  created_at: string;
-  updated_at: string;
 };
 
 /**
  * 학원 일정 (학원별 요일별 시간대)
+ *
+ * calendar_events 기반으로 전환됨. reconstructAcademyPatternsFromCalendarEvents()로
+ * 날짜별 이벤트에서 주간 반복 패턴을 복원하여 이 타입으로 매핑.
  */
 export type AcademySchedule = {
   id: string;
   tenant_id: string | null;
-  student_id: string; // students 참조 (플랜 그룹과 분리)
-  academy_id: string; // academies 참조
+  student_id: string;
   day_of_week: number; // 0-6 (일-토)
-  start_time: string; // time
-  end_time: string; // time
-  subject: string | null; // 과목 (선택사항)
+  start_time: string; // time (HH:mm:ss)
+  end_time: string; // time (HH:mm:ss)
+  subject: string | null;
   created_at: string;
   updated_at: string;
-  // 하위 호환성을 위한 필드 (deprecated)
   academy_name?: string | null;
   travel_time?: number | null;
 };
@@ -682,7 +652,7 @@ export type AcademyOverrideType = "add" | "remove" | "modify";
  */
 export type PlannerAcademyOverride = {
   id: string;
-  planner_id?: string | null;
+  calendar_id?: string | null;
   plan_group_id?: string | null;
   source_schedule_id?: string | null; // 원본 전역 학원 일정 ID (remove/modify 시 필수)
   override_type: AcademyOverrideType;

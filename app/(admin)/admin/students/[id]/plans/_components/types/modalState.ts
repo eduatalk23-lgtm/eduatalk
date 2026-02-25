@@ -11,7 +11,6 @@
  */
 export type ModalType =
   | 'addContent'
-  | 'addAdHoc'
   | 'redistribute'
   | 'shortcutsHelp'
   | 'aiPlan'
@@ -38,7 +37,6 @@ export type ModalType =
  */
 export interface ModalState {
   addContent: boolean;
-  addAdHoc: boolean;
   redistribute: boolean;
   shortcutsHelp: boolean;
   aiPlan: boolean;
@@ -74,7 +72,6 @@ export type ModalAction =
  */
 export const initialModalState: ModalState = {
   addContent: false,
-  addAdHoc: false,
   redistribute: false,
   shortcutsHelp: false,
   aiPlan: false,
@@ -118,7 +115,6 @@ export function modalReducer(state: ModalState, action: ModalAction): ModalState
  */
 export const modalKeyMap: Record<string, ModalType> = {
   showAddContentModal: 'addContent',
-  showAddAdHocModal: 'addAdHoc',
   showRedistributeModal: 'redistribute',
   showShortcutsHelp: 'shortcutsHelp',
   showAIPlanModal: 'aiPlan',

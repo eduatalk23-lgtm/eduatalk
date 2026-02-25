@@ -306,11 +306,15 @@ export function formDataToObject(formData: FormData): Record<string, unknown> {
       continue;
     }
     
-    // 숫자로 변환 가능한 경우 변환
-    // Number("")는 0을 반환하므로 빈 문자열 체크 후에만 변환 시도
-    const numValue = Number(stringValue);
-    if (!isNaN(numValue) && isFinite(numValue)) {
-      obj[key] = numValue;
+    // 명시적 숫자 필드만 숫자로 변환
+    // 자동 변환하면 grade, class 등 string 스키마 필드가 number로 바뀌어 검증 실패함
+    if (NUMERIC_FIELDS.includes(key as typeof NUMERIC_FIELDS[number])) {
+      const numValue = Number(stringValue);
+      if (!isNaN(numValue) && isFinite(numValue)) {
+        obj[key] = numValue;
+      } else {
+        obj[key] = stringValue;
+      }
     } else {
       obj[key] = stringValue;
     }

@@ -163,11 +163,6 @@ export function PlanDetailModal({
     });
   };
 
-  // 플랜 실행 페이지로 이동
-  const handleStartPlan = () => {
-    handleClose();
-    router.push(`/today/plan/${plan.id}`);
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -375,16 +370,6 @@ export function PlanDetailModal({
               >
                 닫기
               </button>
-              {plan.status !== "completed" && (
-                <button
-                  onClick={handleStartPlan}
-                  disabled={isPending}
-                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  <PlayCircle className="h-4 w-4" />
-                  학습 시작
-                </button>
-              )}
             </div>
           )}
         </div>

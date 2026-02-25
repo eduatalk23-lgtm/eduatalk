@@ -11,11 +11,10 @@ import type { TimeSlot } from "@/lib/types/plan-generation";
 
 /**
  * 관리자 플랜 관리 뷰 모드
- * - dock: 기존 Dock 기반 뷰 (DailyDock, WeeklyDock, UnfinishedDock)
+ * - dock: 기존 Dock 기반 뷰 (DailyDock)
  * - month: 월간 캘린더 그리드 뷰
- * - gantt: 타임라인/간트 뷰
  */
-export type AdminViewMode = "dock" | "month" | "gantt";
+export type AdminViewMode = "dock" | "month";
 
 // ============================================
 // 캘린더 데이터 타입
@@ -23,6 +22,8 @@ export type AdminViewMode = "dock" | "month" | "gantt";
 
 /**
  * 캘린더에서 표시할 플랜 데이터
+ *
+ * Calendar-First: calendar_events에서 변환된 데이터도 포함합니다.
  */
 export type CalendarPlan = Pick<
   Plan,
@@ -51,7 +52,12 @@ export type CalendarPlan = Pick<
   | "day"
   | "day_type"
   | "cycle_day_number"
->;
+> & {
+  /** calendar_events 색상 (GCal 스타일 칩) */
+  color?: string | null;
+  /** 이벤트가 속한 캘린더 ID (캘린더 색상 해석용) */
+  calendar_id?: string | null;
+};
 
 /**
  * 날짜별 플랜 그룹
@@ -140,6 +146,13 @@ export type DraggableAdminPlanData = {
   originalStartTime: string | null;
   estimatedMinutes: number | null;
   planGroupId: string | null;
+  /** Google Calendar 스타일 오버레이용 색상 정보 */
+  subject?: string | null;
+  status?: string;
+  color?: string | null;
+  calendarId?: string | null;
+  /** 해석된 캘린더 색상 hex (drag overlay 표시용) */
+  calendarColor?: string | null;
 };
 
 /**
@@ -158,31 +171,6 @@ export type AdminCalendarDragContextValue = {
   activePlan: DraggableAdminPlanData | null;
   overTarget: DroppableTargetData | null;
   isPending: boolean;
-};
-
-// ============================================
-// 간트 뷰 타입
-// ============================================
-
-/**
- * 간트 뷰에서의 플랜 그룹
- */
-export type GanttPlanGroup = {
-  id: string;
-  name: string;
-  plans: CalendarPlan[];
-  periodStart: string;
-  periodEnd: string;
-};
-
-/**
- * 간트 뷰 행 데이터
- */
-export type GanttRowData = {
-  id: string;
-  label: string;
-  type: "planGroup" | "content";
-  plans: CalendarPlan[];
 };
 
 // ============================================
@@ -219,17 +207,17 @@ export type ContextMenuState = {
 export type AdminCalendarViewProps = {
   studentId: string;
   tenantId: string;
-  plannerId: string;
+  calendarId: string;
   /** 선택된 플랜 그룹 ID (null = 전체 보기) */
   selectedGroupId?: string | null;
   selectedDate: string;
   onDateChange: (date: string) => void;
-  plannerExclusions: Array<{
+  calendarExclusions: Array<{
     exclusionDate: string;
     exclusionType: string;
     reason?: string | null;
   }>;
-  plannerDailySchedules: DailyScheduleInfo[][];
+  calendarDailySchedules: DailyScheduleInfo[][];
   /** 날짜별 시간대 타임슬롯 (학습시간, 점심시간, 학원일정 등) */
   dateTimeSlots?: Record<string, TimeSlot[]>;
   /** 타임라인 클릭 시 상세 모달 열기 */
@@ -243,7 +231,7 @@ export type AdminCalendarViewProps = {
 export type AdminMonthViewProps = {
   studentId: string;
   tenantId: string;
-  plannerId: string;
+  calendarId: string;
   /** 선택된 플랜 그룹 ID (null = 전체 보기) */
   planGroupId?: string | null;
   currentMonth: Date;
@@ -257,9 +245,10 @@ export type AdminMonthViewProps = {
   dateTimeSlots?: Record<string, TimeSlot[]>;
   /** 타임라인 클릭 콜백 */
   onTimelineClick?: (date: string) => void;
-  onPlanClick: (planId: string) => void;
-  onPlanEdit: (planId: string) => void;
-  onPlanDelete: (planId: string) => void;
+  /** @deprecated 레거시 — 월간뷰에서는 더 이상 사용 안 함 (EventDetailPopover로 대체) */
+  onPlanClick?: (planId: string) => void;
+  onPlanEdit?: (planId: string) => void;
+  onPlanDelete?: (planId: string) => void;
   onExclusionToggle: (date: string, hasExclusion: boolean) => void;
   onContextMenu?: (e: React.MouseEvent, date: string, hasExclusion: boolean) => void;
   onRefresh: () => void;
@@ -271,27 +260,10 @@ export type AdminMonthViewProps = {
   onPlanSelect?: (planId: string, shiftKey: boolean) => void;
   /** 검색 하이라이트된 플랜 ID Set */
   highlightedPlanIds?: Set<string>;
-};
-
-/**
- * AdminGanttView Props
- */
-export type AdminGanttViewProps = {
-  studentId: string;
-  tenantId: string;
-  plannerId: string;
-  dateRange: { start: string; end: string };
-  onDateRangeChange: (range: { start: string; end: string }) => void;
-  rows: GanttRowData[];
-  exclusionsByDate: ExclusionsByDate;
-  /** 날짜별 일일 스케줄 정보 (주기 정보 포함) */
-  dailySchedulesByDate?: DailySchedulesByDate;
-  /** 날짜별 시간대 타임슬롯 */
-  dateTimeSlots?: Record<string, TimeSlot[]>;
-  /** 타임라인 클릭 콜백 */
-  onTimelineClick?: (date: string) => void;
-  onPlanClick: (planId: string) => void;
-  onRefresh: () => void;
+  /** 날짜 더블클릭 → 일간뷰 전환 + 생성 */
+  onDoubleClickDate?: (dateStr: string) => void;
+  /** 공휴일 표시 여부 (사이드바 토글) */
+  showHolidays?: boolean;
 };
 
 /**
@@ -303,7 +275,7 @@ export type AdminCalendarDayCellProps = {
   stats: DayCellStats;
   plans: CalendarPlan[];
   onDateClick: (date: string) => void;
-  onPlanClick: (planId: string) => void;
+  onPlanClick: (plan: CalendarPlan, anchorRect: DOMRect) => void;
   onContextMenu: (e: React.MouseEvent, date: string) => void;
 };
 

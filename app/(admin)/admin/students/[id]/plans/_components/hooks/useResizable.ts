@@ -11,6 +11,8 @@ interface UseResizableOptions {
   maxHeight: number;
   /** 스냅 단위 (px) - 기본 15 (15분 = 15px) */
   snapIncrement?: number;
+  /** 리사이즈 엣지: 'bottom'(기본) = 하단, 'top' = 상단 (시작 시간 변경) */
+  edge?: 'top' | 'bottom';
   /** 리사이즈 완료 콜백 */
   onResizeEnd: (newHeightPx: number) => void;
 }
@@ -38,6 +40,7 @@ export function useResizable({
   minHeight = 15,
   maxHeight,
   snapIncrement = 15,
+  edge = 'bottom',
   onResizeEnd,
 }: UseResizableOptions): UseResizableReturn {
   // 리사이즈 중의 높이만 상태로 관리, 아닐 때는 initialHeight 사용
@@ -51,11 +54,13 @@ export function useResizable({
   const latestHeightRef = useRef(initialHeight);
   const onResizeEndRef = useRef(onResizeEnd);
   const snapRef = useRef({ minHeight, maxHeight, snapIncrement });
+  const edgeRef = useRef(edge);
 
   // Sync refs in effect to avoid "Cannot access refs during render"
   useEffect(() => {
     onResizeEndRef.current = onResizeEnd;
     snapRef.current = { minHeight, maxHeight, snapIncrement };
+    edgeRef.current = edge;
     if (!isResizing) {
       latestHeightRef.current = initialHeight;
       startHeightRef.current = initialHeight;
@@ -68,12 +73,15 @@ export function useResizable({
     return Math.max(min, Math.min(max, snapped));
   }, []);
 
-  // Use refs for event handlers to avoid circular dependencies
+  // 모든 이벤트 핸들러를 ref로 추적 (blur/visibility 포함)
   const handlersRef = useRef<{
     onMouseMove: (e: MouseEvent) => void;
     onMouseUp: () => void;
     onTouchMove: (e: TouchEvent) => void;
     onTouchEnd: () => void;
+    onKeyDown: (e: KeyboardEvent) => void;
+    onBlur: () => void;
+    onVisibilityChange: () => void;
   } | null>(null);
 
   const cleanup = useCallback(() => {
@@ -82,6 +90,10 @@ export function useResizable({
       document.removeEventListener('mouseup', handlersRef.current.onMouseUp);
       document.removeEventListener('touchmove', handlersRef.current.onTouchMove);
       document.removeEventListener('touchend', handlersRef.current.onTouchEnd);
+      document.removeEventListener('keydown', handlersRef.current.onKeyDown);
+      window.removeEventListener('blur', handlersRef.current.onBlur);
+      document.removeEventListener('visibilitychange', handlersRef.current.onVisibilityChange);
+      handlersRef.current = null;
     }
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
@@ -94,7 +106,9 @@ export function useResizable({
       setIsResizing(true);
 
       const onMove = (clientY: number) => {
-        const delta = clientY - startYRef.current;
+        const rawDelta = clientY - startYRef.current;
+        // top edge: 위로 드래그(음수 delta) → 높이 증가 (반전)
+        const delta = edgeRef.current === 'top' ? -rawDelta : rawDelta;
         const rawHeight = startHeightRef.current + delta;
         const snappedHeight = snap(rawHeight);
         latestHeightRef.current = snappedHeight;
@@ -107,7 +121,12 @@ export function useResizable({
         });
       };
 
+      // 종료 가드: 중복 호출 방지
+      let ended = false;
       const onEnd = () => {
+        if (ended) return;
+        ended = true;
+
         setIsResizing(false);
         setResizeHeight(null);
         if (rafRef.current != null) {
@@ -128,12 +147,40 @@ export function useResizable({
       };
       const onMouseUp = () => onEnd();
       const onTouchMove = (e: TouchEvent) => {
-        if (e.touches.length === 1) onMove(e.touches[0].clientY);
+        if (e.touches.length === 1) {
+          e.preventDefault(); // 리사이즈 중 페이지 스크롤 방지
+          onMove(e.touches[0].clientY);
+        }
       };
       const onTouchEnd = () => onEnd();
 
-      handlersRef.current = { onMouseMove, onMouseUp, onTouchMove, onTouchEnd };
+      const onKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          if (ended) return;
+          ended = true;
+          // 리사이즈 취소: 원래 높이로 복원, onResizeEnd 호출 안 함
+          setIsResizing(false);
+          setResizeHeight(null);
+          if (rafRef.current != null) {
+            cancelAnimationFrame(rafRef.current);
+            rafRef.current = null;
+          }
+          latestHeightRef.current = startHeightRef.current;
+          cleanup();
+        }
+      };
 
+      // ★ 윈도우 포커스 이탈 / 탭 전환 시 안전 종료
+      const onBlur = () => onEnd();
+      const onVisibilityChange = () => {
+        if (document.visibilityState === 'hidden') onEnd();
+      };
+
+      handlersRef.current = { onMouseMove, onMouseUp, onTouchMove, onTouchEnd, onKeyDown, onBlur, onVisibilityChange };
+
+      document.addEventListener('keydown', onKeyDown);
+      window.addEventListener('blur', onBlur);
+      document.addEventListener('visibilitychange', onVisibilityChange);
       if (mode === 'mouse') {
         document.addEventListener('mousemove', onMouseMove);
         document.addEventListener('mouseup', onMouseUp);

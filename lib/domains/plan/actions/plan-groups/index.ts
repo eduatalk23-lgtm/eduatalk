@@ -68,13 +68,6 @@ export {
   syncTimeManagementExclusionsAction,
   addPlanExclusion,
   deletePlanExclusion,
-  // Recurring Exclusions
-  getRecurringExclusions,
-  createRecurringExclusion,
-  deleteRecurringExclusion,
-  expandRecurringExclusions,
-  type RecurringExclusion,
-  type ExpandedExclusion,
 } from "./exclusions";
 
 // Reschedule

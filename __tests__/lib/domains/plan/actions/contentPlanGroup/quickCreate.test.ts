@@ -29,13 +29,13 @@ vi.mock("@/lib/logging/actionLogger", () => ({
   logActionDebug: vi.fn(),
 }));
 
-vi.mock("@/lib/domains/plan/actions/planners/autoCreate", () => ({
-  getOrCreateDefaultPlannerAction: vi.fn(),
+vi.mock("@/lib/domains/calendar/helpers", () => ({
+  ensureStudentPrimaryCalendar: vi.fn(),
 }));
 
 vi.mock("@/lib/domains/admin-plan/utils/planGroupSelector", () => ({
-  selectPlanGroupForPlanner: vi.fn(),
-  createPlanGroupForPlanner: vi.fn(),
+  selectPlanGroupForCalendar: vi.fn(),
+  createPlanGroupForCalendar: vi.fn(),
 }));
 
 vi.mock("@/lib/domains/admin-plan/actions/planEvent", () => ({
@@ -54,8 +54,8 @@ vi.mock("@/lib/domains/plan/utils/cacheInvalidation", () => ({
 import { createQuickPlan, createQuickPlanForStudent } from "@/lib/domains/plan/actions/contentPlanGroup/quickCreate";
 import { resolveAuthContext, isAdminContext } from "@/lib/auth/strategies";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getOrCreateDefaultPlannerAction } from "@/lib/domains/plan/actions/planners/autoCreate";
-import { selectPlanGroupForPlanner, createPlanGroupForPlanner } from "@/lib/domains/admin-plan/utils/planGroupSelector";
+import { ensureStudentPrimaryCalendar } from "@/lib/domains/calendar/helpers";
+import { selectPlanGroupForCalendar, createPlanGroupForCalendar } from "@/lib/domains/admin-plan/utils/planGroupSelector";
 import type { AdminAuthContext, StudentAuthContext } from "@/lib/auth/strategies/types";
 
 describe("createQuickPlanForStudent", () => {
@@ -385,7 +385,7 @@ describe("createQuickPlan (통합 API)", () => {
       vi.mocked(isAdminContext).mockReturnValue(false);
     });
 
-    it("학생이 빠른 플랜 생성 성공 (Planner 자동 연동)", async () => {
+    it("학생이 빠른 플랜 생성 성공 (Calendar 자동 연동)", async () => {
       // flexible_contents 생성 성공 (isFreeLearning일 때)
       mockSupabase.single
         .mockResolvedValueOnce({
@@ -398,19 +398,15 @@ describe("createQuickPlan (통합 API)", () => {
           error: null,
         });
 
-      // Planner 자동 생성
-      vi.mocked(getOrCreateDefaultPlannerAction).mockResolvedValue({
-        plannerId: "planner-auto-123",
-        isNew: true,
-        plannerName: "기본 플래너",
-      });
+      // Calendar 자동 확보
+      vi.mocked(ensureStudentPrimaryCalendar).mockResolvedValue("calendar-auto-123");
 
       // 기존 Plan Group 없음 → 새로 생성
-      vi.mocked(selectPlanGroupForPlanner).mockResolvedValue({
+      vi.mocked(selectPlanGroupForCalendar).mockResolvedValue({
         status: "not-found",
       });
 
-      vi.mocked(createPlanGroupForPlanner).mockResolvedValue({
+      vi.mocked(createPlanGroupForCalendar).mockResolvedValue({
         success: true,
         planGroupId: "plan-group-new-456",
       });
@@ -426,13 +422,14 @@ describe("createQuickPlan (통합 API)", () => {
       expect(result.planGroupId).toBe("plan-group-new-456");
       expect(result.planId).toBe("plan-new-789");
 
-      // Planner 자동 생성 호출 확인
-      expect(getOrCreateDefaultPlannerAction).toHaveBeenCalledWith({
-        studentId: "student-123",
-      });
+      // Calendar 확보 호출 확인
+      expect(ensureStudentPrimaryCalendar).toHaveBeenCalledWith(
+        "student-123",
+        "tenant-456"
+      );
 
       // Plan Group 생성 시 is_single_content: true 옵션 확인
-      expect(createPlanGroupForPlanner).toHaveBeenCalledWith(
+      expect(createPlanGroupForCalendar).toHaveBeenCalledWith(
         expect.objectContaining({
           options: expect.objectContaining({
             isSingleContent: true,
@@ -455,14 +452,10 @@ describe("createQuickPlan (통합 API)", () => {
           error: null,
         });
 
-      vi.mocked(getOrCreateDefaultPlannerAction).mockResolvedValue({
-        plannerId: "planner-existing-123",
-        isNew: false,
-        plannerName: "기존 플래너",
-      });
+      vi.mocked(ensureStudentPrimaryCalendar).mockResolvedValue("calendar-existing-123");
 
       // 기존 Plan Group 있음
-      vi.mocked(selectPlanGroupForPlanner).mockResolvedValue({
+      vi.mocked(selectPlanGroupForCalendar).mockResolvedValue({
         status: "found",
         planGroupId: "plan-group-existing-456",
       });
@@ -476,8 +469,8 @@ describe("createQuickPlan (통합 API)", () => {
       expect(result.success).toBe(true);
       expect(result.planGroupId).toBe("plan-group-existing-456");
 
-      // createPlanGroupForPlanner는 호출되지 않아야 함
-      expect(createPlanGroupForPlanner).not.toHaveBeenCalled();
+      // createPlanGroupForCalendar는 호출되지 않아야 함
+      expect(createPlanGroupForCalendar).not.toHaveBeenCalled();
     });
   });
 
@@ -509,17 +502,13 @@ describe("createQuickPlan (통합 API)", () => {
           error: null,
         });
 
-      vi.mocked(getOrCreateDefaultPlannerAction).mockResolvedValue({
-        plannerId: "planner-for-student-789",
-        isNew: false,
-        plannerName: "학생용 플래너",
-      });
+      vi.mocked(ensureStudentPrimaryCalendar).mockResolvedValue("calendar-for-student-789");
 
-      vi.mocked(selectPlanGroupForPlanner).mockResolvedValue({
+      vi.mocked(selectPlanGroupForCalendar).mockResolvedValue({
         status: "not-found",
       });
 
-      vi.mocked(createPlanGroupForPlanner).mockResolvedValue({
+      vi.mocked(createPlanGroupForCalendar).mockResolvedValue({
         success: true,
         planGroupId: "plan-group-admin-created",
       });
@@ -553,12 +542,8 @@ describe("createQuickPlan (통합 API)", () => {
     beforeEach(() => {
       vi.mocked(resolveAuthContext).mockResolvedValue(studentContext);
       vi.mocked(isAdminContext).mockReturnValue(false);
-      vi.mocked(getOrCreateDefaultPlannerAction).mockResolvedValue({
-        plannerId: "planner-123",
-        isNew: false,
-        plannerName: "기본 플래너",
-      });
-      vi.mocked(selectPlanGroupForPlanner).mockResolvedValue({
+      vi.mocked(ensureStudentPrimaryCalendar).mockResolvedValue("calendar-123");
+      vi.mocked(selectPlanGroupForCalendar).mockResolvedValue({
         status: "found",
         planGroupId: "plan-group-456",
       });
@@ -648,18 +633,16 @@ describe("createQuickPlan (통합 API)", () => {
       vi.mocked(isAdminContext).mockReturnValue(false);
     });
 
-    it("Planner 생성 실패 시 에러 반환", async () => {
+    it("Calendar 확보 실패 시 에러 반환", async () => {
       // flexible_contents 생성 성공
       mockSupabase.single.mockResolvedValueOnce({
         data: { id: "flex-content-test" },
         error: null,
       });
 
-      vi.mocked(getOrCreateDefaultPlannerAction).mockResolvedValue({
-        plannerId: undefined as any,
-        isNew: false,
-        plannerName: "",
-      });
+      vi.mocked(ensureStudentPrimaryCalendar).mockRejectedValue(
+        new Error("캘린더 확보 실패")
+      );
 
       const result = await createQuickPlan({
         title: "테스트",
@@ -667,7 +650,7 @@ describe("createQuickPlan (통합 API)", () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe("기본 플래너 생성에 실패했습니다.");
+      expect(result.error).toBe("기본 캘린더 생성에 실패했습니다.");
     });
 
     it("Plan Group 생성 실패 시 에러 반환", async () => {
@@ -677,17 +660,13 @@ describe("createQuickPlan (통합 API)", () => {
         error: null,
       });
 
-      vi.mocked(getOrCreateDefaultPlannerAction).mockResolvedValue({
-        plannerId: "planner-123",
-        isNew: false,
-        plannerName: "기본 플래너",
-      });
+      vi.mocked(ensureStudentPrimaryCalendar).mockResolvedValue("calendar-123");
 
-      vi.mocked(selectPlanGroupForPlanner).mockResolvedValue({
+      vi.mocked(selectPlanGroupForCalendar).mockResolvedValue({
         status: "not-found",
       });
 
-      vi.mocked(createPlanGroupForPlanner).mockResolvedValue({
+      vi.mocked(createPlanGroupForCalendar).mockResolvedValue({
         success: false,
         error: "Plan Group 생성 실패",
       });

@@ -60,45 +60,31 @@ export function useAdminPlanRealtime({
           table: 'student_plan',
           filter: `student_id=eq.${studentId}`,
         },
-        (payload) => {
-          console.log('[Admin Realtime] Plan updated:', payload.eventType);
-          debouncedRefresh();
-        }
+        () => debouncedRefresh()
       )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('[Admin Realtime] Subscribed to plan updates for student:', studentId);
-        }
-      });
+      .subscribe();
 
-    // ad_hoc_plans 테이블 변경 구독
-    const adHocChannel = supabase
-      .channel(`admin-adhoc-${studentId}`)
+    // calendar_events 테이블 변경 구독 (학생이 추가/수정/삭제한 이벤트 실시간 반영)
+    const calendarEventsChannel = supabase
+      .channel(`admin-calendar-events-${studentId}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'ad_hoc_plans',
+          table: 'calendar_events',
           filter: `student_id=eq.${studentId}`,
         },
-        (payload) => {
-          console.log('[Admin Realtime] Ad-hoc plan updated:', payload.eventType);
-          debouncedRefresh();
-        }
+        () => debouncedRefresh()
       )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('[Admin Realtime] Subscribed to ad-hoc updates for student:', studentId);
-        }
-      });
+      .subscribe();
 
     return () => {
       if (debounceTimer.current) {
         clearTimeout(debounceTimer.current);
       }
       supabase.removeChannel(planChannel);
-      supabase.removeChannel(adHocChannel);
+      supabase.removeChannel(calendarEventsChannel);
     };
   }, [studentId, enabled, debouncedRefresh]);
 }

@@ -1,4 +1,7 @@
 /**
+ * @deprecated SSE 폴링 엔드포인트 — Supabase Realtime + Push로 대체됨.
+ * 클라이언트 참조 없음 (데드코드). 다음 정리 시 삭제 가능.
+ *
  * Server-Sent Events (SSE) 엔드포인트
  * 실시간 알림 스트리밍
  */

@@ -612,25 +612,8 @@ export const submitCampParticipation = withErrorHandling(
         { total: creationData.academy_schedules.length, existing: existingSchedules.length, new: newSchedules.length }
       );
 
-      const deleteQuery = supabase
-        .from("academy_schedules")
-        .delete()
-        .eq("student_id", user.userId);
-
-      if (tenantContext.tenantId) {
-        deleteQuery.eq("tenant_id", tenantContext.tenantId);
-      }
-
-      const { error: deleteError } = await deleteQuery;
-
-      if (deleteError) {
-        logActionDebug(
-          { domain: "camp", action: "submitCampParticipation" },
-          "기존 학원 일정 삭제 실패 (무시하고 계속 진행)",
-          { error: deleteError }
-        );
-      }
-
+      // calendar_events 기반: 기존 학원 일정은 학생 글로벌이므로 전체 삭제하지 않고
+      // 새로운 일정만 추가 (중복은 이미 위에서 필터링됨)
       if (newSchedules.length > 0) {
         const { createStudentAcademySchedules } = await import(
           "@/lib/data/planGroups"
@@ -737,7 +720,7 @@ export const submitCampParticipation = withErrorHandling(
         const deleteResult = await deletePlanGroupCascade(existingGroupByTemplate.id, {
           studentId: user.userId,
           hardDelete: true,
-          deleteExclusions: false, // 전역 관리: plan_exclusions는 학생별 전역 데이터이므로 삭제하지 않음
+          deleteExclusions: false, // 전역 관리: 제외일은 calendar_events 기반 학생별 전역 데이터이므로 삭제하지 않음
         });
 
         if (!deleteResult.success) {
@@ -922,11 +905,7 @@ export const submitCampParticipation = withErrorHandling(
           .delete()
           .eq("plan_group_id", groupId);
 
-        // 3. 플랜 제외일 삭제
-        await supabase
-          .from("plan_exclusions")
-          .delete()
-          .eq("plan_group_id", groupId);
+        // 3. 제외일은 calendar_events 기반 학생 전역이므로 삭제하지 않음
 
         // 4. 플랜 그룹 삭제
         await supabase
@@ -1061,7 +1040,7 @@ export const declineCampInvitation = withErrorHandling(
       const deleteResult = await deletePlanGroupCascade(draftGroup.id, {
         studentId: user.userId,
         hardDelete: true,
-        deleteExclusions: false, // 전역 관리: plan_exclusions는 학생별 전역 데이터이므로 삭제하지 않음
+        deleteExclusions: false, // 전역 관리: 제외일은 calendar_events 기반 학생별 전역 데이터이므로 삭제하지 않음
       });
 
       if (!deleteResult.success) {
@@ -1179,7 +1158,7 @@ export const cancelCampParticipation = withErrorHandling(
       const deleteResult = await deletePlanGroupCascade(planGroup.id, {
         studentId: user.userId,
         hardDelete: true,
-        deleteExclusions: false, // 전역 관리: plan_exclusions는 학생별 전역 데이터이므로 삭제하지 않음
+        deleteExclusions: false, // 전역 관리: 제외일은 calendar_events 기반 학생별 전역 데이터이므로 삭제하지 않음
       });
 
       if (!deleteResult.success) {

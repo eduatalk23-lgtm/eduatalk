@@ -3,15 +3,13 @@
 /**
  * 관리자 캘린더 뷰 메인 컨테이너
  *
- * 월간/간트 뷰를 전환하고, 캘린더 데이터를 관리합니다.
- * 제외일 설정/해제 기능을 포함합니다.
+ * 월간 캘린더 데이터를 관리하고 제외일 설정/해제 기능을 포함합니다.
  */
 
 import { useState, useMemo, useCallback, useTransition } from "react";
-import { Calendar, BarChart3, ChevronLeft, ChevronRight, CheckSquare } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronLeft, ChevronRight, CheckSquare } from "lucide-react";
 import {
-  startOfMonth,
-  endOfMonth,
   addMonths,
   subMonths,
   format,
@@ -23,10 +21,12 @@ import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/ToastProvider";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import type { DailyScheduleInfo } from "@/lib/types/plan/domain";
-import { removePlannerExclusionAction } from "@/lib/domains/admin-plan/actions";
-import { deletePlanWithLogging } from "@/lib/domains/calendar/actions/legacyBridge";
+import { deleteCalendarEventAction } from "@/lib/domains/admin-plan/actions/calendarEvents";
+import { deletePlanWithLogging } from "@/lib/domains/calendar/actions/calendarEventActions";
 import { AdminCalendarDragProvider } from "./_context/AdminCalendarDragContext";
 import { useAdminCalendarData } from "./_hooks/useAdminCalendarData";
+import { useAdminPlanBasic } from "../context/AdminPlanBasicContext";
+import { useAdminPlanFilter } from "../context/AdminPlanContext";
 import { useCalendarSelection } from "./_hooks/useCalendarSelection";
 import AdminCalendarContextMenu from "./AdminCalendarContextMenu";
 import AddExclusionModal from "./AddExclusionModal";
@@ -56,32 +56,24 @@ const AdminMonthView = dynamic(() => import("./AdminMonthView"), {
   ),
 });
 
-const AdminGanttView = dynamic(() => import("./AdminGanttView"), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center h-96">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-    </div>
-  ),
-});
-
-type CalendarViewMode = "month" | "gantt";
 
 export default function AdminCalendarView({
   studentId,
   tenantId,
-  plannerId,
+  calendarId,
   selectedGroupId,
   selectedDate,
   onDateChange,
-  plannerExclusions,
-  plannerDailySchedules,
+  calendarExclusions,
+  calendarDailySchedules,
   dateTimeSlots,
   onTimelineClick,
   onRefresh,
 }: AdminCalendarViewProps) {
-  // 뷰 모드 상태
-  const [viewMode, setViewMode] = useState<CalendarViewMode>("month");
+  const router = useRouter();
+  const { selectedCalendarSettings } = useAdminPlanBasic();
+  const { resolvedVisibleCalendarIds, showHolidays } = useAdminPlanFilter();
+  const weekStartsOn = selectedCalendarSettings?.weekStartsOn ?? 0;
 
   // 컨텍스트 메뉴 상태
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
@@ -137,20 +129,10 @@ export default function AdminCalendarView({
     }
   });
 
-  // 간트 뷰 날짜 범위
-  const [ganttDateRange, setGanttDateRange] = useState(() => {
-    const start = startOfMonth(currentMonth);
-    const end = endOfMonth(currentMonth);
-    return {
-      start: format(start, "yyyy-MM-dd"),
-      end: format(end, "yyyy-MM-dd"),
-    };
-  });
-
   // 제외일 맵 생성
   const exclusionsByDate = useMemo<ExclusionsByDate>(() => {
     const map: ExclusionsByDate = {};
-    for (const exc of plannerExclusions) {
+    for (const exc of calendarExclusions) {
       map[exc.exclusionDate] = {
         id: `exc-${exc.exclusionDate}`,
         tenant_id: tenantId,
@@ -163,12 +145,12 @@ export default function AdminCalendarView({
       };
     }
     return map;
-  }, [plannerExclusions, studentId, tenantId]);
+  }, [calendarExclusions, studentId, tenantId]);
 
   // 일일 스케줄 맵 생성
   const dailySchedulesByDate = useMemo<DailySchedulesByDate>(() => {
     const map: DailySchedulesByDate = {};
-    for (const scheduleArray of plannerDailySchedules) {
+    for (const scheduleArray of calendarDailySchedules) {
       for (const schedule of scheduleArray) {
         if (schedule?.date) {
           map[schedule.date] = schedule;
@@ -176,7 +158,7 @@ export default function AdminCalendarView({
       }
     }
     return map;
-  }, [plannerDailySchedules]);
+  }, [calendarDailySchedules]);
 
   // 월 변경 핸들러
   const handlePrevMonth = useCallback(() => {
@@ -199,15 +181,11 @@ export default function AdminCalendarView({
     [onDateChange]
   );
 
-  // 플랜 클릭 핸들러 (상세 보기 → 편집 모달 열기)
-  const handlePlanClick = useCallback((planId: string) => {
-    setEditPlanModal({ isOpen: true, planId });
-  }, []);
-
-  // 플랜 편집 핸들러
+  // 플랜 편집 핸들러 → 전체 페이지 이동
   const handlePlanEdit = useCallback((planId: string) => {
-    setEditPlanModal({ isOpen: true, planId });
-  }, []);
+    const params = calendarId ? `?calendarId=${calendarId}` : '';
+    router.push(`/admin/students/${studentId}/plans/event/${planId}/edit${params}`);
+  }, [router, studentId, calendarId]);
 
   // 플랜 편집 모달 닫기
   const handleCloseEditPlanModal = useCallback(() => {
@@ -252,7 +230,7 @@ export default function AdminCalendarView({
 
       startRemoveTransition(async () => {
         try {
-          await removePlannerExclusionAction(exclusion.id);
+          await deleteCalendarEventAction(exclusion.id);
           toast.showToast(`${date} 제외일이 해제되었습니다.`, "success");
           onRefresh();
         } catch (error) {
@@ -289,7 +267,9 @@ export default function AdminCalendarView({
   } = useAdminCalendarData({
     studentId,
     currentMonth,
-    plannerId: plannerId || undefined,
+    calendarId: calendarId || undefined,
+    weekStartsOn,
+    visibleCalendarIds: resolvedVisibleCalendarIds,
   });
 
   // 그룹 필터링 적용
@@ -336,29 +316,6 @@ export default function AdminCalendarView({
     },
     [selectRange, toggleSelection]
   );
-
-  // 간트 뷰 행 데이터 (콘텐츠별 그룹핑)
-  const ganttRows = useMemo(() => {
-    // 콘텐츠별 그룹핑
-    const groupedByContent = new Map<string, typeof plans>();
-
-    for (const plan of plans) {
-      const key = plan.content_id || plan.custom_title || plan.id;
-      const label = plan.custom_title || plan.content_title || "플랜";
-
-      if (!groupedByContent.has(key)) {
-        groupedByContent.set(key, []);
-      }
-      groupedByContent.get(key)!.push(plan);
-    }
-
-    return Array.from(groupedByContent.entries()).map(([id, groupPlans]) => ({
-      id,
-      label: groupPlans[0]?.custom_title || groupPlans[0]?.content_title || "플랜",
-      type: "content" as const,
-      plans: groupPlans,
-    }));
-  }, [plans]);
 
   // 통합 새로고침 핸들러
   const handleRefreshAll = useCallback(() => {
@@ -420,72 +377,42 @@ export default function AdminCalendarView({
   return (
     <div className="flex flex-col h-full">
       {/* 헤더: 뷰 전환 및 네비게이션 */}
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-white">
+      <div className="flex items-center justify-between px-4 py-3 border-b bg-[rgb(var(--color-secondary-50))]">
         {/* 월 네비게이션 */}
         <div className="flex items-center gap-2">
           <button
             onClick={handlePrevMonth}
-            className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"
+            className="p-1.5 hover:bg-[rgb(var(--color-secondary-100))] rounded-md transition-colors"
             aria-label="이전 달"
           >
-            <ChevronLeft className="w-5 h-5 text-gray-600" />
+            <ChevronLeft className="w-5 h-5 text-[var(--text-secondary)]" />
           </button>
           <span className="text-lg font-semibold min-w-[140px] text-center">
             {format(currentMonth, "yyyy년 M월", { locale: ko })}
           </span>
           <button
             onClick={handleNextMonth}
-            className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"
+            className="p-1.5 hover:bg-[rgb(var(--color-secondary-100))] rounded-md transition-colors"
             aria-label="다음 달"
           >
-            <ChevronRight className="w-5 h-5 text-gray-600" />
+            <ChevronRight className="w-5 h-5 text-[var(--text-secondary)]" />
           </button>
         </div>
 
         <div className="flex items-center gap-2">
           {/* 선택 모드 토글 버튼 */}
-          {viewMode === "month" && (
-            <button
-              onClick={toggleSelectionMode}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
-                isSelectionMode
-                  ? "bg-blue-100 text-blue-700"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              )}
-            >
-              <CheckSquare className="w-4 h-4" />
-              {isSelectionMode ? "선택 모드" : "다중 선택"}
-            </button>
-          )}
-
-          {/* 뷰 전환 버튼 */}
-          <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg">
-            <button
-              onClick={() => setViewMode("month")}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
-                viewMode === "month"
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              )}
-            >
-              <Calendar className="w-4 h-4" />
-              월간
-            </button>
-            <button
-              onClick={() => setViewMode("gantt")}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
-                viewMode === "gantt"
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              )}
-            >
-              <BarChart3 className="w-4 h-4" />
-              타임라인
-            </button>
-          </div>
+          <button
+            onClick={toggleSelectionMode}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+              isSelectionMode
+                ? "bg-blue-100 text-blue-700"
+                : "bg-[rgb(var(--color-secondary-100))] text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-200))]"
+            )}
+          >
+            <CheckSquare className="w-4 h-4" />
+            {isSelectionMode ? "선택 모드" : "다중 선택"}
+          </button>
         </div>
       </div>
 
@@ -499,7 +426,7 @@ export default function AdminCalendarView({
         <div className="flex-1 overflow-auto relative">
           {/* 로딩 오버레이 */}
           {isPlansLoading && (
-            <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
+            <div className="absolute inset-0 bg-[rgb(var(--color-secondary-50))]/50 flex items-center justify-center z-10">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
             </div>
           )}
@@ -511,47 +438,30 @@ export default function AdminCalendarView({
             </div>
           )}
 
-          {viewMode === "month" ? (
-            <AdminMonthView
-              studentId={studentId}
-              tenantId={tenantId}
-              plannerId={plannerId}
-              planGroupId={selectedGroupId}
-              currentMonth={currentMonth}
-              selectedDate={selectedDate}
-              onDateSelect={handleDateSelect}
-              onMonthChange={handleMonthChange}
-              plansByDate={plansByDate}
-              exclusionsByDate={exclusionsByDate}
-              dailySchedulesByDate={dailySchedulesByDate}
-              dateTimeSlots={dateTimeSlots}
-              onTimelineClick={onTimelineClick}
-              onPlanClick={handlePlanClick}
-              onPlanEdit={handlePlanEdit}
-              onPlanDelete={handlePlanDelete}
-              onExclusionToggle={handleExclusionToggle}
-              onContextMenu={handleContextMenu}
-              onRefresh={handleRefreshAll}
-              isSelectionMode={isSelectionMode}
-              selectedPlanIds={selectedIds}
-              onPlanSelect={handlePlanSelect}
-            />
-          ) : (
-            <AdminGanttView
-              studentId={studentId}
-              tenantId={tenantId}
-              plannerId={plannerId}
-              dateRange={ganttDateRange}
-              onDateRangeChange={setGanttDateRange}
-              rows={ganttRows}
-              exclusionsByDate={exclusionsByDate}
-              dailySchedulesByDate={dailySchedulesByDate}
-              dateTimeSlots={dateTimeSlots}
-              onTimelineClick={onTimelineClick}
-              onPlanClick={handlePlanClick}
-              onRefresh={handleRefreshAll}
-            />
-          )}
+          <AdminMonthView
+            studentId={studentId}
+            tenantId={tenantId}
+            calendarId={calendarId}
+            planGroupId={selectedGroupId}
+            currentMonth={currentMonth}
+            selectedDate={selectedDate}
+            onDateSelect={handleDateSelect}
+            onMonthChange={handleMonthChange}
+            plansByDate={plansByDate}
+            exclusionsByDate={exclusionsByDate}
+            dailySchedulesByDate={dailySchedulesByDate}
+            dateTimeSlots={dateTimeSlots}
+            onTimelineClick={onTimelineClick}
+            onPlanEdit={handlePlanEdit}
+            onPlanDelete={handlePlanDelete}
+            onExclusionToggle={handleExclusionToggle}
+            onContextMenu={handleContextMenu}
+            onRefresh={handleRefreshAll}
+            isSelectionMode={isSelectionMode}
+            selectedPlanIds={selectedIds}
+            onPlanSelect={handlePlanSelect}
+            showHolidays={showHolidays}
+          />
         </div>
       </AdminCalendarDragProvider>
 
@@ -568,7 +478,7 @@ export default function AdminCalendarView({
         isOpen={addExclusionModal.isOpen}
         onClose={handleCloseAddExclusionModal}
         date={addExclusionModal.date}
-        plannerId={plannerId}
+        studentId={studentId}
         onSuccess={handleRefreshAll}
       />
 

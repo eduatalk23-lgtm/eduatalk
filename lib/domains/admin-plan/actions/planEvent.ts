@@ -198,18 +198,18 @@ export async function getPlanGroupEventHistory(
  * 특정 학생의 최근 이벤트 조회
  * @param studentId - 학생 ID
  * @param limit - 조회 개수 (기본 50)
- * @param plannerId - 플래너 ID (선택, 지정 시 해당 플래너의 플랜 이벤트만 조회)
+ * @param calendarId - 플래너 ID (선택, 지정 시 해당 플래너의 플랜 이벤트만 조회)
  */
 export async function getStudentRecentEvents(
   studentId: string,
   limit = 50,
-  plannerId?: string
+  calendarId?: string
 ): Promise<AdminPlanResponse<PlanEvent[]>> {
   try {
     const supabase = await createSupabaseServerClient();
 
-    // plannerId가 있으면 student_plan → plan_groups 조인하여 필터링
-    if (plannerId) {
+    // calendarId가 있으면 student_plan → plan_groups 조인하여 필터링
+    if (calendarId) {
       const { data, error } = await supabase
         .from('plan_events')
         .select(`
@@ -217,12 +217,12 @@ export async function getStudentRecentEvents(
           student_plan!inner (
             plan_group_id,
             plan_groups!inner (
-              planner_id
+              calendar_id
             )
           )
         `)
         .eq('student_id', studentId)
-        .eq('student_plan.plan_groups.planner_id', plannerId)
+        .eq('student_plan.plan_groups.calendar_id', calendarId)
         .order('occurred_at', { ascending: false })
         .limit(limit);
 
@@ -235,7 +235,7 @@ export async function getStudentRecentEvents(
       return { success: true, data: events as PlanEvent[] };
     }
 
-    // plannerId가 없으면 모든 이벤트 조회
+    // calendarId가 없으면 모든 이벤트 조회
     const { data, error } = await supabase
       .from('plan_events')
       .select('*')
@@ -399,7 +399,7 @@ export async function logVolumeRedistributed(
   studentId: string,
   planGroupId: string,
   redistributionData: {
-    mode: 'auto' | 'manual' | 'weekly_dock' | 'weekly' | 'bulk_move';
+    mode: 'auto' | 'manual' | 'bulk_move';
     total_redistributed: number;
     affected_dates: string[];
     changes: Array<{
@@ -509,8 +509,8 @@ export async function logContainerMoved(
   studentId: string,
   planId: string,
   moveData: {
-    from_container: 'unfinished' | 'daily' | 'weekly';
-    to_container: 'unfinished' | 'daily' | 'weekly';
+    from_container: 'daily';
+    to_container: 'daily';
     plan_type: 'plan' | 'adhoc';
     plan_title?: string;
     plan_date?: string;
@@ -565,7 +565,7 @@ export async function logPlanCreated(
   createData: {
     plan_type: 'flexible_content' | 'adhoc';
     title: string;
-    container_type: 'daily' | 'weekly';
+    container_type: 'daily';
     plan_date?: string;
     content_type?: string;
     range_info?: string;

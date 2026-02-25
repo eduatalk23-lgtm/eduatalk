@@ -5,7 +5,7 @@
  *
  * 5개의 분리된 Context를 조합하여 제공합니다:
  * 1. BasicContext - 정적 정보 (studentId, tenantId, planner data)
- * 2. FilterContext - 필터 상태 (date, group, contentType)
+ * 2. FilterContext - 필터 상태 (date, group, search)
  * 3. ModalContext - 모달 표시 상태 (22개 모달)
  * 4. ModalDataContext - 모달 데이터 (선택된 플랜 등)
  * 5. ActionsContext - 액션 핸들러 (handleOpenEdit 등)
@@ -22,7 +22,8 @@
 import { type ReactNode } from "react";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
 import type { TimeSlot } from "@/lib/types/plan-generation";
-import type { PrefetchedDockData, Planner } from "@/lib/domains/admin-plan/actions";
+import type { PrefetchedDockData } from "@/lib/domains/admin-plan/actions";
+import type { CalendarSettings } from "@/lib/domains/admin-plan/types";
 
 // Split contexts
 import {
@@ -35,7 +36,6 @@ import {
   AdminPlanFilterProvider,
   useAdminPlanFilter,
   type AdminPlanFilterContextValue,
-  type ContentTypeFilter,
 } from "./AdminPlanFilterContext";
 import {
   AdminPlanModalProvider,
@@ -54,7 +54,7 @@ import {
 } from "./AdminPlanActionsContext";
 
 // Re-export types
-export type { ContentTypeFilter, ViewMode };
+export type { ViewMode };
 
 // 플랜 그룹 요약 정보 타입
 export interface PlanGroupSummary {
@@ -67,7 +67,7 @@ export interface PlanGroupSummary {
 }
 
 // 플래너 제외일 타입
-export interface PlannerExclusion {
+export interface CalendarSettingsExclusion {
   exclusionDate: string;
   exclusionType: string;
   reason?: string | null;
@@ -89,11 +89,12 @@ interface AdminPlanProviderProps {
   initialDate: string;
   activePlanGroupId: string | null;
   allPlanGroups?: PlanGroupSummary[];
-  selectedPlannerId?: string;
-  plannerDailySchedules?: DailyScheduleInfo[][];
-  plannerExclusions?: PlannerExclusion[];
-  plannerCalculatedSchedule?: DailyScheduleInfo[];
-  plannerDateTimeSlots?: Record<string, TimeSlot[]>;
+  /** Calendar-First: URL에서 직접 전달받은 calendarId */
+  calendarId: string | null;
+  calendarDailySchedules?: DailyScheduleInfo[][];
+  calendarExclusions?: CalendarSettingsExclusion[];
+  calendarCalculatedSchedule?: DailyScheduleInfo[];
+  calendarDateTimeSlots?: Record<string, TimeSlot[]>;
   /** SSR 프리페치된 Dock 데이터 */
   initialDockData?: PrefetchedDockData;
   /** 뷰 모드 (admin: 관리자, student: 학생) */
@@ -101,7 +102,7 @@ interface AdminPlanProviderProps {
   /** 현재 사용자 ID (권한 확인용) */
   currentUserId?: string;
   /** 선택된 플래너 데이터 (권한 확인용) */
-  selectedPlanner?: Planner | null;
+  selectedCalendarSettings?: CalendarSettings | null;
 }
 
 /**
@@ -115,37 +116,36 @@ export function AdminPlanProvider({
   initialDate,
   activePlanGroupId,
   allPlanGroups = [],
-  selectedPlannerId,
-  plannerDailySchedules,
-  plannerExclusions,
-  plannerCalculatedSchedule,
-  plannerDateTimeSlots,
+  calendarId,
+  calendarDailySchedules,
+  calendarExclusions,
+  calendarCalculatedSchedule,
+  calendarDateTimeSlots,
   initialDockData,
   viewMode = "admin",
   currentUserId,
-  selectedPlanner,
+  selectedCalendarSettings,
 }: AdminPlanProviderProps) {
   return (
     <AdminPlanBasicProvider
       studentId={studentId}
       studentName={studentName}
       tenantId={tenantId}
-      selectedPlannerId={selectedPlannerId}
+      calendarId={calendarId}
       activePlanGroupId={activePlanGroupId}
       allPlanGroups={allPlanGroups}
-      plannerDailySchedules={plannerDailySchedules}
-      plannerExclusions={plannerExclusions}
-      plannerCalculatedSchedule={plannerCalculatedSchedule}
-      plannerDateTimeSlots={plannerDateTimeSlots}
+      calendarDailySchedules={calendarDailySchedules}
+      calendarExclusions={calendarExclusions}
+      calendarCalculatedSchedule={calendarCalculatedSchedule}
+      calendarDateTimeSlots={calendarDateTimeSlots}
       initialDockData={initialDockData}
       initialDate={initialDate}
       viewMode={viewMode}
       currentUserId={currentUserId}
-      selectedPlanner={selectedPlanner}
+      selectedCalendarSettings={selectedCalendarSettings}
     >
       <AdminPlanFilterProvider
         studentId={studentId}
-        selectedPlannerId={selectedPlannerId}
         initialDate={initialDate}
         viewMode={viewMode}
       >

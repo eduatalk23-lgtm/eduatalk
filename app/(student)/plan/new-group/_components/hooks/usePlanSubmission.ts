@@ -396,7 +396,7 @@ export function usePlanSubmission({
         planSubmissionLogger.info("Multiple groups created", {
           hook: "usePlanSubmission",
           data: {
-            plannerId: result.plannerId,
+            calendarId: result.calendarId,
             groupCount: result.totalCount,
             groupIds: result.groupIds,
           },

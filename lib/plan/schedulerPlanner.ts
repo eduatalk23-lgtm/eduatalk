@@ -1,15 +1,15 @@
 /**
- * Planner 기반 스케줄러
+ * Calendar 기반 스케줄러
  *
  * Phase 2: 플랜 시스템 통합 - 스케줄러 리팩토링
  *
- * 여러 단일 콘텐츠 PlanGroup을 Planner 단위로 조율하여 플랜 생성
+ * 여러 단일 콘텐츠 PlanGroup을 Calendar 단위로 조율하여 플랜 생성
  *
  * @module lib/plan/schedulerPlanner
  */
 
 import type {
-  PlannerWithSchedulerOptions,
+  CalendarWithSchedulerOptions,
   SingleContentPlanGroup,
   ContentInfoWithPlanGroup,
   PlanExclusionInfo,
@@ -59,7 +59,7 @@ import type { PlanGroup } from "@/lib/types/plan/domain";
  * @returns 스케줄러 결과
  */
 export async function generatePlansFromPlanner(
-  planner: PlannerWithSchedulerOptions,
+  planner: CalendarWithSchedulerOptions,
   planGroups: SingleContentPlanGroup[],
   exclusions: PlanExclusionInfo[],
   academySchedules: AcademySchedule[],
@@ -224,7 +224,7 @@ export async function generatePlansFromGroupLegacy(
  * Phase 2.4: SingleContentPlanGroup[]에서 content_allocations 자동 빌드
  */
 function createVirtualPlanGroup(
-  planner: PlannerWithSchedulerOptions,
+  planner: CalendarWithSchedulerOptions,
   planGroups: SingleContentPlanGroup[]
 ): PlanGroup {
   // Phase 2.4: SingleContentPlanGroup에서 content_allocations 빌드
@@ -252,7 +252,7 @@ function createVirtualPlanGroup(
     period_end: planner.periodEnd,
     target_date: null,
     block_set_id: planner.blockSetId,
-    planner_id: planner.id,
+    calendar_id: planner.id,
     status: "active",
     deleted_at: null,
     study_hours: planner.studyHours,
@@ -375,7 +375,7 @@ function calculateStats(
 // ============================================
 
 export type {
-  PlannerWithSchedulerOptions,
+  CalendarWithSchedulerOptions,
   SingleContentPlanGroup,
   SchedulerResult,
   ScheduledPlanWithGroup,

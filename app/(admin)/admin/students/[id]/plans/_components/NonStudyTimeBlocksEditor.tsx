@@ -12,7 +12,7 @@
 import { useState, useCallback } from "react";
 import { Plus, Trash2, Clock, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/cn";
-import type { NonStudyTimeBlock } from "@/lib/domains/admin-plan/actions/planners";
+import type { NonStudyTimeBlock } from "@/lib/domains/admin-plan/types";
 
 // ============================================
 // 타입 정의

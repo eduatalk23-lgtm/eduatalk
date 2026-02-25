@@ -171,14 +171,12 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-// Mock planner auto-create
-vi.mock("@/lib/domains/plan/actions/planners/autoCreate", () => ({
-  ensurePlannerForPipeline: vi.fn().mockResolvedValue({
-    success: true,
-    plannerId: "test-planner-id",
-    isNew: false,
-    hasWarning: false,
+// Mock calendar helpers
+vi.mock("@/lib/domains/calendar/helpers", () => ({
+  ensureStudentPrimaryCalendar: vi.fn().mockResolvedValue({
+    id: "test-calendar-id",
   }),
+  resolveStudentPrimaryCalendarId: vi.fn().mockResolvedValue("test-calendar-id"),
 }));
 
 // Mock logging

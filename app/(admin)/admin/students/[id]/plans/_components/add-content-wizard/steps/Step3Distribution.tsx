@@ -2,7 +2,7 @@
 
 import { cn } from '@/lib/cn';
 import type { AddContentWizardData, DistributionMode } from '../types';
-import { Calendar, CalendarDays, CalendarRange, CheckCircle } from 'lucide-react';
+import { Calendar, CalendarRange, CheckCircle } from 'lucide-react';
 
 interface Step3DistributionProps {
   data: AddContentWizardData;
@@ -27,12 +27,6 @@ const DISTRIBUTION_OPTIONS: {
     label: '기간에 걸쳐 분배',
     description: '지정한 기간 동안 학습량을 균등 분배합니다',
     icon: <CalendarRange className="h-5 w-5" />,
-  },
-  {
-    mode: 'weekly',
-    label: 'Weekly Dock에 추가',
-    description: '유동적인 주간 플랜으로 추가합니다',
-    icon: <CalendarDays className="h-5 w-5" />,
   },
 ];
 
@@ -183,7 +177,6 @@ export function Step3Distribution({ data, onChange, targetDate }: Step3Distribut
               {data.distributionMode === 'today' && `${targetDate} (오늘)`}
               {data.distributionMode === 'period' &&
                 `${data.periodStart} ~ ${data.periodEnd || '?'}`}
-              {data.distributionMode === 'weekly' && 'Weekly Dock'}
             </span>
           </div>
         </div>

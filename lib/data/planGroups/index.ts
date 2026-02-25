@@ -29,7 +29,7 @@ export type {
 } from "./types";
 
 // Utils
-export { getSupabaseClient, getOrCreateAcademy } from "./utils";
+export { getSupabaseClient } from "./utils";
 
 // Core CRUD
 export {
@@ -58,59 +58,34 @@ export {
 } from "./unifiedContent";
 export type { UnifiedContentInfo, ContentMode } from "./unifiedContent";
 
-// Exclusions
+// Exclusions (calendar_events 기반 어댑터)
 export {
-  getPlanExclusions,
-  getStudentExclusions,
-  createPlanExclusions,
-  createStudentExclusions,
-} from "./exclusions";
+  getPlanExclusionsFromCalendar as getPlanExclusions,
+  getStudentExclusionsFromCalendar as getStudentExclusions,
+  createPlanExclusionsViaCalendar as createPlanExclusions,
+  createStudentExclusionsViaCalendar as createStudentExclusions,
+} from "../calendarExclusions";
 
-// Exclusion Overrides (플래너별 제외일 커스터마이징)
+// Academies (calendar_events 기반 어댑터)
 export {
-  // Plan Group용 (기존 - 하위 호환성)
-  getPlannerOverrides,
-  getEffectiveExclusions,
-  savePlannerOverrides,
-  upsertPlannerOverride,
-  deletePlannerOverride,
-  hasPlannerOverrides,
-  // Planner용 (신규)
-  getPlannerOverridesForPlanner,
-  getEffectiveExclusionsForPlanner,
-  savePlannerOverridesForPlanner,
-  upsertPlannerOverrideForPlanner,
-  deletePlannerOverrideForPlanner,
-  hasPlannerOverridesForPlanner,
-} from "./exclusionOverrides";
+  getAcademySchedulesFromCalendar as getAcademySchedules,
+  getStudentAcademySchedulesFromCalendar as getStudentAcademySchedules,
+  getPlanGroupAcademySchedulesFromCalendar as getPlanGroupAcademySchedules,
+  createAcademySchedulesViaCalendar as createAcademySchedules,
+  createPlanAcademySchedulesViaCalendar as createPlanAcademySchedules,
+  createStudentAcademySchedulesViaCalendar as createStudentAcademySchedules,
+  // Virtual Academy CRUD (academies 테이블 대체)
+  getDistinctAcademiesFromCalendar,
+  renameAcademyViaCalendar,
+  updateAcademyTravelTimeViaCalendar,
+  deleteAcademyViaCalendar,
+} from "../calendarAcademySchedules";
+export type { VirtualAcademy } from "../calendarAcademySchedules";
 
-// Academies
+// Academy Effective Schedules (전역 학원 일정 → EffectiveAcademySchedule 래핑)
 export {
-  getAcademySchedules,
-  getStudentAcademySchedules,
-  getPlanGroupAcademySchedules,
-  createAcademySchedules,
-  createPlanAcademySchedules,
-  createStudentAcademySchedules,
-} from "./academies";
-
-// Academy Overrides (플래너별 학원 일정 커스터마이징)
-export {
-  // Plan Group용 (기존 패턴과 일관성)
-  getAcademyOverrides,
   getEffectiveAcademySchedules,
-  saveAcademyOverrides,
-  upsertAcademyOverride,
-  deleteAcademyOverride,
-  hasAcademyOverrides,
-  // Planner용
-  getAcademyOverridesForPlanner,
-  getEffectiveAcademySchedulesForPlanner,
-  saveAcademyOverridesForPlanner,
-  upsertAcademyOverrideForPlanner,
-  deleteAcademyOverrideForPlanner,
-  hasAcademyOverridesForPlanner,
-  // 헬퍼
+  getEffectiveAcademySchedulesForCalendar,
   toEffectiveSchedule,
 } from "./academyOverrides";
 

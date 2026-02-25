@@ -616,18 +616,18 @@ export async function getUnifiedContentRecommendation(
 /**
  * 콜드 스타트 사용 가능 여부 확인
  *
- * @param plannerId - 플래너 ID
+ * @param calendarId - 캘린더 ID
  * @param tenantId - 테넌트 ID
  * @param subjectCategory - 교과
  * @returns 사용 가능 여부 및 사유
  */
 export async function canUseColdStart(
-  plannerId: string | undefined,
+  calendarId: string | undefined,
   tenantId: string | undefined,
   subjectCategory: string | undefined
 ): Promise<{ allowed: boolean; reason?: string }> {
-  if (!plannerId) {
-    return { allowed: false, reason: "플래너를 먼저 선택해주세요" };
+  if (!calendarId) {
+    return { allowed: false, reason: "캘린더를 먼저 선택해주세요" };
   }
 
   if (!tenantId) {

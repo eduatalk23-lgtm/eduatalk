@@ -1,7 +1,20 @@
-import { getPlansForStudent, type Plan, buildPlanQuery, type AdHocPlan } from "@/lib/data/studentPlans";
+import { getPlansForStudent, type Plan, buildPlanQuery } from "@/lib/data/studentPlans";
+
 import type { Book, Lecture, CustomContent } from "@/lib/data/studentContents";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { PlanWithContent } from "@/app/(student)/today/_utils/planGroupUtils";
+
+/** Plan with attached content, progress, and session data */
+export type PlanWithContent = Plan & {
+  content?: Book | Lecture | CustomContent;
+  progress?: number | null;
+  session?: {
+    isPaused: boolean;
+    startedAt?: string | null;
+    pausedAt?: string | null;
+    resumedAt?: string | null;
+    pausedDurationSeconds?: number | null;
+  };
+};
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
 import type { TodayProgress } from "@/lib/metrics/todayProgress";
 import { isCampMode } from "@/lib/plan/context";
@@ -21,119 +34,9 @@ import {
   createTypedConditionalQuery,
 } from "@/lib/data/core/typedQueryBuilder";
 import { handleQueryError } from "@/lib/data/core/errorHandler";
-import type { Database } from "@/lib/supabase/database.types";
-import type { SupabaseServerClient } from "@/lib/data/core/types";
 import type { PostgrestError } from "@supabase/supabase-js";
 
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-
-/**
- * 특정 날짜의 ad-hoc 플랜 통합 조회
- *
- * Phase 3.1: student_plan (is_adhoc=true)와 ad_hoc_plans 모두 조회
- */
-async function getAdHocPlansForDate(options: {
-  studentId: string;
-  tenantId: string | null;
-  planDate: string;
-  supabase: SupabaseServerClient;
-}): Promise<AdHocPlan[]> {
-  const { studentId, tenantId, planDate, supabase } = options;
-  const results: AdHocPlan[] = [];
-
-  // 1. student_plan에서 is_adhoc=true 조회 (새 데이터)
-  let studentPlanQuery = supabase
-    .from("student_plan")
-    .select("*")
-    .eq("student_id", studentId)
-    .eq("plan_date", planDate)
-    .eq("is_adhoc", true)
-    .eq("is_active", true)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false });
-
-  if (tenantId) {
-    studentPlanQuery = studentPlanQuery.eq("tenant_id", tenantId);
-  }
-
-  const { data: studentPlans, error: spError } = await studentPlanQuery;
-
-  if (!spError && studentPlans) {
-    // student_plan을 AdHocPlan 형식으로 변환
-    const mapped = studentPlans.map((sp) => ({
-      id: sp.id,
-      student_id: sp.student_id,
-      tenant_id: sp.tenant_id,
-      plan_group_id: sp.plan_group_id ?? "",
-      plan_date: sp.plan_date,
-      title: sp.content_title ?? "",
-      description: sp.description,
-      content_type: sp.content_type,
-      estimated_minutes: sp.estimated_minutes,
-      actual_minutes: sp.actual_minutes,
-      status: sp.status ?? "pending",
-      container_type: sp.container_type ?? "daily",
-      start_time: sp.start_time,
-      end_time: sp.end_time,
-      started_at: sp.started_at,
-      completed_at: sp.completed_at,
-      simple_completed_at: sp.simple_completed_at,
-      simple_completion: sp.simple_completion,
-      paused_at: sp.paused_at,
-      paused_duration_seconds: sp.paused_duration_seconds,
-      pause_count: sp.pause_count,
-      color: sp.color,
-      icon: sp.icon,
-      tags: sp.tags,
-      priority: sp.priority,
-      order_index: sp.order_index,
-      page_range_start: sp.planned_start_page_or_time,
-      page_range_end: sp.planned_end_page_or_time,
-      flexible_content_id: sp.flexible_content_id,
-      created_at: sp.created_at,
-      updated_at: sp.updated_at,
-      created_by: null, // student_plan에는 없음
-      is_recurring: null,
-      recurrence_rule: null,
-      recurrence_parent_id: null,
-    })) as AdHocPlan[];
-    results.push(...mapped);
-  }
-
-  // 2. ad_hoc_plans 테이블에서 레거시 데이터 조회
-  let adHocQuery = supabase
-    .from("ad_hoc_plans")
-    .select("*")
-    .eq("student_id", studentId)
-    .eq("plan_date", planDate)
-    .order("created_at", { ascending: false });
-
-  if (tenantId) {
-    adHocQuery = adHocQuery.eq("tenant_id", tenantId);
-  } else {
-    adHocQuery = adHocQuery.is("tenant_id", null);
-  }
-
-  const { data, error } = await adHocQuery;
-
-  if (error) {
-    handleQueryError(error, {
-      context: "[data/todayPlans] getAdHocPlansForDate (ad_hoc_plans)",
-      logError: false,
-    });
-  } else if (data) {
-    results.push(...(data as AdHocPlan[]));
-  }
-
-  // 3. created_at 기준 정렬 (최신 우선)
-  results.sort((a, b) => {
-    const aDate = a.created_at ? new Date(a.created_at).getTime() : 0;
-    const bDate = b.created_at ? new Date(b.created_at).getTime() : 0;
-    return bDate - aDate;
-  });
-
-  return results;
-}
 
 function normalizeIsoDate(value: string | null): string | null {
   if (!value || !ISO_DATE_REGEX.test(value)) {
@@ -273,9 +176,6 @@ async function getPlansFromView(options: {
     custom_range_display?: string | null;
     review_group_id?: string | null;
     review_source_content_ids?: string[] | null;
-    // Simple completion fields
-    simple_completion?: boolean | null;
-    simple_completed_at?: string | null;
   };
 
   // View에서 필요한 필드만 조회 (view_* 필드 포함)
@@ -398,9 +298,6 @@ async function getPlansFromView(options: {
       custom_range_display: row.custom_range_display ?? null,
       review_group_id: row.review_group_id ?? null,
       review_source_content_ids: row.review_source_content_ids ?? null,
-      // Simple completion fields
-      simple_completion: row.simple_completion ?? null,
-      simple_completed_at: row.simple_completed_at ?? null,
       // Phase 3.1: ad-hoc 플랜 통합 지원 컬럼 (View에서 제공되지 않음)
       is_adhoc: null,
       description: null,
@@ -449,11 +346,6 @@ export type TodayPlansResponse = {
    * Can be null if calculation fails (non-blocking).
    */
   todayProgress?: TodayProgress | null;
-  /**
-   * Ad-hoc plans for the given date.
-   * These are simple plans not tied to a plan group.
-   */
-  adHocPlans?: AdHocPlan[];
 };
 
 export type GetTodayPlansOptions = {
@@ -589,30 +481,15 @@ export async function getTodayPlans(
 
   // 선택한 날짜 플랜 조회 (View 사용으로 최적화)
   // today_plan_view를 통해 콘텐츠 정보가 이미 조인되어 있음
-  // ad_hoc_plans도 함께 조회
-  const [plansResult, adHocPlansResult] = await Promise.all([
-    getPlansFromView({
-      studentId,
-      tenantId,
-      planDate: targetDate,
-      planGroupIds: planGroupIds.length > 0 ? planGroupIds : undefined,
-    }),
-    // Ad-hoc plans 조회 (캠프 모드가 아닐 때만)
-    camp
-      ? Promise.resolve([])
-      : getAdHocPlansForDate({
-          studentId,
-          tenantId,
-          planDate: targetDate,
-          supabase,
-        }),
-  ]);
+  const plansResult = await getPlansFromView({
+    studentId,
+    tenantId,
+    planDate: targetDate,
+    planGroupIds: planGroupIds.length > 0 ? planGroupIds : undefined,
+  });
 
   // 재할당 가능하도록 let으로 선언
   let plans = plansResult;
-
-  // ad_hoc_plans 결과
-  const adHocPlans: AdHocPlan[] = adHocPlansResult;
 
   let displayDate = targetDate;
   // isToday는 이미 위에서 계산됨
@@ -711,7 +588,6 @@ export async function getTodayPlans(
       isToday,
       serverNow: Date.now(),
       todayProgress: todayProgress ?? undefined,
-      adHocPlans: adHocPlans.length > 0 ? adHocPlans : undefined,
     };
   }
 
@@ -1048,7 +924,6 @@ export async function getTodayPlans(
     isToday,
     serverNow: Date.now(),
     todayProgress: todayProgress ?? undefined,
-    adHocPlans: adHocPlans.length > 0 ? adHocPlans : undefined,
   };
 
   // Cache store (if enabled and result is valid) - 디버그 모드에서만

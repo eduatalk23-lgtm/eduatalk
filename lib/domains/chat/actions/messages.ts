@@ -20,6 +20,7 @@ import {
   type SearchMessagesResult,
   type MessagesWithReadStatusResult,
 } from "../types";
+import { routeNotification } from "@/lib/domains/notification/router";
 
 /**
  * 메시지 전송
@@ -44,12 +45,25 @@ export async function sendMessageAction(
 
     const userType = getUserType(role);
 
-    return await chatService.sendMessage(userId, userType, {
+    const result = await chatService.sendMessage(userId, userType, {
       roomId,
       content,
       replyToId,
       clientMessageId,
     });
+
+    // Push 알림 (fire-and-forget: 메시지 전송 응답을 차단하지 않음)
+    if (result.success && result.data) {
+      sendChatPushNotification(
+        roomId,
+        userId,
+        result.data
+      ).catch((err) =>
+        console.error("[Chat Push] Notification failed:", err)
+      );
+    }
+
+    return result;
   } catch (error) {
     console.error("[sendMessageAction] Error:", error);
     return {
@@ -417,4 +431,50 @@ export async function getMessagesSinceAction(
       error: error instanceof Error ? error.message : "메시지 동기화 실패",
     };
   }
+}
+
+// ============================================
+// Push 알림 헬퍼 (fire-and-forget)
+// ============================================
+
+async function sendChatPushNotification(
+  roomId: string,
+  senderId: string,
+  message: ChatMessage
+): Promise<void> {
+  // 1. 채팅방 정보 조회 (type, name)
+  const room = await repository.findRoomById(roomId);
+  if (!room) return;
+
+  // 2. 수신자 목록 (발신자 제외, 탈퇴하지 않은 멤버)
+  const members = await repository.findMembersByRoom(roomId);
+  const recipientIds = members
+    .filter((m) => m.user_id !== senderId && !m.left_at)
+    .map((m) => m.user_id);
+
+  if (recipientIds.length === 0) return;
+
+  // 3. 알림 내용 구성
+  const isDirect = room.type === "direct";
+  const title = isDirect
+    ? (message.sender_name ?? "새 메시지")
+    : (room.name ?? "그룹 채팅");
+  const body = isDirect
+    ? message.content.slice(0, 100)
+    : `${message.sender_name ?? "알 수 없음"}: ${message.content.slice(0, 100)}`;
+
+  // 4. Notification Router로 전달
+  await routeNotification({
+    type: isDirect ? "chat_message" : "chat_group_message",
+    recipientIds,
+    payload: {
+      title,
+      body,
+      url: `/chat/${roomId}`,
+      tag: `chat-${roomId}`,
+    },
+    priority: "normal",
+    source: "server_action",
+    referenceId: `${roomId}:${message.id}`,
+  });
 }

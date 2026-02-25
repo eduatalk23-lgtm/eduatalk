@@ -28,7 +28,7 @@ export interface DeletedPlansResult {
 export interface GetDeletedPlansOptions {
   offset?: number;
   limit?: number;
-  plannerId?: string;
+  calendarId?: string;
 }
 
 const DEFAULT_LIMIT = 20;
@@ -38,7 +38,7 @@ const DEFAULT_LIMIT = 20;
  * @param studentId - 학생 ID
  * @param options.offset - 페이지네이션 오프셋
  * @param options.limit - 조회 개수
- * @param options.plannerId - 플래너 ID (선택, 지정 시 해당 플래너의 삭제된 플랜만 조회)
+ * @param options.calendarId - 캘린더 ID (선택, 지정 시 해당 캘린더의 삭제된 플랜만 조회)
  */
 export async function getDeletedPlans(
   studentId: string,
@@ -48,22 +48,22 @@ export async function getDeletedPlans(
     await requireAdminOrConsultant({ requireTenant: true });
     const supabase = await createSupabaseServerClient();
 
-    const { offset = 0, limit = DEFAULT_LIMIT, plannerId } = options;
+    const { offset = 0, limit = DEFAULT_LIMIT, calendarId } = options;
 
     // 전체 개수 조회
     let countQuery = supabase
       .from('student_plan')
       .select(
-        plannerId
-          ? 'id, plan_groups!inner(planner_id)'
+        calendarId
+          ? 'id, plan_groups!inner(calendar_id)'
           : 'id',
         { count: 'exact', head: true }
       )
       .eq('student_id', studentId)
       .eq('is_active', false);
 
-    if (plannerId) {
-      countQuery = countQuery.eq('plan_groups.planner_id', plannerId);
+    if (calendarId) {
+      countQuery = countQuery.eq('plan_groups.calendar_id', calendarId);
     }
 
     const { count: totalCount, error: countError } = await countQuery;
@@ -76,7 +76,7 @@ export async function getDeletedPlans(
     let dataQuery = supabase
       .from('student_plan')
       .select(
-        plannerId
+        calendarId
           ? `
             id,
             content_title,
@@ -88,7 +88,7 @@ export async function getDeletedPlans(
             updated_at,
             plan_groups!inner (
               name,
-              planner_id
+              calendar_id
             )
           `
           : `
@@ -110,8 +110,8 @@ export async function getDeletedPlans(
       .order('updated_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (plannerId) {
-      dataQuery = dataQuery.eq('plan_groups.planner_id', plannerId);
+    if (calendarId) {
+      dataQuery = dataQuery.eq('plan_groups.calendar_id', calendarId);
     }
 
     const { data, error } = await dataQuery;

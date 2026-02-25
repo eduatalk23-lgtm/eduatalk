@@ -1,7 +1,6 @@
 'use server';
 
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { revalidatePath } from 'next/cache';
 import { getCurrentUser } from '@/lib/auth/getCurrentUser';
 import { logActionError } from '@/lib/logging/actionLogger';
 import type { AdminPlanResponse } from '../types';
@@ -16,7 +15,8 @@ interface MovePlanToDateInput {
 }
 
 /**
- * 플랜을 다른 날짜로 이동 (plan_date + start_time + end_time 동시 업데이트)
+ * 플랜(캘린더 이벤트)을 다른 날짜로 이동
+ * calendar_events 테이블의 start_at, end_at, start_date를 업데이트
  * 주간 그리드 뷰에서 날짜 간 드래그 시 사용
  */
 export async function movePlanToDate(
@@ -30,31 +30,38 @@ export async function movePlanToDate(
       return { success: false, error: '인증되지 않은 사용자입니다.' };
     }
 
-    const updateData: Record<string, unknown> = {
-      plan_date: input.targetDate,
-      start_time: input.newStartTime,
-      end_time: input.newEndTime,
-    };
+    // HH:mm → ISO timestamp (KST)
+    const startAt = `${input.targetDate}T${input.newStartTime}:00+09:00`;
+    const endAt = `${input.targetDate}T${input.newEndTime}:00+09:00`;
 
-    if (input.estimatedMinutes != null) {
-      updateData.estimated_minutes = input.estimatedMinutes;
-    }
+    // timed 이벤트(is_all_day=false)는 start_date가 NULL이어야 함 (chk_event_time_consistency)
+    // 날짜는 start_at에서 추출 (adapters.extractDateYMD)
+    const { error: eventError } = await supabase
+      .from('calendar_events')
+      .update({
+        start_at: startAt,
+        end_at: endAt,
+      })
+      .eq('id', input.planId)
+      .is('deleted_at', null);
 
-    const { error } = await supabase
-      .from('student_plan')
-      .update(updateData)
-      .eq('id', input.planId);
-
-    if (error) {
+    if (eventError) {
       logActionError(
         { domain: 'admin-plan', action: 'movePlanToDate' },
-        error,
+        eventError,
         { planId: input.planId, targetDate: input.targetDate },
       );
       return { success: false, error: '플랜 날짜 이동에 실패했습니다.' };
     }
 
-    revalidatePath(`/admin/students/${input.studentId}/plans`);
+    // estimated_minutes는 event_study_data에 저장
+    if (input.estimatedMinutes != null) {
+      await supabase
+        .from('event_study_data')
+        .update({ estimated_minutes: input.estimatedMinutes })
+        .eq('event_id', input.planId);
+    }
+
     return { success: true };
   } catch (error) {
     logActionError(

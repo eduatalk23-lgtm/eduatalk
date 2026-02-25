@@ -17,10 +17,11 @@ import {
   generateNonStudyRecordsForDateRange,
   type AcademyScheduleInput,
 } from "../utils/nonStudyTimeGenerator";
-import { getStudentExclusions } from "@/lib/data/planGroups/exclusions";
-import { getEffectiveAcademySchedulesForPlanner } from "@/lib/data/planGroups/academyOverrides";
-import { resolvePrimaryCalendarId, mapExclusionType } from "@/lib/domains/calendar/helpers";
-import { extractTimeHHMM } from "@/lib/domains/calendar/adapters";
+import { getStudentExclusionsFromCalendar } from "@/lib/data/calendarExclusions";
+import { getEffectiveAcademySchedulesForCalendar } from "@/lib/data/planGroups/academyOverrides";
+import { mapExclusionType, toTimestamptz } from "@/lib/domains/calendar/helpers";
+import { extractTimeHHMM, extractDateYMD } from "@/lib/domains/calendar/adapters";
+import type { EventType } from "@/lib/domains/calendar/types";
 
 // ============================================
 // 타입 정의
@@ -28,7 +29,7 @@ import { extractTimeHHMM } from "@/lib/domains/calendar/adapters";
 
 export interface CalendarEvent {
   id: string;
-  plannerId: string;
+  calendarId: string;
   planDate: string;
   type: string;
   startTime: string | null;
@@ -65,15 +66,14 @@ function eventToLegacyType(eventType: string, eventSubtype: string | null): stri
 // 조회
 // ============================================
 
-async function _getPlannerCalendarEvents(
-  plannerId: string,
+async function _getCalendarEvents(
+  calendarId: string,
   startDate: string,
   endDate: string
 ): Promise<CalendarEvent[]> {
-  const supabase = await createSupabaseServerClient();
-
-  const calendarId = await resolvePrimaryCalendarId(plannerId);
   if (!calendarId) return [];
+
+  const supabase = await createSupabaseServerClient();
 
   const dateStart = `${startDate}T00:00:00+09:00`;
   const dateEnd = `${endDate}T23:59:59+09:00`;
@@ -104,8 +104,8 @@ async function _getPlannerCalendarEvents(
     const metadata = row.metadata as Record<string, unknown> | null;
     return {
       id: row.id,
-      plannerId,
-      planDate: row.start_date ?? (row.start_at?.split("T")[0] ?? ""),
+      calendarId,
+      planDate: row.start_date ?? (extractDateYMD(row.start_at ?? null) ?? ""),
       type: eventToLegacyType(row.event_type, row.event_subtype),
       startTime: extractTimeHHMM(row.start_at),
       endTime: extractTimeHHMM(row.end_at),
@@ -120,35 +120,143 @@ async function _getPlannerCalendarEvents(
   });
 }
 
-export const getPlannerCalendarEventsAction = withErrorHandling(
-  _getPlannerCalendarEvents
+export const getCalendarEventsAction = withErrorHandling(
+  _getCalendarEvents
 );
+
+/** @deprecated Use getCalendarEventsAction */
+export const getPlannerCalendarEventsAction = getCalendarEventsAction;
+
+// ============================================
+// 일반 캘린더 이벤트 생성 (RRULE 반복 지원)
+// ============================================
+
+export interface CreateCalendarEventInput {
+  /** 캘린더 ID */
+  calendarId: string;
+  title: string;
+  planDate: string;        // YYYY-MM-DD
+  startTime?: string;      // HH:mm (null이면 종일)
+  endTime?: string;        // HH:mm
+  isAllDay?: boolean;
+  subject?: string;
+  subjectCategory?: string;
+  rrule?: string | null;   // RFC 5545 RRULE
+  eventType?: EventType;   // 기본값: 'custom'
+  eventSubtype?: string;
+  containerType?: string;  // 'daily'
+  color?: string;
+  reminderMinutes?: number | null;
+  description?: string;
+  estimatedMinutes?: number | null;
+}
+
+async function _createCalendarEvent(
+  input: CreateCalendarEventInput,
+): Promise<{ eventId: string }> {
+  const supabase = await createSupabaseServerClient();
+
+  // Calendar-First: calendarId에서 직접 조회
+  const { data: cal } = await supabase
+    .from("calendars")
+    .select("id, tenant_id, owner_id")
+    .eq("id", input.calendarId)
+    .is("deleted_at", null)
+    .single();
+
+  if (!cal) {
+    throw new AppError("캘린더를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+  }
+  const calendarId = cal.id;
+  const tenantId = cal.tenant_id;
+  const studentId = cal.owner_id;
+
+  const isAllDay = input.isAllDay ?? !input.startTime;
+  const eventType = input.eventType ?? "custom";
+
+  const insertData: Record<string, unknown> = {
+    calendar_id: calendarId,
+    tenant_id: tenantId,
+    student_id: studentId,
+    title: input.title,
+    description: input.description ?? null,
+    event_type: eventType,
+    event_subtype: input.eventSubtype ?? input.subject ?? null,
+    is_all_day: isAllDay,
+    status: "confirmed",
+    source: "manual",
+    order_index: 0,
+    rrule: input.rrule ?? null,
+    color: input.color ?? null,
+    container_type: input.containerType ?? "daily",
+  };
+
+  // reminder_minutes: 마이그레이션 미적용 시 컬럼이 없을 수 있으므로 값이 있을 때만 포함
+  if (input.reminderMinutes != null) {
+    insertData.reminder_minutes = [input.reminderMinutes];
+  }
+
+  if (isAllDay) {
+    insertData.start_date = input.planDate;
+    insertData.end_date = input.planDate;
+  } else {
+    insertData.start_at = toTimestamptz(input.planDate, input.startTime!);
+    insertData.end_at = toTimestamptz(input.planDate, input.endTime ?? input.startTime!);
+  }
+
+  const { data, error } = await supabase
+    .from("calendar_events")
+    .insert(insertData)
+    .select("id")
+    .single();
+
+  if (error) {
+    throw new AppError(
+      `캘린더 이벤트 생성 실패: ${error.message}`,
+      ErrorCode.DATABASE_ERROR,
+      500,
+      true,
+    );
+  }
+
+  // study 이벤트: event_study_data 레코드 생성
+  if (eventType === "study") {
+    const studyData: Record<string, unknown> = {
+      event_id: data.id,
+      subject_category: input.subjectCategory ?? input.subject ?? null,
+    };
+    if (input.estimatedMinutes != null) {
+      studyData.estimated_minutes = input.estimatedMinutes;
+    }
+    await supabase.from("event_study_data").insert(studyData);
+  }
+
+  return { eventId: data.id };
+}
+
+export const createCalendarEventAction = withErrorHandling(_createCalendarEvent);
 
 // ============================================
 // 제외일 추가
 // ============================================
 
 async function _addExclusionEvent(
-  plannerId: string,
+  calendarId: string,
   date: string,
   exclusionType: string,
   reason?: string
 ): Promise<{ id: string }> {
   const supabase = await createSupabaseServerClient();
 
-  // 플래너의 tenant_id, student_id 조회
-  const { data: planner } = await supabase
-    .from("planners")
-    .select("tenant_id, student_id")
-    .eq("id", plannerId)
+  // Calendar-First: calendars에서 tenant_id, owner_id 직접 조회
+  const { data: cal } = await supabase
+    .from("calendars")
+    .select("id, tenant_id, owner_id")
+    .eq("id", calendarId)
+    .is("deleted_at", null)
     .single();
 
-  if (!planner) {
-    throw new AppError("플래너를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
-  }
-
-  const calendarId = await resolvePrimaryCalendarId(plannerId);
-  if (!calendarId) {
+  if (!cal) {
     throw new AppError("캘린더를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
   }
 
@@ -176,8 +284,8 @@ async function _addExclusionEvent(
     .from("calendar_events")
     .insert({
       calendar_id: calendarId,
-      tenant_id: planner.tenant_id,
-      student_id: planner.student_id,
+      tenant_id: cal.tenant_id,
+      student_id: cal.owner_id,
       title: reason || "제외일",
       event_type: "exclusion",
       event_subtype: mapExclusionType(exclusionType),
@@ -211,24 +319,20 @@ export const addExclusionEventAction = withErrorHandling(_addExclusionEvent);
 // ============================================
 
 async function _addRecurringEvent(
-  plannerId: string,
+  calendarId: string,
   pattern: RecurringPattern
 ): Promise<{ groupId: string; count: number }> {
   const supabase = await createSupabaseServerClient();
 
-  // 플래너 기간/tenant/student 조회
-  const { data: planner } = await supabase
-    .from("planners")
-    .select("tenant_id, student_id, period_start, period_end")
-    .eq("id", plannerId)
+  // Calendar-First: calendars에서 tenant_id, owner_id, period 직접 조회
+  const { data: cal } = await supabase
+    .from("calendars")
+    .select("id, tenant_id, owner_id, period_start, period_end")
+    .eq("id", calendarId)
+    .is("deleted_at", null)
     .single();
 
-  if (!planner) {
-    throw new AppError("플래너를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
-  }
-
-  const calendarId = await resolvePrimaryCalendarId(plannerId);
-  if (!calendarId) {
+  if (!cal) {
     throw new AppError("캘린더를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
   }
 
@@ -236,8 +340,8 @@ async function _addRecurringEvent(
 
   const records = generateRecurringNonStudyRecords(
     calendarId,
-    planner.student_id,
-    planner.tenant_id,
+    cal.owner_id,
+    cal.tenant_id,
     {
       type: pattern.type,
       startTime: pattern.startTime,
@@ -246,8 +350,8 @@ async function _addRecurringEvent(
       label: pattern.label,
       groupId,
     },
-    planner.period_start,
-    planner.period_end,
+    cal.period_start,
+    cal.period_end,
     "manual"
   );
 
@@ -289,6 +393,12 @@ async function _updateCalendarEvent(
     endTime?: string;
     label?: string;
     exclusionType?: string;
+    color?: string | null;
+    status?: string;
+    reminderMinutes?: number[] | null;
+    description?: string | null;
+    rrule?: string | null;
+    eventSubtype?: string;
   }
 ): Promise<void> {
   const supabase = await createSupabaseServerClient();
@@ -305,7 +415,7 @@ async function _updateCalendarEvent(
       .single();
 
     if (event) {
-      const planDate = event.start_date ?? event.start_at?.split("T")[0];
+      const planDate = event.start_date ?? extractDateYMD(event.start_at ?? null);
       if (planDate) {
         if (updates.startTime !== undefined) {
           updateData.start_at = updates.startTime
@@ -323,6 +433,12 @@ async function _updateCalendarEvent(
 
   if (updates.label !== undefined) updateData.title = updates.label || null;
   if (updates.exclusionType !== undefined) updateData.event_subtype = updates.exclusionType;
+  if (updates.color !== undefined) updateData.color = updates.color;
+  if (updates.status !== undefined) updateData.status = updates.status;
+  if (updates.reminderMinutes !== undefined) updateData.reminder_minutes = updates.reminderMinutes;
+  if (updates.description !== undefined) updateData.description = updates.description;
+  if (updates.rrule !== undefined) updateData.rrule = updates.rrule;
+  if (updates.eventSubtype !== undefined) updateData.event_subtype = updates.eventSubtype;
 
   const { error } = await supabase
     .from("calendar_events")
@@ -379,13 +495,12 @@ export const deleteCalendarEventAction = withErrorHandling(
 // ============================================
 
 async function _deleteEventGroup(
-  plannerId: string,
+  calendarId: string,
   groupId: string
 ): Promise<{ deletedCount: number }> {
-  const supabase = await createSupabaseServerClient();
-
-  const calendarId = await resolvePrimaryCalendarId(plannerId);
   if (!calendarId) return { deletedCount: 0 };
+
+  const supabase = await createSupabaseServerClient();
 
   // metadata->>group_id로 필터하여 soft delete
   const { data, error } = await supabase
@@ -418,40 +533,36 @@ export const deleteEventGroupAction = withErrorHandling(_deleteEventGroup);
 // ============================================
 
 async function _importTimeManagement(
-  plannerId: string,
+  calendarId: string,
   studentId: string
 ): Promise<{ exclusionCount: number; academyCount: number }> {
   const supabase = await createSupabaseServerClient();
 
-  // 플래너 정보 조회
-  const { data: planner } = await supabase
-    .from("planners")
-    .select("tenant_id, period_start, period_end, non_study_time_blocks")
-    .eq("id", plannerId)
+  // Calendar-First: calendars에서 tenant_id, period, non_study_time_blocks 직접 조회
+  const { data: cal } = await supabase
+    .from("calendars")
+    .select("id, tenant_id, period_start, period_end, non_study_time_blocks")
+    .eq("id", calendarId)
+    .is("deleted_at", null)
     .single();
 
-  if (!planner) {
-    throw new AppError("플래너를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
-  }
-
-  const calendarId = await resolvePrimaryCalendarId(plannerId);
-  if (!calendarId) {
+  if (!cal) {
     throw new AppError("캘린더를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
   }
 
-  const tenantId = planner.tenant_id;
+  const tenantId = cal.tenant_id;
   let exclusionCount = 0;
   let academyCount = 0;
 
   // 1. 전역 제외일 → calendar_events (event_type='exclusion')
-  const globalExclusions = await getStudentExclusions(studentId, tenantId, {
+  const globalExclusions = await getStudentExclusionsFromCalendar(studentId, tenantId, {
     useAdminClient: true,
   });
 
   const periodExclusions = globalExclusions.filter(
     (e) =>
-      e.exclusion_date >= planner.period_start &&
-      e.exclusion_date <= planner.period_end
+      e.exclusion_date >= cal.period_start &&
+      e.exclusion_date <= cal.period_end
   );
 
   if (periodExclusions.length > 0) {
@@ -529,8 +640,8 @@ async function _importTimeManagement(
   }
 
   // 2. 학원 일정 → calendar_events (event_type='academy')
-  const effectiveSchedules = await getEffectiveAcademySchedulesForPlanner(
-    plannerId,
+  const effectiveSchedules = await getEffectiveAcademySchedulesForCalendar(
+    calendarId,
     studentId,
     tenantId,
     { useAdminClient: true }
@@ -565,8 +676,8 @@ async function _importTimeManagement(
         calendarId,
         studentId,
         tenantId,
-        planner.period_start,
-        planner.period_end,
+        cal.period_start,
+        cal.period_end,
         null,
         { academySchedules: academyInputs, excludedDates: exclusionDates }
       );

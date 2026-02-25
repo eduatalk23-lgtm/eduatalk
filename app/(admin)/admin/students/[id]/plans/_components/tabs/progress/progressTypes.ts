@@ -13,7 +13,6 @@ export interface ProgressPlan {
   customRangeDisplay: string | null;
   dayType: string | null;
   week: number | null;
-  isAdHoc: boolean;
 }
 
 /** 날짜별 플랜 그룹 */

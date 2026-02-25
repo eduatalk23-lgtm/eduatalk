@@ -13,6 +13,7 @@ interface TimeManagementSectionClientProps {
   studentId: string;
   initialExclusions: PlanExclusion[];
   initialAcademies: AcademyWithSchedules[];
+  onRefresh?: () => void;
 }
 
 export function TimeManagementSectionClient({

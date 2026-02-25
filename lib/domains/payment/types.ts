@@ -60,6 +60,24 @@ export type CreatePaymentInput = {
   discount_value?: number;
 };
 
+/** 분납 개별 회차 */
+export type InstallmentRow = {
+  amount: number;
+  due_date: string;
+  billing_period: string;
+  memo?: string;
+};
+
+/** 분납 일괄 생성 입력 */
+export type CreateInstallmentPaymentsInput = {
+  enrollment_id: string;
+  student_id: string;
+  total_amount: number;
+  installments: InstallmentRow[];
+  discount_type?: DiscountType;
+  discount_value?: number;
+};
+
 export type ConfirmPaymentInput = {
   payment_id: string;
   paid_amount: number;

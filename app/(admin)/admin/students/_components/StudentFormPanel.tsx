@@ -124,28 +124,27 @@ export function StudentFormPanel({
     async (formData: AdminStudentFormData) => {
       startTransition(async () => {
         try {
-          const fd = new FormData();
-          const fields: Array<[string, string | undefined]> = [
-            ["name", formData.name],
-            ["phone", formData.phone],
-            ["grade", formData.grade],
-            ["class", formData.class],
-            ["birth_date", formData.birth_date],
-            ["school_id", formData.school_id],
-            ["division", formData.division],
-            ["gender", formData.gender],
-            ["memo", formData.memo],
-            ["status", formData.status],
-            ["address", formData.address],
-            ["emergency_contact", formData.emergency_contact],
-            ["emergency_contact_phone", formData.emergency_contact_phone],
-            ["medical_info", formData.medical_info],
-          ];
-          for (const [key, value] of fields) {
-            if (value != null && value !== "") fd.append(key, value);
-          }
-
-          const result = await createStudent(fd);
+          const result = await createStudent({
+            basic: {
+              name: formData.name || "",
+              grade: formData.grade || "",
+              class: formData.class || null,
+              birth_date: formData.birth_date || "",
+              school_id: formData.school_id || null,
+              division: (formData.division as "고등부" | "중등부" | "졸업") || null,
+              status: (formData.status as "enrolled" | "on_leave" | "graduated" | "transferred") || null,
+            },
+            profile: {
+              gender: (formData.gender as "남" | "여") || null,
+              phone: formData.phone || null,
+              mother_phone: null,
+              father_phone: null,
+              address: formData.address || null,
+              emergency_contact: formData.emergency_contact || null,
+              emergency_contact_phone: formData.emergency_contact_phone || null,
+              medical_info: formData.medical_info || null,
+            },
+          });
 
           if (result.success && result.studentId) {
             showSuccess("학생이 등록되었습니다.");

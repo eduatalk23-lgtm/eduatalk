@@ -18,7 +18,6 @@ type ModalSetter = (show: boolean) => void;
 export interface ModalSettersReturn {
   // Show states
   showAddContentModal: boolean;
-  showAddAdHocModal: boolean;
   showRedistributeModal: boolean;
   showShortcutsHelp: boolean;
   showAIPlanModal: boolean;
@@ -41,7 +40,6 @@ export interface ModalSettersReturn {
   showMarkdownExportModal: boolean;
   // Setters
   setShowAddContentModal: ModalSetter;
-  setShowAddAdHocModal: ModalSetter;
   setShowRedistributeModal: ModalSetter;
   setShowShortcutsHelp: ModalSetter;
   setShowAIPlanModal: ModalSetter;
@@ -69,7 +67,6 @@ export interface ModalSettersReturn {
  */
 const MODAL_MAPPINGS: Array<{ type: ModalType; showKey: keyof ModalSettersReturn; setKey: keyof ModalSettersReturn }> = [
   { type: 'addContent', showKey: 'showAddContentModal', setKey: 'setShowAddContentModal' },
-  { type: 'addAdHoc', showKey: 'showAddAdHocModal', setKey: 'setShowAddAdHocModal' },
   { type: 'redistribute', showKey: 'showRedistributeModal', setKey: 'setShowRedistributeModal' },
   { type: 'shortcutsHelp', showKey: 'showShortcutsHelp', setKey: 'setShowShortcutsHelp' },
   { type: 'aiPlan', showKey: 'showAIPlanModal', setKey: 'setShowAIPlanModal' },

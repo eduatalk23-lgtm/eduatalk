@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { SlideOverPanel } from "@/components/layouts/SlideOver";
 import { TimeManagementSectionClient } from "../[id]/_components/time-management/TimeManagementSectionClient";
 import {
@@ -33,6 +33,23 @@ export function TimeManagementSlidePanel({
   const [isPending, startTransition] = useTransition();
   const prevKeyRef = useRef("");
 
+  const loadData = useCallback(
+    (sid: string) => {
+      startTransition(async () => {
+        const [exclusionsResult, academiesResult] = await Promise.all([
+          getStudentExclusionsForAdmin(sid),
+          getStudentAcademiesWithSchedulesForAdmin(sid),
+        ]);
+        setData({
+          exclusions: exclusionsResult.data ?? [],
+          academies: academiesResult.data ?? [],
+        });
+        setDataLoaded(true);
+      });
+    },
+    []
+  );
+
   useEffect(() => {
     const key = isOpen ? studentId : "";
 
@@ -47,18 +64,12 @@ export function TimeManagementSlidePanel({
       return () => cancelAnimationFrame(id);
     }
 
-    startTransition(async () => {
-      const [exclusionsResult, academiesResult] = await Promise.all([
-        getStudentExclusionsForAdmin(studentId),
-        getStudentAcademiesWithSchedulesForAdmin(studentId),
-      ]);
-      setData({
-        exclusions: exclusionsResult.data ?? [],
-        academies: academiesResult.data ?? [],
-      });
-      setDataLoaded(true);
-    });
-  }, [isOpen, studentId]);
+    loadData(studentId);
+  }, [isOpen, studentId, loadData]);
+
+  const handleRefresh = () => {
+    loadData(studentId);
+  };
 
   return (
     <SlideOverPanel
@@ -81,6 +92,7 @@ export function TimeManagementSlidePanel({
           studentId={studentId}
           initialExclusions={data?.exclusions ?? []}
           initialAcademies={data?.academies ?? []}
+          onRefresh={handleRefresh}
         />
       )}
     </SlideOverPanel>

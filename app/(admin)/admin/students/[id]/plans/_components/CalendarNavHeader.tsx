@@ -7,17 +7,23 @@ import {
   shiftDay,
   shiftWeek,
   shiftMonth,
+  shiftYear,
+  shiftCustomDays,
   formatMonthYear,
   getTodayString,
 } from './utils/weekDateUtils';
 
-export type CalendarView = 'daily' | 'weekly' | 'month';
+export type CalendarView = 'daily' | 'weekly' | 'month' | 'year' | 'agenda';
 
 const VIEW_OPTIONS: { key: CalendarView; label: string; shortLabel: string; shortcut: string }[] = [
   { key: 'daily', label: '일간', shortLabel: '일', shortcut: 'D' },
   { key: 'weekly', label: '주간', shortLabel: '주', shortcut: 'W' },
   { key: 'month', label: '월간', shortLabel: '월', shortcut: 'M' },
+  { key: 'year', label: '연간', shortLabel: '연', shortcut: 'Y' },
+  { key: 'agenda', label: '일정 목록', shortLabel: '목록', shortcut: 'L' },
 ];
+
+const CUSTOM_DAY_OPTIONS = [2, 3, 4, 5, 6, 7] as const;
 
 interface CalendarNavHeaderProps {
   activeView: CalendarView;
@@ -26,6 +32,9 @@ interface CalendarNavHeaderProps {
   onNavigate: (date: string) => void;
   totalCount?: number;
   completedCount?: number;
+  /** 주간 뷰 커스텀 일수 (2~7, 기본 7) */
+  customDayCount?: number;
+  onCustomDayCountChange?: (count: number) => void;
 }
 
 export const CalendarNavHeader = memo(function CalendarNavHeader({
@@ -35,6 +44,8 @@ export const CalendarNavHeader = memo(function CalendarNavHeader({
   onNavigate,
   totalCount,
   completedCount,
+  customDayCount = 7,
+  onCustomDayCountChange,
 }: CalendarNavHeaderProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -50,25 +61,39 @@ export const CalendarNavHeader = memo(function CalendarNavHeader({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [dropdownOpen]);
 
-  const activeOption = VIEW_OPTIONS.find((v) => v.key === activeView) ?? VIEW_OPTIONS[1];
+  const baseOption = VIEW_OPTIONS.find((v) => v.key === activeView) ?? VIEW_OPTIONS[1];
+  // 커스텀 일수가 7이 아니면 shortLabel에 일수 표시
+  const activeOption = activeView === 'weekly' && customDayCount < 7
+    ? { ...baseOption, shortLabel: `${customDayCount}일` }
+    : baseOption;
 
   const handlePrev = useCallback(() => {
     if (activeView === 'daily') onNavigate(shiftDay(selectedDate, -1));
-    else if (activeView === 'weekly') onNavigate(shiftWeek(selectedDate, -1));
-    else onNavigate(shiftMonth(selectedDate, -1));
-  }, [activeView, selectedDate, onNavigate]);
+    else if (activeView === 'weekly') {
+      if (customDayCount < 7) onNavigate(shiftCustomDays(selectedDate, -1, customDayCount));
+      else onNavigate(shiftWeek(selectedDate, -1));
+    }
+    else if (activeView === 'year') onNavigate(shiftYear(selectedDate, -1));
+    else onNavigate(shiftMonth(selectedDate, -1));  // month & agenda
+  }, [activeView, selectedDate, onNavigate, customDayCount]);
 
   const handleNext = useCallback(() => {
     if (activeView === 'daily') onNavigate(shiftDay(selectedDate, 1));
-    else if (activeView === 'weekly') onNavigate(shiftWeek(selectedDate, 1));
-    else onNavigate(shiftMonth(selectedDate, 1));
-  }, [activeView, selectedDate, onNavigate]);
+    else if (activeView === 'weekly') {
+      if (customDayCount < 7) onNavigate(shiftCustomDays(selectedDate, 1, customDayCount));
+      else onNavigate(shiftWeek(selectedDate, 1));
+    }
+    else if (activeView === 'year') onNavigate(shiftYear(selectedDate, 1));
+    else onNavigate(shiftMonth(selectedDate, 1));  // month & agenda
+  }, [activeView, selectedDate, onNavigate, customDayCount]);
 
   const handleToday = useCallback(() => {
     onNavigate(getTodayString());
   }, [onNavigate]);
 
-  const monthYearText = formatMonthYear(selectedDate);
+  const monthYearText = activeView === 'year'
+    ? `${selectedDate.substring(0, 4)}년`
+    : formatMonthYear(selectedDate);
 
   return (
     <div className="flex-shrink-0 flex items-center justify-between px-3 py-2 border-b border-blue-200">
@@ -121,17 +146,18 @@ export const CalendarNavHeader = memo(function CalendarNavHeader({
                 key={view.key}
                 onClick={() => {
                   onViewChange(view.key);
+                  if (view.key === 'weekly') onCustomDayCountChange?.(7);
                   setDropdownOpen(false);
                 }}
                 className={cn(
                   'w-full flex items-center px-3 py-2 text-sm transition-colors',
-                  activeView === view.key
+                  activeView === view.key && (view.key !== 'weekly' || customDayCount === 7)
                     ? 'bg-blue-50 text-blue-600'
                     : 'text-gray-700 hover:bg-gray-50'
                 )}
               >
                 <span className="w-5 shrink-0">
-                  {activeView === view.key && <Check className="w-4 h-4" />}
+                  {activeView === view.key && (view.key !== 'weekly' || customDayCount === 7) && <Check className="w-4 h-4" />}
                 </span>
                 <span className="flex-1 text-left">{view.label}</span>
                 <span className={cn(
@@ -140,6 +166,35 @@ export const CalendarNavHeader = memo(function CalendarNavHeader({
                 )}>{view.shortcut}</span>
               </button>
             ))}
+
+            {/* 커스텀 일수 옵션 */}
+            {onCustomDayCountChange && (
+              <>
+                <div className="border-t border-gray-100 my-1" />
+                <div className="px-3 py-1.5 text-xs text-gray-400 font-medium">커스텀 뷰</div>
+                {CUSTOM_DAY_OPTIONS.filter((n) => n < 7).map((n) => (
+                  <button
+                    key={`custom-${n}`}
+                    onClick={() => {
+                      onViewChange('weekly');
+                      onCustomDayCountChange(n);
+                      setDropdownOpen(false);
+                    }}
+                    className={cn(
+                      'w-full flex items-center px-3 py-2 text-sm transition-colors',
+                      activeView === 'weekly' && customDayCount === n
+                        ? 'bg-blue-50 text-blue-600'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    )}
+                  >
+                    <span className="w-5 shrink-0">
+                      {activeView === 'weekly' && customDayCount === n && <Check className="w-4 h-4" />}
+                    </span>
+                    <span className="flex-1 text-left">{n}일</span>
+                  </button>
+                ))}
+              </>
+            )}
           </div>
         )}
       </div>

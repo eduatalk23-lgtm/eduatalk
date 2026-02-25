@@ -19,6 +19,13 @@ export type NotificationSettings = {
   attendance_check_out_enabled?: boolean | null;
   attendance_absent_enabled?: boolean | null;
   attendance_late_enabled?: boolean | null;
+  // Push 알림 카테고리별 설정
+  chat_push_enabled: boolean;
+  chat_group_push_enabled: boolean;
+  study_reminder_push_enabled: boolean;
+  plan_update_push_enabled: boolean;
+  achievement_push_enabled: boolean;
+  event_reminder_push_enabled: boolean;
 };
 
 export async function updateNotificationSettings(

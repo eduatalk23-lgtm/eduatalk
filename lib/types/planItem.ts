@@ -1,7 +1,6 @@
 import type { PlanStatus } from '@/lib/types/plan';
 
 export type PlanItemType = 'plan' | 'adhoc';
-export type ContainerType = 'daily' | 'weekly' | 'unfinished';
 export type TimeSlotType = 'study' | 'self_study' | null;
 
 export interface PlanItemData {
@@ -30,6 +29,28 @@ export interface PlanItemData {
   timeSlotType?: TimeSlotType;
   /** Phase 4: 배치 사유 */
   allocationReason?: string | null;
+  /** 사용자 커스텀 색상 키 (eventColors.ts EVENT_COLOR_PALETTE) */
+  color?: string | null;
+  /** RRULE 반복 규칙 (반복 이벤트의 부모 또는 확장 인스턴스) */
+  rrule?: string | null;
+  /** 반복 이벤트 부모 ID (exception이거나 확장 인스턴스일 때) */
+  recurringEventId?: string | null;
+  /** exception 레코드 여부 */
+  isException?: boolean | null;
+  /** 반복 이벤트 제외 날짜 목록 (RRULE EXDATE, YYYY-MM-DD[]) */
+  exdates?: string[] | null;
+  /** 알림 설정 (분 단위 배열) */
+  reminderMinutes?: number[] | null;
+  /** 설명/메모 */
+  description?: string | null;
+  /** 이벤트가 속한 캘린더 ID (캘린더 색상 해석용) */
+  calendarId?: string | null;
+  /** 이벤트 종류 (학습/비학습 구분) */
+  eventKind?: 'study' | 'non_study' | 'academy' | 'break' | 'exclusion' | 'custom' | 'focus_time';
+  /** 이벤트 하위 유형 ('아침식사', '학원', '이동시간' 등) */
+  eventSubtype?: string;
+  /** Task 여부 — true이면 완료 처리 가능한 이벤트 */
+  isTask?: boolean;
 }
 
 /**
@@ -40,23 +61,9 @@ export function toPlanItemData(
   raw: any,
   type: PlanItemType
 ): PlanItemData {
-  if (type === 'adhoc') {
-    return {
-      id: raw.id,
-      type: 'adhoc',
-      title: raw.title,
-      status: raw.status ?? 'pending',
-      isCompleted: raw.status === 'completed',
-      estimatedMinutes: raw.estimated_minutes,
-      planDate: raw.plan_date,
-      startTime: raw.start_time,
-      endTime: raw.end_time,
-    };
-  }
-
   return {
     id: raw.id,
-    type: 'plan',
+    type,
     title: raw.custom_title ?? raw.content_title ?? '제목 없음',
     subject: raw.content_subject ?? undefined,
     contentType: raw.content_type ?? undefined,
@@ -77,5 +84,13 @@ export function toPlanItemData(
     planGroupId: raw.plan_group_id,
     timeSlotType: raw.time_slot_type ?? null,
     allocationReason: raw.allocation_type?.reason ?? null,
+    color: raw.color ?? null,
+    calendarId: raw.calendar_id ?? null,
+    rrule: raw.rrule ?? null,
+    recurringEventId: raw.recurring_event_id ?? null,
+    isException: raw.is_exception ?? null,
+    exdates: raw.exdates ?? null,
+    reminderMinutes: raw.reminder_minutes ?? null,
+    description: raw.description ?? null,
   };
 }

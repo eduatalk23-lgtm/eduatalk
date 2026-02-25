@@ -20,10 +20,10 @@ import { predictReorderMode } from '@/lib/domains/plan/utils/unifiedReorderCalcu
 import { parseUnifiedId } from './SortableUnifiedItem';
 
 // 기본 컨테이너 타입
-export type BaseContainerType = 'unfinished' | 'daily' | 'weekly';
+export type BaseContainerType = 'daily';
 
 // 확장 컨테이너 타입 (날짜 기반 드롭 지원)
-// 예: 'daily', 'daily-2025-01-05', 'weekly'
+// 예: 'daily', 'daily-2025-01-05'
 export type ContainerType = BaseContainerType | `daily-${string}`;
 
 export interface DragItem {
@@ -62,9 +62,7 @@ export function extractDateFromContainerId(containerId: string | undefined | nul
 
 // 컨테이너의 기본 타입 추출
 export function getBaseContainerType(containerId: string): BaseContainerType {
-  if (containerId === 'unfinished') return 'unfinished';
-  if (containerId === 'weekly') return 'weekly';
-  return 'daily'; // 'daily' 또는 'daily-YYYY-MM-DD'
+  return 'daily';
 }
 
 interface DndContextValue {
@@ -299,7 +297,7 @@ export function PlanDndProvider({
           }
         }
         // 다른 위치에 드롭한 경우 (플랜 아이템 위 등) - 해당 아이템의 시간을 기준으로
-        else if (!overId.startsWith('daily') && !overId.startsWith('weekly') && overId !== 'unfinished') {
+        else if (!overId.startsWith('daily')) {
           // over.data.current에서 planDate 또는 start_time 정보가 있으면 활용
           const overData = over.data.current as { startTime?: string } | undefined;
           if (overData?.startTime) {
@@ -340,12 +338,30 @@ export function PlanDndProvider({
         return;
       }
 
+      // 월간 캘린더 뷰: day-YYYY-MM-DD 드롭 타겟 처리
+      // DraggableAdminPlanCard → DroppableAdminDayCell 드래그 시
+      if (overId.startsWith('day-')) {
+        const targetDate = overId.substring(4); // 'day-2026-02-25' → '2026-02-25'
+        const itemId = activeItem.id;
+        const itemType = activeItem.type === 'plan' || activeItem.type === 'adhoc'
+          ? activeItem.type : 'plan' as const;
+        const fromContainer = activeItem.containerId || 'daily';
+
+        await onMoveItem(
+          itemId,
+          itemType,
+          fromContainer,
+          'daily' as ContainerType,
+          targetDate,
+        );
+        clearDragState();
+        return;
+      }
+
       // over.id가 컨테이너 ID인지 아이템 ID인지 판단
-      // 컨테이너 ID: 'daily', 'weekly', 'unfinished', 'daily-YYYY-MM-DD'
+      // 컨테이너 ID: 'daily', 'daily-YYYY-MM-DD'
       const isContainerDrop =
         overId === 'daily' ||
-        overId === 'weekly' ||
-        overId === 'unfinished' ||
         overId.startsWith('daily-');
 
       // 컨테이너 간 이동: plan, adhoc만 가능 (non_study, unified는 컨테이너 간 이동 불가)
@@ -361,14 +377,9 @@ export function PlanDndProvider({
           return;
         }
 
-        // 유효한 컨테이너인지 확인
+        // 유효한 컨테이너인지 확인 (항상 daily)
         const baseType = getBaseContainerType(toContainer);
-        const isValidContainer =
-          baseType === 'unfinished' ||
-          baseType === 'daily' ||
-          baseType === 'weekly';
-
-        if (!isValidContainer) {
+        if (baseType !== 'daily') {
           clearDragState();
           return;
         }

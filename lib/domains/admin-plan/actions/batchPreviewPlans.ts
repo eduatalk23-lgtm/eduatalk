@@ -190,22 +190,17 @@ async function loadLearningStats(
 }
 
 /**
- * 학원 일정 로드 (검증용)
+ * 학원 일정 로드 (검증용, calendar_events 기반)
  */
 async function loadAcademySchedules(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  _supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   studentId: string,
   tenantId: string
 ): Promise<AcademyScheduleForPrompt[]> {
-  const { data: schedules } = await supabase
-    .from("academy_schedules")
-    .select("id, day_of_week, start_time, end_time, academy_name, subject, travel_time")
-    .eq("student_id", studentId)
-    .eq("tenant_id", tenantId)
-    .order("day_of_week", { ascending: true })
-    .order("start_time", { ascending: true });
+  const { getStudentAcademySchedules } = await import("@/lib/data/planGroups");
+  const schedules = await getStudentAcademySchedules(studentId, tenantId);
 
-  if (!schedules || schedules.length === 0) {
+  if (schedules.length === 0) {
     return [];
   }
 

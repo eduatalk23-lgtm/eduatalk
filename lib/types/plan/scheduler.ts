@@ -19,15 +19,15 @@ import type {
 import type { ScheduledPlan } from "@/lib/plan/scheduler";
 
 // ============================================
-// Planner 관련 타입
+// Calendar + Scheduler 타입
 // ============================================
 
 /**
- * Planner + SchedulerOptions 통합 타입
+ * Calendar + SchedulerOptions 통합 타입
  *
- * 스케줄러가 Planner 단위로 여러 PlanGroup을 조율할 때 사용
+ * 스케줄러가 Calendar 단위로 여러 PlanGroup을 조율할 때 사용
  */
-export interface PlannerWithSchedulerOptions {
+export interface CalendarWithSchedulerOptions {
   id: string;
   tenantId: string;
   studentId: string;
@@ -51,6 +51,9 @@ export interface PlannerWithSchedulerOptions {
   nonStudyTimeBlocks?: NonStudyTimeBlock[] | null;
 }
 
+/** @deprecated Use CalendarWithSchedulerOptions */
+export type PlannerWithSchedulerOptions = CalendarWithSchedulerOptions;
+
 // ============================================
 // 단일 콘텐츠 PlanGroup 타입
 // ============================================
@@ -65,7 +68,7 @@ export interface SingleContentPlanGroup {
   id: string;
   tenantId: string;
   studentId: string;
-  plannerId: string;
+  calendarId: string;
   name: string | null;
   periodStart: string;
   periodEnd: string;
@@ -274,7 +277,7 @@ export function toSingleContentPlanGroup(
     id: planGroup.id,
     tenantId: planGroup.tenant_id,
     studentId: planGroup.student_id,
-    plannerId: planGroup.planner_id!,
+    calendarId: planGroup.calendar_id ?? "",
     name: planGroup.name,
     periodStart: planGroup.period_start,
     periodEnd: planGroup.period_end,

@@ -18,8 +18,8 @@ import {
 import { createPlanTemplate } from '@/lib/domains/admin-plan/actions/planTemplates';
 import { getTodayInTimezone } from '@/lib/utils/dateUtils';
 import { formatDateString } from '@/lib/date/calendarUtils';
-import type { PlanStatus, ContainerType } from '@/lib/domains/admin-plan/types';
-import { PLAN_STATUS_OPTIONS, CONTAINER_TYPE_OPTIONS } from '@/lib/domains/admin-plan/types';
+import type { PlanStatus } from '@/lib/domains/admin-plan/types';
+import { PLAN_STATUS_OPTIONS } from '@/lib/domains/admin-plan/types';
 
 interface BulkRedistributeModalProps {
   planIds: string[];
@@ -39,7 +39,7 @@ interface PlanInfo {
   plan_date: string;
 }
 
-type BulkAction = 'move_to_daily' | 'move_to_weekly' | 'delete' | 'bulk_edit' | 'copy' | 'move_to_group' | 'save_as_template';
+type BulkAction = 'move_to_daily' | 'delete' | 'bulk_edit' | 'copy' | 'move_to_group' | 'save_as_template';
 
 
 export function BulkRedistributeModal({
@@ -65,16 +65,12 @@ export function BulkRedistributeModal({
     enabled: false,
     value: 'pending',
   });
-  const [editContainer, setEditContainer] = useState<{ enabled: boolean; value: ContainerType }>({
-    enabled: false,
-    value: 'daily',
-  });
   const [editEstimatedMinutes, setEditEstimatedMinutes] = useState<{ enabled: boolean; value: number | null }>({
     enabled: false,
     value: 30,
   });
 
-  const hasBulkEditChanges = editStatus.enabled || editContainer.enabled || editEstimatedMinutes.enabled;
+  const hasBulkEditChanges = editStatus.enabled || editEstimatedMinutes.enabled;
 
   // 복사 관련 상태
   const [copyTargetDates, setCopyTargetDates] = useState<string[]>([]);
@@ -215,19 +211,6 @@ export function BulkRedistributeModal({
             }
           }
         }
-      } else if (action === 'move_to_weekly') {
-        // Weekly로 일괄 이동
-        const { error } = await supabase
-          .from('student_plan')
-          .update({
-            container_type: 'weekly',
-            updated_at: new Date().toISOString(),
-          })
-          .in('id', planIds);
-
-        if (error) {
-          console.error('Failed to move to weekly:', error);
-        }
       } else if (action === 'delete') {
         // 일괄 삭제 (soft delete)
         const { error } = await supabase
@@ -265,9 +248,6 @@ export function BulkRedistributeModal({
         const updates: Partial<StudentPlanUpdateInput> = {};
         if (editStatus.enabled) {
           updates.status = editStatus.value;
-        }
-        if (editContainer.enabled) {
-          updates.container_type = editContainer.value;
         }
         if (editEstimatedMinutes.enabled && editEstimatedMinutes.value !== null) {
           updates.estimated_minutes = editEstimatedMinutes.value;
@@ -437,27 +417,6 @@ export function BulkRedistributeModal({
             </div>
           </label>
 
-          {/* Weekly로 이동 */}
-          <label
-            className={cn(
-              'flex items-start gap-3 p-3 border rounded-lg cursor-pointer',
-              action === 'move_to_weekly' && 'border-green-500 bg-green-50'
-            )}
-          >
-            <input
-              type="radio"
-              checked={action === 'move_to_weekly'}
-              onChange={() => setAction('move_to_weekly')}
-              className="mt-1"
-            />
-            <div>
-              <div className="font-medium">Weekly로 이동</div>
-              <div className="text-sm text-gray-500">
-                주간 유동 플랜으로 이동
-              </div>
-            </div>
-          </label>
-
           {/* 삭제 */}
           <label
             className={cn(
@@ -552,36 +511,6 @@ export function BulkRedistributeModal({
                     )}
                   </div>
 
-                  {/* 컨테이너 변경 */}
-                  <div className="space-y-1">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={editContainer.enabled}
-                        onChange={(e) =>
-                          setEditContainer((prev) => ({ ...prev, enabled: e.target.checked }))
-                        }
-                        className="rounded border-gray-300"
-                      />
-                      <span className="text-sm font-medium">컨테이너 변경</span>
-                    </label>
-                    {editContainer.enabled && (
-                      <select
-                        value={editContainer.value}
-                        onChange={(e) =>
-                          setEditContainer((prev) => ({ ...prev, value: e.target.value as ContainerType }))
-                        }
-                        className="w-full px-3 py-1.5 border rounded-md text-sm"
-                      >
-                        {CONTAINER_TYPE_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-
                   {/* 예상 시간 변경 */}
                   <div className="space-y-1">
                     <label className="flex items-center gap-2">
@@ -623,11 +552,6 @@ export function BulkRedistributeModal({
                         {editStatus.enabled && (
                           <li>
                             상태 → {PLAN_STATUS_OPTIONS.find((o) => o.value === editStatus.value)?.label}
-                          </li>
-                        )}
-                        {editContainer.enabled && (
-                          <li>
-                            컨테이너 → {CONTAINER_TYPE_OPTIONS.find((o) => o.value === editContainer.value)?.label}
                           </li>
                         )}
                         {editEstimatedMinutes.enabled && (

@@ -119,7 +119,7 @@ export async function createGoalAction(formData: FormData): Promise<void> {
   );
 
   revalidatePath("/today");
-  redirect("/today");
+  redirect("/plan/calendar");
 }
 
 /**
@@ -190,7 +190,7 @@ export async function updateGoalAction(goalId: string, formData: FormData): Prom
   }
 
   revalidatePath("/today");
-  redirect("/today");
+  redirect("/plan/calendar");
 }
 
 /**
@@ -206,7 +206,7 @@ export async function deleteGoalAction(goalId: string): Promise<void> {
   }
 
   revalidatePath("/today");
-  redirect("/today");
+  redirect("/plan/calendar");
 }
 
 // ============================================

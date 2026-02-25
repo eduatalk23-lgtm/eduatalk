@@ -12,8 +12,8 @@ export interface PlanGroupNavigationContext {
   groupId: string;
   /** 학생 ID */
   studentId: string;
-  /** 플래너 ID (선택적) */
-  plannerId?: string | null;
+  /** 캘린더 ID */
+  calendarId?: string | null;
   /** 캠프 템플릿 ID (선택적) */
   campTemplateId?: string | null;
   /** 캠프 모드 여부 */
@@ -34,11 +34,11 @@ export interface PlanGroupNavigationContext {
 export function getAdminPlanGroupBackPath(
   context: PlanGroupNavigationContext
 ): string {
-  const { plannerId, studentId, campTemplateId, isCampMode } = context;
+  const { calendarId, studentId, campTemplateId, isCampMode } = context;
 
-  // 플래너가 연결된 경우 플래너 페이지로 이동
-  if (plannerId && studentId) {
-    return `/admin/students/${studentId}/plans/${plannerId}`;
+  // 캘린더 경로
+  if (calendarId && studentId) {
+    return getCalendarPagePath(studentId, calendarId);
   }
 
   // 캠프 모드인 경우 캠프 템플릿 참여자 목록으로 이동
@@ -59,10 +59,10 @@ export function getAdminPlanGroupBackPath(
 export function getAdminPlanGroupBackLabel(
   context: PlanGroupNavigationContext
 ): string {
-  const { plannerId, campTemplateId, isCampMode } = context;
+  const { calendarId, campTemplateId, isCampMode } = context;
 
-  if (plannerId) {
-    return "플래너로 돌아가기";
+  if (calendarId) {
+    return "캘린더로 돌아가기";
   }
 
   if (isCampMode && campTemplateId) {
@@ -73,22 +73,22 @@ export function getAdminPlanGroupBackLabel(
 }
 
 /**
- * 플래너 페이지 경로 생성
+ * 캘린더 페이지 경로 생성 (Calendar-First)
  *
  * @param studentId 학생 ID
- * @param plannerId 플래너 ID
- * @param date 날짜 (선택적, 쿼리 파라미터로 추가)
- * @returns 플래너 페이지 경로
+ * @param calendarId 캘린더 ID
+ * @param options 쿼리 파라미터 (date 등)
+ * @returns 캘린더 페이지 경로
  */
-export function getPlannerPagePath(
+export function getCalendarPagePath(
   studentId: string,
-  plannerId: string,
-  date?: string
+  calendarId: string,
+  options?: { date?: string }
 ): string {
-  const basePath = `/admin/students/${studentId}/plans/${plannerId}`;
-  if (date) {
-    return `${basePath}?date=${date}`;
-  }
-  return basePath;
+  const basePath = `/admin/students/${studentId}/plans/calendar/${calendarId}`;
+  const qs = new URLSearchParams();
+  if (options?.date) qs.set('date', options.date);
+  const query = qs.toString();
+  return query ? `${basePath}?${query}` : basePath;
 }
 

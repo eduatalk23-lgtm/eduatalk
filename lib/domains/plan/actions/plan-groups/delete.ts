@@ -90,7 +90,7 @@ async function _deletePlanGroup(groupId: string): Promise<void> {
         target_date: group.target_date,
         block_set_id: group.block_set_id,
         status: group.status,
-        planner_id: group.planner_id ?? null,
+        calendar_id: group.calendar_id ?? null,
         created_at: group.created_at,
         updated_at: group.updated_at,
       },
@@ -139,7 +139,7 @@ async function _deletePlanGroup(groupId: string): Promise<void> {
         plan_group_id: groupId,
         student_id: user.userId,
         tenant_id: group.tenant_id,
-        planner_id: group.planner_id ?? null,
+        calendar_id: group.calendar_id ?? null,
         backup_data: backupData,
         deleted_by: user.userId,
         created_at: new Date().toISOString(),
@@ -198,22 +198,6 @@ async function _deletePlanGroup(groupId: string): Promise<void> {
       { groupId, step: "deletePlans" }
     );
     // 플랜 삭제 실패해도 플랜 그룹 삭제는 완료됨 (경고만)
-  }
-
-  // ad_hoc_plans 삭제 (DB CASCADE 백업용 - 명시적 삭제)
-  // plan_group_id FK에 CASCADE가 설정되어 있지만, 명시적으로도 삭제 시도
-  const { error: deleteAdHocError } = await supabase
-    .from("ad_hoc_plans")
-    .delete()
-    .eq("plan_group_id", groupId);
-
-  if (deleteAdHocError) {
-    logActionError(
-      { domain: "plan", action: "deletePlanGroup" },
-      deleteAdHocError,
-      { groupId, step: "deleteAdHocPlans" }
-    );
-    // ad_hoc_plans 삭제 실패해도 플랜 그룹 삭제는 완료됨 (경고만)
   }
 
   revalidatePath("/plan");

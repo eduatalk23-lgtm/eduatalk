@@ -150,10 +150,7 @@ export const unifiedPlanGenerationInputSchema = z
     // 생성 옵션
     generationOptions: generationOptionsSchema.optional(),
 
-    // Phase 3: 플래너 연계 필드
-    plannerId: z.string().uuid().nullable().optional(),
     creationMode: z.enum(["wizard", "content_based", "template", "camp", "free_learning"]).optional(),
-    plannerValidationMode: z.enum(["warn", "strict", "auto_create"]).optional(),
   })
   .refine(
     (data) => {

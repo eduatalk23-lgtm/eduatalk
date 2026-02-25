@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { cn } from '@/lib/cn';
 
 interface CalendarLayoutShellProps {
-  header: React.ReactNode;
+  header?: React.ReactNode;
   sidebar: React.ReactNode;
   children: React.ReactNode;
   /** 외부에서 사이드바 상태를 제어할 때 사용 */
@@ -12,13 +12,17 @@ interface CalendarLayoutShellProps {
   onToggleSidebar: () => void;
 }
 
-const SIDEBAR_WIDTH = 280;
+/** 데스크톱(lg+) 사이드바 너비 */
+const SIDEBAR_WIDTH_DESKTOP = 280;
+/** 태블릿(md~lg) 사이드바 너비 */
+const SIDEBAR_WIDTH_TABLET = 220;
 
 /**
  * Google Calendar 스타일 레이아웃 셸
  *
- * - 접기/펼치기 가능한 좌측 사이드바 (280px) + 메인 영역 (flex-1)
- * - 모바일(<1024px): 사이드바 오버레이 + 백드롭
+ * - 모바일(<768px): 사이드바 오버레이 + 백드롭
+ * - 태블릿(768~1024px): 축소 사이드바 (220px) + 메인 영역
+ * - 데스크톱(1024px+): 전체 사이드바 (280px) + 메인 영역
  */
 export function CalendarLayoutShell({
   header,
@@ -28,17 +32,26 @@ export function CalendarLayoutShell({
   onToggleSidebar,
 }: CalendarLayoutShellProps) {
   const [isMobileOverlay, setIsMobileOverlay] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
-  // 반응형 감지
+  // 반응형 감지: mobile (<768), tablet (768-1023), desktop (1024+)
   useEffect(() => {
-    const mql = window.matchMedia('(max-width: 1023px)');
-    const handleChange = (e: MediaQueryListEvent | MediaQueryList) => {
-      setIsMobileOverlay(e.matches);
+    const mqMobile = window.matchMedia('(max-width: 767px)');
+    const mqTablet = window.matchMedia('(min-width: 768px) and (max-width: 1023px)');
+
+    const handleChange = () => {
+      setIsMobileOverlay(mqMobile.matches);
+      setIsTablet(mqTablet.matches);
     };
-    handleChange(mql);
-    mql.addEventListener('change', handleChange);
-    return () => mql.removeEventListener('change', handleChange);
+    handleChange();
+
+    mqMobile.addEventListener('change', handleChange);
+    mqTablet.addEventListener('change', handleChange);
+    return () => {
+      mqMobile.removeEventListener('change', handleChange);
+      mqTablet.removeEventListener('change', handleChange);
+    };
   }, []);
 
   // 모바일 백드롭 클릭 시 사이드바 닫기
@@ -46,17 +59,19 @@ export function CalendarLayoutShell({
     if (isSidebarOpen) onToggleSidebar();
   }, [isSidebarOpen, onToggleSidebar]);
 
+  const sidebarWidth = isTablet ? SIDEBAR_WIDTH_TABLET : SIDEBAR_WIDTH_DESKTOP;
+
   return (
-    <div className="h-full flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden pt-10 md:pt-0">
       {/* Compact Header */}
-      {header}
+      {header && header}
 
       {/* Main Layout: Sidebar + Content */}
       <div className="flex-1 flex overflow-hidden relative">
         {/* Mobile Backdrop */}
         {isMobileOverlay && isSidebarOpen && (
           <div
-            className="fixed inset-0 bg-black/30 z-40 lg:hidden"
+            className="fixed inset-0 bg-black/30 z-40 md:hidden"
             onClick={handleBackdropClick}
           />
         )}
@@ -77,9 +92,9 @@ export function CalendarLayoutShell({
           )}
           style={
             isSidebarOpen && !isMobileOverlay
-              ? { width: SIDEBAR_WIDTH }
+              ? { width: sidebarWidth }
               : isMobileOverlay
-                ? { width: SIDEBAR_WIDTH }
+                ? { width: SIDEBAR_WIDTH_DESKTOP }
                 : undefined
           }
         >

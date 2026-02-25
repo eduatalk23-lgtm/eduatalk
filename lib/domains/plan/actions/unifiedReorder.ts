@@ -41,18 +41,9 @@ export async function executeUnifiedReorder(
 
     logActionDebug(
       { domain: 'plan', action: 'executeUnifiedReorder' },
-      `Reordering items for planner ${input.plannerId} on ${input.planDate}`,
-      { plannerId: input.plannerId, planDate: input.planDate }
+      `Reordering items for planner ${input.calendarId} on ${input.planDate}`,
+      { calendarId: input.calendarId, planDate: input.planDate }
     );
-
-    // 디버깅: 입력 데이터의 nonStudy 아이템 확인
-    const inputNonStudyItems = input.orderedItems.filter(i => i.type === 'nonStudy');
-    console.log('[DEBUG] Input nonStudy items:', inputNonStudyItems.map(i => ({
-      id: i.id,
-      startTime: i.startTime,
-      endTime: i.endTime,
-      nonStudyData: i.nonStudyData,
-    })));
 
     // 1. 현재 아이템들(드래그 후)을 TimelineItem 형식으로 변환
     const currentItems: TimelineItem[] = input.orderedItems.map((item) => ({
@@ -175,44 +166,14 @@ export async function executeUnifiedReorder(
       }
     }
 
-    // 디버깅: 전체 reorderResult 확인
-    console.log('[DEBUG] reorderResult mode:', reorderResult.mode);
-    console.log('[DEBUG] reorderResult.items count:', reorderResult.items.length);
-    console.log('[DEBUG] reorderResult.items (all):', reorderResult.items.map(i => ({
-      id: i.id?.substring(0, 8),
-      type: i.type,
-      startTime: i.startTime,
-      endTime: i.endTime,
-      originalStartTime: i.originalStartTime,
-      originalEndTime: i.originalEndTime,
-    })));
-    console.log('[DEBUG] recordIdMap:', Object.fromEntries(recordIdMap));
-    console.log('[DEBUG] nonStudyItems count:', nonStudyItems.length);
-    console.log('[DEBUG] nonStudyItems:', nonStudyItems.map(i => ({
-      id: i.id,
-      startTime: i.startTime,
-      endTime: i.endTime,
-      originalStartTime: i.originalStartTime,
-      originalEndTime: i.originalEndTime,
-    })));
-
     for (const item of nonStudyItems) {
       const timeChanged = item.startTime !== item.originalStartTime || item.endTime !== item.originalEndTime;
-      console.log('[DEBUG] NonStudy time comparison:', {
-        id: item.id,
-        startTime: item.startTime,
-        originalStartTime: item.originalStartTime,
-        endTime: item.endTime,
-        originalEndTime: item.originalEndTime,
-        timeChanged,
-      });
 
       // 시간이 변경된 경우에만 업데이트
       if (timeChanged) {
         // calendar_events 테이블 직접 UPDATE
         // input.orderedItems에서 recordId 찾기
         const recordId = recordIdMap.get(item.id);
-        console.log('[DEBUG] Looking for recordId:', { itemId: item.id, foundRecordId: recordId });
 
         if (recordId) {
           const planDate = input.planDate;
@@ -260,7 +221,7 @@ export async function executeUnifiedReorder(
     logActionError(
       { domain: 'plan', action: 'executeUnifiedReorder' },
       error,
-      { plannerId: input.plannerId, planDate: input.planDate }
+      { calendarId: input.calendarId, planDate: input.planDate }
     );
     return { success: false, error: '예기치 않은 오류가 발생했습니다.' };
   }
@@ -274,7 +235,7 @@ export async function executeUnifiedReorder(
  */
 export async function updateItemTime(input: {
   studentId: string;
-  plannerId: string;
+  calendarId: string;
   planDate: string;
   itemId: string;
   itemType: 'plan' | 'nonStudy';

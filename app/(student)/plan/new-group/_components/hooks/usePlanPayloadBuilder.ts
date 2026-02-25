@@ -303,7 +303,7 @@ export function usePlanPayloadBuilder(
    * Phase 3.1: 단일 콘텐츠 페이로드 배열 생성
    *
    * 각 콘텐츠마다 별도의 plan_group을 생성하기 위한 페이로드를 반환합니다.
-   * 모든 plan_group은 동일한 planner_id를 공유하며, Planner 단위로 조율됩니다.
+   * 모든 plan_group은 동일한 calendar_id를 공유하며, Calendar 단위로 조율됩니다.
    */
   const buildSingleContentPayloads = (): SingleContentPayload[] => {
     if (!isValid && options.validateOnBuild) {

@@ -3,8 +3,7 @@ import {
   adminDockKeys,
   getWeekRange,
   dailyPlansQueryOptions,
-  weeklyPlansQueryOptions,
-  unfinishedPlansQueryOptions,
+  overduePlansQueryOptions,
 } from '@/lib/query-options/adminDock';
 
 // Supabase 클라이언트 모킹
@@ -50,48 +49,13 @@ describe('adminDockKeys', () => {
     });
   });
 
-  describe('dailyAdHoc', () => {
-    it('학생 ID와 날짜를 포함한 ad-hoc 쿼리 키를 반환한다', () => {
-      const studentId = 'student-123';
-      const date = '2024-01-15';
-
-      const key = adminDockKeys.dailyAdHoc(studentId, date);
-
-      expect(key).toEqual(['adminDock', 'dailyAdHoc', 'student-123', '2024-01-15']);
-    });
-  });
-
-  describe('weekly', () => {
-    it('학생 ID와 주간 범위를 포함한 쿼리 키를 반환한다', () => {
-      const studentId = 'student-123';
-      const weekStart = '2024-01-15';
-      const weekEnd = '2024-01-21';
-
-      const key = adminDockKeys.weekly(studentId, weekStart, weekEnd);
-
-      expect(key).toEqual(['adminDock', 'weekly', 'student-123', '2024-01-15', '2024-01-21', 'all']);
-    });
-  });
-
-  describe('weeklyAdHoc', () => {
-    it('학생 ID와 주간 범위를 포함한 ad-hoc 쿼리 키를 반환한다', () => {
-      const studentId = 'student-123';
-      const weekStart = '2024-01-15';
-      const weekEnd = '2024-01-21';
-
-      const key = adminDockKeys.weeklyAdHoc(studentId, weekStart, weekEnd);
-
-      expect(key).toEqual(['adminDock', 'weeklyAdHoc', 'student-123', '2024-01-15', '2024-01-21']);
-    });
-  });
-
-  describe('unfinished', () => {
+  describe('overdue', () => {
     it('학생 ID를 포함한 미완료 쿼리 키를 반환한다', () => {
       const studentId = 'student-123';
 
-      const key = adminDockKeys.unfinished(studentId);
+      const key = adminDockKeys.overdue(studentId);
 
-      expect(key).toEqual(['adminDock', 'unfinished', 'student-123', 'all']);
+      expect(key).toEqual(['adminDock', 'overdue', 'student-123', 'all']);
     });
   });
 });
@@ -194,42 +158,17 @@ describe('Query Options', () => {
     });
   });
 
-  describe('weeklyPlansQueryOptions', () => {
-    it('올바른 쿼리 키를 포함한다', () => {
-      const studentId = 'student-123';
-      const weekStart = '2024-01-15';
-      const weekEnd = '2024-01-21';
-
-      const options = weeklyPlansQueryOptions(studentId, weekStart, weekEnd);
-
-      expect(options.queryKey).toEqual([
-        'adminDock',
-        'weekly',
-        'student-123',
-        '2024-01-15',
-        '2024-01-21',
-        'all',
-      ]);
-    });
-
-    it('queryFn이 함수이다', () => {
-      const options = weeklyPlansQueryOptions('student-123', '2024-01-15', '2024-01-21');
-
-      expect(typeof options.queryFn).toBe('function');
-    });
-  });
-
-  describe('unfinishedPlansQueryOptions', () => {
+  describe('overduePlansQueryOptions', () => {
     it('올바른 쿼리 키를 포함한다', () => {
       const studentId = 'student-123';
 
-      const options = unfinishedPlansQueryOptions(studentId);
+      const options = overduePlansQueryOptions(studentId);
 
-      expect(options.queryKey).toEqual(['adminDock', 'unfinished', 'student-123', 'all']);
+      expect(options.queryKey).toEqual(['adminDock', 'overdue', 'student-123', 'all']);
     });
 
     it('queryFn이 함수이다', () => {
-      const options = unfinishedPlansQueryOptions('student-123');
+      const options = overduePlansQueryOptions('student-123');
 
       expect(typeof options.queryFn).toBe('function');
     });
@@ -258,12 +197,12 @@ describe('Query Key Uniqueness', () => {
     expect(key1).toEqual(key2);
   });
 
-  it('daily와 weekly는 다른 쿼리 키를 가진다', () => {
+  it('daily와 overdue는 다른 쿼리 키를 가진다', () => {
     const dailyKey = adminDockKeys.daily('student-1', '2024-01-15');
-    const weeklyKey = adminDockKeys.weekly('student-1', '2024-01-15', '2024-01-21');
+    const overdueKey = adminDockKeys.overdue('student-1');
 
     expect(dailyKey[1]).toBe('daily');
-    expect(weeklyKey[1]).toBe('weekly');
-    expect(dailyKey).not.toEqual(weeklyKey);
+    expect(overdueKey[1]).toBe('overdue');
+    expect(dailyKey).not.toEqual(overdueKey);
   });
 });

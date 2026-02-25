@@ -35,6 +35,12 @@ export default async function NotificationSettingsPage() {
     quiet_hours_enabled: false,
     quiet_hours_start: "22:00",
     quiet_hours_end: "08:00",
+    chat_push_enabled: true,
+    chat_group_push_enabled: true,
+    study_reminder_push_enabled: true,
+    plan_update_push_enabled: true,
+    achievement_push_enabled: true,
+    event_reminder_push_enabled: true,
   };
 
   const settings = notificationSettings || defaultSettings;
@@ -47,7 +53,7 @@ export default async function NotificationSettingsPage() {
           description="학습 관련 알림을 받을 항목과 시간을 설정하세요"
         />
 
-        <NotificationSettingsView initialSettings={settings} />
+        <NotificationSettingsView initialSettings={settings} userId={user.id} />
       </div>
     </PageContainer>
   );

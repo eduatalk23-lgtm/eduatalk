@@ -13,7 +13,7 @@ import { ModalWrapper, ModalButton } from './ModalWrapper';
 interface ReorderPlansModalProps {
   studentId: string;
   targetDate: string;
-  containerType: 'daily' | 'weekly' | 'unfinished';
+  containerType: 'daily';
   onClose: () => void;
   onSuccess: () => void;
 }

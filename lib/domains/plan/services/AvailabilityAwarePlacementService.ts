@@ -4,7 +4,7 @@
  * 기존 플랜을 고려한 3단계 폴백 배치 서비스
  * - Step 1: 학습 시간(studyHours)에 배치 시도
  * - Step 2: 자율학습 시간(selfStudyHours)에 배치 시도
- * - Step 3: 배치 불가 시 dock(container_type: 'unfinished')으로 이동
+ * - Step 3: 배치 불가 시 dock(overdue)으로 이동
  *
  * @module lib/domains/plan/services/AvailabilityAwarePlacementService
  */

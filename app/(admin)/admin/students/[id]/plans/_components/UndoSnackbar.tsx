@@ -11,7 +11,7 @@ import {
 } from 'react';
 import { usePlanToast } from './PlanToast';
 import type { UndoableAction } from './undoTypes';
-import { restoreEvent, updateItemTime, updatePlanStatus } from '@/lib/domains/calendar/actions/legacyBridge';
+import { restoreEvent, updateItemTime, updatePlanStatus, restoreRecurringDelete } from '@/lib/domains/calendar/actions/calendarEventActions';
 import { movePlanToDate } from '@/lib/domains/admin-plan/actions/movePlanToDate';
 
 const UNDO_TIMEOUT_MS = 5000;
@@ -91,10 +91,6 @@ export function UndoProvider({ children, onRefresh }: UndoProviderProps) {
         case 'delete-plan':
           result = await restoreEvent(action.planId);
           break;
-        case 'delete-adhoc-snapshot':
-          // calendar soft-delete → restore by eventId (snapshot no longer needed)
-          result = await restoreEvent(action.snapshot?.id ?? '');
-          break;
         case 'move-to-date':
           result = await movePlanToDate({
             planId: action.planId,
@@ -108,7 +104,7 @@ export function UndoProvider({ children, onRefresh }: UndoProviderProps) {
         case 'resize':
           result = await updateItemTime({
             studentId: action.studentId,
-            plannerId: action.plannerId,
+            calendarId: action.calendarId,
             planDate: action.planDate,
             itemId: action.planId,
             itemType: 'plan',
@@ -121,8 +117,17 @@ export function UndoProvider({ children, onRefresh }: UndoProviderProps) {
           result = await updatePlanStatus({
             planId: action.planId,
             status: action.prevStatus,
-            isAdHoc: action.isAdHoc,
             skipRevalidation: true,
+          });
+          break;
+        case 'recurring-delete':
+          result = await restoreRecurringDelete({
+            scope: action.scope,
+            parentEventId: action.parentEventId,
+            instanceDate: action.instanceDate,
+            previousExdates: action.previousExdates,
+            previousRrule: action.previousRrule,
+            deletedEventIds: action.deletedEventIds,
           });
           break;
       }
@@ -222,6 +227,9 @@ function UndoSnackbar({ action, isUndoing, onUndo, onDismiss }: UndoSnackbarProp
 
   return (
     <div
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
       className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}

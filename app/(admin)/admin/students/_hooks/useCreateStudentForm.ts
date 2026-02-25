@@ -1,27 +1,23 @@
 /**
  * 신규 학생 등록 폼 훅
- * React Hook Form을 사용하여 폼 상태 관리
- * Zod 스키마를 통한 검증 통합
+ * React Hook Form + Zod 스키마 통합
  */
 
-import { useForm, type UseFormReturn } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMemo } from "react";
-import type { CreateStudentFormData } from "../_types/createStudentTypes";
 import {
   createStudentFormSchema,
   type CreateStudentFormSchema,
 } from "@/lib/validation/createStudentFormSchema";
 
 type UseCreateStudentFormProps = {
-  defaultValues?: Partial<CreateStudentFormData>;
+  defaultValues?: Partial<CreateStudentFormSchema>;
 };
 
 export function useCreateStudentForm({
   defaultValues: initialDefaultValues,
 }: UseCreateStudentFormProps = {}) {
-  // 기본값 설정 (Zod 스키마에서 추론한 타입 사용)
-  // optional 필드는 undefined로, default 필드는 기본값으로 설정
   const defaultValues = useMemo(
     () =>
       ({
@@ -64,9 +60,8 @@ export function useCreateStudentForm({
     [initialDefaultValues]
   );
 
-  // React Hook Form 설정 (Zod 스키마 통합)
-  // defaultValues는 Partial 타입이지만, react-hook-form이 이를 올바르게 처리합니다
-  // zodResolver의 타입 추론이 default() 필드를 optional로 만들기 때문에 타입 단언 필요
+  // zodResolver 타입은 .default() 필드 때문에 input/output 차이가 남
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const form = useForm<CreateStudentFormSchema>({
     resolver: zodResolver(createStudentFormSchema) as any,
     defaultValues: defaultValues as Partial<CreateStudentFormSchema>,
@@ -74,7 +69,6 @@ export function useCreateStudentForm({
     shouldUnregister: false,
   });
 
-  // 폼 리셋
   const reset = () => {
     form.reset(defaultValues);
   };
@@ -93,4 +87,3 @@ export function useCreateStudentForm({
     reset,
   };
 }
-

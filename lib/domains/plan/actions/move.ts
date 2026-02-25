@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 // Types
 // ============================================
 
-export type ContainerType = "daily" | "weekly" | "unfinished";
+export type ContainerType = "daily";
 
 export type ActionResult = {
   success: boolean;
@@ -45,18 +45,32 @@ async function checkExclusionDate(
   planGroupId: string,
   date: string
 ): Promise<{ isExclusion: boolean; reason?: string; exclusionType?: string }> {
+  // plan_group → student_id 조회
+  const { data: group } = await supabase
+    .from("plan_groups")
+    .select("student_id")
+    .eq("id", planGroupId)
+    .maybeSingle();
+
+  if (!group?.student_id) return { isExclusion: false };
+
+  // calendar_events에서 제외일 확인
   const { data: exclusion } = await supabase
-    .from("plan_exclusions")
-    .select("exclusion_type, reason")
-    .eq("plan_group_id", planGroupId)
-    .eq("exclusion_date", date)
-    .single();
+    .from("calendar_events")
+    .select("event_subtype, title")
+    .eq("student_id", group.student_id)
+    .eq("event_type", "exclusion")
+    .eq("is_all_day", true)
+    .eq("start_date", date)
+    .is("deleted_at", null)
+    .limit(1)
+    .maybeSingle();
 
   if (exclusion) {
     return {
       isExclusion: true,
-      reason: exclusion.reason || undefined,
-      exclusionType: exclusion.exclusion_type,
+      reason: exclusion.title || undefined,
+      exclusionType: exclusion.event_subtype || undefined,
     };
   }
 
@@ -95,7 +109,7 @@ function checkTimeOverlap(
  * - daily 컨테이너의 활성 플랜만 체크
  * - 취소/건너뛴 플랜은 제외
  * - 삭제된 플랜, 비활성 플랜 제외
- * - 특정 플래너의 플랜만 체크 (plannerId 제공 시)
+ * - 특정 캘린더의 플랜만 체크 (calendarId 제공 시)
  */
 async function checkTimeConflict(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
@@ -104,13 +118,13 @@ async function checkTimeConflict(
   startTime: string,
   endTime: string,
   excludePlanId?: string,
-  plannerId?: string
+  calendarId?: string
 ): Promise<{ hasConflict: boolean; conflictingPlan?: { title: string; startTime: string; endTime: string } }> {
   // student_plan에서 충돌 확인
   // - daily 컨테이너만 (weekly, unfinished는 시간 배치 전이므로 제외)
   // - 활성 상태만 (cancelled, skipped 제외)
   // - is_active = true, deleted_at is null
-  // - plannerId가 있으면 해당 플래너의 플랜만
+  // - calendarId가 있으면 해당 캘린더의 플랜만
   const studentPlanQuery = supabase
     .from("student_plan")
     .select("id, content_title, start_time, end_time, status, plan_group_id")
@@ -125,13 +139,13 @@ async function checkTimeConflict(
   const { data: studentPlans } = await studentPlanQuery;
 
   if (studentPlans) {
-    // plannerId가 있으면 해당 플래너의 plan_group_id 목록을 가져옴
+    // calendarId가 있으면 해당 캘린더의 plan_group_id 목록을 가져옴
     let validPlanGroupIds: Set<string> | null = null;
-    if (plannerId) {
+    if (calendarId) {
       const { data: planGroups } = await supabase
         .from("plan_groups")
         .select("id")
-        .eq("planner_id", plannerId);
+        .eq("calendar_id", calendarId);
       if (planGroups) {
         validPlanGroupIds = new Set(planGroups.map(pg => pg.id));
       }
@@ -141,7 +155,7 @@ async function checkTimeConflict(
       if (excludePlanId && plan.id === excludePlanId) continue;
       // 취소/건너뛴 플랜은 충돌 체크에서 제외
       if (plan.status === "cancelled" || plan.status === "skipped") continue;
-      // plannerId가 있으면 해당 플래너의 플랜만 체크
+      // calendarId가 있으면 해당 캘린더의 플랜만 체크
       if (validPlanGroupIds && plan.plan_group_id && !validPlanGroupIds.has(plan.plan_group_id)) continue;
       if (plan.start_time && plan.end_time) {
         if (checkTimeOverlap(startTime, endTime, plan.start_time, plan.end_time)) {
@@ -149,36 +163,6 @@ async function checkTimeConflict(
             hasConflict: true,
             conflictingPlan: {
               title: plan.content_title || "플랜",
-              startTime: plan.start_time,
-              endTime: plan.end_time,
-            },
-          };
-        }
-      }
-    }
-  }
-
-  // ad_hoc_plans에서 충돌 확인
-  const { data: adHocPlans } = await supabase
-    .from("ad_hoc_plans")
-    .select("id, title, start_time, end_time, status")
-    .eq("plan_date", date)
-    .eq("student_id", studentId)
-    .eq("container_type", "daily")
-    .not("start_time", "is", null)
-    .not("end_time", "is", null);
-
-  if (adHocPlans) {
-    for (const plan of adHocPlans) {
-      if (excludePlanId && plan.id === excludePlanId) continue;
-      // 취소/건너뛴 플랜은 충돌 체크에서 제외
-      if (plan.status === "cancelled" || plan.status === "skipped") continue;
-      if (plan.start_time && plan.end_time) {
-        if (checkTimeOverlap(startTime, endTime, plan.start_time, plan.end_time)) {
-          return {
-            hasConflict: true,
-            conflictingPlan: {
-              title: plan.title || "플랜",
               startTime: plan.start_time,
               endTime: plan.end_time,
             },
@@ -691,7 +675,7 @@ export type PlacePlanAtTimeResult = ActionResult & {
 /**
  * 플랜을 특정 시간대에 배치 (빈 슬롯에 드롭 시 사용)
  * @param planId 플랜 ID
- * @param planType 플랜 타입 ('plan' | 'adhoc') - 힌트로 사용, 실제로는 양쪽 테이블에서 찾음
+ * @param planType 플랜 타입 ('plan' | 'adhoc') - 힌트 (student_plan만 지원)
  * @param slotStartTime 슬롯 시작 시간 (HH:mm)
  * @param slotEndTime 슬롯 종료 시간 (HH:mm) - 사용되지 않지만 검증용
  * @param targetDate 배치할 날짜 (optional, 기본값: 오늘)
@@ -744,15 +728,15 @@ export async function placePlanAtTime(
         return { success: false, error: "Permission denied" };
       }
 
-      // plan_group_id에서 planner_id 조회 (충돌 체크용)
-      let plannerId: string | undefined;
+      // plan_group_id에서 calendar_id 조회 (충돌 체크용)
+      let calendarId: string | undefined;
       if (plan.plan_group_id) {
         const { data: planGroup } = await supabase
           .from("plan_groups")
-          .select("planner_id")
+          .select("calendar_id")
           .eq("id", plan.plan_group_id)
           .single();
-        plannerId = planGroup?.planner_id ?? undefined;
+        calendarId = planGroup?.calendar_id ?? undefined;
       }
 
       // 제외일 검증 (날짜가 변경되는 경우)
@@ -781,7 +765,7 @@ export async function placePlanAtTime(
       const newStartTime = slotStartTime;
       const newEndTime = toTimeString(endMinutes);
 
-      // 시간 충돌 검증 (같은 플래너의 플랜만 체크)
+      // 시간 충돌 검증 (같은 캘린더의 플랜만 체크)
       const conflictCheck = await checkTimeConflict(
         supabase,
         plan.student_id,
@@ -789,7 +773,7 @@ export async function placePlanAtTime(
         newStartTime,
         newEndTime,
         planId,
-        plannerId
+        calendarId
       );
       if (conflictCheck.hasConflict && conflictCheck.conflictingPlan) {
         return {
@@ -820,100 +804,7 @@ export async function placePlanAtTime(
       return { success: true, planId, startTime: newStartTime, endTime: newEndTime };
     }
 
-    // student_plan에서 못 찾으면 ad_hoc_plans에서 조회
-    const { data: adHocPlan, error: adHocError } = await supabase
-      .from("ad_hoc_plans")
-      .select("id, student_id, plan_date, estimated_minutes, plan_group_id")
-      .eq("id", planId)
-      .single();
-
-    if (adHocError || !adHocPlan) {
-      return { success: false, error: "플랜을 찾을 수 없습니다" };
-    }
-
-    const plan = adHocPlan;
-
-    // 권한 확인
-    const isAdmin = user.role === "admin" || user.role === "superadmin";
-    const isOwner = plan.student_id === user.userId;
-    if (!isAdmin && !isOwner) {
-      return { success: false, error: "Permission denied" };
-    }
-
-    // plan_group_id에서 planner_id 조회 (충돌 체크용)
-    let plannerId: string | undefined;
-    if (plan.plan_group_id) {
-      const { data: planGroup } = await supabase
-        .from("plan_groups")
-        .select("planner_id")
-        .eq("id", plan.plan_group_id)
-        .single();
-      plannerId = planGroup?.planner_id ?? undefined;
-    }
-
-    // 제외일 검증 (날짜가 변경되는 경우)
-    if (plan.plan_group_id && finalDate !== plan.plan_date) {
-      const exclusionCheck = await checkExclusionDate(
-        supabase,
-        plan.plan_group_id,
-        finalDate
-      );
-      if (exclusionCheck.isExclusion) {
-        const reason = exclusionCheck.reason ? ` (${exclusionCheck.reason})` : "";
-        return {
-          success: false,
-          error: `해당 날짜는 제외일입니다${reason}`,
-        };
-      }
-    }
-
-    // 시간 계산
-    const durationMinutes = plan.estimated_minutes ?? 30;
-    const startMinutes = toMinutes(slotStartTime);
-    const slotEndMinutes = toMinutes(slotEndTime);
-
-    // 플랜 소요 시간이 슬롯보다 크면 슬롯 종료 시간으로 제한
-    const endMinutes = Math.min(startMinutes + durationMinutes, slotEndMinutes);
-    const newStartTime = slotStartTime;
-    const newEndTime = toTimeString(endMinutes);
-
-    // 시간 충돌 검증 (같은 플래너의 플랜만 체크)
-    const conflictCheck = await checkTimeConflict(
-      supabase,
-      plan.student_id,
-      finalDate,
-      newStartTime,
-      newEndTime,
-      planId,
-      plannerId
-    );
-    if (conflictCheck.hasConflict && conflictCheck.conflictingPlan) {
-      return {
-        success: false,
-        error: `시간 충돌: "${conflictCheck.conflictingPlan.title}" (${conflictCheck.conflictingPlan.startTime} ~ ${conflictCheck.conflictingPlan.endTime})`,
-      };
-    }
-
-    // 업데이트
-    const { error: updateError } = await supabase
-      .from("ad_hoc_plans")
-      .update({
-        plan_date: finalDate,
-        container_type: "daily",
-        start_time: newStartTime,
-        end_time: newEndTime,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", planId);
-
-    if (updateError) {
-      return { success: false, error: updateError.message };
-    }
-
-    revalidatePath(`/admin/students/${plan.student_id}/plans`);
-    revalidatePath("/today");
-
-    return { success: true, planId, startTime: newStartTime, endTime: newEndTime };
+    return { success: false, error: "플랜을 찾을 수 없습니다" };
   } catch (error) {
     return {
       success: false,
@@ -922,89 +813,3 @@ export async function placePlanAtTime(
   }
 }
 
-// ============================================
-// Ad-hoc Plan Movement
-// ============================================
-
-/**
- * 단발성 플랜(Ad-hoc) 이동
- * @param planId Ad-hoc 플랜 ID
- * @param newDate 새로운 날짜
- * @param container 새로운 컨테이너 (optional)
- */
-export async function moveAdHocPlan(
-  planId: string,
-  newDate: string,
-  container?: ContainerType
-): Promise<MovePlanResult> {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return { success: false, error: "Unauthorized" };
-    }
-
-    const supabase = await createSupabaseServerClient();
-
-    // 기존 플랜 조회 (plan_group_id 포함)
-    const { data: existingPlan, error: fetchError } = await supabase
-      .from("ad_hoc_plans")
-      .select("id, student_id, container_type, plan_group_id")
-      .eq("id", planId)
-      .single();
-
-    if (fetchError || !existingPlan) {
-      return { success: false, error: "Ad-hoc plan not found" };
-    }
-
-    // 권한 확인
-    const isAdmin = user.role === "admin" || user.role === "superadmin";
-    const isOwner = existingPlan.student_id === user.userId;
-    if (!isAdmin && !isOwner) {
-      return { success: false, error: "Permission denied" };
-    }
-
-    // 제외일 검증
-    if (existingPlan.plan_group_id) {
-      const exclusionCheck = await checkExclusionDate(
-        supabase,
-        existingPlan.plan_group_id,
-        newDate
-      );
-      if (exclusionCheck.isExclusion) {
-        const reason = exclusionCheck.reason ? ` (${exclusionCheck.reason})` : "";
-        return {
-          success: false,
-          error: `해당 날짜는 제외일입니다${reason}`,
-        };
-      }
-    }
-
-    const updateData: Record<string, unknown> = {
-      plan_date: newDate,
-      updated_at: new Date().toISOString(),
-    };
-
-    if (container) {
-      updateData.container_type = container;
-    }
-
-    const { error: updateError } = await supabase
-      .from("ad_hoc_plans")
-      .update(updateData)
-      .eq("id", planId);
-
-    if (updateError) {
-      return { success: false, error: updateError.message };
-    }
-
-    revalidatePath(`/admin/students/${existingPlan.student_id}/plans`);
-    revalidatePath("/today");
-
-    return { success: true, planId, newDate };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
-  }
-}

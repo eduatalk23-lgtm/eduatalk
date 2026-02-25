@@ -4,8 +4,8 @@ import { useState, useTransition, useEffect } from 'react';
 import { Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastProvider';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import type { PlanStatus, ContainerType } from '@/lib/domains/admin-plan/types';
-import { PLAN_STATUS_OPTIONS, CONTAINER_TYPE_OPTIONS } from '@/lib/domains/admin-plan/types';
+import type { PlanStatus } from '@/lib/domains/admin-plan/types';
+import { PLAN_STATUS_OPTIONS } from '@/lib/domains/admin-plan/types';
 import { logPlanDeleted } from '@/lib/domains/admin-plan/actions';
 import { VALIDATION, ERROR, formatError, formatCountSuccess } from '@/lib/domains/admin-plan/utils/toastMessages';
 import { ModalWrapper, ModalButton } from './ModalWrapper';
@@ -19,7 +19,6 @@ interface ConditionalDeleteModalProps {
 
 interface FilterCondition {
   status: PlanStatus | 'all';
-  containerType: ContainerType | 'all';
   dateFrom: string;
   dateTo: string;
   planGroupId: string | 'all' | 'none';
@@ -31,19 +30,12 @@ interface PreviewPlan {
   custom_title: string | null;
   plan_date: string;
   status: PlanStatus | null;
-  container_type: ContainerType | null;
 }
 
 // 필터용 상태 옵션 ('all' 포함)
 const STATUS_FILTER_OPTIONS = [
   { value: 'all' as const, label: '모든 상태' },
   ...PLAN_STATUS_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
-];
-
-// 필터용 컨테이너 옵션 ('all' 포함)
-const CONTAINER_FILTER_OPTIONS = [
-  { value: 'all' as const, label: '모든 컨테이너' },
-  ...CONTAINER_TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
 ];
 
 export function ConditionalDeleteModal({
@@ -61,7 +53,6 @@ export function ConditionalDeleteModal({
   // 필터 조건
   const [filter, setFilter] = useState<FilterCondition>({
     status: 'all',
-    containerType: 'all',
     dateFrom: '',
     dateTo: '',
     planGroupId: 'all',
@@ -94,15 +85,12 @@ export function ConditionalDeleteModal({
 
     let query = supabase
       .from('student_plan')
-      .select('id, content_title, custom_title, plan_date, status, container_type')
+      .select('id, content_title, custom_title, plan_date, status')
       .eq('student_id', studentId)
       .eq('is_active', true);
 
     if (filter.status !== 'all') {
       query = query.eq('status', filter.status);
-    }
-    if (filter.containerType !== 'all') {
-      query = query.eq('container_type', filter.containerType);
     }
     if (filter.dateFrom) {
       query = query.gte('plan_date', filter.dateFrom);
@@ -205,31 +193,17 @@ export function ConditionalDeleteModal({
     >
       {/* 필터 조건 */}
       <div className="p-4 space-y-3 border-b">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">상태</label>
-            <select
-              value={filter.status}
-              onChange={(e) => setFilter({ ...filter, status: e.target.value as FilterCondition['status'] })}
-              className="w-full px-2 py-1.5 border rounded-lg text-sm"
-            >
-              {STATUS_FILTER_OPTIONS.map((o) => (
-                <option key={o.value ?? 'all'} value={o.value ?? ''}>{o.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">컨테이너</label>
-            <select
-              value={filter.containerType}
-              onChange={(e) => setFilter({ ...filter, containerType: e.target.value as FilterCondition['containerType'] })}
-              className="w-full px-2 py-1.5 border rounded-lg text-sm"
-            >
-              {CONTAINER_FILTER_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">상태</label>
+          <select
+            value={filter.status}
+            onChange={(e) => setFilter({ ...filter, status: e.target.value as FilterCondition['status'] })}
+            className="w-full px-2 py-1.5 border rounded-lg text-sm"
+          >
+            {STATUS_FILTER_OPTIONS.map((o) => (
+              <option key={o.value ?? 'all'} value={o.value ?? ''}>{o.label}</option>
+            ))}
+          </select>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>

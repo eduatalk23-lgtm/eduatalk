@@ -5,8 +5,8 @@ import { ListChecks, Zap, Target } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useToast } from '@/components/ui/ToastProvider';
 import { adminBulkUpdatePlans, type StudentPlanUpdateInput } from '@/lib/domains/admin-plan/actions/editPlan';
-import type { PlanStatus, ContainerType, SubjectType } from '@/lib/domains/admin-plan/types';
-import { SUBJECT_TYPE_OPTIONS, PLAN_STATUS_OPTIONS, CONTAINER_TYPE_OPTIONS } from '@/lib/domains/admin-plan/types';
+import type { PlanStatus, SubjectType } from '@/lib/domains/admin-plan/types';
+import { SUBJECT_TYPE_OPTIONS, PLAN_STATUS_OPTIONS } from '@/lib/domains/admin-plan/types';
 import { VALIDATION, ERROR, formatError, formatCountSuccess } from '@/lib/domains/admin-plan/utils/toastMessages';
 import { ModalWrapper, ModalButton } from './ModalWrapper';
 
@@ -37,10 +37,6 @@ export function BulkEditModal({
     enabled: false,
     value: 'pending',
   });
-  const [containerField, setContainerField] = useState<EditField>({
-    enabled: false,
-    value: 'daily',
-  });
   const [estimatedMinutesField, setEstimatedMinutesField] = useState<EditField>({
     enabled: false,
     value: 30,
@@ -50,7 +46,7 @@ export function BulkEditModal({
     value: null,
   });
 
-  const hasChanges = statusField.enabled || containerField.enabled || estimatedMinutesField.enabled || subjectTypeField.enabled;
+  const hasChanges = statusField.enabled || estimatedMinutesField.enabled || subjectTypeField.enabled;
 
   const handleSubmit = async () => {
     if (!hasChanges) {
@@ -62,9 +58,6 @@ export function BulkEditModal({
 
     if (statusField.enabled && statusField.value) {
       updates.status = statusField.value as PlanStatus;
-    }
-    if (containerField.enabled && containerField.value) {
-      updates.container_type = containerField.value as ContainerType;
     }
     if (estimatedMinutesField.enabled && estimatedMinutesField.value !== null) {
       updates.estimated_minutes = Number(estimatedMinutesField.value);
@@ -139,36 +132,6 @@ export function BulkEditModal({
               className="w-full px-3 py-2 border rounded-lg text-sm"
             >
               {PLAN_STATUS_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-
-        {/* 컨테이너 변경 */}
-        <div className="space-y-2">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={containerField.enabled}
-              onChange={(e) =>
-                setContainerField((prev) => ({ ...prev, enabled: e.target.checked }))
-              }
-              className="rounded border-gray-300"
-            />
-            <span className="font-medium text-sm">컨테이너 변경</span>
-          </label>
-          {containerField.enabled && (
-            <select
-              value={containerField.value as string}
-              onChange={(e) =>
-                setContainerField((prev) => ({ ...prev, value: e.target.value }))
-              }
-              className="w-full px-3 py-2 border rounded-lg text-sm"
-            >
-              {CONTAINER_TYPE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -263,11 +226,6 @@ export function BulkEditModal({
               {statusField.enabled && (
                 <li>
                   상태 → {PLAN_STATUS_OPTIONS.find((o) => o.value === statusField.value)?.label}
-                </li>
-              )}
-              {containerField.enabled && (
-                <li>
-                  컨테이너 → {CONTAINER_TYPE_OPTIONS.find((o) => o.value === containerField.value)?.label}
                 </li>
               )}
               {estimatedMinutesField.enabled && (

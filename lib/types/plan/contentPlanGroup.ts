@@ -182,7 +182,7 @@ export interface GeneratedPlan {
   rangeStart: number;
   rangeEnd: number;
   status: 'pending' | 'in_progress' | 'completed';
-  containerType: 'daily' | 'weekly';
+  containerType: 'daily';
   estimatedDuration?: number; // 분
 }
 

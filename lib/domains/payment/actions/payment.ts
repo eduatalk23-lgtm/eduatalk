@@ -11,6 +11,7 @@ import type {
   PaymentRecordWithEnrollment,
   CreatePaymentInput,
   ConfirmPaymentInput,
+  CreateInstallmentPaymentsInput,
 } from "../types";
 
 type ActionResult<T = undefined> = {
@@ -340,6 +341,140 @@ export async function updatePaymentAmountAction(
         error instanceof Error
           ? error.message
           : "금액 수정 중 오류가 발생했습니다.",
+    };
+  }
+}
+
+/** 분납 기록 일괄 생성 (N건 동시 INSERT) */
+export async function createInstallmentPaymentsAction(
+  input: CreateInstallmentPaymentsInput
+): Promise<ActionResult<{ ids: string[] }>> {
+  try {
+    const { userId, tenantId } = await requireAdminOrConsultant({
+      requireTenant: true,
+    });
+
+    if (!tenantId) {
+      return { success: false, error: "기관 정보를 찾을 수 없습니다." };
+    }
+
+    const adminClient = createSupabaseAdminClient();
+    if (!adminClient) {
+      return { success: false, error: "Admin client 초기화 실패" };
+    }
+
+    // enrollment 테넌트 소유권 검증
+    const { data: enrollment } = await adminClient
+      .from("enrollments")
+      .select("tenant_id")
+      .eq("id", input.enrollment_id)
+      .maybeSingle();
+
+    if (!enrollment || enrollment.tenant_id !== tenantId) {
+      return { success: false, error: "권한이 없습니다." };
+    }
+
+    if (input.installments.length < 2 || input.installments.length > 24) {
+      return { success: false, error: "분납 회차는 2~24회까지 가능합니다." };
+    }
+
+    // 할인 계산 (total에 적용)
+    let finalTotal = input.total_amount;
+    let originalAmount: number | null = null;
+    let discountType: string | null = null;
+    let discountValue: number | null = null;
+
+    if (
+      input.discount_type &&
+      input.discount_value != null &&
+      input.discount_value > 0
+    ) {
+      if (input.discount_type === "rate" && input.discount_value > 100) {
+        return { success: false, error: "할인율은 100% 이하여야 합니다." };
+      }
+      if (
+        input.discount_type === "fixed" &&
+        input.discount_value >= input.total_amount
+      ) {
+        return { success: false, error: "할인 금액은 원가보다 작아야 합니다." };
+      }
+
+      originalAmount = input.total_amount;
+      discountType = input.discount_type;
+      discountValue = input.discount_value;
+
+      if (input.discount_type === "fixed") {
+        finalTotal = input.total_amount - input.discount_value;
+      } else {
+        finalTotal = Math.round(
+          input.total_amount * (1 - input.discount_value / 100)
+        );
+      }
+
+      if (finalTotal <= 0) {
+        return { success: false, error: "할인 후 금액은 0원보다 커야 합니다." };
+      }
+    }
+
+    // 합계 검증
+    const installmentSum = input.installments.reduce(
+      (s, r) => s + r.amount,
+      0
+    );
+    if (installmentSum !== finalTotal) {
+      return {
+        success: false,
+        error: `분납 금액 합계(${installmentSum.toLocaleString()}원)가 총액(${finalTotal.toLocaleString()}원)과 일치하지 않습니다.`,
+      };
+    }
+
+    if (input.installments.some((r) => r.amount <= 0)) {
+      return { success: false, error: "각 회차 금액은 0원보다 커야 합니다." };
+    }
+
+    // 일괄 INSERT — 할인 정보는 모든 행에 저장 (개별 삭제 시 정합성 유지)
+    const rows = input.installments.map((inst, idx) => ({
+      tenant_id: tenantId,
+      enrollment_id: input.enrollment_id,
+      student_id: input.student_id,
+      amount: inst.amount,
+      original_amount: originalAmount,
+      discount_type: discountType,
+      discount_value: discountValue,
+      due_date: inst.due_date || null,
+      billing_period: inst.billing_period || null,
+      memo:
+        inst.memo ||
+        `분납 ${idx + 1}/${input.installments.length}`,
+      created_by: userId,
+    }));
+
+    const { data, error } = await adminClient
+      .from("payment_records")
+      .insert(rows)
+      .select("id");
+
+    if (error) {
+      logActionError(
+        { domain: "payment", action: "createInstallment", tenantId, userId },
+        error,
+        {
+          enrollmentId: input.enrollment_id,
+          count: input.installments.length,
+        }
+      );
+      return { success: false, error: "분납 기록 생성에 실패했습니다." };
+    }
+
+    revalidatePath("/admin/students");
+    return { success: true, data: { ids: (data ?? []).map((d) => d.id) } };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "분납 기록 생성 중 오류가 발생했습니다.",
     };
   }
 }

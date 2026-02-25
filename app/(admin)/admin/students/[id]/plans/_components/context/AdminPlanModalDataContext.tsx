@@ -21,8 +21,8 @@ export interface AdminPlanModalDataContextValue {
   setSelectedPlanForEdit: (id: string | null) => void;
 
   // 순서 변경 모달
-  reorderContainerType: "daily" | "weekly" | "unfinished";
-  setReorderContainerType: (type: "daily" | "weekly" | "unfinished") => void;
+  reorderContainerType: "daily";
+  setReorderContainerType: (type: "daily") => void;
 
   // 템플릿 모달
   templatePlanIds: string[];
@@ -95,7 +95,7 @@ export function AdminPlanModalDataProvider({ children }: AdminPlanModalDataProvi
   const [selectedPlanForEdit, setSelectedPlanForEdit] = useState<string | null>(null);
 
   // 순서 변경 모달
-  const [reorderContainerType, setReorderContainerType] = useState<"daily" | "weekly" | "unfinished">("daily");
+  const [reorderContainerType, setReorderContainerType] = useState<"daily">("daily");
 
   // 템플릿 모달
   const [templatePlanIds, setTemplatePlanIds] = useState<string[]>([]);

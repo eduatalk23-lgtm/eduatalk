@@ -23,8 +23,8 @@ import {
   createPlanGroupAction,
   updatePlanGroupDraftAction,
   updatePlanGroupStatus,
-  getOrCreateDefaultPlannerAction,
 } from "@/lib/domains/plan";
+import { ensureStudentCalendarAction } from "@/lib/domains/calendar/actions/calendars";
 import { generatePlansFromGroupAction } from "@/lib/domains/plan";
 import { continueCampStepsForAdmin } from "@/lib/domains/camp/actions";
 import { submitCampParticipation } from "@/lib/domains/camp";
@@ -54,7 +54,7 @@ type UsePlanGeneratorProps = {
  * Phase 3.1: 여러 plan_group 생성 결과
  */
 export type MultipleGroupsCreationResult = {
-  plannerId: string;
+  calendarId: string;
   groupIds: string[];
   totalCount: number;
 };
@@ -304,49 +304,40 @@ export function usePlanGenerator({
   );
 
   /**
-   * Phase 3.1: Planner 확보 (없으면 자동 생성)
+   * 캘린더 확보 (없으면 자동 생성)
    *
-   * 학생에게 기본 Planner가 없으면 자동으로 생성합니다.
+   * 학생에게 기본 캘린더가 없으면 자동으로 생성합니다.
    *
-   * @returns Planner ID
+   * @returns Calendar ID
    */
   const ensurePlanner = useCallback(async (): Promise<string> => {
     try {
       // 관리자 모드일 때는 studentId 전달
-      const options: { studentId?: string } = {};
+      let targetStudentId = "";
       if (isAdminMode && initialData?.studentId) {
-        options.studentId = initialData.studentId;
+        targetStudentId = initialData.studentId;
       } else if (isAdminMode && initialData?.student_id) {
-        options.studentId = initialData.student_id;
+        targetStudentId = initialData.student_id;
       }
 
-      // 기간 정보 및 스케줄러 옵션을 추가
-      const plannerOptions = {
-        ...options,
-        periodStart: wizardData.period_start,
-        periodEnd: wizardData.period_end,
-        name: `${wizardData.name || "학습"} 플래너`,
-        schedulerOptions: wizardData.scheduler_options,
-      };
+      const result = await ensureStudentCalendarAction(targetStudentId);
 
-      const result = await getOrCreateDefaultPlannerAction(plannerOptions);
-
-      if (isErrorResult(result)) {
+      if (result.error || !result.calendarId) {
         throw new PlanGroupError(
-          result.error.message,
+          result.error || "캘린더 확보 실패",
           PlanGroupErrorCodes.PLAN_GROUP_CREATE_FAILED,
-          "플래너 생성에 실패했습니다."
+          "캘린더 생성에 실패했습니다."
         );
       }
 
       planGeneratorLogger.info(
-        `Planner ${result.isNew ? "created" : "found"}: ${result.plannerId}`,
-        { hook: "usePlanGenerator", data: { plannerName: result.plannerName } }
+        `Calendar ensured: ${result.calendarId}`,
+        { hook: "usePlanGenerator" }
       );
 
-      return result.plannerId;
+      return result.calendarId;
     } catch (error) {
-      planGeneratorLogger.error("Planner 확보 실패", error, { hook: "usePlanGenerator" });
+      planGeneratorLogger.error("캘린더 확보 실패", error, { hook: "usePlanGenerator" });
       const planGroupError = toPlanGroupError(
         error,
         PlanGroupErrorCodes.PLAN_GROUP_CREATE_FAILED
@@ -355,7 +346,7 @@ export function usePlanGenerator({
       toast.showError(planGroupError.userMessage);
       throw error;
     }
-  }, [isAdminMode, initialData, wizardData, setValidationErrors, toast]);
+  }, [isAdminMode, initialData, setValidationErrors, toast]);
 
   /**
    * Phase 3.1: 여러 단일 콘텐츠 plan_group 생성
@@ -363,7 +354,7 @@ export function usePlanGenerator({
    * 각 콘텐츠별로 별도의 plan_group을 생성하고, 모두 동일한 Planner에 연결합니다.
    *
    * @param onProgress 진행 상태 콜백
-   * @returns 생성 결과 (plannerId, groupIds, totalCount)
+   * @returns 생성 결과 (calendarId, groupIds, totalCount)
    */
   const createMultiplePlanGroups = useCallback(
     async (
@@ -410,8 +401,8 @@ export function usePlanGenerator({
       const total = payloads.length;
       onProgress?.(0, total, "ensuring_planner");
 
-      // 1. Planner 확보
-      const plannerId = await ensurePlanner();
+      // 1. Calendar 확보
+      const calendarId = await ensurePlanner();
       onProgress?.(0, total, "creating_groups");
 
       // 2. 각 콘텐츠별 plan_group 생성
@@ -431,10 +422,10 @@ export function usePlanGenerator({
         const payload = payloads[i];
         onProgress?.(i, total, "creating_groups");
 
-        // Planner ID 연결
+        // Calendar ID 연결
         const dataWithPlanner = {
           ...payload,
-          planner_id: plannerId,
+          calendar_id: calendarId,
         };
 
         // Camp Mode Overrides (해당되는 경우)
@@ -478,7 +469,7 @@ export function usePlanGenerator({
       onProgress?.(total, total, "completed");
 
       return {
-        plannerId,
+        calendarId,
         groupIds,
         totalCount: groupIds.length,
       };

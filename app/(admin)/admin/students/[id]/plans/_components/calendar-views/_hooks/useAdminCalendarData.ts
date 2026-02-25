@@ -3,7 +3,8 @@
 /**
  * 관리자 캘린더 데이터 훅
  *
- * 월간 플랜 데이터를 페칭하고 날짜별로 그룹핑합니다.
+ * Calendar-First: calendar_events 테이블에서 월간 이벤트를 조회하고
+ * 날짜별로 그룹핑합니다.
  */
 
 import { useMemo, useCallback } from "react";
@@ -17,16 +18,26 @@ import {
 } from "date-fns";
 
 import {
-  monthlyPlansQueryOptions,
-  adminCalendarKeys,
-  type CalendarPlanData,
-} from "@/lib/query-options/adminCalendar";
+  monthlyCalendarEventsQueryOptions,
+  multiMonthlyCalendarEventsQueryOptions,
+  calendarEventKeys,
+} from "@/lib/query-options/calendarEvents";
+import { calendarEventToMonthlyPlan } from "@/lib/domains/calendar/adapters";
+import { expandRecurringEvents } from "@/lib/domains/calendar/rrule";
 import type { PlansByDate, CalendarPlan } from "../_types/adminCalendar";
 
 interface UseAdminCalendarDataOptions {
-  studentId: string;
+  /** @deprecated calendarId로 필터링되므로 사용되지 않음. 호출부 호환성을 위해 유지. */
+  studentId?: string;
   currentMonth: Date;
-  plannerId?: string;
+  calendarId?: string;
+  weekStartsOn?: number;
+  /** 멀티 캘린더: 표시할 캘린더 ID 목록 (null = 단일 calendarId 사용) */
+  visibleCalendarIds?: string[] | null;
+  /** 연간 뷰 모드: currentMonth의 연도 기준 1/1 ~ 12/31 범위 조회 */
+  yearMode?: boolean;
+  /** 쿼리 활성화 여부 (기본 true) */
+  enabled?: boolean;
 }
 
 interface UseAdminCalendarDataReturn {
@@ -49,72 +60,75 @@ interface UseAdminCalendarDataReturn {
 /**
  * 관리자 캘린더 데이터 훅
  *
- * 월간 플랜 데이터를 페칭하고 날짜별로 그룹핑합니다.
+ * Calendar-First: calendar_events에서 월간 이벤트를 조회하고 날짜별로 그룹핑합니다.
  * 캘린더 뷰에 맞게 6주 범위(이전 월 마지막 주 ~ 다음 월 첫 주)를 페칭합니다.
  */
 export function useAdminCalendarData({
-  studentId,
   currentMonth,
-  plannerId,
+  calendarId,
+  weekStartsOn = 0,
+  visibleCalendarIds,
+  yearMode = false,
+  enabled = true,
 }: UseAdminCalendarDataOptions): UseAdminCalendarDataReturn {
   const queryClient = useQueryClient();
+  // visibleCalendarIds가 배열이면 멀티 캘린더 모드 (빈 배열 = 모든 캘린더 숨김)
+  const isMultiCalendar = Array.isArray(visibleCalendarIds);
 
-  // 캘린더 범위 계산 (6주 범위: 이전 월 마지막 주 ~ 다음 월 첫 주)
+  // 캘린더 범위 계산
+  // yearMode: 1/1 ~ 12/31 | 기본: 6주 범위 (이전 월 마지막 주 ~ 다음 월 첫 주)
   const dateRange = useMemo(() => {
+    if (yearMode) {
+      const year = currentMonth.getFullYear();
+      return { start: `${year}-01-01`, end: `${year}-12-31` };
+    }
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
-    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
-    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
+    const wso = weekStartsOn as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+    const calendarStart = startOfWeek(monthStart, { weekStartsOn: wso });
+    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: wso });
 
     return {
       start: format(calendarStart, "yyyy-MM-dd"),
       end: format(calendarEnd, "yyyy-MM-dd"),
     };
-  }, [currentMonth]);
+  }, [currentMonth, weekStartsOn, yearMode]);
 
-  // 쿼리
-  const query = useQuery(
-    monthlyPlansQueryOptions(studentId, dateRange.start, dateRange.end, plannerId)
+  // 단일 캘린더 모드
+  const singleQuery = useQuery({
+    ...monthlyCalendarEventsQueryOptions(
+      calendarId ?? '',
+      dateRange.start,
+      dateRange.end
+    ),
+    enabled: enabled && !!calendarId && !isMultiCalendar,
+  });
+
+  // 멀티 캘린더 모드
+  const multiQuery = useQuery({
+    ...multiMonthlyCalendarEventsQueryOptions(
+      visibleCalendarIds ?? [],
+      dateRange.start,
+      dateRange.end
+    ),
+    enabled: enabled && isMultiCalendar,
+  });
+
+  const rawEvents = useMemo(
+    () => (isMultiCalendar ? multiQuery.data : singleQuery.data) ?? [],
+    [isMultiCalendar, multiQuery.data, singleQuery.data],
   );
 
-  // 플랜 데이터를 CalendarPlan 타입으로 변환
-  const plans = useMemo<CalendarPlan[]>(() => {
-    if (!query.data) return [];
+  // RRULE 반복 이벤트 확장
+  const expandedEvents = useMemo(
+    () => expandRecurringEvents(rawEvents, dateRange.start, dateRange.end),
+    [rawEvents, dateRange.start, dateRange.end]
+  );
 
-    // plan_date가 없는 플랜은 캘린더에 표시할 수 없으므로 필터링
-    return query.data
-      .filter((plan): plan is CalendarPlanData & { plan_date: string } =>
-        plan.plan_date !== null
-      )
-      .map((plan) => ({
-        id: plan.id,
-        plan_date: plan.plan_date,
-        content_type: (plan.content_type || "custom") as CalendarPlan["content_type"],
-        content_id: plan.content_id,
-        content_title: plan.content_title,
-        content_subject: plan.content_subject,
-        content_subject_category: plan.content_subject_category,
-        status: plan.status as CalendarPlan["status"],
-        start_time: plan.start_time,
-        end_time: plan.end_time,
-        estimated_minutes: plan.estimated_minutes,
-        planned_start_page_or_time: plan.planned_start_page_or_time,
-        planned_end_page_or_time: plan.planned_end_page_or_time,
-        progress: plan.progress,
-        custom_title: plan.custom_title,
-        custom_range_display: plan.custom_range_display,
-        plan_group_id: plan.plan_group_id,
-        container_type: plan.container_type as CalendarPlan["container_type"],
-        sequence: plan.sequence,
-        // Phase 4: 시간대 유형
-        time_slot_type: plan.time_slot_type,
-        // 1730 Timetable 필드
-        week: plan.week,
-        day: plan.day,
-        day_type: plan.day_type,
-        cycle_day_number: plan.cycle_day_number,
-      } satisfies CalendarPlan));
-  }, [query.data]);
+  // CalendarEvent → CalendarPlan 변환
+  const plans = useMemo<CalendarPlan[]>(() => {
+    return expandedEvents.map(calendarEventToMonthlyPlan);
+  }, [expandedEvents]);
 
   // 날짜별 플랜 그룹핑
   const plansByDate = useMemo<PlansByDate>(() => {
@@ -132,17 +146,24 @@ export function useAdminCalendarData({
     return grouped;
   }, [plans]);
 
+  const query = isMultiCalendar ? multiQuery : singleQuery;
+
   // 캐시 무효화
   const invalidate = useCallback(() => {
-    queryClient.invalidateQueries({
-      queryKey: adminCalendarKeys.monthly(
-        studentId,
-        dateRange.start,
-        dateRange.end,
-        plannerId
-      ),
-    });
-  }, [queryClient, studentId, dateRange.start, dateRange.end, plannerId]);
+    if (isMultiCalendar && visibleCalendarIds) {
+      queryClient.invalidateQueries({
+        queryKey: [...calendarEventKeys.all, 'multiMonthly', visibleCalendarIds.join(','), dateRange.start, dateRange.end],
+      });
+    } else if (calendarId) {
+      queryClient.invalidateQueries({
+        queryKey: calendarEventKeys.monthly(
+          calendarId,
+          dateRange.start,
+          dateRange.end
+        ),
+      });
+    }
+  }, [queryClient, calendarId, dateRange.start, dateRange.end, isMultiCalendar, visibleCalendarIds]);
 
   // 리페치
   const refetch = useCallback(() => {

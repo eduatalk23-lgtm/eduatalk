@@ -31,7 +31,7 @@ export type ContentSummary = {
   bookCount: number;
   lectureCount: number;
   customCount: number;
-  adHocCount: number;
+  adHocCount?: number;
   totalContentCount: number;
   contentNames: string[];
 };
@@ -452,7 +452,7 @@ export function PlanGroupListItem({
                         커스텀 {contentSummary.customCount}
                       </span>
                     )}
-                    {contentSummary.adHocCount > 0 && (
+                    {(contentSummary.adHocCount ?? 0) > 0 && (
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-300">
                         <Zap className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
                         빠른추가 {contentSummary.adHocCount}

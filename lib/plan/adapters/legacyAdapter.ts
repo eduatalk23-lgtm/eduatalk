@@ -12,7 +12,7 @@
 import type { PlanGroup, SchedulerOptions } from "@/lib/types/plan/domain";
 import type { ScheduledPlan } from "@/lib/plan/scheduler";
 import type {
-  PlannerWithSchedulerOptions,
+  CalendarWithSchedulerOptions,
   SingleContentPlanGroup,
   ContentInfoWithPlanGroup,
   LegacyPlanContent,
@@ -32,7 +32,7 @@ import type {
  */
 export function planGroupToVirtualPlanner(
   planGroup: PlanGroup
-): PlannerWithSchedulerOptions {
+): CalendarWithSchedulerOptions {
   return {
     id: `virtual-planner-${planGroup.id}`,
     tenantId: planGroup.tenant_id,
@@ -63,7 +63,7 @@ export function planContentsToSingleContentGroups(
     id: `virtual-group-${planGroup.id}-${index}`,
     tenantId: planGroup.tenant_id,
     studentId: planGroup.student_id,
-    plannerId: `virtual-planner-${planGroup.id}`,
+    calendarId: ((planGroup as Record<string, unknown>).calendar_id as string) ?? `virtual-calendar-${planGroup.id}`,
     name: `${planGroup.name || "플랜"} - 콘텐츠 ${index + 1}`,
     periodStart: planGroup.period_start,
     periodEnd: planGroup.period_end,
@@ -127,7 +127,7 @@ export function stripPlanGroupId(
  * (레거시 UI/API 호환성용)
  */
 export function plannerToLegacyStructure(
-  planner: PlannerWithSchedulerOptions,
+  planner: CalendarWithSchedulerOptions,
   planGroups: SingleContentPlanGroup[]
 ): {
   planGroup: PlanGroup;
@@ -148,7 +148,7 @@ export function plannerToLegacyStructure(
     period_end: planner.periodEnd,
     target_date: null,
     block_set_id: planner.blockSetId,
-    planner_id: planner.id,
+    calendar_id: planner.id,
     status: "active",
     deleted_at: null,
     study_hours: planner.studyHours,
@@ -246,7 +246,7 @@ export function dbExclusionToPlanExclusionInfo(dbExclusion: {
  * Planner 기반 입력인지 확인
  */
 export function isPlannerBasedInput(input: unknown): input is {
-  planner: PlannerWithSchedulerOptions;
+  planner: CalendarWithSchedulerOptions;
   planGroups: SingleContentPlanGroup[];
 } {
   return (

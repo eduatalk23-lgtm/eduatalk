@@ -20,18 +20,30 @@ import {
 } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/cn';
-
-const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
+import { useAdminPlanBasic } from './context/AdminPlanBasicContext';
+import { getRotatedWeekdayLabels } from './utils/weekDateUtils';
+import { getHolidayName } from '@/lib/domains/calendar/koreanHolidays';
 
 interface MiniMonthCalendarProps {
   selectedDate: string;
   onDateSelect: (date: string) => void;
+  /** 날짜별 이벤트 개수 (밀도 도트 표시용) */
+  eventDensityByDate?: Record<string, number>;
+  /** 공휴일 표시 여부 (사이드바 토글) */
+  showHolidays?: boolean;
 }
 
 export const MiniMonthCalendar = memo(function MiniMonthCalendar({
   selectedDate,
   onDateSelect,
+  eventDensityByDate,
+  showHolidays = true,
 }: MiniMonthCalendarProps) {
+  // 주 시작 요일 (context에서)
+  const { selectedCalendarSettings } = useAdminPlanBasic();
+  const weekStartsOn = selectedCalendarSettings?.weekStartsOn ?? 0;
+  const WEEKDAY_LABELS = useMemo(() => getRotatedWeekdayLabels(weekStartsOn), [weekStartsOn]);
+
   // 미니 캘린더의 현재 표시 월 (selectedDate와 독립적으로 관리)
   const [displayMonth, setDisplayMonth] = useState(
     () => startOfMonth(new Date(selectedDate + 'T00:00:00'))
@@ -40,11 +52,11 @@ export const MiniMonthCalendar = memo(function MiniMonthCalendar({
   // 고정 6주(42셀) 그리드 날짜 배열
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(displayMonth);
-    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
+    const calendarStart = startOfWeek(monthStart, { weekStartsOn: weekStartsOn as 0 | 1 | 2 | 3 | 4 | 5 | 6 });
     const calendarEnd = new Date(calendarStart);
     calendarEnd.setDate(calendarStart.getDate() + 41); // 42일 (6주)
     return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-  }, [displayMonth]);
+  }, [displayMonth, weekStartsOn]);
 
   const handlePrevMonth = useCallback(() => {
     setDisplayMonth((prev) => subMonths(prev, 1));
@@ -81,14 +93,14 @@ export const MiniMonthCalendar = memo(function MiniMonthCalendar({
 
       {/* 요일 헤더 */}
       <div className="grid grid-cols-7">
-        {WEEKDAY_LABELS.map((label, idx) => (
+        {WEEKDAY_LABELS.map((label) => (
           <div
             key={label}
             className={cn(
               'text-center text-[10px] font-medium py-0.5',
-              idx === 0 && 'text-red-400',
-              idx === 6 && 'text-blue-400',
-              idx !== 0 && idx !== 6 && 'text-gray-400'
+              label === '일' && 'text-red-400',
+              label === '토' && 'text-blue-400',
+              label !== '일' && label !== '토' && 'text-gray-400'
             )}
           >
             {label}
@@ -105,19 +117,27 @@ export const MiniMonthCalendar = memo(function MiniMonthCalendar({
           const isSelected = dateStr === selectedDate;
           const dayOfWeek = date.getDay();
 
+          const eventCount = eventDensityByDate?.[dateStr] ?? 0;
+          // 도트 최대 3개 + 시각적 밀도 (GCal 스타일)
+          const dotCount = Math.min(eventCount, 3);
+          const holiday = isCurrentMonth && showHolidays ? getHolidayName(dateStr) : null;
+
           return (
             <button
               key={dateStr}
               onClick={() => onDateSelect(dateStr)}
+              title={holiday ?? undefined}
               className={cn(
                 'relative flex flex-col items-center justify-center h-8 text-xs rounded-full transition-colors',
                 // 현재 월 외 날짜
                 !isCurrentMonth && 'text-gray-300',
                 // 현재 월 날짜
                 isCurrentMonth && 'text-gray-700 hover:bg-gray-100',
-                // 일/토 색상
-                isCurrentMonth && dayOfWeek === 0 && 'text-red-500',
-                isCurrentMonth && dayOfWeek === 6 && 'text-blue-500',
+                // 공휴일 (일요일보다 우선)
+                isCurrentMonth && holiday && 'text-red-500',
+                // 일/토 색상 (공휴일이 아닐 때)
+                isCurrentMonth && !holiday && dayOfWeek === 0 && 'text-red-500',
+                isCurrentMonth && !holiday && dayOfWeek === 6 && 'text-blue-500',
                 // 오늘 = 파란 원
                 isTodayDate && !isSelected && 'bg-blue-500 text-white hover:bg-blue-600',
                 // 선택 날짜 = 파란 배경
@@ -126,7 +146,20 @@ export const MiniMonthCalendar = memo(function MiniMonthCalendar({
                 isSelected && isTodayDate && 'bg-blue-600 text-white'
               )}
             >
-              <span>{format(date, 'd')}</span>
+              <span className={dotCount > 0 ? '-mt-0.5' : ''}>{format(date, 'd')}</span>
+              {isCurrentMonth && dotCount > 0 && (
+                <span className="absolute bottom-0.5 flex gap-px">
+                  {Array.from({ length: dotCount }).map((_, i) => (
+                    <span
+                      key={i}
+                      className={cn(
+                        'w-1 h-1 rounded-full',
+                        isTodayDate || isSelected ? 'bg-current opacity-70' : 'bg-blue-500',
+                      )}
+                    />
+                  ))}
+                </span>
+              )}
             </button>
           );
         })}

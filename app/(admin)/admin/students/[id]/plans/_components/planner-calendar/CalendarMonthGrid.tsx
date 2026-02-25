@@ -17,8 +17,8 @@ import {
 } from "date-fns";
 import { cn } from "@/lib/cn";
 import type { CalendarEvent } from "@/lib/domains/admin-plan/actions/calendarEvents";
-
-const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
+import { useAdminPlanBasic } from "../context/AdminPlanBasicContext";
+import { getRotatedWeekdayLabels } from "../utils/weekDateUtils";
 
 interface CalendarMonthGridProps {
   currentMonth: Date;
@@ -37,13 +37,18 @@ export default function CalendarMonthGrid({
   periodEnd,
   onDateSelect,
 }: CalendarMonthGridProps) {
+  const { selectedCalendarSettings } = useAdminPlanBasic();
+  const weekStartsOn = selectedCalendarSettings?.weekStartsOn ?? 0;
+  const WEEKDAY_LABELS = useMemo(() => getRotatedWeekdayLabels(weekStartsOn), [weekStartsOn]);
+
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
-    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
-    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
+    const wso = weekStartsOn as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+    const calendarStart = startOfWeek(monthStart, { weekStartsOn: wso });
+    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: wso });
     return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-  }, [currentMonth]);
+  }, [currentMonth, weekStartsOn]);
 
   // 날짜별 이벤트 타입 집계
   const eventsByDate = useMemo(() => {
@@ -65,12 +70,12 @@ export default function CalendarMonthGrid({
     <div>
       {/* 요일 헤더 */}
       <div className="mb-1 grid grid-cols-7 gap-0.5">
-        {WEEKDAY_LABELS.map((label, i) => (
+        {WEEKDAY_LABELS.map((label) => (
           <div
             key={label}
             className={cn(
               "py-1 text-center text-xs font-medium",
-              i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-gray-400"
+              label === "일" ? "text-red-400" : label === "토" ? "text-blue-400" : "text-gray-400"
             )}
           >
             {label}

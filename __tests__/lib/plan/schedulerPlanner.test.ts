@@ -15,7 +15,7 @@ import {
 } from "@/lib/types/plan/scheduler";
 import type {
   SingleContentPlanGroup,
-  PlannerWithSchedulerOptions,
+  CalendarWithSchedulerOptions,
 } from "@/lib/types/plan/scheduler";
 import type { PlanGroup } from "@/lib/types/plan/domain";
 
@@ -71,7 +71,7 @@ describe("schedulerPlanner", () => {
         id: "pg-123",
         tenant_id: "tenant-1",
         student_id: "student-1",
-        planner_id: "planner-1",
+        calendar_id: "calendar-1",
         name: "수학 교재",
         period_start: "2025-01-01",
         period_end: "2025-01-31",
@@ -122,7 +122,7 @@ describe("schedulerPlanner", () => {
         id: "pg-123",
         tenantId: "tenant-1",
         studentId: "student-1",
-        plannerId: "planner-1",
+        calendarId: "calendar-1",
         name: "수학 교재",
         periodStart: "2025-01-01",
         periodEnd: "2025-01-31",
@@ -191,14 +191,14 @@ describe("schedulerPlanner", () => {
     });
   });
 
-  describe("PlannerWithSchedulerOptions 타입", () => {
+  describe("CalendarWithSchedulerOptions 타입", () => {
     it("schedulerOptions에 content_allocations 포함 가능", () => {
       // Given
-      const planner: PlannerWithSchedulerOptions = {
-        id: "planner-1",
+      const calendar: CalendarWithSchedulerOptions = {
+        id: "calendar-1",
         tenantId: "tenant-1",
         studentId: "student-1",
-        name: "기본 플래너",
+        name: "기본 캘린더",
         periodStart: "2025-01-01",
         periodEnd: "2025-01-31",
         defaultSchedulerType: "simple_recurring",
@@ -232,8 +232,8 @@ describe("schedulerPlanner", () => {
       };
 
       // Then
-      expect(planner.schedulerOptions.content_allocations).toHaveLength(3);
-      expect(planner.schedulerOptions.content_allocations?.[2].content_type).toBe("custom");
+      expect(calendar.schedulerOptions.content_allocations).toHaveLength(3);
+      expect(calendar.schedulerOptions.content_allocations?.[2].content_type).toBe("custom");
     });
   });
 });
@@ -255,7 +255,7 @@ function createMockPlanGroup(overrides: Partial<PlanGroup> = {}): PlanGroup {
     period_end: "2025-01-31",
     target_date: null,
     block_set_id: null,
-    planner_id: "planner-1",
+    calendar_id: "calendar-1",
     status: "active",
     deleted_at: null,
     study_hours: null,
@@ -286,7 +286,7 @@ function createMockSingleContentPlanGroup(
     id: "pg-default",
     tenantId: "tenant-1",
     studentId: "student-1",
-    plannerId: "planner-1",
+    calendarId: "calendar-1",
     name: "테스트 그룹",
     periodStart: "2025-01-01",
     periodEnd: "2025-01-31",

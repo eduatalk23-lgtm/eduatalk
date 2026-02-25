@@ -1,20 +1,18 @@
 "use client";
 
 /**
- * 드래그 오버레이 콘텐츠
+ * 드래그 오버레이 콘텐츠 — Google Calendar 스타일
  *
- * 드래그 중인 플랜의 상세 정보와 드롭 상태를 표시합니다.
- * - 플랜 제목 및 콘텐츠 타입 아이콘
- * - 원래 날짜 → 대상 날짜 표시
- * - 예상 소요 시간
- * - 드롭 가능/불가능 상태 피드백
- * - 서버 저장 중 로딩 상태
+ * 드래그 중인 이벤트를 원래 셀 칩과 동일한 형태로 표시합니다.
+ * - 원래 이벤트와 같은 색상/크기의 compact chip
+ * - drop shadow로 "떠 있는" 느낌
+ * - 드롭 불가 시 미니 배지로 표시 (카드 UI 아님)
  */
 
-import { motion } from "framer-motion";
-import { Calendar, Clock, ArrowRight, Ban, Check, Loader2 } from "lucide-react";
-
 import { cn } from "@/lib/cn";
+import { Ban, Check } from "lucide-react";
+import { resolveCalendarColors } from "../utils/subjectColors";
+import { formatTimeKoAmPm } from "../utils/timeGridUtils";
 import type {
   DraggableAdminPlanData,
   DroppableTargetData,
@@ -31,139 +29,60 @@ interface DragOverlayContentProps {
   isPending?: boolean;
 }
 
-// 콘텐츠 타입별 아이콘
-const CONTENT_TYPE_ICONS: Record<string, string> = {
-  book: "📚",
-  lecture: "🎬",
-  custom: "📝",
-  plan: "📋",
-};
-
-/**
- * 날짜 포맷팅 (yyyy-MM-dd → M/d)
- */
-function formatShortDate(dateStr: string): string {
-  if (!dateStr) return "";
-  const parts = dateStr.split("-");
-  if (parts.length !== 3) return dateStr;
-  return `${parseInt(parts[1])}/${parseInt(parts[2])}`;
-}
-
 export default function DragOverlayContent({
   plan,
   overTarget,
   canDropOnDate,
   isPending = false,
 }: DragOverlayContentProps) {
-  // 드롭 상태 계산
   const isOverValidTarget = overTarget && canDropOnDate(overTarget.date);
   const isOverInvalidTarget = overTarget && !canDropOnDate(overTarget.date);
-  const isSameDate = overTarget?.date === plan.originalDate;
 
-  // 대상 날짜 표시 여부
-  const showTargetDate = overTarget && !isSameDate;
+  const isCompleted = plan.status === "completed";
+  const colors = resolveCalendarColors(plan.color, plan.calendarColor, plan.status || "pending", isCompleted);
+
+  const timeLabel = plan.originalStartTime
+    ? formatTimeKoAmPm(plan.originalStartTime)
+    : null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.9, y: -10 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{ duration: 0.15, ease: "easeOut" }}
-      className={cn(
-        "bg-white rounded-lg shadow-xl border-2 min-w-[180px] max-w-[240px]",
-        // 드롭 상태에 따른 테두리 색상
-        isOverValidTarget && "border-green-500 bg-green-50/50",
-        isOverInvalidTarget && "border-red-500 bg-red-50/50",
-        !overTarget && "border-blue-500"
-      )}
-    >
-      {/* 헤더 - 플랜 제목 */}
-      <div className="px-3 py-2 border-b border-gray-100">
-        <div className="flex items-center gap-2">
-          <span className="text-base">
-            {CONTENT_TYPE_ICONS[plan.type] || CONTENT_TYPE_ICONS.plan}
-          </span>
-          <span className="font-medium text-sm truncate flex-1">
-            {plan.title}
-          </span>
-        </div>
-      </div>
-
-      {/* 본문 - 날짜 및 시간 정보 */}
-      <div className="px-3 py-2 space-y-1.5">
-        {/* 날짜 이동 표시 */}
-        <div className="flex items-center gap-2 text-xs">
-          <Calendar className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-          <span className={cn(showTargetDate && "text-gray-400")}>
-            {formatShortDate(plan.originalDate)}
-          </span>
-          {showTargetDate && (
-            <>
-              <motion.div
-                animate={isOverValidTarget ? { x: [0, 2, 0] } : {}}
-                transition={{ duration: 0.3, repeat: Infinity }}
-              >
-                <ArrowRight
-                  className={cn(
-                    "w-3.5 h-3.5 flex-shrink-0",
-                    isOverValidTarget && "text-green-500",
-                    isOverInvalidTarget && "text-red-500"
-                  )}
-                />
-              </motion.div>
-              <span
-                className={cn(
-                  "font-medium",
-                  isOverValidTarget && "text-green-600",
-                  isOverInvalidTarget && "text-red-600"
-                )}
-              >
-                {formatShortDate(overTarget.date)}
-              </span>
-            </>
-          )}
-        </div>
-
-        {/* 예상 시간 */}
-        {plan.estimatedMinutes && (
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <Clock className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-            <span>{plan.estimatedMinutes}분</span>
-          </div>
-        )}
-      </div>
-
-      {/* 푸터 - 드롭 상태 메시지 */}
-      <motion.div
-        layout
+    <div className="relative">
+      {/* Google Calendar 스타일 chip — 원래 셀 칩과 동일한 형태 */}
+      <div
         className={cn(
-          "px-3 py-1.5 text-xs rounded-b-lg",
-          isPending && "bg-blue-100 text-blue-700",
-          !isPending && isOverValidTarget && "bg-green-100 text-green-700",
-          !isPending && isOverInvalidTarget && "bg-red-100 text-red-700",
-          !isPending && !overTarget && "bg-gray-50 text-gray-500"
+          "flex items-center gap-1 rounded-md text-xs overflow-hidden relative",
+          "pl-2 pr-1.5 py-0.5 min-w-[100px] max-w-[200px]",
+          "shadow-xl cursor-grabbing select-none",
+          colors.textIsWhite ? "text-white" : "text-gray-900",
+          // 드롭 상태 피드백 (미니멀)
+          isOverValidTarget && "ring-2 ring-green-400",
+          isOverInvalidTarget && "ring-2 ring-red-400 opacity-70",
+          isPending && "ring-2 ring-blue-400",
         )}
+        style={{
+          backgroundColor: colors.bgHex,
+          opacity: colors.opacity,
+          borderLeft: `4px solid ${colors.barHex}`,
+        }}
       >
-        <div className="flex items-center gap-1.5">
-          {isPending ? (
-            <>
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              <span>저장 중...</span>
-            </>
-          ) : isOverValidTarget ? (
-            <>
-              <Check className="w-3.5 h-3.5" />
-              <span>여기에 놓아 이동</span>
-            </>
-          ) : isOverInvalidTarget ? (
-            <>
-              <Ban className="w-3.5 h-3.5" />
-              <span>제외일 - 이동 불가</span>
-            </>
-          ) : (
-            <span>날짜 위로 드래그하세요</span>
-          )}
+        {timeLabel && (
+          <span className="flex-shrink-0 tabular-nums opacity-70">{timeLabel}</span>
+        )}
+        {isCompleted && (
+          <Check className={cn("w-3 h-3 flex-shrink-0", colors.textIsWhite ? "text-white/80" : "text-green-600")} />
+        )}
+        <span className={cn("truncate", colors.strikethrough && "line-through")}>
+          {plan.title}
+        </span>
+      </div>
+
+      {/* 드롭 불가 배지 — 최소한의 피드백 */}
+      {isOverInvalidTarget && (
+        <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap">
+          <Ban className="w-3 h-3" />
+          <span>이동 불가</span>
         </div>
-      </motion.div>
-    </motion.div>
+      )}
+    </div>
   );
 }

@@ -20,7 +20,7 @@ interface WeeklyCalendarProps {
   studentId: string;
   selectedDate: string;
   onDateSelect: (date: string) => void;
-  plannerId?: string;
+  calendarId?: string;
   /** 선택된 플랜 그룹 ID (null = 전체 보기) */
   selectedGroupId?: string | null;
   /** 플랜 그룹의 daily_schedule (1730 Timetable 방법론 준수) */
@@ -32,9 +32,9 @@ interface WeeklyCalendarProps {
     reason?: string | null;
   }>;
   /** 플래너 기간 시작일 */
-  plannerPeriodStart?: string;
+  periodStart?: string;
   /** 플래너 기간 종료일 */
-  plannerPeriodEnd?: string;
+  periodEnd?: string;
   /** 날짜 셀 래퍼 컴포넌트 (DnD용, 기본: div) */
   DateCellWrapper?: ComponentType<DateCellWrapperProps>;
 }
@@ -71,7 +71,7 @@ export const WeeklyCalendar = memo(function WeeklyCalendar({
   studentId,
   selectedDate,
   onDateSelect,
-  plannerId,
+  calendarId,
   selectedGroupId,
   dailySchedules,
   exclusions,
@@ -253,7 +253,7 @@ export const WeeklyCalendar = memo(function WeeklyCalendar({
   const weekEnd = currentWeekDates[currentWeekDates.length - 1] ?? '';
 
   const { data: planCounts = new Map(), isLoading } = useQuery({
-    ...weeklyPlanCountsQueryOptions(studentId, weekStart, weekEnd, plannerId, selectedGroupId),
+    ...weeklyPlanCountsQueryOptions(studentId, weekStart, weekEnd, calendarId, selectedGroupId),
     enabled: currentWeekDates.length > 0,
   });
 

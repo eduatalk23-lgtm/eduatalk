@@ -149,9 +149,8 @@ describe("제외일/학원 일정 전역 관리", () => {
 
   describe("플랜 그룹 삭제 시 데이터 유지", () => {
     it("플랜 그룹 삭제 시 전역 제외일은 삭제되지 않아야 함", () => {
-      // 전역 관리 전환 후, plan_group_id가 NULL이므로
-      // 플랜 그룹 삭제 시 plan_exclusions.delete().eq("plan_group_id", groupId)는
-      // 아무 행도 삭제하지 않음
+      // 전역 관리 전환 후, plan_group_id는 개념상 NULL이며
+      // 제외일은 calendar_events 기반 학생별 전역 데이터이므로 삭제하지 않음
       const deletedPlanGroupId = "group-123";
       const globalExclusion = {
         id: "exc-1",

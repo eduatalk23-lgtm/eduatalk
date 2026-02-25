@@ -23,21 +23,6 @@ export {
   type UnifiedPlanResult,
 } from './unifiedPlanCreate';
 
-// Ad-hoc Plan Actions
-// @deprecated Use createUnifiedPlan for creating plans
-export {
-  getAdHocPlans,
-  getAdHocPlan,
-  getTodayAdHocPlans,
-  /** @deprecated Use createUnifiedPlan instead */
-  createAdHocPlan,
-  updateAdHocPlan,
-  updateAdHocPlanStatus,
-  deleteAdHocPlan,
-  moveAdHocPlanToContainer,
-  carryoverAdHocPlans,
-} from './adHocPlan';
-
 // Plan Event Actions
 export {
   createPlanEvent,
@@ -63,12 +48,6 @@ export {
   logPlansBatchCreated,
   logAIPlansGenerated,
 } from './planEvent';
-
-// Container Operations (with event logging)
-export {
-  movePlanToContainer,
-  deletePlanWithLogging,
-} from './containerOperations';
 
 // Carryover Operations
 export {
@@ -151,28 +130,6 @@ export {
   type PlanGroupInfo,
 } from './moveToGroup';
 
-// Planner Actions
-export {
-  createPlannerAction,
-  getPlannerAction,
-  getStudentPlannersAction,
-  updatePlannerAction,
-  deletePlannerAction,
-  updatePlannerStatusAction,
-  addPlannerExclusionAction,
-  removePlannerExclusionAction,
-  type PlannerStatus,
-  type ExclusionType,
-  type NonStudyTimeBlock,
-  type CreatePlannerInput,
-  type UpdatePlannerInput,
-  type PlannerExclusionInput,
-  type PlannerAcademyScheduleInput,
-  type Planner,
-  type PlannerExclusion,
-  type PlannerAcademySchedule,
-} from './planners';
-
 // Time Management Actions (Admin)
 export {
   addStudentAcademyScheduleForAdmin,
@@ -195,10 +152,6 @@ export {
 // Dock Prefetch (SSR)
 export {
   prefetchDailyPlans,
-  prefetchDailyAdHocPlans,
-  prefetchWeeklyPlans,
-  prefetchWeeklyAdHocPlans,
-  prefetchUnfinishedPlans,
   prefetchAllDockData,
   type PrefetchedDockData,
 } from './dockPrefetch';

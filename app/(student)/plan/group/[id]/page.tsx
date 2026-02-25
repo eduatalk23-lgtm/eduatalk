@@ -10,9 +10,7 @@ import { PlanGroupActionButtons } from "./_components/PlanGroupActionButtons";
 import { PlanGroupProgressCard } from "./_components/PlanGroupProgressCard";
 import { AutoRescheduleBanner } from "./_components/AutoRescheduleBanner";
 import { PlanContentCardList } from "./_components/PlanContentCardList";
-import { AdHocPlansSection } from "./_components/AdHocPlansSection";
 import { classifyPlanContents, getPlanContentsList } from "@/lib/data/planContents";
-import { getAdHocPlansByPlanGroup } from "@/lib/data/studentPlans";
 import type { PlanStatus, Plan } from "@/lib/types/plan";
 import {
   planPurposeLabels,
@@ -93,10 +91,7 @@ export default async function PlanGroupDetailPage({
   const blockSets = await fetchBlockSetsWithBlocks(user.id);
 
   // Phase 5: 콘텐츠 카드 목록 및 빠른 추가 플랜 조회
-  const [planContentsList, adHocPlans] = await Promise.all([
-    getPlanContentsList(id),
-    getAdHocPlansByPlanGroup(id),
-  ]);
+  const planContentsList = await getPlanContentsList(id);
 
   // 콘텐츠 카드 데이터 변환
   const contentCardsData = planContentsList.map((item) => ({
@@ -500,11 +495,6 @@ export default async function PlanGroupDetailPage({
               contents={contentCardsData}
             />
           </div>
-        )}
-
-        {/* Phase 5: 빠른 추가 플랜 섹션 */}
-        {adHocPlans.length > 0 && (
-          <AdHocPlansSection plans={adHocPlans} />
         )}
 
         {/* 탭 컨텐츠 영역 */}

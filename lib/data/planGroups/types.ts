@@ -52,6 +52,8 @@ export type PlanGroupPayload = {
   is_calendar_only?: boolean;
   content_status?: "pending" | "partial" | "complete";
   schedule_generated_at?: string | null;
+  /** 소속 캘린더 */
+  calendar_id?: string | null;
 };
 
 /**
@@ -109,7 +111,8 @@ export type PlanGroupContentSummary = {
   bookCount: number;
   lectureCount: number;
   customCount: number;
-  adHocCount: number;
+  /** @deprecated Always 0. */
+  adHocCount?: number;
   totalContentCount: number;
   contentNames: string[];
 };
@@ -148,7 +151,7 @@ export type PlanGroupBackupData = {
     target_date: string | null;
     block_set_id: string | null;
     status: string;
-    planner_id?: string | null;
+    calendar_id?: string | null;
     created_at: string;
     updated_at: string;
   };
@@ -211,7 +214,7 @@ export type DeletedPlanGroupInfo = {
   planCount: number;
   contentCount: number;
   isRestored: boolean;
-  plannerId?: string | null;
+  calendarId?: string | null;
 };
 
 /**
@@ -230,7 +233,7 @@ export type RestorePlanGroupResult = {
 export type GetDeletedPlanGroupsOptions = {
   studentId: string;
   tenantId?: string;
-  plannerId?: string;
+  calendarId?: string;
   offset?: number;
   limit?: number;
   includeRestored?: boolean;

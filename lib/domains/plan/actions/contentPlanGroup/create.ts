@@ -701,16 +701,18 @@ export async function addContentToCalendarOnlyGroup(
     const schedulerOptions = planGroup.scheduler_options as { weekdays?: number[] } | null;
     const weekdays = schedulerOptions?.weekdays ?? [1, 2, 3, 4, 5]; // 기본: 월-금
 
-    // 제외일 조회 (전역 + 플랜 그룹별)
+    // 제외일 조회 (calendar_events 기반)
     const { data: exclusionsRaw } = await supabase
-      .from("plan_exclusions")
-      .select("exclusion_date")
+      .from("calendar_events")
+      .select("start_date")
       .eq("student_id", planGroup.student_id)
-      .or(`plan_group_id.is.null,plan_group_id.eq.${input.planGroupId}`);
+      .eq("event_type", "exclusion")
+      .eq("is_all_day", true)
+      .is("deleted_at", null);
 
     // getAvailableStudyDates 함수 형식에 맞게 변환
     const exclusions = (exclusionsRaw ?? []).map((e) => ({
-      date: e.exclusion_date,
+      date: e.start_date ?? "",
     }));
 
     const studyDates = getAvailableStudyDates(
@@ -1017,16 +1019,18 @@ export async function addContentToExistingPlanGroup(
     const schedulerOptions = planGroup.scheduler_options as { weekdays?: number[] } | null;
     const weekdays = schedulerOptions?.weekdays ?? [1, 2, 3, 4, 5]; // 기본: 월-금
 
-    // 제외일 조회 (전역 + 플랜 그룹별)
+    // 제외일 조회 (calendar_events 기반)
     const { data: exclusionsRaw } = await supabase
-      .from("plan_exclusions")
-      .select("exclusion_date")
+      .from("calendar_events")
+      .select("start_date")
       .eq("student_id", planGroup.student_id)
-      .or(`plan_group_id.is.null,plan_group_id.eq.${input.planGroupId}`);
+      .eq("event_type", "exclusion")
+      .eq("is_all_day", true)
+      .is("deleted_at", null);
 
     // getAvailableStudyDates 함수 형식에 맞게 변환
     const exclusions = (exclusionsRaw ?? []).map((e) => ({
-      date: e.exclusion_date,
+      date: e.start_date ?? "",
     }));
 
     const studyDates = getAvailableStudyDates(

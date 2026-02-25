@@ -147,14 +147,14 @@ export default async function AdminPlanGroupDetailPage({
   const backPath = getAdminPlanGroupBackPath({
     groupId: id,
     studentId: group.student_id,
-    plannerId: group.planner_id,
+    calendarId: group.calendar_id,
     campTemplateId: group.camp_template_id,
     isCampMode,
   });
   const backLabel = getAdminPlanGroupBackLabel({
     groupId: id,
     studentId: group.student_id,
-    plannerId: group.planner_id,
+    calendarId: group.calendar_id,
     campTemplateId: group.camp_template_id,
     isCampMode,
   });

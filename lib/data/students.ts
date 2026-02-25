@@ -167,8 +167,8 @@ export async function upsertStudent(
     id: string;
     tenant_id: string | null;
     name?: string | null;
-    grade: string;
-    class: string;
+    grade: string | null;
+    class: string | null;
     birth_date: string | null;
     school_id?: string | null;
     school_type?: "MIDDLE" | "HIGH" | "UNIVERSITY" | null;
@@ -252,7 +252,7 @@ export async function upsertStudent(
   const payload: Record<string, unknown> = {
     id: student.id,
     tenant_id: tenantId,
-    grade: student.grade,
+    grade: student.grade || null,
     class: student.class || null,
     birth_date: student.birth_date || null,
     school_id: student.school_id || null,

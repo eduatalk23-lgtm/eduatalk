@@ -8,6 +8,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logActionError } from "@/lib/logging/actionLogger";
+import { extractDateYMD } from "@/lib/domains/calendar/adapters";
 
 // ============================================
 // 상수 정의
@@ -204,28 +205,42 @@ export async function analyzeStudentPattern(
 
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - daysBack);
+    const startDateStr = startDate.toISOString().split("T")[0];
 
-    const { data: plans, error: plansError } = await supabase
-      .from("student_plan")
-      .select(
-        `
-        id,
-        plan_date,
-        subject_type,
-        simple_completed,
-        simple_completed_at,
-        progress
-      `
-      )
+    // calendar_events + event_study_data 기반 조회
+    const { data: events, error: eventsError } = await supabase
+      .from("calendar_events")
+      .select("id, start_at, start_date, event_study_data(done, done_at, subject_name, progress)")
       .eq("student_id", studentId)
-      .gte("plan_date", startDate.toISOString().split("T")[0])
-      .order("plan_date", { ascending: true });
+      .eq("event_type", "study")
+      .is("deleted_at", null)
+      .gte("start_at", `${startDateStr}T00:00:00+09:00`)
+      .order("start_at", { ascending: true });
 
-    if (plansError) {
-      throw new Error(`플랜 조회 실패: ${plansError.message}`);
+    if (eventsError) {
+      throw new Error(`이벤트 조회 실패: ${eventsError.message}`);
     }
 
-    const allPlans = plans || [];
+    // 이벤트 → 분석용 플랫 데이터로 변환
+    type AnalysisPlan = {
+      id: string;
+      planDate: string;
+      subject: string;
+      isCompleted: boolean;
+      completedAt: string | null;
+    };
+    type StudyDataRow = { done: boolean; done_at: string | null; subject_name: string | null; progress: number | null };
+    const allPlans: AnalysisPlan[] = (events || []).map((e) => {
+      const sdRaw = e.event_study_data;
+      const sd: StudyDataRow | null = Array.isArray(sdRaw) ? sdRaw[0] ?? null : (sdRaw as StudyDataRow | null);
+      return {
+        id: e.id,
+        planDate: e.start_date ?? extractDateYMD(e.start_at) ?? "",
+        subject: sd?.subject_name || "unknown",
+        isCompleted: sd?.done === true,
+        completedAt: sd?.done_at ?? null,
+      };
+    });
 
     // 요일별 완료율 분석
     const dayOfWeekStats: Map<number, { total: number; completed: number }> =
@@ -250,26 +265,24 @@ export async function analyzeStudentPattern(
     const olderPlans = allPlans.slice(0, -10);
 
     for (const plan of allPlans) {
-      const date = new Date(plan.plan_date);
+      const date = new Date(plan.planDate);
       const dayOfWeek = date.getDay();
-      const subject = plan.subject_type || "unknown";
-      const isCompleted = plan.simple_completed === true;
 
       // 요일별 집계
       const dayStats = dayOfWeekStats.get(dayOfWeek)!;
       dayStats.total++;
-      if (isCompleted) dayStats.completed++;
+      if (plan.isCompleted) dayStats.completed++;
 
       // 과목별 집계
-      if (!subjectStats.has(subject)) {
-        subjectStats.set(subject, { total: 0, completed: 0 });
+      if (!subjectStats.has(plan.subject)) {
+        subjectStats.set(plan.subject, { total: 0, completed: 0 });
       }
-      const subStats = subjectStats.get(subject)!;
+      const subStats = subjectStats.get(plan.subject)!;
       subStats.total++;
-      if (isCompleted) subStats.completed++;
+      if (plan.isCompleted) subStats.completed++;
 
       // 연속 미완료 추적
-      if (!isCompleted) {
+      if (!plan.isCompleted) {
         currentStreak++;
         maxStreak = Math.max(maxStreak, currentStreak);
       } else {
@@ -277,17 +290,16 @@ export async function analyzeStudentPattern(
       }
 
       // 지연일 계산: 완료된 플랜의 경우 완료일 - 예정일
-      if (isCompleted && plan.simple_completed_at) {
-        const planDate = new Date(plan.plan_date);
-        planDate.setHours(0, 0, 0, 0); // 날짜만 비교
+      if (plan.isCompleted && plan.completedAt) {
+        const planDate = new Date(plan.planDate);
+        planDate.setHours(0, 0, 0, 0);
 
-        const completedDate = new Date(plan.simple_completed_at);
+        const completedDate = new Date(plan.completedAt);
         completedDate.setHours(0, 0, 0, 0);
 
         const diffTime = completedDate.getTime() - planDate.getTime();
         const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-        // 양수면 지연, 음수면 조기 완료 (여기서는 지연만 추적)
         if (diffDays >= 0) {
           delayDays.push(diffDays);
         }
@@ -318,7 +330,7 @@ export async function analyzeStudentPattern(
 
     // 주간 완료율 계산
     const totalPlans = allPlans.length;
-    const completedPlans = allPlans.filter((p) => p.simple_completed === true).length;
+    const completedPlans = allPlans.filter((p) => p.isCompleted).length;
     const weeklyCompletionRate =
       totalPlans > 0 ? Math.round((completedPlans / totalPlans) * 100) : 0;
 
@@ -326,9 +338,9 @@ export async function analyzeStudentPattern(
     let recentTrend: "improving" | "stable" | "declining" = "stable";
     if (recentPlans.length >= 5 && olderPlans.length >= 5) {
       const recentRate =
-        recentPlans.filter((p) => p.simple_completed).length / recentPlans.length;
+        recentPlans.filter((p) => p.isCompleted).length / recentPlans.length;
       const olderRate =
-        olderPlans.filter((p) => p.simple_completed).length / olderPlans.length;
+        olderPlans.filter((p) => p.isCompleted).length / olderPlans.length;
       const diff = recentRate - olderRate;
 
       if (diff > 0.15) recentTrend = "improving";
@@ -348,7 +360,7 @@ export async function analyzeStudentPattern(
         weeklyCompletionRate,
         weakDays,
         weakSubjects,
-        consecutiveIncompleteStreak: currentStreak, // 현재 진행 중인 연속 미완료
+        consecutiveIncompleteStreak: currentStreak,
         recentTrend,
         averageDelayDays,
       },
@@ -396,29 +408,45 @@ export async function predictPlanDelays(
     const endDate = new Date();
     endDate.setDate(today.getDate() + daysAhead);
 
-    const { data: upcomingPlans, error: plansError } = await supabase
-      .from("student_plan")
-      .select(
-        `
-        id,
-        plan_date,
-        subject_type,
-        estimated_duration
-      `
-      )
-      .eq("student_id", studentId)
-      .eq("simple_completed", false)
-      .gte("plan_date", today.toISOString().split("T")[0])
-      .lte("plan_date", endDate.toISOString().split("T")[0])
-      .order("plan_date", { ascending: true });
+    const todayStr = today.toISOString().split("T")[0];
+    const endDateStr = endDate.toISOString().split("T")[0];
 
-    if (plansError) {
-      throw new Error(`예정 플랜 조회 실패: ${plansError.message}`);
+    // calendar_events + event_study_data: 미완료 학습 이벤트 조회
+    const { data: upcomingEvents, error: eventsError } = await supabase
+      .from("calendar_events")
+      .select("id, start_at, start_date, event_study_data(done, subject_name)")
+      .eq("student_id", studentId)
+      .eq("event_type", "study")
+      .is("deleted_at", null)
+      .gte("start_at", `${todayStr}T00:00:00+09:00`)
+      .lte("start_at", `${endDateStr}T23:59:59+09:00`)
+      .order("start_at", { ascending: true });
+
+    if (eventsError) {
+      throw new Error(`예정 이벤트 조회 실패: ${eventsError.message}`);
     }
+
+    // 미완료 이벤트만 필터
+    type UpcomingStudyData = { done: boolean; subject_name: string | null };
+    const upcomingPlans = (upcomingEvents || [])
+      .filter((e) => {
+        const sdRaw = e.event_study_data;
+        const sd: UpcomingStudyData | null = Array.isArray(sdRaw) ? sdRaw[0] ?? null : (sdRaw as UpcomingStudyData | null);
+        return !sd?.done;
+      })
+      .map((e) => {
+        const sdRaw = e.event_study_data;
+        const sd: UpcomingStudyData | null = Array.isArray(sdRaw) ? sdRaw[0] ?? null : (sdRaw as UpcomingStudyData | null);
+        return {
+          id: e.id,
+          plan_date: e.start_date ?? extractDateYMD(e.start_at) ?? "",
+          subject: sd?.subject_name || "unknown",
+        };
+      });
 
     const predictions: DelayPrediction[] = [];
 
-    for (const plan of upcomingPlans || []) {
+    for (const plan of upcomingPlans) {
       const riskFactors: string[] = [];
       let riskScore = 0;
 
@@ -433,7 +461,7 @@ export async function predictPlanDelays(
       }
 
       // 과목별 리스크
-      const subject = plan.subject_type || "unknown";
+      const subject = plan.subject || "unknown";
       if (pattern.weakSubjects.includes(subject)) {
         riskScore += 0.3;
         riskFactors.push("weak_subject");
@@ -466,7 +494,7 @@ export async function predictPlanDelays(
       predictions.push({
         planId: plan.id,
         planDate: plan.plan_date,
-        subjectType: plan.subject_type,
+        subjectType: plan.subject,
         riskLevel,
         riskScore: Math.round(riskScore * 100) / 100,
         predictedDelayDays: calculateDelayDays(riskScore),

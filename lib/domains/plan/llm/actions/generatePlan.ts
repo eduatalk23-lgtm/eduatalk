@@ -504,16 +504,12 @@ async function loadLearningStats(
 }
 
 async function loadAcademySchedules(
-  supabase: SupabaseClient,
+  _supabase: SupabaseClient,
   studentId: string,
   tenantId: string
 ): Promise<unknown[]> {
-  const { data } = await supabase
-    .from("academy_schedules")
-    .select("*")
-    .eq("student_id", studentId)
-    .eq("tenant_id", tenantId);
-  return data || [];
+  const { getStudentAcademySchedules } = await import("@/lib/data/planGroups");
+  return getStudentAcademySchedules(studentId, tenantId);
 }
 
 async function loadBlockSets(
@@ -524,13 +520,28 @@ async function loadBlockSets(
   return [];
 }
 
-async function getPlanExclusions(supabase: any, planGroupId: string, tenantId: string): Promise<any[]> {
+async function getPlanExclusions(supabase: any, planGroupId: string, _tenantId: string): Promise<any[]> {
+  // plan_group → student_id
+  const { data: group } = await supabase
+    .from("plan_groups")
+    .select("student_id")
+    .eq("id", planGroupId)
+    .maybeSingle();
+
+  if (!group?.student_id) return [];
+
+  // calendar_events에서 제외일 조회
   const { data } = await supabase
-    .from("plan_exclusions")
-    .select("exclusion_date")
-    .eq("plan_group_id", planGroupId)
-    .eq("tenant_id", tenantId);
-  return data || [];
+    .from("calendar_events")
+    .select("start_date")
+    .eq("student_id", group.student_id)
+    .eq("event_type", "exclusion")
+    .eq("is_all_day", true)
+    .is("deleted_at", null);
+
+  return (data || []).map((e: { start_date: string }) => ({
+    exclusion_date: e.start_date,
+  }));
 }
 
 async function createPlanGroup(

@@ -60,7 +60,7 @@ function createDefaultWizardData(): AdminWizardData {
 
   return {
     // 플래너 연결
-    plannerId: undefined,
+    calendarId: undefined,
     // Step 1
     name: "",
     planPurpose: "",
@@ -123,7 +123,7 @@ function createInitialState(
 
 function hasDataChanged(initial: AdminWizardData, current: AdminWizardData): boolean {
   // 핵심 스칼라 필드 비교
-  if (initial.plannerId !== current.plannerId) return true;
+  if (initial.calendarId !== current.calendarId) return true;
   if (initial.name !== current.name) return true;
   if (initial.planPurpose !== current.planPurpose) return true;
   if (initial.periodStart !== current.periodStart) return true;

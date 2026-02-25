@@ -61,7 +61,7 @@ export type DashboardPlan = {
   rangeEnd: number;
   estimatedMinutes: number;
   status: "pending" | "in_progress" | "completed";
-  containerType: "daily" | "weekly" | "unfinished";
+  containerType: "daily";
   planGroupId: string;
   displayOrder: number;
   color: string;
@@ -250,7 +250,7 @@ export async function getDashboardData(
         rangeEnd: plan.planned_end_page_or_time || 0,
         estimatedMinutes: plan.estimated_duration_minutes || 30,
         status: plan.status as "pending" | "in_progress" | "completed",
-        containerType: (plan.container_type as "daily" | "weekly" | "unfinished") || "daily",
+        containerType: "daily",
         planGroupId: plan.plan_group_id,
         displayOrder: plan.display_order || 0,
         color: contentInfo?.color || CONTENT_COLORS[0],

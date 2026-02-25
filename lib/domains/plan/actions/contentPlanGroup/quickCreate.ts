@@ -27,7 +27,7 @@ import { getAvailableStudyDates, getReviewDates, distributeDailyAmounts } from "
 import { getContentPlanGroupCount } from "./queries";
 import { logActionError, logActionSuccess, logActionWarn, logActionDebug } from "@/lib/logging/actionLogger";
 import { logQuickPlanCreated, logPlansBatchCreated } from "@/lib/domains/admin-plan/actions/planEvent";
-import { selectPlanGroupForPlanner, createPlanGroupForPlanner } from "@/lib/domains/admin-plan/utils/planGroupSelector";
+import { selectPlanGroupForCalendar, createPlanGroupForCalendar } from "@/lib/domains/admin-plan/utils/planGroupSelector";
 import { buildPlanCreationHints } from "@/lib/query/keys";
 
 // ============================================
@@ -653,28 +653,24 @@ export async function createQuickPlan(
       resolvedContentId = input.contentId;
     }
 
-    // 3. Planner 확보 (없으면 자동 생성)
-    let plannerId = input.plannerId;
-    if (!plannerId) {
-      const { getOrCreateDefaultPlannerAction } = await import("../planners/autoCreate");
-      const plannerResult = await getOrCreateDefaultPlannerAction({ studentId });
-
-      if (!plannerResult.plannerId) {
+    // 3. Calendar 확보 (없으면 Primary Calendar 자동 생성)
+    let calendarId: string | null = input.calendarId ?? null;
+    if (!calendarId) {
+      const { ensureStudentPrimaryCalendar } = await import("@/lib/domains/calendar/helpers");
+      try {
+        calendarId = await ensureStudentPrimaryCalendar(studentId, tenantId);
+        logActionDebug(LOG_CTX, "Primary Calendar 확보", { calendarId });
+      } catch {
         return {
           success: false,
-          error: "기본 플래너 생성에 실패했습니다.",
+          error: "기본 캘린더 생성에 실패했습니다.",
         };
       }
-      plannerId = plannerResult.plannerId;
-      logActionDebug(LOG_CTX, "기본 플래너 확보", {
-        plannerId,
-        isNew: plannerResult.isNew,
-      });
     }
 
     // 4. Plan Group 확보/생성
     // - planGroupId가 제공되면 그대로 사용 (캘린더 UI 선택)
-    // - 없으면 Planner 기반으로 자동 선택/생성 (is_single_content: true)
+    // - 없으면 캘린더 기반으로 자동 선택/생성 (is_single_content: true)
     let planGroupId: string;
     let isNewGroup = false;
 
@@ -682,9 +678,14 @@ export async function createQuickPlan(
       // 캘린더 UI에서 선택된 Plan Group 사용
       planGroupId = input.planGroupId;
       logActionDebug(LOG_CTX, "지정된 Plan Group 사용", { planGroupId });
+    } else if (!calendarId) {
+      return {
+        success: false,
+        error: "캘린더를 찾을 수 없습니다.",
+      };
     } else {
-      // 플래너 기반으로 적합한 Plan Group 찾기
-      const selectResult = await selectPlanGroupForPlanner(plannerId, {
+      // 캘린더 기반으로 적합한 Plan Group 찾기
+      const selectResult = await selectPlanGroupForCalendar(calendarId, {
         studentId,
         preferPeriod: { start: input.planDate, end: input.planDate },
       });
@@ -695,8 +696,8 @@ export async function createQuickPlan(
         logActionDebug(LOG_CTX, "기존 Plan Group 선택", { planGroupId });
       } else {
         // 새 Plan Group 생성 (is_single_content: true 포함)
-        const createResult = await createPlanGroupForPlanner({
-          plannerId,
+        const createResult = await createPlanGroupForCalendar({
+          calendarId,
           studentId,
           tenantId,
           name: `${input.title} (${input.planDate})`,
@@ -817,7 +818,7 @@ export async function createQuickPlan(
       planId: plan.id,
       planGroupId,
       studentId,
-      plannerId,
+      calendarId,
       actorType,
       isNewGroup,
     });
@@ -929,12 +930,14 @@ export async function createQuickPlanForStudent(
       resolvedContentId = contentId;
     }
 
-    // 1. 플래너에 연결된 Plan Group 찾기 또는 생성
+    // 1. 캘린더 기반 Plan Group 찾기 또는 생성
     let planGroupId: string;
 
-    // plannerId가 제공된 경우 플래너 기반으로 Plan Group 선택
-    if (input.plannerId) {
-      const planGroupResult = await selectPlanGroupForPlanner(input.plannerId, {
+    // calendarId가 제공된 경우 캘린더 기반으로 Plan Group 선택
+    if (input.calendarId) {
+      const plannerCalendarId = input.calendarId;
+
+      const planGroupResult = await selectPlanGroupForCalendar(plannerCalendarId, {
         studentId,
         preferPeriod: { start: input.planDate, end: input.planDate },
       });
@@ -945,12 +948,12 @@ export async function createQuickPlanForStudent(
         logActionDebug(
           { domain: "plan", action: "createQuickPlanForStudent" },
           `Using existing plan group: ${planGroupId}`,
-          { plannerId: input.plannerId }
+          { calendarId: plannerCalendarId }
         );
       } else if (planGroupResult.status === "not-found") {
-        // 새 Plan Group 생성 (플래너에 연결)
-        const createResult = await createPlanGroupForPlanner({
-          plannerId: input.plannerId,
+        // 새 Plan Group 생성 (캘린더에 연결)
+        const createResult = await createPlanGroupForCalendar({
+          calendarId: plannerCalendarId,
           studentId,
           tenantId,
           name: input.title,
@@ -978,7 +981,7 @@ export async function createQuickPlanForStudent(
         };
       }
     } else {
-      // 레거시 지원: plannerId 없이 호출된 경우 기존 방식으로 생성
+      // 레거시 지원: calendarId 없이 호출된 경우 기존 방식으로 생성
       const { data: planGroup, error: groupError } = await supabase
         .from("plan_groups")
         .insert({
@@ -1048,7 +1051,7 @@ export async function createQuickPlanForStudent(
         { planGroupId, step: "student_plan" }
       );
       // 롤백: plan_group 삭제 (레거시 방식으로 생성된 경우만)
-      if (!input.plannerId) {
+      if (!input.calendarId) {
         const rollback = await rollbackQuickCreate(supabase, planGroupId, {
           deleteStudentPlans: false,
           deletePlanContents: false,
@@ -1093,7 +1096,7 @@ export async function createQuickPlanForStudent(
         studentId,
         adminUserId: auth.userId,
         adminRole: auth.adminRole,
-        plannerId: input.plannerId,
+        calendarId: input.calendarId,
       }
     );
 

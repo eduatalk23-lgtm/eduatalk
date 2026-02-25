@@ -69,16 +69,5 @@ export {
   getLastActionTypeForPlan,
 } from "./queue";
 
-// Timer Actions
-export {
-  startPlanOfflineAware,
-  pausePlanOfflineAware,
-  resumePlanOfflineAware,
-  completePlanOfflineAware,
-  hasPendingOfflineActions,
-  getExpectedTimerState,
-  type OfflineAwareResult,
-} from "./timerActions";
-
 // React Hook
 export { useOfflineQueue } from "./useOfflineQueue";

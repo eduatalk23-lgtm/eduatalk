@@ -203,7 +203,7 @@ async function processCarryover(
       const { error } = await supabase
         .from("student_plan")
         .update({
-          container_type: "unfinished",
+          container_type: "daily",
           carryover_count: newCarryoverCount,
           carryover_from_date: originalDate,
           updated_at: now,
@@ -250,7 +250,7 @@ async function logCarryoverEvents(results: CarryoverResult[]): Promise<void> {
         created_at: now,
         metadata: {
           from_date: plan.fromDate,
-          to_container: "unfinished",
+          to_container: "daily",
           carryover_count: plan.newCarryoverCount,
           batch_processed: true,
         },

@@ -504,13 +504,23 @@ export class PrerequisiteService {
   ): Promise<Map<string, StudentConceptMastery>> {
     const supabase = await createSupabaseServerClient();
 
-    // 학생이 완료한 콘텐츠 조회
-    const { data: completedPlans } = await supabase
-      .from("student_plan")
-      .select("content_id, simple_completed_at")
+    // 학생이 완료한 콘텐츠 조회 (calendar_events + event_study_data)
+    type StudyDataRow = { done: boolean; content_id: string | null };
+    const { data: completedEvents } = await supabase
+      .from("calendar_events")
+      .select("id, event_study_data(done, content_id)")
       .eq("student_id", studentId)
-      .eq("status", "completed")
-      .not("content_id", "is", null);
+      .eq("event_type", "study")
+      .is("deleted_at", null);
+
+    const completedPlans = (completedEvents || [])
+      .map((e) => {
+        const sdRaw = e.event_study_data;
+        const sd: StudyDataRow | null = Array.isArray(sdRaw) ? sdRaw[0] ?? null : (sdRaw as StudyDataRow | null);
+        return sd;
+      })
+      .filter((sd): sd is StudyDataRow => sd?.done === true && !!sd.content_id)
+      .map((sd) => ({ content_id: sd.content_id! }));
 
     if (!completedPlans || completedPlans.length === 0) {
       return new Map();

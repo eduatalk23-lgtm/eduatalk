@@ -28,10 +28,12 @@ interface DayPlanPopoverProps {
   anchorRect: DOMRect;
   /** 닫기 콜백 */
   onClose: () => void;
-  /** 플랜 클릭 콜백 */
-  onPlanClick: (planId: string) => void;
+  /** 플랜 클릭 콜백 (GCal 팝오버용) */
+  onPlanClick: (plan: CalendarPlan, anchorRect: DOMRect) => void;
   /** 날짜 클릭 콜백 (일일뷰 전환) */
   onDateClick: (dateStr: string) => void;
+  /** 캘린더별 색상 맵 (calendarId → hex) */
+  calendarColorMap?: Map<string, string>;
 }
 
 /** 팝오버 너비/최대 높이 */
@@ -47,6 +49,7 @@ export default function DayPlanPopover({
   onClose,
   onPlanClick,
   onDateClick,
+  calendarColorMap,
 }: DayPlanPopoverProps) {
   const popoverRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
@@ -116,17 +119,17 @@ export default function DayPlanPopover({
         zIndex: 50,
         visibility: position ? "visible" : "hidden",
       }}
-      className="bg-white rounded-lg shadow-xl border border-gray-200 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+      className="bg-[rgb(var(--color-secondary-50))] rounded-lg shadow-xl border border-[rgb(var(--color-secondary-200))] flex flex-col overflow-hidden animate-in fade-in-0 duration-150"
     >
       {/* 헤더 */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-[rgb(var(--color-secondary-100))]">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-gray-900">{dateLabel}</span>
+          <span className="text-sm font-semibold text-[var(--text-primary)]">{dateLabel}</span>
           <span className={cn(
             "text-xs px-1.5 py-0.5 rounded font-medium",
             stats.completionRate === 100
               ? "bg-green-100 text-green-700"
-              : "bg-gray-100 text-gray-600"
+              : "bg-[rgb(var(--color-secondary-100))] text-[var(--text-secondary)]"
           )}>
             {stats.completedPlans}/{stats.totalPlans} 완료
           </span>
@@ -134,7 +137,7 @@ export default function DayPlanPopover({
         <button
           type="button"
           onClick={onClose}
-          className="p-0.5 text-gray-400 hover:text-gray-600 rounded"
+          className="p-0.5 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] rounded"
         >
           <X className="w-4 h-4" />
         </button>
@@ -146,14 +149,15 @@ export default function DayPlanPopover({
           <DraggableAdminPlanCard
             key={plan.id}
             plan={plan}
-            onClick={() => onPlanClick(plan.id)}
+            onClick={(e) => onPlanClick(plan, (e.target as HTMLElement).closest('[data-plan-chip]')?.getBoundingClientRect() ?? (e.currentTarget as HTMLElement).getBoundingClientRect())}
             disabled
+            calendarColor={calendarColorMap?.get(plan.calendar_id ?? '')}
           />
         ))}
       </div>
 
       {/* 푸터 */}
-      <div className="border-t border-gray-100 px-3 py-2">
+      <div className="border-t border-[rgb(var(--color-secondary-100))] px-3 py-2">
         <button
           type="button"
           onClick={handleDateClick}

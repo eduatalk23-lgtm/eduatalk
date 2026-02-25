@@ -30,7 +30,7 @@ const PAGE_SIZE = 20;
 
 interface DeletedPlanGroupsViewProps {
   studentId: string;
-  plannerId?: string | null;
+  calendarId?: string;
   onRefresh: () => void;
 }
 
@@ -66,7 +66,7 @@ function getPlanPurposeLabel(purpose: string | null): string {
   return labels[purpose || ""] || purpose || "기타";
 }
 
-export function DeletedPlanGroupsView({ studentId, plannerId, onRefresh }: DeletedPlanGroupsViewProps) {
+export function DeletedPlanGroupsView({ studentId, calendarId, onRefresh }: DeletedPlanGroupsViewProps) {
   const [deletedGroups, setDeletedGroups] = useState<DeletedPlanGroupInfo[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -83,14 +83,14 @@ export function DeletedPlanGroupsView({ studentId, plannerId, onRefresh }: Delet
     const result = await getDeletedPlanGroupsAdmin(studentId, {
       offset: 0,
       limit: PAGE_SIZE,
-      plannerId: plannerId ?? undefined,
+      calendarId,
     });
     if (result.success && result.data) {
       setDeletedGroups(result.data.planGroups);
       setHasMore(result.data.hasMore);
     }
     setIsLoading(false);
-  }, [studentId, plannerId]);
+  }, [studentId, calendarId]);
 
   // 더보기 로드
   const loadMore = useCallback(async () => {
@@ -100,14 +100,14 @@ export function DeletedPlanGroupsView({ studentId, plannerId, onRefresh }: Delet
     const result = await getDeletedPlanGroupsAdmin(studentId, {
       offset: deletedGroups.length,
       limit: PAGE_SIZE,
-      plannerId: plannerId ?? undefined,
+      calendarId,
     });
     if (result.success && result.data) {
       setDeletedGroups((prev) => [...prev, ...result.data!.planGroups]);
       setHasMore(result.data.hasMore);
     }
     setIsLoadingMore(false);
-  }, [studentId, plannerId, deletedGroups.length, isLoadingMore, hasMore]);
+  }, [studentId, calendarId, deletedGroups.length, isLoadingMore, hasMore]);
 
   useEffect(() => {
     setSelectedIds(new Set());

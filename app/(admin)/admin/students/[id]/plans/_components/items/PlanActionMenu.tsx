@@ -9,7 +9,6 @@ import {
   Edit3,
   Copy,
   Trash2,
-  ArrowRight,
   RefreshCw,
   FolderInput,
   ToggleLeft,
@@ -28,7 +27,7 @@ const QUICK_STATUS_OPTIONS: Array<{
   icon: typeof Check;
   colorClass: string;
 }> = [
-  { status: 'pending', label: '미완료', icon: Circle, colorClass: 'text-gray-500' },
+  { status: 'pending', label: '미완료', icon: Circle, colorClass: 'text-[var(--text-tertiary)]' },
   { status: 'completed', label: '완료', icon: Check, colorClass: 'text-green-500' },
   { status: 'cancelled', label: '취소', icon: XCircle, colorClass: 'text-red-500' },
 ];
@@ -50,14 +49,14 @@ export const StatusChangeSubmenu = memo(function StatusChangeSubmenu({
 }: StatusChangeSubmenuProps) {
   return (
     <div className="relative group/status">
-      <div className="relative flex w-full cursor-pointer select-none items-center gap-2 rounded-sm px-4 py-2 text-body-2 outline-none transition-base text-[var(--text-secondary)] dark:text-[var(--text-primary)] hover:bg-[rgb(var(--color-secondary-50))] dark:hover:bg-[rgb(var(--color-secondary-800))]">
+      <div className="relative flex w-full cursor-pointer select-none items-center gap-2 rounded-sm px-4 py-2 text-body-2 outline-none transition-base text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))]">
         <ToggleLeft className="w-4 h-4" />
         <span className="flex-1">상태 변경</span>
-        <ChevronRight className="w-4 h-4 text-gray-400" />
+        <ChevronRight className="w-4 h-4 text-[var(--text-tertiary)]" />
       </div>
       {/* 서브메뉴 */}
       <div className="absolute left-full top-0 ml-1 hidden group-hover/status:block z-50">
-        <div className="min-w-[140px] rounded-lg border shadow-lg bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 py-1">
+        <div className="min-w-[140px] rounded-lg border shadow-lg bg-[rgb(var(--color-secondary-50))] border-[rgb(var(--color-secondary-200))] py-1">
           {QUICK_STATUS_OPTIONS.map((option) => {
             const Icon = option.icon;
             const isCurrentStatus = currentStatus === option.status;
@@ -69,8 +68,8 @@ export const StatusChangeSubmenu = memo(function StatusChangeSubmenu({
                   onStatusChange(option.status);
                 }}
                 className={cn(
-                  'w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700',
-                  isCurrentStatus && 'bg-gray-100 dark:bg-gray-700'
+                  'w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[rgb(var(--color-secondary-100))]',
+                  isCurrentStatus && 'bg-[rgb(var(--color-secondary-100))]'
                 )}
               >
                 <Icon className={cn('w-4 h-4', option.colorClass)} />
@@ -81,13 +80,13 @@ export const StatusChangeSubmenu = memo(function StatusChangeSubmenu({
           })}
           {onDetailedStatusChange && (
             <>
-              <div className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
+              <div className="h-px bg-[rgb(var(--color-secondary-200))] my-1" />
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onDetailedStatusChange();
                 }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))]"
               >
                 <Edit3 className="w-4 h-4" />
                 <span>상세 변경...</span>
@@ -109,7 +108,6 @@ interface PlanActionMenuProps {
   variant?: 'compact' | 'default';
   /** 콜백들은 planId를 인자로 받음 - 부모에서 메모이제이션된 함수 전달 가능 */
   onMoveToDaily?: (id: string) => void;
-  onMoveToWeekly?: (id: string) => void;
   onRedistribute?: (id: string) => void;
   onEdit?: (id: string) => void;
   onEditDate?: (id: string) => void;
@@ -131,7 +129,6 @@ export const PlanActionMenu = memo(function PlanActionMenu({
   isAdHoc,
   variant = 'default',
   onMoveToDaily,
-  onMoveToWeekly,
   onRedistribute,
   onEdit,
   onEditDate,
@@ -148,37 +145,24 @@ export const PlanActionMenu = memo(function PlanActionMenu({
     <DropdownMenu.Root>
       <DropdownMenu.Trigger
         className={cn(
-          'rounded hover:bg-gray-100',
+          'rounded hover:bg-[rgb(var(--color-secondary-100))]',
           isCompact ? 'p-1' : 'p-1.5'
         )}
         title="더보기"
       >
-        <MoreVertical className="w-4 h-4 text-gray-500" />
+        <MoreVertical className="w-4 h-4 text-[var(--text-tertiary)]" />
       </DropdownMenu.Trigger>
       <DropdownMenu.Content align="end" className={minWidth}>
-        {/* 컨테이너 이동 옵션 */}
-        {container !== 'weekly' && onMoveToWeekly && (
-          <DropdownMenu.Item onClick={() => onMoveToWeekly(planId)}>
-            <ArrowRight className="w-4 h-4 mr-2" />
-            주간 플랜으로 이동
-          </DropdownMenu.Item>
-        )}
-        {isCompact && container !== 'daily' && container !== 'weekly' && onMoveToDaily && (
-          <DropdownMenu.Item onClick={() => onMoveToDaily(planId)}>
-            <ArrowRight className="w-4 h-4 mr-2" />
-            오늘 플랜으로 이동
-          </DropdownMenu.Item>
-        )}
-
         {/* 볼륨 재분배 */}
         {!isAdHoc && onRedistribute && (
-          <DropdownMenu.Item onClick={() => onRedistribute(planId)}>
-            <RefreshCw className="w-4 h-4 mr-2" />
-            볼륨 재분배
-          </DropdownMenu.Item>
+          <>
+            <DropdownMenu.Item onClick={() => onRedistribute(planId)}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              볼륨 재분배
+            </DropdownMenu.Item>
+            <DropdownMenu.Separator />
+          </>
         )}
-
-        {(onMoveToWeekly || onRedistribute) && <DropdownMenu.Separator />}
 
         {/* 수정 */}
         {!isAdHoc && onEdit && (

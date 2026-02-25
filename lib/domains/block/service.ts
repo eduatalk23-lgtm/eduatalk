@@ -7,7 +7,6 @@
 
 import * as repo from "./repository";
 import { checkBlockOverlap } from "@/lib/blocks/validation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logActionError } from "@/lib/logging/actionLogger";
 import type {
   BlockActionResult,
@@ -398,31 +397,23 @@ async function checkTimeOverlap(
 }
 
 /**
- * P2 개선: 특정 요일의 학원 일정 조회
+ * P2 개선: 특정 요일의 학원 일정 조회 (calendar_events 기반)
  */
 async function getAcademySchedulesForDay(
   studentId: string,
   dayOfWeek: number
 ): Promise<Array<{ start_time: string; end_time: string; academy_name: string | null }>> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const { getStudentAcademySchedules } = await import("@/lib/data/planGroups");
+    const allSchedules = await getStudentAcademySchedules(studentId);
 
-    const { data, error } = await supabase
-      .from("academy_schedules")
-      .select("start_time, end_time, academy_name")
-      .eq("student_id", studentId)
-      .eq("day_of_week", dayOfWeek);
-
-    if (error) {
-      logActionError(
-        { domain: "block", action: "getAcademySchedulesForDay" },
-        error,
-        { studentId, dayOfWeek }
-      );
-      return [];
-    }
-
-    return data || [];
+    return allSchedules
+      .filter((s) => s.day_of_week === dayOfWeek)
+      .map((s) => ({
+        start_time: s.start_time,
+        end_time: s.end_time,
+        academy_name: s.academy_name ?? null,
+      }));
   } catch (err) {
     logActionError(
       { domain: "block", action: "getAcademySchedulesForDay" },

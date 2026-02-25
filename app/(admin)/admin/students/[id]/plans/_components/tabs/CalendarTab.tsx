@@ -37,11 +37,11 @@ export function CalendarTab(_props: CalendarTabProps) {
   const {
     studentId,
     tenantId,
-    selectedPlannerId,
-    plannerExclusions,
-    plannerDailySchedules,
-    plannerCalculatedSchedule,
-    plannerDateTimeSlots,
+    selectedCalendarId,
+    calendarExclusions,
+    calendarDailySchedules,
+    calendarCalculatedSchedule,
+    calendarDateTimeSlots,
   } = useAdminPlanBasic();
 
   const {
@@ -57,19 +57,19 @@ export function CalendarTab(_props: CalendarTabProps) {
   } = useAdminPlanModalData();
 
   // 플래너 레벨 스케줄 우선 사용 (플랜 그룹 없어도 주차/일차 표시)
-  const effectiveDailySchedules = plannerCalculatedSchedule
-    ? [plannerCalculatedSchedule]
-    : plannerDailySchedules;
+  const effectiveDailySchedules = calendarCalculatedSchedule
+    ? [calendarCalculatedSchedule]
+    : calendarDailySchedules;
 
   // 플래너가 선택되지 않은 경우
-  if (!selectedPlannerId) {
+  if (!selectedCalendarId) {
     return (
       <div className="flex flex-col items-center justify-center h-96 text-center">
         <p className="text-gray-500 mb-2">
-          캘린더 뷰를 사용하려면 먼저 플래너를 선택해주세요.
+          캘린더 뷰를 사용하려면 먼저 캘린더를 선택해주세요.
         </p>
         <p className="text-sm text-gray-400">
-          상단에서 플래너를 생성하거나 선택할 수 있습니다.
+          상단에서 캘린더를 생성하거나 선택할 수 있습니다.
         </p>
       </div>
     );
@@ -80,13 +80,13 @@ export function CalendarTab(_props: CalendarTabProps) {
       <AdminCalendarView
         studentId={studentId}
         tenantId={tenantId}
-        plannerId={selectedPlannerId}
+        calendarId={selectedCalendarId ?? ''}
         selectedGroupId={selectedGroupId}
         selectedDate={selectedDate}
         onDateChange={handleDateChange}
-        plannerExclusions={plannerExclusions ?? []}
-        plannerDailySchedules={effectiveDailySchedules ?? []}
-        dateTimeSlots={plannerDateTimeSlots}
+        calendarExclusions={calendarExclusions ?? []}
+        calendarDailySchedules={effectiveDailySchedules ?? []}
+        dateTimeSlots={calendarDateTimeSlots}
         onTimelineClick={setDayTimelineModalDate}
         onRefresh={handleRefresh}
       />
@@ -96,7 +96,7 @@ export function CalendarTab(_props: CalendarTabProps) {
         isOpen={!!dayTimelineModalDate}
         onClose={() => setDayTimelineModalDate(null)}
         date={dayTimelineModalDate ?? ""}
-        timeSlots={plannerDateTimeSlots?.[dayTimelineModalDate ?? ""] ?? []}
+        timeSlots={calendarDateTimeSlots?.[dayTimelineModalDate ?? ""] ?? []}
       />
     </div>
   );

@@ -3,7 +3,7 @@ import type { ContentType, RangeType, SubjectType } from '@/lib/domains/admin-pl
 // Re-export for backward compatibility
 export type { SubjectType } from '@/lib/domains/admin-plan/types';
 
-export type DistributionMode = 'today' | 'period' | 'weekly';
+export type DistributionMode = 'today' | 'period';
 
 export interface AddContentWizardData {
   // Step 1: 콘텐츠 정보
@@ -41,8 +41,8 @@ export interface AddContentWizardProps {
   targetDate: string;
   onClose: () => void;
   onSuccess: () => void;
-  /** 선택된 플래너 ID (필수 - 플랜 그룹 생성 시 연결) */
-  plannerId: string;
+  /** 캘린더 ID */
+  calendarId?: string;
 }
 
 export const STEP_TITLES: Record<number, string> = {

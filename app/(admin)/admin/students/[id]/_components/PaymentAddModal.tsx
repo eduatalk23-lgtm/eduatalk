@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useCallback } from "react";
+import { X } from "lucide-react";
 import { Dialog } from "@/components/ui/Dialog";
 import { useToast } from "@/components/ui/ToastProvider";
 import Button from "@/components/atoms/Button";
@@ -11,7 +12,10 @@ import {
   textPrimary,
   textSecondary,
 } from "@/lib/utils/darkMode";
-import { createPaymentAction } from "@/lib/domains/payment/actions";
+import {
+  createPaymentAction,
+  createInstallmentPaymentsAction,
+} from "@/lib/domains/payment/actions";
 import { formatPrice } from "@/app/(admin)/admin/programs/_components/priceUtils";
 import type { DiscountType } from "@/lib/domains/payment/types";
 
@@ -44,6 +48,33 @@ function getCurrentMonth(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+/** startMonth에서 offset만큼 더한 날짜 계산 */
+function getOffsetMonth(startMonth: string, offset: number): { year: number; month: number } {
+  const [y, m] = startMonth.split("-").map(Number);
+  const date = new Date(y, m - 1 + offset, 1);
+  return { year: date.getFullYear(), month: date.getMonth() + 1 };
+}
+
+/** 해당 월의 마지막 일자 */
+function getLastDayOfMonth(year: number, month: number): number {
+  return new Date(year, month, 0).getDate();
+}
+
+/** 분납 행 key용 모듈 레벨 카운터 (컴포넌트 언마운트 후에도 안전) */
+let rowIdSeq = 0;
+function nextRowId(): string {
+  return `row-${++rowIdSeq}`;
+}
+
+type PaymentMode = "single" | "installment";
+
+type InstallmentRowData = {
+  id: string;
+  amount: number;
+  dueDate: string;
+  billingPeriod: string;
+};
+
 export function PaymentAddModal({
   open,
   onOpenChange,
@@ -61,7 +92,6 @@ export function PaymentAddModal({
       }}
       maxWidth="md"
     >
-      {/* open 시 새로 마운트 → useState 초기값이 fresh하게 적용 */}
       {open && (
         <PaymentAddForm
           enrollmentId={enrollmentId}
@@ -76,7 +106,6 @@ export function PaymentAddModal({
   );
 }
 
-/** 실제 폼 - open 시 마운트되므로 초기값이 항상 정확 */
 function PaymentAddForm({
   enrollmentId,
   studentId,
@@ -95,7 +124,10 @@ function PaymentAddForm({
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
 
-  // 금액 (수강료 있으면 프리필)
+  // 납부 유형
+  const [mode, setMode] = useState<PaymentMode>("single");
+
+  // 금액
   const initAmount =
     enrollmentPrice && enrollmentPrice > 0 ? enrollmentPrice : 0;
   const [rawAmount, setRawAmount] = useState(initAmount);
@@ -103,7 +135,7 @@ function PaymentAddForm({
     formatNumber(initAmount)
   );
 
-  // 청구 월 (현재 달 기본값)
+  // 청구 월 (일반 모드용)
   const [billingMonth, setBillingMonth] = useState(getCurrentMonth);
   const [dueDate, setDueDate] = useState("");
   const [memo, setMemo] = useState("");
@@ -113,7 +145,20 @@ function PaymentAddForm({
   const [discountType, setDiscountType] = useState<DiscountType>("rate");
   const [discountValueStr, setDiscountValueStr] = useState("");
 
-  // 금액 입력 핸들러 (천단위 쉼표 포맷)
+  // 분납 설정
+  const [installmentCount, setInstallmentCount] = useState(2);
+  const [startMonth, setStartMonth] = useState(getCurrentMonth);
+  const [dueDay, setDueDay] = useState(10);
+  // 행별 안정적 ID (삭제 시에도 key가 밀리지 않도록)
+  const [rowIds, setRowIds] = useState<string[]>(() =>
+    Array.from({ length: 2 }, () => nextRowId())
+  );
+  // 수동 수정된 행만 추적 (idx → override)
+  const [rowOverrides, setRowOverrides] = useState<
+    Map<number, Partial<InstallmentRowData>>
+  >(() => new Map());
+
+  // 금액 입력 핸들러
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.replace(/,/g, "").replace(/[^0-9]/g, "");
     if (raw === "") {
@@ -149,6 +194,105 @@ function PaymentAddForm({
 
   const billingPeriodFormatted = monthValueToLabel(billingMonth);
 
+  // 분납 행 자동 생성 (useMemo로 파생 — setState 대신)
+  const installmentRows = useMemo<InstallmentRowData[]>(() => {
+    if (mode !== "installment" || finalAmount <= 0 || installmentCount < 2)
+      return [];
+
+    const baseAmount = Math.floor(finalAmount / installmentCount);
+    const remainder = finalAmount - baseAmount * installmentCount;
+
+    return Array.from({ length: installmentCount }, (_, i) => {
+      const override = rowOverrides.get(i);
+      const { year, month } = getOffsetMonth(startMonth, i);
+      const lastDay = getLastDayOfMonth(year, month);
+      const clampedDay = Math.min(dueDay, lastDay);
+
+      const defaultRow: InstallmentRowData = {
+        id: rowIds[i] ?? `row-fallback-${i}`,
+        amount:
+          i === installmentCount - 1
+            ? baseAmount + remainder
+            : baseAmount,
+        dueDate: `${year}-${String(month).padStart(2, "0")}-${String(clampedDay).padStart(2, "0")}`,
+        billingPeriod: `${year}년 ${month}월`,
+      };
+
+      if (!override) return defaultRow;
+
+      return {
+        ...defaultRow,
+        amount: override.amount ?? defaultRow.amount,
+        dueDate: override.dueDate ?? defaultRow.dueDate,
+        billingPeriod: override.billingPeriod ?? defaultRow.billingPeriod,
+      };
+    });
+  }, [mode, installmentCount, startMonth, dueDay, finalAmount, rowOverrides, rowIds]);
+
+  // 분납 행 금액 수정
+  const handleInstallmentAmountChange = useCallback(
+    (idx: number, value: number) => {
+      setRowOverrides((prev) => {
+        const next = new Map(prev);
+        next.set(idx, { ...next.get(idx), amount: value });
+        return next;
+      });
+    },
+    []
+  );
+
+  // 분납 행 납부기한 수정
+  const handleInstallmentDateChange = useCallback(
+    (idx: number, value: string) => {
+      setRowOverrides((prev) => {
+        const next = new Map(prev);
+        next.set(idx, {
+          ...next.get(idx),
+          dueDate: value,
+          billingPeriod: value
+            ? monthValueToLabel(value.slice(0, 7))
+            : next.get(idx)?.billingPeriod,
+        });
+        return next;
+      });
+    },
+    []
+  );
+
+  // 분납 행 추가
+  const addInstallmentRow = useCallback(() => {
+    setInstallmentCount((c) => Math.min(24, c + 1));
+    setRowIds((prev) => [...prev, nextRowId()]);
+  }, []);
+
+  // 분납 행 삭제
+  const removeInstallmentRow = useCallback((idx: number) => {
+    setInstallmentCount((c) => Math.max(2, c - 1));
+    setRowIds((prev) => prev.filter((_, i) => i !== idx));
+    // 오버라이드 재정렬: idx 이후 항목의 인덱스를 하나씩 당김
+    setRowOverrides((prev) => {
+      const next = new Map<number, Partial<InstallmentRowData>>();
+      for (const [k, v] of prev) {
+        if (k < idx) next.set(k, v);
+        else if (k > idx) next.set(k - 1, v);
+        // k === idx는 삭제
+      }
+      return next;
+    });
+  }, []);
+
+  // 분납 합계 검증
+  const installmentSum = useMemo(
+    () => installmentRows.reduce((s, r) => s + r.amount, 0),
+    [installmentRows]
+  );
+  const installmentSumDiff = finalAmount - installmentSum;
+  const isInstallmentValid =
+    installmentRows.length >= 2 &&
+    installmentSumDiff === 0 &&
+    installmentRows.every((r) => r.amount > 0);
+
+  // 제출
   const handleSubmit = () => {
     if (!rawAmount || rawAmount <= 0) {
       toast.showError("금액을 입력해주세요.");
@@ -159,6 +303,58 @@ function PaymentAddForm({
       return;
     }
 
+    if (mode === "installment") {
+      if (!isInstallmentValid) {
+        if (installmentSumDiff !== 0) {
+          toast.showError(
+            `분납 합계(${installmentSum.toLocaleString()}원)가 총액(${finalAmount.toLocaleString()}원)과 일치하지 않습니다.`
+          );
+        } else {
+          toast.showError("각 회차 금액은 0원보다 커야 합니다.");
+        }
+        return;
+      }
+
+      startTransition(async () => {
+        try {
+          const result = await createInstallmentPaymentsAction({
+            enrollment_id: enrollmentId,
+            student_id: studentId,
+            total_amount: rawAmount,
+            installments: installmentRows.map((r, idx) => ({
+              amount: r.amount,
+              due_date: r.dueDate,
+              billing_period: r.billingPeriod,
+              memo: memo
+                ? `${memo} (${idx + 1}/${installmentRows.length}회)`
+                : undefined,
+            })),
+            ...(discountEnabled && discountValue > 0
+              ? { discount_type: discountType, discount_value: discountValue }
+              : {}),
+          });
+
+          if (result.success) {
+            toast.showSuccess(
+              `분납 ${installmentRows.length}건이 추가되었습니다.`
+            );
+            onSuccess?.();
+            onClose();
+          } else {
+            toast.showError(result.error ?? "분납 기록 추가에 실패했습니다.");
+          }
+        } catch (error) {
+          toast.showError(
+            error instanceof Error
+              ? error.message
+              : "분납 기록 추가에 실패했습니다."
+          );
+        }
+      });
+      return;
+    }
+
+    // 일반 모드
     startTransition(async () => {
       try {
         const result = await createPaymentAction({
@@ -199,6 +395,12 @@ function PaymentAddForm({
     isPending && "opacity-50 cursor-not-allowed"
   );
 
+  const isSubmitDisabled =
+    isPending ||
+    rawAmount <= 0 ||
+    (discountEnabled && !isDiscountValid) ||
+    (mode === "installment" && !isInstallmentValid);
+
   return (
     <div className="flex flex-col gap-5 p-6">
       {/* 헤더 */}
@@ -209,25 +411,58 @@ function PaymentAddForm({
         </p>
       </div>
 
+      {/* 납부 유형 선택 */}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setMode("single")}
+          disabled={isPending}
+          className={cn(
+            "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+            mode === "single"
+              ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600"
+          )}
+        >
+          일반 (1건)
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("installment")}
+          disabled={isPending}
+          className={cn(
+            "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+            mode === "installment"
+              ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600"
+          )}
+        >
+          분납 (N건)
+        </button>
+      </div>
+
       <div className="flex flex-col gap-4">
-        {/* 청구 월 */}
-        <div className="flex flex-col gap-2">
-          <label className={cn("text-body-2 font-semibold", textPrimary)}>
-            청구 월
-          </label>
-          <input
-            type="month"
-            value={billingMonth}
-            onChange={(e) => setBillingMonth(e.target.value)}
-            disabled={isPending}
-            className={inputClass}
-          />
-        </div>
+        {/* 청구 월 (일반 모드) */}
+        {mode === "single" && (
+          <div className="flex flex-col gap-2">
+            <label className={cn("text-body-2 font-semibold", textPrimary)}>
+              청구 월
+            </label>
+            <input
+              type="month"
+              value={billingMonth}
+              onChange={(e) => setBillingMonth(e.target.value)}
+              disabled={isPending}
+              className={inputClass}
+            />
+          </div>
+        )}
 
         {/* 금액 */}
         <div className="flex flex-col gap-2">
           <label className={cn("text-body-2 font-semibold", textPrimary)}>
-            금액 <span className="text-red-500">*</span>
+            {mode === "installment" ? "총 금액" : "금액"}{" "}
+            <span className="text-red-500">*</span>
           </label>
           <div className="relative">
             <input
@@ -287,7 +522,6 @@ function PaymentAddForm({
 
           {discountEnabled && (
             <div className="flex flex-col gap-3 rounded-lg border border-dashed border-gray-300 p-3 dark:border-gray-600">
-              {/* 할인 유형 토글 */}
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -323,7 +557,6 @@ function PaymentAddForm({
                 </button>
               </div>
 
-              {/* 할인 값 입력 */}
               <div className="relative">
                 <input
                   type="number"
@@ -348,7 +581,6 @@ function PaymentAddForm({
                 </span>
               </div>
 
-              {/* 할인 인라인 미리보기 */}
               {rawAmount > 0 && discountValue > 0 && (
                 <div className="flex items-center gap-2 text-sm">
                   <span className="text-gray-400 line-through dark:text-gray-500">
@@ -379,19 +611,201 @@ function PaymentAddForm({
           )}
         </div>
 
-        {/* 납부 기한 */}
-        <div className="flex flex-col gap-2">
-          <label className={cn("text-body-2 font-semibold", textPrimary)}>
-            납부 기한
-          </label>
-          <input
-            type="date"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            disabled={isPending}
-            className={inputClass}
-          />
-        </div>
+        {/* 분납 설정 (분납 모드) */}
+        {mode === "installment" && finalAmount > 0 && (
+          <div className="flex flex-col gap-3">
+            {/* 빠른 설정 버튼 */}
+            <label className={cn("text-body-2 font-semibold", textPrimary)}>
+              분할 수
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {[2, 3, 4, 6, 12].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => {
+                    setInstallmentCount(n);
+                    setRowOverrides(new Map());
+                    setRowIds(
+                      Array.from({ length: n }, () => nextRowId())
+                    );
+                  }}
+                  disabled={isPending}
+                  className={cn(
+                    "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                    installmentCount === n
+                      ? "bg-indigo-600 text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400"
+                  )}
+                >
+                  {n <= 4 ? `${n}등분` : `${n}개월`}
+                </button>
+              ))}
+            </div>
+
+            {/* 시작월 + 납부일 */}
+            <div className="flex gap-3">
+              <div className="flex flex-1 flex-col gap-1">
+                <label className={cn("text-xs font-medium", textSecondary)}>
+                  시작월
+                </label>
+                <input
+                  type="month"
+                  value={startMonth}
+                  onChange={(e) => setStartMonth(e.target.value)}
+                  disabled={isPending}
+                  className={inputClass}
+                />
+              </div>
+              <div className="flex w-24 flex-col gap-1">
+                <label className={cn("text-xs font-medium", textSecondary)}>
+                  납부일
+                </label>
+                <input
+                  type="number"
+                  value={dueDay}
+                  onChange={(e) =>
+                    setDueDay(
+                      Math.max(1, Math.min(31, parseInt(e.target.value) || 1))
+                    )
+                  }
+                  disabled={isPending}
+                  min={1}
+                  max={31}
+                  className={cn(inputClass, "text-center")}
+                />
+              </div>
+            </div>
+
+            {/* 분납 내역 (수정 가능) */}
+            {installmentRows.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <label
+                    className={cn("text-body-2 font-semibold", textPrimary)}
+                  >
+                    분납 내역 ({installmentRows.length}회)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={addInstallmentRow}
+                    disabled={isPending || installmentRows.length >= 24}
+                    className="text-xs font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-40 dark:text-indigo-400"
+                  >
+                    + 회차 추가
+                  </button>
+                </div>
+
+                <div className="flex max-h-60 flex-col gap-2 overflow-y-auto rounded-lg border border-dashed border-gray-300 p-3 dark:border-gray-600">
+                  {installmentRows.map((row, idx) => (
+                    <div key={row.id} className="flex items-center gap-2">
+                      <span
+                        className={cn(
+                          "w-8 shrink-0 text-center text-xs font-medium",
+                          textSecondary
+                        )}
+                      >
+                        {idx + 1}회
+                      </span>
+                      <div className="relative w-28 shrink-0">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={
+                            row.amount > 0
+                              ? row.amount.toLocaleString("ko-KR")
+                              : ""
+                          }
+                          onChange={(e) => {
+                            const raw = e.target.value
+                              .replace(/,/g, "")
+                              .replace(/[^0-9]/g, "");
+                            handleInstallmentAmountChange(
+                              idx,
+                              raw === "" ? 0 : parseInt(raw, 10)
+                            );
+                          }}
+                          disabled={isPending}
+                          placeholder="금액"
+                          className={cn(
+                            "w-full rounded border px-2 py-1 pr-6 text-right text-xs tabular-nums",
+                            borderInput,
+                            bgSurface,
+                            textPrimary
+                          )}
+                        />
+                        <span
+                          className={cn(
+                            "pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px]",
+                            textSecondary
+                          )}
+                        >
+                          원
+                        </span>
+                      </div>
+                      <input
+                        type="date"
+                        value={row.dueDate}
+                        onChange={(e) =>
+                          handleInstallmentDateChange(idx, e.target.value)
+                        }
+                        disabled={isPending}
+                        className={cn(
+                          "min-w-0 flex-1 rounded border px-2 py-1 text-xs",
+                          borderInput,
+                          bgSurface,
+                          textPrimary
+                        )}
+                      />
+                      {installmentRows.length > 2 && (
+                        <button
+                          type="button"
+                          onClick={() => removeInstallmentRow(idx)}
+                          disabled={isPending}
+                          className="shrink-0 rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
+                          aria-label={`${idx + 1}회차 삭제`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* 합계 검증 표시 */}
+                {installmentSumDiff !== 0 ? (
+                  <p className="text-xs text-red-500">
+                    합계가{" "}
+                    {installmentSumDiff > 0
+                      ? `${installmentSumDiff.toLocaleString()}원 부족`
+                      : `${Math.abs(installmentSumDiff).toLocaleString()}원 초과`}
+                    합니다
+                  </p>
+                ) : (
+                  <p className="text-xs text-green-600 dark:text-green-400">
+                    합계 {installmentSum.toLocaleString()}원 = 총액 일치
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 납부 기한 (일반 모드) */}
+        {mode === "single" && (
+          <div className="flex flex-col gap-2">
+            <label className={cn("text-body-2 font-semibold", textPrimary)}>
+              납부 기한
+            </label>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              disabled={isPending}
+              className={inputClass}
+            />
+          </div>
+        )}
 
         {/* 메모 */}
         <div className="flex flex-col gap-2">
@@ -427,7 +841,6 @@ function PaymentAddForm({
             청구 요약
           </p>
           <div className="mt-3 flex flex-col gap-1.5">
-            {/* 원가 행 */}
             <div className="flex items-center justify-between text-sm">
               <span className={textSecondary}>
                 {hasDiscount ? "원가" : "청구액"}
@@ -436,7 +849,6 @@ function PaymentAddForm({
                 {rawAmount.toLocaleString()}원
               </span>
             </div>
-            {/* 할인 행 */}
             {hasDiscount && (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-orange-600 dark:text-orange-400">
@@ -450,7 +862,6 @@ function PaymentAddForm({
                 </span>
               </div>
             )}
-            {/* 구분선 + 최종 */}
             {hasDiscount && (
               <>
                 <div className="my-1 border-t border-gray-200 dark:border-gray-600" />
@@ -460,6 +871,26 @@ function PaymentAddForm({
                   </span>
                   <span className="text-base font-bold tabular-nums text-indigo-600 dark:text-indigo-400">
                     {finalAmount.toLocaleString()}원
+                  </span>
+                </div>
+              </>
+            )}
+            {mode === "installment" && installmentRows.length > 0 && (
+              <>
+                <div className="my-1 border-t border-gray-200 dark:border-gray-600" />
+                <div className="flex items-center justify-between text-sm">
+                  <span className={textSecondary}>분할 수</span>
+                  <span className={cn("tabular-nums", textPrimary)}>
+                    {installmentRows.length}건
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className={textSecondary}>건당 평균</span>
+                  <span className={cn("tabular-nums", textPrimary)}>
+                    {Math.round(
+                      finalAmount / installmentRows.length
+                    ).toLocaleString()}
+                    원
                   </span>
                 </div>
               </>
@@ -482,18 +913,16 @@ function PaymentAddForm({
           type="button"
           variant="primary"
           onClick={handleSubmit}
-          disabled={
-            isPending ||
-            rawAmount <= 0 ||
-            (discountEnabled && !isDiscountValid)
-          }
+          disabled={isSubmitDisabled}
           isLoading={isPending}
         >
           {isPending
             ? "추가 중..."
-            : finalAmount > 0
-              ? `${finalAmount.toLocaleString()}원 청구하기`
-              : "청구하기"}
+            : mode === "installment"
+              ? `${installmentRows.length}건 분납 청구하기`
+              : finalAmount > 0
+                ? `${finalAmount.toLocaleString()}원 청구하기`
+                : "청구하기"}
         </Button>
       </div>
     </div>

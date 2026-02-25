@@ -96,7 +96,7 @@ export function Step7GenerateResult({
   const { prevStep } = useAdminWizardStep();
   const { hasErrors, validationErrors } = useAdminWizardValidation();
 
-  const { generateAIPlan, selectedContents, skipContents, periodStart, periodEnd, plannerId } = wizardData;
+  const { generateAIPlan, selectedContents, skipContents, periodStart, periodEnd, calendarId } = wizardData;
 
   const [phase, setPhase] = useState<GenerationPhase>("idle");
   const [progress, setProgress] = useState(0);
@@ -243,7 +243,7 @@ export function Step7GenerateResult({
            })),
            modelTier: "standard",
            // Phase 4: 플래너 검증 모드 - 플래너가 선택된 경우 warn, 없으면 auto_create
-           plannerValidationMode: plannerId ? "warn" : "auto_create",
+           plannerValidationMode: calendarId ? "warn" : "auto_create",
         });
 
         if (!aiResult.success) {
@@ -261,7 +261,7 @@ export function Step7GenerateResult({
       setPhase("error");
       setError(err instanceof Error ? err.message : "플랜 생성 중 오류가 발생했습니다.");
     }
-  }, [hasErrors, generateAIPlan, onSubmit, setError, studentId, studentName, selectedContents, periodStart, periodEnd, studentGrade, studentScores, plannerId]);
+  }, [hasErrors, generateAIPlan, onSubmit, setError, studentId, studentName, selectedContents, periodStart, periodEnd, studentGrade, studentScores, calendarId]);
 
   // 재시도
   const handleRetry = useCallback(() => {

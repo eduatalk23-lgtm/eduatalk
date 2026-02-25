@@ -13,6 +13,9 @@ import { useEffect, useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase/client";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import { clientNotificationRouter } from "@/lib/domains/notification/clientRouter";
+import { requestNotificationPermission } from "@/lib/domains/notification/browserNotification";
+import type { NotificationType } from "@/lib/domains/notification/types";
 
 // ============================================
 // 타입 정의
@@ -54,72 +57,11 @@ export type UseNotificationRealtimeOptions = {
 };
 
 // ============================================
-// 브라우저 알림 유틸리티
+// 브라우저 알림 유틸리티 (browserNotification.ts로 통합됨)
 // ============================================
 
-/**
- * 브라우저 알림 권한 요청
- */
-export async function requestNotificationPermission(): Promise<NotificationPermission> {
-  if (!("Notification" in window)) {
-    console.warn("[Notification] 이 브라우저는 알림을 지원하지 않습니다.");
-    return "denied";
-  }
-
-  if (Notification.permission === "granted") {
-    return "granted";
-  }
-
-  if (Notification.permission !== "denied") {
-    const permission = await Notification.requestPermission();
-    return permission;
-  }
-
-  return Notification.permission;
-}
-
-/**
- * 브라우저 알림 표시
- */
-function showBrowserNotification(
-  title: string,
-  body: string,
-  options?: NotificationOptions
-): void {
-  if (!("Notification" in window)) {
-    return;
-  }
-
-  if (Notification.permission !== "granted") {
-    return;
-  }
-
-  try {
-    // renotify는 일부 브라우저에서 지원하지 않을 수 있음
-    const notificationOptions: NotificationOptions = {
-      body,
-      icon: "/icons/icon-192x192.png",
-      badge: "/icons/icon-192x192.png",
-      tag: "notification",
-      ...options,
-    };
-
-    const notification = new Notification(title, notificationOptions);
-
-    // 클릭 시 앱으로 포커스
-    notification.onclick = () => {
-      window.focus();
-      notification.close();
-    };
-
-    // 5초 후 자동 닫기
-    setTimeout(() => {
-      notification.close();
-    }, 5000);
-  } catch (error) {
-    console.error("[Notification] 브라우저 알림 표시 실패:", error);
-  }
-}
+// 하위 호환을 위해 re-export (import는 파일 상단에서)
+export { requestNotificationPermission };
 
 // ============================================
 // 메인 훅
@@ -203,10 +145,15 @@ export function useNotificationRealtime({
             // 새 알림 콜백 호출
             callbacksRef.current.onNewNotification?.(newRecord);
 
-            // 브라우저 알림 표시
+            // 통합 알림 라우터로 디스패치
             if (showBrowserNotif && !newRecord.is_read) {
-              showBrowserNotification(newRecord.title, newRecord.message, {
-                data: { notificationId: newRecord.id, type: newRecord.type },
+              clientNotificationRouter.dispatch({
+                type: (newRecord.type as NotificationType) ?? "system",
+                title: newRecord.title,
+                body: newRecord.message,
+                url: (newRecord.metadata?.url as string) ?? undefined,
+                tag: `notification-${newRecord.id}`,
+                inApp: "toast",
               });
             }
           }
@@ -237,10 +184,15 @@ export function useNotificationRealtime({
       // 새 알림 콜백 호출
       callbacksRef.current.onNewNotification?.(notification);
 
-      // 브라우저 알림 표시
+      // 통합 알림 라우터로 디스패치
       if (showBrowserNotif && !notification.is_read) {
-        showBrowserNotification(notification.title, notification.message, {
-          data: { notificationId: notification.id, type: notification.type },
+        clientNotificationRouter.dispatch({
+          type: (notification.type as NotificationType) ?? "system",
+          title: notification.title,
+          body: notification.message,
+          url: (notification.metadata?.url as string) ?? undefined,
+          tag: `notification-${notification.id}`,
+          inApp: "toast",
         });
       }
     },

@@ -232,19 +232,8 @@ export async function updatePlanExclusions(
 ): Promise<void> {
   if (exclusions === undefined) return;
 
-  // 기존 제외일 삭제
-  const { error: deleteError } = await supabase
-    .from("plan_exclusions")
-    .delete()
-    .eq("plan_group_id", groupId);
-
-  if (deleteError) {
-    logError(deleteError, {
-      function: "updatePlanExclusions",
-      groupId,
-      action: "deleteExclusions",
-    });
-  }
+  // calendar_events 기반: 기존 제외일은 학생 전역이므로 삭제하지 않음
+  // (새 제외일은 createPlanExclusions가 중복 체크 후 삽입)
 
   // 새로운 제외일 생성
   if (exclusions.length > 0) {

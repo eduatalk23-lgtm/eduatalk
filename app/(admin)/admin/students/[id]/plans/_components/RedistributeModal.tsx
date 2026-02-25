@@ -43,7 +43,7 @@ interface AffectedPlan {
   change: number;
 }
 
-type RedistributeMode = 'auto' | 'manual' | 'weekly';
+type RedistributeMode = 'auto' | 'manual';
 
 export function RedistributeModal({
   planId,
@@ -256,36 +256,6 @@ export function RedistributeModal({
             },
           });
         }
-      } else if (mode === 'weekly') {
-        // Weekly dock으로 이동 - 남은 볼륨으로 새 플랜 생성
-        const remainingVolume = Math.abs(volumeChange);
-        const newPlanStart = newEnd;
-        const newPlanEnd = newPlanStart + remainingVolume;
-
-        tx.add({
-          name: 'Create weekly plan',
-          execute: async () => {
-            const { error } = await supabase.from('student_plan').insert({
-              student_id: studentId,
-              tenant_id: tenantId,
-              plan_group_id: plan.plan_group_id,
-              content_id: plan.content_id,
-              content_title: plan.content_title,
-              content_subject: plan.content_subject,
-              custom_title: plan.custom_title,
-              plan_date: plan.plan_date,
-              planned_start_page_or_time: newPlanStart,
-              planned_end_page_or_time: newPlanEnd,
-              container_type: 'weekly',
-              is_active: true,
-              status: 'pending',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            });
-
-            return { success: !error, error: error?.message };
-          },
-        });
       } else if (mode === 'manual' && manualDate) {
         // 특정 날짜에 새 플랜 추가
         const remainingVolume = Math.abs(volumeChange);
@@ -339,7 +309,7 @@ export function RedistributeModal({
             original_volume: originalVolume,
             new_volume: newVolume,
             affected_plans: [planId],
-            reason: mode === 'auto' ? '자동 재분배' : mode === 'weekly' ? 'Weekly Dock 이동' : '수동 지정',
+            reason: mode === 'auto' ? '자동 재분배' : '수동 지정',
           }
         );
 
@@ -358,25 +328,6 @@ export function RedistributeModal({
                 original: p.original_end - p.original_start,
                 new: p.new_end - p.new_start,
               })),
-            },
-            undefined,
-            correlationId
-          );
-        } else if (mode === 'weekly') {
-          await logVolumeRedistributed(
-            tenantId,
-            studentId,
-            plan.plan_group_id,
-            {
-              mode: 'weekly',
-              total_redistributed: Math.abs(volumeChange),
-              affected_dates: [],
-              changes: [{
-                plan_id: 'new',
-                date: plan.plan_date,
-                original: 0,
-                new: Math.abs(volumeChange),
-              }],
             },
             undefined,
             correlationId
@@ -580,26 +531,6 @@ export function RedistributeModal({
                 </div>
               </label>
 
-              {/* Weekly Dock */}
-              <label
-                className={cn(
-                  'flex items-start gap-3 p-3 border rounded-lg cursor-pointer',
-                  mode === 'weekly' && 'border-blue-500 bg-blue-50'
-                )}
-              >
-                <input
-                  type="radio"
-                  checked={mode === 'weekly'}
-                  onChange={() => setMode('weekly')}
-                  className="mt-1"
-                />
-                <div>
-                  <div className="font-medium">Weekly Dock으로 이동</div>
-                  <div className="text-sm text-gray-500">
-                    {Math.abs(volumeChange)}p를 이번 주 유동 플랜으로 전환
-                  </div>
-                </div>
-              </label>
             </div>
           )}
         </div>

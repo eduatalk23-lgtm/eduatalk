@@ -4,9 +4,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   fetchTodayProgress,
-  fetchActivePlanIdOnly,
 } from "./_utils";
-import { ActiveLearningWidget } from "./_components/ActiveLearningWidget";
 import { SmartInsightsCard } from "./_components/SmartInsightsCard";
 import { LearningStatsCard } from "./_components/LearningStatsCard";
 // TODO: AI 기능 정상화 후 재활성화
@@ -54,10 +52,7 @@ export default async function DashboardPage() {
 
   // 최소 데이터만 조회 (지연 로딩을 위해 activePlanId만 확인)
   const dataTimer = perfTime("[dashboard] data - minimal");
-  const [todayProgress, activePlanId] = await Promise.all([
-    fetchTodayProgress(supabase, user.id, todayDate),
-    fetchActivePlanIdOnly(supabase, user.id, todayDate),
-  ]);
+  const todayProgress = await fetchTodayProgress(supabase, user.id, todayDate);
   dataTimer.end();
 
   const studentName = student?.name ?? "학생";
@@ -91,9 +86,6 @@ export default async function DashboardPage() {
               </div>
             </div>
           </div>
-
-          {/* 실시간 학습 중 위젯 (지연 로딩) */}
-          {activePlanId && <ActiveLearningWidget activePlanId={activePlanId} />}
 
           {/* 스마트 인사이트 & 학습 통계 */}
           <div className="grid gap-4 md:gap-6 lg:grid-cols-2">

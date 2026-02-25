@@ -39,8 +39,7 @@ import { Step7GenerateResult } from "./steps/Step7GenerateResult";
 import { createPlanGroupAction } from "@/lib/domains/plan/actions/plan-groups/create";
 import { updatePlanGroupDraftAction } from "@/lib/domains/plan/actions/plan-groups/update";
 import type { PlanGroupCreationData } from "@/lib/types/plan";
-import { getPlannerAction } from "@/lib/domains/admin-plan/actions";
-import { validatePlanner } from "@/lib/domains/admin-plan/actions/planCreation/validatePlanner";
+import { getCalendarSettingsAction } from "@/lib/domains/calendar/actions/calendars";
 import type { ExclusionSchedule, AcademySchedule } from "./_context/types";
 
 // ============================================
@@ -76,7 +75,7 @@ interface WizardInnerProps {
   tenantId: string;
   studentName: string;
   /** 플래너 ID (플랜 그룹 생성 시 연결) */
-  plannerId?: string;
+  calendarId?: string;
   onClose: () => void;
   onSuccess: (groupId: string, generateAI: boolean) => void;
 }
@@ -85,7 +84,7 @@ function WizardInner({
   studentId,
   tenantId,
   studentName,
-  plannerId,
+  calendarId,
   onClose,
   onSuccess,
 }: WizardInnerProps) {
@@ -110,46 +109,45 @@ function WizardInner({
   const { hasErrors, validationErrors, clearValidation } = useAdminWizardValidation();
 
   // ============================================
-  // 플래너 자동 로드 (plannerId가 제공된 경우)
+  // 플래너 자동 로드 (calendarId가 제공된 경우)
   // ============================================
 
-  const plannerLoadedRef = useRef(false);
+  const settingsLoadedRef = useRef(false);
   const [isPlannerLoading, setIsPlannerLoading] = useState(false);
 
   useEffect(() => {
-    if (!plannerId || plannerLoadedRef.current) return;
+    if (!calendarId || settingsLoadedRef.current) return;
 
-    const plannerIdToLoad = plannerId; // TypeScript closure를 위해 변수에 저장
+    const idToLoad = calendarId; // TypeScript closure를 위해 변수에 저장
 
-    async function loadPlannerData() {
+    async function loadCalendarData() {
       setIsPlannerLoading(true);
       try {
-        const planner = await getPlannerAction(plannerIdToLoad, true);
-        if (!planner) {
-          console.warn("[WizardInner] 플래너를 찾을 수 없음:", plannerIdToLoad);
+        const calSettings = await getCalendarSettingsAction(idToLoad, true);
+        if (!calSettings) {
+          console.warn("[WizardInner] 캘린더를 찾을 수 없음:", idToLoad);
           setIsPlannerLoading(false);
           return;
         }
 
-        // 플래너 설정을 wizardData에 자동 채우기
+        // 캘린더 설정을 wizardData에 자동 채우기
         const autoFillData: Partial<typeof wizardData> = {
-          plannerId: plannerIdToLoad,
-          periodStart: planner.periodStart,
-          periodEnd: planner.periodEnd,
-          blockSetId: planner.blockSetId ?? undefined,
-          studyHours: planner.studyHours ?? null,
-          selfStudyHours: planner.selfStudyHours ?? null,
-          lunchTime: planner.lunchTime ?? null,
-          nonStudyTimeBlocks: planner.nonStudyTimeBlocks ?? [],
+          calendarId: idToLoad,
+          periodStart: calSettings.periodStart ?? "",
+          periodEnd: calSettings.periodEnd ?? "",
+          blockSetId: calSettings.blockSetId ?? undefined,
+          studyHours: calSettings.studyHours ?? null,
+          selfStudyHours: calSettings.selfStudyHours ?? null,
+          nonStudyTimeBlocks: calSettings.nonStudyTimeBlocks ?? [],
         };
 
         // 스케줄러 타입 자동 채우기
-        if (planner.defaultSchedulerType) {
-          autoFillData.schedulerType = planner.defaultSchedulerType as "1730_timetable" | "custom" | "";
+        if (calSettings.defaultSchedulerType) {
+          autoFillData.schedulerType = calSettings.defaultSchedulerType as "1730_timetable" | "custom" | "";
         }
 
         // 제외일 매핑
-        if (planner.exclusions && planner.exclusions.length > 0) {
+        if (calSettings.exclusions && calSettings.exclusions.length > 0) {
           const mapExclusionType = (type: string): "holiday" | "event" | "personal" => {
             switch (type) {
               case "휴일지정": return "holiday";
@@ -157,34 +155,19 @@ function WizardInner({
               default: return "event";
             }
           };
-          const plannerExclusions: ExclusionSchedule[] = planner.exclusions.map((e) => ({
-            exclusion_date: e.exclusionDate,
-            exclusion_type: mapExclusionType(e.exclusionType),
+          const calExclusions: ExclusionSchedule[] = calSettings.exclusions.map((e) => ({
+            exclusion_date: e.exclusion_date,
+            exclusion_type: mapExclusionType(e.exclusion_type),
             reason: e.reason ?? undefined,
-            source: "planner",
+            source: "manual",
             is_locked: true,
           }));
-          autoFillData.exclusions = plannerExclusions;
-        }
-
-        // 학원 일정 매핑
-        if (planner.academySchedules && planner.academySchedules.length > 0) {
-          const plannerAcademySchedules: AcademySchedule[] = planner.academySchedules.map((s) => ({
-            academy_name: s.academyName ?? "학원",
-            day_of_week: s.dayOfWeek,
-            start_time: s.startTime,
-            end_time: s.endTime,
-            subject: s.subject ?? undefined,
-            travel_time: s.travelTime ?? 60,
-            source: "planner",
-            is_locked: true,
-          }));
-          autoFillData.academySchedules = plannerAcademySchedules;
+          autoFillData.exclusions = calExclusions;
         }
 
         // 스케줄러 옵션
-        if (planner.defaultSchedulerOptions) {
-          const opts = planner.defaultSchedulerOptions as Record<string, number>;
+        if (calSettings.defaultSchedulerOptions) {
+          const opts = calSettings.defaultSchedulerOptions as Record<string, number>;
           autoFillData.schedulerOptions = {
             study_days: opts.study_days ?? 6,
             review_days: opts.review_days ?? 1,
@@ -192,17 +175,17 @@ function WizardInner({
         }
 
         updateData(autoFillData);
-        plannerLoadedRef.current = true;
-        console.log("[WizardInner] 플래너 데이터 자동 로드 완료:", plannerIdToLoad);
+        settingsLoadedRef.current = true;
+        console.log("[WizardInner] 캘린더 데이터 자동 로드 완료:", idToLoad);
       } catch (err) {
-        console.error("[WizardInner] 플래너 로드 실패:", err);
+        console.error("[WizardInner] 캘린더 로드 실패:", err);
       } finally {
         setIsPlannerLoading(false);
       }
     }
 
-    loadPlannerData();
-  }, [plannerId, updateData]);
+    loadCalendarData();
+  }, [calendarId, updateData]);
 
   // ============================================
   // 자동 저장
@@ -263,7 +246,7 @@ function WizardInner({
         period_start: periodStart,
         period_end: periodEnd,
         block_set_id: blockSetId || null,
-        planner_id: plannerId || null,
+        calendar_id: calendarId || null,
         scheduler_options: enhancedSchedulerOptions,
         contents: skipContents
           ? []
@@ -320,7 +303,7 @@ function WizardInner({
       console.error("[AutoSave] 자동저장 실패:", err);
       // 자동저장 실패는 무시 (사용자에게 에러 표시하지 않음)
     }
-  }, [wizardData, draftGroupId, studentId, plannerId, setDraftId, resetDirtyState]);
+  }, [wizardData, draftGroupId, studentId, calendarId, setDraftId, resetDirtyState]);
 
   const { status: autoSaveStatus, lastSavedAt } = useAdminAutoSave({
     data: wizardData,
@@ -349,12 +332,12 @@ function WizardInner({
   // ============================================
 
   const isStepValid = useMemo(() => {
-    const { periodStart, periodEnd, selectedContents, skipContents, plannerId } = wizardData;
+    const { periodStart, periodEnd, selectedContents, skipContents, calendarId } = wizardData;
 
     switch (currentStep) {
       case 1: {
         // 기본 정보: 플래너 및 기간 필수
-        if (!plannerId) return false;
+        if (!calendarId) return false;
         if (!periodStart || !periodEnd) return false;
         const start = new Date(periodStart);
         const end = new Date(periodEnd);
@@ -407,16 +390,6 @@ function WizardInner({
     if (hasErrors) {
       setError("입력 값에 오류가 있습니다. 이전 단계를 확인해주세요.");
       return null;
-    }
-
-    // 플래너 유효성 검증 (플래너가 선택된 경우)
-    const effectivePlannerId = wizardData.plannerId || plannerId;
-    if (effectivePlannerId) {
-      const plannerValidation = await validatePlanner(effectivePlannerId, tenantId);
-      if (!plannerValidation.success) {
-        setError(plannerValidation.error || "선택한 플래너가 유효하지 않습니다. 플래너를 다시 선택해주세요.");
-        return null;
-      }
     }
 
     setSubmitting(true);
@@ -495,7 +468,7 @@ function WizardInner({
           period_start: periodStart,
           period_end: periodEnd,
           block_set_id: blockSetId || null,
-          planner_id: plannerId || null,
+          calendar_id: calendarId || null,
           scheduler_options: enhancedSchedulerOptions,
           contents: skipContents
             ? []
@@ -580,7 +553,7 @@ function WizardInner({
           period_start: periodStart,
           period_end: periodEnd,
           block_set_id: blockSetId || null,
-          planner_id: plannerId || null,
+          calendar_id: calendarId || null,
           scheduler_options: singleEnhancedOptions,
           contents: [{
             content_type: content.contentType as "book" | "lecture",
@@ -664,7 +637,7 @@ function WizardInner({
     wizardData,
     studentId,
     tenantId,
-    plannerId,
+    calendarId,
     draftGroupId,
     setSubmitting,
     setError,
@@ -840,13 +813,13 @@ export function AdminPlanCreationWizard7Step({
   studentId,
   tenantId,
   studentName,
-  plannerId,
+  calendarId,
   onClose,
   onSuccess,
 }: AdminPlanCreationWizardProps) {
-  // plannerId가 제공되면 initialData로 전달하고, Step 2부터 시작
-  const initialData = plannerId ? { plannerId } : undefined;
-  const initialStep = plannerId ? 2 : 1;
+  // calendarId가 제공되면 initialData로 전달하고, Step 2부터 시작
+  const initialData = calendarId ? { calendarId } : undefined;
+  const initialStep = calendarId ? 2 : 1;
 
   return (
     <AdminWizardProvider initialData={initialData} initialStep={initialStep}>
@@ -854,7 +827,7 @@ export function AdminPlanCreationWizard7Step({
         studentId={studentId}
         tenantId={tenantId}
         studentName={studentName}
-        plannerId={plannerId}
+        calendarId={calendarId}
         onClose={onClose}
         onSuccess={onSuccess}
       />

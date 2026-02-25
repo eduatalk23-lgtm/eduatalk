@@ -36,8 +36,8 @@ export type AtomicPlanGroupInput = {
   use_slot_mode: boolean;
   content_slots: unknown[] | null;
 
-  // Phase 3 플래너 연계 필드
-  planner_id?: string | null;
+  // Phase 3 캘린더 연계 필드
+  calendar_id?: string | null;
   creation_mode?: string | null;
   plan_mode?: string | null;
   is_single_day?: boolean;
@@ -161,8 +161,8 @@ export async function createPlanGroupAtomic(
       ? JSON.parse(JSON.stringify(groupData.content_slots))
       : null,
 
-    // Phase 3 플래너 연계 필드
-    planner_id: groupData.planner_id ?? null,
+    // Phase 3 캘린더 연계 필드
+    calendar_id: groupData.calendar_id ?? null,
     creation_mode: groupData.creation_mode ?? null,
     plan_mode: groupData.plan_mode ?? null,
     is_single_day: groupData.is_single_day ?? false,

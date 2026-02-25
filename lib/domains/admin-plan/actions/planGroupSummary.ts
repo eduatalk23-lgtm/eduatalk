@@ -171,7 +171,7 @@ export interface AllGroupsSummary {
  * - 전체 보기 모드에서 모든 그룹의 플랜 상태를 집계
  */
 export async function getAllPlanGroupsSummaryAction(
-  plannerId: string,
+  calendarId: string,
   tenantId: string
 ): Promise<AllGroupsSummary | null> {
   try {
@@ -182,7 +182,7 @@ export async function getAllPlanGroupsSummaryAction(
     const { data: planGroups, error: groupsError } = await supabase
       .from('plan_groups')
       .select('id, period_start, period_end')
-      .eq('planner_id', plannerId)
+      .eq('calendar_id', calendarId)
       .eq('tenant_id', tenantId)
       .is('deleted_at', null);
 
@@ -190,7 +190,7 @@ export async function getAllPlanGroupsSummaryAction(
       logActionError(
         { domain: 'admin-plan', action: 'getAllPlanGroupsSummaryAction' },
         groupsError,
-        { plannerId, tenantId }
+        { calendarId, tenantId }
       );
       return null;
     }
@@ -236,7 +236,7 @@ export async function getAllPlanGroupsSummaryAction(
       logActionError(
         { domain: 'admin-plan', action: 'getAllPlanGroupsSummaryAction' },
         plansError,
-        { plannerId, groupIds }
+        { calendarId, groupIds }
       );
       return null;
     }
@@ -275,7 +275,7 @@ export async function getAllPlanGroupsSummaryAction(
     logActionError(
       { domain: 'admin-plan', action: 'getAllPlanGroupsSummaryAction' },
       error,
-      { plannerId, tenantId }
+      { calendarId, tenantId }
     );
     return null;
   }

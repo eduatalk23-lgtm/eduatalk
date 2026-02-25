@@ -13,9 +13,11 @@ import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { cn } from "@/lib/cn";
+import { getHolidayName } from "@/lib/domains/calendar/koreanHolidays";
 import { useAdminCalendarDrag } from "./_context/AdminCalendarDragContext";
 import DraggableAdminPlanCard from "./DraggableAdminPlanCard";
 import { formatTimeKoAmPm } from "../utils/timeGridUtils";
+import { resolveCalendarColors } from "../utils/subjectColors";
 import type { EmptySlot } from "@/lib/domains/admin-plan/utils/emptySlotCalculation";
 import type {
   CalendarPlan,
@@ -31,8 +33,8 @@ interface DroppableAdminDayCellProps {
   plans: CalendarPlan[];
   /** 날짜 클릭 핸들러 - dateStr(yyyy-MM-dd)을 인자로 받음 */
   onDateClick: (dateStr: string) => void;
-  /** 플랜 클릭 핸들러 */
-  onPlanClick: (planId: string) => void;
+  /** 플랜 클릭 핸들러 (GCal 팝오버용) */
+  onPlanClick: (plan: CalendarPlan, anchorRect: DOMRect) => void;
   /** 컨텍스트 메뉴 핸들러 - 이벤트와 dateStr을 인자로 받음 */
   onContextMenu: (e: React.MouseEvent, dateStr: string) => void;
   /** 선택 모드 활성화 여부 */
@@ -47,12 +49,22 @@ interface DroppableAdminDayCellProps {
   onOverflowClick?: (dateStr: string, plans: CalendarPlan[], stats: DayCellStats, anchorRect: DOMRect) => void;
   /** 빈 영역 클릭 또는 "+" 클릭 → 퀵생성 */
   onQuickCreate?: (dateStr: string, anchorRect: DOMRect) => void;
+  /** 날짜 더블클릭 핸들러 */
+  onDoubleClick?: (dateStr: string) => void;
   /** 현재 이 셀이 퀵생성 타겟인지 (팝오버가 열려있는 날짜) */
   isQuickCreateTarget?: boolean;
   /** 퀵생성 프리뷰용 슬롯 정보 */
   quickCreateSlot?: EmptySlot | null;
   /** 퀵생성이 종일 모드인지 */
   isQuickCreateAllDay?: boolean;
+  /** 월간뷰 드래그 선택 범위에 포함되는지 */
+  isInDragSelection?: boolean;
+  /** 공휴일 표시 여부 (사이드바 토글) */
+  showHolidays?: boolean;
+  /** 캘린더별 색상 맵 (calendarId → hex) */
+  calendarColorMap?: Map<string, string>;
+  /** 현재 활성 캘린더의 색상 (프리뷰용) */
+  activeCalendarColor?: string;
 }
 
 /**
@@ -169,6 +181,18 @@ function arePropsEqual(
   // 퀵생성 종일 모드 비교
   if (prevProps.isQuickCreateAllDay !== nextProps.isQuickCreateAllDay) return false;
 
+  // 드래그 선택 비교
+  if (prevProps.isInDragSelection !== nextProps.isInDragSelection) return false;
+
+  // 공휴일 토글 비교
+  if (prevProps.showHolidays !== nextProps.showHolidays) return false;
+
+  // calendarColorMap 참조 비교
+  if (prevProps.calendarColorMap !== nextProps.calendarColorMap) return false;
+
+  // activeCalendarColor 비교
+  if (prevProps.activeCalendarColor !== nextProps.activeCalendarColor) return false;
+
   return true;
 }
 
@@ -186,12 +210,18 @@ function DroppableAdminDayCellComponent({
   highlightedPlanIds,
   onOverflowClick,
   onQuickCreate,
+  onDoubleClick: onDoubleClickProp,
   isQuickCreateTarget,
   quickCreateSlot,
   isQuickCreateAllDay,
+  isInDragSelection,
+  showHolidays = true,
+  calendarColorMap,
+  activeCalendarColor,
 }: DroppableAdminDayCellProps) {
   const dateStr = format(date, "yyyy-MM-dd");
   const dayOfWeek = date.getDay();
+  const holidayName = status.isCurrentMonth && showHolidays ? getHolidayName(dateStr) : null;
 
   // 드롭 타겟 데이터
   const dropData: DroppableTargetData = {
@@ -237,6 +267,10 @@ function DroppableAdminDayCellComponent({
     [onDateClick, dateStr, onQuickCreate, status.isCurrentMonth, status.isExclusion],
   );
 
+  const handleDoubleClick = useCallback(() => {
+    onDoubleClickProp?.(dateStr);
+  }, [onDoubleClickProp, dateStr]);
+
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
       onContextMenu(e, dateStr);
@@ -247,19 +281,23 @@ function DroppableAdminDayCellComponent({
   return (
     <div
       ref={setNodeRef}
+      data-date={dateStr}
       onClick={handleCellClick}
+      onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
       className={cn(
-        "group/cell relative bg-white p-1.5 min-h-[90px] cursor-pointer transition-colors",
+        "group/cell relative bg-[rgb(var(--color-secondary-50))] p-1.5 min-h-[90px] cursor-pointer transition-colors",
         // 기본 상태별 배경 및 호버
-        !status.isCurrentMonth && "bg-gray-50 hover:bg-gray-100",
+        !status.isCurrentMonth && "bg-[rgb(var(--color-secondary-50))] hover:bg-[rgb(var(--color-secondary-100))]",
         status.isCurrentMonth && !status.isExclusion && !status.isSelected && "hover:bg-blue-50/40",
         // 선택된 날짜 - 에메랄드로 오늘(파랑)과 구분
         status.isSelected && "ring-2 ring-emerald-500 ring-inset bg-emerald-50/30 hover:bg-emerald-50/60",
         // 제외일
-        status.isExclusion && "bg-gray-100 hover:bg-gray-200",
+        status.isExclusion && "bg-[rgb(var(--color-secondary-100))] hover:bg-[rgb(var(--color-secondary-200))]",
         // 퀵생성 타겟 셀 (팝오버 열려있는 날짜)
         isQuickCreateTarget && "ring-2 ring-blue-400 ring-inset bg-blue-50/40",
+        // 월간 드래그 선택 범위
+        isInDragSelection && "bg-blue-50/60 ring-2 ring-blue-300 ring-inset",
         // 검색 하이라이트 셀 배경
         hasHighlightedPlan && "bg-yellow-50/60",
         // 드롭 관련 스타일 - 펄스 애니메이션 추가
@@ -277,25 +315,38 @@ function DroppableAdminDayCellComponent({
             data-date-number
             onClick={(e) => { e.stopPropagation(); onDateClick(dateStr); }}
             className={cn(
-              "text-sm font-medium w-6 h-6 flex items-center justify-center rounded-full hover:ring-1 hover:ring-gray-300 transition-shadow",
-              !status.isCurrentMonth && "text-gray-400",
+              "text-sm font-medium w-6 h-6 flex items-center justify-center rounded-full hover:ring-1 hover:ring-[rgb(var(--color-secondary-300))] transition-shadow",
+              !status.isCurrentMonth && "text-[var(--text-tertiary)]",
               status.isToday && "bg-blue-600 text-white hover:ring-blue-400",
-              dayOfWeek === 0 &&
+              holidayName &&
                 status.isCurrentMonth &&
                 !status.isToday &&
                 "text-red-500",
-              dayOfWeek === 6 &&
+              !holidayName &&
+                dayOfWeek === 0 &&
+                status.isCurrentMonth &&
+                !status.isToday &&
+                "text-red-500",
+              !holidayName &&
+                dayOfWeek === 6 &&
                 status.isCurrentMonth &&
                 !status.isToday &&
                 "text-blue-500"
             )}
+            title={holidayName ?? undefined}
           >
             {format(date, "d")}
           </button>
 
+          {/* 공휴일 이름 */}
+          {holidayName && (
+            <span className="text-[9px] text-red-400 truncate max-w-[60px]">
+              {holidayName}
+            </span>
+          )}
           {/* 주차/일차 정보 (학습일/복습일인 경우에만) */}
-          {status.weekNumber != null && status.cycleDayNumber != null && (
-            <span className="text-[9px] text-gray-400">
+          {!holidayName && status.weekNumber != null && status.cycleDayNumber != null && (
+            <span className="text-[9px] text-[var(--text-tertiary)]">
               {status.weekNumber}주{status.cycleDayNumber}일
             </span>
           )}
@@ -308,7 +359,7 @@ function DroppableAdminDayCellComponent({
               type="button"
               data-quick-create-btn
               className="w-5 h-5 rounded-full
-                bg-gray-100 text-gray-500 text-xs leading-none
+                bg-[rgb(var(--color-secondary-100))] text-[var(--text-tertiary)] text-xs leading-none
                 flex items-center justify-center
                 opacity-0 group-hover/cell:opacity-100
                 transition-opacity hover:bg-blue-500 hover:text-white z-10"
@@ -321,7 +372,7 @@ function DroppableAdminDayCellComponent({
             </button>
           )}
           {status.isExclusion ? (
-            <span className="text-xs px-1.5 py-0.5 bg-gray-200 text-gray-600 rounded">
+            <span className="text-xs px-1.5 py-0.5 bg-[rgb(var(--color-secondary-200))] text-[var(--text-secondary)] rounded">
               {status.exclusionType}
             </span>
           ) : status.dayType === "복습일" ? (
@@ -334,7 +385,7 @@ function DroppableAdminDayCellComponent({
               "text-[9px] px-1 py-0.5 rounded font-medium",
               stats.completionRate === 100
                 ? "bg-green-100 text-green-700"
-                : "bg-gray-100 text-gray-500"
+                : "bg-[rgb(var(--color-secondary-100))] text-[var(--text-tertiary)]"
             )}>
               {stats.completedPlans}/{stats.totalPlans}
             </span>
@@ -363,19 +414,26 @@ function DroppableAdminDayCellComponent({
         )}
       </AnimatePresence>
 
-      {/* 플랜 칩 목록 */}
+      {/* 플랜 칩 목록 — Google Calendar: 종일 이벤트(칩) 상단, 시간 이벤트(도트) 하단 */}
       {stats.totalPlans > 0 && !status.isExclusion && (
         <div className="space-y-0.5">
-          {plans.slice(0, 4).map((plan) => (
+          {[...plans].sort((a, b) => {
+            // 종일 이벤트(start_time 없음)를 상단에 배치
+            const aHasTime = a.start_time ? 1 : 0;
+            const bHasTime = b.start_time ? 1 : 0;
+            return aHasTime - bHasTime;
+          }).slice(0, 4).map((plan) => (
             <div key={plan.id} data-plan-chip>
               <DraggableAdminPlanCard
                 plan={plan}
-                onClick={() => onPlanClick(plan.id)}
+                onClick={(e) => onPlanClick(plan, (e.target as HTMLElement).closest('[data-plan-chip]')?.getBoundingClientRect() ?? (e.currentTarget as HTMLElement).getBoundingClientRect())}
                 disabled={isSelectionMode}
                 isSelectionMode={isSelectionMode}
                 isSelected={selectedPlanIds?.has(plan.id) ?? false}
                 onSelect={onPlanSelect}
                 isHighlighted={highlightedPlanIds?.has(plan.id) ?? false}
+                variant={plan.start_time ? 'dot' : 'chip'}
+                calendarColor={calendarColorMap?.get(plan.calendar_id ?? '')}
               />
             </div>
           ))}
@@ -400,7 +458,7 @@ function DroppableAdminDayCellComponent({
 
           {/* 완료율 프로그레스 바 */}
           {stats.completionRate > 0 && stats.completionRate < 100 && (
-            <div className="h-0.5 bg-gray-200 rounded-full mt-1 overflow-hidden">
+            <div className="h-0.5 bg-[rgb(var(--color-secondary-200))] rounded-full mt-1 overflow-hidden">
               <div
                 className="h-full bg-green-500 rounded-full transition-all"
                 style={{ width: `${stats.completionRate}%` }}
@@ -414,25 +472,36 @@ function DroppableAdminDayCellComponent({
       )}
 
       {/* 퀵생성 프리뷰 칩 (Google Calendar 스타일) */}
-      {isQuickCreateTarget && (quickCreateSlot || isQuickCreateAllDay) && (
-        <div className="flex items-center gap-1 px-1 py-px text-xs rounded border-2 border-dashed border-blue-400 bg-blue-500/15 animate-in fade-in-0 duration-150">
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
-          {isQuickCreateAllDay ? (
-            <span className="text-blue-700 font-medium truncate">(제목 없음) 종일</span>
-          ) : quickCreateSlot ? (
-            <>
-              <span className="text-blue-600/70 flex-shrink-0 tabular-nums text-[10px]">
+      {isQuickCreateTarget && (quickCreateSlot || isQuickCreateAllDay) && (() => {
+        const pColors = resolveCalendarColors(null, activeCalendarColor, 'confirmed', false);
+        const textCls = pColors.textIsWhite ? 'text-white' : 'text-gray-900';
+        const subTextCls = pColors.textIsWhite ? 'text-white/70' : 'text-gray-600';
+        return isQuickCreateAllDay ? (
+          <div
+            className="flex items-center gap-1 px-1 py-px text-xs rounded animate-in fade-in-0 duration-150"
+            style={{ backgroundColor: pColors.bgHex, opacity: 0.7 }}
+          >
+            <span className={cn('font-medium truncate', textCls)}>(제목 없음) 종일</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1 px-1 py-px text-xs animate-in fade-in-0 duration-150">
+            <span
+              className="w-2 h-2 rounded-full flex-shrink-0"
+              style={{ backgroundColor: pColors.bgHex }}
+            />
+            {quickCreateSlot && (
+              <span className={cn('flex-shrink-0 tabular-nums text-[10px]', subTextCls)}>
                 {formatTimeKoAmPm(quickCreateSlot.startTime)}
               </span>
-              <span className="text-blue-700 font-medium truncate">(제목 없음)</span>
-            </>
-          ) : null}
-        </div>
-      )}
+            )}
+            <span className={cn('font-medium truncate', 'text-[var(--text-primary)]')}>(제목 없음)</span>
+          </div>
+        );
+      })()}
 
       {/* 제외일 사유 */}
       {status.isExclusion && status.exclusionReason && (
-        <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+        <p className="text-xs text-[var(--text-tertiary)] mt-1 line-clamp-2">
           {status.exclusionReason}
         </p>
       )}

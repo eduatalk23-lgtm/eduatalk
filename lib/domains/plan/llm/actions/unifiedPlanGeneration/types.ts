@@ -130,13 +130,11 @@ export interface UnifiedPlanGenerationInput {
   // 생성 옵션
   generationOptions?: GenerationOptions;
 
-  // Phase 3: 플래너 연계 필드
-  /** 연결할 플래너 ID (없으면 자동 생성) */
-  plannerId?: string | null;
-  /** 생성 모드 (DB CHECK 제약조건: wizard, content_based, template, camp, free_learning) */
+  // Calendar-First: 캘린더 연계 필드
+  /** 연결할 캘린더 ID (없으면 학생 기본 캘린더 사용) */
+  calendarId?: string | null;
+  /** 생성 모드 */
   creationMode?: "wizard" | "content_based" | "template" | "camp" | "free_learning";
-  /** 플래너 검증 모드 (기본값: "auto_create") */
-  plannerValidationMode?: "warn" | "strict" | "auto_create";
 }
 
 /**
@@ -163,13 +161,11 @@ export interface ValidatedPlanInput {
   totalDays: number;
   availableDays: number;
 
-  // Phase 3: 플래너 연계 필드
-  /** 연결할 플래너 ID (없으면 자동 생성) */
-  plannerId?: string | null;
-  /** 생성 모드 (DB CHECK 제약조건: wizard, content_based, template, camp, free_learning) */
+  // Calendar-First: 캘린더 연계 필드
+  /** 연결할 캘린더 ID */
+  calendarId?: string | null;
+  /** 생성 모드 */
   creationMode?: "wizard" | "content_based" | "template" | "camp" | "free_learning";
-  /** 플래너 검증 모드 (기본값: "auto_create") */
-  plannerValidationMode?: "warn" | "strict" | "auto_create";
 }
 
 // ============================================================================

@@ -28,7 +28,7 @@ import type { UnifiedPlanInput } from '@/lib/domains/admin-plan/actions';
 // ============================================
 
 export type UnifiedPlanMode = 'quick' | 'content';
-type DistributionMode = 'today' | 'period' | 'weekly';
+type DistributionMode = 'today' | 'period';
 
 interface UnifiedPlanAddModalProps {
   /** 모달 열림 상태 */
@@ -41,8 +41,8 @@ interface UnifiedPlanAddModalProps {
   studentId: string;
   /** 테넌트 ID */
   tenantId: string;
-  /** 플래너 ID (필수) */
-  plannerId: string;
+  /** 캘린더 ID */
+  calendarId?: string;
   /** 기본 선택 날짜 */
   targetDate: string;
   /** 플랜 그룹 ID (선택) */
@@ -105,7 +105,6 @@ const SUBJECT_AREA_OPTIONS = [
 const DISTRIBUTION_MODES = [
   { value: 'today', label: '오늘만 추가', description: 'Daily Dock에 추가' },
   { value: 'period', label: '기간에 걸쳐 분배', description: '스케줄러 활용' },
-  { value: 'weekly', label: 'Weekly Dock', description: '유동 학습 항목' },
 ] as const;
 
 // ============================================
@@ -118,7 +117,7 @@ export function UnifiedPlanAddModal({
   onSuccess,
   studentId,
   tenantId,
-  plannerId,
+  calendarId,
   targetDate,
   planGroupId,
   initialMode = 'quick',
@@ -305,7 +304,7 @@ export function UnifiedPlanAddModal({
           const input: UnifiedPlanInput = {
             studentId,
             tenantId,
-            plannerId,
+            calendarId,
             planGroupId,
             planDate,
             title: title.trim(),
@@ -367,7 +366,7 @@ export function UnifiedPlanAddModal({
             periodEndDate: periodEnd,
             studentId,
             tenantId,
-            plannerId,
+            calendarId,
             useScheduler: false, // 기간 배치에서는 자체 스케줄링
           });
 
@@ -415,7 +414,7 @@ export function UnifiedPlanAddModal({
             targetDate: planDate,
             studentId,
             tenantId,
-            plannerId,
+            calendarId,
             useScheduler: distributionMode === 'today' ? useScheduler : false,
           });
 
@@ -424,7 +423,7 @@ export function UnifiedPlanAddModal({
             return;
           }
 
-          const modeLabel = distributionMode === 'today' ? 'Daily' : 'Weekly';
+          const modeLabel = distributionMode === 'today' ? 'Daily' : '기간';
           showToast(`${modeLabel}에 플랜이 추가되었습니다.`, 'success');
         }
 
@@ -457,7 +456,7 @@ export function UnifiedPlanAddModal({
     useScheduler,
     studentId,
     tenantId,
-    plannerId,
+    calendarId,
     planGroupId,
     slotStartTime,
     slotEndTime,
@@ -1056,24 +1055,6 @@ function ContentAddFields({
             </div>
           </label>
 
-          {/* Weekly Dock */}
-          <label
-            className={cn(
-              'flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors',
-              distributionMode === 'weekly' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'
-            )}
-          >
-            <input
-              type="radio"
-              checked={distributionMode === 'weekly'}
-              onChange={() => onDistributionModeChange('weekly')}
-              className="mt-0.5"
-            />
-            <div>
-              <div className="font-medium text-sm">Weekly Dock에 추가 (유동)</div>
-              <div className="text-xs text-gray-500 mt-0.5">특정 날짜에 배정되지 않는 유동 학습</div>
-            </div>
-          </label>
         </div>
       </div>
     </>

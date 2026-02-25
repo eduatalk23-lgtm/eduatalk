@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useRef, type TouchEvent } from 'react';
-import { shiftDay, shiftWeek, shiftMonth } from '../utils/weekDateUtils';
+import { shiftDay, shiftWeek, shiftMonth, shiftCustomDays } from '../utils/weekDateUtils';
 import type { CalendarView } from '../CalendarNavHeader';
 
 interface UseCalendarSwipeNavigationOptions {
@@ -18,6 +18,10 @@ interface UseCalendarSwipeNavigationOptions {
   selectedDate: string;
   onNavigate: (date: string) => void;
   enabled?: boolean;
+  /** 모바일 3일 뷰 활성화 여부 (weekly에서 3일씩 이동) */
+  isMobile3Day?: boolean;
+  /** 커스텀 일수 (2~7, 기본 7) */
+  customDayCount?: number;
 }
 
 const MIN_SWIPE_DISTANCE = 60;
@@ -28,6 +32,8 @@ export function useCalendarSwipeNavigation({
   selectedDate,
   onNavigate,
   enabled = true,
+  isMobile3Day = false,
+  customDayCount = 7,
 }: UseCalendarSwipeNavigationOptions) {
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
@@ -59,12 +65,21 @@ export function useCalendarSwipeNavigation({
       if (activeView === 'daily') {
         onNavigate(shiftDay(selectedDate, direction));
       } else if (activeView === 'weekly') {
-        onNavigate(shiftWeek(selectedDate, direction));
+        if (customDayCount < 7) {
+          onNavigate(shiftCustomDays(selectedDate, direction, customDayCount));
+        } else if (isMobile3Day) {
+          // 모바일 3일 뷰에서는 3일씩 이동
+          let result = selectedDate;
+          for (let i = 0; i < 3; i++) result = shiftDay(result, direction);
+          onNavigate(result);
+        } else {
+          onNavigate(shiftWeek(selectedDate, direction));
+        }
       } else {
         onNavigate(shiftMonth(selectedDate, direction));
       }
     },
-    [enabled, activeView, selectedDate, onNavigate]
+    [enabled, activeView, selectedDate, onNavigate, isMobile3Day, customDayCount]
   );
 
   return {

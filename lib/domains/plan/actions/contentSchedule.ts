@@ -63,7 +63,7 @@ export type RedistributeResult = {
   /** 재배분 대상 콘텐츠 수 */
   affectedContents?: number;
   /** 생성된 일회성 플랜 수 (to_adhoc 전략 시) */
-  createdAdHocPlans?: number;
+  createdPlans?: number;
 };
 
 // ============================================
@@ -503,16 +503,17 @@ async function redistributeVolumeFromDeleted(
       return { success: false, error: "Plan group not found" };
     }
 
-    // 일회성 플랜 생성
-    const { error: adhocError } = await supabase.from("ad_hoc_plans").insert({
+    // 일회성 플랜 생성 (student_plan with is_adhoc=true)
+    const { error: adhocError } = await supabase.from("student_plan").insert({
       tenant_id: planGroup.tenant_id,
       student_id: planGroup.student_id,
-      title: `미완료 분량 (${deletedContentInfo.remainingVolume}${deletedContentInfo.rangeUnit})`,
+      plan_group_id: planGroupId,
+      content_title: `미완료 분량 (${deletedContentInfo.remainingVolume}${deletedContentInfo.rangeUnit})`,
       description: `삭제된 콘텐츠의 남은 분량입니다.`,
       plan_date: new Date().toISOString().split("T")[0],
-      container_type: "weekly",
+      container_type: "daily",
       status: "pending",
-      priority: 2,
+      is_adhoc: true,
     });
 
     if (adhocError) {
@@ -523,7 +524,7 @@ async function redistributeVolumeFromDeleted(
       success: true,
       redistributedVolume: deletedContentInfo.remainingVolume,
       affectedContents: 0,
-      createdAdHocPlans: 1,
+      createdPlans: 1,
     };
   }
 

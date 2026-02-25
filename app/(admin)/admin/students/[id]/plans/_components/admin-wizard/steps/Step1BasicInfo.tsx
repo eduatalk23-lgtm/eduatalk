@@ -20,16 +20,16 @@ import {
   useAdminWizardData,
   useAdminWizardValidation,
 } from "../_context";
-import type { PlanPurpose, ExclusionSchedule, AcademySchedule } from "../_context/types";
+import type { PlanPurpose, ExclusionSchedule } from "../_context/types";
 import {
   getBlockSetsForStudent,
   type BlockSetWithBlocks,
 } from "@/lib/domains/admin-plan/actions/blockSets";
 import {
-  getStudentPlannersAction,
-  getPlannerAction,
-  type Planner,
-} from "@/lib/domains/admin-plan/actions";
+  getStudentCalendarSettingsAction,
+  getCalendarSettingsAction,
+} from "@/lib/domains/calendar/actions/calendars";
+import type { CalendarSettings } from "@/lib/domains/admin-plan/types";
 import { useAdminPlan } from "../../context/AdminPlanContext";
 
 /**
@@ -56,10 +56,10 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
   const { fieldErrors, setFieldError, clearFieldError } = useAdminWizardValidation();
   const { setShowBlockSetCreateModal, showBlockSetCreateModal } = useAdminPlan();
 
-  // 플래너 관련 상태
-  const [planners, setPlanners] = useState<Planner[]>([]);
-  const [isLoadingPlanners, setIsLoadingPlanners] = useState(false);
-  const [showPlannerDropdown, setShowPlannerDropdown] = useState(false);
+  // 캘린더 관련 상태
+  const [calendars, setCalendars] = useState<CalendarSettings[]>([]);
+  const [isLoadingCalendars, setIsLoadingCalendars] = useState(false);
+  const [showCalendarDropdown, setShowCalendarDropdown] = useState(false);
 
   // 블록셋 관련 상태
   const [blockSets, setBlockSets] = useState<BlockSetWithBlocks[]>([]);
@@ -69,29 +69,26 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
   // 블록셋 새로고침 (모달에서 생성 후)
   const [blockSetRefreshKey, setBlockSetRefreshKey] = useState(0);
 
-  const { periodStart, periodEnd, name, planPurpose, blockSetId, plannerId } = wizardData;
+  const { periodStart, periodEnd, name, planPurpose, blockSetId, calendarId } = wizardData;
 
-  // 플래너 로드
+  // 캘린더 로드
   useEffect(() => {
-    async function loadPlanners() {
+    async function loadCalendars() {
       if (!studentId) return;
 
-      setIsLoadingPlanners(true);
+      setIsLoadingCalendars(true);
       try {
-        const result = await getStudentPlannersAction(studentId, {
-          status: ["active", "draft"],
-          includeArchived: false,
-        });
-        if (result && "data" in result) {
-          setPlanners(result.data);
+        const result = await getStudentCalendarSettingsAction(studentId);
+        if (result) {
+          setCalendars(result.data);
         }
       } catch (err) {
-        console.error("[Step1] 플래너 로드 실패:", err);
+        console.error("[Step1] 캘린더 로드 실패:", err);
       } finally {
-        setIsLoadingPlanners(false);
+        setIsLoadingCalendars(false);
       }
     }
-    loadPlanners();
+    loadCalendars();
   }, [studentId]);
 
   // 블록셋 로드 (Server Action 사용)
@@ -201,108 +198,75 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
     [updateData]
   );
 
-  // 플래너 선택 핸들러 (플래너 설정을 위자드에 자동 채우기)
-  const handlePlannerSelect = useCallback(
+  // 캘린더 선택 핸들러 (캘린더 설정을 위자드에 자동 채우기)
+  const handleCalendarSelect = useCallback(
     async (id: string | undefined) => {
-      setShowPlannerDropdown(false);
+      setShowCalendarDropdown(false);
 
-      // 플래너 선택 해제 시: 상속 설정 정리 및 기본값 복구
+      // 캘린더 선택 해제 시: 상속 설정 정리 및 기본값 복구
       if (!id) {
         updateData({
-          plannerId: undefined,
-          // 시간 설정 초기화
+          calendarId: undefined,
           studyHours: null,
           selfStudyHours: null,
-          lunchTime: null,
           nonStudyTimeBlocks: [],
-          // 스케줄러 옵션 기본값 복구
           schedulerOptions: {
             study_days: 6,
             review_days: 1,
           },
-          // is_locked 항목만 제거 (수동 추가 항목 유지)
           exclusions: wizardData.exclusions.filter(e => !e.is_locked),
           academySchedules: wizardData.academySchedules.filter(s => !s.is_locked),
         });
         return;
       }
 
-      updateData({ plannerId: id });
+      updateData({ calendarId: id });
 
-      // 플래너 상세 정보 로드 후 자동 채우기
+      // 캘린더 상세 정보 로드 후 자동 채우기
       try {
-        const planner = await getPlannerAction(id, true);
-        if (!planner) return;
+        const cal = await getCalendarSettingsAction(id);
+        if (!cal) return;
 
-        // 기본 정보 자동 채우기
         const autoFillData: Partial<typeof wizardData> = {
-          plannerId: id,
-          periodStart: planner.periodStart,
-          periodEnd: planner.periodEnd,
-          blockSetId: planner.blockSetId ?? undefined,
+          calendarId: id,
+          periodStart: cal.periodStart ?? "",
+          periodEnd: cal.periodEnd ?? "",
+          blockSetId: cal.blockSetId ?? undefined,
         };
 
-        // NEW: 시간 설정 자동 채우기 (플래너와 완전 호환)
-        autoFillData.studyHours = planner.studyHours ?? null;
-        autoFillData.selfStudyHours = planner.selfStudyHours ?? null;
-        autoFillData.lunchTime = planner.lunchTime ?? null;
-        autoFillData.nonStudyTimeBlocks = planner.nonStudyTimeBlocks ?? [];
+        autoFillData.studyHours = cal.studyHours ?? null;
+        autoFillData.selfStudyHours = cal.selfStudyHours ?? null;
+        autoFillData.nonStudyTimeBlocks = cal.nonStudyTimeBlocks ?? [];
 
-        // NEW: 스케줄러 타입 자동 채우기
-        if (planner.defaultSchedulerType) {
-          autoFillData.schedulerType = planner.defaultSchedulerType as "1730_timetable" | "custom" | "";
+        if (cal.defaultSchedulerType) {
+          autoFillData.schedulerType = cal.defaultSchedulerType as "1730_timetable" | "custom" | "";
         }
 
-        // 제외일 매핑 (플래너 exclusionType → 위자드 exclusion_type)
-        // 플래너에서 가져온 제외일은 is_locked: true로 설정하여 삭제 방지
-        // 기존 수동 추가 항목 유지
+        // 제외일 매핑 (캘린더 exclusions → 위자드 exclusion_type)
         const manualExclusions = wizardData.exclusions.filter(e => !e.is_locked);
-        if (planner.exclusions && planner.exclusions.length > 0) {
+        if (cal.exclusions && cal.exclusions.length > 0) {
           const mapExclusionType = (type: string): "holiday" | "event" | "personal" => {
             switch (type) {
-              case "휴일지정":
-              case "지정휴일": return "holiday";
-              case "휴가": return "event"; // 휴가는 일반 이벤트로 매핑
-              case "개인사정":
-              case "개인일정": return "personal";
+              case "holiday": return "holiday";
+              case "personal": return "personal";
               default: return "event";
             }
           };
-          const plannerExclusions: ExclusionSchedule[] = planner.exclusions.map((e) => ({
-            exclusion_date: e.exclusionDate,
-            exclusion_type: mapExclusionType(e.exclusionType),
+          const calExclusions: ExclusionSchedule[] = cal.exclusions.map((e) => ({
+            exclusion_date: e.exclusion_date,
+            exclusion_type: mapExclusionType(e.exclusion_type),
             reason: e.reason ?? undefined,
-            source: "planner",
-            is_locked: true, // 플래너에서 가져온 제외일은 삭제 방지
+            source: "manual",
+            is_locked: true,
           }));
-          autoFillData.exclusions = [...plannerExclusions, ...manualExclusions];
+          autoFillData.exclusions = [...calExclusions, ...manualExclusions];
         } else {
           autoFillData.exclusions = manualExclusions;
         }
 
-        // 학원 일정 매핑
-        // 플래너에서 가져온 학원일정은 is_locked: true로 설정하여 삭제 방지
-        // 기존 수동 추가 항목 유지
-        const manualAcademySchedules = wizardData.academySchedules.filter(s => !s.is_locked);
-        if (planner.academySchedules && planner.academySchedules.length > 0) {
-          const plannerAcademySchedules: AcademySchedule[] = planner.academySchedules.map((s) => ({
-            academy_name: s.academyName ?? "학원",
-            day_of_week: s.dayOfWeek,
-            start_time: s.startTime,
-            end_time: s.endTime,
-            subject: s.subject ?? undefined,
-            travel_time: s.travelTime ?? 60,
-            source: "planner",
-            is_locked: true, // 플래너에서 가져온 학원일정은 삭제 방지
-          }));
-          autoFillData.academySchedules = [...plannerAcademySchedules, ...manualAcademySchedules];
-        } else {
-          autoFillData.academySchedules = manualAcademySchedules;
-        }
-
         // 스케줄러 옵션
-        if (planner.defaultSchedulerOptions) {
-          const opts = planner.defaultSchedulerOptions as Record<string, number>;
+        if (cal.defaultSchedulerOptions) {
+          const opts = cal.defaultSchedulerOptions as Record<string, number>;
           autoFillData.schedulerOptions = {
             study_days: opts.study_days ?? 6,
             review_days: opts.review_days ?? 1,
@@ -311,7 +275,7 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
 
         updateData(autoFillData);
       } catch (err) {
-        console.error("[Step1] 플래너 설정 로드 실패:", err);
+        console.error("[Step1] 캘린더 설정 로드 실패:", err);
       }
     },
     [updateData, wizardData]
@@ -331,7 +295,7 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
   const daysDiff = getDaysDiff();
   const isValidPeriod = daysDiff > 0 && daysDiff <= 365;
   const selectedBlockSet = blockSets.find((bs) => bs.id === blockSetId);
-  const selectedPlanner = planners.find((p) => p.id === plannerId);
+  const selectedCalendar = calendars.find((c) => c.id === calendarId);
 
   // 날짜 포맷팅 헬퍼
   const formatDateDisplay = (dateStr: string) => {
@@ -348,7 +312,7 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
       {/* 플래너 선택 (강화된 UI - Phase 5, Phase 2 필수화) */}
       <div className={cn(
         "rounded-xl border-2 p-4 shadow-sm",
-        selectedPlanner
+        selectedCalendar
           ? "border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50"
           : "border-red-200 bg-gradient-to-r from-red-50 to-orange-50"
       )}>
@@ -356,18 +320,18 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
           <div className="flex items-center gap-2">
             <div className={cn(
               "flex h-8 w-8 items-center justify-center rounded-lg text-white",
-              selectedPlanner ? "bg-blue-500" : "bg-red-500"
+              selectedCalendar ? "bg-blue-500" : "bg-red-500"
             )}>
               <FolderOpen className="h-4 w-4" />
             </div>
             <div>
               <h3 className="font-semibold text-gray-900">
-                플래너 선택 <span className="text-red-500">*</span>
+                캘린더 선택 <span className="text-red-500">*</span>
               </h3>
               <p className="text-xs text-gray-500">시간 설정, 제외일, 학원일정이 자동 상속됩니다</p>
             </div>
           </div>
-          {selectedPlanner ? (
+          {selectedCalendar ? (
             <div className="flex items-center gap-1.5 rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700">
               <CheckCircle2 className="h-3.5 w-3.5" />
               선택됨
@@ -382,55 +346,55 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
         <div className="relative">
           <button
             type="button"
-            onClick={() => setShowPlannerDropdown(!showPlannerDropdown)}
-            disabled={isLoadingPlanners}
-            data-testid="planner-select"
+            onClick={() => setShowCalendarDropdown(!showCalendarDropdown)}
+            disabled={isLoadingCalendars}
+            data-testid="calendar-select"
             className={cn(
               "flex w-full items-center justify-between rounded-lg border-2 px-4 py-3 text-sm font-medium transition",
-              selectedPlanner
+              selectedCalendar
                 ? "border-blue-500 bg-white text-blue-700 shadow-sm"
                 : "border-red-300 bg-white text-red-600 hover:border-red-400"
             )}
           >
             <span>
-              {isLoadingPlanners
+              {isLoadingCalendars
                 ? "불러오는 중..."
-                : selectedPlanner
-                  ? selectedPlanner.name
-                  : "⚠️ 플래너를 선택하세요 (필수)"}
+                : selectedCalendar
+                  ? selectedCalendar.name
+                  : "⚠️ 캘린더를 선택하세요 (필수)"}
             </span>
             <ChevronDown
               className={cn(
                 "h-4 w-4 transition-transform",
-                showPlannerDropdown && "rotate-180"
+                showCalendarDropdown && "rotate-180"
               )}
             />
           </button>
 
-          {showPlannerDropdown && (
+          {showCalendarDropdown && (
             <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg">
               {/* 플래너 필수 안내 - 선택 안 함 옵션 제거됨 (Phase 2) */}
-              {planners.length === 0 && !isLoadingPlanners ? (
+              {calendars.length === 0 && !isLoadingCalendars ? (
                 <div className="px-3 py-4 text-center text-sm text-gray-500">
-                  <p className="font-medium text-red-600">활성 플래너가 없습니다.</p>
-                  <p className="mt-1 text-xs">플랜 그룹을 생성하려면 먼저 플래너를 생성해주세요.</p>
+                  <p className="font-medium text-red-600">활성 캘린더가 없습니다.</p>
+                  <p className="mt-1 text-xs">플랜 그룹을 생성하려면 먼저 캘린더를 생성해주세요.</p>
                 </div>
               ) : (
-                planners.map((planner) => (
+                calendars.map((cal) => (
                   <button
-                    key={planner.id}
+                    key={cal.id}
                     type="button"
-                    onClick={() => handlePlannerSelect(planner.id)}
+                    onClick={() => handleCalendarSelect(cal.id)}
                     className={cn(
                       "flex w-full flex-col items-start px-3 py-2.5 text-left text-sm hover:bg-gray-50",
-                      plannerId === planner.id && "bg-blue-50 text-blue-700"
+                      calendarId === cal.id && "bg-blue-50 text-blue-700"
                     )}
                   >
-                    <span className="font-medium">{planner.name}</span>
+                    <span className="font-medium">{cal.name}</span>
                     <span className="text-xs text-gray-500">
-                      {formatDateDisplay(planner.periodStart)} ~ {formatDateDisplay(planner.periodEnd)}
-                      {planner.planGroupCount !== undefined && planner.planGroupCount > 0 && (
-                        <> · 플랜그룹 {planner.planGroupCount}개</>
+                      {cal.periodStart ? formatDateDisplay(cal.periodStart) : "미설정"} ~ {cal.periodEnd ? formatDateDisplay(cal.periodEnd) : "미설정"}
+                      {cal.planGroupCount !== undefined && cal.planGroupCount > 0 && (
+                        <> · 플랜그룹 {cal.planGroupCount}개</>
                       )}
                     </span>
                   </button>
@@ -441,7 +405,7 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
         </div>
 
         {/* 상속 미리보기 */}
-        {selectedPlanner && (
+        {selectedCalendar && (
           <div className="mt-4 rounded-lg border border-blue-100 bg-white p-3">
             <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-gray-700">
               <Lock className="h-3.5 w-3.5 text-blue-500" />
@@ -452,7 +416,7 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
               <div className="flex items-center gap-2 rounded-md bg-gray-50 px-2.5 py-1.5">
                 <Clock className="h-3.5 w-3.5 text-gray-500" />
                 <span className="text-gray-600">
-                  시간 설정: {selectedPlanner.studyHours ? "설정됨" : "없음"}
+                  시간 설정: {selectedCalendar.studyHours ? "설정됨" : "없음"}
                 </span>
               </div>
 
@@ -460,7 +424,7 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
               <div className="flex items-center gap-2 rounded-md bg-gray-50 px-2.5 py-1.5">
                 <Calendar className="h-3.5 w-3.5 text-gray-500" />
                 <span className="text-gray-600">
-                  비학습 블록: {selectedPlanner.nonStudyTimeBlocks?.length ?? 0}개
+                  비학습 블록: {selectedCalendar.nonStudyTimeBlocks?.length ?? 0}개
                 </span>
               </div>
 
@@ -468,22 +432,24 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
               <div className="flex items-center gap-2 rounded-md bg-orange-50 px-2.5 py-1.5">
                 <Lock className="h-3.5 w-3.5 text-orange-500" />
                 <span className="text-orange-700">
-                  제외일: {selectedPlanner.exclusions?.length ?? 0}개 (잠금)
+                  제외일: {selectedCalendar.exclusions?.length ?? 0}개 (잠금)
                 </span>
               </div>
 
-              {/* 학원일정 */}
+              {/* 플랜그룹 */}
+              {selectedCalendar.planGroupCount !== undefined && selectedCalendar.planGroupCount > 0 && (
               <div className="flex items-center gap-2 rounded-md bg-purple-50 px-2.5 py-1.5">
-                <Lock className="h-3.5 w-3.5 text-purple-500" />
+                <FolderOpen className="h-3.5 w-3.5 text-purple-500" />
                 <span className="text-purple-700">
-                  학원일정: {selectedPlanner.academySchedules?.length ?? 0}개 (잠금)
+                  플랜그룹: {selectedCalendar.planGroupCount}개
                 </span>
               </div>
+              )}
             </div>
 
             {/* 기간 정보 */}
             <div className="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-500">
-              기간: {formatDateDisplay(selectedPlanner.periodStart)} ~ {formatDateDisplay(selectedPlanner.periodEnd)}
+              기간: {selectedCalendar.periodStart ? formatDateDisplay(selectedCalendar.periodStart) : "미설정"} ~ {selectedCalendar.periodEnd ? formatDateDisplay(selectedCalendar.periodEnd) : "미설정"}
             </div>
           </div>
         )}

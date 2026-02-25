@@ -453,23 +453,22 @@ describe("delayPredictionService", () => {
   });
 
   describe("averageDelayDays 계산", () => {
-    interface PlanWithCompletion {
+    // event_study_data.done / done_at 기반 (calendar_events 스키마)
+    interface EventWithCompletion {
       plan_date: string;
-      simple_completed: boolean;
-      simple_completed_at: string | null;
+      done: boolean;
+      done_at: string | null;
     }
 
-    function calculateAverageDelayDays(plans: PlanWithCompletion[]): number {
+    function calculateAverageDelayDays(events: EventWithCompletion[]): number {
       const delayDays: number[] = [];
 
-      for (const plan of plans) {
-        const isCompleted = plan.simple_completed === true;
-
-        if (isCompleted && plan.simple_completed_at) {
-          const planDate = new Date(plan.plan_date);
+      for (const event of events) {
+        if (event.done && event.done_at) {
+          const planDate = new Date(event.plan_date);
           planDate.setHours(0, 0, 0, 0);
 
-          const completedDate = new Date(plan.simple_completed_at);
+          const completedDate = new Date(event.done_at);
           completedDate.setHours(0, 0, 0, 0);
 
           const diffTime = completedDate.getTime() - planDate.getTime();
@@ -490,114 +489,114 @@ describe("delayPredictionService", () => {
     }
 
     it("당일 완료 시 지연일 0", () => {
-      const plans: PlanWithCompletion[] = [
+      const events: EventWithCompletion[] = [
         {
           plan_date: "2025-01-15",
-          simple_completed: true,
-          simple_completed_at: "2025-01-15T10:30:00Z",
+          done: true,
+          done_at: "2025-01-15T10:30:00Z",
         },
       ];
-      expect(calculateAverageDelayDays(plans)).toBe(0);
+      expect(calculateAverageDelayDays(events)).toBe(0);
     });
 
     it("1일 지연 완료 시 지연일 1", () => {
-      const plans: PlanWithCompletion[] = [
+      const events: EventWithCompletion[] = [
         {
           plan_date: "2025-01-15",
-          simple_completed: true,
-          simple_completed_at: "2025-01-16T10:30:00Z",
+          done: true,
+          done_at: "2025-01-16T10:30:00Z",
         },
       ];
-      expect(calculateAverageDelayDays(plans)).toBe(1);
+      expect(calculateAverageDelayDays(events)).toBe(1);
     });
 
     it("3일 지연 완료 시 지연일 3", () => {
-      const plans: PlanWithCompletion[] = [
+      const events: EventWithCompletion[] = [
         {
           plan_date: "2025-01-15",
-          simple_completed: true,
+          done: true,
           // 로컬 날짜로 파싱되도록 T00:00:00 형식 사용
-          simple_completed_at: "2025-01-18T00:00:00",
+          done_at: "2025-01-18T00:00:00",
         },
       ];
-      expect(calculateAverageDelayDays(plans)).toBe(3);
+      expect(calculateAverageDelayDays(events)).toBe(3);
     });
 
-    it("여러 플랜의 평균 지연일 계산", () => {
-      const plans: PlanWithCompletion[] = [
+    it("여러 이벤트의 평균 지연일 계산", () => {
+      const events: EventWithCompletion[] = [
         {
           plan_date: "2025-01-10",
-          simple_completed: true,
-          simple_completed_at: "2025-01-10T09:00:00", // 0일 지연
+          done: true,
+          done_at: "2025-01-10T09:00:00", // 0일 지연
         },
         {
           plan_date: "2025-01-11",
-          simple_completed: true,
-          simple_completed_at: "2025-01-13T12:00:00", // 2일 지연
+          done: true,
+          done_at: "2025-01-13T12:00:00", // 2일 지연
         },
         {
           plan_date: "2025-01-12",
-          simple_completed: true,
-          simple_completed_at: "2025-01-16T18:00:00", // 4일 지연
+          done: true,
+          done_at: "2025-01-16T18:00:00", // 4일 지연
         },
       ];
       // (0 + 2 + 4) / 3 = 2.0
-      expect(calculateAverageDelayDays(plans)).toBe(2);
+      expect(calculateAverageDelayDays(events)).toBe(2);
     });
 
-    it("미완료 플랜은 지연일 계산에서 제외", () => {
-      const plans: PlanWithCompletion[] = [
+    it("미완료 이벤트는 지연일 계산에서 제외", () => {
+      const events: EventWithCompletion[] = [
         {
           plan_date: "2025-01-10",
-          simple_completed: true,
-          simple_completed_at: "2025-01-11T09:00:00", // 1일 지연
+          done: true,
+          done_at: "2025-01-11T09:00:00", // 1일 지연
         },
         {
           plan_date: "2025-01-11",
-          simple_completed: false, // 미완료
-          simple_completed_at: null,
+          done: false, // 미완료
+          done_at: null,
         },
         {
           plan_date: "2025-01-12",
-          simple_completed: true,
-          simple_completed_at: "2025-01-15T18:00:00", // 3일 지연
+          done: true,
+          done_at: "2025-01-15T18:00:00", // 3일 지연
         },
       ];
       // (1 + 3) / 2 = 2.0
-      expect(calculateAverageDelayDays(plans)).toBe(2);
+      expect(calculateAverageDelayDays(events)).toBe(2);
     });
 
     it("조기 완료는 지연일에 포함하지 않음", () => {
-      const plans: PlanWithCompletion[] = [
+      const events: EventWithCompletion[] = [
         {
           plan_date: "2025-01-15",
-          simple_completed: true,
-          simple_completed_at: "2025-01-14T10:00:00", // 하루 전 완료 → 음수이므로 제외
+          done: true,
+          done_at: "2025-01-14T10:00:00", // 하루 전 완료 → 음수이므로 제외
         },
         {
           plan_date: "2025-01-16",
-          simple_completed: true,
-          simple_completed_at: "2025-01-18T10:00:00", // 2일 지연
+          done: true,
+          done_at: "2025-01-18T10:00:00", // 2일 지연
         },
       ];
       // 조기 완료는 제외되므로 2일만 계산
-      expect(calculateAverageDelayDays(plans)).toBe(2);
+      expect(calculateAverageDelayDays(events)).toBe(2);
     });
 
-    it("완료된 플랜이 없으면 0 반환", () => {
-      const plans: PlanWithCompletion[] = [
+    it("완료된 이벤트가 없으면 0 반환", () => {
+      const events: EventWithCompletion[] = [
         {
           plan_date: "2025-01-10",
-          simple_completed: false,
-          simple_completed_at: null,
+          done: false,
+          done_at: null,
         },
         {
           plan_date: "2025-01-11",
-          simple_completed: false,
-          simple_completed_at: null,
+          done: false,
+          done_at: null,
         },
       ];
-      expect(calculateAverageDelayDays(plans)).toBe(0);
+      expect(calculateAverageDelayDays(events)).toBe(0);
     });
 
     it("빈 배열이면 0 반환", () => {
@@ -605,53 +604,54 @@ describe("delayPredictionService", () => {
     });
 
     it("소수점 첫째 자리까지 반올림", () => {
-      const plans: PlanWithCompletion[] = [
+      const events: EventWithCompletion[] = [
         {
           plan_date: "2025-01-10",
-          simple_completed: true,
-          simple_completed_at: "2025-01-11T09:00:00", // 1일
+          done: true,
+          done_at: "2025-01-11T09:00:00", // 1일
         },
         {
           plan_date: "2025-01-11",
-          simple_completed: true,
-          simple_completed_at: "2025-01-13T12:00:00", // 2일
+          done: true,
+          done_at: "2025-01-13T12:00:00", // 2일
         },
         {
           plan_date: "2025-01-12",
-          simple_completed: true,
-          simple_completed_at: "2025-01-13T18:00:00", // 1일
+          done: true,
+          done_at: "2025-01-13T18:00:00", // 1일
         },
       ];
       // (1 + 2 + 1) / 3 = 1.333... → 1.3
-      expect(calculateAverageDelayDays(plans)).toBe(1.3);
+      expect(calculateAverageDelayDays(events)).toBe(1.3);
     });
 
     it("시간대와 관계없이 날짜 단위로 계산", () => {
-      const plans: PlanWithCompletion[] = [
+      const events: EventWithCompletion[] = [
         {
           plan_date: "2025-01-15",
-          simple_completed: true,
-          simple_completed_at: "2025-01-16T01:00:00", // 다음 날 새벽 1시
+          done: true,
+          done_at: "2025-01-16T01:00:00", // 다음 날 새벽 1시
         },
       ];
       // 날짜만 비교하므로 1일 지연
-      expect(calculateAverageDelayDays(plans)).toBe(1);
+      expect(calculateAverageDelayDays(events)).toBe(1);
     });
   });
 
   describe("트렌드 분석", () => {
+    // event_study_data.done 기반 (calendar_events 스키마)
     function analyzeTrend(
-      recentPlans: Array<{ simple_completed: boolean }>,
-      olderPlans: Array<{ simple_completed: boolean }>
+      recentEvents: Array<{ done: boolean }>,
+      olderEvents: Array<{ done: boolean }>
     ): "improving" | "stable" | "declining" {
-      if (recentPlans.length < 5 || olderPlans.length < 5) {
+      if (recentEvents.length < 5 || olderEvents.length < 5) {
         return "stable";
       }
 
       const recentRate =
-        recentPlans.filter((p) => p.simple_completed).length / recentPlans.length;
+        recentEvents.filter((e) => e.done).length / recentEvents.length;
       const olderRate =
-        olderPlans.filter((p) => p.simple_completed).length / olderPlans.length;
+        olderEvents.filter((e) => e.done).length / olderEvents.length;
       const diff = recentRate - olderRate;
 
       if (diff > 0.15) return "improving";
@@ -660,37 +660,37 @@ describe("delayPredictionService", () => {
     }
 
     it("데이터 부족하면 stable", () => {
-      const recent = [{ simple_completed: true }];
-      const older = [{ simple_completed: false }];
+      const recent = [{ done: true }];
+      const older = [{ done: false }];
       expect(analyzeTrend(recent, older)).toBe("stable");
     });
 
     it("개선 추세 감지 (15% 이상 향상)", () => {
-      const older = Array(5).fill({ simple_completed: false });
-      const recent = Array(5).fill({ simple_completed: true });
+      const older = Array(5).fill({ done: false });
+      const recent = Array(5).fill({ done: true });
       expect(analyzeTrend(recent, older)).toBe("improving");
     });
 
     it("하락 추세 감지 (15% 이상 하락)", () => {
-      const older = Array(5).fill({ simple_completed: true });
-      const recent = Array(5).fill({ simple_completed: false });
+      const older = Array(5).fill({ done: true });
+      const recent = Array(5).fill({ done: false });
       expect(analyzeTrend(recent, older)).toBe("declining");
     });
 
     it("안정 추세 (15% 이내 변동)", () => {
       const older = [
-        { simple_completed: true },
-        { simple_completed: true },
-        { simple_completed: true },
-        { simple_completed: false },
-        { simple_completed: false },
+        { done: true },
+        { done: true },
+        { done: true },
+        { done: false },
+        { done: false },
       ];
       const recent = [
-        { simple_completed: true },
-        { simple_completed: true },
-        { simple_completed: false },
-        { simple_completed: false },
-        { simple_completed: false },
+        { done: true },
+        { done: true },
+        { done: false },
+        { done: false },
+        { done: false },
       ];
       // older: 60%, recent: 40% → -20% → declining
       expect(analyzeTrend(recent, older)).toBe("declining");

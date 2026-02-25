@@ -11,7 +11,7 @@ export type ContentType = 'book' | 'lecture' | 'custom' | 'free' | 'review' | 'p
 
 export type RangeType = 'page' | 'chapter' | 'lecture_num' | 'custom';
 
-export type ContainerType = 'daily' | 'weekly' | 'unfinished';
+export type ContainerType = 'daily';
 
 export type PlanStatus = 'pending' | 'in_progress' | 'completed' | 'skipped' | 'cancelled';
 
@@ -164,96 +164,6 @@ export interface FlexibleContentUpdate {
 }
 
 // ============================================
-// Ad-hoc Plans (단발성 플랜)
-// ============================================
-
-export interface AdHocPlan {
-  id: string;
-  tenant_id: string;
-  student_id: string;
-  plan_date: string;
-  title: string;
-  description: string | null;
-  content_type: ContentType | null;
-  flexible_content_id: string | null;
-  estimated_minutes: number | null;
-  actual_minutes: number | null;
-  status: PlanStatus;
-  container_type: ContainerType;
-  created_by: string | null;
-  created_at: string;
-  updated_at: string;
-  started_at: string | null;
-  completed_at: string | null;
-  // Enhanced fields (Phase 3)
-  page_range_start: number | null;
-  page_range_end: number | null;
-  start_time: string | null;
-  end_time: string | null;
-  recurrence_rule: RecurrenceRule | null;
-  recurrence_parent_id: string | null;
-  // 캘린더 연결
-  plan_group_id: string | null;
-}
-
-/**
- * 반복 규칙 (RRULE 형식)
- */
-export interface RecurrenceRule {
-  type: "daily" | "weekly" | "custom";
-  interval?: number;
-  daysOfWeek?: number[]; // 0-6 (일-토)
-  endDate?: string;
-  count?: number;
-}
-
-export interface AdHocPlanInsert {
-  tenant_id: string;
-  student_id: string;
-  plan_date: string;
-  title: string;
-  description?: string | null;
-  content_type?: ContentType | null;
-  flexible_content_id?: string | null;
-  estimated_minutes?: number | null;
-  container_type?: ContainerType;
-  created_by?: string | null;
-  // Enhanced fields (Phase 3)
-  page_range_start?: number | null;
-  page_range_end?: number | null;
-  start_time?: string | null;
-  end_time?: string | null;
-  recurrence_rule?: RecurrenceRule | null;
-  recurrence_parent_id?: string | null;
-  // Free learning item fields
-  tags?: string[] | null;
-  color?: string | null;
-  icon?: string | null;
-  // 캘린더 연결 (필수)
-  plan_group_id: string;
-}
-
-export interface AdHocPlanUpdate {
-  plan_date?: string;
-  title?: string;
-  description?: string | null;
-  content_type?: ContentType | null;
-  flexible_content_id?: string | null;
-  estimated_minutes?: number | null;
-  actual_minutes?: number | null;
-  status?: PlanStatus;
-  container_type?: ContainerType;
-  started_at?: string | null;
-  completed_at?: string | null;
-  // Enhanced fields (Phase 3)
-  page_range_start?: number | null;
-  page_range_end?: number | null;
-  start_time?: string | null;
-  end_time?: string | null;
-  recurrence_rule?: RecurrenceRule | null;
-}
-
-// ============================================
 // Plan Events (이벤트 소싱)
 // ============================================
 
@@ -262,7 +172,6 @@ export interface PlanEvent {
   tenant_id: string;
   plan_group_id: string | null;
   student_plan_id: string | null;
-  ad_hoc_plan_id: string | null;
   student_id: string;
   event_type: EventType;
   event_category: EventCategory;
@@ -286,7 +195,6 @@ export interface PlanEventInsert {
   event_category: EventCategory;
   plan_group_id?: string | null;
   student_plan_id?: string | null;
-  ad_hoc_plan_id?: string | null;
   payload?: Record<string, unknown>;
   previous_state?: Record<string, unknown> | null;
   new_state?: Record<string, unknown> | null;
@@ -348,26 +256,10 @@ export interface AdminStats {
 }
 
 // ============================================
-// 컨테이너 관련 타입
-// ============================================
-
-export interface ContainerSummary {
-  unfinished: ContainerItemCount;
-  daily: ContainerItemCount;
-  weekly: ContainerItemCount;
-}
-
-export interface ContainerItemCount {
-  count: number;
-  total_volume: number;
-  completed_volume: number;
-}
-
-// ============================================
 // 재분배 관련 타입
 // ============================================
 
-export type RedistributionMode = 'auto' | 'manual' | 'weekly_dock';
+export type RedistributionMode = 'auto' | 'manual';
 
 export interface RedistributionRequest {
   plan_id: string;
@@ -427,14 +319,6 @@ export interface FlexibleContentFilters {
   search?: string;
 }
 
-export interface AdHocPlanFilters {
-  student_id?: string;
-  plan_date_from?: string;
-  plan_date_to?: string;
-  status?: PlanStatus;
-  container_type?: ContainerType;
-}
-
 export interface PlanEventFilters {
   student_id?: string;
   plan_group_id?: string;
@@ -450,6 +334,150 @@ export type SortDirection = 'asc' | 'desc';
 export interface SortOption {
   field: string;
   direction: SortDirection;
+}
+
+// ============================================
+// Calendar Settings (Planner 대체)
+// ============================================
+
+import type { TimeRange } from "@/lib/scheduler/utils/scheduleCalculator";
+import type { PlanExclusion } from "@/lib/types/plan/domain";
+
+/**
+ * 비학습시간 블록 (캘린더 설정에서 사용)
+ */
+export interface NonStudyTimeBlock {
+  type: "아침식사" | "점심식사" | "저녁식사" | "수면" | "기타";
+  start_time: string;
+  end_time: string;
+  day_of_week?: number[];
+  specific_dates?: string[];
+  description?: string;
+}
+
+/**
+ * 캘린더 설정 (Planner 엔티티 대체)
+ *
+ * calendars 테이블의 모든 컬럼을 camelCase로 매핑.
+ * 플래너의 기간/학습시간/스케줄러 설정을 캘린더에 통합.
+ */
+export interface CalendarSettings {
+  id: string;
+  tenantId: string;
+  studentId: string;        // calendars.owner_id
+  name: string;             // calendars.summary
+  description: string | null;
+  status: string;
+  periodStart: string | null;
+  periodEnd: string | null;
+  targetDate: string | null;
+  studyHours: TimeRange | null;
+  selfStudyHours: TimeRange | null;
+  nonStudyTimeBlocks: NonStudyTimeBlock[];
+  blockSetId: string | null;
+  defaultSchedulerType: string;
+  defaultSchedulerOptions: Record<string, unknown>;
+  adminMemo: string | null;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  // calendar 고유
+  isPrimary: boolean;
+  defaultColor: string | null;
+  /** 기본 이벤트 지속시간 (분) — 빠른 생성 시 기본값 */
+  defaultEstimatedMinutes: number | null;
+  /** 기본 알림 (분 단위 배열) — 새 이벤트 생성 시 자동 설정 */
+  defaultReminderMinutes: number[] | null;
+  timezone: string | null;
+  /** 주 시작 요일 (0=일, 1=월, ..., 6=토) */
+  weekStartsOn: number;
+  // relations (선택적 포함)
+  exclusions?: PlanExclusion[];
+  planGroupCount?: number;
+}
+
+/**
+ * 캘린더 설정 생성 입력
+ */
+export interface CreateCalendarSettingsInput {
+  studentId: string;
+  name: string;
+  description?: string;
+  periodStart: string;
+  periodEnd: string;
+  targetDate?: string;
+  studyHours?: TimeRange;
+  selfStudyHours?: TimeRange;
+  lunchTime?: TimeRange;
+  blockSetId?: string;
+  nonStudyTimeBlocks?: NonStudyTimeBlock[];
+  defaultSchedulerType?: string;
+  defaultSchedulerOptions?: Record<string, unknown>;
+  adminMemo?: string;
+  color?: string;
+  /** 기본 이벤트 지속시간 (분) */
+  defaultEstimatedMinutes?: number;
+  /** 기본 알림 (분 단위 배열) */
+  defaultReminderMinutes?: number[];
+  /** 주 시작 요일 (0=일, 1=월, ..., 6=토) */
+  weekStartsOn?: number;
+  /** 학원 일정 */
+  academySchedules?: CalendarAcademyScheduleInput[];
+  /** 제외일 */
+  exclusionInputs?: CalendarExclusionInput[];
+}
+
+/**
+ * 캘린더 설정 업데이트 입력
+ */
+export interface UpdateCalendarSettingsInput {
+  name?: string;
+  description?: string;
+  status?: string;
+  periodStart?: string;
+  periodEnd?: string;
+  targetDate?: string | null;
+  studyHours?: TimeRange;
+  selfStudyHours?: TimeRange;
+  lunchTime?: TimeRange;
+  blockSetId?: string | null;
+  nonStudyTimeBlocks?: NonStudyTimeBlock[];
+  defaultSchedulerType?: string;
+  defaultSchedulerOptions?: Record<string, unknown>;
+  adminMemo?: string | null;
+  color?: string | null;
+  /** 기본 이벤트 지속시간 (분) */
+  defaultEstimatedMinutes?: number | null;
+  /** 기본 알림 (분 단위 배열) */
+  defaultReminderMinutes?: number[] | null;
+  /** 주 시작 요일 (0=일, 1=월, ..., 6=토) */
+  weekStartsOn?: number;
+  /** 기존 플랜 그룹에도 변경사항을 반영할지 여부 */
+  syncToExistingGroups?: boolean;
+}
+
+/**
+ * 학원일정 입력
+ */
+export interface CalendarAcademyScheduleInput {
+  academyName?: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  subject?: string;
+  travelTime?: number;
+  source?: "manual" | "imported" | "sync";
+}
+
+/**
+ * 제외일 입력
+ */
+export interface CalendarExclusionInput {
+  exclusionDate: string;
+  exclusionType: string;
+  reason?: string;
+  source?: "manual" | "template" | "imported";
 }
 
 // ============================================
@@ -554,36 +582,4 @@ export const PLAN_STATUS_OPTIONS: PlanStatusOption[] = [
   },
 ];
 
-// ============================================
-// 컨테이너 타입 관련 타입
-// ============================================
 
-/**
- * 컨테이너 타입 선택 옵션 (UI용 표준화된 상수)
- */
-export interface ContainerTypeOption {
-  value: ContainerType;
-  label: string;
-  description: string;
-}
-
-/**
- * 표준화된 컨테이너 타입 옵션
- */
-export const CONTAINER_TYPE_OPTIONS: ContainerTypeOption[] = [
-  {
-    value: 'daily',
-    label: 'Daily (일일)',
-    description: '일일 플랜',
-  },
-  {
-    value: 'weekly',
-    label: 'Weekly (주간)',
-    description: '주간 플랜',
-  },
-  {
-    value: 'unfinished',
-    label: 'Unfinished (미완료)',
-    description: '미완료 플랜',
-  },
-];

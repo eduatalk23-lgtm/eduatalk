@@ -72,7 +72,7 @@ export function LearningStatsCard() {
           학습 기록이 없습니다. 첫 플랜을 완료해보세요!
         </p>
         <Link
-          href="/today"
+          href="/plan/calendar"
           className="mt-4 flex items-center justify-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-700"
         >
           오늘의 플랜 보기

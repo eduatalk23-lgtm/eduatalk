@@ -27,6 +27,7 @@ import type {
   ContentSchedulerMode,
   PlanContentWithScheduler,
 } from "@/lib/types/plan/timezone";
+import type { PlanExclusion } from "@/lib/types/plan";
 
 // =====================================================
 // 결과 타입
@@ -185,17 +186,24 @@ export async function generatePlansForContent(
     // 타임존 정보 조회
     const { data: timezone, error: tzError } = await supabase
       .from("plan_groups")
-      .select(
-        `
-        *,
-        plan_exclusions(exclusion_date, type),
-        academy_schedules(day_of_week, start_time, end_time)
-      `
-      )
+      .select("*")
       .eq("id", timezoneId)
       .single();
 
     if (tzError) throw tzError;
+
+    // 제외일 조회 (calendar_events)
+    const { data: calExclusions } = await supabase
+      .from("calendar_events")
+      .select("start_date")
+      .eq("student_id", timezone.student_id)
+      .eq("event_type", "exclusion")
+      .eq("is_all_day", true)
+      .is("deleted_at", null);
+
+    const exclusionList = (calExclusions ?? []).map((e) => ({
+      exclusion_date: e.start_date ?? "",
+    })) as PlanExclusion[];
 
     // 스케줄러 옵션 결정 (inherit인 경우 기본값 사용)
     const schedulerOptions: ContentSchedulerOptions =
@@ -208,10 +216,7 @@ export async function generatePlansForContent(
       timezone.period_start,
       timezone.period_end,
       { study_days: schedulerOptions.study_days ?? 6, review_days: schedulerOptions.review_days ?? 1 },
-      (timezone.plan_exclusions || []).map((e: { exclusion_date: string }) => ({
-        exclusion_date: e.exclusion_date,
-        type: "custom" as const,
-      }))
+      exclusionList
     );
 
     // 1730TimetableLogic의 콘텐츠별 배정 함수 사용
@@ -516,14 +521,23 @@ async function generatePlanPreview(
       `
       period_start,
       period_end,
-      default_scheduler_options,
-      plan_exclusions(exclusion_date)
+      student_id,
+      default_scheduler_options
     `
     )
     .eq("id", timezoneId)
     .single();
 
   if (!timezone) return [];
+
+  // 제외일 조회 (calendar_events)
+  const { data: calExclusions } = await supabase
+    .from("calendar_events")
+    .select("start_date")
+    .eq("student_id", timezone.student_id)
+    .eq("event_type", "exclusion")
+    .eq("is_all_day", true)
+    .is("deleted_at", null);
 
   // 스케줄러 옵션 결정
   const options: ContentSchedulerOptions =
@@ -532,8 +546,8 @@ async function generatePlanPreview(
       : schedulerOptions || getDefaultSchedulerOptions();
 
   // 배정 날짜 계산
-  const exclusionDates = (timezone.plan_exclusions || []).map(
-    (e: { exclusion_date: string }) => e.exclusion_date
+  const exclusionDates = (calExclusions ?? []).map(
+    (e) => e.start_date ?? ""
   );
   const dates = calculateContentAllocationDates(
     timezone.period_start,

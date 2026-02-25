@@ -3,7 +3,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { getCurrentUser } from '@/lib/auth/getCurrentUser';
-import { createPlanGroupForPlanner } from '../utils/planGroupSelector';
+import { createPlanGroupForCalendar } from '../utils/planGroupSelector';
 import { generatePlansWithServices } from '@/lib/plan/services/generatePlansWithServices';
 import { saveRecommendationsToMasterContent } from '@/lib/domains/plan/llm/actions/coldStart/persistence';
 import { logActionDebug, logActionError, logActionWarn } from '@/lib/utils/serverActionLogger';
@@ -40,7 +40,7 @@ interface GenerateSlotBasedPlanResult {
 export async function generateSlotBasedPlanAction(
   input: GenerateSlotBasedPlanInput
 ): Promise<GenerateSlotBasedPlanResult> {
-  const { studentId, tenantId, plannerId, periodStart, periodEnd, slots } = input;
+  const { studentId, tenantId, calendarId, periodStart, periodEnd, slots } = input;
 
   // 인증 확인
   const user = await getCurrentUser();
@@ -49,7 +49,7 @@ export async function generateSlotBasedPlanAction(
   }
 
   // 입력 검증
-  if (!studentId || !tenantId || !plannerId) {
+  if (!studentId || !tenantId || !calendarId) {
     return { success: false, error: '필수 입력값이 누락되었습니다.' };
   }
 
@@ -71,7 +71,7 @@ export async function generateSlotBasedPlanAction(
       slot,
       studentId,
       tenantId,
-      plannerId,
+      calendarId,
       periodStart,
       periodEnd,
       userId: user.userId,
@@ -127,12 +127,12 @@ async function processSlot(params: {
   slot: ConfirmedSlot;
   studentId: string;
   tenantId: string;
-  plannerId: string;
+  calendarId: string;
   periodStart: string;
   periodEnd: string;
   userId: string;
 }): Promise<SlotGenerationResult> {
-  const { slot, studentId, tenantId, plannerId, periodStart, periodEnd, userId } = params;
+  const { slot, studentId, tenantId, calendarId, periodStart, periodEnd, userId } = params;
 
   try {
     let contentId: string = '';
@@ -446,7 +446,7 @@ async function processSlot(params: {
     const { data: existingPlanGroup } = await supabaseForPlanGroup
       .from('plan_groups')
       .select('id, name')
-      .eq('planner_id', plannerId)
+      .eq('calendar_id', calendarId)
       .eq('master_content_id', masterIdForCheck)
       .maybeSingle();
 
@@ -458,8 +458,8 @@ async function processSlot(params: {
       );
     }
 
-    const planGroupResult = await createPlanGroupForPlanner({
-      plannerId,
+    const planGroupResult = await createPlanGroupForCalendar({
+      calendarId,
       studentId,
       tenantId,
       name: contentTitle,

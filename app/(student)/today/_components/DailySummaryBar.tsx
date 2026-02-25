@@ -6,28 +6,26 @@ import { toPlanItemData } from '@/lib/types/planItem';
 import { useStudentPlan } from './context/StudentPlanContext';
 
 export const DailySummaryBar = memo(function DailySummaryBar() {
-  const { studentId, selectedDate, selectedPlannerId, initialDockData, initialDate } = useStudentPlan();
+  const { studentId, selectedDate, selectedCalendarId, initialDockData, initialDate } = useStudentPlan();
 
   // initialDockData는 initialDate에 대한 데이터이므로, selectedDate가 변경되면 무시
   const useInitialData = selectedDate === initialDate;
 
-  const { plans, adHocPlans } = useDailyDockQuery(
+  const { plans } = useDailyDockQuery(
     studentId,
     selectedDate,
-    selectedPlannerId,
-    useInitialData && initialDockData ? { plans: initialDockData.dailyPlans, adHocPlans: initialDockData.dailyAdHocPlans } : undefined
+    selectedCalendarId,
+    useInitialData && initialDockData ? { plans: initialDockData.dailyPlans } : undefined,
+    { useCalendarId: true }
   );
 
   const { completedCount, totalCount } = useMemo(() => {
-    const items = [
-      ...plans.map(p => toPlanItemData(p, 'plan')),
-      ...adHocPlans.map(p => toPlanItemData(p, 'adhoc')),
-    ];
+    const items = plans.map(p => toPlanItemData(p, 'plan'));
     return {
       completedCount: items.filter(p => p.isCompleted).length,
       totalCount: items.length,
     };
-  }, [plans, adHocPlans]);
+  }, [plans]);
 
   const percent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 

@@ -7,7 +7,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { ensurePlannerForPipeline } from "@/lib/domains/plan/actions/planners/autoCreate";
+import { ensureStudentPrimaryCalendar } from "@/lib/domains/calendar/helpers";
 import {
   logActionError,
   logActionWarn,
@@ -82,7 +82,7 @@ function createPersistContext(
  * Plan Group 생성 옵션
  */
 interface CreatePlanGroupOptions {
-  plannerId: string | null;
+  calendarId: string | null;
   creationMode: "wizard" | "content_based" | "template" | "camp" | "free_learning";
   isSingleContent: boolean;
   singleContent?: ResolvedContentItem;
@@ -97,7 +97,7 @@ async function createPlanGroup(
   options: CreatePlanGroupOptions,
   ctx: ActionContext
 ): Promise<{ id: string } | null> {
-  const { plannerId, creationMode, isSingleContent, singleContent } = options;
+  const { calendarId, creationMode, isSingleContent, singleContent } = options;
 
   const { data, error } = await supabase
     .from("plan_groups")
@@ -117,8 +117,8 @@ async function createPlanGroup(
         student_level: input.timetableSettings.studentLevel,
       },
 
-      // Phase 3: 플래너 연계 필드
-      planner_id: plannerId,
+      // Calendar-First: 캘린더 연계 필드
+      calendar_id: calendarId,
       creation_mode: creationMode,
       is_single_content: isSingleContent,
 
@@ -248,26 +248,38 @@ async function createPlanExclusions(
 ): Promise<void> {
   if (exclusions.length === 0) return;
 
-  const exclusionRecords = exclusions.map((e) => ({
-    id: crypto.randomUUID(),
-    tenant_id: tenantId,
-    student_id: studentId,
-    plan_group_id: null,
-    exclusion_date: e.date,
-    exclusion_type: "personal",
-    reason: e.reason ?? null,
-  }));
+  // calendar_events 기반 제외일 생성
+  const { resolveStudentPrimaryCalendarId } = await import(
+    "@/lib/domains/calendar/helpers"
+  );
+  const calendarId = await resolveStudentPrimaryCalendarId(studentId);
+  if (!calendarId) {
+    logActionWarn(ctx, "No primary calendar found for student, skipping exclusions", {
+      step: "createPlanExclusions",
+      studentId,
+    });
+    return;
+  }
+  const { createStudentExclusionsViaCalendar } = await import(
+    "@/lib/data/calendarExclusions"
+  );
+  const result = await createStudentExclusionsViaCalendar(
+    calendarId,
+    studentId,
+    tenantId,
+    exclusions.map((e) => ({
+      exclusion_date: e.date,
+      exclusion_type: "personal",
+      reason: e.reason ?? null,
+    }))
+  );
 
-  const { error } = await supabase
-    .from("plan_exclusions")
-    .insert(exclusionRecords);
-
-  if (error) {
+  if (!result.success) {
     // Exclusion 실패는 전체 트랜잭션을 중단하지 않음 (비필수 데이터)
     logActionWarn(ctx, "Plan exclusions creation failed (non-critical)", {
       step: "createPlanExclusions",
       exclusionCount: exclusions.length,
-      error: error.message,
+      error: result.error,
     });
   }
 }
@@ -302,46 +314,27 @@ export async function persist(
 
   const supabase = await createSupabaseServerClient();
 
-  // Phase 3: 플래너 확보 (공통 유틸리티 사용)
-  const plannerResult = await ensurePlannerForPipeline({
-    existingPlannerId: input.plannerId,
-    studentId: input.studentId,
-    periodStart: input.periodStart,
-    periodEnd: input.periodEnd,
-    validationMode: input.plannerValidationMode ?? "auto_create",
-  });
+  // Calendar-First: 캘린더 확보
+  let effectiveCalendarId: string | null = input.calendarId ?? null;
 
-  // strict 모드에서 플래너 없으면 실패
-  if (!plannerResult.success) {
-    return {
-      success: false,
-      error: plannerResult.error || "플래너 확보에 실패했습니다",
-    };
+  if (!effectiveCalendarId) {
+    // calendarId가 없으면 학생 기본 캘린더 확보
+    try {
+      effectiveCalendarId = await ensureStudentPrimaryCalendar(input.studentId, input.tenantId);
+      logActionDebug(ctx, "학생 기본 캘린더 확보", { calendarId: effectiveCalendarId });
+    } catch {
+      logActionWarn(ctx, "캘린더 없이 계속 진행", { studentId: input.studentId });
+    }
   }
-
-  // 로깅
-  if (plannerResult.isNew) {
-    logActionDebug(ctx, "플래너 자동 생성 성공", {
-      plannerId: plannerResult.plannerId,
-      isNew: true,
-    });
-  } else if (plannerResult.hasWarning) {
-    logActionWarn(ctx, "플래너 없이 계속 진행 (warn 모드)", {
-      step: "ensurePlanner",
-      validationMode: input.plannerValidationMode,
-    });
-  }
-
-  const effectivePlannerId = plannerResult.plannerId;
 
   // 단일 콘텐츠 여부 판단
   const isSingleContent = contentResolution.items.length === 1;
   const singleContent = isSingleContent ? contentResolution.items[0] : undefined;
   const creationMode = input.creationMode ?? "content_based";
 
-  // 1. Plan Group 생성 (플래너 연계)
+  // 1. Plan Group 생성 (캘린더 연계)
   const planGroup = await createPlanGroup(supabase, input, {
-    plannerId: effectivePlannerId,
+    calendarId: effectiveCalendarId,
     creationMode,
     isSingleContent,
     singleContent,
