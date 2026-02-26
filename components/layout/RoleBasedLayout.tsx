@@ -14,6 +14,8 @@ export function RoleBasedLayout({
   wrapper,
   tenantInfo,
   userName,
+  profileImageUrl,
+  userEmail,
   userId,
 }: RoleBasedLayoutProps) {
   const content = (
@@ -26,6 +28,8 @@ export function RoleBasedLayout({
             dashboardHref={dashboardHref}
             roleLabel={roleLabel}
             userName={userName}
+            profileImageUrl={profileImageUrl}
+            userEmail={userEmail}
             userId={userId}
             tenantInfo={tenantInfo}
           />

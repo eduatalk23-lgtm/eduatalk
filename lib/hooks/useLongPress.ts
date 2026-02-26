@@ -9,9 +9,15 @@
 
 import { useCallback, useRef } from "react";
 
+/** 커서/터치 위치 정보 */
+export interface LongPressPosition {
+  x: number;
+  y: number;
+}
+
 interface UseLongPressOptions {
-  /** Long press 발생 시 콜백 */
-  onLongPress: () => void;
+  /** Long press 발생 시 콜백 (위치 정보 포함) */
+  onLongPress: (position?: LongPressPosition) => void;
   /** Long press 감지까지의 지연 시간 (ms, 기본값 500ms) */
   delay?: number;
   /** 움직임 허용 범위 (px, 기본값 10px) - 이 범위를 벗어나면 취소 */
@@ -103,12 +109,12 @@ export function useLongPress({
     startPosRef.current = null;
   }, [clear]);
 
-  // 데스크톱 우클릭
+  // 데스크톱 우클릭 (커서 위치 전달)
   const onContextMenu = useCallback(
     (e: React.MouseEvent) => {
       if (disabled) return;
       e.preventDefault();
-      onLongPress();
+      onLongPress({ x: e.clientX, y: e.clientY });
     },
     [disabled, onLongPress]
   );

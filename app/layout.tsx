@@ -8,6 +8,7 @@ import { SkipLink } from "@/components/layout/SkipLink";
 import { GlobalErrorBoundary } from "@/components/errors/GlobalErrorBoundary";
 import { FloatingChatWidget } from "@/components/chat/FloatingChatWidget";
 import { PushSubscriptionManager } from "@/components/push/PushSubscriptionManager";
+import { PushPermissionBanner } from "@/components/push/PushPermissionBanner";
 import { AppPresenceProvider } from "@/components/push/AppPresenceProvider";
 
 const geistSans = Geist({
@@ -132,6 +133,7 @@ export default function RootLayout({
             <InstallPrompt />
             <ServiceWorkerRegistrar />
             <PushSubscriptionManager />
+            <PushPermissionBanner />
             <AppPresenceProvider />
             <FloatingChatWidget />
           </Providers>

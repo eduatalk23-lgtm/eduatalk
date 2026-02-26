@@ -4,7 +4,7 @@ import { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantInfo } from "@/lib/auth/getTenantInfo";
-import { getCurrentUserName } from "@/lib/auth/getCurrentUserName";
+import { getCurrentUserProfile } from "@/lib/auth/getCurrentUserProfile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { RoleBasedLayout } from "@/components/layout/RoleBasedLayout";
 
@@ -35,10 +35,10 @@ export default async function StudentLayout({ children }: { children: ReactNode 
     redirect("/login?error=account_deactivated");
   }
 
-  // 기관 정보 및 사용자 이름 조회 (이미 조회한 정보 재사용)
-  const [tenantInfo, userName] = await Promise.all([
+  // 기관 정보 및 사용자 프로필 조회 (이미 조회한 정보 재사용)
+  const [tenantInfo, profile] = await Promise.all([
     getTenantInfo(),
-    getCurrentUserName({ userId, role, tenantId }),
+    getCurrentUserProfile({ userId, role, tenantId }),
   ]);
 
   return (
@@ -47,7 +47,9 @@ export default async function StudentLayout({ children }: { children: ReactNode 
       dashboardHref="/dashboard"
       roleLabel="학생"
       tenantInfo={tenantInfo}
-      userName={userName}
+      userName={profile.name}
+      profileImageUrl={profile.profileImageUrl}
+      userEmail={profile.email}
       userId={userId}
     >
       {children}

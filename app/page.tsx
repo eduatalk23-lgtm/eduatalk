@@ -50,32 +50,55 @@ export default async function Home() {
     return <LandingPage />;
   }
 
-  // 학생인 경우 is_active 확인
+  // 역할별 is_active 확인 (superadmin은 시스템 계정이므로 제외)
+  if (role === "superadmin") {
+    redirect("/superadmin/dashboard");
+  }
+
+  const supabaseForCheck = await createSupabaseServerClient();
+
   if (role === "student") {
-    const supabase = await createSupabaseServerClient();
-    const { data: student } = await supabase
+    const { data: student } = await supabaseForCheck
       .from("students")
       .select("is_active")
       .eq("id", userId)
       .maybeSingle();
 
-    // 비활성화된 학생인 경우 로그아웃하고 에러 메시지와 함께 로그인 페이지로 리다이렉트
     if (student && student.is_active === false) {
-      await supabase.auth.signOut();
-      redirect("/login?error=계정이 비활성화되었습니다. 관리자에게 문의하세요.");
+      await supabaseForCheck.auth.signOut().catch(() => {});
+      redirect("/login?error=account_deactivated");
+    }
+  } else if (role === "parent") {
+    const { data: parent } = await supabaseForCheck
+      .from("parent_users")
+      .select("is_active")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (parent && parent.is_active === false) {
+      await supabaseForCheck.auth.signOut().catch(() => {});
+      redirect("/login?error=account_deactivated");
+    }
+  } else if (role === "admin" || role === "consultant") {
+    const { data: adminUser } = await supabaseForCheck
+      .from("admin_users")
+      .select("is_active")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (adminUser && adminUser.is_active === false) {
+      await supabaseForCheck.auth.signOut().catch(() => {});
+      redirect("/login?error=account_deactivated");
     }
   }
 
-  // 역할에 따라 리다이렉트
-  if (role === "superadmin") {
-    // Super Admin은 Super Admin 대시보드로 리다이렉트
-    redirect("/superadmin/dashboard");
-  } else if (role === "admin" || role === "consultant") {
+  // 역할에 따라 리다이렉트 (superadmin은 위에서 이미 처리)
+  if (role === "admin" || role === "consultant") {
     redirect("/admin/dashboard");
   } else if (role === "parent") {
     redirect("/parent/dashboard");
   } else if (role === "student") {
-    redirect("/dashboard");
+    redirect("/plan/calendar");
   } else {
     // role이 null이면 user_metadata에서 signup_role 확인하여 초기 설정 페이지로 리다이렉트
     const supabase = await createSupabaseServerClient();

@@ -92,3 +92,6 @@ python/*.egg-info/
 playwright-report/
 test-results/
 .serena/
+
+# Claude Code memory (auto-generated)
+memory/

@@ -16,6 +16,8 @@ type TopBarProps = {
   dashboardHref: string;
   roleLabel: string;
   userName?: string | null;
+  profileImageUrl?: string | null;
+  userEmail?: string | null;
   userId?: string | null;
   tenantInfo?: RoleBasedLayoutProps["tenantInfo"];
 };
@@ -25,6 +27,8 @@ export function TopBar({
   dashboardHref,
   roleLabel,
   userName,
+  profileImageUrl,
+  userEmail,
   userId,
   tenantInfo,
 }: TopBarProps) {
@@ -104,9 +108,18 @@ export function TopBar({
         </div>
         <ProfileMenu
           userName={userName}
+          profileImageUrl={profileImageUrl}
+          userEmail={userEmail}
           roleLabel={roleLabel}
           tenantInfo={tenantInfo}
           userId={userId}
+          settingsHref={
+            role === "admin" || role === "consultant" || role === "superadmin"
+              ? "/admin/settings"
+              : role === "parent"
+                ? "/parent/settings"
+                : "/settings"
+          }
         />
       </div>
     </header>

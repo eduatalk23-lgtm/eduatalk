@@ -2,20 +2,11 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
-import dynamic from "next/dynamic";
+
 import {
   CACHE_STALE_TIME_DYNAMIC,
   CACHE_GC_TIME_DYNAMIC,
 } from "@/lib/constants/queryCache";
-
-// 개발 환경에서만 ReactQueryDevtools를 동적으로 로드
-const ReactQueryDevtools = dynamic(
-  () =>
-    import("@tanstack/react-query-devtools").then((d) => ({
-      default: d.ReactQueryDevtools,
-    })),
-  { ssr: false }
-);
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -48,9 +39,6 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      {process.env.NODE_ENV === "development" && (
-        <ReactQueryDevtools initialIsOpen={false} />
-      )}
     </QueryClientProvider>
   );
 }

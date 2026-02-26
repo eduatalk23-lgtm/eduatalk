@@ -12,6 +12,10 @@ export type RoleBasedLayoutProps = {
     type?: string;
   } | null;
   userName?: string | null;
+  /** 프로필 이미지 URL */
+  profileImageUrl?: string | null;
+  /** 사용자 이메일 */
+  userEmail?: string | null;
   /** A1 개선: 인앱 알림 센터에 사용할 userId */
   userId?: string | null;
 };

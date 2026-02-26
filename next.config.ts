@@ -56,11 +56,12 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "image.aladin.co.kr",
       },
-      // 필요시 다른 도메인 추가 가능
-      // {
-      //   protocol: "https",
-      //   hostname: "example.com",
-      // },
+      // Supabase Storage (채팅 첨부파일, 프로필 이미지 등)
+      {
+        protocol: "https",
+        hostname: "yiswawnxsrdmvvihhpne.supabase.co",
+        pathname: "/storage/v1/object/public/**",
+      },
     ],
   },
 

@@ -72,7 +72,14 @@ export function useAppPresence(userId: string | null) {
       });
 
       // DB presence 업데이트
-      upsertPresence(status);
+      // iOS PWA: 백그라운드 전환 시 JS가 곧 중단되므로
+      // sendBeacon으로 "idle" 상태를 확실히 전달
+      if (document.hidden && navigator.sendBeacon) {
+        const beaconUrl = `/api/presence?userId=${encodeURIComponent(userId)}&status=idle`;
+        navigator.sendBeacon(beaconUrl);
+      } else {
+        upsertPresence(status);
+      }
     };
 
     document.addEventListener("visibilitychange", handleVisibility);
@@ -84,7 +91,14 @@ export function useAppPresence(userId: string | null) {
         clearInterval(heartbeatRef.current);
         heartbeatRef.current = null;
       }
-      upsertPresence("offline");
+      // sendBeacon으로 "offline" 상태를 확실히 전달 (async upsert 미완료 방지)
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(
+          `/api/presence?userId=${encodeURIComponent(userId)}&status=offline`
+        );
+      } else {
+        upsertPresence("offline");
+      }
       channel.untrack();
       supabase.removeChannel(channel);
     };
