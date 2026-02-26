@@ -4,6 +4,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { syncAuthBanStatus } from "@/lib/auth/syncAuthBanStatus";
+import { revalidatePath } from "next/cache";
 
 /**
  * 관리자 계정 생성
@@ -253,6 +255,140 @@ export const deleteAdminUser = withErrorHandling(
         { originalError: deleteError.message }
       );
     }
+
+    return { success: true };
+  }
+);
+
+/**
+ * 관리자/컨설턴트 비활성화·활성화
+ * 권한 매트릭스: deleteAdminUser와 동일
+ * - 자기 자신 비활성화 불가
+ * - is_owner 보호: superadmin만 대표관리자 비활성화 가능
+ * - 일반 admin(비대표): consultant만 비활성화 가능
+ * - 대표 admin(is_owner): consultant + admin 비활성화 가능
+ */
+export const toggleAdminStatus = withErrorHandling(
+  async (
+    targetUserId: string,
+    isActive: boolean
+  ): Promise<{ success: boolean; error?: string }> => {
+    const { role: currentRole, userId: currentUserId, tenantId } =
+      await requireAdminOrConsultant();
+
+    // admin 또는 superadmin만 허용
+    if (currentRole !== "admin" && currentRole !== "superadmin") {
+      throw new AppError(
+        "관리자 권한이 필요합니다.",
+        ErrorCode.FORBIDDEN,
+        403,
+        true
+      );
+    }
+
+    // 일반 Admin은 tenant 필요
+    if (currentRole === "admin" && !tenantId) {
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    // 자기 자신 비활성화 방지
+    if (currentUserId === targetUserId) {
+      throw new AppError(
+        "자신의 계정 상태는 변경할 수 없습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
+    const supabase = await createSupabaseServerClient();
+
+    // 대상 확인
+    const { data: targetUser } = await supabase
+      .from("admin_users")
+      .select("id, role, tenant_id, is_owner")
+      .eq("id", targetUserId)
+      .maybeSingle();
+
+    if (!targetUser) {
+      throw new AppError(
+        "대상 관리자를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    // Owner 보호: 대표 관리자는 superadmin만 비활성화 가능
+    if (targetUser.is_owner && currentRole !== "superadmin") {
+      throw new AppError(
+        "대표 관리자의 상태는 변경할 수 없습니다.",
+        ErrorCode.FORBIDDEN,
+        403,
+        true
+      );
+    }
+
+    // Non-owner admin은 consultant만 비활성화 가능
+    if (currentRole === "admin") {
+      const { data: currentAdmin } = await supabase
+        .from("admin_users")
+        .select("is_owner")
+        .eq("id", currentUserId)
+        .maybeSingle();
+
+      if (!currentAdmin?.is_owner && targetUser.role !== "consultant") {
+        throw new AppError(
+          "관리자의 상태를 변경할 권한이 없습니다.",
+          ErrorCode.FORBIDDEN,
+          403,
+          true
+        );
+      }
+    }
+
+    // DB 업데이트 (admin client 사용 — RLS UPDATE 정책 우회)
+    const adminClient = createSupabaseAdminClient();
+    if (!adminClient) {
+      throw new AppError(
+        "서버 오류가 발생했습니다.",
+        ErrorCode.INTERNAL_ERROR,
+        500,
+        true
+      );
+    }
+
+    let updateQuery = adminClient
+      .from("admin_users")
+      .update({ is_active: isActive })
+      .eq("id", targetUserId);
+
+    // 일반 Admin인 경우 tenant_id로 필터링 (추가 안전장치)
+    if (currentRole === "admin" && tenantId) {
+      updateQuery = updateQuery.eq("tenant_id", tenantId);
+    }
+
+    const { error: updateError } = await updateQuery;
+
+    if (updateError) {
+      throw new AppError(
+        updateError.message || "상태 변경에 실패했습니다.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true,
+        { originalError: updateError.message }
+      );
+    }
+
+    // Supabase Auth ban_duration 동기화
+    await syncAuthBanStatus(targetUserId, isActive);
+
+    revalidatePath("/admin/settings");
 
     return { success: true };
   }

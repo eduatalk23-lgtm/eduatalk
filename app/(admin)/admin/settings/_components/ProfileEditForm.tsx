@@ -1,14 +1,9 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
-import {
-  updateMyProfile,
-  uploadProfileImage,
-  deleteProfileImage,
-} from "@/lib/domains/team/actions/profile";
+import { useState, useTransition } from "react";
+import { updateMyProfile } from "@/lib/domains/team/actions/profile";
 import { useToast } from "@/components/ui/ToastProvider";
-import { Avatar } from "@/components/atoms/Avatar";
-import { Camera, Trash2 } from "lucide-react";
+import ProfileImageUploader from "@/components/molecules/ProfileImageUploader";
 
 type ProfileEditFormProps = {
   initialName: string;
@@ -33,12 +28,9 @@ export default function ProfileEditForm({
   const [jobTitle, setJobTitle] = useState(initialJobTitle || "");
   const [department, setDepartment] = useState(initialDepartment || "");
   const [phone, setPhone] = useState(initialPhone || "");
-  const [profileImageUrl, setProfileImageUrl] = useState(initialProfileImageUrl || null);
   const [isEditing, setIsEditing] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const [isUploading, setIsUploading] = useState(false);
   const { showToast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const roleLabel =
     role === "admin" ? "관리자" : role === "consultant" ? "상담사" : "슈퍼관리자";
@@ -76,44 +68,6 @@ export default function ProfileEditForm({
     setIsEditing(false);
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const result = await uploadProfileImage(formData);
-
-    if (result.success && result.url) {
-      setProfileImageUrl(result.url);
-      showToast("프로필 이미지가 업로드되었습니다.", "success");
-    } else {
-      showToast(result.error || "이미지 업로드에 실패했습니다.", "error");
-    }
-
-    setIsUploading(false);
-    // 파일 input 초기화
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const handleImageDelete = async () => {
-    if (!confirm("프로필 이미지를 삭제하시겠습니까?")) return;
-
-    setIsUploading(true);
-    const result = await deleteProfileImage();
-
-    if (result.success) {
-      setProfileImageUrl(null);
-      showToast("프로필 이미지가 삭제되었습니다.", "success");
-    } else {
-      showToast(result.error || "이미지 삭제에 실패했습니다.", "error");
-    }
-
-    setIsUploading(false);
-  };
-
   return (
     <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-800">
       <div className="flex items-center justify-between">
@@ -130,49 +84,11 @@ export default function ProfileEditForm({
       </div>
 
       {/* 프로필 이미지 */}
-      <div className="flex items-center gap-4">
-        <div className="relative">
-          <Avatar
-            src={profileImageUrl}
-            name={name || email || ""}
-            size="xl"
-          />
-          {isEditing && (
-            <div className="absolute -bottom-1 -right-1 flex gap-1">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
-                className="rounded-full bg-indigo-600 p-1.5 text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-50"
-                title="이미지 변경"
-              >
-                <Camera className="size-3.5" />
-              </button>
-              {profileImageUrl && (
-                <button
-                  type="button"
-                  onClick={handleImageDelete}
-                  disabled={isUploading}
-                  className="rounded-full bg-red-600 p-1.5 text-white shadow-sm transition hover:bg-red-700 disabled:opacity-50"
-                  title="이미지 삭제"
-                >
-                  <Trash2 className="size-3.5" />
-                </button>
-              )}
-            </div>
-          )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            onChange={handleImageUpload}
-            className="hidden"
-          />
-        </div>
-        {isUploading && (
-          <span className="text-sm text-gray-500">업로드 중...</span>
-        )}
-      </div>
+      <ProfileImageUploader
+        currentImageUrl={initialProfileImageUrl}
+        name={name || email || ""}
+        disabled={!isEditing}
+      />
 
       {isEditing ? (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">

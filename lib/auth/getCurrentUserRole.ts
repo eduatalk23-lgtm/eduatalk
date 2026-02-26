@@ -89,11 +89,11 @@ async function fetchAdminRole(
 async function fetchParentRole(
   supabase: SupabaseClient,
   userId: string
-): Promise<{ role: "parent"; tenantId: null } | null> {
+): Promise<{ role: "parent"; tenantId: string | null } | null> {
   const selectParent = () =>
     supabase
       .from("parent_users")
-      .select("id")
+      .select("id, tenant_id")
       .eq("id", userId)
       .maybeSingle();
 
@@ -114,7 +114,7 @@ async function fetchParentRole(
 
   return {
     role: "parent",
-    tenantId: null,
+    tenantId: parent.tenant_id ?? null,
   };
 }
 

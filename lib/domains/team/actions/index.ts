@@ -9,9 +9,4 @@ export {
 
 export { removeTeamMember, updateMemberRole, transferOwnership } from "./members";
 
-export {
-  getMyProfile,
-  updateMyProfile,
-  uploadProfileImage,
-  deleteProfileImage,
-} from "./profile";
+export { getMyProfile, updateMyProfile } from "./profile";

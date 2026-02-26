@@ -77,6 +77,14 @@ function getLoginErrorMessage(errorMessage: string): string {
     return "계정이 잠겼습니다. 관리자에게 문의해주세요.";
   }
 
+  // 계정 비활성화 (ban)
+  if (
+    lowerMessage.includes("user is banned") ||
+    lowerMessage.includes("user banned")
+  ) {
+    return "비활성화된 계정입니다. 관리자에게 문의해주세요.";
+  }
+
   // 네트워크 오류
   if (
     lowerMessage.includes("network") ||
