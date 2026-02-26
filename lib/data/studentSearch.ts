@@ -17,6 +17,7 @@ export type StudentSearchParams = {
     class?: string;
     division?: StudentDivision | null;
     isActive?: boolean;
+    status?: string;
   };
   limit?: number;
   offset?: number;
@@ -36,7 +37,10 @@ export type StudentSearchResult = {
   father_phone: string | null;
   school_name: string | null;
   gender: "남" | "여" | null;
+  is_active: boolean;
+  status: string | null;
   matched_field: "name" | "phone" | "mother_phone" | "father_phone" | null;
+  profile_image_url: string | null;
 };
 
 export type StudentSearchResponse = {
@@ -104,7 +108,7 @@ function buildBaseQuery(
   }
   let baseQuery = adminClient
     .from("students")
-    .select("id, name, grade, class, division, is_active");
+    .select("id, name, grade, class, division, is_active, gender");
 
   // tenant_id 필터 (있는 경우)
   if (tenantId) {
@@ -132,6 +136,9 @@ function buildBaseQuery(
   if (filters?.isActive !== undefined) {
     baseQuery = baseQuery.eq("is_active", filters.isActive);
   }
+  if (filters?.status) {
+    baseQuery = baseQuery.eq("status", filters.status);
+  }
 
   // 제외할 학생 ID 필터
   if (excludeStudentIds.length > 0) {
@@ -153,27 +160,27 @@ async function collectPhoneMatchedIds(
   }
   const phoneMatchedIds = new Set<string>();
 
-  // student_profiles에서 연락처 검색
-  const { data: profiles, error: profilesError } = await adminClient
-    .from("student_profiles")
+  // students 테이블에서 연락처 검색 (phone, mother_phone, father_phone 통합됨)
+  const { data: phoneMatches, error: phoneError } = await adminClient
+    .from("students")
     .select("id, phone, mother_phone, father_phone")
     .or(
       `phone.ilike.%${normalizedQuery}%,mother_phone.ilike.%${normalizedQuery}%,father_phone.ilike.%${normalizedQuery}%`
     );
 
-  if (profilesError) {
-    console.error("[studentSearch] student_profiles 조회 실패", profilesError);
+  if (phoneError) {
+    console.error("[studentSearch] students 연락처 조회 실패", phoneError);
   }
 
-  // student_profiles에서 매칭된 ID 수집
-  if (profiles) {
-    profiles.forEach((profile) => {
+  // 매칭된 ID 수집
+  if (phoneMatches) {
+    phoneMatches.forEach((student) => {
       if (
-        profile.phone?.includes(normalizedQuery) ||
-        profile.mother_phone?.includes(normalizedQuery) ||
-        profile.father_phone?.includes(normalizedQuery)
+        student.phone?.includes(normalizedQuery) ||
+        student.mother_phone?.includes(normalizedQuery) ||
+        student.father_phone?.includes(normalizedQuery)
       ) {
-        phoneMatchedIds.add(profile.id);
+        phoneMatchedIds.add(student.id);
       }
     });
   }
@@ -339,7 +346,7 @@ export async function searchStudentsUnified(
   const baseQuery = buildBaseQuery(adminClient, filters, excludeStudentIds, tenantId);
   const { data: students, error: studentsError } = await baseQuery
     .in("id", studentIds)
-    .select("id, name, grade, class, division, is_active, school_name");
+    .select("id, name, grade, class, division, is_active, status, school_name, gender, profile_image_url");
 
   if (studentsError) {
     console.error("[studentSearch] 학생 데이터 조회 실패", studentsError);
@@ -350,15 +357,14 @@ export async function searchStudentsUnified(
     return { students: [], total: 0 };
   }
 
-  // 4단계: 연락처 + 성별 정보 일괄 조회
+  // 4단계: 연락처 + 성별 정보 (students 테이블에 통합됨 — 이미 조회된 데이터 활용)
   const { getStudentPhonesBatch } = await import("@/lib/utils/studentPhoneUtils");
-  const [phoneDataList, genderResult] = await Promise.all([
-    getStudentPhonesBatch(studentIds),
-    adminClient.from("student_profiles").select("id, gender").in("id", studentIds),
-  ]);
+  const phoneDataList = await getStudentPhonesBatch(studentIds);
   const phoneDataMap = new Map(phoneDataList.map((p) => [p.id, p]));
+
+  // gender는 students에 이미 있으므로 별도 쿼리 불필요
   const genderMap = new Map(
-    (genderResult.data ?? []).map((p: { id: string; gender: string | null }) => [p.id, p.gender])
+    students.map((s) => [s.id, s.gender as string | null])
   );
 
   // 5단계: 결과 매핑 및 matched_field 설정
@@ -383,7 +389,10 @@ export async function searchStudentsUnified(
       father_phone: phoneData?.father_phone ?? null,
       school_name: student.school_name ?? null,
       gender: (genderMap.get(student.id) as "남" | "여" | null) ?? null,
+      is_active: (student.is_active as boolean | null) ?? true,
+      status: (student.status as string | null) ?? null,
       matched_field: matchedField,
+      profile_image_url: (student.profile_image_url as string | null) ?? null,
     };
   });
 

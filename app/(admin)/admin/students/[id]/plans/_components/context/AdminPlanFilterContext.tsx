@@ -160,6 +160,12 @@ export function AdminPlanFilterProvider({
         return;
       }
 
+      // parent 모드: /parent/calendar 경로 유지 (studentId 쿼리 파라미터 포함)
+      if (viewMode === "parent") {
+        router.replace(`/parent/calendar?studentId=${studentId}&date=${date}`, { scroll: false });
+        return;
+      }
+
       if (selectedCalendarId) {
         const basePath = viewMode === "student"
           ? `/plan/calendar/${selectedCalendarId}`

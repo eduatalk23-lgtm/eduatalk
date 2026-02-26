@@ -1,16 +1,15 @@
 /**
  * 학생 영역 카테고리 설정
  *
- * 구조 (7개 카테고리):
+ * 구조 (8개 카테고리):
  * 1. 홈 - 대시보드
  * 2. 캘린더 - 핵심 기능 (GCal 뷰)
  * 3. 플랜 관리 - 플랜 + 콘텐츠 + 시간 통합
  * 4. 캠프 - 캠프 관련 기능
- * 5. 학습 분석 - 분석 + 리포트 통합
- * 6. 성적 관리 - 성적 입력 및 분석
- * 7. 설정 - 출석 + 프로필 + 계정 통합
- *
- * Note: 채팅은 플로팅 위젯(FloatingChatWidget)으로 제공
+ * 5. 채팅 - 상담사/관리자 채팅
+ * 6. 학습 분석 - 분석 + 리포트 통합
+ * 7. 성적 관리 - 성적 입력 및 분석
+ * 8. 설정 - 출석 + 프로필 + 계정 통합
  */
 
 "use client";
@@ -40,6 +39,7 @@ import {
   Home,
   CalendarX,
   FolderKanban,
+  MessageSquare,
 } from "lucide-react";
 
 export const studentCategories: NavigationCategory[] = [
@@ -160,7 +160,22 @@ export const studentCategories: NavigationCategory[] = [
     ],
   },
 
-  // 5. 학습 분석 (분석 + 리포트 통합)
+  // 5. 채팅
+  {
+    id: "chat",
+    label: "채팅",
+    icon: <MessageSquare className="w-4 h-4" />,
+    items: [
+      {
+        id: "chat-main",
+        label: "채팅",
+        href: "/chat",
+        icon: <MessageSquare className="w-4 h-4" />,
+      },
+    ],
+  },
+
+  // 6. 학습 분석 (분석 + 리포트 통합)
   {
     id: "analysis",
     label: "학습 분석",

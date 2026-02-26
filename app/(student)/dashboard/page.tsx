@@ -2,18 +2,17 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import {
-  fetchTodayProgress,
-} from "./_utils";
-import { SmartInsightsCard } from "./_components/SmartInsightsCard";
-import { LearningStatsCard } from "./_components/LearningStatsCard";
+// TODO: 비활성화된 섹션 재활성화 시 import 복원
+// import { fetchTodayProgress } from "./_utils";
+// import { SmartInsightsCard } from "./_components/SmartInsightsCard";
+// import { LearningStatsCard } from "./_components/LearningStatsCard";
 // TODO: AI 기능 정상화 후 재활성화
 // import { MLPredictionCard } from "./_components/MLPredictionCard";
 // import { AIRecommendationCard } from "./_components/AIRecommendationCard";
 import { perfTime } from "@/lib/utils/perfLog";
 import { getDashboardCategories } from "@/lib/navigation/dashboardUtils";
 import { getContainerClass } from "@/lib/constants/layout";
-import { bgSurfaceVar, textPrimaryVar, textSecondaryVar, borderDefaultVar, getGradientCardClasses, getIndigoTextClasses, type GradientColor } from "@/lib/utils/darkMode";
+import { bgSurfaceVar, textPrimaryVar, textSecondaryVar, borderDefaultVar, getGradientCardClasses, type GradientColor } from "@/lib/utils/darkMode";
 import { cn } from "@/lib/cn";
 
 type StudentRow = {
@@ -45,15 +44,15 @@ export default async function DashboardPage() {
     // 에러가 발생해도 페이지는 표시되도록 함
   }
 
-  // 오늘 날짜 계산
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayDate = today.toISOString().slice(0, 10);
+  // TODO: 비활성화된 진행률 재활성화 시 복원
+  // const today = new Date();
+  // today.setHours(0, 0, 0, 0);
+  // const todayDate = today.toISOString().slice(0, 10);
 
-  // 최소 데이터만 조회 (지연 로딩을 위해 activePlanId만 확인)
-  const dataTimer = perfTime("[dashboard] data - minimal");
-  const todayProgress = await fetchTodayProgress(supabase, user.id, todayDate);
-  dataTimer.end();
+  // TODO: 비활성화된 진행률 재활성화 시 복원
+  // const dataTimer = perfTime("[dashboard] data - minimal");
+  // const todayProgress = await fetchTodayProgress(supabase, user.id, todayDate);
+  // dataTimer.end();
 
   const studentName = student?.name ?? "학생";
 
@@ -75,6 +74,7 @@ export default async function DashboardPage() {
                   </p>
                 </div>
 
+                {/* TODO: 오늘 학습 진행률 - 비활성화
                 <div className="flex items-baseline gap-3 pt-2">
                   <span className={cn("text-4xl md:text-5xl font-bold", getIndigoTextClasses("heading"))}>
                     {todayProgress}%
@@ -83,15 +83,17 @@ export default async function DashboardPage() {
                     오늘 학습 진행률
                   </span>
                 </div>
+                */}
               </div>
             </div>
           </div>
 
-          {/* 스마트 인사이트 & 학습 통계 */}
+          {/* TODO: 스마트 인사이트 & 학습 통계 - 비활성화
           <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
             <SmartInsightsCard />
             <LearningStatsCard />
           </div>
+          */}
 
           {/* TODO: AI 기능 정상화 후 재활성화
           <div className="grid gap-4 md:gap-6 lg:grid-cols-2">

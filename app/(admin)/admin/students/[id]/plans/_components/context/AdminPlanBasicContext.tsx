@@ -14,7 +14,7 @@ import {
 } from "@/lib/domains/admin-plan/utils/calendarPermission";
 
 /** 뷰 모드 타입 */
-export type ViewMode = "admin" | "student" | "personal";
+export type ViewMode = "admin" | "student" | "personal" | "parent";
 
 /**
  * Basic Context - 거의 변하지 않는 정적 정보
@@ -107,7 +107,7 @@ export function AdminPlanBasicProvider({
   const toast = useToast();
   const selectedCalendarId = calendarId;
   const canCreatePlans = !!selectedCalendarId;
-  const isAdminMode = viewMode !== "student";
+  const isAdminMode = viewMode === "admin" || viewMode === "personal";
 
   // 권한 시스템 계산
   const calendarPermission = useMemo(

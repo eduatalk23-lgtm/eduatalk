@@ -17,8 +17,10 @@ import type { CalendarPermission } from "@/lib/types/plan";
  * 뷰 모드 타입
  * admin: 관리자 모드 (모든 권한)
  * student: 학생 모드 (소유권에 따른 권한)
+ * personal: 관리자 본인 캘린더 모드
+ * parent: 학부모 모드 (조회 전용)
  */
-export type ViewMode = "admin" | "student" | "personal";
+export type ViewMode = "admin" | "student" | "personal" | "parent";
 
 /**
  * 캘린더 정보 (권한 확인에 필요한 최소 정보)
@@ -50,8 +52,13 @@ export function getCalendarPermission(
   calendar: CalendarInfo | null,
   currentUserId: string | null
 ): CalendarPermission {
+  // 학부모 모드 → 항상 view_only (조회 전용)
+  if (viewMode === "parent") {
+    return "view_only";
+  }
+
   // 관리자 모드 (admin / personal) → 항상 full
-  if (viewMode !== "student") {
+  if (viewMode === "admin" || viewMode === "personal") {
     return "full";
   }
 

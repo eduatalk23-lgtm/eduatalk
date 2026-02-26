@@ -27,7 +27,7 @@ export type AdminStudentFormData = BaseStudentFormData & {
  * 학생 정보 조회용 통합 데이터 타입
  */
 export type StudentInfoData = {
-  // students 테이블
+  // students 테이블 (프로필 + 진로 정보 통합됨)
   id: string;
   name?: string | null;
   grade?: string | null;
@@ -41,7 +41,7 @@ export type StudentInfoData = {
   status?: "enrolled" | "on_leave" | "graduated" | "transferred" | null;
   is_active?: boolean | null;
   tenant_id?: string | null;
-  // student_profiles 테이블
+  // 프로필 필드
   gender?: "남" | "여" | null;
   phone?: string | null;
   mother_phone?: string | null;
@@ -50,7 +50,7 @@ export type StudentInfoData = {
   emergency_contact?: string | null;
   emergency_contact_phone?: string | null;
   medical_info?: string | null;
-  // student_career_goals 테이블
+  // 진로 필드
   exam_year?: number | null;
   curriculum_revision?: "2009 개정" | "2015 개정" | "2022 개정" | null;
   desired_university_ids?: string[] | null;

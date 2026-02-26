@@ -1,14 +1,20 @@
 import { queryOptions } from "@tanstack/react-query";
-import { searchStudentsAction } from "@/lib/domains/student/actions/search";
+import {
+  searchStudentsAction,
+  type StudentSearchFilters,
+} from "@/lib/domains/student/actions/search";
 import { getStudentDetailAction } from "@/lib/domains/student/actions/detail";
 
 /**
  * 학생 검색 쿼리 옵션
  */
-export function studentSearchQueryOptions(query: string) {
+export function studentSearchQueryOptions(
+  query: string,
+  filters?: StudentSearchFilters
+) {
   return queryOptions({
-    queryKey: ["studentSearch", query] as const,
-    queryFn: () => searchStudentsAction(query),
+    queryKey: ["studentSearch", query, filters ?? {}] as const,
+    queryFn: () => searchStudentsAction(query, filters),
     staleTime: 1000 * 120, // 2분
     refetchOnWindowFocus: false,
   });

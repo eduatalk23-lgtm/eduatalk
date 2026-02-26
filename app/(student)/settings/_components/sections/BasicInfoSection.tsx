@@ -5,6 +5,7 @@ import FormField, { FormSelect } from "@/components/molecules/FormField";
 import SchoolSelect from "@/components/ui/SchoolSelect";
 import type { StudentFormData } from "../../types";
 import { GENDER_OPTIONS } from "@/lib/utils/studentProfile";
+import { STUDENT_DIVISIONS } from "@/lib/constants/students";
 
 type BasicInfoSectionProps = {
   control: Control<StudentFormData>;
@@ -55,6 +56,11 @@ export default function BasicInfoSection({
 
   const classField = useController({
     name: "class",
+    control,
+  });
+
+  const divisionField = useController({
+    name: "division",
     control,
   });
 
@@ -142,8 +148,21 @@ export default function BasicInfoSection({
             />
           </div>
 
-          {/* 학년 / 반 */}
+          {/* 학부 / 학년 / 반 */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <FormSelect
+              {...divisionField.field}
+              label="학부"
+              disabled={disabled}
+              options={[
+                { value: "", label: "선택 안 함" },
+                ...STUDENT_DIVISIONS.map((d) => ({
+                  value: d.value,
+                  label: d.label,
+                })),
+              ]}
+              error={divisionField.fieldState.error?.message}
+            />
             <FormSelect
               {...gradeField.field}
               label="학년"

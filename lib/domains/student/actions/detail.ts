@@ -18,7 +18,7 @@ export type StudentDetailResult = {
 
 /**
  * 학생 상세 조회 서버 액션 (통합 관리 화면용)
- * students + student_profiles + student_career_goals + auth email 조회
+ * students 단일 테이블 + auth email 조회 (2개 쿼리)
  */
 export async function getStudentDetailAction(
   studentId: string
@@ -33,36 +33,23 @@ export async function getStudentDetailAction(
       return { success: false, error: "Admin client 초기화 실패" };
     }
 
-    // 4개 쿼리 병렬 실행 (이메일은 getUserById로 단건 조회)
-    const [studentResult, profileResult, careerGoalResult, authUserResult] =
-      await Promise.all([
-        supabase
-          .from("students")
-          .select(
-            "id,name,grade,class,birth_date,school_id,school_name,school_type,division,memo,status,is_active,created_at,updated_at"
-          )
-          .eq("id", studentId)
-          .maybeSingle(),
-        adminClient
-          .from("student_profiles")
-          .select("id,gender,phone,mother_phone,father_phone,address,emergency_contact,emergency_contact_phone,medical_info")
-          .eq("id", studentId)
-          .maybeSingle(),
-        adminClient
-          .from("student_career_goals")
-          .select("student_id,exam_year,curriculum_revision,desired_university_ids,desired_career_field")
-          .eq("student_id", studentId)
-          .maybeSingle(),
-        adminClient.auth.admin.getUserById(studentId),
-      ]);
+    // 2개 쿼리 병렬 실행 (students + auth)
+    const [studentResult, authUserResult] = await Promise.all([
+      adminClient
+        .from("students")
+        .select(
+          "id,name,grade,class,birth_date,school_id,school_name,school_type,division,memo,status,is_active,gender,phone,mother_phone,father_phone,address,emergency_contact,emergency_contact_phone,medical_info,exam_year,curriculum_revision,desired_university_ids,desired_career_field"
+        )
+        .eq("id", studentId)
+        .maybeSingle(),
+      adminClient.auth.admin.getUserById(studentId),
+    ]);
 
     if (studentResult.error || !studentResult.data) {
       return { success: false, error: "학생 정보를 찾을 수 없습니다." };
     }
 
     const student = studentResult.data;
-    const profile = profileResult.data;
-    const careerGoal = careerGoalResult.data;
     const authUser = authUserResult.data?.user;
     const email = authUser?.email ?? null;
     const authProvider = extractPrimaryProvider(authUser?.identities);
@@ -75,7 +62,7 @@ export async function getStudentDetailAction(
     } = {
       id: student.id,
       name: student.name,
-      grade: student.grade,
+      grade: student.grade != null ? String(student.grade) : null,
       class: student.class,
       birth_date: student.birth_date,
       school_id: student.school_id,
@@ -94,24 +81,24 @@ export async function getStudentDetailAction(
         | "transferred"
         | null,
       is_active: student.is_active ?? true,
-      // profile
-      gender: (profile?.gender as "남" | "여" | null) ?? null,
-      phone: profile?.phone ?? null,
-      mother_phone: profile?.mother_phone ?? null,
-      father_phone: profile?.father_phone ?? null,
-      address: profile?.address ?? null,
-      emergency_contact: profile?.emergency_contact ?? null,
-      emergency_contact_phone: profile?.emergency_contact_phone ?? null,
-      medical_info: profile?.medical_info ?? null,
-      // career
-      exam_year: careerGoal?.exam_year ?? null,
-      curriculum_revision: careerGoal?.curriculum_revision as
+      // profile (now in students table)
+      gender: (student.gender as "남" | "여" | null) ?? null,
+      phone: student.phone ?? null,
+      mother_phone: student.mother_phone ?? null,
+      father_phone: student.father_phone ?? null,
+      address: student.address ?? null,
+      emergency_contact: student.emergency_contact ?? null,
+      emergency_contact_phone: student.emergency_contact_phone ?? null,
+      medical_info: student.medical_info ?? null,
+      // career (now in students table)
+      exam_year: student.exam_year ?? null,
+      curriculum_revision: student.curriculum_revision as
         | "2009 개정"
         | "2015 개정"
         | "2022 개정"
         | null,
-      desired_university_ids: careerGoal?.desired_university_ids ?? null,
-      desired_career_field: careerGoal?.desired_career_field ?? null,
+      desired_university_ids: student.desired_university_ids ?? null,
+      desired_career_field: student.desired_career_field ?? null,
       // auth
       email,
       authProvider,

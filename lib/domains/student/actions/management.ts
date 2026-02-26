@@ -9,6 +9,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { AppError, ErrorCode } from "@/lib/errors";
 import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
+import { syncAuthBanStatus, bulkSyncAuthBanStatus } from "@/lib/auth/syncAuthBanStatus";
 
 /**
  * 학생 계정 비활성화/활성화
@@ -54,6 +55,9 @@ export async function toggleStudentStatus(
   if (!updatedRows || updatedRows.length === 0) {
     return { success: false, error: "학생을 찾을 수 없습니다." };
   }
+
+  // Supabase Auth ban_duration 동기화
+  await syncAuthBanStatus(studentId, isActive);
 
   revalidatePath("/admin/students");
   revalidatePath(`/admin/students/${studentId}`);
@@ -281,6 +285,10 @@ export async function bulkToggleStudentStatus(
     };
   }
 
+  // Supabase Auth ban_duration 벌크 동기화
+  const updatedIds = data?.map((row) => row.id) ?? studentIds;
+  await bulkSyncAuthBanStatus(updatedIds, isActive);
+
   revalidatePath("/admin/students");
 
   const updatedCount = data?.length ?? count ?? studentIds.length;
@@ -494,7 +502,7 @@ export async function updateStudentClass(
 
 /**
  * 통합 학생 정보 업데이트 (관리자 전용)
- * 3개 테이블(students, student_profiles, student_career_goals)을 한 번에 업데이트
+ * students 단일 테이블에서 기본 + 프로필 + 진로 정보 업데이트
  */
 export async function updateStudentInfo(
   studentId: string,
@@ -622,132 +630,111 @@ export async function updateStudentInfo(
           error: updateError.message || "학생 정보 업데이트에 실패했습니다.",
         };
       }
+
+      // is_active 변경 시 Supabase Auth ban_duration 동기화
+      if (payload.basic.is_active !== undefined) {
+        await syncAuthBanStatus(studentId, payload.basic.is_active);
+      }
     }
   }
 
-  // 2. 프로필 정보 업데이트
-  if (payload.profile) {
-    const {
-      upsertStudentProfile,
-    } = await import("@/lib/data/studentProfiles");
+  // 2. 프로필 + 진로 정보 업데이트 (students 테이블에 통합됨 — 단일 UPDATE)
+  if (payload.profile || payload.career) {
     const {
       normalizePhoneNumber,
       validatePhoneNumber,
     } = await import("@/lib/utils/studentFormUtils");
 
-    // 전화번호 검증 및 정규화
-    const phoneRaw = payload.profile.phone;
-    const motherPhoneRaw = payload.profile.mother_phone;
-    const fatherPhoneRaw = payload.profile.father_phone;
-    const emergencyPhoneRaw = payload.profile.emergency_contact_phone;
+    const updateData: Record<string, unknown> = {};
 
-    if (phoneRaw) {
-      const phoneValidation = validatePhoneNumber(phoneRaw);
-      if (!phoneValidation.valid) {
-        return { success: false, error: `본인 연락처: ${phoneValidation.error}` };
+    // 프로필 정보 처리
+    if (payload.profile) {
+      const phoneRaw = payload.profile.phone;
+      const motherPhoneRaw = payload.profile.mother_phone;
+      const fatherPhoneRaw = payload.profile.father_phone;
+      const emergencyPhoneRaw = payload.profile.emergency_contact_phone;
+
+      if (phoneRaw) {
+        const phoneValidation = validatePhoneNumber(phoneRaw);
+        if (!phoneValidation.valid) {
+          return { success: false, error: `본인 연락처: ${phoneValidation.error}` };
+        }
       }
-    }
 
-    if (motherPhoneRaw) {
-      const motherPhoneValidation = validatePhoneNumber(motherPhoneRaw);
-      if (!motherPhoneValidation.valid) {
-        return {
-          success: false,
-          error: `모 연락처: ${motherPhoneValidation.error}`,
-        };
+      if (motherPhoneRaw) {
+        const motherPhoneValidation = validatePhoneNumber(motherPhoneRaw);
+        if (!motherPhoneValidation.valid) {
+          return { success: false, error: `모 연락처: ${motherPhoneValidation.error}` };
+        }
       }
-    }
 
-    if (fatherPhoneRaw) {
-      const fatherPhoneValidation = validatePhoneNumber(fatherPhoneRaw);
-      if (!fatherPhoneValidation.valid) {
-        return {
-          success: false,
-          error: `부 연락처: ${fatherPhoneValidation.error}`,
-        };
+      if (fatherPhoneRaw) {
+        const fatherPhoneValidation = validatePhoneNumber(fatherPhoneRaw);
+        if (!fatherPhoneValidation.valid) {
+          return { success: false, error: `부 연락처: ${fatherPhoneValidation.error}` };
+        }
       }
-    }
 
-    if (emergencyPhoneRaw) {
-      const emergencyPhoneValidation = validatePhoneNumber(emergencyPhoneRaw);
-      if (!emergencyPhoneValidation.valid) {
-        return {
-          success: false,
-          error: `비상연락처: ${emergencyPhoneValidation.error}`,
-        };
+      if (emergencyPhoneRaw) {
+        const emergencyPhoneValidation = validatePhoneNumber(emergencyPhoneRaw);
+        if (!emergencyPhoneValidation.valid) {
+          return { success: false, error: `비상연락처: ${emergencyPhoneValidation.error}` };
+        }
       }
+
+      const normalizeOptional = (raw: string | null | undefined) =>
+        raw !== undefined ? (raw ? normalizePhoneNumber(raw) : null) : undefined;
+
+      const phone = normalizeOptional(phoneRaw);
+      const motherPhone = normalizeOptional(motherPhoneRaw);
+      const fatherPhone = normalizeOptional(fatherPhoneRaw);
+      const emergencyPhone = normalizeOptional(emergencyPhoneRaw);
+
+      if (phoneRaw && phone === null) {
+        return { success: false, error: "본인 연락처 형식이 올바르지 않습니다 (010-1234-5678)" };
+      }
+      if (motherPhoneRaw && motherPhone === null) {
+        return { success: false, error: "모 연락처 형식이 올바르지 않습니다 (010-1234-5678)" };
+      }
+      if (fatherPhoneRaw && fatherPhone === null) {
+        return { success: false, error: "부 연락처 형식이 올바르지 않습니다 (010-1234-5678)" };
+      }
+      if (emergencyPhoneRaw && emergencyPhone === null) {
+        return { success: false, error: "비상연락처 형식이 올바르지 않습니다 (010-1234-5678)" };
+      }
+
+      if (payload.profile.gender !== undefined) updateData.gender = payload.profile.gender;
+      if (phone !== undefined) updateData.phone = phone;
+      if (motherPhone !== undefined) updateData.mother_phone = motherPhone;
+      if (fatherPhone !== undefined) updateData.father_phone = fatherPhone;
+      if (payload.profile.address !== undefined) updateData.address = payload.profile.address;
+      if (payload.profile.emergency_contact !== undefined) updateData.emergency_contact = payload.profile.emergency_contact;
+      if (emergencyPhone !== undefined) updateData.emergency_contact_phone = emergencyPhone;
+      if (payload.profile.medical_info !== undefined) updateData.medical_info = payload.profile.medical_info;
     }
 
-    // 전화번호 정규화 (undefined → 미변경, null/빈값 → null, 유효값 → 정규화)
-    const normalizeOptional = (raw: string | null | undefined) =>
-      raw !== undefined ? (raw ? normalizePhoneNumber(raw) : null) : undefined;
-
-    const phone = normalizeOptional(phoneRaw);
-    const motherPhone = normalizeOptional(motherPhoneRaw);
-    const fatherPhone = normalizeOptional(fatherPhoneRaw);
-    const emergencyPhone = normalizeOptional(emergencyPhoneRaw);
-
-    // 정규화 실패 시 에러 반환 (값이 있는데 정규화 결과가 null인 경우)
-    if (phoneRaw && phone === null) {
-      return {
-        success: false,
-        error: "본인 연락처 형식이 올바르지 않습니다 (010-1234-5678)",
-      };
-    }
-    if (motherPhoneRaw && motherPhone === null) {
-      return {
-        success: false,
-        error: "모 연락처 형식이 올바르지 않습니다 (010-1234-5678)",
-      };
-    }
-    if (fatherPhoneRaw && fatherPhone === null) {
-      return {
-        success: false,
-        error: "부 연락처 형식이 올바르지 않습니다 (010-1234-5678)",
-      };
-    }
-    if (emergencyPhoneRaw && emergencyPhone === null) {
-      return {
-        success: false,
-        error: "비상연락처 형식이 올바르지 않습니다 (010-1234-5678)",
-      };
+    // 진로 정보 처리
+    if (payload.career) {
+      if (payload.career.exam_year !== undefined) updateData.exam_year = payload.career.exam_year;
+      if (payload.career.curriculum_revision !== undefined) updateData.curriculum_revision = payload.career.curriculum_revision;
+      if (payload.career.desired_university_ids !== undefined) updateData.desired_university_ids = payload.career.desired_university_ids ?? [];
+      if (payload.career.desired_career_field !== undefined) updateData.desired_career_field = payload.career.desired_career_field;
     }
 
-    const profileResult = await upsertStudentProfile({
-      id: studentId,
-      tenant_id: existingStudent.tenant_id ?? null,
-      gender: payload.profile.gender,
-      phone,
-      mother_phone: motherPhone,
-      father_phone: fatherPhone,
-      address: payload.profile.address,
-      emergency_contact: payload.profile.emergency_contact,
-      emergency_contact_phone: emergencyPhone,
-      medical_info: payload.profile.medical_info,
-    });
+    if (Object.keys(updateData).length > 0) {
+      const { error: profileCareerError } = await supabase
+        .from("students")
+        .update(updateData)
+        .eq("id", studentId);
 
-    if (!profileResult.success) {
-      return profileResult;
-    }
-  }
-
-  // 3. 진로 정보 업데이트
-  if (payload.career) {
-    const {
-      upsertStudentCareerGoal,
-    } = await import("@/lib/data/studentCareerGoals");
-
-    const careerGoalResult = await upsertStudentCareerGoal({
-      student_id: studentId,
-      tenant_id: existingStudent.tenant_id ?? null,
-      exam_year: payload.career.exam_year,
-      curriculum_revision: payload.career.curriculum_revision,
-      desired_university_ids: payload.career.desired_university_ids,
-      desired_career_field: payload.career.desired_career_field,
-    });
-
-    if (!careerGoalResult.success) {
-      return careerGoalResult;
+      if (profileCareerError) {
+        logActionError(
+          { domain: "student", action: "updateStudentInfo" },
+          profileCareerError,
+          { studentId, step: "profile/career" }
+        );
+        return { success: false, error: profileCareerError.message || "프로필/진로 정보 업데이트에 실패했습니다." };
+      }
     }
   }
 
@@ -851,59 +838,47 @@ export async function createStudent(
       return { success: false, error: basicResult.error || "학생 정보 저장에 실패했습니다." };
     }
 
-    // 2. student_profiles 테이블 레코드 생성 (데이터 있는 경우)
-    if (profile) {
-      const { upsertStudentProfile } = await import("@/lib/data/studentProfiles");
-      const profileResult = await upsertStudentProfile({
-        id: studentId,
-        tenant_id: tenantId,
-        gender: profile.gender ?? null,
-        phone: profile.phone ?? null,
-        mother_phone: profile.mother_phone ?? null,
-        father_phone: profile.father_phone ?? null,
-        address: profile.address ?? null,
-        address_detail: profile.address_detail ?? null,
-        postal_code: profile.postal_code ?? null,
-        emergency_contact: profile.emergency_contact ?? null,
-        emergency_contact_phone: profile.emergency_contact_phone ?? null,
-        medical_info: profile.medical_info ?? null,
-        bio: profile.bio ?? null,
-        interests: profile.interests ?? null,
-      });
+    // 2. 프로필 + 진로 정보 업데이트 (students 테이블에 통합됨)
+    const extraFields: Record<string, unknown> = {};
 
-      if (!profileResult.success) {
-        // 프로필 저장 실패는 치명적이지 않으므로 경고만
-        logActionWarn(
-          { domain: "student", action: "createStudent" },
-          "프로필 저장 실패",
-          { studentId, error: profileResult.error }
-        );
-      }
+    if (profile) {
+      if (profile.gender != null) extraFields.gender = profile.gender;
+      if (profile.phone != null) extraFields.phone = profile.phone;
+      if (profile.mother_phone != null) extraFields.mother_phone = profile.mother_phone;
+      if (profile.father_phone != null) extraFields.father_phone = profile.father_phone;
+      if (profile.address != null) extraFields.address = profile.address;
+      if (profile.address_detail != null) extraFields.address_detail = profile.address_detail;
+      if (profile.postal_code != null) extraFields.postal_code = profile.postal_code;
+      if (profile.emergency_contact != null) extraFields.emergency_contact = profile.emergency_contact;
+      if (profile.emergency_contact_phone != null) extraFields.emergency_contact_phone = profile.emergency_contact_phone;
+      if (profile.medical_info != null) extraFields.medical_info = profile.medical_info;
+      if (profile.bio != null) extraFields.bio = profile.bio;
+      if (profile.interests != null) extraFields.interests = profile.interests;
     }
 
-    // 3. student_career_goals 테이블 레코드 생성 (데이터 있는 경우)
     if (career) {
-      const { upsertStudentCareerGoal } = await import("@/lib/data/studentCareerGoals");
-      const careerResult = await upsertStudentCareerGoal({
-        student_id: studentId,
-        tenant_id: tenantId,
-        exam_year: career.exam_year ?? null,
-        curriculum_revision: career.curriculum_revision ?? null,
-        desired_university_ids: career.desired_university_ids ?? null,
-        desired_career_field: career.desired_career_field ?? null,
-        target_major: career.target_major ?? null,
-        target_major_2: career.target_major_2 ?? null,
-        target_score: career.target_score ?? null,
-        target_university_type: career.target_university_type ?? null,
-        notes: career.notes ?? null,
-      });
+      if (career.exam_year != null) extraFields.exam_year = career.exam_year;
+      if (career.curriculum_revision != null) extraFields.curriculum_revision = career.curriculum_revision;
+      if (career.desired_university_ids != null) extraFields.desired_university_ids = career.desired_university_ids;
+      if (career.desired_career_field != null) extraFields.desired_career_field = career.desired_career_field;
+      if (career.target_major != null) extraFields.target_major = career.target_major;
+      if (career.target_major_2 != null) extraFields.target_major_2 = career.target_major_2;
+      if (career.target_score != null) extraFields.target_score = career.target_score;
+      if (career.target_university_type != null) extraFields.target_university_type = career.target_university_type;
+      if (career.notes != null) extraFields.career_notes = career.notes;
+    }
 
-      if (!careerResult.success) {
-        // 진로 정보 저장 실패는 치명적이지 않으므로 경고만
+    if (Object.keys(extraFields).length > 0) {
+      const { error: updateError } = await supabase
+        .from("students")
+        .update(extraFields)
+        .eq("id", studentId);
+
+      if (updateError) {
         logActionWarn(
           { domain: "student", action: "createStudent" },
-          "진로 정보 저장 실패",
-          { studentId, error: careerResult.error }
+          "프로필/진로 정보 저장 실패",
+          { studentId, error: updateError.message }
         );
       }
     }

@@ -1,6 +1,11 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+/**
+ * Student Career Goals 데이터 접근 레이어
+ *
+ * student_career_goals 테이블이 students로 통합되었으므로
+ * 모든 함수가 students 테이블을 직접 조회/수정합니다.
+ */
 
-type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type StudentCareerGoal = {
   id: string;
@@ -8,7 +13,7 @@ export type StudentCareerGoal = {
   tenant_id?: string | null;
   exam_year?: number | null;
   curriculum_revision?: "2009 개정" | "2015 개정" | "2022 개정" | null;
-  desired_university_ids?: string[] | null; // 희망 대학교 통합 ID 배열 (최대 3개, 형식: UNIV_14, SCHOOL_123 등)
+  desired_university_ids?: string[] | null;
   desired_career_field?: string | null;
   target_major?: string | null;
   target_major_2?: string | null;
@@ -19,8 +24,11 @@ export type StudentCareerGoal = {
   updated_at?: string | null;
 };
 
+const CAREER_FIELDS =
+  "id,tenant_id,exam_year,curriculum_revision,desired_university_ids,desired_career_field,target_major,target_major_2,target_score,target_university_type,career_notes,created_at,updated_at";
+
 /**
- * 학생 ID로 진로 목표 정보 조회
+ * 학생 ID로 진로 목표 정보 조회 (students 테이블에서 직접 조회)
  */
 export async function getStudentCareerGoalById(
   studentId: string
@@ -28,21 +36,39 @@ export async function getStudentCareerGoalById(
   const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase
-    .from("student_career_goals")
-    .select("*")
-    .eq("student_id", studentId)
-    .maybeSingle<StudentCareerGoal>();
+    .from("students")
+    .select(CAREER_FIELDS)
+    .eq("id", studentId)
+    .maybeSingle();
 
   if (error && error.code !== "PGRST116") {
     console.error("[data/studentCareerGoals] 진로 목표 조회 실패", error);
     return null;
   }
 
-  return data ?? null;
+  if (!data) return null;
+
+  // students 테이블 데이터를 기존 StudentCareerGoal 형태로 매핑
+  return {
+    id: data.id,
+    student_id: data.id,
+    tenant_id: data.tenant_id,
+    exam_year: data.exam_year as number | null,
+    curriculum_revision: data.curriculum_revision as StudentCareerGoal["curriculum_revision"],
+    desired_university_ids: data.desired_university_ids as string[] | null,
+    desired_career_field: data.desired_career_field as string | null,
+    target_major: data.target_major as string | null,
+    target_major_2: data.target_major_2 as string | null,
+    target_score: data.target_score as Record<string, number> | null,
+    target_university_type: data.target_university_type as string | null,
+    notes: data.career_notes as string | null,
+    created_at: data.created_at as string | null,
+    updated_at: data.updated_at as string | null,
+  };
 }
 
 /**
- * 진로 목표 정보 생성/업데이트
+ * 진로 목표 정보 업데이트 (students 테이블 직접 UPDATE)
  */
 export async function upsertStudentCareerGoal(
   goal: {
@@ -50,7 +76,7 @@ export async function upsertStudentCareerGoal(
     tenant_id?: string | null;
     exam_year?: number | null;
     curriculum_revision?: "2009 개정" | "2015 개정" | "2022 개정" | null;
-    desired_university_ids?: string[] | null; // 희망 대학교 통합 ID 배열 (최대 3개, 형식: UNIV_14, SCHOOL_123 등)
+    desired_university_ids?: string[] | null;
     desired_career_field?: string | null;
     target_major?: string | null;
     target_major_2?: string | null;
@@ -60,13 +86,6 @@ export async function upsertStudentCareerGoal(
   }
 ): Promise<{ success: boolean; error?: string; id?: string }> {
   const supabase = await createSupabaseServerClient();
-
-  // 기존 레코드 확인
-  const { data: existing } = await supabase
-    .from("student_career_goals")
-    .select("id")
-    .eq("student_id", goal.student_id)
-    .maybeSingle();
 
   // desired_university_ids 배열 검증 (최대 3개)
   let universityIds = goal.desired_university_ids ?? null;
@@ -82,30 +101,24 @@ export async function upsertStudentCareerGoal(
     universityIds = [];
   }
 
-  // desired_university_ids는 통합 ID 형식 (UNIV_14, SCHOOL_123 등)을 그대로 저장
-  // 통합 ID 형식이 아닌 경우에만 변환 시도
+  // 통합 ID 형식 검증
   let resolvedUniversityIds: string[] = [];
   if (universityIds.length > 0) {
-    // 통합 ID 형식인지 확인 (UNIV_14, SCHOOL_123 등)
     const unifiedIdRegex = /^(UNIV_|SCHOOL_)\d+$/;
     const isAllUnifiedIds = universityIds.every((id) => unifiedIdRegex.test(id));
 
     if (isAllUnifiedIds) {
-      // 이미 통합 ID 형식이면 그대로 사용
       resolvedUniversityIds = universityIds;
     } else {
-      // UUID 형식인지 확인 (8-4-4-4-12 형식)
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       const isAllUuids = universityIds.every((id) => uuidRegex.test(id));
 
       if (isAllUuids) {
-        // UUID가 전달된 경우, 경고 로그 출력 (향후 통합 ID로 마이그레이션 필요)
         console.warn(
           "[data/studentCareerGoals] UUID 형식의 desired_university_ids가 전달되었습니다. 통합 ID 형식 (UNIV_*, SCHOOL_*)을 사용해주세요."
         );
         resolvedUniversityIds = universityIds;
       } else {
-        // 알 수 없는 형식
         console.error(
           "[data/studentCareerGoals] 알 수 없는 desired_university_ids 형식:",
           universityIds
@@ -118,9 +131,8 @@ export async function upsertStudentCareerGoal(
     }
   }
 
-  const payload = {
-    student_id: goal.student_id,
-    tenant_id: goal.tenant_id ?? null,
+  // students 테이블 직접 UPDATE (career_notes로 매핑)
+  const payload: Record<string, unknown> = {
     exam_year: goal.exam_year ?? null,
     curriculum_revision: goal.curriculum_revision ?? null,
     desired_university_ids: resolvedUniversityIds,
@@ -129,32 +141,18 @@ export async function upsertStudentCareerGoal(
     target_major_2: goal.target_major_2 ?? null,
     target_score: goal.target_score ?? null,
     target_university_type: goal.target_university_type ?? null,
-    notes: goal.notes ?? null,
+    career_notes: goal.notes ?? null,
   };
 
-  let result;
-  if (existing) {
-    // 업데이트
-    result = await supabase
-      .from("student_career_goals")
-      .update(payload)
-      .eq("student_id", goal.student_id)
-      .select("id")
-      .single();
-  } else {
-    // 생성
-    result = await supabase
-      .from("student_career_goals")
-      .insert(payload)
-      .select("id")
-      .single();
+  const { error } = await supabase
+    .from("students")
+    .update(payload)
+    .eq("id", goal.student_id);
+
+  if (error) {
+    console.error("[data/studentCareerGoals] 진로 목표 저장 실패", error);
+    return { success: false, error: error.message };
   }
 
-  if (result.error) {
-    console.error("[data/studentCareerGoals] 진로 목표 저장 실패", result.error);
-    return { success: false, error: result.error.message };
-  }
-
-  return { success: true, id: result.data?.id };
+  return { success: true, id: goal.student_id };
 }
-

@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { InitialSetupBanner } from "./InitialSetupBanner";
 import BasicInfoSection from "./sections/BasicInfoSection";
 import CareerInfoSection from "./sections/CareerInfoSection";
+import ProfileImageUploader from "@/components/molecules/ProfileImageUploader";
 import { getSchoolById } from "@/lib/domains/school";
 import { useAuth } from "@/lib/contexts/AuthContext";
 
@@ -70,6 +71,7 @@ export default function SettingsPageClient({
           grade: "",
           class: "",
           birth_date: "",
+          division: "",
           gender: "",
           phone: "",
           mother_phone: "",
@@ -166,6 +168,7 @@ export default function SettingsPageClient({
         formDataObj.append("grade", formData.grade);
         formDataObj.append("class", formData.class);
         formDataObj.append("birth_date", formData.birth_date);
+        if (formData.division) formDataObj.append("division", formData.division);
         if (formData.gender) formDataObj.append("gender", formData.gender);
         formDataObj.append("phone", formData.phone);
         formDataObj.append("mother_phone", formData.mother_phone);
@@ -245,6 +248,16 @@ export default function SettingsPageClient({
         {isInitialSetup && (
           <InitialSetupBanner formData={watch()} />
         )}
+
+        {/* 프로필 이미지 */}
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">프로필 사진</h3>
+          <ProfileImageUploader
+            currentImageUrl={initialData?.profile_image_url ?? null}
+            name={initialData?.name ?? ""}
+            disabled={saving}
+          />
+        </div>
 
         <form
           onSubmit={(e) => {

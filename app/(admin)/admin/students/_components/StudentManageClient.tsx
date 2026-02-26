@@ -7,6 +7,7 @@ import {
   studentSearchQueryOptions,
   studentDetailQueryOptions,
 } from "@/lib/query-options/students";
+import type { StudentSearchFilters } from "@/lib/domains/student/actions/search";
 import { StudentSearchPanel } from "./StudentSearchPanel";
 import { StudentFormPanel } from "./StudentFormPanel";
 import { EnrollmentSlidePanel } from "./EnrollmentSlidePanel";
@@ -14,6 +15,7 @@ import { FamilySlidePanel } from "./FamilySlidePanel";
 import { ConsultationSlidePanel } from "./ConsultationSlidePanel";
 import { ScoreSlidePanel } from "./ScoreSlidePanel";
 import { TimeManagementSlidePanel } from "./TimeManagementSlidePanel";
+import { SMSSlidePanel } from "./SMSSlidePanel";
 
 type FormMode = "register" | "selected";
 
@@ -23,6 +25,7 @@ type StudentManageClientProps = {
 
 export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [filters, setFilters] = useState<StudentSearchFilters>({});
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
     null
   );
@@ -37,11 +40,13 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
   const [isScorePanelOpen, setIsScorePanelOpen] = useState(false);
   const [timeManagementPanelStudentId, setTimeManagementPanelStudentId] = useState<string | null>(null);
   const [isTimeManagementPanelOpen, setIsTimeManagementPanelOpen] = useState(false);
+  const [smsPanelStudentId, setSmsPanelStudentId] = useState<string | null>(null);
+  const [isSmsPanelOpen, setIsSmsPanelOpen] = useState(false);
 
   const debouncedQuery = useDebounce(searchQuery, 300);
 
   // 검색 쿼리
-  const searchResult = useQuery(studentSearchQueryOptions(debouncedQuery));
+  const searchResult = useQuery(studentSearchQueryOptions(debouncedQuery, filters));
 
   // 상세 조회 쿼리
   const detailResult = useQuery({
@@ -146,6 +151,18 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
     setIsTimeManagementPanelOpen(false);
   }, []);
 
+  // SMS 슬라이드 패널 열기/닫기
+  const handleOpenSMS = useCallback(() => {
+    if (selectedStudentId) {
+      setSmsPanelStudentId(selectedStudentId);
+      setIsSmsPanelOpen(true);
+    }
+  }, [selectedStudentId]);
+
+  const handleCloseSMS = useCallback(() => {
+    setIsSmsPanelOpen(false);
+  }, []);
+
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
       {/* 왼쪽: 검색 패널 */}
@@ -157,6 +174,8 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
         isLoading={searchResult.isLoading}
         selectedStudentId={selectedStudentId}
         onSelectStudent={handleSelectStudent}
+        filters={filters}
+        onFiltersChange={setFilters}
       />
 
       {/* 오른쪽: 폼 패널 */}
@@ -173,6 +192,7 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
         onOpenConsultation={handleOpenConsultation}
         onOpenScore={handleOpenScore}
         onOpenTimeManagement={handleOpenTimeManagement}
+        onOpenSMS={handleOpenSMS}
         isAdmin={isAdmin}
       />
 
@@ -218,6 +238,16 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
           studentLabel={studentLabel}
           isOpen={isTimeManagementPanelOpen}
           onClose={handleCloseTimeManagement}
+        />
+      )}
+
+      {smsPanelStudentId && (
+        <SMSSlidePanel
+          studentId={smsPanelStudentId}
+          studentName={studentData?.name ?? "학생"}
+          studentLabel={studentLabel}
+          isOpen={isSmsPanelOpen}
+          onClose={handleCloseSMS}
         />
       )}
     </div>

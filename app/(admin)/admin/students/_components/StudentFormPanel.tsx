@@ -12,7 +12,7 @@ import type { StudentInfoData, AdminStudentFormData } from "../[id]/_types/stude
 import BasicInfoSection from "../[id]/_components/sections/BasicInfoSection";
 import ProfileInfoSection from "../[id]/_components/sections/ProfileInfoSection";
 import CareerInfoSection from "../[id]/_components/sections/CareerInfoSection";
-import { Plus, Trash2, ExternalLink, CalendarDays, Loader2, RotateCcw, Save, Wallet, Users, MessageSquare, BarChart3, Clock } from "lucide-react";
+import { Plus, Trash2, ExternalLink, CalendarDays, Loader2, RotateCcw, Save, Wallet, Users, MessageSquare, BarChart3, Clock, Send } from "lucide-react";
 import Link from "next/link";
 
 type FormMode = "register" | "selected";
@@ -34,6 +34,7 @@ type StudentFormPanelProps = {
   onOpenConsultation?: () => void;
   onOpenScore?: () => void;
   onOpenTimeManagement?: () => void;
+  onOpenSMS?: () => void;
   isAdmin: boolean;
 };
 
@@ -50,6 +51,7 @@ export function StudentFormPanel({
   onOpenConsultation,
   onOpenScore,
   onOpenTimeManagement,
+  onOpenSMS,
   isAdmin,
 }: StudentFormPanelProps) {
   const queryClient = useQueryClient();
@@ -282,6 +284,16 @@ export function StudentFormPanel({
                   >
                     <Clock className="h-4 w-4" />
                     시간관리
+                  </button>
+                )}
+                {onOpenSMS && (
+                  <button
+                    type="button"
+                    onClick={onOpenSMS}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-medium text-orange-700 transition hover:bg-orange-100"
+                  >
+                    <Send className="h-4 w-4" />
+                    SMS
                   </button>
                 )}
                 <Link

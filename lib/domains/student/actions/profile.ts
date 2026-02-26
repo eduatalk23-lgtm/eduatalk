@@ -14,17 +14,10 @@ import {
   type Student,
 } from "@/lib/data/students";
 import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
-import {
-  upsertStudentProfile,
-  getStudentProfileById,
-  type StudentProfile,
-} from "@/lib/data/studentProfiles";
-import {
-  upsertStudentCareerGoal,
-  getStudentCareerGoalById,
-  type StudentCareerGoal,
-} from "@/lib/data/studentCareerGoals";
+import type { StudentProfile } from "@/lib/data/studentProfiles";
+import type { StudentCareerGoal } from "@/lib/data/studentCareerGoals";
 import type { CareerField } from "@/lib/data/studentCareerFieldPreferences";
+import type { StudentDivision } from "@/lib/constants/students";
 import {
   normalizePhoneNumber,
   validatePhoneNumber,
@@ -207,6 +200,10 @@ export async function updateStudentProfile(
   }
 
   const klass = String(formData.get("class") ?? "").trim() || existingStudent.class || "";
+  const divisionRaw = String(formData.get("division") ?? "").trim() || null;
+  const division = (divisionRaw === "고등부" || divisionRaw === "중등부" || divisionRaw === "졸업")
+    ? (divisionRaw as StudentDivision)
+    : null;
 
   const basicResult = await upsertStudent({
     id: user.id,
@@ -216,6 +213,7 @@ export async function updateStudentProfile(
     class: klass,
     birth_date: birthDate,
     school_id: schoolId,
+    division,
   });
 
   if (!basicResult.success) {
@@ -289,21 +287,7 @@ export async function updateStudentProfile(
 
   const address = String(formData.get("address") ?? "").trim() || null;
 
-  const profileResult = await upsertStudentProfile({
-    id: user.id,
-    tenant_id: existingStudent.tenant_id,
-    gender,
-    phone,
-    mother_phone: motherPhone,
-    father_phone: fatherPhone,
-    address,
-  });
-
-  if (!profileResult.success) {
-    return profileResult;
-  }
-
-  // 3. 진로 목표 정보 업데이트
+  // 3. 진로 목표 정보 파싱
   const examYearStr = String(formData.get("exam_year") ?? "").trim();
   const examYear = examYearStr ? parseInt(examYearStr, 10) : null;
   const curriculumRevision =
@@ -313,35 +297,46 @@ export async function updateStudentProfile(
       | "2022 개정"
       | null) || null;
 
-  // desired_university_ids 배열 처리
   const desiredUniversityIds = formData
     .getAll("desired_university_ids")
     .map((id) => String(id).trim())
     .filter((id) => id.length > 0);
 
-  // 진로 계열 (단일 선택)
   const desiredCareerField =
     (formData.get("desired_career_field") as CareerField | null) || null;
 
-  const careerGoalResult = await upsertStudentCareerGoal({
-    student_id: user.id,
-    tenant_id: existingStudent.tenant_id,
+  // 프로필 + 진로 정보 단일 UPDATE (students 테이블에 통합됨)
+  const updatePayload: Record<string, unknown> = {
+    gender,
+    phone,
+    mother_phone: motherPhone,
+    father_phone: fatherPhone,
+    address,
     exam_year: examYear,
     curriculum_revision: curriculumRevision,
-    desired_university_ids:
-      desiredUniversityIds.length > 0 ? desiredUniversityIds : null,
+    desired_university_ids: desiredUniversityIds.length > 0 ? desiredUniversityIds : [],
     desired_career_field: desiredCareerField,
-  });
+  };
 
-  if (!careerGoalResult.success) {
-    return careerGoalResult;
+  const { error: updateError } = await supabase
+    .from("students")
+    .update(updatePayload)
+    .eq("id", user.id);
+
+  if (updateError) {
+    logActionError(
+      { domain: "student", action: "updateStudentProfile", userId: user.id },
+      updateError,
+      { step: "profile/career update" }
+    );
+    return { success: false, error: updateError.message || "프로필 업데이트에 실패했습니다." };
   }
 
   return { success: true };
 }
 
 /**
- * 현재 로그인한 학생 정보 조회 (기본 정보 + 프로필 + 진로 정보 통합)
+ * 현재 로그인한 학생 정보 조회 (students 단일 테이블에서 모든 정보 조회)
  */
 export async function getCurrentStudent(): Promise<
   | (Student &
@@ -358,25 +353,25 @@ export async function getCurrentStudent(): Promise<
     return null;
   }
 
-  const student = await getStudentById(user.id);
-  if (!student) {
+  // students 테이블 단일 쿼리 (프로필+진로 통합됨)
+  const { data: student, error } = await supabase
+    .from("students")
+    .select("*")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (error || !student) {
     return null;
   }
 
   // 이름은 user_metadata에서 가져오기
   const name = user.user_metadata?.display_name as string | undefined;
 
-  // 프로필 정보 조회
-  const profile = await getStudentProfileById(user.id);
-
-  // 진로 목표 정보 조회
-  const careerGoal = await getStudentCareerGoalById(user.id);
-
   return {
     ...student,
+    student_id: student.id,
     name: name || student.name || null,
-    ...profile,
-    ...careerGoal,
-    desired_career_field: careerGoal?.desired_career_field || null,
-  };
+    notes: student.career_notes,
+    desired_career_field: student.desired_career_field || null,
+  } as Student & Partial<StudentProfile> & Partial<StudentCareerGoal> & { desired_career_field?: string | null };
 }

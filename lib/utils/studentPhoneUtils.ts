@@ -41,31 +41,19 @@ export async function getStudentPhones(
     return null;
   }
 
-  // 2. student_profiles 테이블에서 전화번호 조회
-  let profile: {
-    phone?: string | null;
-    mother_phone?: string | null;
-    father_phone?: string | null;
-  } | null = null;
-  try {
-    const { data: profileData } = await supabase
-      .from("student_profiles")
-      .select("phone, mother_phone, father_phone")
-      .eq("id", studentId)
-      .maybeSingle();
+  // 2. students 테이블에서 전화번호 직접 조회 (통합됨)
+  const { data: phoneData } = await supabase
+    .from("students")
+    .select("phone, mother_phone, father_phone")
+    .eq("id", studentId)
+    .maybeSingle();
 
-    profile = profileData;
-  } catch {
-    // student_profiles 테이블이 없거나 조회 실패 시 무시
-  }
-
-  // 3. 결과 병합 (student_profiles 우선)
   return {
     id: student.id,
     name: student.name,
-    phone: profile?.phone ?? null,
-    mother_phone: profile?.mother_phone ?? null,
-    father_phone: profile?.father_phone ?? null,
+    phone: phoneData?.phone ?? null,
+    mother_phone: phoneData?.mother_phone ?? null,
+    father_phone: phoneData?.father_phone ?? null,
   };
 }
 
@@ -103,7 +91,7 @@ export async function getStudentPhonesBatch(
     return [];
   }
 
-  // 2. student_profiles 테이블에서 전화번호 일괄 조회 (RLS 우회를 위해 Admin Client 사용)
+  // 2. students 테이블에서 전화번호 일괄 조회 (통합됨, RLS 우회)
   let profiles: Array<{
     id: string;
     phone?: string | null;
@@ -116,7 +104,7 @@ export async function getStudentPhonesBatch(
   }
 
   const { data: profilesData, error: profilesError } = await adminClient
-    .from("student_profiles")
+    .from("students")
     .select("id, phone, mother_phone, father_phone")
     .in("id", studentIds);
 
@@ -124,7 +112,7 @@ export async function getStudentPhonesBatch(
     logActionError(
       { domain: "utils", action: "getStudentPhonesBatch" },
       profilesError,
-      { context: "student_profiles 조회" }
+      { context: "students 전화번호 조회" }
     );
     // 에러가 있어도 계속 진행 (학부모 연결 정보로 보완 가능)
   } else if (profilesData) {

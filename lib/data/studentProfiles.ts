@@ -1,10 +1,12 @@
+/**
+ * Student Profile 데이터 접근 레이어
+ *
+ * student_profiles 테이블이 students로 통합되었으므로
+ * 모든 함수가 students 테이블을 직접 조회/수정합니다.
+ */
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import {
-  createTypedQuery,
-  createTypedSingleQuery,
-} from "@/lib/data/core/typedQueryBuilder";
 import { handleQueryError } from "@/lib/data/core/errorHandler";
-import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 
 export type StudentProfile = {
   id: string;
@@ -26,35 +28,35 @@ export type StudentProfile = {
   updated_at?: string | null;
 };
 
+const PROFILE_FIELDS =
+  "id,tenant_id,gender,phone,profile_image_url,mother_phone,father_phone,address,address_detail,postal_code,emergency_contact,emergency_contact_phone,medical_info,bio,interests,created_at,updated_at";
+
 /**
- * 학생 ID로 프로필 정보 조회
+ * 학생 ID로 프로필 정보 조회 (students 테이블에서 직접 조회)
  */
 export async function getStudentProfileById(
   studentId: string
 ): Promise<StudentProfile | null> {
   const supabase = await createSupabaseServerClient();
 
-  return await createTypedSingleQuery<StudentProfile>(
-    async () => {
-      const queryResult = await supabase
-        .from("student_profiles")
-        .select("*")
-        .eq("id", studentId);
+  const { data, error } = await supabase
+    .from("students")
+    .select(PROFILE_FIELDS)
+    .eq("id", studentId)
+    .maybeSingle();
 
-      return {
-        data: queryResult.data as StudentProfile[] | null,
-        error: queryResult.error,
-      };
-    },
-    {
+  if (error) {
+    handleQueryError(error, {
       context: "[data/studentProfiles] getStudentProfileById",
-      defaultValue: null,
-    }
-  );
+    });
+    return null;
+  }
+
+  return (data as StudentProfile | null) ?? null;
 }
 
 /**
- * 프로필 정보 생성/업데이트
+ * 프로필 정보 업데이트 (students 테이블 직접 UPDATE)
  */
 export async function upsertStudentProfile(
   profile: {
@@ -75,7 +77,6 @@ export async function upsertStudentProfile(
     interests?: string[] | null;
   }
 ): Promise<{ success: boolean; error?: string }> {
-  // 관리자가 학생 프로필을 수정할 수 있도록 RLS 우회
   const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
   const adminClient = createSupabaseAdminClient();
 
@@ -85,10 +86,10 @@ export async function upsertStudentProfile(
 
   // 명시적으로 전달된 필드만 payload에 포함 (undefined 필드는 기존 값 보존)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const payload: Record<string, any> = { id: profile.id };
+  const payload: Record<string, any> = {};
 
   const optionalFields = [
-    "tenant_id", "gender", "phone", "profile_image_url",
+    "gender", "phone", "profile_image_url",
     "mother_phone", "father_phone", "address", "address_detail",
     "postal_code", "emergency_contact", "emergency_contact_phone",
     "medical_info", "bio", "interests",
@@ -100,10 +101,14 @@ export async function upsertStudentProfile(
     }
   }
 
+  if (Object.keys(payload).length === 0) {
+    return { success: true };
+  }
+
   const { error } = await adminClient
-    .from("student_profiles")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .upsert(payload as any, { onConflict: "id" });
+    .from("students")
+    .update(payload)
+    .eq("id", profile.id);
 
   if (error) {
     handleQueryError(error, {
@@ -116,7 +121,7 @@ export async function upsertStudentProfile(
 }
 
 /**
- * 여러 학생의 성별 정보 일괄 조회
+ * 여러 학생의 성별 정보 일괄 조회 (students 테이블에서 직접 조회)
  */
 export async function getStudentGendersBatch(
   studentIds: string[]
@@ -132,8 +137,8 @@ export async function getStudentGendersBatch(
     throw new Error("Admin client를 초기화할 수 없습니다. SUPABASE_SERVICE_ROLE_KEY를 확인해주세요.");
   }
 
-  const { data: profiles, error } = await adminClient
-    .from("student_profiles")
+  const { data, error } = await adminClient
+    .from("students")
     .select("id, gender")
     .in("id", studentIds);
 
@@ -145,7 +150,7 @@ export async function getStudentGendersBatch(
   }
 
   const genderMap = new Map<string, "남" | "여" | null>();
-  profiles?.forEach((p) => {
+  data?.forEach((p) => {
     genderMap.set(p.id, (p.gender as "남" | "여" | null) ?? null);
   });
 

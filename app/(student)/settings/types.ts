@@ -5,6 +5,7 @@
 import type { Student } from "@/lib/data/students";
 import type { StudentProfile } from "@/lib/data/studentProfiles";
 import type { StudentCareerGoal } from "@/lib/data/studentCareerGoals";
+import type { StudentDivision } from "@/lib/constants/students";
 
 export type Gender = "남" | "여";
 export type CurriculumRevision = "2009 개정" | "2015 개정" | "2022 개정";
@@ -33,6 +34,7 @@ export type StudentFormData = {
   grade: string;
   class: string;
   birth_date: string;
+  division: StudentDivision | "";
   // 프로필 정보
   gender: Gender | "";
   phone: string;

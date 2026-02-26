@@ -5,6 +5,11 @@
 import type { StudentData, StudentFormData } from "../types";
 import { isGender, isCurriculumRevision, isCareerField, toFormDataValue } from "../types";
 import { parseGradeNumber } from "@/lib/utils/studentFormUtils";
+import { STUDENT_DIVISIONS } from "@/lib/constants/students";
+
+function isStudentDivision(value: unknown): boolean {
+  return STUDENT_DIVISIONS.some((d) => d.value === value);
+}
 
 /**
  * Student 데이터를 FormData로 변환
@@ -20,6 +25,7 @@ export async function transformStudentToFormData(
       grade: "",
       class: "",
       birth_date: "",
+      division: "",
       gender: "",
       phone: "",
       mother_phone: "",
@@ -44,6 +50,7 @@ export async function transformStudentToFormData(
     grade: gradeNumber,
     class: studentData.class || "",
     birth_date: studentData.birth_date || "",
+    division: toFormDataValue(studentData.division, isStudentDivision),
     gender: toFormDataValue(studentData.gender, isGender),
     phone: studentData.phone || "",
     mother_phone: studentData.mother_phone || "",

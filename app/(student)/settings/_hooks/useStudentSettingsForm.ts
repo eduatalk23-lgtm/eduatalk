@@ -23,6 +23,7 @@ export function useStudentSettingsForm({
         grade: "",
         class: "",
         birth_date: "",
+        division: "",
         gender: "",
         phone: "",
         mother_phone: "",
