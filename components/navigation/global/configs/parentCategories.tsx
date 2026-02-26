@@ -15,6 +15,7 @@ import {
   History,
   Settings,
   CreditCard,
+  MessageSquare,
 } from "lucide-react";
 
 export const parentCategories: NavigationCategory[] = [
@@ -28,6 +29,32 @@ export const parentCategories: NavigationCategory[] = [
         label: "대시보드",
         href: "/parent/dashboard",
         icon: <BarChart3 className="w-4 h-4" />,
+      },
+    ],
+  },
+  {
+    id: "parent-calendar",
+    label: "캘린더",
+    icon: <Calendar className="w-4 h-4" />,
+    items: [
+      {
+        id: "parent-calendar-main",
+        label: "자녀 캘린더",
+        href: "/parent/calendar",
+        icon: <Calendar className="w-4 h-4" />,
+      },
+    ],
+  },
+  {
+    id: "parent-chat",
+    label: "채팅",
+    icon: <MessageSquare className="w-4 h-4" />,
+    items: [
+      {
+        id: "parent-chat-main",
+        label: "채팅",
+        href: "/parent/chat",
+        icon: <MessageSquare className="w-4 h-4" />,
       },
     ],
   },

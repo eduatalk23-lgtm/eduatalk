@@ -25,12 +25,14 @@ type ParentStudentLinkWithStudent = {
         name: string | null;
         grade: string | null;
         class: string | null;
+        school_name: string | null;
       }
     | {
         id: string;
         name: string | null;
         grade: string | null;
         class: string | null;
+        school_name: string | null;
       }[]
     | null;
 };
@@ -46,7 +48,7 @@ export async function getLinkedStudents(
     const selectLinks = () =>
       supabase
         .from("parent_student_links")
-        .select("student_id, relation, students(id, name, grade, class)")
+        .select("student_id, relation, students(id, name, grade, class, school_name)")
         .eq("parent_id", parentId);
 
     let { data: links, error } = await selectLinks();
@@ -76,6 +78,7 @@ export async function getLinkedStudents(
           grade: student.grade,
           class: student.class,
           relation: link.relation ?? "",
+          school_name: student.school_name ?? null,
         };
       })
       .filter((s): s is LinkedStudent => s !== null);

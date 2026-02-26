@@ -258,6 +258,7 @@ import type {
   CalendarExclusionInput,
 } from "@/lib/domains/admin-plan/types";
 import type { TimeRange } from "@/lib/scheduler/utils/scheduleCalculator";
+import { mapCalendarSettingsFromDB } from "../mapCalendarSettings";
 import type { PlanExclusion } from "@/lib/types/plan/domain";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import {
@@ -274,7 +275,7 @@ import { extractTimeHHMM, extractDateYMD } from "../adapters";
 import { logActionError, logActionWarn } from "@/lib/utils/serverActionLogger";
 
 /**
- * 권한 체크 (Admin/Consultant 또는 해당 학생 본인)
+ * 권한 체크 (Admin/Consultant, 해당 학생 본인, 또는 연결된 학부모)
  */
 async function checkCalendarAccess(targetStudentId: string) {
   const user = await getCurrentUser();
@@ -287,42 +288,23 @@ async function checkCalendarAccess(targetStudentId: string) {
   if (user.role === "student" && user.userId === targetStudentId) {
     return { user, tenantId: user.tenantId, isAdmin: false };
   }
+  // 학부모: parent_student_links를 통한 연결 확인
+  if (user.role === "parent") {
+    const supabase = await createSupabaseServerClient();
+    const { data: link } = await supabase
+      .from("parent_student_links")
+      .select("id")
+      .eq("parent_id", user.userId)
+      .eq("student_id", targetStudentId)
+      .maybeSingle();
+    if (link) {
+      return { user, tenantId: user.tenantId, isAdmin: false };
+    }
+  }
   throw new AppError("접근 권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
 }
 
-/**
- * DB row → CalendarSettings 매핑
- */
-function mapCalendarSettingsFromDB(row: Record<string, unknown>): CalendarSettings {
-  return {
-    id: row.id as string,
-    tenantId: row.tenant_id as string,
-    studentId: row.owner_id as string,
-    name: (row.summary as string) || "",
-    description: row.description as string | null,
-    status: (row.status as string) || "active",
-    periodStart: row.period_start as string | null,
-    periodEnd: row.period_end as string | null,
-    targetDate: row.target_date as string | null,
-    studyHours: row.study_hours as TimeRange | null,
-    selfStudyHours: row.self_study_hours as TimeRange | null,
-    nonStudyTimeBlocks: (row.non_study_time_blocks || []) as NonStudyTimeBlock[],
-    blockSetId: row.block_set_id as string | null,
-    defaultSchedulerType: (row.default_scheduler_type as string) || "1730_timetable",
-    defaultSchedulerOptions: (row.default_scheduler_options || {}) as Record<string, unknown>,
-    adminMemo: row.admin_memo as string | null,
-    createdBy: row.created_by as string | null,
-    createdAt: row.created_at as string,
-    updatedAt: row.updated_at as string,
-    deletedAt: row.deleted_at as string | null,
-    isPrimary: (row.is_student_primary as boolean) || false,
-    defaultColor: row.default_color as string | null,
-    defaultEstimatedMinutes: (row.default_estimated_minutes as number | null) ?? null,
-    defaultReminderMinutes: (row.default_reminder_minutes as number[] | null) ?? null,
-    timezone: row.timezone as string | null,
-    weekStartsOn: (row.week_starts_on as number) ?? 0,
-  };
-}
+// mapCalendarSettingsFromDB → imported from ../mapCalendarSettings
 
 /**
  * 캘린더 + 설정 + 비학습시간 이벤트 일괄 생성

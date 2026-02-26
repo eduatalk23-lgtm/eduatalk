@@ -4,7 +4,9 @@ import { requireAdminOrConsultant, requireAdmin } from "@/lib/auth/guards";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { updateParentData, deleteParentData } from "@/lib/data/parents";
 import { revalidatePath } from "next/cache";
-import { logActionError } from "@/lib/logging/actionLogger";
+import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
+import { syncAuthBanStatus } from "@/lib/auth/syncAuthBanStatus";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 /**
  * 학부모 정보 수정
@@ -61,6 +63,8 @@ export async function toggleParentStatusAction(
     const result = await updateParentData(parentId, { is_active: isActive }, tenantId);
 
     if (result.success) {
+      // Supabase Auth ban_duration 동기화
+      await syncAuthBanStatus(parentId, isActive);
       revalidatePath("/admin/parents");
     }
 
@@ -96,6 +100,21 @@ export async function deleteParentAction(
     const result = await deleteParentData(parentId, tenantId);
 
     if (result.success) {
+      // auth.users에서도 삭제 (누락 수정)
+      const adminClient = createSupabaseAdminClient();
+      if (adminClient) {
+        const { error: authDeleteError } =
+          await adminClient.auth.admin.deleteUser(parentId);
+
+        if (authDeleteError) {
+          logActionWarn(
+            { domain: "parent", action: "deleteParent" },
+            `auth.users 삭제 실패: ${authDeleteError.message}`,
+            { parentId }
+          );
+        }
+      }
+
       revalidatePath("/admin/parents");
     }
 

@@ -37,4 +37,5 @@ export type LinkedStudent = {
   grade: string | null;
   class: string | null;
   relation: string;
+  school_name: string | null;
 };

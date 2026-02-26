@@ -27,7 +27,7 @@ export async function getLinkedStudentsByParentAction(
     // linkId 포함 버전으로 직접 조회
     const { data: links, error } = await supabase
       .from("parent_student_links")
-      .select("id, student_id, relation, students(id, name, grade, class)")
+      .select("id, student_id, relation, students(id, name, grade, class, school_name)")
       .eq("parent_id", parentId);
 
     if (error) {
@@ -42,7 +42,7 @@ export async function getLinkedStudentsByParentAction(
 
     const result: LinkedStudentWithLinkId[] = links
       .map((link: { id: string; student_id: string; relation: string | null; students: unknown }) => {
-        const student = extractJoinResult(link.students) as { id: string; name: string | null; grade: string | null; class: string | null } | null;
+        const student = extractJoinResult(link.students) as { id: string; name: string | null; grade: string | null; class: string | null; school_name: string | null } | null;
         if (!student) return null;
         return {
           linkId: link.id,
@@ -51,6 +51,7 @@ export async function getLinkedStudentsByParentAction(
           grade: student.grade,
           class: student.class,
           relation: link.relation ?? "",
+          school_name: student.school_name ?? null,
         };
       })
       .filter((s): s is LinkedStudentWithLinkId => s !== null);

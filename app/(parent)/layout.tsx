@@ -4,7 +4,8 @@ import { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantInfo } from "@/lib/auth/getTenantInfo";
-import { getCurrentUserName } from "@/lib/auth/getCurrentUserName";
+import { getCurrentUserProfile } from "@/lib/auth/getCurrentUserProfile";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { RoleBasedLayout } from "@/components/layout/RoleBasedLayout";
 
 /**
@@ -20,10 +21,23 @@ export default async function ParentLayout({ children }: { children: ReactNode }
     redirect("/login");
   }
 
-  // 기관 정보 및 사용자 이름 조회 (이미 조회한 정보 재사용)
-  const [tenantInfo, userName] = await Promise.all([
+  // 비활성 학부모 체크
+  const supabase = await createSupabaseServerClient();
+  const { data: parent } = await supabase
+    .from("parent_users")
+    .select("is_active")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (parent && parent.is_active === false) {
+    await supabase.auth.signOut().catch(() => {});
+    redirect("/login?error=account_deactivated");
+  }
+
+  // 기관 정보 및 사용자 프로필 조회 (이미 조회한 정보 재사용)
+  const [tenantInfo, profile] = await Promise.all([
     getTenantInfo(),
-    getCurrentUserName({ userId, role, tenantId }),
+    getCurrentUserProfile({ userId, role, tenantId }),
   ]);
 
   return (
@@ -32,7 +46,9 @@ export default async function ParentLayout({ children }: { children: ReactNode }
       dashboardHref="/parent/dashboard"
       roleLabel="Parent"
       tenantInfo={tenantInfo}
-      userName={userName}
+      userName={profile.name}
+      profileImageUrl={profile.profileImageUrl}
+      userEmail={profile.email}
       userId={userId}
     >
       {children}

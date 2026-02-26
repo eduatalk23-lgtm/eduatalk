@@ -5,6 +5,7 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getLinkedStudents } from "../../_utils";
 import Link from "next/link";
 import { RoleChangeSection } from "./_components/RoleChangeSection";
+import { ParentProfileSection } from "./_components/ParentProfileSection";
 import { StudentAttendanceNotificationSettings } from "./_components/StudentAttendanceNotificationSettings";
 import { getStudentAttendanceNotificationSettings } from "@/lib/domains/parent";
 import { LinkedStudentsSection } from "./_components/LinkedStudentsSection";
@@ -22,7 +23,7 @@ export default async function ParentSettingsPage() {
   // 학부모 정보 조회
   const { data: parent } = await supabase
     .from("parent_users")
-    .select("id, name, created_at")
+    .select("id, name, created_at, profile_image_url")
     .eq("id", userId)
     .maybeSingle();
 
@@ -53,30 +54,12 @@ export default async function ParentSettingsPage() {
       </div>
 
       <div className="flex flex-col gap-6">
-        {/* 나의 정보 */}
-        <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900">
-            나의 정보
-          </h2>
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">이름</label>
-              <div className="text-base text-gray-900">
-                {parent?.name || "이름 없음"}
-              </div>
-            </div>
-            {parent?.created_at && (
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">
-                  가입일
-                </label>
-                <div className="text-base text-gray-900">
-                  {new Date(parent.created_at).toLocaleDateString("ko-KR")}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        {/* 나의 정보 (프로필 이미지 포함) */}
+        <ParentProfileSection
+          name={parent?.name || "이름 없음"}
+          profileImageUrl={parent?.profile_image_url ?? null}
+          createdAt={parent?.created_at ?? null}
+        />
 
         {/* 연결된 자녀 및 연결 요청 */}
         <LinkedStudentsSection
