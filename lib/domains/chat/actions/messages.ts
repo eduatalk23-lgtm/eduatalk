@@ -59,7 +59,12 @@ export async function sendMessageAction(
         userId,
         result.data
       ).catch((err) =>
-        console.error("[Chat Push] Notification failed:", err)
+        console.error("[Chat Push] Notification failed:", {
+          roomId,
+          userId,
+          messageId: result.data?.id,
+          error: err instanceof Error ? err.message : String(err),
+        })
       );
     }
 

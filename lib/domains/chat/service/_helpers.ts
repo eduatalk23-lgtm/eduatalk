@@ -1,0 +1,141 @@
+/**
+ * Chat Service 공통 헬퍼
+ */
+
+import * as repository from "../repository";
+import type {
+  ChatUser,
+  ChatUserType,
+  MessageReaction,
+  ReactionSummary,
+} from "../types";
+
+// 최대 메시지 길이
+export const MAX_MESSAGE_LENGTH = 1000;
+
+// ============================================
+// 사용자 정보 조회 헬퍼
+// ============================================
+
+/**
+ * 사용자 정보 조회 (student 또는 admin)
+ */
+export async function getUserInfo(
+  userId: string,
+  userType: ChatUserType
+): Promise<ChatUser | null> {
+  const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+  const supabase = await createSupabaseServerClient();
+
+  if (userType === "student") {
+    const { data } = await supabase
+      .from("students")
+      .select("id, name, profile_image_url")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (!data) return null;
+
+    return {
+      id: data.id,
+      type: "student",
+      name: data.name,
+      profileImageUrl: data.profile_image_url ?? null,
+    };
+  } else if (userType === "parent") {
+    const { data } = await supabase
+      .from("parent_users")
+      .select("id, name, profile_image_url")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (!data) return null;
+
+    return {
+      id: data.id,
+      type: "parent",
+      name: data.name ?? "학부모",
+      profileImageUrl: data.profile_image_url ?? null,
+    };
+  } else {
+    // admin (admin_users 테이블에서 조회 — 프로필 이미지 포함)
+    const { data } = await supabase
+      .from("admin_users")
+      .select("id, name, role, profile_image_url")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (!data) return null;
+
+    const displayName = data.name || (data.role === "consultant" ? "상담사" : "관리자");
+
+    return {
+      id: data.id,
+      type: "admin",
+      name: displayName,
+      profileImageUrl: data.profile_image_url ?? null,
+    };
+  }
+}
+
+/**
+ * 나간 멤버를 다시 채팅방에 참여시킴 (Auto-rejoin 헬퍼)
+ * 1. left_at, deleted_at을 null로 업데이트
+ * 2. 시스템 메시지 추가
+ */
+export async function rejoinMember(
+  roomId: string,
+  userId: string,
+  userType: ChatUserType
+): Promise<void> {
+  // 1. left_at, deleted_at을 null로 업데이트하여 재참여 처리
+  await repository.updateMember(roomId, userId, userType, {
+    left_at: null,
+    deleted_at: null,
+  });
+
+  // 2. 시스템 메시지 추가
+  const userInfo = await getUserInfo(userId, userType);
+  await repository.insertMessage({
+    room_id: roomId,
+    sender_id: userId,
+    sender_type: userType,
+    message_type: "system",
+    content: `${userInfo?.name ?? "사용자"}님이 다시 채팅방에 참여했습니다`,
+    sender_name: userInfo?.name ?? "사용자",
+    sender_profile_url: userInfo?.profileImageUrl ?? null,
+  });
+}
+
+/**
+ * 리액션 목록을 요약으로 변환
+ */
+export function convertReactionsToSummaries(
+  reactions: MessageReaction[],
+  currentUserId: string,
+  currentUserType: ChatUserType
+): ReactionSummary[] {
+  // 이모지별 그룹핑
+  const emojiMap = new Map<string, { count: number; hasReacted: boolean }>();
+
+  for (const reaction of reactions) {
+    const existing = emojiMap.get(reaction.emoji) ?? { count: 0, hasReacted: false };
+    existing.count += 1;
+    if (reaction.user_id === currentUserId && reaction.user_type === currentUserType) {
+      existing.hasReacted = true;
+    }
+    emojiMap.set(reaction.emoji, existing);
+  }
+
+  // ReactionSummary 배열로 변환
+  const summaries: ReactionSummary[] = [];
+  for (const [emoji, data] of emojiMap) {
+    summaries.push({
+      emoji: emoji as ReactionSummary["emoji"],
+      count: data.count,
+      hasReacted: data.hasReacted,
+    });
+  }
+
+  return summaries;
+}

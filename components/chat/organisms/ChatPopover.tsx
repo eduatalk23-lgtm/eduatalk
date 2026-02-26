@@ -161,6 +161,8 @@ function ChatPopoverComponent({
       if (panelRef.current?.contains(target)) return;
       // Dialog/Modal 내부 클릭은 무시 (Portal로 body에 렌더링됨)
       if (target.closest("[role='dialog']")) return;
+      // 컨텍스트 메뉴/프로필 카드 등 채팅 오버레이 클릭은 무시
+      if (target.closest("[role='menu']") || target.closest("[data-chat-overlay]")) return;
       onClose();
     };
 

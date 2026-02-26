@@ -16,6 +16,8 @@ import type {
   ChatMessageType,
   ChatUser,
   ChatRoomListItem,
+  ChatAttachment,
+  ChatLinkPreview,
 } from "@/lib/domains/chat/types";
 import {
   type InfiniteMessagesCache,
@@ -25,6 +27,11 @@ import { getSenderInfoBatchAction, getMessagesSinceAction } from "@/lib/domains/
 import { operationTracker } from "@/lib/domains/chat/operationTracker";
 import { connectionManager } from "./connectionManager";
 import { useDebouncedCallback } from "@/lib/hooks/useDebounce";
+
+// 프로덕션에서 로그 비활성화 (console.log/warn → dev only)
+const __DEV__ = process.env.NODE_ENV === "development";
+function debugLog(...args: unknown[]) { if (__DEV__) console.log(...args); }
+function debugWarn(...args: unknown[]) { if (__DEV__) console.warn(...args); }
 
 // Supabase Realtime Payload 타입 (DB 컬럼과 1:1 매핑)
 interface ChatMessagePayload {
@@ -350,7 +357,7 @@ export function useChatRealtime({
 
     if (!initialTimestamp) {
       // 타임스탬프 없으면 전체 무효화 (첫 로드 또는 캐시 없음)
-      console.log("[ChatRealtime] No timestamp for incremental sync, full invalidate");
+      debugLog("[ChatRealtime] No timestamp for incremental sync, full invalidate");
       invalidateMessages();
       return;
     }
@@ -405,7 +412,7 @@ export function useChatRealtime({
         // 마지막 시도가 아니면 대기 후 재시도
         if (attempt < MAX_RETRIES) {
           const delay = BASE_DELAY_MS * Math.pow(2, attempt);
-          console.log(`[ChatRealtime] Retrying sync (${attempt + 1}/${MAX_RETRIES}) in ${delay}ms...`);
+          debugLog(`[ChatRealtime] Retrying sync (${attempt + 1}/${MAX_RETRIES}) in ${delay}ms...`);
           await new Promise((resolve) => setTimeout(resolve, delay));
         }
       }
@@ -414,7 +421,7 @@ export function useChatRealtime({
     };
 
     try {
-      console.log("[ChatRealtime] Incremental sync since:", initialTimestamp);
+      debugLog("[ChatRealtime] Incremental sync since:", initialTimestamp);
 
       // 모든 새 메시지 수집 (페이지네이션)
       type MessageType = NonNullable<Awaited<ReturnType<typeof getMessagesSinceAction>>["data"]>[number];
@@ -429,7 +436,7 @@ export function useChatRealtime({
           console.error("[ChatRealtime] Sync failed after retries:", result.error);
           // 부분적으로 가져온 메시지라도 있으면 병합
           if (allNewMessages.length > 0) {
-            console.log(`[ChatRealtime] Merging ${allNewMessages.length} partial messages`);
+            debugLog(`[ChatRealtime] Merging ${allNewMessages.length} partial messages`);
             break;
           }
           // 아무것도 못 가져왔으면 전체 무효화
@@ -456,17 +463,17 @@ export function useChatRealtime({
       }
 
       if (allNewMessages.length === 0) {
-        console.log("[ChatRealtime] No new messages since last sync");
+        debugLog("[ChatRealtime] No new messages since last sync");
         lastSyncTimestampRef.current = new Date().toISOString();
         return;
       }
 
       // 최대 제한 도달 시 경고
       if (allNewMessages.length >= MAX_TOTAL_MESSAGES) {
-        console.warn(`[ChatRealtime] Reached max sync limit (${MAX_TOTAL_MESSAGES}), some messages may be missing`);
+        debugWarn(`[ChatRealtime] Reached max sync limit (${MAX_TOTAL_MESSAGES}), some messages may be missing`);
       }
 
-      console.log(`[ChatRealtime] Synced ${allNewMessages.length} new messages`);
+      debugLog(`[ChatRealtime] Synced ${allNewMessages.length} new messages`);
 
       // 캐시에 새 메시지 병합
       queryClient.setQueryData<InfiniteMessagesCache>(
@@ -489,7 +496,7 @@ export function useChatRealtime({
 
           if (uniqueNewMessages.length === 0) return old;
 
-          console.log(`[ChatRealtime] Adding ${uniqueNewMessages.length} unique messages to cache`);
+          debugLog(`[ChatRealtime] Adding ${uniqueNewMessages.length} unique messages to cache`);
 
           // 새 메시지를 첫 번째 페이지 끝에 추가 (시간순)
           return {
@@ -553,7 +560,7 @@ export function useChatRealtime({
 
     // 재연결 콜백 등록 (수동 재연결 버튼용)
     connectionManager.registerReconnectCallback(channelName, async () => {
-      console.log("[ChatRealtime] Reconnect callback triggered");
+      debugLog("[ChatRealtime] Reconnect callback triggered");
       // 트리거 증가로 useEffect 재실행 → 채널 재구독
       setReconnectTrigger((prev) => prev + 1);
     });
@@ -575,7 +582,7 @@ export function useChatRealtime({
 
       if (batch.length === 0) return;
 
-      console.log(`[ChatRealtime] Flushing ${batch.length} buffered inserts`);
+      debugLog(`[ChatRealtime] Flushing ${batch.length} buffered inserts`);
 
       // 한 번의 setQueryData로 모든 메시지 적용 (1 React 리렌더)
       queryClient.setQueryData<InfiniteMessagesCache>(
@@ -675,7 +682,7 @@ export function useChatRealtime({
                 );
               })
               .catch((error) => {
-                console.warn("[ChatRealtime] Failed to fetch sender info:", error);
+                debugWarn("[ChatRealtime] Failed to fetch sender info:", error);
               });
           }
 
@@ -728,7 +735,7 @@ export function useChatRealtime({
       // UPDATE dedup: 클라이언트 broadcast와 DB trigger broadcast 양쪽에서 수신되므로 중복 방지
       const eventId = `update:${updatedMessage.id}:${updatedMessage.updated_at}`;
       if (operationTracker.isRealtimeProcessed(eventId)) {
-        console.log("[ChatRealtime] Skipping already processed update:", eventId);
+        debugLog("[ChatRealtime] Skipping already processed update:", eventId);
         return;
       }
 
@@ -796,7 +803,7 @@ export function useChatRealtime({
           if (msg?.id) {
             const ts = new Date(msg.created_at).getTime();
             const latency = Number.isNaN(ts) ? "?" : `${Date.now() - ts}`;
-            console.log(`[ChatRealtime] Broadcast INSERT: ${msg.id} (latency: ${latency}ms)`);
+            debugLog(`[ChatRealtime] Broadcast INSERT: ${msg.id} (latency: ${latency}ms)`);
             handleMessageInsert(msg);
           }
         }
@@ -809,7 +816,7 @@ export function useChatRealtime({
           if (msg?.id) {
             const ts = new Date(msg.updated_at).getTime();
             const latency = Number.isNaN(ts) ? "?" : `${Date.now() - ts}`;
-            console.log(`[ChatRealtime] Broadcast UPDATE: ${msg.id} (latency: ${latency}ms)`);
+            debugLog(`[ChatRealtime] Broadcast UPDATE: ${msg.id} (latency: ${latency}ms)`);
             handleMessageUpdate(msg);
           }
         }
@@ -820,7 +827,7 @@ export function useChatRealtime({
         { event: "REACTION_INSERT" },
         (event: { payload: BroadcastPayload }) => {
           const reaction = extractRecord<ChatReactionPayload>(event.payload);
-          console.log("[ChatRealtime] Reaction added:", reaction?.message_id);
+          debugLog("[ChatRealtime] Reaction added:", reaction?.message_id);
 
           if (reaction?.message_id) {
             const pendingState = operationTracker.isReactionPending(
@@ -829,7 +836,7 @@ export function useChatRealtime({
             );
 
             if (reaction.user_id === userId && pendingState.isPending && pendingState.isAdd) {
-              console.log("[ChatRealtime] Skipping pending reaction add:", reaction.message_id, reaction.emoji);
+              debugLog("[ChatRealtime] Skipping pending reaction add:", reaction.message_id, reaction.emoji);
               return;
             }
 
@@ -892,7 +899,7 @@ export function useChatRealtime({
         { event: "REACTION_DELETE" },
         (event: { payload: BroadcastPayload }) => {
           const reaction = extractOldRecord<ChatReactionPayload>(event.payload) ?? extractRecord<ChatReactionPayload>(event.payload);
-          console.log("[ChatRealtime] Reaction removed:", reaction?.message_id);
+          debugLog("[ChatRealtime] Reaction removed:", reaction?.message_id);
 
           if (reaction?.message_id) {
             const pendingState = operationTracker.isReactionPending(
@@ -901,7 +908,7 @@ export function useChatRealtime({
             );
 
             if (reaction.user_id === userId && pendingState.isPending && !pendingState.isAdd) {
-              console.log("[ChatRealtime] Skipping pending reaction remove:", reaction.message_id, reaction.emoji);
+              debugLog("[ChatRealtime] Skipping pending reaction remove:", reaction.message_id, reaction.emoji);
               return;
             }
 
@@ -960,7 +967,7 @@ export function useChatRealtime({
         "broadcast",
         { event: "PIN_INSERT" },
         () => {
-          console.log("[ChatRealtime] Message pinned");
+          debugLog("[ChatRealtime] Message pinned");
           fnRef.current.invalidatePinnedMessages();
         }
       )
@@ -968,7 +975,7 @@ export function useChatRealtime({
         "broadcast",
         { event: "PIN_DELETE" },
         () => {
-          console.log("[ChatRealtime] Message unpinned");
+          debugLog("[ChatRealtime] Message unpinned");
           fnRef.current.invalidatePinnedMessages();
         }
       )
@@ -982,7 +989,7 @@ export function useChatRealtime({
 
           if (announcementAt !== lastAnnouncementAtRef.current) {
             lastAnnouncementAtRef.current = announcementAt;
-            console.log("[ChatRealtime] Announcement changed");
+            debugLog("[ChatRealtime] Announcement changed");
             fnRef.current.invalidateAnnouncement();
           }
         }
@@ -994,13 +1001,75 @@ export function useChatRealtime({
         (event: { payload: BroadcastPayload }) => {
           const member = extractRecord<{ left_at: string | null; user_id: string }>(event.payload);
           if (member && member.left_at !== null) {
-            console.log("[ChatRealtime] Member left room:", member.user_id);
+            debugLog("[ChatRealtime] Member left room:", member.user_id);
             queryClient.invalidateQueries({ queryKey: ["chat-room", roomId] });
           }
         }
       )
+      // === 첨부파일: broadcast from DB trigger ===
+      .on(
+        "broadcast",
+        { event: "ATTACHMENT_INSERT" },
+        (event: { payload: BroadcastPayload }) => {
+          const attachment = extractRecord<ChatAttachment>(event.payload);
+          if (!attachment?.message_id) return;
+
+          debugLog("[ChatRealtime] Attachment added:", attachment.id, "for message:", attachment.message_id);
+
+          queryClient.setQueryData<InfiniteMessagesCache>(
+            ["chat-messages", roomId],
+            (old) => {
+              if (!old?.pages?.length) return old;
+              return {
+                ...old,
+                pages: old.pages.map((page) => ({
+                  ...page,
+                  messages: page.messages.map((m) => {
+                    if (m.id !== attachment.message_id) return m;
+                    const existing = m.attachments ?? [];
+                    // 중복 방지
+                    if (existing.some((a) => a.id === attachment.id)) return m;
+                    return { ...m, attachments: [...existing, attachment] };
+                  }),
+                })),
+              };
+            }
+          );
+        }
+      )
+      // === 링크 프리뷰: broadcast from DB trigger ===
+      .on(
+        "broadcast",
+        { event: "LINK_PREVIEW_INSERT" },
+        (event: { payload: BroadcastPayload }) => {
+          const preview = extractRecord<ChatLinkPreview>(event.payload);
+          if (!preview?.message_id) return;
+
+          debugLog("[ChatRealtime] Link preview added:", preview.url, "for message:", preview.message_id);
+
+          queryClient.setQueryData<InfiniteMessagesCache>(
+            ["chat-messages", roomId],
+            (old) => {
+              if (!old?.pages?.length) return old;
+              return {
+                ...old,
+                pages: old.pages.map((page) => ({
+                  ...page,
+                  messages: page.messages.map((m) => {
+                    if (m.id !== preview.message_id) return m;
+                    const existing = m.linkPreviews ?? [];
+                    // 중복 방지 (같은 URL)
+                    if (existing.some((lp) => lp.id === preview.id)) return m;
+                    return { ...m, linkPreviews: [...existing, preview] };
+                  }),
+                })),
+              };
+            }
+          );
+        }
+      )
       .subscribe((status) => {
-        console.log(`[ChatRealtime] Room ${roomId} subscription:`, status);
+        debugLog(`[ChatRealtime] Room ${roomId} subscription:`, status);
 
         if (status === "SUBSCRIBED") {
           // ConnectionManager에 연결 상태 알림
@@ -1011,15 +1080,15 @@ export function useChatRealtime({
             // 첫 마운트: SSR prefetch 데이터가 있으면 메시지 sync 불필요
             const hasCache = queryClient.getQueryData(["chat-messages", roomId]);
             if (hasCache) {
-              console.log("[ChatRealtime] Initial mount with SSR cache, skipping sync");
+              debugLog("[ChatRealtime] Initial mount with SSR cache, skipping sync");
             } else {
-              console.log("[ChatRealtime] Initial mount without cache, syncing...");
+              debugLog("[ChatRealtime] Initial mount without cache, syncing...");
               fnRef.current.syncMessagesSince();
             }
             // roomList은 스킵 (방금 목록에서 왔으므로 최신)
           } else {
             // 재연결 또는 자동 복구: 누락 메시지 복구 필요
-            console.log("[ChatRealtime] Reconnected. Syncing missed messages...");
+            debugLog("[ChatRealtime] Reconnected. Syncing missed messages...");
             fnRef.current.syncMessagesSince();
           }
 
@@ -1042,7 +1111,7 @@ export function useChatRealtime({
     channelRef.current = channel;
 
     return () => {
-      console.log(`[ChatRealtime] Unsubscribing from room ${roomId}`);
+      debugLog(`[ChatRealtime] Unsubscribing from room ${roomId}`);
       // Broadcast-first: 채널 참조 초기화
       channelRef.current = null;
       // 지연 invalidation 타이머 정리
@@ -1086,7 +1155,7 @@ export function useChatRealtime({
   const broadcastInsert = useCallback(
     async (message: ChatMessagePayload) => {
       if (!channelRef.current) {
-        console.warn("[ChatRealtime] No channel for broadcast");
+        debugWarn("[ChatRealtime] No channel for broadcast");
         return;
       }
       try {
@@ -1096,10 +1165,10 @@ export function useChatRealtime({
           payload: message,
         });
         if (status !== "ok") {
-          console.warn("[ChatRealtime] Broadcast ack failed:", status);
+          debugWarn("[ChatRealtime] Broadcast ack failed:", status);
         }
       } catch (error) {
-        console.warn("[ChatRealtime] Broadcast send error:", error);
+        debugWarn("[ChatRealtime] Broadcast send error:", error);
       }
     },
     []
@@ -1116,7 +1185,7 @@ type UseChatRoomListRealtimeOptions = {
   /** 현재 사용자 ID */
   userId: string;
   /** 사용자 유형 */
-  userType: "student" | "admin";
+  userType: "student" | "admin" | "parent";
   /** 구독 활성화 여부 */
   enabled?: boolean;
 };
@@ -1189,7 +1258,7 @@ export function useChatRoomListRealtime({
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          console.log("[ChatRealtime] Added to room:", payload);
+          debugLog("[ChatRealtime] Added to room:", payload);
           invalidateRoomList();
         }
       )
@@ -1207,7 +1276,7 @@ export function useChatRoomListRealtime({
           // left_at 변경(나가기)만 처리, last_read_at 변경(읽음 처리)은 무시
           // → markAsReadMutation의 onMutate가 이미 낙관적 업데이트 처리함
           if (newRecord?.left_at !== undefined && newRecord.left_at !== null) {
-            console.log("[ChatRealtime] Member left room, refreshing list");
+            debugLog("[ChatRealtime] Member left room, refreshing list");
             invalidateRoomList();
           }
         }
@@ -1224,21 +1293,21 @@ export function useChatRoomListRealtime({
           const roomId = (payload.new as { id: string } | undefined)?.id;
           // 사용자가 속한 채팅방인 경우에만 목록 갱신
           if (roomId && userRoomIdsRef.current.has(roomId)) {
-            console.log("[ChatRealtime] Room updated (new message):", roomId);
+            debugLog("[ChatRealtime] Room updated (new message):", roomId);
             debouncedInvalidate();
           }
         }
       )
       .subscribe((status) => {
-        console.log(`[ChatRealtime] Room list subscription:`, status);
+        debugLog(`[ChatRealtime] Room list subscription:`, status);
 
         if (status === "SUBSCRIBED") {
-          console.log("[ChatRealtime] Room list connected/reconnected. Syncing...");
+          debugLog("[ChatRealtime] Room list connected/reconnected. Syncing...");
           invalidateRoomList();
         }
 
         if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-          console.warn(`[ChatRealtime] Room list connection error: ${status}`);
+          debugWarn(`[ChatRealtime] Room list connection error: ${status}`);
         }
       });
 

@@ -63,11 +63,12 @@ interface TeamMember {
   role: "admin" | "consultant";
 }
 
-type ChatTabId = "direct" | "group" | "team";
+type ChatTabId = "direct" | "group" | "team" | "consulting";
 
 const CHAT_TABS: Tab[] = [
   { id: "direct", label: "1:1 채팅" },
   { id: "group", label: "그룹 채팅" },
+  { id: "consulting", label: "컨설팅" },
   { id: "team", label: "팀 채팅" },
 ];
 
@@ -98,32 +99,24 @@ export function AdminCreateChatModal({
     string | null
   >(null);
 
+  // 컨설팅 모드 상태
+  const [consultingTopic, setConsultingTopic] = useState("");
+  const [selectedConsultingStudentId, setSelectedConsultingStudentId] = useState<string | null>(null);
+
   // 학생 목록 조회 (프로필 + 학교 정보 포함)
   const { data: students, isLoading: isLoadingStudents } = useQuery({
     queryKey: ["chat-available-students-with-details"],
     queryFn: async () => {
       const supabase = createSupabaseBrowserClient();
 
-      // 1. 학생 기본 정보 조회 (school_name 비정규화 컬럼 사용)
+      // 학생 정보 조회 (phone 포함, students 테이블에 통합됨)
       const { data: studentsData, error: studentsError } = await supabase
         .from("students")
-        .select("id, name, grade, school_type, school_name")
+        .select("id, name, grade, school_type, school_name, phone")
         .order("name");
 
       if (studentsError) throw studentsError;
       if (!studentsData || studentsData.length === 0) return [];
-
-      // 2. 학생 프로필 (연락처) 조회
-      const studentIds = studentsData.map((s) => s.id);
-      const { data: profilesData } = await supabase
-        .from("student_profiles")
-        .select("id, phone")
-        .in("id", studentIds);
-
-      // 3. 데이터 병합 (school_name은 비정규화 컬럼으로 직접 사용)
-      const profilesMap = new Map(
-        profilesData?.map((p) => [p.id, p.phone]) || []
-      );
 
       return studentsData.map((student) => ({
         id: student.id,
@@ -131,10 +124,11 @@ export function AdminCreateChatModal({
         grade: student.grade,
         school_type: student.school_type,
         school_name: student.school_name,
-        phone: profilesMap.get(student.id) ?? null,
+        phone: student.phone ?? null,
       })) as Student[];
     },
     enabled: isOpen && activeTab !== "team",
+    // consulting 탭에서도 학생 목록 사용
   });
 
   // 팀 멤버(관리자) 목록 조회
@@ -214,9 +208,12 @@ export function AdminCreateChatModal({
     if (activeTab === "group") {
       return groupName.trim().length > 0 && selectedStudentIds.size > 0;
     }
+    if (activeTab === "consulting") {
+      return selectedConsultingStudentId !== null && consultingTopic.trim().length > 0;
+    }
     // team 모드
     return selectedTeamMemberId !== null;
-  }, [activeTab, selectedStudentId, groupName, selectedStudentIds, selectedTeamMemberId]);
+  }, [activeTab, selectedStudentId, groupName, selectedStudentIds, selectedTeamMemberId, selectedConsultingStudentId, consultingTopic]);
 
   // 채팅 시작/생성
   const startChatMutation = useMutation({
@@ -238,6 +235,15 @@ export function AdminCreateChatModal({
           memberIds,
           memberTypes: memberIds.map(() => "student"),
         });
+        if (!result.success) throw new Error(result.error);
+        return result.data;
+      } else if (activeTab === "consulting") {
+        // 컨설팅 모드: category=consulting, topic 필수
+        const result = await startDirectChatAction(
+          selectedConsultingStudentId!,
+          "student",
+          { category: "consulting", topic: consultingTopic.trim() }
+        );
         if (!result.success) throw new Error(result.error);
         return result.data;
       } else {
@@ -279,6 +285,8 @@ export function AdminCreateChatModal({
     setGroupName("");
     setSelectedStudentIds(new Set());
     setSelectedTeamMemberId(null);
+    setConsultingTopic("");
+    setSelectedConsultingStudentId(null);
     setActiveTab("direct");
   };
 
@@ -294,6 +302,8 @@ export function AdminCreateChatModal({
         return "학생과 채팅 시작";
       case "group":
         return "그룹 채팅 만들기";
+      case "consulting":
+        return "컨설팅 채팅 시작";
       case "team":
         return "팀원과 채팅 시작";
       default:
@@ -330,6 +340,20 @@ export function AdminCreateChatModal({
               onChange={(e) => setGroupName(e.target.value)}
               placeholder="그룹 이름 입력 (필수)"
               aria-label="그룹 이름"
+              className="w-full px-4 py-2 rounded-lg bg-bg-secondary text-sm text-text-primary placeholder:text-text-tertiary border border-transparent focus:border-primary focus:outline-none"
+            />
+          </div>
+        )}
+
+        {/* 컨설팅 주제 입력 (컨설팅 모드 전용) */}
+        {activeTab === "consulting" && (
+          <div className="pt-4">
+            <input
+              type="text"
+              value={consultingTopic}
+              onChange={(e) => setConsultingTopic(e.target.value)}
+              placeholder="컨설팅 주제 입력 (예: 1학기 생기부 컨설팅)"
+              aria-label="컨설팅 주제"
               className="w-full px-4 py-2 rounded-lg bg-bg-secondary text-sm text-text-primary placeholder:text-text-tertiary border border-transparent focus:border-primary focus:outline-none"
             />
           </div>
@@ -404,14 +428,17 @@ export function AdminCreateChatModal({
                 {searchQuery ? "검색 결과가 없습니다" : "팀원이 없습니다"}
               </div>
             )
-          ) : // 학생 목록 (direct/group 모드)
+          ) : // 학생 목록 (direct/group/consulting 모드)
           filteredStudents && filteredStudents.length > 0 ? (
             <div className="space-y-2 max-h-60 overflow-y-auto">
               {filteredStudents.map((student) => {
                 const isSelectedDirect = selectedStudentId === student.id;
                 const isSelectedGroup = selectedStudentIds.has(student.id);
+                const isSelectedConsulting = selectedConsultingStudentId === student.id;
                 const isSelected =
-                  activeTab === "direct" ? isSelectedDirect : isSelectedGroup;
+                  activeTab === "direct" ? isSelectedDirect
+                  : activeTab === "consulting" ? isSelectedConsulting
+                  : isSelectedGroup;
 
                 return (
                   <button
@@ -420,6 +447,8 @@ export function AdminCreateChatModal({
                     onClick={() => {
                       if (activeTab === "direct") {
                         setSelectedStudentId(student.id);
+                      } else if (activeTab === "consulting") {
+                        setSelectedConsultingStudentId(student.id);
                       } else {
                         toggleStudentSelection(student.id);
                       }
@@ -495,6 +524,8 @@ export function AdminCreateChatModal({
             <MessageSquare className="w-4 h-4" />
           ) : activeTab === "group" ? (
             <Users className="w-4 h-4" />
+          ) : activeTab === "consulting" ? (
+            <MessageSquare className="w-4 h-4" />
           ) : (
             <UserCog className="w-4 h-4" />
           )}
@@ -502,7 +533,9 @@ export function AdminCreateChatModal({
             ? "채팅 시작"
             : activeTab === "group"
               ? "그룹 만들기"
-              : "팀 채팅 시작"}
+              : activeTab === "consulting"
+                ? "컨설팅 시작"
+                : "팀 채팅 시작"}
         </button>
       </DialogFooter>
     </Dialog>

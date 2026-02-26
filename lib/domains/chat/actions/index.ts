@@ -11,6 +11,9 @@ export {
   getChatRoomDetailAction,
   leaveChatRoomAction,
   startDirectChatAction,
+  archiveChatRoomAction,
+  unarchiveChatRoomAction,
+  deleteChatRoomAction,
   setAnnouncementAction,
   getAnnouncementAction,
   canSetAnnouncementAction,
@@ -53,3 +56,14 @@ export {
   getPinnedMessagesAction,
   canPinMessagesAction,
 } from "./pins";
+
+// Attachment Actions
+export {
+  registerChatAttachmentAction,
+  sendMessageWithAttachmentsAction,
+  deleteChatAttachmentAction,
+  refreshAttachmentUrlsAction,
+  getChatStorageQuotaAction,
+  getRoomAttachmentsAction,
+  searchRoomAttachmentsAction,
+} from "./attachments";

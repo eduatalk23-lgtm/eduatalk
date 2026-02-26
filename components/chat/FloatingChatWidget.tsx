@@ -4,8 +4,8 @@
  * FloatingChatWidget - 플로팅 채팅 위젯 (루트 오케스트레이터)
  *
  * 화면 우측 하단에 FAB를 표시하고, 클릭 시 채팅 패널을 토글합니다.
- * - 비인증/parent 역할 → 렌더링 안 함
- * - /chat, /admin/chat 페이지 → 렌더링 안 함
+ * - 비인증 → 렌더링 안 함
+ * - /chat, /admin/chat, /parent/chat 페이지 → 렌더링 안 함
  * - 패널 닫힘 상태에서도 실시간 구독으로 배지 업데이트
  */
 
@@ -37,13 +37,23 @@ const AdminCreateChatModal = dynamic(
   { ssr: false }
 );
 
+const ParentCreateChatModal = dynamic(
+  () =>
+    import("@/app/(parent)/parent/chat/_components/ParentCreateChatModal").then(
+      (mod) => mod.ParentCreateChatModal
+    ),
+  { ssr: false }
+);
+
 /** 채팅 전용 페이지 경로 (위젯 숨김) */
 function isChatPage(pathname: string): boolean {
   return (
     pathname === "/chat" ||
     pathname.startsWith("/chat/") ||
     pathname === "/admin/chat" ||
-    pathname.startsWith("/admin/chat/")
+    pathname.startsWith("/admin/chat/") ||
+    pathname === "/parent/chat" ||
+    pathname.startsWith("/parent/chat/")
   );
 }
 
@@ -52,6 +62,7 @@ function toChatUserType(role: string): ChatUserType | null {
   if (role === "student") return "student";
   if (role === "admin" || role === "consultant" || role === "superadmin")
     return "admin";
+  if (role === "parent") return "parent";
   return null;
 }
 
@@ -64,7 +75,12 @@ export function FloatingChatWidget() {
   const chatUserType = user?.role ? toChatUserType(user.role) : null;
   const isAuthenticated = !!user && !!chatUserType;
 
-  const basePath = chatUserType === "admin" ? "/admin/chat" : "/chat";
+  const basePath =
+    chatUserType === "admin"
+      ? "/admin/chat"
+      : chatUserType === "parent"
+        ? "/parent/chat"
+        : "/chat";
 
   // 실시간 구독 (패널 닫혀 있어도 배지 업데이트 필요)
   useChatRoomListRealtime({
@@ -82,7 +98,11 @@ export function FloatingChatWidget() {
   if (isChatPage(pathname)) return null;
 
   const ModalComponent =
-    chatUserType === "admin" ? AdminCreateChatModal : CreateChatModal;
+    chatUserType === "admin"
+      ? AdminCreateChatModal
+      : chatUserType === "parent"
+        ? ParentCreateChatModal
+        : CreateChatModal;
 
   return (
     <>

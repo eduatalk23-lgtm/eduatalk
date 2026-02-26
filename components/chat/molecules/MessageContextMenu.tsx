@@ -3,11 +3,13 @@
 /**
  * MessageContextMenu - 메시지 컨텍스트 메뉴
  *
- * 메시지를 길게 누르거나 우클릭 시 나타나는 하단 시트 메뉴입니다.
+ * 모바일: 길게 누르기 → 하단 시트 (바텀시트)
+ * 데스크톱: 우클릭 → 커서 위치에 컨텍스트 메뉴 팝업
+ *
  * 리액션 추가, 복사, 답장, 편집, 삭제, 신고 등의 액션을 제공합니다.
  */
 
-import { memo, useEffect, useRef } from "react";
+import { memo, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
 import { useFocusTrap, useEscapeKey } from "@/lib/accessibility/hooks";
@@ -39,6 +41,8 @@ interface MessageContextMenuProps {
   onClose: () => void;
   /** 메시지 컨텍스트 정보 */
   context: MessageMenuContext | null;
+  /** 우클릭 커서 위치 (있으면 데스크톱 팝업, 없으면 모바일 바텀시트) */
+  position?: { x: number; y: number } | null;
   /** 복사 클릭 콜백 */
   onCopy: () => void;
   /** 답장 클릭 콜백 */
@@ -55,10 +59,125 @@ interface MessageContextMenuProps {
   onToggleReaction: (emoji: ReactionEmoji) => void;
 }
 
+/** 액션 버튼 (공통 컴포넌트) */
+function ActionButton({
+  onClick,
+  icon: Icon,
+  label,
+  variant = "default",
+  compact = false,
+}: {
+  onClick: () => void;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  variant?: "default" | "danger";
+  compact?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center gap-3",
+        compact ? "px-3 py-2.5" : "px-4 py-3",
+        "hover:bg-bg-secondary active:bg-bg-tertiary",
+        "transition-colors",
+        variant === "danger" ? "text-error" : "text-text-primary"
+      )}
+    >
+      <Icon className={cn("w-4 h-4", variant === "default" && "text-text-secondary")} />
+      <span className={cn(compact && "text-sm")}>{label}</span>
+    </button>
+  );
+}
+
+/** 리액션 바 (공통) */
+function ReactionBar({
+  onReaction,
+  compact = false,
+}: {
+  onReaction: (emoji: ReactionEmoji) => void;
+  compact?: boolean;
+}) {
+  return (
+    <div className={cn("flex justify-center gap-2", compact ? "px-3 py-2" : "px-4 py-3")}>
+      {REACTION_EMOJIS.map((emoji) => (
+        <button
+          key={emoji}
+          type="button"
+          onClick={() => onReaction(emoji)}
+          className={cn(
+            "flex items-center justify-center",
+            compact ? "w-9 h-9 text-xl" : "w-11 h-11 text-2xl",
+            "rounded-full",
+            "bg-secondary-100 dark:bg-secondary-800",
+            "hover:bg-secondary-200 dark:hover:bg-secondary-700",
+            "active:scale-95",
+            "transition-all duration-100"
+          )}
+          aria-label={`${emoji} 리액션 추가`}
+        >
+          {emoji}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** 액션 목록 (공통) */
+function ActionList({
+  context,
+  compact = false,
+  onCopy,
+  onReply,
+  onEdit,
+  onDelete,
+  onReport,
+  onTogglePin,
+}: {
+  context: MessageMenuContext;
+  compact?: boolean;
+  onCopy: () => void;
+  onReply: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  onReport?: () => void;
+  onTogglePin?: () => void;
+}) {
+  return (
+    <div className="py-1">
+      <ActionButton onClick={onCopy} icon={Copy} label="복사" compact={compact} />
+      <ActionButton onClick={onReply} icon={Reply} label="답장" compact={compact} />
+
+      {context.isOwn && context.canEdit && onEdit && (
+        <ActionButton onClick={onEdit} icon={Edit2} label="편집" compact={compact} />
+      )}
+
+      {context.canPin && onTogglePin && (
+        <ActionButton
+          onClick={onTogglePin}
+          icon={context.isPinned ? PinOff : Pin}
+          label={context.isPinned ? "고정 해제" : "고정"}
+          compact={compact}
+        />
+      )}
+
+      {context.isOwn && onDelete && (
+        <ActionButton onClick={onDelete} icon={Trash2} label="삭제" variant="danger" compact={compact} />
+      )}
+
+      {!context.isOwn && onReport && (
+        <ActionButton onClick={onReport} icon={Flag} label="신고" variant="danger" compact={compact} />
+      )}
+    </div>
+  );
+}
+
 function MessageContextMenuComponent({
   isOpen,
   onClose,
   context,
+  position,
   onCopy,
   onReply,
   onEdit,
@@ -67,26 +186,52 @@ function MessageContextMenuComponent({
   onTogglePin,
   onToggleReaction,
 }: MessageContextMenuProps) {
-  // 포커스 트랩 (열릴 때 첫 요소 포커스, 닫힐 때 이전 포커스 복원)
   const { containerRef } = useFocusTrap(isOpen);
-
-  // 배경 클릭 감지용 ref
   const backdropRef = useRef<HTMLDivElement>(null);
 
-  // ESC 키로 닫기
   useEscapeKey(onClose, isOpen);
 
-  // 메뉴 열렸을 때 body 스크롤 방지
+  const isDesktopPopup = !!position;
+
+  // 데스크톱 팝업: 렌더 후 뷰포트 안에 맞추기 (callback ref로 DOM 직접 조정)
+  const popupCallbackRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      if (!el || !position) return;
+
+      // focusTrap containerRef도 연결
+      if (typeof containerRef === "object" && containerRef !== null) {
+        (containerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+      }
+
+      const rect = el.getBoundingClientRect();
+      const padding = 12;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+
+      let x = position.x;
+      let y = position.y;
+
+      if (x + rect.width + padding > vw) x = vw - rect.width - padding;
+      if (y + rect.height + padding > vh) y = vh - rect.height - padding;
+      x = Math.max(padding, x);
+      y = Math.max(padding, y);
+
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+    },
+    [position, containerRef]
+  );
+
+  // 모바일 바텀시트: body 스크롤 방지
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !isDesktopPopup) {
       document.body.style.overflow = "hidden";
       return () => {
         document.body.style.overflow = "";
       };
     }
-  }, [isOpen]);
+  }, [isOpen, isDesktopPopup]);
 
-  // 배경(딤) 클릭 시 닫기
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === backdropRef.current) {
       onClose();
@@ -95,13 +240,59 @@ function MessageContextMenuComponent({
 
   if (!isOpen || !context) return null;
 
-  const handleReactionClick = (emoji: ReactionEmoji) => {
-    onToggleReaction(emoji);
-  };
+  const actionProps = { context, onCopy, onReply, onEdit, onDelete, onReport, onTogglePin };
 
-  const menuContent = (
+  // ─── 데스크톱: 커서 위치에 팝업 ───
+  if (isDesktopPopup && position) {
+    const desktopContent = (
+      <>
+        {/* 투명 배경 (클릭 시 닫기) */}
+        <div
+          ref={backdropRef}
+          onClick={handleBackdropClick}
+          className="fixed inset-0 z-40"
+          data-chat-overlay
+          aria-hidden="true"
+        />
+
+        {/* 컨텍스트 메뉴 팝업 */}
+        <div
+          ref={popupCallbackRef}
+          style={{ left: position.x, top: position.y }}
+          className={cn(
+            "fixed z-50",
+            "bg-bg-primary rounded-xl",
+            "border border-border",
+            "shadow-xl",
+            "min-w-[200px] max-w-[280px]",
+            "animate-in fade-in-0 zoom-in-95 duration-150",
+            "overflow-hidden"
+          )}
+          role="menu"
+          aria-label="메시지 메뉴"
+        >
+          {/* 리액션 바 (컴팩트) */}
+          <ReactionBar onReaction={onToggleReaction} compact />
+
+          {/* 구분선 */}
+          <div className="px-3">
+            <div className="h-px bg-border" />
+          </div>
+
+          {/* 액션 목록 (컴팩트) */}
+          <ActionList {...actionProps} compact />
+        </div>
+      </>
+    );
+
+    if (typeof window === "undefined") return null;
+    return createPortal(desktopContent, document.body);
+  }
+
+  // ─── 모바일: 하단 시트 ───
+  const mobileContent = (
     <>
-      {/* 딤 배경 - 클릭 시 닫기 */}
+      {/* 딤 배경 */}
       <div
         ref={backdropRef}
         onClick={handleBackdropClick}
@@ -109,10 +300,11 @@ function MessageContextMenuComponent({
           "fixed inset-0 z-40 bg-black/50",
           "animate-in fade-in-0 duration-200"
         )}
+        data-chat-overlay
         aria-hidden="true"
       />
 
-      {/* 하단 시트 - 포커스 트랩 적용 */}
+      {/* 하단 시트 */}
       <div
         ref={containerRef}
         className={cn(
@@ -130,27 +322,8 @@ function MessageContextMenuComponent({
           <div className="w-10 h-1 bg-secondary-300 dark:bg-secondary-600 rounded-full" />
         </div>
 
-        {/* 빠른 리액션 바 */}
-        <div className="flex justify-center gap-2 px-4 py-3">
-          {REACTION_EMOJIS.map((emoji) => (
-            <button
-              key={emoji}
-              type="button"
-              onClick={() => handleReactionClick(emoji)}
-              className={cn(
-                "w-11 h-11 flex items-center justify-center",
-                "rounded-full text-2xl",
-                "bg-secondary-100 dark:bg-secondary-800",
-                "hover:bg-secondary-200 dark:hover:bg-secondary-700",
-                "active:scale-95",
-                "transition-all duration-100"
-              )}
-              aria-label={`${emoji} 리액션 추가`}
-            >
-              {emoji}
-            </button>
-          ))}
-        </div>
+        {/* 리액션 바 */}
+        <ReactionBar onReaction={onToggleReaction} />
 
         {/* 구분선 */}
         <div className="px-4">
@@ -158,108 +331,7 @@ function MessageContextMenuComponent({
         </div>
 
         {/* 액션 목록 */}
-        <div className="py-2">
-          {/* 복사 - 항상 표시 */}
-          <button
-            type="button"
-            onClick={onCopy}
-            className={cn(
-              "w-full flex items-center gap-3 px-4 py-3",
-              "hover:bg-bg-secondary active:bg-bg-tertiary",
-              "transition-colors text-text-primary"
-            )}
-          >
-            <Copy className="w-5 h-5 text-text-secondary" />
-            <span>복사</span>
-          </button>
-
-          {/* 답장 - 항상 표시 */}
-          <button
-            type="button"
-            onClick={onReply}
-            className={cn(
-              "w-full flex items-center gap-3 px-4 py-3",
-              "hover:bg-bg-secondary active:bg-bg-tertiary",
-              "transition-colors text-text-primary"
-            )}
-          >
-            <Reply className="w-5 h-5 text-text-secondary" />
-            <span>답장</span>
-          </button>
-
-          {/* 편집 - 본인 메시지 + 편집 가능 시 */}
-          {context.isOwn && context.canEdit && onEdit && (
-            <button
-              type="button"
-              onClick={onEdit}
-              className={cn(
-                "w-full flex items-center gap-3 px-4 py-3",
-                "hover:bg-bg-secondary active:bg-bg-tertiary",
-                "transition-colors text-text-primary"
-              )}
-            >
-              <Edit2 className="w-5 h-5 text-text-secondary" />
-              <span>편집</span>
-            </button>
-          )}
-
-          {/* 고정/해제 - 고정 권한 있을 때 */}
-          {context.canPin && onTogglePin && (
-            <button
-              type="button"
-              onClick={onTogglePin}
-              className={cn(
-                "w-full flex items-center gap-3 px-4 py-3",
-                "hover:bg-bg-secondary active:bg-bg-tertiary",
-                "transition-colors text-text-primary"
-              )}
-            >
-              {context.isPinned ? (
-                <>
-                  <PinOff className="w-5 h-5 text-text-secondary" />
-                  <span>고정 해제</span>
-                </>
-              ) : (
-                <>
-                  <Pin className="w-5 h-5 text-text-secondary" />
-                  <span>고정</span>
-                </>
-              )}
-            </button>
-          )}
-
-          {/* 삭제 - 본인 메시지 (위험 스타일) */}
-          {context.isOwn && onDelete && (
-            <button
-              type="button"
-              onClick={onDelete}
-              className={cn(
-                "w-full flex items-center gap-3 px-4 py-3",
-                "hover:bg-bg-secondary active:bg-bg-tertiary",
-                "transition-colors text-error"
-              )}
-            >
-              <Trash2 className="w-5 h-5" />
-              <span>삭제</span>
-            </button>
-          )}
-
-          {/* 신고 - 타인 메시지 (위험 스타일) */}
-          {!context.isOwn && onReport && (
-            <button
-              type="button"
-              onClick={onReport}
-              className={cn(
-                "w-full flex items-center gap-3 px-4 py-3",
-                "hover:bg-bg-secondary active:bg-bg-tertiary",
-                "transition-colors text-error"
-              )}
-            >
-              <Flag className="w-5 h-5" />
-              <span>신고</span>
-            </button>
-          )}
-        </div>
+        <ActionList {...actionProps} />
 
         {/* 취소 버튼 */}
         <div className="px-4 pb-4">
@@ -281,9 +353,8 @@ function MessageContextMenuComponent({
     </>
   );
 
-  // Portal로 body에 직접 렌더링
   if (typeof window === "undefined") return null;
-  return createPortal(menuContent, document.body);
+  return createPortal(mobileContent, document.body);
 }
 
 export const MessageContextMenu = memo(MessageContextMenuComponent);

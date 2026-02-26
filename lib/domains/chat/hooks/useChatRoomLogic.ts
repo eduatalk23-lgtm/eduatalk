@@ -32,6 +32,10 @@ import {
   canPinMessagesAction,
   setAnnouncementAction,
   canSetAnnouncementAction,
+  registerChatAttachmentAction,
+  sendMessageWithAttachmentsAction,
+  deleteChatAttachmentAction,
+  getChatStorageQuotaAction,
 } from "@/lib/domains/chat/actions";
 import {
   isMessageEdited,
@@ -45,7 +49,12 @@ import {
   type PresenceUser,
   type ChatUser,
   type ChatRoomListItem,
+  type UploadingAttachment,
+  type ChatAttachment,
 } from "@/lib/domains/chat/types";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { validateChatFile, getAttachmentType, sanitizeFileName } from "@/lib/domains/chat/fileValidation";
+import { isImageType } from "@/lib/domains/chat/fileValidation";
 import {
   type InfiniteMessagesCache,
   type CacheMessage,
@@ -118,6 +127,12 @@ export interface UseChatRoomLogicReturn {
   replyTargetState: {
     replyTarget: ReplyTargetInfo | null;
     setReplyTarget: (target: ReplyTargetInfo | null) => void;
+  };
+  attachments: {
+    uploadingFiles: UploadingAttachment[];
+    addFiles: (files: File[]) => void;
+    removeFile: (clientId: string) => void;
+    isUploading: boolean;
   };
   utils: {
     canEditMessage: (createdAt: string) => boolean;
@@ -981,6 +996,170 @@ export function useChatRoomLogic({
   }, [roomId, queryClient]);
 
   // ============================================
+  // File Upload State
+  // ============================================
+
+  const [uploadingFiles, setUploadingFiles] = useState<UploadingAttachment[]>([]);
+
+  const addFiles = useCallback(
+    async (files: File[]) => {
+      // 업로드 전 쿼터 사전 체크
+      const totalNewSize = files.reduce((sum, f) => sum + f.size, 0);
+      const quotaResult = await getChatStorageQuotaAction();
+      if (quotaResult.success && quotaResult.data) {
+        if (quotaResult.data.remainingBytes < totalNewSize) {
+          const { formatStorageSize } = await import("@/lib/domains/chat/quota");
+          showError(
+            `스토리지 용량 부족: 남은 ${formatStorageSize(quotaResult.data.remainingBytes)}`
+          );
+          return;
+        }
+      }
+
+      for (const file of files) {
+        const validation = validateChatFile(file);
+        if (!validation.valid) {
+          showError(validation.error ?? "파일 검증 실패");
+          continue;
+        }
+
+        const clientId = crypto.randomUUID();
+        const previewUrl = isImageType(file.type) ? URL.createObjectURL(file) : "";
+
+        // 업로드 시작 상태 추가
+        setUploadingFiles((prev) => [
+          ...prev,
+          { clientId, file, previewUrl, progress: 0, status: "uploading" },
+        ]);
+
+        try {
+          // 이미지인 경우 리사이즈
+          let uploadFile: File | Blob = file;
+          let width: number | undefined;
+          let height: number | undefined;
+
+          if (isImageType(file.type)) {
+            try {
+              const { resizeImageIfNeeded } = await import("@/lib/domains/chat/imageResize");
+              const resized = await resizeImageIfNeeded(file);
+              uploadFile = resized.blob;
+              width = resized.width;
+              height = resized.height;
+            } catch {
+              // 리사이즈 실패 시 원본 사용
+            }
+          }
+
+          // Supabase Storage에 XHR로 업로드 (실시간 진행률)
+          const supabase = createSupabaseBrowserClient();
+          const { data: sessionData } = await supabase.auth.getSession();
+          const accessToken = sessionData.session?.access_token;
+          if (!accessToken) throw new Error("인증 세션이 만료되었습니다.");
+
+          const safeName = sanitizeFileName(file.name);
+          const timestamp = Date.now();
+          const storagePath = `${roomId}/${userId}/${timestamp}_${safeName}`;
+
+          const { uploadWithProgress } = await import("@/lib/domains/chat/uploadWithProgress");
+          const { error: uploadError } = await uploadWithProgress({
+            supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            accessToken,
+            bucket: "chat-attachments",
+            path: storagePath,
+            file: uploadFile,
+            onProgress: (progress) => {
+              setUploadingFiles((prev) =>
+                prev.map((f) =>
+                  f.clientId === clientId ? { ...f, progress } : f
+                )
+              );
+            },
+          });
+
+          if (uploadError) throw uploadError;
+
+          // 이미지인 경우 썸네일 생성 + 업로드 (비치명적)
+          let thumbnailPath: string | null = null;
+          if (isImageType(file.type)) {
+            try {
+              const { generateThumbnail } = await import("@/lib/domains/chat/imageResize");
+              const thumb = await generateThumbnail(uploadFile);
+              const thumbPath = `${roomId}/${userId}/${timestamp}_thumb_${safeName}`;
+
+              // 썸네일은 작으므로 (5~20KB) 일반 supabase upload 사용
+              const { error: thumbError } = await supabase.storage
+                .from("chat-attachments")
+                .upload(thumbPath, thumb.blob, { contentType: "image/webp" });
+
+              if (!thumbError) {
+                thumbnailPath = thumbPath;
+              }
+            } catch {
+              // 썸네일 생성 실패 시 풀 이미지 사용 (비치명적)
+            }
+          }
+
+          // Server Action으로 DB 레코드 등록
+          const result = await registerChatAttachmentAction(
+            roomId,
+            storagePath,
+            file.name,
+            file.size,
+            file.type,
+            width,
+            height,
+            thumbnailPath
+          );
+
+          if (!result.success || !result.data) {
+            throw new Error(result.error ?? "첨부파일 등록 실패");
+          }
+
+          setUploadingFiles((prev) =>
+            prev.map((f) =>
+              f.clientId === clientId
+                ? { ...f, status: "done" as const, progress: 100, result: result.data }
+                : f
+            )
+          );
+        } catch (err) {
+          setUploadingFiles((prev) =>
+            prev.map((f) =>
+              f.clientId === clientId
+                ? {
+                    ...f,
+                    status: "error" as const,
+                    error: err instanceof Error ? err.message : "업로드 실패",
+                  }
+                : f
+            )
+          );
+        }
+      }
+    },
+    [roomId, userId, showError]
+  );
+
+  const removeFile = useCallback(
+    (clientId: string) => {
+      setUploadingFiles((prev) => {
+        const file = prev.find((f) => f.clientId === clientId);
+        if (file?.previewUrl) URL.revokeObjectURL(file.previewUrl);
+        // 업로드 완료된 파일이면 서버에서도 삭제
+        if (file?.status === "done" && file.result) {
+          deleteChatAttachmentAction(file.result.id).catch(() => {});
+        }
+        return prev.filter((f) => f.clientId !== clientId);
+      });
+    },
+    []
+  );
+
+  const isUploading = uploadingFiles.some(
+    (f) => f.status === "uploading" || f.status === "pending"
+  );
+
+  // ============================================
   // Actions
   // ============================================
 
@@ -1028,10 +1207,134 @@ export function useChatRoomLogic({
         return;
       }
 
-      // 온라인: 기존 mutation 로직
-      sendMutation.mutate({ content, replyToId, clientMessageId });
+      // 온라인: 첨부파일이 있으면 attachments action 사용
+      const completedAttachments = uploadingFiles.filter(
+        (f) => f.status === "done" && f.result
+      );
+
+      if (completedAttachments.length > 0) {
+        const attachmentIds = completedAttachments.map((f) => f.result!.id);
+        const attachmentResults = completedAttachments
+          .map((f) => f.result!)
+          .filter(Boolean);
+
+        // 낙관적 업데이트: 텍스트 전용과 동일한 패턴
+        const now = new Date().toISOString();
+        const currentMember = roomData?.members?.find(
+          (m) => m.user_id === userId
+        );
+        const senderName = currentMember?.user?.name ?? "나";
+        const senderProfileUrl = currentMember?.user?.profileImageUrl ?? null;
+        const senderType = currentMember?.user?.type ?? ("student" as const);
+
+        const hasText = content.trim().length > 0;
+        const allImages = attachmentResults.every(
+          (a) => a.attachment_type === "image"
+        );
+        const messageType = hasText
+          ? "mixed"
+          : allImages
+            ? "image"
+            : "file";
+        const messageContent = hasText ? content : " ";
+
+        operationTracker.startSend(clientMessageId, messageContent, roomId);
+
+        const optimisticMessage: CacheMessage = {
+          id: clientMessageId,
+          content: messageContent,
+          sender_id: userId,
+          sender_type: senderType,
+          message_type: messageType,
+          created_at: now,
+          updated_at: now,
+          deleted_at: null,
+          room_id: roomId,
+          is_deleted: false,
+          reply_to_id: replyToId ?? null,
+          replyTarget: replyTarget,
+          sender: { name: senderName, type: senderType, id: userId },
+          reactions: [],
+          status: "sending" as const,
+          sender_name: senderName,
+          sender_profile_url: senderProfileUrl,
+          attachments: attachmentResults,
+        };
+
+        queryClient.setQueryData<InfiniteMessagesCache>(
+          ["chat-messages", roomId],
+          (old) => addMessageToFirstPage(old, optimisticMessage)
+        );
+
+        // Broadcast-first: 수신자에게 즉시 전송
+        try {
+          broadcastInsert({
+            id: clientMessageId,
+            room_id: roomId,
+            sender_id: userId,
+            sender_type: senderType,
+            sender_name: senderName,
+            sender_profile_url: senderProfileUrl,
+            content: messageContent,
+            message_type: messageType,
+            reply_to_id: replyToId ?? null,
+            created_at: now,
+            updated_at: now,
+            is_deleted: false,
+            deleted_at: null,
+          });
+          operationTracker.markRealtimeProcessed(`insert:${clientMessageId}`);
+        } catch {
+          console.warn("[ChatRoom] broadcastInsert failed for attachment message");
+        }
+
+        setUploadingFiles([]);
+        setReplyTarget(null);
+        setTimeout(() => onNewMessageArrived?.(), 0);
+
+        // 서버 전송 (비동기)
+        sendMessageWithAttachmentsAction(
+          roomId,
+          content,
+          attachmentIds,
+          replyToId,
+          clientMessageId
+        ).then((result) => {
+          if (result.success && result.data) {
+            operationTracker.completeSend(clientMessageId, result.data.id);
+            queryClient.setQueryData<InfiniteMessagesCache>(
+              ["chat-messages", roomId],
+              (old) => replaceMessageInFirstPage(old, clientMessageId, result.data!)
+            );
+          } else {
+            operationTracker.failSend(clientMessageId);
+            queryClient.setQueryData<InfiniteMessagesCache>(
+              ["chat-messages", roomId],
+              (old) =>
+                updateMessageInCache(old, clientMessageId, (m) => ({
+                  ...m,
+                  status: "error" as const,
+                }))
+            );
+            showError(result.error ?? "메시지 전송 실패");
+          }
+        }).catch((err) => {
+          operationTracker.failSend(clientMessageId);
+          queryClient.setQueryData<InfiniteMessagesCache>(
+            ["chat-messages", roomId],
+            (old) =>
+              updateMessageInCache(old, clientMessageId, (m) => ({
+                ...m,
+                status: "error" as const,
+              }))
+          );
+          showError(err instanceof Error ? err.message : "메시지 전송 실패");
+        });
+      } else {
+        sendMutation.mutate({ content, replyToId, clientMessageId });
+      }
     },
-    [sendMutation, roomId, userId, roomData, queryClient, onNewMessageArrived, replyTarget]
+    [sendMutation, roomId, userId, roomData, queryClient, onNewMessageArrived, replyTarget, uploadingFiles, showError, broadcastInsert]
   );
 
   const editMessage = useCallback(
@@ -1154,6 +1457,12 @@ export function useChatRoomLogic({
       isFetchingNextPage,
       fetchNextPage,
       refetch,
+    },
+    attachments: {
+      uploadingFiles,
+      addFiles,
+      removeFile,
+      isUploading,
     },
     pinnedMessageIds,
     replyTargetState: {

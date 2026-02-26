@@ -27,7 +27,8 @@ interface CreateChatModalProps {
 interface AdminUser {
   id: string;
   role: string;
-  // Note: admin_users 테이블에 name 컬럼이 없어 역할로만 표시
+  name: string;
+  profile_image_url: string | null;
 }
 
 export function CreateChatModal({
@@ -46,8 +47,9 @@ export function CreateChatModal({
       const supabase = createSupabaseBrowserClient();
       const { data, error } = await supabase
         .from("admin_users")
-        .select("id, role")
-        .in("role", ["admin", "consultant"]);
+        .select("id, role, name, profile_image_url")
+        .in("role", ["admin", "consultant"])
+        .order("name");
 
       if (error) throw error;
       return data as AdminUser[];
@@ -106,10 +108,14 @@ export function CreateChatModal({
                     : "hover:bg-bg-secondary border-2 border-transparent"
                 )}
               >
-                <Avatar name={admin.role} size="md" />
+                <Avatar
+                  name={admin.name}
+                  src={admin.profile_image_url ?? undefined}
+                  size="md"
+                />
                 <div className="flex-1 text-left">
                   <p className="font-medium text-text-primary">
-                    {admin.role === "admin" ? "관리자" : "상담사"}
+                    {admin.name}
                   </p>
                   <p className="text-xs text-text-tertiary">
                     {admin.role === "admin" ? "학원 관리자" : "학습 상담사"}

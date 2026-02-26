@@ -10,7 +10,9 @@
 import { memo, useRef, useCallback, useMemo, useReducer, useEffect, useState } from "react";
 import { useChatRoomLogic } from "@/lib/domains/chat/hooks";
 import { useChatConnectionStatus } from "@/lib/hooks/useChatConnectionStatus";
-import type { ReactionEmoji, ReplyTargetInfo } from "@/lib/domains/chat/types";
+import { useChatLayout } from "@/components/chat/layouts/ChatLayoutContext";
+import type { ReactionEmoji, ReplyTargetInfo, ChatAttachment, ChatUserType } from "@/lib/domains/chat/types";
+import type { LongPressPosition } from "@/lib/hooks/useLongPress";
 import { cn } from "@/lib/cn";
 import { MessageBubble, type MessageAction, type MessageData } from "../atoms/MessageBubble";
 import type { MessageDeliveryStatus } from "../atoms/MessageStatusIndicator";
@@ -26,6 +28,7 @@ import {
   formatConnectionAnnouncement,
 } from "../atoms/ScreenReaderAnnouncer";
 import { ChatInput } from "../molecules/ChatInput";
+import { ImageLightbox } from "../molecules/ImageLightbox";
 import { MessageSearch } from "../molecules/MessageSearch";
 import { PinnedMessagesBar } from "../molecules/PinnedMessagesBar";
 import { AnnouncementBanner } from "../atoms/AnnouncementBanner";
@@ -33,6 +36,7 @@ import { AnnouncementDialog } from "../molecules/AnnouncementDialog";
 import { MessageContextMenu, type MessageMenuContext } from "../molecules/MessageContextMenu";
 import { ChatRoomInfo } from "./ChatRoomInfo";
 import { EditMessageDialog } from "../molecules/EditMessageDialog";
+import { ProfileCardPopup, type ProfileCardData } from "../molecules/ProfileCardPopup";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import { Loader2, ArrowLeft, MoreVertical, Search, Megaphone, ChevronDown, MessageSquareOff, RefreshCw } from "lucide-react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
@@ -54,8 +58,11 @@ interface ChatRoomUIState {
   isInfoOpen: boolean;
   // 작업 대상
   menuContext: MessageMenuContext | null;
+  menuPosition: LongPressPosition | null;
   deleteTarget: string | null;
   editingMessage: { id: string; content: string; updatedAt: string } | null;
+  profileCardTarget: ProfileCardData | null;
+  profileCardPosition: LongPressPosition | null;
 }
 
 type ChatRoomUIAction =
@@ -70,7 +77,8 @@ type ChatRoomUIAction =
   | { type: "SET_MENU_CONTEXT"; context: MessageMenuContext | null }
   | { type: "SET_DELETE_TARGET"; id: string | null }
   | { type: "SET_EDITING_MESSAGE"; message: { id: string; content: string; updatedAt: string } | null }
-  | { type: "OPEN_CONTEXT_MENU"; context: MessageMenuContext }
+  | { type: "SET_PROFILE_CARD"; target: ProfileCardData | null; position?: LongPressPosition }
+  | { type: "OPEN_CONTEXT_MENU"; context: MessageMenuContext; position?: LongPressPosition }
   | { type: "CLOSE_MENU" };
 
 const initialUIState: ChatRoomUIState = {
@@ -82,8 +90,11 @@ const initialUIState: ChatRoomUIState = {
   isMenuOpen: false,
   isInfoOpen: false,
   menuContext: null,
+  menuPosition: null,
   deleteTarget: null,
   editingMessage: null,
+  profileCardTarget: null,
+  profileCardPosition: null,
 };
 
 function uiReducer(state: ChatRoomUIState, action: ChatRoomUIAction): ChatRoomUIState {
@@ -115,10 +126,12 @@ function uiReducer(state: ChatRoomUIState, action: ChatRoomUIAction): ChatRoomUI
       return { ...state, deleteTarget: action.id };
     case "SET_EDITING_MESSAGE":
       return { ...state, editingMessage: action.message };
+    case "SET_PROFILE_CARD":
+      return { ...state, profileCardTarget: action.target, profileCardPosition: action.position ?? null };
     case "OPEN_CONTEXT_MENU":
-      return { ...state, menuContext: action.context, isMenuOpen: true };
+      return { ...state, menuContext: action.context, menuPosition: action.position ?? null, isMenuOpen: true };
     case "CLOSE_MENU":
-      return { ...state, isMenuOpen: false };
+      return { ...state, isMenuOpen: false, menuPosition: null };
     default:
       return state;
   }
@@ -193,11 +206,23 @@ function ChatRoomComponent({
   headerActions,
 }: ChatRoomProps) {
   // ============================================
+  // 레이아웃 컨텍스트 (split-pane 모드 감지)
+  // ============================================
+  const { isSplitPane } = useChatLayout();
+
+  // ============================================
   // UI 상태 (useReducer로 통합)
   // ============================================
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [uiState, dispatch] = useReducer(uiReducer, initialUIState);
+
+  // 이미지 라이트박스 상태
+  const [lightboxState, setLightboxState] = useState<{
+    isOpen: boolean;
+    images: ChatAttachment[];
+    initialIndex: number;
+  }>({ isOpen: false, images: [], initialIndex: 0 });
 
   // 상태 구조 분해
   const {
@@ -209,8 +234,11 @@ function ChatRoomComponent({
     isMenuOpen,
     isInfoOpen,
     menuContext,
+    menuPosition,
     deleteTarget,
     editingMessage,
+    profileCardTarget,
+    profileCardPosition,
   } = uiState;
 
   // Stale closure 방지: isAtBottom의 최신 값을 ref로 추적
@@ -245,6 +273,7 @@ function ChatRoomComponent({
     permissions,
     actions,
     status,
+    attachments: attachmentState,
     pinnedMessageIds,
     replyTargetState,
     utils,
@@ -400,7 +429,7 @@ function ChatRoomComponent({
   // ============================================
   // 컨텍스트 메뉴
   // ============================================
-  const handleMessageLongPress = useCallback((message: (typeof messages)[number]) => {
+  const handleMessageLongPress = useCallback((message: (typeof messages)[number], position?: LongPressPosition) => {
     const isOwn = message.sender_id === userId;
     dispatch({
       type: "OPEN_CONTEXT_MENU",
@@ -413,6 +442,7 @@ function ChatRoomComponent({
         canPin: canPin && message.message_type !== "system",
         isPinned: pinnedMessageIds.has(message.id),
       },
+      position,
     });
   }, [userId, canEditMessage, canPin, pinnedMessageIds]);
 
@@ -467,15 +497,39 @@ function ChatRoomComponent({
     else messageRefs.current.delete(messageId);
   }, []);
 
+  // 아바타 클릭 → 프로필 카드 열기
+  const handleAvatarClick = useCallback((message: (typeof messages)[number], position?: LongPressPosition) => {
+    const member = data.members.find((m) => m.user_id === message.sender_id);
+    dispatch({
+      type: "SET_PROFILE_CARD",
+      target: {
+        userId: message.sender_id,
+        userType: message.sender_type as ChatUserType,
+        name: message.sender?.name ?? "알 수 없음",
+        profileImageUrl: message.sender?.profileImageUrl ?? member?.user?.profileImageUrl,
+        schoolName: member?.user?.schoolName,
+        gradeDisplay: member?.user?.gradeDisplay,
+      },
+      position,
+    });
+  }, [data.members]);
+
   // 메시지 액션 핸들러 의존성을 ref로 추적하여 안정적 참조 유지
+  const openLightbox = useCallback(
+    (images: ChatAttachment[], index: number) => {
+      setLightboxState({ isOpen: true, images, initialIndex: index });
+    },
+    []
+  );
+
   const actionDepsRef = useRef({
     toggleReaction, handleReply, scrollToMessage, handleEdit, handleDelete,
-    togglePin, pinnedMessageIds, handleMessageLongPress, retryMessage, removeFailedMessage,
+    togglePin, pinnedMessageIds, handleMessageLongPress, retryMessage, removeFailedMessage, openLightbox, handleAvatarClick,
   });
   useEffect(() => {
     actionDepsRef.current = {
       toggleReaction, handleReply, scrollToMessage, handleEdit, handleDelete,
-      togglePin, pinnedMessageIds, handleMessageLongPress, retryMessage, removeFailedMessage,
+      togglePin, pinnedMessageIds, handleMessageLongPress, retryMessage, removeFailedMessage, openLightbox, handleAvatarClick,
     };
   });
 
@@ -510,7 +564,7 @@ function ChatRoomComponent({
             deps.togglePin(message.id, deps.pinnedMessageIds.has(message.id));
             break;
           case "longPress":
-            deps.handleMessageLongPress(message);
+            deps.handleMessageLongPress(message, action.position);
             break;
           case "retry":
             deps.retryMessage(message);
@@ -518,6 +572,18 @@ function ChatRoomComponent({
           case "removeFailed":
             deps.removeFailedMessage(message.id);
             break;
+          case "avatarClick":
+            deps.handleAvatarClick(message, action.position);
+            break;
+          case "imageClick": {
+            const images = ((message as { attachments?: ChatAttachment[] }).attachments ?? []).filter(
+              (a) => a.attachment_type === "image"
+            );
+            if (images.length > 0) {
+              deps.openLightbox(images, action.index);
+            }
+            break;
+          }
         }
       },
     []
@@ -549,6 +615,12 @@ function ChatRoomComponent({
       replyTarget: messageReplyTarget,
       isPinned: pinnedMessageIds.has(message.id),
       status: derivedStatus,
+      attachments: (message as { attachments?: ChatAttachment[] }).attachments ?? [],
+      linkPreviews: (message as { linkPreviews?: Array<{ id: string; message_id: string; url: string; title: string | null; description: string | null; image_url: string | null; site_name: string | null; fetched_at: string }> }).linkPreviews ?? [],
+      // 발신자 정보 (아바타 + 프로필 카드용)
+      senderId: message.sender_id,
+      senderType: message.sender_type,
+      senderProfileImageUrl: message.sender?.profileImageUrl,
       // 레거시 호환성 (deprecated - 추후 제거)
       isError: messageStatus === "error",
       isRetrying: messageStatus === "sending" && message.id.startsWith("temp-"),
@@ -628,7 +700,7 @@ function ChatRoomComponent({
       >
         {/* 헤더 */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-bg-primary">
-        {onBack && (
+        {onBack && !isSplitPane && (
           <button
             type="button"
             onClick={onBack}
@@ -696,6 +768,9 @@ function ChatRoomComponent({
 
         {headerActions}
       </div>
+
+      {/* Content area: max-width for readability on wide screens */}
+      <div className="flex-1 flex flex-col min-h-0 relative max-w-5xl mx-auto w-full">
 
       {/* 공지 배너 */}
       {announcement && (
@@ -860,7 +935,12 @@ function ChatRoomComponent({
         onCancelReply={() => setReplyTarget(null)}
         disabled={isLoading}
         placeholder={isLoading ? "메시지를 불러오는 중..." : undefined}
+        onFilesSelected={attachmentState.addFiles}
+        uploadingFiles={attachmentState.uploadingFiles}
+        onRemoveFile={attachmentState.removeFile}
+        autoFocus
       />
+      </div>
 
       {/* 공지 설정 다이얼로그 */}
       <AnnouncementDialog
@@ -879,6 +959,7 @@ function ChatRoomComponent({
         isOpen={isMenuOpen}
         onClose={() => dispatch({ type: "CLOSE_MENU" })}
         context={menuContext}
+        position={menuPosition}
         onCopy={handleCopy}
         onReply={handleMenuReply}
         onEdit={menuContext?.canEdit ? handleMenuEdit : undefined}
@@ -897,6 +978,14 @@ function ChatRoomComponent({
         members={data.members}
         isLoading={!room}
         basePath={basePath}
+        onImageClick={(attachment, allImages) => {
+          const idx = allImages.findIndex((img) => img.id === attachment.id);
+          setLightboxState({
+            isOpen: true,
+            images: allImages,
+            initialIndex: idx >= 0 ? idx : 0,
+          });
+        }}
       />
 
         {/* 메시지 삭제 확인 */}
@@ -919,6 +1008,24 @@ function ChatRoomComponent({
           currentContent={editingMessage?.content ?? ""}
           onSave={handleEditSave}
           isSaving={status.isEditing}
+        />
+
+        {/* 이미지 라이트박스 */}
+        <ImageLightbox
+          images={lightboxState.images}
+          initialIndex={lightboxState.initialIndex}
+          isOpen={lightboxState.isOpen}
+          onClose={() => setLightboxState((prev) => ({ ...prev, isOpen: false }))}
+        />
+
+        {/* 프로필 카드 팝업 */}
+        <ProfileCardPopup
+          isOpen={!!profileCardTarget}
+          onClose={() => dispatch({ type: "SET_PROFILE_CARD", target: null })}
+          profile={profileCardTarget}
+          position={profileCardPosition}
+          currentUserId={userId}
+          basePath={basePath}
         />
       </div>
     </RetryableErrorBoundary>

@@ -52,6 +52,9 @@ function ChatRoomCardComponent({
       ? room.otherUser?.name ?? "알 수 없음"
       : room.name ?? `그룹 (${room.memberCount}명)`;
 
+  // 주제 표시 (topic이 있을 경우)
+  const topicDisplay = room.topic ?? null;
+
   // 학생 정보 (1:1 채팅에서 상대방이 학생인 경우)
   const studentInfo =
     room.type === "direct" && room.otherUser?.type === "student"
@@ -101,6 +104,11 @@ function ChatRoomCardComponent({
             <span className="font-medium text-text-primary truncate">
               {displayName}
             </span>
+            {room.category === "consulting" && topicDisplay && (
+              <span className="text-xs text-primary/80 flex-shrink-0 truncate max-w-[120px]">
+                {topicDisplay}
+              </span>
+            )}
             {studentInfo && (
               <span className="text-xs text-text-tertiary flex-shrink-0">
                 {studentInfo}

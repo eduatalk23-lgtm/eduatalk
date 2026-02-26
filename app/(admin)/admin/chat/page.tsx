@@ -1,6 +1,8 @@
 /**
  * 관리자 채팅 목록 페이지
- * SSR 프리패칭으로 초기 로딩 시간 단축
+ *
+ * 모바일: 채팅방 목록 표시
+ * 데스크톱: split layout의 사이드바에 목록이 이미 있으므로 빈 상태 (layout이 처리)
  */
 
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
@@ -27,7 +29,10 @@ export default async function AdminChatPage() {
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <AdminChatListPage userId={user.userId} basePath="/admin/chat" />
+      {/* 모바일에서만 표시 (데스크톱은 layout 사이드바가 목록 담당) */}
+      <div className="h-full md:hidden">
+        <AdminChatListPage userId={user.userId} basePath="/admin/chat" />
+      </div>
     </HydrationBoundary>
   );
 }

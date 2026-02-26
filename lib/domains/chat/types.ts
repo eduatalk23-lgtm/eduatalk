@@ -12,14 +12,20 @@
 /** 채팅방 유형 */
 export type ChatRoomType = "direct" | "group";
 
+/** 채팅방 카테고리 */
+export type ChatRoomCategory = "general" | "consulting";
+
+/** 채팅방 상태 */
+export type ChatRoomStatus = "active" | "archived" | "closed";
+
 /** 사용자 유형 */
-export type ChatUserType = "student" | "admin";
+export type ChatUserType = "student" | "admin" | "parent";
 
 /** 채팅방 멤버 역할 */
 export type ChatMemberRole = "owner" | "admin" | "member";
 
 /** 메시지 유형 */
-export type ChatMessageType = "text" | "system";
+export type ChatMessageType = "text" | "system" | "image" | "file" | "mixed";
 
 /** 메시지 전송 상태 (클라이언트 전용) */
 export type MessageStatus = "sending" | "sent" | "error";
@@ -87,7 +93,13 @@ export interface ChatRoom {
   id: string;
   tenant_id: string;
   type: ChatRoomType;
+  /** 채팅방 카테고리 (general: 일반, consulting: 컨설팅) */
+  category: ChatRoomCategory;
   name: string | null;
+  /** 채팅방 주제/제목 (동일 참여자 간 방 구분용) */
+  topic: string | null;
+  /** 채팅방 상태 */
+  status: ChatRoomStatus;
   created_by: string;
   created_by_type: ChatUserType;
   is_active: boolean;
@@ -99,6 +111,8 @@ export interface ChatRoom {
   announcement_by_type: ChatUserType | null;
   /** 공지 작성 시간 */
   announcement_at: string | null;
+  /** 아카이브 시점 */
+  archived_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -107,7 +121,9 @@ export interface ChatRoom {
 export interface ChatRoomInsert {
   tenant_id: string;
   type: ChatRoomType;
+  category?: ChatRoomCategory;
   name?: string | null;
+  topic?: string | null;
   created_by: string;
   created_by_type: ChatUserType;
   is_active?: boolean;
@@ -116,11 +132,14 @@ export interface ChatRoomInsert {
 /** 채팅방 수정 입력 타입 */
 export interface ChatRoomUpdate {
   name?: string | null;
+  topic?: string | null;
+  status?: ChatRoomStatus;
   is_active?: boolean;
   announcement?: string | null;
   announcement_by?: string | null;
   announcement_by_type?: ChatUserType | null;
   announcement_at?: string | null;
+  archived_at?: string | null;
 }
 
 // ============================================
@@ -137,6 +156,8 @@ export interface ChatRoomMember {
   last_read_at: string;
   is_muted: boolean;
   left_at: string | null;
+  /** 멤버 개별 소프트 삭제 시점 */
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -157,6 +178,7 @@ export interface ChatRoomMemberUpdate {
   last_read_at?: string;
   is_muted?: boolean;
   left_at?: string | null;
+  deleted_at?: string | null;
 }
 
 // ============================================
@@ -319,6 +341,10 @@ export interface ChatMessageWithSender extends ChatMessage {
   reactions?: ReactionSummary[];
   /** 답장 원본 메시지 정보 (옵션) */
   replyTarget?: ReplyTargetInfo | null;
+  /** 첨부파일 목록 (옵션) */
+  attachments?: ChatAttachment[];
+  /** 링크 프리뷰 목록 (옵션) */
+  linkPreviews?: ChatLinkPreview[];
 }
 
 /** 메시지 그룹핑 정보 (UI 렌더링용) */
@@ -356,7 +382,12 @@ export interface ChatRoomMemberWithUser extends ChatRoomMember {
 export interface ChatRoomListItem {
   id: string;
   type: ChatRoomType;
+  category: ChatRoomCategory;
   name: string | null;
+  /** 채팅방 주제 */
+  topic: string | null;
+  /** 채팅방 상태 */
+  status: ChatRoomStatus;
   /** direct일 경우 상대방 정보, group일 경우 null */
   otherUser: ChatUser | null;
   /** group일 경우 멤버 수 */
@@ -377,7 +408,9 @@ export interface ChatRoomListItem {
 /** 채팅방 생성 요청 */
 export interface CreateChatRoomRequest {
   type: ChatRoomType;
+  category?: ChatRoomCategory; // 기본값: general
   name?: string; // group일 경우
+  topic?: string; // 채팅방 주제 (동일 참여자 간 방 구분용)
   memberIds: string[]; // 초대할 멤버 user_id 목록
   memberTypes: ChatUserType[]; // 각 멤버의 타입 (memberIds와 같은 순서)
 }
@@ -402,6 +435,10 @@ export interface GetMessagesOptions {
 export interface GetRoomsOptions {
   limit?: number;
   offset?: number;
+  /** 카테고리 필터 */
+  category?: ChatRoomCategory;
+  /** 상태 필터 (기본값: active만) */
+  status?: ChatRoomStatus | "all";
 }
 
 // ============================================
@@ -523,5 +560,135 @@ export interface SetAnnouncementInput {
  */
 export function getUserType(role: string | null): ChatUserType {
   if (role === "admin" || role === "consultant") return "admin";
+  if (role === "parent") return "parent";
   return "student";
+}
+
+// ============================================
+// 첨부파일 타입
+// ============================================
+
+/** 첨부파일 분류 */
+export type AttachmentType = "image" | "video" | "audio" | "file";
+
+/** 첨부파일 기본 타입 */
+export interface ChatAttachment {
+  id: string;
+  message_id: string;
+  room_id: string;
+  file_name: string;
+  file_size: number;
+  mime_type: string;
+  storage_path: string;
+  public_url: string;
+  width: number | null;
+  height: number | null;
+  thumbnail_url: string | null;
+  thumbnail_storage_path: string | null;
+  attachment_type: AttachmentType;
+  created_at: string;
+  sender_id: string;
+}
+
+/** 첨부파일 생성 입력 타입 */
+export interface ChatAttachmentInsert {
+  message_id: string | null;
+  room_id: string;
+  file_name: string;
+  file_size: number;
+  mime_type: string;
+  storage_path: string;
+  public_url: string;
+  width?: number | null;
+  height?: number | null;
+  thumbnail_url?: string | null;
+  thumbnail_storage_path?: string | null;
+  attachment_type: AttachmentType;
+  sender_id: string;
+}
+
+// ============================================
+// 링크 프리뷰 타입
+// ============================================
+
+/** 링크 프리뷰 기본 타입 */
+export interface ChatLinkPreview {
+  id: string;
+  message_id: string;
+  url: string;
+  title: string | null;
+  description: string | null;
+  image_url: string | null;
+  site_name: string | null;
+  fetched_at: string;
+}
+
+/** 링크 프리뷰 생성 입력 타입 */
+export interface ChatLinkPreviewInsert {
+  message_id: string;
+  url: string;
+  title?: string | null;
+  description?: string | null;
+  image_url?: string | null;
+  site_name?: string | null;
+}
+
+// ============================================
+// 파일 검증 상수
+// ============================================
+
+/** 허용되는 이미지 MIME 타입 */
+export const ALLOWED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/heic",
+  "image/heif",
+] as const;
+
+/** 허용되는 모든 파일 MIME 타입 */
+export const ALLOWED_FILE_TYPES = [
+  ...ALLOWED_IMAGE_TYPES,
+  "application/pdf",
+  "text/plain",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/haansofthwp",
+  "application/x-hwp",
+  "video/mp4",
+  "video/quicktime",
+  "audio/mpeg",
+  "audio/mp4",
+  "audio/wav",
+] as const;
+
+/** 파일 크기 제한 (10MB) */
+export const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+/** 메시지당 최대 첨부파일 수 */
+export const MAX_ATTACHMENTS_PER_MESSAGE = 5;
+
+/** 업로드 중인 첨부파일 상태 (클라이언트 전용) */
+export interface UploadingAttachment {
+  clientId: string;
+  file: File;
+  previewUrl: string;
+  progress: number;
+  status: "pending" | "uploading" | "done" | "error";
+  result?: ChatAttachment;
+  error?: string;
+}
+
+// ============================================
+// 첨부파일 포함 메시지 요청 타입
+// ============================================
+
+/** 첨부파일 포함 메시지 전송 요청 */
+export interface SendMessageWithAttachmentsRequest extends SendMessageRequest {
+  attachmentIds?: string[];
 }

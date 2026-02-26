@@ -13,6 +13,8 @@ import {
   type ChatRoomListItem,
   type ChatRoomMemberWithUser,
   type ChatUserType,
+  type ChatRoomCategory,
+  type ChatRoomStatus,
   type ChatActionResult,
   type CreateChatRoomRequest,
   type AnnouncementInfo,
@@ -54,11 +56,16 @@ export async function createChatRoomAction(
 /**
  * 내 채팅방 목록 조회
  *
- * @param options 페이지네이션 옵션
+ * @param options 페이지네이션 및 필터 옵션
  * @returns 채팅방 목록 (마지막 메시지, 안 읽은 수 포함)
  */
 export async function getChatRoomsAction(
-  options: { limit?: number; offset?: number } = {}
+  options: {
+    limit?: number;
+    offset?: number;
+    category?: ChatRoomCategory;
+    status?: ChatRoomStatus | "all";
+  } = {}
 ): Promise<ChatActionResult<ChatRoomListItem[]>> {
   try {
     const { userId, role } = await getCurrentUserRole();
@@ -141,11 +148,13 @@ export async function leaveChatRoomAction(
  *
  * @param targetUserId 대화 상대 ID
  * @param targetUserType 대화 상대 유형
+ * @param options category/topic으로 동일 참여자 간 다중 방 구분
  * @returns 1:1 채팅방
  */
 export async function startDirectChatAction(
   targetUserId: string,
-  targetUserType: ChatUserType
+  targetUserType: ChatUserType,
+  options?: { category?: ChatRoomCategory; topic?: string }
 ): Promise<ChatActionResult<ChatRoom>> {
   try {
     const { userId, role, tenantId } = await getCurrentUserRole();
@@ -158,6 +167,8 @@ export async function startDirectChatAction(
 
     return await chatService.createOrGetRoom(tenantId, userId, userType, {
       type: "direct",
+      category: options?.category,
+      topic: options?.topic,
       memberIds: [targetUserId],
       memberTypes: [targetUserType],
     });
@@ -166,6 +177,82 @@ export async function startDirectChatAction(
     return {
       success: false,
       error: error instanceof Error ? error.message : "채팅 시작 실패",
+    };
+  }
+}
+
+// ============================================
+// 아카이브 / 삭제 Actions
+// ============================================
+
+/**
+ * 채팅방 아카이브 (방장/관리자만)
+ *
+ * @param roomId 채팅방 ID
+ */
+export async function archiveChatRoomAction(
+  roomId: string
+): Promise<ChatActionResult<ChatRoom>> {
+  try {
+    const { userId, role } = await getCurrentUserRole();
+    if (!userId || !role) {
+      return { success: false, error: "인증이 필요합니다." };
+    }
+    const userType = getUserType(role);
+    return await chatService.archiveRoom(roomId, userId, userType);
+  } catch (error) {
+    console.error("[archiveChatRoomAction] Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "채팅방 아카이브 실패",
+    };
+  }
+}
+
+/**
+ * 채팅방 아카이브 해제 (방장/관리자만)
+ *
+ * @param roomId 채팅방 ID
+ */
+export async function unarchiveChatRoomAction(
+  roomId: string
+): Promise<ChatActionResult<ChatRoom>> {
+  try {
+    const { userId, role } = await getCurrentUserRole();
+    if (!userId || !role) {
+      return { success: false, error: "인증이 필요합니다." };
+    }
+    const userType = getUserType(role);
+    return await chatService.unarchiveRoom(roomId, userId, userType);
+  } catch (error) {
+    console.error("[unarchiveChatRoomAction] Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "아카이브 해제 실패",
+    };
+  }
+}
+
+/**
+ * 채팅방 삭제 (소프트 - 해당 사용자 목록에서만 숨김)
+ *
+ * @param roomId 채팅방 ID
+ */
+export async function deleteChatRoomAction(
+  roomId: string
+): Promise<ChatActionResult<void>> {
+  try {
+    const { userId, role } = await getCurrentUserRole();
+    if (!userId || !role) {
+      return { success: false, error: "인증이 필요합니다." };
+    }
+    const userType = getUserType(role);
+    return await chatService.deleteMemberRoom(roomId, userId, userType);
+  } catch (error) {
+    console.error("[deleteChatRoomAction] Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "채팅방 삭제 실패",
     };
   }
 }
