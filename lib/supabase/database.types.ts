@@ -67,6 +67,7 @@ export type Database = {
           created_at: string
           department: string | null
           id: string
+          is_active: boolean
           is_owner: boolean
           job_title: string | null
           name: string
@@ -79,6 +80,7 @@ export type Database = {
           created_at?: string
           department?: string | null
           id: string
+          is_active?: boolean
           is_owner?: boolean
           job_title?: string | null
           name: string
@@ -91,6 +93,7 @@ export type Database = {
           created_at?: string
           department?: string | null
           id?: string
+          is_active?: boolean
           is_owner?: boolean
           job_title?: string | null
           name?: string
@@ -1131,6 +1134,75 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_attachments: {
+        Row: {
+          attachment_type: string
+          created_at: string
+          file_name: string
+          file_size: number
+          height: number | null
+          id: string
+          message_id: string | null
+          mime_type: string
+          public_url: string
+          room_id: string
+          sender_id: string
+          storage_path: string
+          thumbnail_storage_path: string | null
+          thumbnail_url: string | null
+          width: number | null
+        }
+        Insert: {
+          attachment_type?: string
+          created_at?: string
+          file_name: string
+          file_size: number
+          height?: number | null
+          id?: string
+          message_id?: string | null
+          mime_type: string
+          public_url: string
+          room_id: string
+          sender_id: string
+          storage_path: string
+          thumbnail_storage_path?: string | null
+          thumbnail_url?: string | null
+          width?: number | null
+        }
+        Update: {
+          attachment_type?: string
+          created_at?: string
+          file_name?: string
+          file_size?: number
+          height?: number | null
+          id?: string
+          message_id?: string | null
+          mime_type?: string
+          public_url?: string
+          room_id?: string
+          sender_id?: string
+          storage_path?: string
+          thumbnail_storage_path?: string | null
+          thumbnail_url?: string | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_attachments_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_blocks: {
         Row: {
           blocked_id: string
@@ -1157,6 +1229,47 @@ export type Database = {
           id?: string
         }
         Relationships: []
+      }
+      chat_link_previews: {
+        Row: {
+          description: string | null
+          fetched_at: string
+          id: string
+          image_url: string | null
+          message_id: string
+          site_name: string | null
+          title: string | null
+          url: string
+        }
+        Insert: {
+          description?: string | null
+          fetched_at?: string
+          id?: string
+          image_url?: string | null
+          message_id: string
+          site_name?: string | null
+          title?: string | null
+          url: string
+        }
+        Update: {
+          description?: string | null
+          fetched_at?: string
+          id?: string
+          image_url?: string | null
+          message_id?: string
+          site_name?: string | null
+          title?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_link_previews_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       chat_message_reactions: {
         Row: {
@@ -4341,6 +4454,7 @@ export type Database = {
           is_active: boolean
           name: string
           phone: string | null
+          profile_image_url: string | null
           tenant_id: string
           updated_at: string
         }
@@ -4351,6 +4465,7 @@ export type Database = {
           is_active?: boolean
           name: string
           phone?: string | null
+          profile_image_url?: string | null
           tenant_id: string
           updated_at?: string
         }
@@ -4361,6 +4476,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           phone?: string | null
+          profile_image_url?: string | null
           tenant_id?: string
           updated_at?: string
         }
@@ -6735,72 +6851,6 @@ export type Database = {
           },
         ]
       }
-      student_career_goals: {
-        Row: {
-          created_at: string
-          curriculum_revision: string | null
-          desired_career_field: string | null
-          desired_university_ids: string[] | null
-          exam_year: number | null
-          id: string
-          notes: string | null
-          student_id: string
-          target_major: string | null
-          target_major_2: string | null
-          target_score: Json | null
-          target_university_type: string | null
-          tenant_id: string | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          curriculum_revision?: string | null
-          desired_career_field?: string | null
-          desired_university_ids?: string[] | null
-          exam_year?: number | null
-          id?: string
-          notes?: string | null
-          student_id: string
-          target_major?: string | null
-          target_major_2?: string | null
-          target_score?: Json | null
-          target_university_type?: string | null
-          tenant_id?: string | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          curriculum_revision?: string | null
-          desired_career_field?: string | null
-          desired_university_ids?: string[] | null
-          exam_year?: number | null
-          id?: string
-          notes?: string | null
-          student_id?: string
-          target_major?: string | null
-          target_major_2?: string | null
-          target_score?: Json | null
-          target_university_type?: string | null
-          tenant_id?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "student_career_goals_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: true
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "student_career_goals_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       student_consulting_notes: {
         Row: {
           consultant_id: string
@@ -8165,81 +8215,6 @@ export type Database = {
         }
         Relationships: []
       }
-      student_profiles: {
-        Row: {
-          address: string | null
-          address_detail: string | null
-          bio: string | null
-          created_at: string
-          emergency_contact: string | null
-          emergency_contact_phone: string | null
-          father_phone: string | null
-          gender: string | null
-          id: string
-          interests: Json | null
-          medical_info: string | null
-          mother_phone: string | null
-          phone: string | null
-          postal_code: string | null
-          profile_image_url: string | null
-          tenant_id: string | null
-          updated_at: string
-        }
-        Insert: {
-          address?: string | null
-          address_detail?: string | null
-          bio?: string | null
-          created_at?: string
-          emergency_contact?: string | null
-          emergency_contact_phone?: string | null
-          father_phone?: string | null
-          gender?: string | null
-          id: string
-          interests?: Json | null
-          medical_info?: string | null
-          mother_phone?: string | null
-          phone?: string | null
-          postal_code?: string | null
-          profile_image_url?: string | null
-          tenant_id?: string | null
-          updated_at?: string
-        }
-        Update: {
-          address?: string | null
-          address_detail?: string | null
-          bio?: string | null
-          created_at?: string
-          emergency_contact?: string | null
-          emergency_contact_phone?: string | null
-          father_phone?: string | null
-          gender?: string | null
-          id?: string
-          interests?: Json | null
-          medical_info?: string | null
-          mother_phone?: string | null
-          phone?: string | null
-          postal_code?: string | null
-          profile_image_url?: string | null
-          tenant_id?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "student_profiles_id_fkey"
-            columns: ["id"]
-            isOneToOne: true
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "student_profiles_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       student_reminder_settings: {
         Row: {
           created_at: string | null
@@ -8573,70 +8548,133 @@ export type Database = {
       students: {
         Row: {
           active_block_set_id: string | null
+          address: string | null
+          address_detail: string | null
+          bio: string | null
           birth_date: string | null
+          career_notes: string | null
           class: string | null
           created_at: string | null
+          curriculum_revision: string | null
+          desired_career_field: string | null
+          desired_university_ids: string[] | null
           division: string | null
+          emergency_contact: string | null
+          emergency_contact_phone: string | null
           enrolled_at: string | null
+          exam_year: number | null
+          father_phone: string | null
+          gender: string | null
           grade: number | null
           id: string
+          interests: Json | null
           is_active: boolean
           lead_source: string | null
+          medical_info: string | null
           memo: string | null
+          mother_phone: string | null
           name: string
           phone: string | null
+          postal_code: string | null
+          profile_image_url: string | null
           program_id: string | null
           school_id: string | null
           school_name: string | null
           school_type: string | null
           status: string | null
           student_number: string | null
+          target_major: string | null
+          target_major_2: string | null
+          target_score: Json | null
+          target_university_type: string | null
           tenant_id: string
           updated_at: string | null
         }
         Insert: {
           active_block_set_id?: string | null
+          address?: string | null
+          address_detail?: string | null
+          bio?: string | null
           birth_date?: string | null
+          career_notes?: string | null
           class?: string | null
           created_at?: string | null
+          curriculum_revision?: string | null
+          desired_career_field?: string | null
+          desired_university_ids?: string[] | null
           division?: string | null
+          emergency_contact?: string | null
+          emergency_contact_phone?: string | null
           enrolled_at?: string | null
+          exam_year?: number | null
+          father_phone?: string | null
+          gender?: string | null
           grade?: number | null
           id?: string
+          interests?: Json | null
           is_active?: boolean
           lead_source?: string | null
+          medical_info?: string | null
           memo?: string | null
+          mother_phone?: string | null
           name: string
           phone?: string | null
+          postal_code?: string | null
+          profile_image_url?: string | null
           program_id?: string | null
           school_id?: string | null
           school_name?: string | null
           school_type?: string | null
           status?: string | null
           student_number?: string | null
+          target_major?: string | null
+          target_major_2?: string | null
+          target_score?: Json | null
+          target_university_type?: string | null
           tenant_id: string
           updated_at?: string | null
         }
         Update: {
           active_block_set_id?: string | null
+          address?: string | null
+          address_detail?: string | null
+          bio?: string | null
           birth_date?: string | null
+          career_notes?: string | null
           class?: string | null
           created_at?: string | null
+          curriculum_revision?: string | null
+          desired_career_field?: string | null
+          desired_university_ids?: string[] | null
           division?: string | null
+          emergency_contact?: string | null
+          emergency_contact_phone?: string | null
           enrolled_at?: string | null
+          exam_year?: number | null
+          father_phone?: string | null
+          gender?: string | null
           grade?: number | null
           id?: string
+          interests?: Json | null
           is_active?: boolean
           lead_source?: string | null
+          medical_info?: string | null
           memo?: string | null
+          mother_phone?: string | null
           name?: string
           phone?: string | null
+          postal_code?: string | null
+          profile_image_url?: string | null
           program_id?: string | null
           school_id?: string | null
           school_name?: string | null
           school_type?: string | null
           status?: string | null
           student_number?: string | null
+          target_major?: string | null
+          target_major_2?: string | null
+          target_score?: Json | null
+          target_university_type?: string | null
           tenant_id?: string
           updated_at?: string | null
         }
@@ -10358,6 +10396,7 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_chat_storage_usage: { Args: { p_sender_id: string }; Returns: number }
       get_distinct_instructor_platforms: {
         Args: never
         Returns: {
@@ -10652,4 +10691,3 @@ export const Constants = {
     },
   },
 } as const
-

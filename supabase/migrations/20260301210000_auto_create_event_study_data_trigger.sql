@@ -13,6 +13,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS tr_auto_create_event_study_data ON calendar_events;
+
 CREATE TRIGGER tr_auto_create_event_study_data
 AFTER INSERT ON calendar_events
 FOR EACH ROW
