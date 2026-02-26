@@ -62,28 +62,28 @@ export const sidebarWidths = {
 export const designTokens = {
   colors: {
     primary: {
-      bg50: "bg-primary-50 dark:bg-primary-900/30",
-      bg100: "bg-primary-100 dark:bg-primary-900/50",
-      text500: "text-primary-700 dark:text-primary-300",
-      text700: "text-primary-700 dark:text-primary-300",
-      text800: "text-primary-800 dark:text-primary-200",
-      border: "border-primary-500",
-      borderLight: "border-primary-200 dark:border-primary-800",
+      bg50: "bg-[rgb(var(--color-primary-50))]",
+      bg100: "bg-[rgb(var(--color-primary-100))]",
+      text500: "text-[rgb(var(--color-primary-700))]",
+      text700: "text-[rgb(var(--color-primary-700))]",
+      text800: "text-[rgb(var(--color-primary-800))]",
+      border: "border-[rgb(var(--color-primary-500))]",
+      borderLight: "border-[rgb(var(--color-primary-200))]",
     },
     gray: {
-      bg50: "bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))]",
-      bg100: "bg-[rgb(var(--color-secondary-100))] dark:bg-[rgb(var(--color-secondary-900))]",
-      bg800: "bg-[rgb(var(--color-secondary-800))] dark:bg-[rgb(var(--color-secondary-700))]",
-      bg900: "bg-[var(--text-primary)] dark:bg-[var(--text-primary)]",
-      text200: "text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)]",
-      text400: "text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)]",
-      text500: "text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)]",
-      text600: "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]",
-      text700: "text-[var(--text-secondary)] dark:text-[var(--text-primary)]",
-      text900: "text-[var(--text-primary)] dark:text-[var(--text-primary)]",
-      hoverBg: "hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-900))]",
-      hoverText: "hover:text-[var(--text-primary)] dark:hover:text-[var(--text-primary)]",
-      hoverBgLight: "hover:bg-[rgb(var(--color-secondary-50))] dark:hover:bg-[rgb(var(--color-secondary-900))]",
+      bg50: "bg-[rgb(var(--color-secondary-50))]",
+      bg100: "bg-[rgb(var(--color-secondary-100))]",
+      bg800: "bg-[rgb(var(--color-secondary-800))]",
+      bg900: "bg-[var(--text-primary)]",
+      text200: "text-[var(--text-tertiary)]",
+      text400: "text-[var(--text-tertiary)]",
+      text500: "text-[var(--text-tertiary)]",
+      text600: "text-[var(--text-secondary)]",
+      text700: "text-[var(--text-secondary)]",
+      text900: "text-[var(--text-primary)]",
+      hoverBg: "hover:bg-[rgb(var(--color-secondary-100))]",
+      hoverText: "hover:text-[var(--text-primary)]",
+      hoverBgLight: "hover:bg-[rgb(var(--color-secondary-50))]",
     },
   },
   focus: {
@@ -216,58 +216,58 @@ export function getChildItemClasses({
  * 툴팁 스타일
  */
 export const tooltipStyles = {
-  base: "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-body-2 text-white bg-[var(--text-primary)] dark:bg-[var(--text-primary)] dark:text-[var(--background)] rounded shadow-[var(--elevation-8)] whitespace-nowrap z-[50] pointer-events-none",
-  side: "absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 text-body-2 font-medium text-white bg-[var(--text-primary)] dark:bg-[var(--text-primary)] dark:text-[var(--background)] rounded shadow-[var(--elevation-8)] whitespace-nowrap z-50 opacity-0 invisible group-hover/nav:opacity-100 group-hover/nav:visible transition-opacity pointer-events-none",
+  base: "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-body-2 text-white bg-[var(--text-primary)] rounded shadow-[var(--elevation-8)] whitespace-nowrap z-[50] pointer-events-none",
+  side: "absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 text-body-2 font-medium text-white bg-[var(--text-primary)] rounded shadow-[var(--elevation-8)] whitespace-nowrap z-50 opacity-0 invisible group-hover/nav:opacity-100 group-hover/nav:visible transition-opacity pointer-events-none",
   arrow:
-    "absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[var(--text-primary)] dark:border-t-[var(--text-primary)]",
+    "absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[var(--text-primary)]",
 };
 
 /**
  * TopBar 스타일
  */
 export const topBarStyles = {
-  container: "fixed top-0 left-0 right-0 h-16 flex items-center justify-between px-4 bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))] border-b border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]",
-  searchPill: "flex items-center gap-2 px-4 py-2 rounded-full bg-[rgb(var(--color-secondary-100))] dark:bg-[rgb(var(--color-secondary-800))] text-[var(--text-tertiary)] text-body-2 cursor-pointer hover:bg-[rgb(var(--color-secondary-200))] dark:hover:bg-[rgb(var(--color-secondary-700))] transition-colors min-w-[200px] max-w-[600px]",
+  container: "fixed top-0 left-0 right-0 h-16 flex items-center justify-between px-4 bg-[rgb(var(--color-secondary-50))] border-b border-[rgb(var(--color-secondary-200))]",
+  searchPill: "flex items-center gap-2 px-4 py-2 rounded-full bg-[rgb(var(--color-secondary-100))] text-[var(--text-tertiary)] text-body-2 cursor-pointer hover:bg-[rgb(var(--color-secondary-200))] transition-colors min-w-[200px] max-w-[600px]",
 };
 
 /**
  * Waffle Menu 스타일
  */
 export const waffleStyles = {
-  trigger: "flex items-center justify-center w-9 h-9 rounded-full hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-800))] transition-colors",
-  dropdown: "absolute right-0 top-full mt-2 w-[320px] rounded-xl bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))] border border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))] shadow-lg p-4",
+  trigger: "flex items-center justify-center w-9 h-9 rounded-full hover:bg-[rgb(var(--color-secondary-100))] transition-colors",
+  dropdown: "absolute right-0 top-full mt-2 w-[320px] rounded-xl bg-[rgb(var(--color-secondary-50))] border border-[rgb(var(--color-secondary-200))] shadow-lg p-4",
   grid: "grid grid-cols-3 gap-2",
-  item: "flex flex-col items-center gap-1.5 p-3 rounded-lg hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-800))] transition-colors cursor-pointer text-center",
+  item: "flex flex-col items-center gap-1.5 p-3 rounded-lg hover:bg-[rgb(var(--color-secondary-100))] transition-colors cursor-pointer text-center",
 };
 
 /**
  * Profile Menu 스타일
  */
 export const profileMenuStyles = {
-  trigger: "flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-800/50 transition-colors cursor-pointer",
-  dropdown: "absolute right-0 top-full mt-2 w-[280px] rounded-xl bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))] border border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))] shadow-lg overflow-hidden",
+  trigger: "flex items-center justify-center w-8 h-8 rounded-full bg-[rgb(var(--color-primary-100))] text-[rgb(var(--color-primary-700))] hover:bg-[rgb(var(--color-primary-200))] transition-colors cursor-pointer",
+  dropdown: "absolute right-0 top-full mt-2 w-[280px] rounded-xl bg-[rgb(var(--color-secondary-50))] border border-[rgb(var(--color-secondary-200))] shadow-lg overflow-hidden",
 };
 
 /**
  * 레이아웃 공통 스타일 (RoleBasedLayout에서 사용)
  */
 export const layoutStyles = {
-  borderBottom: "border-b border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]",
-  borderTop: "border-t border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]",
-  borderRight: "border-r border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]",
+  borderBottom: "border-b border-[rgb(var(--color-secondary-200))]",
+  borderTop: "border-t border-[rgb(var(--color-secondary-200))]",
+  borderRight: "border-r border-[rgb(var(--color-secondary-200))]",
   flexCenter: "flex items-center gap-2",
   flexBetween: "flex items-center justify-between gap-2",
   flexColCenter: "flex flex-col items-center gap-3",
   padding4: "p-4",
   padding3: "px-4 py-3",
   padding2: "px-3 py-2",
-  bgGray50: "bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))]",
-  bgWhite: "bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))]",
-  textHeading: "text-[var(--text-primary)] dark:text-[var(--text-primary)]",
-  textMuted: "text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)]",
-  textSecondary: "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]",
-  hoverBg: "hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-800))]",
-  hoverText: "hover:text-[var(--text-primary)] dark:hover:text-[var(--text-primary)]",
+  bgGray50: "bg-[rgb(var(--color-secondary-50))]",
+  bgWhite: "bg-[rgb(var(--color-secondary-50))]",
+  textHeading: "text-[var(--text-primary)]",
+  textMuted: "text-[var(--text-tertiary)]",
+  textSecondary: "text-[var(--text-secondary)]",
+  hoverBg: "hover:bg-[rgb(var(--color-secondary-100))]",
+  hoverText: "hover:text-[var(--text-primary)]",
   transition: "transition-colors",
   transitionAll: `transition-all ${animationDurations.normal} ease-in-out`,
   focusRing: designTokens.focus.ring,
@@ -286,7 +286,7 @@ export const sidebarStyles = {
   footer: `${layoutStyles.borderTop} ${layoutStyles.padding4} sticky bottom-0 z-[20] ${layoutStyles.bgWhite}`,
   logoLink: `${layoutStyles.flexCenter} text-h2 font-semibold ${layoutStyles.textHeading}`,
   collapseButton: `p-2 rounded-md ${layoutStyles.hoverBg} ${layoutStyles.textSecondary} ${layoutStyles.hoverText} ${layoutStyles.transition} ${layoutStyles.focusRing}`,
-  expandButton: `group relative w-full ${layoutStyles.flexCenter} justify-center p-3 rounded-lg ${designTokens.colors.primary.bg50} hover:bg-primary-100 dark:hover:bg-primary-900/50 ${designTokens.colors.primary.text500} ${layoutStyles.transition} border ${designTokens.colors.primary.borderLight} ${layoutStyles.focusRing}`,
+  expandButton: `group relative w-full ${layoutStyles.flexCenter} justify-center p-3 rounded-lg ${designTokens.colors.primary.bg50} hover:bg-[rgb(var(--color-primary-100))] ${designTokens.colors.primary.text500} ${layoutStyles.transition} border ${designTokens.colors.primary.borderLight} ${layoutStyles.focusRing}`,
 };
 
 /**

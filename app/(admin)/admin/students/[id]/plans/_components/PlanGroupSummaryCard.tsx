@@ -65,18 +65,17 @@ export const PlanGroupSummaryCard = memo(function PlanGroupSummaryCard({
   return (
     <div
       className={cn(
-        'rounded-lg border border-gray-200 bg-white p-4 shadow-sm',
-        'dark:border-gray-700 dark:bg-gray-800',
+        'rounded-lg border border-[rgb(var(--color-secondary-200))] bg-[rgb(var(--color-secondary-50))] p-4 shadow-sm',
         className
       )}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate">
+        <h3 className="font-medium text-[var(--text-primary)] truncate">
           {data.name || '이름 없는 플랜 그룹'}
         </h3>
         {data.periodStart && data.periodEnd && (
-          <span className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 shrink-0 ml-2">
+          <span className="flex items-center gap-1 text-xs text-[var(--text-tertiary)] shrink-0 ml-2">
             <Calendar className="w-3 h-3" />
             {formatDateRange(data.periodStart, data.periodEnd)}
           </span>
@@ -86,61 +85,61 @@ export const PlanGroupSummaryCard = memo(function PlanGroupSummaryCard({
       {/* Stats Row - 완료/미완료 기준 (캘린더와 동일) */}
       <div className="flex items-center gap-4 text-sm mb-3">
         <div className="flex items-center gap-1.5">
-          <span className="text-gray-500 dark:text-gray-400">총</span>
-          <span className="font-semibold text-gray-900 dark:text-gray-100">
+          <span className="text-[var(--text-tertiary)]">총</span>
+          <span className="font-semibold text-[var(--text-primary)]">
             {data.totalCount}개
           </span>
         </div>
-        <div className="h-4 w-px bg-gray-200 dark:bg-gray-700" />
+        <div className="h-4 w-px bg-[rgb(var(--color-secondary-200))]" />
         <div className="flex items-center gap-1.5">
           <span className="text-green-500 font-medium">✓</span>
-          <span className="text-gray-700 dark:text-gray-300">완료 {data.completedCount}</span>
+          <span className="text-[var(--text-secondary)]">완료 {data.completedCount}</span>
         </div>
         {data.totalCount - data.completedCount > 0 && (
           <div className="flex items-center gap-1.5">
             <span className="text-gray-400 font-medium">○</span>
-            <span className="text-gray-700 dark:text-gray-300">미완료 {data.totalCount - data.completedCount}</span>
+            <span className="text-[var(--text-secondary)]">미완료 {data.totalCount - data.completedCount}</span>
           </div>
         )}
       </div>
 
       {/* Progress Bar */}
       <div className="flex items-center gap-2">
-        <div className="flex-1 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+        <div className="flex-1 h-2 bg-[rgb(var(--color-secondary-100))] rounded-full overflow-hidden">
           <div
-            className="h-full bg-green-500 dark:bg-green-400 rounded-full transition-all duration-300"
+            className="h-full bg-[rgb(var(--color-success-500))] rounded-full transition-all duration-300"
             style={{ width: `${progressPercentage}%` }}
           />
         </div>
-        <span className="text-xs font-medium text-gray-600 dark:text-gray-300 w-10 text-right">
+        <span className="text-xs font-medium text-[var(--text-secondary)] w-10 text-right">
           {progressPercentage}%
         </span>
       </div>
 
       {/* Cycle Stats (1730 Timetable 주기 정보) */}
       {(data.studyDays != null || data.reviewDays != null || data.totalWeeks != null) && (
-        <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+        <div className="mt-3 pt-3 border-t border-[rgb(var(--color-secondary-100))]">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
             {data.studyDays != null && (
-              <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+              <div className="flex items-center gap-1 text-[rgb(var(--color-info-600))]">
                 <BookOpen className="w-3.5 h-3.5" />
                 <span>학습일 {data.studyDays}일</span>
               </div>
             )}
             {data.reviewDays != null && (
-              <div className="flex items-center gap-1 text-purple-600 dark:text-purple-400">
+              <div className="flex items-center gap-1 text-purple-600">
                 <Repeat2 className="w-3.5 h-3.5" />
                 <span>복습일 {data.reviewDays}일</span>
               </div>
             )}
             {data.totalWeeks != null && (
-              <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
+              <div className="flex items-center gap-1 text-[rgb(var(--color-secondary-600))]">
                 <Calendar className="w-3.5 h-3.5" />
                 <span>{data.totalWeeks}주차</span>
               </div>
             )}
             {data.exclusionDays != null && data.exclusionDays > 0 && (
-              <div className="flex items-center gap-1 text-orange-500 dark:text-orange-400">
+              <div className="flex items-center gap-1 text-[rgb(var(--color-warning-500))]">
                 <CalendarOff className="w-3.5 h-3.5" />
                 <span>제외일 {data.exclusionDays}일</span>
               </div>

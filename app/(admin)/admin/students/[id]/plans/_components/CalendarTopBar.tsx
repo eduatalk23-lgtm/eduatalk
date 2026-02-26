@@ -209,10 +209,8 @@ export const CalendarTopBar = memo(function CalendarTopBar({
 
   const isTopbar = variant === 'topbar';
 
-  const hoverBg = isTopbar
-    ? 'hover:bg-[rgb(var(--color-secondary-200))] dark:hover:bg-[rgb(var(--color-secondary-700))]'
-    : 'hover:bg-gray-100';
-  const iconColor = isTopbar ? 'text-[var(--text-secondary)]' : 'text-gray-600';
+  const hoverBg = 'hover:bg-[rgb(var(--color-secondary-200))]';
+  const iconColor = 'text-[var(--text-secondary)]';
 
   // topbar variant: contents로 부모 flex에 참여, order로 배치
   if (isTopbar) {
@@ -234,7 +232,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
             onClick={handleToday}
             className={cn(
               'shrink-0 px-4 py-1.5 text-sm font-medium rounded-full transition-colors',
-              'text-[var(--text-secondary)] border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-600))] hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-800))]'
+              'text-[var(--text-secondary)] border border-[rgb(var(--color-secondary-300))] hover:bg-[rgb(var(--color-secondary-100))]'
             )}
           >
             오늘
@@ -260,7 +258,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
           <h2
             className={cn(
               "ml-2 text-[22px] font-normal truncate flex items-center gap-2 leading-none text-[var(--text-primary)]",
-              onGoToDate && "cursor-pointer hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-800))] rounded-lg px-2 -mx-2 py-1 -my-1 transition-colors"
+              onGoToDate && "cursor-pointer hover:bg-[rgb(var(--color-secondary-100))] rounded-lg px-2 -mx-2 py-1 -my-1 transition-colors"
             )}
             onClick={onGoToDate}
             title={onGoToDate ? "날짜로 이동 (G)" : undefined}
@@ -305,8 +303,8 @@ export const CalendarTopBar = memo(function CalendarTopBar({
           <div className="hidden md:flex order-3 items-center shrink-0 ml-2">
             <div className={cn(
               'flex items-center gap-2 px-4 py-2 rounded-full text-sm transition-colors min-w-[200px]',
-              'bg-[rgb(var(--color-secondary-100))] dark:bg-[rgb(var(--color-secondary-800))]',
-              'hover:bg-[rgb(var(--color-secondary-200))] dark:hover:bg-[rgb(var(--color-secondary-700))]',
+              'bg-[rgb(var(--color-secondary-100))]',
+              'hover:bg-[rgb(var(--color-secondary-200))]',
             )}>
               <Search className="w-4 h-4 shrink-0 text-[var(--text-tertiary)]" />
               <input
@@ -340,7 +338,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
             onClick={() => setDropdownOpen((prev) => !prev)}
             className={cn(
               'flex items-center gap-1 px-4 py-1.5 text-sm font-medium rounded-full transition-colors',
-              'text-[var(--text-secondary)] border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-600))] hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-800))]'
+              'text-[var(--text-secondary)] border border-[rgb(var(--color-secondary-300))] hover:bg-[rgb(var(--color-secondary-100))]'
             )}
           >
             {activeOption.shortLabel}
@@ -351,7 +349,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
           </button>
 
           {dropdownOpen && (
-            <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-lg shadow-lg border py-1.5 bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))] border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]">
+            <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-lg shadow-lg border py-1.5 bg-[rgb(var(--color-secondary-50))] border-[rgb(var(--color-secondary-200))]">
               {VIEW_OPTIONS.map((view) => (
                 <button
                   key={view.key}
@@ -363,8 +361,8 @@ export const CalendarTopBar = memo(function CalendarTopBar({
                   className={cn(
                     'w-full flex items-center px-3 py-2 text-sm transition-colors',
                     activeView === view.key && (view.key !== 'weekly' || customDayCount === 7)
-                      ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-                      : 'text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-800))]'
+                      ? 'bg-[rgb(var(--color-info-50))] text-[rgb(var(--color-info-600))]'
+                      : 'text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))]'
                   )}
                 >
                   <span className="w-5 shrink-0">
@@ -374,7 +372,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
                   <span className={cn(
                     'text-xs ml-4',
                     activeView === view.key
-                      ? 'text-blue-400 dark:text-blue-500'
+                      ? 'text-blue-400'
                       : 'text-[var(--text-tertiary)]'
                   )}>{view.shortcut}</span>
                 </button>
@@ -383,7 +381,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
               {/* 커스텀 일수 옵션 */}
               {onCustomDayCountChange && (
                 <>
-                  <div className="border-t border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))] my-1" />
+                  <div className="border-t border-[rgb(var(--color-secondary-200))] my-1" />
                   <div className="px-3 py-1.5 text-xs text-[var(--text-tertiary)] font-medium">커스텀 뷰</div>
                   {[2, 3, 4, 5, 6].map((n) => (
                     <button
@@ -396,8 +394,8 @@ export const CalendarTopBar = memo(function CalendarTopBar({
                       className={cn(
                         'w-full flex items-center px-3 py-2 text-sm transition-colors',
                         activeView === 'weekly' && customDayCount === n
-                          ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-                          : 'text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-800))]'
+                          ? 'bg-[rgb(var(--color-info-50))] text-[rgb(var(--color-info-600))]'
+                          : 'text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))]'
                       )}
                     >
                       <span className="w-5 shrink-0">
@@ -433,11 +431,11 @@ export const CalendarTopBar = memo(function CalendarTopBar({
             <MoreVertical className={cn('w-5 h-5', iconColor)} />
           </button>
           {moreMenuOpen && (
-            <div className="absolute right-0 top-full mt-1 z-50 min-w-[200px] rounded-lg shadow-lg border py-1 bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))] border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]">
+            <div className="absolute right-0 top-full mt-1 z-50 min-w-[200px] rounded-lg shadow-lg border py-1 bg-[rgb(var(--color-secondary-50))] border-[rgb(var(--color-secondary-200))]">
               {onOpenAnalytics && (
                 <button
                   onClick={() => { onOpenAnalytics(); setMoreMenuOpen(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-800))] transition-colors text-left"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] transition-colors text-left"
                 >
                   <BarChart3 className="w-4 h-4" />
                   분석 대시보드
@@ -446,7 +444,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
               {onOpenProgress && (
                 <button
                   onClick={() => { onOpenProgress(); setMoreMenuOpen(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-800))] transition-colors text-left"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] transition-colors text-left"
                 >
                   <ListChecks className="w-4 h-4" />
                   진도관리
@@ -455,17 +453,17 @@ export const CalendarTopBar = memo(function CalendarTopBar({
               {onOpenHistory && (
                 <button
                   onClick={() => { onOpenHistory(); setMoreMenuOpen(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-800))] transition-colors text-left"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] transition-colors text-left"
                 >
                   <History className="w-4 h-4" />
                   히스토리
                 </button>
               )}
-              <hr className="my-1 border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]" />
+              <hr className="my-1 border-[rgb(var(--color-secondary-200))]" />
               {onOpenTemplate && (
                 <button
                   onClick={() => { onOpenTemplate(); setMoreMenuOpen(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-800))] transition-colors text-left"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] transition-colors text-left"
                 >
                   <ClipboardList className="w-4 h-4" />
                   플랜 템플릿
@@ -474,7 +472,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
               {onOpenPlanGroupManage && (
                 <button
                   onClick={() => { onOpenPlanGroupManage(); setMoreMenuOpen(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-800))] transition-colors text-left"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] transition-colors text-left"
                 >
                   <Settings2 className="w-4 h-4" />
                   플랜 그룹 관리
@@ -483,7 +481,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
               {onOpenMarkdownExport && (
                 <button
                   onClick={() => { onOpenMarkdownExport(); setMoreMenuOpen(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-800))] transition-colors text-left"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] transition-colors text-left"
                 >
                   <FileText className="w-4 h-4" />
                   마크다운 내보내기
@@ -492,7 +490,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
               {isAdminMode && onOpenConditionalDelete && (
                 <button
                   onClick={() => { onOpenConditionalDelete(); setMoreMenuOpen(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-left"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-[rgb(var(--color-error-50))] transition-colors text-left"
                 >
                   <Trash2 className="w-4 h-4" />
                   조건부 삭제
@@ -503,16 +501,16 @@ export const CalendarTopBar = memo(function CalendarTopBar({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setMoreMenuOpen(false)}
-                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-800))] transition-colors text-left"
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] transition-colors text-left"
               >
                 <ExternalLink className="w-4 h-4" />
                 Google Calendar 연결
               </a>
-              <hr className="my-1 border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]" />
+              <hr className="my-1 border-[rgb(var(--color-secondary-200))]" />
               {onOpenShortcutsHelp && (
                 <button
                   onClick={() => { onOpenShortcutsHelp(); setMoreMenuOpen(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-800))] transition-colors text-left"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] transition-colors text-left"
                 >
                   <Keyboard className="w-4 h-4" />
                   단축키 도움말
@@ -523,17 +521,17 @@ export const CalendarTopBar = memo(function CalendarTopBar({
         </div>
 
         {/* 모바일 네비게이션 바 — fixed, TopBar(h-16) 바로 아래 */}
-        <div className="md:hidden fixed top-16 left-0 right-0 z-30 flex items-center gap-1 px-2 py-1.5 bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))] border-b border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]">
+        <div className="md:hidden fixed top-16 left-0 right-0 z-30 flex items-center gap-1 px-2 py-1.5 bg-[rgb(var(--color-secondary-50))] border-b border-[rgb(var(--color-secondary-200))]">
           {/* 모바일 검색 모드 (데스크톱 pill과 동일 토큰) */}
           {searchOpen && onSearchChange ? (
             <div className="flex items-center gap-1 flex-1">
               <button
                 onClick={() => { setSearchOpen(false); handleSearchClear(); }}
-                className="p-1.5 rounded-full transition-colors hover:bg-[rgb(var(--color-secondary-200))] dark:hover:bg-[rgb(var(--color-secondary-700))]"
+                className="p-1.5 rounded-full transition-colors hover:bg-[rgb(var(--color-secondary-200))]"
               >
                 <ChevronLeft className="w-4 h-4 text-[var(--text-secondary)]" />
               </button>
-              <div className="flex-1 flex items-center gap-2 bg-[rgb(var(--color-secondary-100))] dark:bg-[rgb(var(--color-secondary-800))] rounded-full px-4 py-2">
+              <div className="flex-1 flex items-center gap-2 bg-[rgb(var(--color-secondary-100))] rounded-full px-4 py-2">
                 <Search className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" />
                 <input
                   ref={searchInputRef}
@@ -556,7 +554,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
               {/* 사이드바 토글 */}
               <button
                 onClick={onToggleSidebar}
-                className="p-1.5 rounded-full transition-colors hover:bg-[rgb(var(--color-secondary-200))] dark:hover:bg-[rgb(var(--color-secondary-700))]"
+                className="p-1.5 rounded-full transition-colors hover:bg-[rgb(var(--color-secondary-200))]"
               >
                 <Menu className="w-4.5 h-4.5 text-[var(--text-secondary)]" />
               </button>
@@ -564,7 +562,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
               {/* 오늘 */}
               <button
                 onClick={handleToday}
-                className="shrink-0 px-2.5 py-1 text-xs font-medium rounded-full transition-colors text-[var(--text-secondary)] border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-600))] hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-800))]"
+                className="shrink-0 px-2.5 py-1 text-xs font-medium rounded-full transition-colors text-[var(--text-secondary)] border border-[rgb(var(--color-secondary-300))] hover:bg-[rgb(var(--color-secondary-100))]"
               >
                 오늘
               </button>
@@ -572,13 +570,13 @@ export const CalendarTopBar = memo(function CalendarTopBar({
               {/* < > */}
               <button
                 onClick={handlePrev}
-                className="p-1 rounded-full transition-colors hover:bg-[rgb(var(--color-secondary-200))] dark:hover:bg-[rgb(var(--color-secondary-700))]"
+                className="p-1 rounded-full transition-colors hover:bg-[rgb(var(--color-secondary-200))]"
               >
                 <ChevronLeft className="w-4 h-4 text-[var(--text-secondary)]" />
               </button>
               <button
                 onClick={handleNext}
-                className="p-1 rounded-full transition-colors hover:bg-[rgb(var(--color-secondary-200))] dark:hover:bg-[rgb(var(--color-secondary-700))]"
+                className="p-1 rounded-full transition-colors hover:bg-[rgb(var(--color-secondary-200))]"
               >
                 <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
               </button>
@@ -603,7 +601,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
               {onSearchChange && (
                 <button
                   onClick={() => setSearchOpen(true)}
-                  className="p-1.5 shrink-0 rounded-full transition-colors hover:bg-[rgb(var(--color-secondary-200))] dark:hover:bg-[rgb(var(--color-secondary-700))]"
+                  className="p-1.5 shrink-0 rounded-full transition-colors hover:bg-[rgb(var(--color-secondary-200))]"
                   title="이벤트 검색"
                 >
                   <Search className="w-4 h-4 text-[var(--text-secondary)]" />
@@ -621,14 +619,14 @@ export const CalendarTopBar = memo(function CalendarTopBar({
               <div className="relative shrink-0" ref={mobileDropdownRef}>
                 <button
                   onClick={() => setDropdownOpen((prev) => !prev)}
-                  className="flex items-center gap-0.5 px-2.5 py-1 text-xs font-medium rounded-full transition-colors text-[var(--text-secondary)] border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-600))] hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-800))]"
+                  className="flex items-center gap-0.5 px-2.5 py-1 text-xs font-medium rounded-full transition-colors text-[var(--text-secondary)] border border-[rgb(var(--color-secondary-300))] hover:bg-[rgb(var(--color-secondary-100))]"
                 >
                   {activeOption.shortLabel}
                   <ChevronDown className={cn('w-3.5 h-3.5 transition-transform', dropdownOpen && 'rotate-180')} />
                 </button>
 
                 {dropdownOpen && (
-                  <div className="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-lg shadow-lg border py-1 bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))] border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]">
+                  <div className="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-lg shadow-lg border py-1 bg-[rgb(var(--color-secondary-50))] border-[rgb(var(--color-secondary-200))]">
                     {VIEW_OPTIONS.map((view) => (
                       <button
                         key={view.key}
@@ -640,8 +638,8 @@ export const CalendarTopBar = memo(function CalendarTopBar({
                         className={cn(
                           'w-full flex items-center px-3 py-1.5 text-xs transition-colors',
                           activeView === view.key && (view.key !== 'weekly' || customDayCount === 7)
-                            ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-                            : 'text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-800))]'
+                            ? 'bg-[rgb(var(--color-info-50))] text-[rgb(var(--color-info-600))]'
+                            : 'text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))]'
                         )}
                       >
                         <span className="w-4 shrink-0">
@@ -654,7 +652,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
                     {/* 커스텀 일수 (모바일) */}
                     {onCustomDayCountChange && (
                       <>
-                        <div className="border-t border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))] my-1" />
+                        <div className="border-t border-[rgb(var(--color-secondary-200))] my-1" />
                         {[2, 3, 4, 5, 6].map((n) => (
                           <button
                             key={`mobile-custom-${n}`}
@@ -666,8 +664,8 @@ export const CalendarTopBar = memo(function CalendarTopBar({
                             className={cn(
                               'w-full flex items-center px-3 py-1.5 text-xs transition-colors',
                               activeView === 'weekly' && customDayCount === n
-                                ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-                                : 'text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-800))]'
+                                ? 'bg-[rgb(var(--color-info-50))] text-[rgb(var(--color-info-600))]'
+                                : 'text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))]'
                             )}
                           >
                             <span className="w-4 shrink-0">
@@ -690,7 +688,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
 
   // standalone variant: 기존 독립형 레이아웃
   return (
-    <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 border-b border-gray-200 bg-white">
+    <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 border-b border-[rgb(var(--color-secondary-200))] bg-[var(--background)]">
       <div className="flex items-center min-w-0">
         <button
           onClick={onToggleSidebar}
@@ -702,24 +700,24 @@ export const CalendarTopBar = memo(function CalendarTopBar({
 
         <button
           onClick={handleToday}
-          className="shrink-0 px-4 py-1.5 ml-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
+          className="shrink-0 px-4 py-1.5 ml-2 text-sm font-medium text-[var(--text-secondary)] bg-[rgb(var(--color-secondary-50))] border border-[rgb(var(--color-secondary-300))] rounded-full hover:bg-[rgb(var(--color-secondary-100))] transition-colors"
         >
           오늘
         </button>
 
         <div className="flex items-center ml-2">
-          <button onClick={handlePrev} className="p-1.5 rounded-full hover:bg-gray-100 transition-colors">
-            <ChevronLeft className="w-5 h-5 text-gray-600" />
+          <button onClick={handlePrev} className="p-1.5 rounded-full hover:bg-[rgb(var(--color-secondary-100))] transition-colors">
+            <ChevronLeft className="w-5 h-5 text-[var(--text-tertiary)]" />
           </button>
-          <button onClick={handleNext} className="p-1.5 rounded-full hover:bg-gray-100 transition-colors">
-            <ChevronRight className="w-5 h-5 text-gray-600" />
+          <button onClick={handleNext} className="p-1.5 rounded-full hover:bg-[rgb(var(--color-secondary-100))] transition-colors">
+            <ChevronRight className="w-5 h-5 text-[var(--text-tertiary)]" />
           </button>
         </div>
 
         <h2
           className={cn(
-            "ml-2 text-[22px] font-normal truncate flex items-center gap-2 leading-none text-gray-800",
-            onGoToDate && "cursor-pointer hover:bg-gray-100 rounded-lg px-2 -mx-2 py-1 -my-1 transition-colors"
+            "ml-2 text-[22px] font-normal truncate flex items-center gap-2 leading-none text-[var(--text-primary)]",
+            onGoToDate && "cursor-pointer hover:bg-[rgb(var(--color-secondary-100))] rounded-lg px-2 -mx-2 py-1 -my-1 transition-colors"
           )}
           onClick={onGoToDate}
           title={onGoToDate ? "날짜로 이동 (G)" : undefined}
@@ -732,12 +730,12 @@ export const CalendarTopBar = memo(function CalendarTopBar({
                 <span
                   className={cn(
                     'w-9 h-9 flex items-center justify-center rounded-full text-base font-medium',
-                    dayInfo.isToday ? 'bg-blue-500 text-white' : 'text-gray-800',
+                    dayInfo.isToday ? 'bg-blue-500 text-white' : 'text-[var(--text-primary)]',
                   )}
                 >
                   {dayInfo.dateNum}
                 </span>
-                <span className={cn('text-sm font-normal', dayInfo.isToday ? 'text-blue-600' : 'text-gray-500')}>
+                <span className={cn('text-sm font-normal', dayInfo.isToday ? 'text-blue-600' : 'text-[var(--text-tertiary)]')}>
                   {dayInfo.dayName}
                 </span>
               </>
@@ -746,7 +744,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
         </h2>
 
         {totalCount !== undefined && totalCount > 0 && (
-          <span className="ml-3 text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full whitespace-nowrap">
+          <span className="ml-3 text-xs text-[rgb(var(--color-info-600))] bg-[rgb(var(--color-info-100))] px-2 py-0.5 rounded-full whitespace-nowrap">
             {completedCount ?? 0}/{totalCount}
           </span>
         )}
@@ -755,14 +753,14 @@ export const CalendarTopBar = memo(function CalendarTopBar({
       <div className="relative shrink-0" ref={dropdownRef}>
         <button
           onClick={() => setDropdownOpen((prev) => !prev)}
-          className="flex items-center gap-1 px-4 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
+          className="flex items-center gap-1 px-4 py-1.5 text-sm font-medium text-[var(--text-secondary)] bg-[rgb(var(--color-secondary-50))] border border-[rgb(var(--color-secondary-300))] rounded-full hover:bg-[rgb(var(--color-secondary-100))] transition-colors"
         >
           {activeOption.shortLabel}
           <ChevronDown className={cn('w-4 h-4 transition-transform', dropdownOpen && 'rotate-180')} />
         </button>
 
         {dropdownOpen && (
-          <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-lg shadow-lg border border-gray-200 bg-white py-1.5">
+          <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-lg shadow-lg border border-[rgb(var(--color-secondary-200))] bg-[rgb(var(--color-secondary-50))] py-1.5">
             {VIEW_OPTIONS.map((view) => (
               <button
                 key={view.key}
@@ -774,8 +772,8 @@ export const CalendarTopBar = memo(function CalendarTopBar({
                 className={cn(
                   'w-full flex items-center px-3 py-2 text-sm transition-colors',
                   activeView === view.key && (view.key !== 'weekly' || customDayCount === 7)
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    ? 'bg-[rgb(var(--color-info-50))] text-[rgb(var(--color-info-600))]'
+                    : 'text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))]'
                 )}
               >
                 <span className="w-5 shrink-0">
@@ -784,7 +782,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
                 <span className="flex-1 text-left">{view.label}</span>
                 <span className={cn(
                   'text-xs ml-4',
-                  activeView === view.key ? 'text-blue-400' : 'text-gray-400'
+                  activeView === view.key ? 'text-blue-400' : 'text-[rgb(var(--color-secondary-400))]'
                 )}>{view.shortcut}</span>
               </button>
             ))}
@@ -792,8 +790,8 @@ export const CalendarTopBar = memo(function CalendarTopBar({
             {/* 커스텀 일수 (standalone) */}
             {onCustomDayCountChange && (
               <>
-                <div className="border-t border-gray-100 my-1" />
-                <div className="px-3 py-1.5 text-xs text-gray-400 font-medium">커스텀 뷰</div>
+                <div className="border-t border-[rgb(var(--color-secondary-100))] my-1" />
+                <div className="px-3 py-1.5 text-xs text-[rgb(var(--color-secondary-400))] font-medium">커스텀 뷰</div>
                 {[2, 3, 4, 5, 6].map((n) => (
                   <button
                     key={`standalone-custom-${n}`}
@@ -805,8 +803,8 @@ export const CalendarTopBar = memo(function CalendarTopBar({
                     className={cn(
                       'w-full flex items-center px-3 py-2 text-sm transition-colors',
                       activeView === 'weekly' && customDayCount === n
-                        ? 'bg-blue-50 text-blue-600'
-                        : 'text-gray-700 hover:bg-gray-50'
+                        ? 'bg-[rgb(var(--color-info-50))] text-[rgb(var(--color-info-600))]'
+                        : 'text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))]'
                     )}
                   >
                     <span className="w-5 shrink-0">

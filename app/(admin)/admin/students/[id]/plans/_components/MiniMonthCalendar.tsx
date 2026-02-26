@@ -70,20 +70,20 @@ export const MiniMonthCalendar = memo(function MiniMonthCalendar({
     <div className="select-none flex flex-col gap-2">
       {/* 월/년 헤더 + 이전/다음 월 화살표 */}
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold">
+        <span className="text-sm font-semibold text-[var(--text-primary)]">
           {format(displayMonth, 'yyyy년 M월')}
         </span>
         <div className="flex items-center gap-0.5">
           <button
             onClick={handlePrevMonth}
-            className="p-1 rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
+            className="p-1 rounded-full hover:bg-[rgb(var(--color-secondary-100))] text-[var(--text-tertiary)] transition-colors"
             aria-label="이전 달"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           <button
             onClick={handleNextMonth}
-            className="p-1 rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
+            className="p-1 rounded-full hover:bg-[rgb(var(--color-secondary-100))] text-[var(--text-tertiary)] transition-colors"
             aria-label="다음 달"
           >
             <ChevronRight className="w-4 h-4" />
@@ -100,7 +100,7 @@ export const MiniMonthCalendar = memo(function MiniMonthCalendar({
               'text-center text-[10px] font-medium py-0.5',
               label === '일' && 'text-red-400',
               label === '토' && 'text-blue-400',
-              label !== '일' && label !== '토' && 'text-gray-400'
+              label !== '일' && label !== '토' && 'text-[rgb(var(--color-secondary-400))]'
             )}
           >
             {label}
@@ -130,9 +130,9 @@ export const MiniMonthCalendar = memo(function MiniMonthCalendar({
               className={cn(
                 'relative flex flex-col items-center justify-center h-8 text-xs rounded-full transition-colors',
                 // 현재 월 외 날짜
-                !isCurrentMonth && 'text-gray-300',
+                !isCurrentMonth && 'text-[rgb(var(--color-secondary-300))]',
                 // 현재 월 날짜
-                isCurrentMonth && 'text-gray-700 hover:bg-gray-100',
+                isCurrentMonth && 'text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))]',
                 // 공휴일 (일요일보다 우선)
                 isCurrentMonth && holiday && 'text-red-500',
                 // 일/토 색상 (공휴일이 아닐 때)

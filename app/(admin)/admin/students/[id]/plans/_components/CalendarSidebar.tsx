@@ -154,51 +154,51 @@ export function CalendarSidebar() {
             className={cn(
               'flex items-center gap-2 w-full rounded-2xl px-5 py-3 text-sm font-medium shadow-md transition-all',
               canCreatePlans
-                ? 'bg-white border border-gray-200 text-gray-700 hover:shadow-lg hover:bg-gray-50'
-                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                ? 'bg-[rgb(var(--color-secondary-50))] border border-[rgb(var(--color-secondary-200))] text-[var(--text-secondary)] hover:shadow-lg hover:bg-[rgb(var(--color-secondary-100))]'
+                : 'bg-[rgb(var(--color-secondary-100))] text-[rgb(var(--color-secondary-400))] cursor-not-allowed'
             )}
           >
-            <Plus className="w-5 h-5 text-blue-600" />
+            <Plus className="w-5 h-5 text-[rgb(var(--color-info-600))]" />
             만들기
           </button>
           {showCreateMenu && (
             <>
               <div className="fixed inset-0 z-40" onClick={handleCreateMenuClose} />
-              <div className="absolute left-0 top-full mt-1 w-52 bg-white border rounded-lg shadow-lg z-50 py-1">
+              <div className="absolute left-0 top-full mt-1 w-52 bg-[rgb(var(--color-secondary-50))] border border-[rgb(var(--color-secondary-200))] rounded-lg shadow-lg z-50 py-1">
                 <button
                   onClick={() => { openUnifiedModal('quick'); handleCreateMenuClose(); }}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-left"
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-[rgb(var(--color-secondary-100))] text-left text-[var(--text-secondary)]"
                 >
-                  <Plus className="w-4 h-4 text-gray-500" />
+                  <Plus className="w-4 h-4 text-[var(--text-tertiary)]" />
                   플랜 추가
-                  <kbd className="ml-auto text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">Q</kbd>
+                  <kbd className="ml-auto text-xs text-gray-400 bg-[rgb(var(--color-secondary-100))] text-[rgb(var(--color-secondary-400))] px-1.5 py-0.5 rounded">Q</kbd>
                 </button>
                 <button
                   onClick={() => { setShowCreateWizard(true); handleCreateMenuClose(); }}
                   disabled={!canCreatePlans}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-left disabled:opacity-50"
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-[rgb(var(--color-secondary-100))] text-left text-[var(--text-secondary)] disabled:opacity-50"
                 >
-                  <Plus className="w-4 h-4 text-gray-500" />
+                  <Plus className="w-4 h-4 text-[var(--text-tertiary)]" />
                   플랜 그룹
-                  <kbd className="ml-auto text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">G</kbd>
+                  <kbd className="ml-auto text-xs text-gray-400 bg-[rgb(var(--color-secondary-100))] text-[rgb(var(--color-secondary-400))] px-1.5 py-0.5 rounded">G</kbd>
                 </button>
-                <hr className="my-1" />
+                <hr className="my-1 border-[rgb(var(--color-secondary-200))]" />
                 <button
                   onClick={() => { setShowAIPlanModal(true); handleCreateMenuClose(); }}
                   disabled={!canCreatePlans}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-left disabled:opacity-50"
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-[rgb(var(--color-secondary-100))] text-left text-[var(--text-secondary)] disabled:opacity-50"
                 >
                   <Wand2 className="w-4 h-4 text-info-600" />
                   AI 생성
-                  <kbd className="ml-auto text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">I</kbd>
+                  <kbd className="ml-auto text-xs text-gray-400 bg-[rgb(var(--color-secondary-100))] text-[rgb(var(--color-secondary-400))] px-1.5 py-0.5 rounded">I</kbd>
                 </button>
                 <button
                   onClick={() => { setShowOptimizationPanel(true); handleCreateMenuClose(); }}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-left"
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-[rgb(var(--color-secondary-100))] text-left text-[var(--text-secondary)]"
                 >
                   <LineChart className="w-4 h-4 text-success-600" />
                   AI 분석
-                  <kbd className="ml-auto text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">O</kbd>
+                  <kbd className="ml-auto text-xs text-gray-400 bg-[rgb(var(--color-secondary-100))] text-[rgb(var(--color-secondary-400))] px-1.5 py-0.5 rounded">O</kbd>
                 </button>
               </div>
             </>
@@ -209,9 +209,9 @@ export function CalendarSidebar() {
       {/* 캘린더 미선택 안내 */}
       {!selectedCalendarId && (
         <div className="px-3 mb-3">
-          <div className="p-2 bg-warning-50 border border-warning-200 rounded-lg flex items-center gap-2">
-            <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 text-warning-600" />
-            <span className="text-xs text-warning-700">
+          <div className="p-2 bg-[rgb(var(--color-warning-50))] border border-[rgb(var(--color-warning-200))] rounded-lg flex items-center gap-2">
+            <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 text-[rgb(var(--color-warning-600))]" />
+            <span className="text-xs text-[rgb(var(--color-warning-700))]">
               캘린더를 찾을 수 없습니다
             </span>
           </div>
@@ -231,11 +231,11 @@ export function CalendarSidebar() {
       {/* 3. 내 캘린더 토글 (멀티 캘린더) */}
       {allCalendars.length > 0 && (
         <>
-          <hr className="mx-3 border-gray-200 mb-3" />
+          <hr className="mx-3 border-[rgb(var(--color-secondary-200))] mb-3" />
           <div className="px-3 mb-3">
             <button
               onClick={() => setIsCalendarsOpen(!isCalendarsOpen)}
-              className="flex items-center gap-1 text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5 hover:text-gray-700"
+              className="flex items-center gap-1 text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider mb-1.5 hover:text-[var(--text-secondary)]"
             >
               {isCalendarsOpen ? (
                 <ChevronDown className="w-3.5 h-3.5" />
@@ -253,7 +253,7 @@ export function CalendarSidebar() {
                   return (
                     <label
                       key={cal.id}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer group"
+                      className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-[rgb(var(--color-secondary-100))] cursor-pointer group"
                       onContextMenu={(e) => {
                         e.preventDefault();
                         setContextMenuCal({ calendar: cal, rect: e.currentTarget.getBoundingClientRect() });
@@ -269,7 +269,7 @@ export function CalendarSidebar() {
                         <span
                           className={cn(
                             'w-4 h-4 rounded border-2 transition-colors',
-                            isVisible ? 'border-transparent' : 'border-gray-300 bg-white'
+                            isVisible ? 'border-transparent' : 'border-[rgb(var(--color-secondary-300))] bg-[rgb(var(--color-secondary-50))]'
                           )}
                           style={isVisible ? { backgroundColor: color, borderColor: color } : undefined}
                         >
@@ -281,23 +281,23 @@ export function CalendarSidebar() {
                         </span>
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs text-gray-700 truncate">
+                        <p className="text-xs text-[var(--text-secondary)] truncate">
                           {cal.summary}
                         </p>
                       </div>
                       {cal.is_primary && (
-                        <span className="text-[9px] text-gray-400 flex-shrink-0">기본</span>
+                        <span className="text-[9px] text-[rgb(var(--color-secondary-400))] flex-shrink-0">기본</span>
                       )}
                       {/* 3점 메뉴 (hover 시 표시) */}
                       <button
-                        className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 p-0.5 rounded hover:bg-gray-200"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 p-0.5 rounded hover:bg-[rgb(var(--color-secondary-200))]"
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
                           setContextMenuCal({ calendar: cal, rect: e.currentTarget.getBoundingClientRect() });
                         }}
                       >
-                        <svg className="w-3.5 h-3.5 text-gray-500" viewBox="0 0 16 16" fill="currentColor">
+                        <svg className="w-3.5 h-3.5 text-[var(--text-tertiary)]" viewBox="0 0 16 16" fill="currentColor">
                           <circle cx="8" cy="3" r="1.5" />
                           <circle cx="8" cy="8" r="1.5" />
                           <circle cx="8" cy="13" r="1.5" />
@@ -317,13 +317,13 @@ export function CalendarSidebar() {
         <OtherCalendarsSection studentId={studentId} showHolidays={showHolidays} setShowHolidays={setShowHolidays} />
       </div>
 
-      <hr className="mx-3 border-gray-200 mb-3" />
+      <hr className="mx-3 border-[rgb(var(--color-secondary-200))] mb-3" />
 
       {/* 4. 미완료 플랜 섹션 (collapsible) */}
       <div className="px-3 flex-1 min-h-0 flex flex-col">
         <button
           onClick={() => setIsUnfinishedOpen(!isUnfinishedOpen)}
-          className="flex items-center gap-1 text-xs font-medium text-gray-500 uppercase tracking-wider mb-1 hover:text-gray-700"
+          className="flex items-center gap-1 text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider mb-1 hover:text-[var(--text-secondary)]"
         >
           {isUnfinishedOpen ? (
             <ChevronDown className="w-3.5 h-3.5" />
@@ -338,16 +338,16 @@ export function CalendarSidebar() {
             {overdueLoading ? (
               <div className="space-y-1">
                 {[1, 2].map((i) => (
-                  <div key={i} className="h-8 bg-gray-100 rounded animate-pulse" />
+                  <div key={i} className="h-8 bg-[rgb(var(--color-secondary-100))] rounded animate-pulse" />
                 ))}
               </div>
             ) : overduePlans.length === 0 ? (
-              <p className="text-xs text-gray-400 py-2">미완료 플랜 없음</p>
+              <p className="text-xs text-[rgb(var(--color-secondary-400))] py-2">미완료 플랜 없음</p>
             ) : (
               overduePlans.slice(0, 20).map((plan) => (
                 <div
                   key={plan.id}
-                  className="flex items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-gray-50 cursor-default group"
+                  className="flex items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-[rgb(var(--color-secondary-100))] cursor-default group"
                   title={plan.content_title ?? plan.custom_title ?? '플랜'}
                 >
                   <span
@@ -356,14 +356,14 @@ export function CalendarSidebar() {
                       plan.status === 'in_progress' ? 'bg-blue-400' : 'bg-gray-300'
                     )}
                   />
-                  <span className="truncate text-gray-700">
+                  <span className="truncate text-[var(--text-secondary)]">
                     {plan.content_title ?? plan.custom_title ?? '플랜'}
                   </span>
                 </div>
               ))
             )}
             {overduePlans.length > 20 && (
-              <p className="text-xs text-gray-400 px-2">
+              <p className="text-xs text-[rgb(var(--color-secondary-400))] px-2">
                 +{overduePlans.length - 20}개 더
               </p>
             )}
@@ -529,22 +529,22 @@ function CalendarContextMenu({
     <>
       <div
         ref={menuRef}
-        className="fixed z-[100] bg-white border border-gray-200 rounded-lg shadow-xl py-1 w-56"
+        className="fixed z-[100] bg-[rgb(var(--color-secondary-50))] border border-[rgb(var(--color-secondary-200))] rounded-lg shadow-xl py-1 w-56"
         style={{ top: menuTop, left: menuLeft }}
       >
         {/* 이 항목만 표시 */}
         <button
           onClick={onShowOnlyThis}
-          className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+          className="w-full px-3 py-2 text-left text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] flex items-center gap-2"
         >
-          <svg className="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg className="w-4 h-4 text-[rgb(var(--color-secondary-400))]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
             <circle cx="12" cy="12" r="3" />
           </svg>
           이 항목만 표시
         </button>
 
-        <hr className="my-1 border-gray-200" />
+        <hr className="my-1 border-[rgb(var(--color-secondary-200))]" />
 
         {/* 이름 변경 */}
         {isRenaming ? (
@@ -562,19 +562,19 @@ function CalendarContextMenu({
                 }
               }}
               disabled={isRenameSaving}
-              className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded border border-[rgb(var(--color-secondary-300))] bg-[rgb(var(--color-secondary-50))] text-[var(--text-primary)] px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
             <div className="flex justify-end gap-1 mt-1.5">
               <button
                 onClick={() => { setIsRenaming(false); setRenameValue(calendar.summary ?? ''); }}
-                className="px-2 py-0.5 text-xs text-gray-500 hover:text-gray-700 rounded hover:bg-gray-100"
+                className="px-2 py-0.5 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] rounded hover:bg-[rgb(var(--color-secondary-100))]"
               >
                 취소
               </button>
               <button
                 onClick={handleRename}
                 disabled={isRenameSaving || !renameValue.trim()}
-                className="px-2 py-0.5 text-xs text-blue-600 hover:text-blue-700 rounded hover:bg-blue-50 disabled:opacity-50"
+                className="px-2 py-0.5 text-xs text-[rgb(var(--color-info-600))] hover:text-[rgb(var(--color-info-700))] rounded hover:bg-[rgb(var(--color-info-50))] disabled:opacity-50"
               >
                 {isRenameSaving ? '저장 중...' : '저장'}
               </button>
@@ -583,9 +583,9 @@ function CalendarContextMenu({
         ) : (
           <button
             onClick={() => setIsRenaming(true)}
-            className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+            className="w-full px-3 py-2 text-left text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] flex items-center gap-2"
           >
-            <svg className="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="w-4 h-4 text-[rgb(var(--color-secondary-400))]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
               <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
@@ -596,16 +596,16 @@ function CalendarContextMenu({
         {/* 설정 및 공유 */}
         <button
           onClick={handleGoToSettings}
-          className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+          className="w-full px-3 py-2 text-left text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] flex items-center gap-2"
         >
-          <svg className="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg className="w-4 h-4 text-[rgb(var(--color-secondary-400))]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="3" />
             <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
           </svg>
           설정 및 공유
         </button>
 
-        <hr className="my-1 border-gray-200" />
+        <hr className="my-1 border-[rgb(var(--color-secondary-200))]" />
 
         {/* 색상 팔레트 (6x4 그리드) — GCal 동일 구성 */}
         <div className="px-3 py-2">
@@ -618,7 +618,7 @@ function CalendarContextMenu({
                   title={c.label}
                   className={cn(
                     'w-6 h-6 rounded-full transition-transform hover:scale-110 flex items-center justify-center',
-                    isSelected && 'ring-2 ring-offset-1 ring-gray-400',
+                    isSelected && 'ring-2 ring-offset-1 ring-[rgb(var(--color-secondary-400))] ring-offset-[rgb(var(--color-secondary-800))]',
                   )}
                   style={{ backgroundColor: c.hex }}
                   onClick={() => onColorChange(c.key)}
@@ -635,15 +635,15 @@ function CalendarContextMenu({
         </div>
 
         {/* 삭제 (기본 캘린더는 비활성화) */}
-        <hr className="my-1 border-gray-200" />
+        <hr className="my-1 border-[rgb(var(--color-secondary-200))]" />
         <button
           onClick={() => setShowDeleteConfirm(true)}
           disabled={isPrimary}
           className={cn(
             'w-full px-3 py-2 text-left text-sm flex items-center gap-2',
             isPrimary
-              ? 'text-gray-300 cursor-not-allowed'
-              : 'text-red-600 hover:bg-red-50',
+              ? 'text-[rgb(var(--color-secondary-300))] cursor-not-allowed'
+              : 'text-[rgb(var(--color-error-600))] hover:bg-[rgb(var(--color-error-50))]',
           )}
           title={isPrimary ? '기본 캘린더는 삭제할 수 없습니다' : undefined}
         >
@@ -652,7 +652,7 @@ function CalendarContextMenu({
             <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
           </svg>
           삭제
-          {isPrimary && <span className="ml-auto text-[10px] text-gray-300">(기본)</span>}
+          {isPrimary && <span className="ml-auto text-[10px] text-[rgb(var(--color-secondary-300))]">(기본)</span>}
         </button>
       </div>
 
@@ -660,19 +660,19 @@ function CalendarContextMenu({
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center">
           <div className="fixed inset-0 bg-black/40" onClick={() => !isDeleting && setShowDeleteConfirm(false)} />
-          <div className="relative z-10 w-[360px] rounded-xl bg-white p-5 shadow-2xl">
-            <h3 className="text-base font-semibold text-gray-900">캘린더 삭제</h3>
-            <p className="mt-2 text-sm text-gray-600">
+          <div className="relative z-10 w-[360px] rounded-xl bg-[rgb(var(--color-secondary-50))] p-5 shadow-2xl">
+            <h3 className="text-base font-semibold text-[var(--text-primary)]">캘린더 삭제</h3>
+            <p className="mt-2 text-sm text-[var(--text-tertiary)]">
               <strong>&quot;{calendar.summary}&quot;</strong> 캘린더를 삭제하시겠습니까?
             </p>
-            <p className="mt-1 text-xs text-red-500">
+            <p className="mt-1 text-xs text-[rgb(var(--color-error-500))]">
               포함된 모든 플랜 그룹, 이벤트가 함께 삭제되며 복구할 수 없습니다.
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
                 disabled={isDeleting}
-                className="rounded-lg px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+                className="rounded-lg px-3 py-1.5 text-sm text-[var(--text-tertiary)] hover:bg-[rgb(var(--color-secondary-100))] disabled:opacity-50"
               >
                 취소
               </button>
@@ -733,7 +733,7 @@ function OtherCalendarsSection({
       <div className="flex items-center justify-between mb-1.5">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-1 text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
+          className="flex items-center gap-1 text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider hover:text-[var(--text-secondary)]"
         >
           {isOpen ? (
             <ChevronDown className="w-3.5 h-3.5" />
@@ -747,10 +747,10 @@ function OtherCalendarsSection({
             e.stopPropagation();
             setAddMenuRect(addMenuRect ? null : e.currentTarget.getBoundingClientRect());
           }}
-          className="p-0.5 rounded hover:bg-gray-200 transition-colors"
+          className="p-0.5 rounded hover:bg-[rgb(var(--color-secondary-200))] transition-colors"
           title="캘린더 추가"
         >
-          <Plus className="w-3.5 h-3.5 text-gray-500" />
+          <Plus className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
         </button>
       </div>
 
@@ -758,7 +758,7 @@ function OtherCalendarsSection({
       {addMenuRect && (
         <div
           ref={addMenuRef}
-          className="fixed z-[100] w-48 bg-white border border-gray-200 rounded-lg shadow-xl py-1"
+          className="fixed z-[100] w-48 bg-[rgb(var(--color-secondary-50))] border border-[rgb(var(--color-secondary-200))] rounded-lg shadow-xl py-1"
           style={{
             top: addMenuRect.bottom + 4,
             left: Math.min(addMenuRect.right - 192, window.innerWidth - 200),
@@ -769,14 +769,14 @@ function OtherCalendarsSection({
               router.push(`/admin/students/${studentId}/plans/calendar/new`);
               setAddMenuRect(null);
             }}
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left"
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] text-left"
           >
-            <Plus className="w-4 h-4 text-gray-400" />
+            <Plus className="w-4 h-4 text-[rgb(var(--color-secondary-400))]" />
             새 캘린더 만들기
           </button>
           <button
             disabled
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-400 text-left cursor-not-allowed"
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-[rgb(var(--color-secondary-400))] text-left cursor-not-allowed"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="11" cy="11" r="8" />
@@ -789,7 +789,7 @@ function OtherCalendarsSection({
 
       {isOpen && (
         <div className="space-y-0.5">
-          <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer">
+          <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-[rgb(var(--color-secondary-100))] cursor-pointer">
             <span className="relative flex items-center justify-center w-4 h-4 flex-shrink-0">
               <input
                 type="checkbox"
@@ -800,7 +800,7 @@ function OtherCalendarsSection({
               <span
                 className={cn(
                   'w-4 h-4 rounded border-2 transition-colors',
-                  showHolidays ? 'border-transparent' : 'border-gray-300 bg-white'
+                  showHolidays ? 'border-transparent' : 'border-[rgb(var(--color-secondary-300))] bg-[rgb(var(--color-secondary-50))]'
                 )}
                 style={showHolidays ? { backgroundColor: HOLIDAY_COLOR, borderColor: HOLIDAY_COLOR } : undefined}
               >
@@ -811,7 +811,7 @@ function OtherCalendarsSection({
                 )}
               </span>
             </span>
-            <span className="text-xs text-gray-700">대한민국의 휴일</span>
+            <span className="text-xs text-[var(--text-secondary)]">대한민국의 휴일</span>
           </label>
         </div>
       )}

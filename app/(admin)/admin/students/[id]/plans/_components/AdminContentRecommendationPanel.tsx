@@ -235,12 +235,12 @@ const getDifficultyFitLabel = (
   fit: number
 ): { label: string; color: string } => {
   if (fit >= 4)
-    return { label: "매우 적합", color: "text-success-600 dark:text-success-400" };
+    return { label: "매우 적합", color: "text-[rgb(var(--color-success-600))]" };
   if (fit >= 3)
-    return { label: "적합", color: "text-info-600 dark:text-info-400" };
+    return { label: "적합", color: "text-[rgb(var(--color-info-600))]" };
   if (fit >= 2)
-    return { label: "보통", color: "text-warning-600 dark:text-warning-400" };
-  return { label: "부적합", color: "text-error-600 dark:text-error-400" };
+    return { label: "보통", color: "text-[rgb(var(--color-warning-600))]" };
+  return { label: "부적합", color: "text-[rgb(var(--color-error-600))]" };
 };
 
 // ============================================
@@ -270,8 +270,8 @@ function RecommendationCard({
           ? "opacity-50 cursor-not-allowed"
           : "cursor-pointer hover:shadow-[var(--elevation-2)]",
         isSelected
-          ? "border-primary-500 dark:border-primary-400 bg-primary-50 dark:bg-primary-900/20"
-          : "border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]"
+          ? "border-[rgb(var(--color-primary-500))] bg-[rgb(var(--color-primary-50))]"
+          : "border-[rgb(var(--color-secondary-200))]"
       )}
       onClick={() => !isAlreadyAdded && onToggle()}
     >
@@ -280,10 +280,10 @@ function RecommendationCard({
         className={cn(
           "absolute top-3 right-3 h-5 w-5 rounded border flex items-center justify-center",
           isAlreadyAdded
-            ? "bg-[rgb(var(--color-secondary-200))] dark:bg-[rgb(var(--color-secondary-700))] border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-600))]"
+            ? "bg-[rgb(var(--color-secondary-200))] border-[rgb(var(--color-secondary-300))]"
             : isSelected
-              ? "bg-primary-600 border-primary-600 dark:bg-primary-500 dark:border-primary-500"
-              : "border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-600))]"
+              ? "bg-[rgb(var(--color-primary-600))] border-[rgb(var(--color-primary-600))]"
+              : "border-[rgb(var(--color-secondary-300))]"
         )}
       >
         {(isSelected || isAlreadyAdded) && (
@@ -293,7 +293,7 @@ function RecommendationCard({
 
       <div className="flex items-start gap-3">
         {/* 우선순위 번호 */}
-        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 flex items-center justify-center font-bold text-body-2">
+        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-[rgb(var(--color-primary-100))] text-[rgb(var(--color-primary-700))] flex items-center justify-center font-bold text-body-2">
           {recommendation.priority}
         </div>
 
@@ -341,7 +341,7 @@ function RecommendationCard({
           </p>
 
           {/* 예상 효과 */}
-          <div className="flex items-center gap-1 mt-2 text-body-2 text-success-600 dark:text-success-400">
+          <div className="flex items-center gap-1 mt-2 text-body-2 text-[rgb(var(--color-success-600))]">
             <TrendingUpIcon className="h-3 w-3" />
             <span>{recommendation.expectedBenefit}</span>
           </div>
@@ -355,7 +355,7 @@ function RecommendationCard({
               {recommendation.relatedScore?.targetGrade && (
                 <>
                   <span>→</span>
-                  <span className="text-primary-600 dark:text-primary-400 font-medium">
+                  <span className="text-[rgb(var(--color-primary-600))] font-medium">
                     목표 {recommendation.relatedScore.targetGrade}등급
                   </span>
                 </>
@@ -391,7 +391,7 @@ function InsightsPanel({ insights }: InsightsPanelProps) {
           {/* 강점 영역 */}
           {insights.strengthAreas.length > 0 && (
             <div>
-              <h4 className="text-body-2 font-medium text-success-600 dark:text-success-400 mb-2 flex items-center gap-1">
+              <h4 className="text-body-2 font-medium text-[rgb(var(--color-success-600))] mb-2 flex items-center gap-1">
                 <TrendingUpIcon className="h-3 w-3" />
                 강점 영역
               </h4>
@@ -408,7 +408,7 @@ function InsightsPanel({ insights }: InsightsPanelProps) {
           {/* 개선 필요 영역 */}
           {insights.improvementAreas.length > 0 && (
             <div>
-              <h4 className="text-body-2 font-medium text-error-600 dark:text-error-400 mb-2 flex items-center gap-1">
+              <h4 className="text-body-2 font-medium text-[rgb(var(--color-error-600))] mb-2 flex items-center gap-1">
                 <TrendingDownIcon className="h-3 w-3" />
                 개선 필요 영역
               </h4>
@@ -427,7 +427,7 @@ function InsightsPanel({ insights }: InsightsPanelProps) {
             <h4 className="text-body-2 font-medium text-[var(--text-secondary)] mb-2">
               추천 학습 전략
             </h4>
-            <div className="flex items-start gap-2 p-3 rounded-lg bg-info-50 dark:bg-info-900/20 text-info-800 dark:text-info-200">
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-[rgb(var(--color-info-50))] text-[rgb(var(--color-info-800))]">
               <LightbulbIcon className="h-4 w-4 mt-0.5 flex-shrink-0" />
               <p className="text-body-2">{insights.studyStrategy}</p>
             </div>
@@ -666,8 +666,8 @@ export function AdminContentRecommendationPanel({
           {/* 에러 */}
           {error && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="h-12 w-12 rounded-full bg-error-100 dark:bg-error-900/30 flex items-center justify-center mb-4">
-                <AlertIcon className="h-6 w-6 text-error-600 dark:text-error-400" />
+              <div className="h-12 w-12 rounded-full bg-[rgb(var(--color-error-100))] flex items-center justify-center mb-4">
+                <AlertIcon className="h-6 w-6 text-[rgb(var(--color-error-600))]" />
               </div>
               <h3 className="text-h3 text-[var(--text-primary)] mb-2">
                 추천 생성 실패
@@ -685,7 +685,7 @@ export function AdminContentRecommendationPanel({
           {result && (
             <div className="space-y-6">
               {/* 요약 정보 */}
-              <div className="flex items-center justify-between p-4 rounded-lg bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))]">
+              <div className="flex items-center justify-between p-4 rounded-lg bg-[rgb(var(--color-secondary-50))]">
                 <div>
                   <p className="text-body-1 font-medium text-[var(--text-primary)]">
                     {result.summary.totalRecommended}개 콘텐츠 추천

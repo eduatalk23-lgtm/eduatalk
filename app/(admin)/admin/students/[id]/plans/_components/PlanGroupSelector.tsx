@@ -23,27 +23,27 @@ interface PlanGroupSelectorProps {
 const statusStyles: Record<string, { label: string; className: string }> = {
   active: {
     label: "활성",
-    className: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+    className: "bg-[rgb(var(--color-success-100))] text-[rgb(var(--color-success-700))]",
   },
   draft: {
     label: "초안",
-    className: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+    className: "bg-[rgb(var(--color-secondary-100))] text-[rgb(var(--color-secondary-600))]",
   },
   saved: {
     label: "저장됨",
-    className: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+    className: "bg-[rgb(var(--color-info-100))] text-[rgb(var(--color-info-700))]",
   },
   completed: {
     label: "완료",
-    className: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+    className: "bg-purple-100 text-purple-700",
   },
   paused: {
     label: "일시정지",
-    className: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+    className: "bg-[rgb(var(--color-warning-100))] text-[rgb(var(--color-warning-700))]",
   },
   cancelled: {
     label: "취소",
-    className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+    className: "bg-[rgb(var(--color-error-100))] text-[rgb(var(--color-error-700))]",
   },
 };
 
@@ -112,7 +112,7 @@ export function PlanGroupSelector({
   // 그룹이 없으면 드롭다운 비활성화
   if (groups.length === 0) {
     return (
-      <div className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-tertiary)] rounded-lg border border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))] bg-[var(--bg-surface)]">
+      <div className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-tertiary)] rounded-lg border border-[rgb(var(--color-secondary-200))] bg-[var(--bg-surface)]">
         <span>플랜 그룹 없음</span>
       </div>
     );
@@ -123,8 +123,8 @@ export function PlanGroupSelector({
       <DropdownMenu.Trigger
         className={cn(
           "flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border",
-          "border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]",
-          "bg-[var(--bg-surface)] hover:bg-[rgb(var(--color-secondary-50))] dark:hover:bg-[rgb(var(--color-secondary-800))]",
+          "border-[rgb(var(--color-secondary-200))]",
+          "bg-[var(--bg-surface)] hover:bg-[rgb(var(--color-secondary-50))]",
           "text-[var(--text-primary)] transition-base"
         )}
       >
@@ -173,7 +173,7 @@ export function PlanGroupSelector({
         <DropdownMenu.Item
           onClick={() => onSelect(null)}
           className={cn(
-            selectedGroupId === null && "bg-[rgb(var(--color-primary-50))] dark:bg-[rgb(var(--color-primary-900))]"
+            selectedGroupId === null && "bg-[rgb(var(--color-primary-50))]"
           )}
         >
           <div className="flex items-center gap-2 w-full">
@@ -205,7 +205,7 @@ export function PlanGroupSelector({
             onClick={() => onSelect(group.id)}
             className={cn(
               selectedGroupId === group.id &&
-                "bg-[rgb(var(--color-primary-50))] dark:bg-[rgb(var(--color-primary-900))]"
+                "bg-[rgb(var(--color-primary-50))]"
             )}
           >
             <div className="flex flex-col w-full gap-1">
@@ -239,7 +239,7 @@ export function PlanGroupSelector({
                       setDetailGroupId(group.id);
                     }
                   }}
-                  className="p-1 hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-700))] rounded transition-colors flex-shrink-0 cursor-pointer"
+                  className="p-1 hover:bg-[rgb(var(--color-secondary-100))] rounded transition-colors flex-shrink-0 cursor-pointer"
                   title="그룹 상세 보기"
                 >
                   <Info className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
@@ -258,7 +258,7 @@ export function PlanGroupSelector({
                       setDeleteGroupId(group.id);
                     }
                   }}
-                  className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors flex-shrink-0 cursor-pointer"
+                  className="p-1 hover:bg-[rgb(var(--color-error-100))] rounded transition-colors flex-shrink-0 cursor-pointer"
                   title="그룹 삭제"
                 >
                   <Trash2 className="w-3.5 h-3.5 text-red-500" />
@@ -343,7 +343,7 @@ export function PlanGroupSelector({
             <p className="text-sm text-[var(--text-secondary)]">
               이 플랜 그룹을 삭제하시겠습니까?
             </p>
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg text-sm text-red-700 dark:text-red-400 space-y-1">
+            <div className="p-3 bg-[rgb(var(--color-error-50))] rounded-lg text-sm text-[rgb(var(--color-error-700))] space-y-1">
               <p>• 이 그룹에 포함된 모든 플랜이 함께 삭제됩니다.</p>
               <p>• 삭제된 그룹은 <strong>History 탭</strong>에서 복원할 수 있습니다.</p>
             </div>

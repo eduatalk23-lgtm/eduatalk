@@ -80,7 +80,7 @@ export function CalendarLayoutShell({
         <div
           ref={sidebarRef}
           className={cn(
-            'flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto overflow-x-hidden transition-all duration-200 ease-in-out',
+            'flex-shrink-0 bg-[var(--background)] border-r border-[rgb(var(--color-secondary-200))] overflow-y-auto overflow-x-hidden transition-all duration-200 ease-in-out',
             isMobileOverlay
               ? cn(
                   'fixed top-0 left-0 h-full z-50 shadow-xl',

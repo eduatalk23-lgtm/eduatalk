@@ -225,23 +225,23 @@ function TargetIcon({ className }: { className?: string }) {
 // ============================================
 
 function getScoreColor(score: number): string {
-  if (score >= 90) return "text-green-600 dark:text-green-400";
-  if (score >= 75) return "text-blue-600 dark:text-blue-400";
-  if (score >= 60) return "text-yellow-600 dark:text-yellow-400";
-  if (score >= 40) return "text-orange-600 dark:text-orange-400";
-  return "text-red-600 dark:text-red-400";
+  if (score >= 90) return "text-[rgb(var(--color-success-600))]";
+  if (score >= 75) return "text-[rgb(var(--color-info-600))]";
+  if (score >= 60) return "text-[rgb(var(--color-warning-600))]";
+  if (score >= 40) return "text-[rgb(var(--color-warning-500))]";
+  return "text-[rgb(var(--color-error-600))]";
 }
 
 function getScoreBgColor(score: number): string {
   if (score >= 90)
-    return "bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800";
+    return "bg-[rgb(var(--color-success-100))] border-[rgb(var(--color-success-200))]";
   if (score >= 75)
-    return "bg-blue-100 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800";
+    return "bg-[rgb(var(--color-info-100))] border-[rgb(var(--color-info-200))]";
   if (score >= 60)
-    return "bg-yellow-100 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800";
+    return "bg-[rgb(var(--color-warning-100))] border-[rgb(var(--color-warning-200))]";
   if (score >= 40)
-    return "bg-orange-100 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800";
-  return "bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-800";
+    return "bg-[rgb(var(--color-warning-100))] border-[rgb(var(--color-warning-200))]";
+  return "bg-[rgb(var(--color-error-100))] border-[rgb(var(--color-error-200))]";
 }
 
 function getGradeLabel(
@@ -328,7 +328,7 @@ function ScoreGauge({
           stroke="currentColor"
           strokeWidth="12"
           fill="none"
-          className="text-gray-200 dark:text-gray-700"
+          className="text-[rgb(var(--color-secondary-200))]"
         />
         <circle
           cx="75"
@@ -350,7 +350,7 @@ function ScoreGauge({
         <span className={cn("text-3xl font-bold", getScoreColor(score))}>
           {score}
         </span>
-        <span className="text-sm text-gray-500 dark:text-gray-400">
+        <span className="text-sm text-[var(--text-tertiary)]">
           {getGradeLabel(grade)}
         </span>
       </div>
@@ -368,10 +368,10 @@ function CategoryScoreBar({
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-sm">
-        <span className="text-gray-700 dark:text-gray-300">{label}</span>
+        <span className="text-[var(--text-secondary)]">{label}</span>
         <span className={cn("font-medium", getScoreColor(score))}>{score}</span>
       </div>
-      <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-700">
+      <div className="h-2 rounded-full bg-[rgb(var(--color-secondary-200))]">
         <div
           className={cn(
             "h-full rounded-full transition-all duration-300",
@@ -390,17 +390,17 @@ function CategoryScoreBar({
 
 function StrengthCard({ strength }: { strength: StrengthAnalysis }) {
   return (
-    <div className="flex gap-3 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-3">
-      <CheckCircleIcon className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+    <div className="flex gap-3 rounded-lg border border-[rgb(var(--color-success-200))] bg-[rgb(var(--color-success-50))] p-3">
+      <CheckCircleIcon className="h-5 w-5 text-[rgb(var(--color-success-600))] flex-shrink-0 mt-0.5" />
       <div>
-        <p className="font-medium text-green-800 dark:text-green-200">
+        <p className="font-medium text-[rgb(var(--color-success-800))]">
           {strength.area}
         </p>
-        <p className="text-sm text-green-700 dark:text-green-300">
+        <p className="text-sm text-[rgb(var(--color-success-700))]">
           {strength.description}
         </p>
         {strength.metric && (
-          <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+          <p className="text-xs text-[rgb(var(--color-success-600))] mt-1">
             {strength.metric}
           </p>
         )}
@@ -411,16 +411,16 @@ function StrengthCard({ strength }: { strength: StrengthAnalysis }) {
 
 function WeaknessCard({ weakness }: { weakness: WeaknessAnalysis }) {
   return (
-    <div className="flex gap-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-3">
-      <AlertCircleIcon className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+    <div className="flex gap-3 rounded-lg border border-[rgb(var(--color-warning-200))] bg-[rgb(var(--color-warning-50))] p-3">
+      <AlertCircleIcon className="h-5 w-5 text-[rgb(var(--color-warning-600))] flex-shrink-0 mt-0.5" />
       <div>
-        <p className="font-medium text-amber-800 dark:text-amber-200">
+        <p className="font-medium text-[rgb(var(--color-warning-800))]">
           {weakness.area}
         </p>
-        <p className="text-sm text-amber-700 dark:text-amber-300">
+        <p className="text-sm text-[rgb(var(--color-warning-700))]">
           {weakness.description}
         </p>
-        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+        <p className="text-xs text-[rgb(var(--color-warning-600))] mt-1">
           → {weakness.improvementDirection}
         </p>
       </div>
@@ -432,12 +432,12 @@ function SuggestionCard({ suggestion }: { suggestion: OptimizationSuggestion }) 
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+    <div className="rounded-lg border border-[rgb(var(--color-secondary-200))] bg-[rgb(var(--color-secondary-50))] overflow-hidden">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full p-4 flex items-start gap-3 text-left hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
+        className="w-full p-4 flex items-start gap-3 text-left hover:bg-[rgb(var(--color-secondary-100))] transition-colors"
       >
-        <div className="flex-shrink-0 p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+        <div className="flex-shrink-0 p-2 rounded-lg bg-[rgb(var(--color-info-100))] text-[rgb(var(--color-info-600))]">
           {getCategoryIcon(suggestion.category)}
         </div>
         <div className="flex-1 min-w-0">
@@ -449,10 +449,10 @@ function SuggestionCard({ suggestion }: { suggestion: OptimizationSuggestion }) 
               {getCategoryLabel(suggestion.category)}
             </Badge>
           </div>
-          <p className="font-medium text-gray-900 dark:text-gray-100">
+          <p className="font-medium text-[var(--text-primary)]">
             {suggestion.title}
           </p>
-          <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+          <p className="text-sm text-[var(--text-tertiary)] line-clamp-2">
             {suggestion.description}
           </p>
         </div>
@@ -475,13 +475,13 @@ function SuggestionCard({ suggestion }: { suggestion: OptimizationSuggestion }) 
       </button>
 
       {isExpanded && (
-        <div className="px-4 pb-4 border-t border-gray-100 dark:border-gray-700 pt-3">
+        <div className="px-4 pb-4 border-t border-[rgb(var(--color-secondary-100))] pt-3">
           <div className="space-y-3">
             <div>
-              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-1">
+              <p className="text-xs font-medium text-[var(--text-tertiary)] uppercase mb-1">
                 예상 효과
               </p>
-              <p className="text-sm text-green-600 dark:text-green-400">
+              <p className="text-sm text-[rgb(var(--color-success-600))]">
                 {suggestion.expectedImprovement}
               </p>
             </div>
@@ -489,14 +489,14 @@ function SuggestionCard({ suggestion }: { suggestion: OptimizationSuggestion }) 
             {suggestion.relatedMetrics && (
               <div className="flex gap-4 text-sm">
                 <div>
-                  <span className="text-gray-500 dark:text-gray-400">현재: </span>
-                  <span className="text-gray-700 dark:text-gray-300">
+                  <span className="text-[var(--text-tertiary)]">현재: </span>
+                  <span className="text-[var(--text-secondary)]">
                     {suggestion.relatedMetrics.current}
                   </span>
                 </div>
                 <div>
-                  <span className="text-gray-500 dark:text-gray-400">목표: </span>
-                  <span className="text-blue-600 dark:text-blue-400">
+                  <span className="text-[var(--text-tertiary)]">목표: </span>
+                  <span className="text-[rgb(var(--color-info-600))]">
                     {suggestion.relatedMetrics.target}
                   </span>
                 </div>
@@ -504,14 +504,14 @@ function SuggestionCard({ suggestion }: { suggestion: OptimizationSuggestion }) 
             )}
 
             <div>
-              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-2">
+              <p className="text-xs font-medium text-[var(--text-tertiary)] uppercase mb-2">
                 실행 방안
               </p>
               <ul className="space-y-1">
                 {suggestion.actionItems.map((item, idx) => (
                   <li
                     key={idx}
-                    className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300"
+                    className="flex items-start gap-2 text-sm text-[var(--text-secondary)]"
                   >
                     <span className="text-blue-500 mt-1">•</span>
                     {item}
@@ -623,7 +623,7 @@ export default function PlanOptimizationPanel({
                 <CardContent>
                   <div className="flex items-end gap-4">
                     <div className="flex-1">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
                         분석 기간
                       </label>
                       <Select
@@ -652,7 +652,7 @@ export default function PlanOptimizationPanel({
               </Card>
 
               {error && (
-                <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300">
+                <div className="p-4 rounded-lg bg-[rgb(var(--color-error-50))] border border-[rgb(var(--color-error-200))] text-[rgb(var(--color-error-700))]">
                   {error}
                 </div>
               )}
@@ -663,7 +663,7 @@ export default function PlanOptimizationPanel({
           {isLoading && (
             <div className="flex flex-col items-center justify-center py-12">
               <Spinner size="lg" />
-              <p className="mt-4 text-gray-600 dark:text-gray-400">
+              <p className="mt-4 text-[var(--text-tertiary)]">
                 AI가 학습 패턴을 분석하고 있습니다...
               </p>
             </div>
@@ -676,14 +676,14 @@ export default function PlanOptimizationPanel({
               <div className="flex flex-col md:flex-row gap-6">
                 <Card className="flex-shrink-0">
                   <CardContent className="flex flex-col items-center py-6">
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    <p className="text-sm text-[var(--text-tertiary)] mb-4">
                       효율성 점수
                     </p>
                     <ScoreGauge
                       score={result.analysis.efficiencyScore}
                       grade={result.analysis.scoreGrade}
                     />
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-4 text-center max-w-xs">
+                    <p className="text-sm text-[var(--text-tertiary)] mt-4 text-center max-w-xs">
                       {result.analysis.scoreSummary}
                     </p>
                   </CardContent>
@@ -731,7 +731,7 @@ export default function PlanOptimizationPanel({
                         <StrengthCard key={idx} strength={s} />
                       ))
                     ) : (
-                      <p className="text-gray-500 dark:text-gray-400 text-sm">
+                      <p className="text-[var(--text-tertiary)] text-sm">
                         분석된 강점이 없습니다.
                       </p>
                     )}
@@ -750,7 +750,7 @@ export default function PlanOptimizationPanel({
                         <WeaknessCard key={idx} weakness={w} />
                       ))
                     ) : (
-                      <p className="text-gray-500 dark:text-gray-400 text-sm">
+                      <p className="text-[var(--text-tertiary)] text-sm">
                         특별한 약점이 발견되지 않았습니다.
                       </p>
                     )}
@@ -770,7 +770,7 @@ export default function PlanOptimizationPanel({
                       <SuggestionCard key={s.id} suggestion={s} />
                     ))
                   ) : (
-                    <p className="text-gray-500 dark:text-gray-400 text-sm">
+                    <p className="text-[var(--text-tertiary)] text-sm">
                       특별한 개선 제안이 없습니다.
                     </p>
                   )}
@@ -794,7 +794,7 @@ export default function PlanOptimizationPanel({
               )}
 
               {/* 분석 정보 */}
-              <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
+              <div className="flex justify-between items-center text-xs text-[var(--text-tertiary)]">
                 <span>
                   분석 기간: {result.inputData.analysisPeriod} | 총 플랜:{" "}
                   {result.inputData.executionStats.totalPlans}개

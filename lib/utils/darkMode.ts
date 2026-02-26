@@ -68,8 +68,8 @@ export const bgPageVar = "bg-[var(--background)]";
 // Hover 배경색 (CSS 변수 기반 - secondary 색상 활용)
 // hover는 상태이므로 다크 모드에 따라 다른 색상이 필요합니다.
 // CSS 변수는 자동으로 다크 모드에 대응하지만, hover의 경우 명시적으로 처리합니다.
-export const bgHoverVar = "hover:bg-[rgb(var(--color-secondary-50))] dark:hover:bg-[rgb(var(--color-secondary-800))]";
-export const bgHoverStrongVar = "hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-700))]";
+export const bgHoverVar = "hover:bg-[rgb(var(--color-secondary-100))]";
+export const bgHoverStrongVar = "hover:bg-[rgb(var(--color-secondary-200))]";
 
 // 테두리 색상 (CSS 변수만 사용, dark: 클래스 제거)
 export const borderDefaultVar = "border-[rgb(var(--color-secondary-200))]";
@@ -111,12 +111,11 @@ export function getColorClasses<T extends string>(
 // 기본 색상 유틸리티
 // ============================================
 
-// 배경색
-// @deprecated 새로운 코드에서는 bgSurfaceVar, bgPageVar 등을 사용하세요.
-export const bgSurface = "bg-white dark:bg-gray-800";
-export const bgPage = "bg-gray-50 dark:bg-gray-900";
-export const bgHover = "hover:bg-gray-50 dark:hover:bg-gray-800";
-export const bgHoverStrong = "hover:bg-gray-100 dark:hover:bg-gray-700";
+// 배경색 (CSS 변수로 리다이렉트 - 다크모드 자동 대응)
+export const bgSurface = bgSurfaceVar;
+export const bgPage = bgPageVar;
+export const bgHover = bgHoverVar;
+export const bgHoverStrong = bgHoverStrongVar;
 
 // ============================================
 // 상태별 색상 유틸리티 (Hover, Focus, Disabled)
@@ -140,13 +139,13 @@ export const bgHoverStrong = "hover:bg-gray-100 dark:hover:bg-gray-700";
 export function getHoverColorClasses(variant: "light" | "medium" | "strong" = "medium"): string {
   switch (variant) {
     case "light":
-      return "hover:bg-gray-50 dark:hover:bg-gray-800";
+      return "hover:bg-[rgb(var(--color-secondary-50))]";
     case "medium":
-      return "hover:bg-gray-100 dark:hover:bg-gray-700";
+      return "hover:bg-[rgb(var(--color-secondary-100))]";
     case "strong":
-      return "hover:bg-gray-200 dark:hover:bg-gray-600";
+      return "hover:bg-[rgb(var(--color-secondary-200))]";
     default:
-      return "hover:bg-gray-100 dark:hover:bg-gray-700";
+      return "hover:bg-[rgb(var(--color-secondary-100))]";
   }
 }
 
@@ -173,14 +172,14 @@ export function getFocusColorClasses(
   }
 
   const colorMap: Record<string, string> = {
-    primary: "focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400",
-    secondary: "focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-gray-500 dark:focus:border-gray-400",
-    error: "focus:ring-red-500 dark:focus:ring-red-400 focus:border-red-500 dark:focus:border-red-400",
-    success: "focus:ring-green-500 dark:focus:ring-green-400 focus:border-green-500 dark:focus:border-green-400",
+    primary: "focus:ring-[rgb(var(--color-primary-500))] focus:border-[rgb(var(--color-primary-500))]",
+    secondary: "focus:ring-[rgb(var(--color-secondary-500))] focus:border-[rgb(var(--color-secondary-500))]",
+    error: "focus:ring-[rgb(var(--color-error-500))] focus:border-[rgb(var(--color-error-500))]",
+    success: "focus:ring-[rgb(var(--color-success-500))] focus:border-[rgb(var(--color-success-500))]",
   };
 
   if (variant === "ring") {
-    return `${colorMap[color]} focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800`;
+    return `${colorMap[color]} focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--background)]`;
   }
 
   // outline variant
@@ -207,26 +206,24 @@ export function getDisabledColorClasses(variant: "opacity" | "muted" | "full" = 
     case "opacity":
       return "opacity-50 cursor-not-allowed";
     case "muted":
-      return "opacity-60 cursor-not-allowed text-gray-400 dark:text-gray-500";
+      return "opacity-60 cursor-not-allowed text-[var(--text-disabled)]";
     case "full":
-      return "opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500";
+      return "opacity-50 cursor-not-allowed bg-[rgb(var(--color-secondary-100))] text-[var(--text-disabled)]";
     default:
       return "opacity-50 cursor-not-allowed";
   }
 }
 
-// 텍스트 색상
-// @deprecated 새로운 코드에서는 textPrimaryVar, textSecondaryVar 등을 사용하세요.
-export const textPrimary = "text-gray-900 dark:text-gray-100";
-export const textSecondary = "text-gray-700 dark:text-gray-200";
-export const textTertiary = "text-gray-600 dark:text-gray-400";
-export const textMuted = "text-gray-500 dark:text-gray-400";
+// 텍스트 색상 (CSS 변수로 리다이렉트 - 다크모드 자동 대응)
+export const textPrimary = textPrimaryVar;
+export const textSecondary = textSecondaryVar;
+export const textTertiary = textTertiaryVar;
+export const textMuted = textMutedVar;
 
-// 테두리
-// @deprecated 새로운 코드에서는 borderDefaultVar, borderInputVar 등을 사용하세요.
-export const borderDefault = "border-gray-200 dark:border-gray-700";
-export const borderInput = "border-gray-300 dark:border-gray-700";
-export const divideDefault = "divide-gray-200 dark:divide-gray-700";
+// 테두리 (CSS 변수로 리다이렉트 - 다크모드 자동 대응)
+export const borderDefault = borderDefaultVar;
+export const borderInput = borderInputVar;
+export const divideDefault = divideDefaultVar;
 
 // 인라인 버튼 스타일 (가장 많이 사용되는 패턴)
 /**
@@ -237,10 +234,10 @@ export const divideDefault = "divide-gray-200 dark:divide-gray-700";
 export function inlineButtonBase(className?: string): string {
   return cn(
     "inline-flex items-center justify-center rounded-lg border transition",
-    "bg-white dark:bg-gray-800",
-    "text-gray-700 dark:text-gray-200",
-    "border-gray-300 dark:border-gray-700",
-    "hover:bg-gray-50 dark:hover:bg-gray-700",
+    "bg-[rgb(var(--color-secondary-50))]",
+    "text-[var(--text-secondary)]",
+    "border-[rgb(var(--color-secondary-300))]",
+    "hover:bg-[rgb(var(--color-secondary-100))]",
     className
   );
 }
@@ -253,16 +250,16 @@ export function inlineButtonBase(className?: string): string {
 export function inlineButtonSecondary(className?: string): string {
   return cn(
     "inline-flex items-center justify-center rounded-lg border transition",
-    "bg-gray-100 dark:bg-gray-800",
-    "text-gray-900 dark:text-gray-100",
-    "border-gray-300 dark:border-gray-700",
-    "hover:bg-gray-200 dark:hover:bg-gray-700",
+    "bg-[rgb(var(--color-secondary-100))]",
+    "text-[var(--text-primary)]",
+    "border-[rgb(var(--color-secondary-300))]",
+    "hover:bg-[rgb(var(--color-secondary-200))]",
     className
   );
 }
 
 // 테이블 행 스타일
-export const tableRowHover = "hover:bg-gray-50 dark:hover:bg-gray-800";
+export const tableRowHover = "hover:bg-[rgb(var(--color-secondary-50))]";
 export const tableRowBase = cn(tableRowHover, "transition-colors");
 
 /**
@@ -276,8 +273,8 @@ export type TableRowVariant = "default" | "hover" | "striped" | "selected";
 const tableRowVariantStyles: Record<TableRowVariant, string> = {
   default: "",
   hover: tableRowHover,
-  striped: "odd:bg-gray-50 dark:odd:bg-gray-900/50",
-  selected: "bg-indigo-50 dark:bg-indigo-900/30 border-l-4 border-indigo-500 dark:border-indigo-400",
+  striped: "odd:bg-[rgb(var(--color-secondary-50))]",
+  selected: "bg-[rgb(var(--color-primary-50))] border-l-4 border-[rgb(var(--color-primary-500))]",
 } as const;
 
 /**
@@ -306,8 +303,8 @@ export const cardBase = cn(
 export const cardStyles = {
   base: cn(
     "rounded-xl border shadow-sm",
-    "border-gray-200 dark:border-gray-700",
-    "bg-white dark:bg-gray-800"
+    "border-[rgb(var(--color-secondary-200))]",
+    "bg-[rgb(var(--color-secondary-50))]"
   ),
   hover: "transition-shadow hover:shadow-md",
   padding: {
@@ -318,31 +315,31 @@ export const cardStyles = {
 };
 
 /**
- * 텍스트 색상 패턴 (계획에 따른 추가 패턴)
+ * 텍스트 색상 패턴 (CSS 변수 기반)
  */
 export const textStyles = {
-  primary: "text-gray-900 dark:text-gray-100",
-  secondary: "text-gray-600 dark:text-gray-400",
-  tertiary: "text-gray-500 dark:text-gray-500",
-  muted: "text-gray-400 dark:text-gray-500",
+  primary: textPrimaryVar,
+  secondary: textSecondaryVar,
+  tertiary: textTertiaryVar,
+  muted: textMutedVar,
 };
 
 /**
- * 보더 색상 패턴 (계획에 따른 추가 패턴)
+ * 보더 색상 패턴 (CSS 변수 기반)
  */
 export const borderStyles = {
-  default: "border-gray-200 dark:border-gray-700",
-  light: "border-gray-100 dark:border-gray-800",
-  medium: "border-gray-300 dark:border-gray-600",
+  default: "border-[rgb(var(--color-secondary-200))]",
+  light: "border-[rgb(var(--color-secondary-100))]",
+  medium: "border-[rgb(var(--color-secondary-300))]",
 };
 
 /**
- * 배경 색상 패턴 (계획에 따른 추가 패턴)
+ * 배경 색상 패턴 (CSS 변수 기반)
  */
 export const bgStyles = {
-  white: "bg-white dark:bg-gray-800",
-  gray: "bg-gray-50 dark:bg-gray-900",
-  card: "bg-white dark:bg-gray-800",
+  white: "bg-[rgb(var(--color-secondary-50))]",
+  gray: "bg-[var(--background)]",
+  card: "bg-[rgb(var(--color-secondary-50))]",
 };
 
 // 상태 색상 유틸리티
@@ -351,29 +348,29 @@ export const bgStyles = {
  * 목표 상태 색상 (Goal Progress용)
  */
 export const goalStatusColors: Record<string, string> = {
-  scheduled: "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200",
-  in_progress: "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300",
-  completed: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300",
-  failed: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300",
+  scheduled: "bg-[rgb(var(--color-secondary-100))] text-[var(--text-primary)]",
+  in_progress: "bg-[rgb(var(--color-info-100))] text-[rgb(var(--color-info-800))]",
+  completed: "bg-[rgb(var(--color-success-100))] text-[rgb(var(--color-success-800))]",
+  failed: "bg-[rgb(var(--color-error-100))] text-[rgb(var(--color-error-800))]",
 };
 
 /**
  * 플랜 상태 색상 (Plan Status용)
  */
 export const planStatusColors: Record<string, string> = {
-  active: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300",
-  paused: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300",
-  completed: "bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300",
-  cancelled: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300",
+  active: "bg-[rgb(var(--color-success-100))] text-[rgb(var(--color-success-800))]",
+  paused: "bg-[rgb(var(--color-warning-100))] text-[rgb(var(--color-warning-800))]",
+  completed: "bg-purple-100 text-purple-800",
+  cancelled: "bg-[rgb(var(--color-error-100))] text-[rgb(var(--color-error-800))]",
 };
 
 /**
  * 위험도 레벨 색상 (Admin Dashboard용)
  */
 export const riskLevelColors: Record<string, string> = {
-  high: "bg-red-500 dark:bg-red-600 text-white",
-  medium: "bg-yellow-500 dark:bg-yellow-600 text-white",
-  low: "bg-green-500 dark:bg-green-600 text-white",
+  high: "bg-[rgb(var(--color-error-500))] text-white",
+  medium: "bg-[rgb(var(--color-warning-500))] text-white",
+  low: "bg-[rgb(var(--color-success-500))] text-white",
 };
 
 /**
@@ -382,31 +379,31 @@ export const riskLevelColors: Record<string, string> = {
  */
 export const statusBadgeColors: Record<string, string> = {
   // 기본 상태
-  default: "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200",
-  active: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300",
-  inactive: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
-  pending: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300",
-  
-  // 목표 상태 (goalStatusColors와 동일)
-  scheduled: "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200",
-  in_progress: "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300",
-  completed: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300",
-  failed: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300",
-  
-  // 플랜 상태 (planStatusColors와 동일)
-  paused: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300",
-  cancelled: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300",
-  
-  // 위험도 (riskLevelColors와 동일)
-  high: "bg-red-500 dark:bg-red-600 text-white",
-  medium: "bg-yellow-500 dark:bg-yellow-600 text-white",
-  low: "bg-green-500 dark:bg-green-600 text-white",
-  
+  default: "bg-[rgb(var(--color-secondary-100))] text-[var(--text-primary)]",
+  active: "bg-[rgb(var(--color-success-100))] text-[rgb(var(--color-success-800))]",
+  inactive: "bg-[rgb(var(--color-secondary-100))] text-[var(--text-tertiary)]",
+  pending: "bg-[rgb(var(--color-warning-100))] text-[rgb(var(--color-warning-800))]",
+
+  // 목표 상태
+  scheduled: "bg-[rgb(var(--color-secondary-100))] text-[var(--text-primary)]",
+  in_progress: "bg-[rgb(var(--color-info-100))] text-[rgb(var(--color-info-800))]",
+  completed: "bg-[rgb(var(--color-success-100))] text-[rgb(var(--color-success-800))]",
+  failed: "bg-[rgb(var(--color-error-100))] text-[rgb(var(--color-error-800))]",
+
+  // 플랜 상태
+  paused: "bg-[rgb(var(--color-warning-100))] text-[rgb(var(--color-warning-800))]",
+  cancelled: "bg-[rgb(var(--color-error-100))] text-[rgb(var(--color-error-800))]",
+
+  // 위험도
+  high: "bg-[rgb(var(--color-error-500))] text-white",
+  medium: "bg-[rgb(var(--color-warning-500))] text-white",
+  low: "bg-[rgb(var(--color-success-500))] text-white",
+
   // 기타 상태
-  success: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300",
-  warning: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300",
-  error: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300",
-  info: "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300",
+  success: "bg-[rgb(var(--color-success-100))] text-[rgb(var(--color-success-800))]",
+  warning: "bg-[rgb(var(--color-warning-100))] text-[rgb(var(--color-warning-800))]",
+  error: "bg-[rgb(var(--color-error-100))] text-[rgb(var(--color-error-800))]",
+  info: "bg-[rgb(var(--color-info-100))] text-[rgb(var(--color-info-800))]",
 };
 
 /**
@@ -416,21 +413,20 @@ export const statusBadgeColors: Record<string, string> = {
  */
 export function getRiskColorClasses(riskScore: number): string {
   if (riskScore >= 70) {
-    return "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800";
+    return "text-[rgb(var(--color-error-600))] bg-[rgb(var(--color-error-50))] border-[rgb(var(--color-error-200))]";
   }
   if (riskScore >= 50) {
-    return "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800";
+    return "text-[rgb(var(--color-warning-600))] bg-[rgb(var(--color-warning-50))] border-[rgb(var(--color-warning-200))]";
   }
-  return "text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800";
+  return "text-[rgb(var(--color-warning-500))] bg-[rgb(var(--color-warning-50))] border-[rgb(var(--color-warning-200))]";
 }
 
 /**
  * 위험도 섹션용 그라디언트 배경 (Admin Dashboard용)
  */
 export const riskSectionGradient = cn(
-  "rounded-xl border border-red-200 dark:border-red-800",
-  "bg-gradient-to-br from-red-50 to-red-100/50",
-  "dark:from-red-900/30 dark:to-red-800/20",
+  "rounded-xl border border-[rgb(var(--color-error-200))]",
+  "bg-gradient-to-br from-[rgb(var(--color-error-50))] to-[rgb(var(--color-error-100))]/50",
   "p-5 md:p-6 shadow-sm"
 );
 
@@ -462,19 +458,19 @@ export type GradientColor =
  */
 const gradientCardColorMap: Record<GradientColor, string> = {
   indigo:
-    "border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/30 dark:to-indigo-800/20 hover:from-indigo-100 hover:to-indigo-200/50 dark:hover:from-indigo-800/40 dark:hover:to-indigo-700/30 text-indigo-900 dark:text-indigo-200 hover:shadow-lg",
-  blue: "border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 hover:from-blue-100 hover:to-blue-200/50 dark:hover:from-blue-800/40 dark:hover:to-blue-700/30 text-blue-900 dark:text-blue-200 hover:shadow-lg",
+    "border-[rgb(var(--color-primary-200))] bg-gradient-to-br from-[rgb(var(--color-primary-50))] to-[rgb(var(--color-primary-100))]/50 hover:from-[rgb(var(--color-primary-100))] hover:to-[rgb(var(--color-primary-200))]/50 text-[rgb(var(--color-primary-900))] hover:shadow-lg",
+  blue: "border-[rgb(var(--color-info-200))] bg-gradient-to-br from-[rgb(var(--color-info-50))] to-[rgb(var(--color-info-100))]/50 hover:from-[rgb(var(--color-info-100))] hover:to-[rgb(var(--color-info-200))]/50 text-[rgb(var(--color-info-900))] hover:shadow-lg",
   purple:
     "border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/30 dark:to-purple-800/20 hover:from-purple-100 hover:to-purple-200/50 dark:hover:from-purple-800/40 dark:hover:to-purple-700/30 text-purple-900 dark:text-purple-200 hover:shadow-lg",
   orange:
-    "border-orange-200 dark:border-orange-800 bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-900/30 dark:to-orange-800/20 hover:from-orange-100 hover:to-orange-200/50 dark:hover:from-orange-800/40 dark:hover:to-orange-700/30 text-orange-900 dark:text-orange-200 hover:shadow-lg",
+    "border-[rgb(var(--color-warning-200))] bg-gradient-to-br from-[rgb(var(--color-warning-50))] to-[rgb(var(--color-warning-100))]/50 hover:from-[rgb(var(--color-warning-100))] hover:to-[rgb(var(--color-warning-200))]/50 text-[rgb(var(--color-warning-900))] hover:shadow-lg",
   green:
-    "border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 hover:from-green-100 hover:to-green-200/50 dark:hover:from-green-800/40 dark:hover:to-green-700/30 text-green-900 dark:text-green-200 hover:shadow-lg",
-  red: "border-red-200 dark:border-red-800 bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20 hover:from-red-100 hover:to-red-200/50 dark:hover:from-red-800/40 dark:hover:to-red-700/30 text-red-900 dark:text-red-200 hover:shadow-lg",
+    "border-[rgb(var(--color-success-200))] bg-gradient-to-br from-[rgb(var(--color-success-50))] to-[rgb(var(--color-success-100))]/50 hover:from-[rgb(var(--color-success-100))] hover:to-[rgb(var(--color-success-200))]/50 text-[rgb(var(--color-success-900))] hover:shadow-lg",
+  red: "border-[rgb(var(--color-error-200))] bg-gradient-to-br from-[rgb(var(--color-error-50))] to-[rgb(var(--color-error-100))]/50 hover:from-[rgb(var(--color-error-100))] hover:to-[rgb(var(--color-error-200))]/50 text-[rgb(var(--color-error-900))] hover:shadow-lg",
   teal: "border-teal-200 dark:border-teal-800 bg-gradient-to-br from-teal-50 to-teal-100/50 dark:from-teal-900/30 dark:to-teal-800/20 hover:from-teal-100 hover:to-teal-200/50 dark:hover:from-teal-800/40 dark:hover:to-teal-700/30 text-teal-900 dark:text-teal-200 hover:shadow-lg",
   cyan: "border-cyan-200 dark:border-cyan-800 bg-gradient-to-br from-cyan-50 to-cyan-100/50 dark:from-cyan-900/30 dark:to-cyan-800/20 hover:from-cyan-100 hover:to-cyan-200/50 dark:hover:from-cyan-800/40 dark:hover:to-cyan-700/30 text-cyan-900 dark:text-cyan-200 hover:shadow-lg",
   amber:
-    "border-amber-200 dark:border-amber-800 bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/30 dark:to-amber-800/20 hover:from-amber-100 hover:to-amber-200/50 dark:hover:from-amber-800/40 dark:hover:to-amber-700/30 text-amber-900 dark:text-amber-200 hover:shadow-lg",
+    "border-[rgb(var(--color-warning-200))] bg-gradient-to-br from-[rgb(var(--color-warning-50))] to-[rgb(var(--color-warning-100))]/50 hover:from-[rgb(var(--color-warning-100))] hover:to-[rgb(var(--color-warning-200))]/50 text-[rgb(var(--color-warning-900))] hover:shadow-lg",
   pink: "border-pink-200 dark:border-pink-800 bg-gradient-to-br from-pink-50 to-pink-100/50 dark:from-pink-900/30 dark:to-pink-800/20 hover:from-pink-100 hover:to-pink-200/50 dark:hover:from-pink-800/40 dark:hover:to-pink-700/30 text-pink-900 dark:text-pink-200 hover:shadow-lg",
   violet:
     "border-violet-200 dark:border-violet-800 bg-gradient-to-br from-violet-50 to-violet-100/50 dark:from-violet-900/30 dark:to-violet-800/20 hover:from-violet-100 hover:to-violet-200/50 dark:hover:from-violet-800/40 dark:hover:to-violet-700/30 text-violet-900 dark:text-violet-200 hover:shadow-lg",
@@ -510,40 +506,28 @@ const gradientBackgroundMap: Record<
   Record<GradientBackgroundColor, string>
 > = {
   subtle: {
-    red: "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10",
-    blue: "bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-800/10",
-    green:
-      "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10",
-    yellow:
-      "bg-gradient-to-br from-yellow-50 to-yellow-100/50 dark:from-yellow-900/20 dark:to-yellow-800/10",
-    purple:
-      "bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/20 dark:to-purple-800/10",
-    indigo:
-      "bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/20 dark:to-indigo-800/10",
+    red: "bg-gradient-to-br from-[rgb(var(--color-error-50))] to-[rgb(var(--color-error-100))]/50",
+    blue: "bg-gradient-to-br from-[rgb(var(--color-info-50))] to-[rgb(var(--color-info-100))]/50",
+    green: "bg-gradient-to-br from-[rgb(var(--color-success-50))] to-[rgb(var(--color-success-100))]/50",
+    yellow: "bg-gradient-to-br from-[rgb(var(--color-warning-50))] to-[rgb(var(--color-warning-100))]/50",
+    purple: "bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/20 dark:to-purple-800/10",
+    indigo: "bg-gradient-to-br from-[rgb(var(--color-primary-50))] to-[rgb(var(--color-primary-100))]/50",
   },
   medium: {
-    red: "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20",
-    blue: "bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20",
-    green:
-      "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20",
-    yellow:
-      "bg-gradient-to-br from-yellow-50 to-yellow-100/50 dark:from-yellow-900/30 dark:to-yellow-800/20",
-    purple:
-      "bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/30 dark:to-purple-800/20",
-    indigo:
-      "bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/30 dark:to-indigo-800/20",
+    red: "bg-gradient-to-br from-[rgb(var(--color-error-50))] to-[rgb(var(--color-error-100))]/50",
+    blue: "bg-gradient-to-br from-[rgb(var(--color-info-50))] to-[rgb(var(--color-info-100))]/50",
+    green: "bg-gradient-to-br from-[rgb(var(--color-success-50))] to-[rgb(var(--color-success-100))]/50",
+    yellow: "bg-gradient-to-br from-[rgb(var(--color-warning-50))] to-[rgb(var(--color-warning-100))]/50",
+    purple: "bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/30 dark:to-purple-800/20",
+    indigo: "bg-gradient-to-br from-[rgb(var(--color-primary-50))] to-[rgb(var(--color-primary-100))]/50",
   },
   strong: {
-    red: "bg-gradient-to-br from-red-100 to-red-200/50 dark:from-red-900/40 dark:to-red-800/30",
-    blue: "bg-gradient-to-br from-blue-100 to-blue-200/50 dark:from-blue-900/40 dark:to-blue-800/30",
-    green:
-      "bg-gradient-to-br from-green-100 to-green-200/50 dark:from-green-900/40 dark:to-green-800/30",
-    yellow:
-      "bg-gradient-to-br from-yellow-100 to-yellow-200/50 dark:from-yellow-900/40 dark:to-yellow-800/30",
-    purple:
-      "bg-gradient-to-br from-purple-100 to-purple-200/50 dark:from-purple-900/40 dark:to-purple-800/30",
-    indigo:
-      "bg-gradient-to-br from-indigo-100 to-indigo-200/50 dark:from-indigo-900/40 dark:to-indigo-800/30",
+    red: "bg-gradient-to-br from-[rgb(var(--color-error-100))] to-[rgb(var(--color-error-200))]/50",
+    blue: "bg-gradient-to-br from-[rgb(var(--color-info-100))] to-[rgb(var(--color-info-200))]/50",
+    green: "bg-gradient-to-br from-[rgb(var(--color-success-100))] to-[rgb(var(--color-success-200))]/50",
+    yellow: "bg-gradient-to-br from-[rgb(var(--color-warning-100))] to-[rgb(var(--color-warning-200))]/50",
+    purple: "bg-gradient-to-br from-purple-100 to-purple-200/50 dark:from-purple-900/40 dark:to-purple-800/30",
+    indigo: "bg-gradient-to-br from-[rgb(var(--color-primary-100))] to-[rgb(var(--color-primary-200))]/50",
   },
 } as const;
 
@@ -570,7 +554,7 @@ export function getGradientBackground(
 export const tableHeaderBase = cn(
   "px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider",
   textMuted,
-  "bg-gray-50 dark:bg-gray-900/50"
+  "bg-[rgb(var(--color-secondary-50))]"
 );
 
 /**
@@ -640,10 +624,10 @@ export function cardStyle(
 export function inlineButtonPrimary(className?: string): string {
   return cn(
     "inline-flex items-center justify-center rounded-lg border transition",
-    "bg-indigo-600 dark:bg-indigo-500",
+    "bg-[rgb(var(--color-primary-600))]",
     "text-white",
-    "border-indigo-600 dark:border-indigo-500",
-    "hover:bg-indigo-700 dark:hover:bg-indigo-600",
+    "border-[rgb(var(--color-primary-600))]",
+    "hover:bg-[rgb(var(--color-primary-700))]",
     className
   );
 }
@@ -654,10 +638,10 @@ export function inlineButtonPrimary(className?: string): string {
 export function inlineButtonDanger(className?: string): string {
   return cn(
     "inline-flex items-center justify-center rounded-lg border transition",
-    "bg-red-600 dark:bg-red-500",
+    "bg-[rgb(var(--color-error-600))]",
     "text-white",
-    "border-red-600 dark:border-red-500",
-    "hover:bg-red-700 dark:hover:bg-red-600",
+    "border-[rgb(var(--color-error-600))]",
+    "hover:bg-[rgb(var(--color-error-700))]",
     className
   );
 }
@@ -668,10 +652,10 @@ export function inlineButtonDanger(className?: string): string {
 export function inlineButtonSuccess(className?: string): string {
   return cn(
     "inline-flex items-center justify-center rounded-lg border transition",
-    "bg-green-600 dark:bg-green-500",
+    "bg-[rgb(var(--color-success-600))]",
     "text-white",
-    "border-green-600 dark:border-green-500",
-    "hover:bg-green-700 dark:hover:bg-green-600",
+    "border-[rgb(var(--color-success-600))]",
+    "hover:bg-[rgb(var(--color-success-700))]",
     className
   );
 }
@@ -705,8 +689,8 @@ export function inputBaseStyle(className?: string): string {
     bgSurfaceVar,
     borderInputVar,
     textPrimaryVar,
-    "focus:border-indigo-500 dark:focus:border-indigo-400",
-    "focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:focus:ring-indigo-400",
+    "focus:border-[rgb(var(--color-primary-500))]",
+    "focus:outline-none focus:ring-1 focus:ring-[rgb(var(--color-primary-500))]",
     "disabled:opacity-50 disabled:cursor-not-allowed",
     className
   );
@@ -748,7 +732,7 @@ export const inputGroupDescriptionStyles = cn(
  */
 export const inputGroupErrorStyles = cn(
   "text-xs font-medium",
-  "text-red-600 dark:text-red-400"
+  "text-[rgb(var(--color-error-600))]"
 );
 
 // ============================================
@@ -806,20 +790,20 @@ export function sectionHeaderDescriptionStyles(size: "sm" | "md" | "lg" = "md"):
  */
 export const riskSignalStyles = {
   container: cn(
-    "rounded-xl border-2 border-red-300 dark:border-red-800",
-    "bg-red-50 dark:bg-red-900/30",
+    "rounded-xl border-2 border-[rgb(var(--color-error-300))]",
+    "bg-[rgb(var(--color-error-50))]",
     "p-6 shadow-sm"
   ),
-  title: "text-lg font-semibold text-red-900 dark:text-red-200",
-  description: "text-sm text-red-700 dark:text-red-300",
+  title: "text-lg font-semibold text-[rgb(var(--color-error-900))]",
+  description: "text-sm text-[rgb(var(--color-error-700))]",
   card: cn(
-    "rounded-lg border-2 border-red-300 dark:border-red-800",
-    "bg-white dark:bg-gray-800",
+    "rounded-lg border-2 border-[rgb(var(--color-error-300))]",
+    bgSurfaceVar,
     "p-4"
   ),
-  cardTitle: "text-base font-semibold text-red-900 dark:text-red-200",
-  cardValue: "text-lg font-bold text-red-600 dark:text-red-400",
-  cardText: "text-xs text-gray-700 dark:text-gray-300",
+  cardTitle: "text-base font-semibold text-[rgb(var(--color-error-900))]",
+  cardValue: "text-lg font-bold text-[rgb(var(--color-error-600))]",
+  cardText: "text-xs text-[var(--text-secondary)]",
 };
 
 // ============================================
@@ -831,9 +815,9 @@ export const riskSignalStyles = {
  * riskLevelColors와 동일하지만 명시적으로 Admin용으로 제공
  */
 export const adminLevelColors: Record<string, string> = {
-  high: "bg-red-500 dark:bg-red-600 text-white",
-  medium: "bg-yellow-500 dark:bg-yellow-600 text-white",
-  low: "bg-green-500 dark:bg-green-600 text-white",
+  high: "bg-[rgb(var(--color-error-500))] text-white",
+  medium: "bg-[rgb(var(--color-warning-500))] text-white",
+  low: "bg-[rgb(var(--color-success-500))] text-white",
 };
 
 // ============================================
@@ -910,9 +894,9 @@ export function getFormInputClasses(
   if (hasError) {
     return cn(
       baseClasses,
-      "border-red-500 dark:border-red-600",
-      "focus:border-red-500 dark:focus:border-red-600",
-      "focus:ring-red-200 dark:focus:ring-red-800",
+      "border-[rgb(var(--color-error-500))]",
+      "focus:border-[rgb(var(--color-error-500))]",
+      "focus:ring-[rgb(var(--color-error-200))]",
       className
     );
   }
@@ -920,10 +904,10 @@ export function getFormInputClasses(
   if (isInitialHighlight) {
     return cn(
       baseClasses,
-      "border-indigo-400 dark:border-indigo-600",
-      "bg-indigo-50 dark:bg-indigo-900/30",
-      "focus:border-indigo-500 dark:focus:border-indigo-400",
-      "focus:ring-indigo-200 dark:focus:ring-indigo-800",
+      "border-[rgb(var(--color-primary-400))]",
+      "bg-[rgb(var(--color-primary-50))]",
+      "focus:border-[rgb(var(--color-primary-500))]",
+      "focus:ring-[rgb(var(--color-primary-200))]",
       className
     );
   }
@@ -931,9 +915,9 @@ export function getFormInputClasses(
   if (disabled) {
     return cn(
       baseClasses,
-      "border-gray-300 dark:border-gray-700",
-      "bg-gray-100 dark:bg-gray-800",
-      "text-gray-500 dark:text-gray-400",
+      "border-[rgb(var(--color-secondary-300))]",
+      "bg-[rgb(var(--color-secondary-100))]",
+      "text-[rgb(var(--color-secondary-500))]",
       "cursor-not-allowed",
       className
     );
@@ -941,9 +925,9 @@ export function getFormInputClasses(
 
   return cn(
     baseClasses,
-    "border-gray-300 dark:border-gray-700",
-    "focus:border-indigo-500 dark:focus:border-indigo-400",
-    "focus:ring-indigo-200 dark:focus:ring-indigo-800",
+    "border-[rgb(var(--color-secondary-300))]",
+    "focus:border-[rgb(var(--color-primary-500))]",
+    "focus:ring-[rgb(var(--color-primary-200))]",
     className
   );
 }
@@ -953,7 +937,7 @@ export function getFormInputClasses(
  * 다크 모드를 포함한 에러 메시지 텍스트 색상
  */
 export function getFormErrorClasses(className?: string): string {
-  return cn("text-sm text-red-500 dark:text-red-400", className);
+  return cn("text-sm text-[rgb(var(--color-error-500))]", className);
 }
 
 /**
@@ -965,7 +949,7 @@ export const quickActionButton = cn(
   borderInput,
   bgSurface,
   textSecondary,
-  "hover:bg-gray-50 dark:hover:bg-gray-700"
+  "hover:bg-[rgb(var(--color-secondary-50))]"
 );
 
 /**
@@ -974,8 +958,8 @@ export const quickActionButton = cn(
  */
 export const previewCardStyles = cn(
   "rounded-lg border p-4 flex flex-col gap-3",
-  "border-blue-200 dark:border-blue-800",
-  "bg-blue-50 dark:bg-blue-900/30"
+  "border-[rgb(var(--color-info-200))]",
+  "bg-[rgb(var(--color-info-50))]"
 );
 
 /**
@@ -984,12 +968,12 @@ export const previewCardStyles = cn(
  */
 export const statusCardStyles = {
   completed: cn(
-    "border-green-200 dark:border-green-800",
-    "bg-green-50/50 dark:bg-green-900/30"
+    "border-[rgb(var(--color-success-200))]",
+    "bg-[rgb(var(--color-success-50))]/50"
   ),
   inProgress: cn(
-    "border-indigo-300 dark:border-indigo-700",
-    "bg-indigo-50 dark:bg-indigo-900/30",
+    "border-[rgb(var(--color-primary-300))]",
+    "bg-[rgb(var(--color-primary-50))]",
     "shadow-md"
   ),
   pending: cn(
@@ -1002,11 +986,11 @@ export const statusCardStyles = {
  * 상태별 텍스트 색상
  */
 export const statusTextStyles = {
-  completed: "text-green-900 dark:text-green-200",
-  inProgress: "text-indigo-900 dark:text-indigo-200",
+  completed: "text-[rgb(var(--color-success-900))]",
+  inProgress: "text-[rgb(var(--color-primary-900))]",
   pending: textPrimary,
-  completedSubtext: "text-green-700 dark:text-green-300",
-  inProgressSubtext: "text-indigo-700 dark:text-indigo-300",
+  completedSubtext: "text-[rgb(var(--color-success-700))]",
+  inProgressSubtext: "text-[rgb(var(--color-primary-700))]",
   pendingSubtext: textSecondary,
 };
 
@@ -1014,9 +998,9 @@ export const statusTextStyles = {
  * 상태별 배지 색상
  */
 export const statusBadgeStyles = {
-  completed: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300",
-  inProgress: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300",
-  pending: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
+  completed: "bg-[rgb(var(--color-success-100))] text-[rgb(var(--color-success-700))]",
+  inProgress: "bg-[rgb(var(--color-primary-100))] text-[rgb(var(--color-primary-700))]",
+  pending: "bg-[rgb(var(--color-secondary-100))] text-[rgb(var(--color-secondary-600))]",
 };
 
 // ============================================
@@ -1038,17 +1022,17 @@ export const statusBadgeStyles = {
  */
 export const completedPlanStyles = {
   /** 컨테이너 투명도 */
-  container: "opacity-60 dark:opacity-50",
+  container: "opacity-60",
   /** 회색 배경 */
-  bgSubtle: "bg-gray-50 dark:bg-gray-800/30",
+  bgSubtle: "bg-[rgb(var(--color-secondary-50))]",
   /** 녹색 성공 배경 */
-  bgSuccess: "bg-green-50/50 dark:bg-green-900/20",
+  bgSuccess: "bg-[rgb(var(--color-success-50))]/50",
   /** 제목 취소선 + 회색 텍스트 */
-  title: "line-through text-gray-500 dark:text-gray-400",
+  title: "line-through text-[rgb(var(--color-secondary-500))]",
   /** 녹색 테두리 */
-  borderSuccess: "border-green-200 dark:border-green-700",
+  borderSuccess: "border-[rgb(var(--color-success-200))]",
   /** 기본 회색 테두리 */
-  borderSubtle: "border-gray-200 dark:border-gray-700",
+  borderSubtle: "border-[rgb(var(--color-secondary-200))]",
 } as const;
 
 /**
@@ -1083,7 +1067,7 @@ export function getCompletedPlanClasses(
  */
 export const modalDivider = cn(
   "border-t",
-  "border-gray-300 dark:border-gray-600"
+  "border-[rgb(var(--color-secondary-300))]"
 );
 
 /**
@@ -1102,7 +1086,7 @@ export const modalCancelButton = cn(
   borderInput,
   bgSurface,
   textSecondary,
-  "hover:bg-gray-50 dark:hover:bg-gray-700"
+  "hover:bg-[rgb(var(--color-secondary-50))]"
 );
 
 // ============================================
@@ -1118,12 +1102,12 @@ export type StatCardColor = "gray" | "green" | "blue" | "indigo" | "red" | "ambe
  * StatCard용 색상 매핑 (제네릭 함수 사용)
  */
 const statCardColorMap: Record<StatCardColor, string> = {
-  gray: "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100",
-  green: "bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-200",
-  blue: "bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-200",
-  indigo: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-900 dark:text-indigo-200",
-  red: "bg-red-100 dark:bg-red-900/30 text-red-900 dark:text-red-200",
-  amber: "bg-amber-100 dark:bg-amber-900/30 text-amber-900 dark:text-amber-200",
+  gray: "bg-[rgb(var(--color-secondary-100))] text-[rgb(var(--color-secondary-900))]",
+  green: "bg-[rgb(var(--color-success-100))] text-[rgb(var(--color-success-900))]",
+  blue: "bg-[rgb(var(--color-info-100))] text-[rgb(var(--color-info-900))]",
+  indigo: "bg-[rgb(var(--color-primary-100))] text-[rgb(var(--color-primary-900))]",
+  red: "bg-[rgb(var(--color-error-100))] text-[rgb(var(--color-error-900))]",
+  amber: "bg-[rgb(var(--color-warning-100))] text-[rgb(var(--color-warning-900))]",
   purple: "bg-purple-100 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200",
 } as const;
 
@@ -1145,9 +1129,9 @@ export type RiskLevel = "high" | "medium" | "low";
  * 위험도 레벨별 카드 스타일 매핑 (제네릭 함수 사용)
  */
 const riskLevelCardMap: Record<RiskLevel, string> = {
-  high: "border-red-500 dark:border-red-600 bg-red-50 dark:bg-red-900/30",
-  medium: "border-yellow-500 dark:border-yellow-600 bg-yellow-50 dark:bg-yellow-900/30",
-  low: "border-green-500 dark:border-green-600 bg-green-50 dark:bg-green-900/30",
+  high: "border-[rgb(var(--color-error-500))] bg-[rgb(var(--color-error-50))]",
+  medium: "border-[rgb(var(--color-warning-500))] bg-[rgb(var(--color-warning-50))]",
+  low: "border-[rgb(var(--color-success-500))] bg-[rgb(var(--color-success-50))]",
 } as const;
 
 /**
@@ -1169,26 +1153,26 @@ export type MetricCardColor = "indigo" | "purple" | "blue" | "green" | "red" | "
  * MetricCard용 색상 매핑 (배경 + 텍스트)
  */
 const metricCardColorMap: Record<MetricCardColor, string> = {
-  indigo: "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300",
+  indigo: "bg-[rgb(var(--color-primary-50))] text-[rgb(var(--color-primary-700))]",
   purple: "bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300",
-  blue: "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300",
-  green: "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300",
-  red: "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300",
-  orange: "bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300",
-  yellow: "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300",
+  blue: "bg-[rgb(var(--color-info-50))] text-[rgb(var(--color-info-700))]",
+  green: "bg-[rgb(var(--color-success-50))] text-[rgb(var(--color-success-700))]",
+  red: "bg-[rgb(var(--color-error-50))] text-[rgb(var(--color-error-700))]",
+  orange: "bg-[rgb(var(--color-warning-50))] text-[rgb(var(--color-warning-700))]",
+  yellow: "bg-[rgb(var(--color-warning-50))] text-[rgb(var(--color-warning-700))]",
 } as const;
 
 /**
  * MetricCard용 값 텍스트 색상 매핑
  */
 const metricCardValueColorMap: Record<MetricCardColor, string> = {
-  indigo: "text-indigo-900 dark:text-indigo-200",
+  indigo: "text-[rgb(var(--color-primary-900))]",
   purple: "text-purple-900 dark:text-purple-200",
-  blue: "text-blue-900 dark:text-blue-200",
-  green: "text-green-900 dark:text-green-200",
-  red: "text-red-900 dark:text-red-200",
-  orange: "text-orange-900 dark:text-orange-200",
-  yellow: "text-yellow-900 dark:text-yellow-200",
+  blue: "text-[rgb(var(--color-info-900))]",
+  green: "text-[rgb(var(--color-success-900))]",
+  red: "text-[rgb(var(--color-error-900))]",
+  orange: "text-[rgb(var(--color-warning-900))]",
+  yellow: "text-[rgb(var(--color-warning-900))]",
 } as const;
 
 /**
@@ -1216,9 +1200,9 @@ export function getMetricCardValueColorClasses(color: MetricCardColor): string {
  */
 export function getBadgeStyle(variant: "default" | "subtle" = "default"): string {
   if (variant === "subtle") {
-    return "text-xs font-medium px-2 py-1 rounded bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300";
+    return "text-xs font-medium px-2 py-1 rounded bg-[var(--background)]/50 text-[var(--text-secondary)]";
   }
-  return "text-xs font-medium px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300";
+  return "text-xs font-medium px-2 py-1 rounded bg-[rgb(var(--color-secondary-100))] text-[var(--text-secondary)]";
 }
 
 // ============================================
@@ -1236,11 +1220,11 @@ export type TimeSlotType = "학습시간" | "점심시간" | "학원일정" | "�
  * 타임슬롯 색상 매핑 (제네릭 함수 사용)
  */
 const timeSlotColorMap: Record<TimeSlotType, string> = {
-  "학습시간": "bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200",
-  "점심시간": "bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800 text-orange-800 dark:text-orange-200",
+  "학습시간": "bg-[rgb(var(--color-info-50))] border-[rgb(var(--color-info-200))] text-[rgb(var(--color-info-800))]",
+  "점심시간": "bg-[rgb(var(--color-warning-50))] border-[rgb(var(--color-warning-200))] text-[rgb(var(--color-warning-800))]",
   "학원일정": "bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800 text-purple-800 dark:text-purple-200",
   "이동시간": "bg-teal-50 dark:bg-teal-900/30 border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-200",
-  "자율학습": "bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200",
+  "자율학습": "bg-[rgb(var(--color-success-50))] border-[rgb(var(--color-success-200))] text-[rgb(var(--color-success-800))]",
 } as const;
 
 /**
@@ -1282,12 +1266,12 @@ export type DayTypeBadge = "학습일" | "복습일" | "지정휴일" | "휴가"
  * 배경, 텍스트, 테두리 색상을 포함합니다.
  */
 const dayTypeBadgeColorMap: Record<DayTypeBadge, string> = {
-  "학습일": "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800",
-  "복습일": "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800",
-  "지정휴일": "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800",
-  "휴가": "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700",
+  "학습일": "bg-[rgb(var(--color-info-100))] text-[rgb(var(--color-info-800))] border-[rgb(var(--color-info-200))]",
+  "복습일": "bg-[rgb(var(--color-success-100))] text-[rgb(var(--color-success-800))] border-[rgb(var(--color-success-200))]",
+  "지정휴일": "bg-[rgb(var(--color-warning-100))] text-[rgb(var(--color-warning-800))] border-[rgb(var(--color-warning-200))]",
+  "휴가": "bg-[rgb(var(--color-secondary-100))] text-[rgb(var(--color-secondary-800))] border-[rgb(var(--color-secondary-200))]",
   "개인일정": "bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border-purple-200 dark:border-purple-800",
-  "기타": "bg-red-100 dark:bg-red-800 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700",
+  "기타": "bg-[rgb(var(--color-error-100))] text-[rgb(var(--color-error-800))] border-[rgb(var(--color-error-300))]",
 } as const;
 
 /**
@@ -1349,39 +1333,39 @@ export function getDayTypeColorObject(
   // 오늘 날짜는 최우선
   if (isToday) {
     return {
-      bg: "bg-primary-50 dark:bg-primary-900/30",
-      border: "border-primary-300 dark:border-primary-700",
-      text: "text-primary-600 dark:text-primary-400",
-      boldText: "text-primary-900 dark:text-primary-100",
-      badge: "bg-primary-100 dark:bg-primary-800 text-primary-800 dark:text-primary-200",
+      bg: "bg-[rgb(var(--color-primary-50))]",
+      border: "border-[rgb(var(--color-primary-300))]",
+      text: "text-[rgb(var(--color-primary-600))]",
+      boldText: "text-[rgb(var(--color-primary-900))]",
+      badge: "bg-[rgb(var(--color-primary-100))] text-[rgb(var(--color-primary-800))]",
     };
   }
 
   // 날짜 타입별 색상 매핑
   const typeMap: Record<string, { bg: string; border: string; text: string; boldText: string }> = {
     "학습일": {
-      bg: "bg-info-50 dark:bg-info-900/30",
-      border: "border-info-300 dark:border-info-700",
-      text: "text-info-600 dark:text-info-400",
-      boldText: "text-info-900 dark:text-info-100",
+      bg: "bg-[rgb(var(--color-info-50))]",
+      border: "border-[rgb(var(--color-info-300))]",
+      text: "text-[rgb(var(--color-info-600))]",
+      boldText: "text-[rgb(var(--color-info-900))]",
     },
     "복습일": {
-      bg: "bg-warning-50 dark:bg-warning-900/30",
-      border: "border-warning-300 dark:border-warning-700",
-      text: "text-warning-600 dark:text-warning-400",
-      boldText: "text-warning-900 dark:text-warning-100",
+      bg: "bg-[rgb(var(--color-warning-50))]",
+      border: "border-[rgb(var(--color-warning-300))]",
+      text: "text-[rgb(var(--color-warning-600))]",
+      boldText: "text-[rgb(var(--color-warning-900))]",
     },
     "지정휴일": {
-      bg: "bg-yellow-50 dark:bg-yellow-900/30",
-      border: "border-yellow-300 dark:border-yellow-700",
-      text: "text-yellow-600 dark:text-yellow-400",
-      boldText: "text-yellow-900 dark:text-yellow-100",
+      bg: "bg-[rgb(var(--color-warning-50))]",
+      border: "border-[rgb(var(--color-warning-300))]",
+      text: "text-[rgb(var(--color-warning-600))]",
+      boldText: "text-[rgb(var(--color-warning-900))]",
     },
     "휴가": {
-      bg: "bg-gray-100 dark:bg-gray-800",
-      border: "border-gray-200 dark:border-gray-700",
-      text: "text-gray-600 dark:text-gray-400",
-      boldText: "text-gray-900 dark:text-gray-100",
+      bg: "bg-[rgb(var(--color-secondary-100))]",
+      border: "border-[rgb(var(--color-secondary-200))]",
+      text: "text-[rgb(var(--color-secondary-600))]",
+      boldText: "text-[rgb(var(--color-secondary-900))]",
     },
     "개인일정": {
       bg: "bg-purple-50 dark:bg-purple-900/30",
@@ -1390,10 +1374,10 @@ export function getDayTypeColorObject(
       boldText: "text-purple-900 dark:text-purple-100",
     },
     "기타": {
-      bg: "bg-red-50 dark:bg-red-900/30",
-      border: "border-red-300 dark:border-red-700",
-      text: "text-red-600 dark:text-red-400",
-      boldText: "text-red-900 dark:text-red-100",
+      bg: "bg-[rgb(var(--color-error-50))]",
+      border: "border-[rgb(var(--color-error-300))]",
+      text: "text-[rgb(var(--color-error-600))]",
+      boldText: "text-[rgb(var(--color-error-900))]",
     },
   };
 
@@ -1423,10 +1407,10 @@ export type IndigoTextVariant = "default" | "icon" | "link" | "heading";
  * Indigo 텍스트 색상 매핑 (제네릭 함수 사용)
  */
 const indigoTextColorMap: Record<IndigoTextVariant, string> = {
-  default: "text-indigo-600 dark:text-indigo-400",
-  icon: "text-indigo-500 dark:text-indigo-400",
-  link: "text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300",
-  heading: "text-indigo-900 dark:text-indigo-300",
+  default: "text-[rgb(var(--color-primary-600))]",
+  icon: "text-[rgb(var(--color-primary-500))]",
+  link: "text-[rgb(var(--color-primary-600))] hover:text-[rgb(var(--color-primary-700))]",
+  heading: "text-[rgb(var(--color-primary-900))]",
 } as const;
 
 /**
@@ -1455,9 +1439,9 @@ export type IndigoBgVariant = "button" | "badge" | "card";
  * Indigo 배경 색상 매핑 (제네릭 함수 사용)
  */
 const indigoBgColorMap: Record<IndigoBgVariant, string> = {
-  button: "bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 text-white",
-  badge: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-900 dark:text-indigo-300",
-  card: "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-900 dark:text-indigo-200",
+  button: "bg-[rgb(var(--color-primary-600))] hover:bg-[rgb(var(--color-primary-700))] text-white",
+  badge: "bg-[rgb(var(--color-primary-100))] text-[rgb(var(--color-primary-900))]",
+  card: "bg-[rgb(var(--color-primary-50))] text-[rgb(var(--color-primary-900))]",
 } as const;
 
 /**
@@ -1547,8 +1531,8 @@ export type SemiTransparentBgVariant = "surface" | "card";
  * 반투명 배경 색상 매핑
  */
 const semiTransparentBgMap: Record<SemiTransparentBgVariant, string> = {
-  surface: "bg-white/60 dark:bg-gray-800/60",
-  card: "bg-white/80 dark:bg-gray-800/80",
+  surface: "bg-[var(--background)]/60",
+  card: "bg-[var(--background)]/80",
 } as const;
 
 /**
@@ -1580,10 +1564,10 @@ export type GrayBgVariant = "light" | "medium" | "dark" | "tableHeader";
  * Gray 배경 색상 매핑
  */
 const grayBgColorMap: Record<GrayBgVariant, string> = {
-  light: "bg-gray-50 dark:bg-gray-900",
-  medium: "bg-gray-100 dark:bg-gray-800",
-  dark: "bg-gray-200 dark:bg-gray-700",
-  tableHeader: "bg-gray-50 dark:bg-gray-900/50",
+  light: "bg-[rgb(var(--color-secondary-50))]",
+  medium: "bg-[rgb(var(--color-secondary-100))]",
+  dark: "bg-[rgb(var(--color-secondary-200))]",
+  tableHeader: "bg-[rgb(var(--color-secondary-50))]",
 } as const;
 
 /**
@@ -1615,9 +1599,9 @@ export type RedTextVariant = "default" | "link" | "error";
  * Red 텍스트 색상 매핑
  */
 const redTextColorMap: Record<RedTextVariant, string> = {
-  default: "text-red-600 dark:text-red-400",
-  link: "text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300",
-  error: "text-red-600 dark:text-red-400",
+  default: "text-[rgb(var(--color-error-600))]",
+  link: "text-[rgb(var(--color-error-600))] hover:text-[rgb(var(--color-error-800))]",
+  error: "text-[rgb(var(--color-error-600))]",
 } as const;
 
 /**
@@ -1638,8 +1622,8 @@ export type RedBgVariant = "button" | "danger";
  * Red 배경 색상 매핑
  */
 const redBgColorMap: Record<RedBgVariant, string> = {
-  button: "bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white",
-  danger: "bg-red-600 dark:bg-red-500 hover:bg-red-700 dark:hover:bg-red-600 text-white",
+  button: "bg-[rgb(var(--color-error-600))] hover:bg-[rgb(var(--color-error-700))] disabled:bg-[rgb(var(--color-error-400))] text-white",
+  danger: "bg-[rgb(var(--color-error-600))] hover:bg-[rgb(var(--color-error-700))] text-white",
 } as const;
 
 /**
@@ -1665,8 +1649,8 @@ export function tabButtonStyles(isActive: boolean, className?: string): string {
   return cn(
     "border-b-2 px-1 pb-4 text-sm font-medium transition-colors",
     isActive
-      ? "border-gray-900 dark:border-gray-100 text-gray-900 dark:text-gray-100"
-      : "border-transparent text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:hover:text-gray-300",
+      ? "border-[rgb(var(--color-secondary-900))] text-[rgb(var(--color-secondary-900))]"
+      : "border-transparent text-[rgb(var(--color-secondary-500))] hover:border-[rgb(var(--color-secondary-300))] hover:text-[rgb(var(--color-secondary-700))]",
     className
   );
 }
@@ -1675,7 +1659,7 @@ export function tabButtonStyles(isActive: boolean, className?: string): string {
  * 탭 컨테이너 스타일
  */
 export const tabContainerStyles = cn(
-  "border-b border-gray-200 dark:border-gray-700"
+  "border-b border-[rgb(var(--color-secondary-200))]"
 );
 
 // ============================================
@@ -1686,20 +1670,20 @@ export const tabContainerStyles = cn(
  * 에러 메시지 스타일 객체
  */
 export const errorMessageStyles = {
-  container: "flex flex-col gap-3 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg",
-  title: "text-sm font-semibold text-red-800 dark:text-red-200",
-  text: "text-sm text-red-700 dark:text-red-300",
-  link: "text-sm text-red-700 dark:text-red-300 hover:text-red-900 dark:hover:text-red-100 underline font-medium",
+  container: "flex flex-col gap-3 p-4 bg-[rgb(var(--color-error-50))] border border-[rgb(var(--color-error-200))] rounded-lg",
+  title: "text-sm font-semibold text-[rgb(var(--color-error-800))]",
+  text: "text-sm text-[rgb(var(--color-error-700))]",
+  link: "text-sm text-[rgb(var(--color-error-700))] hover:text-[rgb(var(--color-error-900))] underline font-medium",
 } as const;
 
 /**
  * 성공 메시지 스타일 객체
  */
 export const successMessageStyles = {
-  container: "flex flex-col gap-3 p-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg",
-  title: "text-sm font-semibold text-green-800 dark:text-green-200",
-  text: "text-sm text-green-700 dark:text-green-300",
-  link: "text-sm text-green-700 dark:text-green-300 hover:text-green-900 dark:hover:text-green-100 underline font-medium",
+  container: "flex flex-col gap-3 p-4 bg-[rgb(var(--color-success-50))] border border-[rgb(var(--color-success-200))] rounded-lg",
+  title: "text-sm font-semibold text-[rgb(var(--color-success-800))]",
+  text: "text-sm text-[rgb(var(--color-success-700))]",
+  link: "text-sm text-[rgb(var(--color-success-700))] hover:text-[rgb(var(--color-success-900))] underline font-medium",
 } as const;
 
 /**
@@ -1708,12 +1692,12 @@ export const successMessageStyles = {
 export const warningMessageStyles = {
   container: cn(
     "rounded-lg border p-4",
-    "border-yellow-300 dark:border-yellow-800",
-    "bg-yellow-50 dark:bg-yellow-900/30"
+    "border-[rgb(var(--color-warning-300))]",
+    "bg-[rgb(var(--color-warning-50))]"
   ),
-  title: "text-sm font-semibold text-yellow-800 dark:text-yellow-200",
-  text: "text-sm text-yellow-700 dark:text-yellow-300",
-  link: "text-sm text-yellow-700 dark:text-yellow-300 hover:text-yellow-900 dark:hover:text-yellow-100 underline font-medium",
+  title: "text-sm font-semibold text-[rgb(var(--color-warning-800))]",
+  text: "text-sm text-[rgb(var(--color-warning-700))]",
+  link: "text-sm text-[rgb(var(--color-warning-700))] hover:text-[rgb(var(--color-warning-900))] underline font-medium",
 } as const;
 
 /**
@@ -1722,11 +1706,11 @@ export const warningMessageStyles = {
 export const infoMessageStyles = {
   container: cn(
     "rounded-lg border p-4",
-    "border-blue-300 dark:border-blue-800",
-    "bg-blue-50 dark:bg-blue-900/30"
+    "border-[rgb(var(--color-info-300))]",
+    "bg-[rgb(var(--color-info-50))]"
   ),
-  title: "text-sm font-semibold text-blue-800 dark:text-blue-200",
-  text: "text-sm text-blue-700 dark:text-blue-300",
-  link: "text-sm text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 underline font-medium",
+  title: "text-sm font-semibold text-[rgb(var(--color-info-800))]",
+  text: "text-sm text-[rgb(var(--color-info-700))]",
+  link: "text-sm text-[rgb(var(--color-info-700))] hover:text-[rgb(var(--color-info-900))] underline font-medium",
 } as const;
 

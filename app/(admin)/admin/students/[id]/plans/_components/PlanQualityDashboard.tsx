@@ -147,30 +147,30 @@ function getGradeColor(grade: string): string {
 function getGradeBgColor(grade: string): string {
   switch (grade) {
     case "A":
-      return "bg-green-50 dark:bg-green-950/30";
+      return "bg-[rgb(var(--color-success-50))]";
     case "B":
-      return "bg-blue-50 dark:bg-blue-950/30";
+      return "bg-[rgb(var(--color-info-50))]";
     case "C":
-      return "bg-yellow-50 dark:bg-yellow-950/30";
+      return "bg-[rgb(var(--color-warning-50))]";
     case "D":
-      return "bg-orange-50 dark:bg-orange-950/30";
+      return "bg-[rgb(var(--color-warning-50))]";
     case "F":
-      return "bg-red-50 dark:bg-red-950/30";
+      return "bg-[rgb(var(--color-error-50))]";
     default:
-      return "bg-gray-50 dark:bg-gray-800";
+      return "bg-[rgb(var(--color-secondary-50))]";
   }
 }
 
 function getSeverityColor(severity: string): string {
   switch (severity) {
     case "high":
-      return "text-red-600 bg-red-50 dark:bg-red-950/30";
+      return "text-[rgb(var(--color-error-600))] bg-[rgb(var(--color-error-50))]";
     case "medium":
-      return "text-yellow-600 bg-yellow-50 dark:bg-yellow-950/30";
+      return "text-[rgb(var(--color-warning-600))] bg-[rgb(var(--color-warning-50))]";
     case "low":
-      return "text-blue-600 bg-blue-50 dark:bg-blue-950/30";
+      return "text-[rgb(var(--color-info-600))] bg-[rgb(var(--color-info-50))]";
     default:
-      return "text-gray-600 bg-gray-50 dark:bg-gray-800";
+      return "text-[rgb(var(--color-secondary-600))] bg-[rgb(var(--color-secondary-50))]";
   }
 }
 
@@ -244,7 +244,7 @@ function SubjectChart({ data }: SubjectChartProps) {
               {Math.round(item.totalMinutes / 60)}시간 ({item.percentage.toFixed(1)}%)
             </span>
           </div>
-          <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+          <div className="h-2 rounded-full bg-[rgb(var(--color-secondary-200))] overflow-hidden">
             <div
               className="h-full rounded-full transition-all duration-300"
               style={{

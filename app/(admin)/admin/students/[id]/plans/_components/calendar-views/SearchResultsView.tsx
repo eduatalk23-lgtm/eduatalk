@@ -59,7 +59,7 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
       {parts.map((part, i) =>
         // split(/(pattern)/gi) 결과에서 홀수 인덱스가 캡처된 매치
         i % 2 === 1 ? (
-          <mark key={i} className="bg-yellow-200 dark:bg-yellow-700/50 font-semibold rounded-sm px-0.5">
+          <mark key={i} className="bg-[rgb(var(--color-warning-200))] font-semibold rounded-sm px-0.5">
             {part}
           </mark>
         ) : (
@@ -78,18 +78,18 @@ function SearchResultsSkeleton() {
   return (
     <div className="flex-1 overflow-y-auto animate-pulse">
       {Array.from({ length: 3 }).map((_, gi) => (
-        <div key={gi} className="border-b border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]">
+        <div key={gi} className="border-b border-[rgb(var(--color-secondary-200))]">
           <div className="flex items-center gap-3 px-4 py-2.5">
-            <div className="w-12 h-12 rounded-full bg-[rgb(var(--color-secondary-200))] dark:bg-[rgb(var(--color-secondary-700))]" />
-            <div className="h-4 w-20 bg-[rgb(var(--color-secondary-200))] dark:bg-[rgb(var(--color-secondary-700))] rounded" />
+            <div className="w-12 h-12 rounded-full bg-[rgb(var(--color-secondary-200))]" />
+            <div className="h-4 w-20 bg-[rgb(var(--color-secondary-200))] rounded" />
           </div>
           {Array.from({ length: 2 }).map((_, ri) => (
             <div key={ri} className="flex items-center gap-3 px-4 py-2.5">
-              <div className="w-3 h-3 rounded-full bg-[rgb(var(--color-secondary-200))] dark:bg-[rgb(var(--color-secondary-700))]" />
-              <div className="w-24 h-3 bg-[rgb(var(--color-secondary-200))] dark:bg-[rgb(var(--color-secondary-700))] rounded" />
+              <div className="w-3 h-3 rounded-full bg-[rgb(var(--color-secondary-200))]" />
+              <div className="w-24 h-3 bg-[rgb(var(--color-secondary-200))] rounded" />
               <div className="flex-1">
-                <div className="h-4 w-40 bg-[rgb(var(--color-secondary-200))] dark:bg-[rgb(var(--color-secondary-700))] rounded mb-1" />
-                <div className="h-3 w-16 bg-[rgb(var(--color-secondary-100))] dark:bg-[rgb(var(--color-secondary-800))] rounded" />
+                <div className="h-4 w-40 bg-[rgb(var(--color-secondary-200))] rounded mb-1" />
+                <div className="h-3 w-16 bg-[rgb(var(--color-secondary-100))] rounded" />
               </div>
             </div>
           ))}
@@ -186,7 +186,7 @@ export const SearchResultsView = memo(function SearchResultsView({
           const isPast = header && isBefore(parseISO(dateStr), today) && !header.isToday;
 
           return (
-            <div key={dateStr} className="border-b border-[rgb(var(--color-secondary-100))] dark:border-[rgb(var(--color-secondary-800))] last:border-b-0">
+            <div key={dateStr} className="border-b border-[rgb(var(--color-secondary-100))] last:border-b-0">
               {/* 날짜 헤더 */}
               <button
                 type="button"
@@ -194,9 +194,9 @@ export const SearchResultsView = memo(function SearchResultsView({
                 aria-label={header ? `${header.dateText}로 이동` : dateStr}
                 className={cn(
                   'sticky top-0 z-10 w-full flex items-center gap-3 px-4 py-2.5 text-left',
-                  'bg-[rgb(var(--color-secondary-50))]/95 dark:bg-[rgb(var(--color-secondary-900))]/95 backdrop-blur-sm',
-                  'border-b border-[rgb(var(--color-secondary-100))] dark:border-[rgb(var(--color-secondary-800))]',
-                  'hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-800))] transition-colors',
+                  'bg-[rgb(var(--color-secondary-50))]/95/95 backdrop-blur-sm',
+                  'border-b border-[rgb(var(--color-secondary-100))]',
+                  'hover:bg-[rgb(var(--color-secondary-100))] transition-colors',
                 )}
               >
                 {header ? (
@@ -204,7 +204,7 @@ export const SearchResultsView = memo(function SearchResultsView({
                     'flex flex-col items-center justify-center w-12 h-12 rounded-full shrink-0',
                     header.isToday
                       ? 'bg-[rgb(var(--color-primary-500))] text-white'
-                      : 'bg-[rgb(var(--color-secondary-100))] dark:bg-[rgb(var(--color-secondary-800))] text-[var(--text-secondary)]',
+                      : 'bg-[rgb(var(--color-secondary-100))] text-[var(--text-secondary)]',
                   )}>
                     <span className="text-[10px] font-medium leading-none">{header.dayOfWeek}</span>
                     <span className={cn('text-lg font-semibold leading-tight', header.isToday && 'text-white')}>
@@ -212,7 +212,7 @@ export const SearchResultsView = memo(function SearchResultsView({
                     </span>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center w-12 h-12 rounded-full shrink-0 bg-[rgb(var(--color-secondary-100))] dark:bg-[rgb(var(--color-secondary-800))] text-[var(--text-tertiary)]">
+                  <div className="flex flex-col items-center justify-center w-12 h-12 rounded-full shrink-0 bg-[rgb(var(--color-secondary-100))] text-[var(--text-tertiary)]">
                     <span className="text-xs">?</span>
                   </div>
                 )}
@@ -227,7 +227,7 @@ export const SearchResultsView = memo(function SearchResultsView({
               </button>
 
               {/* 플랜 목록 */}
-              <div className="divide-y divide-[rgb(var(--color-secondary-50))] dark:divide-[rgb(var(--color-secondary-800))]">
+              <div className="divide-y divide-[rgb(var(--color-secondary-50))]">
                 {plans.map((plan) => {
                   const calColor = calendarColorMap?.get(plan.calendarId ?? '');
                   const colors = resolveCalendarColors(plan.color, calColor, plan.status, plan.isCompleted);
@@ -238,7 +238,7 @@ export const SearchResultsView = memo(function SearchResultsView({
                       type="button"
                       className={cn(
                         'w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors',
-                        'hover:bg-[rgb(var(--color-secondary-50))] dark:hover:bg-[rgb(var(--color-secondary-800))]',
+                        'hover:bg-[rgb(var(--color-secondary-50))]',
                         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--color-primary-400))] focus-visible:ring-inset',
                       )}
                       onClick={(e) => onPlanClick(plan, e.currentTarget.getBoundingClientRect())}
@@ -313,7 +313,7 @@ const SearchHeader = memo(function SearchHeader({
   count: number | null;
 }) {
   return (
-    <div className="px-4 py-3 border-b border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))] bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))] sticky top-0 z-20">
+    <div className="px-4 py-3 border-b border-[rgb(var(--color-secondary-200))] bg-[rgb(var(--color-secondary-50))] sticky top-0 z-20">
       <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
         <Search className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" />
         <span>

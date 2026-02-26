@@ -96,31 +96,31 @@ export const CalendarNavHeader = memo(function CalendarNavHeader({
     : formatMonthYear(selectedDate);
 
   return (
-    <div className="flex-shrink-0 flex items-center justify-between px-3 py-2 border-b border-blue-200">
+    <div className="flex-shrink-0 flex items-center justify-between px-3 py-2 border-b border-[rgb(var(--color-secondary-200))]">
       {/* 왼쪽: 오늘 + < > + 월/년 */}
       <div className="flex items-center min-w-0">
         <button
           onClick={handleToday}
-          className="shrink-0 px-4 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
+          className="shrink-0 px-4 py-1.5 text-sm font-medium text-[var(--text-secondary)] bg-[rgb(var(--color-secondary-50))] border border-[rgb(var(--color-secondary-300))] rounded-full hover:bg-[rgb(var(--color-secondary-100))] transition-colors"
         >
           오늘
         </button>
 
         <div className="flex items-center ml-2">
-          <button onClick={handlePrev} className="p-1.5 rounded-full hover:bg-white/60 transition-colors">
-            <ChevronLeft className="w-5 h-5 text-gray-600" />
+          <button onClick={handlePrev} className="p-1.5 rounded-full hover:bg-[rgb(var(--color-secondary-100))] transition-colors">
+            <ChevronLeft className="w-5 h-5 text-[var(--text-tertiary)]" />
           </button>
-          <button onClick={handleNext} className="p-1.5 rounded-full hover:bg-white/60 transition-colors">
-            <ChevronRight className="w-5 h-5 text-gray-600" />
+          <button onClick={handleNext} className="p-1.5 rounded-full hover:bg-[rgb(var(--color-secondary-100))] transition-colors">
+            <ChevronRight className="w-5 h-5 text-[var(--text-tertiary)]" />
           </button>
         </div>
 
-        <span className="ml-2 text-[22px] font-normal text-gray-800 truncate leading-none">
+        <span className="ml-2 text-[22px] font-normal text-[var(--text-primary)] truncate leading-none">
           {monthYearText}
         </span>
 
         {totalCount !== undefined && totalCount > 0 && (
-          <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+          <span className="ml-2 text-xs text-[rgb(var(--color-info-600))] bg-[rgb(var(--color-info-100))] px-2 py-0.5 rounded-full">
             {completedCount ?? 0}/{totalCount}
           </span>
         )}
@@ -130,7 +130,7 @@ export const CalendarNavHeader = memo(function CalendarNavHeader({
       <div className="relative shrink-0" ref={dropdownRef}>
         <button
           onClick={() => setDropdownOpen((prev) => !prev)}
-          className="flex items-center gap-1 px-4 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
+          className="flex items-center gap-1 px-4 py-1.5 text-sm font-medium text-[var(--text-secondary)] bg-[rgb(var(--color-secondary-50))] border border-[rgb(var(--color-secondary-300))] rounded-full hover:bg-[rgb(var(--color-secondary-100))] transition-colors"
         >
           {activeOption.shortLabel}
           <ChevronDown className={cn(
@@ -140,7 +140,7 @@ export const CalendarNavHeader = memo(function CalendarNavHeader({
         </button>
 
         {dropdownOpen && (
-          <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-lg shadow-lg border border-gray-200 bg-white py-1.5">
+          <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-lg shadow-lg border border-[rgb(var(--color-secondary-200))] bg-[rgb(var(--color-secondary-50))] py-1.5">
             {VIEW_OPTIONS.map((view) => (
               <button
                 key={view.key}
@@ -152,8 +152,8 @@ export const CalendarNavHeader = memo(function CalendarNavHeader({
                 className={cn(
                   'w-full flex items-center px-3 py-2 text-sm transition-colors',
                   activeView === view.key && (view.key !== 'weekly' || customDayCount === 7)
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    ? 'bg-[rgb(var(--color-info-50))] text-[rgb(var(--color-info-600))]'
+                    : 'text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))]'
                 )}
               >
                 <span className="w-5 shrink-0">
@@ -162,7 +162,7 @@ export const CalendarNavHeader = memo(function CalendarNavHeader({
                 <span className="flex-1 text-left">{view.label}</span>
                 <span className={cn(
                   'text-xs ml-4',
-                  activeView === view.key ? 'text-blue-400' : 'text-gray-400'
+                  activeView === view.key ? 'text-blue-400' : 'text-[rgb(var(--color-secondary-400))]'
                 )}>{view.shortcut}</span>
               </button>
             ))}
@@ -170,8 +170,8 @@ export const CalendarNavHeader = memo(function CalendarNavHeader({
             {/* 커스텀 일수 옵션 */}
             {onCustomDayCountChange && (
               <>
-                <div className="border-t border-gray-100 my-1" />
-                <div className="px-3 py-1.5 text-xs text-gray-400 font-medium">커스텀 뷰</div>
+                <div className="border-t border-[rgb(var(--color-secondary-100))] my-1" />
+                <div className="px-3 py-1.5 text-xs text-[rgb(var(--color-secondary-400))] font-medium">커스텀 뷰</div>
                 {CUSTOM_DAY_OPTIONS.filter((n) => n < 7).map((n) => (
                   <button
                     key={`custom-${n}`}
@@ -183,8 +183,8 @@ export const CalendarNavHeader = memo(function CalendarNavHeader({
                     className={cn(
                       'w-full flex items-center px-3 py-2 text-sm transition-colors',
                       activeView === 'weekly' && customDayCount === n
-                        ? 'bg-blue-50 text-blue-600'
-                        : 'text-gray-700 hover:bg-gray-50'
+                        ? 'bg-[rgb(var(--color-info-50))] text-[rgb(var(--color-info-600))]'
+                        : 'text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))]'
                     )}
                   >
                     <span className="w-5 shrink-0">

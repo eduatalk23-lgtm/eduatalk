@@ -1138,14 +1138,14 @@ function AdminCalendarFAB({
         <div className="flex flex-col-reverse gap-2 animate-in slide-in-from-bottom-2 fade-in duration-200">
           <button
             onClick={() => { onQuickAdd(); setExpanded(false); }}
-            className="flex items-center gap-2 rounded-full px-4 py-3 text-sm font-medium shadow-lg bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-800))] border border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))] text-[var(--text-primary)] hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-700))] transition-colors"
+            className="flex items-center gap-2 rounded-full px-4 py-3 text-sm font-medium shadow-lg bg-[rgb(var(--color-secondary-50))] border border-[rgb(var(--color-secondary-200))] text-[var(--text-primary)] hover:bg-[rgb(var(--color-secondary-100))] transition-colors"
           >
             <Plus className="h-5 w-5 text-[rgb(var(--color-primary-500))]" />
             <span>빠른 플랜 추가</span>
           </button>
           <button
             onClick={() => { onAIPlan(); setExpanded(false); }}
-            className="flex items-center gap-2 rounded-full px-4 py-3 text-sm font-medium shadow-lg bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-800))] border border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))] text-[var(--text-primary)] hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-700))] transition-colors"
+            className="flex items-center gap-2 rounded-full px-4 py-3 text-sm font-medium shadow-lg bg-[rgb(var(--color-secondary-50))] border border-[rgb(var(--color-secondary-200))] text-[var(--text-primary)] hover:bg-[rgb(var(--color-secondary-100))] transition-colors"
           >
             <Wand2 className="h-5 w-5 text-[rgb(var(--color-info-500))]" />
             <span>AI 플랜 생성</span>
