@@ -294,7 +294,7 @@ type StudentPhoneEntry = {
 
 /**
  * 학생별 전화번호 일괄 조회
- * student_profiles 에서 phone, mother_phone, father_phone 조회
+ * students 테이블에서 phone, mother_phone, father_phone 조회
  */
 async function fetchStudentPhoneMap(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -306,7 +306,7 @@ async function fetchStudentPhoneMap(
   if (studentIds.length === 0) return map;
 
   const { data, error } = await client
-    .from("student_profiles")
+    .from("students")
     .select("id, phone, mother_phone, father_phone")
     .in("id", studentIds);
 

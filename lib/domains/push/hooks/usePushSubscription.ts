@@ -64,8 +64,13 @@ export function usePushSubscription(userId: string | null) {
   }, [userId]);
 
   useEffect(() => {
+    if (!userId) {
+      subscribedRef.current = false; // 로그아웃 시 리셋 → 재로그인 시 재구독 허용
+      return;
+    }
+    subscribedRef.current = false; // userId 변경 시 리셋 (계정 전환 대응)
     syncSubscription();
-  }, [syncSubscription]);
+  }, [syncSubscription, userId]);
 
   /**
    * 명시적 구독 요청 (설정 UI에서 사용).

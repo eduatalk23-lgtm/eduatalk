@@ -160,7 +160,7 @@ async function getStudentContactPhone(
   studentId: string
 ): Promise<string | null> {
   const { data: profile } = await adminClient
-    .from("student_profiles")
+    .from("students")
     .select("phone, mother_phone, father_phone")
     .eq("id", studentId)
     .maybeSingle();

@@ -36,6 +36,8 @@ export async function subscribePush(
   const label = deviceLabel ?? (await detectDeviceLabel());
   const supabase = await createSupabaseServerClient();
 
+  const now = new Date().toISOString();
+
   const { error } = await supabase.from("push_subscriptions").upsert(
     {
       user_id: user.userId,
@@ -45,7 +47,7 @@ export async function subscribePush(
       subscription: subscription as unknown as Record<string, unknown>,
       device_label: label,
       is_active: true,
-      updated_at: new Date().toISOString(),
+      updated_at: now,
     },
     { onConflict: "user_id,endpoint" }
   );
@@ -54,6 +56,15 @@ export async function subscribePush(
     console.error("[Push] Subscribe failed:", error);
     return { success: false, error: "구독 저장에 실패했습니다." };
   }
+
+  // 같은 유저+디바이스의 이전 구독 비활성화 (SW 재등록 시 endpoint 변경 대응)
+  await supabase
+    .from("push_subscriptions")
+    .update({ is_active: false, updated_at: now })
+    .eq("user_id", user.userId)
+    .eq("device_label", label)
+    .eq("is_active", true)
+    .neq("endpoint", subscription.endpoint);
 
   return { success: true };
 }

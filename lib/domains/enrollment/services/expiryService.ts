@@ -61,7 +61,7 @@ export async function processEnrollmentExpiry(): Promise<ExpiryResult> {
 
       // 연락처 조회
       const { data: profile } = await adminClient
-        .from("student_profiles")
+        .from("students")
         .select("phone, mother_phone, father_phone")
         .eq("id", enrollment.student_id)
         .maybeSingle();

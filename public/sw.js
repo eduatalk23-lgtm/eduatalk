@@ -85,12 +85,15 @@ self.addEventListener("push", (event) => {
     data = { title: "새 알림", body: event.data.text() };
   }
 
+  const origin = self.location.origin;
+  const tag = data.tag || "notification-" + Date.now();
+
   const options = {
     body: data.body || "",
-    icon: data.icon || "/icons/icon-192x192.png",
-    badge: data.badge || "/icons/icon-72x72.png",
-    tag: data.tag || "default",
-    renotify: data.renotify !== false,
+    icon: data.icon || origin + "/icons/icon-192x192.png",
+    badge: data.badge || origin + "/icons/icon-72x72.png",
+    tag: tag,
+    renotify: true,
     data: {
       url: data.url || "/",
       type: data.type || "unknown",
@@ -99,7 +102,19 @@ self.addEventListener("push", (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title || "TimeLevelUp", options)
+    // 같은 tag의 기존 알림을 먼저 닫고 새로 표시 (유령 알림 방지)
+    self.registration
+      .getNotifications({ tag: tag })
+      .then((existing) => {
+        existing.forEach((n) => n.close());
+        return self.registration.showNotification(
+          data.title || "TimeLevelUp",
+          options
+        );
+      })
+      .catch((err) => {
+        console.error("[SW] Push notification failed:", err);
+      })
   );
 });
 

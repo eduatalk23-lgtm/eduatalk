@@ -17,11 +17,16 @@ interface PushPayload {
  * 특정 사용자의 모든 활성 디바이스에 Push 발송.
  * 410 Gone / 404 응답 시 해당 구독을 자동 비활성화.
  */
+/** 이 상태 코드를 받으면 구독이 만료/무효이므로 비활성화 */
+const STALE_SUBSCRIPTION_CODES = [400, 404, 410, 413];
+
 export async function sendPushToUser(
   userId: string,
   payload: PushPayload
 ): Promise<{ sent: number; failed: number }> {
-  ensureVapidConfigured();
+  if (!ensureVapidConfigured()) {
+    return { sent: 0, failed: 0 };
+  }
 
   const supabase = createSupabaseAdminClient();
   if (!supabase) return { sent: 0, failed: 0 };
@@ -42,7 +47,7 @@ export async function sendPushToUser(
       webpush.sendNotification(
         row.subscription as unknown as webpush.PushSubscription,
         JSON.stringify(payload),
-        { TTL: 86400, urgency: "normal" }
+        { TTL: 86400, urgency: "high" }
       )
     )
   );
@@ -53,12 +58,18 @@ export async function sendPushToUser(
     } else {
       failed++;
       const err = (results[i] as PromiseRejectedResult).reason;
-      // 410 Gone / 404 = 구독 만료 → 비활성화
-      if (err?.statusCode === 410 || err?.statusCode === 404) {
+      if (STALE_SUBSCRIPTION_CODES.includes(err?.statusCode)) {
+        // 구독 만료/무효 → 비활성화
         await supabase
           .from("push_subscriptions")
           .update({ is_active: false })
           .eq("id", subscriptions[i].id);
+      } else {
+        console.warn("[Push] Unexpected send error:", {
+          subscriptionId: subscriptions[i].id,
+          statusCode: err?.statusCode,
+          message: err?.message,
+        });
       }
     }
   }

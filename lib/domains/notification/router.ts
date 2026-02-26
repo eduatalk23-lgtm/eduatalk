@@ -12,8 +12,17 @@ import {
   NOTIFICATION_PREFERENCE_MAP,
 } from "./types";
 
-/** 90초 이내 heartbeat가 있으면 활성 상태로 판단 */
-const PRESENCE_STALE_THRESHOLD = 90_000;
+/**
+ * heartbeat 기준 활성 상태 판단 임계치 (ms).
+ * useAppPresence 훅이 30초마다 heartbeat를 전송하므로,
+ * 45초(1.5배)를 초과하면 비활성으로 간주합니다.
+ *
+ * iOS PWA는 백그라운드 진입 시 JS 실행이 즉시 중단되어
+ * visibilitychange → "idle" upsert가 완료되지 않을 수 있습니다.
+ * 45초면 heartbeat 1회 미수신 시점에 비활성 전환되어
+ * push 알림이 정상 발송됩니다.
+ */
+const PRESENCE_STALE_THRESHOLD = 45_000;
 /** 그룹 채팅 요약 판단 윈도우 (5분) */
 const GROUP_SUMMARY_WINDOW = 300_000;
 /** 그룹 채팅 요약 발동 임계치 */
@@ -42,7 +51,8 @@ export async function routeNotification(
       userId,
       request.type,
       request.payload,
-      request.priority
+      request.priority,
+      request.referenceId
     );
 
     if (skipReason) {
@@ -113,7 +123,8 @@ async function shouldSkip(
   userId: string,
   type: NotificationType,
   payload: { tag?: string },
-  priority: string
+  priority: string,
+  referenceId?: string
 ): Promise<SkipReason | null> {
   // 1+2. 사용자 설정 + 방해금지 시간 (1회 쿼리)
   const prefField = NOTIFICATION_PREFERENCE_MAP[type];
@@ -165,13 +176,13 @@ async function shouldSkip(
     }
   }
 
-  // 4. 중복 방지 (30초 내 동일 type+user+tag)
-  if (payload.tag) {
+  // 4. 중복 방지 (30초 내 동일 referenceId — 같은 메시지의 재전송만 차단)
+  if (referenceId) {
     const { data: recent } = await supabase
       .from("notification_log")
       .select("id")
       .eq("user_id", userId)
-      .eq("type", type)
+      .eq("reference_id", referenceId)
       .is("skipped_reason", null)
       .gte("sent_at", new Date(Date.now() - 30_000).toISOString())
       .limit(1);
@@ -190,23 +201,36 @@ async function shouldSkip(
 
   if ((count ?? 0) >= 10) return "rate_limited";
 
-  // 6. 앱 활성 상태 확인 (active + 90초 이내 heartbeat → Push 스킵)
-  // user_presence 테이블은 database.types.ts에 아직 미포함 (마이그레이션 후 재생성 필요)
-  const { data: presence } = (await supabase
-    .from("user_presence" as "push_subscriptions")
-    .select("status, updated_at")
-    .eq("user_id", userId)
-    .single()) as unknown as {
-    data: { status: string; updated_at: string } | null;
-  };
+  // 6. 앱 활성 상태 확인 (active + heartbeat 이내 → Push 스킵)
+  // 채팅 메시지는 online 필터를 건너뜀:
+  //  - 채팅방 안에 있으면 realtime으로 이미 수신 (push tag 중복 처리)
+  //  - 다른 페이지에 있으면 push가 유일한 알림 수단
+  //  - 앱을 닫으면 heartbeat 중단되므로 자연스럽게 통과
+  if (type !== "chat_message" && type !== "chat_group_message") {
+    // user_presence 테이블은 database.types.ts에 아직 미포함 (마이그레이션 후 재생성 필요)
+    const { data: presence, error: presenceError } = (await supabase
+      .from("user_presence" as "push_subscriptions")
+      .select("status, updated_at")
+      .eq("user_id", userId)
+      .single()) as unknown as {
+      data: { status: string; updated_at: string } | null;
+      error: { code: string; message: string } | null;
+    };
 
-  if (
-    presence?.status === "active" &&
-    presence.updated_at &&
-    Date.now() - new Date(presence.updated_at).getTime() <
-      PRESENCE_STALE_THRESHOLD
-  ) {
-    return "online";
+    // 쿼리 실패 시 알림을 차단하지 않음 (안전 방향: 발송)
+    if (presenceError && presenceError.code !== "PGRST116") {
+      console.warn("[Router] Presence query failed:", presenceError.code);
+      return null;
+    }
+
+    if (
+      presence?.status === "active" &&
+      presence.updated_at &&
+      Date.now() - new Date(presence.updated_at).getTime() <
+        PRESENCE_STALE_THRESHOLD
+    ) {
+      return "online";
+    }
   }
 
   return null;
