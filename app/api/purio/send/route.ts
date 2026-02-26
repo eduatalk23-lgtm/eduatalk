@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     // 요청 본문 파싱
     const body = await request.json();
-    const { type, phone, message, templateVariables, recipientType, smsTemplateType, sendTime } = body;
+    const { type, phone, message, templateVariables, recipientType, smsTemplateType, sendTime, subject } = body;
 
     // 입력값 검증
     if (!type || (type !== "single" && type !== "bulk")) {
@@ -138,6 +138,7 @@ export async function POST(request: NextRequest) {
       const result = await sendSMS({
         recipientPhone: phone,
         message,
+        subject: subject || undefined,
         recipientId: body.recipientId,
         tenantId: tenantContext.tenantId,
         sendTime,

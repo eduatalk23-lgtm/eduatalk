@@ -55,7 +55,7 @@ export async function sendPaymentReminderAction(
 
     // 학생 연락처 조회
     const { data: profile } = await adminClient
-      .from("student_profiles")
+      .from("students")
       .select("phone, mother_phone, father_phone")
       .eq("id", payment.student_id)
       .maybeSingle();
