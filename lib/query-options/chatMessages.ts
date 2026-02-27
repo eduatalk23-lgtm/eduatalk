@@ -31,7 +31,7 @@ export function chatMessagesQueryOptions(roomId: string) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => {
       if (!lastPage?.hasMore || !lastPage?.messages?.length) return undefined;
-      return lastPage.messages[0].id; // 가장 오래된 메시지 ID
+      return lastPage.messages[0].created_at; // 가장 오래된 메시지의 타임스탬프 (repository가 created_at으로 필터링)
     },
     maxPages: 5, // 메모리 최적화: 최대 5페이지(250 메시지)만 캐시에 유지
     staleTime: 60 * 1000, // 1분 (Realtime이 업데이트 담당, 재방문 시 불필요한 refetch 방지)

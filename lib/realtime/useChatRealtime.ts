@@ -33,8 +33,16 @@ const __DEV__ = process.env.NODE_ENV === "development";
 function debugLog(...args: unknown[]) { if (__DEV__) console.log(...args); }
 function debugWarn(...args: unknown[]) { if (__DEV__) console.warn(...args); }
 
+/** 메시지를 시간순 정렬 (동일 시각이면 id로 안정 정렬) */
+function sortMessagesByTime<T extends { created_at: string; id: string }>(msgs: T[]): T[] {
+  return msgs.sort((a, b) => {
+    const t = a.created_at.localeCompare(b.created_at);
+    return t !== 0 ? t : a.id.localeCompare(b.id);
+  });
+}
+
 // Supabase Realtime Payload 타입 (DB 컬럼과 1:1 매핑)
-interface ChatMessagePayload {
+export interface ChatMessagePayload {
   id: string;
   room_id: string;
   sender_id: string;
@@ -498,13 +506,16 @@ export function useChatRealtime({
 
           debugLog(`[ChatRealtime] Adding ${uniqueNewMessages.length} unique messages to cache`);
 
-          // 새 메시지를 첫 번째 페이지 끝에 추가 (시간순)
+          // 새 메시지를 첫 번째 페이지에 병합 후 시간순 정렬
+          const merged = [...firstPage.messages, ...uniqueNewMessages];
+          sortMessagesByTime(merged);
+
           return {
             ...old,
             pages: [
               {
                 ...firstPage,
-                messages: [...firstPage.messages, ...uniqueNewMessages],
+                messages: merged,
               },
               ...old.pages.slice(1),
             ],
@@ -640,6 +651,9 @@ export function useChatRealtime({
             }
           }
 
+          // 병합 후 시간순 정렬
+          sortMessagesByTime(messages);
+
           return {
             ...old,
             pages: [
@@ -720,7 +734,15 @@ export function useChatRealtime({
         }
       }
 
-      const tempId = operationTracker.getTempIdForRealId(newMessage.id);
+      let tempId = operationTracker.getTempIdForRealId(newMessage.id);
+      // DB trigger broadcast가 completeSend보다 먼저 도착하면 tempId가 없을 수 있음
+      // → content 기반으로 pending send를 찾아서 매칭
+      if (!tempId && newMessage.sender_id === userId) {
+        tempId = operationTracker.findPendingSendByContent(newMessage.content);
+        if (tempId) {
+          operationTracker.completeSend(tempId, newMessage.id);
+        }
+      }
 
       // 버퍼에 추가 (setQueryData는 50ms 후 배치 실행)
       insertBuffer.push({ msg: newMessage, tempId });
@@ -1077,14 +1099,10 @@ export function useChatRealtime({
 
           if (isInitialMountRef.current) {
             isInitialMountRef.current = false;
-            // 첫 마운트: SSR prefetch 데이터가 있으면 메시지 sync 불필요
-            const hasCache = queryClient.getQueryData(["chat-messages", roomId]);
-            if (hasCache) {
-              debugLog("[ChatRealtime] Initial mount with SSR cache, skipping sync");
-            } else {
-              debugLog("[ChatRealtime] Initial mount without cache, syncing...");
-              fnRef.current.syncMessagesSince();
-            }
+            // 첫 마운트: 캐시 유무와 관계없이 항상 sync 실행
+            // (hover prefetch로 캐시가 있어도 그 이후 새 메시지가 있을 수 있음)
+            debugLog("[ChatRealtime] Initial mount, syncing...");
+            fnRef.current.syncMessagesSince();
             // roomList은 스킵 (방금 목록에서 왔으므로 최신)
           } else {
             // 재연결 또는 자동 복구: 누락 메시지 복구 필요
@@ -1110,8 +1128,25 @@ export function useChatRealtime({
     // Broadcast-first: 채널 참조 저장
     channelRef.current = channel;
 
+    // 탭 복귀 시 누락 메시지 동기화 (5초 debounce)
+    let lastVisibilitySyncAt = 0;
+    const VISIBILITY_SYNC_DEBOUNCE_MS = 5000;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      if (now - lastVisibilitySyncAt < VISIBILITY_SYNC_DEBOUNCE_MS) return;
+      lastVisibilitySyncAt = now;
+      debugLog("[ChatRealtime] Tab visible — syncing missed messages");
+      fnRef.current.syncMessagesSince();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       debugLog(`[ChatRealtime] Unsubscribing from room ${roomId}`);
+      // visibilitychange 리스너 정리
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       // Broadcast-first: 채널 참조 초기화
       channelRef.current = null;
       // 지연 invalidation 타이머 정리
@@ -1291,10 +1326,14 @@ export function useChatRoomListRealtime({
         },
         (payload) => {
           const roomId = (payload.new as { id: string } | undefined)?.id;
-          // 사용자가 속한 채팅방인 경우에만 목록 갱신
           if (roomId && userRoomIdsRef.current.has(roomId)) {
+            // 기존 방: debounced 갱신
             debugLog("[ChatRealtime] Room updated (new message):", roomId);
             debouncedInvalidate();
+          } else if (roomId) {
+            // 새로 추가된 방 가능성: 즉시 갱신 (userRoomIdsRef에 아직 없는 방)
+            debugLog("[ChatRealtime] Room updated (possibly new room):", roomId);
+            invalidateRoomList();
           }
         }
       )

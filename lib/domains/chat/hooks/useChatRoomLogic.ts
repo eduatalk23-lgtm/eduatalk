@@ -67,6 +67,8 @@ import {
 } from "@/lib/domains/chat/cacheTypes";
 import { processMessagesWithGrouping } from "@/lib/domains/chat/messageGrouping";
 import { useChatRealtime, useChatPresence } from "@/lib/realtime";
+import type { ChatMessagePayload } from "@/lib/realtime/useChatRealtime";
+import { showBrowserNotification } from "@/lib/domains/notification/browserNotification";
 import { useThrottledCallback } from "@/lib/hooks/useThrottle";
 import { operationTracker } from "../operationTracker";
 import { isOnline, isNetworkError } from "@/lib/offline/networkStatus";
@@ -899,14 +901,31 @@ export function useChatRoomLogic({
     roomId,
     userId,
     senderCache,
-    onNewMessage: useCallback(() => {
+    onNewMessage: useCallback((message: ChatMessagePayload) => {
       // 스크롤이 맨 아래에 있으면 자동 스크롤 (ref 사용으로 항상 최신 값)
       if (isAtBottomRef.current) {
         onNewMessageArrived?.();
       }
       // 읽음 처리 (Throttle 적용 - 3초마다 최대 1회)
       throttledMarkAsRead();
-    }, [onNewMessageArrived, throttledMarkAsRead]),
+
+      // 백그라운드 탭일 때 브라우저 알림 (본인 메시지 제외)
+      if (document.visibilityState === "hidden" && message.sender_id !== userId) {
+        const isMedia = message.message_type === "image";
+        const isFile = message.message_type === "file";
+        const body = isMedia
+          ? "사진을 보냈습니다"
+          : isFile
+            ? "파일을 보냈습니다"
+            : (message.content || "").slice(0, 100);
+
+        showBrowserNotification({
+          title: message.sender_name ?? "새 메시지",
+          body,
+          tag: `chat-${roomId}`,
+        });
+      }
+    }, [onNewMessageArrived, throttledMarkAsRead, userId, roomId]),
   });
 
 
