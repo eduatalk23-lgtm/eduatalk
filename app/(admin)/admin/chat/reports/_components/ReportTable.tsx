@@ -124,7 +124,8 @@ export function ReportTable({
                     className={cn(
                       "inline-flex items-center gap-1 px-3 py-1.5 text-sm",
                       "bg-primary text-white rounded-lg",
-                      "hover:bg-primary-hover transition-colors",
+                      "hover:bg-primary-600 active:bg-primary-700 transition-colors",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
                       "disabled:opacity-50 disabled:cursor-not-allowed"
                     )}
                   >

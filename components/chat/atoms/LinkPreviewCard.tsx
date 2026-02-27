@@ -30,9 +30,10 @@ function LinkPreviewCardComponent({ preview, isOwn }: LinkPreviewCardProps) {
       className={cn(
         "flex overflow-hidden rounded-lg max-w-[280px] text-left",
         "transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
         isOwn
-          ? "bg-white/10 hover:bg-white/15"
-          : "bg-bg-secondary hover:bg-bg-tertiary",
+          ? "bg-white/15 hover:bg-white/25 active:bg-white/30 focus-visible:ring-white/60"
+          : "bg-bg-secondary hover:bg-bg-tertiary active:bg-bg-tertiary focus-visible:ring-primary",
         // 이미지가 있으면 세로 레이아웃, 없으면 가로
         preview.image_url ? "flex-col" : "flex-row items-center gap-3 p-3"
       )}
@@ -69,7 +70,7 @@ function LinkPreviewCardComponent({ preview, isOwn }: LinkPreviewCardProps) {
           <p
             className={cn(
               "text-xs mt-0.5 line-clamp-2",
-              isOwn ? "text-white/60" : "text-text-secondary"
+              isOwn ? "text-white/80" : "text-text-secondary"
             )}
           >
             {preview.description}
@@ -79,13 +80,13 @@ function LinkPreviewCardComponent({ preview, isOwn }: LinkPreviewCardProps) {
           <ExternalLink
             className={cn(
               "w-3 h-3 flex-shrink-0",
-              isOwn ? "text-white/40" : "text-text-tertiary"
+              isOwn ? "text-white/70" : "text-text-tertiary"
             )}
           />
           <span
             className={cn(
               "text-[10px] truncate",
-              isOwn ? "text-white/40" : "text-text-tertiary"
+              isOwn ? "text-white/70" : "text-text-tertiary"
             )}
           >
             {preview.site_name ?? new URL(preview.url).hostname}

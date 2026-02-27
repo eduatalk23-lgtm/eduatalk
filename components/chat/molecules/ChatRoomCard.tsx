@@ -14,7 +14,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ko } from "date-fns/locale";
 import { Avatar } from "@/components/atoms/Avatar";
 import { UnreadBadge } from "../atoms/UnreadBadge";
-import { Users } from "lucide-react";
+import { Users, Image, Paperclip } from "lucide-react";
 import { chatMessagesQueryOptions } from "@/lib/query-options/chatMessages";
 import type { ChatRoomListItem } from "@/lib/domains/chat/types";
 
@@ -79,7 +79,8 @@ function ChatRoomCardComponent({
       className={cn(
         "w-full flex items-center gap-3 p-3 rounded-xl",
         "transition-colors text-left",
-        isSelected ? "bg-primary/10" : "hover:bg-bg-secondary"
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+        isSelected ? "bg-primary/10" : "hover:bg-bg-secondary active:bg-bg-tertiary"
       )}
     >
       {/* 아바타 */}
@@ -129,6 +130,15 @@ function ChatRoomCardComponent({
                 {room.type === "group" && (
                   <span className="text-text-tertiary">
                     {room.lastMessage.senderName}:{" "}
+                  </span>
+                )}
+                {(room.lastMessage.messageType === "image" || room.lastMessage.messageType === "file") && (
+                  <span className="inline-flex items-center gap-0.5 align-middle">
+                    {room.lastMessage.messageType === "image" ? (
+                      <Image className="w-3.5 h-3.5 text-text-tertiary inline" />
+                    ) : (
+                      <Paperclip className="w-3.5 h-3.5 text-text-tertiary inline" />
+                    )}{" "}
                   </span>
                 )}
                 {room.lastMessage.content}

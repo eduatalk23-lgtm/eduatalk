@@ -16,6 +16,7 @@ import { AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { useChatRoomListRealtime } from "@/lib/realtime";
 import { useTotalUnreadCount } from "@/lib/domains/chat/hooks/useTotalUnreadCount";
+import { useTitleNotification } from "@/lib/hooks/useTitleNotification";
 import { ChatFAB } from "./atoms/ChatFAB";
 import { ChatPopover } from "./organisms/ChatPopover";
 import type { ChatUserType } from "@/lib/domains/chat/types";
@@ -91,6 +92,9 @@ export function FloatingChatWidget() {
 
   // 전체 unread count (인증된 상태에서만 쿼리 실행)
   const unreadCount = useTotalUnreadCount({ enabled: isAuthenticated });
+
+  // 백그라운드 탭 제목에 읽지 않은 메시지 수 표시
+  useTitleNotification(unreadCount);
 
   // 렌더링 조건 체크
   if (isLoading) return null;

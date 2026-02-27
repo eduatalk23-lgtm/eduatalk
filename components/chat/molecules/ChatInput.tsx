@@ -311,7 +311,7 @@ function ChatInputComponent({
             <button
               type="button"
               onClick={onCancelReply}
-              className="w-11 h-11 flex items-center justify-center hover:bg-bg-tertiary rounded-full transition-colors flex-shrink-0"
+              className="w-11 h-11 flex items-center justify-center hover:bg-bg-tertiary rounded-full transition-colors flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
               aria-label="답장 취소"
             >
               <X className="w-5 h-5 text-text-tertiary" />
@@ -401,6 +401,7 @@ function ChatInputComponent({
               disabled={!canAttach}
               className={cn(
                 "flex items-center justify-center w-11 h-11 rounded-full flex-shrink-0 transition-colors",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
                 canAttach
                   ? "text-text-secondary hover:bg-bg-secondary active:bg-bg-tertiary"
                   : "text-text-tertiary opacity-50 cursor-not-allowed"
@@ -468,6 +469,7 @@ function ChatInputComponent({
             disabled={disabled}
             className={cn(
               "flex items-center justify-center w-11 h-11 rounded-full flex-shrink-0 transition-colors",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
               disabled
                 ? "text-text-tertiary opacity-50 cursor-not-allowed"
                 : showEmojiPicker
@@ -504,7 +506,7 @@ function ChatInputComponent({
                           key={emoji}
                           type="button"
                           onClick={() => insertEmoji(emoji)}
-                          className="w-9 h-9 flex items-center justify-center rounded-lg text-lg hover:bg-bg-secondary active:bg-bg-tertiary transition-colors"
+                          className="w-9 h-9 flex items-center justify-center rounded-lg text-lg hover:bg-bg-secondary active:bg-bg-tertiary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                         >
                           {emoji}
                         </button>
@@ -525,8 +527,9 @@ function ChatInputComponent({
           className={cn(
             "flex items-center justify-center w-11 h-11 rounded-full flex-shrink-0",
             "transition-all duration-200",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
             canSend
-              ? "bg-primary text-white hover:bg-primary-hover active:scale-95 scale-100"
+              ? "bg-primary text-white hover:bg-primary-600 active:scale-95 scale-100"
               : "bg-bg-tertiary text-text-tertiary cursor-not-allowed scale-95"
           )}
         >

@@ -6,6 +6,7 @@
  * 채팅방에서 공유된 이미지, 동영상, 파일을 탭별로 모아보는 컴포넌트.
  * ChatRoomInfo 사이드바의 "파일" 탭에서 사용.
  * 상단 검색바로 파일명 검색 지원.
+ * 편집 모드로 다중 선택 후 숨기기 기능 제공.
  */
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
@@ -17,6 +18,8 @@ import {
   ImageOff,
   Search,
   X,
+  EyeOff,
+  Check,
 } from "lucide-react";
 import { Tabs, TabPanel, type Tab } from "@/components/molecules/Tabs";
 import type { ChatAttachment } from "@/lib/domains/chat/types";
@@ -24,8 +27,16 @@ import {
   getRoomAttachmentsAction,
   searchRoomAttachmentsAction,
   refreshAttachmentUrlsAction,
+  hideAttachmentsAction,
 } from "@/lib/domains/chat/actions/attachments";
 import { formatFileSize, getFileTypeLabel } from "@/lib/domains/chat/fileValidation";
+import {
+  getAttachmentExpiryInfo,
+  shouldShowExpiryBadge,
+} from "@/lib/domains/chat/attachmentExpiry";
+import { Badge } from "@/components/atoms/Badge";
+import { ConfirmDialog } from "@/components/ui/Dialog";
+import { useToast } from "@/components/ui/ToastProvider";
 import { cn } from "@/lib/cn";
 
 interface MediaGalleryProps {
@@ -46,6 +57,7 @@ const SEARCH_DEBOUNCE_MS = 400;
 
 function MediaGalleryComponent({ roomId, onImageClick }: MediaGalleryProps) {
   const [activeTab, setActiveTab] = useState<GalleryTab>("image");
+  const { showSuccess, showError } = useToast();
 
   // 일반 탭 데이터
   const [items, setItems] = useState<Record<GalleryTab, ChatAttachment[]>>({
@@ -77,7 +89,53 @@ function MediaGalleryComponent({ roomId, onImageClick }: MediaGalleryProps) {
   const searchTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
   const latestSearchRef = useRef("");
 
+  // 선택 모드 상태
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showHideConfirm, setShowHideConfirm] = useState(false);
+  const [hideLoading, setHideLoading] = useState(false);
+
   const isSearchMode = searchQuery.trim().length > 0;
+
+  // ============================================
+  // 선택 모드
+  // ============================================
+
+  const enterSelectionMode = useCallback(() => {
+    setIsSelectionMode(true);
+    setSelectedIds(new Set());
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setIsSelectionMode(false);
+    setSelectedIds(new Set());
+    setShowHideConfirm(false);
+  }, []);
+
+  const toggleSelection = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  // ESC 키로 선택 모드 취소
+  useEffect(() => {
+    if (!isSelectionMode) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        clearSelection();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isSelectionMode, clearSelection]);
 
   // ============================================
   // 일반 탭 로드
@@ -230,34 +288,81 @@ function MediaGalleryComponent({ roomId, onImageClick }: MediaGalleryProps) {
   }, []);
 
   // ============================================
+  // 숨기기 핸들러
+  // ============================================
+
+  const handleHideSelected = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    setHideLoading(true);
+
+    try {
+      const result = await hideAttachmentsAction(Array.from(selectedIds));
+      if (result.success) {
+        // 로컬 상태에서 숨긴 아이템 제거
+        setItems((prev) => ({
+          image: prev.image.filter((a) => !selectedIds.has(a.id)),
+          video: prev.video.filter((a) => !selectedIds.has(a.id)),
+          file: prev.file.filter((a) => !selectedIds.has(a.id)),
+        }));
+        setSearchResults((prev) => prev.filter((a) => !selectedIds.has(a.id)));
+        clearSelection();
+        showSuccess("선택한 파일을 숨겼습니다.");
+      } else {
+        showError(result.error ?? "파일 숨기기에 실패했습니다.");
+      }
+    } catch {
+      showError("파일 숨기기에 실패했습니다.");
+    } finally {
+      setHideLoading(false);
+      setShowHideConfirm(false);
+    }
+  }, [selectedIds, clearSelection, showSuccess, showError]);
+
+  // ============================================
   // 렌더링
   // ============================================
 
   return (
-    <div className="flex flex-col h-full">
-      {/* 검색 입력 */}
-      <div className="relative mb-3">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary pointer-events-none" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          placeholder="파일명으로 검색..."
-          className={cn(
-            "w-full pl-9 pr-8 py-2 text-sm rounded-lg",
-            "bg-bg-secondary border border-transparent",
-            "focus:border-primary focus:outline-none",
-            "text-text-primary placeholder:text-text-tertiary"
+    <div className="flex flex-col gap-3 h-full">
+      {/* 검색 입력 + 편집 버튼 */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            placeholder="파일명으로 검색..."
+            className={cn(
+              "w-full pl-9 pr-8 py-2 text-sm rounded-lg",
+              "bg-bg-secondary border border-transparent",
+              "focus:border-primary focus:outline-none",
+              "text-text-primary placeholder:text-text-tertiary"
+            )}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={handleClearSearch}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-bg-tertiary"
+              aria-label="검색 초기화"
+            >
+              <X className="w-4 h-4 text-text-tertiary" />
+            </button>
           )}
-        />
-        {searchQuery && (
+        </div>
+        {!isSearchMode && (
           <button
             type="button"
-            onClick={handleClearSearch}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-bg-tertiary"
-            aria-label="검색 초기화"
+            onClick={isSelectionMode ? clearSelection : enterSelectionMode}
+            className={cn(
+              "px-3 py-2 text-sm rounded-lg flex-shrink-0 transition-colors",
+              isSelectionMode
+                ? "text-error-600 hover:bg-error-50 dark:hover:bg-error-900/20"
+                : "text-text-secondary hover:bg-bg-secondary"
+            )}
           >
-            <X className="w-4 h-4 text-text-tertiary" />
+            {isSelectionMode ? "취소" : "편집"}
           </button>
         )}
       </div>
@@ -294,6 +399,9 @@ function MediaGalleryComponent({ roomId, onImageClick }: MediaGalleryProps) {
               hasMore={hasMore.image}
               onLoadMore={handleLoadMore}
               onImageClick={onImageClick}
+              isSelectionMode={isSelectionMode}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelection}
             />
           </TabPanel>
 
@@ -307,6 +415,9 @@ function MediaGalleryComponent({ roomId, onImageClick }: MediaGalleryProps) {
               loading={loading.video}
               hasMore={hasMore.video}
               onLoadMore={handleLoadMore}
+              isSelectionMode={isSelectionMode}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelection}
             />
           </TabPanel>
 
@@ -320,10 +431,105 @@ function MediaGalleryComponent({ roomId, onImageClick }: MediaGalleryProps) {
               loading={loading.file}
               hasMore={hasMore.file}
               onLoadMore={handleLoadMore}
+              isSelectionMode={isSelectionMode}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelection}
             />
           </TabPanel>
         </>
       )}
+
+      {/* 하단 선택 액션바 */}
+      {isSelectionMode && selectedIds.size > 0 && (
+        <SelectionActionBar
+          selectedCount={selectedIds.size}
+          onHide={() => setShowHideConfirm(true)}
+          onCancel={clearSelection}
+          isLoading={hideLoading}
+        />
+      )}
+
+      {/* 숨기기 확인 다이얼로그 */}
+      <ConfirmDialog
+        open={showHideConfirm}
+        onOpenChange={setShowHideConfirm}
+        title="파일 숨기기"
+        description={`선택한 ${selectedIds.size}개의 파일을 내 목록에서 숨기시겠습니까? 서버에서는 7일 후 자동으로 삭제됩니다.`}
+        confirmLabel="숨기기"
+        variant="destructive"
+        onConfirm={handleHideSelected}
+        isLoading={hideLoading}
+      />
+    </div>
+  );
+}
+
+// ============================================
+// 만료 뱃지
+// ============================================
+
+function ExpiryBadge({ createdAt }: { createdAt: string }) {
+  if (!shouldShowExpiryBadge(createdAt)) return null;
+
+  const info = getAttachmentExpiryInfo(createdAt);
+  return (
+    <Badge
+      variant={info.level === "critical" ? "error" : "warning"}
+      size="xs"
+    >
+      {info.label}
+    </Badge>
+  );
+}
+
+// ============================================
+// 하단 선택 액션바
+// ============================================
+
+function SelectionActionBar({
+  selectedCount,
+  onHide,
+  onCancel,
+  isLoading,
+}: {
+  selectedCount: number;
+  onHide: () => void;
+  onCancel: () => void;
+  isLoading: boolean;
+}) {
+  return (
+    <div className="sticky bottom-0 flex items-center justify-between gap-3 px-3 py-2.5 bg-bg-primary border-t border-border">
+      <span className="text-sm text-text-secondary">
+        {selectedCount}개 선택됨
+      </span>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={isLoading}
+          className="px-3 py-1.5 text-sm text-text-secondary hover:text-text-primary rounded-lg transition-colors"
+        >
+          취소
+        </button>
+        <button
+          type="button"
+          onClick={onHide}
+          disabled={isLoading}
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors",
+            "bg-error-100 text-error-700 hover:bg-error-200",
+            "dark:bg-error-900/30 dark:text-error-300 dark:hover:bg-error-900/50",
+            "disabled:opacity-50"
+          )}
+        >
+          {isLoading ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <EyeOff className="w-3.5 h-3.5" />
+          )}
+          숨기기
+        </button>
+      </div>
     </div>
   );
 }
@@ -374,8 +580,9 @@ function SearchResults({
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-text-primary truncate">{att.file_name}</p>
-                <p className="text-xs text-text-tertiary">
+                <p className="text-xs text-text-tertiary flex items-center gap-1.5">
                   이미지 · {formatFileSize(att.file_size)}
+                  <ExpiryBadge createdAt={att.created_at} />
                 </p>
               </div>
             </button>
@@ -401,8 +608,9 @@ function SearchResults({
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm text-text-primary truncate">{att.file_name}</p>
-              <p className="text-xs text-text-tertiary">
+              <p className="text-xs text-text-tertiary flex items-center gap-1.5">
                 {getFileTypeLabel(att.mime_type)} · {formatFileSize(att.file_size)}
+                <ExpiryBadge createdAt={att.created_at} />
               </p>
             </div>
           </button>
@@ -461,12 +669,18 @@ function ImageGallery({
   hasMore,
   onLoadMore,
   onImageClick,
+  isSelectionMode,
+  selectedIds,
+  onToggleSelect,
 }: {
   attachments: ChatAttachment[];
   loading: boolean;
   hasMore: boolean;
   onLoadMore: () => void;
   onImageClick?: (attachment: ChatAttachment, allImages: ChatAttachment[]) => void;
+  isSelectionMode: boolean;
+  selectedIds: Set<string>;
+  onToggleSelect: (id: string) => void;
 }) {
   if (!loading && attachments.length === 0) {
     return <EmptyState text="공유된 이미지가 없습니다." />;
@@ -479,7 +693,15 @@ function ImageGallery({
           <GalleryImageItem
             key={att.id}
             attachment={att}
-            onClick={() => onImageClick?.(att, attachments)}
+            onClick={() => {
+              if (isSelectionMode) {
+                onToggleSelect(att.id);
+              } else {
+                onImageClick?.(att, attachments);
+              }
+            }}
+            isSelectionMode={isSelectionMode}
+            isSelected={selectedIds.has(att.id)}
           />
         ))}
       </div>
@@ -492,9 +714,13 @@ function ImageGallery({
 function GalleryImageItem({
   attachment,
   onClick,
+  isSelectionMode,
+  isSelected,
 }: {
   attachment: ChatAttachment;
   onClick: () => void;
+  isSelectionMode: boolean;
+  isSelected: boolean;
 }) {
   const [src, setSrc] = useState(attachment.thumbnail_url ?? attachment.public_url);
   const [failed, setFailed] = useState(false);
@@ -528,7 +754,10 @@ function GalleryImageItem({
     <button
       type="button"
       onClick={onClick}
-      className="aspect-square overflow-hidden rounded bg-bg-secondary focus:outline-none focus:ring-2 focus:ring-primary"
+      className={cn(
+        "relative aspect-square overflow-hidden rounded bg-bg-secondary focus:outline-none focus:ring-2 focus:ring-primary",
+        isSelected && "ring-2 ring-primary"
+      )}
       aria-label={`이미지: ${attachment.file_name}`}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -539,6 +768,34 @@ function GalleryImageItem({
         loading="lazy"
         onError={handleError}
       />
+
+      {/* 용량 오버레이 (좌하단) */}
+      <div className="absolute bottom-1 left-1 px-1 py-0.5 rounded bg-black/50">
+        <span className="text-white/80 text-[10px]">
+          {formatFileSize(attachment.file_size)}
+        </span>
+      </div>
+
+      {/* 만료 뱃지 (우하단) */}
+      {shouldShowExpiryBadge(attachment.created_at) && (
+        <div className="absolute bottom-1 right-1">
+          <ExpiryBadge createdAt={attachment.created_at} />
+        </div>
+      )}
+
+      {/* 선택 모드 체크마크 (좌상단) */}
+      {isSelectionMode && (
+        <div
+          className={cn(
+            "absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center",
+            isSelected
+              ? "bg-primary text-white"
+              : "bg-black/30 border border-white/60"
+          )}
+        >
+          {isSelected && <Check className="w-3 h-3" />}
+        </div>
+      )}
     </button>
   );
 }
@@ -549,11 +806,17 @@ function VideoGallery({
   loading,
   hasMore,
   onLoadMore,
+  isSelectionMode,
+  selectedIds,
+  onToggleSelect,
 }: {
   attachments: ChatAttachment[];
   loading: boolean;
   hasMore: boolean;
   onLoadMore: () => void;
+  isSelectionMode: boolean;
+  selectedIds: Set<string>;
+  onToggleSelect: (id: string) => void;
 }) {
   if (!loading && attachments.length === 0) {
     return <EmptyState text="공유된 동영상이 없습니다." />;
@@ -566,12 +829,33 @@ function VideoGallery({
           <button
             key={att.id}
             type="button"
-            onClick={() => window.open(att.public_url, "_blank", "noopener")}
+            onClick={() => {
+              if (isSelectionMode) {
+                onToggleSelect(att.id);
+              } else {
+                window.open(att.public_url, "_blank", "noopener");
+              }
+            }}
             className={cn(
               "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg",
-              "hover:bg-bg-secondary transition-colors text-left"
+              "hover:bg-bg-secondary transition-colors text-left",
+              isSelectionMode && selectedIds.has(att.id) && "bg-primary/5 ring-1 ring-primary"
             )}
           >
+            {/* 선택 모드 체크박스 */}
+            {isSelectionMode && (
+              <div
+                className={cn(
+                  "w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0",
+                  selectedIds.has(att.id)
+                    ? "bg-primary text-white"
+                    : "border-2 border-text-tertiary"
+                )}
+              >
+                {selectedIds.has(att.id) && <Check className="w-3 h-3" />}
+              </div>
+            )}
+
             <div className="w-12 h-12 rounded-lg bg-bg-secondary flex items-center justify-center flex-shrink-0 overflow-hidden">
               {att.thumbnail_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -586,8 +870,9 @@ function VideoGallery({
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm text-text-primary truncate">{att.file_name}</p>
-              <p className="text-xs text-text-tertiary">
+              <p className="text-xs text-text-tertiary flex items-center gap-1.5">
                 {formatFileSize(att.file_size)}
+                <ExpiryBadge createdAt={att.created_at} />
               </p>
             </div>
           </button>
@@ -604,11 +889,17 @@ function FileGallery({
   loading,
   hasMore,
   onLoadMore,
+  isSelectionMode,
+  selectedIds,
+  onToggleSelect,
 }: {
   attachments: ChatAttachment[];
   loading: boolean;
   hasMore: boolean;
   onLoadMore: () => void;
+  isSelectionMode: boolean;
+  selectedIds: Set<string>;
+  onToggleSelect: (id: string) => void;
 }) {
   if (!loading && attachments.length === 0) {
     return <EmptyState text="공유된 파일이 없습니다." />;
@@ -621,19 +912,41 @@ function FileGallery({
           <button
             key={att.id}
             type="button"
-            onClick={() => window.open(att.public_url, "_blank", "noopener")}
+            onClick={() => {
+              if (isSelectionMode) {
+                onToggleSelect(att.id);
+              } else {
+                window.open(att.public_url, "_blank", "noopener");
+              }
+            }}
             className={cn(
               "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg",
-              "hover:bg-bg-secondary transition-colors text-left"
+              "hover:bg-bg-secondary transition-colors text-left",
+              isSelectionMode && selectedIds.has(att.id) && "bg-primary/5 ring-1 ring-primary"
             )}
           >
+            {/* 선택 모드 체크박스 */}
+            {isSelectionMode && (
+              <div
+                className={cn(
+                  "w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0",
+                  selectedIds.has(att.id)
+                    ? "bg-primary text-white"
+                    : "border-2 border-text-tertiary"
+                )}
+              >
+                {selectedIds.has(att.id) && <Check className="w-3 h-3" />}
+              </div>
+            )}
+
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
               <FileText className="w-5 h-5 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm text-text-primary truncate">{att.file_name}</p>
-              <p className="text-xs text-text-tertiary">
+              <p className="text-xs text-text-tertiary flex items-center gap-1.5">
                 {getFileTypeLabel(att.mime_type)} · {formatFileSize(att.file_size)}
+                <ExpiryBadge createdAt={att.created_at} />
               </p>
             </div>
           </button>

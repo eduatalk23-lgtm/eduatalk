@@ -10,6 +10,11 @@
 import React, { memo, useCallback, useEffect, useRef, useState } from "react";
 import { X, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import type { ChatAttachment } from "@/lib/domains/chat/types";
+import { formatFileSize } from "@/lib/domains/chat/fileValidation";
+import {
+  getAttachmentExpiryInfo,
+  shouldShowExpiryBadge,
+} from "@/lib/domains/chat/attachmentExpiry";
 
 interface ImageLightboxProps {
   images: ChatAttachment[];
@@ -173,9 +178,22 @@ function LightboxViewer({
         </>
       )}
 
-      {/* 하단 파일명 */}
-      <div className="text-center pb-4 pb-[env(safe-area-inset-bottom)]">
-        <p className="text-white/40 text-xs truncate px-8">{current.file_name}</p>
+      {/* 하단 파일명 + 용량 + 만료 경고 */}
+      <div className="text-center pb-4 pb-[env(safe-area-inset-bottom)] flex flex-col items-center gap-1">
+        <p className="text-white/40 text-xs truncate px-8">
+          {current.file_name}
+          {" "}
+          <span className="text-white/30">({formatFileSize(current.file_size)})</span>
+        </p>
+        {shouldShowExpiryBadge(current.created_at) && (
+          <p className={`text-xs ${
+            getAttachmentExpiryInfo(current.created_at).level === "critical"
+              ? "text-error-400"
+              : "text-warning-400"
+          }`}>
+            {getAttachmentExpiryInfo(current.created_at).label} 후 자동 삭제
+          </p>
+        )}
       </div>
     </div>
   );

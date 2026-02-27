@@ -16,11 +16,10 @@ import { Tabs, TabPanel } from "@/components/molecules/Tabs";
 import {
   leaveChatRoomAction,
   archiveChatRoomAction,
-  deleteChatRoomAction,
 } from "@/lib/domains/chat/actions";
 import type { ChatRoom, ChatRoomMemberWithUser, ChatMemberRole, ChatAttachment } from "@/lib/domains/chat/types";
 import { cn } from "@/lib/cn";
-import { UserPlus, LogOut, Crown, Shield, Loader2, Users, FolderOpen, Archive, Trash2 } from "lucide-react";
+import { UserPlus, LogOut, Crown, Shield, Loader2, Users, FolderOpen, Archive } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { InviteMemberModal } from "./InviteMemberModal";
 import { MediaGallery } from "../molecules/MediaGallery";
@@ -80,7 +79,6 @@ function ChatRoomInfoComponent({
   // 로딩 상태 (중복 클릭 방지)
   const [isLeaving, setIsLeaving] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   // 활성 멤버만 필터링 (left_at === null)
   const activeMembers = members?.filter((m) => m.left_at === null) ?? [];
@@ -94,7 +92,7 @@ function ChatRoomInfoComponent({
 
   // 채팅방 나가기 핸들러
   const handleLeaveRoom = useCallback(async () => {
-    const confirmed = window.confirm("채팅방을 나가시겠습니까?");
+    const confirmed = window.confirm("채팅방을 나가시겠습니까?\n다시 초대되면 이전 대화는 표시되지 않습니다.");
     if (!confirmed) return;
 
     setIsLeaving(true);
@@ -144,30 +142,6 @@ function ChatRoomInfoComponent({
     }
   }, [roomId, basePath, router, showSuccess, showError, queryClient]);
 
-  // 채팅방 삭제 핸들러 (소프트 삭제 - 내 목록에서만 숨김)
-  const handleDeleteRoom = useCallback(async () => {
-    const confirmed = window.confirm("채팅방을 삭제하시겠습니까?\n내 목록에서 숨겨지며 상대방에게는 영향이 없습니다.");
-    if (!confirmed) return;
-
-    setIsDeleting(true);
-    try {
-      const result = await deleteChatRoomAction(roomId);
-      if (result.success) {
-        queryClient.invalidateQueries({ queryKey: ["chat-rooms"] });
-        queryClient.removeQueries({ queryKey: ["chat-messages", roomId] });
-        queryClient.removeQueries({ queryKey: ["chat-room", roomId] });
-        showSuccess("채팅방이 삭제되었습니다.");
-        router.replace(basePath);
-      } else {
-        showError(result.error ?? "채팅방 삭제 실패");
-        setIsDeleting(false);
-      }
-    } catch {
-      showError("채팅방 삭제 중 오류가 발생했습니다.");
-      setIsDeleting(false);
-    }
-  }, [roomId, basePath, router, showSuccess, showError, queryClient]);
-
   // 현재 사용자가 방장/관리자인지 확인
   const currentMember = activeMembers.find((m) => m.user_id === userId);
   const canArchive = currentMember?.role === "owner" || currentMember?.role === "admin";
@@ -190,9 +164,10 @@ function ChatRoomInfoComponent({
             "flex items-center justify-center gap-2 w-full",
             "py-3 rounded-lg",
             "text-text-secondary",
-            "hover:bg-bg-secondary",
+            "hover:bg-bg-secondary active:bg-bg-tertiary",
             "transition-colors",
-            isArchiving && "opacity-50 cursor-not-allowed"
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+            isArchiving && "opacity-50 cursor-not-allowed pointer-events-none"
           )}
         >
           {isArchiving ? (
@@ -213,9 +188,10 @@ function ChatRoomInfoComponent({
           "flex items-center justify-center gap-2 w-full",
           "py-3 rounded-lg",
           "text-text-secondary",
-          "hover:bg-bg-secondary",
+          "hover:bg-bg-secondary active:bg-bg-tertiary",
           "transition-colors",
-          isLeaving && "opacity-50 cursor-not-allowed"
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+          isLeaving && "opacity-50 cursor-not-allowed pointer-events-none"
         )}
       >
         {isLeaving ? (
@@ -224,28 +200,6 @@ function ChatRoomInfoComponent({
           <LogOut className="w-5 h-5" />
         )}
         <span className="font-medium">{isLeaving ? "나가는 중..." : "채팅방 나가기"}</span>
-      </button>
-
-      {/* 삭제 버튼 (소프트 삭제) */}
-      <button
-        type="button"
-        onClick={handleDeleteRoom}
-        disabled={isDeleting}
-        className={cn(
-          "flex items-center justify-center gap-2 w-full",
-          "py-3 rounded-lg",
-          "text-red-600 dark:text-red-400",
-          "hover:bg-red-50 dark:hover:bg-red-950/30",
-          "transition-colors",
-          isDeleting && "opacity-50 cursor-not-allowed"
-        )}
-      >
-        {isDeleting ? (
-          <Loader2 className="w-5 h-5 animate-spin" />
-        ) : (
-          <Trash2 className="w-5 h-5" />
-        )}
-        <span className="font-medium">{isDeleting ? "삭제 중..." : "채팅방 삭제"}</span>
       </button>
     </div>
   );
@@ -323,8 +277,8 @@ function ChatRoomInfoComponent({
                         className={cn(
                           "flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
                           member.role === "owner"
-                            ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                            : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                            ? "bg-warning-100 text-warning-700"
+                            : "bg-info-100 text-info-700"
                         )}
                       >
                         <roleInfo.icon className="w-3 h-3" />
@@ -345,8 +299,9 @@ function ChatRoomInfoComponent({
                   "flex items-center justify-center gap-2 w-full",
                   "py-3 rounded-lg border border-border",
                   "text-text-secondary",
-                  "hover:bg-bg-secondary hover:text-text-primary",
-                  "transition-colors"
+                  "hover:bg-bg-secondary hover:text-text-primary active:bg-bg-tertiary",
+                  "transition-colors",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
                 )}
               >
                 <UserPlus className="w-5 h-5" />

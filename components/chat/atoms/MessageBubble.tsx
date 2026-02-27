@@ -360,7 +360,8 @@ function MessageBubbleComponent({
                     "px-3 py-1.5 rounded-t-lg text-xs text-left cursor-pointer",
                     "bg-secondary-50 dark:bg-secondary-900/50",
                     "border-l-2 border-primary",
-                    "hover:bg-secondary-100 dark:hover:bg-secondary-900 transition-colors"
+                    "hover:bg-secondary-100 dark:hover:bg-secondary-900 transition-colors",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
                   )}
                 >
                   <p className="font-medium text-primary">{replyTarget.senderName}</p>
@@ -375,7 +376,7 @@ function MessageBubbleComponent({
                 className={cn(
                   "rounded-2xl overflow-hidden",
                   isOwn
-                    ? "bg-primary-500 text-white rounded-br-sm"
+                    ? "bg-primary-500 dark:bg-primary-400 text-white rounded-br-sm"
                     : "bg-secondary-100 dark:bg-secondary-800 text-text-primary rounded-bl-sm",
                   replyTarget && "rounded-t-none",
                   (hasError || isQueued) && "opacity-60"
@@ -411,7 +412,7 @@ function MessageBubbleComponent({
                           className={cn(
                             "h-12",
                             isOwn
-                              ? "bg-gradient-to-t from-primary-500 to-transparent"
+                              ? "bg-gradient-to-t from-primary-500 dark:from-primary-400 to-transparent"
                               : "bg-gradient-to-t from-secondary-100 dark:from-secondary-800 to-transparent"
                           )}
                         />
@@ -419,10 +420,11 @@ function MessageBubbleComponent({
                           type="button"
                           onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
                           className={cn(
-                            "w-full py-1.5 text-xs font-medium text-center",
+                            "w-full py-1.5 text-xs font-medium text-center transition-colors",
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
                             isOwn
-                              ? "bg-primary-500 text-white/80 hover:text-white"
-                              : "bg-secondary-100 dark:bg-secondary-800 text-text-secondary hover:text-text-primary"
+                              ? "bg-primary-500 dark:bg-primary-400 text-white/90 hover:bg-primary-600 dark:hover:bg-primary-500 hover:text-white focus-visible:ring-white/60"
+                              : "bg-secondary-100 dark:bg-secondary-800 text-text-secondary hover:bg-secondary-200 dark:hover:bg-secondary-700 hover:text-text-primary focus-visible:ring-primary"
                           )}
                         >
                           펼쳐보기
@@ -434,10 +436,11 @@ function MessageBubbleComponent({
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setIsExpanded(false); }}
                         className={cn(
-                          "w-full py-1.5 text-xs font-medium text-center",
+                          "w-full py-1.5 text-xs font-medium text-center transition-colors",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
                           isOwn
-                            ? "text-white/80 hover:text-white"
-                            : "text-text-secondary hover:text-text-primary"
+                            ? "text-white/90 hover:bg-white/10 hover:text-white focus-visible:ring-white/60"
+                            : "text-text-secondary hover:bg-secondary-200/50 dark:hover:bg-secondary-700/50 hover:text-text-primary focus-visible:ring-primary"
                         )}
                       >
                         접기

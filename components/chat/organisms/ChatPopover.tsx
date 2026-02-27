@@ -19,6 +19,7 @@ import { ChatList } from "./ChatList";
 import { ChatRoom } from "./ChatRoom";
 import { cn } from "@/lib/cn";
 import { lockScroll, unlockScroll } from "@/lib/utils/scrollLock";
+import { useVisualViewport } from "@/lib/hooks/useVisualViewport";
 
 type PopoverView = "list" | "room";
 
@@ -109,6 +110,7 @@ function ChatPopoverComponent({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const isDesktop = useIsDesktop();
+  const { height: viewportHeight, isKeyboardOpen } = useVisualViewport();
 
   // 채팅방 선택
   const handleRoomClick = useCallback((roomId: string) => {
@@ -333,7 +335,7 @@ function ChatPopoverComponent({
           {contentArea}
         </motion.div>
       ) : (
-        /* 모바일 풀스크린 */
+        /* 모바일 풀스크린 (키보드 열림 시 가시 영역에 맞춤) */
         <motion.div
           ref={panelRef}
           role="dialog"
@@ -343,7 +345,13 @@ function ChatPopoverComponent({
           initial="hidden"
           animate="visible"
           exit="exit"
-          className="fixed inset-0 z-[40] flex flex-col bg-bg-primary pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
+          className={cn(
+            "fixed inset-x-0 top-0 z-[40] flex flex-col bg-bg-primary pt-[env(safe-area-inset-top)]",
+            !isKeyboardOpen && "pb-[env(safe-area-inset-bottom)]",
+          )}
+          style={{
+            height: isKeyboardOpen ? `${viewportHeight}px` : "100dvh",
+          }}
         >
           {view === "list" && listHeader}
           {contentArea}

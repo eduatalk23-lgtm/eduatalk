@@ -196,7 +196,7 @@ function VideoPlayer({
     <div
       className={cn(
         "rounded-lg overflow-hidden max-w-[280px]",
-        isOwn ? "bg-white/10" : "bg-bg-secondary"
+        isOwn ? "bg-white/20" : "bg-bg-secondary"
       )}
     >
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
@@ -212,7 +212,7 @@ function VideoPlayer({
         <span
           className={cn(
             "text-xs truncate flex-1 min-w-0",
-            isOwn ? "text-white/60" : "text-text-tertiary"
+            isOwn ? "text-white/80" : "text-text-tertiary"
           )}
         >
           {attachment.file_name}
@@ -221,15 +221,18 @@ function VideoPlayer({
           type="button"
           onClick={handleDownload}
           className={cn(
-            "flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full",
-            isOwn ? "hover:bg-white/10" : "hover:bg-bg-tertiary"
+            "flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full transition-colors",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
+            isOwn
+              ? "hover:bg-white/25 active:bg-white/30 focus-visible:ring-white/60"
+              : "hover:bg-bg-tertiary active:bg-bg-tertiary focus-visible:ring-primary"
           )}
           aria-label="다운로드"
         >
           <Download
             className={cn(
               "w-3.5 h-3.5",
-              isOwn ? "text-white/60" : "text-text-tertiary"
+              isOwn ? "text-white/80" : "text-text-tertiary"
             )}
           />
         </button>
@@ -250,13 +253,13 @@ function AudioPlayer({
     <div
       className={cn(
         "flex items-center gap-3 px-3 py-2 rounded-lg max-w-[280px]",
-        isOwn ? "bg-white/10" : "bg-bg-secondary"
+        isOwn ? "bg-white/20" : "bg-bg-secondary"
       )}
     >
       <div
         className={cn(
           "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
-          isOwn ? "bg-white/20" : "bg-primary/10"
+          isOwn ? "bg-white/25" : "bg-primary/10"
         )}
       >
         <Music className={cn("w-5 h-5", isOwn ? "text-white" : "text-primary")} />
@@ -301,15 +304,16 @@ function FileCard({
       className={cn(
         "flex items-center gap-3 px-3 py-2 rounded-lg max-w-[280px]",
         "transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
         isOwn
-          ? "bg-white/10 hover:bg-white/20"
-          : "bg-bg-secondary hover:bg-bg-tertiary"
+          ? "bg-white/15 hover:bg-white/25 active:bg-white/30 focus-visible:ring-white/60"
+          : "bg-bg-secondary hover:bg-bg-tertiary active:bg-bg-tertiary focus-visible:ring-primary"
       )}
     >
       <div
         className={cn(
           "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
-          isOwn ? "bg-white/20" : "bg-primary/10"
+          isOwn ? "bg-white/25" : "bg-primary/10"
         )}
       >
         <FileText className={cn("w-5 h-5", isOwn ? "text-white" : "text-primary")} />
@@ -326,7 +330,7 @@ function FileCard({
         <p
           className={cn(
             "text-xs",
-            isOwn ? "text-white/60" : "text-text-tertiary"
+            isOwn ? "text-white/80" : "text-text-tertiary"
           )}
         >
           {getFileTypeLabel(attachment.mime_type)} · {formatFileSize(attachment.file_size)}
@@ -335,7 +339,7 @@ function FileCard({
       <Download
         className={cn(
           "w-4 h-4 flex-shrink-0",
-          isOwn ? "text-white/60" : "text-text-tertiary"
+          isOwn ? "text-white/80" : "text-text-tertiary"
         )}
       />
     </button>

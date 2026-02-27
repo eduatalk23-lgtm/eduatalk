@@ -82,6 +82,7 @@ function ActionButton({
         compact ? "px-3 py-2.5" : "px-4 py-3",
         "hover:bg-bg-secondary active:bg-bg-tertiary",
         "transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary",
         variant === "danger" ? "text-error" : "text-text-primary"
       )}
     >
@@ -113,7 +114,8 @@ function ReactionBar({
             "bg-secondary-100 dark:bg-secondary-800",
             "hover:bg-secondary-200 dark:hover:bg-secondary-700",
             "active:scale-95",
-            "transition-all duration-100"
+            "transition-all duration-100",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
           )}
           aria-label={`${emoji} 리액션 추가`}
         >
@@ -343,7 +345,8 @@ function MessageContextMenuComponent({
               "bg-secondary-100 dark:bg-secondary-800",
               "hover:bg-secondary-200 dark:hover:bg-secondary-700",
               "text-text-primary font-medium",
-              "transition-colors"
+              "transition-colors",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
             )}
           >
             취소

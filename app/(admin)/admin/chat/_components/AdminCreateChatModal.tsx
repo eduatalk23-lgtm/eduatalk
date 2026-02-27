@@ -99,6 +99,9 @@ export function AdminCreateChatModal({
     string | null
   >(null);
 
+  // 그룹 대화 공개 설정
+  const [historyVisible, setHistoryVisible] = useState(false);
+
   // 컨설팅 모드 상태
   const [consultingTopic, setConsultingTopic] = useState("");
   const [selectedConsultingStudentId, setSelectedConsultingStudentId] = useState<string | null>(null);
@@ -234,6 +237,7 @@ export function AdminCreateChatModal({
           name: groupName.trim(),
           memberIds,
           memberTypes: memberIds.map(() => "student"),
+          historyVisible,
         });
         if (!result.success) throw new Error(result.error);
         return result.data;
@@ -284,6 +288,7 @@ export function AdminCreateChatModal({
     setSelectedStudentId(null);
     setGroupName("");
     setSelectedStudentIds(new Set());
+    setHistoryVisible(false);
     setSelectedTeamMemberId(null);
     setConsultingTopic("");
     setSelectedConsultingStudentId(null);
@@ -331,9 +336,9 @@ export function AdminCreateChatModal({
           fullWidth
         />
 
-        {/* 그룹 이름 입력 (그룹 모드 전용) */}
+        {/* 그룹 이름 입력 + 대화 공개 설정 (그룹 모드 전용) */}
         {activeTab === "group" && (
-          <div className="pt-4">
+          <div className="pt-4 space-y-3">
             <input
               type="text"
               value={groupName}
@@ -342,6 +347,28 @@ export function AdminCreateChatModal({
               aria-label="그룹 이름"
               className="w-full px-4 py-2 rounded-lg bg-bg-secondary text-sm text-text-primary placeholder:text-text-tertiary border border-transparent focus:border-primary focus:outline-none"
             />
+            <label className="flex items-center justify-between px-1 cursor-pointer">
+              <span className="text-sm text-text-secondary">새 멤버에게 이전 대화 공개</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={historyVisible}
+                onClick={() => setHistoryVisible((v) => !v)}
+                className={cn(
+                  "relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+                  historyVisible ? "bg-primary" : "bg-bg-tertiary"
+                )}
+              >
+                <span
+                  className={cn(
+                    "pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
+                    "translate-y-0.5",
+                    historyVisible ? "translate-x-4.5" : "translate-x-0.5"
+                  )}
+                />
+              </button>
+            </label>
           </div>
         )}
 
@@ -405,6 +432,7 @@ export function AdminCreateChatModal({
                       onClick={() => setSelectedTeamMemberId(member.id)}
                       className={cn(
                         "w-full flex items-center gap-3 p-3 rounded-lg transition-colors",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
                         isSelected
                           ? "bg-primary/10 border-2 border-primary"
                           : "hover:bg-bg-secondary border-2 border-transparent"
@@ -503,7 +531,7 @@ export function AdminCreateChatModal({
         <button
           type="button"
           onClick={handleClose}
-          className="flex-1 px-4 py-2 rounded-lg border border-border text-text-secondary hover:bg-bg-secondary transition-colors"
+          className="flex-1 px-4 py-2 rounded-lg border border-border text-text-secondary hover:bg-bg-secondary active:bg-bg-tertiary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
         >
           취소
         </button>
@@ -513,8 +541,9 @@ export function AdminCreateChatModal({
           disabled={!isSubmitEnabled || startChatMutation.isPending}
           className={cn(
             "flex-1 px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
             isSubmitEnabled && !startChatMutation.isPending
-              ? "bg-primary text-white hover:bg-primary-hover"
+              ? "bg-primary text-white hover:bg-primary-600 active:bg-primary-700"
               : "bg-bg-tertiary text-text-tertiary cursor-not-allowed"
           )}
         >

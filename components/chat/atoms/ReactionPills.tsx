@@ -44,12 +44,12 @@ function ReactionPillsComponent({
           className={cn(
             // 최소 터치 타겟 44px 보장 (min-h-[44px])
             "inline-flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full",
-            "text-sm transition-colors",
-            "hover:bg-bg-tertiary active:scale-95",
+            "text-sm transition-colors active:scale-95",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
             "disabled:opacity-50 disabled:cursor-not-allowed",
             reaction.hasReacted
-              ? "bg-primary/10 border border-primary/30"
-              : "bg-bg-secondary border border-transparent"
+              ? "bg-primary/10 border border-primary/30 hover:bg-primary/20"
+              : "bg-bg-secondary border border-transparent hover:bg-bg-tertiary"
           )}
           aria-label={`${reaction.emoji} ${reaction.count}명이 리액션함${
             reaction.hasReacted ? ", 내 리액션" : ""
