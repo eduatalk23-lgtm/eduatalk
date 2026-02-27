@@ -12,6 +12,7 @@ import {
   type NonStudyItem,
 } from '@/lib/query-options/adminDock';
 import { calendarEventKeys } from '@/lib/query-options/calendarEvents';
+import { calendarViewKeys } from '@/lib/query-options/calendarViewQueryOptions';
 
 /**
  * Daily Dock 쿼리 훅
@@ -200,6 +201,7 @@ export function useTargetedDockInvalidation() {
   const invalidateAll = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: adminDockKeys.all });
     queryClient.invalidateQueries({ queryKey: calendarEventKeys.all });
+    queryClient.invalidateQueries({ queryKey: calendarViewKeys.all });
   }, [queryClient]);
 
   return {

@@ -6,6 +6,7 @@
  * 캘린더 뷰에서 플랜을 드래그하여 날짜를 변경하는 기능을 제공합니다.
  * - 제외일 드롭 방지
  * - 시각적 피드백 (드래그 오버레이, 드롭 가능/불가능 표시)
+ * - Optimistic Update: 즉시 UI 반영 + 실패 시 롤백
  */
 
 import React, {
@@ -31,6 +32,7 @@ import {
 } from "@dnd-kit/core";
 import { useToast } from "@/components/ui/ToastProvider";
 import { movePlanToContainer } from "@/lib/domains/calendar/actions/calendarEventActions";
+import { useOptimisticCalendarUpdate } from "@/lib/hooks/useOptimisticCalendarUpdate";
 import DragOverlayContent from "../DragOverlayContent";
 import type {
   DraggableAdminPlanData,
@@ -79,6 +81,10 @@ interface AdminCalendarDragProviderProps {
   exclusionsByDate: ExclusionsByDate;
   /** 데이터 새로고침 콜백 */
   onRefresh: () => void;
+  /** 캘린더 ID (optimistic update용) */
+  calendarId?: string;
+  /** 멀티 캘린더 표시 ID 목록 (optimistic update용) */
+  visibleCalendarIds?: string[] | null;
 }
 
 // ============================================
@@ -91,6 +97,8 @@ export function AdminCalendarDragProvider({
   tenantId,
   exclusionsByDate,
   onRefresh,
+  calendarId,
+  visibleCalendarIds,
 }: AdminCalendarDragProviderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [activePlan, setActivePlan] = useState<DraggableAdminPlanData | null>(
@@ -100,6 +108,9 @@ export function AdminCalendarDragProvider({
   const [isPending, startTransition] = useTransition();
 
   const toast = useToast();
+
+  const { optimisticDateMove, revalidate } =
+    useOptimisticCalendarUpdate(calendarId, visibleCalendarIds);
 
   // 센서 설정
   const sensors = useSensors(
@@ -182,13 +193,28 @@ export function AdminCalendarDragProvider({
         return;
       }
 
-      // 서버 액션 호출 (관리자 버전 - 이벤트 로깅 포함)
+      // Optimistic Update: 즉시 UI 반영
+      const startTime = planData.originalStartTime || '00:00';
+      // endTime 계산: estimatedMinutes에서 유도, 없으면 30분 기본
+      const minutes = planData.estimatedMinutes ?? 30;
+      const [sh, sm] = startTime.split(':').map(Number);
+      const totalMin = sh * 60 + sm + minutes;
+      const endTime = `${String(Math.floor(totalMin / 60) % 24).padStart(2, '0')}:${String(totalMin % 60).padStart(2, '0')}`;
+      const rollback = optimisticDateMove(
+        planData.id,
+        planData.originalDate,
+        targetData.date,
+        startTime,
+        endTime,
+      );
+
+      // 서버 액션 호출
       startTransition(async () => {
         try {
           const result = await movePlanToContainer({
             planId: planData.id,
             planType: "plan",
-            fromContainer: "daily", // 캘린더 뷰는 daily 컨테이너에서 시작
+            fromContainer: "daily",
             toContainer: "daily",
             studentId,
             tenantId,
@@ -200,8 +226,9 @@ export function AdminCalendarDragProvider({
               `"${planData.title}" 플랜이 ${targetData.date}로 이동되었습니다.`,
               "success"
             );
-            onRefresh();
+            revalidate();
           } else {
+            rollback();
             toast.showToast(
               result.error || "플랜 이동에 실패했습니다.",
               "error"
@@ -209,11 +236,12 @@ export function AdminCalendarDragProvider({
           }
         } catch (error) {
           console.error("플랜 이동 오류:", error);
+          rollback();
           toast.showToast("플랜 이동 중 오류가 발생했습니다.", "error");
         }
       });
     },
-    [exclusionsByDate, toast, onRefresh, studentId, tenantId]
+    [exclusionsByDate, toast, optimisticDateMove, revalidate, studentId, tenantId]
   );
 
   // 드래그 취소

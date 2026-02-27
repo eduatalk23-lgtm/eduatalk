@@ -126,7 +126,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
   const { weekDates: allWeekDates, dayDataMap: rawDayDataMap, calendarId, isAnyLoading, invalidateDate, invalidateAll } =
     useWeeklyGridData(studentId, selectedDate, resolvedCalendarId, visibleCalendarIds, weekStartsOn, customDayCount);
   const { optimisticStatusChange, optimisticTimeChange, optimisticDateMove, revalidate } =
-    useOptimisticCalendarUpdate(calendarId);
+    useOptimisticCalendarUpdate(calendarId, visibleCalendarIds);
 
   // 공휴일 AllDayItems 주입
   const { showHolidays, calendarColorMap } = useAdminPlanFilter();

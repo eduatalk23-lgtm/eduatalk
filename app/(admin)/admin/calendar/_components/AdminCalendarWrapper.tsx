@@ -81,8 +81,8 @@ export function AdminCalendarWrapper({
           viewMode={isPersonalMode ? "personal" : "admin"}
           studentSwitcher={
             <StudentSwitcher
-              currentStudentId={isPersonalMode ? null : studentId}
-              currentStudentName={isPersonalMode ? null : studentName}
+              currentStudentId={studentId}
+              currentStudentName={isPersonalMode ? `${studentName} (나)` : studentName}
             />
           }
         />

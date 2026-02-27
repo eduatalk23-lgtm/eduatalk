@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { AdminPlanManagement } from '../../_components/AdminPlanManagement';
 import { AdminPlanManagementSkeleton } from '../../_components/AdminPlanManagementSkeleton';
 import { fetchCalendarPageData } from '@/lib/domains/admin-plan/actions/calendarPageData';
+import { StudentSwitcher } from '@/app/(admin)/admin/calendar/_components/StudentSwitcher';
 
 interface Props {
   params: Promise<{ id: string; calendarId: string }>;
@@ -65,6 +66,12 @@ export default async function CalendarPlanManagementPage({
           calendarDateTimeSlots={pageData.calendarDateTimeSlots}
           initialDockData={pageData.initialDockData}
           viewMode="admin"
+          studentSwitcher={
+            <StudentSwitcher
+              currentStudentId={student.id}
+              currentStudentName={student.name}
+            />
+          }
         />
       </Suspense>
     </div>

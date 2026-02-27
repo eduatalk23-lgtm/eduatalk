@@ -37,6 +37,9 @@ export const calendarEventKeys = {
   /** 멀티 캘린더 일간 이벤트 */
   multiDaily: (calendarIds: string[], date: string) =>
     [...calendarEventKeys.all, 'multiDaily', calendarIds.join(','), date] as const,
+  /** 멀티 캘린더 월간 이벤트 */
+  multiMonthly: (calendarIds: string[], monthStart: string, monthEnd: string) =>
+    [...calendarEventKeys.all, 'multiMonthly', calendarIds.join(','), monthStart, monthEnd] as const,
   daily: (calendarId: string, date: string) =>
     [...calendarEventKeys.events(calendarId), 'daily', date] as const,
   weekly: (calendarId: string, weekStart: string, weekEnd: string) =>
@@ -348,7 +351,7 @@ export function multiMonthlyCalendarEventsQueryOptions(
   monthEnd: string
 ) {
   return queryOptions({
-    queryKey: [...calendarEventKeys.all, 'multiMonthly', calendarIds.join(','), monthStart, monthEnd] as const,
+    queryKey: calendarEventKeys.multiMonthly(calendarIds, monthStart, monthEnd),
     queryFn: async (): Promise<CalendarEventWithStudyData[]> => {
       if (calendarIds.length === 0) return [];
       const supabase = createSupabaseBrowserClient();

@@ -422,6 +422,8 @@ export default function AdminCalendarView({
         tenantId={tenantId}
         exclusionsByDate={exclusionsByDate}
         onRefresh={handleRefreshAll}
+        calendarId={calendarId}
+        visibleCalendarIds={resolvedVisibleCalendarIds}
       >
         <div className="flex-1 overflow-auto relative">
           {/* 로딩 오버레이 */}

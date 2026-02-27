@@ -54,12 +54,16 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
   const [eventType, setEventType] = useState<'study' | 'focus_time' | 'custom' | 'break'>('study');
   const [rrule, setRrule] = useState<string | null>(null);
 
-  // 시간 모드 상태: 시작/종료 시간 (캘린더 설정의 기본 시간 우선, 없으면 60분)
+  // 시간 모드 상태: slot에 이미 올바른 start/end가 들어옴
+  // (클릭 생성: handleGridClick이 defaultEstimatedMinutes 적용 → slot에 반영됨)
+  // (드래그 생성: onDragEnd가 실제 드래그 범위 → slot에 반영됨)
+  // 종일 슬롯(00:00~23:59)만 기본 duration으로 보정
+  const isAllDaySlot = slot.startTime === '00:00' && slot.endTime === '23:59';
   const durationMin = defaultEstimatedMinutes ?? 60;
-  const defaultStart = slot.startTime === '00:00' && slot.endTime === '23:59' ? '09:00' : slot.startTime;
-  const defaultEnd = slot.startTime === '00:00' && slot.endTime === '23:59'
+  const defaultStart = isAllDaySlot ? '09:00' : slot.startTime;
+  const defaultEnd = isAllDaySlot
     ? minutesToTime(timeToMinutes('09:00') + durationMin)
-    : minutesToTime(Math.min(timeToMinutes(slot.startTime) + durationMin, timeToMinutes(slot.endTime)));
+    : slot.endTime;
   const [startTime, setStartTime] = useState(defaultStart);
   const [endTime, setEndTime] = useState(defaultEnd);
 

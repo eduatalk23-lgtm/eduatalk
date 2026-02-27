@@ -42,22 +42,23 @@ export function useDragToCreate({
   const rangeEndMin = timeToMinutes(displayRange.end);
 
   const getMinutesFromY = useCallback(
-    (clientY: number): number => {
+    (clientY: number, snap: 'floor' | 'ceil' = 'floor'): number => {
       if (!containerRef.current) return 0;
+      const snapFn = snap === 'ceil' ? Math.ceil : Math.floor;
       // 컬럼 요소 기준으로 계산 (일일뷰 sticky 종일 행 오프셋 보정)
       const colEl = containerRef.current.querySelector('[data-column-date]') as HTMLElement | null;
       if (colEl) {
         const colRect = colEl.getBoundingClientRect();
         const offsetY = clientY - colRect.top;
         const minutes = rangeStartMin + offsetY / pxPerMinute;
-        const snapped = Math.floor(minutes / snapMinutes) * snapMinutes;
+        const snapped = snapFn(minutes / snapMinutes) * snapMinutes;
         return Math.max(rangeStartMin, Math.min(snapped, rangeEndMin));
       }
       // fallback
       const rect = containerRef.current.getBoundingClientRect();
       const offsetY = clientY - rect.top + containerRef.current.scrollTop;
       const minutes = rangeStartMin + offsetY / pxPerMinute;
-      const snapped = Math.floor(minutes / snapMinutes) * snapMinutes;
+      const snapped = snapFn(minutes / snapMinutes) * snapMinutes;
       return Math.max(rangeStartMin, Math.min(snapped, rangeEndMin));
     },
     [containerRef, rangeStartMin, rangeEndMin, pxPerMinute, snapMinutes],
@@ -124,9 +125,14 @@ export function useDragToCreate({
       // 자동 스크롤 업데이트
       autoScrollRef.current?.update(e.clientY);
 
-      const currentMinutes = getMinutesFromY(e.clientY);
-      const start = Math.min(dragStartRef.current.startMinutes, currentMinutes);
-      const end = Math.max(dragStartRef.current.startMinutes, currentMinutes);
+      // Google Calendar 스타일: leading edge = floor, trailing edge = ceil
+      const currentFloor = getMinutesFromY(e.clientY, 'floor');
+      const currentCeil = getMinutesFromY(e.clientY, 'ceil');
+      const anchorMin = dragStartRef.current.startMinutes;
+      const anchorEndMin = anchorMin + snapMinutes; // 앵커 블록의 끝
+
+      const start = Math.min(anchorMin, currentFloor);
+      const end = Math.max(anchorEndMin, currentCeil);
 
       setDragState({
         date: dragStartRef.current.date,
@@ -134,7 +140,7 @@ export function useDragToCreate({
         endMinutes: end,
       });
     },
-    [getMinutesFromY, containerRef],
+    [getMinutesFromY, containerRef, snapMinutes],
   );
 
   const resetDrag = useCallback(() => {
@@ -156,9 +162,14 @@ export function useDragToCreate({
       if (!dragStartRef.current) return;
 
       if (isDraggingRef.current) {
-        const currentMinutes = getMinutesFromY(e.clientY);
-        const start = Math.min(dragStartRef.current.startMinutes, currentMinutes);
-        const end = Math.max(dragStartRef.current.startMinutes, currentMinutes);
+        // Google Calendar 스타일: leading edge = floor, trailing edge = ceil
+        const currentFloor = getMinutesFromY(e.clientY, 'floor');
+        const currentCeil = getMinutesFromY(e.clientY, 'ceil');
+        const anchorMin = dragStartRef.current.startMinutes;
+        const anchorEndMin = anchorMin + snapMinutes;
+
+        const start = Math.min(anchorMin, currentFloor);
+        const end = Math.max(anchorEndMin, currentCeil);
 
         // 최소 15분(snapMinutes) 미만이면 무시 (클릭으로 간주)
         if (end - start >= snapMinutes) {
