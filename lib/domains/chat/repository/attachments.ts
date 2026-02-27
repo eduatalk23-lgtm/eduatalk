@@ -203,6 +203,49 @@ export async function findAttachmentsByRoom(
   return (data ?? []) as unknown as ChatAttachment[];
 }
 
+/** 사용자별 첨부파일 숨기기 (upsert) */
+export async function hideAttachmentsForUser(
+  userId: string,
+  attachmentIds: string[]
+): Promise<void> {
+  if (attachmentIds.length === 0) return;
+
+  const client = getAdminClientForChat();
+  const rows = attachmentIds.map((attachmentId) => ({
+    user_id: userId,
+    attachment_id: attachmentId,
+  }));
+
+  const { error } = await client
+    .from("chat_attachment_hidden")
+    .upsert(rows, { onConflict: "user_id,attachment_id", ignoreDuplicates: true });
+
+  if (error) throw error;
+}
+
+/** 사용자가 특정 방에서 숨긴 첨부파일 ID 조회 */
+export async function findHiddenAttachmentIds(
+  userId: string,
+  roomId: string
+): Promise<Set<string>> {
+  const client = getAdminClientForChat();
+
+  // chat_attachment_hidden JOIN chat_attachments로 room_id 필터링
+  const { data, error } = await client
+    .from("chat_attachment_hidden")
+    .select("attachment_id, chat_attachments!inner(room_id)")
+    .eq("user_id", userId)
+    .eq("chat_attachments.room_id", roomId);
+
+  if (error) throw error;
+
+  const ids = new Set<string>();
+  for (const row of data ?? []) {
+    ids.add(row.attachment_id as string);
+  }
+  return ids;
+}
+
 /** 채팅방 첨부파일 파일명 검색 (ILIKE) */
 export async function searchAttachmentsByRoom(
   roomId: string,

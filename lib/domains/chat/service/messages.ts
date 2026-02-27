@@ -119,10 +119,10 @@ export async function getMessages(
       return { success: false, error: "채팅방에 참여하지 않았습니다" };
     }
 
-    // 병렬로 차단 목록 + 메시지 조회
+    // 병렬로 차단 목록 + 메시지 조회 (visible_from 필터 적용)
     const [blocks, messages] = await Promise.all([
       repository.findBlocksByUser(userId, userType),
-      repository.findMessagesByRoom(options),
+      repository.findMessagesByRoom({ ...options, visibleFrom: membership.visible_from }),
     ]);
 
     const blockedIds = new Set(blocks.map((b) => `${b.blocked_id}_${b.blocked_type}`));
@@ -334,8 +334,11 @@ export async function searchMessages(
       return { success: false, error: "채팅방에 참여하지 않았습니다" };
     }
 
-    // 검색 실행
-    const { messages, total } = await repository.searchMessagesByRoom(options);
+    // 검색 실행 (visible_from 필터 적용)
+    const { messages, total } = await repository.searchMessagesByRoom({
+      ...options,
+      visibleFrom: membership.visible_from,
+    });
 
     // 비정규화된 스냅샷 데이터를 sender 필드에 직접 매핑 (별도 조회 불필요)
     const messagesWithSender: ChatMessageWithSender[] = messages.map((message) => ({
@@ -411,10 +414,10 @@ export async function getMessagesWithReadStatus(
       return { success: false, error: "채팅방에 참여하지 않았습니다" };
     }
 
-    // 병렬로 차단 목록 + 메시지 + 읽음 상태 조회
+    // 병렬로 차단 목록 + 메시지 + 읽음 상태 조회 (visible_from 필터 적용)
     const [blocks, { messages, readCounts }] = await Promise.all([
       repository.findBlocksByUser(userId, userType),
-      repository.findMessagesWithReadCounts(options, userId),
+      repository.findMessagesWithReadCounts({ ...options, visibleFrom: membership.visible_from }, userId),
     ]);
 
     const blockedIds = new Set(blocks.map((b) => `${b.blocked_id}_${b.blocked_type}`));

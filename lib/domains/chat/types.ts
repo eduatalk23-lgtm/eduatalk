@@ -113,6 +113,8 @@ export interface ChatRoom {
   announcement_at: string | null;
   /** 아카이브 시점 */
   archived_at: string | null;
+  /** 새 멤버에게 이전 대화 공개 여부 (false: 입장 시점부터, true: 전체 이력) */
+  history_visible: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -127,6 +129,7 @@ export interface ChatRoomInsert {
   created_by: string;
   created_by_type: ChatUserType;
   is_active?: boolean;
+  history_visible?: boolean;
 }
 
 /** 채팅방 수정 입력 타입 */
@@ -158,6 +161,8 @@ export interface ChatRoomMember {
   left_at: string | null;
   /** 멤버 개별 소프트 삭제 시점 */
   deleted_at: string | null;
+  /** 이 시점 이후 메시지만 표시 */
+  visible_from: string;
   created_at: string;
   updated_at: string;
 }
@@ -179,6 +184,7 @@ export interface ChatRoomMemberUpdate {
   is_muted?: boolean;
   left_at?: string | null;
   deleted_at?: string | null;
+  visible_from?: string | null;
 }
 
 // ============================================
@@ -394,6 +400,7 @@ export interface ChatRoomListItem {
   memberCount: number;
   lastMessage: {
     content: string;
+    messageType: ChatMessageType;
     senderName: string;
     createdAt: string;
   } | null;
@@ -413,6 +420,7 @@ export interface CreateChatRoomRequest {
   topic?: string; // 채팅방 주제 (동일 참여자 간 방 구분용)
   memberIds: string[]; // 초대할 멤버 user_id 목록
   memberTypes: ChatUserType[]; // 각 멤버의 타입 (memberIds와 같은 순서)
+  historyVisible?: boolean; // 새 멤버에게 이전 대화 공개 여부 (기본: false)
 }
 
 /** 메시지 전송 요청 */

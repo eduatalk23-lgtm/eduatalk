@@ -74,6 +74,7 @@ export const CHAT_ROOM_COLUMNS = `
   announcement_by_type,
   announcement_at,
   archived_at,
+  history_visible,
   created_at,
   updated_at
 ` as const;
@@ -88,6 +89,7 @@ export const CHAT_MEMBER_COLUMNS = `
   is_muted,
   left_at,
   deleted_at,
+  visible_from,
   created_at,
   updated_at
 ` as const;

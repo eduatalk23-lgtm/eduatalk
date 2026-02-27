@@ -31,7 +31,7 @@ export async function createOrGetRoom(
   request: CreateChatRoomRequest
 ): Promise<ChatActionResult<ChatRoom>> {
   try {
-    const { type, category = "general", name, topic, memberIds, memberTypes } = request;
+    const { type, category = "general", name, topic, memberIds, memberTypes, historyVisible } = request;
 
     // 1:1 채팅인 경우 기존 방 확인 (나간 방 포함 - Auto-rejoin)
     // consulting 카테고리는 topic이 있으면 항상 새 방 생성
@@ -68,6 +68,7 @@ export async function createOrGetRoom(
       topic: topic ?? null,
       created_by: creatorId,
       created_by_type: creatorType,
+      ...(historyVisible !== undefined && { history_visible: historyVisible }),
     });
 
     // 생성자를 멤버로 추가 (owner 역할)
@@ -190,13 +191,37 @@ export async function getRoomList(
     if (lastMessage) {
       const key = `${lastMessage.sender_id}_${lastMessage.sender_type}`;
       const senderInfo = senderMap.get(key);
-      lastMessageInfo = {
-        content:
-          lastMessage.message_type === "system"
-            ? lastMessage.content
-            : lastMessage.content.length > 50
+
+      // 메시지 타입별 미리보기 텍스트 생성
+      let previewContent: string;
+      switch (lastMessage.message_type) {
+        case "system":
+          previewContent = lastMessage.content;
+          break;
+        case "image":
+          previewContent = "사진";
+          break;
+        case "file":
+          previewContent = "파일";
+          break;
+        case "mixed":
+          // 텍스트+첨부 혼합: 텍스트가 있으면 표시, 없으면 대체 텍스트
+          previewContent = lastMessage.content
+            ? lastMessage.content.length > 50
+              ? lastMessage.content.slice(0, 50) + "..."
+              : lastMessage.content
+            : "파일";
+          break;
+        default: // "text"
+          previewContent = lastMessage.content.length > 50
             ? lastMessage.content.slice(0, 50) + "..."
-            : lastMessage.content,
+            : lastMessage.content;
+          break;
+      }
+
+      lastMessageInfo = {
+        content: previewContent,
+        messageType: lastMessage.message_type,
         senderName: senderInfo?.name ?? "알 수 없음",
         createdAt: lastMessage.created_at,
       };

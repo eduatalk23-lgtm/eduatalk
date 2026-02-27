@@ -89,9 +89,14 @@ export async function rejoinMember(
   userType: ChatUserType
 ): Promise<void> {
   // 1. left_at, deleted_at을 null로 업데이트하여 재참여 처리
+  //    visible_from = NOW() → 재입장 이후 메시지만 표시
+  //    last_read_at = NOW() → unread 배지 0으로 초기화
+  const now = new Date().toISOString();
   await repository.updateMember(roomId, userId, userType, {
     left_at: null,
     deleted_at: null,
+    visible_from: now,
+    last_read_at: now,
   });
 
   // 2. 시스템 메시지 추가

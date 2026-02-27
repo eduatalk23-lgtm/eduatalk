@@ -16,9 +16,9 @@ import type {
  * 채팅방의 메시지 목록 조회 (페이지네이션)
  */
 export async function findMessagesByRoom(
-  options: GetMessagesOptions
+  options: GetMessagesOptions & { visibleFrom?: string }
 ): Promise<ChatMessage[]> {
-  const { roomId, limit = 50, before } = options;
+  const { roomId, limit = 50, before, visibleFrom } = options;
   const supabase = await createSupabaseServerClient();
 
   // 커서 유효성 검증
@@ -34,6 +34,11 @@ export async function findMessagesByRoom(
 
   if (validatedBefore) {
     query = query.lt("created_at", validatedBefore);
+  }
+
+  // visible_from 필터: 멤버의 가시 시작 시점 이후 메시지만
+  if (visibleFrom) {
+    query = query.gte("created_at", visibleFrom);
   }
 
   const { data, error } = await query;
@@ -237,15 +242,15 @@ export async function updateMessageContent(
  * 채팅방 내 메시지 검색 (ILIKE 기반)
  */
 export async function searchMessagesByRoom(
-  options: SearchMessagesOptions
+  options: SearchMessagesOptions & { visibleFrom?: string }
 ): Promise<{ messages: ChatMessage[]; total: number }> {
-  const { roomId, query, limit = 20, offset = 0 } = options;
+  const { roomId, query, limit = 20, offset = 0, visibleFrom } = options;
   const supabase = await createSupabaseServerClient();
 
   // 검색어 이스케이프 (SQL 와일드카드 처리)
   const escapedQuery = query.replace(/[%_]/g, "\\$&");
 
-  const { data, error, count } = await supabase
+  let dbQuery = supabase
     .from("chat_messages")
     .select(CHAT_MESSAGE_COLUMNS, { count: "exact" })
     .eq("room_id", roomId)
@@ -253,6 +258,13 @@ export async function searchMessagesByRoom(
     .ilike("content", `%${escapedQuery}%`)
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
+
+  // visible_from 필터
+  if (visibleFrom) {
+    dbQuery = dbQuery.gte("created_at", visibleFrom);
+  }
+
+  const { data, error, count } = await dbQuery;
 
   if (error) throw error;
 
@@ -269,7 +281,7 @@ export async function searchMessagesByRoom(
  * 최적화: SQL RPC 함수로 계산하여 O(m×u) → O(1) 쿼리
  */
 export async function findMessagesWithReadCounts(
-  options: GetMessagesOptions,
+  options: GetMessagesOptions & { visibleFrom?: string },
   currentUserId: string
 ): Promise<{ messages: ChatMessage[]; readCounts: Record<string, number> }> {
   const supabase = await createSupabaseServerClient();

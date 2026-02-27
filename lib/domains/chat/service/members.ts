@@ -49,6 +49,11 @@ export async function inviteMembers(
       memberTypes
     );
 
+    // visible_from 결정: history_visible에 따라 분기
+    const visibleFrom = room.history_visible
+      ? room.created_at // 공개: 방 생성 시점부터 전체 이력
+      : new Date().toISOString(); // 비공개: 지금부터
+
     // 새로 추가할 멤버들 필터링
     const newMembers: Array<{
       room_id: string;
@@ -56,6 +61,7 @@ export async function inviteMembers(
       user_type: ChatUserType;
       role: "member";
       last_read_at: string;
+      visible_from: string;
     }> = [];
 
     for (let i = 0; i < memberIds.length; i++) {
@@ -66,8 +72,9 @@ export async function inviteMembers(
           user_id: memberIds[i],
           user_type: memberTypes[i],
           role: "member",
-          // 이전 대화를 볼 수 있도록 last_read_at을 epoch으로 설정
-          last_read_at: "1970-01-01T00:00:00Z",
+          // last_read_at을 visible_from과 동일하게 설정하여 unread 배지 정확성 보장
+          last_read_at: visibleFrom,
+          visible_from: visibleFrom,
         });
       }
     }
@@ -114,9 +121,11 @@ export async function leaveRoom(
       return { success: false, error: "채팅방에 참여하지 않았습니다" };
     }
 
-    // 핵심 작업: left_at 설정
+    // 핵심 작업: left_at + deleted_at 동시 설정 (나가기 = 삭제 통합)
+    const now = new Date().toISOString();
     await repository.updateMember(roomId, userId, userType, {
-      left_at: new Date().toISOString(),
+      left_at: now,
+      deleted_at: now,
     });
 
     // 부가 작업: 시스템 메시지 (실패해도 나가기는 성공으로 처리)

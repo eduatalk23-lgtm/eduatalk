@@ -97,6 +97,8 @@ export {
   getUserStorageUsage,
   findAttachmentsByRoom,
   searchAttachmentsByRoom,
+  hideAttachmentsForUser,
+  findHiddenAttachmentIds,
 } from "./attachments";
 
 // 링크 프리뷰

@@ -380,6 +380,7 @@ export async function getChatStorageQuotaAction(): Promise<ChatActionResult<Stor
 
 /**
  * 채팅방 첨부파일 목록 조회 (갤러리용)
+ * 사용자가 숨긴 파일은 자동 제외
  */
 export async function getRoomAttachmentsAction(
   roomId: string,
@@ -399,16 +400,22 @@ export async function getRoomAttachmentsAction(
       return { success: false, error: "채팅방에 참여하지 않았습니다." };
     }
 
+    // 숨긴 파일 ID 조회
+    const hiddenIds = await repository.findHiddenAttachmentIds(userId, roomId);
+
     const limit = Math.min(options.limit ?? 30, 50);
+    // 숨긴 파일 보정: 더 많이 fetch → filter → slice
+    const fetchLimit = limit + hiddenIds.size + 1;
     const attachments = await repository.findAttachmentsByRoom(roomId, {
       attachmentType: options.attachmentType,
       attachmentTypes: options.attachmentTypes,
-      limit: limit + 1, // +1로 hasMore 판단
+      limit: fetchLimit,
       cursor: options.cursor,
     });
 
-    const hasMore = attachments.length > limit;
-    const result = hasMore ? attachments.slice(0, limit) : attachments;
+    const filtered = attachments.filter((a) => !hiddenIds.has(a.id));
+    const hasMore = filtered.length > limit;
+    const result = hasMore ? filtered.slice(0, limit) : filtered;
 
     return { success: true, data: { attachments: result, hasMore } };
   } catch (error) {
@@ -422,6 +429,7 @@ export async function getRoomAttachmentsAction(
 
 /**
  * 채팅방 첨부파일 파일명 검색
+ * 사용자가 숨긴 파일은 자동 제외
  */
 export async function searchRoomAttachmentsAction(
   roomId: string,
@@ -446,15 +454,20 @@ export async function searchRoomAttachmentsAction(
       return { success: true, data: { attachments: [], hasMore: false } };
     }
 
+    // 숨긴 파일 ID 조회
+    const hiddenIds = await repository.findHiddenAttachmentIds(userId, roomId);
+
     const limit = Math.min(options.limit ?? 30, 50);
+    const fetchLimit = limit + hiddenIds.size + 1;
     const attachments = await repository.searchAttachmentsByRoom(roomId, trimmed, {
       attachmentTypes: options.attachmentTypes,
-      limit: limit + 1,
+      limit: fetchLimit,
       cursor: options.cursor,
     });
 
-    const hasMore = attachments.length > limit;
-    const result = hasMore ? attachments.slice(0, limit) : attachments;
+    const filtered = attachments.filter((a) => !hiddenIds.has(a.id));
+    const hasMore = filtered.length > limit;
+    const result = hasMore ? filtered.slice(0, limit) : filtered;
 
     return { success: true, data: { attachments: result, hasMore } };
   } catch (error) {
@@ -462,6 +475,52 @@ export async function searchRoomAttachmentsAction(
     return {
       success: false,
       error: error instanceof Error ? error.message : "첨부파일 검색 실패",
+    };
+  }
+}
+
+/**
+ * 첨부파일 숨기기 (갤러리에서 제거)
+ * 서버의 실제 파일은 삭제하지 않으며, 7일 후 cleanup이 자동 삭제
+ */
+export async function hideAttachmentsAction(
+  attachmentIds: string[]
+): Promise<ChatActionResult<{ hiddenCount: number }>> {
+  try {
+    const { userId, role } = await getCurrentUserRole();
+    if (!userId || !role) {
+      return { success: false, error: "인증이 필요합니다." };
+    }
+
+    if (attachmentIds.length === 0 || attachmentIds.length > 100) {
+      return { success: false, error: "1~100개의 파일을 선택해주세요." };
+    }
+
+    // 첨부파일 존재 확인
+    const attachments = await repository.findAttachmentsByIds(attachmentIds);
+    if (attachments.length === 0) {
+      return { success: false, error: "첨부파일을 찾을 수 없습니다." };
+    }
+
+    // 채팅방 멤버십 확인
+    const userType = getUserType(role);
+    const roomIds = [...new Set(attachments.map((a) => a.room_id))];
+    for (const rid of roomIds) {
+      const member = await repository.findMember(rid, userId, userType);
+      if (!member) {
+        return { success: false, error: "접근 권한이 없습니다." };
+      }
+    }
+
+    const validIds = attachments.map((a) => a.id);
+    await repository.hideAttachmentsForUser(userId, validIds);
+
+    return { success: true, data: { hiddenCount: validIds.length } };
+  } catch (error) {
+    console.error("[hideAttachmentsAction] Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "파일 숨기기 실패",
     };
   }
 }
