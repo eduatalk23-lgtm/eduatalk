@@ -6,12 +6,14 @@ import { ToastProvider } from "@/components/ui/ToastProvider";
 import { SidebarProvider } from "@/components/layout/SidebarContext";
 import { SubjectHierarchyProvider } from "@/lib/contexts/SubjectHierarchyContext";
 import { AuthProvider } from "@/lib/contexts/AuthContext";
+import { GlobalRefetchIndicator } from "@/components/ui/GlobalRefetchIndicator";
 import { ReactNode } from "react";
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider>
       <QueryProvider>
+        <GlobalRefetchIndicator />
         <AuthProvider>
           <ToastProvider>
             <SidebarProvider>

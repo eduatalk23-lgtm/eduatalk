@@ -10,6 +10,7 @@ import { FloatingChatWidget } from "@/components/chat/FloatingChatWidget";
 import { PushSubscriptionManager } from "@/components/push/PushSubscriptionManager";
 import { PushPermissionBanner } from "@/components/push/PushPermissionBanner";
 import { AppPresenceProvider } from "@/components/push/AppPresenceProvider";
+import NextTopLoader from "nextjs-toploader";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -113,6 +114,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  interactiveWidget: "resizes-content",
   themeColor: "#000000",
 };
 
@@ -126,6 +128,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <NextTopLoader color="rgb(var(--color-primary-600))" height={3} showSpinner={false} shadow={false} />
         <GlobalErrorBoundary>
           <Providers>
             <SkipLink />
