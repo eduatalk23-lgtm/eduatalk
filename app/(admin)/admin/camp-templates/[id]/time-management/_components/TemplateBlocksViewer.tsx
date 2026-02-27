@@ -10,6 +10,7 @@ import type { Block, BlockSet } from "@/lib/types/time-management";
 import { enrichBlockSetWithStats } from "@/lib/utils/timeUtils";
 import { blockFormSchema, isStartTimeBeforeEndTime } from "@/lib/validation/timeSchema";
 import { DAY_NAMES } from "@/lib/utils/timeUtils";
+import Button from "@/components/atoms/Button";
 
 type TemplateBlocksViewerProps = {
   templateId: string;
@@ -35,7 +36,8 @@ export default function TemplateBlocksViewer({
   const router = useRouter();
   const toast = useToast();
   const [creating, setCreating] = useState(false);
-  
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
+
   // 각 블록 세트별 총 시간 계산 (유틸리티 함수 사용)
   const blockSetsWithStats = useMemo(() => {
     return blockSets.map((set) => enrichBlockSetWithStats(set));
@@ -113,13 +115,15 @@ export default function TemplateBlocksViewer({
                       </span>
                     )}
                   </div>
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="xs"
                     onClick={async (e) => {
                       e.stopPropagation();
                       if (!confirm(`"${set.name}" 세트를 삭제하시겠습니까? 포함된 모든 블록도 함께 삭제됩니다.`)) {
                         return;
                       }
+                      setPendingAction(`delete-${set.id}`);
                       try {
                         const { deleteTenantBlockSet } = await import("@/lib/domains/tenant");
                         const formData = new FormData();
@@ -132,11 +136,15 @@ export default function TemplateBlocksViewer({
                       } catch (error: unknown) {
                         const errorMessage = error instanceof Error ? error.message : "세트 삭제에 실패했습니다.";
                         toast.showError(errorMessage);
+                      } finally {
+                        setPendingAction(null);
                       }
                     }}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    isLoading={pendingAction === `delete-${set.id}`}
+                    disabled={pendingAction !== null}
                     aria-label={`${set.name} 세트 삭제`}
                     title="세트 삭제"
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -152,7 +160,7 @@ export default function TemplateBlocksViewer({
                         d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                       />
                     </svg>
-                  </button>
+                  </Button>
                 </div>
 
                 {/* 설명 */}
@@ -192,51 +200,55 @@ export default function TemplateBlocksViewer({
                 {/* 액션 버튼들 - 하단 고정 */}
                 <div className="flex gap-2 mt-auto">
                   {selectedBlockSetId !== set.id && (
-                    <button
-                      type="button"
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="flex-1"
+                      isLoading={pendingAction === `select-${set.id}`}
+                      disabled={pendingAction !== null}
                       onClick={async () => {
                         if (!confirm(`"${set.name}" 블록 세트를 이 템플릿에 연결하시겠습니까?`)) {
                           return;
                         }
+                        setPendingAction(`select-${set.id}`);
                         try {
                           const { updateCampTemplateAction } = await import("@/lib/domains/camp/actions");
-                          // 템플릿 조회
                           const { getCampTemplateById } = await import("@/lib/domains/camp/actions");
                           const templateResult = await getCampTemplateById(templateId);
                           if (!templateResult.success || !templateResult.template) {
                             throw new Error("템플릿을 찾을 수 없습니다.");
                           }
-                          
-                          // template_data 업데이트
+
                           const templateData = (templateResult.template.template_data as Record<string, unknown>) || {};
                           const updatedTemplateData = {
                             ...templateData,
                             block_set_id: set.id,
                           };
-                          
+
                           const formData = new FormData();
                           formData.append("name", templateResult.template.name);
                           formData.append("program_type", templateResult.template.program_type ?? "기타");
                           formData.append("description", templateResult.template.description || "");
                           formData.append("status", templateResult.template.status ?? "draft");
                           formData.append("template_data", JSON.stringify(updatedTemplateData));
-                          
+
                           const result = await updateCampTemplateAction(templateId, formData);
                           if (!result.success) {
                             throw new Error(result.error || "템플릿 업데이트에 실패했습니다.");
                           }
-                          
+
                           toast.showSuccess("블록 세트가 템플릿에 연결되었습니다.");
                           router.refresh();
                         } catch (error: unknown) {
                           const errorMessage = error instanceof Error ? error.message : "블록 세트 연결에 실패했습니다.";
                           toast.showError(errorMessage);
+                        } finally {
+                          setPendingAction(null);
                         }
                       }}
-                      className="flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
                     >
                       선택하기
-                    </button>
+                    </Button>
                   )}
                   <a
                     href={`/admin/camp-templates/${templateId}/time-management/${set.id}`}
@@ -471,21 +483,23 @@ function TemplateBlockSetCreateForm({
           </div>
 
           <div className="flex gap-2">
-            <button
+            <Button
               type="submit"
               disabled={isPending}
-              className="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50"
+              isLoading={isPending}
+              fullWidth
             >
-              {isPending ? "생성 중..." : "생성"}
-            </button>
-            <button
+              생성
+            </Button>
+            <Button
               type="button"
+              variant="outline"
               onClick={onCancel}
               disabled={isPending}
-              className="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors disabled:opacity-50"
+              fullWidth
             >
               취소
-            </button>
+            </Button>
           </div>
         </form>
       </div>

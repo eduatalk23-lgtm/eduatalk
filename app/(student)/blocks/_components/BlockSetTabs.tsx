@@ -11,21 +11,22 @@ import {
 } from "@/lib/domains/block/actions";
 import type { ActionResponse } from "@/lib/types/actionResponse";
 import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
-import { 
-  inputFieldBase, 
-  inlineButtonPrimary, 
-  modalCancelButton, 
-  textPrimary, 
-  textSecondary, 
-  textTertiary, 
-  textMuted, 
-  bgSurface, 
-  borderDefault, 
-  borderInput, 
+import {
+  inputFieldBase,
+  inlineButtonPrimary,
+  modalCancelButton,
+  textPrimary,
+  textSecondary,
+  textTertiary,
+  textMuted,
+  bgSurface,
+  borderDefault,
+  borderInput,
   bgStyles,
   getGrayBgClasses,
 } from "@/lib/utils/darkMode";
 import { cn } from "@/lib/cn";
+import Button from "@/components/atoms/Button";
 
 type BlockSet = {
   id: string;
@@ -264,21 +265,22 @@ function BlockSetCreateForm({
         </div>
 
         <div className="flex gap-2">
-          <button
+          <Button
             type="submit"
-            disabled={isPending}
-            className="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50"
+            isLoading={isPending}
+            fullWidth
           >
-            {isPending ? "생성 중..." : "생성"}
-          </button>
-          <button
+            생성
+          </Button>
+          <Button
             type="button"
+            variant="outline"
             onClick={onCancel}
             disabled={isPending}
-            className={cn("flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50", getGrayBgClasses("dark"), textSecondary, "hover:bg-gray-300 dark:hover:bg-gray-600")}
+            fullWidth
           >
             취소
-          </button>
+          </Button>
         </div>
       </form>
     </div>
@@ -321,21 +323,22 @@ function BlockSetEditForm({ set, onSuccess, onCancel }: BlockSetEditFormProps) {
         required
         maxLength={100}
       />
-      <button
+      <Button
         type="submit"
-        disabled={isPending}
-        className="px-2 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-50"
+        size="xs"
+        isLoading={isPending}
       >
         저장
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
+        variant="outline"
+        size="xs"
         onClick={onCancel}
         disabled={isPending}
-        className={cn("px-2 py-1 text-xs rounded transition-colors disabled:opacity-50", getGrayBgClasses("dark"), textSecondary, "hover:bg-gray-300 dark:hover:bg-gray-600")}
       >
         취소
-      </button>
+      </Button>
     </form>
   );
 }
@@ -402,25 +405,23 @@ function BlockSetDuplicateForm({
         </div>
 
         <div className="flex gap-2">
-          <button
+          <Button
             type="submit"
-            disabled={isPending}
-            className={cn(
-              inlineButtonPrimary(),
-              "flex-1 px-4 py-2 text-sm font-medium disabled:opacity-50",
-              "bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white"
-            )}
+            isLoading={isPending}
+            fullWidth
+            className="bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600"
           >
-            {isPending ? "복제 중..." : "복제"}
-          </button>
-          <button
+            복제
+          </Button>
+          <Button
             type="button"
+            variant="outline"
             onClick={onCancel}
             disabled={isPending}
-            className={cn(modalCancelButton, "flex-1 disabled:opacity-50")}
+            fullWidth
           >
             취소
-          </button>
+          </Button>
         </div>
       </form>
     </div>

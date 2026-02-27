@@ -174,8 +174,9 @@ export function PaymentRefundModal({
           variant="destructive"
           onClick={handleRefund}
           disabled={isPending}
+          isLoading={isPending}
         >
-          {isPending ? "처리 중..." : "환불하기"}
+          환불하기
         </Button>
       </DialogFooter>
     </Dialog>

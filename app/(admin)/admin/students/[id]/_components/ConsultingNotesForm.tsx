@@ -11,6 +11,7 @@ import {
 } from "@/lib/utils/darkMode";
 import { SESSION_TYPE_PRESETS } from "@/lib/domains/consulting/types";
 import { Combobox } from "@/components/ui/Combobox";
+import { SubmitButton } from "@/components/forms/SubmitButton";
 
 type FormState = {
   success?: boolean;
@@ -33,7 +34,7 @@ export function ConsultingNotesForm({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [sessionType, setSessionType] = useState("정기상담");
-  const [state, formAction] = useActionState<FormState, FormData>(
+  const [state, formAction, isPending] = useActionState<FormState, FormData>(
     async (prevState: FormState, formData: FormData) => {
       // Combobox 값을 FormData에 주입
       formData.set("session_type", sessionType.trim() || "정기상담");
@@ -177,12 +178,9 @@ export function ConsultingNotesForm({
         <div className="text-sm text-green-600">상담노트가 저장되었습니다.</div>
       )}
 
-      <button
-        type="submit"
-        className="rounded-lg bg-indigo-600 px-6 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-      >
+      <SubmitButton isPending={isPending} loadingText="저장 중...">
         저장
-      </button>
+      </SubmitButton>
     </form>
   );
 }

@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import type { DayOfWeek } from "@/lib/types/time-management";
 import { blockFormSchema, isStartTimeBeforeEndTime } from "@/lib/validation/timeSchema";
 import { DAY_NAMES } from "@/lib/utils/timeUtils";
+import Button from "@/components/atoms/Button";
 
 type TemplateBlockFormState = {
   error: string | null;
@@ -275,28 +276,28 @@ export default function TemplateBlockForm({
           </div>
 
           <div className="flex gap-2">
-            <button
+            <Button
               type="submit"
               disabled={
-                isPending ||
                 selectedWeekdays.length === 0 ||
                 !startTime ||
                 !endTime ||
                 !!timeError
               }
-              className="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              isLoading={isPending}
+              fullWidth
             >
-              {isPending ? "저장 중..." : "블록 추가하기"}
-            </button>
+              블록 추가하기
+            </Button>
             {onClose && (
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={onClose}
                 disabled={isPending}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-colors disabled:opacity-50"
               >
                 취소
-              </button>
+              </Button>
             )}
           </div>
         </form>
