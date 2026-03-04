@@ -348,5 +348,8 @@ export function calendarEventToMonthlyPlan(
     cycle_day_number: null as number | null,
     color: event.color ?? null,
     calendar_id: event.calendar_id ?? null,
+    rrule: event.rrule ?? null,
+    recurring_event_id: event.recurring_event_id ?? null,
+    is_exception: event.is_exception ?? null,
   };
 }

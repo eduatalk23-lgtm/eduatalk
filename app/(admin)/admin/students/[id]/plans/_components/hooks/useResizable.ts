@@ -127,6 +127,11 @@ export function useResizable({
         if (ended) return;
         ended = true;
 
+        // ★ 콜백을 state 변경 전에 캡처 — setIsResizing(false) 후 React 리렌더로
+        //   onResizeEndRef가 stale 버전으로 업데이트되는 것을 방지
+        const finalHeight = latestHeightRef.current;
+        const callback = onResizeEndRef.current;
+
         setIsResizing(false);
         setResizeHeight(null);
         if (rafRef.current != null) {
@@ -135,9 +140,8 @@ export function useResizable({
         }
         cleanup();
 
-        const finalHeight = latestHeightRef.current;
         if (finalHeight !== startHeightRef.current) {
-          onResizeEndRef.current(finalHeight);
+          callback(finalHeight);
         }
       };
 

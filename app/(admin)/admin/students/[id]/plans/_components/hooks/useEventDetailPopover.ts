@@ -10,6 +10,7 @@ export interface RecurringModalState {
   mode: 'edit' | 'delete';
   planId: string;
   instanceDate: string;
+  exceptionCount?: number;
 }
 
 interface UseEventDetailPopoverOptions {
@@ -34,7 +35,7 @@ interface UseEventDetailPopoverReturn {
   popoverProps: EventDetailPopoverProps | null;
   /** 반복 이벤트 모달 상태 */
   recurringModalState: RecurringModalState | null;
-  showRecurringModal: (mode: 'edit' | 'delete', planId: string, instanceDate: string) => void;
+  showRecurringModal: (mode: 'edit' | 'delete', planId: string, instanceDate: string, exceptionCount?: number) => void;
   closeRecurringModal: () => void;
 }
 
@@ -60,8 +61,8 @@ export function useEventDetailPopover({
     setState(null);
   }, []);
 
-  const showRecurringModal = useCallback((mode: 'edit' | 'delete', planId: string, instanceDate: string) => {
-    setRecurringModalState({ isOpen: true, mode, planId, instanceDate });
+  const showRecurringModal = useCallback((mode: 'edit' | 'delete', planId: string, instanceDate: string, exceptionCount?: number) => {
+    setRecurringModalState({ isOpen: true, mode, planId, instanceDate, exceptionCount });
   }, []);
 
   const closeRecurringModal = useCallback(() => {
@@ -80,18 +81,20 @@ export function useEventDetailPopover({
   // 반복 이벤트 감지 후 모달 트리거 콜백
   const handleRecurringDelete = useCallback(
     (planId: string, instanceDate: string) => {
+      const exceptionCount = state?.plan.exdates?.length ?? 0;
       closePopover();
-      showRecurringModal('delete', planId, instanceDate);
+      showRecurringModal('delete', planId, instanceDate, exceptionCount);
     },
-    [closePopover, showRecurringModal],
+    [closePopover, showRecurringModal, state],
   );
 
   const handleRecurringEdit = useCallback(
     (planId: string, instanceDate: string) => {
+      const exceptionCount = state?.plan.exdates?.length ?? 0;
       closePopover();
-      showRecurringModal('edit', planId, instanceDate);
+      showRecurringModal('edit', planId, instanceDate, exceptionCount);
     },
-    [closePopover, showRecurringModal],
+    [closePopover, showRecurringModal, state],
   );
 
   const popoverProps: EventDetailPopoverProps | null = state

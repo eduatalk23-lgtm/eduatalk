@@ -31,7 +31,7 @@ import {
   TouchSensor,
 } from "@dnd-kit/core";
 import { useToast } from "@/components/ui/ToastProvider";
-import { movePlanToContainer } from "@/lib/domains/calendar/actions/calendarEventActions";
+import { movePlanToContainer, createRecurringException } from "@/lib/domains/calendar/actions/calendarEventActions";
 import { useOptimisticCalendarUpdate } from "@/lib/hooks/useOptimisticCalendarUpdate";
 import DragOverlayContent from "../DragOverlayContent";
 import type {
@@ -193,46 +193,79 @@ export function AdminCalendarDragProvider({
         return;
       }
 
-      // Optimistic Update: 즉시 UI 반영
+      // 서버 액션 호출
+      const isRecurring = !!(planData.rrule || planData.recurringEventId);
+      const isRecurringInstance = isRecurring && !planData.isException;
+
       const startTime = planData.originalStartTime || '00:00';
-      // endTime 계산: estimatedMinutes에서 유도, 없으면 30분 기본
       const minutes = planData.estimatedMinutes ?? 30;
       const [sh, sm] = startTime.split(':').map(Number);
       const totalMin = sh * 60 + sm + minutes;
       const endTime = `${String(Math.floor(totalMin / 60) % 24).padStart(2, '0')}:${String(totalMin % 60).padStart(2, '0')}`;
       const rollback = optimisticDateMove(
-        planData.id,
-        planData.originalDate,
-        targetData.date,
-        startTime,
-        endTime,
-      );
+            planData.id,
+            planData.originalDate,
+            targetData.date,
+            startTime,
+            endTime,
+          );
 
-      // 서버 액션 호출
       startTransition(async () => {
         try {
-          const result = await movePlanToContainer({
-            planId: planData.id,
-            planType: "plan",
-            fromContainer: "daily",
-            toContainer: "daily",
-            studentId,
-            tenantId,
-            targetDate: targetData.date,
-          });
+          if (isRecurringInstance) {
+            // 반복 이벤트 가상 인스턴스: exception 생성 (GCal 동작 — "이 이벤트만")
+            const parentId = planData.recurringEventId ?? planData.id;
+            const startAt = planData.originalStartTime
+              ? `${targetData.date}T${startTime}:00+09:00`
+              : undefined;
+            const endAt = planData.originalStartTime
+              ? `${targetData.date}T${endTime}:00+09:00`
+              : undefined;
 
-          if (result.success) {
-            toast.showToast(
-              `"${planData.title}" 플랜이 ${targetData.date}로 이동되었습니다.`,
-              "success"
-            );
-            revalidate();
+            const result = await createRecurringException({
+              parentEventId: parentId,
+              instanceDate: planData.originalDate,
+              overrides: {
+                start_date: targetData.date,
+                ...(startAt && { start_at: startAt }),
+                ...(endAt && { end_at: endAt }),
+              },
+            });
+
+            if (result.success) {
+              toast.showToast(
+                `"${planData.title}" 반복 일정이 ${targetData.date}로 이동되었습니다.`,
+                "success"
+              );
+              revalidate();
+            } else {
+              rollback();
+              toast.showToast(result.error || "반복 일정 이동에 실패했습니다.", "error");
+            }
           } else {
-            rollback();
-            toast.showToast(
-              result.error || "플랜 이동에 실패했습니다.",
-              "error"
-            );
+            const result = await movePlanToContainer({
+              planId: planData.id,
+              planType: "plan",
+              fromContainer: "daily",
+              toContainer: "daily",
+              studentId,
+              tenantId,
+              targetDate: targetData.date,
+            });
+
+            if (result.success) {
+              toast.showToast(
+                `"${planData.title}" 플랜이 ${targetData.date}로 이동되었습니다.`,
+                "success"
+              );
+              revalidate();
+            } else {
+              rollback();
+              toast.showToast(
+                result.error || "플랜 이동에 실패했습니다.",
+                "error"
+              );
+            }
           }
         } catch (error) {
           console.error("플랜 이동 오류:", error);

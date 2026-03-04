@@ -48,6 +48,14 @@ const SETPOS_OPTIONS = [
   { value: -1, label: '마지막' },
 ];
 
+/** freq별 COUNT 상한 */
+const COUNT_MAX_BY_FREQ: Record<string, number> = {
+  DAILY: 365,
+  WEEKLY: 104,
+  MONTHLY: 60,
+  YEARLY: 10,
+};
+
 // ============================================
 // Helpers
 // ============================================
@@ -98,6 +106,15 @@ export function CustomRecurrenceDialog({
   const [count, setCount] = useState(initial?.count ?? 10);
   const [until, setUntil] = useState(initial?.until ?? '');
 
+  const countMax = COUNT_MAX_BY_FREQ[freq] ?? 999;
+
+  // freq 변경 시 count를 새 상한으로 클램핑
+  const handleFreqChange = useCallback((newFreq: CustomRRuleParams['freq']) => {
+    setFreq(newFreq);
+    const newMax = COUNT_MAX_BY_FREQ[newFreq] ?? 999;
+    setCount((prev) => Math.min(prev, newMax));
+  }, []);
+
   // 미리보기 RRULE
   const previewRRule = useMemo(() => {
     return buildCustomRRule({
@@ -132,9 +149,11 @@ export function CustomRecurrenceDialog({
   };
 
   // Validation
+  const untilBeforeStart = endMode === 'until' && until && eventDate && until < eventDate;
   const isValid = (() => {
     if (freq === 'WEEKLY' && byDay.length === 0) return false;
     if (endMode === 'until' && !until) return false;
+    if (untilBeforeStart) return false;
     if (endMode === 'count' && (!count || count < 1)) return false;
     return true;
   })();
@@ -164,7 +183,7 @@ export function CustomRecurrenceDialog({
               />
               <select
                 value={freq}
-                onChange={(e) => setFreq(e.target.value as CustomRRuleParams['freq'])}
+                onChange={(e) => handleFreqChange(e.target.value as CustomRRuleParams['freq'])}
                 className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
               >
                 {FREQ_OPTIONS.map((opt) => (
@@ -291,8 +310,12 @@ export function CustomRecurrenceDialog({
                   disabled={endMode !== 'until'}
                   className="ml-1"
                   inputSize="sm"
+                  min={eventDate}
                 />
               </span>
+              {untilBeforeStart && (
+                <p className="text-xs text-red-500 ml-6">종료 날짜는 시작 날짜 이후여야 합니다</p>
+              )}
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -307,9 +330,9 @@ export function CustomRecurrenceDialog({
                 <Input
                   type="number"
                   min={1}
-                  max={999}
+                  max={countMax}
                   value={count}
-                  onChange={(e) => setCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                  onChange={(e) => setCount(Math.max(1, Math.min(countMax, parseInt(e.target.value, 10) || 1)))}
                   className="w-16 text-center mx-1"
                   inputSize="sm"
                   disabled={endMode !== 'count'}

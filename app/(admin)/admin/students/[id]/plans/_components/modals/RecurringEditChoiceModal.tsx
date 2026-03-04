@@ -11,6 +11,8 @@ interface RecurringEditChoiceModalProps {
   /** 편집 / 삭제 모드 */
   mode: 'edit' | 'delete';
   onSelect: (scope: RecurringEditScope) => void;
+  /** 이 반복 시리즈의 exception(개별 수정) 개수 */
+  exceptionCount?: number;
 }
 
 /**
@@ -24,6 +26,7 @@ export function RecurringEditChoiceModal({
   onClose,
   mode,
   onSelect,
+  exceptionCount,
 }: RecurringEditChoiceModalProps) {
   const isDelete = mode === 'delete';
   const title = isDelete ? '반복 일정 삭제' : '반복 일정 수정';
@@ -71,6 +74,11 @@ export function RecurringEditChoiceModal({
             <p className="text-xs text-gray-500 mt-0.5">
               이 반복 일정의 모든 항목을 {isDelete ? '삭제' : '수정'}합니다
             </p>
+            {exceptionCount != null && exceptionCount > 0 && (
+              <p className="text-xs text-amber-600 mt-1">
+                개별 수정된 일정 {exceptionCount}개가 {isDelete ? '함께 삭제' : '초기화'}됩니다
+              </p>
+            )}
           </button>
         </div>
       </DialogContent>

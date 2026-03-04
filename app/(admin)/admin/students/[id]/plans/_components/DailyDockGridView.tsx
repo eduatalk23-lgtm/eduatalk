@@ -11,7 +11,7 @@ import { InlineQuickCreate } from './items/InlineQuickCreate';
 import { EventDetailPopover } from './items/EventDetailPopover';
 import { useEventDetailPopover } from './hooks/useEventDetailPopover';
 import { RecurringEditChoiceModal, type RecurringEditScope } from './modals/RecurringEditChoiceModal';
-import { deleteRecurringEvent } from '@/lib/domains/calendar/actions/calendarEventActions';
+import { deleteRecurringEvent, createRecurringException } from '@/lib/domains/calendar/actions/calendarEventActions';
 import { useResizable } from './hooks/useResizable';
 import { useDragToCreate } from './hooks/useDragToCreate';
 import { usePullToRefresh } from './hooks/usePullToRefresh';
@@ -557,34 +557,59 @@ export const DailyDockGridView = memo(function DailyDockGridView({
       const planId = resizingPlanId;
       setResizingPlanId(null);
 
-      // 옵티미스틱: 즉시 UI 반영
+      // 반복 이벤트 가상 인스턴스: exception 생성 (GCal 동작 — "이 이벤트만")
+      const isRecurring = !!(plan.rrule || plan.recurringEventId);
+      const isRecurringInstance = isRecurring && !plan.isException;
+
       const rollback = optimisticTimeChange(planId, selectedDate, newStartTime, newEndTime, newDurationMinutes);
 
       try {
-        await updateItemTime({
-          studentId,
-          calendarId,
-          planDate: selectedDate,
-          itemId: planId,
-          itemType: 'plan',
-          newStartTime,
-          newEndTime,
-          estimatedMinutes: newDurationMinutes,
-        });
+        if (isRecurringInstance) {
+          const parentId = plan.recurringEventId ?? planId;
+          const startAt = `${selectedDate}T${newStartTime}:00+09:00`;
+          const endAt = `${selectedDate}T${newEndTime}:00+09:00`;
+
+          const result = await createRecurringException({
+            parentEventId: parentId,
+            instanceDate: selectedDate,
+            overrides: {
+              start_at: startAt,
+              end_at: endAt,
+            },
+          });
+          if (!result.success) {
+            rollback();
+            return;
+          }
+        } else {
+          await updateItemTime({
+            studentId,
+            calendarId,
+            planDate: selectedDate,
+            itemId: planId,
+            itemType: 'plan',
+            newStartTime,
+            newEndTime,
+            estimatedMinutes: newDurationMinutes,
+          });
+        }
         revalidate();
-        pushUndoable({
-          type: 'resize',
-          planId,
-          studentId,
-          calendarId,
-          planDate: selectedDate,
-          prev: {
-            startTime: prevStartTime,
-            endTime: prevEndTime,
-            estimatedMinutes: prevEstimatedMinutes,
-          },
-          description: '시간이 변경되었습니다.',
-        });
+        // exception 생성 시 undo 불가 (새 ID로 생성되므로 부모 ID로 되돌릴 수 없음)
+        if (!isRecurringInstance) {
+          pushUndoable({
+            type: 'resize',
+            planId,
+            studentId,
+            calendarId,
+            planDate: selectedDate,
+            prev: {
+              startTime: prevStartTime,
+              endTime: prevEndTime,
+              estimatedMinutes: prevEstimatedMinutes,
+            },
+            description: '시간이 변경되었습니다.',
+          });
+        }
       } catch {
         rollback();
       }
@@ -1225,6 +1250,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
         onClose={closeRecurringModal}
         mode={recurringModalState.mode}
         onSelect={handleRecurringScopeSelect}
+        exceptionCount={recurringModalState.exceptionCount}
       />
     )}
     </>

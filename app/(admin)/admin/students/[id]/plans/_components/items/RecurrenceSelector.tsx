@@ -30,11 +30,13 @@ function getPresets(eventDate: string) {
   const weeklyRRule = buildCustomRRule({ freq: 'WEEKLY', byDay: [dayOfWeek] });
   const monthlyRRule = buildCustomRRule({ freq: 'MONTHLY', monthlyMode: 'dayOfMonth', byMonthDay: dayOfMonth });
   const yearlyRRule = buildCustomRRule({ freq: 'YEARLY' });
-  const dailyRRule = buildCustomRRule({ freq: 'DAILY' });
+  const dailyRRule = buildCustomRRule({ freq: 'DAILY', endMode: 'count', count: 90 });
+  const weekdayRRule = buildCustomRRule({ freq: 'WEEKLY', byDay: [1, 2, 3, 4, 5], endMode: 'count', count: 90 });
 
   return [
     { label: '반복 안함', rrule: null },
     { label: '매일', rrule: dailyRRule },
+    { label: '주중 매일 (월~금)', rrule: weekdayRRule },
     { label: `매주 ${DAY_MAP_KO[dayOfWeek]}요일`, rrule: weeklyRRule },
     { label: `매월 ${dayOfMonth}일`, rrule: monthlyRRule },
     { label: `매년 ${month}월 ${dayOfMonth}일`, rrule: yearlyRRule },

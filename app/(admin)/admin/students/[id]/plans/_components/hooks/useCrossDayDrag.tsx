@@ -255,6 +255,18 @@ export function useCrossDayDrag({
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
 
+      // ★ trailing click 방지: 드래그 종료 후 브라우저가 발생시키는 click 이벤트를
+      // 한 번 소비하여 handleGridClick(퀵생성)과의 경합 방지
+      const container = scrollContainerRef?.current;
+      if (container) {
+        const swallowClick = (ev: MouseEvent) => {
+          ev.stopPropagation();
+          ev.preventDefault();
+        };
+        container.addEventListener('click', swallowClick, { capture: true, once: true });
+        setTimeout(() => container.removeEventListener('click', swallowClick, { capture: true }), 300);
+      }
+
       if (!targetDate || !data.plan.startTime) return;
 
       // 드롭 위치의 시간 계산 (GCal 스타일: 잡은 위치 기준 블록 top 유지)
@@ -272,27 +284,27 @@ export function useCrossDayDrag({
       const prevEndTime = data.plan.endTime ?? '';
       const prevEstimatedMinutes = data.plan.estimatedMinutes ?? undefined;
 
-      // 옵티미스틱: 서버 호출 전 즉시 UI 반영
+      // 반복 이벤트: 자동 'this' scope (GCal 동작 — 드래그 시 모달 없이 exception 생성)
+      const isRecurring = !!(data.plan.rrule || data.plan.recurringEventId);
+      const isRecurringInstance = isRecurring && !data.plan.isException;
+
       const rollback = onBeforeMove?.({
-        planId: data.plan.id,
-        sourceDate: data.sourceDate,
-        targetDate,
-        newStartTime,
-        newEndTime,
-        durationMinutes: data.sourceDurationMin,
-      });
+            planId: data.plan.id,
+            sourceDate: data.sourceDate,
+            targetDate,
+            newStartTime,
+            newEndTime,
+            durationMinutes: data.sourceDurationMin,
+          });
 
       try {
-        // 반복 이벤트: 자동 'this' scope (GCal 동작 — 드래그 시 모달 없이 exception 생성)
-        const isRecurring = !!(data.plan.rrule || data.plan.recurringEventId);
-
-        if (isRecurring && !data.plan.isException) {
+        if (isRecurringInstance) {
           // 확장 인스턴스: exception 생성 + 시간/날짜 오버라이드
           const parentId = data.plan.recurringEventId ?? data.plan.id;
           const startAt = `${targetDate}T${newStartTime}:00+09:00`;
           const endAt = `${targetDate}T${newEndTime}:00+09:00`;
 
-          await createRecurringException({
+          const result = await createRecurringException({
             parentEventId: parentId,
             instanceDate: data.sourceDate,
             overrides: {
@@ -301,6 +313,11 @@ export function useCrossDayDrag({
               start_date: targetDate,
             },
           });
+          if (!result.success) {
+            rollback?.();
+            onError?.(result.error || '반복 일정 이동에 실패했습니다.');
+            return;
+          }
           onMoveComplete(data.sourceDate, targetDate);
 
           onUndoPush?.({
@@ -341,31 +358,57 @@ export function useCrossDayDrag({
           });
         } else {
           // 같은 날짜 내 시간만 변경
-          await updateItemTime({
-            studentId,
-            calendarId,
-            planDate: data.sourceDate,
-            itemId: data.plan.id,
-            itemType: 'plan',
-            newStartTime,
-            newEndTime,
-            estimatedMinutes: data.sourceDurationMin,
-          });
+          const isSameDayRecurring = !!(data.plan.rrule || data.plan.recurringEventId) && !data.plan.isException;
+
+          if (isSameDayRecurring) {
+            // 반복 이벤트 가상 인스턴스: exception 생성 (GCal 동작 — "이 이벤트만")
+            const parentId = data.plan.recurringEventId ?? data.plan.id;
+            const startAt = `${data.sourceDate}T${newStartTime}:00+09:00`;
+            const endAt = `${data.sourceDate}T${newEndTime}:00+09:00`;
+
+            const result = await createRecurringException({
+              parentEventId: parentId,
+              instanceDate: data.sourceDate,
+              overrides: {
+                start_at: startAt,
+                end_at: endAt,
+              },
+            });
+            if (!result.success) {
+              rollback?.();
+              onError?.(result.error || '반복 일정 시간 변경에 실패했습니다.');
+              return;
+            }
+          } else {
+            await updateItemTime({
+              studentId,
+              calendarId,
+              planDate: data.sourceDate,
+              itemId: data.plan.id,
+              itemType: 'plan',
+              newStartTime,
+              newEndTime,
+              estimatedMinutes: data.sourceDurationMin,
+            });
+          }
           onMoveComplete(data.sourceDate, data.sourceDate);
 
-          onUndoPush?.({
-            type: 'resize',
-            planId: data.plan.id,
-            studentId,
-            calendarId,
-            planDate: data.sourceDate,
-            prev: {
-              startTime: prevStartTime,
-              endTime: prevEndTime,
-              estimatedMinutes: prevEstimatedMinutes,
-            },
-            description: '시간이 변경되었습니다.',
-          });
+          // exception 생성 시 undo 불가 (새 ID로 생성되므로 부모 ID로 되돌릴 수 없음)
+          if (!isSameDayRecurring) {
+            onUndoPush?.({
+              type: 'resize',
+              planId: data.plan.id,
+              studentId,
+              calendarId,
+              planDate: data.sourceDate,
+              prev: {
+                startTime: prevStartTime,
+                endTime: prevEndTime,
+                estimatedMinutes: prevEstimatedMinutes,
+              },
+              description: '시간이 변경되었습니다.',
+            });
+          }
         }
       } catch {
         rollback?.();
@@ -385,6 +428,7 @@ export function useCrossDayDrag({
       onUndoPush,
       onBeforeMove,
       onError,
+      scrollContainerRef,
     ],
   );
 

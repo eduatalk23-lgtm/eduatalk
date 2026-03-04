@@ -9,7 +9,7 @@ import { WeeklyGridHeader } from './WeeklyGridHeader';
 import { EventDetailPopover } from './items/EventDetailPopover';
 import { useEventDetailPopover } from './hooks/useEventDetailPopover';
 import { RecurringEditChoiceModal, type RecurringEditScope } from './modals/RecurringEditChoiceModal';
-import { deleteRecurringEvent, updateRecurringEvent } from '@/lib/domains/calendar/actions/calendarEventActions';
+import { deleteRecurringEvent, updateRecurringEvent, createRecurringException } from '@/lib/domains/calendar/actions/calendarEventActions';
 import { AllDayItemBar } from './items/AllDayItemBar';
 import { useWeeklyGridData, type DayColumnData } from './hooks/useWeeklyGridData';
 import { useDragToCreate } from './hooks/useDragToCreate';
@@ -37,7 +37,7 @@ import { updateItemTime } from '@/lib/domains/calendar/actions/calendarEventActi
 import { useUndo } from './UndoSnackbar';
 import { usePlanToast } from './PlanToast';
 import { useOptimisticCalendarUpdate } from '@/lib/hooks/useOptimisticCalendarUpdate';
-import type { PlanItemData } from '@/lib/types/planItem';
+import { toPlanItemData, type PlanItemData } from '@/lib/types/planItem';
 import type { PlanStatus } from '@/lib/types/plan';
 import { resolveCalendarColors } from './utils/subjectColors';
 import { cn } from '@/lib/cn';
@@ -214,16 +214,30 @@ export const WeeklyGridView = memo(function WeeklyGridView({
   const [resizingEdge, setResizingEdge] = useState<'top' | 'bottom'>('bottom');
 
   // resizingBlock 탐색: 리사이즈 중인 플랜의 블록 정보를 dayDataMap에서 찾기
+  // ★ plans(study)와 customItems(custom) 모두 검색 — 모든 event_type의 리사이즈 지원
   const resizingBlock = useMemo(() => {
     if (!resizingPlanId || !resizingDate) return null;
     const dayData = dayDataMap.get(resizingDate);
     if (!dayData) return null;
-    const plan = dayData.plans.find(p => p.id === resizingPlanId);
-    if (!plan || !plan.start_time) return null;
-    const startMin = timeToMinutes(plan.start_time.substring(0, 5));
-    const endMin = plan.end_time ? timeToMinutes(plan.end_time.substring(0, 5)) : startMin + 60;
-    return { height: (endMin - startMin) * ppm, startMin, endMin, plan };
-  }, [resizingPlanId, resizingDate, dayDataMap]);
+
+    // 1) DailyPlan (study 이벤트) 검색
+    const dailyPlan = dayData.plans.find(p => p.id === resizingPlanId);
+    if (dailyPlan && dailyPlan.start_time) {
+      const startMin = timeToMinutes(dailyPlan.start_time.substring(0, 5));
+      const endMin = dailyPlan.end_time ? timeToMinutes(dailyPlan.end_time.substring(0, 5)) : startMin + 60;
+      return { height: (endMin - startMin) * ppm, startMin, endMin, plan: toPlanItemData(dailyPlan, 'plan') };
+    }
+
+    // 2) PlanItemData (custom 이벤트) 검색
+    const customPlan = dayData.customItems.find(p => p.id === resizingPlanId);
+    if (customPlan && customPlan.startTime) {
+      const startMin = timeToMinutes(customPlan.startTime.substring(0, 5));
+      const endMin = customPlan.endTime ? timeToMinutes(customPlan.endTime.substring(0, 5)) : startMin + 60;
+      return { height: (endMin - startMin) * ppm, startMin, endMin, plan: customPlan };
+    }
+
+    return null;
+  }, [resizingPlanId, resizingDate, dayDataMap, ppm]);
 
   const { currentHeight: resizeHeight, isResizing, resizeHandleProps: rawResizeHandleProps } = useResizable({
     initialHeight: resizingBlock?.height ?? 60,
@@ -236,12 +250,26 @@ export const WeeklyGridView = memo(function WeeklyGridView({
     snapIncrement: SNAP_MINUTES * ppm,
     edge: resizingEdge,
     onResizeEnd: useCallback(async (newHeightPx: number) => {
+      // ★ trailing click 방지: 리사이즈 종료 후 브라우저가 발생시키는 click 이벤트를
+      // 한 번 소비하여 handleGridClick(퀵생성)과의 경합 방지
+      const container = scrollContainerRef.current;
+      if (container) {
+        const swallowClick = (ev: MouseEvent) => {
+          ev.stopPropagation();
+          ev.preventDefault();
+        };
+        container.addEventListener('click', swallowClick, { capture: true, once: true });
+        setTimeout(() => container.removeEventListener('click', swallowClick, { capture: true }), 300);
+      }
+
       if (!resizingBlock || !resizingPlanId || !resizingDate || !calendarId) return;
       const newDurationMinutes = newHeightPx / ppm;
       const currentEdge = resizingEdge;
 
-      const prevStartTime = resizingBlock.plan.start_time!.substring(0, 5);
-      const prevEndTime = resizingBlock.plan.end_time?.substring(0, 5) ?? minutesToTime(resizingBlock.startMin + 60);
+      // resizingBlock.plan은 PlanItemData (study/custom 모두 통합)
+      const plan = resizingBlock.plan;
+      const prevStartTime = plan.startTime!.substring(0, 5);
+      const prevEndTime = plan.endTime?.substring(0, 5) ?? minutesToTime(resizingBlock.startMin + 60);
       const prevDuration = resizingBlock.height / ppm;
 
       let newStartTime: string;
@@ -257,24 +285,50 @@ export const WeeklyGridView = memo(function WeeklyGridView({
         newEndTime = minutesToTime(resizingBlock.startMin + newDurationMinutes);
       }
 
+      // 반복 이벤트 가상 인스턴스: exception 생성 (GCal 동작 — "이 이벤트만")
+      const isRecurring = !!(plan.rrule || plan.recurringEventId);
+      const isRecurringInstance = isRecurring && !plan.isException;
       const rollback = optimisticTimeChange(resizingPlanId, resizingDate, newStartTime, newEndTime, newDurationMinutes);
       try {
-        await updateItemTime({
-          studentId, calendarId, planDate: resizingDate,
-          itemId: resizingPlanId, itemType: 'plan',
-          newStartTime, newEndTime,
-          estimatedMinutes: newDurationMinutes,
-        });
+        if (isRecurringInstance) {
+          const parentId = plan.recurringEventId ?? resizingPlanId;
+          const startAt = `${resizingDate}T${newStartTime}:00+09:00`;
+          const endAt = `${resizingDate}T${newEndTime}:00+09:00`;
+
+          const result = await createRecurringException({
+            parentEventId: parentId,
+            instanceDate: resizingDate,
+            overrides: {
+              start_at: startAt,
+              end_at: endAt,
+            },
+          });
+          if (!result.success) {
+            rollback();
+            showToast(result.error || '반복 일정 리사이즈 실패', 'error');
+            return;
+          }
+        } else {
+          await updateItemTime({
+            studentId, calendarId, planDate: resizingDate,
+            itemId: resizingPlanId, itemType: 'plan',
+            newStartTime, newEndTime,
+            estimatedMinutes: newDurationMinutes,
+          });
+        }
         revalidate();
-        pushUndoable({
-          type: 'resize',
-          planId: resizingPlanId,
-          studentId,
-          calendarId,
-          planDate: resizingDate,
-          prev: { startTime: prevStartTime, endTime: prevEndTime, estimatedMinutes: prevDuration },
-          description: '리사이즈 완료',
-        });
+        // exception 생성 시 undo 불가 (새 ID로 생성되므로 부모 ID로 되돌릴 수 없음)
+        if (!isRecurringInstance) {
+          pushUndoable({
+            type: 'resize',
+            planId: resizingPlanId,
+            studentId,
+            calendarId,
+            planDate: resizingDate,
+            prev: { startTime: prevStartTime, endTime: prevEndTime, estimatedMinutes: prevDuration },
+            description: '리사이즈 완료',
+          });
+        }
       } catch {
         rollback();
         showToast('리사이즈 실패', 'error');
@@ -1254,6 +1308,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
           onClose={closeRecurringModal}
           mode={recurringModalState.mode}
           onSelect={handleRecurringScopeSelect}
+          exceptionCount={recurringModalState.exceptionCount}
         />
       )}
     </div>

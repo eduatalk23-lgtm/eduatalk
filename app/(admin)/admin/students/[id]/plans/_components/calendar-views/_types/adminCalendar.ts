@@ -57,6 +57,12 @@ export type CalendarPlan = Pick<
   color?: string | null;
   /** 이벤트가 속한 캘린더 ID (캘린더 색상 해석용) */
   calendar_id?: string | null;
+  /** RRULE 반복 규칙 */
+  rrule?: string | null;
+  /** 반복 이벤트 부모 ID */
+  recurring_event_id?: string | null;
+  /** exception 레코드 여부 */
+  is_exception?: boolean | null;
 };
 
 /**
@@ -153,6 +159,12 @@ export type DraggableAdminPlanData = {
   calendarId?: string | null;
   /** 해석된 캘린더 색상 hex (drag overlay 표시용) */
   calendarColor?: string | null;
+  /** RRULE 반복 규칙 */
+  rrule?: string | null;
+  /** 반복 이벤트 부모 ID */
+  recurringEventId?: string | null;
+  /** exception 레코드 여부 */
+  isException?: boolean | null;
 };
 
 /**

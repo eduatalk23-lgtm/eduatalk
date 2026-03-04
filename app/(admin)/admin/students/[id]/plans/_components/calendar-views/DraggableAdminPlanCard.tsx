@@ -98,6 +98,9 @@ function DraggableAdminPlanCardComponent({
     color: plan.color,
     calendarId: plan.calendar_id,
     calendarColor,
+    rrule: plan.rrule ?? null,
+    recurringEventId: plan.recurring_event_id ?? null,
+    isException: plan.is_exception ?? null,
   };
 
   const {

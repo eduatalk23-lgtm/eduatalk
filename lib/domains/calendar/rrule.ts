@@ -7,8 +7,32 @@
  * @module lib/domains/calendar/rrule
  */
 
-import { RRule, rrulestr } from 'rrule';
+import { rrulestr } from 'rrule';
 import type { CalendarEventWithStudyData } from './types';
+
+/** RRULE 파싱 결과 LRU 캐시 (module-level, Map insertion order + 히트 시 재삽입) */
+const RRULE_CACHE_MAX = 200;
+const rruleCache = new Map<string, ReturnType<typeof rrulestr>>();
+
+function getCachedRule(fullRuleStr: string, dtstartDate: Date) {
+  const key = `${fullRuleStr}|${dtstartDate.toISOString()}`;
+  const cached = rruleCache.get(key);
+  if (cached) {
+    // LRU: 히트 시 최신 위치로 이동
+    rruleCache.delete(key);
+    rruleCache.set(key, cached);
+    return cached;
+  }
+
+  const rule = rrulestr(fullRuleStr, { dtstart: dtstartDate });
+
+  if (rruleCache.size >= RRULE_CACHE_MAX) {
+    const firstKey = rruleCache.keys().next().value;
+    if (firstKey !== undefined) rruleCache.delete(firstKey);
+  }
+  rruleCache.set(key, rule);
+  return rule;
+}
 
 /**
  * 반복 이벤트 인스턴스 (확장된 개별 발생)
@@ -25,40 +49,87 @@ export interface ExpandedEventInstance extends CalendarEventWithStudyData {
   _is_expanded: boolean;
 }
 
+/** KST offset (UTC+9) */
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
 /**
- * 날짜 문자열을 RRULE 호환 Date 객체로 변환
- * KST(+09:00) 시간대를 UTC로 변환하지 않고 로컬 시간으로 처리
+ * 날짜 문자열을 RRULE 호환 Date 객체로 변환 (UTC 자정)
+ *
+ * rrule.js v2.x는 내부적으로 UTC 기반으로 동작하므로
+ * Date.UTC()로 생성해야 요일 계산이 정확합니다.
  */
-function parseLocalDate(dateStr: string): Date {
-  // YYYY-MM-DD or YYYY-MM-DDT... 형식
+function parseUTCDate(dateStr: string): Date {
   const [datePart] = dateStr.split('T');
   const [y, m, d] = datePart.split('-').map(Number);
-  return new Date(y, m - 1, d);
+  return new Date(Date.UTC(y, m - 1, d));
 }
 
 /**
- * Date 객체를 YYYY-MM-DD 형식으로 변환
+ * Date 객체를 YYYY-MM-DD 형식으로 변환 (UTC 기준)
+ *
+ * rrule.js가 반환하는 Date는 UTC 기준이므로 getUTC* 메서드를 사용합니다.
  */
 function formatDate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(date.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
+}
+
+/**
+ * ISO timestamptz에서 KST YYYY-MM-DD 추출
+ *
+ * Supabase PostgREST는 timestamptz를 UTC로 반환하므로
+ * split('T')[0]은 09:00 KST 미만 이벤트에서 전날 날짜를 반환합니다.
+ * 이 함수는 항상 KST 날짜를 정확히 반환합니다.
+ */
+function extractKSTDate(isoString: string): string {
+  const d = new Date(isoString);
+  const kst = new Date(d.getTime() + KST_OFFSET_MS);
+  const yyyy = kst.getUTCFullYear();
+  const mm = String(kst.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(kst.getUTCDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 /**
  * 시간 이벤트의 start_at/end_at을 새 날짜로 시프트
  *
- * @example shiftTimestamp("2026-02-22T09:00:00+09:00", "2026-02-22", "2026-03-01")
- *          → "2026-03-01T09:00:00+09:00"
+ * KST 기준 날짜 차이를 ms로 계산하여 정확히 시프트합니다.
+ * UTC 날짜와 KST 날짜가 다른 경우(09:00 KST 미만)에도 안전합니다.
+ *
+ * @example shiftTimestamp("2026-03-01T22:00:00+00:00", "2026-03-02", "2026-03-09")
+ *          → "2026-03-08T22:00:00+00:00" (둘 다 KST 07:00, Mon→Mon)
  */
-function shiftTimestamp(
+export function shiftTimestamp(
   original: string,
-  originalDate: string,
-  newDate: string,
+  originalKSTDate: string,
+  newKSTDate: string,
 ): string {
-  // 단순 날짜 부분 교체 (시간+오프셋은 유지)
-  return original.replace(originalDate, newDate);
+  const origMs = Date.parse(original);
+  const origDayMs = parseUTCDate(originalKSTDate).getTime();
+  const newDayMs = parseUTCDate(newKSTDate).getTime();
+  const diffMs = newDayMs - origDayMs;
+  const shifted = new Date(origMs + diffMs);
+  return shifted.toISOString().replace('Z', '+00:00');
+}
+
+/**
+ * all-day 이벤트의 end_date를 새 start_date 기준으로 시프트 (기간 보존)
+ *
+ * @example shiftEndDate("2026-03-04", "2026-03-06", "2026-03-10")
+ *          → "2026-03-12" (2일 기간 유지)
+ */
+export function shiftEndDate(
+  originalStartDate: string,
+  originalEndDate: string,
+  newStartDate: string,
+): string {
+  const startMs = parseUTCDate(originalStartDate).getTime();
+  const endMs = parseUTCDate(originalEndDate).getTime();
+  const durationMs = endMs - startMs;
+  const newStartMs = parseUTCDate(newStartDate).getTime();
+  return formatDate(new Date(newStartMs + durationMs));
 }
 
 /**
@@ -79,26 +150,36 @@ export function expandRRule(
   exdates?: string[] | null,
 ): string[] {
   try {
-    const dtstartDate = parseLocalDate(dtstart);
-    const afterDate = parseLocalDate(rangeStart);
-    const beforeDate = parseLocalDate(rangeEnd);
+    const dtstartDate = parseUTCDate(dtstart);
+    const afterDate = parseUTCDate(rangeStart);
+    const beforeDate = parseUTCDate(rangeEnd);
     // 범위를 하루 더 확장 (inclusive)
-    beforeDate.setDate(beforeDate.getDate() + 1);
+    beforeDate.setUTCDate(beforeDate.getUTCDate() + 1);
 
     // RRULE에 DTSTART가 없으면 추가
     const fullRuleStr = rruleStr.startsWith('RRULE:')
       ? rruleStr
       : `RRULE:${rruleStr}`;
 
-    const rule = rrulestr(fullRuleStr, { dtstart: dtstartDate });
+    const rule = getCachedRule(fullRuleStr, dtstartDate);
     const occurrences = rule.between(afterDate, beforeDate, true);
+
+    // 안전 상한: 무제한 DAILY 등으로 인한 성능 저하 방지
+    const MAX_INSTANCES = 500;
+    if (occurrences.length > MAX_INSTANCES) {
+      occurrences.length = MAX_INSTANCES;
+    }
 
     const exdateSet = new Set(exdates ?? []);
     return occurrences
       .map((d) => formatDate(d))
       .filter((d) => !exdateSet.has(d));
   } catch {
-    // RRULE 파싱 실패 시 빈 배열 반환
+    // RRULE 파싱 실패 시 DTSTART가 범위 내면 단일 인스턴스 반환
+    const fallbackDate = dtstart.slice(0, 10);
+    if (fallbackDate >= rangeStart && fallbackDate <= rangeEnd) {
+      return [fallbackDate];
+    }
     return [];
   }
 }
@@ -128,12 +209,16 @@ export function expandRecurringEvents(
   const exceptionMap = new Map<string, CalendarEventWithStudyData>();
   for (const event of events) {
     if (event.is_exception && event.recurring_event_id) {
-      const date = event.start_date ?? event.start_at?.split('T')[0] ?? '';
+      const date = event.start_date
+        ?? (event.start_at ? extractKSTDate(event.start_at) : '');
       if (date) {
         exceptionMap.set(`${event.recurring_event_id}:${date}`, event);
       }
     }
   }
+
+  // 사용된 exception 키 추적 (exdate로 인해 occurrence에서 누락된 exception 감지용)
+  const usedExceptionKeys = new Set<string>();
 
   for (const event of events) {
     // exception 이벤트는 별도 처리 (아래 반복에서 삽입)
@@ -145,8 +230,9 @@ export function expandRecurringEvents(
       continue;
     }
 
-    // 반복 이벤트: RRULE 확장
-    const dtstart = event.start_date ?? event.start_at?.split('T')[0] ?? '';
+    // 반복 이벤트: RRULE 확장 (KST 날짜 기준)
+    const dtstart = event.start_date
+      ?? (event.start_at ? extractKSTDate(event.start_at) : '');
     if (!dtstart) {
       result.push(event); // dtstart를 알 수 없으면 원본 유지
       continue;
@@ -166,6 +252,7 @@ export function expandRecurringEvents(
       const exception = exceptionMap.get(exceptionKey);
       if (exception) {
         result.push(exception);
+        usedExceptionKeys.add(exceptionKey);
         continue;
       }
 
@@ -174,8 +261,8 @@ export function expandRecurringEvents(
         ...event,
         // 날짜 필드 시프트
         start_date: event.start_date ? occDate : null,
-        end_date: event.end_date
-          ? occDate // all-day 단일날: 같은 날짜
+        end_date: event.end_date && event.start_date
+          ? shiftEndDate(event.start_date, event.end_date, occDate)
           : null,
         start_at: event.start_at
           ? shiftTimestamp(event.start_at, dtstart, occDate)
@@ -188,6 +275,20 @@ export function expandRecurringEvents(
       };
 
       result.push(instance);
+    }
+  }
+
+  // exdate로 인해 occurrence 목록에서 누락된 exception 추가
+  // (드래그/리사이즈 시 exdate가 추가되지만 expandRRule이 해당 날짜를 필터링하므로
+  //  exception이 결과에 포함되지 않는 버그 수정)
+  for (const [key, exception] of exceptionMap) {
+    if (!usedExceptionKeys.has(key)) {
+      // 범위 내에 있는 exception만 추가
+      const exDate = exception.start_date
+        ?? (exception.start_at ? extractKSTDate(exception.start_at) : '');
+      if (exDate && exDate >= rangeStart && exDate <= rangeEnd) {
+        result.push(exception);
+      }
     }
   }
 
@@ -438,4 +539,62 @@ export function parseCustomRRule(rruleStr: string | null | undefined): CustomRRu
   }
 
   return params;
+}
+
+/**
+ * this_and_following 분할 시 부모/새시리즈 RRULE을 계산합니다.
+ *
+ * - 부모: COUNT 제거 → UNTIL=(splitDate 전날) 설정
+ * - 새 시리즈:
+ *   - 원본 COUNT → remaining = originalCount - usedCount
+ *   - 원본 UNTIL → 그대로 유지
+ *   - 원본 never → never 유지
+ */
+export function buildSplitRRules(
+  originalRrule: string,
+  dtstart: string,
+  splitDate: string,
+): { parentRrule: string; newSeriesRrule: string } {
+  const parsed = parseCustomRRule(originalRrule);
+  if (!parsed) return { parentRrule: originalRrule, newSeriesRrule: originalRrule };
+
+  // prevDay 계산 (splitDate - 1일, UTC 기반으로 통일)
+  const splitUTC = parseUTCDate(splitDate);
+  splitUTC.setUTCDate(splitUTC.getUTCDate() - 1);
+  const prevDayStr = formatDate(splitUTC);
+
+  // Parent: 항상 UNTIL로 종료, COUNT 제거
+  const parentRrule = buildCustomRRule({
+    ...parsed,
+    endMode: 'until',
+    until: prevDayStr,
+    count: undefined,
+  });
+
+  // New series: 원본 종료조건에 따라 결정
+  let newSeriesRrule: string;
+  if (parsed.endMode === 'count' && parsed.count) {
+    // expandRRule로 splitDate 이전 실제 발생 횟수 계산
+    const usedDates = expandRRule(originalRrule, dtstart, dtstart, prevDayStr);
+    const remaining = Math.max(parsed.count - usedDates.length, 1);
+    newSeriesRrule = buildCustomRRule({
+      ...parsed,
+      endMode: 'count',
+      count: remaining,
+      until: undefined,
+    });
+  } else if (parsed.endMode === 'until') {
+    // 원본 UNTIL 유지
+    newSeriesRrule = buildCustomRRule({ ...parsed });
+  } else {
+    // never → 그대로
+    newSeriesRrule = buildCustomRRule({
+      ...parsed,
+      endMode: 'never',
+      count: undefined,
+      until: undefined,
+    });
+  }
+
+  return { parentRrule, newSeriesRrule };
 }

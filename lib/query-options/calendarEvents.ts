@@ -15,6 +15,16 @@ import type {
 import { searchCalendarEventsAction } from '@/lib/domains/admin-plan/actions/searchCalendarEvents';
 
 // ============================================
+// RRULE cutoff: 2년 이전 반복 이벤트는 fetch하지 않음
+// ============================================
+
+function getRRuleCutoff(): string {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 2);
+  return formatDateString(d);
+}
+
+// ============================================
 // Query Key Factory
 // ============================================
 
@@ -131,6 +141,7 @@ export function dailyCalendarEventsQueryOptions(calendarId: string, date: string
   return queryOptions({
     queryKey: calendarEventKeys.daily(calendarId, date),
     queryFn: async (): Promise<CalendarEventWithStudyData[]> => {
+      const cutoff = getRRuleCutoff();
       const supabase = createSupabaseBrowserClient();
       const { data, error } = await supabase
         .from('calendar_events')
@@ -139,7 +150,9 @@ export function dailyCalendarEventsQueryOptions(calendarId: string, date: string
         .is('deleted_at', null)
         .or(
           `and(is_all_day.eq.false,start_at.gte.${date}T00:00:00+09:00,start_at.lte.${date}T23:59:59+09:00),` +
-          `and(is_all_day.eq.true,start_date.gte.${date},start_date.lte.${date})`
+          `and(is_all_day.eq.true,start_date.gte.${date},start_date.lte.${date}),` +
+          `and(rrule.not.is.null,is_all_day.eq.false,start_at.gte.${cutoff}T00:00:00+09:00,start_at.lte.${date}T23:59:59+09:00),` +
+          `and(rrule.not.is.null,is_all_day.eq.true,start_date.gte.${cutoff},start_date.lte.${date})`
         )
         .order('start_at', { ascending: true, nullsFirst: false })
         .order('order_index', { ascending: true });
@@ -155,6 +168,7 @@ export function dailyCalendarEventsQueryOptions(calendarId: string, date: string
 /**
  * 주간 캘린더 이벤트 조회
  * weekStart ~ weekEnd 범위 내 이벤트 (시간 + 종일)
+ * 반복 이벤트 마스터도 포함 (cutoff ~ weekEnd 범위의 rrule 이벤트)
  */
 export function weeklyCalendarEventsQueryOptions(
   calendarId: string,
@@ -164,6 +178,7 @@ export function weeklyCalendarEventsQueryOptions(
   return queryOptions({
     queryKey: calendarEventKeys.weekly(calendarId, weekStart, weekEnd),
     queryFn: async (): Promise<CalendarEventWithStudyData[]> => {
+      const cutoff = getRRuleCutoff();
       const supabase = createSupabaseBrowserClient();
       const { data, error } = await supabase
         .from('calendar_events')
@@ -172,7 +187,9 @@ export function weeklyCalendarEventsQueryOptions(
         .is('deleted_at', null)
         .or(
           `and(is_all_day.eq.false,start_at.gte.${weekStart}T00:00:00+09:00,start_at.lte.${weekEnd}T23:59:59+09:00),` +
-          `and(is_all_day.eq.true,start_date.gte.${weekStart},start_date.lte.${weekEnd})`
+          `and(is_all_day.eq.true,start_date.gte.${weekStart},start_date.lte.${weekEnd}),` +
+          `and(rrule.not.is.null,is_all_day.eq.false,start_at.gte.${cutoff}T00:00:00+09:00,start_at.lte.${weekEnd}T23:59:59+09:00),` +
+          `and(rrule.not.is.null,is_all_day.eq.true,start_date.gte.${cutoff},start_date.lte.${weekEnd})`
         )
         .order('start_at', { ascending: true, nullsFirst: false })
         .order('order_index', { ascending: true });
@@ -188,6 +205,7 @@ export function weeklyCalendarEventsQueryOptions(
 /**
  * 월간 캘린더 이벤트 조회
  * monthStart ~ monthEnd 범위 내 이벤트
+ * 반복 이벤트 마스터도 포함 (cutoff ~ monthEnd 범위의 rrule 이벤트)
  */
 export function monthlyCalendarEventsQueryOptions(
   calendarId: string,
@@ -197,6 +215,7 @@ export function monthlyCalendarEventsQueryOptions(
   return queryOptions({
     queryKey: calendarEventKeys.monthly(calendarId, monthStart, monthEnd),
     queryFn: async (): Promise<CalendarEventWithStudyData[]> => {
+      const cutoff = getRRuleCutoff();
       const supabase = createSupabaseBrowserClient();
       const { data, error } = await supabase
         .from('calendar_events')
@@ -205,7 +224,9 @@ export function monthlyCalendarEventsQueryOptions(
         .is('deleted_at', null)
         .or(
           `and(is_all_day.eq.false,start_at.gte.${monthStart}T00:00:00+09:00,start_at.lte.${monthEnd}T23:59:59+09:00),` +
-          `and(is_all_day.eq.true,start_date.gte.${monthStart},start_date.lte.${monthEnd})`
+          `and(is_all_day.eq.true,start_date.gte.${monthStart},start_date.lte.${monthEnd}),` +
+          `and(rrule.not.is.null,is_all_day.eq.false,start_at.gte.${cutoff}T00:00:00+09:00,start_at.lte.${monthEnd}T23:59:59+09:00),` +
+          `and(rrule.not.is.null,is_all_day.eq.true,start_date.gte.${cutoff},start_date.lte.${monthEnd})`
         )
         .order('start_at', { ascending: true, nullsFirst: false })
         .order('order_index', { ascending: true });
@@ -288,6 +309,7 @@ export function multiWeeklyCalendarEventsQueryOptions(
     queryKey: calendarEventKeys.multiWeekly(calendarIds, weekStart, weekEnd),
     queryFn: async (): Promise<CalendarEventWithStudyData[]> => {
       if (calendarIds.length === 0) return [];
+      const cutoff = getRRuleCutoff();
       const supabase = createSupabaseBrowserClient();
       const { data, error } = await supabase
         .from('calendar_events')
@@ -296,7 +318,9 @@ export function multiWeeklyCalendarEventsQueryOptions(
         .is('deleted_at', null)
         .or(
           `and(is_all_day.eq.false,start_at.gte.${weekStart}T00:00:00+09:00,start_at.lte.${weekEnd}T23:59:59+09:00),` +
-          `and(is_all_day.eq.true,start_date.gte.${weekStart},start_date.lte.${weekEnd})`
+          `and(is_all_day.eq.true,start_date.gte.${weekStart},start_date.lte.${weekEnd}),` +
+          `and(rrule.not.is.null,is_all_day.eq.false,start_at.gte.${cutoff}T00:00:00+09:00,start_at.lte.${weekEnd}T23:59:59+09:00),` +
+          `and(rrule.not.is.null,is_all_day.eq.true,start_date.gte.${cutoff},start_date.lte.${weekEnd})`
         )
         .order('start_at', { ascending: true, nullsFirst: false })
         .order('order_index', { ascending: true });
@@ -320,6 +344,7 @@ export function multiDailyCalendarEventsQueryOptions(
     queryKey: calendarEventKeys.multiDaily(calendarIds, date),
     queryFn: async (): Promise<CalendarEventWithStudyData[]> => {
       if (calendarIds.length === 0) return [];
+      const cutoff = getRRuleCutoff();
       const supabase = createSupabaseBrowserClient();
       const { data, error } = await supabase
         .from('calendar_events')
@@ -328,7 +353,9 @@ export function multiDailyCalendarEventsQueryOptions(
         .is('deleted_at', null)
         .or(
           `and(is_all_day.eq.false,start_at.gte.${date}T00:00:00+09:00,start_at.lte.${date}T23:59:59+09:00),` +
-          `and(is_all_day.eq.true,start_date.gte.${date},start_date.lte.${date})`
+          `and(is_all_day.eq.true,start_date.gte.${date},start_date.lte.${date}),` +
+          `and(rrule.not.is.null,is_all_day.eq.false,start_at.gte.${cutoff}T00:00:00+09:00,start_at.lte.${date}T23:59:59+09:00),` +
+          `and(rrule.not.is.null,is_all_day.eq.true,start_date.gte.${cutoff},start_date.lte.${date})`
         )
         .order('start_at', { ascending: true, nullsFirst: false })
         .order('order_index', { ascending: true });
@@ -354,6 +381,7 @@ export function multiMonthlyCalendarEventsQueryOptions(
     queryKey: calendarEventKeys.multiMonthly(calendarIds, monthStart, monthEnd),
     queryFn: async (): Promise<CalendarEventWithStudyData[]> => {
       if (calendarIds.length === 0) return [];
+      const cutoff = getRRuleCutoff();
       const supabase = createSupabaseBrowserClient();
       const { data, error } = await supabase
         .from('calendar_events')
@@ -362,7 +390,9 @@ export function multiMonthlyCalendarEventsQueryOptions(
         .is('deleted_at', null)
         .or(
           `and(is_all_day.eq.false,start_at.gte.${monthStart}T00:00:00+09:00,start_at.lte.${monthEnd}T23:59:59+09:00),` +
-          `and(is_all_day.eq.true,start_date.gte.${monthStart},start_date.lte.${monthEnd})`
+          `and(is_all_day.eq.true,start_date.gte.${monthStart},start_date.lte.${monthEnd}),` +
+          `and(rrule.not.is.null,is_all_day.eq.false,start_at.gte.${cutoff}T00:00:00+09:00,start_at.lte.${monthEnd}T23:59:59+09:00),` +
+          `and(rrule.not.is.null,is_all_day.eq.true,start_date.gte.${cutoff},start_date.lte.${monthEnd})`
         )
         .order('start_at', { ascending: true, nullsFirst: false })
         .order('order_index', { ascending: true });

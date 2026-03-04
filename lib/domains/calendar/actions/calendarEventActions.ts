@@ -14,6 +14,7 @@ import { logActionError, logActionDebug } from '@/lib/logging/actionLogger';
 import { calculateUnifiedReorder } from '@/lib/domains/plan/utils/unifiedReorderCalculation';
 import { revalidatePath } from 'next/cache';
 import { extractTimeHHMM, extractDateYMD } from '../adapters';
+import { shiftTimestamp, shiftEndDate, buildSplitRRules } from '../rrule';
 import type { EventStatus, ContainerType } from '../types';
 import type { AdminPlanResponse } from '@/lib/domains/admin-plan/types';
 import type {
@@ -420,13 +421,13 @@ export async function createRecurringException(params: {
       return { success: false, error: fetchError?.message ?? '부모 이벤트를 찾을 수 없습니다.' };
     }
 
-    // 부모의 원본 날짜 (dtstart)
-    const parentDate = parent.start_date ?? parent.start_at?.split('T')[0] ?? '';
+    // 부모의 원본 날짜 (dtstart) — KST 기준으로 추출 (UTC split('T')[0]은 새벽 KST에서 전날 반환)
+    const parentDate = parent.start_date ?? extractDateYMD(parent.start_at) ?? '';
 
-    // 시간 시프트: 부모의 날짜를 instanceDate로 교체
+    // 시간 시프트: KST 날짜 차이 기반으로 정확히 시프트
     const shiftTs = (ts: string | null) => {
       if (!ts || !parentDate) return ts;
-      return ts.replace(parentDate, params.instanceDate);
+      return shiftTimestamp(ts, parentDate, params.instanceDate);
     };
 
     // exception 레코드 삽입
@@ -447,10 +448,22 @@ export async function createRecurringException(params: {
       start_at: shiftTs(parent.start_at),
       end_at: shiftTs(parent.end_at),
       start_date: parent.start_date ? params.instanceDate : null,
-      end_date: parent.end_date ? params.instanceDate : null,
+      end_date: parent.end_date && parent.start_date
+        ? shiftEndDate(parent.start_date, parent.end_date, params.instanceDate)
+        : null,
       exdates: null,
       ...(params.overrides ?? {}),
     };
+
+    // DB constraint: chk_event_time_consistency 강제
+    // is_all_day=false → start_date/end_date NULL, is_all_day=true → start_at/end_at NULL
+    if (exceptionData.is_all_day) {
+      exceptionData.start_at = null;
+      exceptionData.end_at = null;
+    } else {
+      exceptionData.start_date = null;
+      exceptionData.end_date = null;
+    }
 
     const { data: inserted, error: insertError } = await supabase
       .from('calendar_events')
@@ -542,7 +555,7 @@ export async function deleteRecurringEvent({
     // 이벤트 조회 — exception이면 부모 ID 추적
     const { data: event, error: fetchError } = await supabase
       .from('calendar_events')
-      .select('id, rrule, recurring_event_id, is_exception, exdates')
+      .select('id, rrule, recurring_event_id, is_exception, exdates, start_date, start_at')
       .eq('id', eventId)
       .single();
 
@@ -556,15 +569,17 @@ export async function deleteRecurringEvent({
     // 부모 이벤트 조회 (exception인 경우)
     let parentRrule = event.rrule;
     let parentExdates = (event.exdates as string[]) ?? [];
+    let parentStartDate = event.start_date ?? extractDateYMD(event.start_at) ?? '';
     if (!isParent) {
       const { data: parent } = await supabase
         .from('calendar_events')
-        .select('rrule, exdates')
+        .select('rrule, exdates, start_date, start_at')
         .eq('id', parentId)
         .single();
       if (parent) {
         parentRrule = parent.rrule;
         parentExdates = (parent.exdates as string[]) ?? [];
+        parentStartDate = parent.start_date ?? extractDateYMD(parent.start_at) ?? '';
       }
     }
 
@@ -608,19 +623,12 @@ export async function deleteRecurringEvent({
         }
       }
     } else if (scope === 'this_and_following') {
-      // 부모 RRULE에 UNTIL 추가 (instanceDate 전날)
-      if (parentRrule) {
-        const prevDay = new Date(instanceDate + 'T00:00:00');
-        prevDay.setDate(prevDay.getDate() - 1);
-        const untilStr = prevDay.toISOString().split('T')[0].replace(/-/g, '');
-
-        // 기존 UNTIL 제거 후 새 UNTIL 추가
-        const cleanedRrule = parentRrule.replace(/;?UNTIL=\d{8}(T\d{6}Z?)?/g, '');
-        const newRrule = `${cleanedRrule};UNTIL=${untilStr}`;
-
+      // buildSplitRRules로 부모 RRULE 분할 (COUNT 보정 포함)
+      if (parentRrule && parentStartDate) {
+        const { parentRrule: truncatedRrule } = buildSplitRRules(parentRrule, parentStartDate, instanceDate);
         await supabase
           .from('calendar_events')
-          .update({ rrule: newRrule })
+          .update({ rrule: truncatedRrule })
           .eq('id', parentId);
       }
 
@@ -634,7 +642,7 @@ export async function deleteRecurringEvent({
 
       if (exceptions) {
         for (const exc of exceptions) {
-          const excDate = exc.start_date ?? exc.start_at?.split('T')[0] ?? '';
+          const excDate = exc.start_date ?? extractDateYMD(exc.start_at) ?? '';
           if (excDate >= instanceDate) {
             await supabase
               .from('calendar_events')
@@ -768,18 +776,17 @@ export async function updateRecurringEvent({
 
       if (!parent) return { success: false, error: '부모 이벤트를 찾을 수 없습니다.' };
 
-      // 부모 RRULE에 UNTIL 추가
-      if (parent.rrule) {
-        const prevDay = new Date(instanceDate + 'T00:00:00');
-        prevDay.setDate(prevDay.getDate() - 1);
-        const untilStr = prevDay.toISOString().split('T')[0].replace(/-/g, '');
-        const cleanedRrule = parent.rrule.replace(/;?UNTIL=\d{8}(T\d{6}Z?)?/g, '');
-        const newRrule = `${cleanedRrule};UNTIL=${untilStr}`;
+      // RRULE 분할 계산 (COUNT 보정 포함)
+      const parentDate = parent.start_date ?? extractDateYMD(parent.start_at) ?? '';
+      let newSeriesRrule = parent.rrule;
 
+      if (parent.rrule && parentDate) {
+        const split = buildSplitRRules(parent.rrule, parentDate, instanceDate);
         await supabase
           .from('calendar_events')
-          .update({ rrule: newRrule })
+          .update({ rrule: split.parentRrule })
           .eq('id', parentId);
+        newSeriesRrule = split.newSeriesRrule;
       }
 
       // 이후 exception들 soft-delete
@@ -792,7 +799,7 @@ export async function updateRecurringEvent({
 
       if (exceptions) {
         for (const exc of exceptions) {
-          const excDate = exc.start_date ?? exc.start_at?.split('T')[0] ?? '';
+          const excDate = exc.start_date ?? extractDateYMD(exc.start_at) ?? '';
           if (excDate >= instanceDate) {
             await supabase
               .from('calendar_events')
@@ -802,11 +809,10 @@ export async function updateRecurringEvent({
         }
       }
 
-      // 새 시리즈 이벤트 생성 (수정된 필드 + 새 RRULE, dtstart=instanceDate)
-      const parentDate = parent.start_date ?? parent.start_at?.split('T')[0] ?? '';
+      // 새 시리즈 이벤트 생성 (수정된 필드 + 계산된 RRULE, dtstart=instanceDate)
       const shiftTs = (ts: string | null) => {
         if (!ts || !parentDate) return ts;
-        return ts.replace(parentDate, instanceDate);
+        return shiftTimestamp(ts, parentDate, instanceDate);
       };
 
       const {
@@ -819,10 +825,13 @@ export async function updateRecurringEvent({
 
       const newSeriesData = {
         ...parentFields,
+        rrule: newSeriesRrule,
         start_at: shiftTs(parent.start_at),
         end_at: shiftTs(parent.end_at),
         start_date: parent.start_date ? instanceDate : null,
-        end_date: parent.end_date ? instanceDate : null,
+        end_date: parent.end_date && parent.start_date
+          ? shiftEndDate(parent.start_date, parent.end_date, instanceDate)
+          : null,
         is_exception: false,
         recurring_event_id: null,
         exdates: null,
