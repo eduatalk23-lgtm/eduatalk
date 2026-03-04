@@ -8,6 +8,8 @@ import {
   apiBadRequest,
   apiNotFound,
   handleApiError,
+  withCache,
+  CACHE_SEMI_STATIC,
 } from "@/lib/api";
 
 type MasterContentInfoResponse = {
@@ -45,19 +47,19 @@ export async function GET(request: NextRequest) {
       if (!book) {
         return apiNotFound("교재를 찾을 수 없습니다.");
       }
-      return apiSuccess<MasterContentInfoResponse>({
+      return withCache(apiSuccess<MasterContentInfoResponse>({
         total_pages: book.total_pages,
         total_episodes: null,
-      });
+      }), CACHE_SEMI_STATIC);
     } else if (contentType === "lecture") {
       const { lecture } = await getMasterLectureById(contentId);
       if (!lecture) {
         return apiNotFound("강의를 찾을 수 없습니다.");
       }
-      return apiSuccess<MasterContentInfoResponse>({
+      return withCache(apiSuccess<MasterContentInfoResponse>({
         total_pages: null,
         total_episodes: lecture.total_episodes,
-      });
+      }), CACHE_SEMI_STATIC);
     } else {
       return apiBadRequest("지원하지 않는 콘텐츠 타입입니다. book 또는 lecture를 사용하세요.");
     }

@@ -66,3 +66,12 @@ export {
   handleApiError,
 } from "./response";
 
+// Cache Headers
+export {
+  CACHE_STATIC,
+  CACHE_SEMI_STATIC,
+  CACHE_PRIVATE,
+  CACHE_NO_STORE,
+  withCache,
+} from "./cacheHeaders";
+

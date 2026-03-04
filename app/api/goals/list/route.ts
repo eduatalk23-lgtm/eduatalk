@@ -2,6 +2,8 @@ import {
   apiSuccess,
   apiUnauthorized,
   handleApiError,
+  withCache,
+  CACHE_PRIVATE,
 } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getGoalsForStudent } from "@/lib/data/studentGoals";
@@ -42,7 +44,7 @@ export async function GET() {
       subject: goal.subject ?? null,
     }));
 
-    return apiSuccess({ goals: responseGoals });
+    return withCache(apiSuccess({ goals: responseGoals }), CACHE_PRIVATE);
   } catch (error) {
     return handleApiError(error, "[api/goals/list] 오류");
   }

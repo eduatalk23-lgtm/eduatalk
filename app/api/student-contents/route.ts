@@ -3,6 +3,8 @@ import {
   apiSuccess,
   apiUnauthorized,
   handleApiError,
+  withCache,
+  CACHE_PRIVATE,
 } from "@/lib/api";
 import { fetchAllStudentContents } from "@/lib/data/planContents";
 import type { ContentItem } from "@/lib/data/planContents";
@@ -25,11 +27,11 @@ export async function GET(request: Request) {
 
     const data = await fetchAllStudentContents(user.userId);
 
-    return apiSuccess<{
+    return withCache(apiSuccess<{
       books: ContentItem[];
       lectures: ContentItem[];
       custom: ContentItem[];
-    }>(data);
+    }>(data), CACHE_PRIVATE);
   } catch (error) {
     return handleApiError(error, "[api/student-contents] 오류");
   }

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { getDifficultiesForMasterBooks } from "@/lib/data/contentMasters";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { CACHE_SEMI_STATIC } from "@/lib/api";
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest) {
     return Response.json({
       success: true,
       data: difficulties,
-    });
+    }, { headers: CACHE_SEMI_STATIC });
   } catch (error) {
     console.error("[api/master-books/difficulties] 난이도 목록 조회 실패:", error);
     return Response.json(

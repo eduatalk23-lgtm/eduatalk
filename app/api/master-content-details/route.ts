@@ -9,6 +9,8 @@ import {
   apiUnauthorized,
   apiBadRequest,
   handleApiError,
+  withCache,
+  CACHE_SEMI_STATIC,
 } from "@/lib/api";
 
 /**
@@ -69,17 +71,17 @@ export async function GET(request: NextRequest) {
             .eq("id", contentId)
             .maybeSingle();
 
-          return apiSuccess({
+          return withCache(apiSuccess({
             details: details || [],
             total_pages: book?.total_pages || null,
             metadata: bookData || null,
-          });
+          }), CACHE_SEMI_STATIC);
         }
 
-        return apiSuccess({ 
+        return withCache(apiSuccess({
           details: details || [],
           total_pages: book?.total_pages || null,
-        });
+        }), CACHE_SEMI_STATIC);
       } catch (error) {
         console.error("[api/master-content-details] 교재 조회 실패:", {
           contentId,
@@ -102,17 +104,17 @@ export async function GET(request: NextRequest) {
             .eq("id", contentId)
             .maybeSingle();
 
-          return apiSuccess({
+          return withCache(apiSuccess({
             episodes: episodes || [],
             total_episodes: lecture?.total_episodes || null,
             metadata: lectureData || null,
-          });
+          }), CACHE_SEMI_STATIC);
         }
 
-        return apiSuccess({ 
+        return withCache(apiSuccess({
           episodes: episodes || [],
           total_episodes: lecture?.total_episodes || null,
-        });
+        }), CACHE_SEMI_STATIC);
       } catch (error) {
         console.error("[api/master-content-details] 강의 조회 실패:", {
           contentId,

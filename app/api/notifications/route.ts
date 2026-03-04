@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getAllNotifications } from "@/lib/services/inAppNotificationService";
+import { CACHE_NO_STORE } from "@/lib/api";
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       notifications,
-    });
+    }, { headers: CACHE_NO_STORE });
   } catch (error) {
     console.error("[api/notifications] 알림 조회 실패:", error);
     return NextResponse.json(

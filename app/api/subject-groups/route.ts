@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSubjectGroups, getSubjectGroupsWithSubjects } from "@/lib/data/subjects";
+import { CACHE_STATIC } from "@/lib/api";
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         data: groups || [],
-      });
+      }, { headers: CACHE_STATIC });
     }
 
     // 교과와 과목을 함께 조회
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: groupsWithSubjects,
-    });
+    }, { headers: CACHE_STATIC });
   } catch (error) {
     console.error("[api/subject-groups] 조회 실패:", error);
     return NextResponse.json(

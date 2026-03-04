@@ -5,6 +5,8 @@ import {
   apiSuccess,
   apiUnauthorized,
   handleApiError,
+  withCache,
+  CACHE_PRIVATE,
 } from "@/lib/api";
 
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
@@ -55,10 +57,10 @@ export async function GET(request: Request) {
       targetDate
     );
 
-    return apiSuccess<TodayProgressResponse>({
+    return withCache(apiSuccess<TodayProgressResponse>({
       planDate: targetDate,
       progress,
-    });
+    }), CACHE_PRIVATE);
   } catch (error) {
     return handleApiError(error, "[api/today/progress] 오류");
   }

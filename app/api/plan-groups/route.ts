@@ -4,6 +4,8 @@ import {
   apiSuccess,
   apiUnauthorized,
   handleApiError,
+  withCache,
+  CACHE_PRIVATE,
 } from "@/lib/api";
 import {
   getPlanGroupsWithStats,
@@ -93,10 +95,10 @@ export async function GET(request: Request) {
         contentSummary: contentSummaries.get(group.id),
       }));
 
-      return apiSuccess<PlanGroupWithStats[]>(dataWithSummaries);
+      return withCache(apiSuccess<PlanGroupWithStats[]>(dataWithSummaries), CACHE_PRIVATE);
     }
 
-    return apiSuccess<PlanGroupWithStats[]>(data);
+    return withCache(apiSuccess<PlanGroupWithStats[]>(data), CACHE_PRIVATE);
   } catch (error) {
     return handleApiError(error, "[api/plan-groups] 오류");
   }

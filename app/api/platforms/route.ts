@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getPlatformsForFilter } from "@/lib/data/contentMasters";
+import { CACHE_STATIC } from "@/lib/api";
 
 export async function GET() {
   try {
@@ -8,7 +9,7 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       data: platforms,
-    });
+    }, { headers: CACHE_STATIC });
   } catch (error) {
     console.error("[api/platforms] 조회 실패:", error);
     return NextResponse.json(

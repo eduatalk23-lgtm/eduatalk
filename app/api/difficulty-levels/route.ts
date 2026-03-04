@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDifficultyLevels } from "@/lib/data/difficultyLevels";
+import { CACHE_STATIC } from "@/lib/api";
 
 /**
  * 난이도 목록 조회 API
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     const levels = await getDifficultyLevels(contentType || undefined);
 
-    return NextResponse.json(levels, { status: 200 });
+    return NextResponse.json(levels, { status: 200, headers: CACHE_STATIC });
   } catch (error) {
     console.error("[API] 난이도 조회 실패:", error);
     return NextResponse.json(

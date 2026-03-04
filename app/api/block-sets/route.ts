@@ -3,6 +3,8 @@ import {
   apiSuccess,
   apiUnauthorized,
   handleApiError,
+  withCache,
+  CACHE_PRIVATE,
 } from "@/lib/api";
 import { fetchBlockSetsWithBlocks, type BlockSetWithBlocks } from "@/lib/data/blockSets";
 
@@ -24,7 +26,7 @@ export async function GET(request: Request) {
 
     const data = await fetchBlockSetsWithBlocks(user.userId);
 
-    return apiSuccess<BlockSetWithBlocks[]>(data);
+    return withCache(apiSuccess<BlockSetWithBlocks[]>(data), CACHE_PRIVATE);
   } catch (error) {
     return handleApiError(error, "[api/block-sets] 오류");
   }

@@ -7,6 +7,8 @@ import {
   apiUnauthorized,
   apiBadRequest,
   handleApiError,
+  withCache,
+  CACHE_SEMI_STATIC,
 } from "@/lib/api";
 
 /**
@@ -35,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     const hierarchy = await getSubjectHierarchyOptimized(curriculumRevisionId);
 
-    return apiSuccess(hierarchy);
+    return withCache(apiSuccess(hierarchy), CACHE_SEMI_STATIC);
   } catch (error) {
     return handleApiError(error, "[api/subject-hierarchy]");
   }

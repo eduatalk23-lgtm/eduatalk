@@ -4,6 +4,8 @@ import {
   apiSuccess,
   apiUnauthorized,
   handleApiError,
+  withCache,
+  CACHE_PRIVATE,
 } from "@/lib/api";
 import { getTodayPlans, type TodayPlansResponse } from "@/lib/data/todayPlans";
 import { perfTime } from "@/lib/utils/perfLog";
@@ -65,7 +67,7 @@ export async function GET(request: Request) {
     });
 
     totalTimer.end();
-    return apiSuccess<TodayPlansResponse>(data);
+    return withCache(apiSuccess<TodayPlansResponse>(data), CACHE_PRIVATE);
   } catch (error) {
     totalTimer.end();
     return handleApiError(error, "[api/today/plans] 오류");

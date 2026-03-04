@@ -4,6 +4,8 @@ import {
   apiSuccess,
   apiBadRequest,
   handleApiError,
+  withCache,
+  CACHE_STATIC,
 } from "@/lib/api";
 
 export async function GET(request: NextRequest) {
@@ -17,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     const subjects = await getSubjectsByGroup(subjectGroupId);
 
-    return apiSuccess(subjects);
+    return withCache(apiSuccess(subjects), CACHE_STATIC);
   } catch (error) {
     return handleApiError(error, "[api/subjects]");
   }
