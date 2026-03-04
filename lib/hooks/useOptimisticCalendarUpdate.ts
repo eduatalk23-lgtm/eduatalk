@@ -326,6 +326,7 @@ export function useOptimisticCalendarUpdate(
   }, [queryClient, calendarId, joinedIds]);
 
   return {
+    withSnapshot,
     optimisticStatusChange,
     optimisticDelete,
     optimisticTimeChange,

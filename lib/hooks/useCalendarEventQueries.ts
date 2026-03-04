@@ -164,9 +164,15 @@ export function useWeeklyCalendarEvents(
     enabled: !!calendarId,
   });
 
-  const events = useMemo(
+  const rawEvents = useMemo(
     () => eventsQuery.data ?? [],
     [eventsQuery.data]
+  );
+
+  // RRULE 반복 이벤트 확장 (주간: weekRange 범위)
+  const events = useMemo(
+    () => expandRecurringEvents(rawEvents, weekRange.start, weekRange.end),
+    [rawEvents, weekRange.start, weekRange.end]
   );
 
   const eventsByDate = useMemo(() => {
