@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
-import { Spinner } from "@/components/atoms/Spinner";
+import { Loader2 } from "lucide-react";
 import {
   getTenantUsersAction,
   assignUserToTenantAction,
@@ -86,7 +86,7 @@ export function TenantUsersManagement({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Spinner />
+        <Loader2 className="size-6 animate-spin text-[var(--text-secondary)]" />
       </div>
     );
   }

@@ -28,7 +28,7 @@ function SkeletonComponent({
   return (
     <div
       className={cn(
-        "animate-pulse bg-[rgb(var(--color-secondary-200))]",
+        "skeleton-shimmer",
         variant === "text" && "rounded",
         variant === "circular" && "rounded-full",
         variant === "rectangular" && "rounded-lg",

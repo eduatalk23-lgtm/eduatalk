@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import QueryStateWrapper from "@/components/ui/QueryStateWrapper";
 import type { WizardData } from "./types";
 
 interface ContentSelectionStepProps {
@@ -34,7 +35,6 @@ export function ContentSelectionStep({
   const {
     data: contents = [],
     isLoading,
-    isError,
     error,
     refetch,
   } = useQuery<ContentItem[]>({
@@ -118,30 +118,23 @@ export function ContentSelectionStep({
 
       {/* Content List */}
       <div className="max-h-[300px] overflow-y-auto space-y-2">
-        {isLoading ? (
-          <div className="text-center py-8 text-gray-500">로딩 중...</div>
-        ) : isError ? (
-          <div className="text-center py-8 space-y-3">
-            <p className="text-red-600 dark:text-red-400">
-              {error instanceof Error
-                ? error.message
-                : "콘텐츠를 불러오는데 실패했습니다."}
-            </p>
-            <button
-              onClick={() => refetch()}
-              className="px-4 py-2 text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-            >
-              다시 시도
-            </button>
-          </div>
-        ) : filteredContents.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            {searchQuery
-              ? "검색 결과가 없습니다."
-              : "등록된 콘텐츠가 없습니다."}
-          </div>
-        ) : (
-          filteredContents.map((content) => (
+        <QueryStateWrapper
+          state={{
+            isLoading,
+            error: error ?? null,
+            isEmpty: filteredContents.length === 0,
+          }}
+          onRetry={() => refetch()}
+          emptyProps={{
+            title: searchQuery
+              ? "검색 결과가 없습니다"
+              : "등록된 콘텐츠가 없습니다",
+            icon: searchQuery ? "🔍" : "📚",
+            variant: "compact",
+          }}
+          minHeight="min-h-[200px]"
+        >
+          {filteredContents.map((content) => (
             <button
               key={content.id}
               onClick={() => handleSelect(content)}
@@ -170,8 +163,8 @@ export function ContentSelectionStep({
                 )}
               </div>
             </button>
-          ))
-        )}
+          ))}
+        </QueryStateWrapper>
       </div>
 
       {/* Continue Button */}

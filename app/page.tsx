@@ -1,9 +1,7 @@
-
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import LandingPage from "./_components/landing/LandingPage";
 
 const META_TITLE = "TimeLevelUp - AI 맞춤형 학습 관리 시스템";
 const META_DESCRIPTION =
@@ -45,9 +43,9 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function Home() {
   const { userId, role } = await getCurrentUserRole();
 
-  // 비인증 사용자 → 랜딩 페이지
+  // 비인증 사용자 → 로그인 페이지
   if (!userId) {
-    return <LandingPage />;
+    redirect("/login");
   }
 
   // 역할별 is_active 확인 (superadmin은 시스템 계정이므로 제외)

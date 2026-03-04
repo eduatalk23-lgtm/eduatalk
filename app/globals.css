@@ -627,6 +627,33 @@ input[type="number"] {
   animation: shimmer 2s infinite;
 }
 
+/* Skeleton shimmer effect (light sweep) */
+@keyframes skeleton-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--color-secondary-200)) 25%,
+    rgb(var(--color-secondary-100)) 50%,
+    rgb(var(--color-secondary-200)) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+:is(.dark) .skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--color-secondary-700)) 25%,
+    rgb(var(--color-secondary-600)) 50%,
+    rgb(var(--color-secondary-700)) 75%
+  );
+  background-size: 200% 100%;
+}
+
 /* Slow bounce for streak flames */
 @keyframes bounce-slow {
   0%,

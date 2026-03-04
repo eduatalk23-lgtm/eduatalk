@@ -1,8 +1,8 @@
 "use client";
 
 import { memo } from "react";
+import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { Spinner } from "@/components/atoms/Spinner";
 
 export type LoadingOverlayProps = {
   isLoading: boolean;
@@ -27,7 +27,7 @@ function LoadingOverlayComponent({
         className
       )}
     >
-      <Spinner size="lg" />
+      <Loader2 className="size-8 animate-spin text-[var(--text-secondary)]" />
       {message && (
         <p className="text-body-2 font-medium text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]">{message}</p>
       )}

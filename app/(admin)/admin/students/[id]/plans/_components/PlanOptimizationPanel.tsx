@@ -16,7 +16,7 @@ import Badge from "@/components/atoms/Badge";
 import Select from "@/components/atoms/Select";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 import { Card, CardHeader, CardContent } from "@/components/molecules/Card";
-import { Spinner } from "@/components/atoms/Spinner";
+import { Loader2 } from "lucide-react";
 
 import {
   analyzePlanEfficiency,
@@ -662,7 +662,7 @@ export default function PlanOptimizationPanel({
           {/* 로딩 상태 */}
           {isLoading && (
             <div className="flex flex-col items-center justify-center py-12">
-              <Spinner size="lg" />
+              <Loader2 className="size-8 animate-spin text-[var(--text-secondary)]" />
               <p className="mt-4 text-[var(--text-tertiary)]">
                 AI가 학습 패턴을 분석하고 있습니다...
               </p>

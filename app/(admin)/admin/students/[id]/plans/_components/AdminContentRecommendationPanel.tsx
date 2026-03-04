@@ -18,7 +18,7 @@ import { TextArea } from "@/components/atoms/TextArea";
 import ToggleSwitch from "@/components/atoms/ToggleSwitch";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 import { Card, CardHeader, CardContent } from "@/components/molecules/Card";
-import { Spinner } from "@/components/atoms/Spinner";
+import { Loader2 } from "lucide-react";
 
 import {
   recommendContentWithAI,
@@ -656,7 +656,7 @@ export function AdminContentRecommendationPanel({
           {/* 로딩 */}
           {isLoading && (
             <div className="flex flex-col items-center justify-center py-12">
-              <Spinner size="lg" />
+              <Loader2 className="size-8 animate-spin text-[var(--text-secondary)]" />
               <p className="mt-4 text-[var(--text-secondary)]">
                 AI가 최적의 콘텐츠를 분석하고 있습니다...
               </p>

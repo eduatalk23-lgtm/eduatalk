@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { Loader2, Check } from "lucide-react";
 import { cn } from "@/lib/cn";
 import Button, { type ButtonProps, type ButtonVariant } from "@/components/atoms/Button";
+import { useDelayedLoading } from "@/lib/hooks/useDelayedLoading";
 
 export type SubmitButtonProps = Omit<ButtonProps, "type" | "isLoading"> & {
   /** 기본 버튼 텍스트 */
@@ -66,8 +67,11 @@ const SubmitButtonInner = forwardRef<HTMLButtonElement, SubmitButtonProps>(
     // 외부 상태가 있으면 우선 사용, 없으면 useFormStatus 사용
     const isPending = externalPending ?? formPending;
 
+    // 스피너 깜빡임 방지: disabled는 즉시, 스피너만 딜레이
+    const showSpinner = useDelayedLoading(isPending);
+
     // 버튼 상태 결정
-    const buttonState = isSuccess ? "success" : isPending ? "loading" : "idle";
+    const buttonState = isSuccess ? "success" : showSpinner ? "loading" : "idle";
 
     // 상태별 텍스트
     const displayText = {

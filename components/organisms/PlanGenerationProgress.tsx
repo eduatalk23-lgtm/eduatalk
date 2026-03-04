@@ -8,8 +8,8 @@
 
 import { memo } from "react";
 import { cn } from "@/lib/cn";
+import { Loader2 } from "lucide-react";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
-import { Spinner } from "@/components/atoms/Spinner";
 import {
   PlanGenerationStep,
   PlanGenerationProgress as ProgressType,
@@ -119,7 +119,7 @@ function StepIndicator({
               />
             </svg>
           ) : status === "current" ? (
-            <Spinner size="xs" className="text-white" />
+            <Loader2 className="size-3 animate-spin text-white" />
           ) : (
             <span>{DISPLAY_STEPS.findIndex((s) => s.step === step) + 1}</span>
           )}
@@ -221,7 +221,7 @@ function PlanGenerationProgressComponent({
 
       {/* 스피너 (진행 중일 때만) */}
       {!isError && !isCompleted && (
-        <Spinner size="md" className="mt-2" />
+        <Loader2 className="size-6 animate-spin text-[var(--text-secondary)] mt-2" />
       )}
 
       {/* 완료 아이콘 */}
