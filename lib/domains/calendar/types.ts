@@ -53,7 +53,10 @@ export type CalendarOwnerType = "student" | "admin";
 /** calendars.source_type */
 export type CalendarSourceType = "local" | "google" | "outlook";
 
-/** calendar_events.event_type — Google eventType 학습 도메인 재정의 */
+/**
+ * @deprecated event_type 컬럼 제거 예정. label + is_task + is_exclusion으로 대체.
+ * 마이그레이션 기간 동안 호환성을 위해 유지.
+ */
 export type EventType =
   | "study"
   | "non_study"
@@ -68,16 +71,6 @@ export type EventStatus =
   | "confirmed"
   | "tentative"
   | "cancelled";
-
-/** calendar_events.transparency — Google transparency */
-export type EventTransparency = "opaque" | "transparent";
-
-/** calendar_events.visibility — Google visibility */
-export type EventVisibility =
-  | "default"
-  | "public"
-  | "private"
-  | "confidential";
 
 /** calendar_events.container_type — Dock 배치용 */
 export type ContainerType = "daily";
@@ -143,7 +136,11 @@ export type CalendarEventFilters = {
   calendarIds?: string[];
   studentId: string;
   tenantId?: string;
+  /** @deprecated eventType 대신 isTask / isExclusion / labels 사용 */
   eventType?: EventType | EventType[];
+  isTask?: boolean;
+  isExclusion?: boolean;
+  labels?: string[];
   status?: EventStatus | EventStatus[];
   dateRange?: {
     start: string; // ISO 8601

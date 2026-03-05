@@ -639,7 +639,9 @@ export type Database = {
           id: string
           is_all_day: boolean | null
           is_exception: boolean | null
+          is_exclusion: boolean
           is_task: boolean
+          label: string
           location: string | null
           metadata: Json | null
           order_index: number | null
@@ -681,7 +683,9 @@ export type Database = {
           id?: string
           is_all_day?: boolean | null
           is_exception?: boolean | null
+          is_exclusion?: boolean
           is_task?: boolean
+          label: string
           location?: string | null
           metadata?: Json | null
           order_index?: number | null
@@ -723,7 +727,9 @@ export type Database = {
           id?: string
           is_all_day?: boolean | null
           is_exception?: boolean | null
+          is_exclusion?: boolean
           is_task?: boolean
+          label?: string
           location?: string | null
           metadata?: Json | null
           order_index?: number | null
@@ -1134,6 +1140,35 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_attachment_hidden: {
+        Row: {
+          attachment_id: string
+          hidden_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          attachment_id: string
+          hidden_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          attachment_id?: string
+          hidden_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_attachment_hidden_attachment_id_fkey"
+            columns: ["attachment_id"]
+            isOneToOne: false
+            referencedRelation: "chat_attachments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_attachments: {
         Row: {
           attachment_type: string
@@ -1483,6 +1518,7 @@ export type Database = {
       chat_room_members: {
         Row: {
           created_at: string | null
+          deleted_at: string | null
           id: string
           is_muted: boolean | null
           last_read_at: string | null
@@ -1492,9 +1528,11 @@ export type Database = {
           updated_at: string | null
           user_id: string
           user_type: string
+          visible_from: string
         }
         Insert: {
           created_at?: string | null
+          deleted_at?: string | null
           id?: string
           is_muted?: boolean | null
           last_read_at?: string | null
@@ -1504,9 +1542,11 @@ export type Database = {
           updated_at?: string | null
           user_id: string
           user_type: string
+          visible_from?: string
         }
         Update: {
           created_at?: string | null
+          deleted_at?: string | null
           id?: string
           is_muted?: boolean | null
           last_read_at?: string | null
@@ -1516,6 +1556,7 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           user_type?: string
+          visible_from?: string
         }
         Relationships: [
           {
@@ -1533,13 +1574,18 @@ export type Database = {
           announcement_at: string | null
           announcement_by: string | null
           announcement_by_type: string | null
+          archived_at: string | null
+          category: string
           created_at: string | null
           created_by: string
           created_by_type: string
+          history_visible: boolean
           id: string
           is_active: boolean | null
           name: string | null
+          status: string
           tenant_id: string
+          topic: string | null
           type: string
           updated_at: string | null
         }
@@ -1548,13 +1594,18 @@ export type Database = {
           announcement_at?: string | null
           announcement_by?: string | null
           announcement_by_type?: string | null
+          archived_at?: string | null
+          category?: string
           created_at?: string | null
           created_by: string
           created_by_type: string
+          history_visible?: boolean
           id?: string
           is_active?: boolean | null
           name?: string | null
+          status?: string
           tenant_id: string
+          topic?: string | null
           type: string
           updated_at?: string | null
         }
@@ -1563,13 +1614,18 @@ export type Database = {
           announcement_at?: string | null
           announcement_by?: string | null
           announcement_by_type?: string | null
+          archived_at?: string | null
+          category?: string
           created_at?: string | null
           created_by?: string
           created_by_type?: string
+          history_visible?: boolean
           id?: string
           is_active?: boolean | null
           name?: string | null
+          status?: string
           tenant_id?: string
+          topic?: string | null
           type?: string
           updated_at?: string | null
         }

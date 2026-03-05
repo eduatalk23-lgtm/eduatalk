@@ -45,10 +45,10 @@ export interface PlanItemData {
   description?: string | null;
   /** 이벤트가 속한 캘린더 ID (캘린더 색상 해석용) */
   calendarId?: string | null;
-  /** 이벤트 종류 (학습/비학습 구분) */
-  eventKind?: 'study' | 'non_study' | 'academy' | 'break' | 'exclusion' | 'custom' | 'focus_time';
-  /** 이벤트 하위 유형 ('아침식사', '학원', '이동시간' 등) */
-  eventSubtype?: string;
+  /** 이벤트 라벨 (자유 텍스트: '학습', '학원', '점심식사' 등) */
+  label?: string;
+  /** 제외일 여부 */
+  isExclusion?: boolean;
   /** Task 여부 — true이면 완료 처리 가능한 이벤트 */
   isTask?: boolean;
 }
