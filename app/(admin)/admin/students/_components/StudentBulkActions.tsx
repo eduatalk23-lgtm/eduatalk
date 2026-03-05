@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ListPlus } from "lucide-react";
+import { FileCheck, ListPlus } from "lucide-react";
 import {
   bulkToggleStudentStatus,
   bulkDeleteStudents,
@@ -24,6 +24,7 @@ type StudentBulkActionsProps = {
   isAdmin: boolean;
   onClearSelection: () => void;
   onOpenBatchAIPlan: () => void;
+  onOpenBulkFileRequest: () => void;
 };
 
 type ConfirmAction = "activate" | "deactivate" | "delete" | null;
@@ -34,6 +35,7 @@ export function StudentBulkActions({
   isAdmin,
   onClearSelection,
   onOpenBatchAIPlan,
+  onOpenBulkFileRequest,
 }: StudentBulkActionsProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -187,6 +189,18 @@ export function StudentBulkActions({
           >
             <ListPlus className="h-4 w-4" />
             플랜 생성
+          </button>
+
+          <button
+            onClick={onOpenBulkFileRequest}
+            disabled={isPending || selectedCount === 0}
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white transition",
+              "bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            )}
+          >
+            <FileCheck className="h-4 w-4" />
+            파일 요청
           </button>
 
           {isAdmin && (

@@ -16,6 +16,7 @@ import {
   Settings,
   CreditCard,
   MessageSquare,
+  HardDrive,
 } from "lucide-react";
 
 export const parentCategories: NavigationCategory[] = [
@@ -55,6 +56,19 @@ export const parentCategories: NavigationCategory[] = [
         label: "채팅",
         href: "/parent/chat",
         icon: <MessageSquare className="w-4 h-4" />,
+      },
+    ],
+  },
+  {
+    id: "parent-files",
+    label: "파일",
+    icon: <HardDrive className="w-4 h-4" />,
+    items: [
+      {
+        id: "parent-files-main",
+        label: "자녀 파일",
+        href: "/parent/files",
+        icon: <HardDrive className="w-4 h-4" />,
       },
     ],
   },

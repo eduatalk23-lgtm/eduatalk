@@ -1,14 +1,15 @@
 /**
- * 채팅 고아 첨부파일 정리 Cron Job
+ * 파일 정리 Cron Job
  *
  * 매일 새벽 3시(KST)에 실행.
- * message_id가 NULL이고 24시간 이상 경과한 첨부파일을
- * Storage + DB에서 일괄 삭제합니다.
+ * 1. 채팅: message_id가 NULL이고 24시간 이상 경과한 첨부파일 삭제
+ * 2. 드라이브: expires_at 경과한 파일 삭제
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual, randomBytes } from "crypto";
 import { cleanupOrphanedAttachments } from "@/lib/domains/chat/cleanup";
+import { cleanupDriveFiles } from "@/lib/domains/drive/cleanup";
 
 export const runtime = "nodejs";
 
@@ -43,24 +44,42 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const result = await cleanupOrphanedAttachments();
+    // 1. 채팅 첨부파일 정리
+    const chatResult = await cleanupOrphanedAttachments();
 
-    console.log("[cleanup-chat-attachments] Result:", {
-      orphanedDeleted: result.orphanedDeleted,
-      expiredDeleted: result.expiredDeleted,
-      storageDeletedCount: result.storageDeletedCount,
-      errors: result.errors,
+    console.log("[cleanup] Chat attachments:", {
+      orphanedDeleted: chatResult.orphanedDeleted,
+      expiredDeleted: chatResult.expiredDeleted,
+      storageDeletedCount: chatResult.storageDeletedCount,
+      errors: chatResult.errors,
+    });
+
+    // 2. 드라이브 파일 정리
+    const driveResult = await cleanupDriveFiles();
+
+    console.log("[cleanup] Drive files:", {
+      expiredDeleted: driveResult.expiredDeleted,
+      storageDeletedCount: driveResult.storageDeletedCount,
+      errors: driveResult.errors,
     });
 
     return NextResponse.json({
-      success: result.success,
-      orphanedDeleted: result.orphanedDeleted,
-      expiredDeleted: result.expiredDeleted,
-      storageDeletedCount: result.storageDeletedCount,
-      ...(result.errors.length > 0 ? { errors: result.errors } : {}),
+      success: chatResult.success && driveResult.success,
+      chat: {
+        orphanedDeleted: chatResult.orphanedDeleted,
+        expiredDeleted: chatResult.expiredDeleted,
+        storageDeletedCount: chatResult.storageDeletedCount,
+      },
+      drive: {
+        expiredDeleted: driveResult.expiredDeleted,
+        storageDeletedCount: driveResult.storageDeletedCount,
+      },
+      ...((chatResult.errors.length > 0 || driveResult.errors.length > 0)
+        ? { errors: [...chatResult.errors, ...driveResult.errors] }
+        : {}),
     });
   } catch (error) {
-    console.error("[cleanup-chat-attachments] Error:", error);
+    console.error("[cleanup] Error:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Cleanup failed" },
       { status: 500 }

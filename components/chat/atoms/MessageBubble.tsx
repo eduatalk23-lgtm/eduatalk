@@ -388,6 +388,7 @@ function MessageBubbleComponent({
                     <AttachmentRenderer
                       attachments={attachments}
                       isOwn={isOwn}
+                      showSaveToDrive
                       onImageClick={(attachment, index) =>
                         dispatch({ type: "imageClick", attachment, index })
                       }

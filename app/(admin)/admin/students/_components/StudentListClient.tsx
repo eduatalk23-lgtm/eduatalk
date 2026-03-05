@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo } from "react";
 import { StudentTable } from "./StudentTable";
 import { StudentBulkActions } from "./StudentBulkActions";
 import { BatchAIPlanModal } from "./BatchAIPlanModal";
+import { BulkFileRequestModal } from "./BulkFileRequestModal";
 import type { StudentListRow } from "./types";
 
 type StudentListClientProps = {
@@ -17,6 +18,7 @@ export function StudentListClient({
 }: StudentListClientProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
+  const [isBulkFileRequestOpen, setIsBulkFileRequestOpen] = useState(false);
 
   // 선택된 학생들
   const selectedStudents = useMemo(() => {
@@ -58,6 +60,14 @@ export function StudentListClient({
     setIsBatchModalOpen(false);
   }, []);
 
+  const handleOpenBulkFileRequest = useCallback(() => {
+    setIsBulkFileRequestOpen(true);
+  }, []);
+
+  const handleCloseBulkFileRequest = useCallback(() => {
+    setIsBulkFileRequestOpen(false);
+  }, []);
+
   return (
     <div className="flex flex-col gap-4">
       <StudentBulkActions
@@ -66,6 +76,7 @@ export function StudentListClient({
         isAdmin={isAdmin}
         onClearSelection={handleClearSelection}
         onOpenBatchAIPlan={handleOpenBatchAIPlan}
+        onOpenBulkFileRequest={handleOpenBulkFileRequest}
       />
 
       <StudentTable
@@ -80,6 +91,13 @@ export function StudentListClient({
       <BatchAIPlanModal
         open={isBatchModalOpen}
         onClose={handleCloseBatchAIPlan}
+        selectedStudents={selectedStudents}
+      />
+
+      {/* 일괄 파일 요청 모달 */}
+      <BulkFileRequestModal
+        open={isBulkFileRequestOpen}
+        onClose={handleCloseBulkFileRequest}
         selectedStudents={selectedStudents}
       />
     </div>

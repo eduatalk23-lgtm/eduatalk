@@ -13,11 +13,12 @@ import { AnalysisReportSection } from "./_components/AnalysisReportSection";
 import { AttendanceSection } from "./_components/AttendanceSection";
 import { RiskCard } from "./_components/RiskCard";
 import { RecommendationPanel } from "./_components/RecommendationPanel";
+import { AdminFilesSection } from "./_components/AdminFilesSection";
 import { ContentListSectionSkeleton } from "./_components/ContentListSectionSkeleton";
 import { SessionListSectionSkeleton } from "./_components/SessionListSectionSkeleton";
 import { AnalysisReportSectionSkeleton } from "./_components/AnalysisReportSectionSkeleton";
 
-type TabType = "content" | "session" | "analysis" | "attendance" | "risk";
+type TabType = "content" | "session" | "analysis" | "attendance" | "risk" | "files";
 
 export default async function AdminStudentDetailPage({
   params,
@@ -34,7 +35,7 @@ export default async function AdminStudentDetailPage({
 
   const { id: studentId } = await params;
   const paramsObj = await searchParams;
-  const VALID_TABS: TabType[] = ["content", "session", "analysis", "attendance", "risk"];
+  const VALID_TABS: TabType[] = ["content", "session", "analysis", "attendance", "risk", "files"];
   const rawTab = paramsObj.tab as TabType;
   const defaultTab: TabType = VALID_TABS.includes(rawTab) ? rawTab : "content";
 
@@ -98,6 +99,19 @@ export default async function AdminStudentDetailPage({
                   studentId={studentId}
                   studentName={student.name}
                 />
+              </Suspense>
+            )}
+
+            {/* 파일 탭 */}
+            {defaultTab === "files" && (
+              <Suspense
+                fallback={
+                  <div className="rounded-lg border border-gray-200 bg-white p-6">
+                    <div className="text-sm text-gray-500">로딩 중...</div>
+                  </div>
+                }
+              >
+                <AdminFilesSection studentId={studentId} />
               </Suspense>
             )}
 

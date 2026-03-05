@@ -9,7 +9,8 @@ type TabKey =
   | "session"
   | "analysis"
   | "attendance"
-  | "risk";
+  | "risk"
+  | "files";
 
 type Tab = {
   key: TabKey;
@@ -23,6 +24,7 @@ const tabs: Tab[] = [
   { key: "analysis", label: "분석 리포트", icon: "📈" },
   { key: "attendance", label: "출석", icon: "✓" },
   { key: "risk", label: "위험도/추천", icon: "⚠️" },
+  { key: "files", label: "파일", icon: "📁" },
 ];
 
 export function StudentDetailTabs({

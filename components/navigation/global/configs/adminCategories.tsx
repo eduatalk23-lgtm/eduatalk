@@ -156,6 +156,19 @@ export const adminCategories: NavigationCategory[] = [
     ],
   },
   {
+    id: "admin-files",
+    label: "파일 관리",
+    icon: <FileCheck className="w-4 h-4" />,
+    items: [
+      {
+        id: "admin-files-dashboard",
+        label: "파일 요청",
+        href: "/admin/files",
+        icon: <FileCheck className="w-4 h-4" />,
+      },
+    ],
+  },
+  {
     id: "admin-chat",
     label: "채팅",
     icon: <MessageSquare className="w-4 h-4" />,

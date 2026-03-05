@@ -39,6 +39,7 @@ import {
   Home,
   CalendarX,
   FolderKanban,
+  HardDrive,
   MessageSquare,
 } from "lucide-react";
 
@@ -160,7 +161,22 @@ export const studentCategories: NavigationCategory[] = [
     ],
   },
 
-  // 5. 채팅
+  // 5. 내 파일
+  {
+    id: "drive",
+    label: "내 파일",
+    icon: <HardDrive className="w-4 h-4" />,
+    items: [
+      {
+        id: "drive-main",
+        label: "내 파일",
+        href: "/files",
+        icon: <HardDrive className="w-4 h-4" />,
+      },
+    ],
+  },
+
+  // 6. 채팅
   {
     id: "chat",
     label: "채팅",

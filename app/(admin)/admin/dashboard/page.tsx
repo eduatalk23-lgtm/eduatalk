@@ -21,6 +21,8 @@ import { StatCard } from "@/components/molecules/StatCard";
 import { getWeekRange } from "@/lib/date/weekRange";
 import { riskLevelColors, textPrimary, textSecondary, textMuted, bgSurface, borderDefault } from "@/lib/utils/darkMode";
 import { cn } from "@/lib/cn";
+import { getFileRequestKpiAction } from "@/lib/domains/drive/actions/workflow";
+import { Clock, FileUp, AlertTriangle } from "lucide-react";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -448,6 +450,14 @@ export default async function AdminDashboardPage() {
   
   const campStats = campStatsResult?.success ? campStatsResult.data : null;
 
+  // File request KPI (safe fallback)
+  let fileRequestKpi = { pending: 0, submitted: 0, overdue: 0 };
+  try {
+    fileRequestKpi = await getFileRequestKpiAction();
+  } catch {
+    // silently fallback
+  }
+
   const [
     studentStats,
     topStudyTime,
@@ -721,6 +731,28 @@ export default async function AdminDashboardPage() {
             )}
           </div>
         </div>
+
+        {/* 파일 요청 현황 */}
+        {(fileRequestKpi.pending > 0 || fileRequestKpi.submitted > 0 || fileRequestKpi.overdue > 0) && (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <h2 className={cn("text-lg md:text-xl font-semibold", textPrimary)}>
+                파일 요청 현황
+              </h2>
+              <Link
+                href="/admin/files"
+                className="text-sm font-medium text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
+              >
+                자세히 보기 →
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <StatCard label="대기중" value={fileRequestKpi.pending} color="amber" icon={<Clock className="w-4 h-4" />} />
+              <StatCard label="제출됨" value={fileRequestKpi.submitted} color="blue" icon={<FileUp className="w-4 h-4" />} />
+              <StatCard label="기한초과" value={fileRequestKpi.overdue} color="red" icon={<AlertTriangle className="w-4 h-4" />} />
+            </div>
+          </div>
+        )}
 
         {/* 캠프 통계 섹션 */}
         {campStats && (
