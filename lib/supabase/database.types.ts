@@ -2727,6 +2727,292 @@ export type Database = {
           },
         ]
       }
+      file_categories: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          key: string
+          label: string
+          sort_order: number
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          key: string
+          label: string
+          sort_order?: number
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          key?: string
+          label?: string
+          sort_order?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "file_categories_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      file_contexts: {
+        Row: {
+          context_id: string | null
+          context_type: string
+          created_at: string
+          file_id: string
+          id: string
+        }
+        Insert: {
+          context_id?: string | null
+          context_type: string
+          created_at?: string
+          file_id: string
+          id?: string
+        }
+        Update: {
+          context_id?: string | null
+          context_type?: string
+          created_at?: string
+          file_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "file_contexts_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      file_distributions: {
+        Row: {
+          created_at: string
+          description: string | null
+          distributed_by: string
+          downloaded_at: string | null
+          expires_at: string
+          file_id: string
+          id: string
+          student_id: string
+          tenant_id: string
+          title: string
+          updated_at: string
+          viewed_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          distributed_by: string
+          downloaded_at?: string | null
+          expires_at: string
+          file_id: string
+          id?: string
+          student_id: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          distributed_by?: string
+          downloaded_at?: string | null
+          expires_at?: string
+          file_id?: string
+          id?: string
+          student_id?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "file_distributions_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_distributions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_distributions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      file_requests: {
+        Row: {
+          allowed_mime_types: string[] | null
+          approved_file_id: string | null
+          calendar_event_id: string | null
+          category: string
+          created_at: string
+          created_by: string
+          deadline: string | null
+          description: string | null
+          id: string
+          rejection_reason: string | null
+          status: string
+          student_id: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          allowed_mime_types?: string[] | null
+          approved_file_id?: string | null
+          calendar_event_id?: string | null
+          category: string
+          created_at?: string
+          created_by: string
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          rejection_reason?: string | null
+          status?: string
+          student_id: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          allowed_mime_types?: string[] | null
+          approved_file_id?: string | null
+          calendar_event_id?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          rejection_reason?: string | null
+          status?: string
+          student_id?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "file_requests_approved_file_id_fkey"
+            columns: ["approved_file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_requests_calendar_event_id_fkey"
+            columns: ["calendar_event_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_requests_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_requests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      files: {
+        Row: {
+          category: string
+          created_at: string
+          expires_at: string
+          id: string
+          mime_type: string
+          original_name: string
+          size_bytes: number
+          storage_path: string
+          student_id: string | null
+          tenant_id: string
+          uploaded_by: string
+          uploaded_by_role: string
+          version_group_id: string
+          version_number: number
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          mime_type: string
+          original_name: string
+          size_bytes: number
+          storage_path: string
+          student_id?: string | null
+          tenant_id: string
+          uploaded_by: string
+          uploaded_by_role: string
+          version_group_id?: string
+          version_number?: number
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          mime_type?: string
+          original_name?: string
+          size_bytes?: number
+          storage_path?: string
+          student_id?: string | null
+          tenant_id?: string
+          uploaded_by?: string
+          uploaded_by_role?: string
+          version_group_id?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "files_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "files_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       flexible_contents: {
         Row: {
           archived_at: string | null
@@ -6188,6 +6474,59 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "regions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      request_templates: {
+        Row: {
+          allowed_mime_types: string[] | null
+          category: string
+          created_at: string
+          created_by: string
+          deadline_days: number | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          allowed_mime_types?: string[] | null
+          category: string
+          created_at?: string
+          created_by: string
+          deadline_days?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          allowed_mime_types?: string[] | null
+          category?: string
+          created_at?: string
+          created_by?: string
+          deadline_days?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_templates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -10747,3 +11086,4 @@ export const Constants = {
     },
   },
 } as const
+
