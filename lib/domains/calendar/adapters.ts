@@ -135,6 +135,8 @@ export function calendarEventToDailyPlan(
     exdates: (event.exdates as string[] | null) ?? null,
     reminder_minutes: event.reminder_minutes ?? null,
     description: event.description ?? null,
+    is_task: event.is_task ?? false,
+    label: event.label ?? null,
   };
 }
 

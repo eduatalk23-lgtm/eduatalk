@@ -13,6 +13,8 @@ export interface LabelPreset {
 
 export const LABEL_PRESETS: LabelPreset[] = [
   { label: '학습', defaultIsTask: true, defaultColor: '#3b82f6' },
+  { label: '일반', defaultIsTask: false, defaultColor: '#6b7280' },
+  { label: '학교', defaultIsTask: false, defaultColor: '#8b5cf6' },
   { label: '학원', defaultIsTask: false, defaultColor: '#f97316' },
   { label: '이동시간', defaultIsTask: false, defaultColor: '#f97316' },
   { label: '아침식사', defaultIsTask: false, defaultColor: '#0ea5e9' },

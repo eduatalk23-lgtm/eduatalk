@@ -2,7 +2,7 @@
 
 import { format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { Clock, Bell, Palette, AlignLeft, BookOpen, Calendar as CalendarIcon, Tag } from 'lucide-react';
+import { Clock, Bell, Palette, AlignLeft, BookOpen, Calendar as CalendarIcon, Tag, CheckSquare } from 'lucide-react';
 import { TimePickerDropdown } from '../../_components/items/TimePickerDropdown';
 import { RecurrenceSelector } from '../../_components/items/RecurrenceSelector';
 import { useState } from 'react';
@@ -45,6 +45,21 @@ export function EventEditLeftColumn({ form, setField, setLabel }: EventEditLeftC
       {/* Label Preset */}
       <Section icon={<Tag className="h-5 w-5" />} label="일정 유형">
         <LabelPresetSelector value={form.label} onChange={setLabel} />
+      </Section>
+
+      {/* Task Toggle */}
+      <Section icon={<CheckSquare className="h-5 w-5" />} label="태스크">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={form.isTask}
+            onChange={(e) => setField('isTask', e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          <span className="text-sm text-gray-700">
+            태스크로 관리 {form.isTask ? '(완료 체크 가능)' : '(일정만 표시)'}
+          </span>
+        </label>
       </Section>
 
       {/* Date & Time */}

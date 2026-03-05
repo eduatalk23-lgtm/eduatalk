@@ -56,6 +56,10 @@ export interface DailyPlan {
   reminder_minutes?: number[] | null;
   /** 설명/메모 */
   description?: string | null;
+  /** 태스크 여부 */
+  is_task?: boolean;
+  /** 라벨 (일정 유형) */
+  label?: string | null;
 }
 
 export interface OverduePlan {

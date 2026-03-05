@@ -92,5 +92,7 @@ export function toPlanItemData(
     exdates: raw.exdates ?? null,
     reminderMinutes: raw.reminder_minutes ?? null,
     description: raw.description ?? null,
+    isTask: raw.is_task ?? true,
+    label: raw.label ?? undefined,
   };
 }
