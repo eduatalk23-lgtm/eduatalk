@@ -2,7 +2,7 @@
 
 import { format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { Clock, Bell, Palette, AlignLeft, BookOpen, Calendar as CalendarIcon, Shield, Coffee, Tag } from 'lucide-react';
+import { Clock, Bell, Palette, AlignLeft, BookOpen, Calendar as CalendarIcon, Tag } from 'lucide-react';
 import { TimePickerDropdown } from '../../_components/items/TimePickerDropdown';
 import { RecurrenceSelector } from '../../_components/items/RecurrenceSelector';
 import { useState } from 'react';
@@ -10,14 +10,16 @@ import { EVENT_COLOR_PALETTE, isValidHexColor } from '../../_components/utils/ev
 import { REMINDER_PRESETS } from '@/lib/domains/calendar/reminders';
 import { SUPPORTED_SUBJECT_CATEGORIES } from '@/lib/domains/plan/llm/actions/coldStart/types';
 import { cn } from '@/lib/cn';
-import type { EventEditFormState, ManualEventType } from './useEventEditForm';
+import { LABEL_PRESETS, getPresetForLabel } from '@/lib/domains/calendar/labelPresets';
+import type { EventEditFormState } from './useEventEditForm';
 
 interface EventEditLeftColumnProps {
   form: EventEditFormState;
   setField: <K extends keyof EventEditFormState>(key: K, value: EventEditFormState[K]) => void;
+  setLabel: (newLabel: string) => void;
 }
 
-export function EventEditLeftColumn({ form, setField }: EventEditLeftColumnProps) {
+export function EventEditLeftColumn({ form, setField, setLabel }: EventEditLeftColumnProps) {
   const dateDisplay = (() => {
     try {
       return format(parseISO(form.date), 'M/d (E)', { locale: ko });
@@ -40,9 +42,9 @@ export function EventEditLeftColumn({ form, setField }: EventEditLeftColumnProps
         />
       </div>
 
-      {/* Event Type */}
+      {/* Label Preset */}
       <Section icon={<Tag className="h-5 w-5" />} label="일정 유형">
-        <EventTypeSelector value={form.eventType} onChange={(v) => setField('eventType', v)} />
+        <LabelPresetSelector value={form.label} onChange={setLabel} />
       </Section>
 
       {/* Date & Time */}
@@ -99,7 +101,7 @@ export function EventEditLeftColumn({ form, setField }: EventEditLeftColumnProps
       </Section>
 
       {/* Subject (study only) */}
-      {form.eventType === 'study' && (
+      {form.hasStudyData && (
         <Section icon={<BookOpen className="h-5 w-5" />} label="과목">
           <select
             value={form.subject}
@@ -265,46 +267,86 @@ function ColorPickerSection({
 }
 
 // ============================================
-// Event Type Selector
+// Label Preset Selector
 // ============================================
 
-const EVENT_TYPE_OPTIONS: {
-  value: ManualEventType;
-  label: string;
-  icon: typeof BookOpen;
-  activeClass: string;
-}[] = [
-  { value: 'study', label: '학습', icon: BookOpen, activeClass: 'bg-blue-50 border-blue-300 text-blue-700' },
-  { value: 'focus_time', label: '집중 시간', icon: Shield, activeClass: 'bg-indigo-50 border-indigo-300 text-indigo-700' },
-  { value: 'custom', label: '일반 일정', icon: CalendarIcon, activeClass: 'bg-gray-100 border-gray-400 text-gray-700' },
-  { value: 'break', label: '휴식', icon: Coffee, activeClass: 'bg-green-50 border-green-300 text-green-700' },
-];
-
-function EventTypeSelector({
+function LabelPresetSelector({
   value,
   onChange,
 }: {
-  value: ManualEventType;
-  onChange: (v: ManualEventType) => void;
+  value: string;
+  onChange: (label: string) => void;
 }) {
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [customText, setCustomText] = useState('');
+
+  const isCustom = !getPresetForLabel(value) && value !== '';
+
+  const handleCustomSubmit = () => {
+    const trimmed = customText.trim();
+    if (!trimmed) return;
+    onChange(trimmed);
+    setShowCustomInput(false);
+    setCustomText('');
+  };
+
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {EVENT_TYPE_OPTIONS.map((opt) => (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap gap-1.5">
+        {LABEL_PRESETS.map((preset) => {
+          const isActive = value === preset.label;
+          return (
+            <button
+              key={preset.label}
+              type="button"
+              onClick={() => { onChange(preset.label); setShowCustomInput(false); }}
+              className={cn(
+                'px-3 py-1.5 text-xs rounded-full border transition-colors',
+                isActive
+                  ? 'font-medium border-transparent text-white'
+                  : 'border-gray-200 text-gray-600 hover:border-gray-300',
+              )}
+              style={isActive ? { backgroundColor: preset.defaultColor } : undefined}
+            >
+              {preset.label}
+            </button>
+          );
+        })}
+        {/* 커스텀 라벨 버튼 */}
         <button
-          key={opt.value}
           type="button"
-          onClick={() => onChange(opt.value)}
+          onClick={() => setShowCustomInput(!showCustomInput)}
           className={cn(
-            'flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md border transition-colors',
-            value === opt.value
-              ? `${opt.activeClass} font-medium`
-              : 'border-gray-200 text-gray-500 hover:border-gray-300',
+            'px-3 py-1.5 text-xs rounded-full border transition-colors',
+            isCustom
+              ? 'font-medium bg-gray-700 border-transparent text-white'
+              : 'border-dashed border-gray-300 text-gray-500 hover:border-gray-400',
           )}
         >
-          <opt.icon className="w-3.5 h-3.5" />
-          {opt.label}
+          {isCustom ? value : '+ 직접 입력'}
         </button>
-      ))}
+      </div>
+      {showCustomInput && (
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={customText}
+            onChange={(e) => setCustomText(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleCustomSubmit()}
+            placeholder="라벨 입력..."
+            className="flex-1 rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            autoFocus
+          />
+          <button
+            type="button"
+            onClick={handleCustomSubmit}
+            disabled={!customText.trim()}
+            className="rounded-md bg-blue-500 px-2.5 py-1 text-xs text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            적용
+          </button>
+        </div>
+      )}
     </div>
   );
 }

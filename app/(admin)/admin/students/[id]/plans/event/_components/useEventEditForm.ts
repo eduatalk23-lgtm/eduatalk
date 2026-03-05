@@ -14,13 +14,14 @@ import {
   type RecurringScope,
 } from '@/lib/domains/calendar/actions/calendarEventActions';
 import { createCalendarEventAction } from '@/lib/domains/admin-plan/actions/calendarEvents';
-import type { EventType } from '@/lib/domains/calendar/types';
 import { extractTimeHHMM, extractDateYMD } from '@/lib/domains/calendar/adapters';
+import { getPresetForLabel } from '@/lib/domains/calendar/labelPresets';
 
 // ============================================
 // Types
 // ============================================
 
+/** @deprecated ManualEventType은 label + isTask + hasStudyData로 대체 */
 export type ManualEventType = 'study' | 'focus_time' | 'custom' | 'break';
 
 export interface EventEditFormState {
@@ -33,7 +34,11 @@ export interface EventEditFormState {
   isAllDay: boolean;
   rrule: string | null;
   reminderMinutes: number | null;
+  /** @deprecated label + isTask + hasStudyData 사용 */
   eventType: ManualEventType;
+  label: string;
+  isTask: boolean;
+  hasStudyData: boolean;
   subject: string;
   status: string;
   containerType: string;
@@ -57,6 +62,8 @@ interface UseEventEditFormOptions {
   initialEndTime?: string;
   initialSubject?: string;
   initialEventType?: ManualEventType;
+  initialLabel?: string;
+  initialIsTask?: boolean;
   returnPath: string;
   instanceDate?: string;
   /** 모달 모드: 저장/삭제 성공 후 콜백 (있으면 router.push 대신 호출) */
@@ -66,6 +73,7 @@ interface UseEventEditFormOptions {
 export interface UseEventEditFormReturn {
   form: EventEditFormState;
   setField: <K extends keyof EventEditFormState>(key: K, value: EventEditFormState[K]) => void;
+  setLabel: (newLabel: string) => void;
   isDirty: boolean;
   isLoading: boolean;
   isSaving: boolean;
@@ -94,6 +102,18 @@ function parseDateFromTimestamp(ts: string | null, fallbackDate?: string | null)
 
 function getDefaultForm(opts: UseEventEditFormOptions): EventEditFormState {
   const today = new Date().toISOString().split('T')[0];
+  // label을 primary로 사용, initialEventType은 fallback
+  const label = opts.initialLabel
+    ?? (opts.initialEventType === 'study' ? '학습'
+      : opts.initialEventType === 'focus_time' ? '집중 시간'
+      : opts.initialEventType === 'break' ? '휴식'
+      : '학습');
+  const preset = getPresetForLabel(label);
+  const hasStudyData = label === '학습';
+  const eventType: ManualEventType = hasStudyData ? 'study'
+    : label === '집중 시간' ? 'focus_time'
+    : label === '휴식' ? 'break' : 'custom';
+  const isTask = opts.initialIsTask ?? (preset?.defaultIsTask ?? false);
   return {
     title: '',
     description: '',
@@ -104,7 +124,10 @@ function getDefaultForm(opts: UseEventEditFormOptions): EventEditFormState {
     isAllDay: false,
     rrule: null,
     reminderMinutes: null,
-    eventType: opts.initialEventType ?? 'study',
+    eventType,
+    label,
+    isTask,
+    hasStudyData,
     subject: opts.initialSubject ?? '',
     status: 'confirmed',
     containerType: 'daily',
@@ -118,6 +141,11 @@ function getDefaultForm(opts: UseEventEditFormOptions): EventEditFormState {
 
 function eventDataToForm(data: CalendarEventEditData): EventEditFormState {
   const date = parseDateFromTimestamp(data.start_at, data.start_date);
+  // Derive legacy eventType from new fields for backward compat
+  const eventType: ManualEventType = data.has_study_data ? 'study'
+    : data.label === '집중 시간' || data.label === '집중 학습' ? 'focus_time'
+    : data.label === '휴식' ? 'break'
+    : 'custom';
   return {
     title: data.title,
     description: data.description ?? '',
@@ -128,9 +156,10 @@ function eventDataToForm(data: CalendarEventEditData): EventEditFormState {
     isAllDay: data.is_all_day ?? false,
     rrule: data.rrule,
     reminderMinutes: data.reminder_minutes?.[0] ?? null,
-    eventType: (['study', 'focus_time', 'custom', 'break'].includes(data.event_type)
-      ? data.event_type as ManualEventType
-      : 'custom'),
+    eventType,
+    label: data.label ?? '기타',
+    isTask: data.is_task ?? false,
+    hasStudyData: data.has_study_data ?? false,
     subject: data.subject_category ?? '',
     status: data.status,
     containerType: data.container_type ?? 'daily',
@@ -187,6 +216,25 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
     setForm((prev) => ({ ...prev, [key]: value }));
   }, []);
 
+  const setLabel = useCallback((newLabel: string) => {
+    setForm((prev) => {
+      const preset = getPresetForLabel(newLabel);
+      const hasStudyData = newLabel === '학습';
+      const eventType: ManualEventType = hasStudyData ? 'study'
+        : newLabel === '집중 시간' ? 'focus_time'
+        : newLabel === '휴식' ? 'break' : 'custom';
+      return {
+        ...prev,
+        label: newLabel,
+        isTask: preset?.defaultIsTask ?? false,
+        hasStudyData,
+        color: preset ? null : prev.color,
+        eventType,
+        ...(hasStudyData ? {} : { subject: '', plannedStartPage: null, plannedEndPage: null, estimatedMinutes: null }),
+      };
+    });
+  }, []);
+
   const isDirty = useMemo(() => {
     return JSON.stringify(form) !== JSON.stringify(initialForm);
   }, [form, initialForm]);
@@ -215,16 +263,11 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
     if (form.rrule !== initialForm.rrule) updates.rrule = form.rrule;
     if (form.status !== initialForm.status) updates.status = form.status;
     if (form.containerType !== initialForm.containerType) updates.container_type = form.containerType;
-    if (form.eventType !== initialForm.eventType) {
-      updates.event_type = form.eventType;
-      // 비학습 타입 전환 시 event_subtype 설정
-      if (form.eventType === 'focus_time') updates.event_subtype = '집중 학습';
-      else if (form.eventType === 'break') updates.event_subtype = '휴식';
-      else if (form.eventType === 'custom') updates.event_subtype = null;
-      else updates.event_subtype = form.subject || null;
-    }
-    // study 타입일 때만 학습 관련 필드 diff
-    if (form.eventType === 'study') {
+    if (form.label !== initialForm.label) updates.label = form.label;
+    if (form.isTask !== initialForm.isTask) updates.is_task = form.isTask;
+    if (form.hasStudyData !== initialForm.hasStudyData) updates.has_study_data = form.hasStudyData;
+    // study 데이터가 있을 때만 학습 관련 필드 diff
+    if (form.hasStudyData) {
       if (form.subject !== initialForm.subject) updates.subject_category = form.subject || null;
       if (form.plannedStartPage !== initialForm.plannedStartPage) updates.planned_start_page = form.plannedStartPage;
       if (form.plannedEndPage !== initialForm.plannedEndPage) updates.planned_end_page = form.plannedEndPage;
@@ -271,8 +314,6 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
     if (opts.mode === 'new') {
       startSaveTransition(async () => {
         try {
-          // createCalendarEventAction throws on error
-          const isStudy = form.eventType === 'study';
           const { eventId } = await createCalendarEventAction({
             calendarId: opts.calendarId!,
             title: form.title.trim(),
@@ -280,23 +321,21 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
             startTime: form.isAllDay ? undefined : form.startTime,
             endTime: form.isAllDay ? undefined : form.endTime,
             isAllDay: form.isAllDay,
-            subject: isStudy ? (form.subject || undefined) : undefined,
-            subjectCategory: isStudy ? (form.subject || undefined) : undefined,
+            subject: form.hasStudyData ? (form.subject || undefined) : undefined,
+            subjectCategory: form.hasStudyData ? (form.subject || undefined) : undefined,
             rrule: form.rrule,
-            eventType: form.eventType as EventType,
-            eventSubtype: form.eventType === 'focus_time' ? '집중 학습'
-              : form.eventType === 'break' ? '휴식'
-              : form.eventType === 'custom' ? '일반'
-              : undefined,
+            eventType: form.hasStudyData ? 'study' : 'custom', // dual-write for Stage 1
+            label: form.label,
+            isTask: form.isTask,
             containerType: form.containerType,
             color: form.color ?? undefined,
             reminderMinutes: form.reminderMinutes,
             description: form.description || undefined,
-            estimatedMinutes: isStudy ? form.estimatedMinutes : undefined,
+            estimatedMinutes: form.hasStudyData ? form.estimatedMinutes : undefined,
           });
 
           // Update study-specific fields not handled by create
-          if (isStudy) {
+          if (form.hasStudyData) {
             const extraUpdates: CalendarEventFullUpdate = {};
             if (form.plannedStartPage != null) extraUpdates.planned_start_page = form.plannedStartPage;
             if (form.plannedEndPage != null) extraUpdates.planned_end_page = form.plannedEndPage;
@@ -390,6 +429,7 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
   return {
     form,
     setField,
+    setLabel,
     isDirty,
     isLoading,
     isSaving,

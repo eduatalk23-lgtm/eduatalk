@@ -93,30 +93,6 @@ export function getPlanBlockColors(status: string, actualEndTime?: string | null
   return { bg: 'bg-blue-50', border: 'border-blue-300', text: 'text-blue-800' };
 }
 
-/** 비학습시간 유형에 따른 색상 */
-export function getNonStudyBlockColors(type: string): {
-  bg: string;
-  border: string;
-  text: string;
-  stripe: string;
-} {
-  switch (type) {
-    case '학원':
-      return { bg: 'bg-orange-50/80', border: 'border-orange-200', text: 'text-orange-700', stripe: 'bg-orange-100' };
-    case '아침식사':
-    case '점심식사':
-    case '저녁식사':
-      return { bg: 'bg-sky-50/80', border: 'border-sky-200', text: 'text-sky-700', stripe: 'bg-sky-100' };
-    case '수면':
-      return { bg: 'bg-purple-50/80', border: 'border-purple-200', text: 'text-purple-700', stripe: 'bg-purple-100' };
-    case 'focus_time':
-    case '집중 학습':
-      return { bg: 'bg-indigo-50/80', border: 'border-indigo-300', text: 'text-indigo-700', stripe: 'bg-indigo-100' };
-    default:
-      return { bg: 'bg-gray-50/80', border: 'border-gray-200', text: 'text-gray-600', stripe: 'bg-gray-100' };
-  }
-}
-
 // ============================================
 // 겹침 계산 (First-Fit 레벨 할당)
 // ============================================

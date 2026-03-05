@@ -5,7 +5,6 @@ import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import { GridPlanBlock } from './items/GridPlanBlock';
-import { GridNonStudyBlock } from './items/GridNonStudyBlock';
 import { AllDayItemBar } from './items/AllDayItemBar';
 import { InlineQuickCreate } from './items/InlineQuickCreate';
 import { EventDetailPopover } from './items/EventDetailPopover';
@@ -151,7 +150,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
   }, [rangeStartMin, rangeEndMin]);
 
   // 플랜 + 비학습 블록 통합 레이아웃 (Google Calendar: 모든 이벤트 동등 컬럼 배치)
-  const { planBlocks, nonStudyBlocks } = useMemo(() => {
+  const planBlocks = useMemo(() => {
     const planItems = [
       ...plans
         .filter((p) => p.start_time && p.end_time)
@@ -161,7 +160,6 @@ export const DailyDockGridView = memo(function DailyDockGridView({
           endMinutes: timeToMinutes(p.end_time!),
           plan: toPlanItemData(p, 'plan'),
           original: p,
-          _kind: 'plan' as const,
         })),
       ...customItems
         .filter((item): item is PlanItemData & { startTime: string; endTime: string } =>
@@ -173,59 +171,34 @@ export const DailyDockGridView = memo(function DailyDockGridView({
           endMinutes: timeToMinutes(item.endTime),
           plan: item,
           original: item,
-          _kind: 'plan' as const,
+        })),
+      ...nonStudyItems
+        .filter((item) => item.startTime && item.endTime)
+        .map((item, idx) => ({
+          id: item.id || `ns-${idx}-${item.startTime}`,
+          startMinutes: timeToMinutes(item.startTime!),
+          endMinutes: timeToMinutes(item.endTime!),
+          plan: item,
+          original: item,
         })),
     ];
 
-    const nsItems = nonStudyItems
-      .filter((item) => item.startTime && item.endTime)
-      .map((item, idx) => ({
-        id: item.id || `ns-${idx}-${item.startTime}`,
-        startMinutes: timeToMinutes(item.startTime!),
-        endMinutes: timeToMinutes(item.endTime!),
-        plan: item,
-        _kind: 'nonStudy' as const,
-      }));
+    const withLevels = assignLevels(planItems);
 
-    // 모든 이벤트를 통합하여 컬럼 패킹
-    const allItems = [
-      ...planItems.map((p) => ({ id: p.id, startMinutes: p.startMinutes, endMinutes: p.endMinutes })),
-      ...nsItems.map((n) => ({ id: n.id, startMinutes: n.startMinutes, endMinutes: n.endMinutes })),
-    ];
-    const withLevels = assignLevels(allItems);
-    const levelMap = new Map(withLevels.map((l) => [l.id, l]));
-
-    const resultPlans = planItems.map((item) => {
-      const lv = levelMap.get(item.id)!;
-      const pos = computeLayoutPosition(lv.level, lv.totalLevels, lv.expandedSpan);
+    return withLevels.map((item) => {
+      const pos = computeLayoutPosition(item.level, item.totalLevels, item.expandedSpan);
+      const source = planItems.find((p) => p.id === item.id)!;
       return {
-        ...item,
-        level: lv.level,
-        totalLevels: lv.totalLevels,
-        expandedSpan: lv.expandedSpan,
-        top: minutesToPx(item.startMinutes, rangeStartMin, ppm),
-        height: (item.endMinutes - item.startMinutes) * ppm,
+        ...source,
+        level: item.level,
+        totalLevels: item.totalLevels,
+        expandedSpan: item.expandedSpan,
+        top: minutesToPx(source.startMinutes, rangeStartMin, ppm),
+        height: (source.endMinutes - source.startMinutes) * ppm,
         left: pos.left,
         width: pos.width,
       };
     });
-
-    const resultNs = nsItems.map((item) => {
-      const lv = levelMap.get(item.id)!;
-      const pos = computeLayoutPosition(lv.level, lv.totalLevels, lv.expandedSpan);
-      return {
-        plan: item.plan,
-        level: lv.level,
-        totalLevels: lv.totalLevels,
-        expandedSpan: lv.expandedSpan,
-        top: minutesToPx(item.startMinutes, rangeStartMin, ppm),
-        height: (item.endMinutes - item.startMinutes) * ppm,
-        left: pos.left,
-        width: pos.width,
-      };
-    });
-
-    return { planBlocks: resultPlans, nonStudyBlocks: resultNs };
   }, [plans, customItems, nonStudyItems, rangeStartMin, ppm]);
 
   // 현재 시간 인디케이터
@@ -772,8 +745,9 @@ export const DailyDockGridView = memo(function DailyDockGridView({
         planDate: item.startDate ?? selectedDate,
         startTime: null,
         endTime: null,
-        eventKind: item.exclusionType ? 'exclusion' : 'non_study',
-        eventSubtype: item.exclusionType ?? undefined,
+        label: item.exclusionType ?? item.label ?? '기타',
+        isExclusion: !!item.exclusionType,
+        isTask: false,
       };
       showPopover(planItem, anchorRect);
     },
@@ -1108,21 +1082,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
             </div>
           )}
 
-          {/* 비학습시간 블록 (통합 컬럼 레이아웃) */}
-          {nonStudyBlocks.map((block, idx) => (
-            <div key={`ns-${idx}`} data-grid-block>
-              <GridNonStudyBlock
-                plan={block.plan}
-                top={block.top}
-                height={block.height}
-                left={block.left}
-                width={block.width}
-                onClick={handleBlockClick}
-              />
-            </div>
-          ))}
-
-          {/* 플랜 블록 */}
+          {/* 이벤트 블록 (학습 + 비학습 통합, GCal 단색 스타일) */}
           {planBlocks.map((block) => {
             const isThisResizing = isResizing && resizingPlanId === block.id;
             const queryLower = searchQuery?.toLowerCase() ?? '';

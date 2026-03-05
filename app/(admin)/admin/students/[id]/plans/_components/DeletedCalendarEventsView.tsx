@@ -54,12 +54,12 @@ function formatEventDate(event: DeletedCalendarEventInfo): string {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-const EVENT_TYPE_LABELS: Record<string, string> = {
-  study: '학습',
-  exclusion: '제외일',
-  academy: '학원',
-  calendar: '일반',
-};
+function getEventTypeLabel(evt: DeletedCalendarEventInfo): string {
+  if (evt.label) return evt.label;
+  if (evt.is_exclusion) return '제외일';
+  if (evt.is_task) return '학습';
+  return '일반';
+}
 
 export function DeletedCalendarEventsView({ studentId, onRefresh, calendarId }: DeletedCalendarEventsViewProps) {
   const [events, setEvents] = useState<DeletedCalendarEventInfo[]>([]);
@@ -271,7 +271,7 @@ export function DeletedCalendarEventsView({ studentId, onRefresh, calendarId }: 
                           </span>
                         )}
                         <span className="text-xs bg-[rgb(var(--color-secondary-100))] text-[var(--text-tertiary)] px-1.5 py-0.5 rounded">
-                          {EVENT_TYPE_LABELS[evt.event_type] ?? evt.event_type}
+                          {getEventTypeLabel(evt)}
                         </span>
                       </div>
                     </div>

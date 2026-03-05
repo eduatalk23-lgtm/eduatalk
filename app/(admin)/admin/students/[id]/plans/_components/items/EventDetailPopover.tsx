@@ -4,7 +4,7 @@ import { memo, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/cn';
 import { Pencil, Trash2, Clock, X, ChevronDown, ChevronRight, Check, XCircle, Repeat, Bell, FileText, EyeOff, Undo2 } from 'lucide-react';
-import { formatDurationKo, getNonStudyBlockColors } from '../utils/timeGridUtils';
+import { formatDurationKo } from '../utils/timeGridUtils';
 import { getSubjectPalette } from '../utils/subjectColors';
 import { usePopoverPosition } from '../hooks/usePopoverPosition';
 import { useIsMobile } from '@/lib/hooks/useIsMobile';
@@ -12,6 +12,7 @@ import type { PlanItemData } from '@/lib/types/planItem';
 import type { PlanStatus } from '@/lib/types/plan';
 import { formatRRuleToKorean } from '@/lib/domains/calendar/rrule';
 
+/** @deprecated eventKind 기반 상수. isTask 필드로 대체됨. */
 const NON_STUDY_KINDS = ['non_study', 'academy', 'break', 'focus_time'];
 
 export interface EventDetailPopoverProps {
@@ -42,10 +43,10 @@ export const EventDetailPopover = memo(function EventDetailPopover({
   onRecurringEdit,
   onDisable,
 }: EventDetailPopoverProps) {
-  // 비학습 이벤트 여부
-  const isNonStudy = NON_STUDY_KINDS.includes(plan.eventKind ?? '');
-  // Task 여부 (is_task 우선, fallback으로 eventKind 판별)
-  const isTask = plan.isTask ?? !isNonStudy;
+  // 비학습 이벤트 여부 (label 기반, isTask=false이면 비학습)
+  const isNonStudy = !(plan.isTask ?? false);
+  // Task 여부
+  const isTask = plan.isTask ?? false;
   // 반복 이벤트 여부 판별
   const isRecurring = !!(plan.rrule || plan.recurringEventId);
   const instanceDate = plan.planDate ?? '';
@@ -144,11 +145,6 @@ export const EventDetailPopover = memo(function EventDetailPopover({
 
   const palette = getSubjectPalette(plan.subject);
 
-  // 비학습 이벤트의 색상 정보
-  const nsColors = isNonStudy
-    ? getNonStudyBlockColors(plan.eventSubtype ?? plan.eventKind ?? 'non_study')
-    : null;
-
   const durationMin =
     plan.startTime && plan.endTime
       ? (() => {
@@ -167,10 +163,8 @@ export const EventDetailPopover = memo(function EventDetailPopover({
       })()
     : null;
 
-  // 제목: 비학습은 eventSubtype 또는 title
-  const displayTitle = isNonStudy
-    ? (plan.eventSubtype ?? plan.title)
-    : plan.title;
+  // 제목: title 우선, fallback으로 label
+  const displayTitle = plan.title ?? plan.label;
 
   // 공통 내부 콘텐츠 (팝오버/바텀시트 공유)
   const innerContent = (
@@ -220,17 +214,22 @@ export const EventDetailPopover = memo(function EventDetailPopover({
 
       {/* 콘텐츠 */}
       <div className="px-4 pb-3 space-y-2">
-        {/* 제목 (비학습: 스트라이프 인디케이터 + 서브타입) */}
+        {/* 제목 + 색상 인디케이터 (통합) */}
         <div className="flex items-center gap-2">
-          {isNonStudy && nsColors && (
-            <span className={cn('w-2.5 h-2.5 rounded-sm shrink-0', nsColors.bg, nsColors.border, 'border')} />
-          )}
+          {(() => {
+            const indicatorColor = plan.color
+              ?? (plan.subject ? palette.solidBg : null);
+            return indicatorColor ? (
+              <span className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ backgroundColor: indicatorColor }} />
+            ) : null;
+          })()}
           <h3 id="event-detail-title" className="text-sm font-semibold text-[var(--text-primary)] leading-snug line-clamp-2">
             {displayTitle}
           </h3>
         </div>
 
-        {/* 과목 (컬러 닷 + 과목명) — 학습 이벤트만 */}
+        {/* 과목명 — 학습 이벤트만 */}
         {!isNonStudy && plan.subject && (
           <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
             <span

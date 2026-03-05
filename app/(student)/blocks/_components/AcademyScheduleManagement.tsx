@@ -92,10 +92,9 @@ export default function AcademyScheduleManagement({
       // 학원 일정 조회 (calendar_events 기반)
       const { data: calendarEvents } = await supabase
         .from("calendar_events")
-        .select("id, tenant_id, student_id, event_subtype, title, day_of_week, start_time, end_time, metadata, created_at, updated_at")
+        .select("id, tenant_id, student_id, label, event_subtype, title, day_of_week, start_time, end_time, metadata, created_at, updated_at")
         .eq("student_id", studentId)
-        .eq("event_type", "academy")
-        .eq("event_subtype", "학원")
+        .eq("label", "학원")
         .is("deleted_at", null);
 
       // calendar_events에서 주간 패턴 재구성 → AcademySchedule 형태로 변환

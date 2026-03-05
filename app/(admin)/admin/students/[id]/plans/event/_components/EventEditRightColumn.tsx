@@ -9,11 +9,11 @@ interface EventEditRightColumnProps {
 }
 
 export function EventEditRightColumn({ form, setField }: EventEditRightColumnProps) {
-  if (form.eventType !== 'study') {
+  if (!form.hasStudyData) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 py-12 text-gray-400">
         <BookOpen className="h-8 w-8 opacity-30" />
-        <span className="text-sm">학습 타입에서만 상세 설정 가능</span>
+        <span className="text-sm">학습 라벨에서만 상세 설정 가능</span>
       </div>
     );
   }

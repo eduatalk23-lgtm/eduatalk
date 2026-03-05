@@ -2,7 +2,6 @@
 
 import { useMemo, useState, useCallback, useRef, forwardRef } from 'react';
 import { GridPlanBlock } from './items/GridPlanBlock';
-import { GridNonStudyBlock } from './items/GridNonStudyBlock';
 import { toPlanItemData, type PlanItemData } from '@/lib/types/planItem';
 import {
   timeToMinutes,
@@ -98,7 +97,7 @@ export const WeeklyGridColumn = forwardRef<HTMLDivElement, WeeklyGridColumnProps
     const totalHeight = (rangeEndMin - rangeStartMin) * ppm;
 
     // 플랜 + 비학습 블록 통합 레이아웃 (Google Calendar: 모든 이벤트 동등 컬럼 배치)
-    const { planBlocks, nonStudyBlocks } = useMemo(() => {
+    const planBlocks = useMemo(() => {
       const planItems = [
         ...plans
           .filter((p) => p.start_time && p.end_time)
@@ -107,8 +106,6 @@ export const WeeklyGridColumn = forwardRef<HTMLDivElement, WeeklyGridColumnProps
             startMinutes: timeToMinutes(p.start_time!),
             endMinutes: timeToMinutes(p.end_time!),
             plan: toPlanItemData(p, 'plan'),
-            original: p,
-            _kind: 'plan' as const,
           })),
         ...customItems
           .filter(
@@ -120,60 +117,33 @@ export const WeeklyGridColumn = forwardRef<HTMLDivElement, WeeklyGridColumnProps
             startMinutes: timeToMinutes(item.startTime),
             endMinutes: timeToMinutes(item.endTime),
             plan: item,
-            original: item,
-            _kind: 'plan' as const,
+          })),
+        ...nonStudyItems
+          .filter((item) => item.startTime && item.endTime)
+          .map((item, idx) => ({
+            id: item.id || `ns-${idx}-${item.startTime}`,
+            startMinutes: timeToMinutes(item.startTime!),
+            endMinutes: timeToMinutes(item.endTime!),
+            plan: item,
           })),
       ];
 
-      const nsItems = nonStudyItems
-        .filter((item) => item.startTime && item.endTime)
-        .map((item, idx) => ({
-          id: item.id || `ns-${idx}-${item.startTime}`,
-          startMinutes: timeToMinutes(item.startTime!),
-          endMinutes: timeToMinutes(item.endTime!),
-          plan: item,
-          _kind: 'nonStudy' as const,
-        }));
+      const withLevels = assignLevels(planItems);
 
-      // 모든 이벤트를 통합하여 컬럼 패킹
-      const allItems = [
-        ...planItems.map((p) => ({ id: p.id, startMinutes: p.startMinutes, endMinutes: p.endMinutes, _kind: p._kind })),
-        ...nsItems.map((n) => ({ id: n.id, startMinutes: n.startMinutes, endMinutes: n.endMinutes, _kind: n._kind })),
-      ];
-      const withLevels = assignLevels(allItems);
-      const levelMap = new Map(withLevels.map((l) => [l.id, l]));
-
-      const resultPlans = planItems.map((item) => {
-        const lv = levelMap.get(item.id)!;
-        const pos = computeLayoutPosition(lv.level, lv.totalLevels, lv.expandedSpan);
+      return withLevels.map((item) => {
+        const pos = computeLayoutPosition(item.level, item.totalLevels, item.expandedSpan);
+        const source = planItems.find((p) => p.id === item.id)!;
         return {
-          ...item,
-          level: lv.level,
-          totalLevels: lv.totalLevels,
-          expandedSpan: lv.expandedSpan,
-          top: minutesToPx(item.startMinutes, rangeStartMin, ppm),
-          height: (item.endMinutes - item.startMinutes) * ppm,
+          ...source,
+          level: item.level,
+          totalLevels: item.totalLevels,
+          expandedSpan: item.expandedSpan,
+          top: minutesToPx(source.startMinutes, rangeStartMin, ppm),
+          height: (source.endMinutes - source.startMinutes) * ppm,
           left: pos.left,
           width: pos.width,
         };
       });
-
-      const resultNs = nsItems.map((item) => {
-        const lv = levelMap.get(item.id)!;
-        const pos = computeLayoutPosition(lv.level, lv.totalLevels, lv.expandedSpan);
-        return {
-          plan: item.plan,
-          level: lv.level,
-          totalLevels: lv.totalLevels,
-          expandedSpan: lv.expandedSpan,
-          top: minutesToPx(item.startMinutes, rangeStartMin, ppm),
-          height: (item.endMinutes - item.startMinutes) * ppm,
-          left: pos.left,
-          width: pos.width,
-        };
-      });
-
-      return { planBlocks: resultPlans, nonStudyBlocks: resultNs };
     }, [plans, customItems, nonStudyItems, rangeStartMin, ppm]);
 
     // 검색 하이라이트 판별
@@ -249,21 +219,7 @@ export const WeeklyGridColumn = forwardRef<HTMLDivElement, WeeklyGridColumnProps
         {/* 그리드라인 레이어 (오버레이 위, 이벤트 아래) */}
         <div className="absolute inset-0 pointer-events-none" style={gridBgStyle} />
 
-        {/* 비학습시간 블록 (통합 컬럼 레이아웃) */}
-        {nonStudyBlocks.map((block, idx) => (
-          <div key={`ns-${idx}`} data-grid-block>
-            <GridNonStudyBlock
-              plan={block.plan}
-              top={block.top}
-              height={block.height}
-              left={block.left}
-              width={block.width}
-              onClick={onBlockClick}
-            />
-          </div>
-        ))}
-
-        {/* 플랜 블록 */}
+        {/* 이벤트 블록 (학습 + 비학습 통합, GCal 단색 스타일) */}
         {planBlocks.map((block) => {
           const isHighlighted = queryLower
             ? [block.plan.title, block.plan.subject]

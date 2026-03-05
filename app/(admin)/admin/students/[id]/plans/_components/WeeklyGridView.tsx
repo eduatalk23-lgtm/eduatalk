@@ -755,9 +755,6 @@ export const WeeklyGridView = memo(function WeeklyGridView({
       if (quickCreateOpenRef.current) closeQuickCreate();
 
       // AllDayItem → PlanItemData 변환 (팝오버 표시용 최소 데이터)
-      // ★ eventSubtype에 item.type(이벤트 유형명)을 넣으면 popover가 title 대신 유형명을 표시함
-      //   item.exclusionType(DB event_subtype)을 사용하되, 없으면 undefined로 두어
-      //   popover의 displayTitle이 plan.title(=item.label)을 사용하도록 함
       const planItem: PlanItemData = {
         id: item.id,
         type: 'plan',
@@ -767,8 +764,9 @@ export const WeeklyGridView = memo(function WeeklyGridView({
         planDate: item.startDate,
         startTime: null,
         endTime: null,
-        eventKind: item.exclusionType ? 'exclusion' : 'non_study',
-        eventSubtype: item.exclusionType ?? undefined,
+        label: item.exclusionType ?? item.label ?? '기타',
+        isExclusion: !!item.exclusionType,
+        isTask: false,
       };
       showPopover(planItem, anchorRect);
     },

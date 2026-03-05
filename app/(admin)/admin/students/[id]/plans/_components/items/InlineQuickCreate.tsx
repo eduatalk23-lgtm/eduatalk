@@ -7,7 +7,8 @@ import { RecurrenceSelector } from './RecurrenceSelector';
 import { formatDurationKo, timeToMinutes, minutesToTime } from '../utils/timeGridUtils';
 import { TimePickerDropdown } from './TimePickerDropdown';
 import { cn } from '@/lib/cn';
-import { Loader2, X, Clock, Shield, Calendar as CalendarIcon, Coffee } from 'lucide-react';
+import { LABEL_PRESETS, getDefaultIsTask } from '@/lib/domains/calendar/labelPresets';
+import { Loader2, X, Clock } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useToast } from '@/components/ui/ToastProvider';
@@ -51,7 +52,9 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
   const [titleError, setTitleError] = useState<string | null>(null);
   const [subject, setSubject] = useState('');
   const [mode, setMode] = useState<'allDay' | 'timed'>(initialMode);
-  const [eventType, setEventType] = useState<'study' | 'focus_time' | 'custom' | 'break'>('study');
+  const [selectedLabel, setSelectedLabel] = useState('학습');
+  const isStudy = selectedLabel === '학습';
+  const isTask = getDefaultIsTask(selectedLabel);
   const [rrule, setRrule] = useState<string | null>(null);
 
   // 시간 모드 상태: slot에 이미 올바른 start/end가 들어옴
@@ -121,19 +124,16 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
           startTime: mode === 'allDay' ? undefined : startTime,
           endTime: mode === 'allDay' ? undefined : endTime,
           isAllDay: mode === 'allDay',
-          subject: eventType === 'study' ? (subject || undefined) : undefined,
-          eventSubtype: eventType === 'focus_time' ? '집중 학습'
-            : eventType === 'break' ? '휴식'
-            : eventType === 'custom' ? '일반'
-            : undefined,
+          subject: isStudy ? (subject || undefined) : undefined,
           rrule: rrule ?? undefined,
-          eventType,
+          eventType: isStudy ? 'study' : 'custom',
+          label: selectedLabel,
+          isTask,
           containerType: 'daily',
-          estimatedMinutes: eventType === 'study' && mode !== 'allDay' && computedMinutes > 0 ? computedMinutes : undefined,
+          estimatedMinutes: isStudy && mode !== 'allDay' && computedMinutes > 0 ? computedMinutes : undefined,
           reminderMinutes: defaultReminderMinutes?.[0] ?? undefined,
         });
-        const label = { study: '플랜', focus_time: '집중 시간', custom: '일정', break: '휴식' }[eventType] ?? '일정';
-        toast.showSuccess(rrule ? '반복 이벤트가 생성되었습니다' : `${label}이 생성되었습니다`);
+        toast.showSuccess(rrule ? '반복 이벤트가 생성되었습니다' : `${selectedLabel} 일정이 생성되었습니다`);
         onSuccess(eventId ? { planId: eventId, startTime: mode === 'allDay' ? '00:00' : startTime } : undefined);
         onClose();
       } catch (err) {
@@ -187,34 +187,32 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
         />
         {titleError && <p className="text-xs text-red-500 mt-0.5">{titleError}</p>}
 
-        {/* 이벤트 타입 선택 */}
-        <div className="grid grid-cols-2 gap-1.5">
-          {([
-            { value: 'study' as const, label: '학습', icon: Clock, active: 'bg-blue-50 border-blue-300 text-blue-700' },
-            { value: 'focus_time' as const, label: '집중 시간', icon: Shield, active: 'bg-indigo-50 border-indigo-300 text-indigo-700' },
-            { value: 'custom' as const, label: '일반 일정', icon: CalendarIcon, active: 'bg-gray-100 border-gray-400 text-gray-700' },
-            { value: 'break' as const, label: '휴식', icon: Coffee, active: 'bg-green-50 border-green-300 text-green-700' },
-          ]).map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => setEventType(opt.value)}
-              disabled={isPending}
-              className={cn(
-                'flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs rounded-md border transition-colors disabled:opacity-50',
-                eventType === opt.value
-                  ? `${opt.active} font-medium`
-                  : 'border-[rgb(var(--color-secondary-200))] text-[var(--text-tertiary)] hover:border-[rgb(var(--color-secondary-300))]',
-              )}
-            >
-              <opt.icon className="w-3 h-3" />
-              {opt.label}
-            </button>
-          ))}
+        {/* 라벨 프리셋 칩 */}
+        <div className="flex flex-wrap gap-1">
+          {LABEL_PRESETS.map((preset) => {
+            const isActive = selectedLabel === preset.label;
+            return (
+              <button
+                key={preset.label}
+                type="button"
+                onClick={() => setSelectedLabel(preset.label)}
+                disabled={isPending}
+                className={cn(
+                  'px-2 py-1 text-xs rounded-full border transition-colors disabled:opacity-50',
+                  isActive
+                    ? 'font-medium border-transparent text-white'
+                    : 'border-[rgb(var(--color-secondary-200))] text-[var(--text-tertiary)] hover:border-[rgb(var(--color-secondary-300))]',
+                )}
+                style={isActive ? { backgroundColor: preset.defaultColor } : undefined}
+              >
+                {preset.label}
+              </button>
+            );
+          })}
         </div>
 
-        {/* 과목 선택 (학습 타입일 때만) */}
-        {eventType === 'study' && (
+        {/* 과목 선택 (학습일 때만) */}
+        {isStudy && (
           <select
             value={subject}
             onChange={(e) => setSubject(e.target.value)}

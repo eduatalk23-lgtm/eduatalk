@@ -124,9 +124,9 @@ async function getCalendarSettingsAdmin(
   // 제외일 조회
   const { data: exclusions } = await adminClient
     .from("calendar_events")
-    .select("id, calendar_id, start_date, event_subtype, title, source, created_at")
+    .select("id, calendar_id, start_date, label, event_subtype, title, source, created_at")
     .eq("calendar_id", calendarId)
-    .eq("event_type", "exclusion")
+    .eq("is_exclusion", true)
     .eq("is_all_day", true)
     .is("deleted_at", null)
     .order("start_date", { ascending: true });
@@ -137,7 +137,7 @@ async function getCalendarSettingsAdmin(
     student_id: "",
     plan_group_id: null,
     exclusion_date: row.start_date ?? "",
-    exclusion_type: (row.event_subtype ?? "기타") as "휴가" | "개인사정" | "휴일지정" | "기타",
+    exclusion_type: (row.label ?? row.event_subtype ?? "기타") as "휴가" | "개인사정" | "휴일지정" | "기타",
     reason: row.title,
     created_at: row.created_at ?? "",
   }));
@@ -187,9 +187,9 @@ async function generateScheduleAdmin(
   // 1. 제외일 조회
   const { data: exclusionEvents } = await adminClient
     .from("calendar_events")
-    .select("start_date, event_subtype, title")
+    .select("start_date, label, event_subtype, title")
     .eq("calendar_id", calendarId)
-    .eq("event_type", "exclusion")
+    .eq("is_exclusion", true)
     .eq("is_all_day", true)
     .is("deleted_at", null)
     .gte("start_date", periodStart)
@@ -197,16 +197,16 @@ async function generateScheduleAdmin(
 
   const exclusions = (exclusionEvents || []).map((e) => ({
     exclusion_date: e.start_date ?? "",
-    exclusion_type: (e.event_subtype || "기타") as "휴가" | "개인사정" | "휴일지정" | "기타",
+    exclusion_type: (e.label ?? e.event_subtype ?? "기타") as "휴가" | "개인사정" | "휴일지정" | "기타",
     reason: e.title || undefined,
   }));
 
   // 2. 학원 일정 조회
   const { data: academyEvents } = await adminClient
     .from("calendar_events")
-    .select("start_at, end_at, start_date, event_type, event_subtype, title")
+    .select("start_at, end_at, start_date, event_type, event_subtype, label, title")
     .eq("calendar_id", calendarId)
-    .eq("event_type", "academy")
+    .in("label", ["학원", "이동시간"])
     .is("deleted_at", null)
     .gte("start_date", periodStart)
     .lte("start_date", periodEnd);
@@ -332,11 +332,12 @@ async function prefetchNonStudyTimeAdmin(
 
   const { data: events, error } = await adminClient
     .from("calendar_events")
-    .select("id, event_type, event_subtype, start_at, end_at, title, order_index")
+    .select("id, label, start_at, end_at, title, order_index")
     .eq("calendar_id", calendarId)
     .is("deleted_at", null)
     .eq("is_all_day", false)
-    .in("event_type", ["non_study", "academy", "break"])
+    .eq("is_task", false)
+    .eq("is_exclusion", false)
     .gte("start_at", dateStart)
     .lt("start_at", dateEnd)
     .order("start_at", { ascending: true });
@@ -355,13 +356,13 @@ async function prefetchNonStudyTimeAdmin(
   return events.map((event) => {
     const startTime = extractTimeHHMM(event.start_at ?? null) ?? "00:00";
     const endTime = extractTimeHHMM(event.end_at ?? null) ?? "00:00";
-    const subtype = event.event_subtype ?? event.event_type;
+    const eventLabel = event.label ?? "기타";
     return {
       id: event.id,
-      type: typeMap[subtype] ?? "기타",
+      type: typeMap[eventLabel] ?? "기타",
       start_time: startTime,
       end_time: endTime,
-      label: event.title ?? subtype,
+      label: event.title ?? eventLabel,
       sourceIndex: event.order_index ?? undefined,
       hasOverride: false,
     };

@@ -66,9 +66,9 @@ export default function ExclusionManagement({
       // 학생별 전역 제외일 조회 (calendar_events 기반)
       const { data: exclusions, error } = await supabase
         .from("calendar_events")
-        .select("id,tenant_id,student_id,start_date,event_subtype,title,created_at")
+        .select("id,tenant_id,student_id,start_date,label,event_subtype,title,created_at")
         .eq("student_id", studentId)
-        .eq("event_type", "exclusion")
+        .eq("is_exclusion", true)
         .eq("is_all_day", true)
         .is("deleted_at", null)
         .order("start_date", { ascending: true });
@@ -84,7 +84,7 @@ export default function ExclusionManagement({
           student_id: e.student_id ?? "",
           plan_group_id: null,
           exclusion_date: e.start_date ?? "",
-          exclusion_type: (e.event_subtype ?? "기타") as PlanExclusion["exclusion_type"],
+          exclusion_type: (e.label ?? e.event_subtype ?? "기타") as PlanExclusion["exclusion_type"],
           reason: e.title ?? null,
           created_at: e.created_at ?? new Date().toISOString(),
         }));

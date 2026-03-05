@@ -149,15 +149,15 @@ export async function POST(request: NextRequest) {
     if (options.includeExclusions && calendarId) {
       const { data } = await supabase
         .from("calendar_events")
-        .select("start_date, event_subtype, title")
+        .select("start_date, label, title")
         .eq("calendar_id", calendarId)
-        .eq("event_type", "exclusion")
+        .eq("is_exclusion", true)
         .eq("is_all_day", true)
         .is("deleted_at", null)
         .order("start_date", { ascending: true });
       exclusions = (data || []).map((row) => ({
         exclusion_date: row.start_date!,
-        exclusion_type: row.event_subtype ?? "기타",
+        exclusion_type: row.label ?? "기타",
         reason: row.title,
       }));
     }
@@ -175,8 +175,7 @@ export async function POST(request: NextRequest) {
         .from("calendar_events")
         .select("start_at, end_at, start_date, title")
         .eq("calendar_id", calendarId)
-        .eq("event_type", "academy")
-        .filter("event_subtype", "eq", "학원")
+        .eq("label", "학원")
         .is("deleted_at", null);
 
       // plan_date에서 요일 추출, 요일+시간 기준 유니크하게 집약

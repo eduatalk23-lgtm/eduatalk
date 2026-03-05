@@ -212,7 +212,7 @@ export default function AdminScoreListClient({
 
   const handleRowClick = useCallback(
     (score: InternalScoreWithRelations | MockScoreWithRelations) => {
-      setEditingScore((prev) => (prev?.id === score.id ? null : score));
+      setEditingScore((prev: InternalScoreWithRelations | MockScoreWithRelations | null) => (prev?.id === score.id ? null : score));
     },
     []
   );

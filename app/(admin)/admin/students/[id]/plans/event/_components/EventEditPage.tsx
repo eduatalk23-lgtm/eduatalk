@@ -48,6 +48,7 @@ export function EventEditPage({
   const {
     form,
     setField,
+    setLabel,
     isDirty,
     isLoading,
     isSaving,
@@ -108,14 +109,14 @@ export function EventEditPage({
           {isMobile ? (
             /* Mobile: single column stack */
             <div className="flex flex-col gap-8">
-              <EventEditLeftColumn form={form} setField={setField} />
+              <EventEditLeftColumn form={form} setField={setField} setLabel={setLabel} />
               <EventEditRightColumn form={form} setField={setField} />
             </div>
           ) : (
             /* Desktop: 2 columns */
             <div className="flex gap-8">
               <div className="flex-[3] min-w-0">
-                <EventEditLeftColumn form={form} setField={setField} />
+                <EventEditLeftColumn form={form} setField={setField} setLabel={setLabel} />
               </div>
               <div className="flex-[2] min-w-0">
                 <EventEditRightColumn form={form} setField={setField} />
