@@ -13,6 +13,7 @@ import type {
 } from '@/lib/query-options/adminDock';
 import type { PlanItemData, PlanItemType } from '@/lib/types/planItem';
 import type { PlanStatus } from '@/lib/types/plan';
+import { getDefaultColor } from '@/lib/domains/calendar/labelPresets';
 
 // ============================================
 // 헬퍼 함수
@@ -157,9 +158,9 @@ export function calendarEventToAllDayItem(
 
   return {
     id: event.id,
-    type: event.event_type,
+    type: event.is_exclusion ? 'exclusion' : 'event',
     label: event.title,
-    exclusionType: event.event_subtype,
+    exclusionType: event.is_exclusion ? (event.label ?? event.event_subtype) : null,
     color: event.color,
     calendarId: event.calendar_id,
     startDate,
@@ -180,8 +181,8 @@ export function calendarEventToPlanItemData(
     sd?.done ?? false
   );
 
-  const eventKind = event.event_type as PlanItemData['eventKind'];
-  const itemType: PlanItemType = event.event_type === 'custom' ? 'adhoc' : 'plan';
+  const isTask = event.is_task ?? false;
+  const itemType: PlanItemType = (isTask && !sd) ? 'adhoc' : 'plan';
 
   return {
     id: event.id,
@@ -205,7 +206,11 @@ export function calendarEventToPlanItemData(
     carryoverFromDate: null,
     planGroupId: event.plan_group_id ?? null,
     timeSlotType: null,
-    color: event.color ?? null,
+    color: event.color ?? (
+      !(event.is_task ?? false) && !event.is_exclusion
+        ? getDefaultColor(event.label ?? '기타')
+        : null
+    ),
     calendarId: event.calendar_id ?? null,
     rrule: event.rrule ?? null,
     recurringEventId: event.recurring_event_id ?? null,
@@ -213,18 +218,18 @@ export function calendarEventToPlanItemData(
     exdates: (event.exdates as string[] | null) ?? null,
     reminderMinutes: event.reminder_minutes ?? null,
     description: event.description ?? null,
-    eventKind,
-    eventSubtype: event.event_subtype ?? undefined,
-    isTask: event.is_task ?? false,
+    label: event.label ?? event.event_subtype ?? undefined,
+    isExclusion: event.is_exclusion ?? false,
+    isTask,
   };
 }
 
-/** custom 이벤트 (종일 아님) → PlanItemData[] (calendar_events 직접 변환) */
+/** task 이벤트 (학습 데이터 없음, 종일 아님) → PlanItemData[] */
 export function calendarEventsToCustomPlanItems(
   events: CalendarEventWithStudyData[]
 ): PlanItemData[] {
   return events
-    .filter((e) => e.event_type === 'custom' && !e.is_all_day)
+    .filter((e) => e.is_task && !e.event_study_data && !e.is_all_day)
     .map(calendarEventToPlanItemData);
 }
 
@@ -232,24 +237,22 @@ export function calendarEventsToCustomPlanItems(
 // 배치 변환 유틸리티
 // ============================================
 
-/** study 이벤트 (종일 아님) → DailyPlan[] */
+/** study 이벤트 (event_study_data 있고 is_task인 이벤트, 종일 아님) → DailyPlan[] */
 export function calendarEventsToDailyPlans(
   events: CalendarEventWithStudyData[]
 ): DailyPlan[] {
   return events
-    .filter((e) => e.event_type === 'study' && !e.is_all_day)
+    .filter((e) => e.event_study_data !== null && e.is_task && !e.is_all_day)
     .map(calendarEventToDailyPlan);
 }
 
-/** non_study/academy/break 이벤트 (종일 아님) → PlanItemData[] (통합 UI용) */
+/** 비학습 이벤트 (task 아니고, 제외일 아니고, 종일 아님) → PlanItemData[] (통합 UI용) */
 export function calendarEventsToNonStudyPlanItems(
   events: CalendarEventWithStudyData[]
 ): PlanItemData[] {
   return events
     .filter(
-      (e) =>
-        ['non_study', 'academy', 'break', 'focus_time'].includes(e.event_type) &&
-        !e.is_all_day
+      (e) => !e.is_task && !e.is_exclusion && !e.is_all_day
     )
     .map(calendarEventToPlanItemData);
 }
@@ -294,12 +297,12 @@ export function calendarEventToOverduePlan(
   };
 }
 
-/** 미완료 study 이벤트 → OverduePlan[] */
+/** 미완료 task 이벤트 → OverduePlan[] */
 export function calendarEventsToOverduePlans(
   events: CalendarEventWithStudyData[]
 ): OverduePlan[] {
   return events
-    .filter((e) => e.event_type === 'study' && !e.is_all_day)
+    .filter((e) => e.is_task === true && !e.is_all_day)
     .map(calendarEventToOverduePlan);
 }
 
@@ -324,7 +327,7 @@ export function calendarEventToMonthlyPlan(
   return {
     id: event.id,
     plan_date: planDate,
-    content_type: sd?.content_type ?? event.event_type,
+    content_type: sd?.content_type ?? (event.label ?? event.event_type),
     content_id: sd?.content_id ?? null,
     content_title: sd?.content_title ?? event.title,
     content_subject: sd?.subject_name ?? null,

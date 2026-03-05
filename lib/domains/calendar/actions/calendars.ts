@@ -460,7 +460,7 @@ async function _getCalendarSettings(
       .from("calendar_events")
       .select("id, calendar_id, start_date, event_subtype, title, source, created_at")
       .eq("calendar_id", calendarId)
-      .eq("event_type", "exclusion")
+      .eq("is_exclusion", true)
       .eq("is_all_day", true)
       .is("deleted_at", null)
       .order("start_date", { ascending: true });

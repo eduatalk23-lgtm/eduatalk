@@ -268,7 +268,7 @@ export class PersonalizedMatchingService {
       .from("calendar_events")
       .select("id, start_at, event_study_data(done, done_at, content_id, subject_name, estimated_minutes)")
       .eq("student_id", studentId)
-      .eq("event_type", "study")
+      .eq("is_task", true)
       .is("deleted_at", null)
       .order("start_at", { ascending: false })
       .limit(200);

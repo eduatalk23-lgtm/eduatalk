@@ -380,11 +380,12 @@ export function nonStudyTimeQueryOptions(
 
       const { data: events, error } = await supabase
         .from('calendar_events')
-        .select('id, event_type, event_subtype, start_at, end_at, title, order_index')
+        .select('id, label, is_task, is_exclusion, start_at, end_at, title, order_index')
         .eq('calendar_id', calendarId)
         .is('deleted_at', null)
         .eq('is_all_day', false)
-        .in('event_type', ['non_study', 'academy', 'break'])
+        .eq('is_task', false)
+        .eq('is_exclusion', false)
         .gte('start_at', dateStart)
         .lt('start_at', dateEnd)
         .order('start_at', { ascending: true });
@@ -394,11 +395,7 @@ export function nonStudyTimeQueryOptions(
       return events.map((event) => {
         const startTime = extractTimeHHMM(event.start_at ?? null) ?? '00:00';
         const endTime = extractTimeHHMM(event.end_at ?? null) ?? '00:00';
-        const type = mapToNonStudyItemType(
-          event.event_type === 'academy'
-            ? (event.event_subtype ?? '학원')
-            : (event.event_subtype ?? event.event_type)
-        );
+        const type = mapToNonStudyItemType(event.label ?? '기타');
 
         return {
           id: event.id,
@@ -450,7 +447,7 @@ export function allDayEventsQueryOptions(
 
       const { data, error } = await supabase
         .from('calendar_events')
-        .select('id, event_type, event_subtype, title, color, calendar_id')
+        .select('id, label, is_exclusion, title, color, calendar_id')
         .eq('calendar_id', calendarId)
         .eq('is_all_day', true)
         .is('deleted_at', null)
@@ -459,9 +456,9 @@ export function allDayEventsQueryOptions(
       if (error || !data) return [];
       return data.map((row) => ({
         id: row.id,
-        type: row.event_type,
-        label: row.title ?? row.event_type,
-        exclusionType: row.event_subtype,
+        type: row.is_exclusion ? 'exclusion' : 'event',
+        label: row.title ?? row.label ?? '기타',
+        exclusionType: row.is_exclusion ? (row.label ?? null) : null,
         color: row.color,
         calendarId: row.calendar_id,
       }));

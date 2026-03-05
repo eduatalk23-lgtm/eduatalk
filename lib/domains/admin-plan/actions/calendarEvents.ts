@@ -55,10 +55,11 @@ export interface RecurringPattern {
 // 내부 헬퍼: event_type/subtype → legacy type 역매핑
 // ============================================
 
-function eventToLegacyType(eventType: string, eventSubtype: string | null): string {
-  if (eventType === 'exclusion') return '제외일';
-  if (eventType === 'academy') return eventSubtype === '이동시간' ? '이동시간' : '학원';
-  if (eventSubtype) return eventSubtype;
+function eventToLegacyType(row: { label?: string | null; is_exclusion?: boolean; event_type?: string; event_subtype?: string | null }): string {
+  if (row.label) return row.label;
+  // fallback for pre-migration rows
+  if (row.is_exclusion || row.event_type === 'exclusion') return '제외일';
+  if (row.event_subtype) return row.event_subtype;
   return '기타';
 }
 
@@ -81,7 +82,7 @@ async function _getCalendarEvents(
   const { data, error } = await supabase
     .from("calendar_events")
     .select(
-      "id, calendar_id, title, event_type, event_subtype, start_at, end_at, start_date, end_date, is_all_day, metadata, source, order_index, status"
+      "id, calendar_id, title, event_type, event_subtype, label, is_exclusion, start_at, end_at, start_date, end_date, is_all_day, metadata, source, order_index, status"
     )
     .eq("calendar_id", calendarId)
     .is("deleted_at", null)
@@ -106,13 +107,13 @@ async function _getCalendarEvents(
       id: row.id,
       calendarId,
       planDate: row.start_date ?? (extractDateYMD(row.start_at ?? null) ?? ""),
-      type: eventToLegacyType(row.event_type, row.event_subtype),
+      type: eventToLegacyType(row),
       startTime: extractTimeHHMM(row.start_at),
       endTime: extractTimeHHMM(row.end_at),
       label: row.title,
       isAllDay: row.is_all_day ?? false,
       groupId: (metadata?.group_id as string) ?? null,
-      exclusionType: row.event_type === "exclusion" ? row.event_subtype : null,
+      exclusionType: row.is_exclusion ? (row.label ?? row.event_subtype) : null,
       source: row.source ?? "template",
       sequence: row.order_index ?? 0,
       isTemplateBased: row.source === "template",
@@ -142,8 +143,13 @@ export interface CreateCalendarEventInput {
   subject?: string;
   subjectCategory?: string;
   rrule?: string | null;   // RFC 5545 RRULE
-  eventType?: EventType;   // 기본값: 'custom'
+  /** @deprecated label + isTask + isExclusion 사용 */
+  eventType?: EventType;
+  /** @deprecated label 사용 */
   eventSubtype?: string;
+  label?: string;
+  isTask?: boolean;
+  isExclusion?: boolean;
   containerType?: string;  // 'daily'
   color?: string;
   reminderMinutes?: number | null;
@@ -173,6 +179,9 @@ async function _createCalendarEvent(
 
   const isAllDay = input.isAllDay ?? !input.startTime;
   const eventType = input.eventType ?? "custom";
+  const label = input.label ?? input.eventSubtype ?? input.subject ?? '일반';
+  const isTask = input.isTask ?? (eventType === 'study' || eventType === 'custom');
+  const isExclusion = input.isExclusion ?? (eventType === 'exclusion');
 
   const insertData: Record<string, unknown> = {
     calendar_id: calendarId,
@@ -182,6 +191,9 @@ async function _createCalendarEvent(
     description: input.description ?? null,
     event_type: eventType,
     event_subtype: input.eventSubtype ?? input.subject ?? null,
+    label,
+    is_task: isTask,
+    is_exclusion: isExclusion,
     is_all_day: isAllDay,
     status: "confirmed",
     source: "manual",
@@ -265,7 +277,7 @@ async function _addExclusionEvent(
     .from("calendar_events")
     .select("id")
     .eq("calendar_id", calendarId)
-    .eq("event_type", "exclusion")
+    .eq("is_exclusion", true)
     .eq("is_all_day", true)
     .eq("start_date", date)
     .is("deleted_at", null)
@@ -289,6 +301,9 @@ async function _addExclusionEvent(
       title: reason || "제외일",
       event_type: "exclusion",
       event_subtype: mapExclusionType(exclusionType),
+      label: mapExclusionType(exclusionType),
+      is_task: false,
+      is_exclusion: true,
       start_date: date,
       end_date: date,
       is_all_day: true,
@@ -571,7 +586,7 @@ async function _importTimeManagement(
       .from("calendar_events")
       .select("start_date, event_subtype, title")
       .eq("calendar_id", calendarId)
-      .eq("event_type", "exclusion")
+      .eq("is_exclusion", true)
       .eq("is_all_day", true)
       .is("deleted_at", null);
 
@@ -612,7 +627,7 @@ async function _importTimeManagement(
         .from("calendar_events")
         .select("start_date")
         .eq("calendar_id", calendarId)
-        .eq("event_type", "exclusion")
+        .eq("is_exclusion", true)
         .is("deleted_at", null);
 
       const existingDateSet = new Set(
@@ -653,7 +668,7 @@ async function _importTimeManagement(
       .from("calendar_events")
       .select("id")
       .eq("calendar_id", calendarId)
-      .eq("event_type", "academy")
+      .eq("label", "학원")
       .is("deleted_at", null)
       .limit(1);
 
@@ -682,9 +697,9 @@ async function _importTimeManagement(
         { academySchedules: academyInputs, excludedDates: exclusionDates }
       );
 
-      // 학원/이동시간만 필터
+      // 학원/이동시간만 필터 (label 기반)
       const academyRecords = records.filter(
-        (r) => r.event_type === "academy"
+        (r) => r.label === "학원" || r.label === "이동시간"
       ).map((r) => ({ ...r, source: "migration" }));
 
       if (academyRecords.length > 0) {

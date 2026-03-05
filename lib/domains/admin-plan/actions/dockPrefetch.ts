@@ -147,7 +147,8 @@ export async function prefetchNonStudyTime(
     .eq('calendar_id', calendarId)
     .is('deleted_at', null)
     .eq('is_all_day', false)
-    .in('event_type', ['non_study', 'academy', 'break'])
+    .eq('is_task', false)
+    .eq('is_exclusion', false)
     .gte('start_at', dateStart)
     .lt('start_at', dateEnd)
     .order('start_at', { ascending: true });

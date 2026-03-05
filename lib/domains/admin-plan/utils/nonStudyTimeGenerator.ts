@@ -134,6 +134,9 @@ export function generateNonStudyRecordsForDateRange(
           title: block.description || block.type,
           event_type: eventType,
           event_subtype: eventSubtype,
+          label: block.type,
+          is_task: false,
+          is_exclusion: false,
           start_at: toTimestamptz(dateString, block.start_time),
           end_at: toTimestamptz(dateString, block.end_time),
           is_all_day: false,
@@ -162,6 +165,9 @@ export function generateNonStudyRecordsForDateRange(
           title: academy.academyName ? `${academy.academyName} 이동` : '학원 이동',
           event_type: 'academy',
           event_subtype: '이동시간',
+          label: '이동시간',
+          is_task: false,
+          is_exclusion: false,
           start_at: toTimestamptz(dateString, travelStart),
           end_at: toTimestamptz(dateString, academy.startTime),
           is_all_day: false,
@@ -185,6 +191,9 @@ export function generateNonStudyRecordsForDateRange(
         title: academyLabel,
         event_type: 'academy',
         event_subtype: '학원',
+        label: '학원',
+        is_task: false,
+        is_exclusion: false,
         start_at: toTimestamptz(dateString, academy.startTime),
         end_at: toTimestamptz(dateString, academy.endTime),
         is_all_day: false,
@@ -277,6 +286,9 @@ export function generateExclusionRecordsForDates(
     title: exc.reason || '제외일',
     event_type: 'exclusion',
     event_subtype: mapExclusionType(exc.exclusionType),
+    label: mapExclusionType(exc.exclusionType),
+    is_task: false,
+    is_exclusion: true,
     start_date: exc.date,
     end_date: exc.date,
     is_all_day: true,
@@ -327,6 +339,9 @@ export function generateRecurringNonStudyRecords(
       title: pattern.label || pattern.type,
       event_type: eventType,
       event_subtype: eventSubtype,
+      label: pattern.type,
+      is_task: false,
+      is_exclusion: false,
       start_at: toTimestamptz(dateString, pattern.startTime),
       end_at: toTimestamptz(dateString, pattern.endTime),
       is_all_day: false,
@@ -356,8 +371,9 @@ export function reconstructAcademyPatternsFromCalendarEvents(
     start_at: string | null;
     end_at: string | null;
     start_date: string | null;
-    event_type: string;
-    event_subtype: string | null;
+    event_type?: string;
+    event_subtype?: string | null;
+    label?: string | null;
     title: string;
   }>
 ): Array<{
@@ -368,7 +384,7 @@ export function reconstructAcademyPatternsFromCalendarEvents(
   travel_time?: number;
 }> {
   const academyRecords = records.filter(
-    (r) => r.event_type === 'academy' && r.event_subtype === '학원' && r.start_at && r.end_at
+    (r) => (r.label === '학원' || (r.event_type === 'academy' && r.event_subtype === '학원')) && r.start_at && r.end_at
   );
 
   const patternMap = new Map<
@@ -393,8 +409,7 @@ export function reconstructAcademyPatternsFromCalendarEvents(
       // 이동시간 찾기
       const travelRecord = records.find(
         (r) =>
-          r.event_type === 'academy' &&
-          r.event_subtype === '이동시간' &&
+          (r.label === '이동시간' || (r.event_type === 'academy' && r.event_subtype === '이동시간')) &&
           (r.start_date ?? extractDateYMD(r.start_at ?? null)) === planDate &&
           extractTimeHHMM(r.end_at ?? null) === startTime
       );

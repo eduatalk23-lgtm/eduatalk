@@ -197,7 +197,7 @@ export async function generatePlansForContent(
       .from("calendar_events")
       .select("start_date")
       .eq("student_id", timezone.student_id)
-      .eq("event_type", "exclusion")
+      .eq("is_exclusion", true)
       .eq("is_all_day", true)
       .is("deleted_at", null);
 
@@ -535,7 +535,7 @@ async function generatePlanPreview(
     .from("calendar_events")
     .select("start_date")
     .eq("student_id", timezone.student_id)
-    .eq("event_type", "exclusion")
+    .eq("is_exclusion", true)
     .eq("is_all_day", true)
     .is("deleted_at", null);
 

@@ -43,8 +43,10 @@ export function usePrimaryCalendar(studentId: string | undefined) {
 // 이벤트 필터 헬퍼
 // ============================================
 
+/** @deprecated event_type 기반 필터. is_task/is_exclusion 기반 필터 사용 권장. */
 const NON_STUDY_EVENT_TYPES: EventType[] = ['non_study', 'academy', 'break'];
 
+/** @deprecated event_type 기반 필터. is_task/is_exclusion 기반 필터 사용 권장. */
 function filterByType(
   events: CalendarEventWithStudyData[],
   types: EventType[]
@@ -96,14 +98,12 @@ export function useDailyCalendarEvents(
   );
 
   const studyEvents = useMemo(
-    () => events.filter((e) => e.event_type === 'study' && !e.is_all_day),
+    () => events.filter((e) => e.is_task && e.event_study_data !== null && !e.is_all_day),
     [events]
   );
 
   const nonStudyEvents = useMemo(
-    () => events.filter(
-      (e) => NON_STUDY_EVENT_TYPES.includes(e.event_type as EventType) && !e.is_all_day
-    ),
+    () => events.filter((e) => !e.is_task && !e.is_exclusion && !e.is_all_day),
     [events]
   );
 
@@ -113,7 +113,7 @@ export function useDailyCalendarEvents(
   );
 
   const academyEvents = useMemo(
-    () => events.filter((e) => e.event_type === 'academy' && !e.is_all_day),
+    () => events.filter((e) => (e.label === '학원' || e.label === '이동시간') && !e.is_all_day),
     [events]
   );
 

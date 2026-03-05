@@ -370,7 +370,7 @@ async function _updateAcademySchedule(formData: FormData): Promise<void> {
     .from("calendar_events")
     .select("student_id, tenant_id")
     .eq("id", scheduleId)
-    .eq("event_type", "academy")
+    .eq("label", "학원")
     .maybeSingle();
 
   if (fetchError || !schedule) {
@@ -431,7 +431,7 @@ async function _deleteAcademySchedule(formData: FormData): Promise<void> {
     .from("calendar_events")
     .select("student_id")
     .eq("id", scheduleId)
-    .eq("event_type", "academy")
+    .eq("label", "학원")
     .maybeSingle();
 
   // PGRST116은 "no rows returned" 에러이므로 정상적인 경우 (데이터 없음)

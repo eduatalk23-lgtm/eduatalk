@@ -212,7 +212,7 @@ export async function analyzeStudentPattern(
       .from("calendar_events")
       .select("id, start_at, start_date, event_study_data(done, done_at, subject_name, progress)")
       .eq("student_id", studentId)
-      .eq("event_type", "study")
+      .eq("is_task", true)
       .is("deleted_at", null)
       .gte("start_at", `${startDateStr}T00:00:00+09:00`)
       .order("start_at", { ascending: true });
@@ -416,7 +416,7 @@ export async function predictPlanDelays(
       .from("calendar_events")
       .select("id, start_at, start_date, event_study_data(done, subject_name)")
       .eq("student_id", studentId)
-      .eq("event_type", "study")
+      .eq("is_task", true)
       .is("deleted_at", null)
       .gte("start_at", `${todayStr}T00:00:00+09:00`)
       .lte("start_at", `${endDateStr}T23:59:59+09:00`)

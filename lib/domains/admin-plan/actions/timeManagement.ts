@@ -485,7 +485,7 @@ export async function updateStudentExclusionForAdmin(
       .from("calendar_events")
       .update(updateData)
       .eq("id", exclusionId)
-      .eq("event_type", "exclusion")
+      .eq("is_exclusion", true)
       .is("deleted_at", null);
 
     if (error) {
@@ -531,7 +531,7 @@ export async function deleteStudentExclusionForAdmin(
         status: "cancelled",
       })
       .eq("id", exclusionId)
-      .eq("event_type", "exclusion")
+      .eq("is_exclusion", true)
       .is("deleted_at", null);
 
     if (error) {

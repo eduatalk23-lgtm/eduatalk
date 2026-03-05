@@ -474,7 +474,7 @@ export async function createRecurringException(params: {
     if (insertError) return { success: false, error: insertError.message };
 
     // study 이벤트인 경우: 부모의 event_study_data를 exception에 복사
-    if (parent.event_type === 'study' && inserted?.id) {
+    if (parent.is_task && inserted?.id) {
       const { data: parentStudy } = await supabase
         .from('event_study_data')
         .select('*')
@@ -709,6 +709,79 @@ interface UpdateRecurringResult {
  * - `this_and_following`: 부모 UNTIL 추가 → 새 시리즈 생성
  * - `all`: 부모 직접 수정 + 모든 exception soft-delete
  */
+/**
+ * updates에서 calendar_events 테이블 컬럼만 분리하고,
+ * event_study_data 관련 가상 필드를 별도 추출.
+ */
+function separateEventUpdates(updates: Record<string, unknown>) {
+  const {
+    has_study_data,
+    subject_category,
+    planned_start_page,
+    planned_end_page,
+    estimated_minutes,
+    ...eventFields
+  } = updates;
+
+  // label → event_subtype dual-write
+  if (eventFields.label !== undefined) {
+    eventFields.event_subtype = eventFields.label;
+  }
+
+  return {
+    eventFields,
+    studyFields: { subject_category, planned_start_page, planned_end_page, estimated_minutes },
+    hasStudyData: has_study_data as boolean | undefined,
+  };
+}
+
+/**
+ * 이벤트의 event_study_data lifecycle을 관리합니다.
+ * has_study_data 변경 시 event_study_data 행 생성/삭제 + 학습 필드 업데이트.
+ */
+async function handleStudyDataLifecycle(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  targetEventId: string,
+  hasStudyData: boolean | undefined,
+  studyFields: Record<string, unknown>,
+) {
+  if (hasStudyData === undefined) {
+    // has_study_data 변경 없으면 studyFields만 업데이트 (있으면)
+    const nonNullStudyFields = Object.fromEntries(
+      Object.entries(studyFields).filter(([, v]) => v !== undefined),
+    );
+    if (Object.keys(nonNullStudyFields).length > 0) {
+      await supabase
+        .from('event_study_data')
+        .update(nonNullStudyFields)
+        .eq('event_id', targetEventId);
+    }
+    return;
+  }
+
+  // has_study_data 변경: lifecycle 처리
+  const { data: existing } = await supabase
+    .from('event_study_data')
+    .select('event_id')
+    .eq('event_id', targetEventId)
+    .maybeSingle();
+
+  const hadStudyData = existing !== null;
+
+  if (!hadStudyData && hasStudyData) {
+    // 학습 데이터 연결: 생성
+    await supabase
+      .from('event_study_data')
+      .upsert({ event_id: targetEventId }, { onConflict: 'event_id' });
+  } else if (hadStudyData && !hasStudyData) {
+    // 학습 데이터 해제: 삭제
+    await supabase
+      .from('event_study_data')
+      .delete()
+      .eq('event_id', targetEventId);
+  }
+}
+
 export async function updateRecurringEvent({
   eventId,
   scope,
@@ -717,6 +790,9 @@ export async function updateRecurringEvent({
 }: UpdateRecurringParams): Promise<UpdateRecurringResult> {
   try {
     const supabase = await createSupabaseServerClient();
+
+    // calendar_events 컬럼과 가상 필드 분리
+    const { eventFields, studyFields, hasStudyData } = separateEventUpdates(updates);
 
     // 이벤트 조회
     const { data: event, error: fetchError } = await supabase
@@ -735,10 +811,14 @@ export async function updateRecurringEvent({
     if (scope === 'this') {
       if (!isParent && event.is_exception) {
         // 기존 exception: 직접 UPDATE
-        await supabase
-          .from('calendar_events')
-          .update(updates)
-          .eq('id', eventId);
+        if (Object.keys(eventFields).length > 0) {
+          const { error } = await supabase
+            .from('calendar_events')
+            .update(eventFields)
+            .eq('id', eventId);
+          if (error) return { success: false, error: error.message };
+        }
+        await handleStudyDataLifecycle(supabase, eventId, hasStudyData, studyFields);
       } else {
         // 확장 인스턴스 or 부모 자기 날짜: exception 생성
         // 먼저 기존 exception 체크
@@ -753,17 +833,26 @@ export async function updateRecurringEvent({
 
         if (existing) {
           // 기존 exception 업데이트
-          await supabase
-            .from('calendar_events')
-            .update(updates)
-            .eq('id', existing.id);
+          if (Object.keys(eventFields).length > 0) {
+            const { error } = await supabase
+              .from('calendar_events')
+              .update(eventFields)
+              .eq('id', existing.id);
+            if (error) return { success: false, error: error.message };
+          }
+          await handleStudyDataLifecycle(supabase, existing.id, hasStudyData, studyFields);
         } else {
-          // 새 exception 생성
-          await createRecurringException({
+          // 새 exception 생성 (eventFields만 전달, has_study_data 제외)
+          const result = await createRecurringException({
             parentEventId: parentId,
             instanceDate,
-            overrides: updates,
+            overrides: eventFields,
           });
+          if (!result.success) return { success: false, error: result.error };
+          // exception 생성 후 study data lifecycle 처리
+          if (result.eventId) {
+            await handleStudyDataLifecycle(supabase, result.eventId, hasStudyData, studyFields);
+          }
         }
       }
     } else if (scope === 'this_and_following') {
@@ -835,42 +924,52 @@ export async function updateRecurringEvent({
         is_exception: false,
         recurring_event_id: null,
         exdates: null,
-        ...updates,
+        ...eventFields,
       };
 
-      const { data: newSeries } = await supabase
+      const { data: newSeries, error: insertError } = await supabase
         .from('calendar_events')
         .insert(newSeriesData)
         .select('id')
         .single();
 
-      // study 이벤트인 경우: 부모의 event_study_data를 새 시리즈에 복사
-      if (newSeries && (newSeriesData.event_type ?? parent.event_type) === 'study') {
-        const { data: parentStudy } = await supabase
-          .from('event_study_data')
-          .select('*')
-          .eq('event_id', parentId)
-          .maybeSingle();
+      if (insertError) return { success: false, error: insertError.message };
 
-        if (parentStudy) {
-          const { id: _sid, event_id: _eid, done: _d, done_at: _da2, done_by: _db, ...studyFields } = parentStudy;
-          await supabase.from('event_study_data').insert({
-            ...studyFields,
-            event_id: newSeries.id,
-            done: false,
-            done_at: null,
-            done_by: null,
-          });
-        } else {
-          await supabase.from('event_study_data').insert({ event_id: newSeries.id });
+      // study 이벤트: has_study_data에 따라 lifecycle 처리
+      if (newSeries) {
+        const shouldHaveStudy = hasStudyData ?? parent.is_task;
+        if (shouldHaveStudy) {
+          const { data: parentStudy } = await supabase
+            .from('event_study_data')
+            .select('*')
+            .eq('event_id', parentId)
+            .maybeSingle();
+
+          if (parentStudy) {
+            const { id: _sid, event_id: _eid, done: _d, done_at: _da2, done_by: _db, ...sf } = parentStudy;
+            await supabase.from('event_study_data').insert({
+              ...sf,
+              event_id: newSeries.id,
+              done: false,
+              done_at: null,
+              done_by: null,
+            });
+          } else {
+            await supabase.from('event_study_data').insert({ event_id: newSeries.id });
+          }
         }
+        // hasStudyData=false → study data 생성 안 함 (의도적)
       }
     } else if (scope === 'all') {
       // 부모 직접 수정
-      await supabase
-        .from('calendar_events')
-        .update(updates)
-        .eq('id', parentId);
+      if (Object.keys(eventFields).length > 0) {
+        const { error } = await supabase
+          .from('calendar_events')
+          .update(eventFields)
+          .eq('id', parentId);
+        if (error) return { success: false, error: error.message };
+      }
+      await handleStudyDataLifecycle(supabase, parentId, hasStudyData, studyFields);
 
       // 모든 exception soft-delete (변경사항이 전체에 적용)
       const { data: exceptions } = await supabase
@@ -978,7 +1077,9 @@ export interface CalendarEventEditData {
   is_exception: boolean | null;
   reminder_minutes: number[] | null;
   status: string;
-  event_type: string;
+  label: string;
+  is_task: boolean;
+  is_exclusion: boolean;
   container_type: string | null;
   calendar_id: string;
   plan_group_id: string | null;
@@ -992,6 +1093,7 @@ export interface CalendarEventEditData {
   planned_start_page: number | null;
   planned_end_page: number | null;
   estimated_minutes: number | null;
+  has_study_data: boolean;
 }
 
 export async function getCalendarEventForEdit(
@@ -1032,7 +1134,9 @@ export async function getCalendarEventForEdit(
         is_exception: data.is_exception,
         reminder_minutes: data.reminder_minutes ?? null,
         status: data.status,
-        event_type: data.event_type,
+        label: data.label ?? data.event_subtype ?? '기타',
+        is_task: data.is_task ?? false,
+        is_exclusion: data.is_exclusion ?? false,
         container_type: data.container_type,
         calendar_id: data.calendar_id,
         plan_group_id: data.plan_group_id,
@@ -1045,6 +1149,7 @@ export async function getCalendarEventForEdit(
         planned_start_page: study?.planned_start_page ?? null,
         planned_end_page: study?.planned_end_page ?? null,
         estimated_minutes: study?.estimated_minutes ?? null,
+        has_study_data: study !== null,
       },
     };
   } catch (err) {
@@ -1070,13 +1175,16 @@ export interface CalendarEventFullUpdate {
   reminder_minutes?: number[] | null;
   status?: string;
   container_type?: string | null;
-  event_type?: string;
-  event_subtype?: string | null;
-  // study data (only for study type)
+  label?: string;
+  is_task?: boolean;
+  is_exclusion?: boolean;
+  // study data
   subject_category?: string | null;
   planned_start_page?: number | null;
   planned_end_page?: number | null;
   estimated_minutes?: number | null;
+  /** 학습 데이터 연결/해제 토글 */
+  has_study_data?: boolean;
 }
 
 export async function updateCalendarEventFull(
@@ -1086,15 +1194,15 @@ export async function updateCalendarEventFull(
   try {
     const supabase = await createSupabaseServerClient();
 
-    // event_type 변경 시 기존 타입 미리 조회 (lifecycle 판단용)
-    let previousEventType: string | undefined;
-    if (updates.event_type !== undefined) {
+    // has_study_data 변경 시 기존 상태 미리 조회 (lifecycle 판단용)
+    let hadStudyData: boolean | undefined;
+    if (updates.has_study_data !== undefined) {
       const { data: cur } = await supabase
-        .from('calendar_events')
-        .select('event_type')
-        .eq('id', eventId)
-        .single();
-      previousEventType = cur?.event_type ?? undefined;
+        .from('event_study_data')
+        .select('event_id')
+        .eq('event_id', eventId)
+        .maybeSingle();
+      hadStudyData = cur !== null;
     }
 
     // calendar_events 필드
@@ -1111,8 +1219,12 @@ export async function updateCalendarEventFull(
     if (updates.reminder_minutes !== undefined) eventFields.reminder_minutes = updates.reminder_minutes;
     if (updates.status !== undefined) eventFields.status = updates.status;
     if (updates.container_type !== undefined) eventFields.container_type = updates.container_type;
-    if (updates.event_type !== undefined) eventFields.event_type = updates.event_type;
-    if (updates.event_subtype !== undefined) eventFields.event_subtype = updates.event_subtype;
+    if (updates.label !== undefined) {
+      eventFields.label = updates.label;
+      eventFields.event_subtype = updates.label; // dual-write for Stage 1
+    }
+    if (updates.is_task !== undefined) eventFields.is_task = updates.is_task;
+    if (updates.is_exclusion !== undefined) eventFields.is_exclusion = updates.is_exclusion;
 
     if (Object.keys(eventFields).length > 0) {
       const { error } = await supabase
@@ -1123,18 +1235,15 @@ export async function updateCalendarEventFull(
       if (error) return { success: false, error: error.message };
     }
 
-    // event_type 변경 시 event_study_data lifecycle 처리
-    if (updates.event_type !== undefined && previousEventType !== updates.event_type) {
-      const wasStudy = previousEventType === 'study';
-      const isNowStudy = updates.event_type === 'study';
-
-      if (!wasStudy && isNowStudy) {
-        // 비학습 → 학습: event_study_data 생성
+    // has_study_data 변경 시 event_study_data lifecycle 처리
+    if (updates.has_study_data !== undefined && hadStudyData !== updates.has_study_data) {
+      if (!hadStudyData && updates.has_study_data) {
+        // 학습 데이터 연결: event_study_data 생성
         await supabase
           .from('event_study_data')
           .upsert({ event_id: eventId }, { onConflict: 'event_id' });
-      } else if (wasStudy && !isNowStudy) {
-        // 학습 → 비학습: event_study_data 삭제
+      } else if (hadStudyData && !updates.has_study_data) {
+        // 학습 데이터 해제: event_study_data 삭제
         await supabase
           .from('event_study_data')
           .delete()
@@ -1142,11 +1251,10 @@ export async function updateCalendarEventFull(
       }
     }
 
-    // event_study_data 필드 (study 타입일 때만)
-    const finalEventType = updates.event_type ?? previousEventType;
-    const isStudy = finalEventType === 'study' || finalEventType === undefined;
+    // event_study_data 필드 (학습 데이터가 있을 때만)
+    const hasStudy = updates.has_study_data ?? hadStudyData ?? true;
 
-    if (isStudy) {
+    if (hasStudy) {
       const studyFields: Record<string, unknown> = {};
       if (updates.subject_category !== undefined) studyFields.subject_category = updates.subject_category;
       if (updates.planned_start_page !== undefined) studyFields.planned_start_page = updates.planned_start_page;
@@ -1305,8 +1413,9 @@ export async function executeUnifiedReorder(
 export interface DeletedCalendarEventInfo {
   id: string;
   title: string;
-  event_type: string;
-  event_subtype: string | null;
+  label: string;
+  is_task: boolean;
+  is_exclusion: boolean;
   start_at: string | null;
   start_date: string | null;
   end_at: string | null;
@@ -1350,7 +1459,7 @@ export async function getDeletedCalendarEvents(
     // 데이터 조회
     let dataQ = supabase
       .from('calendar_events')
-      .select('id, title, event_type, event_subtype, start_at, start_date, end_at, color, is_all_day, deleted_at')
+      .select('id, title, label, is_task, is_exclusion, start_at, start_date, end_at, color, is_all_day, deleted_at')
       .eq('student_id', studentId)
       .not('deleted_at', 'is', null)
       .order('deleted_at', { ascending: false })
@@ -1364,8 +1473,9 @@ export async function getDeletedCalendarEvents(
     const events: DeletedCalendarEventInfo[] = (data ?? []).map((e) => ({
       id: e.id,
       title: e.title,
-      event_type: e.event_type,
-      event_subtype: e.event_subtype,
+      label: e.label ?? '기타',
+      is_task: e.is_task ?? false,
+      is_exclusion: e.is_exclusion ?? false,
       start_at: e.start_at,
       start_date: e.start_date,
       end_at: e.end_at,

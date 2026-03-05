@@ -200,7 +200,10 @@ export function toTimestamptz(
 // type 매핑
 // ============================================
 
-/** Korean non-study type → calendar_events event_type + event_subtype */
+/**
+ * @deprecated label 직접 할당으로 대체. Stage 2 DROP 후 삭제 예정.
+ * Korean non-study type → calendar_events event_type + event_subtype
+ */
 export function mapNonStudyType(type: string): {
   eventType: EventType;
   eventSubtype: string;
@@ -225,8 +228,10 @@ export function mapNonStudyType(type: string): {
   }
 }
 
-/** exclusion_type → event_subtype 변환 */
+/**
+ * @deprecated label 직접 할당으로 대체. Stage 2 DROP 후 삭제 예정.
+ * exclusion_type → event_subtype 변환
+ */
 export function mapExclusionType(exclusionType: string): string {
-  // exclusion_type 값은 그대로 event_subtype으로 매핑
   return exclusionType || "기타";
 }

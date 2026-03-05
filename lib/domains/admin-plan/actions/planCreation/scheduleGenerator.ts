@@ -126,14 +126,14 @@ export async function generateScheduleForCalendar(
     };
   }
 
-  // 2. 제외일 조회 (calendar_events event_type='exclusion')
+  // 2. 제외일 조회 (is_exclusion=true)
   let exclusions: Array<{ exclusion_date: string; exclusion_type: string; reason: string | null }> = [];
   {
     const { data: exclusionEvents } = await supabase
       .from('calendar_events')
-      .select('start_date, event_subtype, title')
+      .select('start_date, label, event_subtype, title')
       .eq('calendar_id', calendarId)
-      .eq('event_type', 'exclusion')
+      .eq('is_exclusion', true)
       .eq('is_all_day', true)
       .is('deleted_at', null)
       .gte('start_date', periodStart)
@@ -141,12 +141,12 @@ export async function generateScheduleForCalendar(
 
     exclusions = (exclusionEvents || []).map((e) => ({
       exclusion_date: e.start_date!,
-      exclusion_type: e.event_subtype || '기타',
+      exclusion_type: e.label ?? e.event_subtype ?? '기타',
       reason: e.title,
     }));
   }
 
-  // 3. 학원 일정 조회 (calendar_events event_type='academy')
+  // 3. 학원 일정 조회 (label='학원' or '이동시간')
   let effectiveAcademySchedules: Array<{
     day_of_week: number;
     start_time: string;
@@ -157,9 +157,9 @@ export async function generateScheduleForCalendar(
   {
     const { data: academyEvents } = await supabase
       .from('calendar_events')
-      .select('start_at, end_at, start_date, event_type, event_subtype, title')
+      .select('start_at, end_at, start_date, event_type, event_subtype, label, title')
       .eq('calendar_id', calendarId)
-      .eq('event_type', 'academy')
+      .in('label', ['학원', '이동시간'])
       .is('deleted_at', null)
       .gte('start_date', periodStart)
       .lte('start_date', periodEnd);
@@ -308,9 +308,9 @@ export async function generateScheduleForPlanGroup(
   {
     const { data: calExclusions } = await supabase
       .from('calendar_events')
-      .select('start_date, event_subtype, title')
+      .select('start_date, label, event_subtype, title')
       .eq('student_id', planGroup.student_id)
-      .eq('event_type', 'exclusion')
+      .eq('is_exclusion', true)
       .eq('is_all_day', true)
       .is('deleted_at', null)
       .gte('start_date', planGroup.period_start)
@@ -318,7 +318,7 @@ export async function generateScheduleForPlanGroup(
 
     exclusions = (calExclusions || []).map((e) => ({
       exclusion_date: e.start_date!,
-      exclusion_type: e.event_subtype || '기타',
+      exclusion_type: e.label ?? e.event_subtype ?? '기타',
       reason: e.title,
     }));
   }

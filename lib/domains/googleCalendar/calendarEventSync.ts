@@ -30,21 +30,23 @@ interface CalendarEventRow {
   start_date: string | null;
   end_date: string | null;
   is_all_day: boolean | null;
-  event_type: string;
-  event_subtype: string | null;
+  label: string;
+  is_task: boolean;
+  is_exclusion: boolean;
   color: string | null;
   student_id: string;
   tenant_id: string;
   metadata: EventMetadata | null;
 }
 
-/** 이벤트 타입 → Google Calendar 색상 ID */
-const EVENT_TYPE_GOOGLE_COLOR: Record<string, string> = {
-  plan: '1',       // Lavender (파랑)
-  adhoc: '7',      // Peacock (청록)
-  academy: '3',    // Grape (보라)
-  exclusion: '11', // Tomato (빨강)
-  non_study: '8',  // Graphite (회색)
+/** 라벨 → Google Calendar 색상 ID */
+const LABEL_GOOGLE_COLOR: Record<string, string> = {
+  '학습': '1',       // Lavender (파랑)
+  '학원': '3',       // Grape (보라)
+  '이동시간': '3',   // Grape (보라)
+  '제외일': '11',    // Tomato (빨강)
+  '휴식': '2',       // Sage (초록)
+  '수면': '8',       // Graphite (회색)
 };
 
 /**
@@ -62,7 +64,7 @@ export function mapCalendarEventToGoogleEvent(
       // Google Calendar all-day: date만 사용 (no dateTime)
       startDateTime: event.start_date,
       endDateTime: event.end_date ?? event.start_date,
-      colorId: EVENT_TYPE_GOOGLE_COLOR[event.event_type] ?? '8',
+      colorId: LABEL_GOOGLE_COLOR[event.label] ?? '8',
       extendedProperties: {
         private: {
           timelevelup_schedule_id: event.id,
@@ -83,7 +85,7 @@ export function mapCalendarEventToGoogleEvent(
     endDateTime: event.end_at,
     colorId: event.color
       ? mapAppColorToGoogleColorId(event.color)
-      : (EVENT_TYPE_GOOGLE_COLOR[event.event_type] ?? '8'),
+      : (LABEL_GOOGLE_COLOR[event.label] ?? '8'),
     extendedProperties: {
       private: {
         timelevelup_schedule_id: event.id,

@@ -107,7 +107,7 @@ async function _createAutoContentPlanGroup(
       .from("calendar_events")
       .select("start_date, event_subtype, title")
       .eq("calendar_id", calendarId)
-      .eq("event_type", "exclusion")
+      .eq("is_exclusion", true)
       .eq("is_all_day", true)
       .is("deleted_at", null)
       .gte("start_date", input.targetDate);
@@ -126,8 +126,7 @@ async function _createAutoContentPlanGroup(
       .from("calendar_events")
       .select("start_at, end_at, start_date, title")
       .eq("calendar_id", calendarId)
-      .eq("event_type", "academy")
-      .filter("event_subtype", "eq", "학원")
+      .eq("label", "학원")
       .is("deleted_at", null);
 
     for (const row of academyEvents || []) {

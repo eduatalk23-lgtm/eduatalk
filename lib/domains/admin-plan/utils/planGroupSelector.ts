@@ -203,16 +203,16 @@ export async function createPlanGroupForCalendar(input: {
     // 캘린더 제외일 조회 (calendar_events event_type='exclusion')
     const { data: exclusionEvents } = await supabase
       .from("calendar_events")
-      .select("start_date, event_subtype, title")
+      .select("start_date, label, title")
       .eq("calendar_id", calendarId)
-      .eq("event_type", "exclusion")
+      .eq("is_exclusion", true)
       .eq("is_all_day", true)
       .is("deleted_at", null)
       .gte("start_date", periodStart);
 
     const _exclusions = (exclusionEvents || []).map((e) => ({
       plan_date: e.start_date!,
-      exclusion_type: e.event_subtype,
+      exclusion_type: e.label,
       label: e.title,
     }));
 
@@ -222,8 +222,7 @@ export async function createPlanGroupForCalendar(input: {
       .from("calendar_events")
       .select("start_at, end_at, start_date, title")
       .eq("calendar_id", calendarId)
-      .eq("event_type", "academy")
-      .filter("event_subtype", "eq", "학원")
+      .eq("label", "학원")
       .is("deleted_at", null);
 
     for (const row of academyEvents || []) {

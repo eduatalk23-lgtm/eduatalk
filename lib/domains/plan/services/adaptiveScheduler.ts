@@ -1291,7 +1291,7 @@ export async function monitorPlanGroupProgress(
       .select("id, start_at, start_date, event_study_data(done)")
       .eq("student_id", studentId)
       .eq("plan_group_id", planGroupId)
-      .eq("event_type", "study")
+      .eq("is_task", true)
       .is("deleted_at", null)
       .order("start_at", { ascending: true });
 

@@ -25,7 +25,7 @@ interface CalendarExclusionRow {
   tenant_id: string | null;
   student_id: string | null;
   start_date: string | null;
-  event_subtype: string | null;
+  label: string | null;
   title: string | null;
   created_at: string | null;
 }
@@ -37,7 +37,7 @@ function toExclusion(row: CalendarExclusionRow): PlanExclusion {
     student_id: row.student_id ?? "",
     plan_group_id: null, // calendar_events는 plan_group_id 개념 없음
     exclusion_date: row.start_date ?? "",
-    exclusion_type: (row.event_subtype ?? "기타") as ExclusionType,
+    exclusion_type: (row.label ?? "기타") as ExclusionType,
     reason: row.title ?? null,
     created_at: row.created_at ?? new Date().toISOString(),
   };
@@ -61,9 +61,9 @@ export async function getStudentExclusionsFromCalendar(
 
   let query = supabase
     .from("calendar_events")
-    .select("id, tenant_id, student_id, start_date, event_subtype, title, created_at")
+    .select("id, tenant_id, student_id, start_date, label, title, created_at")
     .eq("student_id", studentId)
-    .eq("event_type", "exclusion")
+    .eq("is_exclusion", true)
     .eq("is_all_day", true)
     .is("deleted_at", null)
     .order("start_date", { ascending: true });
@@ -110,9 +110,9 @@ export async function getPlanExclusionsFromCalendar(
   // student_id 기반 조회 (calendar_events에서 student_id로 조회하면 모든 캘린더의 제외일 포함)
   let query = supabase
     .from("calendar_events")
-    .select("id, tenant_id, student_id, start_date, event_subtype, title, created_at")
+    .select("id, tenant_id, student_id, start_date, label, title, created_at")
     .eq("student_id", planGroup.student_id)
-    .eq("event_type", "exclusion")
+    .eq("is_exclusion", true)
     .eq("is_all_day", true)
     .is("deleted_at", null)
     .order("start_date", { ascending: true });
@@ -133,7 +133,7 @@ export async function getPlanExclusionsFromCalendar(
   // 날짜 기준으로 중복 제거 (여러 캘린더에 같은 날짜 제외일이 있을 수 있음)
   const dateMap = new Map<string, CalendarExclusionRow>();
   for (const row of data ?? []) {
-    const key = `${row.start_date}-${row.event_subtype}`;
+    const key = `${row.start_date}-${row.label}`;
     if (!dateMap.has(key)) {
       dateMap.set(key, row);
     }
@@ -231,14 +231,14 @@ export async function createStudentExclusionsViaCalendar(
   // 기존 제외일 조회 (중복 방지)
   const { data: existing } = await supabase
     .from("calendar_events")
-    .select("start_date, event_subtype")
+    .select("start_date, label")
     .eq("calendar_id", calendarId)
-    .eq("event_type", "exclusion")
+    .eq("is_exclusion", true)
     .eq("is_all_day", true)
     .is("deleted_at", null);
 
   const existingKeys = new Set(
-    (existing ?? []).map((e) => `${e.start_date}-${e.event_subtype}`)
+    (existing ?? []).map((e) => `${e.start_date}-${e.label}`)
   );
 
   const newRecords = exclusions
@@ -255,6 +255,9 @@ export async function createStudentExclusionsViaCalendar(
       title: e.reason || "제외일",
       event_type: "exclusion" as const,
       event_subtype: mapExclusionType(e.exclusion_type),
+      label: mapExclusionType(e.exclusion_type),
+      is_task: false,
+      is_exclusion: true,
       start_date: e.exclusion_date,
       end_date: e.exclusion_date,
       is_all_day: true,
@@ -335,7 +338,7 @@ export async function deleteExclusionViaCalendar(
       status: "cancelled",
     })
     .eq("id", exclusionId)
-    .eq("event_type", "exclusion")
+    .eq("is_exclusion", true)
     .is("deleted_at", null);
 
   if (error) {

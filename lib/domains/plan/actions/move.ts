@@ -59,7 +59,7 @@ async function checkExclusionDate(
     .from("calendar_events")
     .select("event_subtype, title")
     .eq("student_id", group.student_id)
-    .eq("event_type", "exclusion")
+    .eq("is_exclusion", true)
     .eq("is_all_day", true)
     .eq("start_date", date)
     .is("deleted_at", null)

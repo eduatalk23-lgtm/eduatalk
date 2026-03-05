@@ -100,8 +100,7 @@ function eventsToAcademySchedules(
     start_at: string | null;
     end_at: string | null;
     start_date: string | null;
-    event_type: string;
-    event_subtype: string | null;
+    label: string;
     title: string;
     created_at: string | null;
   }>,
@@ -115,7 +114,7 @@ function eventsToAcademySchedules(
     const matchingEvent = events.find((e) => {
       const eDate = getEventDate(e);
       if (
-        e.event_subtype !== "학원" ||
+        e.label !== "학원" ||
         !e.start_at ||
         !e.end_at ||
         !eDate
@@ -228,10 +227,10 @@ export async function getStudentAcademySchedulesFromCalendar(
   let query = supabase
     .from("calendar_events")
     .select(
-      "id, tenant_id, student_id, start_at, end_at, start_date, event_type, event_subtype, title, created_at"
+      "id, tenant_id, student_id, start_at, end_at, start_date, label, title, created_at"
     )
     .eq("student_id", studentId)
-    .eq("event_type", "academy")
+    .in("label", ["학원", "이동시간"])
     .is("deleted_at", null)
     .order("start_at", { ascending: true });
 
@@ -372,14 +371,14 @@ export async function createStudentAcademySchedulesViaCalendar(
     // 해당 캘린더의 기존 학원 이벤트 키 (중복 방지)
     const { data: existingEvents } = await supabase
       .from("calendar_events")
-      .select("start_date, start_at, end_at, event_subtype")
+      .select("start_date, start_at, end_at, label")
       .eq("calendar_id", calendarId)
-      .eq("event_type", "academy")
+      .in("label", ["학원", "이동시간"])
       .is("deleted_at", null);
 
     const existingEventKeys = new Set(
       (existingEvents ?? []).map(
-        (e) => `${e.start_at}-${e.end_at}-${e.event_subtype}`
+        (e) => `${e.start_at}-${e.end_at}-${e.label}`
       )
     );
 
@@ -396,7 +395,7 @@ export async function createStudentAcademySchedulesViaCalendar(
 
     // 중복 필터링
     const newRecords = records.filter((r) => {
-      const key = `${r.start_at}-${r.end_at}-${r.event_subtype}`;
+      const key = `${r.start_at}-${r.end_at}-${r.label}`;
       return !existingEventKeys.has(key);
     });
 
@@ -513,10 +512,10 @@ export async function updateAcademyScheduleViaCalendar(
   const { data: refEvent, error: refError } = await supabase
     .from("calendar_events")
     .select(
-      "student_id, start_at, end_at, start_date, title, event_subtype"
+      "student_id, start_at, end_at, start_date, title, label"
     )
     .eq("id", eventId)
-    .eq("event_type", "academy")
+    .in("label", ["학원", "이동시간"])
     .maybeSingle();
 
   const refDate = refEvent ? getEventDate(refEvent) : null;
@@ -540,9 +539,9 @@ export async function updateAcademyScheduleViaCalendar(
   // 동일 패턴의 미래 학원 이벤트 검색
   const { data: allAcademyEvents } = await supabase
     .from("calendar_events")
-    .select("id, start_date, start_at, end_at, event_subtype")
+    .select("id, start_date, start_at, end_at, label")
     .eq("student_id", refEvent.student_id)
-    .eq("event_type", "academy")
+    .in("label", ["학원", "이동시간"])
     .gte("start_at", todayStartAtKST())
     .is("deleted_at", null);
 
@@ -551,7 +550,7 @@ export async function updateAcademyScheduleViaCalendar(
   for (const evt of allAcademyEvents ?? []) {
     const evtDate = getEventDate(evt);
     if (
-      evt.event_subtype !== "학원" ||
+      evt.label !== "학원" ||
       !evt.start_at ||
       !evt.end_at ||
       !evtDate
@@ -597,7 +596,7 @@ export async function updateAcademyScheduleViaCalendar(
   for (const evt of allAcademyEvents ?? []) {
     const travelDate = getEventDate(evt);
     if (
-      evt.event_subtype !== "이동시간" ||
+      evt.label !== "이동시간" ||
       !evt.end_at ||
       !travelDate
     )
@@ -632,9 +631,9 @@ export async function deleteAcademyScheduleViaCalendar(
   // 대표 이벤트에서 패턴 정보 추출
   const { data: refEvent, error: refError } = await supabase
     .from("calendar_events")
-    .select("student_id, start_at, end_at, start_date, event_subtype")
+    .select("student_id, start_at, end_at, start_date, label")
     .eq("id", eventId)
-    .eq("event_type", "academy")
+    .in("label", ["학원", "이동시간"])
     .maybeSingle();
 
   const refDate = refEvent ? getEventDate(refEvent) : null;
@@ -658,9 +657,9 @@ export async function deleteAcademyScheduleViaCalendar(
   // 동일 패턴의 모든 미래 이벤트 검색 (학원 + 이동시간)
   const { data: allEvents } = await supabase
     .from("calendar_events")
-    .select("id, start_date, start_at, end_at, event_subtype")
+    .select("id, start_date, start_at, end_at, label")
     .eq("student_id", refEvent.student_id)
-    .eq("event_type", "academy")
+    .in("label", ["학원", "이동시간"])
     .gte("start_at", todayStartAtKST())
     .is("deleted_at", null);
 
@@ -671,7 +670,7 @@ export async function deleteAcademyScheduleViaCalendar(
     if (!evtDate) continue;
     const evtDay = new Date(evtDate + "T00:00:00").getDay();
 
-    if (evt.event_subtype === "학원" && evt.start_at && evt.end_at) {
+    if (evt.label === "학원" && evt.start_at && evt.end_at) {
       const evtStart = extractTimeHHMM(evt.start_at);
       const evtEnd = extractTimeHHMM(evt.end_at);
       if (
@@ -681,7 +680,7 @@ export async function deleteAcademyScheduleViaCalendar(
       ) {
         idsToDelete.push(evt.id);
       }
-    } else if (evt.event_subtype === "이동시간" && evt.end_at) {
+    } else if (evt.label === "이동시간" && evt.end_at) {
       const teEndTime = extractTimeHHMM(evt.end_at);
       if (evtDay === origDayOfWeek && teEndTime === origStartTime) {
         idsToDelete.push(evt.id);
@@ -743,8 +742,7 @@ export async function getDistinctAcademiesFromCalendar(
     .from("calendar_events")
     .select("id, title, metadata, created_at")
     .eq("student_id", studentId)
-    .eq("event_type", "academy")
-    .eq("event_subtype", "학원")
+    .eq("label", "학원")
     .is("deleted_at", null)
     .order("created_at", { ascending: true });
 
@@ -806,9 +804,9 @@ export async function renameAcademyViaCalendar(
   // 해당 학원명의 모든 미래 학원 이벤트 조회
   const { data: events } = await supabase
     .from("calendar_events")
-    .select("id, title, event_subtype")
+    .select("id, title, label")
     .eq("student_id", studentId)
-    .eq("event_type", "academy")
+    .in("label", ["학원", "이동시간"])
     .like("title", `${oldName}%`)
     .gte("start_at", todayStartAtKST())
     .is("deleted_at", null);
@@ -819,13 +817,13 @@ export async function renameAcademyViaCalendar(
   const travelIds: string[] = [];
 
   for (const evt of events) {
-    if (evt.event_subtype === "학원") {
+    if (evt.label === "학원") {
       const newTitle = evt.title.replace(oldName, newName);
       await supabase
         .from("calendar_events")
         .update({ title: newTitle })
         .eq("id", evt.id);
-    } else if (evt.event_subtype === "이동시간") {
+    } else if (evt.label === "이동시간") {
       travelIds.push(evt.id);
     }
   }
@@ -857,8 +855,7 @@ export async function updateAcademyTravelTimeViaCalendar(
     .from("calendar_events")
     .select("id, metadata")
     .eq("student_id", studentId)
-    .eq("event_type", "academy")
-    .eq("event_subtype", "학원")
+    .eq("label", "학원")
     .like("title", `${name}%`)
     .gte("start_at", todayStartAtKST())
     .is("deleted_at", null);
@@ -899,7 +896,7 @@ export async function deleteAcademyViaCalendar(
       status: "cancelled",
     })
     .eq("student_id", studentId)
-    .eq("event_type", "academy")
+    .in("label", ["학원", "이동시간"])
     .like("title", `${name}%`)
     .gte("start_at", todayStartAtKST())
     .is("deleted_at", null);

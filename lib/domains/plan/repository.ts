@@ -638,7 +638,7 @@ export async function findPlanExclusions(
     .from("calendar_events")
     .select("id, tenant_id, student_id, start_date, event_subtype, title, created_at")
     .eq("student_id", studentId)
-    .eq("event_type", "exclusion")
+    .eq("is_exclusion", true)
     .eq("is_all_day", true)
     .is("deleted_at", null)
     .order("start_date", { ascending: true });
@@ -680,7 +680,7 @@ export async function deletePlanExclusionById(
     })
     .eq("id", exclusionId)
     .eq("student_id", studentId)
-    .eq("event_type", "exclusion")
+    .eq("is_exclusion", true)
     .is("deleted_at", null);
 
   if (error) throw error;

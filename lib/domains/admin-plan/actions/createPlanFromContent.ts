@@ -574,7 +574,7 @@ export async function createPlanFromContentWithScheduler(
       .from('calendar_events')
       .select('id, tenant_id, student_id, start_date, event_subtype, title, created_at')
       .eq('student_id', planGroup.student_id)
-      .eq('event_type', 'exclusion')
+      .eq('is_exclusion', true)
       .eq('is_all_day', true)
       .is('deleted_at', null);
 

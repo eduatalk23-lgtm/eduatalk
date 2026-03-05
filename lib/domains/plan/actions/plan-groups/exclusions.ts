@@ -319,7 +319,7 @@ async function _deletePlanExclusion(formData: FormData): Promise<void> {
     .from("calendar_events")
     .select("id, student_id")
     .eq("id", exclusionId)
-    .eq("event_type", "exclusion")
+    .eq("is_exclusion", true)
     .is("deleted_at", null)
     .single();
 

@@ -37,8 +37,13 @@ export interface CreateEventInput {
   title: string;
   description?: string;
   location?: string;
+  /** @deprecated label + isTask + isExclusion 사용 */
   eventType: EventType;
+  /** @deprecated label 사용 */
   eventSubtype?: string;
+  label?: string;
+  isTask?: boolean;
+  isExclusion?: boolean;
 
   // 시간 (상호 배타적)
   startAt?: string;
@@ -155,6 +160,7 @@ async function _getEventsByCalendar(
     `and(is_all_day.eq.false,start_at.gte.${startDate},start_at.lte.${endDate}T23:59:59+09:00),and(is_all_day.eq.true,start_date.gte.${startDate},start_date.lte.${endDate})`
   );
 
+  // eventTypes filter (deprecated, kept for backward compatibility)
   if (options?.eventTypes?.length) {
     query = query.in("event_type", options.eventTypes);
   }
@@ -228,6 +234,10 @@ async function _createEvent(
 ): Promise<CalendarEvent> {
   const supabase = await createSupabaseServerClient();
 
+  const label = input.label ?? input.eventSubtype ?? (input.eventType === 'study' ? '학습' : '일반');
+  const isTask = input.isTask ?? (input.eventType === 'study' || input.eventType === 'custom');
+  const isExclusion = input.isExclusion ?? (input.eventType === 'exclusion');
+
   const insertData: CalendarEventInsert = {
     calendar_id: input.calendarId,
     tenant_id: input.tenantId,
@@ -237,6 +247,9 @@ async function _createEvent(
     location: input.location ?? null,
     event_type: input.eventType,
     event_subtype: input.eventSubtype ?? null,
+    label,
+    is_task: isTask,
+    is_exclusion: isExclusion,
     start_at: input.startAt ?? null,
     end_at: input.endAt ?? null,
     start_date: input.startDate ?? null,

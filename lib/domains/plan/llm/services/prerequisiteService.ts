@@ -510,7 +510,7 @@ export class PrerequisiteService {
       .from("calendar_events")
       .select("id, event_study_data(done, content_id)")
       .eq("student_id", studentId)
-      .eq("event_type", "study")
+      .eq("is_task", true)
       .is("deleted_at", null);
 
     const completedPlans = (completedEvents || [])

@@ -313,7 +313,7 @@ export async function getTimezoneCalendarData(
       .from("calendar_events")
       .select("start_date, event_subtype, title")
       .eq("student_id", ctx.studentId)
-      .eq("event_type", "exclusion")
+      .eq("is_exclusion", true)
       .eq("is_all_day", true)
       .is("deleted_at", null)
       .order("start_date", { ascending: true });

@@ -706,7 +706,7 @@ export async function addContentToCalendarOnlyGroup(
       .from("calendar_events")
       .select("start_date")
       .eq("student_id", planGroup.student_id)
-      .eq("event_type", "exclusion")
+      .eq("is_exclusion", true)
       .eq("is_all_day", true)
       .is("deleted_at", null);
 
@@ -1024,7 +1024,7 @@ export async function addContentToExistingPlanGroup(
       .from("calendar_events")
       .select("start_date")
       .eq("student_id", planGroup.student_id)
-      .eq("event_type", "exclusion")
+      .eq("is_exclusion", true)
       .eq("is_all_day", true)
       .is("deleted_at", null);
 

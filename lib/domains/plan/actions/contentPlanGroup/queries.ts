@@ -94,7 +94,7 @@ export async function getTemplateSettings(
       .from("calendar_events")
       .select("start_date, title")
       .eq("student_id", template.student_id)
-      .eq("event_type", "exclusion")
+      .eq("is_exclusion", true)
       .eq("is_all_day", true)
       .is("deleted_at", null);
 
