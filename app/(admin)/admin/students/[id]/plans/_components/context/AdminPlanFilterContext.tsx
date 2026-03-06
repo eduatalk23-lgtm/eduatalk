@@ -168,7 +168,7 @@ export function AdminPlanFilterProvider({
 
       if (selectedCalendarId) {
         const basePath = viewMode === "student"
-          ? `/plan/calendar/${selectedCalendarId}`
+          ? `/plan/calendar`
           : `/admin/students/${studentId}/plans/calendar/${selectedCalendarId}`;
         router.replace(`${basePath}?date=${date}`, { scroll: false });
       } else {
