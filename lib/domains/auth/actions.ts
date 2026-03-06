@@ -226,6 +226,34 @@ async function linkStudentWithInviteCode(
       return { success: false, error: result.error || "학생 계정 연결에 실패했습니다." };
     }
 
+    // 기존 students.id를 새 auth.users.id로 이전
+    // (students.id = auth.users.id 매칭 구조이므로 필수)
+    if (result.studentId && result.studentId !== userId) {
+      const adminClient = createSupabaseAdminClient();
+      if (!adminClient) {
+        return { success: false, error: "서버 설정 오류입니다." };
+      }
+
+      const { error: transferError } = await adminClient.rpc(
+        "transfer_student_identity",
+        { old_id: result.studentId, new_id: userId }
+      );
+
+      if (transferError) {
+        logActionError(
+          { domain: "auth", action: "linkStudentWithInviteCode", userId },
+          new Error(transferError.message),
+          { inviteCode, oldStudentId: result.studentId, step: "transfer_identity" }
+        );
+        return { success: false, error: "학생 계정 이전 중 오류가 발생했습니다." };
+      }
+
+      logActionSuccess(
+        { domain: "auth", action: "linkStudentWithInviteCode", userId },
+        { inviteCode, oldStudentId: result.studentId, newStudentId: userId, step: "identity_transferred" }
+      );
+    }
+
     logActionSuccess(
       { domain: "auth", action: "linkStudentWithInviteCode", userId },
       { inviteCode, studentId: result.studentId }
