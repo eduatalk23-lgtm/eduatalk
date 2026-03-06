@@ -176,7 +176,19 @@ export async function deleteStudent(
       };
     }
 
-    // 6. auth.users에서 사용자 삭제 (관리자 권한 필요)
+    // 6. auth.users를 참조하는 NO ACTION/RESTRICT FK 컬럼들 정리 (auth.users 삭제 전 필수)
+    // nullable 컬럼은 null로, NOT NULL 컬럼은 레코드 삭제
+    await supabase.from("invite_codes").update({ used_by: null }).eq("used_by", studentId);
+    await supabase.from("invite_codes").update({ created_by: null }).eq("created_by", studentId);
+    await supabase.from("content_ai_extraction_logs").update({ created_by: null }).eq("created_by", studentId);
+    await supabase.from("payment_records").update({ created_by: null }).eq("created_by", studentId);
+    await supabase.from("files").delete().eq("uploaded_by", studentId);
+    await supabase.from("file_distributions").delete().eq("distributed_by", studentId);
+    await supabase.from("file_requests").delete().eq("created_by", studentId);
+    await supabase.from("request_templates").delete().eq("created_by", studentId);
+    await supabase.from("attendance_record_history").delete().eq("modified_by", studentId);
+
+    // 7. auth.users에서 사용자 삭제 (관리자 권한 필요)
     const { error: authDeleteError } = await supabase.auth.admin.deleteUser(
       studentId
     );
@@ -193,7 +205,7 @@ export async function deleteStudent(
       };
     }
 
-    // 7. students 테이블에서 삭제 (CASCADE로 나머지 관련 데이터 자동 삭제)
+    // 8. students 테이블에서 삭제 (CASCADE로 나머지 관련 데이터 자동 삭제)
     const { data: deletedRows, error: deleteError } = await supabase
       .from("students")
       .delete()
@@ -376,7 +388,20 @@ export async function bulkDeleteStudents(
     );
   }
 
-  // 1단계: auth.users에서 사용자 삭제 (Supabase API 제한으로 개별 처리 필요)
+  // 1단계: auth.users를 참조하는 NO ACTION/RESTRICT FK 컬럼들 정리
+  for (const studentId of studentIds) {
+    await supabase.from("invite_codes").update({ used_by: null }).eq("used_by", studentId);
+    await supabase.from("invite_codes").update({ created_by: null }).eq("created_by", studentId);
+    await supabase.from("content_ai_extraction_logs").update({ created_by: null }).eq("created_by", studentId);
+    await supabase.from("payment_records").update({ created_by: null }).eq("created_by", studentId);
+    await supabase.from("files").delete().eq("uploaded_by", studentId);
+    await supabase.from("file_distributions").delete().eq("distributed_by", studentId);
+    await supabase.from("file_requests").delete().eq("created_by", studentId);
+    await supabase.from("request_templates").delete().eq("created_by", studentId);
+    await supabase.from("attendance_record_history").delete().eq("modified_by", studentId);
+  }
+
+  // 2단계: auth.users에서 사용자 삭제 (Supabase API 제한으로 개별 처리 필요)
   const authDeletedIds: string[] = [];
   for (const studentId of studentIds) {
     try {
@@ -404,7 +429,7 @@ export async function bulkDeleteStudents(
     }
   }
 
-  // 2단계: students 테이블에서 배치 삭제 (N+1 방지)
+  // 3단계: students 테이블에서 배치 삭제 (N+1 방지)
   if (authDeletedIds.length > 0) {
     const { data: deletedRows, error: deleteError } = await supabase
       .from("students")

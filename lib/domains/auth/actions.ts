@@ -229,8 +229,14 @@ async function linkStudentWithInviteCode(
     // 기존 students.id를 새 auth.users.id로 이전
     // (students.id = auth.users.id 매칭 구조이므로 필수)
     if (result.studentId && result.studentId !== userId) {
+      console.log("[linkStudent] transfer_student_identity 시작", {
+        oldId: result.studentId,
+        newId: userId,
+      });
+
       const adminClient = createSupabaseAdminClient();
       if (!adminClient) {
+        console.log("[linkStudent] adminClient 생성 실패");
         return { success: false, error: "서버 설정 오류입니다." };
       }
 
@@ -240,6 +246,7 @@ async function linkStudentWithInviteCode(
       );
 
       if (transferError) {
+        console.log("[linkStudent] transfer_student_identity 실패:", transferError.message, transferError.code, transferError.details);
         logActionError(
           { domain: "auth", action: "linkStudentWithInviteCode", userId },
           new Error(transferError.message),
@@ -248,10 +255,17 @@ async function linkStudentWithInviteCode(
         return { success: false, error: "학생 계정 이전 중 오류가 발생했습니다." };
       }
 
+      console.log("[linkStudent] transfer_student_identity 성공");
       logActionSuccess(
         { domain: "auth", action: "linkStudentWithInviteCode", userId },
         { inviteCode, oldStudentId: result.studentId, newStudentId: userId, step: "identity_transferred" }
       );
+    } else {
+      console.log("[linkStudent] transfer 불필요", {
+        studentId: result.studentId,
+        userId,
+        same: result.studentId === userId,
+      });
     }
 
     logActionSuccess(
