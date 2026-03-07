@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useTransition, useMemo } from "react";
-import { Send, ChevronDown, ChevronUp, Loader2, Settings2 } from "lucide-react";
+import { Send, ChevronDown, ChevronUp, Loader2, Settings2, AlertTriangle } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { CombinedTemplateSelector } from "./CombinedTemplateSelector";
 import { TemplateManager } from "./TemplateManager";
@@ -340,6 +340,22 @@ export function SMSPanelContent({
                 {message.length}자 / {msgBytes}byte ({msgType})
               </span>
             </div>
+
+            {/* 스팸 필터 경고 */}
+            {msgType === "LMS" && message.includes("https://") && (
+              <div className="flex gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-xs font-medium text-red-700">
+                    통신사 스팸 차단 주의
+                  </span>
+                  <span className="text-xs text-red-600">
+                    https:// 링크가 포함된 LMS는 통신사에서 스팸으로 차단될 수 있습니다.
+                    URL은 &quot;eduatalk.vercel.app&quot; 형태로 프로토콜 없이 작성하세요.
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 발송 버튼 */}
