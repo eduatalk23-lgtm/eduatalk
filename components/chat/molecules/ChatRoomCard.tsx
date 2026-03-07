@@ -46,6 +46,17 @@ function ChatRoomCardComponent({
     void queryClient.prefetchInfiniteQuery(chatMessagesQueryOptions(room.id));
   }, [queryClient, room.id]);
 
+  // 클릭 시 stale 캐시 무효화 후 방 진입
+  const handleClick = useCallback(() => {
+    // hover prefetch로 생긴 캐시가 stale일 수 있으므로 무효화
+    // (useChatRealtime의 syncMessagesSince가 최신 메시지를 가져오도록)
+    void queryClient.invalidateQueries({
+      queryKey: ["chat-messages", room.id],
+      refetchType: "none", // 즉시 refetch하지 않음 (채팅방 진입 후 realtime이 처리)
+    });
+    onClick();
+  }, [queryClient, room.id, onClick]);
+
   // 표시할 이름 결정
   const displayName =
     room.type === "direct"
@@ -74,7 +85,7 @@ function ChatRoomCardComponent({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={handleClick}
       onMouseEnter={handleMouseEnter}
       className={cn(
         "w-full flex items-center gap-3 p-3 rounded-xl",

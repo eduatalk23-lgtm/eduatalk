@@ -67,9 +67,20 @@ export function useChatConnectionStatus(
   const [retryCount, setRetryCount] = useState(0);
   const [nextRetryIn, setNextRetryIn] = useState<number | null>(null);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  // 초기 구독 대기 중 (SUBSCRIBED 도달 전까지 오프라인 표시 억제)
+  const [isInitializing, setIsInitializing] = useState(true);
 
   // 채널 이름
   const channelName = connectionManager.getChannelKey(roomId);
+
+  // initializing ref (stale closure 방지)
+  const isInitializingRef = useRef(true);
+
+  // roomId 변경 시 초기화 상태 리셋
+  useEffect(() => {
+    isInitializingRef.current = true;
+    setIsInitializing(true);
+  }, [roomId]);
 
   // 재시도 타이머 인터벌 ref
   const retryTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -109,11 +120,23 @@ export function useChatConnectionStatus(
     // 초기화: 채널 등록
     connectionManager.registerChannel(channelName);
 
+    // 초기화 타임아웃: 10초 내 connected 안 오면 실제 문제로 간주
+    const initTimer = setTimeout(() => {
+      isInitializingRef.current = false;
+      setIsInitializing(false);
+    }, 10_000);
+
     const unsubscribe = connectionManager.addStateListener(
       (channel, newStatus) => {
         if (channel === channelName) {
           setStatus(newStatus);
           setRetryCount(connectionManager.getRetryCount(channelName));
+
+          // 초기화 완료 판정: connected 또는 reconnecting이 오면 초기 대기 해제
+          if (isInitializingRef.current && newStatus !== "disconnected") {
+            isInitializingRef.current = false;
+            setIsInitializing(false);
+          }
 
           // 상태별 처리
           if (newStatus === "connected") {
@@ -140,6 +163,7 @@ export function useChatConnectionStatus(
     );
 
     return () => {
+      clearTimeout(initTimer);
       unsubscribe();
       clearRetryTimer();
     };
@@ -203,15 +227,19 @@ export function useChatConnectionStatus(
     }
   }, [channelName, status, isNetworkOnline, isReconnecting]);
 
+  // 초기 구독 대기 중에는 connected로 보고 (오프라인 배너 억제)
+  const effectiveStatus: ConnectionStatus =
+    isInitializing && status === "disconnected" ? "connected" : status;
+
   return {
-    status,
+    status: effectiveStatus,
     isNetworkOnline,
     pendingCount,
     lastSyncAt,
     retryCount,
     maxRetries: connectionManager.MAX_RETRY_COUNT,
     nextRetryIn,
-    isReconnecting,
+    isReconnecting: isInitializing ? false : isReconnecting,
     reconnect,
   };
 }

@@ -11,10 +11,10 @@ import { memo, useRef, useCallback, useMemo, useReducer, useEffect, useState } f
 import { useChatRoomLogic } from "@/lib/domains/chat/hooks";
 import { useChatConnectionStatus } from "@/lib/hooks/useChatConnectionStatus";
 import { useChatLayout } from "@/components/chat/layouts/ChatLayoutContext";
-import type { ReactionEmoji, ReplyTargetInfo, ChatAttachment, ChatUserType } from "@/lib/domains/chat/types";
+import type { ReactionEmoji, ReplyTargetInfo, ChatAttachment, ChatUserType, ChatUser, ChatMessageWithGrouping } from "@/lib/domains/chat/types";
 import type { LongPressPosition } from "@/lib/hooks/useLongPress";
 import { cn } from "@/lib/cn";
-import { MessageBubble, type MessageAction, type MessageData } from "../atoms/MessageBubble";
+import { MessageBubble, type MessageAction, type MessageData, type MessageDisplayOptions, type MessagePermissions } from "../atoms/MessageBubble";
 import type { MessageDeliveryStatus } from "../atoms/MessageStatusIndicator";
 import { DateDivider } from "../atoms/DateDivider";
 import { TypingIndicator } from "../atoms/TypingIndicator";
@@ -182,6 +182,98 @@ function ChatErrorFallback({ error, errorType, resetError, isRetrying }: ErrorFa
     </div>
   );
 }
+
+// ============================================
+// 메시지 아이템 (메모이제이션 최적화)
+// ============================================
+
+interface ChatMessageItemProps {
+  message: ChatMessageWithGrouping & {
+    sender?: ChatUser | null;
+    replyTarget?: ReplyTargetInfo | null;
+    status?: MessageDeliveryStatus;
+    reactions?: Array<{ emoji: ReactionEmoji; count: number; hasReacted: boolean }>;
+    attachments?: ChatAttachment[];
+    linkPreviews?: Array<{ id: string; message_id: string; url: string; title: string | null; description: string | null; image_url: string | null; site_name: string | null; fetched_at: string }>;
+  };
+  userId: string;
+  readCount: number | undefined;
+  isPinned: boolean;
+  canPinMessages: boolean;
+  canEditMessage: (createdAt: string) => boolean;
+  isMessageEdited: (msg: ChatMessageWithGrouping) => boolean;
+  createActionHandler: (message: ChatMessageItemProps["message"]) => (action: MessageAction) => void;
+  getRefCallback: (id: string) => (el: HTMLDivElement | null) => void;
+}
+
+const ChatMessageItem = memo(function ChatMessageItem({
+  message,
+  userId,
+  readCount,
+  isPinned,
+  canPinMessages,
+  canEditMessage,
+  isMessageEdited,
+  createActionHandler,
+  getRefCallback,
+}: ChatMessageItemProps) {
+  const isOwn = message.sender_id === userId;
+  const { grouping } = message;
+  const messageStatus = message.status;
+
+  const derivedStatus: MessageDeliveryStatus | undefined = isOwn
+    ? messageStatus ?? (message.id.startsWith("temp-") ? "sending" : "sent")
+    : undefined;
+
+  const messageData: MessageData = {
+    content: message.is_deleted ? "" : message.content,
+    createdAt: message.created_at,
+    isOwn,
+    senderName: message.sender?.name,
+    isSystem: message.message_type === "system",
+    isDeleted: message.is_deleted,
+    isEdited: isMessageEdited(message),
+    unreadCount: isOwn ? readCount : undefined,
+    reactions: message.reactions ?? [],
+    replyTarget: message.replyTarget,
+    isPinned,
+    status: derivedStatus,
+    attachments: message.attachments ?? [],
+    linkPreviews: message.linkPreviews ?? [],
+    senderId: message.sender_id,
+    senderType: message.sender_type,
+    senderProfileImageUrl: message.sender?.profileImageUrl,
+    isError: messageStatus === "error",
+    isRetrying: messageStatus === "sending" && message.id.startsWith("temp-"),
+  };
+
+  const displayOptions: MessageDisplayOptions = {
+    showName: grouping.showName,
+    showTime: grouping.showTime,
+    isGrouped: grouping.isGrouped,
+  };
+
+  const permissions: MessagePermissions = {
+    canEdit: isOwn && canEditMessage(message.created_at),
+    canPin: canPinMessages && message.message_type !== "system",
+  };
+
+  return (
+    <div ref={getRefCallback(message.id)} className="transition-colors duration-300">
+      {grouping.showDateDivider && grouping.dateDividerText && (
+        <DateDivider date={grouping.dateDividerText} />
+      )}
+      <div className={cn("px-4", grouping.isGrouped ? "py-0.5" : "py-1.5")}>
+        <MessageBubble
+          message={messageData}
+          displayOptions={displayOptions}
+          permissions={permissions}
+          onAction={createActionHandler(message)}
+        />
+      </div>
+    </div>
+  );
+});
 
 interface ChatRoomProps {
   /** 채팅방 ID */
@@ -589,70 +681,19 @@ function ChatRoomComponent({
     []
   );
 
-  const renderMessage = useCallback((_index: number, message: (typeof messages)[number]) => {
-    const isOwn = message.sender_id === userId;
-    const messageReplyTarget = (message as { replyTarget?: ReplyTargetInfo | null }).replyTarget;
-    const messageStatus = (message as { status?: MessageDeliveryStatus }).status;
-    const { grouping } = message;
-
-    // 상태 결정: 전송 중이면 sending, 에러면 error, 그 외에는 sent
-    // Note: delivered와 read는 서버에서 추적이 필요하므로 추후 구현
-    const derivedStatus: MessageDeliveryStatus | undefined = isOwn
-      ? messageStatus ?? (message.id.startsWith("temp-") ? "sending" : "sent")
-      : undefined;
-
-    // 메시지 데이터 구성
-    const messageData: MessageData = {
-      content: message.is_deleted ? "" : message.content,
-      createdAt: message.created_at,
-      isOwn,
-      senderName: message.sender?.name,
-      isSystem: message.message_type === "system",
-      isDeleted: message.is_deleted,
-      isEdited: isMessageEdited(message),
-      unreadCount: isOwn ? readCounts[message.id] : undefined,
-      reactions: (message as { reactions?: Array<{ emoji: ReactionEmoji; count: number; hasReacted: boolean }> }).reactions ?? [],
-      replyTarget: messageReplyTarget,
-      isPinned: pinnedMessageIds.has(message.id),
-      status: derivedStatus,
-      attachments: (message as { attachments?: ChatAttachment[] }).attachments ?? [],
-      linkPreviews: (message as { linkPreviews?: Array<{ id: string; message_id: string; url: string; title: string | null; description: string | null; image_url: string | null; site_name: string | null; fetched_at: string }> }).linkPreviews ?? [],
-      // 발신자 정보 (아바타 + 프로필 카드용)
-      senderId: message.sender_id,
-      senderType: message.sender_type,
-      senderProfileImageUrl: message.sender?.profileImageUrl,
-      // 레거시 호환성 (deprecated - 추후 제거)
-      isError: messageStatus === "error",
-      isRetrying: messageStatus === "sending" && message.id.startsWith("temp-"),
-    };
-
-    return (
-      <div
-        ref={getRefCallback(message.id)}
-        className="transition-colors duration-300"
-      >
-        {grouping.showDateDivider && grouping.dateDividerText && (
-          <DateDivider date={grouping.dateDividerText} />
-        )}
-
-        <div className={cn("px-4", grouping.isGrouped ? "py-0.5" : "py-1.5")}>
-          <MessageBubble
-            message={messageData}
-            displayOptions={{
-              showName: grouping.showName,
-              showTime: grouping.showTime,
-              isGrouped: grouping.isGrouped,
-            }}
-            permissions={{
-              canEdit: isOwn && canEditMessage(message.created_at),
-              canPin: canPin && message.message_type !== "system",
-            }}
-            onAction={createMessageActionHandler(message)}
-          />
-        </div>
-      </div>
-    );
-  }, [
+  const renderMessage = useCallback((_index: number, message: (typeof messages)[number]) => (
+    <ChatMessageItem
+      message={message}
+      userId={userId}
+      readCount={readCounts[message.id]}
+      isPinned={pinnedMessageIds.has(message.id)}
+      canPinMessages={canPin}
+      canEditMessage={canEditMessage}
+      isMessageEdited={isMessageEdited}
+      createActionHandler={createMessageActionHandler}
+      getRefCallback={getRefCallback}
+    />
+  ), [
     userId,
     readCounts,
     pinnedMessageIds,
@@ -670,6 +711,19 @@ function ChatRoomComponent({
       <div className="bg-bg-secondary rounded-2xl animate-pulse" style={{ height: Math.max(height - 12, 40) }} />
     </div>
   ), []);
+
+  const VirtuosoHeader = useCallback(() => (
+    isFetchingNextPage ? (
+      <div className="flex justify-center py-2" aria-label="이전 메시지 로딩 중">
+        <Loader2 className="w-5 h-5 animate-spin text-text-tertiary" aria-hidden="true" />
+      </div>
+    ) : null
+  ), [isFetchingNextPage]);
+
+  const virtuosoComponents = useMemo(() => ({
+    Header: VirtuosoHeader,
+    ScrollSeekPlaceholder,
+  }), [VirtuosoHeader, ScrollSeekPlaceholder]);
 
   // ============================================
   // 방 이름 결정
@@ -867,16 +921,7 @@ function ChatRoomComponent({
               enter: (velocity) => Math.abs(velocity) > 800,
               exit: (velocity) => Math.abs(velocity) < 100,
             }}
-            components={{
-              Header: () => (
-                isFetchingNextPage ? (
-                  <div className="flex justify-center py-2" aria-label="이전 메시지 로딩 중">
-                    <Loader2 className="w-5 h-5 animate-spin text-text-tertiary" aria-hidden="true" />
-                  </div>
-                ) : null
-              ),
-              ScrollSeekPlaceholder,
-            }}
+            components={virtuosoComponents}
             itemContent={renderMessage}
           />
         </div>

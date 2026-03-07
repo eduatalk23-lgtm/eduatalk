@@ -179,28 +179,29 @@ export async function findDirectRoomIncludingLeft(
   if (error2) throw error2;
   if (!directRooms || directRooms.length === 0) return null;
 
-  // user2도 속한 방 찾기
-  for (const room of directRooms as ChatRoom[]) {
-    const { data: user2Member, error: error3 } = await supabase
-      .from("chat_room_members")
-      .select("id, left_at")
-      .eq("room_id", room.id)
-      .eq("user_id", user2Id)
-      .eq("user_type", user2Type)
-      .maybeSingle();
+  // user2도 속한 방 찾기 (배치 쿼리로 N+1 해소)
+  const directRoomIds = (directRooms as ChatRoom[]).map((r) => r.id);
+  const { data: user2Members, error: error3 } = await supabase
+    .from("chat_room_members")
+    .select("room_id, left_at")
+    .in("room_id", directRoomIds)
+    .eq("user_id", user2Id)
+    .eq("user_type", user2Type);
 
-    if (error3 && error3.code !== "PGRST116") throw error3;
+  if (error3) throw error3;
 
-    if (user2Member) {
-      // user1의 left_at 상태 확인
+  if (user2Members && user2Members.length > 0) {
+    // 첫 번째 매칭된 방 사용
+    const user2Member = user2Members[0] as { room_id: string; left_at: string | null };
+    const room = (directRooms as ChatRoom[]).find((r) => r.id === user2Member.room_id);
+    if (room) {
       const user1RoomData = user1Rooms.find(
         (r: { room_id: string }) => r.room_id === room.id
       );
-
       return {
         room,
-        user1Left: user1RoomData?.left_at !== null,
-        user2Left: user2Member.left_at !== null,
+        user1Left: user1RoomData?.left_at != null,
+        user2Left: user2Member.left_at != null,
       };
     }
   }
@@ -214,7 +215,7 @@ export async function findDirectRoomIncludingLeft(
 export async function insertRoom(
   input: ChatRoomInsert
 ): Promise<ChatRoom> {
-  const supabase = await createSupabaseServerClient();
+  const supabase = getAdminClientForChat();
 
   const { data, error } = await supabase
     .from("chat_rooms")

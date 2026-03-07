@@ -149,7 +149,7 @@ export async function findOtherMemberInDirectRoom(
 export async function insertMember(
   input: ChatRoomMemberInsert
 ): Promise<ChatRoomMember> {
-  const supabase = await createSupabaseServerClient();
+  const supabase = getAdminClientForChat();
 
   const { data, error } = await supabase
     .from("chat_room_members")
@@ -266,7 +266,7 @@ export async function insertMembersBatch(
 ): Promise<ChatRoomMember[]> {
   if (members.length === 0) return [];
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = getAdminClientForChat();
 
   const { data, error } = await supabase
     .from("chat_room_members")

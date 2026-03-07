@@ -28,7 +28,7 @@ function OnlineStatusComponent({
       className={cn(
         "inline-block rounded-full flex-shrink-0",
         size === "sm" ? "w-2 h-2" : "w-3 h-3",
-        isOnline ? "bg-success" : "bg-text-tertiary",
+        isOnline ? "bg-success-500" : "bg-text-tertiary",
         className
       )}
       aria-label={isOnline ? "온라인" : "오프라인"}

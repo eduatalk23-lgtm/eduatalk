@@ -46,6 +46,7 @@ export function useChatPresence({
   const [typingUsers, setTypingUsers] = useState<PresenceUser[]>([]);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isCurrentlyTypingRef = useRef(false);
 
   // userName을 ref로 추적 (useEffect 의존성에서 제외하여 채널 재생성 방지)
   const userNameRef = useRef(userName);
@@ -114,6 +115,7 @@ export function useChatPresence({
       }
 
       // 채널 정리
+      isCurrentlyTypingRef.current = false;
       channel.untrack();
       supabase.removeChannel(channel);
       channelRef.current = null;
@@ -123,6 +125,7 @@ export function useChatPresence({
   // userName이 변경되면 현재 presence 상태 업데이트 (채널 재생성 없이)
   useEffect(() => {
     if (!channelRef.current || !userName) return;
+    isCurrentlyTypingRef.current = false;
     channelRef.current.track({
       userId,
       name: userName,
@@ -130,7 +133,7 @@ export function useChatPresence({
     });
   }, [userName, userId]);
 
-  // 타이핑 상태 업데이트
+  // 타이핑 상태 업데이트 (디바운스: 이미 typing 중이면 track() 호출 생략)
   const setTyping = useCallback(
     (isTyping: boolean) => {
       if (!channelRef.current) return;
@@ -140,6 +143,21 @@ export function useChatPresence({
         clearTimeout(typingTimeoutRef.current);
         typingTimeoutRef.current = null;
       }
+
+      // 이미 타이핑 중이면 track() 재호출 생략 (타임아웃만 갱신)
+      if (isTyping && isCurrentlyTypingRef.current) {
+        typingTimeoutRef.current = setTimeout(() => {
+          isCurrentlyTypingRef.current = false;
+          channelRef.current?.track({
+            userId,
+            name: userNameRef.current,
+            isTyping: false,
+          });
+        }, TYPING_TIMEOUT);
+        return;
+      }
+
+      isCurrentlyTypingRef.current = isTyping;
 
       // 상태 업데이트
       channelRef.current.track({
@@ -151,6 +169,7 @@ export function useChatPresence({
       // 타이핑 중이면 자동 해제 타이머 설정
       if (isTyping) {
         typingTimeoutRef.current = setTimeout(() => {
+          isCurrentlyTypingRef.current = false;
           channelRef.current?.track({
             userId,
             name: userNameRef.current,

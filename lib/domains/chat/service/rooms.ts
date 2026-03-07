@@ -79,14 +79,16 @@ export async function createOrGetRoom(
       role: "owner",
     });
 
-    // 다른 멤버들 추가
-    for (let i = 0; i < memberIds.length; i++) {
-      await repository.insertMember({
-        room_id: room.id,
-        user_id: memberIds[i],
-        user_type: memberTypes[i],
-        role: "member",
-      });
+    // 다른 멤버들 배치 추가
+    if (memberIds.length > 0) {
+      await repository.insertMembersBatch(
+        memberIds.map((id, i) => ({
+          room_id: room.id,
+          user_id: id,
+          user_type: memberTypes[i],
+          role: "member" as const,
+        }))
+      );
     }
 
     return { success: true, data: room };

@@ -119,7 +119,7 @@ class RealtimeConnectionManager {
   }
 
   /**
-   * 연결 끊김 처리
+   * 연결 끊김 처리 + 자동 재연결 예약
    */
   handleDisconnect(channelName: string): void {
     const state = this.channels.get(channelName);
@@ -129,6 +129,37 @@ class RealtimeConnectionManager {
     this.notifyListeners(channelName, "disconnected");
 
     console.log(`[ConnectionManager] Channel ${channelName} disconnected`);
+
+    // 이미 재연결 타이머가 예약되어 있으면 중복 예약 방지
+    if (this.reconnectTimers.has(channelName)) {
+      console.log(`[ConnectionManager] Reconnect already scheduled for ${channelName}, skipping`);
+      return;
+    }
+
+    // 자동 재연결 예약 (콜백이 등록되어 있고, 네트워크 온라인이고, 최대 재시도 미만)
+    if (
+      this.reconnectCallbacks.has(channelName) &&
+      this.isNetworkOnline() &&
+      state.retryCount < this.MAX_RETRY_COUNT
+    ) {
+      const delay = this.calculateRetryDelay(state.retryCount);
+      console.log(
+        `[ConnectionManager] Auto-reconnect scheduled for ${channelName} in ${Math.round(delay / 1000)}s (attempt ${state.retryCount + 1}/${this.MAX_RETRY_COUNT})`
+      );
+
+      // 기존 타이머 정리
+      const existingTimer = this.reconnectTimers.get(channelName);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+
+      const timer = setTimeout(() => {
+        this.reconnectTimers.delete(channelName);
+        this.attemptReconnect(channelName);
+      }, delay);
+
+      this.reconnectTimers.set(channelName, timer);
+    }
   }
 
   // ============================================
@@ -270,10 +301,10 @@ class RealtimeConnectionManager {
     try {
       await callback();
 
-      // 성공
-      this.setChannelState(channelName, "connected");
-      this.resetRetryCount(channelName);
-      console.log(`[ConnectionManager] Reconnected ${channelName} successfully`);
+      // 콜백은 재구독을 트리거할 뿐, 실제 연결 성공은 subscribe() 콜백에서 판단.
+      // setChannelState("connected")는 useChatRealtime의 SUBSCRIBED 핸들러가 호출.
+      // 여기서는 reconnecting 상태를 유지하고 retryCount를 보존한다.
+      console.log(`[ConnectionManager] Reconnect triggered for ${channelName}, awaiting SUBSCRIBED`);
       return true;
     } catch (error) {
       console.error(`[ConnectionManager] Reconnect failed for ${channelName}:`, error);

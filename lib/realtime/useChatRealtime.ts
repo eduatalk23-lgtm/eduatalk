@@ -587,6 +587,77 @@ export function useChatRealtime({
     const insertBuffer: Array<{ msg: ChatMessagePayload; tempId: string | undefined }> = [];
     let insertBufferTimer: ReturnType<typeof setTimeout> | null = null;
 
+    // === 리액션 배치 버퍼 (50ms 윈도우로 여러 리액션을 1회 setQueryData로 적용) ===
+    const REACTION_BATCH_WINDOW_MS = 50;
+    const reactionBuffer: Array<{ reaction: ChatReactionPayload; isAdd: boolean }> = [];
+    let reactionBufferTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const flushReactionBuffer = () => {
+      const batch = reactionBuffer.splice(0);
+      reactionBufferTimer = null;
+
+      if (batch.length === 0) return;
+
+      debugLog(`[ChatRealtime] Flushing ${batch.length} buffered reactions`);
+
+      queryClient.setQueryData<InfiniteMessagesCache>(
+        ["chat-messages", roomId],
+        (old) => {
+          if (!old?.pages?.length) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              messages: page.messages.map((m) => {
+                // 이 메시지에 해당하는 리액션만 필터
+                const relatedReactions = batch.filter((b) => b.reaction.message_id === m.id);
+                if (relatedReactions.length === 0) return m;
+
+                const reactions = [...(m.reactions ?? [])];
+
+                for (const { reaction, isAdd } of relatedReactions) {
+                  const existingIdx = reactions.findIndex((r) => r.emoji === reaction.emoji);
+
+                  if (isAdd) {
+                    if (existingIdx >= 0) {
+                      if (reaction.user_id === userId && reactions[existingIdx].hasReacted) continue;
+                      reactions[existingIdx] = {
+                        ...reactions[existingIdx],
+                        count: reactions[existingIdx].count + 1,
+                        hasReacted: reactions[existingIdx].hasReacted || reaction.user_id === userId,
+                      };
+                    } else {
+                      reactions.push({
+                        emoji: reaction.emoji as "👍" | "❤️" | "😂" | "🔥" | "😮",
+                        count: 1,
+                        hasReacted: reaction.user_id === userId,
+                      });
+                    }
+                  } else {
+                    if (existingIdx >= 0) {
+                      if (reaction.user_id === userId && !reactions[existingIdx].hasReacted) continue;
+                      const newCount = reactions[existingIdx].count - 1;
+                      if (newCount <= 0) {
+                        reactions.splice(existingIdx, 1);
+                      } else {
+                        reactions[existingIdx] = {
+                          ...reactions[existingIdx],
+                          count: newCount,
+                          hasReacted: reaction.user_id === userId ? false : reactions[existingIdx].hasReacted,
+                        };
+                      }
+                    }
+                  }
+                }
+
+                return { ...m, reactions };
+              }),
+            })),
+          };
+        }
+      );
+    };
+
     const flushInsertBuffer = () => {
       const batch = insertBuffer.splice(0);
       insertBufferTimer = null;
@@ -632,9 +703,22 @@ export function useChatRealtime({
               );
               const senderFromCache = senderCacheRef.current.get(cacheKey);
 
+              // 비정규화된 sender 정보가 있으면 캐시에 저장 (fetch 생략 가능)
+              let denormalizedSender: ChatUser | undefined;
+              if (!existingSender && !senderFromCache && newMessage.sender_name) {
+                denormalizedSender = {
+                  id: newMessage.sender_id,
+                  type: newMessage.sender_type,
+                  name: newMessage.sender_name,
+                  profileImageUrl: newMessage.sender_profile_url ?? undefined,
+                };
+                senderCacheRef.current.set(cacheKey, denormalizedSender);
+              }
+
               const tempSender: ChatUser =
                 existingSender ??
-                senderFromCache ?? {
+                senderFromCache ??
+                denormalizedSender ?? {
                   id: newMessage.sender_id,
                   type: newMessage.sender_type,
                   name: newMessage.sender_name ?? "로딩 중...",
@@ -676,7 +760,8 @@ export function useChatRealtime({
             fnRef.current.findSenderFromExistingMessages(newMessage.sender_id) ??
             senderCacheRef.current.get(cacheKey);
 
-          if (!hasSenderInfo) {
+          if (!hasSenderInfo && !newMessage.sender_name) {
+            // 비정규화 sender 정보도 없는 경우에만 fetch
             fnRef.current.fetchSenderInfo(newMessage.sender_id, newMessage.sender_type)
               .then((senderInfo) => {
                 queryClient.setQueryData<InfiniteMessagesCache>(
@@ -843,7 +928,7 @@ export function useChatRealtime({
           }
         }
       )
-      // === 리액션: broadcast from DB trigger ===
+      // === 리액션: broadcast from DB trigger (50ms 배치 버퍼) ===
       .on(
         "broadcast",
         { event: "REACTION_INSERT" },
@@ -862,57 +947,10 @@ export function useChatRealtime({
               return;
             }
 
-            queryClient.setQueryData<InfiniteMessagesCache>(
-              ["chat-messages", roomId],
-              (old) => {
-                if (!old?.pages?.length) return old;
-                return {
-                  ...old,
-                  pages: old.pages.map((page) => ({
-                    ...page,
-                    messages: page.messages.map((m) => {
-                      if (m.id !== reaction.message_id) return m;
-
-                      const existingReactions = m.reactions ?? [];
-                      const existingIdx = existingReactions.findIndex(
-                        (r) => r.emoji === reaction.emoji
-                      );
-
-                      if (existingIdx >= 0) {
-                        if (
-                          reaction.user_id === userId &&
-                          existingReactions[existingIdx].hasReacted
-                        ) {
-                          return m;
-                        }
-
-                        const updated = [...existingReactions];
-                        updated[existingIdx] = {
-                          ...updated[existingIdx],
-                          count: updated[existingIdx].count + 1,
-                          hasReacted:
-                            updated[existingIdx].hasReacted ||
-                            reaction.user_id === userId,
-                        };
-                        return { ...m, reactions: updated };
-                      } else {
-                        return {
-                          ...m,
-                          reactions: [
-                            ...existingReactions,
-                            {
-                              emoji: reaction.emoji as "👍" | "❤️" | "😂" | "🔥" | "😮",
-                              count: 1,
-                              hasReacted: reaction.user_id === userId,
-                            },
-                          ],
-                        };
-                      }
-                    }),
-                  })),
-                };
-              }
-            );
+            reactionBuffer.push({ reaction, isAdd: true });
+            if (!reactionBufferTimer) {
+              reactionBufferTimer = setTimeout(flushReactionBuffer, REACTION_BATCH_WINDOW_MS);
+            }
           }
         }
       )
@@ -934,53 +972,10 @@ export function useChatRealtime({
               return;
             }
 
-            queryClient.setQueryData<InfiniteMessagesCache>(
-              ["chat-messages", roomId],
-              (old) => {
-                if (!old?.pages?.length) return old;
-                return {
-                  ...old,
-                  pages: old.pages.map((page) => ({
-                    ...page,
-                    messages: page.messages.map((m) => {
-                      if (m.id !== reaction.message_id) return m;
-
-                      const existingReactions = m.reactions ?? [];
-                      const existingIdx = existingReactions.findIndex(
-                        (r) => r.emoji === reaction.emoji
-                      );
-
-                      if (existingIdx >= 0) {
-                        if (
-                          reaction.user_id === userId &&
-                          !existingReactions[existingIdx].hasReacted
-                        ) {
-                          return m;
-                        }
-
-                        const updated = [...existingReactions];
-                        const newCount = updated[existingIdx].count - 1;
-
-                        if (newCount <= 0) {
-                          updated.splice(existingIdx, 1);
-                        } else {
-                          updated[existingIdx] = {
-                            ...updated[existingIdx],
-                            count: newCount,
-                            hasReacted:
-                              reaction.user_id === userId
-                                ? false
-                                : updated[existingIdx].hasReacted,
-                          };
-                        }
-                        return { ...m, reactions: updated };
-                      }
-                      return m;
-                    }),
-                  })),
-                };
-              }
-            );
+            reactionBuffer.push({ reaction, isAdd: false });
+            if (!reactionBufferTimer) {
+              reactionBufferTimer = setTimeout(flushReactionBuffer, REACTION_BATCH_WINDOW_MS);
+            }
           }
         }
       )
@@ -1162,6 +1157,14 @@ export function useChatRealtime({
           flushInsertBuffer();
         }
       }
+      // 리액션 배치 버퍼 정리 (남은 리액션 즉시 플러시)
+      if (reactionBufferTimer) {
+        clearTimeout(reactionBufferTimer);
+        reactionBufferTimer = null;
+        if (reactionBuffer.length > 0) {
+          flushReactionBuffer();
+        }
+      }
       // sender 배치 타이머 정리
       if (currentBatch.timer) {
         clearTimeout(currentBatch.timer);
@@ -1281,36 +1284,31 @@ export function useChatRoomListRealtime({
 
     // 싱글톤 클라이언트 사용 (모듈 레벨에서 import)
 
+    // broadcast_changes payload 노멀라이저 (DB trigger → record 래핑)
+    type BroadcastPayload = Record<string, unknown>;
+    const extractRecord = <T>(raw: BroadcastPayload): T | undefined =>
+      raw.record as T | undefined;
+
     const channel = supabase
       .channel(`chat-rooms-${userId}`)
-      // 내가 멤버로 추가된 경우
+      // 멤버 추가 (broadcast from DB trigger)
       .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "chat_room_members",
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          debugLog("[ChatRealtime] Added to room:", payload);
+        "broadcast",
+        { event: "INSERT" },
+        (event: { payload: BroadcastPayload }) => {
+          debugLog("[ChatRealtime] Added to room:", event.payload);
           invalidateRoomList();
         }
       )
       // 멤버십 변경 (나가기 등) - markAsRead의 last_read_at 업데이트는 무시
       .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "chat_room_members",
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          const newRecord = payload.new as { left_at?: string | null } | undefined;
+        "broadcast",
+        { event: "UPDATE" },
+        (event: { payload: BroadcastPayload }) => {
+          const record = extractRecord<{ left_at?: string | null }>(event.payload);
           // left_at 변경(나가기)만 처리, last_read_at 변경(읽음 처리)은 무시
           // → markAsReadMutation의 onMutate가 이미 낙관적 업데이트 처리함
-          if (newRecord?.left_at !== undefined && newRecord.left_at !== null) {
+          if (record?.left_at !== undefined && record.left_at !== null) {
             debugLog("[ChatRealtime] Member left room, refreshing list");
             invalidateRoomList();
           }
@@ -1318,14 +1316,11 @@ export function useChatRoomListRealtime({
       )
       // 채팅방 업데이트 (새 메시지 시 트리거로 updated_at 갱신됨)
       .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "chat_rooms",
-        },
-        (payload) => {
-          const roomId = (payload.new as { id: string } | undefined)?.id;
+        "broadcast",
+        { event: "ROOM_UPDATE" },
+        (event: { payload: BroadcastPayload }) => {
+          const record = extractRecord<{ id: string }>(event.payload);
+          const roomId = record?.id;
           if (roomId && userRoomIdsRef.current.has(roomId)) {
             // 기존 방: debounced 갱신
             debugLog("[ChatRealtime] Room updated (new message):", roomId);
