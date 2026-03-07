@@ -205,7 +205,7 @@ export function SMSPanelContent({
         showError("발송에 실패했습니다.");
       }
     });
-  }, [validRecipients, previewMessage, studentId, showSuccess, showError, onRefreshHistory]);
+  }, [validRecipients, previewMessage, studentId, subject, showSuccess, showError, onRefreshHistory]);
 
   return (
     <div className="flex flex-col gap-6">
