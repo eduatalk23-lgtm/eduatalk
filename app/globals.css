@@ -368,6 +368,14 @@
   --color-text-disabled: var(--text-disabled);
 
   /* Semantic Color Palette */
+  /* Base aliases: bg-primary, text-primary, border-primary 등에 사용 */
+  --color-primary: rgb(var(--color-primary-500));
+  --color-secondary: rgb(var(--color-secondary-500));
+  --color-success: rgb(var(--color-success-500));
+  --color-warning: rgb(var(--color-warning-500));
+  --color-error: rgb(var(--color-error-500));
+  --color-info: rgb(var(--color-info-500));
+
   --color-primary-50: rgb(var(--color-primary-50));
   --color-primary-100: rgb(var(--color-primary-100));
   --color-primary-200: rgb(var(--color-primary-200));
@@ -480,12 +488,13 @@
 /* Global Reset & Base Styles */
 html {
   scrollbar-gutter: stable;
-  scroll-behavior: smooth;
+  /* scroll-behavior는 전역 적용하지 않음 — 필요한 곳에서만 behavior:"smooth" 명시 */
+  touch-action: manipulation; /* 300ms tap delay 제거 (더블탭 줌 비활성) */
 }
 
-@media (prefers-reduced-motion: reduce) {
+@media (display-mode: standalone) {
   html {
-    scroll-behavior: auto;
+    scrollbar-gutter: auto; /* 모바일 overlay scrollbar에서는 gutter 불필요 */
   }
 }
 
@@ -495,19 +504,42 @@ body {
   font-family: Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior-y: contain; /* 네이티브 pull-to-refresh 방지, scroll chaining 차단 */
+}
+
+@media (display-mode: standalone) {
+  body {
+    overscroll-behavior-y: none; /* PWA standalone: 바운스 효과 완전 제거 */
+  }
+}
+
+/* 드래그/리사이즈 영역 — 브라우저 기본 스크롤과 충돌 방지 */
+[data-grid-block],
+[data-plan-chip],
+.cursor-ns-resize,
+[data-quick-create-btn] {
+  touch-action: none;
 }
 
 /*
   테마 전환 트랜지션 시스템
-  - * 셀렉터(0 specificity)는 Tailwind transition-* 클래스에 의해 자동 오버라이드됨
-  - 명시적 transition이 없는 요소에 대한 베이스라인 색상 전환 제공
+  - 인터랙티브 요소와 주요 컨테이너에만 적용 (성능 최적화)
+  - * 셀렉터 → 구체적 셀렉터로 제한하여 스크롤 중 불필요한 transition 계산 방지
   - Material Design 표준 이징 커브 사용
   - prefers-reduced-motion 존중
 */
 @media (prefers-reduced-motion: no-preference) {
-  *,
-  *::before,
-  *::after {
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  [role="button"],
+  [role="tab"],
+  [role="menuitem"],
+  nav,
+  header,
+  .theme-transition {
     transition-property: background-color, border-color, color, fill, stroke, box-shadow, outline-color;
     transition-duration: 0.2s;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
@@ -862,6 +894,13 @@ input[type="number"] {
   animation: ghost-enter 150ms ease-out forwards;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .animate-ghost-enter,
+  .animate-float {
+    animation: none;
+  }
+}
+
 /* ============================================
    Landing Page Utilities
    ============================================ */
@@ -876,6 +915,18 @@ input[type="number"] {
   background: rgba(30, 41, 59, 0.7);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 투명도 감소 선호 사용자 — backdrop-filter 제거 */
+@media (prefers-reduced-transparency: reduce) {
+  .glass-card {
+    backdrop-filter: none;
+    background: var(--background);
+  }
+  .glass-card-dark {
+    backdrop-filter: none;
+    background: rgb(30, 41, 59);
+  }
 }
 
 @utility dot-grid {
@@ -971,4 +1022,40 @@ input[type="number"] {
     opacity: 1;
     transform: none;
   }
+}
+
+/* ============================================
+   Scroll Performance Optimizations
+   ============================================ */
+
+/* 반복 요소 containment — 리플로우 범위 격리 */
+@utility contain-content {
+  contain: content; /* layout + paint + style */
+}
+
+/* 오프스크린 콘텐츠 렌더링 최적화 */
+@utility content-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 500px;
+}
+
+/* 커스텀 스크롤 관리 컨테이너 — 브라우저 scroll anchoring 비활성 */
+@utility no-scroll-anchor {
+  overflow-anchor: none;
+}
+
+/* 스크롤 컨테이너 GPU 프로모션 */
+@utility scroll-gpu {
+  will-change: scroll-position;
+  contain: layout style;
+}
+
+/* 스와이프 영역 — 수직 스크롤만 허용 (수평 드래그와 충돌 방지) */
+@utility touch-pan-y {
+  touch-action: pan-y;
+}
+
+/* 모달/드로어 오버레이 — 배경 스크롤 차단 */
+@utility overscroll-contain {
+  overscroll-behavior: contain;
 }
