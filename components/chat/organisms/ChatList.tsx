@@ -20,6 +20,7 @@ import {
   leaveChatRoomAction,
   toggleMuteChatRoomAction,
 } from "@/lib/domains/chat/actions";
+import { chatKeys } from "@/lib/domains/chat/queryKeys";
 
 interface ChatListProps {
   /** 현재 선택된 채팅방 ID */
@@ -65,7 +66,7 @@ function ChatListComponent({
     async (roomId: string) => {
       const result = await leaveChatRoomAction(roomId);
       if (result.success) {
-        queryClient.invalidateQueries({ queryKey: ["chatRooms"] });
+        queryClient.invalidateQueries({ queryKey: chatKeys.rooms() });
       }
     },
     [queryClient]
@@ -75,7 +76,7 @@ function ChatListComponent({
     async (roomId: string, muted: boolean) => {
       const result = await toggleMuteChatRoomAction(roomId, muted);
       if (result.success) {
-        queryClient.invalidateQueries({ queryKey: ["chatRooms"] });
+        queryClient.invalidateQueries({ queryKey: chatKeys.rooms() });
       }
     },
     [queryClient]

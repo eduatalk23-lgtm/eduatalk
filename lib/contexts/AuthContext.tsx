@@ -7,6 +7,8 @@ import type { CurrentUser } from "@/lib/auth/getCurrentUser";
 import { CACHE_STALE_TIME_STABLE, CACHE_GC_TIME_STABLE } from "@/lib/constants/queryCache";
 import { isApiSuccess } from "@/lib/api";
 import { supabase } from "@/lib/supabase/client";
+import { operationTracker } from "@/lib/domains/chat/operationTracker";
+import { chatKeys } from "@/lib/domains/chat/queryKeys";
 
 // 인증 관련 페이지 경로 (로그인/가입 후 리다이렉트 소스)
 const AUTH_PAGES = ["/login", "/signup", "/auth/callback", "/onboarding"];
@@ -165,9 +167,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // 로그아웃 시 auth 캐시 즉시 무효화
         queryClient.setQueryData(["auth", "me"], null);
         queryClient.removeQueries({ queryKey: ["auth", "me"], exact: true });
-        // 관련 사용자 데이터 쿼리도 무효화
-        queryClient.invalidateQueries({ queryKey: ["chat"] });
-        queryClient.invalidateQueries({ queryKey: ["unread"] });
+        // 모든 채팅 관련 캐시 완전 제거 (사용자 전환 시 이전 데이터 노출 방지)
+        // chat-rooms, chat-messages, chat-room, chat-pinned, chat-announcement,
+        // chat-notification-prefs, chat-can-pin, chat-can-set-announcement, chat-room-members
+        queryClient.removeQueries({
+          predicate: (query) => {
+            const key = query.queryKey[0];
+            return typeof key === "string" && key.startsWith(chatKeys.prefix);
+          },
+        });
+        queryClient.removeQueries({ queryKey: ["unread"] });
+        // 채팅 operationTracker 전체 정리 (이전 사용자의 추적 상태 제거)
+        operationTracker.clearAll();
       } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
         // 로그인 또는 토큰 갱신 시 사용자 정보 리페치
         refetch();

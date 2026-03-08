@@ -16,6 +16,7 @@ import { Avatar } from "@/components/atoms/Avatar";
 import { UnreadBadge } from "../atoms/UnreadBadge";
 import { Users, Image, Paperclip, BellOff } from "lucide-react";
 import { chatMessagesQueryOptions } from "@/lib/query-options/chatMessages";
+import { chatKeys } from "@/lib/domains/chat/queryKeys";
 import type { ChatRoomListItem } from "@/lib/domains/chat/types";
 
 interface ChatRoomCardProps {
@@ -36,8 +37,7 @@ function ChatRoomCardComponent({
 
   // Hover 시 메시지 프리패칭 (캐시에 없을 때만)
   const handleMouseEnter = useCallback(() => {
-    const queryKey = ["chat-messages", room.id];
-    const existingData = queryClient.getQueryData(queryKey);
+    const existingData = queryClient.getQueryData(chatKeys.messages(room.id));
 
     // 이미 캐시에 데이터가 있으면 스킵
     if (existingData) return;
@@ -51,7 +51,7 @@ function ChatRoomCardComponent({
     // hover prefetch로 생긴 캐시가 stale일 수 있으므로 무효화
     // (useChatRealtime의 syncMessagesSince가 최신 메시지를 가져오도록)
     void queryClient.invalidateQueries({
-      queryKey: ["chat-messages", room.id],
+      queryKey: chatKeys.messages(room.id),
       refetchType: "none", // 즉시 refetch하지 않음 (채팅방 진입 후 realtime이 처리)
     });
     onClick();

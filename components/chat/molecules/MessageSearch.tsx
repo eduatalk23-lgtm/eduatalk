@@ -13,6 +13,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { Search, X, Loader2 } from "lucide-react";
 import { searchMessagesAction } from "@/lib/domains/chat/actions/messages";
+import { chatKeys } from "@/lib/domains/chat/queryKeys";
 import type { ChatMessageWithSender } from "@/lib/domains/chat/types";
 import { formatDistanceToNow } from "date-fns";
 import { ko } from "date-fns/locale";
@@ -60,7 +61,7 @@ export function MessageSearch({
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ["chat-search", roomId, debouncedQuery],
+    queryKey: chatKeys.search(roomId, debouncedQuery),
     queryFn: async ({ pageParam = 0 }) => {
       if (!debouncedQuery) return null;
       const result = await searchMessagesAction(roomId, debouncedQuery, {

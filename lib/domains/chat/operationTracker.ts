@@ -122,12 +122,17 @@ class OperationTracker {
   }
 
   /**
-   * content와 sender로 매칭되는 pending 메시지 찾기
+   * content와 roomId로 매칭되는 pending 메시지 찾기
    * (전송 완료 전에 Realtime이 먼저 도착하는 경우 대비)
+   * roomId를 함께 비교하여 다른 방의 동일 내용 메시지와 잘못 매칭되는 것을 방지
    */
-  findPendingSendByContent(content: string): string | undefined {
+  findPendingSendByContent(content: string, roomId?: string): string | undefined {
     for (const [tempId, operation] of this.pending) {
-      if (operation.type === "send" && operation.content === content) {
+      if (
+        operation.type === "send" &&
+        operation.content === content &&
+        (!roomId || !operation.roomId || operation.roomId === roomId)
+      ) {
         return tempId;
       }
     }
@@ -277,6 +282,17 @@ class OperationTracker {
         this.pending.delete(key);
       }
     }
+  }
+
+  /**
+   * 모든 데이터 정리 (로그아웃 시 호출)
+   * 사용자 전환 시 이전 사용자의 추적 데이터가 남지 않도록 함
+   */
+  clearAll(): void {
+    this.pending.clear();
+    this.tempToReal.clear();
+    this.realToTemp.clear();
+    this.processedRealtimeIds.clear();
   }
 
   /**

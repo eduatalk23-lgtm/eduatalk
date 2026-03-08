@@ -16,6 +16,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Loader2, Search, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/ToastProvider";
+import { chatKeys } from "@/lib/domains/chat/queryKeys";
 
 interface InviteMemberModalProps {
   isOpen: boolean;
@@ -45,7 +46,7 @@ export function InviteMemberModal({
 
   // 학생 목록 조회
   const { data: students, isLoading } = useQuery({
-    queryKey: ["chat-available-students"],
+    queryKey: chatKeys.availableStudents(),
     queryFn: async () => {
       const supabase = createSupabaseBrowserClient();
       const { data, error } = await supabase
@@ -96,7 +97,7 @@ export function InviteMemberModal({
     },
     onSuccess: () => {
       // 멤버 목록 새로고침
-      queryClient.invalidateQueries({ queryKey: ["chat-room-members", roomId] });
+      queryClient.invalidateQueries({ queryKey: chatKeys.roomMembers(roomId) });
       showSuccess("멤버를 초대했습니다.");
       handleClose();
     },

@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 import { Avatar } from "@/components/atoms/Avatar";
 import { startDirectChatAction } from "@/lib/domains/chat/actions";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { chatKeys } from "@/lib/domains/chat/queryKeys";
 import { Loader2, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -42,7 +43,7 @@ export function CreateChatModal({
 
   // 관리자 목록 조회 (같은 tenant의 admin/consultant)
   const { data: admins, isLoading } = useQuery({
-    queryKey: ["chat-available-admins"],
+    queryKey: chatKeys.availableAdmins(),
     queryFn: async () => {
       const supabase = createSupabaseBrowserClient();
       const { data, error } = await supabase

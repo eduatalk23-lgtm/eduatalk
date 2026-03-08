@@ -74,6 +74,7 @@ import { getChatNotificationPrefs } from "@/lib/domains/student/actions/notifica
 import { playChatFeedback } from "@/lib/audio/chatSound";
 import { useThrottledCallback } from "@/lib/hooks/useThrottle";
 import { operationTracker } from "../operationTracker";
+import { chatKeys } from "../queryKeys";
 import { isOnline, isNetworkError } from "@/lib/offline/networkStatus";
 import {
   enqueueChatMessage,
@@ -179,14 +180,14 @@ export function useChatRoomLogic({
         if (sentRoomId !== roomId) return;
         // "queued" 메시지를 실제 서버 메시지로 교체 (id 갱신 + status → "sent")
         queryClient.setQueryData<InfiniteMessagesCache>(
-          ["chat-messages", roomId],
+          chatKeys.messages(roomId),
           (old) => replaceMessageInFirstPage(old, clientMessageId, { id: data.id })
         );
       },
       onMessageFailed: (failedRoomId, clientMessageId, error) => {
         if (failedRoomId !== roomId) return;
         queryClient.setQueryData<InfiniteMessagesCache>(
-          ["chat-messages", roomId],
+          chatKeys.messages(roomId),
           (old) =>
             updateMessageInCache(old, clientMessageId, (m) => ({
               ...m,
@@ -207,7 +208,7 @@ export function useChatRoomLogic({
 
   // 채팅 알림 설정 (소리/진동/읽음확인)
   const { data: chatPrefs } = useQuery({
-    queryKey: ["chat-notification-prefs"],
+    queryKey: chatKeys.notificationPrefs(),
     queryFn: () => getChatNotificationPrefs(),
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
@@ -233,7 +234,7 @@ export function useChatRoomLogic({
 
   // 고정 권한 확인
   const { data: canPinData } = useQuery({
-    queryKey: ["chat-can-pin", roomId],
+    queryKey: chatKeys.canPin(roomId),
     queryFn: async () => {
       const result = await canPinMessagesAction(roomId);
       if (!result.success) return { canPin: false };
@@ -248,7 +249,7 @@ export function useChatRoomLogic({
 
   // 공지 설정 권한 확인
   const { data: canSetAnnouncementData } = useQuery({
-    queryKey: ["chat-can-set-announcement", roomId],
+    queryKey: chatKeys.canSetAnnouncement(roomId),
     queryFn: async () => {
       const result = await canSetAnnouncementAction(roomId);
       if (!result.success) return { canSet: false };
@@ -436,10 +437,10 @@ export function useChatRoomLogic({
     },
     onMutate: async ({ content, replyToId, clientMessageId }) => {
       // 1. 진행 중인 쿼리 취소 (낙관적 업데이트와 충돌 방지)
-      await queryClient.cancelQueries({ queryKey: ["chat-messages", roomId] });
+      await queryClient.cancelQueries({ queryKey: chatKeys.messages(roomId) });
 
       // 2. 이전 데이터 스냅샷 저장 (롤백용)
-      const previousMessages = queryClient.getQueryData(["chat-messages", roomId]);
+      const previousMessages = queryClient.getQueryData(chatKeys.messages(roomId));
 
       // 이전 답장 상태 저장 (복원용)
       const previousReplyTarget = replyTarget;
@@ -483,7 +484,7 @@ export function useChatRoomLogic({
       };
 
       queryClient.setQueryData<InfiniteMessagesCache>(
-        ["chat-messages", roomId],
+        chatKeys.messages(roomId),
         (old) => addMessageToFirstPage(old, optimisticMessage)
       );
 
@@ -531,12 +532,12 @@ export function useChatRoomLogic({
         // Operation Tracker에 전송 완료 등록 (tempId → realId 매핑)
         operationTracker.completeSend(tempId, data.id);
         const updated = queryClient.setQueryData<InfiniteMessagesCache>(
-          ["chat-messages", roomId],
+          chatKeys.messages(roomId),
           (old) => replaceMessageInFirstPage(old, tempId, data)
         );
         // Fallback: temp 메시지를 못 찾은 경우 (캐시 경쟁 조건) → 서버에서 최신 데이터 refetch
         if (!findMessageInCache(updated, data.id)) {
-          queryClient.invalidateQueries({ queryKey: ["chat-messages", roomId] });
+          queryClient.invalidateQueries({ queryKey: chatKeys.messages(roomId) });
         }
       }
     },
@@ -551,7 +552,7 @@ export function useChatRoomLogic({
           // 네트워크 에러 → tracker 해제 + "queued"로 전환 + IndexedDB 큐 저장
           operationTracker.failSend(tempId);
           queryClient.setQueryData<InfiniteMessagesCache>(
-            ["chat-messages", roomId],
+            chatKeys.messages(roomId),
             (old) =>
               updateMessageInCache(old, tempId, (m) => ({ ...m, status: "queued" }))
           );
@@ -565,7 +566,7 @@ export function useChatRoomLogic({
           // 비즈니스 에러 → 기존 "error" 처리
           operationTracker.failSend(tempId);
           queryClient.setQueryData<InfiniteMessagesCache>(
-            ["chat-messages", roomId],
+            chatKeys.messages(roomId),
             (old) =>
               updateMessageInCache(old, tempId, (m) => ({ ...m, status: "error" }))
           );
@@ -605,7 +606,7 @@ export function useChatRoomLogic({
     },
     onMutate: async ({ messageId, content }) => {
       // 진행 중인 쿼리 취소
-      await queryClient.cancelQueries({ queryKey: ["chat-messages", roomId] });
+      await queryClient.cancelQueries({ queryKey: chatKeys.messages(roomId) });
 
       // 이전 데이터 스냅샷 저장 (롤백용)
       const previousMessages = queryClient.getQueryData<InfiniteMessagesCache>([
@@ -615,7 +616,7 @@ export function useChatRoomLogic({
 
       // 낙관적 업데이트
       queryClient.setQueryData<InfiniteMessagesCache>(
-        ["chat-messages", roomId],
+        chatKeys.messages(roomId),
         (old) => {
           if (!old?.pages?.length) return old;
           return {
@@ -642,7 +643,7 @@ export function useChatRoomLogic({
       // 에러 시 롤백
       if (context?.previousMessages) {
         queryClient.setQueryData(
-          ["chat-messages", roomId],
+          chatKeys.messages(roomId),
           context.previousMessages
         );
       }
@@ -658,7 +659,7 @@ export function useChatRoomLogic({
     },
     onMutate: async (messageId) => {
       // 진행 중인 쿼리 취소
-      await queryClient.cancelQueries({ queryKey: ["chat-messages", roomId] });
+      await queryClient.cancelQueries({ queryKey: chatKeys.messages(roomId) });
 
       // 이전 데이터 스냅샷 저장 (롤백용)
       const previousMessages = queryClient.getQueryData<InfiniteMessagesCache>([
@@ -668,7 +669,7 @@ export function useChatRoomLogic({
 
       // 낙관적 업데이트 (is_deleted=true 설정)
       queryClient.setQueryData<InfiniteMessagesCache>(
-        ["chat-messages", roomId],
+        chatKeys.messages(roomId),
         (old) => {
           if (!old?.pages?.length) return old;
           return {
@@ -695,7 +696,7 @@ export function useChatRoomLogic({
       // 에러 시 롤백
       if (context?.previousMessages) {
         queryClient.setQueryData(
-          ["chat-messages", roomId],
+          chatKeys.messages(roomId),
           context.previousMessages
         );
       }
@@ -720,7 +721,7 @@ export function useChatRoomLogic({
     },
     onMutate: async ({ messageId, emoji }) => {
       // 진행 중인 쿼리 취소
-      await queryClient.cancelQueries({ queryKey: ["chat-messages", roomId] });
+      await queryClient.cancelQueries({ queryKey: chatKeys.messages(roomId) });
 
       // 이전 데이터 스냅샷 저장 (롤백용)
       const previousMessages = queryClient.getQueryData<InfiniteMessagesCache>([
@@ -748,7 +749,7 @@ export function useChatRoomLogic({
 
       // 낙관적 업데이트
       queryClient.setQueryData<InfiniteMessagesCache>(
-        ["chat-messages", roomId],
+        chatKeys.messages(roomId),
         (old) => {
           if (!old?.pages?.length) return old;
           return {
@@ -823,7 +824,7 @@ export function useChatRoomLogic({
       // 에러 시 롤백
       if (context?.previousMessages) {
         queryClient.setQueryData(
-          ["chat-messages", roomId],
+          chatKeys.messages(roomId),
           context.previousMessages
         );
       }
@@ -848,7 +849,9 @@ export function useChatRoomLogic({
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chat-pinned", roomId] });
+      queryClient.invalidateQueries({ queryKey: chatKeys.pinned(roomId) });
+      // 메시지 목록의 pin 상태도 동기화
+      queryClient.invalidateQueries({ queryKey: chatKeys.messages(roomId) });
     },
     onError: (error) => {
       showError("메시지 고정에 실패했습니다.");
@@ -864,7 +867,7 @@ export function useChatRoomLogic({
       return result.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chat-announcement", roomId] });
+      queryClient.invalidateQueries({ queryKey: chatKeys.announcement(roomId) });
     },
     onError: (error) => {
       showError("공지 설정에 실패했습니다.");
@@ -879,15 +882,15 @@ export function useChatRoomLogic({
     },
     onMutate: async () => {
       // 1. 진행 중인 refetch 취소 (낙관적 업데이트 덮어쓰기 방지)
-      await queryClient.cancelQueries({ queryKey: ["chat-rooms"] });
+      await queryClient.cancelQueries({ queryKey: chatKeys.rooms() });
 
       // 2. 이전 값 스냅샷 (롤백용)
-      const previousRooms = queryClient.getQueryData<ChatRoomListItem[]>(["chat-rooms"]);
+      const previousRooms = queryClient.getQueryData<ChatRoomListItem[]>(chatKeys.rooms());
 
       // 3. 캐시 즉시 업데이트: 해당 방의 unreadCount를 0으로
       if (previousRooms) {
         queryClient.setQueryData<ChatRoomListItem[]>(
-          ["chat-rooms"],
+          chatKeys.rooms(),
           previousRooms.map((room) =>
             room.id === roomId ? { ...room, unreadCount: 0 } : room
           )
@@ -899,12 +902,12 @@ export function useChatRoomLogic({
     onError: (_err, _vars, context) => {
       // 4. 실패 시 롤백
       if (context?.previousRooms) {
-        queryClient.setQueryData(["chat-rooms"], context.previousRooms);
+        queryClient.setQueryData(chatKeys.rooms(), context.previousRooms);
       }
     },
     onSettled: () => {
       // 5. 성공/실패 무관하게 서버 데이터로 최종 동기화
-      queryClient.invalidateQueries({ queryKey: ["chat-rooms"] });
+      queryClient.invalidateQueries({ queryKey: chatKeys.rooms() });
     },
   });
 
@@ -1041,7 +1044,7 @@ export function useChatRoomLogic({
 
         const staleIdSet = new Set(staleIds);
         queryClient.setQueryData<InfiniteMessagesCache>(
-          ["chat-messages", roomId],
+          chatKeys.messages(roomId),
           (old) => {
             if (!old?.pages) return old;
             return {
@@ -1267,7 +1270,7 @@ export function useChatRoomLogic({
         };
 
         queryClient.setQueryData<InfiniteMessagesCache>(
-          ["chat-messages", roomId],
+          chatKeys.messages(roomId),
           (old) => addMessageToFirstPage(old, queuedMessage)
         );
         enqueueChatMessage(roomId, content, replyToId, clientMessageId);
@@ -1332,7 +1335,7 @@ export function useChatRoomLogic({
         };
 
         queryClient.setQueryData<InfiniteMessagesCache>(
-          ["chat-messages", roomId],
+          chatKeys.messages(roomId),
           (old) => addMessageToFirstPage(old, optimisticMessage)
         );
 
@@ -1373,13 +1376,13 @@ export function useChatRoomLogic({
           if (result.success && result.data) {
             operationTracker.completeSend(clientMessageId, result.data.id);
             queryClient.setQueryData<InfiniteMessagesCache>(
-              ["chat-messages", roomId],
+              chatKeys.messages(roomId),
               (old) => replaceMessageInFirstPage(old, clientMessageId, result.data!)
             );
           } else {
             operationTracker.failSend(clientMessageId);
             queryClient.setQueryData<InfiniteMessagesCache>(
-              ["chat-messages", roomId],
+              chatKeys.messages(roomId),
               (old) =>
                 updateMessageInCache(old, clientMessageId, (m) => ({
                   ...m,
@@ -1391,7 +1394,7 @@ export function useChatRoomLogic({
         }).catch((err) => {
           operationTracker.failSend(clientMessageId);
           queryClient.setQueryData<InfiniteMessagesCache>(
-            ["chat-messages", roomId],
+            chatKeys.messages(roomId),
             (old) =>
               updateMessageInCache(old, clientMessageId, (m) => ({
                 ...m,
@@ -1456,7 +1459,7 @@ export function useChatRoomLogic({
 
       // 1. 기존 메시지 상태를 "sending"으로 변경 (위치 유지)
       queryClient.setQueryData<InfiniteMessagesCache>(
-        ["chat-messages", roomId],
+        chatKeys.messages(roomId),
         (old) => updateMessageInCache(old, messageId, (m) => ({ ...m, status: "sending" }))
       );
 
@@ -1471,11 +1474,11 @@ export function useChatRoomLogic({
             operationTracker.completeSend(messageId, result.data.id);
             // 기존 temp 메시지를 서버 응답으로 교체 (위치 유지)
             const updated = queryClient.setQueryData<InfiniteMessagesCache>(
-              ["chat-messages", roomId],
+              chatKeys.messages(roomId),
               (old) => replaceMessageInFirstPage(old, messageId, result.data!)
             );
             if (!findMessageInCache(updated, result.data.id)) {
-              queryClient.invalidateQueries({ queryKey: ["chat-messages", roomId] });
+              queryClient.invalidateQueries({ queryKey: chatKeys.messages(roomId) });
             }
           } else {
             throw new Error(result.error ?? "전송 실패");
@@ -1484,7 +1487,7 @@ export function useChatRoomLogic({
         .catch(() => {
           operationTracker.failSend(messageId);
           queryClient.setQueryData<InfiniteMessagesCache>(
-            ["chat-messages", roomId],
+            chatKeys.messages(roomId),
             (old) => updateMessageInCache(old, messageId, (m) => ({ ...m, status: "error" }))
           );
         });
@@ -1496,7 +1499,7 @@ export function useChatRoomLogic({
   const removeFailedMessage = useCallback(
     (messageId: string) => {
       queryClient.setQueryData<InfiniteMessagesCache>(
-        ["chat-messages", roomId],
+        chatKeys.messages(roomId),
         (old) => removeMessageFromCache(old, messageId)
       );
     },

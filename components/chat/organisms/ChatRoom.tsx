@@ -44,6 +44,7 @@ import { Loader2, ArrowLeft, MoreVertical, Search, Megaphone, ChevronDown, Messa
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { RetryableErrorBoundary, type ErrorFallbackProps } from "@/components/errors/RetryableErrorBoundary";
 import { toggleMuteChatRoomAction } from "@/lib/domains/chat/actions";
+import { chatKeys } from "@/lib/domains/chat/queryKeys";
 
 // ============================================
 // UI 상태 타입 및 Reducer
@@ -436,7 +437,7 @@ function ChatRoomComponent({
     setIsMuted(newMuted); // 낙관적 업데이트
     const result = await toggleMuteChatRoomAction(roomId, newMuted);
     if (result.success) {
-      queryClient.invalidateQueries({ queryKey: ["chatRooms"] });
+      queryClient.invalidateQueries({ queryKey: chatKeys.rooms() });
     } else {
       setIsMuted(!newMuted); // 롤백
     }

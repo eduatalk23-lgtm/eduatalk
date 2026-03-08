@@ -22,6 +22,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Loader2, MessageSquare, Search, Users, UserCog } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/ToastProvider";
+import { chatKeys } from "@/lib/domains/chat/queryKeys";
 
 interface AdminCreateChatModalProps {
   isOpen: boolean;
@@ -108,7 +109,7 @@ export function AdminCreateChatModal({
 
   // 학생 목록 조회 (프로필 + 학교 정보 포함)
   const { data: students, isLoading: isLoadingStudents } = useQuery({
-    queryKey: ["chat-available-students-with-details"],
+    queryKey: chatKeys.availableStudentsWithDetails(),
     queryFn: async () => {
       const supabase = createSupabaseBrowserClient();
 
@@ -136,7 +137,7 @@ export function AdminCreateChatModal({
 
   // 팀 멤버(관리자) 목록 조회
   const { data: teamMembers, isLoading: isLoadingTeam } = useQuery({
-    queryKey: ["chat-available-team-members"],
+    queryKey: chatKeys.availableTeamMembers(),
     queryFn: async () => {
       const supabase = createSupabaseBrowserClient();
       // 현재 사용자 정보 가져오기

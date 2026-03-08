@@ -4,6 +4,7 @@ import {
   getPinnedMessagesAction,
   getAnnouncementAction,
 } from "@/lib/domains/chat/actions";
+import { chatKeys } from "@/lib/domains/chat/queryKeys";
 
 /**
  * 채팅방 상세 정보 query 옵션
@@ -13,7 +14,7 @@ import {
  */
 export function chatRoomDetailQueryOptions(roomId: string) {
   return queryOptions({
-    queryKey: ["chat-room", roomId] as const,
+    queryKey: chatKeys.room(roomId),
     queryFn: async () => {
       const result = await getChatRoomDetailAction(roomId);
       if (!result.success) throw new Error(result.error ?? "채팅방 정보 조회 실패");
@@ -27,7 +28,7 @@ export function chatRoomDetailQueryOptions(roomId: string) {
  */
 export function chatPinnedQueryOptions(roomId: string) {
   return queryOptions({
-    queryKey: ["chat-pinned", roomId] as const,
+    queryKey: chatKeys.pinned(roomId),
     queryFn: async () => {
       const result = await getPinnedMessagesAction(roomId);
       if (!result.success) return [];
@@ -41,7 +42,7 @@ export function chatPinnedQueryOptions(roomId: string) {
  */
 export function chatAnnouncementQueryOptions(roomId: string) {
   return queryOptions({
-    queryKey: ["chat-announcement", roomId] as const,
+    queryKey: chatKeys.announcement(roomId),
     queryFn: async () => {
       const result = await getAnnouncementAction(roomId);
       if (!result.success) return null;

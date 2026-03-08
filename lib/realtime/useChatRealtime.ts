@@ -27,6 +27,7 @@ import {
 } from "@/lib/domains/chat/cacheTypes";
 import { getSenderInfoBatchAction, getMessagesSinceAction } from "@/lib/domains/chat/actions";
 import { operationTracker } from "@/lib/domains/chat/operationTracker";
+import { chatKeys } from "@/lib/domains/chat/queryKeys";
 import { connectionManager } from "./connectionManager";
 import { useDebouncedCallback } from "@/lib/hooks/useDebounce";
 
@@ -305,7 +306,7 @@ export function useChatRealtime({
   const invalidateRoomList = useCallback(() => {
     queryClient.invalidateQueries({
       predicate: (query) =>
-        Array.isArray(query.queryKey) && query.queryKey[0] === "chat-rooms",
+        Array.isArray(query.queryKey) && query.queryKey[0] === chatKeys.rooms()[0],
     });
   }, [queryClient]);
 
@@ -495,7 +496,7 @@ export function useChatRealtime({
 
       // 캐시에 새 메시지 병합
       queryClient.setQueryData<InfiniteMessagesCache>(
-        ["chat-messages", roomId],
+        chatKeys.messages(roomId),
         (old) => {
           if (!old?.pages?.length) return old;
 
@@ -612,7 +613,7 @@ export function useChatRealtime({
       debugLog(`[ChatRealtime] Flushing ${batch.length} buffered reactions`);
 
       queryClient.setQueryData<InfiniteMessagesCache>(
-        ["chat-messages", roomId],
+        chatKeys.messages(roomId),
         (old) => {
           if (!old?.pages?.length) return old;
           return {
@@ -679,7 +680,7 @@ export function useChatRealtime({
 
       // 한 번의 setQueryData로 모든 메시지 적용 (1 React 리렌더)
       queryClient.setQueryData<InfiniteMessagesCache>(
-        ["chat-messages", roomId],
+        chatKeys.messages(roomId),
         (old) => {
           if (!old?.pages?.length) return old;
 
@@ -777,7 +778,7 @@ export function useChatRealtime({
             fnRef.current.fetchSenderInfo(newMessage.sender_id, newMessage.sender_type)
               .then((senderInfo) => {
                 queryClient.setQueryData<InfiniteMessagesCache>(
-                  ["chat-messages", roomId],
+                  chatKeys.messages(roomId),
                   (old) => {
                     if (!old?.pages?.length) return old;
                     return {
@@ -817,7 +818,7 @@ export function useChatRealtime({
       }
 
       if (newMessage.sender_id === userId) {
-        const cache = queryClient.getQueryData<InfiniteMessagesCache>(["chat-messages", roomId]);
+        const cache = queryClient.getQueryData<InfiniteMessagesCache>(chatKeys.messages(roomId));
         const hasPendingTemp = cache?.pages?.[0]?.messages.some(
           (m) =>
             m.id.startsWith("temp-") &&
@@ -835,7 +836,7 @@ export function useChatRealtime({
       // DB trigger broadcast가 completeSend보다 먼저 도착하면 tempId가 없을 수 있음
       // → content 기반으로 pending send를 찾아서 매칭
       if (!tempId && newMessage.sender_id === userId) {
-        tempId = operationTracker.findPendingSendByContent(newMessage.content);
+        tempId = operationTracker.findPendingSendByContent(newMessage.content, roomId);
         if (tempId) {
           operationTracker.completeSend(tempId, newMessage.id);
         }
@@ -860,7 +861,7 @@ export function useChatRealtime({
 
       // setQueryData로 해당 메시지만 업데이트 (서버 재요청 없음) - InfiniteQuery 구조
       queryClient.setQueryData<InfiniteMessagesCache>(
-        ["chat-messages", roomId],
+        chatKeys.messages(roomId),
         (old) => {
           if (!old?.pages?.length) return old;
 
@@ -1031,7 +1032,7 @@ export function useChatRealtime({
           const member = extractRecord<{ left_at: string | null; user_id: string }>(event.payload);
           if (member && member.left_at !== null) {
             debugLog("[ChatRealtime] Member left room:", member.user_id);
-            queryClient.invalidateQueries({ queryKey: ["chat-room", roomId] });
+            queryClient.invalidateQueries({ queryKey: chatKeys.room(roomId) });
           }
         }
       )
@@ -1046,7 +1047,7 @@ export function useChatRealtime({
           debugLog("[ChatRealtime] Attachment added:", attachment.id, "for message:", attachment.message_id);
 
           queryClient.setQueryData<InfiniteMessagesCache>(
-            ["chat-messages", roomId],
+            chatKeys.messages(roomId),
             (old) => {
               if (!old?.pages?.length) return old;
               return {
@@ -1077,7 +1078,7 @@ export function useChatRealtime({
           debugLog("[ChatRealtime] Link preview added:", preview.url, "for message:", preview.message_id);
 
           queryClient.setQueryData<InfiniteMessagesCache>(
-            ["chat-messages", roomId],
+            chatKeys.messages(roomId),
             (old) => {
               if (!old?.pages?.length) return old;
               return {
@@ -1258,7 +1259,7 @@ export function useChatRoomListRealtime({
   const invalidateRoomList = useCallback(() => {
     queryClient.invalidateQueries({
       predicate: (query) =>
-        Array.isArray(query.queryKey) && query.queryKey[0] === "chat-rooms",
+        Array.isArray(query.queryKey) && query.queryKey[0] === chatKeys.rooms()[0],
     });
   }, [queryClient]);
 
@@ -1268,7 +1269,7 @@ export function useChatRoomListRealtime({
   // 캐시에서 room ID 목록 동기화
   useEffect(() => {
     const updateRoomIds = () => {
-      const cache = queryClient.getQueryData<ChatRoomListItem[]>(["chat-rooms"]);
+      const cache = queryClient.getQueryData<ChatRoomListItem[]>(chatKeys.rooms());
       if (cache) {
         userRoomIdsRef.current = new Set(cache.map((room) => room.id));
       }
@@ -1280,7 +1281,7 @@ export function useChatRoomListRealtime({
       if (
         event.type === "updated" &&
         Array.isArray(event.query.queryKey) &&
-        event.query.queryKey[0] === "chat-rooms"
+        event.query.queryKey[0] === chatKeys.rooms()[0]
       ) {
         updateRoomIds();
       }

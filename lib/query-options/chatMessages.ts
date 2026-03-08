@@ -1,5 +1,6 @@
 import { infiniteQueryOptions } from "@tanstack/react-query";
 import { getMessagesWithReadStatusAction } from "@/lib/domains/chat/actions";
+import { chatKeys } from "@/lib/domains/chat/queryKeys";
 
 /**
  * 채팅 메시지 infiniteQuery 옵션
@@ -10,7 +11,7 @@ import { getMessagesWithReadStatusAction } from "@/lib/domains/chat/actions";
  */
 export function chatMessagesQueryOptions(roomId: string) {
   return infiniteQueryOptions({
-    queryKey: ["chat-messages", roomId] as const,
+    queryKey: chatKeys.messages(roomId),
     queryFn: async ({ pageParam }) => {
       const result = await getMessagesWithReadStatusAction(roomId, {
         limit: 50,

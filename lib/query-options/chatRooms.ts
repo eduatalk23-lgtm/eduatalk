@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { getChatRoomsAction } from "@/lib/domains/chat/actions";
+import { chatKeys } from "@/lib/domains/chat/queryKeys";
 
 /**
  * 채팅방 목록 query 옵션
@@ -10,7 +11,7 @@ import { getChatRoomsAction } from "@/lib/domains/chat/actions";
  */
 export function chatRoomsQueryOptions() {
   return queryOptions({
-    queryKey: ["chat-rooms"] as const,
+    queryKey: chatKeys.rooms(),
     queryFn: async () => {
       const result = await getChatRoomsAction();
       if (!result.success) {

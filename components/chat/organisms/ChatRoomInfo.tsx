@@ -18,6 +18,7 @@ import {
   archiveChatRoomAction,
   toggleMuteChatRoomAction,
 } from "@/lib/domains/chat/actions";
+import { chatKeys } from "@/lib/domains/chat/queryKeys";
 import type { ChatRoom, ChatRoomMemberWithUser, ChatMemberRole, ChatAttachment } from "@/lib/domains/chat/types";
 import { cn } from "@/lib/cn";
 import { UserPlus, LogOut, Crown, Shield, Loader2, Users, FolderOpen, Archive, Bell, BellOff } from "lucide-react";
@@ -102,9 +103,9 @@ function ChatRoomInfoComponent({
       const result = await leaveChatRoomAction(roomId);
       if (result.success) {
         // 캐시 정리 (백그라운드에서 진행)
-        queryClient.invalidateQueries({ queryKey: ["chat-rooms"] });
-        queryClient.removeQueries({ queryKey: ["chat-messages", roomId] });
-        queryClient.removeQueries({ queryKey: ["chat-room", roomId] });
+        queryClient.invalidateQueries({ queryKey: chatKeys.rooms() });
+        queryClient.removeQueries({ queryKey: chatKeys.messages(roomId) });
+        queryClient.removeQueries({ queryKey: chatKeys.room(roomId) });
 
         // 성공 메시지 표시
         showSuccess("채팅방을 나갔습니다.");
@@ -131,7 +132,7 @@ function ChatRoomInfoComponent({
     try {
       const result = await archiveChatRoomAction(roomId);
       if (result.success) {
-        queryClient.invalidateQueries({ queryKey: ["chat-rooms"] });
+        queryClient.invalidateQueries({ queryKey: chatKeys.rooms() });
         showSuccess("채팅방이 아카이브되었습니다.");
         router.replace(basePath);
       } else {
@@ -155,7 +156,7 @@ function ChatRoomInfoComponent({
     try {
       const result = await toggleMuteChatRoomAction(roomId, !isMuted);
       if (result.success) {
-        queryClient.invalidateQueries({ queryKey: ["chat-room", roomId] });
+        queryClient.invalidateQueries({ queryKey: chatKeys.room(roomId) });
       } else {
         showError(result.error ?? "알림 설정 변경 실패");
       }
