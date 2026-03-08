@@ -257,6 +257,34 @@ export async function deleteChatRoomAction(
   }
 }
 
+/**
+ * 채팅방 알림 음소거 토글
+ *
+ * @param roomId 채팅방 ID
+ * @param muted 음소거 여부
+ */
+export async function toggleMuteChatRoomAction(
+  roomId: string,
+  muted: boolean
+): Promise<ChatActionResult<void>> {
+  try {
+    const { userId, role } = await getCurrentUserRole();
+    if (!userId || !role) {
+      return { success: false, error: "인증이 필요합니다." };
+    }
+    const userType = getUserType(role);
+    const { updateMember } = await import("../repository");
+    await updateMember(roomId, userId, userType, { is_muted: muted });
+    return { success: true };
+  } catch (error) {
+    console.error("[toggleMuteChatRoomAction] Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "알림 설정 변경 실패",
+    };
+  }
+}
+
 // ============================================
 // 공지 Actions
 // ============================================

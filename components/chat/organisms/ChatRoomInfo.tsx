@@ -16,10 +16,11 @@ import { Tabs, TabPanel } from "@/components/molecules/Tabs";
 import {
   leaveChatRoomAction,
   archiveChatRoomAction,
+  toggleMuteChatRoomAction,
 } from "@/lib/domains/chat/actions";
 import type { ChatRoom, ChatRoomMemberWithUser, ChatMemberRole, ChatAttachment } from "@/lib/domains/chat/types";
 import { cn } from "@/lib/cn";
-import { UserPlus, LogOut, Crown, Shield, Loader2, Users, FolderOpen, Archive } from "lucide-react";
+import { UserPlus, LogOut, Crown, Shield, Loader2, Users, FolderOpen, Archive, Bell, BellOff } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { InviteMemberModal } from "./InviteMemberModal";
 import { MediaGallery } from "../molecules/MediaGallery";
@@ -79,6 +80,7 @@ function ChatRoomInfoComponent({
   // 로딩 상태 (중복 클릭 방지)
   const [isLeaving, setIsLeaving] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
+  const [isMutingToggle, setIsMutingToggle] = useState(false);
 
   // 활성 멤버만 필터링 (left_at === null)
   const activeMembers = members?.filter((m) => m.left_at === null) ?? [];
@@ -145,6 +147,24 @@ function ChatRoomInfoComponent({
   // 현재 사용자가 방장/관리자인지 확인
   const currentMember = activeMembers.find((m) => m.user_id === userId);
   const canArchive = currentMember?.role === "owner" || currentMember?.role === "admin";
+  const isMuted = currentMember?.is_muted ?? false;
+
+  // 알림 토글 핸들러
+  const handleToggleMute = useCallback(async () => {
+    setIsMutingToggle(true);
+    try {
+      const result = await toggleMuteChatRoomAction(roomId, !isMuted);
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ["chat-room", roomId] });
+      } else {
+        showError(result.error ?? "알림 설정 변경 실패");
+      }
+    } catch {
+      showError("알림 설정 변경 중 오류가 발생했습니다.");
+    } finally {
+      setIsMutingToggle(false);
+    }
+  }, [roomId, isMuted, queryClient, showError]);
 
   // 초대 버튼 핸들러
   const handleInvite = useCallback(() => {
@@ -154,6 +174,35 @@ function ChatRoomInfoComponent({
   // 사이드바 Footer
   const footer = (
     <div className="flex flex-col gap-2">
+      {/* 알림 토글 */}
+      <button
+        type="button"
+        onClick={handleToggleMute}
+        disabled={isMutingToggle}
+        className={cn(
+          "flex items-center justify-center gap-2 w-full",
+          "py-3 rounded-lg",
+          "text-text-secondary",
+          "hover:bg-bg-secondary active:bg-bg-tertiary",
+          "transition-colors",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+          isMutingToggle && "opacity-50 cursor-not-allowed pointer-events-none"
+        )}
+      >
+        {isMutingToggle ? (
+          <Loader2 className="w-5 h-5 animate-spin" />
+        ) : isMuted ? (
+          <Bell className="w-5 h-5" />
+        ) : (
+          <BellOff className="w-5 h-5" />
+        )}
+        <span className="font-medium">
+          {isMutingToggle ? "변경 중..." : isMuted ? "알림 켜기" : "알림 끄기"}
+        </span>
+      </button>
+
+      <div className="h-px bg-border" />
+
       {/* 아카이브 버튼 (방장/관리자만) */}
       {canArchive && room?.status === "active" && (
         <button

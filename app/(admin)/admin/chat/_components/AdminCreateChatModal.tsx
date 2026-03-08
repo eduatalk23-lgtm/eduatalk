@@ -357,7 +357,7 @@ export function AdminCreateChatModal({
                 className={cn(
                   "relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-                  historyVisible ? "bg-primary" : "bg-bg-tertiary"
+                  historyVisible ? "bg-primary-500" : "bg-bg-tertiary"
                 )}
               >
                 <span
@@ -434,8 +434,8 @@ export function AdminCreateChatModal({
                         "w-full flex items-center gap-3 p-3 rounded-lg transition-colors",
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
                         isSelected
-                          ? "bg-primary/10 border-2 border-primary"
-                          : "hover:bg-bg-secondary border-2 border-transparent"
+                          ? "bg-primary-50 dark:bg-primary-900/30 border-2 border-primary"
+                          : "hover:bg-secondary-100 dark:hover:bg-secondary-800 border-2 border-transparent"
                       )}
                     >
                       <Avatar name={member.name} size="md" />
@@ -484,8 +484,8 @@ export function AdminCreateChatModal({
                     className={cn(
                       "w-full flex items-center gap-3 p-3 rounded-lg transition-colors",
                       isSelected
-                        ? "bg-primary/10 border-2 border-primary"
-                        : "hover:bg-bg-secondary border-2 border-transparent"
+                        ? "bg-primary-50 dark:bg-primary-900/30 border-2 border-primary"
+                        : "hover:bg-secondary-100 dark:hover:bg-secondary-800 border-2 border-transparent"
                     )}
                   >
                     {/* 그룹 모드: 체크박스 표시 */}
@@ -543,8 +543,8 @@ export function AdminCreateChatModal({
             "flex-1 px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
             isSubmitEnabled && !startChatMutation.isPending
-              ? "bg-primary text-white hover:bg-primary-600 active:bg-primary-700"
-              : "bg-bg-tertiary text-text-tertiary cursor-not-allowed"
+              ? "bg-primary-500 text-white hover:bg-primary-600 active:bg-primary-700"
+              : "bg-secondary-200 dark:bg-secondary-700 text-text-tertiary cursor-not-allowed"
           )}
         >
           {startChatMutation.isPending ? (

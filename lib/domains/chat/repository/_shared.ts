@@ -107,7 +107,8 @@ export const CHAT_MESSAGE_COLUMNS = `
   created_at,
   updated_at,
   sender_name,
-  sender_profile_url
+  sender_profile_url,
+  metadata
 ` as const;
 
 export const CHAT_REACTION_COLUMNS = `

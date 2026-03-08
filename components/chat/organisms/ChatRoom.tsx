@@ -8,6 +8,7 @@
  */
 
 import { memo, useRef, useCallback, useMemo, useReducer, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useChatRoomLogic } from "@/lib/domains/chat/hooks";
 import { useChatConnectionStatus } from "@/lib/hooks/useChatConnectionStatus";
 import { useChatLayout } from "@/components/chat/layouts/ChatLayoutContext";
@@ -37,10 +38,12 @@ import { MessageContextMenu, type MessageMenuContext } from "../molecules/Messag
 import { ChatRoomInfo } from "./ChatRoomInfo";
 import { EditMessageDialog } from "../molecules/EditMessageDialog";
 import { ProfileCardPopup, type ProfileCardData } from "../molecules/ProfileCardPopup";
+import { ForwardModal } from "../molecules/ForwardModal";
 import { ConfirmDialog } from "@/components/ui/Dialog";
-import { Loader2, ArrowLeft, MoreVertical, Search, Megaphone, ChevronDown, MessageSquareOff, RefreshCw } from "lucide-react";
+import { Loader2, ArrowLeft, MoreVertical, Search, Megaphone, ChevronDown, MessageSquareOff, RefreshCw, Bell, BellOff } from "lucide-react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { RetryableErrorBoundary, type ErrorFallbackProps } from "@/components/errors/RetryableErrorBoundary";
+import { toggleMuteChatRoomAction } from "@/lib/domains/chat/actions";
 
 // ============================================
 // UI 상태 타입 및 Reducer
@@ -157,7 +160,7 @@ function ChatErrorFallback({ error, errorType, resetError, isRetrying }: ErrorFa
         type="button"
         onClick={resetError}
         disabled={isRetrying}
-        className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 transition-colors"
+        className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 transition-colors"
       >
         {isRetrying ? (
           <>
@@ -245,6 +248,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
     senderProfileImageUrl: message.sender?.profileImageUrl,
     isError: messageStatus === "error",
     isRetrying: messageStatus === "sending" && message.id.startsWith("temp-"),
+    mentions: message.metadata?.mentions,
   };
 
   const displayOptions: MessageDisplayOptions = {
@@ -262,6 +266,15 @@ const ChatMessageItem = memo(function ChatMessageItem({
     <div ref={getRefCallback(message.id)} className="transition-colors duration-300">
       {grouping.showDateDivider && grouping.dateDividerText && (
         <DateDivider date={grouping.dateDividerText} />
+      )}
+      {grouping.showUnreadDivider && (
+        <div className="flex items-center gap-3 py-3 px-4" role="separator" aria-label="여기까지 읽었습니다">
+          <div className="flex-1 h-px bg-primary-500/50" />
+          <span className="text-xs text-primary font-medium whitespace-nowrap">
+            여기까지 읽었습니다
+          </span>
+          <div className="flex-1 h-px bg-primary-500/50" />
+        </div>
       )}
       <div className={cn("px-4", grouping.isGrouped ? "py-0.5" : "py-1.5")}>
         <MessageBubble
@@ -301,6 +314,7 @@ function ChatRoomComponent({
   // 레이아웃 컨텍스트 (split-pane 모드 감지)
   // ============================================
   const { isSplitPane } = useChatLayout();
+  const queryClient = useQueryClient();
 
   // ============================================
   // UI 상태 (useReducer로 통합)
@@ -315,6 +329,13 @@ function ChatRoomComponent({
     images: ChatAttachment[];
     initialIndex: number;
   }>({ isOpen: false, images: [], initialIndex: 0 });
+
+  // 메시지 전달 상태
+  const [forwardTarget, setForwardTarget] = useState<{
+    content: string;
+    senderName: string;
+    hasAttachment: boolean;
+  } | null>(null);
 
   // 상태 구조 분해
   const {
@@ -402,6 +423,25 @@ function ChatRoomComponent({
   const { replyTarget, setReplyTarget } = replyTargetState;
   const { canEditMessage, isMessageEdited } = utils;
 
+  // 현재 사용자의 알림 뮤트 상태
+  const myMembership = data.members.find((m) => m.user_id === userId);
+  const [isMuted, setIsMuted] = useState(myMembership?.is_muted ?? false);
+  // 멤버십 데이터가 로드되면 동기화
+  useEffect(() => {
+    if (myMembership) setIsMuted(myMembership.is_muted);
+  }, [myMembership?.is_muted]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleToggleMute = useCallback(async () => {
+    const newMuted = !isMuted;
+    setIsMuted(newMuted); // 낙관적 업데이트
+    const result = await toggleMuteChatRoomAction(roomId, newMuted);
+    if (result.success) {
+      queryClient.invalidateQueries({ queryKey: ["chatRooms"] });
+    } else {
+      setIsMuted(!newMuted); // 롤백
+    }
+  }, [isMuted, roomId, queryClient]);
+
   // ============================================
   // 스크린 리더 알림
   // ============================================
@@ -487,12 +527,20 @@ function ChatRoomComponent({
   // ============================================
   // 메시지 액션 핸들러
   // ============================================
-  const handleReply = useCallback((message: { id: string; content: string; sender?: { name: string } | null; is_deleted?: boolean }) => {
+  const handleReply = useCallback((message: { id: string; content: string; sender?: { name: string } | null; is_deleted?: boolean; message_type?: string }) => {
+    // message_type → attachmentType 변환
+    const attachmentType =
+      message.message_type === "image" ? "image" as const
+      : message.message_type === "file" ? "file" as const
+      : message.message_type === "mixed" ? "mixed" as const
+      : undefined;
+
     setReplyTarget({
       id: message.id,
       content: message.content,
       senderName: message.sender?.name ?? "알 수 없음",
       isDeleted: message.is_deleted ?? false,
+      attachmentType,
     });
   }, [setReplyTarget]);
 
@@ -574,6 +622,30 @@ function ChatRoomComponent({
     dispatch({ type: "CLOSE_MENU" });
   }, [menuContext, togglePin]);
 
+  const handleMenuForward = useCallback(() => {
+    if (menuContext) {
+      const message = messages.find((m) => m.id === menuContext.messageId);
+      if (message) {
+        const hasAttachment = message.message_type === "image" || message.message_type === "file" || message.message_type === "mixed";
+        setForwardTarget({
+          content: message.content,
+          senderName: message.sender?.name ?? "알 수 없음",
+          hasAttachment,
+        });
+      }
+    }
+    dispatch({ type: "CLOSE_MENU" });
+  }, [menuContext, messages]);
+
+  const handleForward = useCallback((message: { content: string; message_type?: string; sender?: { name: string } | null }) => {
+    const hasAttachment = message.message_type === "image" || message.message_type === "file" || message.message_type === "mixed";
+    setForwardTarget({
+      content: message.content,
+      senderName: message.sender?.name ?? "알 수 없음",
+      hasAttachment,
+    });
+  }, []);
+
   const handleMenuReaction = useCallback((emoji: ReactionEmoji) => {
     if (menuContext) {
       toggleReaction(menuContext.messageId, emoji);
@@ -616,12 +688,12 @@ function ChatRoomComponent({
 
   const actionDepsRef = useRef({
     toggleReaction, handleReply, scrollToMessage, handleEdit, handleDelete,
-    togglePin, pinnedMessageIds, handleMessageLongPress, retryMessage, removeFailedMessage, openLightbox, handleAvatarClick,
+    togglePin, pinnedMessageIds, handleMessageLongPress, retryMessage, removeFailedMessage, openLightbox, handleAvatarClick, handleForward,
   });
   useEffect(() => {
     actionDepsRef.current = {
       toggleReaction, handleReply, scrollToMessage, handleEdit, handleDelete,
-      togglePin, pinnedMessageIds, handleMessageLongPress, retryMessage, removeFailedMessage, openLightbox, handleAvatarClick,
+      togglePin, pinnedMessageIds, handleMessageLongPress, retryMessage, removeFailedMessage, openLightbox, handleAvatarClick, handleForward,
     };
   });
 
@@ -649,6 +721,9 @@ function ChatRoomComponent({
             break;
           case "delete":
             deps.handleDelete(message.id);
+            break;
+          case "forward":
+            deps.handleForward(message);
             break;
           case "report":
             break;
@@ -794,6 +869,19 @@ function ChatRoomComponent({
 
         <button
           type="button"
+          onClick={handleToggleMute}
+          className={cn(
+            "p-2 rounded-lg transition-colors",
+            isMuted ? "text-text-tertiary hover:bg-bg-secondary" : "text-text-secondary hover:bg-bg-secondary"
+          )}
+          aria-label={isMuted ? "알림 켜기" : "알림 끄기"}
+          title={isMuted ? "알림 켜기" : "알림 끄기"}
+        >
+          {isMuted ? <BellOff className="w-5 h-5" /> : <Bell className="w-5 h-5" />}
+        </button>
+
+        <button
+          type="button"
           onClick={() => dispatch({ type: "SET_SEARCH_MODE", value: true })}
           className="p-2 rounded-lg hover:bg-bg-secondary transition-colors"
         >
@@ -880,7 +968,7 @@ function ChatRoomComponent({
           <button
             type="button"
             onClick={() => void refetch()}
-            className="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90 transition-colors"
+            className="px-4 py-2 bg-primary-500 text-white rounded-lg text-sm hover:bg-primary-500/90 transition-colors"
           >
             다시 시도
           </button>
@@ -953,7 +1041,7 @@ function ChatRoomComponent({
           <ChevronDown className="w-5 h-5 text-text-secondary" />
 
           {hasNewMessages && (
-            <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-[10px] font-medium text-white bg-primary rounded-full">
+            <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-[10px] font-medium text-white bg-primary-500 rounded-full">
               N
             </span>
           )}
@@ -974,7 +1062,7 @@ function ChatRoomComponent({
 
       {/* 입력창 */}
       <ChatInput
-        onSend={(content) => sendMessage(content, replyTarget?.id)}
+        onSend={(content, mentions) => sendMessage(content, replyTarget?.id, mentions)}
         onTypingChange={setTyping}
         replyTarget={replyTarget}
         onCancelReply={() => setReplyTarget(null)}
@@ -984,6 +1072,8 @@ function ChatRoomComponent({
         uploadingFiles={attachmentState.uploadingFiles}
         onRemoveFile={attachmentState.removeFile}
         autoFocus
+        members={data.members}
+        currentUserId={userId}
       />
       </div>
 
@@ -1007,6 +1097,7 @@ function ChatRoomComponent({
         position={menuPosition}
         onCopy={handleCopy}
         onReply={handleMenuReply}
+        onForward={handleMenuForward}
         onEdit={menuContext?.canEdit ? handleMenuEdit : undefined}
         onDelete={menuContext?.isOwn ? handleMenuDelete : undefined}
         onTogglePin={menuContext?.canPin ? handleMenuTogglePin : undefined}
@@ -1071,6 +1162,16 @@ function ChatRoomComponent({
           position={profileCardPosition}
           currentUserId={userId}
           basePath={basePath}
+        />
+
+        {/* 메시지 전달 모달 */}
+        <ForwardModal
+          isOpen={forwardTarget !== null}
+          onClose={() => setForwardTarget(null)}
+          content={forwardTarget?.content ?? ""}
+          senderName={forwardTarget?.senderName ?? ""}
+          currentRoomId={roomId}
+          hasAttachment={forwardTarget?.hasAttachment}
         />
       </div>
     </RetryableErrorBoundary>

@@ -14,7 +14,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ko } from "date-fns/locale";
 import { Avatar } from "@/components/atoms/Avatar";
 import { UnreadBadge } from "../atoms/UnreadBadge";
-import { Users, Image, Paperclip } from "lucide-react";
+import { Users, Image, Paperclip, BellOff } from "lucide-react";
 import { chatMessagesQueryOptions } from "@/lib/query-options/chatMessages";
 import type { ChatRoomListItem } from "@/lib/domains/chat/types";
 
@@ -91,7 +91,9 @@ function ChatRoomCardComponent({
         "w-full flex items-center gap-3 p-3 rounded-xl",
         "transition-colors text-left",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-        isSelected ? "bg-primary/10" : "hover:bg-bg-secondary active:bg-bg-tertiary"
+        isSelected
+          ? "bg-primary-50 dark:bg-primary-900/30 border-l-2 border-primary"
+          : "hover:bg-secondary-100 dark:hover:bg-secondary-800 active:bg-secondary-200 dark:active:bg-secondary-700"
       )}
     >
       {/* 아바타 */}
@@ -127,11 +129,16 @@ function ChatRoomCardComponent({
               </span>
             )}
           </div>
-          {timeDisplay && (
-            <span className="text-xs text-text-tertiary flex-shrink-0">
-              {timeDisplay}
-            </span>
-          )}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {room.isMuted && (
+              <BellOff className="w-3.5 h-3.5 text-text-tertiary" aria-label="알림 꺼짐" />
+            )}
+            {timeDisplay && (
+              <span className="text-xs text-text-tertiary">
+                {timeDisplay}
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center justify-between gap-2">

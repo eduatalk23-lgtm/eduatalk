@@ -6,13 +6,20 @@
  * 사용자의 채팅방 목록을 표시합니다.
  */
 
-import { memo, useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { memo, useState, useMemo, useCallback, useSyncExternalStore } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { chatRoomsQueryOptions } from "@/lib/query-options/chatRooms";
 import { ChatRoomCard } from "../molecules/ChatRoomCard";
-import { MessageSquarePlus, Loader2, Search, X, SearchX } from "lucide-react";
+import { SwipeableChatRoomCard } from "../molecules/SwipeableChatRoomCard";
+import { MessageSquarePlus, Loader2, Search, X, SearchX, WifiOff } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
+import { addNetworkStatusListener, isOnline } from "@/lib/offline/networkStatus";
+import {
+  leaveChatRoomAction,
+  toggleMuteChatRoomAction,
+} from "@/lib/domains/chat/actions";
 
 interface ChatListProps {
   /** 현재 선택된 채팅방 ID */
@@ -35,7 +42,13 @@ function ChatListComponent({
   hideHeader = false,
 }: ChatListProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
+  const isMobile = useMediaQuery("(max-width: 768px)");
+
+  // 네트워크 상태 감지 (오프라인 배너용)
+  const networkSubscribe = useCallback((cb: () => void) => addNetworkStatusListener(() => cb()), []);
+  const online = useSyncExternalStore(networkSubscribe, isOnline, () => true);
 
   // 채팅방 목록 조회 (SSR 프리패칭과 동일한 쿼리 옵션 사용)
   const { data, isLoading, error } = useQuery(chatRoomsQueryOptions());
@@ -47,6 +60,26 @@ function ChatListComponent({
       router.push(`${basePath}/${roomId}`);
     }
   };
+
+  const handleLeave = useCallback(
+    async (roomId: string) => {
+      const result = await leaveChatRoomAction(roomId);
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ["chatRooms"] });
+      }
+    },
+    [queryClient]
+  );
+
+  const handleToggleMute = useCallback(
+    async (roomId: string, muted: boolean) => {
+      const result = await toggleMuteChatRoomAction(roomId, muted);
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ["chatRooms"] });
+      }
+    },
+    [queryClient]
+  );
 
   // 검색 필터링 (Hook은 조건부 반환 전에 호출)
   const filteredRooms = useMemo(() => {
@@ -103,6 +136,14 @@ function ChatListComponent({
         </div>
       )}
 
+      {/* 오프라인 배너 */}
+      {!online && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-warning/20 text-warning text-xs font-medium">
+          <WifiOff className="w-3.5 h-3.5 flex-shrink-0" />
+          <span>네트워크에 연결할 수 없습니다</span>
+        </div>
+      )}
+
       {/* 검색창 */}
       <div className="px-4 py-2">
         <div
@@ -136,7 +177,7 @@ function ChatListComponent({
       </div>
 
       {/* 채팅방 목록 */}
-      <div className="flex-1 overflow-y-auto px-2 py-2">
+      <div className="flex-1 overflow-y-auto px-2 py-2 overscroll-contain">
         {filteredRooms.length === 0 && searchQuery.trim() ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4 gap-2">
             <SearchX className="w-8 h-8 text-text-tertiary" />
@@ -157,14 +198,26 @@ function ChatListComponent({
           </div>
         ) : (
           <div className="space-y-1">
-            {filteredRooms.map((room) => (
-              <ChatRoomCard
-                key={room.id}
-                room={room}
-                onClick={() => handleRoomClick(room.id)}
-                isSelected={room.id === selectedRoomId}
-              />
-            ))}
+            {filteredRooms.map((room) =>
+              isMobile ? (
+                <SwipeableChatRoomCard
+                  key={room.id}
+                  room={room}
+                  onClick={() => handleRoomClick(room.id)}
+                  isSelected={room.id === selectedRoomId}
+                  isMuted={room.isMuted}
+                  onLeave={handleLeave}
+                  onToggleMute={handleToggleMute}
+                />
+              ) : (
+                <ChatRoomCard
+                  key={room.id}
+                  room={room}
+                  onClick={() => handleRoomClick(room.id)}
+                  isSelected={room.id === selectedRoomId}
+                />
+              )
+            )}
           </div>
         )}
       </div>

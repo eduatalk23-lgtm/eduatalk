@@ -51,6 +51,7 @@ import {
   type ChatRoomListItem,
   type UploadingAttachment,
   type ChatAttachment,
+  type MentionInfo,
 } from "@/lib/domains/chat/types";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { validateChatFile, getAttachmentType, sanitizeFileName } from "@/lib/domains/chat/fileValidation";
@@ -69,6 +70,8 @@ import { processMessagesWithGrouping } from "@/lib/domains/chat/messageGrouping"
 import { useChatRealtime, useChatPresence } from "@/lib/realtime";
 import type { ChatMessagePayload } from "@/lib/realtime/useChatRealtime";
 import { showBrowserNotification } from "@/lib/domains/notification/browserNotification";
+import { getChatNotificationPrefs } from "@/lib/domains/student/actions/notifications";
+import { playChatFeedback } from "@/lib/audio/chatSound";
 import { useThrottledCallback } from "@/lib/hooks/useThrottle";
 import { operationTracker } from "../operationTracker";
 import { isOnline, isNetworkError } from "@/lib/offline/networkStatus";
@@ -103,7 +106,7 @@ export interface UseChatRoomLogicReturn {
     canSetAnnouncement: boolean;
   };
   actions: {
-    sendMessage: (content: string, replyToId?: string | null) => void;
+    sendMessage: (content: string, replyToId?: string | null, mentions?: MentionInfo[]) => void;
     editMessage: (messageId: string, content: string, expectedUpdatedAt?: string) => void;
     deleteMessage: (messageId: string) => void;
     toggleReaction: (messageId: string, emoji: ReactionEmoji) => void;
@@ -202,6 +205,29 @@ export function useChatRoomLogic({
   // 채팅방 정보 조회 (SSR prefetch 활용)
   const { data: roomData } = useQuery(chatRoomDetailQueryOptions(roomId));
 
+  // 채팅 알림 설정 (소리/진동/읽음확인)
+  const { data: chatPrefs } = useQuery({
+    queryKey: ["chat-notification-prefs"],
+    queryFn: () => getChatNotificationPrefs(),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+  });
+  const chatPrefsRef = useRef(chatPrefs);
+  chatPrefsRef.current = chatPrefs;
+
+  // "여기까지 읽었습니다" 구분선용: 진입 시 last_read_at 1회 캡처
+  // markAsRead() 호출 전에 캡처해야 하므로 roomData 첫 로드 시점에 저장
+  const initialLastReadAtRef = useRef<string | null>(null);
+  const lastReadCapturedRoomIdRef = useRef<string | null>(null);
+  if (
+    roomData?.members &&
+    lastReadCapturedRoomIdRef.current !== roomId
+  ) {
+    const myMembership = roomData.members.find((m) => m.user_id === userId);
+    initialLastReadAtRef.current = myMembership?.last_read_at ?? null;
+    lastReadCapturedRoomIdRef.current = roomId;
+  }
+
   // 고정 메시지 목록 조회 (SSR prefetch 활용)
   const { data: pinnedMessages = [] } = useQuery(chatPinnedQueryOptions(roomId));
 
@@ -282,6 +308,12 @@ export function useChatRoomLogic({
   const prevAllMessagesRef = useRef<typeof allMessages>([]);
   const prevGroupedRef = useRef<ChatMessageWithGrouping[]>([]);
 
+  // 그룹핑 옵션 (구분선용 — ref이므로 deps에 포함 불필요)
+  const groupingOptions = {
+    lastReadAt: initialLastReadAtRef.current,
+    currentUserId: userId,
+  };
+
   const messagesWithGrouping = useMemo(() => {
     if (allMessages.length === 0) {
       prevAllMessagesRef.current = [];
@@ -293,6 +325,7 @@ export function useChatRoomLogic({
     const prevGrouped = prevGroupedRef.current;
 
     // Fast path: 끝에 메시지 1~3개 추가 (가장 흔한 realtime 케이스)
+    // 새 메시지에는 구분선 추가 안 함 (이미 읽고 있는 상태이므로)
     const appendCount = allMessages.length - prev.length;
     if (
       appendCount > 0 &&
@@ -315,11 +348,11 @@ export function useChatRoomLogic({
     }
 
     // Full recompute (페이지네이션, 리셋 등)
-    const result = processMessagesWithGrouping(allMessages);
+    const result = processMessagesWithGrouping(allMessages, groupingOptions);
     prevAllMessagesRef.current = allMessages;
     prevGroupedRef.current = result;
     return result;
-  }, [allMessages]);
+  }, [allMessages]); // eslint-disable-line react-hooks/exhaustive-deps -- groupingOptions uses refs
 
   // readCounts 병합 (증분 최적화)
   // Note: readCounts는 Realtime으로 변경되지 않고 페이지 로드 시에만 변경되므로
@@ -380,15 +413,17 @@ export function useChatRoomLogic({
       content,
       replyToId,
       clientMessageId,
+      mentions,
     }: {
       content: string;
       replyToId?: string | null;
       clientMessageId?: string;
+      mentions?: MentionInfo[];
     }) => {
       const SEND_TIMEOUT_MS = 15_000;
 
       const result = await Promise.race([
-        sendMessageAction(roomId, content, replyToId, clientMessageId),
+        sendMessageAction(roomId, content, replyToId, clientMessageId, mentions),
         new Promise<never>((_, reject) =>
           setTimeout(
             () => reject(new Error("메시지 전송 시간이 초과되었습니다. (timeout)")),
@@ -444,6 +479,7 @@ export function useChatRoomLogic({
         // 비정규화 필드 (낙관적 업데이트용)
         sender_name: senderName,
         sender_profile_url: senderProfileUrl,
+        metadata: null,
       };
 
       queryClient.setQueryData<InfiniteMessagesCache>(
@@ -906,8 +942,19 @@ export function useChatRoomLogic({
       if (isAtBottomRef.current) {
         onNewMessageArrived?.();
       }
-      // 읽음 처리 (Throttle 적용 - 3초마다 최대 1회)
-      throttledMarkAsRead();
+      // 읽음 처리 (읽음확인 설정이 꺼져있으면 스킵)
+      const prefs = chatPrefsRef.current;
+      if (prefs?.chat_read_receipt_enabled !== false) {
+        throttledMarkAsRead();
+      }
+
+      // 타인 메시지 수신 시 소리/진동 피드백
+      if (message.sender_id !== userId) {
+        playChatFeedback({
+          sound: prefs?.chat_sound_enabled !== false,
+          vibrate: prefs?.chat_vibrate_enabled !== false,
+        });
+      }
 
       // 백그라운드 탭일 때 브라우저 알림 (본인 메시지 제외)
       if (document.visibilityState === "hidden" && message.sender_id !== userId) {
@@ -941,9 +988,11 @@ export function useChatRoomLogic({
     enabled: !!roomData,
   });
 
-  // 입장 시 읽음 처리
+  // 입장 시 읽음 처리 (읽음확인 설정이 꺼져있으면 스킵)
   useEffect(() => {
-    markAsReadMutation.mutate();
+    if (chatPrefsRef.current?.chat_read_receipt_enabled !== false) {
+      markAsReadMutation.mutate();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
 
@@ -1183,7 +1232,7 @@ export function useChatRoomLogic({
   // ============================================
 
   const sendMessage = useCallback(
-    (content: string, replyToId?: string | null) => {
+    (content: string, replyToId?: string | null, mentions?: MentionInfo[]) => {
       const clientMessageId = crypto.randomUUID();
 
       if (!isOnline()) {
@@ -1214,6 +1263,7 @@ export function useChatRoomLogic({
           status: "queued" as const,
           sender_name: senderName,
           sender_profile_url: senderProfileUrl,
+          metadata: null,
         };
 
         queryClient.setQueryData<InfiniteMessagesCache>(
@@ -1278,6 +1328,7 @@ export function useChatRoomLogic({
           sender_name: senderName,
           sender_profile_url: senderProfileUrl,
           attachments: attachmentResults,
+          metadata: null,
         };
 
         queryClient.setQueryData<InfiniteMessagesCache>(
@@ -1350,7 +1401,7 @@ export function useChatRoomLogic({
           showError(err instanceof Error ? err.message : "메시지 전송 실패");
         });
       } else {
-        sendMutation.mutate({ content, replyToId, clientMessageId });
+        sendMutation.mutate({ content, replyToId, clientMessageId, mentions });
       }
     },
     [sendMutation, roomId, userId, roomData, queryClient, onNewMessageArrived, replyTarget, uploadingFiles, showError, broadcastInsert]
@@ -1391,26 +1442,54 @@ export function useChatRoomLogic({
     [announcementMutation]
   );
 
-  // 외부에서 호출되는 markAsRead도 throttle 적용
+  // 외부에서 호출되는 markAsRead도 throttle 적용 (읽음확인 OFF 시 스킵)
   const markAsRead = useCallback(() => {
-    throttledMarkAsRead();
+    if (chatPrefsRef.current?.chat_read_receipt_enabled !== false) {
+      throttledMarkAsRead();
+    }
   }, [throttledMarkAsRead]);
 
-  // 메시지 재전송 핸들러
+  // 메시지 재전송 핸들러 (원래 위치 유지, 카카오톡 스타일)
   const retryMessage = useCallback(
     (message: ChatMessageWithGrouping) => {
-      // 1. 기존 실패 메시지를 캐시에서 제거 (중복 방지)
+      const messageId = message.id;
+
+      // 1. 기존 메시지 상태를 "sending"으로 변경 (위치 유지)
       queryClient.setQueryData<InfiniteMessagesCache>(
         ["chat-messages", roomId],
-        (old) => removeMessageFromCache(old, message.id)
+        (old) => updateMessageInCache(old, messageId, (m) => ({ ...m, status: "sending" }))
       );
 
-      // 2. sendMessage로 완전히 새로운 전송 흐름 실행
-      //    (새 clientMessageId 생성 → 낙관적 업데이트 → 전송)
+      // 2. Operation Tracker에 재전송 등록
+      operationTracker.startSend(messageId, message.content, roomId);
+
+      // 3. 서버로 재전송 (기존 clientMessageId 재사용)
       const replyToId = (message as { reply_to_id?: string | null }).reply_to_id;
-      sendMessage(message.content, replyToId);
+      sendMessageAction(roomId, message.content, replyToId, messageId)
+        .then((result) => {
+          if (result.success && result.data) {
+            operationTracker.completeSend(messageId, result.data.id);
+            // 기존 temp 메시지를 서버 응답으로 교체 (위치 유지)
+            const updated = queryClient.setQueryData<InfiniteMessagesCache>(
+              ["chat-messages", roomId],
+              (old) => replaceMessageInFirstPage(old, messageId, result.data!)
+            );
+            if (!findMessageInCache(updated, result.data.id)) {
+              queryClient.invalidateQueries({ queryKey: ["chat-messages", roomId] });
+            }
+          } else {
+            throw new Error(result.error ?? "전송 실패");
+          }
+        })
+        .catch(() => {
+          operationTracker.failSend(messageId);
+          queryClient.setQueryData<InfiniteMessagesCache>(
+            ["chat-messages", roomId],
+            (old) => updateMessageInCache(old, messageId, (m) => ({ ...m, status: "error" }))
+          );
+        });
     },
-    [roomId, queryClient, sendMessage]
+    [roomId, queryClient]
   );
 
   // 전송 실패 메시지 삭제 핸들러

@@ -122,14 +122,14 @@ export async function getRoomList(
   ]);
 
   // 내 멤버십 정보로 last_read_at 맵 생성
-  const membershipMap = new Map<string, { last_read_at: string }>();
+  const membershipMap = new Map<string, { last_read_at: string; is_muted: boolean }>();
   for (const roomId of roomIds) {
     const members = membersMap.get(roomId) ?? [];
     const myMembership = members.find(
       (m) => m.user_id === userId && m.user_type === userType
     );
     if (myMembership) {
-      membershipMap.set(roomId, { last_read_at: myMembership.last_read_at });
+      membershipMap.set(roomId, { last_read_at: myMembership.last_read_at, is_muted: myMembership.is_muted });
     }
   }
 
@@ -241,6 +241,7 @@ export async function getRoomList(
       lastMessage: lastMessageInfo,
       unreadCount,
       updatedAt: room.updated_at,
+      isMuted: membershipMap.get(room.id)?.is_muted ?? false,
     });
   }
 

@@ -599,7 +599,7 @@ function SearchResults({
               "hover:bg-bg-secondary transition-colors text-left"
             )}
           >
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-primary-500/10 flex items-center justify-center flex-shrink-0">
               {att.attachment_type === "video" ? (
                 <Film className="w-5 h-5 text-primary" />
               ) : (
@@ -789,7 +789,7 @@ function GalleryImageItem({
           className={cn(
             "absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center",
             isSelected
-              ? "bg-primary text-white"
+              ? "bg-primary-500 text-white"
               : "bg-black/30 border border-white/60"
           )}
         >
@@ -839,7 +839,7 @@ function VideoGallery({
             className={cn(
               "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg",
               "hover:bg-bg-secondary transition-colors text-left",
-              isSelectionMode && selectedIds.has(att.id) && "bg-primary/5 ring-1 ring-primary"
+              isSelectionMode && selectedIds.has(att.id) && "bg-primary-500/15 dark:bg-primary-500/20 ring-1 ring-primary"
             )}
           >
             {/* 선택 모드 체크박스 */}
@@ -848,7 +848,7 @@ function VideoGallery({
                 className={cn(
                   "w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0",
                   selectedIds.has(att.id)
-                    ? "bg-primary text-white"
+                    ? "bg-primary-500 text-white"
                     : "border-2 border-text-tertiary"
                 )}
               >
@@ -922,7 +922,7 @@ function FileGallery({
             className={cn(
               "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg",
               "hover:bg-bg-secondary transition-colors text-left",
-              isSelectionMode && selectedIds.has(att.id) && "bg-primary/5 ring-1 ring-primary"
+              isSelectionMode && selectedIds.has(att.id) && "bg-primary-500/15 dark:bg-primary-500/20 ring-1 ring-primary"
             )}
           >
             {/* 선택 모드 체크박스 */}
@@ -931,7 +931,7 @@ function FileGallery({
                 className={cn(
                   "w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0",
                   selectedIds.has(att.id)
-                    ? "bg-primary text-white"
+                    ? "bg-primary-500 text-white"
                     : "border-2 border-text-tertiary"
                 )}
               >
@@ -939,7 +939,7 @@ function FileGallery({
               </div>
             )}
 
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-primary-500/10 flex items-center justify-center flex-shrink-0">
               <FileText className="w-5 h-5 text-primary" />
             </div>
             <div className="flex-1 min-w-0">

@@ -314,6 +314,18 @@ export async function processChatQueue(): Promise<void> {
           `Max retry exceeded, removing: ${action.id}`
         );
         await deleteOfflineAction(action.id);
+        // UI에 실패 알림 (유저가 전송됐다고 착각하지 않도록)
+        const { roomId, clientMessageId } = action.payload as {
+          roomId: string;
+          clientMessageId?: string;
+        };
+        if (clientMessageId) {
+          queueEventCallbacks.onMessageFailed?.(
+            roomId,
+            clientMessageId,
+            "최대 재시도 횟수를 초과했습니다. 네트워크 상태를 확인해주세요."
+          );
+        }
         continue;
       }
 

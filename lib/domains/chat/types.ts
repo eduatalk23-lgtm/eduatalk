@@ -191,6 +191,18 @@ export interface ChatRoomMemberUpdate {
 // 메시지 타입
 // ============================================
 
+/** 멘션 정보 */
+export interface MentionInfo {
+  userId: string;
+  userType: ChatUserType;
+  name: string;
+}
+
+/** 메시지 메타데이터 (JSONB) */
+export interface ChatMessageMetadata {
+  mentions?: MentionInfo[];
+}
+
 /** 메시지 기본 타입 */
 export interface ChatMessage {
   id: string;
@@ -208,6 +220,8 @@ export interface ChatMessage {
   sender_name: string;
   /** 비정규화된 발신자 프로필 URL 스냅샷 */
   sender_profile_url: string | null;
+  /** 확장 메타데이터 (멘션 등) */
+  metadata: ChatMessageMetadata | null;
 }
 
 /** 메시지 생성 입력 타입 */
@@ -223,6 +237,8 @@ export interface ChatMessageInsert {
   sender_name: string;
   /** 삽입 시 선택: 발신자 프로필 URL 스냅샷 */
   sender_profile_url?: string | null;
+  /** 메타데이터 (멘션 등) */
+  metadata?: ChatMessageMetadata | null;
 }
 
 /** 메시지 수정 입력 타입 */
@@ -332,12 +348,17 @@ export interface ChatUser {
   gradeDisplay?: string | null;
 }
 
+/** 답장 원본 메시지의 첨부파일 유형 */
+export type ReplyAttachmentType = "image" | "file" | "mixed";
+
 /** 답장 원본 메시지 정보 (UI용) */
 export interface ReplyTargetInfo {
   id: string;
   content: string;
   senderName: string;
   isDeleted: boolean;
+  /** 첨부파일 유형 (아이콘 표시용) */
+  attachmentType?: ReplyAttachmentType;
 }
 
 /** 메시지 + 발신자 정보 */
@@ -365,6 +386,8 @@ export interface MessageGroupingInfo {
   showDateDivider: boolean;
   /** 날짜 구분선 텍스트 (예: "2024년 1월 15일 월요일") */
   dateDividerText?: string;
+  /** "여기까지 읽었습니다" 구분선 표시 여부 */
+  showUnreadDivider?: boolean;
 }
 
 /** 그룹핑 정보가 포함된 메시지 */
@@ -406,6 +429,8 @@ export interface ChatRoomListItem {
   } | null;
   unreadCount: number;
   updatedAt: string;
+  /** 알림 음소거 여부 */
+  isMuted: boolean;
 }
 
 // ============================================
@@ -430,6 +455,8 @@ export interface SendMessageRequest {
   messageType?: ChatMessageType;
   replyToId?: string | null;
   clientMessageId?: string;
+  /** 멘션된 사용자 목록 */
+  mentions?: MentionInfo[];
 }
 
 /** 메시지 목록 조회 옵션 */

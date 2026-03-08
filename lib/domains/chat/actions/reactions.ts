@@ -8,6 +8,7 @@
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import * as chatService from "../service";
 import { getUserType, type ChatActionResult, type ReactionEmoji } from "../types";
+import { isUUID } from "@/lib/types/guards";
 
 /**
  * 메시지 리액션 토글
@@ -22,6 +23,9 @@ export async function toggleReactionAction(
   emoji: ReactionEmoji
 ): Promise<ChatActionResult<{ added: boolean }>> {
   try {
+    if (!isUUID(messageId)) {
+      return { success: false, error: "잘못된 메시지 ID입니다." };
+    }
     const { userId, role } = await getCurrentUserRole();
 
     if (!userId || !role) {

@@ -60,7 +60,7 @@ function EditMessageForm({
           placeholder="메시지를 입력하세요..."
           className="w-full h-32 p-3 text-sm border border-border rounded-lg resize-none
             focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
-            bg-background text-text-primary placeholder:text-text-tertiary"
+            bg-bg-primary text-text-primary placeholder:text-text-tertiary"
           maxLength={1000}
           disabled={isSaving}
           autoFocus

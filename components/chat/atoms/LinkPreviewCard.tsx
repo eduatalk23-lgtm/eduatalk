@@ -32,7 +32,7 @@ function LinkPreviewCardComponent({ preview, isOwn }: LinkPreviewCardProps) {
         "transition-colors",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
         isOwn
-          ? "bg-white/15 hover:bg-white/25 active:bg-white/30 focus-visible:ring-white/60"
+          ? "bg-white/20 hover:bg-white/30 active:bg-white/35 focus-visible:ring-white/60"
           : "bg-bg-secondary hover:bg-bg-tertiary active:bg-bg-tertiary focus-visible:ring-primary",
         // 이미지가 있으면 세로 레이아웃, 없으면 가로
         preview.image_url ? "flex-col" : "flex-row items-center gap-3 p-3"

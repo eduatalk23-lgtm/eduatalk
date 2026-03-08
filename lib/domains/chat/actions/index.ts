@@ -14,6 +14,7 @@ export {
   archiveChatRoomAction,
   unarchiveChatRoomAction,
   deleteChatRoomAction,
+  toggleMuteChatRoomAction,
   setAnnouncementAction,
   getAnnouncementAction,
   canSetAnnouncementAction,

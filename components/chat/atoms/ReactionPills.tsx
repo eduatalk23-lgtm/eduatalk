@@ -48,7 +48,7 @@ function ReactionPillsComponent({
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
             "disabled:opacity-50 disabled:cursor-not-allowed",
             reaction.hasReacted
-              ? "bg-primary/10 border border-primary/30 hover:bg-primary/20"
+              ? "bg-primary-500/15 dark:bg-primary-500/20 border border-primary-500/40 hover:bg-primary-500/25"
               : "bg-bg-secondary border border-transparent hover:bg-bg-tertiary"
           )}
           aria-label={`${reaction.emoji} ${reaction.count}명이 리액션함${

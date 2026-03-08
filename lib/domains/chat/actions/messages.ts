@@ -19,8 +19,45 @@ import {
   type GetMessagesOptions,
   type SearchMessagesResult,
   type MessagesWithReadStatusResult,
+  type MentionInfo,
 } from "../types";
 import { routeNotification } from "@/lib/domains/notification/router";
+import { isUUID } from "@/lib/types/guards";
+
+// ============================================
+// 메시지 전송 Rate Limiter (per-user, 분당 30회)
+// ============================================
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX = 30;
+const RATE_LIMIT_CLEANUP_INTERVAL_MS = 5 * 60_000;
+const rateLimitMap = new Map<string, number[]>();
+
+// 5분마다 비활성 유저 엔트리 정리 (메모리 누수 방지)
+let lastCleanup = Date.now();
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+
+  // 주기적 정리
+  if (now - lastCleanup > RATE_LIMIT_CLEANUP_INTERVAL_MS) {
+    lastCleanup = now;
+    for (const [key, timestamps] of rateLimitMap) {
+      const active = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+      if (active.length === 0) {
+        rateLimitMap.delete(key);
+      } else {
+        rateLimitMap.set(key, active);
+      }
+    }
+  }
+
+  const timestamps = rateLimitMap.get(userId) ?? [];
+  const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+  if (recent.length >= RATE_LIMIT_MAX) return false;
+  recent.push(now);
+  rateLimitMap.set(userId, recent);
+  return true;
+}
 
 /**
  * 메시지 전송
@@ -34,13 +71,25 @@ export async function sendMessageAction(
   roomId: string,
   content: string,
   replyToId?: string | null,
-  clientMessageId?: string
+  clientMessageId?: string,
+  mentions?: MentionInfo[]
 ): Promise<ChatActionResult<ChatMessage>> {
   try {
+    if (!isUUID(roomId)) {
+      return { success: false, error: "잘못된 채팅방 ID입니다." };
+    }
+    if (replyToId && !isUUID(replyToId)) {
+      return { success: false, error: "잘못된 답장 대상 ID입니다." };
+    }
+
     const { userId, role } = await getCurrentUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
+    }
+
+    if (!checkRateLimit(userId)) {
+      return { success: false, error: "메시지를 너무 빠르게 전송하고 있습니다. 잠시 후 다시 시도해주세요." };
     }
 
     const userType = getUserType(role);
@@ -50,6 +99,7 @@ export async function sendMessageAction(
       content,
       replyToId,
       clientMessageId,
+      mentions,
     });
 
     // Push 알림 (fire-and-forget: 메시지 전송 응답을 차단하지 않음)
@@ -90,6 +140,9 @@ export async function getMessagesAction(
   options: { limit?: number; before?: string } = {}
 ): Promise<ChatActionResult<PaginatedResult<ChatMessageWithSender>>> {
   try {
+    if (!isUUID(roomId)) {
+      return { success: false, error: "잘못된 채팅방 ID입니다." };
+    }
     const { userId, role } = await getCurrentUserRole();
 
     if (!userId || !role) {
@@ -100,7 +153,7 @@ export async function getMessagesAction(
 
     const messageOptions: GetMessagesOptions = {
       roomId,
-      limit: options.limit ?? 50,
+      limit: Math.min(options.limit ?? 50, 100),
       before: options.before,
     };
 
@@ -123,6 +176,9 @@ export async function deleteMessageAction(
   messageId: string
 ): Promise<ChatActionResult<void>> {
   try {
+    if (!isUUID(messageId)) {
+      return { success: false, error: "잘못된 메시지 ID입니다." };
+    }
     const { userId, role } = await getCurrentUserRole();
 
     if (!userId || !role) {
@@ -148,6 +204,9 @@ export async function markAsReadAction(
   roomId: string
 ): Promise<ChatActionResult<void>> {
   try {
+    if (!isUUID(roomId)) {
+      return { success: false, error: "잘못된 채팅방 ID입니다." };
+    }
     const { userId, role } = await getCurrentUserRole();
 
     if (!userId || !role) {
@@ -178,6 +237,9 @@ export async function editMessageAction(
   expectedUpdatedAt?: string
 ): Promise<ChatActionResult<ChatMessage>> {
   try {
+    if (!isUUID(messageId)) {
+      return { success: false, error: "잘못된 메시지 ID입니다." };
+    }
     const { userId, role } = await getCurrentUserRole();
 
     if (!userId || !role) {
@@ -215,6 +277,9 @@ export async function searchMessagesAction(
   options: { limit?: number; offset?: number } = {}
 ): Promise<ChatActionResult<SearchMessagesResult>> {
   try {
+    if (!isUUID(roomId)) {
+      return { success: false, error: "잘못된 채팅방 ID입니다." };
+    }
     const { userId, role } = await getCurrentUserRole();
 
     if (!userId || !role) {
@@ -249,6 +314,9 @@ export async function getMessagesWithReadStatusAction(
   options: { limit?: number; before?: string } = {}
 ): Promise<ChatActionResult<MessagesWithReadStatusResult>> {
   try {
+    if (!isUUID(roomId)) {
+      return { success: false, error: "잘못된 채팅방 ID입니다." };
+    }
     const { userId, role } = await getCurrentUserRole();
 
     if (!userId || !role) {
@@ -259,7 +327,7 @@ export async function getMessagesWithReadStatusAction(
 
     return await chatService.getMessagesWithReadStatus(userId, userType, {
       roomId,
-      limit: options.limit ?? 50,
+      limit: Math.min(options.limit ?? 50, 100),
       before: options.before,
     });
   } catch (error) {
@@ -376,6 +444,9 @@ export async function getMessagesSinceAction(
   limit: number = 100
 ): Promise<ChatActionResult<ChatMessageWithSender[]>> {
   try {
+    if (!isUUID(roomId)) {
+      return { success: false, error: "잘못된 채팅방 ID입니다." };
+    }
     const { userId, role } = await getCurrentUserRole();
 
     if (!userId || !role) {
@@ -391,7 +462,7 @@ export async function getMessagesSinceAction(
     }
 
     // 메시지 조회
-    const messages = await repository.findMessagesSince(roomId, since, limit);
+    const messages = await repository.findMessagesSince(roomId, since, Math.min(limit, 200));
 
     if (messages.length === 0) {
       return { success: true, data: [] };

@@ -15,6 +15,7 @@ import type {
   SearchMessagesOptions,
   SearchMessagesResult,
   MessagesWithReadStatusResult,
+  ReplyTargetInfo,
 } from "../types";
 
 /**
@@ -26,7 +27,7 @@ export async function sendMessage(
   request: SendMessageRequest
 ): Promise<ChatActionResult<ChatMessage>> {
   try {
-    const { roomId, content, messageType = "text", replyToId, clientMessageId } = request;
+    const { roomId, content, messageType = "text", replyToId, clientMessageId, mentions } = request;
 
     // 메시지 길이 검증
     if (content.length > MAX_MESSAGE_LENGTH) {
@@ -74,6 +75,9 @@ export async function sendMessage(
     // 발신자 정보 조회 (비정규화 스냅샷용)
     const senderInfo = await repository.getSenderInfoForInsert(senderId, senderType);
 
+    // 메타데이터 구성 (멘션 등)
+    const metadata = mentions && mentions.length > 0 ? { mentions } : null;
+
     // 메시지 생성 (발신자 스냅샷 포함)
     const message = await repository.insertMessage({
       ...(clientMessageId && { id: clientMessageId }),
@@ -85,6 +89,7 @@ export async function sendMessage(
       reply_to_id: replyToId ?? null,
       sender_name: senderInfo.name,
       sender_profile_url: senderInfo.profileImageUrl,
+      metadata,
     });
 
     return { success: true, data: message };
@@ -452,15 +457,23 @@ export async function getMessagesWithReadStatus(
       const messageReactions = reactionsMap.get(message.id) ?? [];
 
       // 답장 원본 정보 매핑 (원본 메시지의 스냅샷 데이터 사용)
-      let replyTarget: { id: string; content: string; senderName: string; isDeleted: boolean } | null = null;
+      let replyTarget: ReplyTargetInfo | null = null;
       if (message.reply_to_id) {
         const target = replyTargetsMap.get(message.reply_to_id);
         if (target) {
+          // message_type → attachmentType 변환
+          const attachmentType =
+            target.message_type === "image" ? "image" as const
+            : target.message_type === "file" ? "file" as const
+            : target.message_type === "mixed" ? "mixed" as const
+            : undefined;
+
           replyTarget = {
             id: target.id,
             content: target.is_deleted ? "삭제된 메시지입니다" : target.content,
             senderName: target.sender_name ?? "알 수 없음",
             isDeleted: target.is_deleted,
+            attachmentType,
           };
         }
       }

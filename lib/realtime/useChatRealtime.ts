@@ -11,13 +11,15 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import type {
-  ChatUserType,
-  ChatMessageType,
-  ChatUser,
-  ChatRoomListItem,
-  ChatAttachment,
-  ChatLinkPreview,
+import {
+  REACTION_EMOJIS,
+  type ChatUserType,
+  type ChatMessageType,
+  type ChatUser,
+  type ChatRoomListItem,
+  type ChatAttachment,
+  type ChatLinkPreview,
+  type ReactionEmoji,
 } from "@/lib/domains/chat/types";
 import {
   type InfiniteMessagesCache,
@@ -329,8 +331,16 @@ export function useChatRealtime({
   // 증분 동기화 (재연결 시 최적화)
   // ============================================
 
-  // 마지막 동기화 시점 추적
+  // 마지막 동기화 시점 추적 (sessionStorage로 새로고침 시에도 유지)
+  const syncStorageKey = `chat_sync_${roomId}`;
   const lastSyncTimestampRef = useRef<string | null>(null);
+  if (lastSyncTimestampRef.current === null && typeof window !== "undefined") {
+    try { lastSyncTimestampRef.current = sessionStorage.getItem(syncStorageKey); } catch { /* ignore */ }
+  }
+  const updateSyncTimestamp = useCallback((ts: string) => {
+    lastSyncTimestampRef.current = ts;
+    try { sessionStorage.setItem(syncStorageKey, ts); } catch { /* ignore */ }
+  }, [syncStorageKey]);
 
   // 캐시에서 최신 메시지 타임스탬프 가져오기
   const getLatestMessageTimestamp = useCallback((): string | null => {
@@ -472,7 +482,7 @@ export function useChatRealtime({
 
       if (allNewMessages.length === 0) {
         debugLog("[ChatRealtime] No new messages since last sync");
-        lastSyncTimestampRef.current = new Date().toISOString();
+        updateSyncTimestamp(new Date().toISOString());
         return;
       }
 
@@ -525,11 +535,12 @@ export function useChatRealtime({
 
       // 마지막 동기화 시점 갱신
       const latestNew = allNewMessages[allNewMessages.length - 1];
-      lastSyncTimestampRef.current = latestNew?.created_at ?? new Date().toISOString();
+      const newSyncTs = latestNew?.created_at ?? new Date().toISOString();
+      updateSyncTimestamp(newSyncTs);
 
       // ConnectionManager에도 동기화 시점 업데이트
       const channelName = connectionManager.getChannelKey(roomId);
-      connectionManager.updateSyncTimestamp(channelName, lastSyncTimestampRef.current);
+      connectionManager.updateSyncTimestamp(channelName, newSyncTs);
     } catch (error) {
       console.error("[ChatRealtime] Unexpected sync error:", error);
       invalidateMessages(); // 예상치 못한 에러 시 전체 무효화
@@ -628,7 +639,7 @@ export function useChatRealtime({
                       };
                     } else {
                       reactions.push({
-                        emoji: reaction.emoji as "👍" | "❤️" | "😂" | "🔥" | "😮",
+                        emoji: reaction.emoji as ReactionEmoji,
                         count: 1,
                         hasReacted: reaction.user_id === userId,
                       });
@@ -731,6 +742,7 @@ export function useChatRealtime({
                 replyTarget: null,
                 sender_name: newMessage.sender_name ?? tempSender.name,
                 sender_profile_url: newMessage.sender_profile_url ?? tempSender.profileImageUrl ?? null,
+                metadata: null,
               } as CacheMessage);
             }
           }
@@ -936,7 +948,7 @@ export function useChatRealtime({
           const reaction = extractRecord<ChatReactionPayload>(event.payload);
           debugLog("[ChatRealtime] Reaction added:", reaction?.message_id);
 
-          if (reaction?.message_id) {
+          if (reaction?.message_id && (REACTION_EMOJIS as readonly string[]).includes(reaction.emoji)) {
             const pendingState = operationTracker.isReactionPending(
               reaction.message_id,
               reaction.emoji
@@ -961,7 +973,7 @@ export function useChatRealtime({
           const reaction = extractOldRecord<ChatReactionPayload>(event.payload) ?? extractRecord<ChatReactionPayload>(event.payload);
           debugLog("[ChatRealtime] Reaction removed:", reaction?.message_id);
 
-          if (reaction?.message_id) {
+          if (reaction?.message_id && (REACTION_EMOJIS as readonly string[]).includes(reaction.emoji)) {
             const pendingState = operationTracker.isReactionPending(
               reaction.message_id,
               reaction.emoji

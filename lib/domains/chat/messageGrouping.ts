@@ -77,14 +77,21 @@ export function formatMessageTime(dateStr: string): string {
  * - 날짜 변경 = 그룹핑 중단 + 날짜 구분선
  *
  * @param messages 메시지 배열 (시간순 정렬됨)
+ * @param options.lastReadAt 마지막 읽은 시점 (구분선 표시용, 진입 시 캡처)
+ * @param options.currentUserId 현재 사용자 ID (본인 메시지 직후 구분선 생략용)
  * @returns 그룹핑 정보가 포함된 메시지 배열
  */
 export function processMessagesWithGrouping(
-  messages: ChatMessageWithSender[]
+  messages: ChatMessageWithSender[],
+  options?: { lastReadAt?: string | null; currentUserId?: string }
 ): ChatMessageWithGrouping[] {
   if (messages.length === 0) return [];
 
+  const { lastReadAt, currentUserId } = options ?? {};
+  const lastReadTime = lastReadAt ? safeParseDate(lastReadAt)?.getTime() : null;
+
   const result: ChatMessageWithGrouping[] = [];
+  let unreadDividerPlaced = false;
 
   for (let i = 0; i < messages.length; i++) {
     const current = messages[i];
@@ -118,6 +125,24 @@ export function processMessagesWithGrouping(
       isWithinGroupingThreshold(current.created_at, next.created_at) &&
       !next.reply_to_id;
 
+    // "여기까지 읽었습니다" 구분선: lastReadAt 직후 첫 비시스템 타인 메시지에 표시
+    let showUnreadDivider = false;
+    if (
+      !unreadDividerPlaced &&
+      lastReadTime != null &&
+      current.message_type !== "system"
+    ) {
+      const currentTime = safeParseDate(current.created_at)?.getTime();
+      if (currentTime && currentTime > lastReadTime) {
+        // 본인 메시지 직후가 아닌 경우에만 (본인이 마지막으로 읽은 후 본인이 보낸 건 제외)
+        const isOwnMessage = currentUserId && current.sender_id === currentUserId;
+        if (!isOwnMessage) {
+          showUnreadDivider = true;
+          unreadDividerPlaced = true;
+        }
+      }
+    }
+
     const grouping: MessageGroupingInfo = {
       // 그룹 첫 메시지에만 이름 표시 (이전과 그룹핑 안 됨)
       showName: !canGroupWithPrev,
@@ -127,6 +152,7 @@ export function processMessagesWithGrouping(
       isGrouped: !!canGroupWithPrev,
       showDateDivider,
       dateDividerText,
+      showUnreadDivider,
     };
 
     result.push({

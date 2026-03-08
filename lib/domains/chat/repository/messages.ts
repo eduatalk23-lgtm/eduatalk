@@ -18,7 +18,8 @@ import type {
 export async function findMessagesByRoom(
   options: GetMessagesOptions & { visibleFrom?: string }
 ): Promise<ChatMessage[]> {
-  const { roomId, limit = 50, before, visibleFrom } = options;
+  const { roomId, limit: rawLimit = 50, before, visibleFrom } = options;
+  const limit = Math.min(rawLimit, 100);
   const supabase = await createSupabaseServerClient();
 
   // 커서 유효성 검증
@@ -244,7 +245,8 @@ export async function updateMessageContent(
 export async function searchMessagesByRoom(
   options: SearchMessagesOptions & { visibleFrom?: string }
 ): Promise<{ messages: ChatMessage[]; total: number }> {
-  const { roomId, query, limit = 20, offset = 0, visibleFrom } = options;
+  const { roomId, query, limit: rawLimit = 20, offset = 0, visibleFrom } = options;
+  const limit = Math.min(rawLimit, 100);
   const supabase = await createSupabaseServerClient();
 
   // 검색어 이스케이프 (SQL 와일드카드 처리)
@@ -332,21 +334,34 @@ export async function findMessagesWithReadCounts(
  * 여러 메시지의 원본 메시지를 한 번에 조회
  * sender_name 스냅샷 포함으로 추가 쿼리 불필요
  */
+type ReplyTargetRow = {
+  id: string;
+  content: string;
+  sender_id: string;
+  sender_type: ChatUserType;
+  is_deleted: boolean;
+  sender_name: string;
+  message_type: string;
+};
+
 export async function findReplyTargetsByIds(
   replyToIds: string[]
-): Promise<Map<string, { id: string; content: string; sender_id: string; sender_type: ChatUserType; is_deleted: boolean; sender_name: string }>> {
+): Promise<Map<string, ReplyTargetRow>> {
   if (replyToIds.length === 0) return new Map();
+
+  // 배열 길이 제한 (과도한 .in() 쿼리 방지)
+  const ids = replyToIds.slice(0, 200);
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("chat_messages")
-    .select("id, content, sender_id, sender_type, is_deleted, sender_name")
-    .in("id", replyToIds);
+    .select("id, content, sender_id, sender_type, is_deleted, sender_name, message_type")
+    .in("id", ids);
 
   if (error) throw error;
 
-  const result = new Map<string, { id: string; content: string; sender_id: string; sender_type: ChatUserType; is_deleted: boolean; sender_name: string }>();
-  for (const msg of (data ?? []) as Array<{ id: string; content: string; sender_id: string; sender_type: ChatUserType; is_deleted: boolean; sender_name: string }>) {
+  const result = new Map<string, ReplyTargetRow>();
+  for (const msg of (data ?? []) as ReplyTargetRow[]) {
     result.set(msg.id, msg);
   }
   return result;

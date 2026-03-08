@@ -14,7 +14,7 @@ import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
 import { useFocusTrap, useEscapeKey } from "@/lib/accessibility/hooks";
 import { REACTION_EMOJIS, type ReactionEmoji } from "@/lib/domains/chat/types";
-import { Copy, Reply, Edit2, Trash2, Flag, Pin, PinOff } from "lucide-react";
+import { Copy, Reply, Edit2, Trash2, Flag, Pin, PinOff, Forward } from "lucide-react";
 
 /** 메시지 메뉴 컨텍스트 정보 */
 export interface MessageMenuContext {
@@ -47,6 +47,8 @@ interface MessageContextMenuProps {
   onCopy: () => void;
   /** 답장 클릭 콜백 */
   onReply: () => void;
+  /** 전달 클릭 콜백 */
+  onForward?: () => void;
   /** 편집 클릭 콜백 (본인 메시지 + 편집 가능 시) */
   onEdit?: () => void;
   /** 삭제 클릭 콜백 (본인 메시지) */
@@ -132,6 +134,7 @@ function ActionList({
   compact = false,
   onCopy,
   onReply,
+  onForward,
   onEdit,
   onDelete,
   onReport,
@@ -141,6 +144,7 @@ function ActionList({
   compact?: boolean;
   onCopy: () => void;
   onReply: () => void;
+  onForward?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
   onReport?: () => void;
@@ -150,6 +154,9 @@ function ActionList({
     <div className="py-1">
       <ActionButton onClick={onCopy} icon={Copy} label="복사" compact={compact} />
       <ActionButton onClick={onReply} icon={Reply} label="답장" compact={compact} />
+      {onForward && (
+        <ActionButton onClick={onForward} icon={Forward} label="전달" compact={compact} />
+      )}
 
       {context.isOwn && context.canEdit && onEdit && (
         <ActionButton onClick={onEdit} icon={Edit2} label="편집" compact={compact} />
@@ -182,6 +189,7 @@ function MessageContextMenuComponent({
   position,
   onCopy,
   onReply,
+  onForward,
   onEdit,
   onDelete,
   onReport,
@@ -242,7 +250,7 @@ function MessageContextMenuComponent({
 
   if (!isOpen || !context) return null;
 
-  const actionProps = { context, onCopy, onReply, onEdit, onDelete, onReport, onTogglePin };
+  const actionProps = { context, onCopy, onReply, onForward, onEdit, onDelete, onReport, onTogglePin };
 
   // ─── 데스크톱: 커서 위치에 팝업 ───
   if (isDesktopPopup && position) {

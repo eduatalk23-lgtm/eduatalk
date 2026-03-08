@@ -181,7 +181,7 @@ function ProfileCardPopupComponent({
             className={cn(
               "w-full flex items-center justify-center gap-2",
               compact ? "py-2.5 rounded-lg text-sm" : "py-3 rounded-xl",
-              "bg-primary text-white font-medium",
+              "bg-primary-500 text-white font-medium",
               "hover:bg-primary-600 active:bg-primary-700",
               "transition-colors",
               isStartingChat && "opacity-50 cursor-not-allowed"

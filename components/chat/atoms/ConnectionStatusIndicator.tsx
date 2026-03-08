@@ -50,9 +50,9 @@ function ConnectionStatusIndicatorComponent({
     <div
       className={cn(
         "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium",
-        status === "connected" && pendingCount > 0 && "bg-warning/10 text-warning",
-        status === "disconnected" && "bg-error/10 text-error",
-        status === "reconnecting" && "bg-warning/10 text-warning",
+        status === "connected" && pendingCount > 0 && "bg-warning/20 text-warning",
+        status === "disconnected" && "bg-error/20 text-error",
+        status === "reconnecting" && "bg-warning/20 text-warning",
         className
       )}
     >
@@ -75,7 +75,7 @@ function ConnectionStatusIndicatorComponent({
               onClick={onReconnect}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-lg",
-                "bg-primary/20 hover:bg-primary/30 text-primary",
+                "bg-primary-500/20 hover:bg-primary-500/30 text-primary",
                 "transition-colors"
               )}
             >

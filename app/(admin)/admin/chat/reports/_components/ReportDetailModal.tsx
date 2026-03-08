@@ -106,7 +106,7 @@ export function ReportDetailModal({
             </h3>
             <div className="bg-bg-secondary rounded-lg p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-primary-500/10 flex items-center justify-center">
                   <User className="w-5 h-5 text-primary" />
                 </div>
                 <div>
@@ -225,7 +225,7 @@ export function ReportDetailModal({
             disabled={isResolving}
             className={cn(
               "px-4 py-2 text-sm font-medium rounded-lg",
-              "bg-primary text-white hover:bg-primary-600 active:bg-primary-700",
+              "bg-primary-500 text-white hover:bg-primary-600 active:bg-primary-700",
               "transition-colors disabled:opacity-50",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
               "flex items-center justify-center gap-2"

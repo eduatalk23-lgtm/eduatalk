@@ -8,6 +8,7 @@
  */
 
 import { memo, useState, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
 import { format, isValid } from "date-fns";
 import { ko } from "date-fns/locale";
@@ -18,9 +19,10 @@ function safeFormatDate(dateStr: string, pattern: string): string {
   if (!isValid(d)) return "";
   return format(d, pattern, { locale: ko });
 }
-import { Loader2 } from "lucide-react";
+import { Loader2, RotateCcw, Trash2, X } from "lucide-react";
 import { Avatar } from "@/components/atoms/Avatar";
-import type { ReactionSummary, ReactionEmoji, ReplyTargetInfo, ChatAttachment, ChatLinkPreview } from "@/lib/domains/chat/types";
+import type { ReactionSummary, ReactionEmoji, ReplyTargetInfo, ChatAttachment, ChatLinkPreview, MentionInfo } from "@/lib/domains/chat/types";
+import { renderContentWithMentions } from "@/lib/domains/chat/renderMentions";
 import { ReactionPills } from "./ReactionPills";
 import { AttachmentRenderer } from "./AttachmentRenderer";
 import { LinkPreviewCard } from "./LinkPreviewCard";
@@ -42,6 +44,7 @@ export type MessageAction =
   | { type: "edit" }
   | { type: "delete" }
   | { type: "report" }
+  | { type: "forward" }
   | { type: "togglePin" }
   | { type: "longPress"; position?: LongPressPosition }
   | { type: "avatarClick"; position?: LongPressPosition }
@@ -90,6 +93,8 @@ export interface MessageData {
   senderType?: "student" | "admin" | "parent";
   /** 발신자 프로필 이미지 URL */
   senderProfileImageUrl?: string | null;
+  /** 멘션 정보 */
+  mentions?: MentionInfo[];
 }
 
 /** 메시지 표시 옵션 */
@@ -114,33 +119,128 @@ function InlineTimeInfo({
   formattedTime,
   createdAt,
   isOwn,
-  derivedStatus,
   hasError,
   isQueued,
+  isSending,
   isEdited,
   unreadCount,
 }: {
   formattedTime: string;
   createdAt: string;
   isOwn: boolean;
-  derivedStatus?: MessageDeliveryStatus;
   hasError: boolean;
   isQueued: boolean;
+  isSending: boolean;
   isEdited: boolean;
   unreadCount?: number;
 }) {
+  // 에러/대기 시에는 시간 영역 숨김 (별도 UI로 표시)
+  if (hasError || isQueued) return null;
+
   return (
     <div className="flex flex-col items-end justify-end gap-0.5 flex-shrink-0 self-end pb-1">
-      {isOwn && unreadCount !== undefined && unreadCount > 0 && derivedStatus !== "read" && (
+      {/* 안 읽은 인원수 (카카오톡: 메시지 옆 숫자) */}
+      {isOwn && !isSending && unreadCount !== undefined && unreadCount > 0 && (
         <span className="text-[10px] text-primary font-medium leading-tight">{unreadCount}</span>
       )}
-      <div className="flex items-center gap-0.5 text-[10px] text-text-tertiary leading-tight">
-        {isOwn && derivedStatus && !hasError && !isQueued && (
-          <MessageStatusIndicator status={derivedStatus} className="w-3 h-3" />
-        )}
-        <time dateTime={createdAt}>{formattedTime}</time>
-      </div>
+      {/* 전송 중 표시 */}
+      {isOwn && isSending && (
+        <MessageStatusIndicator status="sending" className="w-3 h-3" />
+      )}
+      <time dateTime={createdAt} className="text-[10px] text-text-tertiary leading-tight">
+        {formattedTime}
+      </time>
       {isEdited && <span className="text-[10px] text-text-tertiary leading-tight">(수정됨)</span>}
+    </div>
+  );
+}
+
+/** 전송 실패 바텀시트 (카카오톡 스타일) */
+function ErrorActionSheet({
+  errorMessage,
+  canRetry,
+  onRetry,
+  onDelete,
+  onClose,
+}: {
+  errorMessage: string;
+  canRetry: boolean;
+  onRetry: () => void;
+  onDelete: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end justify-center">
+      <div
+        className="absolute inset-0 bg-black/40 animate-in fade-in duration-150"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div
+        className={cn(
+          "relative w-full max-w-md bg-bg-primary rounded-t-2xl",
+          "animate-in fade-in slide-in-from-bottom-4 duration-200",
+          "pb-[env(safe-area-inset-bottom)]"
+        )}
+        role="dialog"
+        aria-label="메시지 전송 실패"
+      >
+        {/* 드래그 핸들 */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-9 h-1 rounded-full bg-secondary-300 dark:bg-secondary-600" />
+        </div>
+
+        {/* 에러 메시지 */}
+        <div className="px-5 py-3 text-center">
+          <p className="text-sm text-error font-medium">{errorMessage}</p>
+        </div>
+
+        {/* 액션 버튼 */}
+        <div className="px-4 pb-4 flex flex-col gap-2">
+          {canRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className={cn(
+                "w-full flex items-center justify-center gap-2",
+                "py-3.5 rounded-xl",
+                "bg-primary-500 text-white font-medium",
+                "hover:bg-primary-500/90 active:bg-primary-500/80",
+                "transition-colors"
+              )}
+            >
+              <RotateCcw className="w-4.5 h-4.5" />
+              재전송
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onDelete}
+            className={cn(
+              "w-full flex items-center justify-center gap-2",
+              "py-3.5 rounded-xl",
+              "bg-bg-secondary text-error font-medium",
+              "hover:bg-error/10 active:bg-error/20",
+              "transition-colors"
+            )}
+          >
+            <Trash2 className="w-4.5 h-4.5" />
+            삭제
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className={cn(
+              "w-full py-3.5 rounded-xl",
+              "text-text-secondary font-medium",
+              "hover:bg-bg-secondary active:bg-bg-tertiary",
+              "transition-colors"
+            )}
+          >
+            취소
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -183,6 +283,7 @@ function MessageBubbleComponent({
     attachments = [],
     linkPreviews = [],
     senderProfileImageUrl,
+    mentions,
   } = message;
 
   // 상태 결정 (새 status 우선, 레거시 폴백)
@@ -204,6 +305,8 @@ function MessageBubbleComponent({
 
   // 장문 텍스트 접기/펼치기
   const [isExpanded, setIsExpanded] = useState(false);
+  // 에러 바텀시트 표시
+  const [showErrorSheet, setShowErrorSheet] = useState(false);
   const isLongText = !isDeleted && !isSystem && (
     content.length > LONG_TEXT_CHAR_LIMIT ||
     (content.match(/\n/g)?.length ?? 0) > LONG_TEXT_LINE_LIMIT
@@ -306,9 +409,9 @@ function MessageBubbleComponent({
     formattedTime,
     createdAt,
     isOwn,
-    derivedStatus,
     hasError,
     isQueued,
+    isSending,
     isEdited,
     unreadCount,
   };
@@ -360,13 +463,27 @@ function MessageBubbleComponent({
                     "px-3 py-1.5 rounded-t-lg text-xs text-left cursor-pointer",
                     "bg-secondary-50 dark:bg-secondary-900/50",
                     "border-l-2 border-primary",
-                    "hover:bg-secondary-100 dark:hover:bg-secondary-900 transition-colors",
+                    "hover:bg-secondary-100 dark:hover:bg-secondary-700 transition-colors",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
                   )}
                 >
                   <p className="font-medium text-primary">{replyTarget.senderName}</p>
-                  <p className="text-text-secondary truncate max-w-[200px]">
-                    {replyTarget.isDeleted ? "삭제된 메시지" : replyTarget.content}
+                  <p className="text-text-secondary truncate max-w-[200px] flex items-center gap-1">
+                    {replyTarget.isDeleted ? "삭제된 메시지" : (
+                      <>
+                        {replyTarget.attachmentType && (
+                          <span className="flex-shrink-0" aria-hidden="true">
+                            {replyTarget.attachmentType === "image" ? "🖼️" : "📎"}
+                          </span>
+                        )}
+                        {replyTarget.content || (
+                          replyTarget.attachmentType === "image" ? "사진"
+                          : replyTarget.attachmentType === "file" ? "파일"
+                          : replyTarget.attachmentType === "mixed" ? "사진, 파일"
+                          : ""
+                        )}
+                      </>
+                    )}
                   </p>
                 </button>
               )}
@@ -405,7 +522,7 @@ function MessageBubbleComponent({
                         isLongText && !isExpanded && "max-h-[240px] overflow-hidden"
                       )}
                     >
-                      {content}
+                      {renderContentWithMentions(content, mentions)}
                     </div>
                     {isLongText && !isExpanded && (
                       <div className="absolute bottom-0 left-0 right-0">
@@ -472,48 +589,6 @@ function MessageBubbleComponent({
                 </div>
               )}
 
-              {/* 전송 실패 표시 */}
-              {isOwn && hasError && (
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-1.5 text-xs text-error">
-                    <MessageStatusIndicator status="error" className="w-3 h-3 flex-shrink-0" />
-                    <span>{errorMessage}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {canRetryError && (
-                      <button
-                        type="button"
-                        onClick={() => dispatch({ type: "retry" })}
-                        disabled={isSending}
-                        className={cn(
-                          "text-xs text-primary hover:underline transition-opacity",
-                          isSending && "opacity-50 cursor-not-allowed"
-                        )}
-                      >
-                        {isSending ? (
-                          <span className="flex items-center gap-1">
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                            재전송 중...
-                          </span>
-                        ) : (
-                          "다시 시도"
-                        )}
-                      </button>
-                    )}
-                    {!isSending && onAction && (
-                      <button
-                        type="button"
-                        onClick={() => dispatch({ type: "removeFailed" })}
-                        className="text-xs text-text-tertiary hover:text-error transition-colors"
-                        aria-label="전송 취소 및 삭제"
-                      >
-                        삭제
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-
               {/* 리액션 표시 */}
               {reactions.length > 0 && (
                 <div className={cn(isOwn ? "flex justify-end" : "flex justify-start")}>
@@ -527,11 +602,37 @@ function MessageBubbleComponent({
 
             </div>
 
+            {/* 전송 실패: 빨간 느낌표 (카카오톡 스타일, 버블 옆) */}
+            {isOwn && hasError && (
+              <button
+                type="button"
+                onClick={() => setShowErrorSheet(true)}
+                className="flex-shrink-0 self-end pb-1 group/error"
+                aria-label={`전송 실패: ${errorMessage}`}
+              >
+                <div className="w-5 h-5 rounded-full bg-error flex items-center justify-center transition-transform group-active/error:scale-90">
+                  <span className="text-white text-xs font-bold leading-none">!</span>
+                </div>
+              </button>
+            )}
+
             {/* 인라인 시간 (버블 옆) */}
             {showTime && <InlineTimeInfo {...timeProps} />}
           </div>
         </div>
       </div>
+
+      {/* 전송 실패 바텀시트 */}
+      {showErrorSheet && typeof document !== "undefined" && createPortal(
+        <ErrorActionSheet
+          errorMessage={errorMessage}
+          canRetry={canRetryError}
+          onRetry={() => { setShowErrorSheet(false); dispatch({ type: "retry" }); }}
+          onDelete={() => { setShowErrorSheet(false); dispatch({ type: "removeFailed" }); }}
+          onClose={() => setShowErrorSheet(false)}
+        />,
+        document.body
+      )}
     </article>
   );
 }

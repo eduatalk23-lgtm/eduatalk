@@ -268,7 +268,7 @@ function AudioPlayer({
       <div
         className={cn(
           "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
-          isOwn ? "bg-white/25" : "bg-primary/10"
+          isOwn ? "bg-white/25" : "bg-primary-500/10"
         )}
       >
         <Music className={cn("w-5 h-5", isOwn ? "text-white" : "text-primary")} />
@@ -338,7 +338,7 @@ function FileCard({
         "flex items-center gap-3 px-3 py-2 rounded-lg max-w-[280px]",
         "transition-colors",
         isOwn
-          ? "bg-white/15"
+          ? "bg-white/20"
           : "bg-bg-secondary"
       )}
     >
@@ -347,7 +347,7 @@ function FileCard({
         onClick={handleDownload}
         className={cn(
           "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
-          isOwn ? "bg-white/25" : "bg-primary/10"
+          isOwn ? "bg-white/25" : "bg-primary-500/10"
         )}
       >
         <FileText className={cn("w-5 h-5", isOwn ? "text-white" : "text-primary")} />
