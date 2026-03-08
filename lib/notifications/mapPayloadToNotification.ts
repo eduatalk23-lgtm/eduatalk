@@ -8,20 +8,9 @@
  */
 
 import type { NotificationPayload } from "@/lib/realtime/useNotificationRealtime";
+import type { NotificationType } from "@/lib/domains/notification/types";
 
-export type NotificationType =
-  | "camp_invitation"
-  | "camp_reminder"
-  | "camp_status_change"
-  | "plan_created"
-  | "plan_updated"
-  | "admin_notification"
-  | "learning_milestone"
-  | "daily_goal_complete"
-  | "study_streak"
-  | "plan_incomplete_reminder"
-  | "plan_delayed_warning"
-  | "weekly_plan_summary";
+export type { NotificationType };
 
 export type Notification = {
   id: string;

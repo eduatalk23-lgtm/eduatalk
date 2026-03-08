@@ -10,7 +10,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { sendInAppNotification, type NotificationType } from "./inAppNotificationService";
+import { sendInAppNotification } from "./inAppNotificationService";
 
 // ============================================================================
 // Types
@@ -400,7 +400,7 @@ export async function checkAndCreateIncompleteReminder(
   // 인앱 알림 생성
   await sendInAppNotification(
     studentId,
-    "plan_incomplete_reminder" as NotificationType,
+    "plan_incomplete_reminder",
     `오늘 ${incompletePlans.length}개의 플랜이 남았어요`,
     incompletePlans.length === 1
       ? `"${incompletePlans[0].title}" 플랜을 완료해보세요!`
@@ -462,7 +462,7 @@ export async function checkAndCreateDelayedWarning(
   // 인앱 알림 생성
   await sendInAppNotification(
     studentId,
-    "plan_incomplete_reminder" as NotificationType,
+    "plan_incomplete_reminder",
     `${delayedPlans.length}개의 플랜이 ${settings.delayedPlanThreshold}일 이상 밀렸어요`,
     `가장 오래된 플랜: "${oldestPlan.title}" (${oldestPlan.daysDelayed}일 전)`,
     { actionUrl: "/today" }
@@ -521,7 +521,7 @@ export async function checkAndCreateWeeklySummary(
 
     await sendInAppNotification(
       studentId,
-      "daily_goal_complete" as NotificationType,
+      "daily_goal_complete",
       "이번 주 플랜을 모두 완료했어요!",
       "대단해요! 다음 주도 화이팅!",
       { actionUrl: "/today" }
@@ -546,7 +546,7 @@ export async function checkAndCreateWeeklySummary(
   // 인앱 알림 생성
   await sendInAppNotification(
     studentId,
-    "weekly_plan_summary" as NotificationType,
+    "weekly_plan_summary",
     `이번 주 ${summary.totalIncomplete}개의 플랜이 미완료예요`,
     `과목별: ${subjectList}`,
     { actionUrl: "/today" }

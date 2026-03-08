@@ -134,8 +134,6 @@ export function useNotificationRealtime({
       const newRecord = payload.new as NotificationPayload | undefined;
       const oldRecord = payload.old as NotificationPayload | undefined;
 
-      console.log("[Notification Realtime] Event:", event, payload);
-
       // React Query 캐시 무효화
       invalidateNotificationQueries();
 
@@ -179,8 +177,6 @@ export function useNotificationRealtime({
   const handleBroadcastEvent = useCallback(
     (payload: { payload: NotificationPayload }) => {
       const notification = payload.payload;
-      console.log("[Notification Realtime] Broadcast received:", notification);
-
       // 새 알림 콜백 호출
       callbacksRef.current.onNewNotification?.(notification);
 
@@ -222,9 +218,7 @@ export function useNotificationRealtime({
       )
       // 브로드캐스트 구독 (일시적 알림)
       .on("broadcast", { event: "notification" }, handleBroadcastEvent)
-      .subscribe((status) => {
-        console.log("[Notification Realtime] Subscription status:", status);
-      });
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);

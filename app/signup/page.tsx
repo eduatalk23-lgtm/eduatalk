@@ -43,6 +43,15 @@ function SignupContent() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
+  // 초대 링크(/join)를 통해 여기로 온 경우 → /join으로 리다이렉트
+  useEffect(() => {
+    const joinToken = localStorage.getItem("join_token");
+    if (joinToken) {
+      localStorage.removeItem("join_token");
+      router.replace(`/join/${joinToken}`);
+    }
+  }, [router]);
+
   // 로그인 링크에 연결 코드 유지
   const loginUrl = codeFromUrl ? `/login?code=${codeFromUrl}` : "/login";
   const [termsModalOpen, setTermsModalOpen] = useState(false);

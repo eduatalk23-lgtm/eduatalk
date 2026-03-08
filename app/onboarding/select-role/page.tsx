@@ -29,6 +29,17 @@ function SelectRoleContent() {
   const [selectedRelation, setSelectedRelation] = useState<"father" | "mother" | "guardian" | "">("");
   const [connectionCode, setConnectionCode] = useState(codeFromUrl);
 
+  // 초대 링크(/join)를 통해 OAuth 진행 후 여기로 온 경우 → /join으로 리다이렉트
+  // JoinContent에서 localStorage에 join_token을 저장함
+  useEffect(() => {
+    const joinToken = localStorage.getItem("join_token");
+    if (joinToken) {
+      localStorage.removeItem("join_token");
+      router.replace(`/join/${joinToken}`);
+      return;
+    }
+  }, [router]);
+
   // localStorage에서 연결 코드 읽기 (OAuth 플로우에서 전달된 경우)
   useEffect(() => {
     if (!codeFromUrl) {

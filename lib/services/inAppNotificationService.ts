@@ -8,22 +8,9 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
 import { logActionError } from "@/lib/logging/actionLogger";
+import type { NotificationType } from "@/lib/domains/notification/types";
 
-export type NotificationType =
-  | "camp_invitation"
-  | "camp_reminder"
-  | "camp_status_change"
-  | "plan_created"
-  | "plan_updated"
-  | "admin_notification"
-  // Learning milestone notifications (Phase 2)
-  | "learning_milestone"
-  | "daily_goal_complete"
-  | "study_streak"
-  // Plan reminder notifications (Phase 3)
-  | "plan_incomplete_reminder"
-  | "plan_delayed_warning"
-  | "weekly_plan_summary";
+export type { NotificationType };
 
 export type Notification = {
   id: string;
