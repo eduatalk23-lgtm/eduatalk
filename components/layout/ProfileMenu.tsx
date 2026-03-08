@@ -17,7 +17,6 @@ type ProfileMenuProps = {
   userEmail?: string | null;
   roleLabel: string;
   tenantInfo?: { name: string; type?: string } | null;
-  userId?: string | null;
   settingsHref?: string;
 };
 

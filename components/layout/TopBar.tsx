@@ -1,15 +1,20 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { Search, Menu } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { topBarStyles, zIndexLayers } from "@/components/navigation/global/navStyles";
 import { LogoSection } from "@/components/navigation/global/LogoSection";
-import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { WaffleMenu } from "./WaffleMenu";
 import { ProfileMenu } from "./ProfileMenu";
 import { useSidebar } from "./SidebarContext";
 import { useTopBarCenterSlot } from "./TopBarCenterSlotContext";
 import type { RoleBasedLayoutProps } from "./types";
+
+const NotificationCenter = dynamic(
+  () => import("@/components/notifications/NotificationCenter").then((m) => m.NotificationCenter),
+  { ssr: false },
+);
 
 type TopBarProps = {
   role: RoleBasedLayoutProps["role"];
@@ -112,7 +117,6 @@ export function TopBar({
           userEmail={userEmail}
           roleLabel={roleLabel}
           tenantInfo={tenantInfo}
-          userId={userId}
           settingsHref={
             role === "admin" || role === "consultant" || role === "superadmin"
               ? "/admin/settings"

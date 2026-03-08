@@ -12,7 +12,8 @@ const PUBLIC_PATHS = [
   "/reset-password",
   "/auth/callback",
   "/signup/verify-email",
-  "/invite",  // 팀 초대 페이지 (비로그인 상태에서도 접근 가능)
+  "/invite",  // 팀 초대 페이지 (레거시, 비로그인 상태에서도 접근 가능)
+  "/join",    // 통합 초대 수락 페이지 (비로그인 상태에서도 접근 가능)
   "/onboarding",  // OAuth 사용자 역할 선택 페이지
 ];
 
@@ -139,6 +140,14 @@ async function getUserRole(
     return "student";
   }
 
+  // 4. 테이블에 없으면 user_metadata의 signup_role fallback
+  // (초대 수락 직후 RLS 전파 지연 시 보호)
+  const { data: { user } } = await supabase.auth.getUser();
+  const signupRole = user?.user_metadata?.signup_role;
+  if (signupRole === "student" || signupRole === "parent" || signupRole === "admin" || signupRole === "consultant") {
+    return signupRole;
+  }
+
   return null;
 }
 
@@ -231,17 +240,23 @@ export async function proxy(request: NextRequest) {
 
   // 인증된 사용자의 역할 기반 접근 제어
   if (isAuthenticated && user && !isPublicPath) {
-    const role = await getUserRole(supabase, user.id);
+    // 초대 수락 직후 리다이렉트: 역할이 방금 부여되어 RLS 전파 지연 가능
+    // join_accepted=true 파라미터로 1회 우회 허용
+    const joinAccepted = request.nextUrl.searchParams.get("join_accepted") === "true";
 
-    // 역할이 없는 사용자는 역할 선택 페이지로 리다이렉트
-    if (!role) {
-      return NextResponse.redirect(new URL("/onboarding/select-role", request.url));
-    }
+    if (!joinAccepted) {
+      const role = await getUserRole(supabase, user.id);
 
-    // 현재 경로에 접근 권한이 없는 경우
-    if (!canAccessPath(role, pathname)) {
-      const defaultDashboard = ROLE_DEFAULT_DASHBOARD[role] || "/";
-      return NextResponse.redirect(new URL(defaultDashboard, request.url));
+      // 역할이 없는 사용자는 역할 선택 페이지로 리다이렉트
+      if (!role) {
+        return NextResponse.redirect(new URL("/onboarding/select-role", request.url));
+      }
+
+      // 현재 경로에 접근 권한이 없는 경우
+      if (!canAccessPath(role, pathname)) {
+        const defaultDashboard = ROLE_DEFAULT_DASHBOARD[role] || "/";
+        return NextResponse.redirect(new URL(defaultDashboard, request.url));
+      }
     }
   }
 

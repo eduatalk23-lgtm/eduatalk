@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "14.4"
   }
   public: {
     Tables: {
@@ -1349,6 +1349,7 @@ export type Database = {
           id: string
           is_deleted: boolean | null
           message_type: string | null
+          metadata: Json | null
           reply_to_id: string | null
           room_id: string
           sender_id: string
@@ -1364,6 +1365,7 @@ export type Database = {
           id?: string
           is_deleted?: boolean | null
           message_type?: string | null
+          metadata?: Json | null
           reply_to_id?: string | null
           room_id: string
           sender_id: string
@@ -1379,6 +1381,7 @@ export type Database = {
           id?: string
           is_deleted?: boolean | null
           message_type?: string | null
+          metadata?: Json | null
           reply_to_id?: string | null
           room_id?: string
           sender_id?: string
@@ -3471,6 +3474,87 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      invitations: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          delivered_at: string | null
+          delivery_method: string
+          delivery_status: string
+          email: string | null
+          expires_at: string
+          id: string
+          invited_by: string
+          legacy_code: string | null
+          phone: string | null
+          relation: string | null
+          status: string
+          student_id: string | null
+          target_role: string
+          tenant_id: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          delivery_method?: string
+          delivery_status?: string
+          email?: string | null
+          expires_at: string
+          id?: string
+          invited_by: string
+          legacy_code?: string | null
+          phone?: string | null
+          relation?: string | null
+          status?: string
+          student_id?: string | null
+          target_role: string
+          tenant_id: string
+          token?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          delivery_method?: string
+          delivery_status?: string
+          email?: string | null
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          legacy_code?: string | null
+          phone?: string | null
+          relation?: string | null
+          status?: string
+          student_id?: string | null
+          target_role?: string
+          tenant_id?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitations_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invitations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invite_codes: {
         Row: {
@@ -7246,6 +7330,36 @@ export type Database = {
           },
         ]
       }
+      student_connection_history: {
+        Row: {
+          id: string
+          student_id: string
+          auth_user_id: string
+          action: "connected" | "disconnected"
+          performed_by: string
+          reason: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          student_id: string
+          auth_user_id: string
+          action: "connected" | "disconnected"
+          performed_by: string
+          reason?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          student_id?: string
+          auth_user_id?: string
+          action?: "connected" | "disconnected"
+          performed_by?: string
+          reason?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       student_consulting_notes: {
         Row: {
           consultant_id: string
@@ -8189,6 +8303,9 @@ export type Database = {
           camp_status_change_enabled: boolean | null
           chat_group_push_enabled: boolean | null
           chat_push_enabled: boolean | null
+          chat_read_receipt_enabled: boolean
+          chat_sound_enabled: boolean
+          chat_vibrate_enabled: boolean
           created_at: string | null
           daily_goal_achieved_enabled: boolean | null
           event_reminder_push_enabled: boolean | null
@@ -8219,6 +8336,9 @@ export type Database = {
           camp_status_change_enabled?: boolean | null
           chat_group_push_enabled?: boolean | null
           chat_push_enabled?: boolean | null
+          chat_read_receipt_enabled?: boolean
+          chat_sound_enabled?: boolean
+          chat_vibrate_enabled?: boolean
           created_at?: string | null
           daily_goal_achieved_enabled?: boolean | null
           event_reminder_push_enabled?: boolean | null
@@ -8249,6 +8369,9 @@ export type Database = {
           camp_status_change_enabled?: boolean | null
           chat_group_push_enabled?: boolean | null
           chat_push_enabled?: boolean | null
+          chat_read_receipt_enabled?: boolean
+          chat_sound_enabled?: boolean
+          chat_vibrate_enabled?: boolean
           created_at?: string | null
           daily_goal_achieved_enabled?: boolean | null
           event_reminder_push_enabled?: boolean | null
@@ -10500,9 +10623,7 @@ export type Database = {
       }
       scores: {
         Row: {
-          achievement_level: string | null
           avg_score: number | null
-          class_rank: number | null
           created_at: string | null
           exam_date: string | null
           exam_title: string | null
@@ -10756,6 +10877,7 @@ export type Database = {
         }
       }
       expire_old_invitations: { Args: never; Returns: undefined }
+      expire_old_invitations_unified: { Args: never; Returns: undefined }
       extract_school_id_number: {
         Args: { school_id_str: string }
         Returns: number
@@ -11090,3 +11212,4 @@ export const Constants = {
     },
   },
 } as const
+
