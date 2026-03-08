@@ -6,20 +6,29 @@ import { PILLARS } from "./constants";
 export function MobileFeatureCarousel() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const rafIdRef = useRef<number | null>(null);
 
   const handleScroll = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const cardWidth = el.scrollWidth / PILLARS.length;
-    const idx = Math.round(el.scrollLeft / cardWidth);
-    setActiveIndex(idx);
+    if (rafIdRef.current != null) return;
+    rafIdRef.current = requestAnimationFrame(() => {
+      const el = scrollRef.current;
+      if (el) {
+        const cardWidth = el.scrollWidth / PILLARS.length;
+        const idx = Math.round(el.scrollLeft / cardWidth);
+        setActiveIndex(idx);
+      }
+      rafIdRef.current = null;
+    });
   }, []);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     el.addEventListener("scroll", handleScroll, { passive: true });
-    return () => el.removeEventListener("scroll", handleScroll);
+    return () => {
+      el.removeEventListener("scroll", handleScroll);
+      if (rafIdRef.current != null) cancelAnimationFrame(rafIdRef.current);
+    };
   }, [handleScroll]);
 
   return (

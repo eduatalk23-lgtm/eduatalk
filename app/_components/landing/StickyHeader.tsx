@@ -19,10 +19,20 @@ export function StickyHeader({ onLoginClick }: StickyHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 10);
+    let rafId: number | null = null;
+    const handler = () => {
+      if (rafId != null) return;
+      rafId = requestAnimationFrame(() => {
+        setScrolled(window.scrollY > 10);
+        rafId = null;
+      });
+    };
     window.addEventListener("scroll", handler, { passive: true });
     handler();
-    return () => window.removeEventListener("scroll", handler);
+    return () => {
+      window.removeEventListener("scroll", handler);
+      if (rafId != null) cancelAnimationFrame(rafId);
+    };
   }, []);
 
   const handleNavClick = useCallback(
