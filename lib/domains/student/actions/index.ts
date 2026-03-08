@@ -84,7 +84,9 @@ export {
 
 export {
   type NotificationSettings,
+  type ChatNotificationPrefs,
   updateNotificationSettings,
+  getChatNotificationPrefs,
 } from "./notifications";
 
 // ============================================

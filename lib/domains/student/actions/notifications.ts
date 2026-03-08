@@ -26,7 +26,47 @@ export type NotificationSettings = {
   plan_update_push_enabled: boolean;
   achievement_push_enabled: boolean;
   event_reminder_push_enabled: boolean;
+  // 채팅 부가 설정
+  chat_sound_enabled: boolean;
+  chat_vibrate_enabled: boolean;
+  chat_read_receipt_enabled: boolean;
 };
+
+export type ChatNotificationPrefs = {
+  chat_sound_enabled: boolean;
+  chat_vibrate_enabled: boolean;
+  chat_read_receipt_enabled: boolean;
+};
+
+export async function getChatNotificationPrefs(): Promise<ChatNotificationPrefs> {
+  const defaults: ChatNotificationPrefs = {
+    chat_sound_enabled: true,
+    chat_vibrate_enabled: true,
+    chat_read_receipt_enabled: true,
+  };
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return defaults;
+
+    const { data } = await supabase
+      .from("student_notification_preferences")
+      .select("chat_sound_enabled, chat_vibrate_enabled, chat_read_receipt_enabled")
+      .eq("student_id", user.id)
+      .single();
+
+    if (!data) return defaults;
+
+    return {
+      chat_sound_enabled: data.chat_sound_enabled ?? true,
+      chat_vibrate_enabled: data.chat_vibrate_enabled ?? true,
+      chat_read_receipt_enabled: data.chat_read_receipt_enabled ?? true,
+    };
+  } catch {
+    return defaults;
+  }
+}
 
 export async function updateNotificationSettings(
   settings: NotificationSettings

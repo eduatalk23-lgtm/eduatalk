@@ -41,6 +41,9 @@ export default async function NotificationSettingsPage() {
     plan_update_push_enabled: true,
     achievement_push_enabled: true,
     event_reminder_push_enabled: true,
+    chat_sound_enabled: true,
+    chat_vibrate_enabled: true,
+    chat_read_receipt_enabled: true,
   };
 
   const settings = notificationSettings || defaultSettings;

@@ -39,6 +39,10 @@ type NotificationSettings = {
   plan_update_push_enabled: boolean;
   achievement_push_enabled: boolean;
   event_reminder_push_enabled: boolean;
+  // 채팅 부가 설정
+  chat_sound_enabled: boolean;
+  chat_vibrate_enabled: boolean;
+  chat_read_receipt_enabled: boolean;
 };
 
 type NotificationSettingsViewProps = {
@@ -88,6 +92,24 @@ const PUSH_CATEGORIES: {
     label: "일정 리마인더",
     description: "캘린더 일정 시작 전 리마인더",
     group: "일정",
+  },
+  {
+    key: "chat_sound_enabled",
+    label: "채팅 알림음",
+    description: "새 메시지를 받을 때 알림음을 재생합니다",
+    group: "채팅 설정",
+  },
+  {
+    key: "chat_vibrate_enabled",
+    label: "채팅 진동",
+    description: "새 메시지를 받을 때 진동으로 알립니다 (모바일)",
+    group: "채팅 설정",
+  },
+  {
+    key: "chat_read_receipt_enabled",
+    label: "읽음 확인",
+    description: "메시지 읽음 상태를 상대방에게 전송합니다",
+    group: "채팅 설정",
   },
 ];
 
