@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
-import { getTeamMembers, getPendingInvitations, getTeamOverview } from "@/lib/domains/team/queries";
+import { getTeamMembers, getTeamOverview } from "@/lib/domains/team/queries";
+import { getTeamInvitations } from "@/lib/domains/invitation/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { TeamMembersList } from "./_components/TeamMembersList";
 import { PendingInvitationsList } from "./_components/PendingInvitationsList";
@@ -17,11 +18,13 @@ export default async function TeamPage() {
   // consultant는 팀원 목록만 볼 수 있음 (초대 불가)
   const canInvite = role === "admin" || role === "superadmin";
 
-  const [members, pendingInvitations, overview] = await Promise.all([
+  const [members, teamInvitationsResult, overview] = await Promise.all([
     getTeamMembers(),
-    canInvite ? getPendingInvitations() : Promise.resolve([]),
+    canInvite ? getTeamInvitations() : Promise.resolve({ success: true, data: [] }),
     getTeamOverview(),
   ]);
+
+  const pendingInvitations = teamInvitationsResult.data ?? [];
 
   // 현재 사용자의 owner 여부 확인
   const currentMember = members.find((m) => m.id === userId);

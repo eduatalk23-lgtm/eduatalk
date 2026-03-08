@@ -2,11 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { cancelInvitation, resendInvitation } from "@/lib/domains/team/actions";
-import type { TeamInvitation } from "@/lib/domains/team/types";
+import { cancelInvitationAction, resendInvitationAction } from "@/lib/domains/invitation/actions";
+import type { Invitation } from "@/lib/domains/invitation/types";
 
 type PendingInvitationsListProps = {
-  invitations: TeamInvitation[];
+  invitations: Invitation[];
 };
 
 export function PendingInvitationsList({
@@ -28,7 +28,7 @@ export function PendingInvitationsList({
     setActioningId(invitationId);
 
     startTransition(async () => {
-      const result = await cancelInvitation(invitationId);
+      const result = await cancelInvitationAction(invitationId);
       setActioningId(null);
 
       if (result.success) {
@@ -45,7 +45,7 @@ export function PendingInvitationsList({
     setActioningId(invitationId);
 
     startTransition(async () => {
-      const result = await resendInvitation(invitationId);
+      const result = await resendInvitationAction(invitationId);
       setActioningId(null);
 
       if (result.success) {
@@ -83,8 +83,9 @@ export function PendingInvitationsList({
         <div className="divide-y divide-amber-200 dark:divide-amber-800">
           {invitations.map((invitation) => {
             const isActioning = actioningId === invitation.id;
-            const roleLabel = invitation.role === "admin" ? "관리자" : "컨설턴트";
+            const roleLabel = invitation.targetRole === "admin" ? "관리자" : "컨설턴트";
             const daysLeft = getDaysUntilExpiry(invitation.expiresAt);
+            const isManualDelivery = invitation.deliveryMethod === "manual" || invitation.deliveryMethod === "qr";
 
             return (
               <div
@@ -112,12 +113,12 @@ export function PendingInvitationsList({
                   {/* Info */}
                   <div>
                     <div className="font-medium text-gray-900 dark:text-gray-100">
-                      {invitation.email}
+                      {invitation.email || invitation.phone || "링크 초대"}
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                       <span
                         className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                          invitation.role === "admin"
+                          invitation.targetRole === "admin"
                             ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                             : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                         }`}
@@ -141,14 +142,16 @@ export function PendingInvitationsList({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {/* Resend Button */}
-                  <button
-                    onClick={() => handleResend(invitation.id)}
-                    disabled={isActioning || isPending}
-                    className="rounded-lg px-3 py-1.5 text-sm font-medium text-blue-600 transition hover:bg-blue-50 disabled:opacity-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
-                  >
-                    {isActioning ? "처리 중..." : "재발송"}
-                  </button>
+                  {/* Resend Button (only for email/sms/kakao delivery) */}
+                  {!isManualDelivery && (
+                    <button
+                      onClick={() => handleResend(invitation.id)}
+                      disabled={isActioning || isPending}
+                      className="rounded-lg px-3 py-1.5 text-sm font-medium text-blue-600 transition hover:bg-blue-50 disabled:opacity-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                    >
+                      {isActioning ? "처리 중..." : "재발송"}
+                    </button>
+                  )}
 
                   {/* Cancel Button */}
                   <button
