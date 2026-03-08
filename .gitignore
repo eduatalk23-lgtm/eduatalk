@@ -95,3 +95,5 @@ test-results/
 
 # Claude Code memory (auto-generated)
 memory/
+# Database dumps
+dump_*.sql
