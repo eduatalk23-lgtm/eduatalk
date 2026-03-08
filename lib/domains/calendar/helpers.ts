@@ -8,6 +8,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { EventType } from "./types";
+import { pickNextCalendarColor } from "@/lib/constants/calendarColors";
 
 // ============================================
 // calendar_id resolve
@@ -55,6 +56,16 @@ export async function ensureStudentPrimaryCalendar(
 
   const supabase = await createSupabaseServerClient();
 
+  // 기존 캘린더 색상 조회 → 자동 색상 할당
+  const { data: existingCals } = await supabase
+    .from("calendars")
+    .select("default_color")
+    .eq("owner_id", studentId)
+    .is("deleted_at", null);
+  const autoColor = pickNextCalendarColor(
+    (existingCals ?? []).map((c) => c.default_color as string | null)
+  );
+
   // Primary Calendar 생성
   const { data: calendar, error: calError } = await supabase
     .from("calendars")
@@ -63,6 +74,7 @@ export async function ensureStudentPrimaryCalendar(
       owner_id: studentId,
       owner_type: "student",
       summary: "기본 캘린더",
+      default_color: autoColor,
       is_primary: true,
       is_student_primary: true,
       source_type: "local",

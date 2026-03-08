@@ -405,7 +405,7 @@ function DroppableAdminDayCellComponent({
             exit={{ opacity: 0 }}
             transition={{
               opacity: { duration: 0.15 },
-              x: { duration: 0.4, repeat: Infinity, repeatDelay: 0.3 }
+              x: { duration: 0.4, repeat: 2, repeatDelay: 0.3 }
             }}
             className="absolute inset-0 flex items-center justify-center bg-red-50/80 rounded z-10"
           >

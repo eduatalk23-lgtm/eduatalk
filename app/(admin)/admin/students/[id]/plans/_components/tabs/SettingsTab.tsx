@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useTransition, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, AlertCircle, Info, Plus, X, Save, Copy, Check } from "lucide-react";
+import { Loader2, AlertCircle, Info, Plus, X, Save, Copy, Check, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useAdminPlanBasic } from "../context/AdminPlanContext";
 import type { NonStudyTimeBlock } from "@/lib/domains/admin-plan/types";
@@ -12,6 +12,7 @@ import {
 } from "@/lib/domains/calendar/actions/calendars";
 import type { CalendarSettings } from "@/lib/domains/admin-plan/types";
 import { useToast } from "@/components/ui/ToastProvider";
+import { usePlanTabState } from "../hooks/usePlanTabState";
 import type { TimeRange } from "@/lib/features/wizard/types/data";
 import { WeeklyAvailabilityTimeline } from "../admin-wizard/steps/_components/WeeklyAvailabilityTimeline";
 import PlannerCalendarView from "../planner-calendar/PlannerCalendarView";
@@ -97,6 +98,7 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
   const router = useRouter();
   const { selectedCalendarId, isAdminMode, studentId, canEditSettings } = useAdminPlanBasic();
   const { showSuccess, showError } = useToast();
+  const { handleTabChange } = usePlanTabState();
   const [isPending, startTransition] = useTransition();
 
   const [calSettings, setCalSettings] = useState<CalendarSettings | null>(null);
@@ -484,6 +486,19 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
   // ════════════════════════════════════════════
   return (
     <div className="h-full flex flex-col">
+      {/* 헤더: 뒤로가기 + 제목 */}
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 shrink-0">
+        <button
+          type="button"
+          onClick={() => handleTabChange("planner")}
+          className="p-1.5 -ml-1.5 rounded-full hover:bg-gray-100 transition-colors"
+          title="캘린더로 돌아가기"
+        >
+          <ArrowLeft className="w-5 h-5 text-gray-600" />
+        </button>
+        <h2 className="text-base font-semibold text-gray-900">캘린더 설정</h2>
+      </div>
+
       {/* 읽기 전용 배너 */}
       {disabled && (
         <div className="flex items-center gap-2 px-4 py-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg mx-4 mt-4 shrink-0">

@@ -153,8 +153,6 @@ export function expandRRule(
     const dtstartDate = parseUTCDate(dtstart);
     const afterDate = parseUTCDate(rangeStart);
     const beforeDate = parseUTCDate(rangeEnd);
-    // 범위를 하루 더 확장 (inclusive)
-    beforeDate.setUTCDate(beforeDate.getUTCDate() + 1);
 
     // RRULE에 DTSTART가 없으면 추가
     const fullRuleStr = rruleStr.startsWith('RRULE:')

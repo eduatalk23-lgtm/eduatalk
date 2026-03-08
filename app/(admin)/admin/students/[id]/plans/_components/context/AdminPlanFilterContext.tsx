@@ -16,7 +16,7 @@ import { useAdminPlanRealtime } from "@/lib/realtime";
 import { useTargetedDockInvalidation } from "@/lib/hooks/useAdminDockQueries";
 import { studentCalendarsQueryOptions, calendarEventKeys } from "@/lib/query-options/calendarEvents";
 import { useAdminPlanBasic, type ViewMode } from "./AdminPlanBasicContext";
-import { EVENT_COLOR_PALETTE } from "../utils/eventColors";
+import { EVENT_COLOR_PALETTE, getEventColor } from "../utils/eventColors";
 
 /**
  * Filter Context - 필터/선택 상태
@@ -50,8 +50,10 @@ export interface AdminPlanFilterContextValue {
   calendarColorMap: Map<string, string>;
   /** 캘린더 색상 업데이트 (사이드바 컨텍스트 메뉴에서 호출) */
   updateCalendarColor: (calendarId: string, color: string) => Promise<void>;
-  /** 모든 Dock 새로고침 (전체) */
+  /** 모든 Dock 새로고침 (전체: 캐시 무효화 + router.refresh) */
   handleRefresh: () => void;
+  /** React Query 캐시만 무효화 (router.refresh 없이) — transition 간섭 없이 즉시 refetch */
+  invalidateQueries: () => void;
   /** Daily Dock만 새로고침 */
   refreshDaily: () => void;
   /** Daily + Weekly 새로고침 (플랜 이동 시) */
@@ -96,13 +98,15 @@ export function AdminPlanFilterProvider({
   });
 
   // 캘린더별 색상 맵 (calendarId → hex)
+  // default_color는 팔레트 키('tomato') 또는 hex('#d50000')일 수 있으므로 항상 hex로 변환
   const calendarColorMap = useMemo(() => {
     const map = new Map<string, string>();
     allCalendars.forEach((cal, i) => {
-      map.set(
-        cal.id,
-        cal.default_color ?? EVENT_COLOR_PALETTE[i % EVENT_COLOR_PALETTE.length].hex
-      );
+      const raw = cal.default_color as string | null;
+      const resolved = raw
+        ? (getEventColor(raw)?.hex ?? raw)
+        : EVENT_COLOR_PALETTE[i % EVENT_COLOR_PALETTE.length].hex;
+      map.set(cal.id, resolved);
     });
     return map;
   }, [allCalendars]);
@@ -189,6 +193,10 @@ export function AdminPlanFilterProvider({
     });
   }, [router, invalidateAll]);
 
+  // React Query 캐시만 무효화 (router.refresh 없이)
+  // useTransition 내에서 호출 시 transition 간섭 없이 즉시 refetch 보장
+  const invalidateQueries = invalidateAll;
+
   const effectiveFilterId = selectedCalendarId ?? undefined;
 
   // Daily Dock만 새로고침
@@ -229,6 +237,7 @@ export function AdminPlanFilterProvider({
       calendarColorMap,
       updateCalendarColor,
       handleRefresh,
+      invalidateQueries,
       refreshDaily,
       refreshDailyAndWeekly,
       refreshDailyAndUnfinished,
@@ -246,6 +255,7 @@ export function AdminPlanFilterProvider({
       calendarColorMap,
       updateCalendarColor,
       handleRefresh,
+      invalidateQueries,
       refreshDaily,
       refreshDailyAndWeekly,
       refreshDailyAndUnfinished,

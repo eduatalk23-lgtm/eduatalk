@@ -145,9 +145,8 @@ async function _getEventsByCalendar(
 ): Promise<CalendarEventWithStudyData[]> {
   const supabase = await createSupabaseServerClient();
 
-  const selectFields = options?.includeStudyData !== false
-    ? "*, event_study_data(*)"
-    : "*, event_study_data(*)";
+  // NOTE: includeStudyData=false 시 JOIN 생략하려면 반환 타입도 분리 필요
+  const selectFields = "*, event_study_data(*)";
 
   let query = supabase
     .from("calendar_events")

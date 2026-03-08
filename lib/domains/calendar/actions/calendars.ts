@@ -17,6 +17,7 @@ import type {
   CalendarListWithCalendar,
   CalendarOwnerType,
 } from "../types";
+import { CALENDAR_COLOR_KEYS, pickNextCalendarColor } from "@/lib/constants/calendarColors";
 
 // ============================================
 // Calendar CRUD
@@ -35,6 +36,19 @@ async function _createCalendar(
 ): Promise<{ calendarId: string; calendar: Calendar }> {
   const supabase = await createSupabaseServerClient();
 
+  // 색상 미지정 시 기존 캘린더와 겹치지 않는 색상 자동 할당
+  let resolvedColor = input.color ?? null;
+  if (!resolvedColor) {
+    const { data: existing } = await supabase
+      .from("calendars")
+      .select("default_color")
+      .eq("owner_id", input.studentId)
+      .is("deleted_at", null);
+    resolvedColor = pickNextCalendarColor(
+      (existing ?? []).map((c) => c.default_color as string | null)
+    );
+  }
+
   const { data: calendar, error } = await supabase
     .from("calendars")
     .insert({
@@ -43,7 +57,7 @@ async function _createCalendar(
       owner_type: "student" as CalendarOwnerType,
       summary: input.summary,
       description: input.description ?? null,
-      default_color: input.color ?? null,
+      default_color: resolvedColor,
       is_primary: false,
       is_student_primary: false,
       source_type: "local",
@@ -323,6 +337,19 @@ async function _createCalendarWithSettings(
     input.nonStudyTimeBlocks
   );
 
+  // 색상 미지정 시 기존 캘린더와 겹치지 않는 색상 자동 할당
+  let resolvedColor = input.color ?? null;
+  if (!resolvedColor) {
+    const { data: existing } = await supabase
+      .from("calendars")
+      .select("default_color")
+      .eq("owner_id", input.studentId)
+      .is("deleted_at", null);
+    resolvedColor = pickNextCalendarColor(
+      (existing ?? []).map((c) => c.default_color as string | null)
+    );
+  }
+
   const { data, error } = await supabase
     .from("calendars")
     .insert({
@@ -331,7 +358,7 @@ async function _createCalendarWithSettings(
       owner_type: "student" as CalendarOwnerType,
       summary: input.name,
       description: input.description ?? null,
-      default_color: input.color ?? null,
+      default_color: resolvedColor,
       is_primary: false,
       is_student_primary: false,
       source_type: "local",

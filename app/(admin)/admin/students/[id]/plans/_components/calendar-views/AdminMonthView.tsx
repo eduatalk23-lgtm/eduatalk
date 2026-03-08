@@ -580,13 +580,15 @@ export default function AdminMonthView({
           className={cn('z-[9999] transition-opacity duration-150', isQcPositioned ? 'opacity-100' : 'opacity-0')}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="bg-[rgb(var(--color-secondary-50))] rounded-lg shadow-lg border border-[rgb(var(--color-secondary-200))]">
+          <div className="bg-[rgb(var(--color-secondary-50))] rounded-2xl shadow-lg border border-[rgb(var(--color-secondary-200))]">
             <InlineQuickCreate
               slot={quickCreateState.slot}
               initialMode={quickCreateState.isAllDay ? 'allDay' : 'timed'}
               studentId={studentId}
               tenantId={tenantId}
               calendarId={calendarId}
+              calendarName={selectedCalendarSettings?.name}
+              calendarColorHex={calendarColorMap.get(calendarId ?? '') ?? undefined}
               planDate={quickCreateState.date}
               planGroupId={planGroupId}
               onSuccess={(createdInfo) => {

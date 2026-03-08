@@ -1166,6 +1166,8 @@ export interface CalendarEventFullUpdate {
   title?: string;
   description?: string | null;
   color?: string | null;
+  /** 이벤트를 다른 캘린더로 이동 */
+  calendar_id?: string;
   start_at?: string | null;
   end_at?: string | null;
   start_date?: string | null;

@@ -82,6 +82,8 @@ interface DailyDockGridViewProps {
   showHolidays?: boolean;
   /** 캘린더별 색상 맵 (calendarId → hex) — 이벤트 블록 + 종일 바에 사용 */
   calendarColorMap?: Map<string, string>;
+  /** 활성 캘린더 이름 (QuickCreate 표시용) */
+  calendarName?: string;
 }
 
 const ALL_DAY_COLLAPSE_THRESHOLD = 2;
@@ -113,6 +115,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
   defaultReminderMinutes,
   showHolidays = true,
   calendarColorMap,
+  calendarName: calendarNameProp,
 }: DailyDockGridViewProps) {
   const router = useRouter();
   const ppm = ppmProp ?? PX_PER_MINUTE;
@@ -848,6 +851,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
 
   const dayInfo = formatDayHeader(selectedDate);
   const holidayName = showHolidays ? getHolidayName(selectedDate) : null;
+  const queryLower = searchQuery?.toLowerCase() ?? '';
 
   return (
     <>
@@ -856,7 +860,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
       role="grid"
       aria-label="일간 캘린더 그리드"
       aria-busy={isLoading}
-      className="relative overflow-x-hidden h-full"
+      className="relative overflow-x-hidden h-full scroll-gpu"
       style={{ overflowY: 'auto', scrollbarGutter: 'stable', overscrollBehaviorY: 'contain' }}
     >
       {/* Pull-to-Refresh 인디케이터 */}
@@ -1085,7 +1089,6 @@ export const DailyDockGridView = memo(function DailyDockGridView({
           {/* 이벤트 블록 (학습 + 비학습 통합, GCal 단색 스타일) */}
           {planBlocks.map((block) => {
             const isThisResizing = isResizing && resizingPlanId === block.id;
-            const queryLower = searchQuery?.toLowerCase() ?? '';
             const isHighlighted = queryLower
               ? [block.plan.title, block.plan.subject]
                   .some((f) => f?.toLowerCase().includes(queryLower))
@@ -1152,13 +1155,15 @@ export const DailyDockGridView = memo(function DailyDockGridView({
         className={cn('z-[9999] transition-opacity duration-150', isQcPositioned ? 'opacity-100' : 'opacity-0')}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-[rgb(var(--color-secondary-50))] rounded-lg shadow-lg border border-[rgb(var(--color-secondary-200))]">
+        <div className="bg-[rgb(var(--color-secondary-50))] rounded-2xl shadow-lg border border-[rgb(var(--color-secondary-200))]">
           <InlineQuickCreate
             slot={quickCreateState.slot}
             initialMode={quickCreateState.isAllDay ? 'allDay' : 'timed'}
             studentId={studentId}
             tenantId={tenantId}
             calendarId={calendarId}
+            calendarName={calendarNameProp}
+            calendarColorHex={calendarColorMap?.get(calendarId ?? '') ?? undefined}
             planDate={selectedDate}
             planGroupId={planGroupId}
             defaultEstimatedMinutes={defaultEstimatedMinutes}

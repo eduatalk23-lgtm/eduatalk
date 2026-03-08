@@ -16,6 +16,8 @@ interface AdminCalendarWrapperProps {
   pageData: CalendarPageData | null;
   /** 관리자 본인 캘린더 모드 */
   isPersonalMode?: boolean;
+  /** 현재 사용자 ID (권한 확인용) */
+  currentUserId?: string;
 }
 
 export function AdminCalendarWrapper({
@@ -25,6 +27,7 @@ export function AdminCalendarWrapper({
   calendarId,
   pageData,
   isPersonalMode = false,
+  currentUserId,
 }: AdminCalendarWrapperProps) {
   // 데이터 없음: 학생 선택 프롬프트 (personal 모드가 아닌 경우에만)
   if ((!studentId || !calendarId || !pageData || !tenantId) && !isPersonalMode) {
@@ -79,6 +82,8 @@ export function AdminCalendarWrapper({
           calendarDateTimeSlots={pageData!.calendarDateTimeSlots}
           initialDockData={pageData!.initialDockData}
           viewMode={isPersonalMode ? "personal" : "admin"}
+          currentUserId={currentUserId}
+          selectedCalendarSettings={pageData!.calendarSettings}
           studentSwitcher={
             <StudentSwitcher
               currentStudentId={studentId}

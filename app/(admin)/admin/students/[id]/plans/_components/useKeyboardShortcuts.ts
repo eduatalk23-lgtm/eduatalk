@@ -18,7 +18,41 @@ interface UseKeyboardShortcutsOptions {
 }
 
 /**
+ * event.code → 영문 키 매핑 (특수 키용)
+ * 한글 IME 활성 시 event.key가 한글 문자('ㅅ' 등)로 변환되므로,
+ * 물리적 키 위치(event.code)에서 영문자를 추출하여 매칭합니다.
+ */
+const CODE_SPECIAL_MAP: Record<string, string> = {
+  BracketLeft: '[',
+  BracketRight: ']',
+  Slash: '/',
+  Backslash: '\\',
+  Minus: '-',
+  Equal: '=',
+  Semicolon: ';',
+  Quote: "'",
+  Comma: ',',
+  Period: '.',
+  Backquote: '`',
+};
+
+function getKeyFromCode(code: string): string | null {
+  // KeyA~KeyZ → a~z
+  if (code.startsWith('Key') && code.length === 4) {
+    return code.charAt(3).toLowerCase();
+  }
+  // Digit0~Digit9 → 0~9
+  if (code.startsWith('Digit') && code.length === 6) {
+    return code.charAt(5);
+  }
+  return CODE_SPECIAL_MAP[code] ?? null;
+}
+
+/**
  * 키보드 단축키 훅
+ *
+ * 한글 IME 호환: event.key와 event.code 둘 다 검사하여
+ * 입력 언어와 무관하게 물리적 키 위치 기준으로 단축키를 매칭합니다.
  */
 export function useKeyboardShortcuts({
   enabled = true,
@@ -26,6 +60,9 @@ export function useKeyboardShortcuts({
 }: UseKeyboardShortcutsOptions) {
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
+      // IME 조합 중에는 무시 (한글 입력 중간 상태)
+      if (event.isComposing) return;
+
       // 입력 필드에서는 단축키 비활성화
       const target = event.target as HTMLElement;
       if (
@@ -37,8 +74,18 @@ export function useKeyboardShortcuts({
         return;
       }
 
+      // event.key 기반 매칭 (영문 모드, 특수키, Arrow 등)
+      // + event.code 기반 매칭 (한글 IME 활성 시 폴백)
+      const pressedKey = event.key.toLowerCase();
+      const codeKey = getKeyFromCode(event.code);
+
       for (const shortcut of shortcuts) {
-        const keyMatch = event.key.toLowerCase() === shortcut.key.toLowerCase();
+        const shortcutKey = shortcut.key.toLowerCase();
+
+        // Shift+? 같은 경우: event.key='?' 로 직접 매칭
+        // 일반 문자(t, d, w 등): event.key 또는 event.code로 매칭
+        const keyMatch = pressedKey === shortcutKey || (codeKey !== null && codeKey === shortcutKey);
+
         const ctrlMatch = shortcut.ctrl ? event.ctrlKey || event.metaKey : !event.ctrlKey && !event.metaKey;
         const shiftMatch = shortcut.shift ? event.shiftKey : !event.shiftKey;
         const altMatch = shortcut.alt ? event.altKey : !event.altKey;

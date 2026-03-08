@@ -170,7 +170,7 @@ export const EventDetailPopover = memo(function EventDetailPopover({
   const innerContent = (
     <>
       {/* 우상단 아이콘 버튼 */}
-      <div className="flex items-center justify-end gap-0.5 px-2 pt-2">
+      <div className="flex items-center justify-end gap-0.5 px-3 pt-3">
         {onEdit && (
           <button
             onClick={() => {
@@ -213,7 +213,7 @@ export const EventDetailPopover = memo(function EventDetailPopover({
       </div>
 
       {/* 콘텐츠 */}
-      <div className="px-4 pb-3 space-y-2">
+      <div className="px-4 pb-4 space-y-3">
         {/* 제목 + 색상 인디케이터 (통합) */}
         <div className="flex items-center gap-2">
           {(() => {
@@ -324,7 +324,7 @@ export const EventDetailPopover = memo(function EventDetailPopover({
         {plan.description && (
           <div className="flex items-start gap-1.5 text-xs text-[var(--text-secondary)]">
             <FileText className="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0 mt-0.5" />
-            <span className="line-clamp-3 whitespace-pre-wrap">{plan.description}</span>
+            <span className="whitespace-pre-wrap">{plan.description}</span>
           </div>
         )}
 
@@ -346,7 +346,7 @@ export const EventDetailPopover = memo(function EventDetailPopover({
 
       {/* 학습 완료/취소 버튼 — Task 이벤트만 */}
       {isTask && onQuickStatusChange && (
-        <div className="px-4 pb-3 pt-1">
+        <div className="px-4 pb-4 pt-2">
           <button
             type="button"
             onClick={() => {
@@ -419,7 +419,7 @@ export const EventDetailPopover = memo(function EventDetailPopover({
       aria-labelledby="event-detail-title"
       tabIndex={-1}
       className={cn(
-        'z-[9999] w-[260px] bg-[rgb(var(--color-secondary-50))] rounded-xl shadow-xl border border-[rgb(var(--color-secondary-200))] overflow-hidden focus:outline-none',
+        'z-[9999] w-[320px] max-h-[70vh] overflow-y-auto bg-[rgb(var(--color-secondary-50))] rounded-xl shadow-xl border border-[rgb(var(--color-secondary-200))] focus:outline-none',
         'transition-opacity duration-150',
         isPositioned ? 'opacity-100' : 'opacity-0',
       )}

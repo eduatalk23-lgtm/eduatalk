@@ -83,7 +83,7 @@ export function RecurrenceSelector({
         value={selectValue}
         onChange={(e) => handleChange(e.target.value)}
         disabled={disabled}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-[rgb(var(--color-secondary-300))] bg-[rgb(var(--color-secondary-50))] focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 disabled:opacity-50"
+        className="w-auto px-2 py-1.5 text-sm rounded-md border border-[rgb(var(--color-secondary-300))] bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 disabled:opacity-50 cursor-pointer"
       >
         {presets.map((preset) => (
           <option key={preset.label} value={preset.rrule ?? ''}>

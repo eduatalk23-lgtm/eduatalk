@@ -353,14 +353,14 @@ export const WeeklyCalendar = memo(function WeeklyCalendar({
           className={cn(
             'p-1 rounded-full transition-colors',
             canGoPrevWeek
-              ? 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-              : 'text-gray-300 cursor-not-allowed'
+              ? 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100'
+              : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
           )}
           title="이전 주차"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <span className="text-sm font-medium text-gray-700">
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
           {currentWeekNumber != null
             ? `${currentWeekNumber}주차 (${getDateRangeString()})`
             : getDateRangeString()}
@@ -371,8 +371,8 @@ export const WeeklyCalendar = memo(function WeeklyCalendar({
           className={cn(
             'p-1 rounded-full transition-colors',
             canGoNextWeek
-              ? 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-              : 'text-gray-300 cursor-not-allowed'
+              ? 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100'
+              : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
           )}
           title="다음 주차"
         >

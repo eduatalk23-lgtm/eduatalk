@@ -1,127 +1,72 @@
 'use client';
 
-import { format, parseISO } from 'date-fns';
-import { ko } from 'date-fns/locale';
-import { Clock, Bell, Palette, AlignLeft, BookOpen, Calendar as CalendarIcon, Tag, CheckSquare } from 'lucide-react';
-import { TimePickerDropdown } from '../../_components/items/TimePickerDropdown';
-import { RecurrenceSelector } from '../../_components/items/RecurrenceSelector';
-import { useState } from 'react';
-import { EVENT_COLOR_PALETTE, isValidHexColor } from '../../_components/utils/eventColors';
+import { Bell, FileText, BookOpen, Tag, Calendar, Plus, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useFloating, offset, flip, shift, autoUpdate } from '@floating-ui/react';
+import { GCAL_CORE_COLORS, COLORS_BY_FAMILY, getEventColor } from '../../_components/utils/eventColors';
 import { REMINDER_PRESETS } from '@/lib/domains/calendar/reminders';
 import { SUPPORTED_SUBJECT_CATEGORIES } from '@/lib/domains/plan/llm/actions/coldStart/types';
 import { cn } from '@/lib/cn';
 import { LABEL_PRESETS, getPresetForLabel } from '@/lib/domains/calendar/labelPresets';
 import type { EventEditFormState } from './useEventEditForm';
 
+export interface CalendarOption {
+  id: string;
+  summary: string;
+  defaultColor: string | null;
+}
+
 interface EventEditLeftColumnProps {
   form: EventEditFormState;
   setField: <K extends keyof EventEditFormState>(key: K, value: EventEditFormState[K]) => void;
   setLabel: (newLabel: string) => void;
+  /** 학생의 캘린더 목록 (캘린더 선택 드롭다운용) */
+  calendars?: CalendarOption[];
 }
 
-export function EventEditLeftColumn({ form, setField, setLabel }: EventEditLeftColumnProps) {
-  const dateDisplay = (() => {
-    try {
-      return format(parseISO(form.date), 'M/d (E)', { locale: ko });
-    } catch {
-      return form.date;
-    }
-  })();
+const inputCls = 'rounded-lg border border-[rgb(var(--color-secondary-300))] bg-transparent px-3 py-2 text-sm text-[var(--text-primary)] focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500';
+
+/** 알림 프리셋에서 값이 있는 것만 (선택 드롭다운용) */
+const REMINDER_OPTIONS = REMINDER_PRESETS.filter((p) => p.value != null) as { label: string; value: number }[];
+
+export function EventEditLeftColumn({ form, setField, setLabel, calendars }: EventEditLeftColumnProps) {
+  const addReminder = (minutes: number) => {
+    if (form.reminderMinutes.includes(minutes)) return;
+    setField('reminderMinutes', [...form.reminderMinutes, minutes].sort((a, b) => a - b));
+  };
+
+  const removeReminder = (minutes: number) => {
+    setField('reminderMinutes', form.reminderMinutes.filter((m) => m !== minutes));
+  };
+
+  // 추가할 수 있는 알림 옵션 (이미 추가된 것 제외)
+  const availableReminders = REMINDER_OPTIONS.filter((p) => !form.reminderMinutes.includes(p.value));
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Title */}
-      <div>
-        <input
-          type="text"
-          value={form.title}
-          onChange={(e) => setField('title', e.target.value)}
-          placeholder="제목 추가"
-          className="w-full border-0 border-b-2 border-gray-200 bg-transparent px-1 pb-2 text-xl font-medium text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-0"
-          autoFocus
-        />
-      </div>
-
-      {/* Label Preset */}
-      <Section icon={<Tag className="h-5 w-5" />} label="일정 유형">
+    <div className="flex flex-col gap-4">
+      {/* Label Preset + Task Toggle (inline) */}
+      <Section icon={<Tag className="h-5 w-5" />}>
         <LabelPresetSelector value={form.label} onChange={setLabel} />
-      </Section>
-
-      {/* Task Toggle */}
-      <Section icon={<CheckSquare className="h-5 w-5" />} label="태스크">
-        <label className="flex items-center gap-2">
+        <label className="mt-2 flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
             checked={form.isTask}
             onChange={(e) => setField('isTask', e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            className="h-3.5 w-3.5 rounded border-[rgb(var(--color-secondary-300))] text-blue-600 focus:ring-blue-500"
           />
-          <span className="text-sm text-gray-700">
+          <span className="text-xs text-[var(--text-tertiary)]">
             태스크로 관리 {form.isTask ? '(완료 체크 가능)' : '(일정만 표시)'}
           </span>
         </label>
       </Section>
 
-      {/* Date & Time */}
-      <Section icon={<Clock className="h-5 w-5" />} label="날짜/시간">
-        <div className="flex flex-col gap-3">
-          {/* Date */}
-          <div className="flex items-center gap-3">
-            <input
-              type="date"
-              value={form.date}
-              onChange={(e) => setField('date', e.target.value)}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
-            />
-            <span className="text-sm text-gray-600">{dateDisplay}</span>
-          </div>
-
-          {/* All day toggle */}
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={form.isAllDay}
-              onChange={(e) => setField('isAllDay', e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-sm text-gray-700">종일</span>
-          </label>
-
-          {/* Time pickers (hidden when all-day) */}
-          {!form.isAllDay && (
-            <div className="flex items-center gap-2">
-              <TimePickerDropdown
-                value={form.startTime}
-                onChange={(t) => setField('startTime', t)}
-                label="시작"
-              />
-              <span className="text-gray-400">—</span>
-              <TimePickerDropdown
-                value={form.endTime}
-                onChange={(t) => setField('endTime', t)}
-                referenceTime={form.startTime}
-                minTime={form.startTime}
-                label="종료"
-              />
-            </div>
-          )}
-
-          {/* Recurrence */}
-          <RecurrenceSelector
-            value={form.rrule}
-            onChange={(rrule) => setField('rrule', rrule)}
-            eventDate={form.date}
-          />
-        </div>
-      </Section>
-
-      {/* Subject (study only) */}
-      {form.hasStudyData && (
-        <Section icon={<BookOpen className="h-5 w-5" />} label="과목">
+      {/* Subject (study only) — with transition */}
+      <AnimatedCollapse open={form.hasStudyData}>
+        <Section icon={<BookOpen className="h-5 w-5" />}>
           <select
             value={form.subject}
             onChange={(e) => setField('subject', e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className={cn(inputCls, 'w-full')}
           >
             <option value="">선택 안함</option>
             {SUPPORTED_SUBJECT_CATEGORIES.map((cat) => (
@@ -129,48 +74,57 @@ export function EventEditLeftColumn({ form, setField, setLabel }: EventEditLeftC
             ))}
           </select>
         </Section>
-      )}
+      </AnimatedCollapse>
 
-      {/* Color */}
-      <ColorPickerSection color={form.color} setField={setField} />
+      {/* Calendar + Color (한 행 배치, 드롭다운) */}
+      <CalendarAndColorRow
+        calendarId={form.calendarId}
+        calendars={calendars}
+        onCalendarChange={(id) => setField('calendarId', id)}
+        color={form.color}
+        onColorChange={(c) => setField('color', c)}
+      />
 
-      {/* Reminder */}
-      <Section icon={<Bell className="h-5 w-5" />} label="알림">
-        <select
-          value={form.reminderMinutes ?? ''}
-          onChange={(e) => setField('reminderMinutes', e.target.value ? Number(e.target.value) : null)}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
-        >
-          {REMINDER_PRESETS.map((p) => (
-            <option key={p.label} value={p.value ?? ''}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-      </Section>
+      {/* Reminder — multi-reminder with "알림 추가" pattern */}
+      <Section icon={<Bell className="h-5 w-5" />}>
+        <div className="flex flex-col gap-2">
+          {/* 추가된 알림 목록 */}
+          {form.reminderMinutes.map((m) => {
+            const preset = REMINDER_OPTIONS.find((p) => p.value === m);
+            return (
+              <div key={m} className="flex items-center gap-2">
+                <span className="text-sm text-[var(--text-primary)]">
+                  {preset?.label ?? `${m}분 전`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeReminder(m)}
+                  className="p-0.5 rounded-full text-[var(--text-tertiary)] hover:text-red-500 hover:bg-red-50 transition-colors"
+                  aria-label="알림 삭제"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            );
+          })}
 
-      {/* Status (edit mode) */}
-      <Section icon={<CalendarIcon className="h-5 w-5" />} label="상태">
-        <select
-          value={form.status}
-          onChange={(e) => setField('status', e.target.value)}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
-        >
-          <option value="confirmed">대기중</option>
-          <option value="tentative">진행중</option>
-          <option value="completed">완료</option>
-          <option value="cancelled">취소됨</option>
-        </select>
+          {/* 알림 추가 */}
+          {availableReminders.length > 0 ? (
+            <ReminderAdder options={availableReminders} onAdd={addReminder} />
+          ) : form.reminderMinutes.length === 0 ? (
+            <ReminderAdder options={REMINDER_OPTIONS} onAdd={addReminder} />
+          ) : null}
+        </div>
       </Section>
 
       {/* Description */}
-      <Section icon={<AlignLeft className="h-5 w-5" />} label="설명">
+      <Section icon={<FileText className="h-5 w-5" />}>
         <textarea
           value={form.description}
           onChange={(e) => setField('description', e.target.value)}
           placeholder="설명 추가"
-          rows={3}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
+          rows={8}
+          className={cn(inputCls, 'w-full placeholder:text-[var(--text-tertiary)] resize-none')}
         />
       </Section>
     </div>
@@ -178,112 +132,294 @@ export function EventEditLeftColumn({ form, setField, setLabel }: EventEditLeftC
 }
 
 // ============================================
-// Color picker with 24 colors + hex input
+// Animated Collapse (U-14)
 // ============================================
 
-function ColorPickerSection({
+function AnimatedCollapse({ open, children }: { open: boolean; children: React.ReactNode }) {
+  return (
+    <div
+      className={cn(
+        'grid transition-[grid-template-rows,opacity] duration-200 ease-in-out',
+        open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
+      )}
+    >
+      <div className="overflow-hidden">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// Reminder Adder (U-7)
+// ============================================
+
+function ReminderAdder({
+  options,
+  onAdd,
+}: {
+  options: { label: string; value: number }[];
+  onAdd: (minutes: number) => void;
+}) {
+  const [showSelect, setShowSelect] = useState(false);
+
+  if (!showSelect) {
+    return (
+      <button
+        type="button"
+        onClick={() => setShowSelect(true)}
+        className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 transition-colors w-fit"
+      >
+        <Plus className="h-3.5 w-3.5" />
+        알림 추가
+      </button>
+    );
+  }
+
+  return (
+    <select
+      autoFocus
+      className={cn(inputCls, 'w-full')}
+      defaultValue=""
+      onChange={(e) => {
+        if (e.target.value) {
+          onAdd(Number(e.target.value));
+        }
+        setShowSelect(false);
+      }}
+      onBlur={() => setShowSelect(false)}
+    >
+      <option value="" disabled>알림 선택...</option>
+      {options.map((p) => (
+        <option key={p.value} value={p.value}>{p.label}</option>
+      ))}
+    </select>
+  );
+}
+
+// ============================================
+// Calendar + Color (한 행, 드롭다운)
+// ============================================
+
+function CalendarAndColorRow({
+  calendarId,
+  calendars,
+  onCalendarChange,
   color,
-  setField,
+  onColorChange,
+}: {
+  calendarId: string | null;
+  calendars?: CalendarOption[];
+  onCalendarChange: (id: string) => void;
+  color: string | null;
+  onColorChange: (c: string | null) => void;
+}) {
+  const selectedColorEntry = color ? getEventColor(color) : null;
+  const colorHex = selectedColorEntry?.hex ?? color ?? undefined;
+
+  return (
+    <Section icon={<Calendar className="h-5 w-5" />}>
+      <div className="flex items-center gap-2">
+        {/* 캘린더 드롭다운 */}
+        {calendars && calendars.length > 1 ? (
+          <select
+            value={calendarId ?? ''}
+            onChange={(e) => onCalendarChange(e.target.value)}
+            className={cn(inputCls, 'flex-1 min-w-0 truncate')}
+          >
+            {calendars.map((cal) => (
+              <option key={cal.id} value={cal.id}>{cal.summary}</option>
+            ))}
+          </select>
+        ) : (
+          <span className="flex-1 min-w-0 truncate text-sm text-[var(--text-secondary)]">
+            {calendars?.[0]?.summary ?? '캘린더'}
+          </span>
+        )}
+
+        {/* 색상 드롭다운 */}
+        <ColorDropdown color={color} colorHex={colorHex} onChange={onColorChange} />
+      </div>
+    </Section>
+  );
+}
+
+function ColorDropdown({
+  color,
+  colorHex,
+  onChange,
 }: {
   color: string | null;
-  setField: (field: 'color', value: string | null) => void;
+  colorHex: string | undefined;
+  onChange: (c: string | null) => void;
 }) {
-  const [hexInput, setHexInput] = useState('');
-  const [showHexInput, setShowHexInput] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [showExtended, setShowExtended] = useState(false);
 
-  // 현재 색상이 커스텀 hex인지 확인
-  const isCustomHex = color !== null && color.startsWith('#');
+  const { refs, floatingStyles } = useFloating({
+    placement: 'bottom-end',
+    strategy: 'fixed',
+    open,
+    middleware: [
+      offset(4),
+      flip({ padding: 8 }),
+      shift({ padding: 8 }),
+    ],
+    whileElementsMounted: autoUpdate,
+  });
 
-  const handleHexSubmit = () => {
-    const hex = hexInput.startsWith('#') ? hexInput : `#${hexInput}`;
-    if (isValidHexColor(hex)) {
-      setField('color', hex);
-      setShowHexInput(false);
-    }
+  // 외부 클릭 닫기
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
+      const reference = refs.domReference.current;
+      const floating = refs.floating.current;
+      if (reference?.contains(target) || floating?.contains(target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open, refs]);
+
+  // 닫힐 때 확장 패널 리셋
+  useEffect(() => {
+    if (!open) setShowExtended(false);
+  }, [open]);
+
+  const handleSelect = (key: string | null) => {
+    onChange(key);
+    setOpen(false);
   };
 
   return (
-    <Section icon={<Palette className="h-5 w-5" />} label="색상">
-      <div className="flex flex-wrap gap-1.5">
-        {/* Auto (null) */}
-        <button
-          type="button"
-          onClick={() => setField('color', null)}
+    <div className="flex-shrink-0">
+      {/* 트리거: 색상 원 + 드롭다운 화살표 */}
+      <button
+        ref={refs.setReference}
+        type="button"
+        onClick={() => setOpen(!open)}
+        className={cn(inputCls, 'flex items-center gap-1.5 px-2.5')}
+      >
+        <span
           className={cn(
-            'h-6 w-6 rounded-full border-2 transition-all',
-            'bg-gradient-to-br from-blue-400 to-purple-400',
-            color === null ? 'border-gray-800 scale-110' : 'border-transparent hover:scale-105',
+            'h-4 w-4 rounded-full flex-shrink-0',
+            !colorHex && 'bg-gradient-to-br from-blue-400 to-purple-400',
           )}
-          title="자동 (과목 기반)"
+          style={colorHex ? { backgroundColor: colorHex } : undefined}
         />
-        {EVENT_COLOR_PALETTE.map((c) => (
-          <button
-            key={c.key}
-            type="button"
-            onClick={() => setField('color', c.key)}
-            className={cn(
-              'h-6 w-6 rounded-full border-2 transition-all',
-              color === c.key ? 'border-gray-800 scale-110' : 'border-transparent hover:scale-105',
-            )}
-            style={{ backgroundColor: c.hex }}
-            title={c.label}
-          />
-        ))}
-        {/* Custom hex button */}
-        <button
-          type="button"
-          onClick={() => setShowHexInput(!showHexInput)}
-          className={cn(
-            'h-6 w-6 rounded-full border-2 transition-all text-[9px] font-bold',
-            isCustomHex
-              ? 'border-gray-800 scale-110'
-              : 'border-gray-300 hover:border-gray-500 hover:scale-105',
-          )}
-          style={isCustomHex ? { backgroundColor: color } : undefined}
-          title="커스텀 색상"
+        <svg className="h-4 w-4 text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {/* 드롭다운 팔레트 — Floating UI: 뷰포트 경계 자동 대응 */}
+      {open && (
+        <div
+          ref={refs.setFloating}
+          style={floatingStyles}
+          className="z-[9999] w-fit rounded-lg border border-[rgb(var(--color-secondary-200))] bg-[rgb(var(--color-secondary-50))] shadow-lg p-2"
         >
-          {!isCustomHex && '+'}
-        </button>
-      </div>
-      {/* Hex input row */}
-      {showHexInput && (
-        <div className="mt-2 flex items-center gap-2">
-          <input
-            type="text"
-            value={hexInput}
-            onChange={(e) => setHexInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleHexSubmit()}
-            placeholder="#ff5733"
-            maxLength={7}
-            className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm font-mono focus:border-blue-400 focus:outline-none"
-          />
-          <input
-            type="color"
-            value={hexInput || '#3b82f6'}
-            onChange={(e) => {
-              setHexInput(e.target.value);
-              setField('color', e.target.value);
-            }}
-            className="h-7 w-7 cursor-pointer rounded border-0 p-0"
-            title="색상 선택"
-          />
-          <button
-            type="button"
-            onClick={handleHexSubmit}
-            disabled={!isValidHexColor(hexInput.startsWith('#') ? hexInput : `#${hexInput}`)}
-            className="rounded bg-blue-500 px-2 py-1 text-xs text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            적용
-          </button>
+          {!showExtended ? (
+            <>
+              {/* 기본: GCal 코어 11색 + 캘린더 기본 (2열) */}
+              <div className="grid grid-cols-2 gap-1 justify-items-center">
+                {GCAL_CORE_COLORS.map((c) => (
+                  <ColorCircle
+                    key={c.key}
+                    active={color === c.key}
+                    hex={c.hex}
+                    title={c.label}
+                    onClick={() => handleSelect(c.key)}
+                  />
+                ))}
+                <ColorCircle
+                  active={color === null}
+                  title="캘린더 색상"
+                  onClick={() => handleSelect(null)}
+                  className="bg-gradient-to-br from-blue-400 to-purple-400"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowExtended(true)}
+                className="mt-1.5 pt-1.5 border-t border-[rgb(var(--color-secondary-100))] w-full text-[11px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors text-center"
+              >
+                더보기
+              </button>
+            </>
+          ) : (
+            <>
+              {/* 확장: 24색 계열별 정렬 (4열 × 6행) + 캘린더 기본 */}
+              <div className="grid grid-cols-4 gap-1.5 justify-items-center">
+                {COLORS_BY_FAMILY.map((c) => (
+                  <ColorCircle
+                    key={c.key}
+                    active={color === c.key}
+                    hex={c.hex}
+                    title={c.label}
+                    onClick={() => handleSelect(c.key)}
+                  />
+                ))}
+              </div>
+              <div className="mt-1.5 pt-1.5 border-t border-[rgb(var(--color-secondary-100))] flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => handleSelect(null)}
+                  className="flex items-center gap-1.5 text-[11px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
+                >
+                  <span className="size-4 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex-shrink-0" />
+                  캘린더 색상
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowExtended(false)}
+                  className="text-[11px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
+                >
+                  접기
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
-    </Section>
+    </div>
   );
 }
 
 // ============================================
 // Label Preset Selector
 // ============================================
+
+/** 색상 원 (공용) */
+function ColorCircle({
+  active,
+  hex,
+  title,
+  onClick,
+  className: extraCls,
+}: {
+  active: boolean;
+  hex?: string;
+  title: string;
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={title}
+      title={title}
+      className={cn(
+        'size-5 rounded-full transition-all cursor-pointer',
+        active ? 'ring-2 ring-offset-1 ring-[var(--text-primary)]' : 'hover:opacity-80 active:scale-95',
+        extraCls,
+      )}
+      style={hex ? { backgroundColor: hex } : undefined}
+    />
+  );
+}
 
 function LabelPresetSelector({
   value,
@@ -319,7 +455,7 @@ function LabelPresetSelector({
                 'px-3 py-1.5 text-xs rounded-full border transition-colors',
                 isActive
                   ? 'font-medium border-transparent text-white'
-                  : 'border-gray-200 text-gray-600 hover:border-gray-300',
+                  : 'border-[rgb(var(--color-secondary-200))] text-[var(--text-tertiary)] hover:border-[rgb(var(--color-secondary-300))]',
               )}
               style={isActive ? { backgroundColor: preset.defaultColor } : undefined}
             >
@@ -334,8 +470,8 @@ function LabelPresetSelector({
           className={cn(
             'px-3 py-1.5 text-xs rounded-full border transition-colors',
             isCustom
-              ? 'font-medium bg-gray-700 border-transparent text-white'
-              : 'border-dashed border-gray-300 text-gray-500 hover:border-gray-400',
+              ? 'font-medium bg-[rgb(var(--color-secondary-700))] border-transparent text-white'
+              : 'border-dashed border-[rgb(var(--color-secondary-300))] text-[var(--text-tertiary)] hover:border-[rgb(var(--color-secondary-400))]',
           )}
         >
           {isCustom ? value : '+ 직접 입력'}
@@ -349,7 +485,7 @@ function LabelPresetSelector({
             onChange={(e) => setCustomText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleCustomSubmit()}
             placeholder="라벨 입력..."
-            className="flex-1 rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className={cn(inputCls, 'flex-1 px-2 py-1')}
             autoFocus
           />
           <button
@@ -372,22 +508,15 @@ function LabelPresetSelector({
 
 function Section({
   icon,
-  label,
   children,
 }: {
   icon: React.ReactNode;
-  label: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex gap-3">
-      <div className="flex-shrink-0 pt-2 text-gray-400">{icon}</div>
-      <div className="flex-1">
-        <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gray-500">
-          {label}
-        </label>
-        {children}
-      </div>
+    <div className="flex gap-2 items-start">
+      <div className="shrink-0 w-8 flex justify-center mt-1 text-[var(--text-tertiary)]">{icon}</div>
+      <div className="flex-1 min-w-0 text-left">{children}</div>
     </div>
   );
 }

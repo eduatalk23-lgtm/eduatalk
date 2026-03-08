@@ -34,13 +34,14 @@ export const WeeklyGridHeader = memo(function WeeklyGridHeader({
   );
 
   return (
-    <div className="flex-shrink-0 border-b border-gray-200">
+    <div className="flex-shrink-0 border-b border-[rgb(var(--color-secondary-200))]">
       {/* 날짜 헤더 행 */}
       <div className="flex pr-2">
         {/* 시간 거터 공간 */}
-        <div className="shrink-0 border-r border-gray-200" style={{ width: TIME_GUTTER_WIDTH }} />
+        <div className="shrink-0 border-r border-[rgb(var(--color-secondary-200))]" style={{ width: TIME_GUTTER_WIDTH }} />
 
-        {/* 7개 날짜 헤더 */}
+        {/* 7개 날짜 헤더 — CSS Grid로 종일/시간 영역과 컬럼 정렬 일치 */}
+        <div className="flex-1" style={{ display: 'grid', gridTemplateColumns: `repeat(${headers.length}, 1fr)` }}>
         {headers.map((h) => {
           const isSelected = h.fullDate === selectedDate;
           const isHoliday = !!h.holiday;
@@ -50,8 +51,8 @@ export const WeeklyGridHeader = memo(function WeeklyGridHeader({
               key={h.fullDate}
               onClick={() => onSwitchToDaily ? onSwitchToDaily(h.fullDate) : onDateChange(h.fullDate)}
               className={cn(
-                'flex-1 flex flex-col items-center py-2 transition-colors',
-                'border-r border-gray-200 last:border-r-0',
+                'flex flex-col items-center py-2 transition-colors',
+                'border-r border-[rgb(var(--color-secondary-200))] last:border-r-0',
               )}
               title={h.holiday ?? undefined}
             >
@@ -87,6 +88,7 @@ export const WeeklyGridHeader = memo(function WeeklyGridHeader({
             </button>
           );
         })}
+        </div>
       </div>
     </div>
   );

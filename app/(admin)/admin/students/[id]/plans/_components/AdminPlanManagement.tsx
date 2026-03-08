@@ -168,6 +168,7 @@ function AdminPlanManagementContent({
     selectedDate,
     handleDateChange,
     handleRefresh,
+    invalidateQueries,
     refreshDaily,
     canCreatePlans,
     isAdminMode,
@@ -1097,7 +1098,9 @@ function AdminPlanManagementContent({
               onClose={ctx.closeEventEditModal}
               onSuccess={() => {
                 ctx.closeEventEditModal();
-                handleRefresh();
+                // startSaveTransition 밖에서 invalidation 실행하여
+                // transition이 React Query refetch를 지연시키는 문제 방지
+                setTimeout(invalidateQueries, 0);
               }}
             />
           )}

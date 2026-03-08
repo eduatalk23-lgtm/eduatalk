@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useCallback, useRef, forwardRef } from 'react';
+import { useMemo, useState, useCallback, useRef, forwardRef, memo } from 'react';
 import { GridPlanBlock } from './items/GridPlanBlock';
 import { toPlanItemData, type PlanItemData } from '@/lib/types/planItem';
 import {
@@ -62,7 +62,7 @@ interface WeeklyGridColumnProps {
   calendarColorMap?: Map<string, string>;
 }
 
-export const WeeklyGridColumn = forwardRef<HTMLDivElement, WeeklyGridColumnProps>(
+export const WeeklyGridColumn = memo(forwardRef<HTMLDivElement, WeeklyGridColumnProps>(
   function WeeklyGridColumn(
     {
       date,
@@ -277,4 +277,4 @@ export const WeeklyGridColumn = forwardRef<HTMLDivElement, WeeklyGridColumnProps
       </div>
     );
   },
-);
+));

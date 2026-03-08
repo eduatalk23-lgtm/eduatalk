@@ -44,6 +44,7 @@ export default async function AdminCalendarPage({ searchParams }: Props) {
         calendarId={calendarId}
         pageData={pageData}
         isPersonalMode
+        currentUserId={admin.userId}
       />
     );
   }
@@ -78,6 +79,7 @@ export default async function AdminCalendarPage({ searchParams }: Props) {
       tenantId={student.tenant_id}
       calendarId={calendarId}
       pageData={pageData}
+      currentUserId={admin.userId}
     />
   );
 }

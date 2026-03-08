@@ -2,10 +2,10 @@ import { queryOptions } from '@tanstack/react-query';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { formatDateString } from '@/lib/date/calendarUtils';
 import {
-  CACHE_STALE_TIME_DYNAMIC,
   CACHE_STALE_TIME_STABLE,
-  CACHE_GC_TIME_DYNAMIC,
+  CACHE_STALE_TIME_CALENDAR_EVENTS,
   CACHE_GC_TIME_STABLE,
+  CACHE_GC_TIME_CALENDAR_EVENTS,
 } from '@/lib/constants/queryCache';
 import type {
   Calendar,
@@ -160,8 +160,8 @@ export function dailyCalendarEventsQueryOptions(calendarId: string, date: string
       if (error) throw error;
       return (data ?? []) as CalendarEventWithStudyData[];
     },
-    staleTime: CACHE_STALE_TIME_DYNAMIC,
-    gcTime: CACHE_GC_TIME_DYNAMIC,
+    staleTime: CACHE_STALE_TIME_CALENDAR_EVENTS,
+    gcTime: CACHE_GC_TIME_CALENDAR_EVENTS,
   });
 }
 
@@ -197,8 +197,8 @@ export function weeklyCalendarEventsQueryOptions(
       if (error) throw error;
       return (data ?? []) as CalendarEventWithStudyData[];
     },
-    staleTime: CACHE_STALE_TIME_DYNAMIC,
-    gcTime: CACHE_GC_TIME_DYNAMIC,
+    staleTime: CACHE_STALE_TIME_CALENDAR_EVENTS,
+    gcTime: CACHE_GC_TIME_CALENDAR_EVENTS,
   });
 }
 
@@ -234,8 +234,8 @@ export function monthlyCalendarEventsQueryOptions(
       if (error) throw error;
       return (data ?? []) as CalendarEventWithStudyData[];
     },
-    staleTime: CACHE_STALE_TIME_DYNAMIC,
-    gcTime: CACHE_GC_TIME_DYNAMIC,
+    staleTime: CACHE_STALE_TIME_CALENDAR_EVENTS,
+    gcTime: CACHE_GC_TIME_CALENDAR_EVENTS,
   });
 }
 
@@ -266,8 +266,8 @@ export function overdueCalendarEventsQueryOptions(calendarId: string) {
         (e) => !e.event_study_data?.done
       );
     },
-    staleTime: CACHE_STALE_TIME_DYNAMIC,
-    gcTime: CACHE_GC_TIME_DYNAMIC,
+    staleTime: CACHE_STALE_TIME_CALENDAR_EVENTS,
+    gcTime: CACHE_GC_TIME_CALENDAR_EVENTS,
   });
 }
 
@@ -328,8 +328,8 @@ export function multiWeeklyCalendarEventsQueryOptions(
       if (error) throw error;
       return (data ?? []) as CalendarEventWithStudyData[];
     },
-    staleTime: CACHE_STALE_TIME_DYNAMIC,
-    gcTime: CACHE_GC_TIME_DYNAMIC,
+    staleTime: CACHE_STALE_TIME_CALENDAR_EVENTS,
+    gcTime: CACHE_GC_TIME_CALENDAR_EVENTS,
   });
 }
 
@@ -363,8 +363,8 @@ export function multiDailyCalendarEventsQueryOptions(
       if (error) throw error;
       return (data ?? []) as CalendarEventWithStudyData[];
     },
-    staleTime: CACHE_STALE_TIME_DYNAMIC,
-    gcTime: CACHE_GC_TIME_DYNAMIC,
+    staleTime: CACHE_STALE_TIME_CALENDAR_EVENTS,
+    gcTime: CACHE_GC_TIME_CALENDAR_EVENTS,
   });
 }
 
@@ -400,8 +400,8 @@ export function multiMonthlyCalendarEventsQueryOptions(
       if (error) throw error;
       return (data ?? []) as CalendarEventWithStudyData[];
     },
-    staleTime: CACHE_STALE_TIME_DYNAMIC,
-    gcTime: CACHE_GC_TIME_DYNAMIC,
+    staleTime: CACHE_STALE_TIME_CALENDAR_EVENTS,
+    gcTime: CACHE_GC_TIME_CALENDAR_EVENTS,
   });
 }
 

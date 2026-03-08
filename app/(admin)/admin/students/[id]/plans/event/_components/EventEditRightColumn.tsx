@@ -1,7 +1,10 @@
 'use client';
 
-import { BookOpen, Timer } from 'lucide-react';
+import { BookOpen, Clock } from 'lucide-react';
+import { cn } from '@/lib/cn';
 import type { EventEditFormState } from './useEventEditForm';
+
+const inputCls = 'rounded-lg border border-[rgb(var(--color-secondary-300))] bg-transparent px-3 py-2 text-sm text-[var(--text-primary)] focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500';
 
 interface EventEditRightColumnProps {
   form: EventEditFormState;
@@ -10,47 +13,42 @@ interface EventEditRightColumnProps {
 
 export function EventEditRightColumn({ form, setField }: EventEditRightColumnProps) {
   if (!form.hasStudyData) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-2 py-12 text-gray-400">
-        <BookOpen className="h-8 w-8 opacity-30" />
-        <span className="text-sm">학습 라벨에서만 상세 설정 가능</span>
-      </div>
-    );
+    return null;
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       {/* Page Range */}
-      <Section icon={<BookOpen className="h-5 w-5" />} label="학습 범위">
+      <Section icon={<BookOpen className="h-5 w-5" />}>
         <div className="flex items-center gap-2">
           <div className="flex-1">
-            <label className="mb-1 block text-xs text-gray-500">시작 p.</label>
+            <label className="block text-xs text-[var(--text-tertiary)] pb-1">시작 p.</label>
             <input
               type="number"
               value={form.plannedStartPage ?? ''}
               onChange={(e) => setField('plannedStartPage', e.target.value ? Number(e.target.value) : null)}
               placeholder="—"
               min={0}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+              className={cn(inputCls, 'w-full')}
             />
           </div>
-          <span className="mt-5 text-gray-400">~</span>
+          <span className="pt-5 text-[var(--text-tertiary)]">~</span>
           <div className="flex-1">
-            <label className="mb-1 block text-xs text-gray-500">종료 p.</label>
+            <label className="block text-xs text-[var(--text-tertiary)] pb-1">종료 p.</label>
             <input
               type="number"
               value={form.plannedEndPage ?? ''}
               onChange={(e) => setField('plannedEndPage', e.target.value ? Number(e.target.value) : null)}
               placeholder="—"
               min={0}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+              className={cn(inputCls, 'w-full')}
             />
           </div>
         </div>
       </Section>
 
       {/* Estimated Minutes */}
-      <Section icon={<Timer className="h-5 w-5" />} label="예상 시간">
+      <Section icon={<Clock className="h-5 w-5" />}>
         <div className="flex items-center gap-2">
           <input
             type="number"
@@ -59,19 +57,19 @@ export function EventEditRightColumn({ form, setField }: EventEditRightColumnPro
             placeholder="60"
             min={0}
             step={5}
-            className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className={cn(inputCls, 'w-24')}
           />
-          <span className="text-sm text-gray-500">분</span>
+          <span className="text-sm text-[var(--text-tertiary)]">분</span>
         </div>
       </Section>
 
       {/* Content Info (read-only when exists) */}
       {form.contentTitle && (
-        <Section icon={<BookOpen className="h-5 w-5" />} label="콘텐츠 정보">
-          <div className="rounded-lg bg-gray-50 p-3">
-            <p className="text-sm text-gray-700">{form.contentTitle}</p>
+        <Section icon={<BookOpen className="h-5 w-5" />}>
+          <div className="rounded-lg bg-[rgb(var(--color-secondary-100))] p-3">
+            <p className="text-sm text-[var(--text-primary)]">{form.contentTitle}</p>
             {form.contentType && (
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="text-xs text-[var(--text-tertiary)] pt-1">
                 유형: {form.contentType === 'book' ? '교재' : form.contentType === 'lecture' ? '강의' : form.contentType}
               </p>
             )}
@@ -82,28 +80,17 @@ export function EventEditRightColumn({ form, setField }: EventEditRightColumnPro
   );
 }
 
-// ============================================
-// Section wrapper
-// ============================================
-
 function Section({
   icon,
-  label,
   children,
 }: {
   icon: React.ReactNode;
-  label: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex gap-3">
-      <div className="flex-shrink-0 pt-2 text-gray-400">{icon}</div>
-      <div className="flex-1">
-        <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gray-500">
-          {label}
-        </label>
-        {children}
-      </div>
+    <div className="flex gap-2 items-start">
+      <div className="shrink-0 w-8 flex justify-center mt-1 text-[var(--text-tertiary)]">{icon}</div>
+      <div className="flex-1 min-w-0 text-left">{children}</div>
     </div>
   );
 }

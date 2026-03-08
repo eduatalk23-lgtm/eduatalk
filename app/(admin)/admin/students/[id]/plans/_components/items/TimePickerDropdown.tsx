@@ -74,20 +74,20 @@ export const TimePickerDropdown = memo(function TimePickerDropdown({
         disabled={disabled}
         onClick={() => setOpen((prev) => !prev)}
         className={cn(
-          'flex items-center gap-1 px-2 py-1.5 text-sm border rounded-md transition-colors min-w-[5.5rem]',
+          'flex items-center gap-1 px-2 py-1.5 text-sm border rounded-md transition-colors min-w-[5.5rem] whitespace-nowrap',
           'hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent',
           'disabled:opacity-50 disabled:cursor-not-allowed',
-          open ? 'border-blue-400 ring-2 ring-blue-400' : 'border-gray-300',
+          open ? 'border-blue-400 ring-2 ring-blue-400' : 'border-[rgb(var(--color-secondary-300))]',
         )}
       >
         <span className="flex-1 text-left tabular-nums">{formatTimeKoAmPm(value)}</span>
-        <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+        <ChevronDown className="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0" />
       </button>
 
       {open && (
         <div
           ref={listRef}
-          className="absolute left-0 top-full mt-1 w-40 max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-50"
+          className="absolute left-0 top-full mt-1 w-52 max-h-48 overflow-y-auto bg-[rgb(var(--color-secondary-50))] border border-[rgb(var(--color-secondary-200))] rounded-lg shadow-lg z-50"
         >
           {TIME_OPTIONS.map((time) => {
             const timeMin = timeToMinutes(time);
@@ -114,13 +114,13 @@ export const TimePickerDropdown = memo(function TimePickerDropdown({
                   'w-full px-3 py-1.5 text-left text-sm flex items-center justify-between transition-colors',
                   isSelected
                     ? 'bg-blue-50 text-blue-700 font-medium'
-                    : 'text-gray-700 hover:bg-gray-50',
+                    : 'text-[var(--text-primary)] hover:bg-[rgb(var(--color-secondary-100))]',
                   isDisabled && 'opacity-30 cursor-not-allowed',
                 )}
               >
                 <span className="tabular-nums">{formatTimeKoAmPm(time)}</span>
                 {durationLabel && (
-                  <span className="text-xs text-gray-400 ml-2">({durationLabel})</span>
+                  <span className="text-xs text-[var(--text-tertiary)] ml-2">({durationLabel})</span>
                 )}
               </button>
             );

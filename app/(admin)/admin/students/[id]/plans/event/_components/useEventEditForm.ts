@@ -28,12 +28,16 @@ export interface EventEditFormState {
   title: string;
   description: string;
   color: string | null;
+  /** 이벤트가 속한 캘린더 ID */
+  calendarId: string | null;
   date: string;
+  /** 종료 날짜 (다일 이벤트 지원, GCal 패리티) */
+  endDate: string;
   startTime: string;
   endTime: string;
   isAllDay: boolean;
   rrule: string | null;
-  reminderMinutes: number | null;
+  reminderMinutes: number[];
   /** @deprecated label + isTask + hasStudyData 사용 */
   eventType: ManualEventType;
   label: string;
@@ -118,12 +122,14 @@ function getDefaultForm(opts: UseEventEditFormOptions): EventEditFormState {
     title: '',
     description: '',
     color: null,
+    calendarId: opts.calendarId ?? null,
     date: opts.initialDate ?? today,
+    endDate: opts.initialDate ?? today,
     startTime: opts.initialStartTime ?? '09:00',
     endTime: opts.initialEndTime ?? '10:00',
     isAllDay: false,
     rrule: null,
-    reminderMinutes: null,
+    reminderMinutes: [],
     eventType,
     label,
     isTask,
@@ -150,12 +156,14 @@ function eventDataToForm(data: CalendarEventEditData): EventEditFormState {
     title: data.title,
     description: data.description ?? '',
     color: data.color,
+    calendarId: data.calendar_id ?? null,
     date,
+    endDate: parseDateFromTimestamp(data.end_at, data.end_date) || date,
     startTime: parseTimeFromTimestamp(data.start_at),
     endTime: parseTimeFromTimestamp(data.end_at),
     isAllDay: data.is_all_day ?? false,
     rrule: data.rrule,
-    reminderMinutes: data.reminder_minutes?.[0] ?? null,
+    reminderMinutes: data.reminder_minutes ?? [],
     eventType,
     label: data.label ?? '기타',
     isTask: data.is_task ?? false,
@@ -213,7 +221,18 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
   }, [opts.mode, opts.eventId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setField = useCallback(<K extends keyof EventEditFormState>(key: K, value: EventEditFormState[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [key]: value };
+      // 시작 날짜 변경 시 종료 날짜가 시작보다 이전이면 자동 조정
+      if (key === 'date' && typeof value === 'string' && next.endDate < value) {
+        next.endDate = value;
+      }
+      // 종료 날짜가 시작보다 이전이면 시작으로 보정
+      if (key === 'endDate' && typeof value === 'string' && value < next.date) {
+        next.endDate = next.date;
+      }
+      return next;
+    });
   }, []);
 
   const setLabel = useCallback((newLabel: string) => {
@@ -259,6 +278,7 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
     if (form.title !== initialForm.title) updates.title = form.title;
     if (form.description !== initialForm.description) updates.description = form.description || null;
     if (form.color !== initialForm.color) updates.color = form.color;
+    if (form.calendarId !== initialForm.calendarId && form.calendarId) updates.calendar_id = form.calendarId;
     if (form.isAllDay !== initialForm.isAllDay) updates.is_all_day = form.isAllDay;
     if (form.rrule !== initialForm.rrule) updates.rrule = form.rrule;
     if (form.status !== initialForm.status) updates.status = form.status;
@@ -274,23 +294,23 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
       if (form.estimatedMinutes !== initialForm.estimatedMinutes) updates.estimated_minutes = form.estimatedMinutes;
     }
 
-    // Reminder: convert single value to array
+    // Reminder: array diff
     const newReminder = form.reminderMinutes;
     const oldReminder = initialForm.reminderMinutes;
-    if (newReminder !== oldReminder) {
-      updates.reminder_minutes = newReminder != null ? [newReminder] : null;
+    if (JSON.stringify(newReminder) !== JSON.stringify(oldReminder)) {
+      updates.reminder_minutes = newReminder.length > 0 ? newReminder : null;
     }
 
     // Time changes
-    if (form.date !== initialForm.date || form.startTime !== initialForm.startTime || form.endTime !== initialForm.endTime) {
+    if (form.date !== initialForm.date || form.endDate !== initialForm.endDate || form.startTime !== initialForm.startTime || form.endTime !== initialForm.endTime) {
       if (form.isAllDay) {
         updates.start_date = form.date;
-        updates.end_date = form.date;
+        updates.end_date = form.endDate;
         updates.start_at = null;
         updates.end_at = null;
       } else {
         updates.start_at = `${form.date}T${form.startTime}:00+09:00`;
-        updates.end_at = `${form.date}T${form.endTime}:00+09:00`;
+        updates.end_at = `${form.endDate}T${form.endTime}:00+09:00`;
         updates.start_date = null;
         updates.end_date = null;
       }
@@ -314,8 +334,13 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
     if (opts.mode === 'new') {
       startSaveTransition(async () => {
         try {
+          const effectiveCalendarId = form.calendarId || opts.calendarId;
+          if (!effectiveCalendarId) {
+            toast.showError('캘린더를 선택해주세요.');
+            return;
+          }
           const { eventId } = await createCalendarEventAction({
-            calendarId: opts.calendarId!,
+            calendarId: effectiveCalendarId,
             title: form.title.trim(),
             planDate: form.date,
             startTime: form.isAllDay ? undefined : form.startTime,
@@ -329,16 +354,29 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
             isTask: form.isTask,
             containerType: form.containerType,
             color: form.color ?? undefined,
-            reminderMinutes: form.reminderMinutes,
+            reminderMinutes: form.reminderMinutes[0] ?? null,
             description: form.description || undefined,
             estimatedMinutes: form.hasStudyData ? form.estimatedMinutes : undefined,
           });
 
-          // Update study-specific fields not handled by create
-          if (form.hasStudyData) {
+          // Update fields not handled by create action
+          {
             const extraUpdates: CalendarEventFullUpdate = {};
-            if (form.plannedStartPage != null) extraUpdates.planned_start_page = form.plannedStartPage;
-            if (form.plannedEndPage != null) extraUpdates.planned_end_page = form.plannedEndPage;
+            if (form.reminderMinutes.length > 1) {
+              extraUpdates.reminder_minutes = form.reminderMinutes;
+            }
+            if (form.hasStudyData) {
+              if (form.plannedStartPage != null) extraUpdates.planned_start_page = form.plannedStartPage;
+              if (form.plannedEndPage != null) extraUpdates.planned_end_page = form.plannedEndPage;
+            }
+            // 다일(multi-day) 이벤트: 종료 날짜가 시작과 다르면 end_at/end_date 보정
+            if (form.endDate !== form.date) {
+              if (form.isAllDay) {
+                extraUpdates.end_date = form.endDate;
+              } else {
+                extraUpdates.end_at = `${form.endDate}T${form.endTime}:00+09:00`;
+              }
+            }
             if (Object.keys(extraUpdates).length > 0) {
               await updateCalendarEventFull(eventId, extraUpdates);
             }

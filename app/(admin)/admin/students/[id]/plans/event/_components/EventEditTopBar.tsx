@@ -1,7 +1,15 @@
 'use client';
 
 import { X, Loader2, Trash2 } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/cn';
+import { TimePickerDropdown } from '../../_components/items/TimePickerDropdown';
+import { RecurrenceSelector } from '../../_components/items/RecurrenceSelector';
+import { formatDurationKo, timeToMinutes } from '../../_components/utils/timeGridUtils';
+
+/** 날짜/시간 행의 컨트롤 공용 스타일 — TimePicker와 높이·폰트 통일 */
+const controlCls = 'rounded-md border border-[rgb(var(--color-secondary-300))] bg-transparent px-2 py-1.5 text-sm text-[var(--text-primary)] focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500';
 
 interface EventEditTopBarProps {
   mode: 'new' | 'edit';
@@ -11,8 +19,26 @@ interface EventEditTopBarProps {
   onClose: () => void;
   onSave: () => void;
   onDelete?: () => void;
-  /** 타이틀 오버라이드 (기본: '새 일정' / '일정 편집') */
+  /** 제목 입력 (editable mode) */
   title?: string;
+  onTitleChange?: (value: string) => void;
+  /** 고정 헤더 텍스트 (title input 대신 표시) */
+  heading?: string;
+  /** 날짜/시간 필드 (editable mode) */
+  dateTime?: {
+    date: string;
+    endDate: string;
+    startTime: string;
+    endTime: string;
+    isAllDay: boolean;
+    rrule: string | null;
+    onDateChange: (v: string) => void;
+    onEndDateChange: (v: string) => void;
+    onStartTimeChange: (v: string) => void;
+    onEndTimeChange: (v: string) => void;
+    onAllDayChange: (v: boolean) => void;
+    onRruleChange: (v: string | null) => void;
+  };
 }
 
 export function EventEditTopBar({
@@ -24,34 +50,63 @@ export function EventEditTopBar({
   onSave,
   onDelete,
   title,
+  onTitleChange,
+  heading,
+  dateTime,
 }: EventEditTopBarProps) {
+  const formatDateDisplay = (d: string) => {
+    try {
+      return format(parseISO(d), 'M월 d일 (E)', { locale: ko });
+    } catch {
+      return d;
+    }
+  };
+
+  const durationMinutes = dateTime && !dateTime.isAllDay
+    ? timeToMinutes(dateTime.endTime) - timeToMinutes(dateTime.startTime)
+    : 0;
+
+  const isMultiDay = dateTime ? dateTime.date !== dateTime.endDate : false;
+
   return (
-    <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-3 sm:px-6">
-      {/* Left: close + title */}
-      <div className="flex items-center gap-3">
+    <div className="sticky top-0 z-10 bg-[rgb(var(--background))]">
+      {/* Row 1: [X] [제목 input ___________] [삭제] [저장] */}
+      <div className="max-w-5xl px-4 sm:px-6 lg:px-8 flex items-center gap-2 py-2">
         <button
           type="button"
           onClick={onClose}
-          className="rounded-full p-1.5 text-gray-500 hover:bg-gray-100 transition-colors"
+          className="shrink-0 rounded-full p-1.5 text-[var(--text-tertiary)] hover:bg-[rgb(var(--color-secondary-100))] transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
           aria-label="닫기"
         >
           <X className="h-5 w-5" />
         </button>
-        <h1 className="text-base font-semibold text-gray-900 sm:text-lg">
-          {title ?? (mode === 'new' ? '새 일정' : '일정 편집')}
-        </h1>
-      </div>
 
-      {/* Right: delete + save */}
-      <div className="flex items-center gap-2">
+        {/* 제목 — GCal style: 밑줄만 있는 깔끔한 인풋 */}
+        {onTitleChange ? (
+          <input
+            type="text"
+            value={title ?? ''}
+            onChange={(e) => onTitleChange(e.target.value)}
+            placeholder="제목 추가"
+            className="flex-1 min-w-0 border-0 border-b-2 border-[rgb(var(--color-secondary-200))] bg-transparent px-1 py-1.5 text-xl font-normal text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-blue-500 transition-colors"
+            autoFocus
+          />
+        ) : heading ? (
+          <h1 className="flex-1 min-w-0 px-1 py-1.5 text-xl font-semibold text-[var(--text-primary)]">
+            {heading}
+          </h1>
+        ) : (
+          <div className="flex-1" />
+        )}
+
         {mode === 'edit' && onDelete && (
           <button
             type="button"
             onClick={onDelete}
             disabled={isDeleting || isSaving}
             className={cn(
-              'flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
-              'text-red-600 hover:bg-red-50 disabled:opacity-50',
+              'shrink-0 flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
+              'text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 disabled:opacity-50',
             )}
           >
             {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
@@ -63,7 +118,7 @@ export function EventEditTopBar({
           onClick={onSave}
           disabled={isSaving || isDeleting || (!isDirty && mode === 'edit')}
           className={cn(
-            'flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors',
+            'shrink-0 flex items-center gap-1.5 rounded-full px-5 py-1.5 text-sm font-medium transition-colors',
             'bg-blue-600 text-white hover:bg-blue-700',
             'disabled:opacity-50 disabled:cursor-not-allowed',
           )}
@@ -72,6 +127,73 @@ export function EventEditTopBar({
           저장
         </button>
       </div>
+
+      {/* Row 2~3: 날짜/시간 + 종일/반복 */}
+      {dateTime && (
+        <div className="max-w-5xl px-4 sm:px-6 lg:px-8 flex gap-2 pb-2.5">
+          {/* X 버튼과 같은 폭의 spacer → 제목 텍스트와 정렬 */}
+          <div className="w-8 shrink-0" />
+          <div className="flex flex-col gap-1.5">
+            {/* GCal: [시작날짜] [시작시간] – [종료시간] [종료날짜] [소요시간] */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <input
+                type="date"
+                value={dateTime.date}
+                onChange={(e) => dateTime.onDateChange(e.target.value)}
+                className={controlCls}
+              />
+              {!dateTime.isAllDay && (
+                <>
+                  <TimePickerDropdown
+                    value={dateTime.startTime}
+                    onChange={dateTime.onStartTimeChange}
+                    label="시작"
+                  />
+                  <span className="text-[var(--text-tertiary)] text-sm">–</span>
+                  <TimePickerDropdown
+                    value={dateTime.endTime}
+                    onChange={dateTime.onEndTimeChange}
+                    referenceTime={dateTime.startTime}
+                    minTime={dateTime.startTime}
+                    label="종료"
+                  />
+                </>
+              )}
+              <input
+                type="date"
+                value={dateTime.endDate}
+                onChange={(e) => dateTime.onEndDateChange(e.target.value)}
+                min={dateTime.date}
+                className={controlCls}
+              />
+              {!dateTime.isAllDay && durationMinutes > 0 && !isMultiDay && (
+                <span className="text-sm text-[var(--text-tertiary)] shrink-0">
+                  {formatDurationKo(durationMinutes)}
+                </span>
+              )}
+            </div>
+
+            {/* 종일 + 반복 — 동일 text-sm 기준 */}
+            <div className="flex items-center gap-3 flex-nowrap">
+              <label className="flex items-center gap-1.5 cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  checked={dateTime.isAllDay}
+                  onChange={(e) => dateTime.onAllDayChange(e.target.checked)}
+                  className="h-4 w-4 rounded border-[rgb(var(--color-secondary-300))] text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-[var(--text-secondary)] whitespace-nowrap">종일</span>
+              </label>
+              <RecurrenceSelector
+                value={dateTime.rrule}
+                onChange={dateTime.onRruleChange}
+                eventDate={dateTime.date}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

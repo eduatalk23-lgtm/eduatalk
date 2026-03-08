@@ -5,6 +5,7 @@ import { AdminPlanManagement } from '../../_components/AdminPlanManagement';
 import { AdminPlanManagementSkeleton } from '../../_components/AdminPlanManagementSkeleton';
 import { fetchCalendarPageData } from '@/lib/domains/admin-plan/actions/calendarPageData';
 import { StudentSwitcher } from '@/app/(admin)/admin/calendar/_components/StudentSwitcher';
+import { getCurrentUser } from '@/lib/auth/getCurrentUser';
 
 interface Props {
   params: Promise<{ id: string; calendarId: string }>;
@@ -45,8 +46,11 @@ export default async function CalendarPlanManagementPage({
 
   if (!calendar || calendar.owner_id !== studentId) notFound();
 
-  // 3. 공유 데이터 페칭
-  const pageData = await fetchCalendarPageData(studentId, calendarId, date);
+  // 3. 공유 데이터 페칭 + 현재 사용자 ID
+  const [pageData, currentUser] = await Promise.all([
+    fetchCalendarPageData(studentId, calendarId, date),
+    getCurrentUser(),
+  ]);
 
   return (
     <div className="h-[calc(100dvh-4rem)] flex flex-col overflow-hidden">
@@ -66,6 +70,8 @@ export default async function CalendarPlanManagementPage({
           calendarDateTimeSlots={pageData.calendarDateTimeSlots}
           initialDockData={pageData.initialDockData}
           viewMode="admin"
+          currentUserId={currentUser?.userId}
+          selectedCalendarSettings={pageData.calendarSettings}
           studentSwitcher={
             <StudentSwitcher
               currentStudentId={student.id}

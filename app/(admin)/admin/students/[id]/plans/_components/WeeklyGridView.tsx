@@ -996,7 +996,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
         aria-label={`주간 캘린더 그리드 (${weekDates.length}일)`}
         aria-colcount={weekDates.length}
         aria-busy={isAnyLoading}
-        className="flex-1 relative overflow-x-hidden"
+        className="flex-1 relative overflow-x-hidden scroll-gpu"
         style={{ overflowY: 'auto', scrollbarGutter: 'stable', overscrollBehaviorY: 'contain' }}
         onClick={handleGridClick}
         onDoubleClick={handleGridDoubleClick}
@@ -1032,14 +1032,16 @@ export const WeeklyGridView = memo(function WeeklyGridView({
         )}
         {isAnyLoading && (
           <div className="absolute inset-0 bg-[rgb(var(--color-secondary-50))]/60 z-40 pointer-events-none">
-            <div className="flex h-full" style={{ paddingLeft: TIME_GUTTER_WIDTH }}>
+            <div className="flex h-full" style={{ paddingLeft: TIME_GUTTER_WIDTH, paddingRight: '0.5rem' }}>
+              <div className="flex-1" style={{ display: 'grid', gridTemplateColumns: `repeat(${weekDates.length}, 1fr)` }}>
               {Array.from({ length: weekDates.length }).map((_, col) => (
-                <div key={col} className="flex-1 border-r border-[rgb(var(--color-secondary-100))]/50 px-0.5 pt-16 space-y-3">
+                <div key={col} className="border-r border-[rgb(var(--color-secondary-100))]/50 px-0.5 pt-16 space-y-3">
                   <div className="h-14 bg-[rgb(var(--color-secondary-200))]/60 rounded animate-pulse mx-0.5" />
                   <div className="h-8 bg-[rgb(var(--color-secondary-200))]/40 rounded animate-pulse mx-0.5" />
                   <div className="h-20 bg-[rgb(var(--color-secondary-200))]/50 rounded animate-pulse mx-0.5 mt-8" />
                 </div>
               ))}
+              </div>
             </div>
           </div>
         )}
@@ -1070,7 +1072,8 @@ export const WeeklyGridView = memo(function WeeklyGridView({
             })}
           </div>
 
-          {/* 7개 컬럼 (그리드라인은 각 컬럼 배경으로 적용) */}
+          {/* 7개 컬럼 — CSS Grid로 헤더/종일 영역과 컬럼 정렬 일치 */}
+          <div className="flex-1" style={{ display: 'grid', gridTemplateColumns: `repeat(${weekDates.length}, 1fr)` }}>
           {weekDates.map((date) => {
             const dayData = dayDataMap.get(date);
             const header = formatDayHeader(date);
@@ -1105,6 +1108,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
               />
             );
           })}
+          </div>
 
           {/* Drag-to-Create 프리뷰 (Google Calendar 스타일 — 겹침 레이아웃 반영) */}
           {dragState && previewStyle && (() => {
@@ -1248,13 +1252,15 @@ export const WeeklyGridView = memo(function WeeklyGridView({
           className={cn('z-[9999] transition-opacity duration-150', isQcPositioned ? 'opacity-100' : 'opacity-0')}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="bg-[rgb(var(--color-secondary-50))] rounded-lg shadow-lg border border-[rgb(var(--color-secondary-200))]">
+          <div className="bg-[rgb(var(--color-secondary-50))] rounded-2xl shadow-lg border border-[rgb(var(--color-secondary-200))]">
             <InlineQuickCreate
               slot={quickCreateState.slot}
               initialMode={quickCreateState.isAllDay ? 'allDay' : 'timed'}
               studentId={studentId}
               tenantId={tenantId}
               calendarId={calendarId}
+              calendarName={selectedCalendarSettings?.name}
+              calendarColorHex={calendarColorMap.get(calendarId ?? '') ?? undefined}
               planDate={quickCreateState.date}
               planGroupId={selectedGroupId}
               defaultEstimatedMinutes={defaultEstimatedMinutes}

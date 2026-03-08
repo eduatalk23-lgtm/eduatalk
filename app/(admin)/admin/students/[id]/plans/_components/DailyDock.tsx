@@ -35,7 +35,7 @@ import { useAdminCalendarData } from './calendar-views/_hooks/useAdminCalendarDa
 import type { ExclusionsByDate } from './calendar-views/_types/adminCalendar';
 import type { PlanStatus } from '@/lib/types/plan';
 import { CalendarNavHeader, type CalendarView } from './CalendarNavHeader';
-import { getWeekRangeSunSat } from './utils/weekDateUtils';
+import { getWeekRangeSunSat, shiftMonth } from './utils/weekDateUtils';
 import { formatDateString } from '@/lib/date/calendarUtils';
 import { usePinchZoom } from './hooks/usePinchZoom';
 import { useCalendarSwipeNavigation } from './hooks/useCalendarSwipeNavigation';
@@ -194,6 +194,44 @@ export const DailyDock = memo(function DailyDock({
     enabled: !!onDateChange,
     isMobile3Day: isMobile,
   });
+
+  // S-1: 월간 뷰에서 마우스 휠로 이전/다음 달 전환
+  const monthWheelContainerRef = useRef<HTMLDivElement>(null);
+  const lastWheelTime = useRef(0);
+  useEffect(() => {
+    const container = monthWheelContainerRef.current;
+    if (!container || calendarView !== 'month' || !onDateChange) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // 모달/팝업 내부 스크롤은 무시
+      const target = e.target as HTMLElement;
+      if (
+        target.closest("[role='dialog']") ||
+        target.closest("[data-radix-popper-content-wrapper]")
+      ) {
+        return;
+      }
+
+      // 세로 스크롤만 감지, 최소 임계값
+      if (Math.abs(e.deltaY) < 30) return;
+
+      // 쓰로틀: 300ms
+      const now = Date.now();
+      if (now - lastWheelTime.current < 300) return;
+
+      e.preventDefault();
+      lastWheelTime.current = now;
+
+      if (e.deltaY > 0) {
+        onDateChange(shiftMonth(selectedDate, 1));
+      } else {
+        onDateChange(shiftMonth(selectedDate, -1));
+      }
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, [calendarView, selectedDate, onDateChange]);
 
   const handleInternalViewChange = useCallback((view: CalendarView) => {
     setInternalView(view);
@@ -488,7 +526,7 @@ export const DailyDock = memo(function DailyDock({
         </div>
       )}
 
-      <div className="flex-1 overflow-hidden flex flex-col" {...swipeHandlers}>
+      <div ref={monthWheelContainerRef} className="flex-1 overflow-hidden flex flex-col" {...swipeHandlers}>
       <AnimatePresence mode="wait" custom={navDirectionRef.current}>
         {/* 일간 그리드 뷰 */}
         {calendarView === 'daily' && !isLoading && (
@@ -530,6 +568,7 @@ export const DailyDock = memo(function DailyDock({
               defaultReminderMinutes={selectedCalendarSettings?.defaultReminderMinutes}
               showHolidays={showHolidays}
               calendarColorMap={calendarColorMap}
+              calendarName={selectedCalendarSettings?.name}
             />
           </motion.div>
         )}

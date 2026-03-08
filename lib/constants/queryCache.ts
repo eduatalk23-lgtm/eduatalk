@@ -24,6 +24,12 @@ export const CACHE_STALE_TIME_DYNAMIC = 1000 * 60; // 1분
 // - 즉시 반영이 필요한 데이터
 export const CACHE_STALE_TIME_REALTIME = 1000 * 10; // 10초
 
+// Calendar Events: optimistic update + invalidation 패턴이므로 길게 캐싱 (5분)
+// - 사용자 수정 시 즉시 invalidation → staleTime이 길어도 안전
+// - 인접 기간 prefetch와 함께 불필요한 refetch 방지
+export const CACHE_STALE_TIME_CALENDAR_EVENTS = 1000 * 60 * 5; // 5분
+export const CACHE_GC_TIME_CALENDAR_EVENTS = 1000 * 60 * 15; // 15분
+
 // GC Time (캐시 유지 시간) - staleTime의 2배 권장
 export const CACHE_GC_TIME_STATIC = 1000 * 60 * 240; // 4시간
 export const CACHE_GC_TIME_STABLE = 1000 * 60 * 60; // 1시간

@@ -48,38 +48,50 @@ export async function fetchCalendarPageData(
   const supabase = await createSupabaseServerClient();
   const targetDate = dateOverride ?? getTodayInTimezone();
 
-  // 캘린더 설정 조회 (exclusions 포함)
+  // 캘린더 설정 조회 (exclusions 포함) — 스케줄 계산에 필요하므로 먼저 실행
   const calendarSettings = await getCalendarSettingsAction(calendarId, true);
 
-  // 캘린더 기반 스케줄 계산
-  let calendarCalculatedSchedule: DailyScheduleInfo[] | undefined;
-  let calendarDateTimeSlots: Record<string, TimeSlot[]> | undefined;
-  if (calendarSettings?.periodStart && calendarSettings?.periodEnd) {
-    const scheduleResult = await generateScheduleForCalendar(
-      calendarId,
-      calendarSettings.periodStart,
-      calendarSettings.periodEnd,
-    );
-    if (scheduleResult.success) {
-      calendarCalculatedSchedule = scheduleResult.dailySchedule.map((d) => ({
-        date: d.date,
-        day_type: d.day_type as DailyScheduleInfo['day_type'],
-        study_hours: 0,
-        week_number: d.week_number ?? undefined,
-        cycle_day_number: d.cycle_day_number ?? undefined,
-      }));
-      calendarDateTimeSlots = Object.fromEntries(scheduleResult.dateTimeSlots);
-    }
-  }
-
-  // 플랜 그룹 조회
-  const { data: calendarGroups } = await supabase
+  // 플랜 그룹 조회 + Dock 프리페치 + 스케줄 계산을 병렬 실행
+  const planGroupsPromise = supabase
     .from('plan_groups')
     .select('id, name, status, period_start, period_end, plan_purpose, daily_schedule, created_at')
     .eq('calendar_id', calendarId)
     .eq('student_id', studentId)
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
+
+  const dockPromise = prefetchAllDockData(studentId, targetDate, calendarId);
+
+  const schedulePromise = (async () => {
+    let calendarCalculatedSchedule: DailyScheduleInfo[] | undefined;
+    let calendarDateTimeSlots: Record<string, TimeSlot[]> | undefined;
+    if (calendarSettings?.periodStart && calendarSettings?.periodEnd) {
+      const scheduleResult = await generateScheduleForCalendar(
+        calendarId,
+        calendarSettings.periodStart,
+        calendarSettings.periodEnd,
+      );
+      if (scheduleResult.success) {
+        calendarCalculatedSchedule = scheduleResult.dailySchedule.map((d) => ({
+          date: d.date,
+          day_type: d.day_type as DailyScheduleInfo['day_type'],
+          study_hours: 0,
+          week_number: d.week_number ?? undefined,
+          cycle_day_number: d.cycle_day_number ?? undefined,
+        }));
+        calendarDateTimeSlots = Object.fromEntries(scheduleResult.dateTimeSlots);
+      }
+    }
+    return { calendarCalculatedSchedule, calendarDateTimeSlots };
+  })();
+
+  const [{ data: calendarGroups }, initialDockData, scheduleData] = await Promise.all([
+    planGroupsPromise,
+    dockPromise,
+    schedulePromise,
+  ]);
+
+  const { calendarCalculatedSchedule, calendarDateTimeSlots } = scheduleData;
 
   const allPlanGroups: PlanGroupSummaryData[] = (calendarGroups ?? []).map((g) => ({
     id: g.id,
@@ -101,9 +113,6 @@ export async function fetchCalendarPageData(
     exclusionType: exc.exclusion_type,
     reason: exc.reason,
   })) ?? [];
-
-  // Dock 데이터 프리페치
-  const initialDockData = await prefetchAllDockData(studentId, targetDate, calendarId);
 
   return {
     calendarSettings,

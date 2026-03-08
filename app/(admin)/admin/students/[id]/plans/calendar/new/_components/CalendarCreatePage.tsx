@@ -74,7 +74,7 @@ export function CalendarCreatePage({ studentId, studentName, tenantId }: Props) 
     <div className="flex min-h-screen flex-col bg-white">
       <EventEditTopBar
         mode="new"
-        title="새 캘린더"
+        heading="새 캘린더"
         isDirty={isDirty}
         isSaving={isSaving}
         isDeleting={false}
