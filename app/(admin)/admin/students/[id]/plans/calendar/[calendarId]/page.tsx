@@ -1,8 +1,6 @@
-import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { AdminPlanManagement } from '../../_components/AdminPlanManagement';
-import { AdminPlanManagementSkeleton } from '../../_components/AdminPlanManagementSkeleton';
+import { AdminPlanManagementClient } from '../../_components/AdminPlanManagementClient';
 import { fetchCalendarPageData } from '@/lib/domains/admin-plan/actions/calendarPageData';
 import { StudentSwitcher } from '@/app/(admin)/admin/calendar/_components/StudentSwitcher';
 import { getCurrentUser } from '@/lib/auth/getCurrentUser';
@@ -54,32 +52,30 @@ export default async function CalendarPlanManagementPage({
 
   return (
     <div className="h-[calc(100dvh-4rem)] flex flex-col overflow-hidden">
-      <Suspense fallback={<AdminPlanManagementSkeleton />}>
-        <AdminPlanManagement
-          studentId={student.id}
-          studentName={student.name}
-          tenantId={student.tenant_id}
-          initialDate={pageData.targetDate}
-          activePlanGroupId={pageData.activePlanGroupId}
-          allPlanGroups={pageData.allPlanGroups}
-          calendarId={calendarId}
-          autoOpenWizard={openWizard === 'true'}
-          calendarDailySchedules={pageData.calendarDailySchedules}
-          calendarExclusions={pageData.calendarExclusions}
-          calendarCalculatedSchedule={pageData.calendarCalculatedSchedule}
-          calendarDateTimeSlots={pageData.calendarDateTimeSlots}
-          initialDockData={pageData.initialDockData}
-          viewMode="admin"
-          currentUserId={currentUser?.userId}
-          selectedCalendarSettings={pageData.calendarSettings}
-          studentSwitcher={
-            <StudentSwitcher
-              currentStudentId={student.id}
-              currentStudentName={student.name}
-            />
-          }
-        />
-      </Suspense>
+      <AdminPlanManagementClient
+        studentId={student.id}
+        studentName={student.name}
+        tenantId={student.tenant_id}
+        initialDate={pageData.targetDate}
+        activePlanGroupId={pageData.activePlanGroupId}
+        allPlanGroups={pageData.allPlanGroups}
+        calendarId={calendarId}
+        autoOpenWizard={openWizard === 'true'}
+        calendarDailySchedules={pageData.calendarDailySchedules}
+        calendarExclusions={pageData.calendarExclusions}
+        calendarCalculatedSchedule={pageData.calendarCalculatedSchedule}
+        calendarDateTimeSlots={pageData.calendarDateTimeSlots}
+        initialDockData={pageData.initialDockData}
+        viewMode="admin"
+        currentUserId={currentUser?.userId}
+        selectedCalendarSettings={pageData.calendarSettings}
+        studentSwitcher={
+          <StudentSwitcher
+            currentStudentId={student.id}
+            currentStudentName={student.name}
+          />
+        }
+      />
     </div>
   );
 }

@@ -35,7 +35,7 @@ import { useAdminCalendarData } from './calendar-views/_hooks/useAdminCalendarDa
 import type { ExclusionsByDate } from './calendar-views/_types/adminCalendar';
 import type { PlanStatus } from '@/lib/types/plan';
 import { CalendarNavHeader, type CalendarView } from './CalendarNavHeader';
-import { getWeekRangeSunSat, shiftMonth } from './utils/weekDateUtils';
+import { getWeekRangeSunSat, shiftMonth, shiftDay, shiftWeek, shiftCustomDays } from './utils/weekDateUtils';
 import { formatDateString } from '@/lib/date/calendarUtils';
 import { usePinchZoom } from './hooks/usePinchZoom';
 import { useCalendarSwipeNavigation } from './hooks/useCalendarSwipeNavigation';
@@ -195,12 +195,21 @@ export const DailyDock = memo(function DailyDock({
     isMobile3Day: isMobile,
   });
 
-  // S-1: 월간 뷰에서 마우스 휠로 이전/다음 달 전환
+  // S-1: 휠 네비게이션 (월간: 세로 휠 → 월 이동, 일간/주간: 가로 휠 → 일/주 이동)
+  // 한 번의 휠 제스처당 정확히 1회만 이동 (idle 감지 후 다음 이동 허용)
   const monthWheelContainerRef = useRef<HTMLDivElement>(null);
-  const lastWheelTime = useRef(0);
+  const wheelNavLocked = useRef(false);
+  const wheelIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     const container = monthWheelContainerRef.current;
-    if (!container || calendarView !== 'month' || !onDateChange) return;
+    if (!container || !onDateChange) return;
+
+    const unlockAfterIdle = () => {
+      if (wheelIdleTimer.current) clearTimeout(wheelIdleTimer.current);
+      wheelIdleTimer.current = setTimeout(() => {
+        wheelNavLocked.current = false;
+      }, 200);
+    };
 
     const handleWheel = (e: WheelEvent) => {
       // 모달/팝업 내부 스크롤은 무시
@@ -212,26 +221,48 @@ export const DailyDock = memo(function DailyDock({
         return;
       }
 
-      // 세로 스크롤만 감지, 최소 임계값
-      if (Math.abs(e.deltaY) < 30) return;
+      const absX = Math.abs(e.deltaX);
+      const absY = Math.abs(e.deltaY);
 
-      // 쓰로틀: 300ms
-      const now = Date.now();
-      if (now - lastWheelTime.current < 300) return;
+      // 월간 뷰: 세로 휠 → 월 이동
+      if (calendarView === 'month' && absY >= 30 && absY > absX) {
+        e.preventDefault();
+        unlockAfterIdle();
+        if (wheelNavLocked.current) return;
+        wheelNavLocked.current = true;
+        const dir: 1 | -1 = e.deltaY > 0 ? 1 : -1;
+        navDirectionRef.current = dir > 0 ? 'next' : 'prev';
+        onDateChange(shiftMonth(selectedDate, dir));
+        return;
+      }
 
-      e.preventDefault();
-      lastWheelTime.current = now;
+      // 일간/주간 뷰: 가로 휠 → 일/주 이동
+      if ((calendarView === 'daily' || calendarView === 'weekly') && absX >= 30 && absX > absY * 1.5) {
+        e.preventDefault();
+        unlockAfterIdle();
+        if (wheelNavLocked.current) return;
+        wheelNavLocked.current = true;
+        const dir: 1 | -1 = e.deltaX > 0 ? 1 : -1;
+        navDirectionRef.current = dir > 0 ? 'next' : 'prev';
 
-      if (e.deltaY > 0) {
-        onDateChange(shiftMonth(selectedDate, 1));
-      } else {
-        onDateChange(shiftMonth(selectedDate, -1));
+        if (calendarView === 'daily') {
+          onDateChange(shiftDay(selectedDate, dir));
+        } else {
+          const dayCount = isMobile ? 3 : 7;
+          onDateChange(dayCount === 7
+            ? shiftWeek(selectedDate, dir)
+            : shiftCustomDays(selectedDate, dir, dayCount)
+          );
+        }
       }
     };
 
     container.addEventListener('wheel', handleWheel, { passive: false });
-    return () => container.removeEventListener('wheel', handleWheel);
-  }, [calendarView, selectedDate, onDateChange]);
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+      if (wheelIdleTimer.current) clearTimeout(wheelIdleTimer.current);
+    };
+  }, [calendarView, selectedDate, onDateChange, isMobile]);
 
   const handleInternalViewChange = useCallback((view: CalendarView) => {
     setInternalView(view);

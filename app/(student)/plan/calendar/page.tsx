@@ -1,14 +1,10 @@
-import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getCurrentUserRole } from '@/lib/auth/getCurrentUserRole';
 import { getTenantContext } from '@/lib/tenant/getTenantContext';
-import { getStudentCalendarSettingsAction } from '@/lib/domains/calendar/actions/calendars';
 import { ensureStudentPrimaryCalendar } from '@/lib/domains/calendar/helpers';
 import { fetchCalendarPageData } from '@/lib/domains/admin-plan/actions/calendarPageData';
 import { EmptyState } from '@/components/molecules/EmptyState';
-import { AdminPlanManagement } from '@/app/(admin)/admin/students/[id]/plans/_components/AdminPlanManagement';
-import { AdminPlanManagementSkeleton } from '@/app/(admin)/admin/students/[id]/plans/_components/AdminPlanManagementSkeleton';
-import type { CalendarSettings } from '@/lib/domains/admin-plan/types';
+import { AdminPlanManagementClient } from '@/app/(admin)/admin/students/[id]/plans/_components/AdminPlanManagementClient';
 
 type PlanCalendarPageProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -62,25 +58,23 @@ export default async function PlanCalendarPage({
 
   return (
     <div className="h-[calc(100dvh-4rem)] flex flex-col overflow-hidden">
-      <Suspense fallback={<AdminPlanManagementSkeleton />}>
-        <AdminPlanManagement
-          studentId={userId}
-          studentName={studentName}
-          tenantId={tenantId}
-          initialDate={pageData.targetDate}
-          activePlanGroupId={pageData.activePlanGroupId}
-          allPlanGroups={pageData.allPlanGroups}
-          calendarId={calendarId}
-          calendarDailySchedules={pageData.calendarDailySchedules}
-          calendarExclusions={pageData.calendarExclusions}
-          calendarCalculatedSchedule={pageData.calendarCalculatedSchedule}
-          calendarDateTimeSlots={pageData.calendarDateTimeSlots}
-          initialDockData={pageData.initialDockData}
-          viewMode="student"
-          currentUserId={userId}
-          selectedCalendarSettings={pageData.calendarSettings}
-        />
-      </Suspense>
+      <AdminPlanManagementClient
+        studentId={userId}
+        studentName={studentName}
+        tenantId={tenantId}
+        initialDate={pageData.targetDate}
+        activePlanGroupId={pageData.activePlanGroupId}
+        allPlanGroups={pageData.allPlanGroups}
+        calendarId={calendarId}
+        calendarDailySchedules={pageData.calendarDailySchedules}
+        calendarExclusions={pageData.calendarExclusions}
+        calendarCalculatedSchedule={pageData.calendarCalculatedSchedule}
+        calendarDateTimeSlots={pageData.calendarDateTimeSlots}
+        initialDockData={pageData.initialDockData}
+        viewMode="student"
+        currentUserId={userId}
+        selectedCalendarSettings={pageData.calendarSettings}
+      />
     </div>
   );
 }

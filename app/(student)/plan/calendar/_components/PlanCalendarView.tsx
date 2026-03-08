@@ -352,6 +352,58 @@ export function PlanCalendarView({
     threshold: 75,
   });
 
+  // 휠 네비게이션 (한 제스처당 1회 이동, idle 감지 후 다음 이동 허용)
+  const wheelNavLocked = useRef(false);
+  const wheelIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    const container = calendarRef.current;
+    if (!container) return;
+
+    const unlockAfterIdle = () => {
+      if (wheelIdleTimer.current) clearTimeout(wheelIdleTimer.current);
+      wheelIdleTimer.current = setTimeout(() => {
+        wheelNavLocked.current = false;
+      }, 200);
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest("[role='dialog']") || target.closest("[data-radix-popper-content-wrapper]")) return;
+
+      const absX = Math.abs(e.deltaX);
+      const absY = Math.abs(e.deltaY);
+
+      // 월간 뷰: 세로 휠 → 월 이동
+      if (view === 'month' && absY >= 30 && absY > absX) {
+        e.preventDefault();
+        unlockAfterIdle();
+        if (wheelNavLocked.current) return;
+        const canMove = e.deltaY > 0 ? canGoNext : canGoPrevious;
+        if (!canMove) return;
+        wheelNavLocked.current = true;
+        moveDate(e.deltaY > 0 ? 'next' : 'prev');
+        return;
+      }
+
+      // 일간/주간 뷰: 가로 휠 → 기간 이동
+      if ((view === 'day' || view === 'week') && absX >= 30 && absX > absY * 1.5) {
+        e.preventDefault();
+        unlockAfterIdle();
+        if (wheelNavLocked.current) return;
+        const canMove = e.deltaX > 0 ? canGoNext : canGoPrevious;
+        if (!canMove) return;
+        wheelNavLocked.current = true;
+        moveDate(e.deltaX > 0 ? 'next' : 'prev');
+      }
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+      if (wheelIdleTimer.current) clearTimeout(wheelIdleTimer.current);
+    };
+  }, [view, moveDate, canGoNext, canGoPrevious]);
+
   // Combine refs
   const setRefs = useCallback((node: HTMLDivElement | null) => {
     calendarRef.current = node;

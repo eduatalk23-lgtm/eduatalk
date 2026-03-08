@@ -77,7 +77,7 @@ export interface PlanGroupSummary {
   planPurpose: string | null;
 }
 
-interface AdminPlanManagementProps {
+export interface AdminPlanManagementProps {
   studentId: string;
   studentName: string;
   tenantId: string;
