@@ -54,11 +54,11 @@ export function VirtualizedList<T>({
     <div
       ref={containerRef}
       className={cn("overflow-auto", className)}
-      style={{ height: containerHeight }}
+      style={{ height: containerHeight, overscrollBehavior: "contain", overflowAnchor: "none" }}
       onScroll={handleScroll}
     >
-      <div style={{ height: totalHeight, position: "relative" }}>
-        <div style={{ transform: `translateY(${offsetY}px)` }}>
+      <div style={{ height: totalHeight, position: "relative", contain: "layout style" }}>
+        <div style={{ transform: `translateY(${offsetY}px)`, willChange: "transform" }}>
           {visibleItems.map(({ item, index }) => (
             <div
               key={index}

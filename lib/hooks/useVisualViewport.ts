@@ -44,7 +44,11 @@ export function useVisualViewport(): VisualViewportState {
     if (!vv) return;
 
     const handleUpdate = () => {
-      setState(getState());
+      setState((prev) => {
+        const next = getState();
+        if (prev.height === next.height && prev.offsetTop === next.offsetTop) return prev;
+        return next;
+      });
     };
 
     vv.addEventListener("resize", handleUpdate);
