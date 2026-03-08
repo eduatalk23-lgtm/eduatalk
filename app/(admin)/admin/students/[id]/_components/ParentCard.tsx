@@ -48,8 +48,20 @@ export function ParentCard({ parent, onRefresh }: ParentCardProps) {
     });
   }
 
+  const [isLastLink, setIsLastLink] = useState(false);
+
   function handleDeleteLink() {
-    setIsDeleteDialogOpen(true);
+    // 삭제 전 해당 학부모의 남은 링크 수를 확인하여 마지막 링크 경고 표시
+    startTransition(async () => {
+      try {
+        const { checkIsLastParentLink } = await import("@/lib/domains/student/actions/parentLinks");
+        const lastLink = await checkIsLastParentLink(parent.parentId);
+        setIsLastLink(lastLink);
+      } catch {
+        setIsLastLink(false);
+      }
+      setIsDeleteDialogOpen(true);
+    });
   }
 
   function handleConfirmDelete() {
@@ -57,7 +69,11 @@ export function ParentCard({ parent, onRefresh }: ParentCardProps) {
       const result = await deleteParentStudentLink(parent.linkId);
 
       if (result.success) {
-        showSuccess("연결이 해제되었습니다.");
+        if (result.isLastLink) {
+          showSuccess("연결이 해제되었습니다. 이 학부모는 더 이상 연결된 학생이 없습니다.");
+        } else {
+          showSuccess("연결이 해제되었습니다.");
+        }
         onRefresh?.();
         setIsDeleteDialogOpen(false);
       } else {
@@ -105,7 +121,11 @@ export function ParentCard({ parent, onRefresh }: ParentCardProps) {
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
         title="연결 해제 확인"
-        description="정말 연결을 해제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+        description={
+          isLastLink
+            ? `정말 연결을 해제하시겠습니까? 이 학부모의 마지막 학생 연결입니다. 해제 후 학부모 계정으로 접근할 수 있는 학생이 없게 됩니다.`
+            : "정말 연결을 해제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+        }
         confirmLabel="연결 해제"
         cancelLabel="취소"
         onConfirm={handleConfirmDelete}

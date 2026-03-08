@@ -342,7 +342,7 @@ export async function createParentStudentLink(
  */
 export async function deleteParentStudentLink(
   linkId: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; isLastLink?: boolean }> {
   // 권한 확인
   await requireAdminOrConsultant();
 
@@ -391,6 +391,22 @@ export async function deleteParentStudentLink(
 
     const studentId = link.student_id;
 
+    // 삭제 전 해당 학부모의 남은 링크 수 확인 (기존 link 쿼리에서 parent_id도 가져옴)
+    const { data: fullLink } = await supabase
+      .from("parent_student_links")
+      .select("parent_id")
+      .eq("id", linkId)
+      .maybeSingle();
+
+    let remainingLinkCount = 0;
+    if (fullLink?.parent_id) {
+      const { count } = await supabase
+        .from("parent_student_links")
+        .select("id", { count: "exact", head: true })
+        .eq("parent_id", fullLink.parent_id);
+      remainingLinkCount = count ?? 0;
+    }
+
     // 연결 삭제
     const { data: deletedRows, error } = await supabase
       .from("parent_student_links")
@@ -420,7 +436,8 @@ export async function deleteParentStudentLink(
     revalidatePath("/admin/students");
     revalidatePath(`/admin/students/${studentId}`);
 
-    return { success: true };
+    // remainingLinkCount는 삭제 전 기준이므로 1이면 마지막 링크였음
+    return { success: true, isLastLink: remainingLinkCount <= 1 };
   } catch (error) {
     logActionError(
       { domain: "student", action: "deleteParentStudentLink" },
@@ -544,6 +561,21 @@ export async function updateLinkRelation(
       error: "관계 수정 중 오류가 발생했습니다.",
     };
   }
+}
+
+/**
+ * 학부모의 마지막 학생 링크인지 확인
+ */
+export async function checkIsLastParentLink(parentId: string): Promise<boolean> {
+  await requireAdminOrConsultant();
+
+  const supabase = await createSupabaseServerClient();
+  const { count } = await supabase
+    .from("parent_student_links")
+    .select("id", { count: "exact", head: true })
+    .eq("parent_id", parentId);
+
+  return (count ?? 0) <= 1;
 }
 
 // Approval workflow functions removed:

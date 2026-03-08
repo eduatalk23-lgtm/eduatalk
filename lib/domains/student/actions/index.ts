@@ -45,6 +45,7 @@ export {
   createParentStudentLink,
   deleteParentStudentLink,
   updateLinkRelation,
+  checkIsLastParentLink,
 } from "./parentLinks";
 
 // ============================================
@@ -103,3 +104,18 @@ export {
   type StudentDetailResult,
   getStudentDetailAction,
 } from "./detail";
+
+// ============================================
+// Connection Status (계정 연결 상태)
+// ============================================
+
+export {
+  type StudentConnectionStatus,
+  getStudentConnectionStatus,
+} from "./connectionStatus";
+
+// ============================================
+// Disconnect (계정 연결 해제)
+// ============================================
+
+export { disconnectStudent } from "./disconnect";
