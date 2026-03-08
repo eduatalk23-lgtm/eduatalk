@@ -135,7 +135,7 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-600 hover:text-gray-900 transition"
+        className="relative p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition"
         aria-label="알림"
       >
         <Bell className="h-6 w-6" />

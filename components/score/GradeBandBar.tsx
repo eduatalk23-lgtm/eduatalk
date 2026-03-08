@@ -57,7 +57,7 @@ export default function GradeBandBar({
                 className={`flex items-center justify-center transition-colors ${
                   isActive
                     ? "bg-indigo-500 text-white"
-                    : "bg-gray-200 text-gray-400 dark:bg-gray-700 dark:text-gray-500"
+                    : "bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
                 } ${seg.grade < maxGrade ? "border-r border-white/80 dark:border-gray-900" : ""}`}
                 style={{ flexBasis: `${seg.widthPct}%` }}
               >

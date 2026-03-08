@@ -193,7 +193,7 @@ export function AddDependencyModal({
           <h2 className="text-lg font-semibold text-gray-900">의존성 추가</h2>
           <button
             onClick={onClose}
-            className="rounded p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+            className="rounded p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
           >
             <X className="h-5 w-5" />
           </button>
@@ -381,7 +381,7 @@ export function AddDependencyModal({
             type="button"
             onClick={handleSubmit}
             disabled={!selectedContent || isPending}
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:text-gray-500 dark:disabled:text-gray-400 disabled:cursor-not-allowed"
           >
             {isPending ? (
               <>

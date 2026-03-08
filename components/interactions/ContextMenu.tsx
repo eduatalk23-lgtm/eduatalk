@@ -393,7 +393,7 @@ const ContextMenuItemComponent = memo(function ContextMenuItemComponent({
         "w-full flex items-center gap-3 px-3 py-2",
         "text-sm text-left",
         item.disabled
-          ? "text-secondary-400 dark:text-secondary-600 cursor-not-allowed"
+          ? "text-secondary-400 dark:text-secondary-500 cursor-not-allowed opacity-60"
           : item.danger
             ? "text-error-600 dark:text-error-400 hover:bg-error-50 dark:hover:bg-error-900/20"
             : "text-secondary-700 dark:text-secondary-300 hover:bg-secondary-100 dark:hover:bg-secondary-800",

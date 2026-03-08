@@ -171,7 +171,7 @@ export function AcademyTimeTableView({
             >
               {day}
               {hasSchedule && (
-                <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-white">
+                <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary-500 text-[10px] text-white">
                   {schedulesByDay.get(index)!.length}
                 </span>
               )}
@@ -352,7 +352,7 @@ export function WeekdayPatternSelector({
             className={cn(
               "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
               isPatternSelected(pattern.days)
-                ? "border-primary bg-primary text-white"
+                ? "border-primary bg-primary-500 text-white"
                 : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50",
               disabled && "cursor-not-allowed opacity-50"
             )}
