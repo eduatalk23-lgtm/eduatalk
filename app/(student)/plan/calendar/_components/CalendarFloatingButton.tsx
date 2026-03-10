@@ -43,7 +43,8 @@ export function CalendarFloatingButton({
   return (
     <>
       {/* 플로팅 버튼 그룹 */}
-      <div className="fixed bottom-6 right-6 z-40 flex flex-col-reverse items-end gap-3">
+      {/* 모바일: ChatFAB과 겹치므로 숨김, 데스크톱: 우측 하단 */}
+      <div className="hidden md:flex fixed md:bottom-6 md:right-6 z-40 flex-col-reverse items-end gap-3">
         {/* 확장된 옵션들 */}
         {isExpanded && (
           <div className="flex flex-col-reverse gap-2 animate-in slide-in-from-bottom-2 fade-in duration-200">

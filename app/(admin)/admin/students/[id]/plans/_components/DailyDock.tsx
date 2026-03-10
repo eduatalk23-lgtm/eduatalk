@@ -828,7 +828,7 @@ export const DailyDock = memo(function DailyDock({
       </div>
       </div>
 
-      {/* 모바일 FAB 생성 버튼 (Google Calendar 스타일) */}
+      {/* 데스크톱 FAB 생성 버튼 — 모바일에서는 ChatFAB과 겹치므로 숨김, 타임슬롯 클릭으로 대체 */}
       {calendarId && (onCreatePlanAtSlot || onOpenEventEditNew) && (
         <button
           type="button"
@@ -839,7 +839,7 @@ export const DailyDock = memo(function DailyDock({
               onOpenEventEditNew({ date: selectedDate, startTime: '09:00', endTime: '10:00' });
             }
           }}
-          className="md:hidden fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 flex items-center justify-center w-14 h-14 rounded-full bg-blue-500 text-white shadow-lg hover:bg-blue-600 active:scale-95 transition-all"
+          className="hidden md:flex fixed right-6 bottom-6 z-30 items-center justify-center w-14 h-14 rounded-full bg-blue-500 text-white shadow-lg hover:bg-blue-600 active:scale-95 transition-all"
           aria-label="새 일정 만들기"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

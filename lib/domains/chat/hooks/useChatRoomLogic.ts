@@ -270,8 +270,9 @@ export function useChatRoomLogic({
   // Data Transformations
   // ============================================
 
-  // 페이지 수 추적 (readCounts 증분 업데이트용)
+  // readCounts 캐시 (증분 업데이트 + refetch 감지용)
   const pagesLengthRef = useRef(0);
+  const prevPagesRef = useRef<typeof messagesData | undefined>(undefined);
   const cachedReadCountsRef = useRef<Record<string, number>>({});
 
   // READ_RECEIPT 실시간 갱신용
@@ -372,41 +373,33 @@ export function useChatRoomLogic({
     return result;
   }, [allMessages]); // eslint-disable-line react-hooks/exhaustive-deps -- groupingOptions uses refs
 
-  // readCounts 병합 (증분 최적화 + READ_RECEIPT 실시간 갱신)
+  // readCounts 병합 (refetch 감지 + 증분 최적화 + READ_RECEIPT 실시간 갱신)
+  //
+  // 이전 버그: 페이지 수가 같으면 무조건 캐시 반환 → background refetch 시 서버의
+  // 최신 readCounts가 무시됨 (뒤로가기 후 재진입 시 읽음 숫자 누락)
+  //
+  // 수정: pages 참조(identity) 변경 감지로 refetch와 READ_RECEIPT 업데이트를 구분
   const allReadCounts = useMemo(() => {
     if (!messagesData?.pages) {
       cachedReadCountsRef.current = {};
       pagesLengthRef.current = 0;
+      prevPagesRef.current = undefined;
       return {};
     }
 
     const pages = messagesData.pages;
     const currentLength = pages.length;
     const prevLength = pagesLengthRef.current;
+    const pagesIdentityChanged = messagesData !== prevPagesRef.current;
+    prevPagesRef.current = messagesData;
 
-    // 첫 로드 또는 리셋
-    if (prevLength === 0 || currentLength < prevLength) {
-      const result = pages.reduce(
-        (acc, page) => ({
-          ...acc,
-          ...(page?.readCounts ?? {}),
-        }),
-        {} as Record<string, number>
-      );
-      cachedReadCountsRef.current = result;
-      pagesLengthRef.current = currentLength;
-      readReceiptTrackRef.current.clear(); // 서버 데이터 기준으로 리셋
-      return result;
-    }
-
-    // 페이지 수 동일하면 캐시 반환 (READ_RECEIPT에 의한 업데이트도 이미 cachedRef에 반영됨)
-    if (currentLength === prevLength) {
+    // readCountVersion만 변경 (READ_RECEIPT, 낙관적 업데이트) → 캐시 반환
+    if (!pagesIdentityChanged) {
       return cachedReadCountsRef.current;
     }
 
-    // 새 페이지의 readCounts만 병합
-    const newPages = pages.slice(prevLength);
-    const newReadCounts = newPages.reduce(
+    // pages가 변경된 경우: 서버 데이터 기반으로 재구성
+    const serverReadCounts = pages.reduce(
       (acc, page) => ({
         ...acc,
         ...(page?.readCounts ?? {}),
@@ -414,14 +407,31 @@ export function useChatRoomLogic({
       {} as Record<string, number>
     );
 
-    const result = { ...cachedReadCountsRef.current, ...newReadCounts };
-    cachedReadCountsRef.current = result;
+    if (prevLength === 0) {
+      // 첫 로드: 서버 데이터만 사용
+      readReceiptTrackRef.current.clear();
+      cachedReadCountsRef.current = serverReadCounts;
+    } else if (currentLength > prevLength) {
+      // 새 페이지 추가 (pagination): 기존 캐시 + 새 페이지 readCounts
+      cachedReadCountsRef.current = { ...cachedReadCountsRef.current, ...serverReadCounts };
+    } else {
+      // refetch (같은 페이지 수 또는 줄어듦): 서버 데이터로 갱신 + 낙관적 값 보존
+      const localOptimistic: Record<string, number> = {};
+      for (const [key, value] of Object.entries(cachedReadCountsRef.current)) {
+        // 아직 서버에 반영 안 된 낙관적 메시지(temp-*)의 readCount 보존
+        if (key.startsWith("temp-") && !(key in serverReadCounts)) {
+          localOptimistic[key] = value;
+        }
+      }
+      cachedReadCountsRef.current = { ...serverReadCounts, ...localOptimistic };
+    }
+
     pagesLengthRef.current = currentLength;
-    return result;
+    return cachedReadCountsRef.current;
     // readCountVersion: READ_RECEIPT 수신 시 cachedReadCountsRef가 직접 업데이트되고,
     // readCountVersion 변경으로 useMemo 재실행 → cachedReadCountsRef.current 반환
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messagesData?.pages, readCountVersion]);
+  }, [messagesData, readCountVersion]);
 
   // ============================================
   // Mutations

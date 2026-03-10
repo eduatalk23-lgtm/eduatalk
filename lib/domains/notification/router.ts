@@ -7,6 +7,7 @@ import {
 import { sendPushToUser } from "@/lib/domains/push/actions/send";
 import {
   type NotificationType,
+  type NotificationPriority,
   type NotificationRequest,
   type SkipReason,
   NOTIFICATION_PREFERENCE_MAP,
@@ -71,11 +72,8 @@ export async function routeNotification(
     }
 
     // 그룹 채팅 요약 알림: 5분 내 3건 이상이면 요약으로 교체
-    const finalPayload = await maybeCondenseGroupChat(
-      supabase,
-      userId,
-      request
-    );
+    const { payload: finalPayload, condensed } =
+      await maybeCondenseGroupChat(supabase, userId, request);
 
     // 먼저 로그를 insert하여 id를 확보 → push payload에 포함 (클릭 추적용)
     const { data: logRow } = await supabase
@@ -99,6 +97,11 @@ export async function routeNotification(
       icon: finalPayload.icon,
       type: request.type,
       notificationLogId: logRow?.id,
+      timestamp: request.messageCreatedAt
+        ? new Date(request.messageCreatedAt).getTime()
+        : Date.now(),
+      urgency: mapPriorityToUrgency(request.priority, request.type),
+      condensed,
     });
 
     if (sent === 0 && failed === 0) {
@@ -260,6 +263,51 @@ async function shouldSkip(
   return null;
 }
 
+/**
+ * 알림 우선순위 + 타입 → Web Push urgency 매핑.
+ * high: 즉시 전달 (멘션, 긴급 알림)
+ * normal: 일반 전달 (채팅, 플랜 업데이트)
+ * low: 배터리 절약 (리마인더, 성과, 주간 요약)
+ */
+function mapPriorityToUrgency(
+  priority: NotificationPriority,
+  type: NotificationType
+): "very-low" | "low" | "normal" | "high" {
+  if (priority === "high") return "high";
+
+  // 타입별 세분화
+  switch (type) {
+    case "chat_mention":
+      return "high";
+    case "chat_message":
+    case "chat_group_message":
+    case "plan_created":
+    case "plan_updated":
+    case "plan_overdue":
+    case "admin_notification":
+    case "camp_invitation":
+    case "attendance":
+    case "system":
+      return "normal";
+    case "study_reminder":
+    case "event_reminder":
+    case "camp_reminder":
+    case "consultation_reminder":
+    case "payment_reminder":
+    case "plan_delayed_warning":
+    case "plan_incomplete_reminder":
+    case "achievement":
+    case "learning_milestone":
+    case "daily_goal_complete":
+    case "study_streak":
+    case "weekly_plan_summary":
+    case "camp_status_change":
+      return "low";
+    default:
+      return priority === "low" ? "low" : "normal";
+  }
+}
+
 function isInQuietHours(
   current: string,
   start: string,
@@ -284,14 +332,14 @@ async function maybeCondenseGroupChat(
   supabase: SupabaseAdminClient,
   userId: string,
   request: NotificationRequest
-): Promise<NotificationRequest["payload"]> {
+): Promise<{ payload: NotificationRequest["payload"]; condensed: boolean }> {
   if (request.type !== "chat_group_message") {
-    return request.payload;
+    return { payload: request.payload, condensed: false };
   }
 
   // referenceId 형식: "{roomId}:{messageId}"
   const roomId = request.referenceId?.split(":")[0];
-  if (!roomId) return request.payload;
+  if (!roomId) return { payload: request.payload, condensed: false };
 
   const { count } = await supabase
     .from("notification_log")
@@ -307,10 +355,13 @@ async function maybeCondenseGroupChat(
 
   if ((count ?? 0) >= GROUP_SUMMARY_THRESHOLD) {
     return {
-      ...request.payload,
-      body: `${(count ?? 0) + 1}개의 새 메시지`,
+      payload: {
+        ...request.payload,
+        body: `${(count ?? 0) + 1}개의 새 메시지`,
+      },
+      condensed: true,
     };
   }
 
-  return request.payload;
+  return { payload: request.payload, condensed: false };
 }

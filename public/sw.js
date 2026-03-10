@@ -5,14 +5,115 @@
  * - Push 알림 수신 및 표시
  * - 알림 클릭 시 앱 내 네비게이션 + 클릭 추적
  * - 구독 변경 시 자동 갱신 (pushsubscriptionchange)
- * - App Badging API 연동
+ * - App Badging API 연동 (IndexedDB 영속 카운터)
+ * - Per-tag 알림 누적 카운트 (메시지 요약 표시)
  */
 
 const CACHE_NAME = "timelevelup-v1";
 const OFFLINE_URL = "/offline";
 
-// App Badge 카운트 (SW 생존 주기 동안 유지)
-let badgeCount = 0;
+// ============================================
+// IndexedDB 헬퍼 (Badge 카운터 + per-tag 카운트)
+// ============================================
+const DB_NAME = "sw-data";
+const DB_VERSION = 2;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (event) => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains("meta")) {
+        db.createObjectStore("meta");
+      }
+      if (!db.objectStoreNames.contains("tag_counts")) {
+        db.createObjectStore("tag_counts");
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// Badge: 단일 transaction으로 read+write (race condition 방지)
+async function incrementBadge() {
+  try {
+    const db = await openDB();
+    const count = await new Promise((resolve) => {
+      const tx = db.transaction("meta", "readwrite");
+      const store = tx.objectStore("meta");
+      const getReq = store.get("badgeCount");
+      getReq.onsuccess = () => {
+        const newCount = (getReq.result || 0) + 1;
+        store.put(newCount, "badgeCount");
+        tx.oncomplete = () => resolve(newCount);
+      };
+      getReq.onerror = () => resolve(1);
+    });
+    db.close();
+    if ("setAppBadge" in navigator) {
+      navigator.setAppBadge(count).catch(() => {});
+    }
+  } catch {
+    // IDB 실패해도 push 처리 계속
+  }
+}
+
+async function clearBadge() {
+  try {
+    const db = await openDB();
+    await new Promise((resolve) => {
+      const tx = db.transaction(["meta", "tag_counts"], "readwrite");
+      tx.objectStore("meta").put(0, "badgeCount");
+      tx.objectStore("tag_counts").clear();
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+    db.close();
+    if ("clearAppBadge" in navigator) {
+      navigator.clearAppBadge().catch(() => {});
+    }
+  } catch {
+    // 미지원 환경
+  }
+}
+
+// Per-tag 카운트: 같은 tag(채팅방)의 누적 메시지 수 추적
+async function incrementTagCount(tag) {
+  try {
+    const db = await openDB();
+    const count = await new Promise((resolve) => {
+      const tx = db.transaction("tag_counts", "readwrite");
+      const store = tx.objectStore("tag_counts");
+      const getReq = store.get(tag);
+      getReq.onsuccess = () => {
+        const newCount = (getReq.result || 0) + 1;
+        store.put(newCount, tag);
+        tx.oncomplete = () => resolve(newCount);
+      };
+      getReq.onerror = () => resolve(1);
+    });
+    db.close();
+    return count;
+  } catch {
+    return 1;
+  }
+}
+
+async function clearTagCount(tag) {
+  try {
+    const db = await openDB();
+    await new Promise((resolve) => {
+      const tx = db.transaction("tag_counts", "readwrite");
+      tx.objectStore("tag_counts").delete(tag);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+    db.close();
+  } catch {
+    // 무시
+  }
+}
 
 // ============================================
 // Install: 핵심 에셋 프리캐시
@@ -46,13 +147,15 @@ self.addEventListener("activate", (event) => {
     )
   );
   self.clients.claim();
+
+  // 이전 버전 IDB 정리 (sw-badge → sw-data로 마이그레이션됨)
+  indexedDB.deleteDatabase("sw-badge");
 });
 
 // ============================================
 // Fetch: NetworkFirst 캐싱 전략
 // ============================================
 self.addEventListener("fetch", (event) => {
-  // navigation 요청만 캐시 폴백 처리
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request).catch(() => caches.match(OFFLINE_URL))
@@ -60,7 +163,6 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // 정적 에셋: Cache First
   if (
     event.request.destination === "image" ||
     event.request.destination === "font" ||
@@ -86,7 +188,7 @@ self.addEventListener("fetch", (event) => {
 });
 
 // ============================================
-// Push: 알림 수신 및 표시 + App Badge
+// Push: 알림 수신 및 표시 + App Badge + 누적 카운트
 // ============================================
 self.addEventListener("push", (event) => {
   if (!event.data) return;
@@ -101,49 +203,46 @@ self.addEventListener("push", (event) => {
   const origin = self.location.origin;
   const tag = data.tag || "notification-" + Date.now();
 
-  const options = {
-    body: data.body || "",
-    icon: data.icon || origin + "/icons/icon-192x192.png",
-    badge: data.badge || origin + "/icons/icon-72x72.png",
-    tag: tag,
-    renotify: true,
-    requireInteraction: true, // Android: heads-up 배너 유지 (auto-dismiss 방지)
-    silent: false, // 명시적으로 소리/진동 허용
-    vibrate: [200, 100, 200], // Android: 진동 패턴 → heads-up 배너 트리거
-    data: {
-      url: data.url || "/",
-      type: data.type || "unknown",
-      notificationLogId: data.notificationLogId || null,
-      timestamp: Date.now(),
-    },
-  };
-
   event.waitUntil(
-    self.registration
-      .getNotifications({ tag: tag })
-      .then((existing) => {
-        existing.forEach((n) => n.close());
-        return self.registration.showNotification(
+    (async () => {
+      try {
+        // Per-tag 누적 카운트 증가 (채팅방별 미읽은 수)
+        const tagCount = await incrementTagCount(tag);
+
+        // 누적 메시지가 2건 이상이면 body에 카운트 표시
+        // 서버에서 이미 요약한 경우(condensed) 건너뜀
+        let body = data.body || "";
+        if (tagCount > 1 && !data.condensed) {
+          body = data.body
+            ? `${data.body}\n외 ${tagCount - 1}건의 메시지`
+            : `${tagCount}개의 새 메시지`;
+        }
+
+        const options = {
+          body: body,
+          icon: data.icon || origin + "/icons/icon-192x192.png",
+          badge: data.badge || origin + "/icons/icon-72x72.png",
+          tag: tag,
+          renotify: true,
+          vibrate: [200, 100, 200],
+          timestamp: data.timestamp || Date.now(),
+          data: {
+            url: data.url || "/",
+            type: data.type || "unknown",
+            notificationLogId: data.notificationLogId || null,
+            tag: tag,
+          },
+        };
+
+        await self.registration.showNotification(
           data.title || "TimeLevelUp",
           options
         );
-      })
-      .then(() => {
-        // App Badging: 카운트 증가 후 뱃지 업데이트
-        // getNotifications()는 방금 표시한 알림을 바로 포함하지 않을 수 있으므로
-        // 별도 카운터로 관리
-        badgeCount++;
-        try {
-          if ("setAppBadge" in navigator) {
-            return navigator.setAppBadge(badgeCount).catch(() => {});
-          }
-        } catch {
-          // setAppBadge 미지원 환경 (iOS Safari 등)
-        }
-      })
-      .catch((err) => {
+        await incrementBadge();
+      } catch (err) {
         console.error("[SW] Push notification failed:", err);
-      })
+      }
+    })()
   );
 });
 
@@ -164,25 +263,11 @@ self.addEventListener("notificationclick", (event) => {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ notificationLogId }),
-          }).catch(() => {
-            // 추적 실패해도 네비게이션은 진행
-          })
+          }).catch(() => {})
         : Promise.resolve(),
 
-      // 2. App Badge 초기화
-      (() => {
-        badgeCount = Math.max(0, badgeCount - 1);
-        try {
-          if ("setAppBadge" in navigator) {
-            return badgeCount > 0
-              ? navigator.setAppBadge(badgeCount).catch(() => {})
-              : navigator.clearAppBadge().catch(() => {});
-          }
-        } catch {
-          // 미지원 환경
-        }
-        return Promise.resolve();
-      })(),
+      // 2. App Badge 초기화 + 해당 tag 카운트 리셋
+      clearBadge(),
 
       // 3. 앱 내 네비게이션
       self.clients
@@ -198,11 +283,20 @@ self.addEventListener("notificationclick", (event) => {
           return self.clients.openWindow(url);
         })
         .catch(() => {
-          // 네비게이션 실패 시 새 창으로 폴백
           return self.clients.openWindow(url).catch(() => {});
         }),
     ])
   );
+});
+
+// ============================================
+// Notification Close (Dismiss): tag 카운트 리셋
+// ============================================
+self.addEventListener("notificationclose", (event) => {
+  const tag = event.notification.data?.tag;
+  if (tag) {
+    event.waitUntil(clearTagCount(tag));
+  }
 });
 
 // ============================================
@@ -212,8 +306,6 @@ self.addEventListener("pushsubscriptionchange", (event) => {
   event.waitUntil(
     (async () => {
       try {
-        // 이전 구독의 옵션(applicationServerKey 포함)으로 재구독 시도
-        // event.newSubscription이 있으면 브라우저가 이미 재구독한 것
         const newSubscription =
           event.newSubscription ||
           (await self.registration.pushManager.subscribe(
@@ -224,8 +316,6 @@ self.addEventListener("pushsubscriptionchange", (event) => {
         const auth = newSubscription.getKey("auth");
         if (!p256dh || !auth) return;
 
-        // 서버에 새 구독 전달 (SW에서는 Server Action 호출 불가 → API 사용)
-        // 이전 구독 비활성화 + 새 구독 등록을 서버가 처리
         await fetch(self.location.origin + "/api/push/resubscribe", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -252,14 +342,7 @@ self.addEventListener("pushsubscriptionchange", (event) => {
 // ============================================
 self.addEventListener("message", (event) => {
   if (event.data?.type === "CLEAR_BADGE") {
-    badgeCount = 0;
-    try {
-      if ("clearAppBadge" in navigator) {
-        navigator.clearAppBadge().catch(() => {});
-      }
-    } catch {
-      // 미지원 환경
-    }
+    event.waitUntil(clearBadge());
   }
 });
 

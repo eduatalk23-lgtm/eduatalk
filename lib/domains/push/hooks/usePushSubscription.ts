@@ -19,6 +19,7 @@ const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
 export function usePushSubscription(userId: string | null) {
   const subscribedRef = useRef(false);
   const retryCountRef = useRef(0);
+  const lastEndpointRef = useRef<string | null>(null);
 
   const syncSubscription = useCallback(async () => {
     if (!userId || subscribedRef.current) return;
@@ -51,9 +52,10 @@ export function usePushSubscription(userId: string | null) {
       const authKey = subscription.getKey("auth");
       if (!p256dhKey || !authKey) return;
 
+      const endpoint = subscription.endpoint;
       const result = await subscribePush(
         {
-          endpoint: subscription.endpoint,
+          endpoint,
           keys: {
             p256dh: arrayBufferToBase64(p256dhKey),
             auth: arrayBufferToBase64(authKey),
@@ -64,6 +66,7 @@ export function usePushSubscription(userId: string | null) {
 
       if (result.success) {
         subscribedRef.current = true;
+        lastEndpointRef.current = endpoint;
         retryCountRef.current = 0;
       } else {
         console.warn("[Push] subscribePush failed:", result.error);
@@ -125,13 +128,35 @@ export function usePushSubscription(userId: string | null) {
     syncSubscription();
   }, [syncSubscription, revokeCurrentSubscription, userId]);
 
-  // 앱 포커스 시 구독 재확인 (모바일에서 구독이 풀릴 수 있음)
+  // 앱 포커스 시 구독 재확인
+  // - 구독이 풀린 경우 (iOS)
+  // - endpoint가 조용히 변경된 경우 (Chrome pushsubscriptionchange 불안정)
   useEffect(() => {
     if (!userId) return;
 
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible" && !subscribedRef.current) {
-        syncSubscription();
+    const handleVisibility = async () => {
+      if (document.visibilityState !== "visible") return;
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+      if (Notification.permission !== "granted") return;
+
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+
+        if (!subscription) {
+          // 구독 풀림 → 재등록
+          subscribedRef.current = false;
+          syncSubscription();
+        } else if (
+          lastEndpointRef.current &&
+          subscription.endpoint !== lastEndpointRef.current
+        ) {
+          // endpoint 변경 감지 → 서버에 새 endpoint 등록
+          subscribedRef.current = false;
+          syncSubscription();
+        }
+      } catch {
+        // SW not ready 등 — 무시
       }
     };
     document.addEventListener("visibilitychange", handleVisibility);

@@ -5,6 +5,8 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/supabase/database.types";
 import { ensureVapidConfigured } from "../vapid";
 
+type PushUrgency = "very-low" | "low" | "normal" | "high";
+
 interface PushPayload {
   title: string;
   body: string;
@@ -13,6 +15,12 @@ interface PushPayload {
   icon?: string;
   type?: string;
   notificationLogId?: string;
+  /** 이벤트 발생 시각 (알림에 "N분 전" 표시용) */
+  timestamp?: number;
+  /** Web Push urgency (기본: normal). high=즉시 전달, low=배터리 절약 */
+  urgency?: PushUrgency;
+  /** 서버에서 이미 요약된 알림인지 (SW per-tag 카운트 스킵용) */
+  condensed?: boolean;
 }
 
 /** 이 상태 코드를 받으면 구독이 만료/무효이므로 비활성화 */
@@ -52,11 +60,14 @@ export async function sendPushToUser(
 
   if (!subscriptions?.length) return { sent: 0, failed: 0 };
 
+  // urgency는 Web Push 헤더에만 사용 → payload에서 제거하여 4KB 절약
+  const { urgency: _urgency, ...payloadWithoutUrgency } = payload;
+
   // 페이로드 4KB 제한 검증 (Web Push 표준)
-  let payloadStr = JSON.stringify(payload);
+  let payloadStr = JSON.stringify(payloadWithoutUrgency);
   if (new TextEncoder().encode(payloadStr).byteLength > MAX_PAYLOAD_BYTES) {
     const truncatedPayload = {
-      ...payload,
+      ...payloadWithoutUrgency,
       body: payload.body.slice(0, 200) + "…",
     };
     payloadStr = JSON.stringify(truncatedPayload);
@@ -69,8 +80,11 @@ export async function sendPushToUser(
   let sent = 0;
   let failed = 0;
 
+  const urgency = payload.urgency ?? "normal";
+  const ttl = urgency === "high" ? 86400 : urgency === "low" ? 43200 : 86400;
+
   const results = await Promise.allSettled(
-    subscriptions.map((row) => sendWithRetry(row, payloadStr))
+    subscriptions.map((row) => sendWithRetry(row, payloadStr, urgency, ttl))
   );
 
   for (let i = 0; i < results.length; i++) {
@@ -120,13 +134,15 @@ export async function sendPushToUser(
 async function sendWithRetry(
   row: { id: string; subscription: unknown },
   payloadStr: string,
+  urgency: PushUrgency = "normal",
+  ttl = 86400,
   attempt = 0
 ): Promise<webpush.SendResult> {
   try {
     return await webpush.sendNotification(
       row.subscription as unknown as webpush.PushSubscription,
       payloadStr,
-      { TTL: 86400, urgency: "high" }
+      { TTL: ttl, urgency }
     );
   } catch (err: unknown) {
     const statusCode = (err as { statusCode?: number })?.statusCode;
@@ -146,7 +162,7 @@ async function sendWithRetry(
     const jitter = Math.random() * 500;
     await sleep(baseDelay + jitter);
 
-    return sendWithRetry(row, payloadStr, attempt + 1);
+    return sendWithRetry(row, payloadStr, urgency, ttl, attempt + 1);
   }
 }
 

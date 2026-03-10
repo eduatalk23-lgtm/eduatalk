@@ -70,13 +70,12 @@ export function useServiceWorker() {
     };
     navigator.serviceWorker.addEventListener("message", handleMessage);
 
-    // 앱 포커스 시 뱃지 초기화 (메인 스레드 + SW 카운터 동기화)
+    // 앱 포커스 시 뱃지 초기화 (메인 스레드 + SW IndexedDB 카운터 동기화)
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
         if ("clearAppBadge" in navigator) {
           (navigator as ClearAppBadgeNavigator).clearAppBadge().catch(() => {});
         }
-        // SW의 badgeCount도 리셋
         navigator.serviceWorker.controller?.postMessage({
           type: "CLEAR_BADGE",
         });
