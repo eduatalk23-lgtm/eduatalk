@@ -5,11 +5,13 @@ import { Providers } from "./providers";
 import InstallPrompt from "@/components/ui/InstallPrompt";
 import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
 import { SkipLink } from "@/components/layout/SkipLink";
+import { RouteAnnouncer } from "@/components/layout/RouteAnnouncer";
 import { GlobalErrorBoundary } from "@/components/errors/GlobalErrorBoundary";
 import { FloatingChatWidget } from "@/components/chat/FloatingChatWidget";
 import { PushSubscriptionManager } from "@/components/push/PushSubscriptionManager";
 import { PushPermissionBanner } from "@/components/push/PushPermissionBanner";
 import { AppPresenceProvider } from "@/components/push/AppPresenceProvider";
+import { SplashDismisser } from "@/components/pwa/SplashDismisser";
 import NextTopLoader from "nextjs-toploader";
 
 const geistSans = Geist({
@@ -35,67 +37,137 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "TimeLevelUp",
     startupImage: [
-      // iPhone SE (2nd generation), iPhone 8/7/6s/6
-      "/splash/apple-splash-750-1334.png",
-      // iPhone 8 Plus/7 Plus/6s Plus/6 Plus
+      // --- 라이트 모드 ---
+      // iPhone SE/8/7/6s/6
+      {
+        url: "/splash/apple-splash-750-1334.png",
+        media: "(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (prefers-color-scheme: light)",
+      },
+      // iPhone 8 Plus/7 Plus/6s Plus
       {
         url: "/splash/apple-splash-1242-2208.png",
-        media: "(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)",
+        media: "(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: light)",
       },
-      // iPhone X/XS, iPhone 11 Pro, iPhone 12 mini, iPhone 13 mini
+      // iPhone X/XS/11 Pro/12 mini/13 mini
       {
         url: "/splash/apple-splash-1125-2436.png",
-        media: "(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)",
+        media: "(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: light)",
       },
-      // iPhone XR, iPhone 11
+      // iPhone XR/11
       {
         url: "/splash/apple-splash-828-1792.png",
-        media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)",
+        media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (prefers-color-scheme: light)",
       },
-      // iPhone XS Max, iPhone 11 Pro Max
+      // iPhone XS Max/11 Pro Max
       {
         url: "/splash/apple-splash-1242-2688.png",
-        media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)",
+        media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: light)",
       },
-      // iPhone 12/12 Pro, iPhone 13/13 Pro, iPhone 14
+      // iPhone 12/13/14
       {
         url: "/splash/apple-splash-1170-2532.png",
-        media: "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)",
+        media: "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: light)",
       },
-      // iPhone 12 Pro Max, iPhone 13 Pro Max, iPhone 14 Plus
+      // iPhone 12/13 Pro Max/14 Plus
       {
         url: "/splash/apple-splash-1284-2778.png",
-        media: "(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)",
+        media: "(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: light)",
       },
       // iPhone 14 Pro
       {
         url: "/splash/apple-splash-1179-2556.png",
-        media: "(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)",
+        media: "(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: light)",
       },
       // iPhone 14 Pro Max
       {
         url: "/splash/apple-splash-1290-2796.png",
-        media: "(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)",
+        media: "(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: light)",
       },
       // iPad
       {
         url: "/splash/apple-splash-768-1024.png",
-        media: "(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)",
+        media: "(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (prefers-color-scheme: light)",
       },
       // iPad Pro 10.5"
       {
         url: "/splash/apple-splash-1112-1394.png",
-        media: "(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2)",
+        media: "(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (prefers-color-scheme: light)",
       },
       // iPad Pro 11"
       {
         url: "/splash/apple-splash-1194-1668.png",
-        media: "(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)",
+        media: "(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (prefers-color-scheme: light)",
       },
       // iPad Pro 12.9"
       {
         url: "/splash/apple-splash-2048-2732.png",
-        media: "(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)",
+        media: "(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (prefers-color-scheme: light)",
+      },
+      // --- 다크 모드 ---
+      // iPhone SE/8/7/6s/6
+      {
+        url: "/splash/apple-splash-dark-750-1334.png",
+        media: "(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (prefers-color-scheme: dark)",
+      },
+      // iPhone 8 Plus/7 Plus/6s Plus
+      {
+        url: "/splash/apple-splash-dark-1242-2208.png",
+        media: "(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: dark)",
+      },
+      // iPhone X/XS/11 Pro/12 mini/13 mini
+      {
+        url: "/splash/apple-splash-dark-1125-2436.png",
+        media: "(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: dark)",
+      },
+      // iPhone XR/11
+      {
+        url: "/splash/apple-splash-dark-828-1792.png",
+        media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (prefers-color-scheme: dark)",
+      },
+      // iPhone XS Max/11 Pro Max
+      {
+        url: "/splash/apple-splash-dark-1242-2688.png",
+        media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: dark)",
+      },
+      // iPhone 12/13/14
+      {
+        url: "/splash/apple-splash-dark-1170-2532.png",
+        media: "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: dark)",
+      },
+      // iPhone 12/13 Pro Max/14 Plus
+      {
+        url: "/splash/apple-splash-dark-1284-2778.png",
+        media: "(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: dark)",
+      },
+      // iPhone 14 Pro
+      {
+        url: "/splash/apple-splash-dark-1179-2556.png",
+        media: "(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: dark)",
+      },
+      // iPhone 14 Pro Max
+      {
+        url: "/splash/apple-splash-dark-1290-2796.png",
+        media: "(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: dark)",
+      },
+      // iPad
+      {
+        url: "/splash/apple-splash-dark-768-1024.png",
+        media: "(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (prefers-color-scheme: dark)",
+      },
+      // iPad Pro 10.5"
+      {
+        url: "/splash/apple-splash-dark-1112-1394.png",
+        media: "(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (prefers-color-scheme: dark)",
+      },
+      // iPad Pro 11"
+      {
+        url: "/splash/apple-splash-dark-1194-1668.png",
+        media: "(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (prefers-color-scheme: dark)",
+      },
+      // iPad Pro 12.9"
+      {
+        url: "/splash/apple-splash-dark-2048-2732.png",
+        media: "(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (prefers-color-scheme: dark)",
       },
     ],
   },
@@ -115,7 +187,10 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   interactiveWidget: "resizes-content",
-  themeColor: "#000000",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#6366f1" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
 };
 
 export default function RootLayout({
@@ -125,13 +200,63 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" suppressHydrationWarning>
+      <head>
+        {/* 스플래시 로고 preload — HTML 파싱 즉시 다운로드 시작 */}
+        <link rel="preload" href="/splash/eduatalk.png" as="image" />
+        {/* 다크모드 FOUC 방지 — hydration 전 즉시 .dark 클래스 적용 */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var d=document.documentElement;var t=localStorage.getItem("theme");if(t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme:dark)").matches))d.classList.add("dark")}catch(e){}})()`,
+          }}
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        {/* 인라인 스플래시: JS 번들 로딩 전 즉시 렌더링되어 White Flash 방지 */}
+        {/* eslint-disable-next-line react/no-danger */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          #pwa-splash {
+            position: fixed; inset: 0; z-index: 9999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+            background-color: #ffffff;
+            transition: opacity 0.3s ease-out;
+          }
+          #pwa-splash img {
+            width: 120px; height: 120px; object-fit: contain;
+            animation: splash-fade-in 0.4s ease-out both;
+          }
+          #pwa-splash .splash-title {
+            font-family: var(--font-geist-sans), -apple-system, sans-serif;
+            font-size: 18px; font-weight: 600; letter-spacing: -0.02em;
+            color: #171717;
+            animation: splash-fade-in 0.4s 0.1s ease-out both;
+          }
+          @keyframes splash-fade-in {
+            from { opacity: 0; transform: scale(0.96); }
+            to { opacity: 1; transform: scale(1); }
+          }
+          @media (prefers-color-scheme: dark) {
+            #pwa-splash { background-color: #0a0a0a; }
+            #pwa-splash .splash-title { color: #ededed; }
+          }
+          .dark #pwa-splash { background-color: #0a0a0a; }
+          .dark #pwa-splash .splash-title { color: #ededed; }
+          @media not all and (display-mode: standalone) {
+            #pwa-splash { display: none !important; }
+          }
+        `}} />
+        <div id="pwa-splash">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/splash/eduatalk.png" alt="" width={120} height={120} />
+          <span className="splash-title">TimeLevelUp</span>
+        </div>
         <NextTopLoader color="rgb(var(--color-primary-600))" height={3} showSpinner={false} shadow={false} />
         <GlobalErrorBoundary>
           <Providers>
+            <SplashDismisser />
             <SkipLink />
+            <RouteAnnouncer />
             {children}
             <InstallPrompt />
             <ServiceWorkerRegistrar />

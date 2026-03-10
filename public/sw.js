@@ -10,11 +10,19 @@ const CACHE_NAME = "timelevelup-v1";
 const OFFLINE_URL = "/offline";
 
 // ============================================
-// Install: 오프라인 페이지 프리캐시
+// Install: 핵심 에셋 프리캐시
 // ============================================
+const PRECACHE_URLS = [
+  OFFLINE_URL,
+  "/splash/eduatalk.png",
+  "/icons/icon-192x192.png",
+  "/icons/icon-512x512.png",
+  "/icons/apple-touch-icon.png",
+];
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.add(OFFLINE_URL))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
   );
   self.skipWaiting();
 });

@@ -1,28 +1,21 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { env } from "@/lib/env";
+import {
+  PUBLIC_PAGE_PATHS,
+  PUBLIC_API_PATHS,
+  WEBHOOK_PATHS,
+  CRON_PATHS,
+  AUTH_ONLY_PAGES,
+  ROLE_ALLOWED_PATHS,
+  ROLE_DASHBOARD_MAP,
+} from "@/lib/constants/routes";
 
 /**
- * 인증이 필요 없는 공개 경로
+ * 정적 파일 경로 (프록시 스킵)
  */
-const PUBLIC_PATHS = [
-  "/login",
-  "/signup",
-  "/forgot-password",
-  "/reset-password",
-  "/auth/callback",
-  "/signup/verify-email",
-  "/invite",  // 팀 초대 페이지 (레거시, 비로그인 상태에서도 접근 가능)
-  "/join",    // 통합 초대 수락 페이지 (비로그인 상태에서도 접근 가능)
-  "/onboarding",  // OAuth 사용자 역할 선택 페이지
-];
-
-/**
- * 정적 파일 및 API 경로 (프록시 스킵)
- */
-const SKIP_PATHS = [
+const STATIC_PATHS = [
   "/_next",
-  "/api",
   "/icons",
   "/splash",
   "/manifest.json",
@@ -30,34 +23,6 @@ const SKIP_PATHS = [
   "/sw.js",
   "/workbox-",
 ];
-
-/**
- * 인증된 사용자가 접근하면 안 되는 경로 (로그인/회원가입 등)
- */
-const AUTH_PAGES = ["/login", "/signup", "/forgot-password"];
-
-/**
- * 역할별 허용 경로 패턴
- * 각 역할이 접근할 수 있는 경로의 prefix를 정의
- */
-const ROLE_ALLOWED_PATHS: Record<string, string[]> = {
-  student: ["/dashboard", "/today", "/plan", "/scores", "/contents", "/blocks", "/settings", "/report", "/reports", "/analysis", "/camp", "/attendance", "/chat", "/habits", "/files"],
-  admin: ["/admin"],
-  consultant: ["/admin"],
-  parent: ["/parent"],
-  superadmin: ["/superadmin", "/admin"],
-};
-
-/**
- * 역할별 기본 대시보드 경로
- */
-const ROLE_DEFAULT_DASHBOARD: Record<string, string> = {
-  student: "/dashboard",
-  admin: "/admin/dashboard",
-  consultant: "/admin/dashboard",
-  parent: "/parent/dashboard",
-  superadmin: "/superadmin/dashboard",
-};
 
 /**
  * Supabase 클라이언트를 생성하고 response를 관리하는 헬퍼
@@ -107,40 +72,39 @@ async function getUserRole(
   supabase: ReturnType<typeof createServerClient>,
   userId: string
 ): Promise<string | null> {
-  // 1. admin_users 확인 (admin, consultant, superadmin)
-  const { data: admin } = await supabase
-    .from("admin_users")
-    .select("role")
-    .eq("id", userId)
-    .maybeSingle();
+  // 3개 역할 테이블 병렬 조회
+  const [adminResult, parentResult, studentResult] = await Promise.allSettled([
+    supabase
+      .from("admin_users")
+      .select("role")
+      .eq("id", userId)
+      .maybeSingle(),
+    supabase
+      .from("parent_users")
+      .select("id")
+      .eq("id", userId)
+      .maybeSingle(),
+    supabase
+      .from("students")
+      .select("id")
+      .eq("id", userId)
+      .maybeSingle(),
+  ]);
 
-  if (admin?.role) {
-    return admin.role;
+  // 우선순위: admin > parent > student
+  if (adminResult.status === "fulfilled" && adminResult.value.data?.role) {
+    return adminResult.value.data.role;
   }
 
-  // 2. parent_users 확인
-  const { data: parent } = await supabase
-    .from("parent_users")
-    .select("id")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (parent) {
+  if (parentResult.status === "fulfilled" && parentResult.value.data) {
     return "parent";
   }
 
-  // 3. students 확인
-  const { data: student } = await supabase
-    .from("students")
-    .select("id")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (student) {
+  if (studentResult.status === "fulfilled" && studentResult.value.data) {
     return "student";
   }
 
-  // 4. 테이블에 없으면 user_metadata의 signup_role fallback
+  // 테이블에 없으면 user_metadata의 signup_role fallback
   // (초대 수락 직후 RLS 전파 지연 시 보호)
   const { data: { user } } = await supabase.auth.getUser();
   const signupRole = user?.user_metadata?.signup_role;
@@ -172,15 +136,89 @@ function hasAuthCookies(request: NextRequest): boolean {
   return request.cookies.getAll().some((c) => c.name.includes("auth-token"));
 }
 
+/**
+ * 공개 페이지 경로인지 확인 (prefix match)
+ */
+function isPublicPagePath(pathname: string): boolean {
+  if (pathname === "/") return true;
+  return PUBLIC_PAGE_PATHS.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`)
+  );
+}
+
+/**
+ * 프록시를 건너뛰어야 하는 API 경로인지 확인
+ * - 공개 API: 인증 불필요한 참조 데이터
+ * - 웹훅: 외부 서비스 자체 인증 메커니즘 사용
+ * - Cron: CRON_SECRET으로 자체 보호
+ */
+function isPublicApiPath(pathname: string): boolean {
+  // 공개 API
+  for (const path of PUBLIC_API_PATHS) {
+    if (pathname === path || pathname.startsWith(`${path}/`)) {
+      return true;
+    }
+  }
+  // 웹훅
+  for (const path of WEBHOOK_PATHS) {
+    if (pathname === path || pathname.startsWith(`${path}/`)) {
+      return true;
+    }
+  }
+  // Cron
+  for (const path of CRON_PATHS) {
+    if (pathname.startsWith(`${path}/`)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 정적 파일 및 API 경로는 스킵
-  if (SKIP_PATHS.some((path) => pathname.startsWith(path))) {
+  // ─── 1. 정적 파일은 즉시 스킵 ───
+  if (STATIC_PATHS.some((path) => pathname.startsWith(path))) {
     return NextResponse.next();
   }
 
-  const isPublicPath = pathname === "/" || PUBLIC_PATHS.some((path) => pathname.startsWith(path));
+  // ─── 2. API 경로 처리 ───
+  if (pathname.startsWith("/api/")) {
+    // 공개 API, 웹훅, Cron은 바이패스
+    if (isPublicApiPath(pathname)) {
+      return NextResponse.next();
+    }
+
+    // 인증 쿠키 없으면 즉시 401 (getUser 호출 없이 빠른 차단)
+    if (!hasAuthCookies(request)) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    // 보호된 API: 세션 갱신 후 통과 (세부 권한은 각 핸들러에서 체크)
+    const { supabase, getResponse } = createSupabaseProxyClient(request);
+    const { data: { user }, error } = await supabase.auth.getUser();
+
+    if (error || !user) {
+      // getResponse()의 쿠키를 401 응답에 포함 (토큰 갱신 쿠키 유실 방지)
+      const res = getResponse();
+      const jsonResponse = NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+      res.cookies.getAll().forEach((cookie) => {
+        jsonResponse.cookies.set(cookie.name, cookie.value);
+      });
+      return jsonResponse;
+    }
+
+    return getResponse();
+  }
+
+  // ─── 3. 페이지 경로 처리 ───
+  const isPublicPath = isPublicPagePath(pathname);
 
   // 공개 경로 + 인증 쿠키 없음 → getUser() 호출 없이 즉시 반환 (핵심 최적화)
   if (isPublicPath && !hasAuthCookies(request)) {
@@ -210,7 +248,7 @@ export async function proxy(request: NextRequest) {
   }
 
   const isAuthenticated = !!user;
-  const isAuthPage = AUTH_PAGES.some((path) => pathname.startsWith(path));
+  const isAuthPage = AUTH_ONLY_PAGES.some((path) => pathname.startsWith(path));
 
   // 비밀번호 재설정 페이지는 특별 처리
   if (pathname.startsWith("/reset-password")) {
@@ -232,7 +270,8 @@ export async function proxy(request: NextRequest) {
   // 인증된 사용자가 로그인/회원가입 페이지 접근 시 → 대시보드로
   if (isAuthenticated && isAuthPage) {
     const returnUrl = request.nextUrl.searchParams.get("returnUrl");
-    if (returnUrl) {
+    // 오픈 리다이렉트 방지: 상대 경로만 허용 (//evil.com, /\evil.com 차단)
+    if (returnUrl && returnUrl.startsWith("/") && !returnUrl.startsWith("//") && !returnUrl.startsWith("/\\")) {
       return NextResponse.redirect(new URL(returnUrl, request.url));
     }
     return NextResponse.redirect(new URL("/", request.url));
@@ -254,7 +293,7 @@ export async function proxy(request: NextRequest) {
 
       // 현재 경로에 접근 권한이 없는 경우
       if (!canAccessPath(role, pathname)) {
-        const defaultDashboard = ROLE_DEFAULT_DASHBOARD[role] || "/";
+        const defaultDashboard = ROLE_DASHBOARD_MAP[role] || "/";
         return NextResponse.redirect(new URL(defaultDashboard, request.url));
       }
     }
@@ -270,13 +309,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - public folder files
+     * - public folder files (images, fonts, etc.)
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map|woff|woff2|ttf|eot)$).*)",
   ],
 };
-
-
-
-
-

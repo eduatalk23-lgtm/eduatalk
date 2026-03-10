@@ -659,31 +659,43 @@ input[type="number"] {
   animation: shimmer 2s infinite;
 }
 
-/* Skeleton shimmer effect (light sweep) */
-@keyframes skeleton-shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
+/* Skeleton shimmer effect (light sweep) — GPU-accelerated via pseudo-element transform */
 .skeleton-shimmer {
-  background: linear-gradient(
-    90deg,
-    rgb(var(--color-secondary-200)) 25%,
-    rgb(var(--color-secondary-100)) 50%,
-    rgb(var(--color-secondary-200)) 75%
-  );
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+  background: rgb(var(--color-secondary-200));
 }
 
 :is(.dark) .skeleton-shimmer {
+  background: rgb(var(--color-secondary-700));
+}
+
+.skeleton-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
   background: linear-gradient(
     90deg,
-    rgb(var(--color-secondary-700)) 25%,
-    rgb(var(--color-secondary-600)) 50%,
-    rgb(var(--color-secondary-700)) 75%
+    transparent 25%,
+    rgb(var(--color-secondary-100)) 50%,
+    transparent 75%
   );
-  background-size: 200% 100%;
+  transform: translateX(-100%);
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+:is(.dark) .skeleton-shimmer::after {
+  background: linear-gradient(
+    90deg,
+    transparent 25%,
+    rgb(var(--color-secondary-600)) 50%,
+    transparent 75%
+  );
+}
+
+@keyframes skeleton-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 /* Slow bounce for streak flames */
@@ -767,40 +779,34 @@ input[type="number"] {
 
 @keyframes blob-1 {
   0%, 100% {
-    transform: scale(1);
+    transform: scale(1) translateX(0);
     opacity: 0.3;
-    left: 0%;
   }
   50% {
-    transform: scale(1.2);
+    transform: scale(1.2) translateX(20vw);
     opacity: 0.5;
-    left: 20%;
   }
 }
 
 @keyframes blob-2 {
   0%, 100% {
-    transform: scale(1);
+    transform: scale(1) translateX(0);
     opacity: 0.3;
-    right: 0%;
   }
   50% {
-    transform: scale(1.2);
+    transform: scale(1.2) translateX(-20vw);
     opacity: 0.5;
-    right: 20%;
   }
 }
 
 @keyframes blob-3 {
   0%, 100% {
-    transform: scale(1);
+    transform: scale(1) translateY(0);
     opacity: 0.3;
-    bottom: 0%;
   }
   50% {
-    transform: scale(1.2);
+    transform: scale(1.2) translateY(-20vh);
     opacity: 0.5;
-    bottom: 20%;
   }
 }
 
@@ -828,10 +834,10 @@ input[type="number"] {
 
 @keyframes undo-countdown {
   from {
-    width: 100%;
+    transform: scaleX(1);
   }
   to {
-    width: 0%;
+    transform: scaleX(0);
   }
 }
 
