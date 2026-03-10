@@ -45,7 +45,7 @@ function LinkPreviewCardComponent({ preview, isOwn }: LinkPreviewCardProps) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={preview.image_url}
-            alt=""
+            alt={preview.title}
             className="w-full h-full object-cover"
             loading="lazy"
             onError={(e) => {

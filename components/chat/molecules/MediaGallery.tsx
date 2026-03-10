@@ -861,7 +861,7 @@ function VideoGallery({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={att.thumbnail_url}
-                  alt=""
+                  alt={att.file_name}
                   className="w-full h-full object-cover"
                 />
               ) : (

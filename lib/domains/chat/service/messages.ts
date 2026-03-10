@@ -389,31 +389,7 @@ export async function getMessagesWithReadStatus(
   try {
     const { roomId, limit = 50 } = options;
 
-    // 개발 환경에서 디버깅 로그
-    if (process.env.NODE_ENV === "development") {
-      console.log("[ChatService] getMessagesWithReadStatus called:", {
-        userId,
-        userType,
-        roomId,
-        limit,
-        before: options.before,
-      });
-    }
-
-    // 멤버십 확인
     const membership = await repository.findMember(roomId, userId, userType);
-
-    // 개발 환경에서 멤버십 결과 로그
-    if (process.env.NODE_ENV === "development") {
-      console.log("[ChatService] Membership check result:", {
-        roomId,
-        userId,
-        userType,
-        found: !!membership,
-        membershipId: membership?.id,
-        leftAt: membership?.left_at,
-      });
-    }
 
     if (!membership) {
       return { success: false, error: "채팅방에 참여하지 않았습니다" };
