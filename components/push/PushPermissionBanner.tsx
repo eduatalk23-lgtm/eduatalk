@@ -20,18 +20,26 @@ function isDismissed(key: string, snoozeDays: number): boolean {
   return Date.now() - dismissedAt < snoozeDays * 24 * 60 * 60 * 1000;
 }
 
+function getIsAndroid(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /Android/i.test(navigator.userAgent);
+}
+
 /**
  * 푸시 알림 권한 유도 배너.
  *
  * 두 가지 모드:
  * 1. permission === "default": 알림 허용 유도
  * 2. permission === "denied": 브라우저 설정에서 다시 켜는 방법 안내
+ *    - Android: Chrome 주소창 자물쇠 → 알림 허용 안내
+ *    - iOS/기타: 일반 브라우저 설정 안내
  *
  * iOS PWA에서는 홈 화면 추가 후 이 배너를 통해 최초 권한을 요청합니다.
  */
 export function PushPermissionBanner() {
   const [userId, setUserId] = useState<string | null>(null);
   const [mode, setMode] = useState<"request" | "denied" | null>(null);
+  const [isAndroid] = useState(getIsAndroid);
   const { requestSubscription } = usePushSubscription(userId);
 
   useEffect(() => {
@@ -97,10 +105,19 @@ export function PushPermissionBanner() {
               <Settings className="h-5 w-5 shrink-0" />
               <div className="text-sm">
                 <p className="font-medium">알림이 차단되어 있습니다</p>
-                <p className="text-amber-100 text-xs mt-0.5">
-                  브라우저 설정 &gt; 사이트 설정 &gt; 알림에서 허용으로
-                  변경해주세요
-                </p>
+                {isAndroid ? (
+                  <div className="text-amber-100 text-xs mt-1 flex flex-col gap-0.5">
+                    <p>알림을 다시 켜려면:</p>
+                    <p>1. 주소창 왼쪽 자물쇠 아이콘을 탭</p>
+                    <p>2. &quot;권한&quot; 또는 &quot;알림&quot;을 탭</p>
+                    <p>3. &quot;허용&quot;으로 변경</p>
+                  </div>
+                ) : (
+                  <p className="text-amber-100 text-xs mt-0.5">
+                    브라우저 설정 &gt; 사이트 설정 &gt; 알림에서 허용으로
+                    변경해주세요
+                  </p>
+                )}
               </div>
             </div>
             <button

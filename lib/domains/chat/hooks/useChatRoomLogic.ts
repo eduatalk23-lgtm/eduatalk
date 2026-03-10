@@ -278,6 +278,30 @@ export function useChatRoomLogic({
   const [readCountVersion, setReadCountVersion] = useState(0);
   const readReceiptTrackRef = useRef(new Map<string, string>()); // readerId → lastReadAt
 
+  /** 낙관적 readCount 설정: 새 메시지의 안 읽은 인원수 즉시 반영 */
+  const setOptimisticReadCount = useCallback((messageId: string) => {
+    const activeOtherMembers = (roomData?.members ?? []).filter(
+      (m) => m.user_id !== userId && !m.left_at
+    ).length;
+    if (activeOtherMembers > 0) {
+      cachedReadCountsRef.current = {
+        ...cachedReadCountsRef.current,
+        [messageId]: activeOtherMembers,
+      };
+      setReadCountVersion((v) => v + 1);
+    }
+  }, [roomData?.members, userId]);
+
+  /** readCount 이관: tempId → realId (메시지 확정 시) */
+  const transferReadCount = useCallback((tempId: string, realId: string) => {
+    const tempReadCount = cachedReadCountsRef.current[tempId];
+    if (tempReadCount !== undefined) {
+      const { [tempId]: _, ...rest } = cachedReadCountsRef.current;
+      cachedReadCountsRef.current = { ...rest, [realId]: tempReadCount };
+      setReadCountVersion((v) => v + 1);
+    }
+  }, []);
+
   // 모든 페이지의 메시지를 시간순 정렬로 병합
   // pages는 [newest, ..., oldest] 순서 → 역순 순회로 [oldest, ..., newest]
   // 단일 패스 역순 순회로 중간 배열 복사(slice+reverse+flatMap) 제거
@@ -483,6 +507,8 @@ export function useChatRoomLogic({
         (old) => addMessageToFirstPage(old, optimisticMessage)
       );
 
+      setOptimisticReadCount(tempId);
+
       // Broadcast-first: DB INSERT 전에 수신자에게 즉시 전송 (~6ms)
       // try-catch로 감싸서 채널 에러 시에도 context(tempId)가 반환되도록 보장
       if (clientMessageId) {
@@ -526,6 +552,9 @@ export function useChatRoomLogic({
       if (tempId && data) {
         // Operation Tracker에 전송 완료 등록 (tempId → realId 매핑)
         operationTracker.completeSend(tempId, data.id);
+
+        transferReadCount(tempId, data.id);
+
         const updated = queryClient.setQueryData<InfiniteMessagesCache>(
           chatKeys.messages(roomId),
           (old) => replaceMessageInFirstPage(old, tempId, data)
@@ -1470,6 +1499,8 @@ export function useChatRoomLogic({
           (old) => addMessageToFirstPage(old, optimisticMessage)
         );
 
+        setOptimisticReadCount(clientMessageId);
+
         // Broadcast-first: 수신자에게 즉시 전송
         try {
           broadcastInsert({
@@ -1510,6 +1541,9 @@ export function useChatRoomLogic({
         ).then((result) => {
           if (result.success && result.data) {
             operationTracker.completeSend(clientMessageId, result.data.id);
+
+            transferReadCount(clientMessageId, result.data.id);
+
             queryClient.setQueryData<InfiniteMessagesCache>(
               chatKeys.messages(roomId),
               (old) => replaceMessageInFirstPage(old, clientMessageId, result.data!)

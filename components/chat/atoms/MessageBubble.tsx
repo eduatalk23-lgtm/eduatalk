@@ -114,6 +114,9 @@ export interface MessagePermissions {
 const LONG_TEXT_CHAR_LIMIT = 500;
 const LONG_TEXT_LINE_LIMIT = 10;
 
+/** 읽음 숫자 공통 스타일 */
+const UNREAD_COUNT_CLASS = "text-[11px] text-primary-600 dark:text-primary-400 font-semibold leading-tight";
+
 /** 인라인 시간/상태 표시 (버블 옆, 카카오톡 스타일) */
 function InlineTimeInfo({
   formattedTime,
@@ -141,7 +144,7 @@ function InlineTimeInfo({
     <div className="flex flex-col items-end justify-end gap-0.5 flex-shrink-0 self-end pb-1">
       {/* 안 읽은 인원수 (카카오톡: 메시지 옆 숫자) */}
       {isOwn && !isSending && unreadCount !== undefined && unreadCount > 0 && (
-        <span className="text-[11px] text-primary-600 dark:text-primary-400 font-semibold leading-tight">{unreadCount}</span>
+        <span className={UNREAD_COUNT_CLASS}>{unreadCount}</span>
       )}
       {/* 전송 중 표시 */}
       {isOwn && isSending && (
@@ -616,6 +619,10 @@ function MessageBubbleComponent({
               </button>
             )}
 
+            {/* 읽음 숫자 (시간 숨겨져도 항상 표시) */}
+            {!showTime && isOwn && !timeProps.isSending && !timeProps.hasError && !timeProps.isQueued && unreadCount !== undefined && unreadCount > 0 && (
+              <span className={cn(UNREAD_COUNT_CLASS, "flex-shrink-0 self-end pb-1")}>{unreadCount}</span>
+            )}
             {/* 인라인 시간 (버블 옆) */}
             {showTime && <InlineTimeInfo {...timeProps} />}
           </div>

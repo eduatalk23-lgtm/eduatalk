@@ -18,6 +18,7 @@ const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
  */
 export function usePushSubscription(userId: string | null) {
   const subscribedRef = useRef(false);
+  const retryCountRef = useRef(0);
 
   const syncSubscription = useCallback(async () => {
     if (!userId || subscribedRef.current) return;
@@ -29,7 +30,13 @@ export function usePushSubscription(userId: string | null) {
     if (Notification.permission !== "granted") return;
 
     try {
-      const registration = await navigator.serviceWorker.ready;
+      // SW ready 대기 (타임아웃 10초 — 모바일에서 느릴 수 있음)
+      const registration = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("SW ready timeout")), 10000)
+        ),
+      ]);
       let subscription = await registration.pushManager.getSubscription();
 
       if (!subscription) {
@@ -57,9 +64,22 @@ export function usePushSubscription(userId: string | null) {
 
       if (result.success) {
         subscribedRef.current = true;
+        retryCountRef.current = 0;
+      } else {
+        console.warn("[Push] subscribePush failed:", result.error);
       }
     } catch (err) {
       console.error("[Push] Subscription sync failed:", err);
+
+      // 서버 저장 실패 시 최대 2회 자동 재시도 (3초, 6초 후)
+      if (retryCountRef.current < 2) {
+        retryCountRef.current++;
+        const delay = retryCountRef.current * 3000;
+        setTimeout(() => {
+          subscribedRef.current = false;
+          syncSubscription();
+        }, delay);
+      }
     }
   }, [userId]);
 
@@ -104,6 +124,19 @@ export function usePushSubscription(userId: string | null) {
     subscribedRef.current = false;
     syncSubscription();
   }, [syncSubscription, revokeCurrentSubscription, userId]);
+
+  // 앱 포커스 시 구독 재확인 (모바일에서 구독이 풀릴 수 있음)
+  useEffect(() => {
+    if (!userId) return;
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible" && !subscribedRef.current) {
+        syncSubscription();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [userId, syncSubscription]);
 
   /**
    * 명시적 구독 요청 (설정 UI에서 사용).
