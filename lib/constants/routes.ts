@@ -43,6 +43,7 @@ export const PUBLIC_API_PATHS = [
   "/api/curriculum-revisions",
   "/api/difficulty-levels",
   "/api/goals/list",
+  "/api/push/click", // SW notificationclick에서 인증 없이 호출 (UUID 기반)
 ] as const;
 
 /** 외부 서비스 웹훅 경로 (자체 인증 메커니즘 사용) */

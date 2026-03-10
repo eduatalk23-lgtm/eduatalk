@@ -8,7 +8,7 @@ import { redirect } from "next/navigation";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { getQueryClient } from "@/lib/providers/getQueryClient";
 import { chatMessagesQueryOptions } from "@/lib/query-options/chatMessages";
-import { chatRoomDetailQueryOptions, chatPinnedQueryOptions, chatAnnouncementQueryOptions } from "@/lib/query-options/chatRoom";
+import { chatRoomDetailQueryOptions, chatPinnedQueryOptions, chatAnnouncementQueryOptions, chatCanPinQueryOptions, chatCanSetAnnouncementQueryOptions } from "@/lib/query-options/chatRoom";
 import { ParentChatRoomPage } from "./_components/ParentChatRoomPage";
 
 export const metadata = {
@@ -33,6 +33,8 @@ export default async function ParentChatRoomPageRoute({ params }: PageProps) {
   void queryClient.prefetchQuery(chatRoomDetailQueryOptions(roomId));
   void queryClient.prefetchQuery(chatPinnedQueryOptions(roomId));
   void queryClient.prefetchQuery(chatAnnouncementQueryOptions(roomId));
+  void queryClient.prefetchQuery(chatCanPinQueryOptions(roomId));
+  void queryClient.prefetchQuery(chatCanSetAnnouncementQueryOptions(roomId));
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>

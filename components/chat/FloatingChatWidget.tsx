@@ -120,6 +120,7 @@ export function FloatingChatWidget() {
         {isOpen && (
           <ChatPopover
             userId={user.userId}
+            userType={chatUserType}
             basePath={basePath}
             onClose={() => setIsOpen(false)}
             CreateChatModal={ModalComponent}

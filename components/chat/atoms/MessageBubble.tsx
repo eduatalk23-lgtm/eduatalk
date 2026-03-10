@@ -141,16 +141,16 @@ function InlineTimeInfo({
     <div className="flex flex-col items-end justify-end gap-0.5 flex-shrink-0 self-end pb-1">
       {/* 안 읽은 인원수 (카카오톡: 메시지 옆 숫자) */}
       {isOwn && !isSending && unreadCount !== undefined && unreadCount > 0 && (
-        <span className="text-[10px] text-primary font-medium leading-tight">{unreadCount}</span>
+        <span className="text-[11px] text-primary-600 dark:text-primary-400 font-semibold leading-tight">{unreadCount}</span>
       )}
       {/* 전송 중 표시 */}
       {isOwn && isSending && (
         <MessageStatusIndicator status="sending" className="w-3 h-3" />
       )}
-      <time dateTime={createdAt} className="text-[10px] text-text-tertiary leading-tight">
+      <time dateTime={createdAt} className="text-[11px] text-text-secondary leading-tight">
         {formattedTime}
       </time>
-      {isEdited && <span className="text-[10px] text-text-tertiary leading-tight">(수정됨)</span>}
+      {isEdited && <span className="text-[11px] text-text-secondary leading-tight">(수정됨)</span>}
     </div>
   );
 }
@@ -390,7 +390,7 @@ function MessageBubbleComponent({
                 삭제된 메시지입니다
               </div>
               {showTime && deletedTime && (
-                <span className="text-[10px] text-text-tertiary self-end pb-1 flex-shrink-0">
+                <span className="text-[11px] text-text-secondary self-end pb-1 flex-shrink-0">
                   {deletedTime}
                 </span>
               )}
@@ -494,7 +494,7 @@ function MessageBubbleComponent({
                   "rounded-2xl overflow-hidden",
                   isOwn
                     ? "bg-primary-500 dark:bg-primary-400 text-white rounded-br-sm"
-                    : "bg-secondary-100 dark:bg-secondary-800 text-text-primary rounded-bl-sm",
+                    : "bg-bg-secondary dark:bg-secondary-800 text-text-primary rounded-bl-sm",
                   replyTarget && "rounded-t-none",
                   (hasError || isQueued) && "opacity-60"
                 )}

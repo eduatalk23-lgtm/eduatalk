@@ -936,7 +936,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
       aria-label="일간 캘린더 그리드"
       aria-busy={isLoading}
       className="relative overflow-x-hidden h-full scroll-gpu"
-      style={{ overflowY: 'auto', scrollbarGutter: 'stable', overscrollBehaviorY: 'contain' }}
+      style={{ overflowY: 'auto', scrollbarGutter: 'stable' }}
     >
       {/* Pull-to-Refresh 인디케이터 */}
       {(isPulling || isPtrRefreshing) && (

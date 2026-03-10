@@ -271,7 +271,7 @@ export const layoutStyles = {
   transition: "transition-colors",
   transitionAll: `transition-all ${animationDurations.normal} ease-in-out`,
   focusRing: designTokens.focus.ring,
-  scrollableContainer: "overflow-y-auto overscroll-y-contain",
+  scrollableContainer: "overflow-y-auto",
   fullHeight: "h-screen",
 };
 

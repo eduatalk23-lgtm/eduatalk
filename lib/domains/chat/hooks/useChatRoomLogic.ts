@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useMemo, useState, useEffect, useRef } from "react";
+import { useBeforeUnload } from "@/lib/hooks/useBeforeUnload";
 import {
   useInfiniteQuery,
   useQuery,
@@ -20,6 +21,8 @@ import {
   chatRoomDetailQueryOptions,
   chatPinnedQueryOptions,
   chatAnnouncementQueryOptions,
+  chatCanPinQueryOptions,
+  chatCanSetAnnouncementQueryOptions,
 } from "@/lib/query-options/chatRoom";
 import {
   sendMessageAction,
@@ -29,9 +32,7 @@ import {
   toggleReactionAction,
   pinMessageAction,
   unpinMessageAction,
-  canPinMessagesAction,
   setAnnouncementAction,
-  canSetAnnouncementAction,
   registerChatAttachmentAction,
   sendMessageWithAttachmentsAction,
   deleteChatAttachmentAction,
@@ -52,6 +53,7 @@ import {
   type UploadingAttachment,
   type ChatAttachment,
   type MentionInfo,
+  MAX_ATTACHMENTS_PER_MESSAGE,
 } from "@/lib/domains/chat/types";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { validateChatFile, getAttachmentType, sanitizeFileName } from "@/lib/domains/chat/fileValidation";
@@ -138,6 +140,7 @@ export interface UseChatRoomLogicReturn {
     uploadingFiles: UploadingAttachment[];
     addFiles: (files: File[]) => void;
     removeFile: (clientId: string) => void;
+    retryUpload: (clientId: string) => void;
     isUploading: boolean;
   };
   utils: {
@@ -232,30 +235,16 @@ export function useChatRoomLogic({
   // 고정 메시지 목록 조회 (SSR prefetch 활용)
   const { data: pinnedMessages = [] } = useQuery(chatPinnedQueryOptions(roomId));
 
-  // 고정 권한 확인
-  const { data: canPinData } = useQuery({
-    queryKey: chatKeys.canPin(roomId),
-    queryFn: async () => {
-      const result = await canPinMessagesAction(roomId);
-      if (!result.success) return { canPin: false };
-      return result.data ?? { canPin: false };
-    },
-  });
+  // 고정 권한 확인 (SSR prefetch 활용, staleTime 5분)
+  const { data: canPinData } = useQuery(chatCanPinQueryOptions(roomId));
 
   const canPin = canPinData?.canPin ?? false;
 
   // 공지 조회 (SSR prefetch 활용)
   const { data: announcementData } = useQuery(chatAnnouncementQueryOptions(roomId));
 
-  // 공지 설정 권한 확인
-  const { data: canSetAnnouncementData } = useQuery({
-    queryKey: chatKeys.canSetAnnouncement(roomId),
-    queryFn: async () => {
-      const result = await canSetAnnouncementAction(roomId);
-      if (!result.success) return { canSet: false };
-      return result.data ?? { canSet: false };
-    },
-  });
+  // 공지 설정 권한 확인 (SSR prefetch 활용, staleTime 5분)
+  const { data: canSetAnnouncementData } = useQuery(chatCanSetAnnouncementQueryOptions(roomId));
 
   const canSetAnnouncement = canSetAnnouncementData?.canSet ?? false;
 
@@ -284,6 +273,10 @@ export function useChatRoomLogic({
   // 페이지 수 추적 (readCounts 증분 업데이트용)
   const pagesLengthRef = useRef(0);
   const cachedReadCountsRef = useRef<Record<string, number>>({});
+
+  // READ_RECEIPT 실시간 갱신용
+  const [readCountVersion, setReadCountVersion] = useState(0);
+  const readReceiptTrackRef = useRef(new Map<string, string>()); // readerId → lastReadAt
 
   // 모든 페이지의 메시지를 시간순 정렬로 병합
   // pages는 [newest, ..., oldest] 순서 → 역순 순회로 [oldest, ..., newest]
@@ -355,9 +348,7 @@ export function useChatRoomLogic({
     return result;
   }, [allMessages]); // eslint-disable-line react-hooks/exhaustive-deps -- groupingOptions uses refs
 
-  // readCounts 병합 (증분 최적화)
-  // Note: readCounts는 Realtime으로 변경되지 않고 페이지 로드 시에만 변경되므로
-  // 증분 업데이트 캐싱이 안전함
+  // readCounts 병합 (증분 최적화 + READ_RECEIPT 실시간 갱신)
   const allReadCounts = useMemo(() => {
     if (!messagesData?.pages) {
       cachedReadCountsRef.current = {};
@@ -380,10 +371,11 @@ export function useChatRoomLogic({
       );
       cachedReadCountsRef.current = result;
       pagesLengthRef.current = currentLength;
+      readReceiptTrackRef.current.clear(); // 서버 데이터 기준으로 리셋
       return result;
     }
 
-    // 페이지 수 동일하면 캐시 반환
+    // 페이지 수 동일하면 캐시 반환 (READ_RECEIPT에 의한 업데이트도 이미 cachedRef에 반영됨)
     if (currentLength === prevLength) {
       return cachedReadCountsRef.current;
     }
@@ -402,7 +394,10 @@ export function useChatRoomLogic({
     cachedReadCountsRef.current = result;
     pagesLengthRef.current = currentLength;
     return result;
-  }, [messagesData?.pages]);
+    // readCountVersion: READ_RECEIPT 수신 시 cachedReadCountsRef가 직접 업데이트되고,
+    // readCountVersion 변경으로 useMemo 재실행 → cachedReadCountsRef.current 반환
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messagesData?.pages, readCountVersion]);
 
   // ============================================
   // Mutations
@@ -875,6 +870,9 @@ export function useChatRoomLogic({
     },
   });
 
+  // broadcastReadReceipt ref (useChatRealtime보다 먼저 정의되는 markAsReadMutation에서 안전하게 참조)
+  const broadcastReadReceiptRef = useRef<() => void>(() => {});
+
   // 읽음 처리
   const markAsReadMutation = useMutation({
     mutationFn: async () => {
@@ -905,8 +903,12 @@ export function useChatRoomLogic({
         queryClient.setQueryData(chatKeys.rooms(), context.previousRooms);
       }
     },
+    onSuccess: () => {
+      // 5-a. 상대방에게 읽음 확인 broadcast (상대 화면의 읽지않은 수 실시간 갱신)
+      broadcastReadReceiptRef.current();
+    },
     onSettled: () => {
-      // 5. 성공/실패 무관하게 서버 데이터로 최종 동기화
+      // 5-b. 성공/실패 무관하게 서버 데이터로 최종 동기화
       queryClient.invalidateQueries({ queryKey: chatKeys.rooms() });
     },
   });
@@ -935,11 +937,41 @@ export function useChatRoomLogic({
     return cache;
   }, [roomData?.members]);
 
-  // 실시간 구독 (Broadcast-first: broadcastInsert 반환)
-  const { broadcastInsert } = useChatRealtime({
+  // 실시간 구독 (Broadcast-first: broadcastInsert, broadcastReadReceipt 반환)
+  const { broadcastInsert, broadcastReadReceipt } = useChatRealtime({
     roomId,
     userId,
     senderCache,
+    onReadReceipt: useCallback((readerId: string, readAt: string) => {
+      // 중복 처리 방지: 같은 reader의 이전 readAt보다 새로운 경우만 처리
+      const prevReadAt = readReceiptTrackRef.current.get(readerId) ?? "1970-01-01T00:00:00Z";
+      if (readAt <= prevReadAt) return;
+      readReceiptTrackRef.current.set(readerId, readAt);
+
+      // 본인 메시지 중 새로 읽힌 메시지의 readCount를 감소
+      const updated = { ...cachedReadCountsRef.current };
+      const messages = prevAllMessagesRef.current;
+      let hasChanges = false;
+
+      for (const msg of messages) {
+        if (
+          msg.sender_id === userId &&
+          msg.created_at <= readAt &&
+          msg.created_at > prevReadAt
+        ) {
+          const current = updated[msg.id] ?? 0;
+          if (current > 0) {
+            updated[msg.id] = Math.max(0, current - 1);
+            hasChanges = true;
+          }
+        }
+      }
+
+      if (hasChanges) {
+        cachedReadCountsRef.current = updated;
+        setReadCountVersion((v) => v + 1);
+      }
+    }, [userId]),
     onNewMessage: useCallback((message: ChatMessagePayload) => {
       // 스크롤이 맨 아래에 있으면 자동 스크롤 (ref 사용으로 항상 최신 값)
       if (isAtBottomRef.current) {
@@ -978,6 +1010,8 @@ export function useChatRoomLogic({
     }, [onNewMessageArrived, throttledMarkAsRead, userId, roomId]),
   });
 
+  // broadcastReadReceipt ref 동기화 (markAsReadMutation.onSuccess에서 안전하게 참조)
+  broadcastReadReceiptRef.current = broadcastReadReceipt;
 
   // 현재 사용자 이름 (Presence용)
   const currentUserName =
@@ -991,8 +1025,9 @@ export function useChatRoomLogic({
     enabled: !!roomData,
   });
 
-  // 입장 시 읽음 처리 (읽음확인 설정이 꺼져있으면 스킵)
+  // 입장 시 읽음 처리 + READ_RECEIPT 추적 리셋
   useEffect(() => {
+    readReceiptTrackRef.current.clear();
     if (chatPrefsRef.current?.chat_read_receipt_enabled !== false) {
       markAsReadMutation.mutate();
     }
@@ -1072,143 +1107,239 @@ export function useChatRoomLogic({
 
   const [uploadingFiles, setUploadingFiles] = useState<UploadingAttachment[]>([]);
 
-  const addFiles = useCallback(
-    async (files: File[]) => {
-      // 업로드 전 쿼터 사전 체크
-      const totalNewSize = files.reduce((sum, f) => sum + f.size, 0);
-      const quotaResult = await getChatStorageQuotaAction();
-      if (quotaResult.success && quotaResult.data) {
-        if (quotaResult.data.remainingBytes < totalNewSize) {
-          const { formatStorageSize } = await import("@/lib/domains/chat/quota");
-          showError(
-            `스토리지 용량 부족: 남은 ${formatStorageSize(quotaResult.data.remainingBytes)}`
-          );
-          return;
-        }
+  // Preview URL 메모리 누수 방지: ref로 최신 상태 추적 + unmount 시 cleanup
+  const uploadingFilesRef = useRef<UploadingAttachment[]>([]);
+  uploadingFilesRef.current = uploadingFiles;
+
+  useEffect(() => {
+    return () => {
+      // 컴포넌트 언마운트 시 모든 preview URL 해제
+      for (const f of uploadingFilesRef.current) {
+        if (f.previewUrl) URL.revokeObjectURL(f.previewUrl);
       }
+    };
+  }, []);
 
-      for (const file of files) {
-        const validation = validateChatFile(file);
-        if (!validation.valid) {
-          showError(validation.error ?? "파일 검증 실패");
-          continue;
+  // 업로드 진행 중 페이지 이탈 경고
+  const isUploading = uploadingFiles.some(
+    (f) => f.status === "uploading" || f.status === "pending"
+  );
+  useBeforeUnload(isUploading, "파일 업로드가 진행 중입니다. 나가시겠습니까?");
+
+  // addFiles 동시 호출 직렬화 (race condition 방지)
+  const addFilesLockRef = useRef<Promise<void>>(Promise.resolve());
+
+  /** 단일 파일 업로드 처리 (병렬 실행용) */
+  const uploadSingleFile = useCallback(
+    async (file: File, clientId: string) => {
+      try {
+        // 이미지인 경우 리사이즈
+        let uploadFile: File | Blob = file;
+        let width: number | undefined;
+        let height: number | undefined;
+
+        if (isImageType(file.type)) {
+          try {
+            const { resizeImageIfNeeded } = await import("@/lib/domains/chat/imageResize");
+            const resized = await resizeImageIfNeeded(file);
+            uploadFile = resized.blob;
+            width = resized.width;
+            height = resized.height;
+          } catch {
+            // 리사이즈 실패 시 원본 사용
+          }
         }
 
-        const clientId = crypto.randomUUID();
-        const previewUrl = isImageType(file.type) ? URL.createObjectURL(file) : "";
+        // Supabase 세션 획득 (만료 임박 시 자동 갱신)
+        const supabase = createSupabaseBrowserClient();
+        const { data: sessionData } = await supabase.auth.getSession();
+        const session = sessionData.session;
+        if (!session) throw new Error("인증 세션이 만료되었습니다. 새로고침해주세요.");
 
-        // 업로드 시작 상태 추가
-        setUploadingFiles((prev) => [
-          ...prev,
-          { clientId, file, previewUrl, progress: 0, status: "uploading" },
-        ]);
-
-        try {
-          // 이미지인 경우 리사이즈
-          let uploadFile: File | Blob = file;
-          let width: number | undefined;
-          let height: number | undefined;
-
-          if (isImageType(file.type)) {
-            try {
-              const { resizeImageIfNeeded } = await import("@/lib/domains/chat/imageResize");
-              const resized = await resizeImageIfNeeded(file);
-              uploadFile = resized.blob;
-              width = resized.width;
-              height = resized.height;
-            } catch {
-              // 리사이즈 실패 시 원본 사용
-            }
+        let accessToken = session.access_token;
+        const expiresAt = session.expires_at ?? 0;
+        const now = Math.floor(Date.now() / 1000);
+        if (expiresAt - now < 60) {
+          const { data: refreshed } = await supabase.auth.refreshSession();
+          if (refreshed.session) {
+            accessToken = refreshed.session.access_token;
           }
-
-          // Supabase Storage에 XHR로 업로드 (실시간 진행률)
-          const supabase = createSupabaseBrowserClient();
-          const { data: sessionData } = await supabase.auth.getSession();
-          const accessToken = sessionData.session?.access_token;
-          if (!accessToken) throw new Error("인증 세션이 만료되었습니다.");
-
-          const safeName = sanitizeFileName(file.name);
-          const timestamp = Date.now();
-          const storagePath = `${roomId}/${userId}/${timestamp}_${safeName}`;
-
-          const { uploadWithProgress } = await import("@/lib/domains/chat/uploadWithProgress");
-          const { error: uploadError } = await uploadWithProgress({
-            supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            accessToken,
-            bucket: "chat-attachments",
-            path: storagePath,
-            file: uploadFile,
-            onProgress: (progress) => {
-              setUploadingFiles((prev) =>
-                prev.map((f) =>
-                  f.clientId === clientId ? { ...f, progress } : f
-                )
-              );
-            },
-          });
-
-          if (uploadError) throw uploadError;
-
-          // 이미지인 경우 썸네일 생성 + 업로드 (비치명적)
-          let thumbnailPath: string | null = null;
-          if (isImageType(file.type)) {
-            try {
-              const { generateThumbnail } = await import("@/lib/domains/chat/imageResize");
-              const thumb = await generateThumbnail(uploadFile);
-              const thumbPath = `${roomId}/${userId}/${timestamp}_thumb_${safeName}`;
-
-              // 썸네일은 작으므로 (5~20KB) 일반 supabase upload 사용
-              const { error: thumbError } = await supabase.storage
-                .from("chat-attachments")
-                .upload(thumbPath, thumb.blob, { contentType: "image/webp" });
-
-              if (!thumbError) {
-                thumbnailPath = thumbPath;
-              }
-            } catch {
-              // 썸네일 생성 실패 시 풀 이미지 사용 (비치명적)
-            }
-          }
-
-          // Server Action으로 DB 레코드 등록
-          const result = await registerChatAttachmentAction(
-            roomId,
-            storagePath,
-            file.name,
-            file.size,
-            file.type,
-            width,
-            height,
-            thumbnailPath
-          );
-
-          if (!result.success || !result.data) {
-            throw new Error(result.error ?? "첨부파일 등록 실패");
-          }
-
-          setUploadingFiles((prev) =>
-            prev.map((f) =>
-              f.clientId === clientId
-                ? { ...f, status: "done" as const, progress: 100, result: result.data }
-                : f
-            )
-          );
-        } catch (err) {
-          setUploadingFiles((prev) =>
-            prev.map((f) =>
-              f.clientId === clientId
-                ? {
-                    ...f,
-                    status: "error" as const,
-                    error: err instanceof Error ? err.message : "업로드 실패",
-                  }
-                : f
-            )
-          );
         }
+
+        const safeName = sanitizeFileName(file.name);
+        const timestamp = Date.now();
+        const storagePath = `${roomId}/${userId}/${timestamp}_${safeName}`;
+
+        // AbortController 생성 + 상태에 저장
+        const abortController = new AbortController();
+        setUploadingFiles((prev) =>
+          prev.map((f) =>
+            f.clientId === clientId ? { ...f, abortController } : f
+          )
+        );
+
+        const { uploadWithProgress } = await import("@/lib/domains/chat/uploadWithProgress");
+        const { error: uploadError } = await uploadWithProgress({
+          supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          accessToken,
+          bucket: "chat-attachments",
+          path: storagePath,
+          file: uploadFile,
+          onProgress: (progress) => {
+            setUploadingFiles((prev) =>
+              prev.map((f) =>
+                f.clientId === clientId ? { ...f, progress } : f
+              )
+            );
+          },
+          signal: abortController.signal,
+        });
+
+        if (uploadError) throw uploadError;
+
+        // 이미지인 경우 썸네일 생성 + 업로드 (비치명적)
+        let thumbnailPath: string | null = null;
+        if (isImageType(file.type)) {
+          try {
+            const { generateThumbnail } = await import("@/lib/domains/chat/imageResize");
+            const thumb = await generateThumbnail(uploadFile);
+            const thumbPath = `${roomId}/${userId}/${timestamp}_thumb_${safeName}`;
+
+            const { error: thumbError } = await supabase.storage
+              .from("chat-attachments")
+              .upload(thumbPath, thumb.blob, { contentType: "image/webp" });
+
+            if (!thumbError) {
+              thumbnailPath = thumbPath;
+            }
+          } catch {
+            // 썸네일 생성 실패 시 풀 이미지 사용 (비치명적)
+          }
+        }
+
+        // Server Action으로 DB 레코드 등록
+        const result = await registerChatAttachmentAction(
+          roomId,
+          storagePath,
+          file.name,
+          file.size,
+          file.type,
+          width,
+          height,
+          thumbnailPath
+        );
+
+        if (!result.success || !result.data) {
+          throw new Error(`${file.name}: ${result.error ?? "첨부파일 등록 실패"}`);
+        }
+
+        setUploadingFiles((prev) =>
+          prev.map((f) =>
+            f.clientId === clientId
+              ? { ...f, status: "done" as const, progress: 100, result: result.data, abortController: undefined }
+              : f
+          )
+        );
+      } catch (err) {
+        // 사용자가 파일 제거로 취소한 경우 state 업데이트 불필요
+        if (err instanceof Error && err.message === "업로드가 취소되었습니다.") return;
+
+        setUploadingFiles((prev) =>
+          prev.map((f) =>
+            f.clientId === clientId
+              ? {
+                  ...f,
+                  status: "error" as const,
+                  error: err instanceof Error ? err.message : `${file.name}: 업로드 실패`,
+                  abortController: undefined,
+                }
+              : f
+          )
+        );
       }
     },
-    [roomId, userId, showError]
+    [roomId, userId]
+  );
+
+  const addFiles = useCallback(
+    (files: File[]) => {
+      // 직렬화: 이전 addFiles 완료 후 실행 (동시 호출 시 race condition 방지)
+      const task = addFilesLockRef.current.then(async () => {
+        // 현재 파일 수 기준으로 남은 슬롯 계산 (ref로 최신 상태 참조)
+        const currentCount = uploadingFilesRef.current.length;
+        const remaining = MAX_ATTACHMENTS_PER_MESSAGE - currentCount;
+        if (remaining <= 0) {
+          showError(`파일은 최대 ${MAX_ATTACHMENTS_PER_MESSAGE}개까지 첨부할 수 있습니다.`);
+          return;
+        }
+        const limitedFiles = files.slice(0, remaining);
+
+        // 업로드 전 쿼터 사전 체크
+        const totalNewSize = limitedFiles.reduce((sum, f) => sum + f.size, 0);
+        const quotaResult = await getChatStorageQuotaAction();
+        if (quotaResult.success && quotaResult.data) {
+          if (quotaResult.data.remainingBytes < totalNewSize) {
+            const { formatStorageSize } = await import("@/lib/domains/chat/quota");
+            showError(
+              `스토리지 용량 부족: 남은 ${formatStorageSize(quotaResult.data.remainingBytes)}`
+            );
+            return;
+          }
+        }
+
+        // 1단계: 검증 + 상태 일괄 등록 (동기)
+        const validFiles: { file: File; clientId: string }[] = [];
+        const newEntries: UploadingAttachment[] = [];
+
+        for (const file of limitedFiles) {
+          const validation = validateChatFile(file);
+          if (!validation.valid) {
+            showError(validation.error ?? "파일 검증 실패");
+            continue;
+          }
+
+          const clientId = crypto.randomUUID();
+          const previewUrl = isImageType(file.type) ? URL.createObjectURL(file) : "";
+          validFiles.push({ file, clientId });
+          newEntries.push({ clientId, file, previewUrl, progress: 0, status: "uploading" });
+        }
+
+        if (newEntries.length === 0) return;
+        setUploadingFiles((prev) => [...prev, ...newEntries]);
+
+        // 2단계: 모든 파일 병렬 업로드
+        await Promise.allSettled(
+          validFiles.map(({ file, clientId }) => uploadSingleFile(file, clientId))
+        );
+      });
+
+      // lock 갱신 (에러 발생해도 다음 호출은 진행되도록)
+      addFilesLockRef.current = task.catch(() => {});
+    },
+    [showError, uploadSingleFile]
+  );
+
+  /** 실패한 파일 업로드 재시도 */
+  const retryUpload = useCallback(
+    (clientId: string) => {
+      const target = uploadingFilesRef.current.find(
+        (f) => f.clientId === clientId && f.status === "error"
+      );
+      if (!target) return;
+
+      // 상태 초기화
+      setUploadingFiles((prev) =>
+        prev.map((f) =>
+          f.clientId === clientId
+            ? { ...f, status: "uploading" as const, progress: 0, error: undefined }
+            : f
+        )
+      );
+
+      // 재업로드
+      uploadSingleFile(target.file, clientId);
+    },
+    [uploadSingleFile]
   );
 
   const removeFile = useCallback(
@@ -1216,6 +1347,10 @@ export function useChatRoomLogic({
       setUploadingFiles((prev) => {
         const file = prev.find((f) => f.clientId === clientId);
         if (file?.previewUrl) URL.revokeObjectURL(file.previewUrl);
+        // 진행 중인 업로드 취소
+        if (file?.status === "uploading" && file.abortController) {
+          file.abortController.abort();
+        }
         // 업로드 완료된 파일이면 서버에서도 삭제
         if (file?.status === "done" && file.result) {
           deleteChatAttachmentAction(file.result.id).catch(() => {});
@@ -1224,10 +1359,6 @@ export function useChatRoomLogic({
       });
     },
     []
-  );
-
-  const isUploading = uploadingFiles.some(
-    (f) => f.status === "uploading" || f.status === "pending"
   );
 
   // ============================================
@@ -1361,6 +1492,10 @@ export function useChatRoomLogic({
           console.warn("[ChatRoom] broadcastInsert failed for attachment message");
         }
 
+        // Preview URL 메모리 해제 후 상태 초기화
+        for (const f of uploadingFiles) {
+          if (f.previewUrl) URL.revokeObjectURL(f.previewUrl);
+        }
         setUploadingFiles([]);
         setReplyTarget(null);
         setTimeout(() => onNewMessageArrived?.(), 0);
@@ -1563,6 +1698,7 @@ export function useChatRoomLogic({
       uploadingFiles,
       addFiles,
       removeFile,
+      retryUpload,
       isUploading,
     },
     pinnedMessageIds,

@@ -6393,6 +6393,53 @@ export type Database = {
         }
         Relationships: []
       }
+      push_dlq: {
+        Row: {
+          created_at: string | null
+          error_code: number | null
+          error_message: string | null
+          id: string
+          payload: Json
+          resolved_at: string | null
+          resolved_by: string | null
+          retry_count: number | null
+          subscription_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          error_code?: number | null
+          error_message?: string | null
+          id?: string
+          payload: Json
+          resolved_at?: string | null
+          resolved_by?: string | null
+          retry_count?: number | null
+          subscription_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          error_code?: number | null
+          error_message?: string | null
+          id?: string
+          payload?: Json
+          resolved_at?: string | null
+          resolved_by?: string | null
+          retry_count?: number | null
+          subscription_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_push_dlq_subscription"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "push_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_subscriptions: {
         Row: {
           created_at: string | null
@@ -9874,16 +9921,19 @@ export type Database = {
       }
       user_presence: {
         Row: {
+          current_chat_room_id: string | null
           status: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          current_chat_room_id?: string | null
           status?: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          current_chat_room_id?: string | null
           status?: string
           updated_at?: string
           user_id?: string
@@ -11304,4 +11354,3 @@ export const Constants = {
     },
   },
 } as const
-

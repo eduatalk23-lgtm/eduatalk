@@ -553,6 +553,26 @@ async function extractAndSaveLinkPreviews(
   }
 }
 
+/** 첨부 타입별 알림 라벨 */
+function getAttachmentLabel(messageType: string): string {
+  switch (messageType) {
+    case "image": return "📷 사진을 보냈습니다.";
+    case "video": return "🎬 동영상을 보냈습니다.";
+    case "audio": return "🎵 음성을 보냈습니다.";
+    default: return "📄 파일을 보냈습니다.";
+  }
+}
+
+/** 첨부 타입별 이모지 (텍스트+첨부 혼합 시 사용) */
+function getAttachmentEmoji(messageType: string): string {
+  switch (messageType) {
+    case "image": return "📷";
+    case "video": return "🎬";
+    case "audio": return "🎵";
+    default: return "📄";
+  }
+}
+
 /** Push 알림 발송 (첨부파일 포함 메시지 대응) */
 async function sendChatPushNotification(
   roomId: string,
@@ -576,25 +596,59 @@ async function sendChatPushNotification(
     : (room.name ?? "그룹 채팅");
 
   let bodyText = message.content.slice(0, 100);
-  if (hasAttachments && message.content.trim() === " ") {
-    bodyText = "📎 파일을 보냈습니다.";
+  if (hasAttachments && !message.content.trim()) {
+    // 텍스트 없이 첨부만 있는 경우: 타입별 이모지
+    const typeLabel = getAttachmentLabel(message.message_type);
+    bodyText = typeLabel;
   } else if (hasAttachments) {
-    bodyText = `📎 ${bodyText}`;
+    const typeEmoji = getAttachmentEmoji(message.message_type);
+    bodyText = `${typeEmoji} ${bodyText}`;
   }
 
   const body = isDirect ? bodyText : `${message.sender_name ?? "알 수 없음"}: ${bodyText}`;
 
-  await routeNotification({
-    type: isDirect ? "chat_message" : "chat_group_message",
-    recipientIds,
-    payload: {
-      title,
-      body,
-      url: `/chat/${roomId}`,
-      tag: `chat-${roomId}`,
-    },
-    priority: "normal",
-    source: "server_action",
-    referenceId: `${roomId}:${message.id}`,
-  });
+  // 멘션 사용자 분리 (뮤트 무시 알림 대상)
+  const mentionedUserIds = new Set(
+    (message.metadata?.mentions ?? [])
+      .map((m) => m.userId)
+      .filter((id) => id !== senderId && recipientIds.includes(id))
+  );
+  const normalRecipientIds = recipientIds.filter((id) => !mentionedUserIds.has(id));
+
+  // 일반 알림 (멘션 안 된 수신자)
+  if (normalRecipientIds.length > 0) {
+    await routeNotification({
+      type: isDirect ? "chat_message" : "chat_group_message",
+      recipientIds: normalRecipientIds,
+      payload: {
+        title,
+        body,
+        url: `/chat/${roomId}`,
+        tag: `chat-${roomId}`,
+      },
+      priority: "normal",
+      source: "server_action",
+      referenceId: `${roomId}:${message.id}`,
+      messageCreatedAt: message.created_at,
+    });
+  }
+
+  // 멘션 알림 (뮤트 무시, high 우선순위)
+  if (mentionedUserIds.size > 0) {
+    const senderName = message.sender_name ?? "알 수 없음";
+    await routeNotification({
+      type: "chat_mention",
+      recipientIds: Array.from(mentionedUserIds),
+      payload: {
+        title: isDirect ? senderName : (room.name ?? "그룹 채팅"),
+        body: `${senderName}님이 회원님을 언급했습니다: ${bodyText.slice(0, 80)}`,
+        url: `/chat/${roomId}`,
+        tag: `chat-mention-${roomId}`,
+      },
+      priority: "high",
+      source: "server_action",
+      referenceId: `${roomId}:${message.id}:mention`,
+      messageCreatedAt: message.created_at,
+    });
+  }
 }

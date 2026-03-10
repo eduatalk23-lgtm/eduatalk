@@ -14,17 +14,22 @@
 
 import { memo, useState, useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ArrowLeft, MessageSquarePlus } from "lucide-react";
+import { X, ArrowLeft } from "lucide-react";
 import { ChatList } from "./ChatList";
 import { ChatRoom } from "./ChatRoom";
+import { MemberList } from "./MemberList";
+import { ChatSidebarTabs } from "../atoms/ChatSidebarTabs";
+import type { ChatSidebarTab } from "../atoms/ChatSidebarTabs";
 import { cn } from "@/lib/cn";
 import { lockScroll, unlockScroll } from "@/lib/utils/scrollLock";
 import { useVisualViewport } from "@/lib/hooks/useVisualViewport";
+import type { ChatUserType } from "@/lib/domains/chat/types";
 
 type PopoverView = "list" | "room";
 
 interface ChatPopoverProps {
   userId: string;
+  userType: ChatUserType;
   basePath: string;
   onClose: () => void;
   CreateChatModal: React.ComponentType<{
@@ -101,6 +106,7 @@ function useIsDesktop(): boolean {
 
 function ChatPopoverComponent({
   userId,
+  userType,
   basePath,
   onClose,
   CreateChatModal,
@@ -108,6 +114,7 @@ function ChatPopoverComponent({
   const [view, setView] = useState<PopoverView>("list");
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<ChatSidebarTab>("chat");
   const panelRef = useRef<HTMLDivElement>(null);
   const isDesktop = useIsDesktop();
   const { height: viewportHeight, isKeyboardOpen } = useVisualViewport();
@@ -182,6 +189,34 @@ function ChatPopoverComponent({
     };
   }, [isDesktop]);
 
+  // 데스크톱: 패널 내 wheel 이벤트가 뒤쪽 페이지로 전파되지 않도록 차단
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!isDesktop || !panel) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // 이벤트 대상에서 패널 내 스크롤 가능한 요소를 탐색
+      let el = e.target as HTMLElement | null;
+      while (el && el !== panel) {
+        const { overflowY } = getComputedStyle(el);
+        const scrollable = overflowY === "auto" || overflowY === "scroll";
+        if (scrollable && el.scrollHeight > el.clientHeight) {
+          const atTop = el.scrollTop <= 0 && e.deltaY < 0;
+          const atBottom =
+            el.scrollTop + el.clientHeight >= el.scrollHeight - 1 &&
+            e.deltaY > 0;
+          if (!atTop && !atBottom) return;
+          break;
+        }
+        el = el.parentElement;
+      }
+      e.preventDefault();
+    };
+
+    panel.addEventListener("wheel", handleWheel, { passive: false });
+    return () => panel.removeEventListener("wheel", handleWheel);
+  }, [isDesktop]);
+
   // 포커스 트랩 (데스크톱/모바일 공통)
   useEffect(() => {
     const panel = panelRef.current;
@@ -230,24 +265,37 @@ function ChatPopoverComponent({
     </button>
   ) : null;
 
+  // list 뷰의 탭 콘텐츠
+  const listTabContent = sidebarTab === "chat" ? (
+    <ChatList
+      onRoomClick={handleRoomClick}
+      onNewChat={() => setIsCreateModalOpen(true)}
+      hideHeader
+    />
+  ) : (
+    <MemberList
+      currentUserId={userId}
+      userType={userType}
+      basePath={basePath}
+      hideHeader
+      onNavigateToRoom={handleRoomClick}
+    />
+  );
+
   // 공통 콘텐츠 영역
   const contentArea = (
     <div className="flex-1 overflow-hidden">
       <AnimatePresence mode="wait" initial={false}>
         {view === "list" ? (
           <motion.div
-            key="list"
+            key={`list-${sidebarTab}`}
             initial={{ x: -20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -20, opacity: 0 }}
             transition={{ duration: 0.15 }}
             className="h-full"
           >
-            <ChatList
-              onRoomClick={handleRoomClick}
-              onNewChat={() => setIsCreateModalOpen(true)}
-              hideHeader
-            />
+            {listTabContent}
           </motion.div>
         ) : selectedRoomId ? (
           <motion.div
@@ -271,34 +319,24 @@ function ChatPopoverComponent({
     </div>
   );
 
-  // list 뷰 전용 Popover 헤더
+  // list 뷰 전용 Popover 헤더 (닫기 버튼 + 탭)
   const listHeader = (
-    <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-bg-primary">
-      <div className="flex items-center gap-2">
-        {!isDesktop && (
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1 rounded-lg hover:bg-bg-secondary transition-colors"
-            aria-label="채팅 닫기"
-          >
-            <ArrowLeft className="h-5 w-5 text-text-secondary" />
-          </button>
-        )}
-        <h2 className="text-base font-semibold text-text-primary">
-          채팅 목록
-        </h2>
-      </div>
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={() => setIsCreateModalOpen(true)}
-          className="p-1.5 rounded-lg hover:bg-bg-secondary transition-colors"
-          aria-label="새 채팅"
-          title="새 채팅"
-        >
-          <MessageSquarePlus className="h-4 w-4 text-text-secondary" />
-        </button>
+    <div className="bg-bg-primary">
+      {/* 닫기 버튼 줄 */}
+      <div className="flex items-center justify-between px-4 py-2">
+        <div className="flex items-center gap-2">
+          {!isDesktop && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 rounded-lg hover:bg-bg-secondary transition-colors"
+              aria-label="채팅 닫기"
+            >
+              <ArrowLeft className="h-5 w-5 text-text-secondary" />
+            </button>
+          )}
+          <h2 className="text-base font-semibold text-text-primary">채팅</h2>
+        </div>
         {isDesktop && (
           <button
             type="button"
@@ -310,6 +348,12 @@ function ChatPopoverComponent({
           </button>
         )}
       </div>
+      {/* 채팅/멤버 탭 */}
+      <ChatSidebarTabs
+        activeTab={sidebarTab}
+        onChange={setSidebarTab}
+        onNewChat={() => setIsCreateModalOpen(true)}
+      />
     </div>
   );
 

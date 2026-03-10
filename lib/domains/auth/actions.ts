@@ -745,6 +745,20 @@ export async function signUp(
  */
 async function _signOut(): Promise<void> {
   const supabase = await createSupabaseServerClient();
+
+  // 로그아웃 전에 현재 유저의 모든 Push 구독을 비활성화
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    const { error: pushError } = await supabase
+      .from("push_subscriptions")
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq("user_id", user.id)
+      .eq("is_active", true);
+    if (pushError) {
+      logActionError({ domain: "auth", action: "signOut.pushCleanup" }, pushError);
+    }
+  }
+
   const { error } = await supabase.auth.signOut();
 
   if (error) {

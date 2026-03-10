@@ -63,14 +63,47 @@ export function usePushSubscription(userId: string | null) {
     }
   }, [userId]);
 
+  const prevUserIdRef = useRef<string | null>(null);
+
+  /** 브라우저 Push 구독 해제 + 서버 비활성화 */
+  const revokeCurrentSubscription = useCallback(async () => {
+    try {
+      const registration = await navigator.serviceWorker?.ready;
+      const subscription = await registration?.pushManager?.getSubscription();
+      if (subscription) {
+        await unsubscribePush(subscription.endpoint);
+        await subscription.unsubscribe();
+      }
+    } catch {
+      // 실패해도 무시 — 서버에서 이미 비활성화됨
+    }
+  }, []);
+
   useEffect(() => {
     if (!userId) {
-      subscribedRef.current = false; // 로그아웃 시 리셋 → 재로그인 시 재구독 허용
+      // 로그아웃: 이전 유저가 있었다면 브라우저 Push 구독도 해제
+      if (prevUserIdRef.current) {
+        revokeCurrentSubscription();
+      }
+      subscribedRef.current = false;
+      prevUserIdRef.current = null;
       return;
     }
-    subscribedRef.current = false; // userId 변경 시 리셋 (계정 전환 대응)
+
+    // 계정 전환: 이전 유저와 다른 유저로 로그인 시 이전 구독 해제 후 새 구독
+    if (prevUserIdRef.current && prevUserIdRef.current !== userId) {
+      revokeCurrentSubscription().then(() => {
+        prevUserIdRef.current = userId;
+        subscribedRef.current = false;
+        syncSubscription();
+      });
+      return;
+    }
+
+    prevUserIdRef.current = userId;
+    subscribedRef.current = false;
     syncSubscription();
-  }, [syncSubscription, userId]);
+  }, [syncSubscription, revokeCurrentSubscription, userId]);
 
   /**
    * 명시적 구독 요청 (설정 UI에서 사용).
@@ -94,18 +127,13 @@ export function usePushSubscription(userId: string | null) {
    */
   const cancelSubscription = useCallback(async (): Promise<boolean> => {
     try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
-      if (subscription) {
-        await unsubscribePush(subscription.endpoint);
-        await subscription.unsubscribe();
-      }
+      await revokeCurrentSubscription();
       subscribedRef.current = false;
       return true;
     } catch {
       return false;
     }
-  }, []);
+  }, [revokeCurrentSubscription]);
 
   return { requestSubscription, cancelSubscription };
 }

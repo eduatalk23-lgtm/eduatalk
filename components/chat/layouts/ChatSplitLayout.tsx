@@ -21,7 +21,10 @@ import { useState, useCallback, useMemo, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useChatRoomListRealtime } from "@/lib/realtime";
 import { ChatList } from "@/components/chat/organisms/ChatList";
+import { MemberList } from "@/components/chat/organisms/MemberList";
 import { ChatLayoutProvider } from "./ChatLayoutContext";
+import { ChatSidebarTabs } from "../atoms/ChatSidebarTabs";
+import type { ChatSidebarTab } from "../atoms/ChatSidebarTabs";
 import { MessageSquare } from "lucide-react";
 import type { ChatUserType } from "@/lib/domains/chat/types";
 
@@ -73,6 +76,7 @@ export function ChatSplitLayout({
   const router = useRouter();
   const isDesktop = useIsDesktop();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<ChatSidebarTab>("chat");
 
   // 채팅방 목록 실시간 구독
   useChatRoomListRealtime({ userId, userType });
@@ -120,18 +124,34 @@ export function ChatSplitLayout({
         className="fixed inset-0 top-16 flex"
         style={{ zIndex: 1 }}
       >
-        {/* 좌측 사이드바 - 채팅 목록 */}
-        <aside className="w-80 xl:w-[360px] flex-shrink-0 border-r border-border overflow-hidden flex flex-col bg-bg-primary">
-          <ChatList
-            basePath={basePath}
-            selectedRoomId={selectedRoomId}
-            onRoomClick={handleRoomClick}
-            onNewChat={handleNewChat}
-          />
+        {/* 좌측 사이드바 - 채팅/멤버 탭 */}
+        <aside className="w-80 xl:w-[360px] flex-shrink-0 border-r border-border overflow-hidden flex flex-col bg-bg-primary shadow-[2px_0_8px_rgba(0,0,0,0.06)] z-10">
+          {/* 사이드바 탭 */}
+          <ChatSidebarTabs activeTab={sidebarTab} onChange={setSidebarTab} onNewChat={handleNewChat} />
+
+          {/* 탭 콘텐츠 */}
+          <div className="flex-1 min-h-0 overflow-hidden">
+            {sidebarTab === "chat" ? (
+              <ChatList
+                basePath={basePath}
+                selectedRoomId={selectedRoomId}
+                onRoomClick={handleRoomClick}
+                onNewChat={handleNewChat}
+                hideHeader
+              />
+            ) : (
+              <MemberList
+                currentUserId={userId}
+                userType={userType}
+                basePath={basePath}
+                hideHeader
+              />
+            )}
+          </div>
         </aside>
 
         {/* 우측 - 채팅방 또는 빈 상태 */}
-        <div className="flex-1 overflow-hidden bg-bg-primary">
+        <div className="flex-1 overflow-hidden bg-bg-tertiary">
           {isRoomPage ? (
             children
           ) : (

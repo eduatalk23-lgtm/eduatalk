@@ -9,7 +9,7 @@
 
 import { memo, useState, useCallback, useRef, useEffect } from "react";
 import { cn } from "@/lib/cn";
-import { Send, X, Paperclip, FileText, Smile, Upload, Plus, Camera, ImageIcon } from "lucide-react";
+import { Send, X, Paperclip, FileText, Smile, Upload, Plus, Camera, ImageIcon, RotateCw } from "lucide-react";
 import type { ReplyTargetInfo, UploadingAttachment, MentionInfo, ChatRoomMemberWithUser } from "@/lib/domains/chat/types";
 import { ALLOWED_FILE_TYPES, ALLOWED_IMAGE_TYPES, MAX_ATTACHMENTS_PER_MESSAGE } from "@/lib/domains/chat/types";
 import { formatFileSize, isImageType } from "@/lib/domains/chat/fileValidation";
@@ -57,6 +57,8 @@ interface ChatInputProps {
   uploadingFiles?: UploadingAttachment[];
   /** 파일 제거 핸들러 */
   onRemoveFile?: (clientId: string) => void;
+  /** 파일 업로드 재시도 핸들러 */
+  onRetryFile?: (clientId: string) => void;
   /** 마운트 시 자동 포커스 */
   autoFocus?: boolean;
   /** 채팅방 멤버 목록 (멘션용) */
@@ -77,6 +79,7 @@ function ChatInputComponent({
   onFilesSelected,
   uploadingFiles = [],
   onRemoveFile,
+  onRetryFile,
   autoFocus = false,
   members = [],
   currentUserId,
@@ -325,24 +328,25 @@ function ChatInputComponent({
     [onFilesSelected, uploadingFiles.length]
   );
 
-  // 클립보드 이미지 붙여넣기
+  // 클립보드 파일 붙여넣기 (이미지 + 일반 파일)
   const handlePaste = useCallback(
     (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
       const items = e.clipboardData?.items;
       if (!items) return;
 
-      const imageFiles: File[] = [];
+      const pastedFiles: File[] = [];
       for (const item of items) {
-        if (item.type.startsWith("image/")) {
+        if (item.kind === "file") {
           const file = item.getAsFile();
-          if (file) imageFiles.push(file);
+          if (file) pastedFiles.push(file);
         }
       }
 
-      if (imageFiles.length > 0) {
+      if (pastedFiles.length > 0) {
         e.preventDefault();
         const remaining = MAX_ATTACHMENTS_PER_MESSAGE - uploadingFiles.length;
-        onFilesSelected?.(imageFiles.slice(0, remaining));
+        // addFiles에서 MIME 타입 검증 → 미지원 파일은 에러 토스트 표시
+        onFilesSelected?.(pastedFiles.slice(0, remaining));
       }
     },
     [onFilesSelected, uploadingFiles.length]
@@ -461,7 +465,7 @@ function ChatInputComponent({
 
       {/* 첨부파일 미리보기 바 */}
       {uploadingFiles.length > 0 && (
-        <div className="flex items-center gap-2 px-3 py-2 overflow-x-auto border-b border-border">
+        <div className="flex items-center gap-2 px-3 py-2 overflow-x-auto border-b border-border bg-bg-primary shadow-sm [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent">
           {uploadingFiles.map((file) => (
             <div
               key={file.clientId}
@@ -469,7 +473,7 @@ function ChatInputComponent({
             >
               {/* 이미지 썸네일 or 파일 아이콘 */}
               {isImageType(file.file.type) ? (
-                <div className="w-16 h-16 rounded-lg overflow-hidden bg-bg-secondary">
+                <div className="w-16 h-16 rounded-lg overflow-hidden bg-bg-secondary border border-border/30">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={file.previewUrl}
@@ -488,8 +492,15 @@ function ChatInputComponent({
 
               {/* 업로드 진행률 오버레이 (원형 프로그레스) */}
               {file.status === "uploading" && (
-                <div className="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center">
-                  <svg className="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
+                <div
+                  className="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center"
+                  role="progressbar"
+                  aria-valuenow={file.progress}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={`${file.file.name} 업로드 중 ${file.progress}%`}
+                >
+                  <svg className="w-10 h-10 -rotate-90" viewBox="0 0 36 36" aria-hidden="true">
                     <circle cx="18" cy="18" r="15" fill="none" stroke="white" strokeOpacity="0.3" strokeWidth="2.5" />
                     <circle
                       cx="18" cy="18" r="15" fill="none" stroke="white" strokeWidth="2.5"
@@ -498,14 +509,30 @@ function ChatInputComponent({
                       className="transition-[stroke-dasharray] duration-300"
                     />
                   </svg>
-                  <span className="absolute text-[10px] text-white font-medium">{file.progress}%</span>
+                  <span className="absolute text-[10px] text-white font-medium" aria-hidden="true">{file.progress}%</span>
                 </div>
               )}
 
-              {/* 에러 표시 */}
+              {/* 에러 표시 + 재시도 */}
               {file.status === "error" && (
-                <div className="absolute inset-0 bg-error/20 rounded-lg flex items-center justify-center">
-                  <span className="text-[10px] text-error font-medium">실패</span>
+                <div className="absolute inset-0 bg-error/20 rounded-lg flex flex-col items-center justify-center gap-0.5">
+                  <span className="text-[9px] text-error font-medium text-center px-1 line-clamp-1">
+                    실패
+                  </span>
+                  {onRetryFile && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRetryFile(file.clientId);
+                      }}
+                      className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-error/80 text-white text-[9px] font-medium hover:bg-error transition-colors"
+                      aria-label={`${file.file.name} 재시도`}
+                    >
+                      <RotateCw className="w-2.5 h-2.5" />
+                      재시도
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -514,7 +541,7 @@ function ChatInputComponent({
                 <button
                   type="button"
                   onClick={() => onRemoveFile(file.clientId)}
-                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-bg-primary border border-border rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-bg-primary border border-border rounded-full flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
                   aria-label={`${file.file.name} 제거`}
                 >
                   <X className="w-3 h-3 text-text-secondary" />
@@ -522,7 +549,7 @@ function ChatInputComponent({
               )}
 
               {/* 파일 크기 */}
-              <span className="absolute bottom-0.5 right-0.5 text-[8px] text-white bg-black/50 rounded px-0.5">
+              <span className="absolute bottom-0.5 right-0.5 text-[10px] text-white bg-black/60 rounded px-0.5">
                 {formatFileSize(file.file.size)}
               </span>
             </div>

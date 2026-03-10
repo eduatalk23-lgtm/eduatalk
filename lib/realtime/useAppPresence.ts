@@ -1,9 +1,20 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabase/client";
 
 const HEARTBEAT_INTERVAL = 30_000; // 30초
+
+/** 현재 보고 있는 채팅방 ID (모듈 스코프, ChatRoom에서 설정) */
+let _currentChatRoomId: string | null = null;
+
+/**
+ * 현재 보고 있는 채팅방 ID를 설정합니다.
+ * ChatRoom 컴포넌트에서 마운트/언마운트 시 호출.
+ */
+export function setCurrentChatRoom(roomId: string | null) {
+  _currentChatRoomId = roomId;
+}
 
 /**
  * 앱 전역에서 사용자 온라인 상태를 추적.
@@ -42,6 +53,7 @@ export function useAppPresence(userId: string | null) {
           user_id: userId,
           status,
           updated_at: new Date().toISOString(),
+          current_chat_room_id: status === "active" ? _currentChatRoomId : null,
         })
         .then(({ error }) => {
           if (error) {

@@ -50,6 +50,15 @@ export {
 // Reaction Actions
 export { toggleReactionAction } from "./reactions";
 
+// Member List Actions (멤버 탭)
+export { getTenantMembersAction } from "./members-list";
+export type {
+  MemberRoleFilter,
+  MemberListItem,
+  MemberListResponse,
+  LinkedParentInfo,
+} from "./members-list";
+
 // Pin Actions
 export {
   pinMessageAction,

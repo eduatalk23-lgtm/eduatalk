@@ -8,6 +8,7 @@
  */
 
 import React, { memo, useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { X, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import type { ChatAttachment } from "@/lib/domains/chat/types";
 import { formatFileSize } from "@/lib/domains/chat/fileValidation";
@@ -108,7 +109,7 @@ function LightboxViewer({
   return (
     <div
       ref={backdropRef}
-      className="fixed inset-0 z-50 bg-black/90 flex flex-col"
+      className="fixed inset-0 z-[9999] bg-black flex flex-col"
       onClick={handleBackdropClick}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
@@ -118,14 +119,14 @@ function LightboxViewer({
     >
       {/* 상단 바 */}
       <div className="flex items-center justify-between px-4 pt-[env(safe-area-inset-top)] h-14 flex-shrink-0">
-        <span className="text-white/60 text-sm">
+        <span className="text-white/80 text-sm">
           {images.length > 1 && `${currentIndex + 1} / ${images.length}`}
         </span>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={handleDownload}
-            className="w-11 h-11 flex items-center justify-center text-white/60 hover:text-white rounded-full hover:bg-white/10 transition-colors"
+            className="w-11 h-11 flex items-center justify-center text-white/90 hover:text-white rounded-full bg-white/10 hover:bg-white/20 transition-colors"
             aria-label="다운로드"
           >
             <Download className="w-5 h-5" />
@@ -133,7 +134,7 @@ function LightboxViewer({
           <button
             type="button"
             onClick={onClose}
-            className="w-11 h-11 flex items-center justify-center text-white/60 hover:text-white rounded-full hover:bg-white/10 transition-colors"
+            className="w-11 h-11 flex items-center justify-center text-white/90 hover:text-white rounded-full bg-white/10 hover:bg-white/20 transition-colors"
             aria-label="닫기"
           >
             <X className="w-6 h-6" />
@@ -159,7 +160,7 @@ function LightboxViewer({
             <button
               type="button"
               onClick={() => setCurrentIndex((i) => i - 1)}
-              className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 items-center justify-center text-white/60 hover:text-white bg-black/30 hover:bg-black/50 rounded-full transition-colors"
+              className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 items-center justify-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 rounded-full transition-colors"
               aria-label="이전 이미지"
             >
               <ChevronLeft className="w-6 h-6" />
@@ -169,7 +170,7 @@ function LightboxViewer({
             <button
               type="button"
               onClick={() => setCurrentIndex((i) => i + 1)}
-              className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 items-center justify-center text-white/60 hover:text-white bg-black/30 hover:bg-black/50 rounded-full transition-colors"
+              className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 items-center justify-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 rounded-full transition-colors"
               aria-label="다음 이미지"
             >
               <ChevronRight className="w-6 h-6" />
@@ -179,11 +180,11 @@ function LightboxViewer({
       )}
 
       {/* 하단 파일명 + 용량 + 만료 경고 */}
-      <div className="text-center pb-4 pb-[env(safe-area-inset-bottom)] flex flex-col items-center gap-1">
-        <p className="text-white/40 text-xs truncate px-8">
+      <div className="text-center pb-[max(1rem,env(safe-area-inset-bottom))] flex flex-col items-center gap-1">
+        <p className="text-white/70 text-xs truncate px-8">
           {current.file_name}
           {" "}
-          <span className="text-white/30">({formatFileSize(current.file_size)})</span>
+          <span className="text-white/50">({formatFileSize(current.file_size)})</span>
         </p>
         {shouldShowExpiryBadge(current.created_at) && (
           <p className={`text-xs ${
@@ -211,13 +212,14 @@ function ImageLightboxComponent({
 }: ImageLightboxProps) {
   if (!isOpen || images.length === 0) return null;
 
-  return (
+  return createPortal(
     <LightboxViewer
       key={initialIndex}
       images={images}
       initialIndex={initialIndex}
       onClose={onClose}
-    />
+    />,
+    document.body
   );
 }
 

@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 
+type ClearAppBadgeNavigator = Navigator & { clearAppBadge: () => Promise<void> };
+
 /**
  * Service Worker를 등록하는 훅.
  *
@@ -35,7 +37,8 @@ export function useServiceWorker() {
                 newWorker.state === "activated" &&
                 navigator.serviceWorker.controller
               ) {
-                // 새 SW 활성화됨 — 다음 페이지 로드 시 자동 적용 (skipWaiting)
+                // 새 SW 활성화 → 커스텀 이벤트로 UI 알림
+                window.dispatchEvent(new CustomEvent("sw-updated"));
               }
             });
           }
@@ -43,13 +46,35 @@ export function useServiceWorker() {
       })
       .catch((err) => {
         console.error("[SW] Registration failed:", err);
+        // SW 등록 실패 → 커스텀 이벤트로 UI 알림
+        window.dispatchEvent(new CustomEvent("sw-error", { detail: err }));
       });
 
     // Push 알림 클릭 시 네비게이션 처리
-    navigator.serviceWorker.addEventListener("message", (event) => {
+    const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === "PUSH_NAVIGATE" && event.data.url) {
+        if ("clearAppBadge" in navigator) {
+          (navigator as ClearAppBadgeNavigator).clearAppBadge().catch(() => {});
+        }
         window.location.href = event.data.url;
       }
-    });
+    };
+    navigator.serviceWorker.addEventListener("message", handleMessage);
+
+    // 앱 포커스 시 뱃지 초기화
+    const handleVisibility = () => {
+      if (
+        document.visibilityState === "visible" &&
+        "clearAppBadge" in navigator
+      ) {
+        (navigator as ClearAppBadgeNavigator).clearAppBadge().catch(() => {});
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      navigator.serviceWorker.removeEventListener("message", handleMessage);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, []);
 }

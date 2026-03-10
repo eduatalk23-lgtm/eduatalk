@@ -46,6 +46,8 @@ const SKIP_REASONS: SkipReason[] = [
   "muted",
   "quiet_hours",
   "online",
+  "viewing_room",
+  "already_read",
   "rate_limited",
   "duplicate",
   "no_subscription",
@@ -74,9 +76,6 @@ export async function getNotificationMonitoringData(): Promise<NotificationMonit
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  // notification_log 테이블은 database.types.ts에 미포함이므로 as unknown 캐스트 사용
-  const logTable = "notification_log" as "push_subscriptions";
-
   // 병렬 쿼리 실행
   const [
     sentResult,
@@ -86,34 +85,34 @@ export async function getNotificationMonitoringData(): Promise<NotificationMonit
   ] = await Promise.all([
     // 오늘 발송 성공
     supabase
-      .from(logTable)
+      .from("notification_log")
       .select("id", { count: "exact", head: true })
-      .is("skipped_reason" as "keys_auth", null)
-      .eq("delivered" as "keys_auth", true as unknown as string)
-      .gte("sent_at" as "keys_auth", todayISO) as unknown as Promise<{ count: number | null }>,
+      .is("skipped_reason", null)
+      .eq("delivered", true)
+      .gte("sent_at", todayISO),
 
     // 오늘 스킵
     supabase
-      .from(logTable)
+      .from("notification_log")
       .select("id", { count: "exact", head: true })
-      .not("skipped_reason" as "keys_auth", "is", null)
-      .gte("sent_at" as "keys_auth", todayISO) as unknown as Promise<{ count: number | null }>,
+      .not("skipped_reason", "is", null)
+      .gte("sent_at", todayISO),
 
     // 오늘 실패 (발송 시도했으나 delivered=false)
     supabase
-      .from(logTable)
+      .from("notification_log")
       .select("id", { count: "exact", head: true })
-      .is("skipped_reason" as "keys_auth", null)
-      .eq("delivered" as "keys_auth", false as unknown as string)
-      .gte("sent_at" as "keys_auth", todayISO) as unknown as Promise<{ count: number | null }>,
+      .is("skipped_reason", null)
+      .eq("delivered", false)
+      .gte("sent_at", todayISO),
 
     // 스킵 사유별 카운트
     ...SKIP_REASONS.map((reason) =>
-      (supabase
-        .from(logTable)
+      supabase
+        .from("notification_log")
         .select("id", { count: "exact", head: true })
-        .eq("skipped_reason" as "keys_auth", reason)
-        .gte("sent_at" as "keys_auth", todayISO) as unknown as Promise<{ count: number | null }>)
+        .eq("skipped_reason", reason)
+        .gte("sent_at", todayISO)
     ),
   ]);
 
@@ -132,18 +131,18 @@ export async function getNotificationMonitoringData(): Promise<NotificationMonit
 
     // 최근 7일 클릭 수
     supabase
-      .from(logTable)
+      .from("notification_log")
       .select("id", { count: "exact", head: true })
-      .eq("clicked" as "keys_auth", true as unknown as string)
-      .gte("sent_at" as "keys_auth", sevenDaysAgo) as unknown as Promise<{ count: number | null }>,
+      .eq("clicked", true)
+      .gte("sent_at", sevenDaysAgo),
 
     // 최근 7일 전체 발송 수
     supabase
-      .from(logTable)
+      .from("notification_log")
       .select("id", { count: "exact", head: true })
-      .is("skipped_reason" as "keys_auth", null)
-      .eq("delivered" as "keys_auth", true as unknown as string)
-      .gte("sent_at" as "keys_auth", sevenDaysAgo) as unknown as Promise<{ count: number | null }>,
+      .is("skipped_reason", null)
+      .eq("delivered", true)
+      .gte("sent_at", sevenDaysAgo),
 
     // 디바이스별 구독 수
     ...DEVICE_LABELS.map((label) =>
@@ -162,7 +161,7 @@ export async function getNotificationMonitoringData(): Promise<NotificationMonit
     .eq("is_active", true);
 
   const uniqueUsers = new Set(
-    (uniqueUsersData ?? []).map((d: { user_id: string }) => d.user_id)
+    (uniqueUsersData ?? []).map((d) => d.user_id)
   ).size;
 
   // 결과 조합

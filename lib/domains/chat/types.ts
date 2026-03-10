@@ -717,6 +717,8 @@ export interface UploadingAttachment {
   status: "pending" | "uploading" | "done" | "error";
   result?: ChatAttachment;
   error?: string;
+  /** 업로드 취소용 AbortController */
+  abortController?: AbortController;
 }
 
 // ============================================

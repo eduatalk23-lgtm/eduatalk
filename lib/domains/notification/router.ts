@@ -52,7 +52,8 @@ export async function routeNotification(
       request.type,
       request.payload,
       request.priority,
-      request.referenceId
+      request.referenceId,
+      request.messageCreatedAt
     );
 
     if (skipReason) {
@@ -76,6 +77,20 @@ export async function routeNotification(
       request
     );
 
+    // 먼저 로그를 insert하여 id를 확보 → push payload에 포함 (클릭 추적용)
+    const { data: logRow } = await supabase
+      .from("notification_log")
+      .insert({
+        user_id: userId,
+        type: request.type,
+        channel: "push",
+        title: request.payload.title,
+        body: request.payload.body,
+        reference_id: request.referenceId ?? null,
+      })
+      .select("id")
+      .single();
+
     const { sent, failed } = await sendPushToUser(userId, {
       title: finalPayload.title,
       body: finalPayload.body,
@@ -83,31 +98,26 @@ export async function routeNotification(
       tag: finalPayload.tag,
       icon: finalPayload.icon,
       type: request.type,
+      notificationLogId: logRow?.id,
     });
 
     if (sent === 0 && failed === 0) {
       results.skipped++;
-      await supabase.from("notification_log").insert({
-        user_id: userId,
-        type: request.type,
-        channel: "push",
-        title: request.payload.title,
-        body: request.payload.body,
-        reference_id: request.referenceId ?? null,
-        skipped_reason: "no_subscription",
-      });
+      if (logRow?.id) {
+        await supabase
+          .from("notification_log")
+          .update({ skipped_reason: "no_subscription" })
+          .eq("id", logRow.id);
+      }
     } else {
       results.sent += sent;
       results.failed += failed;
-      await supabase.from("notification_log").insert({
-        user_id: userId,
-        type: request.type,
-        channel: "push",
-        title: request.payload.title,
-        body: request.payload.body,
-        reference_id: request.referenceId ?? null,
-        delivered: sent > 0,
-      });
+      if (logRow?.id) {
+        await supabase
+          .from("notification_log")
+          .update({ delivered: sent > 0 })
+          .eq("id", logRow.id);
+      }
     }
   }
 
@@ -124,7 +134,8 @@ async function shouldSkip(
   type: NotificationType,
   payload: { tag?: string },
   priority: string,
-  referenceId?: string
+  referenceId?: string,
+  messageCreatedAt?: string
 ): Promise<SkipReason | null> {
   // 1+2. 사용자 설정 + 방해금지 시간 (1회 쿼리)
   const prefField = NOTIFICATION_PREFERENCE_MAP[type];
@@ -161,18 +172,31 @@ async function shouldSkip(
     }
   }
 
-  // 3. 채팅 뮤트 확인
-  if (type === "chat_message" || type === "chat_group_message") {
-    const roomId = payload.tag?.replace("chat-", "");
+  // 3. 채팅 뮤트 + 이미 읽음 확인 (1회 쿼리)
+  const isChatType = type === "chat_message" || type === "chat_group_message" || type === "chat_mention";
+  if (isChatType) {
+    // tag에서 roomId 추출 ("chat-{roomId}" 또는 "chat-mention-{roomId}")
+    const roomId = payload.tag?.replace(/^chat-(?:mention-)?/, "");
     if (roomId) {
       const { data: member } = await supabase
         .from("chat_room_members")
-        .select("is_muted")
+        .select("is_muted, last_read_at")
         .eq("room_id", roomId)
         .eq("user_id", userId)
         .single();
 
-      if (member?.is_muted) return "muted";
+      // 뮤트 체크: chat_mention은 뮤트 무시 (카카오톡/Slack 표준)
+      if (type !== "chat_mention" && member?.is_muted) return "muted";
+
+      // 이미 읽은 메시지면 push 스킵
+      // (Realtime으로 화면에서 먼저 본 경우 last_read_at가 업데이트됨)
+      if (
+        messageCreatedAt &&
+        member?.last_read_at &&
+        new Date(member.last_read_at) >= new Date(messageCreatedAt)
+      ) {
+        return "already_read";
+      }
     }
   }
 
@@ -201,34 +225,34 @@ async function shouldSkip(
 
   if ((count ?? 0) >= 10) return "rate_limited";
 
-  // 6. 앱 활성 상태 확인 (active + heartbeat 이내 → Push 스킵)
-  // 채팅 메시지는 online 필터를 건너뜀:
-  //  - 채팅방 안에 있으면 realtime으로 이미 수신 (push tag 중복 처리)
-  //  - 다른 페이지에 있으면 push가 유일한 알림 수단
-  //  - 앱을 닫으면 heartbeat 중단되므로 자연스럽게 통과
-  if (type !== "chat_message" && type !== "chat_group_message") {
-    // user_presence 테이블은 database.types.ts에 아직 미포함 (마이그레이션 후 재생성 필요)
-    const { data: presence, error: presenceError } = (await supabase
-      .from("user_presence" as "push_subscriptions")
-      .select("status, updated_at")
-      .eq("user_id", userId)
-      .single()) as unknown as {
-      data: { status: string; updated_at: string } | null;
-      error: { code: string; message: string } | null;
-    };
+  // 6. 앱 활성 상태 확인
+  const { data: presence, error: presenceError } = await supabase
+    .from("user_presence")
+    .select("status, updated_at, current_chat_room_id")
+    .eq("user_id", userId)
+    .single();
 
-    // 쿼리 실패 시 알림을 차단하지 않음 (안전 방향: 발송)
-    if (presenceError && presenceError.code !== "PGRST116") {
-      console.warn("[Router] Presence query failed:", presenceError.code);
-      return null;
-    }
+  // 쿼리 실패 시 알림을 차단하지 않음 (안전 방향: 발송)
+  if (presenceError && presenceError.code !== "PGRST116") {
+    console.warn("[Router] Presence query failed:", presenceError.code);
+    return null;
+  }
 
-    if (
-      presence?.status === "active" &&
-      presence.updated_at &&
-      Date.now() - new Date(presence.updated_at).getTime() <
-        PRESENCE_STALE_THRESHOLD
-    ) {
+  const isActive =
+    presence?.status === "active" &&
+    presence.updated_at &&
+    Date.now() - new Date(presence.updated_at).getTime() < PRESENCE_STALE_THRESHOLD;
+
+  if (isActive) {
+    if (isChatType) {
+      // 채팅 알림: 해당 채팅방을 보고 있으면 스킵, 다른 페이지면 발송
+      const roomId = payload.tag?.replace(/^chat-(?:mention-)?/, "");
+      if (roomId && presence.current_chat_room_id === roomId) {
+        return "viewing_room";
+      }
+      // 다른 페이지에 있으면 push 발송 (return null → 계속 진행)
+    } else {
+      // 비채팅 알림: 앱 활성이면 push 스킵
       return "online";
     }
   }

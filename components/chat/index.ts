@@ -14,6 +14,7 @@ export { ChatRoomCard } from "./molecules/ChatRoomCard";
 
 // Organisms
 export { ChatList } from "./organisms/ChatList";
+export { MemberList } from "./organisms/MemberList";
 export { ChatRoom } from "./organisms/ChatRoom";
 export { ChatPopover } from "./organisms/ChatPopover";
 

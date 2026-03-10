@@ -9,11 +9,28 @@ type ToastFn = (message: string, type?: "info" | "success") => void;
 const recentTags = new Map<string, number>();
 const DEDUP_WINDOW = 2000; // 2초
 
+// 멀티탭 중복 방지: BroadcastChannel으로 탭 간 알림 조율
+const channel =
+  typeof window !== "undefined" && "BroadcastChannel" in window
+    ? new BroadcastChannel("notification-dedup")
+    : null;
+
+// 다른 탭에서 처리한 알림 tag를 수신하여 중복 방지
+channel?.addEventListener("message", (event) => {
+  const { tag, timestamp } = event.data ?? {};
+  if (tag && timestamp) {
+    recentTags.set(tag, timestamp);
+  }
+});
+
 /**
  * 클라이언트 알림의 단일 진입점.
  *
  * 모든 인앱 알림(토스트, 뱃지)은 이 Router를 통해야 합니다.
  * Browser Notification은 browserNotification.ts를 통해 호출됩니다.
+ *
+ * BroadcastChannel을 사용하여 멀티탭 환경에서 동일 알림이
+ * 여러 탭에서 중복 표시되는 것을 방지합니다.
  */
 class ClientNotificationRouter {
   private showToast: ToastFn | null = null;
@@ -31,11 +48,16 @@ class ClientNotificationRouter {
 
   /** 알림 디스패치 */
   dispatch(notification: ClientNotificationPayload) {
-    // 중복 방지
+    // 중복 방지 (로컬 + 크로스탭)
     if (notification.tag) {
       const lastSent = recentTags.get(notification.tag);
       if (lastSent && Date.now() - lastSent < DEDUP_WINDOW) return;
-      recentTags.set(notification.tag, Date.now());
+
+      const now = Date.now();
+      recentTags.set(notification.tag, now);
+
+      // 다른 탭에 알림 처리 사실을 브로드캐스트
+      channel?.postMessage({ tag: notification.tag, timestamp: now });
     }
 
     // 현재 URL이 알림 대상과 동일하면 스킵

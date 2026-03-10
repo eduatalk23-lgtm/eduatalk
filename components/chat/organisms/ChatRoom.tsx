@@ -7,10 +7,11 @@
  * 비즈니스 로직은 useChatRoomLogic 훅으로 분리되어 있습니다.
  */
 
-import { memo, useRef, useCallback, useMemo, useReducer, useEffect, useState } from "react";
+import { memo, useRef, useCallback, useMemo, useReducer, useEffect, useState, forwardRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useChatRoomLogic } from "@/lib/domains/chat/hooks";
 import { useChatConnectionStatus } from "@/lib/hooks/useChatConnectionStatus";
+import { setCurrentChatRoom } from "@/lib/realtime/useAppPresence";
 import { useChatLayout } from "@/components/chat/layouts/ChatLayoutContext";
 import type { ReactionEmoji, ReplyTargetInfo, ChatAttachment, ChatUserType, ChatUser, ChatMessageWithGrouping } from "@/lib/domains/chat/types";
 import type { LongPressPosition } from "@/lib/hooks/useLongPress";
@@ -409,6 +410,30 @@ function ChatRoomComponent({
   const { canPin, canSetAnnouncement } = permissions;
 
   // ============================================
+  // Presence: 현재 보고 있는 채팅방 등록 (Push 억제용)
+  // ============================================
+  useEffect(() => {
+    setCurrentChatRoom(roomId);
+    return () => setCurrentChatRoom(null);
+  }, [roomId]);
+
+  // ============================================
+  // 브라우저 기본 드롭 동작 차단 (채팅 영역 외부에 파일 드롭 시 페이지 이탈 방지)
+  // ============================================
+  useEffect(() => {
+    const preventDefaultDrop = (e: DragEvent) => {
+      // preventDefault만 사용 (stopPropagation 시 같은 페이지 내 다른 드롭 영역 차단됨)
+      e.preventDefault();
+    };
+    window.addEventListener("dragover", preventDefaultDrop);
+    window.addEventListener("drop", preventDefaultDrop);
+    return () => {
+      window.removeEventListener("dragover", preventDefaultDrop);
+      window.removeEventListener("drop", preventDefaultDrop);
+    };
+  }, []);
+
+  // ============================================
   // 연결 상태
   // ============================================
   const {
@@ -796,10 +821,27 @@ function ChatRoomComponent({
     ) : null
   ), [isFetchingNextPage]);
 
+  const VirtuosoScroller = useMemo(
+    () =>
+      forwardRef<HTMLDivElement, React.ComponentPropsWithRef<"div">>(
+        function Scroller(props, ref) {
+          return (
+            <div
+              {...props}
+              ref={ref}
+              style={props.style}
+            />
+          );
+        }
+      ),
+    []
+  );
+
   const virtuosoComponents = useMemo(() => ({
     Header: VirtuosoHeader,
+    Scroller: VirtuosoScroller,
     ScrollSeekPlaceholder,
-  }), [VirtuosoHeader, ScrollSeekPlaceholder]);
+  }), [VirtuosoHeader, VirtuosoScroller, ScrollSeekPlaceholder]);
 
   // ============================================
   // 방 이름 결정
@@ -824,7 +866,7 @@ function ChatRoomComponent({
       <ScreenReaderAnnouncer message={srAnnouncement} politeness="polite" />
 
       <div
-        className="relative flex flex-col h-full bg-bg-primary"
+        className="relative flex flex-col h-full bg-bg-tertiary"
         role="region"
         aria-label={`${roomName} 채팅방`}
       >
@@ -913,7 +955,7 @@ function ChatRoomComponent({
       </div>
 
       {/* Content area: max-width for readability on wide screens */}
-      <div className="flex-1 flex flex-col min-h-0 relative max-w-5xl mx-auto w-full">
+      <div className="flex-1 flex flex-col min-h-0 relative max-w-5xl mx-auto w-full bg-bg-primary border-x border-border/40">
 
       {/* 공지 배너 */}
       {announcement && (
@@ -1072,6 +1114,7 @@ function ChatRoomComponent({
         onFilesSelected={attachmentState.addFiles}
         uploadingFiles={attachmentState.uploadingFiles}
         onRemoveFile={attachmentState.removeFile}
+        onRetryFile={attachmentState.retryUpload}
         autoFocus
         members={data.members}
         currentUserId={userId}

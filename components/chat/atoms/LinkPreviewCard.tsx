@@ -70,7 +70,7 @@ function LinkPreviewCardComponent({ preview, isOwn }: LinkPreviewCardProps) {
           <p
             className={cn(
               "text-xs mt-0.5 line-clamp-2",
-              isOwn ? "text-white/80" : "text-text-secondary"
+              isOwn ? "text-white/90" : "text-text-secondary"
             )}
           >
             {preview.description}
@@ -80,13 +80,13 @@ function LinkPreviewCardComponent({ preview, isOwn }: LinkPreviewCardProps) {
           <ExternalLink
             className={cn(
               "w-3 h-3 flex-shrink-0",
-              isOwn ? "text-white/70" : "text-text-tertiary"
+              isOwn ? "text-white/85" : "text-text-tertiary"
             )}
           />
           <span
             className={cn(
               "text-[10px] truncate",
-              isOwn ? "text-white/70" : "text-text-tertiary"
+              isOwn ? "text-white/85" : "text-text-tertiary"
             )}
           >
             {preview.site_name ?? new URL(preview.url).hostname}

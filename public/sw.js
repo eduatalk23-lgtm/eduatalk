@@ -3,7 +3,9 @@
  *
  * - 오프라인 캐싱 (NetworkFirst)
  * - Push 알림 수신 및 표시
- * - 알림 클릭 시 앱 내 네비게이션
+ * - 알림 클릭 시 앱 내 네비게이션 + 클릭 추적
+ * - 구독 변경 시 자동 갱신 (pushsubscriptionchange)
+ * - App Badging API 연동
  */
 
 const CACHE_NAME = "timelevelup-v1";
@@ -81,7 +83,7 @@ self.addEventListener("fetch", (event) => {
 });
 
 // ============================================
-// Push: 알림 수신 및 표시
+// Push: 알림 수신 및 표시 + App Badge
 // ============================================
 self.addEventListener("push", (event) => {
   if (!event.data) return;
@@ -105,12 +107,12 @@ self.addEventListener("push", (event) => {
     data: {
       url: data.url || "/",
       type: data.type || "unknown",
+      notificationLogId: data.notificationLogId || null,
       timestamp: Date.now(),
     },
   };
 
   event.waitUntil(
-    // 같은 tag의 기존 알림을 먼저 닫고 새로 표시 (유령 알림 방지)
     self.registration
       .getNotifications({ tag: tag })
       .then((existing) => {
@@ -120,6 +122,19 @@ self.addEventListener("push", (event) => {
           options
         );
       })
+      .then(() => {
+        // App Badging: 읽지 않은 알림 수로 뱃지 업데이트
+        // SW에서 setAppBadge 지원 여부는 브라우저마다 다르므로 try-catch
+        try {
+          if ("setAppBadge" in navigator) {
+            return self.registration.getNotifications().then((all) => {
+              navigator.setAppBadge(all.length).catch(() => {});
+            });
+          }
+        } catch {
+          // setAppBadge 미지원 환경 (iOS Safari 등)
+        }
+      })
       .catch((err) => {
         console.error("[SW] Push notification failed:", err);
       })
@@ -127,27 +142,101 @@ self.addEventListener("push", (event) => {
 });
 
 // ============================================
-// Notification Click: 앱 내 네비게이션
+// Notification Click: 앱 내 네비게이션 + 클릭 추적
 // ============================================
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
   const url = event.notification.data?.url || "/";
+  const notificationLogId = event.notification.data?.notificationLogId;
 
   event.waitUntil(
-    self.clients
-      .matchAll({ type: "window", includeUncontrolled: true })
-      .then((clients) => {
-        // 이미 열린 앱 창이 있으면 포커스 + 네비게이션
-        for (const client of clients) {
-          if ("focus" in client) {
-            client.focus();
-            client.postMessage({ type: "PUSH_NAVIGATE", url });
-            return;
+    Promise.all([
+      // 1. 클릭 추적 API 호출 (fire-and-forget)
+      notificationLogId
+        ? fetch(self.location.origin + "/api/push/click", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ notificationLogId }),
+          }).catch(() => {
+            // 추적 실패해도 네비게이션은 진행
+          })
+        : Promise.resolve(),
+
+      // 2. App Badge 초기화
+      "clearAppBadge" in navigator
+        ? navigator.clearAppBadge().catch(() => {})
+        : Promise.resolve(),
+
+      // 3. 앱 내 네비게이션
+      self.clients
+        .matchAll({ type: "window", includeUncontrolled: true })
+        .then((clients) => {
+          for (const client of clients) {
+            if ("focus" in client) {
+              client.focus();
+              client.postMessage({ type: "PUSH_NAVIGATE", url });
+              return;
+            }
           }
-        }
-        // 없으면 새 창
-        return self.clients.openWindow(url);
-      })
+          return self.clients.openWindow(url);
+        })
+        .catch(() => {
+          // 네비게이션 실패 시 새 창으로 폴백
+          return self.clients.openWindow(url).catch(() => {});
+        }),
+    ])
   );
 });
+
+// ============================================
+// Push Subscription Change: 토큰 자동 갱신
+// ============================================
+self.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil(
+    (async () => {
+      try {
+        // 이전 구독의 옵션(applicationServerKey 포함)으로 재구독 시도
+        // event.newSubscription이 있으면 브라우저가 이미 재구독한 것
+        const newSubscription =
+          event.newSubscription ||
+          (await self.registration.pushManager.subscribe(
+            event.oldSubscription?.options || { userVisibleOnly: true }
+          ));
+
+        const p256dh = newSubscription.getKey("p256dh");
+        const auth = newSubscription.getKey("auth");
+        if (!p256dh || !auth) return;
+
+        // 서버에 새 구독 전달 (SW에서는 Server Action 호출 불가 → API 사용)
+        // 이전 구독 비활성화 + 새 구독 등록을 서버가 처리
+        await fetch(self.location.origin + "/api/push/resubscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            oldEndpoint: event.oldSubscription?.endpoint || null,
+            newSubscription: {
+              endpoint: newSubscription.endpoint,
+              keys: {
+                p256dh: arrayBufferToBase64(p256dh),
+                auth: arrayBufferToBase64(auth),
+              },
+            },
+          }),
+        });
+      } catch (err) {
+        console.error("[SW] pushsubscriptionchange failed:", err);
+      }
+    })()
+  );
+});
+
+// --- 유틸리티 ---
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary);
+}

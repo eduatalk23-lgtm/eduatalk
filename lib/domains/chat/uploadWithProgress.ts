@@ -86,7 +86,12 @@ export function uploadWithProgress({
     };
 
     xhr.open("POST", url);
-    xhr.timeout = 120_000; // 2분 타임아웃
+
+    // 동적 타임아웃: 파일 크기 기반 (최소 30초, 100KB/s 기준, 최대 10분)
+    const MIN_TIMEOUT = 30_000;
+    const MAX_TIMEOUT = 600_000;
+    const sizeBasedTimeout = Math.ceil((file.size / (100 * 1024)) * 1000);
+    xhr.timeout = Math.min(MAX_TIMEOUT, Math.max(MIN_TIMEOUT, sizeBasedTimeout));
 
     // Supabase Storage 필수 헤더
     xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);

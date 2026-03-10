@@ -80,4 +80,11 @@ export const chatKeys = {
 
   /** 초대 가능한 관리자 목록 */
   availableAdmins: () => ["chat-available-admins"] as const,
+
+  // ============================================
+  // 멤버 탭 (연락처)
+  // ============================================
+
+  /** 테넌트 멤버 목록 (멤버 탭용, 항상 전체 조회 후 클라이언트 필터링) */
+  tenantMembers: () => ["chat-tenant-members"] as const,
 } as const;

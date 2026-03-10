@@ -47,6 +47,8 @@ export interface NotificationRequest {
   priority: NotificationPriority;
   source: "db_trigger" | "cron" | "server_action";
   referenceId?: string;
+  /** 채팅 메시지 생성 시각 (읽음 억제 판단용) */
+  messageCreatedAt?: string;
 }
 
 /** 클라이언트 라우터 디스패치 페이로드 */
@@ -65,6 +67,8 @@ export type SkipReason =
   | "muted"
   | "quiet_hours"
   | "online"
+  | "viewing_room"
+  | "already_read"
   | "rate_limited"
   | "duplicate"
   | "no_subscription";

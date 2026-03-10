@@ -23,7 +23,7 @@ export function chatRoomsQueryOptions() {
       }
       return result.data;
     },
-    staleTime: 60 * 1000, // 1분 (Realtime이 업데이트 담당, 재방문 시 불필요한 refetch 방지)
+    staleTime: 2 * 60 * 1000, // 2분 (Realtime이 업데이트 담당, 목록은 자주 변경되지 않음)
     refetchOnWindowFocus: false, // Realtime이 freshness 관리
   });
 }

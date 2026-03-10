@@ -28,6 +28,10 @@
     {
       "path": "/api/cron/cleanup-chat-attachments",
       "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/cron/push-cleanup",
+      "schedule": "0 18 * * *"
     }
   ]
 }

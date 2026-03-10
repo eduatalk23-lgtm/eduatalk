@@ -54,7 +54,7 @@ export function VirtualizedList<T>({
     <div
       ref={containerRef}
       className={cn("overflow-auto", className)}
-      style={{ height: containerHeight, overscrollBehavior: "contain", overflowAnchor: "none" }}
+      style={{ height: containerHeight, overflowAnchor: "none" }}
       onScroll={handleScroll}
     >
       <div style={{ height: totalHeight, position: "relative", contain: "layout style" }}>

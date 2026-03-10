@@ -178,7 +178,7 @@ function ChatListComponent({
       </div>
 
       {/* 채팅방 목록 */}
-      <div className="flex-1 overflow-y-auto px-2 py-2 overscroll-contain">
+      <div className="flex-1 overflow-y-auto px-2 py-2">
         {filteredRooms.length === 0 && searchQuery.trim() ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4 gap-2">
             <SearchX className="w-8 h-8 text-text-tertiary" />

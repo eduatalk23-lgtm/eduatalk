@@ -125,6 +125,8 @@ type UseChatRealtimeOptions = {
   onNewMessage?: (message: ChatMessagePayload) => void;
   /** 메시지 삭제 콜백 */
   onMessageDeleted?: (messageId: string) => void;
+  /** 읽음 확인 수신 콜백 (상대방이 메시지를 읽었을 때) */
+  onReadReceipt?: (readerId: string, readAt: string) => void;
 };
 
 /**
@@ -148,6 +150,7 @@ export function useChatRealtime({
   senderCache,
   onNewMessage,
   onMessageDeleted,
+  onReadReceipt,
 }: UseChatRealtimeOptions) {
   const queryClient = useQueryClient();
 
@@ -158,10 +161,10 @@ export function useChatRealtime({
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   // 콜백을 ref로 저장하여 의존성 변경 방지
-  const callbacksRef = useRef({ onNewMessage, onMessageDeleted });
+  const callbacksRef = useRef({ onNewMessage, onMessageDeleted, onReadReceipt });
   useEffect(() => {
-    callbacksRef.current = { onNewMessage, onMessageDeleted };
-  }, [onNewMessage, onMessageDeleted]);
+    callbacksRef.current = { onNewMessage, onMessageDeleted, onReadReceipt };
+  }, [onNewMessage, onMessageDeleted, onReadReceipt]);
 
   // 발신자 정보 캐시 (LRU로 메모리 누수 방지)
   const senderCacheRef = useRef(new LRUCache<string, ChatUser>(SENDER_CACHE_MAX_SIZE));
@@ -1024,6 +1027,18 @@ export function useChatRealtime({
           }
         }
       )
+      // === 읽음 확인: broadcast from client ===
+      .on(
+        "broadcast",
+        { event: "READ_RECEIPT" },
+        (event: { payload: BroadcastPayload }) => {
+          const data = event.payload as { reader_id?: string; read_at?: string };
+          if (data.reader_id && data.reader_id !== userId && data.read_at) {
+            debugLog("[ChatRealtime] Read receipt from:", data.reader_id);
+            callbacksRef.current.onReadReceipt?.(data.reader_id, data.read_at);
+          }
+        }
+      )
       // === 채팅방 멤버: broadcast from DB trigger ===
       .on(
         "broadcast",
@@ -1225,7 +1240,24 @@ export function useChatRealtime({
     []
   );
 
-  return { broadcastInsert };
+  // 읽음 확인 broadcast (markAsRead 성공 후 호출)
+  const broadcastReadReceipt = useCallback(
+    async () => {
+      if (!channelRef.current) return;
+      try {
+        await channelRef.current.send({
+          type: "broadcast",
+          event: "READ_RECEIPT",
+          payload: { reader_id: userId, read_at: new Date().toISOString() },
+        });
+      } catch (error) {
+        debugWarn("[ChatRealtime] ReadReceipt broadcast error:", error);
+      }
+    },
+    [userId]
+  );
+
+  return { broadcastInsert, broadcastReadReceipt };
 }
 
 // ============================================

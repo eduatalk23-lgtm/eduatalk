@@ -88,7 +88,7 @@ function ImageGrid({
   return (
     <div
       className={cn(
-        "grid gap-1 rounded-lg overflow-hidden",
+        "grid gap-1 rounded-lg overflow-hidden border border-border/30",
         count === 1 && "grid-cols-1",
         count === 2 && "grid-cols-2",
         count >= 3 && "grid-cols-2"

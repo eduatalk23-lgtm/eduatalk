@@ -486,6 +486,10 @@
 }
 
 /* Global Reset & Base Styles */
+* {
+  overscroll-behavior: none; /* 모든 스크롤 컨테이너에서 바운스/글로우 효과 제거 */
+}
+
 html {
   scrollbar-gutter: stable;
   /* scroll-behavior는 전역 적용하지 않음 — 필요한 곳에서만 behavior:"smooth" 명시 */
@@ -504,13 +508,6 @@ body {
   font-family: Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overscroll-behavior-y: contain; /* 네이티브 pull-to-refresh 방지, scroll chaining 차단 */
-}
-
-@media (display-mode: standalone) {
-  body {
-    overscroll-behavior-y: none; /* PWA standalone: 바운스 효과 완전 제거 */
-  }
 }
 
 /* 드래그/리사이즈 영역 — 브라우저 기본 스크롤과 충돌 방지 */
@@ -1061,7 +1058,3 @@ input[type="number"] {
   touch-action: pan-y;
 }
 
-/* 모달/드로어 오버레이 — 배경 스크롤 차단 */
-@utility overscroll-contain {
-  overscroll-behavior: contain;
-}
