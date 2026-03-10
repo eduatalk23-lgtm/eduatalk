@@ -13,16 +13,19 @@ import { chatRoomsQueryOptions } from "@/lib/query-options/chatRooms";
 interface UseTotalUnreadCountOptions {
   /** 인증된 상태에서만 쿼리 실행 (기본값: true) */
   enabled?: boolean;
+  /** 자동 리페치 간격 (ms). Realtime 미구독 시 polling 대체용 */
+  refetchInterval?: number;
 }
 
 export function useTotalUnreadCount(
   options: UseTotalUnreadCountOptions = {}
 ): number {
-  const { enabled = true } = options;
+  const { enabled = true, refetchInterval } = options;
 
   const { data: rooms } = useQuery({
     ...chatRoomsQueryOptions(),
     enabled,
+    ...(refetchInterval ? { refetchInterval } : {}),
   });
 
   if (!rooms || rooms.length === 0) return 0;

@@ -11,6 +11,9 @@
 const CACHE_NAME = "timelevelup-v1";
 const OFFLINE_URL = "/offline";
 
+// App Badge 카운트 (SW 생존 주기 동안 유지)
+let badgeCount = 0;
+
 // ============================================
 // Install: 핵심 에셋 프리캐시
 // ============================================
@@ -104,6 +107,9 @@ self.addEventListener("push", (event) => {
     badge: data.badge || origin + "/icons/icon-72x72.png",
     tag: tag,
     renotify: true,
+    requireInteraction: true, // Android: heads-up 배너 유지 (auto-dismiss 방지)
+    silent: false, // 명시적으로 소리/진동 허용
+    vibrate: [200, 100, 200], // Android: 진동 패턴 → heads-up 배너 트리거
     data: {
       url: data.url || "/",
       type: data.type || "unknown",
@@ -123,13 +129,13 @@ self.addEventListener("push", (event) => {
         );
       })
       .then(() => {
-        // App Badging: 읽지 않은 알림 수로 뱃지 업데이트
-        // SW에서 setAppBadge 지원 여부는 브라우저마다 다르므로 try-catch
+        // App Badging: 카운트 증가 후 뱃지 업데이트
+        // getNotifications()는 방금 표시한 알림을 바로 포함하지 않을 수 있으므로
+        // 별도 카운터로 관리
+        badgeCount++;
         try {
           if ("setAppBadge" in navigator) {
-            return self.registration.getNotifications().then((all) => {
-              navigator.setAppBadge(all.length).catch(() => {});
-            });
+            return navigator.setAppBadge(badgeCount).catch(() => {});
           }
         } catch {
           // setAppBadge 미지원 환경 (iOS Safari 등)
@@ -164,9 +170,19 @@ self.addEventListener("notificationclick", (event) => {
         : Promise.resolve(),
 
       // 2. App Badge 초기화
-      "clearAppBadge" in navigator
-        ? navigator.clearAppBadge().catch(() => {})
-        : Promise.resolve(),
+      (() => {
+        badgeCount = Math.max(0, badgeCount - 1);
+        try {
+          if ("setAppBadge" in navigator) {
+            return badgeCount > 0
+              ? navigator.setAppBadge(badgeCount).catch(() => {})
+              : navigator.clearAppBadge().catch(() => {});
+          }
+        } catch {
+          // 미지원 환경
+        }
+        return Promise.resolve();
+      })(),
 
       // 3. 앱 내 네비게이션
       self.clients
@@ -229,6 +245,22 @@ self.addEventListener("pushsubscriptionchange", (event) => {
       }
     })()
   );
+});
+
+// ============================================
+// Message: 메인 스레드 ↔ SW 통신
+// ============================================
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "CLEAR_BADGE") {
+    badgeCount = 0;
+    try {
+      if ("clearAppBadge" in navigator) {
+        navigator.clearAppBadge().catch(() => {});
+      }
+    } catch {
+      // 미지원 환경
+    }
+  }
 });
 
 // --- 유틸리티 ---

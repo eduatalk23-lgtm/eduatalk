@@ -83,15 +83,19 @@ export function FloatingChatWidget() {
         ? "/parent/chat"
         : "/chat";
 
-  // 실시간 구독 (패널 닫혀 있어도 배지 업데이트 필요)
+  // 패널 열려있을 때만 Realtime 구독 (초기 로드 부하 감소)
+  // 패널 닫혀있을 때는 unreadCount polling으로 배지 업데이트
   useChatRoomListRealtime({
     userId: user?.userId ?? "",
     userType: chatUserType ?? "student",
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && isOpen,
   });
 
-  // 전체 unread count (인증된 상태에서만 쿼리 실행)
-  const unreadCount = useTotalUnreadCount({ enabled: isAuthenticated });
+  // 전체 unread count — 패널 닫혀있을 때 30초 polling, 열려있으면 Realtime이 처리
+  const unreadCount = useTotalUnreadCount({
+    enabled: isAuthenticated,
+    refetchInterval: isAuthenticated && !isOpen ? 30_000 : undefined,
+  });
 
   // 백그라운드 탭 제목에 읽지 않은 메시지 수 표시
   useTitleNotification(unreadCount);

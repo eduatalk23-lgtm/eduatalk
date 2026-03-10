@@ -25,30 +25,39 @@ export function useServiceWorker() {
       return;
     }
 
-    navigator.serviceWorker
-      .register("/sw.js", { scope: "/" })
-      .then((registration) => {
-        // SW 업데이트 감지
-        registration.addEventListener("updatefound", () => {
-          const newWorker = registration.installing;
-          if (newWorker) {
-            newWorker.addEventListener("statechange", () => {
-              if (
-                newWorker.state === "activated" &&
-                navigator.serviceWorker.controller
-              ) {
-                // 새 SW 활성화 → 커스텀 이벤트로 UI 알림
-                window.dispatchEvent(new CustomEvent("sw-updated"));
-              }
-            });
-          }
+    const registerSW = () => {
+      navigator.serviceWorker
+        .register("/sw.js", { scope: "/" })
+        .then((registration) => {
+          // SW 업데이트 감지
+          registration.addEventListener("updatefound", () => {
+            const newWorker = registration.installing;
+            if (newWorker) {
+              newWorker.addEventListener("statechange", () => {
+                if (
+                  newWorker.state === "activated" &&
+                  navigator.serviceWorker.controller
+                ) {
+                  // 새 SW 활성화 → 커스텀 이벤트로 UI 알림
+                  window.dispatchEvent(new CustomEvent("sw-updated"));
+                }
+              });
+            }
+          });
+        })
+        .catch((err) => {
+          console.error("[SW] Registration failed:", err);
+          // SW 등록 실패 → 커스텀 이벤트로 UI 알림
+          window.dispatchEvent(new CustomEvent("sw-error", { detail: err }));
         });
-      })
-      .catch((err) => {
-        console.error("[SW] Registration failed:", err);
-        // SW 등록 실패 → 커스텀 이벤트로 UI 알림
-        window.dispatchEvent(new CustomEvent("sw-error", { detail: err }));
-      });
+    };
+
+    // 메인 스레드 블로킹 방지: 브라우저 유휴 시 등록
+    if ("requestIdleCallback" in window) {
+      (window as Window).requestIdleCallback(registerSW, { timeout: 5000 });
+    } else {
+      setTimeout(registerSW, 3000);
+    }
 
     // Push 알림 클릭 시 네비게이션 처리
     const handleMessage = (event: MessageEvent) => {
@@ -61,13 +70,16 @@ export function useServiceWorker() {
     };
     navigator.serviceWorker.addEventListener("message", handleMessage);
 
-    // 앱 포커스 시 뱃지 초기화
+    // 앱 포커스 시 뱃지 초기화 (메인 스레드 + SW 카운터 동기화)
     const handleVisibility = () => {
-      if (
-        document.visibilityState === "visible" &&
-        "clearAppBadge" in navigator
-      ) {
-        (navigator as ClearAppBadgeNavigator).clearAppBadge().catch(() => {});
+      if (document.visibilityState === "visible") {
+        if ("clearAppBadge" in navigator) {
+          (navigator as ClearAppBadgeNavigator).clearAppBadge().catch(() => {});
+        }
+        // SW의 badgeCount도 리셋
+        navigator.serviceWorker.controller?.postMessage({
+          type: "CLEAR_BADGE",
+        });
       }
     };
     document.addEventListener("visibilitychange", handleVisibility);

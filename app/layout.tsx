@@ -1,17 +1,15 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { QueryClient, dehydrate } from "@tanstack/react-query";
 import "./globals.css";
 import { Providers } from "./providers";
-import InstallPrompt from "@/components/ui/InstallPrompt";
-import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { CACHE_STALE_TIME_STABLE, CACHE_GC_TIME_STABLE } from "@/lib/constants/queryCache";
 import { SkipLink } from "@/components/layout/SkipLink";
 import { RouteAnnouncer } from "@/components/layout/RouteAnnouncer";
 import { GlobalErrorBoundary } from "@/components/errors/GlobalErrorBoundary";
-import { FloatingChatWidget } from "@/components/chat/FloatingChatWidget";
-import { PushSubscriptionManager } from "@/components/push/PushSubscriptionManager";
-import { PushPermissionBanner } from "@/components/push/PushPermissionBanner";
-import { AppPresenceProvider } from "@/components/push/AppPresenceProvider";
 import { SplashDismisser } from "@/components/pwa/SplashDismisser";
+import { DeferredWidgets } from "@/components/layout/DeferredWidgets";
 import NextTopLoader from "nextjs-toploader";
 
 const geistSans = Geist({
@@ -193,11 +191,29 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // 서버에서 Auth 데이터를 prefetch → 클라이언트 초기 fetch 제거 (FCP -400~600ms)
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: CACHE_STALE_TIME_STABLE,
+        gcTime: CACHE_GC_TIME_STABLE,
+      },
+    },
+  });
+
+  await queryClient.prefetchQuery({
+    queryKey: ["auth", "me"],
+    queryFn: () => getCurrentUser(),
+    staleTime: CACHE_STALE_TIME_STABLE,
+  });
+
+  const dehydratedState = dehydrate(queryClient);
+
   return (
     <html lang="ko" suppressHydrationWarning>
       <head>
@@ -253,17 +269,12 @@ export default function RootLayout({
         </div>
         <NextTopLoader color="rgb(var(--color-primary-600))" height={3} showSpinner={false} shadow={false} />
         <GlobalErrorBoundary>
-          <Providers>
+          <Providers dehydratedState={dehydratedState}>
             <SplashDismisser />
             <SkipLink />
             <RouteAnnouncer />
             {children}
-            <InstallPrompt />
-            <ServiceWorkerRegistrar />
-            <PushSubscriptionManager />
-            <PushPermissionBanner />
-            <AppPresenceProvider />
-            <FloatingChatWidget />
+            <DeferredWidgets />
           </Providers>
         </GlobalErrorBoundary>
       </body>

@@ -7,12 +7,18 @@ import { SidebarProvider } from "@/components/layout/SidebarContext";
 import { SubjectHierarchyProvider } from "@/lib/contexts/SubjectHierarchyContext";
 import { AuthProvider } from "@/lib/contexts/AuthContext";
 import { GlobalRefetchIndicator } from "@/components/ui/GlobalRefetchIndicator";
+import type { DehydratedState } from "@tanstack/react-query";
 import { ReactNode } from "react";
 
-export function Providers({ children }: { children: ReactNode }) {
+interface ProvidersProps {
+  children: ReactNode;
+  dehydratedState?: DehydratedState;
+}
+
+export function Providers({ children, dehydratedState }: ProvidersProps) {
   return (
     <ThemeProvider>
-      <QueryProvider>
+      <QueryProvider dehydratedState={dehydratedState}>
         <GlobalRefetchIndicator />
         <AuthProvider>
           <ToastProvider>
