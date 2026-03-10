@@ -96,6 +96,7 @@
     "test:score-dashboard": "tsx scripts/testScoreDashboard.ts",
     "test:ppurio-sms": "tsx scripts/test-ppurio-sms.ts",
     "generate:icons": "tsx scripts/generate-pwa-icons.ts",
+    "generate:splash": "tsx scripts/generate-pwa-splash.ts",
     "check-legacy-scores-table": "tsx scripts/check-legacy-student-scores-table.ts",
     "validate:legacy-data": "tsx scripts/validate-legacy-plan-data.ts"
   }

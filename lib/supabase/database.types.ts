@@ -627,6 +627,7 @@ export type Database = {
           container_type: string | null
           created_at: string | null
           created_by: string | null
+          creator_role: string
           deleted_at: string | null
           description: string | null
           end_at: string | null
@@ -671,6 +672,7 @@ export type Database = {
           container_type?: string | null
           created_at?: string | null
           created_by?: string | null
+          creator_role?: string
           deleted_at?: string | null
           description?: string | null
           end_at?: string | null
@@ -715,6 +717,7 @@ export type Database = {
           container_type?: string | null
           created_at?: string | null
           created_by?: string | null
+          creator_role?: string
           deleted_at?: string | null
           description?: string | null
           end_at?: string | null
@@ -7332,31 +7335,31 @@ export type Database = {
       }
       student_connection_history: {
         Row: {
-          id: string
-          student_id: string
+          action: string
           auth_user_id: string
-          action: "connected" | "disconnected"
+          created_at: string
+          id: string
           performed_by: string
           reason: string | null
-          created_at: string
+          student_id: string
         }
         Insert: {
-          id?: string
-          student_id: string
+          action: string
           auth_user_id: string
-          action: "connected" | "disconnected"
+          created_at?: string
+          id?: string
           performed_by: string
           reason?: string | null
-          created_at?: string
+          student_id: string
         }
         Update: {
-          id?: string
-          student_id?: string
+          action?: string
           auth_user_id?: string
-          action?: "connected" | "disconnected"
+          created_at?: string
+          id?: string
           performed_by?: string
           reason?: string | null
-          created_at?: string
+          student_id?: string
         }
         Relationships: []
       }
@@ -11034,6 +11037,95 @@ export type Database = {
       is_admin_or_consultant: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
       parse_device_name: { Args: { user_agent_text: string }; Returns: string }
+      rls_check_admin_full_tenant: {
+        Args: { p_tenant_id: string }
+        Returns: boolean
+      }
+      rls_check_admin_member: {
+        Args: { p_tenant_id: string }
+        Returns: boolean
+      }
+      rls_check_admin_only_tenant: {
+        Args: { p_tenant_id: string }
+        Returns: boolean
+      }
+      rls_check_admin_or_superadmin_tenant: {
+        Args: { p_tenant_id: string }
+        Returns: boolean
+      }
+      rls_check_admin_tenant: {
+        Args: { p_tenant_id: string }
+        Returns: boolean
+      }
+      rls_check_block_set_admin: {
+        Args: { p_block_set_id: string }
+        Returns: boolean
+      }
+      rls_check_block_set_member: {
+        Args: { p_block_set_id: string }
+        Returns: boolean
+      }
+      rls_check_calendar_admin: {
+        Args: { p_calendar_id: string }
+        Returns: boolean
+      }
+      rls_check_calendar_parent: {
+        Args: { p_calendar_id: string }
+        Returns: boolean
+      }
+      rls_check_camp_template_admin: {
+        Args: { p_template_id: string }
+        Returns: boolean
+      }
+      rls_check_camp_template_member: {
+        Args: { p_template_id: string }
+        Returns: boolean
+      }
+      rls_check_chat_room_admin: {
+        Args: { p_room_id: string }
+        Returns: boolean
+      }
+      rls_check_event_admin: { Args: { p_event_id: string }; Returns: boolean }
+      rls_check_event_student: {
+        Args: { p_event_id: string }
+        Returns: boolean
+      }
+      rls_check_file_access: { Args: { p_file_id: string }; Returns: boolean }
+      rls_check_file_distribution_select: {
+        Args: { p_file_id: string }
+        Returns: boolean
+      }
+      rls_check_file_owner_or_admin: {
+        Args: { p_file_id: string }
+        Returns: boolean
+      }
+      rls_check_is_admin: { Args: never; Returns: boolean }
+      rls_check_is_admin_or_consultant: { Args: never; Returns: boolean }
+      rls_check_is_superadmin: { Args: never; Returns: boolean }
+      rls_check_parent_student: {
+        Args: { p_student_id: string }
+        Returns: boolean
+      }
+      rls_check_partner_admin: {
+        Args: { p_partner_id: string }
+        Returns: boolean
+      }
+      rls_check_payment_order_parent: {
+        Args: { p_order_id: string }
+        Returns: boolean
+      }
+      rls_check_plan_group_access: {
+        Args: { p_plan_group_id: string }
+        Returns: boolean
+      }
+      rls_check_student_tenant_admin: {
+        Args: { p_student_id: string }
+        Returns: boolean
+      }
+      rls_check_tenant_member: {
+        Args: { p_tenant_id: string }
+        Returns: boolean
+      }
       seed_subject_data: { Args: { tenant_uuid: string }; Returns: undefined }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
