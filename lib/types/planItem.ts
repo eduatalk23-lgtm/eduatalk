@@ -51,6 +51,8 @@ export interface PlanItemData {
   isExclusion?: boolean;
   /** Task 여부 — true이면 완료 처리 가능한 이벤트 */
   isTask?: boolean;
+  /** 생성자 역할 ('admin' | 'student') */
+  creatorRole?: 'admin' | 'student';
 }
 
 /**
@@ -94,5 +96,6 @@ export function toPlanItemData(
     description: raw.description ?? null,
     isTask: raw.is_task ?? true,
     label: raw.label ?? undefined,
+    creatorRole: raw.creator_role ?? undefined,
   };
 }

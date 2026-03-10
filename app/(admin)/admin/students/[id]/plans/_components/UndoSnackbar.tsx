@@ -254,7 +254,7 @@ function UndoSnackbar({ action, isUndoing, onUndo, onDismiss }: UndoSnackbarProp
         {/* 카운트다운 프로그레스 바 */}
         <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-700">
           <div
-            className="h-full bg-blue-400"
+            className="h-full bg-blue-400 origin-left"
             style={{
               animation: paused
                 ? 'none'

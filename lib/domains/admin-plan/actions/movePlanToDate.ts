@@ -30,6 +30,18 @@ export async function movePlanToDate(
       return { success: false, error: '인증되지 않은 사용자입니다.' };
     }
 
+    // 학생은 관리자 이벤트 이동 불가
+    if (user.role === 'student') {
+      const { data: event } = await supabase
+        .from('calendar_events')
+        .select('creator_role')
+        .eq('id', input.planId)
+        .single();
+      if (event?.creator_role === 'admin') {
+        return { success: false, error: '선생님이 등록한 일정은 이동할 수 없습니다.' };
+      }
+    }
+
     // HH:mm → ISO timestamp (KST)
     const startAt = `${input.targetDate}T${input.newStartTime}:00+09:00`;
     const endAt = `${input.targetDate}T${input.newEndTime}:00+09:00`;

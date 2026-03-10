@@ -43,7 +43,7 @@ import { useEventReminders } from '@/lib/domains/calendar/reminders';
 import { useIsMobile } from '@/lib/hooks/useIsMobile';
 import { getHolidayAllDayItems } from '@/lib/domains/calendar/koreanHolidays';
 import { useAdminPlanFilter } from './context/AdminPlanContext';
-import { Minus, Plus } from 'lucide-react';
+import { Columns2, Minus, Plus } from 'lucide-react';
 
 /** 스켈레톤 로딩 UI용 상수 배열 (매 렌더마다 새 배열 생성 방지) */
 const SKELETON_ITEMS = [1, 2] as const;
@@ -145,7 +145,7 @@ export const DailyDock = memo(function DailyDock({
   const { zoomLevel, pxPerMinute, zoomIn, zoomOut, resetZoom, minZoom, maxZoom } = usePinchZoom(zoomContainerRef);
 
   // Calendar-First: Context에서 calendarId 직접 사용 (브릿지 훅 제거)
-  const { selectedCalendarId, selectedCalendarSettings } = useAdminPlanBasic();
+  const { selectedCalendarId, selectedCalendarSettings, isAdminMode } = useAdminPlanBasic();
   const calendarId = selectedCalendarId ?? undefined;
   const weekStartsOn = selectedCalendarSettings?.weekStartsOn ?? 0;
 
@@ -178,6 +178,20 @@ export const DailyDock = memo(function DailyDock({
     else navDirectionRef.current = 'none';
     prevDateRef.current = selectedDate;
   }, [selectedDate]);
+
+  // 생성자 역할별 분할 보기 (선생님 | 학생)
+  const [splitByCreator, setSplitByCreator] = useState(false);
+  useEffect(() => {
+    const saved = localStorage.getItem('dailyDock_splitByCreator');
+    if (saved === 'true') setSplitByCreator(true);
+  }, []);
+  const handleToggleSplit = useCallback(() => {
+    setSplitByCreator((prev) => {
+      const next = !prev;
+      localStorage.setItem('dailyDock_splitByCreator', String(next));
+      return next;
+    });
+  }, []);
 
   // 캘린더 뷰: controlled (PlannerTab에서 제어) / uncontrolled (내부 상태)
   const [internalView, setInternalView] = useState<CalendarView>('weekly');
@@ -525,9 +539,25 @@ export const DailyDock = memo(function DailyDock({
         />
       )}
 
-      {/* 줌 컨트롤 (일간/주간 그리드뷰에서만 표시) */}
+      {/* 줌 컨트롤 + 분할 뷰 토글 (일간/주간 그리드뷰에서만 표시) */}
       {(calendarView === 'daily' || calendarView === 'weekly') && (
         <div className="flex items-center gap-1 px-2 pb-1 justify-end">
+          {/* 분할 뷰 토글 (일간 뷰 + 데스크탑에서만) */}
+          {calendarView === 'daily' && !isMobile && (
+            <button
+              type="button"
+              onClick={handleToggleSplit}
+              className={cn(
+                'p-1 rounded transition-colors mr-1',
+                splitByCreator
+                  ? 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                  : 'hover:bg-[rgb(var(--color-secondary-200))] text-[var(--text-secondary)]'
+              )}
+              title={splitByCreator ? '통합 보기' : '역할별 분할 보기 (선생님 | 학생)'}
+            >
+              <Columns2 className="w-3.5 h-3.5" />
+            </button>
+          )}
           <button
             type="button"
             onClick={zoomOut}
@@ -600,6 +630,8 @@ export const DailyDock = memo(function DailyDock({
               showHolidays={showHolidays}
               calendarColorMap={calendarColorMap}
               calendarName={selectedCalendarSettings?.name}
+              splitByCreator={splitByCreator && !isMobile}
+              isAdminMode={isAdminMode}
             />
           </motion.div>
         )}

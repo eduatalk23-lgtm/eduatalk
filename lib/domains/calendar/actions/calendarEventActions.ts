@@ -10,6 +10,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { requireAdminOrConsultant } from '@/lib/auth/guards';
+import { getCurrentUser } from '@/lib/auth/getCurrentUser';
 import { logActionError, logActionDebug } from '@/lib/logging/actionLogger';
 import { calculateUnifiedReorder } from '@/lib/domains/plan/utils/unifiedReorderCalculation';
 import { revalidatePath } from 'next/cache';
@@ -22,6 +23,32 @@ import type {
   UnifiedReorderInput,
   ReorderResult,
 } from '@/lib/types/unifiedTimeline';
+
+// ============================================
+// 권한 검증: 학생은 관리자 이벤트 수정 불가
+// ============================================
+
+/**
+ * 학생이 관리자가 만든 이벤트를 수정/삭제하려는지 검증.
+ * 관리자/컨설턴트는 모든 이벤트 수정 가능.
+ * @returns true if allowed, throws error if not
+ */
+async function assertCanModifyEvent(eventId: string): Promise<void> {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return; // 미인증 → RLS가 차단
+  if (currentUser.role !== 'student') return; // 관리자/컨설턴트는 항상 허용
+
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from('calendar_events')
+    .select('creator_role')
+    .eq('id', eventId)
+    .single();
+
+  if (data?.creator_role === 'admin') {
+    throw new Error('학생은 선생님이 등록한 일정을 수정할 수 없습니다.');
+  }
+}
 
 // ============================================
 // Status 매핑
@@ -60,6 +87,7 @@ export async function deletePlan({
   planId,
 }: DeletePlanParams): Promise<DeletePlanResult> {
   try {
+    await assertCanModifyEvent(planId);
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase
       .from('calendar_events')
@@ -80,6 +108,7 @@ export async function deletePlan({
 
 export async function restoreEvent(eventId: string): Promise<{ success: boolean; error?: string }> {
   try {
+    await assertCanModifyEvent(eventId);
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase
       .from('calendar_events')
@@ -102,6 +131,7 @@ export async function updateEventColor(
   color: string | null,
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    await assertCanModifyEvent(eventId);
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase
       .from('calendar_events')
@@ -233,6 +263,7 @@ export async function movePlanToContainer({
   targetDate,
 }: MovePlanToContainerParams): Promise<MovePlanToContainerResult> {
   try {
+    await assertCanModifyEvent(planId);
     const supabase = await createSupabaseServerClient();
 
     // targetContainer (dock) 또는 toContainer (admin) 중 하나 사용
@@ -335,6 +366,7 @@ export async function updateItemTime({
   estimatedMinutes,
 }: UpdateItemTimeParams): Promise<UpdateItemTimeResult> {
   try {
+    await assertCanModifyEvent(itemId);
     const supabase = await createSupabaseServerClient();
 
     // HH:mm → ISO timestamp (KST)
@@ -408,6 +440,7 @@ export async function createRecurringException(params: {
   overrides?: Record<string, unknown>;
 }): Promise<{ success: boolean; eventId?: string; error?: string }> {
   try {
+    await assertCanModifyEvent(params.parentEventId);
     const supabase = await createSupabaseServerClient();
 
     // 부모 이벤트 조회
@@ -549,6 +582,7 @@ export async function deleteRecurringEvent({
   instanceDate,
 }: DeleteRecurringParams): Promise<DeleteRecurringResult> {
   try {
+    await assertCanModifyEvent(eventId);
     const supabase = await createSupabaseServerClient();
     const deletedEventIds: string[] = [];
 
@@ -789,6 +823,7 @@ export async function updateRecurringEvent({
   updates,
 }: UpdateRecurringParams): Promise<UpdateRecurringResult> {
   try {
+    await assertCanModifyEvent(eventId);
     const supabase = await createSupabaseServerClient();
 
     // calendar_events 컬럼과 가상 필드 분리

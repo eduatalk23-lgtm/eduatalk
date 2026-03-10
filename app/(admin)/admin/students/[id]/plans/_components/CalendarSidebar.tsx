@@ -11,6 +11,11 @@ import {
   ChevronRight,
   AlertTriangle,
   Loader2,
+  Check,
+  Pencil,
+  XCircle,
+  Search,
+  ArrowUpDown,
 } from 'lucide-react';
 import { MiniMonthCalendar } from './MiniMonthCalendar';
 import {
@@ -18,9 +23,10 @@ import {
   useAdminPlanFilter,
   useAdminPlanModal,
 } from './context/AdminPlanContext';
+import { useAdminPlanActions } from './context/AdminPlanActionsContext';
 import { useOverdueCalendarEvents } from '@/lib/hooks/useCalendarEventQueries';
-import { calendarEventsToOverduePlans } from '@/lib/domains/calendar/adapters';
-import { startOfMonth } from 'date-fns';
+import { calendarEventToPlanItemData } from '@/lib/domains/calendar/adapters';
+import { startOfMonth, isYesterday, isThisWeek } from 'date-fns';
 import { useAdminCalendarData } from './calendar-views/_hooks/useAdminCalendarData';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -31,6 +37,19 @@ import { EVENT_COLOR_PALETTE } from './utils/eventColors';
 import { updateCalendarAction, deleteCalendarCascadeAction } from '@/lib/domains/calendar/actions/calendars';
 import { useToast } from '@/components/ui/ToastProvider';
 import type { Calendar } from '@/lib/domains/calendar/types';
+import type { PlanItemData } from '@/lib/types/planItem';
+import type { PlanStatus } from '@/lib/types/plan';
+import { useEventDetailPopover } from './hooks/useEventDetailPopover';
+import { EventDetailPopover } from './items/EventDetailPopover';
+import { RecurringEditChoiceModal, type RecurringEditScope } from './modals/RecurringEditChoiceModal';
+import { useOptimisticCalendarUpdate } from '@/lib/hooks/useOptimisticCalendarUpdate';
+import { updatePlanStatus, deletePlan, deleteRecurringEvent } from '@/lib/domains/calendar/actions/calendarEventActions';
+import { useUndo } from './UndoSnackbar';
+import { usePlanToast } from './PlanToast';
+import { Dialog } from '@/components/ui/Dialog';
+
+/** 사이드바 미완료 섹션 최대 표시 개수 */
+const MAX_SIDEBAR_OVERDUE = 20;
 
 /**
  * Google Calendar 스타일 사이드바 (심플 4섹션)
@@ -133,13 +152,139 @@ export function CalendarSidebar() {
     return density;
   }, [miniPlansByDate]);
 
-  // 미완료 플랜 쿼리
+  // 미완료 플랜 쿼리 — PlanItemData로 직접 변환 (EventDetailPopover 호환)
   const { events: overdueEvents, isLoading: overdueLoading } =
     useOverdueCalendarEvents(studentId, selectedCalendarId ?? undefined);
-  const overduePlans = useMemo(
-    () => calendarEventsToOverduePlans(overdueEvents),
+  const overduePlanItems = useMemo(
+    () =>
+      overdueEvents
+        .filter((e) => e.is_task === true && !e.is_all_day)
+        .map(calendarEventToPlanItemData),
     [overdueEvents],
   );
+
+  // 날짜 기반 그룹핑 + 사이드바 표시 개수 제한
+  const overdueGroups = useMemo(
+    () => groupOverdueByDate(overduePlanItems),
+    [overduePlanItems],
+  );
+  const truncatedGroups = useMemo(() => {
+    let remaining = MAX_SIDEBAR_OVERDUE;
+    const result: OverdueGroup[] = [];
+    for (const group of overdueGroups) {
+      if (remaining <= 0) break;
+      const visibleItems = group.items.slice(0, remaining);
+      remaining -= visibleItems.length;
+      result.push({ label: group.label, items: visibleItems, totalCount: group.items.length });
+    }
+    return result;
+  }, [overdueGroups]);
+
+  // EventDetailPopover 통합
+  const { handleOpenEdit } = useAdminPlanActions();
+  const { pushUndoable } = useUndo();
+  const { showToast } = usePlanToast();
+  const { optimisticStatusChange, optimisticDelete, revalidate } =
+    useOptimisticCalendarUpdate(selectedCalendarId ?? undefined);
+
+  const handleOverdueStatusChange = useCallback(
+    async (planId: string, newStatus: PlanStatus, prevStatus?: PlanStatus) => {
+      const rollback = optimisticStatusChange(planId, newStatus);
+      const result = await updatePlanStatus({
+        planId,
+        status: newStatus,
+        skipRevalidation: true,
+      });
+      if (result.success) {
+        revalidate();
+        if (prevStatus) {
+          pushUndoable({
+            type: 'status-change',
+            planId,
+            prevStatus,
+            description: '상태가 변경되었습니다.',
+          });
+        }
+      } else {
+        rollback();
+        showToast(result.error ?? '상태 변경 실패', 'error');
+      }
+    },
+    [optimisticStatusChange, revalidate, pushUndoable, showToast],
+  );
+
+  const handleOverdueDelete = useCallback(
+    async (planId: string) => {
+      const rollback = optimisticDelete(planId);
+      const result = await deletePlan({ planId, skipRevalidation: true });
+      if (!result.success) {
+        rollback();
+        showToast(result.error ?? '삭제 실패', 'error');
+        return;
+      }
+      revalidate();
+      pushUndoable({
+        type: 'delete-plan',
+        planId,
+        description: '플랜이 삭제되었습니다.',
+      });
+    },
+    [optimisticDelete, revalidate, pushUndoable, showToast],
+  );
+
+  const { showPopover, popoverProps, recurringModalState, closeRecurringModal } =
+    useEventDetailPopover({
+      onEdit: (id) => handleOpenEdit(id),
+      onDelete: handleOverdueDelete,
+      onQuickStatusChange: handleOverdueStatusChange,
+    });
+
+  // 반복 이벤트 scope 선택 핸들러
+  const handleRecurringScopeSelect = useCallback(
+    async (scope: RecurringEditScope) => {
+      if (!recurringModalState) return;
+      const { mode, planId, instanceDate } = recurringModalState;
+      closeRecurringModal();
+
+      if (mode === 'delete') {
+        const rollback = optimisticDelete(planId);
+        const result = await deleteRecurringEvent({
+          eventId: planId,
+          instanceDate,
+          scope,
+        });
+        if (result.success) {
+          revalidate();
+          pushUndoable({
+            type: 'recurring-delete',
+            scope,
+            parentEventId: planId,
+            instanceDate,
+            previousExdates: result.previousExdates,
+            deletedEventIds: result.deletedEventIds,
+            previousRrule: result.previousRrule,
+            description: '반복 이벤트가 삭제되었습니다.',
+          });
+        } else {
+          rollback();
+          showToast(result.error ?? '삭제 실패', 'error');
+        }
+      } else if (mode === 'edit') {
+        // 편집: 이벤트 편집 페이지로 이동
+        handleOpenEdit(planId);
+      }
+    },
+    [recurringModalState, closeRecurringModal, optimisticDelete, revalidate, pushUndoable, showToast, handleOpenEdit],
+  );
+
+  // 우클릭 컨텍스트 메뉴 상태
+  const [overdueContextMenu, setOverdueContextMenu] = useState<{
+    plan: PlanItemData;
+    rect: DOMRect;
+  } | null>(null);
+
+  // 전체 목록 모달
+  const [showOverdueDialog, setShowOverdueDialog] = useState(false);
 
   const handleCreateMenuClose = useCallback(() => setShowCreateMenu(false), []);
 
@@ -319,7 +464,7 @@ export function CalendarSidebar() {
 
       <hr className="mx-3 border-[rgb(var(--color-secondary-200))] mb-3" />
 
-      {/* 4. 미완료 플랜 섹션 (collapsible) */}
+      {/* 4. 미완료 플랜 섹션 (collapsible, 그룹핑 + 인라인 완료 + Popover) */}
       <div className="px-3 flex-1 min-h-0 flex flex-col">
         <button
           onClick={() => setIsUnfinishedOpen(!isUnfinishedOpen)}
@@ -330,46 +475,110 @@ export function CalendarSidebar() {
           ) : (
             <ChevronRight className="w-3.5 h-3.5" />
           )}
-          미완료 ({overduePlans.length})
+          미완료 ({overduePlanItems.length})
         </button>
 
         {isUnfinishedOpen && (
-          <div className="flex-1 overflow-y-auto min-h-0 space-y-1">
+          <div className="flex-1 overflow-y-auto min-h-0">
             {overdueLoading ? (
               <div className="space-y-1">
                 {[1, 2].map((i) => (
                   <div key={i} className="h-8 bg-[rgb(var(--color-secondary-100))] rounded animate-pulse" />
                 ))}
               </div>
-            ) : overduePlans.length === 0 ? (
+            ) : overduePlanItems.length === 0 ? (
               <p className="text-xs text-[rgb(var(--color-secondary-400))] py-2">미완료 플랜 없음</p>
             ) : (
-              overduePlans.slice(0, 20).map((plan) => (
-                <div
-                  key={plan.id}
-                  className="flex items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-[rgb(var(--color-secondary-100))] cursor-default group"
-                  title={plan.content_title ?? plan.custom_title ?? '플랜'}
-                >
-                  <span
-                    className={cn(
-                      'w-2 h-2 rounded-full flex-shrink-0',
-                      plan.status === 'in_progress' ? 'bg-blue-400' : 'bg-gray-300'
-                    )}
-                  />
-                  <span className="truncate text-[var(--text-secondary)]">
-                    {plan.content_title ?? plan.custom_title ?? '플랜'}
-                  </span>
-                </div>
-              ))
-            )}
-            {overduePlans.length > 20 && (
-              <p className="text-xs text-[rgb(var(--color-secondary-400))] px-2">
-                +{overduePlans.length - 20}개 더
-              </p>
+              <>
+                {truncatedGroups.map((group) => (
+                  <div key={group.label}>
+                    <p className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase tracking-wider px-2 pt-2 pb-0.5">
+                      {group.label} ({group.totalCount ?? group.items.length})
+                    </p>
+                    <div className="space-y-0.5">
+                      {group.items.map((plan) => (
+                        <OverdueItem
+                          key={plan.id}
+                          plan={plan}
+                          onClick={(e) => {
+                            showPopover(plan, e.currentTarget.getBoundingClientRect());
+                          }}
+                          onCheckboxChange={() => {
+                            handleOverdueStatusChange(plan.id, 'completed', plan.status);
+                          }}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            setOverdueContextMenu({
+                              plan,
+                              rect: e.currentTarget.getBoundingClientRect(),
+                            });
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                {overduePlanItems.length > MAX_SIDEBAR_OVERDUE && (
+                  <button
+                    onClick={() => setShowOverdueDialog(true)}
+                    className="text-xs text-[rgb(var(--color-info-600))] hover:text-[rgb(var(--color-info-700))] px-2 py-1.5 w-full text-left"
+                  >
+                    +{overduePlanItems.length - MAX_SIDEBAR_OVERDUE}개 더 보기
+                  </button>
+                )}
+              </>
             )}
           </div>
         )}
       </div>
+
+      {/* 미완료 EventDetailPopover */}
+      {popoverProps && <EventDetailPopover {...popoverProps} />}
+
+      {/* 반복 이벤트 scope 선택 모달 */}
+      {recurringModalState && (
+        <RecurringEditChoiceModal
+          isOpen={recurringModalState.isOpen}
+          onClose={closeRecurringModal}
+          mode={recurringModalState.mode}
+          onSelect={handleRecurringScopeSelect}
+          exceptionCount={recurringModalState.exceptionCount}
+        />
+      )}
+
+      {/* 미완료 컨텍스트 메뉴 */}
+      {overdueContextMenu && (
+        <OverdueContextMenu
+          anchorRect={overdueContextMenu.rect}
+          onClose={() => setOverdueContextMenu(null)}
+          onComplete={() => {
+            handleOverdueStatusChange(overdueContextMenu.plan.id, 'completed', overdueContextMenu.plan.status);
+            setOverdueContextMenu(null);
+          }}
+          onEdit={() => {
+            handleOpenEdit(overdueContextMenu.plan.id);
+            setOverdueContextMenu(null);
+          }}
+          onCancel={() => {
+            handleOverdueStatusChange(overdueContextMenu.plan.id, 'cancelled', overdueContextMenu.plan.status);
+            setOverdueContextMenu(null);
+          }}
+        />
+      )}
+
+      {/* 전체 미완료 목록 모달 */}
+      <OverdueListDialog
+        open={showOverdueDialog}
+        onOpenChange={setShowOverdueDialog}
+        items={overduePlanItems}
+        onItemClick={(plan, rect) => {
+          showPopover(plan, rect);
+        }}
+        onCheckboxChange={(plan) => {
+          handleOverdueStatusChange(plan.id, 'completed', plan.status);
+        }}
+        handleDateChange={handleDateChange}
+      />
 
       {/* 캘린더 컨텍스트 메뉴 (GCal 스타일) */}
       {contextMenuCal && (
@@ -816,5 +1025,354 @@ function OtherCalendarsSection({
         </div>
       )}
     </>
+  );
+}
+
+// ============================================
+// 미완료 섹션 하위 컴포넌트 & 유틸리티
+// ============================================
+
+/** 날짜 기반 그룹핑 (어제 / 이번 주 / 그 이전) */
+interface OverdueGroup {
+  label: string;
+  items: PlanItemData[];
+  /** 그룹 전체 개수 (truncated 시 원본 개수 보존용) */
+  totalCount?: number;
+}
+
+function groupOverdueByDate(items: PlanItemData[]): OverdueGroup[] {
+  const yesterday: PlanItemData[] = [];
+  const thisWeek: PlanItemData[] = [];
+  const older: PlanItemData[] = [];
+
+  for (const item of items) {
+    if (!item.planDate) {
+      older.push(item);
+      continue;
+    }
+    const d = new Date(item.planDate + 'T00:00:00');
+    if (isYesterday(d)) {
+      yesterday.push(item);
+    } else if (isThisWeek(d, { weekStartsOn: 1 })) {
+      thisWeek.push(item);
+    } else {
+      older.push(item);
+    }
+  }
+
+  const groups: OverdueGroup[] = [];
+  if (yesterday.length > 0) groups.push({ label: '어제', items: yesterday });
+  if (thisWeek.length > 0) groups.push({ label: '이번 주', items: thisWeek });
+  if (older.length > 0) groups.push({ label: '그 이전', items: older });
+  return groups;
+}
+
+/** 미완료 항목 (인라인 체크박스 + 클릭/우클릭) */
+function OverdueItem({
+  plan,
+  onClick,
+  onCheckboxChange,
+  onContextMenu,
+}: {
+  plan: PlanItemData;
+  onClick: (e: React.MouseEvent<HTMLDivElement>) => void;
+  onCheckboxChange: () => void;
+  onContextMenu: (e: React.MouseEvent<HTMLDivElement>) => void;
+}) {
+  return (
+    <div
+      className="flex items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-[rgb(var(--color-secondary-100))] cursor-pointer group"
+      title={plan.title}
+      onClick={onClick}
+      onContextMenu={onContextMenu}
+    >
+      {/* 인라인 체크박스 (task만) */}
+      {plan.isTask ? (
+        <button
+          className="flex-shrink-0 w-4 h-4 rounded border border-[rgb(var(--color-secondary-300))] hover:border-[rgb(var(--color-info-500))] hover:bg-[rgb(var(--color-info-50))] flex items-center justify-center transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCheckboxChange();
+          }}
+          title="완료 처리"
+        >
+          <Check className="w-2.5 h-2.5 text-transparent group-hover:text-[rgb(var(--color-secondary-300))]" />
+        </button>
+      ) : (
+        <span
+          className={cn(
+            'w-2 h-2 rounded-full flex-shrink-0',
+            plan.status === 'in_progress' ? 'bg-blue-400' : 'bg-gray-300',
+          )}
+        />
+      )}
+      <span className="truncate text-[var(--text-secondary)] flex-1">
+        {plan.title}
+      </span>
+      {plan.planDate && (
+        <span className="text-[10px] text-[rgb(var(--color-secondary-400))] flex-shrink-0">
+          {formatShortDate(plan.planDate)}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** 짧은 날짜 표시 (3/8) */
+function formatShortDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+/** 미완료 컨텍스트 메뉴 */
+function OverdueContextMenu({
+  anchorRect,
+  onClose,
+  onComplete,
+  onEdit,
+  onCancel,
+}: {
+  anchorRect: DOMRect;
+  onClose: () => void;
+  onComplete: () => void;
+  onEdit: () => void;
+  onCancel: () => void;
+}) {
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) onClose();
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [onClose]);
+
+  const menuTop = Math.min(anchorRect.bottom + 4, window.innerHeight - 150);
+  const menuLeft = Math.min(anchorRect.left, window.innerWidth - 180);
+
+  return (
+    <div
+      ref={menuRef}
+      className="fixed z-[100] bg-[rgb(var(--color-secondary-50))] border border-[rgb(var(--color-secondary-200))] rounded-lg shadow-xl py-1 w-44"
+      style={{ top: menuTop, left: menuLeft }}
+    >
+      <button
+        onClick={onComplete}
+        className="w-full px-3 py-2 text-left text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] flex items-center gap-2"
+      >
+        <Check className="w-4 h-4 text-[rgb(var(--color-success-600))]" />
+        완료 처리
+      </button>
+      <button
+        onClick={onEdit}
+        className="w-full px-3 py-2 text-left text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] flex items-center gap-2"
+      >
+        <Pencil className="w-4 h-4 text-[rgb(var(--color-secondary-400))]" />
+        편집
+      </button>
+      <hr className="my-1 border-[rgb(var(--color-secondary-200))]" />
+      <button
+        onClick={onCancel}
+        className="w-full px-3 py-2 text-left text-sm text-[rgb(var(--color-error-600))] hover:bg-[rgb(var(--color-error-50))] flex items-center gap-2"
+      >
+        <XCircle className="w-4 h-4" />
+        취소 처리
+      </button>
+    </div>
+  );
+}
+
+/** 전체 미완료 목록 모달 */
+function OverdueListDialog({
+  open,
+  onOpenChange,
+  items,
+  onItemClick,
+  onCheckboxChange,
+  handleDateChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  items: PlanItemData[];
+  onItemClick: (plan: PlanItemData, rect: DOMRect) => void;
+  onCheckboxChange: (plan: PlanItemData) => void;
+  handleDateChange: (date: string) => void;
+}) {
+  // 검색/정렬 상태는 모달 내부에서 관리 (닫으면 리셋)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'date' | 'subject'>('date');
+
+  // 모달이 열릴 때 상태 리셋
+  useEffect(() => {
+    if (open) {
+      setSearchQuery('');
+      setSortBy('date');
+    }
+  }, [open]);
+
+  // 검색 필터
+  const filtered = useMemo(() => {
+    if (!searchQuery.trim()) return items;
+    const q = searchQuery.toLowerCase();
+    return items.filter(
+      (p) =>
+        p.title.toLowerCase().includes(q) ||
+        (p.subject && p.subject.toLowerCase().includes(q)),
+    );
+  }, [items, searchQuery]);
+
+  // 정렬
+  const sorted = useMemo(() => {
+    const arr = [...filtered];
+    if (sortBy === 'subject') {
+      arr.sort((a, b) => (a.subject ?? '').localeCompare(b.subject ?? ''));
+    } else {
+      arr.sort((a, b) => (a.planDate ?? '').localeCompare(b.planDate ?? ''));
+    }
+    return arr;
+  }, [filtered, sortBy]);
+
+  // 그룹핑
+  const groups = useMemo(() => groupOverdueByDate(sorted), [sorted]);
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={`미완료 플랜 (${items.length}개)`}
+      maxWidth="lg"
+    >
+      <div className="space-y-3">
+        {/* 검색 + 정렬 */}
+        <div className="flex gap-2">
+          <div className="flex-1 relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(var(--color-secondary-400))]" />
+            <input
+              type="text"
+              placeholder="제목 또는 과목 검색..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-[rgb(var(--color-secondary-200))] bg-[rgb(var(--color-secondary-50))] text-[var(--text-primary)] focus:border-[rgb(var(--color-info-500))] focus:outline-none focus:ring-1 focus:ring-[rgb(var(--color-info-500))]"
+            />
+          </div>
+          <button
+            onClick={() => setSortBy(sortBy === 'date' ? 'subject' : 'date')}
+            className="flex items-center gap-1 px-3 py-2 text-xs rounded-lg border border-[rgb(var(--color-secondary-200))] bg-[rgb(var(--color-secondary-50))] text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))]"
+          >
+            <ArrowUpDown className="w-3.5 h-3.5" />
+            {sortBy === 'date' ? '날짜순' : '과목순'}
+          </button>
+        </div>
+
+        {/* 목록 */}
+        <div className="max-h-[60vh] overflow-y-auto space-y-1">
+          {sorted.length === 0 ? (
+            <p className="text-sm text-[rgb(var(--color-secondary-400))] py-4 text-center">
+              {searchQuery ? '검색 결과 없음' : '미완료 플랜 없음'}
+            </p>
+          ) : sortBy === 'subject' ? (
+            // 과목순: 플랫 리스트
+            sorted.map((plan) => (
+              <OverdueDialogItem
+                key={plan.id}
+                plan={plan}
+                onItemClick={onItemClick}
+                onCheckboxChange={onCheckboxChange}
+                handleDateChange={handleDateChange}
+              />
+            ))
+          ) : (
+            // 날짜순: 그룹핑
+            groups.map((group) => (
+              <div key={group.label}>
+                <p className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase tracking-wider px-2 pt-3 pb-1">
+                  {group.label} ({group.items.length})
+                </p>
+                {group.items.map((plan) => (
+                  <OverdueDialogItem
+                    key={plan.id}
+                    plan={plan}
+                    onItemClick={onItemClick}
+                    onCheckboxChange={onCheckboxChange}
+                    handleDateChange={handleDateChange}
+                  />
+                ))}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </Dialog>
+  );
+}
+
+/** 전체 목록 모달 내 아이템 */
+function OverdueDialogItem({
+  plan,
+  onItemClick,
+  onCheckboxChange,
+  handleDateChange,
+}: {
+  plan: PlanItemData;
+  onItemClick: (plan: PlanItemData, rect: DOMRect) => void;
+  onCheckboxChange: (plan: PlanItemData) => void;
+  handleDateChange: (date: string) => void;
+}) {
+  return (
+    <div
+      className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[rgb(var(--color-secondary-100))] cursor-pointer group"
+      onClick={(e) => onItemClick(plan, e.currentTarget.getBoundingClientRect())}
+    >
+      {/* 체크박스 */}
+      {plan.isTask && (
+        <button
+          className="flex-shrink-0 w-5 h-5 rounded border border-[rgb(var(--color-secondary-300))] hover:border-[rgb(var(--color-info-500))] hover:bg-[rgb(var(--color-info-50))] flex items-center justify-center transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCheckboxChange(plan);
+          }}
+          title="완료 처리"
+        >
+          <Check className="w-3 h-3 text-transparent group-hover:text-[rgb(var(--color-secondary-300))]" />
+        </button>
+      )}
+
+      {/* 내용 */}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-[var(--text-primary)] truncate">{plan.title}</p>
+        {plan.subject && (
+          <p className="text-xs text-[var(--text-tertiary)]">{plan.subject}</p>
+        )}
+      </div>
+
+      {/* 날짜 (클릭 시 캘린더 이동) */}
+      {plan.planDate && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDateChange(plan.planDate!);
+          }}
+          className="text-xs text-[rgb(var(--color-info-600))] hover:text-[rgb(var(--color-info-700))] hover:underline flex-shrink-0"
+          title="이 날짜로 이동"
+        >
+          {formatShortDate(plan.planDate)}
+        </button>
+      )}
+
+      {/* 시간 */}
+      {plan.startTime && (
+        <span className="text-xs text-[rgb(var(--color-secondary-400))] flex-shrink-0">
+          {plan.startTime}
+        </span>
+      )}
+    </div>
   );
 }

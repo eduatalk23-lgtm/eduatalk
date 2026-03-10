@@ -12,16 +12,16 @@ export interface LabelPreset {
 }
 
 export const LABEL_PRESETS: LabelPreset[] = [
-  { label: '학습', defaultIsTask: true, defaultColor: '#3b82f6' },
-  { label: '일반', defaultIsTask: false, defaultColor: '#6b7280' },
-  { label: '학교', defaultIsTask: false, defaultColor: '#8b5cf6' },
-  { label: '학원', defaultIsTask: false, defaultColor: '#f97316' },
-  { label: '이동시간', defaultIsTask: false, defaultColor: '#f97316' },
-  { label: '아침식사', defaultIsTask: false, defaultColor: '#0ea5e9' },
-  { label: '점심식사', defaultIsTask: false, defaultColor: '#0ea5e9' },
-  { label: '저녁식사', defaultIsTask: false, defaultColor: '#0ea5e9' },
-  { label: '수면', defaultIsTask: false, defaultColor: '#a855f7' },
-  { label: '휴식', defaultIsTask: false, defaultColor: '#22c55e' },
+  { label: '학습', defaultIsTask: true, defaultColor: '#f6bf26' },
+  { label: '일반', defaultIsTask: false, defaultColor: '#a3a3a3' },
+  { label: '학교', defaultIsTask: false, defaultColor: '#d1d5db' },
+  { label: '학원', defaultIsTask: false, defaultColor: '#9ca3af' },
+  { label: '이동시간', defaultIsTask: false, defaultColor: '#fdba74' },
+  { label: '아침식사', defaultIsTask: false, defaultColor: '#7dd3fc' },
+  { label: '점심식사', defaultIsTask: false, defaultColor: '#7dd3fc' },
+  { label: '저녁식사', defaultIsTask: false, defaultColor: '#7dd3fc' },
+  { label: '수면', defaultIsTask: false, defaultColor: '#c4b5fd' },
+  { label: '휴식', defaultIsTask: false, defaultColor: '#86efac' },
 ];
 
 const presetMap = new Map(LABEL_PRESETS.map((p) => [p.label, p]));
@@ -31,7 +31,7 @@ export function getPresetForLabel(label: string): LabelPreset | undefined {
 }
 
 export function getDefaultColor(label: string): string {
-  return presetMap.get(label)?.defaultColor ?? '#6b7280';
+  return presetMap.get(label)?.defaultColor ?? '#a3a3a3';
 }
 
 export function getDefaultIsTask(label: string): boolean {

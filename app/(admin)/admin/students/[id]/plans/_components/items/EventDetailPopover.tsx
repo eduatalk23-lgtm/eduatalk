@@ -229,6 +229,18 @@ export const EventDetailPopover = memo(function EventDetailPopover({
           </h3>
         </div>
 
+        {/* 생성자 역할 뱃지 */}
+        {plan.creatorRole && (
+          <span className={cn(
+            'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium w-fit',
+            plan.creatorRole === 'admin'
+              ? 'bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400'
+              : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400'
+          )}>
+            {plan.creatorRole === 'admin' ? '선생님 등록' : '학생 등록'}
+          </span>
+        )}
+
         {/* 과목명 — 학습 이벤트만 */}
         {!isNonStudy && plan.subject && (
           <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">

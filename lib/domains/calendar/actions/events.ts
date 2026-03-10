@@ -11,6 +11,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import type { Json } from "@/lib/supabase/database.types";
 import type {
   CalendarEvent,
@@ -233,6 +234,11 @@ async function _createEvent(
 ): Promise<CalendarEvent> {
   const supabase = await createSupabaseServerClient();
 
+  // created_by / creator_role 자동 설정
+  const currentUser = await getCurrentUser();
+  const createdBy = input.createdBy ?? currentUser?.userId ?? null;
+  const creatorRole = currentUser?.role === 'student' ? 'student' : 'admin';
+
   const label = input.label ?? input.eventSubtype ?? (input.eventType === 'study' ? '학습' : '일반');
   const isTask = input.isTask ?? (input.eventType === 'study' || input.eventType === 'custom');
   const isExclusion = input.isExclusion ?? (input.eventType === 'exclusion');
@@ -266,7 +272,8 @@ async function _createEvent(
     tags: input.tags ?? [],
     source: input.source ?? "manual",
     metadata: (input.metadata ?? {}) as Json,
-    created_by: input.createdBy ?? null,
+    created_by: createdBy,
+    creator_role: creatorRole,
   };
 
   const { data, error } = await supabase

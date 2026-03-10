@@ -10,6 +10,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { logActionError } from "@/lib/utils/serverActionLogger";
 import {
   generateExclusionRecordsForDates,
@@ -161,6 +162,7 @@ async function _createCalendarEvent(
   input: CreateCalendarEventInput,
 ): Promise<{ eventId: string }> {
   const supabase = await createSupabaseServerClient();
+  const currentUser = await getCurrentUser();
 
   // Calendar-First: calendarId에서 직접 조회
   const { data: cal } = await supabase
@@ -201,6 +203,8 @@ async function _createCalendarEvent(
     rrule: input.rrule ?? null,
     color: input.color ?? null,
     container_type: input.containerType ?? "daily",
+    created_by: currentUser?.userId ?? null,
+    creator_role: currentUser?.role === 'student' ? 'student' : 'admin',
   };
 
   // reminder_minutes: 마이그레이션 미적용 시 컬럼이 없을 수 있으므로 값이 있을 때만 포함
@@ -259,6 +263,7 @@ async function _addExclusionEvent(
   reason?: string
 ): Promise<{ id: string }> {
   const supabase = await createSupabaseServerClient();
+  const currentUser = await getCurrentUser();
 
   // Calendar-First: calendars에서 tenant_id, owner_id 직접 조회
   const { data: cal } = await supabase
@@ -311,6 +316,8 @@ async function _addExclusionEvent(
       transparency: "transparent",
       source: "manual",
       order_index: 0,
+      created_by: currentUser?.userId ?? null,
+      creator_role: currentUser?.role === 'student' ? 'student' : 'admin',
     })
     .select("id")
     .single();
@@ -338,6 +345,7 @@ async function _addRecurringEvent(
   pattern: RecurringPattern
 ): Promise<{ groupId: string; count: number }> {
   const supabase = await createSupabaseServerClient();
+  const currentUser = await getCurrentUser();
 
   // Calendar-First: calendars에서 tenant_id, owner_id, period 직접 조회
   const { data: cal } = await supabase
@@ -374,10 +382,15 @@ async function _addRecurringEvent(
     return { groupId, count: 0 };
   }
 
+  // created_by / creator_role 주입
+  const userId = currentUser?.userId ?? null;
+  const creatorRole = currentUser?.role === 'student' ? 'student' : 'admin';
+  const recordsWithCreatedBy = records.map((r) => ({ ...r, created_by: userId, creator_role: creatorRole }));
+
   // 배치 삽입
   const BATCH_SIZE = 500;
-  for (let i = 0; i < records.length; i += BATCH_SIZE) {
-    const batch = records.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < recordsWithCreatedBy.length; i += BATCH_SIZE) {
+    const batch = recordsWithCreatedBy.slice(i, i + BATCH_SIZE);
     const { error } = await supabase
       .from("calendar_events")
       .insert(batch);
@@ -552,6 +565,8 @@ async function _importTimeManagement(
   studentId: string
 ): Promise<{ exclusionCount: number; academyCount: number }> {
   const supabase = await createSupabaseServerClient();
+  const currentUser = await getCurrentUser();
+  const userId = currentUser?.userId ?? null;
 
   // Calendar-First: calendars에서 tenant_id, period, non_study_time_blocks 직접 조회
   const { data: cal } = await supabase
@@ -633,9 +648,9 @@ async function _importTimeManagement(
       const existingDateSet = new Set(
         (existingDates || []).map((r) => r.start_date)
       );
-      const newRecords = records.filter(
-        (r) => !existingDateSet.has(r.start_date ?? null)
-      );
+      const newRecords = records
+        .filter((r) => !existingDateSet.has(r.start_date ?? null))
+        .map((r) => ({ ...r, created_by: userId, creator_role: currentUser?.role === 'student' ? 'student' as const : 'admin' as const }));
 
       if (newRecords.length > 0) {
         const { error } = await supabase
@@ -700,7 +715,7 @@ async function _importTimeManagement(
       // 학원/이동시간만 필터 (label 기반)
       const academyRecords = records.filter(
         (r) => r.label === "학원" || r.label === "이동시간"
-      ).map((r) => ({ ...r, source: "migration" }));
+      ).map((r) => ({ ...r, source: "migration", created_by: userId, creator_role: currentUser?.role === 'student' ? 'student' as const : 'admin' as const }));
 
       if (academyRecords.length > 0) {
         const BATCH_SIZE = 500;

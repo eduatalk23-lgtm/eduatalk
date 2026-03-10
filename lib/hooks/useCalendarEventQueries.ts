@@ -222,6 +222,34 @@ export function useOverdueCalendarEvents(
     enabled: !!calendarId,
   });
 
+  const rawEvents = useMemo(() => eventsQuery.data ?? [], [eventsQuery.data]);
+
+  // RRULE 반복 이벤트 확장 (부모+exception 중복 방지)
+  // rangeStart: 가장 오래된 이벤트 날짜, rangeEnd: 어제 (KST 기준)
+  const events = useMemo(() => {
+    if (rawEvents.length === 0) return rawEvents;
+
+    // 가장 오래된 이벤트의 날짜를 rangeStart로 사용
+    let earliest = rawEvents[0].start_at ?? rawEvents[0].start_date ?? '';
+    for (const e of rawEvents) {
+      const d = e.start_at ?? e.start_date ?? '';
+      if (d && d < earliest) earliest = d;
+    }
+    const rangeStart = earliest
+      ? extractDateYMD(earliest) ?? '2020-01-01'
+      : '2020-01-01';
+
+    // rangeEnd: 어제 (KST 기준, overdue = start_at < today KST)
+    const nowKST = new Date(Date.now() + 9 * 60 * 60 * 1000);
+    nowKST.setUTCDate(nowKST.getUTCDate() - 1);
+    const rangeEnd = `${nowKST.getUTCFullYear()}-${String(nowKST.getUTCMonth() + 1).padStart(2, '0')}-${String(nowKST.getUTCDate()).padStart(2, '0')}`;
+
+    const expanded = expandRecurringEvents(rawEvents, rangeStart, rangeEnd);
+
+    // 확장 후 done 재필터링 (확장 인스턴스는 부모의 done 상태를 상속할 수 있음)
+    return expanded.filter((e) => !e.event_study_data?.done);
+  }, [rawEvents]);
+
   const invalidate = useCallback(() => {
     if (calendarId) {
       queryClient.invalidateQueries({
@@ -231,7 +259,7 @@ export function useOverdueCalendarEvents(
   }, [queryClient, calendarId]);
 
   return {
-    events: eventsQuery.data ?? [],
+    events,
     calendarId,
     isLoading: eventsQuery.isLoading,
     invalidate,

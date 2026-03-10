@@ -60,6 +60,8 @@ export interface DailyPlan {
   is_task?: boolean;
   /** 라벨 (일정 유형) */
   label?: string | null;
+  /** 생성자 역할 */
+  creator_role?: string | null;
 }
 
 export interface OverduePlan {

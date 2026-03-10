@@ -24,6 +24,8 @@ interface UseEventDetailPopoverOptions {
   onColorChange?: (planId: string, color: string | null) => void;
   /** 비학습 이벤트 비활성화 (soft delete) */
   onDisable?: (id: string) => void;
+  /** admin/personal 모드면 true → 모든 이벤트 수정 가능 */
+  isAdminMode?: boolean;
 }
 
 interface UseEventDetailPopoverReturn {
@@ -45,6 +47,7 @@ export function useEventDetailPopover({
   onQuickStatusChange,
   onColorChange,
   onDisable,
+  isAdminMode = true,
 }: UseEventDetailPopoverOptions): UseEventDetailPopoverReturn {
   const [state, setState] = useState<{ plan: PlanItemData; anchorRect: DOMRect } | null>(null);
   const [recurringModalState, setRecurringModalState] = useState<RecurringModalState | null>(null);
@@ -98,18 +101,22 @@ export function useEventDetailPopover({
   );
 
   const popoverProps: EventDetailPopoverProps | null = state
-    ? {
-        plan: state.plan,
-        anchorRect: state.anchorRect,
-        onClose: closePopover,
-        onEdit,
-        onDelete,
-        onQuickStatusChange: onQuickStatusChange ? handleQuickStatusChange : undefined,
-        onColorChange,
-        onDisable,
-        onRecurringDelete: handleRecurringDelete,
-        onRecurringEdit: handleRecurringEdit,
-      }
+    ? (() => {
+        // 학생 모드에서 관리자가 만든 이벤트: 수정 불가, 완료 처리만 허용
+        const canModify = isAdminMode || state.plan.creatorRole !== 'admin';
+        return {
+          plan: state.plan,
+          anchorRect: state.anchorRect,
+          onClose: closePopover,
+          onEdit: canModify ? onEdit : undefined,
+          onDelete: canModify ? onDelete : undefined,
+          onQuickStatusChange: onQuickStatusChange ? handleQuickStatusChange : undefined,
+          onColorChange: canModify ? onColorChange : undefined,
+          onDisable: canModify ? onDisable : undefined,
+          onRecurringDelete: canModify ? handleRecurringDelete : undefined,
+          onRecurringEdit: canModify ? handleRecurringEdit : undefined,
+        };
+      })()
     : null;
 
   return {

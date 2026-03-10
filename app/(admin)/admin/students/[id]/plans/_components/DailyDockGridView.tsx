@@ -84,7 +84,27 @@ interface DailyDockGridViewProps {
   calendarColorMap?: Map<string, string>;
   /** 활성 캘린더 이름 (QuickCreate 표시용) */
   calendarName?: string;
+  /** 생성자 역할별 분할 보기 (선생님 | 학생) */
+  splitByCreator?: boolean;
+  /** 관리자 모드 여부 (학생 모드에서는 관리자 이벤트 수정 불가) */
+  isAdminMode?: boolean;
 }
+
+/** 레이아웃 계산 완료된 이벤트 블록 */
+type PlanBlock = {
+  id: string;
+  startMinutes: number;
+  endMinutes: number;
+  plan: PlanItemData;
+  original: DailyPlan | PlanItemData;
+  level: number;
+  totalLevels: number;
+  expandedSpan: number;
+  top: number;
+  height: number;
+  left: number;
+  width: number;
+};
 
 const ALL_DAY_COLLAPSE_THRESHOLD = 2;
 
@@ -116,6 +136,8 @@ export const DailyDockGridView = memo(function DailyDockGridView({
   showHolidays = true,
   calendarColorMap,
   calendarName: calendarNameProp,
+  splitByCreator = false,
+  isAdminMode = true,
 }: DailyDockGridViewProps) {
   const router = useRouter();
   const ppm = ppmProp ?? PX_PER_MINUTE;
@@ -153,44 +175,11 @@ export const DailyDockGridView = memo(function DailyDockGridView({
   }, [rangeStartMin, rangeEndMin]);
 
   // 플랜 + 비학습 블록 통합 레이아웃 (Google Calendar: 모든 이벤트 동등 컬럼 배치)
-  const planBlocks = useMemo(() => {
-    const planItems = [
-      ...plans
-        .filter((p) => p.start_time && p.end_time)
-        .map((p) => ({
-          id: p.id,
-          startMinutes: timeToMinutes(p.start_time!),
-          endMinutes: timeToMinutes(p.end_time!),
-          plan: toPlanItemData(p, 'plan'),
-          original: p,
-        })),
-      ...customItems
-        .filter((item): item is PlanItemData & { startTime: string; endTime: string } =>
-          !!item.startTime && !!item.endTime
-        )
-        .map((item) => ({
-          id: item.id,
-          startMinutes: timeToMinutes(item.startTime),
-          endMinutes: timeToMinutes(item.endTime),
-          plan: item,
-          original: item,
-        })),
-      ...nonStudyItems
-        .filter((item) => item.startTime && item.endTime)
-        .map((item, idx) => ({
-          id: item.id || `ns-${idx}-${item.startTime}`,
-          startMinutes: timeToMinutes(item.startTime!),
-          endMinutes: timeToMinutes(item.endTime!),
-          plan: item,
-          original: item,
-        })),
-    ];
-
-    const withLevels = assignLevels(planItems);
-
+  const computeBlocks = useCallback((items: { id: string; startMinutes: number; endMinutes: number; plan: PlanItemData; original: DailyPlan | PlanItemData }[]): PlanBlock[] => {
+    const withLevels = assignLevels(items);
     return withLevels.map((item) => {
       const pos = computeLayoutPosition(item.level, item.totalLevels, item.expandedSpan);
-      const source = planItems.find((p) => p.id === item.id)!;
+      const source = items.find((p) => p.id === item.id)!;
       return {
         ...source,
         level: item.level,
@@ -202,7 +191,56 @@ export const DailyDockGridView = memo(function DailyDockGridView({
         width: pos.width,
       };
     });
-  }, [plans, customItems, nonStudyItems, rangeStartMin, ppm]);
+  }, [rangeStartMin, ppm]);
+
+  const { planBlocks, adminBlocks, studentBlocks } = useMemo(() => {
+    const planItems = [
+      ...plans
+        .filter((p) => p.start_time && p.end_time)
+        .map((p) => ({
+          id: p.id,
+          startMinutes: timeToMinutes(p.start_time!),
+          endMinutes: timeToMinutes(p.end_time!),
+          plan: toPlanItemData(p, 'plan'),
+          original: p as DailyPlan | PlanItemData,
+        })),
+      ...customItems
+        .filter((item): item is PlanItemData & { startTime: string; endTime: string } =>
+          !!item.startTime && !!item.endTime
+        )
+        .map((item) => ({
+          id: item.id,
+          startMinutes: timeToMinutes(item.startTime),
+          endMinutes: timeToMinutes(item.endTime),
+          plan: item,
+          original: item as DailyPlan | PlanItemData,
+        })),
+      ...nonStudyItems
+        .filter((item) => item.startTime && item.endTime)
+        .map((item, idx) => ({
+          id: item.id || `ns-${idx}-${item.startTime}`,
+          startMinutes: timeToMinutes(item.startTime!),
+          endMinutes: timeToMinutes(item.endTime!),
+          plan: item,
+          original: item as DailyPlan | PlanItemData,
+        })),
+    ];
+
+    if (!splitByCreator) {
+      return { planBlocks: computeBlocks(planItems), adminBlocks: [] as PlanBlock[], studentBlocks: [] as PlanBlock[] };
+    }
+
+    // Split mode: 각 그룹 독립적으로 레이아웃 계산
+    const adminItems = planItems.filter(i => i.plan.creatorRole !== 'student');
+    const studentItems = planItems.filter(i => i.plan.creatorRole === 'student');
+    const ab = computeBlocks(adminItems);
+    const sb = computeBlocks(studentItems);
+    return {
+      planBlocks: [...ab, ...sb], // resizingBlock 검색용 (레이아웃 재계산 없이 합산)
+      adminBlocks: ab,
+      studentBlocks: sb,
+    };
+  }, [plans, customItems, nonStudyItems, splitByCreator, computeBlocks]);
 
   // 현재 시간 인디케이터
   const [nowMinutes, setNowMinutes] = useState<number | null>(null);
@@ -251,6 +289,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
         description: '비학습 시간이 비활성화되었습니다.',
       });
     },
+    isAdminMode,
   });
 
   // 반복 이벤트 scope 선택 핸들러
@@ -853,6 +892,42 @@ export const DailyDockGridView = memo(function DailyDockGridView({
   const holidayName = showHolidays ? getHolidayName(selectedDate) : null;
   const queryLower = searchQuery?.toLowerCase() ?? '';
 
+  /** 이벤트 블록 렌더링 헬퍼 (통합/분할 양쪽에서 사용) */
+  const renderEventBlocks = (blocks: PlanBlock[]) =>
+    blocks.map((block) => {
+      const isThisResizing = isResizing && resizingPlanId === block.id;
+      const isHighlighted = queryLower
+        ? [block.plan.title, block.plan.subject].some((f) => f?.toLowerCase().includes(queryLower))
+        : block.id === newlyCreatedPlanId;
+      const currentResizeTop = isThisResizing && resizingEdge === 'top'
+        ? block.top - (resizeHeight - block.height)
+        : undefined;
+      // 학생 모드에서 관리자 이벤트는 리사이즈 불가
+      const canModifyBlock = isAdminMode || block.plan.creatorRole !== 'admin';
+      return (
+        <div key={block.id} data-grid-block>
+          <GridPlanBlock
+            plan={block.plan}
+            calendarColor={calendarColorMap?.get(block.plan.calendarId ?? '') ?? undefined}
+            top={block.top}
+            height={block.height}
+            left={block.left}
+            width={block.width}
+            zIndex={computeZIndex(block.level)}
+            onBlockClick={handleBlockClick}
+            resizeHandleProps={calendarId && !block.plan.isCompleted && canModifyBlock ? makeResizeHandleProps(block.id, 'bottom') : undefined}
+            topResizeHandleProps={calendarId && !block.plan.isCompleted && canModifyBlock ? makeResizeHandleProps(block.id, 'top') : undefined}
+            currentResizeHeight={isThisResizing ? resizeHeight : undefined}
+            resizingEdge={isThisResizing ? resizingEdge : undefined}
+            currentResizeTop={currentResizeTop}
+            isResizing={isThisResizing}
+            isHighlighted={isHighlighted}
+            suppressHover={!!quickCreateState || !!dragState}
+          />
+        </div>
+      );
+    });
+
   return (
     <>
     <div
@@ -955,6 +1030,17 @@ export const DailyDockGridView = memo(function DailyDockGridView({
             onMouseDown={() => { popoverOpenOnMouseDownRef.current = isPopoverOpen; }}
             onClick={handleAllDayClick}
           >
+            {/* Split 모드 컬럼 헤더 */}
+            {splitByCreator && (
+              <div className="flex border-b border-[rgb(var(--color-secondary-200))] -mx-px mb-0.5">
+                <div className="flex-1 text-center text-[11px] font-semibold text-blue-600 py-0.5 border-r border-[rgb(var(--color-secondary-200))]">
+                  선생님 계획
+                </div>
+                <div className="flex-1 text-center text-[11px] font-semibold text-emerald-600 py-0.5">
+                  학생 자율
+                </div>
+              </div>
+            )}
             {allDayVisibleItems?.map((item) => (
               <div key={item.id} style={{ marginLeft: 2, marginRight: `${SINGLE_RIGHT_GUTTER_PCT}%` }}>
                 <AllDayItemBar item={item} calendarColor={calendarColorMap?.get(item.calendarId ?? '')} onClick={handleAllDayItemClick} />
@@ -1014,6 +1100,87 @@ export const DailyDockGridView = memo(function DailyDockGridView({
         </div>
 
         {/* 이벤트 컬럼 — 그리드라인은 CSS gradient로 렌더링 */}
+        {/* Split 모드: 2개 컬럼 / 통합 모드: 1개 컬럼 */}
+        {splitByCreator ? (
+          <div className="flex-1 flex">
+            {/* 선생님 계획 컬럼 */}
+            <div
+              data-column-date={selectedDate}
+              data-split-column="admin"
+              className={cn('flex-1 relative', calendarId && 'cursor-cell', 'border-r border-[rgb(var(--color-secondary-200))]')}
+              onMouseDown={() => { popoverOpenOnMouseDownRef.current = isPopoverOpen; }}
+              onClick={handleGridClick}
+              onDoubleClick={handleGridDoubleClick}
+              onMouseMove={handleGridMouseMove}
+              onMouseLeave={handleGridMouseLeave}
+              onTouchStart={handleGridTouchStart}
+              onTouchMove={handleGridTouchMove}
+              onTouchEnd={handleGridTouchEnd}
+            >
+              {dayInfo.isPast && <div className="absolute inset-0 bg-[rgb(var(--color-secondary-50))]/40 pointer-events-none" />}
+              {dayInfo.isToday && <div className="absolute inset-0 bg-blue-50/30 pointer-events-none" />}
+              <div className="absolute inset-0 pointer-events-none" style={createGridBackgroundStyle(rangeStartMin, ppm)} />
+              {hoveredSlotTop != null && (
+                <div className="absolute left-0 right-0 bg-blue-100/40 pointer-events-none rounded-sm z-[1]" style={{ top: `${hoveredSlotTop}px`, height: `${SNAP_MINUTES * ppm}px` }} />
+              )}
+              {dragState && dragPreviewStyle && (
+                <div className="absolute left-0 right-0 rounded-lg z-[45] pointer-events-none shadow-sm overflow-hidden" style={{ top: dragPreviewStyle.top, height: dragPreviewStyle.height, backgroundColor: previewColors.bgHex, border: '1px solid white' }}>
+                  <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: previewColors.barHex }} />
+                  <div className="pl-3 py-0.5 flex flex-col">
+                    <span className={cn('text-xs font-medium', previewColors.textIsWhite ? 'text-white' : 'text-gray-900')}>(제목 없음)</span>
+                    <span className={cn('text-[10px]', previewColors.textIsWhite ? 'text-white/70' : 'text-gray-600')}>{minutesToTime(dragState.startMinutes)} – {minutesToTime(dragState.endMinutes)}</span>
+                  </div>
+                </div>
+              )}
+              {quickCreateState && !dragState && !quickCreateState.isAllDay && (
+                <div className="absolute left-0 right-0 rounded-lg z-[45] pointer-events-none shadow-sm overflow-hidden" style={{ top: `${minutesToPx(timeToMinutes(quickCreateState.slot.startTime), rangeStartMin, ppm)}px`, height: `${quickCreateState.slot.durationMinutes * ppm}px`, backgroundColor: previewColors.bgHex, border: '1px solid white' }}>
+                  <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: previewColors.barHex }} />
+                  <div className="pl-3 py-0.5"><span className={cn('text-xs font-medium', previewColors.textIsWhite ? 'text-white' : 'text-gray-900')}>(제목 없음)</span></div>
+                </div>
+              )}
+              {renderEventBlocks(adminBlocks)}
+              {nowTop != null && (
+                <div className="absolute left-0 right-0 z-20 pointer-events-none flex items-center" style={{ top: `${nowTop}px` }}>
+                  <div className="flex-1 border-t-2 border-red-500" />
+                </div>
+              )}
+            </div>
+
+            {/* 학생 자율 컬럼 */}
+            <div
+              data-column-date={selectedDate}
+              data-split-column="student"
+              className={cn('flex-1 relative', calendarId && 'cursor-cell')}
+              onMouseDown={() => { popoverOpenOnMouseDownRef.current = isPopoverOpen; }}
+              onClick={handleGridClick}
+              onDoubleClick={handleGridDoubleClick}
+              onMouseMove={handleGridMouseMove}
+              onMouseLeave={handleGridMouseLeave}
+              onTouchStart={handleGridTouchStart}
+              onTouchMove={handleGridTouchMove}
+              onTouchEnd={handleGridTouchEnd}
+            >
+              {dayInfo.isPast && <div className="absolute inset-0 bg-[rgb(var(--color-secondary-50))]/40 pointer-events-none" />}
+              {dayInfo.isToday && <div className="absolute inset-0 bg-blue-50/30 pointer-events-none" />}
+              <div className="absolute inset-0 pointer-events-none" style={createGridBackgroundStyle(rangeStartMin, ppm)} />
+              {hoveredSlotTop != null && (
+                <div className="absolute left-0 right-0 bg-blue-100/40 pointer-events-none rounded-sm z-[1]" style={{ top: `${hoveredSlotTop}px`, height: `${SNAP_MINUTES * ppm}px` }} />
+              )}
+              {renderEventBlocks(studentBlocks)}
+              {/* 학생 컬럼에 이벤트가 없을 때 안내 */}
+              {studentBlocks.length === 0 && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <span className="text-xs text-[var(--text-tertiary)]">학생이 등록한 일정 없음</span>
+                </div>
+              )}
+              {nowTop != null && (
+                <div className="absolute left-0 right-0 z-20 pointer-events-none flex items-center" style={{ top: `${nowTop}px` }}>
+                  <div className="flex-1 border-t-2 border-red-500" />
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
         <div
           data-column-date={selectedDate}
           className={cn('flex-1 relative', calendarId && 'cursor-cell')}
@@ -1087,49 +1254,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
           )}
 
           {/* 이벤트 블록 (학습 + 비학습 통합, GCal 단색 스타일) */}
-          {planBlocks.map((block) => {
-            const isThisResizing = isResizing && resizingPlanId === block.id;
-            const isHighlighted = queryLower
-              ? [block.plan.title, block.plan.subject]
-                  .some((f) => f?.toLowerCase().includes(queryLower))
-              : block.id === newlyCreatedPlanId;
-
-            // 상단 리사이즈 중 시각적 top 계산
-            const currentResizeTop = isThisResizing && resizingEdge === 'top'
-              ? block.top - (resizeHeight - block.height)
-              : undefined;
-
-            return (
-              <div key={block.id} data-grid-block>
-                <GridPlanBlock
-                  plan={block.plan}
-                  calendarColor={calendarColorMap?.get(block.plan.calendarId ?? '') ?? undefined}
-                  top={block.top}
-                  height={block.height}
-                  left={block.left}
-                  width={block.width}
-                  zIndex={computeZIndex(block.level)}
-                  onBlockClick={handleBlockClick}
-                  resizeHandleProps={
-                    calendarId && !block.plan.isCompleted
-                      ? makeResizeHandleProps(block.id, 'bottom')
-                      : undefined
-                  }
-                  topResizeHandleProps={
-                    calendarId && !block.plan.isCompleted
-                      ? makeResizeHandleProps(block.id, 'top')
-                      : undefined
-                  }
-                  currentResizeHeight={isThisResizing ? resizeHeight : undefined}
-                  resizingEdge={isThisResizing ? resizingEdge : undefined}
-                  currentResizeTop={currentResizeTop}
-                  isResizing={isThisResizing}
-                  isHighlighted={isHighlighted}
-                  suppressHover={!!quickCreateState || !!dragState}
-                />
-              </div>
-            );
-          })}
+          {renderEventBlocks(planBlocks)}
 
           {/* 현재 시간 인디케이터 */}
           {nowTop != null && (
@@ -1143,6 +1268,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
           )}
 
         </div>
+        )}
       </div>
     </div>
 

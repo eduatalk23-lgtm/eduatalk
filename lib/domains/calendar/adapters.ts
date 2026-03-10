@@ -127,7 +127,11 @@ export function calendarEventToDailyPlan(
     plan_date: event.start_date ?? (extractDateYMD(event.start_at) ?? ''),
     carryover_count: null,
     carryover_from_date: null,
-    color: event.color ?? null,
+    color: event.color ?? (
+      !event.is_exclusion
+        ? getDefaultColor(event.label ?? '기타')
+        : null
+    ),
     calendar_id: event.calendar_id ?? null,
     rrule: event.rrule ?? null,
     recurring_event_id: event.recurring_event_id ?? null,
@@ -137,6 +141,7 @@ export function calendarEventToDailyPlan(
     description: event.description ?? null,
     is_task: event.is_task ?? false,
     label: event.label ?? null,
+    creator_role: event.creator_role ?? null,
   };
 }
 
@@ -209,7 +214,7 @@ export function calendarEventToPlanItemData(
     planGroupId: event.plan_group_id ?? null,
     timeSlotType: null,
     color: event.color ?? (
-      !(event.is_task ?? false) && !event.is_exclusion
+      !event.is_exclusion
         ? getDefaultColor(event.label ?? '기타')
         : null
     ),
@@ -223,6 +228,7 @@ export function calendarEventToPlanItemData(
     label: event.label ?? event.event_subtype ?? undefined,
     isExclusion: event.is_exclusion ?? false,
     isTask,
+    creatorRole: (event.creator_role as 'admin' | 'student') ?? undefined,
   };
 }
 
@@ -351,7 +357,11 @@ export function calendarEventToMonthlyPlan(
     day: null as number | null,
     day_type: null as string | null,
     cycle_day_number: null as number | null,
-    color: event.color ?? null,
+    color: event.color ?? (
+      !event.is_exclusion
+        ? getDefaultColor(event.label ?? '기타')
+        : null
+    ),
     calendar_id: event.calendar_id ?? null,
     rrule: event.rrule ?? null,
     recurring_event_id: event.recurring_event_id ?? null,

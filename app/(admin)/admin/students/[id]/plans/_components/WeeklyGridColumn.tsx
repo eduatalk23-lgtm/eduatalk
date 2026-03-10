@@ -60,6 +60,8 @@ interface WeeklyGridColumnProps {
   suppressBlockHover?: boolean;
   /** 캘린더별 색상 맵 (calendarId → hex) — 좌측 컬러 바에 사용 */
   calendarColorMap?: Map<string, string>;
+  /** 관리자 모드 여부 (학생 모드에서는 관리자 이벤트 수정 불가) */
+  isAdminMode?: boolean;
 }
 
 export const WeeklyGridColumn = memo(forwardRef<HTMLDivElement, WeeklyGridColumnProps>(
@@ -88,6 +90,7 @@ export const WeeklyGridColumn = memo(forwardRef<HTMLDivElement, WeeklyGridColumn
       pxPerMinute: ppmProp,
       suppressBlockHover,
       calendarColorMap,
+      isAdminMode = true,
     },
     ref,
   ) {
@@ -232,6 +235,8 @@ export const WeeklyGridColumn = memo(forwardRef<HTMLDivElement, WeeklyGridColumn
             ? block.top - (resizeHeight - block.height)
             : undefined;
 
+          // 학생 모드에서 관리자 이벤트는 리사이즈/드래그 불가
+          const canModifyBlock = isAdminMode || block.plan.creatorRole !== 'admin';
           return (
             <div key={block.id} data-grid-block>
               <GridPlanBlock
@@ -247,12 +252,12 @@ export const WeeklyGridColumn = memo(forwardRef<HTMLDivElement, WeeklyGridColumn
                 isDragSource={draggingPlanId === block.id}
                 calendarColor={calendarColorMap?.get(block.plan.calendarId ?? '') ?? undefined}
                 onCrossDayDragStart={
-                  onCrossDayDragStart
+                  canModifyBlock && onCrossDayDragStart
                     ? (plan, e) => onCrossDayDragStart(plan, date, e)
                     : undefined
                 }
-                resizeHandleProps={makeResizeHandleProps?.(block.id, date, 'bottom')}
-                topResizeHandleProps={makeResizeHandleProps?.(block.id, date, 'top')}
+                resizeHandleProps={canModifyBlock ? makeResizeHandleProps?.(block.id, date, 'bottom') : undefined}
+                topResizeHandleProps={canModifyBlock ? makeResizeHandleProps?.(block.id, date, 'top') : undefined}
                 currentResizeHeight={isThisResizing ? resizeHeight : undefined}
                 resizingEdge={isThisResizing ? resizingEdge : undefined}
                 currentResizeTop={currentResizeTop}

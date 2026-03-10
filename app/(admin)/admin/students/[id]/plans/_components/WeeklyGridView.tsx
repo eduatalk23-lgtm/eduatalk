@@ -118,7 +118,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
   const totalHeight = (rangeEndMin - rangeStartMin) * ppm;
 
   // Calendar-First: Context에서 calendarId 직접 사용 (브릿지 훅 제거)
-  const { selectedCalendarId, selectedCalendarSettings } = useAdminPlanBasic();
+  const { selectedCalendarId, selectedCalendarSettings, isAdminMode } = useAdminPlanBasic();
   const resolvedCalendarId = calendarIdProp || selectedCalendarId || undefined;
   const weekStartsOn = selectedCalendarSettings?.weekStartsOn ?? 0;
 
@@ -413,6 +413,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
         description: '비학습 시간이 비활성화되었습니다.',
       });
     },
+    isAdminMode,
   });
 
   const closePopover = rawClosePopover;
@@ -1105,6 +1106,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
                 pxPerMinute={ppm}
                 suppressBlockHover={!!quickCreateState || !!dragState}
                 calendarColorMap={calendarColorMap}
+                isAdminMode={isAdminMode}
               />
             );
           })}
