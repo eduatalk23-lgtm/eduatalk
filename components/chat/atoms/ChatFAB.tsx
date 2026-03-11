@@ -30,9 +30,9 @@ function ChatFABComponent({ isOpen, unreadCount, onClick }: ChatFABProps) {
         "fixed z-[45] flex items-center justify-center rounded-full shadow-lg transition-colors",
         "bg-primary-500 text-white hover:bg-primary-600",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-        // 모바일: bottom-nav 위 + safe-area, 데스크톱: 우측 하단
-        "right-4 h-12 w-12 md:bottom-6 md:right-6 md:h-14 md:w-14",
-        "bottom-[calc(5rem+env(safe-area-inset-bottom))] md:bottom-6"
+        // 모바일: safe-area 위, 데스크톱: 우측 하단
+        "right-4 h-12 w-12 md:right-6 md:h-14 md:w-14",
+        "bottom-[calc(1.5rem+env(safe-area-inset-bottom))] md:bottom-6"
       )}
       aria-label={isOpen ? "채팅 닫기" : "채팅 열기"}
       aria-expanded={isOpen}
