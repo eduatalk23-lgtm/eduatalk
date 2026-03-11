@@ -38,6 +38,29 @@ const MAX_RETRIES = 3;
 const MAX_PAYLOAD_BYTES = 4096;
 
 /**
+ * 알림 tag → Web Push topic 헤더 변환.
+ * 오프라인 시 같은 topic의 메시지는 최신 1개만 전달 (RFC 8030 §5.4).
+ * topic은 URL-safe Base64, 최대 32자.
+ */
+function tagToTopic(tag: string | undefined): string | undefined {
+  if (!tag) return undefined;
+
+  // chat tag: "chat-{roomId}" or "chat-mention-{roomId}"
+  const chatMatch = tag.match(/^chat-(?:mention-)?(.+)$/);
+  if (chatMatch) {
+    const roomId = chatMatch[1];
+    // UUID → hex → base64url (32 hex = 16 bytes = 22 base64 chars)
+    const clean = roomId.replace(/-/g, "");
+    if (/^[0-9a-f]{32}$/i.test(clean)) {
+      return Buffer.from(clean, "hex").toString("base64url").slice(0, 32);
+    }
+  }
+
+  // 기타 tag: UTF-8 → base64url, 32자 제한
+  return Buffer.from(tag).toString("base64url").slice(0, 32);
+}
+
+/**
  * 특정 사용자의 모든 활성 디바이스에 Push 발송.
  * 410 Gone / 404 응답 시 해당 구독을 자동 비활성화.
  * 429 / 5xx 시 Exponential Backoff 재시도 (최대 3회).
@@ -84,9 +107,12 @@ export async function sendPushToUser(
 
   const urgency = payload.urgency ?? "normal";
   const ttl = urgency === "high" ? 86400 : urgency === "low" ? 43200 : 86400;
+  const topic = tagToTopic(payload.tag);
 
   const results = await Promise.allSettled(
-    subscriptions.map((row) => sendWithRetry(row, payloadStr, urgency, ttl))
+    subscriptions.map((row) =>
+      sendWithRetry(row, payloadStr, urgency, ttl, topic)
+    )
   );
 
   for (let i = 0; i < results.length; i++) {
@@ -138,13 +164,14 @@ async function sendWithRetry(
   payloadStr: string,
   urgency: PushUrgency = "normal",
   ttl = 86400,
+  topic?: string,
   attempt = 0
 ): Promise<webpush.SendResult> {
   try {
     return await webpush.sendNotification(
       row.subscription as unknown as webpush.PushSubscription,
       payloadStr,
-      { TTL: ttl, urgency }
+      { TTL: ttl, urgency, ...(topic ? { topic } : {}) }
     );
   } catch (err: unknown) {
     const statusCode = (err as { statusCode?: number })?.statusCode;
@@ -164,7 +191,7 @@ async function sendWithRetry(
     const jitter = Math.random() * 500;
     await sleep(baseDelay + jitter);
 
-    return sendWithRetry(row, payloadStr, urgency, ttl, attempt + 1);
+    return sendWithRetry(row, payloadStr, urgency, ttl, topic, attempt + 1);
   }
 }
 

@@ -115,6 +115,22 @@ async function clearTagCount(tag) {
   }
 }
 
+// IDB에 tag count를 직접 설정 (getNotifications와 동기화용)
+async function setTagCount(tag, count) {
+  try {
+    const db = await openDB();
+    await new Promise((resolve) => {
+      const tx = db.transaction("tag_counts", "readwrite");
+      tx.objectStore("tag_counts").put(count, tag);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+    db.close();
+  } catch {
+    // 무시
+  }
+}
+
 // ============================================
 // Install: 핵심 에셋 프리캐시
 // ============================================
@@ -156,6 +172,10 @@ self.addEventListener("activate", (event) => {
 // Fetch: NetworkFirst 캐싱 전략
 // ============================================
 self.addEventListener("fetch", (event) => {
+  // chrome-extension:// 등 비표준 스킴은 Cache API 미지원 → 무시
+  const url = new URL(event.request.url);
+  if (url.protocol !== "https:" && url.protocol !== "http:") return;
+
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request).catch(() => caches.match(OFFLINE_URL))
@@ -229,16 +249,31 @@ self.addEventListener("push", (event) => {
           // clients.matchAll 실패 시 무시
         }
 
-        // Per-tag 누적 카운트 증가 (채팅방별 미읽은 수)
-        const tagCount = await incrementTagCount(tag);
+        // getNotifications() merge 패턴: 기존 알림의 카운트를 읽어 증가
+        // iOS에서 getNotifications()가 불안정할 수 있으므로 IndexedDB fallback 유지
+        let messageCount = 1;
+        try {
+          const existing = await self.registration.getNotifications({ tag });
+          if (existing.length > 0) {
+            messageCount = (existing[0].data?.messageCount || 1) + 1;
+            // IDB도 동기화 (fallback 경로와 일관성 유지)
+            await setTagCount(tag, messageCount);
+          } else {
+            // getNotifications()가 빈 배열: 첫 알림이거나 iOS fallback 필요
+            messageCount = await incrementTagCount(tag);
+          }
+        } catch {
+          // getNotifications() 미지원/실패 → IndexedDB fallback
+          messageCount = await incrementTagCount(tag);
+        }
 
         // 누적 메시지가 2건 이상이면 body에 카운트 표시
         // 서버에서 이미 요약한 경우(condensed) 건너뜀
         let body = data.body || "";
-        if (tagCount > 1 && !data.condensed) {
+        if (messageCount > 1 && !data.condensed) {
           body = data.body
-            ? `${data.body}\n외 ${tagCount - 1}건의 메시지`
-            : `${tagCount}개의 새 메시지`;
+            ? `${data.body}\n외 ${messageCount - 1}건의 메시지`
+            : `${messageCount}개의 새 메시지`;
         }
 
         // 알림 타입별 액션 버튼 (Android에서 표시)
@@ -279,6 +314,7 @@ self.addEventListener("push", (event) => {
             type: type,
             notificationLogId: data.notificationLogId || null,
             tag: tag,
+            messageCount: messageCount,
           },
         };
 

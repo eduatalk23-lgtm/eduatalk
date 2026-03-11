@@ -16,18 +16,23 @@ import {
 /**
  * heartbeat 기준 활성 상태 판단 임계치 (ms).
  * useAppPresence 훅이 30초마다 heartbeat를 전송하므로,
- * 45초(1.5배)를 초과하면 비활성으로 간주합니다.
+ * 90초(3배)를 초과하면 비활성으로 간주합니다.
  *
- * iOS PWA는 백그라운드 진입 시 JS 실행이 즉시 중단되어
- * visibilitychange → "idle" upsert가 완료되지 않을 수 있습니다.
- * 45초면 heartbeat 1회 미수신 시점에 비활성 전환되어
- * push 알림이 정상 발송됩니다.
+ * 업계 표준: heartbeat 주기의 2~3배 (Discord ~41s heartbeat + 60~90s threshold).
+ * 90초 = heartbeat 2회 연속 누락을 허용하여 네트워크 지연에 내성 확보.
+ *
+ * iOS PWA 백그라운드 전환 시에는 sendBeacon으로 "idle" 상태를 즉시 기록하므로,
+ * status 자체가 "idle"로 바뀌어 stale threshold와 무관하게 Push가 발송됩니다.
  */
-const PRESENCE_STALE_THRESHOLD = 45_000;
+const PRESENCE_STALE_THRESHOLD = 90_000;
 /** 그룹 채팅 요약 판단 윈도우 (5분) */
 const GROUP_SUMMARY_WINDOW = 300_000;
 /** 그룹 채팅 요약 발동 임계치 */
 const GROUP_SUMMARY_THRESHOLD = 3;
+/** 1:1 채팅 요약 판단 윈도우 (60초) — Android 15 알림 쿨다운 방지 */
+const DM_SUMMARY_WINDOW = 60_000;
+/** 1:1 채팅 요약 발동 임계치 */
+const DM_SUMMARY_THRESHOLD = 3;
 
 /**
  * 서버 사이드 Notification Router.
@@ -71,9 +76,9 @@ export async function routeNotification(
       continue;
     }
 
-    // 그룹 채팅 요약 알림: 5분 내 3건 이상이면 요약으로 교체
+    // 채팅 요약 알림: 짧은 시간 내 다수 발송 시 요약으로 교체
     const { payload: finalPayload, condensed } =
-      await maybeCondenseGroupChat(supabase, userId, request);
+      await maybeCondenseChat(supabase, userId, request);
 
     // 먼저 로그를 insert하여 id를 확보 → push payload에 포함 (클릭 추적용)
     const { data: logRow } = await supabase
@@ -343,15 +348,25 @@ function isInQuietHours(
 // ============================================
 
 /**
- * 그룹 채팅에서 5분 내 3건 이상 발송되었으면 요약 알림으로 교체.
- * 개별 알림 대신 "N개의 새 메시지" 형태로 표시합니다.
+ * 채팅 알림 요약: 짧은 시간 내 다수 발송 시 요약 알림으로 교체.
+ * - 그룹 채팅: 5분 내 3건 이상
+ * - 1:1 채팅: 60초 내 3건 이상 (Android 15 쿨다운 방지)
  */
-async function maybeCondenseGroupChat(
+async function maybeCondenseChat(
   supabase: SupabaseAdminClient,
   userId: string,
   request: NotificationRequest
 ): Promise<{ payload: NotificationRequest["payload"]; condensed: boolean }> {
-  if (request.type !== "chat_group_message") {
+  let timeWindow: number;
+  let threshold: number;
+
+  if (request.type === "chat_group_message") {
+    timeWindow = GROUP_SUMMARY_WINDOW;
+    threshold = GROUP_SUMMARY_THRESHOLD;
+  } else if (request.type === "chat_message") {
+    timeWindow = DM_SUMMARY_WINDOW;
+    threshold = DM_SUMMARY_THRESHOLD;
+  } else {
     return { payload: request.payload, condensed: false };
   }
 
@@ -363,15 +378,12 @@ async function maybeCondenseGroupChat(
     .from("notification_log")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
-    .eq("type", "chat_group_message")
+    .eq("type", request.type)
     .like("reference_id", `${roomId}:%`)
     .is("skipped_reason", null)
-    .gte(
-      "sent_at",
-      new Date(Date.now() - GROUP_SUMMARY_WINDOW).toISOString()
-    );
+    .gte("sent_at", new Date(Date.now() - timeWindow).toISOString());
 
-  if ((count ?? 0) >= GROUP_SUMMARY_THRESHOLD) {
+  if ((count ?? 0) >= threshold) {
     return {
       payload: {
         ...request.payload,
