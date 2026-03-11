@@ -11,11 +11,18 @@ interface InstallPromptProps {
 }
 
 const STORAGE_KEY = "pwa-install-prompt-seen";
+const SNOOZE_DAYS = 7;
 
-// 로컬 스토리지에서 이전에 본 기록 확인
+// 로컬 스토리지에서 이전에 본 기록 확인 (7일 snooze)
 function getInitialSeenState(): boolean {
   if (typeof window === "undefined") return false;
-  return localStorage.getItem(STORAGE_KEY) === "true";
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return false;
+  // 레거시 "true" 값 호환: 영구 dismiss → 7일 snooze로 마이그레이션
+  if (raw === "true") return false;
+  const dismissedAt = parseInt(raw, 10);
+  if (isNaN(dismissedAt)) return false;
+  return Date.now() - dismissedAt < SNOOZE_DAYS * 24 * 60 * 60 * 1000;
 }
 
 function getIsAndroid(): boolean {
@@ -47,12 +54,12 @@ export default function InstallPrompt({ className }: InstallPromptProps) {
 
   const handleDismiss = () => {
     setIsDismissed(true);
-    localStorage.setItem(STORAGE_KEY, "true");
+    localStorage.setItem(STORAGE_KEY, String(Date.now()));
   };
 
   const handleInstall = async () => {
     await install();
-    localStorage.setItem(STORAGE_KEY, "true");
+    localStorage.setItem(STORAGE_KEY, String(Date.now()));
   };
 
   return (

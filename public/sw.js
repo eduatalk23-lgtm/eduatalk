@@ -206,6 +206,29 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     (async () => {
       try {
+        // 포그라운드 중복 방지: 포커스된 클라이언트가 해당 URL에 있으면 silent 처리
+        let foregroundSilent = false;
+        const targetUrl = data.url || "/";
+        try {
+          const allClients = await self.clients.matchAll({
+            type: "window",
+            includeUncontrolled: true,
+          });
+          foregroundSilent = allClients.some((client) => {
+            if (!client.focused || client.visibilityState !== "visible")
+              return false;
+            // 채팅 알림이면 해당 채팅방 URL과 비교
+            try {
+              const clientPath = new URL(client.url).pathname;
+              return clientPath === targetUrl;
+            } catch {
+              return false;
+            }
+          });
+        } catch {
+          // clients.matchAll 실패 시 무시
+        }
+
         // Per-tag 누적 카운트 증가 (채팅방별 미읽은 수)
         const tagCount = await incrementTagCount(tag);
 
@@ -218,17 +241,42 @@ self.addEventListener("push", (event) => {
             : `${tagCount}개의 새 메시지`;
         }
 
+        // 알림 타입별 액션 버튼 (Android에서 표시)
+        const actions = [];
+        const type = data.type || "unknown";
+        if (type === "chat_message" || type === "chat") {
+          actions.push(
+            { action: "mark-read", title: "읽음 처리" }
+          );
+        }
+
+        // 알림 타입별 진동 패턴
+        const vibratePatterns = {
+          chat_message: [100, 50, 100],
+          chat: [100, 50, 100],
+          study_reminder: [200, 100, 200, 100, 200],
+          payment: [300, 100, 300, 100, 300],
+        };
+        const vibrate = vibratePatterns[type] || [200, 100, 200];
+
+        // silent 판단: 사용자 설정(data.silent) 또는 포그라운드 중복(foregroundSilent)
+        const isSilent = !!data.silent || foregroundSilent;
+
         const options = {
           body: body,
           icon: data.icon || origin + "/icons/icon-192x192.png",
           badge: data.badge || origin + "/icons/icon-72x72.png",
           tag: tag,
-          renotify: true,
-          vibrate: [200, 100, 200],
+          renotify: !isSilent,
+          silent: isSilent,
+          vibrate: isSilent ? [] : vibrate,
           timestamp: data.timestamp || Date.now(),
+          actions: actions,
+          // 중요 알림(결제, 상담)은 사용자가 반드시 확인하도록
+          requireInteraction: type === "payment" || type === "consultation",
           data: {
             url: data.url || "/",
-            type: data.type || "unknown",
+            type: type,
             notificationLogId: data.notificationLogId || null,
             tag: tag,
           },
@@ -252,8 +300,34 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
+  const action = event.action;
   const url = event.notification.data?.url || "/";
   const notificationLogId = event.notification.data?.notificationLogId;
+
+  // "읽음 처리" 액션: 알림 닫기 + 뱃지 갱신 (실제 서버 읽음 처리는 앱 진입 시 수행)
+  if (action === "mark-read") {
+    event.waitUntil(
+      Promise.all([
+        notificationLogId
+          ? fetch(self.location.origin + "/api/push/click", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ notificationLogId }),
+            }).catch(() => {})
+          : Promise.resolve(),
+        clearTagCount(event.notification.data?.tag),
+        // 메인 스레드에 뱃지 재계산 요청
+        self.clients
+          .matchAll({ type: "window", includeUncontrolled: true })
+          .then((clients) => {
+            for (const client of clients) {
+              client.postMessage({ type: "BADGE_NEEDS_SYNC" });
+            }
+          }),
+      ])
+    );
+    return;
+  }
 
   event.waitUntil(
     Promise.all([
@@ -266,10 +340,10 @@ self.addEventListener("notificationclick", (event) => {
           }).catch(() => {})
         : Promise.resolve(),
 
-      // 2. App Badge 초기화 + 해당 tag 카운트 리셋
-      clearBadge(),
+      // 2. 해당 tag 카운트만 리셋 (전체 clear 대신)
+      clearTagCount(event.notification.data?.tag),
 
-      // 3. 앱 내 네비게이션
+      // 3. 앱 내 네비게이션 + 뱃지 재계산 요청
       self.clients
         .matchAll({ type: "window", includeUncontrolled: true })
         .then((clients) => {
@@ -277,6 +351,8 @@ self.addEventListener("notificationclick", (event) => {
             if ("focus" in client) {
               client.focus();
               client.postMessage({ type: "PUSH_NAVIGATE", url });
+              // 메인 스레드에서 실제 미읽은 수 기반으로 뱃지 재계산 요청
+              client.postMessage({ type: "BADGE_NEEDS_SYNC" });
               return;
             }
           }
@@ -338,11 +414,41 @@ self.addEventListener("pushsubscriptionchange", (event) => {
 });
 
 // ============================================
+// Badge Sync: 메인 스레드의 실제 미읽은 수로 동기화
+// ============================================
+async function syncBadgeCount(count) {
+  try {
+    const db = await openDB();
+    await new Promise((resolve) => {
+      const tx = db.transaction("meta", "readwrite");
+      tx.objectStore("meta").put(count, "badgeCount");
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+    db.close();
+    if ("setAppBadge" in navigator) {
+      if (count > 0) {
+        navigator.setAppBadge(count).catch(() => {});
+      } else {
+        navigator.clearAppBadge().catch(() => {});
+      }
+    }
+  } catch {
+    // IDB 실패해도 무시
+  }
+}
+
+// ============================================
 // Message: 메인 스레드 ↔ SW 통신
 // ============================================
 self.addEventListener("message", (event) => {
   if (event.data?.type === "CLEAR_BADGE") {
     event.waitUntil(clearBadge());
+  }
+  // 메인 스레드에서 실제 미읽은 수로 동기화
+  if (event.data?.type === "SYNC_BADGE") {
+    const count = event.data.count || 0;
+    event.waitUntil(syncBadgeCount(count));
   }
 });
 

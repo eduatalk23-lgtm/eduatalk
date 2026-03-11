@@ -21,6 +21,8 @@ interface PushPayload {
   urgency?: PushUrgency;
   /** 서버에서 이미 요약된 알림인지 (SW per-tag 카운트 스킵용) */
   condensed?: boolean;
+  /** 사용자가 소리+진동을 모두 OFF한 경우 true → SW에서 silent 알림 표시 */
+  silent?: boolean;
 }
 
 /** 이 상태 코드를 받으면 구독이 만료/무효이므로 비활성화 */

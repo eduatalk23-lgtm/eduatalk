@@ -11,8 +11,8 @@ const DENIED_STORAGE_KEY = "push-permission-denied-banner-dismissed";
 const ANDROID_IMPORTANCE_KEY = "push-android-importance-dismissed";
 const SNOOZE_DAYS = 7;
 const DENIED_SNOOZE_DAYS = 30;
-// 영구 dismiss (Number.MAX_SAFE_INTEGER일 → 사실상 영구)
-const ANDROID_IMPORTANCE_SNOOZE_DAYS = 36500;
+// 90일 후 다시 표시 (알림 중요도 미설정 시 반복 안내)
+const ANDROID_IMPORTANCE_SNOOZE_DAYS = 90;
 
 function isDismissed(key: string, snoozeDays: number): boolean {
   if (typeof window === "undefined") return true;
@@ -85,6 +85,8 @@ export function PushPermissionBanner() {
     const granted = await requestSubscription();
     if (granted) {
       setMode(null);
+      // 권한 허용 직후 기존 미읽은 수를 앱 뱃지에 반영
+      window.dispatchEvent(new CustomEvent("badge-needs-sync"));
     } else {
       localStorage.setItem(STORAGE_KEY, String(Date.now()));
       setMode(null);

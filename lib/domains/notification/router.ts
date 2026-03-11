@@ -47,7 +47,7 @@ export async function routeNotification(
   const results = { sent: 0, skipped: 0, failed: 0 };
 
   for (const userId of request.recipientIds) {
-    const skipReason = await shouldSkip(
+    const { skipReason, silent } = await checkUserPreferences(
       supabase,
       userId,
       request.type,
@@ -102,6 +102,7 @@ export async function routeNotification(
         : Date.now(),
       urgency: mapPriorityToUrgency(request.priority, request.type),
       condensed,
+      silent,
     });
 
     if (sent === 0 && failed === 0) {
@@ -131,7 +132,13 @@ export async function routeNotification(
 // 필터링 로직
 // ============================================
 
-async function shouldSkip(
+interface PreferenceResult {
+  skipReason: SkipReason | null;
+  /** 사용자가 소리+진동을 모두 OFF한 경우 true → SW에서 silent 알림 표시 */
+  silent: boolean;
+}
+
+async function checkUserPreferences(
   supabase: SupabaseAdminClient,
   userId: string,
   type: NotificationType,
@@ -139,13 +146,15 @@ async function shouldSkip(
   priority: string,
   referenceId?: string,
   messageCreatedAt?: string
-): Promise<SkipReason | null> {
-  // 1+2. 사용자 설정 + 방해금지 시간 (1회 쿼리)
+): Promise<PreferenceResult> {
+  // 1+2. 사용자 설정 + 방해금지 + 소리/진동 설정 (1회 쿼리)
   const prefField = NOTIFICATION_PREFERENCE_MAP[type];
   const selectFields = [
     "quiet_hours_enabled",
     "quiet_hours_start",
     "quiet_hours_end",
+    "chat_sound_enabled",
+    "chat_vibrate_enabled",
     ...(prefField ? [prefField] : []),
   ].join(", ");
 
@@ -157,13 +166,17 @@ async function shouldSkip(
 
   // 1. 사용자 설정 확인
   if (prefField && prefs && prefs[prefField] === false) {
-    return "preference_off";
+    return { skipReason: "preference_off", silent: false };
   }
 
   // 2. 방해금지 시간 확인 (high 우선순위는 무시)
   if (priority !== "high" && prefs?.quiet_hours_enabled) {
+    // KST 기준으로 현재 시간 계산 (Vercel 서버는 UTC)
     const now = new Date();
-    const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const kstOffset = 9 * 60; // KST = UTC+9
+    const kstMinutes = now.getUTCHours() * 60 + now.getUTCMinutes() + kstOffset;
+    const adjustedMinutes = ((kstMinutes % 1440) + 1440) % 1440; // 0~1439 범위
+    const currentTime = `${String(Math.floor(adjustedMinutes / 60)).padStart(2, "0")}:${String(adjustedMinutes % 60).padStart(2, "0")}`;
     if (
       isInQuietHours(
         currentTime,
@@ -171,12 +184,17 @@ async function shouldSkip(
         (prefs.quiet_hours_end as string) ?? ""
       )
     ) {
-      return "quiet_hours";
+      return { skipReason: "quiet_hours", silent: false };
     }
   }
 
-  // 3. 채팅 뮤트 + 이미 읽음 확인 (1회 쿼리)
+  // 소리/진동 설정 → silent 플래그 (채팅 타입에만 적용)
   const isChatType = type === "chat_message" || type === "chat_group_message" || type === "chat_mention";
+  const silent = isChatType
+    ? prefs?.chat_sound_enabled === false && prefs?.chat_vibrate_enabled === false
+    : false;
+
+  // 3. 채팅 뮤트 + 이미 읽음 확인 (1회 쿼리)
   if (isChatType) {
     // tag에서 roomId 추출 ("chat-{roomId}" 또는 "chat-mention-{roomId}")
     const roomId = payload.tag?.replace(/^chat-(?:mention-)?/, "");
@@ -189,7 +207,7 @@ async function shouldSkip(
         .single();
 
       // 뮤트 체크: chat_mention은 뮤트 무시 (카카오톡/Slack 표준)
-      if (type !== "chat_mention" && member?.is_muted) return "muted";
+      if (type !== "chat_mention" && member?.is_muted) return { skipReason: "muted", silent: false };
 
       // 이미 읽은 메시지면 push 스킵
       // (Realtime으로 화면에서 먼저 본 경우 last_read_at가 업데이트됨)
@@ -198,7 +216,7 @@ async function shouldSkip(
         member?.last_read_at &&
         new Date(member.last_read_at) >= new Date(messageCreatedAt)
       ) {
-        return "already_read";
+        return { skipReason: "already_read", silent: false };
       }
     }
   }
@@ -214,7 +232,7 @@ async function shouldSkip(
       .gte("sent_at", new Date(Date.now() - 30_000).toISOString())
       .limit(1);
 
-    if (recent?.length) return "duplicate";
+    if (recent?.length) return { skipReason: "duplicate", silent: false };
   }
 
   // 5. 빈도 제한 (1시간 내 10건)
@@ -226,7 +244,7 @@ async function shouldSkip(
     .is("skipped_reason", null)
     .gte("sent_at", new Date(Date.now() - 3_600_000).toISOString());
 
-  if ((count ?? 0) >= 10) return "rate_limited";
+  if ((count ?? 0) >= 10) return { skipReason: "rate_limited", silent: false };
 
   // 6. 앱 활성 상태 확인
   const { data: presence, error: presenceError } = await supabase
@@ -238,7 +256,7 @@ async function shouldSkip(
   // 쿼리 실패 시 알림을 차단하지 않음 (안전 방향: 발송)
   if (presenceError && presenceError.code !== "PGRST116") {
     console.warn("[Router] Presence query failed:", presenceError.code);
-    return null;
+    return { skipReason: null, silent };
   }
 
   const isActive =
@@ -251,16 +269,16 @@ async function shouldSkip(
       // 채팅 알림: 해당 채팅방을 보고 있으면 스킵, 다른 페이지면 발송
       const roomId = payload.tag?.replace(/^chat-(?:mention-)?/, "");
       if (roomId && presence.current_chat_room_id === roomId) {
-        return "viewing_room";
+        return { skipReason: "viewing_room", silent: false };
       }
       // 다른 페이지에 있으면 push 발송 (return null → 계속 진행)
     } else {
       // 비채팅 알림: 앱 활성이면 push 스킵
-      return "online";
+      return { skipReason: "online", silent: false };
     }
   }
 
-  return null;
+  return { skipReason: null, silent };
 }
 
 /**

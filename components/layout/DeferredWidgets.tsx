@@ -56,6 +56,14 @@ const AppPresenceProvider = dynamic(
   { ssr: false }
 );
 
+const AppBadgeManager = dynamic(
+  () =>
+    import("@/components/push/AppBadgeManager").then(
+      (m) => m.AppBadgeManager
+    ),
+  { ssr: false }
+);
+
 export function DeferredWidgets() {
   return (
     <>
@@ -64,6 +72,7 @@ export function DeferredWidgets() {
       <PushSubscriptionManager />
       <PushPermissionBanner />
       <AppPresenceProvider />
+      <AppBadgeManager />
       <FloatingChatWidget />
     </>
   );
