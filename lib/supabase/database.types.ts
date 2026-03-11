@@ -10929,6 +10929,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      delete_student_custom_contents: {
+        Args: { p_student_id: string }
+        Returns: undefined
+      }
       expire_old_invitations: { Args: never; Returns: undefined }
       expire_old_invitations_unified: { Args: never; Returns: undefined }
       extract_school_id_number: {
