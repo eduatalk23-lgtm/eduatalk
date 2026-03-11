@@ -188,21 +188,38 @@ export async function deleteStudent(
     await supabase.from("request_templates").delete().eq("created_by", studentId);
     await supabase.from("attendance_record_history").delete().eq("modified_by", studentId);
 
-    // 7. auth.users에서 사용자 삭제 (관리자 권한 필요)
+    // 7. soft-delete 트리거가 있는 콘텐츠 테이블 FK 정리
+    // books, lectures, student_custom_contents에 prevent_content_deletion 트리거가 있어
+    // students CASCADE 삭제 시 에러 발생 → 미리 FK를 끊거나 soft delete 처리
+    await supabase.from("books").update({ student_id: null, is_active: false }).eq("student_id", studentId);
+    await supabase.from("lectures").update({ student_id: null, is_active: false }).eq("student_id", studentId);
+    // student_custom_contents는 student_id가 NOT NULL이므로 트리거를 일시 비활성화하여 삭제
+    await supabase.rpc("delete_student_custom_contents", { p_student_id: studentId });
+
+    // 8. auth.users에서 사용자 삭제 (관리자 권한 필요)
     const { error: authDeleteError } = await supabase.auth.admin.deleteUser(
       studentId
     );
 
     if (authDeleteError) {
-      logActionError(
-        { domain: "student", action: "deleteStudent" },
-        authDeleteError,
-        { studentId, step: "auth.admin.deleteUser" }
-      );
-      return {
-        success: false,
-        error: `인증 사용자 삭제 실패: ${authDeleteError.message}`,
-      };
+      // auth user가 이미 없는 경우는 정상 처리 (고아 레코드 정리)
+      if (authDeleteError.message === "User not found") {
+        logActionWarn(
+          { domain: "student", action: "deleteStudent" },
+          "Auth user가 이미 존재하지 않음 (고아 레코드 정리)",
+          { studentId, step: "auth.admin.deleteUser" }
+        );
+      } else {
+        logActionError(
+          { domain: "student", action: "deleteStudent" },
+          authDeleteError,
+          { studentId, step: "auth.admin.deleteUser" }
+        );
+        return {
+          success: false,
+          error: `인증 사용자 삭제 실패: ${authDeleteError.message}`,
+        };
+      }
     }
 
     // 8. students 테이블에서 삭제 (CASCADE로 나머지 관련 데이터 자동 삭제)
@@ -399,6 +416,10 @@ export async function bulkDeleteStudents(
     await supabase.from("file_requests").delete().eq("created_by", studentId);
     await supabase.from("request_templates").delete().eq("created_by", studentId);
     await supabase.from("attendance_record_history").delete().eq("modified_by", studentId);
+    // soft-delete 트리거가 있는 콘텐츠 테이블 FK 정리
+    await supabase.from("books").update({ student_id: null, is_active: false }).eq("student_id", studentId);
+    await supabase.from("lectures").update({ student_id: null, is_active: false }).eq("student_id", studentId);
+    await supabase.rpc("delete_student_custom_contents", { p_student_id: studentId });
   }
 
   // 2단계: auth.users에서 사용자 삭제 (Supabase API 제한으로 개별 처리 필요)
@@ -410,13 +431,23 @@ export async function bulkDeleteStudents(
       );
 
       if (authDeleteError) {
-        errors.push(
-          `${studentId}: 인증 사용자 삭제 실패 - ${authDeleteError.message}`
-        );
-        continue;
+        // auth user가 이미 없는 경우는 정상 처리 (고아 레코드 정리)
+        if (authDeleteError.message === "User not found") {
+          logActionWarn(
+            { domain: "student", action: "bulkDeleteStudents" },
+            "Auth user가 이미 존재하지 않음 (고아 레코드 정리)",
+            { studentId, step: "auth.admin.deleteUser" }
+          );
+          authDeletedIds.push(studentId);
+        } else {
+          errors.push(
+            `${studentId}: 인증 사용자 삭제 실패 - ${authDeleteError.message}`
+          );
+          continue;
+        }
+      } else {
+        authDeletedIds.push(studentId);
       }
-
-      authDeletedIds.push(studentId);
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "알 수 없는 오류";
