@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   isRateLimitError,
-  retryWithBackoff,
+  type SupabaseErrorLike,
 } from "@/lib/auth/rateLimitHandler";
 import { analyzeAuthError, logAuthError } from "./errorHandlers";
 import {
@@ -169,64 +169,26 @@ export async function getCurrentUserRole(
     let initialResult: { data: { user: User | null }; error: unknown } | null = null;
 
     // prefetchedUser가 없으면 getUser() 호출
+    // rateLimitedFetch가 이미 1회 재시도하므로 여기서 추가 재시도 불필요
+    // (이전 구현은 이중 재시도로 단일 429에 최대 36초 지연 발생)
     if (!user) {
-      // 먼저 직접 getUser()를 호출하여 refresh token 에러를 빠르게 감지
-      // Supabase가 내부적으로 에러를 로깅하기 전에 처리하기 위함
       initialResult = await supabase.auth.getUser();
 
-      // 에러 처리: 공통 에러 분석 유틸리티 사용
       if (initialResult.error) {
         const errorInfo = analyzeAuthError(initialResult.error);
 
-        // Refresh token 에러인 경우 즉시 반환 (재시도 불필요)
         if (errorInfo.isRefreshTokenError) {
           return { userId: null, role: null, tenantId: null };
         }
 
-        // Rate limit 에러인 경우에만 재시도
         if (isRateLimitError(initialResult.error)) {
-          const {
-            data: { user: retriedUser },
-            error: authError,
-          } = await retryWithBackoff(
-            async () => {
-              const result = await supabase.auth.getUser();
-              if (result.error && isRateLimitError(result.error)) {
-                throw result.error;
-              }
-              return result;
-            },
-            2,
-            2000,
-            true // 인증 요청 플래그
-          );
-
-          if (authError) {
-            // Rate limit 에러 처리
-            if (isRateLimitError(authError)) {
-              logActionWarn("auth.getCurrentUserRole", `Rate limit 도달, 잠시 후 재시도합니다 - status:${authError.status}, code:${authError.code}`);
-              return { userId: null, role: null, tenantId: null };
-            }
-
-            // 다른 에러 처리: 공통 에러 분석 유틸리티 사용
-            const errorInfo = analyzeAuthError(authError);
-            logAuthError("[auth] getUser", errorInfo);
-            return { userId: null, role: null, tenantId: null };
-          }
-
-          if (!retriedUser) {
-            return { userId: null, role: null, tenantId: null };
-          }
-
-          user = retriedUser;
+          logActionWarn("auth.getCurrentUserRole", `Rate limit 도달 - status:${(initialResult.error as SupabaseErrorLike).status}, code:${(initialResult.error as SupabaseErrorLike).code}`);
         } else {
-          // Rate limit이 아닌 다른 에러 처리: 공통 에러 분석 유틸리티 사용
-          const errorInfo = analyzeAuthError(initialResult.error);
           logAuthError("[auth] getUser", errorInfo);
-          return { userId: null, role: null, tenantId: null };
         }
+
+        return { userId: null, role: null, tenantId: null };
       } else {
-        // 정상적인 경우 계속 진행
         user = initialResult.data.user;
       }
     }

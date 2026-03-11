@@ -2,37 +2,39 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { env } from "@/lib/env";
-import {
-  isRateLimitError,
-  retryWithBackoff,
-} from "@/lib/auth/rateLimitHandler";
 
 type ReadonlyRequestCookies = Awaited<ReturnType<typeof cookies>>;
 
 /**
  * Rate limit을 고려한 fetch wrapper
+ *
+ * 이전 구현은 내부 5초 sleep + retryWithBackoff 이중 대기로
+ * 단일 429에 최대 21초 지연이 발생했음 (5+2+5+4+5).
+ * 개선: 1회 빠른 재시도 (500ms) 후 즉시 실패. 호출자가 재시도 결정.
  */
 async function rateLimitedFetch(
   ...args: Parameters<typeof fetch>
 ): Promise<Response> {
-  return retryWithBackoff(
-    async () => {
-      const response = await fetch(...args);
+  for (let attempt = 0; attempt <= 1; attempt++) {
+    const response = await fetch(...args);
 
-      // Rate limit 응답 처리
-      if (response.status === 429) {
-        const retryAfter = response.headers.get("retry-after");
-        const delay = retryAfter ? parseInt(retryAfter) * 1000 : 5000;
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        throw new Error("Rate limit reached");
+    if (response.status === 429) {
+      if (attempt < 1) {
+        // 1회만 짧게 재시도 (500ms + jitter)
+        await new Promise((r) => setTimeout(r, 500 + Math.random() * 200));
+        continue;
       }
+      // 재시도 소진 → 즉시 에러 throw (호출자가 처리)
+      const error = new Error("Rate limit reached");
+      (error as Error & { status?: number }).status = 429;
+      throw error;
+    }
 
-      return response;
-    },
-    2, // 최대 2번 재시도
-    2000, // 초기 2초 대기
-    false // 일반 fetch 요청
-  );
+    return response;
+  }
+
+  // unreachable
+  throw new Error("Rate limit reached");
 }
 
 /**
