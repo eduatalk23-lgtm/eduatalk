@@ -67,8 +67,9 @@ import {
   removeMessageFromCache,
   updateFirstPage,
   findMessageInCache,
+  decrementReadCountsForReceipt,
 } from "@/lib/domains/chat/cacheTypes";
-import { processMessagesWithGrouping } from "@/lib/domains/chat/messageGrouping";
+import { processMessagesWithGrouping, isSameMessageDay } from "@/lib/domains/chat/messageGrouping";
 import { useChatRealtime, useChatPresence } from "@/lib/realtime";
 import type { ChatMessagePayload } from "@/lib/realtime/useChatRealtime";
 import { showBrowserNotification } from "@/lib/domains/notification/browserNotification";
@@ -98,7 +99,6 @@ export interface UseChatRoomLogicReturn {
     messages: ChatMessageWithGrouping[];
     pinnedMessages: PinnedMessageWithContent[];
     announcement: AnnouncementInfo | null;
-    readCounts: Record<string, number>;
     onlineUsers: PresenceUser[];
     typingUsers: PresenceUser[];
     members: ChatRoomMemberWithUser[];
@@ -270,52 +270,79 @@ export function useChatRoomLogic({
   // Data Transformations
   // ============================================
 
-  // readCounts 캐시 (증분 업데이트 + refetch 감지용)
-  const pagesLengthRef = useRef(0);
-  const prevPagesRef = useRef<typeof messagesData | undefined>(undefined);
-  const cachedReadCountsRef = useRef<Record<string, number>>({});
-
   // READ_RECEIPT 실시간 갱신용
-  const [readCountVersion, setReadCountVersion] = useState(0);
   const readReceiptTrackRef = useRef(new Map<string, string>()); // readerId → lastReadAt
 
-  /** 낙관적 readCount 설정: 새 메시지의 안 읽은 인원수 즉시 반영 */
-  const setOptimisticReadCount = useCallback((messageId: string) => {
-    const activeOtherMembers = (roomData?.members ?? []).filter(
+  // roomData 로드 후: readCount가 없는 낙관적 메시지만 보정
+  // (roomData 미로딩 상태에서 전송한 메시지의 readCount가 누락되는 문제 수정)
+  // 주의: page.readCounts dict에 이미 값이 있는 서버 메시지는 건드리지 않음
+  useEffect(() => {
+    if (!roomData?.members || !userId) return;
+
+    const activeOtherMembers = roomData.members.filter(
       (m) => m.user_id !== userId && !m.left_at
     ).length;
-    if (activeOtherMembers > 0) {
-      cachedReadCountsRef.current = {
-        ...cachedReadCountsRef.current,
-        [messageId]: activeOtherMembers,
-      };
-      setReadCountVersion((v) => v + 1);
-    }
-  }, [roomData?.members, userId]);
+    if (activeOtherMembers <= 0) return;
 
-  /** readCount 이관: tempId → realId (메시지 확정 시) */
-  const transferReadCount = useCallback((tempId: string, realId: string) => {
-    const tempReadCount = cachedReadCountsRef.current[tempId];
-    if (tempReadCount !== undefined) {
-      const { [tempId]: _, ...rest } = cachedReadCountsRef.current;
-      cachedReadCountsRef.current = { ...rest, [realId]: tempReadCount };
-      setReadCountVersion((v) => v + 1);
-    }
-  }, []);
+    queryClient.setQueryData<InfiniteMessagesCache>(
+      chatKeys.messages(roomId),
+      (old) => {
+        if (!old?.pages?.length) return old;
 
-  // 모든 페이지의 메시지를 시간순 정렬로 병합
+        let changed = false;
+        const pages = old.pages.map((page) => {
+          let pageChanged = false;
+          const messages = page.messages.map((m) => {
+            if (
+              m.sender_id === userId &&
+              m.readCount === undefined &&
+              !(m.id in page.readCounts) && // 서버에서 가져온 메시지는 dict에 값 있음 → 건너뜀
+              !m.is_deleted
+            ) {
+              pageChanged = true;
+              return { ...m, readCount: activeOtherMembers };
+            }
+            return m;
+          });
+          if (!pageChanged) return page;
+          changed = true;
+          const readCounts = { ...page.readCounts };
+          for (const msg of messages) {
+            if (msg.sender_id === userId && msg.readCount !== undefined && !(msg.id in readCounts)) {
+              readCounts[msg.id] = msg.readCount;
+            }
+          }
+          return { ...page, messages, readCounts };
+        });
+        return changed ? { ...old, pages } : old;
+      }
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomData?.members]);
+
+  // 모든 페이지의 메시지를 시간순 정렬로 병합 + readCount 내장
   // pages는 [newest, ..., oldest] 순서 → 역순 순회로 [oldest, ..., newest]
-  // 단일 패스 역순 순회로 중간 배열 복사(slice+reverse+flatMap) 제거
+  // readCount는 page.readCounts에서 각 메시지에 직접 embed
   const allMessages = useMemo(() => {
     if (!messagesData?.pages) return [];
 
     const pages = messagesData.pages;
     const result: CacheMessage[] = [];
     for (let i = pages.length - 1; i >= 0; i--) {
-      const messages = pages[i]?.messages;
+      const page = pages[i];
+      const messages = page?.messages;
+      const readCounts = page?.readCounts;
       if (messages) {
         for (let j = 0; j < messages.length; j++) {
-          result.push(messages[j]);
+          // CacheMessage로 캐스트: setQueryData<InfiniteMessagesCache>로 readCount가 추가됨
+          const msg = messages[j] as CacheMessage;
+          // readCount: 메시지에 이미 내장된 값 우선, 없으면 page.readCounts에서 조회
+          const rc = msg.readCount ?? readCounts?.[msg.id];
+          if (rc !== undefined && rc !== msg.readCount) {
+            result.push({ ...msg, readCount: rc });
+          } else {
+            result.push(msg);
+          }
         }
       }
     }
@@ -326,6 +353,23 @@ export function useChatRoomLogic({
   // 증분 최적화: 끝에 메시지가 추가된 경우 마지막 2개만 재계산
   const prevAllMessagesRef = useRef<typeof allMessages>([]);
   const prevGroupedRef = useRef<ChatMessageWithGrouping[]>([]);
+
+  // 자정 경과 시 날짜 구분선 재계산을 위한 날짜 키
+  const [dateKey, setDateKey] = useState(() => new Date().toDateString());
+  useEffect(() => {
+    const checkMidnight = () => {
+      const today = new Date().toDateString();
+      if (today !== dateKey) {
+        setDateKey(today);
+        // 날짜 변경 → fast-path 바이패스를 위해 이전 참조 초기화
+        prevAllMessagesRef.current = [];
+        prevGroupedRef.current = [];
+      }
+    };
+    // 1분마다 자정 경과 확인
+    const timer = setInterval(checkMidnight, 60_000);
+    return () => clearInterval(timer);
+  }, [dateKey]);
 
   // 그룹핑 옵션 (구분선용 — ref이므로 deps에 포함 불필요)
   const groupingOptions = {
@@ -343,6 +387,51 @@ export function useChatRoomLogic({
     const prev = prevAllMessagesRef.current;
     const prevGrouped = prevGroupedRef.current;
 
+    // Fast path: 같은 메시지 세트에서 속성만 변경된 경우
+    // (readCount, status, reactions, edit 등 — 그룹핑에 영향 없는 필드)
+    // 그룹핑 재계산 생략, 변경된 필드만 패치
+    if (
+      allMessages.length === prev.length &&
+      prev.length > 0 &&
+      prev[prev.length - 1]?.id === allMessages[allMessages.length - 1]?.id &&
+      prev[0]?.id === allMessages[0]?.id
+    ) {
+      let onlyNonGroupingFieldsChanged = true;
+      let hasDiff = false;
+      for (let i = 0; i < allMessages.length; i++) {
+        if (allMessages[i] !== prev[i]) {
+          // 같은 ID이지만 다른 참조 → 비그룹핑 필드(readCount, status 등) 변경
+          if (allMessages[i].id === prev[i].id) {
+            hasDiff = true;
+          } else {
+            onlyNonGroupingFieldsChanged = false;
+            break;
+          }
+        }
+      }
+
+      if (onlyNonGroupingFieldsChanged && hasDiff) {
+        // readCount, status 등 비그룹핑 필드만 패치, 기존 grouping 구조 재사용
+        const result = prevGrouped.map((grouped, idx) => {
+          const newMsg = allMessages[idx];
+          if (!newMsg) return grouped;
+          const rcChanged = newMsg.readCount !== grouped.readCount;
+          const statusChanged = newMsg.status !== grouped.status;
+          if (rcChanged || statusChanged) {
+            return {
+              ...grouped,
+              ...(rcChanged && { readCount: newMsg.readCount }),
+              ...(statusChanged && { status: newMsg.status }),
+            };
+          }
+          return grouped;
+        });
+        prevAllMessagesRef.current = allMessages;
+        prevGroupedRef.current = result;
+        return result;
+      }
+    }
+
     // Fast path: 끝에 메시지 1~3개 추가 (가장 흔한 realtime 케이스)
     // 새 메시지에는 구분선 추가 안 함 (이미 읽고 있는 상태이므로)
     const appendCount = allMessages.length - prev.length;
@@ -356,6 +445,24 @@ export function useChatRoomLogic({
       const regroupStart = Math.max(0, prev.length - 1);
       const tailMessages = allMessages.slice(regroupStart);
       const tailGrouped = processMessagesWithGrouping(tailMessages);
+
+      // 날짜 중복 표시 버그 수정: processMessagesWithGrouping은 tailMessages[0]을
+      // 첫 메시지로 취급하여 항상 showDateDivider=true로 설정함.
+      // regroupStart 이전 메시지와 같은 날짜면 날짜 구분선을 제거해야 함.
+      if (regroupStart > 0 && tailGrouped.length > 0) {
+        const prevMsg = allMessages[regroupStart - 1];
+        const firstTail = tailGrouped[0];
+        if (prevMsg && firstTail && isSameMessageDay(prevMsg.created_at, firstTail.created_at)) {
+          tailGrouped[0] = {
+            ...firstTail,
+            grouping: {
+              ...firstTail.grouping,
+              showDateDivider: false,
+              dateDividerText: undefined,
+            },
+          };
+        }
+      }
 
       const result = [
         ...prevGrouped.slice(0, regroupStart),
@@ -371,67 +478,7 @@ export function useChatRoomLogic({
     prevAllMessagesRef.current = allMessages;
     prevGroupedRef.current = result;
     return result;
-  }, [allMessages]); // eslint-disable-line react-hooks/exhaustive-deps -- groupingOptions uses refs
-
-  // readCounts 병합 (refetch 감지 + 증분 최적화 + READ_RECEIPT 실시간 갱신)
-  //
-  // 이전 버그: 페이지 수가 같으면 무조건 캐시 반환 → background refetch 시 서버의
-  // 최신 readCounts가 무시됨 (뒤로가기 후 재진입 시 읽음 숫자 누락)
-  //
-  // 수정: pages 참조(identity) 변경 감지로 refetch와 READ_RECEIPT 업데이트를 구분
-  const allReadCounts = useMemo(() => {
-    if (!messagesData?.pages) {
-      cachedReadCountsRef.current = {};
-      pagesLengthRef.current = 0;
-      prevPagesRef.current = undefined;
-      return {};
-    }
-
-    const pages = messagesData.pages;
-    const currentLength = pages.length;
-    const prevLength = pagesLengthRef.current;
-    const pagesIdentityChanged = messagesData !== prevPagesRef.current;
-    prevPagesRef.current = messagesData;
-
-    // readCountVersion만 변경 (READ_RECEIPT, 낙관적 업데이트) → 캐시 반환
-    if (!pagesIdentityChanged) {
-      return cachedReadCountsRef.current;
-    }
-
-    // pages가 변경된 경우: 서버 데이터 기반으로 재구성
-    const serverReadCounts = pages.reduce(
-      (acc, page) => ({
-        ...acc,
-        ...(page?.readCounts ?? {}),
-      }),
-      {} as Record<string, number>
-    );
-
-    if (prevLength === 0) {
-      // 첫 로드: 서버 데이터만 사용
-      readReceiptTrackRef.current.clear();
-      cachedReadCountsRef.current = serverReadCounts;
-    } else if (currentLength > prevLength) {
-      // 새 페이지 추가 (pagination): 기존 캐시 + 새 페이지 readCounts
-      cachedReadCountsRef.current = { ...cachedReadCountsRef.current, ...serverReadCounts };
-    } else {
-      // refetch (같은 페이지 수 또는 줄어듦): 서버 데이터로 갱신 + 낙관적 값 보존
-      const localOptimistic: Record<string, number> = {};
-      for (const [key, value] of Object.entries(cachedReadCountsRef.current)) {
-        // 아직 서버에 반영 안 된 낙관적 메시지(temp-*)의 readCount 보존
-        if (key.startsWith("temp-") && !(key in serverReadCounts)) {
-          localOptimistic[key] = value;
-        }
-      }
-      cachedReadCountsRef.current = { ...serverReadCounts, ...localOptimistic };
-    }
-
-    pagesLengthRef.current = currentLength;
-    return cachedReadCountsRef.current;
-    // readCountVersion: READ_RECEIPT 수신 시 cachedReadCountsRef가 직접 업데이트되고,
-    // readCountVersion 변경으로 useMemo 재실행 → cachedReadCountsRef.current 반환
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messagesData, readCountVersion]);
+  }, [allMessages, dateKey]); // eslint-disable-line react-hooks/exhaustive-deps -- groupingOptions uses refs, dateKey forces regroup at midnight
 
   // ============================================
   // Mutations
@@ -490,6 +537,11 @@ export function useChatRoomLogic({
       const senderProfileUrl = currentMember?.user?.profileImageUrl ?? null;
       const senderType = currentMember?.user?.type ?? ("student" as const);
 
+      // 낙관적 readCount: 활성 상대방 수
+      const activeOtherMembers = (roomData?.members ?? []).filter(
+        (m) => m.user_id !== userId && !m.left_at
+      ).length;
+
       const optimisticMessage: CacheMessage = {
         id: tempId,
         content,
@@ -506,6 +558,7 @@ export function useChatRoomLogic({
         sender: { name: senderName, type: senderType, id: userId },
         reactions: [],
         status: "sending" as const,
+        readCount: activeOtherMembers > 0 ? activeOtherMembers : undefined,
         // 비정규화 필드 (낙관적 업데이트용)
         sender_name: senderName,
         sender_profile_url: senderProfileUrl,
@@ -516,8 +569,6 @@ export function useChatRoomLogic({
         chatKeys.messages(roomId),
         (old) => addMessageToFirstPage(old, optimisticMessage)
       );
-
-      setOptimisticReadCount(tempId);
 
       // Broadcast-first: DB INSERT 전에 수신자에게 즉시 전송 (~6ms)
       // try-catch로 감싸서 채널 에러 시에도 context(tempId)가 반환되도록 보장
@@ -563,7 +614,7 @@ export function useChatRoomLogic({
         // Operation Tracker에 전송 완료 등록 (tempId → realId 매핑)
         operationTracker.completeSend(tempId, data.id);
 
-        transferReadCount(tempId, data.id);
+        // readCount 이관은 replaceMessageInFirstPage가 자동 처리
 
         const updated = queryClient.setQueryData<InfiniteMessagesCache>(
           chatKeys.messages(roomId),
@@ -910,12 +961,12 @@ export function useChatRoomLogic({
   });
 
   // broadcastReadReceipt ref (useChatRealtime보다 먼저 정의되는 markAsReadMutation에서 안전하게 참조)
-  const broadcastReadReceiptRef = useRef<() => void>(() => {});
+  const broadcastReadReceiptRef = useRef<(readAt?: string) => void>(() => {});
 
   // 읽음 처리
   const markAsReadMutation = useMutation({
     mutationFn: async () => {
-      await markAsReadAction(roomId);
+      return await markAsReadAction(roomId);
     },
     onMutate: async () => {
       // 1. 진행 중인 refetch 취소 (낙관적 업데이트 덮어쓰기 방지)
@@ -942,26 +993,29 @@ export function useChatRoomLogic({
         queryClient.setQueryData(chatKeys.rooms(), context.previousRooms);
       }
     },
-    onSuccess: () => {
-      // 5-a. 상대방에게 읽음 확인 broadcast (상대 화면의 읽지않은 수 실시간 갱신)
-      broadcastReadReceiptRef.current();
+    onSuccess: (result) => {
+      // 5-a. 상대방에게 읽음 확인 broadcast (서버 시각 사용 — 클라이언트 시계 차이 방지)
+      broadcastReadReceiptRef.current(result?.data?.readAt);
     },
-    onSettled: () => {
-      // 5-b. 성공/실패 무관하게 서버 데이터로 최종 동기화
-      queryClient.invalidateQueries({ queryKey: chatKeys.rooms() });
-    },
+    // onSettled 제거: onMutate에서 낙관적 업데이트(unreadCount=0) + onError에서 롤백하므로
+    // invalidateQueries(rooms)가 불필요. 연쇄 refetch 방지 (markAsRead → rooms refetch → 리렌더 → 재호출 루프)
   });
 
   // 읽음 처리 Throttle (3초) - 서버 부하 방지
   // leading: true - 첫 호출 즉시 실행
-  // trailing: true - 마지막 호출도 실행 (최신 상태 반영)
+  // trailing: false - 연속 호출 시 leading만 실행 (trailing은 마운트 시 불필요한 추가 POST 유발)
+  // 새 메시지 수신(onNewMessage)이나 탭 복귀(visibility) 시 leading으로 즉시 반영됨
   const throttledMarkAsRead = useThrottledCallback(
     () => {
       markAsReadMutation.mutate();
     },
     3000, // 3초마다 최대 1회
-    { leading: true, trailing: true }
+    { leading: true, trailing: false }
   );
+
+  // throttledMarkAsRead를 ref로 유지 (onNewMessage useCallback 의존성 제거)
+  const throttledMarkAsReadRef = useRef(throttledMarkAsRead);
+  throttledMarkAsReadRef.current = throttledMarkAsRead;
 
   // ============================================
   // Realtime
@@ -982,35 +1036,21 @@ export function useChatRoomLogic({
     userId,
     senderCache,
     onReadReceipt: useCallback((readerId: string, readAt: string) => {
+      // roomData 미로드 상태에서는 prevReadAt을 알 수 없으므로 스킵
+      // (서버 refetch가 정확한 readCounts를 제공함)
+      const prevReadAt = readReceiptTrackRef.current.get(readerId);
+      if (!prevReadAt) return;
+
       // 중복 처리 방지: 같은 reader의 이전 readAt보다 새로운 경우만 처리
-      const prevReadAt = readReceiptTrackRef.current.get(readerId) ?? "1970-01-01T00:00:00Z";
       if (readAt <= prevReadAt) return;
       readReceiptTrackRef.current.set(readerId, readAt);
 
-      // 본인 메시지 중 새로 읽힌 메시지의 readCount를 감소
-      const updated = { ...cachedReadCountsRef.current };
-      const messages = prevAllMessagesRef.current;
-      let hasChanges = false;
-
-      for (const msg of messages) {
-        if (
-          msg.sender_id === userId &&
-          msg.created_at <= readAt &&
-          msg.created_at > prevReadAt
-        ) {
-          const current = updated[msg.id] ?? 0;
-          if (current > 0) {
-            updated[msg.id] = Math.max(0, current - 1);
-            hasChanges = true;
-          }
-        }
-      }
-
-      if (hasChanges) {
-        cachedReadCountsRef.current = updated;
-        setReadCountVersion((v) => v + 1);
-      }
-    }, [userId]),
+      // 본인 메시지 중 새로 읽힌 메시지의 readCount를 감소 (캐시 직접 업데이트)
+      queryClient.setQueryData<InfiniteMessagesCache>(
+        chatKeys.messages(roomId),
+        (old) => decrementReadCountsForReceipt(old, userId, readAt, prevReadAt)
+      );
+    }, [userId, queryClient, roomId]),
     onNewMessage: useCallback((message: ChatMessagePayload) => {
       // 스크롤이 맨 아래에 있으면 자동 스크롤 (ref 사용으로 항상 최신 값)
       if (isAtBottomRef.current) {
@@ -1019,7 +1059,7 @@ export function useChatRoomLogic({
       // 읽음 처리 (읽음확인 설정이 꺼져있으면 스킵)
       const prefs = chatPrefsRef.current;
       if (prefs?.chat_read_receipt_enabled !== false) {
-        throttledMarkAsRead();
+        throttledMarkAsReadRef.current();
       }
 
       // 타인 메시지 수신 시 소리/진동 피드백
@@ -1046,7 +1086,7 @@ export function useChatRoomLogic({
           tag: `chat-${roomId}`,
         });
       }
-    }, [onNewMessageArrived, throttledMarkAsRead, userId, roomId]),
+    }, [onNewMessageArrived, userId, roomId]),
   });
 
   // broadcastReadReceipt ref 동기화 (markAsReadMutation.onSuccess에서 안전하게 참조)
@@ -1065,13 +1105,59 @@ export function useChatRoomLogic({
   });
 
   // 입장 시 읽음 처리 + READ_RECEIPT 추적 리셋
+  // (선언 순서 중요: 이 effect가 먼저 실행된 후 members effect가 실제 값으로 채움)
+  // throttledMarkAsRead 경유: 직접 mutate() 호출 시 isAtBottom effect와 중복 실행됨
   useEffect(() => {
     readReceiptTrackRef.current.clear();
     if (chatPrefsRef.current?.chat_read_receipt_enabled !== false) {
-      markAsReadMutation.mutate();
+      throttledMarkAsRead();
     }
+    return () => {
+      readReceiptTrackRef.current.clear();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
+
+  // roomData 로드/변경 시: readReceiptTrackRef를 멤버의 실제 last_read_at으로 초기화
+  // 기본값 "1970-01-01" 대신 실제 값을 사용하여 이미 읽은 메시지의 이중 감소 방지
+  // (선언 순서: roomId effect(clear) → 이 effect(populate) 순서로 실행됨)
+  useEffect(() => {
+    if (!roomData?.members || !userId) return;
+    for (const member of roomData.members) {
+      if (member.user_id === userId || member.left_at) continue;
+      const current = readReceiptTrackRef.current.get(member.user_id);
+      // 이미 더 최신 값이 있으면 유지 (실시간 READ_RECEIPT가 먼저 도착한 경우)
+      if (!current || member.last_read_at > current) {
+        readReceiptTrackRef.current.set(member.user_id, member.last_read_at);
+      }
+    }
+  }, [roomData?.members, userId]);
+
+  // 탭 포커스 복귀 시 읽음 처리 (백그라운드에서 수신된 메시지 읽음 반영)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        if (chatPrefsRef.current?.chat_read_receipt_enabled !== false) {
+          throttledMarkAsRead();
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [throttledMarkAsRead]);
+
+  // 스크롤이 맨 아래에 도달하면 읽음 처리 (위로 스크롤했다가 다시 내린 경우)
+  // 마운트 시에는 roomId effect에서 이미 처리하므로 스킵
+  const isAtBottomMountedRef = useRef(false);
+  useEffect(() => {
+    if (!isAtBottomMountedRef.current) {
+      isAtBottomMountedRef.current = true;
+      return;
+    }
+    if (isAtBottom && chatPrefsRef.current?.chat_read_receipt_enabled !== false) {
+      throttledMarkAsRead();
+    }
+  }, [isAtBottom, throttledMarkAsRead]);
 
   // "sending" 상태 메시지 자동 복구 (30초 이상 stuck 감지)
   useEffect(() => {
@@ -1482,6 +1568,11 @@ export function useChatRoomLogic({
 
         operationTracker.startSend(clientMessageId, messageContent, roomId);
 
+        // 낙관적 readCount: 활성 상대방 수
+        const activeOtherMembers = (roomData?.members ?? []).filter(
+          (m) => m.user_id !== userId && !m.left_at
+        ).length;
+
         const optimisticMessage: CacheMessage = {
           id: clientMessageId,
           content: messageContent,
@@ -1498,6 +1589,7 @@ export function useChatRoomLogic({
           sender: { name: senderName, type: senderType, id: userId },
           reactions: [],
           status: "sending" as const,
+          readCount: activeOtherMembers > 0 ? activeOtherMembers : undefined,
           sender_name: senderName,
           sender_profile_url: senderProfileUrl,
           attachments: attachmentResults,
@@ -1508,8 +1600,6 @@ export function useChatRoomLogic({
           chatKeys.messages(roomId),
           (old) => addMessageToFirstPage(old, optimisticMessage)
         );
-
-        setOptimisticReadCount(clientMessageId);
 
         // Broadcast-first: 수신자에게 즉시 전송
         try {
@@ -1552,7 +1642,7 @@ export function useChatRoomLogic({
           if (result.success && result.data) {
             operationTracker.completeSend(clientMessageId, result.data.id);
 
-            transferReadCount(clientMessageId, result.data.id);
+            // readCount 이관은 replaceMessageInFirstPage가 자동 처리
 
             queryClient.setQueryData<InfiniteMessagesCache>(
               chatKeys.messages(roomId),
@@ -1705,7 +1795,6 @@ export function useChatRoomLogic({
       messages: messagesWithGrouping,
       pinnedMessages,
       announcement: announcementData ?? null,
-      readCounts: allReadCounts,
       onlineUsers,
       typingUsers,
       members: roomData?.members ?? [],

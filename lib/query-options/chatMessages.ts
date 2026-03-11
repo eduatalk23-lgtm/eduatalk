@@ -35,8 +35,9 @@ export function chatMessagesQueryOptions(roomId: string) {
       return lastPage.messages[0].created_at; // 가장 오래된 메시지의 타임스탬프 (repository가 created_at으로 필터링)
     },
     maxPages: 5, // 메모리 최적화: 최대 5페이지(250 메시지)만 캐시에 유지
-    staleTime: 60 * 1000, // 1분 (Realtime이 업데이트 담당, 재방문 시 불필요한 refetch 방지)
+    staleTime: 60 * 1000, // 1분 (Realtime이 업데이트 담당)
     gcTime: 5 * 60 * 1000, // 채팅방 이탈 후 5분 뒤 캐시 GC
+    refetchOnMount: true, // stale일 때만 refetch (SSR prefetch 활용, Realtime이 freshness 관리)
     refetchOnWindowFocus: false, // Realtime이 freshness 관리
   });
 }
