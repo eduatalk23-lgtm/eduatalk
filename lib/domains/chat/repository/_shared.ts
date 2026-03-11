@@ -76,7 +76,12 @@ export const CHAT_ROOM_COLUMNS = `
   archived_at,
   history_visible,
   created_at,
-  updated_at
+  updated_at,
+  last_message_content,
+  last_message_type,
+  last_message_sender_name,
+  last_message_sender_id,
+  last_message_at
 ` as const;
 
 export const CHAT_MEMBER_COLUMNS = `

@@ -42,43 +42,60 @@ export async function sendMessage(
       return { success: false, error: "메시지 내용을 입력해주세요" };
     }
 
-    // 방 정보 조회 (Auto-rejoin 로직을 위해)
-    const room = await repository.findRoomById(roomId);
+    // Step 1: 방 정보 + 발신자 정보를 병렬 조회 (독립적 쿼리 → 1 라운드트립으로 절감)
+    const [room, senderInfo] = await Promise.all([
+      repository.findRoomById(roomId),
+      repository.getSenderInfoForInsert(senderId, senderType),
+    ]);
+
     if (!room) {
       return { success: false, error: "채팅방을 찾을 수 없습니다" };
     }
 
-    // 1:1 채팅방인 경우 상대방 자동 재참여 처리
+    // Step 2: 조건부 검증을 병렬 실행 (rejoin 체크 + 답장 대상 검증)
+    const conditionalTasks: Promise<unknown>[] = [];
+    let rejoinTaskIndex = -1;
+    let replyTaskIndex = -1;
+
     if (room.type === "direct") {
-      const otherMember = await repository.findOtherMemberInDirectRoom(
-        roomId,
-        senderId,
-        senderType
+      rejoinTaskIndex = conditionalTasks.length;
+      conditionalTasks.push(
+        repository.findOtherMemberInDirectRoom(roomId, senderId, senderType)
       );
-
-      if (otherMember && otherMember.left_at !== null) {
-        await rejoinMember(roomId, otherMember.user_id, otherMember.user_type);
-      }
     }
 
-    // 답장 대상 메시지 검증 (있는 경우)
     if (replyToId) {
-      const targetMessage = await repository.findMessageById(replyToId);
-      if (!targetMessage) {
-        return { success: false, error: "답장 대상 메시지를 찾을 수 없습니다" };
-      }
-      if (targetMessage.room_id !== roomId) {
-        return { success: false, error: "같은 채팅방의 메시지에만 답장할 수 있습니다" };
-      }
+      replyTaskIndex = conditionalTasks.length;
+      conditionalTasks.push(repository.findMessageById(replyToId));
     }
 
-    // 발신자 정보 조회 (비정규화 스냅샷용)
-    const senderInfo = await repository.getSenderInfoForInsert(senderId, senderType);
+    if (conditionalTasks.length > 0) {
+      const results = await Promise.all(conditionalTasks);
+
+      // 1:1 채팅방 상대방 자동 재참여 처리
+      if (rejoinTaskIndex >= 0) {
+        const otherMember = results[rejoinTaskIndex] as Awaited<ReturnType<typeof repository.findOtherMemberInDirectRoom>>;
+        if (otherMember && otherMember.left_at !== null) {
+          await rejoinMember(roomId, otherMember.user_id, otherMember.user_type);
+        }
+      }
+
+      // 답장 대상 메시지 검증
+      if (replyTaskIndex >= 0) {
+        const targetMessage = results[replyTaskIndex] as Awaited<ReturnType<typeof repository.findMessageById>>;
+        if (!targetMessage) {
+          return { success: false, error: "답장 대상 메시지를 찾을 수 없습니다" };
+        }
+        if (targetMessage.room_id !== roomId) {
+          return { success: false, error: "같은 채팅방의 메시지에만 답장할 수 있습니다" };
+        }
+      }
+    }
 
     // 메타데이터 구성 (멘션 등)
     const metadata = mentions && mentions.length > 0 ? { mentions } : null;
 
-    // 메시지 생성 (발신자 스냅샷 포함)
+    // Step 3: 메시지 INSERT (발신자 스냅샷 포함)
     const message = await repository.insertMessage({
       ...(clientMessageId && { id: clientMessageId }),
       room_id: roomId,
@@ -221,10 +238,10 @@ export async function markRoomAsRead(
   roomId: string,
   userId: string,
   userType: ChatUserType
-): Promise<ChatActionResult<void>> {
+): Promise<ChatActionResult<{ readAt: string }>> {
   try {
-    await repository.markAsRead(roomId, userId, userType);
-    return { success: true };
+    const readAt = await repository.markAsRead(roomId, userId, userType);
+    return { success: true, data: { readAt } };
   } catch (error) {
     console.error("[ChatService] markRoomAsRead error:", error);
     return {

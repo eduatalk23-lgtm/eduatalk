@@ -19,6 +19,8 @@ import type {
  */
 export type CacheMessage = ChatMessageWithSender & {
   status?: "sending" | "sent" | "error" | "queued";
+  /** 본인 메시지의 읽지 않은 수 (KakaoTalk-style) */
+  readCount?: number;
 };
 
 /**
@@ -108,17 +110,30 @@ export function addMessageToFirstPage(
 ): InfiniteMessagesCache | undefined {
   // 캐시가 아직 hydration되지 않은 경우 (로딩 중 전송) 초기 페이지 구조 생성
   if (!cache?.pages?.length) {
+    const readCounts: Record<string, number> = {};
+    if (message.readCount !== undefined) {
+      readCounts[message.id] = message.readCount;
+    }
     return {
-      pages: [{ messages: [message], readCounts: {}, hasMore: false }],
+      pages: [{ messages: [message], readCounts, hasMore: false }],
       pageParams: [undefined],
     };
   }
 
   const firstPage = cache.pages[0];
+  const updatedReadCounts =
+    message.readCount !== undefined
+      ? { ...firstPage.readCounts, [message.id]: message.readCount }
+      : firstPage.readCounts;
+
   return {
     ...cache,
     pages: [
-      { ...firstPage, messages: [...firstPage.messages, message] },
+      {
+        ...firstPage,
+        messages: [...firstPage.messages, message],
+        readCounts: updatedReadCounts,
+      },
       ...cache.pages.slice(1),
     ],
   };
@@ -146,18 +161,33 @@ export function replaceMessageInFirstPage(
 
   const updatedMessages = [...firstPage.messages];
   const existingMessage = updatedMessages[existingIndex];
+  // readCount 이관: 기존 낙관적 메시지의 readCount 보존
+  // (서버 응답 realMessage에는 readCount 미포함 → 낙관적 값 우선)
+  const preservedReadCount = existingMessage.readCount;
   updatedMessages[existingIndex] = {
     ...existingMessage,
     ...realMessage,
     status: "sent" as const,
+    readCount: preservedReadCount,
     // sender 정보는 낙관적 업데이트에서 이미 설정됨
     sender: existingMessage.sender,
     replyTarget: existingMessage.replyTarget,
   };
 
+  // readCounts 딕셔너리에서도 tempId → realId 이관
+  const updatedReadCounts = { ...firstPage.readCounts };
+  if (tempId in updatedReadCounts) {
+    const realId = realMessage.id ?? updatedMessages[existingIndex].id;
+    updatedReadCounts[realId] = updatedReadCounts[tempId];
+    delete updatedReadCounts[tempId];
+  }
+
   return {
     ...cache,
-    pages: [{ ...firstPage, messages: updatedMessages }, ...cache.pages.slice(1)],
+    pages: [
+      { ...firstPage, messages: updatedMessages, readCounts: updatedReadCounts },
+      ...cache.pages.slice(1),
+    ],
   };
 }
 
@@ -220,6 +250,69 @@ export function updateFirstPage(
     ...cache,
     pages: [updater(firstPage), ...cache.pages.slice(1)],
   };
+}
+
+// ============================================
+// 읽음 카운트 헬퍼
+// ============================================
+
+/**
+ * READ_RECEIPT 수신 시 해당 reader가 읽은 메시지들의 readCount를 감소
+ *
+ * @param cache - InfiniteQuery 캐시
+ * @param senderId - 현재 사용자 ID (본인 메시지만 대상)
+ * @param readAt - reader가 읽은 시각
+ * @param prevReadAt - 해당 reader의 이전 읽음 시각
+ * @returns 업데이트된 캐시 (또는 undefined, 변경 없으면 원본 반환)
+ */
+export function decrementReadCountsForReceipt(
+  cache: InfiniteMessagesCache | undefined,
+  senderId: string,
+  readAt: string,
+  prevReadAt: string
+): InfiniteMessagesCache | undefined {
+  if (!cache?.pages?.length) return cache;
+
+  let hasChanges = false;
+
+  const updatedPages = cache.pages.map((page) => {
+    // 빠른 스킵: 본인 메시지가 없는 페이지 건너뛰기
+    const hasOwnMessages = page.messages.some((m) => m.sender_id === senderId);
+    if (!hasOwnMessages) return page;
+
+    let pageChanged = false;
+    const updatedMessages = page.messages.map((m) => {
+      // 빈도순 필터: sender → readCount 존재 → 시간 범위 (가장 비싼 비교 마지막)
+      if (
+        m.sender_id !== senderId ||
+        m.readCount === undefined ||
+        m.readCount <= 0
+      ) return m;
+
+      if (m.created_at > prevReadAt && m.created_at <= readAt) {
+        pageChanged = true;
+        return { ...m, readCount: m.readCount - 1 };
+      }
+      return m;
+    });
+
+    if (pageChanged) {
+      hasChanges = true;
+      const updatedReadCounts = { ...page.readCounts };
+      for (let i = 0; i < updatedMessages.length; i++) {
+        const msg = updatedMessages[i];
+        if (msg !== page.messages[i] && msg.readCount !== undefined) {
+          updatedReadCounts[msg.id] = msg.readCount;
+        }
+      }
+      return { ...page, messages: updatedMessages, readCounts: updatedReadCounts };
+    }
+    return page;
+  });
+
+  if (!hasChanges) return cache;
+
+  return { ...cache, pages: updatedPages };
 }
 
 // ============================================

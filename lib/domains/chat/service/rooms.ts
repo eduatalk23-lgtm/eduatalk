@@ -13,6 +13,7 @@ import type {
   ChatUser,
   ChatUserType,
   ChatRoomType,
+  ChatMessageType,
   CreateChatRoomRequest,
   GetRoomsOptions,
   ChatActionResult,
@@ -115,11 +116,8 @@ export async function getRoomList(
 
   const roomIds = rooms.map((r) => r.id);
 
-  // 배치 쿼리로 모든 데이터 한 번에 조회
-  const [membersMap, lastMessagesMap] = await Promise.all([
-    repository.findMembersByRoomIds(roomIds),
-    repository.findLastMessagesByRoomIds(roomIds),
-  ]);
+  // 멤버 정보 조회 (last_message는 chat_rooms에 역정규화됨 → RPC 불필요)
+  const membersMap = await repository.findMembersByRoomIds(roomIds);
 
   // 내 멤버십 정보로 last_read_at 맵 생성
   const membershipMap = new Map<string, { last_read_at: string; is_muted: boolean }>();
@@ -136,13 +134,11 @@ export async function getRoomList(
   // 안 읽은 메시지 수 배치 조회
   const unreadMap = await repository.countUnreadByRoomIds(roomIds, userId, membershipMap);
 
-  // 발신자 정보 배치 조회를 위한 키 수집
+  // 발신자 정보 배치 조회: 1:1 채팅 상대방만 (last_message 발신자는 역정규화됨)
   const senderKeys: Array<{ id: string; type: ChatUserType }> = [];
-
-  // 1:1 채팅 상대방 + 마지막 메시지 발신자
   for (const room of rooms) {
-    const members = membersMap.get(room.id) ?? [];
     if (room.type === "direct") {
+      const members = membersMap.get(room.id) ?? [];
       const otherMember = members.find(
         (m) => !(m.user_id === userId && m.user_type === userType)
       );
@@ -150,20 +146,17 @@ export async function getRoomList(
         senderKeys.push({ id: otherMember.user_id, type: otherMember.user_type });
       }
     }
-    const lastMsg = lastMessagesMap.get(room.id);
-    if (lastMsg) {
-      senderKeys.push({ id: lastMsg.sender_id, type: lastMsg.sender_type });
-    }
   }
 
-  const senderMap = await repository.findSendersByIds(senderKeys);
+  const senderMap = senderKeys.length > 0
+    ? await repository.findSendersByIds(senderKeys)
+    : new Map<string, { id: string; name: string; profileImageUrl?: string; schoolName?: string; gradeDisplay?: string }>();
 
   // 결과 조합
   const result: ChatRoomListItem[] = [];
 
   for (const room of rooms) {
     const members = membersMap.get(room.id) ?? [];
-    const lastMessage = lastMessagesMap.get(room.id) ?? null;
     const unreadCount = unreadMap.get(room.id) ?? 0;
 
     // 1:1인 경우 상대방 정보
@@ -188,17 +181,14 @@ export async function getRoomList(
       }
     }
 
-    // 마지막 메시지 정보
+    // 마지막 메시지 정보 (역정규화된 컬럼에서 직접 조회)
     let lastMessageInfo = null;
-    if (lastMessage) {
-      const key = `${lastMessage.sender_id}_${lastMessage.sender_type}`;
-      const senderInfo = senderMap.get(key);
-
-      // 메시지 타입별 미리보기 텍스트 생성
+    if (room.last_message_at && room.last_message_content !== null) {
+      const msgType = room.last_message_type ?? "text";
       let previewContent: string;
-      switch (lastMessage.message_type) {
+      switch (msgType) {
         case "system":
-          previewContent = lastMessage.content;
+          previewContent = room.last_message_content;
           break;
         case "image":
           previewContent = "사진";
@@ -207,25 +197,24 @@ export async function getRoomList(
           previewContent = "파일";
           break;
         case "mixed":
-          // 텍스트+첨부 혼합: 텍스트가 있으면 표시, 없으면 대체 텍스트
-          previewContent = lastMessage.content
-            ? lastMessage.content.length > 50
-              ? lastMessage.content.slice(0, 50) + "..."
-              : lastMessage.content
+          previewContent = room.last_message_content
+            ? room.last_message_content.length > 50
+              ? room.last_message_content.slice(0, 50) + "..."
+              : room.last_message_content
             : "파일";
           break;
-        default: // "text"
-          previewContent = lastMessage.content.length > 50
-            ? lastMessage.content.slice(0, 50) + "..."
-            : lastMessage.content;
+        default:
+          previewContent = room.last_message_content.length > 50
+            ? room.last_message_content.slice(0, 50) + "..."
+            : room.last_message_content;
           break;
       }
 
       lastMessageInfo = {
         content: previewContent,
-        messageType: lastMessage.message_type,
-        senderName: senderInfo?.name ?? "알 수 없음",
-        createdAt: lastMessage.created_at,
+        messageType: msgType as ChatMessageType,
+        senderName: room.last_message_sender_name ?? "알 수 없음",
+        createdAt: room.last_message_at,
       };
     }
 

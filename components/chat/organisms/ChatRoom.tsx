@@ -36,6 +36,7 @@ import { PinnedMessagesBar } from "../molecules/PinnedMessagesBar";
 import { AnnouncementBanner } from "../atoms/AnnouncementBanner";
 import { AnnouncementDialog } from "../molecules/AnnouncementDialog";
 import { MessageContextMenu, type MessageMenuContext } from "../molecules/MessageContextMenu";
+import { MessageReadersModal } from "../molecules/MessageReadersModal";
 import { ChatRoomInfo } from "./ChatRoomInfo";
 import { EditMessageDialog } from "../molecules/EditMessageDialog";
 import { ProfileCardPopup, type ProfileCardData } from "../molecules/ProfileCardPopup";
@@ -339,6 +340,11 @@ function ChatRoomComponent({
     hasAttachment: boolean;
   } | null>(null);
 
+  // 읽음 정보 모달 상태
+  const [readersTarget, setReadersTarget] = useState<{
+    messageCreatedAt: string;
+  } | null>(null);
+
   // 상태 구조 분해
   const {
     isAtBottom,
@@ -406,7 +412,7 @@ function ChatRoomComponent({
     }, [scrollToBottom]),
   });
 
-  const { room, messages, pinnedMessages, announcement, readCounts, onlineUsers, typingUsers, otherMemberLeft } = data;
+  const { room, messages, pinnedMessages, announcement, onlineUsers, typingUsers, otherMemberLeft } = data;
   const { canPin, canSetAnnouncement } = permissions;
 
   // ============================================
@@ -602,6 +608,7 @@ function ChatRoomComponent({
       context: {
         messageId: message.id,
         content: message.content,
+        createdAt: message.created_at,
         updatedAt: message.updated_at,
         isOwn,
         canEdit: isOwn && canEditMessage(message.created_at),
@@ -647,6 +654,16 @@ function ChatRoomComponent({
     }
     dispatch({ type: "CLOSE_MENU" });
   }, [menuContext, togglePin]);
+
+  const handleViewReaders = useCallback(() => {
+    if (menuContext?.isOwn && menuContext.createdAt) {
+      setReadersTarget({ messageCreatedAt: menuContext.createdAt });
+    }
+    dispatch({ type: "CLOSE_MENU" });
+  }, [menuContext]);
+
+  // 그룹 채팅인지 여부 (읽음 정보는 그룹 채팅에서만 표시)
+  const isGroupChat = room?.type === "group";
 
   const handleMenuForward = useCallback(() => {
     if (menuContext) {
@@ -786,7 +803,7 @@ function ChatRoomComponent({
     <ChatMessageItem
       message={message}
       userId={userId}
-      readCount={readCounts[message.id]}
+      readCount={message.readCount}
       isPinned={pinnedMessageIds.has(message.id)}
       canPinMessages={canPin}
       canEditMessage={canEditMessage}
@@ -796,7 +813,6 @@ function ChatRoomComponent({
     />
   ), [
     userId,
-    readCounts,
     pinnedMessageIds,
     canPin,
     canEditMessage,
@@ -1058,37 +1074,39 @@ function ChatRoomComponent({
         </div>
       )}
 
-      {/* 맨 아래로 스크롤 버튼 */}
-      <div
-        className={cn(
-          "absolute right-4 z-10",
-          "bottom-20 md:bottom-28",
-          "transition-all duration-300 ease-out",
-          isAtBottom
-            ? "opacity-0 translate-y-4 pointer-events-none"
-            : "opacity-100 translate-y-0"
-        )}
-      >
-        <button
-          type="button"
-          onClick={scrollToBottom}
+      {/* 맨 아래로 스크롤 버튼 — ChatInput 바로 위에 부유 */}
+      <div className="relative">
+        <div
           className={cn(
-            "relative flex items-center justify-center",
-            "w-10 h-10 rounded-full",
-            "bg-bg-primary border border-border shadow-lg",
-            "hover:bg-bg-secondary transition-colors duration-200",
-            "hover:scale-105 active:scale-95"
+            "absolute right-4 z-10",
+            "bottom-2",
+            "transition-all duration-300 ease-out",
+            isAtBottom
+              ? "opacity-0 translate-y-4 pointer-events-none"
+              : "opacity-100 translate-y-0"
           )}
-          aria-label="맨 아래로 스크롤"
         >
-          <ChevronDown className="w-5 h-5 text-text-secondary" />
+          <button
+            type="button"
+            onClick={scrollToBottom}
+            className={cn(
+              "relative flex items-center justify-center",
+              "w-10 h-10 rounded-full",
+              "bg-bg-primary border border-border shadow-lg",
+              "hover:bg-bg-secondary transition-colors duration-200",
+              "hover:scale-105 active:scale-95"
+            )}
+            aria-label="맨 아래로 스크롤"
+          >
+            <ChevronDown className="w-5 h-5 text-text-secondary" />
 
-          {hasNewMessages && (
-            <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-[10px] font-medium text-white bg-primary-500 rounded-full">
-              N
-            </span>
-          )}
-        </button>
+            {hasNewMessages && (
+              <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-[10px] font-medium text-white bg-primary-500 rounded-full">
+                N
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* 타이핑 인디케이터 */}
@@ -1105,6 +1123,8 @@ function ChatRoomComponent({
 
       {/* 입력창 */}
       <ChatInput
+        key={roomId}
+        roomId={roomId}
         onSend={(content, mentions) => sendMessage(content, replyTarget?.id, mentions)}
         onTypingChange={setTyping}
         replyTarget={replyTarget}
@@ -1145,7 +1165,16 @@ function ChatRoomComponent({
         onEdit={menuContext?.canEdit ? handleMenuEdit : undefined}
         onDelete={menuContext?.isOwn ? handleMenuDelete : undefined}
         onTogglePin={menuContext?.canPin ? handleMenuTogglePin : undefined}
+        onViewReaders={menuContext?.isOwn && isGroupChat ? handleViewReaders : undefined}
         onToggleReaction={handleMenuReaction}
+      />
+
+      {/* 읽음 정보 모달 */}
+      <MessageReadersModal
+        isOpen={!!readersTarget}
+        onClose={() => setReadersTarget(null)}
+        roomId={roomId}
+        messageCreatedAt={readersTarget?.messageCreatedAt ?? ""}
       />
 
       {/* 채팅방 정보 사이드바 */}

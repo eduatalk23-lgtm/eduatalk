@@ -35,6 +35,8 @@ const EMOJI_SECTIONS = [
 ] as const;
 
 interface ChatInputProps {
+  /** 채팅방 ID (draft 저장용) */
+  roomId?: string;
   /** 메시지 전송 핸들러 */
   onSend: (content: string, mentions?: MentionInfo[]) => void;
   /** 전송 중 상태 */
@@ -67,7 +69,11 @@ interface ChatInputProps {
   currentUserId?: string;
 }
 
+/** sessionStorage key prefix for chat drafts */
+const DRAFT_KEY_PREFIX = "chat-draft:";
+
 function ChatInputComponent({
+  roomId,
   onSend,
   isSending = false,
   disabled = false,
@@ -84,7 +90,14 @@ function ChatInputComponent({
   members = [],
   currentUserId,
 }: ChatInputProps) {
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(() => {
+    if (!roomId) return "";
+    try {
+      return sessionStorage.getItem(`${DRAFT_KEY_PREFIX}${roomId}`) ?? "";
+    } catch {
+      return "";
+    }
+  });
   const [isComposing, setIsComposing] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -102,6 +115,22 @@ function ChatInputComponent({
   const dragCounterRef = useRef(0);
   /** @ 기호가 시작된 위치 */
   const mentionStartRef = useRef<number>(-1);
+
+  // Draft 저장 (300ms debounce)
+  useEffect(() => {
+    if (!roomId) return;
+    const key = `${DRAFT_KEY_PREFIX}${roomId}`;
+    const timer = setTimeout(() => {
+      try {
+        if (value) {
+          sessionStorage.setItem(key, value);
+        } else {
+          sessionStorage.removeItem(key);
+        }
+      } catch { /* quota exceeded — ignore */ }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [value, roomId]);
 
   // 자동 높이 조절 (부드러운 전환은 CSS transition으로 처리)
   useEffect(() => {
@@ -170,6 +199,10 @@ function ChatInputComponent({
       try { navigator.vibrate(30); } catch { /* ignore */ }
     }
     setValue("");
+    // Draft 삭제
+    if (roomId) {
+      try { sessionStorage.removeItem(`${DRAFT_KEY_PREFIX}${roomId}`); } catch { /* ignore */ }
+    }
     setMentions([]);
     setMentionQuery(null);
     onTypingChange?.(false);
@@ -178,7 +211,7 @@ function ChatInputComponent({
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
-  }, [value, completedUploads, isSending, disabled, isUploading, onSend, onTypingChange, mentions]);
+  }, [value, completedUploads, isSending, disabled, isUploading, onSend, onTypingChange, mentions, roomId]);
 
   // 한글 IME 조합 이벤트 핸들러
   const handleCompositionStart = useCallback(() => {
@@ -698,7 +731,7 @@ function ChatInputComponent({
             disabled={disabled}
             rows={1}
             className={cn(
-              "w-full resize-none rounded-2xl px-4 py-2.5 text-sm",
+              "w-full resize-none rounded-2xl px-4 py-2.5 text-base",
               "bg-bg-secondary text-text-primary placeholder:text-text-tertiary",
               "border border-transparent focus:border-primary focus:outline-none",
               "transition-[border-color,height] duration-150 ease-out",

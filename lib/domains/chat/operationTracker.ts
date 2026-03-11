@@ -85,11 +85,11 @@ class OperationTracker {
     // pending에서 제거
     this.pending.delete(tempId);
 
-    // 10초 후 매핑 정리 (Realtime 이벤트가 충분히 처리된 후)
+    // 30초 후 매핑 정리 (네트워크 지연으로 Realtime 이벤트가 늦게 도착하는 경우 대비)
     setTimeout(() => {
       this.tempToReal.delete(tempId);
       this.realToTemp.delete(realId);
-    }, 10000);
+    }, 30000);
   }
 
   /**

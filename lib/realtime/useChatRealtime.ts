@@ -36,9 +36,9 @@ const __DEV__ = process.env.NODE_ENV === "development";
 function debugLog(...args: unknown[]) { if (__DEV__) console.log(...args); }
 function debugWarn(...args: unknown[]) { if (__DEV__) console.warn(...args); }
 
-/** 메시지를 시간순 정렬 (동일 시각이면 id로 안정 정렬) */
+/** 메시지를 시간순 정렬 (동일 시각이면 id로 안정 정렬) — 원본 배열을 변경하지 않음 */
 function sortMessagesByTime<T extends { created_at: string; id: string }>(msgs: T[]): T[] {
-  return msgs.sort((a, b) => {
+  return [...msgs].sort((a, b) => {
     const t = a.created_at.localeCompare(b.created_at);
     return t !== 0 ? t : a.id.localeCompare(b.id);
   });
@@ -159,6 +159,11 @@ export function useChatRealtime({
 
   // Broadcast-first: 채널 참조 (broadcastInsert에서 사용)
   const channelRef = useRef<RealtimeChannel | null>(null);
+
+  // 채널 미연결 시 broadcast 대기열 (SUBSCRIBED 후 flush)
+  const pendingBroadcastsRef = useRef<Array<{ event: string; payload: Record<string, unknown> }>>(
+    []
+  );
 
   // 콜백을 ref로 저장하여 의존성 변경 방지
   const callbacksRef = useRef({ onNewMessage, onMessageDeleted, onReadReceipt });
@@ -487,6 +492,8 @@ export function useChatRealtime({
       if (allNewMessages.length === 0) {
         debugLog("[ChatRealtime] No new messages since last sync");
         updateSyncTimestamp(new Date().toISOString());
+        // readCounts는 실시간 READ_RECEIPT으로 갱신되므로 별도 refetch 불필요
+        // (readReceiptTrackRef가 멤버의 last_read_at으로 초기화되어 정확한 감소 보장)
         return;
       }
 
@@ -545,6 +552,10 @@ export function useChatRealtime({
       // ConnectionManager에도 동기화 시점 업데이트
       const channelName = connectionManager.getChannelKey(roomId);
       connectionManager.updateSyncTimestamp(channelName, newSyncTs);
+
+      // readCounts는 실시간 READ_RECEIPT + readReceiptTrackRef로 관리됨
+      // roomData 갱신 시 trackRef가 동기화되므로 별도 full refetch 불필요
+      // (refetchOnMount: "always"가 방 재진입 시 정확한 값 보장)
     } catch (error) {
       console.error("[ChatRealtime] Unexpected sync error:", error);
       invalidateMessages(); // 예상치 못한 에러 시 전체 무효화
@@ -553,6 +564,22 @@ export function useChatRealtime({
 
   // 초기 마운트 추적 (자동 재연결과 구분하기 위해 별도 ref 사용)
   const isInitialMountRef = useRef(true);
+
+  // 채널 연결 후 대기 중인 broadcast를 flush
+  const flushPendingBroadcasts = useCallback(async () => {
+    const pending = pendingBroadcastsRef.current;
+    if (pending.length === 0 || !channelRef.current) return;
+    pendingBroadcastsRef.current = [];
+
+    for (const { event, payload } of pending) {
+      try {
+        await channelRef.current.send({ type: "broadcast", event, payload });
+        debugLog(`[ChatRealtime] Flushed pending ${event}`);
+      } catch (error) {
+        debugWarn(`[ChatRealtime] Failed to flush pending ${event}:`, error);
+      }
+    }
+  }, []);
 
   // 메인 useEffect에서 사용하는 함수들을 ref로 추적
   // → 함수 참조 변경 시 채널 재구독을 방지
@@ -563,6 +590,7 @@ export function useChatRealtime({
     invalidateAnnouncement,
     fetchSenderInfo,
     findSenderFromExistingMessages,
+    flushPendingBroadcasts,
   });
   useEffect(() => {
     fnRef.current = {
@@ -572,6 +600,7 @@ export function useChatRealtime({
       invalidateAnnouncement,
       fetchSenderInfo,
       findSenderFromExistingMessages,
+      flushPendingBroadcasts,
     };
   });
 
@@ -690,16 +719,28 @@ export function useChatRealtime({
           const firstPage = old.pages[0];
           const messages = [...firstPage.messages];
 
+          // O(1) 조회용 인덱스 구축 (id → index, content+sender → index for temp matching)
+          const idIndex = new Map<string, number>();
+          const tempContentIndex = new Map<string, number>();
+          for (let i = 0; i < messages.length; i++) {
+            const m = messages[i];
+            idIndex.set(m.id, i);
+            if (m.id.startsWith("temp-")) {
+              const contentKey = `${m.content}::${m.sender_id}`;
+              // 동일 content+sender의 temp가 여러 개면 첫 번째를 유지 (findIndex 동작 일치)
+              if (!tempContentIndex.has(contentKey)) {
+                tempContentIndex.set(contentKey, i);
+              }
+            }
+          }
+
           for (const { msg: newMessage, tempId } of batch) {
-            // 중복 체크 (temp 교체 또는 이미 존재하는 메시지)
-            const existingIndex = messages.findIndex(
-              (m) =>
-                m.id === newMessage.id ||
-                (tempId && m.id === tempId) ||
-                (m.id.startsWith("temp-") &&
-                  m.content === newMessage.content &&
-                  m.sender_id === newMessage.sender_id)
-            );
+            // O(1) 중복 체크 (id 매칭 → tempId 매칭 → content 기반 temp 매칭)
+            const existingIndex =
+              idIndex.get(newMessage.id) ??
+              (tempId ? idIndex.get(tempId) : undefined) ??
+              tempContentIndex.get(`${newMessage.content}::${newMessage.sender_id}`) ??
+              -1;
 
             if (existingIndex !== -1) {
               // 낙관적 메시지 → 실제 메시지로 교체
@@ -710,6 +751,8 @@ export function useChatRealtime({
                 sender: existingMessage.sender,
                 status: "sent" as const,
               };
+              // 인덱스 갱신 (temp id → real id 교체)
+              idIndex.set(newMessage.id, existingIndex);
             } else {
               // 새 메시지 추가
               const cacheKey = `${newMessage.sender_id}_${newMessage.sender_type}`;
@@ -739,6 +782,7 @@ export function useChatRealtime({
                   name: newMessage.sender_name ?? "로딩 중...",
                 };
 
+              const newIndex = messages.length;
               messages.push({
                 ...newMessage,
                 sender: tempSender,
@@ -748,6 +792,8 @@ export function useChatRealtime({
                 sender_profile_url: newMessage.sender_profile_url ?? tempSender.profileImageUrl ?? null,
                 metadata: null,
               } as CacheMessage);
+              // 인덱스 갱신 (새 메시지 추가)
+              idIndex.set(newMessage.id, newIndex);
             }
           }
 
@@ -881,6 +927,8 @@ export function useChatRealtime({
                       is_deleted: updatedMessage.is_deleted,
                       updated_at: updatedMessage.updated_at,
                       deleted_at: updatedMessage.deleted_at,
+                      // attachments, linkPreviews, reactions, replyTarget, sender 등
+                      // 기존 캐시 값을 ...m 스프레드로 보존 (broadcast payload에 미포함)
                     }
                   : m
               ),
@@ -1120,6 +1168,9 @@ export function useChatRealtime({
           // ConnectionManager에 연결 상태 알림
           connectionManager.setChannelState(channelName, "connected");
 
+          // 채널 미연결 중 큐잉된 broadcast (READ_RECEIPT 등) flush
+          fnRef.current.flushPendingBroadcasts();
+
           if (isInitialMountRef.current) {
             isInitialMountRef.current = false;
             // 첫 마운트: 캐시 유무와 관계없이 항상 sync 실행
@@ -1240,15 +1291,22 @@ export function useChatRealtime({
     []
   );
 
-  // 읽음 확인 broadcast (markAsRead 성공 후 호출)
+  // 읽음 확인 broadcast (markAsRead 성공 후 호출, 서버 시각 사용)
+  // 채널 미연결 시 pendingBroadcastsRef에 큐잉 → SUBSCRIBED 후 flush
   const broadcastReadReceipt = useCallback(
-    async () => {
-      if (!channelRef.current) return;
+    async (readAt?: string) => {
+      const payload = { reader_id: userId, read_at: readAt ?? new Date().toISOString() };
+
+      if (!channelRef.current) {
+        debugLog("[ChatRealtime] Channel not ready, queuing READ_RECEIPT");
+        pendingBroadcastsRef.current.push({ event: "READ_RECEIPT", payload });
+        return;
+      }
       try {
         await channelRef.current.send({
           type: "broadcast",
           event: "READ_RECEIPT",
-          payload: { reader_id: userId, read_at: new Date().toISOString() },
+          payload,
         });
       } catch (error) {
         debugWarn("[ChatRealtime] ReadReceipt broadcast error:", error);

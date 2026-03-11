@@ -117,6 +117,16 @@ export interface ChatRoom {
   history_visible: boolean;
   created_at: string;
   updated_at: string;
+  /** 역정규화: 마지막 메시지 내용 (최대 100자) */
+  last_message_content: string | null;
+  /** 역정규화: 마지막 메시지 타입 */
+  last_message_type: string | null;
+  /** 역정규화: 마지막 메시지 발신자 이름 */
+  last_message_sender_name: string | null;
+  /** 역정규화: 마지막 메시지 발신자 ID */
+  last_message_sender_id: string | null;
+  /** 역정규화: 마지막 메시지 시각 */
+  last_message_at: string | null;
 }
 
 /** 채팅방 생성 입력 타입 */
@@ -393,6 +403,10 @@ export interface MessageGroupingInfo {
 /** 그룹핑 정보가 포함된 메시지 */
 export interface ChatMessageWithGrouping extends ChatMessageWithSender {
   grouping: MessageGroupingInfo;
+  /** 본인 메시지의 읽지 않은 수 (KakaoTalk-style) — 메시지 데이터에 내장 */
+  readCount?: number;
+  /** 전송 상태 (낙관적 업데이트용, CacheMessage에서 전파) */
+  status?: "sending" | "sent" | "error" | "queued";
 }
 
 /** 채팅방 + 추가 정보 (목록 표시용) */

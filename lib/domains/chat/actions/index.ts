@@ -32,7 +32,9 @@ export {
   getSenderInfoAction,
   getSenderInfoBatchAction,
   getMessagesSinceAction,
+  getMessageReadersAction,
 } from "./messages";
+export type { MessageReaderInfo } from "./messages";
 
 // Member Actions
 export { inviteMembersAction } from "./members";

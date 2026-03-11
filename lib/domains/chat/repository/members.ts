@@ -194,17 +194,19 @@ export async function markAsRead(
   roomId: string,
   userId: string,
   userType: ChatUserType
-): Promise<void> {
+): Promise<string> {
   const supabase = await createSupabaseServerClient();
+  const now = new Date().toISOString();
 
   const { error } = await supabase
     .from("chat_room_members")
-    .update({ last_read_at: new Date().toISOString() })
+    .update({ last_read_at: now })
     .eq("room_id", roomId)
     .eq("user_id", userId)
     .eq("user_type", userType);
 
   if (error) throw error;
+  return now;
 }
 
 /**

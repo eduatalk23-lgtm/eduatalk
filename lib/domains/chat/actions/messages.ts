@@ -202,7 +202,7 @@ export async function deleteMessageAction(
  */
 export async function markAsReadAction(
   roomId: string
-): Promise<ChatActionResult<void>> {
+): Promise<ChatActionResult<{ readAt: string }>> {
   try {
     if (!isUUID(roomId)) {
       return { success: false, error: "잘못된 채팅방 ID입니다." };
@@ -584,5 +584,92 @@ async function sendChatPushNotification(
       referenceId: `${roomId}:${message.id}:mention`,
       messageCreatedAt: message.created_at,
     });
+  }
+}
+
+// ============================================
+// 읽음 상세 정보
+// ============================================
+
+/** 메시지 읽은/안 읽은 멤버 정보 */
+export interface MessageReaderInfo {
+  userId: string;
+  name: string;
+  profileImageUrl?: string | null;
+  userType: ChatUserType;
+  readAt: string | null; // null이면 안 읽음
+}
+
+/**
+ * 메시지를 읽은/안 읽은 멤버 목록 조회
+ *
+ * @param roomId 채팅방 ID
+ * @param messageCreatedAt 메시지 생성 시각 (읽음 비교 기준)
+ */
+export async function getMessageReadersAction(
+  roomId: string,
+  messageCreatedAt: string
+): Promise<ChatActionResult<{ readers: MessageReaderInfo[]; nonReaders: MessageReaderInfo[] }>> {
+  try {
+    if (!isUUID(roomId)) {
+      return { success: false, error: "잘못된 채팅방 ID입니다." };
+    }
+    const { userId, role } = await getCurrentUserRole();
+
+    if (!userId || !role) {
+      return { success: false, error: "인증이 필요합니다." };
+    }
+
+    const userType = getUserType(role);
+
+    // 권한 확인: 채팅방 멤버인지
+    const member = await repository.findMember(roomId, userId, userType);
+    if (!member) {
+      return { success: false, error: "채팅방에 접근 권한이 없습니다." };
+    }
+
+    // 활성 멤버 + last_read_at 조회
+    const members = await repository.findActiveMembersWithReadStatus(roomId);
+
+    // 발신자(본인) 제외한 멤버를 읽음/안읽음으로 분류
+    const otherMembers = members.filter((m) => m.user_id !== userId);
+
+    // 사용자 정보 배치 조회
+    const senderKeys = otherMembers.map((m) => ({
+      id: m.user_id,
+      type: m.user_type,
+    }));
+    const senderMap = await repository.findSendersByIds(senderKeys);
+
+    const readers: MessageReaderInfo[] = [];
+    const nonReaders: MessageReaderInfo[] = [];
+
+    for (const m of otherMembers) {
+      const senderKey = `${m.user_id}_${m.user_type}`;
+      const senderInfo = senderMap.get(senderKey);
+      const hasRead = m.last_read_at >= messageCreatedAt;
+
+      const info: MessageReaderInfo = {
+        userId: m.user_id,
+        name: senderInfo?.name ?? "알 수 없음",
+        profileImageUrl: senderInfo?.profileImageUrl ?? null,
+        userType: m.user_type,
+        readAt: hasRead ? m.last_read_at : null,
+      };
+
+      if (hasRead) {
+        readers.push(info);
+      } else {
+        nonReaders.push(info);
+      }
+    }
+
+    return { success: true, data: { readers, nonReaders } };
+  } catch (error) {
+    console.error("[getMessageReadersAction] Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "읽음 정보 조회 실패",
+    };
   }
 }
