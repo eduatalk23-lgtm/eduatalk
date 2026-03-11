@@ -14,7 +14,7 @@ import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
 import { useFocusTrap, useEscapeKey } from "@/lib/accessibility/hooks";
 import { REACTION_EMOJIS, type ReactionEmoji } from "@/lib/domains/chat/types";
-import { Copy, Reply, Edit2, Trash2, Flag, Pin, PinOff, Forward } from "lucide-react";
+import { Copy, Reply, Edit2, Trash2, Flag, Pin, PinOff, Forward, Eye } from "lucide-react";
 
 /** 메시지 메뉴 컨텍스트 정보 */
 export interface MessageMenuContext {
@@ -22,6 +22,8 @@ export interface MessageMenuContext {
   messageId: string;
   /** 메시지 내용 */
   content: string;
+  /** 메시지 생성 시각 (읽음 정보 조회용) */
+  createdAt: string;
   /** 메시지 수정 시각 (충돌 감지용) */
   updatedAt: string;
   /** 본인 메시지 여부 */
@@ -57,6 +59,8 @@ interface MessageContextMenuProps {
   onReport?: () => void;
   /** 고정/해제 클릭 콜백 (고정 권한 있을 때) */
   onTogglePin?: () => void;
+  /** 읽음 정보 보기 콜백 (본인 메시지, 그룹 채팅) */
+  onViewReaders?: () => void;
   /** 리액션 토글 콜백 */
   onToggleReaction: (emoji: ReactionEmoji) => void;
 }
@@ -139,6 +143,7 @@ function ActionList({
   onDelete,
   onReport,
   onTogglePin,
+  onViewReaders,
 }: {
   context: MessageMenuContext;
   compact?: boolean;
@@ -149,6 +154,7 @@ function ActionList({
   onDelete?: () => void;
   onReport?: () => void;
   onTogglePin?: () => void;
+  onViewReaders?: () => void;
 }) {
   return (
     <div className="py-1">
@@ -156,6 +162,10 @@ function ActionList({
       <ActionButton onClick={onReply} icon={Reply} label="답장" compact={compact} />
       {onForward && (
         <ActionButton onClick={onForward} icon={Forward} label="전달" compact={compact} />
+      )}
+
+      {context.isOwn && onViewReaders && (
+        <ActionButton onClick={onViewReaders} icon={Eye} label="읽음 정보" compact={compact} />
       )}
 
       {context.isOwn && context.canEdit && onEdit && (
@@ -194,6 +204,7 @@ function MessageContextMenuComponent({
   onDelete,
   onReport,
   onTogglePin,
+  onViewReaders,
   onToggleReaction,
 }: MessageContextMenuProps) {
   const { containerRef } = useFocusTrap(isOpen);
@@ -250,7 +261,7 @@ function MessageContextMenuComponent({
 
   if (!isOpen || !context) return null;
 
-  const actionProps = { context, onCopy, onReply, onForward, onEdit, onDelete, onReport, onTogglePin };
+  const actionProps = { context, onCopy, onReply, onForward, onEdit, onDelete, onReport, onTogglePin, onViewReaders };
 
   // ─── 데스크톱: 커서 위치에 팝업 ───
   if (isDesktopPopup && position) {
@@ -321,7 +332,7 @@ function MessageContextMenuComponent({
           "fixed inset-x-0 bottom-0 z-50",
           "bg-bg-primary rounded-t-2xl",
           "animate-in slide-in-from-bottom duration-200",
-          "pb-safe max-h-[80vh] overflow-y-auto"
+          "pb-[env(safe-area-inset-bottom)] max-h-[80dvh] overflow-y-auto"
         )}
         role="dialog"
         aria-modal="true"

@@ -413,7 +413,7 @@ function ContextSidebarComponent({
         sticky && "sticky self-start",
         className
       )}
-      style={sticky ? { top: stickyTop, maxHeight: `calc(100vh - ${stickyTop}px)` } : undefined}
+      style={sticky ? { top: stickyTop, maxHeight: `calc(100dvh - ${stickyTop}px)` } : undefined}
     >
       <div className={cn("flex flex-col h-full", sticky && "overflow-y-auto")}>
         {/* Header */}

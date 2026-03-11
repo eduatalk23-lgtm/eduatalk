@@ -82,8 +82,8 @@ export interface FloatingWidgetProps {
 // ============================================================================
 
 const POSITION_OFFSETS: Record<FloatingPosition, { x: string; y: string }> = {
-  "bottom-right": { x: "calc(100vw - 100% - 24px)", y: "calc(100vh - 100% - 24px)" },
-  "bottom-left": { x: "24px", y: "calc(100vh - 100% - 24px)" },
+  "bottom-right": { x: "calc(100vw - 100% - 24px)", y: "calc(100dvh - 100% - 24px)" },
+  "bottom-left": { x: "24px", y: "calc(100dvh - 100% - 24px)" },
   "top-right": { x: "calc(100vw - 100% - 24px)", y: "24px" },
   "top-left": { x: "24px", y: "24px" },
   custom: { x: "0", y: "0" },

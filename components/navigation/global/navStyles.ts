@@ -272,7 +272,7 @@ export const layoutStyles = {
   transitionAll: `transition-all ${animationDurations.normal} ease-in-out`,
   focusRing: designTokens.focus.ring,
   scrollableContainer: "overflow-y-auto",
-  fullHeight: "h-screen",
+  fullHeight: "h-dvh",
 };
 
 /**

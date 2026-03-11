@@ -53,7 +53,7 @@ export function ProgramListPanel({
       </div>
 
       {/* 프로그램 리스트 */}
-      <div className="flex flex-col gap-1 overflow-y-auto max-h-[calc(100vh-280px)]">
+      <div className="flex flex-col gap-1 overflow-y-auto max-h-[calc(100dvh-280px)]">
         {programs.length === 0 && (
           <div className={cn("py-8 text-center text-sm", textMuted)}>
             등록된 프로그램이 없습니다

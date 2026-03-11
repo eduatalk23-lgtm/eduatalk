@@ -168,7 +168,7 @@ export function StudentSearchPanel({
       </div>
 
       {/* 학생 리스트 */}
-      <div className="flex flex-col gap-1 overflow-y-auto max-h-[calc(100vh-340px)]">
+      <div className="flex flex-col gap-1 overflow-y-auto max-h-[calc(100dvh-340px)]">
         {displayedStudents.length === 0 && !isLoading && (
           <div className="py-8 text-center text-sm text-gray-400">
             {searchQuery ? "검색 결과가 없습니다" : "등록된 학생이 없습니다"}

@@ -486,8 +486,8 @@
 }
 
 /* Global Reset & Base Styles */
-* {
-  overscroll-behavior: none; /* 모든 스크롤 컨테이너에서 바운스/글로우 효과 제거 */
+html, body {
+  overscroll-behavior-y: none; /* 전체 페이지 pull-to-refresh/바운스 방지 */
 }
 
 html {

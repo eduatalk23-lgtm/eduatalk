@@ -3,10 +3,14 @@
  *
  * 여러 컴포넌트(Modal, Dialog, Popover 등)가 동시에 body 스크롤을 잠글 때
  * 충돌을 방지합니다. 모든 잠금이 해제되어야 스크롤이 복원됩니다.
+ *
+ * iOS Safari에서는 overflow:hidden만으로 body 스크롤을 막을 수 없어
+ * position:fixed + 스크롤 위치 보존 패턴을 사용합니다.
  */
 
 let lockCount = 0;
-let originalOverflow = "";
+let savedScrollY = 0;
+let savedOverflow = "";
 
 /**
  * body 스크롤을 잠급니다.
@@ -16,8 +20,14 @@ export function lockScroll(): void {
   if (typeof document === "undefined") return;
 
   if (lockCount === 0) {
-    originalOverflow = document.body.style.overflow;
+    savedScrollY = window.scrollY;
+    savedOverflow = document.body.style.overflow;
+
     document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${savedScrollY}px`;
+    document.body.style.left = "0";
+    document.body.style.right = "0";
   }
   lockCount++;
 }
@@ -32,7 +42,12 @@ export function unlockScroll(): void {
   lockCount = Math.max(0, lockCount - 1);
 
   if (lockCount === 0) {
-    document.body.style.overflow = originalOverflow;
+    document.body.style.overflow = savedOverflow;
+    document.body.style.position = "";
+    document.body.style.top = "";
+    document.body.style.left = "";
+    document.body.style.right = "";
+    window.scrollTo(0, savedScrollY);
   }
 }
 
