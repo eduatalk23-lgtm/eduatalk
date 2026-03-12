@@ -2,37 +2,105 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-// TODO: 비활성화된 섹션 재활성화 시 import 복원
-// import { fetchTodayProgress } from "./_utils";
-// import { SmartInsightsCard } from "./_components/SmartInsightsCard";
-// import { LearningStatsCard } from "./_components/LearningStatsCard";
-// TODO: AI 기능 정상화 후 재활성화
-// import { MLPredictionCard } from "./_components/MLPredictionCard";
-// import { AIRecommendationCard } from "./_components/AIRecommendationCard";
 import { perfTime } from "@/lib/utils/perfLog";
-import { getDashboardCategories } from "@/lib/navigation/dashboardUtils";
+import { DailyCheckInCard } from "./_components/DailyCheckInCard";
 import { getContainerClass } from "@/lib/constants/layout";
-import { bgSurfaceVar, textPrimaryVar, textSecondaryVar, borderDefaultVar, getGradientCardClasses, type GradientColor } from "@/lib/utils/darkMode";
+import { bgSurfaceVar, textPrimaryVar, textSecondaryVar, borderDefaultVar } from "@/lib/utils/darkMode";
 import { cn } from "@/lib/cn";
+import {
+  CalendarDays,
+  ClipboardList,
+  BookOpen,
+  Tent,
+  CheckCircle,
+  BarChart3,
+  FileText,
+  Clock,
+  type LucideIcon,
+} from "lucide-react";
 
 type StudentRow = {
   id: string;
   name?: string | null;
 };
 
+type QuickAction = {
+  href: string;
+  title: string;
+  description: string;
+  icon: LucideIcon;
+};
+
+const QUICK_ACTIONS: QuickAction[] = [
+  {
+    href: "/today",
+    title: "학습 관리",
+    description: "오늘의 학습 계획을 확인하고 실행하세요",
+    icon: CalendarDays,
+  },
+  {
+    href: "/plan",
+    title: "플랜 관리",
+    description: "학습 계획을 조회하고 관리하세요",
+    icon: ClipboardList,
+  },
+  {
+    href: "/contents",
+    title: "콘텐츠 관리",
+    description: "책, 강의, 커스텀 콘텐츠를 관리하세요",
+    icon: BookOpen,
+  },
+  {
+    href: "/camp",
+    title: "캠프 관리",
+    description: "캠프에 참여하고 학습을 관리하세요",
+    icon: Tent,
+  },
+  {
+    href: "/attendance/check-in",
+    title: "출석 관리",
+    description: "출석을 체크하고 기록을 확인하세요",
+    icon: CheckCircle,
+  },
+  {
+    href: "/scores/dashboard/unified",
+    title: "성적 관리",
+    description: "내신 및 모의고사 성적을 관리하세요",
+    icon: BarChart3,
+  },
+  {
+    href: "/report/weekly",
+    title: "학습 리포트",
+    description: "주간 및 월간 학습 리포트를 확인하세요",
+    icon: FileText,
+  },
+  {
+    href: "/blocks",
+    title: "시간블록 설정",
+    description: "학습 가능한 시간대를 설정하세요",
+    icon: Clock,
+  },
+];
+
+function getFormattedDate(): string {
+  const now = new Date();
+  const days = ["일", "월", "화", "수", "목", "금", "토"];
+  const month = now.getMonth() + 1;
+  const date = now.getDate();
+  const day = days[now.getDay()];
+  return `${month}월 ${date}일 ${day}요일`;
+}
+
 export default async function DashboardPage() {
   const pageTimer = perfTime("[dashboard] render - page");
   const supabase = await createSupabaseServerClient();
 
-  // 현재 로그인 사용자 가져오기
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // 로그인 안되어 있으면 로그인 페이지로 이동
   if (!user) redirect("/login");
 
-  // 학생 정보 불러오기
   const { data: student, error: studentError } = await supabase
     .from("students")
     .select("id,name")
@@ -41,185 +109,80 @@ export default async function DashboardPage() {
 
   if (studentError) {
     console.error("[dashboard] 학생 정보 조회 실패", studentError);
-    // 에러가 발생해도 페이지는 표시되도록 함
   }
 
-  // TODO: 비활성화된 진행률 재활성화 시 복원
-  // const today = new Date();
-  // today.setHours(0, 0, 0, 0);
-  // const todayDate = today.toISOString().slice(0, 10);
-
-  // TODO: 비활성화된 진행률 재활성화 시 복원
-  // const dataTimer = perfTime("[dashboard] data - minimal");
-  // const todayProgress = await fetchTodayProgress(supabase, user.id, todayDate);
-  // dataTimer.end();
-
   const studentName = student?.name ?? "학생";
+  const formattedDate = getFormattedDate();
 
   const renderTimer = perfTime("[dashboard] render - DashboardContent");
   const page = (
-    <>
-      <section className={getContainerClass("DASHBOARD", "md")}>
-        <div className="flex flex-col gap-6 md:gap-8">
-          {/* 상단: 학생 인사 + 요약 */}
-          <div className={cn("rounded-2xl border p-6 md:p-8 shadow-[var(--elevation-4)]", bgSurfaceVar, borderDefaultVar)}>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-col gap-1">
-                  <h1 className={cn("text-h1", textPrimaryVar)}>
-                  안녕하세요, {studentName}님
-                </h1>
-                  <p className={cn("text-sm md:text-base", textSecondaryVar)}>
-                  오늘도 열심히 학습하시는 모습이 멋집니다!
-                  </p>
-                </div>
-
-                {/* TODO: 오늘 학습 진행률 - 비활성화
-                <div className="flex items-baseline gap-3 pt-2">
-                  <span className={cn("text-4xl md:text-5xl font-bold", getIndigoTextClasses("heading"))}>
-                    {todayProgress}%
-                  </span>
-                  <span className={cn("text-base md:text-lg", textSecondaryVar)}>
-                    오늘 학습 진행률
-                  </span>
-                </div>
-                */}
-              </div>
-            </div>
+    <section className={getContainerClass("DASHBOARD", "md")}>
+      <div className="flex flex-col gap-6 md:gap-8">
+        {/* 상단: 인사 + 날짜 + 출석 통합 */}
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1 sm:gap-4">
+            <h1 className={cn("text-xl md:text-2xl font-semibold", textPrimaryVar)}>
+              안녕하세요, {studentName}님
+            </h1>
+            <span className={cn("text-sm", textSecondaryVar)}>
+              {formattedDate}
+            </span>
           </div>
+          <DailyCheckInCard />
+        </div>
 
-          {/* TODO: 스마트 인사이트 & 학습 통계 - 비활성화
-          <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
-            <SmartInsightsCard />
-            <LearningStatsCard />
-          </div>
-          */}
-
-          {/* TODO: AI 기능 정상화 후 재활성화
-          <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
-            <MLPredictionCard studentId={user.id} />
-            <AIRecommendationCard studentId={user.id} />
-          </div>
-          */}
-
-          {/* 주요 기능 바로가기 */}
-          <div className="flex flex-col gap-4 md:gap-6">
-            <h2 className={cn("text-h2", textPrimaryVar)}>주요 기능</h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 items-stretch">
-              {getDashboardCategories().map((category) => {
-                let description = "";
-                let color: "indigo" | "blue" | "purple" | "orange" | "green" | "red" | "teal" | "cyan" | "amber" | "pink" | "violet" | "emerald" | "sky" = "indigo";
-                let iconEmoji = "🔗";
-
-                // 카테고리별 설명 및 색상 설정
-                switch (category.href) {
-                  case "/today":
-                    description = "오늘의 학습 계획을 확인하고 실행하세요";
-                    color = "indigo";
-                    iconEmoji = "📅";
-                    break;
-                  case "/plan":
-                    description = "학습 계획을 조회하고 관리하세요";
-                    color = "blue";
-                    iconEmoji = "📋";
-                    break;
-                  case "/contents":
-                    description = "책, 강의, 커스텀 콘텐츠를 등록하고 관리하세요";
-                    color = "green";
-                    iconEmoji = "📚";
-                    break;
-                  case "/camp":
-                    description = "캠프에 참여하고 학습을 관리하세요";
-                    color = "purple";
-                    iconEmoji = "🏕️";
-                    break;
-                  case "/attendance/check-in":
-                    description = "출석을 체크하고 기록을 확인하세요";
-                    color = "cyan";
-                    iconEmoji = "✅";
-                    break;
-                  default:
-                    description = "기능을 이용하세요";
-                }
-
-                return (
-                  <QuickActionCard
-                    key={category.href}
-                    href={category.href}
-                    title={category.label}
-                    description={description}
-                    icon={iconEmoji}
-                    color={color}
-                  />
-                );
-              })}
-              <QuickActionCard
-                href="/scores/dashboard/unified"
-                title="성적 관리"
-                description="내신 및 모의고사 성적을 조회하고 관리하세요"
-                icon="📝"
-                color="red"
-              />
-              <QuickActionCard
-                href="/report/weekly"
-                title="학습 리포트"
-                description="주간 및 월간 학습 리포트를 확인하세요"
-                icon="📊"
-                color="teal"
-              />
-              <QuickActionCard
-                href="/blocks"
-                title="시간블록 설정"
-                description="학습 가능한 시간대를 설정하세요"
-                icon="⏰"
-                color="amber"
-              />
-            </div>
+        {/* 주요 기능 그리드 */}
+        <div className="flex flex-col gap-4">
+          <h2 className={cn("text-base font-medium", textSecondaryVar)}>
+            주요 기능
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {QUICK_ACTIONS.map((action) => (
+              <QuickActionCard key={action.href} {...action} />
+            ))}
           </div>
         </div>
-      </section>
-    </>
+      </div>
+    </section>
   );
   renderTimer.end();
   pageTimer.end();
   return page;
 }
 
-
 function QuickActionCard({
   href,
   title,
   description,
-  icon,
-  color,
-}: {
-  href: string;
-  title: string;
-  description: string;
-  icon: string;
-  color: GradientColor;
-}) {
+  icon: Icon,
+}: QuickAction) {
   return (
     <Link
       href={href}
       className={cn(
-        "h-full rounded-xl border-2 p-5 md:p-6 transition-base hover:scale-[1.02] hover:shadow-[var(--elevation-4)] flex flex-col",
-        getGradientCardClasses(color)
+        "group flex items-start gap-3.5 rounded-xl border p-4 md:p-5",
+        "transition-colors duration-150",
+        "hover:bg-secondary-50 dark:hover:bg-secondary-800/50",
+        bgSurfaceVar,
+        borderDefaultVar,
       )}
     >
-      <div className="flex flex-col gap-3 flex-1">
-        <div className="flex items-start gap-3 md:gap-4">
-          <span className="text-2xl md:text-3xl flex-shrink-0">{icon}</span>
-          <div className="flex flex-col gap-1 flex-1 min-w-0">
-            {/* 텍스트 색상은 getGradientCardClasses에서 이미 포함됨 (예: text-indigo-900 dark:text-indigo-200) */}
-            <h3 className="text-base md:text-lg font-semibold">{title}</h3>
-            <p className="text-xs md:text-sm opacity-80 line-clamp-2">{description}</p>
-          </div>
-        </div>
-        {/* mt-auto는 flexbox 내부에서 하단 정렬을 위해 사용 (Spacing-First 정책 예외 허용) */}
-        <div className="flex justify-end mt-auto">
-          <span className="text-lg md:text-xl">→</span>
-        </div>
+      <div className="flex-shrink-0 rounded-lg bg-secondary-100 dark:bg-secondary-800 p-2.5">
+        <Icon className={cn("h-5 w-5 text-secondary-500 dark:text-secondary-400")} />
+      </div>
+      <div className="flex flex-col gap-0.5 min-w-0">
+        <span className={cn(
+          "text-sm font-semibold",
+          textPrimaryVar,
+        )}>
+          {title}
+        </span>
+        <span className={cn(
+          "text-xs leading-relaxed line-clamp-2",
+          textSecondaryVar,
+        )}>
+          {description}
+        </span>
       </div>
     </Link>
   );
