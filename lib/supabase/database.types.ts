@@ -14,54 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      achievement_definitions: {
-        Row: {
-          category: string
-          code: string
-          created_at: string | null
-          description: string | null
-          icon_name: string | null
-          id: string
-          is_active: boolean | null
-          is_hidden: boolean | null
-          name: string
-          sort_order: number | null
-          threshold_value: number | null
-          tier: string | null
-          xp_reward: number | null
-        }
-        Insert: {
-          category: string
-          code: string
-          created_at?: string | null
-          description?: string | null
-          icon_name?: string | null
-          id?: string
-          is_active?: boolean | null
-          is_hidden?: boolean | null
-          name: string
-          sort_order?: number | null
-          threshold_value?: number | null
-          tier?: string | null
-          xp_reward?: number | null
-        }
-        Update: {
-          category?: string
-          code?: string
-          created_at?: string | null
-          description?: string | null
-          icon_name?: string | null
-          id?: string
-          is_active?: boolean | null
-          is_hidden?: boolean | null
-          name?: string
-          sort_order?: number | null
-          threshold_value?: number | null
-          tier?: string | null
-          xp_reward?: number | null
-        }
-        Relationships: []
-      }
       admin_users: {
         Row: {
           created_at: string
@@ -1184,6 +1136,7 @@ export type Database = {
           mime_type: string
           public_url: string
           room_id: string
+          scheduled_message_id: string | null
           sender_id: string
           storage_path: string
           thumbnail_storage_path: string | null
@@ -1201,6 +1154,7 @@ export type Database = {
           mime_type: string
           public_url: string
           room_id: string
+          scheduled_message_id?: string | null
           sender_id: string
           storage_path: string
           thumbnail_storage_path?: string | null
@@ -1218,6 +1172,7 @@ export type Database = {
           mime_type?: string
           public_url?: string
           room_id?: string
+          scheduled_message_id?: string | null
           sender_id?: string
           storage_path?: string
           thumbnail_storage_path?: string | null
@@ -1237,6 +1192,13 @@ export type Database = {
             columns: ["room_id"]
             isOneToOne: false
             referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_attachments_scheduled_message_id_fkey"
+            columns: ["scheduled_message_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_messages"
             referencedColumns: ["id"]
           },
         ]
@@ -1659,6 +1621,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      check_in_titles: {
+        Row: {
+          created_at: string
+          id: string
+          required_days: number
+          sort_order: number
+          title: string
+          title_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          required_days: number
+          sort_order?: number
+          title: string
+          title_type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          required_days?: number
+          sort_order?: number
+          title?: string
+          title_type?: string
+        }
+        Relationships: []
       }
       cold_start_logs: {
         Row: {
@@ -2455,6 +2444,48 @@ export type Database = {
           },
           {
             foreignKeyName: "custom_content_templates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_check_ins: {
+        Row: {
+          check_date: string
+          checked_at: string
+          created_at: string
+          id: string
+          student_id: string
+          tenant_id: string
+        }
+        Insert: {
+          check_date?: string
+          checked_at?: string
+          created_at?: string
+          id?: string
+          student_id: string
+          tenant_id: string
+        }
+        Update: {
+          check_date?: string
+          checked_at?: string
+          created_at?: string
+          id?: string
+          student_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_check_ins_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_check_ins_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -4899,6 +4930,109 @@ export type Database = {
           },
         ]
       }
+      payment_links: {
+        Row: {
+          academy_name: string
+          amount: number
+          created_at: string
+          created_by: string | null
+          delivered_at: string | null
+          delivery_method: string | null
+          delivery_status: string
+          due_date: string | null
+          expires_at: string
+          id: string
+          last_viewed_at: string | null
+          memo: string | null
+          paid_at: string | null
+          payment_record_id: string
+          program_name: string
+          recipient_phone: string | null
+          status: string
+          student_id: string
+          student_name: string
+          tenant_id: string
+          token: string
+          toss_payment_key: string | null
+          updated_at: string
+          view_count: number
+        }
+        Insert: {
+          academy_name: string
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          delivery_method?: string | null
+          delivery_status?: string
+          due_date?: string | null
+          expires_at: string
+          id?: string
+          last_viewed_at?: string | null
+          memo?: string | null
+          paid_at?: string | null
+          payment_record_id: string
+          program_name: string
+          recipient_phone?: string | null
+          status?: string
+          student_id: string
+          student_name: string
+          tenant_id: string
+          token: string
+          toss_payment_key?: string | null
+          updated_at?: string
+          view_count?: number
+        }
+        Update: {
+          academy_name?: string
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          delivery_method?: string | null
+          delivery_status?: string
+          due_date?: string | null
+          expires_at?: string
+          id?: string
+          last_viewed_at?: string | null
+          memo?: string | null
+          paid_at?: string | null
+          payment_record_id?: string
+          program_name?: string
+          recipient_phone?: string | null
+          status?: string
+          student_id?: string
+          student_name?: string
+          tenant_id?: string
+          token?: string
+          toss_payment_key?: string | null
+          updated_at?: string
+          view_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_links_payment_record_id_fkey"
+            columns: ["payment_record_id"]
+            isOneToOne: false
+            referencedRelation: "payment_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_links_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_links_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_orders: {
         Row: {
           created_at: string | null
@@ -4954,109 +5088,6 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      payment_links: {
-        Row: {
-          id: string
-          token: string
-          tenant_id: string
-          payment_record_id: string
-          student_id: string
-          academy_name: string
-          student_name: string
-          program_name: string
-          amount: number
-          due_date: string | null
-          memo: string | null
-          status: string
-          expires_at: string
-          delivery_method: string | null
-          delivery_status: string
-          delivered_at: string | null
-          recipient_phone: string | null
-          paid_at: string | null
-          toss_payment_key: string | null
-          view_count: number
-          last_viewed_at: string | null
-          created_by: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          token: string
-          tenant_id: string
-          payment_record_id: string
-          student_id: string
-          academy_name: string
-          student_name: string
-          program_name: string
-          amount: number
-          due_date?: string | null
-          memo?: string | null
-          status?: string
-          expires_at: string
-          delivery_method?: string | null
-          delivery_status?: string
-          delivered_at?: string | null
-          recipient_phone?: string | null
-          paid_at?: string | null
-          toss_payment_key?: string | null
-          view_count?: number
-          last_viewed_at?: string | null
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          token?: string
-          tenant_id?: string
-          payment_record_id?: string
-          student_id?: string
-          academy_name?: string
-          student_name?: string
-          program_name?: string
-          amount?: number
-          due_date?: string | null
-          memo?: string | null
-          status?: string
-          expires_at?: string
-          delivery_method?: string | null
-          delivery_status?: string
-          delivered_at?: string | null
-          recipient_phone?: string | null
-          paid_at?: string | null
-          toss_payment_key?: string | null
-          view_count?: number
-          last_viewed_at?: string | null
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payment_links_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_links_payment_record_id_fkey"
-            columns: ["payment_record_id"]
-            isOneToOne: false
-            referencedRelation: "payment_records"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_links_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
             referencedColumns: ["id"]
           },
         ]
@@ -6975,6 +7006,107 @@ export type Database = {
           },
         ]
       }
+      scheduled_messages: {
+        Row: {
+          attempts: number
+          content: string
+          created_at: string
+          id: string
+          last_error: string | null
+          max_attempts: number
+          message_type: string
+          metadata: Json | null
+          reply_to_id: string | null
+          room_id: string
+          scheduled_at: string
+          sender_id: string
+          sender_name_snapshot: string
+          sender_profile_url_snapshot: string | null
+          sender_type: string
+          sent_at: string | null
+          sent_message_id: string | null
+          status: string
+          tenant_id: string
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          content: string
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          max_attempts?: number
+          message_type?: string
+          metadata?: Json | null
+          reply_to_id?: string | null
+          room_id: string
+          scheduled_at: string
+          sender_id: string
+          sender_name_snapshot?: string
+          sender_profile_url_snapshot?: string | null
+          sender_type: string
+          sent_at?: string | null
+          sent_message_id?: string | null
+          status?: string
+          tenant_id: string
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          content?: string
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          max_attempts?: number
+          message_type?: string
+          metadata?: Json | null
+          reply_to_id?: string | null
+          room_id?: string
+          scheduled_at?: string
+          sender_id?: string
+          sender_name_snapshot?: string
+          sender_profile_url_snapshot?: string | null
+          sender_type?: string
+          sent_at?: string | null
+          sent_message_id?: string | null
+          status?: string
+          tenant_id?: string
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_messages_reply_to_id_fkey"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_messages_sent_message_id_fkey"
+            columns: ["sent_message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_messages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_info: {
         Row: {
           addr_detail: string | null
@@ -7181,38 +7313,6 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      student_achievements: {
-        Row: {
-          achievement_id: string
-          earned_at: string | null
-          id: string
-          is_notified: boolean | null
-          student_id: string
-        }
-        Insert: {
-          achievement_id: string
-          earned_at?: string | null
-          id?: string
-          is_notified?: boolean | null
-          student_id: string
-        }
-        Update: {
-          achievement_id?: string
-          earned_at?: string | null
-          id?: string
-          is_notified?: boolean | null
-          student_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "student_achievements_achievement_id_fkey"
-            columns: ["achievement_id"]
-            isOneToOne: false
-            referencedRelation: "achievement_definitions"
             referencedColumns: ["id"]
           },
         ]
@@ -7754,62 +7854,6 @@ export type Database = {
           },
           {
             foreignKeyName: "student_custom_contents_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      student_gamification_stats: {
-        Row: {
-          created_at: string | null
-          current_level: number | null
-          current_streak: number | null
-          id: string
-          last_study_date: string | null
-          longest_streak: number | null
-          streak_protection_count: number | null
-          student_id: string
-          tenant_id: string
-          total_plans_completed: number | null
-          total_study_minutes: number | null
-          total_xp: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          current_level?: number | null
-          current_streak?: number | null
-          id?: string
-          last_study_date?: string | null
-          longest_streak?: number | null
-          streak_protection_count?: number | null
-          student_id: string
-          tenant_id: string
-          total_plans_completed?: number | null
-          total_study_minutes?: number | null
-          total_xp?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          current_level?: number | null
-          current_streak?: number | null
-          id?: string
-          last_study_date?: string | null
-          longest_streak?: number | null
-          streak_protection_count?: number | null
-          student_id?: string
-          tenant_id?: string
-          total_plans_completed?: number | null
-          total_study_minutes?: number | null
-          total_xp?: number | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "student_gamification_stats_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -8968,39 +9012,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      student_study_heatmap: {
-        Row: {
-          created_at: string | null
-          id: string
-          intensity_level: number | null
-          plans_completed: number | null
-          student_id: string
-          study_date: string
-          total_minutes: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          intensity_level?: number | null
-          plans_completed?: number | null
-          student_id: string
-          study_date: string
-          total_minutes?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          intensity_level?: number | null
-          plans_completed?: number | null
-          student_id?: string
-          study_date?: string
-          total_minutes?: number | null
-          updated_at?: string | null
-        }
-        Relationships: []
       }
       student_study_sessions: {
         Row: {
@@ -10889,10 +10900,6 @@ export type Database = {
       }
     }
     Functions: {
-      increment_payment_link_view: {
-        Args: { link_id: string }
-        Returns: undefined
-      }
       add_research_science_subject_group: {
         Args: { tenant_uuid: string }
         Returns: undefined
@@ -10928,6 +10935,38 @@ export type Database = {
           p_user_id: string
         }
         Returns: Json
+      }
+      claim_pending_scheduled_messages: {
+        Args: { batch_limit?: number }
+        Returns: {
+          attempts: number
+          content: string
+          created_at: string
+          id: string
+          last_error: string | null
+          max_attempts: number
+          message_type: string
+          metadata: Json | null
+          reply_to_id: string | null
+          room_id: string
+          scheduled_at: string
+          sender_id: string
+          sender_name_snapshot: string
+          sender_profile_url_snapshot: string | null
+          sender_type: string
+          sent_at: string | null
+          sent_message_id: string | null
+          status: string
+          tenant_id: string
+          timezone: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "scheduled_messages"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       cleanup_expired_idempotency_keys: { Args: never; Returns: number }
       cleanup_expired_llm_cache: { Args: never; Returns: number }
@@ -11160,6 +11199,10 @@ export type Database = {
       increment_pause_count: {
         Args: { p_plan_id: string; p_student_id: string }
         Returns: number
+      }
+      increment_payment_link_view: {
+        Args: { link_id: string }
+        Returns: undefined
       }
       is_admin_or_consultant: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
