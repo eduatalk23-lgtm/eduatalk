@@ -97,7 +97,7 @@ export function ProfileMenu({
       {isOpen && (
         <div
           className={cn(
-            "absolute right-0 top-[calc(100%+0.5rem)] w-[320px] rounded-2xl overflow-hidden",
+            "absolute right-0 top-[calc(100%+0.5rem)] z-[60] w-[320px] rounded-2xl overflow-hidden",
             "bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))]",
             "border border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]",
             "shadow-xl"
