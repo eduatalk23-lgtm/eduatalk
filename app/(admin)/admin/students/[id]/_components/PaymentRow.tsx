@@ -24,6 +24,7 @@ type PaymentRowProps = {
   onRefund?: () => void;
   onCashReceipt: () => void;
   onCancelCashReceipt: (paymentId: string) => void;
+  onSendPaymentLink?: () => void;
   isGroupChild?: boolean;
 };
 
@@ -36,6 +37,7 @@ function PaymentRowComponent({
   onRefund,
   onCashReceipt,
   onCancelCashReceipt,
+  onSendPaymentLink,
   isGroupChild,
 }: PaymentRowProps) {
   const statusKey = payment.status as PaymentStatus;
@@ -143,6 +145,7 @@ function PaymentRowComponent({
           onRefund={onRefund}
           onCashReceipt={onCashReceipt}
           onCancelCashReceipt={onCancelCashReceipt}
+          onSendPaymentLink={onSendPaymentLink}
         />
       </td>
     </tr>

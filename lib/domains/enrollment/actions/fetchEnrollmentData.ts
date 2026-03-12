@@ -5,6 +5,7 @@ import { getEnrollmentsByStudent } from "@/lib/data/enrollments";
 import { getProgramsByTenant } from "@/lib/data/programs";
 import { getPaymentsByStudent } from "@/lib/data/payments";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getStudentParents } from "@/lib/domains/student/actions/parentLinks";
 import type { EnrollmentWithProgram } from "../types";
 import type { PaymentRecordWithEnrollment } from "@/lib/domains/payment/types";
 import type { Program } from "@/lib/domains/crm/types";
@@ -16,6 +17,7 @@ type FetchEnrollmentDataResult = {
   programs: Program[];
   payments: PaymentRecordWithEnrollment[];
   consultants: ConsultantOption[];
+  parentPhone?: string;
 };
 
 async function getConsultantsByTenant(
@@ -41,12 +43,16 @@ export async function fetchEnrollmentData(
     requireTenant: true,
   });
 
-  const [enrollments, programs, payments, consultants] = await Promise.all([
-    getEnrollmentsByStudent(studentId),
-    getProgramsByTenant(tenantId!),
-    getPaymentsByStudent(studentId),
-    getConsultantsByTenant(tenantId!),
-  ]);
+  const [enrollments, programs, payments, consultants, parentsResult] =
+    await Promise.all([
+      getEnrollmentsByStudent(studentId),
+      getProgramsByTenant(tenantId!),
+      getPaymentsByStudent(studentId),
+      getConsultantsByTenant(tenantId!),
+      getStudentParents(studentId),
+    ]);
 
-  return { enrollments, programs, payments, consultants };
+  const parentPhone = parentsResult.data?.[0]?.parentPhone ?? undefined;
+
+  return { enrollments, programs, payments, consultants, parentPhone };
 }

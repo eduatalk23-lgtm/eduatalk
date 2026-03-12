@@ -13,6 +13,7 @@ type EnrollmentData = {
   programs: Program[];
   payments: PaymentRecordWithEnrollment[];
   consultants: { id: string; name: string; role: string }[];
+  parentPhone?: string;
 };
 
 type EnrollmentSlidePanelProps = {
@@ -78,6 +79,7 @@ export function EnrollmentSlidePanel({
           programs={data.programs}
           payments={data.payments}
           consultants={data.consultants}
+          parentPhone={data.parentPhone}
           onRefresh={handleRefresh}
         />
       )}

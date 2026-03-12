@@ -85,6 +85,7 @@ type PaymentTablePanelProps = {
   onCancelCashReceipt: (paymentId: string) => void;
   onSyncTossStatus?: () => void;
   isSyncing?: boolean;
+  onSendPaymentLink?: (payment: PaymentRecordWithEnrollment) => void;
 };
 
 export function PaymentTablePanel({
@@ -104,6 +105,7 @@ export function PaymentTablePanel({
   onCancelCashReceipt,
   onSyncTossStatus,
   isSyncing,
+  onSendPaymentLink,
 }: PaymentTablePanelProps) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
     () => new Set()
@@ -315,6 +317,7 @@ export function PaymentTablePanel({
                         onRefundPayment={onRefundPayment}
                         onCashReceipt={onCashReceipt}
                         onCancelCashReceipt={onCancelCashReceipt}
+                        onSendPaymentLink={onSendPaymentLink}
                       />
                     );
                   })}
@@ -334,6 +337,11 @@ export function PaymentTablePanel({
                       }
                       onCashReceipt={() => onCashReceipt(payment)}
                       onCancelCashReceipt={onCancelCashReceipt}
+                      onSendPaymentLink={
+                        onSendPaymentLink
+                          ? () => onSendPaymentLink(payment)
+                          : undefined
+                      }
                     />
                   ))}
                 </>
@@ -353,6 +361,11 @@ export function PaymentTablePanel({
                     }
                     onCashReceipt={() => onCashReceipt(payment)}
                     onCancelCashReceipt={onCancelCashReceipt}
+                    onSendPaymentLink={
+                      onSendPaymentLink
+                        ? () => onSendPaymentLink(payment)
+                        : undefined
+                    }
                   />
                 ))
               )}
@@ -386,6 +399,7 @@ function InstallmentGroupRows({
   onRefundPayment,
   onCashReceipt,
   onCancelCashReceipt,
+  onSendPaymentLink,
 }: {
   group: InstallmentGroup;
   isExpanded: boolean;
@@ -397,6 +411,7 @@ function InstallmentGroupRows({
   onRefundPayment: (payment: PaymentRecordWithEnrollment) => void;
   onCashReceipt: (payment: PaymentRecordWithEnrollment) => void;
   onCancelCashReceipt: (paymentId: string) => void;
+  onSendPaymentLink?: (payment: PaymentRecordWithEnrollment) => void;
 }) {
   const progress =
     group.payments.length > 0
@@ -457,6 +472,11 @@ function InstallmentGroupRows({
             }
             onCashReceipt={() => onCashReceipt(payment)}
             onCancelCashReceipt={onCancelCashReceipt}
+            onSendPaymentLink={
+              onSendPaymentLink
+                ? () => onSendPaymentLink(payment)
+                : undefined
+            }
             isGroupChild
           />
         ))}

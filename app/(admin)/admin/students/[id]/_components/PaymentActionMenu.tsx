@@ -11,6 +11,7 @@ type PaymentActionMenuProps = {
   onRefund?: () => void;
   onCashReceipt: () => void;
   onCancelCashReceipt: (paymentId: string) => void;
+  onSendPaymentLink?: () => void;
 };
 
 export function PaymentActionMenu({
@@ -20,6 +21,7 @@ export function PaymentActionMenu({
   onRefund,
   onCashReceipt,
   onCancelCashReceipt,
+  onSendPaymentLink,
 }: PaymentActionMenuProps) {
   const canConfirm =
     payment.status === "unpaid" || payment.status === "partial";
@@ -76,6 +78,16 @@ export function PaymentActionMenu({
               className="text-purple-600 dark:text-purple-400"
             >
               현금영수증 보기
+            </DropdownMenu.Item>
+          )}
+
+          {/* 결제 링크 보내기 */}
+          {canConfirm && onSendPaymentLink && (
+            <DropdownMenu.Item
+              onClick={onSendPaymentLink}
+              className="text-blue-600 dark:text-blue-400"
+            >
+              결제 링크 보내기
             </DropdownMenu.Item>
           )}
 

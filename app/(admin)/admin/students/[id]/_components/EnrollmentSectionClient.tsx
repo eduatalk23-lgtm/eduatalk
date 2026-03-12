@@ -23,6 +23,7 @@ import { PaymentAddModal } from "./PaymentAddModal";
 import { PaymentConfirmModal } from "./PaymentConfirmModal";
 import { PaymentRefundModal } from "./PaymentRefundModal";
 import { CashReceiptModal } from "./CashReceiptModal";
+import { PaymentLinkCreateModal } from "./PaymentLinkCreateModal";
 
 type ConsultantOption = { id: string; name: string; role: string };
 
@@ -32,6 +33,7 @@ type EnrollmentSectionClientProps = {
   programs: Program[];
   payments: PaymentRecordWithEnrollment[];
   consultants?: ConsultantOption[];
+  parentPhone?: string;
   onRefresh?: () => void;
 };
 
@@ -41,6 +43,7 @@ export function EnrollmentSectionClient({
   programs,
   payments,
   consultants = [],
+  parentPhone,
   onRefresh,
 }: EnrollmentSectionClientProps) {
   const toast = useToast();
@@ -69,6 +72,8 @@ export function EnrollmentSectionClient({
   const [cashReceiptTarget, setCashReceiptTarget] =
     useState<PaymentRecordWithEnrollment | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [paymentLinkTarget, setPaymentLinkTarget] =
+    useState<PaymentRecordWithEnrollment | null>(null);
 
   const isAllView = selectedEnrollmentId === null;
 
@@ -276,6 +281,7 @@ export function EnrollmentSectionClient({
           onCancelCashReceipt={handleCancelCashReceipt}
           onSyncTossStatus={handleSyncTossStatus}
           isSyncing={isSyncing}
+          onSendPaymentLink={setPaymentLinkTarget}
         />
       </div>
 
@@ -332,6 +338,18 @@ export function EnrollmentSectionClient({
           paymentId={cashReceiptTarget.id}
           amount={cashReceiptTarget.paid_amount || cashReceiptTarget.amount}
           programName={cashReceiptTarget.program_name}
+          onSuccess={() => onRefresh?.()}
+        />
+      )}
+
+      {paymentLinkTarget && (
+        <PaymentLinkCreateModal
+          open={!!paymentLinkTarget}
+          onOpenChange={(open) => {
+            if (!open) setPaymentLinkTarget(null);
+          }}
+          payment={paymentLinkTarget}
+          defaultPhone={parentPhone}
           onSuccess={() => onRefresh?.()}
         />
       )}
