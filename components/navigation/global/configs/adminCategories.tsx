@@ -38,6 +38,7 @@ import {
   GraduationCap,
   Package,
   Receipt,
+  Link2,
 } from "lucide-react";
 
 export const adminCategories: NavigationCategory[] = [
@@ -386,6 +387,12 @@ export const adminCategories: NavigationCategory[] = [
         label: "수납 현황",
         href: "/admin/billing",
         icon: <Receipt className="w-4 h-4" />,
+      },
+      {
+        id: "admin-billing-payment-links",
+        label: "결제 링크",
+        href: "/admin/billing/payment-links",
+        icon: <Link2 className="w-4 h-4" />,
       },
       {
         id: "admin-billing-revenue",

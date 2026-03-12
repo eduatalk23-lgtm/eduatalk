@@ -32,6 +32,10 @@
     {
       "path": "/api/cron/push-cleanup",
       "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/cron/payment-link-maintenance",
+      "schedule": "0 0 * * *"
     }
   ]
 }

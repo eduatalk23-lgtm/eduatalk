@@ -23,7 +23,7 @@ export interface SendAlimtalkOptions {
   buttons?: AlimtalkButton[];
   refKey?: string;
   sendTime?: string;
-  consultationScheduleId?: string; // 상담 일정 FK (발송 이력 추적용)
+  consultationScheduleId?: string; // calendar_events.id (sms_logs.consultation_schedule_id 컬럼에 저장)
   templateVariables?: Record<string, string>; // 템플릿 변수 (changeWord 생성용)
   variableOrder?: string[]; // 변수 순서 (changeWord var1, var2, ... 매핑)
   smsFallbackSubject?: string; // LMS 대체 발송 시 제목 (30자)

@@ -21,6 +21,7 @@ export const PUBLIC_PAGE_PATHS = [
   "/onboarding",
   "/student-setup",
   "/offline",
+  "/pay",
 ] as const;
 
 /**
@@ -44,6 +45,7 @@ export const PUBLIC_API_PATHS = [
   "/api/difficulty-levels",
   "/api/goals/list",
   "/api/push/click", // SW notificationclick에서 인증 없이 호출 (UUID 기반)
+  "/api/payments/toss/confirm-guest", // 게스트 결제 승인 (토큰 기반)
 ] as const;
 
 /** 외부 서비스 웹훅 경로 (자체 인증 메커니즘 사용) */
@@ -119,6 +121,7 @@ export const CRAWLER_DISALLOW_PATHS = [
   "/reset-password",
   "/forgot-password",
   "/offline",
+  "/pay",
 ] as const;
 
 /** 크롤러가 접근 가능한 경로 (robots.txt용) */

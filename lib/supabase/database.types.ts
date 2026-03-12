@@ -1588,6 +1588,11 @@ export type Database = {
           history_visible: boolean
           id: string
           is_active: boolean | null
+          last_message_at: string | null
+          last_message_content: string | null
+          last_message_sender_id: string | null
+          last_message_sender_name: string | null
+          last_message_type: string | null
           name: string | null
           status: string
           tenant_id: string
@@ -1608,6 +1613,11 @@ export type Database = {
           history_visible?: boolean
           id?: string
           is_active?: boolean | null
+          last_message_at?: string | null
+          last_message_content?: string | null
+          last_message_sender_id?: string | null
+          last_message_sender_name?: string | null
+          last_message_type?: string | null
           name?: string | null
           status?: string
           tenant_id: string
@@ -1628,6 +1638,11 @@ export type Database = {
           history_visible?: boolean
           id?: string
           is_active?: boolean | null
+          last_message_at?: string | null
+          last_message_content?: string | null
+          last_message_sender_id?: string | null
+          last_message_sender_name?: string | null
+          last_message_type?: string | null
           name?: string | null
           status?: string
           tenant_id?: string
@@ -1764,21 +1779,17 @@ export type Database = {
           },
         ]
       }
-      consultation_schedules: {
+      consultation_event_data: {
         Row: {
           consultant_id: string
           consultation_mode: string
           created_at: string | null
-          created_by: string | null
-          description: string | null
-          duration_minutes: number | null
-          end_time: string
           enrollment_id: string | null
+          event_id: string
           google_calendar_event_id: string | null
           google_shared_calendar_event_id: string | null
           google_sync_status: string | null
           id: string
-          location: string | null
           meeting_link: string | null
           notification_sent: boolean | null
           notification_sent_at: string | null
@@ -1786,12 +1797,9 @@ export type Database = {
           program_name: string | null
           reminder_sent: boolean | null
           reminder_sent_at: string | null
-          scheduled_date: string
+          schedule_status: string
           session_type: string
-          start_time: string
-          status: string
           student_id: string
-          tenant_id: string
           updated_at: string | null
           visitor: string | null
         }
@@ -1799,16 +1807,12 @@ export type Database = {
           consultant_id: string
           consultation_mode?: string
           created_at?: string | null
-          created_by?: string | null
-          description?: string | null
-          duration_minutes?: number | null
-          end_time: string
           enrollment_id?: string | null
+          event_id: string
           google_calendar_event_id?: string | null
           google_shared_calendar_event_id?: string | null
           google_sync_status?: string | null
           id?: string
-          location?: string | null
           meeting_link?: string | null
           notification_sent?: boolean | null
           notification_sent_at?: string | null
@@ -1816,12 +1820,9 @@ export type Database = {
           program_name?: string | null
           reminder_sent?: boolean | null
           reminder_sent_at?: string | null
-          scheduled_date: string
+          schedule_status?: string
           session_type?: string
-          start_time: string
-          status?: string
           student_id: string
-          tenant_id: string
           updated_at?: string | null
           visitor?: string | null
         }
@@ -1829,16 +1830,12 @@ export type Database = {
           consultant_id?: string
           consultation_mode?: string
           created_at?: string | null
-          created_by?: string | null
-          description?: string | null
-          duration_minutes?: number | null
-          end_time?: string
           enrollment_id?: string | null
+          event_id?: string
           google_calendar_event_id?: string | null
           google_shared_calendar_event_id?: string | null
           google_sync_status?: string | null
           id?: string
-          location?: string | null
           meeting_link?: string | null
           notification_sent?: boolean | null
           notification_sent_at?: string | null
@@ -1846,49 +1843,39 @@ export type Database = {
           program_name?: string | null
           reminder_sent?: boolean | null
           reminder_sent_at?: string | null
-          scheduled_date?: string
+          schedule_status?: string
           session_type?: string
-          start_time?: string
-          status?: string
           student_id?: string
-          tenant_id?: string
           updated_at?: string | null
           visitor?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "consultation_schedules_consultant_id_fkey"
+            foreignKeyName: "consultation_event_data_consultant_id_fkey"
             columns: ["consultant_id"]
             isOneToOne: false
             referencedRelation: "admin_users"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "consultation_schedules_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "admin_users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "consultation_schedules_enrollment_id_fkey"
+            foreignKeyName: "consultation_event_data_enrollment_id_fkey"
             columns: ["enrollment_id"]
             isOneToOne: false
             referencedRelation: "enrollments"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "consultation_schedules_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
+            foreignKeyName: "consultation_event_data_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_events"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "consultation_schedules_tenant_id_fkey"
-            columns: ["tenant_id"]
+            foreignKeyName: "consultation_event_data_student_id_fkey"
+            columns: ["student_id"]
             isOneToOne: false
-            referencedRelation: "tenants"
+            referencedRelation: "students"
             referencedColumns: ["id"]
           },
         ]
@@ -3211,13 +3198,6 @@ export type Database = {
             columns: ["admin_user_id"]
             isOneToOne: false
             referencedRelation: "admin_users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "google_calendar_sync_queue_schedule_id_fkey"
-            columns: ["schedule_id"]
-            isOneToOne: false
-            referencedRelation: "consultation_schedules"
             referencedColumns: ["id"]
           },
           {
@@ -4974,6 +4954,109 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_links: {
+        Row: {
+          id: string
+          token: string
+          tenant_id: string
+          payment_record_id: string
+          student_id: string
+          academy_name: string
+          student_name: string
+          program_name: string
+          amount: number
+          due_date: string | null
+          memo: string | null
+          status: string
+          expires_at: string
+          delivery_method: string | null
+          delivery_status: string
+          delivered_at: string | null
+          recipient_phone: string | null
+          paid_at: string | null
+          toss_payment_key: string | null
+          view_count: number
+          last_viewed_at: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          token: string
+          tenant_id: string
+          payment_record_id: string
+          student_id: string
+          academy_name: string
+          student_name: string
+          program_name: string
+          amount: number
+          due_date?: string | null
+          memo?: string | null
+          status?: string
+          expires_at: string
+          delivery_method?: string | null
+          delivery_status?: string
+          delivered_at?: string | null
+          recipient_phone?: string | null
+          paid_at?: string | null
+          toss_payment_key?: string | null
+          view_count?: number
+          last_viewed_at?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          token?: string
+          tenant_id?: string
+          payment_record_id?: string
+          student_id?: string
+          academy_name?: string
+          student_name?: string
+          program_name?: string
+          amount?: number
+          due_date?: string | null
+          memo?: string | null
+          status?: string
+          expires_at?: string
+          delivery_method?: string | null
+          delivery_status?: string
+          delivered_at?: string | null
+          recipient_phone?: string | null
+          paid_at?: string | null
+          toss_payment_key?: string | null
+          view_count?: number
+          last_viewed_at?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_links_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_links_payment_record_id_fkey"
+            columns: ["payment_record_id"]
+            isOneToOne: false
+            referencedRelation: "payment_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_links_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
             referencedColumns: ["id"]
           },
         ]
@@ -7094,13 +7177,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "sms_logs_consultation_schedule_id_fkey"
-            columns: ["consultation_schedule_id"]
-            isOneToOne: false
-            referencedRelation: "consultation_schedules"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "sms_logs_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -7465,13 +7541,6 @@ export type Database = {
             columns: ["consultant_id"]
             isOneToOne: false
             referencedRelation: "admin_users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "student_consulting_notes_consultation_schedule_id_fkey"
-            columns: ["consultation_schedule_id"]
-            isOneToOne: false
-            referencedRelation: "consultation_schedules"
             referencedColumns: ["id"]
           },
           {
@@ -10820,6 +10889,10 @@ export type Database = {
       }
     }
     Functions: {
+      increment_payment_link_view: {
+        Args: { link_id: string }
+        Returns: undefined
+      }
       add_research_science_subject_group: {
         Args: { tenant_uuid: string }
         Returns: undefined
@@ -11133,6 +11206,15 @@ export type Database = {
       }
       rls_check_camp_template_member: {
         Args: { p_template_id: string }
+        Returns: boolean
+      }
+      rls_check_chat_member: { Args: { p_room_id: string }; Returns: boolean }
+      rls_check_chat_message_member: {
+        Args: { p_message_id: string }
+        Returns: boolean
+      }
+      rls_check_chat_not_blocked: {
+        Args: { p_sender_id: string }
         Returns: boolean
       }
       rls_check_chat_room_admin: {

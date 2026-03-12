@@ -19,7 +19,7 @@ export interface SendSMSOptions {
   templateId?: string;
   refKey?: string; // 고객사에서 부여한 키
   sendTime?: string; // 예약 발송 시간 (yyyy-MM-ddTHH:mm:ss)
-  consultationScheduleId?: string; // 상담 일정 FK (발송 이력 추적용)
+  consultationScheduleId?: string; // calendar_events.id (sms_logs.consultation_schedule_id 컬럼에 저장)
   notificationTarget?: string; // 알림 대상 (학생/부/모) — 발송 시점 기록
 }
 
