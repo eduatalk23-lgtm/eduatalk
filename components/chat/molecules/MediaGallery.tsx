@@ -518,7 +518,6 @@ function SelectionActionBar({
           className={cn(
             "flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors",
             "bg-error-100 text-error-700 hover:bg-error-200",
-            "dark:bg-error-900/30 dark:text-error-300 dark:hover:bg-error-900/50",
             "disabled:opacity-50"
           )}
         >
@@ -790,7 +789,7 @@ function GalleryImageItem({
             "absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center",
             isSelected
               ? "bg-primary-500 text-white"
-              : "bg-black/30 border border-white/60"
+              : "bg-black/30 dark:bg-white/20 border border-white/60 dark:border-white/40"
           )}
         >
           {isSelected && <Check className="w-3 h-3" />}

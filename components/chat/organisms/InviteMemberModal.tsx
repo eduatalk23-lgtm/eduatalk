@@ -165,7 +165,7 @@ export function InviteMemberModal({
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
                       isSelected
                         ? "bg-primary-50 dark:bg-primary-900/30 border-2 border-primary"
-                        : "hover:bg-secondary-100 dark:hover:bg-secondary-800 border-2 border-transparent"
+                        : "hover:bg-secondary-100 border-2 border-transparent"
                     )}
                   >
                     <Checkbox
@@ -212,7 +212,7 @@ export function InviteMemberModal({
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
             isSubmitEnabled && !inviteMutation.isPending
               ? "bg-primary-500 text-white hover:bg-primary-600 active:bg-primary-700"
-              : "bg-secondary-200 dark:bg-secondary-700 text-text-tertiary cursor-not-allowed"
+              : "bg-secondary-200 text-text-tertiary cursor-not-allowed"
           )}
         >
           {inviteMutation.isPending ? (

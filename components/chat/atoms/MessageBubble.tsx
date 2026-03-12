@@ -190,7 +190,7 @@ function ErrorActionSheet({
       >
         {/* 드래그 핸들 */}
         <div className="flex justify-center pt-3 pb-1">
-          <div className="w-9 h-1 rounded-full bg-secondary-300 dark:bg-secondary-600" />
+          <div className="w-9 h-1 rounded-full bg-secondary-300" />
         </div>
 
         {/* 에러 메시지 */}
@@ -343,13 +343,13 @@ function MessageBubbleComponent({
       <div className="flex items-center justify-center py-3">
         <div className="flex items-center gap-3 w-full max-w-sm">
           {/* 왼쪽 선 */}
-          <div className="flex-1 h-px bg-secondary-200 dark:bg-secondary-700" />
+          <div className="flex-1 h-px bg-secondary-200" />
           {/* 시스템 메시지 텍스트 */}
           <span className="text-xs text-text-tertiary px-2 whitespace-nowrap">
             {content}
           </span>
           {/* 오른쪽 선 */}
-          <div className="flex-1 h-px bg-secondary-200 dark:bg-secondary-700" />
+          <div className="flex-1 h-px bg-secondary-200" />
         </div>
       </div>
     );
@@ -384,8 +384,8 @@ function MessageBubbleComponent({
               <div
                 className={cn(
                   "px-4 py-2 rounded-2xl",
-                  "bg-secondary-50 dark:bg-secondary-900/50",
-                  "border border-secondary-200 dark:border-secondary-700",
+                  "bg-secondary-50",
+                  "border border-secondary-200",
                   "text-text-tertiary italic text-sm",
                   isOwn ? "rounded-br-sm" : "rounded-bl-sm"
                 )}
@@ -464,14 +464,14 @@ function MessageBubbleComponent({
                   onClick={() => dispatch({ type: "replyTargetClick" })}
                   className={cn(
                     "px-3 py-1.5 rounded-t-lg text-xs text-left cursor-pointer",
-                    "bg-secondary-50 dark:bg-secondary-900/50",
+                    "bg-secondary-50",
                     "border-l-2 border-primary",
-                    "hover:bg-secondary-100 dark:hover:bg-secondary-700 transition-colors",
+                    "hover:bg-secondary-100 transition-colors",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
                   )}
                 >
                   <p className="font-medium text-primary">{replyTarget.senderName}</p>
-                  <p className="text-text-secondary truncate max-w-[200px] flex items-center gap-1">
+                  <p className="text-text-secondary truncate max-w-full flex items-center gap-1">
                     {replyTarget.isDeleted ? "삭제된 메시지" : (
                       <>
                         {replyTarget.attachmentType && (
@@ -497,7 +497,7 @@ function MessageBubbleComponent({
                   "rounded-2xl overflow-hidden",
                   isOwn
                     ? "bg-primary-500 dark:bg-primary-400 text-white rounded-br-sm"
-                    : "bg-bg-secondary dark:bg-secondary-800 text-text-primary rounded-bl-sm",
+                    : "bg-bg-secondary text-text-primary rounded-bl-sm",
                   replyTarget && "rounded-t-none",
                   (hasError || isQueued) && "opacity-60"
                 )}
@@ -534,7 +534,7 @@ function MessageBubbleComponent({
                             "h-12",
                             isOwn
                               ? "bg-gradient-to-t from-primary-500 dark:from-primary-400 to-transparent"
-                              : "bg-gradient-to-t from-secondary-100 dark:from-secondary-800 to-transparent"
+                              : "bg-gradient-to-t from-secondary-100 to-transparent"
                           )}
                         />
                         <button
@@ -545,7 +545,7 @@ function MessageBubbleComponent({
                             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
                             isOwn
                               ? "bg-primary-500 dark:bg-primary-400 text-white/90 hover:bg-primary-600 dark:hover:bg-primary-500 hover:text-white focus-visible:ring-white/60"
-                              : "bg-secondary-100 dark:bg-secondary-800 text-text-secondary hover:bg-secondary-200 dark:hover:bg-secondary-700 hover:text-text-primary focus-visible:ring-primary"
+                              : "bg-secondary-100 text-text-secondary hover:bg-secondary-200 hover:text-text-primary focus-visible:ring-primary"
                           )}
                         >
                           펼쳐보기
@@ -561,7 +561,7 @@ function MessageBubbleComponent({
                           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
                           isOwn
                             ? "text-white/90 hover:bg-white/10 hover:text-white focus-visible:ring-white/60"
-                            : "text-text-secondary hover:bg-secondary-200/50 dark:hover:bg-secondary-700/50 hover:text-text-primary focus-visible:ring-primary"
+                            : "text-text-secondary hover:bg-secondary-200/50 hover:text-text-primary focus-visible:ring-primary"
                         )}
                       >
                         접기

@@ -111,8 +111,8 @@ function MentionPickerComponent({
             onClick={() => handleClick(member)}
             className={cn(
               "w-full flex items-center gap-3 px-3 py-2 text-left",
-              "hover:bg-secondary-100 dark:hover:bg-secondary-800 transition-colors",
-              index === selectedIndex && "bg-secondary-100 dark:bg-secondary-800 ring-2 ring-inset ring-primary/30"
+              "hover:bg-secondary-100 transition-colors",
+              index === selectedIndex && "bg-secondary-100 ring-2 ring-inset ring-primary/30"
             )}
             role="option"
             aria-selected={index === selectedIndex}

@@ -125,7 +125,7 @@ export function ChatSplitLayout({
         style={{ zIndex: 1 }}
       >
         {/* 좌측 사이드바 - 채팅/멤버 탭 */}
-        <aside className="w-80 xl:w-[360px] flex-shrink-0 border-r border-border overflow-hidden flex flex-col bg-bg-primary shadow-[2px_0_8px_rgba(0,0,0,0.06)] z-10">
+        <aside className="w-72 lg:w-80 xl:w-[360px] flex-shrink-0 border-r border-border overflow-hidden flex flex-col bg-bg-primary shadow-[2px_0_8px_rgba(0,0,0,0.06)] z-10">
           {/* 사이드바 탭 */}
           <ChatSidebarTabs activeTab={sidebarTab} onChange={setSidebarTab} onNewChat={handleNewChat} />
 

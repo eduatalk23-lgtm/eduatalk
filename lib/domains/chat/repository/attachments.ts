@@ -108,7 +108,7 @@ export async function deleteAttachment(attachmentId: string): Promise<void> {
   if (error) throw error;
 }
 
-/** 고아 첨부파일 조회 (message_id IS NULL, N시간 이상 경과) */
+/** 고아 첨부파일 조회 (message_id IS NULL, N시간 이상 경과, 예약 메시지 미연결) */
 export async function findOrphanedAttachments(
   olderThanHours: number = 24,
   limit: number = 100
@@ -120,6 +120,7 @@ export async function findOrphanedAttachments(
     .from("chat_attachments")
     .select("id, storage_path, thumbnail_storage_path")
     .is("message_id", null)
+    .is("scheduled_message_id", null)
     .lt("created_at", cutoff)
     .limit(limit);
 
@@ -127,7 +128,7 @@ export async function findOrphanedAttachments(
   return (data ?? []) as Array<{ id: string; storage_path: string; thumbnail_storage_path: string | null }>;
 }
 
-/** 만료된 첨부파일 조회 (N일 이상 경과, 메시지에 연결된 파일 포함) */
+/** 만료된 첨부파일 조회 (N일 이상 경과, 메시지에 연결된 파일 포함, 예약 메시지 미연결) */
 export async function findExpiredAttachments(
   olderThanDays: number = 7,
   limit: number = 100
@@ -138,6 +139,7 @@ export async function findExpiredAttachments(
   const { data, error } = await client
     .from("chat_attachments")
     .select("id, storage_path, thumbnail_storage_path, message_id")
+    .is("scheduled_message_id", null)
     .lt("created_at", cutoff)
     .limit(limit);
 

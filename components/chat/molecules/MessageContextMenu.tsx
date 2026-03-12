@@ -117,8 +117,8 @@ function ReactionBar({
             "flex items-center justify-center",
             compact ? "w-9 h-9 text-xl" : "w-11 h-11 text-2xl",
             "rounded-full",
-            "bg-secondary-100 dark:bg-secondary-800",
-            "hover:bg-secondary-200 dark:hover:bg-secondary-700",
+            "bg-secondary-100",
+            "hover:bg-secondary-200",
             "active:scale-95",
             "transition-all duration-100",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
@@ -340,7 +340,7 @@ function MessageContextMenuComponent({
       >
         {/* 드래그 핸들 바 */}
         <div className="flex justify-center pt-3 pb-2">
-          <div className="w-10 h-1 bg-secondary-300 dark:bg-secondary-600 rounded-full" />
+          <div className="w-10 h-1 bg-secondary-300 rounded-full" />
         </div>
 
         {/* 리액션 바 */}
@@ -361,8 +361,8 @@ function MessageContextMenuComponent({
             onClick={onClose}
             className={cn(
               "w-full py-3 rounded-xl",
-              "bg-secondary-100 dark:bg-secondary-800",
-              "hover:bg-secondary-200 dark:hover:bg-secondary-700",
+              "bg-secondary-100",
+              "hover:bg-secondary-200",
               "text-text-primary font-medium",
               "transition-colors",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"

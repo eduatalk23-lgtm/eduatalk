@@ -204,7 +204,7 @@ function VideoPlayer({
   return (
     <div
       className={cn(
-        "rounded-lg overflow-hidden max-w-[280px]",
+        "rounded-lg overflow-hidden max-w-full",
         isOwn ? "bg-white/20" : "bg-bg-secondary"
       )}
     >
@@ -261,7 +261,7 @@ function AudioPlayer({
   return (
     <div
       className={cn(
-        "flex items-center gap-3 px-3 py-2 rounded-lg max-w-[280px]",
+        "flex items-center gap-3 px-3 py-2 rounded-lg max-w-full",
         isOwn ? "bg-white/20" : "bg-bg-secondary"
       )}
     >
@@ -335,7 +335,7 @@ function FileCard({
   return (
     <div
       className={cn(
-        "flex items-center gap-3 px-3 py-2 rounded-lg max-w-[280px]",
+        "flex items-center gap-3 px-3 py-2 rounded-lg max-w-full",
         "transition-colors",
         isOwn
           ? "bg-white/20"

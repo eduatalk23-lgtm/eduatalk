@@ -38,9 +38,9 @@ function AnnouncementBannerComponent({
     : announcement.content.slice(0, 100) + (isLongContent ? "..." : "");
 
   return (
-    <div className="bg-warning-50 dark:bg-warning-900/20 border-b border-warning-200 dark:border-warning-900/30">
+    <div className="bg-warning-50 border-b border-warning-200">
       <div className="flex items-start gap-2 px-4 py-2">
-        <Megaphone className="w-4 h-4 text-warning-600 dark:text-warning-400 flex-shrink-0 mt-0.5" />
+        <Megaphone className="w-4 h-4 text-warning-600 flex-shrink-0 mt-0.5" />
 
         <div className="flex-1 min-w-0">
           {/* 공지 내용 */}

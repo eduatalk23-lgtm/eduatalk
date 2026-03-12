@@ -311,6 +311,15 @@ export function useChatRealtime({
     });
   }, [queryClient, roomId]);
 
+  const invalidateRoomDetail = useCallback(() => {
+    queryClient.invalidateQueries({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey[0] === "chat-room" &&
+        query.queryKey[1] === roomId,
+    });
+  }, [queryClient, roomId]);
+
   const invalidateRoomList = useCallback(() => {
     queryClient.invalidateQueries({
       predicate: (query) =>
@@ -586,6 +595,7 @@ export function useChatRealtime({
   const fnRef = useRef({
     syncMessagesSince,
     invalidateRoomList,
+    invalidateRoomDetail,
     invalidatePinnedMessages,
     invalidateAnnouncement,
     fetchSenderInfo,
@@ -596,6 +606,7 @@ export function useChatRealtime({
     fnRef.current = {
       syncMessagesSince,
       invalidateRoomList,
+      invalidateRoomDetail,
       invalidatePinnedMessages,
       invalidateAnnouncement,
       fetchSenderInfo,
@@ -1182,6 +1193,9 @@ export function useChatRealtime({
             // 재연결 또는 자동 복구: 누락 메시지 복구 필요
             debugLog("[ChatRealtime] Reconnected. Syncing missed messages...");
             fnRef.current.syncMessagesSince();
+            // 재연결 중 놓친 READ_RECEIPT 복구를 위해 roomDetail 갱신
+            // → member.last_read_at 최신화 → readReceiptTrackRef + readCounts 재계산
+            fnRef.current.invalidateRoomDetail();
           }
 
           // 부가 데이터는 항상 가져오되 지연 실행 (메시지 처리 우선)
@@ -1211,8 +1225,10 @@ export function useChatRealtime({
       const now = Date.now();
       if (now - lastVisibilitySyncAt < VISIBILITY_SYNC_DEBOUNCE_MS) return;
       lastVisibilitySyncAt = now;
-      debugLog("[ChatRealtime] Tab visible — syncing missed messages");
+      debugLog("[ChatRealtime] Tab visible — syncing missed messages & read counts");
       fnRef.current.syncMessagesSince();
+      // 탭 비활성 중 놓친 READ_RECEIPT 복구를 위해 roomDetail 갱신
+      fnRef.current.invalidateRoomDetail();
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);

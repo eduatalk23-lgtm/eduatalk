@@ -3,13 +3,15 @@
 /**
  * ChatInput - 메시지 입력 컴포넌트
  *
- * 텍스트 입력 + 파일 첨부 + 이모지 피커 + 전송 버튼 + 답장 표시
+ * 레이아웃: [+첨부] [textarea] [전송] — 모든 화면 크기 동일
+ * 예약 전송: + 메뉴에서 접근
+ * 이모지: OS 키보드 이모지 사용
  * 드래그 앤 드롭 파일 업로드 지원
  */
 
 import { memo, useState, useCallback, useRef, useEffect } from "react";
 import { cn } from "@/lib/cn";
-import { Send, X, Paperclip, FileText, Smile, Upload, Plus, Camera, ImageIcon, RotateCw } from "lucide-react";
+import { Send, X, Paperclip, FileText, Upload, Plus, Camera, ImageIcon, RotateCw, Clock, Calendar } from "lucide-react";
 import type { ReplyTargetInfo, UploadingAttachment, MentionInfo, ChatRoomMemberWithUser } from "@/lib/domains/chat/types";
 import { ALLOWED_FILE_TYPES, ALLOWED_IMAGE_TYPES, MAX_ATTACHMENTS_PER_MESSAGE } from "@/lib/domains/chat/types";
 import { formatFileSize, isImageType } from "@/lib/domains/chat/fileValidation";
@@ -17,22 +19,6 @@ import { MentionPicker } from "./MentionPicker";
 
 /** textarea 최대 높이 (약 7줄, 업계 표준 150-200px 범위) */
 const TEXTAREA_MAX_HEIGHT = 160;
-
-/** 자주 사용하는 이모지 (카테고리별) */
-const EMOJI_SECTIONS = [
-  {
-    label: "자주 사용",
-    emojis: ["😀", "😂", "🥲", "😊", "🥰", "😎", "🤔", "👍", "👏", "🙏", "❤️", "🔥", "✅", "💯", "🎉"],
-  },
-  {
-    label: "표정",
-    emojis: ["😅", "😭", "🤣", "😤", "😮", "🫡", "🤗", "😴", "🥳", "🤩", "😇", "🫠", "😬", "🤝", "💪"],
-  },
-  {
-    label: "기타",
-    emojis: ["📚", "✏️", "📝", "💡", "⭐", "🏆", "📌", "🔔", "⏰", "📅", "✨", "💬", "👀", "🎯", "🚀"],
-  },
-] as const;
 
 interface ChatInputProps {
   /** 채팅방 ID (draft 저장용) */
@@ -67,6 +53,8 @@ interface ChatInputProps {
   members?: ChatRoomMemberWithUser[];
   /** 현재 사용자 ID (멘션 목록에서 본인 제외) */
   currentUserId?: string;
+  /** 예약 전송 핸들러 (제공 시 전송 버튼에 드롭다운 추가) */
+  onScheduleSend?: (content: string, scheduledAt: Date, mentions?: MentionInfo[]) => void;
 }
 
 /** sessionStorage key prefix for chat drafts */
@@ -89,6 +77,7 @@ function ChatInputComponent({
   autoFocus = false,
   members = [],
   currentUserId,
+  onScheduleSend,
 }: ChatInputProps) {
   const [value, setValue] = useState(() => {
     if (!roomId) return "";
@@ -99,20 +88,19 @@ function ChatInputComponent({
     }
   });
   const [isComposing, setIsComposing] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentions, setMentions] = useState<MentionInfo[]>([]);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [showSchedulePanel, setShowSchedulePanel] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
-  const emojiPickerRef = useRef<HTMLDivElement>(null);
-  const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const attachMenuRef = useRef<HTMLDivElement>(null);
   const attachButtonRef = useRef<HTMLButtonElement>(null);
   const dragCounterRef = useRef(0);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** @ 기호가 시작된 위치 */
   const mentionStartRef = useRef<number>(-1);
 
@@ -148,24 +136,6 @@ function ChatInputComponent({
     }
   }, [autoFocus]);
 
-  // 이모지 피커 외부 클릭 닫기
-  useEffect(() => {
-    if (!showEmojiPicker) return;
-
-    function handleClickOutside(e: MouseEvent) {
-      if (
-        emojiPickerRef.current &&
-        !emojiPickerRef.current.contains(e.target as Node) &&
-        emojiButtonRef.current &&
-        !emojiButtonRef.current.contains(e.target as Node)
-      ) {
-        setShowEmojiPicker(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showEmojiPicker]);
 
   // 첨부 메뉴 외부 클릭 닫기
   useEffect(() => {
@@ -213,6 +183,23 @@ function ChatInputComponent({
     }
   }, [value, completedUploads, isSending, disabled, isUploading, onSend, onTypingChange, mentions, roomId]);
 
+  const handleSchedule = useCallback((scheduledAt: Date) => {
+    const trimmed = value.trim();
+    if ((!trimmed && completedUploads === 0) || !onScheduleSend || isSending || disabled) return;
+
+    onScheduleSend(trimmed, scheduledAt, mentions.length > 0 ? mentions : undefined);
+    setValue("");
+    if (roomId) {
+      try { sessionStorage.removeItem(`${DRAFT_KEY_PREFIX}${roomId}`); } catch { /* ignore */ }
+    }
+    setMentions([]);
+    setMentionQuery(null);
+    onTypingChange?.(false);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
+  }, [value, completedUploads, onScheduleSend, isSending, disabled, mentions, roomId, onTypingChange]);
+
   // 한글 IME 조합 이벤트 핸들러
   const handleCompositionStart = useCallback(() => {
     setIsComposing(true);
@@ -224,11 +211,6 @@ function ChatInputComponent({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      // Esc로 이모지 피커 닫기
-      if (e.key === "Escape" && showEmojiPicker) {
-        setShowEmojiPicker(false);
-        return;
-      }
       // 멘션 피커가 열려있으면 Enter/Tab/ArrowDown/ArrowUp 가로채기 방지
       // (MentionPicker에서 document keydown으로 처리)
       if (mentionQuery !== null && ["Enter", "Tab", "ArrowDown", "ArrowUp", "Escape"].includes(e.key)) {
@@ -240,28 +222,9 @@ function ChatInputComponent({
         handleSubmit();
       }
     },
-    [handleSubmit, isComposing, showEmojiPicker, mentionQuery]
+    [handleSubmit, isComposing, mentionQuery]
   );
 
-  // 이모지 삽입
-  const insertEmoji = useCallback((emoji: string) => {
-    setValue((prev) => {
-      const textarea = textareaRef.current;
-      if (textarea) {
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const newValue = prev.slice(0, start) + emoji + prev.slice(end);
-        // 커서 위치를 이모지 뒤로 이동
-        requestAnimationFrame(() => {
-          textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
-          textarea.focus();
-        });
-        return newValue.slice(0, maxLength);
-      }
-      return (prev + emoji).slice(0, maxLength);
-    });
-    onTypingChange?.(true);
-  }, [maxLength, onTypingChange]);
 
   // 멘션 트리거 감지 (텍스트 변경 시)
   const detectMention = useCallback(
@@ -590,7 +553,7 @@ function ChatInputComponent({
         </div>
       )}
 
-      <div className="flex items-end gap-2 p-3">
+      <div className="flex items-end gap-1.5 px-2 py-2 sm:gap-2 sm:px-3 sm:py-3">
         {/* 첨부 메뉴 */}
         {onFilesSelected && (
           <div className="relative">
@@ -600,7 +563,7 @@ function ChatInputComponent({
               onClick={() => setShowAttachMenu((prev) => !prev)}
               disabled={!canAttach}
               className={cn(
-                "flex items-center justify-center w-11 h-11 rounded-full flex-shrink-0 transition-all duration-200",
+                "flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full flex-shrink-0 transition-all duration-200",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
                 canAttach
                   ? showAttachMenu
@@ -731,7 +694,7 @@ function ChatInputComponent({
             disabled={disabled}
             rows={1}
             className={cn(
-              "w-full resize-none rounded-2xl px-4 py-2.5 text-base",
+              "w-full resize-none rounded-2xl px-3 py-2 text-sm sm:px-4 sm:py-2.5 sm:text-base",
               "bg-bg-secondary text-text-primary placeholder:text-text-tertiary",
               "border border-transparent focus:border-primary focus:outline-none",
               "transition-[border-color,height] duration-150 ease-out",
@@ -751,85 +714,208 @@ function ChatInputComponent({
           )}
         </div>
 
-        {/* 이모지 피커 버튼 */}
+        {/* 전송 버튼 — 탭: 즉시 전송 / 길게 누르기: 예약 드롭다운 */}
         <div className="relative">
           <button
-            ref={emojiButtonRef}
             type="button"
-            onClick={() => setShowEmojiPicker((prev) => !prev)}
-            disabled={disabled}
+            onClick={() => {
+              if (showSchedulePanel) {
+                setShowSchedulePanel(false);
+                return;
+              }
+              handleSubmit();
+            }}
+            onPointerDown={() => {
+              if (showSchedulePanel) return;
+              if (!onScheduleSend || !canSend) return;
+              longPressTimerRef.current = setTimeout(() => {
+                longPressTimerRef.current = null;
+                setShowSchedulePanel(true);
+                if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+                  try { navigator.vibrate(50); } catch { /* ignore */ }
+                }
+              }, 500);
+            }}
+            onPointerUp={() => {
+              if (longPressTimerRef.current) {
+                clearTimeout(longPressTimerRef.current);
+                longPressTimerRef.current = null;
+              }
+            }}
+            onPointerLeave={() => {
+              if (longPressTimerRef.current) {
+                clearTimeout(longPressTimerRef.current);
+                longPressTimerRef.current = null;
+              }
+            }}
+            disabled={!canSend}
             className={cn(
-              "flex items-center justify-center w-11 h-11 rounded-full flex-shrink-0 transition-colors",
+              "flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full flex-shrink-0",
+              "transition-all duration-200 select-none",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-              disabled
-                ? "text-text-tertiary opacity-50 cursor-not-allowed"
-                : showEmojiPicker
-                  ? "text-primary bg-primary-500/10"
-                  : "text-text-secondary hover:bg-bg-secondary active:bg-bg-tertiary"
+              canSend
+                ? "bg-primary-500 text-white hover:bg-primary-600 active:scale-95 scale-100"
+                : "bg-secondary-200 text-text-tertiary cursor-not-allowed scale-95"
             )}
-            aria-label="이모지"
-            aria-expanded={showEmojiPicker}
+            aria-label={onScheduleSend ? "전송 (길게 눌러서 예약)" : "전송"}
           >
-            <Smile className="w-5 h-5" />
+            <Send className={cn(
+              "w-5 h-5 transition-transform duration-200",
+              canSend ? "translate-x-0" : "-translate-x-0.5"
+            )} />
           </button>
 
-          {/* 이모지 퀵 패널 */}
-          {showEmojiPicker && (
-            <div
-              ref={emojiPickerRef}
-              className={cn(
-                "absolute bottom-full right-0 mb-2 w-[320px]",
-                "bg-bg-primary border border-border rounded-xl shadow-lg",
-                "overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150"
-              )}
-              role="dialog"
-              aria-label="이모지 선택"
-            >
-              <div className="max-h-[240px] overflow-y-auto p-2 space-y-2">
-                {EMOJI_SECTIONS.map((section) => (
-                  <div key={section.label}>
-                    <p className="text-[10px] text-text-tertiary font-medium px-1 mb-1">
-                      {section.label}
-                    </p>
-                    <div className="grid grid-cols-8 gap-0.5">
-                      {section.emojis.map((emoji) => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() => insertEmoji(emoji)}
-                          className="w-9 h-9 flex items-center justify-center rounded-lg text-lg hover:bg-bg-secondary active:bg-bg-tertiary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {/* 예약 전송 드롭다운 (+ 메뉴와 동일한 팝업 스타일) */}
+          {showSchedulePanel && onScheduleSend && (
+            <ScheduleDropdown
+              onSchedule={(date) => {
+                handleSchedule(date);
+                setShowSchedulePanel(false);
+              }}
+              onClose={() => setShowSchedulePanel(false)}
+            />
           )}
         </div>
+      </div>
+    </div>
+  );
+}
 
-        {/* 전송 버튼 - 모바일 터치 타겟 44px */}
+/** 예약 전송 드롭다운 — 전송 버튼 위 팝업 (+ 메뉴와 동일 스타일) */
+function ScheduleDropdown({
+  onSchedule,
+  onClose,
+}: {
+  onSchedule: (date: Date) => void;
+  onClose: () => void;
+}) {
+  const [customValue, setCustomValue] = useState("");
+  const [showCustom, setShowCustom] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const now = new Date();
+
+  // 빠른 선택 옵션
+  const quickOptions: Array<{ label: string; date: Date }> = [];
+
+  const today18 = new Date(now);
+  today18.setHours(18, 0, 0, 0);
+  if (today18.getTime() > now.getTime() + 60_000) {
+    quickOptions.push({ label: "오늘 오후 6:00", date: today18 });
+  }
+
+  const tomorrow9 = new Date(now);
+  tomorrow9.setDate(tomorrow9.getDate() + 1);
+  tomorrow9.setHours(9, 0, 0, 0);
+  quickOptions.push({ label: "내일 오전 9:00", date: tomorrow9 });
+
+  const tomorrow18 = new Date(now);
+  tomorrow18.setDate(tomorrow18.getDate() + 1);
+  tomorrow18.setHours(18, 0, 0, 0);
+  quickOptions.push({ label: "내일 오후 6:00", date: tomorrow18 });
+
+  // 외부 클릭 닫기
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [onClose]);
+
+  const handleCustomSubmit = () => {
+    if (!customValue) return;
+    const date = new Date(customValue);
+    if (isNaN(date.getTime())) return;
+    if (date.getTime() < Date.now() + 60_000) return;
+    if (date.getTime() > Date.now() + 7 * 24 * 60 * 60 * 1000) return;
+    onSchedule(date);
+  };
+
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+
+  return (
+    <div
+      ref={dropdownRef}
+      className={cn(
+        "absolute bottom-full right-0 mb-2",
+        "bg-bg-primary border border-border rounded-xl shadow-lg",
+        "overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150",
+        "min-w-[200px] w-64 z-50"
+      )}
+      role="menu"
+      aria-label="예약 전송"
+    >
+      {/* 헤더 */}
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border">
+        <Clock className="w-4 h-4 text-text-secondary" />
+        <span className="text-sm font-medium text-text-primary">예약 전송</span>
+      </div>
+
+      {/* 빠른 선택 */}
+      <div className="py-1">
+        {quickOptions.map((opt) => (
+          <button
+            key={opt.label}
+            type="button"
+            role="menuitem"
+            onClick={() => onSchedule(opt.date)}
+            className="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-bg-secondary active:bg-bg-tertiary transition-colors"
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="border-t border-border" />
+
+      {/* 커스텀 시간 */}
+      {!showCustom ? (
         <button
           type="button"
-          onClick={handleSubmit}
-          disabled={!canSend}
-          className={cn(
-            "flex items-center justify-center w-11 h-11 rounded-full flex-shrink-0",
-            "transition-all duration-200",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-            canSend
-              ? "bg-primary-500 text-white hover:bg-primary-600 active:scale-95 scale-100"
-              : "bg-secondary-200 dark:bg-secondary-700 text-text-tertiary cursor-not-allowed scale-95"
-          )}
+          role="menuitem"
+          onClick={() => {
+            setShowCustom(true);
+            if (!customValue) {
+              const d = new Date(now);
+              d.setDate(d.getDate() + 1);
+              d.setHours(9, 0, 0, 0);
+              setCustomValue(fmt(d));
+            }
+          }}
+          className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-primary-600 hover:bg-bg-secondary transition-colors"
         >
-          <Send className={cn(
-            "w-5 h-5 transition-transform duration-200",
-            canSend ? "translate-x-0" : "-translate-x-0.5"
-          )} />
+          <Calendar className="w-4 h-4" />
+          날짜 및 시간 선택
         </button>
-      </div>
+      ) : (
+        <div className="px-4 py-3 flex flex-col gap-2">
+          <input
+            type="datetime-local"
+            value={customValue}
+            onChange={(e) => setCustomValue(e.target.value)}
+            min={fmt(new Date(Date.now() + 2 * 60_000))}
+            max={fmt(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))}
+            className="w-full px-3 py-2 text-sm rounded-lg bg-bg-secondary border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+          />
+          <button
+            type="button"
+            onClick={handleCustomSubmit}
+            disabled={!customValue}
+            className={cn(
+              "w-full py-2 text-sm font-medium rounded-lg transition-colors",
+              customValue
+                ? "bg-primary-500 text-white hover:bg-primary-600"
+                : "bg-secondary-200 text-text-tertiary cursor-not-allowed"
+            )}
+          >
+            예약하기
+          </button>
+        </div>
+      )}
     </div>
   );
 }

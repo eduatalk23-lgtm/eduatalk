@@ -743,3 +743,70 @@ export interface UploadingAttachment {
 export interface SendMessageWithAttachmentsRequest extends SendMessageRequest {
   attachmentIds?: string[];
 }
+
+// ============================================
+// 예약 메시지 타입
+// ============================================
+
+/** 예약 메시지 상태 */
+export type ScheduledMessageStatus =
+  | "pending"
+  | "sending"
+  | "sent"
+  | "failed"
+  | "cancelled";
+
+/** 예약 메시지 */
+export interface ScheduledMessage {
+  id: string;
+  room_id: string;
+  sender_id: string;
+  sender_type: ChatUserType;
+  content: string;
+  message_type: ChatMessageType;
+  reply_to_id: string | null;
+  metadata: ChatMessageMetadata | null;
+  sender_name_snapshot: string;
+  sender_profile_url_snapshot: string | null;
+  tenant_id: string;
+  scheduled_at: string;
+  timezone: string;
+  status: ScheduledMessageStatus;
+  attempts: number;
+  max_attempts: number;
+  last_error: string | null;
+  sent_message_id: string | null;
+  sent_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** 예약 메시지 생성 입력 */
+export interface ScheduledMessageInsert {
+  room_id: string;
+  sender_id: string;
+  sender_type: ChatUserType;
+  content: string;
+  message_type?: ChatMessageType;
+  reply_to_id?: string | null;
+  metadata?: ChatMessageMetadata | null;
+  sender_name_snapshot: string;
+  sender_profile_url_snapshot?: string | null;
+  tenant_id: string;
+  scheduled_at: string;
+  timezone?: string;
+}
+
+/** 예약 메시지 수정 입력 */
+export interface ScheduledMessageUpdate {
+  content?: string;
+  scheduled_at?: string;
+  timezone?: string;
+  metadata?: ChatMessageMetadata | null;
+}
+
+/** 예약 메시지 유효성 검증 결과 */
+export interface ScheduledMessageValidation {
+  valid: boolean;
+  reason?: string;
+}

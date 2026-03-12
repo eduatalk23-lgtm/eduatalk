@@ -28,7 +28,7 @@ function LinkPreviewCardComponent({ preview, isOwn }: LinkPreviewCardProps) {
       type="button"
       onClick={handleClick}
       className={cn(
-        "flex overflow-hidden rounded-lg max-w-[280px] text-left",
+        "flex overflow-hidden rounded-lg max-w-full text-left",
         "transition-colors",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
         isOwn

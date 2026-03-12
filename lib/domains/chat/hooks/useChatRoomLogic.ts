@@ -141,6 +141,7 @@ export interface UseChatRoomLogicReturn {
     addFiles: (files: File[]) => void;
     removeFile: (clientId: string) => void;
     retryUpload: (clientId: string) => void;
+    clearFiles: () => void;
     isUploading: boolean;
   };
   utils: {
@@ -985,6 +986,12 @@ export function useChatRoomLogic({
         );
       }
 
+      // 4. SW에 해당 채팅방 알림 닫기 요청 (stale 카운트 누적 방지)
+      navigator.serviceWorker?.controller?.postMessage({
+        type: "CLEAR_NOTIFICATIONS",
+        tags: [`chat-${roomId}`, `chat-mention-${roomId}`],
+      });
+
       return { previousRooms };
     },
     onError: (_err, _vars, context) => {
@@ -1119,10 +1126,13 @@ export function useChatRoomLogic({
   }, [roomId]);
 
   // roomData 로드/변경 시: readReceiptTrackRef를 멤버의 실제 last_read_at으로 초기화
+  // + 캐시의 readCounts를 재계산하여 놓친 READ_RECEIPT 이벤트 복구
   // 기본값 "1970-01-01" 대신 실제 값을 사용하여 이미 읽은 메시지의 이중 감소 방지
   // (선언 순서: roomId effect(clear) → 이 effect(populate) 순서로 실행됨)
   useEffect(() => {
     if (!roomData?.members || !userId) return;
+
+    // 1) readReceiptTrackRef 갱신
     for (const member of roomData.members) {
       if (member.user_id === userId || member.left_at) continue;
       const current = readReceiptTrackRef.current.get(member.user_id);
@@ -1131,7 +1141,57 @@ export function useChatRoomLogic({
         readReceiptTrackRef.current.set(member.user_id, member.last_read_at);
       }
     }
-  }, [roomData?.members, userId]);
+
+    // 2) 캐시의 readCounts를 멤버 last_read_at 기반으로 재계산
+    // 탭 백그라운드/연결 끊김 중 놓친 READ_RECEIPT 이벤트를 복구
+    const activeOtherMembers = roomData.members.filter(
+      (m) => m.user_id !== userId && !m.left_at
+    );
+    if (activeOtherMembers.length === 0) return;
+
+    queryClient.setQueryData<InfiniteMessagesCache>(
+      chatKeys.messages(roomId),
+      (old) => {
+        if (!old?.pages?.length) return old;
+
+        let hasChanges = false;
+        const updatedPages = old.pages.map((page) => {
+          // 본인 메시지가 없는 페이지 스킵
+          if (!page.messages.some((m) => m.sender_id === userId)) return page;
+
+          let pageChanged = false;
+          const updatedMessages = page.messages.map((m) => {
+            if (m.sender_id !== userId || m.readCount === undefined) return m;
+
+            // 이 메시지를 아직 읽지 않은 멤버 수 계산
+            const unreadCount = activeOtherMembers.filter(
+              (member) => member.last_read_at < m.created_at
+            ).length;
+
+            if (unreadCount !== m.readCount) {
+              pageChanged = true;
+              return { ...m, readCount: unreadCount };
+            }
+            return m;
+          });
+
+          if (!pageChanged) return page;
+          hasChanges = true;
+
+          // readCounts dict도 동기화
+          const updatedReadCounts = { ...page.readCounts };
+          for (const msg of updatedMessages) {
+            if (msg.sender_id === userId && msg.readCount !== undefined) {
+              updatedReadCounts[msg.id] = msg.readCount;
+            }
+          }
+          return { ...page, messages: updatedMessages, readCounts: updatedReadCounts };
+        });
+
+        return hasChanges ? { ...old, pages: updatedPages } : old;
+      }
+    );
+  }, [roomData?.members, userId, queryClient, roomId]);
 
   // 탭 포커스 복귀 시 읽음 처리 (백그라운드에서 수신된 메시지 읽음 반영)
   useEffect(() => {
@@ -1832,6 +1892,7 @@ export function useChatRoomLogic({
       addFiles,
       removeFile,
       retryUpload,
+      clearFiles: useCallback(() => setUploadingFiles([]), []),
       isUploading,
     },
     pinnedMessageIds,

@@ -41,12 +41,15 @@ import { ChatRoomInfo } from "./ChatRoomInfo";
 import { EditMessageDialog } from "../molecules/EditMessageDialog";
 import { ProfileCardPopup, type ProfileCardData } from "../molecules/ProfileCardPopup";
 import { ForwardModal } from "../molecules/ForwardModal";
+import { ScheduledMessagesPanel } from "../molecules/ScheduledMessagesPanel";
 import { ConfirmDialog } from "@/components/ui/Dialog";
-import { Loader2, ArrowLeft, MoreVertical, Search, Megaphone, ChevronDown, MessageSquareOff, RefreshCw, Bell, BellOff } from "lucide-react";
+import { Loader2, ArrowLeft, MoreVertical, Search, Megaphone, ChevronDown, MessageSquareOff, RefreshCw, Bell, BellOff, CalendarClock } from "lucide-react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { RetryableErrorBoundary, type ErrorFallbackProps } from "@/components/errors/RetryableErrorBoundary";
 import { toggleMuteChatRoomAction } from "@/lib/domains/chat/actions";
+import { scheduleMessageAction } from "@/lib/domains/chat/scheduled/actions";
 import { chatKeys } from "@/lib/domains/chat/queryKeys";
+import { useToast } from "@/components/ui/ToastProvider";
 
 // ============================================
 // UI 상태 타입 및 Reducer
@@ -62,6 +65,8 @@ interface ChatRoomUIState {
   isAnnouncementDialogOpen: boolean;
   isMenuOpen: boolean;
   isInfoOpen: boolean;
+  isScheduledPanelOpen: boolean;
+  isHeaderMenuOpen: boolean;
   // 작업 대상
   menuContext: MessageMenuContext | null;
   menuPosition: LongPressPosition | null;
@@ -80,6 +85,8 @@ type ChatRoomUIAction =
   | { type: "SET_ANNOUNCEMENT_DIALOG"; value: boolean }
   | { type: "SET_MENU_OPEN"; value: boolean }
   | { type: "SET_INFO_OPEN"; value: boolean }
+  | { type: "SET_SCHEDULED_PANEL_OPEN"; value: boolean }
+  | { type: "SET_HEADER_MENU_OPEN"; value: boolean }
   | { type: "SET_MENU_CONTEXT"; context: MessageMenuContext | null }
   | { type: "SET_DELETE_TARGET"; id: string | null }
   | { type: "SET_EDITING_MESSAGE"; message: { id: string; content: string; updatedAt: string } | null }
@@ -95,6 +102,8 @@ const initialUIState: ChatRoomUIState = {
   isAnnouncementDialogOpen: false,
   isMenuOpen: false,
   isInfoOpen: false,
+  isScheduledPanelOpen: false,
+  isHeaderMenuOpen: false,
   menuContext: null,
   menuPosition: null,
   deleteTarget: null,
@@ -126,6 +135,10 @@ function uiReducer(state: ChatRoomUIState, action: ChatRoomUIAction): ChatRoomUI
       return { ...state, isMenuOpen: action.value };
     case "SET_INFO_OPEN":
       return { ...state, isInfoOpen: action.value };
+    case "SET_SCHEDULED_PANEL_OPEN":
+      return { ...state, isScheduledPanelOpen: action.value };
+    case "SET_HEADER_MENU_OPEN":
+      return { ...state, isHeaderMenuOpen: action.value };
     case "SET_MENU_CONTEXT":
       return { ...state, menuContext: action.context };
     case "SET_DELETE_TARGET":
@@ -180,7 +193,7 @@ function ChatErrorFallback({ error, errorType, resetError, isRetrying }: ErrorFa
       {process.env.NODE_ENV === "development" && error && (
         <details className="mt-4 text-left w-full max-w-md">
           <summary className="text-xs text-text-tertiary cursor-pointer">개발자 정보</summary>
-          <pre className="mt-2 p-2 bg-secondary-100 dark:bg-secondary-800 rounded text-xs overflow-auto max-h-32">
+          <pre className="mt-2 p-2 bg-secondary-100 rounded text-xs overflow-auto max-h-32">
             {error.toString()}
           </pre>
         </details>
@@ -266,7 +279,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
   };
 
   return (
-    <div ref={getRefCallback(message.id)} className="transition-colors duration-300">
+    <div ref={getRefCallback(message.id)} className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200 transition-colors">
       {grouping.showDateDivider && grouping.dateDividerText && (
         <DateDivider date={grouping.dateDividerText} />
       )}
@@ -354,6 +367,8 @@ function ChatRoomComponent({
     isAnnouncementDialogOpen,
     isMenuOpen,
     isInfoOpen,
+    isScheduledPanelOpen,
+    isHeaderMenuOpen,
     menuContext,
     menuPosition,
     deleteTarget,
@@ -362,11 +377,23 @@ function ChatRoomComponent({
     profileCardPosition,
   } = uiState;
 
+  // 하이라이트 타이머 cleanup용 ref
+  const highlightTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
   // Stale closure 방지: isAtBottom의 최신 값을 ref로 추적
   const isAtBottomRef = useRef(isAtBottom);
   useEffect(() => {
     isAtBottomRef.current = isAtBottom;
   }, [isAtBottom]);
+
+  // 하이라이트 타이머 cleanup
+  useEffect(() => {
+    const timers = highlightTimersRef.current;
+    return () => {
+      timers.forEach(clearTimeout);
+      timers.clear();
+    };
+  }, []);
 
   // 스크린 리더 알림 상태
   const [srAnnouncement, setSrAnnouncement] = useState<string | null>(null);
@@ -420,6 +447,13 @@ function ChatRoomComponent({
   // ============================================
   useEffect(() => {
     setCurrentChatRoom(roomId);
+
+    // 채팅방 진입 시 해당 방의 stale 알림 정리 (이전 세션에서 남은 알림 제거)
+    navigator.serviceWorker?.controller?.postMessage({
+      type: "CLEAR_NOTIFICATIONS",
+      tags: [`chat-${roomId}`, `chat-mention-${roomId}`],
+    });
+
     return () => setCurrentChatRoom(null);
   }, [roomId]);
 
@@ -454,6 +488,41 @@ function ChatRoomComponent({
   const { isLoading, error, hasNextPage, isFetchingNextPage, fetchNextPage, refetch } = status;
   const { replyTarget, setReplyTarget } = replyTargetState;
   const { canEditMessage, isMessageEdited } = utils;
+  const { showSuccess, showError } = useToast();
+
+  // 예약 전송 핸들러 (첨부파일 포함)
+  const { uploadingFiles: scheduleUploadingFiles, clearFiles } = attachmentState;
+  const handleScheduleSend = useCallback(
+    async (content: string, scheduledAt: Date, mentions?: import("@/lib/domains/chat/types").MentionInfo[]) => {
+      // 완료된 첨부파일 ID 수집
+      const completedAttachmentIds = scheduleUploadingFiles
+        .filter((f) => f.status === "done" && f.result)
+        .map((f) => f.result!.id);
+
+      const result = await scheduleMessageAction(roomId, content, scheduledAt.toISOString(), {
+        replyToId: replyTarget?.id,
+        attachmentIds: completedAttachmentIds.length > 0 ? completedAttachmentIds : undefined,
+      });
+
+      if (result.success) {
+        const timeStr = scheduledAt.toLocaleString("ko-KR", {
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        });
+        showSuccess(`${timeStr}에 전송이 예약되었습니다`);
+        setReplyTarget(null);
+        if (completedAttachmentIds.length > 0) {
+          clearFiles();
+        }
+      } else {
+        showError(result.error ?? "예약 전송에 실패했습니다");
+      }
+    },
+    [roomId, replyTarget?.id, setReplyTarget, showSuccess, showError, scheduleUploadingFiles, clearFiles]
+  );
 
   // 현재 사용자의 알림 뮤트 상태
   const myMembership = data.members.find((m) => m.user_id === userId);
@@ -524,13 +593,25 @@ function ChatRoomComponent({
   // ============================================
   // 무한 스크롤
   // ============================================
+  const pendingPaginationRef = useRef(false);
+  const prevMessageCountRef = useRef(messages.length);
+
+  // 메시지 수 변화를 감지하여 인덱스 조정 (stale closure 방지)
+  useEffect(() => {
+    if (pendingPaginationRef.current) {
+      const added = messages.length - prevMessageCountRef.current;
+      if (added > 0) {
+        dispatch({ type: "DECREMENT_FIRST_ITEM_INDEX", by: added });
+      }
+      pendingPaginationRef.current = false;
+    }
+    prevMessageCountRef.current = messages.length;
+  }, [messages.length]);
+
   const handleStartReached = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
-      void fetchNextPage().then(() => {
-        // 페이지당 메시지 수 (50)로 인덱스 조정
-        // Virtuoso가 스크롤 위치를 자동 보정하므로 정확하지 않아도 됨
-        dispatch({ type: "DECREMENT_FIRST_ITEM_INDEX", by: 50 });
-      });
+      pendingPaginationRef.current = true;
+      void fetchNextPage();
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
@@ -546,13 +627,27 @@ function ChatRoomComponent({
         behavior: "smooth",
         align: "center",
       });
-      setTimeout(() => {
+
+      // 스크롤 완료 후 요소가 뷰포트에 나타날 때까지 폴링 (최대 1.5초)
+      let attempts = 0;
+      const maxAttempts = 30; // 50ms × 30 = 1500ms
+      const pollForElement = () => {
         const element = messageRefs.current.get(messageId);
         if (element) {
           element.classList.add("bg-warning/20");
-          setTimeout(() => element.classList.remove("bg-warning/20"), 2000);
+          const removeTimer = setTimeout(() => {
+            element.classList.remove("bg-warning/20");
+            highlightTimersRef.current.delete(removeTimer);
+          }, 2000);
+          highlightTimersRef.current.add(removeTimer);
+        } else if (attempts < maxAttempts) {
+          attempts++;
+          const retryTimer = setTimeout(pollForElement, 50);
+          highlightTimersRef.current.add(retryTimer);
         }
-      }, 300);
+      };
+      const startTimer = setTimeout(pollForElement, 100);
+      highlightTimersRef.current.add(startTimer);
     }
   }, [messages, firstItemIndex]);
 
@@ -928,44 +1023,101 @@ function ChatRoomComponent({
 
         <button
           type="button"
-          onClick={handleToggleMute}
-          className={cn(
-            "p-2 rounded-lg transition-colors",
-            isMuted ? "text-text-tertiary hover:bg-bg-secondary" : "text-text-secondary hover:bg-bg-secondary"
-          )}
-          aria-label={isMuted ? "알림 켜기" : "알림 끄기"}
-          title={isMuted ? "알림 켜기" : "알림 끄기"}
-        >
-          {isMuted ? <BellOff className="w-5 h-5" /> : <Bell className="w-5 h-5" />}
-        </button>
-
-        <button
-          type="button"
           onClick={() => dispatch({ type: "SET_SEARCH_MODE", value: true })}
-          className="p-2 rounded-lg hover:bg-bg-secondary transition-colors"
+          className="p-2 rounded-lg hover:bg-bg-secondary transition-colors flex-shrink-0"
+          aria-label="메시지 검색"
         >
           <Search className="w-5 h-5 text-text-secondary" />
         </button>
 
-        {canSetAnnouncement && (
+        {/* 더보기 메뉴 */}
+        <div className="relative flex-shrink-0">
           <button
             type="button"
-            onClick={() => dispatch({ type: "SET_ANNOUNCEMENT_DIALOG", value: true })}
+            onClick={() => dispatch({ type: "SET_HEADER_MENU_OPEN", value: !isHeaderMenuOpen })}
             className="p-2 rounded-lg hover:bg-bg-secondary transition-colors"
-            aria-label="공지 설정"
+            aria-label="더보기"
+            aria-expanded={isHeaderMenuOpen}
+            aria-haspopup="menu"
           >
-            <Megaphone className="w-5 h-5 text-text-secondary" />
+            <MoreVertical className="w-5 h-5 text-text-secondary" />
           </button>
-        )}
 
-        <button
-          type="button"
-          onClick={handleInfoOpen}
-          className="p-2 rounded-lg hover:bg-bg-secondary transition-colors"
-          aria-label="채팅방 정보"
-        >
-          <MoreVertical className="w-5 h-5 text-text-secondary" />
-        </button>
+          {isHeaderMenuOpen && (
+            <>
+              {/* 백드롭 */}
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => dispatch({ type: "SET_HEADER_MENU_OPEN", value: false })}
+                aria-hidden="true"
+              />
+              <div
+                className={cn(
+                  "absolute right-0 top-full mt-1 z-50",
+                  "w-48 bg-bg-primary border border-border rounded-xl shadow-lg",
+                  "overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150"
+                )}
+                role="menu"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    dispatch({ type: "SET_HEADER_MENU_OPEN", value: false });
+                    handleToggleMute();
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-text-primary hover:bg-bg-secondary transition-colors"
+                >
+                  {isMuted ? <BellOff className="w-4 h-4 text-text-tertiary" /> : <Bell className="w-4 h-4 text-text-secondary" />}
+                  {isMuted ? "알림 켜기" : "알림 끄기"}
+                </button>
+
+                {canSetAnnouncement && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      dispatch({ type: "SET_HEADER_MENU_OPEN", value: false });
+                      dispatch({ type: "SET_ANNOUNCEMENT_DIALOG", value: true });
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-text-primary hover:bg-bg-secondary transition-colors"
+                  >
+                    <Megaphone className="w-4 h-4 text-text-secondary" />
+                    공지 설정
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    dispatch({ type: "SET_HEADER_MENU_OPEN", value: false });
+                    dispatch({ type: "SET_SCHEDULED_PANEL_OPEN", value: true });
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-text-primary hover:bg-bg-secondary transition-colors"
+                >
+                  <CalendarClock className="w-4 h-4 text-text-secondary" />
+                  예약 메시지
+                </button>
+
+                <div className="border-t border-border" />
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    dispatch({ type: "SET_HEADER_MENU_OPEN", value: false });
+                    handleInfoOpen();
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-text-primary hover:bg-bg-secondary transition-colors"
+                >
+                  <MoreVertical className="w-4 h-4 text-text-secondary" />
+                  채팅방 정보
+                </button>
+              </div>
+            </>
+          )}
+        </div>
 
         {headerActions}
       </div>
@@ -1080,9 +1232,9 @@ function ChatRoomComponent({
           className={cn(
             "absolute right-4 z-10",
             "bottom-2",
-            "transition-all duration-300 ease-out",
+            "motion-safe:transition-all motion-safe:duration-300 motion-safe:ease-out",
             isAtBottom
-              ? "opacity-0 translate-y-4 pointer-events-none"
+              ? "opacity-0 motion-safe:translate-y-4 pointer-events-none"
               : "opacity-100 translate-y-0"
           )}
         >
@@ -1093,8 +1245,8 @@ function ChatRoomComponent({
               "relative flex items-center justify-center",
               "w-10 h-10 rounded-full",
               "bg-bg-primary border border-border shadow-lg",
-              "hover:bg-bg-secondary transition-colors duration-200",
-              "hover:scale-105 active:scale-95"
+              "hover:bg-bg-secondary motion-safe:transition-all motion-safe:duration-200",
+              "motion-safe:hover:scale-105 motion-safe:active:scale-95"
             )}
             aria-label="맨 아래로 스크롤"
           >
@@ -1114,7 +1266,7 @@ function ChatRoomComponent({
 
       {/* 1:1 채팅 상대방 퇴장 안내 */}
       {otherMemberLeft && (
-        <div className="flex justify-center px-4 py-2 bg-secondary-50 dark:bg-secondary-900/50 border-t border-secondary-200 dark:border-secondary-700">
+        <div className="flex justify-center px-4 py-2 bg-secondary-50 border-t border-secondary-200">
           <span className="text-xs text-text-tertiary">
             상대방이 대화방을 나갔습니다. 메시지를 보내면 다시 초대됩니다.
           </span>
@@ -1138,6 +1290,7 @@ function ChatRoomComponent({
         autoFocus
         members={data.members}
         currentUserId={userId}
+        onScheduleSend={handleScheduleSend}
       />
       </div>
 
@@ -1195,6 +1348,13 @@ function ChatRoomComponent({
             initialIndex: idx >= 0 ? idx : 0,
           });
         }}
+      />
+
+      {/* 예약 메시지 관리 패널 */}
+      <ScheduledMessagesPanel
+        isOpen={isScheduledPanelOpen}
+        onClose={() => dispatch({ type: "SET_SCHEDULED_PANEL_OPEN", value: false })}
+        roomId={roomId}
       />
 
         {/* 메시지 삭제 확인 */}

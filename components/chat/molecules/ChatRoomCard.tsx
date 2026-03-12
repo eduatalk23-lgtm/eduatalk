@@ -93,7 +93,7 @@ function ChatRoomCardComponent({
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
         isSelected
           ? "bg-primary-50 dark:bg-primary-900/30 border-l-2 border-primary"
-          : "hover:bg-secondary-100 dark:hover:bg-secondary-800 active:bg-secondary-200 dark:active:bg-secondary-700"
+          : "hover:bg-secondary-100 active:bg-secondary-200"
       )}
     >
       {/* 아바타 */}
@@ -119,12 +119,12 @@ function ChatRoomCardComponent({
               {displayName}
             </span>
             {room.category === "consulting" && topicDisplay && (
-              <span className="text-xs text-primary/80 flex-shrink-0 truncate max-w-[120px]">
+              <span className="text-xs text-primary/80 truncate max-w-[80px] sm:max-w-[120px] hidden sm:inline">
                 {topicDisplay}
               </span>
             )}
             {studentInfo && (
-              <span className="text-xs text-text-tertiary flex-shrink-0">
+              <span className="text-xs text-text-tertiary truncate hidden sm:inline">
                 {studentInfo}
               </span>
             )}

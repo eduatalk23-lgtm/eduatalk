@@ -22,18 +22,18 @@ export function MessageSkeleton({ count = 5, className }: MessageSkeletonProps) 
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="flex flex-col gap-1.5 animate-fade-in">
           {/* 발신자 이름 */}
-          <div className="w-20 h-3 bg-secondary-200 dark:bg-secondary-700 animate-pulse rounded" />
+          <div className="w-20 h-3 bg-secondary-200 animate-pulse rounded" />
 
           {/* 메시지 내용 (가변 너비로 자연스러움 연출) */}
           <div
             className={cn(
-              "h-16 bg-secondary-200 dark:bg-secondary-700 animate-pulse rounded-2xl",
+              "h-16 bg-secondary-200 animate-pulse rounded-2xl",
               i % 3 === 0 ? "w-[60%]" : i % 3 === 1 ? "w-[75%]" : "w-[50%]"
             )}
           />
 
           {/* 시간 표시 */}
-          <div className="w-12 h-2 bg-secondary-200 dark:bg-secondary-700 animate-pulse rounded" />
+          <div className="w-12 h-2 bg-secondary-200 animate-pulse rounded" />
         </div>
       ))}
     </div>

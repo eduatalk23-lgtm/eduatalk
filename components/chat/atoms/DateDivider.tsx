@@ -18,7 +18,7 @@ function DateDividerComponent({ date }: DateDividerProps) {
     <div className="flex items-center justify-center py-4">
       <div className="flex items-center gap-3 w-full max-w-md">
         {/* 왼쪽 선 */}
-        <div className="flex-1 h-px bg-secondary-200 dark:bg-secondary-700" />
+        <div className="flex-1 h-px bg-secondary-200" />
 
         {/* 날짜 텍스트 */}
         <span className="text-xs text-text-tertiary font-medium px-2 whitespace-nowrap">
@@ -26,7 +26,7 @@ function DateDividerComponent({ date }: DateDividerProps) {
         </span>
 
         {/* 오른쪽 선 */}
-        <div className="flex-1 h-px bg-secondary-200 dark:bg-secondary-700" />
+        <div className="flex-1 h-px bg-secondary-200" />
       </div>
     </div>
   );

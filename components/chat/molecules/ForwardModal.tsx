@@ -145,7 +145,7 @@ function ForwardModalComponent({
                   "px-4 py-1.5 rounded-lg text-sm font-medium transition-colors",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
                   isPending
-                    ? "bg-secondary-200 dark:bg-secondary-700 text-text-tertiary cursor-not-allowed"
+                    ? "bg-secondary-200 text-text-tertiary cursor-not-allowed"
                     : "bg-primary-500 text-white hover:bg-primary-600 active:bg-primary-700"
                 )}
               >
@@ -223,7 +223,7 @@ function ForwardModalComponent({
                       "w-full flex items-center gap-3 p-3 rounded-xl text-left transition-colors",
                       isSelected
                       ? "bg-primary-50 dark:bg-primary-900/30 border-l-2 border-primary"
-                      : "hover:bg-secondary-100 dark:hover:bg-secondary-800 border-l-2 border-transparent"
+                      : "hover:bg-secondary-100 border-l-2 border-transparent"
                     )}
                   >
                     {/* 아바타 */}
