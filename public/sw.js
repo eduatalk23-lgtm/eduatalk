@@ -249,22 +249,26 @@ self.addEventListener("push", (event) => {
           // clients.matchAll 실패 시 무시
         }
 
-        // getNotifications() merge 패턴: 기존 알림의 카운트를 읽어 증가
-        // iOS에서 getNotifications()가 불안정할 수 있으므로 IndexedDB fallback 유지
+        // 메시지 카운트 결정: 서버 unreadCount 우선, 없으면 로컬 누적
+        // 서버 카운트를 사용하면 앱에서 읽은 후에도 정확한 카운트를 보장
         let messageCount = 1;
-        try {
-          const existing = await self.registration.getNotifications({ tag });
-          if (existing.length > 0) {
-            messageCount = (existing[0].data?.messageCount || 1) + 1;
-            // IDB도 동기화 (fallback 경로와 일관성 유지)
-            await setTagCount(tag, messageCount);
-          } else {
-            // getNotifications()가 빈 배열: 첫 알림이거나 iOS fallback 필요
+        if (data.unreadCount && data.unreadCount > 0) {
+          // Pattern B: 서버 기준 정확한 미읽은 수 사용 (stale 카운트 자동 교정)
+          messageCount = data.unreadCount;
+          await setTagCount(tag, messageCount);
+        } else {
+          // Fallback: 기존 로컬 누적 방식 (비채팅 알림 또는 서버 카운트 없는 경우)
+          try {
+            const existing = await self.registration.getNotifications({ tag });
+            if (existing.length > 0) {
+              messageCount = (existing[0].data?.messageCount || 1) + 1;
+              await setTagCount(tag, messageCount);
+            } else {
+              messageCount = await incrementTagCount(tag);
+            }
+          } catch {
             messageCount = await incrementTagCount(tag);
           }
-        } catch {
-          // getNotifications() 미지원/실패 → IndexedDB fallback
-          messageCount = await incrementTagCount(tag);
         }
 
         // 누적 메시지가 2건 이상이면 body에 카운트 표시
@@ -485,6 +489,26 @@ self.addEventListener("message", (event) => {
   if (event.data?.type === "SYNC_BADGE") {
     const count = event.data.count || 0;
     event.waitUntil(syncBadgeCount(count));
+  }
+  // 앱 내에서 메시지 읽음 처리 시: 해당 tag의 알림 닫기 + 카운트 리셋
+  // (알림 트레이에 남아있는 stale 카운트가 새 알림에 누적되는 문제 방지)
+  if (event.data?.type === "CLEAR_NOTIFICATIONS") {
+    const tags = event.data.tags; // string[]
+    if (Array.isArray(tags) && tags.length > 0) {
+      event.waitUntil(
+        Promise.all(
+          tags.map(async (tag) => {
+            try {
+              const existing = await self.registration.getNotifications({ tag });
+              existing.forEach((n) => n.close());
+            } catch {
+              // getNotifications 미지원 시 무시 (iOS Safari)
+            }
+            await clearTagCount(tag);
+          })
+        )
+      );
+    }
   }
 });
 

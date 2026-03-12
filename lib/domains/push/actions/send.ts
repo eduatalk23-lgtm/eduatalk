@@ -23,6 +23,8 @@ interface PushPayload {
   condensed?: boolean;
   /** 사용자가 소리+진동을 모두 OFF한 경우 true → SW에서 silent 알림 표시 */
   silent?: boolean;
+  /** 서버 기준 해당 채팅방의 미읽은 메시지 수 (SW 로컬 카운트 교정용) */
+  unreadCount?: number;
 }
 
 /** 이 상태 코드를 받으면 구독이 만료/무효이므로 비활성화 */

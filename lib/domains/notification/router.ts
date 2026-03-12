@@ -52,7 +52,7 @@ export async function routeNotification(
   const results = { sent: 0, skipped: 0, failed: 0 };
 
   for (const userId of request.recipientIds) {
-    const { skipReason, silent } = await checkUserPreferences(
+    const { skipReason, silent, lastReadAt } = await checkUserPreferences(
       supabase,
       userId,
       request.type,
@@ -79,6 +79,27 @@ export async function routeNotification(
     // 채팅 요약 알림: 짧은 시간 내 다수 발송 시 요약으로 교체
     const { payload: finalPayload, condensed } =
       await maybeCondenseChat(supabase, userId, request);
+
+    // 채팅 알림일 때: 서버 기준 unread count 조회 (SW 로컬 카운트 교정용)
+    // checkUserPreferences에서 이미 조회한 lastReadAt 재활용 (중복 DB 쿼리 방지)
+    let unreadCount: number | undefined;
+    const isChatType =
+      request.type === "chat_message" ||
+      request.type === "chat_group_message" ||
+      request.type === "chat_mention";
+    if (isChatType && finalPayload.tag) {
+      const roomId = finalPayload.tag.replace(/^chat-(?:mention-)?/, "");
+      if (roomId) {
+        const { count } = await supabase
+          .from("chat_messages")
+          .select("id", { count: "exact", head: true })
+          .eq("room_id", roomId)
+          .eq("is_deleted", false)
+          .neq("sender_id", userId)
+          .gt("created_at", lastReadAt ?? "1970-01-01T00:00:00Z");
+        unreadCount = (count ?? 0) > 0 ? (count ?? 0) : undefined;
+      }
+    }
 
     // 먼저 로그를 insert하여 id를 확보 → push payload에 포함 (클릭 추적용)
     const { data: logRow } = await supabase
@@ -108,6 +129,7 @@ export async function routeNotification(
       urgency: mapPriorityToUrgency(request.priority, request.type),
       condensed,
       silent,
+      unreadCount,
     });
 
     if (sent === 0 && failed === 0) {
@@ -141,6 +163,8 @@ interface PreferenceResult {
   skipReason: SkipReason | null;
   /** 사용자가 소리+진동을 모두 OFF한 경우 true → SW에서 silent 알림 표시 */
   silent: boolean;
+  /** 채팅 알림 시 조회된 last_read_at (unread count 계산에 재활용) */
+  lastReadAt?: string;
 }
 
 async function checkUserPreferences(
@@ -199,6 +223,9 @@ async function checkUserPreferences(
     ? prefs?.chat_sound_enabled === false && prefs?.chat_vibrate_enabled === false
     : false;
 
+  // last_read_at: checkUserPreferences에서 조회 후 routeNotification에 전달 (중복 쿼리 방지)
+  let lastReadAt: string | undefined;
+
   // 3. 채팅 뮤트 + 이미 읽음 확인 (1회 쿼리)
   if (isChatType) {
     // tag에서 roomId 추출 ("chat-{roomId}" 또는 "chat-mention-{roomId}")
@@ -223,6 +250,9 @@ async function checkUserPreferences(
       ) {
         return { skipReason: "already_read", silent: false };
       }
+
+      // last_read_at를 반환하여 unread count 계산에 재활용 (중복 DB 조회 방지)
+      lastReadAt = member?.last_read_at ?? undefined;
     }
   }
 
@@ -261,7 +291,7 @@ async function checkUserPreferences(
   // 쿼리 실패 시 알림을 차단하지 않음 (안전 방향: 발송)
   if (presenceError && presenceError.code !== "PGRST116") {
     console.warn("[Router] Presence query failed:", presenceError.code);
-    return { skipReason: null, silent };
+    return { skipReason: null, silent, lastReadAt };
   }
 
   const isActive =
@@ -283,7 +313,7 @@ async function checkUserPreferences(
     }
   }
 
-  return { skipReason: null, silent };
+  return { skipReason: null, silent, lastReadAt };
 }
 
 /**

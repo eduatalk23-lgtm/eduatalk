@@ -19,6 +19,7 @@ type SetAppBadgeNavigator = Navigator & {
 };
 
 interface ChatRoomItem {
+  id: string;
   unreadCount?: number;
 }
 
@@ -135,18 +136,33 @@ export function useAppBadge(userId: string | null): UseAppBadgeReturn {
     return unsubscribe;
   }, [queryClient, syncBadge]);
 
-  // visibilitychange → 실제 미읽은 수 기반 갱신
+  // visibilitychange → 실제 미읽은 수 기반 갱신 + 읽은 방의 stale 알림 정리
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
         syncBadge();
+
+        // unreadCount=0인 채팅방의 알림 트레이 정리
+        // (백그라운드에서 앱 내 읽음 처리 후 복귀 시, 트레이에 남은 stale 알림 제거)
+        const rooms = queryClient.getQueryData<ChatRoomItem[]>(chatKeys.rooms());
+        if (rooms) {
+          const tagsToClean = rooms
+            .filter((r) => (r.unreadCount ?? 0) === 0)
+            .flatMap((r) => [`chat-${r.id}`, `chat-mention-${r.id}`]);
+          if (tagsToClean.length > 0) {
+            navigator.serviceWorker?.controller?.postMessage({
+              type: "CLEAR_NOTIFICATIONS",
+              tags: tagsToClean,
+            });
+          }
+        }
       }
     };
     document.addEventListener("visibilitychange", handleVisibility);
     return () => {
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [syncBadge]);
+  }, [syncBadge, queryClient]);
 
   // SW 알림 클릭 후 뱃지 재계산 요청 (BADGE_NEEDS_SYNC 이벤트)
   useEffect(() => {
