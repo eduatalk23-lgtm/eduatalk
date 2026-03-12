@@ -16,15 +16,18 @@ const WHEEL_SENSITIVITY = 0.005;
  * - 줌 레벨 localStorage 영속
  */
 export function usePinchZoom(containerRef: RefObject<HTMLElement | null>) {
-  const [zoomLevel, setZoomLevel] = useState(() => {
-    if (typeof window === 'undefined') return DEFAULT_ZOOM;
+  const [zoomLevel, setZoomLevel] = useState(DEFAULT_ZOOM);
+
+  // localStorage에서 저장된 줌 레벨 복원 (hydration 이후)
+  useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const val = parseFloat(saved);
-      if (!isNaN(val) && val >= MIN_ZOOM && val <= MAX_ZOOM) return val;
+      if (!isNaN(val) && val >= MIN_ZOOM && val <= MAX_ZOOM) {
+        setZoomLevel(val);
+      }
     }
-    return DEFAULT_ZOOM;
-  });
+  }, []);
 
   // 핀치 제스처 추적
   const initialPinchDistance = useRef<number | null>(null);

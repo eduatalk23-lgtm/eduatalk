@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import {
   useAdminPlanBasic,
@@ -7,6 +8,7 @@ import {
   useAdminPlanModalData,
 } from "../context/AdminPlanContext";
 import { DayTimelineModal } from "../DayTimelineModal";
+import { getMonthlyCheckIns } from "@/lib/domains/checkin";
 
 // 캘린더 뷰 동적 임포트
 const AdminCalendarView = dynamic(
@@ -42,6 +44,7 @@ export function CalendarTab(_props: CalendarTabProps) {
     calendarDailySchedules,
     calendarCalculatedSchedule,
     calendarDateTimeSlots,
+    viewMode,
   } = useAdminPlanBasic();
 
   const {
@@ -60,6 +63,22 @@ export function CalendarTab(_props: CalendarTabProps) {
   const effectiveDailySchedules = calendarCalculatedSchedule
     ? [calendarCalculatedSchedule]
     : calendarDailySchedules;
+
+  // 월별 출석 체크 데이터 (selectedDate 기반으로 월 추적)
+  const [checkInDates, setCheckInDates] = useState<Set<string> | undefined>(undefined);
+  const checkInKey = selectedDate
+    ? `${selectedDate.slice(0, 7)}`
+    : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+  useEffect(() => {
+    const [yearStr, monthStr] = checkInKey.split("-");
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10);
+    getMonthlyCheckIns(year, month, studentId).then((result) => {
+      if (result.success && result.data) {
+        setCheckInDates(new Set(result.data));
+      }
+    });
+  }, [checkInKey, studentId]);
 
   // 플래너가 선택되지 않은 경우
   if (!selectedCalendarId) {
@@ -89,6 +108,7 @@ export function CalendarTab(_props: CalendarTabProps) {
         dateTimeSlots={calendarDateTimeSlots}
         onTimelineClick={setDayTimelineModalDate}
         onRefresh={handleRefresh}
+        checkInDates={checkInDates}
       />
 
       {/* 일별 타임라인 상세 모달 */}

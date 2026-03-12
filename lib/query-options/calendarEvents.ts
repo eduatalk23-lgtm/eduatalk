@@ -272,7 +272,7 @@ export function overdueCalendarEventsQueryOptions(calendarId: string) {
 }
 
 /**
- * 사용자의 모든 캘린더 목록 조회 (멀티 캘린더 토글용)
+ * 캘린더 목록 조회 (멀티 캘린더 토글용)
  *
  * Calendar-First: 소유 캘린더 + 테넌트 캘린더 (구독 포함) 통합 조회.
  * tenantId가 제공되면 해당 테넌트의 Primary Calendar도 포함.
@@ -283,7 +283,6 @@ export function studentCalendarsQueryOptions(studentId: string, tenantId?: strin
     queryFn: async (): Promise<Calendar[]> => {
       const supabase = createSupabaseBrowserClient();
 
-      // 소유 캘린더 조회
       const { data: ownedCalendars, error } = await supabase
         .from('calendars')
         .select('*')

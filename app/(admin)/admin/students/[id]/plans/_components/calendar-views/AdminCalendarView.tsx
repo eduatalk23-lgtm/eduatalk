@@ -8,7 +8,7 @@
 
 import { useState, useMemo, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, CheckSquare } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckSquare, ListFilter } from "lucide-react";
 import {
   addMonths,
   subMonths,
@@ -69,6 +69,7 @@ export default function AdminCalendarView({
   dateTimeSlots,
   onTimelineClick,
   onRefresh,
+  checkInDates,
 }: AdminCalendarViewProps) {
   const router = useRouter();
   const { selectedCalendarSettings } = useAdminPlanBasic();
@@ -279,7 +280,7 @@ export default function AdminCalendarView({
   }, [rawPlans, selectedGroupId]);
 
   // 필터링된 플랜으로 날짜별 그룹핑
-  const plansByDate = useMemo(() => {
+  const groupFilteredPlansByDate = useMemo(() => {
     if (selectedGroupId === null || selectedGroupId === undefined) return rawPlansByDate;
     const filtered: Record<string, typeof rawPlans> = {};
     for (const [date, datePlans] of Object.entries(rawPlansByDate)) {
@@ -290,6 +291,21 @@ export default function AdminCalendarView({
     }
     return filtered;
   }, [rawPlansByDate, selectedGroupId]);
+
+  // 태스크만 필터 토글
+  const [showTasksOnly, setShowTasksOnly] = useState(false);
+
+  const plansByDate = useMemo(() => {
+    if (!showTasksOnly) return groupFilteredPlansByDate;
+    const filtered: Record<string, typeof rawPlans> = {};
+    for (const [date, datePlans] of Object.entries(groupFilteredPlansByDate)) {
+      const taskPlans = datePlans.filter(plan => plan.is_task);
+      if (taskPlans.length > 0) {
+        filtered[date] = taskPlans;
+      }
+    }
+    return filtered;
+  }, [groupFilteredPlansByDate, showTasksOnly]);
 
   // 선택 상태 관리
   const {
@@ -400,6 +416,20 @@ export default function AdminCalendarView({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* 태스크만 필터 토글 */}
+          <button
+            onClick={() => setShowTasksOnly((v) => !v)}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+              showTasksOnly
+                ? "bg-blue-100 text-blue-700"
+                : "bg-[rgb(var(--color-secondary-100))] text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-200))]"
+            )}
+            title={showTasksOnly ? "전체 이벤트 표시" : "학습 태스크만 표시"}
+          >
+            <ListFilter className="w-4 h-4" />
+            {showTasksOnly ? "태스크만" : "전체"}
+          </button>
           {/* 선택 모드 토글 버튼 */}
           <button
             onClick={toggleSelectionMode}
@@ -463,6 +493,7 @@ export default function AdminCalendarView({
             selectedPlanIds={selectedIds}
             onPlanSelect={handlePlanSelect}
             showHolidays={showHolidays}
+            checkInDates={checkInDates}
           />
         </div>
       </AdminCalendarDragProvider>

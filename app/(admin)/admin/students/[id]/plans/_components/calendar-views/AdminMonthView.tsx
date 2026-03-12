@@ -117,6 +117,7 @@ export default function AdminMonthView({
   showHolidays = true,
   onOpenEventEditNew,
   onOpenConsultationEditNew,
+  checkInDates,
 }: AdminMonthViewProps) {
   // 주 시작 요일 (context에서)
   const { selectedCalendarSettings } = useAdminPlanBasic();
@@ -157,6 +158,8 @@ export default function AdminMonthView({
     return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
   }, [currentMonth]);
 
+  const weekCount = Math.ceil(calendarDays.length / 7);
+
   // 날짜별 상태 계산
   const getDayCellStatus = useCallback(
     (date: Date): DayCellStatus => {
@@ -189,24 +192,26 @@ export default function AdminMonthView({
       const dateStr = format(date, "yyyy-MM-dd");
       const plans = plansByDate[dateStr] || [];
 
-      const totalPlans = plans.length;
-      const completedPlans = plans.filter((p) => p.status === "completed").length;
-      const inProgressPlans = plans.filter((p) => p.status === "in_progress").length;
-      const pendingPlans = plans.filter(
+      // 학습 태스크만 완료 카운트 대상 (일반 이벤트 제외)
+      const taskPlans = plans.filter((p) => p.is_task);
+      const totalPlans = taskPlans.length;
+      const completedPlans = taskPlans.filter((p) => p.status === "completed").length;
+      const inProgressPlans = taskPlans.filter((p) => p.status === "in_progress").length;
+      const pendingPlans = taskPlans.filter(
         (p) => p.status === "pending" || !p.status
       ).length;
       const completionRate =
         totalPlans > 0 ? Math.round((completedPlans / totalPlans) * 100) : 0;
-      const totalEstimatedMinutes = plans.reduce(
+      const totalEstimatedMinutes = taskPlans.reduce(
         (sum, p) => sum + (p.estimated_minutes || 0),
         0
       );
 
-      // Phase 4: 시간대 유형별 통계
-      const studySlotPlans = plans.filter(
+      // Phase 4: 시간대 유형별 통계 (태스크만)
+      const studySlotPlans = taskPlans.filter(
         (p) => (p as { time_slot_type?: string }).time_slot_type === "study"
       ).length;
-      const selfStudySlotPlans = plans.filter(
+      const selfStudySlotPlans = taskPlans.filter(
         (p) => (p as { time_slot_type?: string }).time_slot_type === "self_study"
       ).length;
       const noSlotPlans = totalPlans - studySlotPlans - selfStudySlotPlans;
@@ -528,7 +533,10 @@ export default function AdminMonthView({
         onMouseUp={handleGridMouseUp}
         onMouseLeave={handleGridMouseLeave}
         onClickCapture={handleGridClickCapture}
-        style={monthDrag ? { userSelect: 'none', WebkitUserSelect: 'none' } as React.CSSProperties : undefined}
+        style={{
+          gridTemplateRows: `repeat(${weekCount}, 1fr)`,
+          ...(monthDrag ? { userSelect: 'none', WebkitUserSelect: 'none' } as React.CSSProperties : {}),
+        }}
       >
         {calendarDays.map((date) => {
           const dateStr = format(date, "yyyy-MM-dd");
@@ -560,6 +568,7 @@ export default function AdminMonthView({
               showHolidays={showHolidays}
               calendarColorMap={calendarColorMap}
               activeCalendarColor={calendarColorMap.get(calendarId ?? '')}
+              checkedIn={checkInDates?.has(dateStr)}
             />
           );
         })}

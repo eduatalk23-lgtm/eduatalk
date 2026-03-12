@@ -7,7 +7,7 @@
  * React.memo로 메모이제이션하여 불필요한 리렌더링 방지
  */
 
-import { memo, useCallback } from "react";
+import { memo, useCallback, useRef, useState, useEffect } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
@@ -65,6 +65,8 @@ interface DroppableAdminDayCellProps {
   calendarColorMap?: Map<string, string>;
   /** 현재 활성 캘린더의 색상 (프리뷰용) */
   activeCalendarColor?: string;
+  /** 해당 날짜 출석 체크 여부 */
+  checkedIn?: boolean;
 }
 
 /**
@@ -193,6 +195,9 @@ function arePropsEqual(
   // activeCalendarColor 비교
   if (prevProps.activeCalendarColor !== nextProps.activeCalendarColor) return false;
 
+  // 출석 체크 비교
+  if (prevProps.checkedIn !== nextProps.checkedIn) return false;
+
   return true;
 }
 
@@ -218,10 +223,42 @@ function DroppableAdminDayCellComponent({
   showHolidays = true,
   calendarColorMap,
   activeCalendarColor,
+  checkedIn,
 }: DroppableAdminDayCellProps) {
   const dateStr = format(date, "yyyy-MM-dd");
   const dayOfWeek = date.getDay();
   const holidayName = status.isCurrentMonth && showHolidays ? getHolidayName(dateStr) : null;
+
+  // 셀 높이 기반 동적 표시 개수 계산
+  const cellRef = useRef<HTMLDivElement>(null);
+  const [maxVisible, setMaxVisible] = useState(3);
+
+  useEffect(() => {
+    const el = cellRef.current;
+    if (!el) return;
+
+    const HEADER_H = 30;   // 날짜 숫자 행 높이
+    const CHIP_H = 20;     // 칩 높이 (py-px + text-xs)
+    const CHIP_GAP = 2;    // space-y-0.5
+    const OVERFLOW_H = 20; // "+N개 더" 버튼 높이
+    const PAD = 12;        // p-1.5 × 2
+
+    const calc = () => {
+      const available = el.clientHeight - HEADER_H - PAD;
+      if (available <= 0) return;
+      const unit = CHIP_H + CHIP_GAP;
+      const fitsAll = Math.floor((available + CHIP_GAP) / unit); // 마지막 칩은 gap 불필요
+      const fitsWithOverflow = Math.floor((available - OVERFLOW_H + CHIP_GAP) / unit);
+      const next = plans.length <= fitsAll
+        ? Math.max(1, fitsAll)
+        : Math.max(1, fitsWithOverflow);
+      setMaxVisible((prev) => prev !== next ? next : prev);
+    };
+
+    const observer = new ResizeObserver(calc);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [plans.length]);
 
   // 드롭 타겟 데이터
   const dropData: DroppableTargetData = {
@@ -280,13 +317,13 @@ function DroppableAdminDayCellComponent({
 
   return (
     <div
-      ref={setNodeRef}
+      ref={(node) => { setNodeRef(node); cellRef.current = node; }}
       data-date={dateStr}
       onClick={handleCellClick}
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
       className={cn(
-        "group/cell relative bg-[rgb(var(--color-secondary-50))] p-1.5 min-h-[90px] cursor-pointer transition-colors",
+        "group/cell relative bg-[rgb(var(--color-secondary-50))] p-1.5 min-h-0 overflow-hidden cursor-pointer transition-colors",
         // 기본 상태별 배경 및 호버
         !status.isCurrentMonth && "bg-[rgb(var(--color-secondary-50))] hover:bg-[rgb(var(--color-secondary-100))]",
         status.isCurrentMonth && !status.isExclusion && !status.isSelected && "hover:bg-blue-50/40",
@@ -344,10 +381,10 @@ function DroppableAdminDayCellComponent({
               {holidayName}
             </span>
           )}
-          {/* 주차/일차 정보 (학습일/복습일인 경우에만) */}
-          {!holidayName && status.weekNumber != null && status.cycleDayNumber != null && (
-            <span className="text-[9px] text-[var(--text-tertiary)]">
-              {status.weekNumber}주{status.cycleDayNumber}일
+          {/* 출석 체크 표시 */}
+          {checkedIn && (
+            <span className="text-[9px] px-1 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded font-medium">
+              ✓
             </span>
           )}
         </div>
@@ -371,15 +408,11 @@ function DroppableAdminDayCellComponent({
               +
             </button>
           )}
-          {status.isExclusion ? (
+          {status.isExclusion && (
             <span className="text-xs px-1.5 py-0.5 bg-[rgb(var(--color-secondary-200))] text-[var(--text-secondary)] rounded">
               {status.exclusionType}
             </span>
-          ) : status.dayType === "복습일" ? (
-            <span className="text-[10px] px-1 py-0.5 bg-purple-100 text-purple-600 rounded font-medium">
-              R
-            </span>
-          ) : null}
+          )}
           {stats.totalPlans > 0 && !status.isExclusion && (
             <span className={cn(
               "text-[9px] px-1 py-0.5 rounded font-medium",
@@ -415,14 +448,17 @@ function DroppableAdminDayCellComponent({
       </AnimatePresence>
 
       {/* 플랜 칩 목록 — Google Calendar: 종일 이벤트(칩) 상단, 시간 이벤트(도트) 하단 */}
-      {stats.totalPlans > 0 && !status.isExclusion && (
+      {plans.length > 0 && !status.isExclusion && (
         <div className="space-y-0.5">
           {[...plans].sort((a, b) => {
             // 종일 이벤트(start_time 없음)를 상단에 배치
             const aHasTime = a.start_time ? 1 : 0;
             const bHasTime = b.start_time ? 1 : 0;
-            return aHasTime - bHasTime;
-          }).slice(0, 4).map((plan) => (
+            if (aHasTime !== bHasTime) return aHasTime - bHasTime;
+            // 시간 이벤트끼리는 start_time 오름차순 정렬
+            if (a.start_time && b.start_time) return a.start_time.localeCompare(b.start_time);
+            return 0;
+          }).slice(0, maxVisible).map((plan) => (
             <div key={plan.id} data-plan-chip>
               <DraggableAdminPlanCard
                 plan={plan}
@@ -437,7 +473,7 @@ function DroppableAdminDayCellComponent({
               />
             </div>
           ))}
-          {plans.length > 4 && (
+          {plans.length > maxVisible && (
             <button
               type="button"
               data-overflow-btn
@@ -452,22 +488,10 @@ function DroppableAdminDayCellComponent({
               }}
               className="text-xs text-blue-600 hover:underline pl-1"
             >
-              +{plans.length - 4}개 더
+              +{plans.length - maxVisible}개 더
             </button>
           )}
 
-          {/* 완료율 프로그레스 바 */}
-          {stats.completionRate > 0 && stats.completionRate < 100 && (
-            <div className="h-0.5 bg-[rgb(var(--color-secondary-200))] rounded-full mt-1 overflow-hidden">
-              <div
-                className="h-full bg-green-500 rounded-full transition-all"
-                style={{ width: `${stats.completionRate}%` }}
-              />
-            </div>
-          )}
-          {stats.completionRate === 100 && (
-            <div className="h-0.5 bg-green-500 rounded-full mt-1" />
-          )}
         </div>
       )}
 

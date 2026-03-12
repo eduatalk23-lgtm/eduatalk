@@ -63,6 +63,8 @@ export type CalendarPlan = Pick<
   recurring_event_id?: string | null;
   /** exception 레코드 여부 */
   is_exception?: boolean | null;
+  /** 학습 태스크 여부 (완료 카운트 대상) */
+  is_task?: boolean;
 };
 
 /**
@@ -235,6 +237,8 @@ export type AdminCalendarViewProps = {
   /** 타임라인 클릭 시 상세 모달 열기 */
   onTimelineClick?: (date: string) => void;
   onRefresh: () => void;
+  /** 출석 체크된 날짜 Set (yyyy-MM-dd) — 학생 뷰 전용 */
+  checkInDates?: Set<string>;
 };
 
 /**
@@ -280,6 +284,8 @@ export type AdminMonthViewProps = {
   onOpenEventEditNew?: (params: { date?: string; startTime?: string; endTime?: string }) => void;
   /** 옵션 더보기 → 상담 편집 모달 열기 */
   onOpenConsultationEditNew?: (params: { date?: string; startTime?: string; endTime?: string; studentId?: string; sessionType?: string; consultationMode?: string; title?: string; description?: string; meetingLink?: string; visitor?: string }) => void;
+  /** 출석 체크된 날짜 Set (yyyy-MM-dd) */
+  checkInDates?: Set<string>;
 };
 
 /**

@@ -43,6 +43,7 @@ type CalendarGridProps = {
     onDragStart: (e: React.DragEvent, item: DragItem) => void;
     onDragEnd: (e: React.DragEvent) => void;
   };
+  checkInDates?: Set<string>;
 };
 
 /**
@@ -71,6 +72,7 @@ function CalendarGridComponent({
   isMoving,
   dropHandlers,
   dragHandlers,
+  checkInDates,
 }: CalendarGridProps) {
   // 빈 셀 렌더링
   const renderEmptyCell = useCallback(
@@ -111,7 +113,7 @@ function CalendarGridComponent({
           key={day}
           dateInfo={{ day, year, month, dateStr }}
           dayData={{ dayPlans, dayExclusions, dayAcademySchedules }}
-          metadata={{ dayTypeInfo, dailySchedule, isToday, showOnlyStudyTime, studentId }}
+          metadata={{ dayTypeInfo, dailySchedule, isToday, showOnlyStudyTime, studentId, checkedIn: checkInDates?.has(dateStr) }}
           handlers={{
             getConnectionState: getPlanConnectionState,
             onDateClick,
@@ -168,6 +170,7 @@ function CalendarGridComponent({
     dropHandlers,
     dragHandlers,
     renderEmptyCell,
+    checkInDates,
   ]);
 
   return (

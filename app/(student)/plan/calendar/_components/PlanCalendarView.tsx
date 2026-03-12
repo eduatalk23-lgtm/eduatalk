@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Filter, RefreshCw, AlertTriangle } from "lucide-react";
+import { getMonthlyCheckIns } from "@/lib/domains/checkin/actions/checkin";
 import { MonthView } from "./MonthView";
 import { WeekView } from "./WeekView";
 import { DayView } from "./DayView";
@@ -103,6 +104,18 @@ export function PlanCalendarView({
   });
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
   const [isConflictModalOpen, setIsConflictModalOpen] = useState(false);
+  const [checkInDates, setCheckInDates] = useState<Set<string> | undefined>(undefined);
+
+  // 월별 출석 데이터 로드
+  useEffect(() => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth() + 1;
+    getMonthlyCheckIns(year, month).then((result) => {
+      if (result.success && result.data) {
+        setCheckInDates(new Set(result.data));
+      }
+    });
+  }, [currentDate]);
 
   // 필터링된 플랜
   const filteredPlans = useMemo(() => {
@@ -587,7 +600,7 @@ export function PlanCalendarView({
         className="p-4 md:p-6 lg:p-8"
       >
         {view === "month" ? (
-          <MonthView plans={filteredPlans}currentDate={currentDate} exclusions={exclusions} academySchedules={academySchedules} dayTypes={dayTypes} dailyScheduleMap={dailyScheduleMap} showOnlyStudyTime={showOnlyStudyTime} studentId={studentId} tenantId={tenantId} onPlansUpdated={onPlansUpdated} />
+          <MonthView plans={filteredPlans}currentDate={currentDate} exclusions={exclusions} academySchedules={academySchedules} dayTypes={dayTypes} dailyScheduleMap={dailyScheduleMap} showOnlyStudyTime={showOnlyStudyTime} studentId={studentId} tenantId={tenantId} onPlansUpdated={onPlansUpdated} checkInDates={checkInDates} />
         ) : view === "week" ? (
           <WeekView plans={filteredPlans} currentDate={currentDate} exclusions={exclusions} academySchedules={academySchedules} dayTypes={dayTypes} dailyScheduleMap={dailyScheduleMap} showOnlyStudyTime={showOnlyStudyTime} />
         ) : (

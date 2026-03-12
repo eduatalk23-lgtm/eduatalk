@@ -67,6 +67,7 @@ export function CalendarSidebar() {
     tenantId,
     selectedCalendarId,
     canCreatePlans,
+    viewMode,
   } = useAdminPlanBasic();
 
   const {
@@ -95,9 +96,9 @@ export function CalendarSidebar() {
   const [isUnfinishedOpen, setIsUnfinishedOpen] = useState(true);
   const [isCalendarsOpen, setIsCalendarsOpen] = useState(true);
 
-  // 학생의 모든 캘린더 + 테넌트 캘린더 조회 (멀티 캘린더 토글용)
+  // personal 모드(관리자 본인 캘린더)면 테넌트 캘린더 포함, 학생 캘린더 조회 시 제외
   const { data: allCalendars = [] } = useQuery({
-    ...studentCalendarsQueryOptions(studentId, tenantId),
+    ...studentCalendarsQueryOptions(studentId, viewMode === 'personal' ? tenantId : undefined),
     enabled: !!studentId,
   });
 

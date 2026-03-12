@@ -39,11 +39,12 @@ import { getWeekRangeSunSat, shiftMonth, shiftDay, shiftWeek, shiftCustomDays } 
 import { formatDateString } from '@/lib/date/calendarUtils';
 import { usePinchZoom } from './hooks/usePinchZoom';
 import { useCalendarSwipeNavigation } from './hooks/useCalendarSwipeNavigation';
+import { getMonthlyCheckIns } from '@/lib/domains/checkin';
 import { useEventReminders } from '@/lib/domains/calendar/reminders';
 import { useIsMobile } from '@/lib/hooks/useIsMobile';
 import { getHolidayAllDayItems } from '@/lib/domains/calendar/koreanHolidays';
 import { useAdminPlanFilter } from './context/AdminPlanContext';
-import { Columns2, Minus, Plus } from 'lucide-react';
+import { Columns2, ListFilter, Minus, Plus } from 'lucide-react';
 
 /** 스켈레톤 로딩 UI용 상수 배열 (매 렌더마다 새 배열 생성 방지) */
 const SKELETON_ITEMS = [1, 2] as const;
@@ -333,6 +334,18 @@ export const DailyDock = memo(function DailyDock({
     [selectedDate]
   );
 
+  // 월별 출석 체크 데이터
+  const [checkInDates, setCheckInDates] = useState<Set<string> | undefined>(undefined);
+  useEffect(() => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth() + 1;
+    getMonthlyCheckIns(year, month, studentId).then((result) => {
+      if (result.success && result.data) {
+        setCheckInDates(new Set(result.data));
+      }
+    });
+  }, [currentMonth, studentId]);
+
   const { plansByDate: monthlyPlansByDate, isLoading: isMonthlyLoading } = useAdminCalendarData({
     studentId,
     currentMonth,
@@ -355,16 +368,30 @@ export const DailyDock = memo(function DailyDock({
     enabled: calendarView === 'year',
   });
 
-  // 월간 뷰용 그룹 필터링
+  // 월간 뷰: 태스크만 필터 토글
+  const [showTasksOnly, setShowTasksOnly] = useState(false);
+
+  // 월간 뷰용 그룹 + 태스크 필터링
   const filteredMonthlyPlansByDate = useMemo(() => {
-    if (!selectedGroupId) return monthlyPlansByDate;
-    const filtered: typeof monthlyPlansByDate = {};
-    for (const [date, plans] of Object.entries(monthlyPlansByDate)) {
-      const groupPlans = plans.filter(p => p.plan_group_id === selectedGroupId);
-      if (groupPlans.length > 0) filtered[date] = groupPlans;
+    let source = monthlyPlansByDate;
+    if (selectedGroupId) {
+      const grouped: typeof monthlyPlansByDate = {};
+      for (const [date, plans] of Object.entries(source)) {
+        const groupPlans = plans.filter(p => p.plan_group_id === selectedGroupId);
+        if (groupPlans.length > 0) grouped[date] = groupPlans;
+      }
+      source = grouped;
     }
-    return filtered;
-  }, [monthlyPlansByDate, selectedGroupId]);
+    if (showTasksOnly) {
+      const taskOnly: typeof monthlyPlansByDate = {};
+      for (const [date, plans] of Object.entries(source)) {
+        const tasks = plans.filter(p => p.is_task);
+        if (tasks.length > 0) taskOnly[date] = tasks;
+      }
+      return taskOnly;
+    }
+    return source;
+  }, [monthlyPlansByDate, selectedGroupId, showTasksOnly]);
 
   // 연간 뷰용 그룹 필터링
   const filteredYearlyPlansByDate = useMemo(() => {
@@ -540,6 +567,26 @@ export const DailyDock = memo(function DailyDock({
           customDayCount={customDayCount}
           onCustomDayCountChange={onCustomDayCountChange}
         />
+      )}
+
+      {/* 월간 뷰: 태스크 필터 토글 */}
+      {calendarView === 'month' && (
+        <div className="flex items-center gap-1 px-2 pb-1 justify-end">
+          <button
+            type="button"
+            onClick={() => setShowTasksOnly((v) => !v)}
+            className={cn(
+              'flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium transition-colors',
+              showTasksOnly
+                ? 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                : 'hover:bg-[rgb(var(--color-secondary-200))] text-[var(--text-secondary)]'
+            )}
+            title={showTasksOnly ? '전체 이벤트 표시' : '학습 태스크만 표시'}
+          >
+            <ListFilter className="w-3.5 h-3.5" />
+            {showTasksOnly ? '태스크만' : '전체'}
+          </button>
+        </div>
       )}
 
       {/* 줌 컨트롤 + 분할 뷰 토글 (일간/주간 그리드뷰에서만 표시) */}
@@ -736,6 +783,7 @@ export const DailyDock = memo(function DailyDock({
               showHolidays={showHolidays}
               onOpenEventEditNew={onOpenEventEditNew}
               onOpenConsultationEditNew={onOpenConsultationEditNew}
+              checkInDates={checkInDates}
             />
           </motion.div>
         )}

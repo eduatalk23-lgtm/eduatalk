@@ -366,5 +366,6 @@ export function calendarEventToMonthlyPlan(
     rrule: event.rrule ?? null,
     recurring_event_id: event.recurring_event_id ?? null,
     is_exception: event.is_exception ?? null,
+    is_task: event.is_task ?? false,
   };
 }

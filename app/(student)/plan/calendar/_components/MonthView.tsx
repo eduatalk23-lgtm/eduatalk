@@ -25,6 +25,7 @@ type MonthViewProps = {
   studentId?: string;
   tenantId?: string | null;
   onPlansUpdated?: () => void;
+  checkInDates?: Set<string>;
 };
 
 function MonthViewComponent({
@@ -38,6 +39,7 @@ function MonthViewComponent({
   studentId,
   tenantId,
   onPlansUpdated,
+  checkInDates,
 }: MonthViewProps) {
   const router = useRouter();
 
@@ -127,6 +129,7 @@ function MonthViewComponent({
           isMoving={isMoving}
           dropHandlers={dropHandlers}
           dragHandlers={dragHandlers}
+          checkInDates={checkInDates}
         />
       </div>
 
@@ -192,6 +195,11 @@ export const MonthView = memo(MonthViewComponent, (prevProps, nextProps) => {
 
   // dailyScheduleMap Map 비교
   if (prevProps.dailyScheduleMap.size !== nextProps.dailyScheduleMap.size) {
+    return false;
+  }
+
+  // checkInDates 비교
+  if (prevProps.checkInDates !== nextProps.checkInDates) {
     return false;
   }
 
