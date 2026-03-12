@@ -649,16 +649,18 @@ function ConsultationStudentSearch({
   onChange: (id: string | null, name?: string) => void;
 }) {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<{ id: string; name: string }[]>([]);
+  const [results, setResults] = useState<{ id: string; name: string; grade?: number | null; school_name?: string | null }[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const [selectedName, setSelectedName] = useState<string | null>(initialName ?? null);
+  const [selectedInfo, setSelectedInfo] = useState<{ name: string; detail?: string } | null>(
+    initialName ? { name: initialName } : null,
+  );
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // initialName이 외부에서 변경되면 동기화
   useEffect(() => {
-    if (initialName && !selectedName) {
-      setSelectedName(initialName);
+    if (initialName && !selectedInfo) {
+      setSelectedInfo({ name: initialName });
     }
   }, [initialName]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -670,7 +672,12 @@ function ConsultationStudentSearch({
       if (!res.ok) { setResults([]); return; }
       const data = await res.json();
       setResults(data.success && data.data?.students
-        ? data.data.students.map((s: { id: string; name: string | null }) => ({ id: s.id, name: s.name ?? '이름 없음' }))
+        ? data.data.students.map((s: { id: string; name: string | null; grade?: number | null; school_name?: string | null }) => ({
+            id: s.id,
+            name: s.name ?? '이름 없음',
+            grade: s.grade,
+            school_name: s.school_name,
+          }))
         : []);
     } catch (err) {
       console.warn('학생 검색 실패:', err);
@@ -689,32 +696,44 @@ function ConsultationStudentSearch({
     return () => { cancelled = true; if (timerRef.current) clearTimeout(timerRef.current); };
   }, [query, doSearch]);
 
-  const handleSelect = (student: { id: string; name: string }) => {
+  const handleSelect = (student: { id: string; name: string; grade?: number | null; school_name?: string | null }) => {
     onChange(student.id, student.name);
-    setSelectedName(student.name);
+    const detail = [student.grade ? `${student.grade}학년` : '', student.school_name ?? ''].filter(Boolean).join(' · ');
+    setSelectedInfo({ name: student.name, detail: detail || undefined });
     setQuery('');
     setIsOpen(false);
   };
 
   return (
     <div className="relative">
-      <input
-        type="text"
-        value={query}
-        onChange={(e) => { setQuery(e.target.value); setIsOpen(true); }}
-        onFocus={() => setIsOpen(true)}
-        placeholder={selectedName ? `${selectedName}` : '학생 검색...'}
-        className={cn(inputCls, 'w-full', selectedName && !query && 'text-[var(--text-primary)]')}
-      />
-      {selectedName && !query && (
-        <button
-          type="button"
-          onClick={() => { onChange(null, undefined); setSelectedName(null); }}
-          className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-[var(--text-tertiary)] hover:text-red-500"
-          aria-label="학생 선택 해제"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
+      {selectedInfo ? (
+        /* 선택 완료 상태: 칩 표시 */
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30">
+          <div className="flex-1 min-w-0">
+            <span className="text-sm font-medium text-[var(--text-primary)]">{selectedInfo.name}</span>
+            {selectedInfo.detail && (
+              <span className="ml-1.5 text-xs text-[var(--text-tertiary)]">{selectedInfo.detail}</span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => { onChange(null, undefined); setSelectedInfo(null); }}
+            className="p-0.5 rounded-full text-[var(--text-tertiary)] hover:text-red-500 shrink-0"
+            aria-label="학생 선택 해제"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ) : (
+        /* 미선택 상태: 검색 입력 */
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => { setQuery(e.target.value); setIsOpen(true); }}
+          onFocus={() => setIsOpen(true)}
+          placeholder="학생 검색..."
+          className={cn(inputCls, 'w-full')}
+        />
       )}
       {isOpen && (query.trim() || isSearching) && (
         <>
@@ -731,11 +750,16 @@ function ConsultationStudentSearch({
                     key={s.id}
                     onClick={() => handleSelect(s)}
                     className={cn(
-                      'px-3 py-2 text-sm cursor-pointer hover:bg-[rgb(var(--color-secondary-100))] text-[var(--text-primary)]',
+                      'px-3 py-2 text-sm cursor-pointer hover:bg-[rgb(var(--color-secondary-100))] flex items-center gap-2',
                       value === s.id && 'bg-blue-50 dark:bg-blue-950/20',
                     )}
                   >
-                    {s.name}
+                    <span className="font-medium text-[var(--text-primary)]">{s.name}</span>
+                    {(s.grade || s.school_name) && (
+                      <span className="text-xs text-[var(--text-tertiary)]">
+                        {s.grade ? `${s.grade}학년` : ''}{s.grade && s.school_name ? ' · ' : ''}{s.school_name ?? ''}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>

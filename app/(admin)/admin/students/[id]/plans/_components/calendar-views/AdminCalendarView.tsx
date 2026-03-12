@@ -26,7 +26,7 @@ import { deletePlanWithLogging } from "@/lib/domains/calendar/actions/calendarEv
 import { AdminCalendarDragProvider } from "./_context/AdminCalendarDragContext";
 import { useAdminCalendarData } from "./_hooks/useAdminCalendarData";
 import { useAdminPlanBasic } from "../context/AdminPlanBasicContext";
-import { useAdminPlanFilter } from "../context/AdminPlanContext";
+import { useAdminPlanFilter, useAdminPlanActions } from "../context/AdminPlanContext";
 import { useCalendarSelection } from "./_hooks/useCalendarSelection";
 import AdminCalendarContextMenu from "./AdminCalendarContextMenu";
 import AddExclusionModal from "./AddExclusionModal";
@@ -44,6 +44,11 @@ import dynamic from "next/dynamic";
 // 플랜 편집 모달 동적 임포트
 const EditPlanModal = dynamic(
   () => import("../modals/EditPlanModal").then((mod) => ({ default: mod.EditPlanModal })),
+  { ssr: false }
+);
+
+const EventEditModal = dynamic(
+  () => import("../modals/EventEditModal").then((mod) => ({ default: mod.EventEditModal })),
   { ssr: false }
 );
 
@@ -74,6 +79,12 @@ export default function AdminCalendarView({
   const router = useRouter();
   const { selectedCalendarSettings } = useAdminPlanBasic();
   const { resolvedVisibleCalendarIds, showHolidays } = useAdminPlanFilter();
+  const {
+    handleOpenEventEditNew,
+    handleOpenConsultationEditNew,
+    eventEditModalState,
+    closeEventEditModal,
+  } = useAdminPlanActions();
   const weekStartsOn = selectedCalendarSettings?.weekStartsOn ?? 0;
 
   // 컨텍스트 메뉴 상태
@@ -493,6 +504,8 @@ export default function AdminCalendarView({
             selectedPlanIds={selectedIds}
             onPlanSelect={handlePlanSelect}
             showHolidays={showHolidays}
+            onOpenEventEditNew={handleOpenEventEditNew}
+            onOpenConsultationEditNew={handleOpenConsultationEditNew}
             checkInDates={checkInDates}
           />
         </div>
@@ -538,6 +551,19 @@ export default function AdminCalendarView({
         variant="destructive"
         isLoading={isDeleting}
       />
+
+      {/* 이벤트/상담 편집 모달 */}
+      {eventEditModalState.isOpen && (
+        <EventEditModal
+          state={eventEditModalState}
+          studentId={studentId}
+          onClose={closeEventEditModal}
+          onSuccess={() => {
+            closeEventEditModal();
+            handleRefreshAll();
+          }}
+        />
+      )}
 
       {/* 배치 액션 툴바 (선택 모드에서 플랜 선택 시 표시) */}
       {isSelectionMode && (

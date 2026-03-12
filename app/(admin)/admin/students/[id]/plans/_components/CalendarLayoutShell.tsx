@@ -81,6 +81,8 @@ export function CalendarLayoutShell({
           ref={sidebarRef}
           className={cn(
             'flex-shrink-0 bg-[var(--background)] border-r border-[rgb(var(--color-secondary-200))] overflow-y-auto overflow-x-hidden transition-all duration-200 ease-in-out',
+            // 모바일: JS 감지 전 깜빡임 방지 — 모바일에서는 초기에 숨기고 JS가 오버레이 모드 활성화 후 표시
+            !isMobileOverlay && 'max-md:invisible',
             isMobileOverlay
               ? cn(
                   'fixed top-0 left-0 h-full z-50 shadow-xl',

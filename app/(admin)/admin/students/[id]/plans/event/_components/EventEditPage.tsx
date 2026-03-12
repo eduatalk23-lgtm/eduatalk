@@ -218,26 +218,16 @@ export function EventEditPage({
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-5xl px-4 py-4 sm:px-6 lg:px-8">
           {isConsultation ? (
-            isConsultationDataLoading ? (
-              <div className="flex items-center justify-center gap-3 py-16">
-                <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
-                <span className="text-sm text-[var(--text-tertiary)]">상담 데이터 로딩 중...</span>
-              </div>
-            ) : isMobile ? (
-              <div className="flex flex-col gap-5">
-                <EventEditLeftColumn
-                  form={form}
-                  setField={setField}
-                  setLabel={setLabel}
-                  calendars={calendarOptions}
-                  entityType={resolvedEntityType}
-                  consultationData={consultationData}
-                />
-                <EventEditRightColumn form={form} setField={setField} entityType={resolvedEntityType} consultationData={consultationData} />
-              </div>
-            ) : (
-              <div className="flex gap-6">
-                <div className="flex-[3] min-w-0">
+            <div className="relative">
+              {/* 로딩 오버레이 — 컴포넌트는 유지하여 로컬 state 보존 */}
+              {isConsultationDataLoading && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center gap-3 bg-[var(--background)]/80 rounded-lg">
+                  <Loader2 className="h-6 w-6 animate-spin text-violet-500" />
+                  <span className="text-sm text-[var(--text-tertiary)]">상담 데이터 로딩 중...</span>
+                </div>
+              )}
+              {isMobile ? (
+                <div className="flex flex-col gap-5">
                   <EventEditLeftColumn
                     form={form}
                     setField={setField}
@@ -246,13 +236,27 @@ export function EventEditPage({
                     entityType={resolvedEntityType}
                     consultationData={consultationData}
                   />
-                </div>
-                <div className="w-px bg-[rgb(var(--color-secondary-200))]" />
-                <div className="flex-[2] min-w-0">
                   <EventEditRightColumn form={form} setField={setField} entityType={resolvedEntityType} consultationData={consultationData} />
                 </div>
-              </div>
-            )
+              ) : (
+                <div className="flex gap-6">
+                  <div className="flex-[3] min-w-0">
+                    <EventEditLeftColumn
+                      form={form}
+                      setField={setField}
+                      setLabel={setLabel}
+                      calendars={calendarOptions}
+                      entityType={resolvedEntityType}
+                      consultationData={consultationData}
+                    />
+                  </div>
+                  <div className="w-px bg-[rgb(var(--color-secondary-200))]" />
+                  <div className="flex-[2] min-w-0">
+                    <EventEditRightColumn form={form} setField={setField} entityType={resolvedEntityType} consultationData={consultationData} />
+                  </div>
+                </div>
+              )}
+            </div>
           ) : isMobile ? (
             /* Mobile: single column */
             <div className="flex flex-col gap-5">
