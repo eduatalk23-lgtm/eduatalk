@@ -10,6 +10,7 @@ import { Avatar } from "@/components/atoms/Avatar";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { OfflineStatusIndicator } from "@/components/ui/OfflineStatusIndicator";
 import { signOut } from "@/lib/domains/auth/actions";
+import { getCheckInStatus } from "@/lib/domains/checkin";
 
 type ProfileMenuProps = {
   userName?: string | null;
@@ -31,6 +32,18 @@ export function ProfileMenu({
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [isPending, startTransition] = useTransition();
+  const [checkInTitle, setCheckInTitle] = useState<string | null>(null);
+
+  // 학생 역할일 때만 칭호 조회
+  const isStudent = roleLabel === "학생";
+  useEffect(() => {
+    if (!isStudent) return;
+    getCheckInStatus().then((result) => {
+      if (result.success && result.data?.currentTitle) {
+        setCheckInTitle(result.data.currentTitle);
+      }
+    });
+  }, [isStudent]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -124,6 +137,11 @@ export function ProfileMenu({
                 {roleLabel}
                 {tenantInfo && ` · ${tenantInfo.name}`}
               </p>
+              {checkInTitle && (
+                <span className="mt-1 inline-flex rounded-full bg-amber-100 px-3 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                  {checkInTitle}
+                </span>
+              )}
             </div>
 
             {/* 계정 관리 버튼 (구글 스타일 pill) */}

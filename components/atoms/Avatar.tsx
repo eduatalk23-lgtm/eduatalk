@@ -1,6 +1,7 @@
 "use client";
 
-import { memo, useState } from "react";
+import { memo, useState, useEffect, useLayoutEffect, useCallback } from "react";
+import Image from "next/image";
 import { User } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -34,6 +35,15 @@ const sizeClasses: Record<AvatarSize, string> = {
   xl: "size-16 text-xl",
 };
 
+/** Next.js Image 최적화를 위한 픽셀 크기 매핑 */
+const sizePixels: Record<AvatarSize, number> = {
+  xs: 24,
+  sm: 32,
+  md: 40,
+  lg: 48,
+  xl: 64,
+};
+
 const iconSizeClasses: Record<AvatarSize, string> = {
   xs: "size-3",
   sm: "size-4",
@@ -55,6 +65,83 @@ const variantClasses: Record<AvatarVariant, string> = {
   rounded: "rounded-lg",
   square: "rounded-none",
 };
+
+/** 모듈 레벨 이미지 로드 캐시 — 같은 URL은 어디서든 즉시 렌더링 */
+const imageStatusCache = new Map<string, "loaded" | "error">();
+
+type ImageStatus = "idle" | "loading" | "loaded" | "error";
+
+/**
+ * 이미지 로딩 상태 훅 (Radix UI Avatar 패턴)
+ * - SSR 안전: 초기값은 항상 loading → hydration mismatch 방지
+ * - useLayoutEffect에서 캐시 동기 체크 → paint 전 업데이트로 깜빡임 없음
+ * - 모듈 레벨 Map 캐시로 동일 URL 재사용 시 즉시 표시
+ */
+function useImageLoadingStatus(src: string | null | undefined): ImageStatus {
+  const [status, setStatus] = useState<ImageStatus>(src ? "loading" : "idle");
+
+  // paint 전에 캐시된 이미지를 동기적으로 감지 (hydration 직후, paint 전)
+  useLayoutEffect(() => {
+    if (!src) {
+      setStatus("idle");
+      return;
+    }
+    // 앱 내 캐시 확인
+    const cached = imageStatusCache.get(src);
+    if (cached) {
+      setStatus(cached);
+      return;
+    }
+    // 브라우저 캐시 확인 (동기적 — cached image는 complete=true)
+    const img = new window.Image();
+    img.src = src;
+    if (img.complete && img.naturalWidth > 0) {
+      imageStatusCache.set(src, "loaded");
+      setStatus("loaded");
+    }
+  }, [src]);
+
+  // 캐시 미스 시 비동기 로드
+  useEffect(() => {
+    if (!src || imageStatusCache.has(src)) return;
+
+    const img = new window.Image();
+    img.onload = () => {
+      imageStatusCache.set(src, "loaded");
+      setStatus("loaded");
+    };
+    img.onerror = () => {
+      imageStatusCache.set(src, "error");
+      setStatus("error");
+    };
+    img.src = src;
+    return () => {
+      img.onload = null;
+      img.onerror = null;
+    };
+  }, [src]);
+
+  return status;
+}
+
+/** Fallback 지연 표시 — 빠른 네트워크에서는 fallback을 아예 안 보여줌 */
+const FALLBACK_DELAY_MS = 400;
+
+function useFallbackDelay(status: ImageStatus): boolean {
+  const [show, setShow] = useState(() => status !== "loading");
+
+  useEffect(() => {
+    if (status !== "loading") {
+      setShow(true);
+      return;
+    }
+    setShow(false);
+    const timer = setTimeout(() => setShow(true), FALLBACK_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [status]);
+
+  return show;
+}
 
 /**
  * 이름에서 이니셜 추출
@@ -102,6 +189,27 @@ function getColorFromName(name: string): string {
   return colors[Math.abs(hash) % colors.length];
 }
 
+/** Next.js Image 최적화 가능한 호스트네임 (환경변수 기반) */
+const optimizableHostname = (() => {
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    return supabaseUrl ? new URL(supabaseUrl).hostname : null;
+  } catch {
+    return null;
+  }
+})();
+
+/** 외부 URL 여부 판별 (Next.js Image 사용 가능 여부) */
+function isOptimizableUrl(url: string): boolean {
+  if (url.startsWith("/")) return true;
+  if (!optimizableHostname) return false;
+  try {
+    return new URL(url).hostname === optimizableHostname;
+  } catch {
+    return false;
+  }
+}
+
 function AvatarComponent({
   src,
   alt,
@@ -112,41 +220,76 @@ function AvatarComponent({
   showStatus = false,
   isOnline = false,
 }: AvatarProps) {
-  const [imageError, setImageError] = useState(false);
+  const imageStatus = useImageLoadingStatus(src);
+  const showFallback = useFallbackDelay(imageStatus);
+
+  const isLoaded = imageStatus === "loaded";
+  const isError = imageStatus === "error";
+  const hasSrc = !!src && !isError;
+
   const initials = name ? getInitials(name) : "";
   const bgColor = name ? getColorFromName(name) : "bg-gray-400";
+  const useNextImage = hasSrc && isOptimizableUrl(src);
+  const pixels = sizePixels[size];
 
-  const showImage = src && !imageError;
-  const showInitials = !showImage && initials;
-  const showIcon = !showImage && !showInitials;
+  const handleImageError = useCallback(() => {
+    if (src) imageStatusCache.set(src, "error");
+  }, [src]);
 
   return (
-    <div className={cn("relative inline-flex", className)}>
+    <div className={cn("relative inline-flex shrink-0", className)}>
       <div
         className={cn(
-          "flex items-center justify-center overflow-hidden",
+          "relative flex items-center justify-center overflow-hidden isolate",
           "font-medium text-white",
           sizeClasses[size],
           variantClasses[variant],
-          !showImage && bgColor
+          bgColor
         )}
         role="img"
         aria-label={alt || name || "아바타"}
       >
-        {showImage && (
-          <img
-            src={src}
-            alt={alt || name || "아바타"}
-            className="size-full object-cover"
-            onError={() => setImageError(true)}
-          />
+        {/* 이니셜/아이콘 폴백 — 이미지 로드 전까지 지연 표시 */}
+        {!isLoaded && showFallback && (
+          initials ? (
+            <span aria-hidden="true">{initials}</span>
+          ) : (
+            <User className={iconSizeClasses[size]} aria-hidden="true" />
+          )
         )}
-        {showInitials && (
-          <span aria-hidden="true">{initials}</span>
-        )}
-        {showIcon && (
-          <User className={iconSizeClasses[size]} aria-hidden="true" />
-        )}
+
+        {/* 이미지 오버레이 — 로드 완료 시 즉시 또는 fade-in */}
+        {hasSrc &&
+          (useNextImage ? (
+            <Image
+              src={src}
+              alt={alt || name || "아바타"}
+              width={pixels}
+              height={pixels}
+              draggable={false}
+              className={cn(
+                "absolute inset-0 size-full object-cover",
+                isLoaded
+                  ? "opacity-100"
+                  : "opacity-0 transition-opacity duration-200"
+              )}
+              onError={handleImageError}
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={src}
+              alt={alt || name || "아바타"}
+              draggable={false}
+              className={cn(
+                "absolute inset-0 size-full object-cover",
+                isLoaded
+                  ? "opacity-100"
+                  : "opacity-0 transition-opacity duration-200"
+              )}
+              onError={handleImageError}
+            />
+          ))}
       </div>
 
       {showStatus && (
