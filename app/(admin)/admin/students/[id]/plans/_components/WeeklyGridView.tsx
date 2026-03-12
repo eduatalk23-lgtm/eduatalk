@@ -56,7 +56,7 @@ interface WeeklyGridViewProps {
   selectedDate: string;
   selectedGroupId?: string | null;
   displayRange?: { start: string; end: string };
-  onEdit?: (planId: string) => void;
+  onEdit?: (planId: string, entityType?: 'event' | 'consultation') => void;
   onRefresh: () => void;
   onDateChange: (date: string) => void;
   onCreatePlanAtSlot?: (slotStartTime: string, slotEndTime: string) => void;
@@ -71,6 +71,8 @@ interface WeeklyGridViewProps {
   pxPerMinute?: number;
   /** 더블클릭/상세설정 → 이벤트 편집 모달 열기 */
   onOpenEventEditNew?: (params: { date?: string; startTime?: string; endTime?: string }) => void;
+  /** 상담 편집 모달 열기 */
+  onOpenConsultationEditNew?: (params: { date?: string; startTime?: string; endTime?: string; studentId?: string; sessionType?: string; consultationMode?: string; title?: string; description?: string; meetingLink?: string; visitor?: string }) => void;
   /** 캘린더 설정의 기본 이벤트 시간 (분) */
   defaultEstimatedMinutes?: number | null;
   /** 캘린더 설정의 기본 알림 (분 단위 배열) */
@@ -96,6 +98,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
   visibleCalendarIds,
   pxPerMinute: ppmProp,
   onOpenEventEditNew,
+  onOpenConsultationEditNew,
   defaultEstimatedMinutes,
   defaultReminderMinutes,
   customDayCount = 7,
@@ -393,7 +396,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
   const popoverOpenOnMouseDownRef = useRef(false);
 
   const { showPopover, closePopover: rawClosePopover, isPopoverOpen, popoverProps, recurringModalState, closeRecurringModal } = useEventDetailPopover({
-    onEdit: (id) => { onEdit?.(id); },
+    onEdit: (id, et) => { onEdit?.(id, et); },
     onDelete: (id) => { onDelete?.(id); },
     onQuickStatusChange: (planId, newStatus, prevStatus) => {
       handleQuickStatusChange(planId, newStatus, prevStatus);
@@ -412,6 +415,11 @@ export const WeeklyGridView = memo(function WeeklyGridView({
         planId: id,
         description: '비학습 시간이 비활성화되었습니다.',
       });
+    },
+    onConsultationStatusChange: async (eventId: string, status: 'completed' | 'no_show' | 'cancelled' | 'scheduled') => {
+      const { updateScheduleStatus } = await import('@/lib/domains/consulting/actions/schedule');
+      await updateScheduleStatus(eventId, status, studentId, status === 'cancelled');
+      revalidate();
     },
     isAdminMode,
   });
@@ -1298,6 +1306,23 @@ export const WeeklyGridView = memo(function WeeklyGridView({
                 }
                 closeQuickCreate();
               }}
+              onOpenConsultationModal={onOpenConsultationEditNew ? (slot, extra) => {
+                if (quickCreateState) {
+                  onOpenConsultationEditNew({
+                    date: quickCreateState.date,
+                    startTime: slot.startTime,
+                    endTime: slot.endTime,
+                    studentId: extra?.studentId,
+                    sessionType: extra?.sessionType,
+                    consultationMode: extra?.consultationMode,
+                    title: extra?.title,
+                    description: extra?.description,
+                    meetingLink: extra?.meetingLink,
+                    visitor: extra?.visitor,
+                  });
+                }
+                closeQuickCreate();
+              } : undefined}
             />
           </div>
         </div>,

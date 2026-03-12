@@ -1,13 +1,16 @@
 'use client';
 
-import { Bell, FileText, BookOpen, Tag, Calendar, Plus, X } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Bell, FileText, BookOpen, Tag, Calendar, Plus, X, User, MapPin, Video, Users, Search } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useFloating, offset, flip, shift, autoUpdate } from '@floating-ui/react';
 import { GCAL_CORE_COLORS, COLORS_BY_FAMILY, getEventColor } from '../../_components/utils/eventColors';
 import { REMINDER_PRESETS } from '@/lib/domains/calendar/reminders';
 import { SUPPORTED_SUBJECT_CATEGORIES } from '@/lib/domains/plan/llm/actions/coldStart/types';
 import { cn } from '@/lib/cn';
 import { LABEL_PRESETS, getPresetForLabel } from '@/lib/domains/calendar/labelPresets';
+import { CONSULTATION_MODES } from '@/lib/domains/consulting/types';
+import type { ConsultationMode } from '@/lib/domains/consulting/types';
+import type { ConsultationPanelData } from '@/lib/domains/consulting/actions/fetchConsultationData';
 import type { EventEditFormState } from './useEventEditForm';
 
 export interface CalendarOption {
@@ -22,6 +25,10 @@ interface EventEditLeftColumnProps {
   setLabel: (newLabel: string) => void;
   /** 학생의 캘린더 목록 (캘린더 선택 드롭다운용) */
   calendars?: CalendarOption[];
+  /** 엔티티 타입 (상담 모드에서 다른 UI 렌더링) */
+  entityType?: 'event' | 'consultation';
+  /** 상담 데이터 (consultants, enrollments, phoneAvailability) */
+  consultationData?: ConsultationPanelData | null;
 }
 
 const inputCls = 'rounded-lg border border-[rgb(var(--color-secondary-300))] bg-transparent px-3 py-2 text-sm text-[var(--text-primary)] focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500';
@@ -29,7 +36,8 @@ const inputCls = 'rounded-lg border border-[rgb(var(--color-secondary-300))] bg-
 /** 알림 프리셋에서 값이 있는 것만 (선택 드롭다운용) */
 const REMINDER_OPTIONS = REMINDER_PRESETS.filter((p) => p.value != null) as { label: string; value: number }[];
 
-export function EventEditLeftColumn({ form, setField, setLabel, calendars }: EventEditLeftColumnProps) {
+export function EventEditLeftColumn({ form, setField, setLabel, calendars, entityType = 'event', consultationData }: EventEditLeftColumnProps) {
+  const isConsultation = entityType === 'consultation';
   const addReminder = (minutes: number) => {
     if (form.reminderMinutes.includes(minutes)) return;
     setField('reminderMinutes', [...form.reminderMinutes, minutes].sort((a, b) => a - b));
@@ -41,6 +49,130 @@ export function EventEditLeftColumn({ form, setField, setLabel, calendars }: Eve
 
   // 추가할 수 있는 알림 옵션 (이미 추가된 것 제외)
   const availableReminders = REMINDER_OPTIONS.filter((p) => !form.reminderMinutes.includes(p.value));
+
+  // 상담 모드: 전용 UI
+  if (isConsultation) {
+    const consultants = consultationData?.consultants ?? [];
+    const enrollments = consultationData?.enrollments ?? [];
+    const programOptions = enrollments.map((e) => e.program_name);
+
+    return (
+      <div className="flex flex-col gap-4">
+        {/* 상담 대상 학생 (personal mode에서 선택 가능) */}
+        <Section icon={<Search className="h-5 w-5" />}>
+          <ConsultationStudentSearch
+            value={form.consultationStudentId}
+            initialName={form.consultationStudentName}
+            onChange={(id, name) => {
+              setField('consultationStudentId', id);
+              setField('consultationStudentName', name ?? null);
+            }}
+          />
+        </Section>
+
+        {/* 담당 컨설턴트 */}
+        <Section icon={<User className="h-5 w-5" />}>
+          <select
+            value={form.consultantId ?? ''}
+            onChange={(e) => setField('consultantId', e.target.value || null)}
+            className={cn(inputCls, 'w-full')}
+          >
+            <option value="">컨설턴트 선택</option>
+            {consultants.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </Section>
+
+        {/* 프로그램명 */}
+        <Section icon={<BookOpen className="h-5 w-5" />}>
+          <div className="flex flex-col gap-1">
+            <input
+              list="program-options"
+              type="text"
+              value={form.programName}
+              onChange={(e) => setField('programName', e.target.value)}
+              placeholder="프로그램 선택 또는 입력"
+              className={cn(inputCls, 'w-full')}
+            />
+            <datalist id="program-options">
+              {programOptions.map((p) => (
+                <option key={p} value={p} />
+              ))}
+            </datalist>
+            {form.programName && (
+              <p className="text-xs text-[var(--text-tertiary)]">
+                알림톡 상담유형: &quot;{form.programName}&quot;
+              </p>
+            )}
+          </div>
+        </Section>
+
+        {/* 상담 방식 (대면/원격) + 장소/링크 */}
+        <Section icon={<MapPin className="h-5 w-5" />}>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              {CONSULTATION_MODES.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setField('consultationMode', m)}
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors',
+                    form.consultationMode === m
+                      ? 'border-blue-500 bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400'
+                      : 'border-[rgb(var(--color-secondary-200))] text-[var(--text-tertiary)] hover:border-[rgb(var(--color-secondary-300))]',
+                  )}
+                >
+                  {m === '대면' ? <MapPin className="w-3.5 h-3.5" /> : <Video className="w-3.5 h-3.5" />}
+                  {m}
+                </button>
+              ))}
+            </div>
+            {form.consultationMode === '대면' ? (
+              <input
+                type="text"
+                value={form.consultationLocation}
+                onChange={(e) => setField('consultationLocation', e.target.value)}
+                placeholder="미입력 시 학원 주소 사용"
+                className={cn(inputCls, 'w-full')}
+              />
+            ) : (
+              <input
+                type="url"
+                value={form.meetingLink}
+                onChange={(e) => setField('meetingLink', e.target.value)}
+                placeholder="https://zoom.us/j/..."
+                className={cn(inputCls, 'w-full')}
+              />
+            )}
+          </div>
+        </Section>
+
+        {/* 방문 상담자 */}
+        <Section icon={<Users className="h-5 w-5" />}>
+          <input
+            type="text"
+            value={form.visitor}
+            onChange={(e) => setField('visitor', e.target.value)}
+            placeholder="학생 & 학부모"
+            className={cn(inputCls, 'w-full')}
+          />
+        </Section>
+
+        {/* 메모 */}
+        <Section icon={<FileText className="h-5 w-5" />}>
+          <textarea
+            value={form.description}
+            onChange={(e) => setField('description', e.target.value)}
+            placeholder="상담 내용/목적"
+            rows={4}
+            className={cn(inputCls, 'w-full placeholder:text-[var(--text-tertiary)] resize-none')}
+          />
+        </Section>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -497,6 +629,119 @@ function LabelPresetSelector({
             적용
           </button>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// Consultation Student Search (inline)
+// ============================================
+
+function ConsultationStudentSearch({
+  value,
+  initialName,
+  onChange,
+}: {
+  value: string | null;
+  /** edit 모드에서 DB에서 resolve된 학생명 */
+  initialName?: string | null;
+  onChange: (id: string | null, name?: string) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<{ id: string; name: string }[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedName, setSelectedName] = useState<string | null>(initialName ?? null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // initialName이 외부에서 변경되면 동기화
+  useEffect(() => {
+    if (initialName && !selectedName) {
+      setSelectedName(initialName);
+    }
+  }, [initialName]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const doSearch = useCallback(async (q: string) => {
+    if (!q.trim()) { setResults([]); setIsSearching(false); return; }
+    setIsSearching(true);
+    try {
+      const res = await fetch(`/api/students/search?q=${encodeURIComponent(q)}&type=all&isActive=true&limit=20`);
+      if (!res.ok) { setResults([]); return; }
+      const data = await res.json();
+      setResults(data.success && data.data?.students
+        ? data.data.students.map((s: { id: string; name: string | null }) => ({ id: s.id, name: s.name ?? '이름 없음' }))
+        : []);
+    } catch (err) {
+      console.warn('학생 검색 실패:', err);
+      setResults([]);
+    } finally { setIsSearching(false); }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (query.trim()) {
+      timerRef.current = setTimeout(() => { if (!cancelled) doSearch(query); }, 300);
+    } else {
+      setResults([]);
+    }
+    return () => { cancelled = true; if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [query, doSearch]);
+
+  const handleSelect = (student: { id: string; name: string }) => {
+    onChange(student.id, student.name);
+    setSelectedName(student.name);
+    setQuery('');
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => { setQuery(e.target.value); setIsOpen(true); }}
+        onFocus={() => setIsOpen(true)}
+        placeholder={selectedName ? `${selectedName}` : '학생 검색...'}
+        className={cn(inputCls, 'w-full', selectedName && !query && 'text-[var(--text-primary)]')}
+      />
+      {selectedName && !query && (
+        <button
+          type="button"
+          onClick={() => { onChange(null, undefined); setSelectedName(null); }}
+          className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-[var(--text-tertiary)] hover:text-red-500"
+          aria-label="학생 선택 해제"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      )}
+      {isOpen && (query.trim() || isSearching) && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="absolute z-50 mt-1 w-full max-h-48 overflow-auto rounded-lg border border-[rgb(var(--color-secondary-200))] bg-[rgb(var(--color-secondary-50))] shadow-lg">
+            {isSearching ? (
+              <div className="p-3 text-center text-xs text-[var(--text-tertiary)]">검색 중...</div>
+            ) : results.length === 0 ? (
+              <div className="p-3 text-center text-xs text-[var(--text-tertiary)]">검색 결과 없음</div>
+            ) : (
+              <ul>
+                {results.map((s) => (
+                  <li
+                    key={s.id}
+                    onClick={() => handleSelect(s)}
+                    className={cn(
+                      'px-3 py-2 text-sm cursor-pointer hover:bg-[rgb(var(--color-secondary-100))] text-[var(--text-primary)]',
+                      value === s.id && 'bg-blue-50 dark:bg-blue-950/20',
+                    )}
+                  >
+                    {s.name}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </>
       )}
     </div>
   );

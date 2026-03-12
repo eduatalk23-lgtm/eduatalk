@@ -48,7 +48,7 @@ export type EventStudyDataUpdate = TablesUpdate<"event_study_data">;
 // ============================================
 
 /** calendars.owner_type */
-export type CalendarOwnerType = "student" | "admin";
+export type CalendarOwnerType = "student" | "admin" | "tenant";
 
 /** calendars.source_type */
 export type CalendarSourceType = "local" | "google" | "outlook";
@@ -64,7 +64,8 @@ export type EventType =
   | "break"
   | "exclusion"
   | "custom"
-  | "focus_time";
+  | "focus_time"
+  | "consultation";
 
 /** calendar_events.status — Google Event status (순수 이벤트 상태) */
 export type EventStatus =
@@ -81,6 +82,12 @@ export type StudyContentType = "book" | "lecture" | "custom";
 /** event_study_data.done — Task 완료 여부 (boolean, 단일 진실 공급원) */
 // CompletionStatus enum은 done boolean으로 대체됨
 
+// --- consultation_event_data ---
+
+export type ConsultationEventData = Tables<"consultation_event_data">;
+export type ConsultationEventDataInsert = TablesInsert<"consultation_event_data">;
+export type ConsultationEventDataUpdate = TablesUpdate<"consultation_event_data">;
+
 // ============================================
 // 조합 타입 (조회 결과 + JOIN)
 // ============================================
@@ -88,6 +95,12 @@ export type StudyContentType = "book" | "lecture" | "custom";
 /** calendar_events + event_study_data JOIN 결과 (가장 빈번한 쿼리 패턴) */
 export type CalendarEventWithStudyData = CalendarEvent & {
   event_study_data: EventStudyData | null;
+  consultation_event_data?: ConsultationEventData | null;
+};
+
+/** calendar_events + consultation_event_data JOIN 결과 */
+export type CalendarEventWithConsultationData = CalendarEvent & {
+  consultation_event_data: ConsultationEventData | null;
 };
 
 /** calendars + calendar_events[] 조회 결과 */

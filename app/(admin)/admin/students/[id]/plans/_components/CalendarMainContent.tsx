@@ -65,6 +65,7 @@ export function CalendarMainContent({
     handleOpenStatusChange,
     handleCreatePlanAtSlot,
     handleOpenEventEditNew,
+    handleOpenConsultationEditNew,
   } = useAdminPlanActions();
 
   // DailyDock initialData (날짜 변경 시 undefined)
@@ -94,6 +95,13 @@ export function CalendarMainContent({
         handleOpenStatusChange(planId, prevStatus, '');
       },
       [handleOpenStatusChange],
+    ),
+    onConsultationStatusChange: useCallback(
+      async (eventId: string, status: 'completed' | 'no_show' | 'cancelled' | 'scheduled') => {
+        const { updateScheduleStatus } = await import('@/lib/domains/consulting/actions/schedule');
+        await updateScheduleStatus(eventId, status, studentId, status === 'cancelled');
+      },
+      [studentId],
     ),
   });
 
@@ -142,6 +150,7 @@ export function CalendarMainContent({
           searchQuery={searchQuery}
           visibleCalendarIds={resolvedVisibleCalendarIds}
           onOpenEventEditNew={handleOpenEventEditNew}
+          onOpenConsultationEditNew={handleOpenConsultationEditNew}
           customDayCount={customDayCount}
           onCustomDayCountChange={onCustomDayCountChange}
         />

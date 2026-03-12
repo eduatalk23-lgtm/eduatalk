@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useTransition } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useIsMobile } from '@/lib/hooks/useIsMobile';
@@ -11,9 +11,14 @@ import { useEventEditForm } from './useEventEditForm';
 import { EventEditTopBar } from './EventEditTopBar';
 import { EventEditLeftColumn, type CalendarOption } from './EventEditLeftColumn';
 import { EventEditRightColumn } from './EventEditRightColumn';
+import type { EventEditEntityType } from '../../_components/hooks/useEventEditModal';
+import type { ConsultationMode } from '@/lib/domains/consulting/types';
+import { fetchConsultationData, type ConsultationPanelData } from '@/lib/domains/consulting/actions/fetchConsultationData';
 
 interface EventEditPageProps {
   mode: 'new' | 'edit';
+  /** 엔티티 타입: 일정/학습 vs 상담 */
+  entityType?: EventEditEntityType;
   studentId: string;
   eventId?: string;
   calendarId?: string;
@@ -22,6 +27,17 @@ interface EventEditPageProps {
   initialEndTime?: string;
   initialSubject?: string;
   instanceDate?: string;
+  /** 상담 전용: 대상 학생 ID */
+  consultationStudentId?: string;
+  /** 상담 전용: 상담 유형 초기값 */
+  consultationSessionType?: string;
+  /** 상담 전용: 상담 방식 초기값 */
+  consultationMode?: ConsultationMode;
+  /** QuickCreate에서 전달된 초기값 */
+  initialTitle?: string;
+  initialDescription?: string;
+  initialMeetingLink?: string;
+  initialVisitor?: string;
   /** 모달 모드: 닫기 콜백 (있으면 router.push 대신 호출) */
   onCloseModal?: () => void;
   /** 모달 모드: 저장/삭제 성공 후 콜백 */
@@ -30,6 +46,7 @@ interface EventEditPageProps {
 
 export function EventEditPage({
   mode,
+  entityType = 'event',
   studentId,
   eventId,
   calendarId,
@@ -38,6 +55,13 @@ export function EventEditPage({
   initialEndTime,
   initialSubject,
   instanceDate,
+  consultationStudentId,
+  consultationSessionType,
+  consultationMode: initialConsultationMode,
+  initialTitle,
+  initialDescription,
+  initialMeetingLink,
+  initialVisitor,
   onCloseModal,
   onSuccessModal,
 }: EventEditPageProps) {
@@ -72,8 +96,10 @@ export function EventEditPage({
     needsRecurringScope,
     handleRecurringScopeSelect,
     cancelRecurringScope,
+    resolvedEntityType,
   } = useEventEditForm({
     mode,
+    entityType,
     studentId,
     eventId,
     calendarId,
@@ -84,7 +110,45 @@ export function EventEditPage({
     returnPath,
     instanceDate,
     onSuccessModal,
+    // 상담 전용 초기값
+    consultationStudentId,
+    consultationSessionType,
+    consultationMode: initialConsultationMode,
+    // QuickCreate에서 전달된 초기값
+    initialTitle,
+    initialDescription,
+    initialMeetingLink,
+    initialVisitor,
   });
+
+  const isConsultation = resolvedEntityType === 'consultation';
+
+  // 상담 모드: 상담 데이터 fetch (consultants, enrollments, phoneAvailability)
+  const [consultationData, setConsultationData] = useState<ConsultationPanelData | null>(null);
+  const [isConsultationDataLoading, startConsultationLoad] = useTransition();
+
+  // 상담 데이터 fetch를 위한 학생 ID: form.consultationStudentId → props → current studentId
+  const consultationTargetStudentId = form.consultationStudentId || consultationStudentId || studentId;
+
+  useEffect(() => {
+    if (!isConsultation) return;
+    startConsultationLoad(async () => {
+      const data = await fetchConsultationData(consultationTargetStudentId);
+      setConsultationData(data);
+      // 기본 컨설턴트: 현재 로그인 사용자 (new 모드에서만, 아직 미설정 시)
+      if (mode === 'new' && data.currentUserId && !form.consultantId) {
+        setField('consultantId', data.currentUserId);
+      }
+      // 기본 알림 대상: 어머니 연락처가 있으면 자동 선택 (new 모드에서만, 아직 미설정 시)
+      if (mode === 'new' && data.phoneAvailability.mother && form.notificationTargets.length === 0) {
+        setField('notificationTargets', ['mother']);
+      }
+    });
+  // consultationTargetStudentId: 학생 선택 변경 시 재로드
+  // isConsultation: entityType auto-detect 후 첫 로드
+  // mode: new/edit 분기에만 사용 (stable)
+  // form.consultantId, form.notificationTargets: 초기값 설정 조건에만 사용하므로 의존성 제외
+  }, [isConsultation, consultationTargetStudentId, mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleClose = useCallback(() => {
     if (isDirty) {
@@ -123,7 +187,7 @@ export function EventEditPage({
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[rgb(var(--background))]">
+    <div className="flex min-h-screen flex-col bg-[var(--background)]">
       <EventEditTopBar
         mode={mode}
         isDirty={isDirty}
@@ -139,20 +203,57 @@ export function EventEditPage({
           endDate: form.endDate,
           startTime: form.startTime,
           endTime: form.endTime,
-          isAllDay: form.isAllDay,
-          rrule: form.rrule,
+          isAllDay: isConsultation ? false : form.isAllDay,
+          rrule: isConsultation ? null : form.rrule,
           onDateChange: (v) => setField('date', v),
           onEndDateChange: (v) => setField('endDate', v),
           onStartTimeChange: (v) => setField('startTime', v),
           onEndTimeChange: (v) => setField('endTime', v),
-          onAllDayChange: (v) => setField('isAllDay', v),
-          onRruleChange: (v) => setField('rrule', v),
+          onAllDayChange: isConsultation ? () => {} : (v) => setField('isAllDay', v),
+          onRruleChange: isConsultation ? () => {} : (v) => setField('rrule', v),
+          hideAllDayAndRecurrence: isConsultation,
         }}
       />
 
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-5xl px-4 py-4 sm:px-6 lg:px-8">
-          {isMobile ? (
+          {isConsultation ? (
+            isConsultationDataLoading ? (
+              <div className="flex items-center justify-center gap-3 py-16">
+                <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+                <span className="text-sm text-[var(--text-tertiary)]">상담 데이터 로딩 중...</span>
+              </div>
+            ) : isMobile ? (
+              <div className="flex flex-col gap-5">
+                <EventEditLeftColumn
+                  form={form}
+                  setField={setField}
+                  setLabel={setLabel}
+                  calendars={calendarOptions}
+                  entityType={resolvedEntityType}
+                  consultationData={consultationData}
+                />
+                <EventEditRightColumn form={form} setField={setField} entityType={resolvedEntityType} consultationData={consultationData} />
+              </div>
+            ) : (
+              <div className="flex gap-6">
+                <div className="flex-[3] min-w-0">
+                  <EventEditLeftColumn
+                    form={form}
+                    setField={setField}
+                    setLabel={setLabel}
+                    calendars={calendarOptions}
+                    entityType={resolvedEntityType}
+                    consultationData={consultationData}
+                  />
+                </div>
+                <div className="w-px bg-[rgb(var(--color-secondary-200))]" />
+                <div className="flex-[2] min-w-0">
+                  <EventEditRightColumn form={form} setField={setField} entityType={resolvedEntityType} consultationData={consultationData} />
+                </div>
+              </div>
+            )
+          ) : isMobile ? (
             /* Mobile: single column */
             <div className="flex flex-col gap-5">
               <EventEditLeftColumn form={form} setField={setField} setLabel={setLabel} calendars={calendarOptions} />

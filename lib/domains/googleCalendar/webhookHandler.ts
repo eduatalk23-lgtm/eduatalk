@@ -1,7 +1,7 @@
 /**
  * Google Calendar Webhook 처리 + Webhook 등록/갱신
  *
- * Phase 2: Google → App 양방향 동기화
+ * Phase 5: calendar_events + consultation_event_data 기반으로 전환
  */
 
 import { google } from "googleapis";
@@ -18,10 +18,6 @@ const ACTION_CTX = { domain: "googleCalendar", action: "webhook" };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseAny = any;
 
-function scheduleTable(client: SupabaseAny) {
-  return client.from("consultation_schedules");
-}
-
 interface WebhookNotification {
   channelId: string;
   resourceId: string;
@@ -34,7 +30,7 @@ interface WebhookNotification {
  * 1. channelId로 연결된 admin_user 찾기
  * 2. incremental sync로 변경된 이벤트 조회
  * 3. extendedProperties로 우리 이벤트 필터링
- * 4. 변경 사항을 consultation_schedules에 반영
+ * 4. 변경 사항을 calendar_events + consultation_event_data에 반영
  */
 export async function processWebhookNotification(
   adminClient: SupabaseAny,
@@ -70,52 +66,58 @@ export async function processWebhookNotification(
     const events = data.items ?? [];
 
     for (const event of events) {
-      const scheduleId =
+      // extendedProperties에 timelevelup_schedule_id = calendar_events.id
+      const eventId =
         event.extendedProperties?.private?.timelevelup_schedule_id;
 
-      if (!scheduleId) continue; // 우리 이벤트가 아님
+      if (!eventId) continue; // 우리 이벤트가 아님
 
-      // 삭제된 이벤트
+      // 삭제된 이벤트 → consultation_event_data 상태 변경 + calendar_events soft delete
       if (event.status === "cancelled") {
-        await scheduleTable(adminClient)
+        await adminClient
+          .from("consultation_event_data")
           .update({
-            status: "cancelled",
+            schedule_status: "cancelled",
             google_calendar_event_id: null,
             google_sync_status: "synced",
+          })
+          .eq("event_id", eventId);
+
+        await adminClient
+          .from("calendar_events")
+          .update({
+            deleted_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           })
-          .eq("id", scheduleId);
+          .eq("id", eventId);
 
         logActionDebug(ACTION_CTX, "Google에서 이벤트 삭제됨 → 앱 취소", {
-          scheduleId,
+          eventId,
         });
         continue;
       }
 
       // 시간 변경 감지
       if (event.start?.dateTime && event.end?.dateTime) {
-        // KST로 변환하여 날짜/시간 추출
-        const startDate = new Date(event.start.dateTime);
-        const endDate = new Date(event.end.dateTime);
-
-        const kstStart = new Date(startDate.getTime() + 9 * 60 * 60 * 1000);
-        const kstEnd = new Date(endDate.getTime() + 9 * 60 * 60 * 1000);
-
-        const scheduledDate = kstStart.toISOString().split("T")[0];
-        const startTime = kstStart.toISOString().slice(11, 16);
-        const endTime = kstEnd.toISOString().slice(11, 16);
+        const startAt = event.start.dateTime; // ISO 8601 with timezone
+        const endAt = event.end.dateTime;
 
         // Google event의 updated vs DB의 updated_at 비교 (last-write-wins)
-        const { data: existing } = await scheduleTable(adminClient)
-          .select("updated_at, google_sync_status")
-          .eq("id", scheduleId)
+        const { data: existing } = await adminClient
+          .from("calendar_events")
+          .select("updated_at, consultation_event_data(google_sync_status)")
+          .eq("id", eventId)
           .maybeSingle();
 
         if (existing && event.updated) {
-          const row = existing as { updated_at: string; google_sync_status: string };
+          const row = existing as {
+            updated_at: string;
+            consultation_event_data: { google_sync_status: string } | null;
+          };
+          const syncStatus = row.consultation_event_data?.google_sync_status;
 
           // 앱에서 방금 동기화한 건이면 skip (무한 루프 방지)
-          if (row.google_sync_status === "synced") {
+          if (syncStatus === "synced") {
             const dbUpdated = new Date(row.updated_at).getTime();
             const timeSinceUpdate = Date.now() - dbUpdated;
             // 30초 이내에 synced 상태면 앱에서 방금 보낸 변경으로 간주
@@ -129,18 +131,18 @@ export async function processWebhookNotification(
 
           // Google 쪽이 더 최신이면 DB 업데이트
           if (googleUpdated > dbUpdated) {
-            await scheduleTable(adminClient)
+            await adminClient
+              .from("calendar_events")
               .update({
-                scheduled_date: scheduledDate,
-                start_time: startTime,
-                end_time: endTime,
+                start_at: startAt,
+                end_at: endAt,
                 description: event.description ?? null,
                 updated_at: new Date().toISOString(),
               })
-              .eq("id", scheduleId);
+              .eq("id", eventId);
 
             logActionDebug(ACTION_CTX, "Google에서 이벤트 수정됨 → 앱 반영", {
-              scheduleId,
+              eventId,
             });
           }
         }

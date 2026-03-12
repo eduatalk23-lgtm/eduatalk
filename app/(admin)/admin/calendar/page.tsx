@@ -1,6 +1,11 @@
 import { requireAdminOrConsultant } from '@/lib/auth/guards';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { ensureStudentPrimaryCalendar, ensureAdminPrimaryCalendar } from '@/lib/domains/calendar/helpers';
+import {
+  ensureStudentPrimaryCalendar,
+  ensureAdminPrimaryCalendar,
+  ensureTenantPrimaryCalendar,
+  subscribeTenantCalendar,
+} from '@/lib/domains/calendar/helpers';
 import { fetchCalendarPageData } from '@/lib/domains/admin-plan/actions/calendarPageData';
 import { AdminCalendarWrapper } from './_components/AdminCalendarWrapper';
 
@@ -34,6 +39,11 @@ export default async function AdminCalendarPage({ searchParams }: Props) {
 
     const adminName = adminUser?.name ?? '관리자';
     const calendarId = await ensureAdminPrimaryCalendar(admin.userId, admin.tenantId!);
+
+    // 테넌트 캘린더 보장 + 관리자 구독 (상담/공유 이벤트 표시용)
+    const tenantCalendarId = await ensureTenantPrimaryCalendar(admin.tenantId!);
+    await subscribeTenantCalendar(admin.userId, tenantCalendarId, "writer");
+
     const pageData = await fetchCalendarPageData(admin.userId, calendarId, date);
 
     return (
@@ -70,6 +80,11 @@ export default async function AdminCalendarPage({ searchParams }: Props) {
   }
 
   const calendarId = await ensureStudentPrimaryCalendar(student.id, student.tenant_id);
+
+  // 테넌트 캘린더 보장 + 관리자 구독
+  const tenantCalendarId = await ensureTenantPrimaryCalendar(student.tenant_id);
+  await subscribeTenantCalendar(admin.userId, tenantCalendarId, "writer");
+
   const pageData = await fetchCalendarPageData(student.id, calendarId, date);
 
   return (

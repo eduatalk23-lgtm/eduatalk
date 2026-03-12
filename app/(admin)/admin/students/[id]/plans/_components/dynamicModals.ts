@@ -137,3 +137,4 @@ export const EventEditModal = dynamic(
   () => import('./modals/EventEditModal').then((mod) => ({ default: mod.EventEditModal })),
   { ssr: false }
 );
+

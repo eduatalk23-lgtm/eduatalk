@@ -3,6 +3,25 @@ import type { PlanStatus } from '@/lib/types/plan';
 export type PlanItemType = 'plan' | 'adhoc';
 export type TimeSlotType = 'study' | 'self_study' | null;
 
+/**
+ * 이벤트 분류 (Google Calendar의 eventType에 대응)
+ * - general: 일반 이벤트 (Event)
+ * - study: 학습 플랜 (Task — 완료 처리 가능)
+ * - consultation: 상담 일정 (Appointment — 향후 예약 페이지 확장)
+ */
+export type PlanEventType = 'general' | 'study' | 'consultation';
+
+/** 상담 이벤트 전용 데이터 (consultation_event_data JOIN 결과) */
+export interface ConsultationDisplayData {
+  sessionType: string;
+  consultantName?: string;
+  consultationMode: string;
+  meetingLink?: string;
+  visitor?: string;
+  scheduleStatus: string;
+  studentName?: string;
+}
+
 export interface PlanItemData {
   id: string;
   type: PlanItemType;
@@ -53,6 +72,10 @@ export interface PlanItemData {
   isTask?: boolean;
   /** 생성자 역할 ('admin' | 'student') */
   creatorRole?: 'admin' | 'student';
+  /** 이벤트 분류 (Google Calendar eventType 대응) */
+  eventType?: PlanEventType;
+  /** 상담 전용 데이터 (eventType === 'consultation'일 때만 존재) */
+  consultationData?: ConsultationDisplayData;
 }
 
 /**
@@ -97,5 +120,24 @@ export function toPlanItemData(
     isTask: raw.is_task ?? true,
     label: raw.label ?? undefined,
     creatorRole: raw.creator_role ?? undefined,
+    eventType: resolveEventType(raw),
+    consultationData: raw.consultation_event_data
+      ? {
+          sessionType: raw.consultation_event_data.session_type ?? '',
+          consultantName: raw.consultation_event_data.consultant_name ?? undefined,
+          consultationMode: raw.consultation_event_data.consultation_mode ?? '대면',
+          meetingLink: raw.consultation_event_data.meeting_link ?? undefined,
+          visitor: raw.consultation_event_data.visitor ?? undefined,
+          scheduleStatus: raw.consultation_event_data.schedule_status ?? 'scheduled',
+          studentName: raw.consultation_event_data.student_name ?? undefined,
+        }
+      : undefined,
   };
+}
+
+/** DB raw 데이터에서 eventType 추론 */
+function resolveEventType(raw: Record<string, unknown>): PlanEventType {
+  if (raw.event_type === 'consultation' || raw.consultation_event_data) return 'consultation';
+  if (raw.is_task) return 'study';
+  return 'general';
 }

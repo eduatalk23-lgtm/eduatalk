@@ -16,6 +16,8 @@ import {
 import { createCalendarEventAction } from '@/lib/domains/admin-plan/actions/calendarEvents';
 import { extractTimeHHMM, extractDateYMD } from '@/lib/domains/calendar/adapters';
 import { getPresetForLabel } from '@/lib/domains/calendar/labelPresets';
+import type { EventEditEntityType } from '../../_components/hooks/useEventEditModal';
+import type { ConsultationMode, NotificationTarget, NotificationChannel } from '@/lib/domains/consulting/types';
 
 // ============================================
 // Types
@@ -53,10 +55,35 @@ export interface EventEditFormState {
   // read-only
   contentTitle: string | null;
   contentType: string | null;
+  // ── 상담 전용 필드 ──
+  /** 상담 대상 학생 ID (personal mode에서 필수) */
+  consultationStudentId: string | null;
+  /** 상담 대상 학생명 (edit mode에서 resolve된 이름) */
+  consultationStudentName: string | null;
+  /** 담당 컨설턴트 ID */
+  consultantId: string | null;
+  /** 상담 유형 (정기상담, 학부모상담, ...) */
+  sessionType: string;
+  /** 프로그램명 */
+  programName: string;
+  /** 상담 방식 */
+  consultationMode: ConsultationMode;
+  /** 방문 상담자 */
+  visitor: string;
+  /** 참가 링크 (원격) */
+  meetingLink: string;
+  /** 상담 장소 (대면) */
+  consultationLocation: string;
+  /** 알림 대상 */
+  notificationTargets: NotificationTarget[];
+  /** 알림 채널 */
+  notificationChannel: NotificationChannel;
 }
 
 interface UseEventEditFormOptions {
   mode: 'new' | 'edit';
+  /** 엔티티 타입: 일정/학습 vs 상담 */
+  entityType?: EventEditEntityType;
   studentId: string;
   eventId?: string;
   calendarId?: string;
@@ -72,6 +99,15 @@ interface UseEventEditFormOptions {
   instanceDate?: string;
   /** 모달 모드: 저장/삭제 성공 후 콜백 (있으면 router.push 대신 호출) */
   onSuccessModal?: () => void;
+  // ── 상담 전용 초기값 ──
+  consultationStudentId?: string;
+  consultationSessionType?: string;
+  consultationMode?: ConsultationMode;
+  // ── QuickCreate에서 전달된 초기값 ──
+  initialTitle?: string;
+  initialDescription?: string;
+  initialMeetingLink?: string;
+  initialVisitor?: string;
 }
 
 export interface UseEventEditFormReturn {
@@ -90,6 +126,8 @@ export interface UseEventEditFormReturn {
   handleRecurringScopeSelect: (scope: RecurringScope) => Promise<void>;
   cancelRecurringScope: () => void;
   originalData: CalendarEventEditData | null;
+  /** 실제 결정된 entityType (props + 로드 데이터 auto-detect 반영) */
+  resolvedEntityType: EventEditEntityType;
 }
 
 // ============================================
@@ -106,8 +144,10 @@ function parseDateFromTimestamp(ts: string | null, fallbackDate?: string | null)
 
 function getDefaultForm(opts: UseEventEditFormOptions): EventEditFormState {
   const today = new Date().toISOString().split('T')[0];
+  const isConsultation = opts.entityType === 'consultation';
   // label을 primary로 사용, initialEventType은 fallback
-  const label = opts.initialLabel
+  const label = isConsultation ? '상담'
+    : opts.initialLabel
     ?? (opts.initialEventType === 'study' ? '학습'
       : opts.initialEventType === 'focus_time' ? '집중 시간'
       : opts.initialEventType === 'break' ? '휴식'
@@ -119,8 +159,8 @@ function getDefaultForm(opts: UseEventEditFormOptions): EventEditFormState {
     : label === '휴식' ? 'break' : 'custom';
   const isTask = opts.initialIsTask ?? (preset?.defaultIsTask ?? false);
   return {
-    title: '',
-    description: '',
+    title: opts.initialTitle ?? '',
+    description: opts.initialDescription ?? '',
     color: null,
     calendarId: opts.calendarId ?? null,
     date: opts.initialDate ?? today,
@@ -142,6 +182,18 @@ function getDefaultForm(opts: UseEventEditFormOptions): EventEditFormState {
     estimatedMinutes: null,
     contentTitle: null,
     contentType: null,
+    // 상담 전용 필드
+    consultationStudentId: opts.consultationStudentId ?? null,
+    consultationStudentName: null,
+    consultantId: null,
+    sessionType: opts.consultationSessionType ?? '정기상담',
+    programName: '',
+    consultationMode: opts.consultationMode ?? '대면',
+    visitor: opts.initialVisitor ?? '',
+    meetingLink: opts.initialMeetingLink ?? '',
+    consultationLocation: '',
+    notificationTargets: [],
+    notificationChannel: 'alimtalk',
   };
 }
 
@@ -152,6 +204,9 @@ function eventDataToForm(data: CalendarEventEditData): EventEditFormState {
     : data.label === '집중 시간' || data.label === '집중 학습' ? 'focus_time'
     : data.label === '휴식' ? 'break'
     : 'custom';
+
+  const ced = data.consultation_event_data;
+
   return {
     title: data.title,
     description: data.description ?? '',
@@ -176,6 +231,20 @@ function eventDataToForm(data: CalendarEventEditData): EventEditFormState {
     estimatedMinutes: data.estimated_minutes,
     contentTitle: data.content_title,
     contentType: data.content_type,
+    // 상담 필드 — consultation_event_data에서 채우기
+    consultationStudentId: ced?.student_id ?? null,
+    consultationStudentName: ced?.student_name ?? null,
+    consultantId: ced?.consultant_id ?? null,
+    sessionType: ced?.session_type ?? '정기상담',
+    programName: ced?.program_name ?? '',
+    consultationMode: (ced?.consultation_mode as ConsultationMode) ?? '대면',
+    visitor: ced?.visitor ?? '',
+    meetingLink: ced?.meeting_link ?? '',
+    consultationLocation: '',
+    notificationTargets: (ced?.notification_targets?.filter((t): t is NotificationTarget =>
+      t === 'student' || t === 'mother' || t === 'father'
+    )) ?? [],
+    notificationChannel: 'alimtalk',
   };
 }
 
@@ -194,6 +263,8 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
   const [isDeleting, startDeleteTransition] = useTransition();
   const [needsRecurringScope, setNeedsRecurringScope] = useState<'save' | 'delete' | null>(null);
   const hasMountedRef = useRef(false);
+  /** 로드된 데이터 기반 auto-detected entityType (edit mode) */
+  const [detectedEntityType, setDetectedEntityType] = useState<EventEditEntityType | null>(null);
 
   // Load event data for edit mode
   useEffect(() => {
@@ -209,6 +280,10 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
         const formData = eventDataToForm(result.data);
         setForm(formData);
         setInitialForm(formData);
+        // Auto-detect consultation from loaded data
+        if (result.data.event_type === 'consultation' || result.data.consultation_event_data) {
+          setDetectedEntityType('consultation');
+        }
       } else {
         toast.showError(result.error ?? '이벤트를 불러올 수 없습니다.');
         if (opts.onSuccessModal) opts.onSuccessModal();
@@ -219,6 +294,9 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
 
     return () => { cancelled = true; };
   }, [opts.mode, opts.eventId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** 실제 entityType: props 우선, 로드 데이터 fallback */
+  const resolvedEntityType: EventEditEntityType = opts.entityType ?? detectedEntityType ?? 'event';
 
   const setField = useCallback(<K extends keyof EventEditFormState>(key: K, value: EventEditFormState[K]) => {
     setForm((prev) => {
@@ -320,8 +398,99 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
   }, [form, initialForm]);
 
   const handleSave = useCallback(async () => {
-    if (!form.title.trim()) {
+    const isConsultationMode = resolvedEntityType === 'consultation';
+
+    // 상담 모드: 제목은 선택사항 (sessionType이 기본값)
+    if (!isConsultationMode && !form.title.trim()) {
       toast.showError('제목을 입력해주세요.');
+      return;
+    }
+
+    // 상담 모드: 전용 저장 로직
+    if (isConsultationMode) {
+      // 필수값 검증
+      const effectiveStudentId = form.consultationStudentId || opts.consultationStudentId || opts.studentId;
+      if (!effectiveStudentId) {
+        toast.showError('학생을 선택해주세요.');
+        return;
+      }
+      if (!form.consultantId) {
+        toast.showError('컨설턴트를 선택해주세요.');
+        return;
+      }
+      if (!form.programName.trim()) {
+        toast.showError('프로그램을 입력해주세요.');
+        return;
+      }
+      if (form.endTime <= form.startTime) {
+        toast.showError('종료 시간은 시작 시간 이후여야 합니다.');
+        return;
+      }
+
+      startSaveTransition(async () => {
+        try {
+          if (opts.mode === 'edit' && opts.eventId) {
+            // 상담 수정
+            const { updateConsultationSchedule } = await import('@/lib/domains/consulting/actions/schedule');
+            const result = await updateConsultationSchedule({
+              scheduleId: opts.eventId,
+              studentId: effectiveStudentId,
+              consultantId: form.consultantId!,
+              sessionType: form.sessionType.trim() || '정기상담',
+              programName: form.programName.trim(),
+              scheduledDate: form.date,
+              startTime: form.startTime,
+              endTime: form.endTime,
+              consultationMode: form.consultationMode,
+              meetingLink: form.consultationMode === '원격' ? form.meetingLink.trim() || undefined : undefined,
+              visitor: form.visitor.trim() || undefined,
+              location: form.consultationMode === '대면' ? form.consultationLocation.trim() || undefined : undefined,
+              description: form.description.trim() || undefined,
+              sendNotification: form.notificationTargets.length > 0,
+              notificationTargets: form.notificationTargets,
+              notificationChannel: form.notificationChannel,
+            });
+
+            if (result.success) {
+              toast.showSuccess('상담 일정이 수정되었습니다.');
+              if (opts.onSuccessModal) opts.onSuccessModal();
+              else router.push(opts.returnPath);
+            } else {
+              toast.showError(result.error ?? '상담 일정 수정에 실패했습니다.');
+            }
+          } else {
+            // 상담 생성
+            const { createConsultationSchedule } = await import('@/lib/domains/consulting/actions/schedule');
+            const result = await createConsultationSchedule({
+              studentId: effectiveStudentId,
+              consultantId: form.consultantId!,
+              sessionType: form.sessionType.trim() || '정기상담',
+              programName: form.programName.trim(),
+              scheduledDate: form.date,
+              startTime: form.startTime,
+              endTime: form.endTime,
+              consultationMode: form.consultationMode,
+              meetingLink: form.consultationMode === '원격' ? form.meetingLink.trim() || undefined : undefined,
+              visitor: form.visitor.trim() || undefined,
+              location: form.consultationMode === '대면' ? form.consultationLocation.trim() || undefined : undefined,
+              description: form.description.trim() || undefined,
+              sendNotification: form.notificationTargets.length > 0,
+              notificationTargets: form.notificationTargets,
+              notificationChannel: form.notificationChannel,
+            });
+
+            if (result.success) {
+              toast.showSuccess('상담 일정이 생성되었습니다.');
+              if (opts.onSuccessModal) opts.onSuccessModal();
+              else router.push(opts.returnPath);
+            } else {
+              toast.showError(result.error ?? '상담 일정 생성에 실패했습니다.');
+            }
+          }
+        } catch {
+          toast.showError('상담 일정 저장 중 오류가 발생했습니다.');
+        }
+      });
       return;
     }
 
@@ -403,9 +572,32 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
         }
       });
     }
-  }, [form, opts, isRecurring, buildUpdates, router, toast]);
+  }, [form, opts, isRecurring, resolvedEntityType, buildUpdates, router, toast]);
 
   const handleDelete = useCallback(async () => {
+    // 상담 이벤트: 전용 삭제 로직
+    if (resolvedEntityType === 'consultation') {
+      startDeleteTransition(async () => {
+        try {
+          const { deleteConsultationSchedule } = await import('@/lib/domains/consulting/actions/schedule');
+          const result = await deleteConsultationSchedule({
+            scheduleId: opts.eventId!,
+            studentId: opts.studentId,
+          });
+          if (result.success) {
+            toast.showSuccess('상담 일정이 삭제되었습니다.');
+            if (opts.onSuccessModal) opts.onSuccessModal();
+            else router.push(opts.returnPath);
+          } else {
+            toast.showError(result.error ?? '삭제에 실패했습니다.');
+          }
+        } catch {
+          toast.showError('상담 일정 삭제 중 오류가 발생했습니다.');
+        }
+      });
+      return;
+    }
+
     if (isRecurring) {
       setNeedsRecurringScope('delete');
       return;
@@ -421,7 +613,7 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
         toast.showError(result.error ?? '삭제에 실패했습니다.');
       }
     });
-  }, [isRecurring, opts, router, toast]);
+  }, [resolvedEntityType, isRecurring, opts, router, toast]);
 
   const handleRecurringScopeSelect = useCallback(async (scope: RecurringScope) => {
     const eventId = opts.eventId!;
@@ -479,5 +671,6 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
     handleRecurringScopeSelect,
     cancelRecurringScope,
     originalData,
+    resolvedEntityType,
   };
 }

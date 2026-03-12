@@ -56,7 +56,7 @@ export async function searchCalendarEventsAction(
     // 1차: calendar_events.title / description에서 검색
     const { data: titleMatches, error: titleErr } = await supabase
       .from("calendar_events")
-      .select("*, event_study_data(*)")
+      .select("*, event_study_data(*), consultation_event_data(*)")
       .eq("student_id", studentId)
       .eq("calendar_id", calendarId)
       .is("deleted_at", null)
@@ -106,7 +106,7 @@ export async function searchCalendarEventsAction(
     if (additionalEventIds.length > 0) {
       const { data: extra, error: extraErr } = await supabase
         .from("calendar_events")
-        .select("*, event_study_data(*)")
+        .select("*, event_study_data(*), consultation_event_data(*)")
         .eq("student_id", studentId)
         .eq("calendar_id", calendarId)
         .is("deleted_at", null)

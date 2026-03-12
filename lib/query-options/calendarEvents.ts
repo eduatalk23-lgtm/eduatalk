@@ -145,7 +145,7 @@ export function dailyCalendarEventsQueryOptions(calendarId: string, date: string
       const supabase = createSupabaseBrowserClient();
       const { data, error } = await supabase
         .from('calendar_events')
-        .select('*, event_study_data(*)')
+        .select('*, event_study_data(*), consultation_event_data(*)')
         .eq('calendar_id', calendarId)
         .is('deleted_at', null)
         .or(
@@ -182,7 +182,7 @@ export function weeklyCalendarEventsQueryOptions(
       const supabase = createSupabaseBrowserClient();
       const { data, error } = await supabase
         .from('calendar_events')
-        .select('*, event_study_data(*)')
+        .select('*, event_study_data(*), consultation_event_data(*)')
         .eq('calendar_id', calendarId)
         .is('deleted_at', null)
         .or(
@@ -219,7 +219,7 @@ export function monthlyCalendarEventsQueryOptions(
       const supabase = createSupabaseBrowserClient();
       const { data, error } = await supabase
         .from('calendar_events')
-        .select('*, event_study_data(*)')
+        .select('*, event_study_data(*), consultation_event_data(*)')
         .eq('calendar_id', calendarId)
         .is('deleted_at', null)
         .or(
@@ -252,7 +252,7 @@ export function overdueCalendarEventsQueryOptions(calendarId: string) {
       const supabase = createSupabaseBrowserClient();
       const { data, error } = await supabase
         .from('calendar_events')
-        .select('*, event_study_data(*)')
+        .select('*, event_study_data(*), consultation_event_data(*)')
         .eq('calendar_id', calendarId)
         .neq('status', 'cancelled')
         .eq('is_all_day', false)
@@ -272,16 +272,19 @@ export function overdueCalendarEventsQueryOptions(calendarId: string) {
 }
 
 /**
- * 학생의 모든 캘린더 목록 조회 (멀티 캘린더 토글용)
+ * 사용자의 모든 캘린더 목록 조회 (멀티 캘린더 토글용)
  *
- * Calendar-First: calendars WHERE owner_id=studentId 직접 조회
+ * Calendar-First: 소유 캘린더 + 테넌트 캘린더 (구독 포함) 통합 조회.
+ * tenantId가 제공되면 해당 테넌트의 Primary Calendar도 포함.
  */
-export function studentCalendarsQueryOptions(studentId: string) {
+export function studentCalendarsQueryOptions(studentId: string, tenantId?: string) {
   return queryOptions({
     queryKey: calendarEventKeys.studentCalendars(studentId),
     queryFn: async (): Promise<Calendar[]> => {
       const supabase = createSupabaseBrowserClient();
-      const { data, error } = await supabase
+
+      // 소유 캘린더 조회
+      const { data: ownedCalendars, error } = await supabase
         .from('calendars')
         .select('*')
         .eq('owner_id', studentId)
@@ -289,7 +292,31 @@ export function studentCalendarsQueryOptions(studentId: string) {
         .order('is_student_primary', { ascending: false });
 
       if (error) throw error;
-      return data ?? [];
+
+      const calendars = ownedCalendars ?? [];
+
+      // 테넌트 캘린더 추가 (중복 방지)
+      if (tenantId) {
+        const { data: tenantCalendars } = await supabase
+          .from('calendars')
+          .select('*')
+          .eq('owner_id', tenantId)
+          .eq('owner_type', 'tenant')
+          .eq('is_primary', true)
+          .is('deleted_at', null)
+          .limit(1);
+
+        if (tenantCalendars && tenantCalendars.length > 0) {
+          const existing = new Set(calendars.map(c => c.id));
+          for (const tc of tenantCalendars) {
+            if (!existing.has(tc.id)) {
+              calendars.push(tc);
+            }
+          }
+        }
+      }
+
+      return calendars;
     },
     staleTime: CACHE_STALE_TIME_STABLE,
     gcTime: CACHE_GC_TIME_STABLE,
@@ -313,7 +340,7 @@ export function multiWeeklyCalendarEventsQueryOptions(
       const supabase = createSupabaseBrowserClient();
       const { data, error } = await supabase
         .from('calendar_events')
-        .select('*, event_study_data(*)')
+        .select('*, event_study_data(*), consultation_event_data(*)')
         .in('calendar_id', calendarIds)
         .is('deleted_at', null)
         .or(
@@ -348,7 +375,7 @@ export function multiDailyCalendarEventsQueryOptions(
       const supabase = createSupabaseBrowserClient();
       const { data, error } = await supabase
         .from('calendar_events')
-        .select('*, event_study_data(*)')
+        .select('*, event_study_data(*), consultation_event_data(*)')
         .in('calendar_id', calendarIds)
         .is('deleted_at', null)
         .or(
@@ -385,7 +412,7 @@ export function multiMonthlyCalendarEventsQueryOptions(
       const supabase = createSupabaseBrowserClient();
       const { data, error } = await supabase
         .from('calendar_events')
-        .select('*, event_study_data(*)')
+        .select('*, event_study_data(*), consultation_event_data(*)')
         .in('calendar_id', calendarIds)
         .is('deleted_at', null)
         .or(

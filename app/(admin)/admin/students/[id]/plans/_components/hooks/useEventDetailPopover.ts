@@ -14,7 +14,7 @@ export interface RecurringModalState {
 }
 
 interface UseEventDetailPopoverOptions {
-  onEdit?: (id: string) => void;
+  onEdit?: (id: string, entityType?: 'event' | 'consultation') => void;
   onDelete?: (id: string) => void;
   onQuickStatusChange?: (
     planId: string,
@@ -24,6 +24,8 @@ interface UseEventDetailPopoverOptions {
   onColorChange?: (planId: string, color: string | null) => void;
   /** 비학습 이벤트 비활성화 (soft delete) */
   onDisable?: (id: string) => void;
+  /** 상담 상태 변경 (완료/미참석/취소/되돌리기) */
+  onConsultationStatusChange?: (eventId: string, status: 'completed' | 'no_show' | 'cancelled' | 'scheduled') => void;
   /** admin/personal 모드면 true → 모든 이벤트 수정 가능 */
   isAdminMode?: boolean;
 }
@@ -47,6 +49,7 @@ export function useEventDetailPopover({
   onQuickStatusChange,
   onColorChange,
   onDisable,
+  onConsultationStatusChange,
   isAdminMode = true,
 }: UseEventDetailPopoverOptions): UseEventDetailPopoverReturn {
   const [state, setState] = useState<{ plan: PlanItemData; anchorRect: DOMRect } | null>(null);
@@ -113,6 +116,7 @@ export function useEventDetailPopover({
           onQuickStatusChange: onQuickStatusChange ? handleQuickStatusChange : undefined,
           onColorChange: canModify ? onColorChange : undefined,
           onDisable: canModify ? onDisable : undefined,
+          onConsultationStatusChange: canModify ? onConsultationStatusChange : undefined,
           onRecurringDelete: canModify ? handleRecurringDelete : undefined,
           onRecurringEdit: canModify ? handleRecurringEdit : undefined,
         };

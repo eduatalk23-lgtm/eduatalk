@@ -147,7 +147,7 @@ async function _getEventsByCalendar(
   const supabase = await createSupabaseServerClient();
 
   // NOTE: includeStudyData=false 시 JOIN 생략하려면 반환 타입도 분리 필요
-  const selectFields = "*, event_study_data(*)";
+  const selectFields = "*, event_study_data(*), consultation_event_data(*)";
 
   let query = supabase
     .from("calendar_events")
@@ -200,7 +200,7 @@ async function _getUnfinishedEvents(
 
   const { data, error } = await supabase
     .from("calendar_events")
-    .select("*, event_study_data(*)")
+    .select("*, event_study_data(*), consultation_event_data(*)")
     .eq("calendar_id", calendarId)
     .not("status", "in", '("completed","cancelled")')
     .eq("is_all_day", false)

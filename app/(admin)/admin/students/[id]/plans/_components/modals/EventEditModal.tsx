@@ -15,9 +15,10 @@ export function EventEditModal({ state, studentId, onClose, onSuccess }: EventEd
   if (!state.isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] bg-white overflow-auto">
+    <div className="fixed inset-0 z-[9999] bg-[var(--background)] overflow-auto">
       <EventEditPage
         mode={state.mode}
+        entityType={state.entityType}
         studentId={studentId}
         eventId={state.eventId}
         calendarId={state.calendarId}
@@ -26,6 +27,13 @@ export function EventEditModal({ state, studentId, onClose, onSuccess }: EventEd
         initialEndTime={state.initialEndTime}
         initialSubject={state.initialSubject}
         instanceDate={state.instanceDate}
+        consultationStudentId={state.consultationStudentId}
+        consultationSessionType={state.consultationSessionType}
+        consultationMode={state.consultationMode}
+        initialTitle={state.initialTitle}
+        initialDescription={state.initialDescription}
+        initialMeetingLink={state.initialMeetingLink}
+        initialVisitor={state.initialVisitor}
         onCloseModal={onClose}
         onSuccessModal={onSuccess}
       />

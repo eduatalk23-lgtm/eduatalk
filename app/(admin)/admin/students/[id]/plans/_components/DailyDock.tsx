@@ -71,7 +71,7 @@ interface DailyDockProps {
   selectedDate: string;
   /** 선택된 플랜 그룹 ID (null = 전체 보기) */
   selectedGroupId?: string | null;
-  onEdit?: (planId: string) => void;
+  onEdit?: (planId: string, entityType?: 'event' | 'consultation') => void;
   onStatusChange?: (planId: string, currentStatus: PlanStatus, title: string) => void;
   /** 전체 새로고침 (기본) */
   onRefresh: () => void;
@@ -106,6 +106,8 @@ interface DailyDockProps {
   visibleCalendarIds?: string[] | null;
   /** 더블클릭/상세설정 → 이벤트 편집 모달 열기 */
   onOpenEventEditNew?: (params: { date?: string; startTime?: string; endTime?: string }) => void;
+  /** 상담 편집 모달 열기 */
+  onOpenConsultationEditNew?: (params: { date?: string; startTime?: string; endTime?: string; studentId?: string; sessionType?: string; consultationMode?: string; title?: string; description?: string; meetingLink?: string; visitor?: string }) => void;
   /** 주간 뷰 커스텀 일수 (2~7, 기본 7) */
   customDayCount?: number;
   onCustomDayCountChange?: (count: number) => void;
@@ -136,6 +138,7 @@ export const DailyDock = memo(function DailyDock({
   searchQuery,
   visibleCalendarIds,
   onOpenEventEditNew,
+  onOpenConsultationEditNew,
   customDayCount = 7,
   onCustomDayCountChange,
 }: DailyDockProps) {
@@ -625,6 +628,7 @@ export const DailyDock = memo(function DailyDock({
               isLoading={isLoading}
               pxPerMinute={pxPerMinute}
               onOpenEventEditNew={onOpenEventEditNew}
+              onOpenConsultationEditNew={onOpenConsultationEditNew}
               defaultEstimatedMinutes={selectedCalendarSettings?.defaultEstimatedMinutes}
               defaultReminderMinutes={selectedCalendarSettings?.defaultReminderMinutes}
               showHolidays={showHolidays}
@@ -691,6 +695,7 @@ export const DailyDock = memo(function DailyDock({
               visibleCalendarIds={visibleCalendarIds}
               pxPerMinute={pxPerMinute}
               onOpenEventEditNew={onOpenEventEditNew}
+              onOpenConsultationEditNew={onOpenConsultationEditNew}
               defaultEstimatedMinutes={selectedCalendarSettings?.defaultEstimatedMinutes}
               defaultReminderMinutes={selectedCalendarSettings?.defaultReminderMinutes}
               customDayCount={customDayCount}
@@ -729,6 +734,8 @@ export const DailyDock = memo(function DailyDock({
               highlightedPlanIds={highlightedPlanIds}
               onDoubleClickDate={handleMonthDoubleClick}
               showHolidays={showHolidays}
+              onOpenEventEditNew={onOpenEventEditNew}
+              onOpenConsultationEditNew={onOpenConsultationEditNew}
             />
           </motion.div>
         )}

@@ -1,5 +1,13 @@
 "use server";
 
+/**
+ * 상담 일정 CRUD — calendar_events + consultation_event_data 기반
+ *
+ * 이벤트는 테넌트 Primary Calendar에 생성됩니다.
+ *
+ * @module lib/domains/consulting/actions/schedule
+ */
+
 import { revalidatePath } from "next/cache";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
@@ -11,6 +19,11 @@ import { formatSMSTemplate } from "@/lib/services/smsTemplates";
 import { getAlimtalkTemplate } from "@/lib/services/alimtalkTemplates";
 import { sendAlimtalk } from "@/lib/services/alimtalkService";
 import { sendSMS } from "@/lib/services/smsService";
+import {
+  ensureTenantPrimaryCalendar,
+  toTimestamptz,
+} from "@/lib/domains/calendar/helpers";
+import { extractDateYMD, extractTimeHHMM } from "@/lib/domains/calendar/adapters";
 import type { SMSTemplateType } from "@/lib/services/smsTemplates";
 import type {
   ConsultationMode,
@@ -18,22 +31,10 @@ import type {
   NotificationTarget,
   NotificationChannel,
 } from "../types";
-import { enqueueGoogleCalendarSync } from "@/lib/domains/googleCalendar";
 
 const ACTION_CTX = { domain: "consulting", action: "schedule" };
 
-/**
- * consultation_schedules 테이블은 마이그레이션 후 생성되므로
- * 생성된 Supabase 타입에 아직 포함되지 않음.
- * 타입 안전성을 위해 헬퍼를 사용하여 접근.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function scheduleTable(client: { from: (...args: unknown[]) => unknown }) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (client as any).from("consultation_schedules");
-}
-
-// ── 상담 일정 생성 + 알림톡 발송 ──
+// ── 상담 일정 생성 (calendar_events + consultation_event_data) ──
 
 export async function createConsultationSchedule(input: {
   studentId: string;
@@ -93,14 +94,18 @@ export async function createConsultationSchedule(input: {
       return { success: false, error: "종료 시간은 시작 시간 이후여야 합니다." };
     }
 
-    // 컨설턴트 일정 충돌 감지
-    const { data: conflicts } = await scheduleTable(supabase)
-      .select("id")
+    // 컨설턴트 일정 충돌 감지 (calendar_events + consultation_event_data)
+    const startAt = toTimestamptz(input.scheduledDate, input.startTime);
+    const endAt = toTimestamptz(input.scheduledDate, input.endTime);
+
+    const { data: conflicts } = await supabase
+      .from("consultation_event_data")
+      .select("event_id, calendar_events!inner(id, start_at, end_at, status, deleted_at)")
       .eq("consultant_id", input.consultantId)
-      .eq("scheduled_date", input.scheduledDate)
-      .neq("status", "cancelled")
-      .lt("start_time", input.endTime)
-      .gt("end_time", input.startTime);
+      .neq("calendar_events.status", "cancelled")
+      .is("calendar_events.deleted_at", null)
+      .lt("calendar_events.start_at", endAt)
+      .gt("calendar_events.end_at", startAt);
 
     if (conflicts && conflicts.length > 0) {
       return {
@@ -109,44 +114,81 @@ export async function createConsultationSchedule(input: {
       };
     }
 
-    // DB INSERT
-    const { data: schedule, error: insertError } = await scheduleTable(supabase)
+    // 테넌트 Primary Calendar 보장
+    const calendarId = await ensureTenantPrimaryCalendar(tenantContext.tenantId);
+
+    // 이벤트 제목: "상담유형 - 학생명"
+    const title = `${input.sessionType} - ${student.name ?? "학생"}`;
+
+    // 1. calendar_events INSERT
+    const { data: event, error: eventError } = await supabase
+      .from("calendar_events")
       .insert({
+        calendar_id: calendarId,
         tenant_id: tenantContext.tenantId,
         student_id: input.studentId,
-        consultant_id: input.consultantId,
-        session_type: input.sessionType,
-        enrollment_id: input.enrollmentId || null,
-        program_name: input.programName || null,
-        scheduled_date: input.scheduledDate,
-        start_time: input.startTime,
-        end_time: input.endTime,
-        duration_minutes: durationMinutes,
-        consultation_mode: input.consultationMode || "대면",
-        meeting_link: input.meetingLink || null,
-        visitor: input.visitor || null,
-        location: input.location || null,
-        description: input.description || null,
-        notification_targets: input.notificationTargets ?? ["mother"],
+        title,
+        description: input.description ?? null,
+        location: input.location ?? null,
+        event_type: "consultation",
+        event_subtype: input.sessionType,
+        label: input.sessionType,
+        is_task: false,
+        is_exclusion: false,
+        start_at: startAt,
+        end_at: endAt,
+        timezone: "Asia/Seoul",
+        is_all_day: false,
+        status: "confirmed",
+        transparency: "opaque",
+        source: "consultation",
         created_by: userId,
+        creator_role: "admin",
       })
       .select("id")
       .single();
 
-    if (insertError || !schedule) {
-      logActionError(ACTION_CTX, insertError, {
-        context: "일정 생성",
+    if (eventError || !event) {
+      logActionError(ACTION_CTX, eventError, {
+        context: "calendar_events 생성",
         studentId: input.studentId,
       });
       return { success: false, error: "상담 일정 등록에 실패했습니다." };
     }
 
-    const scheduleId = (schedule as { id: string }).id;
+    const eventId = event.id;
+
+    // 2. consultation_event_data INSERT
+    const { error: consultDataError } = await supabase
+      .from("consultation_event_data")
+      .insert({
+        event_id: eventId,
+        consultant_id: input.consultantId,
+        student_id: input.studentId,
+        session_type: input.sessionType,
+        enrollment_id: input.enrollmentId || null,
+        program_name: input.programName || null,
+        consultation_mode: input.consultationMode || "대면",
+        meeting_link: input.meetingLink || null,
+        visitor: input.visitor || null,
+        notification_targets: input.notificationTargets ?? ["mother"],
+        schedule_status: "scheduled",
+      });
+
+    if (consultDataError) {
+      logActionError(ACTION_CTX, consultDataError, {
+        context: "consultation_event_data 생성",
+        eventId,
+      });
+      // calendar_event는 생성됐으나 확장 데이터 실패 → 정리
+      await supabase.from("calendar_events").delete().eq("id", eventId);
+      return { success: false, error: "상담 일정 등록에 실패했습니다." };
+    }
 
     // 알림 발송
     if (input.sendNotification !== false) {
       await sendScheduleNotification({
-        scheduleId,
+        eventId,
         tenantId: tenantContext.tenantId,
         studentId: input.studentId,
         studentName: student.name ?? "",
@@ -167,15 +209,17 @@ export async function createConsultationSchedule(input: {
     }
 
     // Google Calendar 동기화 (fire-and-forget)
-    await enqueueGoogleCalendarSync({
-      scheduleId,
-      tenantId: tenantContext.tenantId,
-      consultantId: input.consultantId,
-      action: "create",
-    });
+    import("@/lib/domains/googleCalendar/enqueue").then(({ enqueueGoogleCalendarSync }) =>
+      enqueueGoogleCalendarSync({
+        eventId,
+        tenantId: tenantContext.tenantId!,
+        consultantId: input.consultantId,
+        action: "create",
+      })
+    );
 
     revalidatePath(`/admin/students/${input.studentId}`);
-    return { success: true, scheduleId };
+    return { success: true, scheduleId: eventId };
   } catch (error) {
     logActionError(ACTION_CTX, error, {
       context: "createConsultationSchedule",
@@ -185,7 +229,7 @@ export async function createConsultationSchedule(input: {
   }
 }
 
-// ── 상담 일정 목록 조회 ──
+// ── 상담 일정 목록 조회 (calendar_events + consultation_event_data JOIN) ──
 
 export async function getConsultationSchedules(
   studentId: string
@@ -195,17 +239,47 @@ export async function getConsultationSchedules(
 
     const supabase = await createSupabaseServerClient();
 
-    const { data, error } = await scheduleTable(supabase)
+    // calendar_events + consultation_event_data JOIN 조회
+    const { data, error } = await supabase
+      .from("calendar_events")
       .select(
         `
-        *,
-        consultant:admin_users!consultant_id(name),
-        enrollment:enrollments!enrollment_id(id, programs(name))
+        id,
+        tenant_id,
+        student_id,
+        start_at,
+        end_at,
+        description,
+        location,
+        status,
+        created_by,
+        created_at,
+        updated_at,
+        consultation_event_data!inner(
+          consultant_id,
+          student_id,
+          session_type,
+          enrollment_id,
+          program_name,
+          consultation_mode,
+          meeting_link,
+          visitor,
+          schedule_status,
+          notification_targets,
+          notification_sent,
+          notification_sent_at,
+          reminder_sent,
+          reminder_sent_at,
+          google_calendar_event_id,
+          consultant:admin_users!consultant_id(name),
+          enrollment:enrollments!enrollment_id(id, programs(name))
+        )
       `
       )
-      .eq("student_id", studentId)
-      .order("scheduled_date", { ascending: false })
-      .order("start_time", { ascending: false });
+      .eq("event_type", "consultation")
+      .eq("consultation_event_data.student_id", studentId)
+      .is("deleted_at", null)
+      .order("start_at", { ascending: false });
 
     if (error) {
       logActionError(ACTION_CTX, error, {
@@ -215,27 +289,67 @@ export async function getConsultationSchedules(
       return [];
     }
 
+    // calendar_events + consultation_event_data → ConsultationSchedule 뷰모델 매핑
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return ((data as any[]) ?? []).map((row) => {
-      const consultant = row.consultant as { name: string } | null;
-      // program_name DB 컬럼이 null이면 enrollment JOIN에서 fallback
-      let programName = row.program_name as string | null;
-      if (!programName && row.enrollment) {
-        const enr = row.enrollment as { id: string; programs: { name: string } | { name: string }[] | null };
+      // consultation_event_data는 1:1이므로 배열의 첫 번째 또는 단일 객체
+      const ced = Array.isArray(row.consultation_event_data)
+        ? row.consultation_event_data[0]
+        : row.consultation_event_data;
+
+      if (!ced) return null;
+
+      const consultant = ced.consultant as { name: string } | null;
+
+      // program_name: DB 컬럼 우선, 없으면 enrollment JOIN fallback
+      let programName = ced.program_name as string | null;
+      if (!programName && ced.enrollment) {
+        const enr = ced.enrollment as {
+          id: string;
+          programs: { name: string } | { name: string }[] | null;
+        };
         if (enr.programs) {
           programName = Array.isArray(enr.programs)
             ? enr.programs[0]?.name ?? null
             : enr.programs.name ?? null;
         }
       }
+
+      // timestamptz → scheduled_date / start_time / end_time 추출
+      const scheduledDate = extractDateYMD(row.start_at) ?? "";
+      const startTime = extractTimeHHMM(row.start_at) ?? "";
+      const endTime = extractTimeHHMM(row.end_at) ?? "";
+      const durationMinutes = calculateDuration(startTime, endTime);
+
       return {
-        ...row,
+        id: row.id,
+        tenant_id: row.tenant_id,
+        student_id: ced.student_id,
+        consultant_id: ced.consultant_id,
+        session_type: ced.session_type,
+        enrollment_id: ced.enrollment_id,
         program_name: programName,
+        scheduled_date: scheduledDate,
+        start_time: startTime,
+        end_time: endTime,
+        duration_minutes: durationMinutes > 0 ? durationMinutes : null,
+        consultation_mode: ced.consultation_mode as ConsultationMode,
+        meeting_link: ced.meeting_link,
+        visitor: ced.visitor,
+        location: row.location,
+        description: row.description,
+        notification_targets: ced.notification_targets ?? ["mother"],
+        notification_sent: ced.notification_sent ?? false,
+        notification_sent_at: ced.notification_sent_at,
+        reminder_sent: ced.reminder_sent ?? false,
+        reminder_sent_at: ced.reminder_sent_at,
+        status: ced.schedule_status as ConsultationSchedule["status"],
+        created_by: row.created_by,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
         consultant_name: consultant?.name ?? undefined,
-        consultant: undefined,
-        enrollment: undefined,
       } as ConsultationSchedule;
-    });
+    }).filter(Boolean) as ConsultationSchedule[];
   } catch (error) {
     logActionError(ACTION_CTX, error, {
       context: "getConsultationSchedules",
@@ -248,7 +362,7 @@ export async function getConsultationSchedules(
 // ── 상담 일정 수정 + 변경 알림 ──
 
 export async function updateConsultationSchedule(input: {
-  scheduleId: string;
+  scheduleId: string; // = calendar_events.id (eventId)
   studentId: string;
   consultantId: string;
   sessionType: string;
@@ -275,11 +389,19 @@ export async function updateConsultationSchedule(input: {
     }
 
     const supabase = await createSupabaseServerClient();
+    const eventId = input.scheduleId;
 
     // 기존 일정 조회 (변경 감지용)
-    const { data: existing } = await scheduleTable(supabase)
-      .select("scheduled_date, start_time, end_time, location, session_type, consultation_mode, meeting_link")
-      .eq("id", input.scheduleId)
+    const { data: existingEvent } = await supabase
+      .from("calendar_events")
+      .select("start_at, end_at, location")
+      .eq("id", eventId)
+      .single();
+
+    const { data: existingConsult } = await supabase
+      .from("consultation_event_data")
+      .select("consultation_mode, meeting_link, session_type")
+      .eq("event_id", eventId)
       .single();
 
     const durationMinutes = calculateDuration(input.startTime, input.endTime);
@@ -289,14 +411,18 @@ export async function updateConsultationSchedule(input: {
     }
 
     // 컨설턴트 일정 충돌 감지 (자기 자신 제외)
-    const { data: conflicts } = await scheduleTable(supabase)
-      .select("id")
+    const startAt = toTimestamptz(input.scheduledDate, input.startTime);
+    const endAt = toTimestamptz(input.scheduledDate, input.endTime);
+
+    const { data: conflicts } = await supabase
+      .from("consultation_event_data")
+      .select("event_id, calendar_events!inner(id, start_at, end_at, status, deleted_at)")
       .eq("consultant_id", input.consultantId)
-      .eq("scheduled_date", input.scheduledDate)
-      .neq("status", "cancelled")
-      .neq("id", input.scheduleId)
-      .lt("start_time", input.endTime)
-      .gt("end_time", input.startTime);
+      .neq("event_id", eventId)
+      .neq("calendar_events.status", "cancelled")
+      .is("calendar_events.deleted_at", null)
+      .lt("calendar_events.start_at", endAt)
+      .gt("calendar_events.end_at", startAt);
 
     if (conflicts && conflicts.length > 0) {
       return {
@@ -305,52 +431,75 @@ export async function updateConsultationSchedule(input: {
       };
     }
 
-    const { error: updateError } = await scheduleTable(supabase)
+    // 학생명 조회 (제목 업데이트용)
+    const { data: student } = await supabase
+      .from("students")
+      .select("name")
+      .eq("id", input.studentId)
+      .maybeSingle();
+
+    const title = `${input.sessionType} - ${student?.name ?? "학생"}`;
+
+    // 1. calendar_events UPDATE
+    const { error: eventUpdateError } = await supabase
+      .from("calendar_events")
+      .update({
+        title,
+        description: input.description ?? null,
+        location: input.location ?? null,
+        event_subtype: input.sessionType,
+        label: input.sessionType,
+        start_at: startAt,
+        end_at: endAt,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", eventId);
+
+    if (eventUpdateError) {
+      logActionError(ACTION_CTX, eventUpdateError, {
+        context: "calendar_events 수정",
+        eventId,
+      });
+      return { success: false, error: "상담 일정 수정에 실패했습니다." };
+    }
+
+    // 2. consultation_event_data UPDATE
+    const { error: consultUpdateError } = await supabase
+      .from("consultation_event_data")
       .update({
         consultant_id: input.consultantId,
         session_type: input.sessionType,
         enrollment_id: input.enrollmentId || null,
         program_name: input.programName || null,
-        scheduled_date: input.scheduledDate,
-        start_time: input.startTime,
-        end_time: input.endTime,
-        duration_minutes: durationMinutes,
         consultation_mode: input.consultationMode || "대면",
         meeting_link: input.meetingLink || null,
         visitor: input.visitor || null,
-        location: input.location || null,
-        description: input.description || null,
         notification_targets: input.notificationTargets ?? ["mother"],
         updated_at: new Date().toISOString(),
       })
-      .eq("id", input.scheduleId);
+      .eq("event_id", eventId);
 
-    if (updateError) {
-      logActionError(ACTION_CTX, updateError, {
-        context: "일정 수정",
-        scheduleId: input.scheduleId,
+    if (consultUpdateError) {
+      logActionError(ACTION_CTX, consultUpdateError, {
+        context: "consultation_event_data 수정",
+        eventId,
       });
       return { success: false, error: "상담 일정 수정에 실패했습니다." };
     }
 
     // 날짜/시간/장소가 변경된 경우에만 변경 알림 발송
-    if (input.sendNotification !== false && existing) {
-      const old = existing as {
-        scheduled_date: string;
-        start_time: string;
-        end_time: string;
-        location: string | null;
-        consultation_mode: string | null;
-        meeting_link: string | null;
-        session_type: string;
-      };
+    if (input.sendNotification !== false && existingEvent && existingConsult) {
+      const oldDate = extractDateYMD(existingEvent.start_at) ?? "";
+      const oldStartTime = extractTimeHHMM(existingEvent.start_at) ?? "";
+      const oldEndTime = extractTimeHHMM(existingEvent.end_at) ?? "";
+
       const changed =
-        old.scheduled_date !== input.scheduledDate ||
-        old.start_time !== input.startTime ||
-        old.end_time !== input.endTime ||
-        (old.location ?? "") !== (input.location ?? "") ||
-        (old.consultation_mode ?? "대면") !== (input.consultationMode ?? "대면") ||
-        (old.meeting_link ?? "") !== (input.meetingLink ?? "");
+        oldDate !== input.scheduledDate ||
+        oldStartTime !== input.startTime ||
+        oldEndTime !== input.endTime ||
+        (existingEvent.location ?? "") !== (input.location ?? "") ||
+        (existingConsult.consultation_mode ?? "대면") !== (input.consultationMode ?? "대면") ||
+        (existingConsult.meeting_link ?? "") !== (input.meetingLink ?? "");
 
       if (changed) {
         const mode = input.consultationMode ?? "대면";
@@ -359,7 +508,7 @@ export async function updateConsultationSchedule(input: {
 
         await sendChangeNotification({
           templateType: changedTemplateType,
-          scheduleId: input.scheduleId,
+          eventId,
           tenantId: tenantContext.tenantId,
           studentId: input.studentId,
           consultantId: input.consultantId,
@@ -379,12 +528,14 @@ export async function updateConsultationSchedule(input: {
     }
 
     // Google Calendar 동기화 (fire-and-forget)
-    await enqueueGoogleCalendarSync({
-      scheduleId: input.scheduleId,
-      tenantId: tenantContext.tenantId,
-      consultantId: input.consultantId,
-      action: "update",
-    });
+    import("@/lib/domains/googleCalendar/enqueue").then(({ enqueueGoogleCalendarSync }) =>
+      enqueueGoogleCalendarSync({
+        eventId: input.scheduleId,
+        tenantId: tenantContext.tenantId!,
+        consultantId: input.consultantId,
+        action: "update",
+      })
+    );
 
     revalidatePath(`/admin/students/${input.studentId}`);
     return { success: true };
@@ -397,10 +548,10 @@ export async function updateConsultationSchedule(input: {
   }
 }
 
-// ── 상담 일정 삭제 (알림 없이 단순 삭제) ──
+// ── 상담 일정 삭제 (soft delete via calendar_events.deleted_at) ──
 
 export async function deleteConsultationSchedule(input: {
-  scheduleId: string;
+  scheduleId: string; // = calendar_events.id (eventId)
   studentId: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
@@ -412,38 +563,47 @@ export async function deleteConsultationSchedule(input: {
     }
 
     const supabase = await createSupabaseServerClient();
+    const eventId = input.scheduleId;
 
-    // 삭제 전 일정 정보 조회 (Google Calendar 취소용)
-    const { data: existing } = await scheduleTable(supabase)
-      .select("consultant_id, google_calendar_event_id")
-      .eq("id", input.scheduleId)
+    // 존재 확인 + consultant_id 조회
+    const { data: existing } = await supabase
+      .from("calendar_events")
+      .select("id, consultation_event_data(consultant_id)")
+      .eq("id", eventId)
+      .is("deleted_at", null)
       .maybeSingle();
 
     if (!existing) {
       return { success: false, error: "일정을 찾을 수 없습니다." };
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const row = existing as any;
-
-    // Google Calendar 이벤트 취소 (삭제 전에 수행 - FK 제약 때문)
-    if (row.google_calendar_event_id) {
-      await enqueueGoogleCalendarSync({
-        scheduleId: input.scheduleId,
-        tenantId: tenantContext.tenantId,
-        consultantId: row.consultant_id,
-        action: "cancel",
-      });
+    // Google Calendar 이벤트 취소 (fire-and-forget)
+    const consultantId = (existing as Record<string, unknown> & { consultation_event_data?: { consultant_id?: string } })
+      .consultation_event_data?.consultant_id;
+    if (consultantId) {
+      import("@/lib/domains/googleCalendar/enqueue").then(({ enqueueGoogleCalendarSync }) =>
+        enqueueGoogleCalendarSync({
+          eventId,
+          tenantId: tenantContext.tenantId!,
+          consultantId,
+          action: "cancel",
+        })
+      );
     }
 
-    const { error: deleteError } = await scheduleTable(supabase)
-      .delete()
-      .eq("id", input.scheduleId);
+    // Soft delete (calendar_events.deleted_at 설정)
+    const { error: deleteError } = await supabase
+      .from("calendar_events")
+      .update({
+        deleted_at: new Date().toISOString(),
+        status: "cancelled",
+      })
+      .eq("id", eventId);
 
     if (deleteError) {
       logActionError(ACTION_CTX, deleteError, {
         context: "일정 삭제",
-        scheduleId: input.scheduleId,
+        eventId,
       });
       return { success: false, error: "상담 일정 삭제에 실패했습니다." };
     }
@@ -462,8 +622,8 @@ export async function deleteConsultationSchedule(input: {
 // ── 상담 일정 상태 변경 ──
 
 export async function updateScheduleStatus(
-  scheduleId: string,
-  status: "completed" | "cancelled" | "no_show",
+  scheduleId: string, // = calendar_events.id (eventId)
+  status: "completed" | "cancelled" | "no_show" | "scheduled",
   studentId: string,
   sendNotification?: boolean,
   notificationChannel?: NotificationChannel
@@ -473,66 +633,116 @@ export async function updateScheduleStatus(
 
     const tenantContext = await getTenantContext();
     const supabase = await createSupabaseServerClient();
+    const eventId = scheduleId;
 
-    // 취소 시 알림 발송 + Google Calendar 동기화를 위해 일정 정보 조회
+    // 취소 시 알림 발송을 위해 일정 정보 조회
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let existing: any = null;
+    let existingConsult: any = null;
     if (status === "cancelled" && tenantContext?.tenantId) {
-      const { data } = await scheduleTable(supabase)
-        .select("consultant_id, session_type, program_name, scheduled_date, start_time, end_time, notification_targets, status")
-        .eq("id", scheduleId)
+      const { data } = await supabase
+        .from("consultation_event_data")
+        .select(
+          "consultant_id, session_type, program_name, notification_targets, schedule_status"
+        )
+        .eq("event_id", eventId)
         .maybeSingle();
-      existing = data;
+      existingConsult = data;
+
+      // 기존 시간 정보도 필요
+      const { data: eventData } = await supabase
+        .from("calendar_events")
+        .select("start_at, end_at")
+        .eq("id", eventId)
+        .maybeSingle();
+
+      if (eventData && existingConsult) {
+        existingConsult.scheduled_date = extractDateYMD(eventData.start_at);
+        existingConsult.start_time = extractTimeHHMM(eventData.start_at);
+        existingConsult.end_time = extractTimeHHMM(eventData.end_at);
+      }
     }
 
-    const { error } = await scheduleTable(supabase)
+    // consultation_event_data.schedule_status 업데이트
+    const { error: consultError } = await supabase
+      .from("consultation_event_data")
       .update({
-        status,
+        schedule_status: status,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", scheduleId);
+      .eq("event_id", eventId);
 
-    if (error) {
-      logActionError(ACTION_CTX, error, {
+    if (consultError) {
+      logActionError(ACTION_CTX, consultError, {
         context: "상태 변경",
-        scheduleId,
+        eventId,
         status,
       });
       return { success: false, error: "상태 변경에 실패했습니다." };
     }
 
+    // 취소 시 calendar_events.status도 'cancelled'로 변경
+    if (status === "cancelled") {
+      await supabase
+        .from("calendar_events")
+        .update({
+          status: "cancelled",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", eventId);
+    }
+
+    // 예정으로 되돌릴 때 calendar_events.status를 'confirmed'로 복원
+    if (status === "scheduled") {
+      await supabase
+        .from("calendar_events")
+        .update({
+          status: "confirmed",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", eventId);
+    }
+
     // 취소 시 알림 발송
-    if (status === "cancelled" && sendNotification && tenantContext?.tenantId && existing) {
+    if (
+      status === "cancelled" &&
+      sendNotification &&
+      tenantContext?.tenantId &&
+      existingConsult
+    ) {
       try {
         await sendChangeNotification({
           templateType: "consultation_cancelled",
-          scheduleId,
+          eventId,
           tenantId: tenantContext.tenantId,
           studentId,
-          consultantId: existing.consultant_id,
-          sessionType: existing.session_type,
-          programName: existing.program_name,
-          scheduledDate: existing.scheduled_date,
-          startTime: existing.start_time,
-          endTime: existing.end_time,
-          notificationTargets: existing.notification_targets as NotificationTarget[] | undefined,
+          consultantId: existingConsult.consultant_id,
+          sessionType: existingConsult.session_type,
+          programName: existingConsult.program_name,
+          scheduledDate: existingConsult.scheduled_date,
+          startTime: existingConsult.start_time,
+          endTime: existingConsult.end_time,
+          notificationTargets: existingConsult.notification_targets as
+            | NotificationTarget[]
+            | undefined,
           notificationChannel,
         });
       } catch (notifyError) {
         logActionError(ACTION_CTX, notifyError, {
           context: "취소 알림 발송 실패 (상태 변경은 완료됨)",
-          scheduleId,
+          eventId,
         });
       }
     }
 
-    // 취소 시 Google Calendar 이벤트도 취소 (fire-and-forget)
-    const consultantId = existing?.consultant_id ?? null;
-    if (status === "cancelled" && tenantContext?.tenantId && consultantId) {
-      await enqueueGoogleCalendarSync({
-        scheduleId,
+    // 취소 시 Google Calendar 이벤트 취소
+    if (status === "cancelled" && tenantContext?.tenantId && existingConsult) {
+      const { enqueueGoogleCalendarSync } = await import(
+        "@/lib/domains/googleCalendar/enqueue"
+      );
+      void enqueueGoogleCalendarSync({
+        eventId,
         tenantId: tenantContext.tenantId,
-        consultantId,
+        consultantId: existingConsult.consultant_id,
         action: "cancel",
       });
     }
@@ -578,7 +788,7 @@ function resolveTargetPhones(
 // ── 내부: 알림톡/SMS 발송 ──
 
 async function sendScheduleNotification(params: {
-  scheduleId: string;
+  eventId: string;
   tenantId: string;
   studentId: string;
   studentName: string;
@@ -597,7 +807,6 @@ async function sendScheduleNotification(params: {
   notificationChannel?: NotificationChannel;
 }): Promise<void> {
   try {
-    // 학생/학부모 전화번호 조회
     const studentPhones = await getStudentPhones(params.studentId);
     if (!studentPhones) {
       logActionDebug(ACTION_CTX, "전화번호 정보 없음, 알림 건너뜀", {
@@ -617,7 +826,6 @@ async function sendScheduleNotification(params: {
       return;
     }
 
-    // 테넌트 정보 조회 (address, representative_phone은 마이그레이션 후 추가 컬럼)
     const adminClient = await getSupabaseClientForRLSBypass({
       forceAdmin: true,
       fallbackToServer: false,
@@ -647,7 +855,6 @@ async function sendScheduleNotification(params: {
     const tenant = tenantResult.data as TenantExtended | null;
     const consultant = consultantResult.data;
 
-    // 일정 포맷팅: "2/12(목) 14:00~15:00 (60분)"
     const scheduleFormatted = formatScheduleDateTime(
       params.scheduledDate,
       params.startTime,
@@ -655,7 +862,6 @@ async function sendScheduleNotification(params: {
       params.durationMinutes
     );
 
-    // 알림톡 상담유형: 프로그램명 우선, 없으면 세션 유형
     const consultationType = params.programName || params.sessionType;
 
     const isRemote = params.consultationMode === "원격";
@@ -683,7 +889,6 @@ async function sendScheduleNotification(params: {
 
     let anySent = false;
 
-    // 각 대상에게 개별 발송
     for (const { phone: recipientPhone, targetLabel } of recipients) {
       let sent = false;
 
@@ -696,7 +901,7 @@ async function sendScheduleNotification(params: {
           tenantId: params.tenantId,
           templateCode: alimtalkTemplate.templateCode,
           recipientId: params.studentId,
-          consultationScheduleId: params.scheduleId,
+          consultationScheduleId: params.eventId,
           templateVariables,
           variableOrder: alimtalkTemplate.variableOrder,
           notificationTarget: targetLabel,
@@ -704,7 +909,6 @@ async function sendScheduleNotification(params: {
         sent = result.success;
       }
 
-      // 알림톡 미사용 또는 실패 시 SMS fallback (SMS 채널 선택 시 항상 여기로)
       if (!sent) {
         const smsResult = await sendSMS({
           recipientPhone,
@@ -712,7 +916,7 @@ async function sendScheduleNotification(params: {
           subject: "상담 일정 안내",
           recipientId: params.studentId,
           tenantId: params.tenantId,
-          consultationScheduleId: params.scheduleId,
+          consultationScheduleId: params.eventId,
           notificationTarget: targetLabel,
         });
         sent = smsResult.success;
@@ -721,7 +925,7 @@ async function sendScheduleNotification(params: {
       if (sent) anySent = true;
 
       logActionDebug(ACTION_CTX, "알림 발송 결과", {
-        scheduleId: params.scheduleId,
+        eventId: params.eventId,
         sent,
         channel,
         recipientPhone,
@@ -729,20 +933,20 @@ async function sendScheduleNotification(params: {
       });
     }
 
-    // notification_sent 업데이트
+    // notification_sent 업데이트 (consultation_event_data)
     if (anySent) {
-      await scheduleTable(adminClient)
+      await adminClient
+        .from("consultation_event_data")
         .update({
           notification_sent: true,
           notification_sent_at: new Date().toISOString(),
         })
-        .eq("id", params.scheduleId);
+        .eq("event_id", params.eventId);
     }
   } catch (error) {
-    // 알림 발송 실패는 일정 생성 자체를 실패시키지 않음
     logActionError(ACTION_CTX, error, {
       context: "sendScheduleNotification",
-      scheduleId: params.scheduleId,
+      eventId: params.eventId,
     });
   }
 }
@@ -751,7 +955,7 @@ async function sendScheduleNotification(params: {
 
 async function sendChangeNotification(params: {
   templateType: SMSTemplateType;
-  scheduleId: string;
+  eventId: string;
   tenantId: string;
   studentId: string;
   consultantId: string;
@@ -821,10 +1025,8 @@ async function sendChangeNotification(params: {
     const channel = params.notificationChannel ?? "alimtalk";
     const alimtalkTemplate = channel === "alimtalk" ? getAlimtalkTemplate(params.templateType) : null;
 
-    // LMS 대체 발송 제목 (변경/취소에 따라 다름)
     const lmsSubject = params.templateType.includes("cancelled") ? "상담 취소 안내" : "상담 변경 안내";
 
-    // 각 대상에게 개별 발송
     for (const { phone: recipientPhone, targetLabel } of recipients) {
       let sent = false;
 
@@ -837,7 +1039,7 @@ async function sendChangeNotification(params: {
           tenantId: params.tenantId,
           templateCode: alimtalkTemplate.templateCode,
           recipientId: params.studentId,
-          consultationScheduleId: params.scheduleId,
+          consultationScheduleId: params.eventId,
           templateVariables,
           variableOrder: alimtalkTemplate.variableOrder,
           notificationTarget: targetLabel,
@@ -845,7 +1047,6 @@ async function sendChangeNotification(params: {
         sent = result.success;
       }
 
-      // 알림톡 미사용 또는 실패 시 SMS fallback (SMS 채널 선택 시 항상 여기로)
       if (!sent) {
         const smsResult = await sendSMS({
           recipientPhone,
@@ -853,14 +1054,14 @@ async function sendChangeNotification(params: {
           subject: lmsSubject,
           recipientId: params.studentId,
           tenantId: params.tenantId,
-          consultationScheduleId: params.scheduleId,
+          consultationScheduleId: params.eventId,
           notificationTarget: targetLabel,
         });
         sent = smsResult.success;
       }
 
       logActionDebug(ACTION_CTX, `${params.templateType} 알림 발송`, {
-        scheduleId: params.scheduleId,
+        eventId: params.eventId,
         sent,
         channel,
         recipientPhone,
@@ -870,7 +1071,7 @@ async function sendChangeNotification(params: {
   } catch (error) {
     logActionError(ACTION_CTX, error, {
       context: "sendChangeNotification",
-      scheduleId: params.scheduleId,
+      eventId: params.eventId,
     });
   }
 }
@@ -904,7 +1105,7 @@ function formatScheduleDateTime(
   const month = d.getMonth() + 1;
   const day = d.getDate();
   const weekday = weekdays[d.getDay()];
-  const start = startTime.slice(0, 5); // "14:00"
+  const start = startTime.slice(0, 5);
   const end = endTime.slice(0, 5);
   const base = `${month}/${day}(${weekday}) ${start}~${end}`;
   return durationMinutes ? `${base} (${durationMinutes}분)` : base;

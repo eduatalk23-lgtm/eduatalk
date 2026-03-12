@@ -64,6 +64,7 @@ const MAX_SIDEBAR_OVERDUE = 20;
 export function CalendarSidebar() {
   const {
     studentId,
+    tenantId,
     selectedCalendarId,
     canCreatePlans,
   } = useAdminPlanBasic();
@@ -94,9 +95,9 @@ export function CalendarSidebar() {
   const [isUnfinishedOpen, setIsUnfinishedOpen] = useState(true);
   const [isCalendarsOpen, setIsCalendarsOpen] = useState(true);
 
-  // 학생의 모든 캘린더 목록 조회 (멀티 캘린더 토글용)
+  // 학생의 모든 캘린더 + 테넌트 캘린더 조회 (멀티 캘린더 토글용)
   const { data: allCalendars = [] } = useQuery({
-    ...studentCalendarsQueryOptions(studentId),
+    ...studentCalendarsQueryOptions(studentId, tenantId),
     enabled: !!studentId,
   });
 
@@ -234,9 +235,14 @@ export function CalendarSidebar() {
 
   const { showPopover, popoverProps, recurringModalState, closeRecurringModal } =
     useEventDetailPopover({
-      onEdit: (id) => handleOpenEdit(id),
+      onEdit: (id, et) => handleOpenEdit(id, et),
       onDelete: handleOverdueDelete,
       onQuickStatusChange: handleOverdueStatusChange,
+      onConsultationStatusChange: async (eventId: string, status: 'completed' | 'no_show' | 'cancelled' | 'scheduled') => {
+        const { updateScheduleStatus } = await import('@/lib/domains/consulting/actions/schedule');
+        await updateScheduleStatus(eventId, status, studentId, status === 'cancelled');
+        revalidate();
+      },
     });
 
   // 반복 이벤트 scope 선택 핸들러

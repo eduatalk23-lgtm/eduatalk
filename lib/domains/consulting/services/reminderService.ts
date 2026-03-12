@@ -1,6 +1,8 @@
 /**
  * 상담 일정 D-1 리마인더 발송 서비스
  * Cron Job에서 호출 (사용자 세션 없음 → Admin Client 사용)
+ *
+ * Phase 4: consultation_event_data + calendar_events 기반으로 전환
  */
 
 import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
@@ -9,6 +11,7 @@ import { formatSMSTemplate, type SMSTemplateType } from "@/lib/services/smsTempl
 import { getAlimtalkTemplate } from "@/lib/services/alimtalkTemplates";
 import { sendAlimtalk } from "@/lib/services/alimtalkService";
 import { sendSMS } from "@/lib/services/smsService";
+import { extractDateYMD, extractTimeHHMM } from "@/lib/domains/calendar/adapters";
 import type { NotificationTarget } from "../types";
 
 const ACTION_CTX = { domain: "consulting", action: "reminder" };
@@ -21,11 +24,11 @@ type TenantExtended = {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ScheduleRow = Record<string, any>;
+type EventRow = Record<string, unknown>;
 
 /**
  * D-1 리마인더 발송 처리
- * 내일 예정된 상담 일정 중 reminder_sent = false 인 건에 대해 리마인더 발송
+ * 내일 예정된 상담 이벤트 중 reminder_sent = false인 건에 대해 리마인더 발송
  */
 export async function processConsultationReminders(): Promise<{
   success: boolean;
@@ -47,31 +50,39 @@ export async function processConsultationReminders(): Promise<{
       return { ...result, success: false, error: "Admin client 초기화 실패" };
     }
 
-    // 내일 날짜 (KST 기준)
     const tomorrow = getTomorrowDateKST();
+    const tomorrowStart = `${tomorrow}T00:00:00+09:00`;
+    const tomorrowEnd = `${tomorrow}T23:59:59+09:00`;
 
     logActionDebug(ACTION_CTX, "리마인더 처리 시작", { targetDate: tomorrow });
 
-    // 내일 예정된 상담 일정 중 reminder_sent = false, status = scheduled
+    // calendar_events + consultation_event_data JOIN으로 내일 예정 상담 조회
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: schedules, error: queryError } = await (adminClient as any)
-      .from("consultation_schedules")
+    const { data: events, error: queryError } = await (adminClient as any)
+      .from("calendar_events")
       .select(`
-        *,
+        id, title, description, start_at, end_at, location, tenant_id, student_id,
+        consultation_event_data!inner(
+          consultant_id, session_type, program_name,
+          consultation_mode, meeting_link, visitor,
+          notification_targets, reminder_sent
+        ),
         student:students!student_id(id, name),
-        consultant:admin_users!consultant_id(name),
-        enrollment:enrollments!enrollment_id(id, programs(name))
+        consultant:admin_users!consultant_id(name)
       `)
-      .eq("scheduled_date", tomorrow)
-      .eq("status", "scheduled")
-      .eq("reminder_sent", false);
+      .eq("event_type", "consultation")
+      .gte("start_at", tomorrowStart)
+      .lte("start_at", tomorrowEnd)
+      .eq("consultation_event_data.schedule_status", "scheduled")
+      .eq("consultation_event_data.reminder_sent", false)
+      .is("deleted_at", null);
 
     if (queryError) {
       logActionError(ACTION_CTX, queryError, { context: "리마인더 대상 조회" });
       return { ...result, success: false, error: "리마인더 대상 조회 실패" };
     }
 
-    const rows = (schedules as ScheduleRow[] | null) ?? [];
+    const rows = (events as EventRow[] | null) ?? [];
     result.processed = rows.length;
 
     if (rows.length === 0) {
@@ -87,10 +98,12 @@ export async function processConsultationReminders(): Promise<{
     const studentIds = [...new Set(rows.map((r) => r.student_id as string))];
     const phoneMap = await fetchStudentPhoneMap(adminClient, studentIds);
 
-    // 일정별 리마인더 발송
+    // 이벤트별 리마인더 발송
     for (const row of rows) {
       const studentId = row.student_id as string;
       const phoneData = phoneMap.get(studentId);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cd = (row as any).consultation_event_data;
 
       if (!phoneData) {
         logActionDebug(ACTION_CTX, "전화번호 정보 없음, 건너뜀", { studentId });
@@ -98,7 +111,7 @@ export async function processConsultationReminders(): Promise<{
         continue;
       }
 
-      const targets = (row.notification_targets as NotificationTarget[] | null) ?? ["mother"];
+      const targets = (cd.notification_targets as NotificationTarget[] | null) ?? ["mother"];
       const recipients = resolveTargetPhones(phoneData, targets);
 
       if (recipients.length === 0) {
@@ -109,20 +122,24 @@ export async function processConsultationReminders(): Promise<{
 
       let anySuccess = false;
 
+      const scheduledDate = extractDateYMD(row.start_at as string) ?? tomorrow;
+      const startTime = extractTimeHHMM(row.start_at as string) ?? "00:00";
+      const endTime = extractTimeHHMM(row.end_at as string) ?? "00:00";
+
       for (const { phone: recipientPhone, targetLabel } of recipients) {
         const sent = await sendReminderNotification({
-          scheduleId: row.id as string,
+          eventId: row.id as string,
           tenantId: row.tenant_id as string,
-          studentName: row.student?.name ?? "",
-          consultantName: row.consultant?.name ?? "",
-          sessionType: row.session_type as string,
-          programName: extractProgramName(row.enrollment),
-          scheduledDate: row.scheduled_date as string,
-          startTime: row.start_time as string,
-          endTime: row.end_time as string,
-          consultationMode: (row.consultation_mode as string | null) ?? "대면",
-          meetingLink: row.meeting_link as string | null,
-          visitor: row.visitor as string | null,
+          studentName: (row as EventRow & { student?: { name: string } }).student?.name ?? "",
+          consultantName: (row as EventRow & { consultant?: { name: string } }).consultant?.name ?? "",
+          sessionType: cd.session_type as string,
+          programName: cd.program_name as string | undefined,
+          scheduledDate,
+          startTime,
+          endTime,
+          consultationMode: (cd.consultation_mode as string | null) ?? "대면",
+          meetingLink: cd.meeting_link as string | null,
+          visitor: cd.visitor as string | null,
           location: row.location as string | null,
           tenant: tenantMap.get(row.tenant_id as string) ?? null,
           recipientPhone,
@@ -142,15 +159,15 @@ export async function processConsultationReminders(): Promise<{
       }
 
       if (anySuccess) {
-        // reminder_sent 업데이트
+        // consultation_event_data.reminder_sent 업데이트
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (adminClient as any)
-          .from("consultation_schedules")
+          .from("consultation_event_data")
           .update({
             reminder_sent: true,
             reminder_sent_at: new Date().toISOString(),
           })
-          .eq("id", row.id);
+          .eq("event_id", row.id);
       }
     }
 
@@ -165,7 +182,7 @@ export async function processConsultationReminders(): Promise<{
 // ── 내부 함수 ──
 
 async function sendReminderNotification(params: {
-  scheduleId: string;
+  eventId: string;
   tenantId: string;
   studentName: string;
   consultantName: string;
@@ -218,7 +235,7 @@ async function sendReminderNotification(params: {
     let sent = false;
 
     if (alimtalkTemplate) {
-      const result = await sendAlimtalk({
+      const alimResult = await sendAlimtalk({
         recipientPhone: params.recipientPhone,
         message,
         smsFallbackMessage: message,
@@ -226,12 +243,12 @@ async function sendReminderNotification(params: {
         tenantId: params.tenantId,
         templateCode: alimtalkTemplate.templateCode,
         recipientId: params.studentId,
-        consultationScheduleId: params.scheduleId,
+        consultationScheduleId: params.eventId,
         templateVariables,
         variableOrder: alimtalkTemplate.variableOrder,
         notificationTarget: params.notificationTarget,
       });
-      sent = result.success;
+      sent = alimResult.success;
     }
 
     // 알림톡 미사용 또는 실패 시 SMS fallback
@@ -242,7 +259,7 @@ async function sendReminderNotification(params: {
         subject: "상담 리마인더",
         recipientId: params.studentId,
         tenantId: params.tenantId,
-        consultationScheduleId: params.scheduleId,
+        consultationScheduleId: params.eventId,
         notificationTarget: params.notificationTarget,
       });
       sent = smsResult.success;
@@ -252,22 +269,18 @@ async function sendReminderNotification(params: {
   } catch (error) {
     logActionError(ACTION_CTX, error, {
       context: "sendReminderNotification",
-      scheduleId: params.scheduleId,
+      eventId: params.eventId,
     });
     return false;
   }
 }
 
-/**
- * 테넌트 정보 일괄 조회
- */
 async function fetchTenantMap(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   client: any,
   tenantIds: string[]
 ): Promise<Map<string, TenantExtended>> {
   const map = new Map<string, TenantExtended>();
-
   if (tenantIds.length === 0) return map;
 
   const { data, error } = await client
@@ -292,17 +305,12 @@ type StudentPhoneEntry = {
   father_phone: string | null;
 };
 
-/**
- * 학생별 전화번호 일괄 조회
- * students 테이블에서 phone, mother_phone, father_phone 조회
- */
 async function fetchStudentPhoneMap(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   client: any,
   studentIds: string[]
 ): Promise<Map<string, StudentPhoneEntry>> {
   const map = new Map<string, StudentPhoneEntry>();
-
   if (studentIds.length === 0) return map;
 
   const { data, error } = await client
@@ -355,23 +363,7 @@ function resolveTargetPhones(
   return result;
 }
 
-/**
- * enrollment JOIN 결과에서 프로그램명 추출
- */
-function extractProgramName(enrollment: unknown): string | undefined {
-  if (!enrollment || typeof enrollment !== "object") return undefined;
-  const e = enrollment as {
-    programs?: { name: string } | { name: string }[] | null;
-  };
-  if (!e.programs) return undefined;
-  return Array.isArray(e.programs) ? e.programs[0]?.name : e.programs.name;
-}
-
-/**
- * 내일 날짜 (KST 기준) "YYYY-MM-DD" 형식
- */
 function getTomorrowDateKST(): string {
-  // 서버 TZ에 무관하게 KST 기준으로 "내일" 계산
   const kstNow = new Date(
     new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" })
   );

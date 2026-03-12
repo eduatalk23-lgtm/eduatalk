@@ -4,6 +4,7 @@ import { AdminPlanManagementClient } from '../../_components/AdminPlanManagement
 import { fetchCalendarPageData } from '@/lib/domains/admin-plan/actions/calendarPageData';
 import { StudentSwitcher } from '@/app/(admin)/admin/calendar/_components/StudentSwitcher';
 import { getCurrentUser } from '@/lib/auth/getCurrentUser';
+import { ensureTenantPrimaryCalendar, subscribeTenantCalendar } from '@/lib/domains/calendar/helpers';
 
 interface Props {
   params: Promise<{ id: string; calendarId: string }>;
@@ -44,10 +45,17 @@ export default async function CalendarPlanManagementPage({
 
   if (!calendar || calendar.owner_id !== studentId) notFound();
 
-  // 3. 공유 데이터 페칭 + 현재 사용자 ID
+  // 3. 테넌트 캘린더 보장 + 관리자 구독 (상담 이벤트 표시용)
   const [pageData, currentUser] = await Promise.all([
     fetchCalendarPageData(studentId, calendarId, date),
     getCurrentUser(),
+    (async () => {
+      const tenantCalendarId = await ensureTenantPrimaryCalendar(student.tenant_id);
+      const user = await getCurrentUser();
+      if (user?.userId) {
+        await subscribeTenantCalendar(user.userId, tenantCalendarId, "writer");
+      }
+    })(),
   ]);
 
   return (

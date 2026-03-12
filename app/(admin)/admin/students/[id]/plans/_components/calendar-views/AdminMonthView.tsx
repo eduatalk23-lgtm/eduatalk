@@ -115,6 +115,8 @@ export default function AdminMonthView({
   highlightedPlanIds,
   onDoubleClickDate,
   showHolidays = true,
+  onOpenEventEditNew,
+  onOpenConsultationEditNew,
 }: AdminMonthViewProps) {
   // 주 시작 요일 (context에서)
   const { selectedCalendarSettings } = useAdminPlanBasic();
@@ -124,7 +126,7 @@ export default function AdminMonthView({
 
   // EventDetailPopover 훅 (GCal 스타일 팝오버)
   const { showPopover: showEventPopover, closePopover, isPopoverOpen, popoverProps: eventPopoverProps } = useEventDetailPopover({
-    onEdit: (id) => { onPlanEdit?.(id); },
+    onEdit: (id, et) => { onPlanEdit?.(id, et); },
     onDelete: (id) => { onPlanDelete?.(id); },
     onQuickStatusChange: async (planId, newStatus) => {
       await updatePlanStatus({ planId, status: newStatus, skipRevalidation: true });
@@ -133,6 +135,11 @@ export default function AdminMonthView({
     onColorChange: async (planId, color) => {
       const { updateEventColor } = await import('@/lib/domains/calendar/actions/calendarEventActions');
       await updateEventColor(planId, color);
+      onRefresh();
+    },
+    onConsultationStatusChange: async (eventId: string, status: 'completed' | 'no_show' | 'cancelled' | 'scheduled') => {
+      const { updateScheduleStatus } = await import('@/lib/domains/consulting/actions/schedule');
+      await updateScheduleStatus(eventId, status, studentId, status === 'cancelled');
       onRefresh();
     },
   });
@@ -599,7 +606,33 @@ export default function AdminMonthView({
                 closeQuickCreate();
               }}
               onClose={closeQuickCreate}
-              onOpenFullModal={() => closeQuickCreate()}
+              onOpenFullModal={(slot) => {
+                if (onOpenEventEditNew && quickCreateState) {
+                  onOpenEventEditNew({
+                    date: quickCreateState.date,
+                    startTime: slot.startTime,
+                    endTime: slot.endTime,
+                  });
+                }
+                closeQuickCreate();
+              }}
+              onOpenConsultationModal={onOpenConsultationEditNew ? (slot, extra) => {
+                if (quickCreateState) {
+                  onOpenConsultationEditNew({
+                    date: quickCreateState.date,
+                    startTime: slot.startTime,
+                    endTime: slot.endTime,
+                    studentId: extra?.studentId,
+                    sessionType: extra?.sessionType,
+                    consultationMode: extra?.consultationMode,
+                    title: extra?.title,
+                    description: extra?.description,
+                    meetingLink: extra?.meetingLink,
+                    visitor: extra?.visitor,
+                  });
+                }
+                closeQuickCreate();
+              } : undefined}
             />
           </div>
         </div>,

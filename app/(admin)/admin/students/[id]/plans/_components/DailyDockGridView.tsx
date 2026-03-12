@@ -57,7 +57,7 @@ interface DailyDockGridViewProps {
   /** 캘린더 ID */
   calendarId?: string;
   // 액션 콜백
-  onEdit?: (planId: string) => void;
+  onEdit?: (planId: string, entityType?: 'event' | 'consultation') => void;
   onRefresh: () => void;
   onCreatePlanAtSlot?: (slotStartTime: string, slotEndTime: string) => void;
   // P1-4: 리사이즈
@@ -74,6 +74,8 @@ interface DailyDockGridViewProps {
   pxPerMinute?: number;
   /** 더블클릭/상세설정 → 이벤트 편집 모달 열기 */
   onOpenEventEditNew?: (params: { date?: string; startTime?: string; endTime?: string }) => void;
+  /** 상담 편집 모달 열기 */
+  onOpenConsultationEditNew?: (params: { date?: string; startTime?: string; endTime?: string; studentId?: string; sessionType?: string; consultationMode?: string; title?: string; description?: string; meetingLink?: string; visitor?: string }) => void;
   /** 캘린더 설정의 기본 이벤트 시간 (분) */
   defaultEstimatedMinutes?: number | null;
   /** 캘린더 설정의 기본 알림 (분 단위 배열) */
@@ -131,6 +133,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
   isLoading = false,
   pxPerMinute: ppmProp,
   onOpenEventEditNew,
+  onOpenConsultationEditNew,
   defaultEstimatedMinutes,
   defaultReminderMinutes,
   showHolidays = true,
@@ -269,7 +272,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
 
   // EventDetailPopover (useEventDetailPopover 훅)
   const { showPopover, closePopover, isPopoverOpen, popoverProps, recurringModalState, closeRecurringModal } = useEventDetailPopover({
-    onEdit: (id) => { onEdit?.(id); },
+    onEdit: (id, et) => { onEdit?.(id, et); },
     onDelete: (id) => { onDelete?.(id); },
     onQuickStatusChange: (planId, newStatus, prevStatus) => {
       handleQuickStatusChange(planId, newStatus, prevStatus);
@@ -288,6 +291,11 @@ export const DailyDockGridView = memo(function DailyDockGridView({
         planId: id,
         description: '비학습 시간이 비활성화되었습니다.',
       });
+    },
+    onConsultationStatusChange: async (eventId: string, status: 'completed' | 'no_show' | 'cancelled' | 'scheduled') => {
+      const { updateScheduleStatus } = await import('@/lib/domains/consulting/actions/schedule');
+      await updateScheduleStatus(eventId, status, studentId, status === 'cancelled');
+      revalidate();
     },
     isAdminMode,
   });
@@ -1325,6 +1333,21 @@ export const DailyDockGridView = memo(function DailyDockGridView({
               }
               closeQuickCreate();
             }}
+            onOpenConsultationModal={onOpenConsultationEditNew ? (slot, extra) => {
+              onOpenConsultationEditNew({
+                date: selectedDate,
+                startTime: slot.startTime,
+                endTime: slot.endTime,
+                studentId: extra?.studentId,
+                sessionType: extra?.sessionType,
+                consultationMode: extra?.consultationMode,
+                title: extra?.title,
+                description: extra?.description,
+                meetingLink: extra?.meetingLink,
+                visitor: extra?.visitor,
+              });
+              closeQuickCreate();
+            } : undefined}
           />
         </div>
       </div>,

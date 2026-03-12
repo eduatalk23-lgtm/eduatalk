@@ -182,6 +182,140 @@ export async function ensureAdminPrimaryCalendar(
 }
 
 // ============================================
+// tenant calendar_id resolve
+// ============================================
+
+/**
+ * tenant_id → primary calendar_id 해석 (서버용)
+ *
+ * 테넌트(학원) 공유 캘린더 조회.
+ * Primary 캘린더가 없으면 null 반환.
+ */
+export async function resolveTenantPrimaryCalendarId(
+  tenantId: string
+): Promise<string | null> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("calendars")
+    .select("id")
+    .eq("owner_id", tenantId)
+    .eq("owner_type", "tenant")
+    .eq("is_primary", true)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true })
+    .limit(1);
+
+  if (error || !data || data.length === 0) return null;
+  return data[0].id;
+}
+
+/**
+ * 테넌트 Primary Calendar 보장 (없으면 자동 생성)
+ *
+ * 학원 공유 캘린더. 상담/행사/휴원일 등 전체 구성원 공유 이벤트 용도.
+ * calendar_list 엔트리는 별도 subscribeTenantCalendar()로 관리.
+ */
+export async function ensureTenantPrimaryCalendar(
+  tenantId: string
+): Promise<string> {
+  const existing = await resolveTenantPrimaryCalendarId(tenantId);
+  if (existing) return existing;
+
+  const supabase = await createSupabaseServerClient();
+
+  // 테넌트명 조회
+  const { data: tenant } = await supabase
+    .from("tenants")
+    .select("name")
+    .eq("id", tenantId)
+    .maybeSingle();
+
+  const calendarName = tenant?.name ? `${tenant.name} 캘린더` : "학원 캘린더";
+
+  const { data: calendar, error: calError } = await supabase
+    .from("calendars")
+    .insert({
+      tenant_id: tenantId,
+      owner_id: tenantId,
+      owner_type: "tenant",
+      summary: calendarName,
+      is_primary: true,
+      is_student_primary: false,
+      source_type: "local",
+    })
+    .select("id")
+    .single();
+
+  if (calError || !calendar) {
+    throw new Error(`Tenant Primary Calendar 생성 실패: ${calError?.message}`);
+  }
+
+  return calendar.id;
+}
+
+/**
+ * 사용자를 테넌트 캘린더에 구독 등록 (calendar_list에 추가)
+ *
+ * 이미 구독 중이면 무시 (UNIQUE 제약).
+ * 관리자/컨설턴트 → writer, 학생 → reader.
+ */
+export async function subscribeTenantCalendar(
+  userId: string,
+  tenantCalendarId: string,
+  accessRole: "writer" | "reader" = "writer"
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+
+  await supabase
+    .from("calendar_list")
+    .upsert(
+      {
+        user_id: userId,
+        calendar_id: tenantCalendarId,
+        display_name: "학원 캘린더",
+        is_visible: true,
+        access_role: accessRole,
+        sort_order: -1, // 학원 캘린더는 최상단
+      },
+      { onConflict: "user_id,calendar_id" }
+    );
+}
+
+/**
+ * 테넌트 소속 전체 관리자를 테넌트 캘린더에 일괄 구독
+ *
+ * 테넌트 캘린더 최초 생성 시 또는 동기화 시 호출.
+ */
+export async function subscribeAllAdminsToTenantCalendar(
+  tenantId: string,
+  tenantCalendarId: string
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data: admins } = await supabase
+    .from("admin_users")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("is_active", true);
+
+  if (!admins || admins.length === 0) return;
+
+  const entries = admins.map((admin) => ({
+    user_id: admin.id,
+    calendar_id: tenantCalendarId,
+    display_name: "학원 캘린더",
+    is_visible: true,
+    access_role: "writer" as const,
+    sort_order: -1,
+  }));
+
+  await supabase
+    .from("calendar_list")
+    .upsert(entries, { onConflict: "user_id,calendar_id" });
+}
+
+// ============================================
 // 시간 변환 유틸리티
 // ============================================
 

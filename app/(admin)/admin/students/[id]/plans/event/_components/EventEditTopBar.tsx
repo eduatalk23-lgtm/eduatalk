@@ -38,6 +38,8 @@ interface EventEditTopBarProps {
     onEndTimeChange: (v: string) => void;
     onAllDayChange: (v: boolean) => void;
     onRruleChange: (v: string | null) => void;
+    /** 상담 모드: 종일/반복 UI 숨김 */
+    hideAllDayAndRecurrence?: boolean;
   };
 }
 
@@ -69,7 +71,7 @@ export function EventEditTopBar({
   const isMultiDay = dateTime ? dateTime.date !== dateTime.endDate : false;
 
   return (
-    <div className="sticky top-0 z-10 bg-[rgb(var(--background))]">
+    <div className="sticky top-0 z-10 bg-[var(--background)]">
       {/* Row 1: [X] [제목 input ___________] [삭제] [저장] */}
       <div className="max-w-5xl px-4 sm:px-6 lg:px-8 flex items-center gap-2 py-2">
         <button
@@ -173,23 +175,25 @@ export function EventEditTopBar({
               )}
             </div>
 
-            {/* 종일 + 반복 — 동일 text-sm 기준 */}
-            <div className="flex items-center gap-3 flex-nowrap">
-              <label className="flex items-center gap-1.5 cursor-pointer shrink-0">
-                <input
-                  type="checkbox"
-                  checked={dateTime.isAllDay}
-                  onChange={(e) => dateTime.onAllDayChange(e.target.checked)}
-                  className="h-4 w-4 rounded border-[rgb(var(--color-secondary-300))] text-blue-600 focus:ring-blue-500"
+            {/* 종일 + 반복 — 상담 모드에서는 숨김 */}
+            {!dateTime.hideAllDayAndRecurrence && (
+              <div className="flex items-center gap-3 flex-nowrap">
+                <label className="flex items-center gap-1.5 cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={dateTime.isAllDay}
+                    onChange={(e) => dateTime.onAllDayChange(e.target.checked)}
+                    className="h-4 w-4 rounded border-[rgb(var(--color-secondary-300))] text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-[var(--text-secondary)] whitespace-nowrap">종일</span>
+                </label>
+                <RecurrenceSelector
+                  value={dateTime.rrule}
+                  onChange={dateTime.onRruleChange}
+                  eventDate={dateTime.date}
                 />
-                <span className="text-sm text-[var(--text-secondary)] whitespace-nowrap">종일</span>
-              </label>
-              <RecurrenceSelector
-                value={dateTime.rrule}
-                onChange={dateTime.onRruleChange}
-                eventDate={dateTime.date}
-              />
-            </div>
+              </div>
+            )}
           </div>
         </div>
       )}

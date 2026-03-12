@@ -1097,6 +1097,22 @@ export async function restoreRecurringDelete(params: {
 // getCalendarEventForEdit → 편집용 이벤트 전체 조회
 // ============================================
 
+/** consultation_event_data JOIN 결과 (편집용) */
+export interface ConsultationEventEditData {
+  consultant_id: string | null;
+  student_id: string | null;
+  /** 상담 대상 학생명 (students JOIN) */
+  student_name: string | null;
+  session_type: string | null;
+  enrollment_id: string | null;
+  program_name: string | null;
+  consultation_mode: string | null;
+  meeting_link: string | null;
+  visitor: string | null;
+  schedule_status: string | null;
+  notification_targets: string[] | null;
+}
+
 export interface CalendarEventEditData {
   id: string;
   title: string;
@@ -1129,6 +1145,10 @@ export interface CalendarEventEditData {
   planned_end_page: number | null;
   estimated_minutes: number | null;
   has_study_data: boolean;
+  // event classification
+  event_type: string | null;
+  // consultation data (1:1 JOIN, null if not consultation)
+  consultation_event_data: ConsultationEventEditData | null;
 }
 
 export async function getCalendarEventForEdit(
@@ -1139,7 +1159,7 @@ export async function getCalendarEventForEdit(
 
     const { data, error } = await supabase
       .from('calendar_events')
-      .select('*, event_study_data(*)')
+      .select('*, event_study_data(*), consultation_event_data(*, student:students!student_id(name))')
       .eq('id', eventId)
       .is('deleted_at', null)
       .single();
@@ -1151,6 +1171,10 @@ export async function getCalendarEventForEdit(
     const study = Array.isArray(data.event_study_data)
       ? data.event_study_data[0] ?? null
       : data.event_study_data;
+
+    const consult = Array.isArray(data.consultation_event_data)
+      ? data.consultation_event_data[0] ?? null
+      : data.consultation_event_data;
 
     return {
       success: true,
@@ -1185,6 +1209,20 @@ export async function getCalendarEventForEdit(
         planned_end_page: study?.planned_end_page ?? null,
         estimated_minutes: study?.estimated_minutes ?? null,
         has_study_data: study !== null,
+        event_type: data.event_type ?? null,
+        consultation_event_data: consult ? {
+          consultant_id: consult.consultant_id ?? null,
+          student_id: consult.student_id ?? null,
+          student_name: (consult.student as { name: string } | null)?.name ?? null,
+          session_type: consult.session_type ?? null,
+          enrollment_id: consult.enrollment_id ?? null,
+          program_name: consult.program_name ?? null,
+          consultation_mode: consult.consultation_mode ?? null,
+          meeting_link: consult.meeting_link ?? null,
+          visitor: consult.visitor ?? null,
+          schedule_status: consult.schedule_status ?? null,
+          notification_targets: consult.notification_targets ?? null,
+        } as ConsultationEventEditData : null,
       },
     };
   } catch (err) {

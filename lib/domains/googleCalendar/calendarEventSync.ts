@@ -1,7 +1,6 @@
 /**
  * Calendar Events → Google Calendar 동기화
  *
- * consultation_schedules 동기화 패턴을 calendar_events에 확장합니다.
  * - mapCalendarEventToGoogleEvent: calendar_events → Google event body
  * - syncCalendarEventToGoogle: CRUD 연동 (fire-and-forget)
  */

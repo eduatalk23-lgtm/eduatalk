@@ -6,6 +6,7 @@ import { useAdminPlanModal } from "./AdminPlanModalContext";
 import { useAdminPlanModalData } from "./AdminPlanModalDataContext";
 import { useAdminPlanBasic } from "./AdminPlanBasicContext";
 import { useEventEditModal, type EventEditModalState } from "../hooks/useEventEditModal";
+import type { ConsultationMode } from "@/lib/domains/consulting/types";
 
 /**
  * Actions Context - 모달 열기 헬퍼 함수들
@@ -17,7 +18,7 @@ import { useEventEditModal, type EventEditModalState } from "../hooks/useEventEd
  */
 export interface AdminPlanActionsContextValue {
   handleOpenRedistribute: (planId: string) => void;
-  handleOpenEdit: (planId: string) => void;
+  handleOpenEdit: (planId: string, entityType?: 'event' | 'consultation') => void;
   handleOpenReorder: (containerType: "daily") => void;
   handleOpenTemplateWithPlans: (planIds: string[]) => void;
   handleOpenMoveToGroup: (planIds: string[], currentGroupId?: string | null) => void;
@@ -38,6 +39,8 @@ export interface AdminPlanActionsContextValue {
   eventEditModalState: EventEditModalState;
   /** 이벤트 편집 모달 닫기 */
   closeEventEditModal: () => void;
+  /** 상담 일정 편집 모달 열기 → EventEditModal(consultation 모드)로 라우팅 */
+  handleOpenConsultationEditNew: (params: { date?: string; startTime?: string; endTime?: string; studentId?: string; sessionType?: string; consultationMode?: string; title?: string; description?: string; meetingLink?: string; visitor?: string }) => void;
 }
 
 const AdminPlanActionsContext = createContext<AdminPlanActionsContextValue | null>(null);
@@ -61,10 +64,11 @@ export function AdminPlanActionsProvider({ children }: AdminPlanActionsProviderP
   );
 
   const handleOpenEdit = useCallback(
-    (planId: string) => {
+    (planId: string, entityType?: 'event' | 'consultation') => {
       eventEditModal.openEdit({
         eventId: planId,
         calendarId: selectedCalendarId ?? undefined,
+        entityType,
       });
     },
     [eventEditModal, selectedCalendarId]
@@ -153,6 +157,28 @@ export function AdminPlanActionsProvider({ children }: AdminPlanActionsProviderP
     [modal, modalData]
   );
 
+  const handleOpenConsultationEditNew = useCallback(
+    (params: { date?: string; startTime?: string; endTime?: string; studentId?: string; sessionType?: string; consultationMode?: string; title?: string; description?: string; meetingLink?: string; visitor?: string }) => {
+      // 상담 "옵션 더보기" → EventEditModal(consultation 모드)로 라우팅
+      if (!selectedCalendarId) return;
+      eventEditModal.openNew({
+        calendarId: selectedCalendarId,
+        date: params.date,
+        startTime: params.startTime,
+        endTime: params.endTime,
+        entityType: 'consultation',
+        consultationStudentId: params.studentId,
+        consultationSessionType: params.sessionType,
+        consultationMode: params.consultationMode as ConsultationMode | undefined,
+        title: params.title,
+        description: params.description,
+        meetingLink: params.meetingLink,
+        visitor: params.visitor,
+      });
+    },
+    [eventEditModal, selectedCalendarId]
+  );
+
   const handleCreatePlanAtSlot = useCallback(
     (startTime: string, endTime: string) => {
       modalData.setSlotTimeForNewPlan({ startTime, endTime });
@@ -177,6 +203,7 @@ export function AdminPlanActionsProvider({ children }: AdminPlanActionsProviderP
       handleOpenEventEditNew,
       eventEditModalState: eventEditModal.state,
       closeEventEditModal: eventEditModal.close,
+      handleOpenConsultationEditNew,
     }),
     [
       handleOpenRedistribute,
@@ -193,6 +220,7 @@ export function AdminPlanActionsProvider({ children }: AdminPlanActionsProviderP
       handleOpenEventEditNew,
       eventEditModal.state,
       eventEditModal.close,
+      handleOpenConsultationEditNew,
     ]
   );
 

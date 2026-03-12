@@ -34,6 +34,17 @@ type EnrollmentOption = {
   program_name: string;
 };
 
+export type ConsultationInitialValues = {
+  scheduledDate?: string;
+  startTime?: string;
+  endTime?: string;
+  sessionType?: string;
+  consultationMode?: ConsultationMode;
+  meetingLink?: string;
+  visitor?: string;
+  description?: string;
+};
+
 type ConsultationScheduleFormProps = {
   studentId: string;
   consultants: { id: string; name: string }[];
@@ -41,6 +52,7 @@ type ConsultationScheduleFormProps = {
   defaultConsultantId?: string;
   phoneAvailability: PhoneAvailability;
   onSuccess?: () => void;
+  initialValues?: ConsultationInitialValues;
 };
 
 const PHONE_KEY_MAP: Record<NotificationTarget, keyof PhoneAvailability> = {
@@ -56,18 +68,19 @@ export function ConsultationScheduleForm({
   defaultConsultantId,
   phoneAvailability,
   onSuccess,
+  initialValues,
 }: ConsultationScheduleFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [sessionType, setSessionType] = useState("정기상담");
+  const [sessionType, setSessionType] = useState(initialValues?.sessionType ?? "정기상담");
   const [programName, setProgramName] = useState("");
   const [notificationTargets, setNotificationTargets] = useState<NotificationTarget[]>(
     phoneAvailability.mother ? ["mother"] : []
   );
   const [notificationChannel, setNotificationChannel] = useState<NotificationChannel>("alimtalk");
-  const [consultationMode, setConsultationMode] = useState<ConsultationMode>("대면");
+  const [consultationMode, setConsultationMode] = useState<ConsultationMode>(initialValues?.consultationMode ?? "대면");
 
   const inputClass = cn(
     "w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2",
@@ -215,6 +228,7 @@ export function ConsultationScheduleForm({
             name="scheduled_date"
             required
             min={new Date().toISOString().split("T")[0]}
+            defaultValue={initialValues?.scheduledDate}
             className={inputClass}
           />
         </div>
@@ -225,6 +239,7 @@ export function ConsultationScheduleForm({
             type="time"
             name="start_time"
             required
+            defaultValue={initialValues?.startTime}
             className={inputClass}
           />
         </div>
@@ -235,13 +250,14 @@ export function ConsultationScheduleForm({
             type="time"
             name="end_time"
             required
+            defaultValue={initialValues?.endTime}
             className={inputClass}
           />
         </div>
       </div>
 
       {/* Row 3: 상담방식, 방문상담자, 장소/링크, 메모 */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="flex flex-col gap-1">
           <label className={labelClass}>상담 방식</label>
           <select
@@ -263,6 +279,7 @@ export function ConsultationScheduleForm({
             type="text"
             name="visitor"
             placeholder="학생 & 학부모"
+            defaultValue={initialValues?.visitor}
             className={inputClass}
           />
         </div>
@@ -284,6 +301,7 @@ export function ConsultationScheduleForm({
               type="url"
               name="meeting_link"
               placeholder="https://zoom.us/j/..."
+              defaultValue={initialValues?.meetingLink}
               className={inputClass}
             />
           </div>
@@ -295,69 +313,71 @@ export function ConsultationScheduleForm({
             type="text"
             name="description"
             placeholder="상담 내용/목적"
+            defaultValue={initialValues?.description}
             className={inputClass}
           />
         </div>
       </div>
 
-      {/* 알림 대상 + 채널 + 제출 */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <span className={cn("text-xs font-medium", textSecondary)}>알림 대상</span>
-          {NOTIFICATION_TARGETS.map((target) => {
-            const hasPhone = phoneAvailability[PHONE_KEY_MAP[target]];
-            return (
-              <label
-                key={target}
-                className={cn(
-                  "flex items-center gap-1",
-                  !hasPhone && "cursor-not-allowed opacity-50"
-                )}
-                title={!hasPhone ? "등록된 연락처가 없습니다" : undefined}
-              >
-                <input
-                  type="checkbox"
-                  checked={notificationTargets.includes(target)}
-                  disabled={!hasPhone}
-                  onChange={() =>
-                    setNotificationTargets((prev) =>
-                      prev.includes(target)
-                        ? prev.filter((t) => t !== target)
-                        : [...prev, target]
-                    )
-                  }
-                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
-                />
-                <span className={cn("text-xs", textSecondary)}>
-                  {NOTIFICATION_TARGET_LABELS[target]}
-                </span>
-                {!hasPhone && (
-                  <span className="text-[10px] text-red-500">연락처 없음</span>
-                )}
-              </label>
-            );
-          })}
-
-          <span className={cn("ml-2 border-l border-gray-300 pl-4 text-xs font-medium dark:border-gray-600", textSecondary)}>
-            발송 채널
-          </span>
-          {NOTIFICATION_CHANNELS.map((ch) => (
-            <label key={ch} className="flex items-center gap-1">
+      {/* 알림 대상 + 채널 */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <span className={cn("text-xs font-medium", textSecondary)}>알림 대상</span>
+        {NOTIFICATION_TARGETS.map((target) => {
+          const hasPhone = phoneAvailability[PHONE_KEY_MAP[target]];
+          return (
+            <label
+              key={target}
+              className={cn(
+                "flex items-center gap-1",
+                !hasPhone && "cursor-not-allowed opacity-50"
+              )}
+              title={!hasPhone ? "등록된 연락처가 없습니다" : undefined}
+            >
               <input
-                type="radio"
-                name="notification_channel"
-                checked={notificationChannel === ch}
-                onChange={() => setNotificationChannel(ch)}
-                disabled={notificationTargets.length === 0}
-                className="h-3.5 w-3.5 border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
+                type="checkbox"
+                checked={notificationTargets.includes(target)}
+                disabled={!hasPhone}
+                onChange={() =>
+                  setNotificationTargets((prev) =>
+                    prev.includes(target)
+                      ? prev.filter((t) => t !== target)
+                      : [...prev, target]
+                  )
+                }
+                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
               />
               <span className={cn("text-xs", textSecondary)}>
-                {NOTIFICATION_CHANNEL_LABELS[ch]}
+                {NOTIFICATION_TARGET_LABELS[target]}
               </span>
+              {!hasPhone && (
+                <span className="text-[10px] text-red-500">연락처 없음</span>
+              )}
             </label>
-          ))}
-        </div>
+          );
+        })}
 
+        <span className={cn("border-l border-[rgb(var(--color-secondary-300))] pl-4 text-xs font-medium", textSecondary)}>
+          발송 채널
+        </span>
+        {NOTIFICATION_CHANNELS.map((ch) => (
+          <label key={ch} className="flex items-center gap-1">
+            <input
+              type="radio"
+              name="notification_channel"
+              checked={notificationChannel === ch}
+              onChange={() => setNotificationChannel(ch)}
+              disabled={notificationTargets.length === 0}
+              className="h-3.5 w-3.5 border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
+            />
+            <span className={cn("text-xs", textSecondary)}>
+              {NOTIFICATION_CHANNEL_LABELS[ch]}
+            </span>
+          </label>
+        ))}
+      </div>
+
+      {/* 제출 버튼 */}
+      <div className="flex justify-end">
         <button
           type="submit"
           disabled={isPending}

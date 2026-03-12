@@ -91,9 +91,10 @@ export function AdminPlanFilterProvider({
   // 멀티 캘린더: 표시할 캘린더 ID 목록 (null = 전체)
   const [visibleCalendarIds, setVisibleCalendarIds] = useState<string[] | null>(null);
 
-  // 학생의 모든 캘린더 조회 (멀티 캘린더 해석용, staleTime=30min)
+  // 학생의 모든 캘린더 + 테넌트 캘린더 조회 (멀티 캘린더 해석용, staleTime=30min)
+  const { tenantId } = useAdminPlanBasic();
   const { data: allCalendars = [] } = useQuery({
-    ...studentCalendarsQueryOptions(studentId),
+    ...studentCalendarsQueryOptions(studentId, tenantId),
     enabled: !!studentId,
   });
 

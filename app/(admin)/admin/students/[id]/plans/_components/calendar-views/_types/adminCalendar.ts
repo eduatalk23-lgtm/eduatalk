@@ -259,7 +259,7 @@ export type AdminMonthViewProps = {
   onTimelineClick?: (date: string) => void;
   /** @deprecated 레거시 — 월간뷰에서는 더 이상 사용 안 함 (EventDetailPopover로 대체) */
   onPlanClick?: (planId: string) => void;
-  onPlanEdit?: (planId: string) => void;
+  onPlanEdit?: (planId: string, entityType?: 'event' | 'consultation') => void;
   onPlanDelete?: (planId: string) => void;
   onExclusionToggle: (date: string, hasExclusion: boolean) => void;
   onContextMenu?: (e: React.MouseEvent, date: string, hasExclusion: boolean) => void;
@@ -276,6 +276,10 @@ export type AdminMonthViewProps = {
   onDoubleClickDate?: (dateStr: string) => void;
   /** 공휴일 표시 여부 (사이드바 토글) */
   showHolidays?: boolean;
+  /** 옵션 더보기 → 이벤트 편집 모달 열기 */
+  onOpenEventEditNew?: (params: { date?: string; startTime?: string; endTime?: string }) => void;
+  /** 옵션 더보기 → 상담 편집 모달 열기 */
+  onOpenConsultationEditNew?: (params: { date?: string; startTime?: string; endTime?: string; studentId?: string; sessionType?: string; consultationMode?: string; title?: string; description?: string; meetingLink?: string; visitor?: string }) => void;
 };
 
 /**

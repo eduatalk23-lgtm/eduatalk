@@ -1104,6 +1104,8 @@ function AdminPlanManagementContent({
               }}
             />
           )}
+
+          {/* 상담 "옵션 더보기"는 EventEditModal(entityType='consultation')로 통합됨 */}
       </PlanDndProvider>
     </>
   );
