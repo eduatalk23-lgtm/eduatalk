@@ -146,7 +146,7 @@ function ImageItem({
       <div
         className={cn(
           "flex items-center justify-center bg-bg-secondary",
-          count === 1 && "max-h-64 min-h-32",
+          count === 1 && "max-h-64 min-h-32 w-full",
           count === 2 && "aspect-square",
           count >= 3 && index === 0 && count === 3 && "row-span-2 aspect-[3/4]",
           count >= 3 && index > 0 && "aspect-square"
@@ -165,7 +165,7 @@ function ImageItem({
       className={cn(
         "relative overflow-hidden bg-bg-secondary",
         "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1",
-        count === 1 && "max-h-64",
+        count === 1 && "max-h-64 min-h-32",
         count === 2 && "aspect-square",
         count >= 3 && index === 0 && count === 3 && "row-span-2 aspect-[3/4]",
         count >= 3 && index > 0 && "aspect-square"

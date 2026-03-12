@@ -28,6 +28,8 @@ function ChatFABComponent({ isOpen, unreadCount, onClick }: ChatFABProps) {
       whileTap={{ scale: 0.9 }}
       className={cn(
         "fixed z-[45] flex items-center justify-center rounded-full shadow-lg transition-colors",
+        // 모바일: 채팅 팝오버 열림 시 FAB 숨김 (뒤로가기 버튼과 겹침 방지)
+        isOpen && "max-md:hidden",
         "bg-primary-500 text-white hover:bg-primary-600",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         // 모바일: safe-area 위, 데스크톱: 우측 하단

@@ -430,13 +430,11 @@ function ChatRoomComponent({
     userId,
     isAtBottom,
     onNewMessageArrived: useCallback(() => {
-      // isAtBottomRef를 사용하여 stale closure 방지
-      if (isAtBottomRef.current) {
-        scrollToBottom();
-      } else {
+      // followOutput이 자동 스크롤을 처리하므로, 여기서는 badge만 관리
+      if (!isAtBottomRef.current) {
         dispatch({ type: "SET_HAS_NEW_MESSAGES", value: true });
       }
-    }, [scrollToBottom]),
+    }, []),
   });
 
   const { room, messages, pinnedMessages, announcement, onlineUsers, typingUsers, otherMemberLeft } = data;
@@ -977,7 +975,7 @@ function ChatRoomComponent({
       <ScreenReaderAnnouncer message={srAnnouncement} politeness="polite" />
 
       <div
-        className="relative flex flex-col h-full bg-bg-tertiary"
+        className="relative flex flex-col h-full bg-bg-primary md:bg-bg-tertiary"
         role="region"
         aria-label={`${roomName} 채팅방`}
       >
@@ -1123,7 +1121,7 @@ function ChatRoomComponent({
       </div>
 
       {/* Content area: max-width for readability on wide screens */}
-      <div className="flex-1 flex flex-col min-h-0 relative max-w-5xl mx-auto w-full bg-bg-primary border-x border-border/40">
+      <div className="flex-1 flex flex-col min-h-0 relative max-w-5xl mx-auto w-full bg-bg-primary md:border-x md:border-border/40">
 
       {/* 공지 배너 */}
       {announcement && (
@@ -1211,11 +1209,12 @@ function ChatRoomComponent({
             data={messages}
             firstItemIndex={firstItemIndex}
             initialTopMostItemIndex={messages.length - 1}
-            followOutput="smooth"
+            followOutput={(isAtBottom) => (isAtBottom ? "auto" : false)}
+            atBottomThreshold={60}
             atBottomStateChange={handleAtBottomChange}
             startReached={handleStartReached}
             computeItemKey={computeItemKey}
-            increaseViewportBy={{ top: 200, bottom: 200 }}
+            increaseViewportBy={{ top: 400, bottom: 200 }}
             scrollSeekConfiguration={{
               enter: (velocity) => Math.abs(velocity) > 800,
               exit: (velocity) => Math.abs(velocity) < 100,

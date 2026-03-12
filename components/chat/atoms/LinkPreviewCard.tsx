@@ -39,7 +39,7 @@ function LinkPreviewCardComponent({ preview, isOwn }: LinkPreviewCardProps) {
       )}
       aria-label={`링크: ${preview.title}`}
     >
-      {/* 썸네일 이미지 */}
+      {/* 썸네일 이미지 — 고정 높이로 레이아웃 시프트 방지 */}
       {preview.image_url && (
         <div className="w-full h-32 bg-bg-tertiary overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -49,8 +49,8 @@ function LinkPreviewCardComponent({ preview, isOwn }: LinkPreviewCardProps) {
             className="w-full h-full object-cover"
             loading="lazy"
             onError={(e) => {
-              // 이미지 로드 실패 시 숨김
-              (e.target as HTMLElement).parentElement!.style.display = "none";
+              // 이미지 로드 실패 시 컨테이너 높이 유지 (img만 숨김)
+              (e.target as HTMLElement).style.display = "none";
             }}
           />
         </div>
