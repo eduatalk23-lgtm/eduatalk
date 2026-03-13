@@ -2,6 +2,8 @@
  * 콘텐츠 관리 대시보드
  */
 
+export const dynamic = 'force-dynamic';
+
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";

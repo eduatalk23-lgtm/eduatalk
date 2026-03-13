@@ -44,6 +44,7 @@ export const CACHE_TAGS = {
   SCHEDULE_CALCULATION: "schedule:calculation",
 
   // 캘린더 관련
+  CALENDAR_ID: "calendar:id",
   CALENDAR_SETTINGS: "calendar:settings",
   CALENDAR_SCHEDULE: "calendar:schedule",
 

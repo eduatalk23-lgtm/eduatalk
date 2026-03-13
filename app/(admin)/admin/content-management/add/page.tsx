@@ -4,6 +4,8 @@
  * AI 메타데이터 추출을 활용한 빠른 콘텐츠 등록
  */
 
+export const dynamic = 'force-dynamic';
+
 import Link from "next/link";
 import { QuickBookForm } from "./_components/QuickBookForm";
 import { getPublishers } from "@/lib/data/contentMetadata";

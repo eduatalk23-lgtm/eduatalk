@@ -54,11 +54,34 @@ export default async function PlanGroupDetailPage({
     notFound();
   }
 
-  // 콘텐츠 정보 조회 및 학생/추천 구분 (통합 함수 사용)
-  const { studentContents, recommendedContents } = await classifyPlanContents(
-    contents,
-    user.id
-  );
+  // 병렬 데이터 페칭: 그룹 데이터 이후 독립적인 쿼리들을 동시에 실행
+  const { fetchBlockSetsWithBlocks } = await import("@/lib/data/blockSets");
+
+  const [
+    classifiedContents,
+    blockSets,
+    planContentsList,
+    plansResult,
+  ] = await Promise.all([
+    // ④ 콘텐츠 분류 (contents 의존)
+    classifyPlanContents(contents, user.id),
+    // ⑤ 블록 세트 (user.id만 의존)
+    fetchBlockSetsWithBlocks(user.id),
+    // ⑥ 콘텐츠 카드 목록 (id만 의존)
+    getPlanContentsList(id),
+    // ⑦ 플랜 데이터 (id + user.id만 의존)
+    supabase
+      .from("student_plan")
+      .select(
+        "id,plan_date,planned_start_page_or_time,planned_end_page_or_time,completed_amount,status,actual_start_time,actual_end_time"
+      )
+      .eq("plan_group_id", id)
+      .eq("student_id", user.id)
+      .not("plan_group_id", "is", null),
+  ]);
+
+  const { studentContents, recommendedContents } = classifiedContents;
+  const plans = plansResult.data;
 
   // 상세 페이지 형식으로 변환
   const allContents = [...studentContents, ...recommendedContents];
@@ -86,13 +109,6 @@ export default async function PlanGroupDetailPage({
   const canEdit = PlanStatusManager.canEdit(group.status as PlanStatus);
   const canDelete = PlanStatusManager.canDelete(group.status as PlanStatus);
 
-  // 블록 세트 목록 조회 (시간 블록 정보 포함)
-  const { fetchBlockSetsWithBlocks } = await import("@/lib/data/blockSets");
-  const blockSets = await fetchBlockSetsWithBlocks(user.id);
-
-  // Phase 5: 콘텐츠 카드 목록 및 빠른 추가 플랜 조회
-  const planContentsList = await getPlanContentsList(id);
-
   // 콘텐츠 카드 데이터 변환
   const contentCardsData = planContentsList.map((item) => ({
     id: item.content.id,
@@ -107,16 +123,6 @@ export default async function PlanGroupDetailPage({
     progress: item.stats.progress,
     totalDurationSeconds: item.stats.totalDurationSeconds,
   }));
-
-  // 플랜 데이터 조회 (자동 재조정 제안을 위해 전체 플랜 정보 필요)
-  const { data: plans } = await supabase
-    .from("student_plan")
-    .select(
-      "id,plan_date,planned_start_page_or_time,planned_end_page_or_time,completed_amount,status,actual_start_time,actual_end_time"
-    )
-    .eq("plan_group_id", id)
-    .eq("student_id", user.id)
-    .not("plan_group_id", "is", null);
 
   const planCount = plans?.length || 0;
   const hasPlans = planCount > 0;

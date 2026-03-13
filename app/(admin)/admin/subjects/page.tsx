@@ -1,5 +1,7 @@
+export const dynamic = 'force-dynamic';
+
 import { getCurriculumRevisions } from "@/lib/data/contentMetadata";
-import { getSubjectGroups, getSubjectsByGroup, getSubjectTypes } from "@/lib/data/subjects";
+import { getSubjectGroups, getSubjectsByRevision, getSubjectTypes } from "@/lib/data/subjects";
 import SubjectsPageClient from "./_components/SubjectsPageClient";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
@@ -25,25 +27,23 @@ export default async function SubjectsPage() {
   let initialSubjectTypes: SubjectType[] = [];
 
   if (initialRevisionId) {
-    // 첫 번째 개정교육과정의 교과 그룹과 과목구분 조회
-    const [groups, subjectTypes] = await Promise.all([
+    // 교과 그룹 + 과목구분 + 전체 과목을 병렬 배치 조회 (N+1 제거)
+    const [groups, subjectTypes, allSubjects] = await Promise.all([
       getSubjectGroups(initialRevisionId),
       getSubjectTypes(initialRevisionId),
+      getSubjectsByRevision(initialRevisionId),
     ]);
 
     initialGroups = groups;
     initialSubjectTypes = subjectTypes;
 
-    // 각 교과 그룹의 과목 조회
-    const subjectsPromises = groups.map(async (group) => {
-      const subjects = await getSubjectsByGroup(group.id);
-      return { groupId: group.id, subjects };
-    });
-
-    const subjectsResults = await Promise.all(subjectsPromises);
-    subjectsResults.forEach(({ groupId, subjects }) => {
-      initialSubjectsMap[groupId] = subjects;
-    });
+    // 과목을 그룹별로 분류 (메모리 내 처리, 추가 쿼리 없음)
+    for (const subject of allSubjects) {
+      if (!initialSubjectsMap[subject.subject_group_id]) {
+        initialSubjectsMap[subject.subject_group_id] = [];
+      }
+      initialSubjectsMap[subject.subject_group_id].push(subject);
+    }
   }
 
   return (

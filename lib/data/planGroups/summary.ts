@@ -26,86 +26,58 @@ export async function getPlanGroupsWithStats(
   const groupIds = groups.map((g) => g.id);
   const studentId = filters.studentId;
 
-  // 2. 플랜 개수 및 완료 상태 조회 (배치)
-  const [planCountsResult, planCompletionResult, planStatusResult] = await Promise.all([
-    // 플랜 개수 조회
-    supabase
-      .from("student_plan")
-      .select("plan_group_id")
-      .eq("student_id", studentId)
-      .in("plan_group_id", groupIds),
-    // 플랜 완료 상태 조회
-    supabase
-      .from("student_plan")
-      .select(
-        "plan_group_id, planned_end_page_or_time, completed_amount"
-      )
-      .eq("student_id", studentId)
-      .in("plan_group_id", groupIds)
-      .not("plan_group_id", "is", null),
-    // 플랜 상태별 개수 조회
-    supabase
-      .from("student_plan")
-      .select("plan_group_id, status")
-      .eq("student_id", studentId)
-      .in("plan_group_id", groupIds)
-      .not("plan_group_id", "is", null),
-  ]);
+  // 2. 플랜 통계 단일 쿼리로 조회 (3쿼리 → 1쿼리 통합)
+  const { data: allPlans } = await supabase
+    .from("student_plan")
+    .select("plan_group_id, planned_end_page_or_time, completed_amount, status")
+    .eq("student_id", studentId)
+    .in("plan_group_id", groupIds)
+    .not("plan_group_id", "is", null);
 
-  // 3. 통계 계산
+  // 3. 통계 계산 (메모리 내 단일 순회)
   const planCountsMap = new Map<string, number>();
-  (planCountsResult.data || []).forEach((plan) => {
-    if (plan.plan_group_id) {
-      planCountsMap.set(
-        plan.plan_group_id,
-        (planCountsMap.get(plan.plan_group_id) || 0) + 1
-      );
-    }
-  });
-
   const completionMap = new Map<
     string,
     { completedCount: number; totalCount: number; isCompleted: boolean }
   >();
-
-  // 상태별 개수 계산
   const statusBreakdownMap = new Map<
     string,
     { pending: number; inProgress: number; completed: number }
   >();
-  (planStatusResult.data || []).forEach((plan) => {
-    if (plan.plan_group_id) {
-      const breakdown = statusBreakdownMap.get(plan.plan_group_id) || {
-        pending: 0,
-        inProgress: 0,
-        completed: 0,
-      };
-      if (plan.status === "pending") {
-        breakdown.pending++;
-      } else if (plan.status === "in_progress") {
-        breakdown.inProgress++;
-      } else if (plan.status === "completed") {
-        breakdown.completed++;
-      }
-      statusBreakdownMap.set(plan.plan_group_id, breakdown);
-    }
-  });
-
-  // plan_group_id별로 그룹화
   const plansByGroup = new Map<
     string,
     Array<{ planned_end: number | null; completed: number | null }>
   >();
 
-  (planCompletionResult.data || []).forEach((plan) => {
-    if (plan.plan_group_id) {
-      const groupPlans = plansByGroup.get(plan.plan_group_id) || [];
-      groupPlans.push({
-        planned_end: plan.planned_end_page_or_time ?? null,
-        completed: plan.completed_amount ?? null,
-      });
-      plansByGroup.set(plan.plan_group_id, groupPlans);
+  (allPlans || []).forEach((plan) => {
+    if (!plan.plan_group_id) return;
+    const gid = plan.plan_group_id;
+
+    // 플랜 개수
+    planCountsMap.set(gid, (planCountsMap.get(gid) || 0) + 1);
+
+    // 상태별 개수
+    const breakdown = statusBreakdownMap.get(gid) || {
+      pending: 0,
+      inProgress: 0,
+      completed: 0,
+    };
+    if (plan.status === "pending") {
+      breakdown.pending++;
+    } else if (plan.status === "in_progress") {
+      breakdown.inProgress++;
+    } else if (plan.status === "completed") {
+      breakdown.completed++;
     }
+    statusBreakdownMap.set(gid, breakdown);
+
+    // 완료 상태 데이터 수집
+    const groupPlans = plansByGroup.get(gid) || [];
+    groupPlans.push({
+      planned_end: plan.planned_end_page_or_time ?? null,
+      completed: plan.completed_amount ?? null,
+    });
+    plansByGroup.set(gid, groupPlans);
   });
 
   // 완료 상태 계산

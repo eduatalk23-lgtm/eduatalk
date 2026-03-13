@@ -1,4 +1,4 @@
-export const revalidate = 300; // 5분마다 재검증
+export const dynamic = 'force-dynamic'; // 인증 필수 → 정적 생성 불가
 
 import { ReactNode } from "react";
 import { redirect } from "next/navigation";

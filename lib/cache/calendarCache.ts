@@ -47,6 +47,57 @@ export async function invalidateAllCalendarCache(calendarId: string): Promise<vo
   );
 }
 
+// ── Calendar ID Cache (immutable after creation) ──
+
+export function calendarIdTag(ownerType: string, ownerId: string): string {
+  return `${CACHE_TAGS.CALENDAR_ID}:${ownerType}:${ownerId}`;
+}
+
+export async function invalidateCalendarId(ownerType: string, ownerId: string): Promise<void> {
+  await invalidateCache(calendarIdTag(ownerType, ownerId));
+}
+
+/**
+ * Primary Calendar ID 캐싱 조회
+ *
+ * Calendar ID는 생성 후 변하지 않으므로 VERY_LONG TTL 적용.
+ * admin client 사용 (unstable_cache 내부 cookies() 불가).
+ */
+export function getCachedCalendarId(
+  ownerType: "student" | "admin" | "tenant",
+  ownerId: string,
+): Promise<string | null> {
+  return unstable_cache(
+    async () => {
+      const supabase = createSupabaseAdminClient();
+      if (!supabase) return null;
+
+      let query = supabase
+        .from("calendars")
+        .select("id")
+        .eq("owner_id", ownerId)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true })
+        .limit(1);
+
+      if (ownerType === "student") {
+        query = query.eq("is_student_primary", true);
+      } else {
+        query = query.eq("owner_type", ownerType).eq("is_primary", true);
+      }
+
+      const { data, error } = await query;
+      if (error || !data || data.length === 0) return null;
+      return data[0].id;
+    },
+    ["calendar-id", ownerType, ownerId],
+    {
+      tags: [calendarIdTag(ownerType, ownerId)],
+      revalidate: CACHE_REVALIDATE_TIME.VERY_LONG,
+    },
+  )();
+}
+
 // ── Cached Data Fetchers (admin client, no cookies) ──
 
 /**

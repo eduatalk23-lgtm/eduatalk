@@ -7,6 +7,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCachedCalendarId, invalidateCalendarId } from "@/lib/cache/calendarCache";
 import type { EventType } from "./types";
 import { pickNextCalendarColor } from "@/lib/constants/calendarColors";
 
@@ -20,25 +21,12 @@ import { pickNextCalendarColor } from "@/lib/constants/calendarColors";
  * Calendar-First 모델: calendars.is_student_primary=true 직접 조회.
  * Primary 캘린더가 없으면 null 반환.
  *
- * ⚠️ maybeSingle() 대신 limit(1) 사용: UNIQUE INDEX로 보호되지만
- *    방어적 코딩으로 중복 행 시에도 에러 대신 첫 번째 결과 반환.
+ * unstable_cache(VERY_LONG TTL)로 캐싱 — Calendar ID는 불변.
  */
 export async function resolveStudentPrimaryCalendarId(
   studentId: string
 ): Promise<string | null> {
-  const supabase = await createSupabaseServerClient();
-
-  const { data, error } = await supabase
-    .from("calendars")
-    .select("id")
-    .eq("owner_id", studentId)
-    .eq("is_student_primary", true)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: true })
-    .limit(1);
-
-  if (error || !data || data.length === 0) return null;
-  return data[0].id;
+  return getCachedCalendarId("student", studentId);
 }
 
 /**
@@ -86,17 +74,20 @@ export async function ensureStudentPrimaryCalendar(
     throw new Error(`Primary Calendar 생성 실패: ${calError?.message}`);
   }
 
-  // calendar_list 엔트리 생성
-  await supabase
-    .from("calendar_list")
-    .insert({
-      user_id: studentId,
-      calendar_id: calendar.id,
-      display_name: "기본 캘린더",
-      is_visible: true,
-      access_role: "owner",
-      sort_order: 0,
-    });
+  // calendar_list 엔트리 생성 + 캐시 무효화 병렬
+  await Promise.all([
+    supabase
+      .from("calendar_list")
+      .insert({
+        user_id: studentId,
+        calendar_id: calendar.id,
+        display_name: "기본 캘린더",
+        is_visible: true,
+        access_role: "owner",
+        sort_order: 0,
+      }),
+    invalidateCalendarId("student", studentId),
+  ]);
 
   return calendar.id;
 }
@@ -109,28 +100,12 @@ export async function ensureStudentPrimaryCalendar(
  * admin_id → primary calendar_id 해석 (서버용)
  *
  * admin 소유 캘린더 중 is_primary=true 조회.
- * Primary 캘린더가 없으면 null 반환.
- *
- * ⚠️ maybeSingle() 대신 limit(1)을 사용: 중복 행이 있으면 maybeSingle()이
- *    에러를 반환하여 "없음"으로 처리되고 무한 중복 생성이 발생하는 버그 방지.
+ * unstable_cache(VERY_LONG TTL)로 캐싱.
  */
 export async function resolveAdminPrimaryCalendarId(
   adminId: string
 ): Promise<string | null> {
-  const supabase = await createSupabaseServerClient();
-
-  const { data, error } = await supabase
-    .from("calendars")
-    .select("id")
-    .eq("owner_id", adminId)
-    .eq("owner_type", "admin")
-    .eq("is_primary", true)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: true })
-    .limit(1);
-
-  if (error || !data || data.length === 0) return null;
-  return data[0].id;
+  return getCachedCalendarId("admin", adminId);
 }
 
 /**
@@ -166,17 +141,20 @@ export async function ensureAdminPrimaryCalendar(
     throw new Error(`Admin Primary Calendar 생성 실패: ${calError?.message}`);
   }
 
-  // calendar_list 엔트리 생성
-  await supabase
-    .from("calendar_list")
-    .insert({
-      user_id: adminId,
-      calendar_id: calendar.id,
-      display_name: "내 캘린더",
-      is_visible: true,
-      access_role: "owner",
-      sort_order: 0,
-    });
+  // calendar_list 엔트리 생성 + 캐시 무효화 병렬
+  await Promise.all([
+    supabase
+      .from("calendar_list")
+      .insert({
+        user_id: adminId,
+        calendar_id: calendar.id,
+        display_name: "내 캘린더",
+        is_visible: true,
+        access_role: "owner",
+        sort_order: 0,
+      }),
+    invalidateCalendarId("admin", adminId),
+  ]);
 
   return calendar.id;
 }
@@ -189,25 +167,12 @@ export async function ensureAdminPrimaryCalendar(
  * tenant_id → primary calendar_id 해석 (서버용)
  *
  * 테넌트(학원) 공유 캘린더 조회.
- * Primary 캘린더가 없으면 null 반환.
+ * unstable_cache(VERY_LONG TTL)로 캐싱.
  */
 export async function resolveTenantPrimaryCalendarId(
   tenantId: string
 ): Promise<string | null> {
-  const supabase = await createSupabaseServerClient();
-
-  const { data, error } = await supabase
-    .from("calendars")
-    .select("id")
-    .eq("owner_id", tenantId)
-    .eq("owner_type", "tenant")
-    .eq("is_primary", true)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: true })
-    .limit(1);
-
-  if (error || !data || data.length === 0) return null;
-  return data[0].id;
+  return getCachedCalendarId("tenant", tenantId);
 }
 
 /**
@@ -250,6 +215,9 @@ export async function ensureTenantPrimaryCalendar(
   if (calError || !calendar) {
     throw new Error(`Tenant Primary Calendar 생성 실패: ${calError?.message}`);
   }
+
+  // 캐시 무효화 (null → 새 ID로 갱신)
+  await invalidateCalendarId("tenant", tenantId);
 
   return calendar.id;
 }
