@@ -18,6 +18,7 @@ import type {
   CalendarOwnerType,
 } from "../types";
 import { CALENDAR_COLOR_KEYS, pickNextCalendarColor } from "@/lib/constants/calendarColors";
+import { invalidateAllCalendarCache } from "@/lib/cache/calendarCache";
 
 // ============================================
 // Calendar CRUD
@@ -482,17 +483,24 @@ async function _getCalendarSettings(
   const settings = mapCalendarSettingsFromDB(data);
 
   if (includeRelations) {
-    // 제외일 조회
-    const { data: exclusions } = await supabase
-      .from("calendar_events")
-      .select("id, calendar_id, start_date, event_subtype, title, source, created_at")
-      .eq("calendar_id", calendarId)
-      .eq("is_exclusion", true)
-      .eq("is_all_day", true)
-      .is("deleted_at", null)
-      .order("start_date", { ascending: true });
+    // 제외일 + 플랜그룹 수 병렬 조회 (서로 독립)
+    const [exclusionsResult, planGroupCountResult] = await Promise.all([
+      supabase
+        .from("calendar_events")
+        .select("id, calendar_id, start_date, event_subtype, title, source, created_at")
+        .eq("calendar_id", calendarId)
+        .eq("is_exclusion", true)
+        .eq("is_all_day", true)
+        .is("deleted_at", null)
+        .order("start_date", { ascending: true }),
+      supabase
+        .from("plan_groups")
+        .select("*", { count: "exact", head: true })
+        .eq("calendar_id", calendarId)
+        .is("deleted_at", null),
+    ]);
 
-    settings.exclusions = (exclusions ?? []).map((row) => ({
+    settings.exclusions = (exclusionsResult.data ?? []).map((row) => ({
       id: row.id,
       tenant_id: "",
       student_id: "",
@@ -505,14 +513,7 @@ async function _getCalendarSettings(
       created_at: row.created_at ?? "",
     }));
 
-    // 플랜그룹 수 조회
-    const { count } = await supabase
-      .from("plan_groups")
-      .select("*", { count: "exact", head: true })
-      .eq("calendar_id", calendarId)
-      .is("deleted_at", null);
-
-    settings.planGroupCount = count ?? 0;
+    settings.planGroupCount = planGroupCountResult.count ?? 0;
   }
 
   return settings;
@@ -695,6 +696,9 @@ async function _updateCalendarSettings(
     }
   }
 
+  // 캘린더 설정 변경 → 스케줄 + 설정 캐시 무효화
+  invalidateAllCalendarCache(calendarId);
+
   return mapCalendarSettingsFromDB(data);
 }
 
@@ -756,6 +760,9 @@ async function _deleteCalendarCascade(calendarId: string): Promise<{
       true
     );
   }
+
+  // 캘린더 삭제 → 관련 캐시 무효화
+  invalidateAllCalendarCache(calendarId);
 
   return {
     calendarId: result.calendar_id,

@@ -21,6 +21,10 @@ interface Props {
  * URL: /admin/calendar
  * - ?student 없음 → 관리자 본인 캘린더 (상담/회의/업무 일정)
  * - ?student={studentId} → 학생 캘린더 조회
+ *
+ * 성능 최적화:
+ * - ensure 호출 병렬화 (student + tenant 캘린더 동시 보장)
+ * - subscribe를 fetchCalendarPageData와 병렬 실행 (블로킹 불필요)
  */
 export default async function AdminCalendarPage({ searchParams }: Props) {
   const admin = await requireAdminOrConsultant({ requireTenant: true });
@@ -31,20 +35,25 @@ export default async function AdminCalendarPage({ searchParams }: Props) {
   if (!studentId) {
     const supabase = await createSupabaseServerClient();
 
-    const { data: adminUser } = await supabase
-      .from('admin_users')
-      .select('name')
-      .eq('id', admin.userId)
-      .maybeSingle();
+    // admin 이름 조회 + 캘린더 보장을 병렬 실행
+    const [adminUser, calendarId, tenantCalendarId] = await Promise.all([
+      supabase
+        .from('admin_users')
+        .select('name')
+        .eq('id', admin.userId)
+        .maybeSingle()
+        .then((r) => r.data),
+      ensureAdminPrimaryCalendar(admin.userId, admin.tenantId!),
+      ensureTenantPrimaryCalendar(admin.tenantId!),
+    ]);
 
     const adminName = adminUser?.name ?? '관리자';
-    const calendarId = await ensureAdminPrimaryCalendar(admin.userId, admin.tenantId!);
 
-    // 테넌트 캘린더 보장 + 관리자 구독 (상담/공유 이벤트 표시용)
-    const tenantCalendarId = await ensureTenantPrimaryCalendar(admin.tenantId!);
-    await subscribeTenantCalendar(admin.userId, tenantCalendarId, "writer");
-
-    const pageData = await fetchCalendarPageData(admin.userId, calendarId, date);
+    // subscribe(idempotent upsert)와 데이터 조회를 병렬 실행
+    const [pageData] = await Promise.all([
+      fetchCalendarPageData(admin.userId, calendarId, date),
+      subscribeTenantCalendar(admin.userId, tenantCalendarId, "writer"),
+    ]);
 
     return (
       <AdminCalendarWrapper
@@ -79,13 +88,17 @@ export default async function AdminCalendarPage({ searchParams }: Props) {
     );
   }
 
-  const calendarId = await ensureStudentPrimaryCalendar(student.id, student.tenant_id);
+  // 학생 + 테넌트 캘린더 보장을 병렬 실행
+  const [calendarId, tenantCalendarId] = await Promise.all([
+    ensureStudentPrimaryCalendar(student.id, student.tenant_id),
+    ensureTenantPrimaryCalendar(student.tenant_id),
+  ]);
 
-  // 테넌트 캘린더 보장 + 관리자 구독
-  const tenantCalendarId = await ensureTenantPrimaryCalendar(student.tenant_id);
-  await subscribeTenantCalendar(admin.userId, tenantCalendarId, "writer");
-
-  const pageData = await fetchCalendarPageData(student.id, calendarId, date);
+  // subscribe(idempotent upsert)와 데이터 조회를 병렬 실행
+  const [pageData] = await Promise.all([
+    fetchCalendarPageData(student.id, calendarId, date),
+    subscribeTenantCalendar(admin.userId, tenantCalendarId, "writer"),
+  ]);
 
   return (
     <AdminCalendarWrapper

@@ -110,6 +110,68 @@ function hasAuthCookies(request: NextRequest): boolean {
 }
 
 /**
+ * JWT 토큰이 만료 임박한지 확인 (Edge Runtime 호환)
+ *
+ * Supabase 쿠키에서 access_token의 exp를 로컬 파싱하여 확인.
+ * 토큰이 아직 유효하면 getUser() 네트워크 호출을 스킵할 수 있음.
+ * 만료 60초 전부터 리프레시 필요로 판단.
+ *
+ * @returns { needsRefresh, user } — needsRefresh=false이면 getUser() 스킵 가능
+ */
+function parseTokenFromCookies(request: NextRequest): {
+  needsRefresh: boolean;
+  user: { user_metadata?: Record<string, unknown> } | null;
+} {
+  try {
+    // Supabase 쿠키는 청크 분할됨: sb-{ref}-auth-token.0, .1, ...
+    const authCookies = request.cookies
+      .getAll()
+      .filter((c) => c.name.includes("auth-token"))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    if (authCookies.length === 0) {
+      return { needsRefresh: true, user: null };
+    }
+
+    // 청크 결합 → base64 디코딩 → JSON 파싱
+    const combined = authCookies.map((c) => c.value).join("");
+    const decoded = atob(combined);
+    const session = JSON.parse(decoded);
+
+    const accessToken = session?.access_token;
+    if (!accessToken) {
+      return { needsRefresh: true, user: null };
+    }
+
+    // JWT payload 디코딩 (서명 검증 없음 — proxy는 라우팅만 담당)
+    const payloadPart = accessToken.split(".")[1];
+    if (!payloadPart) {
+      return { needsRefresh: true, user: null };
+    }
+
+    const payload = JSON.parse(atob(payloadPart));
+    const exp = payload.exp as number | undefined;
+    if (!exp) {
+      return { needsRefresh: true, user: null };
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const needsRefresh = (exp - now) < 60; // 만료 60초 전부터 리프레시
+
+    // user 정보 추출 (getUser() 호출 없이 라우팅에 사용)
+    const user = {
+      id: payload.sub as string,
+      user_metadata: payload.user_metadata as Record<string, unknown> | undefined,
+    };
+
+    return { needsRefresh, user };
+  } catch {
+    // 파싱 실패 시 안전하게 getUser() 호출
+    return { needsRefresh: true, user: null };
+  }
+}
+
+/**
  * 공개 페이지 경로인지 확인 (prefix match)
  */
 function isPublicPagePath(pathname: string): boolean {
@@ -193,24 +255,38 @@ export async function proxy(request: NextRequest) {
   // ─── 3. 페이지 경로 처리 ───
   const isPublicPath = isPublicPagePath(pathname);
 
-  // 공개 경로 + 인증 쿠키 없음 → getUser() 호출 없이 즉시 반환 (핵심 최적화)
+  // 공개 경로 + 인증 쿠키 없음 → getUser() 호출 없이 즉시 반환
   if (isPublicPath && !hasAuthCookies(request)) {
     return NextResponse.next();
   }
 
-  // Supabase 클라이언트 생성
-  const { supabase, getResponse } = createSupabaseProxyClient(request);
+  // 토큰 로컬 파싱으로 getUser() 네트워크 호출 최소화
+  // - 토큰 유효(만료 60초 이상): 로컬 파싱만으로 라우팅 (0ms)
+  // - 토큰 만료 임박/파싱 실패: getUser() 호출하여 리프레시 (네트워크)
+  const parsed = hasAuthCookies(request)
+    ? parseTokenFromCookies(request)
+    : { needsRefresh: true, user: null };
 
-  // 세션 확인 (getUser는 서버에서 검증하므로 더 안전)
-  // 중요: getSession() 대신 getUser()를 사용해야 토큰이 실제로 검증됨
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+  let user: { id?: string; user_metadata?: Record<string, unknown> } | null = null;
+  let error: Error | null = null;
+  let getResponse: () => NextResponse;
+
+  if (parsed.needsRefresh) {
+    // 토큰 리프레시 필요 → getUser() 네트워크 호출 (쿠키 갱신 포함)
+    const client = createSupabaseProxyClient(request);
+    const result = await client.supabase.auth.getUser();
+    user = result.data.user;
+    error = result.error;
+    getResponse = client.getResponse;
+  } else {
+    // 토큰 유효 → 네트워크 호출 스킵 (핵심 최적화)
+    user = parsed.user;
+    error = null;
+    getResponse = () => NextResponse.next({ request: { headers: request.headers } });
+  }
 
   // 인증 에러 처리 (refresh token 만료 등)
   if (error) {
-    // 세션 관련 에러 시 공개 경로가 아니면 로그인으로
     if (!isPublicPath) {
       const loginUrl = new URL("/login", request.url);
       if (pathname !== "/") {

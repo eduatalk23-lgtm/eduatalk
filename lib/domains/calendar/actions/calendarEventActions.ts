@@ -14,6 +14,7 @@ import { getCurrentUser } from '@/lib/auth/getCurrentUser';
 import { logActionError, logActionDebug } from '@/lib/logging/actionLogger';
 import { calculateUnifiedReorder } from '@/lib/domains/plan/utils/unifiedReorderCalculation';
 import { revalidatePath } from 'next/cache';
+import { invalidateCalendarSchedule } from '@/lib/cache/calendarCache';
 import { extractTimeHHMM, extractDateYMD } from '../adapters';
 import { shiftTimestamp, shiftEndDate, buildSplitRRules } from '../rrule';
 import type { EventStatus, ContainerType } from '../types';
@@ -1347,6 +1348,20 @@ export async function updateCalendarEventFull(
       }
     }
 
+    // 스케줄에 영향을 주는 필드(is_exclusion, 학원/이동시간 label) 변경 시 캐시 무효화
+    const scheduleAffected = updates.is_exclusion !== undefined
+      || (updates.label && ['학원', '이동시간'].includes(updates.label));
+    if (scheduleAffected) {
+      const { data: evt } = await supabase
+        .from('calendar_events')
+        .select('calendar_id')
+        .eq('id', eventId)
+        .maybeSingle();
+      if (evt?.calendar_id) {
+        invalidateCalendarSchedule(evt.calendar_id);
+      }
+    }
+
     return { success: true };
   } catch (err) {
     logActionError({ domain: 'calendar', action: 'updateCalendarEventFull' }, err);
@@ -1594,6 +1609,21 @@ export async function restoreDeletedCalendarEvents(
     revalidatePath(`/admin/students/${studentId}/plans`);
     revalidatePath('/today');
     revalidatePath('/plan');
+
+    // 복원된 이벤트 중 스케줄에 영향을 주는 이벤트가 있으면 캐시 무효화
+    const { data: restoredEvents } = await supabase
+      .from('calendar_events')
+      .select('calendar_id, is_exclusion, label')
+      .in('id', eventIds);
+    const affectedCalendarIds = new Set<string>();
+    for (const evt of restoredEvents ?? []) {
+      if (evt.calendar_id && (evt.is_exclusion || (evt.label && ['학원', '이동시간'].includes(evt.label)))) {
+        affectedCalendarIds.add(evt.calendar_id);
+      }
+    }
+    for (const cid of affectedCalendarIds) {
+      invalidateCalendarSchedule(cid);
+    }
 
     return { success: true, data: { restoredCount: eventIds.length } };
   } catch (err) {

@@ -12,6 +12,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { invalidateCalendarSchedule } from "@/lib/cache/calendarCache";
 import type { Json } from "@/lib/supabase/database.types";
 import type {
   CalendarEvent,
@@ -26,6 +27,12 @@ import type {
   ContainerType,
   EventMetadata,
 } from "../types";
+
+/** 스케줄에 영향을 주는 이벤트인지 확인 (제외일, 학원, 이동시간) */
+const SCHEDULE_AFFECTING_LABELS = new Set(["학원", "이동시간"]);
+function isScheduleAffectingEvent(event: { is_exclusion?: boolean | null; label?: string | null }): boolean {
+  return !!(event.is_exclusion || (event.label && SCHEDULE_AFFECTING_LABELS.has(event.label)));
+}
 
 // ============================================
 // 입력 타입
@@ -291,6 +298,11 @@ async function _createEvent(
     );
   }
 
+  // 제외일/학원 이벤트 생성 시 스케줄 캐시 무효화
+  if (data.calendar_id && isScheduleAffectingEvent(data)) {
+    invalidateCalendarSchedule(data.calendar_id);
+  }
+
   return data;
 }
 
@@ -429,6 +441,11 @@ async function _updateEvent(
     );
   }
 
+  // 제외일/학원 이벤트 수정 시 스케줄 캐시 무효화
+  if (data.calendar_id && isScheduleAffectingEvent(data)) {
+    invalidateCalendarSchedule(data.calendar_id);
+  }
+
   return data;
 }
 
@@ -514,11 +531,13 @@ export const updateEventStatusAction = withErrorHandling(_updateEventStatus);
 async function _deleteEvent(eventId: string): Promise<void> {
   const supabase = await createSupabaseServerClient();
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("calendar_events")
     .update({ deleted_at: new Date().toISOString(), status: "cancelled" })
     .eq("id", eventId)
-    .is("deleted_at", null);
+    .is("deleted_at", null)
+    .select("calendar_id, is_exclusion, label")
+    .maybeSingle();
 
   if (error) {
     throw new AppError(
@@ -527,6 +546,11 @@ async function _deleteEvent(eventId: string): Promise<void> {
       500,
       true
     );
+  }
+
+  // 제외일/학원 이벤트 삭제 시 스케줄 캐시 무효화
+  if (data?.calendar_id && isScheduleAffectingEvent(data)) {
+    invalidateCalendarSchedule(data.calendar_id);
   }
 }
 

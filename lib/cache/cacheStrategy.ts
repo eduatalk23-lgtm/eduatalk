@@ -42,7 +42,11 @@ export const CACHE_TAGS = {
   // 스케줄 관련
   SCHEDULE: "schedule",
   SCHEDULE_CALCULATION: "schedule:calculation",
-  
+
+  // 캘린더 관련
+  CALENDAR_SETTINGS: "calendar:settings",
+  CALENDAR_SCHEDULE: "calendar:schedule",
+
   // 대시보드 관련
   DASHBOARD: "dashboard",
   DASHBOARD_STATS: "dashboard:stats",

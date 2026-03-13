@@ -21,24 +21,24 @@ export default async function ParentLayout({ children }: { children: ReactNode }
     redirect("/login");
   }
 
-  // 비활성 학부모 체크
   const supabase = await createSupabaseServerClient();
-  const { data: parent } = await supabase
-    .from("parent_users")
-    .select("is_active")
-    .eq("id", userId)
-    .maybeSingle();
+
+  // is_active 체크 + 기관 정보 + 사용자 프로필을 병렬 조회
+  const [parent, tenantInfo, profile] = await Promise.all([
+    supabase
+      .from("parent_users")
+      .select("is_active")
+      .eq("id", userId)
+      .maybeSingle()
+      .then((r) => r.data),
+    getTenantInfo(),
+    getCurrentUserProfile({ userId, role, tenantId }),
+  ]);
 
   if (parent && parent.is_active === false) {
     await supabase.auth.signOut().catch(() => {});
     redirect("/login?error=account_deactivated");
   }
-
-  // 기관 정보 및 사용자 프로필 조회 (이미 조회한 정보 재사용)
-  const [tenantInfo, profile] = await Promise.all([
-    getTenantInfo(),
-    getCurrentUserProfile({ userId, role, tenantId }),
-  ]);
 
   return (
     <RoleBasedLayout

@@ -436,29 +436,12 @@ export default async function AdminDashboardPage() {
 
   const supabase = await createSupabaseServerClient();
   const { weekStart, weekEnd } = getWeekRange();
-
-  // 캐싱을 적용한 데이터 조회
   const tenantContext = await getTenantContext();
-  const campStatsResult = tenantContext?.tenantId
-    ? await getCampStatisticsForTenant(tenantContext.tenantId)
-    : null;
-  
-  // 에러 처리
-  if (campStatsResult && !campStatsResult.success) {
-    console.error("[admin/dashboard] 캠프 통계 조회 실패:", campStatsResult.error);
-  }
-  
-  const campStats = campStatsResult?.success ? campStatsResult.data : null;
 
-  // File request KPI (safe fallback)
-  let fileRequestKpi = { pending: 0, submitted: 0, overdue: 0 };
-  try {
-    fileRequestKpi = await getFileRequestKpiAction();
-  } catch {
-    // silently fallback
-  }
-
+  // 모든 데이터를 한번에 병렬 조회 (기존: campStats → fileKpi → 순차 후 6개 병렬)
   const [
+    campStatsResult,
+    fileRequestKpiResult,
     studentStats,
     topStudyTime,
     topPlanCompletion,
@@ -466,6 +449,10 @@ export default async function AdminDashboardPage() {
     atRiskStudents,
     recentNotes,
   ] = await Promise.all([
+    tenantContext?.tenantId
+      ? getCampStatisticsForTenant(tenantContext.tenantId)
+      : Promise.resolve(null),
+    getFileRequestKpiAction().catch(() => ({ pending: 0, submitted: 0, overdue: 0 })),
     getCachedStudentStatistics(
       supabase,
       weekStart,
@@ -487,6 +474,12 @@ export default async function AdminDashboardPage() {
     getCachedAtRiskStudents(() => getAtRiskStudents(supabase)),
     getCachedConsultingNotes(() => getRecentConsultingNotes(supabase)),
   ]);
+
+  if (campStatsResult && !campStatsResult.success) {
+    console.error("[admin/dashboard] 캠프 통계 조회 실패:", campStatsResult.error);
+  }
+  const campStats = campStatsResult?.success ? campStatsResult.data : null;
+  const fileRequestKpi = fileRequestKpiResult;
 
   return (
     <div className="p-6 md:p-8 lg:p-10">

@@ -8,6 +8,7 @@
  */
 
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { calculateAvailableDates, type NonStudyTimeBlock } from '@/lib/scheduler/utils/scheduleCalculator';
 import { extractScheduleMaps } from '@/lib/plan/planDataLoader';
 import type { DateTimeSlots } from './timelineAdjustment';
@@ -96,9 +97,13 @@ function buildSchedulerOptions(calendar: CalendarInfo): SchedulerOptions | null 
 export async function generateScheduleForCalendar(
   calendarId: string,
   periodStart: string,
-  periodEnd: string
+  periodEnd: string,
+  options?: { useAdminClient?: boolean }
 ): Promise<ScheduleGenerationResult> {
-  const supabase = await createSupabaseServerClient();
+  // useAdminClient: unstable_cache 내부에서 사용 (cookies() 호출 불가 환경)
+  const supabase = options?.useAdminClient
+    ? createSupabaseAdminClient()!
+    : await createSupabaseServerClient();
 
   // 1. 캘린더 정보 조회
   const { data: calendar, error: calendarError } = await supabase
@@ -126,10 +131,10 @@ export async function generateScheduleForCalendar(
     };
   }
 
-  // 2. 제외일 조회 (is_exclusion=true)
-  let exclusions: Array<{ exclusion_date: string; exclusion_type: string; reason: string | null }> = [];
-  {
-    const { data: exclusionEvents } = await supabase
+  // 2~4. 제외일 + 학원 일정 + 블록 세트를 병렬 조회 (모두 calendarId 기반, 서로 독립)
+  const [exclusionResult, academyResult, blockResult] = await Promise.all([
+    // 2. 제외일 조회 (is_exclusion=true)
+    supabase
       .from('calendar_events')
       .select('start_date, label, event_subtype, title')
       .eq('calendar_id', calendarId)
@@ -137,50 +142,38 @@ export async function generateScheduleForCalendar(
       .eq('is_all_day', true)
       .is('deleted_at', null)
       .gte('start_date', periodStart)
-      .lte('start_date', periodEnd);
+      .lte('start_date', periodEnd),
 
-    exclusions = (exclusionEvents || []).map((e) => ({
-      exclusion_date: e.start_date!,
-      exclusion_type: e.label ?? e.event_subtype ?? '기타',
-      reason: e.title,
-    }));
-  }
-
-  // 3. 학원 일정 조회 (label='학원' or '이동시간')
-  let effectiveAcademySchedules: Array<{
-    day_of_week: number;
-    start_time: string;
-    end_time: string;
-    academy_name?: string;
-    travel_time?: number;
-  }> = [];
-  {
-    const { data: academyEvents } = await supabase
+    // 3. 학원 일정 조회 (label='학원' or '이동시간')
+    supabase
       .from('calendar_events')
       .select('start_at, end_at, start_date, event_type, event_subtype, label, title')
       .eq('calendar_id', calendarId)
       .in('label', ['학원', '이동시간'])
       .is('deleted_at', null)
       .gte('start_date', periodStart)
-      .lte('start_date', periodEnd);
+      .lte('start_date', periodEnd),
 
-    if (academyEvents && academyEvents.length > 0) {
-      effectiveAcademySchedules = reconstructAcademyPatternsFromCalendarEvents(academyEvents);
-    }
-  }
+    // 4. 블록 세트 정보 조회 (tenant_blocks)
+    calendar.block_set_id
+      ? supabase
+          .from('tenant_blocks')
+          .select('day_of_week, start_time, end_time')
+          .eq('tenant_block_set_id', calendar.block_set_id)
+      : Promise.resolve({ data: null }),
+  ]);
 
-  // 4. 블록 세트 정보 조회 (tenant_blocks)
-  let blocks: BlockInfo[] = [];
-  if (calendar.block_set_id) {
-    const { data: blockData } = await supabase
-      .from('tenant_blocks')
-      .select('day_of_week, start_time, end_time')
-      .eq('tenant_block_set_id', calendar.block_set_id);
+  const exclusions = (exclusionResult.data || []).map((e) => ({
+    exclusion_date: e.start_date!,
+    exclusion_type: e.label ?? e.event_subtype ?? '기타',
+    reason: e.title,
+  }));
 
-    if (blockData) {
-      blocks = blockData;
-    }
-  }
+  const effectiveAcademySchedules = (academyResult.data && academyResult.data.length > 0)
+    ? reconstructAcademyPatternsFromCalendarEvents(academyResult.data)
+    : [];
+
+  const blocks: BlockInfo[] = blockResult.data ?? [];
 
   // 5. 스케줄러 옵션 구성
   const calendarInfo: CalendarInfo = {

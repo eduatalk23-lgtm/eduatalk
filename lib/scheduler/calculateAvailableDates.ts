@@ -292,21 +292,26 @@ function groupAcademySchedules(
   academySchedules: AcademySchedule[],
   dates: Date[]
 ): AcademyGroup[] {
+  // 사전 계산: 요일별 날짜 수 (O(n) 1회, 반복 .filter() 제거)
+  const dateCountByDayOfWeek = new Map<number, number>();
+  for (const date of dates) {
+    const dow = getDayOfWeek(date);
+    dateCountByDayOfWeek.set(dow, (dateCountByDayOfWeek.get(dow) ?? 0) + 1);
+  }
+
   const groups = new Map<string, {
     academy_name: string;
     subjects: Set<string>;
     days_of_week: Set<number>;
-    time_ranges: Map<number, { start: string; end: string }>; // 요일별 시간 범위
+    time_ranges: Map<number, { start: string; end: string }>;
     travel_time: number;
     total_academy_minutes: number;
     total_travel_minutes: number;
   }>();
 
-  // 각 학원일정을 그룹화 (학원명만 기준)
   for (const schedule of academySchedules) {
-    // 학원명만으로 그룹화 (과목 무시)
     const key = schedule.academy_name || "학원";
-    
+
     if (!groups.has(key)) {
       groups.set(key, {
         academy_name: schedule.academy_name || "학원",
@@ -320,62 +325,50 @@ function groupAcademySchedules(
     }
 
     const group = groups.get(key)!;
-    
-    // 과목 추가
+
     if (schedule.subject) {
       group.subjects.add(schedule.subject);
     }
-    
-    // 요일 추가
+
     group.days_of_week.add(schedule.day_of_week);
-    
-    // 요일별 시간 범위 저장 (같은 요일에 여러 시간대가 있을 수 있음)
+
     if (!group.time_ranges.has(schedule.day_of_week)) {
       group.time_ranges.set(schedule.day_of_week, {
         start: schedule.start_time,
         end: schedule.end_time,
       });
     }
-    
-    // 해당 요일의 일정 횟수 계산 (기간 내 해당 요일의 날짜 수)
-    const dayCount = dates.filter((date) => getDayOfWeek(date) === schedule.day_of_week).length;
-    
-    // 학원 수업 시간 계산
+
+    // O(1) 룩업 (기존: dates 전체를 매번 필터링)
+    const dayCount = dateCountByDayOfWeek.get(schedule.day_of_week) ?? 0;
+
     const academyStart = timeToMinutes(schedule.start_time);
     const academyEnd = timeToMinutes(schedule.end_time);
     const academyMinutes = (academyEnd - academyStart) * dayCount;
     group.total_academy_minutes += academyMinutes;
-    
-    // 이동시간 계산 (왕복이므로 2배)
+
     const travelTime = schedule.travel_time || 60;
     group.total_travel_minutes += travelTime * 2 * dayCount;
   }
 
-  // AcademyGroup 형태로 변환
   return Array.from(groups.values()).map((group) => {
-    // 고유 요일 수 기준으로 total_count 재계산
     const uniqueDays = Array.from(group.days_of_week);
-    const totalCount = uniqueDays.reduce((sum, dayOfWeek) => {
-      const dayCount = dates.filter((date) => getDayOfWeek(date) === dayOfWeek).length;
-      return sum + dayCount;
-    }, 0);
-    
-    // 대표 시간 범위 선택 (첫 번째 요일의 시간 범위)
+    // O(1) 룩업 (기존: dates 전체를 매번 필터링)
+    const totalCount = uniqueDays.reduce((sum, dow) => sum + (dateCountByDayOfWeek.get(dow) ?? 0), 0);
+
     const firstDay = uniqueDays[0];
     const timeRange = group.time_ranges.get(firstDay) || { start: "00:00", end: "00:00" };
-    
-    // 과목 목록을 쉼표로 구분된 문자열로 변환
     const subjectList = Array.from(group.subjects).join(", ");
-    
+
     return {
-    academy_name: group.academy_name,
-      subject: subjectList || "", // 여러 과목을 쉼표로 구분
+      academy_name: group.academy_name,
+      subject: subjectList || "",
       days_of_week: uniqueDays.sort(),
       time_range: timeRange,
-    travel_time: group.travel_time,
+      travel_time: group.travel_time,
       total_count: totalCount,
-    total_academy_hours: group.total_academy_minutes / 60,
-    total_travel_hours: group.total_travel_minutes / 60,
+      total_academy_hours: group.total_academy_minutes / 60,
+      total_travel_hours: group.total_travel_minutes / 60,
     };
   });
 }
@@ -1040,25 +1033,38 @@ export function calculateAvailableDates(
   let totalTravelHours = 0;
   let totalTravelMinutes = 0;
 
+  // 메모이제이션: 같은 요일+dayType(제외일 아님)이면 동일 결과
+  // 90일 기간에서 ~14개 조합(7요일 × 2타입)만 계산, 나머지는 캐시 히트
+  const timeSlotsCache = new Map<string, { ranges: TimeRange[]; hours: number; note: string; timeSlots: TimeSlot[] }>();
+
   for (const date of dates) {
     const dateStr = formatDate(date);
     const dayType = dayTypeMap.get(dateStr) || "학습일";
     const exclusion = getExclusionForDate(dateStr, exclusions);
-    
-    // 해당 날짜의 학원일정 조회
+
     const dateAcademySchedules = getAcademySchedulesForDate(
       date,
       academySchedules
     );
 
-    const { ranges, hours, note, timeSlots } = calculateAvailableTimeForDate(
-      date,
-      dayType,
-      blocks,
-      academySchedules,
-      exclusion,
-      options
-    );
+    let result: { ranges: TimeRange[]; hours: number; note: string; timeSlots: TimeSlot[] };
+
+    if (exclusion) {
+      // 제외일은 매번 계산 (드물고 결과가 다름)
+      result = calculateAvailableTimeForDate(date, dayType, blocks, academySchedules, exclusion, options);
+    } else {
+      // 제외일이 아닌 날: 같은 요일+dayType이면 결과 동일 → 메모이제이션
+      const cacheKey = `${getDayOfWeek(date)}:${dayType}`;
+      const cached = timeSlotsCache.get(cacheKey);
+      if (cached) {
+        result = cached;
+      } else {
+        result = calculateAvailableTimeForDate(date, dayType, blocks, academySchedules, exclusion, options);
+        timeSlotsCache.set(cacheKey, result);
+      }
+    }
+
+    const { ranges, hours, note, timeSlots } = result;
 
     dailySchedule.push({
       date: dateStr,
