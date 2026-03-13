@@ -4,7 +4,7 @@ import { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantInfo } from "@/lib/auth/getTenantInfo";
-import { getCurrentUserProfile } from "@/lib/auth/getCurrentUserProfile";
+import { getCachedAuthUser } from "@/lib/auth/cachedGetUser";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { RoleBasedLayout } from "@/components/layout/RoleBasedLayout";
 
@@ -15,7 +15,7 @@ import { RoleBasedLayout } from "@/components/layout/RoleBasedLayout";
  */
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   // 권한 검증
-  const { userId, role, tenantId } = await getCachedUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId || (role !== "admin" && role !== "consultant")) {
     redirect("/login");
@@ -23,18 +23,17 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   const supabase = await createSupabaseServerClient();
 
-  // is_active 체크 + 기관 정보 + 사용자 프로필을 병렬 조회
-  // (기존: is_active 순차 → Promise.all(tenant, profile) — 2단계 직렬)
-  // (개선: 3개 모두 병렬 — 1단계로 단축)
-  const [adminUser, tenantInfo, profile] = await Promise.all([
+  // admin_users(is_active + name + profile_image_url) 통합 쿼리 + 기관 정보 + 이메일을 병렬 조회
+  // (기존: admin_users 2회 쿼리 → 1회로 통합)
+  const [adminUser, tenantInfo, authUser] = await Promise.all([
     supabase
       .from("admin_users")
-      .select("is_active")
+      .select("is_active, name, profile_image_url")
       .eq("id", userId)
       .maybeSingle()
       .then((r) => r.data),
     getTenantInfo(),
-    getCurrentUserProfile({ userId, role, tenantId }),
+    getCachedAuthUser(),
   ]);
 
   if (adminUser && adminUser.is_active === false) {
@@ -48,9 +47,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       dashboardHref="/admin/dashboard"
       roleLabel="Admin"
       tenantInfo={tenantInfo}
-      userName={profile.name}
-      profileImageUrl={profile.profileImageUrl}
-      userEmail={profile.email}
+      userName={adminUser?.name ?? null}
+      profileImageUrl={adminUser?.profile_image_url ?? null}
+      userEmail={authUser?.email ?? null}
       userId={userId}
     >
       {children}

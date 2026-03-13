@@ -1,9 +1,27 @@
 'use client';
 
 import { useMemo, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { DailyDock } from './DailyDock';
-import { SettingsTab, AnalyticsTab, ProgressTab, HistoryTab } from './tabs';
 import { SearchResultsView } from './calendar-views/SearchResultsView';
+
+// 탭 컴포넌트는 기본 뷰(planner)에서 불필요하므로 lazy load
+const SettingsTab = dynamic(
+  () => import('./tabs/SettingsTab').then((mod) => ({ default: mod.SettingsTab })),
+  { ssr: false }
+);
+const AnalyticsTab = dynamic(
+  () => import('./tabs/AnalyticsTab').then((mod) => ({ default: mod.AnalyticsTab })),
+  { ssr: false }
+);
+const ProgressTab = dynamic(
+  () => import('./tabs/ProgressTab').then((mod) => ({ default: mod.ProgressTab })),
+  { ssr: false }
+);
+const HistoryTab = dynamic(
+  () => import('./tabs/HistoryTab').then((mod) => ({ default: mod.HistoryTab })),
+  { ssr: false }
+);
 import { EventDetailPopover } from './items/EventDetailPopover';
 import { useEventDetailPopover } from './hooks/useEventDetailPopover';
 import type { CalendarView } from './CalendarNavHeader';

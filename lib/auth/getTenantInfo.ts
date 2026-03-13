@@ -1,11 +1,13 @@
+import { cache } from "react";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
  * 현재 로그인한 사용자의 tenant 정보를 조회합니다.
- * 
+ * React.cache로 요청 내 중복 호출 방지.
+ *
  * @returns {Promise<{ name: string; type?: string } | null>} tenant 정보 (name, type) 또는 null
- * 
+ *
  * 규칙:
  * - Super Admin: null 반환 (tenant_id가 null)
  * - Admin/Consultant: 해당 기관 정보 반환
@@ -13,10 +15,10 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  * - Student: 해당 기관 정보 반환
  * - 로그인하지 않은 사용자: null 반환
  */
-export async function getTenantInfo(): Promise<{
+export const getTenantInfo = cache(async (): Promise<{
   name: string;
   type?: string;
-} | null> {
+} | null> => {
   try {
     const tenantContext = await getTenantContext();
 
@@ -67,11 +69,7 @@ export async function getTenantInfo(): Promise<{
     console.error("[auth] getTenantInfo 실패:", errorMessage);
     return null;
   }
-}
-
-
-
-
+});
 
 
 

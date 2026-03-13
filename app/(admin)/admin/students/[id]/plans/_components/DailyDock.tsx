@@ -6,7 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/cn';
-import { DroppableContainer } from './dnd';
+import { DroppableContainer } from './dnd/DroppableContainer';
 import { usePlanToast } from './PlanToast';
 import { useDailyCalendarEvents } from '@/lib/hooks/useCalendarEventQueries';
 import { useAdminPlanBasic } from './context/AdminPlanBasicContext';

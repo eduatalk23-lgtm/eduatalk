@@ -1322,13 +1322,21 @@ export async function getCampStatisticsForTenant(
       };
     }
 
-    // 활성 템플릿 수 조회
-    const { count: activeTemplatesCount, error: templatesError } =
-      await supabase
+    // 활성 템플릿 수 + 초대 통계를 병렬 조회 (기존 순차 → Promise.all)
+    const [templatesResult, invitationsResult] = await Promise.all([
+      supabase
         .from("camp_templates")
         .select("*", { count: "exact", head: true })
         .eq("tenant_id", tenantId)
-        .eq("status", "active");
+        .eq("status", "active"),
+      supabase
+        .from("camp_invitations")
+        .select("status")
+        .eq("tenant_id", tenantId),
+    ]);
+
+    const { count: activeTemplatesCount, error: templatesError } = templatesResult;
+    const { data: invitations, error: invitationsError } = invitationsResult;
 
     if (templatesError) {
       handleQueryError(templatesError, {
@@ -1340,12 +1348,6 @@ export async function getCampStatisticsForTenant(
         error: errorMessage,
       };
     }
-
-    // 초대 통계 조회
-    const { data: invitations, error: invitationsError } = await supabase
-      .from("camp_invitations")
-      .select("status")
-      .eq("tenant_id", tenantId);
 
     if (invitationsError) {
       handleQueryError(invitationsError, {

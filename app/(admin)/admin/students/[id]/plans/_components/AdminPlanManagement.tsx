@@ -13,7 +13,7 @@ import {
   getBaseContainerType,
   type ContainerType,
   type EmptySlotDropData,
-} from "./dnd";
+} from "./dnd/DndContext";
 import { PlanToastProvider } from "./PlanToast";
 import { UndoProvider, useUndo } from "./UndoSnackbar";
 import {

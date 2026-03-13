@@ -2,7 +2,7 @@
 
 import { useState, useTransition, memo, useCallback, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
-import { DraggablePlanItem } from '../dnd';
+import { DraggablePlanItem } from '../dnd/DraggablePlanItem';
 import { QuickCompleteButton, InlineVolumeEditor } from '../QuickActions';
 import { useToast } from '@/components/ui/ToastProvider';
 import { ConfirmDialog } from '@/components/ui/Dialog';

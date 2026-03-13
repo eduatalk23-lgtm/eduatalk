@@ -132,12 +132,12 @@ async function buildBatchRiskResults(
     .slice(0, 5);
 }
 
-// 최근 상담노트 조회
+// 최근 상담노트 조회 (FK join으로 1회 쿼리)
 async function getRecentConsultingNotes(supabase: SupabaseServerClient) {
   try {
     const { data: notes, error } = await supabase
       .from("student_consulting_notes")
-      .select("id,student_id,note,created_at")
+      .select("id, student_id, note, created_at, students(name)")
       .order("created_at", { ascending: false })
       .limit(5);
 
@@ -147,50 +147,17 @@ async function getRecentConsultingNotes(supabase: SupabaseServerClient) {
 
     if (error) throw error;
 
-    // 학생 이름 배치 조회 (N+1 문제 해결)
-    const studentIds = (notes ?? []).map(
-      (n: { student_id?: string }) => n.student_id
-    ).filter(Boolean) as string[];
-    
-    if (studentIds.length === 0) {
-      return (notes ?? []).map((n: {
-        id: string;
-        student_id?: string;
-        note?: string | null;
-        created_at?: string | null;
-      }) => ({
+    return (notes ?? []).map((n) => {
+      // FK join: students는 many-to-one이므로 단일 객체 또는 배열로 올 수 있음
+      const studentData = Array.isArray(n.students) ? n.students[0] : n.students;
+      return {
         id: n.id,
         studentId: n.student_id ?? "",
-        studentName: "이름 없음",
+        studentName: studentData?.name ?? "이름 없음",
         note: n.note ?? "",
         createdAt: n.created_at ?? "",
-      }));
-    }
-
-    const { data: students } = await supabase
-      .from("students")
-      .select("id,name")
-      .in("id", studentIds);
-
-    const studentMap = new Map(
-      (students ?? []).map((s: { id: string; name?: string | null }) => [
-        s.id,
-        s.name ?? "이름 없음",
-      ])
-    );
-
-    return (notes ?? []).map((n: {
-      id: string;
-      student_id?: string;
-      note?: string | null;
-      created_at?: string | null;
-    }) => ({
-      id: n.id,
-      studentId: n.student_id ?? "",
-      studentName: studentMap.get(n.student_id ?? "") ?? "이름 없음",
-      note: n.note ?? "",
-      createdAt: n.created_at ?? "",
-    }));
+      };
+    });
   } catch (error) {
     console.error("[admin/dashboard] 최근 상담노트 조회 실패", error);
     return [];

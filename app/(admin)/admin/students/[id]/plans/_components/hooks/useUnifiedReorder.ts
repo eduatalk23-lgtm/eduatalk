@@ -10,7 +10,7 @@ import {
   validateReorderResultConstraints,
 } from '@/lib/domains/plan/utils/unifiedReorderCalculation';
 import { executeUnifiedReorder, updateItemTime } from '@/lib/domains/calendar/actions/calendarEventActions';
-import type { UnifiedReorderData } from '../dnd';
+import type { UnifiedReorderData } from '../dnd/DndContext';
 import type { TimeSlot } from '@/lib/types/plan-generation';
 import type { NonStudyItem } from '@/lib/query-options/adminDock';
 
