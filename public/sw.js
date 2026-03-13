@@ -176,6 +176,17 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (url.protocol !== "https:" && url.protocol !== "http:") return;
 
+  // API 라우트 — 네트워크 직통 (캐시 우회)
+  // 채팅 메시지, 읽음 상태, 인증 등 실시간 데이터는 캐싱하면 안 됨
+  if (url.pathname.startsWith("/api/")) return;
+
+  // Supabase Realtime WebSocket — 절대 가로채면 안 됨
+  if (
+    event.request.headers.get("upgrade") === "websocket" ||
+    url.pathname.includes("/realtime/") ||
+    url.hostname.includes("supabase")
+  ) return;
+
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request).catch(() => caches.match(OFFLINE_URL))

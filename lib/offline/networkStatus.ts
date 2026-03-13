@@ -47,6 +47,17 @@ function handleOffline() {
 }
 
 /**
+ * PWA 포그라운드 복귀 시 온라인이면 리스너에 알림.
+ * 모바일에서 백그라운드→포그라운드 전환 시 online 이벤트가
+ * 발생하지 않을 수 있으므로 visibilitychange로 보완합니다.
+ */
+function handleVisibilityChange() {
+  if (document.visibilityState === "visible" && isOnline()) {
+    listeners.forEach((listener) => listener(true));
+  }
+}
+
+/**
  * 네트워크 상태 이벤트 리스너 초기화
  */
 export function initNetworkStatusListeners(): void {
@@ -56,6 +67,7 @@ export function initNetworkStatusListeners(): void {
 
   window.addEventListener("online", handleOnline);
   window.addEventListener("offline", handleOffline);
+  document.addEventListener("visibilitychange", handleVisibilityChange);
 }
 
 /**
@@ -68,6 +80,7 @@ export function cleanupNetworkStatusListeners(): void {
 
   window.removeEventListener("online", handleOnline);
   window.removeEventListener("offline", handleOffline);
+  document.removeEventListener("visibilitychange", handleVisibilityChange);
 }
 
 /**
