@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase/client";
 
-const HEARTBEAT_INTERVAL = 30_000; // 30초
+const HEARTBEAT_INTERVAL = 120_000; // 120초 (Disk I/O 절약: 30s→120s)
 /** 탭 전환 debounce (빠른 alt-tab 등에서 불필요한 DB 쓰기 방지) */
 const VISIBILITY_DEBOUNCE = 3_000; // 3초
 

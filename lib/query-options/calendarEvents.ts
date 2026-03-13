@@ -15,12 +15,12 @@ import type {
 import { searchCalendarEventsAction } from '@/lib/domains/admin-plan/actions/searchCalendarEvents';
 
 // ============================================
-// RRULE cutoff: 2년 이전 반복 이벤트는 fetch하지 않음
+// RRULE cutoff: 6개월 이전 반복 이벤트는 fetch하지 않음
 // ============================================
 
 function getRRuleCutoff(): string {
   const d = new Date();
-  d.setFullYear(d.getFullYear() - 2);
+  d.setMonth(d.getMonth() - 6);
   return formatDateString(d);
 }
 

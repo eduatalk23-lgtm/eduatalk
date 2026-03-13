@@ -3,14 +3,9 @@ import { redirect } from "next/navigation";
 import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import Link from "next/link";
-import { getWeeklyStudyTimeSummary } from "@/lib/reports/weekly";
-import { getWeeklyPlanSummary } from "@/lib/reports/weekly";
 import { getBatchAtRiskStudents } from "@/lib/risk/batch";
 import {
-  getCachedStudentStatistics,
-  getCachedTopStudents,
   getCachedAtRiskStudents,
   getCachedConsultingNotes,
 } from "@/lib/cache/dashboard";
@@ -23,292 +18,67 @@ import { riskLevelColors, textPrimary, textSecondary, textMuted, bgSurface, bord
 import { cn } from "@/lib/cn";
 import { getFileRequestKpiAction } from "@/lib/domains/drive/actions/workflow";
 import { Clock, FileUp, AlertTriangle } from "lucide-react";
+import { unstable_cache } from "next/cache";
+import { CACHE_TAGS } from "@/lib/cache/dashboard";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
 >;
 
-// 전체 학생 통계 조회
-async function getStudentStatistics(
+// ============================================
+// 대시보드 통계: 1개 RPC로 ~15개 쿼리 대체
+// ============================================
+
+interface DashboardStats {
+  total_students: number;
+  active_this_week: number;
+  with_scores: number;
+  with_plans: number;
+  top_study_time: Array<{ studentId: string; name: string; minutes: number }>;
+  top_plan_completion: Array<{ studentId: string; name: string; completionRate: number }>;
+  top_goal_achievement: Array<{ studentId: string; name: string; count: number }>;
+}
+
+async function getDashboardStatisticsRpc(
   supabase: SupabaseServerClient,
   weekStart: Date,
   weekEnd: Date
-) {
-  try {
-    const weekStartStr = weekStart.toISOString().slice(0, 10);
-    const weekEndStr = weekEnd.toISOString().slice(0, 10);
+): Promise<DashboardStats> {
+  const weekStartStr = weekStart.toISOString().slice(0, 10);
+  const weekEndStr = weekEnd.toISOString().slice(0, 10);
 
-    // 활성화된 전체 학생 수
-    const { count: totalCount, error: countError } = await supabase
-      .from("students")
-      .select("*", { count: "exact", head: true })
-      .eq("is_active", true);
+  const { data, error } = await supabase.rpc("get_dashboard_statistics", {
+    p_week_start: weekStartStr,
+    p_week_end: weekEndStr,
+  });
 
-    if (countError && countError.code === "42703") {
-      const { count: retryCount } = await supabase
-        .from("students")
-        .select("*", { count: "exact", head: true });
-      return {
-        total: retryCount ?? 0,
-        activeThisWeek: 0,
-        withScores: 0,
-        withPlans: 0,
-      };
-    }
-
-    const total = totalCount ?? 0;
-
-    // 이번주 학습한 학생 수
-    const { data: activeStudents } = await supabase
-      .from("student_study_sessions")
-      .select("student_id", { count: "exact" })
-      .gte("started_at", weekStartStr)
-      .lte("started_at", weekEndStr);
-
-    const activeStudentIds = new Set(
-      (activeStudents ?? []).map((s: { student_id?: string }) => s.student_id).filter(Boolean)
-    );
-    const activeThisWeek = activeStudentIds.size;
-
-    // 성적 입력한 학생 수 (두 테이블에서 각각 조회 후 합치기)
-    // ⚠️ student_school_scores는 student_internal_scores로 변경되었습니다.
-    const [schoolScores, mockScores] = await Promise.all([
-      supabase.from("student_internal_scores").select("student_id"),
-      supabase.from("student_mock_scores").select("student_id"),
-    ]);
-
-    const studentIdsWithScores = new Set<string>();
-    (schoolScores.data ?? []).forEach((s: { student_id?: string }) => {
-      if (s.student_id) studentIdsWithScores.add(s.student_id);
-    });
-    (mockScores.data ?? []).forEach((s: { student_id?: string }) => {
-      if (s.student_id) studentIdsWithScores.add(s.student_id);
-    });
-    const withScores = studentIdsWithScores.size;
-
-    // 이번주 플랜이 있는 학생 수
-    const { data: plansData } = await supabase
-      .from("student_plan")
-      .select("student_id")
-      .gte("plan_date", weekStartStr)
-      .lte("plan_date", weekEndStr);
-
-    const studentIdsWithPlans = new Set(
-      (plansData ?? []).map((p: { student_id?: string }) => p.student_id).filter(Boolean)
-    );
-    const withPlans = studentIdsWithPlans.size;
-
+  if (error) {
+    console.error("[admin/dashboard] RPC 실패, fallback 사용:", error.message);
     return {
-      total,
-      activeThisWeek,
-      withScores,
-      withPlans,
-    };
-  } catch (error) {
-    console.error("[admin/dashboard] 학생 통계 조회 실패", error);
-    return {
-      total: 0,
-      activeThisWeek: 0,
-      withScores: 0,
-      withPlans: 0,
+      total_students: 0,
+      active_this_week: 0,
+      with_scores: 0,
+      with_plans: 0,
+      top_study_time: [],
+      top_plan_completion: [],
+      top_goal_achievement: [],
     };
   }
+
+  return data as DashboardStats;
 }
 
-// 이번주 학습시간 Top5
-async function getTopStudyTimeStudents(
+async function getCachedDashboardStats(
   supabase: SupabaseServerClient,
   weekStart: Date,
   weekEnd: Date
 ) {
-  try {
-    const weekStartStr = weekStart.toISOString().slice(0, 10);
-    const weekEndStr = weekEnd.toISOString().slice(0, 10);
-
-    const { data: sessions, error } = await supabase
-      .from("student_study_sessions")
-      .select("student_id,duration_seconds")
-      .gte("started_at", weekStartStr)
-      .lte("started_at", weekEndStr);
-
-    if (ErrorCodeCheckers.isColumnNotFound(error)) {
-      return [];
-    }
-
-    if (error) throw error;
-
-    // 학생별 학습시간 집계
-    const studentTimeMap = new Map<string, number>();
-    (sessions ?? []).forEach((s: { student_id?: string; duration_seconds?: number | null }) => {
-      if (!s.student_id || !s.duration_seconds) return;
-      const current = studentTimeMap.get(s.student_id) ?? 0;
-      studentTimeMap.set(s.student_id, current + s.duration_seconds);
-    });
-
-    // Top5 추출
-    const topStudents = Array.from(studentTimeMap.entries())
-      .map(([studentId, seconds]) => ({ studentId, minutes: Math.floor(seconds / 60) }))
-      .sort((a, b) => b.minutes - a.minutes)
-      .slice(0, 5);
-
-    // 학생 이름 배치 조회 (N+1 문제 해결)
-    if (topStudents.length === 0) return [];
-
-    const studentIds = topStudents.map((s) => s.studentId);
-    const { data: students } = await supabase
-      .from("students")
-      .select("id,name")
-      .in("id", studentIds);
-
-    const studentMap = new Map(
-      (students ?? []).map((s: { id: string; name?: string | null }) => [
-        s.id,
-        s.name ?? "이름 없음",
-      ])
-    );
-
-    return topStudents.map((s) => ({
-      studentId: s.studentId,
-      name: studentMap.get(s.studentId) ?? "이름 없음",
-      minutes: s.minutes,
-    }));
-  } catch (error) {
-    console.error("[admin/dashboard] 학습시간 Top5 조회 실패", error);
-    return [];
-  }
-}
-
-// 이번주 플랜 실행률 Top5
-async function getTopPlanCompletionStudents(
-  supabase: SupabaseServerClient,
-  weekStart: Date,
-  weekEnd: Date
-) {
-  try {
-    const weekStartStr = weekStart.toISOString().slice(0, 10);
-    const weekEndStr = weekEnd.toISOString().slice(0, 10);
-
-    const { data: plans, error } = await supabase
-      .from("student_plan")
-      .select("student_id,completed_amount")
-      .gte("plan_date", weekStartStr)
-      .lte("plan_date", weekEndStr);
-
-    if (ErrorCodeCheckers.isColumnNotFound(error)) {
-      return [];
-    }
-
-    if (error) throw error;
-
-    // 학생별 플랜 집계
-    const studentPlanMap = new Map<
-      string,
-      { total: number; completed: number }
-    >();
-    (plans ?? []).forEach(
-      (p: { student_id?: string; completed_amount?: number | null }) => {
-        if (!p.student_id) return;
-        const current = studentPlanMap.get(p.student_id) ?? { total: 0, completed: 0 };
-        current.total++;
-        if (p.completed_amount !== null && p.completed_amount !== undefined && p.completed_amount > 0) {
-          current.completed++;
-        }
-        studentPlanMap.set(p.student_id, current);
-      }
-    );
-
-    // 실행률 계산 및 Top5 추출
-    const topStudents = Array.from(studentPlanMap.entries())
-      .map(([studentId, data]) => ({
-        studentId,
-        completionRate:
-          data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0,
-      }))
-      .sort((a, b) => b.completionRate - a.completionRate)
-      .slice(0, 5);
-
-    // 학생 이름 배치 조회 (N+1 문제 해결)
-    if (topStudents.length === 0) return [];
-
-    const studentIds = topStudents.map((s) => s.studentId);
-    const { data: students } = await supabase
-      .from("students")
-      .select("id,name")
-      .in("id", studentIds);
-
-    const studentMap = new Map(
-      (students ?? []).map((s: { id: string; name?: string | null }) => [
-        s.id,
-        s.name ?? "이름 없음",
-      ])
-    );
-
-    return topStudents.map((s) => ({
-      studentId: s.studentId,
-      name: studentMap.get(s.studentId) ?? "이름 없음",
-      completionRate: s.completionRate,
-    }));
-  } catch (error) {
-    console.error("[admin/dashboard] 플랜 실행률 Top5 조회 실패", error);
-    return [];
-  }
-}
-
-// 최근 목표 달성 학생 Top3
-async function getTopGoalAchievementStudents(supabase: SupabaseServerClient) {
-  try {
-    const { data: history, error } = await supabase
-      .from("student_history")
-      .select("student_id,created_at")
-      .eq("event_type", "goal_completed")
-      .order("created_at", { ascending: false })
-      .limit(10);
-
-    if (ErrorCodeCheckers.isColumnNotFound(error)) {
-      return [];
-    }
-
-    if (error) throw error;
-
-    // 학생별 달성 횟수 집계
-    const studentCountMap = new Map<string, number>();
-    (history ?? []).forEach((h: { student_id?: string }) => {
-      if (!h.student_id) return;
-      const current = studentCountMap.get(h.student_id) ?? 0;
-      studentCountMap.set(h.student_id, current + 1);
-    });
-
-    // Top3 추출
-    const topStudents = Array.from(studentCountMap.entries())
-      .map(([studentId, count]) => ({ studentId, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 3);
-
-    // 학생 이름 배치 조회 (N+1 문제 해결)
-    if (topStudents.length === 0) return [];
-
-    const studentIds = topStudents.map((s) => s.studentId);
-    const { data: students } = await supabase
-      .from("students")
-      .select("id,name")
-      .in("id", studentIds);
-
-    const studentMap = new Map(
-      (students ?? []).map((s: { id: string; name?: string | null }) => [
-        s.id,
-        s.name ?? "이름 없음",
-      ])
-    );
-
-    return topStudents.map((s) => ({
-      studentId: s.studentId,
-      name: studentMap.get(s.studentId) ?? "이름 없음",
-      count: s.count,
-    }));
-  } catch (error) {
-    console.error("[admin/dashboard] 목표 달성 Top3 조회 실패", error);
-    return [];
-  }
+  return unstable_cache(
+    async () => getDashboardStatisticsRpc(supabase, weekStart, weekEnd),
+    [`dashboard-rpc-stats-${weekStart.toISOString()}-${weekEnd.toISOString()}`],
+    { tags: [CACHE_TAGS.DASHBOARD_STATS], revalidate: 60 }
+  )();
 }
 
 // 위험 학생 조회 (배치 방식 — ~9 쿼리로 전체 학생 처리)
@@ -438,14 +208,12 @@ export default async function AdminDashboardPage() {
   const { weekStart, weekEnd } = getWeekRange();
   const tenantContext = await getTenantContext();
 
-  // 모든 데이터를 한번에 병렬 조회 (기존: campStats → fileKpi → 순차 후 6개 병렬)
+  // 모든 데이터를 한번에 병렬 조회
+  // dashboardStats: 1개 RPC로 통계 + Top5 + Top3 통합 (기존 ~15개 쿼리 → 1개)
   const [
     campStatsResult,
     fileRequestKpiResult,
-    studentStats,
-    topStudyTime,
-    topPlanCompletion,
-    topGoalAchievement,
+    dashboardStats,
     atRiskStudents,
     recentNotes,
   ] = await Promise.all([
@@ -453,24 +221,7 @@ export default async function AdminDashboardPage() {
       ? getCampStatisticsForTenant(tenantContext.tenantId)
       : Promise.resolve(null),
     getFileRequestKpiAction().catch(() => ({ pending: 0, submitted: 0, overdue: 0 })),
-    getCachedStudentStatistics(
-      supabase,
-      weekStart,
-      weekEnd,
-      getStudentStatistics
-    ),
-    getCachedTopStudents(
-      `dashboard-top-study-time-${weekStart.toISOString()}-${weekEnd.toISOString()}`,
-      () => getTopStudyTimeStudents(supabase, weekStart, weekEnd)
-    ),
-    getCachedTopStudents(
-      `dashboard-top-plan-completion-${weekStart.toISOString()}-${weekEnd.toISOString()}`,
-      () => getTopPlanCompletionStudents(supabase, weekStart, weekEnd)
-    ),
-    getCachedTopStudents(
-      "dashboard-top-goal-achievement",
-      () => getTopGoalAchievementStudents(supabase)
-    ),
+    getCachedDashboardStats(supabase, weekStart, weekEnd),
     getCachedAtRiskStudents(() => getAtRiskStudents(supabase)),
     getCachedConsultingNotes(() => getRecentConsultingNotes(supabase)),
   ]);
@@ -480,6 +231,17 @@ export default async function AdminDashboardPage() {
   }
   const campStats = campStatsResult?.success ? campStatsResult.data : null;
   const fileRequestKpi = fileRequestKpiResult;
+
+  // RPC 결과를 기존 변수 형식으로 매핑
+  const studentStats = {
+    total: dashboardStats.total_students,
+    activeThisWeek: dashboardStats.active_this_week,
+    withScores: dashboardStats.with_scores,
+    withPlans: dashboardStats.with_plans,
+  };
+  const topStudyTime = dashboardStats.top_study_time;
+  const topPlanCompletion = dashboardStats.top_plan_completion;
+  const topGoalAchievement = dashboardStats.top_goal_achievement;
 
   return (
     <div className="p-6 md:p-8 lg:p-10">
