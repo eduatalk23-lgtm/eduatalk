@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import type {
   SlotTemplate,
@@ -430,7 +430,7 @@ export const setDefaultPreset = withErrorHandling(
  * - 관리자가 만든 프리셋을 학생이 불러올 수 있음
  */
 export const getSlotTemplatePresetsForStudent = withErrorHandling(async () => {
-  const { userId } = await getCurrentUserRole();
+  const { userId } = await getCachedUserRole();
 
   if (!userId) {
     throw new AppError(

@@ -1,7 +1,7 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getCampTemplateById } from "@/lib/domains/camp/actions";
 import { getTenantBlockSets } from "@/lib/domains/tenant";
@@ -16,7 +16,7 @@ type TimeManagementPageProps = {
 export default async function TimeManagementPage({
   params,
 }: TimeManagementPageProps) {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (role !== "admin" && role !== "consultant") {
     redirect("/login");
   }

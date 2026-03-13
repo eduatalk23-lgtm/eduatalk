@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { PostgrestError } from "@supabase/supabase-js";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
@@ -43,7 +43,7 @@ type AdminSMSPageProps = {
 export default async function AdminSMSPage({
   searchParams,
 }: AdminSMSPageProps) {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId || !isAdminRole(role)) {
     redirect("/login");

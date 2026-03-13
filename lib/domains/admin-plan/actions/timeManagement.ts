@@ -13,7 +13,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { AppError, ErrorCode } from "@/lib/errors";
 import {
   createStudentAcademySchedules,
@@ -148,7 +148,7 @@ function mapExclusionTypeToKorean(
  */
 async function checkAdminOrConsultant() {
   const user = await getCurrentUser();
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (!user || (role !== "admin" && role !== "consultant")) {
     throw new AppError(

@@ -1,6 +1,6 @@
 
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
@@ -8,7 +8,7 @@ import Link from "next/link";
 import { SMSSendForm } from "../_components/SMSSendForm";
 
 export default async function SMSSendPage() {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId || !isAdminRole(role)) {
     redirect("/login");

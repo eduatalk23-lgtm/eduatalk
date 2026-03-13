@@ -1,6 +1,6 @@
 
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import Link from "next/link";
 import {
   getTenantStatistics,
@@ -9,7 +9,7 @@ import {
 } from "@/lib/data/superadminDashboard";
 
 export default async function SuperAdminDashboardPage() {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId || role !== "superadmin") {
     redirect("/login");

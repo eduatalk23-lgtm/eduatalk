@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { checkInWithQRCode } from "@/lib/domains/attendance";
 import { service } from "@/lib/domains/qrCode";
 
@@ -20,7 +20,7 @@ export default async function QRCheckInPage({
   }
 
   // 로그인 상태 확인
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   // 미로그인 시 로그인 페이지로 리다이렉트 (returnUrl 포함)
   if (!userId || role !== "student") {

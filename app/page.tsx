@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SITE_URL } from "@/lib/constants/routes";
 
@@ -41,7 +41,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Home() {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   // 비인증 사용자 → 로그인 페이지
   if (!userId) {
@@ -98,39 +98,22 @@ export default async function Home() {
   } else if (role === "student") {
     redirect("/plan/calendar");
   } else {
-    // role이 null이면 user_metadata에서 signup_role 확인하여 초기 설정 페이지로 리다이렉트
-    const supabase = await createSupabaseServerClient();
-    const { data: { user }, error: getUserError } = await supabase.auth.getUser();
-    
-    // refresh token 에러는 조용히 처리 (세션이 없는 것으로 간주)
-    if (getUserError) {
-      const errorMessage = getUserError.message?.toLowerCase() || "";
-      const errorCode = getUserError.code?.toLowerCase() || "";
-      
-      const isRefreshTokenError = 
-        errorMessage.includes("refresh token") ||
-        errorMessage.includes("refresh_token") ||
-        errorMessage.includes("session") ||
-        errorCode === "refresh_token_not_found";
-      
-      if (!isRefreshTokenError) {
-        console.error("[auth] getUser 실패", {
-          message: getUserError.message,
-          status: getUserError.status,
-          code: getUserError.code,
-        });
-      }
-      
-      // 세션이 없으면 로그인 페이지로 리다이렉트
+    // role이 null이면 user_metadata에서 signup_role 확인하여 온보딩/설정 페이지로 리다이렉트
+    const { getCachedAuthUser } = await import("@/lib/auth/cachedGetUser");
+    const user = await getCachedAuthUser();
+
+    if (!user) {
       redirect("/login");
     }
-    
-    if (user?.user_metadata?.signup_role === "parent") {
-      // 학부모 초기 설정 페이지로 리다이렉트 (향후 구현)
+
+    const signupRole = user.user_metadata?.signup_role;
+    if (signupRole === "parent") {
       redirect("/parent/settings");
-    } else {
-      // 학생 초기 설정 페이지로 리다이렉트 (기본값)
+    } else if (signupRole === "student") {
       redirect("/settings");
+    } else {
+      // signup_role도 없으면 역할 선택 페이지로 안내
+      redirect("/onboarding/select-role");
     }
   }
 }

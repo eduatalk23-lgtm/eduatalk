@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantlessUsers, getIncompleteSignupUsers } from "@/lib/domains/superadmin";
 import { TenantlessUsersList } from "./_components/TenantlessUsersList";
 import { IncompleteSignupUsersList } from "./_components/IncompleteSignupUsersList";
@@ -12,7 +12,7 @@ export default async function TenantlessUsersPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const { role, userId } = await getCurrentUserRole();
+  const { role, userId } = await getCachedUserRole();
 
   // Super Admin만 접근 가능
   if (!userId || role !== "superadmin") {

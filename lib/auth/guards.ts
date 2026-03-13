@@ -1,4 +1,4 @@
-import { getCurrentUserRole } from "./getCurrentUserRole";
+import { getCachedUserRole } from "./getCurrentUserRole";
 import { isAdminRole } from "./isAdminRole";
 import { AppError, ErrorCode } from "@/lib/errors";
 
@@ -23,7 +23,7 @@ export async function requireAdminOrConsultant(
   options: AdminGuardOptions = {}
 ): Promise<AdminGuardResult> {
   const { requireTenant = false } = options;
-  const { userId, role, tenantId } = await getCurrentUserRole();
+  const { userId, role, tenantId } = await getCachedUserRole();
 
   if (!userId) {
     throw new AppError(
@@ -71,7 +71,7 @@ export type SuperAdminGuardResult = {
  * Super Admin 권한을 검증하고 사용자 정보를 반환합니다.
  */
 export async function requireSuperAdmin(): Promise<SuperAdminGuardResult> {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId) {
     throw new AppError(
@@ -103,7 +103,7 @@ export type ParentGuardResult = {
  * 학부모 권한을 검증하고 사용자 정보를 반환합니다.
  */
 export async function requireParent(): Promise<ParentGuardResult> {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId) {
     throw new AppError(
@@ -137,7 +137,7 @@ export type AdminOnlyGuardResult = {
  * consultant는 제외되며, admin 또는 superadmin만 허용됩니다.
  */
 export async function requireAdmin(): Promise<AdminOnlyGuardResult> {
-  const { userId, role, tenantId } = await getCurrentUserRole();
+  const { userId, role, tenantId } = await getCachedUserRole();
 
   if (!userId) {
     throw new AppError(

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getContainerClass } from "@/lib/constants/layout";
 import { QuickPlanWizardWrapper } from "./_components/QuickPlanWizardWrapper";
@@ -11,7 +11,7 @@ type QuickCreatePageProps = {
 export default async function QuickCreatePage({
   searchParams,
 }: QuickCreatePageProps) {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId || role !== "student") {
     redirect("/login");

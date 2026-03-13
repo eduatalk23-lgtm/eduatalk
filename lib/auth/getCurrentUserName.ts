@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRole, type UserRole } from "./getCurrentUserRole";
+import { getCachedUserRole, type UserRole } from "./getCurrentUserRole";
 import { getStudentById } from "@/lib/data/students";
 
 /**
@@ -34,7 +34,7 @@ export const getCurrentUserName = cache(async (userInfo?: UserInfoParams): Promi
       role = userInfo.role;
       tenantId = userInfo.tenantId;
     } else {
-      const currentUser = await getCurrentUserRole();
+      const currentUser = await getCachedUserRole();
       userId = currentUser.userId;
       role = currentUser.role;
       tenantId = currentUser.tenantId;

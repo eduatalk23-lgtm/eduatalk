@@ -65,53 +65,26 @@ function createSupabaseProxyClient(request: NextRequest) {
 }
 
 /**
- * 사용자 역할을 조회하는 헬퍼 함수
- * 중복 DB 쿼리를 피하기 위해 proxy에서 가볍게 역할만 확인
+ * JWT user_metadata에서 역할을 추출 (DB 쿼리 없음)
+ *
+ * proxy는 인증(Authentication)만 담당하고, 세부 인가(Authorization)는 레이아웃에 위임합니다.
+ * user_metadata.signup_role은 회원가입/초대 수락 시 설정되며,
+ * 대략적인 경로 보호(coarse-grained routing)에만 사용됩니다.
+ * 정확한 역할 검증(DB 기반)은 각 레이아웃의 getCachedUserRole()이 수행합니다.
  */
-async function getUserRole(
-  supabase: ReturnType<typeof createServerClient>,
-  userId: string
-): Promise<string | null> {
-  // 3개 역할 테이블 병렬 조회
-  const [adminResult, parentResult, studentResult] = await Promise.allSettled([
-    supabase
-      .from("admin_users")
-      .select("role")
-      .eq("id", userId)
-      .maybeSingle(),
-    supabase
-      .from("parent_users")
-      .select("id")
-      .eq("id", userId)
-      .maybeSingle(),
-    supabase
-      .from("students")
-      .select("id")
-      .eq("id", userId)
-      .maybeSingle(),
-  ]);
-
-  // 우선순위: admin > parent > student
-  if (adminResult.status === "fulfilled" && adminResult.value.data?.role) {
-    return adminResult.value.data.role;
-  }
-
-  if (parentResult.status === "fulfilled" && parentResult.value.data) {
-    return "parent";
-  }
-
-  if (studentResult.status === "fulfilled" && studentResult.value.data) {
-    return "student";
-  }
-
-  // 테이블에 없으면 user_metadata의 signup_role fallback
-  // (초대 수락 직후 RLS 전파 지연 시 보호)
-  const { data: { user } } = await supabase.auth.getUser();
+function getRoleFromMetadata(
+  user: { user_metadata?: Record<string, unknown> } | null
+): string | null {
   const signupRole = user?.user_metadata?.signup_role;
-  if (signupRole === "student" || signupRole === "parent" || signupRole === "admin" || signupRole === "consultant") {
-    return signupRole;
+  if (
+    signupRole === "student" ||
+    signupRole === "parent" ||
+    signupRole === "admin" ||
+    signupRole === "consultant" ||
+    signupRole === "superadmin"
+  ) {
+    return signupRole as string;
   }
-
   return null;
 }
 
@@ -277,22 +250,21 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
-  // 인증된 사용자의 역할 기반 접근 제어
+  // ─── 4. 경량 경로 보호 (DB 쿼리 없음, user_metadata만 사용) ───
+  // 세부 인가는 각 레이아웃의 getCachedUserRole()이 DB 기반으로 수행합니다.
   if (isAuthenticated && user && !isPublicPath) {
-    // 초대 수락 직후 리다이렉트: 역할이 방금 부여되어 RLS 전파 지연 가능
+    // 초대 수락 직후 리다이렉트: 역할이 방금 부여되어 metadata 전파 지연 가능
     // join_accepted=true 파라미터로 1회 우회 허용
     const joinAccepted = request.nextUrl.searchParams.get("join_accepted") === "true";
 
     if (!joinAccepted) {
-      const role = await getUserRole(supabase, user.id);
+      const role = getRoleFromMetadata(user);
 
-      // 역할이 없는 사용자는 역할 선택 페이지로 리다이렉트
-      if (!role) {
-        return NextResponse.redirect(new URL("/onboarding/select-role", request.url));
-      }
-
-      // 현재 경로에 접근 권한이 없는 경우
-      if (!canAccessPath(role, pathname)) {
+      // metadata에 역할이 있으면 → 경로 접근 제어 (대략적 보호)
+      // metadata에 역할이 없으면 → 통과 (레이아웃의 DB 기반 getCachedUserRole()이 판단)
+      //   - 기존 사용자: DB에 역할이 있으므로 레이아웃에서 정상 처리
+      //   - 신규 사용자: 루트 페이지(/)의 역할 라우팅에서 onboarding으로 안내
+      if (role && !canAccessPath(role, pathname)) {
         const defaultDashboard = ROLE_DASHBOARD_MAP[role] || "/";
         return NextResponse.redirect(new URL(defaultDashboard, request.url));
       }

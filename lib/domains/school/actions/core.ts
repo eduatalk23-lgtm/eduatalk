@@ -13,7 +13,7 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSchoolSchema, updateSchoolSchema, type CreateSchoolFormData, type UpdateSchoolFormData } from "../validation";
 import * as service from "../service";
 import { getFormString, getFormUuid } from "@/lib/utils/formDataHelpers";
@@ -119,7 +119,7 @@ export async function createSchoolAction(
   formData: FormData
 ): Promise<SchoolActionResult> {
   // 권한 확인
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (role !== "admin" && role !== "consultant") {
     return { success: false, error: "권한이 없습니다." };
   }
@@ -166,7 +166,7 @@ export async function updateSchoolAction(
   formData: FormData
 ): Promise<SchoolActionResult> {
   // 권한 확인
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (role !== "admin" && role !== "consultant") {
     return { success: false, error: "권한이 없습니다." };
   }
@@ -214,7 +214,7 @@ export async function deleteSchoolAction(
   schoolId: string
 ): Promise<SchoolActionResult> {
   // 권한 확인
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (role !== "admin" && role !== "consultant") {
     return { success: false, error: "권한이 없습니다." };
   }

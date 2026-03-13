@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import PageContainer from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PaymentLinkDashboardClient } from "./_components/PaymentLinkDashboardClient";
 
 export default async function PaymentLinksPage() {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId || !isAdminRole(role)) {
     redirect("/login");

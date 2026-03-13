@@ -1,7 +1,7 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getCampTemplateById } from "@/lib/domains/camp/actions";
 import TemplateBlockSetDetail from "./_components/TemplateBlockSetDetail";
@@ -14,7 +14,7 @@ type PageProps = {
 export default async function TemplateBlockSetDetailPage({ params }: PageProps) {
   const { templateId, setId } = await params;
   
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (role !== "admin" && role !== "consultant") {
     redirect("/login");
   }

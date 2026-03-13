@@ -10,7 +10,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import {
   logActionError,
   logActionWarn,
@@ -36,7 +36,7 @@ export async function getStudentContentMasterIdsAction(
       };
     }
 
-    const { role } = await getCurrentUserRole();
+    const { role } = await getCachedUserRole();
     const isAdminOrConsultant = role === "admin" || role === "consultant";
 
     // 학생 ID 결정: 관리자/컨설턴트인 경우 studentIdParam 사용, 학생인 경우 자신의 ID 사용

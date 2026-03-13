@@ -1,6 +1,6 @@
 "use server";
 
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { AppError, ErrorCode } from "@/lib/errors";
@@ -12,7 +12,7 @@ import type { IncompleteSignupUser } from "../types";
  * 미완료 가입 사용자 조회 (역할 레코드가 없는 auth.users)
  */
 async function _getIncompleteSignupUsers(): Promise<IncompleteSignupUser[]> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (role !== "superadmin") {
     throw new AppError(
@@ -92,7 +92,7 @@ export const getIncompleteSignupUsers = withActionResponse(_getIncompleteSignupU
  * 미완료 가입 사용자 삭제
  */
 async function _deleteIncompleteSignupUser(userId: string): Promise<void> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (role !== "superadmin") {
     throw new AppError(

@@ -1,10 +1,10 @@
 
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { TermsManagementContent } from "./_components/TermsManagementContent";
 
 export default async function TermsManagementPage() {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   // Super Admin만 접근 가능
   if (!userId || role !== "superadmin") {

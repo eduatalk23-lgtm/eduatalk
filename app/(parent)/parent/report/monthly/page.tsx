@@ -1,7 +1,7 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getLinkedStudents, canAccessStudent } from "../../../_utils";
 import { getMonthlyReportData } from "@/lib/reports/monthly";
 import { MonthlySummaryHeader } from "@/app/(student)/report/monthly/_components/MonthlySummaryHeader";
@@ -23,7 +23,7 @@ type PageProps = {
 export default async function ParentMonthlyReportPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const supabase = await createSupabaseServerClient();
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId || role !== "parent") {
     redirect("/login");

@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
 import {
   exchangeCodeForTokens,
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
   }
 
   // 현재 로그인 사용자와 state의 adminUserId 일치 확인
-  const { userId } = await getCurrentUserRole();
+  const { userId } = await getCachedUserRole();
   if (!userId || userId !== state.adminUserId) {
     return NextResponse.redirect(
       new URL(`${SETTINGS_URL}?error=user_mismatch`, request.url)

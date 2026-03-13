@@ -1,7 +1,7 @@
 
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -270,7 +270,7 @@ async function AttendanceContent({
 export default async function AdminAttendancePage({
   searchParams,
 }: AttendancePageProps) {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId || !isAdminRole(role)) {
     redirect("/login");

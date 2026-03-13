@@ -2,7 +2,7 @@ export const revalidate = 300;
 
 import { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantInfo } from "@/lib/auth/getTenantInfo";
 import { getCurrentUserProfile } from "@/lib/auth/getCurrentUserProfile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -16,7 +16,7 @@ import { RoleBasedLayout } from "@/components/layout/RoleBasedLayout";
  */
 export default async function StudentLayout({ children }: { children: ReactNode }) {
   // 권한 검증
-  const { userId, role, tenantId } = await getCurrentUserRole();
+  const { userId, role, tenantId } = await getCachedUserRole();
 
   if (!userId || role !== "student") {
     redirect("/login");

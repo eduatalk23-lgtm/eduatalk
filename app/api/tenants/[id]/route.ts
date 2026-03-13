@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import {
   apiSuccess,
@@ -38,7 +38,7 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const { userId, role, tenantId } = await getCurrentUserRole();
+    const { userId, role, tenantId } = await getCachedUserRole();
 
     console.log("[api/tenants] 수정 요청:", { id, userId, role });
 
@@ -161,7 +161,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     // Super Admin만 접근 가능
     if (!userId || role !== "superadmin") {

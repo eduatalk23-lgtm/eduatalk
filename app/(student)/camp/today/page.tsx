@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
 import { getCampTemplate } from "@/lib/data/campTemplates";
 import { perfTime } from "@/lib/utils/perfLog";
@@ -8,7 +8,7 @@ import { isCampMode } from "@/lib/plan/context";
 
 export default async function CampTodayPage() {
   const pageTimer = perfTime("[camp/today] render - page");
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId || role !== "student") {
     pageTimer.end();

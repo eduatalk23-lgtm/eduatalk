@@ -8,7 +8,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { revalidatePath } from "next/cache";
 
@@ -39,7 +39,7 @@ export type UpdateProfileResult = {
  * 현재 로그인한 Admin/Consultant의 프로필 조회
  */
 export async function getMyProfile(): Promise<ProfileData | null> {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId || !["admin", "consultant", "superadmin"].includes(role || "")) {
     return null;
@@ -79,7 +79,7 @@ export async function getMyProfile(): Promise<ProfileData | null> {
  */
 export const updateMyProfile = withErrorHandling(
   async (input: UpdateProfileInput): Promise<UpdateProfileResult> => {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !["admin", "consultant", "superadmin"].includes(role || "")) {
       throw new AppError(

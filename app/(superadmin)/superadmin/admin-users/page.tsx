@@ -2,12 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { AdminUsersList } from "./AdminUsersList";
 import { CreateAdminUserForm } from "./CreateAdminUserForm";
 
 export default async function SuperAdminUsersPage() {
-  const { role, userId } = await getCurrentUserRole();
+  const { role, userId } = await getCachedUserRole();
 
   // Super Admin만 접근 가능
   if (!userId || role !== "superadmin") {

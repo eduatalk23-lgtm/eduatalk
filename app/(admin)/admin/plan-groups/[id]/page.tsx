@@ -3,7 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPlanGroupWithDetailsForAdmin } from "@/lib/data/planGroups";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { PlanGroupDetailView } from "@/app/(student)/plan/group/[id]/_components/PlanGroupDetailView";
 import { classifyPlanContents } from "@/lib/data/planContents";
 import {
@@ -40,7 +40,7 @@ export default async function AdminPlanGroupDetailPage({
   const { id } = await params;
 
   // 권한 확인
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (role !== "admin" && role !== "consultant") {
     redirect("/login");
   }
@@ -61,7 +61,7 @@ export default async function AdminPlanGroupDetailPage({
 
   // 콘텐츠 정보 조회 및 학생/추천 구분
   // 관리자/컨설턴트가 다른 학생의 콘텐츠를 조회할 때는 역할 정보 전달 (RLS 우회)
-  const { userId } = await getCurrentUserRole();
+  const { userId } = await getCachedUserRole();
   const { studentContents, recommendedContents } = await classifyPlanContents(
     contents,
     group.student_id,

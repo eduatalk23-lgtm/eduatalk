@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { LocationSettingsForm } from "./_components/LocationSettingsForm";
 import { AttendanceSMSSettingsForm } from "./_components/AttendanceSMSSettingsForm";
@@ -7,7 +7,7 @@ import { AttendanceSettingsTabs } from "./_components/AttendanceSettingsTabs";
 
 
 export default async function AttendanceSettingsPage() {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId || !isAdminRole(role)) {
     redirect("/login");

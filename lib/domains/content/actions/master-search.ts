@@ -7,7 +7,7 @@
  */
 
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import {
   searchContentMasters,
@@ -30,7 +30,7 @@ async function _searchContentMasters(
   filters: ContentMasterFilters
 ): Promise<{ data: ContentMasterSearchResult[]; total: number }> {
   const user = await getCurrentUser();
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (!user || (role !== "student" && role !== "admin" && role !== "consultant")) {
     throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }
@@ -147,7 +147,7 @@ async function _getContentMasterById(
   details: BookDetail[];
 }> {
   const user = await getCurrentUser();
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (!user || (role !== "student" && role !== "admin" && role !== "consultant")) {
     throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }
@@ -170,7 +170,7 @@ async function _copyMasterToStudentContent(
   contentId?: string;
 }> {
   const user = await getCurrentUser();
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (!user || (role !== "student" && role !== "admin" && role !== "consultant")) {
     throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }
@@ -205,7 +205,7 @@ export const copyMasterToStudentContentAction = withErrorHandling(
  */
 async function _getSubjectList(content_type?: "book" | "lecture"): Promise<string[]> {
   const user = await getCurrentUser();
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (!user || (role !== "student" && role !== "admin" && role !== "consultant")) {
     throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }
@@ -220,7 +220,7 @@ export const getSubjectListAction = withErrorHandling(_getSubjectList);
  */
 async function _getSemesterList(): Promise<string[]> {
   const user = await getCurrentUser();
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (!user || (role !== "student" && role !== "admin" && role !== "consultant")) {
     throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }

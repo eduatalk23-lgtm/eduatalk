@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getInternalAnalysis } from "@/lib/scores/internalAnalysis";
 import { getMockAnalysis } from "@/lib/scores/mockAnalysis";
 import {
@@ -83,7 +83,7 @@ export async function GET(
     // Phase 0: 인증 확인 (병렬)
     const [currentUser, { role: currentRole }] = await Promise.all([
       getCurrentUser(),
-      getCurrentUserRole(),
+      getCachedUserRole(),
     ]);
 
     // 학생 권한 검증: 학생은 자신의 데이터만 조회 가능

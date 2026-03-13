@@ -6,7 +6,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRole, type UserRole } from "./getCurrentUserRole";
+import { getCachedUserRole, type UserRole } from "./getCurrentUserRole";
 import { AppError, ErrorCode } from "@/lib/errors";
 
 export type PermissionKey =
@@ -70,7 +70,7 @@ export type RolePermission = {
  * 4. student/parent는 관리자 권한 없음
  */
 export async function hasPermission(permissionKey: PermissionKey): Promise<boolean> {
-  const { role, tenantId } = await getCurrentUserRole();
+  const { role, tenantId } = await getCachedUserRole();
 
   // 로그인하지 않은 사용자
   if (!role) {
@@ -139,7 +139,7 @@ export async function requirePermission(permissionKey: PermissionKey): Promise<{
   role: UserRole;
   tenantId: string | null;
 }> {
-  const { userId, role, tenantId } = await getCurrentUserRole();
+  const { userId, role, tenantId } = await getCachedUserRole();
 
   if (!userId) {
     throw new AppError(
@@ -268,7 +268,7 @@ export async function resetRolePermissions(
  * UI에서 버튼 표시/숨김에 사용할 수 있습니다.
  */
 export async function getCurrentUserPermissions(): Promise<Record<PermissionKey, boolean>> {
-  const { role, tenantId } = await getCurrentUserRole();
+  const { role, tenantId } = await getCachedUserRole();
 
   // 모든 권한 정의 조회
   const definitions = await getPermissionDefinitions();

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import {
   searchStudentsUnified,
@@ -32,7 +32,7 @@ import {
 export async function GET(request: NextRequest) {
   try {
     // 인증 확인
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return apiUnauthorized("인증이 필요합니다.");

@@ -4,14 +4,14 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
 import { updateCalendarId } from "@/lib/domains/googleCalendar";
 
 export async function PUT(request: NextRequest) {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !isAdminRole(role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

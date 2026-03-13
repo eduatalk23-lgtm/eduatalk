@@ -1,6 +1,6 @@
 
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { getAttendanceSMSLogs } from "@/lib/domains/attendance";
 import { SMSLogsTable } from "./_components/SMSLogsTable";
@@ -14,7 +14,7 @@ export default async function SMSLogsPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId || !isAdminRole(role)) {
     redirect("/login");

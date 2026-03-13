@@ -1,6 +1,6 @@
 
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getCampTemplateById } from "@/lib/domains/camp/actions";
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 import { getQueryClient } from "@/lib/providers/getQueryClient";
@@ -12,7 +12,7 @@ export default async function CampLearningPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (role !== "admin" && role !== "consultant") {
     redirect("/login");
   }

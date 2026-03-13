@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { searchMasterLectures, getPlatformsForFilter, getDifficultiesForMasterLectures } from "@/lib/data/contentMasters";
 import { getCurriculumRevisions } from "@/lib/data/contentMetadata";
@@ -92,7 +92,7 @@ export default async function StudentMasterLecturesPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const params = await searchParams;
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId) redirect("/login");
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { searchMasterCustomContents, getCurriculumRevisions } from "@/lib/data/contentMasters";
 import { MasterCustomContentFilters } from "@/lib/data/contentMasters";
@@ -16,7 +16,7 @@ export default async function StudentMasterCustomContentsPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const params = await searchParams;
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (role !== "student") {
     redirect("/login");

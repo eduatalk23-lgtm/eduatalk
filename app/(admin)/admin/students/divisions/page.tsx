@@ -1,6 +1,6 @@
 
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { getStudentDivisionStats, getStudentsByDivision } from "@/lib/data/students";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -13,7 +13,7 @@ export default async function StudentDivisionsPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId || !isAdminRole(role)) {
     redirect("/login");

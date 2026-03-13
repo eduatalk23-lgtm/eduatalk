@@ -1,5 +1,5 @@
 import { redirect, notFound } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getCampPlanGroupForReview } from "@/lib/domains/camp/actions";
 import { CampPlanGroupReviewForm } from "./CampPlanGroupReviewForm";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -10,7 +10,7 @@ export default async function CampPlanGroupReviewPage({
 }: {
   params: Promise<{ id: string; groupId: string }>;
 }) {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (role !== "admin" && role !== "consultant") {
     redirect("/login");
   }

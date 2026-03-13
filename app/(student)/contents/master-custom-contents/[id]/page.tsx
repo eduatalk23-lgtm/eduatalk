@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getMasterCustomContentById } from "@/lib/data/contentMasters";
 import { ContentHeader } from "@/app/(student)/contents/_components/ContentHeader";
 import { ContentDetailTable } from "@/app/(student)/contents/_components/ContentDetailTable";
@@ -13,7 +13,7 @@ export default async function StudentMasterCustomContentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (role !== "student") {
     redirect("/login");

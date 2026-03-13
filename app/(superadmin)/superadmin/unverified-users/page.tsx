@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { UnverifiedUsersList } from "./_components/UnverifiedUsersList";
 import Link from "next/link";
@@ -19,7 +19,7 @@ export default async function UnverifiedUsersPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const { role, userId } = await getCurrentUserRole();
+  const { role, userId } = await getCachedUserRole();
 
   // Super Admin만 접근 가능
   if (!userId || role !== "superadmin") {

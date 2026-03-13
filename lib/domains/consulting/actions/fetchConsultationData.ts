@@ -1,7 +1,7 @@
 "use server";
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getStudentPhones } from "@/lib/utils/studentPhoneUtils";
 import { getConsultationSchedules } from "./schedule";
@@ -50,7 +50,7 @@ export async function fetchConsultationData(
 ): Promise<ConsultationPanelData> {
   try {
     await requireAdminOrConsultant();
-    const { userId } = await getCurrentUserRole();
+    const { userId } = await getCachedUserRole();
     const supabase = await createSupabaseServerClient();
 
     const [consultantsResult, enrollmentResult, schedules, phoneData, notesResult] =

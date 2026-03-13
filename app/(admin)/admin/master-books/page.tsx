@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getContainerClass } from "@/lib/constants/layout";
 import { searchMasterBooks, getCurriculumRevisions, getPublishersForFilter, getDifficultiesForMasterBooks } from "@/lib/data/contentMasters";
@@ -16,7 +16,7 @@ export default async function MasterBooksPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const params = await searchParams;
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   const tenantContext = await getTenantContext();
 
   const supabase = await createSupabaseServerClient();

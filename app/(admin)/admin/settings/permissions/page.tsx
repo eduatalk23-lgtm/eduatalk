@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { PermissionSettingsForm } from "./_components/PermissionSettingsForm";
 
 export const metadata = {
@@ -9,7 +9,7 @@ export const metadata = {
 };
 
 export default async function PermissionSettingsPage() {
-  const { userId, role, tenantId } = await getCurrentUserRole();
+  const { userId, role, tenantId } = await getCachedUserRole();
 
   // admin 또는 superadmin만 접근 가능
   if (!userId || (role !== "admin" && role !== "superadmin")) {

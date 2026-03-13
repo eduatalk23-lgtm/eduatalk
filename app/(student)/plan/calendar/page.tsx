@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getCurrentUserRole } from '@/lib/auth/getCurrentUserRole';
+import { getCachedUserRole } from '@/lib/auth/getCurrentUserRole';
 import { getTenantContext } from '@/lib/tenant/getTenantContext';
 import { ensureStudentPrimaryCalendar } from '@/lib/domains/calendar/helpers';
 import { fetchCalendarPageData } from '@/lib/domains/admin-plan/actions/calendarPageData';
@@ -19,7 +19,7 @@ export default async function PlanCalendarPage({
   searchParams,
 }: PlanCalendarPageProps) {
   // 1. 인증 확인
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
   if (!userId || role !== 'student') {
     redirect('/login');
   }

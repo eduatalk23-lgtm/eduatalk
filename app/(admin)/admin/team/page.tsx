@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { getTeamMembers, getTeamOverview } from "@/lib/domains/team/queries";
 import { getTeamInvitations } from "@/lib/domains/invitation/actions";
@@ -9,7 +9,7 @@ import { TeamMembersList } from "./_components/TeamMembersList";
 import { PendingInvitationsList } from "./_components/PendingInvitationsList";
 
 export default async function TeamPage() {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId || !isAdminRole(role)) {
     redirect("/login");

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   buildMarkdownExportData,
@@ -49,7 +49,7 @@ export async function GET(
     }
 
     // 2. 권한 확인
-    const userRole = await getCurrentUserRole();
+    const userRole = await getCachedUserRole();
     if (!userRole.role) {
       return apiForbidden("접근 권한이 없습니다");
     }

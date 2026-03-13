@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { StudentCampProfileView } from "./_components/StudentCampProfileView";
 
 export const metadata = {
@@ -12,7 +12,7 @@ export default async function StudentCampProfilePage({
 }: {
   params: Promise<{ studentId: string }>;
 }) {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (role !== "admin" && role !== "consultant") {
     redirect("/login");
   }

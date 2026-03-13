@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -818,7 +818,7 @@ export async function createStudent(
   connectionCode?: string;
   error?: string;
 }> {
-  const { role, tenantId, userId } = await getCurrentUserRole();
+  const { role, tenantId, userId } = await getCachedUserRole();
 
   if (role !== "admin" && role !== "consultant") {
     return { success: false, error: "권한이 없습니다." };

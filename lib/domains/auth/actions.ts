@@ -18,7 +18,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { logActionSuccess, logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { saveUserSession } from "@/lib/auth/sessionManager";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getDefaultTenant } from "@/lib/data/tenants";
 import { DATABASE_ERROR_CODES } from "@/lib/constants/databaseErrorCodes";
 import type { UserWithSignupMetadata } from "@/lib/types/auth";
@@ -1036,7 +1036,7 @@ export async function changePassword(
  * 사용자 권한 변경 (학생 ↔ 학부모)
  */
 export async function changeUserRole(newRole: "student" | "parent"): Promise<ActionResponse> {
-  const { userId } = await getCurrentUserRole();
+  const { userId } = await getCachedUserRole();
 
   if (!userId) {
     return createErrorResponse("로그인이 필요합니다.");

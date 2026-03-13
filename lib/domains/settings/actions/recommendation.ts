@@ -1,6 +1,6 @@
 "use server";
 
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import {
   getRangeRecommendationConfig,
@@ -19,7 +19,7 @@ export async function getRangeRecommendationSettingsAction(): Promise<{
   config?: RangeRecommendationConfig;
   error?: string;
 }> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (role !== "admin" && role !== "consultant") {
     return {
       success: false,
@@ -55,7 +55,7 @@ export async function getRangeRecommendationSettingsAction(): Promise<{
 export async function updateRangeRecommendationSettingsAction(
   config: RangeRecommendationConfig
 ): Promise<{ success: boolean; error?: string }> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (role !== "admin") {
     return {
       success: false,
@@ -96,7 +96,7 @@ export async function resetRangeRecommendationSettingsAction(): Promise<{
   success: boolean;
   error?: string;
 }> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (role !== "admin") {
     return {
       success: false,

@@ -2,7 +2,7 @@ export const revalidate = 300; // 5분마다 재검증
 
 import { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getCurrentUserName } from "@/lib/auth/getCurrentUserName";
 import { RoleBasedLayout } from "@/components/layout/RoleBasedLayout";
 
@@ -13,7 +13,7 @@ import { RoleBasedLayout } from "@/components/layout/RoleBasedLayout";
  */
 export default async function SuperAdminLayout({ children }: { children: ReactNode }) {
   // 권한 검증
-  const { userId, role, tenantId } = await getCurrentUserRole();
+  const { userId, role, tenantId } = await getCachedUserRole();
 
   if (!userId || role !== "superadmin") {
     redirect("/login");

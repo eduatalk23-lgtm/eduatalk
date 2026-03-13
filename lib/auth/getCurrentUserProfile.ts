@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRole, type UserRole } from "./getCurrentUserRole";
+import { getCachedUserRole, type UserRole } from "./getCurrentUserRole";
+import { getCachedAuthUser } from "./cachedGetUser";
 
 type UserInfoParams = {
   userId: string;
@@ -31,15 +32,15 @@ export const getCurrentUserProfile = cache(async (userInfo?: UserInfoParams): Pr
       userId = userInfo.userId;
       role = userInfo.role;
     } else {
-      const currentUser = await getCurrentUserRole();
+      const currentUser = await getCachedUserRole();
       userId = currentUser.userId;
       role = currentUser.role;
     }
 
     if (!userId || !role) return empty;
 
-    // 이메일은 auth에서 가져옴
-    const { data: { user: authUser } } = await supabase.auth.getUser();
+    // 이메일은 auth에서 가져옴 (getCachedAuthUser로 요청 내 중복 호출 방지)
+    const authUser = await getCachedAuthUser();
     const email = authUser?.email ?? null;
 
     if (role === "student") {

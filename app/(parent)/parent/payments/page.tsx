@@ -4,11 +4,11 @@
  */
 
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { ParentPaymentContent } from "./_components/ParentPaymentContent";
 
 export default async function ParentPaymentsPage() {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId || role !== "parent") {
     redirect("/login");

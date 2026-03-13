@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getSlotTemplatePresets } from "@/lib/domains/camp/actions";
 import { PresetList } from "./_components/PresetList";
 
 export default async function SlotPresetsPage() {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (role !== "admin" && role !== "consultant") {
     redirect("/login");
   }

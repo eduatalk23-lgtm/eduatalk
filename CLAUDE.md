@@ -49,7 +49,15 @@ pnpm analyze      # Bundle analysis (ANALYZE=true next build)
 
 **Authentication Flow:**
 - Role-based routing: student → `/dashboard`, admin → `/admin/dashboard`, parent → `/parent/dashboard`
-- Use `getCurrentUser()` and `getCurrentUserRole()` from `lib/auth/`
+- Use `getCurrentUser()` and `getCachedUserRole()` from `lib/auth/`
+
+**Auth Caching Rules (1-Request, 1-Query 원칙):**
+- **`getCachedAuthUser()`** — `supabase.auth.getUser()`를 직접 호출하지 말 것. 반드시 이 함수를 사용 (`lib/auth/cachedGetUser.ts`)
+- **`getCachedUserRole()`** — `getCurrentUserRole()`을 직접 호출하지 말 것. 반드시 캐시된 버전 사용 (`lib/auth/getCurrentUserRole.ts`)
+- **`getCurrentUser()`** — 이미 캐시 적용됨, 직접 사용 OK (`lib/auth/getCurrentUser.ts`)
+- **proxy.ts** — Edge Runtime이므로 `React.cache()` 공유 불가. DB 쿼리 없이 `user_metadata`만 사용
+- **가드 함수** (`requireAdminOrConsultant`, `requireAdmin` 등) — 내부적으로 `getCachedUserRole()` 사용
+- **원본 함수(`getCurrentUserRole`)는 `getCachedUserRole` 내부에서만 호출** — 외부에서 직접 import/호출 금지
 
 **Auth Strategy Pattern (Server Actions):**
 Use `resolveAuthContext()` for role-based authentication in Server Actions:

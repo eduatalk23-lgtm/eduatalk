@@ -1,6 +1,6 @@
 "use server";
 
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { exportToExcel } from "@/lib/utils/excel";
 
@@ -8,7 +8,7 @@ import { exportToExcel } from "@/lib/utils/excel";
  * 강의 관리 데이터를 Excel 파일로 다운로드
  */
 export async function exportMasterLecturesToExcel(): Promise<Buffer> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (role !== "admin") {
     throw new Error("관리자 권한이 필요합니다.");
   }
@@ -59,7 +59,7 @@ export async function exportMasterLecturesToExcel(): Promise<Buffer> {
  * 강의 관리 양식 파일 다운로드
  */
 export async function downloadMasterLecturesTemplate(): Promise<Buffer> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (role !== "admin") {
     throw new Error("관리자 권한이 필요합니다.");
   }

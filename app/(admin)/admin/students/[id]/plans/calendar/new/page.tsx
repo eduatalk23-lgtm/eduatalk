@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getCurrentUserRole } from '@/lib/auth/getCurrentUserRole';
+import { getCachedUserRole } from '@/lib/auth/getCurrentUserRole';
 import { isAdminRole } from '@/lib/auth/isAdminRole';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { CalendarCreatePage } from './_components/CalendarCreatePage';
@@ -11,7 +11,7 @@ interface Props {
 export default async function NewCalendarPage({ params }: Props) {
   const { id: studentId } = await params;
 
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (!isAdminRole(role)) notFound();
 
   const supabase = await createSupabaseServerClient();

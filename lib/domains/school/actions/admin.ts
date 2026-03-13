@@ -12,7 +12,7 @@
  * 주의: 새 테이블들은 외부 데이터 기반으로 읽기 전용입니다.
  */
 
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import {
   getAllSchools,
   searchAllSchools,
@@ -59,7 +59,7 @@ export async function getSchoolsAction(options?: {
   type?: SchoolTypeKor;
   includeInactive?: boolean;
 }): Promise<School[]> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (role !== "admin" && role !== "consultant") {
     return [];
@@ -93,7 +93,7 @@ export async function getSchoolsAction(options?: {
  * 지역 목록 조회 (클라이언트용)
  */
 export async function getRegionsAction(): Promise<Region[]> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (role !== "admin" && role !== "consultant") {
     return [];
@@ -108,7 +108,7 @@ export async function getRegionsAction(): Promise<Region[]> {
 export async function getRegionsByLevelAction(
   level: 1 | 2 | 3
 ): Promise<Region[]> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (role !== "admin" && role !== "consultant") {
     return [];
@@ -123,7 +123,7 @@ export async function getRegionsByLevelAction(
 export async function getRegionsByParentAction(
   parentId: string
 ): Promise<Region[]> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (role !== "admin" && role !== "consultant") {
     return [];
@@ -140,7 +140,7 @@ export async function getAllSchoolsAction(options?: {
   region?: string;
   limit?: number;
 }): Promise<AllSchoolsView[]> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (role !== "admin" && role !== "consultant") {
     return [];
@@ -157,7 +157,7 @@ export async function getSchoolInfoListAction(options?: {
   region?: string;
   limit?: number;
 }): Promise<SchoolInfo[]> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (role !== "admin" && role !== "consultant") {
     return [];
@@ -174,7 +174,7 @@ export async function getUniversityCampusesAction(options?: {
   region?: string;
   limit?: number;
 }): Promise<UniversityWithCampus[]> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (role !== "admin" && role !== "consultant") {
     return [];
@@ -191,7 +191,7 @@ export async function searchSchoolsAction(
   schoolType?: SchoolType,
   limit = 50
 ): Promise<{ id: string; name: string; schoolType: SchoolType; region: string | null }[]> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (role !== "admin" && role !== "consultant") {
     return [];

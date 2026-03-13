@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getCurrentUserRole } from '@/lib/auth/getCurrentUserRole';
+import { getCachedUserRole } from '@/lib/auth/getCurrentUserRole';
 import { isAdminRole } from '@/lib/auth/isAdminRole';
 import { EventEditPage } from '../../_components/EventEditPage';
 
@@ -14,7 +14,7 @@ interface Props {
 export default async function EditEventPage({ params, searchParams }: Props) {
   const [{ id: studentId, eventId }, sp] = await Promise.all([params, searchParams]);
 
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (!isAdminRole(role)) notFound();
 
   return (

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import {
   runUnifiedPlanGenerationPipeline,
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. 권한 확인 (관리자/컨설턴트만)
-    const userRole = await getCurrentUserRole();
+    const userRole = await getCachedUserRole();
     if (userRole.role !== "admin" && userRole.role !== "consultant") {
       return apiForbidden("관리자 또는 컨설턴트만 접근할 수 있습니다");
     }

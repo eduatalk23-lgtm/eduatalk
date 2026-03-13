@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -12,7 +12,7 @@ import { PipelineBoard } from "./_components/PipelineBoard";
 import type { PipelineStatus, SalesLeadWithRelations } from "@/lib/domains/crm/types";
 
 export default async function CrmPipelinePage() {
-  const { userId, role, tenantId } = await getCurrentUserRole();
+  const { userId, role, tenantId } = await getCachedUserRole();
 
   if (!userId || !isAdminRole(role)) {
     redirect("/login");

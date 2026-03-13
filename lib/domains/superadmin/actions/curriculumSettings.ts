@@ -1,6 +1,6 @@
 "use server";
 
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { AppError, ErrorCode } from "@/lib/errors";
@@ -12,7 +12,7 @@ import type { CurriculumSettingsData } from "../types";
  * 교육과정 설정 조회
  */
 async function _getCurriculumSettings(): Promise<CurriculumSettingsData> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (role !== "superadmin") {
     throw new AppError(
@@ -82,7 +82,7 @@ export const getCurriculumSettings = withActionResponse(_getCurriculumSettings);
  * 교육과정 설정 업데이트
  */
 async function _updateCurriculumSettings(formData: FormData): Promise<void> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (role !== "superadmin") {
     throw new AppError(

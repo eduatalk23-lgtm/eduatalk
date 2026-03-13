@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getRecommendedMasterContents } from "@/lib/recommendations/masterContentRecommendation";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import {
   apiSuccess,
   apiUnauthorized,
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       return apiUnauthorized();
     }
 
-    const { role } = await getCurrentUserRole();
+    const { role } = await getCachedUserRole();
     
     // 쿼리 파라미터에서 교과와 개수 정보 추출
     const { searchParams } = new URL(request.url);

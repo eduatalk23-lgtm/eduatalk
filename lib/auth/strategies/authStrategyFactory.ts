@@ -8,7 +8,7 @@
  * @module lib/auth/strategies/authStrategyFactory
  */
 
-import { getCurrentUserRole, type UserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole, type UserRole } from "@/lib/auth/getCurrentUserRole";
 import { AppError, ErrorCode } from "@/lib/errors";
 import { adminAuthStrategy } from "./adminAuthStrategy";
 import { parentAuthStrategy } from "./parentAuthStrategy";
@@ -60,7 +60,7 @@ const strategyRegistry: AuthStrategy[] = [
  */
 export async function resolveAuthContext(options?: AuthOptions): Promise<AuthContext> {
   // 현재 사용자 역할 조회
-  const { role: currentRole } = await getCurrentUserRole();
+  const { role: currentRole } = await getCachedUserRole();
 
   // 적절한 전략 선택
   for (const strategy of strategyRegistry) {
@@ -122,7 +122,7 @@ export async function canUseAuthMode(
   mode: AuthContext["mode"],
   options?: AuthOptions
 ): Promise<boolean> {
-  const { role: currentRole } = await getCurrentUserRole();
+  const { role: currentRole } = await getCachedUserRole();
   const strategy = strategyRegistry.find((s) => s.mode === mode);
 
   if (!strategy) {

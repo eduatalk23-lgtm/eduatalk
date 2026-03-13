@@ -8,7 +8,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 // import { getCurrentUser } from "@/lib/session"; // Removed
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { revalidatePath } from "next/cache";
 import { logActionError } from "@/lib/logging/actionLogger";
 import { MetricsBuilder, logRecommendationError } from "../metrics";
@@ -133,7 +133,7 @@ export async function generatePlanWithAI(
 
     if (input.studentId && input.studentId !== user.userId) {
       // 대리 생성 요청인 경우 권한 확인
-      const currentUserRole = await getCurrentUserRole();
+      const currentUserRole = await getCachedUserRole();
       if (currentUserRole.role !== "admin" && currentUserRole.role !== "consultant") {
         return { success: false, error: "다른 학생의 플랜을 생성할 권한이 없습니다." };
       }

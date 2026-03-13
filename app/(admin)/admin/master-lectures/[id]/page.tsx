@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import {
   getMasterLectureById,
   deleteMasterLecture,
@@ -19,7 +19,7 @@ export default async function MasterLectureDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   const supabase = await createSupabaseServerClient();
 

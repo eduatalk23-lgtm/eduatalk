@@ -1,5 +1,5 @@
 import { redirect, notFound } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getCampPlanGroupForReview } from "@/lib/domains/camp/actions";
 import { PlanGroupWizard } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
@@ -19,7 +19,7 @@ export default async function CampContinuePage({
   params,
   searchParams,
 }: CampContinuePageProps) {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (role !== "admin" && role !== "consultant") {
     redirect("/login");
   }
@@ -157,7 +157,7 @@ export default async function CampContinuePage({
   // originalContents를 사용하여 master_content_id가 포함된 원본 데이터로 조회
   // 관리자/컨설턴트가 다른 학생의 콘텐츠를 조회할 때는 역할 정보 전달 (RLS 우회)
   const contentsForClassification = originalContents || contents;
-  const { userId } = await getCurrentUserRole();
+  const { userId } = await getCachedUserRole();
   const { studentContents: classifiedStudentContents, recommendedContents: classifiedRecommendedContents } = 
     await classifyPlanContents(contentsForClassification, studentId, {
       currentUserRole: role,

@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getConsultationSchedules } from "@/lib/domains/consulting/actions/schedule";
 import { getStudentPhones } from "@/lib/utils/studentPhoneUtils";
 import { ConsultationScheduleForm } from "./ConsultationScheduleForm";
@@ -20,7 +20,7 @@ type ConsultationScheduleSectionProps = {
 export async function ConsultationScheduleSection({
   studentId,
 }: ConsultationScheduleSectionProps) {
-  const { userId } = await getCurrentUserRole();
+  const { userId } = await getCachedUserRole();
   const supabase = await createSupabaseServerClient();
 
   // 컨설턴트 목록 + 수강 프로그램 + 일정 + 연락처 병렬 조회

@@ -7,7 +7,7 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { logActionError } from "@/lib/logging/actionLogger";
 import type { StudentDivision } from "@/lib/constants/students";
@@ -45,7 +45,7 @@ export async function updateStudentDivisionAction(
   studentId: string,
   division: StudentDivision | null
 ): Promise<{ success: boolean; error?: string }> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (!isAdminRole(role)) {
     return {
@@ -78,7 +78,7 @@ export async function updateStudentGradeAction(
   studentId: string,
   grade: number | null
 ): Promise<{ success: boolean; error?: string }> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (!isAdminRole(role)) {
     return {
@@ -109,7 +109,7 @@ export async function updateStudentGradeAction(
 export async function getStudentsByDivisionAction(
   division: StudentDivision | null
 ): Promise<{ success: boolean; data?: unknown[]; error?: string }> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (!isAdminRole(role)) {
     return {
@@ -146,7 +146,7 @@ export async function getStudentDivisionStatsAction(): Promise<{
   data?: Array<{ division: StudentDivision | null; count: number; gradeBreakdown: Record<number, number> }>;
   error?: string;
 }> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (!isAdminRole(role)) {
     return {
@@ -185,7 +185,7 @@ export async function batchUpdateStudentDivisionAction(
   failureCount: number;
   errors?: Array<{ studentId: string; error: string }>;
 }> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (!isAdminRole(role)) {
     return {
@@ -245,7 +245,7 @@ export async function batchUpdateStudentGradeAction(
   failureCount: number;
   errors?: Array<{ studentId: string; error: string }>;
 }> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (!isAdminRole(role)) {
     return {

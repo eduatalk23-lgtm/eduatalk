@@ -2,7 +2,7 @@
 
 import { requireStudentAuth } from "@/lib/auth/requireStudentAuth";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getPlanGroupById, getPlanGroupWithDetails } from "@/lib/data/planGroups";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -113,7 +113,7 @@ async function _checkPlansExist(groupId: string): Promise<{
   }
 
   // 관리자 또는 컨설턴트 권한도 허용 (캠프 모드에서 관리자가 플랜 확인 시 사용)
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (user.role !== "student" && role !== "admin" && role !== "consultant") {
     throw new AppError(
       "학생 권한이 필요합니다.",
@@ -265,7 +265,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
     }>;
   }>;
 }> {
-  const userRole = await getCurrentUserRole();
+  const userRole = await getCachedUserRole();
   if (
     !userRole.userId ||
     (!userRole.role ||

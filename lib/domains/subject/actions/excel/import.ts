@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseExcelFile, validateExcelFile } from "@/lib/utils/excel";
 import { z } from "zod";
@@ -96,7 +96,7 @@ export async function importSubjectsFromExcel(
 ): Promise<{ success: boolean; message: string; errors?: string[] }> {
   // Uint8Array를 Buffer로 변환
   const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (role !== "admin") {
     throw new Error("관리자 권한이 필요합니다.");
   }

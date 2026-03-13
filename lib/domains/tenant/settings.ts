@@ -1,6 +1,6 @@
 "use server";
 
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
@@ -26,7 +26,7 @@ export async function getAutoApproveSettings(
   data?: AutoApproveSettings;
   error?: string;
 }> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (role !== "admin" && role !== "consultant") {
     return { success: false, error: "권한이 없습니다." };
@@ -103,7 +103,7 @@ export async function updateAutoApproveSettings(
   settings: AutoApproveSettings,
   tenantId?: string
 ): Promise<{ success: boolean; error?: string }> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (role !== "admin" && role !== "consultant") {
     return { success: false, error: "권한이 없습니다." };

@@ -1,6 +1,6 @@
 
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getContainerClass } from "@/lib/constants/layout";
@@ -12,7 +12,7 @@ import { getContainerClass } from "@/lib/constants/layout";
  * 데이터 개수를 비교하여 마이그레이션 상태를 확인합니다.
  */
 export default async function MigrationStatusPage() {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   // 권한 확인 (admin만 접근 가능)
   if (!userId || !isAdminRole(role)) {

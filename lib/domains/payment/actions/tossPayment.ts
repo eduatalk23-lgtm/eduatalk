@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
@@ -34,7 +34,7 @@ export async function prepareTossPaymentAction(
   }>
 > {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
     if (!userId || !role) {
       return { success: false, error: "로그인이 필요합니다." };
     }
@@ -124,7 +124,7 @@ export async function prepareBatchTossPaymentAction(
   }>
 > {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
     if (!userId || !role) {
       return { success: false, error: "로그인이 필요합니다." };
     }

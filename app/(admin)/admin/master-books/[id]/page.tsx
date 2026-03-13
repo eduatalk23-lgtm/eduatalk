@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getMasterBookById, deleteMasterBook } from "@/lib/data/contentMasters";
 import { getContainerClass } from "@/lib/constants/layout";
 import { ContentHeader } from "@/app/(student)/contents/_components/ContentHeader";
@@ -15,7 +15,7 @@ export default async function MasterBookDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   // 교재 조회
   const { book, details } = await getMasterBookById(id);

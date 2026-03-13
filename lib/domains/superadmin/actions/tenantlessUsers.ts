@@ -1,6 +1,6 @@
 "use server";
 
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
@@ -20,7 +20,7 @@ import type { TenantlessUser, Tenant } from "../types";
 async function _getTenantlessUsers(
   userType?: "student" | "parent" | "admin" | "all"
 ): Promise<TenantlessUser[]> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (role !== "superadmin") {
     throw new AppError(
@@ -163,7 +163,7 @@ async function _assignTenantToUser(
   tenantId: string,
   userType: "student" | "parent" | "admin"
 ): Promise<void> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (role !== "superadmin") {
     throw new AppError(
@@ -210,7 +210,7 @@ async function _assignTenantToMultipleUsers(
   userIds: Array<{ userId: string; userType: "student" | "parent" | "admin" }>,
   tenantId: string
 ): Promise<{ assignedCount: number }> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (role !== "superadmin") {
     throw new AppError(
@@ -257,7 +257,7 @@ export const assignTenantToMultipleUsers = withActionResponse(
  * 활성 테넌트 목록 조회 (테넌트 할당용)
  */
 async function _getActiveTenants(): Promise<Tenant[]> {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   if (role !== "superadmin") {
     throw new AppError(

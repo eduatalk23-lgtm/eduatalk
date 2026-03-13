@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
 import { getContainerClass } from "@/lib/constants/layout";
 import { AdjustDashboard } from "./_components/AdjustDashboard";
 
 export default async function AdjustPage() {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId || role !== "student") {
     redirect("/login");

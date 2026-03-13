@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getCampTemplateById } from "@/lib/domains/camp/actions";
 import { CampParticipantsList } from "./CampParticipantsList";
@@ -9,7 +9,7 @@ export default async function CampParticipantsPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (role !== "admin" && role !== "consultant") {
     redirect("/login");
   }

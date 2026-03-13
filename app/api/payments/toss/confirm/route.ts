@@ -9,7 +9,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import {
   apiSuccess,
   apiUnauthorized,
@@ -38,7 +38,7 @@ type ConfirmBody = {
 export async function POST(request: NextRequest) {
   try {
     // 1. 인증 확인 (학부모 or 관리자)
-    const { userId, role, tenantId } = await getCurrentUserRole();
+    const { userId, role, tenantId } = await getCachedUserRole();
     if (!userId || !role) {
       return apiUnauthorized("로그인이 필요합니다.");
     }

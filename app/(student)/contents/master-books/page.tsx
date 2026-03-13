@@ -3,7 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { searchMasterBooks, getPublishersForFilter, getDifficultiesForMasterBooks } from "@/lib/data/contentMasters";
 import { getCurriculumRevisions } from "@/lib/data/contentMetadata";
@@ -92,7 +92,7 @@ export default async function StudentMasterBooksPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const params = await searchParams;
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId) redirect("/login");
 

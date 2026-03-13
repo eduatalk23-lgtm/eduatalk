@@ -5,7 +5,7 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getLinkedStudents, canAccessStudent } from "@/lib/domains/parent";
 import { StudentSelector } from "../_components/StudentSelector";
 import { ParentFilesClient } from "./_components/ParentFilesClient";
@@ -21,7 +21,7 @@ type PageProps = {
 export default async function ParentFilesPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const supabase = await createSupabaseServerClient();
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId || role !== "parent") {
     redirect("/login");

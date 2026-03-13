@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getMasterCustomContentById, deleteMasterCustomContent } from "@/lib/data/contentMasters";
 import { ContentHeader } from "@/app/(student)/contents/_components/ContentHeader";
 import { ContentDetailTable } from "@/app/(student)/contents/_components/ContentDetailTable";
@@ -12,7 +12,7 @@ export default async function MasterCustomContentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   // 커스텀 콘텐츠 조회
   const { content } = await getMasterCustomContentById(id);

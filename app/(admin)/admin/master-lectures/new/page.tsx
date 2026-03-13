@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getCurriculumRevisions } from "@/lib/data/contentMetadata";
 import { getMasterBooksListAction } from "@/lib/domains/content";
 import { getContainerClass } from "@/lib/constants/layout";
 import { MasterLectureForm } from "./MasterLectureForm";
 
 export default async function NewMasterLecturePage() {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   // 관리자 권한 확인
   if (role !== "admin" && role !== "consultant") {

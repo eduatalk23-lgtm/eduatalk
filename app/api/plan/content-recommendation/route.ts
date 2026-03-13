@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import {
   getUnifiedContentRecommendation,
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
   try {
     // 1. 인증 확인
     const user = await getCurrentUser();
-    const { role } = await getCurrentUserRole();
+    const { role } = await getCachedUserRole();
 
     if (!user) {
       return apiUnauthorized("로그인이 필요합니다.");

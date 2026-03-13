@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getCurriculumRevisions } from "@/lib/data/contentMetadata";
 import { MasterCustomContentForm } from "./MasterCustomContentForm";
 
 export default async function NewMasterCustomContentPage() {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
 
   // 관리자 권한 확인
   if (role !== "admin" && role !== "consultant") {

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getMasterBookById, getMasterLectureById } from "@/lib/data/contentMasters";
 import {
   apiSuccess,
@@ -28,7 +28,7 @@ type MasterContentInfoResponse = {
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser();
-    const { role } = await getCurrentUserRole();
+    const { role } = await getCachedUserRole();
 
     if (!user || (role !== "student" && role !== "admin" && role !== "consultant")) {
       return apiUnauthorized();

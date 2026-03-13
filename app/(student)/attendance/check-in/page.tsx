@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { CheckInPageContent } from "./_components/CheckInPageContent";
 
 
@@ -8,7 +8,7 @@ type CheckInPageProps = {
 };
 
 export default async function CheckInPage({ searchParams }: CheckInPageProps) {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId || role !== "student") {
     redirect("/login");

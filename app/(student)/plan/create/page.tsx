@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getContainerClass } from "@/lib/constants/layout";
 import { ModeSelector } from "./_components/ModeSelector";
 
@@ -8,7 +8,7 @@ type CreatePageProps = {
 };
 
 export default async function CreatePage({ searchParams }: CreatePageProps) {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId || role !== "student") {
     redirect("/login");

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { requireStudentAuth } from "@/lib/auth/requireStudentAuth";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
@@ -33,7 +33,7 @@ async function _syncTimeManagementExclusions(
     source?: "time_management";
   }>;
 }> {
-  const { role, userId } = await getCurrentUserRole();
+  const { role, userId } = await getCachedUserRole();
   const tenantContext = await getTenantContext();
 
   if (!userId) {

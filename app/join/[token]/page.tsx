@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { validateInvitationByToken } from "@/lib/domains/invitation/actions";
 import { AnimatedBackground } from "@/app/login/_components/AnimatedBackground";
 import { GlassCard } from "@/app/login/_components/GlassCard";
@@ -33,7 +33,7 @@ export default async function JoinPage({ params }: JoinPageProps) {
   let currentUserEmail: string | null = null;
 
   try {
-    const { userId } = await getCurrentUserRole();
+    const { userId } = await getCachedUserRole();
     if (userId) {
       currentUserId = userId;
       const supabase = await createSupabaseServerClient();

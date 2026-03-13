@@ -8,7 +8,7 @@ import {
   getMasterLectureById,
 } from "@/lib/data/contentMasters";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import {
   apiSuccess,
   apiUnauthorized,
@@ -34,7 +34,7 @@ export const revalidate = 300;
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser();
-    const { role } = await getCurrentUserRole();
+    const { role } = await getCachedUserRole();
 
     // 권한 체크 및 상세 로깅
     if (!user) {

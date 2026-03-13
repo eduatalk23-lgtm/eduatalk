@@ -4,7 +4,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import type {
   TeamMember,
   TeamInvitation,
@@ -17,7 +17,7 @@ import type {
  * 현재 테넌트의 팀원 목록 조회
  */
 export async function getTeamMembers(): Promise<TeamMember[]> {
-  const { userId, role, tenantId } = await getCurrentUserRole();
+  const { userId, role, tenantId } = await getCachedUserRole();
 
   if (!userId || !["admin", "consultant", "superadmin"].includes(role || "")) {
     return [];
@@ -84,7 +84,7 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
  * 현재 테넌트의 대기 중인 초대 목록 조회
  */
 export async function getPendingInvitations(): Promise<TeamInvitation[]> {
-  const { userId, role, tenantId } = await getCurrentUserRole();
+  const { userId, role, tenantId } = await getCachedUserRole();
 
   if (!userId || !["admin", "superadmin"].includes(role || "")) {
     return [];
@@ -135,7 +135,7 @@ export async function getPendingInvitations(): Promise<TeamInvitation[]> {
  * 모든 초대 목록 조회 (취소됨/만료됨 포함)
  */
 export async function getAllInvitations(): Promise<TeamInvitation[]> {
-  const { userId, role, tenantId } = await getCurrentUserRole();
+  const { userId, role, tenantId } = await getCachedUserRole();
 
   if (!userId || !["admin", "superadmin"].includes(role || "")) {
     return [];
@@ -181,7 +181,7 @@ export async function getAllInvitations(): Promise<TeamInvitation[]> {
  * 팀 개요 조회 (대시보드용)
  */
 export async function getTeamOverview(): Promise<TeamOverview | null> {
-  const { userId, role, tenantId } = await getCurrentUserRole();
+  const { userId, role, tenantId } = await getCachedUserRole();
 
   if (!userId || !["admin", "consultant", "superadmin"].includes(role || "")) {
     return null;

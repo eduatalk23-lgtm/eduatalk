@@ -8,7 +8,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { revalidatePath } from "next/cache";
 import {
   AVATAR_BUCKET,
@@ -44,7 +44,7 @@ function isSupportedRole(role: string | null): role is SupportedRole {
 export async function uploadProfileImage(
   formData: FormData
 ): Promise<ProfileImageResult> {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId || !isSupportedRole(role)) {
     return { success: false, error: "권한이 없습니다." };
@@ -111,7 +111,7 @@ export async function uploadProfileImage(
  * 프로필 이미지 삭제 (역할 자동 감지)
  */
 export async function deleteProfileImage(): Promise<ProfileImageResult> {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId || !isSupportedRole(role)) {
     return { success: false, error: "권한이 없습니다." };

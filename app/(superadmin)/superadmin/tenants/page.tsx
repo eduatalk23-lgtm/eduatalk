@@ -1,11 +1,11 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { TenantList } from "./_components/TenantList";
 
 export default async function SuperAdminTenantsPage() {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   // Super Admin만 접근 가능
   if (!userId || role !== "superadmin") {

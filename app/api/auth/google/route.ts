@@ -6,14 +6,14 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { generateAuthUrl } from "@/lib/domains/googleCalendar";
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !isAdminRole(role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

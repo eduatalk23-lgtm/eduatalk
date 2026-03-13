@@ -1,7 +1,7 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getLinkedStudents } from "../../_utils";
 import Link from "next/link";
 import { RoleChangeSection } from "./_components/RoleChangeSection";
@@ -14,7 +14,7 @@ import { isSuccessResponse } from "@/lib/types/actionResponse";
 
 export default async function ParentSettingsPage() {
   const supabase = await createSupabaseServerClient();
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
 
   if (!userId || role !== "parent") {
     redirect("/login");

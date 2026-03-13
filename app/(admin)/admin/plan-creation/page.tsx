@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 
 export const metadata = {
@@ -18,7 +18,7 @@ interface PageProps {
  * 실제 플랜 생성은 학생 상세 페이지(/admin/students/[id]/plans)에서 진행
  */
 export default async function PlanCreationPage({ searchParams }: PageProps) {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role } = await getCachedUserRole();
   const params = await searchParams;
 
   if (!userId || !isAdminRole(role)) {

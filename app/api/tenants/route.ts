@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import {
   apiSuccess,
   apiCreated,
@@ -29,7 +29,7 @@ type Tenant = {
  */
 export async function GET() {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     // Super Admin만 접근 가능
     if (!userId || role !== "superadmin") {
@@ -89,7 +89,7 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     // Super Admin만 접근 가능
     if (!userId || role !== "superadmin") {

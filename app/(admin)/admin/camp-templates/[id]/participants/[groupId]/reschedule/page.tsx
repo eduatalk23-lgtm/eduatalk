@@ -7,7 +7,7 @@
 
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getPlanGroupWithDetailsByRole, verifyPlanGroupAccess } from "@/lib/auth/planGroupAuth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -28,7 +28,7 @@ export default async function AdminReschedulePage({
   params,
   searchParams,
 }: AdminReschedulePageProps) {
-  const { role } = await getCurrentUserRole();
+  const { role } = await getCachedUserRole();
   if (role !== "admin" && role !== "consultant") {
     redirect("/login");
   }
