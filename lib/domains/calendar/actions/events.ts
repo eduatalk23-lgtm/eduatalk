@@ -381,6 +381,12 @@ async function _createEventsBatch(
     totalCount += batch.length;
   }
 
+  // 배치 생성 후 스케줄 캐시 무효화 (제외일/학원 포함 가능)
+  const calendarIds = new Set(events.map((e) => e.calendar_id).filter(Boolean));
+  for (const cid of calendarIds) {
+    if (cid) invalidateCalendarSchedule(cid);
+  }
+
   return { count: totalCount };
 }
 

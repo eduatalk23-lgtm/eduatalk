@@ -676,15 +676,19 @@ export async function deleteRecurringEvent({
         .is('deleted_at', null);
 
       if (exceptions) {
-        for (const exc of exceptions) {
-          const excDate = exc.start_date ?? extractDateYMD(exc.start_at) ?? '';
-          if (excDate >= instanceDate) {
-            await supabase
-              .from('calendar_events')
-              .update({ deleted_at: new Date().toISOString(), status: 'cancelled' })
-              .eq('id', exc.id);
-            deletedEventIds.push(exc.id);
-          }
+        const idsToDelete = exceptions
+          .filter((exc) => {
+            const excDate = exc.start_date ?? extractDateYMD(exc.start_at) ?? '';
+            return excDate >= instanceDate;
+          })
+          .map((exc) => exc.id);
+
+        if (idsToDelete.length > 0) {
+          await supabase
+            .from('calendar_events')
+            .update({ deleted_at: new Date().toISOString(), status: 'cancelled' })
+            .in('id', idsToDelete);
+          deletedEventIds.push(...idsToDelete);
         }
       }
     } else if (scope === 'all') {
@@ -703,14 +707,13 @@ export async function deleteRecurringEvent({
         .eq('is_exception', true)
         .is('deleted_at', null);
 
-      if (exceptions) {
-        for (const exc of exceptions) {
-          await supabase
-            .from('calendar_events')
-            .update({ deleted_at: new Date().toISOString(), status: 'cancelled' })
-            .eq('id', exc.id);
-          deletedEventIds.push(exc.id);
-        }
+      if (exceptions && exceptions.length > 0) {
+        const excIds = exceptions.map((exc) => exc.id);
+        await supabase
+          .from('calendar_events')
+          .update({ deleted_at: new Date().toISOString(), status: 'cancelled' })
+          .in('id', excIds);
+        deletedEventIds.push(...excIds);
       }
     }
 
@@ -923,14 +926,18 @@ export async function updateRecurringEvent({
         .is('deleted_at', null);
 
       if (exceptions) {
-        for (const exc of exceptions) {
-          const excDate = exc.start_date ?? extractDateYMD(exc.start_at) ?? '';
-          if (excDate >= instanceDate) {
-            await supabase
-              .from('calendar_events')
-              .update({ deleted_at: new Date().toISOString(), status: 'cancelled' })
-              .eq('id', exc.id);
-          }
+        const idsToDelete = exceptions
+          .filter((exc) => {
+            const excDate = exc.start_date ?? extractDateYMD(exc.start_at) ?? '';
+            return excDate >= instanceDate;
+          })
+          .map((exc) => exc.id);
+
+        if (idsToDelete.length > 0) {
+          await supabase
+            .from('calendar_events')
+            .update({ deleted_at: new Date().toISOString(), status: 'cancelled' })
+            .in('id', idsToDelete);
         }
       }
 
@@ -1015,13 +1022,12 @@ export async function updateRecurringEvent({
         .eq('is_exception', true)
         .is('deleted_at', null);
 
-      if (exceptions) {
-        for (const exc of exceptions) {
-          await supabase
-            .from('calendar_events')
-            .update({ deleted_at: new Date().toISOString(), status: 'cancelled' })
-            .eq('id', exc.id);
-        }
+      if (exceptions && exceptions.length > 0) {
+        const excIds = exceptions.map((exc) => exc.id);
+        await supabase
+          .from('calendar_events')
+          .update({ deleted_at: new Date().toISOString(), status: 'cancelled' })
+          .in('id', excIds);
       }
     }
 
@@ -1160,7 +1166,22 @@ export async function getCalendarEventForEdit(
 
     const { data, error } = await supabase
       .from('calendar_events')
-      .select('*, event_study_data(*), consultation_event_data(*, student:students!student_id(name))')
+      .select(`
+        id, title, description, color, start_at, end_at, start_date, end_date,
+        is_all_day, rrule, recurring_event_id, is_exception, reminder_minutes,
+        status, label, event_subtype, is_task, is_exclusion, container_type,
+        calendar_id, plan_group_id, tags, event_type,
+        event_study_data(
+          subject_category, subject_name, content_type, content_title, content_id,
+          planned_start_page, planned_end_page, estimated_minutes
+        ),
+        consultation_event_data(
+          consultant_id, student_id, session_type, enrollment_id,
+          program_name, consultation_mode, meeting_link, visitor,
+          schedule_status, notification_targets,
+          student:students!student_id(name)
+        )
+      `)
       .eq('id', eventId)
       .is('deleted_at', null)
       .single();
@@ -1214,7 +1235,7 @@ export async function getCalendarEventForEdit(
         consultation_event_data: consult ? {
           consultant_id: consult.consultant_id ?? null,
           student_id: consult.student_id ?? null,
-          student_name: (consult.student as { name: string } | null)?.name ?? null,
+          student_name: (consult.student as unknown as { name: string } | null)?.name ?? null,
           session_type: consult.session_type ?? null,
           enrollment_id: consult.enrollment_id ?? null,
           program_name: consult.program_name ?? null,

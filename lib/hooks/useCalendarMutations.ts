@@ -50,16 +50,21 @@ type OptimisticHelper = ReturnType<typeof useOptimisticCalendarUpdate>;
 /**
  * 일반 이벤트 생성 뮤테이션
  * (낙관적 업데이트 없음 — 서버 생성 ID 필요)
+ *
+ * Realtime broadcast가 활성화된 환경에서는 broadcast가 refetch를 트리거하므로
+ * realtimeEnabled=true 시 onSuccess invalidate를 스킵합니다.
  */
-export function useCreateCalendarEvent(calendarId: string) {
+export function useCreateCalendarEvent(calendarId: string, realtimeEnabled = false) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (input: CreateEventInput) => createEventAction(input),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: calendarEventKeys.events(calendarId),
-      });
+      if (!realtimeEnabled) {
+        queryClient.invalidateQueries({
+          queryKey: calendarEventKeys.events(calendarId),
+        });
+      }
     },
   });
 }
@@ -68,21 +73,26 @@ export function useCreateCalendarEvent(calendarId: string) {
  * 학습 이벤트 생성 뮤테이션 (event + study_data 동시)
  * (낙관적 업데이트 없음 — 서버 생성 ID 필요)
  */
-export function useCreateStudyEvent(calendarId: string) {
+export function useCreateStudyEvent(calendarId: string, realtimeEnabled = false) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (input: CreateStudyEventInput) => createStudyEventAction(input),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: calendarEventKeys.events(calendarId),
-      });
+      if (!realtimeEnabled) {
+        queryClient.invalidateQueries({
+          queryKey: calendarEventKeys.events(calendarId),
+        });
+      }
     },
   });
 }
 
 /**
  * 이벤트 수정 뮤테이션 (낙관적 업데이트 지원)
+ *
+ * optimistic이 있으면 Realtime broadcast가 refetch를 담당하므로
+ * onSettled에서 revalidate를 스킵합니다.
  */
 export function useUpdateCalendarEvent(
   calendarId: string,
@@ -116,9 +126,8 @@ export function useUpdateCalendarEvent(
     },
     onError: (_err, _vars, ctx) => ctx?.rollback?.(),
     onSettled: () => {
-      if (optimistic) {
-        optimistic.revalidate();
-      } else {
+      // optimistic이 있으면 Realtime broadcast가 refetch를 트리거하므로 스킵
+      if (!optimistic) {
         queryClient.invalidateQueries({
           queryKey: calendarEventKeys.events(calendarId),
         });
@@ -150,9 +159,7 @@ export function useUpdateStudyData(
     },
     onError: (_err, _vars, ctx) => ctx?.rollback?.(),
     onSettled: () => {
-      if (optimistic) {
-        optimistic.revalidate();
-      } else {
+      if (!optimistic) {
         queryClient.invalidateQueries({
           queryKey: calendarEventKeys.events(calendarId),
         });
@@ -181,9 +188,7 @@ export function useUpdateEventStatus(
     },
     onError: (_err, _vars, ctx) => ctx?.rollback?.(),
     onSettled: () => {
-      if (optimistic) {
-        optimistic.revalidate();
-      } else {
+      if (!optimistic) {
         queryClient.invalidateQueries({
           queryKey: calendarEventKeys.events(calendarId),
         });
@@ -210,9 +215,7 @@ export function useDeleteCalendarEvent(
     },
     onError: (_err, _vars, ctx) => ctx?.rollback?.(),
     onSettled: () => {
-      if (optimistic) {
-        optimistic.revalidate();
-      } else {
+      if (!optimistic) {
         queryClient.invalidateQueries({
           queryKey: calendarEventKeys.events(calendarId),
         });
@@ -285,9 +288,7 @@ export function useMoveCalendarEvent(
     },
     onError: (_err, _vars, ctx) => ctx?.rollback?.(),
     onSettled: () => {
-      if (optimistic) {
-        optimistic.revalidate();
-      } else {
+      if (!optimistic) {
         queryClient.invalidateQueries({
           queryKey: calendarEventKeys.events(calendarId),
         });
@@ -303,6 +304,8 @@ export function useMoveCalendarEvent(
 /**
  * calendarId 기반으로 모든 뮤테이션을 한 번에 제공하는 합성 훅
  *
+ * @param realtimeEnabled Realtime broadcast가 활성화된 환경인지 (true면 create의 onSuccess invalidate 스킵)
+ *
  * @example
  * ```tsx
  * const { createEvent, updateEvent, deleteEvent } = useCalendarMutations(calendarId);
@@ -311,12 +314,13 @@ export function useMoveCalendarEvent(
 export function useCalendarMutations(
   calendarId: string | undefined,
   visibleCalendarIds?: string[] | null,
+  realtimeEnabled = false,
 ) {
   const safeCalendarId = calendarId ?? '';
   const optimistic = useOptimisticCalendarUpdate(safeCalendarId, visibleCalendarIds);
 
-  const createEvent = useCreateCalendarEvent(safeCalendarId);
-  const createStudyEvent = useCreateStudyEvent(safeCalendarId);
+  const createEvent = useCreateCalendarEvent(safeCalendarId, realtimeEnabled);
+  const createStudyEvent = useCreateStudyEvent(safeCalendarId, realtimeEnabled);
   const updateEvent = useUpdateCalendarEvent(safeCalendarId, optimistic);
   const updateStudyData = useUpdateStudyData(safeCalendarId, optimistic);
   const updateEventStatus = useUpdateEventStatus(safeCalendarId, optimistic);
