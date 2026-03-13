@@ -521,16 +521,19 @@ export function useChatRealtime({
 
           const firstPage = old.pages[0];
 
-          // 첫 번째 페이지(최신)의 ID만 수집하여 중복 방지
-          // maxPages 제한으로 페이지 수가 적고, 증분 동기화는 최근 메시지만 가져오므로
-          // 첫 페이지만 확인해도 충분
+          // 중복 방지: 캐시 내 기존 ID + 전송 중인 메시지(operationTracker) 체크
+          // ① 캐시 첫 페이지의 기존 메시지 ID
           const existingIds = new Set<string>(
             firstPage.messages.map((m) => m.id)
           );
 
-          const uniqueNewMessages = allNewMessages.filter(
-            (m) => !existingIds.has(m.id)
-          );
+          const uniqueNewMessages = allNewMessages.filter((m) => {
+            // ① 캐시에 이미 있는 메시지 스킵
+            if (existingIds.has(m.id)) return false;
+            // ② 현재 전송 중인 메시지(오프라인 큐 처리 중)와 중복 스킵
+            if (operationTracker.isMessageBeingSent(m.id)) return false;
+            return true;
+          });
 
           if (uniqueNewMessages.length === 0) return old;
 
@@ -809,12 +812,12 @@ export function useChatRealtime({
           }
 
           // 병합 후 시간순 정렬
-          sortMessagesByTime(messages);
+          const sortedMessages = sortMessagesByTime(messages);
 
           return {
             ...old,
             pages: [
-              { ...firstPage, messages },
+              { ...firstPage, messages: sortedMessages },
               ...old.pages.slice(1),
             ],
           };

@@ -5,7 +5,7 @@
  * 파일 업로드, 첨부파일 포함 메시지 전송, 첨부파일 삭제
  */
 
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import * as chatService from "../service";
 import * as repository from "../repository";
@@ -62,7 +62,7 @@ export async function registerChatAttachmentAction(
   thumbnailPath?: string | null
 ): Promise<ChatActionResult<ChatAttachment>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
     }
@@ -177,7 +177,7 @@ export async function sendMessageWithAttachmentsAction(
   clientMessageId?: string
 ): Promise<ChatActionResult<ChatMessage>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
     }
@@ -260,7 +260,7 @@ export async function deleteChatAttachmentAction(
   attachmentId: string
 ): Promise<ChatActionResult<void>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
     }
@@ -303,7 +303,7 @@ export async function refreshAttachmentUrlsAction(
   attachmentIds: string[]
 ): Promise<ChatActionResult<Record<string, { publicUrl: string; thumbnailUrl: string | null }>>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
     }
@@ -355,7 +355,7 @@ export async function refreshAttachmentUrlsAction(
  */
 export async function getChatStorageQuotaAction(): Promise<ChatActionResult<StorageQuotaInfo>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
     }
@@ -387,7 +387,7 @@ export async function getRoomAttachmentsAction(
   options: { attachmentType?: string; attachmentTypes?: string[]; limit?: number; cursor?: string } = {}
 ): Promise<ChatActionResult<{ attachments: ChatAttachment[]; hasMore: boolean }>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
     }
@@ -437,7 +437,7 @@ export async function searchRoomAttachmentsAction(
   options: { attachmentTypes?: string[]; limit?: number; cursor?: string } = {}
 ): Promise<ChatActionResult<{ attachments: ChatAttachment[]; hasMore: boolean }>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
     }
@@ -487,7 +487,7 @@ export async function hideAttachmentsAction(
   attachmentIds: string[]
 ): Promise<ChatActionResult<{ hiddenCount: number }>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
     }

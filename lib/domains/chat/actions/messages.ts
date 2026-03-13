@@ -5,7 +5,7 @@
  * 메시지 전송/조회/삭제
  */
 
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import * as chatService from "../service";
 import * as repository from "../repository";
 import {
@@ -82,7 +82,7 @@ export async function sendMessageAction(
       return { success: false, error: "잘못된 답장 대상 ID입니다." };
     }
 
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -143,7 +143,7 @@ export async function getMessagesAction(
     if (!isUUID(roomId)) {
       return { success: false, error: "잘못된 채팅방 ID입니다." };
     }
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -179,7 +179,7 @@ export async function deleteMessageAction(
     if (!isUUID(messageId)) {
       return { success: false, error: "잘못된 메시지 ID입니다." };
     }
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -207,7 +207,7 @@ export async function markAsReadAction(
     if (!isUUID(roomId)) {
       return { success: false, error: "잘못된 채팅방 ID입니다." };
     }
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -240,7 +240,7 @@ export async function editMessageAction(
     if (!isUUID(messageId)) {
       return { success: false, error: "잘못된 메시지 ID입니다." };
     }
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -280,7 +280,7 @@ export async function searchMessagesAction(
     if (!isUUID(roomId)) {
       return { success: false, error: "잘못된 채팅방 ID입니다." };
     }
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -311,13 +311,13 @@ export async function searchMessagesAction(
  */
 export async function getMessagesWithReadStatusAction(
   roomId: string,
-  options: { limit?: number; before?: string } = {}
+  options: { limit?: number; before?: string; after?: string } = {}
 ): Promise<ChatActionResult<MessagesWithReadStatusResult>> {
   try {
     if (!isUUID(roomId)) {
       return { success: false, error: "잘못된 채팅방 ID입니다." };
     }
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -329,9 +329,9 @@ export async function getMessagesWithReadStatusAction(
       roomId,
       limit: Math.min(options.limit ?? 50, 100),
       before: options.before,
+      after: options.after,
     });
   } catch (error) {
-    // Supabase 에러는 일반 객체이므로 별도 처리
     const errorMessage = error instanceof Error
       ? error.message
       : (error as { message?: string })?.message ?? "메시지 조회 실패";
@@ -341,6 +341,47 @@ export async function getMessagesWithReadStatusAction(
       code: (error as { code?: string })?.code,
       raw: JSON.stringify(error),
     });
+
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+}
+
+/**
+ * 특정 타임스탬프 기준 양방향 메시지 조회 (unread divider 기준)
+ */
+export async function getMessagesAroundAction(
+  roomId: string,
+  timestamp: string,
+  limit: number = 50
+): Promise<ChatActionResult<MessagesWithReadStatusResult>> {
+  try {
+    if (!isUUID(roomId)) {
+      return { success: false, error: "잘못된 채팅방 ID입니다." };
+    }
+    const { userId, role } = await getCachedUserRole();
+
+    if (!userId || !role) {
+      return { success: false, error: "인증이 필요합니다." };
+    }
+
+    const userType = getUserType(role);
+
+    return await chatService.getMessagesAroundWithReadStatus(
+      userId,
+      userType,
+      roomId,
+      timestamp,
+      Math.min(limit, 100)
+    );
+  } catch (error) {
+    const errorMessage = error instanceof Error
+      ? error.message
+      : (error as { message?: string })?.message ?? "메시지 조회 실패";
+
+    console.error("[getMessagesAroundAction] Error:", errorMessage);
 
     return {
       success: false,
@@ -360,7 +401,7 @@ export async function getSenderInfoAction(
   senderType: ChatUserType
 ): Promise<ChatActionResult<ChatUser>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -399,7 +440,7 @@ export async function getSenderInfoBatchAction(
   senderKeys: Array<{ id: string; type: ChatUserType }>
 ): Promise<ChatActionResult<Record<string, ChatUser>>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -447,7 +488,7 @@ export async function getMessagesSinceAction(
     if (!isUUID(roomId)) {
       return { success: false, error: "잘못된 채팅방 ID입니다." };
     }
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -614,7 +655,7 @@ export async function getMessageReadersAction(
     if (!isUUID(roomId)) {
       return { success: false, error: "잘못된 채팅방 ID입니다." };
     }
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };

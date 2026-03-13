@@ -41,6 +41,8 @@ export {
   updateMessageContent,
   searchMessagesByRoom,
   findMessagesWithReadCounts,
+  findMessagesAround,
+  findMessagesAroundWithReadCounts,
   findReplyTargetsByIds,
   findMessagesSince,
 } from "./messages";

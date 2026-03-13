@@ -5,7 +5,7 @@
  * 채팅방 생성/조회/관리
  */
 
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import * as chatService from "../service";
 import {
   getUserType,
@@ -30,7 +30,7 @@ export async function createChatRoomAction(
   request: CreateChatRoomRequest
 ): Promise<ChatActionResult<ChatRoom>> {
   try {
-    const { userId, role, tenantId } = await getCurrentUserRole();
+    const { userId, role, tenantId } = await getCachedUserRole();
 
     if (!userId || !role || !tenantId) {
       return { success: false, error: "인증이 필요합니다." };
@@ -68,7 +68,7 @@ export async function getChatRoomsAction(
   } = {}
 ): Promise<ChatActionResult<ChatRoomListItem[]>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -98,7 +98,7 @@ export async function getChatRoomDetailAction(
   roomId: string
 ): Promise<ChatActionResult<{ room: ChatRoom; members: ChatRoomMemberWithUser[]; otherMemberLeft: boolean }>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -125,7 +125,7 @@ export async function leaveChatRoomAction(
   roomId: string
 ): Promise<ChatActionResult<void>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -157,7 +157,7 @@ export async function startDirectChatAction(
   options?: { category?: ChatRoomCategory; topic?: string }
 ): Promise<ChatActionResult<ChatRoom>> {
   try {
-    const { userId, role, tenantId } = await getCurrentUserRole();
+    const { userId, role, tenantId } = await getCachedUserRole();
 
     if (!userId || !role || !tenantId) {
       return { success: false, error: "인증이 필요합니다." };
@@ -194,7 +194,7 @@ export async function archiveChatRoomAction(
   roomId: string
 ): Promise<ChatActionResult<ChatRoom>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
     }
@@ -218,7 +218,7 @@ export async function unarchiveChatRoomAction(
   roomId: string
 ): Promise<ChatActionResult<ChatRoom>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
     }
@@ -242,7 +242,7 @@ export async function deleteChatRoomAction(
   roomId: string
 ): Promise<ChatActionResult<void>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
     }
@@ -268,7 +268,7 @@ export async function toggleMuteChatRoomAction(
   muted: boolean
 ): Promise<ChatActionResult<void>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
     }
@@ -300,7 +300,7 @@ export async function setAnnouncementAction(
   content: string | null
 ): Promise<ChatActionResult<ChatRoom>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -330,7 +330,7 @@ export async function getAnnouncementAction(
   roomId: string
 ): Promise<ChatActionResult<AnnouncementInfo | null>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -357,7 +357,7 @@ export async function canSetAnnouncementAction(
   roomId: string
 ): Promise<ChatActionResult<{ canSet: boolean }>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };

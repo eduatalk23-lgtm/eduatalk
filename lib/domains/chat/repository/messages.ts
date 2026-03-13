@@ -18,23 +18,31 @@ import type {
 export async function findMessagesByRoom(
   options: GetMessagesOptions & { visibleFrom?: string }
 ): Promise<ChatMessage[]> {
-  const { roomId, limit: rawLimit = 50, before, visibleFrom } = options;
+  const { roomId, limit: rawLimit = 50, before, after, visibleFrom } = options;
   const limit = Math.min(rawLimit, 100);
   const supabase = await createSupabaseServerClient();
 
-  // 커서 유효성 검증
   const validatedBefore = validateCursor(before);
+  const validatedAfter = validateCursor(after);
+
+  // forward pagination (after): 오래된순 → 반환도 오래된순
+  // backward pagination (before/default): 최신순 → reverse하여 오래된순 반환
+  const isForward = !!validatedAfter && !validatedBefore;
 
   let query = supabase
     .from("chat_messages")
     .select(CHAT_MESSAGE_COLUMNS)
     .eq("room_id", roomId)
     .eq("is_deleted", false)
-    .order("created_at", { ascending: false })
+    .order("created_at", { ascending: isForward })
     .limit(limit);
 
   if (validatedBefore) {
     query = query.lt("created_at", validatedBefore);
+  }
+
+  if (validatedAfter) {
+    query = query.gt("created_at", validatedAfter);
   }
 
   // visible_from 필터: 멤버의 가시 시작 시점 이후 메시지만
@@ -46,8 +54,66 @@ export async function findMessagesByRoom(
 
   if (error) throw error;
 
-  // 오래된 순으로 반환 (UI에서 역순 표시)
-  return ((data as ChatMessage[]) ?? []).reverse();
+  const messages = (data as ChatMessage[]) ?? [];
+
+  // 항상 오래된순(시간순)으로 반환
+  return isForward ? messages : messages.reverse();
+}
+
+/**
+ * 특정 타임스탬프 기준 양방향 메시지 조회
+ * unread divider 위치 기준으로 이전/이후 메시지를 함께 로드
+ */
+export async function findMessagesAround(
+  options: { roomId: string; timestamp: string; limit?: number; visibleFrom?: string }
+): Promise<{ messages: ChatMessage[]; hasOlder: boolean; hasNewer: boolean }> {
+  const { roomId, timestamp, limit = 50, visibleFrom } = options;
+  const halfLimit = Math.ceil(limit / 2);
+  const supabase = await createSupabaseServerClient();
+
+  const validatedTimestamp = validateCursor(timestamp);
+  if (!validatedTimestamp) {
+    return { messages: [], hasOlder: false, hasNewer: false };
+  }
+
+  // 이전 메시지 쿼리
+  let olderQuery = supabase
+    .from("chat_messages")
+    .select(CHAT_MESSAGE_COLUMNS)
+    .eq("room_id", roomId)
+    .eq("is_deleted", false)
+    .lte("created_at", validatedTimestamp)
+    .order("created_at", { ascending: false })
+    .limit(halfLimit);
+
+  // 이후 메시지 쿼리
+  let newerQuery = supabase
+    .from("chat_messages")
+    .select(CHAT_MESSAGE_COLUMNS)
+    .eq("room_id", roomId)
+    .eq("is_deleted", false)
+    .gt("created_at", validatedTimestamp)
+    .order("created_at", { ascending: true })
+    .limit(halfLimit);
+
+  if (visibleFrom) {
+    olderQuery = olderQuery.gte("created_at", visibleFrom);
+    newerQuery = newerQuery.gte("created_at", visibleFrom);
+  }
+
+  const [olderResult, newerResult] = await Promise.all([olderQuery, newerQuery]);
+
+  if (olderResult.error) throw olderResult.error;
+  if (newerResult.error) throw newerResult.error;
+
+  const olderMessages = ((olderResult.data as ChatMessage[]) ?? []).reverse();
+  const newerMessages = (newerResult.data as ChatMessage[]) ?? [];
+
+  return {
+    messages: [...olderMessages, ...newerMessages],
+    hasOlder: olderMessages.length === halfLimit,
+    hasNewer: newerMessages.length === halfLimit,
+  };
 }
 
 /**
@@ -327,6 +393,49 @@ export async function findMessagesWithReadCounts(
   }
 
   return { messages, readCounts };
+}
+
+/**
+ * 특정 타임스탬프 기준 양방향 메시지 + 읽음 상태 조회
+ */
+export async function findMessagesAroundWithReadCounts(
+  options: { roomId: string; timestamp: string; limit?: number; visibleFrom?: string },
+  currentUserId: string
+): Promise<{ messages: ChatMessage[]; readCounts: Record<string, number>; hasOlder: boolean; hasNewer: boolean }> {
+  const supabase = await createSupabaseServerClient();
+  const { messages, hasOlder, hasNewer } = await findMessagesAround(options);
+
+  if (messages.length === 0) {
+    return { messages, readCounts: {}, hasOlder, hasNewer };
+  }
+
+  const myMessageIds = messages
+    .filter((m) => m.sender_id === currentUserId)
+    .map((m) => m.id);
+
+  const readCounts: Record<string, number> = {};
+
+  if (myMessageIds.length > 0) {
+    const { data, error } = await supabase.rpc("get_message_read_counts", {
+      p_room_id: options.roomId,
+      p_message_ids: myMessageIds,
+      p_sender_id: currentUserId,
+    });
+
+    if (!error && data) {
+      for (const row of data as Array<{ message_id: string; unread_count: number }>) {
+        readCounts[row.message_id] = row.unread_count;
+      }
+    }
+  }
+
+  for (const msg of messages) {
+    if (!(msg.id in readCounts)) {
+      readCounts[msg.id] = 0;
+    }
+  }
+
+  return { messages, readCounts, hasOlder, hasNewer };
 }
 
 /**

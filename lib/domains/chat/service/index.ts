@@ -20,6 +20,7 @@ export {
   editMessage,
   searchMessages,
   getMessagesWithReadStatus,
+  getMessagesAroundWithReadStatus,
 } from "./messages";
 
 // 멤버 서비스

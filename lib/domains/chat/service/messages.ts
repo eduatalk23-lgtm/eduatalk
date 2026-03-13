@@ -487,12 +487,16 @@ export async function getMessagesWithReadStatus(
       };
     });
 
+    // forward pagination 시 hasNewer 계산
+    const hasNewer = options.after ? messages.length === limit : undefined;
+
     return {
       success: true,
       data: {
         messages: messagesWithAll,
         readCounts: filteredReadCounts,
-        hasMore: messages.length === limit,
+        hasMore: options.after ? false : messages.length === limit,
+        ...(hasNewer !== undefined && { hasNewer }),
       },
     };
   } catch (error) {
@@ -509,6 +513,115 @@ export async function getMessagesWithReadStatus(
       hint: (error as { hint?: string })?.hint,
       raw: JSON.stringify(error),
     });
+
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+}
+
+/**
+ * 특정 타임스탬프 기준 양방향 메시지 조회 (읽음 상태 + 리액션 + 답장 원본 포함)
+ * unread divider 위치를 기준으로 양쪽 메시지를 로드합니다.
+ */
+export async function getMessagesAroundWithReadStatus(
+  userId: string,
+  userType: ChatUserType,
+  roomId: string,
+  timestamp: string,
+  limit: number = 50
+): Promise<ChatActionResult<MessagesWithReadStatusResult>> {
+  try {
+    const membership = await repository.findMember(roomId, userId, userType);
+
+    if (!membership) {
+      return { success: false, error: "채팅방에 참여하지 않았습니다" };
+    }
+
+    const [blocks, { messages, readCounts, hasOlder, hasNewer }] = await Promise.all([
+      repository.findBlocksByUser(userId, userType),
+      repository.findMessagesAroundWithReadCounts(
+        { roomId, timestamp, limit, visibleFrom: membership.visible_from },
+        userId
+      ),
+    ]);
+
+    const blockedIds = new Set(blocks.map((b) => `${b.blocked_id}_${b.blocked_type}`));
+    const filteredMessages = messages.filter(
+      (m) => !blockedIds.has(`${m.sender_id}_${m.sender_type}`)
+    );
+
+    const filteredReadCounts: Record<string, number> = {};
+    for (const msg of filteredMessages) {
+      filteredReadCounts[msg.id] = readCounts[msg.id] ?? 0;
+    }
+
+    const messageIds = filteredMessages.map((m) => m.id);
+    const replyToIds = filteredMessages
+      .map((m) => m.reply_to_id)
+      .filter((id): id is string => id !== null);
+
+    const [reactionsMap, replyTargetsMap, attachmentsMap, linkPreviewsMap] = await Promise.all([
+      repository.findReactionsByMessageIds(messageIds),
+      repository.findReplyTargetsByIds(replyToIds),
+      repository.findAttachmentsByMessageIds(messageIds),
+      repository.findLinkPreviewsByMessageIds(messageIds),
+    ]);
+
+    const messagesWithAll = filteredMessages.map((message) => {
+      const messageReactions = reactionsMap.get(message.id) ?? [];
+
+      let replyTarget: ReplyTargetInfo | null = null;
+      if (message.reply_to_id) {
+        const target = replyTargetsMap.get(message.reply_to_id);
+        if (target) {
+          const attachmentType =
+            target.message_type === "image" ? "image" as const
+            : target.message_type === "file" ? "file" as const
+            : target.message_type === "mixed" ? "mixed" as const
+            : undefined;
+
+          replyTarget = {
+            id: target.id,
+            content: target.is_deleted ? "삭제된 메시지입니다" : target.content,
+            senderName: target.sender_name ?? "알 수 없음",
+            isDeleted: target.is_deleted,
+            attachmentType,
+          };
+        }
+      }
+
+      return {
+        ...message,
+        sender: {
+          id: message.sender_id,
+          type: message.sender_type,
+          name: message.sender_name,
+          profileImageUrl: message.sender_profile_url,
+        },
+        reactions: convertReactionsToSummaries(messageReactions, userId, userType),
+        replyTarget,
+        attachments: attachmentsMap.get(message.id) ?? [],
+        linkPreviews: linkPreviewsMap.get(message.id) ?? [],
+      };
+    });
+
+    return {
+      success: true,
+      data: {
+        messages: messagesWithAll,
+        readCounts: filteredReadCounts,
+        hasMore: hasOlder,
+        hasNewer,
+      },
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error
+      ? error.message
+      : (error as { message?: string })?.message ?? "메시지 조회 실패";
+
+    console.error("[ChatService] getMessagesAroundWithReadStatus error:", errorMessage);
 
     return {
       success: false,

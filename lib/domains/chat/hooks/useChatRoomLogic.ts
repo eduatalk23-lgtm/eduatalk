@@ -129,6 +129,9 @@ export interface UseChatRoomLogicReturn {
     hasNextPage: boolean;
     isFetchingNextPage: boolean;
     fetchNextPage: () => Promise<unknown>;
+    hasPreviousPage: boolean;
+    isFetchingPreviousPage: boolean;
+    fetchPreviousPage: () => Promise<unknown>;
     refetch: () => Promise<unknown>;
   };
   pinnedMessageIds: Set<string>;
@@ -264,6 +267,9 @@ export function useChatRoomLogic({
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    fetchPreviousPage,
+    hasPreviousPage,
+    isFetchingPreviousPage,
     refetch,
   } = useInfiniteQuery(chatMessagesQueryOptions(roomId));
 
@@ -1059,10 +1065,8 @@ export function useChatRoomLogic({
       );
     }, [userId, queryClient, roomId]),
     onNewMessage: useCallback((message: ChatMessagePayload) => {
-      // 스크롤이 맨 아래에 있으면 자동 스크롤 (ref 사용으로 항상 최신 값)
-      if (isAtBottomRef.current) {
-        onNewMessageArrived?.();
-      }
+      // 새 메시지 도착 알림 (badge 관리 등은 ChatRoom에서 isAtBottom 기반으로 처리)
+      onNewMessageArrived?.();
       // 읽음 처리 (읽음확인 설정이 꺼져있으면 스킵)
       const prefs = chatPrefsRef.current;
       if (prefs?.chat_read_receipt_enabled !== false) {
@@ -1885,6 +1889,9 @@ export function useChatRoomLogic({
       hasNextPage: hasNextPage ?? false,
       isFetchingNextPage,
       fetchNextPage,
+      hasPreviousPage: hasPreviousPage ?? false,
+      isFetchingPreviousPage,
+      fetchPreviousPage,
       refetch,
     },
     attachments: {

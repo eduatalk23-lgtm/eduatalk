@@ -5,7 +5,7 @@
  * 메시지 리액션 토글
  */
 
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import * as chatService from "../service";
 import { getUserType, type ChatActionResult, type ReactionEmoji } from "../types";
 import { isUUID } from "@/lib/types/guards";
@@ -26,7 +26,7 @@ export async function toggleReactionAction(
     if (!isUUID(messageId)) {
       return { success: false, error: "잘못된 메시지 ID입니다." };
     }
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };

@@ -5,7 +5,7 @@
  * 멤버 초대/관리
  */
 
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import * as chatService from "../service";
 import { getUserType, type ChatUserType, type ChatActionResult } from "../types";
 
@@ -37,7 +37,7 @@ export async function inviteMembersAction(
       };
     }
 
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };

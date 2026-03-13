@@ -19,6 +19,32 @@ import { formatFileSize, getFileTypeLabel } from "@/lib/domains/chat/fileValidat
 import { refreshAttachmentUrlsAction } from "@/lib/domains/chat/actions/attachments";
 import { saveChatAttachmentToDriveAction } from "@/lib/domains/drive/actions/chat-save";
 
+// ============================================
+// Refreshed URL 캐시 (모듈 레벨 — 컴포넌트 마운트/언마운트와 무관)
+// Virtuoso 가상화로 스크롤 시 ImageItem이 반복 마운트되므로
+// refresh된 URL을 캐싱하여 매번 재요청 방지
+// ============================================
+const refreshedUrlCache = new Map<string, string>();
+const REFRESH_CACHE_MAX = 500;
+
+function getCachedUrl(attachmentId: string, original: string): string {
+  return refreshedUrlCache.get(attachmentId) ?? original;
+}
+
+function setCachedUrl(attachmentId: string, url: string): void {
+  // LRU 대신 간단한 크기 제한 — 초과 시 절반 정리
+  if (refreshedUrlCache.size >= REFRESH_CACHE_MAX) {
+    const keys = [...refreshedUrlCache.keys()];
+    for (let i = 0; i < keys.length / 2; i++) {
+      refreshedUrlCache.delete(keys[i]);
+    }
+  }
+  refreshedUrlCache.set(attachmentId, url);
+}
+
+// 성공적으로 로드된 URL 기록 (재마운트 시 스켈레톤 건너뛰기)
+const loadedUrlSet = new Set<string>();
+
 interface AttachmentRendererProps {
   attachments: ChatAttachment[];
   isOwn: boolean;
@@ -107,7 +133,10 @@ function ImageGrid({
   );
 }
 
-/** 개별 이미지 (만료 시 자동 refresh) */
+/** 이미지 로딩 상태 */
+type ImageLoadState = "loading" | "loaded" | "refreshing" | "failed";
+
+/** 개별 이미지 (만료 시 자동 refresh, URL 캐싱) */
 function ImageItem({
   attachment,
   index,
@@ -119,39 +148,57 @@ function ImageItem({
   count: number;
   onImageClick?: (attachment: ChatAttachment, index: number) => void;
 }) {
-  const [src, setSrc] = useState(attachment.thumbnail_url ?? attachment.public_url);
-  const [failed, setFailed] = useState(false);
-  const refreshAttempted = useRef(false);
+  const originalUrl = attachment.thumbnail_url ?? attachment.public_url;
+  const cachedUrl = getCachedUrl(attachment.id, originalUrl);
+  const alreadyLoaded = loadedUrlSet.has(cachedUrl);
+
+  const [src, setSrc] = useState(cachedUrl);
+  const [loadState, setLoadState] = useState<ImageLoadState>(alreadyLoaded ? "loaded" : "loading");
+  const refreshAttempted = useRef(cachedUrl !== originalUrl);
+
+  const handleLoad = useCallback(() => {
+    loadedUrlSet.add(src);
+    setLoadState("loaded");
+  }, [src]);
 
   const handleError = useCallback(async () => {
     // 이미 refresh 시도했으면 실패 표시
     if (refreshAttempted.current) {
-      setFailed(true);
+      setLoadState("failed");
       return;
     }
     refreshAttempted.current = true;
+    setLoadState("refreshing");
 
     // Signed URL 만료 → 서버에서 새 URL 가져오기
     const result = await refreshAttachmentUrlsAction([attachment.id]);
     if (result.success && result.data?.[attachment.id]) {
       const refreshed = result.data[attachment.id];
-      setSrc(refreshed.thumbnailUrl ?? refreshed.publicUrl);
+      const newUrl = refreshed.thumbnailUrl ?? refreshed.publicUrl;
+      setCachedUrl(attachment.id, newUrl);
+      setLoadState("loading");
+      setSrc(newUrl);
     } else {
-      setFailed(true);
+      setLoadState("failed");
     }
   }, [attachment.id]);
 
-  if (failed) {
+  // 단일 이미지: 실제 치수 기반 aspect-ratio (CLS 제거), 다중 이미지: 균일 그리드
+  const hasRealDimensions = count === 1 && attachment.width && attachment.height;
+  const sizeStyle = hasRealDimensions
+    ? { aspectRatio: `${attachment.width} / ${attachment.height}` } as const
+    : undefined;
+  const sizeClass = cn(
+    count === 1 && !hasRealDimensions && "aspect-[4/3]",
+    count === 1 && "max-h-80 w-full",
+    count === 2 && "aspect-square",
+    count >= 3 && index === 0 && count === 3 && "row-span-2 aspect-[3/4]",
+    count >= 3 && index > 0 && "aspect-square",
+  );
+
+  if (loadState === "failed") {
     return (
-      <div
-        className={cn(
-          "flex items-center justify-center bg-bg-secondary",
-          count === 1 && "max-h-64 min-h-32 w-full",
-          count === 2 && "aspect-square",
-          count >= 3 && index === 0 && count === 3 && "row-span-2 aspect-[3/4]",
-          count >= 3 && index > 0 && "aspect-square"
-        )}
-      >
+      <div className={cn("flex items-center justify-center bg-bg-secondary", sizeClass)} style={sizeStyle}>
         <ImageOff className="w-8 h-8 text-text-tertiary" />
       </div>
     );
@@ -165,19 +212,26 @@ function ImageItem({
       className={cn(
         "relative overflow-hidden bg-bg-secondary",
         "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1",
-        count === 1 && "max-h-64 min-h-32",
-        count === 2 && "aspect-square",
-        count >= 3 && index === 0 && count === 3 && "row-span-2 aspect-[3/4]",
-        count >= 3 && index > 0 && "aspect-square"
+        sizeClass,
       )}
+      style={sizeStyle}
       aria-label={`이미지: ${attachment.file_name}`}
     >
+      {/* 로딩/리프레시 중 스켈레톤 (실제 치수 크기 유지) */}
+      {loadState !== "loaded" && (
+        <div className="absolute inset-0 bg-bg-secondary animate-pulse" />
+      )}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={src}
         alt={attachment.file_name}
-        className="w-full h-full object-cover"
+        className={cn(
+          "w-full h-full object-cover",
+          "transition-opacity duration-200 ease-out",
+          loadState !== "loaded" ? "opacity-0" : "opacity-100",
+        )}
         loading="lazy"
+        onLoad={handleLoad}
         onError={handleError}
       />
       {count > 4 && index === 3 && (
@@ -214,7 +268,7 @@ function VideoPlayer({
         controls
         preload="metadata"
         playsInline
-        className="w-full max-h-48 object-contain"
+        className="w-full aspect-video max-h-48 object-contain bg-black"
         controlsList="nodownload"
       />
       <div className="flex items-center justify-between px-2 py-1">

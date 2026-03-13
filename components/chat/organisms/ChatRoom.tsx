@@ -11,6 +11,7 @@ import { memo, useRef, useCallback, useMemo, useReducer, useEffect, useState, fo
 import { useQueryClient } from "@tanstack/react-query";
 import { useChatRoomLogic } from "@/lib/domains/chat/hooks";
 import { useChatConnectionStatus } from "@/lib/hooks/useChatConnectionStatus";
+import { useVisualViewport } from "@/lib/hooks/useVisualViewport";
 import { setCurrentChatRoom } from "@/lib/realtime/useAppPresence";
 import { useChatLayout } from "@/components/chat/layouts/ChatLayoutContext";
 import type { ReactionEmoji, ReplyTargetInfo, ChatAttachment, ChatUserType, ChatUser, ChatMessageWithGrouping } from "@/lib/domains/chat/types";
@@ -51,6 +52,52 @@ import { scheduleMessageAction } from "@/lib/domains/chat/scheduled/actions";
 import { chatKeys } from "@/lib/domains/chat/queryKeys";
 import { useToast } from "@/components/ui/ToastProvider";
 
+// Virtuoso prepend용 시작 인덱스 (충분히 큰 값)
+const FIRST_ITEM_INDEX_BASE = 10_000;
+
+// 메시지 타입별 높이 추정 (Virtuoso는 측정 후 캐싱하므로, 미측정 아이템의 초기 추정에만 사용)
+const ESTIMATED_HEIGHTS: Record<string, number> = {
+  text: 72,
+  image: 220,
+  file: 64,
+  mixed: 240,
+  video: 200,
+  audio: 80,
+  system: 40,
+};
+const DEFAULT_ITEM_HEIGHT = 80;
+
+// ============================================
+// 디바이스 적응형 Virtuoso 설정
+// deviceMemory / hardwareConcurrency 기반 3-tier 분류
+// ============================================
+type DeviceTier = "low" | "mid" | "high";
+
+function getDeviceTier(): DeviceTier {
+  if (typeof navigator === "undefined") return "mid";
+  const memory = (navigator as { deviceMemory?: number }).deviceMemory ?? 4;
+  const cores = navigator.hardwareConcurrency ?? 4;
+  if (memory <= 2 || cores <= 2) return "low";
+  if (memory >= 8 && cores >= 8) return "high";
+  return "mid";
+}
+
+const DEVICE_TIER = getDeviceTier();
+
+const VIEWPORT_BUFFER: Record<DeviceTier, { top: number; bottom: number }> = {
+  low:  { top: 600,  bottom: 300 },
+  mid:  { top: 1500, bottom: 800 },
+  high: { top: 2500, bottom: 1200 },
+};
+
+const SCROLL_SEEK_ENTER: Record<DeviceTier, number> = {
+  low: 500, mid: 800, high: 1200,
+};
+
+const SCROLL_SEEK_EXIT: Record<DeviceTier, number> = {
+  low: 80, mid: 100, high: 150,
+};
+
 // ============================================
 // UI 상태 타입 및 Reducer
 // ============================================
@@ -58,8 +105,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 interface ChatRoomUIState {
   // 스크롤 상태
   isAtBottom: boolean;
-  hasNewMessages: boolean;
-  firstItemIndex: number;
+  newMessageCount: number;
   // 모달/패널 상태
   isSearchMode: boolean;
   isAnnouncementDialogOpen: boolean;
@@ -78,9 +124,8 @@ interface ChatRoomUIState {
 
 type ChatRoomUIAction =
   | { type: "SET_AT_BOTTOM"; value: boolean }
-  | { type: "SET_HAS_NEW_MESSAGES"; value: boolean }
-  | { type: "SET_FIRST_ITEM_INDEX"; value: number }
-  | { type: "DECREMENT_FIRST_ITEM_INDEX"; by: number }
+  | { type: "INCREMENT_NEW_MESSAGES" }
+  | { type: "RESET_NEW_MESSAGES" }
   | { type: "SET_SEARCH_MODE"; value: boolean }
   | { type: "SET_ANNOUNCEMENT_DIALOG"; value: boolean }
   | { type: "SET_MENU_OPEN"; value: boolean }
@@ -96,8 +141,7 @@ type ChatRoomUIAction =
 
 const initialUIState: ChatRoomUIState = {
   isAtBottom: true,
-  hasNewMessages: false,
-  firstItemIndex: 10000,
+  newMessageCount: 0,
   isSearchMode: false,
   isAnnouncementDialogOpen: false,
   isMenuOpen: false,
@@ -118,15 +162,13 @@ function uiReducer(state: ChatRoomUIState, action: ChatRoomUIAction): ChatRoomUI
       return {
         ...state,
         isAtBottom: action.value,
-        // 맨 아래로 스크롤하면 새 메시지 표시 해제
-        hasNewMessages: action.value ? false : state.hasNewMessages,
+        // 맨 아래로 스크롤하면 새 메시지 카운트 초기화
+        newMessageCount: action.value ? 0 : state.newMessageCount,
       };
-    case "SET_HAS_NEW_MESSAGES":
-      return { ...state, hasNewMessages: action.value };
-    case "SET_FIRST_ITEM_INDEX":
-      return { ...state, firstItemIndex: action.value };
-    case "DECREMENT_FIRST_ITEM_INDEX":
-      return { ...state, firstItemIndex: state.firstItemIndex - action.by };
+    case "INCREMENT_NEW_MESSAGES":
+      return { ...state, newMessageCount: state.newMessageCount + 1 };
+    case "RESET_NEW_MESSAGES":
+      return { ...state, newMessageCount: 0 };
     case "SET_SEARCH_MODE":
       return { ...state, isSearchMode: action.value };
     case "SET_ANNOUNCEMENT_DIALOG":
@@ -361,8 +403,7 @@ function ChatRoomComponent({
   // 상태 구조 분해
   const {
     isAtBottom,
-    hasNewMessages,
-    firstItemIndex,
+    newMessageCount,
     isSearchMode,
     isAnnouncementDialogOpen,
     isMenuOpen,
@@ -414,6 +455,46 @@ function ChatRoomComponent({
   }, []);
 
   // ============================================
+  // iOS 키보드 열림/닫힘 시 스크롤 보정
+  // ============================================
+  const { isKeyboardOpen, keyboardHeight, isStabilized } = useVisualViewport();
+  const prevKeyboardOpenRef = useRef(false);
+  // 키보드 전환 시작 시점의 isAtBottom을 캡처 (전환 중 스크롤 변경 방어)
+  const wasAtBottomOnKeyboardChangeRef = useRef(false);
+  const isKeyboardTransitioning = useRef(false);
+
+  // 키보드 높이를 CSS custom property로 주입 → 입력창/리스트에서 정밀 제어
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      "--keyboard-height",
+      `${keyboardHeight}px`
+    );
+    return () => {
+      document.documentElement.style.removeProperty("--keyboard-height");
+    };
+  }, [keyboardHeight]);
+
+  // 키보드 상태 변경 감지 → 의도 캡처 + 전환 시작
+  useEffect(() => {
+    if (prevKeyboardOpenRef.current !== isKeyboardOpen) {
+      wasAtBottomOnKeyboardChangeRef.current = isAtBottomRef.current;
+      isKeyboardTransitioning.current = true;
+      prevKeyboardOpenRef.current = isKeyboardOpen;
+    }
+  }, [isKeyboardOpen]);
+
+  // 뷰포트 안정화 후 스크롤 보정 (100ms 고정 대신 적응형)
+  useEffect(() => {
+    if (isStabilized && isKeyboardTransitioning.current) {
+      isKeyboardTransitioning.current = false;
+      // 키보드 전환 시작 시 하단이었을 때만 스크롤 보정
+      if (wasAtBottomOnKeyboardChangeRef.current) {
+        virtuosoRef.current?.scrollToIndex({ index: "LAST", behavior: "auto" });
+      }
+    }
+  }, [isStabilized]);
+
+  // ============================================
   // 비즈니스 로직 훅
   // ============================================
   const {
@@ -432,7 +513,7 @@ function ChatRoomComponent({
     onNewMessageArrived: useCallback(() => {
       // followOutput이 자동 스크롤을 처리하므로, 여기서는 badge만 관리
       if (!isAtBottomRef.current) {
-        dispatch({ type: "SET_HAS_NEW_MESSAGES", value: true });
+        dispatch({ type: "INCREMENT_NEW_MESSAGES" });
       }
     }, []),
   });
@@ -483,7 +564,12 @@ function ChatRoomComponent({
     reconnect,
   } = useChatConnectionStatus(roomId);
   const { sendMessage, toggleReaction, togglePin, setAnnouncement, setTyping, retryMessage, removeFailedMessage } = actions;
-  const { isLoading, error, hasNextPage, isFetchingNextPage, fetchNextPage, refetch } = status;
+  const {
+    isLoading, error,
+    hasNextPage, isFetchingNextPage, fetchNextPage,
+    hasPreviousPage, isFetchingPreviousPage, fetchPreviousPage,
+    refetch,
+  } = status;
   const { replyTarget, setReplyTarget } = replyTargetState;
   const { canEditMessage, isMessageEdited } = utils;
   const { showSuccess, showError } = useToast();
@@ -589,29 +675,160 @@ function ChatRoomComponent({
   }, []);
 
   // ============================================
+  // 메시지 구성 기반 defaultItemHeight (미측정 아이템의 스크롤바/위치 추정 정확도 향상)
+  // ============================================
+  const estimatedItemHeight = useMemo(() => {
+    if (messages.length === 0) return DEFAULT_ITEM_HEIGHT;
+    // 첫 50개 메시지 기반 가중 평균 (전체 순회 방지)
+    const sample = messages.slice(0, 50);
+    let total = 0;
+    for (const msg of sample) {
+      total += ESTIMATED_HEIGHTS[msg.message_type] ?? DEFAULT_ITEM_HEIGHT;
+    }
+    return Math.round(total / sample.length);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- 최초 데이터 로드 시 1회 계산
+  }, [messages.length > 0]);
+
+  // ============================================
+  // 초기 스크롤 위치: 세션 앵커 → unread divider → 최하단
+  // ============================================
+  const initialScrollIndex = useMemo(() => {
+    if (messages.length === 0) return 0;
+
+    // 1) 세션 앵커 복원 (5분 이내, 같은 방)
+    try {
+      const raw = sessionStorage.getItem(`chat-scroll-anchor:${roomId}`);
+      if (raw) {
+        const anchor = JSON.parse(raw) as { messageId: string; index: number; timestamp: number };
+        const ANCHOR_TTL_MS = 5 * 60 * 1000;
+        if (Date.now() - anchor.timestamp < ANCHOR_TTL_MS) {
+          const anchorIdx = messages.findIndex((m) => m.id === anchor.messageId);
+          if (anchorIdx >= 0) {
+            // 앵커 복원 성공 → 사용 후 제거 (1회성)
+            sessionStorage.removeItem(`chat-scroll-anchor:${roomId}`);
+            return anchorIdx;
+          }
+          // 앵커 메시지가 삭제된 경우: 저장된 index를 범위 내에서 사용
+          if (anchor.index >= 0 && anchor.index < messages.length) {
+            sessionStorage.removeItem(`chat-scroll-anchor:${roomId}`);
+            return anchor.index;
+          }
+        }
+        // TTL 만료 → 앵커 제거
+        sessionStorage.removeItem(`chat-scroll-anchor:${roomId}`);
+      }
+    } catch {
+      // sessionStorage 접근 실패 무시
+    }
+
+    // 2) Unread divider 위치
+    const dividerIndex = messages.findIndex((m) => m.grouping.showUnreadDivider);
+    if (dividerIndex > 0 && dividerIndex < messages.length - 1) {
+      return Math.max(0, dividerIndex - 2);
+    }
+
+    // 3) 최하단
+    return messages.length - 1;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- 최초 렌더링 시 1회만 계산
+  }, []);
+
+  // ============================================
   // 무한 스크롤
   // ============================================
   const pendingPaginationRef = useRef(false);
   const prevMessageCountRef = useRef(messages.length);
+  const prependedCountRef = useRef(0);
+  const prevFirstIdRef = useRef(messages[0]?.id);
 
-  // 메시지 수 변화를 감지하여 인덱스 조정 (stale closure 방지)
-  useEffect(() => {
-    if (pendingPaginationRef.current) {
-      const added = messages.length - prevMessageCountRef.current;
-      if (added > 0) {
-        dispatch({ type: "DECREMENT_FIRST_ITEM_INDEX", by: added });
+  // 메시지 수 변화를 감지하여 prepend 카운트 동기적으로 업데이트
+  // anchor ID 기반으로 정확한 prepend 수를 계산 (realtime append와의 경합 방지)
+  if (pendingPaginationRef.current && messages.length > prevMessageCountRef.current) {
+    if (prevFirstIdRef.current && messages[0]?.id !== prevFirstIdRef.current) {
+      const anchorIdx = messages.findIndex((m) => m.id === prevFirstIdRef.current);
+      if (anchorIdx > 0) {
+        prependedCountRef.current += anchorIdx;
       }
-      pendingPaginationRef.current = false;
     }
-    prevMessageCountRef.current = messages.length;
-  }, [messages.length]);
+    pendingPaginationRef.current = false;
+  }
+  prevMessageCountRef.current = messages.length;
+  prevFirstIdRef.current = messages[0]?.id;
+
+  // firstItemIndex를 동기적으로 계산 (useEffect 지연 없이 렌더와 동시에 반영)
+  const computedFirstItemIndex = FIRST_ITEM_INDEX_BASE - prependedCountRef.current;
+
+  // iOS 바운스/관성 스크롤 시 startReached가 연속 호출되는 것을 방지
+  const lastFetchTimeRef = useRef(0);
+  const FETCH_THROTTLE_MS = 300;
 
   const handleStartReached = useCallback(() => {
-    if (hasNextPage && !isFetchingNextPage) {
-      pendingPaginationRef.current = true;
-      void fetchNextPage();
-    }
+    if (!hasNextPage || isFetchingNextPage) return;
+
+    const now = Date.now();
+    if (now - lastFetchTimeRef.current < FETCH_THROTTLE_MS) return;
+
+    lastFetchTimeRef.current = now;
+    pendingPaginationRef.current = true;
+    void fetchNextPage();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // 사전 프리패치: 상위 10개 아이템 이내 진입 시 미리 로딩 시작
+  // + 스크롤 앵커 저장 (채팅방 재진입 시 복원용)
+  const PREFETCH_THRESHOLD = 10;
+  const lastAnchorSaveRef = useRef(0);
+  const ANCHOR_SAVE_THROTTLE_MS = 1000;
+
+  const handleRangeChanged = useCallback(
+    (range: { startIndex: number; endIndex: number }) => {
+      const visibleStartIndex = range.startIndex - computedFirstItemIndex;
+
+      // 프리패치
+      if (
+        visibleStartIndex <= PREFETCH_THRESHOLD &&
+        hasNextPage &&
+        !isFetchingNextPage
+      ) {
+        const now = Date.now();
+        if (now - lastFetchTimeRef.current < FETCH_THROTTLE_MS) return;
+        lastFetchTimeRef.current = now;
+        pendingPaginationRef.current = true;
+        void fetchNextPage();
+      }
+
+      // 스크롤 앵커 저장 (throttle 1s)
+      const now = Date.now();
+      if (now - lastAnchorSaveRef.current >= ANCHOR_SAVE_THROTTLE_MS) {
+        lastAnchorSaveRef.current = now;
+        const anchorMessage = messages[visibleStartIndex];
+        if (anchorMessage) {
+          try {
+            sessionStorage.setItem(
+              `chat-scroll-anchor:${roomId}`,
+              JSON.stringify({
+                messageId: anchorMessage.id,
+                index: visibleStartIndex,
+                timestamp: now,
+              })
+            );
+          } catch {
+            // sessionStorage 용량 초과 무시
+          }
+        }
+      }
+    },
+    [computedFirstItemIndex, hasNextPage, isFetchingNextPage, fetchNextPage, messages, roomId]
+  );
+
+  // 순방향 페이징: 리스트 끝(최신) 도달 시 더 새로운 메시지 로드
+  const handleEndReached = useCallback(() => {
+    if (!hasPreviousPage || isFetchingPreviousPage) return;
+
+    const now = Date.now();
+    if (now - lastFetchTimeRef.current < FETCH_THROTTLE_MS) return;
+
+    lastFetchTimeRef.current = now;
+    void fetchPreviousPage();
+  }, [hasPreviousPage, isFetchingPreviousPage, fetchPreviousPage]);
 
   // ============================================
   // 메시지 스크롤
@@ -621,7 +838,7 @@ function ChatRoomComponent({
     const index = messages.findIndex((m) => m.id === messageId);
     if (index !== -1) {
       virtuosoRef.current?.scrollToIndex({
-        index: firstItemIndex + index,
+        index: (FIRST_ITEM_INDEX_BASE - prependedCountRef.current) + index,
         behavior: "smooth",
         align: "center",
       });
@@ -647,7 +864,7 @@ function ChatRoomComponent({
       const startTimer = setTimeout(pollForElement, 100);
       highlightTimersRef.current.add(startTimer);
     }
-  }, [messages, firstItemIndex]);
+  }, [messages]);
 
   // ============================================
   // 메시지 액션 핸들러
@@ -930,6 +1147,14 @@ function ChatRoomComponent({
     ) : null
   ), [isFetchingNextPage]);
 
+  const VirtuosoFooter = useCallback(() => (
+    isFetchingPreviousPage ? (
+      <div className="flex justify-center py-2" aria-label="최신 메시지 로딩 중">
+        <Loader2 className="w-5 h-5 animate-spin text-text-tertiary" aria-hidden="true" />
+      </div>
+    ) : null
+  ), [isFetchingPreviousPage]);
+
   const VirtuosoScroller = useMemo(
     () =>
       forwardRef<HTMLDivElement, React.ComponentPropsWithRef<"div">>(
@@ -938,7 +1163,16 @@ function ChatRoomComponent({
             <div
               {...props}
               ref={ref}
-              style={props.style}
+              style={{
+                ...props.style,
+                // 채팅 스크롤이 부모로 전파되지 않도록 격리
+                overscrollBehavior: "contain",
+                // 수평 제스처 차단 (iOS 뒤로가기 스와이프 충돌 방지)
+                touchAction: "pan-y",
+                // GPU 가속 레이어 승격 + 레이아웃 격리
+                willChange: "scroll-position",
+                contain: "layout style",
+              }}
             />
           );
         }
@@ -948,9 +1182,10 @@ function ChatRoomComponent({
 
   const virtuosoComponents = useMemo(() => ({
     Header: VirtuosoHeader,
+    Footer: VirtuosoFooter,
     Scroller: VirtuosoScroller,
     ScrollSeekPlaceholder,
-  }), [VirtuosoHeader, VirtuosoScroller, ScrollSeekPlaceholder]);
+  }), [VirtuosoHeader, VirtuosoFooter, VirtuosoScroller, ScrollSeekPlaceholder]);
 
   // ============================================
   // 방 이름 결정
@@ -1207,17 +1442,21 @@ function ChatRoomComponent({
             ref={virtuosoRef}
             className="flex-1"
             data={messages}
-            firstItemIndex={firstItemIndex}
-            initialTopMostItemIndex={messages.length - 1}
+            firstItemIndex={computedFirstItemIndex}
+            initialTopMostItemIndex={initialScrollIndex}
+            defaultItemHeight={estimatedItemHeight}
             followOutput={(isAtBottom) => (isAtBottom ? "auto" : false)}
-            atBottomThreshold={60}
+            atBottomThreshold={100}
             atBottomStateChange={handleAtBottomChange}
             startReached={handleStartReached}
+            endReached={handleEndReached}
+            rangeChanged={handleRangeChanged}
             computeItemKey={computeItemKey}
-            increaseViewportBy={{ top: 400, bottom: 200 }}
+            increaseViewportBy={VIEWPORT_BUFFER[DEVICE_TIER]}
+            alignToBottom
             scrollSeekConfiguration={{
-              enter: (velocity) => Math.abs(velocity) > 800,
-              exit: (velocity) => Math.abs(velocity) < 100,
+              enter: (velocity) => Math.abs(velocity) > SCROLL_SEEK_ENTER[DEVICE_TIER],
+              exit: (velocity) => Math.abs(velocity) < SCROLL_SEEK_EXIT[DEVICE_TIER],
             }}
             components={virtuosoComponents}
             itemContent={renderMessage}
@@ -1247,13 +1486,17 @@ function ChatRoomComponent({
               "hover:bg-bg-secondary motion-safe:transition-all motion-safe:duration-200",
               "motion-safe:hover:scale-105 motion-safe:active:scale-95"
             )}
-            aria-label="맨 아래로 스크롤"
+            aria-label={newMessageCount > 0 ? `새 메시지 ${newMessageCount}개, 맨 아래로 스크롤` : "맨 아래로 스크롤"}
           >
             <ChevronDown className="w-5 h-5 text-text-secondary" />
 
-            {hasNewMessages && (
-              <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-[10px] font-medium text-white bg-primary-500 rounded-full">
-                N
+            {newMessageCount > 0 && (
+              <span
+                className="absolute -top-1 -right-1 flex items-center justify-center min-w-5 h-5 px-1 text-[10px] font-medium text-white bg-primary-500 rounded-full"
+                role="status"
+                aria-live="polite"
+              >
+                {newMessageCount > 99 ? "99+" : newMessageCount}
               </span>
             )}
           </button>
@@ -1276,7 +1519,15 @@ function ChatRoomComponent({
       <ChatInput
         key={roomId}
         roomId={roomId}
-        onSend={(content, mentions) => sendMessage(content, replyTarget?.id, mentions)}
+        onSend={(content, mentions) => {
+          sendMessage(content, replyTarget?.id, mentions);
+          // 메시지 전송 시 항상 하단으로 이동 (스크롤 위에 있어도)
+          if (!isAtBottomRef.current) {
+            requestAnimationFrame(() => {
+              virtuosoRef.current?.scrollToIndex({ index: "LAST", behavior: "smooth" });
+            });
+          }
+        }}
         onTypingChange={setTyping}
         replyTarget={replyTarget}
         onCancelReply={() => setReplyTarget(null)}

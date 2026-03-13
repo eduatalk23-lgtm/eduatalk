@@ -5,7 +5,7 @@
  * 예약 메시지 생성/조회/수정/취소/즉시전송
  */
 
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import * as repository from "../repository";
 import { getAdminClientForChat } from "../repository/_shared";
 import { isUUID } from "@/lib/types/guards";
@@ -53,7 +53,7 @@ export async function scheduleMessageAction(
 ): Promise<ChatActionResult<ScheduledMessage>> {
   try {
     // 1. 인증
-    const { userId, role, tenantId } = await getCurrentUserRole();
+    const { userId, role, tenantId } = await getCachedUserRole();
     if (!userId || !role || !tenantId) {
       return { success: false, error: "인증이 필요합니다" };
     }
@@ -168,7 +168,7 @@ export async function getScheduledMessagesAction(options?: {
   status?: ScheduledMessageStatus | "all";
 }): Promise<ChatActionResult<ScheduledMessage[]>> {
   try {
-    const { userId } = await getCurrentUserRole();
+    const { userId } = await getCachedUserRole();
     if (!userId) {
       return { success: false, error: "인증이 필요합니다" };
     }
@@ -217,7 +217,7 @@ export async function updateScheduledMessageAction(
   updates: ScheduledMessageUpdate
 ): Promise<ChatActionResult<ScheduledMessage>> {
   try {
-    const { userId } = await getCurrentUserRole();
+    const { userId } = await getCachedUserRole();
     if (!userId) {
       return { success: false, error: "인증이 필요합니다" };
     }
@@ -313,7 +313,7 @@ export async function cancelScheduledMessageAction(
   id: string
 ): Promise<ChatActionResult> {
   try {
-    const { userId } = await getCurrentUserRole();
+    const { userId } = await getCachedUserRole();
     if (!userId) {
       return { success: false, error: "인증이 필요합니다" };
     }
@@ -362,7 +362,7 @@ export async function sendScheduledMessageNowAction(
   id: string
 ): Promise<ChatActionResult<ChatMessage>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다" };
     }
@@ -467,7 +467,7 @@ export async function deleteScheduledMessageAction(
   id: string
 ): Promise<ChatActionResult> {
   try {
-    const { userId } = await getCurrentUserRole();
+    const { userId } = await getCachedUserRole();
     if (!userId) {
       return { success: false, error: "인증이 필요합니다" };
     }

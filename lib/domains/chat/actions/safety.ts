@@ -5,7 +5,7 @@
  * 차단/신고 기능 (App Store 필수)
  */
 
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import * as chatService from "../service";
 import * as chatRepository from "../repository";
 import {
@@ -41,7 +41,7 @@ export async function blockUserAction(
   blockedType: ChatUserType
 ): Promise<ChatActionResult<void>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -83,7 +83,7 @@ export async function unblockUserAction(
   blockedType: ChatUserType
 ): Promise<ChatActionResult<void>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -113,7 +113,7 @@ export async function getBlockedUsersAction(): Promise<
   ChatActionResult<ChatBlock[]>
 > {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -150,7 +150,7 @@ export async function reportMessageAction(
   description?: string
 ): Promise<ChatActionResult<void>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -185,7 +185,7 @@ export async function getPendingReportsAction(): Promise<
   ChatActionResult<ChatReport[]>
 > {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -224,7 +224,7 @@ export async function resolveReportAction(
   notes?: string
 ): Promise<ChatActionResult<ChatReport>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -262,7 +262,7 @@ export async function getAllReportsAction(
   filters?: GetReportsFilter
 ): Promise<ChatActionResult<ChatReport[]>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -296,7 +296,7 @@ export async function getReportDetailsAction(
   reportId: string
 ): Promise<ChatActionResult<ChatReportWithDetails>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };

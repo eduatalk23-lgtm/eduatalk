@@ -29,6 +29,7 @@ export {
   editMessageAction,
   searchMessagesAction,
   getMessagesWithReadStatusAction,
+  getMessagesAroundAction,
   getSenderInfoAction,
   getSenderInfoBatchAction,
   getMessagesSinceAction,

@@ -478,6 +478,7 @@ export interface GetMessagesOptions {
   roomId: string;
   limit?: number;
   before?: string; // cursor pagination: 이 시간 이전 메시지
+  after?: string;  // forward pagination: 이 시간 이후 메시지
 }
 
 /** 채팅방 목록 조회 옵션 */
@@ -538,7 +539,10 @@ export interface MessagesWithReadStatusResult {
   messages: ChatMessageWithSender[];
   /** 메시지 ID별 안 읽은 멤버 수 */
   readCounts: Record<string, number>;
+  /** 더 오래된 메시지 존재 여부 */
   hasMore: boolean;
+  /** 더 새로운 메시지 존재 여부 (양방향 페이징 시) */
+  hasNewer?: boolean;
 }
 
 // ============================================

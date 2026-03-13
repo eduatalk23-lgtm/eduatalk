@@ -10,7 +10,7 @@
  * - Parent: 팀 + 자신의 연결 자녀
  */
 
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getUserType, type ChatActionResult, type ChatUserType } from "../types";
 
@@ -64,7 +64,7 @@ export async function getTenantMembersAction(
   filter: MemberRoleFilter = "all"
 ): Promise<ChatActionResult<MemberListResponse>> {
   try {
-    const { userId, role, tenantId } = await getCurrentUserRole();
+    const { userId, role, tenantId } = await getCachedUserRole();
 
     if (!userId || !role || !tenantId) {
       return { success: false, error: "인증이 필요합니다." };

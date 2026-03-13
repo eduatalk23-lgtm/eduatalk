@@ -5,7 +5,7 @@
  * 메시지 고정/해제 기능
  */
 
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import * as chatService from "../service";
 import {
   getUserType,
@@ -24,7 +24,7 @@ export async function pinMessageAction(
   messageId: string
 ): Promise<ChatActionResult<void>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -56,7 +56,7 @@ export async function unpinMessageAction(
   messageId: string
 ): Promise<ChatActionResult<void>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -86,7 +86,7 @@ export async function getPinnedMessagesAction(
   roomId: string
 ): Promise<ChatActionResult<PinnedMessageWithContent[]>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
@@ -113,7 +113,7 @@ export async function canPinMessagesAction(
   roomId: string
 ): Promise<ChatActionResult<{ canPin: boolean }>> {
   try {
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role } = await getCachedUserRole();
 
     if (!userId || !role) {
       return { success: false, error: "인증이 필요합니다." };
