@@ -28,53 +28,23 @@ export function usePlanGroupRealtime({
       return;
     }
 
-    // 싱글톤 클라이언트 사용 (모듈 레벨에서 import)
+    // plan_groups는 student_plan Trigger 채널을 공유
+    // student_plan 변경 시 plan_groups도 함께 무효화
     const channel = supabase
-      .channel(`plan-groups-${studentId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "plan_groups",
-          filter: `student_id=eq.${studentId}`,
-        },
-        (payload) => {
-          console.log("[Realtime] Plan group updated:", payload);
-          // 플랜 그룹 관련 쿼리 무효화
-          queryClient.invalidateQueries({ queryKey: ["planGroups", studentId] });
-          queryClient.invalidateQueries({ queryKey: ["plan-groups"] });
-          queryClient.invalidateQueries({ queryKey: ["dashboard", "planGroups"] });
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "plan_groups",
-          filter: `student_id=eq.${studentId}`,
-        },
-        (payload) => {
-          console.log("[Realtime] Plan group created:", payload);
-          queryClient.invalidateQueries({ queryKey: ["planGroups", studentId] });
-          queryClient.invalidateQueries({ queryKey: ["plan-groups"] });
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "DELETE",
-          schema: "public",
-          table: "plan_groups",
-          filter: `student_id=eq.${studentId}`,
-        },
-        (payload) => {
-          console.log("[Realtime] Plan group deleted:", payload);
-          queryClient.invalidateQueries({ queryKey: ["planGroups", studentId] });
-          queryClient.invalidateQueries({ queryKey: ["plan-groups"] });
-        }
-      )
+      .channel(`plan-realtime-${studentId}`)
+      .on("broadcast", { event: "INSERT" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["planGroups", studentId] });
+        queryClient.invalidateQueries({ queryKey: ["plan-groups"] });
+      })
+      .on("broadcast", { event: "UPDATE" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["planGroups", studentId] });
+        queryClient.invalidateQueries({ queryKey: ["plan-groups"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard", "planGroups"] });
+      })
+      .on("broadcast", { event: "DELETE" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["planGroups", studentId] });
+        queryClient.invalidateQueries({ queryKey: ["plan-groups"] });
+      })
       .subscribe();
 
     return () => {
@@ -103,48 +73,31 @@ export function usePlanProgressRealtime({
       return;
     }
 
-    // 싱글톤 클라이언트 사용 (모듈 레벨에서 import)
-    const channelName = planGroupId
-      ? `plan-progress-${studentId}-${planGroupId}`
-      : `plan-progress-${studentId}`;
-
+    // student_plan Broadcast 채널 공유
     const channel = supabase
-      .channel(channelName)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "student_plan",
-          filter: `student_id=eq.${studentId}`,
-        },
-        (payload) => {
-          const newRecord = payload.new as {
-            completed_amount?: number;
-            progress?: number;
-            plan_group_id?: string;
-          };
+      .channel(`plan-realtime-${studentId}`)
+      .on("broadcast", { event: "UPDATE" }, (event) => {
+        const record = event.payload?.record as {
+          completed_amount?: number;
+          progress?: number;
+        } | undefined;
 
-          // completed_amount 또는 progress가 변경된 경우에만 처리
-          if (
-            newRecord.completed_amount !== undefined ||
-            newRecord.progress !== undefined
-          ) {
-            console.log("[Realtime] Plan progress updated:", payload);
+        // completed_amount 또는 progress가 변경된 경우에만 처리
+        if (
+          record?.completed_amount !== undefined ||
+          record?.progress !== undefined
+        ) {
+          queryClient.invalidateQueries({ queryKey: ["plans", studentId] });
+          queryClient.invalidateQueries({ queryKey: ["today", "progress"] });
+          queryClient.invalidateQueries({ queryKey: ["dashboard", "progress"] });
 
-            // 진행률 관련 쿼리 무효화
-            queryClient.invalidateQueries({ queryKey: ["plans", studentId] });
-            queryClient.invalidateQueries({ queryKey: ["today", "progress"] });
-            queryClient.invalidateQueries({ queryKey: ["dashboard", "progress"] });
-
-            if (planGroupId) {
-              queryClient.invalidateQueries({
-                queryKey: ["planGroup", planGroupId, "progress"],
-              });
-            }
+          if (planGroupId) {
+            queryClient.invalidateQueries({
+              queryKey: ["planGroup", planGroupId, "progress"],
+            });
           }
         }
-      )
+      })
       .subscribe();
 
     return () => {

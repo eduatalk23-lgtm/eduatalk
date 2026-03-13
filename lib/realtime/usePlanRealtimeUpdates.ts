@@ -35,65 +35,27 @@ export function usePlanRealtimeUpdates({
       });
     };
 
-    // 싱글톤 클라이언트 사용 (모듈 레벨에서 import)
-    // 플랜 변경 구독
+    // Broadcast 방식: DB Trigger가 realtime.broadcast_changes()로 전송
+    // WAL 폴링 불필요 — Disk I/O 절약
+
+    // 플랜 + 캘린더 변경 구독 (DB Trigger → Broadcast)
     const planChannel = supabase
-      .channel(`plan-updates-${userId}-${planDate}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "student_plan",
-          filter: `student_id=eq.${userId}`,
-        },
-        () => invalidateAllRelated()
-      )
+      .channel(`plan-realtime-${userId}`)
+      .on("broadcast", { event: "INSERT" }, () => invalidateAllRelated())
+      .on("broadcast", { event: "UPDATE" }, () => invalidateAllRelated())
+      .on("broadcast", { event: "DELETE" }, () => invalidateAllRelated())
       .subscribe();
 
-    // 학습 세션 변경 구독
-    const sessionChannel = supabase
-      .channel(`session-updates-${userId}-${planDate}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "student_study_sessions",
-          filter: `student_id=eq.${userId}`,
-        },
-        () => {
-          queryClient.invalidateQueries({
-            predicate: (query) =>
-              Array.isArray(query.queryKey) &&
-              (query.queryKey[0] === "todayPlans" ||
-                query.queryKey[0] === "today" ||
-                query.queryKey[0] === "sessions" ||
-                query.queryKey[0] === "adminDock"),
-          });
-        }
-      )
-      .subscribe();
-
-    // 캘린더 이벤트 변경 구독 (관리자가 추가/수정/삭제한 이벤트 실시간 반영)
-    const calendarEventsChannel = supabase
-      .channel(`calendar-events-${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "calendar_events",
-          filter: `student_id=eq.${userId}`,
-        },
-        () => invalidateAllRelated()
-      )
+    const calendarChannel = supabase
+      .channel(`calendar-realtime-${userId}`)
+      .on("broadcast", { event: "INSERT" }, () => invalidateAllRelated())
+      .on("broadcast", { event: "UPDATE" }, () => invalidateAllRelated())
+      .on("broadcast", { event: "DELETE" }, () => invalidateAllRelated())
       .subscribe();
 
     return () => {
       supabase.removeChannel(planChannel);
-      supabase.removeChannel(sessionChannel);
-      supabase.removeChannel(calendarEventsChannel);
+      supabase.removeChannel(calendarChannel);
     };
   }, [planDate, userId, enabled, queryClient]);
 }

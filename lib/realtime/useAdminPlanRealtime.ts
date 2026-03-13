@@ -48,35 +48,20 @@ export function useAdminPlanRealtime({
       return;
     }
 
-    // 싱글톤 클라이언트 사용 (모듈 레벨에서 import)
-    // student_plan 테이블 변경 구독
+    // Broadcast 방식: DB Trigger → realtime.broadcast_changes()
+    // 관리자도 같은 student_id 기반 채널을 구독
     const planChannel = supabase
-      .channel(`admin-plan-${studentId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'student_plan',
-          filter: `student_id=eq.${studentId}`,
-        },
-        () => debouncedRefresh()
-      )
+      .channel(`plan-realtime-${studentId}`)
+      .on('broadcast', { event: 'INSERT' }, () => debouncedRefresh())
+      .on('broadcast', { event: 'UPDATE' }, () => debouncedRefresh())
+      .on('broadcast', { event: 'DELETE' }, () => debouncedRefresh())
       .subscribe();
 
-    // calendar_events 테이블 변경 구독 (학생이 추가/수정/삭제한 이벤트 실시간 반영)
-    const calendarEventsChannel = supabase
-      .channel(`admin-calendar-events-${studentId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'calendar_events',
-          filter: `student_id=eq.${studentId}`,
-        },
-        () => debouncedRefresh()
-      )
+    const calendarChannel = supabase
+      .channel(`calendar-realtime-${studentId}`)
+      .on('broadcast', { event: 'INSERT' }, () => debouncedRefresh())
+      .on('broadcast', { event: 'UPDATE' }, () => debouncedRefresh())
+      .on('broadcast', { event: 'DELETE' }, () => debouncedRefresh())
       .subscribe();
 
     return () => {
@@ -84,7 +69,7 @@ export function useAdminPlanRealtime({
         clearTimeout(debounceTimer.current);
       }
       supabase.removeChannel(planChannel);
-      supabase.removeChannel(calendarEventsChannel);
+      supabase.removeChannel(calendarChannel);
     };
   }, [studentId, enabled, debouncedRefresh]);
 }
