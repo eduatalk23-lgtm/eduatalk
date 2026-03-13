@@ -51,14 +51,14 @@ export function useAdminPlanRealtime({
     // Broadcast 방식: DB Trigger → realtime.broadcast_changes()
     // 관리자도 같은 student_id 기반 채널을 구독
     const planChannel = supabase
-      .channel(`plan-realtime-${studentId}`)
+      .channel(`plan-realtime-${studentId}`, { config: { private: true } })
       .on('broadcast', { event: 'INSERT' }, () => debouncedRefresh())
       .on('broadcast', { event: 'UPDATE' }, () => debouncedRefresh())
       .on('broadcast', { event: 'DELETE' }, () => debouncedRefresh())
       .subscribe();
 
     const calendarChannel = supabase
-      .channel(`calendar-realtime-${studentId}`)
+      .channel(`calendar-realtime-${studentId}`, { config: { private: true } })
       .on('broadcast', { event: 'INSERT' }, () => debouncedRefresh())
       .on('broadcast', { event: 'UPDATE' }, () => debouncedRefresh())
       .on('broadcast', { event: 'DELETE' }, () => debouncedRefresh())

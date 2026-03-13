@@ -60,7 +60,8 @@ export async function fetchCalendarPageData(
       .eq('calendar_id', calendarId)
       .eq('student_id', studentId)
       .is('deleted_at', null)
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .limit(20),
     prefetchAllDockData(studentId, targetDate, calendarId),
   ]);
 

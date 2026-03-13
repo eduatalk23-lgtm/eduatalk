@@ -39,15 +39,16 @@ export function usePlanRealtimeUpdates({
     // WAL 폴링 불필요 — Disk I/O 절약
 
     // 플랜 + 캘린더 변경 구독 (DB Trigger → Broadcast)
+    // private: true 필수 — realtime.send() 기본값이 private=true
     const planChannel = supabase
-      .channel(`plan-realtime-${userId}`)
+      .channel(`plan-realtime-${userId}`, { config: { private: true } })
       .on("broadcast", { event: "INSERT" }, () => invalidateAllRelated())
       .on("broadcast", { event: "UPDATE" }, () => invalidateAllRelated())
       .on("broadcast", { event: "DELETE" }, () => invalidateAllRelated())
       .subscribe();
 
     const calendarChannel = supabase
-      .channel(`calendar-realtime-${userId}`)
+      .channel(`calendar-realtime-${userId}`, { config: { private: true } })
       .on("broadcast", { event: "INSERT" }, () => invalidateAllRelated())
       .on("broadcast", { event: "UPDATE" }, () => invalidateAllRelated())
       .on("broadcast", { event: "DELETE" }, () => invalidateAllRelated())

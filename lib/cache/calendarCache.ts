@@ -114,19 +114,14 @@ export function getCachedCalendarSettings(
       const supabase = createSupabaseAdminClient();
       if (!supabase) return null;
 
-      const { data, error } = await supabase
-        .from("calendars")
-        .select("*")
-        .eq("id", calendarId)
-        .is("deleted_at", null)
-        .single();
-
-      if (error) return null;
-
-      const settings = mapCalendarSettingsFromDB(data);
-
-      // 제외일 + 플랜그룹 수 병렬 조회
-      const [exclusionsResult, countResult] = await Promise.all([
+      // 캘린더 + 제외일 + 플랜그룹 수를 모두 병렬 조회 (순차 → 병렬)
+      const [calendarResult, exclusionsResult, countResult] = await Promise.all([
+        supabase
+          .from("calendars")
+          .select("*")
+          .eq("id", calendarId)
+          .is("deleted_at", null)
+          .single(),
         supabase
           .from("calendar_events")
           .select("id, calendar_id, start_date, event_subtype, title, source, created_at")
@@ -134,13 +129,18 @@ export function getCachedCalendarSettings(
           .eq("is_exclusion", true)
           .eq("is_all_day", true)
           .is("deleted_at", null)
-          .order("start_date", { ascending: true }),
+          .order("start_date", { ascending: true })
+          .limit(400),
         supabase
           .from("plan_groups")
           .select("*", { count: "exact", head: true })
           .eq("calendar_id", calendarId)
           .is("deleted_at", null),
       ]);
+
+      if (calendarResult.error) return null;
+
+      const settings = mapCalendarSettingsFromDB(calendarResult.data);
 
       settings.exclusions = (exclusionsResult.data ?? []).map((row) => ({
         id: row.id,

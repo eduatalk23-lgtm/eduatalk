@@ -31,7 +31,7 @@ export function usePlanGroupRealtime({
     // plan_groups는 student_plan Trigger 채널을 공유
     // student_plan 변경 시 plan_groups도 함께 무효화
     const channel = supabase
-      .channel(`plan-realtime-${studentId}`)
+      .channel(`plan-realtime-${studentId}`, { config: { private: true } })
       .on("broadcast", { event: "INSERT" }, () => {
         queryClient.invalidateQueries({ queryKey: ["planGroups", studentId] });
         queryClient.invalidateQueries({ queryKey: ["plan-groups"] });
@@ -75,7 +75,7 @@ export function usePlanProgressRealtime({
 
     // student_plan Broadcast 채널 공유
     const channel = supabase
-      .channel(`plan-realtime-${studentId}`)
+      .channel(`plan-realtime-${studentId}`, { config: { private: true } })
       .on("broadcast", { event: "UPDATE" }, (event) => {
         const record = event.payload?.record as {
           completed_amount?: number;
