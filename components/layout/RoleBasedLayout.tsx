@@ -20,7 +20,7 @@ export function RoleBasedLayout({
 }: RoleBasedLayoutProps) {
   const content = (
     <TopBarCenterSlotProvider>
-      <div className="flex flex-col min-h-screen bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))]">
+      <div className="flex flex-col min-h-dvh bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))]">
         {/* TopBar - fixed, 64px */}
         {showSidebar && (
           <TopBar

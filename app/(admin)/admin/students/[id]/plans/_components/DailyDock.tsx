@@ -424,48 +424,52 @@ export const DailyDock = memo(function DailyDock({
   useEffect(() => {
     if (!calendarId) return;
 
-    if (calendarView === 'daily') {
-      const prev = formatDateString(addDays(new Date(selectedDate + 'T00:00:00'), -1));
-      const next = formatDateString(addDays(new Date(selectedDate + 'T00:00:00'), 1));
-      if (multiIds) {
-        queryClient.prefetchQuery(multiDailyCalendarEventsQueryOptions(multiIds, prev));
-        queryClient.prefetchQuery(multiDailyCalendarEventsQueryOptions(multiIds, next));
-      } else {
-        queryClient.prefetchQuery(dailyCalendarEventsQueryOptions(calendarId, prev));
-        queryClient.prefetchQuery(dailyCalendarEventsQueryOptions(calendarId, next));
+    // 빠른 네비게이션 시 불필요한 요청 방지를 위한 디바운스
+    const timeoutId = setTimeout(() => {
+      if (calendarView === 'daily') {
+        const prev = formatDateString(addDays(new Date(selectedDate + 'T00:00:00'), -1));
+        const next = formatDateString(addDays(new Date(selectedDate + 'T00:00:00'), 1));
+        if (multiIds) {
+          queryClient.prefetchQuery(multiDailyCalendarEventsQueryOptions(multiIds, prev));
+          queryClient.prefetchQuery(multiDailyCalendarEventsQueryOptions(multiIds, next));
+        } else {
+          queryClient.prefetchQuery(dailyCalendarEventsQueryOptions(calendarId, prev));
+          queryClient.prefetchQuery(dailyCalendarEventsQueryOptions(calendarId, next));
+        }
+      } else if (calendarView === 'weekly') {
+        const prevWeekDate = formatDateString(addDays(new Date(selectedDate + 'T00:00:00'), -7));
+        const nextWeekDate = formatDateString(addDays(new Date(selectedDate + 'T00:00:00'), 7));
+        const prevRange = getWeekRangeSunSat(prevWeekDate);
+        const nextRange = getWeekRangeSunSat(nextWeekDate);
+        if (multiIds) {
+          queryClient.prefetchQuery(multiWeeklyCalendarEventsQueryOptions(multiIds, prevRange.start, prevRange.end));
+          queryClient.prefetchQuery(multiWeeklyCalendarEventsQueryOptions(multiIds, nextRange.start, nextRange.end));
+        } else {
+          queryClient.prefetchQuery(weeklyCalendarEventsQueryOptions(calendarId, prevRange.start, prevRange.end));
+          queryClient.prefetchQuery(weeklyCalendarEventsQueryOptions(calendarId, nextRange.start, nextRange.end));
+        }
+      } else if ((calendarView === 'month' || calendarView === 'agenda') && calendarId) {
+        const prevMonth = addMonths(currentMonth, -1);
+        const nextMonth = addMonths(currentMonth, 1);
+        for (const m of [prevMonth, nextMonth]) {
+          const wso = weekStartsOn as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+          const mStart = startOfWeek(startOfMonth(m), { weekStartsOn: wso });
+          const mEnd = endOfWeek(endOfMonth(m), { weekStartsOn: wso });
+          queryClient.prefetchQuery(
+            monthlyCalendarEventsQueryOptions(calendarId, format(mStart, 'yyyy-MM-dd'), format(mEnd, 'yyyy-MM-dd')),
+          );
+        }
+      } else if (calendarView === 'year' && calendarId) {
+        for (const offset of [-1, 1]) {
+          const y = currentYear + offset;
+          queryClient.prefetchQuery(
+            monthlyCalendarEventsQueryOptions(calendarId, `${y}-01-01`, `${y}-12-31`),
+          );
+        }
       }
-    } else if (calendarView === 'weekly') {
-      const prevWeekDate = formatDateString(addDays(new Date(selectedDate + 'T00:00:00'), -7));
-      const nextWeekDate = formatDateString(addDays(new Date(selectedDate + 'T00:00:00'), 7));
-      const prevRange = getWeekRangeSunSat(prevWeekDate);
-      const nextRange = getWeekRangeSunSat(nextWeekDate);
-      if (multiIds) {
-        queryClient.prefetchQuery(multiWeeklyCalendarEventsQueryOptions(multiIds, prevRange.start, prevRange.end));
-        queryClient.prefetchQuery(multiWeeklyCalendarEventsQueryOptions(multiIds, nextRange.start, nextRange.end));
-      } else {
-        queryClient.prefetchQuery(weeklyCalendarEventsQueryOptions(calendarId, prevRange.start, prevRange.end));
-        queryClient.prefetchQuery(weeklyCalendarEventsQueryOptions(calendarId, nextRange.start, nextRange.end));
-      }
-    } else if ((calendarView === 'month' || calendarView === 'agenda') && calendarId) {
-      const prevMonth = addMonths(currentMonth, -1);
-      const nextMonth = addMonths(currentMonth, 1);
-      for (const m of [prevMonth, nextMonth]) {
-        const wso = weekStartsOn as 0 | 1 | 2 | 3 | 4 | 5 | 6;
-        const mStart = startOfWeek(startOfMonth(m), { weekStartsOn: wso });
-        const mEnd = endOfWeek(endOfMonth(m), { weekStartsOn: wso });
-        queryClient.prefetchQuery(
-          monthlyCalendarEventsQueryOptions(calendarId, format(mStart, 'yyyy-MM-dd'), format(mEnd, 'yyyy-MM-dd')),
-        );
-      }
-    } else if (calendarView === 'year' && calendarId) {
-      // 인접 연도 프리페치
-      for (const offset of [-1, 1]) {
-        const y = currentYear + offset;
-        queryClient.prefetchQuery(
-          monthlyCalendarEventsQueryOptions(calendarId, `${y}-01-01`, `${y}-12-31`),
-        );
-      }
-    }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
   }, [calendarId, calendarView, selectedDate, currentMonth, currentYear, studentId, queryClient, multiIds, weekStartsOn]);
 
   // 플랜 매칭 헬퍼 (검색 필터링 + 하이라이트 공용)
@@ -571,20 +575,20 @@ export const DailyDock = memo(function DailyDock({
 
       {/* 월간 뷰: 태스크 필터 토글 */}
       {calendarView === 'month' && (
-        <div className="flex items-center gap-1 px-2 pb-1 justify-end">
+        <div className="flex items-center gap-1 px-1 sm:px-2 pb-0.5 sm:pb-1 justify-end">
           <button
             type="button"
             onClick={() => setShowTasksOnly((v) => !v)}
             className={cn(
-              'flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium transition-colors',
+              'flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium transition-colors',
               showTasksOnly
                 ? 'bg-blue-100 text-blue-600 hover:bg-blue-200'
                 : 'hover:bg-[rgb(var(--color-secondary-200))] text-[var(--text-secondary)]'
             )}
             title={showTasksOnly ? '전체 이벤트 표시' : '학습 태스크만 표시'}
           >
-            <ListFilter className="w-3.5 h-3.5" />
-            {showTasksOnly ? '태스크만' : '전체'}
+            <ListFilter className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+            <span className="hidden sm:inline">{showTasksOnly ? '태스크만' : '전체'}</span>
           </button>
         </div>
       )}

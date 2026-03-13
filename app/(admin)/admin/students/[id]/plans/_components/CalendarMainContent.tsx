@@ -129,7 +129,7 @@ export function CalendarMainContent({
     }
 
     return (
-      <div className="h-full" {...swipeHandlers}>
+      <div className="h-full overflow-hidden" {...swipeHandlers}>
         <DailyDock
           studentId={studentId}
           tenantId={tenantId}

@@ -507,14 +507,15 @@ export default function AdminMonthView({
   }, [monthDrag]);
 
   return (
-    <div className="flex flex-col h-full p-2">
+    <div className="flex flex-col h-full p-1 sm:p-2">
       {/* 요일 헤더 */}
       <div className="grid grid-cols-7 gap-px">
         {WEEKDAY_LABELS.map((label) => (
           <div
             key={label}
             className={cn(
-              "text-center text-sm font-medium py-2",
+              "text-center font-medium",
+              "text-xs py-1 sm:text-sm sm:py-2",
               label === "일" && "text-red-500",
               label === "토" && "text-blue-500"
             )}

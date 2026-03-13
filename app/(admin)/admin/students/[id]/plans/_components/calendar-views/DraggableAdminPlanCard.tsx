@@ -157,7 +157,7 @@ function DraggableAdminPlanCardComponent({
         onClick(e);
       }}
       className={cn(
-        "w-full text-left text-xs rounded-md flex items-center gap-1 overflow-hidden relative",
+        "w-full text-left text-[10px] sm:text-xs rounded-md flex items-center gap-0.5 sm:gap-1 overflow-hidden relative",
         "cursor-grab active:cursor-grabbing",
         "touch-none select-none",
         "transition-[shadow,filter] hover:shadow-sm hover:brightness-[0.92]",
@@ -178,7 +178,7 @@ function DraggableAdminPlanCardComponent({
     >
       {/* 색상 도트 */}
       <span
-        className={cn("rounded-full flex-shrink-0", isDotVariant ? "w-2 h-2" : "w-1.5 h-1.5")}
+        className={cn("rounded-full flex-shrink-0", isDotVariant ? "w-1.5 h-1.5 sm:w-2 sm:h-2" : "w-1 h-1 sm:w-1.5 sm:h-1.5")}
         style={{ backgroundColor: isDotVariant ? colors.bgHex : 'rgba(255,255,255,0.5)' }}
       />
 
@@ -195,11 +195,13 @@ function DraggableAdminPlanCardComponent({
           {isSelected && <Check className="w-2.5 h-2.5" />}
         </span>
       )}
+      {/* 시간 라벨 — 모바일에서 숨김 */}
       {timeLabel && (
-        <span className="flex-shrink-0 tabular-nums opacity-70">{timeLabel}</span>
+        <span className="hidden sm:inline flex-shrink-0 tabular-nums opacity-70">{timeLabel}</span>
       )}
+      {/* 완료 체크 — 모바일에서 숨김 */}
       {isCompleted && (
-        <Check className={cn("w-3 h-3 flex-shrink-0", isDotVariant ? "text-green-600" : colors.textIsWhite ? "text-white/80" : "text-green-600")} />
+        <Check className={cn("w-3 h-3 flex-shrink-0 hidden sm:block", isDotVariant ? "text-green-600" : colors.textIsWhite ? "text-white/80" : "text-green-600")} />
       )}
       <span className={cn("truncate", colors.strikethrough && "line-through")}>
         {plan.custom_title || plan.content_title || "플랜"}

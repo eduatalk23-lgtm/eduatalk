@@ -237,11 +237,12 @@ function DroppableAdminDayCellComponent({
     const el = cellRef.current;
     if (!el) return;
 
-    const HEADER_H = 30;   // 날짜 숫자 행 높이
-    const CHIP_H = 20;     // 칩 높이 (py-px + text-xs)
+    const isMobile = el.clientWidth < 80; // 7열 그리드에서 ~640px 미만 기기
+    const HEADER_H = isMobile ? 24 : 30;   // 날짜 숫자 행 높이
+    const CHIP_H = isMobile ? 18 : 20;     // 칩 높이 (py-px + text-xs)
     const CHIP_GAP = 2;    // space-y-0.5
-    const OVERFLOW_H = 20; // "+N개 더" 버튼 높이
-    const PAD = 12;        // p-1.5 × 2
+    const OVERFLOW_H = isMobile ? 16 : 20; // "+N개 더" 버튼 높이
+    const PAD = isMobile ? 8 : 12;         // p-1 × 2 or p-1.5 × 2
 
     const calc = () => {
       const available = el.clientHeight - HEADER_H - PAD;
@@ -323,7 +324,7 @@ function DroppableAdminDayCellComponent({
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
       className={cn(
-        "group/cell relative bg-[rgb(var(--color-secondary-50))] p-1.5 min-h-0 overflow-hidden cursor-pointer transition-colors",
+        "group/cell relative bg-[rgb(var(--color-secondary-50))] p-1 sm:p-1.5 min-h-0 overflow-hidden cursor-pointer transition-colors",
         // 기본 상태별 배경 및 호버
         !status.isCurrentMonth && "bg-[rgb(var(--color-secondary-50))] hover:bg-[rgb(var(--color-secondary-100))]",
         status.isCurrentMonth && !status.isExclusion && !status.isSelected && "hover:bg-blue-50/40",
@@ -345,14 +346,15 @@ function DroppableAdminDayCellComponent({
       )}
     >
       {/* 날짜 숫자 + "+" 퀵생성 버튼 */}
-      <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-1">
+      <div className="flex items-center justify-between mb-0.5 sm:mb-1">
+        <div className="flex items-center gap-0.5 sm:gap-1 min-w-0">
           <button
             type="button"
             data-date-number
             onClick={(e) => { e.stopPropagation(); onDateClick(dateStr); }}
             className={cn(
-              "text-sm font-medium w-6 h-6 flex items-center justify-center rounded-full hover:ring-1 hover:ring-[rgb(var(--color-secondary-300))] transition-shadow",
+              "font-medium flex items-center justify-center rounded-full hover:ring-1 hover:ring-[rgb(var(--color-secondary-300))] transition-shadow",
+              "text-xs w-5 h-5 sm:text-sm sm:w-6 sm:h-6",
               !status.isCurrentMonth && "text-[var(--text-tertiary)]",
               status.isToday && "bg-blue-600 text-white hover:ring-blue-400",
               holidayName &&
@@ -375,17 +377,20 @@ function DroppableAdminDayCellComponent({
             {format(date, "d")}
           </button>
 
-          {/* 공휴일 이름 */}
+          {/* 공휴일 이름 — 모바일에서는 숨기고 날짜 번호에 빨간 점으로 표시 */}
           {holidayName && (
-            <span className="text-[9px] text-red-400 truncate max-w-[60px]">
+            <span className="hidden sm:inline text-[9px] text-red-400 truncate max-w-[60px]">
               {holidayName}
             </span>
           )}
-          {/* 출석 체크 표시 */}
+          {/* 출석 체크 표시 — 모바일에서는 작은 도트만 */}
           {checkedIn && (
-            <span className="text-[9px] px-1 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded font-medium">
-              ✓
-            </span>
+            <>
+              <span className="hidden sm:inline text-[9px] px-1 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded font-medium">
+                ✓
+              </span>
+              <span className="sm:hidden w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
+            </>
           )}
         </div>
 
@@ -395,8 +400,8 @@ function DroppableAdminDayCellComponent({
             <button
               type="button"
               data-quick-create-btn
-              className="w-5 h-5 rounded-full
-                bg-[rgb(var(--color-secondary-100))] text-[var(--text-tertiary)] text-xs leading-none
+              className="w-4 h-4 sm:w-5 sm:h-5 rounded-full
+                bg-[rgb(var(--color-secondary-100))] text-[var(--text-tertiary)] text-[10px] sm:text-xs leading-none
                 flex items-center justify-center
                 opacity-0 group-hover/cell:opacity-100
                 transition-opacity hover:bg-blue-500 hover:text-white z-10"
@@ -409,13 +414,14 @@ function DroppableAdminDayCellComponent({
             </button>
           )}
           {status.isExclusion && (
-            <span className="text-xs px-1.5 py-0.5 bg-[rgb(var(--color-secondary-200))] text-[var(--text-secondary)] rounded">
+            <span className="text-[10px] sm:text-xs px-1 sm:px-1.5 py-0.5 bg-[rgb(var(--color-secondary-200))] text-[var(--text-secondary)] rounded truncate max-w-[40px] sm:max-w-none">
               {status.exclusionType}
             </span>
           )}
           {stats.totalPlans > 0 && !status.isExclusion && (
             <span className={cn(
-              "text-[9px] px-1 py-0.5 rounded font-medium",
+              "text-[9px] rounded font-medium",
+              "hidden sm:inline px-1 py-0.5",
               stats.completionRate === 100
                 ? "bg-green-100 text-green-700"
                 : "bg-[rgb(var(--color-secondary-100))] text-[var(--text-tertiary)]"
@@ -486,7 +492,7 @@ function DroppableAdminDayCellComponent({
                   onDateClick(dateStr);
                 }
               }}
-              className="text-xs text-blue-600 hover:underline pl-1"
+              className="text-[10px] sm:text-xs text-blue-600 hover:underline pl-0.5 sm:pl-1"
             >
               +{plans.length - maxVisible}개 더
             </button>
@@ -502,19 +508,19 @@ function DroppableAdminDayCellComponent({
         const subTextCls = pColors.textIsWhite ? 'text-white/70' : 'text-gray-600';
         return isQuickCreateAllDay ? (
           <div
-            className="flex items-center gap-1 px-1 py-px text-xs rounded animate-in fade-in-0 duration-150"
+            className="flex items-center gap-0.5 sm:gap-1 px-1 py-px text-[10px] sm:text-xs rounded animate-in fade-in-0 duration-150"
             style={{ backgroundColor: pColors.bgHex, opacity: 0.7 }}
           >
-            <span className={cn('font-medium truncate', textCls)}>(제목 없음) 종일</span>
+            <span className={cn('font-medium truncate', textCls)}>(제목 없음)</span>
           </div>
         ) : (
-          <div className="flex items-center gap-1 px-1 py-px text-xs animate-in fade-in-0 duration-150">
+          <div className="flex items-center gap-0.5 sm:gap-1 px-1 py-px text-[10px] sm:text-xs animate-in fade-in-0 duration-150">
             <span
-              className="w-2 h-2 rounded-full flex-shrink-0"
+              className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full flex-shrink-0"
               style={{ backgroundColor: pColors.bgHex }}
             />
             {quickCreateSlot && (
-              <span className={cn('flex-shrink-0 tabular-nums text-[10px]', subTextCls)}>
+              <span className={cn('hidden sm:inline flex-shrink-0 tabular-nums text-[10px]', subTextCls)}>
                 {formatTimeKoAmPm(quickCreateSlot.startTime)}
               </span>
             )}
@@ -525,7 +531,7 @@ function DroppableAdminDayCellComponent({
 
       {/* 제외일 사유 */}
       {status.isExclusion && status.exclusionReason && (
-        <p className="text-xs text-[var(--text-tertiary)] mt-1 line-clamp-2">
+        <p className="text-[10px] sm:text-xs text-[var(--text-tertiary)] mt-0.5 sm:mt-1 line-clamp-1 sm:line-clamp-2">
           {status.exclusionReason}
         </p>
       )}

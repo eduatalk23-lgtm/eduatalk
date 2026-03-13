@@ -254,6 +254,7 @@ export function overdueCalendarEventsQueryOptions(calendarId: string) {
         .from('calendar_events')
         .select('*, event_study_data(*), consultation_event_data(*)')
         .eq('calendar_id', calendarId)
+        .eq('is_task', true)
         .neq('status', 'cancelled')
         .eq('is_all_day', false)
         .lt('start_at', `${today}T00:00:00+09:00`)
@@ -261,7 +262,7 @@ export function overdueCalendarEventsQueryOptions(calendarId: string) {
         .order('start_at', { ascending: true });
 
       if (error) throw error;
-      // Task 완료(done)된 이벤트 제외
+      // Task 완료(done)된 이벤트 제외 (서버에서 is_task 필터 적용으로 전송량 감소)
       return ((data ?? []) as CalendarEventWithStudyData[]).filter(
         (e) => !e.event_study_data?.done
       );
