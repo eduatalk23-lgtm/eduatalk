@@ -34,7 +34,10 @@ async function _getIncompleteSignupUsers(): Promise<IncompleteSignupUser[]> {
     );
   }
 
-  // auth.users에서 역할 레코드가 없는 사용자 조회
+  // NOTE: auth.admin.listUsers()를 의도적으로 유지.
+  // 이 함수는 "역할 레코드가 없는 orphan auth.users"를 찾는 것이 목적이므로
+  // user_profiles에 레코드가 없는 사용자를 찾아야 한다.
+  // 또한 provider, user_metadata.signup_role 등 auth 전용 데이터가 필요하다.
   const { data: authUsers, error: authError } = await adminClient.auth.admin.listUsers({
     perPage: 1000,
   });

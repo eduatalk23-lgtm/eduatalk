@@ -3,7 +3,6 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import type {
   TeamMember,
@@ -29,16 +28,11 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
   }
 
   const supabase = await createSupabaseServerClient();
-  const adminClient = createSupabaseAdminClient();
 
-  if (!adminClient) {
-    return [];
-  }
-
-  // admin_users에서 팀원 조회 — name, phone, profile_image_url은 user_profiles JOIN
+  // admin_users에서 팀원 조회 — name, phone, email, profile_image_url은 user_profiles JOIN
   let query = supabase
     .from("admin_users")
-    .select("id, role, tenant_id, created_at, is_owner, job_title, department, user_profiles!inner(name, phone, profile_image_url)")
+    .select("id, role, tenant_id, created_at, is_owner, job_title, department, user_profiles!inner(name, phone, email, profile_image_url)")
     .neq("role", "superadmin"); // superadmin은 목록에서 제외
 
   // 일반 admin/consultant는 자기 테넌트만 조회
@@ -53,20 +47,13 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
     return [];
   }
 
-  // auth.users에서 이메일과 이름 정보 조회
-  const { data: authUsers } = await adminClient.auth.admin.listUsers();
-  const authUserMap = new Map(
-    authUsers?.users.map((u) => [u.id, u]) || []
-  );
-
-  // 결과 매핑 (user_profiles.name 우선, fallback으로 auth.users.user_metadata)
+  // 결과 매핑 — user_profiles에서 email/name 모두 조회 (auth.admin.listUsers 제거)
   const members: TeamMember[] = adminUsers.map((admin) => {
-    const authUser = authUserMap.get(admin.id);
-    const up = admin.user_profiles as unknown as { name: string | null; phone: string | null; profile_image_url: string | null };
+    const up = admin.user_profiles as unknown as { name: string | null; phone: string | null; email: string | null; profile_image_url: string | null };
     return {
       id: admin.id,
-      email: authUser?.email || "",
-      displayName: up?.name || authUser?.user_metadata?.display_name || null,
+      email: up?.email || "",
+      displayName: up?.name || null,
       role: admin.role as "admin" | "consultant",
       isOwner: admin.is_owner,
       tenantId: admin.tenant_id,

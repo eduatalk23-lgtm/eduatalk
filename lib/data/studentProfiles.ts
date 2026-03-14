@@ -1,8 +1,8 @@
 /**
  * Student Profile 데이터 접근 레이어
  *
- * student_profiles 테이블이 students로 통합되었으므로
- * 모든 함수가 students 테이블을 직접 조회/수정합니다.
+ * 공통 필드(phone, profile_image_url)는 user_profiles에서,
+ * 학생 고유 필드(gender, mother_phone 등)는 students에서 조회합니다.
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -28,35 +28,43 @@ export type StudentProfile = {
   updated_at?: string | null;
 };
 
-const PROFILE_FIELDS =
-  "id,tenant_id,gender,phone,profile_image_url,mother_phone,father_phone,address,address_detail,postal_code,emergency_contact,emergency_contact_phone,medical_info,bio,interests,created_at,updated_at";
+/** students 고유 필드 */
+const STUDENT_PROFILE_FIELDS =
+  "id,tenant_id,gender,mother_phone,father_phone,address,address_detail,postal_code,emergency_contact,emergency_contact_phone,medical_info,bio,interests,created_at,updated_at";
 
 /**
- * 학생 ID로 프로필 정보 조회 (students 테이블에서 직접 조회)
+ * 학생 ID로 프로필 정보 조회
+ * students(고유 필드) + user_profiles(phone, profile_image_url) 병렬 조회
  */
 export async function getStudentProfileById(
   studentId: string
 ): Promise<StudentProfile | null> {
   const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from("students")
-    .select(PROFILE_FIELDS)
-    .eq("id", studentId)
-    .maybeSingle();
+  const [studentResult, profileResult] = await Promise.all([
+    supabase.from("students").select(STUDENT_PROFILE_FIELDS).eq("id", studentId).maybeSingle(),
+    supabase.from("user_profiles").select("phone, profile_image_url").eq("id", studentId).maybeSingle(),
+  ]);
 
-  if (error) {
-    handleQueryError(error, {
+  if (studentResult.error) {
+    handleQueryError(studentResult.error, {
       context: "[data/studentProfiles] getStudentProfileById",
     });
     return null;
   }
 
-  return (data as StudentProfile | null) ?? null;
+  if (!studentResult.data) return null;
+
+  return {
+    ...studentResult.data,
+    phone: profileResult.data?.phone ?? null,
+    profile_image_url: profileResult.data?.profile_image_url ?? null,
+  } as StudentProfile;
 }
 
 /**
- * 프로필 정보 업데이트 (students 테이블 직접 UPDATE)
+ * 프로필 정보 업데이트
+ * phone, profile_image_url → user_profiles / 나머지 → students
  */
 export async function upsertStudentProfile(
   profile: {
@@ -84,37 +92,51 @@ export async function upsertStudentProfile(
     return { success: false, error: "Admin client를 초기화할 수 없습니다." };
   }
 
-  // 명시적으로 전달된 필드만 payload에 포함 (undefined 필드는 기존 값 보존)
+  // user_profiles 필드 분리
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const payload: Record<string, any> = {};
+  const profilePayload: Record<string, any> = {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const studentPayload: Record<string, any> = {};
 
-  const optionalFields = [
-    "gender", "phone", "profile_image_url",
-    "mother_phone", "father_phone", "address", "address_detail",
+  const userProfileFields = ["phone", "profile_image_url"] as const;
+  const studentFields = [
+    "gender", "mother_phone", "father_phone", "address", "address_detail",
     "postal_code", "emergency_contact", "emergency_contact_phone",
     "medical_info", "bio", "interests",
   ] as const;
 
-  for (const field of optionalFields) {
+  for (const field of userProfileFields) {
     if (profile[field] !== undefined) {
-      payload[field] = profile[field] ?? null;
+      profilePayload[field] = profile[field] ?? null;
     }
   }
 
-  if (Object.keys(payload).length === 0) {
+  for (const field of studentFields) {
+    if (profile[field] !== undefined) {
+      studentPayload[field] = profile[field] ?? null;
+    }
+  }
+
+  // 병렬 업데이트
+  if (Object.keys(profilePayload).length === 0 && Object.keys(studentPayload).length === 0) {
     return { success: true };
   }
 
-  const { error } = await adminClient
-    .from("students")
-    .update(payload)
-    .eq("id", profile.id);
+  const [profileResult, studentResult] = await Promise.all([
+    Object.keys(profilePayload).length > 0
+      ? adminClient.from("user_profiles").update(profilePayload).eq("id", profile.id)
+      : Promise.resolve({ error: null }),
+    Object.keys(studentPayload).length > 0
+      ? adminClient.from("students").update(studentPayload).eq("id", profile.id)
+      : Promise.resolve({ error: null }),
+  ]);
 
-  if (error) {
-    handleQueryError(error, {
+  const firstError = profileResult.error || studentResult.error;
+  if (firstError) {
+    handleQueryError(firstError as Parameters<typeof handleQueryError>[0], {
       context: "[data/studentProfiles] upsertStudentProfile",
     });
-    return { success: false, error: error.message };
+    return { success: false, error: (firstError as { message: string }).message };
   }
 
   return { success: true };
@@ -154,7 +176,6 @@ export async function getStudentGendersBatch(
     genderMap.set(p.id, (p.gender as "남" | "여" | null) ?? null);
   });
 
-  // 누락된 학생은 null로 설정
   studentIds.forEach((id) => {
     if (!genderMap.has(id)) {
       genderMap.set(id, null);
@@ -163,8 +184,3 @@ export async function getStudentGendersBatch(
 
   return genderMap;
 }
-
-
-
-
-

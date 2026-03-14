@@ -54,23 +54,29 @@ export default async function SuperAdminUsersPage() {
     }
   }
 
-  // 모든 사용자 목록 조회 (이메일 매칭용) - Service Role Key 필요
-  let allUsersData = null;
+  // user_profiles에서 이메일 매칭용 데이터 조회 (auth.admin.listUsers 대체)
+  let emailMap = new Map<string, string>();
   try {
-    const clientForUsers = adminClient || createSupabaseAdminClient();
-    if (!clientForUsers) {
-      console.warn("[admin-users] Service Role Key가 설정되지 않아 이메일 정보를 가져올 수 없습니다.");
-    } else {
-      const { data, error: allUsersError } = await clientForUsers.auth.admin.listUsers();
-
-      if (allUsersError) {
-        console.error("[admin-users] 사용자 목록 조회 실패:", allUsersError);
+    const adminUserIds = (adminUsers || []).map((au: { id: string }) => au.id);
+    if (adminUserIds.length > 0) {
+      const clientForProfiles = adminClient || createSupabaseAdminClient();
+      if (!clientForProfiles) {
+        console.warn("[admin-users] Service Role Key가 설정되지 않아 이메일 정보를 가져올 수 없습니다.");
       } else {
-        allUsersData = data;
+        const { data: profiles, error: profilesError } = await clientForProfiles
+          .from("user_profiles")
+          .select("id, email")
+          .in("id", adminUserIds);
+
+        if (profilesError) {
+          console.error("[admin-users] user_profiles 조회 실패:", profilesError);
+        } else if (profiles) {
+          emailMap = new Map(profiles.map((p) => [p.id, p.email || "이메일 없음"]));
+        }
       }
     }
   } catch (error) {
-    console.error("[admin-users] Admin 클라이언트 생성 실패:", error);
+    console.error("[admin-users] 이메일 조회 실패:", error);
     // Service Role Key가 없어도 관리자 목록은 표시 가능 (이메일만 없음)
   }
 
@@ -114,13 +120,12 @@ export default async function SuperAdminUsersPage() {
   // 관리자 목록에 이메일 및 기관 정보 추가
   const adminUsersWithEmail =
     adminUsers?.map((adminUser: any) => {
-      const user = allUsersData?.users.find((u) => u.id === adminUser.id);
       const tenantId = adminUser.tenant_id;
       const tenantName = tenantId ? tenantMap.get(tenantId) : null;
 
       return {
         ...adminUser,
-        email: user?.email || "이메일 없음",
+        email: emailMap.get(adminUser.id) || "이메일 없음",
         tenant_id: tenantId || null,
         tenant_name: tenantName || null,
       };

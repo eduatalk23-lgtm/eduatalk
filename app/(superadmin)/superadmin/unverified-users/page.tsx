@@ -41,7 +41,10 @@ export default async function UnverifiedUsersPage({
     if (!adminClient) {
       serviceRoleKeyError = true;
     } else {
-      // 모든 사용자 목록 조회
+      // NOTE: auth.admin.listUsers()를 의도적으로 유지.
+      // 이 페이지는 email_confirmed_at이 null인 미인증 사용자를 찾는 것이 목적이므로
+      // auth 전용 필드(email_confirmed_at, last_sign_in_at, identities)가 필요하다.
+      // user_profiles에는 이 데이터가 없으므로 auth API를 사용해야 한다.
       const { data: usersData, error } = await adminClient.auth.admin.listUsers();
 
     if (error) {

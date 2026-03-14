@@ -4,9 +4,11 @@ import type { StudentDivision } from "@/lib/constants/students";
 import { logActionWarn, logActionError } from "@/lib/utils/serverActionLogger";
 import { USER_PROFILE_JOIN, flattenUserProfile } from "./helpers/withUserProfile";
 
+/** 학생 정보 (user_profiles JOIN 후 flattenUserProfile 적용 결과) */
 export type Student = {
   id: string;
   tenant_id?: string | null;
+  /** user_profiles에서 JOIN으로 가져옴 (students 테이블에는 없음) */
   name?: string | null;
   grade?: string | null;
   class?: string | null;

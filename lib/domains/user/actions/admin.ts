@@ -69,24 +69,24 @@ export const createAdminUser = withErrorHandling(
       );
     }
 
-    const { data: users, error: listError } =
-      await adminClient.auth.admin.listUsers();
+    // user_profiles에서 이메일로 사용자 조회 (auth.admin.listUsers 대체)
+    const { data: profileUser, error: profileError } = await adminClient
+      .from("user_profiles")
+      .select("id")
+      .eq("email", userEmail)
+      .maybeSingle();
 
-    if (listError) {
+    if (profileError) {
       throw new AppError(
-        "사용자 목록을 조회할 수 없습니다.",
+        "사용자를 조회할 수 없습니다.",
         ErrorCode.DATABASE_ERROR,
         500,
         true,
-        { originalError: listError.message }
+        { originalError: profileError.message }
       );
     }
 
-    const user = users.users.find(
-      (u: { email?: string }) => u.email === userEmail
-    );
-
-    if (!user) {
+    if (!profileUser) {
       throw new AppError(
         "해당 이메일의 사용자를 찾을 수 없습니다.",
         ErrorCode.NOT_FOUND,
@@ -94,6 +94,8 @@ export const createAdminUser = withErrorHandling(
         true
       );
     }
+
+    const user = profileUser;
 
     // 이미 관리자인지 확인
     const { data: existingAdmin } = await supabase

@@ -32,31 +32,27 @@ export default async function AdminReportsPage({
   const searchQuery = params.search?.trim() ?? "";
   const period = (params.period as "weekly" | "monthly") || "weekly";
 
-  // 활성화된 학생 목록 조회
-  const selectStudents = () =>
-    supabase
-      .from("students")
-      .select("id,name,grade")
-      .eq("is_active", true)
-      .order("name", { ascending: true });
-
-  let query = selectStudents();
+  // 활성화된 학생 목록 조회 — name, is_active는 user_profiles에서
+  let studentsQuery = supabase
+    .from("students")
+    .select("id, grade, user_profiles!inner(name, is_active)")
+    .eq("user_profiles.is_active", true)
+    .order("user_profiles(name)", { ascending: true });
 
   if (searchQuery) {
-    query = query.ilike("name", `%${searchQuery}%`);
+    studentsQuery = studentsQuery.ilike("user_profiles.name", `%${searchQuery}%`);
   }
 
-  let { data: students, error } = await query;
-
-  if (ErrorCodeCheckers.isColumnNotFound(error)) {
-    ({ data: students, error } = await selectStudents());
-  }
+  const { data: rawStudents, error } = await studentsQuery;
 
   if (error) {
     console.error("[admin/reports] 학생 목록 조회 실패", error);
   }
 
-  const studentRows = (students as (StudentRow & { grade?: string | null })[] | null) ?? [];
+  const studentRows: (StudentRow & { grade?: string | null })[] = (rawStudents ?? []).map((s) => {
+    const up = Array.isArray(s.user_profiles) ? s.user_profiles[0] : s.user_profiles;
+    return { id: s.id, name: up?.name ?? "", grade: s.grade != null ? String(s.grade) : null };
+  });
 
   // 날짜 범위 계산
   const today = new Date();

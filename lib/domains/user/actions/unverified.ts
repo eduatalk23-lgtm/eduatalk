@@ -67,14 +67,18 @@ export async function resendVerificationEmail(
       };
     }
     
-    // 사용자 조회
-    const { data: usersData, error: listError } = await adminClient.auth.admin.listUsers();
-    if (listError) {
+    // user_profiles에서 이메일로 사용자 조회 (auth.admin.listUsers 대체)
+    const { data: profileUser, error: profileError } = await adminClient
+      .from("user_profiles")
+      .select("id")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (profileError) {
       return { success: false, error: "사용자를 찾을 수 없습니다." };
     }
 
-    const user = usersData?.users.find((u) => u.email === email);
-    if (!user) {
+    if (!profileUser) {
       return { success: false, error: "해당 이메일의 사용자를 찾을 수 없습니다." };
     }
 
