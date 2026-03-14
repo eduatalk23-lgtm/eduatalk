@@ -316,6 +316,56 @@ function DroppableAdminDayCellComponent({
     [onContextMenu, dateStr]
   );
 
+  // 모바일 롱프레스 → 이벤트 생성 (더블클릭과 동일 동작)
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressPosRef = useRef<{ x: number; y: number } | null>(null);
+  const longPressActivatedRef = useRef(false);
+
+  const clearLongPress = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    longPressPosRef.current = null;
+  }, []);
+
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      const touch = e.touches[0];
+      longPressPosRef.current = { x: touch.clientX, y: touch.clientY };
+      longPressActivatedRef.current = false;
+
+      longPressTimerRef.current = setTimeout(() => {
+        longPressActivatedRef.current = true;
+        if (navigator.vibrate) navigator.vibrate(10);
+        onDoubleClickProp?.(dateStr);
+      }, 500);
+    },
+    [onDoubleClickProp, dateStr]
+  );
+
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (!longPressPosRef.current) return;
+      const touch = e.touches[0];
+      const dx = Math.abs(touch.clientX - longPressPosRef.current.x);
+      const dy = Math.abs(touch.clientY - longPressPosRef.current.y);
+      if (dx > 15 || dy > 15) clearLongPress();
+    },
+    [clearLongPress]
+  );
+
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      if (longPressActivatedRef.current) {
+        e.preventDefault();
+        longPressActivatedRef.current = false;
+      }
+      clearLongPress();
+    },
+    [clearLongPress]
+  );
+
   return (
     <div
       ref={(node) => { setNodeRef(node); cellRef.current = node; }}
@@ -323,6 +373,9 @@ function DroppableAdminDayCellComponent({
       onClick={handleCellClick}
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       className={cn(
         "group/cell relative bg-[rgb(var(--color-secondary-50))] p-1 sm:p-1.5 min-h-0 overflow-hidden cursor-pointer transition-colors",
         // 기본 상태별 배경 및 호버
