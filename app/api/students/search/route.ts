@@ -16,7 +16,7 @@ import {
  * 학생 통합 검색 API
  * GET /api/students/search
  *
- * Phase 3: search_students_admin RPC 사용 (fallback: 기존 searchStudentsUnified)
+ * search_students_admin RPC를 사용하여 DB 1회 쿼리로 처리
  */
 export async function GET(request: NextRequest) {
   try {
@@ -75,7 +75,6 @@ export async function GET(request: NextRequest) {
       return apiBadRequest("클라이언트 초기화 실패");
     }
 
-    // RPC 호출
     const detectedType = searchType || detectSearchType(query);
     const { data, error } = await adminClient.rpc("search_students_admin", {
       p_tenant_id: tenantId,
@@ -92,28 +91,6 @@ export async function GET(request: NextRequest) {
     });
 
     if (error) {
-      // RPC 미존재 시 fallback (Phase 5에서 제거)
-      if (error.code === "42883" || error.message?.includes("does not exist")) {
-        const { searchStudentsUnified } = await import("@/lib/data/studentSearch");
-        const filters: Record<string, unknown> = {};
-        if (grade) filters.grade = grade;
-        if (classFilter) filters.class = classFilter;
-        if (divisionParam) filters.division = divisionParam === "null" ? null : divisionParam as StudentDivision;
-        if (isActiveParam !== null && isActiveParam !== undefined) filters.isActive = isActiveParam === "true";
-
-        const result = await searchStudentsUnified({
-          query,
-          searchType: searchType || undefined,
-          filters,
-          limit,
-          offset,
-          role: role === "consultant" ? "admin" : role,
-          excludeStudentIds: excludeIds ?? [],
-          tenantId,
-        });
-
-        return apiSuccess({ students: result.students, total: result.total });
-      }
       throw error;
     }
 
