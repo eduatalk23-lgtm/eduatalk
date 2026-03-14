@@ -42,8 +42,9 @@ export async function GET(request: NextRequest) {
     const supabase = await createSupabaseServerClient();
 
     const { data: parents, error } = await supabase
-      .from("parent_users")
+      .from("user_profiles")
       .select("id, name")
+      .eq("role", "parent")
       .ilike("name", `%${query}%`)
       .limit(10);
 

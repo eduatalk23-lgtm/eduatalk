@@ -43,8 +43,9 @@ export async function getTenantUsersAction(
     .order("created_at", { ascending: false });
 
   let parentsQuery = supabase
-    .from("parent_users")
+    .from("user_profiles")
     .select("id, tenant_id, relationship")
+    .eq("role", "parent")
     .order("created_at", { ascending: false });
 
   // 일반 Admin인 경우 현재 기관의 사용자 또는 미할당 사용자만 조회

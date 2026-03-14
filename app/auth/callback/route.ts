@@ -161,9 +161,10 @@ export async function GET(request: Request) {
             .maybeSingle();
 
           const { data: parent } = await supabase
-            .from("parent_users")
+            .from("user_profiles")
             .select("id")
             .eq("id", user.id)
+            .eq("role", "parent")
             .maybeSingle();
 
           const { data: admin } = await supabase

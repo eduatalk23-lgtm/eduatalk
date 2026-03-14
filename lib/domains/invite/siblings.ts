@@ -52,7 +52,7 @@ export async function getDerivedSiblings(
         parent_id,
         relation,
         students:student_id(name),
-        parent_users:parent_id(name)
+        user_profiles:parent_id(name)
       `
       )
       .in("parent_id", parentIds)
@@ -81,7 +81,7 @@ export async function getDerivedSiblings(
       seen.add(key);
 
       const student = extractJoinResult(link.students);
-      const parent = extractJoinResult(link.parent_users);
+      const parent = extractJoinResult(link.user_profiles);
 
       siblings.push({
         studentId: link.student_id,

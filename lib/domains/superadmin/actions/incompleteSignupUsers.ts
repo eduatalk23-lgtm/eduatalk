@@ -60,7 +60,7 @@ async function _getIncompleteSignupUsers(): Promise<IncompleteSignupUser[]> {
   // 역할 테이블에서 모든 사용자 ID 조회
   const [studentsResult, parentsResult, adminsResult] = await Promise.all([
     adminClient.from("students").select("id"),
-    adminClient.from("parent_users").select("id"),
+    adminClient.from("user_profiles").select("id").eq("role", "parent"),
     adminClient.from("admin_users").select("id"),
   ]);
 
@@ -117,7 +117,7 @@ async function _deleteIncompleteSignupUser(userId: string): Promise<void> {
   // 역할 레코드가 있는지 확인 (있으면 삭제 불가)
   const [studentResult, parentResult, adminResult] = await Promise.all([
     adminClient.from("students").select("id").eq("id", userId).maybeSingle(),
-    adminClient.from("parent_users").select("id").eq("id", userId).maybeSingle(),
+    adminClient.from("user_profiles").select("id").eq("id", userId).eq("role", "parent").maybeSingle(),
     adminClient.from("admin_users").select("id").eq("id", userId).maybeSingle(),
   ]);
 

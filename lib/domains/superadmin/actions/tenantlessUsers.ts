@@ -77,8 +77,9 @@ async function _getTenantlessUsers(
   // 2. 학부모 조회 (tenant_id IS NULL) - Admin 클라이언트로 RLS 우회
   if (!userType || userType === "parent" || userType === "all") {
     const { data: parents, error: parentsError } = await adminClient
-      .from("parent_users")
+      .from("user_profiles")
       .select("id, created_at")
+      .eq("role", "parent")
       .is("tenant_id", null);
 
     if (parentsError) {

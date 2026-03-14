@@ -29,7 +29,7 @@ const ROLE_CONFIG = {
   consultant: { table: "admin_users", paths: ["/admin/settings", "/admin"] },
   superadmin: { table: "admin_users", paths: ["/admin/settings", "/admin"] },
   student: { table: "students", paths: ["/settings", "/dashboard"] },
-  parent: { table: "parent_users", paths: ["/parent/settings", "/parent/dashboard"] },
+  parent: { table: "user_profiles", paths: ["/parent/settings", "/parent/dashboard"] },
 } as const;
 
 type SupportedRole = keyof typeof ROLE_CONFIG;

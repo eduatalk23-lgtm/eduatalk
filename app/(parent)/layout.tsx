@@ -26,9 +26,10 @@ export default async function ParentLayout({ children }: { children: ReactNode }
   // is_active 체크 + 기관 정보 + 사용자 프로필을 병렬 조회
   const [parent, tenantInfo, profile] = await Promise.all([
     supabase
-      .from("parent_users")
+      .from("user_profiles")
       .select("is_active")
       .eq("id", userId)
+      .eq("role", "parent")
       .maybeSingle()
       .then((r) => r.data),
     getTenantInfo(),

@@ -54,8 +54,9 @@ export default async function TenantSettingsPage() {
     .eq("tenant_id", tenantContext.tenantId);
 
   const { count: parentCount } = await supabase
-    .from("parent_users")
+    .from("user_profiles")
     .select("*", { count: "exact", head: true })
+    .eq("role", "parent")
     .eq("tenant_id", tenantContext.tenantId);
 
   const { count: adminCount } = await supabase

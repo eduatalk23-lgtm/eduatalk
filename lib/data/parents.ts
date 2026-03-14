@@ -18,7 +18,7 @@ export type Parent = {
 const PARENT_SELECT = "id,name,phone,email,is_active,tenant_id,created_at,updated_at";
 
 /**
- * Parent ID로 Parent 조회
+ * Parent ID로 Parent 조회 (user_profiles 기반)
  */
 export async function getParentById(
   parentId: string,
@@ -29,9 +29,10 @@ export async function getParentById(
   return await createTypedSingleQuery<Parent>(
     async () => {
       let query = supabase
-        .from("parent_users")
+        .from("user_profiles")
         .select(PARENT_SELECT)
-        .eq("id", parentId);
+        .eq("id", parentId)
+        .eq("role", "parent");
 
       if (tenantId) {
         query = query.eq("tenant_id", tenantId);
@@ -51,7 +52,7 @@ export async function getParentById(
 }
 
 /**
- * Tenant ID로 Parent 목록 조회
+ * Tenant ID로 Parent 목록 조회 (user_profiles 기반)
  */
 export async function listParentsByTenant(
   tenantId: string | null
@@ -65,8 +66,9 @@ export async function listParentsByTenant(
   return await createTypedQuery<Parent[]>(
     async () => {
       const queryResult = await supabase
-        .from("parent_users")
+        .from("user_profiles")
         .select(PARENT_SELECT)
+        .eq("role", "parent")
         .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false });
 
@@ -107,8 +109,9 @@ export async function searchParentsByTenant(
   const supabase = await createSupabaseServerClient();
 
   let baseQuery = supabase
-    .from("parent_users")
+    .from("user_profiles")
     .select("id,name,phone,email,is_active,created_at", { count: "exact" })
+    .eq("role", "parent")
     .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -126,7 +129,7 @@ export async function searchParentsByTenant(
 
   // 연결 학생 수 일괄 조회
   const parentIds = data.map((p: { id: string }) => p.id);
-  let linkCountMap = new Map<string, number>();
+  const linkCountMap = new Map<string, number>();
 
   if (parentIds.length > 0) {
     const { data: links } = await supabase
@@ -158,7 +161,7 @@ export async function searchParentsByTenant(
 }
 
 /**
- * 학부모 정보 업데이트
+ * 학부모 정보 업데이트 (user_profiles 기반)
  */
 export async function updateParentData(
   parentId: string,
@@ -168,10 +171,11 @@ export async function updateParentData(
   const supabase = await createSupabaseServerClient();
 
   const { error } = await supabase
-    .from("parent_users")
+    .from("user_profiles")
     .update(data)
     .eq("id", parentId)
-    .eq("tenant_id", tenantId);
+    .eq("tenant_id", tenantId)
+    .eq("role", "parent");
 
   if (error) {
     return { success: false, error: error.message };
@@ -201,10 +205,11 @@ export async function deleteParentData(
   }
 
   const { error } = await supabase
-    .from("parent_users")
+    .from("user_profiles")
     .delete()
     .eq("id", parentId)
-    .eq("tenant_id", tenantId);
+    .eq("tenant_id", tenantId)
+    .eq("role", "parent");
 
   if (error) {
     return { success: false, error: error.message };

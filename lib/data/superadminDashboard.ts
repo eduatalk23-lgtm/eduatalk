@@ -131,8 +131,9 @@ export async function getUserStatistics(): Promise<UserStatistics> {
 
     // 학부모 수 (모든 테넌트의 학부모)
     const { count: parents, error: parentsError } = await supabase
-      .from("parent_users")
-      .select("*", { count: "exact", head: true });
+      .from("user_profiles")
+      .select("*", { count: "exact", head: true })
+      .eq("role", "parent");
 
     if (parentsError) {
       logActionError("superadminDashboard.getUserStatistics", `학부모 수 조회 실패: ${parentsError.message}`);

@@ -159,7 +159,7 @@ async function getAdminViewMembers(
       const studentIds = students.map((s: { id: string }) => s.id);
       const { data: parentLinks } = await supabase
         .from("parent_student_links")
-        .select("student_id, relation, parent:parent_users(id, name)")
+        .select("student_id, relation, parent:user_profiles!parent_student_links_parent_id_fkey(id, name)")
         .in("student_id", studentIds);
 
       // 학생ID → 학부모 목록 맵
@@ -253,7 +253,7 @@ async function getStudentViewMembers(
   if (filter === "all" || filter === "parent") {
     const { data: parentLinks } = await supabase
       .from("parent_student_links")
-      .select("relation, parent:parent_users(id, name, profile_image_url)")
+      .select("relation, parent:user_profiles!parent_student_links_parent_id_fkey(id, name, profile_image_url)")
       .eq("student_id", studentId);
 
     if (parentLinks) {

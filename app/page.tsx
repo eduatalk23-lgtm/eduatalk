@@ -68,9 +68,10 @@ export default async function Home() {
     }
   } else if (role === "parent") {
     const { data: parent } = await supabaseForCheck
-      .from("parent_users")
+      .from("user_profiles")
       .select("is_active")
       .eq("id", userId)
+      .eq("role", "parent")
       .maybeSingle();
 
     if (parent && parent.is_active === false) {

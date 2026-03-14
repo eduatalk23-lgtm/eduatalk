@@ -602,9 +602,10 @@ export async function acceptInvitation(
         const finalRelation = options?.relation || inv.relation || "guardian";
 
         const { data: existingParent } = await adminClient
-          .from("parent_users")
+          .from("user_profiles")
           .select("id")
           .eq("id", userId)
+          .eq("role", "parent")
           .maybeSingle();
 
         if (!existingParent) {
@@ -614,8 +615,9 @@ export async function acceptInvitation(
             au?.user?.user_metadata?.name ||
             "학부모";
 
-          const { error: parentInsertError } = await adminClient.from("parent_users").insert({
+          const { error: parentInsertError } = await adminClient.from("user_profiles").insert({
             id: userId,
+            role: "parent",
             name: parentName,
             tenant_id: inv.tenantId,
           });

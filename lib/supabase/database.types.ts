@@ -62,6 +62,13 @@ export type Database = {
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "admin_users_user_profile_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       attendance_qr_codes: {
@@ -4867,7 +4874,7 @@ export type Database = {
             foreignKeyName: "parent_student_links_parent_id_fkey"
             columns: ["parent_id"]
             isOneToOne: false
-            referencedRelation: "parent_users"
+            referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
           {
@@ -4879,50 +4886,6 @@ export type Database = {
           },
           {
             foreignKeyName: "parent_student_links_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      parent_users: {
-        Row: {
-          created_at: string
-          email: string | null
-          id: string
-          is_active: boolean
-          name: string
-          phone: string | null
-          profile_image_url: string | null
-          tenant_id: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          email?: string | null
-          id: string
-          is_active?: boolean
-          name: string
-          phone?: string | null
-          profile_image_url?: string | null
-          tenant_id: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          email?: string | null
-          id?: string
-          is_active?: boolean
-          name?: string
-          phone?: string | null
-          profile_image_url?: string | null
-          tenant_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "parent_users_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -9346,6 +9309,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "students_user_profile_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
         ]

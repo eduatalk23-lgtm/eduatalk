@@ -35,7 +35,7 @@ type ParentStudentLinkRow = {
   id: string;
   parent_id: string;
   relation: string;
-  parent_users:
+  user_profiles:
     | {
         id: string;
         name: string | null;
@@ -76,7 +76,7 @@ export async function getStudentParents(
           id,
           relation,
           parent_id,
-          parent_users:parent_id(
+          user_profiles:parent_id(
             id,
             name,
             phone
@@ -111,7 +111,7 @@ export async function getStudentParents(
     // 데이터 변환
     const parents: StudentParent[] = links
       .map((link: ParentStudentLinkRow): StudentParent | null => {
-        const parentUser = extractJoinResult(link.parent_users);
+        const parentUser = extractJoinResult(link.user_profiles);
         if (!parentUser) return null;
 
         return {
@@ -159,16 +159,17 @@ export async function searchParents(
   try {
     const searchQuery = query.trim();
 
-    // parent_users에서 직접 검색 (name만 사용, email은 auth.users에 있어 조회 불가)
+    // user_profiles에서 직접 검색 (name만 사용, email은 auth.users에 있어 조회 불가)
     const selectParents = () =>
       supabase
-        .from("parent_users")
+        .from("user_profiles")
         .select(
           `
           id,
           name
         `
         )
+        .eq("role", "parent")
         .ilike("name", `%${searchQuery}%`)
         .limit(10);
 

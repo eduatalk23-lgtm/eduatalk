@@ -45,11 +45,12 @@ export async function updateUserTenant(
         updateError = error2;
       }
     } else if (userType === "parent") {
-      // parent_users 테이블: id로 업데이트
+      // user_profiles 테이블: id + role로 업데이트
       const { error } = await supabase
-        .from("parent_users")
+        .from("user_profiles")
         .update({ tenant_id: tenantId })
-        .eq("id", userId);
+        .eq("id", userId)
+        .eq("role", "parent");
       updateError = error;
     } else if (userType === "admin") {
       // admin_users 테이블: id로 업데이트

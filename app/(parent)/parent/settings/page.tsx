@@ -22,9 +22,10 @@ export default async function ParentSettingsPage() {
 
   // 학부모 정보 조회
   const { data: parent } = await supabase
-    .from("parent_users")
+    .from("user_profiles")
     .select("id, name, created_at, profile_image_url")
     .eq("id", userId)
+    .eq("role", "parent")
     .maybeSingle();
 
   // 연결된 학생 목록 조회

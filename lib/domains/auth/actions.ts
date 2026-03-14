@@ -169,9 +169,10 @@ async function ensureUserRecord(user: UserWithSignupMetadata): Promise<void> {
       }
     } else if (signupRole === "parent") {
       const { data: parent, error: checkError } = await supabase
-        .from("parent_users")
+        .from("user_profiles")
         .select("id")
         .eq("id", user.id)
+        .eq("role", "parent")
         .maybeSingle();
 
       if (checkError) {
@@ -431,9 +432,10 @@ async function createParentRecord(
       return { success: false, error: "기관 정보가 없어 가입할 수 없습니다." };
     }
 
-    const { error } = await supabase.from("parent_users").insert({
+    const { error } = await supabase.from("user_profiles").upsert({
       id: userId,
       tenant_id: finalTenantId,
+      role: "parent",
       name: displayName || "",
       phone: phone || null,
     });
@@ -1082,18 +1084,11 @@ export async function changeUserRole(newRole: "student" | "parent"): Promise<Act
     }
 
     if (newRole === "student") {
-      const { error: deleteParentError } = await supabase
-        .from("parent_users")
-        .delete()
+      // user_profiles 역할을 student로 변경 (parent → student)
+      await supabase
+        .from("user_profiles")
+        .update({ role: "student" })
         .eq("id", userId);
-
-      if (deleteParentError && deleteParentError.code !== "PGRST116") {
-        logActionDebug(
-          { domain: "auth", action: "changeUserRole", userId },
-          "학부모 레코드 삭제 실패 (무시됨)",
-          { error: deleteParentError.message }
-        );
-      }
 
       const displayName = (user.user_metadata?.display_name as string) || "이름 없음";
       const { error: createStudentError } = await supabase.from("students").upsert({
@@ -1136,11 +1131,12 @@ export async function changeUserRole(newRole: "student" | "parent"): Promise<Act
         );
       }
 
-      const { error: createParentError } = await supabase.from("parent_users").upsert({
+      // user_profiles 역할을 parent로 변경 (student → parent)
+      const { error: createParentError } = await supabase.from("user_profiles").upsert({
         id: userId,
         tenant_id: tenantId,
-        relationship: null,
-        occupation: null,
+        role: "parent",
+        name: (user.user_metadata?.display_name as string) || "학부모",
       });
 
       if (createParentError) {
@@ -1225,9 +1221,10 @@ export async function setupOAuthUserRole(
       .maybeSingle();
 
     const { data: existingParent } = await supabase
-      .from("parent_users")
+      .from("user_profiles")
       .select("id")
       .eq("id", user.id)
+      .eq("role", "parent")
       .maybeSingle();
 
     if (existingStudent || existingParent) {
