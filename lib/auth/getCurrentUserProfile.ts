@@ -39,7 +39,22 @@ export const getCurrentUserProfile = cache(async (userInfo?: UserInfoParams): Pr
 
     if (!userId || !role) return empty;
 
-    // 이메일은 auth에서 가져옴 (getCachedAuthUser로 요청 내 중복 호출 방지)
+    // Phase 3: user_profiles에서 프로필 조회 (이메일 포함, auth.users 별도 조회 불필요)
+    const { data: profile, error: profileError } = await supabase
+      .from("user_profiles")
+      .select("name, profile_image_url, email")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (!profileError && profile) {
+      return {
+        name: profile.name ?? null,
+        profileImageUrl: profile.profile_image_url ?? null,
+        email: profile.email ?? null,
+      };
+    }
+
+    // Fallback: 역할별 테이블 조회 (user_profiles 미존재 시)
     const authUser = await getCachedAuthUser();
     const email = authUser?.email ?? null;
 

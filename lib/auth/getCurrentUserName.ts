@@ -44,14 +44,23 @@ export const getCurrentUserName = cache(async (userInfo?: UserInfoParams): Promi
       return null;
     }
 
-    // 역할별로 테이블에서 이름 조회
-    // (user_metadata.display_name은 대부분 없으므로 테이블 조회 우선)
+    // Phase 3: user_profiles에서 이름 조회 (1-쿼리)
+    const { data: profile, error: profileError } = await supabase
+      .from("user_profiles")
+      .select("name")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (!profileError && profile?.name) {
+      return profile.name;
+    }
+
+    // Fallback: 역할별 테이블에서 이름 조회 (user_profiles 미존재 시)
     if (role === "student") {
       const student = await getStudentById(userId, tenantId);
       return student?.name || null;
     }
 
-    // admin, consultant, superadmin은 admin_users 테이블에서 조회
     if (role === "admin" || role === "consultant" || role === "superadmin") {
       const { data: adminUser } = await supabase
         .from("admin_users")
@@ -62,7 +71,6 @@ export const getCurrentUserName = cache(async (userInfo?: UserInfoParams): Promi
       return adminUser?.name || null;
     }
 
-    // parent는 parent_users 테이블에서 조회
     if (role === "parent") {
       const { data: parentUser } = await supabase
         .from("parent_users")

@@ -25,42 +25,20 @@ export type Student = {
 };
 
 /**
- * 학생 기본 필드 목록 (동적 필드 포함)
+ * 학생 쿼리 필드 목록
+ * school_type, division은 마이그레이션으로 확정된 컬럼이므로 동적 체크 불필요
  */
 const STUDENT_BASE_FIELDS = "id,tenant_id,name,grade,class,birth_date,school_id,school_name,student_number,enrolled_at,status,created_at,updated_at";
-const STUDENT_OPTIONAL_FIELDS = ["school_type", "division"];
+const STUDENT_SELECT_FIELDS = `${STUDENT_BASE_FIELDS},school_type,division`;
 
 /**
- * 학생 쿼리 빌더 - 동적 필드 선택
- * 선택적 필드를 병렬로 확인하여 성능 최적화
+ * 학생 쿼리 빌더 - 확정된 필드 목록 반환
  */
 async function buildStudentQuery(
-  supabase: SupabaseServerClient,
-  baseSelect: string = STUDENT_BASE_FIELDS
+  _supabase: SupabaseServerClient,
+  baseSelect: string = STUDENT_SELECT_FIELDS
 ): Promise<string> {
-  let selectFields = baseSelect;
-  
-  // 선택적 필드를 병렬로 확인 (성능 최적화)
-  const fieldChecks = await Promise.allSettled(
-    STUDENT_OPTIONAL_FIELDS.map(async (field) => {
-      try {
-        const testQuery = supabase.from("students").select(field).limit(1);
-        const { error: testError } = await testQuery;
-        return { field, exists: !testError };
-      } catch (e) {
-        return { field, exists: false };
-      }
-    })
-  );
-  
-  // 존재하는 필드만 추가
-  for (const result of fieldChecks) {
-    if (result.status === "fulfilled" && result.value.exists) {
-      selectFields += `,${result.value.field}`;
-    }
-  }
-  
-  return selectFields;
+  return baseSelect;
 }
 
 /**

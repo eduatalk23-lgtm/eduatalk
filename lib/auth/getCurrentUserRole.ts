@@ -201,6 +201,30 @@ export async function getCurrentUserRole(
     const signupRole = extractSignupRole(user.user_metadata);
     const tenantIdFromMetadata = extractTenantId(user.user_metadata);
 
+    // Phase 3: user_profiles 단일 쿼리 시도 (1-쿼리 → 기존 3-쿼리 fallback)
+    const { data: profile, error: profileError } = await supabase
+      .from("user_profiles")
+      .select("role, tenant_id")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (!profileError && profile?.role) {
+      const profileRole = profile.role as UserRole;
+      // superadmin인 경우 tenant_id는 null
+      const profileTenantId = profileRole === "superadmin" ? null : (profile.tenant_id ?? null);
+      return {
+        userId: user.id,
+        role: profileRole,
+        tenantId: profileTenantId,
+      };
+    }
+
+    // user_profiles 조회 실패 시 기존 3-테이블 방식 fallback
+    // (user_profiles 테이블 미존재(42P01) 또는 레코드 없음)
+    if (profileError && profileError.code !== "42P01" && profileError.code !== "PGRST116") {
+      logActionWarn("auth.getCurrentUserRole", `user_profiles 조회 실패, fallback 사용 - code:${profileError.code}`);
+    }
+
     // 3개 역할 테이블 병렬 조회 (우선순위: admin > parent > student)
     const [adminResult, parentResult, studentResult] = await Promise.allSettled([
       fetchAdminRole(supabase, user.id),
@@ -246,18 +270,17 @@ export async function getCurrentUserRole(
       }
       return {
         userId: user.id,
-        role: signupRole, // 타입 가드로 이미 SignupRole 타입 보장됨
+        role: signupRole,
         tenantId: tenantIdFromMetadata ?? null,
-        signupRole: signupRole, // 타입 가드로 이미 SignupRole 타입 보장됨
+        signupRole: signupRole,
       };
     }
 
     // 어떤 테이블에도 없고 signup_role도 없으면 null 반환
-    // 프로덕션에서는 민감 정보(email) 로깅 제외
     if (process.env.NODE_ENV === "development") {
-      logActionWarn("auth.getCurrentUserRole", `사용자 역할을 찾을 수 없음 - userId:${user.id}, email:${user.email}, adminFound:${!!adminRole}, parentFound:${!!parentRole}, studentFound:${!!studentRole}, signupRole:${signupRole}`);
+      logActionWarn("auth.getCurrentUserRole", `사용자 역할을 찾을 수 없음 - userId:${user.id}, email:${user.email}`);
     } else {
-      logActionWarn("auth.getCurrentUserRole", `사용자 역할을 찾을 수 없음 - adminFound:${!!adminRole}, parentFound:${!!parentRole}, studentFound:${!!studentRole}, signupRole:${signupRole}`);
+      logActionWarn("auth.getCurrentUserRole", `사용자 역할을 찾을 수 없음`);
     }
     return { userId: user.id, role: null, tenantId: null };
   } catch (error) {
