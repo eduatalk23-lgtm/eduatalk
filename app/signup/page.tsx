@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Suspense, useActionState, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 import { signUp } from "@/lib/domains/auth/actions";
 import { getTenantOptionsForSignup, type TenantOption } from "@/lib/domains/tenant";
@@ -24,9 +24,6 @@ const initialState: ActionResponse<{ redirect: string }> | null = null;
 
 function SignupContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const codeFromUrl = searchParams.get("code") || "";
-
   const [state, formAction] = useActionState<ActionResponse<{ redirect: string }> | null, FormData>(
     signUp,
     initialState
@@ -37,7 +34,6 @@ function SignupContent() {
   const [selectedTenantId, setSelectedTenantId] = useState("");
   const [selectedRole, setSelectedRole] = useState<"student" | "parent" | "">("");
   const [selectedRelation, setSelectedRelation] = useState<"father" | "mother" | "guardian" | "">("");
-  const [connectionCode, setConnectionCode] = useState(codeFromUrl);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -52,8 +48,7 @@ function SignupContent() {
     }
   }, [router]);
 
-  // 로그인 링크에 연결 코드 유지
-  const loginUrl = codeFromUrl ? `/login?code=${codeFromUrl}` : "/login";
+  const loginUrl = "/login";
   const [termsModalOpen, setTermsModalOpen] = useState(false);
   const [privacyModalOpen, setPrivacyModalOpen] = useState(false);
   const [marketingModalOpen, setMarketingModalOpen] = useState(false);
@@ -288,29 +283,6 @@ function SignupContent() {
               type="tel"
               placeholder="010-0000-0000"
             />
-          )}
-
-          {/* 초대 코드 입력 */}
-          {selectedRole && (
-            <div className="flex flex-col gap-2">
-              <label htmlFor="connection_code" className="text-sm font-medium text-gray-700">
-                초대 코드 <span className="text-gray-500">(선택사항)</span>
-              </label>
-              <input
-                id="connection_code"
-                name="connection_code"
-                type="text"
-                value={connectionCode}
-                onChange={(e) => setConnectionCode(e.target.value.toUpperCase())}
-                placeholder="INV-XXXX-XXXX"
-                className="w-full rounded-lg border border-gray-300 bg-white/80 px-4 py-2 text-sm uppercase backdrop-blur-sm"
-              />
-              <p className="text-xs text-gray-500">
-                {selectedRole === "student"
-                  ? "관리자가 발급한 초대 코드가 있다면 입력하세요. 기존 학생 정보와 계정이 자동으로 연결됩니다."
-                  : "자녀의 초대 코드가 있다면 입력하세요. 자녀 계정과 자동으로 연결됩니다."}
-              </p>
-            </div>
           )}
 
           {/* 약관 동의 */}

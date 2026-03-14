@@ -215,63 +215,34 @@ async function linkStudentWithInviteCode(
   inviteCode: string
 ): Promise<AuthResult> {
   try {
-    const { useInviteCode } = await import("@/lib/domains/invite");
-    const result = await useInviteCode(inviteCode, userId);
+    // 통합 초대 시스템으로 검증 (invitations.legacy_code 조회)
+    const { validateInvitationByCode, acceptInvitation } = await import("@/lib/domains/invitation/actions");
+    const validation = await validateInvitationByCode(inviteCode);
+
+    if (!validation.success || !validation.invitation) {
+      logActionError(
+        { domain: "auth", action: "linkStudentWithInviteCode", userId },
+        new Error(validation.error || "초대 코드 검증 실패"),
+        { inviteCode }
+      );
+      return { success: false, error: validation.error || "유효하지 않은 초대 코드입니다." };
+    }
+
+    // 통합 초대 수락 (transfer_student_identity + 메타데이터 업데이트 포함)
+    const result = await acceptInvitation(validation.invitation.token, userId);
 
     if (!result.success) {
       logActionError(
         { domain: "auth", action: "linkStudentWithInviteCode", userId },
-        new Error(result.error || "초대 코드 연결 실패"),
+        new Error(result.error || "초대 수락 실패"),
         { inviteCode }
       );
       return { success: false, error: result.error || "학생 계정 연결에 실패했습니다." };
     }
 
-    // 기존 students.id를 새 auth.users.id로 이전
-    // (students.id = auth.users.id 매칭 구조이므로 필수)
-    if (result.studentId && result.studentId !== userId) {
-      console.log("[linkStudent] transfer_student_identity 시작", {
-        oldId: result.studentId,
-        newId: userId,
-      });
-
-      const adminClient = createSupabaseAdminClient();
-      if (!adminClient) {
-        console.log("[linkStudent] adminClient 생성 실패");
-        return { success: false, error: "서버 설정 오류입니다." };
-      }
-
-      const { error: transferError } = await adminClient.rpc(
-        "transfer_student_identity",
-        { old_id: result.studentId, new_id: userId }
-      );
-
-      if (transferError) {
-        console.log("[linkStudent] transfer_student_identity 실패:", transferError.message, transferError.code, transferError.details);
-        logActionError(
-          { domain: "auth", action: "linkStudentWithInviteCode", userId },
-          new Error(transferError.message),
-          { inviteCode, oldStudentId: result.studentId, step: "transfer_identity" }
-        );
-        return { success: false, error: "학생 계정 이전 중 오류가 발생했습니다." };
-      }
-
-      console.log("[linkStudent] transfer_student_identity 성공");
-      logActionSuccess(
-        { domain: "auth", action: "linkStudentWithInviteCode", userId },
-        { inviteCode, oldStudentId: result.studentId, newStudentId: userId, step: "identity_transferred" }
-      );
-    } else {
-      console.log("[linkStudent] transfer 불필요", {
-        studentId: result.studentId,
-        userId,
-        same: result.studentId === userId,
-      });
-    }
-
     logActionSuccess(
       { domain: "auth", action: "linkStudentWithInviteCode", userId },
-      { inviteCode, studentId: result.studentId }
+      { inviteCode, studentId: validation.invitation.studentId }
     );
 
     return { success: true };
@@ -294,13 +265,24 @@ async function linkParentWithInviteCode(
   relation: string
 ): Promise<AuthResult> {
   try {
-    const { useInviteCode } = await import("@/lib/domains/invite");
-    const result = await useInviteCode(inviteCode, parentId, relation);
+    const { validateInvitationByCode, acceptInvitation } = await import("@/lib/domains/invitation/actions");
+    const validation = await validateInvitationByCode(inviteCode);
+
+    if (!validation.success || !validation.invitation) {
+      logActionError(
+        { domain: "auth", action: "linkParentWithInviteCode", userId: parentId },
+        new Error(validation.error || "초대 코드 검증 실패"),
+        { inviteCode }
+      );
+      return { success: false, error: validation.error || "유효하지 않은 초대 코드입니다." };
+    }
+
+    const result = await acceptInvitation(validation.invitation.token, parentId, { relation });
 
     if (!result.success) {
       logActionError(
         { domain: "auth", action: "linkParentWithInviteCode", userId: parentId },
-        new Error(result.error || "초대 코드 연결 실패"),
+        new Error(result.error || "초대 수락 실패"),
         { inviteCode }
       );
       return { success: false, error: result.error || "자녀 연결에 실패했습니다." };
@@ -308,7 +290,7 @@ async function linkParentWithInviteCode(
 
     logActionSuccess(
       { domain: "auth", action: "linkParentWithInviteCode", userId: parentId },
-      { inviteCode, studentId: result.studentId, relation }
+      { inviteCode, studentId: validation.invitation.studentId, relation }
     );
 
     return { success: true };

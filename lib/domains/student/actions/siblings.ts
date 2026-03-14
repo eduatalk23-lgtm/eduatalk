@@ -30,7 +30,7 @@ export async function getDerivedSiblings(
 
     if (parentError) {
       logActionError(
-        { domain: "invite", action: "getDerivedSiblings" },
+        { domain: "student", action: "getDerivedSiblings" },
         parentError,
         { studentId }
       );
@@ -60,7 +60,7 @@ export async function getDerivedSiblings(
 
     if (siblingError) {
       logActionError(
-        { domain: "invite", action: "getDerivedSiblings" },
+        { domain: "student", action: "getDerivedSiblings" },
         siblingError,
         { studentId }
       );
@@ -95,7 +95,7 @@ export async function getDerivedSiblings(
     return { success: true, data: siblings };
   } catch (error) {
     logActionError(
-      { domain: "invite", action: "getDerivedSiblings" },
+      { domain: "student", action: "getDerivedSiblings" },
       error,
       { studentId }
     );

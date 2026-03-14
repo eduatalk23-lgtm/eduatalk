@@ -140,7 +140,7 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
   useEffect(() => {
     async function loadSiblings() {
       try {
-        const { getDerivedSiblings } = await import("@/lib/domains/invite");
+        const { getDerivedSiblings } = await import("@/lib/domains/student/actions/siblings");
         const result = await getDerivedSiblings(studentId);
         if (result.success && result.data) {
           setSiblings(result.data);
@@ -332,7 +332,7 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
         setParents(result.data);
       }
       try {
-        const { getDerivedSiblings } = await import("@/lib/domains/invite");
+        const { getDerivedSiblings } = await import("@/lib/domains/student/actions/siblings");
         const sibResult = await getDerivedSiblings(studentId);
         if (sibResult.success && sibResult.data) {
           setSiblings(sibResult.data);

@@ -173,8 +173,6 @@ export async function deleteStudent(
 
     // 6. auth.users를 참조하는 NO ACTION/RESTRICT FK 컬럼들 정리 (auth.users 삭제 전 필수)
     // nullable 컬럼은 null로, NOT NULL 컬럼은 레코드 삭제
-    await supabase.from("invite_codes").update({ used_by: null }).eq("used_by", studentId);
-    await supabase.from("invite_codes").update({ created_by: null }).eq("created_by", studentId);
     await supabase.from("content_ai_extraction_logs").update({ created_by: null }).eq("created_by", studentId);
     await supabase.from("payment_records").update({ created_by: null }).eq("created_by", studentId);
     await supabase.from("files").delete().eq("uploaded_by", studentId);
@@ -402,8 +400,6 @@ export async function bulkDeleteStudents(
 
   // 1단계: auth.users를 참조하는 NO ACTION/RESTRICT FK 컬럼들 정리
   for (const studentId of studentIds) {
-    await supabase.from("invite_codes").update({ used_by: null }).eq("used_by", studentId);
-    await supabase.from("invite_codes").update({ created_by: null }).eq("created_by", studentId);
     await supabase.from("content_ai_extraction_logs").update({ created_by: null }).eq("created_by", studentId);
     await supabase.from("payment_records").update({ created_by: null }).eq("created_by", studentId);
     await supabase.from("files").delete().eq("uploaded_by", studentId);
@@ -849,7 +845,7 @@ export async function updateStudentInfo(
  * 신규 학생 등록 (인증 계정 없이)
  * 
  * @param formData - 학생 정보 FormData
- * @returns 학생 ID와 연결 코드
+ * @returns 학생 ID와 초대 URL
  */
 export async function createStudent(
   input: import("@/lib/validation/studentSchemas").CreateStudentInput
@@ -857,6 +853,7 @@ export async function createStudent(
   success: boolean;
   studentId?: string;
   connectionCode?: string;
+  joinUrl?: string;
   error?: string;
 }> {
   const { role, tenantId, userId } = await getCachedUserRole();
@@ -991,32 +988,34 @@ export async function createStudent(
       }
     }
 
-    // 4. 초대 코드 생성 (invite_codes 테이블)
-    const { createInviteCode } = await import("@/lib/domains/invite");
-    const inviteResult = await createInviteCode({
-      studentId,
+    // 4. 통합 초대 생성 (invitations 테이블)
+    const { createInvitation } = await import("@/lib/domains/invitation/actions");
+    const inviteResult = await createInvitation({
       targetRole: "student",
+      deliveryMethod: "manual",
+      studentId,
     });
 
     if (!inviteResult.success) {
       logActionError(
         { domain: "student", action: "createStudent" },
-        new Error(inviteResult.error || "초대 코드 생성 실패"),
-        { studentId, step: "invite_codes" }
+        new Error(inviteResult.error || "초대 생성 실패"),
+        { studentId, step: "invitations" }
       );
-      return {
-        success: false,
-        error: inviteResult.error || "초대 코드 생성에 실패했습니다.",
-      };
+      // 초대 생성 실패해도 학생 등록은 성공으로 처리
+      logActionWarn(
+        { domain: "student", action: "createStudent" },
+        "학생 등록 완료, 초대 생성 실패 — 수동 초대 필요",
+        { studentId }
+      );
     }
-    const connectionCode = inviteResult.code;
 
     revalidatePath("/admin/students");
 
     return {
       success: true,
       studentId,
-      connectionCode,
+      joinUrl: inviteResult.success ? inviteResult.joinUrl : undefined,
     };
   } catch (error) {
     logActionError(
@@ -1030,9 +1029,7 @@ export async function createStudent(
   }
 }
 
-// validateConnectionCode 함수는 lib/utils/connectionCodeUtils.ts로 이동되었습니다.
 // 사용처가 없으므로 제거되었습니다.
 
-// regenerateConnectionCode removed - use createInviteCode from invite domain
 
 // getStudentConnectionCode removed - use getStudentInviteCodes from invite domain

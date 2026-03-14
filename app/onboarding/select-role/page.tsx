@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useActionState, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { setupOAuthUserRole } from "@/lib/domains/auth/actions";
 import { getTenantOptionsForSignup, type TenantOption } from "@/lib/domains/tenant";
@@ -17,9 +17,6 @@ const initialState: ActionResponse<{ redirect: string }> | null = null;
 
 function SelectRoleContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const codeFromUrl = searchParams.get("code") || "";
-
   const [state, formAction] = useActionState(setupOAuthUserRole, initialState);
   const [tenants, setTenants] = useState<TenantOption[]>([]);
   const [loadingTenants, setLoadingTenants] = useState(true);
@@ -27,7 +24,6 @@ function SelectRoleContent() {
   const [selectedTenantId, setSelectedTenantId] = useState("");
   const [selectedRole, setSelectedRole] = useState<"student" | "parent" | "">("");
   const [selectedRelation, setSelectedRelation] = useState<"father" | "mother" | "guardian" | "">("");
-  const [connectionCode, setConnectionCode] = useState(codeFromUrl);
 
   // 초대 링크(/join)를 통해 OAuth 진행 후 여기로 온 경우 → /join으로 리다이렉트
   // JoinContent에서 localStorage에 join_token을 저장함
@@ -40,20 +36,6 @@ function SelectRoleContent() {
     }
   }, [router]);
 
-  // localStorage에서 연결 코드 읽기 (OAuth 플로우에서 전달된 경우)
-  useEffect(() => {
-    if (!codeFromUrl) {
-      const storedCode = localStorage.getItem("signup_connection_code");
-      if (storedCode) {
-        setConnectionCode(storedCode);
-        // 사용 후 삭제
-        localStorage.removeItem("signup_connection_code");
-      }
-    } else {
-      // URL에 코드가 있으면 localStorage 정리
-      localStorage.removeItem("signup_connection_code");
-    }
-  }, [codeFromUrl]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [userInfo, setUserInfo] = useState<{
     email: string;
@@ -256,29 +238,6 @@ function SelectRoleContent() {
             type="tel"
             placeholder="010-0000-0000"
           />
-        )}
-
-        {/* 초대 코드 입력 (학생/학부모 모두) */}
-        {selectedRole && (
-          <div className="flex flex-col gap-2">
-            <label htmlFor="connection_code" className="text-sm font-medium text-gray-700">
-              초대 코드 <span className="text-gray-500">(선택사항)</span>
-            </label>
-            <input
-              id="connection_code"
-              name="connection_code"
-              type="text"
-              value={connectionCode}
-              onChange={(e) => setConnectionCode(e.target.value.toUpperCase())}
-              placeholder="INV-XXXX-XXXX"
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm uppercase"
-            />
-            <p className="text-xs text-gray-500">
-              {selectedRole === "student"
-                ? "관리자가 발급한 초대 코드가 있다면 입력하세요. 기존 학생 정보와 계정이 자동으로 연결됩니다."
-                : "자녀의 초대 코드가 있다면 입력하세요. 자녀 계정과 자동으로 연결됩니다."}
-            </p>
-          </div>
         )}
 
         {/* 약관 동의 */}

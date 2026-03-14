@@ -9,7 +9,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 type CreateStudentModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess?: (studentId: string, connectionCode: string) => void;
+  onSuccess?: (studentId: string, joinUrl?: string) => void;
 };
 
 export function CreateStudentModal({
@@ -20,11 +20,13 @@ export function CreateStudentModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { showSuccess, showError } = useToast();
 
-  const handleSuccess = (studentId: string, connectionCode: string) => {
-    showSuccess(
-      `학생이 등록되었습니다. 초대 코드: ${connectionCode} (초대 코드를 복사하세요)`
-    );
-    onSuccess?.(studentId, connectionCode);
+  const handleSuccess = (studentId: string, joinUrl?: string) => {
+    if (joinUrl) {
+      showSuccess("학생이 등록되었습니다. 초대 링크가 클립보드에 복사되었습니다.");
+    } else {
+      showSuccess("학생이 등록되었습니다.");
+    }
+    onSuccess?.(studentId, joinUrl);
     onOpenChange(false);
   };
 
@@ -37,7 +39,7 @@ export function CreateStudentModal({
       open={open}
       onOpenChange={onOpenChange}
       title="신규 학생 등록"
-      description="학생 정보를 입력하고 초대 코드를 생성합니다."
+      description="학생 정보를 입력하고 초대 링크를 생성합니다."
       size="4xl"
       showCloseButton
     >
@@ -52,4 +54,3 @@ export function CreateStudentModal({
     </Dialog>
   );
 }
-

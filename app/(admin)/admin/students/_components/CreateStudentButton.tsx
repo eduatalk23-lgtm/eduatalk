@@ -10,12 +10,10 @@ export function CreateStudentButton() {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
 
-  const handleSuccess = (studentId: string, connectionCode: string) => {
-    // 학생 상세 페이지로 이동하거나 목록 새로고침
+  const handleSuccess = (studentId: string, joinUrl?: string) => {
     router.refresh();
-    // 연결 코드를 클립보드에 복사할 수도 있음
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(connectionCode).catch(() => {
+    if (joinUrl && navigator.clipboard) {
+      navigator.clipboard.writeText(joinUrl).catch(() => {
         // 복사 실패 시 무시
       });
     }

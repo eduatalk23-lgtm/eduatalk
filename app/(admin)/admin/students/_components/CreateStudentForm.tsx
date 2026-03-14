@@ -16,7 +16,7 @@ import { GENDER_OPTIONS } from "@/lib/utils/studentProfile";
 import { useToast } from "@/components/ui/ToastProvider";
 
 type CreateStudentFormProps = {
-  onSuccess: (studentId: string, connectionCode: string) => void;
+  onSuccess: (studentId: string, joinUrl?: string) => void;
   onError: (error: string) => void;
   isSubmitting: boolean;
   setIsSubmitting: (isSubmitting: boolean) => void;
@@ -52,8 +52,8 @@ export function CreateStudentForm({
       const input = toCreateStudentInput(data);
       const result = await createStudent(input);
 
-      if (result.success && result.studentId && result.connectionCode) {
-        onSuccess(result.studentId, result.connectionCode);
+      if (result.success && result.studentId) {
+        onSuccess(result.studentId, result.joinUrl);
       } else {
         onError(result.error || "학생 등록에 실패했습니다.");
       }
