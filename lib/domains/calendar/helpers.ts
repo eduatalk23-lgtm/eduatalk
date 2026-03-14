@@ -261,11 +261,12 @@ export async function subscribeAllAdminsToTenantCalendar(
 ): Promise<void> {
   const supabase = await createSupabaseServerClient();
 
+  // is_active는 user_profiles에서 관리
   const { data: admins } = await supabase
     .from("admin_users")
-    .select("id")
+    .select("id, user_profiles!inner(is_active)")
     .eq("tenant_id", tenantId)
-    .eq("is_active", true);
+    .eq("user_profiles.is_active", true);
 
   if (!admins || admins.length === 0) return;
 

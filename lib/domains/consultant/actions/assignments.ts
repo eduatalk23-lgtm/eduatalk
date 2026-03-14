@@ -50,9 +50,9 @@ export async function getStudentAssignmentsAction(
       consultantIds.length > 0
         ? adminClient
             .from("admin_users")
-            .select("id, name")
+            .select("id, user_profiles!inner(name)")
             .in("id", consultantIds)
-        : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+        : Promise.resolve({ data: [] as { id: string; user_profiles: { name: string | null } }[] }),
       enrollmentIds.length > 0
         ? adminClient
             .from("enrollments")
@@ -68,9 +68,9 @@ export async function getStudentAssignmentsAction(
 
     const consultantMap = new Map(
       (
-        (consultantResult as { data: { id: string; name: string }[] | null })
+        (consultantResult as { data: { id: string; user_profiles: { name: string | null } | null }[] | null })
           .data ?? []
-      ).map((c: { id: string; name: string }) => [c.id, c.name])
+      ).map((c) => [c.id, c.user_profiles?.name ?? ""])
     );
 
     const enrollmentMap = new Map(
@@ -293,10 +293,10 @@ export async function getMyAssignedStudentsAction(): Promise<
       studentIds.length > 0
         ? adminClient
             .from("students")
-            .select("id, name, grade")
+            .select("id, grade, user_profiles!inner(name)")
             .in("id", studentIds)
         : Promise.resolve({
-            data: [] as { id: string; name: string; grade: number | null }[],
+            data: [] as { id: string; grade: number | null; user_profiles: { name: string | null } }[],
           }),
       enrollmentIds.length > 0
         ? adminClient
@@ -317,14 +317,14 @@ export async function getMyAssignedStudentsAction(): Promise<
           studentsResult as {
             data: {
               id: string;
-              name: string;
               grade: number | null;
+              user_profiles: { name: string | null } | null;
             }[] | null;
           }
         ).data ?? []
       ).map(
-        (s: { id: string; name: string; grade: number | null }) =>
-          [s.id, s] as const
+        (s) =>
+          [s.id, { id: s.id, name: s.user_profiles?.name ?? "", grade: s.grade }] as const
       )
     );
 
@@ -427,16 +427,25 @@ export async function getConsultantsAction(): Promise<
 
     const { data, error } = await adminClient
       .from("admin_users")
-      .select("id, name, role")
+      .select("id, role, user_profiles!inner(name)")
       .eq("tenant_id", tenantId)
       .in("role", ["admin", "consultant"])
-      .order("name");
+      .order("user_profiles(name)");
 
     if (error) {
       return { success: false, error: error.message };
     }
 
-    return { success: true, data: data ?? [] };
+    const mapped = (data ?? []).map((row) => {
+      const up = Array.isArray(row.user_profiles) ? row.user_profiles[0] : row.user_profiles;
+      return {
+        id: row.id,
+        name: (up as { name: string | null } | null)?.name ?? "",
+        role: row.role,
+      };
+    });
+
+    return { success: true, data: mapped };
   } catch (error) {
     return {
       success: false,

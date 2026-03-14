@@ -68,7 +68,7 @@ export async function createConsultationSchedule(input: {
     // 테넌트 격리: 학생이 해당 테넌트에 속하는지 확인
     const { data: student, error: studentError } = await supabase
       .from("students")
-      .select("id, name, tenant_id")
+      .select("id, tenant_id, user_profiles!inner(name)")
       .eq("id", input.studentId)
       .maybeSingle();
 
@@ -79,6 +79,10 @@ export async function createConsultationSchedule(input: {
     if (role !== "superadmin" && student.tenant_id !== tenantContext.tenantId) {
       return { success: false, error: "권한이 없습니다." };
     }
+
+    const upRaw = student.user_profiles;
+    const upObj = Array.isArray(upRaw) ? upRaw[0] : upRaw;
+    const studentName = (upObj as { name: string | null } | null)?.name;
 
     // 과거 날짜 예약 방지
     const todayKST = getTodayKST();
@@ -118,7 +122,7 @@ export async function createConsultationSchedule(input: {
     const calendarId = await ensureTenantPrimaryCalendar(tenantContext.tenantId);
 
     // 이벤트 제목: "상담유형 - 학생명"
-    const title = `${input.sessionType} - ${student.name ?? "학생"}`;
+    const title = `${input.sessionType} - ${studentName ?? "학생"}`;
 
     // 1. calendar_events INSERT
     const { data: event, error: eventError } = await supabase
@@ -191,7 +195,7 @@ export async function createConsultationSchedule(input: {
         eventId,
         tenantId: tenantContext.tenantId,
         studentId: input.studentId,
-        studentName: student.name ?? "",
+        studentName: studentName ?? "",
         consultantId: input.consultantId,
         sessionType: input.sessionType,
         programName: input.programName,
@@ -271,7 +275,7 @@ export async function getConsultationSchedules(
           reminder_sent,
           reminder_sent_at,
           google_calendar_event_id,
-          consultant:admin_users!consultant_id(name),
+          consultant:admin_users!consultant_id(user_profiles(name)),
           enrollment:enrollments!enrollment_id(id, programs(name))
         )
       `
@@ -299,7 +303,8 @@ export async function getConsultationSchedules(
 
       if (!ced) return null;
 
-      const consultant = ced.consultant as { name: string } | null;
+      const consultantJoin = ced.consultant as { user_profiles: { name: string | null } | null } | null;
+      const consultant = { name: consultantJoin?.user_profiles?.name ?? null };
 
       // program_name: DB 컬럼 우선, 없으면 enrollment JOIN fallback
       let programName = ced.program_name as string | null;
@@ -432,13 +437,13 @@ export async function updateConsultationSchedule(input: {
     }
 
     // 학생명 조회 (제목 업데이트용)
-    const { data: student } = await supabase
-      .from("students")
+    const { data: studentProfile } = await supabase
+      .from("user_profiles")
       .select("name")
       .eq("id", input.studentId)
       .maybeSingle();
 
-    const title = `${input.sessionType} - ${student?.name ?? "학생"}`;
+    const title = `${input.sessionType} - ${studentProfile?.name ?? "학생"}`;
 
     // 1. calendar_events UPDATE
     const { error: eventUpdateError } = await supabase
@@ -846,7 +851,7 @@ async function sendScheduleNotification(params: {
         .eq("id", params.tenantId)
         .maybeSingle(),
       adminClient
-        .from("admin_users")
+        .from("user_profiles")
         .select("name")
         .eq("id", params.consultantId)
         .maybeSingle(),
@@ -994,8 +999,8 @@ async function sendChangeNotification(params: {
 
     const [tenantResult, consultantResult, studentResult] = await Promise.all([
       adminClient.from("tenants").select("*").eq("id", params.tenantId).maybeSingle(),
-      adminClient.from("admin_users").select("name").eq("id", params.consultantId).maybeSingle(),
-      adminClient.from("students").select("name").eq("id", params.studentId).maybeSingle(),
+      adminClient.from("user_profiles").select("name").eq("id", params.consultantId).maybeSingle(),
+      adminClient.from("user_profiles").select("name").eq("id", params.studentId).maybeSingle(),
     ]);
 
     const tenant = tenantResult.data as TenantExtended | null;

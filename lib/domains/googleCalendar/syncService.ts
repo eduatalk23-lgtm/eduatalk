@@ -40,7 +40,7 @@ interface ConsultationEventRow {
     enrollment_id: string | null;
   } | null;
   // JOINed relations
-  student?: { name: string } | null;
+  student?: { user_profiles: { name: string | null } | null } | null;
 }
 
 /**
@@ -71,7 +71,7 @@ export async function createGoogleEvent(
     const eventData = mapScheduleToEvent({
       id: event.id,
       tenant_id: event.tenant_id ?? "",
-      student_name: event.student?.name ?? "학생",
+      student_name: event.student?.user_profiles?.name ?? "학생",
       session_type: cd.session_type,
       scheduled_date: extractDateYMD(event.start_at ?? "") ?? "",
       start_time: extractTimeHHMM(event.start_at ?? "") ?? "",
@@ -145,7 +145,7 @@ export async function updateGoogleEvent(
     const eventData = mapScheduleToEvent({
       id: event.id,
       tenant_id: event.tenant_id ?? "",
-      student_name: event.student?.name ?? "학생",
+      student_name: event.student?.user_profiles?.name ?? "학생",
       session_type: cd.session_type,
       scheduled_date: extractDateYMD(event.start_at ?? "") ?? "",
       start_time: extractTimeHHMM(event.start_at ?? "") ?? "",
@@ -281,7 +281,7 @@ async function fetchEventWithConsultationData(
         consultant_id, session_type, program_name,
         google_calendar_event_id, google_shared_calendar_event_id, enrollment_id
       ),
-      student:students!student_id(name)
+      student:students!student_id(user_profiles(name))
     `)
     .eq("id", eventId)
     .is("deleted_at", null)
@@ -296,11 +296,11 @@ async function fetchConsultantName(
   consultantId: string
 ): Promise<string> {
   const { data } = await client
-    .from("admin_users")
+    .from("user_profiles")
     .select("name")
     .eq("id", consultantId)
     .maybeSingle();
-  return (data as { name: string } | null)?.name ?? "";
+  return (data as { name: string | null } | null)?.name ?? "";
 }
 
 async function insertGoogleCalendarEvent(

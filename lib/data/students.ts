@@ -1,10 +1,8 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { executeQuery, executeSingleQuery } from "./core/queryBuilder";
-import type { SupabaseServerClient } from "./core/types";
-import { createTypedConditionalQuery } from "./core/typedQueryBuilder";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import type { StudentDivision } from "@/lib/constants/students";
 import { logActionWarn, logActionError } from "@/lib/utils/serverActionLogger";
+import { USER_PROFILE_JOIN, flattenUserProfile } from "./helpers/withUserProfile";
 
 export type Student = {
   id: string;
@@ -26,16 +24,16 @@ export type Student = {
 
 /**
  * 학생 쿼리 필드 목록
+ * name, phone, is_active, profile_image_url은 user_profiles에서 JOIN으로 조회
  * school_type, division은 마이그레이션으로 확정된 컬럼이므로 동적 체크 불필요
  */
-const STUDENT_BASE_FIELDS = "id,tenant_id,name,grade,class,birth_date,school_id,school_name,student_number,enrolled_at,status,created_at,updated_at";
-const STUDENT_SELECT_FIELDS = `${STUDENT_BASE_FIELDS},school_type,division`;
+const STUDENT_BASE_FIELDS = "id,tenant_id,grade,class,birth_date,school_id,school_name,student_number,enrolled_at,status,created_at,updated_at";
+const STUDENT_SELECT_FIELDS = `${STUDENT_BASE_FIELDS},school_type,division,${USER_PROFILE_JOIN}`;
 
 /**
  * 학생 쿼리 빌더 - 확정된 필드 목록 반환
  */
 async function buildStudentQuery(
-  _supabase: SupabaseServerClient,
   baseSelect: string = STUDENT_SELECT_FIELDS
 ): Promise<string> {
   return baseSelect;
@@ -52,43 +50,27 @@ export async function getStudentById(
 ): Promise<Student | null> {
   const supabase = await createSupabaseServerClient();
 
-  // 동적 필드 선택을 사용한 타입 안전한 쿼리
-  return await createTypedConditionalQuery<Student>(
-    async () => {
-      const selectFields = await buildStudentQuery(supabase);
-      let query = supabase
-        .from("students")
-        .select(selectFields)
-        .eq("id", studentId);
+  // user_profiles JOIN으로 name 등 공통 필드 조회
+  const selectFields = await buildStudentQuery();
+  let query = supabase
+    .from("students")
+    .select(selectFields)
+    .eq("id", studentId);
 
-      // tenantId가 제공되면 테넌트 필터 적용 (추가 보안)
-      if (tenantId) {
-        query = query.eq("tenant_id", tenantId);
-      }
+  // tenantId가 제공되면 테넌트 필터 적용 (추가 보안)
+  if (tenantId) {
+    query = query.eq("tenant_id", tenantId);
+  }
 
-      return await query.maybeSingle<Student>();
-    },
-    {
-      context: "[data/students] getStudentById",
-      defaultValue: null,
-      fallbackQuery: async () => {
-        // fallback: 기본 필드만 사용
-        let query = supabase
-          .from("students")
-          .select(STUDENT_BASE_FIELDS)
-          .eq("id", studentId);
+  const { data, error } = await query.maybeSingle();
 
-        if (tenantId) {
-          query = query.eq("tenant_id", tenantId);
-        }
+  if (error) {
+    logActionError("students.getStudentById", `학생 조회 실패: ${error.message}`);
+    return null;
+  }
 
-        return await query.maybeSingle<Student>();
-      },
-      shouldFallback: (error) => {
-        return error?.code === "42703" || error?.code === "PGRST116";
-      },
-    }
-  );
+  if (!data) return null;
+  return flattenUserProfile(data) as unknown as Student;
 }
 
 /**
@@ -100,24 +82,22 @@ export async function listStudentsByTenant(
 ): Promise<Student[]> {
   const supabase = await createSupabaseServerClient();
 
-  // 기본 학적 정보만 조회 (동적 필드 포함)
-  const selectFields = await buildStudentQuery(supabase);
-  
-  const result = await executeQuery<Student[]>(
-    async () => {
-      const queryResult = await supabase
-        .from("students")
-        .select(selectFields)
-        .order("created_at", { ascending: false });
-      return queryResult as { data: Student[] | null; error: import("@supabase/supabase-js").PostgrestError | null };
-    },
-    {
-      context: "[data/students] listStudentsByTenant",
-      defaultValue: [],
-    }
-  );
+  // user_profiles JOIN으로 name 등 공통 필드 포함 조회
+  const selectFields = await buildStudentQuery();
 
-  return result ?? [];
+  const { data, error } = await supabase
+    .from("students")
+    .select(selectFields)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    logActionError("students.listStudentsByTenant", `학생 목록 조회 실패: ${error.message}`);
+    return [];
+  }
+
+  return (data ?? []).map(
+    (row) => flattenUserProfile(row) as unknown as Student
+  );
 }
 
 /**
@@ -187,24 +167,17 @@ export async function upsertStudent(
     tenantId = defaultTenant.id;
   }
 
-  // 기존 학생 정보 조회 (name이 없을 경우 기존 값 유지)
-  // 테넌트 보안: 동일 테넌트의 학생만 조회
+  // name은 user_profiles에서 관리 — 기존 값 조회 후 user_profiles에 저장
   let nameValue = student.name;
   if (!nameValue) {
-    let existingQuery = supabase
-      .from("students")
+    const { data: existingProfile } = await supabase
+      .from("user_profiles")
       .select("name")
-      .eq("id", student.id);
+      .eq("id", student.id)
+      .maybeSingle();
 
-    // tenant_id 필터 적용 (보안 강화)
-    if (tenantId) {
-      existingQuery = existingQuery.eq("tenant_id", tenantId);
-    }
-
-    const { data: existingStudent } = await existingQuery.maybeSingle();
-
-    if (existingStudent?.name) {
-      nameValue = existingStudent.name;
+    if (existingProfile?.name) {
+      nameValue = existingProfile.name;
     }
   }
 
@@ -238,12 +211,19 @@ export async function upsertStudent(
     enrolled_at: student.enrolled_at || null,
     status: student.status || "enrolled",
   };
-  
-  // name이 있으면 payload에 추가
-  if (nameValue !== undefined) {
-    payload.name = nameValue;
+
+  // name은 user_profiles에 저장 (students에는 저장하지 않음)
+  if (nameValue) {
+    const { error: profileError } = await supabase
+      .from("user_profiles")
+      .update({ name: nameValue })
+      .eq("id", student.id);
+
+    if (profileError) {
+      logActionWarn("students.upsertStudent", `user_profiles name 업데이트 실패: ${profileError.message}`);
+    }
   }
-  
+
   // school_type이 있으면 추가 (마이그레이션 후 컬럼이 있을 때만)
   if (schoolType) {
     payload.school_type = schoolType;
@@ -296,7 +276,7 @@ export async function upsertStudent(
 
 /**
  * SMS 발송용 활성화된 학생 목록 조회
- * is_active 필터를 자동으로 적용하고, 동적으로 필드를 확인하여 조회
+ * user_profiles에서 name, is_active 조회
  */
 export async function getActiveStudentsForSMS(): Promise<{
   data: Array<{
@@ -312,52 +292,26 @@ export async function getActiveStudentsForSMS(): Promise<{
 }> {
   const supabase = await createSupabaseServerClient();
 
-  // 기본 필드
-  let studentsSelectFields = "id, name, grade, class";
-
-  // 학부모 연락처 컬럼 확인 (mother_phone, father_phone 사용)
-  try {
-    const testQuery = supabase
-      .from("students")
-      .select("mother_phone, father_phone")
-      .limit(1);
-    const { error: testError } = await testQuery;
-    if (!testError) {
-      studentsSelectFields += ",mother_phone,father_phone";
-    }
-  } catch (e) {
-    // 컬럼이 없으면 무시
-  }
-
-  // is_active 컬럼 확인
-  try {
-    const testQuery = supabase.from("students").select("is_active").limit(1);
-    const { error: testError } = await testQuery;
-    if (!testError) {
-      studentsSelectFields += ",is_active";
-    }
-  } catch (e) {
-    // 컬럼이 없으면 무시
-  }
-
-  // 활성화된 학생만 조회
+  // user_profiles JOIN으로 name, is_active 조회
   const { data, error } = await supabase
     .from("students")
-    .select(studentsSelectFields)
-    .eq("is_active", true)
-    .order("name", { ascending: true });
+    .select(`id, grade, class, mother_phone, father_phone, user_profiles!inner(name, is_active)`)
+    .eq("user_profiles.is_active", true)
+    .order("user_profiles(name)", { ascending: true });
 
-  return { 
-    data: (data ?? []) as unknown as Array<{
-      id: string;
-      name?: string | null;
-      grade?: string | null;
-      class?: string | null;
-      mother_phone?: string | null;
-      father_phone?: string | null;
-      is_active?: boolean | null;
-    }>, 
-    error 
+  return {
+    data: (data ?? []).map(
+      (row) => flattenUserProfile(row) as unknown as {
+        id: string;
+        name?: string | null;
+        grade?: string | null;
+        class?: string | null;
+        mother_phone?: string | null;
+        father_phone?: string | null;
+        is_active?: boolean | null;
+      }
+    ),
+    error
   };
 }
 
@@ -423,12 +377,12 @@ export async function getStudentsByDivision(
 ): Promise<Student[]> {
   const supabase = await createSupabaseServerClient();
 
-  const selectFields = await buildStudentQuery(supabase);
+  const selectFields = await buildStudentQuery();
 
   let query = supabase
     .from("students")
     .select(selectFields)
-    .order("name", { ascending: true });
+    .order("user_profiles(name)", { ascending: true });
 
   // undefined인 경우 모든 학생 조회 (필터 없음)
   if (division !== undefined) {
@@ -446,7 +400,9 @@ export async function getStudentsByDivision(
     return [];
   }
 
-  return (data as unknown as Student[]) ?? [];
+  return (data ?? []).map(
+    (row) => flattenUserProfile(row) as unknown as Student
+  );
 }
 
 /**
@@ -748,14 +704,14 @@ export async function batchUpdateStudentGrade(
 }
 
 /**
- * 학생 이름 조회
+ * 학생 이름 조회 (user_profiles에서)
  * @param studentId - 학생 ID
  * @returns 학생 이름 (없으면 '학생')
  */
 export async function getStudentName(studentId: string): Promise<string> {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
-    .from("students")
+    .from("user_profiles")
     .select("name")
     .eq("id", studentId)
     .single();

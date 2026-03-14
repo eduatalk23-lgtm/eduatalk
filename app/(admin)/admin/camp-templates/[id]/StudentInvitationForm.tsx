@@ -49,11 +49,12 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
     try {
       const supabase = createSupabaseBrowserClient();
       
-      // 1. 모든 학생 목록 조회 (phone, mother_phone, father_phone 포함 — students 테이블에 통합됨)
+      // 1. 모든 학생 목록 조회 — name, phone, is_active는 user_profiles JOIN
       const { data: allStudents, error: studentsError } = await supabase
         .from("students")
-        .select("id, name, grade, class, division, is_active, phone, mother_phone, father_phone")
-        .order("name", { ascending: true })
+        .select("id, grade, class, division, mother_phone, father_phone, user_profiles!inner(name, phone, is_active)")
+        .eq("user_profiles.is_active", true)
+        .order("user_profiles(name)", { ascending: true })
         .limit(100);
 
       // 에러 체크: null이 아니고, 실제로 에러 속성이 있는지 확인
@@ -166,18 +167,21 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
         (student) => !invitedStudentIds.has(student.id)
       );
 
-      // 5. 전화번호는 students 테이블에 통합됨 — 별도 조회 불필요
-      const studentsWithPhones: Student[] = availableStudents.map((student) => ({
-        id: student.id,
-        name: student.name,
-        grade: student.grade,
-        class: student.class,
-        division: student.division,
-        phone: student.phone ?? null,
-        mother_phone: student.mother_phone ?? null,
-        father_phone: student.father_phone ?? null,
-        is_active: student.is_active,
-      }));
+      // 5. user_profiles JOIN 결과를 플랫하게 변환
+      const studentsWithPhones: Student[] = availableStudents.map((student) => {
+        const up = student.user_profiles as unknown as { name: string; phone: string | null; is_active: boolean } | null;
+        return {
+          id: student.id,
+          name: up?.name ?? "",
+          grade: student.grade,
+          class: student.class,
+          division: student.division,
+          phone: up?.phone ?? null,
+          mother_phone: student.mother_phone ?? null,
+          father_phone: student.father_phone ?? null,
+          is_active: up?.is_active ?? true,
+        };
+      });
 
       setStudents(studentsWithPhones);
     } catch (error) {

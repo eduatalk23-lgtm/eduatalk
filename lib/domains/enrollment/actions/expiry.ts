@@ -38,7 +38,7 @@ export async function getExpiringEnrollmentsAction(
 
     const { data, error } = await adminClient
       .from("enrollments")
-      .select("id, tenant_id, student_id, program_id, start_date, end_date, students(name), programs(name)")
+      .select("id, tenant_id, student_id, program_id, start_date, end_date, students(user_profiles(name)), programs(name)")
       .eq("tenant_id", tenantId)
       .eq("status", "active")
       .not("end_date", "is", null)
@@ -51,7 +51,9 @@ export async function getExpiringEnrollmentsAction(
     }
 
     const enrollments: ExpiringEnrollment[] = (data ?? []).map((row) => {
-      const student = row.students as { name: string } | null;
+      const studentRaw = row.students as unknown as { user_profiles: { name: string } | { name: string }[] | null } | null;
+      const upObj = Array.isArray(studentRaw?.user_profiles) ? studentRaw?.user_profiles[0] : studentRaw?.user_profiles;
+      const student = upObj ? { name: upObj.name } : null;
       const program = row.programs as { name: string } | null;
       const endDate = new Date(row.end_date + "T00:00:00");
       const daysUntilExpiry = Math.ceil(

@@ -79,16 +79,20 @@ export interface StreamPlanInput {
 type SupabaseClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
 async function fetchStudentData(supabase: SupabaseClient, studentId: string) {
-  // 학생 정보
-  const { data: student } = await supabase
+  // 학생 정보 (name은 user_profiles에서)
+  const { data: studentRaw } = await supabase
     .from("students")
-    .select("id, name, grade, school_name, target_university, target_major, tenant_id")
+    .select("id, grade, school_name, target_university, target_major, tenant_id, user_profiles!inner(name)")
     .eq("id", studentId)
     .single();
 
-  if (!student) {
+  if (!studentRaw) {
     throw new Error("학생 정보를 찾을 수 없습니다.");
   }
+
+  // Flatten user_profiles.name → name for downstream compatibility
+  const up = Array.isArray(studentRaw.user_profiles) ? studentRaw.user_profiles[0] : studentRaw.user_profiles;
+  const student = { ...studentRaw, name: up?.name ?? null };
 
   // 성적 정보
   const { data: scores } = await supabase

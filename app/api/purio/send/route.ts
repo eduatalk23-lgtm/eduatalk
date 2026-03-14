@@ -210,7 +210,7 @@ export async function POST(request: NextRequest) {
           new Set(recipients.map((r: Recipient) => r.studentId))
         );
         const { data: students } = await supabase
-          .from("students")
+          .from("user_profiles")
           .select("id, name")
           .in("id", studentIdsFromRecipients);
 
@@ -255,7 +255,7 @@ export async function POST(request: NextRequest) {
       } else {
         // 레거시: studentIds 사용
         const { data: students, error: studentsError } = await supabase
-          .from("students")
+          .from("user_profiles")
           .select("id, name")
           .in("id", studentIds);
 

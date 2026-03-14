@@ -63,11 +63,11 @@ export default async function CampContinuePage({
 
   // 학생 정보 조회 (콘텐츠 조회용 및 표시용)
   const studentId = group.student_id;
-  const { data: studentInfo } = await supabase
-    .from("students")
-    .select("name, grade, class")
-    .eq("id", studentId)
-    .single();
+  const [{ data: studentBase }, { data: studentProfile }] = await Promise.all([
+    supabase.from("students").select("grade, class").eq("id", studentId).single(),
+    supabase.from("user_profiles").select("name").eq("id", studentId).single(),
+  ]);
+  const studentInfo = studentBase ? { ...studentBase, name: studentProfile?.name ?? "" } : null;
 
   // 템플릿 블록 세트 조회 (캠프 모드) - 새로운 연결 테이블 방식
   let templateBlockSet: {

@@ -154,7 +154,7 @@ async function fetchStudySessions(planIds: string[]): Promise<StudySession[]> {
 async function fetchStudentName(studentId: string): Promise<string> {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
-    .from("students")
+    .from("user_profiles")
     .select("name")
     .eq("id", studentId)
     .maybeSingle();

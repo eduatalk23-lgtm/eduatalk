@@ -101,12 +101,12 @@ export default async function ParentCalendarPage({ searchParams }: PageProps) {
     );
   }
 
-  // 학생 정보 조회
-  const { data: student } = await adminClient
-    .from("students")
-    .select("id, name, tenant_id")
-    .eq("id", selectedStudentId)
-    .single();
+  // 학생 정보 조회 — name은 user_profiles에서
+  const [{ data: studentBase }, { data: studentProfile }] = await Promise.all([
+    adminClient.from("students").select("id, tenant_id").eq("id", selectedStudentId).single(),
+    adminClient.from("user_profiles").select("name").eq("id", selectedStudentId).single(),
+  ]);
+  const student = studentBase ? { ...studentBase, name: studentProfile?.name ?? "" } : null;
 
   if (!student) {
     return (

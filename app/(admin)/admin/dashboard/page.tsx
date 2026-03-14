@@ -84,20 +84,14 @@ async function getCachedDashboardStats(
 // 위험 학생 조회 (배치 방식 — ~9 쿼리로 전체 학생 처리)
 async function getAtRiskStudents(supabase: SupabaseServerClient) {
   try {
+    // name, is_active는 user_profiles에서 조회
     const { data: students, error } = await supabase
-      .from("students")
-      .select("id,name")
+      .from("user_profiles")
+      .select("id, name")
+      .eq("role", "student")
       .eq("is_active", true);
 
     if (error) {
-      if (ErrorCodeCheckers.isColumnNotFound(error)) {
-        const { data: retryStudents } = await supabase
-          .from("students")
-          .select("id,name")
-          .eq("is_active", true);
-        if (!retryStudents || retryStudents.length === 0) return [];
-        return buildBatchRiskResults(supabase, retryStudents as Array<{ id: string; name?: string | null }>);
-      }
       throw error;
     }
 
@@ -137,7 +131,7 @@ async function getRecentConsultingNotes(supabase: SupabaseServerClient) {
   try {
     const { data: notes, error } = await supabase
       .from("student_consulting_notes")
-      .select("id, student_id, note, created_at, students(name)")
+      .select("id, student_id, note, created_at, students(user_profiles(name))")
       .order("created_at", { ascending: false })
       .limit(5);
 
@@ -148,12 +142,16 @@ async function getRecentConsultingNotes(supabase: SupabaseServerClient) {
     if (error) throw error;
 
     return (notes ?? []).map((n) => {
-      // FK join: students는 many-to-one이므로 단일 객체 또는 배열로 올 수 있음
-      const studentData = Array.isArray(n.students) ? n.students[0] : n.students;
+      // FK join: students → user_profiles nested join
+      const studentRaw = n.students as unknown;
+      const sObj = Array.isArray(studentRaw) ? studentRaw[0] : studentRaw;
+      const sUp = (sObj as Record<string, unknown> | null)?.user_profiles;
+      const sUpObj = Array.isArray(sUp) ? sUp[0] : sUp;
+      const studentName = (sUpObj as Record<string, unknown> | null)?.name as string | null;
       return {
         id: n.id,
         studentId: n.student_id ?? "",
-        studentName: studentData?.name ?? "이름 없음",
+        studentName: studentName ?? "이름 없음",
         note: n.note ?? "",
         createdAt: n.created_at ?? "",
       };

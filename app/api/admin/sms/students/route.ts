@@ -87,12 +87,12 @@ export async function GET(request: NextRequest) {
 
     const supabase = await createSupabaseServerClient();
 
-    // 학생 조회 쿼리 빌드
+    // 학생 조회 쿼리 빌드 (name, is_active는 user_profiles에서)
     let query = supabase
       .from("students")
-      .select("id, name, grade, division")
-      .eq("is_active", true)
-      .order("name", { ascending: true });
+      .select("id, grade, division, user_profiles!inner(name, is_active)")
+      .eq("user_profiles.is_active", true)
+      .order("user_profiles(name)", { ascending: true });
 
     // 학년 필터
     if (grades.length > 0) {
@@ -183,9 +183,10 @@ export async function GET(request: NextRequest) {
 
       students = studentsData.map((s) => {
         const phoneData = phoneDataMap.get(s.id);
+        const profile = s.user_profiles as unknown as { name: string | null; is_active: boolean } | null;
         return {
           id: s.id,
-          name: s.name,
+          name: profile?.name ?? null,
           grade: s.grade,
           division: s.division as StudentDivision | null,
           phone: phoneData?.phone ?? null,

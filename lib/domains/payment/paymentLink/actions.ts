@@ -64,9 +64,9 @@ export async function createPaymentLinkAction(
       return { success: false, error: "환불 또는 취소된 결제 건입니다." };
     }
 
-    // 학생 이름 조회
+    // 학생 이름 조회 (user_profiles)
     const { data: student } = await adminClient
-      .from("students")
+      .from("user_profiles")
       .select("name")
       .eq("id", record.student_id)
       .maybeSingle();

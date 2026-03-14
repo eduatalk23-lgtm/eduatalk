@@ -26,22 +26,22 @@ export async function getStudentPhones(
 ): Promise<StudentPhoneData | null> {
   const supabase = await createSupabaseServerClient();
 
-  const { data: student, error: studentError } = await supabase
-    .from("students")
-    .select("id, name, phone, mother_phone, father_phone")
-    .eq("id", studentId)
-    .maybeSingle();
+  // name, phone은 user_profiles에서 조회
+  const [studentResult, profileResult] = await Promise.all([
+    supabase.from("students").select("id, mother_phone, father_phone").eq("id", studentId).maybeSingle(),
+    supabase.from("user_profiles").select("name, phone").eq("id", studentId).maybeSingle(),
+  ]);
 
-  if (studentError || !student) {
+  if (studentResult.error || !studentResult.data) {
     return null;
   }
 
   return {
-    id: student.id,
-    name: student.name,
-    phone: student.phone ?? null,
-    mother_phone: student.mother_phone ?? null,
-    father_phone: student.father_phone ?? null,
+    id: studentResult.data.id,
+    name: profileResult.data?.name ?? null,
+    phone: profileResult.data?.phone ?? null,
+    mother_phone: studentResult.data.mother_phone ?? null,
+    father_phone: studentResult.data.father_phone ?? null,
   };
 }
 
@@ -67,20 +67,25 @@ export async function getStudentPhonesBatch(
     throw new Error("Admin client를 초기화할 수 없습니다.");
   }
 
-  // 1. students 테이블에서 기본 정보 + 전화번호 일괄 조회
-  const { data: students, error: studentsError } = await supabase
-    .from("students")
-    .select("id, name, phone, mother_phone, father_phone")
-    .in("id", studentIds);
+  // 1. students(mother/father_phone) + user_profiles(name, phone) 병렬 조회
+  const [studentsResult, profilesResult] = await Promise.all([
+    supabase.from("students").select("id, mother_phone, father_phone").in("id", studentIds),
+    supabase.from("user_profiles").select("id, name, phone").in("id", studentIds),
+  ]);
 
-  if (studentsError || !students) {
+  if (studentsResult.error || !studentsResult.data) {
     logActionError(
       { domain: "utils", action: "getStudentPhonesBatch" },
-      studentsError,
+      studentsResult.error,
       { context: "students 조회", studentIdsCount: studentIds.length }
     );
     return [];
   }
+
+  const students = studentsResult.data;
+  const profileMap = new Map(
+    (profilesResult.data ?? []).map((p) => [p.id, { name: p.name, phone: p.phone }])
+  );
 
   // 2. parent_student_links → user_profiles JOIN으로 학부모 전화번호 조회
   //    (기존: auth.admin.listUsers() 전체 유저 로드 → 필터)
@@ -146,8 +151,9 @@ export async function getStudentPhonesBatch(
     );
   }
 
-  // 3. 결과 병합
+  // 3. 결과 병합 (name, phone은 user_profiles에서)
   return students.map((student) => {
+    const profile = profileMap.get(student.id);
     const linkedParents = linkedParentPhones.get(student.id);
 
     const motherPhone = linkedParents?.mother?.phone ?? student.mother_phone ?? null;
@@ -160,8 +166,8 @@ export async function getStudentPhonesBatch(
 
     return {
       id: student.id,
-      name: student.name,
-      phone: student.phone ?? null,
+      name: profile?.name ?? null,
+      phone: profile?.phone ?? null,
       mother_phone: motherPhone,
       father_phone: fatherPhone,
       mother_phone_source: motherPhoneSource,

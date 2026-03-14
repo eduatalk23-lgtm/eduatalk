@@ -475,13 +475,17 @@ export const signUpAndAcceptInvitation = withErrorHandling(
 
     const userId = authData.user.id;
 
-    // admin_users에 역할 부여
+    // admin_users에는 admin 고유 필드만
     const { error: insertError } = await adminClient.from("admin_users").insert({
       id: userId,
       role: invitation.role,
       tenant_id: invitation.tenant_id,
-      name: name,
     });
+
+    // name은 user_profiles에 저장
+    if (!insertError && name) {
+      await adminClient.from("user_profiles").update({ name }).eq("id", userId);
+    }
 
     if (insertError) {
       // 롤백: 생성된 사용자 삭제
@@ -659,13 +663,17 @@ export const acceptInvitation = withErrorHandling(
       user.email?.split("@")[0] ||
       "사용자";
 
-    // admin_users에 역할 부여
+    // admin_users에는 admin 고유 필드만
     const { error: insertError } = await adminClient.from("admin_users").insert({
       id: user.id,
       role: invitation.role,
       tenant_id: invitation.tenant_id,
-      name: userName,
     });
+
+    // name은 user_profiles에 저장
+    if (!insertError && userName) {
+      await adminClient.from("user_profiles").update({ name: userName }).eq("id", user.id);
+    }
 
     if (insertError) {
       throw new AppError(

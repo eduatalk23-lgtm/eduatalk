@@ -35,10 +35,10 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
     return [];
   }
 
-  // admin_users에서 팀원 조회 (name, is_owner, 프로필 필드 포함)
+  // admin_users에서 팀원 조회 — name, phone, profile_image_url은 user_profiles JOIN
   let query = supabase
     .from("admin_users")
-    .select("id, name, role, tenant_id, created_at, is_owner, profile_image_url, job_title, department, phone")
+    .select("id, role, tenant_id, created_at, is_owner, job_title, department, user_profiles!inner(name, phone, profile_image_url)")
     .neq("role", "superadmin"); // superadmin은 목록에서 제외
 
   // 일반 admin/consultant는 자기 테넌트만 조회
@@ -59,21 +59,22 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
     authUsers?.users.map((u) => [u.id, u]) || []
   );
 
-  // 결과 매핑 (admin_users.name 우선, fallback으로 auth.users.user_metadata)
+  // 결과 매핑 (user_profiles.name 우선, fallback으로 auth.users.user_metadata)
   const members: TeamMember[] = adminUsers.map((admin) => {
     const authUser = authUserMap.get(admin.id);
+    const up = admin.user_profiles as unknown as { name: string | null; phone: string | null; profile_image_url: string | null };
     return {
       id: admin.id,
       email: authUser?.email || "",
-      displayName: admin.name || authUser?.user_metadata?.display_name || null,
+      displayName: up?.name || authUser?.user_metadata?.display_name || null,
       role: admin.role as "admin" | "consultant",
       isOwner: admin.is_owner,
       tenantId: admin.tenant_id,
       createdAt: admin.created_at,
-      profileImageUrl: admin.profile_image_url,
+      profileImageUrl: up?.profile_image_url ?? null,
       jobTitle: admin.job_title,
       department: admin.department,
-      phone: admin.phone,
+      phone: up?.phone ?? null,
     };
   });
 

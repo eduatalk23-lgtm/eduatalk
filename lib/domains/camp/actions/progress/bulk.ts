@@ -848,7 +848,7 @@ export const bulkPreviewPlans = withErrorHandling(
         // 플랜 그룹 및 학생 정보 조회
         const { data: group, error: groupError } = await supabase
           .from("plan_groups")
-          .select("id, student_id, tenant_id, students:student_id(name)")
+          .select("id, student_id, tenant_id, students:student_id(user_profiles(name))")
           .eq("id", groupId)
           .eq("tenant_id", tenantContext.tenantId)
           .maybeSingle();
@@ -863,9 +863,10 @@ export const bulkPreviewPlans = withErrorHandling(
           continue;
         }
 
-        const studentName = (Array.isArray(group.students) && group.students.length > 0
-          ? (group.students[0] as StudentInfo)?.name
-          : null) || "알 수 없음";
+        const studentInfo = Array.isArray(group.students) && group.students.length > 0
+          ? group.students[0]
+          : group.students;
+        const studentName = (studentInfo as { user_profiles?: { name?: string } | null } | null)?.user_profiles?.name || "알 수 없음";
 
         // 플랜 미리보기 실행
         try {
@@ -972,9 +973,9 @@ export const bulkGeneratePlans = withErrorHandling(
             try {
               const [studentData, templateData] = await Promise.all([
                 supabase
-                  .from("students")
+                  .from("user_profiles")
                   .select("name")
-                  .eq("user_id", group.student_id)
+                  .eq("id", group.student_id)
                   .single(),
                 supabase
                   .from("camp_templates")

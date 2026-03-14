@@ -29,10 +29,9 @@ export default async function StudentAttendanceSettingsPage({
   
   // 학생 정보 조회
   const { data: student } = await supabase
-    .from("students")
+    .from("user_profiles")
     .select("id, name")
     .eq("id", id)
-    .eq("tenant_id", tenantContext.tenantId)
     .single();
   
   if (!student) {

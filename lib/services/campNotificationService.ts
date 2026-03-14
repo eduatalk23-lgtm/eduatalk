@@ -38,7 +38,7 @@ export async function sendCampInvitationNotification(
     // 학생 정보 조회
     const supabase = await createSupabaseServerClient();
     const { data: student, error: studentError } = await supabase
-      .from("students")
+      .from("user_profiles")
       .select("name")
       .eq("id", invitation.student_id)
       .maybeSingle();
@@ -186,7 +186,7 @@ export async function sendCampReminderNotification(
 
     const supabase = await createSupabaseServerClient();
     const { data: student, error: studentError } = await supabase
-      .from("students")
+      .from("user_profiles")
       .select("name")
       .eq("id", invitation.student_id)
       .maybeSingle();

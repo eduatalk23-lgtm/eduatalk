@@ -28,12 +28,19 @@ async function getConsultantsByTenant(
 
   const { data } = await adminClient
     .from("admin_users")
-    .select("id, name, role")
+    .select("id, role, user_profiles!inner(name)")
     .eq("tenant_id", tenantId)
     .in("role", ["admin", "consultant"])
-    .order("name");
+    .order("user_profiles(name)");
 
-  return data ?? [];
+  return (data ?? []).map((row) => {
+    const up = Array.isArray(row.user_profiles) ? row.user_profiles[0] : row.user_profiles;
+    return {
+      id: row.id,
+      name: (up as { name: string | null } | null)?.name ?? "",
+      role: row.role,
+    };
+  });
 }
 
 export async function fetchEnrollmentData(

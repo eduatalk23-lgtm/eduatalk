@@ -42,7 +42,7 @@ export default async function AdminStudentDetailPage({
   // 학생 기본 정보 조회 (이름 등 헤더/탭에 필요한 최소 데이터)
   const supabase = await createSupabaseServerClient();
   const studentResult = await supabase
-    .from("students")
+    .from("user_profiles")
     .select("id, name")
     .eq("id", studentId)
     .maybeSingle();

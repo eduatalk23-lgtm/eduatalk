@@ -201,7 +201,7 @@ export async function getUnpaidRecordsForBulkAction(): Promise<
     const { data: records, error: recordError } = await adminClient
       .from("payment_records")
       .select(
-        "id, amount, paid_amount, due_date, billing_period, student_id, enrollments(programs(name)), students(name)"
+        "id, amount, paid_amount, due_date, billing_period, student_id, enrollments(programs(name)), students(user_profiles(name))"
       )
       .eq("tenant_id", tenantId)
       .in("status", ["unpaid", "partial"])
@@ -226,11 +226,15 @@ export async function getUnpaidRecordsForBulkAction(): Promise<
       const enrollment = r.enrollments as {
         programs: { name: string } | null;
       } | null;
-      const student = r.students as { name: string } | null;
+      const studentRaw = r.students as unknown;
+      const sObj = Array.isArray(studentRaw) ? studentRaw[0] : studentRaw;
+      const sUp = (sObj as Record<string, unknown> | null)?.user_profiles;
+      const sUpObj = Array.isArray(sUp) ? sUp[0] : sUp;
+      const studentName = (sUpObj as Record<string, unknown> | null)?.name as string | null;
 
       return {
         id: r.id,
-        student_name: student?.name ?? "학생",
+        student_name: studentName ?? "학생",
         program_name: enrollment?.programs?.name ?? "수강료",
         amount: r.amount,
         paid_amount: r.paid_amount ?? 0,

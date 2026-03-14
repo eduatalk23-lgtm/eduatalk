@@ -44,7 +44,7 @@ export async function getParticipantStatsForCamp(
   // 학생 정보 조회
   const supabase = await createSupabaseServerClient();
   const { data: student } = await supabase
-    .from("students")
+    .from("user_profiles")
     .select("id, name")
     .eq("id", studentId)
     .maybeSingle();

@@ -10,10 +10,25 @@ import type {
 
 const LEAD_SELECT_WITH_RELATIONS = `
   *,
-  assigned_admin:admin_users!sales_leads_assigned_to_fkey(id, name),
+  assigned_admin:admin_users!sales_leads_assigned_to_fkey(id, user_profiles(name)),
   program:programs!sales_leads_program_id_fkey(id, code, name),
-  student:students!sales_leads_student_id_fkey(id, name)
+  student:students!sales_leads_student_id_fkey(id, user_profiles(name))
 `;
+
+/** Flatten nested user_profiles in PostgREST join results for SalesLeadWithRelations */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function flattenLeadRelations(row: any): SalesLeadWithRelations {
+  const { assigned_admin, student, ...rest } = row;
+  return {
+    ...rest,
+    assigned_admin: assigned_admin
+      ? { id: assigned_admin.id, name: assigned_admin.user_profiles?.name ?? "" }
+      : null,
+    student: student
+      ? { id: student.id, name: student.user_profiles?.name ?? "" }
+      : null,
+  };
+}
 
 export async function getSalesLeads(
   filter: SalesLeadFilter
@@ -80,7 +95,7 @@ export async function getSalesLeads(
 
   const totalCount = count ?? 0;
   return {
-    items: (data ?? []) as SalesLeadWithRelations[],
+    items: (data ?? []).map(flattenLeadRelations),
     totalCount,
     hasMore: from + pageSize < totalCount,
   };
@@ -104,7 +119,7 @@ export async function getSalesLeadById(
     return null;
   }
 
-  return data as SalesLeadWithRelations | null;
+  return data ? flattenLeadRelations(data) : null;
 }
 
 export async function getLeadCountsByStatus(

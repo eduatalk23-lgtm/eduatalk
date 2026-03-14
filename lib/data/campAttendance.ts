@@ -20,10 +20,10 @@ export type AttendanceRecordWithStudent = AttendanceRecord & {
 };
 
 /**
- * Supabase 쿼리 결과 타입: attendance_records with students join
+ * Supabase 쿼리 결과 타입: attendance_records with students -> user_profiles join
  */
 type AttendanceRecordRaw = AttendanceRecord & {
-  students: { name: string | null } | { name: string | null }[] | null;
+  students: { user_profiles: { name: string | null } | null } | { user_profiles: { name: string | null } | null }[] | null;
 };
 
 /**
@@ -199,7 +199,7 @@ export async function getParticipantAttendanceStats(
   // 학생 정보 조회
   const supabase = await createSupabaseServerClient();
   const { data: student } = await supabase
-    .from("students")
+    .from("user_profiles")
     .select("name")
     .eq("id", studentId)
     .maybeSingle();
@@ -259,7 +259,7 @@ export async function getCampAttendanceRecordsByDate(
       `
       *,
       students:student_id (
-        name
+        user_profiles(name)
       )
     `
     )
@@ -286,7 +286,7 @@ export async function getCampAttendanceRecordsByDate(
 
     return {
       ...record,
-      student_name: studentInfo?.name || null,
+      student_name: studentInfo?.user_profiles?.name || null,
     };
   });
 
@@ -327,7 +327,7 @@ export async function getCampAttendanceRecordsWithStudents(
       `
       *,
       students:student_id (
-        name
+        user_profiles(name)
       )
     `
     )
@@ -357,7 +357,7 @@ export async function getCampAttendanceRecordsWithStudents(
 
     return {
       ...record,
-      student_name: studentInfo?.name || null,
+      student_name: studentInfo?.user_profiles?.name || null,
     };
   });
 

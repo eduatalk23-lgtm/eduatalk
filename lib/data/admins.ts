@@ -1,8 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import {
-  createTypedQuery,
-  createTypedSingleQuery,
-} from "@/lib/data/core/typedQueryBuilder";
+import { flattenUserProfile, USER_PROFILE_JOIN } from "@/lib/data/helpers/withUserProfile";
 
 export type Admin = {
   id: string;
@@ -11,6 +8,9 @@ export type Admin = {
   role: "admin" | "consultant";
   created_at?: string | null;
 };
+
+/** admin_users 고유 필드 (공통 필드는 user_profiles JOIN) */
+const ADMIN_SELECT_FIELDS = `id,tenant_id,role,created_at,${USER_PROFILE_JOIN}`;
 
 /**
  * Admin ID로 Admin 조회
@@ -21,28 +21,19 @@ export async function getAdminById(
 ): Promise<Admin | null> {
   const supabase = await createSupabaseServerClient();
 
-  return await createTypedSingleQuery<Admin>(
-    async () => {
-      let query = supabase
-        .from("admin_users")
-        .select("id,name,tenant_id,role,created_at")
-        .eq("id", adminId);
+  let query = supabase
+    .from("admin_users")
+    .select(ADMIN_SELECT_FIELDS)
+    .eq("id", adminId);
 
-      if (tenantId) {
-        query = query.eq("tenant_id", tenantId);
-      }
+  if (tenantId) {
+    query = query.eq("tenant_id", tenantId);
+  }
 
-      const queryResult = await query;
-      return {
-        data: queryResult.data as Admin[] | null,
-        error: queryResult.error,
-      };
-    },
-    {
-      context: "[data/admins] getAdminById",
-      defaultValue: null,
-    }
-  );
+  const { data, error } = await query.maybeSingle();
+
+  if (error || !data) return null;
+  return flattenUserProfile(data) as unknown as Admin;
 }
 
 /**
@@ -57,23 +48,15 @@ export async function listAdminsByTenant(
 
   const supabase = await createSupabaseServerClient();
 
-  return await createTypedQuery<Admin[]>(
-    async () => {
-      const queryResult = await supabase
-        .from("admin_users")
-        .select("id,name,tenant_id,role,created_at")
-        .eq("tenant_id", tenantId)
-        .order("created_at", { ascending: false });
+  const { data, error } = await supabase
+    .from("admin_users")
+    .select(ADMIN_SELECT_FIELDS)
+    .eq("tenant_id", tenantId)
+    .order("created_at", { ascending: false });
 
-      return {
-        data: queryResult.data as Admin[] | null,
-        error: queryResult.error,
-      };
-    },
-    {
-      context: "[data/admins] listAdminsByTenant",
-      defaultValue: [],
-    }
-  ) ?? [];
+  if (error || !data) return [];
+  return data.map(
+    (row) => flattenUserProfile(row) as unknown as Admin
+  );
 }
 

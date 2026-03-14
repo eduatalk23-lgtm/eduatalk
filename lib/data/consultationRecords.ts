@@ -59,7 +59,7 @@ export async function getConsultationRecords(
         registration_checklist,
         program:programs!sales_leads_program_id_fkey(name)
       ),
-      performer:admin_users!lead_activities_performed_by_fkey(name)
+      performer:admin_users!lead_activities_performed_by_fkey(user_profiles(name))
     `,
       { count: "exact" }
     )
@@ -132,7 +132,8 @@ export async function getConsultationRecords(
   const totalCount = count ?? 0;
   const items: ConsultationRecord[] = (data ?? []).map((row) => {
     const lead = row.lead as unknown as Record<string, unknown> | null;
-    const performer = row.performer as unknown as { name: string } | null;
+    const performerJoin = row.performer as unknown as { user_profiles: { name: string | null } | null } | null;
+    const performer = { name: performerJoin?.user_profiles?.name ?? null };
     const program = lead?.program as unknown as { name: string } | null;
 
     return {

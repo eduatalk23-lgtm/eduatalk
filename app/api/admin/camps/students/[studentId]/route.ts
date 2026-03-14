@@ -92,13 +92,20 @@ export async function GET(
     const now = new Date();
     const today = now.toISOString().split("T")[0];
 
-    // 1. 학생 정보 조회
-    const { data: student, error: studentError } = await supabase
+    // 1. 학생 정보 조회 (name은 user_profiles에서)
+    const { data: studentRaw, error: studentError } = await supabase
       .from("students")
-      .select("id, name")
+      .select("id, user_profiles(name)")
       .eq("id", studentId)
       .eq("tenant_id", tenantContext.tenantId)
       .single();
+
+    const student = studentRaw
+      ? {
+          id: studentRaw.id,
+          name: (studentRaw.user_profiles as unknown as { name: string | null } | null)?.name ?? "알 수 없음",
+        }
+      : null;
 
     if (studentError || !student) {
       return apiSuccess<StudentCampProfile>({

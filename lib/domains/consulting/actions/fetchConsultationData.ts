@@ -57,9 +57,9 @@ export async function fetchConsultationData(
       await Promise.all([
         supabase
           .from("admin_users")
-          .select("id, name")
+          .select("id, user_profiles!inner(name)")
           .in("role", ["consultant", "admin"])
-          .order("name"),
+          .order("user_profiles(name)"),
         supabase
           .from("enrollments")
           .select("id, programs(name)")
@@ -114,10 +114,13 @@ export async function fetchConsultationData(
       }
     }
 
-    const consultants = (consultantsResult.data ?? []).map((c) => ({
-      id: c.id,
-      name: c.name ?? "이름 없음",
-    }));
+    const consultants = (consultantsResult.data ?? []).map((c) => {
+      const up = Array.isArray(c.user_profiles) ? c.user_profiles[0] : c.user_profiles;
+      return {
+        id: c.id,
+        name: (up as { name: string | null } | null)?.name ?? "이름 없음",
+      };
+    });
 
     const enrollments = (enrollmentResult.data ?? []).map((e) => {
       const prog = e.programs as unknown;

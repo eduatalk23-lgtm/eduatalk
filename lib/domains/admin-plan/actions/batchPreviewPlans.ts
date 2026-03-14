@@ -66,7 +66,7 @@ async function loadStudentData(
 ) {
   let query = supabase
     .from("students")
-    .select("id, name, grade, school_name, school_type")
+    .select("id, grade, school_name, school_type, user_profiles!inner(name)")
     .eq("id", studentId);
 
   // tenant_id가 제공된 경우 추가 필터링
@@ -81,7 +81,11 @@ async function loadStudentData(
     logActionError("batchPreviewPlans.loadStudentData", `학생 조회 실패 - studentId: ${studentId}, error: ${error.message}, code: ${error.code}, tenantId: ${tenantId || "not provided"}`);
   }
 
-  return data;
+  if (!data) return null;
+
+  // Flatten user_profiles.name → name for downstream compatibility
+  const up = Array.isArray(data.user_profiles) ? data.user_profiles[0] : data.user_profiles;
+  return { ...data, name: up?.name ?? null };
 }
 
 async function loadScores(

@@ -39,7 +39,7 @@ export async function getTenantUsersAction(
   // DB 레벨 필터링으로 최적화
   let studentsQuery = supabase
     .from("students")
-    .select("id, tenant_id, user_id, grade, name")
+    .select("id, tenant_id, user_id, grade, user_profiles!inner(name)")
     .order("created_at", { ascending: false });
 
   let parentsQuery = supabase
@@ -88,14 +88,17 @@ export async function getTenantUsersAction(
   // 학생 데이터 변환
   const studentUsers: TenantUser[] = (students || []).map((student) => {
     const userId = student.user_id || student.id;
+    const upRaw = student.user_profiles;
+    const upObj = Array.isArray(upRaw) ? upRaw[0] : upRaw;
+    const profileName = (upObj as { name: string | null } | null)?.name || null;
     const metadata = userMetadata.get(userId) || {
       email: null,
-      name: student.name || null,
+      name: profileName,
     };
     return {
       id: userId,
       email: metadata.email,
-      name: metadata.name || student.name || null,
+      name: metadata.name || profileName,
       tenant_id: student.tenant_id,
       type: "student" as const,
       grade: student.grade?.toString() || null,

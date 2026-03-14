@@ -179,7 +179,7 @@ export async function checkInWithQRCode(
 
         // 학생 정보 조회
         const { data: student, error: studentError } = await supabase
-          .from("students")
+          .from("user_profiles")
           .select("id, name")
           .eq("id", user.userId)
           .single();
@@ -374,7 +374,7 @@ export async function checkInWithLocation(
       const supabase = await createSupabaseServerClient();
 
       const { data: student } = await supabase
-        .from("students")
+        .from("user_profiles")
         .select("id, name")
         .eq("id", user.userId)
         .single();
@@ -589,7 +589,7 @@ export async function checkOutWithQRCode(
         const supabase = await createSupabaseServerClient();
 
         const { data: student, error: studentError } = await supabase
-          .from("students")
+          .from("user_profiles")
           .select("id, name")
           .eq("id", user.userId)
           .single();
@@ -800,7 +800,7 @@ export async function checkOutWithLocation(
       const supabase = await createSupabaseServerClient();
 
       const { data: student } = await supabase
-        .from("students")
+        .from("user_profiles")
         .select("id, name")
         .eq("id", user.userId)
         .single();
@@ -909,7 +909,7 @@ export async function checkOut(): Promise<{
       const supabase = await createSupabaseServerClient();
 
       const { data: student } = await supabase
-        .from("students")
+        .from("user_profiles")
         .select("id, name")
         .eq("id", user.userId)
         .single();

@@ -123,6 +123,27 @@ Supabase with PostgreSQL. Migrations in `supabase/migrations/`. Uses Row Level S
 
 Key tables: `students`, `student_plans`, `scores`, `plan_groups`, `blocks`, `tenants`
 
+### RLS Policy Rules (initplan 최적화)
+
+RLS 정책에서 `auth.uid()`, `auth.role()`, `auth.jwt()`는 반드시 `(SELECT ...)` 로 감싸야 한다.
+감싸지 않으면 PostgreSQL이 **행마다 재평가**하여 성능이 크게 저하된다.
+
+```sql
+-- ❌ FORBIDDEN: 행마다 auth.uid() 재평가
+CREATE POLICY "example" ON table USING (student_id = auth.uid());
+
+-- ✅ REQUIRED: 쿼리당 1회만 평가 (initplan)
+CREATE POLICY "example" ON table USING (student_id = (SELECT auth.uid()));
+```
+
+**헬퍼 함수 내부도 동일 규칙 적용:**
+```sql
+-- ✅ 함수 내부에서도 (SELECT auth.uid()) 사용
+CREATE FUNCTION rls_check_example(p_id uuid) RETURNS boolean AS $$
+  SELECT EXISTS (SELECT 1 FROM table WHERE id = (SELECT auth.uid()) AND col = p_id);
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
+```
+
 ## AI & Cold Start System
 
 ### Cold Start 콘텐츠 추천

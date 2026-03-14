@@ -74,7 +74,7 @@ export async function recordAttendanceAction(
 
       // 학생 기본 정보 조회
       const { data: student } = await supabase
-        .from("students")
+        .from("user_profiles")
         .select("id, name")
         .eq("id", input.student_id)
         .single();

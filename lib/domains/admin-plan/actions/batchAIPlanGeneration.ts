@@ -547,7 +547,7 @@ async function loadStudentData(
 ) {
   let query = supabase
     .from("students")
-    .select("id, name, grade, school_name, school_type, tenant_id")
+    .select("id, grade, school_name, school_type, tenant_id, user_profiles!inner(name)")
     .eq("id", studentId);
 
   // tenant_id가 제공된 경우 추가 필터링
@@ -566,7 +566,11 @@ async function loadStudentData(
     logActionWarn("loadStudentData", `학생 데이터 없음 - studentId: ${studentId}, tenantId: ${tenantId || "not provided"}`);
   }
 
-  return student;
+  if (!student) return null;
+
+  // Flatten user_profiles.name → name for downstream compatibility
+  const up = Array.isArray(student.user_profiles) ? student.user_profiles[0] : student.user_profiles;
+  return { ...student, name: up?.name ?? null };
 }
 
 
@@ -1425,18 +1429,24 @@ export async function getStudentsContentsForBatch(
 > {
   const supabase = await createSupabaseServerClient();
 
-  // 학생 정보 조회 (tenant_id 포함)
-  const { data: students } = await supabase
+  // 학생 정보 조회 (tenant_id 포함, name은 user_profiles에서)
+  const { data: studentsRaw } = await supabase
     .from("students")
-    .select("id, name, tenant_id")
+    .select("id, tenant_id, user_profiles!inner(name)")
     .in("id", studentIds);
+
+  // Flatten user_profiles.name → name for downstream compatibility
+  const students = (studentsRaw || []).map((s) => {
+    const up = Array.isArray(s.user_profiles) ? s.user_profiles[0] : s.user_profiles;
+    return { ...s, name: up?.name ?? null };
+  });
 
   const result = new Map<
     string,
     { studentId: string; studentName: string; contentIds: string[] }
   >();
 
-  for (const student of students || []) {
+  for (const student of students) {
     // flexible_contents에서 학생별 콘텐츠 조회
     const { data: flexibleContents } = await supabase
       .from("flexible_contents")
@@ -1569,18 +1579,19 @@ export async function generateBatchPlansWithStreaming(
     studentIds: students.map((s) => s.studentId),
   });
 
-  // 학생 이름 미리 조회 (진행률 표시용)
+  // 학생 이름 미리 조회 (진행률 표시용, name은 user_profiles에서)
   const studentNamesMap = new Map<string, string>();
   const { data: studentData } = await supabase
     .from("students")
-    .select("id, name")
+    .select("id, user_profiles!inner(name)")
     .in(
       "id",
       students.map((s) => s.studentId)
     );
 
   for (const s of studentData || []) {
-    studentNamesMap.set(s.id, s.name);
+    const up = Array.isArray(s.user_profiles) ? s.user_profiles[0] : s.user_profiles;
+    studentNamesMap.set(s.id, up?.name ?? null);
   }
 
   let processedCount = 0;

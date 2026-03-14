@@ -7,6 +7,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseClientForRLSBypass, type SupabaseClientForStudentQuery } from "@/lib/supabase/clientSelector";
 import type { StudentDivision } from "@/lib/constants/students";
+import { flattenUserProfile } from "@/lib/data/helpers/withUserProfile";
 
 export type StudentSearchParams = {
   query: string;
@@ -107,7 +108,7 @@ function buildBaseQuery(
   }
   let baseQuery = adminClient
     .from("students")
-    .select("id, name, grade, class, division, is_active, gender");
+    .select("id, grade, class, division, gender, user_profiles!inner(name, is_active)");
 
   // tenant_id 필터 (있는 경우)
   if (tenantId) {
@@ -133,7 +134,7 @@ function buildBaseQuery(
     }
   }
   if (filters?.isActive !== undefined) {
-    baseQuery = baseQuery.eq("is_active", filters.isActive);
+    baseQuery = baseQuery.eq("user_profiles.is_active", filters.isActive);
   }
   if (filters?.status) {
     baseQuery = baseQuery.eq("status", filters.status);
@@ -159,27 +160,32 @@ async function collectPhoneMatchedIds(
   }
   const phoneMatchedIds = new Set<string>();
 
-  // students 테이블에서 연락처 검색 (phone, mother_phone, father_phone 통합됨)
-  const { data: phoneMatches, error: phoneError } = await adminClient
-    .from("students")
-    .select("id, phone, mother_phone, father_phone")
-    .or(
-      `phone.ilike.%${normalizedQuery}%,mother_phone.ilike.%${normalizedQuery}%,father_phone.ilike.%${normalizedQuery}%`
-    );
+  // phone은 user_profiles에서, mother_phone/father_phone은 students에서 검색
+  const [profilePhoneResult, studentPhoneResult] = await Promise.all([
+    adminClient.from("user_profiles").select("id, phone").ilike("phone", `%${normalizedQuery}%`),
+    adminClient.from("students").select("id, mother_phone, father_phone").or(
+      `mother_phone.ilike.%${normalizedQuery}%,father_phone.ilike.%${normalizedQuery}%`
+    ),
+  ]);
 
-  if (phoneError) {
-    console.error("[studentSearch] students 연락처 조회 실패", phoneError);
+  if (profilePhoneResult.error) {
+    console.error("[studentSearch] user_profiles 연락처 조회 실패", profilePhoneResult.error);
+  }
+  if (studentPhoneResult.error) {
+    console.error("[studentSearch] students 연락처 조회 실패", studentPhoneResult.error);
   }
 
   // 매칭된 ID 수집
-  if (phoneMatches) {
-    phoneMatches.forEach((student) => {
+  if (profilePhoneResult.data) {
+    profilePhoneResult.data.forEach((p) => phoneMatchedIds.add(p.id));
+  }
+  if (studentPhoneResult.data) {
+    studentPhoneResult.data.forEach((s) => {
       if (
-        student.phone?.includes(normalizedQuery) ||
-        student.mother_phone?.includes(normalizedQuery) ||
-        student.father_phone?.includes(normalizedQuery)
+        s.mother_phone?.includes(normalizedQuery) ||
+        s.father_phone?.includes(normalizedQuery)
       ) {
-        phoneMatchedIds.add(student.id);
+        phoneMatchedIds.add(s.id);
       }
     });
   }
@@ -305,8 +311,9 @@ export async function searchStudentsUnified(
 
   // 이름 검색 - ID만 수집
   if (detectedType === "name" || detectedType === "all") {
-    const baseQuery = buildBaseQuery(adminClient, filters, excludeStudentIds, tenantId);
-    const { data: nameMatches, error: nameError } = await baseQuery
+    // user_profiles에서 이름 검색
+    const { data: nameMatches, error: nameError } = await adminClient
+      .from("user_profiles")
       .select("id")
       .ilike("name", `%${searchQuery}%`);
 
@@ -332,17 +339,20 @@ export async function searchStudentsUnified(
   }
 
   // 3단계: 페이지네이션된 ID로 실제 데이터 조회
-  const baseQuery = buildBaseQuery(adminClient, filters, excludeStudentIds, tenantId);
-  const { data: students, error: studentsError } = await baseQuery
-    .in("id", studentIds)
-    .select("id, name, grade, class, division, is_active, status, school_name, gender, profile_image_url");
+  const { data: rawStudents, error: studentsError } = await adminClient
+    .from("students")
+    .select("id, grade, class, division, status, school_name, gender, user_profiles!inner(name, is_active, profile_image_url)")
+    .in("id", studentIds);
+  const students = (rawStudents ?? []).map(
+    (row) => flattenUserProfile(row)
+  );
 
   if (studentsError) {
     console.error("[studentSearch] 학생 데이터 조회 실패", studentsError);
     return { students: [], total: 0 };
   }
 
-  if (!students || students.length === 0) {
+  if (students.length === 0) {
     return { students: [], total: 0 };
   }
 
@@ -353,14 +363,15 @@ export async function searchStudentsUnified(
 
   // gender는 students에 이미 있으므로 별도 쿼리 불필요
   const genderMap = new Map(
-    students.map((s) => [s.id, s.gender as string | null])
+    students.map((s) => [s.id as string, s.gender as string | null])
   );
 
   // 5단계: 결과 매핑 및 matched_field 설정
   const results: StudentSearchResult[] = students.map((student) => {
-    const phoneData = phoneDataMap.get(student.id);
+    const sid = student.id as string;
+    const phoneData = phoneDataMap.get(sid);
     const matchedField = determineMatchedField(
-      student,
+      { name: (student.name as string | null) ?? null },
       phoneData,
       searchQuery,
       normalizedQuery,
@@ -368,16 +379,16 @@ export async function searchStudentsUnified(
     );
 
     return {
-      id: student.id,
-      name: student.name,
-      grade: student.grade,
-      class: student.class,
+      id: sid,
+      name: (student.name as string | null) ?? null,
+      grade: student.grade as number | null,
+      class: student.class as string | null,
       division: student.division as StudentDivision | null,
       phone: phoneData?.phone ?? null,
       mother_phone: phoneData?.mother_phone ?? null,
       father_phone: phoneData?.father_phone ?? null,
-      school_name: student.school_name ?? null,
-      gender: (genderMap.get(student.id) as "남" | "여" | null) ?? null,
+      school_name: (student.school_name as string | null) ?? null,
+      gender: (genderMap.get(sid) as "남" | "여" | null) ?? null,
       is_active: (student.is_active as boolean | null) ?? true,
       status: (student.status as string | null) ?? null,
       matched_field: matchedField,

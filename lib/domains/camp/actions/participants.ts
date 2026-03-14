@@ -29,8 +29,12 @@ import {
 } from "@/lib/domains/camp/permissions";
 
 // Supabase 조인 결과 타입 정의
-interface StudentJoinResult {
+interface UserProfileJoinResult {
   name: string | null;
+}
+
+interface StudentJoinResult {
+  user_profiles: UserProfileJoinResult | null;
   grade: number | null;
   class: string | null;
 }
@@ -196,7 +200,7 @@ export const sendCampInvitationsAction = withErrorHandling(
 
           // 학생 정보 조회
           const { data: studentsInfo } = await supabase
-            .from("students")
+            .from("user_profiles")
             .select("id, name")
             .in("id", newStudentIds);
 
@@ -260,7 +264,7 @@ export const getCampInvitationsForTemplate = withErrorHandling(
         `
         *,
         students:student_id (
-          name,
+          user_profiles(name),
           grade,
           class
         )
@@ -282,7 +286,7 @@ export const getCampInvitationsForTemplate = withErrorHandling(
 
     const formattedInvitations = (invitations || []).map((invitation: InvitationWithStudentAndCamp) => ({
       ...invitation,
-      student_name: invitation.students?.name ?? null,
+      student_name: invitation.students?.user_profiles?.name ?? null,
       student_grade: invitation.students?.grade ?? null,
       student_class: invitation.students?.class ?? null,
     }));
@@ -606,7 +610,7 @@ export const getCampParticipantsAction = withErrorHandling(
         invited_at,
         accepted_at,
         students:student_id (
-          name,
+          user_profiles(name),
           grade,
           class
         )
@@ -718,7 +722,7 @@ export const getCampParticipantsAction = withErrorHandling(
       return {
         invitation_id: invitation.id,
         student_id: invitation.student_id,
-        student_name: invitation.students?.name || "이름 없음",
+        student_name: invitation.students?.user_profiles?.name || "이름 없음",
         student_grade: invitation.students?.grade
           ? String(invitation.students.grade)
           : null,
@@ -888,7 +892,7 @@ export const getCampParticipantsWithPaginationAction = withErrorHandling(
         invited_at,
         accepted_at,
         students:student_id (
-          name,
+          user_profiles(name),
           grade,
           class
         )
@@ -989,7 +993,7 @@ export const getCampParticipantsWithPaginationAction = withErrorHandling(
       return {
         invitation_id: invitation.id,
         student_id: invitation.student_id,
-        student_name: invitation.students?.name || "이름 없음",
+        student_name: invitation.students?.user_profiles?.name || "이름 없음",
         student_grade: invitation.students?.grade
           ? String(invitation.students.grade)
           : null,
@@ -1170,7 +1174,7 @@ export const recoverMissingPlanGroupsAction = withErrorHandling(
       .select(`
         id,
         student_id,
-        students!inner(name)
+        students!inner(user_profiles(name))
       `)
       .eq("camp_template_id", templateId)
       .eq("tenant_id", tenantId)
@@ -1221,7 +1225,7 @@ export const recoverMissingPlanGroupsAction = withErrorHandling(
     const studentNameMap = new Map(
       missingGroupInvitations.map((inv) => [
         inv.id,
-        (inv.students as { name: string } | null)?.name || "알 수 없음",
+        (inv.students as { user_profiles: { name: string } | null } | null)?.user_profiles?.name || "알 수 없음",
       ])
     );
 

@@ -222,8 +222,8 @@ async function listAvailableStudents() {
     // 학생 목록 조회 (더미학생% 필터, 최근 10명)
     const { data: students, error } = await supabase
       .from("students")
-      .select("id, name, tenant_id, grade")
-      .like("name", "더미학생%")
+      .select("id, tenant_id, grade, user_profiles!inner(name)")
+      .like("user_profiles.name", "더미학생%")
       .order("created_at", { ascending: false })
       .limit(10);
 

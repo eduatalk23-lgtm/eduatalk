@@ -47,30 +47,29 @@ export async function getMyProfile(): Promise<ProfileData | null> {
 
   const supabase = await createSupabaseServerClient();
 
-  const { data: adminUser, error } = await supabase
-    .from("admin_users")
-    .select("id, name, role, profile_image_url, job_title, department, phone")
-    .eq("id", userId)
-    .maybeSingle();
+  // admin_users(admin 고유 필드) + user_profiles(공통 필드) 병렬 조회
+  const [adminResult, profileResult, authResult] = await Promise.all([
+    supabase.from("admin_users").select("id, role, job_title, department").eq("id", userId).maybeSingle(),
+    supabase.from("user_profiles").select("name, phone, profile_image_url").eq("id", userId).maybeSingle(),
+    supabase.auth.getUser(),
+  ]);
 
-  if (error || !adminUser) {
+  if (adminResult.error || !adminResult.data) {
     return null;
   }
 
-  // 이메일은 auth.users에서 가져와야 하지만, 서버 컴포넌트에서는 getUser()로 가능
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const adminUser = adminResult.data;
+  const profile = profileResult.data;
 
   return {
     id: adminUser.id,
-    name: adminUser.name,
-    email: user?.email || null,
+    name: profile?.name ?? "",
+    email: authResult.data?.user?.email || null,
     role: adminUser.role,
-    profileImageUrl: adminUser.profile_image_url,
+    profileImageUrl: profile?.profile_image_url ?? null,
     jobTitle: adminUser.job_title,
     department: adminUser.department,
-    phone: adminUser.phone,
+    phone: profile?.phone ?? null,
   };
 }
 
@@ -113,24 +112,45 @@ export const updateMyProfile = withErrorHandling(
 
     const supabase = await createSupabaseServerClient();
 
-    const updateData: Record<string, string | null> = { name: name.trim() };
-    if (jobTitle !== undefined) updateData.job_title = jobTitle?.trim() || null;
-    if (department !== undefined) updateData.department = department?.trim() || null;
-    if (phone !== undefined) updateData.phone = phone?.trim() || null;
+    // name, phone은 user_profiles에 저장
+    const profileUpdate: Record<string, string | null> = { name: name.trim() };
+    if (phone !== undefined) profileUpdate.phone = phone?.trim() || null;
 
-    const { error } = await supabase
-      .from("admin_users")
-      .update(updateData)
+    const { error: profileError } = await supabase
+      .from("user_profiles")
+      .update(profileUpdate)
       .eq("id", userId);
 
-    if (error) {
+    if (profileError) {
       throw new AppError(
         "프로필 수정에 실패했습니다.",
         ErrorCode.DATABASE_ERROR,
         500,
         true,
-        { originalError: error.message }
+        { originalError: profileError.message }
       );
+    }
+
+    // admin 고유 필드(job_title, department)는 admin_users에 저장
+    const adminUpdate: Record<string, string | null> = {};
+    if (jobTitle !== undefined) adminUpdate.job_title = jobTitle?.trim() || null;
+    if (department !== undefined) adminUpdate.department = department?.trim() || null;
+
+    if (Object.keys(adminUpdate).length > 0) {
+      const { error: adminError } = await supabase
+        .from("admin_users")
+        .update(adminUpdate)
+        .eq("id", userId);
+
+      if (adminError) {
+        throw new AppError(
+          "프로필 수정에 실패했습니다.",
+          ErrorCode.DATABASE_ERROR,
+          500,
+          true,
+          { originalError: adminError.message }
+        );
+      }
     }
 
     // 캐시 무효화

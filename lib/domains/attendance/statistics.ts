@@ -232,7 +232,7 @@ export async function getStudentAttendanceRanking(
   // 학생 정보 조회
   const studentIds = Array.from(studentStats.keys());
   const { data: students } = await supabase
-    .from("students")
+    .from("user_profiles")
     .select("id, name")
     .in("id", studentIds);
   

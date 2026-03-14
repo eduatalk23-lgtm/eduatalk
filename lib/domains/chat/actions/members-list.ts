@@ -144,14 +144,14 @@ async function getAdminViewMembers(
     }
   }
 
-  // 학생
+  // 학생 — user_profiles JOIN으로 name, is_active, profile_image_url 조회
   if (filter === "all" || filter === "student") {
     const { data: students, error: studentsError } = await supabase
       .from("students")
-      .select("id, name, school_name, grade, profile_image_url")
+      .select("id, school_name, grade, user_profiles!inner(name, is_active, profile_image_url)")
       .eq("tenant_id", tenantId)
-      .eq("is_active", true)
-      .order("name");
+      .eq("user_profiles.is_active", true)
+      .order("user_profiles(name)");
 
     if (studentsError) throw new Error(`학생 조회 실패: ${studentsError.message}`);
     if (students && students.length > 0) {
@@ -166,7 +166,6 @@ async function getAdminViewMembers(
       const parentMap = new Map<string, LinkedParentInfo[]>();
       if (parentLinks) {
         for (const link of parentLinks) {
-          // Supabase join은 단일 레코드도 배열로 반환할 수 있음
           const parentRaw = link.parent as unknown;
           const parent = Array.isArray(parentRaw) ? parentRaw[0] as { id: string; name: string } | undefined : parentRaw as { id: string; name: string } | null;
           if (!parent) continue;
@@ -177,15 +176,18 @@ async function getAdminViewMembers(
       }
 
       results.push(
-        ...students.map((s: { id: string; name: string; school_name: string | null; grade: string | null; profile_image_url: string | null }) => ({
-          userId: s.id,
-          userType: "student" as ChatUserType,
-          name: s.name,
-          profileImageUrl: s.profile_image_url,
-          schoolName: s.school_name,
-          gradeDisplay: s.grade,
-          linkedParents: parentMap.get(s.id) ?? [],
-        }))
+        ...students.map((s) => {
+          const up = s.user_profiles as unknown as { name: string; is_active: boolean; profile_image_url: string | null };
+          return {
+            userId: s.id,
+            userType: "student" as ChatUserType,
+            name: up.name,
+            profileImageUrl: up.profile_image_url,
+            schoolName: s.school_name,
+            gradeDisplay: s.grade as string | null,
+            linkedParents: parentMap.get(s.id) ?? [],
+          };
+        })
       );
     }
   }
@@ -283,10 +285,10 @@ async function getParentViewMembers(
 ): Promise<MemberListItem[]> {
   const results: MemberListItem[] = [];
 
-  // 먼저 연결된 자녀 정보 조회 (tenantId 확보 용도)
+  // 연결된 자녀 정보 조회 (tenantId 확보 용도) — name, profile_image_url은 user_profiles에서
   const { data: childLinks } = await supabase
     .from("parent_student_links")
-    .select("relation, student:students(id, name, school_name, grade, profile_image_url, tenant_id)")
+    .select("relation, student:students(id, school_name, grade, tenant_id, user_profiles(name, profile_image_url))")
     .eq("parent_id", parentId);
 
   const tenantIds = new Set<string>();
@@ -327,19 +329,19 @@ async function getParentViewMembers(
       for (const link of childLinks) {
         type StudentInfo = {
           id: string;
-          name: string;
           school_name: string | null;
           grade: string | null;
-          profile_image_url: string | null;
+          user_profiles: { name: string; profile_image_url: string | null } | null;
         };
         const studentRaw2 = link.student as unknown;
         const student = Array.isArray(studentRaw2) ? studentRaw2[0] as StudentInfo | undefined : studentRaw2 as StudentInfo | null;
         if (!student) continue;
+        const up = student.user_profiles;
         results.push({
           userId: student.id,
           userType: "student",
-          name: student.name,
-          profileImageUrl: student.profile_image_url,
+          name: up?.name ?? "",
+          profileImageUrl: up?.profile_image_url ?? null,
           schoolName: student.school_name,
           gradeDisplay: student.grade,
           relation: link.relation,

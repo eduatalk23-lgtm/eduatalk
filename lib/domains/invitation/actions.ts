@@ -540,12 +540,17 @@ export async function acceptInvitation(
             au?.user?.email?.split("@")[0] ||
             "사용자";
 
+          // admin_users에는 admin 고유 필드만, name은 user_profiles에서 관리
           const { error: insertError } = await adminClient.from("admin_users").insert({
             id: userId,
             role: inv.targetRole,
             tenant_id: inv.tenantId,
-            name: userName,
           });
+
+          // name은 user_profiles에 저장
+          if (!insertError && userName) {
+            await adminClient.from("user_profiles").update({ name: userName }).eq("id", userId);
+          }
 
           if (insertError) {
             logActionError({ domain: "invitation", action: "accept" }, insertError, { token, userId });

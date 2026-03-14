@@ -90,23 +90,35 @@ interface BlockRow {
   end_time?: string | null;
 }
 
-// 학생 정보 조회
+// 학생 정보 조회 (name은 user_profiles에서)
 export async function fetchStudentInfo(
   supabase: SupabaseServerClient,
   studentId: string
 ): Promise<StudentInfo> {
-  const { data, error } = await supabase
-    .from("students")
-    .select("name,grade,class,birth_date")
-    .eq("id", studentId)
-    .maybeSingle();
+  const [studentResult, profileResult] = await Promise.all([
+    supabase
+      .from("students")
+      .select("grade,class,birth_date")
+      .eq("id", studentId)
+      .maybeSingle(),
+    supabase
+      .from("user_profiles")
+      .select("name")
+      .eq("id", studentId)
+      .maybeSingle(),
+  ]);
 
-  if (error) {
-    console.error("[reports] 학생 정보 조회 실패", error);
+  if (studentResult.error) {
+    console.error("[reports] 학생 정보 조회 실패", studentResult.error);
     return { name: null, grade: null, class: null, birth_date: null };
   }
 
-  return data ?? { name: null, grade: null, class: null, birth_date: null };
+  return {
+    name: profileResult.data?.name ?? null,
+    grade: studentResult.data?.grade ?? null,
+    class: studentResult.data?.class ?? null,
+    birth_date: studentResult.data?.birth_date ?? null,
+  };
 }
 
 // 주간 학습 요약

@@ -405,7 +405,7 @@ export async function exportRevenueCSVAction(
     const { data: records } = await adminClient
       .from("payment_records")
       .select(
-        "amount, paid_amount, status, payment_method, created_at, paid_date, billing_period, students(name), enrollments(programs(name))"
+        "amount, paid_amount, status, payment_method, created_at, paid_date, billing_period, students(user_profiles(name)), enrollments(programs(name))"
       )
       .eq("tenant_id", tenantId)
       .gte("created_at", `${filters.startDate}T00:00:00`)
@@ -437,13 +437,17 @@ export async function exportRevenueCSVAction(
     };
 
     const csvRows = rows.map((r) => {
-      const student = r.students as { name: string } | null;
+      const studentRaw = r.students as unknown;
+      const sObj = Array.isArray(studentRaw) ? studentRaw[0] : studentRaw;
+      const sUp = (sObj as Record<string, unknown> | null)?.user_profiles;
+      const sUpObj = Array.isArray(sUp) ? sUp[0] : sUp;
+      const studentName = (sUpObj as Record<string, unknown> | null)?.name as string | null;
       const enrollment = r.enrollments as { programs: { name: string } | null } | null;
       const amount = (r.amount as number) || 0;
       const paid = (r.paid_amount as number) || 0;
 
       return [
-        student?.name ?? "",
+        studentName ?? "",
         enrollment?.programs?.name ?? "",
         amount,
         paid,

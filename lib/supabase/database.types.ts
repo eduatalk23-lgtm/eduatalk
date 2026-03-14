@@ -19,12 +19,8 @@ export type Database = {
           created_at: string
           department: string | null
           id: string
-          is_active: boolean
           is_owner: boolean
           job_title: string | null
-          name: string
-          phone: string | null
-          profile_image_url: string | null
           role: string
           tenant_id: string | null
         }
@@ -32,12 +28,8 @@ export type Database = {
           created_at?: string
           department?: string | null
           id: string
-          is_active?: boolean
           is_owner?: boolean
           job_title?: string | null
-          name: string
-          phone?: string | null
-          profile_image_url?: string | null
           role: string
           tenant_id?: string | null
         }
@@ -45,12 +37,8 @@ export type Database = {
           created_at?: string
           department?: string | null
           id?: string
-          is_active?: boolean
           is_owner?: boolean
           job_title?: string | null
-          name?: string
-          phone?: string | null
-          profile_image_url?: string | null
           role?: string
           tenant_id?: string | null
         }
@@ -9179,15 +9167,11 @@ export type Database = {
           grade: number | null
           id: string
           interests: Json | null
-          is_active: boolean
           lead_source: string | null
           medical_info: string | null
           memo: string | null
           mother_phone: string | null
-          name: string
-          phone: string | null
           postal_code: string | null
-          profile_image_url: string | null
           program_id: string | null
           school_id: string | null
           school_name: string | null
@@ -9223,15 +9207,11 @@ export type Database = {
           grade?: number | null
           id?: string
           interests?: Json | null
-          is_active?: boolean
           lead_source?: string | null
           medical_info?: string | null
           memo?: string | null
           mother_phone?: string | null
-          name: string
-          phone?: string | null
           postal_code?: string | null
-          profile_image_url?: string | null
           program_id?: string | null
           school_id?: string | null
           school_name?: string | null
@@ -9267,15 +9247,11 @@ export type Database = {
           grade?: number | null
           id?: string
           interests?: Json | null
-          is_active?: boolean
           lead_source?: string | null
           medical_info?: string | null
           memo?: string | null
           mother_phone?: string | null
-          name?: string
-          phone?: string | null
           postal_code?: string | null
-          profile_image_url?: string | null
           program_id?: string | null
           school_id?: string | null
           school_name?: string | null

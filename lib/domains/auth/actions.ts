@@ -351,12 +351,19 @@ async function createStudentRecord(
       finalTenantId = defaultTenant.id;
     }
 
+    // students에는 학업 관련 필드만, name/phone은 user_profiles에서 관리
     const { error } = await supabase.from("students").insert({
       id: userId,
       tenant_id: finalTenantId,
-      name: displayName || "",
-      phone: phone || null,
     });
+
+    // name/phone은 user_profiles에 저장 (sync trigger가 이미 user_profiles 레코드 생성)
+    if (!error && (displayName || phone)) {
+      const profileUpdate: Record<string, string | null> = {};
+      if (displayName) profileUpdate.name = displayName;
+      if (phone) profileUpdate.phone = phone;
+      await supabase.from("user_profiles").update(profileUpdate).eq("id", userId);
+    }
 
     if (error) {
       if (error.code === DATABASE_ERROR_CODES.UNIQUE_VIOLATION) {
@@ -1090,12 +1097,9 @@ export async function changeUserRole(newRole: "student" | "parent"): Promise<Act
         .update({ role: "student" })
         .eq("id", userId);
 
-      const displayName = (user.user_metadata?.display_name as string) || "이름 없음";
       const { error: createStudentError } = await supabase.from("students").upsert({
         id: userId,
-        user_id: userId,
         tenant_id: tenantId,
-        name: displayName,
         grade: null,
         school_id: null,
         school_type: null,

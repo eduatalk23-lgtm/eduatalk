@@ -33,12 +33,11 @@ export async function toggleStudentStatus(
     return { success: false, error: "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다." };
   }
 
-  const { data: updatedRows, error } = await supabase
-    .from("students")
+  // is_active는 user_profiles에서 관리
+  const { error } = await supabase
+    .from("user_profiles")
     .update({ is_active: isActive })
-    .eq("id", studentId)
-    .eq("tenant_id", tenantContext.tenantId)
-    .select();
+    .eq("id", studentId);
 
   if (error) {
     logActionError(
@@ -50,10 +49,6 @@ export async function toggleStudentStatus(
       success: false,
       error: error.message || "상태 변경에 실패했습니다.",
     };
-  }
-
-  if (!updatedRows || updatedRows.length === 0) {
-    return { success: false, error: "학생을 찾을 수 없습니다." };
   }
 
   // Supabase Auth ban_duration 동기화
@@ -295,11 +290,11 @@ export async function bulkToggleStudentStatus(
     return { success: false, error: "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다." };
   }
 
-  const { data, error, count } = await supabase
-    .from("students")
+  // is_active는 user_profiles에서 관리
+  const { data, error } = await supabase
+    .from("user_profiles")
     .update({ is_active: isActive })
     .in("id", studentIds)
-    .eq("tenant_id", tenantContext.tenantId)
     .select("id");
 
   if (error) {
@@ -320,7 +315,7 @@ export async function bulkToggleStudentStatus(
 
   revalidatePath("/admin/students");
 
-  const updatedCount = data?.length ?? count ?? studentIds.length;
+  const updatedCount = data?.length ?? studentIds.length;
   return { success: true, updatedCount };
 }
 
@@ -660,37 +655,46 @@ export async function updateStudentInfo(
       return basicResult;
     }
 
-    // memo와 is_active는 별도 업데이트 (upsertStudent에 포함되지 않음)
-    if (payload.basic.memo !== undefined || payload.basic.is_active !== undefined) {
-      const updateData: Record<string, unknown> = {};
-      if (payload.basic.memo !== undefined) {
-        updateData.memo = payload.basic.memo;
-      }
-      if (payload.basic.is_active !== undefined) {
-        updateData.is_active = payload.basic.is_active;
-      }
-
-      const { error: updateError } = await supabase
+    // memo는 students 테이블에 업데이트
+    if (payload.basic.memo !== undefined) {
+      const { error: memoError } = await supabase
         .from("students")
-        .update(updateData)
+        .update({ memo: payload.basic.memo })
         .eq("id", studentId);
 
-      if (updateError) {
+      if (memoError) {
         logActionError(
           { domain: "student", action: "updateStudentInfo" },
-          updateError,
-          { studentId, step: "memo/is_active" }
+          memoError,
+          { studentId, step: "memo" }
         );
         return {
           success: false,
-          error: updateError.message || "학생 정보 업데이트에 실패했습니다.",
+          error: memoError.message || "메모 업데이트에 실패했습니다.",
+        };
+      }
+    }
+
+    // is_active는 user_profiles에서 관리
+    if (payload.basic.is_active !== undefined) {
+      const { error: activeError } = await supabase
+        .from("user_profiles")
+        .update({ is_active: payload.basic.is_active })
+        .eq("id", studentId);
+
+      if (activeError) {
+        logActionError(
+          { domain: "student", action: "updateStudentInfo" },
+          activeError,
+          { studentId, step: "is_active" }
+        );
+        return {
+          success: false,
+          error: activeError.message || "활성화 상태 업데이트에 실패했습니다.",
         };
       }
 
-      // is_active 변경 시 Supabase Auth ban_duration 동기화
-      if (payload.basic.is_active !== undefined) {
-        await syncAuthBanStatus(studentId, payload.basic.is_active);
-      }
+      await syncAuthBanStatus(studentId, payload.basic.is_active);
     }
   }
 
@@ -760,7 +764,10 @@ export async function updateStudentInfo(
       }
 
       if (payload.profile.gender !== undefined) updateData.gender = payload.profile.gender;
-      if (phone !== undefined) updateData.phone = phone;
+      // phone은 user_profiles에서 관리
+      if (phone !== undefined) {
+        await supabase.from("user_profiles").update({ phone }).eq("id", studentId);
+      }
       if (motherPhone !== undefined) updateData.mother_phone = motherPhone;
       if (fatherPhone !== undefined) updateData.father_phone = fatherPhone;
       if (payload.profile.address !== undefined) updateData.address = payload.profile.address;
@@ -899,7 +906,11 @@ export async function createStudent(
 
     if (profile) {
       if (profile.gender != null) extraFields.gender = profile.gender;
-      if (profile.phone != null) extraFields.phone = profile.phone;
+      // phone은 user_profiles에서 관리
+      if (profile.phone != null) {
+        const supabase = await createSupabaseServerClient();
+        await supabase.from("user_profiles").update({ phone: profile.phone }).eq("id", studentId);
+      }
       if (profile.mother_phone != null) extraFields.mother_phone = profile.mother_phone;
       if (profile.father_phone != null) extraFields.father_phone = profile.father_phone;
       if (profile.address != null) extraFields.address = profile.address;

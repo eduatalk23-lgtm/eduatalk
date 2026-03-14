@@ -33,13 +33,18 @@ export async function getStudentDetailAction(
       return { success: false, error: "Admin client 초기화 실패" };
     }
 
-    // 2개 쿼리 병렬 실행 (students + auth)
-    const [studentResult, authUserResult] = await Promise.all([
+    // 3개 쿼리 병렬 실행 (students + user_profiles + auth)
+    const [studentResult, profileResult, authUserResult] = await Promise.all([
       adminClient
         .from("students")
         .select(
-          "id,name,grade,class,birth_date,school_id,school_name,school_type,division,memo,status,is_active,gender,phone,mother_phone,father_phone,address,emergency_contact,emergency_contact_phone,medical_info,exam_year,curriculum_revision,desired_university_ids,desired_career_field"
+          "id,grade,class,birth_date,school_id,school_name,school_type,division,memo,status,gender,mother_phone,father_phone,address,emergency_contact,emergency_contact_phone,medical_info,exam_year,curriculum_revision,desired_university_ids,desired_career_field"
         )
+        .eq("id", studentId)
+        .maybeSingle(),
+      adminClient
+        .from("user_profiles")
+        .select("name, phone, is_active, profile_image_url")
         .eq("id", studentId)
         .maybeSingle(),
       adminClient.auth.admin.getUserById(studentId),
@@ -49,7 +54,7 @@ export async function getStudentDetailAction(
       return { success: false, error: "학생 정보를 찾을 수 없습니다." };
     }
 
-    const student = studentResult.data;
+    const student = { ...studentResult.data, ...profileResult.data };
     const authUser = authUserResult.data?.user;
     const email = authUser?.email ?? null;
     const authProvider = extractPrimaryProvider(authUser?.identities);

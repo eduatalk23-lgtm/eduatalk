@@ -23,15 +23,15 @@ type LinkRequestWithStudent = {
   students:
     | {
         id: string;
-        name: string | null;
         grade: string | null;
         class: string | null;
+        user_profiles: { name: string | null } | null;
       }
     | {
         id: string;
-        name: string | null;
         grade: string | null;
         class: string | null;
+        user_profiles: { name: string | null } | null;
       }[]
     | null;
 };
@@ -268,9 +268,9 @@ async function _getLinkRequests(parentId: string): Promise<LinkRequest[]> {
         created_at,
         students:student_id(
           id,
-          name,
           grade,
-          class
+          class,
+          user_profiles(name)
         )
       `)
       .eq("parent_id", parentId)
@@ -298,7 +298,7 @@ async function _getLinkRequests(parentId: string): Promise<LinkRequest[]> {
   }
 
   // 데이터 변환
-  const requests: LinkRequest[] = (links as LinkRequestWithStudent[])
+  const requests: LinkRequest[] = (links as unknown as LinkRequestWithStudent[])
     .map((link) => {
       const student = extractJoinResult(link.students);
       if (!student) return null;
@@ -306,7 +306,7 @@ async function _getLinkRequests(parentId: string): Promise<LinkRequest[]> {
       return {
         id: link.id,
         studentId: link.student_id,
-        studentName: student.name,
+        studentName: (student as { user_profiles?: { name: string | null } | null }).user_profiles?.name ?? null,
         grade: student.grade,
         class: student.class,
         relation: link.relation || "other",

@@ -51,8 +51,8 @@ async function main() {
     // 먼저 더미 학생 ID 목록 조회
     const { data: dummyStudents, error: studentsError } = await supabase
       .from("students")
-      .select("id, name")
-      .like("name", DUMMY_NAME_PATTERN);
+      .select("id, user_profiles!inner(name)")
+      .like("user_profiles.name", DUMMY_NAME_PATTERN);
 
     if (studentsError) {
       console.error("❌ 더미 학생 조회 실패:", studentsError.message);

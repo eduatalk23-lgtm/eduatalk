@@ -743,9 +743,9 @@ export async function getCampInvitationsForTemplate(
       `
       *,
       students:student_id (
-        name,
         grade,
-        class
+        class,
+        user_profiles (name)
       )
     `
     )
@@ -761,24 +761,28 @@ export async function getCampInvitationsForTemplate(
     return [];
   }
 
-  // 학생 정보를 평탄화
+  // 학생 정보를 평탄화 (name은 user_profiles에서 JOIN)
   type InvitationWithStudent = CampInvitation & {
     students?: {
-      name: string | null;
       grade: number | null;
       class: string | null;
+      user_profiles: { name: string | null } | { name: string | null }[] | null;
     } | null;
   };
 
   return (
-    (data as InvitationWithStudent[] | null)?.map((invitation) => ({
-      ...invitation,
-      student_name: invitation.students?.name ?? undefined,
-      student_grade: invitation.students?.grade
-        ? String(invitation.students.grade)
-        : undefined,
-      student_class: invitation.students?.class ?? undefined,
-    })) ?? []
+    (data as unknown as InvitationWithStudent[] | null)?.map((invitation) => {
+      const up = invitation.students?.user_profiles;
+      const studentName = Array.isArray(up) ? up[0]?.name : up?.name;
+      return {
+        ...invitation,
+        student_name: studentName ?? undefined,
+        student_grade: invitation.students?.grade
+          ? String(invitation.students.grade)
+          : undefined,
+        student_class: invitation.students?.class ?? undefined,
+      };
+    }) ?? []
   );
 }
 
@@ -834,9 +838,9 @@ export async function getCampInvitationsForTemplateWithPagination(
           `
           *,
           students:student_id (
-            name,
             grade,
-            class
+            class,
+            user_profiles (name)
           )
         `
         )
@@ -886,24 +890,28 @@ export async function getCampInvitationsForTemplateWithPagination(
       };
     }
 
-    // 학생 정보를 평탄화
+    // 학생 정보를 평탄화 (name은 user_profiles에서 JOIN)
     type InvitationWithStudent = CampInvitation & {
       students?: {
-        name: string | null;
         grade: number | null;
         class: string | null;
+        user_profiles: { name: string | null } | { name: string | null }[] | null;
       } | null;
     };
 
     let items =
-      (data as InvitationWithStudent[] | null)?.map((invitation) => ({
-        ...invitation,
-        student_name: invitation.students?.name ?? undefined,
-        student_grade: invitation.students?.grade
-          ? String(invitation.students.grade)
-          : undefined,
-        student_class: invitation.students?.class ?? undefined,
-      })) ?? [];
+      (data as unknown as InvitationWithStudent[] | null)?.map((invitation) => {
+        const up = invitation.students?.user_profiles;
+        const studentName = Array.isArray(up) ? up[0]?.name : up?.name;
+        return {
+          ...invitation,
+          student_name: studentName ?? undefined,
+          student_grade: invitation.students?.grade
+            ? String(invitation.students.grade)
+            : undefined,
+          student_class: invitation.students?.class ?? undefined,
+        };
+      }) ?? [];
 
     // 학생명 검색 필터 (클라이언트 사이드에서 처리 - Supabase의 관계형 쿼리에서 ilike 사용이 복잡함)
     if (filters.search?.trim()) {

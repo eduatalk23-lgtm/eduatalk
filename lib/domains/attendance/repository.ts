@@ -373,7 +373,7 @@ export async function findAttendanceRecordsWithPagination(
 
   if (studentIds.length > 0) {
     const { data: students, error: studentsError } = await supabase
-      .from("students")
+      .from("user_profiles")
       .select("id, name")
       .in("id", studentIds);
 

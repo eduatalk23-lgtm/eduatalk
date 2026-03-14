@@ -128,7 +128,7 @@ export async function getAttendanceSMSLogs(
     let studentNames: Record<string, string | null> = {};
     if (studentIds.length > 0) {
       const { data: students } = await supabase
-        .from("students")
+        .from("user_profiles")
         .select("id, name")
         .in("id", studentIds);
 

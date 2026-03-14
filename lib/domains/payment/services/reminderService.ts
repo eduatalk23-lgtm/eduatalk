@@ -33,7 +33,7 @@ export async function processPaymentReminders(): Promise<ReminderResult> {
   const { data: preDuePayments } = await adminClient
     .from("payment_records")
     .select(
-      "id, student_id, amount, paid_amount, due_date, billing_period, reminder_sent_at, tenant_id, students(name), enrollments(programs(name))"
+      "id, student_id, amount, paid_amount, due_date, billing_period, reminder_sent_at, tenant_id, students(user_profiles(name)), enrollments(programs(name))"
     )
     .eq("due_date", preDueDateStr)
     .in("status", ["unpaid"])
@@ -43,12 +43,17 @@ export async function processPaymentReminders(): Promise<ReminderResult> {
     const reminderSentAt = (payment.reminder_sent_at as Record<string, string> | null) ?? {};
     if (reminderSentAt.pre_due) continue; // 이미 발송됨
 
-    const student = payment.students as { name: string } | null;
+    const studentRaw = payment.students as unknown;
+    const studentObj = Array.isArray(studentRaw) ? studentRaw[0] : studentRaw;
+    const studentUp = (studentObj as Record<string, unknown> | null)?.user_profiles;
+    const studentUpObj = Array.isArray(studentUp) ? studentUp[0] : studentUp;
+    const studentName = (studentUpObj as Record<string, unknown> | null)?.name as string | null;
+
     const enrollment = payment.enrollments as {
       programs: { name: string } | null;
     } | null;
 
-    if (!student) continue;
+    if (!studentName) continue;
 
     // 학생의 연락처 조회 (본인 또는 학부모)
     const phone = await getStudentContactPhone(
@@ -58,7 +63,7 @@ export async function processPaymentReminders(): Promise<ReminderResult> {
     if (!phone) continue;
 
     const message = getPreDueMessage({
-      studentName: student.name,
+      studentName,
       programName:
         (enrollment?.programs as { name: string } | null)?.name ?? "프로그램",
       amount: payment.amount - payment.paid_amount,
@@ -101,7 +106,7 @@ export async function processPaymentReminders(): Promise<ReminderResult> {
     const { data: overduePayments } = await adminClient
       .from("payment_records")
       .select(
-        "id, student_id, amount, paid_amount, due_date, reminder_sent_at, tenant_id, students(name)"
+        "id, student_id, amount, paid_amount, due_date, reminder_sent_at, tenant_id, students(user_profiles(name))"
       )
       .eq("due_date", overdueDateStr)
       .in("status", ["unpaid", "partial"])
@@ -112,8 +117,12 @@ export async function processPaymentReminders(): Promise<ReminderResult> {
         (payment.reminder_sent_at as Record<string, string> | null) ?? {};
       if (reminderSentAt[reminderKey]) continue;
 
-      const student = payment.students as { name: string } | null;
-      if (!student) continue;
+      const overdueStudentRaw = payment.students as unknown;
+      const overdueStudentObj = Array.isArray(overdueStudentRaw) ? overdueStudentRaw[0] : overdueStudentRaw;
+      const overdueStudentUp = (overdueStudentObj as Record<string, unknown> | null)?.user_profiles;
+      const overdueStudentUpObj = Array.isArray(overdueStudentUp) ? overdueStudentUp[0] : overdueStudentUp;
+      const overdueStudentName = (overdueStudentUpObj as Record<string, unknown> | null)?.name as string | null;
+      if (!overdueStudentName) continue;
 
       const phone = await getStudentContactPhone(
         adminClient,
@@ -122,7 +131,7 @@ export async function processPaymentReminders(): Promise<ReminderResult> {
       if (!phone) continue;
 
       const message = getOverdueMessage({
-        studentName: student.name,
+        studentName: overdueStudentName,
         amount: payment.amount - payment.paid_amount,
         daysPastDue: offset,
       });
@@ -159,13 +168,11 @@ async function getStudentContactPhone(
   adminClient: NonNullable<ReturnType<typeof createSupabaseAdminClient>>,
   studentId: string
 ): Promise<string | null> {
-  const { data: profile } = await adminClient
-    .from("students")
-    .select("phone, mother_phone, father_phone")
-    .eq("id", studentId)
-    .maybeSingle();
+  // phone은 user_profiles, mother/father_phone은 students
+  const [{ data: userProfile }, { data: studentProfile }] = await Promise.all([
+    adminClient.from("user_profiles").select("phone").eq("id", studentId).maybeSingle(),
+    adminClient.from("students").select("mother_phone, father_phone").eq("id", studentId).maybeSingle(),
+  ]);
 
-  if (!profile) return null;
-
-  return profile.phone || profile.mother_phone || profile.father_phone || null;
+  return userProfile?.phone || studentProfile?.mother_phone || studentProfile?.father_phone || null;
 }

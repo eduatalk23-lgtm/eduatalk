@@ -33,7 +33,7 @@ async function checkStudentsSchoolColumns() {
     
     const { data: students, error: studentsError } = await supabase
       .from("students")
-      .select("id, name, school_id, grade")
+      .select("id, school_id, grade, user_profiles!inner(name)")
       .limit(5);
     
     if (studentsError) {

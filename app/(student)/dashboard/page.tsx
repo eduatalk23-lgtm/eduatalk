@@ -102,7 +102,7 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
 
   const { data: student, error: studentError } = await supabase
-    .from("students")
+    .from("user_profiles")
     .select("id,name")
     .eq("id", user.id)
     .maybeSingle<StudentRow>();

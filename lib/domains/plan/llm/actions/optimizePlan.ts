@@ -80,15 +80,16 @@ async function loadStudentBasicInfo(
 ): Promise<StudentBasicInfo | null> {
   const { data: student } = await supabase
     .from("students")
-    .select("id, name, grade, target_university, target_major")
+    .select("id, grade, target_university, target_major, user_profiles!inner(name)")
     .eq("id", studentId)
     .single();
 
   if (!student) return null;
 
+  const up = Array.isArray(student.user_profiles) ? student.user_profiles[0] : student.user_profiles;
   return {
     id: student.id,
-    name: student.name,
+    name: up?.name ?? null,
     grade: student.grade,
     targetUniversity: student.target_university ?? undefined,
     targetMajor: student.target_major ?? undefined,

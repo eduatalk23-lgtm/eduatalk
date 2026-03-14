@@ -16,25 +16,18 @@ type SupabaseServerClient = Awaited<
  * Supabase 쿼리 결과 타입: parent_student_links with students join
  * Note: Supabase 조인 쿼리는 students를 배열로 반환할 수 있음
  */
+type StudentWithProfile = {
+  id: string;
+  grade: string | null;
+  class: string | null;
+  school_name: string | null;
+  user_profiles: { name: string | null } | { name: string | null }[] | null;
+};
+
 type ParentStudentLinkWithStudent = {
   student_id: string;
   relation: string | null;
-  students:
-    | {
-        id: string;
-        name: string | null;
-        grade: string | null;
-        class: string | null;
-        school_name: string | null;
-      }
-    | {
-        id: string;
-        name: string | null;
-        grade: string | null;
-        class: string | null;
-        school_name: string | null;
-      }[]
-    | null;
+  students: StudentWithProfile | StudentWithProfile[] | null;
 };
 
 /**
@@ -48,7 +41,7 @@ export async function getLinkedStudents(
     const selectLinks = () =>
       supabase
         .from("parent_student_links")
-        .select("student_id, relation, students(id, name, grade, class, school_name)")
+        .select("student_id, relation, students(id, grade, class, school_name, user_profiles(name))")
         .eq("parent_id", parentId);
 
     let { data: links, error } = await selectLinks();
@@ -72,9 +65,11 @@ export async function getLinkedStudents(
       .map((link) => {
         const student = extractJoinResult(link.students);
         if (!student) return null;
+        const up = student.user_profiles;
+        const upObj = Array.isArray(up) ? up[0] : up;
         return {
           id: student.id,
-          name: student.name,
+          name: upObj?.name ?? null,
           grade: student.grade,
           class: student.class,
           relation: link.relation ?? "",

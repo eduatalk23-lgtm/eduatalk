@@ -363,17 +363,11 @@ export const toggleAdminStatus = withErrorHandling(
       );
     }
 
-    let updateQuery = adminClient
-      .from("admin_users")
+    // is_active는 user_profiles에서 관리
+    const { error: updateError } = await adminClient
+      .from("user_profiles")
       .update({ is_active: isActive })
       .eq("id", targetUserId);
-
-    // 일반 Admin인 경우 tenant_id로 필터링 (추가 안전장치)
-    if (currentRole === "admin" && tenantId) {
-      updateQuery = updateQuery.eq("tenant_id", tenantId);
-    }
-
-    const { error: updateError } = await updateQuery;
 
     if (updateError) {
       throw new AppError(

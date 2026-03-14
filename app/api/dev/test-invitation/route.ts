@@ -85,22 +85,27 @@ export async function GET(request: NextRequest) {
   if ((role === "student" || role === "parent") && !resolvedStudentId) {
     const { data: student } = await adminClient
       .from("students")
-      .select("id, name")
+      .select("id")
       .eq("tenant_id", tenant.id)
       .limit(1)
       .single();
 
     if (student) {
       resolvedStudentId = student.id;
-      studentName = student.name;
+      const { data: profile } = await adminClient
+        .from("user_profiles")
+        .select("name")
+        .eq("id", student.id)
+        .single();
+      studentName = profile?.name ?? null;
     }
   } else if (resolvedStudentId) {
-    const { data: student } = await adminClient
-      .from("students")
+    const { data: profile } = await adminClient
+      .from("user_profiles")
       .select("name")
       .eq("id", resolvedStudentId)
       .single();
-    studentName = student?.name ?? null;
+    studentName = profile?.name ?? null;
   }
 
   // 초대 생성

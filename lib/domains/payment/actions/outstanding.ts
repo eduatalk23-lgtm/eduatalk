@@ -138,7 +138,7 @@ export async function getOutstandingPaymentsAction(
     let query = adminClient
       .from("payment_records")
       .select(
-        "id, enrollment_id, student_id, amount, paid_amount, status, due_date, billing_period, created_at, students(name), enrollments(program_id, programs(name))"
+        "id, enrollment_id, student_id, amount, paid_amount, status, due_date, billing_period, created_at, students(user_profiles(name)), enrollments(program_id, programs(name))"
       )
       .eq("tenant_id", tenantId)
       .in("status", ["unpaid", "partial"])
@@ -163,7 +163,11 @@ export async function getOutstandingPaymentsAction(
 
     const payments: OutstandingPayment[] = (data ?? [])
       .map((row) => {
-        const student = row.students as { name: string } | null;
+        const studentRaw = row.students as unknown;
+        const sObj = Array.isArray(studentRaw) ? studentRaw[0] : studentRaw;
+        const sUp = (sObj as Record<string, unknown> | null)?.user_profiles;
+        const sUpObj = Array.isArray(sUp) ? sUp[0] : sUp;
+        const studentName = (sUpObj as Record<string, unknown> | null)?.name as string | null;
         const enrollment = row.enrollments as {
           program_id: string;
           programs: { name: string } | null;
@@ -180,7 +184,7 @@ export async function getOutstandingPaymentsAction(
           id: row.id,
           enrollment_id: row.enrollment_id,
           student_id: row.student_id,
-          student_name: student?.name ?? "",
+          student_name: studentName ?? "",
           program_name:
             (enrollment?.programs as { name: string } | null)?.name ?? "",
           amount: row.amount,
@@ -258,7 +262,7 @@ export async function getActiveEnrollmentsForBillingAction(): Promise<
 
     const { data, error } = await adminClient
       .from("enrollments")
-      .select("id, student_id, price, students(name), programs(name, price, billing_type)")
+      .select("id, student_id, price, students(user_profiles(name)), programs(name, price, billing_type)")
       .eq("tenant_id", tenantId)
       .eq("status", "active")
       .order("created_at", { ascending: false });
@@ -268,7 +272,11 @@ export async function getActiveEnrollmentsForBillingAction(): Promise<
     }
 
     const result = (data ?? []).map((row) => {
-      const student = row.students as { name: string } | null;
+      const studentRaw = row.students as unknown;
+      const sObj = Array.isArray(studentRaw) ? studentRaw[0] : studentRaw;
+      const sUp = (sObj as Record<string, unknown> | null)?.user_profiles;
+      const sUpObj = Array.isArray(sUp) ? sUp[0] : sUp;
+      const studentName = (sUpObj as Record<string, unknown> | null)?.name as string | null;
       const program = row.programs as {
         name: string;
         price: number;
@@ -278,7 +286,7 @@ export async function getActiveEnrollmentsForBillingAction(): Promise<
       return {
         id: row.id,
         student_id: row.student_id,
-        student_name: student?.name ?? "",
+        student_name: studentName ?? "",
         program_name: program?.name ?? "",
         price: row.price ?? program?.price ?? 0,
         billing_type: program?.billing_type ?? "recurring",

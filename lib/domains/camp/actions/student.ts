@@ -944,9 +944,9 @@ export const submitCampParticipation = withErrorHandling(
           "@/lib/services/campNotificationService"
         );
         const { data: student } = await supabase
-          .from("students")
+          .from("user_profiles")
           .select("name")
-          .eq("user_id", user.userId)
+          .eq("id", user.userId)
           .single();
 
         await sendCampAcceptanceNotificationToAdmins({

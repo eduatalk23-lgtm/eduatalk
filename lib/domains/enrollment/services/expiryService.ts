@@ -44,7 +44,7 @@ export async function processEnrollmentExpiry(): Promise<ExpiryResult> {
     const { data: enrollments } = await adminClient
       .from("enrollments")
       .select(
-        "id, student_id, tenant_id, end_date, expiry_notified_at, students(name), programs(name)"
+        "id, student_id, tenant_id, end_date, expiry_notified_at, students(user_profiles(name)), programs(name)"
       )
       .eq("status", "active")
       .eq("end_date", targetDateStr)
@@ -55,23 +55,26 @@ export async function processEnrollmentExpiry(): Promise<ExpiryResult> {
         (enrollment.expiry_notified_at as Record<string, string> | null) ?? {};
       if (notifiedAt[key]) continue; // 이미 알림 발송됨
 
-      const student = enrollment.students as { name: string } | null;
+      const studentRaw = enrollment.students as unknown;
+      const sObj = Array.isArray(studentRaw) ? studentRaw[0] : studentRaw;
+      const sUp = (sObj as Record<string, unknown> | null)?.user_profiles;
+      const sUpObj = Array.isArray(sUp) ? sUp[0] : sUp;
+      const studentName = (sUpObj as Record<string, unknown> | null)?.name as string | null;
       const program = enrollment.programs as { name: string } | null;
-      if (!student) continue;
+      if (!studentName) continue;
 
-      // 연락처 조회
-      const { data: profile } = await adminClient
-        .from("students")
-        .select("phone, mother_phone, father_phone")
-        .eq("id", enrollment.student_id)
-        .maybeSingle();
+      // 연락처 조회 — phone은 user_profiles, mother/father_phone은 students
+      const [{ data: userProfile }, { data: studentProfile }] = await Promise.all([
+        adminClient.from("user_profiles").select("phone").eq("id", enrollment.student_id).maybeSingle(),
+        adminClient.from("students").select("mother_phone, father_phone").eq("id", enrollment.student_id).maybeSingle(),
+      ]);
 
       const phone =
-        profile?.phone || profile?.mother_phone || profile?.father_phone;
+        userProfile?.phone || studentProfile?.mother_phone || studentProfile?.father_phone;
       if (!phone) continue;
 
       const message = getExpiryWarningMessage({
-        studentName: student.name,
+        studentName,
         programName: program?.name ?? "프로그램",
         daysUntilExpiry: days,
       });

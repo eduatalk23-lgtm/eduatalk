@@ -79,12 +79,19 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createSupabaseServerClient();
 
-    // 1. 학생 정보 조회
-    const { data: student } = await supabase
+    // 1. 학생 정보 조회 (name은 user_profiles에서)
+    const { data: studentRaw } = await supabase
       .from("students")
-      .select("id, name, grade, school_name")
+      .select("id, grade, school_name, user_profiles(name)")
       .eq("id", studentId)
       .single();
+
+    const student = studentRaw
+      ? {
+          ...studentRaw,
+          name: (studentRaw.user_profiles as unknown as { name: string | null } | null)?.name ?? "",
+        }
+      : null;
 
     // 2. 캘린더 정보 조회 (calendar_id 기준)
     const { data: calendar } = await supabase

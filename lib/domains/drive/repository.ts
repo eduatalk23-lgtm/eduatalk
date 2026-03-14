@@ -369,12 +369,13 @@ export async function getFileRequestsByTenant(
   // search가 있으면 학생 이름으로 먼저 student_id 목록을 구한 뒤 DB에서 필터
   let searchStudentIds: string[] | null = null;
   if (hasSearch) {
-    const { data: matchedStudents } = await supabase
-      .from("students")
+    const { data: matchedProfiles } = await supabase
+      .from("user_profiles")
       .select("id")
       .ilike("name", `%${options!.search!.replace(/[%_]/g, "\\$&")}%`);
 
-    searchStudentIds = (matchedStudents ?? []).map(
+    // user_profiles.id = students.id (same user ID)
+    searchStudentIds = (matchedProfiles ?? []).map(
       (s: { id: string }) => s.id
     );
     if (searchStudentIds.length === 0) return [];
@@ -405,13 +406,13 @@ export async function getFileRequestsByTenant(
   ];
   if (studentIds.length === 0) return [];
 
-  const { data: students } = await supabase
-    .from("students")
-    .select("id,name")
+  const { data: profiles } = await supabase
+    .from("user_profiles")
+    .select("id, name")
     .in("id", studentIds);
 
   const nameMap = new Map(
-    (students ?? []).map((s: { id: string; name: string | null }) => [
+    (profiles ?? []).map((s: { id: string; name: string | null }) => [
       s.id,
       s.name ?? "이름 없음",
     ])
@@ -599,13 +600,13 @@ export async function getDistributionTracking(
   }>;
 
   const studentIds = [...new Set(rows.map((d) => d.student_id))];
-  const { data: students } = await supabase
-    .from("students")
+  const { data: profiles } = await supabase
+    .from("user_profiles")
     .select("id, name")
     .in("id", studentIds);
 
   const nameMap = new Map(
-    (students ?? []).map((s) => [s.id, s.name ?? "이름 없음"])
+    (profiles ?? []).map((s) => [s.id, s.name ?? "이름 없음"])
   );
 
   return rows.map((d) => ({

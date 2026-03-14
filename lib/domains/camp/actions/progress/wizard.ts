@@ -911,9 +911,9 @@ export const continueCampStepsForAdmin = withErrorHandling(
             if (result.group.camp_template_id && result.group.student_id) {
               const [studentData, templateData] = await Promise.all([
                 supabase
-                  .from("students")
+                  .from("user_profiles")
                   .select("name")
-                  .eq("user_id", result.group.student_id)
+                  .eq("id", result.group.student_id)
                   .single(),
                 supabase
                   .from("camp_templates")
