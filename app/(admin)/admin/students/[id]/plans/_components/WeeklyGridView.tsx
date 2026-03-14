@@ -1144,8 +1144,8 @@ export const WeeklyGridView = memo(function WeeklyGridView({
               >
                 <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: previewColors.barHex }} />
                 <div className="pl-3 py-0.5 flex flex-col">
-                  <span className={cn('text-xs font-medium', previewColors.textIsWhite ? 'text-white' : 'text-gray-900')}>(제목 없음)</span>
-                  <span className={cn('text-[10px]', previewColors.textIsWhite ? 'text-white/70' : 'text-gray-600')}>
+                  <span className={cn('text-xs font-medium', previewColors.textIsWhite ? 'text-white' : 'text-gray-900 dark:text-gray-100')}>(제목 없음)</span>
+                  <span className={cn('text-[10px]', previewColors.textIsWhite ? 'text-white/70' : 'text-gray-600 dark:text-gray-400')}>
                     {minutesToTime(dragState.startMinutes)} – {minutesToTime(dragState.endMinutes)}
                   </span>
                 </div>
@@ -1184,7 +1184,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
               >
                 <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: previewColors.barHex }} />
                 <div className="pl-3 py-0.5">
-                  <span className={cn('text-xs font-medium', previewColors.textIsWhite ? 'text-white' : 'text-gray-900')}>(제목 없음)</span>
+                  <span className={cn('text-xs font-medium', previewColors.textIsWhite ? 'text-white' : 'text-gray-900 dark:text-gray-100')}>(제목 없음)</span>
                 </div>
               </div>
             );
@@ -1195,7 +1195,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
             const g = crossDayDrag.ghost;
             const ghostColors = resolveCalendarColors(g.plan.color, calendarColorMap.get(g.plan.calendarId ?? ''), g.plan.status, g.plan.isCompleted);
             const tier = g.height >= 45 ? 'long' : g.height >= 30 ? 'medium' : 'short';
-            const textColor = ghostColors.textIsWhite ? 'text-white' : 'text-gray-900';
+            const textColor = ghostColors.textIsWhite ? 'text-white' : 'text-gray-900 dark:text-gray-100';
             return (
               <div
                 className={cn(
@@ -1532,7 +1532,7 @@ function AllDayRow({
                 colIdx < weekDates.length - 1
                   ? 'border-r border-[rgb(var(--color-secondary-200))]'
                   : '',
-                calendarId && 'cursor-cell hover:bg-blue-50/30 transition-colors',
+                calendarId && 'cursor-cell hover:bg-blue-50/30 dark:hover:bg-blue-900/20 transition-colors',
               )}
               style={{
                 gridColumn: colIdx + 1,
@@ -1581,7 +1581,7 @@ function AllDayRow({
               className="flex items-center justify-center"
             >
               <button
-                className="text-[11px] text-[var(--text-tertiary)] hover:text-blue-600 font-medium transition-colors"
+                className="text-[11px] text-[var(--text-tertiary)] hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
                   setAllDayExpanded(true);
@@ -1609,7 +1609,7 @@ function AllDayRow({
                     className="flex items-center gap-1 px-1.5 py-0.5 text-xs rounded animate-in fade-in-0 duration-150 pointer-events-none h-[22px]"
                     style={{ backgroundColor: allDayPreviewColors.bgHex }}
                   >
-                    <span className={cn('font-medium truncate', allDayPreviewColors.textIsWhite ? 'text-white' : 'text-gray-900')}>
+                    <span className={cn('font-medium truncate', allDayPreviewColors.textIsWhite ? 'text-white' : 'text-gray-900 dark:text-gray-100')}>
                       (제목 없음) 종일
                     </span>
                   </div>

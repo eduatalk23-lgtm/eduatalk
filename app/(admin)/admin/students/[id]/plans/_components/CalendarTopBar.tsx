@@ -272,7 +272,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
                     className={cn(
                       'w-9 h-9 flex items-center justify-center rounded-full text-base font-medium',
                       dayInfo.isToday
-                        ? 'bg-blue-500 text-white'
+                        ? 'bg-blue-500 dark:bg-blue-600 text-white'
                         : 'text-[var(--text-primary)]',
                     )}
                   >
@@ -281,7 +281,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
                   <span
                     className={cn(
                       'text-sm font-normal',
-                      dayInfo.isToday ? 'text-blue-600' : 'text-[var(--text-tertiary)]',
+                      dayInfo.isToday ? 'text-blue-600 dark:text-blue-400' : 'text-[var(--text-tertiary)]',
                     )}
                   >
                     {dayInfo.dayName}
@@ -292,7 +292,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
           </h2>
 
           {totalCount !== undefined && totalCount > 0 && (
-            <span className="ml-3 text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full whitespace-nowrap">
+            <span className="ml-3 text-xs text-blue-600 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/40 px-2 py-0.5 rounded-full whitespace-nowrap">
               {completedCount ?? 0}/{totalCount}
             </span>
           )}
@@ -372,7 +372,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
                   <span className={cn(
                     'text-xs ml-4',
                     activeView === view.key
-                      ? 'text-blue-400'
+                      ? 'text-blue-400 dark:text-blue-300'
                       : 'text-[var(--text-tertiary)]'
                   )}>{view.shortcut}</span>
                 </button>
@@ -490,7 +490,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
               {isAdminMode && onOpenConditionalDelete && (
                 <button
                   onClick={() => { onOpenConditionalDelete(); setMoreMenuOpen(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-[rgb(var(--color-error-50))] transition-colors text-left"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-[rgb(var(--color-error-50))] transition-colors text-left"
                 >
                   <Trash2 className="w-4 h-4" />
                   조건부 삭제
@@ -730,12 +730,12 @@ export const CalendarTopBar = memo(function CalendarTopBar({
                 <span
                   className={cn(
                     'w-9 h-9 flex items-center justify-center rounded-full text-base font-medium',
-                    dayInfo.isToday ? 'bg-blue-500 text-white' : 'text-[var(--text-primary)]',
+                    dayInfo.isToday ? 'bg-blue-500 dark:bg-blue-600 text-white' : 'text-[var(--text-primary)]',
                   )}
                 >
                   {dayInfo.dateNum}
                 </span>
-                <span className={cn('text-sm font-normal', dayInfo.isToday ? 'text-blue-600' : 'text-[var(--text-tertiary)]')}>
+                <span className={cn('text-sm font-normal', dayInfo.isToday ? 'text-blue-600 dark:text-blue-400' : 'text-[var(--text-tertiary)]')}>
                   {dayInfo.dayName}
                 </span>
               </>

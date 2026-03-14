@@ -162,7 +162,7 @@ export const CalendarNavHeader = memo(function CalendarNavHeader({
                 <span className="flex-1 text-left">{view.label}</span>
                 <span className={cn(
                   'text-xs ml-4',
-                  activeView === view.key ? 'text-blue-400' : 'text-[rgb(var(--color-secondary-400))]'
+                  activeView === view.key ? 'text-blue-400 dark:text-blue-300' : 'text-[rgb(var(--color-secondary-400))]'
                 )}>{view.shortcut}</span>
               </button>
             ))}

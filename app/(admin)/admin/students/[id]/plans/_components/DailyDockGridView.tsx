@@ -993,8 +993,8 @@ export const DailyDockGridView = memo(function DailyDockGridView({
             style={{ width: TIME_GUTTER_WIDTH }}
           >
             <span className={cn('text-xs font-medium',
-              dayInfo.isToday ? 'text-blue-600'
-                : holidayName ? 'text-red-500'
+              dayInfo.isToday ? 'text-blue-600 dark:text-blue-400'
+                : holidayName ? 'text-red-500 dark:text-red-400'
                 : dayInfo.isPast ? 'text-[rgb(var(--color-secondary-300))]'
                 : 'text-[var(--text-tertiary)]')}>
               {dayInfo.dayName}
@@ -1002,15 +1002,15 @@ export const DailyDockGridView = memo(function DailyDockGridView({
             <span className={cn(
               'flex items-center justify-center rounded-full text-[26px] font-medium leading-none mt-0.5 transition-colors',
               'w-[44px] h-[44px]',
-              dayInfo.isToday ? 'bg-blue-600 text-white'
-                : holidayName ? 'text-red-500'
+              dayInfo.isToday ? 'bg-blue-600 dark:bg-blue-700 text-white'
+                : holidayName ? 'text-red-500 dark:text-red-400'
                 : dayInfo.isPast ? 'text-[rgb(var(--color-secondary-300))]'
                 : 'text-[var(--text-primary)]',
             )}>
               {dayInfo.dateNum}
             </span>
             {holidayName && (
-              <span className="text-[9px] text-red-400 leading-none mt-0.5 truncate max-w-full px-0.5">
+              <span className="text-[9px] text-red-400 dark:text-red-300 leading-none mt-0.5 truncate max-w-full px-0.5">
                 {holidayName}
               </span>
             )}
@@ -1033,7 +1033,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
           <div
             className={cn(
               'flex-1 py-0.5 space-y-px',
-              calendarId && 'cursor-cell hover:bg-blue-50/30 transition-colors',
+              calendarId && 'cursor-cell hover:bg-blue-50/30 dark:bg-blue-900/20 dark:hover:bg-blue-900/20 transition-colors',
             )}
             onMouseDown={() => { popoverOpenOnMouseDownRef.current = isPopoverOpen; }}
             onClick={handleAllDayClick}
@@ -1041,10 +1041,10 @@ export const DailyDockGridView = memo(function DailyDockGridView({
             {/* Split 모드 컬럼 헤더 */}
             {splitByCreator && (
               <div className="flex border-b border-[rgb(var(--color-secondary-200))] -mx-px mb-0.5">
-                <div className="flex-1 text-center text-[11px] font-semibold text-blue-600 py-0.5 border-r border-[rgb(var(--color-secondary-200))]">
+                <div className="flex-1 text-center text-[11px] font-semibold text-blue-600 dark:text-blue-400 py-0.5 border-r border-[rgb(var(--color-secondary-200))]">
                   선생님 계획
                 </div>
-                <div className="flex-1 text-center text-[11px] font-semibold text-emerald-600 py-0.5">
+                <div className="flex-1 text-center text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 py-0.5">
                   학생 자율
                 </div>
               </div>
@@ -1056,7 +1056,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
             ))}
             {allDayShowOverflow && (
               <button
-                className="text-[11px] text-[var(--text-tertiary)] hover:text-blue-600 font-medium px-1.5 transition-colors"
+                className="text-[11px] text-[var(--text-tertiary)] hover:text-blue-600 dark:hover:text-blue-400 font-medium px-1.5 transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
                   setAllDayExpanded(true);
@@ -1071,7 +1071,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
                   className="flex items-center gap-1 px-1.5 py-0.5 text-xs rounded animate-in fade-in-0 duration-150 pointer-events-none"
                   style={{ backgroundColor: previewColors.bgHex }}
                 >
-                  <span className={cn('font-medium truncate', previewColors.textIsWhite ? 'text-white' : 'text-gray-900')}>
+                  <span className={cn('font-medium truncate', previewColors.textIsWhite ? 'text-white' : 'text-gray-900 dark:text-gray-100')}>
                     (제목 없음) 종일
                   </span>
                 </div>
@@ -1126,30 +1126,30 @@ export const DailyDockGridView = memo(function DailyDockGridView({
               onTouchEnd={handleGridTouchEnd}
             >
               {dayInfo.isPast && <div className="absolute inset-0 bg-[rgb(var(--color-secondary-50))]/40 pointer-events-none" />}
-              {dayInfo.isToday && <div className="absolute inset-0 bg-blue-50/30 pointer-events-none" />}
+              {dayInfo.isToday && <div className="absolute inset-0 bg-blue-50/30 dark:bg-blue-900/20 pointer-events-none" />}
               <div className="absolute inset-0 pointer-events-none" style={createGridBackgroundStyle(rangeStartMin, ppm)} />
               {hoveredSlotTop != null && (
-                <div className="absolute left-0 right-0 bg-blue-100/40 pointer-events-none rounded-sm z-[1]" style={{ top: `${hoveredSlotTop}px`, height: `${SNAP_MINUTES * ppm}px` }} />
+                <div className="absolute left-0 right-0 bg-blue-100/40 dark:bg-blue-900/30 pointer-events-none rounded-sm z-[1]" style={{ top: `${hoveredSlotTop}px`, height: `${SNAP_MINUTES * ppm}px` }} />
               )}
               {dragState && dragPreviewStyle && (
                 <div className="absolute left-0 right-0 rounded-lg z-[45] pointer-events-none shadow-sm overflow-hidden" style={{ top: dragPreviewStyle.top, height: dragPreviewStyle.height, backgroundColor: previewColors.bgHex, border: '1px solid white' }}>
                   <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: previewColors.barHex }} />
                   <div className="pl-3 py-0.5 flex flex-col">
-                    <span className={cn('text-xs font-medium', previewColors.textIsWhite ? 'text-white' : 'text-gray-900')}>(제목 없음)</span>
-                    <span className={cn('text-[10px]', previewColors.textIsWhite ? 'text-white/70' : 'text-gray-600')}>{minutesToTime(dragState.startMinutes)} – {minutesToTime(dragState.endMinutes)}</span>
+                    <span className={cn('text-xs font-medium', previewColors.textIsWhite ? 'text-white' : 'text-gray-900 dark:text-gray-100')}>(제목 없음)</span>
+                    <span className={cn('text-[10px]', previewColors.textIsWhite ? 'text-white/70' : 'text-gray-600 dark:text-gray-400')}>{minutesToTime(dragState.startMinutes)} – {minutesToTime(dragState.endMinutes)}</span>
                   </div>
                 </div>
               )}
               {quickCreateState && !dragState && !quickCreateState.isAllDay && (
                 <div className="absolute left-0 right-0 rounded-lg z-[45] pointer-events-none shadow-sm overflow-hidden" style={{ top: `${minutesToPx(timeToMinutes(quickCreateState.slot.startTime), rangeStartMin, ppm)}px`, height: `${quickCreateState.slot.durationMinutes * ppm}px`, backgroundColor: previewColors.bgHex, border: '1px solid white' }}>
                   <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: previewColors.barHex }} />
-                  <div className="pl-3 py-0.5"><span className={cn('text-xs font-medium', previewColors.textIsWhite ? 'text-white' : 'text-gray-900')}>(제목 없음)</span></div>
+                  <div className="pl-3 py-0.5"><span className={cn('text-xs font-medium', previewColors.textIsWhite ? 'text-white' : 'text-gray-900 dark:text-gray-100')}>(제목 없음)</span></div>
                 </div>
               )}
               {renderEventBlocks(adminBlocks)}
               {nowTop != null && (
                 <div className="absolute left-0 right-0 z-20 pointer-events-none flex items-center" style={{ top: `${nowTop}px` }}>
-                  <div className="flex-1 border-t-2 border-red-500" />
+                  <div className="flex-1 border-t-2 border-red-500 dark:border-red-400" />
                 </div>
               )}
             </div>
@@ -1169,10 +1169,10 @@ export const DailyDockGridView = memo(function DailyDockGridView({
               onTouchEnd={handleGridTouchEnd}
             >
               {dayInfo.isPast && <div className="absolute inset-0 bg-[rgb(var(--color-secondary-50))]/40 pointer-events-none" />}
-              {dayInfo.isToday && <div className="absolute inset-0 bg-blue-50/30 pointer-events-none" />}
+              {dayInfo.isToday && <div className="absolute inset-0 bg-blue-50/30 dark:bg-blue-900/20 pointer-events-none" />}
               <div className="absolute inset-0 pointer-events-none" style={createGridBackgroundStyle(rangeStartMin, ppm)} />
               {hoveredSlotTop != null && (
-                <div className="absolute left-0 right-0 bg-blue-100/40 pointer-events-none rounded-sm z-[1]" style={{ top: `${hoveredSlotTop}px`, height: `${SNAP_MINUTES * ppm}px` }} />
+                <div className="absolute left-0 right-0 bg-blue-100/40 dark:bg-blue-900/30 pointer-events-none rounded-sm z-[1]" style={{ top: `${hoveredSlotTop}px`, height: `${SNAP_MINUTES * ppm}px` }} />
               )}
               {renderEventBlocks(studentBlocks)}
               {/* 학생 컬럼에 이벤트가 없을 때 안내 */}
@@ -1183,7 +1183,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
               )}
               {nowTop != null && (
                 <div className="absolute left-0 right-0 z-20 pointer-events-none flex items-center" style={{ top: `${nowTop}px` }}>
-                  <div className="flex-1 border-t-2 border-red-500" />
+                  <div className="flex-1 border-t-2 border-red-500 dark:border-red-400" />
                 </div>
               )}
             </div>
@@ -1208,7 +1208,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
 
           {/* 오늘 컬럼 하이라이트 (WeeklyGridColumn과 동일) */}
           {dayInfo.isToday && (
-            <div className="absolute inset-0 bg-blue-50/30 pointer-events-none" />
+            <div className="absolute inset-0 bg-blue-50/30 dark:bg-blue-900/20 pointer-events-none" />
           )}
 
           {/* 그리드라인 레이어 (오버레이 위, 이벤트 아래 — WeeklyGridColumn과 동일) */}
@@ -1217,7 +1217,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
           {/* 호버 하이라이트 */}
           {hoveredSlotTop != null && (
             <div
-              className="absolute left-0 right-0 bg-blue-100/40 pointer-events-none rounded-sm z-[1]"
+              className="absolute left-0 right-0 bg-blue-100/40 dark:bg-blue-900/30 pointer-events-none rounded-sm z-[1]"
               style={{ top: `${hoveredSlotTop}px`, height: `${SNAP_MINUTES * ppm}px` }}
             />
           )}
@@ -1235,8 +1235,8 @@ export const DailyDockGridView = memo(function DailyDockGridView({
             >
               <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: previewColors.barHex }} />
               <div className="pl-3 py-0.5 flex flex-col">
-                <span className={cn('text-xs font-medium', previewColors.textIsWhite ? 'text-white' : 'text-gray-900')}>(제목 없음)</span>
-                <span className={cn('text-[10px]', previewColors.textIsWhite ? 'text-white/70' : 'text-gray-600')}>
+                <span className={cn('text-xs font-medium', previewColors.textIsWhite ? 'text-white' : 'text-gray-900 dark:text-gray-100')}>(제목 없음)</span>
+                <span className={cn('text-[10px]', previewColors.textIsWhite ? 'text-white/70' : 'text-gray-600 dark:text-gray-400')}>
                   {minutesToTime(dragState.startMinutes)} – {minutesToTime(dragState.endMinutes)}
                 </span>
               </div>
@@ -1256,7 +1256,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
             >
               <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: previewColors.barHex }} />
               <div className="pl-3 py-0.5">
-                <span className={cn('text-xs font-medium', previewColors.textIsWhite ? 'text-white' : 'text-gray-900')}>(제목 없음)</span>
+                <span className={cn('text-xs font-medium', previewColors.textIsWhite ? 'text-white' : 'text-gray-900 dark:text-gray-100')}>(제목 없음)</span>
               </div>
             </div>
           )}
@@ -1271,7 +1271,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
               style={{ top: `${nowTop}px` }}
             >
               <div className="w-2.5 h-2.5 rounded-full bg-red-500 -ml-1.5 shrink-0" />
-              <div className="flex-1 border-t-2 border-red-500" />
+              <div className="flex-1 border-t-2 border-red-500 dark:border-red-400" />
             </div>
           )}
 
