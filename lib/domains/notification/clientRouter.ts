@@ -2,6 +2,7 @@
 
 import type { ClientNotificationPayload } from "./types";
 import { showBrowserNotification } from "./browserNotification";
+import { triggerIOSInstallNudge } from "@/lib/pwa/iosInstallNudge";
 
 type ToastFn = (message: string, type?: "info" | "success") => void;
 
@@ -81,6 +82,16 @@ class ClientNotificationRouter {
         url: notification.url,
       });
       return;
+    }
+
+    // iOS 비-standalone: 채팅/리마인더 알림 수신 시 앱 설치 유도
+    if (
+      notification.type === "chat_message" ||
+      notification.type === "chat_group_message"
+    ) {
+      triggerIOSInstallNudge("chat");
+    } else if (notification.type === "event_reminder") {
+      triggerIOSInstallNudge("reminder");
     }
 
     // 포그라운드: 인앱 표시

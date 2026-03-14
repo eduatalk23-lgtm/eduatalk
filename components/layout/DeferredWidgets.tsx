@@ -64,6 +64,14 @@ const AppBadgeManager = dynamic(
   { ssr: false }
 );
 
+const IOSInstallNudge = dynamic(
+  () =>
+    import("@/components/pwa/IOSInstallNudge").then(
+      (m) => m.IOSInstallNudge
+    ),
+  { ssr: false }
+);
+
 export function DeferredWidgets() {
   return (
     <>
@@ -74,6 +82,7 @@ export function DeferredWidgets() {
       <AppPresenceProvider />
       <AppBadgeManager />
       <FloatingChatWidget />
+      <IOSInstallNudge />
     </>
   );
 }
