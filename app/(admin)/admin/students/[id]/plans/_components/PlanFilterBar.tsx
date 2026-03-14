@@ -46,7 +46,7 @@ export function PlanFilterBar({
   };
 
   return (
-    <div className={cn('bg-white rounded-lg border p-4', className)}>
+    <div className={cn('bg-white dark:bg-[rgb(var(--color-secondary-50))] rounded-lg border p-4', className)}>
       {/* 기본 검색 바 */}
       <div className="flex items-center gap-3">
         {/* 검색 입력 */}
@@ -58,15 +58,15 @@ export function PlanFilterBar({
               onFiltersChange({ ...filters, search: e.target.value })
             }
             placeholder="플랜 제목 검색..."
-            className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
           />
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">
             🔍
           </span>
           {filters.search && (
             <button
               onClick={() => onFiltersChange({ ...filters, search: '' })}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400"
             >
               ✕
             </button>
@@ -93,7 +93,7 @@ export function PlanFilterBar({
                 'px-3 py-1 text-sm rounded transition-colors',
                 filters.status === option.value
                   ? 'bg-blue-500 text-white'
-                  : 'text-gray-600 hover:bg-gray-100'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800'
               )}
             >
               {option.label}
@@ -106,7 +106,7 @@ export function PlanFilterBar({
           onClick={() => setIsExpanded(!isExpanded)}
           className={cn(
             'px-3 py-2 text-sm border rounded-lg transition-colors',
-            isExpanded ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'
+            isExpanded ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300' : 'hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800'
           )}
         >
           {isExpanded ? '접기' : '더보기'}
@@ -119,7 +119,7 @@ export function PlanFilterBar({
         {hasActiveFilters && (
           <button
             onClick={handleReset}
-            className="px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg"
+            className="px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 rounded-lg"
           >
             초기화
           </button>
@@ -131,7 +131,7 @@ export function PlanFilterBar({
         <div className="mt-4 pt-4 border-t grid grid-cols-3 gap-4">
           {/* 과목 필터 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               과목
             </label>
             <select
@@ -152,7 +152,7 @@ export function PlanFilterBar({
 
           {/* 기간 필터 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               기간
             </label>
             <select
@@ -174,7 +174,7 @@ export function PlanFilterBar({
 
           {/* 컨테이너 필터 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               위치
             </label>
             <select

@@ -284,20 +284,20 @@ export function MarkdownExportModal({
       onClick={handleClose}
     >
       <div
-        className="relative w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-xl bg-white shadow-2xl flex flex-col"
+        className="relative w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-xl bg-white dark:bg-[rgb(var(--color-secondary-50))] shadow-2xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더 */}
         <div className="flex items-center justify-between border-b px-6 py-4">
           <div className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-gray-600" />
-            <h2 className="text-lg font-semibold text-gray-900">
+            <FileText className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               마크다운 내보내기
             </h2>
           </div>
           <button
             onClick={handleClose}
-            className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 transition"
+            className="rounded-lg p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 transition"
           >
             <X className="h-5 w-5" />
           </button>
@@ -309,7 +309,7 @@ export function MarkdownExportModal({
             <div className="space-y-6">
               {/* 내보내기 범위 */}
               <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-3">
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                   내보내기 범위
                 </h3>
                 <div className="space-y-2">
@@ -319,8 +319,8 @@ export function MarkdownExportModal({
                       className={cn(
                         "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition",
                         exportRange === option.value
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-200 hover:border-gray-300"
+                          ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                          : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:border-gray-600"
                       )}
                     >
                       <input
@@ -333,7 +333,7 @@ export function MarkdownExportModal({
                       />
                       <div className="flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-gray-900">
+                          <span className="font-medium text-gray-900 dark:text-gray-100">
                             {option.label}
                           </span>
                           {/* 플랜 그룹 선택 드롭다운 */}
@@ -343,7 +343,7 @@ export function MarkdownExportModal({
                                 value={selectedPlanGroupId || ""}
                                 onChange={(e) => setSelectedPlanGroupId(e.target.value || null)}
                                 onClick={(e) => e.stopPropagation()}
-                                className="appearance-none pl-3 pr-8 py-1 text-sm rounded-md border bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-[180px] truncate"
+                                className="appearance-none pl-3 pr-8 py-1 text-sm rounded-md border bg-white dark:bg-[rgb(var(--color-secondary-50))] focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 max-w-[180px] truncate"
                               >
                                 <option value="">전체</option>
                                 {allPlanGroups.map((group) => (
@@ -352,7 +352,7 @@ export function MarkdownExportModal({
                                   </option>
                                 ))}
                               </select>
-                              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500 pointer-events-none" />
                             </div>
                           )}
                           {/* 주차 선택 드롭다운 */}
@@ -365,7 +365,7 @@ export function MarkdownExportModal({
                                 disabled={isLoadingWeeks || availableWeeks.length === 0}
                                 className={cn(
                                   "appearance-none pl-3 pr-8 py-1 text-sm rounded-md border",
-                                  "bg-white focus:outline-none focus:ring-2 focus:ring-blue-500",
+                                  "bg-white dark:bg-[rgb(var(--color-secondary-50))] focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400",
                                   isLoadingWeeks ? "opacity-50" : ""
                                 )}
                               >
@@ -381,11 +381,11 @@ export function MarkdownExportModal({
                                   ))
                                 )}
                               </select>
-                              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500 pointer-events-none" />
                             </div>
                           )}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
                           {option.description}
                         </div>
                       </div>
@@ -396,7 +396,7 @@ export function MarkdownExportModal({
 
               {/* 내보내기 형식 */}
               <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-3">
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                   내보내기 형식
                 </h3>
                 <div className="flex gap-3">
@@ -404,8 +404,8 @@ export function MarkdownExportModal({
                     className={cn(
                       "flex items-center gap-2 flex-1 p-3 rounded-lg border cursor-pointer transition",
                       exportFormat === "table"
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200 hover:border-gray-300"
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                        : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:border-gray-600"
                     )}
                   >
                     <input
@@ -416,16 +416,16 @@ export function MarkdownExportModal({
                       onChange={() => setExportFormat("table")}
                     />
                     <div>
-                      <span className="font-medium text-gray-900">표 형식</span>
-                      <p className="text-xs text-gray-500">날짜별 목록 테이블</p>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">표 형식</span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">날짜별 목록 테이블</p>
                     </div>
                   </label>
                   <label
                     className={cn(
                       "flex items-center gap-2 flex-1 p-3 rounded-lg border cursor-pointer transition",
                       exportFormat === "timetable"
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200 hover:border-gray-300"
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                        : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:border-gray-600"
                     )}
                   >
                     <input
@@ -436,8 +436,8 @@ export function MarkdownExportModal({
                       onChange={() => setExportFormat("timetable")}
                     />
                     <div>
-                      <span className="font-medium text-gray-900">시간표 형식</span>
-                      <p className="text-xs text-gray-500">시간 x 요일 그리드</p>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">시간표 형식</span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">시간 x 요일 그리드</p>
                     </div>
                   </label>
                 </div>
@@ -445,14 +445,14 @@ export function MarkdownExportModal({
 
               {/* 포함 정보 */}
               <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-3">
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                   포함 정보 (선택)
                 </h3>
                 <div className="space-y-2">
                   {includeOptions.map((option) => (
                     <label
                       key={option.key}
-                      className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-gray-300 cursor-pointer transition"
+                      className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:border-gray-600 cursor-pointer transition"
                     >
                       <input
                         type="checkbox"
@@ -460,7 +460,7 @@ export function MarkdownExportModal({
                         onChange={() => handleOptionChange(option.key)}
                         className="rounded"
                       />
-                      <span className="text-gray-700">{option.label}</span>
+                      <span className="text-gray-700 dark:text-gray-300">{option.label}</span>
                     </label>
                   ))}
                 </div>
@@ -468,7 +468,7 @@ export function MarkdownExportModal({
 
               {/* 에러 메시지 */}
               {error && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600 dark:text-red-400">
                   {error}
                 </div>
               )}
@@ -477,16 +477,16 @@ export function MarkdownExportModal({
             /* 마크다운 미리보기 */
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-gray-700">미리보기</h3>
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">미리보기</h3>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleCopy}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-gray-300 hover:bg-gray-50 transition"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 transition"
                   >
                     {copied ? (
                       <>
                         <Check className="h-4 w-4 text-green-500" />
-                        <span className="text-green-600">복사됨</span>
+                        <span className="text-green-600 dark:text-green-400">복사됨</span>
                       </>
                     ) : (
                       <>
@@ -497,14 +497,14 @@ export function MarkdownExportModal({
                   </button>
                   <button
                     onClick={handleDownload}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-gray-300 hover:bg-gray-50 transition"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 transition"
                   >
                     <Download className="h-4 w-4" />
                     <span>다운로드</span>
                   </button>
                 </div>
               </div>
-              <pre className="p-4 bg-gray-50 border rounded-lg text-sm overflow-x-auto whitespace-pre-wrap font-mono max-h-[400px] overflow-y-auto">
+              <pre className="p-4 bg-gray-50 dark:bg-gray-800 border rounded-lg text-sm overflow-x-auto whitespace-pre-wrap font-mono max-h-[400px] overflow-y-auto">
                 {markdown}
               </pre>
             </div>
@@ -516,7 +516,7 @@ export function MarkdownExportModal({
           {markdown ? (
             <button
               onClick={() => setMarkdown(null)}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition"
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 rounded-lg transition"
             >
               다시 설정
             </button>
@@ -524,7 +524,7 @@ export function MarkdownExportModal({
             <>
               <button
                 onClick={handleClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition"
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 rounded-lg transition"
               >
                 취소
               </button>
@@ -534,7 +534,7 @@ export function MarkdownExportModal({
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition",
                   isLoading || !selectedCalendarId
-                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    ? "bg-gray-300 text-gray-500 dark:text-gray-400 cursor-not-allowed"
                     : "bg-blue-600 text-white hover:bg-blue-700"
                 )}
               >

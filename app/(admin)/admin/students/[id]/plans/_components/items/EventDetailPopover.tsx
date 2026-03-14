@@ -202,7 +202,7 @@ export const EventDetailPopover = memo(function EventDetailPopover({
                 onClose();
               }
             }}
-            className="p-1.5 rounded-md hover:bg-[rgb(var(--color-secondary-100))] text-[var(--text-tertiary)] hover:text-red-500 transition-colors"
+            className="p-1.5 rounded-md hover:bg-[rgb(var(--color-secondary-100))] text-[var(--text-tertiary)] hover:text-red-500 dark:text-red-400 transition-colors"
             aria-label="삭제"
           >
             <Trash2 className="w-4 h-4" />
@@ -239,8 +239,8 @@ export const EventDetailPopover = memo(function EventDetailPopover({
           <span className={cn(
             'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium w-fit',
             plan.creatorRole === 'admin'
-              ? 'bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400'
-              : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400'
+              ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 dark:bg-blue-950 dark:text-blue-400'
+              : 'bg-emerald-50 text-emerald-600 dark:text-emerald-400 dark:bg-emerald-950 dark:text-emerald-400'
           )}>
             {plan.creatorRole === 'admin' ? '선생님 등록' : '학생 등록'}
           </span>
@@ -349,10 +349,10 @@ export const EventDetailPopover = memo(function EventDetailPopover({
         {isConsultation && plan.consultationData && (() => {
           const cd = plan.consultationData;
           const statusConfig: Record<string, { label: string; color: string }> = {
-            scheduled: { label: '예정', color: 'bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400' },
-            completed: { label: '완료', color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400' },
+            scheduled: { label: '예정', color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 dark:bg-blue-950 dark:text-blue-400' },
+            completed: { label: '완료', color: 'bg-emerald-50 text-emerald-600 dark:text-emerald-400 dark:bg-emerald-950 dark:text-emerald-400' },
             cancelled: { label: '취소', color: 'bg-[rgb(var(--color-secondary-100))] text-[var(--text-tertiary)]' },
-            no_show: { label: '미참석', color: 'bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400' },
+            no_show: { label: '미참석', color: 'bg-red-50 text-red-600 dark:text-red-400 dark:bg-red-950 dark:text-red-400' },
           };
           const st = statusConfig[cd.scheduleStatus] ?? statusConfig.scheduled;
           return (
@@ -383,7 +383,7 @@ export const EventDetailPopover = memo(function EventDetailPopover({
                     href={cd.meetingLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline truncate"
+                    className="text-blue-600 dark:text-blue-400 hover:underline truncate"
                   >
                     화상 회의 참여
                   </a>
@@ -408,7 +408,7 @@ export const EventDetailPopover = memo(function EventDetailPopover({
               onDisable(plan.id);
               onClose();
             }}
-            className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)] hover:text-red-500 transition-colors py-1"
+            className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)] hover:text-red-500 dark:text-red-400 transition-colors py-1"
           >
             <EyeOff className="w-3.5 h-3.5" />
             <span>이 시간대 비활성화</span>
@@ -485,7 +485,7 @@ export const EventDetailPopover = memo(function EventDetailPopover({
                     onClose();
                   }
                 }}
-                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-950 border border-red-200 dark:border-red-800 transition-colors"
+                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 border border-red-200 dark:border-red-800 transition-colors"
               >
                 <X className="w-4 h-4" />
                 상담 취소

@@ -325,10 +325,10 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
               <FolderOpen className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900">
-                캘린더 선택 <span className="text-red-500">*</span>
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                캘린더 선택 <span className="text-red-500 dark:text-red-400">*</span>
               </h3>
-              <p className="text-xs text-gray-500">시간 설정, 제외일, 학원일정이 자동 상속됩니다</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">시간 설정, 제외일, 학원일정이 자동 상속됩니다</p>
             </div>
           </div>
           {selectedCalendar ? (
@@ -352,8 +352,8 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
             className={cn(
               "flex w-full items-center justify-between rounded-lg border-2 px-4 py-3 text-sm font-medium transition",
               selectedCalendar
-                ? "border-blue-500 bg-white text-blue-700 shadow-sm"
-                : "border-red-300 bg-white text-red-600 hover:border-red-400"
+                ? "border-blue-500 bg-white dark:bg-[rgb(var(--color-secondary-50))] text-blue-700 shadow-sm"
+                : "border-red-300 bg-white dark:bg-[rgb(var(--color-secondary-50))] text-red-600 dark:text-red-400 hover:border-red-400"
             )}
           >
             <span>
@@ -372,11 +372,11 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
           </button>
 
           {showCalendarDropdown && (
-            <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+            <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] shadow-lg">
               {/* 플래너 필수 안내 - 선택 안 함 옵션 제거됨 (Phase 2) */}
               {calendars.length === 0 && !isLoadingCalendars ? (
-                <div className="px-3 py-4 text-center text-sm text-gray-500">
-                  <p className="font-medium text-red-600">활성 캘린더가 없습니다.</p>
+                <div className="px-3 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <p className="font-medium text-red-600 dark:text-red-400">활성 캘린더가 없습니다.</p>
                   <p className="mt-1 text-xs">플랜 그룹을 생성하려면 먼저 캘린더를 생성해주세요.</p>
                 </div>
               ) : (
@@ -386,12 +386,12 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
                     type="button"
                     onClick={() => handleCalendarSelect(cal.id)}
                     className={cn(
-                      "flex w-full flex-col items-start px-3 py-2.5 text-left text-sm hover:bg-gray-50",
-                      calendarId === cal.id && "bg-blue-50 text-blue-700"
+                      "flex w-full flex-col items-start px-3 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800",
+                      calendarId === cal.id && "bg-blue-50 dark:bg-blue-900/20 text-blue-700"
                     )}
                   >
                     <span className="font-medium">{cal.name}</span>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
                       {cal.periodStart ? formatDateDisplay(cal.periodStart) : "미설정"} ~ {cal.periodEnd ? formatDateDisplay(cal.periodEnd) : "미설정"}
                       {cal.planGroupCount !== undefined && cal.planGroupCount > 0 && (
                         <> · 플랜그룹 {cal.planGroupCount}개</>
@@ -406,24 +406,24 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
 
         {/* 상속 미리보기 */}
         {selectedCalendar && (
-          <div className="mt-4 rounded-lg border border-blue-100 bg-white p-3">
-            <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-gray-700">
-              <Lock className="h-3.5 w-3.5 text-blue-500" />
+          <div className="mt-4 rounded-lg border border-blue-100 bg-white dark:bg-[rgb(var(--color-secondary-50))] p-3">
+            <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300">
+              <Lock className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" />
               상속될 설정
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs">
               {/* 시간 설정 */}
-              <div className="flex items-center gap-2 rounded-md bg-gray-50 px-2.5 py-1.5">
-                <Clock className="h-3.5 w-3.5 text-gray-500" />
-                <span className="text-gray-600">
+              <div className="flex items-center gap-2 rounded-md bg-gray-50 dark:bg-gray-800 px-2.5 py-1.5">
+                <Clock className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
+                <span className="text-gray-600 dark:text-gray-400">
                   시간 설정: {selectedCalendar.studyHours ? "설정됨" : "없음"}
                 </span>
               </div>
 
               {/* 비학습 시간 블록 */}
-              <div className="flex items-center gap-2 rounded-md bg-gray-50 px-2.5 py-1.5">
-                <Calendar className="h-3.5 w-3.5 text-gray-500" />
-                <span className="text-gray-600">
+              <div className="flex items-center gap-2 rounded-md bg-gray-50 dark:bg-gray-800 px-2.5 py-1.5">
+                <Calendar className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
+                <span className="text-gray-600 dark:text-gray-400">
                   비학습 블록: {selectedCalendar.nonStudyTimeBlocks?.length ?? 0}개
                 </span>
               </div>
@@ -448,7 +448,7 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
             </div>
 
             {/* 기간 정보 */}
-            <div className="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-500">
+            <div className="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-500 dark:text-gray-400">
               기간: {selectedCalendar.periodStart ? formatDateDisplay(selectedCalendar.periodStart) : "미설정"} ~ {selectedCalendar.periodEnd ? formatDateDisplay(selectedCalendar.periodEnd) : "미설정"}
             </div>
           </div>
@@ -457,9 +457,9 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
 
       {/* 기간 설정 */}
       <div className="space-y-3">
-        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+        <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
           <Calendar className="h-4 w-4" />
-          학습 기간 <span className="text-red-500">*</span>
+          학습 기간 <span className="text-red-500 dark:text-red-400">*</span>
         </label>
         <div className="flex items-center gap-3">
           <input
@@ -472,11 +472,11 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
               fieldErrors.get("periodStart")
                 ? "border-red-300 focus:border-red-500 focus:ring-red-200"
                 : isValidPeriod
-                  ? "border-gray-300 focus:border-blue-500 focus:ring-blue-200"
+                  ? "border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:ring-blue-200"
                   : "border-red-300 focus:border-red-500 focus:ring-red-200"
             )}
           />
-          <span className="text-gray-500">~</span>
+          <span className="text-gray-500 dark:text-gray-400">~</span>
           <input
             type="date"
             value={periodEnd}
@@ -488,7 +488,7 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
               fieldErrors.get("periodEnd")
                 ? "border-red-300 focus:border-red-500 focus:ring-red-200"
                 : isValidPeriod
-                  ? "border-gray-300 focus:border-blue-500 focus:ring-blue-200"
+                  ? "border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:ring-blue-200"
                   : "border-red-300 focus:border-red-500 focus:ring-red-200"
             )}
           />
@@ -497,7 +497,7 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
           <p
             className={cn(
               "text-sm",
-              isValidPeriod ? "text-gray-500" : "text-red-500"
+              isValidPeriod ? "text-gray-500 dark:text-gray-400" : "text-red-500 dark:text-red-400"
             )}
           >
             {daysDiff}일간의 학습 계획
@@ -505,23 +505,23 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
           </p>
         )}
         {daysDiff <= 0 && periodStart && periodEnd && (
-          <p className="text-sm text-red-500">
+          <p className="text-sm text-red-500 dark:text-red-400">
             종료일은 시작일보다 이후여야 합니다.
           </p>
         )}
         {fieldErrors.get("periodStart") && (
-          <p className="text-sm text-red-500" data-testid="error-periodStart">{fieldErrors.get("periodStart")}</p>
+          <p className="text-sm text-red-500 dark:text-red-400" data-testid="error-periodStart">{fieldErrors.get("periodStart")}</p>
         )}
         {fieldErrors.get("periodEnd") && (
-          <p className="text-sm text-red-500" data-testid="error-periodEnd">{fieldErrors.get("periodEnd")}</p>
+          <p className="text-sm text-red-500 dark:text-red-400" data-testid="error-periodEnd">{fieldErrors.get("periodEnd")}</p>
         )}
       </div>
 
       {/* 플랜 이름 */}
       <div className="space-y-3">
-        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+        <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
           <FileText className="h-4 w-4" />
-          플랜 이름 <span className="text-xs text-gray-400">(선택)</span>
+          플랜 이름 <span className="text-xs text-gray-400 dark:text-gray-500">(선택)</span>
         </label>
         <input
           type="text"
@@ -529,16 +529,16 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
           onChange={handleNameChange}
           placeholder="예: 겨울방학 학습 계획"
           data-testid="plan-name-input"
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm placeholder:text-gray-400 dark:text-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
           maxLength={100}
         />
       </div>
 
       {/* 학습 목적 */}
       <div className="space-y-3">
-        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+        <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
           <Target className="h-4 w-4" />
-          학습 목적 <span className="text-xs text-gray-400">(선택)</span>
+          학습 목적 <span className="text-xs text-gray-400 dark:text-gray-500">(선택)</span>
         </label>
         <div className="grid grid-cols-5 gap-2">
           {PURPOSE_OPTIONS.map((option) => (
@@ -550,8 +550,8 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
               className={cn(
                 "rounded-lg border px-3 py-2.5 text-sm font-medium transition",
                 planPurpose === option.value
-                  ? "border-blue-500 bg-blue-50 text-blue-700"
-                  : "border-gray-300 bg-white text-gray-600 hover:border-gray-400"
+                  ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700"
+                  : "border-gray-300 dark:border-gray-600 bg-white dark:bg-[rgb(var(--color-secondary-50))] text-gray-600 dark:text-gray-400 hover:border-gray-400"
               )}
             >
               {option.label}
@@ -562,9 +562,9 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
 
       {/* 블록셋 선택 (신규) */}
       <div className="space-y-3">
-        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+        <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
           <Clock className="h-4 w-4" />
-          학습 시간표 (블록셋) <span className="text-xs text-gray-400">(선택)</span>
+          학습 시간표 (블록셋) <span className="text-xs text-gray-400 dark:text-gray-500">(선택)</span>
         </label>
         <div className="relative">
           <button
@@ -575,8 +575,8 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
             className={cn(
               "flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-sm transition",
               selectedBlockSet
-                ? "border-blue-500 bg-blue-50 text-blue-700"
-                : "border-gray-300 bg-white text-gray-600 hover:border-gray-400"
+                ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700"
+                : "border-gray-300 dark:border-gray-600 bg-white dark:bg-[rgb(var(--color-secondary-50))] text-gray-600 dark:text-gray-400 hover:border-gray-400"
             )}
           >
             <span>
@@ -595,25 +595,25 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
           </button>
 
           {showBlockSetDropdown && (
-            <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+            <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] shadow-lg">
               {/* 선택 안 함 옵션 */}
               <button
                 type="button"
                 onClick={() => handleBlockSetSelect(undefined)}
                 className={cn(
-                  "flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-gray-50",
-                  !blockSetId && "bg-blue-50 text-blue-700"
+                  "flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800",
+                  !blockSetId && "bg-blue-50 dark:bg-blue-900/20 text-blue-700"
                 )}
               >
                 선택 안 함
               </button>
 
               {blockSets.length === 0 && !isLoadingBlockSets ? (
-                <div className="px-3 py-4 text-center text-sm text-gray-500">
+                <div className="px-3 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                   <p>등록된 시간표가 없습니다.</p>
                   <button
                     type="button"
-                    className="mt-2 inline-flex items-center gap-1 text-blue-600 hover:underline"
+                    className="mt-2 inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline"
                     onClick={() => {
                       setShowBlockSetDropdown(false);
                       setShowBlockSetCreateModal(true);
@@ -630,13 +630,13 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
                     type="button"
                     onClick={() => handleBlockSetSelect(bs.id)}
                     className={cn(
-                      "flex w-full flex-col items-start px-3 py-2.5 text-left text-sm hover:bg-gray-50",
-                      blockSetId === bs.id && "bg-blue-50 text-blue-700"
+                      "flex w-full flex-col items-start px-3 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800",
+                      blockSetId === bs.id && "bg-blue-50 dark:bg-blue-900/20 text-blue-700"
                     )}
                   >
                     <span className="font-medium">{bs.name}</span>
                     {bs.blocks && bs.blocks.length > 0 && (
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
                         {bs.blocks.length}개 블록
                       </span>
                     )}
@@ -648,20 +648,20 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
         </div>
 
         {selectedBlockSet && selectedBlockSet.blocks && selectedBlockSet.blocks.length > 0 && (
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-            <p className="mb-2 text-xs font-medium text-gray-600">블록 미리보기</p>
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-3">
+            <p className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">블록 미리보기</p>
             <div className="flex flex-wrap gap-1">
               {selectedBlockSet.blocks.slice(0, 5).map((block) => (
                 <span
                   key={block.id}
-                  className="inline-flex items-center rounded bg-white px-2 py-1 text-xs text-gray-700 shadow-sm"
+                  className="inline-flex items-center rounded bg-white dark:bg-[rgb(var(--color-secondary-50))] px-2 py-1 text-xs text-gray-700 dark:text-gray-300 shadow-sm"
                 >
                   {["일", "월", "화", "수", "목", "금", "토"][block.day_of_week]}요일{" "}
                   {block.start_time.slice(0, 5)}-{block.end_time.slice(0, 5)}
                 </span>
               ))}
               {selectedBlockSet.blocks.length > 5 && (
-                <span className="inline-flex items-center rounded bg-gray-100 px-2 py-1 text-xs text-gray-500">
+                <span className="inline-flex items-center rounded bg-gray-100 dark:bg-gray-800 px-2 py-1 text-xs text-gray-500 dark:text-gray-400">
                   +{selectedBlockSet.blocks.length - 5}개 더
                 </span>
               )}
@@ -672,7 +672,7 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
 
       {/* 에러 메시지 */}
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600" data-testid="error-general">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600 dark:text-red-400" data-testid="error-general">
           {error}
         </div>
       )}

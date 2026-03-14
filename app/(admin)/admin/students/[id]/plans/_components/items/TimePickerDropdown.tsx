@@ -113,7 +113,7 @@ export const TimePickerDropdown = memo(function TimePickerDropdown({
                 className={cn(
                   'w-full px-3 py-1.5 text-left text-sm flex items-center justify-between transition-colors',
                   isSelected
-                    ? 'bg-blue-50 text-blue-700 font-medium'
+                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 font-medium'
                     : 'text-[var(--text-primary)] hover:bg-[rgb(var(--color-secondary-100))]',
                   isDisabled && 'opacity-30 cursor-not-allowed',
                 )}

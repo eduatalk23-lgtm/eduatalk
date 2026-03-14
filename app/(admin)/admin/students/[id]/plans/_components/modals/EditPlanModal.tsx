@@ -128,10 +128,10 @@ export function EditPlanModal({
   const loadingContent = (
     <div className="p-4">
       <div className="animate-pulse space-y-4">
-        <div className="h-6 bg-gray-200 rounded w-1/2" />
-        <div className="h-10 bg-gray-200 rounded" />
-        <div className="h-10 bg-gray-200 rounded" />
-        <div className="h-10 bg-gray-200 rounded" />
+        <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+        <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded" />
+        <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded" />
+        <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded" />
       </div>
     </div>
   );
@@ -141,53 +141,53 @@ export function EditPlanModal({
     <form id="edit-plan-form" onSubmit={handleSubmit} className="p-4 space-y-4">
       {/* Custom Title */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           제목
         </label>
         <input
           type="text"
           value={customTitle}
           onChange={(e) => setCustomTitle(e.target.value)}
-          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
           placeholder="플랜 제목"
         />
       </div>
 
       {/* Plan Date */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           날짜
         </label>
         <input
           type="date"
           value={planDate}
           onChange={(e) => setPlanDate(e.target.value)}
-          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
         />
       </div>
 
       {/* Time Range */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             시작 시간
           </label>
           <input
             type="time"
             value={startTime}
             onChange={(e) => setStartTime(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             종료 시간
           </label>
           <input
             type="time"
             value={endTime}
             onChange={(e) => setEndTime(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
           />
         </div>
       </div>
@@ -195,27 +195,27 @@ export function EditPlanModal({
       {/* Page Range */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             시작 페이지
           </label>
           <input
             type="number"
             value={plannedStartPage}
             onChange={(e) => setPlannedStartPage(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
             min="0"
             placeholder="0"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             종료 페이지
           </label>
           <input
             type="number"
             value={plannedEndPage}
             onChange={(e) => setPlannedEndPage(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
             min="0"
             placeholder="0"
           />
@@ -224,14 +224,14 @@ export function EditPlanModal({
 
       {/* Estimated Minutes */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           예상 시간 (분)
         </label>
         <input
           type="number"
           value={estimatedMinutes}
           onChange={(e) => setEstimatedMinutes(e.target.value)}
-          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
           min="0"
           placeholder="30"
         />
@@ -239,13 +239,13 @@ export function EditPlanModal({
 
       {/* Status */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           상태
         </label>
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value as PlanStatus)}
-          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
         >
           {PLAN_STATUS_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -257,7 +257,7 @@ export function EditPlanModal({
 
       {/* Subject Type (학습 유형) */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           학습 유형
         </label>
         <div className="flex gap-2">
@@ -272,9 +272,9 @@ export function EditPlanModal({
                   ? option.color === 'orange'
                     ? 'border-orange-500 bg-orange-50 text-orange-700'
                     : option.color === 'blue'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-400 bg-gray-100 text-gray-700'
-                  : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700'
+                      : 'border-gray-400 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                  : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800'
               )}
             >
               {option.icon === 'zap' && <Zap className="h-4 w-4" />}

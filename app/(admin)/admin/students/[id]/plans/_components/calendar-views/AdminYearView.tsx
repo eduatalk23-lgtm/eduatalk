@@ -167,14 +167,14 @@ const YearMiniMonth = memo(function YearMiniMonth({
                 !isCurrentMonth && 'text-[var(--text-disabled)] opacity-40',
                 isCurrentMonth && 'hover:bg-[rgb(var(--color-secondary-100))]',
                 // 공휴일
-                isCurrentMonth && holiday && 'text-red-500',
+                isCurrentMonth && holiday && 'text-red-500 dark:text-red-400',
                 // 주말 색상 (공휴일 아닐 때)
-                isCurrentMonth && !holiday && dayOfWeek === 0 && 'text-red-500',
-                isCurrentMonth && !holiday && dayOfWeek === 6 && 'text-blue-500',
+                isCurrentMonth && !holiday && dayOfWeek === 0 && 'text-red-500 dark:text-red-400',
+                isCurrentMonth && !holiday && dayOfWeek === 6 && 'text-blue-500 dark:text-blue-400',
                 // 오늘
                 isTodayDate && !isSelected && 'bg-blue-500 text-white hover:bg-blue-600',
                 // 선택
-                isSelected && !isTodayDate && 'bg-blue-100 text-blue-700 font-semibold',
+                isSelected && !isTodayDate && 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 font-semibold',
                 isSelected && isTodayDate && 'bg-blue-600 text-white',
               )}
             >

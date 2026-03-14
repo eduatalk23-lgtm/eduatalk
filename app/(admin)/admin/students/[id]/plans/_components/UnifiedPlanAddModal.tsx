@@ -499,7 +499,7 @@ export function UnifiedPlanAddModal({
     >
       <div className="p-4 space-y-4">
         {/* 모드 탭 */}
-        <div className="flex border-b border-gray-200">
+        <div className="flex border-b border-gray-200 dark:border-gray-700">
           <TabButton
             active={mode === 'quick'}
             onClick={() => handleModeChange('quick')}
@@ -525,8 +525,8 @@ export function UnifiedPlanAddModal({
 
         {/* 공통: 제목 */}
         <div>
-          <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-            제목 <span className="text-red-500">*</span>
+          <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            제목 <span className="text-red-500 dark:text-red-400">*</span>
           </label>
           <input
             id="title"
@@ -534,7 +534,7 @@ export function UnifiedPlanAddModal({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder={mode === 'quick' ? '자유 학습 제목' : '콘텐츠 제목'}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500"
             autoFocus
           />
         </div>
@@ -584,7 +584,7 @@ export function UnifiedPlanAddModal({
 
         {/* 공통: 날짜 */}
         <div>
-          <label htmlFor="planDate" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="planDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             <Calendar className="inline-block h-4 w-4 mr-1" />
             날짜
           </label>
@@ -593,13 +593,13 @@ export function UnifiedPlanAddModal({
             type="date"
             value={planDate}
             onChange={(e) => setPlanDate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500"
           />
         </div>
 
         {/* 공통: 예상 시간 */}
         <div>
-          <label htmlFor="estimatedMinutes" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="estimatedMinutes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             <Clock className="inline-block h-4 w-4 mr-1" />
             예상 소요시간 (분)
           </label>
@@ -610,7 +610,7 @@ export function UnifiedPlanAddModal({
               min="1"
               value={estimatedMinutes}
               onChange={(e) => setEstimatedMinutes(e.target.value)}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500"
             />
             <div className="flex gap-1">
               {TIME_PRESETS.map((preset) => (
@@ -622,7 +622,7 @@ export function UnifiedPlanAddModal({
                     'px-3 py-2 text-sm rounded-lg border transition-colors',
                     estimatedMinutes === preset.toString()
                       ? 'bg-gray-900 text-white border-gray-900'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      : 'bg-white dark:bg-[rgb(var(--color-secondary-50))] text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800'
                   )}
                 >
                   {preset}
@@ -634,8 +634,8 @@ export function UnifiedPlanAddModal({
 
         {/* 공통: 메모 (선택) */}
         <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-            메모 <span className="text-gray-400">(선택)</span>
+          <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            메모 <span className="text-gray-400 dark:text-gray-500">(선택)</span>
           </label>
           <textarea
             id="description"
@@ -643,7 +643,7 @@ export function UnifiedPlanAddModal({
             onChange={(e) => setDescription(e.target.value)}
             placeholder="추가 메모..."
             rows={2}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 resize-none"
           />
         </div>
       </div>
@@ -683,13 +683,13 @@ function TabButton({ active, onClick, icon, label, shortcut }: TabButtonProps) {
       className={cn(
         'flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors',
         active
-          ? 'border-gray-900 text-gray-900'
-          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          ? 'border-gray-900 text-gray-900 dark:text-gray-100'
+          : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:border-gray-600'
       )}
     >
       {icon}
       {label}
-      <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-xs bg-gray-100 text-gray-500 rounded">
+      <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded">
         {shortcut}
       </kbd>
     </button>
@@ -708,7 +708,7 @@ interface QuickAddFieldsProps {
 function QuickAddFields({ freeLearningType, onFreeLearningTypeChange }: QuickAddFieldsProps) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">학습 유형</label>
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">학습 유형</label>
       <div className="grid grid-cols-4 gap-2">
         {FREE_LEARNING_TYPES.map((type) => (
           <button
@@ -719,7 +719,7 @@ function QuickAddFields({ freeLearningType, onFreeLearningTypeChange }: QuickAdd
               'px-3 py-2 text-sm rounded-lg border transition-colors',
               freeLearningType === type.value
                 ? 'bg-amber-100 text-amber-800 border-amber-300'
-                : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                : 'bg-white dark:bg-[rgb(var(--color-secondary-50))] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800'
             )}
           >
             {type.label}
@@ -812,7 +812,7 @@ function ContentAddFields({
     <>
       {/* 콘텐츠 유형 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">콘텐츠 유형</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">콘텐츠 유형</label>
         <div className="flex gap-2">
           {CONTENT_TYPES.map((type) => {
             const Icon = type.icon;
@@ -824,8 +824,8 @@ function ContentAddFields({
                 className={cn(
                   'flex items-center gap-2 px-4 py-2 text-sm rounded-lg border transition-colors',
                   contentType === type.value
-                    ? 'bg-blue-100 text-blue-800 border-blue-300'
-                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 border-blue-300'
+                    : 'bg-white dark:bg-[rgb(var(--color-secondary-50))] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800'
                 )}
               >
                 <Icon className="h-4 w-4" />
@@ -838,12 +838,12 @@ function ContentAddFields({
 
       {/* 과목 정보 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">과목 정보</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">과목 정보</label>
         <div className="grid grid-cols-3 gap-2">
           <select
             value={curriculum}
             onChange={(e) => onCurriculumChange(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500"
           >
             {CURRICULUM_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -854,7 +854,7 @@ function ContentAddFields({
           <select
             value={subjectArea}
             onChange={(e) => onSubjectAreaChange(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500"
           >
             {SUBJECT_AREA_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -867,30 +867,30 @@ function ContentAddFields({
             placeholder="과목명"
             value={subjectName}
             onChange={(e) => onSubjectNameChange(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500"
           />
         </div>
       </div>
 
       {/* 마스터 콘텐츠 연결 */}
       <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700">
-          마스터 콘텐츠 연결 <span className="text-gray-400 font-normal">(선택)</span>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          마스터 콘텐츠 연결 <span className="text-gray-400 dark:text-gray-500 font-normal">(선택)</span>
         </label>
 
         {selectedMasterContent ? (
-          <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 rounded-lg">
             <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
                 {selectedMasterContent.contentType === 'book' ? (
-                  <BookOpen className="h-4 w-4 text-blue-600" />
+                  <BookOpen className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 ) : (
-                  <Video className="h-4 w-4 text-blue-600" />
+                  <Video className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 )}
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-900">{selectedMasterContent.title}</p>
-                <p className="text-xs text-gray-500">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{selectedMasterContent.title}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   범위: {selectedMasterContent.startRange} - {selectedMasterContent.endRange}
                 </p>
               </div>
@@ -898,7 +898,7 @@ function ContentAddFields({
             <button
               type="button"
               onClick={onClearMasterContent}
-              className="p-1 text-gray-400 hover:text-red-500 rounded transition-colors"
+              className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:text-red-400 rounded transition-colors"
             >
               <X className="h-4 w-4" />
             </button>
@@ -907,17 +907,17 @@ function ContentAddFields({
           <button
             type="button"
             onClick={onOpenMasterSearch}
-            className="w-full flex items-center justify-center gap-2 p-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors"
+            className="w-full flex items-center justify-center gap-2 p-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:bg-blue-900/20 transition-colors"
           >
-            <Search className="h-4 w-4 text-gray-400" />
-            <span className="text-sm text-gray-600">마스터 콘텐츠에서 검색</span>
+            <Search className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+            <span className="text-sm text-gray-600 dark:text-gray-400">마스터 콘텐츠에서 검색</span>
           </button>
         )}
       </div>
 
       {/* 범위 지정 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">범위 지정</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">범위 지정</label>
         <div className="flex gap-1 mb-2">
           {RANGE_TYPES.map((type) => (
             <button
@@ -928,7 +928,7 @@ function ContentAddFields({
                 'px-3 py-1.5 text-sm rounded-lg border transition-colors',
                 rangeType === type.value
                   ? 'bg-gray-900 text-white border-gray-900'
-                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                  : 'bg-white dark:bg-[rgb(var(--color-secondary-50))] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800'
               )}
             >
               {type.label}
@@ -943,7 +943,7 @@ function ContentAddFields({
             value={customRange}
             onChange={(e) => onCustomRangeChange(e.target.value)}
             placeholder="예: 1단원 ~ 3단원, p.10-50"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500"
           />
         ) : (
           <div className="flex items-center gap-2">
@@ -953,43 +953,43 @@ function ContentAddFields({
               value={rangeStart}
               onChange={(e) => onRangeStartChange(e.target.value)}
               placeholder="시작"
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500"
             />
-            <span className="text-gray-500">~</span>
+            <span className="text-gray-500 dark:text-gray-400">~</span>
             <input
               type="number"
               min="1"
               value={rangeEnd}
               onChange={(e) => onRangeEndChange(e.target.value)}
               placeholder="끝"
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500"
             />
           </div>
         )}
 
         {/* 예상 볼륨 */}
         <div className="flex items-center gap-2 mt-3">
-          <span className="text-gray-500 text-sm">예상 분량:</span>
+          <span className="text-gray-500 dark:text-gray-400 text-sm">예상 분량:</span>
           <input
             type="number"
             placeholder="50"
             value={totalVolume}
             onChange={(e) => onTotalVolumeChange(e.target.value)}
-            className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500"
           />
-          <span className="text-gray-400 text-sm">(일일 학습량 계산용)</span>
+          <span className="text-gray-400 dark:text-gray-500 text-sm">(일일 학습량 계산용)</span>
         </div>
       </div>
 
       {/* 배치 방식 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">배치 방식</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">배치 방식</label>
         <div className="space-y-2">
           {/* 오늘만 추가 */}
           <label
             className={cn(
               'flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors',
-              distributionMode === 'today' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'
+              distributionMode === 'today' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800'
             )}
           >
             <input
@@ -1002,14 +1002,14 @@ function ContentAddFields({
               <div className="font-medium text-sm">오늘만 추가 (Daily Dock)</div>
               {distributionMode === 'today' && (
                 <label
-                  className="flex items-center gap-2 mt-2 text-sm text-gray-600"
+                  className="flex items-center gap-2 mt-2 text-sm text-gray-600 dark:text-gray-400"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <input
                     type="checkbox"
                     checked={useScheduler}
                     onChange={(e) => onUseSchedulerChange(e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="rounded border-gray-300 dark:border-gray-600 text-blue-600 dark:text-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
                   />
                   자동 시간 배정 (기존 플랜 고려)
                 </label>
@@ -1021,7 +1021,7 @@ function ContentAddFields({
           <label
             className={cn(
               'flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors',
-              distributionMode === 'period' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'
+              distributionMode === 'period' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800'
             )}
           >
             <input
@@ -1041,14 +1041,14 @@ function ContentAddFields({
                     type="date"
                     value={periodStart}
                     onChange={(e) => onPeriodStartChange(e.target.value)}
-                    className="px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500"
                   />
-                  <span className="text-gray-500">~</span>
+                  <span className="text-gray-500 dark:text-gray-400">~</span>
                   <input
                     type="date"
                     value={periodEnd}
                     onChange={(e) => onPeriodEndChange(e.target.value)}
-                    className="px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500"
                   />
                 </div>
               )}

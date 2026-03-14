@@ -141,7 +141,7 @@ export default function AddExclusionModal({
                   className={cn(
                     "flex flex-col items-start p-3 rounded-lg border-2 transition-colors",
                     exclusionType === type.value
-                      ? "border-blue-500 bg-blue-50"
+                      ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
                       : "border-[rgb(var(--color-secondary-200))] hover:border-[rgb(var(--color-secondary-300))]"
                   )}
                 >
@@ -171,7 +171,7 @@ export default function AddExclusionModal({
               rows={2}
               className={cn(
                 "w-full px-3 py-2 border rounded-md text-sm",
-                "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                "focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent",
                 "resize-none"
               )}
               disabled={isPending}

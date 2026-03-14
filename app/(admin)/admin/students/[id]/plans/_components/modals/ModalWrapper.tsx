@@ -49,11 +49,11 @@ const sizeClasses: Record<NonNullable<ModalWrapperProps['size']>, string> = {
 };
 
 const themeClasses: Record<ModalTheme, { iconBg: string; iconText: string }> = {
-  blue: { iconBg: 'bg-blue-100', iconText: 'text-blue-600' },
+  blue: { iconBg: 'bg-blue-100 dark:bg-blue-900/30', iconText: 'text-blue-600 dark:text-blue-400' },
   amber: { iconBg: 'bg-amber-100', iconText: 'text-amber-600' },
   purple: { iconBg: 'bg-purple-100', iconText: 'text-purple-600' },
-  green: { iconBg: 'bg-green-100', iconText: 'text-green-600' },
-  red: { iconBg: 'bg-red-100', iconText: 'text-red-600' },
+  green: { iconBg: 'bg-green-100', iconText: 'text-green-600 dark:text-green-400' },
+  red: { iconBg: 'bg-red-100', iconText: 'text-red-600 dark:text-red-400' },
 };
 
 export function ModalWrapper({
@@ -108,7 +108,7 @@ export function ModalWrapper({
     >
       <div
         className={cn(
-          'bg-white rounded-xl w-full shadow-xl flex flex-col max-h-[90vh]',
+          'bg-white dark:bg-[rgb(var(--color-secondary-50))] rounded-xl w-full shadow-xl flex flex-col max-h-[90vh]',
           sizeClasses[size],
           loading && 'opacity-70 pointer-events-none'
         )}
@@ -123,17 +123,17 @@ export function ModalWrapper({
               </div>
             )}
             <div>
-              <h2 className="text-lg font-bold text-gray-900">{title}</h2>
-              {subtitle && <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>}
+              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">{title}</h2>
+              {subtitle && <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{subtitle}</p>}
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 rounded-lg transition-colors"
             aria-label="닫기"
           >
-            <X className="h-5 w-5 text-gray-500" />
+            <X className="h-5 w-5 text-gray-500 dark:text-gray-400" />
           </button>
         </div>
 
@@ -142,7 +142,7 @@ export function ModalWrapper({
 
         {/* 푸터 */}
         {footer && (
-          <div className="p-4 border-t flex justify-end gap-2 flex-shrink-0 bg-gray-50">
+          <div className="p-4 border-t flex justify-end gap-2 flex-shrink-0 bg-gray-50 dark:bg-gray-800">
             {footer}
           </div>
         )}
@@ -185,7 +185,7 @@ export function ModalButton({
 
   const variantClasses = {
     primary: primaryButtonClasses[theme],
-    secondary: 'text-gray-700 hover:bg-gray-100 bg-white border border-gray-200',
+    secondary: 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 bg-white dark:bg-[rgb(var(--color-secondary-50))] border border-gray-200 dark:border-gray-700',
     danger: 'bg-red-600 hover:bg-red-700 text-white',
   };
 

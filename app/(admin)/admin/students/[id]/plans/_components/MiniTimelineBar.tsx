@@ -28,11 +28,11 @@ const slotColors: Record<string, string> = {
  * 시간대 유형별 텍스트 색상 (툴팁용)
  */
 const slotTextColors: Record<string, string> = {
-  학습시간: "text-blue-600",
+  학습시간: "text-blue-600 dark:text-blue-400",
   점심시간: "text-orange-500",
   학원일정: "text-purple-600",
   이동시간: "text-teal-500",
-  자율학습: "text-green-600",
+  자율학습: "text-green-600 dark:text-green-400",
 };
 
 /**
@@ -111,7 +111,7 @@ function TimelineTooltipContent({ timeSlots }: { timeSlots: TimeSlot[] }) {
             <span className="flex-1 truncate">
               {slot.label || slot.type}
             </span>
-            <span className="text-gray-400 tabular-nums">
+            <span className="text-gray-400 dark:text-gray-500 tabular-nums">
               {slot.start}~{slot.end}
             </span>
           </div>
@@ -136,7 +136,7 @@ function TimelineTooltipContent({ timeSlots }: { timeSlots: TimeSlot[] }) {
       )}
 
       {/* 클릭 안내 */}
-      <div className="text-[10px] text-gray-500 pt-1">
+      <div className="text-[10px] text-gray-500 dark:text-gray-400 pt-1">
         클릭하여 상세 보기
       </div>
     </div>
@@ -198,7 +198,7 @@ export function MiniTimelineBar({
         }
       }}
       className={cn(
-        "relative w-full h-2 bg-gray-100 rounded-sm overflow-hidden",
+        "relative w-full h-2 bg-gray-100 dark:bg-gray-800 rounded-sm overflow-hidden",
         "hover:ring-2 hover:ring-blue-300 hover:ring-offset-1",
         "transition-all cursor-pointer",
         className

@@ -104,7 +104,7 @@ export const AllGroupsSummaryCard = memo(function AllGroupsSummaryCard({
         </div>
         {data.totalCount - data.completedCount > 0 && (
           <div className="flex items-center gap-1.5">
-            <span className="text-gray-400 font-medium">○</span>
+            <span className="text-gray-400 dark:text-gray-500 font-medium">○</span>
             <span className="text-[var(--text-secondary)]">미완료 {data.totalCount - data.completedCount}</span>
           </div>
         )}

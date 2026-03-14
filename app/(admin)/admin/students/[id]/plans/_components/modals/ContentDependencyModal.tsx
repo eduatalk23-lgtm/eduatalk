@@ -252,7 +252,7 @@ export function ContentDependencyModal({
           <ContentIcon className="h-5 w-5 text-purple-600" />
           <span className="text-xs text-purple-600">{CONTENT_TYPE_LABELS[content.contentType]}</span>
         </div>
-        <h3 className="text-lg font-semibold text-gray-900 mt-1">{content.contentName}</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mt-1">{content.contentName}</h3>
       </div>
 
       {/* 탭 */}
@@ -264,11 +264,11 @@ export function ContentDependencyModal({
             'flex-1 px-4 py-3 text-sm font-medium transition-colors',
             activeTab === 'prerequisite'
               ? 'text-purple-600 border-b-2 border-purple-600 bg-purple-50'
-              : 'text-gray-500 hover:text-gray-700'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-300'
           )}
         >
           선수 콘텐츠
-          <span className="ml-1 text-xs text-gray-400">
+          <span className="ml-1 text-xs text-gray-400 dark:text-gray-500">
             ({filteredDependencies.length})
           </span>
         </button>
@@ -279,11 +279,11 @@ export function ContentDependencyModal({
             'flex-1 px-4 py-3 text-sm font-medium transition-colors',
             activeTab === 'dependent'
               ? 'text-purple-600 border-b-2 border-purple-600 bg-purple-50'
-              : 'text-gray-500 hover:text-gray-700'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-300'
           )}
         >
           후속 콘텐츠
-          <span className="ml-1 text-xs text-gray-400">
+          <span className="ml-1 text-xs text-gray-400 dark:text-gray-500">
             ({dependencies.filter((d) => d.prerequisiteContentId === content.contentId).length})
           </span>
         </button>
@@ -293,16 +293,16 @@ export function ContentDependencyModal({
       <div className="p-4 space-y-4">
         {/* 의존성 목록 */}
         <div className="space-y-2">
-          <h4 className="text-sm font-medium text-gray-700">
+          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
             {activeTab === 'prerequisite'
               ? '먼저 완료해야 하는 콘텐츠'
               : '이 콘텐츠를 먼저 학습해야 하는 콘텐츠'}
           </h4>
 
           {isLoading ? (
-            <div className="text-center py-8 text-gray-500">로딩 중...</div>
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">로딩 중...</div>
           ) : filteredDependencies.length === 0 ? (
-            <div className="text-center py-8 text-gray-400 text-sm">
+            <div className="text-center py-8 text-gray-400 dark:text-gray-500 text-sm">
               {activeTab === 'prerequisite'
                 ? '선수 학습 콘텐츠가 없습니다'
                 : '후속 콘텐츠가 없습니다'}
@@ -319,16 +319,16 @@ export function ContentDependencyModal({
                 return (
                   <div
                     key={dep.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
                   >
                     <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <TargetIcon className="h-4 w-4 text-gray-400 shrink-0" />
+                      <TargetIcon className="h-4 w-4 text-gray-400 dark:text-gray-500 shrink-0" />
                       <span className="truncate">{targetTitle || targetId}</span>
                       <span
                         className={cn(
                           'text-xs px-1.5 py-0.5 rounded shrink-0',
                           dep.scope === 'global'
-                            ? 'bg-blue-100 text-blue-700'
+                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700'
                             : 'bg-amber-100 text-amber-700'
                         )}
                       >
@@ -339,7 +339,7 @@ export function ContentDependencyModal({
                       type="button"
                       onClick={() => handleDelete(dep.id)}
                       disabled={isPending}
-                      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors shrink-0"
+                      className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:text-red-400 hover:bg-red-50 rounded transition-colors shrink-0"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -352,7 +352,7 @@ export function ContentDependencyModal({
 
         {/* 의존성 추가 */}
         <div className="border-t pt-4 space-y-3">
-          <h4 className="text-sm font-medium text-gray-700">
+          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
             {activeTab === 'prerequisite' ? '선수 콘텐츠 추가' : '후속 콘텐츠 추가'}
           </h4>
 
@@ -364,8 +364,8 @@ export function ContentDependencyModal({
               className={cn(
                 'flex-1 px-3 py-2 text-sm rounded-lg border transition-colors',
                 selectedScope === 'global'
-                  ? 'border-blue-500 bg-blue-50 text-blue-700'
-                  : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700'
+                  : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800'
               )}
             >
               전역
@@ -378,7 +378,7 @@ export function ContentDependencyModal({
                 'flex-1 px-3 py-2 text-sm rounded-lg border transition-colors',
                 selectedScope === 'plan_group'
                   ? 'border-amber-500 bg-amber-50 text-amber-700'
-                  : 'border-gray-200 text-gray-600 hover:bg-gray-50',
+                  : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800',
                 !planGroupId && 'opacity-50 cursor-not-allowed'
               )}
             >
@@ -408,13 +408,13 @@ export function ContentDependencyModal({
                     type="button"
                     onClick={() => setSelectedContentId(c.id)}
                     className={cn(
-                      'w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50 transition-colors',
+                      'w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 transition-colors',
                       selectedContentId === c.id && 'bg-purple-50'
                     )}
                   >
-                    <Icon className="h-4 w-4 text-gray-400" />
+                    <Icon className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                     <span className="truncate flex-1">{c.title}</span>
-                    <span className="text-xs text-gray-400">{CONTENT_TYPE_LABELS[c.type]}</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">{CONTENT_TYPE_LABELS[c.type]}</span>
                   </button>
                 );
               })}
@@ -430,7 +430,7 @@ export function ContentDependencyModal({
               'w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
               selectedContentId && !isPending
                 ? 'bg-purple-600 text-white hover:bg-purple-700'
-                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed'
             )}
           >
             <Plus className="h-4 w-4" />

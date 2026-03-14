@@ -302,7 +302,7 @@ export function Step7GenerateResult({
       {phase === "idle" && hasErrors && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4">
           <div className="flex items-start gap-2">
-            <XCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" />
+            <XCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500 dark:text-red-400" />
             <div>
               <p className="font-medium text-red-800">입력 값에 오류가 있습니다</p>
               <ul className="mt-1 list-inside list-disc text-sm text-red-700">
@@ -313,7 +313,7 @@ export function Step7GenerateResult({
               <button
                 type="button"
                 onClick={() => prevStep()}
-                className="mt-2 text-sm text-red-600 hover:underline"
+                className="mt-2 text-sm text-red-600 dark:text-red-400 hover:underline"
               >
                 이전 단계로 돌아가기
               </button>
@@ -325,7 +325,7 @@ export function Step7GenerateResult({
       {/* 생성 전 상태 */}
       {phase === "idle" && !hasErrors && (
         <div className="space-y-4">
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/20 p-4">
             <p className="text-sm text-blue-800">
               <span className="font-medium">{studentName}</span> 학생의 플랜을 생성할
               준비가 완료되었습니다.
@@ -370,23 +370,23 @@ export function Step7GenerateResult({
         phase === "creating_group" ||
         phase === "generating_ai") && (
         <div className="space-y-4">
-          <div className="rounded-lg border border-gray-200 bg-white p-6">
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] p-6">
             <div className="flex flex-col items-center">
-              <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
-              <p className="mt-4 text-lg font-medium text-gray-900">
+              <Loader2 className="h-12 w-12 animate-spin text-blue-500 dark:text-blue-400" />
+              <p className="mt-4 text-lg font-medium text-gray-900 dark:text-gray-100">
                 {getPhaseMessage()}
               </p>
-              <p className="mt-1 text-sm text-gray-500">잠시만 기다려주세요...</p>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">잠시만 기다려주세요...</p>
 
               {/* 프로그레스 바 */}
               <div className="mt-6 w-full">
-                <div className="h-2 overflow-hidden rounded-full bg-gray-200">
+                <div className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                   <div
                     className="h-full rounded-full bg-blue-500 transition-all duration-500"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
-                <p className="mt-2 text-center text-xs text-gray-500">
+                <p className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
                   {progress}% 완료
                 </p>
               </div>
@@ -408,7 +408,7 @@ export function Step7GenerateResult({
                 {studentName} 학생의 플랜 그룹이 생성되었습니다.
               </p>
               {generateAIPlan && (
-                <p className="mt-1 text-sm text-green-600">
+                <p className="mt-1 text-sm text-green-600 dark:text-green-400">
                   AI가 생성한 학습 일정이 포함되어 있습니다.
                 </p>
               )}
@@ -469,7 +469,7 @@ export function Step7GenerateResult({
             <button
               type="button"
               onClick={onClose}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[rgb(var(--color-secondary-50))] px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800"
             >
               닫기
             </button>
@@ -490,7 +490,7 @@ export function Step7GenerateResult({
         <div className="space-y-4">
           <div className="rounded-lg border border-red-200 bg-red-50 p-6">
             <div className="flex flex-col items-center">
-              <XCircle className="h-12 w-12 text-red-500" />
+              <XCircle className="h-12 w-12 text-red-500 dark:text-red-400" />
               <p className="mt-4 text-lg font-medium text-red-800">
                 플랜 생성 중 오류가 발생했습니다
               </p>
@@ -504,7 +504,7 @@ export function Step7GenerateResult({
             <button
               type="button"
               onClick={() => prevStep()}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[rgb(var(--color-secondary-50))] px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800"
             >
               이전 단계로
             </button>

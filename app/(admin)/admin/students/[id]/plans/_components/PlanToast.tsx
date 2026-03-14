@@ -103,7 +103,7 @@ function ToastItem({ toast, onRemove }: ToastItemProps) {
       <span className="flex-1 text-sm">{toast.message}</span>
       <button
         onClick={() => onRemove(toast.id)}
-        className="hover:bg-white/20 rounded p-1"
+        className="hover:bg-white dark:bg-[rgb(var(--color-secondary-50))]/20 rounded p-1"
       >
         ✕
       </button>

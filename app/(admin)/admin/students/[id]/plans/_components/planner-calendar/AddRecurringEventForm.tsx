@@ -64,11 +64,11 @@ export default function AddRecurringEventForm({
     <div className="space-y-3">
       <div className="flex flex-wrap items-end gap-2">
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-500">유형</label>
+          <label className="text-xs text-gray-500 dark:text-gray-400">유형</label>
           <select
             value={type}
             onChange={(e) => setType(e.target.value)}
-            className="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+            className="rounded-md border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-sm"
           >
             {EVENT_TYPES.map((t) => (
               <option key={t.value} value={t.value}>
@@ -78,37 +78,37 @@ export default function AddRecurringEventForm({
           </select>
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-500">이름 (선택)</label>
+          <label className="text-xs text-gray-500 dark:text-gray-400">이름 (선택)</label>
           <input
             type="text"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             placeholder="예: 영어학원"
-            className="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+            className="rounded-md border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-sm"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-500">시작</label>
+          <label className="text-xs text-gray-500 dark:text-gray-400">시작</label>
           <input
             type="time"
             value={startTime}
             onChange={(e) => setStartTime(e.target.value)}
-            className="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+            className="rounded-md border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-sm"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-500">종료</label>
+          <label className="text-xs text-gray-500 dark:text-gray-400">종료</label>
           <input
             type="time"
             value={endTime}
             onChange={(e) => setEndTime(e.target.value)}
-            className="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+            className="rounded-md border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-sm"
           />
         </div>
       </div>
 
       <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-500">요일:</span>
+        <span className="text-xs text-gray-500 dark:text-gray-400">요일:</span>
         <div className="flex gap-1">
           {WEEKDAYS.map((day) => (
             <button
@@ -118,7 +118,7 @@ export default function AddRecurringEventForm({
                 "h-7 w-7 rounded-full text-xs font-medium transition-colors",
                 daysOfWeek.includes(day.value)
                   ? "bg-blue-500 text-white"
-                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:bg-gray-700"
               )}
             >
               {day.label}

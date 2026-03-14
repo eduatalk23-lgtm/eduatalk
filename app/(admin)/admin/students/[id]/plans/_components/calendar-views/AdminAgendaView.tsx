@@ -104,10 +104,10 @@ export const AdminAgendaView = memo(function AdminAgendaView({
               </div>
               <span className={cn(
                 'text-sm font-medium',
-                header.isToday ? 'text-blue-600' : isPast ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-secondary)]',
+                header.isToday ? 'text-blue-600 dark:text-blue-400' : isPast ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-secondary)]',
               )}>
                 {header.dateText}
-                {header.isToday && <span className="ml-1.5 text-xs text-blue-500">(오늘)</span>}
+                {header.isToday && <span className="ml-1.5 text-xs text-blue-500 dark:text-blue-400">(오늘)</span>}
                 {(() => { const h = showHolidays ? getHolidayName(dateStr) : null; return h ? <span className="ml-1.5 text-xs text-red-400">{h}</span> : null; })()}
               </span>
               <span className="ml-auto text-xs text-[var(--text-tertiary)]">{plans.length}개</span>

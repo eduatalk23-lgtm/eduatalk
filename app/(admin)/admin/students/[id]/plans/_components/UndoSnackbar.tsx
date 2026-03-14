@@ -245,7 +245,7 @@ function UndoSnackbar({ action, isUndoing, onUndo, onDismiss }: UndoSnackbarProp
         </button>
         <button
           onClick={onDismiss}
-          className="text-gray-400 hover:text-white transition-colors text-xs shrink-0"
+          className="text-gray-400 dark:text-gray-500 hover:text-white transition-colors text-xs shrink-0"
           aria-label="닫기"
         >
           ✕

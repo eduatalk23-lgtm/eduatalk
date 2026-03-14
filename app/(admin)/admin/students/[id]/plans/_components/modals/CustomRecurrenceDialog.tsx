@@ -171,7 +171,7 @@ export function CustomRecurrenceDialog({
           <div className="flex flex-col gap-2">
             <Label className="text-sm">반복 주기</Label>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">매</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">매</span>
               <Input
                 type="number"
                 min={1}
@@ -184,13 +184,13 @@ export function CustomRecurrenceDialog({
               <select
                 value={freq}
                 onChange={(e) => handleFreqChange(e.target.value as CustomRRuleParams['freq'])}
-                className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[rgb(var(--color-secondary-50))] focus:outline-none focus:ring-1 focus:ring-blue-400"
               >
                 {FREQ_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>
-              <span className="text-sm text-gray-600">마다</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">마다</span>
             </div>
           </div>
 
@@ -208,7 +208,7 @@ export function CustomRecurrenceDialog({
                       'w-9 h-9 rounded-full text-xs font-medium transition-colors',
                       byDay.includes(i)
                         ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:bg-gray-700',
                     )}
                   >
                     {label}
@@ -228,7 +228,7 @@ export function CustomRecurrenceDialog({
                   name="monthlyMode"
                   checked={monthlyMode === 'dayOfMonth'}
                   onChange={() => setMonthlyMode('dayOfMonth')}
-                  className="w-4 h-4 text-blue-600"
+                  className="w-4 h-4 text-blue-600 dark:text-blue-400"
                 />
                 <span className="text-sm">
                   매월{' '}
@@ -251,7 +251,7 @@ export function CustomRecurrenceDialog({
                   name="monthlyMode"
                   checked={monthlyMode === 'dayOfWeek'}
                   onChange={() => setMonthlyMode('dayOfWeek')}
-                  className="w-4 h-4 text-blue-600"
+                  className="w-4 h-4 text-blue-600 dark:text-blue-400"
                 />
                 <span className="text-sm flex items-center gap-1">
                   매월
@@ -259,7 +259,7 @@ export function CustomRecurrenceDialog({
                     value={bySetPos}
                     onChange={(e) => setBySetPos(parseInt(e.target.value, 10))}
                     disabled={monthlyMode !== 'dayOfWeek'}
-                    className="mx-1 px-2 py-1 text-sm rounded border border-gray-300 bg-white disabled:opacity-50"
+                    className="mx-1 px-2 py-1 text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-[rgb(var(--color-secondary-50))] disabled:opacity-50"
                   >
                     {SETPOS_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -269,7 +269,7 @@ export function CustomRecurrenceDialog({
                     value={byDayForMonthly}
                     onChange={(e) => setByDayForMonthly(parseInt(e.target.value, 10))}
                     disabled={monthlyMode !== 'dayOfWeek'}
-                    className="px-2 py-1 text-sm rounded border border-gray-300 bg-white disabled:opacity-50"
+                    className="px-2 py-1 text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-[rgb(var(--color-secondary-50))] disabled:opacity-50"
                   >
                     {DAY_LABELS.map((label, i) => (
                       <option key={i} value={i}>{label}요일</option>
@@ -289,7 +289,7 @@ export function CustomRecurrenceDialog({
                 name="endMode"
                 checked={endMode === 'never'}
                 onChange={() => setEndMode('never')}
-                className="w-4 h-4 text-blue-600"
+                className="w-4 h-4 text-blue-600 dark:text-blue-400"
               />
               <span className="text-sm">안 함</span>
             </label>
@@ -299,7 +299,7 @@ export function CustomRecurrenceDialog({
                 name="endMode"
                 checked={endMode === 'until'}
                 onChange={() => setEndMode('until')}
-                className="w-4 h-4 text-blue-600"
+                className="w-4 h-4 text-blue-600 dark:text-blue-400"
               />
               <span className="text-sm flex items-center gap-1">
                 날짜:
@@ -314,7 +314,7 @@ export function CustomRecurrenceDialog({
                 />
               </span>
               {untilBeforeStart && (
-                <p className="text-xs text-red-500 ml-6">종료 날짜는 시작 날짜 이후여야 합니다</p>
+                <p className="text-xs text-red-500 dark:text-red-400 ml-6">종료 날짜는 시작 날짜 이후여야 합니다</p>
               )}
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
@@ -323,7 +323,7 @@ export function CustomRecurrenceDialog({
                 name="endMode"
                 checked={endMode === 'count'}
                 onChange={() => setEndMode('count')}
-                className="w-4 h-4 text-blue-600"
+                className="w-4 h-4 text-blue-600 dark:text-blue-400"
               />
               <span className="text-sm flex items-center gap-1">
                 반복 횟수:
@@ -344,9 +344,9 @@ export function CustomRecurrenceDialog({
 
           {/* 미리보기 */}
           {previewText && (
-            <div className="rounded-lg bg-gray-50 border border-gray-200 p-3">
-              <div className="text-xs text-gray-500 mb-0.5">미리보기</div>
-              <div className="text-sm font-medium text-gray-800">{previewText}</div>
+            <div className="rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-3">
+              <div className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">미리보기</div>
+              <div className="text-sm font-medium text-gray-800 dark:text-gray-200">{previewText}</div>
             </div>
           )}
         </div>

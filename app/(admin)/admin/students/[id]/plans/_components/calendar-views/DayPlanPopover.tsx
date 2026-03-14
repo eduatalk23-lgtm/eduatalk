@@ -161,7 +161,7 @@ export default function DayPlanPopover({
         <button
           type="button"
           onClick={handleDateClick}
-          className="w-full flex items-center justify-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium py-1 rounded hover:bg-blue-50 transition-colors"
+          className="w-full flex items-center justify-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 font-medium py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:bg-blue-900/20 transition-colors"
         >
           자세히 보기
           <ArrowRight className="w-3 h-3" />

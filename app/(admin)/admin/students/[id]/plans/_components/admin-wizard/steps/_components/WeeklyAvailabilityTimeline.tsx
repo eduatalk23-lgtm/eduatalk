@@ -336,10 +336,10 @@ export function WeeklyAvailabilityTimeline({
     <div className={cn("space-y-3", className)}>
       {/* 헤더 */}
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium text-gray-700">주간 가용시간</h4>
-        <div className="text-sm text-gray-500">
+        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">주간 가용시간</h4>
+        <div className="text-sm text-gray-500 dark:text-gray-400">
           총{" "}
-          <span className="font-medium text-gray-700">
+          <span className="font-medium text-gray-700 dark:text-gray-300">
             {Math.floor(totalWeeklyMinutes / 60)}시간{" "}
             {totalWeeklyMinutes % 60 > 0 && `${totalWeeklyMinutes % 60}분`}
           </span>
@@ -349,14 +349,14 @@ export function WeeklyAvailabilityTimeline({
       {/* 시간 눈금 */}
       <div className="flex items-center gap-2">
         <div className={compact ? "w-6" : "w-8"} />
-        <div className="flex-1 relative h-4 border-b border-gray-200">
+        <div className="flex-1 relative h-4 border-b border-gray-200 dark:border-gray-700">
           {[6, 9, 12, 15, 18, 21, 24].map((hour) => {
             const position =
               ((hour - 6) / 18) * 100; // 06:00 ~ 24:00 = 18시간
             return (
               <div
                 key={hour}
-                className="absolute -translate-x-1/2 text-[10px] text-gray-400"
+                className="absolute -translate-x-1/2 text-[10px] text-gray-400 dark:text-gray-500"
                 style={{ left: `${position}%` }}
               >
                 {hour}
@@ -386,27 +386,27 @@ export function WeeklyAvailabilityTimeline({
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-2 text-xs">
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 bg-green-400 rounded" />
-            <span className="text-gray-600">학습</span>
+            <span className="text-gray-600 dark:text-gray-400">학습</span>
           </div>
           {selfStudyHours && (
             <div className="flex items-center gap-1">
               <div className="w-3 h-3 bg-teal-300 rounded" />
-              <span className="text-gray-600">자율학습</span>
+              <span className="text-gray-600 dark:text-gray-400">자율학습</span>
             </div>
           )}
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 bg-gray-300 rounded" />
-            <span className="text-gray-600">점심</span>
+            <span className="text-gray-600 dark:text-gray-400">점심</span>
           </div>
           {academySchedules.length > 0 && (
             <>
               <div className="flex items-center gap-1">
                 <div className="w-3 h-3 bg-orange-400 rounded" />
-                <span className="text-gray-600">학원</span>
+                <span className="text-gray-600 dark:text-gray-400">학원</span>
               </div>
               <div className="flex items-center gap-1">
                 <div className="w-3 h-3 bg-orange-200 rounded" />
-                <span className="text-gray-600">이동</span>
+                <span className="text-gray-600 dark:text-gray-400">이동</span>
               </div>
             </>
           )}

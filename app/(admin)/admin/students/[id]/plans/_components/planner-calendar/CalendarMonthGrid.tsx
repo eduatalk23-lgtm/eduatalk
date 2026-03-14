@@ -75,7 +75,7 @@ export default function CalendarMonthGrid({
             key={label}
             className={cn(
               "py-1 text-center text-xs font-medium",
-              label === "일" ? "text-red-400" : label === "토" ? "text-blue-400" : "text-gray-400"
+              label === "일" ? "text-red-400" : label === "토" ? "text-blue-400" : "text-gray-400 dark:text-gray-500"
             )}
           >
             {label}
@@ -106,17 +106,17 @@ export default function CalendarMonthGrid({
                 "relative flex h-10 flex-col items-center justify-center rounded-md text-sm transition-colors",
                 !inMonth && "invisible",
                 !inPeriod && inMonth && "text-gray-300",
-                inPeriod && "cursor-pointer hover:bg-gray-100",
+                inPeriod && "cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800",
                 hasExclusion && inPeriod && "bg-red-50",
-                selected && "ring-2 ring-blue-500",
+                selected && "ring-2 ring-blue-500 dark:ring-blue-400",
                 today && "font-bold"
               )}
             >
               <span
                 className={cn(
                   "leading-none",
-                  today && "text-blue-600",
-                  hasExclusion && inPeriod && "text-red-500 line-through"
+                  today && "text-blue-600 dark:text-blue-400",
+                  hasExclusion && inPeriod && "text-red-500 dark:text-red-400 line-through"
                 )}
               >
                 {format(date, "d")}

@@ -22,7 +22,7 @@ export function Step2RangeSettings({ data, onChange }: Step2RangeSettingsProps) 
     <div className="space-y-6">
       {/* 범위 유형 선택 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-3">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
           범위 유형
         </label>
         <div className="flex gap-2 flex-wrap">
@@ -34,8 +34,8 @@ export function Step2RangeSettings({ data, onChange }: Step2RangeSettingsProps) 
               className={cn(
                 'px-4 py-2 text-sm border rounded-full transition-colors',
                 data.rangeType === type
-                  ? 'border-blue-500 bg-blue-50 text-blue-700 font-medium'
-                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 font-medium'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800'
               )}
             >
               {label}
@@ -46,30 +46,30 @@ export function Step2RangeSettings({ data, onChange }: Step2RangeSettingsProps) 
 
       {/* 범위 입력 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-3">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
           학습 범위
         </label>
         {data.rangeType !== 'custom' ? (
           <div className="flex items-center gap-4">
             <div className="flex-1">
-              <label className="block text-xs text-gray-500 mb-1">시작</label>
+              <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">시작</label>
               <input
                 type="text"
                 placeholder={data.rangeType === 'page' ? '1' : data.rangeType === 'chapter' ? '1' : '1'}
                 value={data.rangeStart}
                 onChange={(e) => onChange({ rangeStart: e.target.value })}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500"
               />
             </div>
-            <span className="text-gray-400 mt-5">~</span>
+            <span className="text-gray-400 dark:text-gray-500 mt-5">~</span>
             <div className="flex-1">
-              <label className="block text-xs text-gray-500 mb-1">종료</label>
+              <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">종료</label>
               <input
                 type="text"
                 placeholder={data.rangeType === 'page' ? '50' : data.rangeType === 'chapter' ? '10' : '20'}
                 value={data.rangeEnd}
                 onChange={(e) => onChange({ rangeEnd: e.target.value })}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500"
               />
             </div>
           </div>
@@ -79,14 +79,14 @@ export function Step2RangeSettings({ data, onChange }: Step2RangeSettingsProps) 
             placeholder="예: 1단원 ~ 3단원, 미적분 전 범위"
             value={data.customRange}
             onChange={(e) => onChange({ customRange: e.target.value })}
-            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500"
           />
         )}
       </div>
 
       {/* 예상 볼륨 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           예상 볼륨
         </label>
         <div className="flex items-center gap-3">
@@ -95,16 +95,16 @@ export function Step2RangeSettings({ data, onChange }: Step2RangeSettingsProps) 
             placeholder="50"
             value={data.totalVolume}
             onChange={(e) => onChange({ totalVolume: e.target.value })}
-            className="w-32 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-32 px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500"
           />
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-gray-500 dark:text-gray-400">
             {data.rangeType === 'page' && '페이지'}
             {data.rangeType === 'chapter' && '챕터'}
             {data.rangeType === 'lecture_num' && '강의'}
             {data.rangeType === 'custom' && '단위'}
           </span>
         </div>
-        <p className="mt-2 text-xs text-gray-500 flex items-center gap-1">
+        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
           <Info className="h-3 w-3" />
           일일 학습량 계산에 사용됩니다
         </p>
@@ -112,9 +112,9 @@ export function Step2RangeSettings({ data, onChange }: Step2RangeSettingsProps) 
 
       {/* 범위 미리보기 */}
       {(data.rangeStart || data.rangeEnd || data.customRange) && (
-        <div className="p-4 bg-blue-50 rounded-lg">
+        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
           <div className="text-sm font-medium text-blue-700 mb-1">범위 미리보기</div>
-          <div className="text-sm text-blue-600">
+          <div className="text-sm text-blue-600 dark:text-blue-400">
             {data.rangeType !== 'custom' ? (
               <>
                 {data.rangeType === 'page' && '페이지'}

@@ -134,14 +134,14 @@ export const MiniMonthCalendar = memo(function MiniMonthCalendar({
                 // 현재 월 날짜
                 isCurrentMonth && 'text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))]',
                 // 공휴일 (일요일보다 우선)
-                isCurrentMonth && holiday && 'text-red-500',
+                isCurrentMonth && holiday && 'text-red-500 dark:text-red-400',
                 // 일/토 색상 (공휴일이 아닐 때)
-                isCurrentMonth && !holiday && dayOfWeek === 0 && 'text-red-500',
-                isCurrentMonth && !holiday && dayOfWeek === 6 && 'text-blue-500',
+                isCurrentMonth && !holiday && dayOfWeek === 0 && 'text-red-500 dark:text-red-400',
+                isCurrentMonth && !holiday && dayOfWeek === 6 && 'text-blue-500 dark:text-blue-400',
                 // 오늘 = 파란 원
                 isTodayDate && !isSelected && 'bg-blue-500 text-white hover:bg-blue-600',
                 // 선택 날짜 = 파란 배경
-                isSelected && !isTodayDate && 'bg-blue-100 text-blue-700 font-semibold',
+                isSelected && !isTodayDate && 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 font-semibold',
                 // 오늘 + 선택
                 isSelected && isTodayDate && 'bg-blue-600 text-white'
               )}

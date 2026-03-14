@@ -134,7 +134,7 @@ export function AdminPlanHeader({
               "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",
               canCreatePlans
                 ? "bg-primary-600 text-white hover:bg-primary-700"
-                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                : "bg-gray-300 text-gray-500 dark:text-gray-400 cursor-not-allowed"
             )}
             title={
               canCreatePlans
@@ -152,7 +152,7 @@ export function AdminPlanHeader({
               "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",
               canCreatePlans
                 ? "bg-primary-600 text-white hover:bg-primary-700"
-                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                : "bg-gray-300 text-gray-500 dark:text-gray-400 cursor-not-allowed"
             )}
             title={
               canCreatePlans
@@ -189,24 +189,24 @@ export function AdminPlanHeader({
             >
               <MoreHorizontal className="h-4 w-4" />
             </button>
-            <div className="absolute right-0 top-full mt-1 w-48 bg-white border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+            <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-[rgb(var(--color-secondary-50))] border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
               <button
                 onClick={() => setShowTemplateModal(true)}
-                className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-left"
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 text-left"
               >
                 <ClipboardList className="h-4 w-4" />
                 플랜 템플릿
               </button>
               <button
                 onClick={() => setShowPlanGroupManageModal(true)}
-                className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-left"
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 text-left"
               >
                 <Settings2 className="h-4 w-4" />
                 플랜 그룹 관리
               </button>
               <button
                 onClick={() => setShowMarkdownExportModal(true)}
-                className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-left"
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 text-left"
               >
                 <FileText className="h-4 w-4" />
                 마크다운 내보내기
@@ -214,7 +214,7 @@ export function AdminPlanHeader({
               {isAdminMode && (
                 <button
                   onClick={() => setShowConditionalDeleteModal(true)}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-left text-red-600"
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 text-left text-red-600 dark:text-red-400"
                 >
                   <Trash2 className="h-4 w-4" />
                   조건부 삭제
@@ -223,7 +223,7 @@ export function AdminPlanHeader({
               <hr className="my-1" />
               <button
                 onClick={() => setShowShortcutsHelp(true)}
-                className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-left"
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 text-left"
               >
                 <Keyboard className="h-4 w-4" />
                 단축키 도움말

@@ -130,17 +130,17 @@ function ChartIcon({ className }: { className?: string }) {
 function getGradeColor(grade: string): string {
   switch (grade) {
     case "A":
-      return "text-green-600";
+      return "text-green-600 dark:text-green-400";
     case "B":
-      return "text-blue-600";
+      return "text-blue-600 dark:text-blue-400";
     case "C":
       return "text-yellow-600";
     case "D":
       return "text-orange-600";
     case "F":
-      return "text-red-600";
+      return "text-red-600 dark:text-red-400";
     default:
-      return "text-gray-600";
+      return "text-gray-600 dark:text-gray-400";
   }
 }
 
@@ -338,7 +338,7 @@ export function PlanQualityDashboard({
         )}
       >
         <div className="flex items-center justify-center gap-2 py-8">
-          <LoaderIcon className="h-5 w-5 text-blue-600" />
+          <LoaderIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
           <span className={textSecondaryVar}>품질 분석 중...</span>
         </div>
       </div>
@@ -355,10 +355,10 @@ export function PlanQualityDashboard({
         )}
       >
         <div className="text-center py-8">
-          <p className="text-red-500 mb-2">{error}</p>
+          <p className="text-red-500 dark:text-red-400 mb-2">{error}</p>
           <button
             onClick={loadData}
-            className="text-sm text-blue-600 hover:underline"
+            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
           >
             다시 시도
           </button>
@@ -417,7 +417,7 @@ export function PlanQualityDashboard({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <ScoreCard
           dimension={metrics.balance}
-          icon={<BalanceIcon className="h-4 w-4 text-blue-600" />}
+          icon={<BalanceIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
         />
         <ScoreCard
           dimension={metrics.conflicts}
@@ -425,7 +425,7 @@ export function PlanQualityDashboard({
         />
         <ScoreCard
           dimension={metrics.coverage}
-          icon={<CoverageIcon className="h-4 w-4 text-green-600" />}
+          icon={<CoverageIcon className="h-4 w-4 text-green-600 dark:text-green-400" />}
         />
         <ScoreCard
           dimension={metrics.pacing}

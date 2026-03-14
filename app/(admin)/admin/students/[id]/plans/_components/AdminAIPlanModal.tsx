@@ -507,16 +507,16 @@ export function AdminAIPlanModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl bg-white shadow-2xl">
+      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-[rgb(var(--color-secondary-50))] shadow-2xl">
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100">
               <Wand2 className="h-5 w-5 text-purple-600" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">AI 플랜 생성</h2>
-              <p className="text-sm text-gray-500">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">AI 플랜 생성</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 {currentStep === 1 && '플래너를 선택하세요'}
                 {currentStep === 2 && '콘텐츠를 선택하세요'}
                 {currentStep === 3 && '플랜 생성 중...'}
@@ -526,14 +526,14 @@ export function AdminAIPlanModal({
           <button
             onClick={onClose}
             disabled={isGenerating}
-            className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50"
+            className="rounded-lg p-2 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 hover:text-gray-600 dark:text-gray-400 disabled:opacity-50"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Progress Indicator */}
-        <div className="px-6 py-3 bg-gray-50 border-b border-gray-100">
+        <div className="px-6 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-100">
           <div className="flex items-center gap-2">
             {[1, 2, 3].map((step) => (
               <div key={step} className="flex items-center">
@@ -544,7 +544,7 @@ export function AdminAIPlanModal({
                       ? 'bg-purple-600 text-white'
                       : currentStep > step
                         ? 'bg-green-500 text-white'
-                        : 'bg-gray-200 text-gray-500'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                   )}
                 >
                   {currentStep > step ? <CheckCircle2 className="h-4 w-4" /> : step}
@@ -557,7 +557,7 @@ export function AdminAIPlanModal({
                 )}
               </div>
             ))}
-            <span className="ml-2 text-sm text-gray-500">
+            <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
               {currentStep === 1 && '플래너 선택'}
               {currentStep === 2 && '콘텐츠 선택'}
               {currentStep === 3 && '생성'}
@@ -571,21 +571,21 @@ export function AdminAIPlanModal({
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
-              <p className="mt-4 text-sm text-gray-500">데이터를 불러오는 중...</p>
+              <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">데이터를 불러오는 중...</p>
             </div>
           ) : generationSuccess ? (
             /* Success State */
             <div className="space-y-6">
               <div className="flex flex-col items-center justify-center py-8">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-                  <CheckCircle2 className="h-6 w-6 text-green-600" />
+                  <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
                 </div>
-                <h3 className="mt-4 text-lg font-semibold text-gray-900">플랜 생성 완료!</h3>
-                <p className="mt-2 text-sm text-gray-500">
+                <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-gray-100">플랜 생성 완료!</h3>
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                   {generationStats?.planGroupCount}개 플랜 그룹, {generatedPlanCount}개 플랜이 생성되었습니다.
                 </p>
                 {generationStats && (
-                  <p className="mt-1 text-xs text-gray-400">
+                  <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
                     처리 시간: {(generationStats.processingTimeMs / 1000).toFixed(1)}초
                   </p>
                 )}
@@ -595,14 +595,14 @@ export function AdminAIPlanModal({
               {aiRecommendations && (
                 <div className="space-y-3">
                   {aiRecommendations.studyTips && aiRecommendations.studyTips.length > 0 && (
-                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/20 p-4">
                       <div className="flex items-center gap-2 text-blue-700 font-medium mb-2">
                         <Lightbulb className="h-4 w-4" />
                         학습 팁
                       </div>
                       <ul className="space-y-1">
                         {aiRecommendations.studyTips.slice(0, 3).map((tip, idx) => (
-                          <li key={idx} className="text-sm text-blue-600">• {tip}</li>
+                          <li key={idx} className="text-sm text-blue-600 dark:text-blue-400">• {tip}</li>
                         ))}
                       </ul>
                     </div>
@@ -610,7 +610,7 @@ export function AdminAIPlanModal({
                 </div>
               )}
 
-              <p className="text-center text-xs text-gray-400">
+              <p className="text-center text-xs text-gray-400 dark:text-gray-500">
                 잠시 후 자동으로 닫힙니다...
               </p>
             </div>
@@ -618,12 +618,12 @@ export function AdminAIPlanModal({
             /* Generating State */
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
-              <p className="mt-4 text-sm text-gray-500">
+              <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
                 {contentSelectionMethod === 'cold-start'
                   ? 'AI가 콘텐츠를 추천하고 플랜을 생성하는 중...'
                   : `${selectedContents.length}개 콘텐츠에 대한 플랜을 생성하는 중...`}
               </p>
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
                 Plan Group과 학습 플랜이 자동으로 생성됩니다
               </p>
             </div>
@@ -631,8 +631,8 @@ export function AdminAIPlanModal({
             /* Step 1: Planner Selection */
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  플래너 선택 <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  플래너 선택 <span className="text-red-500 dark:text-red-400">*</span>
                 </label>
                 {planners.length > 0 ? (
                   <div className="space-y-2">
@@ -644,21 +644,21 @@ export function AdminAIPlanModal({
                           'w-full p-4 rounded-lg border-2 text-left transition-all',
                           selectedCalendarId === planner.id
                             ? 'border-purple-500 bg-purple-50'
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800'
                         )}
                       >
-                        <div className="font-medium text-gray-900">{planner.name}</div>
-                        <div className="text-sm text-gray-500 mt-1">
+                        <div className="font-medium text-gray-900 dark:text-gray-100">{planner.name}</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                           {planner.periodStart} ~ {planner.periodEnd}
                         </div>
-                        <div className="text-xs text-gray-400 mt-1">
+                        <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                           {planner.status === 'active' ? '활성' : planner.status === 'draft' ? '초안' : '일시정지'}
                         </div>
                       </button>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                     <p>사용 가능한 플래너가 없습니다.</p>
                     <p className="text-sm mt-1">먼저 플래너를 생성해주세요.</p>
                   </div>
@@ -668,7 +668,7 @@ export function AdminAIPlanModal({
               {/* Error */}
               {error && (
                 <div className="rounded-lg border border-red-200 bg-red-50 p-3">
-                  <div className="flex items-center gap-2 text-red-600">
+                  <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
                     <AlertCircle className="h-4 w-4" />
                     <p className="text-sm">{error}</p>
                   </div>
@@ -684,7 +684,7 @@ export function AdminAIPlanModal({
                     'px-6 py-2.5 rounded-lg font-medium transition-colors flex items-center gap-2',
                     selectedCalendarId
                       ? 'bg-purple-600 text-white hover:bg-purple-700'
-                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                   )}
                 >
                   다음
@@ -696,14 +696,14 @@ export function AdminAIPlanModal({
             /* Step 2: Content Selection */
             <div className="space-y-6">
               {/* Selection Method Tabs */}
-              <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
+              <div className="flex gap-2 p-1 bg-gray-100 dark:bg-gray-800 rounded-lg">
                 <button
                   onClick={() => setContentSelectionMethod('cold-start')}
                   className={cn(
                     'flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2',
                     contentSelectionMethod === 'cold-start'
-                      ? 'bg-white text-purple-700 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
+                      ? 'bg-white dark:bg-[rgb(var(--color-secondary-50))] text-purple-700 shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:text-gray-100'
                   )}
                 >
                   <Sparkles className="h-4 w-4" />
@@ -714,8 +714,8 @@ export function AdminAIPlanModal({
                   className={cn(
                     'flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2',
                     contentSelectionMethod === 'existing'
-                      ? 'bg-white text-purple-700 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
+                      ? 'bg-white dark:bg-[rgb(var(--color-secondary-50))] text-purple-700 shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:text-gray-100'
                   )}
                 >
                   <BookOpen className="h-4 w-4" />
@@ -739,13 +739,13 @@ export function AdminAIPlanModal({
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      과목 카테고리 <span className="text-red-500">*</span>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      과목 카테고리 <span className="text-red-500 dark:text-red-400">*</span>
                     </label>
                     <select
                       value={subjectCategory}
                       onChange={(e) => setSubjectCategory(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     >
                       <option value="">선택하세요</option>
                       <option value="국어">국어</option>
@@ -759,7 +759,7 @@ export function AdminAIPlanModal({
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         세부 과목
                       </label>
                       <input
@@ -767,17 +767,17 @@ export function AdminAIPlanModal({
                         value={subject}
                         onChange={(e) => setSubject(e.target.value)}
                         placeholder="예: 미적분, 화학I"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         난이도
                       </label>
                       <select
                         value={difficulty}
                         onChange={(e) => setDifficulty(e.target.value as DifficultyLevel)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       >
                         <option value="개념">개념</option>
                         <option value="기본">기본</option>
@@ -787,7 +787,7 @@ export function AdminAIPlanModal({
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       콘텐츠 유형
                     </label>
                     <div className="flex gap-4">
@@ -799,7 +799,7 @@ export function AdminAIPlanModal({
                           onChange={(e) => setContentType(e.target.value as ContentType)}
                           className="text-purple-600 focus:ring-purple-500"
                         />
-                        <span className="text-sm text-gray-700">교재</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-300">교재</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
@@ -809,7 +809,7 @@ export function AdminAIPlanModal({
                           onChange={(e) => setContentType(e.target.value as ContentType)}
                           className="text-purple-600 focus:ring-purple-500"
                         />
-                        <span className="text-sm text-gray-700">강의</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-300">강의</span>
                       </label>
                     </div>
                   </div>
@@ -818,13 +818,13 @@ export function AdminAIPlanModal({
                 /* Existing Content Selection */
                 <div className="space-y-4">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
                     <input
                       type="text"
                       value={contentSearchQuery}
                       onChange={(e) => setContentSearchQuery(e.target.value)}
                       placeholder="콘텐츠 검색..."
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     />
                   </div>
 
@@ -833,7 +833,7 @@ export function AdminAIPlanModal({
                       <Loader2 className="h-6 w-6 animate-spin text-purple-500" />
                     </div>
                   ) : (
-                    <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg divide-y">
+                    <div className="max-h-64 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg divide-y">
                       {filteredContents.length > 0 ? (
                         filteredContents.map((content) => {
                           const isSelected = selectedContents.some(c => c.id === content.id);
@@ -842,7 +842,7 @@ export function AdminAIPlanModal({
                               key={content.id}
                               onClick={() => handleContentToggle(content)}
                               className={cn(
-                                'w-full p-3 text-left hover:bg-gray-50 transition-colors',
+                                'w-full p-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 transition-colors',
                                 isSelected && 'bg-purple-50'
                               )}
                             >
@@ -851,15 +851,15 @@ export function AdminAIPlanModal({
                                   'h-5 w-5 rounded border-2 flex items-center justify-center',
                                   isSelected
                                     ? 'border-purple-500 bg-purple-500'
-                                    : 'border-gray-300'
+                                    : 'border-gray-300 dark:border-gray-600'
                                 )}>
                                   {isSelected && <CheckCircle2 className="h-3 w-3 text-white" />}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <div className="font-medium text-gray-900 truncate">
+                                  <div className="font-medium text-gray-900 dark:text-gray-100 truncate">
                                     {content.title}
                                   </div>
-                                  <div className="text-xs text-gray-500">
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
                                     {content.subjectCategory} · {content.contentType === 'book' ? '교재' : '강의'}
                                     {content.totalRange && ` · ${content.totalRange}${content.contentType === 'book' ? '페이지' : '강'}`}
                                   </div>
@@ -869,7 +869,7 @@ export function AdminAIPlanModal({
                           );
                         })
                       ) : (
-                        <div className="p-4 text-center text-gray-500">
+                        <div className="p-4 text-center text-gray-500 dark:text-gray-400">
                           검색 결과가 없습니다.
                         </div>
                       )}
@@ -879,7 +879,7 @@ export function AdminAIPlanModal({
                   {selectedContents.length > 0 && (
                     <div className="text-sm text-purple-600">
                       {selectedContents.length}개 콘텐츠 선택됨
-                      <span className="text-gray-400 ml-2">
+                      <span className="text-gray-400 dark:text-gray-500 ml-2">
                         (각각 별도 Plan Group으로 생성됩니다)
                       </span>
                     </div>
@@ -888,8 +888,8 @@ export function AdminAIPlanModal({
               )}
 
               {/* Period Settings */}
-              <div className="border-t border-gray-200 pt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   학습 기간
                 </label>
                 <div className="grid grid-cols-2 gap-4">
@@ -897,16 +897,16 @@ export function AdminAIPlanModal({
                     type="date"
                     value={periodStart}
                     onChange={(e) => setPeriodStart(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                   <input
                     type="date"
                     value={periodEnd}
                     onChange={(e) => setPeriodEnd(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                   캘린더 기간: {selectedPlanner?.periodStart ?? '미설정'} ~ {selectedPlanner?.periodEnd ?? '미설정'}
                 </p>
               </div>
@@ -914,7 +914,7 @@ export function AdminAIPlanModal({
               {/* Error */}
               {error && (
                 <div className="rounded-lg border border-red-200 bg-red-50 p-3">
-                  <div className="flex items-center gap-2 text-red-600">
+                  <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
                     <AlertCircle className="h-4 w-4" />
                     <p className="text-sm">{error}</p>
                   </div>
@@ -925,7 +925,7 @@ export function AdminAIPlanModal({
               <div className="flex justify-between pt-4">
                 <button
                   onClick={handlePrevStep}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-900 flex items-center gap-1"
+                  className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:text-gray-100 flex items-center gap-1"
                 >
                   <ArrowLeft className="h-4 w-4" />
                   이전
@@ -941,7 +941,7 @@ export function AdminAIPlanModal({
                     'px-6 py-2.5 rounded-lg font-medium transition-colors flex items-center gap-2',
                     (contentSelectionMethod === 'cold-start' ? subjectCategory : selectedContents.length > 0)
                       ? 'bg-purple-600 text-white hover:bg-purple-700'
-                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                   )}
                 >
                   <Wand2 className="h-4 w-4" />
@@ -953,15 +953,15 @@ export function AdminAIPlanModal({
             /* Step 3: Error State (when not generating/success) */
             <div className="flex flex-col items-center justify-center py-12">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-                <AlertCircle className="h-6 w-6 text-red-500" />
+                <AlertCircle className="h-6 w-6 text-red-500 dark:text-red-400" />
               </div>
-              <p className="mt-4 text-sm text-red-600">{error || '오류가 발생했습니다.'}</p>
+              <p className="mt-4 text-sm text-red-600 dark:text-red-400">{error || '오류가 발생했습니다.'}</p>
               <button
                 onClick={() => {
                   setError(null);
                   setCurrentStep(2);
                 }}
-                className="mt-4 rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+                className="mt-4 rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:bg-gray-700"
               >
                 다시 시도
               </button>

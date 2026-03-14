@@ -172,8 +172,8 @@ export function Step3SchedulePreview({
       {/* 헤더 */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">스케줄 미리보기</h3>
-          <p className="text-sm text-gray-600">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">스케줄 미리보기</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             설정된 스케줄을 확인하고 다음 단계로 진행하세요.
           </p>
         </div>
@@ -181,7 +181,7 @@ export function Step3SchedulePreview({
           type="button"
           onClick={() => setStep(2)}
           data-testid="edit-settings-button"
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[rgb(var(--color-secondary-50))] px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800"
         >
           <ArrowLeft className="h-4 w-4" />
           설정 수정
@@ -190,26 +190,26 @@ export function Step3SchedulePreview({
 
       {/* 통계 카드 */}
       <div className="grid grid-cols-4 gap-3" data-testid="schedule-stats">
-        <div className="rounded-lg border border-gray-200 bg-white p-3" data-testid="stat-total-days">
-          <p className="text-xs text-gray-500">전체 기간</p>
-          <p className="mt-1 text-lg font-semibold text-gray-900">
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] p-3" data-testid="stat-total-days">
+          <p className="text-xs text-gray-500 dark:text-gray-400">전체 기간</p>
+          <p className="mt-1 text-lg font-semibold text-gray-900 dark:text-gray-100">
             {stats.totalDays}일
           </p>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-3">
-          <p className="text-xs text-gray-500">학습 가능일</p>
-          <p className="mt-1 text-lg font-semibold text-blue-600">
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] p-3">
+          <p className="text-xs text-gray-500 dark:text-gray-400">학습 가능일</p>
+          <p className="mt-1 text-lg font-semibold text-blue-600 dark:text-blue-400">
             {stats.studyDays}일
           </p>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-3">
-          <p className="text-xs text-gray-500">제외일</p>
-          <p className="mt-1 text-lg font-semibold text-red-600">
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] p-3">
+          <p className="text-xs text-gray-500 dark:text-gray-400">제외일</p>
+          <p className="mt-1 text-lg font-semibold text-red-600 dark:text-red-400">
             {stats.excludedDays}일
           </p>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-3">
-          <p className="text-xs text-gray-500">학원 스케줄</p>
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] p-3">
+          <p className="text-xs text-gray-500 dark:text-gray-400">학원 스케줄</p>
           <p className="mt-1 text-lg font-semibold text-orange-600">
             주 {stats.academyDays}일
           </p>
@@ -218,7 +218,7 @@ export function Step3SchedulePreview({
 
       {/* 뷰 전환 */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1">
+        <div className="flex items-center gap-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-1">
           <button
             type="button"
             onClick={() => setViewMode("timeline")}
@@ -226,8 +226,8 @@ export function Step3SchedulePreview({
             className={cn(
               "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
               viewMode === "timeline"
-                ? "bg-white text-blue-700 shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
+                ? "bg-white dark:bg-[rgb(var(--color-secondary-50))] text-blue-700 shadow-sm"
+                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:text-gray-100"
             )}
           >
             <BarChart3 className="h-4 w-4" />
@@ -240,8 +240,8 @@ export function Step3SchedulePreview({
             className={cn(
               "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
               viewMode === "week"
-                ? "bg-white text-blue-700 shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
+                ? "bg-white dark:bg-[rgb(var(--color-secondary-50))] text-blue-700 shadow-sm"
+                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:text-gray-100"
             )}
           >
             <Calendar className="h-4 w-4" />
@@ -254,8 +254,8 @@ export function Step3SchedulePreview({
             className={cn(
               "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
               viewMode === "day"
-                ? "bg-white text-blue-700 shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
+                ? "bg-white dark:bg-[rgb(var(--color-secondary-50))] text-blue-700 shadow-sm"
+                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:text-gray-100"
             )}
           >
             <List className="h-4 w-4" />
@@ -270,11 +270,11 @@ export function Step3SchedulePreview({
               onClick={() => setCurrentWeekIndex((prev) => Math.max(0, prev - 1))}
               disabled={currentWeekIndex === 0}
               data-testid="prev-week-button"
-              className="rounded p-1 hover:bg-gray-100 disabled:opacity-50"
+              className="rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 disabled:opacity-50"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-gray-600 dark:text-gray-400">
               {weekStart && weekEnd
                 ? `${formatDateFull(weekStart)} ~ ${formatDateFull(weekEnd)}`
                 : ""}
@@ -286,7 +286,7 @@ export function Step3SchedulePreview({
               }
               disabled={currentWeekIndex === weeks.length - 1}
               data-testid="next-week-button"
-              className="rounded p-1 hover:bg-gray-100 disabled:opacity-50"
+              className="rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 disabled:opacity-50"
             >
               <ChevronRight className="h-5 w-5" />
             </button>
@@ -296,7 +296,7 @@ export function Step3SchedulePreview({
 
       {/* 타임라인 뷰 (신규) */}
       {viewMode === "timeline" && (
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] p-4">
           <WeeklyAvailabilityTimeline
             studyHours={studyHours ?? null}
             selfStudyHours={selfStudyHours}
@@ -309,15 +309,15 @@ export function Step3SchedulePreview({
 
       {/* 주간 캘린더 뷰 */}
       {viewMode === "week" && (
-        <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] overflow-hidden">
           {/* 헤더 */}
-          <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
+          <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
             {WEEKDAYS.map((day, i) => (
               <div
                 key={day}
                 className={cn(
                   "py-2 text-center text-xs font-medium",
-                  i === 0 ? "text-red-600" : i === 6 ? "text-blue-600" : "text-gray-700"
+                  i === 0 ? "text-red-600 dark:text-red-400" : i === 6 ? "text-blue-600 dark:text-blue-400" : "text-gray-700 dark:text-gray-300"
                 )}
               >
                 {day}
@@ -338,8 +338,8 @@ export function Step3SchedulePreview({
                 <div
                   key={index}
                   className={cn(
-                    "min-h-[100px] border-b border-r border-gray-200 p-2",
-                    !isValid && "bg-gray-50",
+                    "min-h-[100px] border-b border-r border-gray-200 dark:border-gray-700 p-2",
+                    !isValid && "bg-gray-50 dark:bg-gray-800",
                     isExcluded && "bg-red-50",
                     index === 6 && "border-r-0"
                   )}
@@ -350,12 +350,12 @@ export function Step3SchedulePreview({
                         className={cn(
                           "text-sm font-medium",
                           isExcluded
-                            ? "text-red-600"
+                            ? "text-red-600 dark:text-red-400"
                             : dayOfWeek === 0
-                              ? "text-red-600"
+                              ? "text-red-600 dark:text-red-400"
                               : dayOfWeek === 6
-                                ? "text-blue-600"
-                                : "text-gray-900"
+                                ? "text-blue-600 dark:text-blue-400"
+                                : "text-gray-900 dark:text-gray-100"
                         )}
                       >
                         {formatDate(date)}
@@ -377,7 +377,7 @@ export function Step3SchedulePreview({
                             </span>
                           ))}
                         {!isExcluded && !hasAcademy && (
-                          <span className="block rounded bg-blue-100 px-1 py-0.5 text-xs text-blue-700">
+                          <span className="block rounded bg-blue-100 dark:bg-blue-900/30 px-1 py-0.5 text-xs text-blue-700">
                             학습
                           </span>
                         )}
@@ -393,7 +393,7 @@ export function Step3SchedulePreview({
 
       {/* 일간 리스트 뷰 */}
       {viewMode === "day" && (
-        <div className="space-y-2 max-h-[400px] overflow-y-auto rounded-lg border border-gray-200 bg-white p-3">
+        <div className="space-y-2 max-h-[400px] overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] p-3">
           {dates.slice(0, 30).map((date) => {
             const isExcluded = isExclusionDate(date);
             const dayOfWeek = date.getDay();
@@ -406,7 +406,7 @@ export function Step3SchedulePreview({
                   "flex items-center justify-between rounded-lg border px-3 py-2",
                   isExcluded
                     ? "border-red-200 bg-red-50"
-                    : "border-gray-200 bg-white"
+                    : "border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))]"
                 )}
               >
                 <div className="flex items-center gap-3">
@@ -414,15 +414,15 @@ export function Step3SchedulePreview({
                     className={cn(
                       "w-8 text-center text-xs font-medium",
                       dayOfWeek === 0
-                        ? "text-red-600"
+                        ? "text-red-600 dark:text-red-400"
                         : dayOfWeek === 6
-                          ? "text-blue-600"
-                          : "text-gray-700"
+                          ? "text-blue-600 dark:text-blue-400"
+                          : "text-gray-700 dark:text-gray-300"
                     )}
                   >
                     {WEEKDAYS[dayOfWeek]}
                   </span>
-                  <span className="text-sm font-medium text-gray-900">
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                     {formatDateFull(date)}
                   </span>
                 </div>
@@ -442,7 +442,7 @@ export function Step3SchedulePreview({
                       </span>
                     ))
                   ) : (
-                    <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                    <span className="rounded bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 text-xs font-medium text-blue-700">
                       학습 가능
                     </span>
                   )}
@@ -451,7 +451,7 @@ export function Step3SchedulePreview({
             );
           })}
           {dates.length > 30 && (
-            <p className="py-2 text-center text-sm text-gray-500">
+            <p className="py-2 text-center text-sm text-gray-500 dark:text-gray-400">
               외 {dates.length - 30}일 더...
             </p>
           )}
@@ -459,8 +459,8 @@ export function Step3SchedulePreview({
       )}
 
       {/* 안내 메시지 */}
-      <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4">
-        <Info className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-500" />
+      <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/20 p-4">
+        <Info className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-500 dark:text-blue-400" />
         <div className="text-sm text-blue-800">
           <p className="font-medium">스케줄 미리보기</p>
           <p className="mt-1 text-blue-700">

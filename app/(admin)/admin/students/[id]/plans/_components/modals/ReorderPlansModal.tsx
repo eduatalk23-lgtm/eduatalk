@@ -162,9 +162,9 @@ export function ReorderPlansModal({
   const loadingContent = (
     <div className="p-4">
       <div className="animate-pulse space-y-3">
-        <div className="h-6 bg-gray-200 rounded w-1/2" />
-        <div className="h-12 bg-gray-200 rounded" />
-        <div className="h-12 bg-gray-200 rounded" />
+        <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+        <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded" />
+        <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded" />
       </div>
     </div>
   );
@@ -173,12 +173,12 @@ export function ReorderPlansModal({
   const mainContent = (
     <div className="p-4">
       {plans.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
           플랜이 없습니다
         </div>
       ) : (
         <div className="space-y-2">
-          <div className="text-xs text-gray-500 mb-2">
+          <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
             드래그하거나 화살표 버튼으로 순서를 변경하세요
           </div>
           {plans.map((plan, index) => {
@@ -199,24 +199,24 @@ export function ReorderPlansModal({
                 onDragOver={(e) => handleDragOver(e, index)}
                 onDragEnd={handleDragEnd}
                 className={cn(
-                  'flex items-center gap-2 p-3 bg-white border rounded-lg cursor-move',
-                  draggedIndex === index && 'border-blue-500 bg-blue-50'
+                  'flex items-center gap-2 p-3 bg-white dark:bg-[rgb(var(--color-secondary-50))] border rounded-lg cursor-move',
+                  draggedIndex === index && 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                 )}
               >
                 {/* 순서 번호 */}
-                <span className="w-6 h-6 flex items-center justify-center bg-gray-100 rounded text-sm font-medium">
+                <span className="w-6 h-6 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded text-sm font-medium">
                   {index + 1}
                 </span>
 
                 {/* 드래그 핸들 */}
-                <GripVertical className="h-4 w-4 text-gray-400" />
+                <GripVertical className="h-4 w-4 text-gray-400 dark:text-gray-500" />
 
                 {/* 플랜 정보 */}
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate text-sm">
                     {plan.custom_title ?? plan.content_title ?? '제목 없음'}
                   </div>
-                  {range && <div className="text-xs text-gray-500">{range}</div>}
+                  {range && <div className="text-xs text-gray-500 dark:text-gray-400">{range}</div>}
                 </div>
 
                 {/* 이동 버튼 */}
@@ -224,14 +224,14 @@ export function ReorderPlansModal({
                   <button
                     onClick={() => moveUp(index)}
                     disabled={index === 0}
-                    className="px-1.5 py-0.5 text-xs bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-30"
+                    className="px-1.5 py-0.5 text-xs bg-gray-100 dark:bg-gray-800 rounded hover:bg-gray-200 dark:bg-gray-700 disabled:opacity-30"
                   >
                     ▲
                   </button>
                   <button
                     onClick={() => moveDown(index)}
                     disabled={index === plans.length - 1}
-                    className="px-1.5 py-0.5 text-xs bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-30"
+                    className="px-1.5 py-0.5 text-xs bg-gray-100 dark:bg-gray-800 rounded hover:bg-gray-200 dark:bg-gray-700 disabled:opacity-30"
                   >
                     ▼
                   </button>

@@ -121,20 +121,20 @@ export function Step4GenerationResult({
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <Loader2 className="h-12 w-12 animate-spin text-purple-500" />
-        <h3 className="mt-6 text-lg font-semibold text-gray-900">플랜 생성 중...</h3>
-        <p className="mt-2 text-sm text-gray-500">
+        <h3 className="mt-6 text-lg font-semibold text-gray-900 dark:text-gray-100">플랜 생성 중...</h3>
+        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
           {confirmedSlots.length}개 콘텐츠에 대한 플랜을 생성하고 있습니다.
         </p>
 
         {/* 진행 바 */}
         <div className="w-full max-w-xs mt-6">
-          <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
             <div
               className="h-full bg-purple-500 transition-all duration-300"
               style={{ width: `${currentProgress}%` }}
             />
           </div>
-          <p className="text-xs text-gray-400 text-center mt-2">{currentProgress}%</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 text-center mt-2">{currentProgress}%</p>
         </div>
       </div>
     );
@@ -146,21 +146,21 @@ export function Step4GenerationResult({
       <div className="space-y-6">
         <div className="flex flex-col items-center justify-center py-8">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-            <CheckCircle2 className="h-8 w-8 text-green-600" />
+            <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
           </div>
-          <h3 className="mt-4 text-xl font-semibold text-gray-900">플랜 생성 완료!</h3>
-          <p className="mt-2 text-sm text-gray-500">
+          <h3 className="mt-4 text-xl font-semibold text-gray-900 dark:text-gray-100">플랜 생성 완료!</h3>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
             {generationResult.results.length}개 플랜 그룹, 총 {generationResult.totalPlans}개 플랜이 생성되었습니다.
           </p>
           {generationResult.processingTimeMs && (
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
               처리 시간: {(generationResult.processingTimeMs / 1000).toFixed(1)}초
             </p>
           )}
         </div>
 
         {/* 결과 목록 */}
-        <div className="border border-gray-200 rounded-lg divide-y">
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg divide-y">
           {generationResult.results.map((result, index) => (
             <div key={result.slotId} className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -169,14 +169,14 @@ export function Step4GenerationResult({
                   result.success ? 'bg-green-100' : 'bg-red-100'
                 )}>
                   {result.success ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
                   ) : (
-                    <XCircle className="h-4 w-4 text-red-600" />
+                    <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
                   )}
                 </div>
                 <div>
-                  <div className="font-medium text-gray-900">{result.contentTitle}</div>
-                  <div className="text-xs text-gray-500">
+                  <div className="font-medium text-gray-900 dark:text-gray-100">{result.contentTitle}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
                     {result.success
                       ? `${result.planCount}개 플랜 생성`
                       : result.error || '생성 실패'}
@@ -193,7 +193,7 @@ export function Step4GenerationResult({
           ))}
         </div>
 
-        <p className="text-center text-xs text-gray-400">
+        <p className="text-center text-xs text-gray-400 dark:text-gray-500">
           잠시 후 자동으로 닫힙니다...
         </p>
       </div>
@@ -209,38 +209,38 @@ export function Step4GenerationResult({
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
-          <AlertCircle className="h-8 w-8 text-red-500" />
+          <AlertCircle className="h-8 w-8 text-red-500 dark:text-red-400" />
         </div>
-        <h3 className="mt-4 text-lg font-semibold text-gray-900">생성 실패</h3>
-        <p className="mt-2 text-sm text-red-600">
+        <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-gray-100">생성 실패</h3>
+        <p className="mt-2 text-sm text-red-600 dark:text-red-400">
           플랜 생성 중 오류가 발생했습니다.
         </p>
 
         {/* 결과 상세 - 부분 성공 또는 전체 실패 모두 표시 */}
         {hasResults ? (
           <div className="mt-6 w-full max-w-md">
-            <p className="text-sm text-gray-600 mb-2">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
               {hasPartialSuccess ? '부분 성공 결과:' : '실패 상세:'}
             </p>
-            <div className="border border-gray-200 rounded-lg divide-y max-h-60 overflow-y-auto">
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg divide-y max-h-60 overflow-y-auto">
               {generationResult.results.map((result) => (
                 <div key={result.slotId} className="p-3">
                   <div className="flex items-center gap-2">
                     {result.success ? (
                       <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
                     ) : (
-                      <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                      <XCircle className="h-4 w-4 text-red-500 dark:text-red-400 flex-shrink-0" />
                     )}
-                    <span className="text-sm text-gray-700 truncate flex-1">
+                    <span className="text-sm text-gray-700 dark:text-gray-300 truncate flex-1">
                       {result.contentTitle}
                     </span>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-gray-400 dark:text-gray-500">
                       {result.success ? `${result.planCount}개` : '실패'}
                     </span>
                   </div>
                   {/* 개별 슬롯 에러 메시지 표시 */}
                   {!result.success && result.error && (
-                    <p className="mt-1 ml-6 text-xs text-red-500 break-words">
+                    <p className="mt-1 ml-6 text-xs text-red-500 dark:text-red-400 break-words">
                       {result.error}
                     </p>
                   )}
@@ -250,10 +250,10 @@ export function Step4GenerationResult({
           </div>
         ) : (
           <div className="mt-6 w-full max-w-md">
-            <p className="text-sm text-red-600 text-center">
+            <p className="text-sm text-red-600 dark:text-red-400 text-center">
               서버에서 상세 에러 정보를 확인할 수 없습니다.
               <br />
-              <span className="text-xs text-gray-500">브라우저 개발자 도구 콘솔 또는 서버 로그를 확인해주세요.</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">브라우저 개발자 도구 콘솔 또는 서버 로그를 확인해주세요.</span>
             </p>
           </div>
         )}
@@ -268,7 +268,7 @@ export function Step4GenerationResult({
           </button>
           <button
             onClick={onClose}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800"
           >
             닫기
           </button>
@@ -281,7 +281,7 @@ export function Step4GenerationResult({
   return (
     <div className="flex flex-col items-center justify-center py-12">
       <Sparkles className="h-12 w-12 text-purple-300" />
-      <p className="mt-4 text-sm text-gray-500">플랜 생성을 시작합니다...</p>
+      <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">플랜 생성을 시작합니다...</p>
     </div>
   );
 }

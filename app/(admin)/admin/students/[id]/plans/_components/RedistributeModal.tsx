@@ -362,10 +362,10 @@ export function RedistributeModal({
   if (isLoading) {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div className="bg-white dark:bg-[rgb(var(--color-secondary-50))] rounded-lg p-6 w-full max-w-md">
           <div className="animate-pulse space-y-4">
-            <div className="h-6 bg-gray-200 rounded w-1/2" />
-            <div className="h-20 bg-gray-200 rounded" />
+            <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+            <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded" />
           </div>
         </div>
       </div>
@@ -384,14 +384,14 @@ export function RedistributeModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div
         className={cn(
-          'bg-white rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto',
+          'bg-white dark:bg-[rgb(var(--color-secondary-50))] rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto',
           isPending && 'opacity-50 pointer-events-none'
         )}
       >
         {/* 헤더 */}
-        <div className="p-4 border-b sticky top-0 bg-white">
+        <div className="p-4 border-b sticky top-0 bg-white dark:bg-[rgb(var(--color-secondary-50))]">
           <h2 className="text-lg font-bold">볼륨 조정 + 재분배</h2>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             {plan.content_title ?? '플랜'} 볼륨을 조정합니다
           </p>
         </div>
@@ -399,44 +399,44 @@ export function RedistributeModal({
         {/* 내용 */}
         <div className="p-4 space-y-6">
           {/* 현재 볼륨 표시 */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="text-sm text-gray-600 mb-2">현재 범위</div>
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+            <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">현재 범위</div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <span className="text-gray-500">p.</span>
+                <span className="text-gray-500 dark:text-gray-400">p.</span>
                 <span className="font-mono text-lg">
                   {plan.planned_start_page_or_time}-{plan.planned_end_page_or_time}
                 </span>
-                <span className="text-gray-500">({originalVolume}p)</span>
+                <span className="text-gray-500 dark:text-gray-400">({originalVolume}p)</span>
               </div>
             </div>
           </div>
 
           {/* 새 볼륨 입력 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               변경할 범위
             </label>
             <div className="flex items-center gap-2">
-              <span className="text-gray-500">p.</span>
+              <span className="text-gray-500 dark:text-gray-400">p.</span>
               <input
                 type="number"
                 value={newStart}
                 onChange={(e) => setNewStart(Number(e.target.value))}
                 className="w-20 px-3 py-2 border rounded-md font-mono"
               />
-              <span className="text-gray-500">-</span>
+              <span className="text-gray-500 dark:text-gray-400">-</span>
               <input
                 type="number"
                 value={newEnd}
                 onChange={(e) => setNewEnd(Number(e.target.value))}
                 className="w-20 px-3 py-2 border rounded-md font-mono"
               />
-              <span className="text-gray-500">({newVolume}p)</span>
+              <span className="text-gray-500 dark:text-gray-400">({newVolume}p)</span>
             </div>
 
             {validationError && (
-              <div className="mt-2 text-sm text-red-600">
+              <div className="mt-2 text-sm text-red-600 dark:text-red-400">
                 {validationError}
               </div>
             )}
@@ -445,7 +445,7 @@ export function RedistributeModal({
               <div
                 className={cn(
                   'mt-2 text-sm',
-                  volumeChange > 0 ? 'text-red-600' : 'text-green-600'
+                  volumeChange > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
                 )}
               >
                 {volumeChange > 0 ? `${volumeChange}p 감소` : `${Math.abs(volumeChange)}p 증가`}
@@ -456,7 +456,7 @@ export function RedistributeModal({
           {/* 재분배 옵션 */}
           {volumeChange !== 0 && (
             <div className="space-y-3">
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 재분배 옵션
               </label>
 
@@ -464,7 +464,7 @@ export function RedistributeModal({
               <label
                 className={cn(
                   'flex items-start gap-3 p-3 border rounded-lg cursor-pointer',
-                  mode === 'auto' && 'border-blue-500 bg-blue-50'
+                  mode === 'auto' && 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                 )}
               >
                 <input
@@ -475,7 +475,7 @@ export function RedistributeModal({
                 />
                 <div>
                   <div className="font-medium">자동 재분배 (권장)</div>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
                     {volumeChange > 0 ? '감소분' : '증가분'} {Math.abs(volumeChange)}p를 미래
                     플랜에 자동 분배
                   </div>
@@ -484,14 +484,14 @@ export function RedistributeModal({
 
               {/* 미리보기 */}
               {mode === 'auto' && preview.length > 0 && (
-                <div className="ml-6 bg-gray-50 rounded-lg p-3 text-sm">
+                <div className="ml-6 bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-sm">
                   <div className="font-medium mb-2">미리보기:</div>
                   {preview.map((p) => (
-                    <div key={p.id} className="flex justify-between text-gray-600">
+                    <div key={p.id} className="flex justify-between text-gray-600 dark:text-gray-400">
                       <span>{formatDate(p.plan_date)}</span>
                       <span>
                         p.{p.original_start}-{p.original_end} → p.{p.new_start}-{p.new_end}
-                        <span className={p.change > 0 ? 'text-blue-600' : 'text-red-600'}>
+                        <span className={p.change > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}>
                           {' '}
                           ({p.change > 0 ? '+' : ''}
                           {p.change}p)
@@ -506,7 +506,7 @@ export function RedistributeModal({
               <label
                 className={cn(
                   'flex items-start gap-3 p-3 border rounded-lg cursor-pointer',
-                  mode === 'manual' && 'border-blue-500 bg-blue-50'
+                  mode === 'manual' && 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                 )}
               >
                 <input
@@ -517,7 +517,7 @@ export function RedistributeModal({
                 />
                 <div className="flex-1">
                   <div className="font-medium">수동 지정</div>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
                     특정 날짜에 직접 추가
                   </div>
                   {mode === 'manual' && (
@@ -536,10 +536,10 @@ export function RedistributeModal({
         </div>
 
         {/* 푸터 */}
-        <div className="p-4 border-t flex justify-end gap-2 sticky bottom-0 bg-white">
+        <div className="p-4 border-t flex justify-end gap-2 sticky bottom-0 bg-white dark:bg-[rgb(var(--color-secondary-50))]">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+            className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 rounded-md"
           >
             취소
           </button>

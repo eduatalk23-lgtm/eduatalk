@@ -37,22 +37,22 @@ export default function AddExclusionForm({
   return (
     <div className="flex flex-wrap items-end gap-2">
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-gray-500">날짜</label>
+        <label className="text-xs text-gray-500 dark:text-gray-400">날짜</label>
         <input
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
           min={periodStart}
           max={periodEnd}
-          className="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+          className="rounded-md border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-sm"
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-gray-500">유형</label>
+        <label className="text-xs text-gray-500 dark:text-gray-400">유형</label>
         <select
           value={exclusionType}
           onChange={(e) => setExclusionType(e.target.value)}
-          className="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+          className="rounded-md border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-sm"
         >
           {EXCLUSION_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
@@ -62,13 +62,13 @@ export default function AddExclusionForm({
         </select>
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-gray-500">사유 (선택)</label>
+        <label className="text-xs text-gray-500 dark:text-gray-400">사유 (선택)</label>
         <input
           type="text"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           placeholder="사유 입력"
-          className="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+          className="rounded-md border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-sm"
         />
       </div>
       <button

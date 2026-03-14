@@ -458,7 +458,7 @@ function SuggestionCard({ suggestion }: { suggestion: OptimizationSuggestion }) 
         </div>
         <svg
           className={cn(
-            "h-5 w-5 text-gray-400 transition-transform",
+            "h-5 w-5 text-gray-400 dark:text-gray-500 transition-transform",
             isExpanded && "rotate-180"
           )}
           fill="none"
@@ -513,7 +513,7 @@ function SuggestionCard({ suggestion }: { suggestion: OptimizationSuggestion }) 
                     key={idx}
                     className="flex items-start gap-2 text-sm text-[var(--text-secondary)]"
                   >
-                    <span className="text-blue-500 mt-1">•</span>
+                    <span className="text-blue-500 dark:text-blue-400 mt-1">•</span>
                     {item}
                   </li>
                 ))}

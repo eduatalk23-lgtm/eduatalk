@@ -103,18 +103,18 @@ function AdminAIPlanModalV2Inner({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl bg-white shadow-2xl">
+      <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-[rgb(var(--color-secondary-50))] shadow-2xl">
         {/* 헤더 */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100">
               <Wand2 className="h-5 w-5 text-purple-600" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                 AI 플랜 생성 V2
               </h2>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 {stepInfo[currentStep].description}
               </p>
             </div>
@@ -122,14 +122,14 @@ function AdminAIPlanModalV2Inner({
           <button
             onClick={onClose}
             disabled={currentStep === 4 && isLoading}
-            className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50"
+            className="rounded-lg p-2 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 hover:text-gray-600 dark:text-gray-400 disabled:opacity-50"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* 진행 표시기 */}
-        <div className="px-6 py-3 bg-gray-50 border-b border-gray-100">
+        <div className="px-6 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-100">
           <div className="flex items-center gap-2">
             {([1, 2, 3, 4] as WizardStep[]).map((step) => (
               <div key={step} className="flex items-center">
@@ -140,7 +140,7 @@ function AdminAIPlanModalV2Inner({
                       ? 'bg-purple-600 text-white'
                       : currentStep > step
                         ? 'bg-green-500 text-white'
-                        : 'bg-gray-200 text-gray-500'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                   )}
                 >
                   {currentStep > step ? (
@@ -159,7 +159,7 @@ function AdminAIPlanModalV2Inner({
                 )}
               </div>
             ))}
-            <span className="ml-3 text-sm text-gray-500">
+            <span className="ml-3 text-sm text-gray-500 dark:text-gray-400">
               {stepInfo[currentStep].title}
             </span>
           </div>
@@ -170,7 +170,7 @@ function AdminAIPlanModalV2Inner({
           {/* 에러 표시 */}
           {error && (
             <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3">
-              <div className="flex items-center gap-2 text-red-600">
+              <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
                 <AlertCircle className="h-4 w-4 flex-shrink-0" />
                 <p className="text-sm">{error}</p>
               </div>
@@ -199,7 +199,7 @@ function AdminAIPlanModalV2Inner({
 
         {/* 네비게이션 버튼 (Step 4 제외) */}
         {currentStep < 4 && (
-          <div className="sticky bottom-0 flex items-center justify-between border-t border-gray-200 bg-white px-6 py-4">
+          <div className="sticky bottom-0 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] px-6 py-4">
             <button
               onClick={handlePrevStep}
               disabled={currentStep === 1}
@@ -207,7 +207,7 @@ function AdminAIPlanModalV2Inner({
                 'flex items-center gap-1 px-4 py-2 rounded-lg transition-colors',
                 currentStep === 1
                   ? 'text-gray-300 cursor-not-allowed'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800'
               )}
             >
               <ChevronLeft className="h-4 w-4" />
@@ -217,7 +217,7 @@ function AdminAIPlanModalV2Inner({
             <div className="flex items-center gap-4">
               {/* 슬롯 요약 (Step 2, 3) */}
               {(currentStep === 2 || currentStep === 3) && slots.length > 0 && (
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-gray-500 dark:text-gray-400">
                   {currentStep === 2 && `${slots.length}개 슬롯`}
                   {currentStep === 3 && `${confirmedCount}/${slots.length}개 확정`}
                 </span>
@@ -230,7 +230,7 @@ function AdminAIPlanModalV2Inner({
                   'flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium transition-colors',
                   canProceedToNextStep()
                     ? 'bg-purple-600 text-white hover:bg-purple-700'
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                 )}
               >
                 {currentStep === 3 ? (

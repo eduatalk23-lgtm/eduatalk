@@ -41,7 +41,7 @@ export function DroppableEmptySlot({
       ref={setNodeRef}
       className={cn(
         'transition-all duration-150 rounded-lg',
-        isOver && 'ring-2 ring-blue-500 bg-blue-50/50 scale-[1.02]'
+        isOver && 'ring-2 ring-blue-500 dark:ring-blue-400 bg-blue-50/50 dark:bg-blue-900/20 scale-[1.02]'
       )}
     >
       {children}

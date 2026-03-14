@@ -53,7 +53,7 @@ export default function DragOverlayContent({
           "flex items-center gap-1 rounded-md text-xs overflow-hidden relative",
           "pl-2 pr-1.5 py-0.5 min-w-[100px] max-w-[200px]",
           "shadow-xl cursor-grabbing select-none",
-          colors.textIsWhite ? "text-white" : "text-gray-900",
+          colors.textIsWhite ? "text-white" : "text-gray-900 dark:text-gray-100",
           // 드롭 상태 피드백 (미니멀)
           isOverValidTarget && "ring-2 ring-green-400",
           isOverInvalidTarget && "ring-2 ring-red-400 opacity-70",
@@ -69,7 +69,7 @@ export default function DragOverlayContent({
           <span className="flex-shrink-0 tabular-nums opacity-70">{timeLabel}</span>
         )}
         {isCompleted && (
-          <Check className={cn("w-3 h-3 flex-shrink-0", colors.textIsWhite ? "text-white/80" : "text-green-600")} />
+          <Check className={cn("w-3 h-3 flex-shrink-0", colors.textIsWhite ? "text-white/80" : "text-green-600 dark:text-green-400")} />
         )}
         <span className={cn("truncate", colors.strikethrough && "line-through")}>
           {plan.title}

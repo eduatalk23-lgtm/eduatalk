@@ -1445,7 +1445,11 @@ function ChatRoomComponent({
             firstItemIndex={computedFirstItemIndex}
             initialTopMostItemIndex={initialScrollIndex}
             defaultItemHeight={estimatedItemHeight}
-            followOutput={(isAtBottom) => (isAtBottom ? "auto" : false)}
+            followOutput={(isAtBottom) => {
+              // 키보드 전환 중에는 followOutput 억제 → 안정화 후 명시적 scrollToIndex로 처리
+              if (isKeyboardTransitioning.current) return false;
+              return isAtBottom ? "auto" : false;
+            }}
             atBottomThreshold={100}
             atBottomStateChange={handleAtBottomChange}
             startReached={handleStartReached}

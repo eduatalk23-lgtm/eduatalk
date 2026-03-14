@@ -79,7 +79,7 @@ export function QuickCompleteButton({
         sizeClasses[size],
         isCompleted
           ? 'bg-green-500 text-white shadow-sm focus:ring-green-300'
-          : 'border-2 border-gray-300 text-gray-400 hover:border-green-400 hover:text-green-500 hover:bg-green-50 focus:ring-green-200',
+          : 'border-2 border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-green-400 hover:text-green-500 hover:bg-green-50 focus:ring-green-200',
         isPending && 'opacity-50 cursor-not-allowed',
         isAnimating && 'scale-110'
       )}
@@ -203,7 +203,7 @@ export function InlineVolumeEditor({
           e.stopPropagation();
           setIsEditing(true);
         }}
-        className="text-sm text-gray-500 hover:text-blue-600 hover:underline"
+        className="text-sm text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:text-blue-400 hover:underline"
       >
         {displayText}
       </button>
@@ -218,7 +218,7 @@ export function InlineVolumeEditor({
       className="flex items-center gap-1"
       onClick={(e) => e.stopPropagation()}
     >
-      {!isLecture && <span className="text-gray-500 text-sm">p.</span>}
+      {!isLecture && <span className="text-gray-500 dark:text-gray-400 text-sm">p.</span>}
       <input
         ref={inputRef}
         type="number"
@@ -228,7 +228,7 @@ export function InlineVolumeEditor({
         className="w-12 px-1 py-0.5 text-sm border rounded font-mono"
         disabled={isPending}
       />
-      <span className="text-gray-400">-</span>
+      <span className="text-gray-400 dark:text-gray-500">-</span>
       <input
         type="number"
         value={end}
@@ -237,7 +237,7 @@ export function InlineVolumeEditor({
         className="w-12 px-1 py-0.5 text-sm border rounded font-mono"
         disabled={isPending}
       />
-      {isLecture && <span className="text-gray-500 text-sm">강</span>}
+      {isLecture && <span className="text-gray-500 dark:text-gray-400 text-sm">강</span>}
       <button
         onClick={handleSave}
         disabled={isPending}
@@ -251,7 +251,7 @@ export function InlineVolumeEditor({
           setEnd(currentEnd);
           setIsEditing(false);
         }}
-        className="px-1.5 py-0.5 text-xs bg-gray-200 text-gray-600 rounded hover:bg-gray-300"
+        className="px-1.5 py-0.5 text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded hover:bg-gray-300"
       >
         ✕
       </button>

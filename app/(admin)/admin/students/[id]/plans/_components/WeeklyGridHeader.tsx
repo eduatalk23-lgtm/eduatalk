@@ -59,11 +59,11 @@ export const WeeklyGridHeader = memo(function WeeklyGridHeader({
               <span
                 className={cn(
                   'text-[11px] font-medium',
-                  isSelected ? 'text-blue-600'
-                    : h.isToday ? 'text-blue-600'
-                    : isHoliday ? 'text-red-500'
+                  isSelected ? 'text-blue-600 dark:text-blue-400'
+                    : h.isToday ? 'text-blue-600 dark:text-blue-400'
+                    : isHoliday ? 'text-red-500 dark:text-red-400'
                     : h.isPast ? 'text-gray-300'
-                    : 'text-gray-500',
+                    : 'text-gray-500 dark:text-gray-400',
                 )}
               >
                 {h.dayName}
@@ -72,10 +72,10 @@ export const WeeklyGridHeader = memo(function WeeklyGridHeader({
                 className={cn(
                   'w-[34px] h-[34px] flex items-center justify-center rounded-full text-[22px] font-medium transition-colors',
                   isSelected && 'bg-blue-600 text-white',
-                  h.isToday && !isSelected && 'ring-2 ring-blue-500 text-blue-600',
-                  !h.isToday && !isSelected && isHoliday && 'text-red-500',
+                  h.isToday && !isSelected && 'ring-2 ring-blue-500 dark:ring-blue-400 text-blue-600 dark:text-blue-400',
+                  !h.isToday && !isSelected && isHoliday && 'text-red-500 dark:text-red-400',
                   !h.isToday && !isSelected && !isHoliday && h.isPast && 'text-gray-300',
-                  !h.isToday && !isSelected && !isHoliday && !h.isPast && 'text-gray-800 hover:bg-gray-100',
+                  !h.isToday && !isSelected && !isHoliday && !h.isPast && 'text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800',
                 )}
               >
                 {h.dateNum}

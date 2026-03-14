@@ -175,7 +175,7 @@ export class AdminStepErrorBoundary extends Component<
           <div className="flex flex-col gap-4">
             <div className="flex items-start gap-3">
               <svg
-                className="h-5 w-5 flex-shrink-0 text-red-600"
+                className="h-5 w-5 flex-shrink-0 text-red-600 dark:text-red-400"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -198,7 +198,7 @@ export class AdminStepErrorBoundary extends Component<
                 </p>
                 {process.env.NODE_ENV === "development" && this.state.error && (
                   <details className="mt-2">
-                    <summary className="cursor-pointer text-xs text-red-600">
+                    <summary className="cursor-pointer text-xs text-red-600 dark:text-red-400">
                       개발자 정보 (개발 모드에서만 표시)
                     </summary>
                     <pre className="mt-2 overflow-auto rounded bg-red-100 p-2 text-xs text-red-800">
@@ -213,7 +213,7 @@ export class AdminStepErrorBoundary extends Component<
               <button
                 type="button"
                 onClick={this.handleReset}
-                className="inline-flex items-center justify-center rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50"
+                className="inline-flex items-center justify-center rounded-lg border border-red-300 bg-white dark:bg-[rgb(var(--color-secondary-50))] px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50"
               >
                 다시 시도
               </button>

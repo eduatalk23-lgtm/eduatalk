@@ -194,7 +194,7 @@ export function ConditionalDeleteModal({
       {/* 필터 조건 */}
       <div className="p-4 space-y-3 border-b">
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">상태</label>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">상태</label>
           <select
             value={filter.status}
             onChange={(e) => setFilter({ ...filter, status: e.target.value as FilterCondition['status'] })}
@@ -207,7 +207,7 @@ export function ConditionalDeleteModal({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">시작일</label>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">시작일</label>
             <input
               type="date"
               value={filter.dateFrom}
@@ -216,7 +216,7 @@ export function ConditionalDeleteModal({
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">종료일</label>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">종료일</label>
             <input
               type="date"
               value={filter.dateTo}
@@ -226,7 +226,7 @@ export function ConditionalDeleteModal({
           </div>
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">플랜 그룹</label>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">플랜 그룹</label>
           <select
             value={filter.planGroupId}
             onChange={(e) => setFilter({ ...filter, planGroupId: e.target.value })}
@@ -242,7 +242,7 @@ export function ConditionalDeleteModal({
         <button
           onClick={handlePreview}
           disabled={isLoading}
-          className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors"
+          className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:bg-gray-700 rounded-lg text-sm font-medium transition-colors"
         >
           {isLoading ? '조회 중...' : '조건에 맞는 플랜 조회'}
         </button>
@@ -251,7 +251,7 @@ export function ConditionalDeleteModal({
       {/* 미리보기 */}
       <div className="p-4">
         {previewPlans.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
             조건을 설정하고 조회 버튼을 눌러주세요
           </div>
         ) : (
@@ -268,7 +268,7 @@ export function ConditionalDeleteModal({
                   <div className="flex-1 min-w-0 truncate">
                     {plan.custom_title ?? plan.content_title ?? '제목 없음'}
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-gray-500 shrink-0">
+                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 shrink-0">
                     <span>{formatDate(plan.plan_date)}</span>
                     <span>{getStatusLabel(plan.status)}</span>
                   </div>
@@ -283,7 +283,7 @@ export function ConditionalDeleteModal({
                   type="checkbox"
                   checked={confirmDelete}
                   onChange={(e) => setConfirmDelete(e.target.checked)}
-                  className="rounded border-red-300 text-red-600 focus:ring-red-500"
+                  className="rounded border-red-300 text-red-600 dark:text-red-400 focus:ring-red-500"
                 />
                 <span>
                   <strong>{previewPlans.length}개</strong> 플랜 삭제를 확인합니다

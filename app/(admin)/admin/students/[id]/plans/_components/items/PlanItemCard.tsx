@@ -334,12 +334,12 @@ export const PlanItemCard = memo(function PlanItemCard({
 
               {/* Time display for compact - 좌측 시간 블록 */}
               {showTime && plan.startTime && (
-                <div className="flex flex-col items-center justify-center w-12 shrink-0 py-1 px-1 bg-blue-50 rounded border border-blue-100">
+                <div className="flex flex-col items-center justify-center w-12 shrink-0 py-1 px-1 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-100">
                   <span className="text-xs font-semibold text-blue-700 tabular-nums">
                     {plan.startTime.substring(0, 5)}
                   </span>
                   {plan.endTime && (
-                    <span className="text-[9px] text-blue-500 tabular-nums">
+                    <span className="text-[9px] text-blue-500 dark:text-blue-400 tabular-nums">
                       ~{plan.endTime.substring(0, 5)}
                     </span>
                   )}
@@ -481,12 +481,12 @@ export const PlanItemCard = memo(function PlanItemCard({
 
         {/* Time display - 강화된 시간 표시 */}
         {showTime && plan.startTime && (
-          <div className="flex flex-col items-center justify-center w-14 shrink-0 py-0.5 px-1.5 bg-blue-50 rounded-md border border-blue-100">
+          <div className="flex flex-col items-center justify-center w-14 shrink-0 py-0.5 px-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-100">
             <span className="text-sm font-semibold text-blue-700 tabular-nums">
               {plan.startTime.substring(0, 5)}
             </span>
             {plan.endTime && (
-              <span className="text-[10px] text-blue-500 tabular-nums">
+              <span className="text-[10px] text-blue-500 dark:text-blue-400 tabular-nums">
                 ~{plan.endTime.substring(0, 5)}
               </span>
             )}
@@ -566,7 +566,7 @@ export const PlanItemCard = memo(function PlanItemCard({
 
         {/* Actions */}
         {isCompleted ? (
-          <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded shrink-0">
+          <span className="text-xs text-green-600 dark:text-green-400 bg-green-100 px-2 py-1 rounded shrink-0">
             완료
           </span>
         ) : showActions ? (

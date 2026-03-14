@@ -106,7 +106,7 @@ export function BulkEditModal({
     >
       {/* 수정 필드 */}
       <div className="p-4 space-y-4">
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-600 dark:text-gray-400">
           변경할 항목을 선택하고 값을 설정하세요.
         </p>
 
@@ -119,7 +119,7 @@ export function BulkEditModal({
               onChange={(e) =>
                 setStatusField((prev) => ({ ...prev, enabled: e.target.checked }))
               }
-              className="rounded border-gray-300"
+              className="rounded border-gray-300 dark:border-gray-600"
             />
             <span className="font-medium text-sm">상태 변경</span>
           </label>
@@ -152,7 +152,7 @@ export function BulkEditModal({
                   enabled: e.target.checked,
                 }))
               }
-              className="rounded border-gray-300"
+              className="rounded border-gray-300 dark:border-gray-600"
             />
             <span className="font-medium text-sm">예상 시간 변경 (분)</span>
           </label>
@@ -185,7 +185,7 @@ export function BulkEditModal({
                   enabled: e.target.checked,
                 }))
               }
-              className="rounded border-gray-300"
+              className="rounded border-gray-300 dark:border-gray-600"
             />
             <span className="font-medium text-sm">학습 유형 변경</span>
           </label>
@@ -204,9 +204,9 @@ export function BulkEditModal({
                       ? option.color === 'orange'
                         ? 'border-orange-500 bg-orange-50 text-orange-700'
                         : option.color === 'blue'
-                          ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : 'border-gray-400 bg-gray-100 text-gray-700'
-                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700'
+                          : 'border-gray-400 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                      : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800'
                   )}
                 >
                   {option.icon === 'zap' && <Zap className="h-4 w-4" />}
@@ -220,7 +220,7 @@ export function BulkEditModal({
 
         {/* 미리보기 */}
         {hasChanges && (
-          <div className="p-3 bg-blue-50 rounded-lg text-sm">
+          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm">
             <div className="font-medium text-blue-800 mb-1">변경 사항 미리보기</div>
             <ul className="text-blue-700 space-y-0.5">
               {statusField.enabled && (

@@ -50,9 +50,9 @@ const SCHEDULER_TYPE_OPTIONS: { value: SchedulerType; label: string; desc: strin
 
 
 /* ─── 공통 input 스타일 ─── */
-const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500";
-const timeCls = "px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500";
-const disabledCls = "bg-gray-50 cursor-not-allowed opacity-60";
+const inputCls = "w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500";
+const timeCls = "px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500";
+const disabledCls = "bg-gray-50 dark:bg-gray-800 cursor-not-allowed opacity-60";
 
 /* ─── Pill 선택 버튼 ─── */
 function Pill({ selected, disabled, onClick, children }: {
@@ -67,7 +67,7 @@ function Pill({ selected, disabled, onClick, children }: {
         "px-3 py-1.5 text-sm rounded-full border transition-colors disabled:opacity-50",
         selected
           ? "bg-primary-50 border-primary-300 text-primary-700 font-medium"
-          : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50",
+          : "bg-white dark:bg-[rgb(var(--color-secondary-50))] border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800",
       )}
     >
       {children}
@@ -454,7 +454,7 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <Info className="w-8 h-8 text-gray-300 mb-3" />
-        <p className="text-sm text-gray-500">설정을 확인하려면 캘린더를 선택해주세요.</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">설정을 확인하려면 캘린더를 선택해주세요.</p>
       </div>
     );
   }
@@ -462,7 +462,7 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
+        <Loader2 className="w-6 h-6 text-gray-400 dark:text-gray-500 animate-spin" />
       </div>
     );
   }
@@ -471,7 +471,7 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <AlertCircle className="w-8 h-8 text-red-400 mb-3" />
-        <p className="text-sm text-red-600 mb-3">{error}</p>
+        <p className="text-sm text-red-600 dark:text-red-400 mb-3">{error}</p>
         <button onClick={loadSettings} className="text-sm text-primary-600 hover:text-primary-700 font-medium">
           다시 시도
         </button>
@@ -487,16 +487,16 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
   return (
     <div className="h-full flex flex-col">
       {/* 헤더: 뒤로가기 + 제목 */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 shrink-0">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-gray-700 shrink-0">
         <button
           type="button"
           onClick={() => handleTabChange("planner")}
-          className="p-1.5 -ml-1.5 rounded-full hover:bg-gray-100 transition-colors"
+          className="p-1.5 -ml-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 transition-colors"
           title="캘린더로 돌아가기"
         >
-          <ArrowLeft className="w-5 h-5 text-gray-600" />
+          <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
         </button>
-        <h2 className="text-base font-semibold text-gray-900">캘린더 설정</h2>
+        <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">캘린더 설정</h2>
       </div>
 
       {/* 읽기 전용 배너 */}
@@ -509,10 +509,10 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
 
       {/* 변경사항 바 */}
       {hasChanges && !disabled && (
-        <div className="flex items-center justify-between px-4 py-3 bg-blue-50 border-b border-blue-200 shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 shrink-0">
           <span className="text-sm font-medium text-blue-800">저장되지 않은 변경사항</span>
           <div className="flex items-center gap-2">
-            <button onClick={handleCancel} disabled={isPending} className="px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+            <button onClick={handleCancel} disabled={isPending} className="px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-[rgb(var(--color-secondary-50))] border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 disabled:opacity-50">
               취소
             </button>
             <button onClick={handleSave} disabled={isPending} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50">
@@ -526,7 +526,7 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
       {/* 사이드바(고정) + 콘텐츠(자체 스크롤) */}
       <div className="flex flex-1 min-h-0">
         {/* ── 사이드바 네비게이션 (md 이상) ── */}
-        <nav className="hidden md:flex flex-col w-48 shrink-0 border-r border-gray-200 py-4 pl-4 pr-2" aria-label="설정 섹션 탐색">
+        <nav className="hidden md:flex flex-col w-48 shrink-0 border-r border-gray-200 dark:border-gray-700 py-4 pl-4 pr-2" aria-label="설정 섹션 탐색">
           <ul className="space-y-0.5">
             {visibleSections.map((s) => (
               <li key={s.id}>
@@ -536,8 +536,8 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
                   className={cn(
                     "w-full text-left px-3 py-2 text-sm rounded-lg transition-colors",
                     activeSection === s.id
-                      ? "bg-blue-50 text-blue-700 font-medium"
-                      : "text-gray-600 hover:bg-gray-100 hover:text-gray-900",
+                      ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 font-medium"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 hover:text-gray-900 dark:text-gray-100",
                   )}
                 >
                   {s.label}
@@ -550,15 +550,15 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
         {/* ── 콘텐츠 (자체 스크롤) ── */}
         <div ref={contentRef} className="flex-1 min-w-0 overflow-y-auto p-4">
         <div className="max-w-2xl mx-auto">
-        <div className="divide-y divide-gray-200">
+        <div className="divide-y divide-gray-200 dark:divide-gray-700">
 
         {/* ════ 일반 ════ */}
         <section id="general" className="pb-8 scroll-mt-16">
-          <h3 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wider mb-5">일반</h3>
+          <h3 className="text-[13px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-5">일반</h3>
           <div className="space-y-5">
             {/* 이름 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">캘린더 이름</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">캘린더 이름</label>
               <input
                 type="text"
                 value={name}
@@ -571,7 +571,7 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
 
             {/* 설명 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">설명</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">설명</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -584,7 +584,7 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
 
             {/* 색상 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">색상</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">색상</label>
               <div className="flex flex-wrap gap-1.5">
                 {EVENT_COLOR_PALETTE.map((c) => {
                   const sel = defaultColor === c.key;
@@ -610,18 +610,18 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
                   );
                 })}
               </div>
-              {!defaultColor && <p className="mt-1 text-xs text-gray-400">선택하지 않으면 기본 색상이 적용됩니다.</p>}
+              {!defaultColor && <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">선택하지 않으면 기본 색상이 적용됩니다.</p>}
             </div>
           </div>
         </section>
 
         {/* ════ 이벤트 알림 ════ */}
         <section id="notifications" className="py-8 scroll-mt-16">
-          <h3 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wider mb-5">이벤트 알림</h3>
+          <h3 className="text-[13px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-5">이벤트 알림</h3>
           <div className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">기본 이벤트 시간</label>
-              <p className="text-xs text-gray-500 mb-2">빠른 생성 시 자동 설정되는 이벤트 길이</p>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">기본 이벤트 시간</label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">빠른 생성 시 자동 설정되는 이벤트 길이</p>
               <div className="flex flex-wrap gap-2">
                 {[
                   { v: null, l: "기본 (60분)" },
@@ -640,8 +640,8 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">기본 알림</label>
-              <p className="text-xs text-gray-500 mb-2">새 이벤트 생성 시 자동 설정되는 알림</p>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">기본 알림</label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">새 이벤트 생성 시 자동 설정되는 알림</p>
               <div className="flex flex-wrap gap-2">
                 {[
                   { v: null, l: "없음" },
@@ -661,10 +661,10 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
 
         {/* ════ 보기 옵션 ════ */}
         <section id="view-options" className="py-8 scroll-mt-16">
-          <h3 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wider mb-5">보기 옵션</h3>
+          <h3 className="text-[13px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-5">보기 옵션</h3>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">주 시작 요일</label>
-            <p className="text-xs text-gray-500 mb-2">주간/월간 뷰에서 첫 번째 열</p>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">주 시작 요일</label>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">주간/월간 뷰에서 첫 번째 열</p>
             <div className="flex flex-wrap gap-2">
               {[{ v: 0, l: "일요일" }, { v: 1, l: "월요일" }, { v: 6, l: "토요일" }].map((o) => (
                 <Pill key={o.v} selected={weekStartsOn === o.v} disabled={disabled} onClick={() => setWeekStartsOn(o.v)}>
@@ -677,18 +677,18 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
 
         {/* ════ 학습 기간 ════ */}
         <section id="study-period" className="py-8 scroll-mt-16">
-          <h3 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wider mb-5">학습 기간</h3>
+          <h3 className="text-[13px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-5">학습 기간</h3>
           <div className="space-y-5">
             {/* D-Day 요약 */}
             {periodStart && periodEnd && (
-              <div className="flex items-center justify-between px-4 py-3 bg-blue-50 rounded-lg">
+              <div className="flex items-center justify-between px-4 py-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                 <span className="text-sm text-blue-800">
                   {new Date(periodStart).toLocaleDateString("ko-KR")} ~ {new Date(periodEnd).toLocaleDateString("ko-KR")}
                 </span>
                 {targetDate && dDay !== null && (
                   <span className={cn(
                     "text-lg font-bold",
-                    dDay <= 7 ? "text-red-600" : dDay <= 30 ? "text-amber-600" : "text-blue-700",
+                    dDay <= 7 ? "text-red-600 dark:text-red-400" : dDay <= 30 ? "text-amber-600" : "text-blue-700",
                   )}>
                     D{dDay > 0 ? `-${dDay}` : dDay === 0 ? "-Day" : `+${Math.abs(dDay)}`}
                   </span>
@@ -698,18 +698,18 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">시작일</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">시작일</label>
                 <input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} disabled={disabled} className={cn(inputCls, disabled && disabledCls)} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">종료일</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">종료일</label>
                 <input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} min={periodStart} disabled={disabled} className={cn(inputCls, disabled && disabledCls)} />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                목표일 (D-Day) <span className="text-xs text-gray-400 font-normal ml-1">선택</span>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                목표일 (D-Day) <span className="text-xs text-gray-400 dark:text-gray-500 font-normal ml-1">선택</span>
               </label>
               <input type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} min={periodEnd} disabled={disabled} className={cn("w-1/2", inputCls, disabled && disabledCls)} />
             </div>
@@ -718,42 +718,42 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
 
         {/* ════ 학습 시간 ════ */}
         <section id="study-hours" className="py-8 scroll-mt-16">
-            <h3 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wider mb-5">학습 시간</h3>
+            <h3 className="text-[13px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-5">학습 시간</h3>
             <div className="space-y-5">
               {/* 학습 시간 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">학습 가능 시간</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">학습 가능 시간</label>
                 <div className="flex items-center gap-2">
                   <input type="time" value={studyHoursStart} onChange={(e) => setStudyHoursStart(e.target.value)} disabled={disabled} className={cn(timeCls, disabled && disabledCls)} />
-                  <span className="text-gray-400">~</span>
+                  <span className="text-gray-400 dark:text-gray-500">~</span>
                   <input type="time" value={studyHoursEnd} onChange={(e) => setStudyHoursEnd(e.target.value)} disabled={disabled} className={cn(timeCls, disabled && disabledCls)} />
                   {studyMinutes !== null && studyMinutes > 0 && (
-                    <span className="text-xs text-gray-500">{Math.floor(studyMinutes / 60)}시간 {studyMinutes % 60}분</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">{Math.floor(studyMinutes / 60)}시간 {studyMinutes % 60}분</span>
                   )}
                 </div>
               </div>
 
               {/* 점심 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">점심 시간</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">점심 시간</label>
                 <div className="flex items-center gap-2">
                   <input type="time" value={lunchTimeStart} onChange={(e) => setLunchTimeStart(e.target.value)} disabled={disabled} className={cn(timeCls, disabled && disabledCls)} />
-                  <span className="text-gray-400">~</span>
+                  <span className="text-gray-400 dark:text-gray-500">~</span>
                   <input type="time" value={lunchTimeEnd} onChange={(e) => setLunchTimeEnd(e.target.value)} disabled={disabled} className={cn(timeCls, disabled && disabledCls)} />
                 </div>
               </div>
 
               {/* 자습 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  자습 시간 <span className="text-xs text-gray-400 font-normal ml-1">선택</span>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  자습 시간 <span className="text-xs text-gray-400 dark:text-gray-500 font-normal ml-1">선택</span>
                 </label>
                 <div className="flex items-center gap-2">
                   <input type="time" value={selfStudyHoursStart} onChange={(e) => setSelfStudyHoursStart(e.target.value)} disabled={disabled} className={cn(timeCls, disabled && disabledCls)} />
-                  <span className="text-gray-400">~</span>
+                  <span className="text-gray-400 dark:text-gray-500">~</span>
                   <input type="time" value={selfStudyHoursEnd} onChange={(e) => setSelfStudyHoursEnd(e.target.value)} disabled={disabled} className={cn(timeCls, disabled && disabledCls)} />
                   {selfStudyHoursStart && selfStudyHoursEnd && (
-                    <button type="button" onClick={() => { setSelfStudyHoursStart(""); setSelfStudyHoursEnd(""); }} className="p-1.5 text-gray-400 hover:text-gray-600">
+                    <button type="button" onClick={() => { setSelfStudyHoursStart(""); setSelfStudyHoursEnd(""); }} className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400">
                       <X className="w-4 h-4" />
                     </button>
                   )}
@@ -763,8 +763,8 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
               {/* 비학습 블록 */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    비학습 시간 블록 <span className="text-xs text-gray-400 font-normal ml-1">선택</span>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    비학습 시간 블록 <span className="text-xs text-gray-400 dark:text-gray-500 font-normal ml-1">선택</span>
                   </label>
                   {!disabled && (
                     <button type="button" onClick={handleAddBlock} className="flex items-center gap-1 text-xs font-medium text-primary-600 hover:text-primary-700">
@@ -773,20 +773,20 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
                   )}
                 </div>
                 {nonStudyTimeBlocks.length === 0 ? (
-                  <p className="text-xs text-gray-400 py-3 text-center border border-dashed border-gray-200 rounded-lg">추가된 블록 없음</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 py-3 text-center border border-dashed border-gray-200 dark:border-gray-700 rounded-lg">추가된 블록 없음</p>
                 ) : (
                   <div className="space-y-2">
                     {nonStudyTimeBlocks.map((block, i) => (
-                      <div key={i} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
-                        <select value={block.type} onChange={(e) => handleUpdateBlock(i, "type", e.target.value as NonStudyTimeBlock["type"])} disabled={disabled} className="px-2 py-1.5 border border-gray-300 rounded text-xs">
+                      <div key={i} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <select value={block.type} onChange={(e) => handleUpdateBlock(i, "type", e.target.value as NonStudyTimeBlock["type"])} disabled={disabled} className="px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-xs">
                           {NON_STUDY_BLOCK_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                         </select>
-                        <input type="time" value={block.start_time} onChange={(e) => handleUpdateBlock(i, "start_time", e.target.value)} disabled={disabled} className="px-2 py-1.5 border border-gray-300 rounded text-xs" />
-                        <span className="text-gray-400 text-xs">~</span>
-                        <input type="time" value={block.end_time} onChange={(e) => handleUpdateBlock(i, "end_time", e.target.value)} disabled={disabled} className="px-2 py-1.5 border border-gray-300 rounded text-xs" />
-                        <input type="text" value={block.description || ""} onChange={(e) => handleUpdateBlock(i, "description", e.target.value)} placeholder="메모" disabled={disabled} className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-xs" />
+                        <input type="time" value={block.start_time} onChange={(e) => handleUpdateBlock(i, "start_time", e.target.value)} disabled={disabled} className="px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-xs" />
+                        <span className="text-gray-400 dark:text-gray-500 text-xs">~</span>
+                        <input type="time" value={block.end_time} onChange={(e) => handleUpdateBlock(i, "end_time", e.target.value)} disabled={disabled} className="px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-xs" />
+                        <input type="text" value={block.description || ""} onChange={(e) => handleUpdateBlock(i, "description", e.target.value)} placeholder="메모" disabled={disabled} className="flex-1 px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-xs" />
                         {!disabled && (
-                          <button type="button" onClick={() => handleRemoveBlock(i)} className="p-1 text-gray-400 hover:text-red-500">
+                          <button type="button" onClick={() => handleRemoveBlock(i)} className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:text-red-400">
                             <X className="w-3.5 h-3.5" />
                           </button>
                         )}
@@ -798,8 +798,8 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
 
               {/* 타임라인 미리보기 */}
               <div className="pt-3 border-t border-gray-100">
-                <p className="text-xs font-medium text-gray-500 mb-2">주간 학습 시간 미리보기</p>
-                <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">주간 학습 시간 미리보기</p>
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <WeeklyAvailabilityTimeline
                     studyHours={studyHours}
                     selfStudyHours={selfStudyHours}
@@ -815,10 +815,10 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
 
         {/* ════ 스케줄러 ════ */}
         <section id="scheduler" className="py-8 scroll-mt-16">
-            <h3 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wider mb-5">스케줄러</h3>
+            <h3 className="text-[13px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-5">스케줄러</h3>
             <div className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">스케줄러 타입</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">스케줄러 타입</label>
                 <div className="grid grid-cols-2 gap-3">
                   {SCHEDULER_TYPE_OPTIONS.map((o) => (
                     <label
@@ -827,33 +827,33 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
                         "flex flex-col p-3 border rounded-lg cursor-pointer transition-colors",
                         schedulerType === o.value
                           ? "border-primary-500 bg-primary-50"
-                          : "border-gray-200 hover:border-gray-300 hover:bg-gray-50",
+                          : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800",
                         disabled && "cursor-not-allowed opacity-60",
                       )}
                     >
                       <input type="radio" name="scheduler" value={o.value || ""} checked={schedulerType === o.value} onChange={() => setSchedulerType(o.value)} disabled={disabled} className="sr-only" />
-                      <span className="text-sm font-medium text-gray-900">{o.label}</span>
-                      <span className="text-xs text-gray-500 mt-0.5">{o.desc}</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{o.label}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{o.desc}</span>
                     </label>
                   ))}
                 </div>
               </div>
 
               {schedulerType === SCHEDULER_TYPES.TIMETABLE_1730 && (
-                <div className="p-4 bg-blue-50 rounded-lg space-y-3">
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg space-y-3">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">학습일 수</label>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">학습일 수</label>
                       <div className="flex items-center gap-1.5">
-                        <input type="number" value={studyDays} onChange={(e) => setStudyDays(Math.max(1, Math.min(30, parseInt(e.target.value) || 1)))} min={1} max={30} disabled={disabled} className="w-16 px-2 py-1.5 border border-gray-300 rounded text-sm text-center" />
-                        <span className="text-xs text-gray-600">일</span>
+                        <input type="number" value={studyDays} onChange={(e) => setStudyDays(Math.max(1, Math.min(30, parseInt(e.target.value) || 1)))} min={1} max={30} disabled={disabled} className="w-16 px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-sm text-center" />
+                        <span className="text-xs text-gray-600 dark:text-gray-400">일</span>
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">복습일 수</label>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">복습일 수</label>
                       <div className="flex items-center gap-1.5">
-                        <input type="number" value={reviewDays} onChange={(e) => setReviewDays(Math.max(0, Math.min(7, parseInt(e.target.value) || 0)))} min={0} max={7} disabled={disabled} className="w-16 px-2 py-1.5 border border-gray-300 rounded text-sm text-center" />
-                        <span className="text-xs text-gray-600">일</span>
+                        <input type="number" value={reviewDays} onChange={(e) => setReviewDays(Math.max(0, Math.min(7, parseInt(e.target.value) || 0)))} min={0} max={7} disabled={disabled} className="w-16 px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-sm text-center" />
+                        <span className="text-xs text-gray-600 dark:text-gray-400">일</span>
                       </div>
                     </div>
                   </div>
@@ -863,7 +863,7 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
                 </div>
               )}
 
-              <div className="flex items-start gap-2 text-xs text-gray-500">
+              <div className="flex items-start gap-2 text-xs text-gray-500 dark:text-gray-400">
                 <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
                 <span>스케줄러 변경은 이후 생성되는 플랜 그룹에만 적용됩니다.</span>
               </div>
@@ -873,7 +873,7 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
         {/* ════ 캘린더 프리뷰 ════ */}
         {periodStart && periodEnd && (
           <section id="calendar-preview" className="py-8 scroll-mt-16">
-            <h3 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wider mb-5">캘린더 프리뷰</h3>
+            <h3 className="text-[13px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-5">캘린더 프리뷰</h3>
             <PlannerCalendarView
               calendarId={selectedCalendarId || ""}
               periodStart={periodStart}
@@ -886,11 +886,11 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
 
         {/* ════ 캘린더 정보 ════ */}
         <section id="calendar-info" className="py-8 scroll-mt-16">
-          <h3 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wider mb-5">캘린더 정보</h3>
+          <h3 className="text-[13px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-5">캘린더 정보</h3>
           <div className="space-y-4">
             {/* 상태 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">상태</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">상태</label>
               <div className="flex flex-wrap gap-2">
                 {STATUS_OPTIONS.map((o) => (
                   <Pill key={o.value} selected={status === o.value} disabled={disabled} onClick={() => setStatus(o.value)}>
@@ -903,8 +903,8 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
             {/* 관리자 메모 */}
             {isAdminMode && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  관리자 메모 <span className="text-xs text-gray-400 font-normal ml-1">학생에게 표시되지 않음</span>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  관리자 메모 <span className="text-xs text-gray-400 dark:text-gray-500 font-normal ml-1">학생에게 표시되지 않음</span>
                 </label>
                 <textarea
                   value={adminMemo}
@@ -919,24 +919,24 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
             {/* 메타 정보 */}
             <div className="grid grid-cols-2 gap-4 pt-2">
               <div>
-                <p className="text-xs text-gray-500 mb-0.5">캘린더 ID</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">캘린더 ID</p>
                 <div className="flex items-center gap-1.5">
-                  <code className="text-xs text-gray-600 font-mono truncate">{selectedCalendarId?.slice(0, 8)}...</code>
-                  <button type="button" onClick={handleCopyId} className="p-1 text-gray-400 hover:text-gray-600" title="ID 복사">
+                  <code className="text-xs text-gray-600 dark:text-gray-400 font-mono truncate">{selectedCalendarId?.slice(0, 8)}...</code>
+                  <button type="button" onClick={handleCopyId} className="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400" title="ID 복사">
                     {copiedId ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
                   </button>
                 </div>
               </div>
               {calSettings?.createdAt && (
                 <div>
-                  <p className="text-xs text-gray-500 mb-0.5">생성일</p>
-                  <p className="text-xs text-gray-700">{new Date(calSettings.createdAt).toLocaleDateString("ko-KR")}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">생성일</p>
+                  <p className="text-xs text-gray-700 dark:text-gray-300">{new Date(calSettings.createdAt).toLocaleDateString("ko-KR")}</p>
                 </div>
               )}
               {calSettings?.isPrimary && (
                 <div>
-                  <p className="text-xs text-gray-500 mb-0.5">기본 캘린더</p>
-                  <span className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 text-blue-700">기본</span>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">기본 캘린더</p>
+                  <span className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700">기본</span>
                 </div>
               )}
             </div>
@@ -946,8 +946,8 @@ export function SettingsTab({ tab: _tab }: SettingsTabProps) {
 
         {/* 하단 저장 버튼 */}
         {!disabled && (
-          <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200">
-            <button onClick={handleCancel} disabled={isPending || !hasChanges} className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+          <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <button onClick={handleCancel} disabled={isPending || !hasChanges} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-[rgb(var(--color-secondary-50))] border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed">
               취소
             </button>
             <button onClick={handleSave} disabled={isPending || !hasChanges} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed">

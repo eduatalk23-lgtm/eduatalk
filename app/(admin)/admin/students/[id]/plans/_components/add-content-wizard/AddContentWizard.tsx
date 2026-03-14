@@ -186,29 +186,29 @@ export function AddContentWizard({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div
         className={cn(
-          'bg-white rounded-xl w-full max-w-xl max-h-[90vh] flex flex-col shadow-xl',
+          'bg-white dark:bg-[rgb(var(--color-secondary-50))] rounded-xl w-full max-w-xl max-h-[90vh] flex flex-col shadow-xl',
           isPending && 'opacity-70 pointer-events-none'
         )}
       >
         {/* 헤더 */}
         <div className="p-4 border-b flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">콘텐츠 추가</h2>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">콘텐츠 추가</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
               Step {currentStep}/{TOTAL_STEPS}: {STEP_TITLES[currentStep]}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 rounded-lg transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* 진행 인디케이터 */}
-        <div className="px-4 py-3 border-b bg-gray-50">
+        <div className="px-4 py-3 border-b bg-gray-50 dark:bg-gray-800">
           <div className="flex items-center gap-2">
             {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((step) => (
               <div key={step} className="flex items-center">
@@ -221,8 +221,8 @@ export function AddContentWizard({
                     step === currentStep
                       ? 'bg-blue-600 text-white'
                       : step < currentStep
-                        ? 'bg-blue-100 text-blue-600 hover:bg-blue-200 cursor-pointer'
-                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 cursor-pointer'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                   )}
                 >
                   {step}
@@ -231,21 +231,21 @@ export function AddContentWizard({
                   <div
                     className={cn(
                       'w-12 h-0.5 mx-1',
-                      step < currentStep ? 'bg-blue-400' : 'bg-gray-200'
+                      step < currentStep ? 'bg-blue-400' : 'bg-gray-200 dark:bg-gray-700'
                     )}
                   />
                 )}
               </div>
             ))}
           </div>
-          <p className="text-sm text-gray-600 mt-2">{STEP_DESCRIPTIONS[currentStep]}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{STEP_DESCRIPTIONS[currentStep]}</p>
         </div>
 
         {/* 콘텐츠 */}
         <div className="flex-1 overflow-y-auto p-4">{renderStep()}</div>
 
         {/* 푸터 */}
-        <div className="p-4 border-t flex items-center justify-between bg-gray-50">
+        <div className="p-4 border-t flex items-center justify-between bg-gray-50 dark:bg-gray-800">
           <button
             type="button"
             onClick={handlePrev}
@@ -254,7 +254,7 @@ export function AddContentWizard({
               'flex items-center gap-1 px-4 py-2 text-sm rounded-lg transition-colors',
               currentStep === 1
                 ? 'text-gray-300 cursor-not-allowed'
-                : 'text-gray-700 hover:bg-gray-200'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:bg-gray-700'
             )}
           >
             <ChevronLeft className="h-4 w-4" />
@@ -265,7 +265,7 @@ export function AddContentWizard({
               type="button"
               onClick={onClose}
               disabled={isPending}
-              className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+              className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:bg-gray-700 rounded-lg transition-colors"
             >
               취소
             </button>

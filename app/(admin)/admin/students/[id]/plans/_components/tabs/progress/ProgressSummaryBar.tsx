@@ -10,7 +10,7 @@ export function ProgressSummaryBar({ summary }: ProgressSummaryBarProps) {
   const { totalCount, completedCount, completionRate } = summary;
 
   return (
-    <div className="flex items-center gap-4 rounded-lg border border-secondary-200 bg-white px-4 py-3">
+    <div className="flex items-center gap-4 rounded-lg border border-secondary-200 bg-white dark:bg-[rgb(var(--color-secondary-50))] px-4 py-3">
       <span className="text-sm font-medium text-secondary-700">
         완료 {completedCount}/{totalCount} ({completionRate}%)
       </span>

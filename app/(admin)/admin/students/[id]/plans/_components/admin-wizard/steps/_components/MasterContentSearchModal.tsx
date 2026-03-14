@@ -369,15 +369,15 @@ export function MasterContentSearchModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="relative flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl bg-white shadow-xl">
+      <div className="relative flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl bg-white dark:bg-[rgb(var(--color-secondary-50))] shadow-xl">
         {/* 헤더 */}
         <div className="border-b px-6 py-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">마스터 콘텐츠 검색</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">마스터 콘텐츠 검색</h2>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              className="rounded-full p-1 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 hover:text-gray-600 dark:text-gray-400"
             >
               <X className="h-5 w-5" />
             </button>
@@ -388,18 +388,18 @@ export function MasterContentSearchModal({
         <div className="flex-1 overflow-y-auto p-6">
           {selectedMaster ? (
             <div className="space-y-4">
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+              <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/20 p-4">
                 <div className="flex items-start gap-3">
                   {selectedMaster.content_type === "book" ? (
-                    <BookOpen className="h-5 w-5 text-blue-600" />
+                    <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                   ) : (
-                    <Video className="h-5 w-5 text-blue-600" />
+                    <Video className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                   )}
                   <div className="flex-1">
-                    <h3 className="font-medium text-gray-900">
+                    <h3 className="font-medium text-gray-900 dark:text-gray-100">
                       {selectedMaster.title}
                     </h3>
-                    <p className="mt-1 text-sm text-gray-600">
+                    <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                       {selectedMaster.content_type === "book" ? "교재" : "강의"}
                       {selectedMaster.subject && ` · ${selectedMaster.subject}`}
                       {selectedMaster.content_type === "book" &&
@@ -414,7 +414,7 @@ export function MasterContentSearchModal({
 
                 {/* 범위 설정 */}
                 <div className="mt-4 flex items-center gap-3">
-                  <label className="text-sm text-gray-700">학습 범위:</label>
+                  <label className="text-sm text-gray-700 dark:text-gray-300">학습 범위:</label>
                   <input
                     type="number"
                     value={rangeStart}
@@ -423,9 +423,9 @@ export function MasterContentSearchModal({
                     }
                     min={1}
                     max={rangeEnd}
-                    className="w-20 rounded border border-gray-300 px-2 py-1.5 text-sm"
+                    className="w-20 rounded border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-sm"
                   />
-                  <span className="text-gray-500">~</span>
+                  <span className="text-gray-500 dark:text-gray-400">~</span>
                   <input
                     type="number"
                     value={rangeEnd}
@@ -444,9 +444,9 @@ export function MasterContentSearchModal({
                         ? selectedMaster.total_pages || 100
                         : selectedMaster.total_episodes || 10
                     }
-                    className="w-20 rounded border border-gray-300 px-2 py-1.5 text-sm"
+                    className="w-20 rounded border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-sm"
                   />
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
                     /{" "}
                     {selectedMaster.content_type === "book"
                       ? `${selectedMaster.total_pages || 100}페이지`
@@ -458,7 +458,7 @@ export function MasterContentSearchModal({
                   <button
                     type="button"
                     onClick={() => setSelectedMaster(null)}
-                    className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800"
                   >
                     다른 콘텐츠 선택
                   </button>
@@ -491,7 +491,7 @@ export function MasterContentSearchModal({
                       "rounded-full px-3 py-1.5 text-sm font-medium transition",
                       contentType === type
                         ? "bg-blue-600 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:bg-gray-700"
                     )}
                   >
                     {type === "all" ? "전체" : type === "book" ? "교재" : "강의"}
@@ -503,14 +503,14 @@ export function MasterContentSearchModal({
               <div className="grid grid-cols-3 gap-3">
                 {/* 개정교육과정 */}
                 <div>
-                  <label className="mb-1 block text-xs text-gray-600">
+                  <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">
                     개정교육과정
                   </label>
                   <div className="relative">
                     <select
                       value={curriculumRevisionId}
                       onChange={(e) => setCurriculumRevisionId(e.target.value)}
-                      className="w-full appearance-none rounded-lg border border-gray-300 bg-white px-3 py-2 pr-8 text-sm"
+                      className="w-full appearance-none rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[rgb(var(--color-secondary-50))] px-3 py-2 pr-8 text-sm"
                     >
                       <option value="">전체</option>
                       {curriculumRevisions.map((cr) => (
@@ -519,19 +519,19 @@ export function MasterContentSearchModal({
                         </option>
                       ))}
                     </select>
-                    <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
                   </div>
                 </div>
 
                 {/* 교과 */}
                 <div>
-                  <label className="mb-1 block text-xs text-gray-600">교과</label>
+                  <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">교과</label>
                   <div className="relative">
                     <select
                       value={subjectGroupId}
                       onChange={(e) => setSubjectGroupId(e.target.value)}
                       disabled={!curriculumRevisionId || loadingGroups}
-                      className="w-full appearance-none rounded-lg border border-gray-300 bg-white px-3 py-2 pr-8 text-sm disabled:bg-gray-100"
+                      className="w-full appearance-none rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[rgb(var(--color-secondary-50))] px-3 py-2 pr-8 text-sm disabled:bg-gray-100 dark:bg-gray-800"
                     >
                       <option value="">
                         {loadingGroups ? "로딩 중..." : "전체"}
@@ -542,19 +542,19 @@ export function MasterContentSearchModal({
                         </option>
                       ))}
                     </select>
-                    <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
                   </div>
                 </div>
 
                 {/* 과목 */}
                 <div>
-                  <label className="mb-1 block text-xs text-gray-600">과목</label>
+                  <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">과목</label>
                   <div className="relative">
                     <select
                       value={subjectId}
                       onChange={(e) => setSubjectId(e.target.value)}
                       disabled={!subjectGroupId || loadingSubjects}
-                      className="w-full appearance-none rounded-lg border border-gray-300 bg-white px-3 py-2 pr-8 text-sm disabled:bg-gray-100"
+                      className="w-full appearance-none rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[rgb(var(--color-secondary-50))] px-3 py-2 pr-8 text-sm disabled:bg-gray-100 dark:bg-gray-800"
                     >
                       <option value="">
                         {loadingSubjects ? "로딩 중..." : "전체"}
@@ -565,7 +565,7 @@ export function MasterContentSearchModal({
                         </option>
                       ))}
                     </select>
-                    <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
                   </div>
                 </div>
               </div>
@@ -573,7 +573,7 @@ export function MasterContentSearchModal({
               {/* 검색 입력 */}
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
                   <input
                     type="text"
                     value={searchQuery}
@@ -584,7 +584,7 @@ export function MasterContentSearchModal({
                       }
                     }}
                     placeholder="제목, 저자, ISBN 등으로 검색..."
-                    className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 text-sm placeholder:text-gray-400"
+                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 py-2 pl-10 pr-4 text-sm placeholder:text-gray-400 dark:text-gray-500"
                   />
                 </div>
                 <button
@@ -607,11 +607,11 @@ export function MasterContentSearchModal({
                 <div className="mt-4">
                   {isSearching ? (
                     <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                      <span className="ml-2 text-sm text-gray-500">검색 중...</span>
+                      <Loader2 className="h-6 w-6 animate-spin text-gray-400 dark:text-gray-500" />
+                      <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">검색 중...</span>
                     </div>
                   ) : filteredResults.length === 0 ? (
-                    <div className="py-8 text-center text-sm text-gray-500">
+                    <div className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
                       {searchResults.length > 0
                         ? "모든 검색 결과가 이미 추가되었습니다."
                         : "검색 결과가 없습니다."}
@@ -623,18 +623,18 @@ export function MasterContentSearchModal({
                           key={result.id}
                           type="button"
                           onClick={() => handleSelectMaster(result)}
-                          className="flex w-full items-start gap-3 rounded-lg border border-gray-200 p-3 text-left transition hover:border-blue-300 hover:bg-blue-50"
+                          className="flex w-full items-start gap-3 rounded-lg border border-gray-200 dark:border-gray-700 p-3 text-left transition hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:bg-blue-900/20"
                         >
                           {result.content_type === "book" ? (
-                            <BookOpen className="h-5 w-5 flex-shrink-0 text-gray-400" />
+                            <BookOpen className="h-5 w-5 flex-shrink-0 text-gray-400 dark:text-gray-500" />
                           ) : (
-                            <Video className="h-5 w-5 flex-shrink-0 text-gray-400" />
+                            <Video className="h-5 w-5 flex-shrink-0 text-gray-400 dark:text-gray-500" />
                           )}
                           <div className="min-w-0 flex-1">
-                            <p className="truncate font-medium text-gray-900">
+                            <p className="truncate font-medium text-gray-900 dark:text-gray-100">
                               {result.title}
                             </p>
-                            <p className="mt-0.5 text-xs text-gray-500">
+                            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                               {result.content_type === "book" ? "교재" : "강의"}
                               {result.subject && ` · ${result.subject}`}
                               {result.content_type === "book" &&
@@ -645,7 +645,7 @@ export function MasterContentSearchModal({
                                 ` · ${result.total_episodes}강`}
                             </p>
                           </div>
-                          <Plus className="h-5 w-5 flex-shrink-0 text-blue-500" />
+                          <Plus className="h-5 w-5 flex-shrink-0 text-blue-500 dark:text-blue-400" />
                         </button>
                       ))}
                     </div>
@@ -661,7 +661,7 @@ export function MasterContentSearchModal({
           <button
             type="button"
             onClick={onClose}
-            className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800"
           >
             닫기
           </button>

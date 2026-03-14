@@ -178,7 +178,7 @@ export function PlanGroupEditModal({
           <>
             {/* 이름 */}
             <div className="space-y-1.5">
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 그룹 이름
               </label>
               <input
@@ -187,20 +187,20 @@ export function PlanGroupEditModal({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="플랜 그룹 이름 입력"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
               />
             </div>
 
             {/* 상태 */}
             <div className="space-y-1.5">
-              <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="status" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 상태
               </label>
               <select
                 id="status"
                 value={status}
                 onChange={(e) => setStatus(e.target.value as PlanStatus)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
               >
                 {STATUS_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -217,14 +217,14 @@ export function PlanGroupEditModal({
 
             {/* 목적 */}
             <div className="space-y-1.5">
-              <label htmlFor="purpose" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="purpose" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 목적
               </label>
               <select
                 id="purpose"
                 value={planPurpose}
                 onChange={(e) => setPlanPurpose(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
               >
                 {PURPOSE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -236,25 +236,25 @@ export function PlanGroupEditModal({
 
             {/* 기간 */}
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-gray-700">기간</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">기간</label>
               <div className="flex items-center gap-2">
                 <input
                   type="date"
                   value={periodStart}
                   onChange={(e) => setPeriodStart(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 />
-                <span className="text-gray-500">~</span>
+                <span className="text-gray-500 dark:text-gray-400">~</span>
                 <input
                   type="date"
                   value={periodEnd}
                   onChange={(e) => setPeriodEnd(e.target.value)}
                   min={periodStart}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 />
               </div>
               {periodStart && periodEnd && new Date(periodStart) > new Date(periodEnd) && (
-                <p className="text-xs text-red-600 mt-1">
+                <p className="text-xs text-red-600 dark:text-red-400 mt-1">
                   종료일은 시작일 이후여야 합니다.
                 </p>
               )}
@@ -262,13 +262,13 @@ export function PlanGroupEditModal({
 
             {/* 통계 요약 (읽기 전용) */}
             {originalData && (
-              <div className="pt-3 border-t border-gray-200">
-                <p className="text-xs text-gray-500 mb-2">플랜 현황 (읽기 전용)</p>
-                <div className="flex gap-4 text-sm text-gray-600">
+              <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">플랜 현황 (읽기 전용)</p>
+                <div className="flex gap-4 text-sm text-gray-600 dark:text-gray-400">
                   <span>총 {originalData.totalCount}개</span>
-                  <span className="text-green-600">완료 {originalData.completedCount}</span>
-                  <span className="text-blue-600">진행중 {originalData.inProgressCount}</span>
-                  <span className="text-gray-400">대기 {originalData.pendingCount}</span>
+                  <span className="text-green-600 dark:text-green-400">완료 {originalData.completedCount}</span>
+                  <span className="text-blue-600 dark:text-blue-400">진행중 {originalData.inProgressCount}</span>
+                  <span className="text-gray-400 dark:text-gray-500">대기 {originalData.pendingCount}</span>
                 </div>
               </div>
             )}

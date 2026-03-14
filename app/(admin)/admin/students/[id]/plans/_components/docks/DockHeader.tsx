@@ -32,17 +32,17 @@ interface DockHeaderProps {
 
 const colorStyles = {
   blue: {
-    bg: 'bg-blue-50',
+    bg: 'bg-blue-50 dark:bg-blue-900/20',
     border: 'border-blue-200',
     text: 'text-blue-700',
-    badge: 'bg-blue-100 text-blue-600',
-    headerBg: 'bg-blue-100/50',
+    badge: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
+    headerBg: 'bg-blue-100/50 dark:bg-blue-900/30',
   },
   green: {
     bg: 'bg-green-50',
     border: 'border-green-200',
     text: 'text-green-700',
-    badge: 'bg-green-100 text-green-600',
+    badge: 'bg-green-100 text-green-600 dark:text-green-400',
     headerBg: 'bg-green-100/50',
   },
   orange: {
@@ -99,7 +99,7 @@ export function DockHeader({
           <span className="text-lg">{icon}</span>
           <span className={cn('font-medium', styles.text)}>{title}</span>
           {subtitle && (
-            <span className="text-sm text-gray-600">{subtitle}</span>
+            <span className="text-sm text-gray-600 dark:text-gray-400">{subtitle}</span>
           )}
           {count && count.total > 0 && (
             <span className={cn('text-sm px-2 py-0.5 rounded-full', styles.badge)}>
@@ -118,8 +118,8 @@ export function DockHeader({
                 className={cn(
                   'px-2 py-1 text-xs rounded border',
                   filterStatus !== 'all'
-                    ? 'bg-blue-50 border-blue-300 text-blue-700'
-                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 text-blue-700'
+                    : 'bg-white dark:bg-[rgb(var(--color-secondary-50))] border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800'
                 )}
               >
                 {filterStatus === 'all' && '전체'}
@@ -128,7 +128,7 @@ export function DockHeader({
                 {filterStatus === 'completed' && '완료'}
               </button>
               {showFilterMenu && (
-                <div className="absolute right-0 top-full mt-1 w-24 bg-white border rounded-lg shadow-lg z-10">
+                <div className="absolute right-0 top-full mt-1 w-24 bg-white dark:bg-[rgb(var(--color-secondary-50))] border rounded-lg shadow-lg z-10">
                   {(['all', 'pending', 'in_progress', 'completed'] as FilterStatus[]).map(
                     (status) => (
                       <button
@@ -138,8 +138,8 @@ export function DockHeader({
                           setShowFilterMenu(false);
                         }}
                         className={cn(
-                          'w-full px-3 py-1.5 text-left text-sm hover:bg-gray-50',
-                          filterStatus === status && 'bg-blue-50 text-blue-700'
+                          'w-full px-3 py-1.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800',
+                          filterStatus === status && 'bg-blue-50 dark:bg-blue-900/20 text-blue-700'
                         )}
                       >
                         {status === 'all' && '전체'}
@@ -159,7 +159,7 @@ export function DockHeader({
             <select
               value={sortOption}
               onChange={(e) => onSortChange(e.target.value as SortOption)}
-              className="px-2 py-1 text-xs rounded border border-gray-200 bg-white text-gray-600"
+              className="px-2 py-1 text-xs rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] text-gray-600 dark:text-gray-400"
             >
               <option value="sequence">순서</option>
               <option value="time">시간</option>

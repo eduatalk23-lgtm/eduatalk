@@ -32,7 +32,7 @@ export function DroppableContainer({
       className={cn(
         'transition-all duration-200',
         isValidDrop && 'ring-2 ring-offset-2',
-        isValidDrop && isOver && 'ring-blue-500 bg-blue-50/50',
+        isValidDrop && isOver && 'ring-blue-500 dark:ring-blue-400 bg-blue-50/50 dark:bg-blue-900/20',
         isValidDrop && !isOver && 'ring-gray-300',
         className
       )}
@@ -82,7 +82,7 @@ export function DroppableDateCell({
       className={cn(
         'transition-all duration-200',
         showHighlight && 'ring-2 ring-offset-1',
-        showHighlight && isOver && 'ring-blue-500 bg-blue-100',
+        showHighlight && isOver && 'ring-blue-500 dark:ring-blue-400 bg-blue-100 dark:bg-blue-900/30',
         showHighlight && !isOver && 'ring-gray-200',
         className
       )}

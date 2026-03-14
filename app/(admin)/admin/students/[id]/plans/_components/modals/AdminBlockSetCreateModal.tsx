@@ -169,12 +169,12 @@ export function AdminBlockSetCreateModal({
       <div className="p-4 flex flex-col gap-4">
         {/* 블록셋 이름 */}
         <div className="flex flex-col gap-2">
-          <label className="block text-sm font-medium text-gray-900">
-            시간표 이름 <span className="text-red-500">*</span>
+          <label className="block text-sm font-medium text-gray-900 dark:text-gray-100">
+            시간표 이름 <span className="text-red-500 dark:text-red-400">*</span>
           </label>
           <input
             type="text"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400"
             placeholder="예: 평일 학습 시간표"
             value={blockSetName}
             onChange={(e) => setBlockSetName(e.target.value)}
@@ -183,8 +183,8 @@ export function AdminBlockSetCreateModal({
         </div>
 
         {/* 시간 블록 추가 */}
-        <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
-          <h3 className="text-sm font-semibold text-gray-900">시간 블록 추가</h3>
+        <div className="flex flex-col gap-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-4">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">시간 블록 추가</h3>
 
           {/* 요일 선택 */}
           <div className="flex flex-col gap-2">
@@ -192,21 +192,21 @@ export function AdminBlockSetCreateModal({
               <button
                 type="button"
                 onClick={handleSelectAll}
-                className="text-xs text-blue-600 hover:text-blue-800"
+                className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800"
               >
                 전체
               </button>
               <button
                 type="button"
                 onClick={handleSelectWeekdays}
-                className="text-xs text-blue-600 hover:text-blue-800"
+                className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800"
               >
                 평일
               </button>
               <button
                 type="button"
                 onClick={handleSelectWeekends}
-                className="text-xs text-blue-600 hover:text-blue-800"
+                className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800"
               >
                 주말
               </button>
@@ -221,7 +221,7 @@ export function AdminBlockSetCreateModal({
                     'flex-1 rounded-lg py-2 text-sm font-medium transition-colors',
                     selectedWeekdays.includes(index)
                       ? 'bg-blue-600 text-white'
-                      : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                      : 'bg-white dark:bg-[rgb(var(--color-secondary-50))] border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800'
                   )}
                 >
                   {name}
@@ -233,19 +233,19 @@ export function AdminBlockSetCreateModal({
           {/* 시간 입력 */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label className="block text-xs font-medium text-gray-700">시작 시간</label>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">시작 시간</label>
               <input
                 type="time"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400"
                 value={blockStartTime}
                 onChange={(e) => setBlockStartTime(e.target.value)}
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="block text-xs font-medium text-gray-700">종료 시간</label>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">종료 시간</label>
               <input
                 type="time"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400"
                 value={blockEndTime}
                 onChange={(e) => setBlockEndTime(e.target.value)}
               />
@@ -265,24 +265,24 @@ export function AdminBlockSetCreateModal({
 
         {/* 추가된 블록 목록 */}
         {addedBlocks.length > 0 && (
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] p-4">
             <div className="flex flex-col gap-2">
-              <h3 className="text-sm font-semibold text-gray-900">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                 추가된 블록 ({addedBlocks.length}개)
               </h3>
               <div className="max-h-40 space-y-2 overflow-y-auto">
                 {addedBlocks.map((block, index) => (
                   <div
                     key={index}
-                    className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
+                    className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2"
                   >
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
                       {DAY_NAMES[block.day]}요일 {block.startTime} ~ {block.endTime}
                     </span>
                     <button
                       type="button"
                       onClick={() => handleRemoveBlock(index)}
-                      className="text-xs text-red-600 hover:text-red-800"
+                      className="text-xs text-red-600 dark:text-red-400 hover:text-red-800"
                     >
                       삭제
                     </button>

@@ -86,7 +86,7 @@ export function PlanStatusModal({
               'flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors',
               selectedStatus === option.value
                 ? getStatusSelectionColor(option.color)
-                : 'border-gray-200 hover:bg-gray-50'
+                : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800'
             )}
           >
             <input
@@ -100,7 +100,7 @@ export function PlanStatusModal({
               <div className="text-xs opacity-75">{option.description}</div>
             </div>
             {option.value === currentStatus && (
-              <span className="text-xs px-2 py-0.5 bg-white/50 rounded">현재</span>
+              <span className="text-xs px-2 py-0.5 bg-white dark:bg-[rgb(var(--color-secondary-50))]/50 rounded">현재</span>
             )}
           </label>
         ))}

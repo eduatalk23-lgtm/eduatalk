@@ -228,7 +228,7 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
               className={cn(
                 'px-3 py-2 text-sm font-medium transition-colors relative',
                 activeTab === t.key
-                  ? 'text-blue-600'
+                  ? 'text-blue-600 dark:text-blue-400'
                   : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]',
               )}
             >
@@ -256,7 +256,7 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
             titleError ? 'border-red-400' : 'border-[rgb(var(--color-secondary-200))] focus:border-blue-500',
           )}
         />
-        {titleError && <p className="text-xs text-red-500 mt-0.5">{titleError}</p>}
+        {titleError && <p className="text-xs text-red-500 dark:text-red-400 mt-0.5">{titleError}</p>}
 
         {/* ── 일정 탭: 라벨 프리셋 ── */}
         {activeTab === 'event' && (
@@ -375,7 +375,7 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
                       }
                     }}
                     disabled={isPending}
-                    className="h-3.5 w-3.5 rounded border-[rgb(var(--color-secondary-300))] text-blue-600 focus:ring-blue-500"
+                    className="h-3.5 w-3.5 rounded border-[rgb(var(--color-secondary-300))] text-blue-600 dark:text-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
                   />
                   <span className="text-xs text-[var(--text-secondary)]">종일</span>
                 </label>

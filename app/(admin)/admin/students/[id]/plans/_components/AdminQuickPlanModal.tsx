@@ -92,7 +92,7 @@ export function AdminQuickPlanModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div
         className={cn(
-          'bg-white rounded-xl w-full max-w-md shadow-xl',
+          'bg-white dark:bg-[rgb(var(--color-secondary-50))] rounded-xl w-full max-w-md shadow-xl',
           isPending && 'opacity-50 pointer-events-none'
         )}
       >
@@ -104,14 +104,14 @@ export function AdminQuickPlanModal({
             </div>
             <div>
               <h2 className="text-lg font-bold">빠른 플랜 추가</h2>
-              <p className="text-sm text-gray-500">{studentName}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{studentName}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 rounded-lg transition-colors"
           >
-            <X className="h-5 w-5 text-gray-500" />
+            <X className="h-5 w-5 text-gray-500 dark:text-gray-400" />
           </button>
         </div>
 
@@ -126,8 +126,8 @@ export function AdminQuickPlanModal({
 
             {/* 제목 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                제목 <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                제목 <span className="text-red-500 dark:text-red-400">*</span>
               </label>
               <input
                 type="text"
@@ -148,7 +148,7 @@ export function AdminQuickPlanModal({
 
             {/* 학습 유형 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 학습 유형
               </label>
               <div className="grid grid-cols-4 gap-2">
@@ -161,7 +161,7 @@ export function AdminQuickPlanModal({
                       'px-3 py-2 text-sm border rounded-lg transition-colors',
                       freeLearningType === type.value
                         ? 'border-amber-500 bg-amber-50 text-amber-700'
-                        : 'border-gray-200 hover:border-gray-300'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:border-gray-600'
                     )}
                   >
                     {type.label}
@@ -172,7 +172,7 @@ export function AdminQuickPlanModal({
 
             {/* 날짜 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 날짜
               </label>
               <input
@@ -185,7 +185,7 @@ export function AdminQuickPlanModal({
 
             {/* 예상 소요시간 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 예상 소요시간
               </label>
               <div className="flex items-center gap-2">
@@ -197,7 +197,7 @@ export function AdminQuickPlanModal({
                   min="5"
                   max="480"
                 />
-                <span className="text-gray-500">분</span>
+                <span className="text-gray-500 dark:text-gray-400">분</span>
                 <div className="flex gap-1 ml-2">
                   {[15, 30, 60, 90].map((mins) => (
                     <button
@@ -208,7 +208,7 @@ export function AdminQuickPlanModal({
                         'px-2 py-1 text-xs rounded border',
                         estimatedMinutes === String(mins)
                           ? 'border-amber-500 bg-amber-50 text-amber-700'
-                          : 'border-gray-200 hover:bg-gray-50'
+                          : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800'
                       )}
                     >
                       {mins}분
@@ -224,7 +224,7 @@ export function AdminQuickPlanModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 rounded-lg transition-colors"
             >
               취소
             </button>

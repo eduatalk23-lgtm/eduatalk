@@ -56,7 +56,7 @@ export const AutoSaveIndicator = memo(function AutoSaveIndicator({
       {status === "saving" && (
         <>
           <svg
-            className="h-3.5 w-3.5 animate-spin text-blue-500"
+            className="h-3.5 w-3.5 animate-spin text-blue-500 dark:text-blue-400"
             fill="none"
             viewBox="0 0 24 24"
           >
@@ -74,7 +74,7 @@ export const AutoSaveIndicator = memo(function AutoSaveIndicator({
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
             />
           </svg>
-          <span className="text-blue-600">저장 중...</span>
+          <span className="text-blue-600 dark:text-blue-400">저장 중...</span>
         </>
       )}
 
@@ -93,14 +93,14 @@ export const AutoSaveIndicator = memo(function AutoSaveIndicator({
               d="M5 13l4 4L19 7"
             />
           </svg>
-          <span className="text-green-600">저장됨</span>
+          <span className="text-green-600 dark:text-green-400">저장됨</span>
         </>
       )}
 
       {status === "error" && (
         <>
           <svg
-            className="h-3.5 w-3.5 text-red-500"
+            className="h-3.5 w-3.5 text-red-500 dark:text-red-400"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -112,14 +112,14 @@ export const AutoSaveIndicator = memo(function AutoSaveIndicator({
               d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          <span className="text-red-600">저장 실패</span>
+          <span className="text-red-600 dark:text-red-400">저장 실패</span>
         </>
       )}
 
       {status === "idle" && lastSavedAt && (
         <>
           <svg
-            className="h-3.5 w-3.5 text-gray-400"
+            className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -131,7 +131,7 @@ export const AutoSaveIndicator = memo(function AutoSaveIndicator({
               d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          <span className="text-gray-500">
+          <span className="text-gray-500 dark:text-gray-400">
             {formatRelativeTime(lastSavedAt)} 저장됨
           </span>
         </>

@@ -380,20 +380,20 @@ function DroppableAdminDayCellComponent({
         "group/cell relative bg-[rgb(var(--color-secondary-50))] p-1 sm:p-1.5 min-h-0 overflow-hidden cursor-pointer transition-colors",
         // 기본 상태별 배경 및 호버
         !status.isCurrentMonth && "bg-[rgb(var(--color-secondary-50))] hover:bg-[rgb(var(--color-secondary-100))]",
-        status.isCurrentMonth && !status.isExclusion && !status.isSelected && "hover:bg-blue-50/40",
+        status.isCurrentMonth && !status.isExclusion && !status.isSelected && "hover:bg-blue-50/40 dark:hover:bg-blue-900/20",
         // 선택된 날짜 - 에메랄드로 오늘(파랑)과 구분
         status.isSelected && "ring-2 ring-emerald-500 ring-inset bg-emerald-50/30 hover:bg-emerald-50/60",
         // 제외일
         status.isExclusion && "bg-[rgb(var(--color-secondary-100))] hover:bg-[rgb(var(--color-secondary-200))]",
         // 퀵생성 타겟 셀 (팝오버 열려있는 날짜)
-        isQuickCreateTarget && "ring-2 ring-blue-400 ring-inset bg-blue-50/40",
+        isQuickCreateTarget && "ring-2 ring-blue-400 ring-inset bg-blue-50/40 dark:bg-blue-900/20",
         // 월간 드래그 선택 범위
-        isInDragSelection && "bg-blue-50/60 ring-2 ring-blue-300 ring-inset",
+        isInDragSelection && "bg-blue-50/60 dark:bg-blue-900/20 ring-2 ring-blue-300 ring-inset",
         // 검색 하이라이트 셀 배경
         hasHighlightedPlan && "bg-yellow-50/60",
         // 드롭 관련 스타일 - 펄스 애니메이션 추가
         showDropIndicator && canDrop && "ring-2 ring-dashed ring-blue-300 animate-pulse",
-        isOver && canDrop && "bg-blue-50 ring-2 ring-blue-500 animate-none",
+        isOver && canDrop && "bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-500 dark:ring-blue-400 animate-none",
         showInvalidDrop && "bg-red-50 cursor-not-allowed",
         isOver && !canDrop && "bg-red-100"
       )}
@@ -413,17 +413,17 @@ function DroppableAdminDayCellComponent({
               holidayName &&
                 status.isCurrentMonth &&
                 !status.isToday &&
-                "text-red-500",
+                "text-red-500 dark:text-red-400",
               !holidayName &&
                 dayOfWeek === 0 &&
                 status.isCurrentMonth &&
                 !status.isToday &&
-                "text-red-500",
+                "text-red-500 dark:text-red-400",
               !holidayName &&
                 dayOfWeek === 6 &&
                 status.isCurrentMonth &&
                 !status.isToday &&
-                "text-blue-500"
+                "text-blue-500 dark:text-blue-400"
             )}
             title={holidayName ?? undefined}
           >
@@ -501,7 +501,7 @@ function DroppableAdminDayCellComponent({
             }}
             className="absolute inset-0 flex items-center justify-center bg-red-50/80 rounded z-10"
           >
-            <span className="text-xs text-red-500 font-medium">제외일</span>
+            <span className="text-xs text-red-500 dark:text-red-400 font-medium">제외일</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -545,7 +545,7 @@ function DroppableAdminDayCellComponent({
                   onDateClick(dateStr);
                 }
               }}
-              className="text-[10px] sm:text-xs text-blue-600 hover:underline pl-0.5 sm:pl-1"
+              className="text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 hover:underline pl-0.5 sm:pl-1"
             >
               +{plans.length - maxVisible}개 더
             </button>
@@ -557,8 +557,8 @@ function DroppableAdminDayCellComponent({
       {/* 퀵생성 프리뷰 칩 (Google Calendar 스타일) */}
       {isQuickCreateTarget && (quickCreateSlot || isQuickCreateAllDay) && (() => {
         const pColors = resolveCalendarColors(null, activeCalendarColor, 'confirmed', false);
-        const textCls = pColors.textIsWhite ? 'text-white' : 'text-gray-900';
-        const subTextCls = pColors.textIsWhite ? 'text-white/70' : 'text-gray-600';
+        const textCls = pColors.textIsWhite ? 'text-white' : 'text-gray-900 dark:text-gray-100';
+        const subTextCls = pColors.textIsWhite ? 'text-white/70' : 'text-gray-600 dark:text-gray-400';
         return isQuickCreateAllDay ? (
           <div
             className="flex items-center gap-0.5 sm:gap-1 px-1 py-px text-[10px] sm:text-xs rounded animate-in fade-in-0 duration-150"

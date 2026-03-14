@@ -163,20 +163,20 @@ export function Step5AllocationSettings({
 
         {/* 기본 설정 - 플래너에서 상속 (Phase 3: 읽기 전용) */}
         <div className="space-y-4">
-          <h3 className="text-sm font-medium text-gray-700">스케줄러 설정</h3>
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">스케줄러 설정</h3>
+          <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/20 p-4">
             <div className="flex items-center gap-2 text-xs font-medium text-blue-700 mb-3">
               <Lock className="h-3.5 w-3.5" />
               플래너에서 상속된 설정
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-lg bg-white p-3 shadow-sm">
-                <p className="text-xs text-gray-500">주간 학습일</p>
-                <p className="mt-1 text-lg font-semibold text-gray-900">{studyDays}일</p>
+              <div className="rounded-lg bg-white dark:bg-[rgb(var(--color-secondary-50))] p-3 shadow-sm">
+                <p className="text-xs text-gray-500 dark:text-gray-400">주간 학습일</p>
+                <p className="mt-1 text-lg font-semibold text-gray-900 dark:text-gray-100">{studyDays}일</p>
               </div>
-              <div className="rounded-lg bg-white p-3 shadow-sm">
-                <p className="text-xs text-gray-500">복습 주기</p>
-                <p className="mt-1 text-lg font-semibold text-gray-900">{reviewDays}일</p>
+              <div className="rounded-lg bg-white dark:bg-[rgb(var(--color-secondary-50))] p-3 shadow-sm">
+                <p className="text-xs text-gray-500 dark:text-gray-400">복습 주기</p>
+                <p className="mt-1 text-lg font-semibold text-gray-900 dark:text-gray-100">{reviewDays}일</p>
               </div>
             </div>
           </div>
@@ -188,19 +188,19 @@ export function Step5AllocationSettings({
   return (
     <div className="space-y-6">
       {/* 선택된 콘텐츠 요약 */}
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4" data-testid="content-summary">
-        <h3 className="mb-3 flex items-center gap-2 text-sm font-medium text-gray-700">
+      <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-4" data-testid="content-summary">
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
           <BarChart3 className="h-4 w-4" />
           선택된 콘텐츠 요약
         </h3>
         <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-lg bg-white p-3 shadow-sm" data-testid="total-contents-stat">
-            <p className="text-xs text-gray-500">전체 콘텐츠</p>
-            <p className="mt-1 text-lg font-semibold text-gray-900">
+          <div className="rounded-lg bg-white dark:bg-[rgb(var(--color-secondary-50))] p-3 shadow-sm" data-testid="total-contents-stat">
+            <p className="text-xs text-gray-500 dark:text-gray-400">전체 콘텐츠</p>
+            <p className="mt-1 text-lg font-semibold text-gray-900 dark:text-gray-100">
               {contentStats.totalContents}개
             </p>
           </div>
-          <div className="rounded-lg bg-white p-3 shadow-sm">
+          <div className="rounded-lg bg-white dark:bg-[rgb(var(--color-secondary-50))] p-3 shadow-sm">
             <p className="flex items-center gap-1 text-xs text-orange-600">
               <Zap className="h-3 w-3" />
               전략 과목
@@ -209,12 +209,12 @@ export function Step5AllocationSettings({
               {contentStats.strategyCount}개
             </p>
           </div>
-          <div className="rounded-lg bg-white p-3 shadow-sm">
-            <p className="flex items-center gap-1 text-xs text-blue-600">
+          <div className="rounded-lg bg-white dark:bg-[rgb(var(--color-secondary-50))] p-3 shadow-sm">
+            <p className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
               <Target className="h-3 w-3" />
               취약 과목
             </p>
-            <p className="mt-1 text-lg font-semibold text-blue-600">
+            <p className="mt-1 text-lg font-semibold text-blue-600 dark:text-blue-400">
               {contentStats.weaknessCount}개
             </p>
           </div>
@@ -223,7 +223,7 @@ export function Step5AllocationSettings({
 
       {/* 학생 레벨 선택 */}
       <div className="space-y-3">
-        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+        <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
           <TrendingUp className="h-4 w-4" />
           학생 학습 레벨
         </label>
@@ -237,19 +237,19 @@ export function Step5AllocationSettings({
               className={cn(
                 "flex flex-col items-start rounded-lg border p-3 text-left transition",
                 studentLevel === level.value
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-gray-200 bg-white hover:border-gray-300"
+                  ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                  : "border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] hover:border-gray-300 dark:border-gray-600"
               )}
             >
               <span
                 className={cn(
                   "text-sm font-medium",
-                  studentLevel === level.value ? "text-blue-700" : "text-gray-900"
+                  studentLevel === level.value ? "text-blue-700" : "text-gray-900 dark:text-gray-100"
                 )}
               >
                 {level.label}
               </span>
-              <span className="mt-0.5 text-xs text-gray-500">
+              <span className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                 {level.description}
               </span>
             </button>
@@ -260,7 +260,7 @@ export function Step5AllocationSettings({
       {/* 취약 과목 집중도 */}
       {contentStats.weaknessCount > 0 && (
         <div className="space-y-3">
-          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+          <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
             <Target className="h-4 w-4" />
             취약 과목 집중도
           </label>
@@ -276,8 +276,8 @@ export function Step5AllocationSettings({
                 className={cn(
                   "flex flex-col items-start rounded-lg border p-3 text-left transition",
                   weakSubjectFocus === level.value
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-200 bg-white hover:border-gray-300"
+                    ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                    : "border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] hover:border-gray-300 dark:border-gray-600"
                 )}
               >
                 <span
@@ -285,12 +285,12 @@ export function Step5AllocationSettings({
                     "text-sm font-medium",
                     weakSubjectFocus === level.value
                       ? "text-blue-700"
-                      : "text-gray-900"
+                      : "text-gray-900 dark:text-gray-100"
                   )}
                 >
                   {level.label}
                 </span>
-                <span className="mt-0.5 text-xs text-gray-500">
+                <span className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                   {level.description}
                 </span>
               </button>
@@ -301,11 +301,11 @@ export function Step5AllocationSettings({
 
       {/* 플랜 그룹 학습 유형 */}
       <div className="space-y-3">
-        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+        <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
           <BookOpen className="h-4 w-4" />
           플랜 그룹 학습 유형
         </label>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-gray-500 dark:text-gray-400">
           플랜 그룹 전체에 적용될 학습 유형을 선택합니다. 선택하지 않으면 콘텐츠별 설정이 사용됩니다.
         </p>
         <div className="grid grid-cols-3 gap-3">
@@ -314,9 +314,9 @@ export function Step5AllocationSettings({
             const isSelected = studyType === option.value;
             const colorClasses = {
               gray: {
-                selected: "border-gray-500 bg-gray-50",
-                text: "text-gray-700",
-                icon: "text-gray-500",
+                selected: "border-gray-500 bg-gray-50 dark:bg-gray-800",
+                text: "text-gray-700 dark:text-gray-300",
+                icon: "text-gray-500 dark:text-gray-400",
               },
               orange: {
                 selected: "border-orange-500 bg-orange-50",
@@ -324,9 +324,9 @@ export function Step5AllocationSettings({
                 icon: "text-orange-500",
               },
               blue: {
-                selected: "border-blue-500 bg-blue-50",
+                selected: "border-blue-500 bg-blue-50 dark:bg-blue-900/20",
                 text: "text-blue-700",
-                icon: "text-blue-500",
+                icon: "text-blue-500 dark:text-blue-400",
               },
             };
             const colors = colorClasses[option.color];
@@ -341,21 +341,21 @@ export function Step5AllocationSettings({
                   "flex flex-col items-start rounded-lg border p-3 text-left transition",
                   isSelected
                     ? colors.selected
-                    : "border-gray-200 bg-white hover:border-gray-300"
+                    : "border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] hover:border-gray-300 dark:border-gray-600"
                 )}
               >
                 <div className="flex items-center gap-2">
-                  <Icon className={cn("h-4 w-4", isSelected ? colors.icon : "text-gray-400")} />
+                  <Icon className={cn("h-4 w-4", isSelected ? colors.icon : "text-gray-400 dark:text-gray-500")} />
                   <span
                     className={cn(
                       "text-sm font-medium",
-                      isSelected ? colors.text : "text-gray-900"
+                      isSelected ? colors.text : "text-gray-900 dark:text-gray-100"
                     )}
                   >
                     {option.label}
                   </span>
                 </div>
-                <span className="mt-0.5 text-xs text-gray-500">
+                <span className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                   {option.description}
                 </span>
               </button>
@@ -383,7 +383,7 @@ export function Step5AllocationSettings({
                   className={cn(
                     "flex flex-col items-center rounded-lg border p-2 transition",
                     strategyDaysPerWeek === option.value
-                      ? "border-orange-500 bg-white"
+                      ? "border-orange-500 bg-white dark:bg-[rgb(var(--color-secondary-50))]"
                       : "border-orange-200 bg-orange-50/50 hover:border-orange-300"
                   )}
                 >
@@ -408,8 +408,8 @@ export function Step5AllocationSettings({
 
         {/* 할당 미리보기 - studyType이 선택된 경우 표시 */}
         {studyType && (
-          <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4" data-testid="allocation-preview">
-            <h4 className="text-sm font-medium text-gray-700">할당 미리보기</h4>
+          <div className="mt-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-4" data-testid="allocation-preview">
+            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">할당 미리보기</h4>
             <div className="mt-2 space-y-1">
               {(() => {
                 const noIndividualSetting = selectedContents.filter((c) => !c.subjectType).length;
@@ -418,18 +418,18 @@ export function Step5AllocationSettings({
 
                 return (
                   <>
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium text-gray-800">{noIndividualSetting}개</span> 콘텐츠에{" "}
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      <span className="font-medium text-gray-800 dark:text-gray-200">{noIndividualSetting}개</span> 콘텐츠에{" "}
                       <span className={cn(
                         "font-medium",
-                        studyType === "strategy" ? "text-orange-600" : "text-blue-600"
+                        studyType === "strategy" ? "text-orange-600" : "text-blue-600 dark:text-blue-400"
                       )}>
                         &apos;{effectiveLabel}&apos;
                       </span>{" "}
                       유형이 적용됩니다.
                     </p>
                     {hasIndividualSetting > 0 && (
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
                         (개별 설정된 {hasIndividualSetting}개 콘텐츠는 기존 설정 유지)
                       </p>
                     )}
@@ -443,13 +443,13 @@ export function Step5AllocationSettings({
 
       {/* 학습 일수 설정 */}
       <div className="space-y-3">
-        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+        <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
           <Sliders className="h-4 w-4" />
           주간 학습 일수
         </label>
-        <div className="flex items-center gap-4 rounded-lg border border-gray-200 bg-white p-4">
+        <div className="flex items-center gap-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] p-4">
           <div className="flex-1">
-            <p className="text-xs text-gray-500">학습일</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">학습일</p>
             <div className="mt-2 flex items-center gap-2">
               <input
                 type="range"
@@ -462,14 +462,14 @@ export function Step5AllocationSettings({
                 data-testid="study-days-slider"
                 className="flex-1"
               />
-              <span className="w-12 text-center text-sm font-semibold text-gray-900" data-testid="study-days-value">
+              <span className="w-12 text-center text-sm font-semibold text-gray-900 dark:text-gray-100" data-testid="study-days-value">
                 {studyDays}일
               </span>
             </div>
           </div>
-          <div className="w-px self-stretch bg-gray-200" />
+          <div className="w-px self-stretch bg-gray-200 dark:bg-gray-700" />
           <div className="flex-1">
-            <p className="text-xs text-gray-500">복습 주기</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">복습 주기</p>
             <div className="mt-2 flex items-center gap-2">
               <input
                 type="range"
@@ -482,20 +482,20 @@ export function Step5AllocationSettings({
                 data-testid="review-days-slider"
                 className="flex-1"
               />
-              <span className="w-12 text-center text-sm font-semibold text-gray-900" data-testid="review-days-value">
+              <span className="w-12 text-center text-sm font-semibold text-gray-900 dark:text-gray-100" data-testid="review-days-value">
                 {reviewDays}일
               </span>
             </div>
           </div>
         </div>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-gray-500 dark:text-gray-400">
           주 {studyDays}일 학습, {reviewDays}일 간격으로 복습 스케줄이 생성됩니다.
         </p>
       </div>
 
       {/* 안내 메시지 */}
-      <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4">
-        <Info className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-500" />
+      <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/20 p-4">
+        <Info className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-500 dark:text-blue-400" />
         <div className="text-sm text-blue-800">
           <p className="font-medium">배분 설정 안내</p>
           <ul className="mt-1 list-inside list-disc space-y-1 text-blue-700">

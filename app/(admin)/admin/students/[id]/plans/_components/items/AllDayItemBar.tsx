@@ -40,7 +40,7 @@ export const AllDayItemBar = memo(function AllDayItemBar({
         'h-[22px] px-1.5',
         'flex items-center',
         'text-[11px] font-medium truncate',
-        colors.textIsWhite ? 'text-white' : 'text-gray-900',
+        colors.textIsWhite ? 'text-white' : 'text-gray-900 dark:text-gray-100',
         // 클릭 가능 시 커서 + 호버 효과
         onClick && 'cursor-pointer hover:brightness-[0.92] hover:shadow-sm transition-[filter,shadow] duration-100',
         // 멀티데이: 좌/우 라운드 조절

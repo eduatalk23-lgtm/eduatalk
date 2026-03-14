@@ -582,7 +582,7 @@ export const DailyDock = memo(function DailyDock({
             className={cn(
               'flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium transition-colors',
               showTasksOnly
-                ? 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200'
                 : 'hover:bg-[rgb(var(--color-secondary-200))] text-[var(--text-secondary)]'
             )}
             title={showTasksOnly ? '전체 이벤트 표시' : '학습 태스크만 표시'}
@@ -604,7 +604,7 @@ export const DailyDock = memo(function DailyDock({
               className={cn(
                 'p-1 rounded transition-colors mr-1',
                 splitByCreator
-                  ? 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200'
                   : 'hover:bg-[rgb(var(--color-secondary-200))] text-[var(--text-secondary)]'
               )}
               title={splitByCreator ? '통합 보기' : '역할별 분할 보기 (선생님 | 학생)'}

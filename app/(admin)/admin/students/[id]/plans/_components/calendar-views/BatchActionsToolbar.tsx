@@ -206,21 +206,21 @@ export default function BatchActionsToolbar({
       <div
         className={cn(
           "fixed bottom-4 left-1/2 -translate-x-1/2 z-50",
-          "bg-white rounded-xl shadow-xl border border-gray-200",
+          "bg-white dark:bg-[rgb(var(--color-secondary-50))] rounded-xl shadow-xl border border-gray-200 dark:border-gray-700",
           "flex items-center gap-2 px-4 py-3",
           "animate-in slide-in-from-bottom-4 duration-200"
         )}
       >
         {/* 선택 정보 */}
-        <div className="flex items-center gap-2 pr-3 border-r border-gray-200">
-          <CheckSquare className="w-5 h-5 text-blue-500" />
+        <div className="flex items-center gap-2 pr-3 border-r border-gray-200 dark:border-gray-700">
+          <CheckSquare className="w-5 h-5 text-blue-500 dark:text-blue-400" />
           <span className="text-sm font-medium">
             {selectedCount}개 선택됨
           </span>
           {selectedCount < totalPlans && (
             <button
               onClick={onSelectAll}
-              className="text-xs text-blue-600 hover:underline"
+              className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
             >
               전체 선택
             </button>
@@ -237,7 +237,7 @@ export default function BatchActionsToolbar({
             disabled={isPending}
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm",
-              "bg-gray-100 hover:bg-gray-200 transition-colors",
+              "bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:bg-gray-700 transition-colors",
               "disabled:opacity-50 disabled:cursor-not-allowed"
             )}
           >
@@ -247,8 +247,8 @@ export default function BatchActionsToolbar({
           </button>
 
           {showDateDropdown && (
-            <div className="absolute bottom-full mb-2 left-0 bg-white rounded-lg shadow-lg border p-3 min-w-[200px]">
-              <div className="text-xs text-gray-500 mb-2">며칠 이동할까요?</div>
+            <div className="absolute bottom-full mb-2 left-0 bg-white dark:bg-[rgb(var(--color-secondary-50))] rounded-lg shadow-lg border p-3 min-w-[200px]">
+              <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">며칠 이동할까요?</div>
               <div className="flex items-center gap-2 mb-3">
                 <input
                   type="number"
@@ -257,7 +257,7 @@ export default function BatchActionsToolbar({
                   className="w-20 px-2 py-1 border rounded text-sm"
                   placeholder="일수"
                 />
-                <span className="text-sm text-gray-600">일</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">일</span>
               </div>
               <div className="flex gap-1 mb-2">
                 {[-7, -1, 1, 7].map((days) => (
@@ -267,8 +267,8 @@ export default function BatchActionsToolbar({
                     className={cn(
                       "px-2 py-1 text-xs rounded",
                       daysToShift === days
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-gray-100 hover:bg-gray-200"
+                        ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700"
+                        : "bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:bg-gray-700"
                     )}
                   >
                     {days > 0 ? `+${days}` : days}일
@@ -301,7 +301,7 @@ export default function BatchActionsToolbar({
             disabled={isPending}
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm",
-              "bg-gray-100 hover:bg-gray-200 transition-colors",
+              "bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:bg-gray-700 transition-colors",
               "disabled:opacity-50 disabled:cursor-not-allowed"
             )}
           >
@@ -311,12 +311,12 @@ export default function BatchActionsToolbar({
           </button>
 
           {showStatusDropdown && (
-            <div className="absolute bottom-full mb-2 left-0 bg-white rounded-lg shadow-lg border py-1 min-w-[140px]">
+            <div className="absolute bottom-full mb-2 left-0 bg-white dark:bg-[rgb(var(--color-secondary-50))] rounded-lg shadow-lg border py-1 min-w-[140px]">
               {STATUS_OPTIONS.map((option) => (
                 <button
                   key={option.value}
                   onClick={() => handleBatchStatusChange(option.value)}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800"
                 >
                   <option.icon className="w-4 h-4" />
                   {option.label}
@@ -332,7 +332,7 @@ export default function BatchActionsToolbar({
           disabled={isPending}
           className={cn(
             "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm",
-            "bg-red-50 text-red-600 hover:bg-red-100 transition-colors",
+            "bg-red-50 text-red-600 dark:text-red-400 hover:bg-red-100 transition-colors",
             "disabled:opacity-50 disabled:cursor-not-allowed"
           )}
         >
@@ -342,16 +342,16 @@ export default function BatchActionsToolbar({
 
         {/* 로딩 인디케이터 */}
         {isPending && (
-          <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+          <Loader2 className="w-4 h-4 animate-spin text-blue-500 dark:text-blue-400" />
         )}
 
         {/* 닫기 버튼 */}
         <button
           onClick={onExitSelectionMode}
-          className="ml-2 p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+          className="ml-2 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 rounded-lg transition-colors"
           title="선택 모드 종료"
         >
-          <X className="w-4 h-4 text-gray-500" />
+          <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
         </button>
       </div>
 

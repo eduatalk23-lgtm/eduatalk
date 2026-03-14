@@ -78,11 +78,11 @@ function TimeGrid({
         return (
           <div
             key={`main-${minutes}`}
-            className="absolute top-0 bottom-0 border-l border-gray-200/60"
+            className="absolute top-0 bottom-0 border-l border-gray-200 dark:border-gray-700/60"
             style={{ left: `${left}%` }}
           >
             {!compact && (
-              <span className="absolute -top-5 left-0 text-[10px] font-medium text-gray-400 -translate-x-1/2">
+              <span className="absolute -top-5 left-0 text-[10px] font-medium text-gray-400 dark:text-gray-500 -translate-x-1/2">
                 {hour}
               </span>
             )}
@@ -379,12 +379,12 @@ export function DailyDockTimeline({
       {!compact && (
         <div className="flex items-end justify-between px-1">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-gray-700 font-mono tracking-tight">Timeline</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium">
+            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 font-mono tracking-tight">Timeline</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium">
               오늘
             </span>
           </div>
-          <span className="text-[11px] font-medium text-gray-500 bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">
+          <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-2 py-0.5 rounded-md border border-gray-100">
             총 {formatDuration(totalScheduledMinutes)} 계획
           </span>
         </div>
@@ -393,7 +393,7 @@ export function DailyDockTimeline({
       {/* 타임라인 바 트랙 */}
       <div 
         className={cn(
-          'relative w-full bg-white rounded-xl border border-gray-200 shadow-sm overflow-visible select-none', // overflow-visible for tooltips
+          'relative w-full bg-white dark:bg-[rgb(var(--color-secondary-50))] rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-visible select-none', // overflow-visible for tooltips
           compact ? 'h-10' : 'h-24'
         )}
       >
@@ -421,7 +421,7 @@ export function DailyDockTimeline({
       
       {/* 시각 범위 레이블 (시작/끝) */}
       {!compact && (
-        <div className="flex justify-between px-1 text-[10px] text-gray-400 font-medium">
+        <div className="flex justify-between px-1 text-[10px] text-gray-400 dark:text-gray-500 font-medium">
           <span>{displayRange.start}</span>
           <span>{displayRange.end}</span>
         </div>

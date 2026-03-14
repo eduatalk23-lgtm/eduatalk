@@ -433,7 +433,7 @@ export default function AdminCalendarView({
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
               showTasksOnly
-                ? "bg-blue-100 text-blue-700"
+                ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700"
                 : "bg-[rgb(var(--color-secondary-100))] text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-200))]"
             )}
             title={showTasksOnly ? "전체 이벤트 표시" : "학습 태스크만 표시"}
@@ -447,7 +447,7 @@ export default function AdminCalendarView({
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
               isSelectionMode
-                ? "bg-blue-100 text-blue-700"
+                ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700"
                 : "bg-[rgb(var(--color-secondary-100))] text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-200))]"
             )}
           >

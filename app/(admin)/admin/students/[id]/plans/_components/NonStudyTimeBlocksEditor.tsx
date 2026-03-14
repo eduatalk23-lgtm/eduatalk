@@ -104,7 +104,7 @@ function BlockItem({ block, index, onChange, onDelete, disabled, compact }: Bloc
   };
 
   return (
-    <div className={cn("border rounded-lg bg-white", disabled && "opacity-50")}>
+    <div className={cn("border rounded-lg bg-white dark:bg-[rgb(var(--color-secondary-50))]", disabled && "opacity-50")}>
       {/* 헤더 (클릭 가능) */}
       <div
         role="button"
@@ -118,7 +118,7 @@ function BlockItem({ block, index, onChange, onDelete, disabled, compact }: Bloc
         }}
         className={cn(
           "w-full flex items-center justify-between gap-3 p-3 text-left",
-          !compact && "hover:bg-gray-50 cursor-pointer",
+          !compact && "hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 cursor-pointer",
           compact && "cursor-default",
           disabled && "cursor-not-allowed"
         )}
@@ -128,12 +128,12 @@ function BlockItem({ block, index, onChange, onDelete, disabled, compact }: Bloc
           <span className="text-lg flex-shrink-0">{typeInfo.emoji}</span>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-medium text-gray-900 text-sm">{typeInfo.label}</span>
+              <span className="font-medium text-gray-900 dark:text-gray-100 text-sm">{typeInfo.label}</span>
               {block.description && (
-                <span className="text-xs text-gray-500 truncate">({block.description})</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 truncate">({block.description})</span>
               )}
             </div>
-            <div className="flex items-center gap-2 text-xs text-gray-500">
+            <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
               <span>
                 {block.start_time} ~ {block.end_time}
               </span>
@@ -145,9 +145,9 @@ function BlockItem({ block, index, onChange, onDelete, disabled, compact }: Bloc
         <div className="flex items-center gap-2 flex-shrink-0">
           {!compact && (
             expanded ? (
-              <ChevronUp className="w-4 h-4 text-gray-400" />
+              <ChevronUp className="w-4 h-4 text-gray-400 dark:text-gray-500" />
             ) : (
-              <ChevronDown className="w-4 h-4 text-gray-400" />
+              <ChevronDown className="w-4 h-4 text-gray-400 dark:text-gray-500" />
             )
           )}
           <button
@@ -156,7 +156,7 @@ function BlockItem({ block, index, onChange, onDelete, disabled, compact }: Bloc
               e.stopPropagation();
               onDelete(index);
             }}
-            className="p-1 hover:bg-red-50 rounded text-gray-400 hover:text-red-500"
+            className="p-1 hover:bg-red-50 rounded text-gray-400 dark:text-gray-500 hover:text-red-500 dark:text-red-400"
             disabled={disabled}
           >
             <Trash2 className="w-4 h-4" />
@@ -170,11 +170,11 @@ function BlockItem({ block, index, onChange, onDelete, disabled, compact }: Bloc
           <div className="grid grid-cols-2 gap-3 pt-3">
             {/* 블록 타입 */}
             <div>
-              <label className="block text-xs text-gray-600 mb-1">유형</label>
+              <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">유형</label>
               <select
                 value={block.type}
                 onChange={(e) => handleFieldChange("type", e.target.value)}
-                className="w-full px-2 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-2 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
                 disabled={disabled}
               >
                 {BLOCK_TYPES.map((type) => (
@@ -187,7 +187,7 @@ function BlockItem({ block, index, onChange, onDelete, disabled, compact }: Bloc
 
             {/* 설명 */}
             <div>
-              <label className="block text-xs text-gray-600 mb-1">설명 (선택)</label>
+              <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">설명 (선택)</label>
               <input
                 type="text"
                 value={block.description || ""}
@@ -195,7 +195,7 @@ function BlockItem({ block, index, onChange, onDelete, disabled, compact }: Bloc
                   handleFieldChange("description", e.target.value || undefined)
                 }
                 placeholder="예: 저녁 외출"
-                className="w-full px-2 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-2 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
                 disabled={disabled}
               />
             </div>
@@ -204,22 +204,22 @@ function BlockItem({ block, index, onChange, onDelete, disabled, compact }: Bloc
           {/* 시간 설정 */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-600 mb-1">시작 시간</label>
+              <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">시작 시간</label>
               <input
                 type="time"
                 value={block.start_time}
                 onChange={(e) => handleFieldChange("start_time", e.target.value)}
-                className="w-full px-2 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-2 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
                 disabled={disabled}
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-600 mb-1">종료 시간</label>
+              <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">종료 시간</label>
               <input
                 type="time"
                 value={block.end_time}
                 onChange={(e) => handleFieldChange("end_time", e.target.value)}
-                className="w-full px-2 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-2 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
                 disabled={disabled}
               />
             </div>
@@ -227,7 +227,7 @@ function BlockItem({ block, index, onChange, onDelete, disabled, compact }: Bloc
 
           {/* 요일 선택 */}
           <div>
-            <label className="block text-xs text-gray-600 mb-1">적용 요일</label>
+            <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">적용 요일</label>
             <div className="flex flex-wrap gap-1.5">
               {WEEKDAYS.map((day) => {
                 const isSelected =
@@ -241,7 +241,7 @@ function BlockItem({ block, index, onChange, onDelete, disabled, compact }: Bloc
                       "w-8 h-8 text-xs font-medium rounded-lg border transition-colors",
                       isSelected
                         ? "bg-blue-500 text-white border-blue-500"
-                        : "bg-white text-gray-600 border-gray-300 hover:border-blue-300"
+                        : "bg-white dark:bg-[rgb(var(--color-secondary-50))] text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-600 hover:border-blue-300"
                     )}
                     disabled={disabled}
                   >
@@ -250,7 +250,7 @@ function BlockItem({ block, index, onChange, onDelete, disabled, compact }: Bloc
                 );
               })}
             </div>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
               선택하지 않으면 매일 적용됩니다
             </p>
           </div>
@@ -309,10 +309,10 @@ export function NonStudyTimeBlocksEditor({
       {/* 헤더 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Clock className="w-4 h-4 text-gray-500" />
-          <span className="text-sm font-medium text-gray-700">비학습 시간</span>
+          <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">비학습 시간</span>
           {blocks.length > 0 && (
-            <span className="text-xs text-gray-400">({blocks.length}개)</span>
+            <span className="text-xs text-gray-400 dark:text-gray-500">({blocks.length}개)</span>
           )}
         </div>
         <button
@@ -322,8 +322,8 @@ export function NonStudyTimeBlocksEditor({
           className={cn(
             "flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg transition-colors",
             disabled
-              ? "text-gray-400 cursor-not-allowed"
-              : "text-blue-600 hover:bg-blue-50"
+              ? "text-gray-400 dark:text-gray-500 cursor-not-allowed"
+              : "text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:bg-blue-900/20"
           )}
         >
           <Plus className="w-3.5 h-3.5" />
@@ -333,14 +333,14 @@ export function NonStudyTimeBlocksEditor({
 
       {/* 블록 목록 */}
       {blocks.length === 0 ? (
-        <div className="text-center py-6 text-sm text-gray-500 border border-dashed rounded-lg">
+        <div className="text-center py-6 text-sm text-gray-500 dark:text-gray-400 border border-dashed rounded-lg">
           비학습 시간이 없습니다
           <br />
           <button
             type="button"
             onClick={handleAdd}
             disabled={disabled}
-            className="mt-2 text-blue-600 hover:underline"
+            className="mt-2 text-blue-600 dark:text-blue-400 hover:underline"
           >
             + 비학습 시간 추가
           </button>
@@ -363,7 +363,7 @@ export function NonStudyTimeBlocksEditor({
 
       {/* 도움말 */}
       {!compact && blocks.length > 0 && (
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-gray-400 dark:text-gray-500">
           비학습 시간은 플랜 생성 시 자동으로 제외됩니다
         </p>
       )}

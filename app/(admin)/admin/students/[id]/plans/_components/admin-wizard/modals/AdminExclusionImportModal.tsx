@@ -20,7 +20,7 @@ type AdminExclusionImportModalProps = {
 const exclusionTypeColors: Record<ExclusionSchedule["exclusion_type"], string> = {
   holiday: "bg-orange-100 text-orange-800 border-orange-300",
   personal: "bg-purple-100 text-purple-800 border-purple-300",
-  event: "bg-blue-100 text-blue-800 border-blue-300",
+  event: "bg-blue-100 dark:bg-blue-900/30 text-blue-800 border-blue-300",
 };
 
 const exclusionTypeLabels: Record<ExclusionSchedule["exclusion_type"], string> = {
@@ -130,9 +130,9 @@ export function AdminExclusionImportModal({
       <DialogContent className="max-h-[60vh] overflow-y-auto">
         <div className="flex flex-col gap-4">
           {/* 안내 메시지 */}
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+          <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/20 p-3">
             <div className="flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 flex-shrink-0 text-blue-600" />
+              <AlertCircle className="h-4 w-4 flex-shrink-0 text-blue-600 dark:text-blue-400" />
               <div className="flex flex-col gap-1 text-xs text-blue-800">
                 {periodStart && periodEnd && (
                   <p className="font-semibold">
@@ -149,28 +149,28 @@ export function AdminExclusionImportModal({
 
           {/* 제외일 목록 */}
           {filteredExclusions.length === 0 ? (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-8">
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-8">
               <div className="flex flex-col items-center gap-2 text-center">
-                <Calendar className="h-12 w-12 text-gray-400" />
+                <Calendar className="h-12 w-12 text-gray-400 dark:text-gray-500" />
                 <div className="flex flex-col gap-1">
-                  <p className="text-sm font-medium text-gray-600">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
                     플랜 기간 내 등록된 제외일이 없습니다
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     학생의 시간 관리 메뉴에서 제외일을 먼저 등록해주세요.
                   </p>
                 </div>
               </div>
             </div>
           ) : newExclusions.length === 0 ? (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-8">
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-8">
               <div className="flex flex-col items-center gap-2 text-center">
-                <AlertCircle className="h-12 w-12 text-gray-400" />
+                <AlertCircle className="h-12 w-12 text-gray-400 dark:text-gray-500" />
                 <div className="flex flex-col gap-1">
-                  <p className="text-sm font-medium text-gray-600">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
                     불러올 새로운 제외일이 없습니다
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     모든 제외일이 이미 등록되어 있습니다.
                   </p>
                 </div>
@@ -179,14 +179,14 @@ export function AdminExclusionImportModal({
           ) : (
             <div className="space-y-3">
               {/* 전체 선택 */}
-              <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-gray-50 p-3">
+              <div className="flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 p-3">
                 <input
                   type="checkbox"
                   checked={selectedKeys.size === newExclusions.length && newExclusions.length > 0}
                   onChange={handleSelectAll}
-                  className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                  className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-gray-900"
                 />
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                   전체 선택 ({selectedKeys.size} / {newExclusions.length})
                 </span>
               </div>
@@ -202,10 +202,10 @@ export function AdminExclusionImportModal({
                     key={exclusionKey}
                     className={`flex items-start gap-3 rounded-lg border p-3 transition-colors ${
                       isExisting
-                        ? "border-gray-200 bg-gray-50 opacity-60"
+                        ? "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 opacity-60"
                         : isSelected
-                        ? "border-gray-900 bg-gray-50"
-                        : "border-gray-200 bg-white hover:bg-gray-50"
+                        ? "border-gray-900 bg-gray-50 dark:bg-gray-800"
+                        : "border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800"
                     }`}
                   >
                     <input
@@ -213,11 +213,11 @@ export function AdminExclusionImportModal({
                       checked={isSelected}
                       onChange={() => handleToggle(exclusion)}
                       disabled={isExisting}
-                      className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
                     />
                     <div className="flex flex-col gap-1 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-900">
+                        <span className="font-medium text-gray-900 dark:text-gray-100">
                           {format(new Date(exclusion.exclusion_date), "yyyy년 M월 d일 (E)", {
                             locale: ko,
                           })}
@@ -230,13 +230,13 @@ export function AdminExclusionImportModal({
                           {exclusionTypeLabels[exclusion.exclusion_type]}
                         </span>
                         {isExisting && (
-                          <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-600">
+                          <span className="rounded-full bg-gray-200 dark:bg-gray-700 px-2 py-0.5 text-xs font-medium text-gray-600 dark:text-gray-400">
                             등록됨
                           </span>
                         )}
                       </div>
                       {exclusion.reason && (
-                        <p className="text-xs text-gray-600">
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
                           사유: {exclusion.reason}
                         </p>
                       )}
@@ -250,14 +250,14 @@ export function AdminExclusionImportModal({
       </DialogContent>
       <DialogFooter>
         <div className="flex w-full items-center justify-between">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             선택된 항목: <span className="font-semibold">{selectedKeys.size}개</span>
           </p>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[rgb(var(--color-secondary-50))] px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800"
             >
               취소
             </button>

@@ -55,7 +55,7 @@ export function Step1ContentInfo({ data, onChange, studentId, tenantId }: Step1C
     <div className="space-y-6">
       {/* 콘텐츠 유형 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-3">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
           콘텐츠 유형
         </label>
         <div className="grid grid-cols-3 gap-3">
@@ -67,8 +67,8 @@ export function Step1ContentInfo({ data, onChange, studentId, tenantId }: Step1C
               className={cn(
                 'flex items-center justify-center gap-2 py-3 px-4 border rounded-lg transition-colors',
                 data.contentType === type
-                  ? 'border-blue-500 bg-blue-50 text-blue-700'
-                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800'
               )}
             >
               {icon}
@@ -80,22 +80,22 @@ export function Step1ContentInfo({ data, onChange, studentId, tenantId }: Step1C
 
       {/* 학습 유형 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-3">
-          학습 유형 <span className="text-gray-400">(선택)</span>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+          학습 유형 <span className="text-gray-400 dark:text-gray-500">(선택)</span>
         </label>
         <div className="grid grid-cols-3 gap-3">
           {SUBJECT_TYPE_OPTIONS.map(({ value, label, description, icon, color }) => {
             const isSelected = data.subjectType === value;
             const colorClasses = {
               gray: isSelected
-                ? 'border-gray-400 bg-gray-50 text-gray-700'
-                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50',
+                ? 'border-gray-400 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800',
               orange: isSelected
                 ? 'border-orange-500 bg-orange-50 text-orange-700'
-                : 'border-gray-200 hover:border-orange-300 hover:bg-orange-50',
+                : 'border-gray-200 dark:border-gray-700 hover:border-orange-300 hover:bg-orange-50',
               blue: isSelected
-                ? 'border-blue-500 bg-blue-50 text-blue-700'
-                : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50',
+                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700'
+                : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:bg-blue-900/20',
             };
             return (
               <button
@@ -112,7 +112,7 @@ export function Step1ContentInfo({ data, onChange, studentId, tenantId }: Step1C
                   {icon === 'target' && <Target className="h-4 w-4" />}
                   <span className="font-medium text-sm">{label}</span>
                 </div>
-                <span className="text-xs text-gray-500">{description}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">{description}</span>
               </button>
             );
           })}
@@ -121,14 +121,14 @@ export function Step1ContentInfo({ data, onChange, studentId, tenantId }: Step1C
 
       {/* 과목 정보 */}
       <div className="space-y-3">
-        <label className="block text-sm font-medium text-gray-700">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
           과목 정보
         </label>
         <div className="grid grid-cols-3 gap-3">
           <select
             value={data.curriculum}
             onChange={(e) => onChange({ curriculum: e.target.value })}
-            className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500"
           >
             <option value="">개정과정</option>
             <option value="2022 개정">2022 개정</option>
@@ -137,7 +137,7 @@ export function Step1ContentInfo({ data, onChange, studentId, tenantId }: Step1C
           <select
             value={data.subjectArea}
             onChange={(e) => onChange({ subjectArea: e.target.value })}
-            className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500"
           >
             <option value="">교과</option>
             <option value="국어">국어</option>
@@ -151,47 +151,47 @@ export function Step1ContentInfo({ data, onChange, studentId, tenantId }: Step1C
             placeholder="과목명"
             value={data.subject}
             onChange={(e) => onChange({ subject: e.target.value })}
-            className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500"
           />
         </div>
       </div>
 
       {/* 콘텐츠 제목 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          콘텐츠 제목 <span className="text-red-500">*</span>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          콘텐츠 제목 <span className="text-red-500 dark:text-red-400">*</span>
         </label>
         <input
           type="text"
           placeholder="예: 개념원리 수학1"
           value={data.title}
           onChange={(e) => onChange({ title: e.target.value })}
-          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500"
         />
       </div>
 
       {/* 마스터 콘텐츠 연결 */}
       <div className="space-y-3">
-        <label className="block text-sm font-medium text-gray-700">
-          마스터 콘텐츠 연결 <span className="text-gray-400">(선택)</span>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          마스터 콘텐츠 연결 <span className="text-gray-400 dark:text-gray-500">(선택)</span>
         </label>
 
         {data.linkMaster && data.masterContentId ? (
           // 선택된 마스터 콘텐츠 표시
-          <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 rounded-lg">
             <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg">
+              <div className="flex items-center justify-center w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                 {data.contentType === 'book' ? (
-                  <BookOpen className="h-5 w-5 text-blue-600" />
+                  <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 ) : (
-                  <Video className="h-5 w-5 text-blue-600" />
+                  <Video className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 )}
               </div>
               <div>
-                <div className="text-sm font-medium text-gray-900">
+                <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                   {data.masterContentTitle || data.title}
                 </div>
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-gray-500 dark:text-gray-400">
                   마스터 콘텐츠 연결됨
                 </div>
               </div>
@@ -199,7 +199,7 @@ export function Step1ContentInfo({ data, onChange, studentId, tenantId }: Step1C
             <button
               type="button"
               onClick={handleClearMasterContent}
-              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+              className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:text-red-400 hover:bg-red-50 rounded transition-colors"
               title="연결 해제"
             >
               <X className="h-4 w-4" />
@@ -210,14 +210,14 @@ export function Step1ContentInfo({ data, onChange, studentId, tenantId }: Step1C
           <button
             type="button"
             onClick={() => setShowMasterSearch(true)}
-            className="w-full flex items-center justify-center gap-2 p-4 bg-gray-50 border border-dashed border-gray-300 rounded-lg hover:bg-gray-100 hover:border-gray-400 transition-colors"
+            className="w-full flex items-center justify-center gap-2 p-4 bg-gray-50 dark:bg-gray-800 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 hover:border-gray-400 transition-colors"
           >
-            <Search className="h-4 w-4 text-gray-500" />
-            <span className="text-sm text-gray-600">마스터 콘텐츠에서 검색하기</span>
+            <Search className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+            <span className="text-sm text-gray-600 dark:text-gray-400">마스터 콘텐츠에서 검색하기</span>
           </button>
         )}
 
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-gray-500 dark:text-gray-400">
           마스터 콘텐츠를 연결하면 교재/강의 정보가 자동으로 채워집니다.
         </p>
       </div>

@@ -245,10 +245,10 @@ export function PlanTemplateModal({
   if (isLoading) {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div className="bg-white dark:bg-[rgb(var(--color-secondary-50))] rounded-lg p-6 w-full max-w-md">
           <div className="animate-pulse space-y-4">
-            <div className="h-6 bg-gray-200 rounded w-1/2" />
-            <div className="h-20 bg-gray-200 rounded" />
+            <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+            <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded" />
           </div>
         </div>
       </div>
@@ -259,7 +259,7 @@ export function PlanTemplateModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div
         className={cn(
-          'bg-white rounded-lg w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col',
+          'bg-white dark:bg-[rgb(var(--color-secondary-50))] rounded-lg w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col',
           isPending && 'opacity-50 pointer-events-none'
         )}
       >
@@ -274,7 +274,7 @@ export function PlanTemplateModal({
                   ? '템플릿 편집'
                   : '플랜 템플릿'}
           </h2>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             {mode === 'create'
               ? `${planIds?.length ?? 0}개 플랜을 템플릿으로 저장`
               : mode === 'apply'
@@ -290,7 +290,7 @@ export function PlanTemplateModal({
           {mode === 'create' && (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   템플릿 이름 *
                 </label>
                 <input
@@ -302,7 +302,7 @@ export function PlanTemplateModal({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   설명 (선택)
                 </label>
                 <textarea
@@ -313,7 +313,7 @@ export function PlanTemplateModal({
                   placeholder="템플릿에 대한 설명을 입력하세요"
                 />
               </div>
-              <div className="p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm text-blue-800">
                 {planIds?.length ?? 0}개의 플랜이 이 템플릿에 포함됩니다.
               </div>
             </div>
@@ -322,7 +322,7 @@ export function PlanTemplateModal({
           {mode === 'edit' && (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   템플릿 이름 *
                 </label>
                 <input
@@ -334,7 +334,7 @@ export function PlanTemplateModal({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   설명 (선택)
                 </label>
                 <textarea
@@ -349,7 +349,7 @@ export function PlanTemplateModal({
                 const template = templates.find((t) => t.id === editingTemplateId);
                 const itemCount = (template?.items as unknown[])?.length ?? 0;
                 return (
-                  <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
+                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm text-gray-600 dark:text-gray-400">
                     이 템플릿에는 {itemCount}개의 플랜이 포함되어 있습니다.
                   </div>
                 );
@@ -360,7 +360,7 @@ export function PlanTemplateModal({
           {mode === 'apply' && (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   적용할 날짜
                 </label>
                 <input
@@ -371,11 +371,11 @@ export function PlanTemplateModal({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   템플릿 선택
                 </label>
                 {templates.length === 0 ? (
-                  <div className="text-center py-6 text-gray-500">
+                  <div className="text-center py-6 text-gray-500 dark:text-gray-400">
                     저장된 템플릿이 없습니다.
                   </div>
                 ) : (
@@ -397,11 +397,11 @@ export function PlanTemplateModal({
                         <div className="flex-1 min-w-0">
                           <div className="font-medium">{template.name}</div>
                           {template.description && (
-                            <div className="text-sm text-gray-500 truncate">
+                            <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
                               {template.description}
                             </div>
                           )}
-                          <div className="text-xs text-gray-400 mt-1">
+                          <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                             {(template.items as unknown[]).length}개 플랜 • {formatDate(template.created_at)}
                           </div>
                         </div>
@@ -417,12 +417,12 @@ export function PlanTemplateModal({
                   <button
                     type="button"
                     onClick={() => setShowPreview(!showPreview)}
-                    className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 text-left"
+                    className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 text-left"
                   >
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       📋 플랜 상세 ({templateItems.length}개)
                     </span>
-                    <span className="text-gray-400 text-sm">
+                    <span className="text-gray-400 dark:text-gray-500 text-sm">
                       {showPreview ? '접기 ▲' : '펼치기 ▼'}
                     </span>
                   </button>
@@ -432,16 +432,16 @@ export function PlanTemplateModal({
                         <div key={idx} className="p-3 text-sm">
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
-                              <div className="font-medium text-gray-900 truncate">
+                              <div className="font-medium text-gray-900 dark:text-gray-100 truncate">
                                 {item.custom_title || item.content_title || '제목 없음'}
                               </div>
                               {item.content_subject && (
-                                <div className="text-xs text-gray-500 mt-0.5">
+                                <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                                   {item.content_subject}
                                 </div>
                               )}
                             </div>
-                            <div className="shrink-0 text-right text-xs text-gray-500">
+                            <div className="shrink-0 text-right text-xs text-gray-500 dark:text-gray-400">
                               {item.planned_start_page_or_time != null && item.planned_end_page_or_time != null && (
                                 <div>
                                   p.{item.planned_start_page_or_time}-{item.planned_end_page_or_time}
@@ -455,7 +455,7 @@ export function PlanTemplateModal({
                         </div>
                       ))}
                       {/* 요약 정보 */}
-                      <div className="p-3 bg-gray-50 text-xs text-gray-600">
+                      <div className="p-3 bg-gray-50 dark:bg-gray-800 text-xs text-gray-600 dark:text-gray-400">
                         <div className="flex justify-between">
                           <span>총 플랜 수</span>
                           <span className="font-medium">{templateItems.length}개</span>
@@ -497,7 +497,7 @@ export function PlanTemplateModal({
                         setSelectedTargetStudents([]);
                       }
                     }}
-                    className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-purple-600 focus:ring-purple-500"
                   />
                   <span className="text-sm font-medium">다른 학생에게도 적용</span>
                 </label>
@@ -505,9 +505,9 @@ export function PlanTemplateModal({
                 {applyToOtherStudents && (
                   <div className="mt-3 space-y-2">
                     {isLoadingStudents ? (
-                      <div className="text-sm text-gray-500 py-2">학생 목록 로딩 중...</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400 py-2">학생 목록 로딩 중...</div>
                     ) : availableStudents.length === 0 ? (
-                      <div className="text-sm text-gray-500 py-2">적용 가능한 다른 학생이 없습니다.</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400 py-2">적용 가능한 다른 학생이 없습니다.</div>
                     ) : (
                       <>
                         <div className="max-h-32 overflow-y-auto space-y-1 border rounded-md p-2">
@@ -523,7 +523,7 @@ export function PlanTemplateModal({
                                 type="checkbox"
                                 checked={selectedTargetStudents.includes(student.id)}
                                 onChange={() => handleToggleTargetStudent(student.id)}
-                                className="w-3.5 h-3.5 rounded border-gray-300 text-purple-600"
+                                className="w-3.5 h-3.5 rounded border-gray-300 dark:border-gray-600 text-purple-600"
                               />
                               <span>{student.name}</span>
                             </label>
@@ -569,27 +569,27 @@ export function PlanTemplateModal({
                 {planIds && planIds.length > 0 && (
                   <button
                     onClick={() => setMode('create')}
-                    className="flex-1 px-4 py-3 border-2 border-dashed rounded-lg text-center hover:bg-gray-50"
+                    className="flex-1 px-4 py-3 border-2 border-dashed rounded-lg text-center hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800"
                   >
                     <span className="text-2xl">💾</span>
                     <div className="text-sm font-medium mt-1">템플릿으로 저장</div>
-                    <div className="text-xs text-gray-500">{planIds.length}개 플랜</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{planIds.length}개 플랜</div>
                   </button>
                 )}
                 <button
                   onClick={() => setMode('apply')}
-                  className="flex-1 px-4 py-3 border-2 border-dashed rounded-lg text-center hover:bg-gray-50"
+                  className="flex-1 px-4 py-3 border-2 border-dashed rounded-lg text-center hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800"
                 >
                   <span className="text-2xl">📋</span>
                   <div className="text-sm font-medium mt-1">템플릿 적용</div>
-                  <div className="text-xs text-gray-500">{templates.length}개 템플릿</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">{templates.length}개 템플릿</div>
                 </button>
               </div>
 
               {/* 템플릿 목록 */}
               {templates.length > 0 && (
                 <div>
-                  <div className="text-sm font-medium text-gray-700 mb-2">저장된 템플릿</div>
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">저장된 템플릿</div>
                   <div className="space-y-2 max-h-48 overflow-y-auto">
                     {templates.map((template) => (
                       <div
@@ -598,26 +598,26 @@ export function PlanTemplateModal({
                       >
                         <div className="flex-1 min-w-0">
                           <div className="font-medium truncate">{template.name}</div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
                             {(template.items as unknown[]).length}개 플랜 • {formatDate(template.created_at)}
                           </div>
                         </div>
                         <div className="flex gap-1">
                           <button
                             onClick={() => handleDuplicateTemplate(template)}
-                            className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded"
+                            className="px-2 py-1 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:bg-blue-900/20 rounded"
                           >
                             복제
                           </button>
                           <button
                             onClick={() => handleEditTemplate(template)}
-                            className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded"
+                            className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 rounded"
                           >
                             편집
                           </button>
                           <button
                             onClick={() => handleDeleteTemplate(template.id)}
-                            className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded"
+                            className="px-2 py-1 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 rounded"
                           >
                             삭제
                           </button>
@@ -637,7 +637,7 @@ export function PlanTemplateModal({
             {mode !== 'list' && (
               <button
                 onClick={() => setMode('list')}
-                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-md"
+                className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 rounded-md"
               >
                 ← 뒤로
               </button>
@@ -646,7 +646,7 @@ export function PlanTemplateModal({
           <div className="flex gap-2">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+              className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 rounded-md"
             >
               닫기
             </button>

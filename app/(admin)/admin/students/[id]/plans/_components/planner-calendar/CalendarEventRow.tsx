@@ -9,11 +9,11 @@ const EVENT_COLORS: Record<string, { bg: string; dot: string; text: string }> = 
   "제외일": { bg: "bg-red-50", dot: "bg-red-500", text: "text-red-700" },
   "학원": { bg: "bg-orange-50", dot: "bg-orange-500", text: "text-orange-700" },
   "이동시간": { bg: "bg-orange-50", dot: "bg-orange-400", text: "text-orange-600" },
-  "아침식사": { bg: "bg-blue-50", dot: "bg-blue-500", text: "text-blue-700" },
-  "점심식사": { bg: "bg-blue-50", dot: "bg-blue-500", text: "text-blue-700" },
-  "저녁식사": { bg: "bg-blue-50", dot: "bg-blue-500", text: "text-blue-700" },
+  "아침식사": { bg: "bg-blue-50 dark:bg-blue-900/20", dot: "bg-blue-500", text: "text-blue-700" },
+  "점심식사": { bg: "bg-blue-50 dark:bg-blue-900/20", dot: "bg-blue-500", text: "text-blue-700" },
+  "저녁식사": { bg: "bg-blue-50 dark:bg-blue-900/20", dot: "bg-blue-500", text: "text-blue-700" },
   "수면": { bg: "bg-purple-50", dot: "bg-purple-500", text: "text-purple-700" },
-  "기타": { bg: "bg-gray-50", dot: "bg-gray-400", text: "text-gray-700" },
+  "기타": { bg: "bg-gray-50 dark:bg-gray-800", dot: "bg-gray-400", text: "text-gray-700 dark:text-gray-300" },
 };
 
 interface CalendarEventRowProps {
@@ -52,12 +52,12 @@ export default function CalendarEventRow({
             {event.type}
           </span>
           {event.label && event.label !== event.type && (
-            <span className="truncate text-xs text-gray-500">
+            <span className="truncate text-xs text-gray-500 dark:text-gray-400">
               {event.label}
             </span>
           )}
           {event.groupId && (
-            <span className="rounded bg-gray-200 px-1 text-[10px] text-gray-500">
+            <span className="rounded bg-gray-200 dark:bg-gray-700 px-1 text-[10px] text-gray-500 dark:text-gray-400">
               반복
             </span>
           )}
@@ -69,7 +69,7 @@ export default function CalendarEventRow({
         </div>
 
         {event.isAllDay ? (
-          <span className="text-xs text-gray-400">종일</span>
+          <span className="text-xs text-gray-400 dark:text-gray-500">종일</span>
         ) : isEditing ? (
           <div className="mt-1 flex items-center gap-1">
             <input
@@ -78,7 +78,7 @@ export default function CalendarEventRow({
               onChange={(e) => setEditStart(e.target.value)}
               className="rounded border px-1 text-xs"
             />
-            <span className="text-xs text-gray-400">~</span>
+            <span className="text-xs text-gray-400 dark:text-gray-500">~</span>
             <input
               type="time"
               value={editEnd}
@@ -87,7 +87,7 @@ export default function CalendarEventRow({
             />
           </div>
         ) : (
-          <div className="flex items-center gap-1 text-xs text-gray-500">
+          <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
             <Clock className="h-3 w-3" />
             <span>
               {event.startTime} ~ {event.endTime}
@@ -102,14 +102,14 @@ export default function CalendarEventRow({
             <>
               <button
                 onClick={handleSave}
-                className="rounded p-1 text-green-600 hover:bg-green-100"
+                className="rounded p-1 text-green-600 dark:text-green-400 hover:bg-green-100"
                 title="저장"
               >
                 <Check className="h-3.5 w-3.5" />
               </button>
               <button
                 onClick={() => setIsEditing(false)}
-                className="rounded p-1 text-gray-400 hover:bg-gray-100"
+                className="rounded p-1 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800"
                 title="취소"
               >
                 <X className="h-3.5 w-3.5" />
@@ -120,7 +120,7 @@ export default function CalendarEventRow({
               {!event.isAllDay && (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="rounded p-1 text-gray-400 hover:bg-gray-100"
+                  className="rounded p-1 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800"
                   title="시간 수정"
                 >
                   <Edit3 className="h-3.5 w-3.5" />
@@ -128,7 +128,7 @@ export default function CalendarEventRow({
               )}
               <button
                 onClick={() => onDelete?.(event.id)}
-                className="rounded p-1 text-gray-400 hover:bg-red-100 hover:text-red-500"
+                className="rounded p-1 text-gray-400 dark:text-gray-500 hover:bg-red-100 hover:text-red-500 dark:text-red-400"
                 title="삭제"
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -136,7 +136,7 @@ export default function CalendarEventRow({
               {event.groupId && onDeleteGroup && (
                 <button
                   onClick={() => onDeleteGroup(event.groupId!)}
-                  className="rounded px-1.5 py-0.5 text-[10px] text-red-400 hover:bg-red-100 hover:text-red-600"
+                  className="rounded px-1.5 py-0.5 text-[10px] text-red-400 hover:bg-red-100 hover:text-red-600 dark:text-red-400"
                   title="반복 일정 전체 삭제"
                 >
                   전체삭제

@@ -29,25 +29,25 @@ export default function CalendarDayDetail({
   const timeEvents = events.filter((e) => e.type !== "제외일");
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
+    <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h4 className="text-sm font-semibold text-gray-900">
+        <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
           {format(date, "M월 d일 (EEEE)", { locale: ko })}
         </h4>
-        <button onClick={onClose} className="rounded p-1 text-gray-400 hover:bg-gray-100">
+        <button onClick={onClose} className="rounded p-1 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800">
           <X className="h-4 w-4" />
         </button>
       </div>
 
       {events.length === 0 ? (
-        <p className="py-4 text-center text-sm text-gray-400">
+        <p className="py-4 text-center text-sm text-gray-400 dark:text-gray-500">
           등록된 이벤트가 없습니다
         </p>
       ) : (
         <div className="space-y-1.5">
           {exclusionEvents.length > 0 && (
             <div className="mb-2">
-              <span className="mb-1 block text-xs font-medium text-red-500">
+              <span className="mb-1 block text-xs font-medium text-red-500 dark:text-red-400">
                 제외일
               </span>
               {exclusionEvents.map((event) => (
@@ -65,7 +65,7 @@ export default function CalendarDayDetail({
           {timeEvents.length > 0 && (
             <div>
               {exclusionEvents.length > 0 && (
-                <span className="mb-1 block text-xs font-medium text-gray-500">
+                <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
                   비학습시간
                 </span>
               )}

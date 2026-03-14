@@ -84,8 +84,8 @@ export function MoveToGroupModal({
   const loadingContent = (
     <div className="p-4">
       <div className="animate-pulse space-y-4">
-        <div className="h-6 bg-gray-200 rounded w-1/2" />
-        <div className="h-20 bg-gray-200 rounded" />
+        <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+        <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded" />
       </div>
     </div>
   );
@@ -108,7 +108,7 @@ export function MoveToGroupModal({
         />
         <div>
           <div className="font-medium text-orange-700">그룹에서 제거</div>
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-gray-500 dark:text-gray-400">
             플랜을 어떤 그룹에도 속하지 않도록 설정
           </div>
         </div>
@@ -116,7 +116,7 @@ export function MoveToGroupModal({
 
       {/* 그룹 목록 */}
       {groups.length === 0 ? (
-        <div className="text-center py-6 text-gray-500">
+        <div className="text-center py-6 text-gray-500 dark:text-gray-400">
           <p>이 학생에게 생성된 플랜 그룹이 없습니다.</p>
         </div>
       ) : (
@@ -144,17 +144,17 @@ export function MoveToGroupModal({
                 <div className="flex items-center gap-2">
                   <span className="font-medium truncate">{group.name}</span>
                   {isCurrentGroup && (
-                    <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">
+                    <span className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-1.5 py-0.5 rounded">
                       현재
                     </span>
                   )}
                 </div>
                 {group.content_title && (
-                  <div className="text-sm text-gray-600 truncate">
+                  <div className="text-sm text-gray-600 dark:text-gray-400 truncate">
                     {group.content_title}
                   </div>
                 )}
-                <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mt-1">
                   {dateRange && <span>{dateRange}</span>}
                   <span>플랜 {group.plan_count}개</span>
                 </div>

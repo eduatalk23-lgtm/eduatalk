@@ -77,8 +77,8 @@ const SEGMENT_COLORS: Record<TimeSlotType, string> = {
   lunch: "bg-gray-300",
   academy: "bg-orange-400",
   travel: "bg-orange-200",
-  "non-study": "bg-gray-200",
-  unavailable: "bg-gray-100",
+  "non-study": "bg-gray-200 dark:bg-gray-700",
+  unavailable: "bg-gray-100 dark:bg-gray-800",
 };
 
 const SEGMENT_LABELS: Record<TimeSlotType, string> = {
@@ -139,7 +139,7 @@ function SegmentBlock({
       {/* 세그먼트가 충분히 클 때만 레이블 표시 */}
       {width > 6 && !compact && (
         <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
-          <span className="text-[10px] text-gray-700 truncate px-0.5">
+          <span className="text-[10px] text-gray-700 dark:text-gray-300 truncate px-0.5">
             {width > 12 ? label : ""}
           </span>
         </div>
@@ -177,7 +177,7 @@ export function DayTimelineBar({
       {/* 요일 레이블 */}
       <div
         className={cn(
-          "flex-shrink-0 font-medium text-gray-700",
+          "flex-shrink-0 font-medium text-gray-700 dark:text-gray-300",
           compact ? "w-6 text-xs" : "w-8 text-sm"
         )}
       >
@@ -187,7 +187,7 @@ export function DayTimelineBar({
       {/* 타임라인 바 */}
       <div
         className={cn(
-          "flex-1 relative bg-gray-50 border border-gray-200 rounded overflow-hidden",
+          "flex-1 relative bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden",
           compact ? "h-4" : "h-6"
         )}
       >
@@ -205,7 +205,7 @@ export function DayTimelineBar({
       {/* 가용시간 표시 */}
       <div
         className={cn(
-          "flex-shrink-0 text-right text-gray-600",
+          "flex-shrink-0 text-right text-gray-600 dark:text-gray-400",
           compact ? "w-12 text-xs" : "w-16 text-sm"
         )}
       >
@@ -215,7 +215,7 @@ export function DayTimelineBar({
             {totalMinutes % 60 > 0 && `${totalMinutes % 60}m`}
           </span>
         ) : (
-          <span className="text-gray-400">-</span>
+          <span className="text-gray-400 dark:text-gray-500">-</span>
         )}
       </div>
     </div>

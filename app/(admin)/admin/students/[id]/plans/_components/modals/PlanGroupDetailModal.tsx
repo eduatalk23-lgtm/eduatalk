@@ -50,12 +50,12 @@ const statusStyles: Record<string, { label: string; className: string; dotColor:
   },
   draft: {
     label: '초안',
-    className: 'bg-gray-100 text-gray-600',
+    className: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400',
     dotColor: 'bg-gray-400',
   },
   saved: {
     label: '저장됨',
-    className: 'bg-blue-100 text-blue-700',
+    className: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700',
     dotColor: 'bg-blue-500',
   },
   completed: {
@@ -225,12 +225,12 @@ export function PlanGroupDetailModal({
       <div className="p-4 space-y-5">
         {isLoading && (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400" />
           </div>
         )}
 
         {error && (
-          <div className="text-center py-12 text-red-600">
+          <div className="text-center py-12 text-red-600 dark:text-red-400">
             <XCircle className="w-8 h-8 mx-auto mb-2" />
             <p>{error}</p>
           </div>
@@ -242,7 +242,7 @@ export function PlanGroupDetailModal({
             <div className="space-y-3">
               {/* 이름 및 상태 */}
               <div className="flex items-start justify-between gap-3">
-                <h3 className="text-xl font-bold text-gray-900">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
                   {detail.name || '이름 없는 플랜 그룹'}
                 </h3>
                 <span
@@ -258,35 +258,35 @@ export function PlanGroupDetailModal({
 
               {/* 목적 */}
               {detail.planPurpose && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                   <span className="font-medium">목적:</span>
                   <span>{purposeLabels[detail.planPurpose] || detail.planPurpose}</span>
                 </div>
               )}
 
               {/* 기간 */}
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Calendar className="w-4 h-4 text-gray-400" />
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <Calendar className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                 <span>{formatDateRange(detail.periodStart, detail.periodEnd)}</span>
               </div>
 
               {/* 생성일 */}
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <Clock className="w-4 h-4 text-gray-400" />
+              <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                <Clock className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                 <span>생성일: {formatCreatedAt(detail.createdAt)}</span>
               </div>
             </div>
 
             {/* 구분선 */}
-            <hr className="border-gray-200" />
+            <hr className="border-gray-200 dark:border-gray-700" />
 
             {/* 진행률 */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="font-medium text-gray-700">진행률</span>
-                <span className="font-bold text-gray-900">{progressPercentage}%</span>
+                <span className="font-medium text-gray-700 dark:text-gray-300">진행률</span>
+                <span className="font-bold text-gray-900 dark:text-gray-100">{progressPercentage}%</span>
               </div>
-              <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-green-500 rounded-full transition-all duration-300"
                   style={{ width: `${progressPercentage}%` }}
@@ -295,34 +295,34 @@ export function PlanGroupDetailModal({
             </div>
 
             {/* 상태별 통계 */}
-            <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-              <h4 className="text-sm font-medium text-gray-700 mb-3">플랜 현황</h4>
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-3">
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">플랜 현황</h4>
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                    <CheckCircle2 className="w-4 h-4 text-green-600" />
+                    <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">완료</p>
-                    <p className="font-semibold text-gray-900">{detail.completedCount}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">완료</p>
+                    <p className="font-semibold text-gray-900 dark:text-gray-100">{detail.completedCount}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                    <Loader2 className="w-4 h-4 text-blue-600" />
+                  <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                    <Loader2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">진행 중</p>
-                    <p className="font-semibold text-gray-900">{detail.inProgressCount}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">진행 중</p>
+                    <p className="font-semibold text-gray-900 dark:text-gray-100">{detail.inProgressCount}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                    <Pause className="w-4 h-4 text-gray-600" />
+                  <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                    <Pause className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">대기</p>
-                    <p className="font-semibold text-gray-900">{detail.pendingCount}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">대기</p>
+                    <p className="font-semibold text-gray-900 dark:text-gray-100">{detail.pendingCount}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -330,46 +330,46 @@ export function PlanGroupDetailModal({
                     <SkipForward className="w-4 h-4 text-amber-600" />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">건너뜀/취소</p>
-                    <p className="font-semibold text-gray-900">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">건너뜀/취소</p>
+                    <p className="font-semibold text-gray-900 dark:text-gray-100">
                       {detail.skippedCount + detail.cancelledCount}
                     </p>
                   </div>
                 </div>
               </div>
-              <div className="pt-2 border-t border-gray-200 mt-3">
+              <div className="pt-2 border-t border-gray-200 dark:border-gray-700 mt-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">총 플랜 수</span>
-                  <span className="font-bold text-gray-900">{detail.totalCount}개</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">총 플랜 수</span>
+                  <span className="font-bold text-gray-900 dark:text-gray-100">{detail.totalCount}개</span>
                 </div>
               </div>
             </div>
 
             {/* 콘텐츠 유형별 통계 */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-3">콘텐츠 구성</h4>
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">콘텐츠 구성</h4>
               <div className="flex gap-4">
                 <div className="flex items-center gap-2">
-                  <BookOpen className="w-4 h-4 text-emerald-600" />
-                  <span className="text-sm text-gray-600">교재</span>
-                  <span className="font-semibold text-gray-900">{detail.bookCount}</span>
+                  <BookOpen className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-sm text-gray-600 dark:text-gray-400">교재</span>
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">{detail.bookCount}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Video className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm text-gray-600">강의</span>
-                  <span className="font-semibold text-gray-900">{detail.lectureCount}</span>
+                  <Video className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <span className="text-sm text-gray-600 dark:text-gray-400">강의</span>
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">{detail.lectureCount}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-purple-600" />
-                  <span className="text-sm text-gray-600">직접입력</span>
-                  <span className="font-semibold text-gray-900">{detail.customCount}</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">직접입력</span>
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">{detail.customCount}</span>
                 </div>
               </div>
             </div>
 
             {/* 빠른 작업 */}
-            <div className="border-t border-gray-200 pt-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-3">빠른 작업</h4>
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">빠른 작업</h4>
               <div className="flex flex-wrap gap-2">
                 {/* 활성화 버튼 (활성 상태가 아닐 때만) */}
                 {detail.status !== 'active' && (
@@ -397,7 +397,7 @@ export function PlanGroupDetailModal({
                   disabled={!!actionLoading}
                   className={cn(
                     'flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border transition-colors',
-                    'border-blue-300 text-blue-700 hover:bg-blue-50',
+                    'border-blue-300 text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:bg-blue-900/20',
                     actionLoading && 'opacity-50 cursor-not-allowed'
                   )}
                 >
@@ -458,7 +458,7 @@ export function PlanGroupDetailModal({
         }
       >
         <div className="p-4 space-y-3">
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-gray-700 dark:text-gray-300">
             <strong>&quot;{detail?.name || '이름 없는 플랜 그룹'}&quot;</strong>을(를) 삭제하시겠습니까?
           </p>
           <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">

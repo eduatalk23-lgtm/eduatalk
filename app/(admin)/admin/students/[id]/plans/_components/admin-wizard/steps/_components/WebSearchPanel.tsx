@@ -179,15 +179,15 @@ export function WebSearchPanel({ studentId, onSelect, disabled }: WebSearchPanel
   return (
     <div className="space-y-6">
       {/* 모드 토글 */}
-      <div className="flex gap-2 rounded-lg bg-gray-100 p-1">
+      <div className="flex gap-2 rounded-lg bg-gray-100 dark:bg-gray-800 p-1">
         <button
           type="button"
           onClick={() => setMode("ai-recommend")}
           className={cn(
             "flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition",
             mode === "ai-recommend"
-              ? "bg-white text-purple-700 shadow-sm"
-              : "text-gray-600 hover:text-gray-900"
+              ? "bg-white dark:bg-[rgb(var(--color-secondary-50))] text-purple-700 shadow-sm"
+              : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:text-gray-100"
           )}
         >
           <Wand2 className="h-4 w-4" />
@@ -199,8 +199,8 @@ export function WebSearchPanel({ studentId, onSelect, disabled }: WebSearchPanel
           className={cn(
             "flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition",
             mode === "direct"
-              ? "bg-white text-purple-700 shadow-sm"
-              : "text-gray-600 hover:text-gray-900"
+              ? "bg-white dark:bg-[rgb(var(--color-secondary-50))] text-purple-700 shadow-sm"
+              : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:text-gray-100"
           )}
         >
           <Search className="h-4 w-4" />
@@ -216,17 +216,17 @@ export function WebSearchPanel({ studentId, onSelect, disabled }: WebSearchPanel
               <Wand2 className="h-4 w-4 text-purple-600" />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900">AI 콘텐츠 추천</h3>
-              <p className="text-xs text-gray-500">교과와 난이도를 선택하면 AI가 최적의 콘텐츠를 추천합니다</p>
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">AI 콘텐츠 추천</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">교과와 난이도를 선택하면 AI가 최적의 콘텐츠를 추천합니다</p>
             </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3">
             {/* 교과 선택 */}
             <div>
-              <label className="mb-1.5 block text-xs font-semibold text-gray-600">교과</label>
+              <label className="mb-1.5 block text-xs font-semibold text-gray-600 dark:text-gray-400">교과</label>
               <select
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
+                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
                 value={subjectCategory}
                 onChange={(e) => setSubjectCategory(e.target.value)}
               >
@@ -240,9 +240,9 @@ export function WebSearchPanel({ studentId, onSelect, disabled }: WebSearchPanel
 
             {/* 난이도 선택 */}
             <div>
-              <label className="mb-1.5 block text-xs font-semibold text-gray-600">난이도</label>
+              <label className="mb-1.5 block text-xs font-semibold text-gray-600 dark:text-gray-400">난이도</label>
               <select
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
+                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
                 value={difficultyLevel}
                 onChange={(e) => setDifficultyLevel(e.target.value)}
               >
@@ -256,9 +256,9 @@ export function WebSearchPanel({ studentId, onSelect, disabled }: WebSearchPanel
 
             {/* 콘텐츠 타입 선택 */}
             <div>
-              <label className="mb-1.5 block text-xs font-semibold text-gray-600">콘텐츠 타입</label>
+              <label className="mb-1.5 block text-xs font-semibold text-gray-600 dark:text-gray-400">콘텐츠 타입</label>
               <select
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
+                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
                 value={contentType}
                 onChange={(e) => setContentType(e.target.value as "book" | "lecture" | "all")}
               >
@@ -278,7 +278,7 @@ export function WebSearchPanel({ studentId, onSelect, disabled }: WebSearchPanel
             className={cn(
               "mt-4 flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition",
               isSearching || !subjectCategory
-                ? "cursor-not-allowed bg-gray-200 text-gray-400"
+                ? "cursor-not-allowed bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500"
                 : "bg-purple-600 text-white hover:bg-purple-700"
             )}
           >
@@ -295,7 +295,7 @@ export function WebSearchPanel({ studentId, onSelect, disabled }: WebSearchPanel
             )}
           </button>
 
-          <p className="mt-3 text-xs text-gray-500">
+          <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
             * AI가 웹에서 최신 교재와 강의 정보를 검색하여 목차와 분량까지 분석합니다.
           </p>
         </div>
@@ -306,11 +306,11 @@ export function WebSearchPanel({ studentId, onSelect, disabled }: WebSearchPanel
         <div className="rounded-xl border border-purple-100 bg-purple-50/50 p-6">
           <div className="flex flex-col gap-4 sm:flex-row">
             <div className="w-full sm:w-48">
-              <label className="mb-1.5 block text-xs font-semibold text-gray-600">
+              <label className="mb-1.5 block text-xs font-semibold text-gray-600 dark:text-gray-400">
                 과목 / 주제
               </label>
               <select
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
+                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
               >
@@ -323,7 +323,7 @@ export function WebSearchPanel({ studentId, onSelect, disabled }: WebSearchPanel
             </div>
 
             <div className="flex-1">
-              <label className="mb-1.5 block text-xs font-semibold text-gray-600">
+              <label className="mb-1.5 block text-xs font-semibold text-gray-600 dark:text-gray-400">
                 <span className="flex items-center gap-1">
                   <Sparkles className="h-3 w-3 text-purple-500" />
                   검색어 (교재명, 강의명)
@@ -333,7 +333,7 @@ export function WebSearchPanel({ studentId, onSelect, disabled }: WebSearchPanel
                 <input
                   type="text"
                   placeholder="예: 2025 EBS 수능특강 영어, 쎈 수학1"
-                  className="w-full rounded-lg border border-gray-200 py-2 pl-4 pr-12 text-sm focus:border-purple-500 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 py-2 pl-4 pr-12 text-sm focus:border-purple-500 focus:outline-none"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleDirectSearch()}
@@ -349,7 +349,7 @@ export function WebSearchPanel({ studentId, onSelect, disabled }: WebSearchPanel
               </div>
             </div>
           </div>
-          <p className="mt-3 text-xs text-gray-500">
+          <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
             * AI가 웹 검색을 통해 해당 콘텐츠의 목차와 분량을 자동으로 분석합니다.
           </p>
         </div>
@@ -357,7 +357,7 @@ export function WebSearchPanel({ studentId, onSelect, disabled }: WebSearchPanel
 
       {/* 에러 표시 */}
       {error && (
-        <div className="flex items-center gap-2 rounded-lg bg-red-50 p-4 text-sm text-red-600">
+        <div className="flex items-center gap-2 rounded-lg bg-red-50 p-4 text-sm text-red-600 dark:text-red-400">
           <AlertCircle className="h-4 w-4" />
           {error}
         </div>
@@ -381,7 +381,7 @@ export function WebSearchPanel({ studentId, onSelect, disabled }: WebSearchPanel
           {aiResults.map((item, idx) => (
             <div
               key={item.id || idx}
-              className="relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-all hover:border-purple-200 hover:shadow-md"
+              className="relative overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] shadow-sm transition-all hover:border-purple-200 hover:shadow-md"
             >
               {/* 추천 점수 배지 */}
               {item.matchScore && (
@@ -404,14 +404,14 @@ export function WebSearchPanel({ studentId, onSelect, disabled }: WebSearchPanel
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <h4 className="font-semibold text-gray-900">{item.title}</h4>
-                      <p className="text-sm text-gray-500">
+                      <h4 className="font-semibold text-gray-900 dark:text-gray-100">{item.title}</h4>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
                         {item.author && `${item.author} · `}
                         {item.publisher && `${item.publisher} · `}
                         {item.totalRange} {item.contentType === "book" ? "페이지" : "강"}
                       </p>
                       {item.difficultyLevel && (
-                        <span className="mt-1 inline-block rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                        <span className="mt-1 inline-block rounded bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-xs text-gray-600 dark:text-gray-400">
                           {item.difficultyLevel}
                         </span>
                       )}
@@ -429,26 +429,26 @@ export function WebSearchPanel({ studentId, onSelect, disabled }: WebSearchPanel
 
                   {/* 추천 이유 */}
                   {item.reason && (
-                    <p className="mt-2 text-sm text-gray-600">
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                       <span className="font-medium text-purple-600">추천 이유:</span> {item.reason}
                     </p>
                   )}
 
                   {/* 목차 미리보기 */}
                   {item.chapters && item.chapters.length > 0 && (
-                    <div className="mt-4 rounded-lg bg-gray-50 p-3">
-                      <p className="mb-2 text-xs font-semibold text-gray-500">목차 미리보기</p>
+                    <div className="mt-4 rounded-lg bg-gray-50 dark:bg-gray-800 p-3">
+                      <p className="mb-2 text-xs font-semibold text-gray-500 dark:text-gray-400">목차 미리보기</p>
                       <div className="space-y-1">
                         {item.chapters.slice(0, 3).map((ch, i) => (
-                          <div key={i} className="flex justify-between text-xs text-gray-600">
+                          <div key={i} className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
                             <span className="truncate">{ch.title}</span>
-                            <span className="shrink-0 text-gray-400">
+                            <span className="shrink-0 text-gray-400 dark:text-gray-500">
                               {ch.startRange}-{ch.endRange}
                             </span>
                           </div>
                         ))}
                         {item.chapters.length > 3 && (
-                          <p className="text-xs text-gray-400">+ {item.chapters.length - 3}개 더</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500">+ {item.chapters.length - 3}개 더</p>
                         )}
                       </div>
                     </div>
@@ -466,22 +466,22 @@ export function WebSearchPanel({ studentId, onSelect, disabled }: WebSearchPanel
           {results.map((item, idx) => (
             <div
               key={idx}
-              className="relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-all hover:border-purple-200 hover:shadow-md"
+              className="relative overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] shadow-sm transition-all hover:border-purple-200 hover:shadow-md"
             >
               <div className="flex items-start gap-4 p-5">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-gray-50">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-gray-50 dark:bg-gray-800">
                   {item.contentType === "book" ? (
-                    <BookOpen className="h-6 w-6 text-gray-400" />
+                    <BookOpen className="h-6 w-6 text-gray-400 dark:text-gray-500" />
                   ) : (
-                    <Video className="h-6 w-6 text-gray-400" />
+                    <Video className="h-6 w-6 text-gray-400 dark:text-gray-500" />
                   )}
                 </div>
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between">
                     <div>
-                      <h4 className="font-semibold text-gray-900">{item.title}</h4>
-                      <p className="text-sm text-gray-500">
+                      <h4 className="font-semibold text-gray-900 dark:text-gray-100">{item.title}</h4>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
                         {item.author && `${item.author} · `}
                         {item.totalRange} {item.contentType === "book" ? "페이지" : "강"}
                       </p>
@@ -498,19 +498,19 @@ export function WebSearchPanel({ studentId, onSelect, disabled }: WebSearchPanel
                   </div>
 
                   {/* 목차 미리보기 */}
-                  <div className="mt-4 rounded-lg bg-gray-50 p-3">
-                    <p className="mb-2 text-xs font-semibold text-gray-500">목차 미리보기</p>
+                  <div className="mt-4 rounded-lg bg-gray-50 dark:bg-gray-800 p-3">
+                    <p className="mb-2 text-xs font-semibold text-gray-500 dark:text-gray-400">목차 미리보기</p>
                     <div className="space-y-1">
                       {item.chapters.slice(0, 3).map((ch, i) => (
-                        <div key={i} className="flex justify-between text-xs text-gray-600">
+                        <div key={i} className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
                           <span className="truncate">{ch.title}</span>
-                          <span className="shrink-0 text-gray-400">
+                          <span className="shrink-0 text-gray-400 dark:text-gray-500">
                             {ch.startRange}-{ch.endRange}
                           </span>
                         </div>
                       ))}
                       {item.chapters.length > 3 && (
-                        <p className="text-xs text-gray-400">+ 더 많은 목차 포함</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">+ 더 많은 목차 포함</p>
                       )}
                     </div>
                   </div>
@@ -523,7 +523,7 @@ export function WebSearchPanel({ studentId, onSelect, disabled }: WebSearchPanel
 
       {/* 결과 없음 메시지 */}
       {!isSearching && mode === "direct" && results.length === 0 && !error && query && (
-        <div className="py-8 text-center text-sm text-gray-500">
+        <div className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
           검색 결과가 없습니다. 정확한 교재/강의명을 입력해주세요.
         </div>
       )}
@@ -531,7 +531,7 @@ export function WebSearchPanel({ studentId, onSelect, disabled }: WebSearchPanel
       {!isSearching && mode === "ai-recommend" && aiResults.length === 0 && !error && (
         <div className="py-8 text-center">
           <Wand2 className="mx-auto h-10 w-10 text-gray-300" />
-          <p className="mt-3 text-sm text-gray-500">
+          <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
             교과와 난이도를 선택하고 &quot;AI 추천 받기&quot; 버튼을 클릭하세요.
           </p>
         </div>

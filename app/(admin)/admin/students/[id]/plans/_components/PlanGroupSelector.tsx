@@ -261,7 +261,7 @@ export function PlanGroupSelector({
                   className="p-1 hover:bg-[rgb(var(--color-error-100))] rounded transition-colors flex-shrink-0 cursor-pointer"
                   title="그룹 삭제"
                 >
-                  <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                  <Trash2 className="w-3.5 h-3.5 text-red-500 dark:text-red-400" />
                 </span>
                 <span
                   className={cn(

@@ -81,8 +81,8 @@ export function PlanTypeStats({
         type: 'book',
         label: '교재',
         icon: <Book className="w-4 h-4" />,
-        color: 'text-blue-600',
-        bgColor: 'bg-blue-50',
+        color: 'text-blue-600 dark:text-blue-400',
+        bgColor: 'bg-blue-50 dark:bg-blue-900/20',
         ...stats.book,
       },
       {
@@ -97,7 +97,7 @@ export function PlanTypeStats({
         type: 'custom',
         label: '직접입력',
         icon: <FileText className="w-4 h-4" />,
-        color: 'text-green-600',
+        color: 'text-green-600 dark:text-green-400',
         bgColor: 'bg-green-50',
         ...stats.custom,
       },
@@ -127,25 +127,25 @@ export function PlanTypeStats({
   }
 
   return (
-    <div className={cn('bg-white rounded-lg border border-gray-200 p-4', className)}>
-      <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+    <div className={cn('bg-white dark:bg-[rgb(var(--color-secondary-50))] rounded-lg border border-gray-200 dark:border-gray-700 p-4', className)}>
+      <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
         <TrendingUp className="w-4 h-4" />
         유형별 통계
       </h3>
 
       {/* 전체 요약 */}
       <div className="grid grid-cols-3 gap-3 mb-4">
-        <div className="text-center p-3 bg-gray-50 rounded-lg">
-          <div className="text-2xl font-bold text-gray-900">{totalStats.count}</div>
-          <div className="text-xs text-gray-500">전체 플랜</div>
+        <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{totalStats.count}</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">전체 플랜</div>
         </div>
         <div className="text-center p-3 bg-green-50 rounded-lg">
-          <div className="text-2xl font-bold text-green-600">{totalStats.completed}</div>
-          <div className="text-xs text-gray-500">완료</div>
+          <div className="text-2xl font-bold text-green-600 dark:text-green-400">{totalStats.completed}</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">완료</div>
         </div>
-        <div className="text-center p-3 bg-blue-50 rounded-lg">
-          <div className="text-2xl font-bold text-blue-600">{totalStats.completionRate}%</div>
-          <div className="text-xs text-gray-500">완료율</div>
+        <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{totalStats.completionRate}%</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">완료율</div>
         </div>
       </div>
 
@@ -176,7 +176,7 @@ export function PlanTypeStats({
                   <div className={cn('font-medium text-sm', stat.color)}>
                     {stat.label}
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
                     {stat.totalPages > 0 && `${stat.totalPages}p`}
                   </div>
                 </div>
@@ -184,13 +184,13 @@ export function PlanTypeStats({
                 {/* 통계 */}
                 <div className="flex items-center gap-3 text-sm">
                   {/* 플랜 수 */}
-                  <div className="flex items-center gap-1 text-gray-600">
+                  <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
                     <Clock className="w-3 h-3" />
                     <span>{stat.count}</span>
                   </div>
 
                   {/* 완료 */}
-                  <div className="flex items-center gap-1 text-green-600">
+                  <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
                     <CheckCircle className="w-3 h-3" />
                     <span>{stat.completed}</span>
                   </div>
@@ -202,7 +202,7 @@ export function PlanTypeStats({
                       ? 'bg-green-100 text-green-700'
                       : completionRate >= 50
                         ? 'bg-amber-100 text-amber-700'
-                        : 'bg-gray-100 text-gray-600'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
                   )}>
                     {completionRate}%
                   </div>
@@ -214,7 +214,7 @@ export function PlanTypeStats({
 
       {/* 유형이 모두 0인 경우 메시지 */}
       {typeStats.every((stat) => stat.count === 0) && (
-        <div className="text-center py-4 text-gray-500 text-sm">
+        <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">
           표시할 플랜이 없습니다.
         </div>
       )}

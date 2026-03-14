@@ -468,7 +468,7 @@ export function PlanDndProvider({
                 ? 'bg-orange-50 border-orange-500'
                 : activeItem.type === 'non_study' || (activeItem.unifiedId?.includes('nonStudy'))
                 ? 'bg-amber-50 border-amber-400'
-                : 'bg-white border-blue-500'
+                : 'bg-white dark:bg-[rgb(var(--color-secondary-50))] border-blue-500'
             }`}>
               {/* 통합 재정렬 모드 배지 */}
               {unifiedReorderMode && (
@@ -492,24 +492,24 @@ export function PlanDndProvider({
               )}
               <div className="font-medium text-sm">{activeItem.title}</div>
               {activeItem.subject && (
-                <div className="text-xs text-gray-500">{activeItem.subject}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">{activeItem.subject}</div>
               )}
               {activeItem.range && (
-                <div className="text-xs text-gray-500">{activeItem.range}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">{activeItem.range}</div>
               )}
               {activeItem.nonStudyData && (
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-gray-500 dark:text-gray-400">
                   {activeItem.nonStudyData.originalStartTime} ~ {activeItem.nonStudyData.originalEndTime}
                 </div>
               )}
               {activeItem.startTime && activeItem.endTime && !activeItem.nonStudyData && (
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-gray-500 dark:text-gray-400">
                   {activeItem.startTime} ~ {activeItem.endTime}
                 </div>
               )}
               {/* 예상 소요 시간 */}
               {activeItem.durationMinutes && (
-                <div className="text-xs text-gray-400 mt-1">
+                <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                   ⏱ {activeItem.durationMinutes}분
                 </div>
               )}

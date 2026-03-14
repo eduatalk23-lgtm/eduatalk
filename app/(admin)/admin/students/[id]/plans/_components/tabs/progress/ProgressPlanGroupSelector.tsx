@@ -25,7 +25,7 @@ export function ProgressPlanGroupSelector({
     <select
       value={selectedId ?? ""}
       onChange={(e) => onChange(e.target.value)}
-      className="rounded-lg border border-secondary-300 bg-white px-3 py-2 text-sm text-secondary-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+      className="rounded-lg border border-secondary-300 bg-white dark:bg-[rgb(var(--color-secondary-50))] px-3 py-2 text-sm text-secondary-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
     >
       {planGroups.map((group) => (
         <option key={group.id} value={group.id}>

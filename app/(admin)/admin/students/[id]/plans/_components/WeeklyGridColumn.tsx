@@ -199,14 +199,14 @@ export const WeeklyGridColumn = memo(forwardRef<HTMLDivElement, WeeklyGridColumn
         {/* 호버 하이라이트 */}
         {hoveredSlotTop != null && (
           <div
-            className="absolute left-0 right-0 bg-blue-100/40 pointer-events-none rounded-sm z-[1]"
+            className="absolute left-0 right-0 bg-blue-100/40 dark:bg-blue-900/30 pointer-events-none rounded-sm z-[1]"
             style={{ top: `${hoveredSlotTop}px`, height: `${SNAP_MINUTES * ppm}px` }}
           />
         )}
 
         {/* 크로스데이 드래그 타겟 하이라이트 */}
         {isDragTarget && (
-          <div className="absolute inset-0 bg-blue-50/40 pointer-events-none z-[2]" />
+          <div className="absolute inset-0 bg-blue-50/40 dark:bg-blue-900/20 pointer-events-none z-[2]" />
         )}
 
         {/* 과거 컬럼 희미 처리 */}
@@ -216,7 +216,7 @@ export const WeeklyGridColumn = memo(forwardRef<HTMLDivElement, WeeklyGridColumn
 
         {/* 오늘 컬럼 하이라이트 */}
         {isToday && (
-          <div className="absolute inset-0 bg-blue-50/30 pointer-events-none" />
+          <div className="absolute inset-0 bg-blue-50/30 dark:bg-blue-900/20 pointer-events-none" />
         )}
 
         {/* 그리드라인 레이어 (오버레이 위, 이벤트 아래) */}

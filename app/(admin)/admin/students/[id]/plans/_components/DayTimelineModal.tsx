@@ -16,7 +16,7 @@ interface DayTimelineModalProps {
  * 시간대 유형별 색상 및 아이콘 매핑
  */
 const slotConfig: Record<string, { bg: string; text: string; icon: string }> = {
-  학습시간: { bg: "bg-blue-100", text: "text-blue-700", icon: "📚" },
+  학습시간: { bg: "bg-blue-100 dark:bg-blue-900/30", text: "text-blue-700", icon: "📚" },
   점심시간: { bg: "bg-orange-100", text: "text-orange-700", icon: "🍱" },
   학원일정: { bg: "bg-purple-100", text: "text-purple-700", icon: "🏫" },
   이동시간: { bg: "bg-teal-100", text: "text-teal-700", icon: "🚌" },
@@ -122,13 +122,13 @@ export function DayTimelineModal({
         <div className="space-y-6">
           {/* 타임라인 바 */}
           <div className="space-y-2">
-            <div className="flex justify-between text-xs text-gray-500">
+            <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
               <span>06:00</span>
               <span>12:00</span>
               <span>18:00</span>
               <span>24:00</span>
             </div>
-            <div className="relative h-6 bg-gray-100 rounded-md overflow-hidden">
+            <div className="relative h-6 bg-gray-100 dark:bg-gray-800 rounded-md overflow-hidden">
               {timelineSegments.map((segment, index) => (
                 <div
                   key={`bar-${index}`}
@@ -145,14 +145,14 @@ export function DayTimelineModal({
           {/* 상세 일정 목록 */}
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {sortedSlots.length === 0 ? (
-              <p className="text-center text-gray-500 py-4">
+              <p className="text-center text-gray-500 dark:text-gray-400 py-4">
                 등록된 일정이 없습니다.
               </p>
             ) : (
               sortedSlots.map((slot, index) => {
                 const config = slotConfig[slot.type] ?? {
-                  bg: "bg-gray-100",
-                  text: "text-gray-700",
+                  bg: "bg-gray-100 dark:bg-gray-800",
+                  text: "text-gray-700 dark:text-gray-300",
                   icon: "📌",
                 };
                 return (
@@ -168,12 +168,12 @@ export function DayTimelineModal({
                       <div className={cn("font-medium", config.text)}>
                         {slot.type}
                         {slot.label && (
-                          <span className="ml-2 text-sm font-normal text-gray-600">
+                          <span className="ml-2 text-sm font-normal text-gray-600 dark:text-gray-400">
                             ({slot.label})
                           </span>
                         )}
                       </div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
                         {slot.start} - {slot.end}
                       </div>
                     </div>
@@ -186,12 +186,12 @@ export function DayTimelineModal({
           {/* 요약 (유형별 총 시간) */}
           {Object.keys(summaryByType).length > 0 && (
             <div className="border-t pt-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">요약</h4>
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">요약</h4>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(summaryByType).map(([type, minutes]) => {
                   const config = slotConfig[type] ?? {
-                    bg: "bg-gray-100",
-                    text: "text-gray-700",
+                    bg: "bg-gray-100 dark:bg-gray-800",
+                    text: "text-gray-700 dark:text-gray-300",
                     icon: "📌",
                   };
                   const hours = Math.floor(minutes / 60);
@@ -216,12 +216,12 @@ export function DayTimelineModal({
 
           {/* 범례 */}
           <div className="border-t pt-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">범례</h4>
+            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">범례</h4>
             <div className="flex flex-wrap gap-3 text-xs">
               {Object.entries(slotBarColors).map(([type, color]) => (
                 <div key={type} className="flex items-center gap-1.5">
                   <div className={cn("w-3 h-3 rounded-sm", color)} />
-                  <span className="text-gray-600">{type}</span>
+                  <span className="text-gray-600 dark:text-gray-400">{type}</span>
                 </div>
               ))}
             </div>

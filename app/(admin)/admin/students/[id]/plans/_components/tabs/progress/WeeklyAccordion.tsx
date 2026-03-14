@@ -65,7 +65,7 @@ export function WeeklyAccordion({
         return (
           <div
             key={week.weekNumber}
-            className="overflow-hidden rounded-lg border border-secondary-200 bg-white"
+            className="overflow-hidden rounded-lg border border-secondary-200 bg-white dark:bg-[rgb(var(--color-secondary-50))]"
           >
             {/* 주차 헤더 */}
             <button
@@ -87,7 +87,7 @@ export function WeeklyAccordion({
                     className={cn(
                       "text-xs font-medium",
                       rate === 100
-                        ? "text-green-600"
+                        ? "text-green-600 dark:text-green-400"
                         : rate > 0
                           ? "text-primary-600"
                           : "text-secondary-400"
@@ -137,8 +137,8 @@ export function WeeklyAccordion({
                                 day.dayType === "복습일"
                                   ? "bg-purple-100 text-purple-600"
                                   : day.dayType === "학습일"
-                                    ? "bg-blue-100 text-blue-600"
-                                    : "bg-gray-100 text-gray-600"
+                                    ? "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
+                                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
                               )}
                             >
                               {day.dayType}

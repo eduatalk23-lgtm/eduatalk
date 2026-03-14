@@ -22,11 +22,11 @@ const statusStyles: Record<string, { label: string; className: string }> = {
   },
   draft: {
     label: '초안',
-    className: 'bg-gray-100 text-gray-600',
+    className: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400',
   },
   saved: {
     label: '저장됨',
-    className: 'bg-blue-100 text-blue-700',
+    className: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700',
   },
   completed: {
     label: '완료',
@@ -195,22 +195,22 @@ export function PlanGroupManageModal({
       }
     >
       {/* 액션 바 */}
-      <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b">
+      <div className="flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-gray-800 border-b">
         <div className="flex items-center gap-2">
           <button
             onClick={handleSelectAll}
             disabled={deletableGroups.length === 0}
-            className="px-2 py-1 text-xs text-gray-700 hover:bg-gray-200 rounded disabled:opacity-50"
+            className="px-2 py-1 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:bg-gray-700 rounded disabled:opacity-50"
           >
             {selectedIds.size === deletableGroups.length && deletableGroups.length > 0
               ? '전체 해제'
               : '전체 선택'}
           </button>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-gray-500 dark:text-gray-400">
             {selectedIds.size > 0 && `${selectedIds.size}개 선택됨`}
           </span>
         </div>
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-gray-500 dark:text-gray-400">
           전체 {planGroups.length}개 그룹
         </span>
       </div>
@@ -218,7 +218,7 @@ export function PlanGroupManageModal({
       {/* 그룹 목록 */}
       <div className="p-4">
         {planGroups.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
             플랜 그룹이 없습니다.
           </div>
         ) : (
@@ -229,10 +229,10 @@ export function PlanGroupManageModal({
                 key={group.id}
                 onClick={() => handleToggleSelect(group.id)}
                 className={cn(
-                  'flex items-center gap-3 bg-white rounded-lg p-3 border transition-colors cursor-pointer',
+                  'flex items-center gap-3 bg-white dark:bg-[rgb(var(--color-secondary-50))] rounded-lg p-3 border transition-colors cursor-pointer',
                   selectedIds.has(group.id)
                     ? 'border-red-400 bg-red-50'
-                    : 'border-gray-200 hover:border-gray-300'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:border-gray-600'
                 )}
               >
                 <input
@@ -240,11 +240,11 @@ export function PlanGroupManageModal({
                   checked={selectedIds.has(group.id)}
                   onChange={() => handleToggleSelect(group.id)}
                   onClick={(e) => e.stopPropagation()}
-                  className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                  className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-red-600 dark:text-red-400 focus:ring-red-500"
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium truncate text-gray-700">
+                    <span className="font-medium truncate text-gray-700 dark:text-gray-300">
                       {group.name || '이름 없음'}
                     </span>
                     {group.planPurpose && (
@@ -261,7 +261,7 @@ export function PlanGroupManageModal({
                       {statusStyles[group.status]?.label || group.status}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mt-1">
                     <Calendar className="w-3.5 h-3.5" />
                     <span>{formatDateRange(group.periodStart, group.periodEnd)}</span>
                   </div>
@@ -272,29 +272,29 @@ export function PlanGroupManageModal({
             {/* 캠프 그룹 (비활성화) */}
             {campGroups.length > 0 && (
               <>
-                <div className="text-xs text-gray-400 mt-4 mb-2 px-1">
+                <div className="text-xs text-gray-400 dark:text-gray-500 mt-4 mb-2 px-1">
                   캠프 플랜 (삭제 불가)
                 </div>
                 {campGroups.map((group) => (
                   <div
                     key={group.id}
-                    className="flex items-center gap-3 bg-gray-50 rounded-lg p-3 border border-gray-200 opacity-60"
+                    className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700 opacity-60"
                   >
                     <input
                       type="checkbox"
                       disabled
-                      className="w-4 h-4 rounded border-gray-300 cursor-not-allowed"
+                      className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 cursor-not-allowed"
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium truncate text-gray-500">
+                        <span className="font-medium truncate text-gray-500 dark:text-gray-400">
                           {group.name || '이름 없음'}
                         </span>
                         <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">
                           캠프
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-400 mt-1">
+                      <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500 mt-1">
                         <Calendar className="w-3.5 h-3.5" />
                         <span>{formatDateRange(group.periodStart, group.periodEnd)}</span>
                       </div>
@@ -314,12 +314,12 @@ export function PlanGroupManageModal({
                 type="checkbox"
                 checked={confirmDelete}
                 onChange={(e) => setConfirmDelete(e.target.checked)}
-                className="mt-0.5 rounded border-red-300 text-red-600 focus:ring-red-500"
+                className="mt-0.5 rounded border-red-300 text-red-600 dark:text-red-400 focus:ring-red-500"
               />
               <span>
                 <strong>{selectedIds.size}개</strong> 플랜 그룹 삭제를 확인합니다.
                 <br />
-                <span className="text-xs text-red-600">
+                <span className="text-xs text-red-600 dark:text-red-400">
                   삭제된 그룹은 History 탭에서 복원할 수 있습니다.
                 </span>
               </span>

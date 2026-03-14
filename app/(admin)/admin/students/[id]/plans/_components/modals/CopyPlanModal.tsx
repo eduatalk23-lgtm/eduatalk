@@ -113,8 +113,8 @@ export function CopyPlanModal({
   const loadingContent = (
     <div className="p-4">
       <div className="animate-pulse space-y-4">
-        <div className="h-6 bg-gray-200 rounded w-1/2" />
-        <div className="h-20 bg-gray-200 rounded" />
+        <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+        <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded" />
       </div>
     </div>
   );
@@ -124,7 +124,7 @@ export function CopyPlanModal({
     <div className="p-4 space-y-4">
       {/* 선택된 플랜 목록 */}
       <div>
-        <div className="text-sm font-medium text-gray-700 mb-2">
+        <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           복사할 플랜 ({plans.length}개)
         </div>
         <div className="space-y-1 max-h-32 overflow-y-auto">
@@ -137,12 +137,12 @@ export function CopyPlanModal({
             return (
               <div
                 key={plan.id}
-                className="flex items-center justify-between p-2 bg-gray-50 rounded-lg text-sm"
+                className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm"
               >
                 <span className="truncate">
                   {plan.custom_title ?? plan.content_title ?? '제목 없음'}
                 </span>
-                {range && <span className="text-gray-500 shrink-0 ml-2">{range}</span>}
+                {range && <span className="text-gray-500 dark:text-gray-400 shrink-0 ml-2">{range}</span>}
               </div>
             );
           })}
@@ -151,7 +151,7 @@ export function CopyPlanModal({
 
       {/* 날짜 선택 */}
       <div>
-        <div className="text-sm font-medium text-gray-700 mb-2">
+        <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           복사할 날짜 선택
         </div>
         <div className="flex gap-2">
@@ -173,19 +173,19 @@ export function CopyPlanModal({
       {/* 선택된 날짜 목록 */}
       {targetDates.length > 0 && (
         <div>
-          <div className="text-sm font-medium text-gray-700 mb-2">
+          <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             선택된 날짜 ({targetDates.length}개)
           </div>
           <div className="flex flex-wrap gap-2">
             {targetDates.map((date) => (
               <span
                 key={date}
-                className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm"
+                className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 rounded-full text-sm"
               >
                 {formatDate(date)}
                 <button
                   onClick={() => handleRemoveDate(date)}
-                  className="text-blue-500 hover:text-blue-700"
+                  className="text-blue-500 dark:text-blue-400 hover:text-blue-700"
                 >
                   ×
                 </button>
@@ -197,7 +197,7 @@ export function CopyPlanModal({
 
       {/* 미리보기 */}
       {totalCopies > 0 && (
-        <div className="p-3 bg-blue-50 rounded-lg">
+        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
           <div className="text-sm text-blue-800">
             <strong>{plans.length}</strong>개 플랜 ×{' '}
             <strong>{targetDates.length}</strong>개 날짜 ={' '}

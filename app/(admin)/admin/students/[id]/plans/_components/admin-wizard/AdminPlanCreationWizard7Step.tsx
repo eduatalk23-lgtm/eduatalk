@@ -685,14 +685,14 @@ function WizardInner({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" data-testid="admin-wizard">
-      <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl" data-testid="admin-wizard-modal">
+      <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white dark:bg-[rgb(var(--color-secondary-50))] shadow-2xl" data-testid="admin-wizard-modal">
         {/* 헤더 */}
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 py-4">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               플랜 그룹 생성
             </h2>
-            <p className="text-sm text-gray-500">{studentName}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{studentName}</p>
           </div>
           <div className="flex items-center gap-3">
             <AutoSaveIndicator status={autoSaveStatus} lastSavedAt={lastSavedAt} />
@@ -700,7 +700,7 @@ function WizardInner({
               onClick={onClose}
               disabled={isSubmitting}
               data-testid="cancel-button"
-              className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50"
+              className="rounded-lg p-2 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 hover:text-gray-600 dark:text-gray-400 disabled:opacity-50"
             >
               <X className="h-5 w-5" />
             </button>
@@ -719,8 +719,8 @@ function WizardInner({
                   currentStep === step
                     ? "bg-blue-600 text-white"
                     : currentStep > step
-                      ? "bg-blue-100 text-blue-600"
-                      : "bg-gray-100 text-gray-400"
+                      ? "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
+                      : "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500"
                 )}
               >
                 {currentStep > step ? (
@@ -733,7 +733,7 @@ function WizardInner({
                 <div
                   className={cn(
                     "mx-1 h-0.5 w-4 transition",
-                    currentStep > step ? "bg-blue-300" : "bg-gray-200"
+                    currentStep > step ? "bg-blue-300" : "bg-gray-200 dark:bg-gray-700"
                   )}
                 />
               )}
@@ -743,10 +743,10 @@ function WizardInner({
 
         {/* 스텝 제목 */}
         <div className="px-6 py-2 text-center">
-          <span className="text-sm font-medium text-gray-700">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
             {STEP_TITLES[currentStep]}
           </span>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             {STEP_DESCRIPTIONS[currentStep]}
           </p>
         </div>
@@ -760,14 +760,14 @@ function WizardInner({
 
         {/* 에러 메시지 (글로벌) */}
         {error && currentStep !== 7 && (
-          <div className="mx-6 mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+          <div className="mx-6 mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600 dark:text-red-400">
             {error}
           </div>
         )}
 
         {/* 네비게이션 (Step 7 제외) */}
         {currentStep < 7 && (
-          <div className="flex items-center justify-between border-t border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 px-6 py-4">
             <button
               type="button"
               onClick={prevStep}
@@ -777,7 +777,7 @@ function WizardInner({
                 "flex items-center gap-1 rounded-lg px-4 py-2 text-sm font-medium transition",
                 !canGoPrev || isSubmitting
                   ? "cursor-not-allowed text-gray-300"
-                  : "text-gray-600 hover:bg-gray-100"
+                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800"
               )}
             >
               <ChevronLeft className="h-4 w-4" />
@@ -791,7 +791,7 @@ function WizardInner({
               className={cn(
                 "flex items-center gap-1 rounded-lg px-4 py-2 text-sm font-medium transition",
                 !isStepValid || isSubmitting
-                  ? "cursor-not-allowed bg-gray-300 text-gray-500"
+                  ? "cursor-not-allowed bg-gray-300 text-gray-500 dark:text-gray-400"
                   : "bg-blue-600 text-white hover:bg-blue-700"
               )}
             >

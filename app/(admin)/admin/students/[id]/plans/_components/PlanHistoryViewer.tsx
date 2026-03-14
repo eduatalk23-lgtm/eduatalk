@@ -153,11 +153,11 @@ export function PlanHistoryViewer({
 
   if (isLoading) {
     return (
-      <div className={cn('bg-white rounded-lg border border-gray-200 p-4', className)}>
+      <div className={cn('bg-white dark:bg-[rgb(var(--color-secondary-50))] rounded-lg border border-gray-200 dark:border-gray-700 p-4', className)}>
         <div className="animate-pulse space-y-3">
-          <div className="h-5 bg-gray-200 rounded w-24" />
+          <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-24" />
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-12 bg-gray-100 rounded" />
+            <div key={i} className="h-12 bg-gray-100 dark:bg-gray-800 rounded" />
           ))}
         </div>
       </div>
@@ -167,19 +167,19 @@ export function PlanHistoryViewer({
   const displayEvents = isExpanded ? events : events.slice(0, 5);
 
   return (
-    <div className={cn('bg-white rounded-lg border border-gray-200 overflow-hidden', className)}>
+    <div className={cn('bg-white dark:bg-[rgb(var(--color-secondary-50))] rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden', className)}>
       {/* 헤더 */}
       <div className="px-4 py-3 border-b border-gray-100">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium text-gray-700">📜 활동 히스토리</h3>
-          <span className="text-xs text-gray-500">{events.length}개 이벤트</span>
+          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">📜 활동 히스토리</h3>
+          <span className="text-xs text-gray-500 dark:text-gray-400">{events.length}개 이벤트</span>
         </div>
       </div>
 
       {/* 이벤트 목록 */}
       <div className="divide-y divide-gray-50">
         {displayEvents.length === 0 ? (
-          <div className="p-4 text-center text-gray-500 text-sm">
+          <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
             아직 기록된 활동이 없습니다
           </div>
         ) : (
@@ -189,7 +189,7 @@ export function PlanHistoryViewer({
             return (
               <div
                 key={event.id}
-                className="px-4 py-3 hover:bg-gray-50 transition-colors"
+                className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 transition-colors"
               >
                 <div className="flex items-start gap-3">
                   {/* 아이콘 */}
@@ -198,22 +198,22 @@ export function PlanHistoryViewer({
                   {/* 내용 */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm text-gray-900">
+                      <span className="font-medium text-sm text-gray-900 dark:text-gray-100">
                         {getEventLabel(event.event_type)}
                       </span>
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-gray-400 dark:text-gray-500">
                         {getActorLabel(event.actor_type)}
                       </span>
                     </div>
                     {payloadInfo && (
-                      <div className="text-sm text-gray-600 truncate">
+                      <div className="text-sm text-gray-600 dark:text-gray-400 truncate">
                         {payloadInfo}
                       </div>
                     )}
                   </div>
 
                   {/* 시간 */}
-                  <span className="text-xs text-gray-400 shrink-0">
+                  <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">
                     {formatTime(event.occurred_at)}
                   </span>
                 </div>
@@ -228,7 +228,7 @@ export function PlanHistoryViewer({
         <div className="px-4 py-2 border-t border-gray-100">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="w-full text-center text-sm text-blue-600 hover:text-blue-700"
+            className="w-full text-center text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700"
           >
             {isExpanded ? '접기' : `더보기 (${events.length - 5}개)`}
           </button>

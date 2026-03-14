@@ -550,24 +550,24 @@ export function Step2TimeSettings({
       {hasInheritedTimeSettings && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <Lock className="h-4 w-4 text-blue-500" />
-            <label className="text-sm font-medium text-gray-700">
+            <Lock className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
               플래너에서 상속된 시간 설정
             </label>
-            <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+            <span className="rounded bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 text-xs font-medium text-blue-700">
               읽기 전용
             </span>
           </div>
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/20 p-4">
             <div className="grid grid-cols-3 gap-4">
               {/* 학습 시간 */}
               {studyHours && (
                 <div className="space-y-1">
-                  <div className="flex items-center gap-1 text-xs text-gray-600">
+                  <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
                     <Sun className="h-3 w-3" />
                     학습 시간
                   </div>
-                  <p className="text-sm font-medium text-gray-800">
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
                     {studyHours.start} - {studyHours.end}
                   </p>
                 </div>
@@ -575,11 +575,11 @@ export function Step2TimeSettings({
               {/* 자율학습 시간 */}
               {selfStudyHours && (
                 <div className="space-y-1">
-                  <div className="flex items-center gap-1 text-xs text-gray-600">
+                  <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
                     <Moon className="h-3 w-3" />
                     자율학습 시간
                   </div>
-                  <p className="text-sm font-medium text-gray-800">
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
                     {selfStudyHours.start} - {selfStudyHours.end}
                   </p>
                 </div>
@@ -587,11 +587,11 @@ export function Step2TimeSettings({
               {/* 점심 시간 */}
               {lunchTime && (
                 <div className="space-y-1">
-                  <div className="flex items-center gap-1 text-xs text-gray-600">
+                  <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
                     <Coffee className="h-3 w-3" />
                     점심 시간
                   </div>
-                  <p className="text-sm font-medium text-gray-800">
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
                     {lunchTime.start} - {lunchTime.end}
                   </p>
                 </div>
@@ -605,12 +605,12 @@ export function Step2TimeSettings({
       {nonStudyTimeBlocks && nonStudyTimeBlocks.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <Coffee className="h-4 w-4 text-gray-500" />
-            <label className="text-sm font-medium text-gray-700">
+            <Coffee className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
               비학습 시간 블록
             </label>
             {calendarId && (
-              <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
+              <span className="rounded bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-xs text-gray-500 dark:text-gray-400">
                 플래너에서 상속
               </span>
             )}
@@ -622,23 +622,23 @@ export function Step2TimeSettings({
               return (
                 <div
                   key={index}
-                  className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
+                  className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2"
                 >
                   <div className="flex items-center gap-3">
-                    <IconComponent className="h-4 w-4 text-gray-400" />
+                    <IconComponent className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                     <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
                       {blockInfo?.label || block.type}
                     </span>
-                    <span className="text-sm text-gray-700">
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
                       {block.start_time.slice(0, 5)} - {block.end_time.slice(0, 5)}
                     </span>
                     {block.day_of_week && block.day_of_week.length > 0 && block.day_of_week.length < 7 && (
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
                         ({block.day_of_week.map(d => WEEKDAYS[d]).join(", ")})
                       </span>
                     )}
                     {block.description && (
-                      <span className="text-sm text-gray-500">- {block.description}</span>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">- {block.description}</span>
                     )}
                   </div>
                 </div>
@@ -651,14 +651,14 @@ export function Step2TimeSettings({
       {/* 스케줄러 타입 선택 */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
-          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+          <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
             <Clock className="h-4 w-4" />
             스케줄러 타입
           </label>
           {hasInheritedSchedulerType && (
             <div className="flex items-center gap-1">
-              <Lock className="h-3.5 w-3.5 text-blue-500" />
-              <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+              <Lock className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" />
+              <span className="rounded bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 text-xs font-medium text-blue-700">
                 플래너에서 상속
               </span>
             </div>
@@ -679,8 +679,8 @@ export function Step2TimeSettings({
               className={cn(
                 "flex flex-col items-start rounded-lg border p-4 text-left transition",
                 schedulerType === type.value
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-gray-200 bg-white hover:border-gray-300",
+                  ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                  : "border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] hover:border-gray-300 dark:border-gray-600",
                 (!editable || hasInheritedSchedulerType) && "cursor-not-allowed opacity-60"
               )}
             >
@@ -690,16 +690,16 @@ export function Step2TimeSettings({
                     "font-medium",
                     schedulerType === type.value
                       ? "text-blue-700"
-                      : "text-gray-900"
+                      : "text-gray-900 dark:text-gray-100"
                   )}
                 >
                   {type.label}
                 </span>
                 {hasInheritedSchedulerType && schedulerType === type.value && (
-                  <Lock className="h-3.5 w-3.5 text-blue-500" />
+                  <Lock className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" />
                 )}
               </div>
-              <span className="mt-1 text-xs text-gray-500">
+              <span className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 {type.description}
               </span>
             </button>
@@ -708,31 +708,31 @@ export function Step2TimeSettings({
 
         {/* 플래너에서 상속된 스케줄러 옵션 (학습일/복습일) - 읽기 전용 */}
         {hasInheritedSchedulerOptions && (
-          <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/20 p-4">
             <div className="flex items-center gap-2 mb-3">
-              <Lock className="h-4 w-4 text-blue-500" />
+              <Lock className="h-4 w-4 text-blue-500 dark:text-blue-400" />
               <span className="text-sm font-medium text-blue-900">
                 플래너에서 상속된 주간 학습/복습 설정
               </span>
-              <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+              <span className="rounded bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 text-xs font-medium text-blue-700">
                 읽기 전용
               </span>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-blue-600">주간 학습일:</span>
+                <span className="text-sm text-blue-600 dark:text-blue-400">주간 학습일:</span>
                 <span className="text-sm font-medium text-blue-900">
                   {schedulerOptions?.study_days ?? 6}일
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-blue-600">주간 복습일:</span>
+                <span className="text-sm text-blue-600 dark:text-blue-400">주간 복습일:</span>
                 <span className="text-sm font-medium text-blue-900">
                   {schedulerOptions?.review_days ?? 1}일
                 </span>
               </div>
             </div>
-            <p className="mt-2 text-xs text-blue-600">
+            <p className="mt-2 text-xs text-blue-600 dark:text-blue-400">
               이 설정은 플래너에서 상속됩니다. 수정하려면 플래너 설정을 변경하세요.
             </p>
           </div>
@@ -742,9 +742,9 @@ export function Step2TimeSettings({
       {/* 학원 스케줄 */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+          <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
             <Building2 className="h-4 w-4" />
-            학원 스케줄 <span className="text-xs text-gray-400">(선택)</span>
+            학원 스케줄 <span className="text-xs text-gray-400 dark:text-gray-500">(선택)</span>
           </label>
           {editable && (
             <div className="flex items-center gap-2">
@@ -754,7 +754,7 @@ export function Step2TimeSettings({
                 onClick={handleOpenAcademyImportModal}
                 disabled={isLoadingAcademy}
                 data-testid="import-academy-button"
-                className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-700 disabled:opacity-50"
+                className="inline-flex items-center gap-1 text-sm text-green-600 dark:text-green-400 hover:text-green-700 disabled:opacity-50"
               >
                 <Download className="h-4 w-4" />
                 {isLoadingAcademy ? "불러오는 중..." : "시간 관리에서 불러오기"}
@@ -769,7 +769,7 @@ export function Step2TimeSettings({
                 type="button"
                 onClick={() => setShowAddAcademy(true)}
                 data-testid="add-academy-button"
-                className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+                className="inline-flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700"
               >
                 <Plus className="h-4 w-4" />
                 직접 추가
@@ -784,18 +784,18 @@ export function Step2TimeSettings({
             {academySchedules.map((schedule, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
+                className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2"
               >
                 <div className="flex items-center gap-3">
-                  <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                  <span className="rounded bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 text-xs font-medium text-blue-700">
                     {WEEKDAYS[schedule.day_of_week]}
                   </span>
-                  <span className="text-sm text-gray-700">
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
                     {schedule.start_time.slice(0, 5)} -{" "}
                     {schedule.end_time.slice(0, 5)}
                   </span>
                   {schedule.academy_name && (
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
                       {schedule.academy_name}
                     </span>
                   )}
@@ -805,7 +805,7 @@ export function Step2TimeSettings({
                     </span>
                   )}
                   {schedule.is_locked && (
-                    <span className="rounded bg-gray-200 px-1.5 py-0.5 text-xs text-gray-500">
+                    <span className="rounded bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 text-xs text-gray-500 dark:text-gray-400">
                       플래너
                     </span>
                   )}
@@ -814,7 +814,7 @@ export function Step2TimeSettings({
                   <button
                     type="button"
                     onClick={() => handleRemoveAcademy(index)}
-                    className="text-gray-400 hover:text-red-500"
+                    className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:text-red-400"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -823,23 +823,23 @@ export function Step2TimeSettings({
             ))}
           </div>
         ) : (
-          <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 py-4 text-center text-sm text-gray-500">
+          <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
             등록된 학원 스케줄이 없습니다.
           </div>
         )}
 
         {/* 학원 스케줄 추가 폼 */}
         {showAddAcademy && (
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/20 p-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs text-gray-600">요일</label>
+                <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">요일</label>
                 <select
                   value={newAcademy.day_of_week}
                   onChange={(e) =>
                     setNewAcademy({ ...newAcademy, day_of_week: Number(e.target.value) })
                   }
-                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                  className="w-full rounded border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-sm"
                 >
                   {WEEKDAYS.map((day, i) => (
                     <option key={i} value={i}>
@@ -849,7 +849,7 @@ export function Step2TimeSettings({
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-xs text-gray-600">학원명</label>
+                <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">학원명</label>
                 <input
                   type="text"
                   value={newAcademy.academy_name || ""}
@@ -857,33 +857,33 @@ export function Step2TimeSettings({
                     setNewAcademy({ ...newAcademy, academy_name: e.target.value })
                   }
                   placeholder="학원명 (선택)"
-                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                  className="w-full rounded border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-sm"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-gray-600">시작 시간</label>
+                <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">시작 시간</label>
                 <input
                   type="time"
                   value={newAcademy.start_time}
                   onChange={(e) =>
                     setNewAcademy({ ...newAcademy, start_time: e.target.value })
                   }
-                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                  className="w-full rounded border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-sm"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-gray-600">종료 시간</label>
+                <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">종료 시간</label>
                 <input
                   type="time"
                   value={newAcademy.end_time}
                   onChange={(e) =>
                     setNewAcademy({ ...newAcademy, end_time: e.target.value })
                   }
-                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                  className="w-full rounded border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-sm"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-gray-600">
+                <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">
                   이동시간 (분)
                   <span className="ml-1 text-orange-500">*</span>
                 </label>
@@ -896,12 +896,12 @@ export function Step2TimeSettings({
                   min={0}
                   max={180}
                   placeholder="30"
-                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                  className="w-full rounded border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-sm"
                 />
-                <p className="mt-0.5 text-xs text-gray-500">등/하원 이동에 필요한 시간</p>
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">등/하원 이동에 필요한 시간</p>
               </div>
               <div>
-                <label className="mb-1 block text-xs text-gray-600">과목 (선택)</label>
+                <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">과목 (선택)</label>
                 <input
                   type="text"
                   value={newAcademy.subject || ""}
@@ -909,7 +909,7 @@ export function Step2TimeSettings({
                     setNewAcademy({ ...newAcademy, subject: e.target.value })
                   }
                   placeholder="예: 수학, 영어"
-                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                  className="w-full rounded border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-sm"
                 />
               </div>
             </div>
@@ -917,7 +917,7 @@ export function Step2TimeSettings({
               <button
                 type="button"
                 onClick={() => setShowAddAcademy(false)}
-                className="rounded px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
+                className="rounded px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800"
               >
                 취소
               </button>
@@ -937,9 +937,9 @@ export function Step2TimeSettings({
       {/* 제외 일정 */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+          <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
             <Calendar className="h-4 w-4" />
-            제외 일정 <span className="text-xs text-gray-400">(선택)</span>
+            제외 일정 <span className="text-xs text-gray-400 dark:text-gray-500">(선택)</span>
           </label>
           {editable && (
             <div className="flex items-center gap-2">
@@ -949,7 +949,7 @@ export function Step2TimeSettings({
                 onClick={handleOpenExclusionImportModal}
                 disabled={isLoadingExclusion || !periodStart || !periodEnd}
                 data-testid="import-exclusion-button"
-                className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-1 text-sm text-green-600 dark:text-green-400 hover:text-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 title={!periodStart || !periodEnd ? "학습 기간을 먼저 설정해주세요" : ""}
               >
                 <Download className="h-4 w-4" />
@@ -965,7 +965,7 @@ export function Step2TimeSettings({
                 type="button"
                 onClick={() => setShowAddExclusion(true)}
                 data-testid="add-exclusion-button"
-                className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+                className="inline-flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700"
               >
                 <Plus className="h-4 w-4" />
                 직접 추가
@@ -980,10 +980,10 @@ export function Step2TimeSettings({
             {exclusions.map((exc, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
+                className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2"
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-gray-700">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     {exc.exclusion_date}
                   </span>
                   <span
@@ -993,21 +993,21 @@ export function Step2TimeSettings({
                         ? "bg-red-100 text-red-700"
                         : exc.exclusion_type === "event"
                           ? "bg-yellow-100 text-yellow-700"
-                          : "bg-gray-100 text-gray-700"
+                          : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
                     )}
                   >
                     {EXCLUSION_TYPES.find((t) => t.value === exc.exclusion_type)?.label ||
                       exc.exclusion_type}
                   </span>
                   {exc.reason && (
-                    <span className="text-sm text-gray-500">{exc.reason}</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">{exc.reason}</span>
                   )}
                 </div>
                 {editable && !exc.is_locked && (
                   <button
                     type="button"
                     onClick={() => handleRemoveExclusion(index)}
-                    className="text-gray-400 hover:text-red-500"
+                    className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:text-red-400"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -1016,17 +1016,17 @@ export function Step2TimeSettings({
             ))}
           </div>
         ) : (
-          <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 py-4 text-center text-sm text-gray-500">
+          <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
             등록된 제외 일정이 없습니다.
           </div>
         )}
 
         {/* 제외일 추가 폼 */}
         {showAddExclusion && (
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/20 p-4">
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="mb-1 block text-xs text-gray-600">날짜</label>
+                <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">날짜</label>
                 <input
                   type="date"
                   value={newExclusion.exclusion_date}
@@ -1035,11 +1035,11 @@ export function Step2TimeSettings({
                   onChange={(e) =>
                     setNewExclusion({ ...newExclusion, exclusion_date: e.target.value })
                   }
-                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                  className="w-full rounded border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-sm"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-gray-600">유형</label>
+                <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">유형</label>
                 <select
                   value={newExclusion.exclusion_type}
                   onChange={(e) =>
@@ -1048,7 +1048,7 @@ export function Step2TimeSettings({
                       exclusion_type: e.target.value as ExclusionSchedule["exclusion_type"],
                     })
                   }
-                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                  className="w-full rounded border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-sm"
                 >
                   {EXCLUSION_TYPES.map((type) => (
                     <option key={type.value} value={type.value}>
@@ -1058,7 +1058,7 @@ export function Step2TimeSettings({
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-xs text-gray-600">사유</label>
+                <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">사유</label>
                 <input
                   type="text"
                   value={newExclusion.reason || ""}
@@ -1066,7 +1066,7 @@ export function Step2TimeSettings({
                     setNewExclusion({ ...newExclusion, reason: e.target.value })
                   }
                   placeholder="사유 (선택)"
-                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                  className="w-full rounded border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-sm"
                 />
               </div>
             </div>
@@ -1074,7 +1074,7 @@ export function Step2TimeSettings({
               <button
                 type="button"
                 onClick={() => setShowAddExclusion(false)}
-                className="rounded px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
+                className="rounded px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800"
               >
                 취소
               </button>
@@ -1092,8 +1092,8 @@ export function Step2TimeSettings({
       </div>
 
       {/* 안내 메시지 */}
-      <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4">
-        <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-500" />
+      <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/20 p-4">
+        <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-500 dark:text-blue-400" />
         <div className="text-sm text-blue-800">
           <p className="font-medium">시간 설정 안내</p>
           <ul className="mt-1 list-inside list-disc space-y-1 text-blue-700">

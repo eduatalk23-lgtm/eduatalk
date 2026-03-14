@@ -97,7 +97,7 @@ export function QuickDateEditor({
     <button
       onClick={() => setIsEditing(true)}
       className={cn(
-        'text-xs text-[var(--text-tertiary)] hover:text-blue-600 hover:underline cursor-pointer',
+        'text-xs text-[var(--text-tertiary)] hover:text-blue-600 dark:text-blue-400 hover:underline cursor-pointer',
         className
       )}
     >
@@ -204,7 +204,7 @@ export function QuickTimeEditor({
     <button
       onClick={() => setIsEditing(true)}
       className={cn(
-        'text-xs text-[var(--text-tertiary)] hover:text-blue-600 hover:underline cursor-pointer',
+        'text-xs text-[var(--text-tertiary)] hover:text-blue-600 dark:text-blue-400 hover:underline cursor-pointer',
         className
       )}
     >
@@ -306,7 +306,7 @@ export function DatePickerModal({
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
           />
         </div>
 

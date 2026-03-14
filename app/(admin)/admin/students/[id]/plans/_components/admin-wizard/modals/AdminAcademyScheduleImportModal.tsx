@@ -185,9 +185,9 @@ export function AdminAcademyScheduleImportModal({
       <DialogContent className="max-h-[60vh] overflow-y-auto">
         <div className="flex flex-col gap-4">
           {/* 안내 메시지 */}
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+          <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/20 p-3">
             <div className="flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 flex-shrink-0 text-blue-600" />
+              <AlertCircle className="h-4 w-4 flex-shrink-0 text-blue-600 dark:text-blue-400" />
               <div className="flex flex-col gap-1 text-xs text-blue-800">
                 <p className="font-semibold">학생의 시간 관리에 등록된 학원 일정 목록입니다.</p>
                 <p>
@@ -201,7 +201,7 @@ export function AdminAcademyScheduleImportModal({
           {selectedSchedules.size > 0 && (
             <div className="rounded-lg border border-green-200 bg-green-50 p-3">
               <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-green-600" />
+                <AlertCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
                 <div className="text-xs text-green-800">
                   <span className="font-semibold">
                     {selectedSchedules.size}개 일정 선택됨
@@ -215,7 +215,7 @@ export function AdminAcademyScheduleImportModal({
           {conflictInfo.size > 0 && (
             <div className="rounded-lg border border-red-200 bg-red-50 p-3">
               <div className="flex items-start gap-2">
-                <AlertTriangle className="h-4 w-4 flex-shrink-0 text-red-600" />
+                <AlertTriangle className="h-4 w-4 flex-shrink-0 text-red-600 dark:text-red-400" />
                 <div className="flex flex-col gap-1 text-xs text-red-800">
                   <p className="font-semibold">
                     선택한 일정 중 {conflictInfo.size}개의 일정이 기존 일정과 겹칩니다.
@@ -231,28 +231,28 @@ export function AdminAcademyScheduleImportModal({
 
           {/* 학원 일정 목록 */}
           {availableSchedules.length === 0 ? (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-8">
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-8">
               <div className="flex flex-col items-center gap-2 text-center">
-                <Clock className="h-12 w-12 text-gray-400" />
+                <Clock className="h-12 w-12 text-gray-400 dark:text-gray-500" />
                 <div className="flex flex-col gap-1">
-                  <p className="text-sm font-medium text-gray-600">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
                     등록된 학원 일정이 없습니다
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     학생의 시간 관리 메뉴에서 학원 일정을 먼저 등록해주세요.
                   </p>
                 </div>
               </div>
             </div>
           ) : newSchedules.length === 0 ? (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-8">
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-8">
               <div className="flex flex-col items-center gap-2 text-center">
-                <AlertCircle className="h-12 w-12 text-gray-400" />
+                <AlertCircle className="h-12 w-12 text-gray-400 dark:text-gray-500" />
                 <div className="flex flex-col gap-1">
-                  <p className="text-sm font-medium text-gray-600">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
                     불러올 새로운 학원 일정이 없습니다
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     모든 학원 일정이 이미 등록되어 있습니다.
                   </p>
                 </div>
@@ -261,15 +261,15 @@ export function AdminAcademyScheduleImportModal({
           ) : (
             <div className="space-y-4">
               {/* 전체 선택 및 모두 펼치기/접기 */}
-              <div className="flex items-center justify-between rounded-lg border border-gray-300 bg-gray-50 p-3">
+              <div className="flex items-center justify-between rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 p-3">
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
                     checked={selectedSchedules.size === newSchedules.length && newSchedules.length > 0}
                     onChange={handleSelectAll}
-                    className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                    className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-gray-900"
                   />
-                  <span className="text-sm font-medium text-gray-900">
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                     전체 선택 ({selectedSchedules.size} / {newSchedules.length})
                   </span>
                 </div>
@@ -283,7 +283,7 @@ export function AdminAcademyScheduleImportModal({
                         setExpandedAcademies(new Set(Object.keys(groupedByAcademy)));
                       }
                     }}
-                    className="text-xs font-medium text-gray-600 hover:text-gray-900"
+                    className="text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:text-gray-100"
                   >
                     {expandedAcademies.size === Object.keys(groupedByAcademy).length
                       ? "모두 접기"
@@ -324,23 +324,23 @@ export function AdminAcademyScheduleImportModal({
                 }, {} as Record<number, AcademySchedule[]>);
 
                 return (
-                  <div key={academyName} className="rounded-lg border border-gray-200 bg-white">
+                  <div key={academyName} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))]">
                     {/* 학원 헤더 */}
-                    <div className="flex w-full items-center justify-between gap-2 rounded-t-lg border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3">
+                    <div className="flex w-full items-center justify-between gap-2 rounded-t-lg border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3">
                       <button
                         type="button"
                         onClick={() => toggleAcademy(academyName)}
                         className="flex flex-1 items-center gap-3 text-left hover:opacity-80 transition-opacity"
                       >
                         {isExpanded ? (
-                          <ChevronDown className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                          <ChevronDown className="h-4 w-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
                         ) : (
-                          <ChevronRight className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                          <ChevronRight className="h-4 w-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
                         )}
 
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <h3 className="text-sm font-semibold text-gray-900">
+                            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                               {academyName}
                             </h3>
                             {subjects.length > 0 && (
@@ -348,20 +348,20 @@ export function AdminAcademyScheduleImportModal({
                                 {subjects.slice(0, 2).map((subject, idx) => (
                                   <span
                                     key={idx}
-                                    className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800"
+                                    className="rounded-full bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 text-xs font-medium text-blue-800"
                                   >
                                     {subject}
                                   </span>
                                 ))}
                                 {subjects.length > 2 && (
-                                  <span className="text-xs text-gray-500">
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">
                                     +{subjects.length - 2}
                                   </span>
                                 )}
                               </div>
                             )}
                           </div>
-                          <div className="flex items-center gap-3 text-xs text-gray-600">
+                          <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-gray-400">
                             <span>총 {academySchedules.length}개 일정</span>
                             {selectedCount > 0 && (
                               <span className="font-medium text-blue-700">
@@ -378,7 +378,7 @@ export function AdminAcademyScheduleImportModal({
                         className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                           allSelected
                             ? "bg-gray-900 text-white hover:bg-gray-800"
-                            : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+                            : "bg-white dark:bg-[rgb(var(--color-secondary-50))] border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800"
                         }`}
                       >
                         {allSelected ? "전체 해제" : "전체 선택"}
@@ -392,7 +392,7 @@ export function AdminAcademyScheduleImportModal({
                           const day = Number(dayOfWeek);
                           return (
                             <div key={day} className="space-y-2">
-                              <h4 className="text-xs font-medium text-gray-600">
+                              <h4 className="text-xs font-medium text-gray-600 dark:text-gray-400">
                                 {weekdayLabels[day]}요일
                               </h4>
                               <div className="space-y-2">
@@ -408,12 +408,12 @@ export function AdminAcademyScheduleImportModal({
                                       key={key}
                                       className={`flex items-start gap-3 rounded-lg border p-3 transition-colors ${
                                         isExisting
-                                          ? "border-gray-200 bg-gray-50 opacity-60"
+                                          ? "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 opacity-60"
                                           : hasConflict
                                           ? "border-red-300 bg-red-50"
                                           : isSelected
-                                          ? "border-gray-900 bg-gray-50"
-                                          : "border-gray-200 bg-white hover:bg-gray-50"
+                                          ? "border-gray-900 bg-gray-50 dark:bg-gray-800"
+                                          : "border-gray-200 dark:border-gray-700 bg-white dark:bg-[rgb(var(--color-secondary-50))] hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800"
                                       }`}
                                     >
                                       <input
@@ -421,15 +421,15 @@ export function AdminAcademyScheduleImportModal({
                                         checked={isSelected}
                                         onChange={() => handleToggle(schedule)}
                                         disabled={isExisting}
-                                        className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+                                        className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
                                       />
                                       <div className="flex-1">
                                         <div className="flex items-center gap-2">
-                                          <span className="font-medium text-gray-900">
+                                          <span className="font-medium text-gray-900 dark:text-gray-100">
                                             {schedule.start_time} ~ {schedule.end_time}
                                           </span>
                                           {isExisting && (
-                                            <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-600">
+                                            <span className="rounded-full bg-gray-200 dark:bg-gray-700 px-2 py-0.5 text-xs font-medium text-gray-600 dark:text-gray-400">
                                               등록됨
                                             </span>
                                           )}
@@ -439,18 +439,18 @@ export function AdminAcademyScheduleImportModal({
                                             </span>
                                           )}
                                         </div>
-                                        <div className="flex items-center gap-2 text-xs text-gray-600">
+                                        <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
                                           {schedule.subject && (
                                             <span>{schedule.subject}</span>
                                           )}
                                           {schedule.travel_time && (
-                                            <span className="text-gray-500">
+                                            <span className="text-gray-500 dark:text-gray-400">
                                               이동시간: {schedule.travel_time}분
                                             </span>
                                           )}
                                         </div>
                                         {hasConflict && (
-                                          <div className="mt-2 flex flex-col gap-1 rounded border border-red-200 bg-white p-2 text-xs text-red-700">
+                                          <div className="mt-2 flex flex-col gap-1 rounded border border-red-200 bg-white dark:bg-[rgb(var(--color-secondary-50))] p-2 text-xs text-red-700">
                                             <p className="font-semibold">겹치는 일정:</p>
                                             {conflicts.map((conflictSchedule, idx) => (
                                               <p key={idx}>
@@ -478,10 +478,10 @@ export function AdminAcademyScheduleImportModal({
       </DialogContent>
       <DialogFooter>
         <div className="flex w-full items-center justify-between">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             선택된 항목: <span className="font-semibold">{selectedSchedules.size}개</span>
             {conflictInfo.size > 0 && (
-              <span className="text-red-600">
+              <span className="text-red-600 dark:text-red-400">
                 {" "}(겹침: {conflictInfo.size}개)
               </span>
             )}
@@ -490,7 +490,7 @@ export function AdminAcademyScheduleImportModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[rgb(var(--color-secondary-50))] px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800"
             >
               취소
             </button>

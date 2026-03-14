@@ -84,10 +84,10 @@ export function CalendarTab(_props: CalendarTabProps) {
   if (!selectedCalendarId) {
     return (
       <div className="flex flex-col items-center justify-center h-96 text-center">
-        <p className="text-gray-500 mb-2">
+        <p className="text-gray-500 dark:text-gray-400 mb-2">
           캘린더 뷰를 사용하려면 먼저 캘린더를 선택해주세요.
         </p>
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-gray-400 dark:text-gray-500">
           상단에서 캘린더를 생성하거나 선택할 수 있습니다.
         </p>
       </div>

@@ -1066,10 +1066,10 @@ function AdminPlanManagementContent({
               onClick={() => setShowGoToDate(false)}
             >
               <div
-                className="bg-white rounded-xl shadow-xl p-4 w-[280px]"
+                className="bg-white dark:bg-[rgb(var(--color-secondary-50))] rounded-xl shadow-xl p-4 w-[280px]"
                 onClick={(e) => e.stopPropagation()}
               >
-                <h3 className="text-sm font-medium text-gray-700 mb-2">날짜로 이동</h3>
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">날짜로 이동</h3>
                 <MiniMonthCalendar
                   selectedDate={selectedDate}
                   onDateSelect={(date) => {

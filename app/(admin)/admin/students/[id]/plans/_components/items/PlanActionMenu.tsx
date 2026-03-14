@@ -29,7 +29,7 @@ const QUICK_STATUS_OPTIONS: Array<{
 }> = [
   { status: 'pending', label: '미완료', icon: Circle, colorClass: 'text-[var(--text-tertiary)]' },
   { status: 'completed', label: '완료', icon: Check, colorClass: 'text-green-500' },
-  { status: 'cancelled', label: '취소', icon: XCircle, colorClass: 'text-red-500' },
+  { status: 'cancelled', label: '취소', icon: XCircle, colorClass: 'text-red-500 dark:text-red-400' },
 ];
 
 interface StatusChangeSubmenuProps {
@@ -210,7 +210,7 @@ export const PlanActionMenu = memo(function PlanActionMenu({
         {/* 삭제 */}
         <DropdownMenu.Item
           onClick={onDelete}
-          className="text-red-600 hover:bg-red-50"
+          className="text-red-600 dark:text-red-400 hover:bg-red-50"
         >
           <Trash2 className="w-4 h-4 mr-2" />
           삭제

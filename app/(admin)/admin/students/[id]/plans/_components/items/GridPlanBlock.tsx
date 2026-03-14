@@ -69,7 +69,7 @@ export const GridPlanBlock = memo(function GridPlanBlock({
     displayHeight < 45 ? 'medium' : 'long';
 
   const progress = plan.progress ?? 0;
-  const textColor = colors.textIsWhite ? 'text-white' : 'text-gray-900';
+  const textColor = colors.textIsWhite ? 'text-white' : 'text-gray-900 dark:text-gray-100';
 
   const ariaLabel = [
     plan.title,
@@ -92,7 +92,7 @@ export const GridPlanBlock = memo(function GridPlanBlock({
         'group/plan absolute rounded-lg select-none overflow-hidden',
         isResizing ? 'cursor-ns-resize' : onCrossDayDragStart ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
         'transition-[shadow,transform,filter] duration-150 ease-out',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:ring-blue-400 focus-visible:ring-offset-1',
         !isResizing && !isDragSource && !suppressHover && 'hover:shadow-lg hover:brightness-[0.92] hover:scale-[1.01] hover:-translate-y-px',
         isResizing && 'shadow-lg',
         !isDragSource && isHighlighted && 'ring-2 ring-yellow-400',
@@ -212,9 +212,9 @@ export const GridPlanBlock = memo(function GridPlanBlock({
             </span>
           )}
           {plan.status === 'in_progress' && progress > 0 && (
-            <div className="w-full h-1 rounded-full bg-white/20">
+            <div className="w-full h-1 rounded-full bg-white dark:bg-[rgb(var(--color-secondary-50))]/20">
               <div
-                className="h-1 rounded-full bg-white/60"
+                className="h-1 rounded-full bg-white dark:bg-[rgb(var(--color-secondary-50))]/60"
                 style={{ width: `${Math.min(progress, 100)}%` }}
               />
             </div>
@@ -225,7 +225,7 @@ export const GridPlanBlock = memo(function GridPlanBlock({
       {/* 완료 체크마크 */}
       {isCompleted && displayHeight >= 20 && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="rounded-full p-0.5 bg-white/30">
+          <div className="rounded-full p-0.5 bg-white dark:bg-[rgb(var(--color-secondary-50))]/30">
             <Check className="w-3.5 h-3.5 text-white" />
           </div>
         </div>
@@ -240,7 +240,7 @@ export const GridPlanBlock = memo(function GridPlanBlock({
           onTouchStart={topResizeHandleProps.onTouchStart}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="w-8 h-0.5 rounded-full bg-white/60" />
+          <div className="w-8 h-0.5 rounded-full bg-white dark:bg-[rgb(var(--color-secondary-50))]/60" />
         </div>
       )}
       {/* 상단 리사이즈 핸들 — Touch */}
@@ -251,7 +251,7 @@ export const GridPlanBlock = memo(function GridPlanBlock({
           onTouchStart={topResizeHandleProps.onTouchStart}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="w-2.5 h-2.5 rounded-full border-2 shadow-sm bg-white border-white/80" />
+          <div className="w-2.5 h-2.5 rounded-full border-2 shadow-sm bg-white dark:bg-[rgb(var(--color-secondary-50))] border-white/80" />
         </div>
       )}
 
@@ -264,7 +264,7 @@ export const GridPlanBlock = memo(function GridPlanBlock({
           onTouchStart={resizeHandleProps.onTouchStart}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="w-8 h-0.5 rounded-full bg-white/60" />
+          <div className="w-8 h-0.5 rounded-full bg-white dark:bg-[rgb(var(--color-secondary-50))]/60" />
         </div>
       )}
       {/* 하단 리사이즈 핸들 — Touch */}
@@ -275,7 +275,7 @@ export const GridPlanBlock = memo(function GridPlanBlock({
           onTouchStart={resizeHandleProps.onTouchStart}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="w-2.5 h-2.5 rounded-full border-2 shadow-sm bg-white border-white/80" />
+          <div className="w-2.5 h-2.5 rounded-full border-2 shadow-sm bg-white dark:bg-[rgb(var(--color-secondary-50))] border-white/80" />
         </div>
       )}
 

@@ -66,27 +66,27 @@ export function Step3AIRecommendation({ studentId: _studentId, tenantId: _tenant
       </div>
 
       {/* 요약 */}
-      <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+      <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
             <div className="text-2xl font-bold text-purple-600">{confirmedCount}/{slots.length}</div>
-            <div className="text-xs text-gray-500">확정됨</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">확정됨</div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-blue-600">
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
               {slots.filter(s => s.subjectClassification === 'strategic').length}개
             </div>
-            <div className="text-xs text-gray-500">전략 과목</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">전략 과목</div>
           </div>
           <div>
             <div className="text-2xl font-bold text-orange-600">
               {slots.filter(s => s.subjectClassification === 'weakness').length}개
             </div>
-            <div className="text-xs text-gray-500">취약 과목</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">취약 과목</div>
           </div>
         </div>
         {totalStrategicDays > 0 && (
-          <div className="mt-3 pt-3 border-t border-gray-200 text-center text-sm text-gray-600">
+          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 text-center text-sm text-gray-600 dark:text-gray-400">
             전략 과목 주간 배정: 총 {totalStrategicDays}일
           </div>
         )}
@@ -156,16 +156,16 @@ function SlotConfigCard({ slot, index, onRetry }: SlotConfigCardProps) {
       {/* 헤더 */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50/50"
+        className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800/50"
       >
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-8 h-8 bg-gray-100 rounded-lg text-sm font-bold text-gray-600">
+          <div className="flex items-center justify-center w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm font-bold text-gray-600 dark:text-gray-400">
             #{index + 1}
           </div>
           <div>
             <div className="flex items-center gap-2">
-              {isAI ? <Sparkles className="h-4 w-4 text-purple-500" /> : <BookOpen className="h-4 w-4 text-blue-500" />}
-              <span className="font-medium text-gray-900">{contentTitle}</span>
+              {isAI ? <Sparkles className="h-4 w-4 text-purple-500" /> : <BookOpen className="h-4 w-4 text-blue-500 dark:text-blue-400" />}
+              <span className="font-medium text-gray-900 dark:text-gray-100">{contentTitle}</span>
             </div>
             <div className="flex items-center gap-2 mt-0.5">
               {isLoading && (
@@ -175,13 +175,13 @@ function SlotConfigCard({ slot, index, onRetry }: SlotConfigCardProps) {
                 </span>
               )}
               {hasError && (
-                <span className="flex items-center gap-1 text-xs text-red-600">
+                <span className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
                   <AlertCircle className="h-3 w-3" />
                   {slot.errorMessage || '오류 발생'}
                 </span>
               )}
               {isConfirmed && (
-                <span className="flex items-center gap-1 text-xs text-green-600">
+                <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
                   <CheckCircle2 className="h-3 w-3" />
                   확정됨
                 </span>
@@ -189,13 +189,13 @@ function SlotConfigCard({ slot, index, onRetry }: SlotConfigCardProps) {
             </div>
           </div>
         </div>
-        {isExpanded ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
+        {isExpanded ? <ChevronUp className="h-5 w-5 text-gray-400 dark:text-gray-500" /> : <ChevronDown className="h-5 w-5 text-gray-400 dark:text-gray-500" />}
       </button>
 
       {/* 에러 상태: 재시도/삭제 버튼 */}
       {isExpanded && hasError && (
         <div className="px-4 pb-4 pt-4 border-t border-red-100">
-          <p className="text-sm text-red-600 mb-3">{slot.errorMessage || '오류가 발생했습니다.'}</p>
+          <p className="text-sm text-red-600 dark:text-red-400 mb-3">{slot.errorMessage || '오류가 발생했습니다.'}</p>
           <div className="flex gap-2">
             <button
               onClick={handleRetry}
@@ -207,7 +207,7 @@ function SlotConfigCard({ slot, index, onRetry }: SlotConfigCardProps) {
             </button>
             <button
               onClick={() => removeSlot(slot.id)}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-1"
+              className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 flex items-center justify-center gap-1"
             >
               <Trash2 className="h-4 w-4" />
               삭제
@@ -222,7 +222,7 @@ function SlotConfigCard({ slot, index, onRetry }: SlotConfigCardProps) {
           {/* AI 추천 결과 선택 */}
           {isAI && slot.aiResult?.recommendations && slot.aiResult.recommendations.length > 0 && (
             <div className="pt-4">
-              <label className="block text-xs font-medium text-gray-600 mb-2">콘텐츠 선택</label>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">콘텐츠 선택</label>
               <div className="space-y-2">
                 {slot.aiResult.recommendations.slice(0, 3).map((rec) => (
                   <RecommendationOption
@@ -268,7 +268,7 @@ function SlotConfigCard({ slot, index, onRetry }: SlotConfigCardProps) {
                 'w-full py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2',
                 canConfirm
                   ? 'bg-green-500 text-white hover:bg-green-600'
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
               )}
             >
               <CheckCircle2 className="h-4 w-4" />
@@ -299,13 +299,13 @@ function RecommendationOption({ recommendation, isSelected, onSelect }: Recommen
         'w-full p-3 rounded-lg border-2 text-left transition-all',
         isSelected
           ? 'border-purple-500 bg-purple-50'
-          : 'border-gray-200 hover:border-purple-300 hover:bg-purple-50/30'
+          : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 hover:bg-purple-50/30'
       )}
     >
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          <div className="font-medium text-gray-900 truncate">{recommendation.title}</div>
-          <div className="text-xs text-gray-500 mt-0.5">
+          <div className="font-medium text-gray-900 dark:text-gray-100 truncate">{recommendation.title}</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
             {recommendation.author && `${recommendation.author} · `}
             {recommendation.totalRange}{recommendation.contentType === 'book' ? 'p' : '강'}
           </div>
@@ -317,14 +317,14 @@ function RecommendationOption({ recommendation, isSelected, onSelect }: Recommen
           <span className={cn(
             'px-2 py-0.5 rounded-full text-xs font-medium',
             recommendation.matchScore >= 90 ? 'bg-green-100 text-green-700' :
-            recommendation.matchScore >= 80 ? 'bg-blue-100 text-blue-700' :
-            'bg-gray-100 text-gray-700'
+            recommendation.matchScore >= 80 ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700' :
+            'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
           )}>
             {recommendation.matchScore}%
           </span>
           <div className={cn(
             'w-5 h-5 rounded-full border-2 flex items-center justify-center',
-            isSelected ? 'border-purple-500 bg-purple-500' : 'border-gray-300'
+            isSelected ? 'border-purple-500 bg-purple-500' : 'border-gray-300 dark:border-gray-600'
           )}>
             {isSelected && <CheckCircle2 className="h-3 w-3 text-white" />}
           </div>
@@ -353,7 +353,7 @@ function RangeConfigForm({ config, totalRange, contentType, onChange }: RangeCon
 
   return (
     <div className="pt-4 border-t border-gray-100">
-      <label className="block text-xs font-medium text-gray-600 mb-2">
+      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
         학습 범위
       </label>
       <div className="flex items-center gap-2">
@@ -366,9 +366,9 @@ function RangeConfigForm({ config, totalRange, contentType, onChange }: RangeCon
           })}
           min={1}
           max={endRange}
-          className="w-20 px-2 py-1.5 text-sm border border-gray-300 rounded-md text-center"
+          className="w-20 px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md text-center"
         />
-        <span className="text-gray-400">~</span>
+        <span className="text-gray-400 dark:text-gray-500">~</span>
         <input
           type="number"
           value={endRange}
@@ -378,9 +378,9 @@ function RangeConfigForm({ config, totalRange, contentType, onChange }: RangeCon
           })}
           min={startRange}
           max={totalRange}
-          className="w-20 px-2 py-1.5 text-sm border border-gray-300 rounded-md text-center"
+          className="w-20 px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md text-center"
         />
-        <span className="text-sm text-gray-500">/ {totalRange}{unit}</span>
+        <span className="text-sm text-gray-500 dark:text-gray-400">/ {totalRange}{unit}</span>
         <span className="text-xs text-purple-600 ml-2">
           ({rangeAmount}{unit} 학습)
         </span>
@@ -408,7 +408,7 @@ function SubjectClassificationForm({
 }: SubjectClassificationFormProps) {
   return (
     <div className="pt-4 border-t border-gray-100">
-      <label className="block text-xs font-medium text-gray-600 mb-2">과목 분류</label>
+      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">과목 분류</label>
       <div className="flex gap-4">
         <label className="flex items-center gap-2 cursor-pointer">
           <input
@@ -416,9 +416,9 @@ function SubjectClassificationForm({
             name="classification"
             checked={classification === 'strategic'}
             onChange={() => onChange('strategic')}
-            className="text-blue-600 focus:ring-blue-500"
+            className="text-blue-600 dark:text-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
           />
-          <span className="text-sm text-gray-700">전략 과목</span>
+          <span className="text-sm text-gray-700 dark:text-gray-300">전략 과목</span>
         </label>
         <label className="flex items-center gap-2 cursor-pointer">
           <input
@@ -428,18 +428,18 @@ function SubjectClassificationForm({
             onChange={() => onChange('weakness')}
             className="text-orange-600 focus:ring-orange-500"
           />
-          <span className="text-sm text-gray-700">취약 과목</span>
+          <span className="text-sm text-gray-700 dark:text-gray-300">취약 과목</span>
         </label>
       </div>
 
       {/* 전략 과목 주간 배정일 */}
       {classification === 'strategic' && (
         <div className="mt-3 flex items-center gap-2">
-          <label className="text-xs text-gray-600">주간 배정일:</label>
+          <label className="text-xs text-gray-600 dark:text-gray-400">주간 배정일:</label>
           <select
             value={strategicConfig?.weeklyDays ?? 3}
             onChange={(e) => onStrategicChange({ weeklyDays: Number(e.target.value) as 2 | 3 | 4 })}
-            className="px-2 py-1 text-sm border border-gray-300 rounded-md"
+            className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md"
           >
             <option value={2}>2일</option>
             <option value={3}>3일</option>

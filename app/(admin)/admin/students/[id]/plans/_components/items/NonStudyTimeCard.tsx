@@ -19,8 +19,8 @@ const NON_STUDY_STYLES: Record<NonStudyItem['type'], { bg: string; border: strin
   '저녁식사': { bg: 'bg-amber-50/70', border: 'border-amber-200/60', timeBg: 'bg-amber-100', timeBorder: 'border-amber-200' },
   '수면': { bg: 'bg-slate-50/70', border: 'border-slate-200/60', timeBg: 'bg-slate-100', timeBorder: 'border-slate-200' },
   '학원': { bg: 'bg-purple-50/70', border: 'border-purple-200/60', timeBg: 'bg-purple-100', timeBorder: 'border-purple-200' },
-  '이동시간': { bg: 'bg-gray-50/70', border: 'border-gray-200/60', timeBg: 'bg-gray-100', timeBorder: 'border-gray-200' },
-  '기타': { bg: 'bg-gray-50/70', border: 'border-gray-200/60', timeBg: 'bg-gray-100', timeBorder: 'border-gray-200' },
+  '이동시간': { bg: 'bg-gray-50 dark:bg-gray-800/70', border: 'border-gray-200 dark:border-gray-700/60', timeBg: 'bg-gray-100 dark:bg-gray-800', timeBorder: 'border-gray-200 dark:border-gray-700' },
+  '기타': { bg: 'bg-gray-50 dark:bg-gray-800/70', border: 'border-gray-200 dark:border-gray-700/60', timeBg: 'bg-gray-100 dark:bg-gray-800', timeBorder: 'border-gray-200 dark:border-gray-700' },
 };
 
 interface NonStudyTimeCardProps {
@@ -68,10 +68,10 @@ export function NonStudyTimeCard({ item, onClick, editable = false }: NonStudyTi
         styles.timeBg,
         styles.timeBorder,
       )}>
-        <span className="text-sm font-semibold text-gray-600 tabular-nums">
+        <span className="text-sm font-semibold text-gray-600 dark:text-gray-400 tabular-nums">
           {item.start_time.substring(0, 5)}
         </span>
-        <span className="text-[10px] text-gray-500 tabular-nums">
+        <span className="text-[10px] text-gray-500 dark:text-gray-400 tabular-nums">
           ~{item.end_time.substring(0, 5)}
         </span>
       </div>
@@ -79,7 +79,7 @@ export function NonStudyTimeCard({ item, onClick, editable = false }: NonStudyTi
       {/* Icon + Label */}
       <div className="flex items-center gap-2 min-w-0 flex-1">
         <span className="text-base shrink-0">{icon}</span>
-        <span className="text-sm text-gray-600 truncate">
+        <span className="text-sm text-gray-600 dark:text-gray-400 truncate">
           {item.label ?? item.type}
         </span>
       </div>
@@ -87,7 +87,7 @@ export function NonStudyTimeCard({ item, onClick, editable = false }: NonStudyTi
       {/* Edit indicator */}
       {editable && (
         <svg
-          className="w-4 h-4 text-gray-400 shrink-0"
+          className="w-4 h-4 text-gray-400 dark:text-gray-500 shrink-0"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"

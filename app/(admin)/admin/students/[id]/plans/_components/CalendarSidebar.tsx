@@ -323,7 +323,7 @@ export function CalendarSidebar() {
                 >
                   <Plus className="w-4 h-4 text-[var(--text-tertiary)]" />
                   플랜 추가
-                  <kbd className="ml-auto text-xs text-gray-400 bg-[rgb(var(--color-secondary-100))] text-[rgb(var(--color-secondary-400))] px-1.5 py-0.5 rounded">Q</kbd>
+                  <kbd className="ml-auto text-xs text-gray-400 dark:text-gray-500 bg-[rgb(var(--color-secondary-100))] text-[rgb(var(--color-secondary-400))] px-1.5 py-0.5 rounded">Q</kbd>
                 </button>
                 <button
                   onClick={() => { setShowCreateWizard(true); handleCreateMenuClose(); }}
@@ -332,7 +332,7 @@ export function CalendarSidebar() {
                 >
                   <Plus className="w-4 h-4 text-[var(--text-tertiary)]" />
                   플랜 그룹
-                  <kbd className="ml-auto text-xs text-gray-400 bg-[rgb(var(--color-secondary-100))] text-[rgb(var(--color-secondary-400))] px-1.5 py-0.5 rounded">G</kbd>
+                  <kbd className="ml-auto text-xs text-gray-400 dark:text-gray-500 bg-[rgb(var(--color-secondary-100))] text-[rgb(var(--color-secondary-400))] px-1.5 py-0.5 rounded">G</kbd>
                 </button>
                 <hr className="my-1 border-[rgb(var(--color-secondary-200))]" />
                 <button
@@ -342,7 +342,7 @@ export function CalendarSidebar() {
                 >
                   <Wand2 className="w-4 h-4 text-info-600" />
                   AI 생성
-                  <kbd className="ml-auto text-xs text-gray-400 bg-[rgb(var(--color-secondary-100))] text-[rgb(var(--color-secondary-400))] px-1.5 py-0.5 rounded">I</kbd>
+                  <kbd className="ml-auto text-xs text-gray-400 dark:text-gray-500 bg-[rgb(var(--color-secondary-100))] text-[rgb(var(--color-secondary-400))] px-1.5 py-0.5 rounded">I</kbd>
                 </button>
                 <button
                   onClick={() => { setShowOptimizationPanel(true); handleCreateMenuClose(); }}
@@ -350,7 +350,7 @@ export function CalendarSidebar() {
                 >
                   <LineChart className="w-4 h-4 text-success-600" />
                   AI 분석
-                  <kbd className="ml-auto text-xs text-gray-400 bg-[rgb(var(--color-secondary-100))] text-[rgb(var(--color-secondary-400))] px-1.5 py-0.5 rounded">O</kbd>
+                  <kbd className="ml-auto text-xs text-gray-400 dark:text-gray-500 bg-[rgb(var(--color-secondary-100))] text-[rgb(var(--color-secondary-400))] px-1.5 py-0.5 rounded">O</kbd>
                 </button>
               </div>
             </>
@@ -778,7 +778,7 @@ function CalendarContextMenu({
                 }
               }}
               disabled={isRenameSaving}
-              className="w-full rounded border border-[rgb(var(--color-secondary-300))] bg-[rgb(var(--color-secondary-50))] text-[var(--text-primary)] px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded border border-[rgb(var(--color-secondary-300))] bg-[rgb(var(--color-secondary-50))] text-[var(--text-primary)] px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400"
             />
             <div className="flex justify-end gap-1 mt-1.5">
               <button

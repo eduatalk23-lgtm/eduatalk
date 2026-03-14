@@ -136,12 +136,12 @@ export function AddContentModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div
         className={cn(
-          'bg-white rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto',
+          'bg-white dark:bg-[rgb(var(--color-secondary-50))] rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto',
           isPending && 'opacity-50 pointer-events-none'
         )}
       >
         {/* 헤더 */}
-        <div className="p-4 border-b sticky top-0 bg-white">
+        <div className="p-4 border-b sticky top-0 bg-white dark:bg-[rgb(var(--color-secondary-50))]">
           <h2 className="text-lg font-bold">콘텐츠 추가</h2>
         </div>
 
@@ -149,7 +149,7 @@ export function AddContentModal({
           <div className="p-4 space-y-6">
             {/* 콘텐츠 유형 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 콘텐츠 유형
               </label>
               <div className="flex gap-3">
@@ -159,8 +159,8 @@ export function AddContentModal({
                     className={cn(
                       'flex-1 py-2 px-3 text-center border rounded-lg cursor-pointer',
                       contentType === type
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:border-gray-600'
                     )}
                   >
                     <input
@@ -179,7 +179,7 @@ export function AddContentModal({
 
             {/* 과목 정보 */}
             <div className="space-y-3">
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 과목 정보
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -216,8 +216,8 @@ export function AddContentModal({
 
             {/* 콘텐츠 정보 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                콘텐츠 제목 <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                콘텐츠 제목 <span className="text-red-500 dark:text-red-400">*</span>
               </label>
               <input
                 type="text"
@@ -228,7 +228,7 @@ export function AddContentModal({
                 required
               />
 
-              <label className="flex items-center gap-2 mt-3 text-sm text-gray-600">
+              <label className="flex items-center gap-2 mt-3 text-sm text-gray-600 dark:text-gray-400">
                 <input
                   type="checkbox"
                   checked={linkMaster}
@@ -240,7 +240,7 @@ export function AddContentModal({
 
             {/* 범위 지정 */}
             <div className="space-y-3">
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 범위 지정
               </label>
 
@@ -253,8 +253,8 @@ export function AddContentModal({
                       className={cn(
                         'px-3 py-1.5 text-sm border rounded-full cursor-pointer',
                         rangeType === type
-                          ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : 'border-gray-200'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700'
+                          : 'border-gray-200 dark:border-gray-700'
                       )}
                     >
                       <input
@@ -275,7 +275,7 @@ export function AddContentModal({
               {/* 범위 입력 */}
               {rangeType !== 'custom' ? (
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-500 text-sm">시작:</span>
+                  <span className="text-gray-500 dark:text-gray-400 text-sm">시작:</span>
                   <input
                     type="text"
                     placeholder="1"
@@ -283,7 +283,7 @@ export function AddContentModal({
                     onChange={(e) => setRangeStart(e.target.value)}
                     className="w-20 px-3 py-2 border rounded-md text-sm"
                   />
-                  <span className="text-gray-500 text-sm">종료:</span>
+                  <span className="text-gray-500 dark:text-gray-400 text-sm">종료:</span>
                   <input
                     type="text"
                     placeholder="50"
@@ -304,7 +304,7 @@ export function AddContentModal({
 
               {/* 예상 볼륨 */}
               <div className="flex items-center gap-2">
-                <span className="text-gray-500 text-sm">예상 볼륨:</span>
+                <span className="text-gray-500 dark:text-gray-400 text-sm">예상 볼륨:</span>
                 <input
                   type="number"
                   placeholder="50"
@@ -312,20 +312,20 @@ export function AddContentModal({
                   onChange={(e) => setTotalVolume(e.target.value)}
                   className="w-20 px-3 py-2 border rounded-md text-sm"
                 />
-                <span className="text-gray-400 text-sm">(일일 학습량 계산용)</span>
+                <span className="text-gray-400 dark:text-gray-500 text-sm">(일일 학습량 계산용)</span>
               </div>
             </div>
 
             {/* 배치 방식 */}
             <div className="space-y-3">
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 배치 방식
               </label>
 
               <label
                 className={cn(
                   'flex items-center gap-3 p-3 border rounded-lg cursor-pointer',
-                  distributionMode === 'today' && 'border-blue-500 bg-blue-50'
+                  distributionMode === 'today' && 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                 )}
               >
                 <input
@@ -338,14 +338,14 @@ export function AddContentModal({
                   {/* today 모드에서만 스케줄러 옵션 표시 */}
                   {distributionMode === 'today' && (
                     <label
-                      className="flex items-center gap-2 mt-2 text-sm text-gray-600"
+                      className="flex items-center gap-2 mt-2 text-sm text-gray-600 dark:text-gray-400"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <input
                         type="checkbox"
                         checked={useScheduler}
                         onChange={(e) => setUseScheduler(e.target.checked)}
-                        className="rounded border-gray-300"
+                        className="rounded border-gray-300 dark:border-gray-600"
                       />
                       자동 시간 배정 (기존 플랜 고려)
                     </label>
@@ -356,7 +356,7 @@ export function AddContentModal({
               <label
                 className={cn(
                   'flex items-center gap-3 p-3 border rounded-lg cursor-pointer',
-                  distributionMode === 'period' && 'border-blue-500 bg-blue-50'
+                  distributionMode === 'period' && 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                 )}
               >
                 <input
@@ -390,11 +390,11 @@ export function AddContentModal({
           </div>
 
           {/* 푸터 */}
-          <div className="p-4 border-t flex justify-end gap-2 sticky bottom-0 bg-white">
+          <div className="p-4 border-t flex justify-end gap-2 sticky bottom-0 bg-white dark:bg-[rgb(var(--color-secondary-50))]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+              className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 rounded-md"
             >
               취소
             </button>

@@ -41,8 +41,8 @@ export function Step3Distribution({ data, onChange, targetDate }: Step3Distribut
             className={cn(
               'w-full border rounded-lg transition-colors',
               data.distributionMode === mode
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800'
             )}
           >
             <button
@@ -53,7 +53,7 @@ export function Step3Distribution({ data, onChange, targetDate }: Step3Distribut
               <div
                 className={cn(
                   'p-2 rounded-lg',
-                  data.distributionMode === mode ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'
+                  data.distributionMode === mode ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
                 )}
               >
                 {icon}
@@ -62,29 +62,29 @@ export function Step3Distribution({ data, onChange, targetDate }: Step3Distribut
                 <div
                   className={cn(
                     'font-medium',
-                    data.distributionMode === mode ? 'text-blue-700' : 'text-gray-700'
+                    data.distributionMode === mode ? 'text-blue-700' : 'text-gray-700 dark:text-gray-300'
                   )}
                 >
                   {label}
                 </div>
-                <div className="text-sm text-gray-500 mt-0.5">{description}</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{description}</div>
               </div>
               {data.distributionMode === mode && (
-                <CheckCircle className="h-5 w-5 text-blue-500 flex-shrink-0" />
+                <CheckCircle className="h-5 w-5 text-blue-500 dark:text-blue-400 flex-shrink-0" />
               )}
             </button>
             {/* today 모드에서만 스케줄러 옵션 표시 */}
             {mode === 'today' && data.distributionMode === 'today' && (
               <div className="px-4 pb-4">
                 <label
-                  className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer"
+                  className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <input
                     type="checkbox"
                     checked={data.useScheduler}
                     onChange={(e) => onChange({ useScheduler: e.target.checked })}
-                    className="rounded border-gray-300"
+                    className="rounded border-gray-300 dark:border-gray-600"
                   />
                   자동 시간 배정 (기존 플랜 고려)
                 </label>
@@ -96,32 +96,32 @@ export function Step3Distribution({ data, onChange, targetDate }: Step3Distribut
 
       {/* 기간 설정 (period 모드일 때만) */}
       {data.distributionMode === 'period' && (
-        <div className="p-4 bg-gray-50 rounded-lg space-y-4">
-          <label className="block text-sm font-medium text-gray-700">학습 기간 설정</label>
+        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-4">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">학습 기간 설정</label>
           <div className="flex items-center gap-4">
             <div className="flex-1">
-              <label className="block text-xs text-gray-500 mb-1">시작일</label>
+              <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">시작일</label>
               <input
                 type="date"
                 value={data.periodStart}
                 onChange={(e) => onChange({ periodStart: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500"
               />
             </div>
-            <span className="text-gray-400 mt-5">~</span>
+            <span className="text-gray-400 dark:text-gray-500 mt-5">~</span>
             <div className="flex-1">
-              <label className="block text-xs text-gray-500 mb-1">종료일</label>
+              <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">종료일</label>
               <input
                 type="date"
                 value={data.periodEnd}
                 onChange={(e) => onChange({ periodEnd: e.target.value })}
                 min={data.periodStart}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500"
               />
             </div>
           </div>
           {data.periodStart && data.periodEnd && (
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-gray-600 dark:text-gray-400">
               {(() => {
                 const start = new Date(data.periodStart);
                 const end = new Date(data.periodEnd);
@@ -134,16 +134,16 @@ export function Step3Distribution({ data, onChange, targetDate }: Step3Distribut
       )}
 
       {/* 요약 정보 */}
-      <div className="p-4 border border-gray-200 rounded-lg bg-white">
-        <h4 className="text-sm font-medium text-gray-700 mb-3">생성 요약</h4>
+      <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[rgb(var(--color-secondary-50))]">
+        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">생성 요약</h4>
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-gray-500">콘텐츠</span>
-            <span className="font-medium text-gray-700">{data.title || '(제목 없음)'}</span>
+            <span className="text-gray-500 dark:text-gray-400">콘텐츠</span>
+            <span className="font-medium text-gray-700 dark:text-gray-300">{data.title || '(제목 없음)'}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">유형</span>
-            <span className="font-medium text-gray-700">
+            <span className="text-gray-500 dark:text-gray-400">유형</span>
+            <span className="font-medium text-gray-700 dark:text-gray-300">
               {data.contentType === 'book' && '교재'}
               {data.contentType === 'lecture' && '강의'}
               {data.contentType === 'custom' && '커스텀'}
@@ -151,15 +151,15 @@ export function Step3Distribution({ data, onChange, targetDate }: Step3Distribut
           </div>
           {data.subjectArea && (
             <div className="flex justify-between">
-              <span className="text-gray-500">과목</span>
-              <span className="font-medium text-gray-700">
+              <span className="text-gray-500 dark:text-gray-400">과목</span>
+              <span className="font-medium text-gray-700 dark:text-gray-300">
                 {data.subject || data.subjectArea}
               </span>
             </div>
           )}
           <div className="flex justify-between">
-            <span className="text-gray-500">범위</span>
-            <span className="font-medium text-gray-700">
+            <span className="text-gray-500 dark:text-gray-400">범위</span>
+            <span className="font-medium text-gray-700 dark:text-gray-300">
               {data.rangeType !== 'custom'
                 ? `${data.rangeStart || '?'} ~ ${data.rangeEnd || '?'}`
                 : data.customRange || '미지정'}
@@ -167,13 +167,13 @@ export function Step3Distribution({ data, onChange, targetDate }: Step3Distribut
           </div>
           {data.totalVolume && (
             <div className="flex justify-between">
-              <span className="text-gray-500">예상 볼륨</span>
-              <span className="font-medium text-gray-700">{data.totalVolume}</span>
+              <span className="text-gray-500 dark:text-gray-400">예상 볼륨</span>
+              <span className="font-medium text-gray-700 dark:text-gray-300">{data.totalVolume}</span>
             </div>
           )}
           <div className="flex justify-between pt-2 border-t">
-            <span className="text-gray-500">배치 방식</span>
-            <span className="font-medium text-blue-600">
+            <span className="text-gray-500 dark:text-gray-400">배치 방식</span>
+            <span className="font-medium text-blue-600 dark:text-blue-400">
               {data.distributionMode === 'today' && `${targetDate} (오늘)`}
               {data.distributionMode === 'period' &&
                 `${data.periodStart} ~ ${data.periodEnd || '?'}`}

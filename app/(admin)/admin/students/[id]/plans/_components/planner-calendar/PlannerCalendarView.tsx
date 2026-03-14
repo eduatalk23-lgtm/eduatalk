@@ -209,15 +209,15 @@ export default function PlannerCalendarView({
       {/* 헤더: 월 네비게이션 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-gray-500" />
-          <h3 className="text-sm font-semibold text-gray-900">플래너 캘린더</h3>
+          <Calendar className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">플래너 캘린더</h3>
         </div>
 
         <div className="flex items-center gap-1">
           <button
             onClick={goToPrevMonth}
             disabled={!canGoPrev}
-            className="rounded p-1 text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+            className="rounded p-1 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 disabled:opacity-30"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
@@ -227,7 +227,7 @@ export default function PlannerCalendarView({
           <button
             onClick={goToNextMonth}
             disabled={!canGoNext}
-            className="rounded p-1 text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+            className="rounded p-1 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 disabled:opacity-30"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -235,7 +235,7 @@ export default function PlannerCalendarView({
       </div>
 
       {/* 통계 바 */}
-      <div className="flex gap-3 text-xs text-gray-500">
+      <div className="flex gap-3 text-xs text-gray-500 dark:text-gray-400">
         <span className="flex items-center gap-1">
           <div className="h-2 w-2 rounded-full bg-red-500" />
           제외일 {stats.exclusions}
@@ -255,7 +255,7 @@ export default function PlannerCalendarView({
       {/* 로딩 */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+          <Loader2 className="h-5 w-5 animate-spin text-gray-400 dark:text-gray-500" />
         </div>
       ) : (
         <>
@@ -294,7 +294,7 @@ export default function PlannerCalendarView({
                 "flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                 addMode === "exclusion"
                   ? "bg-red-500 text-white"
-                  : "bg-red-50 text-red-600 hover:bg-red-100"
+                  : "bg-red-50 text-red-600 dark:text-red-400 hover:bg-red-100"
               )}
             >
               <Plus className="h-3.5 w-3.5" />
@@ -306,7 +306,7 @@ export default function PlannerCalendarView({
                 "flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                 addMode === "recurring"
                   ? "bg-blue-500 text-white"
-                  : "bg-blue-50 text-blue-600 hover:bg-blue-100"
+                  : "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:bg-blue-900/30"
               )}
             >
               <Plus className="h-3.5 w-3.5" />
@@ -316,7 +316,7 @@ export default function PlannerCalendarView({
               <button
                 onClick={handleImport}
                 disabled={isPending}
-                className="flex items-center gap-1 rounded-md bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-50"
+                className="flex items-center gap-1 rounded-md bg-gray-50 dark:bg-gray-800 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 disabled:opacity-50"
               >
                 <RefreshCw className={cn("h-3.5 w-3.5", isPending && "animate-spin")} />
                 시간관리 데이터 가져오기
@@ -343,7 +343,7 @@ export default function PlannerCalendarView({
       )}
 
       {isPending && (
-        <div className="flex items-center gap-2 text-xs text-gray-400">
+        <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
           <Loader2 className="h-3 w-3 animate-spin" />
           처리 중...
         </div>

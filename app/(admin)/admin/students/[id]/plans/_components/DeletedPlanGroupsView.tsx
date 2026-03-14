@@ -296,7 +296,7 @@ export function DeletedPlanGroupsView({ studentId, calendarId, onRefresh }: Dele
                 <div
                   key={group.id}
                   className={cn(
-                    "flex items-center gap-3 bg-white rounded-lg p-3 border transition-colors cursor-pointer",
+                    "flex items-center gap-3 bg-white dark:bg-[rgb(var(--color-secondary-50))] rounded-lg p-3 border transition-colors cursor-pointer",
                     selectedIds.has(group.id)
                       ? "border-green-400 bg-green-50"
                       : "border-amber-200 hover:border-amber-300"
@@ -307,12 +307,12 @@ export function DeletedPlanGroupsView({ studentId, calendarId, onRefresh }: Dele
                     type="checkbox"
                     checked={selectedIds.has(group.id)}
                     onChange={() => handleToggleSelect(group.id)}
-                    className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-green-600 dark:text-green-400 focus:ring-green-500"
                     onClick={(e) => e.stopPropagation()}
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium truncate text-gray-700">
+                      <span className="font-medium truncate text-gray-700 dark:text-gray-300">
                         {group.name || "이름 없음"}
                       </span>
                       {group.planPurpose && (
@@ -321,7 +321,7 @@ export function DeletedPlanGroupsView({ studentId, calendarId, onRefresh }: Dele
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 text-sm text-gray-500 mt-1">
+                    <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400 mt-1">
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5" />
                         {formatDateRange(group.periodStart, group.periodEnd)}
@@ -331,13 +331,13 @@ export function DeletedPlanGroupsView({ studentId, calendarId, onRefresh }: Dele
                         플랜 {group.planCount}개
                       </span>
                       {group.contentCount > 0 && (
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-gray-400 dark:text-gray-500">
                           콘텐츠 {group.contentCount}개
                         </span>
                       )}
                     </div>
                   </div>
-                  <div className="text-xs text-gray-400 shrink-0 text-right">
+                  <div className="text-xs text-gray-400 dark:text-gray-500 shrink-0 text-right">
                     <div className="text-amber-600 font-medium">
                       {getRelativeTime(group.deletedAt)}
                     </div>
@@ -378,19 +378,19 @@ export function DeletedPlanGroupsView({ studentId, calendarId, onRefresh }: Dele
       {/* 영구 삭제 확인 모달 */}
       {confirmPermanentDelete && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-sm p-6">
+          <div className="bg-white dark:bg-[rgb(var(--color-secondary-50))] rounded-lg w-full max-w-sm p-6">
             <h3 className="text-lg font-bold text-red-700 mb-2">영구 삭제 확인</h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               <strong>{selectedIds.size}개</strong>의 플랜 그룹 백업을 영구 삭제하시겠습니까?
               <br />
-              <span className="text-red-600">
+              <span className="text-red-600 dark:text-red-400">
                 이 작업은 되돌릴 수 없으며, 복원이 불가능해집니다.
               </span>
             </p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setConfirmPermanentDelete(false)}
-                className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+                className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 rounded-md"
               >
                 취소
               </button>

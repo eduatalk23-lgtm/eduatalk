@@ -174,8 +174,8 @@ export function BatchOperationsModal({
           className={cn(
             'flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors',
             activeTab === 'date'
-              ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-              : 'text-gray-500 hover:text-gray-700'
+              ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 bg-blue-50 dark:bg-blue-900/20'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-300'
           )}
         >
           <Calendar className="h-4 w-4" />
@@ -187,8 +187,8 @@ export function BatchOperationsModal({
           className={cn(
             'flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors',
             activeTab === 'status'
-              ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-              : 'text-gray-500 hover:text-gray-700'
+              ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 bg-blue-50 dark:bg-blue-900/20'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-300'
           )}
         >
           <CheckCircle2 className="h-4 w-4" />
@@ -202,7 +202,7 @@ export function BatchOperationsModal({
           <div className="space-y-4">
             {/* 방향 선택 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">이동 방향</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">이동 방향</label>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -210,8 +210,8 @@ export function BatchOperationsModal({
                   className={cn(
                     'flex-1 px-4 py-2 rounded-lg border text-sm font-medium transition-colors',
                     shiftDirection === 'forward'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700'
+                      : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800'
                   )}
                 >
                   뒤로 (미래)
@@ -222,8 +222,8 @@ export function BatchOperationsModal({
                   className={cn(
                     'flex-1 px-4 py-2 rounded-lg border text-sm font-medium transition-colors',
                     shiftDirection === 'backward'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700'
+                      : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800'
                   )}
                 >
                   앞으로 (과거)
@@ -233,7 +233,7 @@ export function BatchOperationsModal({
 
             {/* 일수 입력 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">이동 일수</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">이동 일수</label>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
@@ -243,7 +243,7 @@ export function BatchOperationsModal({
                   onChange={(e) => setDaysToShift(Math.max(1, parseInt(e.target.value) || 1))}
                   className="flex-1 px-3 py-2 border rounded-lg text-sm"
                 />
-                <span className="text-gray-500">일</span>
+                <span className="text-gray-500 dark:text-gray-400">일</span>
               </div>
               <div className="flex gap-2 mt-2">
                 {[1, 3, 7, 14, 30].map((days) => (
@@ -254,8 +254,8 @@ export function BatchOperationsModal({
                     className={cn(
                       'px-2 py-1 text-xs rounded border transition-colors',
                       daysToShift === days
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700'
+                        : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800'
                     )}
                   >
                     {days}일
@@ -266,20 +266,20 @@ export function BatchOperationsModal({
 
             {/* 미리보기 */}
             {datePreview && (
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="text-sm font-medium text-gray-700 mb-2">미리보기</div>
-                <div className="space-y-1 text-sm text-gray-600">
+              <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">미리보기</div>
+                <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
                   <div className="flex items-center gap-2">
-                    <span className="text-gray-400">가장 빠른 날짜:</span>
+                    <span className="text-gray-400 dark:text-gray-500">가장 빠른 날짜:</span>
                     <span>{datePreview.minDateBefore}</span>
-                    <span className="text-gray-400">→</span>
-                    <span className="font-medium text-blue-600">{datePreview.minDateAfter}</span>
+                    <span className="text-gray-400 dark:text-gray-500">→</span>
+                    <span className="font-medium text-blue-600 dark:text-blue-400">{datePreview.minDateAfter}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-gray-400">가장 늦은 날짜:</span>
+                    <span className="text-gray-400 dark:text-gray-500">가장 늦은 날짜:</span>
                     <span>{datePreview.maxDateBefore}</span>
-                    <span className="text-gray-400">→</span>
-                    <span className="font-medium text-blue-600">{datePreview.maxDateAfter}</span>
+                    <span className="text-gray-400 dark:text-gray-500">→</span>
+                    <span className="font-medium text-blue-600 dark:text-blue-400">{datePreview.maxDateAfter}</span>
                   </div>
                 </div>
               </div>
@@ -289,7 +289,7 @@ export function BatchOperationsModal({
           /* 상태 변경 UI */
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">새 상태</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">새 상태</label>
               <div className="space-y-2">
                 {PLAN_STATUS_OPTIONS.map((option) => (
                   <button
@@ -299,8 +299,8 @@ export function BatchOperationsModal({
                     className={cn(
                       'w-full flex items-center gap-3 px-4 py-3 rounded-lg border text-left transition-colors',
                       newStatus === option.value
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:bg-gray-50'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                        : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800'
                     )}
                   >
                     <div
@@ -308,7 +308,7 @@ export function BatchOperationsModal({
                         'w-4 h-4 rounded-full border-2 flex items-center justify-center',
                         newStatus === option.value
                           ? 'border-blue-500'
-                          : 'border-gray-300'
+                          : 'border-gray-300 dark:border-gray-600'
                       )}
                     >
                       {newStatus === option.value && (
@@ -322,9 +322,9 @@ export function BatchOperationsModal({
             </div>
 
             {/* 변경 요약 */}
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <div className="text-sm text-gray-600">
-                <span className="font-medium text-gray-900">{planIds.length}개</span> 플랜의 상태를{' '}
+            <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                <span className="font-medium text-gray-900 dark:text-gray-100">{planIds.length}개</span> 플랜의 상태를{' '}
                 <span className={cn('font-medium', getStatusTextColor(PLAN_STATUS_OPTIONS.find((o) => o.value === newStatus)?.color ?? 'gray'))}>
                   {PLAN_STATUS_OPTIONS.find((o) => o.value === newStatus)?.label}
                 </span>

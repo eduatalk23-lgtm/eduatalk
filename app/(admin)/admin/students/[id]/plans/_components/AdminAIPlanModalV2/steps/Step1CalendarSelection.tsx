@@ -53,7 +53,7 @@ export function Step1CalendarSelection({ studentId }: Step1CalendarSelectionProp
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
-        <p className="mt-4 text-sm text-gray-500">캘린더 목록을 불러오는 중...</p>
+        <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">캘린더 목록을 불러오는 중...</p>
       </div>
     );
   }
@@ -61,8 +61,8 @@ export function Step1CalendarSelection({ studentId }: Step1CalendarSelectionProp
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          캘린더 선택 <span className="text-red-500">*</span>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          캘린더 선택 <span className="text-red-500 dark:text-red-400">*</span>
         </label>
 
         {calendars.length > 0 ? (
@@ -77,16 +77,16 @@ export function Step1CalendarSelection({ studentId }: Step1CalendarSelectionProp
                     'w-full p-4 rounded-lg border-2 text-left transition-all',
                     isSelected
                       ? 'border-purple-500 bg-purple-50'
-                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800'
                   )}
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <div className="font-medium text-gray-900">{cal.name}</div>
-                      <div className="text-sm text-gray-500 mt-1">
+                      <div className="font-medium text-gray-900 dark:text-gray-100">{cal.name}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                         {cal.periodStart} ~ {cal.periodEnd}
                       </div>
-                      <div className="text-xs text-gray-400 mt-1">
+                      <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                         {cal.status === 'active' ? '활성' : cal.status === 'draft' ? '초안' : '일시정지'}
                       </div>
                     </div>
@@ -99,7 +99,7 @@ export function Step1CalendarSelection({ studentId }: Step1CalendarSelectionProp
             })}
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg">
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
             <p>사용 가능한 캘린더가 없습니다.</p>
             <p className="text-sm mt-1">먼저 캘린더를 생성해주세요.</p>
           </div>

@@ -158,10 +158,10 @@ export function DeletedPlansView({ studentId, onRefresh, calendarId }: DeletedPl
 
   if (isLoading) {
     return (
-      <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
+      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
         <div className="animate-pulse space-y-3">
-          <div className="h-6 bg-gray-200 rounded w-1/3" />
-          <div className="h-12 bg-gray-200 rounded" />
+          <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
+          <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded" />
         </div>
       </div>
     );
@@ -170,28 +170,28 @@ export function DeletedPlansView({ studentId, onRefresh, calendarId }: DeletedPl
   return (
     <div
       className={cn(
-        'bg-gray-50 rounded-lg border border-gray-200 overflow-hidden',
+        'bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden',
         isPending && 'opacity-50 pointer-events-none'
       )}
     >
       {/* 헤더 - 클릭하여 접기/펼치기 */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-100 hover:bg-gray-150 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 hover:bg-gray-150 transition-colors"
       >
         <div className="flex items-center gap-2">
           {isExpanded ? (
-            <ChevronDown className="w-4 h-4 text-gray-500" />
+            <ChevronDown className="w-4 h-4 text-gray-500 dark:text-gray-400" />
           ) : (
-            <ChevronRight className="w-4 h-4 text-gray-500" />
+            <ChevronRight className="w-4 h-4 text-gray-500 dark:text-gray-400" />
           )}
           <span className="text-lg">🗑️</span>
-          <span className="font-medium text-gray-700">삭제된 플랜</span>
-          <span className="text-sm text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
+          <span className="font-medium text-gray-700 dark:text-gray-300">삭제된 플랜</span>
+          <span className="text-sm text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full">
             {totalCount}
           </span>
         </div>
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-gray-500 dark:text-gray-400">
           {isExpanded ? '접기' : '펼쳐서 복구하기'}
         </span>
       </button>
@@ -200,11 +200,11 @@ export function DeletedPlansView({ studentId, onRefresh, calendarId }: DeletedPl
       {isExpanded && (
         <>
           {/* 액션 버튼 */}
-          <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200">
+          <div className="flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-2">
               <button
                 onClick={handleSelectAll}
-                className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-200 rounded"
+                className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:bg-gray-700 rounded"
               >
                 {selectedIds.size === deletedPlans.length ? '전체 해제' : '전체 선택'}
               </button>
@@ -244,10 +244,10 @@ export function DeletedPlansView({ studentId, onRefresh, calendarId }: DeletedPl
                   <div
                     key={plan.id}
                     className={cn(
-                      'flex items-center gap-3 bg-white rounded-lg p-3 border transition-colors',
+                      'flex items-center gap-3 bg-white dark:bg-[rgb(var(--color-secondary-50))] rounded-lg p-3 border transition-colors',
                       selectedIds.has(plan.id)
                         ? 'border-green-400 bg-green-50'
-                        : 'border-gray-200 hover:border-gray-300'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:border-gray-600'
                     )}
                     onClick={() => handleToggleSelect(plan.id)}
                   >
@@ -255,14 +255,14 @@ export function DeletedPlansView({ studentId, onRefresh, calendarId }: DeletedPl
                       type="checkbox"
                       checked={selectedIds.has(plan.id)}
                       onChange={() => handleToggleSelect(plan.id)}
-                      className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                      className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-green-600 dark:text-green-400 focus:ring-green-500"
                       onClick={(e) => e.stopPropagation()}
                     />
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate text-gray-700">
+                      <div className="font-medium truncate text-gray-700 dark:text-gray-300">
                         {plan.custom_title ?? plan.content_title ?? '제목 없음'}
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-500 flex-wrap">
+                      <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 flex-wrap">
                         <span>{formatDate(plan.plan_date)}</span>
                         {plan.content_subject && <span>• {plan.content_subject}</span>}
                         {range && <span>• {range}</span>}
@@ -273,7 +273,7 @@ export function DeletedPlansView({ studentId, onRefresh, calendarId }: DeletedPl
                         )}
                       </div>
                     </div>
-                    <div className="text-xs text-gray-400 shrink-0 text-right">
+                    <div className="text-xs text-gray-400 dark:text-gray-500 shrink-0 text-right">
                       <div className="text-amber-600 font-medium">{getRelativeTime(plan.updated_at)}</div>
                       <div>{formatDateTime(plan.updated_at)}</div>
                     </div>
@@ -288,7 +288,7 @@ export function DeletedPlansView({ studentId, onRefresh, calendarId }: DeletedPl
                 <button
                   onClick={loadMore}
                   disabled={isLoadingMore}
-                  className="px-4 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md disabled:opacity-50 inline-flex items-center gap-2"
+                  className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:bg-gray-700 rounded-md disabled:opacity-50 inline-flex items-center gap-2"
                 >
                   {isLoadingMore ? (
                     <>
@@ -305,7 +305,7 @@ export function DeletedPlansView({ studentId, onRefresh, calendarId }: DeletedPl
             )}
 
             {/* 안내 문구 */}
-            <p className="mt-3 text-xs text-gray-500 text-center">
+            <p className="mt-3 text-xs text-gray-500 dark:text-gray-400 text-center">
               삭제된 플랜은 30일 후 자동으로 영구 삭제됩니다.
             </p>
           </div>
@@ -315,17 +315,17 @@ export function DeletedPlansView({ studentId, onRefresh, calendarId }: DeletedPl
       {/* 영구 삭제 확인 모달 */}
       {confirmPermanentDelete && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-sm p-6">
+          <div className="bg-white dark:bg-[rgb(var(--color-secondary-50))] rounded-lg w-full max-w-sm p-6">
             <h3 className="text-lg font-bold text-red-700 mb-2">⚠️ 영구 삭제 확인</h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               <strong>{selectedIds.size}개</strong>의 플랜을 영구 삭제하시겠습니까?
               <br />
-              <span className="text-red-600">이 작업은 되돌릴 수 없습니다.</span>
+              <span className="text-red-600 dark:text-red-400">이 작업은 되돌릴 수 없습니다.</span>
             </p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setConfirmPermanentDelete(false)}
-                className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+                className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 rounded-md"
               >
                 취소
               </button>

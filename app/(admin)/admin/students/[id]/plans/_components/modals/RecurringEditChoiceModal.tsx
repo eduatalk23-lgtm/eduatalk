@@ -40,7 +40,7 @@ export function RecurringEditChoiceModal({
     >
       <DialogContent>
         <div className="flex flex-col gap-2">
-          <p className="text-sm text-gray-600 mb-2">
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
             {isDelete
               ? '삭제할 범위를 선택해주세요.'
               : '수정할 범위를 선택해주세요.'}
@@ -48,30 +48,30 @@ export function RecurringEditChoiceModal({
 
           <button
             onClick={() => onSelect('this')}
-            className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+            className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 transition-colors"
           >
-            <p className="text-sm font-medium text-gray-900">이 일정만</p>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">이 일정만</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               선택한 날짜의 일정만 {isDelete ? '삭제' : '수정'}합니다
             </p>
           </button>
 
           <button
             onClick={() => onSelect('this_and_following')}
-            className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+            className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 transition-colors"
           >
-            <p className="text-sm font-medium text-gray-900">이후 모든 일정</p>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">이후 모든 일정</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               이 날짜 이후의 모든 반복 일정을 {isDelete ? '삭제' : '수정'}합니다
             </p>
           </button>
 
           <button
             onClick={() => onSelect('all')}
-            className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+            className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-800 transition-colors"
           >
-            <p className="text-sm font-medium text-gray-900">모든 일정</p>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">모든 일정</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               이 반복 일정의 모든 항목을 {isDelete ? '삭제' : '수정'}합니다
             </p>
             {exceptionCount != null && exceptionCount > 0 && (

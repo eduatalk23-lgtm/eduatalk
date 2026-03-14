@@ -125,7 +125,7 @@ function DraggableAdminPlanCardComponent({
   // dot 변형: Google Calendar 월간 뷰 — 배경 없음, 색 도트 + 시간 + 제목
   const isDotVariant = variant === 'dot';
 
-  const textColor = colors.textIsWhite ? 'text-white' : 'text-gray-900';
+  const textColor = colors.textIsWhite ? 'text-white' : 'text-gray-900 dark:text-gray-100';
 
   return (
     <button
@@ -172,7 +172,7 @@ function DraggableAdminPlanCardComponent({
         isDragging && "opacity-50 shadow-lg z-50",
         disabled && "cursor-default opacity-60",
         isSelectionMode && "cursor-pointer",
-        isSelected && "ring-2 ring-blue-500 ring-offset-1 bg-blue-50",
+        isSelected && "ring-2 ring-blue-500 dark:ring-blue-400 ring-offset-1 bg-blue-50 dark:bg-blue-900/20",
         isHighlighted && !isSelected && "ring-2 ring-yellow-400 bg-yellow-50"
       )}
     >
@@ -201,7 +201,7 @@ function DraggableAdminPlanCardComponent({
       )}
       {/* 완료 체크 — 모바일에서 숨김 */}
       {isCompleted && (
-        <Check className={cn("w-3 h-3 flex-shrink-0 hidden sm:block", isDotVariant ? "text-green-600" : colors.textIsWhite ? "text-white/80" : "text-green-600")} />
+        <Check className={cn("w-3 h-3 flex-shrink-0 hidden sm:block", isDotVariant ? "text-green-600 dark:text-green-400" : colors.textIsWhite ? "text-white/80" : "text-green-600 dark:text-green-400")} />
       )}
       <span className={cn("truncate", colors.strikethrough && "line-through")}>
         {plan.custom_title || plan.content_title || "플랜"}
