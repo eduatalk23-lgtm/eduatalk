@@ -633,6 +633,30 @@ export async function acceptInvitation(
           }
         }
 
+        // ghost parent 병합: 같은 student_id + relation의 기존 ghost link가 있으면 교체
+        const { data: ghostLink } = await adminClient
+          .from("parent_student_links")
+          .select("id, parent_id")
+          .eq("student_id", inv.studentId)
+          .eq("relation", finalRelation)
+          .maybeSingle();
+
+        if (ghostLink && ghostLink.parent_id !== userId) {
+          // ghost parent의 link를 실제 사용자로 교체
+          await adminClient
+            .from("parent_student_links")
+            .update({ parent_id: userId })
+            .eq("id", ghostLink.id);
+          // ghost user_profiles 정리 (다른 link가 없으면 삭제)
+          const { count } = await adminClient
+            .from("parent_student_links")
+            .select("id", { count: "exact", head: true })
+            .eq("parent_id", ghostLink.parent_id);
+          if (count === 0) {
+            await adminClient.from("user_profiles").delete().eq("id", ghostLink.parent_id);
+          }
+        }
+
         const { data: existingLink } = await adminClient
           .from("parent_student_links")
           .select("id")
