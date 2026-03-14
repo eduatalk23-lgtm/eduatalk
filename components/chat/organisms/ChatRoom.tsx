@@ -265,6 +265,7 @@ interface ChatMessageItemProps {
   isMessageEdited: (msg: ChatMessageWithGrouping) => boolean;
   createActionHandler: (message: ChatMessageItemProps["message"]) => (action: MessageAction) => void;
   getRefCallback: (id: string) => (el: HTMLDivElement | null) => void;
+  isFocused?: boolean;
 }
 
 const ChatMessageItem = memo(function ChatMessageItem({
@@ -277,6 +278,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
   isMessageEdited,
   createActionHandler,
   getRefCallback,
+  isFocused,
 }: ChatMessageItemProps) {
   const isOwn = message.sender_id === userId;
   const { grouping } = message;
@@ -321,7 +323,14 @@ const ChatMessageItem = memo(function ChatMessageItem({
   };
 
   return (
-    <div ref={getRefCallback(message.id)} className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200 transition-colors">
+    <div
+      ref={getRefCallback(message.id)}
+      tabIndex={isFocused ? 0 : -1}
+      className={cn(
+        "motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200 transition-colors outline-none",
+        isFocused && "ring-2 ring-primary/50 ring-inset rounded-lg",
+      )}
+    >
       {grouping.showDateDivider && grouping.dateDividerText && (
         <DateDivider date={grouping.dateDividerText} />
       )}
@@ -380,6 +389,7 @@ function ChatRoomComponent({
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [uiState, dispatch] = useReducer(uiReducer, initialUIState);
+  const [focusedMessageId, setFocusedMessageId] = useState<string | null>(null);
 
   // 이미지 라이트박스 상태
   const [lightboxState, setLightboxState] = useState<{
@@ -1120,6 +1130,7 @@ function ChatRoomComponent({
       isMessageEdited={isMessageEdited}
       createActionHandler={createMessageActionHandler}
       getRefCallback={getRefCallback}
+      isFocused={focusedMessageId === message.id}
     />
   ), [
     userId,
@@ -1129,9 +1140,71 @@ function ChatRoomComponent({
     isMessageEdited,
     getRefCallback,
     createMessageActionHandler,
+    focusedMessageId,
   ]);
 
   const computeItemKey = useCallback((_index: number, message: (typeof messages)[number]) => message.id, []);
+
+  // ============================================
+  // 키보드 네비게이션 (roving tabindex)
+  // ============================================
+  const chatInputRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const handleListKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (messages.length === 0) return;
+
+    switch (e.key) {
+      case "ArrowUp": {
+        e.preventDefault();
+        const currentIdx = focusedMessageId
+          ? messages.findIndex((m) => m.id === focusedMessageId)
+          : messages.length;
+        const prevIdx = currentIdx > 0 ? currentIdx - 1 : 0;
+        const prevMsg = messages[prevIdx];
+        if (prevMsg) {
+          setFocusedMessageId(prevMsg.id);
+          const el = messageRefs.current.get(prevMsg.id);
+          if (el) el.focus();
+          else virtuosoRef.current?.scrollToIndex({ index: prevIdx, behavior: "auto" });
+        }
+        break;
+      }
+      case "ArrowDown": {
+        e.preventDefault();
+        const currentIdx = focusedMessageId
+          ? messages.findIndex((m) => m.id === focusedMessageId)
+          : -1;
+        const nextIdx = currentIdx < messages.length - 1 ? currentIdx + 1 : messages.length - 1;
+        const nextMsg = messages[nextIdx];
+        if (nextMsg) {
+          setFocusedMessageId(nextMsg.id);
+          const el = messageRefs.current.get(nextMsg.id);
+          if (el) el.focus();
+          else virtuosoRef.current?.scrollToIndex({ index: nextIdx, behavior: "auto" });
+        }
+        break;
+      }
+      case "Home":
+        e.preventDefault();
+        if (messages.length > 0) {
+          setFocusedMessageId(messages[0].id);
+          virtuosoRef.current?.scrollToIndex({ index: 0, behavior: "auto" });
+        }
+        break;
+      case "End":
+        e.preventDefault();
+        if (messages.length > 0) {
+          const last = messages[messages.length - 1];
+          setFocusedMessageId(last.id);
+          virtuosoRef.current?.scrollToIndex({ index: "LAST", behavior: "auto" });
+        }
+        break;
+      case "Escape":
+        setFocusedMessageId(null);
+        chatInputRef.current?.focus();
+        break;
+    }
+  }, [focusedMessageId, messages]);
 
   const ScrollSeekPlaceholder = useCallback(({ height }: { height: number }) => (
     <div style={{ height }} className="px-4 py-1.5">
@@ -1432,11 +1505,13 @@ function ChatRoomComponent({
         </div>
       ) : (
         <div
-          className="flex-1 flex flex-col"
+          className="flex-1 flex flex-col outline-none"
           role="log"
           aria-label="메시지 목록"
           aria-live="polite"
           aria-relevant="additions"
+          tabIndex={0}
+          onKeyDown={handleListKeyDown}
         >
           <Virtuoso
             ref={virtuosoRef}
