@@ -75,19 +75,18 @@ export async function GET(request: NextRequest) {
       return apiBadRequest("클라이언트 초기화 실패");
     }
 
-    // RPC 호출 (마이그레이션 적용 후 타입 재생성 시 as unknown 제거)
+    // RPC 호출
     const detectedType = searchType || detectSearchType(query);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (adminClient.rpc as any)("search_students_admin", {
+    const { data, error } = await adminClient.rpc("search_students_admin", {
       p_tenant_id: tenantId,
       p_query: query.trim(),
       p_search_type: detectedType,
-      p_division: division,
-      p_grade: gradeNum && !isNaN(gradeNum) ? gradeNum : null,
-      p_class: classFilter ?? null,
-      p_status: null,
-      p_is_active: isActive,
-      p_exclude_ids: excludeIds,
+      p_division: division ?? undefined,
+      p_grade: gradeNum && !isNaN(gradeNum) ? gradeNum : undefined,
+      p_class: classFilter ?? undefined,
+      p_status: undefined,
+      p_is_active: isActive ?? undefined,
+      p_exclude_ids: excludeIds ?? undefined,
       p_limit: limit,
       p_offset: offset,
     });

@@ -67,17 +67,16 @@ export async function searchStudentsAction(
     const searchType = query.trim() ? detectSearchType(query) : "name";
     const gradeNum = filters?.grade ? parseInt(filters.grade, 10) : null;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (adminClient.rpc as any)("search_students_admin", {
+    const { data, error } = await adminClient.rpc("search_students_admin", {
       p_tenant_id: tenantId,
       p_query: query.trim(),
       p_search_type: searchType,
-      p_division: filters?.division ?? null,
-      p_grade: gradeNum && !isNaN(gradeNum) ? gradeNum : null,
-      p_class: null,
-      p_status: filters?.status ?? null,
-      p_is_active: filters?.isActive ?? null,
-      p_exclude_ids: null,
+      p_division: filters?.division ?? undefined,
+      p_grade: gradeNum && !isNaN(gradeNum) ? gradeNum : undefined,
+      p_class: undefined,
+      p_status: filters?.status ?? undefined,
+      p_is_active: filters?.isActive ?? undefined,
+      p_exclude_ids: undefined,
       p_limit: 50,
       p_offset: 0,
     });
@@ -91,7 +90,7 @@ export async function searchStudentsAction(
         );
         return searchStudentsActionFallback(query, filters, tenantId, adminClient);
       }
-      logActionError("student.search", error);
+      logActionError("student.search", error.message);
       return { success: false, students: [], total: 0, error: error.message };
     }
 

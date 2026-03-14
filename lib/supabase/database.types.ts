@@ -10020,6 +10020,53 @@ export type Database = {
         }
         Relationships: []
       }
+      user_profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          phone: string | null
+          profile_image_url: string | null
+          role: string
+          tenant_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id: string
+          is_active?: boolean
+          name?: string
+          phone?: string | null
+          profile_image_url?: string | null
+          role: string
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          phone?: string | null
+          profile_image_url?: string | null
+          role?: string
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_profiles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_sessions: {
         Row: {
           created_at: string | null
@@ -10936,6 +10983,14 @@ export type Database = {
         }
         Returns: Json
       }
+      check_rls_initplan: {
+        Args: never
+        Returns: {
+          issue: string
+          policy_name: string
+          table_name: string
+        }[]
+      }
       claim_pending_scheduled_messages: {
         Args: { batch_limit?: number }
         Returns: {
@@ -11083,6 +11138,10 @@ export type Database = {
         }[]
       }
       get_chat_storage_usage: { Args: { p_sender_id: string }; Returns: number }
+      get_dashboard_statistics: {
+        Args: { p_week_end: string; p_week_start: string }
+        Returns: Json
+      }
       get_distinct_instructor_platforms: {
         Args: never
         Returns: {
@@ -11264,6 +11323,10 @@ export type Database = {
         Args: { p_room_id: string }
         Returns: boolean
       }
+      rls_check_consultation_admin: {
+        Args: { p_event_id: string }
+        Returns: boolean
+      }
       rls_check_event_admin: { Args: { p_event_id: string }; Returns: boolean }
       rls_check_event_student: {
         Args: { p_event_id: string }
@@ -11304,6 +11367,43 @@ export type Database = {
       rls_check_tenant_member: {
         Args: { p_tenant_id: string }
         Returns: boolean
+      }
+      rls_check_tenant_member_v2: {
+        Args: { p_tenant_id: string }
+        Returns: boolean
+      }
+      search_students_admin: {
+        Args: {
+          p_class?: string
+          p_division?: string
+          p_exclude_ids?: string[]
+          p_grade?: number
+          p_is_active?: boolean
+          p_limit?: number
+          p_offset?: number
+          p_query?: string
+          p_search_type?: string
+          p_status?: string
+          p_tenant_id: string
+        }
+        Returns: {
+          class: string
+          division: string
+          father_phone: string
+          gender: string
+          grade: number
+          has_email: boolean
+          id: string
+          is_active: boolean
+          matched_field: string
+          mother_phone: string
+          name: string
+          phone: string
+          profile_image_url: string
+          school_name: string
+          status: string
+          total_count: number
+        }[]
       }
       seed_subject_data: { Args: { tenant_uuid: string }; Returns: undefined }
       show_limit: { Args: never; Returns: number }
