@@ -45,6 +45,28 @@ function setCachedUrl(attachmentId: string, url: string): void {
 // 성공적으로 로드된 URL 기록 (재마운트 시 스켈레톤 건너뛰기)
 const loadedUrlSet = new Set<string>();
 
+// ============================================
+// 이미지 치수 인메모리 캐시 (모듈 레벨)
+// DB에 width/height가 없는 이미지도 로드 후 치수를 캐싱하여
+// Virtuoso 재마운트 시 정확한 aspect-ratio 제공 → CLS 제거
+// ============================================
+const dimensionCache = new Map<string, { width: number; height: number }>();
+const DIMENSION_CACHE_MAX = 300;
+
+function getCachedDimensions(attachmentId: string): { width: number; height: number } | undefined {
+  return dimensionCache.get(attachmentId);
+}
+
+function setCachedDimensions(attachmentId: string, width: number, height: number): void {
+  if (dimensionCache.size >= DIMENSION_CACHE_MAX) {
+    const keys = [...dimensionCache.keys()];
+    for (let i = 0; i < keys.length / 2; i++) {
+      dimensionCache.delete(keys[i]);
+    }
+  }
+  dimensionCache.set(attachmentId, { width, height });
+}
+
 interface AttachmentRendererProps {
   attachments: ChatAttachment[];
   isOwn: boolean;
@@ -156,10 +178,15 @@ function ImageItem({
   const [loadState, setLoadState] = useState<ImageLoadState>(alreadyLoaded ? "loaded" : "loading");
   const refreshAttempted = useRef(cachedUrl !== originalUrl);
 
-  const handleLoad = useCallback(() => {
+  const handleLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     loadedUrlSet.add(src);
     setLoadState("loaded");
-  }, [src]);
+    // 로드 완료 시 실제 치수 캐싱 (DB에 없는 이미지용)
+    const img = e.currentTarget;
+    if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+      setCachedDimensions(attachment.id, img.naturalWidth, img.naturalHeight);
+    }
+  }, [src, attachment.id]);
 
   const handleError = useCallback(async () => {
     // 이미 refresh 시도했으면 실패 표시
@@ -184,10 +211,16 @@ function ImageItem({
   }, [attachment.id]);
 
   // 단일 이미지: 실제 치수 기반 aspect-ratio (CLS 제거), 다중 이미지: 균일 그리드
-  const hasRealDimensions = count === 1 && attachment.width && attachment.height;
-  const sizeStyle = hasRealDimensions
-    ? { aspectRatio: `${attachment.width} / ${attachment.height}` } as const
+  // 우선순위: DB 치수 → 인메모리 캐시 → fallback 4:3
+  const dbDims = count === 1 && attachment.width && attachment.height
+    ? { width: attachment.width, height: attachment.height }
+    : null;
+  const cachedDims = !dbDims && count === 1 ? getCachedDimensions(attachment.id) : null;
+  const knownDims = dbDims ?? cachedDims;
+  const sizeStyle = knownDims
+    ? { aspectRatio: `${knownDims.width} / ${knownDims.height}` } as const
     : undefined;
+  const hasRealDimensions = !!knownDims;
   const sizeClass = cn(
     count === 1 && !hasRealDimensions && "aspect-[4/3]",
     count === 1 && "max-h-80 w-full",
