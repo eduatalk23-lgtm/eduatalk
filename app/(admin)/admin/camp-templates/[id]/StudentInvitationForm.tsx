@@ -50,9 +50,10 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
       const supabase = createSupabaseBrowserClient();
       
       // 1. 모든 학생 목록 조회 — name, phone, is_active는 user_profiles JOIN
+      // mother_phone/father_phone은 parent_student_links에서 별도 조회
       const { data: allStudents, error: studentsError } = await supabase
         .from("students")
-        .select("id, grade, class, division, mother_phone, father_phone, user_profiles!inner(name, phone, is_active)")
+        .select("id, grade, class, division, user_profiles!inner(name, phone, is_active)")
         .eq("user_profiles.is_active", true)
         .order("user_profiles(name)", { ascending: true })
         .limit(100);
@@ -168,8 +169,36 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
       );
 
       // 5. user_profiles JOIN 결과를 플랫하게 변환
+      const studentIds = availableStudents.map((s) => s.id);
+
+      // 학부모 연락처를 parent_student_links에서 조회
+      const parentPhoneMap = new Map<string, { mother: string | null; father: string | null }>();
+      if (studentIds.length > 0) {
+        const { data: links } = await supabase
+          .from("parent_student_links")
+          .select("student_id, relation, parent:user_profiles!parent_student_links_parent_id_fkey(phone)")
+          .in("student_id", studentIds);
+
+        if (links) {
+          for (const link of links) {
+            const parentRaw = link.parent as unknown;
+            const parent = Array.isArray(parentRaw) ? parentRaw[0] : parentRaw;
+            const phone = (parent as { phone: string | null } | null)?.phone;
+            if (!phone) continue;
+
+            if (!parentPhoneMap.has(link.student_id)) {
+              parentPhoneMap.set(link.student_id, { mother: null, father: null });
+            }
+            const entry = parentPhoneMap.get(link.student_id)!;
+            if (link.relation === "mother" && !entry.mother) entry.mother = phone;
+            else if (link.relation === "father" && !entry.father) entry.father = phone;
+          }
+        }
+      }
+
       const studentsWithPhones: Student[] = availableStudents.map((student) => {
         const up = student.user_profiles as unknown as { name: string; phone: string | null; is_active: boolean } | null;
+        const parentPhones = parentPhoneMap.get(student.id);
         return {
           id: student.id,
           name: up?.name ?? "",
@@ -177,8 +206,8 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
           class: student.class,
           division: student.division,
           phone: up?.phone ?? null,
-          mother_phone: student.mother_phone ?? null,
-          father_phone: student.father_phone ?? null,
+          mother_phone: parentPhones?.mother ?? null,
+          father_phone: parentPhones?.father ?? null,
           is_active: up?.is_active ?? true,
         };
       });

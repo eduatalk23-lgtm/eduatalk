@@ -307,34 +307,28 @@ type StudentPhoneEntry = {
 
 async function fetchStudentPhoneMap(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  client: any,
+  _client: any,
   studentIds: string[]
 ): Promise<Map<string, StudentPhoneEntry>> {
   const map = new Map<string, StudentPhoneEntry>();
   if (studentIds.length === 0) return map;
 
-  const { data, error } = await client
-    .from("students")
-    .select("id, phone, mother_phone, father_phone")
-    .in("id", studentIds);
+  // parent_student_links → user_profiles 기반 조회 (getStudentPhonesBatch 사용)
+  try {
+    const { getStudentPhonesBatch } = await import("@/lib/utils/studentPhoneUtils");
+    const phoneDataList = await getStudentPhonesBatch(studentIds);
 
-  if (error) {
+    for (const p of phoneDataList) {
+      map.set(p.id, {
+        phone: p.phone,
+        mother_phone: p.mother_phone,
+        father_phone: p.father_phone,
+      });
+    }
+  } catch (error) {
     logActionError(ACTION_CTX, error, { context: "학생 전화번호 일괄 조회" });
-    return map;
   }
 
-  for (const row of (data ?? []) as Array<{
-    id: string;
-    phone: string | null;
-    mother_phone: string | null;
-    father_phone: string | null;
-  }>) {
-    map.set(row.id, {
-      phone: row.phone,
-      mother_phone: row.mother_phone,
-      father_phone: row.father_phone,
-    });
-  }
   return map;
 }
 

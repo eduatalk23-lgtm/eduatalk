@@ -305,12 +305,54 @@ export async function updateStudentProfile(
   const desiredCareerField =
     (formData.get("desired_career_field") as CareerField | null) || null;
 
-  // 프로필 + 진로 정보 단일 UPDATE (students 테이블에 통합됨)
+  // 프로필 + 진로 정보 UPDATE
+  // phone은 user_profiles에서 관리
+  if (phone !== null || phoneRaw === "") {
+    await supabase.from("user_profiles").update({ phone }).eq("id", user.id);
+  }
+
+  // mother_phone/father_phone → parent_student_links + user_profiles (ghost parent)
+  const { data: studentRow } = await supabase
+    .from("students")
+    .select("tenant_id")
+    .eq("id", user.id)
+    .maybeSingle();
+  const tenantId = studentRow?.tenant_id;
+
+  if (tenantId) {
+    const { upsertParentContact } = await import("@/lib/utils/studentPhoneUtils");
+    if (motherPhone) {
+      await upsertParentContact(supabase, user.id, tenantId, "mother", motherPhone);
+    } else if (motherPhoneRaw === "") {
+      // 빈 문자열 → 기존 link의 parent phone을 null로 설정
+      const { data: existingLink } = await supabase
+        .from("parent_student_links")
+        .select("parent_id")
+        .eq("student_id", user.id)
+        .eq("relation", "mother")
+        .maybeSingle();
+      if (existingLink) {
+        await supabase.from("user_profiles").update({ phone: null }).eq("id", existingLink.parent_id);
+      }
+    }
+    if (fatherPhone) {
+      await upsertParentContact(supabase, user.id, tenantId, "father", fatherPhone);
+    } else if (fatherPhoneRaw === "") {
+      const { data: existingLink } = await supabase
+        .from("parent_student_links")
+        .select("parent_id")
+        .eq("student_id", user.id)
+        .eq("relation", "father")
+        .maybeSingle();
+      if (existingLink) {
+        await supabase.from("user_profiles").update({ phone: null }).eq("id", existingLink.parent_id);
+      }
+    }
+  }
+
+  // students 테이블에는 phone/mother_phone/father_phone 이외의 필드만 업데이트
   const updatePayload: Record<string, unknown> = {
     gender,
-    phone,
-    mother_phone: motherPhone,
-    father_phone: fatherPhone,
     address,
     exam_year: examYear,
     curriculum_revision: curriculumRevision,
@@ -336,7 +378,8 @@ export async function updateStudentProfile(
 }
 
 /**
- * 현재 로그인한 학생 정보 조회 (students 단일 테이블에서 모든 정보 조회)
+ * 현재 로그인한 학생 정보 조회
+ * students + user_profiles(phone) + parent_student_links(학부모 phone)
  */
 export async function getCurrentStudent(): Promise<
   | (Student &
@@ -353,15 +396,39 @@ export async function getCurrentStudent(): Promise<
     return null;
   }
 
-  // students 테이블 단일 쿼리 (프로필+진로 통합됨)
-  const { data: student, error } = await supabase
-    .from("students")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
+  // students + user_profiles(phone) + parent_student_links(학부모 phone) 병렬 조회
+  const [studentResult, profileResult, linksResult] = await Promise.all([
+    supabase.from("students").select("*").eq("id", user.id).maybeSingle(),
+    supabase.from("user_profiles").select("phone").eq("id", user.id).maybeSingle(),
+    supabase
+      .from("parent_student_links")
+      .select("relation, parent:user_profiles!parent_student_links_parent_id_fkey(phone)")
+      .eq("student_id", user.id),
+  ]);
 
-  if (error || !student) {
+  if (studentResult.error || !studentResult.data) {
     return null;
+  }
+
+  const student = studentResult.data;
+
+  // 학부모 전화번호 추출
+  let motherPhone: string | null = null;
+  let fatherPhone: string | null = null;
+
+  if (linksResult.data) {
+    for (const link of linksResult.data) {
+      const parentRaw = link.parent as unknown;
+      const parent = Array.isArray(parentRaw) ? parentRaw[0] : parentRaw;
+      const phone = (parent as { phone: string | null } | null)?.phone;
+      if (!phone) continue;
+
+      if (link.relation === "mother" && !motherPhone) {
+        motherPhone = phone;
+      } else if (link.relation === "father" && !fatherPhone) {
+        fatherPhone = phone;
+      }
+    }
   }
 
   // 이름은 user_metadata에서 가져오기
@@ -371,6 +438,9 @@ export async function getCurrentStudent(): Promise<
     ...student,
     student_id: student.id,
     name: name || student.name || null,
+    phone: profileResult.data?.phone ?? null,
+    mother_phone: motherPhone,
+    father_phone: fatherPhone,
     notes: student.career_notes,
     desired_career_field: student.desired_career_field || null,
   } as Student & Partial<StudentProfile> & Partial<StudentCareerGoal> & { desired_career_field?: string | null };

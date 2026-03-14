@@ -33,12 +33,12 @@ export async function getStudentDetailAction(
       return { success: false, error: "Admin client 초기화 실패" };
     }
 
-    // 3개 쿼리 병렬 실행 (students + user_profiles + auth)
-    const [studentResult, profileResult, authUserResult] = await Promise.all([
+    // 4개 쿼리 병렬 실행 (students + user_profiles + parent_student_links + auth)
+    const [studentResult, profileResult, linksResult, authUserResult] = await Promise.all([
       adminClient
         .from("students")
         .select(
-          "id,grade,class,birth_date,school_id,school_name,school_type,division,memo,status,gender,mother_phone,father_phone,address,emergency_contact,emergency_contact_phone,medical_info,exam_year,curriculum_revision,desired_university_ids,desired_career_field"
+          "id,grade,class,birth_date,school_id,school_name,school_type,division,memo,status,gender,address,emergency_contact,emergency_contact_phone,medical_info,exam_year,curriculum_revision,desired_university_ids,desired_career_field"
         )
         .eq("id", studentId)
         .maybeSingle(),
@@ -47,11 +47,34 @@ export async function getStudentDetailAction(
         .select("name, phone, is_active, profile_image_url")
         .eq("id", studentId)
         .maybeSingle(),
+      adminClient
+        .from("parent_student_links")
+        .select("relation, parent:user_profiles!parent_student_links_parent_id_fkey(phone)")
+        .eq("student_id", studentId),
       adminClient.auth.admin.getUserById(studentId),
     ]);
 
     if (studentResult.error || !studentResult.data) {
       return { success: false, error: "학생 정보를 찾을 수 없습니다." };
+    }
+
+    // 학부모 전화번호 추출
+    let motherPhone: string | null = null;
+    let fatherPhone: string | null = null;
+
+    if (linksResult.data) {
+      for (const link of linksResult.data) {
+        const parentRaw = link.parent as unknown;
+        const parent = Array.isArray(parentRaw) ? parentRaw[0] : parentRaw;
+        const phone = (parent as { phone: string | null } | null)?.phone;
+        if (!phone) continue;
+
+        if (link.relation === "mother" && !motherPhone) {
+          motherPhone = phone;
+        } else if (link.relation === "father" && !fatherPhone) {
+          fatherPhone = phone;
+        }
+      }
     }
 
     const student = { ...studentResult.data, ...profileResult.data };
@@ -86,16 +109,16 @@ export async function getStudentDetailAction(
         | "transferred"
         | null,
       is_active: student.is_active ?? true,
-      // profile (now in students table)
+      // profile
       gender: (student.gender as "남" | "여" | null) ?? null,
       phone: student.phone ?? null,
-      mother_phone: student.mother_phone ?? null,
-      father_phone: student.father_phone ?? null,
+      mother_phone: motherPhone,
+      father_phone: fatherPhone,
       address: student.address ?? null,
       emergency_contact: student.emergency_contact ?? null,
       emergency_contact_phone: student.emergency_contact_phone ?? null,
       medical_info: student.medical_info ?? null,
-      // career (now in students table)
+      // career
       exam_year: student.exam_year ?? null,
       curriculum_revision: student.curriculum_revision as
         | "2009 개정"

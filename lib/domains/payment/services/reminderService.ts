@@ -165,14 +165,12 @@ export async function processPaymentReminders(): Promise<ReminderResult> {
 
 /** 학생 연락처 조회 (본인 phone → 학부모 mother_phone) */
 async function getStudentContactPhone(
-  adminClient: NonNullable<ReturnType<typeof createSupabaseAdminClient>>,
+  _adminClient: NonNullable<ReturnType<typeof createSupabaseAdminClient>>,
   studentId: string
 ): Promise<string | null> {
-  // phone은 user_profiles, mother/father_phone은 students
-  const [{ data: userProfile }, { data: studentProfile }] = await Promise.all([
-    adminClient.from("user_profiles").select("phone").eq("id", studentId).maybeSingle(),
-    adminClient.from("students").select("mother_phone, father_phone").eq("id", studentId).maybeSingle(),
-  ]);
+  // phone + 학부모 phone을 parent_student_links → user_profiles에서 조회
+  const { getStudentPhones } = await import("@/lib/utils/studentPhoneUtils");
+  const phoneData = await getStudentPhones(studentId);
 
-  return userProfile?.phone || studentProfile?.mother_phone || studentProfile?.father_phone || null;
+  return phoneData?.phone || phoneData?.mother_phone || phoneData?.father_phone || null;
 }

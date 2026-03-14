@@ -768,8 +768,42 @@ export async function updateStudentInfo(
       if (phone !== undefined) {
         await supabase.from("user_profiles").update({ phone }).eq("id", studentId);
       }
-      if (motherPhone !== undefined) updateData.mother_phone = motherPhone;
-      if (fatherPhone !== undefined) updateData.father_phone = fatherPhone;
+      // mother_phone/father_phone → parent_student_links + user_profiles (ghost parent)
+      if (motherPhone !== undefined) {
+        const { upsertParentContact } = await import("@/lib/utils/studentPhoneUtils");
+        if (motherPhone) {
+          await upsertParentContact(supabase, studentId, tenantContext.tenantId, "mother", motherPhone);
+        }
+        // null인 경우 — 기존 link의 parent phone을 null로 설정
+        if (motherPhone === null) {
+          const { data: existingLink } = await supabase
+            .from("parent_student_links")
+            .select("parent_id")
+            .eq("student_id", studentId)
+            .eq("relation", "mother")
+            .maybeSingle();
+          if (existingLink) {
+            await supabase.from("user_profiles").update({ phone: null }).eq("id", existingLink.parent_id);
+          }
+        }
+      }
+      if (fatherPhone !== undefined) {
+        const { upsertParentContact } = await import("@/lib/utils/studentPhoneUtils");
+        if (fatherPhone) {
+          await upsertParentContact(supabase, studentId, tenantContext.tenantId, "father", fatherPhone);
+        }
+        if (fatherPhone === null) {
+          const { data: existingLink } = await supabase
+            .from("parent_student_links")
+            .select("parent_id")
+            .eq("student_id", studentId)
+            .eq("relation", "father")
+            .maybeSingle();
+          if (existingLink) {
+            await supabase.from("user_profiles").update({ phone: null }).eq("id", existingLink.parent_id);
+          }
+        }
+      }
       if (payload.profile.address !== undefined) updateData.address = payload.profile.address;
       if (payload.profile.emergency_contact !== undefined) updateData.emergency_contact = payload.profile.emergency_contact;
       if (emergencyPhone !== undefined) updateData.emergency_contact_phone = emergencyPhone;
@@ -911,8 +945,15 @@ export async function createStudent(
         const supabase = await createSupabaseServerClient();
         await supabase.from("user_profiles").update({ phone: profile.phone }).eq("id", studentId);
       }
-      if (profile.mother_phone != null) extraFields.mother_phone = profile.mother_phone;
-      if (profile.father_phone != null) extraFields.father_phone = profile.father_phone;
+      // mother_phone/father_phone → parent_student_links + user_profiles (ghost parent)
+      if (profile.mother_phone != null) {
+        const { upsertParentContact } = await import("@/lib/utils/studentPhoneUtils");
+        await upsertParentContact(supabase, studentId, tenantId, "mother", profile.mother_phone);
+      }
+      if (profile.father_phone != null) {
+        const { upsertParentContact } = await import("@/lib/utils/studentPhoneUtils");
+        await upsertParentContact(supabase, studentId, tenantId, "father", profile.father_phone);
+      }
       if (profile.address != null) extraFields.address = profile.address;
       if (profile.address_detail != null) extraFields.address_detail = profile.address_detail;
       if (profile.postal_code != null) extraFields.postal_code = profile.postal_code;

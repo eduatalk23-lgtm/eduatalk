@@ -279,6 +279,7 @@ export async function upsertStudent(
 /**
  * SMS 발송용 활성화된 학생 목록 조회
  * user_profiles에서 name, is_active 조회
+ * 학부모 연락처는 getStudentPhonesBatch로 별도 조회
  */
 export async function getActiveStudentsForSMS(): Promise<{
   data: Array<{
@@ -286,18 +287,16 @@ export async function getActiveStudentsForSMS(): Promise<{
     name?: string | null;
     grade?: string | null;
     class?: string | null;
-    mother_phone?: string | null;
-    father_phone?: string | null;
     is_active?: boolean | null;
   }>;
   error: unknown;
 }> {
   const supabase = await createSupabaseServerClient();
 
-  // user_profiles JOIN으로 name, is_active 조회
+  // user_profiles JOIN으로 name, is_active 조회 (mother_phone/father_phone 제거 — 별도 조회)
   const { data, error } = await supabase
     .from("students")
-    .select(`id, grade, class, mother_phone, father_phone, user_profiles!inner(name, is_active)`)
+    .select(`id, grade, class, user_profiles!inner(name, is_active)`)
     .eq("user_profiles.is_active", true)
     .order("user_profiles(name)", { ascending: true });
 
@@ -308,8 +307,6 @@ export async function getActiveStudentsForSMS(): Promise<{
         name?: string | null;
         grade?: string | null;
         class?: string | null;
-        mother_phone?: string | null;
-        father_phone?: string | null;
         is_active?: boolean | null;
       }
     ),

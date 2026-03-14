@@ -46,22 +46,19 @@ export async function sendPaymentReminderAction(
       return { success: false, error: "미납 상태가 아닙니다." };
     }
 
-    // 학생 이름·연락처 조회 (user_profiles + students)
-    const [{ data: profile }, { data: student }] = await Promise.all([
+    // 학생 이름·연락처 조회 (user_profiles + parent_student_links)
+    const { getStudentPhones } = await import("@/lib/utils/studentPhoneUtils");
+    const [{ data: profile }, phoneData] = await Promise.all([
       adminClient
         .from("user_profiles")
         .select("name, phone")
         .eq("id", payment.student_id)
         .maybeSingle(),
-      adminClient
-        .from("students")
-        .select("mother_phone, father_phone")
-        .eq("id", payment.student_id)
-        .maybeSingle(),
+      getStudentPhones(payment.student_id),
     ]);
 
     const phone =
-      profile?.phone || student?.mother_phone || student?.father_phone;
+      profile?.phone || phoneData?.mother_phone || phoneData?.father_phone;
     if (!phone) {
       return { success: false, error: "학생의 연락처를 찾을 수 없습니다." };
     }

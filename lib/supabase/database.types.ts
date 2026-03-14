@@ -9162,7 +9162,6 @@ export type Database = {
           emergency_contact_phone: string | null
           enrolled_at: string | null
           exam_year: number | null
-          father_phone: string | null
           gender: string | null
           grade: number | null
           id: string
@@ -9170,7 +9169,6 @@ export type Database = {
           lead_source: string | null
           medical_info: string | null
           memo: string | null
-          mother_phone: string | null
           postal_code: string | null
           program_id: string | null
           school_id: string | null
@@ -9202,7 +9200,6 @@ export type Database = {
           emergency_contact_phone?: string | null
           enrolled_at?: string | null
           exam_year?: number | null
-          father_phone?: string | null
           gender?: string | null
           grade?: number | null
           id?: string
@@ -9210,7 +9207,6 @@ export type Database = {
           lead_source?: string | null
           medical_info?: string | null
           memo?: string | null
-          mother_phone?: string | null
           postal_code?: string | null
           program_id?: string | null
           school_id?: string | null
@@ -9242,7 +9238,6 @@ export type Database = {
           emergency_contact_phone?: string | null
           enrolled_at?: string | null
           exam_year?: number | null
-          father_phone?: string | null
           gender?: string | null
           grade?: number | null
           id?: string
@@ -9250,7 +9245,6 @@ export type Database = {
           lead_source?: string | null
           medical_info?: string | null
           memo?: string | null
-          mother_phone?: string | null
           postal_code?: string | null
           program_id?: string | null
           school_id?: string | null
@@ -11311,10 +11305,6 @@ export type Database = {
         Returns: boolean
       }
       rls_check_tenant_member: {
-        Args: { p_tenant_id: string }
-        Returns: boolean
-      }
-      rls_check_tenant_member_v2: {
         Args: { p_tenant_id: string }
         Returns: boolean
       }

@@ -63,14 +63,12 @@ export async function processEnrollmentExpiry(): Promise<ExpiryResult> {
       const program = enrollment.programs as { name: string } | null;
       if (!studentName) continue;
 
-      // 연락처 조회 — phone은 user_profiles, mother/father_phone은 students
-      const [{ data: userProfile }, { data: studentProfile }] = await Promise.all([
-        adminClient.from("user_profiles").select("phone").eq("id", enrollment.student_id).maybeSingle(),
-        adminClient.from("students").select("mother_phone, father_phone").eq("id", enrollment.student_id).maybeSingle(),
-      ]);
+      // 연락처 조회 — phone은 user_profiles, 학부모 phone은 parent_student_links
+      const { getStudentPhones } = await import("@/lib/utils/studentPhoneUtils");
+      const phoneData = await getStudentPhones(enrollment.student_id);
 
       const phone =
-        userProfile?.phone || studentProfile?.mother_phone || studentProfile?.father_phone;
+        phoneData?.phone || phoneData?.mother_phone || phoneData?.father_phone;
       if (!phone) continue;
 
       const message = getExpiryWarningMessage({

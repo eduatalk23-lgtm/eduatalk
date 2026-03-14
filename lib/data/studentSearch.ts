@@ -150,6 +150,7 @@ function buildBaseQuery(
 
 /**
  * 연락처 검색으로 매칭된 학생 ID를 수집합니다.
+ * phone은 user_profiles에서, 학부모 phone은 parent_student_links → user_profiles에서 검색
  */
 async function collectPhoneMatchedIds(
   adminClient: SupabaseClientForStudentQuery | null,
@@ -160,37 +161,21 @@ async function collectPhoneMatchedIds(
   }
   const phoneMatchedIds = new Set<string>();
 
-  // phone은 user_profiles에서, mother_phone/father_phone은 students에서 검색
-  const [profilePhoneResult, studentPhoneResult] = await Promise.all([
-    adminClient.from("user_profiles").select("id, phone").ilike("phone", `%${normalizedQuery}%`),
-    adminClient.from("students").select("id, mother_phone, father_phone").or(
-      `mother_phone.ilike.%${normalizedQuery}%,father_phone.ilike.%${normalizedQuery}%`
-    ),
-  ]);
+  // 1. 학생 본인 phone은 user_profiles에서 검색
+  const { data: profilePhoneResult, error: profilePhoneError } = await adminClient
+    .from("user_profiles")
+    .select("id, phone")
+    .ilike("phone", `%${normalizedQuery}%`);
 
-  if (profilePhoneResult.error) {
-    console.error("[studentSearch] user_profiles 연락처 조회 실패", profilePhoneResult.error);
-  }
-  if (studentPhoneResult.error) {
-    console.error("[studentSearch] students 연락처 조회 실패", studentPhoneResult.error);
+  if (profilePhoneError) {
+    console.error("[studentSearch] user_profiles 연락처 조회 실패", profilePhoneError);
   }
 
-  // 매칭된 ID 수집
-  if (profilePhoneResult.data) {
-    profilePhoneResult.data.forEach((p) => phoneMatchedIds.add(p.id));
-  }
-  if (studentPhoneResult.data) {
-    studentPhoneResult.data.forEach((s) => {
-      if (
-        s.mother_phone?.includes(normalizedQuery) ||
-        s.father_phone?.includes(normalizedQuery)
-      ) {
-        phoneMatchedIds.add(s.id);
-      }
-    });
+  if (profilePhoneResult) {
+    profilePhoneResult.forEach((p) => phoneMatchedIds.add(p.id));
   }
 
-  // parent_student_links → user_profiles로 학부모 연락처 검색 (auth.admin.listUsers 대체)
+  // 2. 학부모 phone은 parent_student_links → user_profiles에서 검색
   try {
     const { data: links, error: linksError } = await adminClient
       .from("parent_student_links")
