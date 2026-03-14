@@ -119,13 +119,14 @@ async function getAdminViewMembers(
 ): Promise<MemberListItem[]> {
   const results: MemberListItem[] = [];
 
-  // 팀 멤버 (관리자/상담사)
+  // 팀 멤버 (관리자/상담사) — user_profiles 기반
   if (filter === "all" || filter === "team") {
     const { data: teamMembers, error } = await supabase
-      .from("admin_users")
+      .from("user_profiles")
       .select("id, name, role, profile_image_url")
       .eq("tenant_id", tenantId)
       .eq("is_active", true)
+      .in("role", ["admin", "consultant"])
       .neq("id", currentUserId)
       .order("name");
 
@@ -189,13 +190,14 @@ async function getAdminViewMembers(
     }
   }
 
-  // 학부모
+  // 학부모 — user_profiles 기반
   if (filter === "all" || filter === "parent") {
     const { data: parents, error: parentsError } = await supabase
-      .from("parent_users")
+      .from("user_profiles")
       .select("id, name, profile_image_url")
       .eq("tenant_id", tenantId)
       .eq("is_active", true)
+      .eq("role", "parent")
       .order("name");
 
     if (parentsError) throw new Error(`학부모 조회 실패: ${parentsError.message}`);
@@ -223,13 +225,14 @@ async function getStudentViewMembers(
 ): Promise<MemberListItem[]> {
   const results: MemberListItem[] = [];
 
-  // 팀 멤버
+  // 팀 멤버 — user_profiles 기반
   if (filter === "all" || filter === "team") {
     const { data: teamMembers, error } = await supabase
-      .from("admin_users")
+      .from("user_profiles")
       .select("id, name, role, profile_image_url")
       .eq("tenant_id", tenantId)
       .eq("is_active", true)
+      .in("role", ["admin", "consultant"])
       .order("name");
 
     if (error) throw new Error(`팀 멤버 조회 실패: ${error.message}`);
@@ -295,13 +298,14 @@ async function getParentViewMembers(
     }
   }
 
-  // 팀 멤버 (자녀의 테넌트 기반)
+  // 팀 멤버 (자녀의 테넌트 기반) — user_profiles 기반
   if ((filter === "all" || filter === "team") && tenantIds.size > 0) {
     const { data: teamMembers } = await supabase
-      .from("admin_users")
+      .from("user_profiles")
       .select("id, name, role, profile_image_url")
       .in("tenant_id", Array.from(tenantIds))
       .eq("is_active", true)
+      .in("role", ["admin", "consultant"])
       .order("name");
 
     if (teamMembers) {

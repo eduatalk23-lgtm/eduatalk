@@ -1,5 +1,6 @@
 /**
  * 발신자 정보 Repository
+ * user_profiles 기반 통합 조회
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -33,9 +34,8 @@ type SenderInfo = {
 };
 
 /**
- * 발신자 정보 배치 조회 (N+1 쿼리 최적화)
- * sender_id + sender_type 조합으로 한 번에 조회
- * 병렬 쿼리로 성능 최적화 (3개 순차 쿼리 → 2개 병렬 쿼리)
+ * 발신자 정보 배치 조회 (user_profiles 기반)
+ * 기존 3-병렬 쿼리 → user_profiles 1쿼리 + students 1쿼리(학생 전용 데이터)
  */
 export async function findSendersByIds(
   senderKeys: Array<{ id: string; type: ChatUserType }>
@@ -49,75 +49,52 @@ export async function findSendersByIds(
     new Map(senderKeys.map((k) => [`${k.id}_${k.type}`, k])).values()
   );
 
-  // student, admin, parent 분리
+  const allIds = uniqueKeys.map((k) => k.id);
   const studentIds = uniqueKeys.filter((k) => k.type === "student").map((k) => k.id);
-  const adminIds = uniqueKeys.filter((k) => k.type === "admin").map((k) => k.id);
-  const parentIds = uniqueKeys.filter((k) => k.type === "parent").map((k) => k.id);
 
+  // 1. user_profiles에서 전체 발신자 정보 일괄 조회 (1-쿼리)
+  const { data: profiles } = await supabase
+    .from("user_profiles")
+    .select("id, name, profile_image_url, role")
+    .in("id", allIds);
+
+  // 2. 학생 전용 데이터 (학교/학년) 추가 조회
+  let studentExtras: Map<string, { schoolName: string | null; gradeDisplay: string | null }> | null = null;
+  if (studentIds.length > 0) {
+    const { data: students } = await supabase
+      .from("students")
+      .select("id, grade, school_type, school_name")
+      .in("id", studentIds);
+
+    if (students) {
+      studentExtras = new Map();
+      for (const s of students) {
+        studentExtras.set(s.id, {
+          schoolName: s.school_name,
+          gradeDisplay: formatGradeDisplay(s.school_type, s.grade),
+        });
+      }
+    }
+  }
+
+  // 3. 결과 병합
   const result = new Map<string, SenderInfo>();
+  const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
 
-  // 병렬로 학생 + 관리자 + 학부모 정보 조회
-  const [studentsResult, adminsResult, parentsResult] = await Promise.all([
-    // 학생 정보 + 프로필 이미지 + 학교/학년 정보
-    studentIds.length > 0
-      ? supabase
-          .from("students")
-          .select("id, name, grade, school_type, school_name, profile_image_url")
-          .in("id", studentIds)
-      : Promise.resolve({ data: null, error: null }),
-    // 관리자 정보 + 프로필 이미지
-    adminIds.length > 0
-      ? supabase
-          .from("admin_users")
-          .select("id, name, profile_image_url")
-          .in("id", adminIds)
-      : Promise.resolve({ data: null, error: null }),
-    // 학부모 정보 + 프로필 이미지
-    parentIds.length > 0
-      ? supabase
-          .from("parent_users")
-          .select("id, name, profile_image_url")
-          .in("id", parentIds)
-      : Promise.resolve({ data: null, error: null }),
-  ]);
+  for (const key of uniqueKeys) {
+    const profile = profileMap.get(key.id);
+    if (!profile) continue;
 
-  // 학생 결과 처리
-  if (studentsResult.data) {
-    for (const student of studentsResult.data) {
-      const profileImageUrl = extractProfileImageUrl(student.profile_image_url);
-      const schoolName = student.school_name;
-      const gradeDisplay = formatGradeDisplay(student.school_type, student.grade);
+    const fallbackName = key.type === "parent" ? "학부모" : key.type === "admin" ? "관리자" : "알 수 없음";
+    const extras = key.type === "student" ? studentExtras?.get(key.id) : null;
 
-      result.set(`${student.id}_student`, {
-        id: student.id,
-        name: student.name,
-        profileImageUrl,
-        schoolName,
-        gradeDisplay,
-      });
-    }
-  }
-
-  // 관리자 결과 처리
-  if (adminsResult.data) {
-    for (const admin of adminsResult.data) {
-      result.set(`${admin.id}_admin`, {
-        id: admin.id,
-        name: admin.name ?? "관리자",
-        profileImageUrl: admin.profile_image_url,
-      });
-    }
-  }
-
-  // 학부모 결과 처리
-  if (parentsResult.data) {
-    for (const parent of parentsResult.data) {
-      result.set(`${parent.id}_parent`, {
-        id: parent.id,
-        name: parent.name ?? "학부모",
-        profileImageUrl: parent.profile_image_url ?? null,
-      });
-    }
+    result.set(`${key.id}_${key.type}`, {
+      id: profile.id,
+      name: profile.name || fallbackName,
+      profileImageUrl: extractProfileImageUrl(profile.profile_image_url),
+      schoolName: extras?.schoolName ?? null,
+      gradeDisplay: extras?.gradeDisplay ?? null,
+    });
   }
 
   return result;
@@ -132,54 +109,27 @@ export async function findSenderById(
 ): Promise<{ id: string; name: string; profileImageUrl?: string | null } | null> {
   const supabase = await createSupabaseServerClient();
 
-  if (senderType === "student") {
-    const { data } = await supabase
-      .from("students")
-      .select("id, name, profile_image_url")
-      .eq("id", senderId)
-      .maybeSingle();
+  // user_profiles에서 공통 정보 조회
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("id, name, profile_image_url")
+    .eq("id", senderId)
+    .maybeSingle();
 
-    if (!data) return null;
+  if (!profile) return null;
 
-    return {
-      id: data.id,
-      name: data.name,
-      profileImageUrl: extractProfileImageUrl(data.profile_image_url),
-    };
-  } else if (senderType === "parent") {
-    const { data } = await supabase
-      .from("parent_users")
-      .select("id, name, profile_image_url")
-      .eq("id", senderId)
-      .maybeSingle();
+  const fallbackName = senderType === "parent" ? "학부모" : senderType === "admin" ? "관리자" : "알 수 없음";
 
-    if (!data) return null;
-
-    return {
-      id: data.id,
-      name: data.name ?? "학부모",
-      profileImageUrl: data.profile_image_url ?? null,
-    };
-  } else {
-    const { data } = await supabase
-      .from("admin_users")
-      .select("id, name, profile_image_url")
-      .eq("id", senderId)
-      .maybeSingle();
-
-    if (!data) return null;
-
-    return {
-      id: data.id,
-      name: data.name ?? "관리자",
-      profileImageUrl: data.profile_image_url,
-    };
-  }
+  return {
+    id: profile.id,
+    name: profile.name || fallbackName,
+    profileImageUrl: extractProfileImageUrl(profile.profile_image_url),
+  };
 }
 
 /**
  * 메시지 삽입용 발신자 정보 조회
- * 비정규화 스냅샷 저장을 위해 발신자 이름과 프로필 URL을 조회
+ * user_profiles에서 이름과 프로필 URL을 1-쿼리로 조회
  */
 export async function getSenderInfoForInsert(
   senderId: string,
@@ -187,38 +137,16 @@ export async function getSenderInfoForInsert(
 ): Promise<{ name: string; profileImageUrl: string | null }> {
   const supabase = await createSupabaseServerClient();
 
-  if (senderType === "student") {
-    const { data } = await supabase
-      .from("students")
-      .select("name, profile_image_url")
-      .eq("id", senderId)
-      .maybeSingle();
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("name, profile_image_url")
+    .eq("id", senderId)
+    .maybeSingle();
 
-    return {
-      name: data?.name ?? "알 수 없음",
-      profileImageUrl: extractProfileImageUrl(data?.profile_image_url),
-    };
-  } else if (senderType === "parent") {
-    const { data } = await supabase
-      .from("parent_users")
-      .select("name, profile_image_url")
-      .eq("id", senderId)
-      .maybeSingle();
+  const fallbackName = senderType === "parent" ? "학부모" : senderType === "admin" ? "관리자" : "알 수 없음";
 
-    return {
-      name: data?.name ?? "학부모",
-      profileImageUrl: data?.profile_image_url ?? null,
-    };
-  } else {
-    const { data } = await supabase
-      .from("admin_users")
-      .select("name, profile_image_url")
-      .eq("id", senderId)
-      .maybeSingle();
-
-    return {
-      name: data?.name ?? "관리자",
-      profileImageUrl: data?.profile_image_url ?? null,
-    };
-  }
+  return {
+    name: profile?.name || fallbackName,
+    profileImageUrl: extractProfileImageUrl(profile?.profile_image_url),
+  };
 }

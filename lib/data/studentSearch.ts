@@ -5,7 +5,6 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseClientForRLSBypass, type SupabaseClientForStudentQuery } from "@/lib/supabase/clientSelector";
 import type { StudentDivision } from "@/lib/constants/students";
 
@@ -185,43 +184,33 @@ async function collectPhoneMatchedIds(
     });
   }
 
-  // parent_student_links를 통해 연결된 학부모 연락처 검색
+  // parent_student_links → user_profiles로 학부모 연락처 검색 (auth.admin.listUsers 대체)
   try {
     const { data: links, error: linksError } = await adminClient
       .from("parent_student_links")
-      .select("student_id, relation, parent_id")
-      .limit(1000); // 성능을 위해 제한
+      .select("student_id, parent_id")
+      .limit(1000);
 
     if (!linksError && links && links.length > 0) {
       const parentIds = Array.from(
         new Set(links.map((link: { parent_id: string }) => link.parent_id))
       );
 
-      // auth.users에서 phone 조회
-      const adminAuthClient = createSupabaseAdminClient();
-      if (adminAuthClient && parentIds.length > 0) {
-        try {
-          const { data: authUsers, error: authError } =
-            await adminAuthClient.auth.admin.listUsers();
+      if (parentIds.length > 0) {
+        // user_profiles에서 전화번호 검색 (ILIKE)
+        const { data: matchingParents } = await adminClient
+          .from("user_profiles")
+          .select("id")
+          .in("id", parentIds)
+          .ilike("phone", `%${normalizedQuery}%`);
 
-          if (!authError && authUsers?.users) {
-            // 검색어와 일치하는 phone을 가진 학부모 찾기
-            const matchingParentIds = new Set<string>();
-            authUsers.users.forEach((user) => {
-              if (user.phone && user.phone.includes(normalizedQuery)) {
-                matchingParentIds.add(user.id);
-              }
-            });
-
-            // 매칭된 학부모와 연결된 학생 ID 수집
-            links.forEach((link: { parent_id: string; student_id: string }) => {
-              if (matchingParentIds.has(link.parent_id)) {
-                phoneMatchedIds.add(link.student_id);
-              }
-            });
-          }
-        } catch (error) {
-          console.error("[studentSearch] auth.users phone 조회 실패", error);
+        if (matchingParents) {
+          const matchingParentIds = new Set(matchingParents.map((p: { id: string }) => p.id));
+          links.forEach((link: { parent_id: string; student_id: string }) => {
+            if (matchingParentIds.has(link.parent_id)) {
+              phoneMatchedIds.add(link.student_id);
+            }
+          });
         }
       }
     }

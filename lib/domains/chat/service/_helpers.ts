@@ -18,7 +18,7 @@ export const MAX_MESSAGE_LENGTH = 1000;
 // ============================================
 
 /**
- * 사용자 정보 조회 (student 또는 admin)
+ * 사용자 정보 조회 (user_profiles 기반 1-쿼리)
  */
 export async function getUserInfo(
   userId: string,
@@ -27,55 +27,28 @@ export async function getUserInfo(
   const { createSupabaseServerClient } = await import("@/lib/supabase/server");
   const supabase = await createSupabaseServerClient();
 
-  if (userType === "student") {
-    const { data } = await supabase
-      .from("students")
-      .select("id, name, profile_image_url")
-      .eq("id", userId)
-      .maybeSingle();
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("id, name, profile_image_url, role")
+    .eq("id", userId)
+    .maybeSingle();
 
-    if (!data) return null;
+  if (!profile) return null;
 
-    return {
-      id: data.id,
-      type: "student",
-      name: data.name,
-      profileImageUrl: data.profile_image_url ?? null,
-    };
-  } else if (userType === "parent") {
-    const { data } = await supabase
-      .from("parent_users")
-      .select("id, name, profile_image_url")
-      .eq("id", userId)
-      .maybeSingle();
-
-    if (!data) return null;
-
-    return {
-      id: data.id,
-      type: "parent",
-      name: data.name ?? "학부모",
-      profileImageUrl: data.profile_image_url ?? null,
-    };
-  } else {
-    // admin (admin_users 테이블에서 조회 — 프로필 이미지 포함)
-    const { data } = await supabase
-      .from("admin_users")
-      .select("id, name, role, profile_image_url")
-      .eq("id", userId)
-      .maybeSingle();
-
-    if (!data) return null;
-
-    const displayName = data.name || (data.role === "consultant" ? "상담사" : "관리자");
-
-    return {
-      id: data.id,
-      type: "admin",
-      name: displayName,
-      profileImageUrl: data.profile_image_url ?? null,
-    };
+  let displayName = profile.name;
+  if (!displayName) {
+    if (userType === "parent") displayName = "학부모";
+    else if (profile.role === "consultant") displayName = "상담사";
+    else if (userType === "admin") displayName = "관리자";
+    else displayName = "사용자";
   }
+
+  return {
+    id: profile.id,
+    type: userType,
+    name: displayName,
+    profileImageUrl: profile.profile_image_url ?? null,
+  };
 }
 
 /**
