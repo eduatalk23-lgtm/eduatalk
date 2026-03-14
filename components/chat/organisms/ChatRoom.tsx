@@ -12,6 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useChatRoomLogic } from "@/lib/domains/chat/hooks";
 import { useChatConnectionStatus } from "@/lib/hooks/useChatConnectionStatus";
 import { useVisualViewport } from "@/lib/hooks/useVisualViewport";
+import { useCLSMonitor } from "@/lib/hooks/useCLSMonitor";
 import { setCurrentChatRoom } from "@/lib/realtime/useAppPresence";
 import { useChatLayout } from "@/components/chat/layouts/ChatLayoutContext";
 import type { ReactionEmoji, ReplyTargetInfo, ChatAttachment, ChatUserType, ChatUser, ChatMessageWithGrouping } from "@/lib/domains/chat/types";
@@ -387,9 +388,13 @@ function ChatRoomComponent({
   // UI 상태 (useReducer로 통합)
   // ============================================
   const virtuosoRef = useRef<VirtuosoHandle>(null);
+  const messageListRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [uiState, dispatch] = useReducer(uiReducer, initialUIState);
   const [focusedMessageId, setFocusedMessageId] = useState<string | null>(null);
+
+  // 개발 모드 CLS 자동 모니터링
+  useCLSMonitor(messageListRef, "ChatRoom");
 
   // 이미지 라이트박스 상태
   const [lightboxState, setLightboxState] = useState<{
@@ -1505,6 +1510,7 @@ function ChatRoomComponent({
         </div>
       ) : (
         <div
+          ref={messageListRef}
           className="flex-1 flex flex-col outline-none"
           role="log"
           aria-label="메시지 목록"

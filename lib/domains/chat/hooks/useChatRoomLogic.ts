@@ -1210,6 +1210,59 @@ export function useChatRoomLogic({
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [throttledMarkAsRead]);
 
+  // 오프라인→온라인 복귀 시 delta 메시지 동기화 (전체 refetch 대신 새 메시지만 로드)
+  const lastMessageTimestampRef = useRef<string | null>(null);
+  useEffect(() => {
+    // 최신 메시지 타임스탬프 추적
+    const pages = queryClient.getQueryData<{ pages: Array<{ data: Array<{ created_at: string }> }> }>(
+      chatKeys.messages(roomId)
+    );
+    if (pages?.pages) {
+      const lastPage = pages.pages[0]; // 최신 페이지
+      const lastMsg = lastPage?.data?.[lastPage.data.length - 1];
+      if (lastMsg) lastMessageTimestampRef.current = lastMsg.created_at;
+    }
+  });
+
+  useEffect(() => {
+    const handleOnline = async () => {
+      const since = lastMessageTimestampRef.current;
+      if (!since) return;
+
+      try {
+        const { getMessagesSinceAction } = await import("@/lib/domains/chat/actions");
+        const result = await getMessagesSinceAction(roomId, since, 100);
+        if (result.success && result.data && result.data.length > 0) {
+          // React Query 캐시에 새 메시지 추가
+          queryClient.setQueryData(
+            chatKeys.messages(roomId),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (old: any) => {
+              if (!old?.pages) return old;
+              const firstPage = old.pages[0];
+              const existingIds = new Set(firstPage.data.map((m: { id: string }) => m.id));
+              const newMessages = result.data!.filter((m) => !existingIds.has(m.id));
+              if (newMessages.length === 0) return old;
+              return {
+                ...old,
+                pages: [
+                  { ...firstPage, data: [...firstPage.data, ...newMessages] },
+                  ...old.pages.slice(1),
+                ],
+              };
+            }
+          );
+        }
+      } catch {
+        // delta 실패 시 전체 refetch fallback
+        queryClient.invalidateQueries({ queryKey: chatKeys.messages(roomId) });
+      }
+    };
+
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, [roomId, queryClient]);
+
   // 스크롤이 맨 아래에 도달하면 읽음 처리 (위로 스크롤했다가 다시 내린 경우)
   // 마운트 시에는 roomId effect에서 이미 처리하므로 스킵
   const isAtBottomMountedRef = useRef(false);
