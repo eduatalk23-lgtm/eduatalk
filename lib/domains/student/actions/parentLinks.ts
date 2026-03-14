@@ -580,6 +580,5 @@ export async function checkIsLastParentLink(parentId: string): Promise<boolean> 
 }
 
 // Approval workflow functions removed:
-// getPendingLinkRequests, approveLinkRequest, rejectLinkRequest,
-// approveLinkRequests, rejectLinkRequests
-// The new system uses invite_codes for instant connection (no approval needed)
+// getPendingLinkRequests, approveLinkRequest, rejectLinkRequest 등은
+// 통합 초대 시스템(lib/domains/invitation)으로 대체됨

@@ -6,10 +6,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import type {
   TeamMember,
-  TeamInvitation,
   TeamOverview,
-  InvitationRole,
-  InvitationStatus,
 } from "../types";
 
 /**
@@ -69,103 +66,6 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
 }
 
 /**
- * 현재 테넌트의 대기 중인 초대 목록 조회
- */
-export async function getPendingInvitations(): Promise<TeamInvitation[]> {
-  const { userId, role, tenantId } = await getCachedUserRole();
-
-  if (!userId || !["admin", "superadmin"].includes(role || "")) {
-    return [];
-  }
-
-  // 일반 admin은 tenantId 필요
-  if (role === "admin" && !tenantId) {
-    return [];
-  }
-
-  const supabase = await createSupabaseServerClient();
-
-  let query = supabase
-    .from("team_invitations")
-    .select("*")
-    .eq("status", "pending")
-    .gt("expires_at", new Date().toISOString())
-    .order("created_at", { ascending: false });
-
-  // 일반 admin은 자기 테넌트만 조회
-  if (role === "admin" && tenantId) {
-    query = query.eq("tenant_id", tenantId);
-  }
-
-  const { data: invitations, error } = await query;
-
-  if (error || !invitations) {
-    console.error("[getPendingInvitations] Error:", error);
-    return [];
-  }
-
-  return invitations.map((inv) => ({
-    id: inv.id,
-    tenantId: inv.tenant_id,
-    email: inv.email,
-    role: inv.role as InvitationRole,
-    status: inv.status as InvitationStatus,
-    token: inv.token,
-    invitedBy: inv.invited_by,
-    expiresAt: inv.expires_at,
-    acceptedAt: inv.accepted_at,
-    acceptedBy: inv.accepted_by,
-    createdAt: inv.created_at,
-  }));
-}
-
-/**
- * 모든 초대 목록 조회 (취소됨/만료됨 포함)
- */
-export async function getAllInvitations(): Promise<TeamInvitation[]> {
-  const { userId, role, tenantId } = await getCachedUserRole();
-
-  if (!userId || !["admin", "superadmin"].includes(role || "")) {
-    return [];
-  }
-
-  if (role === "admin" && !tenantId) {
-    return [];
-  }
-
-  const supabase = await createSupabaseServerClient();
-
-  let query = supabase
-    .from("team_invitations")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (role === "admin" && tenantId) {
-    query = query.eq("tenant_id", tenantId);
-  }
-
-  const { data: invitations, error } = await query;
-
-  if (error || !invitations) {
-    return [];
-  }
-
-  return invitations.map((inv) => ({
-    id: inv.id,
-    tenantId: inv.tenant_id,
-    email: inv.email,
-    role: inv.role as InvitationRole,
-    status: inv.status as InvitationStatus,
-    token: inv.token,
-    invitedBy: inv.invited_by,
-    expiresAt: inv.expires_at,
-    acceptedAt: inv.accepted_at,
-    acceptedBy: inv.accepted_by,
-    createdAt: inv.created_at,
-  }));
-}
-
-/**
  * 팀 개요 조회 (대시보드용)
  */
 export async function getTeamOverview(): Promise<TeamOverview | null> {
@@ -197,10 +97,11 @@ export async function getTeamOverview(): Promise<TeamOverview | null> {
   const adminCount = members?.filter((m) => m.role === "admin").length || 0;
   const consultantCount = members?.filter((m) => m.role === "consultant").length || 0;
 
-  // 대기 중인 초대 수
+  // 대기 중인 초대 수 (통합 invitations 테이블)
   let invitationsQuery = supabase
-    .from("team_invitations")
+    .from("invitations")
     .select("id", { count: "exact" })
+    .in("target_role", ["admin", "consultant"])
     .eq("status", "pending")
     .gt("expires_at", new Date().toISOString());
 

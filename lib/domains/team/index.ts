@@ -1,32 +1,19 @@
 /**
  * 팀 관리 도메인
  *
- * 테넌트 관리자가 컨설턴트/관리자를 초대하고 관리하는 기능 제공
+ * 테넌트 관리자가 컨설턴트/관리자를 관리하는 기능 제공
+ * 초대는 통합 초대 시스템(lib/domains/invitation)으로 이관됨
  */
 
 // Types
 export type {
-  TeamInvitation,
-  TeamInvitationRow,
-  TeamInvitationInsert,
-  TeamInvitationUpdate,
   TeamMember,
   TeamOverview,
-  CreateInvitationInput,
-  CreateInvitationResult,
-  AcceptInvitationInput,
-  AcceptInvitationResult,
-  InvitationStatus,
   InvitationRole,
 } from "./types";
 
 // Actions
 export {
-  createTeamInvitation,
-  cancelInvitation,
-  resendInvitation,
-  acceptInvitation,
-  getInvitationByToken,
   removeTeamMember,
   updateMemberRole,
 } from "./actions";
@@ -34,7 +21,5 @@ export {
 // Queries
 export {
   getTeamMembers,
-  getPendingInvitations,
-  getAllInvitations,
   getTeamOverview,
 } from "./queries";
