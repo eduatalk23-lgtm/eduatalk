@@ -224,9 +224,9 @@ export const GridPlanBlock = memo(function GridPlanBlock({
 
       {/* 완료 체크마크 */}
       {isCompleted && displayHeight >= 20 && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="rounded-full p-0.5 bg-white dark:bg-[rgb(var(--color-secondary-50))]/30">
-            <Check className="w-3.5 h-3.5 text-white" />
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="rounded-full p-1 bg-white/90 dark:bg-gray-900/70 shadow-sm ring-1 ring-green-500/40">
+            <Check className="w-4 h-4 text-green-600 dark:text-green-400" strokeWidth={3} />
           </div>
         </div>
       )}

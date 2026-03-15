@@ -148,6 +148,13 @@ export function StudentSearchPanel({
           <option value="connected">연결됨</option>
           <option value="disconnected">미연결</option>
         </select>
+      </div>
+
+      {/* 검색결과 카운트 + 정렬 */}
+      <div className="flex items-center gap-1.5 text-xs text-gray-500">
+        <Users className="h-3.5 w-3.5" />
+        <span>검색결과 {displayedTotal}명</span>
+        {isLoading && <Loader2 className="h-3 w-3 animate-spin" />}
 
         <select
           className={cn(FILTER_SELECT_CLASS, "ml-auto")}
@@ -158,13 +165,6 @@ export function StudentSearchPanel({
           <option value="name">이름순</option>
           <option value="grade">학년순</option>
         </select>
-      </div>
-
-      {/* 검색결과 카운트 */}
-      <div className="flex items-center gap-1.5 text-xs text-gray-500">
-        <Users className="h-3.5 w-3.5" />
-        <span>검색결과 {displayedTotal}명</span>
-        {isLoading && <Loader2 className="h-3 w-3 animate-spin" />}
       </div>
 
       {/* 학생 리스트 */}
@@ -225,23 +225,24 @@ export function StudentSearchPanel({
                 )}
               </div>
 
-              {/* Row 2: 학교 · 연락처 */}
-              <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-0.5">
-                {student.school_name && (
-                  <span
-                    className="max-w-[100px] truncate"
-                    title={student.school_name}
-                  >
-                    {student.school_name}
-                  </span>
-                )}
-                {student.school_name && student.phone && (
-                  <span className="text-gray-300">·</span>
-                )}
-                {student.phone && <span>{student.phone}</span>}
-              </div>
+              {/* Row 2: 연락처 */}
+              {student.phone && (
+                <div className="text-xs text-gray-500 mt-0.5">
+                  {student.phone}
+                </div>
+              )}
 
-              {/* Row 3: 이메일 상태 · 활성 상태 */}
+              {/* Row 3: 학교 */}
+              {student.school_name && (
+                <div
+                  className="text-xs text-gray-500 mt-0.5 truncate"
+                  title={student.school_name}
+                >
+                  {student.school_name}
+                </div>
+              )}
+
+              {/* Row 4: 이메일 상태 · 활성 상태 */}
               <div className="flex items-center gap-2 mt-1">
                 <span
                   className={cn(

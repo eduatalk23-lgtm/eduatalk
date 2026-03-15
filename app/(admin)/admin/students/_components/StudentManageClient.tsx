@@ -164,37 +164,39 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
   }, []);
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
-      {/* 왼쪽: 검색 패널 */}
-      <StudentSearchPanel
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        students={students}
-        total={total}
-        isLoading={searchResult.isLoading}
-        selectedStudentId={selectedStudentId}
-        onSelectStudent={handleSelectStudent}
-        filters={filters}
-        onFiltersChange={setFilters}
-      />
+    <>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
+        {/* 왼쪽: 검색 패널 */}
+        <StudentSearchPanel
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          students={students}
+          total={total}
+          isLoading={searchResult.isLoading}
+          selectedStudentId={selectedStudentId}
+          onSelectStudent={handleSelectStudent}
+          filters={filters}
+          onFiltersChange={setFilters}
+        />
 
-      {/* 오른쪽: 폼 패널 */}
-      <StudentFormPanel
-        selectedStudentId={selectedStudentId}
-        studentData={studentData}
-        isLoading={isDetailLoading}
-        formMode={formMode}
-        onNewStudent={handleNewStudent}
-        onStudentSaved={handleStudentSaved}
-        onStudentDeleted={handleStudentDeleted}
-        onOpenEnrollment={handleOpenEnrollment}
-        onOpenFamily={handleOpenFamily}
-        onOpenConsultation={handleOpenConsultation}
-        onOpenScore={handleOpenScore}
-        onOpenTimeManagement={handleOpenTimeManagement}
-        onOpenSMS={handleOpenSMS}
-        isAdmin={isAdmin}
-      />
+        {/* 오른쪽: 폼 패널 */}
+        <StudentFormPanel
+          selectedStudentId={selectedStudentId}
+          studentData={studentData}
+          isLoading={isDetailLoading}
+          formMode={formMode}
+          onNewStudent={handleNewStudent}
+          onStudentSaved={handleStudentSaved}
+          onStudentDeleted={handleStudentDeleted}
+          onOpenEnrollment={handleOpenEnrollment}
+          onOpenFamily={handleOpenFamily}
+          onOpenConsultation={handleOpenConsultation}
+          onOpenScore={handleOpenScore}
+          onOpenTimeManagement={handleOpenTimeManagement}
+          onOpenSMS={handleOpenSMS}
+          isAdmin={isAdmin}
+        />
+      </div>
 
       {enrollmentPanelStudentId && (
         <EnrollmentSlidePanel
@@ -250,6 +252,6 @@ export function StudentManageClient({ isAdmin }: StudentManageClientProps) {
           onClose={handleCloseSMS}
         />
       )}
-    </div>
+    </>
   );
 }

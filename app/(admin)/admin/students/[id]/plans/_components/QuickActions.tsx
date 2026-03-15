@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef, useEffect } from 'react';
 import { cn } from '@/lib/cn';
-import { Check, Circle } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastProvider';
 import { togglePlanComplete, updatePlanRange } from '@/lib/domains/plan/actions/dock';
 import { formatPlanLearningAmount } from '@/lib/utils/planFormatting';
@@ -34,15 +34,15 @@ export function QuickCompleteButton({
   const { showError } = useToast();
 
   const sizeClasses = {
-    sm: 'w-5 h-5',
-    md: 'w-6 h-6',
-    lg: 'w-7 h-7',
+    sm: 'w-6 h-6',
+    md: 'w-7 h-7',
+    lg: 'w-8 h-8',
   };
 
   const iconSizes = {
-    sm: 12,
-    md: 14,
-    lg: 16,
+    sm: 14,
+    md: 16,
+    lg: 18,
   };
 
   const handleToggle = async () => {
@@ -78,12 +78,12 @@ export function QuickCompleteButton({
       }}
       disabled={isPending}
       className={cn(
-        'relative rounded-full flex items-center justify-center transition-all duration-200',
+        'relative rounded-full flex items-center justify-center transition-all duration-200 shrink-0',
         'focus:outline-none focus:ring-2 focus:ring-offset-1',
         sizeClasses[size],
         isCompleted
-          ? 'bg-green-500 text-white shadow-sm focus:ring-green-300'
-          : 'border-2 border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-green-400 hover:text-green-500 hover:bg-green-50 focus:ring-green-200',
+          ? 'bg-green-600 text-white shadow-md ring-2 ring-green-700/30 focus:ring-green-300'
+          : 'border-2 border-gray-400 dark:border-gray-500 bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 hover:border-green-500 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 focus:ring-green-200',
         isPending && 'opacity-50 cursor-not-allowed',
         isAnimating && 'scale-110'
       )}
@@ -93,26 +93,17 @@ export function QuickCompleteButton({
       {isCompleted ? (
         <Check
           size={iconSizes[size]}
-          strokeWidth={3}
+          strokeWidth={3.5}
           className={cn(
-            'transition-transform',
+            'transition-transform drop-shadow-sm',
             isAnimating && 'animate-bounce'
           )}
         />
       ) : (
-        <Circle
-          size={iconSizes[size] - 4}
-          strokeWidth={0}
-          className="fill-current opacity-0 group-hover:opacity-30"
-        />
-      )}
-
-      {/* 호버시 체크 힌트 표시 */}
-      {!isCompleted && !isPending && (
         <Check
           size={iconSizes[size] - 2}
           strokeWidth={2}
-          className="absolute opacity-0 hover:opacity-50 transition-opacity text-green-500"
+          className="text-gray-300 dark:text-gray-600 group-hover:text-green-500 transition-colors"
         />
       )}
     </button>
