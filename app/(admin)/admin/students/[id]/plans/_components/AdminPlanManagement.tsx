@@ -392,7 +392,7 @@ function AdminPlanManagementContent({
     } else if (savedView === 'weeklyGrid') {
       setCalendarView('weekly');
       localStorage.setItem('dailyDock_viewLayout', 'weekly');
-    } else if (savedView === 'daily' || savedView === 'weekly' || savedView === 'month') {
+    } else if (savedView === 'daily' || savedView === 'weekly' || savedView === 'biweekly' || savedView === 'month') {
       setCalendarView(savedView as CalendarView);
     }
 
@@ -437,6 +437,7 @@ function AdminPlanManagementContent({
             if (customDayCount < 7) handleDateChange(shiftCustomDays(selectedDate, -1, customDayCount));
             else handleDateChange(shiftWeek(selectedDate, -1));
           }
+          else if (calendarView === 'biweekly') handleDateChange(shiftWeek(selectedDate, -1));
           else if (calendarView === 'year') handleDateChange(shiftYear(selectedDate, -1));
           else handleDateChange(shiftMonth(selectedDate, -1));
         },
@@ -451,6 +452,7 @@ function AdminPlanManagementContent({
             if (customDayCount < 7) handleDateChange(shiftCustomDays(selectedDate, 1, customDayCount));
             else handleDateChange(shiftWeek(selectedDate, 1));
           }
+          else if (calendarView === 'biweekly') handleDateChange(shiftWeek(selectedDate, 1));
           else if (calendarView === 'year') handleDateChange(shiftYear(selectedDate, 1));
           else handleDateChange(shiftMonth(selectedDate, 1));
         },
@@ -473,6 +475,12 @@ function AdminPlanManagementContent({
         key: "w",
         action: () => handleCalendarViewChange('weekly'),
         description: "주간 뷰",
+        category: "navigation",
+      },
+      {
+        key: "2",
+        action: () => handleCalendarViewChange('biweekly'),
+        description: "2주간 뷰",
         category: "navigation",
       },
       {
@@ -594,6 +602,7 @@ function AdminPlanManagementContent({
             if (customDayCount < 7) handleDateChange(shiftCustomDays(selectedDate, -1, customDayCount));
             else handleDateChange(shiftWeek(selectedDate, -1));
           }
+          else if (calendarView === 'biweekly') handleDateChange(shiftWeek(selectedDate, -1));
           else if (calendarView === 'year') handleDateChange(shiftYear(selectedDate, -1));
           else handleDateChange(shiftMonth(selectedDate, -1));
         },

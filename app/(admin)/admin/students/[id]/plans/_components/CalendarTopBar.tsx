@@ -70,6 +70,7 @@ interface CalendarTopBarProps {
 const VIEW_OPTIONS: { key: CalendarView; label: string; shortLabel: string; shortcut: string }[] = [
   { key: 'daily', label: '일간', shortLabel: '일', shortcut: 'D' },
   { key: 'weekly', label: '주간', shortLabel: '주', shortcut: 'W' },
+  { key: 'biweekly', label: '2주간', shortLabel: '2주', shortcut: '2' },
   { key: 'month', label: '월간', shortLabel: '월', shortcut: 'M' },
   { key: 'year', label: '연간', shortLabel: '연', shortcut: 'Y' },
   { key: 'agenda', label: '일정 목록', shortLabel: '목록', shortcut: 'L' },
@@ -185,6 +186,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
       if (customDayCount < 7) onNavigate(shiftCustomDays(selectedDate, -1, customDayCount));
       else onNavigate(shiftWeek(selectedDate, -1));
     }
+    else if (activeView === 'biweekly') onNavigate(shiftWeek(selectedDate, -1));
     else if (activeView === 'year') onNavigate(shiftYear(selectedDate, -1));
     else onNavigate(shiftMonth(selectedDate, -1));
   }, [activeView, selectedDate, onNavigate, customDayCount]);
@@ -195,6 +197,7 @@ export const CalendarTopBar = memo(function CalendarTopBar({
       if (customDayCount < 7) onNavigate(shiftCustomDays(selectedDate, 1, customDayCount));
       else onNavigate(shiftWeek(selectedDate, 1));
     }
+    else if (activeView === 'biweekly') onNavigate(shiftWeek(selectedDate, 1));
     else if (activeView === 'year') onNavigate(shiftYear(selectedDate, 1));
     else onNavigate(shiftMonth(selectedDate, 1));
   }, [activeView, selectedDate, onNavigate, customDayCount]);

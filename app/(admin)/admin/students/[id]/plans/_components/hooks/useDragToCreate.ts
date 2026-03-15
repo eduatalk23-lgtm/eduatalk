@@ -65,9 +65,20 @@ export function useDragToCreate({
   );
 
   const getDateFromX = useCallback(
-    (clientX: number): string | null => {
+    (clientX: number, clientY?: number): string | null => {
       if (!containerRef.current) return null;
       const columns = containerRef.current.querySelectorAll('[data-column-date]');
+      // clientY가 제공되면 X+Y 모두 확인 (biweekly: 같은 X에 2주치 컬럼이 겹침)
+      if (clientY != null) {
+        for (const col of columns) {
+          const rect = (col as HTMLElement).getBoundingClientRect();
+          if (clientX >= rect.left && clientX <= rect.right &&
+              clientY >= rect.top && clientY <= rect.bottom) {
+            return (col as HTMLElement).getAttribute('data-column-date');
+          }
+        }
+      }
+      // fallback: X만으로 판별 (첫 번째 매칭)
       for (const col of columns) {
         const rect = (col as HTMLElement).getBoundingClientRect();
         if (clientX >= rect.left && clientX <= rect.right) {
@@ -86,7 +97,7 @@ export function useDragToCreate({
       if ((e.target as HTMLElement).closest('[data-grid-block]') ||
           (e.target as HTMLElement).closest('[data-allday-row]')) return;
       // 시간 거터 무시
-      const date = getDateFromX(e.clientX);
+      const date = getDateFromX(e.clientX, e.clientY);
       if (!date) return;
 
       e.preventDefault(); // 텍스트 선택 방지 → 드래그 안정화

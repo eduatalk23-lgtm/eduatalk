@@ -255,7 +255,7 @@ export const DailyDock = memo(function DailyDock({
       }
 
       // 일간/주간 뷰: 가로 휠 → 일/주 이동
-      if ((calendarView === 'daily' || calendarView === 'weekly') && absX >= 30 && absX > absY * 1.5) {
+      if ((calendarView === 'daily' || calendarView === 'weekly' || calendarView === 'biweekly') && absX >= 30 && absX > absY * 1.5) {
         e.preventDefault();
         unlockAfterIdle();
         if (wheelNavLocked.current) return;
@@ -265,6 +265,8 @@ export const DailyDock = memo(function DailyDock({
 
         if (calendarView === 'daily') {
           onDateChange(shiftDay(selectedDate, dir));
+        } else if (calendarView === 'biweekly') {
+          onDateChange(shiftWeek(selectedDate, dir));
         } else {
           const dayCount = isMobile ? 3 : 7;
           onDateChange(dayCount === 7
@@ -436,7 +438,7 @@ export const DailyDock = memo(function DailyDock({
           queryClient.prefetchQuery(dailyCalendarEventsQueryOptions(calendarId, prev));
           queryClient.prefetchQuery(dailyCalendarEventsQueryOptions(calendarId, next));
         }
-      } else if (calendarView === 'weekly') {
+      } else if (calendarView === 'weekly' || calendarView === 'biweekly') {
         const prevWeekDate = formatDateString(addDays(new Date(selectedDate + 'T00:00:00'), -7));
         const nextWeekDate = formatDateString(addDays(new Date(selectedDate + 'T00:00:00'), 7));
         const prevRange = getWeekRangeSunSat(prevWeekDate);
@@ -594,7 +596,7 @@ export const DailyDock = memo(function DailyDock({
       )}
 
       {/* 줌 컨트롤 + 분할 뷰 토글 (일간/주간 그리드뷰에서만 표시) */}
-      {(calendarView === 'daily' || calendarView === 'weekly') && (
+      {(calendarView === 'daily' || calendarView === 'weekly' || calendarView === 'biweekly') && (
         <div className="flex items-center gap-1 px-2 pb-1 justify-end">
           {/* 분할 뷰 토글 (일간 뷰 + 데스크탑에서만) */}
           {calendarView === 'daily' && !isMobile && (
@@ -750,6 +752,48 @@ export const DailyDock = memo(function DailyDock({
               defaultEstimatedMinutes={selectedCalendarSettings?.defaultEstimatedMinutes}
               defaultReminderMinutes={selectedCalendarSettings?.defaultReminderMinutes}
               customDayCount={customDayCount}
+            />
+          </motion.div>
+        )}
+
+        {/* 2주간 스택 뷰 */}
+        {calendarView === 'biweekly' && (
+          <motion.div
+            key={`biweekly-${selectedDate}`}
+            custom={navDirectionRef.current}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={slideTransition}
+            className="flex-1 overflow-hidden"
+          >
+            <WeeklyGridView
+              studentId={studentId}
+              tenantId={tenantId}
+              calendarId={calendarId}
+              selectedDate={selectedDate}
+              selectedGroupId={selectedGroupId}
+              onEdit={onEdit}
+              onRefresh={onRefresh}
+              onDateChange={onDateChange ?? (() => {})}
+              onCreatePlanAtSlot={onCreatePlanAtSlot}
+              onDelete={(planId) => {
+                if (onDelete) {
+                  onDelete(planId);
+                } else {
+                  handleDeleteRequest(planId);
+                }
+              }}
+              searchQuery={searchQuery}
+              onSwitchToDaily={handleSwitchToDaily}
+              visibleCalendarIds={visibleCalendarIds}
+              pxPerMinute={pxPerMinute}
+              onOpenEventEditNew={onOpenEventEditNew}
+              onOpenConsultationEditNew={onOpenConsultationEditNew}
+              defaultEstimatedMinutes={selectedCalendarSettings?.defaultEstimatedMinutes}
+              defaultReminderMinutes={selectedCalendarSettings?.defaultReminderMinutes}
+              biweeklyMode
             />
           </motion.div>
         )}

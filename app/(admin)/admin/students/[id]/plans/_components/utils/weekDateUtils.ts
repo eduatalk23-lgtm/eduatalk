@@ -166,6 +166,21 @@ export function shiftYear(date: string, direction: 1 | -1): string {
   return formatDate(d);
 }
 
+/** 2주간 뷰: 이번 주 + 다음 주의 14일 배열 반환 */
+export function getTwoWeekDates(selectedDate: string, weekStartsOn = 0): [string[], string[]] {
+  const week1 = getWeekDates(selectedDate, weekStartsOn);
+  const nextWeekStart = new Date(week1[6] + 'T00:00:00');
+  nextWeekStart.setDate(nextWeekStart.getDate() + 1);
+  const week2 = getWeekDates(formatDate(nextWeekStart), weekStartsOn);
+  return [week1, week2];
+}
+
+/** 2주간 뷰: 전체 범위 반환 */
+export function getTwoWeekRange(selectedDate: string, weekStartsOn = 0): { start: string; end: string } {
+  const [week1, week2] = getTwoWeekDates(selectedDate, weekStartsOn);
+  return { start: week1[0], end: week2[6] };
+}
+
 /** 오늘 날짜 반환 (YYYY-MM-DD) */
 export function getTodayString(): string {
   return formatDate(new Date());

@@ -12,6 +12,7 @@ import { RecurringEditChoiceModal, type RecurringEditScope } from './modals/Recu
 import { deleteRecurringEvent, updateRecurringEvent, createRecurringException } from '@/lib/domains/calendar/actions/calendarEventActions';
 import { AllDayItemBar } from './items/AllDayItemBar';
 import { useWeeklyGridData, type DayColumnData } from './hooks/useWeeklyGridData';
+import { useTwoWeekGridData } from './hooks/useTwoWeekGridData';
 import { useDragToCreate } from './hooks/useDragToCreate';
 import { useCrossDayDrag } from './hooks/useCrossDayDrag';
 import { usePopoverPosition } from './hooks/usePopoverPosition';
@@ -79,6 +80,8 @@ interface WeeklyGridViewProps {
   defaultReminderMinutes?: number[] | null;
   /** 커스텀 뷰 일수 (2~7, 기본 7) */
   customDayCount?: number;
+  /** 2주간 스택 뷰 모드 (데스크톱 전용) */
+  biweeklyMode?: boolean;
 }
 
 export const WeeklyGridView = memo(function WeeklyGridView({
@@ -102,6 +105,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
   defaultEstimatedMinutes,
   defaultReminderMinutes,
   customDayCount = 7,
+  biweeklyMode = false,
 }: WeeklyGridViewProps) {
   const router = useRouter();
   const ppm = ppmProp ?? PX_PER_MINUTE;
@@ -125,9 +129,50 @@ export const WeeklyGridView = memo(function WeeklyGridView({
   const resolvedCalendarId = calendarIdProp || selectedCalendarId || undefined;
   const weekStartsOn = selectedCalendarSettings?.weekStartsOn ?? 0;
 
-  // 7일 데이터 로딩 (항상 전체 주 fetch — 인접 데이터 프리로드)
-  const { weekDates: allWeekDates, dayDataMap: rawDayDataMap, calendarId, isAnyLoading, invalidateDate, invalidateAll } =
-    useWeeklyGridData(studentId, selectedDate, resolvedCalendarId, visibleCalendarIds, weekStartsOn, customDayCount);
+  // 데이터 로딩: biweeklyMode 분기 (두 훅 모두 호출 — React 훅 규칙)
+  const weeklyData = useWeeklyGridData(
+    biweeklyMode ? '' : studentId, selectedDate, resolvedCalendarId,
+    biweeklyMode ? null : visibleCalendarIds, weekStartsOn, customDayCount,
+  );
+  const biweeklyData = useTwoWeekGridData(
+    biweeklyMode ? studentId : '', selectedDate, resolvedCalendarId,
+    biweeklyMode ? visibleCalendarIds : null, weekStartsOn,
+  );
+
+  const {
+    allWeekDates,
+    rawDayDataMap,
+    calendarId,
+    isAnyLoading,
+    invalidateDate,
+    invalidateAll,
+    biweeklyWeek1Dates,
+    biweeklyWeek2Dates,
+  } = useMemo(() => {
+    if (biweeklyMode) {
+      return {
+        allWeekDates: biweeklyData.allDates,
+        rawDayDataMap: biweeklyData.dayDataMap,
+        calendarId: biweeklyData.calendarId,
+        isAnyLoading: biweeklyData.isAnyLoading,
+        invalidateDate: biweeklyData.invalidateDate,
+        invalidateAll: biweeklyData.invalidateAll,
+        biweeklyWeek1Dates: biweeklyData.week1Dates,
+        biweeklyWeek2Dates: biweeklyData.week2Dates,
+      };
+    }
+    return {
+      allWeekDates: weeklyData.weekDates,
+      rawDayDataMap: weeklyData.dayDataMap,
+      calendarId: weeklyData.calendarId,
+      isAnyLoading: weeklyData.isAnyLoading,
+      invalidateDate: weeklyData.invalidateDate,
+      invalidateAll: weeklyData.invalidateAll,
+      biweeklyWeek1Dates: weeklyData.weekDates,
+      biweeklyWeek2Dates: [] as string[],
+    };
+  }, [biweeklyMode, weeklyData, biweeklyData]);
+
   const { optimisticStatusChange, optimisticTimeChange, optimisticDateMove, revalidate } =
     useOptimisticCalendarUpdate(calendarId, visibleCalendarIds);
 
@@ -152,16 +197,17 @@ export const WeeklyGridView = memo(function WeeklyGridView({
     return merged;
   }, [rawDayDataMap, showHolidays, allWeekDates]);
 
-  // 모바일 3일 뷰: customDayCount가 7(기본)일 때만 모바일 축소 적용
+  // 모바일 3일 뷰: customDayCount가 7(기본)일 때만 모바일 축소 적용 (biweeklyMode에서는 비활성)
   const isMobile = useIsMobile();
   const weekDates = useMemo(() => {
-    if (customDayCount < 7) return allWeekDates; // 커스텀 일수는 그대로 사용
+    if (biweeklyMode) return allWeekDates; // biweekly: 14일 전체
+    if (customDayCount < 7) return allWeekDates;
     if (!isMobile) return allWeekDates;
     const idx = allWeekDates.indexOf(selectedDate);
-    if (idx === -1) return allWeekDates.slice(0, 3); // fallback
+    if (idx === -1) return allWeekDates.slice(0, 3);
     const start = Math.max(0, Math.min(idx - 1, allWeekDates.length - 3));
     return allWeekDates.slice(start, start + 3);
-  }, [isMobile, allWeekDates, selectedDate, customDayCount]);
+  }, [isMobile, allWeekDates, selectedDate, customDayCount, biweeklyMode]);
 
   // 시간 라벨
   const hourLabels = useMemo(() => {
@@ -553,9 +599,9 @@ export const WeeklyGridView = memo(function WeeklyGridView({
       const clickDate = columnEl.getAttribute('data-column-date');
       if (!clickDate) return;
 
-      // 클릭 위치 → 시간 계산 (timeout 안에서 event 참조 불가하므로 미리 추출)
-      const rect = scrollContainerRef.current!.getBoundingClientRect();
-      const offsetY = e.clientY - rect.top + scrollContainerRef.current!.scrollTop;
+      // 클릭 위치 → 시간 계산 (컬럼 기반: biweekly 독립 스크롤에서도 정확)
+      const colRect = columnEl.getBoundingClientRect();
+      const offsetY = e.clientY - colRect.top;
       const clickedMinutes = rangeStartMin + offsetY / ppm;
       const snappedStart = Math.floor(clickedMinutes / SNAP_MINUTES) * SNAP_MINUTES;
       const clickDuration = defaultEstimatedMinutes ?? 60;
@@ -600,8 +646,8 @@ export const WeeklyGridView = memo(function WeeklyGridView({
       const clickDate = columnEl.getAttribute('data-column-date');
       if (!clickDate) return;
 
-      const rect = scrollContainerRef.current!.getBoundingClientRect();
-      const offsetY = e.clientY - rect.top + scrollContainerRef.current!.scrollTop;
+      const colRect = columnEl.getBoundingClientRect();
+      const offsetY = e.clientY - colRect.top;
       const clickedMinutes = rangeStartMin + offsetY / ppm;
       const snappedStart = Math.floor(clickedMinutes / SNAP_MINUTES) * SNAP_MINUTES;
       const dbClickDuration = defaultEstimatedMinutes ?? 60;
@@ -671,9 +717,10 @@ export const WeeklyGridView = memo(function WeeklyGridView({
         }
         closeQuickCreate();
 
-        // 시간 슬롯 계산 (스크롤 위치는 타이머 시점에 재계산)
-        const rect = scrollContainerRef.current.getBoundingClientRect();
-        const offsetY = pos.y - rect.top + scrollContainerRef.current.scrollTop;
+        // 시간 슬롯 계산 (컬럼 기반: biweekly 독립 스크롤에서도 정확)
+        const colEl = scrollContainerRef.current.querySelector(`[data-column-date="${pos.date}"]`) as HTMLElement | null;
+        const colRect = colEl?.getBoundingClientRect();
+        const offsetY = colRect ? pos.y - colRect.top : 0;
         const clickedMinutes = rangeStartMin + offsetY / ppm;
         const snappedStart = Math.floor(clickedMinutes / SNAP_MINUTES) * SNAP_MINUTES;
         const longPressDuration = defaultEstimatedMinutes ?? 60;
@@ -973,37 +1020,39 @@ export const WeeklyGridView = memo(function WeeklyGridView({
         popoverOpenOnMouseDownRef.current = isPopoverOpen;
       }}
     >
-      {/* 헤더 + 종일 영역 (overflowY: auto + scrollbar-gutter: stable → 스크롤바 공간 예약, 컬럼 정렬 보장) */}
-      <div className="flex-shrink-0" style={{ overflowX: 'hidden', overflowY: 'auto', scrollbarGutter: 'stable' }}>
-        <WeeklyGridHeader
-          weekDates={weekDates}
-          selectedDate={selectedDate}
-          dayDataMap={dayDataMap}
-          onDateChange={onDateChange}
-          onSwitchToDaily={onSwitchToDaily}
-          showHolidays={showHolidays}
-        />
+      {/* 헤더 + 종일 영역: biweekly에서는 스크롤 안으로 이동하므로 여기서는 일반 모드만 */}
+      {!biweeklyMode && (
+        <div className="flex-shrink-0" style={{ overflowX: 'hidden', overflowY: 'auto', scrollbarGutter: 'stable' }}>
+          <WeeklyGridHeader
+            weekDates={weekDates}
+            selectedDate={selectedDate}
+            dayDataMap={dayDataMap}
+            onDateChange={onDateChange}
+            onSwitchToDaily={onSwitchToDaily}
+            showHolidays={showHolidays}
+          />
 
-        {/* 종일 이벤트 영역 */}
-        <AllDayRow
-          weekDates={weekDates}
-          dayDataMap={dayDataMap}
-          calendarId={calendarId}
-          calendarColorMap={calendarColorMap}
-          previewColor={previewColor}
-          onAllDayQuickCreate={handleAllDayQuickCreate}
-          onAllDayItemClick={handleAllDayItemClick}
-          quickCreateDate={quickCreateState?.isAllDay ? quickCreateState.date : null}
-          isQuickCreateAllDay={!!quickCreateState?.isAllDay}
-        />
-      </div>
+          {/* 종일 이벤트 영역 */}
+          <AllDayRow
+            weekDates={weekDates}
+            dayDataMap={dayDataMap}
+            calendarId={calendarId}
+            calendarColorMap={calendarColorMap}
+            previewColor={previewColor}
+            onAllDayQuickCreate={handleAllDayQuickCreate}
+            onAllDayItemClick={handleAllDayItemClick}
+            quickCreateDate={quickCreateState?.isAllDay ? quickCreateState.date : null}
+            isQuickCreateAllDay={!!quickCreateState?.isAllDay}
+          />
+        </div>
+      )}
 
       {/* 스크롤 컨테이너 (scrollbar-gutter: stable로 헤더와 동일한 스크롤바 공간) */}
       <div
         ref={scrollContainerRef}
         role="grid"
-        aria-label={`주간 캘린더 그리드 (${weekDates.length}일)`}
-        aria-colcount={weekDates.length}
+        aria-label={biweeklyMode ? '2주간 캘린더 그리드' : `주간 캘린더 그리드 (${weekDates.length}일)`}
+        aria-colcount={biweeklyMode ? 7 : weekDates.length}
         aria-busy={isAnyLoading}
         className="flex-1 relative overflow-x-hidden scroll-gpu"
         style={{ overflowY: 'auto', scrollbarGutter: 'stable' }}
@@ -1039,7 +1088,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
             </div>
           </div>
         )}
-        {isAnyLoading && (
+        {isAnyLoading && !biweeklyMode && (
           <div className="absolute inset-0 bg-[rgb(var(--color-secondary-50))]/60 z-40 pointer-events-none">
             <div className="flex h-full" style={{ paddingLeft: TIME_GUTTER_WIDTH, paddingRight: '0.5rem' }}>
               <div className="flex-1" style={{ display: 'grid', gridTemplateColumns: `repeat(${weekDates.length}, 1fr)` }}>
@@ -1055,92 +1104,203 @@ export const WeeklyGridView = memo(function WeeklyGridView({
           </div>
         )}
 
-        <div className="flex pr-2" style={{ height: `${totalHeight}px` }}>
-          {/* 시간 거터 */}
-          <div
-            className="shrink-0 relative border-r border-[rgb(var(--color-secondary-200))]"
-            style={{ width: TIME_GUTTER_WIDTH }}
-          >
-            {hourLabels.map((hour) => {
-              const top = minutesToPx(hour * 60, rangeStartMin, ppm);
-              return (
-                <div key={hour}>
-                  <div
-                    className="absolute right-2 text-[11px] text-[var(--text-tertiary)] font-medium tabular-nums -translate-y-1/2"
-                    style={{ top: `${top}px` }}
-                  >
-                    {formatHourLabel(hour)}
-                  </div>
-                  {/* 시간 눈금 tick mark */}
-                  <div
-                    className="absolute h-px bg-[rgb(var(--color-secondary-200))]"
-                    style={{ top: `${top}px`, right: '-4px', width: '12px' }}
+        {/* biweekly 모드: 50:50 분할, 각 주가 독립 스크롤 */}
+        {biweeklyMode ? (
+          <div className="flex flex-col h-full">
+            {[biweeklyWeek1Dates, biweeklyWeek2Dates].map((wkDates, weekIdx) => (
+              <div
+                key={weekIdx}
+                className={cn(
+                  'flex-1 min-h-0 flex flex-col',
+                  weekIdx === 0 && 'border-b-2 border-[rgb(var(--color-primary-200))]',
+                )}
+              >
+                {/* 주차 헤더 + 종일 (고정) */}
+                <div className="flex-shrink-0" style={{ overflowX: 'hidden', overflowY: 'auto', scrollbarGutter: 'stable' }}>
+                  <WeeklyGridHeader
+                    weekDates={wkDates}
+                    selectedDate={selectedDate}
+                    dayDataMap={dayDataMap}
+                    onDateChange={onDateChange}
+                    onSwitchToDaily={onSwitchToDaily}
+                    showHolidays={showHolidays}
+                  />
+                  <AllDayRow
+                    weekDates={wkDates}
+                    dayDataMap={dayDataMap}
+                    calendarId={calendarId}
+                    calendarColorMap={calendarColorMap}
+                    previewColor={previewColor}
+                    onAllDayQuickCreate={handleAllDayQuickCreate}
+                    onAllDayItemClick={handleAllDayItemClick}
+                    quickCreateDate={quickCreateState?.isAllDay ? quickCreateState.date : null}
+                    isQuickCreateAllDay={!!quickCreateState?.isAllDay}
                   />
                 </div>
+
+                {/* 시간 그리드 (자체 스크롤) */}
+                <div
+                  className="flex-1 min-h-0 relative overflow-x-hidden scroll-gpu"
+                  style={{ overflowY: 'auto', scrollbarGutter: 'stable' }}
+                >
+                  <div className="flex pr-2" style={{ height: `${totalHeight}px` }}>
+                    {/* 시간 거터 */}
+                    <div
+                      className="shrink-0 relative border-r border-[rgb(var(--color-secondary-200))]"
+                      style={{ width: TIME_GUTTER_WIDTH }}
+                    >
+                      {hourLabels.map((hour) => {
+                        const top = minutesToPx(hour * 60, rangeStartMin, ppm);
+                        return (
+                          <div key={`w${weekIdx}-h${hour}`}>
+                            <div
+                              className="absolute right-2 text-[11px] text-[var(--text-tertiary)] font-medium tabular-nums -translate-y-1/2"
+                              style={{ top: `${top}px` }}
+                            >
+                              {formatHourLabel(hour)}
+                            </div>
+                            <div
+                              className="absolute h-px bg-[rgb(var(--color-secondary-200))]"
+                              style={{ top: `${top}px`, right: '-4px', width: '12px' }}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* 7 컬럼 */}
+                    <div className="flex-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
+                      {wkDates.map((date) => {
+                        const dayData = dayDataMap.get(date);
+                        const header = formatDayHeader(date);
+                        return (
+                          <WeeklyGridColumn
+                            key={date}
+                            ref={setColumnRef(date)}
+                            date={date}
+                            plans={dayData?.plans ?? []}
+                            customItems={dayData?.customItems ?? []}
+                            nonStudyItems={dayData?.nonStudyItems ?? []}
+                            displayRange={displayRange}
+                            isToday={header.isToday}
+                            isPast={header.isPast}
+                            nowTop={header.isToday ? nowTop : undefined}
+                            onBlockClick={handleBlockClick}
+                            onEdit={onEdit}
+                            searchQuery={searchQuery}
+                            highlightedPlanId={newlyCreatedPlanId}
+                            draggingPlanId={crossDayDrag.draggingPlanId}
+                            isDragTarget={crossDayDrag.targetDate === date}
+                            enableHover={!!calendarId && !quickCreateState && !isPopoverOpen && !crossDayDrag.draggingPlanId && !dragState && !isResizing}
+                            onCrossDayDragStart={calendarId ? crossDayDrag.startDrag : undefined}
+                            makeResizeHandleProps={calendarId ? makeWeeklyResizeHandleProps : undefined}
+                            resizingPlanId={resizingPlanId}
+                            resizeHeight={resizeHeight}
+                            resizingEdge={resizingEdge}
+                            pxPerMinute={ppm}
+                            suppressBlockHover={!!quickCreateState || !!dragState}
+                            calendarColorMap={calendarColorMap}
+                            isAdminMode={isAdminMode}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* 기존 단일 주 렌더링 */
+          <div className="flex pr-2" style={{ height: `${totalHeight}px` }}>
+            {/* 시간 거터 */}
+            <div
+              className="shrink-0 relative border-r border-[rgb(var(--color-secondary-200))]"
+              style={{ width: TIME_GUTTER_WIDTH }}
+            >
+              {hourLabels.map((hour) => {
+                const top = minutesToPx(hour * 60, rangeStartMin, ppm);
+                return (
+                  <div key={hour}>
+                    <div
+                      className="absolute right-2 text-[11px] text-[var(--text-tertiary)] font-medium tabular-nums -translate-y-1/2"
+                      style={{ top: `${top}px` }}
+                    >
+                      {formatHourLabel(hour)}
+                    </div>
+                    {/* 시간 눈금 tick mark */}
+                    <div
+                      className="absolute h-px bg-[rgb(var(--color-secondary-200))]"
+                      style={{ top: `${top}px`, right: '-4px', width: '12px' }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 7개 컬럼 — CSS Grid로 헤더/종일 영역과 컬럼 정렬 일치 */}
+            <div className="flex-1" style={{ display: 'grid', gridTemplateColumns: `repeat(${weekDates.length}, 1fr)` }}>
+            {weekDates.map((date) => {
+              const dayData = dayDataMap.get(date);
+              const header = formatDayHeader(date);
+
+              return (
+                <WeeklyGridColumn
+                  key={date}
+                  ref={setColumnRef(date)}
+                  date={date}
+                  plans={dayData?.plans ?? []}
+                  customItems={dayData?.customItems ?? []}
+                  nonStudyItems={dayData?.nonStudyItems ?? []}
+                  displayRange={displayRange}
+                  isToday={header.isToday}
+                  isPast={header.isPast}
+                  nowTop={header.isToday ? nowTop : undefined}
+                  onBlockClick={handleBlockClick}
+                  onEdit={onEdit}
+                  searchQuery={searchQuery}
+                  highlightedPlanId={newlyCreatedPlanId}
+                  draggingPlanId={crossDayDrag.draggingPlanId}
+                  isDragTarget={crossDayDrag.targetDate === date}
+                  enableHover={!!calendarId && !quickCreateState && !isPopoverOpen && !crossDayDrag.draggingPlanId && !dragState && !isResizing}
+                  onCrossDayDragStart={calendarId ? crossDayDrag.startDrag : undefined}
+                  makeResizeHandleProps={calendarId ? makeWeeklyResizeHandleProps : undefined}
+                  resizingPlanId={resizingPlanId}
+                  resizeHeight={resizeHeight}
+                  resizingEdge={resizingEdge}
+                  pxPerMinute={ppm}
+                  suppressBlockHover={!!quickCreateState || !!dragState}
+                  calendarColorMap={calendarColorMap}
+                  isAdminMode={isAdminMode}
+                />
               );
             })}
+            </div>
           </div>
+        )}
 
-          {/* 7개 컬럼 — CSS Grid로 헤더/종일 영역과 컬럼 정렬 일치 */}
-          <div className="flex-1" style={{ display: 'grid', gridTemplateColumns: `repeat(${weekDates.length}, 1fr)` }}>
-          {weekDates.map((date) => {
-            const dayData = dayDataMap.get(date);
-            const header = formatDayHeader(date);
-
-            return (
-              <WeeklyGridColumn
-                key={date}
-                ref={setColumnRef(date)}
-                date={date}
-                plans={dayData?.plans ?? []}
-                customItems={dayData?.customItems ?? []}
-                nonStudyItems={dayData?.nonStudyItems ?? []}
-                displayRange={displayRange}
-                isToday={header.isToday}
-                isPast={header.isPast}
-                nowTop={header.isToday ? nowTop : undefined}
-                onBlockClick={handleBlockClick}
-                onEdit={onEdit}
-                searchQuery={searchQuery}
-                highlightedPlanId={newlyCreatedPlanId}
-                draggingPlanId={crossDayDrag.draggingPlanId}
-                isDragTarget={crossDayDrag.targetDate === date}
-                enableHover={!!calendarId && !quickCreateState && !isPopoverOpen && !crossDayDrag.draggingPlanId && !dragState && !isResizing}
-                onCrossDayDragStart={calendarId ? crossDayDrag.startDrag : undefined}
-                makeResizeHandleProps={calendarId ? makeWeeklyResizeHandleProps : undefined}
-                resizingPlanId={resizingPlanId}
-                resizeHeight={resizeHeight}
-                resizingEdge={resizingEdge}
-                pxPerMinute={ppm}
-                suppressBlockHover={!!quickCreateState || !!dragState}
-                calendarColorMap={calendarColorMap}
-                isAdminMode={isAdminMode}
-              />
-            );
-          })}
-          </div>
-
-          {/* Drag-to-Create 프리뷰 (Google Calendar 스타일 — 겹침 레이아웃 반영) */}
+          {/* Drag-to-Create 프리뷰 — 컬럼 내부에 portal 방식으로 배치 */}
           {dragState && previewStyle && (() => {
-            // previewOverlapLayout이 있으면 컬럼 내 겹침 위치 반영
             const colEl = scrollContainerRef.current?.querySelector(
               `[data-column-date="${dragState.date}"]`
             ) as HTMLElement | null;
-            const containerRect = scrollContainerRef.current?.getBoundingClientRect();
-            const colRect = colEl?.getBoundingClientRect();
-            const overlapLeft = previewOverlapLayout && colRect && containerRect
-              ? (colRect.left - containerRect.left + scrollContainerRef.current!.scrollLeft) + (previewOverlapLayout.left / 100) * colRect.width
-              : undefined;
-            const overlapWidth = previewOverlapLayout && colRect
-              ? (previewOverlapLayout.width / 100) * colRect.width
-              : undefined;
-            const finalStyle = overlapLeft != null && overlapWidth != null
-              ? { ...previewStyle, left: `${overlapLeft}px`, width: `${overlapWidth}px` }
-              : previewStyle;
-            return (
+            if (!colEl) return null;
+            const colRect = colEl.getBoundingClientRect();
+            const overlapLeft = previewOverlapLayout ? (previewOverlapLayout.left / 100) * colRect.width : 0;
+            const overlapWidth = previewOverlapLayout ? (previewOverlapLayout.width / 100) * colRect.width : colRect.width;
+            const topPx = minutesToPx(dragState.startMinutes, rangeStartMin, ppm);
+            const heightPx = (dragState.endMinutes - dragState.startMinutes) * ppm;
+            return createPortal(
               <div
                 className="absolute rounded-lg z-[45] pointer-events-none shadow-sm overflow-hidden"
-                style={{ ...finalStyle, backgroundColor: previewColors.bgHex, border: '1px solid white' }}
+                style={{
+                  top: `${topPx}px`,
+                  height: `${heightPx}px`,
+                  left: `${overlapLeft}px`,
+                  width: `${overlapWidth}px`,
+                  backgroundColor: previewColors.bgHex,
+                  border: '1px solid white',
+                }}
               >
                 <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: previewColors.barHex }} />
                 <div className="pl-3 py-0.5 flex flex-col">
@@ -1149,28 +1309,23 @@ export const WeeklyGridView = memo(function WeeklyGridView({
                     {minutesToTime(dragState.startMinutes)} – {minutesToTime(dragState.endMinutes)}
                   </span>
                 </div>
-              </div>
+              </div>,
+              colEl,
             );
           })()}
 
-          {/* 퀵생성 임시 슬롯 블록 — 시간 이벤트 전용 (종일은 AllDayRow에서만 프리뷰) */}
+          {/* 퀵생성 임시 슬롯 블록 — 컬럼 내부에 portal 방식으로 배치 */}
           {quickCreateState && !dragState && !quickCreateState.isAllDay && (() => {
             const colEl = scrollContainerRef.current?.querySelector(
               `[data-column-date="${quickCreateState.date}"]`
             ) as HTMLElement | null;
-            if (!colEl || !scrollContainerRef.current) return null;
-            const containerRect = scrollContainerRef.current.getBoundingClientRect();
+            if (!colEl) return null;
             const colRect = colEl.getBoundingClientRect();
             const startMin = timeToMinutes(quickCreateState.slot.startTime);
             const endMin = timeToMinutes(quickCreateState.slot.endTime);
-            const colLeftBase = colRect.left - containerRect.left + scrollContainerRef.current.scrollLeft;
-            const blockLeft = previewOverlapLayout
-              ? colLeftBase + (previewOverlapLayout.left / 100) * colRect.width
-              : colLeftBase;
-            const blockWidth = previewOverlapLayout
-              ? (previewOverlapLayout.width / 100) * colRect.width
-              : colRect.width;
-            return (
+            const blockLeft = previewOverlapLayout ? (previewOverlapLayout.left / 100) * colRect.width : 0;
+            const blockWidth = previewOverlapLayout ? (previewOverlapLayout.width / 100) * colRect.width : colRect.width;
+            return createPortal(
               <div
                 className="absolute rounded-lg z-[45] pointer-events-none shadow-sm overflow-hidden"
                 style={{
@@ -1186,17 +1341,22 @@ export const WeeklyGridView = memo(function WeeklyGridView({
                 <div className="pl-3 py-0.5">
                   <span className={cn('text-xs font-medium', previewColors.textIsWhite ? 'text-white' : 'text-gray-900 dark:text-gray-100')}>(제목 없음)</span>
                 </div>
-              </div>
+              </div>,
+              colEl,
             );
           })()}
 
-          {/* Cross-Day 고스트 블록 — Google Calendar: 대상 위치에 원본 형태 프리뷰 */}
+          {/* Cross-Day 고스트 블록 — 대상 컬럼에 portal 배치 */}
           {crossDayDrag.ghost && (() => {
             const g = crossDayDrag.ghost;
             const ghostColors = resolveCalendarColors(g.plan.color, calendarColorMap.get(g.plan.calendarId ?? ''), g.plan.status, g.plan.isCompleted);
             const tier = g.height >= 45 ? 'long' : g.height >= 30 ? 'medium' : 'short';
             const textColor = ghostColors.textIsWhite ? 'text-white' : 'text-gray-900 dark:text-gray-100';
-            return (
+            const ghostTargetDate = crossDayDrag.targetDate;
+            const ghostColEl = ghostTargetDate
+              ? scrollContainerRef.current?.querySelector(`[data-column-date="${ghostTargetDate}"]`) as HTMLElement | null
+              : null;
+            const ghostEl = (
               <div
                 className={cn(
                   'absolute rounded-lg overflow-hidden pointer-events-none z-30',
@@ -1206,13 +1366,12 @@ export const WeeklyGridView = memo(function WeeklyGridView({
                 style={{
                   top: `${g.top}px`,
                   height: `${g.height}px`,
-                  left: `${g.left}px`,
-                  width: `${g.width}px`,
+                  left: 0,
+                  width: '100%',
                   backgroundColor: ghostColors.bgHex,
                   border: '1px solid white',
                 }}
               >
-                {/* 좌측 캘린더 컬러 인디케이터 */}
                 <div
                   className="absolute left-0 top-0 bottom-0 w-1.5"
                   style={{ backgroundColor: ghostColors.barHex }}
@@ -1240,7 +1399,6 @@ export const WeeklyGridView = memo(function WeeklyGridView({
                   </div>
                 )}
 
-                {/* 드롭 시간 배지 — 블록 하단 외부 */}
                 <div className="absolute -bottom-5 left-1/2 -translate-x-1/2">
                   <span className="bg-[rgb(var(--color-secondary-900))] text-white text-[10px] px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap">
                     {g.startTime} – {g.endTime}
@@ -1248,8 +1406,8 @@ export const WeeklyGridView = memo(function WeeklyGridView({
                 </div>
               </div>
             );
+            return ghostColEl ? createPortal(ghostEl, ghostColEl) : ghostEl;
           })()}
-        </div>
 
       </div>
 

@@ -13,11 +13,12 @@ import {
   getTodayString,
 } from './utils/weekDateUtils';
 
-export type CalendarView = 'daily' | 'weekly' | 'month' | 'year' | 'agenda';
+export type CalendarView = 'daily' | 'weekly' | 'biweekly' | 'month' | 'year' | 'agenda';
 
 const VIEW_OPTIONS: { key: CalendarView; label: string; shortLabel: string; shortcut: string }[] = [
   { key: 'daily', label: '일간', shortLabel: '일', shortcut: 'D' },
   { key: 'weekly', label: '주간', shortLabel: '주', shortcut: 'W' },
+  { key: 'biweekly', label: '2주간', shortLabel: '2주', shortcut: '2' },
   { key: 'month', label: '월간', shortLabel: '월', shortcut: 'M' },
   { key: 'year', label: '연간', shortLabel: '연', shortcut: 'Y' },
   { key: 'agenda', label: '일정 목록', shortLabel: '목록', shortcut: 'L' },
@@ -73,6 +74,7 @@ export const CalendarNavHeader = memo(function CalendarNavHeader({
       if (customDayCount < 7) onNavigate(shiftCustomDays(selectedDate, -1, customDayCount));
       else onNavigate(shiftWeek(selectedDate, -1));
     }
+    else if (activeView === 'biweekly') onNavigate(shiftWeek(selectedDate, -1));
     else if (activeView === 'year') onNavigate(shiftYear(selectedDate, -1));
     else onNavigate(shiftMonth(selectedDate, -1));  // month & agenda
   }, [activeView, selectedDate, onNavigate, customDayCount]);
@@ -83,6 +85,7 @@ export const CalendarNavHeader = memo(function CalendarNavHeader({
       if (customDayCount < 7) onNavigate(shiftCustomDays(selectedDate, 1, customDayCount));
       else onNavigate(shiftWeek(selectedDate, 1));
     }
+    else if (activeView === 'biweekly') onNavigate(shiftWeek(selectedDate, 1));
     else if (activeView === 'year') onNavigate(shiftYear(selectedDate, 1));
     else onNavigate(shiftMonth(selectedDate, 1));  // month & agenda
   }, [activeView, selectedDate, onNavigate, customDayCount]);

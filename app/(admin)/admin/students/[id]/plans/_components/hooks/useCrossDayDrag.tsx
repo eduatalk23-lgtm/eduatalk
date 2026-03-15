@@ -86,7 +86,18 @@ export function useCrossDayDrag({
   const DRAG_DISTANCE_THRESHOLD = 5; // px
 
   const getDateFromX = useCallback(
-    (clientX: number): string | null => {
+    (clientX: number, clientY?: number): string | null => {
+      // clientY가 제공되면 X+Y 모두 확인 (biweekly: 같은 X에 2주치 컬럼이 겹침)
+      if (clientY != null) {
+        for (const [date, el] of columnRefs.current.entries()) {
+          const rect = el.getBoundingClientRect();
+          if (clientX >= rect.left && clientX <= rect.right &&
+              clientY >= rect.top && clientY <= rect.bottom) {
+            return date;
+          }
+        }
+      }
+      // fallback: X만으로 판별
       for (const [date, el] of columnRefs.current.entries()) {
         const rect = el.getBoundingClientRect();
         if (clientX >= rect.left && clientX <= rect.right) {
@@ -192,7 +203,7 @@ export function useCrossDayDrag({
       // 자동 스크롤 업데이트
       autoScrollRef.current?.update(e.clientY);
 
-      const targetDate = getDateFromX(e.clientX);
+      const targetDate = getDateFromX(e.clientX, e.clientY);
       if (!targetDate) return;
 
       const colEl = columnRefs.current.get(targetDate);
@@ -244,7 +255,7 @@ export function useCrossDayDrag({
         return;
       }
 
-      const targetDate = getDateFromX(e.clientX);
+      const targetDate = getDateFromX(e.clientX, e.clientY);
       const data = dragDataRef.current;
 
       // 정리
