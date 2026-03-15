@@ -1,15 +1,11 @@
 import { queryOptions } from "@tanstack/react-query";
-import {
-  getPinnedMessagesAction,
-  getAnnouncementAction,
-  canPinMessagesAction,
-  canSetAnnouncementAction,
-} from "@/lib/domains/chat/actions";
 import { chatKeys } from "@/lib/domains/chat/queryKeys";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type {
   ChatRoom,
   ChatRoomMemberWithUser,
+  PinnedMessageWithContent,
+  AnnouncementInfo,
 } from "@/lib/domains/chat/types";
 
 /**
@@ -38,62 +34,96 @@ export function chatRoomDetailQueryOptions(roomId: string) {
 }
 
 /**
- * 고정 메시지 목록 query 옵션
+ * 고정 메시지 목록 query 옵션 (Browser RPC)
  */
 export function chatPinnedQueryOptions(roomId: string) {
   return queryOptions({
     queryKey: chatKeys.pinned(roomId),
     queryFn: async () => {
-      const result = await getPinnedMessagesAction(roomId);
-      if (!result.success) return [];
-      return result.data ?? [];
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase.rpc("get_pinned_messages", {
+        p_room_id: roomId,
+      });
+      if (error) return [];
+      return (data ?? []) as PinnedMessageWithContent[];
     },
     staleTime: 60 * 1000,
   });
 }
 
 /**
- * 공지 query 옵션
+ * 공지 query 옵션 (Browser RPC)
  */
 export function chatAnnouncementQueryOptions(roomId: string) {
   return queryOptions({
     queryKey: chatKeys.announcement(roomId),
     queryFn: async () => {
-      const result = await getAnnouncementAction(roomId);
-      if (!result.success) return null;
-      return result.data;
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase.rpc("get_chat_announcement", {
+        p_room_id: roomId,
+      });
+      if (error) return null;
+      return data as AnnouncementInfo | null;
     },
     staleTime: 60 * 1000,
   });
 }
 
 /**
- * 고정 권한 query 옵션
+ * 고정/공지 권한 query 옵션 (Browser RPC — 1 call로 canPin + canSetAnnouncement)
  * 세션 내 권한은 거의 변경되지 않으므로 staleTime 5분
  */
-export function chatCanPinQueryOptions(roomId: string) {
+export function chatPermissionsQueryOptions(roomId: string) {
   return queryOptions({
-    queryKey: chatKeys.canPin(roomId),
+    queryKey: ["chat-permissions", roomId] as const,
     queryFn: async () => {
-      const result = await canPinMessagesAction(roomId);
-      if (!result.success) return { canPin: false };
-      return result.data ?? { canPin: false };
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase.rpc("check_chat_permissions", {
+        p_room_id: roomId,
+      });
+      if (error) return { canPin: false, canSetAnnouncement: false };
+      return (data ?? { canPin: false, canSetAnnouncement: false }) as {
+        canPin: boolean;
+        canSetAnnouncement: boolean;
+      };
     },
     staleTime: 5 * 60 * 1000,
   });
 }
 
 /**
- * 공지 설정 권한 query 옵션
- * 세션 내 권한은 거의 변경되지 않으므로 staleTime 5분
+ * @deprecated canPin + canSetAnnouncement은 chatPermissionsQueryOptions로 통합됨.
+ * 기존 코드 호환을 위해 유지하나, chatPermissionsQueryOptions 사용 권장.
+ */
+export function chatCanPinQueryOptions(roomId: string) {
+  return queryOptions({
+    queryKey: chatKeys.canPin(roomId),
+    queryFn: async () => {
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase.rpc("check_chat_permissions", {
+        p_room_id: roomId,
+      });
+      if (error) return { canPin: false };
+      return { canPin: (data as { canPin: boolean })?.canPin ?? false };
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/**
+ * @deprecated canPin + canSetAnnouncement은 chatPermissionsQueryOptions로 통합됨.
+ * 기존 코드 호환을 위해 유지하나, chatPermissionsQueryOptions 사용 권장.
  */
 export function chatCanSetAnnouncementQueryOptions(roomId: string) {
   return queryOptions({
     queryKey: chatKeys.canSetAnnouncement(roomId),
     queryFn: async () => {
-      const result = await canSetAnnouncementAction(roomId);
-      if (!result.success) return { canSet: false };
-      return result.data ?? { canSet: false };
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase.rpc("check_chat_permissions", {
+        p_room_id: roomId,
+      });
+      if (error) return { canSet: false };
+      return { canSet: (data as { canSetAnnouncement: boolean })?.canSetAnnouncement ?? false };
     },
     staleTime: 5 * 60 * 1000,
   });

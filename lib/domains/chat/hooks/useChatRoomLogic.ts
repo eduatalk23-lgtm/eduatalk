@@ -25,13 +25,6 @@ import {
   chatCanSetAnnouncementQueryOptions,
 } from "@/lib/query-options/chatRoom";
 import {
-  sendMessageAction,
-  editMessageAction,
-  deleteMessageAction,
-  toggleReactionAction,
-  pinMessageAction,
-  unpinMessageAction,
-  setAnnouncementAction,
   registerChatAttachmentAction,
   sendMessageWithAttachmentsAction,
   deleteChatAttachmentAction,
@@ -46,6 +39,8 @@ import {
   type ChatRoom,
   type ChatMessageWithGrouping,
   type ChatRoomMemberWithUser,
+  type ChatUserType,
+  type ChatMessageType,
   type PresenceUser,
   type ChatUser,
   type ChatRoomListItem,
@@ -180,8 +175,20 @@ export function useChatRoomLogic({
   }, [isAtBottom]);
 
   // 오프라인 큐 프로세서 초기화 + sender 등록 (마운트 시 1회)
+  // RPC 기반 sender: Server Action + getCachedUserRole() 호출 없이 JWT 쿠키로 인증
   useEffect(() => {
-    registerMessageSender(sendMessageAction);
+    registerMessageSender(async (sendRoomId, content, replyToId, clientMsgId) => {
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase.rpc("send_chat_message", {
+        p_room_id: sendRoomId,
+        p_content: content,
+        p_reply_to_id: replyToId ?? undefined,
+        p_client_message_id: clientMsgId ?? undefined,
+      });
+      if (error) return { success: false, error: error.message };
+      const msg = data as { id: string };
+      return { success: true, data: { id: msg.id } };
+    });
     const cleanup = initChatQueueProcessor();
     return cleanup;
   }, []);
@@ -508,7 +515,7 @@ export function useChatRoomLogic({
   // Mutations
   // ============================================
 
-  // 메시지 전송 (Broadcast-first + Optimistic Updates 적용)
+  // 메시지 전송 (Broadcast-first + Optimistic Updates, Browser RPC)
   const sendMutation = useMutation({
     mutationFn: async ({
       content,
@@ -522,9 +529,19 @@ export function useChatRoomLogic({
       mentions?: MentionInfo[];
     }) => {
       const SEND_TIMEOUT_MS = 15_000;
+      const supabase = createSupabaseBrowserClient();
 
-      const result = await Promise.race([
-        sendMessageAction(roomId, content, replyToId, clientMessageId, mentions),
+      const rpcCall = supabase.rpc("send_chat_message", {
+        p_room_id: roomId,
+        p_content: content,
+        p_message_type: "text",
+        p_reply_to_id: replyToId ?? undefined,
+        p_client_message_id: clientMessageId ?? undefined,
+        p_mentions: mentions && mentions.length > 0 ? JSON.parse(JSON.stringify(mentions)) : undefined,
+      });
+
+      const { data, error } = await Promise.race([
+        rpcCall,
         new Promise<never>((_, reject) =>
           setTimeout(
             () => reject(new Error("메시지 전송 시간이 초과되었습니다. (timeout)")),
@@ -532,8 +549,24 @@ export function useChatRoomLogic({
           )
         ),
       ]);
-      if (!result.success) throw new Error(result.error);
-      return result.data;
+      if (error) throw new Error(error.message);
+      const msg = data as Record<string, unknown>;
+      return {
+        id: msg.id as string,
+        room_id: msg.room_id as string,
+        content: msg.content as string,
+        created_at: msg.created_at as string,
+        updated_at: msg.updated_at as string,
+        sender_id: msg.sender_id as string,
+        sender_type: (msg.sender_type as string) as ChatUserType,
+        sender_name: msg.sender_name as string,
+        sender_profile_url: msg.sender_profile_url as string | null,
+        message_type: msg.message_type as ChatMessageType,
+        reply_to_id: msg.reply_to_id as string | null,
+        is_deleted: msg.is_deleted as boolean,
+        deleted_at: msg.deleted_at as string | null,
+        metadata: msg.metadata as Record<string, unknown> | null,
+      };
     },
     onMutate: async ({ content, replyToId, clientMessageId }) => {
       // 1. 진행 중인 쿼리 취소 (낙관적 업데이트와 충돌 방지)
@@ -691,7 +724,7 @@ export function useChatRoomLogic({
     // 대신 onSuccess에서 setQueryData로 직접 업데이트
   });
 
-  // 메시지 편집 (낙관적 업데이트 + 충돌 감지)
+  // 메시지 편집 (낙관적 업데이트 + 충돌 감지, Browser RPC)
   const editMutation = useMutation({
     mutationFn: async ({
       messageId,
@@ -702,16 +735,20 @@ export function useChatRoomLogic({
       content: string;
       expectedUpdatedAt?: string;
     }) => {
-      const result = await editMessageAction(messageId, content, expectedUpdatedAt);
-      if (!result.success) {
-        // 충돌 에러는 특별 처리를 위해 코드 포함
-        const error = new Error(result.error);
-        if (result.code === "CONFLICT_EDIT") {
-          (error as Error & { code?: string }).code = "CONFLICT_EDIT";
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase.rpc("edit_chat_message", {
+        p_message_id: messageId,
+        p_content: content,
+        p_expected_updated_at: expectedUpdatedAt ?? undefined,
+      });
+      if (error) {
+        const err = new Error(error.message);
+        if (error.message.includes("CONFLICT_EDIT")) {
+          (err as Error & { code?: string }).code = "CONFLICT_EDIT";
         }
-        throw error;
+        throw err;
       }
-      return result.data;
+      return data as { id: string; content: string; updated_at: string };
     },
     onMutate: async ({ messageId, content }) => {
       // 진행 중인 쿼리 취소
@@ -760,11 +797,14 @@ export function useChatRoomLogic({
     // onSuccess 제거: Realtime이 동기화 담당
   });
 
-  // 메시지 삭제 (낙관적 업데이트)
+  // 메시지 삭제 (낙관적 업데이트, Browser RPC)
   const deleteMutation = useMutation({
     mutationFn: async (messageId: string) => {
-      const result = await deleteMessageAction(messageId);
-      if (!result.success) throw new Error(result.error);
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.rpc("delete_chat_message", {
+        p_message_id: messageId,
+      });
+      if (error) throw new Error(error.message);
     },
     onMutate: async (messageId) => {
       // 진행 중인 쿼리 취소
@@ -815,7 +855,7 @@ export function useChatRoomLogic({
     // onSuccess 제거: Realtime이 동기화 담당
   });
 
-  // 리액션 토글 (낙관적 업데이트)
+  // 리액션 토글 (낙관적 업데이트, Browser RPC)
   const reactionMutation = useMutation({
     mutationFn: async ({
       messageId,
@@ -824,9 +864,13 @@ export function useChatRoomLogic({
       messageId: string;
       emoji: ReactionEmoji;
     }) => {
-      const result = await toggleReactionAction(messageId, emoji);
-      if (!result.success) throw new Error(result.error);
-      return result.data;
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase.rpc("toggle_chat_reaction", {
+        p_message_id: messageId,
+        p_emoji: emoji,
+      });
+      if (error) throw new Error(error.message);
+      return data as { added: boolean };
     },
     onMutate: async ({ messageId, emoji }) => {
       // 진행 중인 쿼리 취소
@@ -940,7 +984,7 @@ export function useChatRoomLogic({
     },
   });
 
-  // 메시지 고정/해제
+  // 메시지 고정/해제 (Browser RPC)
   const pinMutation = useMutation({
     mutationFn: async ({
       messageId,
@@ -949,12 +993,19 @@ export function useChatRoomLogic({
       messageId: string;
       isPinned: boolean;
     }) => {
+      const supabase = createSupabaseBrowserClient();
       if (isPinned) {
-        const result = await unpinMessageAction(roomId, messageId);
-        if (!result.success) throw new Error(result.error);
+        const { error } = await supabase.rpc("unpin_chat_message", {
+          p_room_id: roomId,
+          p_message_id: messageId,
+        });
+        if (error) throw new Error(error.message);
       } else {
-        const result = await pinMessageAction(roomId, messageId);
-        if (!result.success) throw new Error(result.error);
+        const { error } = await supabase.rpc("pin_chat_message", {
+          p_room_id: roomId,
+          p_message_id: messageId,
+        });
+        if (error) throw new Error(error.message);
       }
     },
     onSuccess: () => {
@@ -968,12 +1019,15 @@ export function useChatRoomLogic({
     },
   });
 
-  // 공지 설정/삭제
+  // 공지 설정/삭제 (Browser RPC)
   const announcementMutation = useMutation({
     mutationFn: async (content: string | null) => {
-      const result = await setAnnouncementAction(roomId, content);
-      if (!result.success) throw new Error(result.error);
-      return result.data;
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.rpc("set_chat_announcement", {
+        p_room_id: roomId,
+        p_content: content ?? undefined,
+      });
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: chatKeys.announcement(roomId) });
@@ -1874,22 +1928,28 @@ export function useChatRoomLogic({
       // 2. Operation Tracker에 재전송 등록
       operationTracker.startSend(messageId, message.content, roomId);
 
-      // 3. 서버로 재전송 (기존 clientMessageId 재사용)
+      // 3. 서버로 재전송 (기존 clientMessageId 재사용, Browser RPC)
       const replyToId = (message as { reply_to_id?: string | null }).reply_to_id;
-      sendMessageAction(roomId, message.content, replyToId, messageId)
-        .then((result) => {
-          if (result.success && result.data) {
-            operationTracker.completeSend(messageId, result.data.id);
-            // 기존 temp 메시지를 서버 응답으로 교체 (위치 유지)
-            const updated = queryClient.setQueryData<InfiniteMessagesCache>(
-              chatKeys.messages(roomId),
-              (old) => replaceMessageInFirstPage(old, messageId, result.data!)
-            );
-            if (!findMessageInCache(updated, result.data.id)) {
-              debouncedInvalidateMessages();
-            }
-          } else {
-            throw new Error(result.error ?? "전송 실패");
+      const supabase = createSupabaseBrowserClient();
+      Promise.resolve(
+        supabase.rpc("send_chat_message", {
+          p_room_id: roomId,
+          p_content: message.content,
+          p_reply_to_id: replyToId ?? undefined,
+          p_client_message_id: messageId,
+        })
+      )
+        .then(({ data, error }) => {
+          if (error) throw new Error(error.message);
+          const msg = data as { id: string };
+          operationTracker.completeSend(messageId, msg.id);
+          // 기존 temp 메시지를 서버 응답으로 교체 (위치 유지)
+          const updated = queryClient.setQueryData<InfiniteMessagesCache>(
+            chatKeys.messages(roomId),
+            (old) => replaceMessageInFirstPage(old, messageId, msg)
+          );
+          if (!findMessageInCache(updated, msg.id)) {
+            debouncedInvalidateMessages();
           }
         })
         .catch(() => {
