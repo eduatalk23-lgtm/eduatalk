@@ -1,4 +1,6 @@
-import { requireAdminOrConsultant } from '@/lib/auth/guards';
+import { redirect } from 'next/navigation';
+import { getCachedUserRole } from '@/lib/auth/getCurrentUserRole';
+import { getCachedUserProfile } from '@/lib/auth/cachedUserProfile';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import {
   ensureStudentPrimaryCalendar,
@@ -23,51 +25,50 @@ interface Props {
  * - ?student={studentId} → 학생 캘린더 조회
  *
  * 성능 최적화:
- * - ensure 호출 병렬화 (student + tenant 캘린더 동시 보장)
- * - subscribe를 fetchCalendarPageData와 병렬 실행 (블로킹 불필요)
+ * - Admin Layout이 이미 role 검증 → Page에서 중복 guard 제거 (React.cache hit ~0ms)
+ * - ensure 호출 병렬화 (cache hit ~0ms)
+ * - 이름 조회를 fetchCalendarPageData와 병렬 실행
+ * - subscribeTenantCalendar는 fire-and-forget (렌더 블로킹 제거)
  */
 export default async function AdminCalendarPage({ searchParams }: Props) {
-  const admin = await requireAdminOrConsultant({ requireTenant: true });
+  // Admin Layout에서 이미 role 검증 완료 → getCachedUserRole()은 React.cache hit (~0ms)
+  const { userId, tenantId } = await getCachedUserRole();
+
+  if (!userId || !tenantId) {
+    redirect('/login');
+  }
 
   const { student: studentId, date } = await searchParams;
 
   // ── 학생 미선택: 관리자 본인 캘린더 ──
   if (!studentId) {
-    const supabase = await createSupabaseServerClient();
-
-    // admin 이름 조회 + 캘린더 보장을 병렬 실행
-    const [adminUser, calendarId, tenantCalendarId] = await Promise.all([
-      supabase
-        .from('admin_users')
-        .select('user_profiles(name)')
-        .eq('id', admin.userId)
-        .maybeSingle()
-        .then((r) => {
-          const rawProfile = r.data?.user_profiles;
-          const profile = (Array.isArray(rawProfile) ? rawProfile[0] : rawProfile) as { name: string | null } | null;
-          return { name: profile?.name ?? null };
-        }),
-      ensureAdminPrimaryCalendar(admin.userId, admin.tenantId!),
-      ensureTenantPrimaryCalendar(admin.tenantId!),
+    // 캘린더 ID 보장 (cache hit 시 ~0ms)
+    const [calendarId, tenantCalendarId] = await Promise.all([
+      ensureAdminPrimaryCalendar(userId, tenantId!),
+      ensureTenantPrimaryCalendar(tenantId!),
     ]);
 
-    const adminName = adminUser?.name ?? '관리자';
-
-    // subscribe(idempotent upsert)와 데이터 조회를 병렬 실행
-    const [pageData] = await Promise.all([
-      fetchCalendarPageData(admin.userId, calendarId, date),
-      subscribeTenantCalendar(admin.userId, tenantCalendarId, "writer"),
+    // 데이터 조회 + 이름 조회를 병렬 실행
+    // getCachedUserProfile: Admin Layout에서 이미 호출 → React.cache HIT (~0ms)
+    const [pageData, adminProfile] = await Promise.all([
+      fetchCalendarPageData(userId, calendarId, date),
+      getCachedUserProfile(userId),
     ]);
+
+    const adminName = adminProfile?.name ?? '관리자';
+
+    // subscribe는 fire-and-forget (idempotent upsert, 결과 미사용)
+    subscribeTenantCalendar(userId, tenantCalendarId, "writer").catch(() => {});
 
     return (
       <AdminCalendarWrapper
-        studentId={admin.userId}
+        studentId={userId}
         studentName={adminName}
-        tenantId={admin.tenantId!}
+        tenantId={tenantId!}
         calendarId={calendarId}
         pageData={pageData}
         isPersonalMode
-        currentUserId={admin.userId}
+        currentUserId={userId}
       />
     );
   }
@@ -106,11 +107,10 @@ export default async function AdminCalendarPage({ searchParams }: Props) {
     ensureTenantPrimaryCalendar(student.tenant_id),
   ]);
 
-  // subscribe(idempotent upsert)와 데이터 조회를 병렬 실행
-  const [pageData] = await Promise.all([
-    fetchCalendarPageData(student.id, calendarId, date),
-    subscribeTenantCalendar(admin.userId, tenantCalendarId, "writer"),
-  ]);
+  const pageData = await fetchCalendarPageData(student.id, calendarId, date);
+
+  // subscribe는 fire-and-forget (idempotent upsert, 결과 미사용)
+  subscribeTenantCalendar(userId, tenantCalendarId, "writer").catch(() => {});
 
   return (
     <AdminCalendarWrapper
@@ -119,7 +119,7 @@ export default async function AdminCalendarPage({ searchParams }: Props) {
       tenantId={student.tenant_id}
       calendarId={calendarId}
       pageData={pageData}
-      currentUserId={admin.userId}
+      currentUserId={userId}
     />
   );
 }

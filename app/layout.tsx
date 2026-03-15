@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { QueryClient, dehydrate } from "@tanstack/react-query";
 import "./globals.css";
 import { Providers } from "./providers";
-import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { CACHE_STALE_TIME_STABLE, CACHE_GC_TIME_STABLE } from "@/lib/constants/queryCache";
 import { SkipLink } from "@/components/layout/SkipLink";
 import { RouteAnnouncer } from "@/components/layout/RouteAnnouncer";
@@ -196,7 +195,9 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // 서버에서 Auth 데이터를 prefetch → 클라이언트 초기 fetch 제거 (FCP -400~600ms)
+  // proxy 단일 인증제: proxy.ts가 JWT 검증/리프레시를 완료했으므로
+  // Root Layout에서 auth prefetch를 블로킹하지 않음.
+  // 클라이언트 AuthContext가 /api/auth/me로 lazy fetch 처리.
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -204,12 +205,6 @@ export default async function RootLayout({
         gcTime: CACHE_GC_TIME_STABLE,
       },
     },
-  });
-
-  await queryClient.prefetchQuery({
-    queryKey: ["auth", "me"],
-    queryFn: () => getCurrentUser(),
-    staleTime: CACHE_STALE_TIME_STABLE,
   });
 
   const dehydratedState = dehydrate(queryClient);

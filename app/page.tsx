@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SITE_URL } from "@/lib/constants/routes";
@@ -64,6 +65,8 @@ export default async function Home() {
 
     if (student && student.is_active === false) {
       await supabaseForCheck.auth.signOut().catch(() => {});
+      const cookieStore = await cookies();
+      cookieStore.getAll().filter((c) => c.name.includes("auth-token")).forEach((c) => cookieStore.delete(c.name));
       redirect("/login?error=account_deactivated");
     }
   } else if (role === "parent") {
@@ -76,6 +79,8 @@ export default async function Home() {
 
     if (parent && parent.is_active === false) {
       await supabaseForCheck.auth.signOut().catch(() => {});
+      const cookieStore = await cookies();
+      cookieStore.getAll().filter((c) => c.name.includes("auth-token")).forEach((c) => cookieStore.delete(c.name));
       redirect("/login?error=account_deactivated");
     }
   } else if (role === "admin" || role === "consultant") {
@@ -87,6 +92,8 @@ export default async function Home() {
 
     if (adminUser && adminUser.is_active === false) {
       await supabaseForCheck.auth.signOut().catch(() => {});
+      const cookieStore = await cookies();
+      cookieStore.getAll().filter((c) => c.name.includes("auth-token")).forEach((c) => cookieStore.delete(c.name));
       redirect("/login?error=account_deactivated");
     }
   }
