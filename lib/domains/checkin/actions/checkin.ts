@@ -99,6 +99,24 @@ async function resolveTitle(
 }
 
 /**
+ * 앱 접속 시 자동 출석 기록 (경량 버전)
+ * 학생 레이아웃에서 호출 — 어떤 페이지든 접속하면 출석 기록됨.
+ * 스트릭/칭호 계산 없이 upsert만 수행하므로 오버헤드 최소.
+ */
+export async function ensureDailyCheckIn(
+  studentId: string,
+  tenantId: string
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const today = getTodayKST();
+
+  await supabase.from("daily_check_ins").upsert(
+    { student_id: studentId, tenant_id: tenantId, check_date: today },
+    { onConflict: "student_id,check_date", ignoreDuplicates: true }
+  );
+}
+
+/**
  * 대시보드 진입 시 자동 체크인 + 상태 반환
  */
 export async function checkInAndGetStatus(): Promise<

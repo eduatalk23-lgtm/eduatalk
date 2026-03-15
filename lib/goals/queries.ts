@@ -88,6 +88,44 @@ export async function getGoalProgress(
   );
 }
 
+// 여러 목표의 진행률 기록 배치 조회 (N+1 최적화)
+export async function getGoalProgressBatch(
+  supabase: SupabaseServerClient,
+  studentId: string,
+  goalIds: string[]
+): Promise<Map<string, GoalProgress[]>> {
+  if (goalIds.length === 0) return new Map();
+
+  const allRows = await safeQueryArray<GoalProgress>(
+    async () => {
+      const result = await supabase
+        .from("student_goal_progress")
+        .select("*")
+        .eq("student_id", studentId)
+        .in("goal_id", goalIds)
+        .order("recorded_at", { ascending: false });
+      return { data: result.data, error: result.error };
+    },
+    async () => {
+      const result = await supabase
+        .from("student_goal_progress")
+        .select("*")
+        .in("goal_id", goalIds)
+        .order("recorded_at", { ascending: false });
+      return { data: result.data, error: result.error };
+    },
+    { context: "[goals] 진행률 배치 조회" }
+  );
+
+  const grouped = new Map<string, GoalProgress[]>();
+  for (const row of allRows) {
+    const existing = grouped.get(row.goal_id) ?? [];
+    existing.push(row);
+    grouped.set(row.goal_id, existing);
+  }
+  return grouped;
+}
+
 // 활성 목표 조회 (오늘 기준)
 export async function getActiveGoals(
   supabase: SupabaseServerClient,

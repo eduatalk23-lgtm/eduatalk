@@ -24,7 +24,7 @@ export default async function StudentLayout({ children }: { children: ReactNode 
 
   const supabase = await createSupabaseServerClient();
 
-  // is_active 체크 + 기관 정보 + 사용자 프로필을 병렬 조회
+  // is_active 체크 + 기관 정보 + 사용자 프로필 + 출석 기록을 병렬 조회
   const [student, tenantInfo, profile] = await Promise.all([
     supabase
       .from("students")
@@ -34,6 +34,17 @@ export default async function StudentLayout({ children }: { children: ReactNode 
       .then((r) => r.data),
     getTenantInfo(),
     getCurrentUserProfile({ userId, role, tenantId }),
+    // 어떤 페이지든 접속하면 출석 기록 (ON CONFLICT DO NOTHING → 이미 있으면 무시)
+    tenantId
+      ? supabase.from("daily_check_ins").upsert(
+          {
+            student_id: userId,
+            tenant_id: tenantId,
+            check_date: new Date(Date.now() + 9 * 3600000).toISOString().split("T")[0],
+          },
+          { onConflict: "student_id,check_date", ignoreDuplicates: true }
+        )
+      : Promise.resolve(),
   ]);
 
   if (student && student.is_active === false) {

@@ -6,7 +6,7 @@ import {
   getWeeklyGoalProgress,
 } from "@/lib/reports/weekly";
 import { getMonthlyReportData } from "@/lib/reports/monthly";
-import { getActiveGoals, getGoalProgress } from "@/lib/goals/queries";
+import { getActiveGoals, getGoalProgressBatch } from "@/lib/goals/queries";
 import { calculateGoalProgress } from "@/lib/goals/calc";
 import { fetchAllScores } from "@/app/(student)/scores/dashboard/_utils";
 import { calculateAllRiskIndices } from "@/app/(student)/analysis/_utils";
@@ -111,19 +111,23 @@ export async function ParentDashboardContent({
       ? Math.round((todayCompletedPlans / todayPlanCount) * 100)
       : 0;
 
-  // 목표 진행률 계산
-  const goalsWithProgress = await Promise.all(
-    activeGoals.slice(0, 3).map(async (goal) => {
-      const progressRows = await getGoalProgress(supabase, studentId, goal.id);
-      const progress = calculateGoalProgress(goal, progressRows, today);
-      return {
-        id: goal.id,
-        title: goal.title,
-        progressPercentage: progress.progressPercentage,
-        daysRemaining: progress.daysRemaining,
-      };
-    })
+  // 목표 진행률 계산 (배치 쿼리: N RTT → 1 RTT)
+  const topGoals = activeGoals.slice(0, 3);
+  const progressMap = await getGoalProgressBatch(
+    supabase,
+    studentId,
+    topGoals.map((g) => g.id)
   );
+  const goalsWithProgress = topGoals.map((goal) => {
+    const progressRows = progressMap.get(goal.id) ?? [];
+    const progress = calculateGoalProgress(goal, progressRows, today);
+    return {
+      id: goal.id,
+      title: goal.title,
+      progressPercentage: progress.progressPercentage,
+      daysRemaining: progress.daysRemaining,
+    };
+  });
 
   // 최근 성적, 취약 과목, 위험 신호 계산 (유틸리티 함수로 분리하여 재사용성 및 가독성 향상)
   const recentScores = getRecentScores(allScores);

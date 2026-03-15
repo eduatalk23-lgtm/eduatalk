@@ -21,10 +21,10 @@ type SupabaseServerClient = Awaited<
 export async function getStudentWithTenant(
   supabase: SupabaseServerClient,
   studentId: string
-): Promise<{ id: string; tenant_id: string | null } | null> {
+): Promise<{ id: string; tenant_id: string | null; grade: number | null } | null> {
   const { data: student, error } = await supabase
     .from("students")
-    .select("id, tenant_id")
+    .select("id, tenant_id, grade")
     .eq("id", studentId)
     .maybeSingle();
 
