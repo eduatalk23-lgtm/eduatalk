@@ -13,6 +13,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
@@ -521,6 +522,31 @@ export async function signIn(formData: FormData): Promise<SignInResult> {
         { error: err instanceof Error ? err.message : String(err) }
       );
     });
+
+    // JWT metadata에 tenant_id가 없으면 DB에서 조회하여 보충
+    // 이후 토큰 갱신 시 proxy.ts가 헤더에 주입하여 DB fallback 제거
+    if (!data.user.user_metadata?.tenant_id) {
+      (async () => {
+        try {
+          const { data: profile } = await supabase
+            .from("user_profiles")
+            .select("tenant_id")
+            .eq("id", data.user!.id)
+            .maybeSingle();
+          if (profile?.tenant_id) {
+            await supabase.auth.updateUser({
+              data: { ...data.user!.user_metadata, tenant_id: profile.tenant_id },
+            });
+          }
+        } catch (err) {
+          logActionDebug(
+            { domain: "auth", action: "signIn" },
+            "tenant_id 메타데이터 보충 실패 (무시됨)",
+            { error: err instanceof Error ? err.message : String(err) }
+          );
+        }
+      })();
+    }
   }
 
   if (error) {
@@ -760,6 +786,16 @@ async function _signOut(): Promise<void> {
       500,
       true
     );
+  }
+
+  // persistSession: false로 인해 signOut()이 쿠키를 삭제하지 않음
+  // 수동으로 auth 쿠키를 제거해야 proxy.ts가 미인증 상태로 인식
+  const cookieStore = await cookies();
+  const authCookies = cookieStore
+    .getAll()
+    .filter((c) => c.name.includes("auth-token"));
+  for (const cookie of authCookies) {
+    cookieStore.delete(cookie.name);
   }
 
   redirect("/login");
@@ -1096,7 +1132,7 @@ export async function changeUserRole(newRole: "student" | "parent"): Promise<Act
       }
 
       await supabase.auth.updateUser({
-        data: { signup_role: "student" },
+        data: { signup_role: "student", tenant_id: tenantId },
       });
     } else {
       let deleteStudentError = null;
@@ -1134,7 +1170,7 @@ export async function changeUserRole(newRole: "student" | "parent"): Promise<Act
       }
 
       await supabase.auth.updateUser({
-        data: { signup_role: "parent" },
+        data: { signup_role: "parent", tenant_id: tenantId },
       });
     }
 
@@ -1275,11 +1311,24 @@ export async function setupOAuthUserRole(
     }
 
     // user_metadata 업데이트 (signup_role 저장)
+    // connectionCode 경로에서 acceptInvitation이 이미 tenant_id를 설정했을 수 있으므로
+    // tenantId가 없으면 DB에서 조회하여 덮어쓰기 방지
+    let effectiveTenantId = tenantId;
+    if (!effectiveTenantId) {
+      const table = role === "student" ? "students" : "user_profiles";
+      const { data: record } = await supabase
+        .from(table)
+        .select("tenant_id")
+        .eq("id", user.id)
+        .maybeSingle();
+      effectiveTenantId = record?.tenant_id ?? null;
+    }
+
     await supabase.auth.updateUser({
       data: {
         signup_role: role,
         display_name: displayName,
-        tenant_id: tenantId,
+        ...(effectiveTenantId && { tenant_id: effectiveTenantId }),
       },
     });
 

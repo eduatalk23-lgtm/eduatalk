@@ -35,36 +35,22 @@ import { routeNotification } from "@/lib/domains/notification/router";
 import type { UserRole } from "@/lib/auth/getCurrentUserRole";
 
 // ============================================
-// 경량 auth 헬퍼 (auth.getUser() 호출 없음)
+// 경량 auth 헬퍼 (JWT 쿠키 파싱, 네트워크 0)
 // ============================================
 
-/** 세션 쿠키에서 userId만 추출 (네트워크 호출 0, DB 쿼리 0) */
+import { getCachedAuthUser } from "@/lib/auth/cachedGetUser";
+import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
+
+/** JWT 쿠키에서 userId 추출 (네트워크 0, DB 0) */
 async function getSessionUserId(): Promise<string | null> {
-  const supabase = await createSupabaseServerClient();
-  const origWarn = console.warn;
-  console.warn = (...args: unknown[]) => {
-    if (typeof args[0] === "string" && args[0].includes("supabase.auth.getSession()")) return;
-    origWarn.apply(console, args);
-  };
-  const { data: { session } } = await supabase.auth.getSession();
-  console.warn = origWarn;
-  return session?.user?.id ?? null;
+  const user = await getCachedAuthUser();
+  return user?.id ?? null;
 }
 
-/** 세션 쿠키에서 userId + user_profiles에서 role 조회 (auth 호출 0, DB 쿼리 1) */
+/** JWT metadata에서 userId + role 추출 (네트워크 0, DB 0) */
 async function getSessionUserWithRole(): Promise<{ userId: string; role: UserRole; userType: ChatUserType } | null> {
-  const userId = await getSessionUserId();
-  if (!userId) return null;
-
-  const supabase = await createSupabaseServerClient();
-  const { data: profile } = await supabase
-    .from("user_profiles")
-    .select("role")
-    .eq("id", userId)
-    .maybeSingle();
-
-  const role = (profile?.role ?? null) as UserRole;
-  if (!role) return null;
+  const { userId, role } = await getCachedUserRole();
+  if (!userId || !role) return null;
 
   const userType: ChatUserType = (role === "admin" || role === "consultant") ? "admin" : role === "parent" ? "parent" : "student";
   return { userId, role, userType };

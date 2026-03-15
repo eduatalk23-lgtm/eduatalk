@@ -7,6 +7,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getCachedCalendarId, invalidateCalendarId } from "@/lib/cache/calendarCache";
 import type { EventType } from "./types";
 import { pickNextCalendarColor } from "@/lib/constants/calendarColors";
@@ -207,7 +208,10 @@ export async function ensureTenantPrimaryCalendar(
   const existing = await resolveTenantPrimaryCalendarId(tenantId);
   if (existing) return existing;
 
-  const supabase = await createSupabaseServerClient();
+  // tenant calendar의 owner_id는 tenantId (유저가 아님) → RLS 우회 필요
+  // 페이지 레벨에서 이미 인증 검증 완료된 후에만 호출
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) throw new Error("Admin client 생성 실패");
 
   // 테넌트명 조회
   const { data: tenant } = await supabase
@@ -257,7 +261,7 @@ export async function ensureTenantPrimaryCalendar(
 /**
  * 사용자를 테넌트 캘린더에 구독 등록 (calendar_list에 추가)
  *
- * 이미 구독 중이면 무시 (UNIQUE 제약).
+ * 이미 구독 중이면 스킵 (SELECT 1 → 0ms).
  * 관리자/컨설턴트 → writer, 학생 → reader.
  */
 export async function subscribeTenantCalendar(
@@ -266,6 +270,15 @@ export async function subscribeTenantCalendar(
   accessRole: "writer" | "reader" = "writer"
 ): Promise<void> {
   const supabase = await createSupabaseServerClient();
+
+  // 이미 구독 중인지 빠르게 확인 (count만 조회, 데이터 전송 0)
+  const { count } = await supabase
+    .from("calendar_list")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("calendar_id", tenantCalendarId);
+
+  if (count && count > 0) return;
 
   await supabase
     .from("calendar_list")

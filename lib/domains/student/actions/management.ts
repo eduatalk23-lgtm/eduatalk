@@ -54,6 +54,10 @@ export async function toggleStudentStatus(
   // Supabase Auth ban_duration 동기화
   await syncAuthBanStatus(studentId, isActive);
 
+  // 유저 역할 캐시 무효화 (unstable_cache)
+  const { invalidateUserRoleCache } = await import("@/lib/auth/getCurrentUserRole");
+  invalidateUserRoleCache(studentId).catch(() => {});
+
   revalidatePath("/admin/students");
   revalidatePath(`/admin/students/${studentId}`);
 
@@ -310,6 +314,10 @@ export async function bulkToggleStudentStatus(
   // Supabase Auth ban_duration 벌크 동기화
   const updatedIds = data?.map((row) => row.id) ?? studentIds;
   await bulkSyncAuthBanStatus(updatedIds, isActive);
+
+  // 유저 역할 캐시 일괄 무효화 (unstable_cache)
+  const { invalidateUserRoleCache } = await import("@/lib/auth/getCurrentUserRole");
+  await Promise.all(updatedIds.map((id) => invalidateUserRoleCache(id).catch(() => {})));
 
   revalidatePath("/admin/students");
 
@@ -691,6 +699,10 @@ export async function updateStudentInfo(
       }
 
       await syncAuthBanStatus(studentId, payload.basic.is_active);
+
+      // 유저 역할 캐시 무효화
+      const { invalidateUserRoleCache } = await import("@/lib/auth/getCurrentUserRole");
+      invalidateUserRoleCache(studentId).catch(() => {});
     }
   }
 

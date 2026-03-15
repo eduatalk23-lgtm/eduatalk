@@ -1468,21 +1468,13 @@ export function useChatRoomLogic({
           }
         }
 
-        // Supabase 세션 획득 (만료 임박 시 자동 갱신)
+        // Supabase 세션에서 access_token 획득
+        // autoRefreshToken이 만료 전 자동 갱신하므로 수동 refreshSession() 불필요
         const supabase = createSupabaseBrowserClient();
         const { data: sessionData } = await supabase.auth.getSession();
         const session = sessionData.session;
         if (!session) throw new Error("인증 세션이 만료되었습니다. 새로고침해주세요.");
-
-        let accessToken = session.access_token;
-        const expiresAt = session.expires_at ?? 0;
-        const now = Math.floor(Date.now() / 1000);
-        if (expiresAt - now < 60) {
-          const { data: refreshed } = await supabase.auth.refreshSession();
-          if (refreshed.session) {
-            accessToken = refreshed.session.access_token;
-          }
-        }
+        const accessToken = session.access_token;
 
         const safeName = sanitizeFileName(file.name);
         const timestamp = Date.now();

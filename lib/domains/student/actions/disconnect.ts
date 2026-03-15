@@ -63,6 +63,7 @@ export async function disconnectStudent(
       user_metadata: {
         ...currentMeta,
         signup_role: null,
+        tenant_id: null,
         student_disconnected: true,
         disconnected_at: new Date().toISOString(),
       },

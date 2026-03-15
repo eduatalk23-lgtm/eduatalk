@@ -277,9 +277,16 @@ export async function getMonthlyCheckIns(
   targetStudentId?: string
 ): Promise<CheckInActionResult<string[]>> {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return { success: false, error: "로그인이 필요합니다." };
+    // targetStudentId가 제공되면 auth 호출 스킵 (불필요한 getCurrentUser + user_profiles 쿼리 제거)
+    let studentId: string;
+    if (targetStudentId) {
+      studentId = targetStudentId;
+    } else {
+      const user = await getCurrentUser();
+      if (!user) {
+        return { success: false, error: "로그인이 필요합니다." };
+      }
+      studentId = user.userId;
     }
 
     const supabase = await createSupabaseServerClient();
@@ -288,9 +295,6 @@ export async function getMonthlyCheckIns(
       month === 12
         ? `${year + 1}-01-01`
         : `${year}-${String(month + 1).padStart(2, "0")}-01`;
-
-    // 관리자가 특정 학생 조회 시 targetStudentId 사용, 아니면 본인
-    const studentId = targetStudentId ?? user.userId;
 
     const { data } = await supabase
       .from("daily_check_ins")
