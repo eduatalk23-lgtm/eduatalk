@@ -69,10 +69,18 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_user_id     uuid := (SELECT auth.uid());
+  v_user_id      uuid := (SELECT auth.uid());
   v_visible_from timestamptz;
-  v_result      jsonb;
-  v_half_limit  int;
+  v_result       jsonb;
+  v_half_limit   int;
+  v_blocked_ids  uuid[];
+  v_msg_ids      uuid[];
+  v_older_ids    uuid[];
+  v_newer_ids    uuid[];
+  v_has_more     boolean := false;
+  v_has_newer    boolean := false;
+  v_min_ts       timestamptz;
+  v_cnt          int;
 BEGIN
   IF v_user_id IS NULL THEN
     RAISE EXCEPTION 'Not authenticated';
@@ -89,471 +97,156 @@ BEGIN
     RAISE EXCEPTION 'Not a member of this room';
   END IF;
 
-  -- Clamp limit
   IF p_limit > 100 THEN p_limit := 100; END IF;
+  v_min_ts := COALESCE(v_visible_from, '1970-01-01'::timestamptz);
 
-  -- Get blocked user IDs for this user
-  -- (used in message filtering below)
+  -- Blocked user IDs (once)
+  SELECT COALESCE(array_agg(blocked_id), '{}') INTO v_blocked_ids
+  FROM chat_blocks WHERE blocker_id = v_user_id;
 
+  -- ================================================================
+  -- Step 1: Mode-specific message ID collection
+  -- ================================================================
   IF p_around IS NOT NULL THEN
-    -- ============ AROUND mode (bidirectional) ============
     v_half_limit := CEIL(p_limit::numeric / 2);
 
-    WITH blocked AS (
-      SELECT blocked_id FROM chat_blocks WHERE blocker_id = v_user_id
-    ),
-    older_msgs AS (
-      SELECT m.*
-      FROM chat_messages m
-      WHERE m.room_id = p_room_id
-        AND m.is_deleted = false
-        AND m.created_at <= p_around
-        AND m.created_at >= COALESCE(v_visible_from, '1970-01-01'::timestamptz)
-        AND m.sender_id NOT IN (SELECT blocked_id FROM blocked)
-      ORDER BY m.created_at DESC
-      LIMIT v_half_limit
-    ),
-    newer_msgs AS (
-      SELECT m.*
-      FROM chat_messages m
-      WHERE m.room_id = p_room_id
-        AND m.is_deleted = false
-        AND m.created_at > p_around
-        AND m.created_at >= COALESCE(v_visible_from, '1970-01-01'::timestamptz)
-        AND m.sender_id NOT IN (SELECT blocked_id FROM blocked)
-      ORDER BY m.created_at ASC
-      LIMIT v_half_limit
-    ),
-    all_msgs AS (
-      SELECT * FROM older_msgs
-      UNION ALL
-      SELECT * FROM newer_msgs
-    ),
-    -- Read counts for own messages only
-    my_msg_ids AS (
-      SELECT id FROM all_msgs WHERE sender_id = v_user_id
-    ),
-    read_counts AS (
-      SELECT rc.message_id, rc.unread_count
-      FROM get_message_read_counts(p_room_id,
-        COALESCE((SELECT ARRAY_AGG(id) FROM my_msg_ids), '{}'::uuid[]),
-        v_user_id
-      ) rc
-      WHERE EXISTS (SELECT 1 FROM my_msg_ids)
-    ),
-    -- Reactions
-    reactions AS (
-      SELECT r.message_id, r.emoji, r.user_id, r.user_type
-      FROM chat_message_reactions r
-      WHERE r.message_id IN (SELECT id FROM all_msgs)
-    ),
-    reaction_summaries AS (
-      SELECT
-        r.message_id,
-        jsonb_agg(
-          jsonb_build_object(
-            'emoji', r.emoji,
-            'count', r.cnt,
-            'hasReacted', r.has_reacted
-          )
-        ) AS summaries
-      FROM (
-        SELECT
-          message_id,
-          emoji,
-          count(*)::int AS cnt,
-          bool_or(user_id = v_user_id) AS has_reacted
-        FROM reactions
-        GROUP BY message_id, emoji
-      ) r
-      GROUP BY r.message_id
-    ),
-    -- Reply targets
-    reply_ids AS (
-      SELECT DISTINCT reply_to_id AS id
-      FROM all_msgs
-      WHERE reply_to_id IS NOT NULL
-    ),
-    reply_targets AS (
-      SELECT m.id, m.content, m.sender_name, m.is_deleted, m.message_type
-      FROM chat_messages m
-      WHERE m.id IN (SELECT id FROM reply_ids)
-    ),
-    -- Attachments
-    attachments AS (
-      SELECT a.*
-      FROM chat_attachments a
-      WHERE a.message_id IN (SELECT id FROM all_msgs)
-    ),
-    att_grouped AS (
-      SELECT message_id,
-        jsonb_agg(
-          jsonb_build_object(
-            'id', id, 'message_id', message_id, 'room_id', room_id,
-            'file_name', file_name, 'file_size', file_size,
-            'mime_type', mime_type, 'storage_path', storage_path,
-            'public_url', public_url, 'width', width, 'height', height,
-            'thumbnail_url', thumbnail_url, 'thumbnail_storage_path', thumbnail_storage_path,
-            'attachment_type', attachment_type, 'created_at', created_at,
-            'sender_id', sender_id
-          )
-        ) AS items
-      FROM attachments
-      GROUP BY message_id
-    ),
-    -- Link previews
-    link_previews AS (
-      SELECT lp.*
-      FROM chat_link_previews lp
-      WHERE lp.message_id IN (SELECT id FROM all_msgs)
-    ),
-    lp_grouped AS (
-      SELECT message_id,
-        jsonb_agg(
-          jsonb_build_object(
-            'id', id, 'message_id', message_id, 'url', url,
-            'title', title, 'description', description,
-            'image_url', image_url, 'site_name', site_name,
-            'fetched_at', fetched_at
-          )
-        ) AS items
-      FROM link_previews
-      GROUP BY message_id
-    ),
-    ordered_msgs AS (
-      SELECT * FROM all_msgs ORDER BY created_at ASC
-    )
-    SELECT jsonb_build_object(
-      'messages', COALESCE((
-        SELECT jsonb_agg(
-          jsonb_build_object(
-            'id', m.id, 'room_id', m.room_id,
-            'sender_id', m.sender_id, 'sender_type', m.sender_type,
-            'message_type', m.message_type, 'content', m.content,
-            'reply_to_id', m.reply_to_id, 'is_deleted', m.is_deleted,
-            'deleted_at', m.deleted_at, 'created_at', m.created_at,
-            'updated_at', m.updated_at, 'sender_name', m.sender_name,
-            'sender_profile_url', m.sender_profile_url,
-            'metadata', m.metadata,
-            'sender', jsonb_build_object(
-              'id', m.sender_id, 'type', m.sender_type,
-              'name', m.sender_name,
-              'profileImageUrl', m.sender_profile_url
-            ),
-            'reactions', COALESCE(rs.summaries, '[]'::jsonb),
-            'replyTarget', CASE WHEN m.reply_to_id IS NOT NULL AND rt.id IS NOT NULL THEN
-              jsonb_build_object(
-                'id', rt.id,
-                'content', CASE WHEN rt.is_deleted THEN '삭제된 메시지입니다' ELSE rt.content END,
-                'senderName', COALESCE(rt.sender_name, '알 수 없음'),
-                'isDeleted', rt.is_deleted,
-                'attachmentType', CASE
-                  WHEN rt.message_type = 'image' THEN 'image'
-                  WHEN rt.message_type = 'file' THEN 'file'
-                  WHEN rt.message_type = 'mixed' THEN 'mixed'
-                  ELSE NULL
-                END
-              )
-            ELSE NULL END,
-            'attachments', COALESCE(ag.items, '[]'::jsonb),
-            'linkPreviews', COALESCE(lpg.items, '[]'::jsonb)
-          ) ORDER BY m.created_at ASC
-        )
-        FROM ordered_msgs m
-        LEFT JOIN reaction_summaries rs ON rs.message_id = m.id
-        LEFT JOIN reply_targets rt ON rt.id = m.reply_to_id
-        LEFT JOIN att_grouped ag ON ag.message_id = m.id
-        LEFT JOIN lp_grouped lpg ON lpg.message_id = m.id
-      ), '[]'::jsonb),
-      'readCounts', COALESCE((
-        SELECT jsonb_object_agg(am.id, COALESCE(rc.unread_count, 0))
-        FROM ordered_msgs am
-        LEFT JOIN read_counts rc ON rc.message_id = am.id
-      ), '{}'::jsonb),
-      'hasMore', (SELECT count(*) FROM older_msgs) = v_half_limit,
-      'hasNewer', (SELECT count(*) FROM newer_msgs) = v_half_limit
-    ) INTO v_result;
+    SELECT COALESCE(array_agg(id), '{}') INTO v_older_ids
+    FROM (SELECT id FROM chat_messages
+          WHERE room_id = p_room_id AND is_deleted = false
+            AND created_at <= p_around AND created_at >= v_min_ts
+            AND NOT (sender_id = ANY(v_blocked_ids))
+          ORDER BY created_at DESC LIMIT v_half_limit) t;
+
+    SELECT COALESCE(array_agg(id), '{}') INTO v_newer_ids
+    FROM (SELECT id FROM chat_messages
+          WHERE room_id = p_room_id AND is_deleted = false
+            AND created_at > p_around AND created_at >= v_min_ts
+            AND NOT (sender_id = ANY(v_blocked_ids))
+          ORDER BY created_at ASC LIMIT v_half_limit) t;
+
+    v_msg_ids := v_older_ids || v_newer_ids;
+    v_has_more := COALESCE(array_length(v_older_ids, 1), 0) = v_half_limit;
+    v_has_newer := COALESCE(array_length(v_newer_ids, 1), 0) = v_half_limit;
 
   ELSIF p_after IS NOT NULL THEN
-    -- ============ FORWARD mode (newer messages) ============
-    WITH blocked AS (
-      SELECT blocked_id FROM chat_blocks WHERE blocker_id = v_user_id
-    ),
-    raw_msgs AS (
-      SELECT m.*
-      FROM chat_messages m
-      WHERE m.room_id = p_room_id
-        AND m.is_deleted = false
-        AND m.created_at > p_after
-        AND m.created_at >= COALESCE(v_visible_from, '1970-01-01'::timestamptz)
-        AND m.sender_id NOT IN (SELECT blocked_id FROM blocked)
-      ORDER BY m.created_at ASC
-      LIMIT p_limit
-    ),
-    my_msg_ids AS (
-      SELECT id FROM raw_msgs WHERE sender_id = v_user_id
-    ),
-    read_counts AS (
-      SELECT rc.message_id, rc.unread_count
-      FROM get_message_read_counts(p_room_id,
-        COALESCE((SELECT ARRAY_AGG(id) FROM my_msg_ids), '{}'::uuid[]),
-        v_user_id
-      ) rc
-      WHERE EXISTS (SELECT 1 FROM my_msg_ids)
-    ),
-    reactions AS (
-      SELECT r.message_id, r.emoji, r.user_id, r.user_type
-      FROM chat_message_reactions r
-      WHERE r.message_id IN (SELECT id FROM raw_msgs)
-    ),
-    reaction_summaries AS (
-      SELECT
-        r.message_id,
-        jsonb_agg(
-          jsonb_build_object(
-            'emoji', r.emoji,
-            'count', r.cnt,
-            'hasReacted', r.has_reacted
-          )
-        ) AS summaries
-      FROM (
-        SELECT
-          message_id,
-          emoji,
-          count(*)::int AS cnt,
-          bool_or(user_id = v_user_id) AS has_reacted
-        FROM reactions
-        GROUP BY message_id, emoji
-      ) r
-      GROUP BY r.message_id
-    ),
-    reply_ids AS (
-      SELECT DISTINCT reply_to_id AS id FROM raw_msgs WHERE reply_to_id IS NOT NULL
-    ),
-    reply_targets AS (
-      SELECT m.id, m.content, m.sender_name, m.is_deleted, m.message_type
-      FROM chat_messages m WHERE m.id IN (SELECT id FROM reply_ids)
-    ),
-    att_grouped AS (
-      SELECT message_id,
-        jsonb_agg(
-          jsonb_build_object(
-            'id', id, 'message_id', message_id, 'room_id', room_id,
-            'file_name', file_name, 'file_size', file_size,
-            'mime_type', mime_type, 'storage_path', storage_path,
-            'public_url', public_url, 'width', width, 'height', height,
-            'thumbnail_url', thumbnail_url, 'thumbnail_storage_path', thumbnail_storage_path,
-            'attachment_type', attachment_type, 'created_at', created_at,
-            'sender_id', sender_id
-          )
-        ) AS items
-      FROM chat_attachments WHERE message_id IN (SELECT id FROM raw_msgs)
-      GROUP BY message_id
-    ),
-    lp_grouped AS (
-      SELECT message_id,
-        jsonb_agg(
-          jsonb_build_object(
-            'id', id, 'message_id', message_id, 'url', url,
-            'title', title, 'description', description,
-            'image_url', image_url, 'site_name', site_name,
-            'fetched_at', fetched_at
-          )
-        ) AS items
-      FROM chat_link_previews WHERE message_id IN (SELECT id FROM raw_msgs)
-      GROUP BY message_id
-    )
-    SELECT jsonb_build_object(
-      'messages', COALESCE((
-        SELECT jsonb_agg(
-          jsonb_build_object(
-            'id', m.id, 'room_id', m.room_id,
-            'sender_id', m.sender_id, 'sender_type', m.sender_type,
-            'message_type', m.message_type, 'content', m.content,
-            'reply_to_id', m.reply_to_id, 'is_deleted', m.is_deleted,
-            'deleted_at', m.deleted_at, 'created_at', m.created_at,
-            'updated_at', m.updated_at, 'sender_name', m.sender_name,
-            'sender_profile_url', m.sender_profile_url,
-            'metadata', m.metadata,
-            'sender', jsonb_build_object(
-              'id', m.sender_id, 'type', m.sender_type,
-              'name', m.sender_name,
-              'profileImageUrl', m.sender_profile_url
-            ),
-            'reactions', COALESCE(rs.summaries, '[]'::jsonb),
-            'replyTarget', CASE WHEN m.reply_to_id IS NOT NULL AND rt.id IS NOT NULL THEN
-              jsonb_build_object(
-                'id', rt.id,
-                'content', CASE WHEN rt.is_deleted THEN '삭제된 메시지입니다' ELSE rt.content END,
-                'senderName', COALESCE(rt.sender_name, '알 수 없음'),
-                'isDeleted', rt.is_deleted,
-                'attachmentType', CASE
-                  WHEN rt.message_type = 'image' THEN 'image'
-                  WHEN rt.message_type = 'file' THEN 'file'
-                  WHEN rt.message_type = 'mixed' THEN 'mixed'
-                  ELSE NULL
-                END
-              )
-            ELSE NULL END,
-            'attachments', COALESCE(ag.items, '[]'::jsonb),
-            'linkPreviews', COALESCE(lpg.items, '[]'::jsonb)
-          ) ORDER BY m.created_at ASC
-        )
-        FROM raw_msgs m
-        LEFT JOIN reaction_summaries rs ON rs.message_id = m.id
-        LEFT JOIN reply_targets rt ON rt.id = m.reply_to_id
-        LEFT JOIN att_grouped ag ON ag.message_id = m.id
-        LEFT JOIN lp_grouped lpg ON lpg.message_id = m.id
-      ), '[]'::jsonb),
-      'readCounts', COALESCE((
-        SELECT jsonb_object_agg(rm.id, COALESCE(rc.unread_count, 0))
-        FROM raw_msgs rm
-        LEFT JOIN read_counts rc ON rc.message_id = rm.id
-      ), '{}'::jsonb),
-      'hasMore', false,
-      'hasNewer', (SELECT count(*) FROM raw_msgs) = p_limit
-    ) INTO v_result;
+    SELECT COALESCE(array_agg(id), '{}'), count(*)
+    INTO v_msg_ids, v_cnt
+    FROM (SELECT id FROM chat_messages
+          WHERE room_id = p_room_id AND is_deleted = false
+            AND created_at > p_after AND created_at >= v_min_ts
+            AND NOT (sender_id = ANY(v_blocked_ids))
+          ORDER BY created_at ASC LIMIT p_limit) t;
+    v_has_newer := v_cnt = p_limit;
 
   ELSE
-    -- ============ BACKWARD mode (older messages, default) ============
-    WITH blocked AS (
-      SELECT blocked_id FROM chat_blocks WHERE blocker_id = v_user_id
-    ),
-    raw_msgs AS (
-      SELECT m.*
-      FROM chat_messages m
-      WHERE m.room_id = p_room_id
-        AND m.is_deleted = false
-        AND (p_before IS NULL OR m.created_at < p_before)
-        AND m.created_at >= COALESCE(v_visible_from, '1970-01-01'::timestamptz)
-        AND m.sender_id NOT IN (SELECT blocked_id FROM blocked)
-      ORDER BY m.created_at DESC
-      LIMIT p_limit
-    ),
-    my_msg_ids AS (
-      SELECT id FROM raw_msgs WHERE sender_id = v_user_id
-    ),
-    read_counts AS (
-      SELECT rc.message_id, rc.unread_count
-      FROM get_message_read_counts(p_room_id,
-        COALESCE((SELECT ARRAY_AGG(id) FROM my_msg_ids), '{}'::uuid[]),
-        v_user_id
-      ) rc
-      WHERE EXISTS (SELECT 1 FROM my_msg_ids)
-    ),
-    reactions AS (
-      SELECT r.message_id, r.emoji, r.user_id, r.user_type
-      FROM chat_message_reactions r
-      WHERE r.message_id IN (SELECT id FROM raw_msgs)
-    ),
-    reaction_summaries AS (
-      SELECT
-        r.message_id,
-        jsonb_agg(
-          jsonb_build_object(
-            'emoji', r.emoji,
-            'count', r.cnt,
-            'hasReacted', r.has_reacted
-          )
-        ) AS summaries
-      FROM (
-        SELECT
-          message_id,
-          emoji,
-          count(*)::int AS cnt,
-          bool_or(user_id = v_user_id) AS has_reacted
-        FROM reactions
-        GROUP BY message_id, emoji
-      ) r
-      GROUP BY r.message_id
-    ),
-    reply_ids AS (
-      SELECT DISTINCT reply_to_id AS id FROM raw_msgs WHERE reply_to_id IS NOT NULL
-    ),
-    reply_targets AS (
-      SELECT m.id, m.content, m.sender_name, m.is_deleted, m.message_type
-      FROM chat_messages m WHERE m.id IN (SELECT id FROM reply_ids)
-    ),
-    att_grouped AS (
-      SELECT message_id,
-        jsonb_agg(
-          jsonb_build_object(
-            'id', id, 'message_id', message_id, 'room_id', room_id,
-            'file_name', file_name, 'file_size', file_size,
-            'mime_type', mime_type, 'storage_path', storage_path,
-            'public_url', public_url, 'width', width, 'height', height,
-            'thumbnail_url', thumbnail_url, 'thumbnail_storage_path', thumbnail_storage_path,
-            'attachment_type', attachment_type, 'created_at', created_at,
-            'sender_id', sender_id
-          )
-        ) AS items
-      FROM chat_attachments WHERE message_id IN (SELECT id FROM raw_msgs)
-      GROUP BY message_id
-    ),
-    lp_grouped AS (
-      SELECT message_id,
-        jsonb_agg(
-          jsonb_build_object(
-            'id', id, 'message_id', message_id, 'url', url,
-            'title', title, 'description', description,
-            'image_url', image_url, 'site_name', site_name,
-            'fetched_at', fetched_at
-          )
-        ) AS items
-      FROM chat_link_previews WHERE message_id IN (SELECT id FROM raw_msgs)
-      GROUP BY message_id
-    )
-    SELECT jsonb_build_object(
-      'messages', COALESCE((
-        SELECT jsonb_agg(
-          jsonb_build_object(
-            'id', m.id, 'room_id', m.room_id,
-            'sender_id', m.sender_id, 'sender_type', m.sender_type,
-            'message_type', m.message_type, 'content', m.content,
-            'reply_to_id', m.reply_to_id, 'is_deleted', m.is_deleted,
-            'deleted_at', m.deleted_at, 'created_at', m.created_at,
-            'updated_at', m.updated_at, 'sender_name', m.sender_name,
-            'sender_profile_url', m.sender_profile_url,
-            'metadata', m.metadata,
-            'sender', jsonb_build_object(
-              'id', m.sender_id, 'type', m.sender_type,
-              'name', m.sender_name,
-              'profileImageUrl', m.sender_profile_url
-            ),
-            'reactions', COALESCE(rs.summaries, '[]'::jsonb),
-            'replyTarget', CASE WHEN m.reply_to_id IS NOT NULL AND rt.id IS NOT NULL THEN
-              jsonb_build_object(
-                'id', rt.id,
-                'content', CASE WHEN rt.is_deleted THEN '삭제된 메시지입니다' ELSE rt.content END,
-                'senderName', COALESCE(rt.sender_name, '알 수 없음'),
-                'isDeleted', rt.is_deleted,
-                'attachmentType', CASE
-                  WHEN rt.message_type = 'image' THEN 'image'
-                  WHEN rt.message_type = 'file' THEN 'file'
-                  WHEN rt.message_type = 'mixed' THEN 'mixed'
-                  ELSE NULL
-                END
-              )
-            ELSE NULL END,
-            'attachments', COALESCE(ag.items, '[]'::jsonb),
-            'linkPreviews', COALESCE(lpg.items, '[]'::jsonb)
-          ) ORDER BY m.created_at ASC
-        )
-        FROM raw_msgs m
-        LEFT JOIN reaction_summaries rs ON rs.message_id = m.id
-        LEFT JOIN reply_targets rt ON rt.id = m.reply_to_id
-        LEFT JOIN att_grouped ag ON ag.message_id = m.id
-        LEFT JOIN lp_grouped lpg ON lpg.message_id = m.id
-      ), '[]'::jsonb),
-      'readCounts', COALESCE((
-        SELECT jsonb_object_agg(rm.id, COALESCE(rc.unread_count, 0))
-        FROM raw_msgs rm
-        LEFT JOIN read_counts rc ON rc.message_id = rm.id
-      ), '{}'::jsonb),
-      'hasMore', (SELECT count(*) FROM raw_msgs) = p_limit,
-      'hasNewer', false
-    ) INTO v_result;
+    SELECT COALESCE(array_agg(id), '{}'), count(*)
+    INTO v_msg_ids, v_cnt
+    FROM (SELECT id FROM chat_messages
+          WHERE room_id = p_room_id AND is_deleted = false
+            AND (p_before IS NULL OR created_at < p_before)
+            AND created_at >= v_min_ts
+            AND NOT (sender_id = ANY(v_blocked_ids))
+          ORDER BY created_at DESC LIMIT p_limit) t;
+    v_has_more := v_cnt = p_limit;
   END IF;
+
+  -- Empty result shortcut
+  IF v_msg_ids IS NULL OR array_length(v_msg_ids, 1) IS NULL THEN
+    RETURN '{"messages":[],"readCounts":{},"hasMore":false,"hasNewer":false}'::jsonb;
+  END IF;
+
+  -- ================================================================
+  -- Step 2: Shared enrichment (single block, no duplication)
+  -- ================================================================
+  WITH msgs AS (
+    SELECT m.* FROM chat_messages m WHERE m.id = ANY(v_msg_ids) ORDER BY m.created_at ASC
+  ),
+  my_msg_ids AS (
+    SELECT id FROM msgs WHERE sender_id = v_user_id
+  ),
+  read_counts AS (
+    SELECT rc.message_id, rc.unread_count
+    FROM get_message_read_counts(p_room_id,
+      COALESCE((SELECT ARRAY_AGG(id) FROM my_msg_ids), '{}'::uuid[]),
+      v_user_id
+    ) rc
+    WHERE EXISTS (SELECT 1 FROM my_msg_ids)
+  ),
+  reactions AS (
+    SELECT r.message_id, r.emoji, r.user_id, r.user_type
+    FROM chat_message_reactions r WHERE r.message_id = ANY(v_msg_ids)
+  ),
+  reaction_summaries AS (
+    SELECT r.message_id,
+      jsonb_agg(jsonb_build_object('emoji', r.emoji, 'count', r.cnt, 'hasReacted', r.has_reacted)) AS summaries
+    FROM (SELECT message_id, emoji, count(*)::int AS cnt, bool_or(user_id = v_user_id) AS has_reacted
+          FROM reactions GROUP BY message_id, emoji) r
+    GROUP BY r.message_id
+  ),
+  reply_ids AS (
+    SELECT DISTINCT reply_to_id AS id FROM msgs WHERE reply_to_id IS NOT NULL
+  ),
+  reply_targets AS (
+    SELECT m.id, m.content, m.sender_name, m.is_deleted, m.message_type
+    FROM chat_messages m WHERE m.id IN (SELECT id FROM reply_ids)
+  ),
+  att_grouped AS (
+    SELECT message_id,
+      jsonb_agg(jsonb_build_object(
+        'id', id, 'message_id', message_id, 'room_id', room_id,
+        'file_name', file_name, 'file_size', file_size,
+        'mime_type', mime_type, 'storage_path', storage_path,
+        'public_url', public_url, 'width', width, 'height', height,
+        'thumbnail_url', thumbnail_url, 'thumbnail_storage_path', thumbnail_storage_path,
+        'attachment_type', attachment_type, 'created_at', created_at, 'sender_id', sender_id
+      )) AS items
+    FROM chat_attachments WHERE message_id = ANY(v_msg_ids) GROUP BY message_id
+  ),
+  lp_grouped AS (
+    SELECT message_id,
+      jsonb_agg(jsonb_build_object(
+        'id', id, 'message_id', message_id, 'url', url,
+        'title', title, 'description', description,
+        'image_url', image_url, 'site_name', site_name, 'fetched_at', fetched_at
+      )) AS items
+    FROM chat_link_previews WHERE message_id = ANY(v_msg_ids) GROUP BY message_id
+  )
+  SELECT jsonb_build_object(
+    'messages', COALESCE((
+      SELECT jsonb_agg(jsonb_build_object(
+        'id', m.id, 'room_id', m.room_id,
+        'sender_id', m.sender_id, 'sender_type', m.sender_type,
+        'message_type', m.message_type, 'content', m.content,
+        'reply_to_id', m.reply_to_id, 'is_deleted', m.is_deleted,
+        'deleted_at', m.deleted_at, 'created_at', m.created_at,
+        'updated_at', m.updated_at, 'sender_name', m.sender_name,
+        'sender_profile_url', m.sender_profile_url, 'metadata', m.metadata,
+        'sender', jsonb_build_object('id', m.sender_id, 'type', m.sender_type,
+          'name', m.sender_name, 'profileImageUrl', m.sender_profile_url),
+        'reactions', COALESCE(rs.summaries, '[]'::jsonb),
+        'replyTarget', CASE WHEN m.reply_to_id IS NOT NULL AND rt.id IS NOT NULL THEN
+          jsonb_build_object('id', rt.id,
+            'content', CASE WHEN rt.is_deleted THEN '삭제된 메시지입니다' ELSE rt.content END,
+            'senderName', COALESCE(rt.sender_name, '알 수 없음'), 'isDeleted', rt.is_deleted,
+            'attachmentType', CASE WHEN rt.message_type = 'image' THEN 'image'
+              WHEN rt.message_type = 'file' THEN 'file' WHEN rt.message_type = 'mixed' THEN 'mixed' ELSE NULL END)
+        ELSE NULL END,
+        'attachments', COALESCE(ag.items, '[]'::jsonb),
+        'linkPreviews', COALESCE(lpg.items, '[]'::jsonb)
+      ) ORDER BY m.created_at ASC)
+      FROM msgs m
+      LEFT JOIN reaction_summaries rs ON rs.message_id = m.id
+      LEFT JOIN reply_targets rt ON rt.id = m.reply_to_id
+      LEFT JOIN att_grouped ag ON ag.message_id = m.id
+      LEFT JOIN lp_grouped lpg ON lpg.message_id = m.id
+    ), '[]'::jsonb),
+    'readCounts', COALESCE((
+      SELECT jsonb_object_agg(m2.id, COALESCE(rc.unread_count, 0))
+      FROM msgs m2 LEFT JOIN read_counts rc ON rc.message_id = m2.id
+    ), '{}'::jsonb),
+    'hasMore', v_has_more,
+    'hasNewer', v_has_newer
+  ) INTO v_result;
 
   RETURN COALESCE(v_result, '{"messages":[],"readCounts":{},"hasMore":false,"hasNewer":false}'::jsonb);
 END;

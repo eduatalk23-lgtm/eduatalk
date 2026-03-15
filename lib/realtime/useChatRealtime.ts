@@ -445,29 +445,17 @@ export function useChatRealtime({
             }
             lastError = new Error(error.message);
           } else {
-            // RPC returns raw ChatMessage rows — add sender field from denormalized columns
-            const rawRows = (data ?? []) as Array<Record<string, unknown>>;
-            const messages: SyncMessage[] = rawRows.map((m) => ({
-              id: m.id as string,
-              room_id: m.room_id as string,
-              sender_id: m.sender_id as string,
-              sender_type: m.sender_type as ChatUserType,
-              message_type: m.message_type as ChatMessageType,
-              content: m.content as string,
-              reply_to_id: (m.reply_to_id as string | null) ?? null,
-              is_deleted: m.is_deleted as boolean,
-              deleted_at: (m.deleted_at as string | null) ?? null,
-              created_at: m.created_at as string,
-              updated_at: m.updated_at as string,
-              sender_name: m.sender_name as string,
-              sender_profile_url: (m.sender_profile_url as string | null) ?? null,
-              metadata: (m.metadata as ChatMessageMetadata | null) ?? null,
-              sender: {
-                id: m.sender_id as string,
-                type: m.sender_type as ChatUserType,
-                name: m.sender_name as string,
-                profileImageUrl: m.sender_profile_url as string | null,
-              },
+            // RPC returns RETURNS TABLE — Supabase types rows correctly
+            type RpcRow = {
+              id: string; room_id: string; sender_id: string; sender_type: ChatUserType;
+              message_type: ChatMessageType; content: string; reply_to_id: string | null;
+              is_deleted: boolean; deleted_at: string | null; created_at: string;
+              updated_at: string; sender_name: string; sender_profile_url: string | null;
+              metadata: ChatMessageMetadata | null;
+            };
+            const messages: SyncMessage[] = ((data ?? []) as RpcRow[]).map((m) => ({
+              ...m,
+              sender: { id: m.sender_id, type: m.sender_type, name: m.sender_name, profileImageUrl: m.sender_profile_url },
               reactions: [],
               replyTarget: null,
             }));
