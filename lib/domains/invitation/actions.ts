@@ -706,6 +706,15 @@ export async function acceptInvitation(
       },
     });
 
+    // 공통 후처리: user_profiles.email 동기화 (연결 상태 판단 기준)
+    const authEmail = authUserForMeta?.user?.email;
+    if (authEmail) {
+      await adminClient
+        .from("user_profiles")
+        .update({ email: authEmail })
+        .eq("id", userId);
+    }
+
     // 공통 후처리: 동의 정보 저장
     if (options?.consents) {
       await saveUserConsents(userId, options.consents, undefined, true);
@@ -831,6 +840,109 @@ export const resendInvitationAction = withErrorHandling(
         delivered_at: new Date().toISOString(),
       })
       .eq("id", invitationId);
+
+    return { success: true };
+  }
+);
+
+// ============================================
+// 초대 발송 (manual → sms/email 변경 후 발송)
+// ============================================
+
+export const sendInvitationAction = withErrorHandling(
+  async (
+    invitationId: string,
+    method: "sms" | "email",
+    contact: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    await requireAdminOrConsultant();
+
+    if (!contact.trim()) {
+      throw new AppError(
+        method === "sms" ? "전화번호를 입력해주세요." : "이메일을 입력해주세요.",
+        ErrorCode.BUSINESS_LOGIC_ERROR,
+        400,
+        true
+      );
+    }
+
+    const supabase = await createSupabaseServerClient();
+
+    const { data: row, error: fetchError } = await supabase
+      .from("invitations")
+      .select(INVITATION_SELECT)
+      .eq("id", invitationId)
+      .eq("status", "pending")
+      .single();
+
+    if (fetchError || !row) {
+      throw new AppError("초대를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+    }
+
+    const invitation = mapRowToInvitation(row);
+
+    // 발송 쿨다운: 마지막 발송 후 1분
+    if (invitation.deliveredAt) {
+      const lastDelivered = new Date(invitation.deliveredAt).getTime();
+      const cooldownMs = 60 * 1000;
+      if (Date.now() - lastDelivered < cooldownMs) {
+        const remainSec = Math.ceil((cooldownMs - (Date.now() - lastDelivered)) / 1000);
+        throw new AppError(
+          `발송은 ${remainSec}초 후에 가능합니다.`,
+          ErrorCode.BUSINESS_LOGIC_ERROR,
+          429,
+          true
+        );
+      }
+    }
+
+    // delivery_method, 연락처 업데이트
+    const contactUpdate = method === "sms"
+      ? { phone: contact.trim(), email: null }
+      : { email: contact.trim(), phone: null };
+
+    await supabase
+      .from("invitations")
+      .update({
+        delivery_method: method,
+        ...contactUpdate,
+      })
+      .eq("id", invitationId);
+
+    // 발송 (delivery.ts의 deliverInvitation에 업데이트된 정보 전달)
+    const updatedInvitation: Invitation = {
+      ...invitation,
+      deliveryMethod: method,
+      phone: method === "sms" ? contact.trim() : null,
+      email: method === "email" ? contact.trim() : null,
+    };
+
+    const joinUrl = getJoinUrl(invitation.token);
+    const deliveryResult = await deliverInvitation(updatedInvitation, joinUrl);
+
+    // 발송 상태 업데이트
+    await supabase
+      .from("invitations")
+      .update({
+        delivery_status: deliveryResult.success ? "sent" : "failed",
+        delivered_at: deliveryResult.success ? new Date().toISOString() : null,
+      })
+      .eq("id", invitationId);
+
+    if (!deliveryResult.success) {
+      throw new AppError(
+        deliveryResult.error || "발송에 실패했습니다.",
+        ErrorCode.INTERNAL_ERROR,
+        500,
+        true
+      );
+    }
+
+    // 캐시 무효화
+    if (invitation.studentId) {
+      revalidatePath(`/admin/students/${invitation.studentId}`);
+    }
+    revalidatePath("/admin/team");
 
     return { success: true };
   }

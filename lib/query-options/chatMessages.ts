@@ -76,8 +76,10 @@ export function chatMessagesQueryOptions(roomId: string, lastReadAt?: string) {
       return { before: lastPage.messages[0].created_at } as ChatPageParam;
     },
     // 순방향 (미래): 첫 페이지의 가장 최신 메시지 기준
-    getPreviousPageParam: (firstPage) => {
-      if (!firstPage?.hasNewer || !firstPage?.messages?.length) return undefined;
+    // hasNewer가 명시적이거나, 다중 페이지 존재 시(maxPages로 최신 페이지 제거된 경우) 순방향 가능
+    getPreviousPageParam: (firstPage, allPages) => {
+      const hasNewer = firstPage?.hasNewer || allPages.length > 1;
+      if (!hasNewer || !firstPage?.messages?.length) return undefined;
       return {
         after: firstPage.messages[firstPage.messages.length - 1].created_at,
       } as ChatPageParam;

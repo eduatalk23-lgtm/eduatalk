@@ -750,21 +750,21 @@ function ChatRoomComponent({
   // ============================================
   // 무한 스크롤
   // ============================================
-  const pendingPaginationRef = useRef(false);
   const prevMessageCountRef = useRef(messages.length);
   const prependedCountRef = useRef(0);
   const prevFirstIdRef = useRef(messages[0]?.id);
 
-  // 메시지 수 변화를 감지하여 prepend 카운트 동기적으로 업데이트
-  // anchor ID 기반으로 정확한 prepend 수를 계산 (realtime append와의 경합 방지)
-  if (pendingPaginationRef.current && messages.length > prevMessageCountRef.current) {
-    if (prevFirstIdRef.current && messages[0]?.id !== prevFirstIdRef.current) {
-      const anchorIdx = messages.findIndex((m) => m.id === prevFirstIdRef.current);
-      if (anchorIdx > 0) {
-        prependedCountRef.current += anchorIdx;
-      }
+  // Prepend 감지: 첫 메시지 ID 변경으로 판단 (pendingPagination 플래그 불필요)
+  // realtime append와 backward pagination이 동시에 발생해도 정확히 보정
+  if (messages.length > 0 && prevFirstIdRef.current && messages[0]?.id !== prevFirstIdRef.current) {
+    const anchorIdx = messages.findIndex((m) => m.id === prevFirstIdRef.current);
+    if (anchorIdx > 0) {
+      prependedCountRef.current += anchorIdx;
+    } else if (anchorIdx === -1 && messages.length > prevMessageCountRef.current) {
+      // 앵커 메시지가 캐시에서 사라진 경우 (maxPages 초과 등)
+      // 추가된 메시지 수로 추정 (점프보다 안전)
+      prependedCountRef.current += messages.length - prevMessageCountRef.current;
     }
-    pendingPaginationRef.current = false;
   }
   prevMessageCountRef.current = messages.length;
   prevFirstIdRef.current = messages[0]?.id;
@@ -783,7 +783,6 @@ function ChatRoomComponent({
     if (now - lastFetchTimeRef.current < FETCH_THROTTLE_MS) return;
 
     lastFetchTimeRef.current = now;
-    pendingPaginationRef.current = true;
     void fetchNextPage();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
@@ -806,7 +805,6 @@ function ChatRoomComponent({
         const now = Date.now();
         if (now - lastFetchTimeRef.current < FETCH_THROTTLE_MS) return;
         lastFetchTimeRef.current = now;
-        pendingPaginationRef.current = true;
         void fetchNextPage();
       }
 
@@ -1217,21 +1215,37 @@ function ChatRoomComponent({
     </div>
   ), []);
 
-  const VirtuosoHeader = useCallback(() => (
-    isFetchingNextPage ? (
-      <div className="flex justify-center py-2" aria-label="이전 메시지 로딩 중">
-        <Loader2 className="w-5 h-5 animate-spin text-text-tertiary" aria-hidden="true" />
+  // Header/Footer: 고정 높이 컨테이너 + opacity 전환으로 높이 변화에 의한 CLS 방지
+  // hasNextPage가 false가 되면 컨테이너 자체를 제거 (최상단 도달 시 1회만 높이 변화)
+  const VirtuosoHeader = useCallback(() => {
+    if (!hasNextPage && !isFetchingNextPage) return null;
+    return (
+      <div className="flex justify-center items-center h-9" aria-label="이전 메시지 로딩 중">
+        <Loader2
+          className={cn(
+            "w-5 h-5 text-text-tertiary transition-opacity duration-150",
+            isFetchingNextPage ? "animate-spin opacity-100" : "opacity-0"
+          )}
+          aria-hidden="true"
+        />
       </div>
-    ) : null
-  ), [isFetchingNextPage]);
+    );
+  }, [hasNextPage, isFetchingNextPage]);
 
-  const VirtuosoFooter = useCallback(() => (
-    isFetchingPreviousPage ? (
-      <div className="flex justify-center py-2" aria-label="최신 메시지 로딩 중">
-        <Loader2 className="w-5 h-5 animate-spin text-text-tertiary" aria-hidden="true" />
+  const VirtuosoFooter = useCallback(() => {
+    if (!hasPreviousPage && !isFetchingPreviousPage) return null;
+    return (
+      <div className="flex justify-center items-center h-9" aria-label="최신 메시지 로딩 중">
+        <Loader2
+          className={cn(
+            "w-5 h-5 text-text-tertiary transition-opacity duration-150",
+            isFetchingPreviousPage ? "animate-spin opacity-100" : "opacity-0"
+          )}
+          aria-hidden="true"
+        />
       </div>
-    ) : null
-  ), [isFetchingPreviousPage]);
+    );
+  }, [hasPreviousPage, isFetchingPreviousPage]);
 
   const VirtuosoScroller = useMemo(
     () =>

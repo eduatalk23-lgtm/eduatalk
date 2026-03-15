@@ -92,6 +92,12 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
   // QR modal state
   const [qrModal, setQrModal] = useState<{ token: string; qrDataUrl: string } | null>(null);
 
+  // Send invitation modal state
+  const [sendModal, setSendModal] = useState<{ invitationId: string } | null>(null);
+  const [sendMethod, setSendMethod] = useState<"sms" | "email">("sms");
+  const [sendContact, setSendContact] = useState("");
+  const [isSending, setIsSending] = useState(false);
+
   // Load connection status
   const loadConnectionStatus = useCallback(async () => {
     try {
@@ -281,6 +287,38 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
     }
   };
 
+  // Send invitation (manual → sms/email)
+  const handleOpenSendModal = (invitationId: string) => {
+    setSendModal({ invitationId });
+    setSendMethod("sms");
+    setSendContact("");
+  };
+
+  const handleSendInvitation = async () => {
+    if (!sendModal) return;
+    if (!sendContact.trim()) {
+      showError(sendMethod === "sms" ? "전화번호를 입력해주세요." : "이메일을 입력해주세요.");
+      return;
+    }
+    setIsSending(true);
+    try {
+      const { sendInvitationAction } = await import("@/lib/domains/invitation/actions");
+      const result = await sendInvitationAction(sendModal.invitationId, sendMethod, sendContact.trim());
+      if (result.success) {
+        showSuccess(sendMethod === "sms" ? "SMS가 발송되었습니다." : "이메일이 발송되었습니다.");
+        setSendModal(null);
+        loadInvitations();
+        loadConnectionStatus();
+      } else {
+        showError(result.error || "발송에 실패했습니다.");
+      }
+    } catch {
+      showError("발송 중 오류가 발생했습니다.");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   // Disconnect student
   const handleDisconnect = async () => {
     setIsDisconnecting(true);
@@ -443,6 +481,23 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
               >
                 <QrCode size={16} />
               </button>
+              {studentPendingInvitation.deliveryMethod === "manual" ? (
+                <button
+                  onClick={() => handleOpenSendModal(studentPendingInvitation.id)}
+                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                  title="SMS/이메일 발송"
+                >
+                  <Send size={16} />
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleResend(studentPendingInvitation.id)}
+                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                  title="재발송"
+                >
+                  <RefreshCw size={16} />
+                </button>
+              )}
               <button
                 onClick={() => handleCancelInvitation(studentPendingInvitation.id)}
                 className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
@@ -686,7 +741,15 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
                     >
                       <QrCode size={16} />
                     </button>
-                    {inv.deliveryMethod !== "manual" && (
+                    {inv.deliveryMethod === "manual" ? (
+                      <button
+                        onClick={() => handleOpenSendModal(inv.id)}
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                        title="SMS/이메일 발송"
+                      >
+                        <Send size={16} />
+                      </button>
+                    ) : (
                       <button
                         onClick={() => handleResend(inv.id)}
                         className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
@@ -746,6 +809,19 @@ export function ConnectionSection({ studentId }: ConnectionSectionProps) {
           token={qrModal.token}
           onCopyUrl={() => handleCopyJoinUrl(qrModal.token)}
           onClose={() => setQrModal(null)}
+        />
+      )}
+
+      {/* Send invitation modal */}
+      {sendModal && (
+        <SendInvitationModal
+          sendMethod={sendMethod}
+          sendContact={sendContact}
+          isSending={isSending}
+          onMethodChange={setSendMethod}
+          onContactChange={setSendContact}
+          onSend={handleSendInvitation}
+          onClose={() => setSendModal(null)}
         />
       )}
 
@@ -1087,6 +1163,109 @@ function QRModal({
             <ExternalLink size={14} />
             QR 저장
           </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SendInvitationModal({
+  sendMethod,
+  sendContact,
+  isSending,
+  onMethodChange,
+  onContactChange,
+  onSend,
+  onClose,
+}: {
+  sendMethod: "sms" | "email";
+  sendContact: string;
+  isSending: boolean;
+  onMethodChange: (method: "sms" | "email") => void;
+  onContactChange: (value: string) => void;
+  onSend: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-gray-900">초대 발송</h3>
+          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="space-y-3 mb-6">
+          <p className="text-sm font-medium text-gray-700">발송 방식</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => onMethodChange("sms")}
+              className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border text-sm font-medium transition ${
+                sendMethod === "sms"
+                  ? "border-indigo-500 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-500"
+                  : "border-gray-200 text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              <MessageSquare size={16} />
+              SMS
+            </button>
+            <button
+              onClick={() => onMethodChange("email")}
+              className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border text-sm font-medium transition ${
+                sendMethod === "email"
+                  ? "border-indigo-500 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-500"
+                  : "border-gray-200 text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              <Mail size={16} />
+              이메일
+            </button>
+          </div>
+        </div>
+
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            {sendMethod === "sms" ? "전화번호" : "이메일"}
+          </label>
+          <input
+            type={sendMethod === "sms" ? "tel" : "email"}
+            value={sendContact}
+            onChange={(e) => onContactChange(e.target.value)}
+            placeholder={sendMethod === "sms" ? "010-1234-5678" : "user@email.com"}
+            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            autoFocus
+          />
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            disabled={isSending}
+            className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
+          >
+            취소
+          </button>
+          <button
+            onClick={onSend}
+            disabled={isSending || !sendContact.trim()}
+            className="flex-1 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {isSending ? (
+              <>
+                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                발송 중...
+              </>
+            ) : (
+              <>
+                <Send size={14} />
+                발송
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>
