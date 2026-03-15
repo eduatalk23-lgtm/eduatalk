@@ -43,6 +43,9 @@ export const CACHE_TAGS = {
   SCHEDULE: "schedule",
   SCHEDULE_CALCULATION: "schedule:calculation",
 
+  // 인증/역할 관련
+  USER_ROLE: "user-role",
+
   // 캘린더 관련
   CALENDAR_ID: "calendar:id",
   CALENDAR_SETTINGS: "calendar:settings",

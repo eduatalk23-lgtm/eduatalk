@@ -64,6 +64,68 @@ function createSupabaseProxyClient(request: NextRequest) {
   return { supabase, getResponse: () => responseHolder.response };
 }
 
+// x-auth-* 헤더 이름 상수
+const AUTH_HEADER = {
+  USER_ID: "x-auth-user-id",
+  ROLE: "x-auth-role",
+  TENANT_ID: "x-auth-tenant-id",
+  EMAIL: "x-auth-email",
+} as const;
+
+/** proxy.ts 내부에서 사용하는 유저 정보 타입 */
+type ProxyUser = {
+  id?: string;
+  email?: string;
+  user_metadata?: Record<string, unknown>;
+};
+
+/**
+ * 인증된 유저 정보를 request 헤더에 주입
+ * RSC/API Route에서 헤더를 읽어 getUser() 호출을 스킵할 수 있도록 함
+ */
+function injectAuthHeaders(
+  request: NextRequest,
+  user: ProxyUser | null,
+): void {
+  if (!user?.id) return;
+
+  request.headers.set(AUTH_HEADER.USER_ID, user.id);
+
+  const role = getRoleFromMetadata(user);
+  if (role) {
+    request.headers.set(AUTH_HEADER.ROLE, role);
+  }
+
+  const tenantId = user.user_metadata?.tenant_id as string | undefined;
+  if (tenantId) {
+    request.headers.set(AUTH_HEADER.TENANT_ID, tenantId);
+  }
+
+  // email: JWT에서는 payload.email (top-level), Supabase User에서도 user.email
+  const email = user.email;
+  if (email) {
+    request.headers.set(AUTH_HEADER.EMAIL, email);
+  }
+}
+
+/**
+ * deduplicatedGetUser 후 응답 재구성
+ *
+ * deduplicatedGetUser가 반환한 response에는 갱신된 쿠키가 포함되어 있지만,
+ * 이후 주입한 x-auth-* 헤더는 포함되지 않음.
+ * 새 response를 만들어 쿠키를 복사하고 최신 request.headers를 반영.
+ */
+function rebuildResponseWithAuthHeaders(
+  request: NextRequest,
+  oldResponse: NextResponse,
+): NextResponse {
+  const response = NextResponse.next({ request: { headers: request.headers } });
+  for (const cookie of oldResponse.cookies.getAll()) {
+    response.cookies.set(cookie);
+  }
+  return response;
+}
+
 /**
  * JWT user_metadata에서 역할을 추출 (DB 쿼리 없음)
  *
@@ -120,7 +182,7 @@ function hasAuthCookies(request: NextRequest): boolean {
  */
 function parseTokenFromCookies(request: NextRequest): {
   needsRefresh: boolean;
-  user: { user_metadata?: Record<string, unknown> } | null;
+  user: ProxyUser | null;
 } {
   try {
     // Supabase 쿠키는 청크 분할됨: sb-{ref}-auth-token.0, .1, ...
@@ -133,10 +195,19 @@ function parseTokenFromCookies(request: NextRequest): {
       return { needsRefresh: true, user: null };
     }
 
-    // 청크 결합 → base64 디코딩 → JSON 파싱
+    // 청크 결합 → Supabase SSR v0.7+ 쿠키 포맷 처리
+    // 포맷: "base64-{base64url인코딩된 세션JSON}"
     const combined = authCookies.map((c) => c.value).join("");
-    const decoded = atob(combined);
-    const session = JSON.parse(decoded);
+    let sessionStr: string;
+    if (combined.startsWith("base64-")) {
+      const b64url = combined.substring(7);
+      const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
+      const padded = b64.padEnd(b64.length + (4 - (b64.length % 4)) % 4, "=");
+      sessionStr = atob(padded);
+    } else {
+      sessionStr = atob(combined);
+    }
+    const session = JSON.parse(sessionStr);
 
     const accessToken = session?.access_token;
     if (!accessToken) {
@@ -159,8 +230,9 @@ function parseTokenFromCookies(request: NextRequest): {
     const needsRefresh = (exp - now) < 60; // 만료 60초 전부터 리프레시
 
     // user 정보 추출 (getUser() 호출 없이 라우팅에 사용)
-    const user = {
+    const user: ProxyUser = {
       id: payload.sub as string,
+      email: payload.email as string | undefined,
       user_metadata: payload.user_metadata as Record<string, unknown> | undefined,
     };
 
@@ -209,6 +281,62 @@ function isPublicApiPath(pathname: string): boolean {
   return false;
 }
 
+// ============================================
+// getUser() promise deduplication
+// 토큰 만료 60초 이내에 동시 요청이 들어오면
+// 첫 번째 요청만 getUser()를 실행하고 나머지는 결과를 공유
+// ============================================
+
+let pendingRefresh: {
+  promise: Promise<ProxyUser | null>;
+  expiry: number;
+} | null = null;
+
+async function deduplicatedGetUser(
+  request: NextRequest
+): Promise<{
+  user: ProxyUser | null;
+  error: Error | null;
+  getResponse: () => NextResponse;
+}> {
+  const now = Date.now();
+
+  // 진행 중인 refresh가 있으면 결과만 공유 (response 쿠키는 이 요청에서 설정 불가)
+  if (pendingRefresh && now < pendingRefresh.expiry) {
+    const user = await pendingRefresh.promise;
+    return {
+      user,
+      error: user ? null : new Error("Auth refresh failed"),
+      getResponse: () => NextResponse.next({ request: { headers: request.headers } }),
+    };
+  }
+
+  // 첫 번째 요청: getUser() 실행 + 쿠키 갱신
+  const client = createSupabaseProxyClient(request);
+  const userPromise = client.supabase.auth.getUser().then((result) => {
+    const u = result.data.user;
+    if (!u) return null;
+    return { id: u.id, email: u.email, user_metadata: u.user_metadata } as ProxyUser;
+  });
+
+  pendingRefresh = { promise: userPromise, expiry: now + 5000 };
+  userPromise.finally(() => {
+    // 5초 후 자동 만료 (finally는 성공/실패 모두)
+    setTimeout(() => {
+      if (pendingRefresh?.promise === userPromise) {
+        pendingRefresh = null;
+      }
+    }, 5000);
+  });
+
+  const user = await userPromise;
+  return {
+    user,
+    error: user ? null : new Error("Auth failed"),
+    getResponse: client.getResponse,
+  };
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -238,16 +366,15 @@ export async function proxy(request: NextRequest) {
     const apiParsed = parseTokenFromCookies(request);
 
     if (!apiParsed.needsRefresh && apiParsed.user) {
-      // 토큰 유효 → 네트워크 호출 스킵
+      // 토큰 유효 → 네트워크 호출 스킵 + 헤더 주입
+      injectAuthHeaders(request, apiParsed.user);
       return NextResponse.next({ request: { headers: request.headers } });
     }
 
-    // 토큰 만료 임박 또는 파싱 실패 → getUser()로 리프레시
-    const { supabase, getResponse } = createSupabaseProxyClient(request);
-    const { data: { user }, error } = await supabase.auth.getUser();
+    // 토큰 만료 임박 또는 파싱 실패 → deduplicatedGetUser()로 리프레시
+    const { user, error, getResponse } = await deduplicatedGetUser(request);
 
     if (error || !user) {
-      // getResponse()의 쿠키를 401 응답에 포함 (토큰 갱신 쿠키 유실 방지)
       const res = getResponse();
       const jsonResponse = NextResponse.json(
         { error: "Unauthorized" },
@@ -259,11 +386,14 @@ export async function proxy(request: NextRequest) {
       return jsonResponse;
     }
 
-    return getResponse();
+    // 리프레시 후 갱신된 유저 정보를 헤더에 주입
+    injectAuthHeaders(request, user);
+    return rebuildResponseWithAuthHeaders(request, getResponse());
   }
 
   // ─── 3. 페이지 경로 처리 ───
   const isPublicPath = isPublicPagePath(pathname);
+  const isRSCRequest = request.headers.get("RSC") === "1";
 
   // 공개 경로 + 인증 쿠키 없음 → getUser() 호출 없이 즉시 반환
   if (isPublicPath && !hasAuthCookies(request)) {
@@ -277,17 +407,27 @@ export async function proxy(request: NextRequest) {
     ? parseTokenFromCookies(request)
     : { needsRefresh: true, user: null };
 
-  let user: { id?: string; user_metadata?: Record<string, unknown> } | null = null;
+  let user: ProxyUser | null = null;
   let error: Error | null = null;
   let getResponse: () => NextResponse;
 
-  if (parsed.needsRefresh) {
-    // 토큰 리프레시 필요 → getUser() 네트워크 호출 (쿠키 갱신 포함)
-    const client = createSupabaseProxyClient(request);
-    const result = await client.supabase.auth.getUser();
-    user = result.data.user;
+  if (parsed.needsRefresh && !isRSCRequest) {
+    // 토큰 리프레시 필요 + 풀 페이지 요청 → deduplicatedGetUser() (동시 요청 중복 방지)
+    const result = await deduplicatedGetUser(request);
+    user = result.user;
     error = result.error;
-    getResponse = client.getResponse;
+    getResponse = result.getResponse;
+  } else if (parsed.needsRefresh && isRSCRequest && parsed.user) {
+    // 토큰 만료 임박 + RSC prefetch → 리프레시 스킵 (브라우저 autoRefreshToken이 관리)
+    user = parsed.user;
+    error = null;
+    getResponse = () => NextResponse.next({ request: { headers: request.headers } });
+  } else if (parsed.needsRefresh) {
+    // 토큰 파싱 자체 실패 (쿠키 없음 등) → deduplicatedGetUser()
+    const result = await deduplicatedGetUser(request);
+    user = result.user;
+    error = result.error;
+    getResponse = result.getResponse;
   } else {
     // 토큰 유효 → 네트워크 호출 스킵 (핵심 최적화)
     user = parsed.user;
@@ -355,6 +495,13 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(new URL(defaultDashboard, request.url));
       }
     }
+  }
+
+  // ─── 5. 인증된 유저 정보를 헤더에 주입 (RSC/API Route에서 getUser() 스킵) ───
+  if (isAuthenticated && user) {
+    injectAuthHeaders(request, user);
+    // deduplicatedGetUser를 거친 경우 response에 쿠키가 있으므로 재구성 필요
+    return rebuildResponseWithAuthHeaders(request, getResponse());
   }
 
   return getResponse();

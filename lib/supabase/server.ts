@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
@@ -38,17 +39,38 @@ async function rateLimitedFetch(
 }
 
 /**
+ * 요청 내 캐싱된 Supabase Server Client
+ *
+ * GoTrueClient가 생성 시 _initialize() → _recoverAndRefresh() → _getUser()를
+ * 호출하여 Supabase Auth에 네트워크 요청을 보냅니다.
+ * React.cache()로 요청 내 1번만 생성하여 불필요한 auth 호출을 제거합니다.
+ */
+const getCachedServerClient = cache(
+  () => createServerClientInternal()
+);
+
+/**
  * Supabase Server Client 생성
  *
- * Next.js 15에서는 쿠키 수정이 Server Action이나 Route Handler에서만 가능합니다.
- * 일반 Server Component에서는 쿠키를 읽기 전용으로만 사용합니다.
- *
- * 정적 생성 중 처리:
- * - Next.js 16 빌드 타임에 정적 생성 시도 중 cookies() 호출 시 "Dynamic server usage" 에러 발생
- * - 이는 예상된 동작이며, 정적 생성 중에는 쿠키가 필요 없으므로 public 클라이언트를 반환
- * - 런타임 에러는 기존대로 상세 로깅하여 디버깅 가능하게 유지
+ * 기본 호출(인자 없음): React.cache()로 요청 내 1번만 생성 (auth 호출 1회로 제한)
+ * cookieStore/options 전달 시: 새 클라이언트 생성 (로그인 등 특수 케이스)
  */
 export async function createSupabaseServerClient(
+  cookieStore?: ReadonlyRequestCookies,
+  options?: { rememberMe?: boolean }
+) {
+  // 기본 호출: 캐싱된 클라이언트 반환 (요청 내 GoTrueClient 1번만 생성)
+  if (!cookieStore && !options) {
+    return getCachedServerClient();
+  }
+  // 커스텀 호출: 별도 클라이언트 생성 (로그인 rememberMe 등)
+  return createServerClientInternal(cookieStore, options);
+}
+
+/**
+ * 실제 Supabase Server Client 생성 (내부용)
+ */
+async function createServerClientInternal(
   cookieStore?: ReadonlyRequestCookies,
   options?: { rememberMe?: boolean }
 ) {
@@ -73,7 +95,7 @@ export async function createSupabaseServerClient(
       });
     }
 
-    return createServerClient(
+    const client = createServerClient(
       env.NEXT_PUBLIC_SUPABASE_URL || "",
       env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
       {
@@ -124,6 +146,14 @@ export async function createSupabaseServerClient(
         },
       }
     );
+
+    // proxy.ts가 auth 게이트웨이 역할을 하므로 서버 클라이언트에서 getUser()를 호출하지 않음.
+    // getUser() 미호출 시 SDK 내부 suppressGetSessionWarning 플래그가 설정되지 않아
+    // 데이터 쿼리에서 getSession() 경고가 발생하므로 수동 억제.
+    const auth = client.auth as unknown as { suppressGetSessionWarning: boolean };
+    auth.suppressGetSessionWarning = true;
+
+    return client;
   } catch (error) {
     // 에러 메시지 추출
     const errorMessage = error instanceof Error ? error.message : String(error);
