@@ -135,17 +135,18 @@ export async function getMessages(
   try {
     const { roomId, limit = 50 } = options;
 
-    // 멤버십 확인
-    const membership = await repository.findMember(roomId, userId, userType);
+    // Phase 1: 멤버십 + 차단 목록 병렬 조회 (2 RTT → 1 RTT)
+    const [membership, blocks] = await Promise.all([
+      repository.findMember(roomId, userId, userType),
+      repository.findBlocksByUser(userId, userType),
+    ]);
+
     if (!membership) {
       return { success: false, error: "채팅방에 참여하지 않았습니다" };
     }
 
-    // 병렬로 차단 목록 + 메시지 조회 (visible_from 필터 적용)
-    const [blocks, messages] = await Promise.all([
-      repository.findBlocksByUser(userId, userType),
-      repository.findMessagesByRoom({ ...options, visibleFrom: membership.visible_from }),
-    ]);
+    // Phase 2: 메시지 조회 (visible_from 필터 적용)
+    const messages = await repository.findMessagesByRoom({ ...options, visibleFrom: membership.visible_from });
 
     const blockedIds = new Set(blocks.map((b) => `${b.blocked_id}_${b.blocked_type}`));
 
@@ -154,7 +155,7 @@ export async function getMessages(
       (m) => !blockedIds.has(`${m.sender_id}_${m.sender_type}`)
     );
 
-    // 첨부파일/링크 프리뷰 배치 조회
+    // Phase 3: 첨부파일/링크 프리뷰 배치 조회
     const messageIds = filteredMessages.map((m) => m.id);
     const [attachmentsMap, linkPreviewsMap] = await Promise.all([
       repository.findAttachmentsByMessageIds(messageIds),
@@ -406,17 +407,21 @@ export async function getMessagesWithReadStatus(
   try {
     const { roomId, limit = 50 } = options;
 
-    const membership = await repository.findMember(roomId, userId, userType);
+    // Phase 1: 멤버십 + 차단 목록 병렬 조회 (2 RTT → 1 RTT)
+    const [membership, blocks] = await Promise.all([
+      repository.findMember(roomId, userId, userType),
+      repository.findBlocksByUser(userId, userType),
+    ]);
 
     if (!membership) {
       return { success: false, error: "채팅방에 참여하지 않았습니다" };
     }
 
-    // 병렬로 차단 목록 + 메시지 + 읽음 상태 조회 (visible_from 필터 적용)
-    const [blocks, { messages, readCounts }] = await Promise.all([
-      repository.findBlocksByUser(userId, userType),
-      repository.findMessagesWithReadCounts({ ...options, visibleFrom: membership.visible_from }, userId),
-    ]);
+    // Phase 2: 메시지 + 읽음 상태 조회 (visible_from 필터 적용)
+    const { messages, readCounts } = await repository.findMessagesWithReadCounts(
+      { ...options, visibleFrom: membership.visible_from },
+      userId
+    );
 
     const blockedIds = new Set(blocks.map((b) => `${b.blocked_id}_${b.blocked_type}`));
 
@@ -533,19 +538,22 @@ export async function getMessagesAroundWithReadStatus(
   limit: number = 50
 ): Promise<ChatActionResult<MessagesWithReadStatusResult>> {
   try {
-    const membership = await repository.findMember(roomId, userId, userType);
+    // Phase 1: 멤버십 + 차단 목록 병렬 조회 (2 RTT → 1 RTT)
+    const [membership, blocks] = await Promise.all([
+      repository.findMember(roomId, userId, userType),
+      repository.findBlocksByUser(userId, userType),
+    ]);
 
     if (!membership) {
       return { success: false, error: "채팅방에 참여하지 않았습니다" };
     }
 
-    const [blocks, { messages, readCounts, hasOlder, hasNewer }] = await Promise.all([
-      repository.findBlocksByUser(userId, userType),
-      repository.findMessagesAroundWithReadCounts(
+    // Phase 2: 양방향 메시지 + 읽음 상태 조회 (visible_from 필터 적용)
+    const { messages, readCounts, hasOlder, hasNewer } =
+      await repository.findMessagesAroundWithReadCounts(
         { roomId, timestamp, limit, visibleFrom: membership.visible_from },
         userId
-      ),
-    ]);
+      );
 
     const blockedIds = new Set(blocks.map((b) => `${b.blocked_id}_${b.blocked_type}`));
     const filteredMessages = messages.filter(

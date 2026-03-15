@@ -496,7 +496,7 @@ export async function getMessagesSinceAction(
 
     const userType = getUserType(role);
 
-    // 권한 확인: 채팅방 멤버인지
+    // 권한 확인: 채팅방 멤버인지 (메시지 조회 전 필수)
     const member = await repository.findMember(roomId, userId, userType);
     if (!member) {
       return { success: false, error: "채팅방에 접근 권한이 없습니다." };

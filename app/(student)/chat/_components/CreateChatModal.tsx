@@ -7,12 +7,13 @@
  */
 
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 import { Avatar } from "@/components/atoms/Avatar";
 import { startDirectChatAction } from "@/lib/domains/chat/actions";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { flattenUserProfiles, USER_PROFILE_JOIN } from "@/lib/data/helpers/withUserProfile";
 import { chatKeys } from "@/lib/domains/chat/queryKeys";
 import { Loader2, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -39,6 +40,7 @@ export function CreateChatModal({
   onRoomCreated,
 }: CreateChatModalProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [selectedAdminId, setSelectedAdminId] = useState<string | null>(null);
 
   // 관리자 목록 조회 (같은 tenant의 admin/consultant)
@@ -48,12 +50,12 @@ export function CreateChatModal({
       const supabase = createSupabaseBrowserClient();
       const { data, error } = await supabase
         .from("admin_users")
-        .select("id, role, name, profile_image_url")
+        .select(`id, role, ${USER_PROFILE_JOIN}`)
         .in("role", ["admin", "consultant"])
-        .order("name");
+        .order("user_profiles(name)");
 
       if (error) throw error;
-      return data as AdminUser[];
+      return flattenUserProfiles(data) as unknown as AdminUser[];
     },
     enabled: isOpen,
   });
@@ -66,6 +68,8 @@ export function CreateChatModal({
       return result.data;
     },
     onSuccess: (room) => {
+      // 채팅방 목록 즉시 갱신 (네비게이션과 병렬 실행)
+      void queryClient.invalidateQueries({ queryKey: chatKeys.rooms() });
       setSelectedAdminId(null);
       if (onRoomCreated && room?.id) {
         onRoomCreated(room.id);

@@ -72,25 +72,30 @@ export async function createOrGetRoom(
       ...(historyVisible !== undefined && { history_visible: historyVisible }),
     });
 
-    // 생성자를 멤버로 추가 (owner 역할)
-    await repository.insertMember({
-      room_id: room.id,
-      user_id: creatorId,
-      user_type: creatorType,
-      role: "owner",
-    });
+    // 생성자(owner) + 다른 멤버들 병렬 배치 추가 (2 RTT → 1 RTT)
+    const memberInsertTasks: Promise<unknown>[] = [
+      repository.insertMember({
+        room_id: room.id,
+        user_id: creatorId,
+        user_type: creatorType,
+        role: "owner",
+      }),
+    ];
 
-    // 다른 멤버들 배치 추가
     if (memberIds.length > 0) {
-      await repository.insertMembersBatch(
-        memberIds.map((id, i) => ({
-          room_id: room.id,
-          user_id: id,
-          user_type: memberTypes[i],
-          role: "member" as const,
-        }))
+      memberInsertTasks.push(
+        repository.insertMembersBatch(
+          memberIds.map((id, i) => ({
+            room_id: room.id,
+            user_id: id,
+            user_type: memberTypes[i],
+            role: "member" as const,
+          }))
+        )
       );
     }
+
+    await Promise.all(memberInsertTasks);
 
     return { success: true, data: room };
   } catch (error) {
@@ -131,10 +136,7 @@ export async function getRoomList(
     }
   }
 
-  // 안 읽은 메시지 수 배치 조회
-  const unreadMap = await repository.countUnreadByRoomIds(roomIds, userId, membershipMap);
-
-  // 발신자 정보 배치 조회: 1:1 채팅 상대방만 (last_message 발신자는 역정규화됨)
+  // 발신자 키 추출 (동기 — membersMap만 필요)
   const senderKeys: Array<{ id: string; type: ChatUserType }> = [];
   for (const room of rooms) {
     if (room.type === "direct") {
@@ -148,9 +150,13 @@ export async function getRoomList(
     }
   }
 
-  const senderMap = senderKeys.length > 0
-    ? await repository.findSendersByIds(senderKeys)
-    : new Map<string, { id: string; name: string; profileImageUrl?: string; schoolName?: string; gradeDisplay?: string }>();
+  // 안 읽은 메시지 수 + 발신자 정보를 병렬 조회
+  const [unreadMap, senderMap] = await Promise.all([
+    repository.countUnreadByRoomIds(roomIds, userId, membershipMap),
+    senderKeys.length > 0
+      ? repository.findSendersByIds(senderKeys)
+      : Promise.resolve(new Map<string, { id: string; name: string; profileImageUrl?: string; schoolName?: string; gradeDisplay?: string }>()),
+  ]);
 
   // 결과 조합
   const result: ChatRoomListItem[] = [];
@@ -246,20 +252,30 @@ export async function getRoomDetail(
   userType: ChatUserType
 ): Promise<ChatActionResult<{ room: ChatRoom; members: ChatRoomMemberWithUser[]; otherMemberLeft: boolean }>> {
   try {
-    // 방 정보 조회
-    const room = await repository.findRoomById(roomId);
+    // Phase 1: 방 정보 + 멤버십 확인 병렬 조회 (2 RTT → 1 RTT)
+    const [room, membership] = await Promise.all([
+      repository.findRoomById(roomId),
+      repository.findMember(roomId, userId, userType),
+    ]);
+
     if (!room) {
       return { success: false, error: "채팅방을 찾을 수 없습니다" };
     }
-
-    // 멤버십 확인
-    const membership = await repository.findMember(roomId, userId, userType);
     if (!membership) {
       return { success: false, error: "채팅방에 참여하지 않았습니다" };
     }
 
-    // 멤버 목록 + 사용자 정보 (배치 쿼리로 N+1 해결)
-    const members = await repository.findMembersByRoom(roomId);
+    // Phase 2: 멤버 목록 + 1:1 상대방 퇴장 상태 병렬 조회 (2 RTT → 1 RTT)
+    const [members, otherMember] = await Promise.all([
+      repository.findMembersByRoom(roomId),
+      room.type === "direct"
+        ? repository.findOtherMemberInDirectRoom(roomId, userId, userType)
+        : Promise.resolve(null),
+    ]);
+
+    const otherMemberLeft = otherMember?.left_at !== null && otherMember?.left_at !== undefined;
+
+    // Phase 3: 사용자 정보 배치 조회
     const senderKeys = members.map((m) => ({ id: m.user_id, type: m.user_type }));
     const senderMap = await repository.findSendersByIds(senderKeys);
 
@@ -277,17 +293,6 @@ export async function getRoomDetail(
         },
       };
     });
-
-    // 1:1 채팅에서 상대방 퇴장 상태 확인
-    let otherMemberLeft = false;
-    if (room.type === "direct") {
-      const otherMember = await repository.findOtherMemberInDirectRoom(
-        roomId,
-        userId,
-        userType
-      );
-      otherMemberLeft = otherMember?.left_at !== null && otherMember?.left_at !== undefined;
-    }
 
     return { success: true, data: { room, members: membersWithUser, otherMemberLeft } };
   } catch (error) {

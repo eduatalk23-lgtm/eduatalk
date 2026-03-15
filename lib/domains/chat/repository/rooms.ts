@@ -144,6 +144,8 @@ export async function findDirectRoom(
  * 두 사용자 간의 1:1 채팅방 찾기 (나간 멤버 포함)
  * Auto-rejoin 기능을 위해 left_at과 관계없이 방을 찾음
  *
+ * RPC 단일 JOIN으로 3 RTT → 1 RTT 최적화
+ *
  * @param category 카테고리별로 별도의 1:1 방 허용 (기본: general)
  */
 export async function findDirectRoomIncludingLeft(
@@ -155,58 +157,24 @@ export async function findDirectRoomIncludingLeft(
 ): Promise<{ room: ChatRoom; user1Left: boolean; user2Left: boolean } | null> {
   const supabase = getAdminClientForChat();
 
-  // user1이 속한 모든 방 조회 (left_at 무시, deleted_at 무시 - rejoin 가능)
-  const { data: user1Rooms, error: error1 } = await supabase
-    .from("chat_room_members")
-    .select("room_id, left_at")
-    .eq("user_id", user1Id)
-    .eq("user_type", user1Type);
+  const { data, error } = await supabase
+    .rpc("find_direct_room_including_left_rpc", {
+      p_user1_id: user1Id,
+      p_user1_type: user1Type,
+      p_user2_id: user2Id,
+      p_user2_type: user2Type,
+      p_category: category,
+    })
+    .maybeSingle();
 
-  if (error1) throw error1;
-  if (!user1Rooms || user1Rooms.length === 0) return null;
+  if (error) throw error;
+  if (!data) return null;
 
-  const roomIds = user1Rooms.map((r: { room_id: string }) => r.room_id);
-
-  // direct 타입 + 같은 category 방 찾기
-  const { data: directRooms, error: error2 } = await supabase
-    .from("chat_rooms")
-    .select(CHAT_ROOM_COLUMNS)
-    .in("id", roomIds)
-    .eq("type", "direct")
-    .eq("category", category)
-    .eq("is_active", true);
-
-  if (error2) throw error2;
-  if (!directRooms || directRooms.length === 0) return null;
-
-  // user2도 속한 방 찾기 (배치 쿼리로 N+1 해소)
-  const directRoomIds = (directRooms as ChatRoom[]).map((r) => r.id);
-  const { data: user2Members, error: error3 } = await supabase
-    .from("chat_room_members")
-    .select("room_id, left_at")
-    .in("room_id", directRoomIds)
-    .eq("user_id", user2Id)
-    .eq("user_type", user2Type);
-
-  if (error3) throw error3;
-
-  if (user2Members && user2Members.length > 0) {
-    // 첫 번째 매칭된 방 사용
-    const user2Member = user2Members[0] as { room_id: string; left_at: string | null };
-    const room = (directRooms as ChatRoom[]).find((r) => r.id === user2Member.room_id);
-    if (room) {
-      const user1RoomData = user1Rooms.find(
-        (r: { room_id: string }) => r.room_id === room.id
-      );
-      return {
-        room,
-        user1Left: user1RoomData?.left_at != null,
-        user2Left: user2Member.left_at != null,
-      };
-    }
-  }
-
-  return null;
+  return {
+    room: data.room_data as ChatRoom,
+    user1Left: data.user1_left,
+    user2Left: data.user2_left,
+  };
 }
 
 /**

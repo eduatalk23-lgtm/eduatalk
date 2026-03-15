@@ -74,7 +74,7 @@ interface ChatReactionPayload {
 }
 
 // LRU 캐시 클래스 (메모리 누수 방지)
-const SENDER_CACHE_MAX_SIZE = 100;
+const SENDER_CACHE_MAX_SIZE = 500;
 
 class LRUCache<K, V> {
   private cache = new Map<K, V>();
@@ -387,7 +387,7 @@ export function useChatRealtime({
     const BATCH_SIZE = 100;
     const MAX_TOTAL_MESSAGES = 500;
     const MAX_RETRIES = 3;
-    const BASE_DELAY_MS = 1000;
+    const BASE_DELAY_MS = 500;
 
     const initialTimestamp = lastSyncTimestampRef.current || getLatestMessageTimestamp();
 
@@ -521,11 +521,13 @@ export function useChatRealtime({
 
           const firstPage = old.pages[0];
 
-          // 중복 방지: 캐시 내 기존 ID + 전송 중인 메시지(operationTracker) 체크
-          // ① 캐시 첫 페이지의 기존 메시지 ID
-          const existingIds = new Set<string>(
-            firstPage.messages.map((m) => m.id)
-          );
+          // 중복 방지: 모든 페이지의 기존 ID + 전송 중인 메시지(operationTracker) 체크
+          const existingIds = new Set<string>();
+          for (const page of old.pages) {
+            for (const m of page.messages) {
+              existingIds.add(m.id);
+            }
+          }
 
           const uniqueNewMessages = allNewMessages.filter((m) => {
             // ① 캐시에 이미 있는 메시지 스킵
@@ -1221,7 +1223,7 @@ export function useChatRealtime({
 
     // 탭 복귀 시 누락 메시지 동기화 (5초 debounce)
     let lastVisibilitySyncAt = 0;
-    const VISIBILITY_SYNC_DEBOUNCE_MS = 5000;
+    const VISIBILITY_SYNC_DEBOUNCE_MS = 3000;
 
     const handleVisibilityChange = () => {
       if (document.visibilityState !== "visible") return;
@@ -1373,7 +1375,7 @@ export function useChatRoomListRealtime({
   }, [queryClient]);
 
   // Debounce로 짧은 시간 내 중복 무효화 방지 (300ms)
-  const debouncedInvalidate = useDebouncedCallback(invalidateRoomList, 300);
+  const debouncedInvalidate = useDebouncedCallback(invalidateRoomList, 200);
 
   // 캐시에서 room ID 목록 동기화
   useEffect(() => {
@@ -1458,8 +1460,14 @@ export function useChatRoomListRealtime({
         debugLog(`[ChatRealtime] Room list subscription:`, status);
 
         if (status === "SUBSCRIBED") {
-          debugLog("[ChatRealtime] Room list connected/reconnected. Syncing...");
-          invalidateRoomList();
+          // 캐시가 이미 있으면 스킵 — React Query가 이미 페칭 중이거나 fresh 상태
+          const existing = queryClient.getQueryData(chatKeys.rooms());
+          if (!existing) {
+            debugLog("[ChatRealtime] Room list connected, no cache. Fetching...");
+            invalidateRoomList();
+          } else {
+            debugLog("[ChatRealtime] Room list connected, cache exists. Skipping refetch.");
+          }
         }
 
         if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {

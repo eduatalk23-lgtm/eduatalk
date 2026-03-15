@@ -7,12 +7,13 @@
  */
 
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 import { Avatar } from "@/components/atoms/Avatar";
 import { startDirectChatAction } from "@/lib/domains/chat/actions";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { chatKeys } from "@/lib/domains/chat/queryKeys";
 import { Loader2, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -37,45 +38,19 @@ export function ParentCreateChatModal({
   onRoomCreated,
 }: ParentCreateChatModalProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [selectedAdminId, setSelectedAdminId] = useState<string | null>(null);
 
-  // 자녀의 tenant에 속한 관리자/컨설턴트 목록 조회
+  // 자녀의 tenant에 속한 관리자/컨설턴트 목록 조회 (RPC 단일 JOIN: 2 RTT → 1 RTT)
   const { data: admins, isLoading } = useQuery({
     queryKey: ["parent-chat-available-admins"],
     queryFn: async () => {
       const supabase = createSupabaseBrowserClient();
 
-      // 1. 연결된 자녀 정보에서 tenant_id 조회
-      const { data: links } = await supabase
-        .from("parent_student_links")
-        .select("student_id, students(tenant_id)");
-
-      if (!links || links.length === 0) return [];
-
-      // tenant_id 추출 (중복 제거)
-      const tenantIds = [
-        ...new Set(
-          links
-            .map((link) => {
-              const student = link.students as unknown as { tenant_id: string } | null;
-              return student?.tenant_id;
-            })
-            .filter(Boolean) as string[]
-        ),
-      ];
-
-      if (tenantIds.length === 0) return [];
-
-      // 2. 해당 tenant의 관리자/컨설턴트 조회
-      const { data, error } = await supabase
-        .from("admin_users")
-        .select("id, role, name, profile_image_url")
-        .in("tenant_id", tenantIds)
-        .in("role", ["admin", "consultant"])
-        .order("name");
+      const { data, error } = await supabase.rpc("get_parent_accessible_admins");
 
       if (error) throw error;
-      return data as AdminUser[];
+      return (data ?? []) as AdminUser[];
     },
     enabled: isOpen,
   });
@@ -88,6 +63,8 @@ export function ParentCreateChatModal({
       return result.data;
     },
     onSuccess: (room) => {
+      // 채팅방 목록 즉시 갱신 (네비게이션과 병렬 실행)
+      void queryClient.invalidateQueries({ queryKey: chatKeys.rooms() });
       setSelectedAdminId(null);
       if (onRoomCreated && room?.id) {
         onRoomCreated(room.id);

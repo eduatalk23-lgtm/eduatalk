@@ -76,6 +76,7 @@ import { showBrowserNotification } from "@/lib/domains/notification/browserNotif
 import { getChatNotificationPrefs } from "@/lib/domains/student/actions/notifications";
 import { playChatFeedback } from "@/lib/audio/chatSound";
 import { useThrottledCallback } from "@/lib/hooks/useThrottle";
+import { useDebouncedCallback } from "@/lib/hooks/useDebounce";
 import { operationTracker } from "../operationTracker";
 import { chatKeys } from "../queryKeys";
 import { isOnline, isNetworkError } from "@/lib/offline/networkStatus";
@@ -166,6 +167,12 @@ export function useChatRoomLogic({
   const queryClient = useQueryClient();
   const { showError } = useToast();
   const [replyTarget, setReplyTarget] = useState<ReplyTargetInfo | null>(null);
+
+  // Debounced 메시지 invalidation (Realtime broadcast와의 경합 방지, 300ms)
+  const debouncedInvalidateMessages = useDebouncedCallback(
+    () => queryClient.invalidateQueries({ queryKey: chatKeys.messages(roomId) }),
+    300
+  );
 
   // isAtBottom을 ref로 추적하여 콜백에서 항상 최신 값 사용
   const isAtBottomRef = useRef(isAtBottom);
@@ -335,6 +342,10 @@ export function useChatRoomLogic({
 
     const pages = messagesData.pages;
     const result: CacheMessage[] = [];
+    // 페이지 간 중복 메시지 방지 (sync + broadcast 동시 삽입 race condition 안전망)
+    // newest 페이지(page 0)의 메시지가 최신 상태(status, readCount 등)를 가지므로
+    // 중복 시 newer 페이지 버전으로 교체 (oldest→newest 순회)
+    const seenIndex = new Map<string, number>();
     for (let i = pages.length - 1; i >= 0; i--) {
       const page = pages[i];
       const messages = page?.messages;
@@ -345,10 +356,17 @@ export function useChatRoomLogic({
           const msg = messages[j] as CacheMessage;
           // readCount: 메시지에 이미 내장된 값 우선, 없으면 page.readCounts에서 조회
           const rc = msg.readCount ?? readCounts?.[msg.id];
-          if (rc !== undefined && rc !== msg.readCount) {
-            result.push({ ...msg, readCount: rc });
+          const processed = (rc !== undefined && rc !== msg.readCount)
+            ? { ...msg, readCount: rc }
+            : msg;
+
+          const existingIdx = seenIndex.get(msg.id);
+          if (existingIdx !== undefined) {
+            // 중복: newer 페이지 버전으로 교체 (status, readCount 등 최신 반영)
+            result[existingIdx] = processed;
           } else {
-            result.push(msg);
+            seenIndex.set(msg.id, result.length);
+            result.push(processed);
           }
         }
       }
@@ -629,7 +647,7 @@ export function useChatRoomLogic({
         );
         // Fallback: temp 메시지를 못 찾은 경우 (캐시 경쟁 조건) → 서버에서 최신 데이터 refetch
         if (!findMessageInCache(updated, data.id)) {
-          queryClient.invalidateQueries({ queryKey: chatKeys.messages(roomId) });
+          debouncedInvalidateMessages();
         }
       }
     },
@@ -942,8 +960,8 @@ export function useChatRoomLogic({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: chatKeys.pinned(roomId) });
-      // 메시지 목록의 pin 상태도 동기화
-      queryClient.invalidateQueries({ queryKey: chatKeys.messages(roomId) });
+      // 메시지 목록의 pin 상태도 동기화 (Realtime 경합 방지)
+      debouncedInvalidateMessages();
     },
     onError: (error) => {
       showError("메시지 고정에 실패했습니다.");
@@ -1254,8 +1272,8 @@ export function useChatRoomLogic({
           );
         }
       } catch {
-        // delta 실패 시 전체 refetch fallback
-        queryClient.invalidateQueries({ queryKey: chatKeys.messages(roomId) });
+        // delta 실패 시 전체 refetch fallback (Realtime 경합 방지)
+        debouncedInvalidateMessages();
       }
     };
 
@@ -1864,7 +1882,7 @@ export function useChatRoomLogic({
               (old) => replaceMessageInFirstPage(old, messageId, result.data!)
             );
             if (!findMessageInCache(updated, result.data.id)) {
-              queryClient.invalidateQueries({ queryKey: chatKeys.messages(roomId) });
+              debouncedInvalidateMessages();
             }
           } else {
             throw new Error(result.error ?? "전송 실패");

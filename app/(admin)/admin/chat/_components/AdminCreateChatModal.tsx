@@ -8,7 +8,7 @@
  */
 
 import { useState, useMemo } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 import { Avatar } from "@/components/atoms/Avatar";
@@ -18,7 +18,9 @@ import {
   startDirectChatAction,
   createChatRoomAction,
 } from "@/lib/domains/chat/actions";
+import { useAuth } from "@/lib/contexts/AuthContext";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { flattenUserProfiles, USER_PROFILE_JOIN } from "@/lib/data/helpers/withUserProfile";
 import { Loader2, MessageSquare, Search, Users, UserCog } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -80,7 +82,9 @@ export function AdminCreateChatModal({
   onRoomCreated,
 }: AdminCreateChatModalProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { showToast } = useToast();
+  const { user: authUser } = useAuth();
 
   // 공통 상태
   const [activeTab, setActiveTab] = useState<ChatTabId>("direct");
@@ -113,23 +117,15 @@ export function AdminCreateChatModal({
     queryFn: async () => {
       const supabase = createSupabaseBrowserClient();
 
-      // 학생 정보 조회 (phone 포함, students 테이블에 통합됨)
       const { data: studentsData, error: studentsError } = await supabase
         .from("students")
-        .select("id, name, grade, school_type, school_name, phone")
-        .order("name");
+        .select(`id, grade, school_type, school_name, ${USER_PROFILE_JOIN}`)
+        .order("user_profiles(name)");
 
       if (studentsError) throw studentsError;
       if (!studentsData || studentsData.length === 0) return [];
 
-      return studentsData.map((student) => ({
-        id: student.id,
-        name: student.name,
-        grade: student.grade,
-        school_type: student.school_type,
-        school_name: student.school_name,
-        phone: student.phone ?? null,
-      })) as Student[];
+      return flattenUserProfiles(studentsData) as unknown as Student[];
     },
     enabled: isOpen && activeTab !== "team",
     // consulting 탭에서도 학생 목록 사용
@@ -139,18 +135,15 @@ export function AdminCreateChatModal({
   const { data: teamMembers, isLoading: isLoadingTeam } = useQuery({
     queryKey: chatKeys.availableTeamMembers(),
     queryFn: async () => {
+      if (!authUser) throw new Error("인증이 필요합니다");
+
       const supabase = createSupabaseBrowserClient();
-      // 현재 사용자 정보 가져오기
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("인증이 필요합니다");
 
       // 현재 사용자의 tenant_id 조회
       const { data: currentAdmin, error: adminError } = await supabase
         .from("admin_users")
         .select("tenant_id")
-        .eq("id", user.id)
+        .eq("id", authUser.userId)
         .single();
 
       if (adminError || !currentAdmin?.tenant_id) {
@@ -160,13 +153,13 @@ export function AdminCreateChatModal({
       // 같은 테넌트의 관리자 목록 조회 (자신 제외)
       const { data, error } = await supabase
         .from("admin_users")
-        .select("id, name, role")
+        .select(`id, role, ${USER_PROFILE_JOIN}`)
         .eq("tenant_id", currentAdmin.tenant_id)
-        .neq("id", user.id)
-        .order("name");
+        .neq("id", authUser.userId)
+        .order("user_profiles(name)");
 
       if (error) throw error;
-      return data as TeamMember[];
+      return flattenUserProfiles(data) as unknown as TeamMember[];
     },
     enabled: isOpen && activeTab === "team",
   });
@@ -262,6 +255,8 @@ export function AdminCreateChatModal({
       }
     },
     onSuccess: (room) => {
+      // 채팅방 목록 즉시 갱신 (네비게이션과 병렬 실행)
+      void queryClient.invalidateQueries({ queryKey: chatKeys.rooms() });
       resetState();
       if (onRoomCreated && room?.id) {
         onRoomCreated(room.id);
