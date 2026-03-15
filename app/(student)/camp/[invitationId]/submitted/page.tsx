@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getCampInvitation, getCampTemplate } from "@/lib/data/campTemplates";
@@ -23,11 +24,9 @@ export default async function CampSubmissionDetailPage({
   const { invitationId } = await params;
 
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) {
+  if (!currentUser) {
     redirect("/login");
   }
 
@@ -42,10 +41,10 @@ export default async function CampSubmissionDetailPage({
   }
 
   // 본인의 초대인지 확인
-  if (invitation.student_id !== user.id) {
+  if (invitation.student_id !== currentUser.userId) {
     console.warn("[CampSubmissionDetailPage] 본인의 초대가 아님:", {
       invitation_student_id: invitation.student_id,
-      current_user_id: user.id,
+      current_user_id: currentUser.userId,
     });
     redirect("/camp");
   }
@@ -60,7 +59,7 @@ export default async function CampSubmissionDetailPage({
   }
 
   // 본인의 초대인지 확인
-  if (invitation.student_id !== user.id) {
+  if (invitation.student_id !== currentUser.userId) {
     redirect("/camp");
   }
 
@@ -98,7 +97,7 @@ export default async function CampSubmissionDetailPage({
   try {
     const result = await getPlanGroupWithDetails(
       planGroup.id,
-      user.id,
+      currentUser.userId,
       tenantContext?.tenantId || null
     );
     group = result.group;
@@ -124,7 +123,7 @@ export default async function CampSubmissionDetailPage({
   // 콘텐츠 정보 조회 및 학생/추천 구분
   const { studentContents, recommendedContents } = await classifyPlanContents(
     contents,
-    user.id
+    currentUser.userId
   );
 
   // 상세 페이지 형식으로 변환
@@ -155,7 +154,7 @@ export default async function CampSubmissionDetailPage({
     .from("student_plan")
     .select("id")
     .eq("plan_group_id", planGroup.id)
-    .eq("student_id", user.id)
+    .eq("student_id", currentUser.userId)
     .limit(1);
 
   const hasPlans = (plans?.length || 0) > 0;

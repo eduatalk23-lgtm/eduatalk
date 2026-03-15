@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
 
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
@@ -35,11 +36,9 @@ export default async function PlanGroupDetailPage({
   const { id } = await params;
 
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) {
+  if (!currentUser) {
     redirect("/login");
   }
 
@@ -48,7 +47,7 @@ export default async function PlanGroupDetailPage({
 
   // 플랜 그룹 및 관련 데이터 조회
   const { group, contents, exclusions, academySchedules } =
-    await getPlanGroupWithDetails(id, user.id, tenantContext?.tenantId || null);
+    await getPlanGroupWithDetails(id, currentUser.userId, tenantContext?.tenantId || null);
 
   if (!group) {
     notFound();
@@ -64,19 +63,19 @@ export default async function PlanGroupDetailPage({
     plansResult,
   ] = await Promise.all([
     // ④ 콘텐츠 분류 (contents 의존)
-    classifyPlanContents(contents, user.id),
-    // ⑤ 블록 세트 (user.id만 의존)
-    fetchBlockSetsWithBlocks(user.id),
+    classifyPlanContents(contents, currentUser.userId),
+    // ⑤ 블록 세트 (currentUser.userId만 의존)
+    fetchBlockSetsWithBlocks(currentUser.userId),
     // ⑥ 콘텐츠 카드 목록 (id만 의존)
     getPlanContentsList(id),
-    // ⑦ 플랜 데이터 (id + user.id만 의존)
+    // ⑦ 플랜 데이터 (id + currentUser.userId만 의존)
     supabase
       .from("student_plan")
       .select(
         "id,plan_date,planned_start_page_or_time,planned_end_page_or_time,completed_amount,status,actual_start_time,actual_end_time"
       )
       .eq("plan_group_id", id)
-      .eq("student_id", user.id)
+      .eq("student_id", currentUser.userId)
       .not("plan_group_id", "is", null),
   ]);
 
@@ -131,7 +130,7 @@ export default async function PlanGroupDetailPage({
   const plansForAnalysis: Plan[] = (plans || []).map((p) => ({
     id: p.id,
     tenant_id: null,
-    student_id: user.id,
+    student_id: currentUser.userId,
     plan_group_id: id,
     plan_date: p.plan_date,
     block_index: 0,
@@ -294,7 +293,7 @@ export default async function PlanGroupDetailPage({
             canDelete={canDelete || isCompleted}
             isCalendarOnly={group.is_calendar_only ?? false}
             contentCount={contents.length}
-            studentId={user.id}
+            studentId={currentUser.userId}
             tenantId={tenantContext?.tenantId}
           />
         </div>

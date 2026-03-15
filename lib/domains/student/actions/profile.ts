@@ -8,6 +8,7 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCachedAuthUser } from "@/lib/auth/cachedGetUser";
 import {
   upsertStudent,
   getStudentById,
@@ -27,10 +28,8 @@ import {
  * 학생 정보 저장 (회원가입 시)
  */
 export async function saveStudentInfo(formData: FormData): Promise<void> {
+  const user = await getCachedAuthUser();
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   if (!user) {
     throw new Error("로그인이 필요합니다.");
@@ -87,10 +86,8 @@ export async function saveStudentInfo(formData: FormData): Promise<void> {
 export async function updateStudentProfile(
   formData: FormData
 ): Promise<{ success: boolean; error?: string }> {
+  const user = await getCachedAuthUser();
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   if (!user) {
     return { success: false, error: "로그인이 필요합니다." };
@@ -387,10 +384,8 @@ export async function getCurrentStudent(): Promise<
       Partial<StudentCareerGoal> & { desired_career_field?: string | null })
   | null
 > {
+  const user = await getCachedAuthUser();
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   if (!user) {
     return null;

@@ -1,17 +1,16 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { PatternAnalysisView } from "./_components/PatternAnalysisView";
 import { getContainerClass } from "@/lib/constants/layout";
 import { PageHeader } from "@/components/layout/PageHeader";
 
 export default async function PatternAnalysisPage() {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) {
+  if (!currentUser) {
     redirect("/login");
   }
 
@@ -32,7 +31,7 @@ export default async function PatternAnalysisPage() {
     .select(
       "plan_date,total_duration_seconds,paused_duration_seconds,actual_start_time,actual_end_time,block_index"
     )
-    .eq("student_id", user.id)
+    .eq("student_id", currentUser.userId)
     .gte("plan_date", startDate)
     .lte("plan_date", endDate)
     .not("total_duration_seconds", "is", null);

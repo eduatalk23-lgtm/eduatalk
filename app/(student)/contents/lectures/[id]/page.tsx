@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { deleteLecture } from "@/lib/domains/content";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { Lecture } from "@/app/types/content";
 import { LectureDetailTabs } from "./_components/LectureDetailTabs";
@@ -18,11 +19,9 @@ export default async function LectureDetailPage({
   const { id } = await params;
 
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) redirect("/login");
+  if (!currentUser) redirect("/login");
 
   const selectLecture = () =>
     supabase
@@ -33,7 +32,7 @@ export default async function LectureDetailPage({
       .eq("id", id);
 
   let { data: lecture, error } = await selectLecture()
-    .eq("student_id", user.id)
+    .eq("student_id", currentUser.userId)
     .maybeSingle<Lecture & { master_lecture_id?: string | null; linked_book_id?: string | null; total_episodes?: number | null }>();
 
   if (ErrorCodeCheckers.isColumnNotFound(error)) {
@@ -98,7 +97,7 @@ export default async function LectureDetailPage({
       .from("books")
       .select("id, title")
       .eq("id", lecture.linked_book_id)
-      .eq("student_id", user.id)
+      .eq("student_id", currentUser.userId)
       .maybeSingle();
     if (book) {
       linkedBook = book;
@@ -127,14 +126,14 @@ export default async function LectureDetailPage({
   const { data: studentBooks } = await supabase
     .from("books")
     .select("id, title")
-    .eq("student_id", user.id)
+    .eq("student_id", currentUser.userId)
     .order("title", { ascending: true });
 
   // 강의 episode 정보 조회 (학생 강의 episode 우선, 없으면 마스터 참조)
   const lectureEpisodes = await getLectureEpisodesWithFallback(
     id,
     lecture.master_lecture_id,
-    user.id
+    currentUser.userId
   );
 
   // 총 회차 자동 계산 (회차 정보 기반)

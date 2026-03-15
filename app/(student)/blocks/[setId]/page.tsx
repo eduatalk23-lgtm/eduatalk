@@ -1,6 +1,7 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import BlockSetDetail from "./_components/BlockSetDetail";
 import { getContainerClass } from "@/lib/constants/layout";
 
@@ -12,18 +13,16 @@ export default async function BlockSetDetailPage({ params }: PageProps) {
   const { setId } = await params;
   
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) redirect("/login");
+  if (!currentUser) redirect("/login");
 
   // 블록 세트 조회
   const { data: blockSet, error: setError } = await supabase
     .from("student_block_sets")
     .select("id, name, description, display_order")
     .eq("id", setId)
-    .eq("student_id", user.id)
+    .eq("student_id", currentUser.userId)
     .single();
 
   if (setError || !blockSet) {
@@ -35,7 +34,7 @@ export default async function BlockSetDetailPage({ params }: PageProps) {
     .from("student_block_schedule")
     .select("id, day_of_week, start_time, end_time")
     .eq("block_set_id", setId)
-    .eq("student_id", user.id)
+    .eq("student_id", currentUser.userId)
     .order("day_of_week", { ascending: true })
     .order("start_time", { ascending: true });
 
@@ -47,7 +46,7 @@ export default async function BlockSetDetailPage({ params }: PageProps) {
   const { data: student } = await supabase
     .from("students")
     .select("active_block_set_id")
-    .eq("id", user.id)
+    .eq("id", currentUser.userId)
     .maybeSingle();
 
   const isActive = student?.active_block_set_id === setId;

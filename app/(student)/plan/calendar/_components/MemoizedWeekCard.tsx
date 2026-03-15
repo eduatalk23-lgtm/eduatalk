@@ -7,7 +7,7 @@
  */
 
 import { memo, useMemo } from "react";
-import { Link2 } from "lucide-react";
+import { Check, Link2 } from "lucide-react";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, DailyScheduleInfo, AcademySchedule } from "@/lib/types/plan";
 import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
@@ -151,6 +151,11 @@ function MemoizedWeekCardComponent({
                       )}
                       {plan.contentEpisode && (
                         <span className="text-gray-600">{plan.contentEpisode}</span>
+                      )}
+                      {isCompleted && (
+                        <span className="shrink-0 flex items-center justify-center rounded-full bg-green-500 w-4 h-4 shadow-sm ring-1 ring-green-600/30 ml-auto">
+                          <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                        </span>
                       )}
                     </div>
                   </div>

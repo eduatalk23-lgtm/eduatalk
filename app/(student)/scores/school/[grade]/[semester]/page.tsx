@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { ScoreTypeTabs } from "../../../_components/ScoreTypeTabs";
 import { getInternalScores } from "@/lib/data/studentScores";
@@ -26,11 +27,9 @@ export default async function SchoolScoresPage({
   const { grade, semester } = await params;
   const paramsQuery = await searchParams;
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) redirect("/login");
+  if (!currentUser) redirect("/login");
 
   // 유효성 검증
   if (!validGrades.includes(grade) || !validSemesters.includes(semester)) {
@@ -44,7 +43,7 @@ export default async function SchoolScoresPage({
   }
 
   // 모든 성적 데이터 조회 (신규 테이블 사용)
-  const scores: InternalScore[] = await getInternalScores(user.id, tenantContext.tenantId, {
+  const scores: InternalScore[] = await getInternalScores(currentUser.userId, tenantContext.tenantId, {
     grade: parseInt(grade),
     semester: parseInt(semester),
   });

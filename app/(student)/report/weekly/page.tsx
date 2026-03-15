@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getWeekRange, formatWeekRangeKorean } from "@/lib/date/weekRange";
 import {
   getWeeklyPlanSummary,
@@ -21,11 +22,9 @@ import { getContainerClass } from "@/lib/constants/layout";
 
 export default async function WeeklyReportPage() {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) {
+  if (!currentUser) {
     redirect("/login");
   }
 
@@ -51,14 +50,14 @@ export default async function WeeklyReportPage() {
       lastWeekStudyTimeSummary,
       coachingResult,
     ] = await Promise.all([
-      getWeeklyPlanSummary(supabase, user.id, weekStart, weekEnd),
-      getWeeklyStudyTimeSummary(supabase, user.id, weekStart, weekEnd),
-      getWeeklyGoalProgress(supabase, user.id, weekStart, weekEnd),
-      getWeeklyWeakSubjectTrend(supabase, user.id, weekStart, weekEnd),
-      getDailyBreakdown(supabase, user.id, weekStart, weekEnd),
-      getWeeklyPlanSummary(supabase, user.id, lastWeek.weekStart, lastWeek.weekEnd),
-      getWeeklyStudyTimeSummary(supabase, user.id, lastWeek.weekStart, lastWeek.weekEnd),
-      getWeeklyCoaching(user.id),
+      getWeeklyPlanSummary(supabase, currentUser.userId, weekStart, weekEnd),
+      getWeeklyStudyTimeSummary(supabase, currentUser.userId, weekStart, weekEnd),
+      getWeeklyGoalProgress(supabase, currentUser.userId, weekStart, weekEnd),
+      getWeeklyWeakSubjectTrend(supabase, currentUser.userId, weekStart, weekEnd),
+      getDailyBreakdown(supabase, currentUser.userId, weekStart, weekEnd),
+      getWeeklyPlanSummary(supabase, currentUser.userId, lastWeek.weekStart, lastWeek.weekEnd),
+      getWeeklyStudyTimeSummary(supabase, currentUser.userId, lastWeek.weekStart, lastWeek.weekEnd),
+      getWeeklyCoaching(currentUser.userId),
     ]);
 
     // 지난주 대비 변화 계산

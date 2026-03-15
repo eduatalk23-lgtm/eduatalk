@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { redirect, notFound } from "next/navigation";
 import { PlanGroupWizard } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
@@ -15,18 +16,16 @@ export default async function EditPlanGroupPage({ params }: EditPlanGroupPagePro
   const { id } = await params;
 
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) {
+  if (!currentUser) {
     redirect("/login");
   }
 
   // 플랜 그룹 및 관련 데이터 조회
   const { group, contents, exclusions, academySchedules } = await getPlanGroupWithDetails(
     id,
-    user.id
+    currentUser.userId
   );
 
   if (!group) {
@@ -40,10 +39,10 @@ export default async function EditPlanGroupPage({ params }: EditPlanGroupPagePro
 
   // 블록 세트 목록 조회 (통합 함수 사용)
   const { fetchBlockSetsWithBlocks } = await import("@/lib/data/blockSets");
-  const blockSets = await fetchBlockSetsWithBlocks(user.id);
+  const blockSets = await fetchBlockSetsWithBlocks(currentUser.userId);
 
   // 콘텐츠 목록 조회 (통합 함수 사용)
-  const { books, lectures, custom } = await fetchAllStudentContents(user.id);
+  const { books, lectures, custom } = await fetchAllStudentContents(currentUser.userId);
 
   // 데이터 변환 함수 사용
   const { transformPlanGroupToWizardDataPure } = await import("@/lib/utils/planGroupTransform");

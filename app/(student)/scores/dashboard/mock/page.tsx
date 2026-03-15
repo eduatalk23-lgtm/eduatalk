@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { ScoreTypeTabs } from "../../_components/ScoreTypeTabs";
 import { DashboardSubTabs } from "../_components/DashboardSubTabs";
 import { getMockScores } from "@/lib/data/studentScores";
@@ -84,11 +85,9 @@ async function transformMockScoresToRows(
 
 export default async function MockScoresDashboardPage() {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) redirect("/login");
+  if (!currentUser) redirect("/login");
 
   // Tenant context 조회
   const tenantContext = await getTenantContext();
@@ -122,7 +121,7 @@ export default async function MockScoresDashboardPage() {
   const subjectHierarchy = await getSubjectHierarchyOptimized(curriculumRevision.id);
 
   // 모의고사 성적 조회
-  const mockScoresData = await getMockScores(user.id, tenantContext.tenantId);
+  const mockScoresData = await getMockScores(currentUser.userId, tenantContext.tenantId);
 
   // MockScore를 MockScoreRow로 변환
   const mockScores = await transformMockScoresToRows(mockScoresData, subjectHierarchy);

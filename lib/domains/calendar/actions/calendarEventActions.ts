@@ -221,7 +221,7 @@ export async function updatePlanStatus({
     //    UPSERT: event_study_data 행이 없을 경우 자동 생성
     let doneBy: string | null = null;
     if (done) {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCachedAuthUser();
       doneBy = user?.id ?? 'unknown';
     }
 

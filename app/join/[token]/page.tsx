@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCachedAuthUser } from "@/lib/auth/cachedGetUser";
 import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { validateInvitationByToken } from "@/lib/domains/invitation/actions";
 import { AnimatedBackground } from "@/app/login/_components/AnimatedBackground";
@@ -36,9 +36,8 @@ export default async function JoinPage({ params }: JoinPageProps) {
     const { userId } = await getCachedUserRole();
     if (userId) {
       currentUserId = userId;
-      const supabase = await createSupabaseServerClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      currentUserEmail = user?.email ?? null;
+      const authUser = await getCachedAuthUser();
+      currentUserEmail = authUser?.email ?? null;
     }
   } catch {
     // 로그인 안 된 상태 - 정상

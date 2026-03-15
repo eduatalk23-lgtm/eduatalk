@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { deleteBook } from "@/lib/domains/content";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { Book } from "@/app/types/content";
 import { BookDetailTabs } from "./_components/BookDetailTabs";
@@ -17,11 +18,9 @@ export default async function BookDetailPage({
   const { id } = await params;
 
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) redirect("/login");
+  if (!currentUser) redirect("/login");
 
   const selectBook = () =>
     supabase
@@ -32,7 +31,7 @@ export default async function BookDetailPage({
       .eq("id", id);
 
   let { data: book, error } = await selectBook()
-    .eq("student_id", user.id)
+    .eq("student_id", currentUser.userId)
     .maybeSingle<Book & { master_content_id?: string | null }>();
 
   if (ErrorCodeCheckers.isColumnNotFound(error)) {

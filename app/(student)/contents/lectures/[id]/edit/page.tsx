@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { LectureEditForm } from "./LectureEditForm";
 import { Lecture } from "@/app/types/content";
@@ -15,11 +16,9 @@ export default async function EditLecturePage({
   const { id } = await params;
 
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) redirect("/login");
+  if (!currentUser) redirect("/login");
 
   const tenantContext = await getTenantContext();
 
@@ -32,7 +31,7 @@ export default async function EditLecturePage({
       .eq("id", id);
 
   let { data: lecture, error } = await selectLecture()
-    .eq("student_id", user.id)
+    .eq("student_id", currentUser.userId)
     .maybeSingle<Lecture & { linked_book_id?: string | null }>();
 
   if (ErrorCodeCheckers.isColumnNotFound(error)) {
@@ -47,7 +46,7 @@ export default async function EditLecturePage({
   if (!lecture) notFound();
 
   // 교재 목록 조회
-  const books = await getBooks(user.id, tenantContext?.tenantId || null);
+  const books = await getBooks(currentUser.userId, tenantContext?.tenantId || null);
   const studentBooks = books.map((book) => ({
     id: book.id,
     title: book.title,

@@ -1,18 +1,17 @@
 import { getRecommendations, getTopRecommendations } from "@/lib/recommendations/engine";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { cn, textPrimaryVar, textSecondaryVar } from "@/lib/utils/darkMode";
 
 export async function RecommendationCard() {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) {
+  if (!currentUser) {
     return null;
   }
 
-  const recommendations = await getRecommendations(supabase, user.id);
+  const recommendations = await getRecommendations(supabase, currentUser.userId);
   const topRecommendations = getTopRecommendations(recommendations, 3);
 
   if (topRecommendations.length === 0) {

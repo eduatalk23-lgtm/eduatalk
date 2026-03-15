@@ -10,6 +10,7 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { RescheduleWizard } from "./_components/RescheduleWizard";
@@ -33,11 +34,9 @@ export default async function ReschedulePage({
   const searchParamsData = await searchParams;
 
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) {
+  if (!currentUser) {
     redirect("/login");
   }
 
@@ -47,7 +46,7 @@ export default async function ReschedulePage({
   // 플랜 그룹 및 관련 데이터 조회
   const { group, contents } = await getPlanGroupWithDetails(
     id,
-    user.id,
+    currentUser.userId,
     tenantContext?.tenantId || null
   );
 
@@ -61,7 +60,7 @@ export default async function ReschedulePage({
     .from("student_plan")
     .select("id, status, is_active, content_id, content_type, plan_date")
     .eq("plan_group_id", id)
-    .eq("student_id", user.id);
+    .eq("student_id", currentUser.userId);
 
   // 콘텐츠 타입별로 master_content_id 조회
   const existingPlans = await Promise.all(

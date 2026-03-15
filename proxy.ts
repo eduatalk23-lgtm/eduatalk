@@ -232,7 +232,17 @@ export async function proxy(request: NextRequest) {
       );
     }
 
-    // 보호된 API: 세션 갱신 후 통과 (세부 권한은 각 핸들러에서 체크)
+    // 토큰 로컬 파싱으로 getUser() 네트워크 호출 최소화
+    // - 토큰 유효(만료 60초 이상): 로컬 파싱만으로 통과 (0ms)
+    // - 토큰 만료 임박/파싱 실패: getUser() 호출하여 리프레시 (네트워크)
+    const apiParsed = parseTokenFromCookies(request);
+
+    if (!apiParsed.needsRefresh && apiParsed.user) {
+      // 토큰 유효 → 네트워크 호출 스킵
+      return NextResponse.next({ request: { headers: request.headers } });
+    }
+
+    // 토큰 만료 임박 또는 파싱 실패 → getUser()로 리프레시
     const { supabase, getResponse } = createSupabaseProxyClient(request);
     const { data: { user }, error } = await supabase.auth.getUser();
 

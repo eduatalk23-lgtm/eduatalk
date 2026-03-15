@@ -1,17 +1,16 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { NotificationSettingsView } from "./_components/NotificationSettingsView";
 import PageContainer from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
 
 export default async function NotificationSettingsPage() {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) {
+  if (!currentUser) {
     redirect("/login");
   }
 
@@ -19,7 +18,7 @@ export default async function NotificationSettingsPage() {
   const { data: notificationSettings } = await supabase
     .from("student_notification_preferences")
     .select("*")
-    .eq("student_id", user.id)
+    .eq("student_id", currentUser.userId)
     .single();
 
   // 기본값 설정
@@ -56,7 +55,7 @@ export default async function NotificationSettingsPage() {
           description="학습 관련 알림을 받을 항목과 시간을 설정하세요"
         />
 
-        <NotificationSettingsView initialSettings={settings} userId={user.id} />
+        <NotificationSettingsView initialSettings={settings} userId={currentUser.userId} />
       </div>
     </PageContainer>
   );

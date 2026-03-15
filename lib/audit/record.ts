@@ -6,6 +6,7 @@
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCachedAuthUser } from "@/lib/auth/cachedGetUser";
 import type { Json } from "@/lib/supabase/database.types";
 
 export type AuditAction =
@@ -123,10 +124,8 @@ export async function recordAuditLogWithUser(
   }
 ): Promise<void> {
   try {
+    const user = await getCachedAuthUser();
     const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
 
     if (!user) {
       console.warn("[audit] 사용자 정보를 가져올 수 없습니다.");

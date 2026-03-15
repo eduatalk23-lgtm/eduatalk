@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { BookEditForm } from "./BookEditForm";
 import { Book } from "@/app/types/content";
@@ -13,11 +14,9 @@ export default async function EditBookPage({
   const { id } = await params;
 
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) redirect("/login");
+  if (!currentUser) redirect("/login");
 
   const selectBook = () =>
     supabase
@@ -28,7 +27,7 @@ export default async function EditBookPage({
       .eq("id", id);
 
   let { data: book, error } = await selectBook()
-    .eq("student_id", user.id)
+    .eq("student_id", currentUser.userId)
     .maybeSingle<Book>();
 
   if (ErrorCodeCheckers.isColumnNotFound(error)) {

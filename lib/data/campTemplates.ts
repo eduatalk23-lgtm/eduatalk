@@ -7,6 +7,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getCachedAuthUser } from "@/lib/auth/cachedGetUser";
 import { CampTemplate, CampInvitation } from "@/lib/types/plan";
 import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import type { PaginationOptions, ListResult } from "@/lib/data/core/types";
@@ -438,16 +439,7 @@ export async function updateCampInvitationStatus(
   status: "accepted" | "declined"
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
-
-  // 현재 사용자 확인 (디버깅용)
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError) {
-    logActionError(
-      { domain: "data", action: "updateCampInvitationStatus" },
-      userError,
-      { invitationId }
-    );
-  }
+  const user = await getCachedAuthUser();
 
   // 먼저 현재 상태 확인
   const { data: currentInvitation, error: checkError } = await supabase

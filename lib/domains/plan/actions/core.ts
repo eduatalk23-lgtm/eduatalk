@@ -10,6 +10,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { getCachedAuthUser } from "@/lib/auth/cachedGetUser";
 import { AppError, ErrorCode } from "@/lib/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { recordHistory } from "@/lib/history/record";
@@ -370,8 +371,8 @@ type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient
  * 콘텐츠 진행률 업데이트 (FormData 기반)
  */
 export async function updateProgress(formData: FormData): Promise<void> {
+  const user = await getCachedAuthUser();
   const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
     throw new Error("로그인이 필요합니다.");
@@ -449,8 +450,8 @@ export async function updateProgress(formData: FormData): Promise<void> {
  * 플랜 진행률 업데이트 (FormData 기반)
  */
 export async function updatePlanProgress(formData: FormData): Promise<void> {
+  const user = await getCachedAuthUser();
   const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
     throw new Error("로그인이 필요합니다.");

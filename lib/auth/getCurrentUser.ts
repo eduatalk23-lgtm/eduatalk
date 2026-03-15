@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { getCurrentUserRole, type CurrentUserRole } from "./getCurrentUserRole";
+import { getCachedUserRole, type CurrentUserRole } from "./getCurrentUserRole";
 import { getCachedAuthUser } from "./cachedGetUser";
 
 export type CurrentUser = {
@@ -11,39 +11,27 @@ export type CurrentUser = {
 
 /**
  * 현재 로그인한 사용자 정보를 조회합니다.
- * getCurrentUserRole을 확장하여 이메일 정보도 포함합니다.
+ * getCachedUserRole()을 사용하여 동일한 RSC 요청 내에서
+ * getUser() 1회 + user_profiles 쿼리 1회로 통합됩니다.
  *
- * getCachedAuthUser()를 사용하여 동일한 RSC 요청 내에서
- * getUser() 호출이 1회로 통합됩니다.
+ * 이전: getCurrentUserRole(user) 직접 호출 → getCachedUserRole()과 동시 사용 시 user_profiles 2회 쿼리
+ * 현재: getCachedUserRole() 사용 → React.cache()로 중복 방지
  */
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
-  const user = await getCachedAuthUser();
-  if (!user) return null;
-
-  const { userId, role, tenantId } = await getCurrentUserRole(user);
+  const { userId, role, tenantId } = await getCachedUserRole();
 
   if (!userId || !role) {
-    if (process.env.NODE_ENV === "development") {
-      console.warn("[auth] getCurrentUser: userId 또는 role이 없음", {
-        userId,
-        role,
-        userEmail: user.email,
-        userIdFromAuth: user.id,
-      });
-    } else {
-      console.warn("[auth] getCurrentUser: userId 또는 role이 없음", {
-        hasUserId: !!userId,
-        hasRole: !!role,
-      });
-    }
     return null;
   }
+
+  // 이메일 정보는 getCachedAuthUser()에서 가져옴 (이미 캐시됨)
+  const user = await getCachedAuthUser();
 
   return {
     userId,
     role,
     tenantId,
-    email: user.email ?? null,
+    email: user?.email ?? null,
   };
 });
 

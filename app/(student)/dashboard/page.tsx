@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { perfTime } from "@/lib/utils/perfLog";
 import { DailyCheckInCard } from "./_components/DailyCheckInCard";
 import { getContainerClass } from "@/lib/constants/layout";
@@ -95,16 +96,14 @@ export default async function DashboardPage() {
   const pageTimer = perfTime("[dashboard] render - page");
   const supabase = await createSupabaseServerClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) redirect("/login");
+  if (!currentUser) redirect("/login");
 
   const { data: student, error: studentError } = await supabase
     .from("user_profiles")
     .select("id,name")
-    .eq("id", user.id)
+    .eq("id", currentUser.userId)
     .maybeSingle<StudentRow>();
 
   if (studentError) {

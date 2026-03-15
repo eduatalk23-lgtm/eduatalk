@@ -1,6 +1,7 @@
 "use server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCachedAuthUser } from "@/lib/auth/cachedGetUser";
 import { getWeeklyMetrics } from "../getWeeklyMetrics";
 import { coachingEngine, type WeeklyCoaching } from "../engine";
 
@@ -11,10 +12,8 @@ export async function getWeeklyCoaching(
   studentId?: string
 ): Promise<{ success: boolean; data?: WeeklyCoaching; error?: string }> {
   try {
+    const user = await getCachedAuthUser();
     const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
 
     if (!user) {
       return { success: false, error: "로그인이 필요합니다." };

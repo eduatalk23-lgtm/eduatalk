@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { collectReportData } from "./_utils";
 import { ReportView } from "./_components/ReportView";
 import { getContainerClass } from "@/lib/constants/layout";
@@ -12,16 +13,14 @@ export default async function ReportsPage({
 }) {
   const params = await searchParams;
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) redirect("/login");
+  if (!currentUser) redirect("/login");
 
   const period = (params.period === "monthly" ? "monthly" : "weekly") as "weekly" | "monthly";
 
   // 리포트 데이터 수집
-  const reportData = await collectReportData(supabase, user.id, period);
+  const reportData = await collectReportData(supabase, currentUser.userId, period);
 
   return (
     <section className={getContainerClass("DASHBOARD", "lg")}>

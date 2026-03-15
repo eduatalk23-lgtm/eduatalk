@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { calculateAllRiskIndices, saveRiskAnalysis } from "./_utils";
 import { RiskIndexList } from "./_components/RiskIndexList";
@@ -21,17 +22,15 @@ type AnalysisRow = {
 
 export default async function AnalysisPage() {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) redirect("/login");
+  if (!currentUser) redirect("/login");
 
   // 학생 정보 조회 (tenant_id 포함)
   const { data: student } = await supabase
     .from("students")
     .select("tenant_id")
-    .eq("id", user.id)
+    .eq("id", currentUser.userId)
     .maybeSingle();
 
   if (!student || !student.tenant_id) {
@@ -49,7 +48,7 @@ export default async function AnalysisPage() {
 
   let { data: savedAnalyses, error } = await selectAnalysis().eq(
     "student_id",
-    user.id
+    currentUser.userId
   );
 
   if (ErrorCodeCheckers.isColumnNotFound(error)) {
@@ -80,10 +79,10 @@ export default async function AnalysisPage() {
   if (riskAnalyses.length === 0) {
     // 실시간 계산
     try {
-      const calculated = await calculateAllRiskIndices(supabase, user.id, student.tenant_id);
+      const calculated = await calculateAllRiskIndices(supabase, currentUser.userId, student.tenant_id);
       riskAnalyses = calculated;
       // 백그라운드에서 저장 시도
-      saveRiskAnalysis(supabase, user.id, calculated).catch(console.error);
+      saveRiskAnalysis(supabase, currentUser.userId, calculated).catch(console.error);
     } catch (error) {
       console.error("[analysis] 실시간 계산 실패", error);
     }

@@ -18,6 +18,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { logActionSuccess, logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { saveUserSession } from "@/lib/auth/sessionManager";
+import { getCachedAuthUser } from "@/lib/auth/cachedGetUser";
 import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getDefaultTenant } from "@/lib/data/tenants";
 import { DATABASE_ERROR_CODES } from "@/lib/constants/databaseErrorCodes";
@@ -738,7 +739,7 @@ async function _signOut(): Promise<void> {
   const supabase = await createSupabaseServerClient();
 
   // 로그아웃 전에 현재 유저의 모든 Push 구독을 비활성화
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCachedAuthUser();
   if (user) {
     const { error: pushError } = await supabase
       .from("push_subscriptions")
@@ -1036,9 +1037,7 @@ export async function changeUserRole(newRole: "student" | "parent"): Promise<Act
   const supabase = await createSupabaseServerClient();
 
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCachedAuthUser();
 
     if (!user) {
       return createErrorResponse("사용자 정보를 찾을 수 없습니다.");
@@ -1163,10 +1162,10 @@ export async function setupOAuthUserRole(
   formData: FormData
 ): Promise<ActionResponse<{ redirect: string }>> {
   try {
+    const user = await getCachedAuthUser();
     const supabase = await createSupabaseServerClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (userError || !user) {
+    if (!user) {
       return createErrorResponse("로그인이 필요합니다.");
     }
 

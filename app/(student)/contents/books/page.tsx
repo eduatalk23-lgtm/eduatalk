@@ -3,21 +3,20 @@
 import Link from "next/link";
 import { addBook } from "@/lib/domains/content";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { redirect } from "next/navigation";
 import { getContainerClass } from "@/lib/constants/layout";
 
 export default async function BooksPage() {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) redirect("/login");
+  if (!currentUser) redirect("/login");
 
   const { data: books } = await supabase
     .from("books")
     .select("*")
-    .eq("student_id", user.id)
+    .eq("student_id", currentUser.userId)
     .order("created_at", { ascending: false });
 
   return (

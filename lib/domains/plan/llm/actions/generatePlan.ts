@@ -7,7 +7,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-// import { getCurrentUser } from "@/lib/session"; // Removed
+import { getCachedAuthUser } from "@/lib/auth/cachedGetUser";
 import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { revalidatePath } from "next/cache";
 import { logActionError } from "@/lib/logging/actionLogger";
@@ -116,8 +116,8 @@ export async function generatePlanWithAI(
       maxRecommendations: input.contentIds.length,
     });
 
+  const authUser = await getCachedAuthUser();
   const supabase = await createSupabaseServerClient();
-  const { data: { user: authUser } } = await supabase.auth.getUser();
   const user = authUser ? { userId: authUser.id } : null;
 
   if (!user) {

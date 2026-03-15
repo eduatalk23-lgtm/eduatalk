@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getMonthlyReportData } from "@/lib/reports/monthly";
 import { MonthlySummaryHeader } from "./_components/MonthlySummaryHeader";
 import { MonthlyCharts } from "./_components/MonthlyCharts";
@@ -19,11 +20,9 @@ type PageProps = {
 export default async function MonthlyReportPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) {
+  if (!currentUser) {
     redirect("/login");
   }
 
@@ -49,7 +48,7 @@ export default async function MonthlyReportPage({ searchParams }: PageProps) {
   }
 
   try {
-    const reportData = await getMonthlyReportData(supabase, user.id, monthDate);
+    const reportData = await getMonthlyReportData(supabase, currentUser.userId, monthDate);
 
     const hasData =
       reportData.totals.studyMinutes > 0 ||

@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, Link2, LinkIcon } from "lucide-react";
+import { Check, Clock, Link2, LinkIcon } from "lucide-react";
 import type { PlanWithContent } from "../_types/plan";
 import { getContentTypeIcon } from "../../_shared/utils";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
@@ -180,11 +180,11 @@ export function CalendarPlanCard({
             {/* 상태 뱃지 (완료/진행중) - 가상 플랜이 아닌 경우만 */}
             {!isVirtual && isCompleted && (
               <span
-                className="shrink-0 rounded-full bg-green-500 px-1 py-0.5 text-[9px] font-semibold text-white leading-none"
+                className="shrink-0 flex items-center justify-center rounded-full bg-green-500 w-4 h-4 shadow-sm ring-1 ring-green-600/30"
                 title="완료"
                 aria-label="완료"
               >
-                ✓
+                <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
               </span>
             )}
             {!isVirtual && isActive && !isCompleted && (
@@ -249,8 +249,9 @@ export function CalendarPlanCard({
               </span>
             )}
             {!isVirtual && isCompleted && (
-              <span className="shrink-0 rounded-full bg-green-500 px-3 py-1 text-xs font-bold text-white shadow-[var(--elevation-1)]">
-                ✅ 완료
+              <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-green-500 px-3 py-1 text-xs font-bold text-white shadow-[var(--elevation-1)] ring-1 ring-green-600/30">
+                <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                완료
               </span>
             )}
             {!isVirtual && isActive && !isCompleted && (

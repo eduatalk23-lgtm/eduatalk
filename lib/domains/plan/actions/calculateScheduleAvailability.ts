@@ -7,6 +7,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCachedAuthUser } from "@/lib/auth/cachedGetUser";
 import { logActionError } from "@/lib/logging/actionLogger";
 import {
   calculateAvailableDates,
@@ -51,10 +52,8 @@ type CalculateScheduleAvailabilityParams = {
 export async function calculateScheduleAvailability(
   params: CalculateScheduleAvailabilityParams
 ) {
+  const user = await getCachedAuthUser();
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   if (!user) {
     return {

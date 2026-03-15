@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Bell, X, Settings } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { usePushSubscription } from "@/lib/domains/push/hooks/usePushSubscription";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/contexts/AuthContext";
 
 const STORAGE_KEY = "push-permission-banner-dismissed";
 const DENIED_STORAGE_KEY = "push-permission-denied-banner-dismissed";
@@ -40,6 +40,7 @@ function getIsAndroid(): boolean {
  * iOS PWA에서는 홈 화면 추가 후 이 배너를 통해 최초 권한을 요청합니다.
  */
 export function PushPermissionBanner() {
+  const { user: authUser } = useAuth();
   const [userId, setUserId] = useState<string | null>(null);
   const [mode, setMode] = useState<
     "request" | "denied" | "android-importance" | null
@@ -70,16 +71,11 @@ export function PushPermissionBanner() {
       targetMode = "android-importance";
     }
 
-    if (targetMode) {
-      const supabase = createSupabaseBrowserClient();
-      supabase.auth.getUser().then(({ data }) => {
-        if (data.user?.id) {
-          setUserId(data.user.id);
-          setMode(targetMode);
-        }
-      });
+    if (targetMode && authUser?.userId) {
+      setUserId(authUser.userId);
+      setMode(targetMode);
     }
-  }, []);
+  }, [authUser]);
 
   const handleEnable = useCallback(async () => {
     const granted = await requestSubscription();

@@ -1,6 +1,7 @@
 "use server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCachedAuthUser } from "@/lib/auth/cachedGetUser";
 import { logActionError } from "@/lib/logging/actionLogger";
 import type { PlanOrderUpdate, ActionResult } from "../types";
 
@@ -9,10 +10,8 @@ export async function updatePlanOrder(
   updates: PlanOrderUpdate[]
 ): Promise<ActionResult> {
   try {
+    const user = await getCachedAuthUser();
     const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
 
     if (!user) {
       return { success: false, error: "로그인이 필요합니다." };

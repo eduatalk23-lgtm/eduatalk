@@ -21,11 +21,9 @@ export default async function CampParticipationPage({
   const { invitationId } = await params;
 
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) {
+  if (!currentUser) {
     redirect("/login");
   }
 
@@ -63,7 +61,7 @@ export default async function CampParticipationPage({
         .from("student_plan")
         .select("id")
         .eq("plan_group_id", planGroup.id)
-        .eq("student_id", user.id)
+        .eq("student_id", currentUser.userId)
         .limit(1);
 
       const hasPlans = (plans?.length || 0) > 0;
@@ -99,12 +97,11 @@ export default async function CampParticipationPage({
 
     if (draftGroup) {
       try {
-        const currentUser = await getCurrentUser();
         const tenantContext = await getTenantContext();
         const { group, contents, exclusions, academySchedules } =
           await getPlanGroupWithDetails(
             draftGroup.id,
-            currentUser?.userId || user.id,
+            currentUser.userId,
             tenantContext?.tenantId
           );
 
@@ -195,8 +192,8 @@ export default async function CampParticipationPage({
   }
 
   // 블록 세트 및 콘텐츠 조회
-  const studentBlockSets = await fetchBlockSetsWithBlocks(user.id);
-  const { books, lectures, custom } = await fetchAllStudentContents(user.id);
+  const studentBlockSets = await fetchBlockSetsWithBlocks(currentUser.userId);
+  const { books, lectures, custom } = await fetchAllStudentContents(currentUser.userId);
 
   // 캠프 템플릿의 block_set_id는 template_block_sets 테이블의 ID
   // 템플릿 블록 세트 조회 및 블록 목록에 추가

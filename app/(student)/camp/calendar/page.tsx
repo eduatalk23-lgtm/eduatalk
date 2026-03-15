@@ -1,6 +1,7 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import {
   getPlanGroupsForStudent,
   getPlanExclusions,
@@ -22,11 +23,9 @@ export default async function CampCalendarPage({
   searchParams,
 }: CampCalendarPageProps) {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) {
+  if (!currentUser) {
     redirect("/login");
   }
 
@@ -40,7 +39,7 @@ export default async function CampCalendarPage({
   try {
     // 활성화된 플랜 그룹 조회
     const allActivePlanGroups = await getPlanGroupsForStudent({
-      studentId: user.id,
+      studentId: currentUser.userId,
       status: "active",
     });
 
@@ -145,7 +144,7 @@ export default async function CampCalendarPage({
     // 활성 플랜 그룹에 속한 플랜만 조회 (데이터베이스 레벨 필터링)
     // 날짜 형식이 문자열(YYYY-MM-DD)임을 보장
     const filteredPlans = await getPlansForStudent({
-      studentId: user.id,
+      studentId: currentUser.userId,
       dateRange: {
         start: minDateStr,
         end: maxDateStr,
@@ -162,7 +161,7 @@ export default async function CampCalendarPage({
     const plansWithContent = await enrichPlansWithContentInfo(
       filteredPlans,
       supabase,
-      user.id,
+      currentUser.userId,
       "[camp-calendar]"
     );
 

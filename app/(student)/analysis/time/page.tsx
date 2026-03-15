@@ -1,17 +1,16 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { TimeAnalysisView } from "./_components/TimeAnalysisView";
 import { getContainerClass } from "@/lib/constants/layout";
 import { PageHeader } from "@/components/layout/PageHeader";
 
 export default async function TimeAnalysisPage() {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) {
+  if (!currentUser) {
     redirect("/login");
   }
 
@@ -44,7 +43,7 @@ export default async function TimeAnalysisPage() {
   const { data: todayPlans } = await supabase
     .from("student_plan")
     .select("total_duration_seconds,paused_duration_seconds")
-    .eq("student_id", user.id)
+    .eq("student_id", currentUser.userId)
     .eq("plan_date", todayDate)
     .not("total_duration_seconds", "is", null);
 
@@ -61,7 +60,7 @@ export default async function TimeAnalysisPage() {
   const { data: weekPlans } = await supabase
     .from("student_plan")
     .select("total_duration_seconds,paused_duration_seconds,content_type")
-    .eq("student_id", user.id)
+    .eq("student_id", currentUser.userId)
     .gte("plan_date", weekStartStr)
     .lte("plan_date", weekEndStr)
     .not("total_duration_seconds", "is", null);
@@ -91,7 +90,7 @@ export default async function TimeAnalysisPage() {
   const { data: monthPlans } = await supabase
     .from("student_plan")
     .select("total_duration_seconds,paused_duration_seconds,plan_date")
-    .eq("student_id", user.id)
+    .eq("student_id", currentUser.userId)
     .gte("plan_date", monthStartStr)
     .lte("plan_date", monthEndStr)
     .not("total_duration_seconds", "is", null);

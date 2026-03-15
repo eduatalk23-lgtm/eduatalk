@@ -1,6 +1,7 @@
 "use server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCachedAuthUser } from "@/lib/auth/cachedGetUser";
 import { logActionError } from "@/lib/logging/actionLogger";
 
 export type NotificationSettings = {
@@ -46,10 +47,10 @@ export async function getChatNotificationPrefs(): Promise<ChatNotificationPrefs>
   };
 
   try {
-    const supabase = await createSupabaseServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCachedAuthUser();
     if (!user) return defaults;
 
+    const supabase = await createSupabaseServerClient();
     const { data } = await supabase
       .from("student_notification_preferences")
       .select("chat_sound_enabled, chat_vibrate_enabled, chat_read_receipt_enabled")
@@ -72,10 +73,8 @@ export async function updateNotificationSettings(
   settings: NotificationSettings
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const user = await getCachedAuthUser();
     const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
 
     if (!user) {
       return { success: false, error: "로그인이 필요합니다." };

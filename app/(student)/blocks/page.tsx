@@ -1,23 +1,22 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
 import BlockManagementContainer from "./_components/BlockManagementContainer";
 import { getContainerClass } from "@/lib/constants/layout";
 
 export default async function BlocksPage() {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) redirect("/login");
+  if (!currentUser) redirect("/login");
 
   // 학생 정보 조회 (활성 세트 포함)
   const { data: student, error: studentError } = await supabase
     .from("students")
     .select("active_block_set_id, tenant_id")
-    .eq("id", user.id)
+    .eq("id", currentUser.userId)
     .maybeSingle();
 
   if (studentError && studentError.code !== "PGRST116") {
@@ -31,7 +30,7 @@ export default async function BlocksPage() {
       id, name, description, display_order,
       student_block_schedule(id, day_of_week, start_time, end_time)
     `)
-    .eq("student_id", user.id)
+    .eq("student_id", currentUser.userId)
     .order("display_order", { ascending: true })
     .order("created_at", { ascending: true });
 
@@ -83,7 +82,7 @@ export default async function BlocksPage() {
         const { error: updateError } = await supabase
           .from("students")
           .update({ active_block_set_id: set.id })
-          .eq("id", user.id);
+          .eq("id", currentUser.userId);
         
         if (updateError) {
           console.error("활성 세트 업데이트 실패:", updateError);
@@ -97,7 +96,7 @@ export default async function BlocksPage() {
   const blocksQuery = supabase
     .from("student_block_schedule")
     .select("id, day_of_week, start_time, end_time, block_set_id")
-    .eq("student_id", user.id)
+    .eq("student_id", currentUser.userId)
     .order("day_of_week", { ascending: true })
     .order("start_time", { ascending: true });
 
@@ -113,7 +112,7 @@ export default async function BlocksPage() {
 
   // 플랜 그룹 목록 조회 (학습 제외 일정, 학원 일정 표시용)
   const planGroups = await getPlanGroupsForStudent({
-    studentId: user.id,
+    studentId: currentUser.userId,
     tenantId: student?.tenant_id ?? null,
     includeDeleted: false,
   });
@@ -121,7 +120,7 @@ export default async function BlocksPage() {
   return (
     <section className={getContainerClass("DASHBOARD", "md")}>
       <BlockManagementContainer
-        studentId={user.id}
+        studentId={currentUser.userId}
         initialBlockSets={blockSets}
         initialActiveSetId={activeSetId}
         initialBlocks={(blocks as Array<{ id: string; day_of_week: number; start_time: string; end_time: string; block_set_id: string | null }>) ?? []}

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCachedAuthUser } from "@/lib/auth/cachedGetUser";
 import { logActionError } from "@/lib/logging/actionLogger";
 import { calculateAllRiskIndices, saveRiskAnalysis } from "../utils";
 import type { SubjectRiskAnalysis } from "../types";
@@ -18,15 +19,13 @@ export async function recalculateRiskIndex(options?: {
   analyses?: SubjectRiskAnalysis[];
 }> {
   const supabase = await createSupabaseServerClient();
-  
+
   let targetStudentId = options?.studentId;
   let targetTenantId = options?.tenantId;
 
   // studentId가 없으면 현재 로그인 사용자 기준
   if (!targetStudentId) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCachedAuthUser();
 
     if (!user) {
       return { success: false, error: "로그인이 필요합니다." };

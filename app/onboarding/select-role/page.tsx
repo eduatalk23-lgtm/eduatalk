@@ -44,17 +44,18 @@ function SelectRoleContent() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // 사용자 정보 로드
+  // 사용자 정보 로드 (getSession: 로컬 쿠키 기반, 네트워크 호출 없음)
   useEffect(() => {
     const loadUser = async () => {
       const supabase = createSupabaseBrowserClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
 
-      if (!user) {
+      if (!session?.user) {
         router.push("/login");
         return;
       }
 
+      const user = session.user;
       setUserInfo({
         email: user.email || "",
         name: user.user_metadata?.full_name || user.user_metadata?.name || "",

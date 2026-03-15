@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCachedAuthUser } from "@/lib/auth/cachedGetUser";
 import { logActionWarn, logActionError } from "@/lib/utils/serverActionLogger";
 
 /**
@@ -189,14 +190,13 @@ export async function saveUserSession(
  */
 export async function getUserSessions(): Promise<UserSession[]> {
   try {
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCachedAuthUser();
 
     if (!user) {
       return [];
     }
+
+    const supabase = await createSupabaseServerClient();
 
     // 현재 세션 조회
     const { data: existingSessions, error: fetchError } = await supabase
@@ -273,14 +273,13 @@ export async function revokeSession(sessionId: string): Promise<{
   error?: string;
 }> {
   try {
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCachedAuthUser();
 
     if (!user) {
       return { success: false, error: "로그인이 필요합니다." };
     }
+
+    const supabase = await createSupabaseServerClient();
 
     // 세션이 해당 사용자의 것인지 확인
     const { data: session, error: fetchError } = await supabase
@@ -333,14 +332,13 @@ export async function revokeAllOtherSessions(): Promise<{
   revokedCount?: number;
 }> {
   try {
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCachedAuthUser();
 
     if (!user) {
       return { success: false, error: "로그인이 필요합니다." };
     }
+
+    const supabase = await createSupabaseServerClient();
 
     // 현재 세션 제외한 모든 세션 삭제
     const { data, error } = await supabase
@@ -370,12 +368,11 @@ export async function revokeAllOtherSessions(): Promise<{
  */
 export async function updateLastActive(): Promise<void> {
   try {
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCachedAuthUser();
 
     if (!user) return;
+
+    const supabase = await createSupabaseServerClient();
 
     // 현재 세션의 last_active_at 업데이트
     await supabase

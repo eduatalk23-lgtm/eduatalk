@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { ContentTabs } from "./_components/ContentTabs";
 import { ContentsListWrapper } from "./_components/ContentsListWrapper";
 import { ContentsList } from "./_components/ContentsList";
@@ -26,12 +26,9 @@ export default async function ContentsPage({
   const params = await searchParams;
   const tabParam = params.tab;
 
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) redirect("/login");
+  if (!currentUser) redirect("/login");
 
   const activeTab: TabKey =
     tabParam === "lectures" ? "lectures" : tabParam === "custom" ? "custom" : "books";
@@ -66,7 +63,7 @@ export default async function ContentsPage({
         />
 
         {/* 통계 */}
-        <ContentStats studentId={user.id} />
+        <ContentStats studentId={currentUser.userId} />
 
         {/* Tabs */}
         <ContentTabs
@@ -90,7 +87,7 @@ export default async function ContentsPage({
         <ContentsListWrapper activeTab={activeTab}>
           <ContentsList
             activeTab={activeTab}
-            studentId={user.id}
+            studentId={currentUser.userId}
             filters={filters}
             sortBy={sortBy}
             page={page}

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { Suspense } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { fetchScoreDashboard } from "@/lib/api/scoreDashboard";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import {
@@ -33,11 +34,9 @@ import { getContainerClass } from "@/lib/constants/layout";
  */
 export default async function UnifiedScoreDashboardPage() {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) redirect("/login");
+  if (!currentUser) redirect("/login");
 
   // Tenant 정보 조회
   const tenantContext = await getTenantContext();
@@ -59,7 +58,7 @@ export default async function UnifiedScoreDashboardPage() {
   }
 
   // 학생 정보 조회 (tenant_id 포함) - 공통 유틸리티 사용
-  const student = await getStudentWithTenant(supabase, user.id);
+  const student = await getStudentWithTenant(supabase, currentUser.userId);
 
   if (!student) {
     return (
@@ -83,13 +82,6 @@ export default async function UnifiedScoreDashboardPage() {
       </section>
     );
   }
-
-  // 학생의 grade 정보 조회 (추가)
-  const { data: studentWithGrade } = await supabase
-    .from("students")
-    .select("grade")
-    .eq("id", student.id)
-    .maybeSingle();
 
   // effectiveTenantId 결정 - 공통 유틸리티 사용
   const effectiveTenantId = getEffectiveTenantId(tenantContext, student.tenant_id);
@@ -130,7 +122,7 @@ export default async function UnifiedScoreDashboardPage() {
       {
         studentId: student.id,
         tenantId: effectiveTenantId,
-        grade: studentWithGrade?.grade || undefined,
+        grade: student.grade || undefined,
         semester: 1, // 기본값: 1학기
       },
       {

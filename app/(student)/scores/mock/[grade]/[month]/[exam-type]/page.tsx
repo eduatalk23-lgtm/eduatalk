@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { ScoreTypeTabs } from "../../../../_components/ScoreTypeTabs";
 import { getMockScores } from "@/lib/data/studentScores";
@@ -28,11 +29,9 @@ export default async function MockScoresPage({
   const paramsQuery = await searchParams;
   const examType = decodeURIComponent(examTypeRaw);
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) redirect("/login");
+  if (!currentUser) redirect("/login");
 
   // 유효성 검증
   if (
@@ -51,7 +50,7 @@ export default async function MockScoresPage({
 
   // 모든 성적 데이터 조회 (필터는 클라이언트에서 처리)
   // ✅ getMockScores는 이미 student_mock_scores 테이블을 사용합니다.
-  const scores = await getMockScores(user.id, tenantContext.tenantId);
+  const scores = await getMockScores(currentUser.userId, tenantContext.tenantId);
 
   // 활성화된 개정교육과정 조회
   const activeCurriculum = await getActiveCurriculumRevision();

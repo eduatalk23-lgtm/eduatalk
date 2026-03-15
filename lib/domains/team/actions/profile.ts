@@ -8,6 +8,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCachedAuthUser } from "@/lib/auth/cachedGetUser";
 import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { revalidatePath } from "next/cache";
@@ -47,11 +48,11 @@ export async function getMyProfile(): Promise<ProfileData | null> {
 
   const supabase = await createSupabaseServerClient();
 
-  // admin_users(admin 고유 필드) + user_profiles(공통 필드) 병렬 조회
-  const [adminResult, profileResult, authResult] = await Promise.all([
+  // admin_users(admin 고유 필드) + user_profiles(공통 필드) + auth user 병렬 조회
+  const [adminResult, profileResult, authUser] = await Promise.all([
     supabase.from("admin_users").select("id, role, job_title, department").eq("id", userId).maybeSingle(),
     supabase.from("user_profiles").select("name, phone, profile_image_url").eq("id", userId).maybeSingle(),
-    supabase.auth.getUser(),
+    getCachedAuthUser(),
   ]);
 
   if (adminResult.error || !adminResult.data) {
@@ -64,7 +65,7 @@ export async function getMyProfile(): Promise<ProfileData | null> {
   return {
     id: adminUser.id,
     name: profile?.name ?? "",
-    email: authResult.data?.user?.email || null,
+    email: authUser?.email || null,
     role: adminUser.role,
     profileImageUrl: profile?.profile_image_url ?? null,
     jobTitle: adminUser.job_title,

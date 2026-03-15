@@ -1,17 +1,16 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getStudentCampInvitations } from "../actions/campActions";
 import { CampInvitationCard } from "./_components/CampInvitationCard";
 import { getContainerClass } from "@/lib/constants/layout";
 
 export default async function CampPage() {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) {
+  if (!currentUser) {
     redirect("/login");
   }
 

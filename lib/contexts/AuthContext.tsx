@@ -111,32 +111,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
     enabled: !isAuthPage,
   });
 
-  // 인증 페이지 → 일반 페이지 전환 시에만 Supabase 세션-캐시 동기화
-  // 일반 경로 변경 시에는 onAuthStateChange가 세션 변경을 감지하므로 getUser() 불필요
+  // 인증 페이지 → 일반 페이지 전환 시 캐시 동기화
+  // onAuthStateChange SIGNED_IN이 이미 refetch하므로, 캐시 누락 시에만 invalidate
   useEffect(() => {
     const prevPathname = prevPathnameRef.current;
     prevPathnameRef.current = pathname;
 
-    // 인증 페이지에서는 세션 동기화 불필요
     if (isAuthPage) return;
 
-    // 인증 페이지에서 다른 페이지로 이동한 경우에만 동기화 (로그인/가입 후)
     const isFromAuthPage = prevPathname && AUTH_PAGES.some((p) => prevPathname.startsWith(p));
     if (!isFromAuthPage) return;
 
-    // 쿠키 동기화를 위해 지연 후 세션 확인
-    const checkAndSync = (attempt: number = 1) => {
-      supabase.auth.getUser().then(({ data: { user } }) => {
-        const cachedUser = queryClient.getQueryData(["auth", "me"]);
-
-        if (user && !cachedUser) {
-          queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
-        } else if (!user && attempt < 3) {
-          setTimeout(() => checkAndSync(attempt + 1), 100 * attempt);
-        }
-      });
-    };
-    checkAndSync();
+    // getUser() 직접 호출 없이 캐시 존재 여부만 확인
+    const cachedUser = queryClient.getQueryData(["auth", "me"]);
+    if (!cachedUser) {
+      queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+    }
   }, [pathname, queryClient, isAuthPage]);
 
   // Supabase auth state 변경 리스너 (로그인/로그아웃/토큰 갱신)
@@ -160,8 +150,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         queryClient.removeQueries({ queryKey: ["unread"] });
         // 채팅 operationTracker 전체 정리 (이전 사용자의 추적 상태 제거)
         operationTracker.clearAll();
-      } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-        // 로그인 또는 토큰 갱신 시 사용자 정보 리페치
+      } else if (event === "SIGNED_IN") {
+        // 로그인 시 사용자 정보 리페치
+        // TOKEN_REFRESHED는 토큰만 갱신 (역할/프로필 불변) → refetch 불필요
         refetch();
       }
     });

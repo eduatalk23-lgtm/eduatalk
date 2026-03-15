@@ -3,21 +3,20 @@
 import Link from "next/link";
 import { addLecture } from "@/lib/domains/content";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { redirect } from "next/navigation";
 import { getContainerClass } from "@/lib/constants/layout";
 
 export default async function LecturesPage() {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUser();
 
-  if (!user) redirect("/login");
+  if (!currentUser) redirect("/login");
 
   const { data: lectures } = await supabase
     .from("lectures")
     .select("*")
-    .eq("student_id", user.id)
+    .eq("student_id", currentUser.userId)
     .order("created_at", { ascending: false });
 
   return (
