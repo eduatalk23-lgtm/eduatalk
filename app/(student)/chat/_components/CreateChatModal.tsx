@@ -11,7 +11,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 import { Avatar } from "@/components/atoms/Avatar";
-import { startDirectChatAction } from "@/lib/domains/chat/actions";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { flattenUserProfiles, USER_PROFILE_JOIN } from "@/lib/data/helpers/withUserProfile";
 import { chatKeys } from "@/lib/domains/chat/queryKeys";
@@ -63,9 +62,13 @@ export function CreateChatModal({
   // 채팅 시작
   const startChatMutation = useMutation({
     mutationFn: async (adminId: string) => {
-      const result = await startDirectChatAction(adminId, "admin");
-      if (!result.success) throw new Error(result.error);
-      return result.data;
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase.rpc("start_direct_chat", {
+        p_target_user_id: adminId,
+        p_target_user_type: "admin",
+      });
+      if (error) throw new Error(error.message);
+      return data;
     },
     onSuccess: (room) => {
       // 채팅방 목록 즉시 갱신 (네비게이션과 병렬 실행)

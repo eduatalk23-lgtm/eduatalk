@@ -11,7 +11,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 import { Avatar } from "@/components/atoms/Avatar";
 import Checkbox from "@/components/atoms/Checkbox";
-import { inviteMembersAction } from "@/lib/domains/chat/actions";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Loader2, Search, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -88,12 +87,13 @@ export function InviteMemberModal({
   const inviteMutation = useMutation({
     mutationFn: async () => {
       const memberIds = Array.from(selectedStudentIds);
-      const result = await inviteMembersAction(
-        roomId,
-        memberIds,
-        memberIds.map(() => "student")
-      );
-      if (!result.success) throw new Error(result.error);
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.rpc("invite_chat_members", {
+        p_room_id: roomId,
+        p_member_ids: memberIds,
+        p_member_types: memberIds.map(() => "student"),
+      });
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
       // 멤버 목록 새로고침

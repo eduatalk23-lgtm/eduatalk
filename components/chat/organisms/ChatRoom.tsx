@@ -48,7 +48,7 @@ import { ConfirmDialog } from "@/components/ui/Dialog";
 import { Loader2, ArrowLeft, MoreVertical, Search, Megaphone, ChevronDown, MessageSquareOff, RefreshCw, Bell, BellOff, CalendarClock } from "lucide-react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { RetryableErrorBoundary, type ErrorFallbackProps } from "@/components/errors/RetryableErrorBoundary";
-import { toggleMuteChatRoomAction } from "@/lib/domains/chat/actions";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { scheduleMessageAction } from "@/lib/domains/chat/scheduled/actions";
 import { chatKeys } from "@/lib/domains/chat/queryKeys";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -634,8 +634,9 @@ function ChatRoomComponent({
   const handleToggleMute = useCallback(async () => {
     const newMuted = !isMuted;
     setIsMuted(newMuted); // 낙관적 업데이트
-    const result = await toggleMuteChatRoomAction(roomId, newMuted);
-    if (result.success) {
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase.rpc("toggle_mute_chat_room", { p_room_id: roomId, p_muted: newMuted });
+    if (!error) {
       queryClient.invalidateQueries({ queryKey: chatKeys.rooms() });
     } else {
       setIsMuted(!newMuted); // 롤백

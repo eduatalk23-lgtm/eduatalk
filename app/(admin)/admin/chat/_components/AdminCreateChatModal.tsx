@@ -14,12 +14,8 @@ import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 import { Avatar } from "@/components/atoms/Avatar";
 import { Tabs, type Tab } from "@/components/molecules/Tabs";
 import Checkbox from "@/components/atoms/Checkbox";
-import {
-  startDirectChatAction,
-  createChatRoomAction,
-} from "@/lib/domains/chat/actions";
-import { useAuth } from "@/lib/contexts/AuthContext";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/contexts/AuthContext";
 import { flattenUserProfiles, USER_PROFILE_JOIN } from "@/lib/data/helpers/withUserProfile";
 import { Loader2, MessageSquare, Search, Users, UserCog } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -215,43 +211,45 @@ export function AdminCreateChatModal({
   // 채팅 시작/생성
   const startChatMutation = useMutation({
     mutationFn: async () => {
+      const supabase = createSupabaseBrowserClient();
       if (activeTab === "direct") {
         // 1:1 모드 (학생): 기존 로직
-        const result = await startDirectChatAction(
-          selectedStudentId!,
-          "student"
-        );
-        if (!result.success) throw new Error(result.error);
-        return result.data;
+        const { data, error } = await supabase.rpc("start_direct_chat", {
+          p_target_user_id: selectedStudentId!,
+          p_target_user_type: "student",
+        });
+        if (error) throw new Error(error.message);
+        return data;
       } else if (activeTab === "group") {
         // 그룹 모드: 새 로직
         const memberIds = Array.from(selectedStudentIds);
-        const result = await createChatRoomAction({
-          type: "group",
-          name: groupName.trim(),
-          memberIds,
-          memberTypes: memberIds.map(() => "student"),
-          historyVisible,
+        const { data, error } = await supabase.rpc("create_chat_room", {
+          p_type: "group",
+          p_member_ids: memberIds,
+          p_member_types: memberIds.map(() => "student"),
+          p_name: groupName.trim(),
+          p_history_visible: historyVisible,
         });
-        if (!result.success) throw new Error(result.error);
-        return result.data;
+        if (error) throw new Error(error.message);
+        return data;
       } else if (activeTab === "consulting") {
         // 컨설팅 모드: category=consulting, topic 필수
-        const result = await startDirectChatAction(
-          selectedConsultingStudentId!,
-          "student",
-          { category: "consulting", topic: consultingTopic.trim() }
-        );
-        if (!result.success) throw new Error(result.error);
-        return result.data;
+        const { data, error } = await supabase.rpc("start_direct_chat", {
+          p_target_user_id: selectedConsultingStudentId!,
+          p_target_user_type: "student",
+          p_category: "consulting",
+          p_topic: consultingTopic.trim(),
+        });
+        if (error) throw new Error(error.message);
+        return data;
       } else {
         // 팀 모드 (관리자 간 1:1)
-        const result = await startDirectChatAction(
-          selectedTeamMemberId!,
-          "admin"
-        );
-        if (!result.success) throw new Error(result.error);
-        return result.data;
+        const { data, error } = await supabase.rpc("start_direct_chat", {
+          p_target_user_id: selectedTeamMemberId!,
+          p_target_user_type: "admin",
+        });
+        if (error) throw new Error(error.message);
+        return data;
       }
     },
     onSuccess: (room) => {

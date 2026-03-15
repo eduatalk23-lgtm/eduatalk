@@ -13,11 +13,7 @@ import { SlideOverPanel } from "@/components/layouts/SlideOver";
 import { Avatar } from "@/components/atoms/Avatar";
 import { Skeleton } from "@/components/atoms/Skeleton";
 import { Tabs, TabPanel } from "@/components/molecules/Tabs";
-import {
-  leaveChatRoomAction,
-  archiveChatRoomAction,
-  toggleMuteChatRoomAction,
-} from "@/lib/domains/chat/actions";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { chatKeys } from "@/lib/domains/chat/queryKeys";
 import type { ChatRoom, ChatRoomMemberWithUser, ChatMemberRole, ChatAttachment } from "@/lib/domains/chat/types";
 import { cn } from "@/lib/cn";
@@ -100,8 +96,9 @@ function ChatRoomInfoComponent({
 
     setIsLeaving(true);
     try {
-      const result = await leaveChatRoomAction(roomId);
-      if (result.success) {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.rpc("leave_chat_room", { p_room_id: roomId });
+      if (!error) {
         // 캐시 정리 (백그라운드에서 진행)
         queryClient.invalidateQueries({ queryKey: chatKeys.rooms() });
         queryClient.removeQueries({ queryKey: chatKeys.messages(roomId) });
@@ -114,7 +111,7 @@ function ChatRoomInfoComponent({
         // onClose() 호출 제거 - 페이지가 이동하므로 불필요
         router.replace(basePath);
       } else {
-        showError(result.error ?? "채팅방 나가기 실패");
+        showError(error.message ?? "채팅방 나가기 실패");
         setIsLeaving(false);
       }
     } catch {
@@ -130,13 +127,14 @@ function ChatRoomInfoComponent({
 
     setIsArchiving(true);
     try {
-      const result = await archiveChatRoomAction(roomId);
-      if (result.success) {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.rpc("archive_chat_room", { p_room_id: roomId });
+      if (!error) {
         queryClient.invalidateQueries({ queryKey: chatKeys.rooms() });
         showSuccess("채팅방이 아카이브되었습니다.");
         router.replace(basePath);
       } else {
-        showError(result.error ?? "채팅방 아카이브 실패");
+        showError(error.message ?? "채팅방 아카이브 실패");
         setIsArchiving(false);
       }
     } catch {
@@ -154,11 +152,12 @@ function ChatRoomInfoComponent({
   const handleToggleMute = useCallback(async () => {
     setIsMutingToggle(true);
     try {
-      const result = await toggleMuteChatRoomAction(roomId, !isMuted);
-      if (result.success) {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.rpc("toggle_mute_chat_room", { p_room_id: roomId, p_muted: !isMuted });
+      if (!error) {
         queryClient.invalidateQueries({ queryKey: chatKeys.room(roomId) });
       } else {
-        showError(result.error ?? "알림 설정 변경 실패");
+        showError(error.message ?? "알림 설정 변경 실패");
       }
     } catch {
       showError("알림 설정 변경 중 오류가 발생했습니다.");

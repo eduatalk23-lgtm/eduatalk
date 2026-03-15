@@ -20,10 +20,7 @@ import { MessageSquarePlus, Loader2, Search, X, SearchX, WifiOff } from "lucide-
 import { cn } from "@/lib/cn";
 import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
 import { addNetworkStatusListener, isOnline } from "@/lib/offline/networkStatus";
-import {
-  leaveChatRoomAction,
-  toggleMuteChatRoomAction,
-} from "@/lib/domains/chat/actions";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { chatKeys } from "@/lib/domains/chat/queryKeys";
 import type { ChatRoomListItem, ChatUserType } from "@/lib/domains/chat/types";
 
@@ -87,8 +84,9 @@ function ChatListComponent({
 
   const handleLeave = useCallback(
     async (roomId: string) => {
-      const result = await leaveChatRoomAction(roomId);
-      if (result.success) {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.rpc("leave_chat_room", { p_room_id: roomId });
+      if (!error) {
         queryClient.invalidateQueries({ queryKey: chatKeys.rooms() });
       }
     },
@@ -97,8 +95,9 @@ function ChatListComponent({
 
   const handleToggleMute = useCallback(
     async (roomId: string, muted: boolean) => {
-      const result = await toggleMuteChatRoomAction(roomId, muted);
-      if (result.success) {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.rpc("toggle_mute_chat_room", { p_room_id: roomId, p_muted: muted });
+      if (!error) {
         queryClient.invalidateQueries({ queryKey: chatKeys.rooms() });
       }
     },

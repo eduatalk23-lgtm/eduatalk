@@ -25,10 +25,7 @@ import { lockScroll, unlockScroll } from "@/lib/utils/scrollLock";
 import { useToast } from "@/components/ui/ToastProvider";
 import { Avatar } from "@/components/atoms/Avatar";
 import { MessageSquare, X, Loader2, BookOpen, Users } from "lucide-react";
-import {
-  startDirectChatAction,
-  createChatRoomAction,
-} from "@/lib/domains/chat/actions";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { ChatUserType } from "@/lib/domains/chat/types";
 import type { LinkedParentInfo } from "@/lib/domains/chat/actions/members-list";
 
@@ -282,11 +279,15 @@ function ProfileCardPopupWithActions(props: ProfileCardPopupProps) {
     if (!profile || loadingAction) return;
     setLoadingAction("direct");
     try {
-      const result = await startDirectChatAction(profile.userId, profile.userType);
-      if (result.success && result.data) {
-        navigateToRoom(result.data.id);
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase.rpc("start_direct_chat", {
+        p_target_user_id: profile.userId,
+        p_target_user_type: profile.userType,
+      });
+      if (!error && data) {
+        navigateToRoom(data.id);
       } else {
-        showError(result.error ?? "채팅방을 생성할 수 없습니다");
+        showError(error?.message ?? "채팅방을 생성할 수 없습니다");
       }
     } catch {
       showError("채팅방 생성 중 오류가 발생했습니다");
@@ -299,13 +300,16 @@ function ProfileCardPopupWithActions(props: ProfileCardPopupProps) {
     if (!profile || loadingAction) return;
     setLoadingAction("consulting");
     try {
-      const result = await startDirectChatAction(profile.userId, profile.userType, {
-        category: "consulting",
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase.rpc("start_direct_chat", {
+        p_target_user_id: profile.userId,
+        p_target_user_type: profile.userType,
+        p_category: "consulting",
       });
-      if (result.success && result.data) {
-        navigateToRoom(result.data.id);
+      if (!error && data) {
+        navigateToRoom(data.id);
       } else {
-        showError(result.error ?? "상담 채팅방을 생성할 수 없습니다");
+        showError(error?.message ?? "상담 채팅방을 생성할 수 없습니다");
       }
     } catch {
       showError("상담 채팅방 생성 중 오류가 발생했습니다");
@@ -323,16 +327,17 @@ function ProfileCardPopupWithActions(props: ProfileCardPopupProps) {
         profile.userType,
         ...profile.linkedParents.map(() => "parent" as ChatUserType),
       ];
-      const result = await createChatRoomAction({
-        type: "group",
-        name: `${profile.name} (학부모 포함)`,
-        memberIds,
-        memberTypes,
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase.rpc("create_chat_room", {
+        p_type: "group",
+        p_name: `${profile.name} (학부모 포함)`,
+        p_member_ids: memberIds,
+        p_member_types: memberTypes,
       });
-      if (result.success && result.data) {
-        navigateToRoom(result.data.id);
+      if (!error && data) {
+        navigateToRoom(data.id);
       } else {
-        showError(result.error ?? "그룹 채팅방을 생성할 수 없습니다");
+        showError(error?.message ?? "그룹 채팅방을 생성할 수 없습니다");
       }
     } catch {
       showError("그룹 채팅방 생성 중 오류가 발생했습니다");
