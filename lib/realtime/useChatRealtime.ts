@@ -165,6 +165,9 @@ export function useChatRealtime({
     []
   );
 
+  // 채널 SUBSCRIBED 상태 추적 (send() REST fallback 방지)
+  const isSubscribedRef = useRef(false);
+
   // 콜백을 ref로 저장하여 의존성 변경 방지
   const callbacksRef = useRef({ onNewMessage, onMessageDeleted, onReadReceipt });
   useEffect(() => {
@@ -607,7 +610,7 @@ export function useChatRealtime({
   // 채널 연결 후 대기 중인 broadcast를 flush
   const flushPendingBroadcasts = useCallback(async () => {
     const pending = pendingBroadcastsRef.current;
-    if (pending.length === 0 || !channelRef.current) return;
+    if (pending.length === 0 || !channelRef.current || !isSubscribedRef.current) return;
     pendingBroadcastsRef.current = [];
 
     for (const { event, payload } of pending) {
@@ -1206,6 +1209,7 @@ export function useChatRealtime({
         debugLog(`[ChatRealtime] Room ${roomId} subscription:`, status);
 
         if (status === "SUBSCRIBED") {
+          isSubscribedRef.current = true;
           // ConnectionManager에 연결 상태 알림
           connectionManager.setChannelState(channelName, "connected");
 
@@ -1269,6 +1273,7 @@ export function useChatRealtime({
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       // Broadcast-first: 채널 참조 초기화
       channelRef.current = null;
+      isSubscribedRef.current = false;
       // 지연 invalidation 타이머 정리
       if (delayedInvalidationTimer) {
         clearTimeout(delayedInvalidationTimer);
@@ -1317,8 +1322,9 @@ export function useChatRealtime({
   // Broadcast-first: 클라이언트에서 직접 broadcast 전송 (DB INSERT 전)
   const broadcastInsert = useCallback(
     async (message: ChatMessagePayload) => {
-      if (!channelRef.current) {
-        debugWarn("[ChatRealtime] No channel for broadcast");
+      if (!channelRef.current || !isSubscribedRef.current) {
+        debugWarn("[ChatRealtime] Channel not subscribed, queuing INSERT broadcast");
+        pendingBroadcastsRef.current.push({ event: "INSERT", payload: message as unknown as Record<string, unknown> });
         return;
       }
       try {
@@ -1343,8 +1349,8 @@ export function useChatRealtime({
     async (readAt?: string) => {
       const payload = { reader_id: userId, read_at: readAt ?? new Date().toISOString() };
 
-      if (!channelRef.current) {
-        debugLog("[ChatRealtime] Channel not ready, queuing READ_RECEIPT");
+      if (!channelRef.current || !isSubscribedRef.current) {
+        debugLog("[ChatRealtime] Channel not subscribed, queuing READ_RECEIPT");
         pendingBroadcastsRef.current.push({ event: "READ_RECEIPT", payload });
         return;
       }

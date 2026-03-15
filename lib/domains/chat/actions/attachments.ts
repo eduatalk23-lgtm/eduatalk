@@ -5,24 +5,23 @@
  * 파일 업로드, 첨부파일 포함 메시지 전송, 첨부파일 삭제
  */
 
-import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import * as chatService from "../service";
 import * as repository from "../repository";
 import { extractUrls, fetchLinkPreview } from "../linkPreview";
 import {
-  validateChatFile,
   getAttachmentType,
   sanitizeFileName,
 } from "../fileValidation";
 import {
-  getUserType,
   MAX_ATTACHMENTS_PER_MESSAGE,
   type ChatActionResult,
   type ChatAttachment,
   type ChatAttachmentInsert,
   type ChatMessage,
   type ChatMessageType,
+  type ChatUserType,
 } from "../types";
 import { createSignedUrl, refreshExpiredAttachmentUrls } from "../storage";
 import { verifyMimeType, HEADER_SIZE } from "../mimeVerification";
@@ -33,6 +32,57 @@ import {
   type StorageQuotaInfo,
 } from "../quota";
 import { routeNotification } from "@/lib/domains/notification/router";
+import type { UserRole } from "@/lib/auth/getCurrentUserRole";
+
+// ============================================
+// 경량 auth 헬퍼 (auth.getUser() 호출 없음)
+// ============================================
+
+/** 세션 쿠키에서 userId만 추출 (네트워크 호출 0, DB 쿼리 0) */
+async function getSessionUserId(): Promise<string | null> {
+  const supabase = await createSupabaseServerClient();
+  const origWarn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    if (typeof args[0] === "string" && args[0].includes("supabase.auth.getSession()")) return;
+    origWarn.apply(console, args);
+  };
+  const { data: { session } } = await supabase.auth.getSession();
+  console.warn = origWarn;
+  return session?.user?.id ?? null;
+}
+
+/** 세션 쿠키에서 userId + user_profiles에서 role 조회 (auth 호출 0, DB 쿼리 1) */
+async function getSessionUserWithRole(): Promise<{ userId: string; role: UserRole; userType: ChatUserType } | null> {
+  const userId = await getSessionUserId();
+  if (!userId) return null;
+
+  const supabase = await createSupabaseServerClient();
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("role")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const role = (profile?.role ?? null) as UserRole;
+  if (!role) return null;
+
+  const userType: ChatUserType = (role === "admin" || role === "consultant") ? "admin" : role === "parent" ? "parent" : "student";
+  return { userId, role, userType };
+}
+
+/** 멤버십 확인 (userType 불필요 — user_id가 방 내 유일) */
+async function checkMembership(roomId: string, userId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("chat_room_members")
+    .select("id")
+    .eq("room_id", roomId)
+    .eq("user_id", userId)
+    .is("left_at", null)
+    .is("deleted_at", null)
+    .maybeSingle();
+  return !!data;
+}
 
 const STORAGE_BUCKET = "chat-attachments";
 
@@ -62,16 +112,14 @@ export async function registerChatAttachmentAction(
   thumbnailPath?: string | null
 ): Promise<ChatActionResult<ChatAttachment>> {
   try {
-    const { userId, role } = await getCachedUserRole();
-    if (!userId || !role) {
+    const auth = await getSessionUserWithRole();
+    if (!auth) {
       return { success: false, error: "인증이 필요합니다." };
     }
-
-    const userType = getUserType(role);
+    const { userId, role } = auth;
 
     // 채팅방 멤버 확인
-    const member = await repository.findMember(roomId, userId, userType);
-    if (!member) {
+    if (!await checkMembership(roomId, userId)) {
       return { success: false, error: "채팅방에 참여하지 않았습니다." };
     }
 
@@ -177,12 +225,11 @@ export async function sendMessageWithAttachmentsAction(
   clientMessageId?: string
 ): Promise<ChatActionResult<ChatMessage>> {
   try {
-    const { userId, role } = await getCachedUserRole();
-    if (!userId || !role) {
+    const auth = await getSessionUserWithRole();
+    if (!auth) {
       return { success: false, error: "인증이 필요합니다." };
     }
-
-    const userType = getUserType(role);
+    const { userId, userType } = auth;
     const hasText = content.trim().length > 0;
     const hasAttachments = attachmentIds.length > 0;
 
@@ -260,8 +307,8 @@ export async function deleteChatAttachmentAction(
   attachmentId: string
 ): Promise<ChatActionResult<void>> {
   try {
-    const { userId, role } = await getCachedUserRole();
-    if (!userId || !role) {
+    const userId = await getSessionUserId();
+    if (!userId) {
       return { success: false, error: "인증이 필요합니다." };
     }
 
@@ -303,8 +350,8 @@ export async function refreshAttachmentUrlsAction(
   attachmentIds: string[]
 ): Promise<ChatActionResult<Record<string, { publicUrl: string; thumbnailUrl: string | null }>>> {
   try {
-    const { userId, role } = await getCachedUserRole();
-    if (!userId || !role) {
+    const userId = await getSessionUserId();
+    if (!userId) {
       return { success: false, error: "인증이 필요합니다." };
     }
 
@@ -318,11 +365,9 @@ export async function refreshAttachmentUrlsAction(
     }
 
     // 요청자가 해당 채팅방 멤버인지 확인
-    const userType = getUserType(role);
     const roomIds = [...new Set(attachments.map((a) => a.room_id))];
     for (const rid of roomIds) {
-      const member = await repository.findMember(rid, userId, userType);
-      if (!member) {
+      if (!await checkMembership(rid, userId)) {
         return { success: false, error: "접근 권한이 없습니다." };
       }
     }
@@ -355,10 +400,11 @@ export async function refreshAttachmentUrlsAction(
  */
 export async function getChatStorageQuotaAction(): Promise<ChatActionResult<StorageQuotaInfo>> {
   try {
-    const { userId, role } = await getCachedUserRole();
-    if (!userId || !role) {
+    const auth = await getSessionUserWithRole();
+    if (!auth) {
       return { success: false, error: "인증이 필요합니다." };
     }
+    const { userId, role } = auth;
 
     const usedBytes = await repository.getUserStorageUsage(userId);
     const totalBytes = getStorageLimitForRole(role);
@@ -387,16 +433,13 @@ export async function getRoomAttachmentsAction(
   options: { attachmentType?: string; attachmentTypes?: string[]; limit?: number; cursor?: string } = {}
 ): Promise<ChatActionResult<{ attachments: ChatAttachment[]; hasMore: boolean }>> {
   try {
-    const { userId, role } = await getCachedUserRole();
-    if (!userId || !role) {
+    const userId = await getSessionUserId();
+    if (!userId) {
       return { success: false, error: "인증이 필요합니다." };
     }
 
-    const userType = getUserType(role);
-
     // 채팅방 멤버 확인
-    const member = await repository.findMember(roomId, userId, userType);
-    if (!member) {
+    if (!await checkMembership(roomId, userId)) {
       return { success: false, error: "채팅방에 참여하지 않았습니다." };
     }
 
@@ -437,15 +480,12 @@ export async function searchRoomAttachmentsAction(
   options: { attachmentTypes?: string[]; limit?: number; cursor?: string } = {}
 ): Promise<ChatActionResult<{ attachments: ChatAttachment[]; hasMore: boolean }>> {
   try {
-    const { userId, role } = await getCachedUserRole();
-    if (!userId || !role) {
+    const userId = await getSessionUserId();
+    if (!userId) {
       return { success: false, error: "인증이 필요합니다." };
     }
 
-    const userType = getUserType(role);
-
-    const member = await repository.findMember(roomId, userId, userType);
-    if (!member) {
+    if (!await checkMembership(roomId, userId)) {
       return { success: false, error: "채팅방에 참여하지 않았습니다." };
     }
 
@@ -487,8 +527,8 @@ export async function hideAttachmentsAction(
   attachmentIds: string[]
 ): Promise<ChatActionResult<{ hiddenCount: number }>> {
   try {
-    const { userId, role } = await getCachedUserRole();
-    if (!userId || !role) {
+    const userId = await getSessionUserId();
+    if (!userId) {
       return { success: false, error: "인증이 필요합니다." };
     }
 
@@ -503,11 +543,9 @@ export async function hideAttachmentsAction(
     }
 
     // 채팅방 멤버십 확인
-    const userType = getUserType(role);
     const roomIds = [...new Set(attachments.map((a) => a.room_id))];
     for (const rid of roomIds) {
-      const member = await repository.findMember(rid, userId, userType);
-      if (!member) {
+      if (!await checkMembership(rid, userId)) {
         return { success: false, error: "접근 권한이 없습니다." };
       }
     }
