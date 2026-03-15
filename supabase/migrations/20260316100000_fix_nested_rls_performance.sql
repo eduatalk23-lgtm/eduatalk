@@ -205,8 +205,8 @@ CREATE POLICY "calendar_list_admin_all" ON calendar_list
 -- ============================================================================
 -- Step 3: Add covering index for admin RLS checks
 -- ============================================================================
--- The existing idx_admin_users_tenant (id, tenant_id) almost covers it,
--- but adding a partial index filtered by role makes the check even faster.
+-- The existing idx_admin_users_member_check (id, tenant_id) already covers the
+-- general case; this partial index filtered by role makes admin checks even faster.
 CREATE INDEX IF NOT EXISTS idx_admin_users_admin_check
   ON admin_users (id, tenant_id)
   WHERE role IN ('admin', 'consultant');
