@@ -166,6 +166,7 @@ function SignupContent() {
             name="email"
             type="email"
             required
+            autoComplete="email"
             placeholder="you@example.com"
           />
 
@@ -173,6 +174,7 @@ function SignupContent() {
             label="비밀번호"
             name="password"
             required
+            autoComplete="new-password"
             placeholder="최소 8자 이상"
             value={password}
             onChange={(e) => {
@@ -187,6 +189,7 @@ function SignupContent() {
             label="비밀번호 확인"
             name="confirmPassword"
             required
+            autoComplete="new-password"
             placeholder="비밀번호를 다시 입력하세요"
             value={confirmPassword}
             onChange={(e) => {

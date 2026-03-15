@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useMemo, useCallback, useEffect, useRef, memo } from 'react';
 import { startOfMonth, addMonths, startOfWeek, endOfWeek, endOfMonth, format, addDays } from 'date-fns';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/cn';
@@ -39,7 +39,7 @@ import { getWeekRangeSunSat, shiftMonth, shiftDay, shiftWeek, shiftCustomDays } 
 import { formatDateString } from '@/lib/date/calendarUtils';
 import { usePinchZoom } from './hooks/usePinchZoom';
 import { useCalendarSwipeNavigation } from './hooks/useCalendarSwipeNavigation';
-import { getMonthlyCheckIns } from '@/lib/domains/checkin';
+import { monthlyCheckInsQueryOptions } from '@/lib/query-options/calendarEvents';
 import { useEventReminders } from '@/lib/domains/calendar/reminders';
 import { useIsMobile } from '@/lib/hooks/useIsMobile';
 import { getHolidayAllDayItems } from '@/lib/domains/calendar/koreanHolidays';
@@ -336,17 +336,14 @@ export const DailyDock = memo(function DailyDock({
     [selectedDate]
   );
 
-  // 월별 출석 체크 데이터
-  const [checkInDates, setCheckInDates] = useState<Set<string> | undefined>(undefined);
-  useEffect(() => {
-    const year = currentMonth.getFullYear();
-    const month = currentMonth.getMonth() + 1;
-    getMonthlyCheckIns(year, month, studentId).then((result) => {
-      if (result.success && result.data) {
-        setCheckInDates(new Set(result.data));
-      }
-    });
-  }, [currentMonth, studentId]);
+  // 월별 출석 체크 데이터 (브라우저 클라이언트 직접 조회 — Server Action auth 오버헤드 제거)
+  const { data: checkInDatesArray } = useQuery({
+    ...monthlyCheckInsQueryOptions(studentId, currentMonth.getFullYear(), currentMonth.getMonth() + 1),
+  });
+  const checkInDates = useMemo(
+    () => checkInDatesArray ? new Set(checkInDatesArray) : undefined,
+    [checkInDatesArray],
+  );
 
   const { plansByDate: monthlyPlansByDate, isLoading: isMonthlyLoading } = useAdminCalendarData({
     studentId,

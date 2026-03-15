@@ -451,3 +451,46 @@ export function searchCalendarEventsQueryOptions(
     staleTime: 1000 * 30,
   });
 }
+
+// ============================================
+// 월별 출석 체크인 (브라우저 클라이언트 직접 조회)
+// ============================================
+
+export const checkInKeys = {
+  all: ['checkIns'] as const,
+  monthly: (studentId: string, year: number, month: number) =>
+    [...checkInKeys.all, 'monthly', studentId, year, month] as const,
+};
+
+/**
+ * 월별 출석 체크인 조회 (브라우저 클라이언트)
+ *
+ * Server Action(getMonthlyCheckIns) 대신 브라우저에서 직접 쿼리.
+ * Server Action 경유 시 매번 proxy → auth 체인을 거치지만,
+ * 브라우저 클라이언트는 RLS로 인증하므로 auth 오버헤드 0.
+ */
+export function monthlyCheckInsQueryOptions(studentId: string, year: number, month: number) {
+  const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+  const endDate =
+    month === 12
+      ? `${year + 1}-01-01`
+      : `${year}-${String(month + 1).padStart(2, '0')}-01`;
+
+  return queryOptions({
+    queryKey: checkInKeys.monthly(studentId, year, month),
+    queryFn: async (): Promise<string[]> => {
+      const supabase = createSupabaseBrowserClient();
+      const { data } = await supabase
+        .from('daily_check_ins')
+        .select('check_date')
+        .eq('student_id', studentId)
+        .gte('check_date', startDate)
+        .lt('check_date', endDate)
+        .order('check_date', { ascending: true });
+
+      return (data ?? []).map((r) => r.check_date as string);
+    },
+    staleTime: CACHE_STALE_TIME_STABLE,
+    gcTime: CACHE_GC_TIME_STABLE,
+  });
+}

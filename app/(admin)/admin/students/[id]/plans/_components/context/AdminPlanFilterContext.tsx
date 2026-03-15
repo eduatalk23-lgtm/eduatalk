@@ -10,7 +10,7 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAdminPlanRealtime } from "@/lib/realtime";
 import { useTargetedDockInvalidation } from "@/lib/hooks/useAdminDockQueries";
@@ -81,6 +81,7 @@ export function AdminPlanFilterProvider({
   viewMode = "admin",
 }: AdminPlanFilterProviderProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
   const { selectedCalendarId } = useAdminPlanBasic();
 
@@ -117,12 +118,9 @@ export function AdminPlanFilterProvider({
   // 캘린더 색상 업데이트
   const calQueryClient = useQueryClient();
 
-  // studentId 변경 시 이전 학생의 in-flight 쿼리 취소
-  useEffect(() => {
-    calQueryClient.cancelQueries({ queryKey: adminDockKeys.all });
-    calQueryClient.cancelQueries({ queryKey: calendarEventKeys.all });
-    calQueryClient.cancelQueries({ queryKey: calendarViewKeys.all });
-  }, [studentId, calQueryClient]);
+  // studentId 변경 시 이전 학생의 in-flight 쿼리 취소는 StudentSwitcher가 담당
+  // (navigation 전에 cancelQueries 호출 → 안전)
+  // 여기서 useEffect로 취소하면 렌더 → 새 쿼리 시작 → effect 실행 → 새 쿼리 취소 순서 문제 발생
 
   const updateCalendarColor = useCallback(async (calendarId: string, color: string) => {
     try {
@@ -181,6 +179,13 @@ export function AdminPlanFilterProvider({
         return;
       }
 
+      // Admin calendar page (/admin/calendar?student=xxx):
+      // URL만 동기화, 서버 컴포넌트 재실행 방지 (불필요한 auth 호출 제거)
+      if (pathname === '/admin/calendar') {
+        window.history.replaceState(null, '', `/admin/calendar?student=${studentId}&date=${date}`);
+        return;
+      }
+
       if (selectedCalendarId) {
         const basePath = viewMode === "student"
           ? `/plan/calendar`
@@ -193,7 +198,7 @@ export function AdminPlanFilterProvider({
         router.replace(`${basePath}?date=${date}`, { scroll: false });
       }
     },
-    [router, studentId, selectedCalendarId, viewMode]
+    [router, studentId, selectedCalendarId, viewMode, pathname]
   );
 
   // 전체 새로고침 핸들러 (모든 Dock)

@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
 import dynamic from "next/dynamic";
+import { useQuery } from "@tanstack/react-query";
 import {
   useAdminPlanBasic,
   useAdminPlanFilter,
   useAdminPlanModalData,
 } from "../context/AdminPlanContext";
 import { DayTimelineModal } from "../DayTimelineModal";
-import { getMonthlyCheckIns } from "@/lib/domains/checkin";
+import { monthlyCheckInsQueryOptions } from "@/lib/query-options/calendarEvents";
 
 // 캘린더 뷰 동적 임포트
 const AdminCalendarView = dynamic(
@@ -64,21 +65,18 @@ export function CalendarTab(_props: CalendarTabProps) {
     ? [calendarCalculatedSchedule]
     : calendarDailySchedules;
 
-  // 월별 출석 체크 데이터 (selectedDate 기반으로 월 추적)
-  const [checkInDates, setCheckInDates] = useState<Set<string> | undefined>(undefined);
-  const checkInKey = selectedDate
-    ? `${selectedDate.slice(0, 7)}`
+  // 월별 출석 체크 데이터 (브라우저 클라이언트 직접 조회 — Server Action auth 오버헤드 제거)
+  const checkInMonth = selectedDate
+    ? selectedDate.slice(0, 7)
     : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
-  useEffect(() => {
-    const [yearStr, monthStr] = checkInKey.split("-");
-    const year = parseInt(yearStr, 10);
-    const month = parseInt(monthStr, 10);
-    getMonthlyCheckIns(year, month, studentId).then((result) => {
-      if (result.success && result.data) {
-        setCheckInDates(new Set(result.data));
-      }
-    });
-  }, [checkInKey, studentId]);
+  const [checkInYear, checkInMonthNum] = checkInMonth.split("-").map(Number);
+  const { data: checkInDatesArray } = useQuery({
+    ...monthlyCheckInsQueryOptions(studentId, checkInYear, checkInMonthNum),
+  });
+  const checkInDates = useMemo(
+    () => checkInDatesArray ? new Set(checkInDatesArray) : undefined,
+    [checkInDatesArray],
+  );
 
   // 플래너가 선택되지 않은 경우
   if (!selectedCalendarId) {
