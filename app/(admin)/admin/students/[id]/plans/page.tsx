@@ -11,7 +11,7 @@ async function getStudentInfo(studentId: string) {
 
   const { data, error } = await supabase
     .from('students')
-    .select('id, name, tenant_id')
+    .select('id, tenant_id')
     .eq('id', studentId)
     .single();
 

@@ -82,10 +82,10 @@ export function chatMessagesQueryOptions(roomId: string, lastReadAt?: string) {
         after: firstPage.messages[firstPage.messages.length - 1].created_at,
       } as ChatPageParam;
     },
-    maxPages: 5,
-    staleTime: 60 * 1000,
-    gcTime: 5 * 60 * 1000,
-    refetchOnMount: true,
+    maxPages: 10,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnMount: false,
     refetchOnWindowFocus: false,
   });
 }

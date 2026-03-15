@@ -38,6 +38,6 @@ export function mapCalendarSettingsFromDB(
     defaultEstimatedMinutes: (row.default_estimated_minutes as number | null) ?? null,
     defaultReminderMinutes: (row.default_reminder_minutes as number[] | null) ?? null,
     timezone: row.timezone as string | null,
-    weekStartsOn: (row.week_starts_on as number) ?? 0,
+    weekStartsOn: (row.week_starts_on as number) ?? 1,
   };
 }

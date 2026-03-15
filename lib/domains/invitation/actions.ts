@@ -54,7 +54,7 @@ function isValidUUID(str: string): boolean {
 /** DB row → Invitation 타입 매핑 */
 function mapRowToInvitation(row: Record<string, unknown>): Invitation {
   const tenant = row.tenants as { name: string } | null;
-  const student = row.students as { name: string } | null;
+  const student = row.students as { user_profiles: { name: string } | null } | null;
 
   return {
     id: row.id as string,
@@ -65,7 +65,7 @@ function mapRowToInvitation(row: Record<string, unknown>): Invitation {
     email: row.email as string | null,
     phone: row.phone as string | null,
     studentId: row.student_id as string | null,
-    studentName: student?.name ?? null,
+    studentName: student?.user_profiles?.name ?? null,
     relation: row.relation as InvitationRelation | null,
     legacyCode: row.legacy_code as string | null,
     status: row.status as Invitation["status"],
@@ -86,7 +86,7 @@ const INVITATION_SELECT = `
   delivery_method, delivery_status, delivered_at,
   invited_by, accepted_at, accepted_by, created_at,
   tenants:tenant_id(name),
-  students:student_id(name)
+  students:student_id(user_profiles(name))
 `;
 
 // ============================================
@@ -338,7 +338,7 @@ export async function validateInvitationByToken(
     .select(`
       id, token, tenant_id, target_role, student_id, relation, email, expires_at, status,
       tenants:tenant_id(name),
-      students:student_id(name)
+      students:student_id(user_profiles(name))
     `)
     .eq("token", token)
     .single();
@@ -364,7 +364,7 @@ export async function validateInvitationByToken(
   }
 
   const tenant = data.tenants as { name: string } | null;
-  const student = data.students as { name: string } | null;
+  const student = data.students as { user_profiles: { name: string } | null } | null;
 
   return {
     success: true,
@@ -375,7 +375,7 @@ export async function validateInvitationByToken(
       tenantName: tenant?.name ?? null,
       targetRole: data.target_role as InvitationRole,
       studentId: data.student_id,
-      studentName: student?.name ?? null,
+      studentName: student?.user_profiles?.name ?? null,
       relation: data.relation as InvitationRelation | null,
       email: data.email,
       expiresAt: data.expires_at,
@@ -404,7 +404,7 @@ export async function validateInvitationByCode(
     .select(`
       id, token, tenant_id, target_role, student_id, relation, email, expires_at, status,
       tenants:tenant_id(name),
-      students:student_id(name)
+      students:student_id(user_profiles(name))
     `)
     .eq("legacy_code", code.toUpperCase())
     .single();
@@ -426,7 +426,7 @@ export async function validateInvitationByCode(
   }
 
   const tenant = data.tenants as { name: string } | null;
-  const student = data.students as { name: string } | null;
+  const student = data.students as { user_profiles: { name: string } | null } | null;
 
   return {
     success: true,
@@ -437,7 +437,7 @@ export async function validateInvitationByCode(
       tenantName: tenant?.name ?? null,
       targetRole: data.target_role as InvitationRole,
       studentId: data.student_id,
-      studentName: student?.name ?? null,
+      studentName: student?.user_profiles?.name ?? null,
       relation: data.relation as InvitationRelation | null,
       email: data.email,
       expiresAt: data.expires_at,

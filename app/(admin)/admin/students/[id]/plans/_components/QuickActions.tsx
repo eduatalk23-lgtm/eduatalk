@@ -14,6 +14,8 @@ interface QuickCompleteButtonProps {
   size?: 'sm' | 'md' | 'lg';
   /** React Query 등 클라이언트 캐시로 관리할 때 true로 설정 */
   skipRevalidation?: boolean;
+  /** 반복 이벤트 인스턴스 날짜 (YYYY-MM-DD) */
+  instanceDate?: string;
 }
 
 /**
@@ -25,6 +27,7 @@ export function QuickCompleteButton({
   onSuccess,
   size = 'md',
   skipRevalidation = false,
+  instanceDate,
 }: QuickCompleteButtonProps) {
   const [isPending, startTransition] = useTransition();
   const [isAnimating, setIsAnimating] = useState(false);
@@ -53,7 +56,8 @@ export function QuickCompleteButton({
       const result = await togglePlanComplete(
         planId,
         isCompleted,
-        skipRevalidation
+        skipRevalidation,
+        instanceDate,
       );
 
       if (result.success) {

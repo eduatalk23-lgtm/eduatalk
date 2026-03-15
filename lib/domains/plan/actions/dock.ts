@@ -32,6 +32,8 @@ export interface UpdatePlanStatusInput {
   status: PlanStatus;
   /** React Query 등 클라이언트 캐시로 관리할 때 true로 설정하면 revalidatePath 호출 생략 */
   skipRevalidation?: boolean;
+  /** 반복 이벤트 인스턴스 날짜 (YYYY-MM-DD). 제공 시 개별 인스턴스만 완료 처리 */
+  instanceDate?: string;
 }
 
 export interface DeletePlanInput {
@@ -124,7 +126,7 @@ import { updatePlanStatus as updateCalendarEventStatus } from "@/lib/domains/cal
 export async function updatePlanStatus(
   input: UpdatePlanStatusInput
 ): Promise<ActionResult> {
-  const { planId, status, skipRevalidation = false } = input;
+  const { planId, status, skipRevalidation = false, instanceDate } = input;
   const user = await getCurrentUser();
 
   if (!user) {
@@ -132,7 +134,7 @@ export async function updatePlanStatus(
   }
 
   try {
-    const result = await updateCalendarEventStatus({ planId, status });
+    const result = await updateCalendarEventStatus({ planId, status, instanceDate });
     if (!result.success) {
       return { success: false, error: result.error ?? "상태 변경에 실패했습니다." };
     }
@@ -159,10 +161,11 @@ export async function updatePlanStatus(
 export async function togglePlanComplete(
   planId: string,
   isCurrentlyCompleted: boolean,
-  skipRevalidation: boolean = false
+  skipRevalidation: boolean = false,
+  instanceDate?: string,
 ): Promise<ActionResult> {
   const newStatus: PlanStatus = isCurrentlyCompleted ? "pending" : "completed";
-  return updatePlanStatus({ planId, status: newStatus, skipRevalidation });
+  return updatePlanStatus({ planId, status: newStatus, skipRevalidation, instanceDate });
 }
 
 // ============================================

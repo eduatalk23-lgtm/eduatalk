@@ -51,7 +51,7 @@ export async function getDerivedSiblings(
         student_id,
         parent_id,
         relation,
-        students:student_id(name),
+        students:student_id(user_profiles(name)),
         user_profiles:parent_id(name)
       `
       )
@@ -80,12 +80,15 @@ export async function getDerivedSiblings(
       if (seen.has(key)) continue;
       seen.add(key);
 
-      const student = extractJoinResult(link.students);
+      const studentJoin = extractJoinResult(link.students);
       const parent = extractJoinResult(link.user_profiles);
+      const studentProfile = studentJoin?.user_profiles
+        ? extractJoinResult(studentJoin.user_profiles)
+        : null;
 
       siblings.push({
         studentId: link.student_id,
-        studentName: student?.name ?? null,
+        studentName: studentProfile?.name ?? null,
         sharedParentId: link.parent_id,
         sharedParentName: parent?.name ?? null,
         relation: link.relation || "other",

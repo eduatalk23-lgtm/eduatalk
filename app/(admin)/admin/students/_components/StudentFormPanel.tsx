@@ -139,12 +139,18 @@ export function StudentFormPanel({
             profile: {
               gender: (formData.gender as "남" | "여") || null,
               phone: formData.phone || null,
-              mother_phone: null,
-              father_phone: null,
+              mother_phone: formData.mother_phone || null,
+              father_phone: formData.father_phone || null,
               address: formData.address || null,
               emergency_contact: formData.emergency_contact || null,
               emergency_contact_phone: formData.emergency_contact_phone || null,
               medical_info: formData.medical_info || null,
+            },
+            career: {
+              exam_year: formData.exam_year ? Number(formData.exam_year) : null,
+              curriculum_revision: formData.curriculum_revision || null,
+              desired_university_ids: formData.desired_university_ids ?? null,
+              desired_career_field: formData.desired_career_field || null,
             },
           });
 

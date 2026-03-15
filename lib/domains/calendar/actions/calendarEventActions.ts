@@ -11,6 +11,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { requireAdminOrConsultant } from '@/lib/auth/guards';
 import { getCurrentUser } from '@/lib/auth/getCurrentUser';
+import { getCachedAuthUser } from '@/lib/auth/cachedGetUser';
 import { logActionError, logActionDebug } from '@/lib/logging/actionLogger';
 import { calculateUnifiedReorder } from '@/lib/domains/plan/utils/unifiedReorderCalculation';
 import { revalidatePath } from 'next/cache';
@@ -154,6 +155,8 @@ interface UpdatePlanStatusParams {
   planId: string;
   status: string;
   skipRevalidation?: boolean;
+  /** 반복 이벤트 인스턴스 날짜 (YYYY-MM-DD). 제공 시 개별 인스턴스만 완료 처리 */
+  instanceDate?: string;
 }
 
 interface UpdatePlanStatusResult {
@@ -164,12 +167,37 @@ interface UpdatePlanStatusResult {
 export async function updatePlanStatus({
   planId,
   status,
+  instanceDate,
 }: UpdatePlanStatusParams): Promise<UpdatePlanStatusResult> {
   try {
     const supabase = await createSupabaseServerClient();
     const eventStatus = mapPlanStatusToEventStatus(status);
     const done = status === 'completed';
     const now = new Date().toISOString();
+
+    // ── 반복 이벤트 감지: instanceDate가 있으면 개별 인스턴스 처리 ──
+    if (instanceDate) {
+      const { data: event } = await supabase
+        .from('calendar_events')
+        .select('id, rrule, is_exception')
+        .eq('id', planId)
+        .is('deleted_at', null)
+        .maybeSingle();
+
+      if (event?.rrule && !event.is_exception) {
+        // 반복 부모 → exception을 찾거나 생성하여 개별 완료 처리
+        return updateRecurringInstanceStatus({
+          supabase,
+          parentId: planId,
+          instanceDate,
+          eventStatus,
+          done,
+          now,
+        });
+      }
+    }
+
+    // ── 비반복 이벤트 또는 이미 exception인 경우: 기존 로직 ──
 
     // 1. 이벤트 상태 업데이트 + 소유권 검증 (RLS + select으로 실제 매칭 확인)
     const { data: updated, error } = await supabase
@@ -232,6 +260,91 @@ export async function updatePlanStatus({
   } catch (err) {
     return { success: false, error: String(err) };
   }
+}
+
+/**
+ * 반복 이벤트의 개별 인스턴스 완료/미완료 처리
+ * 기존 exception이 있으면 업데이트, 없으면 createRecurringException으로 생성 후 업데이트
+ */
+async function updateRecurringInstanceStatus({
+  supabase,
+  parentId,
+  instanceDate,
+  eventStatus,
+  done,
+  now,
+}: {
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>;
+  parentId: string;
+  instanceDate: string;
+  eventStatus: string;
+  done: boolean;
+  now: string;
+}): Promise<UpdatePlanStatusResult> {
+  // 1. 해당 날짜의 기존 exception 검색
+  const { data: existing } = await supabase
+    .from('calendar_events')
+    .select('id')
+    .eq('recurring_event_id', parentId)
+    .eq('is_exception', true)
+    .is('deleted_at', null)
+    .or(`start_date.eq.${instanceDate},start_at.like.${instanceDate}%`)
+    .maybeSingle();
+
+  let targetEventId: string;
+
+  if (existing) {
+    targetEventId = existing.id;
+    // exception 상태 업데이트
+    const { error } = await supabase
+      .from('calendar_events')
+      .update({ status: eventStatus })
+      .eq('id', targetEventId);
+    if (error) return { success: false, error: error.message };
+  } else {
+    // 새 exception 생성 (study data는 아래에서 직접 올바른 done 상태로 생성)
+    const result = await createRecurringException({
+      parentEventId: parentId,
+      instanceDate,
+      overrides: { status: eventStatus },
+      skipStudyData: true,
+    });
+    if (!result.success || !result.eventId) {
+      return { success: false, error: result.error ?? 'Exception 생성 실패' };
+    }
+    targetEventId = result.eventId;
+  }
+
+  // 2. Admin Client로 event_study_data 업데이트
+  const admin = createSupabaseAdminClient();
+  if (!admin) {
+    return { success: false, error: 'Admin client unavailable' };
+  }
+
+  let doneBy: string | null = null;
+  if (done) {
+    const user = await getCachedAuthUser();
+    doneBy = user?.id ?? 'unknown';
+  }
+
+  const { error: studyError } = await admin
+    .from('event_study_data')
+    .upsert(
+      {
+        event_id: targetEventId,
+        done,
+        done_at: done ? now : null,
+        done_by: doneBy,
+      },
+      { onConflict: 'event_id' }
+    );
+
+  if (studyError) {
+    logActionError({ domain: 'calendar', action: 'updatePlanStatus.recurringStudyData' }, studyError);
+    return { success: false, error: `완료 상태 저장 실패: ${studyError.message}` };
+  }
+
+  return { success: true };
 }
 
 // ============================================
@@ -439,6 +552,8 @@ export async function createRecurringException(params: {
   parentEventId: string;
   instanceDate: string;
   overrides?: Record<string, unknown>;
+  /** true면 event_study_data 생성을 건너뜀 (호출자가 직접 처리) */
+  skipStudyData?: boolean;
 }): Promise<{ success: boolean; eventId?: string; error?: string }> {
   try {
     await assertCanModifyEvent(params.parentEventId);
@@ -499,49 +614,67 @@ export async function createRecurringException(params: {
       exceptionData.end_date = null;
     }
 
-    const { data: inserted, error: insertError } = await supabase
-      .from('calendar_events')
-      .insert(exceptionData)
-      .select('id')
-      .single();
+    // exception insert + study_data prefetch 병렬 실행
+    const needsStudyData = parent.is_task && !params.skipStudyData;
+    const [insertResult, studyFetchResult] = await Promise.all([
+      supabase
+        .from('calendar_events')
+        .insert(exceptionData)
+        .select('id')
+        .single(),
+      needsStudyData
+        ? supabase
+            .from('event_study_data')
+            .select('*')
+            .eq('event_id', params.parentEventId)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
 
-    if (insertError) return { success: false, error: insertError.message };
+    if (insertResult.error) return { success: false, error: insertResult.error.message };
+    const inserted = insertResult.data;
 
-    // study 이벤트인 경우: 부모의 event_study_data를 exception에 복사
-    if (parent.is_task && inserted?.id) {
-      const { data: parentStudy } = await supabase
-        .from('event_study_data')
-        .select('*')
-        .eq('event_id', params.parentEventId)
-        .maybeSingle();
+    // study_data insert + exdates update 병렬 실행
+    const pendingOps: PromiseLike<unknown>[] = [];
 
+    // study_data 복사
+    if (needsStudyData && inserted?.id) {
+      const parentStudy = studyFetchResult.data;
       if (parentStudy) {
         const { id: _sid, event_id: _eid, done: _d, done_at: _da2, done_by: _db, ...studyFields } = parentStudy;
-        await supabase.from('event_study_data').insert({
-          ...studyFields,
-          event_id: inserted.id,
-          done: false,
-          done_at: null,
-          done_by: null,
-        });
+        pendingOps.push(
+          supabase.from('event_study_data').insert({
+            ...studyFields,
+            event_id: inserted.id,
+            done: false,
+            done_at: null,
+            done_by: null,
+          })
+        );
       } else {
-        // 부모에 study_data가 없으면 기본값으로 생성
-        await supabase.from('event_study_data').insert({ event_id: inserted.id });
+        pendingOps.push(
+          supabase.from('event_study_data').insert({ event_id: inserted.id })
+        );
       }
     }
 
     // 부모 exdates에 instanceDate 추가
     const currentExdates: string[] = (parent.exdates as string[]) ?? [];
     if (!currentExdates.includes(params.instanceDate)) {
-      const { error: exdateError } = await supabase
-        .from('calendar_events')
-        .update({ exdates: [...currentExdates, params.instanceDate] })
-        .eq('id', params.parentEventId);
-
-      if (exdateError) {
-        logActionError({ domain: 'calendar', action: 'createRecurringException' }, exdateError);
-      }
+      pendingOps.push(
+        supabase
+          .from('calendar_events')
+          .update({ exdates: [...currentExdates, params.instanceDate] })
+          .eq('id', params.parentEventId)
+          .then(({ error: exdateError }) => {
+            if (exdateError) {
+              logActionError({ domain: 'calendar', action: 'createRecurringException' }, exdateError);
+            }
+          })
+      );
     }
+
+    if (pendingOps.length > 0) await Promise.all(pendingOps);
 
     return { success: true, eventId: inserted.id };
   } catch (err) {
@@ -908,22 +1041,29 @@ export async function updateRecurringEvent({
       const parentDate = parent.start_date ?? extractDateYMD(parent.start_at) ?? '';
       let newSeriesRrule = parent.rrule;
 
+      // parent rrule update + exceptions fetch 병렬 실행
+      const splitOps: PromiseLike<unknown>[] = [];
       if (parent.rrule && parentDate) {
         const split = buildSplitRRules(parent.rrule, parentDate, instanceDate);
-        await supabase
-          .from('calendar_events')
-          .update({ rrule: split.parentRrule })
-          .eq('id', parentId);
+        splitOps.push(
+          supabase
+            .from('calendar_events')
+            .update({ rrule: split.parentRrule })
+            .eq('id', parentId)
+        );
         newSeriesRrule = split.newSeriesRrule;
       }
 
-      // 이후 exception들 soft-delete
-      const { data: exceptions } = await supabase
+      const exceptionsPromise = supabase
         .from('calendar_events')
         .select('id, start_date, start_at')
         .eq('recurring_event_id', parentId)
         .eq('is_exception', true)
         .is('deleted_at', null);
+      splitOps.push(exceptionsPromise);
+
+      await Promise.all(splitOps);
+      const { data: exceptions } = await exceptionsPromise;
 
       if (exceptions) {
         const idsToDelete = exceptions
@@ -970,38 +1110,41 @@ export async function updateRecurringEvent({
         ...eventFields,
       };
 
-      const { data: newSeries, error: insertError } = await supabase
-        .from('calendar_events')
-        .insert(newSeriesData)
-        .select('id')
-        .single();
+      // 새 시리즈 insert + study_data prefetch 병렬 실행
+      const shouldHaveStudy = hasStudyData ?? parent.is_task;
+      const [insertResult2, studyPrefetch] = await Promise.all([
+        supabase
+          .from('calendar_events')
+          .insert(newSeriesData)
+          .select('id')
+          .single(),
+        shouldHaveStudy
+          ? supabase
+              .from('event_study_data')
+              .select('*')
+              .eq('event_id', parentId)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
+      ]);
 
-      if (insertError) return { success: false, error: insertError.message };
+      if (insertResult2.error) return { success: false, error: insertResult2.error.message };
+      const newSeries = insertResult2.data;
 
-      // study 이벤트: has_study_data에 따라 lifecycle 처리
-      if (newSeries) {
-        const shouldHaveStudy = hasStudyData ?? parent.is_task;
-        if (shouldHaveStudy) {
-          const { data: parentStudy } = await supabase
-            .from('event_study_data')
-            .select('*')
-            .eq('event_id', parentId)
-            .maybeSingle();
-
-          if (parentStudy) {
-            const { id: _sid, event_id: _eid, done: _d, done_at: _da2, done_by: _db, ...sf } = parentStudy;
-            await supabase.from('event_study_data').insert({
-              ...sf,
-              event_id: newSeries.id,
-              done: false,
-              done_at: null,
-              done_by: null,
-            });
-          } else {
-            await supabase.from('event_study_data').insert({ event_id: newSeries.id });
-          }
+      // study_data 복사
+      if (newSeries && shouldHaveStudy) {
+        const parentStudy = studyPrefetch.data;
+        if (parentStudy) {
+          const { id: _sid, event_id: _eid, done: _d, done_at: _da2, done_by: _db, ...sf } = parentStudy;
+          await supabase.from('event_study_data').insert({
+            ...sf,
+            event_id: newSeries.id,
+            done: false,
+            done_at: null,
+            done_by: null,
+          });
+        } else {
+          await supabase.from('event_study_data').insert({ event_id: newSeries.id });
         }
-        // hasStudyData=false → study data 생성 안 함 (의도적)
       }
     } else if (scope === 'all') {
       // 부모 직접 수정
@@ -1179,7 +1322,7 @@ export async function getCalendarEventForEdit(
           consultant_id, student_id, session_type, enrollment_id,
           program_name, consultation_mode, meeting_link, visitor,
           schedule_status, notification_targets,
-          student:students!student_id(name)
+          student:students!student_id(user_profiles(name))
         )
       `)
       .eq('id', eventId)
@@ -1235,7 +1378,7 @@ export async function getCalendarEventForEdit(
         consultation_event_data: consult ? {
           consultant_id: consult.consultant_id ?? null,
           student_id: consult.student_id ?? null,
-          student_name: (consult.student as unknown as { name: string } | null)?.name ?? null,
+          student_name: (consult.student as unknown as { user_profiles: { name: string } | null } | null)?.user_profiles?.name ?? null,
           session_type: consult.session_type ?? null,
           enrollment_id: consult.enrollment_id ?? null,
           program_name: consult.program_name ?? null,

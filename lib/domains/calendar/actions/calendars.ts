@@ -376,7 +376,7 @@ async function _createCalendarWithSettings(
       admin_memo: input.adminMemo ?? null,
       default_estimated_minutes: input.defaultEstimatedMinutes ?? null,
       default_reminder_minutes: input.defaultReminderMinutes ?? null,
-      week_starts_on: input.weekStartsOn ?? 0,
+      week_starts_on: input.weekStartsOn ?? 1,
       created_by: user.userId,
     })
     .select()

@@ -129,8 +129,8 @@ export default function AdminMonthView({
   const { showPopover: showEventPopover, closePopover, isPopoverOpen, popoverProps: eventPopoverProps } = useEventDetailPopover({
     onEdit: (id, et) => { onPlanEdit?.(id, et); },
     onDelete: (id) => { onPlanDelete?.(id); },
-    onQuickStatusChange: async (planId, newStatus) => {
-      await updatePlanStatus({ planId, status: newStatus, skipRevalidation: true });
+    onQuickStatusChange: async (planId, newStatus, _prevStatus, instanceDate) => {
+      await updatePlanStatus({ planId, status: newStatus, skipRevalidation: true, instanceDate });
       onRefresh();
     },
     onColorChange: async (planId, color) => {

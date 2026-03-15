@@ -120,7 +120,7 @@ function ReactionBar({
             "bg-secondary-100",
             "hover:bg-secondary-200",
             "active:scale-95",
-            "transition-all duration-100",
+            "transition-[background-color,transform] duration-100",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
           )}
           aria-label={`${emoji} 리액션 추가`}

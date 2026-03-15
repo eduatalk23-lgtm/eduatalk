@@ -563,7 +563,7 @@ function ChatInputComponent({
               onClick={() => setShowAttachMenu((prev) => !prev)}
               disabled={!canAttach}
               className={cn(
-                "flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full flex-shrink-0 transition-all duration-200",
+                "flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full flex-shrink-0 transition-[color,background-color,transform] duration-200",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
                 canAttach
                   ? showAttachMenu
@@ -694,7 +694,7 @@ function ChatInputComponent({
             disabled={disabled}
             rows={1}
             className={cn(
-              "w-full resize-none rounded-2xl px-3 py-2 text-sm sm:px-4 sm:py-2.5 sm:text-base",
+              "w-full resize-none rounded-2xl px-3 py-2 text-base sm:px-4 sm:py-2.5",
               "bg-bg-secondary text-text-primary placeholder:text-text-tertiary",
               "border border-transparent focus:border-primary focus:outline-none",
               "transition-[border-color,height] duration-150 ease-out",
@@ -751,7 +751,7 @@ function ChatInputComponent({
             disabled={!canSend}
             className={cn(
               "flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full flex-shrink-0",
-              "transition-all duration-200 select-none",
+              "transition-[background-color,transform] duration-200 select-none",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
               canSend
                 ? "bg-primary-500 text-white hover:bg-primary-600 active:scale-95 scale-100"

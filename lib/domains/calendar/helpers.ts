@@ -54,7 +54,7 @@ export async function ensureStudentPrimaryCalendar(
     (existingCals ?? []).map((c) => c.default_color as string | null)
   );
 
-  // Primary Calendar 생성
+  // Primary Calendar 생성 (race-safe: 동시 요청 시 unique violation 처리)
   const { data: calendar, error: calError } = await supabase
     .from("calendars")
     .insert({
@@ -70,24 +70,34 @@ export async function ensureStudentPrimaryCalendar(
     .select("id")
     .single();
 
-  if (calError || !calendar) {
-    throw new Error(`Primary Calendar 생성 실패: ${calError?.message}`);
+  if (calError) {
+    // Race condition: 다른 요청이 먼저 생성한 경우 → 기존 캘린더 반환
+    // revalidateTag는 렌더 중 호출 불가하므로 캐시 무효화 생략 (TTL 만료 시 자연 갱신)
+    if (calError.code === "23505") {
+      const { data: existing } = await supabase
+        .from("calendars")
+        .select("id")
+        .eq("owner_id", studentId)
+        .eq("is_student_primary", true)
+        .is("deleted_at", null)
+        .single();
+      if (existing) return existing.id;
+    }
+    throw new Error(`Primary Calendar 생성 실패: ${calError.message}`);
   }
 
-  // calendar_list 엔트리 생성 + 캐시 무효화 병렬
-  await Promise.all([
-    supabase
-      .from("calendar_list")
-      .insert({
-        user_id: studentId,
-        calendar_id: calendar.id,
-        display_name: "기본 캘린더",
-        is_visible: true,
-        access_role: "owner",
-        sort_order: 0,
-      }),
-    invalidateCalendarId("student", studentId),
-  ]);
+  // calendar_list 엔트리 생성 (필수) + 캐시 무효화 (best-effort, 렌더 중 revalidateTag 불가)
+  await supabase
+    .from("calendar_list")
+    .insert({
+      user_id: studentId,
+      calendar_id: calendar.id,
+      display_name: "기본 캘린더",
+      is_visible: true,
+      access_role: "owner",
+      sort_order: 0,
+    });
+  invalidateCalendarId("student", studentId).catch(() => {});
 
   return calendar.id;
 }
@@ -122,7 +132,7 @@ export async function ensureAdminPrimaryCalendar(
 
   const supabase = await createSupabaseServerClient();
 
-  // Primary Calendar 생성
+  // Primary Calendar 생성 (race-safe: 동시 요청 시 unique violation 처리)
   const { data: calendar, error: calError } = await supabase
     .from("calendars")
     .insert({
@@ -137,24 +147,34 @@ export async function ensureAdminPrimaryCalendar(
     .select("id")
     .single();
 
-  if (calError || !calendar) {
-    throw new Error(`Admin Primary Calendar 생성 실패: ${calError?.message}`);
+  if (calError) {
+    // Race condition: 다른 요청이 먼저 생성한 경우 → 기존 캘린더 반환
+    if (calError.code === "23505") {
+      const { data: existing } = await supabase
+        .from("calendars")
+        .select("id")
+        .eq("owner_id", adminId)
+        .eq("owner_type", "admin")
+        .eq("is_primary", true)
+        .is("deleted_at", null)
+        .single();
+      if (existing) return existing.id;
+    }
+    throw new Error(`Admin Primary Calendar 생성 실패: ${calError.message}`);
   }
 
-  // calendar_list 엔트리 생성 + 캐시 무효화 병렬
-  await Promise.all([
-    supabase
-      .from("calendar_list")
-      .insert({
-        user_id: adminId,
-        calendar_id: calendar.id,
-        display_name: "내 캘린더",
-        is_visible: true,
-        access_role: "owner",
-        sort_order: 0,
-      }),
-    invalidateCalendarId("admin", adminId),
-  ]);
+  // calendar_list 엔트리 생성 (필수) + 캐시 무효화 (best-effort, 렌더 중 revalidateTag 불가)
+  await supabase
+    .from("calendar_list")
+    .insert({
+      user_id: adminId,
+      calendar_id: calendar.id,
+      display_name: "내 캘린더",
+      is_visible: true,
+      access_role: "owner",
+      sort_order: 0,
+    });
+  invalidateCalendarId("admin", adminId).catch(() => {});
 
   return calendar.id;
 }
@@ -212,12 +232,24 @@ export async function ensureTenantPrimaryCalendar(
     .select("id")
     .single();
 
-  if (calError || !calendar) {
-    throw new Error(`Tenant Primary Calendar 생성 실패: ${calError?.message}`);
+  if (calError) {
+    // Race condition: 다른 요청이 먼저 생성한 경우 → 기존 캘린더 반환
+    if (calError.code === "23505") {
+      const { data: existing } = await supabase
+        .from("calendars")
+        .select("id")
+        .eq("owner_id", tenantId)
+        .eq("owner_type", "tenant")
+        .eq("is_primary", true)
+        .is("deleted_at", null)
+        .single();
+      if (existing) return existing.id;
+    }
+    throw new Error(`Tenant Primary Calendar 생성 실패: ${calError.message}`);
   }
 
-  // 캐시 무효화 (null → 새 ID로 갱신)
-  await invalidateCalendarId("tenant", tenantId);
+  // 캐시 무효화 (best-effort, 렌더 중 revalidateTag 불가)
+  invalidateCalendarId("tenant", tenantId).catch(() => {});
 
   return calendar.id;
 }

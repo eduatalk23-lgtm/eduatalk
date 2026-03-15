@@ -16,6 +16,18 @@ import { getUserType, type ChatActionResult, type ChatUserType } from "../types"
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
+const SCHOOL_TYPE_PREFIX: Record<string, string> = {
+  ELEMENTARY: "초",
+  MIDDLE: "중",
+  HIGH: "고",
+};
+
+function formatGradeLabel(schoolType: string | null, grade: number | null): string | null {
+  if (!grade) return null;
+  const prefix = schoolType ? SCHOOL_TYPE_PREFIX[schoolType] : null;
+  return prefix ? `${prefix}${grade}` : `${grade}학년`;
+}
+
 // ============================================
 // 타입 정의
 // ============================================
@@ -148,7 +160,7 @@ async function getAdminViewMembers(
   if (filter === "all" || filter === "student") {
     const { data: students, error: studentsError } = await supabase
       .from("students")
-      .select("id, school_name, grade, user_profiles!inner(name, is_active, profile_image_url)")
+      .select("id, school_name, grade, school_type, user_profiles!inner(name, is_active, profile_image_url)")
       .eq("tenant_id", tenantId)
       .eq("user_profiles.is_active", true)
       .order("user_profiles(name)");
@@ -184,7 +196,7 @@ async function getAdminViewMembers(
             name: up.name,
             profileImageUrl: up.profile_image_url,
             schoolName: s.school_name,
-            gradeDisplay: s.grade as string | null,
+            gradeDisplay: formatGradeLabel(s.school_type, s.grade),
             linkedParents: parentMap.get(s.id) ?? [],
           };
         })
@@ -288,7 +300,7 @@ async function getParentViewMembers(
   // 연결된 자녀 정보 조회 (tenantId 확보 용도) — name, profile_image_url은 user_profiles에서
   const { data: childLinks } = await supabase
     .from("parent_student_links")
-    .select("relation, student:students(id, school_name, grade, tenant_id, user_profiles(name, profile_image_url))")
+    .select("relation, student:students(id, school_name, grade, school_type, tenant_id, user_profiles(name, profile_image_url))")
     .eq("parent_id", parentId);
 
   const tenantIds = new Set<string>();
@@ -330,7 +342,8 @@ async function getParentViewMembers(
         type StudentInfo = {
           id: string;
           school_name: string | null;
-          grade: string | null;
+          grade: number | null;
+          school_type: string | null;
           user_profiles: { name: string; profile_image_url: string | null } | null;
         };
         const studentRaw2 = link.student as unknown;
@@ -343,7 +356,7 @@ async function getParentViewMembers(
           name: up?.name ?? "",
           profileImageUrl: up?.profile_image_url ?? null,
           schoolName: student.school_name,
-          gradeDisplay: student.grade,
+          gradeDisplay: formatGradeLabel(student.school_type, student.grade),
           relation: link.relation,
         });
       }

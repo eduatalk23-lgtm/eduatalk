@@ -190,12 +190,13 @@ export function CalendarSidebar() {
     useOptimisticCalendarUpdate(selectedCalendarId ?? undefined);
 
   const handleOverdueStatusChange = useCallback(
-    async (planId: string, newStatus: PlanStatus, prevStatus?: PlanStatus) => {
+    async (planId: string, newStatus: PlanStatus, prevStatus?: PlanStatus, instanceDate?: string) => {
       const rollback = optimisticStatusChange(planId, newStatus);
       const result = await updatePlanStatus({
         planId,
         status: newStatus,
         skipRevalidation: true,
+        instanceDate,
       });
       if (result.success) {
         revalidate();

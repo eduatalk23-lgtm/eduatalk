@@ -15,11 +15,18 @@ export default async function NewCalendarPage({ params }: Props) {
   if (!isAdminRole(role)) notFound();
 
   const supabase = await createSupabaseServerClient();
-  const { data: student } = await supabase
+  const { data: studentRaw } = await supabase
     .from('students')
-    .select('id, name, tenant_id')
+    .select('id, tenant_id, user_profiles(name)')
     .eq('id', studentId)
     .single();
+  const student = studentRaw
+    ? {
+        id: studentRaw.id,
+        tenant_id: studentRaw.tenant_id,
+        name: ((Array.isArray(studentRaw.user_profiles) ? studentRaw.user_profiles[0] : studentRaw.user_profiles) as { name: string | null } | null)?.name ?? '',
+      }
+    : null;
 
   if (!student) notFound();
 

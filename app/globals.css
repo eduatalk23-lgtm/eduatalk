@@ -510,6 +510,13 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* iOS Safari auto-zoom 방지 — font-size < 16px인 input 포커스 시 화면 확대 차단 */
+@supports (-webkit-touch-callout: none) {
+  input, textarea, select {
+    font-size: max(16px, 1em);
+  }
+}
+
 /* 드래그/리사이즈 영역 — 브라우저 기본 스크롤과 충돌 방지 */
 [data-grid-block],
 [data-plan-chip],

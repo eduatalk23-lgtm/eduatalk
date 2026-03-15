@@ -274,8 +274,8 @@ export const DailyDockGridView = memo(function DailyDockGridView({
   const { showPopover, closePopover, isPopoverOpen, popoverProps, recurringModalState, closeRecurringModal } = useEventDetailPopover({
     onEdit: (id, et) => { onEdit?.(id, et); },
     onDelete: (id) => { onDelete?.(id); },
-    onQuickStatusChange: (planId, newStatus, prevStatus) => {
-      handleQuickStatusChange(planId, newStatus, prevStatus);
+    onQuickStatusChange: (planId, newStatus, prevStatus, instanceDate) => {
+      handleQuickStatusChange(planId, newStatus, prevStatus, instanceDate);
     },
     onColorChange: async (planId, color) => {
       const { updateEventColor } = await import('@/lib/domains/calendar/actions/calendarEventActions');
@@ -806,12 +806,13 @@ export const DailyDockGridView = memo(function DailyDockGridView({
 
   // 퀵 상태 변경 핸들러 (옵티미스틱: 즉시 색상 반영)
   const handleQuickStatusChange = useCallback(
-    async (planId: string, newStatus: PlanStatus, prevStatus?: PlanStatus) => {
+    async (planId: string, newStatus: PlanStatus, prevStatus?: PlanStatus, instanceDate?: string) => {
       const rollback = optimisticStatusChange(planId, newStatus);
       const result = await updatePlanStatus({
         planId,
         status: newStatus,
         skipRevalidation: true,
+        instanceDate,
       });
       if (result.success) {
         revalidate();

@@ -214,18 +214,6 @@ export async function upsertStudent(
     status: student.status || "enrolled",
   };
 
-  // name은 user_profiles에 저장 (students에는 저장하지 않음)
-  if (nameValue) {
-    const { error: profileError } = await supabase
-      .from("user_profiles")
-      .update({ name: nameValue })
-      .eq("id", student.id);
-
-    if (profileError) {
-      logActionWarn("students.upsertStudent", `user_profiles name 업데이트 실패: ${profileError.message}`);
-    }
-  }
-
   // school_type이 있으면 추가 (마이그레이션 후 컬럼이 있을 때만)
   if (schoolType) {
     payload.school_type = schoolType;
@@ -237,6 +225,8 @@ export async function upsertStudent(
   }
 
   // 타입 안전한 upsert 시도
+  // ⚠️ students INSERT 시 BEFORE INSERT 트리거(ensure_user_profile_for_student)가
+  //    user_profiles 레코드를 자동 생성하므로 반드시 students upsert를 먼저 실행
   const { error } = await supabase
     .from("students")
     .upsert(payload, { onConflict: "id" });
@@ -244,22 +234,22 @@ export async function upsertStudent(
   // 선택적 필드가 없어서 에러가 발생하면 해당 필드 제거하고 재시도
   if (ErrorCodeCheckers.isColumnNotFound(error)) {
     const errorMessage = error?.message?.toLowerCase() || "";
-    
+
     // school_type 컬럼이 없으면 제거
     if (errorMessage.includes("school_type") && payload.school_type) {
       delete payload.school_type;
     }
-    
+
     // division 컬럼이 없으면 제거
     if (errorMessage.includes("division") && payload.division) {
       delete payload.division;
     }
-    
+
     // 재시도
     const retryResult = await supabase
       .from("students")
       .upsert(payload, { onConflict: "id" });
-    
+
     if (retryResult.error) {
       logActionError("students.upsertStudent", `학생 정보 저장 실패: ${retryResult.error.message}`);
       return { success: false, error: retryResult.error.message };
@@ -271,6 +261,18 @@ export async function upsertStudent(
   } else if (error) {
     logActionError("students.upsertStudent", `학생 정보 저장 실패: ${error.message}`);
     return { success: false, error: error.message };
+  }
+
+  // name은 user_profiles에 저장 (students upsert 이후 실행 — 트리거로 user_profiles 생성된 후)
+  if (nameValue) {
+    const { error: profileError } = await supabase
+      .from("user_profiles")
+      .update({ name: nameValue })
+      .eq("id", student.id);
+
+    if (profileError) {
+      logActionWarn("students.upsertStudent", `user_profiles name 업데이트 실패: ${profileError.message}`);
+    }
   }
 
   return { success: true };

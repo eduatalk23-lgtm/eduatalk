@@ -271,6 +271,7 @@ export const PlanItemCard = memo(function PlanItemCard({
       const result = await updatePlanStatus({
         planId: plan.id,
         status: newStatus,
+        instanceDate: plan.rrule ? plan.planDate : undefined,
       });
 
       if (!result.success) {
@@ -326,10 +327,10 @@ export const PlanItemCard = memo(function PlanItemCard({
               {/* QuickComplete 버튼 (항상 표시) */}
               <QuickCompleteButton
                 planId={plan.id}
-
                 isCompleted={isCompleted}
                 onSuccess={onRefresh ?? NOOP}
                 size="sm"
+                instanceDate={plan.rrule ? plan.planDate : undefined}
               />
 
               {/* Time display for compact - 좌측 시간 블록 */}
@@ -476,6 +477,7 @@ export const PlanItemCard = memo(function PlanItemCard({
             planId={plan.id}
             isCompleted={isCompleted}
             onSuccess={onRefresh ?? NOOP}
+            instanceDate={plan.rrule ? plan.planDate : undefined}
           />
 
 

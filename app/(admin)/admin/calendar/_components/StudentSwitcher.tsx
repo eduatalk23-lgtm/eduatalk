@@ -16,6 +16,7 @@ interface RecentStudent {
   name: string | null;
   grade: number | null;
   school_name: string | null;
+  division: string | null;
 }
 
 function getRecentStudents(): RecentStudent[] {
@@ -87,6 +88,7 @@ export function StudentSwitcher({ currentStudentId, currentStudentName }: Studen
         name: student.name,
         grade: 'grade' in student ? student.grade : null,
         school_name: 'school_name' in student ? student.school_name : null,
+        division: 'division' in student ? (student.division as string | null) : null,
       });
       setRecentStudents(getRecentStudents());
       setOpen(false);
@@ -196,11 +198,13 @@ function StudentRow({
   isSelected,
   onSelect,
 }: {
-  student: { id: string; name: string | null; grade?: number | null; school_name?: string | null };
+  student: { id: string; name: string | null; grade?: number | null; school_name?: string | null; division?: string | null };
   isSelected: boolean;
   onSelect: () => void;
 }) {
-  const gradeLabel = student.grade ? `고${student.grade > 3 ? student.grade - 3 : student.grade}` : '';
+  const gradeLabel = student.grade
+    ? `${student.division === '중등부' ? '중' : '고'}${student.grade}`
+    : '';
   const subtitle = [gradeLabel, student.school_name].filter(Boolean).join(' ');
 
   return (

@@ -60,7 +60,7 @@ function ReactionPickerComponent({
             "rounded-full text-xl",
             "hover:bg-bg-secondary hover:scale-110",
             "active:scale-95",
-            "transition-all duration-100"
+            "transition-[background-color,transform] duration-100"
           )}
           role="menuitem"
           aria-label={`${emoji} 리액션 추가`}

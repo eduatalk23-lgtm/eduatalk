@@ -76,32 +76,18 @@ const mobileVariants = {
 };
 
 function getIsDesktop(): boolean {
-  if (typeof window === "undefined" || !window.matchMedia) return false;
   return window.matchMedia(MD_BREAKPOINT).matches;
 }
 
+function subscribeDesktop(callback: () => void) {
+  const mql = window.matchMedia(MD_BREAKPOINT);
+  mql.addEventListener("change", callback);
+  return () => mql.removeEventListener("change", callback);
+}
+
+/** useSyncExternalStore 단독 — SSR false, hydration 시 동기 전환 */
 function useIsDesktop(): boolean {
-  const isDesktopSync = useSyncExternalStore(
-    (callback) => {
-      if (typeof window === "undefined" || !window.matchMedia) {
-        return () => {};
-      }
-      const mql = window.matchMedia(MD_BREAKPOINT);
-      mql.addEventListener("change", callback);
-      return () => mql.removeEventListener("change", callback);
-    },
-    getIsDesktop,
-    () => false // SSR
-  );
-
-  // Hydration 완료 후 실제 값으로 업데이트
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // SSR/초기 렌더링 시 false 반환, 마운트 후 실제 값 반환
-  return mounted ? isDesktopSync : false;
+  return useSyncExternalStore(subscribeDesktop, getIsDesktop, () => false);
 }
 
 function ChatPopoverComponent({

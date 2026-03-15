@@ -39,10 +39,14 @@ export default async function AdminCalendarPage({ searchParams }: Props) {
     const [adminUser, calendarId, tenantCalendarId] = await Promise.all([
       supabase
         .from('admin_users')
-        .select('name')
+        .select('user_profiles(name)')
         .eq('id', admin.userId)
         .maybeSingle()
-        .then((r) => r.data),
+        .then((r) => {
+          const rawProfile = r.data?.user_profiles;
+          const profile = (Array.isArray(rawProfile) ? rawProfile[0] : rawProfile) as { name: string | null } | null;
+          return { name: profile?.name ?? null };
+        }),
       ensureAdminPrimaryCalendar(admin.userId, admin.tenantId!),
       ensureTenantPrimaryCalendar(admin.tenantId!),
     ]);
@@ -70,11 +74,19 @@ export default async function AdminCalendarPage({ searchParams }: Props) {
 
   // ── 학생 선택: 학생 캘린더 조회 ──
   const supabase = await createSupabaseServerClient();
-  const { data: student } = await supabase
+  const { data: studentRaw } = await supabase
     .from('students')
-    .select('id, name, tenant_id')
+    .select('id, tenant_id, user_profiles(name)')
     .eq('id', studentId)
     .single();
+
+  const student = studentRaw
+    ? {
+        id: studentRaw.id,
+        tenant_id: studentRaw.tenant_id,
+        name: ((Array.isArray(studentRaw.user_profiles) ? studentRaw.user_profiles[0] : studentRaw.user_profiles) as { name: string | null } | null)?.name ?? '',
+      }
+    : null;
 
   if (!student) {
     return (

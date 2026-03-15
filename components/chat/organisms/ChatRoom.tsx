@@ -1555,7 +1555,7 @@ function ChatRoomComponent({
           className={cn(
             "absolute right-4 z-10",
             "bottom-2",
-            "motion-safe:transition-all motion-safe:duration-300 motion-safe:ease-out",
+            "motion-safe:transition-[opacity,transform] motion-safe:duration-300 motion-safe:ease-out",
             isAtBottom
               ? "opacity-0 motion-safe:translate-y-4 pointer-events-none"
               : "opacity-100 translate-y-0"
@@ -1568,7 +1568,7 @@ function ChatRoomComponent({
               "relative flex items-center justify-center",
               "w-10 h-10 rounded-full",
               "bg-bg-primary border border-border shadow-lg",
-              "hover:bg-bg-secondary motion-safe:transition-all motion-safe:duration-200",
+              "hover:bg-bg-secondary motion-safe:transition-[background-color,transform] motion-safe:duration-200",
               "motion-safe:hover:scale-105 motion-safe:active:scale-95"
             )}
             aria-label={newMessageCount > 0 ? `새 메시지 ${newMessageCount}개, 맨 아래로 스크롤` : "맨 아래로 스크롤"}

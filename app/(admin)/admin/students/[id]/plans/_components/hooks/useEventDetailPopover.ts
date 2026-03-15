@@ -20,6 +20,7 @@ interface UseEventDetailPopoverOptions {
     planId: string,
     newStatus: PlanStatus,
     prevStatus: PlanStatus,
+    instanceDate?: string,
   ) => void;
   onColorChange?: (planId: string, color: string | null) => void;
   /** 비학습 이벤트 비활성화 (soft delete) */
@@ -78,7 +79,8 @@ export function useEventDetailPopover({
   const handleQuickStatusChange = useCallback(
     (planId: string, newStatus: PlanStatus) => {
       if (onQuickStatusChange && state) {
-        onQuickStatusChange(planId, newStatus, state.plan.status);
+        const instanceDate = state.plan.rrule ? state.plan.planDate : undefined;
+        onQuickStatusChange(planId, newStatus, state.plan.status, instanceDate);
       }
     },
     [onQuickStatusChange, state],

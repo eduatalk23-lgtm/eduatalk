@@ -164,12 +164,16 @@ export async function getStudentPhonesBatch(
  */
 export async function upsertParentContact(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: SupabaseClient<any, any, any>,
+  _supabase: SupabaseClient<any, any, any>,
   studentId: string,
   tenantId: string,
   relation: "mother" | "father",
   phone: string
 ): Promise<void> {
+  // RLS bypass 클라이언트 사용 — 관리자가 ghost parent의 user_profiles를 INSERT할 때
+  // user_profiles_insert_own 정책(auth.uid() = id)에 의해 차단되므로 admin 클라이언트 필요
+  const supabase = await getSupabaseClientForRLSBypass();
+
   // 기존 link 조회
   const { data: existing } = await supabase
     .from("parent_student_links")
@@ -180,26 +184,40 @@ export async function upsertParentContact(
 
   if (existing) {
     // 기존 parent의 phone 업데이트
-    await supabase
+    const { error } = await supabase
       .from("user_profiles")
       .update({ phone })
       .eq("id", existing.parent_id);
+
+    if (error) {
+      console.error(`[upsertParentContact] ${relation} phone 업데이트 실패:`, error.message);
+    }
   } else {
     // ghost parent 생성
     const parentId = crypto.randomUUID();
-    await supabase.from("user_profiles").insert({
+    const { error: profileError } = await supabase.from("user_profiles").insert({
       id: parentId,
       tenant_id: tenantId,
       role: "parent",
       name: "",
       phone,
     });
-    await supabase.from("parent_student_links").insert({
+
+    if (profileError) {
+      console.error(`[upsertParentContact] ghost parent 프로필 생성 실패:`, profileError.message);
+      return;
+    }
+
+    const { error: linkError } = await supabase.from("parent_student_links").insert({
       id: crypto.randomUUID(),
       parent_id: parentId,
       student_id: studentId,
       relation,
       tenant_id: tenantId,
     });
+
+    if (linkError) {
+      console.error(`[upsertParentContact] parent_student_links 생성 실패:`, linkError.message);
+    }
   }
 }

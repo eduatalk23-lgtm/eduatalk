@@ -398,8 +398,8 @@ export const WeeklyGridView = memo(function WeeklyGridView({
   const { showPopover, closePopover: rawClosePopover, isPopoverOpen, popoverProps, recurringModalState, closeRecurringModal } = useEventDetailPopover({
     onEdit: (id, et) => { onEdit?.(id, et); },
     onDelete: (id) => { onDelete?.(id); },
-    onQuickStatusChange: (planId, newStatus, prevStatus) => {
-      handleQuickStatusChange(planId, newStatus, prevStatus);
+    onQuickStatusChange: (planId, newStatus, prevStatus, instanceDate) => {
+      handleQuickStatusChange(planId, newStatus, prevStatus, instanceDate);
     },
     onColorChange: async (planId, color) => {
       const { updateEventColor } = await import('@/lib/domains/calendar/actions/calendarEventActions');
@@ -824,12 +824,12 @@ export const WeeklyGridView = memo(function WeeklyGridView({
 
   // 퀵 상태 변경 (옵티미스틱: 즉시 색상 반영)
   const handleQuickStatusChange = useCallback(
-    async (planId: string, newStatus: PlanStatus, prevStatus?: PlanStatus) => {
+    async (planId: string, newStatus: PlanStatus, prevStatus?: PlanStatus, instanceDate?: string) => {
       const rollback = optimisticStatusChange(planId, newStatus);
       const { updatePlanStatus } = await import(
         '@/lib/domains/calendar/actions/calendarEventActions'
       );
-      const result = await updatePlanStatus({ planId, status: newStatus, skipRevalidation: true });
+      const result = await updatePlanStatus({ planId, status: newStatus, skipRevalidation: true, instanceDate });
       if (result.success) {
         revalidate();
         if (prevStatus) {

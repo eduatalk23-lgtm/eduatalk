@@ -15,11 +15,12 @@ async function getStudentInfo(studentId: string) {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from('students')
-    .select('id, name, tenant_id')
+    .select('id, tenant_id, user_profiles(name)')
     .eq('id', studentId)
     .single();
   if (error || !data) return null;
-  return data;
+  const profile = (Array.isArray(data.user_profiles) ? data.user_profiles[0] : data.user_profiles) as { name: string | null } | null;
+  return { id: data.id, tenant_id: data.tenant_id, name: profile?.name ?? '' };
 }
 
 export default async function CalendarPlanManagementPage({

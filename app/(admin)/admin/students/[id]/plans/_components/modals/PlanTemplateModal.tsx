@@ -87,13 +87,19 @@ export function PlanTemplateModal({
       const supabase = createSupabaseBrowserClient();
       supabase
         .from('students')
-        .select('id, name')
-        .eq('is_active', true)
-        .order('name')
+        .select('id, user_profiles!inner(name, is_active)')
+        .eq('user_profiles.is_active', true)
+        .order('user_profiles(name)')
         .then(({ data }) => {
           if (data) {
-            // 현재 학생 제외
-            setAvailableStudents(data.filter((s) => s.id !== studentId));
+            setAvailableStudents(
+              data
+                .filter((s) => s.id !== studentId)
+                .map((s) => ({
+                  id: s.id,
+                  name: (s.user_profiles as unknown as { name: string | null })?.name ?? '',
+                }))
+            );
           }
           setIsLoadingStudents(false);
         });

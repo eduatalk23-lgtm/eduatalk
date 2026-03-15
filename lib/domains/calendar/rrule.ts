@@ -255,7 +255,7 @@ export function expandRecurringEvents(
       }
 
       // 확장 인스턴스 생성 (원본 복사 + 날짜 시프트)
-      const instance: CalendarEventWithStudyData = {
+      const instance: CalendarEventWithStudyData & Partial<ExpandedEventInstance> = {
         ...event,
         // 날짜 필드 시프트
         start_date: event.start_date ? occDate : null,
@@ -270,6 +270,9 @@ export function expandRecurringEvents(
           : null,
         // 메타 필드
         recurring_event_id: event.id,
+        _recurring_parent_id: event.id,
+        _instance_date: occDate,
+        _is_expanded: true,
       };
 
       result.push(instance);
