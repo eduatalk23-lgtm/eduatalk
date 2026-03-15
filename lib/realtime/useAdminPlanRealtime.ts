@@ -48,28 +48,36 @@ export function useAdminPlanRealtime({
       return;
     }
 
-    // Broadcast 방식: DB Trigger → realtime.broadcast_changes()
-    // 관리자도 같은 student_id 기반 채널을 구독
-    const planChannel = supabase
-      .channel(`plan-realtime-${studentId}`, { config: { private: true } })
-      .on('broadcast', { event: 'INSERT' }, () => debouncedRefresh())
-      .on('broadcast', { event: 'UPDATE' }, () => debouncedRefresh())
-      .on('broadcast', { event: 'DELETE' }, () => debouncedRefresh())
-      .subscribe();
+    // Delay channel creation to avoid subscribing during rapid student switches
+    // (350ms > StudentSwitcher debounce of 300ms)
+    let planChannel: ReturnType<typeof supabase.channel> | undefined;
+    let calendarChannel: ReturnType<typeof supabase.channel> | undefined;
 
-    const calendarChannel = supabase
-      .channel(`calendar-realtime-${studentId}`, { config: { private: true } })
-      .on('broadcast', { event: 'INSERT' }, () => debouncedRefresh())
-      .on('broadcast', { event: 'UPDATE' }, () => debouncedRefresh())
-      .on('broadcast', { event: 'DELETE' }, () => debouncedRefresh())
-      .subscribe();
+    const subTimer = setTimeout(() => {
+      // Broadcast 방식: DB Trigger → realtime.broadcast_changes()
+      // 관리자도 같은 student_id 기반 채널을 구독
+      planChannel = supabase
+        .channel(`plan-realtime-${studentId}`, { config: { private: true } })
+        .on('broadcast', { event: 'INSERT' }, () => debouncedRefresh())
+        .on('broadcast', { event: 'UPDATE' }, () => debouncedRefresh())
+        .on('broadcast', { event: 'DELETE' }, () => debouncedRefresh())
+        .subscribe();
+
+      calendarChannel = supabase
+        .channel(`calendar-realtime-${studentId}`, { config: { private: true } })
+        .on('broadcast', { event: 'INSERT' }, () => debouncedRefresh())
+        .on('broadcast', { event: 'UPDATE' }, () => debouncedRefresh())
+        .on('broadcast', { event: 'DELETE' }, () => debouncedRefresh())
+        .subscribe();
+    }, 350);
 
     return () => {
+      clearTimeout(subTimer);
       if (debounceTimer.current) {
         clearTimeout(debounceTimer.current);
       }
-      supabase.removeChannel(planChannel);
-      supabase.removeChannel(calendarChannel);
+      if (planChannel) supabase.removeChannel(planChannel);
+      if (calendarChannel) supabase.removeChannel(calendarChannel);
     };
   }, [studentId, enabled, debouncedRefresh]);
 }

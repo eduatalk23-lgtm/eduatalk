@@ -12,7 +12,6 @@ import { ChatList } from "@/components/chat";
 import { MemberList } from "@/components/chat/organisms/MemberList";
 import { ChatSidebarTabs } from "@/components/chat/atoms/ChatSidebarTabs";
 import type { ChatSidebarTab } from "@/components/chat/atoms/ChatSidebarTabs";
-import { useChatRoomListRealtime } from "@/lib/realtime";
 import type { ChatUserType } from "@/lib/domains/chat/types";
 
 interface ChatListPageWrapperProps {
@@ -35,8 +34,7 @@ export function ChatListPageWrapper({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<ChatSidebarTab>("chat");
 
-  // 채팅방 목록 실시간 구독
-  useChatRoomListRealtime({ userId, userType });
+  // Realtime 구독은 FloatingChatWidget에서 전역으로 처리 (중복 채널 방지)
 
   return (
     <div className="h-full flex flex-col">
@@ -46,7 +44,7 @@ export function ChatListPageWrapper({
       {/* 탭 콘텐츠 */}
       <div className="flex-1 min-h-0 overflow-hidden">
         {activeTab === "chat" ? (
-          <ChatList basePath={basePath} onNewChat={() => setIsCreateModalOpen(true)} hideHeader />
+          <ChatList basePath={basePath} onNewChat={() => setIsCreateModalOpen(true)} hideHeader currentUserId={userId} viewerType={userType} />
         ) : (
           <MemberList
             currentUserId={userId}

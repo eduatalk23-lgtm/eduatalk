@@ -9,7 +9,8 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { redirect } from "next/navigation";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { getQueryClient } from "@/lib/providers/getQueryClient";
-import { chatRoomsQueryOptions } from "@/lib/query-options/chatRooms";
+import { getChatRoomsAction } from "@/lib/domains/chat/actions";
+import { chatKeys } from "@/lib/domains/chat/queryKeys";
 import { ParentChatListPage } from "./_components/ParentChatListPage";
 
 export const metadata = {
@@ -25,7 +26,14 @@ export default async function ParentChatPage() {
 
   // SSR 프리패칭
   const queryClient = getQueryClient();
-  void queryClient.prefetchQuery(chatRoomsQueryOptions());
+  void queryClient.prefetchQuery({
+    queryKey: chatKeys.rooms(),
+    queryFn: async () => {
+      const result = await getChatRoomsAction();
+      if (!result.success) throw new Error(result.error ?? "채팅방 목록 조회 실패");
+      return result.data;
+    },
+  });
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>

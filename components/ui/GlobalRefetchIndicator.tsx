@@ -4,15 +4,20 @@ import { useIsFetching } from "@tanstack/react-query";
 import { useDelayedLoading } from "@/lib/hooks/useDelayedLoading";
 
 /**
- * 백그라운드 리페치 시 상단에 2px pulse bar를 표시합니다.
- * 5초 이상 로딩 시 안내 메시지를 추가로 표시합니다.
+ * 초기 로딩 시 상단에 2px pulse bar를 표시합니다.
+ * 8초 이상 로딩 시 안내 메시지를 추가로 표시합니다.
+ * 백그라운드 리페치(stale→fresh)는 카운트하지 않아 불필요한 노이즈를 줄입니다.
  * QueryProvider 내부에 마운트해야 합니다.
  */
 export function GlobalRefetchIndicator() {
-  const isFetching = useIsFetching();
-  const isLongLoading = useDelayedLoading(isFetching > 0, 5000);
+  // 초기 로딩(pending) 쿼리만 카운트 — 백그라운드 리페치 제외
+  const pendingCount = useIsFetching({
+    predicate: (query) => query.state.status === "pending",
+  });
+  const allFetching = useIsFetching();
+  const isLongLoading = useDelayedLoading(pendingCount > 0, 8000);
 
-  if (isFetching === 0) return null;
+  if (allFetching === 0) return null;
 
   return (
     <div className="fixed inset-x-0 top-0 z-[9998]" role="status" aria-label="데이터 로딩 중">

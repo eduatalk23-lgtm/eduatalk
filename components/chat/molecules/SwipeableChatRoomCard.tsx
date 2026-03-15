@@ -22,6 +22,7 @@ interface SwipeableChatRoomCardProps {
   isMuted?: boolean;
   onLeave: (roomId: string) => void;
   onToggleMute: (roomId: string, muted: boolean) => void;
+  onAvatarClick?: (room: ChatRoomListItem, position: { x: number; y: number }) => void;
 }
 
 function SwipeableChatRoomCardComponent({
@@ -31,6 +32,7 @@ function SwipeableChatRoomCardComponent({
   isMuted = false,
   onLeave,
   onToggleMute,
+  onAvatarClick,
 }: SwipeableChatRoomCardProps) {
   const { handlers, offsetX, isOpen, close } = useSwipeAction();
   const [isPending, startTransition] = useTransition();
@@ -112,6 +114,7 @@ function SwipeableChatRoomCardComponent({
             room={room}
             onClick={handleClick}
             isSelected={isSelected}
+            onAvatarClick={onAvatarClick}
           />
         </div>
       </div>

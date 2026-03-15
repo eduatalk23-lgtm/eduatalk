@@ -906,14 +906,14 @@ export async function updatePassword(newPassword: string): Promise<AuthResult> {
   try {
     const supabase = await createSupabaseServerClient();
 
-    // 먼저 세션 확인
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    // 먼저 세션 확인 (캐시된 버전 사용으로 불필요한 /user API 호출 방지)
+    const user = await getCachedAuthUser();
 
-    if (userError || !user) {
+    if (!user) {
       logActionError(
         { domain: "auth", action: "updatePassword" },
-        userError || new Error("No user session"),
-        { hasUser: !!user }
+        new Error("No user session"),
+        { hasUser: false }
       );
       return {
         success: false,
@@ -990,9 +990,9 @@ export async function changePassword(
   newPassword: string
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+
+  // 캐시된 버전 사용으로 불필요한 /user API 호출 방지
+  const user = await getCachedAuthUser();
 
   if (!user) {
     return { success: false, error: "로그인이 필요합니다." };

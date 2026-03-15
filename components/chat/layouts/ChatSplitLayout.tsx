@@ -19,7 +19,6 @@
 
 import { useState, useCallback, useMemo, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { useChatRoomListRealtime } from "@/lib/realtime";
 import { ChatList } from "@/components/chat/organisms/ChatList";
 import { MemberList } from "@/components/chat/organisms/MemberList";
 import { ChatLayoutProvider } from "./ChatLayoutContext";
@@ -78,8 +77,7 @@ export function ChatSplitLayout({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<ChatSidebarTab>("chat");
 
-  // 채팅방 목록 실시간 구독
-  useChatRoomListRealtime({ userId, userType });
+  // Realtime 구독은 FloatingChatWidget에서 전역으로 처리 (중복 채널 방지)
 
   // 채팅방 페이지인지 판별
   const isRoomPage =
@@ -138,6 +136,8 @@ export function ChatSplitLayout({
                 onRoomClick={handleRoomClick}
                 onNewChat={handleNewChat}
                 hideHeader
+                currentUserId={userId}
+                viewerType={userType}
               />
             ) : (
               <MemberList

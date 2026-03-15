@@ -257,6 +257,8 @@ function ChatPopoverComponent({
       onRoomClick={handleRoomClick}
       onNewChat={() => setIsCreateModalOpen(true)}
       hideHeader
+      currentUserId={userId}
+      viewerType={userType}
     />
   ) : (
     <MemberList

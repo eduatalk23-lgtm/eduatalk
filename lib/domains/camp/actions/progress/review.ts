@@ -447,8 +447,73 @@ export const getPlanGroupContentsForRangeAdjustment = withErrorHandling(
       // 콘텐츠 조회
       const contents = await getPlanContents(groupId, tenantContext.tenantId);
 
-      // 콘텐츠 상세 정보 조회 (총량 정보 포함)
+      // 콘텐츠 상세 정보 배치 조회 (N+1 → 배치 쿼리)
       // Admin 클라이언트를 사용하여 RLS 정책 우회
+      const nonCustomContents = contents.filter(
+        (c): c is typeof c & { content_type: "book" | "lecture" } => c.content_type !== "custom"
+      );
+      const bookContentIds = nonCustomContents.filter((c) => c.content_type === "book").map((c) => c.content_id);
+      const lectureContentIds = nonCustomContents.filter((c) => c.content_type === "lecture").map((c) => c.content_id);
+
+      // 교재와 강의 정보를 병렬로 배치 조회
+      const [booksResult, lecturesResult] = await Promise.all([
+        bookContentIds.length > 0
+          ? adminSupabase
+              .from("books")
+              .select("id, title, master_content_id")
+              .in("id", bookContentIds)
+          : Promise.resolve({ data: [] as { id: string; title: string | null; master_content_id: string | null }[], error: null }),
+        lectureContentIds.length > 0
+          ? adminSupabase
+              .from("lectures")
+              .select("id, title, master_content_id")
+              .in("id", lectureContentIds)
+          : Promise.resolve({ data: [] as { id: string; title: string | null; master_content_id: string | null }[], error: null }),
+      ]);
+
+      const booksMap = new Map((booksResult.data ?? []).map((b) => [b.id, b]));
+      const lecturesMap = new Map((lecturesResult.data ?? []).map((l) => [l.id, l]));
+
+      // 마스터 콘텐츠 ID 수집
+      const masterBookIds = new Set<string>();
+      const masterLectureIds = new Set<string>();
+      for (const book of booksResult.data ?? []) {
+        if (book.master_content_id) masterBookIds.add(book.master_content_id);
+        else masterBookIds.add(book.id); // fallback: content_id로 직접 조회
+      }
+      for (const lecture of lecturesResult.data ?? []) {
+        if (lecture.master_content_id) masterLectureIds.add(lecture.master_content_id);
+        else masterLectureIds.add(lecture.id);
+      }
+      // master_content_id가 없는 교재/강의의 content_id도 추가
+      for (const content of nonCustomContents) {
+        const item = content.content_type === "book" ? booksMap.get(content.content_id) : lecturesMap.get(content.content_id);
+        if (!item) {
+          if (content.content_type === "book") masterBookIds.add(content.content_id);
+          else masterLectureIds.add(content.content_id);
+        }
+      }
+
+      // 마스터 콘텐츠 배치 조회
+      const [masterBooksResult, masterLecturesResult] = await Promise.all([
+        masterBookIds.size > 0
+          ? adminSupabase
+              .from("master_books")
+              .select("id, total_pages")
+              .in("id", Array.from(masterBookIds))
+          : Promise.resolve({ data: [] as { id: string; total_pages: number | null }[], error: null }),
+        masterLectureIds.size > 0
+          ? adminSupabase
+              .from("master_lectures")
+              .select("id, total_episodes")
+              .in("id", Array.from(masterLectureIds))
+          : Promise.resolve({ data: [] as { id: string; total_episodes: number | null }[], error: null }),
+      ]);
+
+      const masterBooksMap = new Map((masterBooksResult.data ?? []).map((b) => [b.id, b]));
+      const masterLecturesMap = new Map((masterLecturesResult.data ?? []).map((l) => [l.id, l]));
+
+      // 결과 조합
       const contentInfos: Array<{
         contentId: string;
         contentType: "book" | "lecture";
@@ -458,115 +523,26 @@ export const getPlanGroupContentsForRangeAdjustment = withErrorHandling(
         currentEndRange: number;
       }> = [];
 
-      for (const content of contents) {
-        // custom 콘텐츠는 범위 조절 대상이 아니므로 제외
-        if (content.content_type === "custom") {
-          continue;
-        }
-
+      for (const content of nonCustomContents) {
         try {
           let totalAmount = 0;
           let title = "알 수 없음";
 
           if (content.content_type === "book") {
-            // Admin 클라이언트를 사용하여 학생 교재 조회 (RLS 우회)
-            const { data: book } = await adminSupabase
-              .from("books")
-              .select("title, master_content_id")
-              .eq("id", content.content_id)
-              .maybeSingle();
-
+            const book = booksMap.get(content.content_id);
             if (book) {
               title = book.title || "알 수 없음";
-
-              // 마스터 콘텐츠 정보 조회 (Admin 클라이언트 사용 - RLS 우회)
-              if (book.master_content_id) {
-                try {
-                  const { book: masterBook } = await getMasterBookById(book.master_content_id, adminSupabase);
-                  if (masterBook) {
-                    totalAmount = masterBook.total_pages || 0;
-                  } else {
-                    // 마스터 교재 조회 실패 시 Admin 클라이언트로 직접 조회 시도
-                    const { data: bookInfo } = await adminSupabase
-                      .from("master_books")
-                      .select("total_pages")
-                      .eq("id", book.master_content_id)
-                      .maybeSingle();
-                    totalAmount = bookInfo?.total_pages || 0;
-                  }
-                } catch (error) {
-                  logError(error, {
-                    function: "getPlanGroupContentsForRangeAdjustment",
-                    masterContentId: book.master_content_id,
-                    contentType: "book",
-                  });
-                  // 마스터 교재 조회 실패 시 Admin 클라이언트로 직접 조회 시도
-                  const { data: bookInfo } = await adminSupabase
-                    .from("master_books")
-                    .select("total_pages")
-                    .eq("id", book.master_content_id)
-                    .maybeSingle();
-                  totalAmount = bookInfo?.total_pages || 0;
-                }
-              } else {
-                // 마스터 콘텐츠 ID가 없으면 직접 조회 시도
-                const { data: bookInfo } = await adminSupabase
-                  .from("master_books")
-                  .select("total_pages")
-                  .eq("id", content.content_id)
-                  .maybeSingle();
-                totalAmount = bookInfo?.total_pages || 0;
-              }
+              const masterId = book.master_content_id || content.content_id;
+              const masterBook = masterBooksMap.get(masterId);
+              totalAmount = masterBook?.total_pages || 0;
             }
           } else if (content.content_type === "lecture") {
-            // Admin 클라이언트를 사용하여 학생 강의 조회 (RLS 우회)
-            const { data: lecture } = await adminSupabase
-              .from("lectures")
-              .select("title, master_content_id")
-              .eq("id", content.content_id)
-              .maybeSingle();
-
+            const lecture = lecturesMap.get(content.content_id);
             if (lecture) {
               title = lecture.title || "알 수 없음";
-
-              // 마스터 콘텐츠 정보 조회 (Admin 클라이언트 사용 - RLS 우회)
-              if (lecture.master_content_id) {
-                try {
-                  const { lecture: masterLecture } = await getMasterLectureById(lecture.master_content_id, adminSupabase);
-                  if (masterLecture) {
-                    totalAmount = masterLecture.total_episodes || 0;
-                  } else {
-                    // 마스터 강의 조회 실패 시 Admin 클라이언트로 직접 조회 시도
-                    const { data: lectureInfo } = await adminSupabase
-                      .from("master_lectures")
-                      .select("total_episodes")
-                      .eq("id", lecture.master_content_id)
-                      .maybeSingle();
-                    totalAmount = lectureInfo?.total_episodes || 0;
-                  }
-                } catch (error) {
-                  logError(error, {
-                    function: "getPlanGroupContentsForRangeAdjustment",
-                    masterContentId: lecture.master_content_id,
-                    contentType: "lecture",
-                  });
-                  // 마스터 강의 조회 실패 시 Admin 클라이언트로 직접 조회 시도
-                  const { data: lectureInfo } = await adminSupabase
-                    .from("master_lectures")
-                    .select("total_episodes")
-                    .eq("id", lecture.master_content_id)
-                    .maybeSingle();
-                  totalAmount = lectureInfo?.total_episodes || 0;
-                }
-              } else {
-                // 마스터 콘텐츠 ID가 없으면 직접 조회 시도
-                const { data: lectureInfo } = await adminSupabase
-                  .from("master_lectures")
-                  .select("total_episodes")
-                  .eq("id", content.content_id)
-                  .maybeSingle();
-                totalAmount = lectureInfo?.total_episodes || 0;
-              }
+              const masterId = lecture.master_content_id || content.content_id;
+              const masterLecture = masterLecturesMap.get(masterId);
+              totalAmount = masterLecture?.total_episodes || 0;
             }
           }
 

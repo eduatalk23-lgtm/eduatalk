@@ -65,9 +65,9 @@ function activePlanQueryOptions(studentId: string, planDate: string) {
 
       return plan;
     },
-    staleTime: CACHE_STALE_TIME_REALTIME, // 10초 (실시간 업데이트를 위해 짧게)
+    staleTime: 1000 * 30, // 30초 (세션 상태는 자주 변하지 않음)
     gcTime: CACHE_GC_TIME_REALTIME, // 5분 (캐시 유지 시간)
-    refetchInterval: 1000 * 30, // 30초마다 자동 리페치
+    refetchInterval: 1000 * 60, // 60초마다 자동 리페치 (세션 시작/종료 시 invalidation으로 즉시 반영)
   });
 }
 

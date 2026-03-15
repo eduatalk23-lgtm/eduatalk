@@ -215,7 +215,7 @@ export default async function RootLayout({
   const dehydratedState = dehydrate(queryClient);
 
   return (
-    <html lang="ko" suppressHydrationWarning>
+    <html lang="ko" suppressHydrationWarning data-scroll-behavior="smooth">
       <head>
         {/* 스플래시 로고 preload — HTML 파싱 즉시 다운로드 시작 */}
         <link rel="preload" href="/splash/eduatalk.png" as="image" />

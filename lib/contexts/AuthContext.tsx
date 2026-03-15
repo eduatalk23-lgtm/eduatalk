@@ -139,8 +139,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         queryClient.setQueryData(["auth", "me"], null);
         queryClient.removeQueries({ queryKey: ["auth", "me"], exact: true });
         // 모든 채팅 관련 캐시 완전 제거 (사용자 전환 시 이전 데이터 노출 방지)
-        // chat-rooms, chat-messages, chat-room, chat-pinned, chat-announcement,
-        // chat-notification-prefs, chat-can-pin, chat-can-set-announcement, chat-room-members
         queryClient.removeQueries({
           predicate: (query) => {
             const key = query.queryKey[0];
@@ -151,9 +149,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // 채팅 operationTracker 전체 정리 (이전 사용자의 추적 상태 제거)
         operationTracker.clearAll();
       } else if (event === "SIGNED_IN") {
-        // 로그인 시 사용자 정보 리페치
-        // TOKEN_REFRESHED는 토큰만 갱신 (역할/프로필 불변) → refetch 불필요
-        refetch();
+        // SSR에서 이미 prefetch된 데이터가 캐시에 있으면 중복 refetch 스킵
+        // 초기 페이지 로드: Supabase SDK가 쿠키 세션 감지 → SIGNED_IN 발생 → 캐시 있음 → 스킵
+        // 실제 로그인: /login에서 로그인 → 캐시 없음 → refetch (React Query가 중복 요청 자동 제거)
+        // TOKEN_REFRESHED는 토큰만 갱신 (역할/프로필 불변) → 이 분기에 진입하지 않음
+        const cachedUser = queryClient.getQueryData(["auth", "me"]);
+        if (!cachedUser) {
+          refetch();
+        }
       }
     });
 

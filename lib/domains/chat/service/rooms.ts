@@ -137,15 +137,33 @@ export async function getRoomList(
   }
 
   // 발신자 키 추출 (동기 — membersMap만 필요)
+  // direct: 상대방 1명, group: 본인 제외 최대 4명 (아바타 프리뷰용)
   const senderKeys: Array<{ id: string; type: ChatUserType }> = [];
+  const seenSenderKeys = new Set<string>();
   for (const room of rooms) {
+    const members = membersMap.get(room.id) ?? [];
     if (room.type === "direct") {
-      const members = membersMap.get(room.id) ?? [];
       const otherMember = members.find(
         (m) => !(m.user_id === userId && m.user_type === userType)
       );
       if (otherMember) {
-        senderKeys.push({ id: otherMember.user_id, type: otherMember.user_type });
+        const key = `${otherMember.user_id}_${otherMember.user_type}`;
+        if (!seenSenderKeys.has(key)) {
+          seenSenderKeys.add(key);
+          senderKeys.push({ id: otherMember.user_id, type: otherMember.user_type });
+        }
+      }
+    } else {
+      // 그룹: 본인 제외 최대 4명
+      const otherMembers = members
+        .filter((m) => !(m.user_id === userId && m.user_type === userType))
+        .slice(0, 4);
+      for (const m of otherMembers) {
+        const key = `${m.user_id}_${m.user_type}`;
+        if (!seenSenderKeys.has(key)) {
+          seenSenderKeys.add(key);
+          senderKeys.push({ id: m.user_id, type: m.user_type });
+        }
       }
     }
   }
@@ -224,6 +242,21 @@ export async function getRoomList(
       };
     }
 
+    // 그룹 멤버 프리뷰 (본인 제외 최대 4명)
+    const memberPreviews =
+      room.type === "group"
+        ? members
+            .filter((m) => !(m.user_id === userId && m.user_type === userType))
+            .slice(0, 4)
+            .map((m) => {
+              const info = senderMap.get(`${m.user_id}_${m.user_type}`);
+              return {
+                name: info?.name ?? "알 수 없음",
+                profileImageUrl: info?.profileImageUrl ?? null,
+              };
+            })
+        : [];
+
     result.push({
       id: room.id,
       type: room.type as ChatRoomType,
@@ -232,6 +265,7 @@ export async function getRoomList(
       topic: room.topic ?? null,
       status: (room.status ?? "active") as ChatRoomStatus,
       otherUser,
+      memberPreviews,
       memberCount: members.length,
       lastMessage: lastMessageInfo,
       unreadCount,

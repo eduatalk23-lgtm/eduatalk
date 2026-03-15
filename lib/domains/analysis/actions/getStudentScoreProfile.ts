@@ -48,64 +48,65 @@ export async function getStudentScoreProfile(studentId?: string): Promise<{
       targetStudentId = user.userId;
     }
 
-    // 1. 내신 성적 조회
-    const { data: internalScores, error: internalError } = await supabase
-      .from("internal_scores")
-      .select(`
-        id,
-        rank_grade,
-        raw_score,
-        subject_id,
-        grade,
-        semester,
-        created_at,
-        subjects (
+    // 1~3. 내신 성적, 모의고사 성적, 위험도 분석을 병렬 조회
+    const [internalResult, mockResult, riskResult] = await Promise.all([
+      supabase
+        .from("internal_scores")
+        .select(`
           id,
-          name,
-          subject_groups (
+          rank_grade,
+          raw_score,
+          subject_id,
+          grade,
+          semester,
+          created_at,
+          subjects (
             id,
-            name
+            name,
+            subject_groups (
+              id,
+              name
+            )
           )
-        )
-      `)
-      .eq("student_id", targetStudentId)
-      .order("created_at", { ascending: false });
+        `)
+        .eq("student_id", targetStudentId)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("mock_scores")
+        .select(`
+          id,
+          grade_score,
+          raw_score,
+          subject_id,
+          exam_date,
+          created_at,
+          subjects (
+            id,
+            name,
+            subject_groups (
+              id,
+              name
+            )
+          )
+        `)
+        .eq("student_id", targetStudentId)
+        .order("exam_date", { ascending: false }),
+      supabase
+        .from("student_risk_analysis")
+        .select("subject, risk_score")
+        .eq("student_id", targetStudentId),
+    ]);
+
+    const { data: internalScores, error: internalError } = internalResult;
+    const { data: mockScores, error: mockError } = mockResult;
+    const { data: riskAnalyses } = riskResult;
 
     if (internalError) {
       console.error("Internal scores fetch error:", internalError);
     }
-
-    // 2. 모의고사 성적 조회
-    const { data: mockScores, error: mockError } = await supabase
-      .from("mock_scores")
-      .select(`
-        id,
-        grade_score,
-        raw_score,
-        subject_id,
-        exam_date,
-        created_at,
-        subjects (
-          id,
-          name,
-          subject_groups (
-            id,
-            name
-          )
-        )
-      `)
-      .eq("student_id", targetStudentId)
-      .order("exam_date", { ascending: false });
-
     if (mockError) {
       console.error("Mock scores fetch error:", mockError);
     }
-
-    // 3. 위험도 분석 조회
-    const { data: riskAnalyses } = await supabase
-      .from("student_risk_analysis")
-      .select("*")
-      .eq("student_id", targetStudentId);
 
     // 4. 과목별 성적 집계
     const subjectMap = new Map<string, {

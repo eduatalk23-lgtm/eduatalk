@@ -358,6 +358,12 @@ export interface ChatUser {
   gradeDisplay?: string | null;
 }
 
+/** 채팅방 목록 그룹 아바타용 멤버 프리뷰 */
+export interface ChatMemberPreview {
+  name: string;
+  profileImageUrl?: string | null;
+}
+
 /** 답장 원본 메시지의 첨부파일 유형 */
 export type ReplyAttachmentType = "image" | "file" | "mixed";
 
@@ -433,6 +439,8 @@ export interface ChatRoomListItem {
   status: ChatRoomStatus;
   /** direct일 경우 상대방 정보, group일 경우 null */
   otherUser: ChatUser | null;
+  /** group일 경우 멤버 프리뷰 (최대 4명, 아바타 표시용) */
+  memberPreviews: ChatMemberPreview[];
   /** group일 경우 멤버 수 */
   memberCount: number;
   lastMessage: {

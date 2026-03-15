@@ -14,7 +14,9 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAdminPlanRealtime } from "@/lib/realtime";
 import { useTargetedDockInvalidation } from "@/lib/hooks/useAdminDockQueries";
+import { adminDockKeys } from "@/lib/query-options/adminDock";
 import { studentCalendarsQueryOptions, calendarEventKeys } from "@/lib/query-options/calendarEvents";
+import { calendarViewKeys } from "@/lib/query-options/calendarViewQueryOptions";
 import { useAdminPlanBasic, type ViewMode } from "./AdminPlanBasicContext";
 import { EVENT_COLOR_PALETTE, getEventColor } from "../utils/eventColors";
 
@@ -114,6 +116,14 @@ export function AdminPlanFilterProvider({
 
   // 캘린더 색상 업데이트
   const calQueryClient = useQueryClient();
+
+  // studentId 변경 시 이전 학생의 in-flight 쿼리 취소
+  useEffect(() => {
+    calQueryClient.cancelQueries({ queryKey: adminDockKeys.all });
+    calQueryClient.cancelQueries({ queryKey: calendarEventKeys.all });
+    calQueryClient.cancelQueries({ queryKey: calendarViewKeys.all });
+  }, [studentId, calQueryClient]);
+
   const updateCalendarColor = useCallback(async (calendarId: string, color: string) => {
     try {
       const { updateCalendarAction } = await import("@/lib/domains/calendar/actions/calendars");

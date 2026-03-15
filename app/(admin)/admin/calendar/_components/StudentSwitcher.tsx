@@ -2,10 +2,13 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search, Check } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { studentSearchQueryOptions } from '@/lib/query-options/students';
+import { adminDockKeys } from '@/lib/query-options/adminDock';
+import { calendarEventKeys } from '@/lib/query-options/calendarEvents';
+import { calendarViewKeys } from '@/lib/query-options/calendarViewQueryOptions';
 import type { StudentSearchItem } from '@/lib/domains/student/actions/search';
 
 const RECENT_STUDENTS_KEY = 'admin_calendar_recent_students';
@@ -43,11 +46,13 @@ interface StudentSwitcherProps {
 
 export function StudentSwitcher({ currentStudentId, currentStudentName }: StudentSwitcherProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // getRecentStudents() safely returns [] on server (typeof window === 'undefined')
   const [recentStudents, setRecentStudents] = useState<RecentStudent[]>(getRecentStudents);
 
@@ -81,8 +86,14 @@ export function StudentSwitcher({ currentStudentId, currentStudentName }: Studen
     if (open) inputRef.current?.focus();
   }, [open]);
 
+  // Cleanup nav timer on unmount
+  useEffect(() => {
+    return () => { if (navTimerRef.current) clearTimeout(navTimerRef.current); };
+  }, []);
+
   const handleSelect = useCallback(
     (student: StudentSearchItem | RecentStudent) => {
+      // UI updates — immediate
       addRecentStudent({
         id: student.id,
         name: student.name,
@@ -93,9 +104,17 @@ export function StudentSwitcher({ currentStudentId, currentStudentName }: Studen
       setRecentStudents(getRecentStudents());
       setOpen(false);
       setQuery('');
-      router.push(`/admin/calendar?student=${student.id}`);
+
+      // Navigation — debounced to coalesce rapid switches
+      if (navTimerRef.current) clearTimeout(navTimerRef.current);
+      navTimerRef.current = setTimeout(() => {
+        queryClient.cancelQueries({ queryKey: adminDockKeys.all });
+        queryClient.cancelQueries({ queryKey: calendarEventKeys.all });
+        queryClient.cancelQueries({ queryKey: calendarViewKeys.all });
+        router.push(`/admin/calendar?student=${student.id}`);
+      }, 300);
     },
-    [router],
+    [router, queryClient],
   );
 
   const displayName = currentStudentName ?? '학생 검색...';

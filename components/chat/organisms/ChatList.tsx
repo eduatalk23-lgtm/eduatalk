@@ -4,6 +4,7 @@
  * ChatList - 채팅방 목록
  *
  * 사용자의 채팅방 목록을 표시합니다.
+ * 아바타 클릭 시 프로필 팝업 (1:1) / 멤버 프리뷰 팝업 (그룹)을 표시합니다.
  */
 
 import { memo, useState, useMemo, useCallback, useSyncExternalStore } from "react";
@@ -12,6 +13,9 @@ import { useRouter } from "next/navigation";
 import { chatRoomsQueryOptions } from "@/lib/query-options/chatRooms";
 import { ChatRoomCard } from "../molecules/ChatRoomCard";
 import { SwipeableChatRoomCard } from "../molecules/SwipeableChatRoomCard";
+import { ProfileCardPopup } from "../molecules/ProfileCardPopup";
+import type { ProfileCardData } from "../molecules/ProfileCardPopup";
+import { GroupMemberPopup } from "../molecules/GroupMemberPopup";
 import { MessageSquarePlus, Loader2, Search, X, SearchX, WifiOff } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
@@ -21,6 +25,7 @@ import {
   toggleMuteChatRoomAction,
 } from "@/lib/domains/chat/actions";
 import { chatKeys } from "@/lib/domains/chat/queryKeys";
+import type { ChatRoomListItem, ChatUserType } from "@/lib/domains/chat/types";
 
 interface ChatListProps {
   /** 현재 선택된 채팅방 ID */
@@ -33,6 +38,10 @@ interface ChatListProps {
   basePath?: string;
   /** 헤더 숨기기 (Popover 등 외부에서 자체 헤더를 제공할 때) */
   hideHeader?: boolean;
+  /** 현재 사용자 ID (프로필 팝업용) */
+  currentUserId?: string;
+  /** 현재 사용자 유형 (프로필 팝업 액션 버튼 결정용) */
+  viewerType?: ChatUserType;
 }
 
 function ChatListComponent({
@@ -41,11 +50,25 @@ function ChatListComponent({
   onNewChat,
   basePath = "/chat",
   hideHeader = false,
+  currentUserId,
+  viewerType,
 }: ChatListProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const isMobile = useMediaQuery("(max-width: 768px)");
+
+  // 프로필 팝업 상태 (1:1)
+  const [profilePopup, setProfilePopup] = useState<{
+    data: ProfileCardData;
+    position: { x: number; y: number } | null;
+  } | null>(null);
+
+  // 그룹 멤버 팝업 상태
+  const [groupPopup, setGroupPopup] = useState<{
+    room: ChatRoomListItem;
+    position: { x: number; y: number } | null;
+  } | null>(null);
 
   // 네트워크 상태 감지 (오프라인 배너용)
   const networkSubscribe = useCallback((cb: () => void) => addNetworkStatusListener(() => cb()), []);
@@ -80,6 +103,31 @@ function ChatListComponent({
       }
     },
     [queryClient]
+  );
+
+  // 아바타 클릭 핸들러
+  const handleAvatarClick = useCallback(
+    (room: ChatRoomListItem, position: { x: number; y: number }) => {
+      if (room.type === "direct" && room.otherUser) {
+        setProfilePopup({
+          data: {
+            userId: room.otherUser.id,
+            userType: room.otherUser.type,
+            name: room.otherUser.name,
+            profileImageUrl: room.otherUser.profileImageUrl,
+            schoolName: room.otherUser.schoolName,
+            gradeDisplay: room.otherUser.gradeDisplay,
+          },
+          position: isMobile ? null : position,
+        });
+      } else if (room.type === "group") {
+        setGroupPopup({
+          room,
+          position: isMobile ? null : position,
+        });
+      }
+    },
+    [isMobile]
   );
 
   // 검색 필터링 (Hook은 조건부 반환 전에 호출)
@@ -209,6 +257,7 @@ function ChatListComponent({
                   isMuted={room.isMuted}
                   onLeave={handleLeave}
                   onToggleMute={handleToggleMute}
+                  onAvatarClick={handleAvatarClick}
                 />
               ) : (
                 <ChatRoomCard
@@ -216,12 +265,33 @@ function ChatListComponent({
                   room={room}
                   onClick={() => handleRoomClick(room.id)}
                   isSelected={room.id === selectedRoomId}
+                  onAvatarClick={handleAvatarClick}
                 />
               )
             )}
           </div>
         )}
       </div>
+
+      {/* 1:1 프로필 팝업 */}
+      <ProfileCardPopup
+        isOpen={!!profilePopup}
+        onClose={() => setProfilePopup(null)}
+        profile={profilePopup?.data ?? null}
+        position={profilePopup?.position}
+        currentUserId={currentUserId}
+        viewerType={viewerType}
+        basePath={basePath}
+      />
+
+      {/* 그룹 멤버 프리뷰 팝업 */}
+      <GroupMemberPopup
+        isOpen={!!groupPopup}
+        onClose={() => setGroupPopup(null)}
+        room={groupPopup?.room ?? null}
+        position={groupPopup?.position}
+        onEnterRoom={handleRoomClick}
+      />
     </div>
   );
 }

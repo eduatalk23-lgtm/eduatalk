@@ -46,10 +46,10 @@ export const updateCampPlanGroupSubjectAllocations = withErrorHandling(
 
     const supabase = await createSupabaseServerClient();
 
-    // 플랜 그룹 존재 및 권한 확인
+    // 플랜 그룹 존재 및 권한 확인 (scheduler_options도 함께 조회하여 중복 쿼리 제거)
     const { data: group, error: groupError } = await supabase
       .from("plan_groups")
-      .select("id, plan_type, tenant_id")
+      .select("id, plan_type, tenant_id, scheduler_options")
       .eq("id", groupId)
       .eq("tenant_id", tenantContext.tenantId)
       .maybeSingle();
@@ -73,14 +73,8 @@ export const updateCampPlanGroupSubjectAllocations = withErrorHandling(
     }
 
     // scheduler_options 업데이트 (subject_allocations 포함)
-    const { data: currentGroup } = await supabase
-      .from("plan_groups")
-      .select("scheduler_options")
-      .eq("id", groupId)
-      .maybeSingle();
-
     const currentSchedulerOptions =
-      (currentGroup?.scheduler_options as PlanGroupSchedulerOptions | null) || {};
+      (group.scheduler_options as PlanGroupSchedulerOptions | null) || {};
     const updatedSchedulerOptions = {
       ...currentSchedulerOptions,
       subject_allocations: subjectAllocations,

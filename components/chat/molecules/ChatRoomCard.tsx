@@ -4,6 +4,8 @@
  * ChatRoomCard - 채팅방 목록 카드
  *
  * 채팅방 목록에서 각 방을 표시합니다.
+ * - 1:1: Avatar + 클릭 시 프로필 팝업
+ * - 그룹: GroupAvatar (카카오톡 스타일 2x2 그리드)
  * hover 시 메시지 프리패칭으로 진입 속도 향상
  */
 
@@ -13,8 +15,9 @@ import { cn } from "@/lib/cn";
 import { formatDistanceToNow } from "date-fns";
 import { ko } from "date-fns/locale";
 import { Avatar } from "@/components/atoms/Avatar";
+import { GroupAvatar } from "../atoms/GroupAvatar";
 import { UnreadBadge } from "../atoms/UnreadBadge";
-import { Users, Image, Paperclip, BellOff } from "lucide-react";
+import { Image, Paperclip, BellOff } from "lucide-react";
 import { chatMessagesQueryOptions } from "@/lib/query-options/chatMessages";
 import { chatKeys } from "@/lib/domains/chat/queryKeys";
 import type { ChatRoomListItem } from "@/lib/domains/chat/types";
@@ -26,12 +29,15 @@ interface ChatRoomCardProps {
   onClick: () => void;
   /** 선택 상태 */
   isSelected?: boolean;
+  /** 아바타 클릭 핸들러 (1:1: 프로필 팝업, 그룹: 멤버 팝업) */
+  onAvatarClick?: (room: ChatRoomListItem, position: { x: number; y: number }) => void;
 }
 
 function ChatRoomCardComponent({
   room,
   onClick,
   isSelected = false,
+  onAvatarClick,
 }: ChatRoomCardProps) {
   const queryClient = useQueryClient();
 
@@ -57,22 +63,25 @@ function ChatRoomCardComponent({
     onClick();
   }, [queryClient, room.id, onClick]);
 
+  // 아바타 클릭 (이벤트 전파 차단 → 방 진입 방지)
+  const handleAvatarClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (!onAvatarClick) return;
+      e.stopPropagation();
+      const rect = e.currentTarget.getBoundingClientRect();
+      onAvatarClick(room, { x: rect.right + 8, y: rect.top });
+    },
+    [onAvatarClick, room]
+  );
+
   // 표시할 이름 결정
   const displayName =
     room.type === "direct"
       ? room.otherUser?.name ?? "알 수 없음"
-      : room.name ?? `그룹 (${room.memberCount}명)`;
+      : room.name ?? "그룹 채팅";
 
   // 주제 표시 (topic이 있을 경우)
   const topicDisplay = room.topic ?? null;
-
-  // 학생 정보 (1:1 채팅에서 상대방이 학생인 경우)
-  const studentInfo =
-    room.type === "direct" && room.otherUser?.type === "student"
-      ? [room.otherUser.schoolName, room.otherUser.gradeDisplay]
-          .filter(Boolean)
-          .join(" · ")
-      : null;
 
   // 시간 포맷
   const timeDisplay = room.lastMessage
@@ -97,7 +106,13 @@ function ChatRoomCardComponent({
       )}
     >
       {/* 아바타 */}
-      <div className="relative flex-shrink-0">
+      <div
+        className={cn("relative flex-shrink-0", onAvatarClick && "cursor-pointer")}
+        onClick={handleAvatarClick}
+        role={onAvatarClick ? "button" : undefined}
+        tabIndex={onAvatarClick ? 0 : undefined}
+        aria-label={onAvatarClick ? `${displayName} 프로필 보기` : undefined}
+      >
         {room.type === "direct" && room.otherUser ? (
           <Avatar
             name={room.otherUser.name}
@@ -105,9 +120,7 @@ function ChatRoomCardComponent({
             size="md"
           />
         ) : (
-          <div className="w-11 h-11 rounded-full bg-bg-tertiary flex items-center justify-center">
-            <Users className="w-5 h-5 text-text-secondary" />
-          </div>
+          <GroupAvatar members={room.memberPreviews} size={40} />
         )}
       </div>
 
@@ -118,14 +131,14 @@ function ChatRoomCardComponent({
             <span className="font-medium text-text-primary truncate">
               {displayName}
             </span>
+            {room.type === "group" && room.memberCount > 0 && (
+              <span className="text-xs text-text-tertiary">
+                {room.memberCount}
+              </span>
+            )}
             {room.category === "consulting" && topicDisplay && (
               <span className="text-xs text-primary/80 truncate max-w-[80px] sm:max-w-[120px] hidden sm:inline">
                 {topicDisplay}
-              </span>
-            )}
-            {studentInfo && (
-              <span className="text-xs text-text-tertiary truncate hidden sm:inline">
-                {studentInfo}
               </span>
             )}
           </div>
