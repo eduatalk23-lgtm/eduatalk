@@ -26,7 +26,6 @@ import {
 } from "@/lib/query-options/chatRoom";
 import {
   sendMessageAction,
-  markAsReadAction,
   editMessageAction,
   deleteMessageAction,
   toggleReactionAction,
@@ -988,10 +987,15 @@ export function useChatRoomLogic({
   // broadcastReadReceipt ref (useChatRealtime보다 먼저 정의되는 markAsReadMutation에서 안전하게 참조)
   const broadcastReadReceiptRef = useRef<(readAt?: string) => void>(() => {});
 
-  // 읽음 처리
+  // 읽음 처리 (Browser RPC — Server Action + getUser() 호출 제거)
   const markAsReadMutation = useMutation({
     mutationFn: async () => {
-      return await markAsReadAction(roomId);
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase.rpc("mark_chat_room_as_read", {
+        p_room_id: roomId,
+      });
+      if (error) throw error;
+      return { data: { readAt: (data as string) } };
     },
     onMutate: async () => {
       // 1. 진행 중인 refetch 취소 (낙관적 업데이트 덮어쓰기 방지)

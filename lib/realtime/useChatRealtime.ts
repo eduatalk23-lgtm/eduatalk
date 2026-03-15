@@ -9,12 +9,13 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase/client";
+import { supabase, createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import {
   REACTION_EMOJIS,
   type ChatUserType,
   type ChatMessageType,
+  type ChatMessageMetadata,
   type ChatUser,
   type ChatRoomListItem,
   type ChatAttachment,
@@ -25,7 +26,6 @@ import {
   type InfiniteMessagesCache,
   type CacheMessage,
 } from "@/lib/domains/chat/cacheTypes";
-import { getSenderInfoBatchAction, getMessagesSinceAction } from "@/lib/domains/chat/actions";
 import { operationTracker } from "@/lib/domains/chat/operationTracker";
 import { chatKeys } from "@/lib/domains/chat/queryKeys";
 import { connectionManager } from "./connectionManager";
@@ -226,19 +226,27 @@ export function useChatRealtime({
 
     if (batch.size === 0) return;
 
-    const keys = [...batch.values()].map(({ senderId, senderType }) => ({
-      id: senderId,
-      type: senderType,
-    }));
+    // Browser RPC — Server Action + getUser() 호출 제거
+    const senderIds = [...new Set([...batch.values()].map(({ senderId }) => senderId))];
+    const rpcClient = createSupabaseBrowserClient();
 
     try {
-      const result = await getSenderInfoBatchAction(keys);
-      if (result.success && result.data) {
-        // Server Action은 Record<string, ChatUser>를 반환 (Map 직렬화 불가)
-        const data = result.data;
+      const { data, error } = await rpcClient.rpc("get_sender_info_batch", {
+        p_sender_ids: senderIds,
+      });
+
+      if (!error && data) {
+        // RPC returns Record<userId, {id, name, profileImageUrl}>
+        const senderMap = data as Record<string, { id: string; name: string; profileImageUrl?: string | null }>;
         for (const [cacheKey, entry] of batch) {
-          const user = data[cacheKey];
-          if (user) {
+          const info = senderMap[entry.senderId];
+          if (info) {
+            const user: ChatUser = {
+              id: info.id,
+              type: entry.senderType,
+              name: info.name,
+              profileImageUrl: info.profileImageUrl,
+            };
             senderCacheRef.current.set(cacheKey, user);
             entry.resolvers.forEach((r) => r.resolve(user));
           } else {
@@ -252,7 +260,7 @@ export function useChatRealtime({
           }
         }
       } else {
-        // 배치 실패 → 폴백
+        // RPC 실패 → 폴백
         for (const [cacheKey, { senderId, senderType, resolvers }] of batch) {
           const fallback: ChatUser = { id: senderId, type: senderType, name: "로딩 실패" };
           senderCacheRef.current.set(cacheKey, fallback);
@@ -414,27 +422,57 @@ export function useChatRealtime({
       return false;
     };
 
-    // 단일 배치 요청 (재시도 포함)
-    type SyncResult = Awaited<ReturnType<typeof getMessagesSinceAction>>;
+    // Browser RPC 기반 단일 배치 요청 (재시도 포함)
+    type SyncMessage = CacheMessage;
+    const rpcClient = createSupabaseBrowserClient();
     const fetchBatchWithRetry = async (
       sinceTimestamp: string
-    ): Promise<{ success: boolean; data?: SyncResult["data"]; error?: string }> => {
+    ): Promise<{ success: boolean; data?: SyncMessage[]; error?: string }> => {
       let lastError: unknown = null;
 
       for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
         try {
-          const result = await getMessagesSinceAction(roomId, sinceTimestamp, BATCH_SIZE);
+          const { data, error } = await rpcClient.rpc("get_chat_messages_since", {
+            p_room_id: roomId,
+            p_since: sinceTimestamp,
+            p_limit: BATCH_SIZE,
+          });
 
-          if (result.success) {
-            return result;
+          if (error) {
+            // 권한 오류 등 재시도해도 의미 없는 경우
+            if (error.message?.includes("Not a member") || error.message?.includes("Not authenticated")) {
+              return { success: false, error: error.message };
+            }
+            lastError = new Error(error.message);
+          } else {
+            // RPC returns raw ChatMessage rows — add sender field from denormalized columns
+            const rawRows = (data ?? []) as Array<Record<string, unknown>>;
+            const messages: SyncMessage[] = rawRows.map((m) => ({
+              id: m.id as string,
+              room_id: m.room_id as string,
+              sender_id: m.sender_id as string,
+              sender_type: m.sender_type as ChatUserType,
+              message_type: m.message_type as ChatMessageType,
+              content: m.content as string,
+              reply_to_id: (m.reply_to_id as string | null) ?? null,
+              is_deleted: m.is_deleted as boolean,
+              deleted_at: (m.deleted_at as string | null) ?? null,
+              created_at: m.created_at as string,
+              updated_at: m.updated_at as string,
+              sender_name: m.sender_name as string,
+              sender_profile_url: (m.sender_profile_url as string | null) ?? null,
+              metadata: (m.metadata as ChatMessageMetadata | null) ?? null,
+              sender: {
+                id: m.sender_id as string,
+                type: m.sender_type as ChatUserType,
+                name: m.sender_name as string,
+                profileImageUrl: m.sender_profile_url as string | null,
+              },
+              reactions: [],
+              replyTarget: null,
+            }));
+            return { success: true, data: messages };
           }
-
-          // 권한 오류 등 재시도해도 의미 없는 경우
-          if (result.error?.includes("permission") || result.error?.includes("denied")) {
-            return result;
-          }
-
-          lastError = new Error(result.error || "Unknown error");
         } catch (error) {
           lastError = error;
 
@@ -460,8 +498,7 @@ export function useChatRealtime({
       debugLog("[ChatRealtime] Incremental sync since:", initialTimestamp);
 
       // 모든 새 메시지 수집 (페이지네이션)
-      type MessageType = NonNullable<Awaited<ReturnType<typeof getMessagesSinceAction>>["data"]>[number];
-      const allNewMessages: MessageType[] = [];
+      const allNewMessages: SyncMessage[] = [];
       let cursor = initialTimestamp;
       let hasMore = true;
 

@@ -7,8 +7,12 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { redirect } from "next/navigation";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { getQueryClient } from "@/lib/providers/getQueryClient";
-import { chatMessagesQueryOptions } from "@/lib/query-options/chatMessages";
-import { chatRoomDetailQueryOptions, chatPinnedQueryOptions, chatAnnouncementQueryOptions, chatCanPinQueryOptions, chatCanSetAnnouncementQueryOptions } from "@/lib/query-options/chatRoom";
+import { chatKeys } from "@/lib/domains/chat/queryKeys";
+import {
+  getMessagesWithReadStatusAction,
+  getChatRoomDetailAction,
+} from "@/lib/domains/chat/actions";
+import { chatPinnedQueryOptions, chatAnnouncementQueryOptions, chatCanPinQueryOptions, chatCanSetAnnouncementQueryOptions } from "@/lib/query-options/chatRoom";
 import { ChatRoomPage } from "./_components/ChatRoomPage";
 
 export const metadata = {
@@ -28,9 +32,25 @@ export default async function StudentChatRoomPage({ params }: PageProps) {
   }
 
   // SSR 프리패칭 (non-blocking: HTML 스트리밍과 병렬, 실패 시 클라이언트에서 재시도)
+  // 메시지/방 상세는 Server Action으로 프리패칭 (클라이언트는 RPC queryFn 사용, queryKey 동일 → hydration 정상)
   const queryClient = getQueryClient();
-  void queryClient.prefetchInfiniteQuery(chatMessagesQueryOptions(roomId));
-  void queryClient.prefetchQuery(chatRoomDetailQueryOptions(roomId));
+  void queryClient.prefetchInfiniteQuery({
+    queryKey: chatKeys.messages(roomId),
+    queryFn: async () => {
+      const result = await getMessagesWithReadStatusAction(roomId, { limit: 50 });
+      if (!result.success) throw new Error(result.error ?? "메시지 조회 실패");
+      return result.data;
+    },
+    initialPageParam: undefined,
+  });
+  void queryClient.prefetchQuery({
+    queryKey: chatKeys.room(roomId),
+    queryFn: async () => {
+      const result = await getChatRoomDetailAction(roomId);
+      if (!result.success) throw new Error(result.error ?? "채팅방 정보 조회 실패");
+      return result.data;
+    },
+  });
   void queryClient.prefetchQuery(chatPinnedQueryOptions(roomId));
   void queryClient.prefetchQuery(chatAnnouncementQueryOptions(roomId));
   void queryClient.prefetchQuery(chatCanPinQueryOptions(roomId));

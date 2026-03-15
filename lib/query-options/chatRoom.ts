@@ -1,28 +1,39 @@
 import { queryOptions } from "@tanstack/react-query";
 import {
-  getChatRoomDetailAction,
   getPinnedMessagesAction,
   getAnnouncementAction,
   canPinMessagesAction,
   canSetAnnouncementAction,
 } from "@/lib/domains/chat/actions";
 import { chatKeys } from "@/lib/domains/chat/queryKeys";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import type {
+  ChatRoom,
+  ChatRoomMemberWithUser,
+} from "@/lib/domains/chat/types";
 
 /**
- * 채팅방 상세 정보 query 옵션
+ * 채팅방 상세 정보 query 옵션 (클라이언트 전용)
  *
- * 서버 컴포넌트에서 prefetchQuery로 프리패칭하고,
- * 클라이언트 컴포넌트에서 useQuery로 사용합니다.
+ * 브라우저 클라이언트에서 RPC를 직접 호출합니다.
+ * Server Action + getUser() 호출 없이 JWT 쿠키로 인증.
+ *
+ * 서버 prefetch는 각 page.tsx에서 getChatRoomDetailAction()을 사용합니다.
+ * queryKey가 동일하므로 hydration이 올바르게 작동합니다.
  */
 export function chatRoomDetailQueryOptions(roomId: string) {
   return queryOptions({
     queryKey: chatKeys.room(roomId),
     queryFn: async () => {
-      const result = await getChatRoomDetailAction(roomId);
-      if (!result.success) throw new Error(result.error ?? "채팅방 정보 조회 실패");
-      return result.data;
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase.rpc("get_chat_room_detail", {
+        p_room_id: roomId,
+      });
+      if (error) throw new Error(error.message);
+      if (!data) throw new Error("채팅방 정보가 없습니다");
+      return data as { room: ChatRoom; members: ChatRoomMemberWithUser[]; otherMemberLeft: boolean };
     },
-    staleTime: 60 * 1000, // 방 정보는 자주 변경되지 않음
+    staleTime: 5 * 60 * 1000, // 5분 (Realtime이 변경사항 관리, 기존 1분 → 5분)
   });
 }
 

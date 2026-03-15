@@ -1,9 +1,7 @@
 import { infiniteQueryOptions } from "@tanstack/react-query";
-import {
-  getMessagesWithReadStatusAction,
-  getMessagesAroundAction,
-} from "@/lib/domains/chat/actions";
 import { chatKeys } from "@/lib/domains/chat/queryKeys";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import type { MessagesWithReadStatusResult } from "@/lib/domains/chat/types";
 
 /**
  * 양방향 페이지네이션 파라미터
@@ -22,10 +20,13 @@ type ChatPageParam =
 const PAGE_SIZE = 50;
 
 /**
- * 채팅 메시지 infiniteQuery 옵션
+ * 채팅 메시지 infiniteQuery 옵션 (클라이언트 전용)
  *
- * 서버 컴포넌트에서 prefetchInfiniteQuery로 프리패칭하고,
- * 클라이언트 컴포넌트에서 useInfiniteQuery로 사용합니다.
+ * 브라우저 클라이언트에서 RPC를 직접 호출합니다.
+ * Server Action + getUser() 호출 없이 JWT 쿠키로 인증.
+ *
+ * 서버 prefetch는 각 page.tsx에서 Server Action을 사용합니다.
+ * queryKey가 동일하므로 hydration이 올바르게 작동합니다.
  *
  * @param roomId 채팅방 ID
  * @param lastReadAt unread divider 기준 타임스탬프 (양방향 모드 활성화)
@@ -34,37 +35,33 @@ export function chatMessagesQueryOptions(roomId: string, lastReadAt?: string) {
   return infiniteQueryOptions({
     queryKey: chatKeys.messages(roomId),
     queryFn: async ({ pageParam }: { pageParam: ChatPageParam }) => {
-      let result;
+      const supabase = createSupabaseBrowserClient();
 
-      if (pageParam && "around" in pageParam) {
-        // 양방향 초기 로드: unread divider 기준
-        result = await getMessagesAroundAction(roomId, pageParam.around, PAGE_SIZE);
-      } else if (pageParam && "after" in pageParam) {
-        // 순방향: 더 새로운 메시지
-        result = await getMessagesWithReadStatusAction(roomId, {
-          limit: PAGE_SIZE,
-          after: pageParam.after,
-        });
-      } else {
-        // 역방향: 더 오래된 메시지 (기본)
-        result = await getMessagesWithReadStatusAction(roomId, {
-          limit: PAGE_SIZE,
-          before: pageParam && "before" in pageParam ? pageParam.before : undefined,
-        });
-      }
+      const { data, error } = await supabase.rpc("get_chat_messages_page", {
+        p_room_id: roomId,
+        p_limit: PAGE_SIZE,
+        p_before: pageParam && "before" in pageParam ? pageParam.before : null,
+        p_after: pageParam && "after" in pageParam ? pageParam.after : null,
+        p_around: pageParam && "around" in pageParam ? pageParam.around : null,
+      });
 
-      if (!result.success) {
-        const errorMessage = result.error ?? "메시지 조회 실패";
+      if (error) {
         if (process.env.NODE_ENV === "development") {
           console.error(
-            `[chatMessagesQueryOptions] Query failed - roomId: ${roomId}, pageParam:`,
+            `[chatMessagesQueryOptions] RPC failed - roomId: ${roomId}, pageParam:`,
             pageParam,
-            `error: ${errorMessage}`
+            `error: ${error.message}`
           );
         }
-        throw new Error(errorMessage);
+        throw new Error(error.message);
       }
-      return result.data;
+
+      return (data ?? {
+        messages: [],
+        readCounts: {},
+        hasMore: false,
+        hasNewer: false,
+      }) as MessagesWithReadStatusResult;
     },
     // 양방향 모드: lastReadAt가 있으면 around로 시작
     initialPageParam: (lastReadAt
