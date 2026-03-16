@@ -48,7 +48,6 @@ import { getTodayInTimezone } from "@/lib/utils/dateUtils";
 import { shiftDay, shiftWeek, shiftMonth, shiftYear, shiftCustomDays } from "./utils/weekDateUtils";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
 import type { TimeSlot } from "@/lib/types/plan-generation";
-import type { PrefetchedDockData } from "@/lib/domains/admin-plan/actions";
 import type { CalendarSettings } from "@/lib/domains/admin-plan/types";
 import type { CalendarView } from "./CalendarNavHeader";
 
@@ -97,8 +96,6 @@ export interface AdminPlanManagementProps {
   calendarCalculatedSchedule?: DailyScheduleInfo[];
   /** 플래너 레벨에서 계산된 시간대별 타임슬롯 */
   calendarDateTimeSlots?: Record<string, TimeSlot[]>;
-  /** SSR 프리페치된 Dock 데이터 (초기 로딩 최적화) */
-  initialDockData?: PrefetchedDockData;
   /** 뷰 모드 (admin: 관리자, student: 학생) */
   viewMode?: ViewMode;
   /** 현재 사용자 ID (권한 확인용) */
@@ -123,7 +120,6 @@ export function AdminPlanManagement(props: AdminPlanManagementProps) {
       calendarExclusions={props.calendarExclusions}
       calendarCalculatedSchedule={props.calendarCalculatedSchedule}
       calendarDateTimeSlots={props.calendarDateTimeSlots}
-      initialDockData={props.initialDockData}
       viewMode={props.viewMode}
       currentUserId={props.currentUserId}
       selectedCalendarSettings={props.selectedCalendarSettings}
@@ -302,15 +298,15 @@ function AdminPlanManagementContent({
         console.error("Failed to move plan:", result.error);
       }
 
-      // 캐시 무효화: 날짜 이동 시 월간/주간 캐시도 포함하여 전체 새로고침
+      // 캐시 무효화: 타겟 무효화로 최소한의 리페치
       if (targetDate && targetDate !== selectedDate) {
-        handleRefresh();
+        invalidateQueries();
         handleDateChange(targetDate);
       } else {
-        handleRefresh();
+        refreshDaily();
       }
     },
-    [studentId, tenantId, selectedDate, handleRefresh, handleDateChange]
+    [studentId, tenantId, selectedDate, invalidateQueries, refreshDaily, handleDateChange]
   );
 
   // DnD 재정렬 핸들러 (같은 컨테이너 내에서 순서 변경)
@@ -377,33 +373,33 @@ function AdminPlanManagementContent({
     []
   );
 
-  // 캘린더 뷰 상태 (CalendarSettingsTab에서 리프팅)
-  const [calendarView, setCalendarView] = useState<CalendarView>('weekly');
-  const [customDayCount, setCustomDayCount] = useState(7);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [showGoToDate, setShowGoToDate] = useState(false);
-
-  // localStorage 복원 (캘린더 뷰 + 사이드바)
-  useEffect(() => {
-    const savedView = localStorage.getItem('dailyDock_viewLayout');
-    if (savedView === 'list' || savedView === 'grid') {
-      setCalendarView('daily');
+  // 캘린더 뷰 상태 (localStorage lazy initializer → 초기 리렌더 0회, CLS 방지)
+  const [calendarView, setCalendarView] = useState<CalendarView>(() => {
+    if (typeof window === 'undefined') return 'weekly';
+    const saved = localStorage.getItem('dailyDock_viewLayout');
+    if (saved === 'list' || saved === 'grid') {
       localStorage.setItem('dailyDock_viewLayout', 'daily');
-    } else if (savedView === 'weeklyGrid') {
-      setCalendarView('weekly');
+      return 'daily';
+    }
+    if (saved === 'weeklyGrid') {
       localStorage.setItem('dailyDock_viewLayout', 'weekly');
-    } else if (savedView === 'daily' || savedView === 'weekly' || savedView === 'biweekly' || savedView === 'month') {
-      setCalendarView(savedView as CalendarView);
+      return 'weekly';
     }
-
-    const savedDayCount = localStorage.getItem('calendarLayout_customDayCount');
-    if (savedDayCount) setCustomDayCount(Number(savedDayCount) || 7);
-
-    const savedSidebar = localStorage.getItem('calendarLayout_sidebarOpen');
-    if (savedSidebar !== null) {
-      setSidebarOpen(savedSidebar === 'true');
+    if (saved === 'daily' || saved === 'weekly' || saved === 'biweekly' || saved === 'month') {
+      return saved as CalendarView;
     }
-  }, []);
+    return 'weekly';
+  });
+  const [customDayCount, setCustomDayCount] = useState(() => {
+    if (typeof window === 'undefined') return 7;
+    return Number(localStorage.getItem('calendarLayout_customDayCount')) || 7;
+  });
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    const saved = localStorage.getItem('calendarLayout_sidebarOpen');
+    return saved !== null ? saved === 'true' : true;
+  });
+  const [showGoToDate, setShowGoToDate] = useState(false);
 
   const handleCalendarViewChange = useCallback((view: CalendarView) => {
     setCalendarView(view);
@@ -713,7 +709,7 @@ function AdminPlanManagementContent({
               onClose={() => setShowAddContentModal(false)}
               onSuccess={() => {
                 setShowAddContentModal(false);
-                handleRefresh();
+                invalidateQueries();
               }}
             />
           )}
@@ -730,7 +726,7 @@ function AdminPlanManagementContent({
               onSuccess={() => {
                 setShowRedistributeModal(false);
                 setSelectedPlanForRedistribute(null);
-                handleRefresh();
+                invalidateQueries();
               }}
             />
           )}
@@ -750,7 +746,7 @@ function AdminPlanManagementContent({
               onClose={() => setShowAIPlanModal(false)}
               onSuccess={() => {
                 setShowAIPlanModal(false);
-                handleRefresh();
+                invalidateQueries();
               }}
             />
           )}
@@ -821,7 +817,7 @@ function AdminPlanManagementContent({
               onSuccess={() => {
                 setShowAIPlanModal(false);
                 setNewGroupIdForAI(null);
-                handleRefresh();
+                invalidateQueries();
               }}
             />
           )}
@@ -876,7 +872,7 @@ function AdminPlanManagementContent({
               onSuccess={() => {
                 setShowEditModal(false);
                 setSelectedPlanForEdit(null);
-                handleRefresh();
+                invalidateQueries();
               }}
             />
           )}
@@ -889,7 +885,7 @@ function AdminPlanManagementContent({
               onClose={() => setShowReorderModal(false)}
               onSuccess={() => {
                 setShowReorderModal(false);
-                handleRefresh();
+                refreshDaily();
               }}
             />
           )}
@@ -901,7 +897,7 @@ function AdminPlanManagementContent({
               onClose={() => setShowConditionalDeleteModal(false)}
               onSuccess={() => {
                 setShowConditionalDeleteModal(false);
-                handleRefresh();
+                invalidateQueries();
               }}
             />
           )}
@@ -933,7 +929,7 @@ function AdminPlanManagementContent({
               onSuccess={() => {
                 setShowTemplateModal(false);
                 setTemplatePlanIds([]);
-                handleRefresh();
+                invalidateQueries();
               }}
             />
           )}
@@ -952,7 +948,7 @@ function AdminPlanManagementContent({
                 setShowMoveToGroupModal(false);
                 setSelectedPlansForMove([]);
                 setCurrentGroupIdForMove(null);
-                handleRefresh();
+                invalidateQueries();
               }}
             />
           )}
@@ -968,7 +964,7 @@ function AdminPlanManagementContent({
               onSuccess={() => {
                 setShowCopyModal(false);
                 setSelectedPlansForCopy([]);
-                handleRefresh();
+                invalidateQueries();
               }}
             />
           )}
@@ -1009,7 +1005,7 @@ function AdminPlanManagementContent({
               onSuccess={() => {
                 setShowBulkEditModal(false);
                 setSelectedPlansForBulkEdit([]);
-                handleRefresh();
+                invalidateQueries();
               }}
             />
           )}
@@ -1023,7 +1019,7 @@ function AdminPlanManagementContent({
                 setSelectedContentForDependency(null);
               }}
               onSuccess={() => {
-                handleRefresh();
+                invalidateQueries();
               }}
             />
           )}
@@ -1045,7 +1041,7 @@ function AdminPlanManagementContent({
                   setShowBatchOperationsModal(false);
                   setSelectedPlansForBatch([]);
                   setBatchOperationMode(null);
-                  handleRefresh();
+                  invalidateQueries();
                 }}
               />
             )}
@@ -1056,7 +1052,7 @@ function AdminPlanManagementContent({
               onClose={() => setShowBlockSetCreateModal(false)}
               onSuccess={() => {
                 setShowBlockSetCreateModal(false);
-                handleRefresh();
+                invalidateQueries();
               }}
             />
           )}
