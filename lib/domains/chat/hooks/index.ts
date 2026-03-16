@@ -9,3 +9,11 @@ export {
 } from "./useChatRoomLogic";
 
 export { useTotalUnreadCount } from "./useTotalUnreadCount";
+
+export {
+  useChatMode,
+  type ChatMode,
+  type ChatModeState,
+  type ChatModeAnchor,
+  type UseChatModeReturn,
+} from "./useChatMode";

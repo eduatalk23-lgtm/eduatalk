@@ -7,7 +7,7 @@
  * 테스트 용이성과 재사용성을 높입니다.
  */
 
-import { useCallback, useMemo, useState, useEffect, useRef } from "react";
+import { useCallback, useMemo, useState, useEffect, useRef, type RefObject } from "react";
 import { useBeforeUnload } from "@/lib/hooks/useBeforeUnload";
 import {
   useInfiniteQuery,
@@ -79,6 +79,25 @@ import {
   registerQueueEventCallbacks,
   initChatQueueProcessor,
 } from "@/lib/offline/chatQueue";
+import { cacheMessages, getCachedMessages, setCachedRoomState } from "../localCache";
+
+/**
+ * UUID v4 생성 (Secure Context 불필요)
+ * crypto.randomUUID()는 HTTPS에서만 사용 가능하지만,
+ * crypto.getRandomValues()는 HTTP에서도 사용 가능.
+ */
+function generateUUID(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  // fallback: crypto.getRandomValues 기반 UUID v4
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 1
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
 
 export interface UseChatRoomLogicOptions {
   roomId: string;
@@ -130,6 +149,7 @@ export interface UseChatRoomLogicReturn {
     refetch: () => Promise<unknown>;
   };
   pinnedMessageIds: Set<string>;
+  readCountsMap: RefObject<Map<string, number>>;
   replyTargetState: {
     replyTarget: ReplyTargetInfo | null;
     setReplyTarget: (target: ReplyTargetInfo | null) => void;
@@ -266,6 +286,37 @@ export function useChatRoomLogic({
     [pinnedMessages]
   );
 
+  // ============================================
+  // Local-First: IndexedDB 캐시 시딩
+  // ============================================
+  // React Query 캐시가 비어있으면 IDB에서 로드하여 seed.
+  // 서버 응답 전에 즉시 렌더링 가능 (스켈레톤 제거).
+  useEffect(() => {
+    const existing = queryClient.getQueryData(chatKeys.messages(roomId));
+    if (existing) return; // 이미 서버 데이터 있음
+
+    getCachedMessages(roomId, 200)
+      .then((cached) => {
+        if (cached.length === 0) return;
+        // 현재도 데이터 없으면 seed
+        const current = queryClient.getQueryData(chatKeys.messages(roomId));
+        if (current) return;
+        queryClient.setQueryData<InfiniteMessagesCache>(
+          chatKeys.messages(roomId),
+          {
+            pages: [{
+              messages: cached,
+              readCounts: {},
+              hasMore: true,
+              hasNewer: false,
+            }],
+            pageParams: [undefined],
+          }
+        );
+      })
+      .catch(() => {}); // IDB 실패 시 무시 (서버 전용 동작으로 fallback)
+  }, [roomId, queryClient]);
+
   // 메시지 목록 조회 (읽음 상태 포함, 무한 스크롤)
   // SSR 프리패칭과 동일한 쿼리 옵션 사용
   const {
@@ -289,6 +340,10 @@ export function useChatRoomLogic({
   // READ_RECEIPT 실시간 갱신용 (방어적 크기 제한: 대규모 그룹 대비)
   const READ_RECEIPT_TRACK_MAX = 500;
   const readReceiptTrackRef = useRef(new Map<string, string>()); // readerId → lastReadAt
+
+  // READ_RECEIPT 버퍼: 다인원 채팅에서 수십 개의 receipt을 300ms마다 1회 일괄 처리
+  const readReceiptBufferRef = useRef<Array<{ readAt: string; prevReadAt: string }>>([]);
+  const readReceiptFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // roomData 로드 후: readCount가 없는 낙관적 메시지만 보정
   // (roomData 미로딩 상태에서 전송한 메시지의 readCount가 누락되는 문제 수정)
@@ -337,17 +392,21 @@ export function useChatRoomLogic({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomData?.members]);
 
-  // 모든 페이지의 메시지를 시간순 정렬로 병합 + readCount 내장
+  // 모든 페이지의 메시지를 시간순 정렬로 병합
   // pages는 [newest, ..., oldest] 순서 → 역순 순회로 [oldest, ..., newest]
-  // readCount는 page.readCounts에서 각 메시지에 직접 embed
+  //
+  // readCount는 allMessages에 embed하지 않고 별도 Map으로 분리.
+  // → READ_RECEIPT 수신 시 allMessages/messagesWithGrouping 재계산을 유발하지 않음.
+  // → readCount 변경은 renderMessage에서 Map 조회로 처리 (ChatMessageItem만 리렌더).
+  const readCountsMapRef = useRef(new Map<string, number>());
+
   const allMessages = useMemo(() => {
     if (!messagesData?.pages) return [];
 
     const pages = messagesData.pages;
     const result: CacheMessage[] = [];
-    // 페이지 간 중복 메시지 방지 (sync + broadcast 동시 삽입 race condition 안전망)
-    // newest 페이지(page 0)의 메시지가 최신 상태(status, readCount 등)를 가지므로
-    // 중복 시 newer 페이지 버전으로 교체 (oldest→newest 순회)
+    const rcMap = new Map<string, number>();
+
     const seenIndex = new Map<string, number>();
     for (let i = pages.length - 1; i >= 0; i--) {
       const page = pages[i];
@@ -355,32 +414,40 @@ export function useChatRoomLogic({
       const readCounts = page?.readCounts;
       if (messages) {
         for (let j = 0; j < messages.length; j++) {
-          // CacheMessage로 캐스트: setQueryData<InfiniteMessagesCache>로 readCount가 추가됨
           const msg = messages[j] as CacheMessage;
-          // readCount: 메시지에 이미 내장된 값 우선, 없으면 page.readCounts에서 조회
+
+          // readCount를 별도 Map에 수집 (메시지 객체에 embed하지 않음)
           const rc = msg.readCount ?? readCounts?.[msg.id];
-          const processed = (rc !== undefined && rc !== msg.readCount)
-            ? { ...msg, readCount: rc }
-            : msg;
+          if (rc !== undefined) {
+            rcMap.set(msg.id, rc);
+          }
 
           const existingIdx = seenIndex.get(msg.id);
           if (existingIdx !== undefined) {
-            // 중복: newer 페이지 버전으로 교체 (status, readCount 등 최신 반영)
-            result[existingIdx] = processed;
+            // 중복: newer 페이지 버전으로 교체
+            result[existingIdx] = msg;
+            // readCount도 newer 버전으로 업데이트
+            const newerRc = msg.readCount ?? readCounts?.[msg.id];
+            if (newerRc !== undefined) rcMap.set(msg.id, newerRc);
           } else {
             seenIndex.set(msg.id, result.length);
-            result.push(processed);
+            result.push(msg);
           }
         }
       }
     }
+
+    readCountsMapRef.current = rcMap;
     return result;
   }, [messagesData?.pages]);
 
   // 메시지에 그룹핑 정보 추가 (날짜 구분선, 이름/시간 표시 여부)
-  // 증분 최적화: 끝에 메시지가 추가된 경우 마지막 2개만 재계산
+  // Prepend 경계 메시지 그룹핑 동결: boundary 메시지의 showName 변경 → 높이 변화 →
+  // Virtuoso 스크롤 보상 불일치 → 메시지 중복 렌더링. 동결 후 rAF x3으로 복원.
   const prevAllMessagesRef = useRef<typeof allMessages>([]);
   const prevGroupedRef = useRef<ChatMessageWithGrouping[]>([]);
+  const pendingGroupCorrectionRef = useRef(false);
+  const [groupingEpoch, setGroupingEpoch] = useState(0);
 
   // 자정 경과 시 날짜 구분선 재계산을 위한 날짜 키
   const [dateKey, setDateKey] = useState(() => new Date().toDateString());
@@ -389,12 +456,10 @@ export function useChatRoomLogic({
       const today = new Date().toDateString();
       if (today !== dateKey) {
         setDateKey(today);
-        // 날짜 변경 → fast-path 바이패스를 위해 이전 참조 초기화
         prevAllMessagesRef.current = [];
         prevGroupedRef.current = [];
       }
     };
-    // 1분마다 자정 경과 확인
     const timer = setInterval(checkMidnight, 60_000);
     return () => clearInterval(timer);
   }, [dateKey]);
@@ -412,101 +477,95 @@ export function useChatRoomLogic({
       return [];
     }
 
-    const prev = prevAllMessagesRef.current;
     const prevGrouped = prevGroupedRef.current;
+    const freshResult = processMessagesWithGrouping(allMessages, groupingOptions);
 
-    // Fast path: 같은 메시지 세트에서 속성만 변경된 경우
-    // (readCount, status, reactions, edit 등 — 그룹핑에 영향 없는 필드)
-    // 그룹핑 재계산 생략, 변경된 필드만 패치
-    if (
-      allMessages.length === prev.length &&
-      prev.length > 0 &&
-      prev[prev.length - 1]?.id === allMessages[allMessages.length - 1]?.id &&
-      prev[0]?.id === allMessages[0]?.id
-    ) {
-      let onlyNonGroupingFieldsChanged = true;
-      let hasDiff = false;
-      for (let i = 0; i < allMessages.length; i++) {
-        if (allMessages[i] !== prev[i]) {
-          // 같은 ID이지만 다른 참조 → 비그룹핑 필드(readCount, status 등) 변경
-          if (allMessages[i].id === prev[i].id) {
-            hasDiff = true;
-          } else {
-            onlyNonGroupingFieldsChanged = false;
-            break;
-          }
+    if (prevGrouped.length > 0) {
+      const prevById = new Map<string, ChatMessageWithGrouping>();
+      for (const g of prevGrouped) prevById.set(g.id, g);
+
+      // Prepend 감지 → boundary 메시지 그룹핑 동결
+      const prev = prevAllMessagesRef.current;
+      const isPrepend = prev.length > 0 && prev[0]?.id !== allMessages[0]?.id;
+      const boundaryId = isPrepend ? prev[0]?.id : null;
+      if (boundaryId) pendingGroupCorrectionRef.current = true;
+
+      const result = freshResult.map((fresh) => {
+        const old = prevById.get(fresh.id);
+        if (!old) return fresh;
+
+        // Prepend 경계 메시지: 그룹핑 동결 (높이 안정화 — 중복 렌더링 방지)
+        if (boundaryId && fresh.id === boundaryId) {
+          return old.status === fresh.status
+            ? old
+            : { ...old, status: fresh.status };
         }
-      }
 
-      if (onlyNonGroupingFieldsChanged && hasDiff) {
-        // readCount, status 등 비그룹핑 필드만 패치, 기존 grouping 구조 재사용
-        const result = prevGrouped.map((grouped, idx) => {
-          const newMsg = allMessages[idx];
-          if (!newMsg) return grouped;
-          const rcChanged = newMsg.readCount !== grouped.readCount;
-          const statusChanged = newMsg.status !== grouped.status;
-          if (rcChanged || statusChanged) {
-            return {
-              ...grouped,
-              ...(rcChanged && { readCount: newMsg.readCount }),
-              ...(statusChanged && { status: newMsg.status }),
-            };
-          }
-          return grouped;
-        });
-        prevAllMessagesRef.current = allMessages;
-        prevGroupedRef.current = result;
-        return result;
-      }
-    }
+        // 참조 재사용: grouping + status 동일 시 이전 객체 반환
+        const groupingSame =
+          old.grouping.showName === fresh.grouping.showName &&
+          old.grouping.showTime === fresh.grouping.showTime &&
+          old.grouping.isGrouped === fresh.grouping.isGrouped &&
+          old.grouping.showDateDivider === fresh.grouping.showDateDivider &&
+          old.grouping.showUnreadDivider === fresh.grouping.showUnreadDivider;
+        const statusSame = old.status === fresh.status;
 
-    // Fast path: 끝에 메시지 1~3개 추가 (가장 흔한 realtime 케이스)
-    // 새 메시지에는 구분선 추가 안 함 (이미 읽고 있는 상태이므로)
-    const appendCount = allMessages.length - prev.length;
-    if (
-      appendCount > 0 &&
-      appendCount <= 3 &&
-      prev.length > 0 &&
-      prev[prev.length - 1]?.id === allMessages[prev.length - 1]?.id
-    ) {
-      // 이전 결과 재사용 + 경계부터 재계산 (마지막 1개 + 새 메시지들)
-      const regroupStart = Math.max(0, prev.length - 1);
-      const tailMessages = allMessages.slice(regroupStart);
-      const tailGrouped = processMessagesWithGrouping(tailMessages);
+        if (groupingSame && statusSame) return old;
 
-      // 날짜 중복 표시 버그 수정: processMessagesWithGrouping은 tailMessages[0]을
-      // 첫 메시지로 취급하여 항상 showDateDivider=true로 설정함.
-      // regroupStart 이전 메시지와 같은 날짜면 날짜 구분선을 제거해야 함.
-      if (regroupStart > 0 && tailGrouped.length > 0) {
-        const prevMsg = allMessages[regroupStart - 1];
-        const firstTail = tailGrouped[0];
-        if (prevMsg && firstTail && isSameMessageDay(prevMsg.created_at, firstTail.created_at)) {
-          tailGrouped[0] = {
-            ...firstTail,
-            grouping: {
-              ...firstTail.grouping,
-              showDateDivider: false,
-              dateDividerText: undefined,
-            },
-          };
+        if (groupingSame) {
+          return { ...old, ...(!statusSame && { status: fresh.status }) };
         }
-      }
 
-      const result = [
-        ...prevGrouped.slice(0, regroupStart),
-        ...tailGrouped,
-      ];
+        return fresh;
+      });
+
       prevAllMessagesRef.current = allMessages;
       prevGroupedRef.current = result;
       return result;
     }
 
-    // Full recompute (페이지네이션, 리셋 등)
-    const result = processMessagesWithGrouping(allMessages, groupingOptions);
     prevAllMessagesRef.current = allMessages;
-    prevGroupedRef.current = result;
-    return result;
-  }, [allMessages, dateKey]); // eslint-disable-line react-hooks/exhaustive-deps -- groupingOptions uses refs, dateKey forces regroup at midnight
+    prevGroupedRef.current = freshResult;
+    return freshResult;
+  }, [allMessages, dateKey, groupingEpoch]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Prepend 경계 그룹핑 동결 후 복원 (rAF x3 — Virtuoso 스크롤 보상 완료 대기)
+  // 기존 setTimeout(100ms)는 시각적으로 보였으나, rAF x3 ≈ 50ms로 감지 불가
+  useEffect(() => {
+    if (!pendingGroupCorrectionRef.current) return;
+    let frameCount = 0;
+    const tick = () => {
+      frameCount++;
+      if (frameCount >= 3) {
+        pendingGroupCorrectionRef.current = false;
+        setGroupingEpoch((v) => v + 1);
+      } else {
+        requestAnimationFrame(tick);
+      }
+    };
+    requestAnimationFrame(tick);
+  }, [allMessages]);
+
+  // ============================================
+  // Local-First: 서버 데이터 → IDB 캐시 쓰기 (1초 debounce)
+  // ============================================
+  useEffect(() => {
+    if (!messagesData?.pages?.length) return;
+    const timer = setTimeout(() => {
+      const allMsgs = messagesData.pages.flatMap((p) => p.messages);
+      if (allMsgs.length > 0) {
+        cacheMessages(roomId, allMsgs).catch(() => {});
+        const newest = allMsgs[allMsgs.length - 1];
+        if (newest) {
+          setCachedRoomState(roomId, {
+            lastSyncTimestamp: newest.created_at,
+            updatedAt: Date.now(),
+          }).catch(() => {});
+        }
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [messagesData, roomId]);
 
   // ============================================
   // Mutations
@@ -1124,23 +1183,39 @@ export function useChatRoomLogic({
     senderCache,
     onReadReceipt: useCallback((readerId: string, readAt: string) => {
       // roomData 미로드 상태에서는 prevReadAt을 알 수 없으므로 스킵
-      // (서버 refetch가 정확한 readCounts를 제공함)
       const prevReadAt = readReceiptTrackRef.current.get(readerId);
       if (!prevReadAt) {
-        // 방어: 새 멤버 추가 시 크기 제한 초과 시 무시
         if (readReceiptTrackRef.current.size >= READ_RECEIPT_TRACK_MAX) return;
         return;
       }
-
-      // 중복 처리 방지: 같은 reader의 이전 readAt보다 새로운 경우만 처리
       if (readAt <= prevReadAt) return;
       readReceiptTrackRef.current.set(readerId, readAt);
 
-      // 본인 메시지 중 새로 읽힌 메시지의 readCount를 감소 (캐시 직접 업데이트)
-      queryClient.setQueryData<InfiniteMessagesCache>(
-        chatKeys.messages(roomId),
-        (old) => decrementReadCountsForReceipt(old, userId, readAt, prevReadAt)
-      );
+      // READ_RECEIPT 버퍼링: 다인원 채팅에서 수십 명이 동시에 읽을 때
+      // 매번 setQueryData를 호출하면 O(N) 캐시 재계산이 반복되어 UI 프리징 유발.
+      // 버퍼에 모아서 300ms마다 1회 일괄 적용.
+      readReceiptBufferRef.current.push({ readAt, prevReadAt });
+      if (!readReceiptFlushTimerRef.current) {
+        readReceiptFlushTimerRef.current = setTimeout(() => {
+          const buffer = readReceiptBufferRef.current;
+          readReceiptBufferRef.current = [];
+          readReceiptFlushTimerRef.current = null;
+
+          if (buffer.length === 0) return;
+
+          // 버퍼의 모든 receipt을 1회 setQueryData로 일괄 적용
+          queryClient.setQueryData<InfiniteMessagesCache>(
+            chatKeys.messages(roomId),
+            (old) => {
+              let result = old;
+              for (const { readAt: ra, prevReadAt: pra } of buffer) {
+                result = decrementReadCountsForReceipt(result, userId, ra, pra);
+              }
+              return result;
+            }
+          );
+        }, 300);
+      }
     }, [userId, queryClient, roomId]),
     onNewMessage: useCallback((message: ChatMessagePayload) => {
       // 새 메시지 도착 알림 (badge 관리 등은 ChatRoom에서 isAtBottom 기반으로 처리)
@@ -1198,11 +1273,21 @@ export function useChatRoomLogic({
   // throttledMarkAsRead 경유: 직접 mutate() 호출 시 isAtBottom effect와 중복 실행됨
   useEffect(() => {
     readReceiptTrackRef.current.clear();
+    // READ_RECEIPT 버퍼 초기화
+    readReceiptBufferRef.current = [];
+    if (readReceiptFlushTimerRef.current) {
+      clearTimeout(readReceiptFlushTimerRef.current);
+      readReceiptFlushTimerRef.current = null;
+    }
     if (chatPrefsRef.current?.chat_read_receipt_enabled !== false) {
       throttledMarkAsRead();
     }
     return () => {
       readReceiptTrackRef.current.clear();
+      if (readReceiptFlushTimerRef.current) {
+        clearTimeout(readReceiptFlushTimerRef.current);
+        readReceiptFlushTimerRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
@@ -1610,7 +1695,7 @@ export function useChatRoomLogic({
             continue;
           }
 
-          const clientId = crypto.randomUUID();
+          const clientId = generateUUID();
           const previewUrl = isImageType(file.type) ? URL.createObjectURL(file) : "";
           validFiles.push({ file, clientId });
           newEntries.push({ clientId, file, previewUrl, progress: 0, status: "uploading" });
@@ -1679,7 +1764,7 @@ export function useChatRoomLogic({
 
   const sendMessage = useCallback(
     (content: string, replyToId?: string | null, mentions?: MentionInfo[]) => {
-      const clientMessageId = crypto.randomUUID();
+      const clientMessageId = generateUUID();
 
       if (!isOnline()) {
         // 오프라인: 캐시에 "queued" 상태로 추가 + IndexedDB 큐 저장
@@ -2049,6 +2134,7 @@ export function useChatRoomLogic({
       isUploading,
     },
     pinnedMessageIds,
+    readCountsMap: readCountsMapRef,
     replyTargetState: {
       replyTarget,
       setReplyTarget,
