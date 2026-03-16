@@ -12,8 +12,8 @@ let configured = false;
 export function ensureVapidConfigured(): boolean {
   if (initialized) return configured;
 
-  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim();
+  const privateKey = process.env.VAPID_PRIVATE_KEY?.trim();
 
   initialized = true; // 1회만 시도 (반복 경고 방지)
 
