@@ -52,6 +52,7 @@ export const PUBLIC_API_PATHS = [
 export const WEBHOOK_PATHS = [
   "/api/webhooks/google-calendar",
   "/api/payments/toss/webhook",
+  "/api/chat/push-notify", // DB trigger (pg_net) → CRON_SECRET 자체 인증
 ] as const;
 
 /** Cron 경로 (CRON_SECRET으로 보호, 프록시 바이패스) */
