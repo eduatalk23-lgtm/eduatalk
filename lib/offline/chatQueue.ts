@@ -23,6 +23,12 @@ const MAX_RETRY_COUNT = 3;
 const BASE_RETRY_DELAY_MS = 1000;
 const MAX_RETRY_DELAY_MS = 10000;
 
+// Rate limit 큐 일시 정지 설정
+const RATE_LIMIT_BASE_COOLDOWN_MS = 10_000; // 초기 10초
+const RATE_LIMIT_MAX_COOLDOWN_MS = 60_000;  // 최대 60초
+let rateLimitCooldownCount = 0;  // 연속 rate limit 횟수 (백오프용)
+let rateLimitCooldownUntil = 0;  // 큐 재개 가능 시각 (Date.now 기준)
+
 /** 채팅 메시지 큐 아이템 */
 export interface ChatMessageQueueItem {
   id: string;
@@ -193,6 +199,51 @@ function calculateRetryDelay(retryCount: number): number {
 }
 
 /**
+ * Rate limit 에러 판별
+ * Server Action은 HTTP 상태 코드가 아닌 { success: false, error: string } 반환.
+ * 에러 메시지 텍스트로 판별한다.
+ */
+function isRateLimitError(errorMessage: string | undefined): boolean {
+  if (!errorMessage) return false;
+  return (
+    errorMessage.includes("너무 빠르게") ||
+    errorMessage.includes("rate limit") ||
+    errorMessage.includes("too many") ||
+    errorMessage.includes("too fast")
+  );
+}
+
+/**
+ * Rate limit 쿨다운 적용 (큐 전체 일시 정지)
+ * 지수 백오프 + jitter로 서버 부하 분산
+ */
+function applyRateLimitCooldown(): void {
+  rateLimitCooldownCount++;
+  const delay = Math.min(
+    RATE_LIMIT_BASE_COOLDOWN_MS * Math.pow(2, rateLimitCooldownCount - 1),
+    RATE_LIMIT_MAX_COOLDOWN_MS
+  );
+  // 0-30% jitter
+  const jitter = Math.random() * delay * 0.3;
+  rateLimitCooldownUntil = Date.now() + delay + jitter;
+
+  logActionDebug(
+    "ChatQueue.applyRateLimitCooldown",
+    `Queue paused for ${Math.round((delay + jitter) / 1000)}s (attempt ${rateLimitCooldownCount})`
+  );
+}
+
+/**
+ * Rate limit 쿨다운 리셋 (메시지 전송 성공 시)
+ */
+function resetRateLimitCooldown(): void {
+  if (rateLimitCooldownCount > 0) {
+    rateLimitCooldownCount = 0;
+    rateLimitCooldownUntil = 0;
+  }
+}
+
+/**
  * 단일 메시지 처리
  */
 async function processMessage(action: OfflineAction): Promise<boolean> {
@@ -213,6 +264,7 @@ async function processMessage(action: OfflineAction): Promise<boolean> {
 
     if (result.success) {
       await deleteOfflineAction(action.id);
+      resetRateLimitCooldown();
       logActionDebug(
         "ChatQueue.processMessage",
         `Message sent successfully: ${action.id}`
@@ -226,6 +278,16 @@ async function processMessage(action: OfflineAction): Promise<boolean> {
         );
       }
       return true;
+    }
+
+    // Rate limit 에러 → 메시지 보존, 큐 전체 일시 정지
+    if (isRateLimitError(result.error)) {
+      logActionWarn(
+        "ChatQueue.processMessage",
+        `Rate limited, pausing queue (message preserved): ${action.id}`
+      );
+      applyRateLimitCooldown();
+      return false; // 재시도 가능 (retryCount 증가하지 않음)
     }
 
     // 실패했지만 네트워크 오류가 아닌 경우 (비즈니스 로직 오류)
@@ -307,6 +369,25 @@ export async function processChatQueue(): Promise<void> {
         break;
       }
 
+      // Rate limit 쿨다운 중이면 큐 전체 일시 정지 (FIFO 보존)
+      if (Date.now() < rateLimitCooldownUntil) {
+        logActionDebug(
+          "ChatQueue.processChatQueue",
+          `Rate limit cooldown active, resuming in ${Math.round((rateLimitCooldownUntil - Date.now()) / 1000)}s`
+        );
+        // 쿨다운 끝난 후 재처리 예약
+        const remaining = rateLimitCooldownUntil - Date.now();
+        setTimeout(() => {
+          processChatQueue().catch((err) =>
+            logActionError(
+              "ChatQueue.processChatQueue",
+              `Cooldown retry error: ${err instanceof Error ? err.message : String(err)}`
+            )
+          );
+        }, remaining + 100); // 100ms 여유
+        break;
+      }
+
       // 최대 재시도 횟수 초과
       if (action.retryCount >= MAX_RETRY_COUNT) {
         logActionWarn(
@@ -343,7 +424,23 @@ export async function processChatQueue(): Promise<void> {
       const success = await processMessage(action);
 
       if (!success) {
-        // 실패 시 재시도 카운트 증가
+        // Rate limit으로 인한 실패는 retryCount를 증가시키지 않음
+        // (applyRateLimitCooldown에서 큐 일시 정지를 처리)
+        if (Date.now() < rateLimitCooldownUntil) {
+          // Rate limit 쿨다운이 방금 설정됨 → 남은 메시지 처리 중단
+          const remaining = rateLimitCooldownUntil - Date.now();
+          setTimeout(() => {
+            processChatQueue().catch((err) =>
+              logActionError(
+                "ChatQueue.processChatQueue",
+                `Cooldown retry error: ${err instanceof Error ? err.message : String(err)}`
+              )
+            );
+          }, remaining + 100);
+          break;
+        }
+
+        // 네트워크 에러 등 일반 실패 → retryCount 증가
         const updatedAction: OfflineAction = {
           ...action,
           retryCount: action.retryCount + 1,

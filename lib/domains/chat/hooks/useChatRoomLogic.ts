@@ -290,7 +290,8 @@ export function useChatRoomLogic({
   // Data Transformations
   // ============================================
 
-  // READ_RECEIPT 실시간 갱신용
+  // READ_RECEIPT 실시간 갱신용 (방어적 크기 제한: 대규모 그룹 대비)
+  const READ_RECEIPT_TRACK_MAX = 500;
   const readReceiptTrackRef = useRef(new Map<string, string>()); // readerId → lastReadAt
 
   // roomData 로드 후: readCount가 없는 낙관적 메시지만 보정
@@ -705,13 +706,14 @@ export function useChatRoomLogic({
             variables.clientMessageId ?? tempId
           );
         } else {
-          // 비즈니스 에러 → 기존 "error" 처리
+          // 비즈니스 에러 → 기존 "error" 처리 + 토스트 알림
           operationTracker.failSend(tempId);
           queryClient.setQueryData<InfiniteMessagesCache>(
             chatKeys.messages(roomId),
             (old) =>
               updateMessageInCache(old, tempId, (m) => ({ ...m, status: "error" }))
           );
+          showError(_err instanceof Error ? _err.message : "메시지 전송에 실패했습니다.");
         }
       }
 
@@ -1128,7 +1130,11 @@ export function useChatRoomLogic({
       // roomData 미로드 상태에서는 prevReadAt을 알 수 없으므로 스킵
       // (서버 refetch가 정확한 readCounts를 제공함)
       const prevReadAt = readReceiptTrackRef.current.get(readerId);
-      if (!prevReadAt) return;
+      if (!prevReadAt) {
+        // 방어: 새 멤버 추가 시 크기 제한 초과 시 무시
+        if (readReceiptTrackRef.current.size >= READ_RECEIPT_TRACK_MAX) return;
+        return;
+      }
 
       // 중복 처리 방지: 같은 reader의 이전 readAt보다 새로운 경우만 처리
       if (readAt <= prevReadAt) return;
@@ -1864,11 +1870,19 @@ export function useChatRoomLogic({
     [sendMutation, roomId, userId, roomData, queryClient, onNewMessageArrived, replyTarget, uploadingFiles, showError, broadcastInsert]
   );
 
-  const editMessage = useCallback(
-    (messageId: string, content: string, expectedUpdatedAt?: string) => {
+  const throttledEdit = useThrottledCallback(
+    (...args: unknown[]) => {
+      const [messageId, content, expectedUpdatedAt] = args as [string, string, string?];
       editMutation.mutate({ messageId, content, expectedUpdatedAt });
     },
-    [editMutation]
+    500,
+    { leading: true, trailing: false }
+  );
+  const editMessage = useCallback(
+    (messageId: string, content: string, expectedUpdatedAt?: string) => {
+      throttledEdit(messageId, content, expectedUpdatedAt);
+    },
+    [throttledEdit]
   );
 
   const deleteMessage = useCallback(
@@ -1878,11 +1892,19 @@ export function useChatRoomLogic({
     [deleteMutation]
   );
 
-  const toggleReaction = useCallback(
-    (messageId: string, emoji: ReactionEmoji) => {
+  const throttledToggleReaction = useThrottledCallback(
+    (...args: unknown[]) => {
+      const [messageId, emoji] = args as [string, ReactionEmoji];
       reactionMutation.mutate({ messageId, emoji });
     },
-    [reactionMutation]
+    300,
+    { leading: true, trailing: false }
+  );
+  const toggleReaction = useCallback(
+    (messageId: string, emoji: ReactionEmoji) => {
+      throttledToggleReaction(messageId, emoji);
+    },
+    [throttledToggleReaction]
   );
 
   const togglePin = useCallback(

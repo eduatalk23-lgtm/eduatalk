@@ -670,13 +670,24 @@ export function useChatRealtime({
     // 지연 invalidation 타이머 (cleanup용)
     let delayedInvalidationTimer: ReturnType<typeof setTimeout> | null = null;
 
-    // === 메시지 INSERT 배치 버퍼 (50ms 윈도우로 setQueryData 호출 최소화) ===
-    const INSERT_BATCH_WINDOW_MS = 50;
+    // === 배치 윈도우 (디바이스 성능 적응형) ===
+    // low: 여유 있게 모아서 처리, high: 즉시성 우선
+    const batchWindowMs = (() => {
+      if (typeof navigator === "undefined") return 80;
+      const mem = (navigator as { deviceMemory?: number }).deviceMemory ?? 4;
+      const cores = navigator.hardwareConcurrency ?? 4;
+      if (mem <= 2 || cores <= 2) return 150;
+      if (mem >= 8 && cores >= 8) return 50;
+      return 80;
+    })();
+
+    // === 메시지 INSERT 배치 버퍼 ===
+    const INSERT_BATCH_WINDOW_MS = batchWindowMs;
     const insertBuffer: Array<{ msg: ChatMessagePayload; tempId: string | undefined }> = [];
     let insertBufferTimer: ReturnType<typeof setTimeout> | null = null;
 
-    // === 리액션 배치 버퍼 (50ms 윈도우로 여러 리액션을 1회 setQueryData로 적용) ===
-    const REACTION_BATCH_WINDOW_MS = 50;
+    // === 리액션 배치 버퍼 ===
+    const REACTION_BATCH_WINDOW_MS = batchWindowMs;
     const reactionBuffer: Array<{ reaction: ChatReactionPayload; isAdd: boolean }> = [];
     let reactionBufferTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -1295,11 +1306,18 @@ export function useChatRealtime({
           flushReactionBuffer();
         }
       }
-      // sender 배치 타이머 정리
+      // sender 배치 타이머 + 대기 중 요청 정리
       if (currentBatch.timer) {
         clearTimeout(currentBatch.timer);
         currentBatch.timer = null;
       }
+      // 방 전환 시 대기 중인 sender fetch 요청을 reject하여 Promise 누수 방지
+      for (const [, entry] of currentBatch.pending) {
+        entry.resolvers.forEach((r) =>
+          r.reject(new Error("Room changed, batch cancelled"))
+        );
+      }
+      currentBatch.pending.clear();
       supabase.removeChannel(channel);
       // 재연결 콜백 해제
       connectionManager.unregisterReconnectCallback(channelName);

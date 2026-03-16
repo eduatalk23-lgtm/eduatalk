@@ -413,6 +413,10 @@ class RealtimeConnectionManager {
   // 네트워크 상태 연동
   // ============================================
 
+  /** Jitter 범위 (Thundering Herd 방지) */
+  private readonly NETWORK_RECONNECT_MIN_JITTER_MS = 100;
+  private readonly NETWORK_RECONNECT_MAX_JITTER_MS = 3000;
+
   /**
    * 네트워크 상태 연동 초기화
    */
@@ -423,17 +427,54 @@ class RealtimeConnectionManager {
 
     this.networkUnsubscribe = addNetworkStatusListener((online) => {
       if (online) {
-        // 온라인 복귀 시 모든 disconnected 채널 재연결 상태로 전환
-        console.log("[ConnectionManager] Network online. Checking channels...");
+        // 온라인 복귀 시 모든 disconnected 채널에 대해:
+        // 1) retry count 리셋 (5회 소진 후에도 재연결 가능)
+        // 2) Jitter 적용 후 재연결 시도 (Thundering Herd 방지)
+        console.log("[ConnectionManager] Network online. Reconnecting disconnected channels with jitter...");
         for (const [channelName, state] of this.channels) {
-          if (state.status === "disconnected") {
+          if (state.status === "disconnected" && this.reconnectCallbacks.has(channelName)) {
+            // retry count 리셋 — 네트워크 복구는 새로운 시도
+            this.resetRetryCount(channelName);
+            this.setChannelState(channelName, "reconnecting");
+
+            // 기존 예약된 타이머 정리
+            const existingTimer = this.reconnectTimers.get(channelName);
+            if (existingTimer) {
+              clearTimeout(existingTimer);
+            }
+
+            // 100ms ~ 3000ms 랜덤 jitter → 대규모 동시 재접속 방지
+            const jitter = this.NETWORK_RECONNECT_MIN_JITTER_MS +
+              Math.random() * (this.NETWORK_RECONNECT_MAX_JITTER_MS - this.NETWORK_RECONNECT_MIN_JITTER_MS);
+
+            console.log(
+              `[ConnectionManager] Scheduling reconnect for ${channelName} in ${Math.round(jitter)}ms (jitter)`
+            );
+
+            const timer = setTimeout(() => {
+              this.reconnectTimers.delete(channelName);
+              // 여전히 온라인이고 reconnecting 상태일 때만 시도
+              if (this.isNetworkOnline() && this.getChannelState(channelName) === "reconnecting") {
+                this.attemptReconnect(channelName);
+              }
+            }, jitter);
+
+            this.reconnectTimers.set(channelName, timer);
+          } else if (state.status === "disconnected") {
+            // 콜백 미등록 채널은 상태만 전환
             this.setChannelState(channelName, "reconnecting");
           }
         }
       } else {
-        // 오프라인 시 모든 채널 disconnected로 전환
+        // 오프라인 시 모든 채널 disconnected로 전환 + 진행 중인 타이머 정리
         console.log("[ConnectionManager] Network offline. Marking channels disconnected.");
         for (const [channelName] of this.channels) {
+          // 진행 중인 재연결 타이머 정리 (오프라인인데 재연결 시도 방지)
+          const existingTimer = this.reconnectTimers.get(channelName);
+          if (existingTimer) {
+            clearTimeout(existingTimer);
+            this.reconnectTimers.delete(channelName);
+          }
           this.setChannelState(channelName, "disconnected");
         }
       }
