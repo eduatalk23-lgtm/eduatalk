@@ -73,19 +73,30 @@ export async function sendPushToUser(
   payload: PushPayload
 ): Promise<{ sent: number; failed: number }> {
   if (!ensureVapidConfigured()) {
+    console.error("[sendPushToUser] VAPID not configured, skipping", { userId });
     return { sent: 0, failed: 0 };
   }
 
   const supabase = createSupabaseAdminClient();
-  if (!supabase) return { sent: 0, failed: 0 };
+  if (!supabase) {
+    console.error("[sendPushToUser] Admin client unavailable", { userId });
+    return { sent: 0, failed: 0 };
+  }
 
-  const { data: subscriptions } = await supabase
+  const { data: subscriptions, error: subError } = await supabase
     .from("push_subscriptions")
     .select("id, subscription")
     .eq("user_id", userId)
     .eq("is_active", true);
 
-  if (!subscriptions?.length) return { sent: 0, failed: 0 };
+  if (subError) {
+    console.error("[sendPushToUser] Subscription query error", { userId, error: subError.message });
+  }
+
+  if (!subscriptions?.length) {
+    console.warn("[sendPushToUser] No active subscriptions", { userId, queryError: !!subError });
+    return { sent: 0, failed: 0 };
+  }
 
   // urgency는 Web Push 헤더에만 사용 → payload에서 제거하여 4KB 절약
   const { urgency: _urgency, ...payloadWithoutUrgency } = payload;
