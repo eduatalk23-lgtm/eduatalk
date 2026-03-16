@@ -11,6 +11,7 @@ import {
   isOnline,
   addNetworkStatusListener,
 } from "@/lib/offline/networkStatus";
+import { supabase } from "@/lib/supabase/client";
 
 /** 연결 상태 */
 export type ConnectionStatus = "connected" | "disconnected" | "reconnecting";
@@ -283,6 +284,32 @@ class RealtimeConnectionManager {
   }
 
   /**
+   * Auth 세션이 유효한지 확인 (재연결 전 호출)
+   * 최대 AUTH_WAIT_TIMEOUT_MS 동안 대기 후 실패 처리
+   */
+  private readonly AUTH_WAIT_TIMEOUT_MS = 5000;
+  private readonly AUTH_POLL_INTERVAL_MS = 500;
+
+  private async waitForAuth(): Promise<boolean> {
+    const deadline = Date.now() + this.AUTH_WAIT_TIMEOUT_MS;
+
+    while (Date.now() < deadline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          return true;
+        }
+      } catch {
+        // 세션 조회 실패 시 재시도
+      }
+      await new Promise((resolve) => setTimeout(resolve, this.AUTH_POLL_INTERVAL_MS));
+    }
+
+    console.warn("[ConnectionManager] Auth session not ready after timeout");
+    return false;
+  }
+
+  /**
    * 재연결 시도 (내부용)
    */
   async attemptReconnect(channelName: string): Promise<boolean> {
@@ -292,6 +319,15 @@ class RealtimeConnectionManager {
     const callback = this.reconnectCallbacks.get(channelName);
     if (!callback) {
       console.warn(`[ConnectionManager] No reconnect callback for ${channelName}`);
+      return false;
+    }
+
+    // Auth 세션 유효성 확인 (토큰 갱신 대기)
+    const authReady = await this.waitForAuth();
+    if (!authReady) {
+      console.warn(`[ConnectionManager] Skipping reconnect for ${channelName}: auth not ready`);
+      // disconnected 상태 유지, 다음 네트워크 이벤트나 수동 재연결에서 재시도
+      this.setChannelState(channelName, "disconnected");
       return false;
     }
 

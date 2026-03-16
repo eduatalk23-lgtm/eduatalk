@@ -76,6 +76,7 @@ export function FloatingChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
 
   // 역할 기반 설정
+  const userId = user?.userId ?? "";
   const chatUserType = user?.role ? toChatUserType(user.role) : null;
   const isAuthenticated = !!user && !!chatUserType;
 
@@ -89,7 +90,7 @@ export function FloatingChatWidget() {
   // Realtime 상시 구독 (패널 열림/닫힘 무관)
   // RPC 직접 호출로 전환하여 polling + getUser() 호출 완전 제거
   useChatRoomListRealtime({
-    userId: user?.userId ?? "",
+    userId,
     userType: chatUserType ?? "student",
     enabled: isAuthenticated,
   });
@@ -104,10 +105,10 @@ export function FloatingChatWidget() {
 
   // FAB hover/touch 시 방 목록 사전 로딩 (popover 열기 전에 데이터 준비)
   const handleFABPrefetch = useCallback(() => {
-    if (!isOpen) {
-      void queryClient.prefetchQuery(chatRoomsQueryOptions());
+    if (!isOpen && userId) {
+      void queryClient.prefetchQuery(chatRoomsQueryOptions(userId));
     }
-  }, [isOpen, queryClient]);
+  }, [isOpen, queryClient, userId]);
 
   // 렌더링 조건 체크
   if (isLoading) return null;
@@ -133,7 +134,7 @@ export function FloatingChatWidget() {
       <AnimatePresence>
         {isOpen && (
           <ChatPopover
-            userId={user.userId}
+            userId={userId}
             userType={chatUserType}
             basePath={basePath}
             onClose={() => setIsOpen(false)}

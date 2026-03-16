@@ -1412,6 +1412,7 @@ export function useChatRoomListRealtime({
   enabled = true,
 }: UseChatRoomListRealtimeOptions) {
   const queryClient = useQueryClient();
+  const [reconnectTrigger, setReconnectTrigger] = useState(0);
 
   // 사용자가 속한 채팅방 ID 추적 (chat_rooms UPDATE 필터링용)
   const userRoomIdsRef = useRef<Set<string>>(new Set());
@@ -1456,6 +1457,13 @@ export function useChatRoomListRealtime({
     }
 
     // 싱글톤 클라이언트 사용 (모듈 레벨에서 import)
+    const channelName = `chat-rooms-${userId}`;
+
+    // ConnectionManager에 재연결 콜백 등록
+    connectionManager.registerReconnectCallback(channelName, async () => {
+      debugLog("[ChatRealtime] Room list reconnect callback triggered");
+      setReconnectTrigger((prev) => prev + 1);
+    });
 
     // broadcast_changes payload 노멀라이저 (DB trigger → record 래핑)
     type BroadcastPayload = Record<string, unknown>;
@@ -1463,7 +1471,7 @@ export function useChatRoomListRealtime({
       raw.record as T | undefined;
 
     const channel = supabase
-      .channel(`chat-rooms-${userId}`)
+      .channel(channelName)
       // 멤버 추가 (broadcast from DB trigger)
       .on(
         "broadcast",
@@ -1509,6 +1517,9 @@ export function useChatRoomListRealtime({
         debugLog(`[ChatRealtime] Room list subscription:`, status);
 
         if (status === "SUBSCRIBED") {
+          // ConnectionManager에 연결 상태 알림
+          connectionManager.setChannelState(channelName, "connected");
+
           // 캐시가 이미 있으면 스킵 — React Query가 이미 페칭 중이거나 fresh 상태
           const existing = queryClient.getQueryData(chatKeys.rooms());
           if (!existing) {
@@ -1521,11 +1532,14 @@ export function useChatRoomListRealtime({
 
         if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
           debugWarn(`[ChatRealtime] Room list connection error: ${status}`);
+          // ConnectionManager에 연결 끊김 알림 → 자동 재연결 스케줄
+          connectionManager.handleDisconnect(channelName);
         }
       });
 
     return () => {
       supabase.removeChannel(channel);
+      connectionManager.unregisterReconnectCallback(channelName);
     };
-  }, [userId, userType, enabled, invalidateRoomList, debouncedInvalidate]);
+  }, [userId, userType, enabled, invalidateRoomList, debouncedInvalidate, queryClient, reconnectTrigger]);
 }

@@ -156,10 +156,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const cachedUser = queryClient.getQueryData(["auth", "me"]);
         if (!cachedUser) {
           refetch();
-          // 실제 로그인 시 채팅방 목록 갱신 (SSR prefetch된 빈 캐시 방어)
+          // 실제 로그인 시 채팅방 목록 갱신
+          // "all": 옵저버가 없어도 stale 마킹 → 다음 접근 시 자동 refetch
+          // (FloatingChatWidget이 닫힌 상태에서도 캐시 무효화 보장)
           queryClient.invalidateQueries({
             queryKey: chatKeys.rooms(),
-            refetchType: "active", // 마운트된 옵저버가 있을 때만
+            refetchType: "all",
           });
         }
       }
