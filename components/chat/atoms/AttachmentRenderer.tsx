@@ -276,7 +276,10 @@ function ImageItem({
   );
 }
 
-/** 비디오 인라인 플레이어 */
+/** 미디어(비디오/오디오) 로딩 상태 */
+type MediaLoadState = "ready" | "refreshing" | "failed";
+
+/** 비디오 인라인 플레이어 (만료 시 자동 refresh) */
 function VideoPlayer({
   attachment,
   isOwn,
@@ -284,9 +287,45 @@ function VideoPlayer({
   attachment: ChatAttachment;
   isOwn: boolean;
 }) {
+  const cachedUrl = getCachedUrl(attachment.id, attachment.public_url);
+  const [src, setSrc] = useState(cachedUrl);
+  const [loadState, setLoadState] = useState<MediaLoadState>("ready");
+  const refreshAttempted = useRef(cachedUrl !== attachment.public_url);
+
+  const handleError = useCallback(async () => {
+    if (refreshAttempted.current) {
+      setLoadState("failed");
+      return;
+    }
+    refreshAttempted.current = true;
+    setLoadState("refreshing");
+
+    const result = await refreshAttachmentUrlsAction([attachment.id]);
+    if (result.success && result.data?.[attachment.id]) {
+      const newUrl = result.data[attachment.id].publicUrl;
+      setCachedUrl(attachment.id, newUrl);
+      setSrc(newUrl);
+      setLoadState("ready");
+    } else {
+      setLoadState("failed");
+    }
+  }, [attachment.id]);
+
   const handleDownload = useCallback(() => {
-    window.open(attachment.public_url, "_blank", "noopener");
-  }, [attachment.public_url]);
+    window.open(src, "_blank", "noopener");
+  }, [src]);
+
+  if (loadState === "failed") {
+    return (
+      <div className={cn(
+        "flex items-center justify-center gap-2 rounded-lg aspect-video max-h-48",
+        isOwn ? "bg-white/20" : "bg-bg-secondary"
+      )}>
+        <Film className="w-6 h-6 text-text-tertiary" />
+        <span className="text-xs text-text-tertiary">재생할 수 없는 동영상</span>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -295,15 +334,21 @@ function VideoPlayer({
         isOwn ? "bg-white/20" : "bg-bg-secondary"
       )}
     >
-      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-      <video
-        src={attachment.public_url}
-        controls
-        preload="metadata"
-        playsInline
-        className="w-full aspect-video max-h-48 object-contain bg-black"
-        controlsList="nodownload"
-      />
+      {loadState === "refreshing" ? (
+        <div className="w-full aspect-video max-h-48 bg-bg-secondary animate-pulse flex items-center justify-center">
+          <Film className="w-8 h-8 text-text-tertiary animate-pulse" />
+        </div>
+      ) : (
+        <video
+          src={src}
+          controls
+          preload="metadata"
+          playsInline
+          className="w-full aspect-video max-h-48 object-contain bg-black"
+          controlsList="nodownload"
+          onError={handleError}
+        />
+      )}
       <div className="flex items-center justify-between px-2 py-1">
         <span
           className={cn(
@@ -337,7 +382,7 @@ function VideoPlayer({
   );
 }
 
-/** 오디오 인라인 플레이어 */
+/** 오디오 인라인 플레이어 (만료 시 자동 refresh) */
 function AudioPlayer({
   attachment,
   isOwn,
@@ -345,6 +390,30 @@ function AudioPlayer({
   attachment: ChatAttachment;
   isOwn: boolean;
 }) {
+  const cachedUrl = getCachedUrl(attachment.id, attachment.public_url);
+  const [src, setSrc] = useState(cachedUrl);
+  const [loadState, setLoadState] = useState<MediaLoadState>("ready");
+  const refreshAttempted = useRef(cachedUrl !== attachment.public_url);
+
+  const handleError = useCallback(async () => {
+    if (refreshAttempted.current) {
+      setLoadState("failed");
+      return;
+    }
+    refreshAttempted.current = true;
+    setLoadState("refreshing");
+
+    const result = await refreshAttachmentUrlsAction([attachment.id]);
+    if (result.success && result.data?.[attachment.id]) {
+      const newUrl = result.data[attachment.id].publicUrl;
+      setCachedUrl(attachment.id, newUrl);
+      setSrc(newUrl);
+      setLoadState("ready");
+    } else {
+      setLoadState("failed");
+    }
+  }, [attachment.id]);
+
   return (
     <div
       className={cn(
@@ -369,19 +438,26 @@ function AudioPlayer({
         >
           {attachment.file_name}
         </p>
-        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-        <audio
-          src={attachment.public_url}
-          controls
-          preload="metadata"
-          className="w-full h-8 mt-1"
-        />
+        {loadState === "refreshing" ? (
+          <div className="w-full h-8 mt-1 bg-bg-secondary animate-pulse rounded" />
+        ) : loadState === "failed" ? (
+          <p className="text-xs text-text-tertiary mt-1">재생할 수 없는 오디오</p>
+        ) : (
+          /* eslint-disable-next-line jsx-a11y/media-has-caption */
+          <audio
+            src={src}
+            controls
+            preload="metadata"
+            className="w-full h-8 mt-1"
+            onError={handleError}
+          />
+        )}
       </div>
     </div>
   );
 }
 
-/** 파일 카드 (문서 등) */
+/** 파일 카드 (문서 등, 만료 시 자동 refresh) */
 function FileCard({
   attachment,
   isOwn,
@@ -393,10 +469,34 @@ function FileCard({
 }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const cachedUrl = getCachedUrl(attachment.id, attachment.public_url);
+  const [downloadUrl, setDownloadUrl] = useState(cachedUrl);
+  const refreshAttempted = useRef(cachedUrl !== attachment.public_url);
 
-  const handleDownload = useCallback(() => {
-    window.open(attachment.public_url, "_blank", "noopener");
-  }, [attachment.public_url]);
+  const handleDownload = useCallback(async () => {
+    // 먼저 현재 URL로 시도
+    const res = await fetch(downloadUrl, { method: "HEAD" }).catch(() => null);
+    if (res && res.ok) {
+      window.open(downloadUrl, "_blank", "noopener");
+      return;
+    }
+
+    // 403 등 실패 → refresh 시도 (1회만)
+    if (!refreshAttempted.current) {
+      refreshAttempted.current = true;
+      const result = await refreshAttachmentUrlsAction([attachment.id]);
+      if (result.success && result.data?.[attachment.id]) {
+        const newUrl = result.data[attachment.id].publicUrl;
+        setCachedUrl(attachment.id, newUrl);
+        setDownloadUrl(newUrl);
+        window.open(newUrl, "_blank", "noopener");
+        return;
+      }
+    }
+
+    // fallback: 그래도 열기 시도 (브라우저가 에러 표시)
+    window.open(downloadUrl, "_blank", "noopener");
+  }, [downloadUrl, attachment.id]);
 
   const handleSave = useCallback(
     async (e: React.MouseEvent) => {
