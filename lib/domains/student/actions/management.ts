@@ -947,6 +947,8 @@ export async function createStudent(
     // 2. 프로필 + 진로 정보 업데이트 (students 테이블에 통합됨)
     const extraFields: Record<string, unknown> = {};
 
+    if (basic.memo != null) extraFields.memo = basic.memo;
+
     if (profile) {
       if (profile.gender != null) extraFields.gender = profile.gender;
       // phone은 user_profiles에서 관리

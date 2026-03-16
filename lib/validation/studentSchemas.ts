@@ -23,6 +23,7 @@ export const studentBasicSchema = z.object({
   student_number: z.string().optional().nullable(),
   enrolled_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "입학일은 YYYY-MM-DD 형식이어야 합니다").optional().nullable(),
   status: z.enum(["enrolled", "on_leave", "graduated", "transferred"]).optional().nullable().default("enrolled"),
+  memo: z.string().max(1000).optional().nullable(),
 });
 
 /**

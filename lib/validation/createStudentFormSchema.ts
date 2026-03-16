@@ -29,6 +29,7 @@ export const createStudentFormSchema = z.object({
   student_number: z.string().default(""),
   enrolled_at: z.string().default(""),
   status: z.enum(["enrolled", "on_leave", "graduated", "transferred"]).default("enrolled"),
+  memo: z.string().max(1000).default(""),
 
   // 프로필 정보 (필수: 연락처 중 1개)
   gender: z.enum(["남", "여"]).optional(),
@@ -84,6 +85,7 @@ export function toCreateStudentInput(flat: CreateStudentFormSchema): CreateStude
       student_number: emptyToNull(flat.student_number),
       enrolled_at: emptyToNull(flat.enrolled_at),
       status: flat.status ?? "enrolled",
+      memo: emptyToNull(flat.memo),
     },
     profile: {
       gender: flat.gender ?? null,

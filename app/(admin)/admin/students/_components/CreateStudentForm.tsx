@@ -189,6 +189,11 @@ function BasicInfoTab({
     control,
   });
 
+  const memoField = useController({
+    name: "memo",
+    control,
+  });
+
   const handleSchoolSelect = async (school: {
     id: string;
     name: string;
@@ -262,6 +267,20 @@ function BasicInfoTab({
         }))}
         error={statusField.fieldState.error?.message}
       />
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+          메모
+        </label>
+        <textarea
+          {...memoField.field}
+          placeholder="메모를 입력하세요"
+          rows={3}
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+        />
+        {memoField.fieldState.error?.message && (
+          <p className="mt-1 text-sm text-red-500">{memoField.fieldState.error.message}</p>
+        )}
+      </div>
     </div>
   );
 }
