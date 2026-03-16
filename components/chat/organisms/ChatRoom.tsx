@@ -266,7 +266,7 @@ interface ChatMessageItemProps {
   isMessageEdited: (msg: ChatMessageWithGrouping) => boolean;
   createActionHandler: (message: ChatMessageItemProps["message"]) => (action: MessageAction) => void;
   getRefCallback: (id: string) => (el: HTMLDivElement | null) => void;
-  isFocused?: boolean;
+  // isFocused는 useEffect로 DOM 직접 관리 (renderMessage 리렌더링 방지)
 }
 
 const ChatMessageItem = memo(function ChatMessageItem({
@@ -279,7 +279,6 @@ const ChatMessageItem = memo(function ChatMessageItem({
   isMessageEdited,
   createActionHandler,
   getRefCallback,
-  isFocused,
 }: ChatMessageItemProps) {
   const isOwn = message.sender_id === userId;
   const { grouping } = message;
@@ -326,11 +325,8 @@ const ChatMessageItem = memo(function ChatMessageItem({
   return (
     <div
       ref={getRefCallback(message.id)}
-      tabIndex={isFocused ? 0 : -1}
-      className={cn(
-        "motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200 transition-colors outline-none",
-        isFocused && "ring-2 ring-primary/50 ring-inset rounded-lg",
-      )}
+      tabIndex={-1}
+      className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200 transition-colors outline-none data-[focused]:ring-2 data-[focused]:ring-primary/50 data-[focused]:ring-inset data-[focused]:rounded-lg"
     >
       {grouping.showDateDivider && grouping.dateDividerText && (
         <DateDivider date={grouping.dateDividerText} />
@@ -392,6 +388,28 @@ function ChatRoomComponent({
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [uiState, dispatch] = useReducer(uiReducer, initialUIState);
   const [focusedMessageId, setFocusedMessageId] = useState<string | null>(null);
+  const prevFocusedIdRef = useRef<string | null>(null);
+
+  // 포커스 스타일을 DOM 직접 조작으로 관리 (renderMessage 리렌더링 방지)
+  useEffect(() => {
+    // 이전 포커스 해제
+    if (prevFocusedIdRef.current) {
+      const prevEl = messageRefs.current.get(prevFocusedIdRef.current);
+      if (prevEl) {
+        prevEl.removeAttribute("data-focused");
+        prevEl.tabIndex = -1;
+      }
+    }
+    // 새 포커스 설정
+    if (focusedMessageId) {
+      const el = messageRefs.current.get(focusedMessageId);
+      if (el) {
+        el.setAttribute("data-focused", "");
+        el.tabIndex = 0;
+      }
+    }
+    prevFocusedIdRef.current = focusedMessageId;
+  }, [focusedMessageId]);
 
   // 개발 모드 CLS 자동 모니터링
   useCLSMonitor(messageListRef, "ChatRoom");
@@ -1134,7 +1152,6 @@ function ChatRoomComponent({
       isMessageEdited={isMessageEdited}
       createActionHandler={createMessageActionHandler}
       getRefCallback={getRefCallback}
-      isFocused={focusedMessageId === message.id}
     />
   ), [
     userId,
@@ -1144,7 +1161,6 @@ function ChatRoomComponent({
     isMessageEdited,
     getRefCallback,
     createMessageActionHandler,
-    focusedMessageId,
   ]);
 
   const computeItemKey = useCallback((_index: number, message: (typeof messages)[number]) => message.id, []);
@@ -1216,34 +1232,36 @@ function ChatRoomComponent({
     </div>
   ), []);
 
-  // Header/Footer: 고정 높이 컨테이너 + opacity 전환으로 높이 변화에 의한 CLS 방지
-  // hasNextPage가 false가 되면 컨테이너 자체를 제거 (최상단 도달 시 1회만 높이 변화)
+  // Header/Footer: 고정 높이 컨테이너를 항상 유지하여 CLS 방지
+  // null 반환 시 36px → 0px 급변으로 스크롤 점프가 발생하므로, DOM을 항상 렌더링
   const VirtuosoHeader = useCallback(() => {
-    if (!hasNextPage && !isFetchingNextPage) return null;
     return (
-      <div className="flex justify-center items-center h-9" aria-label="이전 메시지 로딩 중">
-        <Loader2
-          className={cn(
-            "w-5 h-5 text-text-tertiary transition-opacity duration-150",
-            isFetchingNextPage ? "animate-spin opacity-100" : "opacity-0"
-          )}
-          aria-hidden="true"
-        />
+      <div className="flex justify-center items-center h-9" aria-label={hasNextPage ? "이전 메시지 로딩 중" : undefined}>
+        {(hasNextPage || isFetchingNextPage) && (
+          <Loader2
+            className={cn(
+              "w-5 h-5 text-text-tertiary transition-opacity duration-150",
+              isFetchingNextPage ? "animate-spin opacity-100" : "opacity-0"
+            )}
+            aria-hidden="true"
+          />
+        )}
       </div>
     );
   }, [hasNextPage, isFetchingNextPage]);
 
   const VirtuosoFooter = useCallback(() => {
-    if (!hasPreviousPage && !isFetchingPreviousPage) return null;
     return (
-      <div className="flex justify-center items-center h-9" aria-label="최신 메시지 로딩 중">
-        <Loader2
-          className={cn(
-            "w-5 h-5 text-text-tertiary transition-opacity duration-150",
-            isFetchingPreviousPage ? "animate-spin opacity-100" : "opacity-0"
-          )}
-          aria-hidden="true"
-        />
+      <div className="flex justify-center items-center h-9" aria-label={hasPreviousPage ? "최신 메시지 로딩 중" : undefined}>
+        {(hasPreviousPage || isFetchingPreviousPage) && (
+          <Loader2
+            className={cn(
+              "w-5 h-5 text-text-tertiary transition-opacity duration-150",
+              isFetchingPreviousPage ? "animate-spin opacity-100" : "opacity-0"
+            )}
+            aria-hidden="true"
+          />
+        )}
       </div>
     );
   }, [hasPreviousPage, isFetchingPreviousPage]);
