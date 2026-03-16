@@ -20,6 +20,14 @@ export function chatRoomsQueryOptions(userId?: string) {
     queryKey: chatKeys.rooms(),
     queryFn: async (): Promise<ChatRoomListItem[]> => {
       const supabase = createSupabaseBrowserClient();
+
+      // Auth guard: 세션 없으면 throw → React Query가 이전 캐시 유지
+      // getSession()은 로컬 스토어만 읽으므로 네트워크 호출 없음
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("Not authenticated");
+      }
+
       const { data, error } = await supabase.rpc("get_chat_rooms_for_user");
       if (error) {
         if (process.env.NODE_ENV === "development") {

@@ -37,6 +37,12 @@ export function chatMessagesQueryOptions(roomId: string, lastReadAt?: string) {
     queryFn: async ({ pageParam }: { pageParam: ChatPageParam }) => {
       const supabase = createSupabaseBrowserClient();
 
+      // Auth guard: 세션 없으면 throw → React Query가 이전 캐시 유지
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("Not authenticated");
+      }
+
       const { data, error } = await supabase.rpc("get_chat_messages_page", {
         p_room_id: roomId,
         p_limit: PAGE_SIZE,

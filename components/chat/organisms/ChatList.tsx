@@ -73,7 +73,7 @@ function ChatListComponent({
 
   // 채팅방 목록 조회 (SSR 프리패칭과 동일한 쿼리 옵션 사용)
   // currentUserId 전달 시 auth 가드 적용 (미인증 상태에서 RPC 호출 방지)
-  const { data, isLoading, error } = useQuery(chatRoomsQueryOptions(currentUserId));
+  const { data, isPending, isFetching, error } = useQuery(chatRoomsQueryOptions(currentUserId));
 
   const handleRoomClick = (roomId: string) => {
     if (onRoomClick) {
@@ -143,8 +143,9 @@ function ChatListComponent({
     });
   }, [data, searchQuery]);
 
-  // 로딩 상태
-  if (isLoading) {
+  // 로딩 상태: isPending(데이터 없음) 사용 — isLoading(isPending && isFetching)만 쓰면
+  // 캐시 제거 후 fetch 시작 전 순간에 빈 상태가 flash됨
+  if (isPending) {
     return (
       <div className="flex items-center justify-center h-40">
         <Loader2 className="w-6 h-6 animate-spin text-text-tertiary" />
@@ -231,6 +232,10 @@ function ChatListComponent({
           <div className="flex flex-col items-center justify-center h-full text-center px-4 gap-2">
             <SearchX className="w-8 h-8 text-text-tertiary" />
             <p className="text-text-secondary text-sm">검색 결과가 없습니다</p>
+          </div>
+        ) : filteredRooms.length === 0 && isFetching ? (
+          <div className="flex items-center justify-center h-full">
+            <Loader2 className="w-6 h-6 animate-spin text-text-tertiary" />
           </div>
         ) : filteredRooms.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4 gap-3">

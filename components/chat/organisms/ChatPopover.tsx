@@ -386,7 +386,7 @@ function ChatPopoverComponent({
             !isKeyboardOpen && "pb-[env(safe-area-inset-bottom)]",
           )}
           style={{
-            height: isKeyboardOpen ? `${viewportHeight}px` : "100dvh",
+            height: isKeyboardOpen ? `${viewportHeight}px` : "100svh",
           }}
         >
           {view === "list" && listHeader}
