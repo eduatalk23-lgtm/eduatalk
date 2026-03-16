@@ -1148,8 +1148,9 @@ export function useChatRealtime({
         { event: "MEMBER_UPDATE" },
         (event: { payload: BroadcastPayload }) => {
           const member = extractRecord<{ left_at: string | null; user_id: string }>(event.payload);
-          if (member && member.left_at !== null) {
-            debugLog("[ChatRealtime] Member left room:", member.user_id);
+          if (member) {
+            const action = member.left_at !== null ? "left" : "rejoined";
+            debugLog(`[ChatRealtime] Member ${action} room:`, member.user_id);
             queryClient.invalidateQueries({ queryKey: chatKeys.room(roomId) });
           }
         }
@@ -1481,16 +1482,18 @@ export function useChatRoomListRealtime({
           invalidateRoomList();
         }
       )
-      // 멤버십 변경 (나가기 등) - markAsRead의 last_read_at 업데이트는 무시
+      // 멤버십 변경 (나가기/재참여) - markAsRead의 last_read_at 업데이트는 무시
+      // DB trigger는 left_at 컬럼 변경 시에만 발화 (broadcast_chat_members)
       .on(
         "broadcast",
         { event: "UPDATE" },
         (event: { payload: BroadcastPayload }) => {
           const record = extractRecord<{ left_at?: string | null }>(event.payload);
-          // left_at 변경(나가기)만 처리, last_read_at 변경(읽음 처리)은 무시
-          // → markAsReadMutation의 onMutate가 이미 낙관적 업데이트 처리함
-          if (record?.left_at !== undefined && record.left_at !== null) {
-            debugLog("[ChatRealtime] Member left room, refreshing list");
+          // left_at 변경(나가기 또는 재참여)만 처리
+          // DB trigger가 left_at 컬럼 변경 시에만 발화하므로 추가 필터 불필요
+          if (record?.left_at !== undefined) {
+            const action = record.left_at !== null ? "left" : "rejoined";
+            debugLog(`[ChatRealtime] Member ${action} room, refreshing list`);
             invalidateRoomList();
           }
         }

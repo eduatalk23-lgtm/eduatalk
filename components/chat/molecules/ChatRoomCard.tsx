@@ -119,6 +119,7 @@ function ChatRoomCardComponent({
             name={room.otherUser.name}
             src={room.otherUser.profileImageUrl}
             size="md"
+            className={room.otherUser.hasLeft ? "opacity-50 grayscale" : undefined}
           />
         ) : (
           <GroupAvatar members={room.memberPreviews} size={40} />

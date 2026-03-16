@@ -22,6 +22,7 @@ import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
 import { addNetworkStatusListener, isOnline } from "@/lib/offline/networkStatus";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { chatKeys } from "@/lib/domains/chat/queryKeys";
+import { evictRoom } from "@/lib/domains/chat/localCache";
 import type { ChatRoomListItem, ChatUserType } from "@/lib/domains/chat/types";
 
 interface ChatListProps {
@@ -89,6 +90,7 @@ function ChatListComponent({
       const { error } = await supabase.rpc("leave_chat_room", { p_room_id: roomId });
       if (!error) {
         queryClient.invalidateQueries({ queryKey: chatKeys.rooms() });
+        evictRoom(roomId).catch(() => {});
       }
     },
     [queryClient]

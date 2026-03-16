@@ -4,6 +4,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type {
   ChatRoom,
   ChatRoomMemberWithUser,
+  ChatUser,
   PinnedMessageWithContent,
   AnnouncementInfo,
 } from "@/lib/domains/chat/types";
@@ -27,7 +28,12 @@ export function chatRoomDetailQueryOptions(roomId: string) {
       });
       if (error) throw new Error(error.message);
       if (!data) throw new Error("채팅방 정보가 없습니다");
-      return data as { room: ChatRoom; members: ChatRoomMemberWithUser[]; otherMemberLeft: boolean };
+      return data as {
+        room: ChatRoom;
+        members: ChatRoomMemberWithUser[];
+        otherMemberLeft: boolean;
+        leftOtherMember?: ChatUser | null;
+      };
     },
     staleTime: 5 * 60 * 1000, // 5분 (Realtime이 변경사항 관리, 기존 1분 → 5분)
   });

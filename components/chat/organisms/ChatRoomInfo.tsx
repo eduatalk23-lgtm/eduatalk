@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/atoms/Skeleton";
 import { Tabs, TabPanel } from "@/components/molecules/Tabs";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { chatKeys } from "@/lib/domains/chat/queryKeys";
+import { evictRoom } from "@/lib/domains/chat/localCache";
 import type { ChatRoom, ChatRoomMemberWithUser, ChatMemberRole, ChatAttachment } from "@/lib/domains/chat/types";
 import { cn } from "@/lib/cn";
 import { UserPlus, LogOut, Crown, Shield, Loader2, Users, FolderOpen, Archive, Bell, BellOff } from "lucide-react";
@@ -99,10 +100,11 @@ function ChatRoomInfoComponent({
       const supabase = createSupabaseBrowserClient();
       const { error } = await supabase.rpc("leave_chat_room", { p_room_id: roomId });
       if (!error) {
-        // 캐시 정리 (백그라운드에서 진행)
+        // 캐시 정리 (React Query + IndexedDB)
         queryClient.invalidateQueries({ queryKey: chatKeys.rooms() });
         queryClient.removeQueries({ queryKey: chatKeys.messages(roomId) });
         queryClient.removeQueries({ queryKey: chatKeys.room(roomId) });
+        evictRoom(roomId).catch(() => {});
 
         // 성공 메시지 표시
         showSuccess("채팅방을 나갔습니다.");

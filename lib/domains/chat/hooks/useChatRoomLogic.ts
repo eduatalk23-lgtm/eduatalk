@@ -116,6 +116,7 @@ export interface UseChatRoomLogicReturn {
     typingUsers: PresenceUser[];
     members: ChatRoomMemberWithUser[];
     otherMemberLeft: boolean;
+    leftOtherMember?: ChatUser | null;
   };
   permissions: {
     canPin: boolean;
@@ -2093,6 +2094,7 @@ export function useChatRoomLogic({
       typingUsers,
       members: roomData?.members ?? [],
       otherMemberLeft: roomData?.otherMemberLeft ?? false,
+      leftOtherMember: roomData?.leftOtherMember ?? null,
     },
     permissions: {
       canPin,

@@ -356,6 +356,8 @@ export interface ChatUser {
   schoolName?: string | null;
   /** 학생인 경우 학년 표시 (예: "고2") */
   gradeDisplay?: string | null;
+  /** 1:1 채팅에서 상대방이 나간 경우 true */
+  hasLeft?: boolean;
 }
 
 /** 채팅방 목록 그룹 아바타용 멤버 프리뷰 */
