@@ -16,6 +16,7 @@ export const StyledInput = React.forwardRef<HTMLInputElement, StyledInputProps>(
     return (
       <div className="relative mb-2">
         <input
+          suppressHydrationWarning
           type={type}
           className={cn(
             "peer w-full rounded-xl border border-neutral-200 bg-white/50 px-4 pb-2 pt-6 text-base outline-none transition-all duration-200",

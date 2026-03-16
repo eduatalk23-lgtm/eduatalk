@@ -78,7 +78,7 @@ export function LoginForm() {
       </div>
 
       {/* ⛔ 여기‼ 절대로 action= 넣으면 안 됨 */}
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form suppressHydrationWarning onSubmit={handleSubmit} className="flex flex-col gap-4">
         <StyledInput
           label="이메일"
           type="email"
