@@ -10,6 +10,7 @@ import { GlobalErrorBoundary } from "@/components/errors/GlobalErrorBoundary";
 import { SplashDismisser } from "@/components/pwa/SplashDismisser";
 import { DeferredWidgets } from "@/components/layout/DeferredWidgets";
 import NextTopLoader from "nextjs-toploader";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -272,6 +273,7 @@ export default async function RootLayout({
             <DeferredWidgets />
           </Providers>
         </GlobalErrorBoundary>
+        <SpeedInsights />
       </body>
     </html>
   );
