@@ -22,7 +22,6 @@
 import { type ReactNode } from "react";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
 import type { TimeSlot } from "@/lib/types/plan-generation";
-import type { PrefetchedDockData } from "@/lib/domains/admin-plan/actions";
 import type { CalendarSettings } from "@/lib/domains/admin-plan/types";
 
 // Split contexts
@@ -95,8 +94,6 @@ interface AdminPlanProviderProps {
   calendarExclusions?: CalendarSettingsExclusion[];
   calendarCalculatedSchedule?: DailyScheduleInfo[];
   calendarDateTimeSlots?: Record<string, TimeSlot[]>;
-  /** SSR 프리페치된 Dock 데이터 */
-  initialDockData?: PrefetchedDockData;
   /** 뷰 모드 (admin: 관리자, student: 학생) */
   viewMode?: ViewMode;
   /** 현재 사용자 ID (권한 확인용) */
@@ -121,7 +118,6 @@ export function AdminPlanProvider({
   calendarExclusions,
   calendarCalculatedSchedule,
   calendarDateTimeSlots,
-  initialDockData,
   viewMode = "admin",
   currentUserId,
   selectedCalendarSettings,
@@ -138,7 +134,6 @@ export function AdminPlanProvider({
       calendarExclusions={calendarExclusions}
       calendarCalculatedSchedule={calendarCalculatedSchedule}
       calendarDateTimeSlots={calendarDateTimeSlots}
-      initialDockData={initialDockData}
       initialDate={initialDate}
       viewMode={viewMode}
       currentUserId={currentUserId}

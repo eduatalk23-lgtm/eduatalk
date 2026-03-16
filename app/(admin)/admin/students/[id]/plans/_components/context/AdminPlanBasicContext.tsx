@@ -5,7 +5,6 @@ import { useToast } from "@/components/ui/ToastProvider";
 import type { DailyScheduleInfo, CalendarPermission } from "@/lib/types/plan";
 import type { TimeSlot } from "@/lib/types/plan-generation";
 import type { PlanGroupSummary, CalendarSettingsExclusion } from "./AdminPlanContext";
-import type { PrefetchedDockData } from "@/lib/domains/admin-plan/actions";
 import type { CalendarSettings } from "@/lib/domains/admin-plan/types";
 import {
   getCalendarPermission,
@@ -36,8 +35,6 @@ export interface AdminPlanBasicContextValue {
   calendarDateTimeSlots?: Record<string, TimeSlot[]>;
   canCreatePlans: boolean;
   toast: ReturnType<typeof useToast>;
-  /** SSR 프리페치된 Dock 데이터 */
-  initialDockData?: PrefetchedDockData;
   /** SSR 프리페치 시점의 초기 날짜 */
   initialDate: string;
   /** 뷰 모드 (admin: 관리자, student: 학생) */
@@ -75,7 +72,6 @@ interface AdminPlanBasicProviderProps {
   calendarExclusions?: CalendarSettingsExclusion[];
   calendarCalculatedSchedule?: DailyScheduleInfo[];
   calendarDateTimeSlots?: Record<string, TimeSlot[]>;
-  initialDockData?: PrefetchedDockData;
   /** SSR 프리페치 시점의 초기 날짜 */
   initialDate: string;
   /** 뷰 모드 (admin: 관리자, student: 학생) */
@@ -98,7 +94,6 @@ export function AdminPlanBasicProvider({
   calendarExclusions,
   calendarCalculatedSchedule,
   calendarDateTimeSlots,
-  initialDockData,
   initialDate,
   viewMode = "admin",
   currentUserId,
@@ -139,7 +134,6 @@ export function AdminPlanBasicProvider({
       calendarDateTimeSlots,
       canCreatePlans,
       toast,
-      initialDockData,
       initialDate,
       viewMode,
       isAdminMode,
@@ -163,7 +157,6 @@ export function AdminPlanBasicProvider({
       calendarDateTimeSlots,
       canCreatePlans,
       toast,
-      initialDockData,
       initialDate,
       viewMode,
       isAdminMode,

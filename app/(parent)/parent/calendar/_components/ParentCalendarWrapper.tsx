@@ -133,7 +133,6 @@ export function ParentCalendarWrapper({
           calendarExclusions={pageData.calendarExclusions}
           calendarCalculatedSchedule={pageData.calendarCalculatedSchedule}
           calendarDateTimeSlots={pageData.calendarDateTimeSlots}
-          initialDockData={pageData.initialDockData}
           viewMode="parent"
           selectedCalendarSettings={pageData.calendarSettings}
           studentSwitcher={

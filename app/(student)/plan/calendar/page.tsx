@@ -70,7 +70,6 @@ export default async function PlanCalendarPage({
         calendarExclusions={pageData.calendarExclusions}
         calendarCalculatedSchedule={pageData.calendarCalculatedSchedule}
         calendarDateTimeSlots={pageData.calendarDateTimeSlots}
-        initialDockData={pageData.initialDockData}
         viewMode="student"
         currentUserId={userId}
         selectedCalendarSettings={pageData.calendarSettings}

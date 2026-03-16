@@ -1,12 +1,10 @@
 "use server";
 
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { prefetchAllDockData } from '@/lib/domains/admin-plan/actions/dockPrefetch';
 import { getTodayInTimezone } from '@/lib/utils/dateUtils';
 import { getCachedCalendarSettings } from '@/lib/cache/calendarCache';
 import type { DailyScheduleInfo } from '@/lib/types/plan';
 import type { TimeSlot } from '@/lib/types/plan-generation';
-import type { PrefetchedDockData } from '@/lib/domains/admin-plan/actions/dockPrefetch';
 import type { CalendarSettings } from '@/lib/domains/admin-plan/types';
 
 export interface PlanGroupSummaryData {
@@ -31,17 +29,15 @@ export interface CalendarPageData {
     exclusionType: string;
     reason?: string | null;
   }>;
-  initialDockData?: PrefetchedDockData;
 }
 
 /**
  * 관리자 캘린더 페이지에 필요한 모든 데이터를 조회합니다.
  *
- * 스케줄 계산(generateScheduleForCalendar)은 페이지 렌더에 불필요:
- * - CalendarTab은 calendarCalculatedSchedule이 없으면 plan_groups.daily_schedule로 폴백
- * - 스케줄 계산은 플랜 생성 시에만 필요, 캘린더 뷰에는 불필요
- * - 이전: settings → schedule 계산(4~5초) → 렌더
- * - 개선: settings + planGroups + dock 병렬 조회(~500ms) → 즉시 렌더
+ * Dock 데이터(학습 플랜, 비학습시간)는 SSR 프리페치하지 않음:
+ * - DailyDock은 calendar_events를 React Query로 클라이언트에서 직접 조회
+ * - 기존 student_plan 기반 SSR 프리페치는 데이터 소스 불일치로 사용되지 않았음
+ * - 제거로 서버 DB 쿼리 2개 절감 → TTFB ~200-500ms 개선
  */
 export async function fetchCalendarPageData(
   studentId: string,
@@ -51,8 +47,8 @@ export async function fetchCalendarPageData(
   const supabase = await createSupabaseServerClient();
   const targetDate = dateOverride ?? getTodayInTimezone();
 
-  // settings + planGroups + dock 모두 즉시 병렬 시작
-  const [calendarSettings, { data: calendarGroups }, initialDockData] = await Promise.all([
+  // settings + planGroups 병렬 조회 (dock 프리페치 제거)
+  const [calendarSettings, { data: calendarGroups }] = await Promise.all([
     getCachedCalendarSettings(calendarId),
     supabase
       .from('plan_groups')
@@ -62,7 +58,6 @@ export async function fetchCalendarPageData(
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(20),
-    prefetchAllDockData(studentId, targetDate, calendarId),
   ]);
 
   const allPlanGroups: PlanGroupSummaryData[] = (calendarGroups ?? []).map((g) => ({
@@ -90,13 +85,11 @@ export async function fetchCalendarPageData(
   return {
     calendarSettings,
     targetDate,
-    // 스케줄 계산 생략 → CalendarTab이 calendarDailySchedules로 폴백
     calendarCalculatedSchedule: undefined,
     calendarDateTimeSlots: undefined,
     allPlanGroups,
     activePlanGroupId,
     calendarDailySchedules,
     calendarExclusions,
-    initialDockData,
   };
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useCallback } from 'react';
+import { useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { DailyDock } from './DailyDock';
 import { SearchResultsView } from './calendar-views/SearchResultsView';
@@ -62,8 +62,6 @@ export function CalendarMainContent({
     selectedCalendarId,
     calendarDateTimeSlots,
     calendarExclusions,
-    initialDockData,
-    initialDate,
   } = useAdminPlanBasic();
 
   const {
@@ -85,15 +83,6 @@ export function CalendarMainContent({
     handleOpenEventEditNew,
     handleOpenConsultationEditNew,
   } = useAdminPlanActions();
-
-  // DailyDock initialData (날짜 변경 시 undefined)
-  const useInitialData = selectedDate === initialDate;
-  const dailyInitialData = useMemo(() => {
-    if (!useInitialData) return undefined;
-    return {
-      plans: initialDockData?.dailyPlans,
-    };
-  }, [useInitialData, initialDockData?.dailyPlans]);
 
   const isMobile = useIsMobile();
   const { swipeHandlers } = useCalendarSwipeNavigation({
@@ -159,7 +148,7 @@ export function CalendarMainContent({
           onRefresh={handleRefresh}
           onRefreshDailyAndWeekly={refreshDailyAndWeekly}
           onCreatePlanAtSlot={handleCreatePlanAtSlot}
-          initialData={dailyInitialData}
+          initialData={undefined}
           onDateChange={handleDateChange}
           calendarView={calendarView}
           onCalendarViewChange={onCalendarViewChange}

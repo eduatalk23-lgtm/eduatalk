@@ -74,7 +74,6 @@ export default async function CalendarPlanManagementPage({
         calendarExclusions={pageData.calendarExclusions}
         calendarCalculatedSchedule={pageData.calendarCalculatedSchedule}
         calendarDateTimeSlots={pageData.calendarDateTimeSlots}
-        initialDockData={pageData.initialDockData}
         viewMode="admin"
         currentUserId={currentUser?.userId}
         selectedCalendarSettings={pageData.calendarSettings}

@@ -83,13 +83,9 @@ export async function fetchCalendarPageDataAsAdmin(
       reason: exc.reason,
     })) ?? [];
 
-  // 4. Dock 데이터 프리페치
-  const initialDockData = await prefetchAllDockDataAdmin(
-    adminClient,
-    studentId,
-    targetDate,
-    calendarId
-  );
+  // Dock 데이터 SSR 프리페치 제거:
+  // DailyDock은 calendar_events를 React Query로 클라이언트에서 직접 조회하므로
+  // student_plan 기반 SSR 프리페치는 사용되지 않음 (데이터 소스 불일치)
 
   return {
     calendarSettings,
@@ -100,7 +96,6 @@ export async function fetchCalendarPageDataAsAdmin(
     activePlanGroupId,
     calendarDailySchedules,
     calendarExclusions,
-    initialDockData,
   };
 }
 
