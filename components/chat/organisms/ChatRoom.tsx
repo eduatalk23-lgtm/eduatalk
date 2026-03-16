@@ -497,6 +497,45 @@ function ChatRoomComponent({
     isAtBottomRef.current = isAtBottom;
   }, [isAtBottom]);
 
+  // scaleY(-1) 반전 리스트: "시각적 최하단" = scrollTop ≈ 0.
+  // Virtuoso의 atBottomStateChange 대신 스크롤 이벤트로 직접 감지.
+  // 스크롤 리스너는 VirtuosoScroller ref 콜백에서 설정 (Virtuoso 마운트 타이밍 보장).
+  const AT_BOTTOM_THRESHOLD = 100;
+  const scrollListenerCleanupRef = useRef<(() => void) | null>(null);
+
+  const attachScrollListener = useCallback((el: HTMLDivElement | null) => {
+    // 기존 리스너 정리
+    scrollListenerCleanupRef.current?.();
+    scrollListenerCleanupRef.current = null;
+
+    if (!el) return;
+
+    let rafId: number | null = null;
+    const handleScroll = () => {
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const visuallyAtBottom = el.scrollTop < AT_BOTTOM_THRESHOLD;
+        if (visuallyAtBottom !== isAtBottomRef.current) {
+          dispatch({ type: "SET_AT_BOTTOM", value: visuallyAtBottom });
+          modeBottomChangeRef.current?.(visuallyAtBottom);
+        }
+      });
+    };
+
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    scrollListenerCleanupRef.current = () => {
+      el.removeEventListener("scroll", handleScroll);
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, []);
+
+  const attachScrollListenerRef = useRef(attachScrollListener);
+  attachScrollListenerRef.current = attachScrollListener;
+
+  // cleanup on unmount
+  useEffect(() => () => { scrollListenerCleanupRef.current?.(); }, []);
+
   // 하이라이트 타이머 cleanup
   useEffect(() => {
     const timers = highlightTimersRef.current;
@@ -514,26 +553,29 @@ function ChatRoomComponent({
   // 스크롤 핸들러
   // ============================================
   const scrollToBottom = useCallback(() => {
-    const v = virtuosoRef.current;
-    if (!v) return;
+    // scaleY(-1) 반전: scrollTop=0 = 시각적 최하단
+    const el = scrollerElRef.current;
+    if (el) {
+      el.scrollTo({ top: 0, behavior: "smooth" });
+    }
 
-    v.scrollToIndex({ index: 0, behavior: "smooth" });
-
-    // 안전망: Virtuoso가 measurement 중이면 scrollToIndex가 무시될 수 있음
-    // 200ms 후 여전히 하단이 아니면 재시도 (auto로 즉시 이동)
+    // 안전망: smooth 스크롤 미완료 시 강제 이동
     setTimeout(() => {
-      if (!isAtBottomRef.current) {
-        virtuosoRef.current?.scrollToIndex({ index: 0, behavior: "auto" });
+      if (scrollerElRef.current && scrollerElRef.current.scrollTop > AT_BOTTOM_THRESHOLD) {
+        scrollerElRef.current.scrollTop = 0;
       }
-    }, 200);
+    }, 300);
   }, []);
 
   // modeBottomChange는 useChatMode에서 나오지만 선언 순서가 뒤이므로 ref로 안정화
   const modeBottomChangeRef = useRef<((atBottom: boolean) => void) | null>(null);
 
-  const handleAtBottomChange = useCallback((atBottom: boolean) => {
-    dispatch({ type: "SET_AT_BOTTOM", value: atBottom });
-    modeBottomChangeRef.current?.(atBottom); // archive→live 자동 전환
+  // scaleY(-1) 반전 리스트: Virtuoso의 atBottom = DOM bottom = 시각적 최상단.
+  // "시각적 최하단"(최신 메시지) 감지는 scrollTop ≈ 0 기반으로 별도 처리.
+  // Virtuoso의 atBottomStateChange는 무시하고, 스크롤 이벤트로 직접 감지.
+  const handleAtBottomChange = useCallback((_atBottom: boolean) => {
+    // Virtuoso의 atBottom은 scaleY(-1)에서 의미가 반전되므로 무시.
+    // 실제 "시각적 최하단" 감지는 아래 스크롤 핸들러에서 처리.
   }, []);
 
   // ============================================
@@ -546,10 +588,12 @@ function ChatRoomComponent({
   // ============================================
   // Virtuoso props 메모이제이션 (매 렌더마다 새 참조 → Virtuoso 내부 재처리 방지)
   // ============================================
-  const handleFollowOutput = useCallback((atBottom: boolean) => {
-    // 키보드 전환 중에는 followOutput 억제 → 안정화 후 명시적 scrollToIndex로 처리
-    if (isKeyboardTransitioning.current) return false;
-    return atBottom ? ("auto" as const) : false;
+  const handleFollowOutput = useCallback((_atBottom: boolean) => {
+    // scaleY(-1) 반전 리스트:
+    // - Virtuoso의 followOutput은 END 추가 시 트리거 = 과거 메시지 pagination
+    // - 새 메시지는 START에 prepend → followOutput 미트리거
+    // - 과거 메시지 로딩 시 자동 스크롤 불필요 → 항상 false
+    return false;
   }, []);
 
   // ScrollSeek 워밍업: 마운트 직후 Virtuoso가 아이템 높이를 아직 측정하지 않은 상태에서
@@ -647,11 +691,10 @@ function ChatRoomComponent({
 
   const handleSend = useCallback((content: string, mentions?: import("@/lib/domains/chat/types").MentionInfo[]) => {
     sendMessageRef.current(content, replyTargetRef.current?.id, mentions);
-    if (!isAtBottomRef.current) {
-      requestAnimationFrame(() => {
-        virtuosoRef.current?.scrollToIndex({ index: 0, behavior: "smooth" });
-      });
-    }
+    // 전송 후 최하단으로 스크롤 (scaleY(-1): scrollTop=0 = visual bottom)
+    requestAnimationFrame(() => {
+      if (scrollerElRef.current) scrollerElRef.current.scrollTop = 0;
+    });
   }, []);
 
   const handleCancelReply = useCallback(() => setReplyTarget(null), [setReplyTarget]);
@@ -840,17 +883,27 @@ function ChatRoomComponent({
   const initialScrollIndex = initialScrollIndexRef.current ?? 0;
 
   // Inverted List: 데이터 로드 후 최신 메시지(index 0)로 스크롤
-  // initialTopMostItemIndex는 마운트 시 1회만 적용되므로,
-  // 데이터가 비어있다가 채워지면 명시적 스크롤 필요.
+  // scaleY(-1) 반전 리스트에서 scrollTop=0 = 시각적 최하단(최신 메시지).
+  // initialTopMostItemIndex는 빈 데이터로 마운트되면 무효화되므로,
+  // 데이터 도착 후 직접 scrollTop=0 강제 설정.
+  // NOTE: reversedMessages는 아래에서 선언되므로 messages.length 사용.
   const initialScrollAppliedRef = useRef(false);
   useEffect(() => {
-    if (initialScrollAppliedRef.current || reversedMessages.length === 0) return;
+    if (initialScrollAppliedRef.current || messages.length === 0) return;
     initialScrollAppliedRef.current = true;
-    // live 모드: 최신 메시지(reversed index 0)로 스크롤
+
     if (modeState.mode === "live") {
-      // 약간의 지연 후 스크롤 (Virtuoso 내부 초기화 대기)
+      // 즉시 scrollTop=0 (scaleY(-1)에서 visual bottom)
+      const el = scrollerElRef.current;
+      if (el) el.scrollTop = 0;
+
+      // Virtuoso 내부 레이아웃 완료 후 재확인 (rAF x2)
       requestAnimationFrame(() => {
-        virtuosoRef.current?.scrollToIndex({ index: 0, behavior: "auto" });
+        if (scrollerElRef.current) scrollerElRef.current.scrollTop = 0;
+        requestAnimationFrame(() => {
+          if (scrollerElRef.current) scrollerElRef.current.scrollTop = 0;
+          virtuosoRef.current?.scrollToIndex({ index: 0, behavior: "auto" });
+        });
       });
     }
   }, [messages.length, modeState.mode]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1311,6 +1364,10 @@ function ChatRoomComponent({
     const focusedId = focusedMessageIdRef.current;
     if (msgs.length === 0) return;
 
+    // Inverted list: msgs는 oldest→newest, Virtuoso data는 reversed (newest→oldest).
+    // original index → reversed index 변환 필요.
+    const toReversedIdx = (originalIdx: number) => msgs.length - 1 - originalIdx;
+
     switch (e.key) {
       case "ArrowUp": {
         e.preventDefault();
@@ -1323,7 +1380,7 @@ function ChatRoomComponent({
           setFocusedMessageId(prevMsg.id);
           const el = messageRefs.current.get(prevMsg.id);
           if (el) el.focus();
-          else virtuosoRef.current?.scrollToIndex({ index: prevIdx, behavior: "auto" });
+          else virtuosoRef.current?.scrollToIndex({ index: toReversedIdx(prevIdx), behavior: "auto" });
         }
         break;
       }
@@ -1338,7 +1395,7 @@ function ChatRoomComponent({
           setFocusedMessageId(nextMsg.id);
           const el = messageRefs.current.get(nextMsg.id);
           if (el) el.focus();
-          else virtuosoRef.current?.scrollToIndex({ index: nextIdx, behavior: "auto" });
+          else virtuosoRef.current?.scrollToIndex({ index: toReversedIdx(nextIdx), behavior: "auto" });
         }
         break;
       }
@@ -1346,7 +1403,8 @@ function ChatRoomComponent({
         e.preventDefault();
         if (msgs.length > 0) {
           setFocusedMessageId(msgs[0].id);
-          virtuosoRef.current?.scrollToIndex({ index: 0, behavior: "auto" });
+          // oldest message = reversed 배열의 마지막
+          virtuosoRef.current?.scrollToIndex({ index: msgs.length - 1, behavior: "auto" });
         }
         break;
       case "End":
@@ -1354,7 +1412,8 @@ function ChatRoomComponent({
         if (msgs.length > 0) {
           const last = msgs[msgs.length - 1];
           setFocusedMessageId(last.id);
-          virtuosoRef.current?.scrollToIndex({ index: 0, behavior: "auto" });
+          // newest message = reversed 배열의 첫 번째 (scrollTop=0)
+          if (scrollerElRef.current) scrollerElRef.current.scrollTop = 0;
         }
         break;
       case "Escape":
@@ -1424,6 +1483,8 @@ function ChatRoomComponent({
               ref={(el) => {
                 // scrollerElRef 캡처 (관성 스크롤 freeze용)
                 scrollerElRef.current = el;
+                // scaleY(-1) 반전 리스트: 스크롤 기반 "시각적 최하단" 감지
+                attachScrollListenerRef.current(el);
                 // Virtuoso가 전달한 ref도 연결
                 if (typeof ref === "function") ref(el);
                 else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = el;
