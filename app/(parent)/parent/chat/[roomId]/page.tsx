@@ -12,7 +12,7 @@ import {
   getMessagesWithReadStatusAction,
   getChatRoomDetailAction,
 } from "@/lib/domains/chat/actions";
-import { chatPinnedQueryOptions, chatAnnouncementQueryOptions, chatCanPinQueryOptions, chatCanSetAnnouncementQueryOptions } from "@/lib/query-options/chatRoom";
+import { chatPinnedQueryOptions, chatAnnouncementQueryOptions, chatPermissionsQueryOptions } from "@/lib/query-options/chatRoom";
 import { ParentChatRoomPage } from "./_components/ParentChatRoomPage";
 
 export const metadata = {
@@ -34,7 +34,7 @@ export default async function ParentChatRoomPageRoute({ params }: PageProps) {
   // SSR 프리패칭 (non-blocking: HTML 스트리밍과 병렬, 실패 시 클라이언트에서 재시도)
   // 메시지/방 상세는 Server Action으로 프리패칭 (클라이언트는 RPC queryFn 사용, queryKey 동일 → hydration 정상)
   const queryClient = getQueryClient();
-  void queryClient.prefetchInfiniteQuery({
+  queryClient.prefetchInfiniteQuery({
     queryKey: chatKeys.messages(roomId),
     queryFn: async () => {
       const result = await getMessagesWithReadStatusAction(roomId, { limit: 50 });
@@ -42,19 +42,26 @@ export default async function ParentChatRoomPageRoute({ params }: PageProps) {
       return result.data;
     },
     initialPageParam: undefined,
+  }).catch((err) => {
+    if (process.env.NODE_ENV === "development") {
+      console.error("[SSR prefetch] messages failed:", err);
+    }
   });
-  void queryClient.prefetchQuery({
+  queryClient.prefetchQuery({
     queryKey: chatKeys.room(roomId),
     queryFn: async () => {
       const result = await getChatRoomDetailAction(roomId);
       if (!result.success) throw new Error(result.error ?? "채팅방 정보 조회 실패");
       return result.data;
     },
+  }).catch((err) => {
+    if (process.env.NODE_ENV === "development") {
+      console.error("[SSR prefetch] room detail failed:", err);
+    }
   });
   void queryClient.prefetchQuery(chatPinnedQueryOptions(roomId));
   void queryClient.prefetchQuery(chatAnnouncementQueryOptions(roomId));
-  void queryClient.prefetchQuery(chatCanPinQueryOptions(roomId));
-  void queryClient.prefetchQuery(chatCanSetAnnouncementQueryOptions(roomId));
+  void queryClient.prefetchQuery(chatPermissionsQueryOptions(roomId));
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>

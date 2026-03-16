@@ -17,14 +17,18 @@ interface ChatFABProps {
   isOpen: boolean;
   unreadCount: number;
   onClick: () => void;
+  /** hover/touch 시 방 목록 사전 로딩 */
+  onPrefetch?: () => void;
 }
 
-function ChatFABComponent({ isOpen, unreadCount, onClick }: ChatFABProps) {
+function ChatFABComponent({ isOpen, unreadCount, onClick, onPrefetch }: ChatFABProps) {
   return (
     <motion.button
       type="button"
       data-chat-fab
       onClick={onClick}
+      onMouseEnter={onPrefetch}
+      onTouchStart={onPrefetch}
       whileTap={{ scale: 0.9 }}
       className={cn(
         "fixed z-[45] flex items-center justify-center rounded-full shadow-lg transition-colors",

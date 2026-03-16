@@ -75,7 +75,7 @@ export function chatAnnouncementQueryOptions(roomId: string) {
  */
 export function chatPermissionsQueryOptions(roomId: string) {
   return queryOptions({
-    queryKey: ["chat-permissions", roomId] as const,
+    queryKey: chatKeys.permissions(roomId),
     queryFn: async () => {
       const supabase = createSupabaseBrowserClient();
       const { data, error } = await supabase.rpc("check_chat_permissions", {
@@ -91,40 +91,3 @@ export function chatPermissionsQueryOptions(roomId: string) {
   });
 }
 
-/**
- * @deprecated canPin + canSetAnnouncement은 chatPermissionsQueryOptions로 통합됨.
- * 기존 코드 호환을 위해 유지하나, chatPermissionsQueryOptions 사용 권장.
- */
-export function chatCanPinQueryOptions(roomId: string) {
-  return queryOptions({
-    queryKey: chatKeys.canPin(roomId),
-    queryFn: async () => {
-      const supabase = createSupabaseBrowserClient();
-      const { data, error } = await supabase.rpc("check_chat_permissions", {
-        p_room_id: roomId,
-      });
-      if (error) return { canPin: false };
-      return { canPin: (data as { canPin: boolean })?.canPin ?? false };
-    },
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
-/**
- * @deprecated canPin + canSetAnnouncement은 chatPermissionsQueryOptions로 통합됨.
- * 기존 코드 호환을 위해 유지하나, chatPermissionsQueryOptions 사용 권장.
- */
-export function chatCanSetAnnouncementQueryOptions(roomId: string) {
-  return queryOptions({
-    queryKey: chatKeys.canSetAnnouncement(roomId),
-    queryFn: async () => {
-      const supabase = createSupabaseBrowserClient();
-      const { data, error } = await supabase.rpc("check_chat_permissions", {
-        p_room_id: roomId,
-      });
-      if (error) return { canSet: false };
-      return { canSet: (data as { canSetAnnouncement: boolean })?.canSetAnnouncement ?? false };
-    },
-    staleTime: 5 * 60 * 1000,
-  });
-}

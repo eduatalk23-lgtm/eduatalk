@@ -21,8 +21,7 @@ import {
   chatRoomDetailQueryOptions,
   chatPinnedQueryOptions,
   chatAnnouncementQueryOptions,
-  chatCanPinQueryOptions,
-  chatCanSetAnnouncementQueryOptions,
+  chatPermissionsQueryOptions,
 } from "@/lib/query-options/chatRoom";
 import {
   registerChatAttachmentAction,
@@ -117,6 +116,7 @@ export interface UseChatRoomLogicReturn {
   };
   status: {
     isLoading: boolean;
+    fetchStatus: "fetching" | "paused" | "idle";
     isSending: boolean;
     isEditing: boolean;
     isDeleting: boolean;
@@ -252,18 +252,13 @@ export function useChatRoomLogic({
   // 고정 메시지 목록 조회 (SSR prefetch 활용)
   const { data: pinnedMessages = [] } = useQuery(chatPinnedQueryOptions(roomId));
 
-  // 고정 권한 확인 (SSR prefetch 활용, staleTime 5분)
-  const { data: canPinData } = useQuery(chatCanPinQueryOptions(roomId));
-
-  const canPin = canPinData?.canPin ?? false;
+  // 고정/공지 권한 확인 (1 RPC로 통합, SSR prefetch 활용, staleTime 5분)
+  const { data: permissionsData } = useQuery(chatPermissionsQueryOptions(roomId));
+  const canPin = permissionsData?.canPin ?? false;
+  const canSetAnnouncement = permissionsData?.canSetAnnouncement ?? false;
 
   // 공지 조회 (SSR prefetch 활용)
   const { data: announcementData } = useQuery(chatAnnouncementQueryOptions(roomId));
-
-  // 공지 설정 권한 확인 (SSR prefetch 활용, staleTime 5분)
-  const { data: canSetAnnouncementData } = useQuery(chatCanSetAnnouncementQueryOptions(roomId));
-
-  const canSetAnnouncement = canSetAnnouncementData?.canSet ?? false;
 
   // 고정된 메시지 ID Set (빠른 조회용)
   const pinnedMessageIds = useMemo(
@@ -277,6 +272,7 @@ export function useChatRoomLogic({
     data: messagesData,
     isLoading,
     error,
+    fetchStatus,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -2031,6 +2027,7 @@ export function useChatRoomLogic({
     },
     status: {
       isLoading,
+      fetchStatus,
       isSending: sendMutation.isPending,
       isEditing: editMutation.isPending,
       isDeleting: deleteMutation.isPending,

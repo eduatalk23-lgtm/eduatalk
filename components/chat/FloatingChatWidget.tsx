@@ -9,14 +9,16 @@
  * - 패널 닫힘 상태에서도 실시간 구독으로 배지 업데이트
  */
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { useChatRoomListRealtime } from "@/lib/realtime";
 import { useTotalUnreadCount } from "@/lib/domains/chat/hooks/useTotalUnreadCount";
 import { useTitleNotification } from "@/lib/hooks/useTitleNotification";
+import { chatRoomsQueryOptions } from "@/lib/query-options/chatRooms";
 import { ChatFAB } from "./atoms/ChatFAB";
 import { ChatPopover } from "./organisms/ChatPopover";
 import type { ChatUserType } from "@/lib/domains/chat/types";
@@ -70,6 +72,7 @@ function toChatUserType(role: string): ChatUserType | null {
 export function FloatingChatWidget() {
   const { user, isLoading } = useAuth();
   const pathname = usePathname();
+  const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
 
   // 역할 기반 설정
@@ -99,6 +102,13 @@ export function FloatingChatWidget() {
   // 백그라운드 탭 제목에 읽지 않은 메시지 수 표시
   useTitleNotification(unreadCount);
 
+  // FAB hover/touch 시 방 목록 사전 로딩 (popover 열기 전에 데이터 준비)
+  const handleFABPrefetch = useCallback(() => {
+    if (!isOpen) {
+      void queryClient.prefetchQuery(chatRoomsQueryOptions());
+    }
+  }, [isOpen, queryClient]);
+
   // 렌더링 조건 체크
   if (isLoading) return null;
   if (!user || !chatUserType) return null;
@@ -117,6 +127,7 @@ export function FloatingChatWidget() {
         isOpen={isOpen}
         unreadCount={unreadCount}
         onClick={() => setIsOpen((prev) => !prev)}
+        onPrefetch={handleFABPrefetch}
       />
 
       <AnimatePresence>

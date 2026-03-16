@@ -580,7 +580,7 @@ function ChatRoomComponent({
   } = useChatConnectionStatus(roomId);
   const { sendMessage, toggleReaction, togglePin, setAnnouncement, setTyping, retryMessage, removeFailedMessage } = actions;
   const {
-    isLoading, error,
+    isLoading, fetchStatus, error,
     hasNextPage, isFetchingNextPage, fetchNextPage,
     hasPreviousPage, isFetchingPreviousPage, fetchPreviousPage,
     refetch,
@@ -1511,18 +1511,24 @@ function ChatRoomComponent({
           </button>
         </div>
       ) : messages.length === 0 ? (
-        <div
-          className="flex-1 flex flex-col items-center justify-center text-center gap-1"
-          role="log"
-          aria-label="메시지 목록"
-        >
-          <p className="text-text-secondary text-sm">
-            아직 메시지가 없습니다
-          </p>
-          <p className="text-text-tertiary text-xs">
-            첫 메시지를 보내보세요!
-          </p>
-        </div>
+        fetchStatus === "fetching" ? (
+          <div className="flex-1 overflow-y-auto">
+            <MessageSkeleton count={3} />
+          </div>
+        ) : (
+          <div
+            className="flex-1 flex flex-col items-center justify-center text-center gap-1"
+            role="log"
+            aria-label="메시지 목록"
+          >
+            <p className="text-text-secondary text-sm">
+              아직 메시지가 없습니다
+            </p>
+            <p className="text-text-tertiary text-xs">
+              첫 메시지를 보내보세요!
+            </p>
+          </div>
+        )
       ) : (
         <div
           ref={messageListRef}

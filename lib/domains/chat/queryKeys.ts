@@ -56,11 +56,8 @@ export const chatKeys = {
   // 권한/설정
   // ============================================
 
-  /** 고정 권한 */
-  canPin: (roomId: string) => ["chat-can-pin", roomId] as const,
-
-  /** 공지 설정 권한 */
-  canSetAnnouncement: (roomId: string) => ["chat-can-set-announcement", roomId] as const,
+  /** 고정/공지 권한 (통합) */
+  permissions: (roomId: string) => ["chat-permissions", roomId] as const,
 
   /** 알림 설정 (소리/진동/읽음확인) */
   notificationPrefs: () => ["chat-notification-prefs"] as const,

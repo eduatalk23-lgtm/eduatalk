@@ -72,7 +72,8 @@ function ChatListComponent({
   const online = useSyncExternalStore(networkSubscribe, isOnline, () => true);
 
   // 채팅방 목록 조회 (SSR 프리패칭과 동일한 쿼리 옵션 사용)
-  const { data, isLoading, error } = useQuery(chatRoomsQueryOptions());
+  // currentUserId 전달 시 auth 가드 적용 (미인증 상태에서 RPC 호출 방지)
+  const { data, isLoading, error } = useQuery(chatRoomsQueryOptions(currentUserId));
 
   const handleRoomClick = (roomId: string) => {
     if (onRoomClick) {

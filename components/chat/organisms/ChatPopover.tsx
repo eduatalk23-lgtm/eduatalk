@@ -14,12 +14,14 @@
 
 import { memo, useState, useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
 import { X, ArrowLeft } from "lucide-react";
 import { ChatList } from "./ChatList";
 import { ChatRoom } from "./ChatRoom";
 import { MemberList } from "./MemberList";
 import { ChatSidebarTabs } from "../atoms/ChatSidebarTabs";
 import type { ChatSidebarTab } from "../atoms/ChatSidebarTabs";
+import { chatRoomDetailQueryOptions } from "@/lib/query-options/chatRoom";
 import { cn } from "@/lib/cn";
 import { lockScroll, unlockScroll } from "@/lib/utils/scrollLock";
 import { useVisualViewport } from "@/lib/hooks/useVisualViewport";
@@ -103,13 +105,15 @@ function ChatPopoverComponent({
   const [sidebarTab, setSidebarTab] = useState<ChatSidebarTab>("chat");
   const panelRef = useRef<HTMLDivElement>(null);
   const isDesktop = useIsDesktop();
+  const queryClient = useQueryClient();
   const { height: viewportHeight, isKeyboardOpen } = useVisualViewport();
 
-  // 채팅방 선택
+  // 채팅방 선택 (room detail 사전 로딩 후 뷰 전환)
   const handleRoomClick = useCallback((roomId: string) => {
+    void queryClient.prefetchQuery(chatRoomDetailQueryOptions(roomId));
     setSelectedRoomId(roomId);
     setView("room");
-  }, []);
+  }, [queryClient]);
 
   // 목록으로 돌아가기
   const handleBack = useCallback(() => {

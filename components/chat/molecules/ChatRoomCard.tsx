@@ -41,8 +41,8 @@ function ChatRoomCardComponent({
 }: ChatRoomCardProps) {
   const queryClient = useQueryClient();
 
-  // Hover 시 메시지 프리패칭 (캐시에 없을 때만)
-  const handleMouseEnter = useCallback(() => {
+  // Hover/Touch 시 메시지 프리패칭 (캐시에 없을 때만)
+  const handlePrefetch = useCallback(() => {
     const existingData = queryClient.getQueryData(chatKeys.messages(room.id));
 
     // 이미 캐시에 데이터가 있으면 스킵
@@ -95,7 +95,8 @@ function ChatRoomCardComponent({
     <button
       type="button"
       onClick={handleClick}
-      onMouseEnter={handleMouseEnter}
+      onMouseEnter={handlePrefetch}
+      onTouchStart={handlePrefetch}
       className={cn(
         "w-full flex items-center gap-3 p-3 rounded-xl",
         "transition-colors text-left",
