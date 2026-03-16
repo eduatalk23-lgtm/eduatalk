@@ -5,7 +5,6 @@ import {
   useContext,
   useState,
   useCallback,
-  useTransition,
   useEffect,
   useMemo,
   type ReactNode,
@@ -62,7 +61,6 @@ export interface AdminPlanFilterContextValue {
   refreshDailyAndWeekly: () => void;
   /** Daily + Unfinished 새로고침 (플랜 완료/취소 시) */
   refreshDailyAndUnfinished: () => void;
-  isPending: boolean;
 }
 
 const AdminPlanFilterContext = createContext<AdminPlanFilterContextValue | null>(null);
@@ -82,7 +80,6 @@ export function AdminPlanFilterProvider({
 }: AdminPlanFilterProviderProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const [isPending, startTransition] = useTransition();
   const { selectedCalendarId } = useAdminPlanBasic();
 
   // 상태 관리
@@ -157,6 +154,7 @@ export function AdminPlanFilterProvider({
   // React Query 타겟 캐시 무효화
   const {
     invalidateDaily,
+    invalidateDailyAndWeekly,
     invalidateOverdue,
     invalidateDailyAndOverdue,
     invalidateAll,
@@ -202,12 +200,12 @@ export function AdminPlanFilterProvider({
   );
 
   // 전체 새로고침 핸들러 (모든 Dock)
+  // React Query 캐시 무효화만 수행 (router.refresh 제거)
+  // - router.refresh()는 서버 컴포넌트를 재실행하여 이중 데이터 로딩 유발
+  // - React Query가 이미 모든 활성 쿼리를 리페치하므로 충분
   const handleRefresh = useCallback(() => {
     invalidateAll();
-    startTransition(() => {
-      router.refresh();
-    });
-  }, [router, invalidateAll]);
+  }, [invalidateAll]);
 
   // React Query 캐시만 무효화 (router.refresh 없이)
   // useTransition 내에서 호출 시 transition 간섭 없이 즉시 refetch 보장
@@ -220,10 +218,10 @@ export function AdminPlanFilterProvider({
     invalidateDaily(studentId, selectedDate, effectiveFilterId);
   }, [invalidateDaily, studentId, selectedDate, effectiveFilterId]);
 
-  // Daily 새로고침 (플랜 이동 시)
+  // Daily + Weekly 새로고침 (플랜 이동 시)
   const refreshDailyAndWeekly = useCallback(() => {
-    invalidateDaily(studentId, selectedDate, effectiveFilterId);
-  }, [invalidateDaily, studentId, selectedDate, effectiveFilterId]);
+    invalidateDailyAndWeekly(studentId, selectedDate, effectiveFilterId);
+  }, [invalidateDailyAndWeekly, studentId, selectedDate, effectiveFilterId]);
 
   // Daily + Unfinished 새로고침 (플랜 완료/취소 시)
   const refreshDailyAndUnfinished = useCallback(() => {
@@ -257,7 +255,6 @@ export function AdminPlanFilterProvider({
       refreshDaily,
       refreshDailyAndWeekly,
       refreshDailyAndUnfinished,
-      isPending,
     }),
     [
       selectedDate,
@@ -275,7 +272,6 @@ export function AdminPlanFilterProvider({
       refreshDaily,
       refreshDailyAndWeekly,
       refreshDailyAndUnfinished,
-      isPending,
     ]
   );
 

@@ -11,7 +11,7 @@ import {
   type OverduePlan,
   type NonStudyItem,
 } from '@/lib/query-options/adminDock';
-import { calendarEventKeys } from '@/lib/query-options/calendarEvents';
+import { calendarEventKeys, getWeekRange } from '@/lib/query-options/calendarEvents';
 import { calendarViewKeys } from '@/lib/query-options/calendarViewQueryOptions';
 
 /**
@@ -162,14 +162,49 @@ export function useTargetedDockInvalidation() {
 
   /**
    * Daily Dock만 무효화
+   *
+   * adminDock + calendarEvents 양쪽 모두 무효화.
+   * DailyDock은 calendarEvents를 사용하므로 반드시 포함해야 함.
    */
   const invalidateDaily = useCallback(
     (studentId: string, date: string, calendarIdOrPlannerId?: string) => {
       queryClient.invalidateQueries({
         queryKey: adminDockKeys.daily(studentId, date, calendarIdOrPlannerId),
       });
+      // Calendar-First: DailyDock은 calendarEventKeys를 사용
+      if (calendarIdOrPlannerId) {
+        queryClient.invalidateQueries({
+          queryKey: calendarEventKeys.daily(calendarIdOrPlannerId, date),
+        });
+        // multiDaily도 무효화 (멀티 캘린더 모드)
+        queryClient.invalidateQueries({
+          queryKey: [...calendarEventKeys.all, 'multiDaily'],
+          exact: false,
+        });
+      }
     },
     [queryClient]
+  );
+
+  /**
+   * Daily + Weekly 무효화 (플랜 이동/날짜 변경 시)
+   */
+  const invalidateDailyAndWeekly = useCallback(
+    (studentId: string, date: string, calendarIdOrPlannerId?: string) => {
+      invalidateDaily(studentId, date, calendarIdOrPlannerId);
+      // Weekly 캐시도 무효화
+      if (calendarIdOrPlannerId) {
+        const weekRange = getWeekRange(date);
+        queryClient.invalidateQueries({
+          queryKey: calendarEventKeys.weekly(calendarIdOrPlannerId, weekRange.start, weekRange.end),
+        });
+        queryClient.invalidateQueries({
+          queryKey: [...calendarEventKeys.all, 'multiWeekly'],
+          exact: false,
+        });
+      }
+    },
+    [queryClient, invalidateDaily]
   );
 
   /**
@@ -180,6 +215,12 @@ export function useTargetedDockInvalidation() {
       queryClient.invalidateQueries({
         queryKey: adminDockKeys.overdue(studentId, calendarIdOrPlannerId),
       });
+      // Calendar-First: overdue 이벤트도 무효화
+      if (calendarIdOrPlannerId) {
+        queryClient.invalidateQueries({
+          queryKey: calendarEventKeys.overdue(calendarIdOrPlannerId),
+        });
+      }
     },
     [queryClient]
   );
@@ -206,6 +247,7 @@ export function useTargetedDockInvalidation() {
 
   return {
     invalidateDaily,
+    invalidateDailyAndWeekly,
     invalidateOverdue,
     invalidateDailyAndOverdue,
     invalidateAll,
