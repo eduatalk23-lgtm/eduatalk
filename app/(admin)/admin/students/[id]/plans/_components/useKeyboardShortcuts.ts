@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 
 export interface ShortcutConfig {
   key: string;
@@ -51,6 +51,7 @@ function getKeyFromCode(code: string): string | null {
 /**
  * 키보드 단축키 훅
  *
+ * useRef로 shortcuts의 최신 값을 참조하여 이벤트 리스너 재등록을 방지합니다.
  * 한글 IME 호환: event.key와 event.code 둘 다 검사하여
  * 입력 언어와 무관하게 물리적 키 위치 기준으로 단축키를 매칭합니다.
  */
@@ -58,8 +59,14 @@ export function useKeyboardShortcuts({
   enabled = true,
   shortcuts,
 }: UseKeyboardShortcutsOptions) {
-  const handleKeyDown = useCallback(
-    (event: KeyboardEvent) => {
+  // useRef로 최신 shortcuts를 참조 → 리스너 재등록 없이 항상 최신 action 실행
+  const shortcutsRef = useRef(shortcuts);
+  shortcutsRef.current = shortcuts;
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
       // IME 조합 중에는 무시 (한글 입력 중간 상태)
       if (event.isComposing) return;
 
@@ -79,7 +86,7 @@ export function useKeyboardShortcuts({
       const pressedKey = event.key.toLowerCase();
       const codeKey = getKeyFromCode(event.code);
 
-      for (const shortcut of shortcuts) {
+      for (const shortcut of shortcutsRef.current) {
         const shortcutKey = shortcut.key.toLowerCase();
 
         // Shift+? 같은 경우: event.key='?' 로 직접 매칭
@@ -96,16 +103,11 @@ export function useKeyboardShortcuts({
           return;
         }
       }
-    },
-    [shortcuts]
-  );
-
-  useEffect(() => {
-    if (!enabled) return;
+    }
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [enabled, handleKeyDown]);
+  }, [enabled]);
 }
 
 /**

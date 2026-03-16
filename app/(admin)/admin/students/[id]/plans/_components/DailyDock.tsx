@@ -423,7 +423,7 @@ export const DailyDock = memo(function DailyDock({
   useEffect(() => {
     if (!calendarId) return;
 
-    // 빠른 네비게이션 시 불필요한 요청 방지를 위한 디바운스
+    // 빠른 네비게이션 시 불필요한 요청 방지를 위한 디바운스 (100ms: 연속 키 입력은 건너뛰되 즉시 프리페치)
     const timeoutId = setTimeout(() => {
       if (calendarView === 'daily') {
         const prev = formatDateString(addDays(new Date(selectedDate + 'T00:00:00'), -1));
@@ -466,7 +466,7 @@ export const DailyDock = memo(function DailyDock({
           );
         }
       }
-    }, 300);
+    }, 100);
 
     return () => clearTimeout(timeoutId);
   }, [calendarId, calendarView, selectedDate, currentMonth, currentYear, studentId, queryClient, multiIds, weekStartsOn]);

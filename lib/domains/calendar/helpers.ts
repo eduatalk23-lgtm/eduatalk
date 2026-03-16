@@ -258,10 +258,14 @@ export async function ensureTenantPrimaryCalendar(
   return calendar.id;
 }
 
+// 동일 프로세스 내 중복 호출 방지 (서버리스: 요청당 1회로 제한)
+const _subscribedSet = new Set<string>();
+
 /**
  * 사용자를 테넌트 캘린더에 구독 등록 (calendar_list에 추가)
  *
  * 이미 구독 중이면 스킵 (SELECT 1 → 0ms).
+ * 인메모리 캐시로 동일 프로세스 내 중복 DB 호출도 방지.
  * 관리자/컨설턴트 → writer, 학생 → reader.
  */
 export async function subscribeTenantCalendar(
@@ -269,6 +273,10 @@ export async function subscribeTenantCalendar(
   tenantCalendarId: string,
   accessRole: "writer" | "reader" = "writer"
 ): Promise<void> {
+  // 인메모리 캐시: 같은 프로세스에서 이미 확인한 조합은 DB 호출 생략
+  const cacheKey = `${userId}:${tenantCalendarId}`;
+  if (_subscribedSet.has(cacheKey)) return;
+
   const supabase = await createSupabaseServerClient();
 
   // 이미 구독 중인지 빠르게 확인 (count만 조회, 데이터 전송 0)
@@ -278,7 +286,10 @@ export async function subscribeTenantCalendar(
     .eq("user_id", userId)
     .eq("calendar_id", tenantCalendarId);
 
-  if (count && count > 0) return;
+  if (count && count > 0) {
+    _subscribedSet.add(cacheKey);
+    return;
+  }
 
   await supabase
     .from("calendar_list")
@@ -293,6 +304,8 @@ export async function subscribeTenantCalendar(
       },
       { onConflict: "user_id,calendar_id" }
     );
+
+  _subscribedSet.add(cacheKey);
 }
 
 /**

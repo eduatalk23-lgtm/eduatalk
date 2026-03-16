@@ -74,12 +74,16 @@ export default async function AdminCalendarPage({ searchParams }: Props) {
   }
 
   // ── 학생 선택: 학생 캘린더 조회 ──
+  // 학생 정보 조회와 테넌트 캘린더 보장을 병렬 실행 (직렬 워터폴 제거)
   const supabase = await createSupabaseServerClient();
-  const { data: studentRaw } = await supabase
-    .from('students')
-    .select('id, tenant_id, user_profiles(name)')
-    .eq('id', studentId)
-    .single();
+  const [{ data: studentRaw }, tenantCalendarId] = await Promise.all([
+    supabase
+      .from('students')
+      .select('id, tenant_id, user_profiles(name)')
+      .eq('id', studentId)
+      .single(),
+    ensureTenantPrimaryCalendar(tenantId!),
+  ]);
 
   const student = studentRaw
     ? {
@@ -101,12 +105,10 @@ export default async function AdminCalendarPage({ searchParams }: Props) {
     );
   }
 
-  // 학생 + 테넌트 캘린더 보장을 병렬 실행
-  const [calendarId, tenantCalendarId] = await Promise.all([
-    ensureStudentPrimaryCalendar(student.id, student.tenant_id),
-    ensureTenantPrimaryCalendar(student.tenant_id),
-  ]);
+  // 학생 캘린더 보장 (테넌트 캘린더는 이미 위에서 병렬 완료)
+  const calendarId = await ensureStudentPrimaryCalendar(student.id, student.tenant_id);
 
+  // 데이터 조회
   const pageData = await fetchCalendarPageData(student.id, calendarId, date);
 
   // subscribe는 fire-and-forget (idempotent upsert, 결과 미사용)
