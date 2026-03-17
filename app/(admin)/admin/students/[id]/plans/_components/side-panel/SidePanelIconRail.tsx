@@ -22,7 +22,7 @@ export function SidePanelIconRail() {
 
   return (
     <div
-      className="flex-shrink-0 flex flex-col items-center border-l border-[var(--color-border)] bg-[var(--background)] py-2 gap-1"
+      className="flex-shrink-0 flex flex-col items-center bg-[rgb(var(--color-secondary-100))] py-2 gap-1"
       style={{ width: RAIL_WIDTH }}
     >
       {SIDE_PANEL_APPS.map((app) => {
@@ -56,9 +56,9 @@ export function SidePanelMobileButton() {
       onClick={() => toggleApp("memo")}
       title="메모"
       aria-label="메모"
-      className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--color-text-tertiary)] hover:bg-[var(--color-bg-secondary)] transition-colors"
+      className="p-1.5 shrink-0 rounded-full transition-colors hover:bg-[rgb(var(--color-secondary-200))]"
     >
-      <StickyNote size={18} />
+      <StickyNote className="w-4 h-4 text-[var(--text-secondary)]" />
     </button>
   );
 }
@@ -83,12 +83,16 @@ function RailButton({
       title={label}
       aria-label={label}
       className={cn(
-        "relative w-9 h-9 flex items-center justify-center rounded-lg transition-colors",
+        "relative w-9 h-9 flex items-center justify-center rounded-full transition-colors",
         isActive
           ? "bg-[rgb(var(--color-primary-100))] text-[rgb(var(--color-primary-700))]"
-          : "text-[var(--color-text-tertiary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]"
+          : "text-[var(--color-text-tertiary)] hover:bg-[rgb(var(--color-secondary-200))] hover:text-[var(--color-text-primary)]"
       )}
     >
+      {/* Google 스타일 활성 인디케이터 바 — 레일 왼쪽 가장자리에 위치 */}
+      {isActive && (
+        <span className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-full bg-[rgb(var(--color-primary-600))]" />
+      )}
       <Icon size={20} strokeWidth={isActive ? 2 : 1.5} />
       {badge > 0 && !isActive && (
         <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-medium px-1">

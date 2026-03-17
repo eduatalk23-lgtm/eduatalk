@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useSyncExternalStore, useRef, useMemo } from 'react';
+import { useState, useSyncExternalStore, useRef, useMemo, useEffect } from 'react';
 import { cn } from '@/lib/cn';
 
 interface CalendarLayoutShellProps {
@@ -83,6 +83,14 @@ export function CalendarLayoutShell({
 
   const sidebarWidth = isTablet ? SIDEBAR_WIDTH_TABLET : SIDEBAR_WIDTH_DESKTOP;
 
+  // 캘린더 레이아웃은 내부 스크롤만 사용 — html의 scrollbar-gutter: stable 비활성화
+  useEffect(() => {
+    const html = document.documentElement;
+    const prev = html.style.scrollbarGutter;
+    html.style.scrollbarGutter = 'auto';
+    return () => { html.style.scrollbarGutter = prev; };
+  }, []);
+
   const sidebarStyle = useMemo(() => {
     if (isMobileOverlay) return { width: SIDEBAR_WIDTH_DESKTOP };
     if (effectiveOpen) return { width: sidebarWidth };
@@ -90,7 +98,7 @@ export function CalendarLayoutShell({
   }, [isMobileOverlay, effectiveOpen, sidebarWidth]);
 
   return (
-    <div className="h-full flex flex-col overflow-hidden pt-10 md:pt-0">
+    <div className="h-full flex flex-col overflow-hidden pt-10 md:pt-0 bg-[rgb(var(--color-secondary-100))]">
       {/* Compact Header */}
       {header && header}
 
@@ -109,7 +117,7 @@ export function CalendarLayoutShell({
         <div
           ref={sidebarRef}
           className={cn(
-            'flex-shrink-0 bg-[var(--background)] border-r border-[rgb(var(--color-secondary-200))] overflow-y-auto overflow-x-hidden overscroll-y-contain',
+            'flex-shrink-0 bg-[rgb(var(--color-secondary-100))] overflow-y-auto overflow-x-hidden overscroll-y-contain',
             // 트랜지션: 마운트 후에만 적용 (초기 깜빡임 방지), width/transform만 전환
             mounted && 'transition-[width,transform] duration-200 ease-in-out',
             // 마운트 전: CSS로 모바일에서 숨김 (SSR → hydration 기간)
@@ -121,7 +129,7 @@ export function CalendarLayoutShell({
                 )
               : effectiveOpen
                 ? ''
-                : 'w-0 overflow-hidden border-r-0'
+                : 'w-0 overflow-hidden'
           )}
           style={sidebarStyle}
         >
@@ -129,7 +137,7 @@ export function CalendarLayoutShell({
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0 bg-[var(--background)]">
           {/* Calendar / Tab Content */}
           <div className="flex-1 overflow-hidden">
             {children}
