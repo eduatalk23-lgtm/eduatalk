@@ -42,6 +42,8 @@ interface ChatRoomInfoProps {
   basePath?: string;
   /** 이미지 클릭 시 라이트박스 열기 */
   onImageClick?: (attachment: ChatAttachment, allImages: ChatAttachment[]) => void;
+  /** 방 나가기/아카이브 후 콜백 (플로팅 패널 등에서 router.replace 대신 사용) */
+  onLeaveRoom?: () => void;
 }
 
 const INFO_TABS = [
@@ -66,6 +68,7 @@ function ChatRoomInfoComponent({
   isLoading = false,
   basePath = "/chat",
   onImageClick,
+  onLeaveRoom,
 }: ChatRoomInfoProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -106,12 +109,13 @@ function ChatRoomInfoComponent({
         queryClient.removeQueries({ queryKey: chatKeys.room(roomId) });
         evictRoom(roomId).catch(() => {});
 
-        // 성공 메시지 표시
         showSuccess("채팅방을 나갔습니다.");
 
-        // 채팅 목록으로 이동 (replace로 뒤로가기 방지)
-        // onClose() 호출 제거 - 페이지가 이동하므로 불필요
-        router.replace(basePath);
+        if (onLeaveRoom) {
+          onLeaveRoom();
+        } else {
+          router.replace(basePath);
+        }
       } else {
         showError(error.message ?? "채팅방 나가기 실패");
         setIsLeaving(false);
@@ -120,7 +124,7 @@ function ChatRoomInfoComponent({
       showError("채팅방 나가기 중 오류가 발생했습니다.");
       setIsLeaving(false);
     }
-  }, [roomId, basePath, router, showSuccess, showError, queryClient]);
+  }, [roomId, basePath, router, showSuccess, showError, queryClient, onLeaveRoom]);
 
   // 채팅방 아카이브 핸들러 (방장/관리자만)
   const handleArchiveRoom = useCallback(async () => {
@@ -134,7 +138,12 @@ function ChatRoomInfoComponent({
       if (!error) {
         queryClient.invalidateQueries({ queryKey: chatKeys.rooms() });
         showSuccess("채팅방이 아카이브되었습니다.");
-        router.replace(basePath);
+
+        if (onLeaveRoom) {
+          onLeaveRoom();
+        } else {
+          router.replace(basePath);
+        }
       } else {
         showError(error.message ?? "채팅방 아카이브 실패");
         setIsArchiving(false);
@@ -143,7 +152,7 @@ function ChatRoomInfoComponent({
       showError("채팅방 아카이브 중 오류가 발생했습니다.");
       setIsArchiving(false);
     }
-  }, [roomId, basePath, router, showSuccess, showError, queryClient]);
+  }, [roomId, basePath, router, showSuccess, showError, queryClient, onLeaveRoom]);
 
   // 현재 사용자가 방장/관리자인지 확인
   const currentMember = activeMembers.find((m) => m.user_id === userId);

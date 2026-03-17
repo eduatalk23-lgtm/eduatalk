@@ -399,6 +399,8 @@ interface ChatRoomProps {
   basePath?: string;
   /** 헤더 우측에 추가할 액션 버튼 (Popover 등에서 닫기/전체화면 버튼 주입용) */
   headerActions?: React.ReactNode;
+  /** 방 나가기/아카이브 후 콜백 (플로팅 패널 등에서 router.replace 대신 사용) */
+  onLeaveRoom?: () => void;
 }
 
 function ChatRoomComponent({
@@ -407,6 +409,7 @@ function ChatRoomComponent({
   onBack,
   basePath = "/chat",
   headerActions,
+  onLeaveRoom,
 }: ChatRoomProps) {
   // ============================================
   // 레이아웃 컨텍스트 (split-pane 모드 감지)
@@ -1938,6 +1941,7 @@ function ChatRoomComponent({
         members={data.members}
         isLoading={!room}
         basePath={basePath}
+        onLeaveRoom={onLeaveRoom}
         onImageClick={(attachment, allImages) => {
           const idx = allImages.findIndex((img) => img.id === attachment.id);
           setLightboxState({

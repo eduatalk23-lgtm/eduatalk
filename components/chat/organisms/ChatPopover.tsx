@@ -304,6 +304,7 @@ function ChatPopoverComponent({
               onBack={handleBack}
               basePath={basePath}
               headerActions={roomHeaderActions}
+              onLeaveRoom={handleBack}
             />
           </motion.div>
         ) : null}
