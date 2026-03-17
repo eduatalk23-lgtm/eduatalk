@@ -1102,10 +1102,13 @@ function AdminPlanManagementContent({
               studentId={studentId}
               onClose={ctx.closeEventEditModal}
               onSuccess={() => {
-                ctx.closeEventEditModal();
-                // startSaveTransition 밖에서 invalidation 실행하여
-                // transition이 React Query refetch를 지연시키는 문제 방지
-                setTimeout(invalidateQueries, 0);
+                // onSuccessModal()은 useEventEditForm의 startSaveTransition 내부에서 호출됨
+                // closeEventEditModal + invalidateQueries 모두 transition scope 밖에서 실행해야
+                // React가 transition 배치로 refetch 결과 반영을 지연시키는 문제를 방지
+                setTimeout(() => {
+                  ctx.closeEventEditModal();
+                  invalidateQueries();
+                }, 0);
               }}
             />
           )}
