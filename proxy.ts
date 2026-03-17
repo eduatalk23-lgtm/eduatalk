@@ -394,6 +394,7 @@ export async function proxy(request: NextRequest) {
   // ─── 3. 페이지 경로 처리 ───
   const isPublicPath = isPublicPagePath(pathname);
   const isRSCRequest = request.headers.get("RSC") === "1";
+  const isAuthPage = AUTH_ONLY_PAGES.some((path) => pathname.startsWith(path));
 
   // 공개 경로 + 인증 쿠키 없음 → getUser() 호출 없이 즉시 반환
   if (isPublicPath && !hasAuthCookies(request)) {
@@ -411,7 +412,15 @@ export async function proxy(request: NextRequest) {
   let error: Error | null = null;
   let getResponse: () => NextResponse;
 
-  if (parsed.needsRefresh && !isRSCRequest) {
+  if (parsed.needsRefresh && isAuthPage) {
+    // Auth 페이지(로그인/회원가입)에서 만료된 토큰 → 갱신 스킵
+    // getUser() 호출 시 stale refresh token 에러 + 쿠키 조작이 발생하여
+    // Server Action(signIn)의 쿠키 설정과 충돌 → "unexpected response" 에러 유발
+    // 만료된 세션 = 미인증이므로 로그인 페이지를 그대로 표시
+    user = null;
+    error = null;
+    getResponse = () => NextResponse.next({ request: { headers: request.headers } });
+  } else if (parsed.needsRefresh && !isRSCRequest) {
     // 토큰 리프레시 필요 + 풀 페이지 요청 → deduplicatedGetUser() (동시 요청 중복 방지)
     const result = await deduplicatedGetUser(request);
     user = result.user;
@@ -447,7 +456,6 @@ export async function proxy(request: NextRequest) {
   }
 
   const isAuthenticated = !!user;
-  const isAuthPage = AUTH_ONLY_PAGES.some((path) => pathname.startsWith(path));
 
   // 비밀번호 재설정 페이지는 특별 처리
   if (pathname.startsWith("/reset-password")) {
