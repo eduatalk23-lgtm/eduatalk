@@ -48,7 +48,7 @@ const ParentCreateChatModal = dynamic(
   { ssr: false }
 );
 
-/** 채팅 전용 페이지 경로 (위젯 숨김) */
+/** 채팅 전용 페이지 또는 사이드 패널이 있는 페이지 (FAB 숨김) */
 function isChatPage(pathname: string): boolean {
   return (
     pathname === "/chat" ||
@@ -56,7 +56,12 @@ function isChatPage(pathname: string): boolean {
     pathname === "/admin/chat" ||
     pathname.startsWith("/admin/chat/") ||
     pathname === "/parent/chat" ||
-    pathname.startsWith("/parent/chat/")
+    pathname.startsWith("/parent/chat/") ||
+    // 캘린더 페이지: 사이드 패널에 채팅이 통합되어 FAB 불필요
+    pathname === "/admin/calendar" ||
+    pathname.startsWith("/admin/students/") ||
+    pathname === "/plan/calendar" ||
+    pathname === "/parent/calendar"
   );
 }
 
