@@ -559,6 +559,8 @@ export const WeeklyGridView = memo(function WeeklyGridView({
       // floating 팝오버 내부 클릭 무시
       const floatingEl = quickCreateRefs.floating.current;
       if (floatingEl?.contains(e.target as Node)) return;
+      // fallback: floating ref가 아직 세팅 안 됐을 때 data attribute로 체크
+      if ((e.target as HTMLElement).closest?.('[data-quick-create]')) return;
       // 그리드 내부 클릭은 handleGridClick이 처리
       if (scrollContainerRef.current?.contains(e.target as Node)) return;
       closeQuickCreate();

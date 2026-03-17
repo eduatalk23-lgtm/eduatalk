@@ -366,6 +366,8 @@ export default function AdminMonthView({
       // floating 팝오버 내부 클릭 무시
       const floatingEl = qcRefs.floating.current;
       if (floatingEl?.contains(e.target as Node)) return;
+      // fallback: floating ref가 아직 세팅 안 됐을 때 data attribute로 체크
+      if ((e.target as HTMLElement).closest?.('[data-quick-create]')) return;
       // 그리드 내부 클릭은 handleQuickCreate가 처리
       if (gridContainerRef.current?.contains(e.target as Node)) return;
       closeQuickCreate();
@@ -594,6 +596,7 @@ export default function AdminMonthView({
         <div
           ref={qcRefs.setFloating}
           style={qcStyles}
+          data-quick-create
           className={cn('z-[9999] transition-opacity duration-150', isQcPositioned ? 'opacity-100' : 'opacity-0')}
           onClick={(e) => e.stopPropagation()}
         >
