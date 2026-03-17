@@ -641,7 +641,7 @@ export const DailyDock = memo(function DailyDock({
       )}
 
       <div ref={monthWheelContainerRef} className="flex-1 overflow-hidden flex flex-col" {...swipeHandlers}>
-      <AnimatePresence mode="wait" custom={navDirectionRef.current}>
+      <AnimatePresence mode="wait" initial={false} custom={navDirectionRef.current}>
         {/* 일간 그리드 뷰 */}
         {calendarView === 'daily' && !isLoading && (
           <motion.div
@@ -712,7 +712,27 @@ export const DailyDock = memo(function DailyDock({
         )}
 
         {/* 주간 그리드 뷰 */}
-        {calendarView === 'weekly' && (
+        {calendarView === 'weekly' && !calendarId && (
+          <div key="weekly-loading" className="flex-1 overflow-y-auto">
+            <div className="flex">
+              <div className="shrink-0 w-14 border-r border-[rgb(var(--color-secondary-200))] pt-4 space-y-[44px]">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="h-3 w-8 bg-[rgb(var(--color-secondary-200))]/60 rounded animate-pulse ml-auto mr-2" />
+                ))}
+              </div>
+              <div className="flex-1 grid grid-cols-7 gap-px pt-4">
+                {Array.from({ length: 7 }).map((_, i) => (
+                  <div key={i} className="px-1 space-y-3">
+                    <div className="h-3 w-8 bg-[rgb(var(--color-secondary-200))]/50 rounded animate-pulse mx-auto" />
+                    <div className="h-12 bg-[rgb(var(--color-primary-100))]/40 rounded animate-pulse" />
+                    <div className="h-8 bg-[rgb(var(--color-secondary-200))]/30 rounded animate-pulse mt-6" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+        {calendarView === 'weekly' && calendarId && (
           <motion.div
             key={`weekly-${selectedDate}`}
             custom={navDirectionRef.current}

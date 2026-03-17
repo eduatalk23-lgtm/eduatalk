@@ -67,8 +67,9 @@ export function AdminCalendarWrapper({
   // 캘린더 표시: personal 또는 학생 캘린더
   return (
     <div className="h-[calc(100dvh-4rem)] flex flex-col overflow-hidden">
-      <Suspense fallback={<AdminPlanManagementSkeleton />}>
+      <Suspense key={studentId} fallback={<AdminPlanManagementSkeleton />}>
         <AdminPlanManagement
+          key={studentId}
           studentId={studentId!}
           studentName={studentName ?? ''}
           tenantId={tenantId!}

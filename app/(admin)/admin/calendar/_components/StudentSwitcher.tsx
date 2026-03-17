@@ -108,9 +108,9 @@ export function StudentSwitcher({ currentStudentId, currentStudentName }: Studen
       // Navigation — debounced to coalesce rapid switches
       if (navTimerRef.current) clearTimeout(navTimerRef.current);
       navTimerRef.current = setTimeout(() => {
-        queryClient.cancelQueries({ queryKey: adminDockKeys.all });
-        queryClient.cancelQueries({ queryKey: calendarEventKeys.all });
-        queryClient.cancelQueries({ queryKey: calendarViewKeys.all });
+        queryClient.invalidateQueries({ queryKey: adminDockKeys.all });
+        queryClient.invalidateQueries({ queryKey: calendarEventKeys.all });
+        queryClient.invalidateQueries({ queryKey: calendarViewKeys.all });
         router.push(`/admin/calendar?student=${student.id}`);
       }, 300);
     },

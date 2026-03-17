@@ -42,6 +42,7 @@ import { toPlanItemData, type PlanItemData } from '@/lib/types/planItem';
 import type { PlanStatus } from '@/lib/types/plan';
 import { resolveCalendarColors } from './utils/subjectColors';
 import { cn } from '@/lib/cn';
+import { OffScreenEventHint } from './items/OffScreenEventHint';
 import { useIsMobile } from '@/lib/hooks/useIsMobile';
 import { useAdminPlanBasic } from './context/AdminPlanBasicContext';
 import type { AllDayItem } from '@/lib/query-options/adminDock';
@@ -84,6 +85,13 @@ interface WeeklyGridViewProps {
   biweeklyMode?: boolean;
 }
 
+type OffScreenHintData = {
+  direction: 'above' | 'below';
+  timeRange: string;
+  eventCount: number;
+  targetMinutes: number;
+};
+
 export const WeeklyGridView = memo(function WeeklyGridView({
   studentId,
   tenantId,
@@ -112,6 +120,10 @@ export const WeeklyGridView = memo(function WeeklyGridView({
   const { pushUndoable } = useUndo();
   const { showToast } = usePlanToast();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  // Biweekly 스크롤 동기화용 refs
+  const week1GridRef = useRef<HTMLDivElement>(null);
+  const week2GridRef = useRef<HTMLDivElement>(null);
+  const isSyncingRef = useRef(false);
   const { pullDistance: wPullDistance, pullProgress: wPullProgress, isRefreshing: wIsRefreshing, isPulling: wIsPulling } = usePullToRefresh({
     containerRef: scrollContainerRef,
     onRefresh,
@@ -235,14 +247,225 @@ export const WeeklyGridView = memo(function WeeklyGridView({
     return () => clearInterval(timer);
   }, []);
 
-  // 현재 시간으로 자동 스크롤 (최초 마운트 시에만)
+  // ---------- 이벤트 시작 분(minutes) 추출 헬퍼 ----------
+  const getEventStartMinutes = useCallback(
+    (dates: string[]): number[] => {
+      const mins: number[] = [];
+      for (const d of dates) {
+        const dd = dayDataMap.get(d);
+        if (!dd) continue;
+        for (const p of dd.plans) {
+          if (p.start_time) mins.push(timeToMinutes(p.start_time.substring(0, 5)));
+        }
+        for (const c of dd.customItems) {
+          if (c.startTime) mins.push(timeToMinutes(c.startTime.substring(0, 5)));
+        }
+      }
+      return mins.sort((a, b) => a - b);
+    },
+    [dayDataMap],
+  );
+
+  // ---------- 자동 스크롤 (최초 마운트 시에만) ----------
   const hasScrolledRef = useRef(false);
   useEffect(() => {
-    if (nowMinutes == null || !scrollContainerRef.current || hasScrolledRef.current) return;
+    if (nowMinutes == null || hasScrolledRef.current) return;
+
+    // biweeklyMode: 스마트 초기 스크롤 (Method C)
+    if (biweeklyMode) {
+      if (isAnyLoading) return; // 데이터 로딩 완료 대기
+      if (!week1GridRef.current || !week2GridRef.current) return;
+
+      const w2Events = getEventStartMinutes(biweeklyWeek2Dates);
+      const w1Events = getEventStartMinutes(biweeklyWeek1Dates);
+
+      let targetMinutes: number | null = null;
+
+      // 1. 현재 시각 ±2시간 이내 가장 가까운 이벤트
+      const allEvents = [...w1Events, ...w2Events].sort((a, b) => a - b);
+      const nearby = allEvents.filter(m => Math.abs(m - nowMinutes) <= 120);
+      if (nearby.length > 0) {
+        const closest = nearby.reduce((best, m) =>
+          Math.abs(m - nowMinutes) < Math.abs(best - nowMinutes) ? m : best
+        );
+        targetMinutes = Math.min(closest, nowMinutes);
+      }
+
+      // 2. 이번 주(week2) 첫 이벤트
+      if (targetMinutes == null && w2Events.length > 0) {
+        targetMinutes = w2Events[0];
+      }
+
+      // 3. 저번 주(week1) 첫 이벤트
+      if (targetMinutes == null && w1Events.length > 0) {
+        targetMinutes = w1Events[0];
+      }
+
+      // 스크롤 위치 결정: 이벤트 기반 or 현재 시각 fallback
+      const scrollTarget = targetMinutes != null
+        ? Math.max(0, minutesToPx(targetMinutes, rangeStartMin, ppm) - 30 * ppm)
+        : Math.max(0, minutesToPx(nowMinutes, rangeStartMin, ppm) - 200);
+
+      isSyncingRef.current = true;
+      week1GridRef.current.scrollTop = scrollTarget;
+      week2GridRef.current.scrollTop = scrollTarget;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => { isSyncingRef.current = false; });
+      });
+      hasScrolledRef.current = true;
+      return;
+    }
+
+    // 기존 단일 주 자동 스크롤
+    if (!scrollContainerRef.current) return;
     const scrollTarget = minutesToPx(nowMinutes, rangeStartMin, ppm) - 200;
     scrollContainerRef.current.scrollTop = Math.max(0, scrollTarget);
     hasScrolledRef.current = true;
-  }, [nowMinutes, rangeStartMin, ppm]);
+  }, [nowMinutes, rangeStartMin, ppm, biweeklyMode, isAnyLoading, biweeklyWeek1Dates, biweeklyWeek2Dates, getEventStartMinutes]);
+
+  // ---------- Biweekly 스크롤 동기화 ----------
+  useEffect(() => {
+    if (!biweeklyMode) return;
+    const w1 = week1GridRef.current;
+    const w2 = week2GridRef.current;
+    if (!w1 || !w2) return;
+
+    let rafId = 0;
+
+    const syncScroll = (source: HTMLDivElement, target: HTMLDivElement) => () => {
+      if (isSyncingRef.current) return;
+      isSyncingRef.current = true;
+      // rAF로 감싸서 forced reflow 방지 (scrollTop 직접 대입은 동기 레이아웃 강제)
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        target.scrollTop = source.scrollTop;
+        requestAnimationFrame(() => { isSyncingRef.current = false; });
+      });
+    };
+
+    const onW1Scroll = syncScroll(w1, w2);
+    const onW2Scroll = syncScroll(w2, w1);
+
+    w1.addEventListener('scroll', onW1Scroll, { passive: true });
+    w2.addEventListener('scroll', onW2Scroll, { passive: true });
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      w1.removeEventListener('scroll', onW1Scroll);
+      w2.removeEventListener('scroll', onW2Scroll);
+    };
+  }, [biweeklyMode]);
+
+  // ---------- 화면 밖 이벤트 힌트 ----------
+  const [hintScrollTop, setHintScrollTop] = useState(0);
+  const [hintContainerHeight, setHintContainerHeight] = useState(0);
+
+  // 스크롤/리사이즈 추적 (week1GridRef 기준 — 양쪽 동기화되므로 하나만 추적)
+  // rAF 기반 debounce: 스크롤 중 매 프레임이 아닌, 한 프레임당 최대 1회 state 업데이트
+  useEffect(() => {
+    if (!biweeklyMode) return;
+    const el = week1GridRef.current;
+    if (!el) return;
+
+    let lastCommittedScrollTop = 0;
+    let pendingRafId = 0;
+    let latestScrollTop = 0;
+
+    const flushScrollState = () => {
+      pendingRafId = 0;
+      if (Math.abs(latestScrollTop - lastCommittedScrollTop) >= 20) {
+        lastCommittedScrollTop = latestScrollTop;
+        setHintScrollTop(latestScrollTop);
+      }
+    };
+
+    const onScroll = () => {
+      latestScrollTop = el.scrollTop;
+      if (!pendingRafId) {
+        pendingRafId = requestAnimationFrame(flushScrollState);
+      }
+    };
+
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setHintContainerHeight(entry.contentRect.height);
+      }
+    });
+
+    el.addEventListener('scroll', onScroll, { passive: true });
+    ro.observe(el);
+    // 초기값 설정
+    setHintScrollTop(el.scrollTop);
+    setHintContainerHeight(el.clientHeight);
+
+    return () => {
+      cancelAnimationFrame(pendingRafId);
+      el.removeEventListener('scroll', onScroll);
+      ro.disconnect();
+    };
+  }, [biweeklyMode]);
+
+  // 힌트 데이터 계산
+  // 뷰포트 가장자리에서 30분 분량(30*ppm px) 이상 떨어진 이벤트만 "화면 밖"으로 판정
+  // — 가장자리 근처 이벤트는 사실상 보이거나 살짝 스크롤로 확인 가능
+  const computeHints = useCallback(
+    (dates: string[]): { above: OffScreenHintData | null; below: OffScreenHintData | null } => {
+      if (!biweeklyMode || hintContainerHeight === 0) return { above: null, below: null };
+
+      const edgePx = 30 * ppm;
+      const aboveMins: number[] = [];
+      const belowMins: number[] = [];
+      const aboveEdge = hintScrollTop - edgePx;
+      const belowEdge = hintScrollTop + hintContainerHeight + edgePx;
+
+      for (const d of dates) {
+        const dd = dayDataMap.get(d);
+        if (!dd) continue;
+        for (const p of dd.plans) {
+          if (!p.start_time) continue;
+          const m = timeToMinutes(p.start_time.substring(0, 5));
+          const px = minutesToPx(m, rangeStartMin, ppm);
+          if (px < aboveEdge) aboveMins.push(m);
+          else if (px > belowEdge) belowMins.push(m);
+        }
+        for (const c of dd.customItems) {
+          if (!c.startTime) continue;
+          const m = timeToMinutes(c.startTime.substring(0, 5));
+          const px = minutesToPx(m, rangeStartMin, ppm);
+          if (px < aboveEdge) aboveMins.push(m);
+          else if (px > belowEdge) belowMins.push(m);
+        }
+      }
+
+      const makeHint = (mins: number[], dir: 'above' | 'below'): OffScreenHintData | null => {
+        if (mins.length === 0) return null;
+        const sorted = [...mins].sort((a, b) => a - b);
+        const earliest = minutesToTime(sorted[0]);
+        const latest = minutesToTime(sorted[sorted.length - 1]);
+        const timeRange = sorted.length === 1 ? earliest : `${earliest}~${latest}`;
+        return { direction: dir, timeRange, eventCount: sorted.length, targetMinutes: sorted[0] };
+      };
+
+      return { above: makeHint(aboveMins, 'above'), below: makeHint(belowMins, 'below') };
+    },
+    [biweeklyMode, dayDataMap, rangeStartMin, ppm, hintScrollTop, hintContainerHeight],
+  );
+
+  const week1Hints = useMemo(() => computeHints(biweeklyWeek1Dates), [computeHints, biweeklyWeek1Dates]);
+  const week2Hints = useMemo(() => computeHints(biweeklyWeek2Dates), [computeHints, biweeklyWeek2Dates]);
+
+  const handleHintClick = useCallback(
+    (targetMinutes: number) => {
+      const scrollTarget = Math.max(0, minutesToPx(targetMinutes, rangeStartMin, ppm) - 60 * ppm);
+      isSyncingRef.current = true;
+      if (week1GridRef.current) week1GridRef.current.scrollTop = scrollTarget;
+      if (week2GridRef.current) week2GridRef.current.scrollTop = scrollTarget;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => { isSyncingRef.current = false; });
+      });
+    },
+    [rangeStartMin, ppm],
+  );
 
   // 퀵생성 후 하이라이트 (2초 자동 해제)
   const [newlyCreatedPlanId, setNewlyCreatedPlanId] = useState<string | null>(null);
@@ -1140,74 +1363,104 @@ export const WeeklyGridView = memo(function WeeklyGridView({
                   />
                 </div>
 
-                {/* 시간 그리드 (자체 스크롤) */}
-                <div
-                  className="flex-1 min-h-0 relative overflow-x-hidden scroll-gpu"
-                  style={{ overflowY: 'auto', scrollbarGutter: 'stable' }}
-                >
-                  <div className="flex pr-2" style={{ height: `${totalHeight}px` }}>
-                    {/* 시간 거터 */}
-                    <div
-                      className="shrink-0 relative border-r border-[rgb(var(--color-secondary-200))]"
-                      style={{ width: TIME_GUTTER_WIDTH }}
-                    >
-                      {hourLabels.map((hour) => {
-                        const top = minutesToPx(hour * 60, rangeStartMin, ppm);
-                        return (
-                          <div key={`w${weekIdx}-h${hour}`}>
-                            <div
-                              className="absolute right-2 text-[11px] text-[var(--text-tertiary)] font-medium tabular-nums -translate-y-1/2"
-                              style={{ top: `${top}px` }}
-                            >
-                              {formatHourLabel(hour)}
-                            </div>
-                            <div
-                              className="absolute h-px bg-[rgb(var(--color-secondary-200))]"
-                              style={{ top: `${top}px`, right: '-4px', width: '12px' }}
-                            />
-                          </div>
-                        );
-                      })}
-                    </div>
+                {/* 시간 그리드 래퍼 (힌트 오버레이 포함) */}
+                <div className="flex-1 min-h-0 relative">
+                  {/* 위쪽 힌트 pill */}
+                  {(() => {
+                    const hints = weekIdx === 0 ? week1Hints : week2Hints;
+                    return hints.above && (
+                      <OffScreenEventHint
+                        direction="above"
+                        timeRange={hints.above.timeRange}
+                        eventCount={hints.above.eventCount}
+                        onClick={() => handleHintClick(hints.above!.targetMinutes)}
+                      />
+                    );
+                  })()}
 
-                    {/* 7 컬럼 */}
-                    <div className="flex-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
-                      {wkDates.map((date) => {
-                        const dayData = dayDataMap.get(date);
-                        const header = formatDayHeader(date);
-                        return (
-                          <WeeklyGridColumn
-                            key={date}
-                            ref={setColumnRef(date)}
-                            date={date}
-                            plans={dayData?.plans ?? []}
-                            customItems={dayData?.customItems ?? []}
-                            nonStudyItems={dayData?.nonStudyItems ?? []}
-                            displayRange={displayRange}
-                            isToday={header.isToday}
-                            isPast={header.isPast}
-                            nowTop={header.isToday ? nowTop : undefined}
-                            onBlockClick={handleBlockClick}
-                            onEdit={onEdit}
-                            searchQuery={searchQuery}
-                            highlightedPlanId={newlyCreatedPlanId}
-                            draggingPlanId={crossDayDrag.draggingPlanId}
-                            isDragTarget={crossDayDrag.targetDate === date}
-                            enableHover={!!calendarId && !quickCreateState && !isPopoverOpen && !crossDayDrag.draggingPlanId && !dragState && !isResizing}
-                            onCrossDayDragStart={calendarId ? crossDayDrag.startDrag : undefined}
-                            makeResizeHandleProps={calendarId ? makeWeeklyResizeHandleProps : undefined}
-                            resizingPlanId={resizingPlanId}
-                            resizeHeight={resizeHeight}
-                            resizingEdge={resizingEdge}
-                            pxPerMinute={ppm}
-                            suppressBlockHover={!!quickCreateState || !!dragState}
-                            calendarColorMap={calendarColorMap}
-                            isAdminMode={isAdminMode}
-                          />
-                        );
-                      })}
+                  {/* 스크롤 가능 시간 그리드 */}
+                  <div
+                    ref={weekIdx === 0 ? week1GridRef : week2GridRef}
+                    className="absolute inset-0 overflow-x-hidden scroll-gpu"
+                    style={{ overflowY: 'auto', scrollbarGutter: 'stable' }}
+                  >
+                    <div className="flex pr-2" style={{ height: `${totalHeight}px` }}>
+                      {/* 시간 거터 */}
+                      <div
+                        className="shrink-0 relative border-r border-[rgb(var(--color-secondary-200))]"
+                        style={{ width: TIME_GUTTER_WIDTH }}
+                      >
+                        {hourLabels.map((hour) => {
+                          const top = minutesToPx(hour * 60, rangeStartMin, ppm);
+                          return (
+                            <div key={`w${weekIdx}-h${hour}`}>
+                              <div
+                                className="absolute right-2 text-[11px] text-[var(--text-tertiary)] font-medium tabular-nums -translate-y-1/2"
+                                style={{ top: `${top}px` }}
+                              >
+                                {formatHourLabel(hour)}
+                              </div>
+                              <div
+                                className="absolute h-px bg-[rgb(var(--color-secondary-200))]"
+                                style={{ top: `${top}px`, right: '-4px', width: '12px' }}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* 7 컬럼 */}
+                      <div className="flex-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
+                        {wkDates.map((date) => {
+                          const dayData = dayDataMap.get(date);
+                          const header = formatDayHeader(date);
+                          return (
+                            <WeeklyGridColumn
+                              key={date}
+                              ref={setColumnRef(date)}
+                              date={date}
+                              plans={dayData?.plans ?? []}
+                              customItems={dayData?.customItems ?? []}
+                              nonStudyItems={dayData?.nonStudyItems ?? []}
+                              displayRange={displayRange}
+                              isToday={header.isToday}
+                              isPast={header.isPast}
+                              nowTop={header.isToday ? nowTop : undefined}
+                              onBlockClick={handleBlockClick}
+                              onEdit={onEdit}
+                              searchQuery={searchQuery}
+                              highlightedPlanId={newlyCreatedPlanId}
+                              draggingPlanId={crossDayDrag.draggingPlanId}
+                              isDragTarget={crossDayDrag.targetDate === date}
+                              enableHover={!!calendarId && !quickCreateState && !isPopoverOpen && !crossDayDrag.draggingPlanId && !dragState && !isResizing}
+                              onCrossDayDragStart={calendarId ? crossDayDrag.startDrag : undefined}
+                              makeResizeHandleProps={calendarId ? makeWeeklyResizeHandleProps : undefined}
+                              resizingPlanId={resizingPlanId}
+                              resizeHeight={resizeHeight}
+                              resizingEdge={resizingEdge}
+                              pxPerMinute={ppm}
+                              suppressBlockHover={!!quickCreateState || !!dragState}
+                              calendarColorMap={calendarColorMap}
+                              isAdminMode={isAdminMode}
+                            />
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
+
+                  {/* 아래쪽 힌트 pill */}
+                  {(() => {
+                    const hints = weekIdx === 0 ? week1Hints : week2Hints;
+                    return hints.below && (
+                      <OffScreenEventHint
+                        direction="below"
+                        timeRange={hints.below.timeRange}
+                        eventCount={hints.below.eventCount}
+                        onClick={() => handleHintClick(hints.below!.targetMinutes)}
+                      />
+                    );
+                  })()}
                 </div>
               </div>
             ))}
