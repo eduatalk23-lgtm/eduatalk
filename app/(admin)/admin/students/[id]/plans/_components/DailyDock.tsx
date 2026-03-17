@@ -939,7 +939,7 @@ export const DailyDock = memo(function DailyDock({
               onOpenEventEditNew({ date: selectedDate, startTime: '09:00', endTime: '10:00' });
             }
           }}
-          className="hidden md:flex fixed right-6 bottom-6 z-30 items-center justify-center w-14 h-14 rounded-full bg-blue-500 text-white shadow-lg hover:bg-blue-600 active:scale-95 transition-all"
+          className="flex md:hidden fixed right-6 bottom-6 z-30 items-center justify-center w-14 h-14 rounded-full bg-blue-500 text-white shadow-lg hover:bg-blue-600 active:scale-95 transition-all"
           aria-label="새 일정 만들기"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

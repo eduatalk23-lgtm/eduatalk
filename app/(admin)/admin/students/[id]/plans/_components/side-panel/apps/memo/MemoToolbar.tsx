@@ -43,7 +43,7 @@ export function MemoToolbar({
               className="fixed inset-0 z-10"
               onClick={() => setShowColorPicker(false)}
             />
-            <div className="absolute bottom-full left-0 mb-1 z-20 bg-[var(--background)] border border-[var(--color-border)] rounded-lg shadow-lg p-2 flex gap-1.5 flex-wrap w-[140px]">
+            <div className="absolute bottom-full left-0 mb-1 z-20 bg-[var(--background)] border border-[rgb(var(--color-secondary-200))] rounded-lg shadow-lg p-2 flex gap-1.5 flex-wrap w-[140px]">
               {MEMO_COLORS.map((c) => {
                 const colorStyle = MEMO_COLOR_MAP[c];
                 return (

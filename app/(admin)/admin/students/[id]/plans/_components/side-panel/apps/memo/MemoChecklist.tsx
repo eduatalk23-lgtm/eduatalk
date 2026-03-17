@@ -73,7 +73,7 @@ export function ChecklistDisplay({
   if (!items.length) return null;
 
   return (
-    <div className="flex flex-col gap-0.5 mt-1.5 pt-1.5 border-t border-[var(--color-border)]">
+    <div className="flex flex-col gap-0.5 mt-1.5 pt-1.5 border-t border-[rgb(var(--color-secondary-200))]">
       {items.map((item, i) => (
         <label
           key={i}
@@ -87,7 +87,7 @@ export function ChecklistDisplay({
             type="checkbox"
             checked={item.checked}
             onChange={() => onToggle?.(i)}
-            className="mt-0.5 rounded border-[var(--color-border)] accent-[rgb(var(--color-primary-600))]"
+            className="mt-0.5 rounded border-[rgb(var(--color-secondary-200))] accent-[rgb(var(--color-primary-600))]"
             onClick={(e) => e.stopPropagation()}
           />
           <span
@@ -163,14 +163,14 @@ export function ChecklistEditor({
   if (!items.length) return null;
 
   return (
-    <div className="flex flex-col gap-1 mt-1.5 pt-1.5 border-t border-[var(--color-border)]">
+    <div className="flex flex-col gap-1 mt-1.5 pt-1.5 border-t border-[rgb(var(--color-secondary-200))]">
       {items.map((item, i) => (
         <div key={i} className="flex items-center gap-1.5 group">
           <input
             type="checkbox"
             checked={item.checked}
             onChange={() => toggleItem(i)}
-            className="rounded border-[var(--color-border)] accent-[rgb(var(--color-primary-600))]"
+            className="rounded border-[rgb(var(--color-secondary-200))] accent-[rgb(var(--color-primary-600))]"
           />
           <input
             type="text"

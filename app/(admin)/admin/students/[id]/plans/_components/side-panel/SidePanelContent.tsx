@@ -28,7 +28,7 @@ export function SidePanelContent({
         />
         <div className="fixed bottom-0 left-0 right-0 z-50 bg-[var(--background)] rounded-t-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in slide-in-from-bottom duration-200">
           <div className="flex items-center justify-center pt-2 pb-1">
-            <div className="w-10 h-1 rounded-full bg-[var(--color-border)]" />
+            <div className="w-10 h-1 rounded-full bg-[rgb(var(--color-secondary-200))]" />
           </div>
           <PanelHeader title={activeConfig.label} onClose={closePanel} />
           <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain">
@@ -44,7 +44,7 @@ export function SidePanelContent({
     return (
       <div
         className={cn(
-          "flex-shrink-0 bg-[var(--background)] border-l border-[var(--color-border)] overflow-hidden flex flex-col",
+          "flex-shrink-0 bg-[var(--background)] border-l border-[rgb(var(--color-secondary-200))] overflow-hidden flex flex-col",
           "transition-[width] duration-200 ease-in-out",
           isPanelOpen ? "" : "w-0 border-l-0"
         )}
@@ -92,7 +92,7 @@ function PanelHeader({
   onClose: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between px-4 h-12 border-b border-[var(--color-border)] flex-shrink-0">
+    <div className="flex items-center justify-between px-4 h-12 border-b border-[rgb(var(--color-secondary-200))] flex-shrink-0">
       <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
         {title}
       </h3>

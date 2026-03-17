@@ -280,7 +280,7 @@ export function MemoItem({ memo, studentId }: MemoItemProps) {
       {/* Hover Actions */}
       {showActions && (
         <div
-          className="absolute top-1.5 right-1.5 flex items-center gap-0.5 bg-[var(--background)] rounded-md shadow-sm border border-[var(--color-border)] p-0.5"
+          className="absolute top-1.5 right-1.5 flex items-center gap-0.5 bg-[var(--background)] rounded-md shadow-sm border border-[rgb(var(--color-secondary-200))] p-0.5"
           onClick={(e) => e.stopPropagation()}
         >
           <ActionButton icon={Pencil} label="수정" onClick={handleStartEdit} />

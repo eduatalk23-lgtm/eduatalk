@@ -112,7 +112,7 @@ export function MemoList({ studentId, authorRole, searchQuery = "", isAdminMode 
       {((isAdminMode && authorRole === "admin") || (!isAdminMode && authorRole === "student")) && (
         <div className="px-3 pt-3 pb-1">
           {isCreating ? (
-            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-2.5 shadow-sm">
+            <div className="rounded-lg border border-[rgb(var(--color-secondary-200))] bg-[var(--color-bg-secondary)] p-2.5 shadow-sm">
               <input
                 type="text"
                 value={newTitle}
@@ -172,7 +172,7 @@ export function MemoList({ studentId, authorRole, searchQuery = "", isAdminMode 
             <button
               type="button"
               onClick={() => setIsCreating(true)}
-              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-secondary)] rounded-lg border border-dashed border-[var(--color-border)] transition-colors"
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-secondary)] rounded-lg border border-dashed border-[rgb(var(--color-secondary-200))] transition-colors"
             >
               <Plus size={14} />
               <span>메모 작성</span>

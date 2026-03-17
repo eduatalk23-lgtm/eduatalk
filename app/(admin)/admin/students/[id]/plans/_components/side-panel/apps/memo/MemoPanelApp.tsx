@@ -40,7 +40,7 @@ export function MemoPanelApp() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="메모 검색..."
-            className="w-full text-xs bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-md pl-7 pr-7 py-1.5 outline-none placeholder:text-[var(--color-text-tertiary)] focus:border-[rgb(var(--color-primary-400))]"
+            className="w-full text-xs bg-[var(--color-bg-secondary)] border border-[rgb(var(--color-secondary-200))] rounded-md pl-7 pr-7 py-1.5 outline-none placeholder:text-[var(--color-text-tertiary)] focus:border-[rgb(var(--color-primary-400))]"
             style={{ color: 'var(--color-text-primary)', caretColor: 'var(--color-text-primary)' }}
           />
           {searchQuery && (
@@ -56,7 +56,7 @@ export function MemoPanelApp() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-[var(--color-border)] px-4 flex-shrink-0">
+      <div className="flex border-b border-[rgb(var(--color-secondary-200))] px-4 flex-shrink-0">
         <TabButton
           label={tabLabels.student}
           isActive={activeTab === "student"}

@@ -714,7 +714,7 @@ function AdminPlanManagementContent({
           />
         </CalendarLayoutShell>
 
-          {/* 모바일 FAB — md 이상에서는 숨김 */}
+          {/* 모바일 FAB — md 이상에서는 숨김 (데스크톱은 사이드바 "만들기" 버튼 사용) */}
           {canCreatePlans && (
             <AdminCalendarFAB
               onQuickAdd={() => openUnifiedModal("quick")}
@@ -1169,7 +1169,7 @@ function AdminCalendarFAB({
   }, [expanded]);
 
   return (
-    <div ref={fabRef} className="hidden md:flex fixed md:bottom-6 md:right-6 z-40 flex-col-reverse items-end gap-3">
+    <div ref={fabRef} className="flex md:hidden fixed bottom-6 right-6 z-40 flex-col-reverse items-end gap-3">
       {expanded && (
         <div className="flex flex-col-reverse gap-2 animate-in slide-in-from-bottom-2 fade-in duration-200">
           <button
