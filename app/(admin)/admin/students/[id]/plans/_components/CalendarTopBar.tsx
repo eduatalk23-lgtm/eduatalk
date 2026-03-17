@@ -21,6 +21,7 @@ import {
   ListChecks,
   History,
 } from 'lucide-react';
+import { SidePanelMobileButton } from './side-panel/SidePanelIconRail';
 import type { CalendarView } from './CalendarNavHeader';
 import {
   shiftDay,
@@ -599,6 +600,9 @@ export const CalendarTopBar = memo(function CalendarTopBar({
                   );
                 })()}
               </h2>
+
+              {/* 메모 (모바일) */}
+              <SidePanelMobileButton />
 
               {/* 이벤트 검색 (모바일) */}
               {onSearchChange && (

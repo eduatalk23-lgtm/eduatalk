@@ -10,6 +10,8 @@ interface CalendarLayoutShellProps {
   /** 외부에서 사이드바 상태를 제어할 때 사용 */
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
+  /** 우측 사이드 패널 (Icon Rail + Panel) */
+  rightPanel?: React.ReactNode;
 }
 
 /** 데스크톱(lg+) 사이드바 너비 */
@@ -51,6 +53,7 @@ export function CalendarLayoutShell({
   children,
   isSidebarOpen,
   onToggleSidebar,
+  rightPanel,
 }: CalendarLayoutShellProps) {
   // SSR: null → 마운트 전(CSS 숨김), Client: 실제 breakpoint
   const breakpoint = useSyncExternalStore<BreakpointValue | null>(
@@ -132,6 +135,9 @@ export function CalendarLayoutShell({
             {children}
           </div>
         </div>
+
+        {/* Right Side Panel (Icon Rail + Panel Content) */}
+        {rightPanel}
       </div>
     </div>
   );

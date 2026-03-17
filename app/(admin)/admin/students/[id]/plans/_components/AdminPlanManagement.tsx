@@ -61,6 +61,8 @@ import { CalendarSidebar } from "./CalendarSidebar";
 import { CalendarMainContent } from "./CalendarMainContent";
 import { MiniMonthCalendar } from "./MiniMonthCalendar";
 import { TopBarCenterSlotPortal } from "@/components/layout/TopBarCenterSlotContext";
+import { SidePanelProvider, useSidePanel } from "./side-panel/SidePanelContext";
+import { SidePanelContainer } from "./side-panel/SidePanelContainer";
 
 // 뷰 모드 타입 (export for backward compatibility)
 export type AdminViewMode = "dock" | "month";
@@ -124,15 +126,17 @@ export function AdminPlanManagement(props: AdminPlanManagementProps) {
       currentUserId={props.currentUserId}
       selectedCalendarSettings={props.selectedCalendarSettings}
     >
-      <PlanToastProvider>
-        <UndoProviderWrapper>
-          <AdminPlanManagementContent
-            autoOpenWizard={props.autoOpenWizard}
-            studentName={props.studentName}
-            studentSwitcher={props.studentSwitcher}
-          />
-        </UndoProviderWrapper>
-      </PlanToastProvider>
+      <SidePanelProvider>
+        <PlanToastProvider>
+          <UndoProviderWrapper>
+            <AdminPlanManagementContent
+              autoOpenWizard={props.autoOpenWizard}
+              studentName={props.studentName}
+              studentSwitcher={props.studentSwitcher}
+            />
+          </UndoProviderWrapper>
+        </PlanToastProvider>
+      </SidePanelProvider>
     </AdminPlanProvider>
   );
 }
@@ -251,6 +255,9 @@ function AdminPlanManagementContent({
     setSlotTimeForNewPlan,
     toast,
   } = ctx;
+
+  // 사이드 패널
+  const sidePanelCtx = useSidePanel();
 
   // 위저드 자동 오픈 (URL 파라미터로 트리거)
   const hasAutoOpened = useRef(false);
@@ -419,6 +426,14 @@ function AdminPlanManagementContent({
     });
   }, []);
 
+  // 사이드 패널 열릴 때 좌측 사이드바 자동 접기 (1200px 미만)
+  useEffect(() => {
+    if (sidePanelCtx.isPanelOpen && !sidePanelCtx.isWideDesktop && sidebarOpen) {
+      setSidebarOpen(false);
+      localStorage.setItem('calendarLayout_sidebarOpen', 'false');
+    }
+  }, [sidePanelCtx.isPanelOpen, sidePanelCtx.isWideDesktop, sidebarOpen]);
+
   // Undo 컨텍스트
   const { triggerUndo } = useUndo();
 
@@ -501,6 +516,12 @@ function AdminPlanManagementContent({
         key: "[",
         action: toggleSidebar,
         description: "사이드바 토글",
+        category: "navigation",
+      },
+      {
+        key: "]",
+        action: () => sidePanelCtx.toggleApp("memo"),
+        description: "사이드 패널 토글",
         category: "navigation",
       },
       {
@@ -639,6 +660,7 @@ function AdminPlanManagementContent({
       searchQuery,
       setSearchQuery,
       customDayCount,
+      sidePanelCtx,
     ]
   );
 
@@ -682,6 +704,7 @@ function AdminPlanManagementContent({
           isSidebarOpen={sidebarOpen}
           onToggleSidebar={toggleSidebar}
           sidebar={<CalendarSidebar />}
+          rightPanel={<SidePanelContainer />}
         >
           <CalendarMainContent
             calendarView={calendarView}
