@@ -25,6 +25,11 @@ import { ReadingEditor } from "./ReadingEditor";
 import { PersonalSetekEditor } from "./PersonalSetekEditor";
 import { AttendanceEditor, AttendanceTableHeader } from "./AttendanceEditor";
 import { StorylineManager } from "./StorylineManager";
+import { InquiryLinkSuggestions } from "./InquiryLinkSuggestions";
+import { RecordWarningPanel } from "./RecordWarningPanel";
+import { InterviewQuestionPanel } from "./InterviewQuestionPanel";
+import { computeWarnings } from "@/lib/domains/student-record/warnings/engine";
+import type { WarningCheckInput } from "@/lib/domains/student-record/warnings/engine";
 import { StorylineTimeline } from "./StorylineTimeline";
 import { RoadmapEditor } from "./RoadmapEditor";
 import { ApplicationBoard } from "./ApplicationBoard";
@@ -107,6 +112,7 @@ const STAGES: StageConfig[] = [
       { id: "sec-diagnosis-analysis", label: "역량 분석" },
       { id: "sec-diagnosis-overall", label: "종합진단" },
       { id: "sec-diagnosis-adequacy", label: "교과이수적합" },
+      { id: "sec-warnings", label: "경보" },
     ],
   },
   {
@@ -128,6 +134,7 @@ const STAGES: StageConfig[] = [
     sections: [
       { id: "sec-applications", label: "지원현황" },
       { id: "sec-minscore", label: "최저시뮬" },
+      { id: "sec-interview", label: "면접 질문" },
     ],
   },
 ];
@@ -436,6 +443,22 @@ export function StudentRecordClient({
     }
     return result;
   }, [recordByGrade, subjects]);
+
+  // ─── 경고 계산 ─────────────────────────────────
+  const warnings = useMemo(() => {
+    const recordsMap = new Map<number, import("@/lib/domains/student-record").RecordTabData>();
+    for (const [g, entry] of recordByGrade) {
+      recordsMap.set(g, entry.data);
+    }
+    const input: WarningCheckInput = {
+      recordsByGrade: recordsMap,
+      storylineData: storylineData ?? null,
+      diagnosisData: diagnosisData ?? null,
+      strategyData: strategyData ?? null,
+      currentGrade: studentGrade,
+    };
+    return computeWarnings(input);
+  }, [recordByGrade, storylineData, diagnosisData, strategyData, studentGrade]);
 
   // 헤더 표시용 텍스트
   const headerSubtitle = viewMode === "all"
@@ -796,6 +819,7 @@ export function StudentRecordClient({
                 aiDiagnosis={diagnosisData?.aiDiagnosis ?? null}
                 consultantDiagnosis={diagnosisData?.consultantDiagnosis ?? null}
                 aiScores={diagnosisData?.competencyScores.ai ?? []}
+                consultantScores={diagnosisData?.competencyScores.consultant ?? []}
                 activityTags={diagnosisData?.activityTags ?? []}
                 studentId={studentId}
                 tenantId={tenantId}
@@ -817,6 +841,10 @@ export function StudentRecordClient({
             )}
           </StrategySection>
 
+          <StrategySection id="sec-warnings" title="조기 경보">
+            <RecordWarningPanel warnings={warnings} />
+          </StrategySection>
+
           {/* ─── 📐 설계 스테이지 구분선 ──────────── */}
           <StageDivider emoji="📐" label="설계" />
 
@@ -825,6 +853,12 @@ export function StudentRecordClient({
             {storylineLoading ? <SectionSkeleton /> : storylineData ? (
               <div className="flex flex-col gap-6">
                 <StorylineManager storylines={storylineData.storylines} studentId={studentId} tenantId={tenantId} />
+                <InquiryLinkSuggestions
+                  records={allRecordSummaries}
+                  storylines={storylineData.storylines}
+                  studentId={studentId}
+                  tenantId={tenantId}
+                />
                 {storylineData.storylines.length > 0 && (
                   <div>
                     <h4 className="mb-3 text-sm font-medium text-[var(--text-primary)]">타임라인 미리보기</h4>
@@ -876,6 +910,10 @@ export function StudentRecordClient({
                 tenantId={tenantId}
               />
             ) : null}
+          </StrategySection>
+
+          <StrategySection id="sec-interview" title="면접 예상 질문">
+            <InterviewQuestionPanel records={allRecordSummaries} />
           </StrategySection>
 
           <div className="h-24" />
