@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { saveChangcheAction } from "@/lib/domains/student-record/actions/record";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
@@ -87,6 +87,11 @@ function ChangcheRow({
   const [content, setContent] = useState(existing?.content ?? "");
   const queryClient = useQueryClient();
 
+  // Import 등으로 외부에서 데이터가 변경되면 state 동기화
+  useEffect(() => {
+    setContent(existing?.content ?? "");
+  }, [existing?.content]);
+
   const handleSave = useCallback(
     async (data: string) => {
       const result = await saveChangcheAction(
@@ -135,11 +140,10 @@ function ChangcheRow({
         {existing?.hours ?? "-"}
       </td>
       <td className={`${B} p-1 align-top`}>
-        <textarea
+        <AutoResizeTextarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          rows={4}
-          className="w-full resize-y border-0 bg-transparent p-1 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:outline-none"
+          className="w-full min-h-16 resize-none border-0 bg-transparent p-1 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:outline-none"
           placeholder={`${CHANGCHE_TYPE_LABELS[activityType]} 활동 내용을 입력하세요...`}
         />
         <div className="flex items-center justify-between px-1">
@@ -153,5 +157,26 @@ function ChangcheRow({
         </div>
       </td>
     </tr>
+  );
+}
+
+/** textarea 높이를 내용에 맞춰 자동 조절 (테이블 셀 내에서도 작동) */
+function AutoResizeTextarea({ onChange, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const resize = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "0";
+    el.style.height = `${el.scrollHeight}px`;
+  }, []);
+
+  useEffect(resize, [props.value, resize]);
+
+  return (
+    <textarea
+      ref={ref}
+      {...props}
+      onChange={(e) => { onChange?.(e); resize(); }}
+    />
   );
 }

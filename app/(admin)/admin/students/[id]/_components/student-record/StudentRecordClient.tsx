@@ -379,7 +379,7 @@ export function StudentRecordClient({
           </div>
 
           {/* ─── 학반정보 + 사진 영역 (실제 생기부 원본 레이아웃) ── */}
-          <div className="mb-6 flex items-start gap-6">
+          <div className="mb-6 flex items-stretch gap-4">
             {/* 테이블 */}
             <div className="flex-1 overflow-x-auto">
               <table className="w-full border-collapse text-sm">
@@ -416,9 +416,9 @@ export function StudentRecordClient({
                 </tbody>
               </table>
             </div>
-            {/* 증명사진 */}
+            {/* 증명사진 — NEIS 원본: 테이블 전체 높이에 맞춤 */}
             <div className="hidden shrink-0 sm:block">
-              <div className="flex h-[160px] w-[120px] items-center justify-center border border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-800">
+              <div className="flex h-full w-[120px] items-center justify-center border border-gray-400 bg-gray-50 dark:border-gray-500 dark:bg-gray-800">
                 <User className="size-12 text-gray-300 dark:text-gray-600" />
               </div>
             </div>
@@ -881,6 +881,13 @@ function GradesAndSetekSection({
   isLoading: boolean;
   showSectionAnchors?: boolean;
 }) {
+  // 2022 개정 판별 (2025년 입학생~)
+  const enrollmentYear = schoolYear - studentGrade + 1;
+  const is2022Curriculum = enrollmentYear >= 2025;
+  const peArtSectionTitle = is2022Curriculum
+    ? "< 체육 · 예술 / 과학탐구실험 >"
+    : "< 체육 · 예술 >";
+
   // 세특을 과목유형별로 분류
   const { generalSeteks, electiveSeteks, peArtSeteks } = useMemo(() => {
     if (!seteks) return { generalSeteks: [], electiveSeteks: [], peArtSeteks: [] };
@@ -898,10 +905,9 @@ function GradesAndSetekSection({
 
   return (
     <>
-      {/* 일반과목: 성적 → 세특 */}
+      {/* ── 일반과목: 성적 → 이수학점 → 세특 ── */}
       <div {...(showSectionAnchors ? { "data-section-id": "sec-7-grades" } : {})} className="mb-6">
-        <SubHeader>일반과목</SubHeader>
-        <RecordGradesDisplay studentId={studentId} tenantId={tenantId} schoolYear={schoolYear} studentGrade={studentGrade} subjects={subjects} />
+        <RecordGradesDisplay studentId={studentId} tenantId={tenantId} schoolYear={schoolYear} studentGrade={studentGrade} subjects={subjects} variant="general" />
       </div>
 
       <div {...(showSectionAnchors ? { "data-section-id": "sec-7-setek" } : {})} className="mb-6">
@@ -918,10 +924,15 @@ function GradesAndSetekSection({
         )}
       </div>
 
-      {/* 진로선택: 세특 (성적은 RecordGradesDisplay에서 이미 분리 표시) */}
+      {/* ── 진로 선택 과목: 성적 → 세특 ── */}
+      <div className="mb-6">
+        <SubHeader>&lt; 진로 선택 과목 &gt;</SubHeader>
+        <RecordGradesDisplay studentId={studentId} tenantId={tenantId} schoolYear={schoolYear} studentGrade={studentGrade} subjects={subjects} variant="elective" />
+      </div>
+
       {electiveSeteks.length > 0 && (
         <div className="mb-6">
-          <SubHeader>진로선택 세부능력 및 특기사항</SubHeader>
+          <SubHeader>세부능력 및 특기사항</SubHeader>
           <SetekEditor
             seteks={electiveSeteks}
             studentId={studentId}
@@ -933,10 +944,15 @@ function GradesAndSetekSection({
         </div>
       )}
 
-      {/* 체육·예술: 세특 */}
+      {/* ── 체육 · 예술: 성적 → 세특 ── */}
+      <div className="mb-6">
+        <SubHeader>{peArtSectionTitle}</SubHeader>
+        <RecordGradesDisplay studentId={studentId} tenantId={tenantId} schoolYear={schoolYear} studentGrade={studentGrade} subjects={subjects} variant="pe_art" />
+      </div>
+
       {peArtSeteks.length > 0 && (
         <div className="mb-6">
-          <SubHeader>체육·예술 세부능력 및 특기사항</SubHeader>
+          <SubHeader>세부능력 및 특기사항</SubHeader>
           <SetekEditor
             seteks={peArtSeteks}
             studentId={studentId}
@@ -948,7 +964,7 @@ function GradesAndSetekSection({
         </div>
       )}
 
-      {/* 개인세특 */}
+      {/* ── 개인세특 ── */}
       <div {...(showSectionAnchors ? { "data-section-id": "sec-7-personal" } : {})}>
         <SubHeader>개인 세부능력 및 특기사항</SubHeader>
         {isLoading ? <SectionSkeleton /> : personalSeteks ? (

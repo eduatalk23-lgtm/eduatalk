@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { saveSetekAction } from "@/lib/domains/student-record/actions/record";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
@@ -67,7 +67,6 @@ export function SetekEditor({
   subjects,
   grade,
 }: SetekEditorProps) {
-  const [expandedSubjectId, setExpandedSubjectId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const charLimit = getCharLimit("setek", schoolYear);
 
@@ -81,6 +80,7 @@ export function SetekEditor({
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr>
+              <th className={`${B} w-12 px-2 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>학년</th>
               <th className={`${B} w-28 px-3 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>과 목</th>
               <th className={`${B} px-3 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>세부능력 및 특기사항</th>
             </tr>
@@ -88,7 +88,7 @@ export function SetekEditor({
           <tbody>
             {mergedRows.length === 0 ? (
               <tr>
-                <td colSpan={2} className={`${B} px-4 py-2 text-center text-xs text-[var(--text-tertiary)]`}>
+                <td colSpan={3} className={`${B} px-4 py-2 text-center text-xs text-[var(--text-tertiary)]`}>
                   해당 사항 없음
                 </td>
               </tr>
@@ -98,8 +98,6 @@ export function SetekEditor({
                   key={row.subjectId}
                   row={row}
                   charLimit={charLimit}
-                  isExpanded={expandedSubjectId === row.subjectId}
-                  onToggle={() => setExpandedSubjectId(expandedSubjectId === row.subjectId ? null : row.subjectId)}
                   studentId={studentId}
                   schoolYear={schoolYear}
                   tenantId={tenantId}
@@ -139,8 +137,6 @@ export function SetekEditor({
 function SetekTableRow({
   row,
   charLimit,
-  isExpanded,
-  onToggle,
   studentId,
   schoolYear,
   tenantId,
@@ -148,66 +144,45 @@ function SetekTableRow({
 }: {
   row: MergedSetekRow;
   charLimit: number;
-  isExpanded: boolean;
-  onToggle: () => void;
   studentId: string;
   schoolYear: number;
   tenantId: string;
   grade: number;
 }) {
-  // 합산된 내용 미리보기: 모든 레코드의 content를 연결
-  const mergedContent = row.records.map((r) => r.content ?? "").filter(Boolean).join(" ");
-  const preview = mergedContent.length > 120 ? mergedContent.slice(0, 120) + "..." : mergedContent || "내용 없음";
-
   return (
-    <tr className="align-top">
-      {/* 과목명 */}
-      <td
-        className={`${B} px-3 py-2 text-center text-sm font-medium text-[var(--text-primary)] cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50`}
-        onClick={onToggle}
-      >
-        <span className="mr-1 inline-block text-xs text-[var(--text-tertiary)]">{isExpanded ? "▾" : "▸"}</span>
-        {row.displayName}
-        {row.records.length > 1 && (
-          <span className="mt-0.5 block text-xs font-normal text-[var(--text-tertiary)]">
-            ({row.records.map((r) => `${r.semester}학기`).join("·")})
-          </span>
-        )}
-      </td>
-
-      {/* 세특 내용 */}
-      <td className={`${B} px-3 py-2`}>
-        {isExpanded ? (
-          <div className="flex flex-col gap-3">
-            {row.records.map((setek) => (
-              <SetekInlineEditor
-                key={setek.id}
-                setek={setek}
-                charLimit={charLimit}
-                studentId={studentId}
-                schoolYear={schoolYear}
-                tenantId={tenantId}
-                grade={grade}
-                showSemesterLabel={row.records.length > 1}
-              />
-            ))}
-            <button
-              onClick={onToggle}
-              className="self-end text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
-            >
-              접기
-            </button>
-          </div>
-        ) : (
-          <div
-            className="cursor-pointer text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            onClick={onToggle}
-          >
-            {preview}
-          </div>
-        )}
-      </td>
-    </tr>
+    <>
+      {row.records.map((setek, idx) => (
+        <tr key={setek.id} className="align-top">
+          {idx === 0 && (
+            <>
+              {/* 학년 */}
+              <td rowSpan={row.records.length} className={`${B} px-2 py-2 text-center align-middle text-sm text-[var(--text-primary)]`}>
+                {grade}
+              </td>
+              {/* 과목명 */}
+              <td rowSpan={row.records.length} className={`${B} px-3 py-2 text-center align-middle text-sm font-medium text-[var(--text-primary)]`}>
+                {row.displayName}
+              </td>
+            </>
+          )}
+          {/* 세특 내용 */}
+          <td className={`${B} p-1`}>
+            {row.records.length > 1 && (
+              <p className="mb-1 px-1 text-xs font-medium text-[var(--text-tertiary)]">{setek.semester}학기</p>
+            )}
+            <SetekInlineEditor
+              setek={setek}
+              charLimit={charLimit}
+              studentId={studentId}
+              schoolYear={schoolYear}
+              tenantId={tenantId}
+              grade={grade}
+              showSemesterLabel={false}
+            />
+          </td>
+        </tr>
+      ))}
+    </>
   );
 }
 
@@ -232,6 +207,10 @@ function SetekInlineEditor({
 }) {
   const [content, setContent] = useState(setek.content ?? "");
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    setContent(setek.content ?? "");
+  }, [setek.content]);
 
   const handleSave = useCallback(
     async (data: string) => {
@@ -262,18 +241,17 @@ function SetekInlineEditor({
   });
 
   return (
-    <div>
+    <>
       {showSemesterLabel && (
         <p className="mb-1 text-xs font-medium text-[var(--text-tertiary)]">{setek.semester}학기</p>
       )}
-      <textarea
+      <AutoResizeTextarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        rows={4}
-        className="w-full resize-y rounded border border-gray-200 bg-[var(--bg-surface)] p-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700"
+        className="w-full min-h-16 resize-none border-0 bg-transparent p-1 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:outline-none"
         placeholder="세특 내용을 입력하세요..."
       />
-      <div className="mt-1 flex items-center justify-between">
+      <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
           <SaveStatusIndicator status={status} error={error} />
           {status === "error" && (
@@ -282,7 +260,7 @@ function SetekInlineEditor({
         </div>
         <CharacterCounter content={content} charLimit={charLimit} />
       </div>
-    </div>
+    </>
   );
 }
 
@@ -388,4 +366,16 @@ function AddSetekForm({
       </div>
     </div>
   );
+}
+
+function AutoResizeTextarea({ onChange, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const resize = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "0";
+    el.style.height = `${el.scrollHeight}px`;
+  }, []);
+  useEffect(resize, [props.value, resize]);
+  return <textarea ref={ref} {...props} onChange={(e) => { onChange?.(e); resize(); }} />;
 }

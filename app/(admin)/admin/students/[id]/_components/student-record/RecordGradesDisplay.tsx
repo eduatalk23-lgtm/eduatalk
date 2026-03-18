@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/cn";
-import { calculateSchoolYear } from "@/lib/utils/schoolYear";
+
 import { adminDeleteInternalScore } from "@/lib/domains/score/actions/core";
 
 // ─── Types ──────────────────────────────────────────
@@ -30,32 +30,34 @@ type Score = {
   subject_type: { name: string; is_achievement_only: boolean } | null;
 };
 
+type GradeVariant = "general" | "elective" | "pe_art" | "all";
+
 type RecordGradesDisplayProps = {
   studentId: string;
   tenantId?: string;
   schoolYear: number;
   studentGrade: number;
   subjects?: { id: string; name: string; subject_group?: { name: string } | null }[];
+  /** 표시할 성적 영역. "all"이면 전체 (기존 동작). 기본값 "all" */
+  variant?: GradeVariant;
 };
 
 const B = "border border-gray-400 dark:border-gray-500";
 
 // ─── Main Component ─────────────────────────────────
 
-export function RecordGradesDisplay({ studentId, tenantId, schoolYear, studentGrade, subjects }: RecordGradesDisplayProps) {
+export function RecordGradesDisplay({ studentId, tenantId, schoolYear, studentGrade, subjects, variant = "all" }: RecordGradesDisplayProps) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const queryClient = useQueryClient();
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const currentSchoolYear = calculateSchoolYear();
-  const gradeForYear = studentGrade - (currentSchoolYear - schoolYear);
-
+  // studentGrade는 이미 해당 학년(1,2,3)이 전달됨
   const queryKey = ["studentRecord", "grades", studentId, schoolYear];
 
   const { data: scores, isLoading } = useQuery({
     queryKey,
     queryFn: async () => {
-      if (gradeForYear < 1 || gradeForYear > 3) return [];
+      if (studentGrade < 1 || studentGrade > 3) return [];
 
       const { data, error } = await supabase
         .from("student_internal_scores")
@@ -63,7 +65,7 @@ export function RecordGradesDisplay({ studentId, tenantId, schoolYear, studentGr
           "id, semester, grade, credit_hours, raw_score, avg_score, std_dev, rank_grade, achievement_level, total_students, achievement_ratio_a, achievement_ratio_b, achievement_ratio_c, achievement_ratio_d, achievement_ratio_e, subject_group:subject_group_id(name), subject:subject_id(name), subject_type:subject_type_id(name, is_achievement_only)",
         )
         .eq("student_id", studentId)
-        .eq("grade", gradeForYear)
+        .eq("grade", studentGrade)
         .order("semester")
         .order("subject_group_id");
 
@@ -85,11 +87,11 @@ export function RecordGradesDisplay({ studentId, tenantId, schoolYear, studentGr
 
   const addMutation = useMutation({
     mutationFn: async (input: AddScoreInput) => {
-      if (gradeForYear < 1) throw new Error("유효하지 않은 학년");
+      if (studentGrade < 1) throw new Error("유효하지 않은 학년");
       const { error } = await supabase.from("student_internal_scores").insert({
         student_id: studentId,
         tenant_id: input.tenantId,
-        grade: gradeForYear,
+        grade: studentGrade,
         semester: input.semester,
         credit_hours: input.creditHours,
         raw_score: input.rawScore || null,
@@ -110,6 +112,23 @@ export function RecordGradesDisplay({ studentId, tenantId, schoolYear, studentGr
     },
   });
 
+  const addForm = tenantId && subjects ? (
+    showAddForm ? (
+      <AddScoreForm
+        tenantId={tenantId}
+        subjects={subjects}
+        onSubmit={(input) => addMutation.mutate(input)}
+        onCancel={() => setShowAddForm(false)}
+        isPending={addMutation.isPending}
+        error={addMutation.isError ? addMutation.error.message : undefined}
+      />
+    ) : (
+      <button onClick={() => setShowAddForm(true)} className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]">
+        + 성적 추가
+      </button>
+    )
+  ) : null;
+
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -123,77 +142,68 @@ export function RecordGradesDisplay({ studentId, tenantId, schoolYear, studentGr
   if (!scores || scores.length === 0) {
     return (
       <div className="flex flex-col gap-2">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-xs">
-            <thead>
-              <tr>
-                <Th>학기</Th><Th>교과</Th><Th>과목</Th><Th>학점</Th>
-                <Th>원점수</Th><Th>과목평균</Th><Th>성취도</Th>
-                <Th>성취도별 분포비율</Th><Th>석차등급</Th><Th>수강자수</Th><Th>비고</Th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td colSpan={11} className={`${B} px-4 py-2 text-center text-xs text-[var(--text-tertiary)]`}>
-                  해당 사항 없음
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        {tenantId && subjects && (
-          showAddForm ? (
-            <AddScoreForm
-              tenantId={tenantId}
-              subjects={subjects}
-              onSubmit={(input) => addMutation.mutate(input)}
-              onCancel={() => setShowAddForm(false)}
-              isPending={addMutation.isPending}
-              error={addMutation.isError ? addMutation.error.message : undefined}
-            />
-          ) : (
-            <button onClick={() => setShowAddForm(true)} className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]">
-              + 성적 추가
-            </button>
-          )
-        )}
+        <EmptyGradeTable variant={variant === "all" ? "general" : variant} />
+        {addForm}
       </div>
     );
   }
 
-  const grouped = classifyScores(scores);
+  const grouped = useMemo(() => classifyScores(scores), [scores]);
+  const onDel = (id: string) => { if (confirm("삭제하시겠습니까?")) deleteMutation.mutate(id); };
 
+  // variant별 필터링
+  if (variant === "general") {
+    const combined = [...grouped.general, ...grouped.liberal];
+    return (
+      <div className="flex flex-col gap-4">
+        {combined.length === 0 ? <EmptyGradeTable variant="general" /> : (
+          <>
+            {grouped.general.length > 0 && <GradesTable scores={grouped.general} variant="general" tenantId={tenantId} onDelete={onDel} />}
+            {grouped.liberal.length > 0 && <GradesTable scores={grouped.liberal} variant="liberal" tenantId={tenantId} onDelete={onDel} />}
+          </>
+        )}
+        {addForm}
+      </div>
+    );
+  }
+  if (variant === "elective") {
+    return (
+      <div className="flex flex-col gap-4">
+        {grouped.elective.length === 0 ? <EmptyGradeTable variant="elective" /> : (
+          <GradesTable scores={grouped.elective} variant="elective" tenantId={tenantId} onDelete={onDel} />
+        )}
+        {addForm}
+      </div>
+    );
+  }
+  if (variant === "pe_art") {
+    return (
+      <div className="flex flex-col gap-4">
+        {grouped.pe_art.length === 0 ? <EmptyGradeTable variant="pe_art" /> : (
+          <GradesTable scores={grouped.pe_art} variant="pe_art" tenantId={tenantId} onDelete={onDel} />
+        )}
+        {addForm}
+      </div>
+    );
+  }
+
+  // variant === "all" (기존 동작)
   return (
     <div className="flex flex-col gap-6">
       {grouped.general.length > 0 && (
-        <GradesTable label="일반과목" scores={grouped.general} variant="general" tenantId={tenantId} onDelete={(id) => { if (confirm("삭제하시겠습니까?")) deleteMutation.mutate(id); }} />
+        <GradesTable scores={grouped.general} variant="general" tenantId={tenantId} onDelete={onDel} />
       )}
       {grouped.elective.length > 0 && (
-        <GradesTable label="진로선택 과목" scores={grouped.elective} variant="elective" tenantId={tenantId} onDelete={(id) => { if (confirm("삭제하시겠습니까?")) deleteMutation.mutate(id); }} />
+        <GradesTable scores={grouped.elective} variant="elective" tenantId={tenantId} onDelete={onDel} />
       )}
       {grouped.pe_art.length > 0 && (
-        <GradesTable label="체육·예술" scores={grouped.pe_art} variant="pe_art" tenantId={tenantId} onDelete={(id) => { if (confirm("삭제하시겠습니까?")) deleteMutation.mutate(id); }} />
+        <GradesTable scores={grouped.pe_art} variant="pe_art" tenantId={tenantId} onDelete={onDel} />
       )}
       {grouped.liberal.length > 0 && (
-        <GradesTable label="교양" scores={grouped.liberal} variant="liberal" tenantId={tenantId} onDelete={(id) => { if (confirm("삭제하시겠습니까?")) deleteMutation.mutate(id); }} />
+        <GradesTable scores={grouped.liberal} variant="liberal" tenantId={tenantId} onDelete={onDel} />
       )}
 
-      {tenantId && subjects && (
-        showAddForm ? (
-          <AddScoreForm
-            tenantId={tenantId}
-            subjects={subjects}
-            onSubmit={(input) => addMutation.mutate(input)}
-            onCancel={() => setShowAddForm(false)}
-            isPending={addMutation.isPending}
-            error={addMutation.isError ? addMutation.error.message : undefined}
-          />
-        ) : (
-          <button onClick={() => setShowAddForm(true)} className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]">
-            + 성적 추가
-          </button>
-        )
-      )}
+      {addForm}
     </div>
   );
 }
@@ -234,22 +244,56 @@ function classifyScores(scores: Score[]) {
 
 type Variant = "general" | "elective" | "pe_art" | "liberal";
 
-function GradesTable({ label, scores, variant, tenantId, onDelete }: {
-  label: string; scores: Score[]; variant: Variant; tenantId?: string; onDelete?: (id: string) => void;
+function EmptyGradeTable({ variant = "general" }: { variant?: Variant }) {
+  const isPeArt = variant === "pe_art";
+  const isElective = variant === "elective";
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse text-xs">
+        <thead>
+          <tr>
+            <Th>학년</Th><Th>학기</Th><Th>교과</Th><Th>과목</Th><Th>학점</Th>
+            {isPeArt ? (
+              <Th>성취도</Th>
+            ) : (
+              <>
+                <Th>원점수</Th><Th>과목평균</Th><Th>성취도</Th>
+                {isElective ? <Th>성취도별 분포비율</Th> : <Th>석차등급</Th>}
+                <Th>수강자수</Th>
+              </>
+            )}
+            <Th>비고</Th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colSpan={isPeArt ? 7 : 11} className={`${B} px-4 py-2 text-center text-xs text-[var(--text-tertiary)]`}>
+              해당 사항 없음
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function GradesTable({ scores, variant, tenantId, onDelete }: {
+  scores: Score[]; variant: Variant; tenantId?: string; onDelete?: (id: string) => void;
 }) {
   const totalCredits = scores.reduce((sum, s) => sum + s.credit_hours, 0);
   const isPeArt = variant === "pe_art";
   const isLiberal = variant === "liberal";
   const isSimple = isPeArt || isLiberal;
-  const colCount = isSimple ? 6 : (variant === "elective" ? 10 : 11);
+  const colCount = isSimple ? 7 : (variant === "elective" ? 11 : 12);
 
   return (
     <div>
-      <h5 className="mb-2 text-xs font-semibold text-[var(--text-secondary)]">{label}</h5>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-xs">
           <thead>
             <tr>
+              <Th>학년</Th>
               <Th>학기</Th>
               <Th>교과</Th>
               <Th>과목</Th>
@@ -272,6 +316,7 @@ function GradesTable({ label, scores, variant, tenantId, onDelete }: {
           <tbody>
             {scores.map((s) => (
               <tr key={s.id} className={tenantId ? "group" : ""}>
+                <Td center>{s.grade}</Td>
                 <Td center>{s.semester}</Td>
                 <Td center>{s.subject_group?.name ?? "-"}</Td>
                 <Td center bold>{s.subject?.name ?? "-"}</Td>
@@ -303,11 +348,11 @@ function GradesTable({ label, scores, variant, tenantId, onDelete }: {
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={3} className={`${B} px-2 py-1 text-right text-xs font-medium text-[var(--text-secondary)]`}>
+              <td colSpan={4} className={`${B} px-2 py-1 text-right text-xs font-medium text-[var(--text-secondary)]`}>
                 이수학점 합계
               </td>
               <td className={`${B} px-2 py-1 text-center text-xs font-bold text-[var(--text-primary)]`}>{totalCredits}</td>
-              <td colSpan={colCount - 4} className={B} />
+              <td colSpan={colCount - 5} className={B} />
             </tr>
           </tfoot>
         </table>

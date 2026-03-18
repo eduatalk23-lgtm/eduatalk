@@ -96,7 +96,8 @@ function AwardSection({
         <table className="w-full border-collapse text-xs">
           <thead>
             <tr>
-              <th className={`${TH} whitespace-nowrap`}>학년(학기)</th>
+              <th className={TH}>학년</th>
+              <th className={TH}>학기</th>
               <th className={TH}>수 상 명</th>
               <th className={TH}>등급(위)</th>
               <th className={TH}>수상연월일</th>
@@ -106,13 +107,14 @@ function AwardSection({
           </thead>
           <tbody>
             {awards.length === 0 && (
-              <tr><td colSpan={6} className={`${TD} text-center text-[var(--text-tertiary)]`}>해당 사항 없음</td></tr>
+              <tr><td colSpan={7} className={`${TD} text-center text-[var(--text-tertiary)]`}>해당 사항 없음</td></tr>
             )}
             {awards.map((a) => {
               const semester = a.award_date ? (new Date(a.award_date).getMonth() < 7 ? 1 : 2) : null;
               return (
                 <tr key={a.id} className="group">
-                  <td className={`${TD} text-center`}>{a.grade}{semester != null && <><br />{semester}</>}</td>
+                  <td className={`${TD} text-center`}>{a.grade}</td>
+                  <td className={`${TD} text-center`}>{semester ?? "-"}</td>
                   <td className={TD_P}>{a.award_name}</td>
                   <td className={TD}>{a.award_level ?? "-"}</td>
                   <td className={TD}>{a.award_date ?? "-"}</td>
