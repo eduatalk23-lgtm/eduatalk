@@ -2,7 +2,7 @@
 
 // ============================================
 // 세특 인라인 하이라이트 뷰
-// Phase 6.1 — AI가 분석한 구절을 원문에서 색상으로 표시
+// Phase 6.1 — AI가 분석한 구절을 원문에서 역량별 색상으로 표시
 // ============================================
 
 import { Fragment, useMemo, useState } from "react";
@@ -13,28 +13,35 @@ import type { HighlightTag, AnalyzedSection } from "@/lib/domains/student-record
 
 // ─── 색상 체계 ────────────────────────────────
 
-const AREA_COLORS: Record<CompetencyArea, { bg: string; text: string; border: string }> = {
+/** 역량 영역별 하이라이트 색상 — mark 기본 노란색 오버라이드 필수 */
+const AREA_HIGHLIGHT: Record<CompetencyArea, { mark: string; badge: string; badgeBorder: string }> = {
   academic: {
-    bg: "bg-blue-100/70 dark:bg-blue-900/30",
-    text: "text-blue-700 dark:text-blue-400",
-    border: "border-blue-300 dark:border-blue-700",
+    mark: "!bg-blue-100 dark:!bg-blue-900/40 !text-inherit decoration-blue-400",
+    badge: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+    badgeBorder: "border-blue-300 dark:border-blue-700",
   },
   career: {
-    bg: "bg-purple-100/70 dark:bg-purple-900/30",
-    text: "text-purple-700 dark:text-purple-400",
-    border: "border-purple-300 dark:border-purple-700",
+    mark: "!bg-purple-100 dark:!bg-purple-900/40 !text-inherit decoration-purple-400",
+    badge: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+    badgeBorder: "border-purple-300 dark:border-purple-700",
   },
   community: {
-    bg: "bg-green-100/70 dark:bg-green-900/30",
-    text: "text-green-700 dark:text-green-400",
-    border: "border-green-300 dark:border-green-700",
+    mark: "!bg-green-100 dark:!bg-green-900/40 !text-inherit decoration-green-400",
+    badge: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+    badgeBorder: "border-green-300 dark:border-green-700",
   },
 };
 
-const NEEDS_REVIEW_COLORS = {
-  bg: "bg-yellow-100/70 dark:bg-yellow-900/30",
-  text: "text-yellow-700 dark:text-yellow-400",
-  border: "border-yellow-300 dark:border-yellow-700",
+const NEEDS_REVIEW_HIGHLIGHT = {
+  mark: "!bg-yellow-100 dark:!bg-yellow-900/40 !text-inherit decoration-yellow-500",
+  badge: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+  badgeBorder: "border-yellow-300 dark:border-yellow-700",
+};
+
+const EVAL_LABELS: Record<string, { label: string; dot: string }> = {
+  positive: { label: "긍정", dot: "🟢" },
+  negative: { label: "부정", dot: "🔴" },
+  needs_review: { label: "확인필요", dot: "🟡" },
 };
 
 function getAreaOfItem(code: CompetencyItemCode): CompetencyArea {
@@ -45,9 +52,9 @@ function getItemLabel(code: CompetencyItemCode): string {
   return COMPETENCY_ITEMS.find((i) => i.code === code)?.label ?? code;
 }
 
-function getColors(tag: HighlightTag) {
-  if (tag.evaluation === "needs_review") return NEEDS_REVIEW_COLORS;
-  return AREA_COLORS[getAreaOfItem(tag.competencyItem)];
+function getHighlight(tag: HighlightTag) {
+  if (tag.evaluation === "needs_review") return NEEDS_REVIEW_HIGHLIGHT;
+  return AREA_HIGHLIGHT[getAreaOfItem(tag.competencyItem)];
 }
 
 // ─── 하이라이트 세그먼트 생성 ──────────────────
@@ -57,7 +64,6 @@ type Segment = { text: string; tag?: HighlightTag };
 function buildSegments(content: string, tags: HighlightTag[]): Segment[] {
   if (tags.length === 0) return [{ text: content }];
 
-  // 모든 하이라이트 위치 찾기
   type Match = { start: number; end: number; tag: HighlightTag };
   const matches: Match[] = [];
 
@@ -68,7 +74,6 @@ function buildSegments(content: string, tags: HighlightTag[]): Segment[] {
     }
   }
 
-  // 겹침 제거 (먼저 나오는 것 우선)
   matches.sort((a, b) => a.start - b.start);
   const filtered: Match[] = [];
   let lastEnd = 0;
@@ -79,19 +84,14 @@ function buildSegments(content: string, tags: HighlightTag[]): Segment[] {
     }
   }
 
-  // 세그먼트 생성
   const segments: Segment[] = [];
   let cursor = 0;
   for (const m of filtered) {
-    if (m.start > cursor) {
-      segments.push({ text: content.slice(cursor, m.start) });
-    }
+    if (m.start > cursor) segments.push({ text: content.slice(cursor, m.start) });
     segments.push({ text: content.slice(m.start, m.end), tag: m.tag });
     cursor = m.end;
   }
-  if (cursor < content.length) {
-    segments.push({ text: content.slice(cursor) });
-  }
+  if (cursor < content.length) segments.push({ text: content.slice(cursor) });
 
   return segments;
 }
@@ -99,20 +99,21 @@ function buildSegments(content: string, tags: HighlightTag[]): Segment[] {
 // ─── CompetencyBadge ─────────────────────────
 
 export function CompetencyBadge({ tag, compact }: { tag: HighlightTag; compact?: boolean }) {
-  const colors = getColors(tag);
-  const areaLabel = COMPETENCY_AREA_LABELS[getAreaOfItem(tag.competencyItem)];
+  const colors = getHighlight(tag);
   const itemLabel = getItemLabel(tag.competencyItem);
+  const areaLabel = COMPETENCY_AREA_LABELS[getAreaOfItem(tag.competencyItem)];
+  const evalInfo = EVAL_LABELS[tag.evaluation] ?? EVAL_LABELS.positive;
 
   return (
     <span
       className={cn(
         "inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 font-medium",
         compact ? "text-[9px]" : "text-[10px]",
-        colors.bg, colors.text, colors.border,
+        colors.badge, colors.badgeBorder,
       )}
-      title={`${areaLabel} > ${itemLabel}: ${tag.reasoning}`}
+      title={`${areaLabel} > ${itemLabel} (${evalInfo.label}): ${tag.reasoning}`}
     >
-      {compact ? itemLabel : `${areaLabel}_${itemLabel}`}
+      {evalInfo.dot} {compact ? itemLabel : `${areaLabel}_${itemLabel}`}
     </span>
   );
 }
@@ -123,24 +124,14 @@ type Props = {
   content: string;
   sections: AnalyzedSection[];
   label: string;
-  /** 태그 펼침 토글 */
   defaultExpanded?: boolean;
 };
 
 export function HighlightedSetekView({ content, sections, label, defaultExpanded = false }: Props) {
   const [expanded, setExpanded] = useState(defaultExpanded);
 
-  // 모든 섹션의 태그를 플랫하게
-  const allTags = useMemo(
-    () => sections.flatMap((s) => s.tags),
-    [sections],
-  );
-
-  const segments = useMemo(
-    () => buildSegments(content, allTags),
-    [content, allTags],
-  );
-
+  const allTags = useMemo(() => sections.flatMap((s) => s.tags), [sections]);
+  const segments = useMemo(() => buildSegments(content, allTags), [content, allTags]);
   const hasNeedsReview = sections.some((s) => s.needsReview);
 
   return (
@@ -163,29 +154,33 @@ export function HighlightedSetekView({ content, sections, label, defaultExpanded
       </button>
 
       {expanded && (
-        <div className="border-t border-gray-200 px-3 py-2 dark:border-gray-700">
+        <div className="border-t border-gray-200 dark:border-gray-700">
           {/* 하이라이트된 원문 */}
-          <p className="text-sm leading-relaxed text-[var(--text-primary)]">
-            {segments.map((seg, i) =>
-              seg.tag ? (
-                <HighlightedSpan key={i} text={seg.text} tag={seg.tag} />
-              ) : (
-                <Fragment key={i}>{seg.text}</Fragment>
-              ),
-            )}
-          </p>
+          <div className="px-3 py-3">
+            <p className="text-sm leading-relaxed text-[var(--text-primary)]">
+              {segments.map((seg, i) =>
+                seg.tag ? (
+                  <HighlightedSpan key={i} text={seg.text} tag={seg.tag} />
+                ) : (
+                  <Fragment key={i}>{seg.text}</Fragment>
+                ),
+              )}
+            </p>
+          </div>
 
-          {/* 태그 요약 */}
+          {/* 태그 요약 바 */}
           {allTags.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {allTags.map((tag, i) => (
-                <CompetencyBadge key={i} tag={tag} />
-              ))}
+            <div className="border-t border-gray-100 px-3 py-2 dark:border-gray-700">
+              <div className="flex flex-wrap gap-1.5">
+                {allTags.map((tag, i) => (
+                  <CompetencyBadge key={i} tag={tag} />
+                ))}
+              </div>
             </div>
           )}
 
-          {/* 구간별 상세 (접이식) */}
-          {sections.length > 1 && (
+          {/* 구간별 상세 — 내용 요약 포함 */}
+          {sections.length > 0 && (
             <SectionDetails sections={sections} />
           )}
         </div>
@@ -198,16 +193,16 @@ export function HighlightedSetekView({ content, sections, label, defaultExpanded
 
 function HighlightedSpan({ text, tag }: { text: string; tag: HighlightTag }) {
   const [showTooltip, setShowTooltip] = useState(false);
-  const colors = getColors(tag);
+  const colors = getHighlight(tag);
+  const itemLabel = getItemLabel(tag.competencyItem);
+  const evalInfo = EVAL_LABELS[tag.evaluation] ?? EVAL_LABELS.positive;
 
   return (
     <span className="relative inline">
       <mark
         className={cn(
-          "cursor-help rounded-sm px-0.5",
-          colors.bg,
-          "decoration-2 underline decoration-dotted",
-          colors.text.replace("text-", "decoration-"),
+          "cursor-help rounded-sm px-0.5 decoration-2 underline decoration-dotted",
+          colors.mark,
         )}
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
@@ -215,11 +210,12 @@ function HighlightedSpan({ text, tag }: { text: string; tag: HighlightTag }) {
         {text}
       </mark>
       {showTooltip && (
-        <span className="absolute bottom-full left-0 z-10 mb-1 w-64 rounded-md border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-600 dark:bg-gray-800">
-          <span className="flex items-center gap-1 text-xs font-medium">
+        <span className="absolute bottom-full left-0 z-10 mb-1 w-72 rounded-md border border-gray-200 bg-white p-2.5 shadow-lg dark:border-gray-600 dark:bg-gray-800">
+          <span className="flex items-center gap-1.5 text-xs font-medium">
             <CompetencyBadge tag={tag} compact />
+            <span className="text-[var(--text-tertiary)]">{evalInfo.label}</span>
           </span>
-          <span className="mt-1 block text-xs text-[var(--text-secondary)]">
+          <span className="mt-1.5 block text-xs text-[var(--text-secondary)]">
             {tag.reasoning}
           </span>
         </span>
@@ -228,25 +224,39 @@ function HighlightedSpan({ text, tag }: { text: string; tag: HighlightTag }) {
   );
 }
 
-// ─── 구간 상세 ──────────────────────────────
+// ─── 구간 상세 — 구절 요약 + 태그 ──────────────
 
 function SectionDetails({ sections }: { sections: AnalyzedSection[] }) {
   return (
-    <div className="mt-3 border-t border-gray-100 pt-2 dark:border-gray-700">
-      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">구간 분석</p>
-      <div className="flex flex-col gap-1">
+    <div className="border-t border-gray-100 px-3 py-2 dark:border-gray-700">
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">구간 분석</p>
+      <div className="flex flex-col gap-2">
         {sections.map((sec, i) => (
-          <div key={i} className="flex items-start gap-2 text-xs">
-            <span className="shrink-0 w-16 text-[var(--text-tertiary)]">{sec.sectionType}</span>
-            <div className="flex flex-wrap gap-1">
-              {sec.tags.map((tag, j) => (
-                <CompetencyBadge key={j} tag={tag} compact />
-              ))}
+          <div key={i} className="rounded-md border border-gray-100 p-2 dark:border-gray-700">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-medium text-[var(--text-primary)]">{sec.sectionType}</span>
               {sec.needsReview && (
                 <span className="rounded bg-yellow-100 px-1 py-0.5 text-[9px] text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
                   확인 要
                 </span>
               )}
+            </div>
+            <div className="flex flex-col gap-1">
+              {sec.tags.map((tag, j) => {
+                const colors = getHighlight(tag);
+                const evalInfo = EVAL_LABELS[tag.evaluation] ?? EVAL_LABELS.positive;
+                return (
+                  <div key={j} className="flex items-start gap-2 text-xs">
+                    <CompetencyBadge tag={tag} compact />
+                    <span className="flex-1 text-[var(--text-secondary)] line-clamp-1" title={tag.highlight}>
+                      "{tag.highlight.length > 60 ? tag.highlight.slice(0, 60) + "..." : tag.highlight}"
+                    </span>
+                    <span className={cn("shrink-0 text-[9px]", evalInfo.dot === "🟢" ? "text-green-600" : evalInfo.dot === "🔴" ? "text-red-600" : "text-yellow-600")}>
+                      {evalInfo.label}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         ))}
