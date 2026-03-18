@@ -1,9 +1,9 @@
 // ============================================
-// AI 역량 태그 제안 타입
-// Phase 5.5a — 구조화된 추론 근거 포함
+// AI 역량 분석 타입
+// Phase 5.5a: 태그 제안 + Phase 6.1: 인라인 하이라이트
 // ============================================
 
-import type { CompetencyItemCode } from "../types";
+import type { CompetencyItemCode, CompetencyGrade } from "../types";
 
 /** AI가 제안하는 개별 태그 */
 export interface TagSuggestion {
@@ -35,5 +35,53 @@ export interface SuggestTagsInput {
 export interface SuggestTagsResult {
   suggestions: TagSuggestion[];
   /** 분석 요약 (전체적인 역량 인상) */
+  summary: string;
+}
+
+// ============================================
+// Phase 6.1: 인라인 하이라이트 타입
+// ============================================
+
+/** 하이라이트된 구절 + 역량 태그 */
+export interface HighlightTag {
+  /** 역량 항목 코드 */
+  competencyItem: CompetencyItemCode;
+  /** 긍정/부정/확인필요 */
+  evaluation: "positive" | "negative" | "needs_review";
+  /** 원문에서 인용한 근거 구절 (정확한 발췌) */
+  highlight: string;
+  /** 판단 이유 */
+  reasoning: string;
+}
+
+/** 세특 구간별 분석 결과 */
+export interface AnalyzedSection {
+  /** 구간 유형 */
+  sectionType: "학업태도" | "학업수행능력" | "탐구활동" | "전체";
+  /** 이 구간에서 발견된 역량 태그들 */
+  tags: HighlightTag[];
+  /** 컨설턴트 확인 필요 여부 */
+  needsReview: boolean;
+}
+
+/** 세특 하이라이트 분석 입력 */
+export interface HighlightAnalysisInput {
+  content: string;
+  recordType: "setek" | "personal_setek" | "changche" | "haengteuk";
+  subjectName?: string;
+  grade?: number;
+}
+
+/** 세특 하이라이트 분석 출력 */
+export interface HighlightAnalysisResult {
+  /** 구간별 분석 (학업태도/수행능력/탐구활동) */
+  sections: AnalyzedSection[];
+  /** 종합 등급 제안 */
+  competencyGrades: {
+    item: CompetencyItemCode;
+    grade: CompetencyGrade;
+    reasoning: string;
+  }[];
+  /** 전체 요약 */
   summary: string;
 }

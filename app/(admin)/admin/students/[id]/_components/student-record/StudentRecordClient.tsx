@@ -32,10 +32,7 @@ import { SupplementaryEditor } from "./SupplementaryEditor";
 import { MinScorePanel } from "./MinScorePanel";
 import { ImportDialog } from "./ImportDialog";
 import { RecordGradesDisplay } from "./RecordGradesDisplay";
-import { CompetencyScoreGrid } from "./CompetencyScoreGrid";
-import type { RecordForAnalysis } from "./CompetencyScoreGrid";
-import { ActivityTagList } from "./ActivityTagList";
-import type { RecordSummary } from "./ActivityTagList";
+import { CompetencyAnalysisSection } from "./CompetencyAnalysisSection";
 import { DiagnosisEditor } from "./DiagnosisEditor";
 import { CourseAdequacyDisplay } from "./CourseAdequacyDisplay";
 
@@ -107,8 +104,7 @@ const STAGES: StageConfig[] = [
     label: "진단",
     hasYearSelector: true,
     sections: [
-      { id: "sec-diagnosis-competency", label: "역량평가" },
-      { id: "sec-diagnosis-tags", label: "활동태그" },
+      { id: "sec-diagnosis-analysis", label: "역량 분석" },
       { id: "sec-diagnosis-overall", label: "종합진단" },
       { id: "sec-diagnosis-adequacy", label: "교과이수적합" },
     ],
@@ -422,27 +418,8 @@ export function StudentRecordClient({
 
   // ─── 진단 탭용: 전체 레코드 추출 ────────────────────
 
-  const allRecordsForAi = useMemo<RecordForAnalysis[]>(() => {
-    const result: RecordForAnalysis[] = [];
-    for (const [g, entry] of recordByGrade) {
-      for (const s of entry.data.seteks) {
-        if (s.content) {
-          const subjectName = subjects.find((sub) => sub.id === s.subject_id)?.name ?? "과목";
-          result.push({ type: "setek", label: `${g}학년 ${subjectName} 세특`, content: s.content });
-        }
-      }
-      for (const c of entry.data.changche) {
-        if (c.content) result.push({ type: "changche", label: `${g}학년 ${c.activity_type} 창체`, content: c.content });
-      }
-      if (entry.data.haengteuk?.content) {
-        result.push({ type: "haengteuk", label: `${g}학년 행특`, content: entry.data.haengteuk.content });
-      }
-    }
-    return result;
-  }, [recordByGrade, subjects]);
-
-  const allRecordSummaries = useMemo<RecordSummary[]>(() => {
-    const result: RecordSummary[] = [];
+  const allRecordSummaries = useMemo(() => {
+    const result: { id: string; type: "setek" | "personal_setek" | "changche" | "haengteuk"; label: string; content: string; subjectName?: string; grade?: number }[] = [];
     for (const [g, entry] of recordByGrade) {
       for (const s of entry.data.seteks) {
         if (s.content) {
@@ -800,26 +777,15 @@ export function StudentRecordClient({
           {/* ─── 🔍 진단 스테이지 구분선 ──────────── */}
           <StageDivider emoji="🔍" label="진단" />
 
-          <StrategySection id="sec-diagnosis-competency" title="역량평가">
-            {diagnosisLoading ? <SectionSkeleton /> : (
-              <CompetencyScoreGrid
-                scores={diagnosisData?.competencyScores ?? []}
-                studentId={studentId}
-                tenantId={tenantId}
-                schoolYear={initialSchoolYear}
-                records={allRecordsForAi}
-              />
-            )}
-          </StrategySection>
-
-          <StrategySection id="sec-diagnosis-tags" title="활동태그">
-            {diagnosisLoading ? <SectionSkeleton /> : (
-              <ActivityTagList
-                tags={diagnosisData?.activityTags ?? []}
-                studentId={studentId}
-                tenantId={tenantId}
-                schoolYear={initialSchoolYear}
+          <StrategySection id="sec-diagnosis-analysis" title="역량 분석">
+            {diagnosisLoading || anyRecordLoading ? <SectionSkeleton /> : (
+              <CompetencyAnalysisSection
+                competencyScores={diagnosisData?.competencyScores ?? []}
+                activityTags={diagnosisData?.activityTags ?? []}
                 records={allRecordSummaries}
+                studentId={studentId}
+                tenantId={tenantId}
+                schoolYear={initialSchoolYear}
               />
             )}
           </StrategySection>
