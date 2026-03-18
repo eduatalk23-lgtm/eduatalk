@@ -33,10 +33,18 @@ export type {
   CompetencyArea, CompetencyItemCode, CompetencyGrade,
   StorylineStrength, RecordType, RoadmapArea, SchoolCategory,
   InterviewQuestionType,
+  // Phase 5: 진단 타입
+  CompetencyScore, CompetencyScoreInsert,
+  ActivityTag, ActivityTagInsert,
+  Diagnosis, DiagnosisInsert, DiagnosisUpdate,
+  Strategy, StrategyInsert, StrategyUpdate,
+  TagEvaluation, StrategyTargetArea, StrategyPriority, StrategyStatus,
+  CompetencyScope,
   // 서비스 타입
   InterviewConflict, MinScoreSimulationResult, MinScoreCriteria,
   NormalizedGrade, NeisValidationResult,
   RecordTabData, StrategyTabData, StorylineTabData,
+  DiagnosisTabData, CourseAdequacyResult,
   StudentRecordActionResult,
 } from "./types";
 
@@ -74,3 +82,7 @@ export {
 export {
   checkInterviewConflicts,
 } from "./interview-conflict-checker";
+
+export {
+  calculateCourseAdequacy,
+} from "./course-adequacy";

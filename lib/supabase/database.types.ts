@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.4"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       admin_users: {
@@ -8980,6 +9005,57 @@ export type Database = {
         }
         Relationships: []
       }
+      student_record_activity_tags: {
+        Row: {
+          competency_item: string
+          created_at: string
+          evaluation: string
+          evidence_summary: string | null
+          id: string
+          record_id: string
+          record_type: string
+          student_id: string
+          tenant_id: string
+        }
+        Insert: {
+          competency_item: string
+          created_at?: string
+          evaluation?: string
+          evidence_summary?: string | null
+          id?: string
+          record_id: string
+          record_type: string
+          student_id: string
+          tenant_id: string
+        }
+        Update: {
+          competency_item?: string
+          created_at?: string
+          evaluation?: string
+          evidence_summary?: string | null
+          id?: string
+          record_id?: string
+          record_type?: string
+          student_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_record_activity_tags_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_activity_tags_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_record_applications: {
         Row: {
           admission_type: string | null
@@ -9285,6 +9361,138 @@ export type Database = {
           },
           {
             foreignKeyName: "student_record_changche_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_record_competency_scores: {
+        Row: {
+          competency_area: string
+          competency_item: string
+          created_at: string
+          evaluated_at: string
+          evaluated_by: string | null
+          grade_value: string
+          id: string
+          notes: string | null
+          school_year: number
+          scope: string
+          student_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          competency_area: string
+          competency_item: string
+          created_at?: string
+          evaluated_at?: string
+          evaluated_by?: string | null
+          grade_value: string
+          id?: string
+          notes?: string | null
+          school_year: number
+          scope?: string
+          student_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          competency_area?: string
+          competency_item?: string
+          created_at?: string
+          evaluated_at?: string
+          evaluated_by?: string | null
+          grade_value?: string
+          id?: string
+          notes?: string | null
+          school_year?: number
+          scope?: string
+          student_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_record_competency_scores_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_competency_scores_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_record_diagnosis: {
+        Row: {
+          created_at: string
+          direction_strength: string | null
+          evaluated_at: string | null
+          evaluated_by: string | null
+          id: string
+          overall_grade: string
+          recommended_majors: string[]
+          record_direction: string | null
+          school_year: number
+          strategy_notes: string | null
+          strengths: string[]
+          student_id: string
+          tenant_id: string
+          updated_at: string
+          weaknesses: string[]
+        }
+        Insert: {
+          created_at?: string
+          direction_strength?: string | null
+          evaluated_at?: string | null
+          evaluated_by?: string | null
+          id?: string
+          overall_grade?: string
+          recommended_majors?: string[]
+          record_direction?: string | null
+          school_year: number
+          strategy_notes?: string | null
+          strengths?: string[]
+          student_id: string
+          tenant_id: string
+          updated_at?: string
+          weaknesses?: string[]
+        }
+        Update: {
+          created_at?: string
+          direction_strength?: string | null
+          evaluated_at?: string | null
+          evaluated_by?: string | null
+          id?: string
+          overall_grade?: string
+          recommended_majors?: string[]
+          record_direction?: string | null
+          school_year?: number
+          strategy_notes?: string | null
+          strengths?: string[]
+          student_id?: string
+          tenant_id?: string
+          updated_at?: string
+          weaknesses?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_record_diagnosis_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_diagnosis_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -10058,6 +10266,73 @@ export type Database = {
           },
           {
             foreignKeyName: "student_record_storylines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_record_strategies: {
+        Row: {
+          created_at: string
+          grade: number
+          id: string
+          priority: string | null
+          school_year: number
+          status: string
+          strategy_content: string
+          student_id: string
+          target_area: string
+          target_subject_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          grade: number
+          id?: string
+          priority?: string | null
+          school_year: number
+          status?: string
+          strategy_content?: string
+          student_id: string
+          target_area: string
+          target_subject_id?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          grade?: number
+          id?: string
+          priority?: string | null
+          school_year?: number
+          status?: string
+          strategy_content?: string
+          student_id?: string
+          target_area?: string
+          target_subject_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_record_strategies_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_strategies_target_subject_id_fkey"
+            columns: ["target_subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_strategies_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -12918,6 +13193,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       adjustment_type_enum: ["range", "replace", "full"],

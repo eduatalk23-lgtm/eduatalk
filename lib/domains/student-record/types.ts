@@ -89,6 +89,25 @@ export type SchoolOfferedSubject = Tables<"school_offered_subjects">;
 export type SchoolOfferedSubjectInsert = TablesInsert<"school_offered_subjects">;
 
 // ============================================
+// 3b. 진단 기능 — Phase 5
+// ============================================
+
+export type CompetencyScore = Tables<"student_record_competency_scores">;
+export type CompetencyScoreInsert = TablesInsert<"student_record_competency_scores">;
+export type CompetencyScoreUpdate = TablesUpdate<"student_record_competency_scores">;
+
+export type ActivityTag = Tables<"student_record_activity_tags">;
+export type ActivityTagInsert = TablesInsert<"student_record_activity_tags">;
+
+export type Diagnosis = Tables<"student_record_diagnosis">;
+export type DiagnosisInsert = TablesInsert<"student_record_diagnosis">;
+export type DiagnosisUpdate = TablesUpdate<"student_record_diagnosis">;
+
+export type Strategy = Tables<"student_record_strategies">;
+export type StrategyInsert = TablesInsert<"student_record_strategies">;
+export type StrategyUpdate = TablesUpdate<"student_record_strategies">;
+
+// ============================================
 // 4. 상수 타입
 // ============================================
 
@@ -131,6 +150,19 @@ export type SchoolCategory =
   | "art" | "sports" | "meister" | "specialized" | "other";
 
 export type InterviewQuestionType = "factual" | "reasoning" | "application" | "value" | "controversial";
+
+export type TagEvaluation = "positive" | "negative" | "needs_review";
+
+export type StrategyTargetArea =
+  | "autonomy" | "club" | "career"
+  | "setek" | "personal_setek" | "reading"
+  | "haengteuk" | "score" | "general";
+
+export type StrategyPriority = "critical" | "high" | "medium" | "low";
+
+export type StrategyStatus = "planned" | "in_progress" | "done";
+
+export type CompetencyScope = "yearly" | "cumulative";
 
 // ============================================
 // 5. 서비스 레이어 타입
@@ -190,6 +222,8 @@ export interface NeisValidationResult {
   byteLimit: number;
   isOverChar: boolean;
   isOverByte: boolean;
+  /** NEIS 기준 초과 여부 (= isOverByte). 바이트가 실제 제한 기준. */
+  isOver: boolean;
   invalidChars: { char: string; position: number }[];
 }
 
@@ -213,6 +247,37 @@ export interface StrategyTabData {
 export interface StorylineTabData {
   storylines: Storyline[];
   roadmapItems: RoadmapItem[];
+}
+
+/** 진단 탭 데이터 (Phase 5) */
+export interface DiagnosisTabData {
+  competencyScores: CompetencyScore[];
+  activityTags: ActivityTag[];
+  diagnosis: Diagnosis | null;
+  strategies: Strategy[];
+  courseAdequacy: CourseAdequacyResult | null;
+}
+
+/** 교과 이수 적합도 결과 */
+export interface CourseAdequacyResult {
+  /** 적합도 점수 (0~100) */
+  score: number;
+  /** 전공 계열명 */
+  majorCategory: string;
+  /** 추천 과목 총 수 */
+  totalRecommended: number;
+  /** 이수 가능한 추천 과목 수 (학교 개설된 것만) */
+  totalAvailable: number;
+  /** 이수한 추천 과목 */
+  taken: string[];
+  /** 미이수 추천 과목 (이수 가능하나 안 한 것) */
+  notTaken: string[];
+  /** 학교 미개설 과목 (학생 탓 아님) */
+  notOffered: string[];
+  /** 일반선택 이수율 */
+  generalRate: number;
+  /** 진로선택 이수율 */
+  careerRate: number;
 }
 
 /** Server Action 응답 */

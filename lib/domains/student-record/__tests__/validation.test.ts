@@ -33,10 +33,12 @@ describe("countNeisBytes", () => {
   // 전각 특수문자
   it("전각 느낌표 ！ = 3B", () => expect(countNeisBytes("！")).toBe(3));
 
-  // 줄바꿈
-  it("LF = 1B", () => expect(countNeisBytes("\n")).toBe(1));
-  it("CR = 1B", () => expect(countNeisBytes("\r")).toBe(1));
-  it("CRLF = 2B", () => expect(countNeisBytes("\r\n")).toBe(2));
+  // 줄바꿈 — NEIS 기준: 엔터 1회 = 2B
+  it("LF = 2B (NEIS 기준 줄바꿈 1회)", () => expect(countNeisBytes("\n")).toBe(2));
+  it("CR = 2B (정규화 후 LF → 2B)", () => expect(countNeisBytes("\r")).toBe(2));
+  it("CRLF = 2B (정규화 후 LF 1회 → 2B)", () => expect(countNeisBytes("\r\n")).toBe(2));
+  it("줄바꿈 3회 = 6B", () => expect(countNeisBytes("\n\n\n")).toBe(6));
+  it("한글+줄바꿈 '가\\n나' = 8B", () => expect(countNeisBytes("가\n나")).toBe(8));
 
   // 이모지 (4B 문자)
   it("이모지 😀 = 4B", () => expect(countNeisBytes("😀")).toBe(4));
@@ -48,8 +50,7 @@ describe("countNeisBytes", () => {
   // 실제 세특 샘플
   it("실제 세특 텍스트 바이트 계산", () => {
     const sample = "수업 시간에 적극적으로 참여하였음.";
-    // "수업" 2×3=6, " " 1, "시간에" 3×3=9, " " 1, "적극적으로" 4×3=12,
-    // " " 1, "참여하였음" 4×3=12, "." 1 → 총 15한글×3 + 3공백 + 1마침표 = 49
+    // 한글 15자×3=45 + 공백 3×1=3 + 마침표 1×1=1 → 총 49B
     expect(countNeisBytes(sample)).toBe(49);
   });
 
@@ -63,6 +64,19 @@ describe("countNeisBytes", () => {
   // 경계값: 501자 초과
   it("501자 한글 = 1503B (초과)", () => {
     expect(countNeisBytes("가".repeat(501))).toBe(1503);
+  });
+
+  // NEIS 핵심 케이스: 영문/공백 많으면 500자 넘어도 1500B 이내
+  it("영문 592자 = 592B (1500B 이내, NEIS 통과)", () => {
+    const text = "A".repeat(592);
+    expect(text.length).toBe(592);
+    expect(countNeisBytes(text)).toBe(592);
+  });
+
+  it("한영 혼합: 300한글 + 250영문 = 1150B (500자 넘지만 NEIS 통과)", () => {
+    const text = "가".repeat(300) + "A".repeat(250);
+    expect(text.length).toBe(550);
+    expect(countNeisBytes(text)).toBe(1150);
   });
 });
 
@@ -103,22 +117,31 @@ describe("validateNeisContent", () => {
     const result = validateNeisContent("가나다", 500);
     expect(result.chars).toBe(3);
     expect(result.bytes).toBe(9);
-    expect(result.isOverChar).toBe(false);
+    expect(result.isOver).toBe(false);
     expect(result.isOverByte).toBe(false);
     expect(result.invalidChars).toEqual([]);
   });
 
-  it("글자수 초과 감지", () => {
+  it("한글 501자 → 바이트 초과 (isOver=true)", () => {
     const result = validateNeisContent("가".repeat(501), 500);
-    expect(result.isOverChar).toBe(true);
+    expect(result.isOver).toBe(true);
     expect(result.isOverByte).toBe(true);
+    expect(result.isOverChar).toBe(true);
   });
 
-  it("글자수 OK but 바이트 초과 (영문은 해당 없음)", () => {
-    // 한글 500자 = 500자, 1500B → 정확히 한도
+  it("한글 500자 → 정확히 한도", () => {
     const result = validateNeisContent("가".repeat(500), 500);
-    expect(result.isOverChar).toBe(false);
+    expect(result.isOver).toBe(false);
     expect(result.isOverByte).toBe(false);
+  });
+
+  it("영문 550자 → 글자수 초과지만 바이트 이내 (NEIS 통과)", () => {
+    const result = validateNeisContent("A".repeat(550), 500);
+    expect(result.chars).toBe(550);
+    expect(result.bytes).toBe(550);
+    expect(result.isOverChar).toBe(true);  // 글자수로는 초과
+    expect(result.isOverByte).toBe(false); // 바이트로는 OK
+    expect(result.isOver).toBe(false);     // NEIS 기준 = 바이트 기준 → OK
   });
 
   it("이모지 포함 시 invalidChars 반환", () => {
@@ -128,9 +151,16 @@ describe("validateNeisContent", () => {
 
   it("행특 300자 제한 (2026~)", () => {
     const result = validateNeisContent("가".repeat(300), 300);
-    expect(result.isOverChar).toBe(false);
+    expect(result.isOver).toBe(false);
     expect(result.charLimit).toBe(300);
     expect(result.byteLimit).toBe(900);
+  });
+
+  it("줄바꿈 포함 바이트 계산", () => {
+    // 한글 499자 + 줄바꿈 1회 = 499×3 + 2 = 1499B → OK
+    const result = validateNeisContent("가".repeat(499) + "\n", 500);
+    expect(result.bytes).toBe(1499);
+    expect(result.isOver).toBe(false);
   });
 });
 

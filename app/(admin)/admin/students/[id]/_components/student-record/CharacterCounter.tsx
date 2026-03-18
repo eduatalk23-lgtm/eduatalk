@@ -9,12 +9,18 @@ type CharacterCounterProps = {
   className?: string;
 };
 
+/**
+ * NEIS 바이트 기준 글자수 카운터
+ *
+ * NEIS "500자" = 1,500B 제한. 한글 3B, 영문/공백 1B, 줄바꿈 2B.
+ * 영문/공백이 많으면 500자 넘어도 제한 이내일 수 있다.
+ */
 export function CharacterCounter({ content, charLimit, className }: CharacterCounterProps) {
   const charCount = content.length;
   const byteCount = countNeisBytes(content);
   const byteLimit = charLimit * 3;
   const invalidChars = detectNeisInvalidChars(content);
-  const ratio = charCount / charLimit;
+  const ratio = byteCount / byteLimit;
 
   return (
     <div className={cn("flex flex-col items-end gap-0.5", className)}>
@@ -26,10 +32,9 @@ export function CharacterCounter({ content, charLimit, className }: CharacterCou
           ratio >= 1 && "text-red-600 dark:text-red-400 font-medium",
         )}
       >
-        {charCount}/{charLimit}자
-        {byteCount > byteLimit && (
-          <span className="ml-1">({byteCount}/{byteLimit}B 초과)</span>
-        )}
+        {byteCount.toLocaleString()}/{byteLimit.toLocaleString()}B
+        <span className="ml-1 opacity-70">({charCount}자)</span>
+        {ratio >= 1 && <span className="ml-1">초과</span>}
       </span>
       {invalidChars.length > 0 && (
         <span className="text-xs text-red-600 dark:text-red-400">

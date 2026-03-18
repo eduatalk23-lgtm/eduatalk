@@ -8,7 +8,7 @@
 
 import { logActionError } from "@/lib/logging/actionLogger";
 import * as repository from "./repository";
-import { validateNeisContent, normalizeLineBreaks } from "./validation";
+import { validateNeisContent, normalizeLineBreaks, countNeisBytes } from "./validation";
 import { getCharLimit } from "./constants";
 import type {
   RecordSetekInsert,
@@ -94,12 +94,12 @@ export async function saveSetek(
     // 줄바꿈 정규화
     const content = normalizeLineBreaks(input.content ?? "");
 
-    // NEIS 바이트 검증
+    // NEIS 바이트 검증 (NEIS "500자" = 1,500B 기준)
     const validation = validateNeisContent(content, input.char_limit ?? 500);
-    if (validation.isOverChar) {
+    if (validation.isOver) {
       return {
         success: false,
-        error: `글자수 초과: ${validation.chars}/${validation.charLimit}자`,
+        error: `NEIS 바이트 초과: ${validation.bytes.toLocaleString()}/${validation.byteLimit.toLocaleString()}B (${validation.chars}자 입력)`,
       };
     }
     if (validation.invalidChars.length > 0) {
@@ -109,7 +109,7 @@ export async function saveSetek(
       };
     }
 
-    // 공통과목 쌍 합산 검증 (2022 개정)
+    // 공통과목 쌍 합산 검증 (2022 개정) — 바이트 기준
     if (options?.curriculumRevisionId && input.subject_id) {
       const pair = await repository.findSubjectPair(
         input.subject_id,
@@ -124,11 +124,12 @@ export async function saveSetek(
           input.tenant_id,
         );
         const pairedSetek = pairedSeteks.find(s => s.subject_id === pairedSubjectId);
-        const totalChars = content.length + (pairedSetek?.content?.length ?? 0);
-        if (totalChars > pair.shared_char_limit) {
+        const totalBytes = countNeisBytes(content) + countNeisBytes(pairedSetek?.content ?? "");
+        const sharedByteLimit = pair.shared_char_limit * 3;
+        if (totalBytes > sharedByteLimit) {
           return {
             success: false,
-            error: `공통과목 쌍 합산 ${totalChars}자 / ${pair.shared_char_limit}자 초과`,
+            error: `공통과목 쌍 합산 바이트 초과: ${totalBytes.toLocaleString()}/${sharedByteLimit.toLocaleString()}B`,
           };
         }
       }
@@ -152,8 +153,11 @@ export async function savePersonalSetek(
   try {
     const content = normalizeLineBreaks(input.content ?? "");
     const validation = validateNeisContent(content, input.char_limit ?? 500);
-    if (validation.isOverChar) {
-      return { success: false, error: `글자수 초과: ${validation.chars}/${validation.charLimit}자` };
+    if (validation.isOver) {
+      return {
+        success: false,
+        error: `NEIS 바이트 초과: ${validation.bytes.toLocaleString()}/${validation.byteLimit.toLocaleString()}B (${validation.chars}자 입력)`,
+      };
     }
     if (validation.invalidChars.length > 0) {
       return {
@@ -195,8 +199,11 @@ export async function saveChangche(
       schoolYear,
     );
     const validation = validateNeisContent(content, charLimit);
-    if (validation.isOverChar) {
-      return { success: false, error: `글자수 초과: ${validation.chars}/${charLimit}자` };
+    if (validation.isOver) {
+      return {
+        success: false,
+        error: `NEIS 바이트 초과: ${validation.bytes.toLocaleString()}/${validation.byteLimit.toLocaleString()}B (${validation.chars}자 입력)`,
+      };
     }
 
     const id = await repository.upsertChangche({ ...input, content, char_limit: charLimit });
@@ -219,8 +226,11 @@ export async function saveHaengteuk(
     const content = normalizeLineBreaks(input.content ?? "");
     const charLimit = getCharLimit("haengteuk", schoolYear);
     const validation = validateNeisContent(content, charLimit);
-    if (validation.isOverChar) {
-      return { success: false, error: `글자수 초과: ${validation.chars}/${charLimit}자` };
+    if (validation.isOver) {
+      return {
+        success: false,
+        error: `NEIS 바이트 초과: ${validation.bytes.toLocaleString()}/${validation.byteLimit.toLocaleString()}B (${validation.chars}자 입력)`,
+      };
     }
 
     const id = await repository.upsertHaengteuk({ ...input, content, char_limit: charLimit });

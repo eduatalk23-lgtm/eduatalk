@@ -150,9 +150,9 @@
 | **산출물 (테스트)** | validation.test.ts (30+), grade-normalizer.test.ts (15+), min-score-simulator.test.ts (20+) |
 | **파일 수** | ~15개 |
 
-**테스트 커버리지 결과**: ✅ 2026-03-17 완료
+**테스트 커버리지 결과**: ✅ 2026-03-17 완료, 2026-03-18 바이트 검증 개선
 ```
-validation.test.ts       — 35 tests ✅  (NEIS 바이트, 이모지 감지, 줄바꿈 정규화, 종합 검증)
+validation.test.ts       — 41 tests ✅  (NEIS 바이트, 이모지 감지, 줄바꿈 2B, 바이트 기준 검증, 한영 혼합)
 grade-normalizer.test.ts — 34 tests ✅  (9→5, 5→9, 범위, normalizeGrade, 교육과정 판별)
 min-score-simulator.test.ts — 14 tests ✅  (grade_sum, 한국사, none, what-if, 영향도 분석)
 ```
@@ -163,11 +163,11 @@ lib/domains/student-record/
 ├── types.ts, constants.ts, validation.ts
 ├── grade-normalizer.ts, min-score-simulator.ts, interview-conflict-checker.ts
 ├── repository.ts, service.ts, index.ts
-└── __tests__/ (validation 35 + grade-normalizer 34 + min-score-simulator 14 = 83 tests)
+└── __tests__/ (validation 41 + grade-normalizer 34 + min-score-simulator 14 = 89 tests)
 ```
 
 **검증**: ✅
-- [x] `pnpm test` → student-record 83개 테스트 전체 통과
+- [x] `pnpm test` → student-record 89개 테스트 전체 통과
 - [x] `pnpm build` → 성공
 - [x] constants.ts: 42개 루브릭 질문, 18개 계열별 추천교과, 환산표, 라벨맵 확인
 
@@ -214,7 +214,7 @@ lib/domains/student-record/
   - Server Actions 8개 (`lib/domains/student-record/actions/record.ts`)
   - Query Options (`lib/query-options/studentRecord.ts`)
   - UI 13개 파일 (`student-record/` 디렉토리)
-  - 기능: 자동 저장(2s debounce), NEIS 바이트 카운터, 연도 전환, 서브탭(pill) 전환
+  - 기능: 자동 저장(2s debounce), NEIS 바이트 기준 카운터(`B/B` 표시), 연도 전환, 서브탭(pill) 전환
   - 에디터: 세특, 개인세특, 창체(3섹션), 행특, 독서(추가/삭제), 출결(그리드+수동저장)
 - **Phase 3c 완료**: 스토리라인 + 로드맵 UI
   - Repository: findStorylines, insertStoryline, updateStoryline, deleteStoryline, findStorylineLinks, insertStorylineLink, deleteStorylineLink, findRoadmapItems, insertRoadmapItem, updateRoadmapItem, deleteRoadmapItem
@@ -514,6 +514,44 @@ supabase/migrations/
 
 ---
 
+### Fix: NEIS 바이트 기준 글자수 검증 개선 (2026-03-18)
+
+> **배경**: NEIS "500자" 제한은 실제로 **1,500바이트(Byte) 제한**이다. 기존 구현이 글자수(charCount) 기준으로 검증하여, 영문/공백이 많은 텍스트가 실제 NEIS 통과 가능함에도 차단되는 문제가 있었음.
+
+#### NEIS 바이트 계산 규칙
+
+| 문자 유형 | 바이트 |
+|-----------|--------|
+| 한글 | 3B |
+| 영문/숫자/공백/문장부호 | 1B |
+| 줄바꿈(엔터) 1회 | **2B** |
+| 한자/전각 특수문자 | 3B |
+| 이모지 | 4B (NEIS 입력 불가) |
+
+#### 변경 사항 (수정 5개 파일)
+
+| 파일 | 변경 |
+|------|------|
+| `validation.ts` | `countNeisBytes()`: 내부 CRLF 정규화 + LF=2B (기존 1B), `validateNeisContent()`: `isOver` 필드 추가 (= `isOverByte`) |
+| `service.ts` | saveSetek/savePersonalSetek/saveChangche/saveHaengteuk: `isOverChar` → `isOver` (바이트 기준), 공통과목 쌍 합산도 바이트 기준으로 변경 |
+| `CharacterCounter.tsx` | 1차 지표를 `B/B` (바이트)로 변경, 글자수는 보조 `(n자)` 표시, 색상 코딩도 바이트 비율 기준 |
+| `types.ts` | `NeisValidationResult`에 `isOver: boolean` 추가 |
+| `validation.test.ts` | 41개 테스트 (기존 35 + 신규 6: 줄바꿈 2B, 영문 NEIS 통과, 한영 혼합) |
+
+#### 핵심 예시
+
+```
+예시: 한글 300자 + 영문/공백 250자 = 550자 입력
+  → 기존: "500자 초과" 에러로 저장 차단 ❌
+  → 수정: 300×3 + 250×1 = 1,150B / 1,500B → NEIS 통과 ✅
+```
+
+#### 검증
+- [x] `pnpm test` → validation.test.ts 41개 전체 통과
+- [x] `pnpm lint` → 수정 파일 에러 없음
+
+---
+
 ### Phase 5 — 진단 DB + 교과이수적합도
 
 > **목표**: 역량 평가 데이터 구조 + 교과 이수 적합도 규칙 엔진
@@ -728,7 +766,7 @@ supabase/migrations/
 
 | 계층 | 대상 | 케이스 | Phase |
 |------|------|--------|-------|
-| **단위** | validation.ts (NEIS 바이트, 공통과목 쌍) | 30+ | 2 |
+| **단위** | validation.ts (NEIS 바이트 기준, 줄바꿈 2B, 공통과목 쌍) | 41 | 2 |
 | **단위** | grade-normalizer.ts (9↔5등급) | 15+ | 2 |
 | **단위** | min-score-simulator.ts | 20+ | 2 |
 | **단위** | calculator.ts (정시 환산) | 25+ | 8.2 |

@@ -3,6 +3,7 @@ import { fetchRecordTabData } from "@/lib/domains/student-record/actions/record"
 import { fetchStorylineTabData } from "@/lib/domains/student-record/actions/storyline";
 import { fetchSupplementaryTabData } from "@/lib/domains/student-record/actions/supplementary";
 import { fetchStrategyTabData } from "@/lib/domains/student-record/actions/strategy";
+import { fetchDiagnosisTabData } from "@/lib/domains/student-record/actions/diagnosis";
 
 // ============================================
 // Query Key Factory
@@ -12,6 +13,8 @@ export const studentRecordKeys = {
   all: ["studentRecord"] as const,
   recordTab: (studentId: string, schoolYear: number) =>
     [...studentRecordKeys.all, "recordTab", studentId, schoolYear] as const,
+  diagnosisTab: (studentId: string, schoolYear: number) =>
+    [...studentRecordKeys.all, "diagnosisTab", studentId, schoolYear] as const,
   storylineTab: (studentId: string) =>
     [...studentRecordKeys.all, "storylineTab", studentId] as const,
   supplementaryTab: (studentId: string, schoolYear: number) =>
@@ -60,6 +63,25 @@ export function strategyTabQueryOptions(studentId: string, schoolYear: number) {
       if (!result.success) throw new Error(result.error);
       return result.data!;
     },
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
+    enabled: !!studentId && !!schoolYear,
+  });
+}
+
+export function diagnosisTabQueryOptions(
+  studentId: string,
+  schoolYear: number,
+  tenantId: string,
+  options?: {
+    targetMajor?: string | null;
+    takenSubjects?: string[];
+    offeredSubjects?: string[] | null;
+  },
+) {
+  return queryOptions({
+    queryKey: studentRecordKeys.diagnosisTab(studentId, schoolYear),
+    queryFn: () => fetchDiagnosisTabData(studentId, schoolYear, tenantId, options),
     staleTime: 30_000,
     gcTime: 5 * 60_000,
     enabled: !!studentId && !!schoolYear,
