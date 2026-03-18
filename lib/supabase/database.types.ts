@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.4"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       admin_users: {
@@ -9100,11 +9075,13 @@ export type Database = {
           class_absence_other: number | null
           class_absence_sick: number | null
           class_absence_unauthorized: number | null
+          class_name: string | null
           created_at: string
           early_leave_other: number | null
           early_leave_sick: number | null
           early_leave_unauthorized: number | null
           grade: number
+          homeroom_teacher: string | null
           id: string
           lateness_other: number | null
           lateness_sick: number | null
@@ -9113,6 +9090,7 @@ export type Database = {
           school_days: number | null
           school_year: number
           student_id: string
+          student_number: string | null
           tenant_id: string
           updated_at: string
         }
@@ -9123,11 +9101,13 @@ export type Database = {
           class_absence_other?: number | null
           class_absence_sick?: number | null
           class_absence_unauthorized?: number | null
+          class_name?: string | null
           created_at?: string
           early_leave_other?: number | null
           early_leave_sick?: number | null
           early_leave_unauthorized?: number | null
           grade: number
+          homeroom_teacher?: string | null
           id?: string
           lateness_other?: number | null
           lateness_sick?: number | null
@@ -9136,6 +9116,7 @@ export type Database = {
           school_days?: number | null
           school_year: number
           student_id: string
+          student_number?: string | null
           tenant_id: string
           updated_at?: string
         }
@@ -9146,11 +9127,13 @@ export type Database = {
           class_absence_other?: number | null
           class_absence_sick?: number | null
           class_absence_unauthorized?: number | null
+          class_name?: string | null
           created_at?: string
           early_leave_other?: number | null
           early_leave_sick?: number | null
           early_leave_unauthorized?: number | null
           grade?: number
+          homeroom_teacher?: string | null
           id?: string
           lateness_other?: number | null
           lateness_sick?: number | null
@@ -9159,6 +9142,7 @@ export type Database = {
           school_days?: number | null
           school_year?: number
           student_id?: string
+          student_number?: string | null
           tenant_id?: string
           updated_at?: string
         }
@@ -12934,9 +12918,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       adjustment_type_enum: ["range", "replace", "full"],
