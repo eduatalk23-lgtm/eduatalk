@@ -23,8 +23,8 @@
 | 13 | 졸업생 매칭 오버엔지니어링 | SQL 조건 검색으로 간소화 | 0 (삭제) | Phase 8.6 |
 | 14 | Phase 재배치 | 우선순위 재조정 | - | 전체 |
 
-**총 영향**: 신규 테이블 +12개 (기존 17 → 29), 스키마 변경 1개, Phase 재배치
-> 탐구DB 이관 3개 + 가이드 피드백 1개 + CMS 스키마 확장 반영
+**총 영향**: 신규 테이블 +14개 (기존 17 → 31), 스키마 변경 1개, Phase 재배치
+> 탐구DB 3분할 3개 + 가이드 배정/이력/피드백 3개 + 확장 8개 + school_offered_subjects 1개
 
 ### v6 보완 사항 (안정성 + 현장 시나리오)
 
@@ -44,6 +44,13 @@
 | 26 | 6장 최적 배분 엔진 | 입결 기반 배분 시뮬레이션 | Phase 8.5 |
 | 27 | 전형 변경 알림 | 목표 대학 전형 변경 시 push 알림 | Phase 8.4 |
 | 28 | school_profiles JSONB 남용 | offered_subjects → junction 테이블 분리 | DB 스키마 변경 |
+
+> **교차 참조 (상세는 implementation-plan v5에 기술):**
+> - #17 다형 참조 정리 트리거 SQL → implementation-plan 섹션 5.9
+> - #19 AI 월간 비용 추정표 → implementation-plan 섹션 5.6
+> - #21 탭별 lazy loading 타입/키 → implementation-plan 섹션 13
+> - #20 테스트 자동화 전략 → implementation-plan 섹션 5.7
+> - #15 마이그레이션 롤백 전략 → implementation-plan 섹션 5.8
 
 ---
 
@@ -845,14 +852,10 @@ CREATE POLICY "{table}_parent_select" ON {student_record_table}
 #### 참조 테이블 (Access DB → Supabase 마이그레이션)
 
 ```sql
--- 가이드 구분유형 (5종)
-CREATE TABLE IF NOT EXISTS guide_types (
-  id               serial PRIMARY KEY,
-  name             varchar(50) NOT NULL UNIQUE
-  -- 교과수행, 실험 및 연구, 주제 탐구, 독서, 교육프로그램
-);
+-- guide_types 참조 테이블은 불필요 (exploration_guides.guide_type CHECK 제약으로 충분)
+-- 삭제됨: E16 3분할 스키마에서 CHECK 제약 유지
 
--- 가이드 메인 테이블 (Access 가이드 → Supabase)
+-- ⚠️ 이 단일 테이블 스키마는 E16에서 3분할로 대체됨. 아래는 참고용 원본.
 CREATE TABLE IF NOT EXISTS exploration_guides (
   id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   -- Access 원본 ID (마이그레이션 추적)
@@ -1208,9 +1211,9 @@ Phase 2.5 (탐구DB 이관)
 └────────────────────────────────────────────────────────────────┘
 ```
 
-### CMS.2 exploration_guides 스키마 확장
+### CMS.2 exploration_guides 스키마 확장 (⚠️ E16 3분할로 대체됨)
 
-기존 스키마에서 CMS 기능을 위해 추가되는 컬럼:
+> **⚠️ 아래 ALTER 문은 E16 3분할에 의해 대체됨.** 각 컬럼의 새 위치: status/source_type → exploration_guides(메타), ai_review_score/quality_tier → exploration_guide_reviews. 원본은 참고용으로 유지.
 
 ```sql
 ALTER TABLE exploration_guides ADD COLUMN IF NOT EXISTS
@@ -2294,9 +2297,8 @@ Phase 6.5 조기 경보 확장 (기존)
 
 Phase 7   보완전략 + AI 제안 (기존, 변경 없음)
 
-Phase 8.1 대학 입시 DB 이관 (기존 + 갱신 메타데이터 컬럼)
-Phase 8.2 정시 환산 엔진 (기존, 변경 없음)
-Phase 8.1 대학 입시 DB 이관 (기존 + 🆕 교과전형 grade_weight JSONB 구조화)
+Phase 8.1 대학 입시 DB 이관 (기존 + 갱신 메타데이터 컬럼
+          + 🆕 교과전형 grade_weight JSONB 구조화)
 Phase 8.2 정시 환산 엔진 (기존 + 🆕 자동 테스트 25+)
 Phase 8.3 data.go.kr API (기존, 변경 없음)
 Phase 8.4 연간 갱신 (기존 + 🆕 4단계 갱신 사이클 UI
@@ -2475,9 +2477,9 @@ GuideSearchFilter.tsx, GuideDetailView.tsx, GuideAssignButton.tsx,
 GuideUniquenessWarning.tsx, GuideUsageStats.tsx,
 GuideAssignmentList.tsx, GuideAssignmentModal.tsx
 
-── 탐구 가이드 시스템: AI 모드 (4개) ──
+── 탐구 가이드 시스템: AI 모드 (3개) ──
 ActivitySummaryGenerator.tsx (모드A), SetekDirectionPanel.tsx (모드B),
-GuideToRecordLinker.tsx, StudentGuideSubmit.tsx
+GuideToRecordLinker.tsx
 
 ── 탐구 가이드 시스템: 학생 APP (3개) ──
 StudentGuideView.tsx (모드C), StudentNoteEditor.tsx, StudentGuideSubmit.tsx
@@ -3078,3 +3080,73 @@ const eligibleAdmissions = await supabase
 | **비용 의식** | AI 월간 비용 추정 + 모니터링으로 예산 초과 방지 |
 | **테스트 우선** | 결정론적 엔진(환산/시뮬레이션)은 100% 자동 테스트 |
 | **CMS 독립 트랙** | 탐구 가이드 CMS는 별도 프로젝트로 분리, 병렬 진행 |
+
+---
+
+## E24. 추가 현장 보완 사항 (v6.1)
+
+### E24.1 수시 원서접수 기간 경쟁률 트래킹 (Phase 3.5)
+
+수시 원서접수 기간(9월 중순 3일간)에는 실시간 경쟁률이 전략의 핵심. 자동 크롤링은 법적 이슈가 있으므로 **수동 입력** 방식.
+
+```sql
+-- student_record_applications에 경쟁률 모니터링 필드 추가
+ALTER TABLE student_record_applications
+  ADD COLUMN IF NOT EXISTS current_competition_rate numeric(6,2),  -- 접수 기간 중 모니터링한 경쟁률
+  ADD COLUMN IF NOT EXISTS competition_updated_at timestamptz;     -- 마지막 경쟁률 업데이트 시각
+```
+
+### E24.2 정시 충원 합격 시뮬레이션 (Phase 8.5)
+
+정시 충원율이 200~300%에 달하는 대학이 많으므로, 단순 배치 판정 외에 **충원 합격 가능성**도 표시.
+
+```typescript
+type PlacementLevel = 'danger' | 'unstable' | 'bold' | 'possible' | 'safe'
+  | 'possible_with_replacement';  // 충원 시 합격 가능
+
+// 충원 가능성 = replacement_count / recruitment_count × 연도별 추세
+function estimateReplacementChance(
+  universityAdmissionId: string,
+  studentScore: number
+): { chance: 'high' | 'medium' | 'low'; historicalRate: number } { ... }
+```
+
+### E24.3 진로선택과목 3단계 성취도 반영 (Phase 8.1)
+
+2022 개정교육과정 진로선택과목은 A/B/C 3단계 성취평가. 대학마다 반영 방식이 상이.
+
+```typescript
+// university_admissions.grade_weight JSONB에 추가 필드
+type GradeWeight = {
+  // ... 기존 필드
+  career_subject_conversion?: {
+    type: 'grade_equivalent' | 'bonus_points' | 'excluded';
+    // grade_equivalent: A=1등급, B=3등급, C=5등급 환산
+    mapping?: Record<string, number>;  // { "A": 1, "B": 3, "C": 5 }
+    // bonus_points: A=+0.5, B=+0.2, C=0 가산
+    bonus?: Record<string, number>;    // { "A": 0.5, "B": 0.2, "C": 0 }
+  };
+};
+```
+
+### E24.4 수시 등록금 납부/포기 관리 (Phase 3.5)
+
+수시 합격 후 등록금 납부 시 정시 지원 불가. 의사결정 타이밍 관리 필요.
+
+```
+┌──── 수시 합격 → 등록 의사결정 ────┐
+│  이화여대 뇌인지 [학종] ✅ 합격    │
+│                                    │
+│  등록금 납부 마감: 12/20           │
+│  ⚠️ 등록 시 정시 지원 불가         │
+│                                    │
+│  현재 정시 배치 전망:              │
+│  서울대 심리학: 🟡 소신            │
+│  고려대 심리학: 🟠 불안            │
+│                                    │
+│  💡 판단 기준: 정시에서 상향 가능성 │
+│     vs 수시 합격 확정의 안정성      │
+│                                    │
+│  [ 등록 ] [ 포기 (정시 지원) ]      │
+└────────────────────────────────────┘
+```
