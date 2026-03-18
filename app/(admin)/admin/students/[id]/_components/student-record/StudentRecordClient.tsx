@@ -11,6 +11,7 @@ import {
   storylineTabQueryOptions,
   supplementaryTabQueryOptions,
   strategyTabQueryOptions,
+  diagnosisTabQueryOptions,
 } from "@/lib/query-options/studentRecord";
 import { RecordLayoutShell } from "./RecordLayoutShell";
 import { SidePanelProvider } from "@/components/side-panel";
@@ -31,6 +32,10 @@ import { SupplementaryEditor } from "./SupplementaryEditor";
 import { MinScorePanel } from "./MinScorePanel";
 import { ImportDialog } from "./ImportDialog";
 import { RecordGradesDisplay } from "./RecordGradesDisplay";
+import { CompetencyScoreGrid } from "./CompetencyScoreGrid";
+import { ActivityTagList } from "./ActivityTagList";
+import { DiagnosisEditor } from "./DiagnosisEditor";
+import { CourseAdequacyDisplay } from "./CourseAdequacyDisplay";
 
 type Subject = {
   id: string;
@@ -192,6 +197,9 @@ export function StudentRecordClient({
   );
   const { data: strategyData, isLoading: strategyLoading, error: strategyError } = useQuery(
     strategyTabQueryOptions(studentId, initialSchoolYear),
+  );
+  const { data: diagnosisData, isLoading: diagnosisLoading, error: diagnosisError } = useQuery(
+    diagnosisTabQueryOptions(studentId, initialSchoolYear, tenantId),
   );
 
   // ─── 학년별 데이터 맵 ─────────────────────────────────
@@ -751,27 +759,47 @@ export function StudentRecordClient({
           <StageDivider emoji="🔍" label="진단" />
 
           <StrategySection id="sec-diagnosis-competency" title="역량평가">
-            <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-[var(--text-tertiary)] dark:border-gray-600">
-              역량 평가 UI (Phase 6에서 구현)
-            </div>
+            {diagnosisLoading ? <SectionSkeleton /> : (
+              <CompetencyScoreGrid
+                scores={diagnosisData?.competencyScores ?? []}
+                studentId={studentId}
+                tenantId={tenantId}
+                schoolYear={initialSchoolYear}
+              />
+            )}
           </StrategySection>
 
           <StrategySection id="sec-diagnosis-tags" title="활동태그">
-            <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-[var(--text-tertiary)] dark:border-gray-600">
-              활동 태그 분석 UI (Phase 6에서 구현)
-            </div>
+            {diagnosisLoading ? <SectionSkeleton /> : (
+              <ActivityTagList
+                tags={diagnosisData?.activityTags ?? []}
+                studentId={studentId}
+                tenantId={tenantId}
+                schoolYear={initialSchoolYear}
+              />
+            )}
           </StrategySection>
 
           <StrategySection id="sec-diagnosis-overall" title="종합진단">
-            <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-[var(--text-tertiary)] dark:border-gray-600">
-              종합 진단 UI (Phase 6에서 구현)
-            </div>
+            {diagnosisLoading ? <SectionSkeleton /> : (
+              <DiagnosisEditor
+                diagnosis={diagnosisData?.diagnosis ?? null}
+                studentId={studentId}
+                tenantId={tenantId}
+                schoolYear={initialSchoolYear}
+              />
+            )}
           </StrategySection>
 
           <StrategySection id="sec-diagnosis-adequacy" title="교과이수적합도">
-            <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-[var(--text-tertiary)] dark:border-gray-600">
-              교과 이수 적합도 UI (Phase 6에서 구현)
-            </div>
+            {diagnosisLoading ? <SectionSkeleton /> : (
+              <CourseAdequacyDisplay
+                initialResult={diagnosisData?.courseAdequacy ?? null}
+                takenSubjects={diagnosisData?.takenSubjects ?? []}
+                offeredSubjects={diagnosisData?.offeredSubjects ?? null}
+                initialMajor={diagnosisData?.targetMajor ?? null}
+              />
+            )}
           </StrategySection>
 
           {/* ─── 📐 설계 스테이지 구분선 ──────────── */}
