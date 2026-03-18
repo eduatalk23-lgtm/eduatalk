@@ -17,6 +17,7 @@ export interface CompetencyAnalysisItem {
   competencyItem: CompetencyItemCode;
   suggestedGrade: CompetencyGrade;
   reasoning: string;
+  narrative: string;
 }
 
 export interface CompetencyAnalysisResult {
@@ -53,10 +54,11 @@ ${COMPETENCY_SCHEMA}
 ## 규칙
 
 1. 모든 10개 항목에 대해 등급을 제안하세요.
-2. 각 등급에 대해 1-2문장의 근거를 제시하세요.
-3. 텍스트에서 명시적으로 드러나는 내용 기반으로 판단하세요.
-4. 근거가 부족한 항목은 B(보통)로 두고 그 이유를 설명하세요.
-5. JSON 형식으로만 응답하세요.
+2. 각 등급에 대해 1-2문장의 근거(reasoning)를 제시하세요.
+3. 각 등급에 대해 2-3문장의 해석 서술(narrative)을 작성하세요. 해석 서술은 학부모/학생에게 보여줄 수 있는 자연스러운 문장으로, 해당 역량의 현황과 의미를 설명합니다.
+4. 텍스트에서 명시적으로 드러나는 내용 기반으로 판단하세요.
+5. 근거가 부족한 항목은 B(보통)로 두고 그 이유를 설명하세요.
+6. JSON 형식으로만 응답하세요.
 
 ## 출력 형식
 
@@ -66,7 +68,8 @@ ${COMPETENCY_SCHEMA}
     {
       "competencyItem": "academic_achievement",
       "suggestedGrade": "B+",
-      "reasoning": "주요 교과 성적이 안정적이며..."
+      "reasoning": "주요 교과 성적이 안정적이며...",
+      "narrative": "학업성취도는 B+등급입니다. 수학과 과학 교과에서 꾸준히 상위 성적을 유지하고 있으며, 특히 미적분에서 두드러진 성과를 보이고 있습니다."
     }
   ],
   "summary": "전반적으로 학업역량이 우수하며..."
@@ -96,7 +99,7 @@ export async function analyzeCompetencyFromRecords(
       messages: [{ role: "user", content: userPrompt }],
       modelTier: "fast",
       temperature: 0.3,
-      maxTokens: 3000,
+      maxTokens: 4000,
     });
 
     if (!result.content) {
@@ -116,10 +119,11 @@ export async function analyzeCompetencyFromRecords(
       .filter((i: { competencyItem: string; suggestedGrade: string }) =>
         validCodes.has(i.competencyItem) && validGrades.has(i.suggestedGrade),
       )
-      .map((i: { competencyItem: string; suggestedGrade: string; reasoning?: string }) => ({
+      .map((i: { competencyItem: string; suggestedGrade: string; reasoning?: string; narrative?: string }) => ({
         competencyItem: i.competencyItem as CompetencyItemCode,
         suggestedGrade: i.suggestedGrade as CompetencyGrade,
         reasoning: String(i.reasoning ?? ""),
+        narrative: String(i.narrative ?? ""),
       }));
 
     return {

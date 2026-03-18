@@ -66,6 +66,7 @@ export function CompetencyScoreGrid({ scores, studentId, tenantId, schoolYear, r
       item: CompetencyItemCode;
       grade: CompetencyGrade;
       notes?: string;
+      narrative?: string;
     }) => {
       const result = await upsertCompetencyScoreAction({
         tenant_id: tenantId,
@@ -76,6 +77,7 @@ export function CompetencyScoreGrid({ scores, studentId, tenantId, schoolYear, r
         competency_item: input.item,
         grade_value: input.grade,
         notes: input.notes ?? null,
+        narrative: input.narrative ?? null,
       });
       if (!result.success) throw new Error(result.error);
     },
@@ -141,8 +143,8 @@ export function CompetencyScoreGrid({ scores, studentId, tenantId, schoolYear, r
                   item={item}
                   score={findScore(scores, item.code)}
                   aiSuggestion={aiSuggestions.get(item.code)}
-                  onSave={(grade, notes) =>
-                    mutation.mutate({ area, item: item.code, grade, notes })
+                  onSave={(grade, notes, narrative) =>
+                    mutation.mutate({ area, item: item.code, grade, notes, narrative })
                   }
                   isSaving={mutation.isPending}
                 />
@@ -165,7 +167,7 @@ function CompetencyRow({
   item: (typeof COMPETENCY_ITEMS)[0];
   score: CompetencyScore | undefined;
   aiSuggestion?: CompetencyAnalysisItem;
-  onSave: (grade: CompetencyGrade, notes?: string) => void;
+  onSave: (grade: CompetencyGrade, notes?: string, narrative?: string) => void;
   isSaving: boolean;
 }) {
   const [grade, setGrade] = useState<CompetencyGrade | "">(
@@ -176,9 +178,9 @@ function CompetencyRow({
   const questions = COMPETENCY_RUBRIC_QUESTIONS[item.code];
 
   const handleGradeChange = useCallback(
-    (newGrade: CompetencyGrade) => {
+    (newGrade: CompetencyGrade, narrative?: string) => {
       setGrade(newGrade);
-      onSave(newGrade, notes || undefined);
+      onSave(newGrade, notes || undefined, narrative);
     },
     [notes, onSave],
   );
@@ -235,7 +237,7 @@ function CompetencyRow({
         </select>
         {aiSuggestion && (
           <button
-            onClick={() => handleGradeChange(aiSuggestion.suggestedGrade)}
+            onClick={() => handleGradeChange(aiSuggestion.suggestedGrade, aiSuggestion.narrative)}
             title={`AI 제안: ${aiSuggestion.suggestedGrade} — ${aiSuggestion.reasoning}`}
             className="rounded border border-blue-300 bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
           >

@@ -9383,6 +9383,7 @@ export type Database = {
           evaluated_by: string | null
           grade_value: string
           id: string
+          narrative: string | null
           notes: string | null
           school_year: number
           scope: string
@@ -9400,6 +9401,7 @@ export type Database = {
           evaluated_by?: string | null
           grade_value: string
           id?: string
+          narrative?: string | null
           notes?: string | null
           school_year: number
           scope?: string
@@ -9417,6 +9419,7 @@ export type Database = {
           evaluated_by?: string | null
           grade_value?: string
           id?: string
+          narrative?: string | null
           notes?: string | null
           school_year?: number
           scope?: string
