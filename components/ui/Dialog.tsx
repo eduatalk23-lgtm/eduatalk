@@ -33,6 +33,8 @@ export type DialogProps = {
   maxWidth?: DialogSize;
   size?: DialogSize; // maxWidth와 동일하지만 organisms/Dialog와의 호환성을 위해 추가
   showCloseButton?: boolean;
+  /** 오버레이 wrapper에 추가할 className (z-index 오버라이드 등) */
+  overlayClassName?: string;
 };
 
 export function Dialog({
@@ -45,6 +47,7 @@ export function Dialog({
   maxWidth,
   size,
   showCloseButton = false,
+  overlayClassName,
 }: DialogProps) {
   // size와 maxWidth 중 하나만 사용 (size 우선)
   const effectiveSize = size || maxWidth || "md";
@@ -125,7 +128,7 @@ export function Dialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in-0 duration-200"
+      className={cn("fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in-0 duration-200", overlayClassName)}
       onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"

@@ -164,6 +164,7 @@ export function CustomRecurrenceDialog({
       onOpenChange={(open) => !open && onClose()}
       title="사용자 지정 반복"
       maxWidth="sm"
+      overlayClassName="z-[10000]"
     >
       <DialogContent>
         <div className="flex flex-col gap-5">
