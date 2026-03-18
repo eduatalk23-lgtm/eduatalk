@@ -12,7 +12,7 @@ import type { StudentInfoData, AdminStudentFormData } from "../[id]/_types/stude
 import BasicInfoSection from "../[id]/_components/sections/BasicInfoSection";
 import ProfileInfoSection from "../[id]/_components/sections/ProfileInfoSection";
 import CareerInfoSection from "../[id]/_components/sections/CareerInfoSection";
-import { Plus, Trash2, ExternalLink, CalendarDays, Loader2, RotateCcw, Save, Wallet, Users, MessageSquare, BarChart3, Clock, Send } from "lucide-react";
+import { Plus, Trash2, ExternalLink, CalendarDays, ClipboardList, Loader2, RotateCcw, Save, Wallet, Users, MessageSquare, BarChart3, Clock, Send } from "lucide-react";
 import Link from "next/link";
 
 type FormMode = "register" | "selected";
@@ -308,6 +308,13 @@ export function StudentFormPanel({
                 >
                   <CalendarDays className="h-4 w-4" />
                   플래너
+                </Link>
+                <Link
+                  href={`/admin/students/${selectedStudentId}/record`}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
+                >
+                  <ClipboardList className="h-4 w-4" />
+                  생기부
                 </Link>
                 <Link
                   href={`/admin/students/${selectedStudentId}`}

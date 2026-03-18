@@ -10,8 +10,7 @@ type TabKey =
   | "analysis"
   | "attendance"
   | "risk"
-  | "files"
-  | "record";
+  | "files";
 
 type Tab = {
   key: TabKey;
@@ -26,7 +25,6 @@ const tabs: Tab[] = [
   { key: "attendance", label: "출석", icon: "✓" },
   { key: "risk", label: "위험도/추천", icon: "⚠️" },
   { key: "files", label: "파일", icon: "📁" },
-  { key: "record", label: "생기부", icon: "📋" },
 ];
 
 export function StudentDetailTabs({
@@ -74,21 +72,19 @@ export function StudentDetailTabs({
       </div>
 
       {/* 탭 컨텐츠 - 서버에서 활성 탭만 렌더링됨 */}
-      {children && (
-        isPending ? (
-          <div className="space-y-4">
-            <div className="h-7 w-40 animate-pulse rounded bg-gray-200" />
-            <div className="rounded-lg border border-gray-200 bg-white p-6">
-              <div className="space-y-3">
-                <div className="h-4 w-3/4 animate-pulse rounded bg-gray-200" />
-                <div className="h-4 w-1/2 animate-pulse rounded bg-gray-200" />
-                <div className="h-4 w-2/3 animate-pulse rounded bg-gray-200" />
-              </div>
+      {isPending ? (
+        <div className="space-y-4">
+          <div className="h-7 w-40 animate-pulse rounded bg-gray-200" />
+          <div className="rounded-lg border border-gray-200 bg-white p-6">
+            <div className="space-y-3">
+              <div className="h-4 w-3/4 animate-pulse rounded bg-gray-200" />
+              <div className="h-4 w-1/2 animate-pulse rounded bg-gray-200" />
+              <div className="h-4 w-2/3 animate-pulse rounded bg-gray-200" />
             </div>
           </div>
-        ) : (
-          <div>{children}</div>
-        )
+        </div>
+      ) : (
+        <div>{children}</div>
       )}
     </div>
   );
