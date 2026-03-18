@@ -567,25 +567,130 @@ supabase/migrations/
 - school_offered_subjects junction 연동 → 학교 미개설 과목은 "이수불가" (학생 탓 아님)
 - 진로선택 A/B/C 3단계 성취도 반영 고려
 
+**검증**: ✅ 2026-03-18 완료
+- [x] DB 마이그레이션 적용 (`20260331400000_student_record_diagnosis.sql`)
+  - 4 테이블, RLS 12개 (admin+student+parent × 4), 트리거 3개, 인덱스 10개
+- [x] `database.types.ts` 재생성 (4개 테이블 타입 확인)
+- [x] `pnpm build` 성공
+- [x] `pnpm test` → course-adequacy 19개 통과
+
+**산출물 (10개 파일)**:
+```
+lib/domains/student-record/
+├── types.ts (수정: CompetencyScore/ActivityTag/Diagnosis/Strategy 타입 추가, DiagnosisTabData, CourseAdequacyResult)
+├── competency-repository.ts (신규: 8함수 — find/upsert/update/delete + activity_tags CRUD)
+├── diagnosis-repository.ts (신규: 8함수 — diagnosis upsert + strategies CRUD)
+├── course-adequacy.ts (신규: 18계열 매칭, 과목명 정규화, 학교 미개설 분모 제외, 일반/진로 분리)
+├── actions/diagnosis.ts (신규: 13개 Server Actions — CRUD + fetchDiagnosisTabData)
+├── index.ts (수정: 신규 타입/함수 re-export)
+├── __tests__/course-adequacy.test.ts (신규: 19 tests)
+├── __tests__/interview-conflict-checker.test.ts (신규: 12 tests — Phase 3.5 보강)
+├── __tests__/mapper.test.ts (신규: 23 tests — Phase 4.5 보강)
+└── lib/query-options/studentRecord.ts (수정: diagnosisTabQueryOptions 추가)
+
+supabase/migrations/
+└── 20260331400000_student_record_diagnosis.sql
+```
+
 ---
 
-### Phase 5.5 — AI 역량 태그 자동 제안
+### Phase 5.5a — AI 역량 태그 자동 제안 (초기)
 
-> **목표**: 세특/창체 텍스트 → 역량 태그 + 평가 AI 자동 제안
+> **목표**: 세특/창체 텍스트 → 역량 태그 + 추론 근거 AI 제안 (수락/거절)
+> **완료일**: 2026-03-18
 
 | 항목 | 내용 |
 |------|------|
-| **AI** | Gemini fast |
+| **AI** | Gemini fast (temperature 0.3) |
 | **의존** | Phase 5 |
-| **파일 수** | ~8개 |
+| **파일 수** | 4개 |
+
+**핵심 설계**:
+- AI가 태그 제안 시 **근거 키워드 + 판단 이유 + 매칭 루브릭 질문** 포함 (구조화 추론)
+- 프롬프트에 COMPETENCY_ITEMS 10개 + COMPETENCY_RUBRIC_QUESTIONS 42개 주입
+- 수락 시 `activity_tags.evidence_summary`에 AI 근거 저장
+- few-shot 학습은 5.5b로 미룸 (데이터 축적 필요)
+
+**산출물 (4개 파일)**:
+```
+lib/domains/student-record/llm/
+├── types.ts — TagSuggestion, SuggestTagsInput, SuggestTagsResult
+├── prompts/competencyTagging.ts — 시스템 프롬프트 + 유저 프롬프트 빌더 + 응답 파서
+└── actions/suggestTags.ts — Server Action (Gemini fast, rate limit 처리)
+
+app/.../student-record/
+└── ActivityTagSuggestionPanel.tsx — AI 제안 UI (수락/거절 + 근거 표시)
+```
+
+**검증**: ✅
+- [x] `pnpm build` 성공
+- [x] 기존 테스트 143개 통과
+- [ ] 실제 Gemini 호출 E2E 테스트 (API 키 필요)
+
+**Phase 5.5b (향후)**: 수락/거절 이력 테이블 → few-shot 예시 자동 구성 → 신뢰도 기반 자동 적용
+
+---
+
+### 레이아웃 리팩토링 — 캘린더 3존 구조 적용
+
+> **목표**: 생기부 페이지를 캘린더와 동일한 3존 레이아웃으로 전환 + 4단계 컨설팅 파이프라인 사이드바
+> **완료일**: 2026-03-18
+
+#### 레이아웃 변경
+
+| 영역 | 이전 | 이후 |
+|------|------|------|
+| 레이아웃 | 2존 (사이드바+메인) | 3존 (사이드바+메인+레일/패널) |
+| 사이드바 TOC | 플랫 14+4항목 | 4단계 접이식 그룹 (기록/진단/설계/전략) |
+| 학년 선택 | 사이드바 최상단 | 기록/진단 그룹 내부 세그먼트 컨트롤 |
+| 레일+패널 | 없음 | 메모(📝)+채팅(💬) — 캘린더와 동일 |
+
+#### 구현 Phase
+
+| Phase | 내용 | 상태 |
+|-------|------|------|
+| A | SidePanel 인프라 공유화 (`components/side-panel/`) | ✅ |
+| B | RecordSidePanelContainer + RecordMemoPanelApp + StudentRecordContext | ✅ |
+| C | RecordLayoutShell `rightPanel` prop 추가 | ✅ |
+| D | 사이드바 4단계 그룹 + compact 학년 세그먼트 | ✅ |
+| E | SidePanelProvider + rightPanel 연결 | ✅ |
+| F | 진단 4개 플레이스홀더 섹션 + StageDivider | ✅ |
+
+#### 사이드바 구조
 
 ```
-5.5.1  llm/types.ts — TagSuggestion 타입
-5.5.2  llm/prompts/competencyTagging.ts — 10개 역량 항목 스키마
-5.5.3  llm/actions/suggestTags.ts — Server Action (LLM 캐시 24h)
-5.5.4  UI: ActivityTagSuggestionPanel — 수락/거절 버튼
-5.5.5  SetekEditor/ChangcheEditor에 "AI 태그 제안" 버튼 연결
+📋 기록 (접이식, 학년선택 내장)
+  [전체|1|2|3]
+  [1] 인적·학적사항 ~ [9] 행동특성 및 종합의견 (원본 TOC 유지)
+🔍 진단 (접이식, 학년선택 내장)
+  역량평가 / 활동태그 / 종합진단 / 교과이수적합
+📐 설계 (접이식)
+  스토리라인 / 로드맵 / 보완전략
+🎯 전략 (접이식)
+  지원현황 / 최저시뮬
 ```
+
+#### 산출물
+
+```
+components/side-panel/ (공유, 신규 5파일)
+├── types.ts, SidePanelContext.tsx, SidePanelContent.tsx, SidePanelIconRail.tsx, index.ts
+
+app/.../student-record/side-panel/ (신규 2파일)
+├── RecordSidePanelContainer.tsx, RecordMemoPanelApp.tsx
+
+app/.../student-record/ (신규 1파일, 수정 3파일)
+├── StudentRecordContext.tsx (신규)
+├── RecordLayoutShell.tsx (수정: rightPanel prop)
+├── StudentRecordClient.tsx (수정: 4단계 STAGES, SidePanelProvider, 진단 플레이스홀더)
+├── RecordYearSelector.tsx (수정: compact 모드)
+```
+
+**검증**: ✅
+- [x] `pnpm build` 성공
+- [x] 캘린더 페이지 기존 동작 유지 (re-export 무파괴)
+- [ ] 레일 메모/채팅 패널 E2E 동작
+- [ ] 반응형 확인 (모바일/태블릿/데스크탑)
 
 ---
 
