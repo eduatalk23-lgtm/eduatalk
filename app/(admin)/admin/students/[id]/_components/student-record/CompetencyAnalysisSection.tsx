@@ -86,12 +86,14 @@ export function CompetencyAnalysisSection({
     onSuccess: () => queryClient.invalidateQueries({ queryKey: studentRecordKeys.diagnosisTab(studentId, schoolYear) }),
   });
 
-  // AI 분석 후 태그 자동 저장 + 등급 prefill
+  // AI 분석 후 태그 자동 저장 + 등급 prefill (병렬 실행)
   async function saveAnalysisResults(recId: string, rec: RecordForHighlight, data: HighlightAnalysisResult) {
-    // 1. 활동 태그 자동 저장 (source=ai, status=suggested)
+    const promises: Promise<unknown>[] = [];
+
+    // 1. 활동 태그 자동 저장 (source=ai, status=suggested) — 병렬
     for (const section of data.sections) {
       for (const tag of section.tags) {
-        await addActivityTagAction({
+        promises.push(addActivityTagAction({
           tenant_id: tenantId,
           student_id: studentId,
           record_type: rec.type,
@@ -101,15 +103,15 @@ export function CompetencyAnalysisSection({
           evidence_summary: `[AI] ${tag.reasoning}\n근거: "${tag.highlight}"`,
           source: "ai",
           status: "suggested",
-        });
+        }));
       }
     }
 
-    // 2. 종합 등급 prefill (source=ai, status=suggested)
+    // 2. 종합 등급 prefill (source=ai, status=suggested) — 병렬
     for (const grade of data.competencyGrades) {
       const area = COMPETENCY_ITEMS.find((i) => i.code === grade.item)?.area;
       if (!area) continue;
-      await upsertCompetencyScoreAction({
+      promises.push(upsertCompetencyScoreAction({
         tenant_id: tenantId,
         student_id: studentId,
         school_year: schoolYear,
@@ -118,10 +120,13 @@ export function CompetencyAnalysisSection({
         competency_item: grade.item,
         grade_value: grade.grade,
         notes: `[AI] ${grade.reasoning}`,
-      });
+        source: "ai",
+        status: "suggested",
+      }));
     }
 
-    // 3. 쿼리 무효화 (태그 + 등급 갱신)
+    // 3. 병렬 실행 + 쿼리 무효화
+    await Promise.allSettled(promises);
     queryClient.invalidateQueries({ queryKey: studentRecordKeys.diagnosisTab(studentId, schoolYear) });
   }
 
@@ -163,7 +168,7 @@ export function CompetencyAnalysisSection({
       }
       return results;
     },
-    onSuccess: (results) => setHighlightResults(results),
+    onSuccess: (results) => setHighlightResults((prev) => new Map([...prev, ...results])),
     onError: (err: Error) => setError(err.message),
   });
 

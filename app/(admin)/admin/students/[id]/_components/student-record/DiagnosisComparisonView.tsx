@@ -47,7 +47,7 @@ export function DiagnosisComparisonView({
   const queryClient = useQueryClient();
   const qk = studentRecordKeys.diagnosisTab(studentId, schoolYear);
 
-  // 컨설턴트 폼 상태
+  // 컨설턴트 폼 상태 — prop 변경 시 동기화
   const [grade, setGrade] = useState<CompetencyGrade>((consultantDiagnosis?.overall_grade as CompetencyGrade) ?? "B");
   const [direction, setDirection] = useState(consultantDiagnosis?.record_direction ?? "");
   const [dirStrength, setDirStrength] = useState(consultantDiagnosis?.direction_strength ?? "moderate");
@@ -57,6 +57,19 @@ export function DiagnosisComparisonView({
   const [notes, setNotes] = useState(consultantDiagnosis?.strategy_notes ?? "");
   const [newStrength, setNewStrength] = useState("");
   const [newWeakness, setNewWeakness] = useState("");
+
+  // prop 변경 시 폼 동기화 (저장 후 refetch 시)
+  const [prevDiagnosisId, setPrevDiagnosisId] = useState(consultantDiagnosis?.id);
+  if (consultantDiagnosis?.id !== prevDiagnosisId) {
+    setPrevDiagnosisId(consultantDiagnosis?.id);
+    setGrade((consultantDiagnosis?.overall_grade as CompetencyGrade) ?? "B");
+    setDirection(consultantDiagnosis?.record_direction ?? "");
+    setDirStrength(consultantDiagnosis?.direction_strength ?? "moderate");
+    setStrengths(consultantDiagnosis?.strengths ?? []);
+    setWeaknesses(consultantDiagnosis?.weaknesses ?? []);
+    setMajors(consultantDiagnosis?.recommended_majors ?? []);
+    setNotes(consultantDiagnosis?.strategy_notes ?? "");
+  }
 
   // AI 종합진단 생성
   const aiGenMutation = useMutation({

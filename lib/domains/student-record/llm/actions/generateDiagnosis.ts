@@ -127,6 +127,9 @@ ${tagsSummary}
     if (msg.includes("quota") || msg.includes("rate") || msg.includes("429")) {
       return { success: false, error: "AI 요청 한도에 도달했습니다." };
     }
+    if (error instanceof SyntaxError || msg.includes("JSON")) {
+      return { success: false, error: "AI 응답 파싱에 실패했습니다. 다시 시도해주세요." };
+    }
     return { success: false, error: "종합 진단 생성 중 오류가 발생했습니다." };
   }
 }

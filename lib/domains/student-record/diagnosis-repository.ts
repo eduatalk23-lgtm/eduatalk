@@ -17,24 +17,22 @@ import type {
 // diagnosis
 // ============================================
 
-/** 학생의 학년도별 종합 진단 조회 (source별) */
+/** 학생의 학년도별 종합 진단 조회 (source 필수 — dual-tracking 이후 2건 가능) */
 export async function findDiagnosis(
   studentId: string,
   schoolYear: number,
   tenantId: string,
-  source?: "ai" | "manual",
+  source: "ai" | "manual",
 ): Promise<Diagnosis | null> {
   const supabase = await createSupabaseServerClient();
-  let query = supabase
+  const { data, error } = await supabase
     .from("student_record_diagnosis")
     .select("*")
     .eq("student_id", studentId)
     .eq("school_year", schoolYear)
-    .eq("tenant_id", tenantId);
-
-  if (source) query = query.eq("source", source);
-
-  const { data, error } = await query.maybeSingle();
+    .eq("tenant_id", tenantId)
+    .eq("source", source)
+    .maybeSingle();
 
   if (error) throw error;
   return data;
