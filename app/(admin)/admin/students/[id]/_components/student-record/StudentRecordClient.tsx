@@ -33,7 +33,7 @@ import { MinScorePanel } from "./MinScorePanel";
 import { ImportDialog } from "./ImportDialog";
 import { RecordGradesDisplay } from "./RecordGradesDisplay";
 import { CompetencyAnalysisSection } from "./CompetencyAnalysisSection";
-import { DiagnosisEditor } from "./DiagnosisEditor";
+import { DiagnosisComparisonView } from "./DiagnosisComparisonView";
 import { CourseAdequacyDisplay } from "./CourseAdequacyDisplay";
 
 type Subject = {
@@ -780,7 +780,7 @@ export function StudentRecordClient({
           <StrategySection id="sec-diagnosis-analysis" title="역량 분석">
             {diagnosisLoading || anyRecordLoading ? <SectionSkeleton /> : (
               <CompetencyAnalysisSection
-                competencyScores={diagnosisData?.competencyScores ?? []}
+                competencyScores={[...(diagnosisData?.competencyScores.ai ?? []), ...(diagnosisData?.competencyScores.consultant ?? [])]}
                 activityTags={diagnosisData?.activityTags ?? []}
                 records={allRecordSummaries}
                 studentId={studentId}
@@ -792,11 +792,16 @@ export function StudentRecordClient({
 
           <StrategySection id="sec-diagnosis-overall" title="종합진단">
             {diagnosisLoading ? <SectionSkeleton /> : (
-              <DiagnosisEditor
-                diagnosis={diagnosisData?.diagnosis ?? null}
+              <DiagnosisComparisonView
+                aiDiagnosis={diagnosisData?.aiDiagnosis ?? null}
+                consultantDiagnosis={diagnosisData?.consultantDiagnosis ?? null}
+                aiScores={diagnosisData?.competencyScores.ai ?? []}
+                activityTags={diagnosisData?.activityTags ?? []}
                 studentId={studentId}
                 tenantId={tenantId}
                 schoolYear={initialSchoolYear}
+                targetMajor={diagnosisData?.targetMajor}
+                schoolName={schoolName}
               />
             )}
           </StrategySection>

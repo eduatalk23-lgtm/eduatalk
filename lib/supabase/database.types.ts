@@ -9386,6 +9386,8 @@ export type Database = {
           notes: string | null
           school_year: number
           scope: string
+          source: string
+          status: string
           student_id: string
           tenant_id: string
           updated_at: string
@@ -9401,6 +9403,8 @@ export type Database = {
           notes?: string | null
           school_year: number
           scope?: string
+          source?: string
+          status?: string
           student_id: string
           tenant_id: string
           updated_at?: string
@@ -9416,6 +9420,8 @@ export type Database = {
           notes?: string | null
           school_year?: number
           scope?: string
+          source?: string
+          status?: string
           student_id?: string
           tenant_id?: string
           updated_at?: string

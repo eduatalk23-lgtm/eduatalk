@@ -17,26 +17,51 @@ import type {
 // diagnosis
 // ============================================
 
-/** 학생의 학년도별 종합 진단 조회 */
+/** 학생의 학년도별 종합 진단 조회 (source별) */
 export async function findDiagnosis(
   studentId: string,
   schoolYear: number,
   tenantId: string,
+  source?: "ai" | "manual",
 ): Promise<Diagnosis | null> {
+  const supabase = await createSupabaseServerClient();
+  let query = supabase
+    .from("student_record_diagnosis")
+    .select("*")
+    .eq("student_id", studentId)
+    .eq("school_year", schoolYear)
+    .eq("tenant_id", tenantId);
+
+  if (source) query = query.eq("source", source);
+
+  const { data, error } = await query.maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+/** AI진단 + 컨설턴트진단 동시 조회 */
+export async function findDiagnosisPair(
+  studentId: string,
+  schoolYear: number,
+  tenantId: string,
+): Promise<{ ai: Diagnosis | null; consultant: Diagnosis | null }> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("student_record_diagnosis")
     .select("*")
     .eq("student_id", studentId)
     .eq("school_year", schoolYear)
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
+    .eq("tenant_id", tenantId);
 
   if (error) throw error;
-  return data;
+
+  const ai = (data ?? []).find((d) => d.source === "ai") ?? null;
+  const consultant = (data ?? []).find((d) => d.source === "manual") ?? null;
+  return { ai, consultant };
 }
 
-/** 종합 진단 upsert (UNIQUE: tenant+student+year) */
+/** 종합 진단 upsert (UNIQUE: tenant+student+year+source) */
 export async function upsertDiagnosis(
   input: DiagnosisInsert,
 ): Promise<string> {
@@ -44,7 +69,7 @@ export async function upsertDiagnosis(
   const { data, error } = await supabase
     .from("student_record_diagnosis")
     .upsert(input, {
-      onConflict: "tenant_id,student_id,school_year",
+      onConflict: "tenant_id,student_id,school_year,source",
     })
     .select("id")
     .single();

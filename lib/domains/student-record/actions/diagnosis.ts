@@ -38,12 +38,13 @@ export async function fetchDiagnosisTabData(
     await requireAdminOrConsultant();
     const supabase = await createSupabaseServerClient();
 
-    // 병렬 조회: 역량/태그/진단/전략 + 학생정보 + 이수과목
-    const [competencyScores, activityTags, diagnosis, strategies, studentResult, scoresResult] =
+    // 병렬 조회: 역량(AI+컨설턴트)/태그/진단(AI+컨설턴트)/전략 + 학생정보 + 이수과목
+    const [aiScores, consultantScores, activityTags, diagnosisPair, strategies, studentResult, scoresResult] =
       await Promise.all([
-        competencyRepo.findCompetencyScores(studentId, schoolYear, tenantId),
+        competencyRepo.findCompetencyScores(studentId, schoolYear, tenantId, "ai"),
+        competencyRepo.findCompetencyScores(studentId, schoolYear, tenantId, "manual"),
         competencyRepo.findActivityTags(studentId, tenantId),
-        diagnosisRepo.findDiagnosis(studentId, schoolYear, tenantId),
+        diagnosisRepo.findDiagnosisPair(studentId, schoolYear, tenantId),
         diagnosisRepo.findStrategies(studentId, schoolYear, tenantId),
         supabase.from("students").select("target_major, school_name").eq("id", studentId).maybeSingle(),
         supabase.from("student_internal_scores")
@@ -95,14 +96,20 @@ export async function fetchDiagnosisTabData(
       : null;
 
     return {
-      competencyScores, activityTags, diagnosis, strategies,
-      courseAdequacy, takenSubjects, offeredSubjects, targetMajor,
+      competencyScores: { ai: aiScores, consultant: consultantScores },
+      activityTags,
+      aiDiagnosis: diagnosisPair.ai,
+      consultantDiagnosis: diagnosisPair.consultant,
+      strategies, courseAdequacy, takenSubjects, offeredSubjects, targetMajor,
     };
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "fetchDiagnosisTabData" }, error, { studentId, schoolYear });
     return {
-      competencyScores: [], activityTags: [], diagnosis: null, strategies: [],
-      courseAdequacy: null, takenSubjects: [], offeredSubjects: null, targetMajor: null,
+      competencyScores: { ai: [], consultant: [] },
+      activityTags: [],
+      aiDiagnosis: null, consultantDiagnosis: null,
+      strategies: [], courseAdequacy: null,
+      takenSubjects: [], offeredSubjects: null, targetMajor: null,
     };
   }
 }

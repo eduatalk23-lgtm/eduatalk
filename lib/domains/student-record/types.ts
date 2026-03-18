@@ -255,18 +255,19 @@ export interface StorylineTabData {
   roadmapItems: RoadmapItem[];
 }
 
-/** 진단 탭 데이터 (Phase 6) */
+/** 진단 탭 데이터 (Phase 6 — AI vs 컨설턴트 비교) */
 export interface DiagnosisTabData {
-  competencyScores: CompetencyScore[];
+  competencyScores: {
+    ai: CompetencyScore[];
+    consultant: CompetencyScore[];
+  };
   activityTags: ActivityTag[];
-  diagnosis: Diagnosis | null;
+  aiDiagnosis: Diagnosis | null;
+  consultantDiagnosis: Diagnosis | null;
   strategies: Strategy[];
   courseAdequacy: CourseAdequacyResult | null;
-  /** 학생 이수 과목명 (교과이수적합도 클라이언트 재계산용) */
   takenSubjects: string[];
-  /** 학교 개설 과목명 (null이면 필터링 안 함) */
   offeredSubjects: string[] | null;
-  /** 학생 목표 전공 계열 */
   targetMajor: string | null;
 }
 

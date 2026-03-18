@@ -16,19 +16,24 @@ import type {
 // competency_scores
 // ============================================
 
-/** 학생의 학년도별 역량 평가 조회 */
+/** 학생의 학년도별 역량 평가 조회 (source 필터 가능) */
 export async function findCompetencyScores(
   studentId: string,
   schoolYear: number,
   tenantId: string,
+  source?: "ai" | "manual",
 ): Promise<CompetencyScore[]> {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("student_record_competency_scores")
     .select("*")
     .eq("student_id", studentId)
     .eq("school_year", schoolYear)
-    .eq("tenant_id", tenantId)
+    .eq("tenant_id", tenantId);
+
+  if (source) query = query.eq("source", source);
+
+  const { data, error } = await query
     .order("competency_area")
     .order("competency_item");
 
@@ -36,7 +41,7 @@ export async function findCompetencyScores(
   return data ?? [];
 }
 
-/** 역량 평가 upsert (UNIQUE: tenant+student+year+scope+item) */
+/** 역량 평가 upsert (UNIQUE: tenant+student+year+scope+item+source) */
 export async function upsertCompetencyScore(
   input: CompetencyScoreInsert,
 ): Promise<string> {
@@ -44,7 +49,7 @@ export async function upsertCompetencyScore(
   const { data, error } = await supabase
     .from("student_record_competency_scores")
     .upsert(input, {
-      onConflict: "tenant_id,student_id,school_year,scope,competency_item",
+      onConflict: "tenant_id,student_id,school_year,scope,competency_item,source",
     })
     .select("id")
     .single();
