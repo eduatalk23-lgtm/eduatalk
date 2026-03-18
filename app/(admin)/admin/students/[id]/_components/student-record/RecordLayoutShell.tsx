@@ -8,6 +8,8 @@ interface RecordLayoutShellProps {
   children: React.ReactNode;
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
+  /** 오른쪽 패널 (Icon Rail + SidePanel) — 캘린더와 동일 구조 */
+  rightPanel?: React.ReactNode;
 }
 
 /** 데스크톱(lg+) 사이드바 너비 */
@@ -51,6 +53,7 @@ export function RecordLayoutShell({
   children,
   isSidebarOpen,
   onToggleSidebar,
+  rightPanel,
 }: RecordLayoutShellProps) {
   const breakpoint = useSyncExternalStore<BreakpointValue | null>(
     subscribeBreakpoint,
@@ -129,6 +132,9 @@ export function RecordLayoutShell({
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-[var(--background)]">
         {children}
       </div>
+
+      {/* Right Panel (Icon Rail + SidePanel) */}
+      {rightPanel}
     </div>
   );
 }

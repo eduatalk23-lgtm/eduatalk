@@ -13,6 +13,9 @@ import {
   strategyTabQueryOptions,
 } from "@/lib/query-options/studentRecord";
 import { RecordLayoutShell } from "./RecordLayoutShell";
+import { SidePanelProvider } from "@/components/side-panel";
+import { StudentRecordProvider } from "./StudentRecordContext";
+import { RecordSidePanelContainer } from "./side-panel/RecordSidePanelContainer";
 import { RecordYearSelector } from "./RecordYearSelector";
 import { SetekEditor } from "./SetekEditor";
 import { ChangcheEditor } from "./ChangcheEditor";
@@ -340,10 +343,13 @@ export function StudentRecordClient({
       })();
 
   return (
+    <StudentRecordProvider value={{ studentId, tenantId, studentName }}>
+    <SidePanelProvider storageKey="recordSidePanelApp">
     <RecordLayoutShell
       sidebar={sidebarContent}
       isSidebarOpen={sidebarOpen}
       onToggleSidebar={toggleSidebar}
+      rightPanel={<RecordSidePanelContainer />}
     >
       {/* ─── 메인 문서 스크롤 영역 ────────────────── */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
@@ -742,6 +748,8 @@ export function StudentRecordClient({
         subjects={subjects}
       />
     </RecordLayoutShell>
+    </SidePanelProvider>
+    </StudentRecordProvider>
   );
 }
 
