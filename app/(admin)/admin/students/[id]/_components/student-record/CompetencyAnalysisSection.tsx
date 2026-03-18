@@ -144,7 +144,53 @@ export function CompetencyAnalysisSection({
         {error && <span className="text-xs text-red-500">{error}</span>}
       </div>
 
-      {/* ─── 종합 등급 그리드 (컴팩트) ──────── */}
+      {/* ─── 세특별 하이라이트 뷰 (먼저: 근거를 보고 등급 결정) ── */}
+      <div>
+        <h4 className="mb-2 text-sm font-semibold text-[var(--text-primary)]">활동별 역량 분석</h4>
+        <div className="flex flex-col gap-2">
+          {records.map((rec) => {
+            const result = highlightResults.get(rec.id);
+            const isAnalyzing = analyzingId === rec.id;
+
+            if (result) {
+              return (
+                <HighlightedSetekView
+                  key={rec.id}
+                  content={rec.content}
+                  sections={result.sections}
+                  label={rec.label}
+                  defaultExpanded={true}
+                />
+              );
+            }
+
+            return (
+              <div key={rec.id} className="rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between px-3 py-2">
+                  <span className="text-sm text-[var(--text-primary)]">{rec.label}</span>
+                  <button
+                    onClick={() => analyzeRecord(rec)}
+                    disabled={isAnalyzing || rec.content.trim().length < 20}
+                    className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] text-blue-600 hover:bg-blue-50 disabled:opacity-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                  >
+                    {isAnalyzing ? (
+                      <span className="h-3 w-3 animate-spin rounded-full border border-blue-300 border-t-blue-600" />
+                    ) : (
+                      <Sparkles size={12} />
+                    )}
+                    분석
+                  </button>
+                </div>
+                <div className="border-t border-gray-100 px-3 py-2 dark:border-gray-700">
+                  <p className="text-xs text-[var(--text-secondary)] line-clamp-2">{rec.content.slice(0, 150)}...</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ─── 종합 등급 그리드 (아래: 근거 확인 후 등급 결정) ── */}
       <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
         <h4 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">종합 등급</h4>
         <div className="flex flex-col gap-3">
@@ -192,51 +238,6 @@ export function CompetencyAnalysisSection({
         </div>
       </div>
 
-      {/* ─── 세특별 하이라이트 뷰 ──────────── */}
-      <div>
-        <h4 className="mb-2 text-sm font-semibold text-[var(--text-primary)]">활동별 역량 분석</h4>
-        <div className="flex flex-col gap-2">
-          {records.map((rec) => {
-            const result = highlightResults.get(rec.id);
-            const isAnalyzing = analyzingId === rec.id;
-
-            if (result) {
-              return (
-                <HighlightedSetekView
-                  key={rec.id}
-                  content={rec.content}
-                  sections={result.sections}
-                  label={rec.label}
-                  defaultExpanded={true}
-                />
-              );
-            }
-
-            return (
-              <div key={rec.id} className="rounded-lg border border-gray-200 dark:border-gray-700">
-                <div className="flex items-center justify-between px-3 py-2">
-                  <span className="text-sm text-[var(--text-primary)]">{rec.label}</span>
-                  <button
-                    onClick={() => analyzeRecord(rec)}
-                    disabled={isAnalyzing || rec.content.trim().length < 20}
-                    className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] text-blue-600 hover:bg-blue-50 disabled:opacity-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
-                  >
-                    {isAnalyzing ? (
-                      <span className="h-3 w-3 animate-spin rounded-full border border-blue-300 border-t-blue-600" />
-                    ) : (
-                      <Sparkles size={12} />
-                    )}
-                    분석
-                  </button>
-                </div>
-                <div className="border-t border-gray-100 px-3 py-2 dark:border-gray-700">
-                  <p className="text-xs text-[var(--text-secondary)] line-clamp-2">{rec.content.slice(0, 150)}...</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 }
