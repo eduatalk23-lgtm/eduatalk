@@ -79,13 +79,19 @@ const STAGES: StageConfig[] = [
     label: "기록",
     hasYearSelector: true,
     sections: [
-      { id: "sec-7-setek", label: "세특" },
-      { id: "sec-6", label: "창체" },
-      { id: "sec-9", label: "행특" },
-      { id: "sec-2", label: "출결" },
-      { id: "sec-7-grades", label: "성적" },
-      { id: "sec-8", label: "독서" },
-      { id: "sec-3", label: "수상·징계" },
+      { id: "sec-1", number: "1", label: "인적·학적사항" },
+      { id: "sec-2", number: "2", label: "출결상황" },
+      { id: "sec-3", number: "3", label: "수상경력" },
+      { id: "sec-4", number: "4", label: "자격증 및 인증" },
+      { id: "sec-5", number: "5", label: "학교폭력 조치사항" },
+      { id: "sec-6", number: "6", label: "창의적 체험활동" },
+      { id: "sec-6-volunteer", label: "봉사활동실적", indent: true },
+      { id: "sec-7", number: "7", label: "교과학습발달" },
+      { id: "sec-7-grades", label: "성적", indent: true },
+      { id: "sec-7-setek", label: "세특", indent: true },
+      { id: "sec-7-personal", label: "개인세특", indent: true },
+      { id: "sec-8", number: "8", label: "독서활동" },
+      { id: "sec-9", number: "9", label: "행동특성 및 종합의견" },
     ],
   },
   {
@@ -336,13 +342,20 @@ export function StudentRecordClient({
                     key={item.id}
                     onClick={() => scrollToSection(item.id)}
                     className={cn(
-                      "rounded-md px-2 py-1 pl-7 text-left text-sm transition-colors",
+                      "flex items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm transition-colors",
+                      item.indent ? "pl-9" : "pl-7",
                       activeSection === item.id
                         ? "bg-indigo-50 font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
                         : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]",
                     )}
                   >
-                    {item.label}
+                    {item.number && (
+                      <span className="inline-flex size-5 flex-shrink-0 items-center justify-center rounded bg-gray-200 text-xs font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                        {item.number}
+                      </span>
+                    )}
+                    {item.indent && <span className="text-[var(--text-tertiary)]">├</span>}
+                    <span className="truncate">{item.label}</span>
                   </button>
                 ))}
               </div>
