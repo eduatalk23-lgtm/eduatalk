@@ -832,15 +832,73 @@ lib/domains/student-record/llm/
 └── types.ts 확장                   — HighlightedSection, HighlightTag 타입
 
 app/.../student-record/
-├── HighlightedSetekView.tsx        — 세특 원문 하이라이트 렌더링 컴포넌트
-├── CompetencyBadge.tsx             — 역량 배지 컴포넌트 (색상 코딩)
+├── HighlightedSetekView.tsx        — 세특 원문 하이라이트 렌더링 + 역량 배지 + 구간 분석
 └── CompetencyAnalysisSection.tsx   — 역량평가 + 활동태그 통합 섹션
-    ├── 상단: 종합 등급 컴팩트 그리드
-    ├── 중단: 세특별 하이라이트 뷰
-    └── 하단: 활동별 근거 요약 테이블 (엑셀 Sheet 2 하단)
+    ├── AI 분석 버튼 (개별/일괄)
+    ├── 활동별 하이라이트 뷰 (근거 먼저)
+    └── 종합 등급 컴팩트 그리드 (등급 결정 나중)
 ```
 
+**검증**: ✅ 2026-03-18 완료
+- [x] `pnpm build` 성공
+- [x] 세특 원문에 역량별 색상 하이라이트 표시 (파랑/보라/초록/노랑)
+- [x] 구간 분석에 근거 구절 인용 + 평가(긍정/확인필요) 표시
+- [x] AI 분석 후 태그+등급 자동 저장 (source=ai, status=suggested)
+- [x] 배치 분석 시 기존 결과와 병합 (덮어쓰기 아님)
+
 **의존**: Phase 6 (진단 UI 완성)
+
+---
+
+### AI vs 컨설턴트 진단 비교 시스템
+
+> **목표**: 역량 등급 + 종합 진단을 AI/컨설턴트 2벌로 저장하여 나란히 비교
+> **완료일**: 2026-03-18
+
+**DB 변경**:
+- `competency_scores`: source/status 추가, UNIQUE에 source 포함 → AI+컨설턴트 별도 행
+- `diagnosis`: UNIQUE에 source 포함 → AI진단+컨설턴트진단 2건 공존
+- 마이그레이션: `20260331600000_diagnosis_dual_tracking.sql`
+
+**AI 종합진단 생성** (`llm/actions/generateDiagnosis.ts`):
+- 입력: 역량 태그(확정) + 역량 등급(AI) + 학생 정보
+- 출력: 종합등급, 방향성, 강점[], 약점[], 추천전공[], 전략 메모
+- 저장: source=ai, status=suggested
+
+**비교 UI** (`DiagnosisComparisonView.tsx`):
+```
+┌──────── AI 분석 ────────┬──── 컨설턴트 진단 ────┐
+│ (읽기전용)              │ (편집 가능)           │
+│ 종합등급/방향/강도       │ 종합등급/방향/강도     │
+│ 강점/약점 (일치 ✓)     │ 강점/약점 (차이 ⚡)   │
+│ 추천전공               │ 추천전공              │
+├─────────────────────────┴──────────────────────┤
+│ [AI → 컨설턴트 복사] [저장] [확정]               │
+└─────────────────────────────────────────────────┘
+```
+
+**DiagnosisTabData 구조 변경**:
+```typescript
+competencyScores: { ai: CompetencyScore[]; consultant: CompetencyScore[] }
+aiDiagnosis: Diagnosis | null
+consultantDiagnosis: Diagnosis | null
+```
+
+**코드 리뷰 수정** (CRITICAL+HIGH 6건):
+1. AI 등급 source:"ai" 누락 수정
+2. findDiagnosis source 필수화 (maybeSingle 안전)
+3. saveAnalysisResults 병렬화 (Promise.allSettled)
+4. LLM JSON.parse 에러 구체 메시지
+5. 배치 결과 병합 (덮어쓰기→merge)
+6. DiagnosisComparisonView 폼 prop 동기화
+
+**검증**: ✅
+- [x] `pnpm build` 성공
+- [x] `pnpm test` 143개 통과
+- [ ] AI 종합진단 생성 → source=ai로 저장 확인 (SQL)
+- [ ] 2열 비교 UI: 일치(✓)/차이(⚡) 표시
+- [ ] "AI → 컨설턴트 복사" 동작
+- [ ] 컨설턴트 저장 → draft → 확정 워크플로우
 **파일 수**: ~8개
 
 ---
