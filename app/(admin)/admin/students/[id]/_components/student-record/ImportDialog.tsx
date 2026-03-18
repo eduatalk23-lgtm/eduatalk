@@ -226,7 +226,7 @@ export function ImportDialog({
       setProgress(100);
 
       const c = result.data.counts;
-      const total = c.seteks + c.changche + c.haengteuk + c.readings + c.attendance;
+      const total = c.seteks + c.changche + c.haengteuk + c.readings + c.attendance + c.awards + c.volunteer;
       showToast(`생기부 ${total}건 저장 완료`, "success");
 
       // 캐시 무효화
@@ -488,6 +488,9 @@ function PreviewPanel({
         <SummaryBadge label="독서" count={summary.readingCount} />
         <SummaryBadge label="출결" count={summary.attendanceCount} />
         <SummaryBadge label="성적" count={summary.gradeCount} />
+        <SummaryBadge label="수상" count={summary.awardCount} />
+        <SummaryBadge label="봉사" count={summary.volunteerCount} />
+        <SummaryBadge label="학반" count={summary.classInfoCount} />
       </div>
 
       {/* 미매칭 과목 수동 매핑 */}

@@ -93,6 +93,10 @@ export function parseNeisHtml(htmlContent: string): RecordImportData {
   const readingActivities = parseReading(lines, sections);
   const behavioralCharacteristics = parseBehavior(lines, sections);
 
+  const awards = parseAwards(lines, sections);
+  const volunteerActivities = parseVolunteer(lines, sections);
+  const classInfo = parseClassInfo(lines, sections);
+
   return {
     studentInfo,
     detailedCompetencies: seteks,
@@ -101,6 +105,9 @@ export function parseNeisHtml(htmlContent: string): RecordImportData {
     grades,
     attendance,
     readingActivities,
+    awards,
+    volunteerActivities,
+    classInfo,
   };
 }
 
@@ -206,12 +213,18 @@ function parseStudentInfo(
   // 학반정보에서 학교명 추출 시도
   const banLines = getSectionLines(lines, sections, "학반정보");
   // 학적사항에서 입학 연도 추정
+  // NEIS 형식: "2024년 03월 01일  학교명  제1학년 입학" 또는 "2024.03.01  학교명  입학"
   for (const line of personalLines) {
-    const match = line.match(/(\d{4})\.\d+\.\d+.*입학/);
+    const match = line.match(/(\d{4})[년.\s]\s*\d+[월.\s].*입학/);
     if (match) {
       schoolYear = parseInt(match[1], 10);
+      // 입학 줄에서 학교명 추출
+      const schoolMatch = line.match(/\s{2,}(.+?(?:학교|고등|여고|중학))\s/);
+      if (schoolMatch && !schoolName) {
+        schoolName = schoolMatch[1].trim();
+      }
     }
-    if (line.includes("학교") && !line.includes("학교폭력")) {
+    if (!schoolName && line.includes("학교") && !line.includes("학교폭력") && !line.includes("입학") && !line.includes("졸업")) {
       schoolName = line;
     }
   }
@@ -245,105 +258,120 @@ function parseAcademic(
   const grades: RecordImportData["grades"] = [];
 
   let currentGrade = "";
+  let currentSemester = 1;
   let inSetek = false;
+  // 테이블 모드: "general" | "elective" | "pe_art"
+  let tableMode: "general" | "elective" | "pe_art" = "general";
   let i = 0;
+
+  const subjectCategories = [
+    "국어", "수학", "영어", "한국사", "사회(역사/도덕포함)", "사회",
+    "과학", "체육", "예술", "기술・가정/제2외국어/한문/교양",
+    "기술·가정/제2외국어/한문/교양", "교양",
+  ];
+
+  /** 테이블 헤더 키워드 */
+  const TABLE_HEADERS = new Set([
+    "학기", "교과", "과목", "학점수", "원점수/과목평균(표준편차)",
+    "성취도(수강자수)", "석차등급", "비고", "원점수/과목평균",
+    "성취도별 분포비율", "성취도", "공동",
+  ]);
 
   while (i < academicLines.length) {
     const line = academicLines[i];
 
-    // 학년 감지
+    // ── 학년 감지 ──
     const gradeMatch = line.match(/^(\d)학년$/);
     if (gradeMatch) {
       currentGrade = `${gradeMatch[1]}학년`;
+      currentSemester = 1;
+      inSetek = false;
+      tableMode = "general";
+      i++;
+      continue;
+    }
+
+    // ── 서브섹션 헤더 감지 (테이블 모드 전환) ──
+    if (line.includes("진로 선택 과목") || line.includes("진로선택과목")) {
+      tableMode = "elective";
+      inSetek = false;
+      i++;
+      continue;
+    }
+    if (line.includes("체육") && line.includes("예술") && line.startsWith("<")) {
+      tableMode = "pe_art";
       inSetek = false;
       i++;
       continue;
     }
 
-    // 세특 섹션 시작
+    // ── 세특 시작 ──
     if (line === "세부능력 및 특기사항") {
       inSetek = true;
       i++;
       continue;
     }
 
-    // 성적 테이블 시작 (세특 섹션 종료)
-    if (line === "학기" && i + 1 < academicLines.length && academicLines[i + 1] === "교과") {
-      inSetek = false;
-      // 성적 헤더 스킵
-      while (
-        i < academicLines.length &&
-        ["학기", "교과", "과목", "학점수", "원점수/과목평균(표준편차)",
-         "성취도(수강자수)", "석차등급", "비고", "원점수/과목평균",
-         "성취도별 분포비율"].includes(academicLines[i])
-      ) {
-        i++;
-      }
+    // ── 성적 테이블 헤더 스킵 ──
+    if (TABLE_HEADERS.has(line) && !inSetek) {
+      i++;
       continue;
     }
 
-    // 세특 파싱: "과목명: 내용" 패턴
-    if (inSetek && currentGrade) {
-      // "< 진로 선택 과목 >" 등 서브헤더 스킵
-      if (line.startsWith("<") && line.endsWith(">")) {
-        i++;
-        continue;
-      }
-      // 이수학점 스킵
-      if (line.startsWith("이수학점")) {
-        i++;
-        continue;
-      }
-      // "당해학년도" 스킵
-      if (line.includes("당해학년도")) {
-        i++;
-        continue;
-      }
-      // 다음 학년 감지
-      if (/^\d학년$/.test(line)) {
-        continue; // 외부 루프에서 처리
-      }
+    // ── 이수학점 합계 스킵 ──
+    if (line.startsWith("이수학점")) {
+      i++;
+      if (i < academicLines.length && /^\d+$/.test(academicLines[i])) i++;
+      continue;
+    }
 
-      // "과목명: 내용" 또는 "과목명1·과목명2: 내용"
+    // ── 당해학년도 스킵 ──
+    if (line.includes("당해학년도")) {
+      i++;
+      continue;
+    }
+
+    // ── 세특 파싱 ──
+    if (inSetek && currentGrade) {
+      if (line.startsWith("<") && line.endsWith(">")) { i++; continue; }
+      if (line.startsWith("이수학점")) { i++; continue; }
+      if (/^\d학년$/.test(line)) { continue; } // 외부 루프에서 처리
+
       const colonMatch = line.match(/^(.+?):\s+(.+)/);
       if (colonMatch) {
         const rawSubject = colonMatch[1].trim();
         const content = colonMatch[2].trim();
 
-        // "(1학기)한국사" → "한국사", "공통국어1·공통국어2" → "공통국어1"
-        let subjectName = rawSubject
-          .replace(/^\(\d학기\)/, "")  // (1학기), (2학기) prefix 제거
-          .trim();
-        if (subjectName.includes("·")) {
-          subjectName = subjectName.split("·")[0].trim();
-        }
+        let semester = "1학기";
+        const semMatch = rawSubject.match(/^\((\d)학기\)/);
+        if (semMatch) semester = `${semMatch[1]}학기`;
 
-        seteks.push({
-          grade: currentGrade,
-          semester: "1학기", // 생기부 세특은 학년 단위
-          subject: subjectName,
-          content,
-        });
+        let subjectName = rawSubject.replace(/^\(\d학기\)/, "").trim();
+        if (subjectName.includes("·")) subjectName = subjectName.split("·")[0].trim();
+
+        seteks.push({ grade: currentGrade, semester, subject: subjectName, content });
       }
-
       i++;
       continue;
     }
 
-    // 성적 데이터 파싱 (비세특 영역)
+    // ── 성적 데이터 파싱 ──
     if (!inSetek && currentGrade) {
-      const subjectCategories = [
-        "국어", "수학", "영어", "한국사", "사회(역사/도덕포함)", "사회",
-        "과학", "체육", "예술", "기술・가정/제2외국어/한문/교양",
-        "기술·가정/제2외국어/한문/교양", "교양",
-      ];
+      // 학기 번호 감지
+      if (
+        (line === "1" || line === "2") &&
+        i + 1 < academicLines.length &&
+        subjectCategories.includes(academicLines[i + 1])
+      ) {
+        currentSemester = parseInt(line, 10);
+        i++;
+        continue;
+      }
 
       if (subjectCategories.includes(line)) {
-        // 교과 → 과목 → 학점수 → 원점수/평균 → 성취도 → 석차등급
         const subjectCategory = line;
         i++;
         if (i >= academicLines.length) break;
-
         const subjectName = academicLines[i];
         i++;
 
@@ -353,45 +381,113 @@ function parseAcademic(
           i++;
         }
 
+        // ── P(pass/fail) 평가 ──
+        if (i < academicLines.length && academicLines[i] === "P") {
+          i++;
+          if (i < academicLines.length && academicLines[i] === "P") i++;
+          grades.push({
+            grade: currentGrade, semester: `${currentSemester}학기`,
+            subject: subjectName, subjectType: subjectCategory, creditHours,
+            rawScore: 0, classAverage: 0, standardDeviation: 0,
+            achievementLevel: "P", totalStudents: 0, rankGrade: 0,
+          });
+          continue;
+        }
+
+        // ── 체육·예술: 성취도(A/B/C)만 ──
+        if (tableMode === "pe_art") {
+          let achievementLevel = "";
+          if (i < academicLines.length && /^[A-C]$/.test(academicLines[i])) {
+            achievementLevel = academicLines[i];
+            i++;
+          }
+          grades.push({
+            grade: currentGrade, semester: `${currentSemester}학기`,
+            subject: subjectName, subjectType: subjectCategory, creditHours,
+            rawScore: 0, classAverage: 0, standardDeviation: 0,
+            achievementLevel, totalStudents: 0, rankGrade: 0,
+          });
+          continue;
+        }
+
+        // ── 진로선택: 원점수/평균 (표준편차 없음) + 성취도(수강자수) + 분포비율 ──
+        if (tableMode === "elective") {
+          let rawScore = 0, classAverage = 0;
+          if (i < academicLines.length) {
+            // "91/90.1" 또는 "91/90.1(12.3)" 형식 모두 지원
+            const m = academicLines[i].match(/([\d.]+)\s*\/\s*([\d.]+)/);
+            if (m) { rawScore = parseFloat(m[1]); classAverage = parseFloat(m[2]); }
+            i++;
+          }
+          let achievementLevel = "", totalStudents = 0;
+          if (i < academicLines.length) {
+            const am = academicLines[i].match(/([A-E])\((\d+)\)/);
+            if (am) { achievementLevel = am[1]; totalStudents = parseInt(am[2], 10); }
+            i++;
+          }
+          // 성취도별 분포비율: "A(85.2) B(14.8) C(0.0)" 패턴
+          let ratioA: number | undefined, ratioB: number | undefined, ratioC: number | undefined;
+          let ratioD: number | undefined, ratioE: number | undefined;
+          if (i < academicLines.length && /^[A-E]\([\d.]+\)/.test(academicLines[i])) {
+            const ratioLine = academicLines[i];
+            const ratioMatches = [...ratioLine.matchAll(/([A-E])\(([\d.]+)\)/g)];
+            for (const rm of ratioMatches) {
+              const val = parseFloat(rm[2]);
+              if (rm[1] === "A") ratioA = val;
+              else if (rm[1] === "B") ratioB = val;
+              else if (rm[1] === "C") ratioC = val;
+              else if (rm[1] === "D") ratioD = val;
+              else if (rm[1] === "E") ratioE = val;
+            }
+            i++;
+          }
+          // "공동" 비고 스킵
+          if (i < academicLines.length && academicLines[i] === "공동") i++;
+
+          grades.push({
+            grade: currentGrade, semester: `${currentSemester}학기`,
+            subject: subjectName, subjectType: subjectCategory, creditHours,
+            rawScore, classAverage, standardDeviation: 0,
+            achievementLevel, totalStudents, rankGrade: 0,
+            achievementRatioA: ratioA, achievementRatioB: ratioB, achievementRatioC: ratioC,
+            achievementRatioD: ratioD, achievementRatioE: ratioE,
+          });
+          continue;
+        }
+
+        // ── 일반과목: 원점수/평균(표준편차) + 성취도(수강자수) + 석차등급 ──
         let rawScore = 0, classAverage = 0, standardDeviation = 0;
         if (i < academicLines.length) {
-          const scoreMatch = academicLines[i].match(/([\d.]+)\s*\/\s*([\d.]+)\s*\(([\d.]+)\)/);
-          if (scoreMatch) {
-            rawScore = parseFloat(scoreMatch[1]);
-            classAverage = parseFloat(scoreMatch[2]);
-            standardDeviation = parseFloat(scoreMatch[3]);
+          const sm = academicLines[i].match(/([\d.]+)\s*\/\s*([\d.]+)\s*\(([\d.]+)\)/);
+          if (sm) {
+            rawScore = parseFloat(sm[1]);
+            classAverage = parseFloat(sm[2]);
+            standardDeviation = parseFloat(sm[3]);
           }
           i++;
         }
-
         let achievementLevel = "", totalStudents = 0;
         if (i < academicLines.length) {
-          const achMatch = academicLines[i].match(/([A-E])\((\d+)\)/);
-          if (achMatch) {
-            achievementLevel = achMatch[1];
-            totalStudents = parseInt(achMatch[2], 10);
-          }
+          const am = academicLines[i].match(/([A-E])\((\d+)\)/);
+          if (am) { achievementLevel = am[1]; totalStudents = parseInt(am[2], 10); }
           i++;
         }
-
         let rankGrade = 0;
-        if (i < academicLines.length && /^\d+$/.test(academicLines[i])) {
+        if (
+          i < academicLines.length &&
+          /^\d+$/.test(academicLines[i]) &&
+          !((academicLines[i] === "1" || academicLines[i] === "2") &&
+            i + 1 < academicLines.length && subjectCategories.includes(academicLines[i + 1]))
+        ) {
           rankGrade = parseInt(academicLines[i], 10);
           i++;
         }
 
         grades.push({
-          grade: currentGrade,
-          semester: "1학기",
-          subject: subjectName,
-          subjectType: subjectCategory,
-          creditHours,
-          rawScore,
-          classAverage,
-          standardDeviation,
-          achievementLevel,
-          totalStudents,
-          rankGrade,
+          grade: currentGrade, semester: `${currentSemester}학기`,
+          subject: subjectName, subjectType: subjectCategory, creditHours,
+          rawScore, classAverage, standardDeviation,
+          achievementLevel, totalStudents, rankGrade,
         });
         continue;
       }
@@ -437,8 +533,10 @@ function parseCreativeActivities(
       const category = line;
       i++;
 
-      // 시간 스킵
+      // 시간 수집
+      let hours = 0;
       if (i < secLines.length && /^\d+$/.test(secLines[i])) {
+        hours = parseInt(secLines[i], 10);
         i++;
       }
 
@@ -460,6 +558,7 @@ function parseCreativeActivities(
         activities.push({
           grade: currentGrade,
           category,
+          hours,
           content: contentParts.join(" "),
         });
       }
@@ -632,6 +731,220 @@ function parseBehavior(
         grade: currentGrade,
         content: line,
       });
+    }
+  }
+
+  return results;
+}
+
+// ============================================
+// 수상경력
+// ============================================
+
+function parseAwards(
+  lines: string[],
+  sections: SectionMap,
+): RecordImportData["awards"] {
+  const secLines = getSectionLines(lines, sections, "3. 수상경력");
+  const results: RecordImportData["awards"] = [];
+
+  const skipWords = new Set([
+    "학년", "학기", "수 상 명", "수상명", "등급(위)", "수상연월일",
+    "수여기관", "참가대상(참가인원)", "참가대상",
+  ]);
+
+  const dataVals: string[] = [];
+  for (const line of secLines) {
+    if (skipWords.has(line)) continue;
+    if (line.includes("당해학년도")) continue;
+    dataVals.push(line);
+  }
+
+  let i = 0;
+  let currentGrade = "";
+  let currentSemester = "";
+
+  while (i < dataVals.length) {
+    const val = dataVals[i];
+
+    // 학년+학기 감지: "1" 다음 "1" or "2"
+    if (["1", "2", "3"].includes(val)) {
+      const next = dataVals[i + 1] ?? "";
+      if (["1", "2"].includes(next) && i + 2 < dataVals.length && !/^\d{4}[.년]/.test(next)) {
+        currentGrade = `${val}학년`;
+        currentSemester = `${next}학기`;
+        i += 2;
+        continue;
+      }
+      // 같은 학년 내 학기 변경 (예: "2" 다음이 수상명)
+      if (currentGrade && val !== currentGrade[0]) {
+        currentSemester = `${val}학기`;
+        i++;
+        continue;
+      }
+      currentGrade = `${val}학년`;
+      i++;
+      continue;
+    }
+
+    // 수상명: 날짜가 아닌 텍스트
+    if (currentGrade && val.length > 2 && !/^\d{4}[.년]/.test(val)) {
+      const awardName = val;
+      i++;
+
+      let awardDate = "";
+      let awardOrg = "";
+      let participants = "";
+
+      // 날짜 찾기
+      while (i < dataVals.length) {
+        if (/^\d{4}[.년]/.test(dataVals[i])) {
+          awardDate = dataVals[i];
+          i++;
+          break;
+        }
+        i++;
+      }
+
+      // 수여기관
+      if (i < dataVals.length && !["1", "2", "3"].includes(dataVals[i]) && !/^\d{4}[.년]/.test(dataVals[i])) {
+        awardOrg = dataVals[i];
+        i++;
+      }
+
+      // 참가대상
+      if (i < dataVals.length && !["1", "2", "3"].includes(dataVals[i]) && !/^\d{4}[.년]/.test(dataVals[i])) {
+        participants = dataVals[i];
+        i++;
+      }
+
+      results.push({ grade: currentGrade, semester: currentSemester, awardName, awardDate, awardOrg, participants });
+      continue;
+    }
+
+    i++;
+  }
+
+  return results;
+}
+
+// ============================================
+// 봉사활동실적 (창체 섹션 6 하위)
+// ============================================
+
+function parseVolunteer(
+  lines: string[],
+  sections: SectionMap,
+): RecordImportData["volunteerActivities"] {
+  const secLines = getSectionLines(lines, sections, "6. 창의적 체험활동상황");
+  const results: RecordImportData["volunteerActivities"] = [];
+
+  const startIdx = secLines.findIndex((l) => l.includes("봉사활동실적"));
+  if (startIdx === -1) return results;
+
+  const skipWords = new Set([
+    "< 봉사활동실적 >", "학년", "일자 또는 기간", "장소 또는 주관기관명",
+    "활동내용", "시간", "누계시간",
+  ]);
+
+  const dataVals: string[] = [];
+  for (const line of secLines.slice(startIdx)) {
+    if (skipWords.has(line)) continue;
+    if (line.includes("당해학년도")) continue;
+    dataVals.push(line);
+  }
+
+  let i = 0;
+  let currentGrade = "";
+
+  while (i < dataVals.length) {
+    const val = dataVals[i];
+
+    // 학년: 다음이 날짜 패턴
+    if (["1", "2", "3"].includes(val) && i + 1 < dataVals.length && /^\d{4}[.년]/.test(dataVals[i + 1])) {
+      currentGrade = `${val}학년`;
+      i++;
+      continue;
+    }
+
+    // 날짜 패턴 → 봉사 행 시작
+    if (currentGrade && /^\d{4}[.년]/.test(val)) {
+      const activityDate = val;
+      i++;
+
+      let location = "";
+      if (i < dataVals.length && !/^\d+$/.test(dataVals[i])) {
+        location = dataVals[i];
+        i++;
+      }
+
+      let content = "";
+      if (i < dataVals.length && !/^\d+$/.test(dataVals[i])) {
+        content = dataVals[i];
+        i++;
+      }
+
+      let hours = 0;
+      if (i < dataVals.length && /^\d+$/.test(dataVals[i])) {
+        hours = parseInt(dataVals[i], 10);
+        i++;
+      }
+
+      let cumulativeHours = 0;
+      if (i < dataVals.length && /^\d+$/.test(dataVals[i])) {
+        cumulativeHours = parseInt(dataVals[i], 10);
+        i++;
+      }
+
+      results.push({ grade: currentGrade, activityDate, location, content, hours, cumulativeHours });
+      continue;
+    }
+
+    i++;
+  }
+
+  return results;
+}
+
+// ============================================
+// 학반정보 (반/번호/담임)
+// ============================================
+
+function parseClassInfo(
+  lines: string[],
+  sections: SectionMap,
+): RecordImportData["classInfo"] {
+  const secLines = getSectionLines(lines, sections, "학반정보");
+  const results: RecordImportData["classInfo"] = [];
+
+  const skipWords = new Set(["학년", "학과", "반", "번호", "담임성명"]);
+  const dataVals: string[] = [];
+  for (const line of secLines) {
+    if (skipWords.has(line)) continue;
+    dataVals.push(line);
+  }
+
+  // 학년(1,2,3) → 나머지 값 수집 (다음 학년까지)
+  let i = 0;
+  while (i < dataVals.length) {
+    if (["1", "2", "3"].includes(dataVals[i])) {
+      const grade = `${dataVals[i]}학년`;
+      i++;
+
+      const vals: string[] = [];
+      while (i < dataVals.length && !(["1", "2", "3"].includes(dataVals[i]) && vals.length >= 3)) {
+        vals.push(dataVals[i]);
+        i++;
+      }
+
+      // 4개: 학과, 반, 번호, 담임 / 3개: 반, 번호, 담임
+      if (vals.length >= 4) {
+        results.push({ grade, className: vals[1], studentNumber: vals[2], homeroomTeacher: vals[3] });
+      } else if (vals.length >= 3) {
+        results.push({ grade, className: vals[0], studentNumber: vals[1], homeroomTeacher: vals[2] });
+      }
+    } else {
+      i++;
     }
   }
 

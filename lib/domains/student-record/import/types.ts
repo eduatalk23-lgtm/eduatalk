@@ -41,6 +41,7 @@ export interface RecordImportData {
   creativeActivities: {
     grade: string;
     category: string;  // "자율활동", "동아리활동", "진로활동"
+    hours: number;     // 활동 시간
     content: string;
   }[];
 
@@ -63,6 +64,12 @@ export interface RecordImportData {
     achievementLevel: string;  // A, B, C, D, E
     totalStudents: number;
     rankGrade: number;
+    /** 성취도별 분포비율 (진로선택 과목) */
+    achievementRatioA?: number;
+    achievementRatioB?: number;
+    achievementRatioC?: number;
+    achievementRatioD?: number;
+    achievementRatioE?: number;
   }[];
 
   /** 출결 상황 */
@@ -82,6 +89,34 @@ export interface RecordImportData {
     subjectArea: string;       // 교과 또는 "공통"
     bookTitle: string;
     author: string;
+  }[];
+
+  /** 수상경력 */
+  awards: {
+    grade: string;
+    semester: string;          // "1학기", "2학기"
+    awardName: string;
+    awardDate: string;         // "2024.07.24."
+    awardOrg: string;
+    participants: string;
+  }[];
+
+  /** 봉사활동실적 */
+  volunteerActivities: {
+    grade: string;
+    activityDate: string;      // "2024.03.04 ~ 2024.07.19" 또는 "2024.04.08."
+    location: string;
+    content: string;
+    hours: number;
+    cumulativeHours: number;
+  }[];
+
+  /** 학반정보 (반/번호/담임) */
+  classInfo: {
+    grade: string;
+    className: string;
+    studentNumber: string;
+    homeroomTeacher: string;
   }[];
 }
 
@@ -122,6 +157,9 @@ export interface ImportPreviewData {
     attendanceCount: number;
     gradeCount: number;
     unmatchedSubjectCount: number;
+    awardCount: number;
+    volunteerCount: number;
+    classInfoCount: number;
   };
 }
 
@@ -151,6 +189,8 @@ export interface ImportResult {
     readings: number;
     attendance: number;
     grades: number;
+    awards: number;
+    volunteer: number;
   };
   skipped: {
     reason: string;

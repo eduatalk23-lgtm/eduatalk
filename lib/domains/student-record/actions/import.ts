@@ -58,6 +58,9 @@ export async function matchAndPreviewAction(
         attendanceCount: parsed.attendance.length,
         gradeCount: parsed.grades.length,
         unmatchedSubjectCount: unmatchedCount,
+        awardCount: parsed.awards.length,
+        volunteerCount: parsed.volunteerActivities.length,
+        classInfoCount: parsed.classInfo.length,
       },
     };
 

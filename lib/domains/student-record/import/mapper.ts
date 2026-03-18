@@ -9,6 +9,8 @@ import type {
   RecordHaengteukInsert,
   RecordReadingInsert,
   RecordAttendanceInsert,
+  RecordAwardInsert,
+  RecordVolunteerInsert,
   ChangcheActivityType,
 } from "../types";
 import type { RecordImportData } from "./types";
@@ -108,6 +110,7 @@ export function mapChangche(
       grade,
       school_year: schoolYear,
       activity_type: activityType,
+      hours: act.hours || null,
       content: act.content,
       status: "draft" as const,
     });
@@ -178,12 +181,17 @@ export function mapAttendance(
   parsed: RecordImportData,
   ctx: MapperContext,
 ): RecordAttendanceInsert[] {
+  // 학반정보 lookup: grade → classInfo
+  const classInfoMap = new Map<number, (typeof parsed.classInfo)[0]>();
+  for (const ci of parsed.classInfo) {
+    classInfoMap.set(gradeToNumber(ci.grade), ci);
+  }
+
   return parsed.attendance.map((att) => {
     const grade = gradeToNumber(att.grade);
     const schoolYear = gradeToSchoolYear(att.grade, parsed.studentInfo.schoolYear);
+    const ci = classInfoMap.get(grade);
 
-    // 생기부 PDF에서는 사유별 세분화가 제한적이므로
-    // 질병=sick, 미인정=unauthorized, 인정=other로 매핑
     return {
       student_id: ctx.studentId,
       tenant_id: ctx.tenantId,
@@ -192,15 +200,68 @@ export function mapAttendance(
       absence_sick: att.sickAbsence,
       absence_unauthorized: att.unauthorizedAbsence,
       absence_other: att.authorizedAbsence,
-      lateness_sick: att.lateness,   // 세분화 불가 시 sick에 통합
+      lateness_sick: att.lateness,
       lateness_unauthorized: 0,
       lateness_other: 0,
-      early_leave_sick: att.earlyLeave, // 세분화 불가 시 sick에 통합
+      early_leave_sick: att.earlyLeave,
       early_leave_unauthorized: 0,
       early_leave_other: 0,
-      class_absence_sick: att.classAbsence, // 세분화 불가 시 sick에 통합
+      class_absence_sick: att.classAbsence,
       class_absence_unauthorized: 0,
       class_absence_other: 0,
+      // 학반정보 병합
+      homeroom_teacher: ci?.homeroomTeacher ?? null,
+      class_name: ci?.className ?? null,
+      student_number: ci?.studentNumber ?? null,
+    };
+  });
+}
+
+// ============================================
+// 수상경력
+// ============================================
+
+export function mapAwards(
+  parsed: RecordImportData,
+  ctx: MapperContext,
+): RecordAwardInsert[] {
+  return parsed.awards.map((award) => {
+    const grade = gradeToNumber(award.grade);
+    const schoolYear = gradeToSchoolYear(award.grade, parsed.studentInfo.schoolYear);
+    return {
+      student_id: ctx.studentId,
+      tenant_id: ctx.tenantId,
+      grade,
+      school_year: schoolYear,
+      award_name: award.awardName,
+      award_date: award.awardDate.replace(/\./g, "-").replace(/-$/, "") || null,
+      awarding_body: award.awardOrg || null,
+      participants: award.participants || null,
+    };
+  });
+}
+
+// ============================================
+// 봉사활동
+// ============================================
+
+export function mapVolunteer(
+  parsed: RecordImportData,
+  ctx: MapperContext,
+): RecordVolunteerInsert[] {
+  return parsed.volunteerActivities.map((vol) => {
+    const grade = gradeToNumber(vol.grade);
+    const schoolYear = gradeToSchoolYear(vol.grade, parsed.studentInfo.schoolYear);
+    return {
+      student_id: ctx.studentId,
+      tenant_id: ctx.tenantId,
+      grade,
+      school_year: schoolYear,
+      activity_date: vol.activityDate || null,
+      location: vol.location || null,
+      description: vol.content || null,
+      hours: vol.hours,
+      cumulative_hours: vol.cumulativeHours || null,
     };
   });
 }
@@ -223,6 +284,11 @@ export interface MappedGradeItem {
   achievement_level: string | null;
   total_students: number | null;
   rank_grade: number | null;
+  achievement_ratio_a: number | null;
+  achievement_ratio_b: number | null;
+  achievement_ratio_c: number | null;
+  achievement_ratio_d: number | null;
+  achievement_ratio_e: number | null;
   subject_id: string;
   subject_group_id: string;
   subject_type_id: string;
@@ -287,6 +353,11 @@ export function mapGrades(
       achievement_level: g.achievementLevel || null,
       total_students: g.totalStudents || null,
       rank_grade: g.rankGrade || null,
+      achievement_ratio_a: g.achievementRatioA ?? null,
+      achievement_ratio_b: g.achievementRatioB ?? null,
+      achievement_ratio_c: g.achievementRatioC ?? null,
+      achievement_ratio_d: g.achievementRatioD ?? null,
+      achievement_ratio_e: g.achievementRatioE ?? null,
       subject_id: subjectId,
       subject_group_id: detail.subject_group_id,
       subject_type_id: detail.subject_type_id ?? ctx.defaultSubjectTypeId,
@@ -308,6 +379,8 @@ export interface MappedRecordData {
   readings: RecordReadingInsert[];
   attendance: RecordAttendanceInsert[];
   grades: MappedGrades;
+  awards: RecordAwardInsert[];
+  volunteer: RecordVolunteerInsert[];
 }
 
 export function mapAllRecords(
@@ -324,5 +397,7 @@ export function mapAllRecords(
     grades: gradeCtx
       ? mapGrades(parsed, gradeCtx)
       : { items: [], skipped: [] },
+    awards: mapAwards(parsed, ctx),
+    volunteer: mapVolunteer(parsed, ctx),
   };
 }
