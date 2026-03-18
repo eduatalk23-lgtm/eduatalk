@@ -1852,7 +1852,7 @@ type StorylineTabData = {
 | **3** | React Query (탭별 lazy loading) + 관리자 UI 기록 탭 + 스토리라인 트래커 + 로드맵 UI | - | - | ~25 |
 | **3.5** | P2 기록 UI (수상/봉사/징계) + 지원결과 탭 (수시 6장 카드 + 정시 군별 + **면접일 겹침 체크**) | - | - | ~10 |
 | **4** | 학생 뷰 + 학부모 뷰 + 수능최저 시뮬레이션 UI + 고교 프로파일 뷰 | - | - | ~12 |
-| **4.5** | **PDF Import**: 파싱 파이프라인 + 과목 매칭 + Import UI | **Gemini 멀티모달** | - | ~12 |
+| **4.5** | **PDF Import**: 파싱 파이프라인 + 과목 매칭 + Import UI | **Gemini 멀티모달** | - | ~12 | ✅ **완료** |
 | **5** | DB: 진단 4개 + 도메인 레이어 + 교과이수적합도 (school_profiles 연동) + **RLS 통합 테스트** | **규칙 기반** | `004_diagnosis.sql` | ~10 |
 | **5.5** | **AI 역량 태그 자동 제안** + 프롬프트 + UI + **AI 응답 파싱 테스트** | **Gemini fast** | - | ~8 |
 | **6** | 관리자 UI 진단 탭 + **AI 종합 진단 생성** + **AI 스토리라인 분석** | **Claude standard** | - | ~10 |
@@ -1908,20 +1908,51 @@ type StorylineTabData = {
 | **LLM 캐시** | `llmCacheService.ts` | TTL 기반 캐시 | 새 operation type 등록만 |
 | **메트릭** | `llm/metrics/` | 토큰/비용/성공률 추적 | 자동 적용 (provider 경유) |
 
-### Phase 4.5 세부 단계
+### Phase 4.5 세부 단계 (✅ 완료)
 
 ```
-4.5.1  pdfjs-dist 설치 + pdfUtils.ts 포팅 (클라이언트 PDF→이미지 추출)
-4.5.2  import/types.ts — RecordImportData 타입 정의
-4.5.3  import/parser.ts — Gemini 호출 + structured output 스키마
-4.5.4  import/subject-matcher.ts — 과목명 fuzzy 매칭 로직
-4.5.5  import/mapper.ts — ParsedData → DB 엔티티 변환
-4.5.6  import/importer.ts — upsert 오케스트레이션 (트랜잭션)
-4.5.7  actions/import.ts — Server Action (requireAdminOrConsultant)
-4.5.8  UI: ImportButton + ImportModal + ImportDropzone
-4.5.9  UI: ImportProgress + ImportPreview
-4.5.10 UI: ImportSubjectMatcher + ImportConflictWarning
-4.5.11 통합 테스트: 실제 생기부 PDF → 파싱 → 저장 → 기록 탭 확인
+4.5.1  ✅ pdfjs-dist 설치 + PDF→이미지 추출
+4.5.2  ✅ import/types.ts — RecordImportData 타입 (세특/창체/행특/성적/출결/독서/수상/봉사/학반정보)
+4.5.3  ✅ import/parser.ts — Gemini AI 파싱 (PDF/이미지)
+4.5.4  ✅ import/html-parser.ts — NEIS HTML 직접 파싱 (AI 없이 즉시)
+       - 3가지 성적 테이블 모드 (general/elective/pe_art)
+       - 학기 번호 추적, P(pass/fail) 평가, 성취도별 분포비율 파싱
+       - 입학연도 정규식 (2024년 03월 01일 형식 지원)
+4.5.5  ✅ import/subject-matcher.ts — 과목명 매칭
+       - 유니코드 Ⅰ ↔ 아스키 I 정규화
+       - 미매칭 시 세분화된 교과 그룹으로 자동 생성
+       - 교과 그룹: 체육, 예술, 기술·가정/정보, 제2외국어, 한문, 교양
+       - 동명 과목 중복 매칭 방지
+4.5.6  ✅ import/mapper.ts — ParsedData → DB 엔티티 변환
+       - 수상/봉사/학반정보 매퍼 추가
+       - 출결에 학반정보(담임/반/번호) 병합
+       - 성취도별 분포비율(A~E) 전달
+4.5.7  ✅ import/importer.ts — DB 저장 오케스트레이션
+       - 덮어쓰기 시 기존 데이터 삭제 후 insert (누적 방지)
+       - N+1 쿼리 방지 (school_year별 캐시)
+4.5.8  ✅ UI: ImportDialog (파일 드롭존 + 프로그레스 + 미리보기 + 수동 매핑)
+4.5.9  ✅ 미리보기: 세특/창체/행특/출결/성적/수상/봉사/학반 건수 배지
+4.5.10 ✅ 통합 테스트: 실제 NEIS HTML → 파싱 → 저장 → 기록 탭 확인 완료
+```
+
+### Phase 4.6 세부 단계 (✅ 완료 — 이번 작업)
+
+```
+4.6.1  ✅ 생기부 별도 페이지 분리 (/admin/students/[id]/record)
+       - 기존 상세보기 탭에서 독립 페이지로 (플래너 패턴)
+       - StudentFormPanel에 생기부 버튼 추가
+4.6.2  ✅ UI NEIS 원본 레이아웃 적용
+       - 교과학습 3분할: 일반과목 → 진로선택 → 체육·예술(/과학탐구실험)
+       - 각 영역별 성적 테이블 + 이수학점 합계 + 세특 순서 배치
+       - RecordGradesDisplay variant prop (general/elective/pe_art)
+       - 2022 개정 자동 감지: 입학년도≥2025 → 섹션 제목 변경
+4.6.3  ✅ 성적 테이블 학년 컬럼, 세특 학년 컬럼, 수상경력 학년/학기 컬럼 분리
+4.6.4  ✅ AutoResizeTextarea (JS scrollHeight 기반) — 테이블 내 스크롤 방지
+4.6.5  ✅ useEffect prop→state 동기화 (Import 후 즉시 반영)
+4.6.6  ✅ 세특 토글 제거 → 항상 편집 가능 textarea
+4.6.7  ✅ DB: 교과 그룹 세분화 (기술·가정/정보, 제2외국어, 한문, 교양)
+4.6.8  ✅ DB: 과학탐구실험 subject_type = 공통(성취평가), is_achievement_only=true
+4.6.9  ✅ DB: attendance 테이블에 homeroom_teacher, class_name, student_number 추가
 ```
 
 ### Phase 5.5 세부 단계 — AI 역량 태그 자동 제안
