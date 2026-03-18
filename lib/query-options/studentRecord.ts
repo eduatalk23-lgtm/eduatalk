@@ -73,15 +73,10 @@ export function diagnosisTabQueryOptions(
   studentId: string,
   schoolYear: number,
   tenantId: string,
-  options?: {
-    targetMajor?: string | null;
-    takenSubjects?: string[];
-    offeredSubjects?: string[] | null;
-  },
 ) {
   return queryOptions({
     queryKey: studentRecordKeys.diagnosisTab(studentId, schoolYear),
-    queryFn: () => fetchDiagnosisTabData(studentId, schoolYear, tenantId, options),
+    queryFn: () => fetchDiagnosisTabData(studentId, schoolYear, tenantId),
     staleTime: 30_000,
     gcTime: 5 * 60_000,
     enabled: !!studentId && !!schoolYear,

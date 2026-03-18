@@ -7,6 +7,7 @@
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import * as competencyRepo from "../competency-repository";
 import * as diagnosisRepo from "../diagnosis-repository";
 import { calculateCourseAdequacy } from "../course-adequacy";
@@ -32,41 +33,76 @@ export async function fetchDiagnosisTabData(
   studentId: string,
   schoolYear: number,
   tenantId: string,
-  options?: {
-    targetMajor?: string | null;
-    takenSubjects?: string[];
-    offeredSubjects?: string[] | null;
-  },
 ): Promise<DiagnosisTabData> {
   try {
     await requireAdminOrConsultant();
+    const supabase = await createSupabaseServerClient();
 
-    const [competencyScores, activityTags, diagnosis, strategies] =
+    // 병렬 조회: 역량/태그/진단/전략 + 학생정보 + 이수과목
+    const [competencyScores, activityTags, diagnosis, strategies, studentResult, scoresResult] =
       await Promise.all([
         competencyRepo.findCompetencyScores(studentId, schoolYear, tenantId),
         competencyRepo.findActivityTags(studentId, tenantId),
         diagnosisRepo.findDiagnosis(studentId, schoolYear, tenantId),
         diagnosisRepo.findStrategies(studentId, schoolYear, tenantId),
+        supabase.from("students").select("target_major, school_name").eq("id", studentId).maybeSingle(),
+        supabase.from("student_internal_scores")
+          .select("subject:subject_id(name)")
+          .eq("student_id", studentId),
       ]);
 
-    const courseAdequacy =
-      options?.targetMajor && options.takenSubjects
-        ? calculateCourseAdequacy(
-            options.targetMajor,
-            options.takenSubjects,
-            options.offeredSubjects ?? null,
-          )
-        : null;
+    const targetMajor = studentResult.data?.target_major ?? null;
+    const schoolName = studentResult.data?.school_name ?? null;
 
-    return { competencyScores, activityTags, diagnosis, strategies, courseAdequacy };
+    // 이수 과목명 추출 (중복 제거)
+    const takenSubjects = [
+      ...new Set(
+        (scoresResult.data ?? [])
+          .map((s) => {
+            const subj = s.subject as unknown as { name: string } | null;
+            return subj?.name;
+          })
+          .filter((n): n is string => !!n),
+      ),
+    ];
+
+    // 학교 개설 과목 조회 (school_name → school_profiles → school_offered_subjects)
+    let offeredSubjects: string[] | null = null;
+    if (schoolName) {
+      const { data: profile } = await supabase
+        .from("school_profiles")
+        .select("id")
+        .eq("school_name", schoolName)
+        .maybeSingle();
+
+      if (profile) {
+        const { data: offered } = await supabase
+          .from("school_offered_subjects")
+          .select("subject:subject_id(name)")
+          .eq("school_profile_id", profile.id);
+
+        offeredSubjects = (offered ?? [])
+          .map((o) => {
+            const subj = o.subject as unknown as { name: string } | null;
+            return subj?.name;
+          })
+          .filter((n): n is string => !!n);
+      }
+    }
+
+    const courseAdequacy = targetMajor
+      ? calculateCourseAdequacy(targetMajor, takenSubjects, offeredSubjects)
+      : null;
+
+    return {
+      competencyScores, activityTags, diagnosis, strategies,
+      courseAdequacy, takenSubjects, offeredSubjects, targetMajor,
+    };
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "fetchDiagnosisTabData" }, error, { studentId, schoolYear });
     return {
-      competencyScores: [],
-      activityTags: [],
-      diagnosis: null,
-      strategies: [],
-      courseAdequacy: null,
+      competencyScores: [], activityTags: [], diagnosis: null, strategies: [],
+      courseAdequacy: null, takenSubjects: [], offeredSubjects: null, targetMajor: null,
     };
   }
 }
@@ -142,6 +178,34 @@ export async function deleteActivityTagAction(
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "deleteActivityTag" }, error);
     return { success: false, error: "활동 태그 삭제 중 오류가 발생했습니다." };
+  }
+}
+
+/** AI 제안 태그 → 확정 */
+export async function confirmActivityTagAction(
+  id: string,
+): Promise<StudentRecordActionResult> {
+  try {
+    await requireAdminOrConsultant();
+    await competencyRepo.updateActivityTag(id, { status: "confirmed" });
+    return { success: true };
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "confirmActivityTag" }, error);
+    return { success: false, error: "태그 확정 중 오류가 발생했습니다." };
+  }
+}
+
+/** 종합 진단 → 확정 */
+export async function confirmDiagnosisAction(
+  id: string,
+): Promise<StudentRecordActionResult> {
+  try {
+    await requireAdminOrConsultant();
+    await diagnosisRepo.updateDiagnosis(id, { status: "confirmed" });
+    return { success: true };
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "confirmDiagnosis" }, error);
+    return { success: false, error: "진단 확정 중 오류가 발생했습니다." };
   }
 }
 

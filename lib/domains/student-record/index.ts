@@ -39,7 +39,7 @@ export type {
   Diagnosis, DiagnosisInsert, DiagnosisUpdate,
   Strategy, StrategyInsert, StrategyUpdate,
   TagEvaluation, StrategyTargetArea, StrategyPriority, StrategyStatus,
-  CompetencyScope,
+  CompetencyScope, DiagnosisSource, ActivityTagStatus, DiagnosisStatus,
   // 서비스 타입
   InterviewConflict, MinScoreSimulationResult, MinScoreCriteria,
   NormalizedGrade, NeisValidationResult,

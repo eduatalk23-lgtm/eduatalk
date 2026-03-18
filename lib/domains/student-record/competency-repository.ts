@@ -123,6 +123,20 @@ export async function insertActivityTag(
   return data.id;
 }
 
+/** 활동 태그 업데이트 (status 변경 등) */
+export async function updateActivityTag(
+  id: string,
+  updates: { status?: string; evaluation?: string; evidence_summary?: string },
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("student_record_activity_tags")
+    .update(updates)
+    .eq("id", id);
+
+  if (error) throw error;
+}
+
 /** 활동 태그 삭제 */
 export async function deleteActivityTag(id: string): Promise<void> {
   const supabase = await createSupabaseServerClient();

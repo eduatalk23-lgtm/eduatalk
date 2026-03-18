@@ -84,6 +84,8 @@ export function ActivityTagSuggestionPanel({
         competency_item: tag.competencyItem,
         evaluation: tag.evaluation,
         evidence_summary: evidence,
+        source: "ai",
+        status: "suggested",
       });
       if (result.success) {
         setAccepted((prev) => new Set(prev).add(idx));

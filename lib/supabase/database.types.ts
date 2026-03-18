@@ -9014,6 +9014,8 @@ export type Database = {
           id: string
           record_id: string
           record_type: string
+          source: string
+          status: string
           student_id: string
           tenant_id: string
         }
@@ -9025,6 +9027,8 @@ export type Database = {
           id?: string
           record_id: string
           record_type: string
+          source?: string
+          status?: string
           student_id: string
           tenant_id: string
         }
@@ -9036,6 +9040,8 @@ export type Database = {
           id?: string
           record_id?: string
           record_type?: string
+          source?: string
+          status?: string
           student_id?: string
           tenant_id?: string
         }
@@ -9442,6 +9448,8 @@ export type Database = {
           recommended_majors: string[]
           record_direction: string | null
           school_year: number
+          source: string
+          status: string
           strategy_notes: string | null
           strengths: string[]
           student_id: string
@@ -9459,6 +9467,8 @@ export type Database = {
           recommended_majors?: string[]
           record_direction?: string | null
           school_year: number
+          source?: string
+          status?: string
           strategy_notes?: string | null
           strengths?: string[]
           student_id: string
@@ -9476,6 +9486,8 @@ export type Database = {
           recommended_majors?: string[]
           record_direction?: string | null
           school_year?: number
+          source?: string
+          status?: string
           strategy_notes?: string | null
           strengths?: string[]
           student_id?: string

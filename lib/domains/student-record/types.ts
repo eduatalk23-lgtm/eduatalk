@@ -164,6 +164,12 @@ export type StrategyStatus = "planned" | "in_progress" | "done";
 
 export type CompetencyScope = "yearly" | "cumulative";
 
+export type DiagnosisSource = "ai" | "manual";
+
+export type ActivityTagStatus = "suggested" | "confirmed";
+
+export type DiagnosisStatus = "draft" | "confirmed";
+
 // ============================================
 // 5. 서비스 레이어 타입
 // ============================================
@@ -249,13 +255,19 @@ export interface StorylineTabData {
   roadmapItems: RoadmapItem[];
 }
 
-/** 진단 탭 데이터 (Phase 5) */
+/** 진단 탭 데이터 (Phase 6) */
 export interface DiagnosisTabData {
   competencyScores: CompetencyScore[];
   activityTags: ActivityTag[];
   diagnosis: Diagnosis | null;
   strategies: Strategy[];
   courseAdequacy: CourseAdequacyResult | null;
+  /** 학생 이수 과목명 (교과이수적합도 클라이언트 재계산용) */
+  takenSubjects: string[];
+  /** 학교 개설 과목명 (null이면 필터링 안 함) */
+  offeredSubjects: string[] | null;
+  /** 학생 목표 전공 계열 */
+  targetMajor: string | null;
 }
 
 /** 교과 이수 적합도 결과 */
