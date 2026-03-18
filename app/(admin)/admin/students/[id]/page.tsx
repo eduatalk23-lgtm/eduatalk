@@ -17,8 +17,10 @@ import { AdminFilesSection } from "./_components/AdminFilesSection";
 import { ContentListSectionSkeleton } from "./_components/ContentListSectionSkeleton";
 import { SessionListSectionSkeleton } from "./_components/SessionListSectionSkeleton";
 import { AnalysisReportSectionSkeleton } from "./_components/AnalysisReportSectionSkeleton";
+import { StudentRecordSection } from "./_components/student-record/StudentRecordSection";
+import { StudentRecordSkeleton } from "./_components/student-record/StudentRecordSkeleton";
 
-type TabType = "content" | "session" | "analysis" | "attendance" | "risk" | "files";
+type TabType = "content" | "session" | "analysis" | "attendance" | "risk" | "files" | "record";
 
 export default async function AdminStudentDetailPage({
   params,
@@ -35,7 +37,7 @@ export default async function AdminStudentDetailPage({
 
   const { id: studentId } = await params;
   const paramsObj = await searchParams;
-  const VALID_TABS: TabType[] = ["content", "session", "analysis", "attendance", "risk", "files"];
+  const VALID_TABS: TabType[] = ["content", "session", "analysis", "attendance", "risk", "files", "record"];
   const rawTab = paramsObj.tab as TabType;
   const defaultTab: TabType = VALID_TABS.includes(rawTab) ? rawTab : "content";
 
@@ -52,6 +54,33 @@ export default async function AdminStudentDetailPage({
   }
 
   const student = studentResult.data;
+
+  // record 탭: 전체 화면 레이아웃 (사이드바 + 문서 뷰)
+  if (defaultTab === "record") {
+    return (
+      <StudentDetailWrapper studentId={studentId} studentName={student.name}>
+        <div className="flex h-[calc(100dvh-4rem)] flex-col overflow-hidden">
+          <PageContainer widthType="LIST">
+            <div className="flex flex-col gap-6 pb-0 md:gap-8">
+              <PageHeader
+                title={`${student.name ?? "이름 없음"} 학생 상세`}
+                backHref="/admin/students"
+                backLabel="학생 목록으로"
+              />
+              <StudentDetailTabs defaultTab={defaultTab}>
+                {null}
+              </StudentDetailTabs>
+            </div>
+          </PageContainer>
+          <div className="min-h-0 flex-1">
+            <Suspense fallback={<StudentRecordSkeleton />}>
+              <StudentRecordSection studentId={studentId} studentName={student.name} />
+            </Suspense>
+          </div>
+        </div>
+      </StudentDetailWrapper>
+    );
+  }
 
   return (
     <StudentDetailWrapper studentId={studentId} studentName={student.name}>

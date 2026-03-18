@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
   // 드래그 중 컴포넌트가 반복적으로 마운트/언마운트되는 문제 방지
   reactStrictMode: false,
 
+
   // 컴파일러 최적화 설정
   compiler: {
     // 프로덕션 빌드에서 console.log 제거 (console.error는 유지)
@@ -70,6 +71,10 @@ const nextConfig: NextConfig = {
 
   // 실험적 기능
   experimental: {
+    // 생기부 PDF Import — base64 이미지 전송을 위해 제한 확대
+    serverActions: {
+      bodySizeLimit: "20mb",
+    },
     // 패키지 임포트 최적화 - 트리 쉐이킹 및 번들 크기 감소
     optimizePackageImports: [
       // 아이콘
