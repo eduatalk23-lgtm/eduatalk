@@ -33,7 +33,9 @@ import { MinScorePanel } from "./MinScorePanel";
 import { ImportDialog } from "./ImportDialog";
 import { RecordGradesDisplay } from "./RecordGradesDisplay";
 import { CompetencyScoreGrid } from "./CompetencyScoreGrid";
+import type { RecordForAnalysis } from "./CompetencyScoreGrid";
 import { ActivityTagList } from "./ActivityTagList";
+import type { RecordSummary } from "./ActivityTagList";
 import { DiagnosisEditor } from "./DiagnosisEditor";
 import { CourseAdequacyDisplay } from "./CourseAdequacyDisplay";
 
@@ -418,6 +420,46 @@ export function StudentRecordClient({
     return readings;
   }, [visiblePairs, recordByGrade]);
 
+  // ─── 진단 탭용: 전체 레코드 추출 ────────────────────
+
+  const allRecordsForAi = useMemo<RecordForAnalysis[]>(() => {
+    const result: RecordForAnalysis[] = [];
+    for (const [g, entry] of recordByGrade) {
+      for (const s of entry.data.seteks) {
+        if (s.content) {
+          const subjectName = subjects.find((sub) => sub.id === s.subject_id)?.name ?? "과목";
+          result.push({ type: "setek", label: `${g}학년 ${subjectName} 세특`, content: s.content });
+        }
+      }
+      for (const c of entry.data.changche) {
+        if (c.content) result.push({ type: "changche", label: `${g}학년 ${c.activity_type} 창체`, content: c.content });
+      }
+      if (entry.data.haengteuk?.content) {
+        result.push({ type: "haengteuk", label: `${g}학년 행특`, content: entry.data.haengteuk.content });
+      }
+    }
+    return result;
+  }, [recordByGrade, subjects]);
+
+  const allRecordSummaries = useMemo<RecordSummary[]>(() => {
+    const result: RecordSummary[] = [];
+    for (const [g, entry] of recordByGrade) {
+      for (const s of entry.data.seteks) {
+        if (s.content) {
+          const subjectName = subjects.find((sub) => sub.id === s.subject_id)?.name ?? "과목";
+          result.push({ id: s.id, type: "setek", label: `${g}학년 ${subjectName}`, content: s.content, subjectName, grade: g });
+        }
+      }
+      for (const c of entry.data.changche) {
+        if (c.content) result.push({ id: c.id, type: "changche", label: `${g}학년 ${c.activity_type}`, content: c.content, grade: g });
+      }
+      if (entry.data.haengteuk?.content) {
+        result.push({ id: entry.data.haengteuk.id, type: "haengteuk", label: `${g}학년 행특`, content: entry.data.haengteuk.content, grade: g });
+      }
+    }
+    return result;
+  }, [recordByGrade, subjects]);
+
   // 헤더 표시용 텍스트
   const headerSubtitle = viewMode === "all"
     ? `${studentName ?? "학생"} · 전체 학년`
@@ -765,6 +807,7 @@ export function StudentRecordClient({
                 studentId={studentId}
                 tenantId={tenantId}
                 schoolYear={initialSchoolYear}
+                records={allRecordsForAi}
               />
             )}
           </StrategySection>
@@ -776,6 +819,7 @@ export function StudentRecordClient({
                 studentId={studentId}
                 tenantId={tenantId}
                 schoolYear={initialSchoolYear}
+                records={allRecordSummaries}
               />
             )}
           </StrategySection>

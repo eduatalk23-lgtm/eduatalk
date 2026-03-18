@@ -11,13 +11,24 @@ import {
 } from "@/lib/domains/student-record";
 import type { CompetencyScore, CompetencyArea, CompetencyGrade, CompetencyItemCode } from "@/lib/domains/student-record";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
-import { HelpCircle } from "lucide-react";
+import { analyzeCompetencyFromRecords } from "@/lib/domains/student-record/llm/actions/analyzeCompetency";
+import type { CompetencyAnalysisItem } from "@/lib/domains/student-record/llm/actions/analyzeCompetency";
+import { HelpCircle, Sparkles } from "lucide-react";
+
+/** AI 분석에 전달할 레코드 */
+export type RecordForAnalysis = {
+  type: string;
+  label: string;
+  content: string;
+};
 
 type Props = {
   scores: CompetencyScore[];
   studentId: string;
   tenantId: string;
   schoolYear: number;
+  /** AI 종합 분석용 레코드 (세특/창체/행특) */
+  records?: RecordForAnalysis[];
 };
 
 const GRADES: CompetencyGrade[] = ["A+", "A-", "B+", "B", "B-", "C"];
@@ -27,8 +38,27 @@ function findScore(scores: CompetencyScore[], code: string): CompetencyScore | u
   return scores.find((s) => s.competency_item === code && s.scope === "yearly");
 }
 
-export function CompetencyScoreGrid({ scores, studentId, tenantId, schoolYear }: Props) {
+export function CompetencyScoreGrid({ scores, studentId, tenantId, schoolYear, records = [] }: Props) {
   const queryClient = useQueryClient();
+  const [aiSuggestions, setAiSuggestions] = useState<Map<string, CompetencyAnalysisItem>>(new Map());
+  const [aiSummary, setAiSummary] = useState("");
+  const [aiError, setAiError] = useState("");
+
+  const aiMutation = useMutation({
+    mutationFn: async () => {
+      const result = await analyzeCompetencyFromRecords(records);
+      if (!result.success) throw new Error(result.error);
+      return result.data;
+    },
+    onSuccess: (data) => {
+      const map = new Map<string, CompetencyAnalysisItem>();
+      data.items.forEach((item) => map.set(item.competencyItem, item));
+      setAiSuggestions(map);
+      setAiSummary(data.summary);
+      setAiError("");
+    },
+    onError: (err: Error) => setAiError(err.message),
+  });
 
   const mutation = useMutation({
     mutationFn: async (input: {
@@ -58,6 +88,45 @@ export function CompetencyScoreGrid({ scores, studentId, tenantId, schoolYear }:
 
   return (
     <div className="flex flex-col gap-6">
+      {/* AI 역량 종합 분석 */}
+      {records.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {aiMutation.isPending ? (
+            <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50/50 px-3 py-2 text-xs text-blue-600 dark:border-blue-800 dark:bg-blue-900/10 dark:text-blue-400">
+              <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-blue-300 border-t-blue-600" />
+              생기부 {records.length}건을 종합 분석하고 있습니다...
+            </div>
+          ) : aiSuggestions.size > 0 ? (
+            <div className="rounded-md border border-blue-200 bg-blue-50/30 px-3 py-2 dark:border-blue-800 dark:bg-blue-900/10">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-blue-700 dark:text-blue-400">
+                  AI 제안 ({aiSuggestions.size}개 항목) — 등급을 클릭하여 반영하세요
+                </span>
+                <button onClick={() => { setAiSuggestions(new Map()); setAiSummary(""); }} className="text-xs text-[var(--text-tertiary)] underline">닫기</button>
+              </div>
+              {aiSummary && <p className="mt-1 text-xs text-[var(--text-secondary)]">{aiSummary}</p>}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => aiMutation.mutate()}
+                className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
+              >
+                <Sparkles size={14} />
+                AI 역량 종합 분석
+              </button>
+              <span className="text-xs text-[var(--text-tertiary)]">생기부 {records.length}건 기반</span>
+            </div>
+          )}
+          {aiError && (
+            <div className="flex items-center justify-between rounded-md border border-red-200 bg-red-50/50 px-3 py-2 text-xs dark:border-red-800 dark:bg-red-900/10">
+              <span className="text-red-600 dark:text-red-400">{aiError}</span>
+              <button onClick={() => { setAiError(""); aiMutation.mutate(); }} className="text-red-700 underline dark:text-red-400">재시도</button>
+            </div>
+          )}
+        </div>
+      )}
+
       {AREAS.map((area) => {
         const items = COMPETENCY_ITEMS.filter((i) => i.area === area);
         return (
@@ -71,6 +140,7 @@ export function CompetencyScoreGrid({ scores, studentId, tenantId, schoolYear }:
                   key={item.code}
                   item={item}
                   score={findScore(scores, item.code)}
+                  aiSuggestion={aiSuggestions.get(item.code)}
                   onSave={(grade, notes) =>
                     mutation.mutate({ area, item: item.code, grade, notes })
                   }
@@ -88,11 +158,13 @@ export function CompetencyScoreGrid({ scores, studentId, tenantId, schoolYear }:
 function CompetencyRow({
   item,
   score,
+  aiSuggestion,
   onSave,
   isSaving,
 }: {
   item: (typeof COMPETENCY_ITEMS)[0];
   score: CompetencyScore | undefined;
+  aiSuggestion?: CompetencyAnalysisItem;
   onSave: (grade: CompetencyGrade, notes?: string) => void;
   isSaving: boolean;
 }) {
@@ -142,24 +214,35 @@ function CompetencyRow({
         )}
       </div>
 
-      {/* 등급 선택 */}
-      <select
-        value={grade}
-        onChange={(e) => handleGradeChange(e.target.value as CompetencyGrade)}
-        disabled={isSaving}
-        className={cn(
-          "w-16 shrink-0 rounded-md border px-2 py-1 text-center text-sm",
-          "border-gray-300 bg-[var(--background)] text-[var(--text-primary)]",
-          "dark:border-gray-600",
-          "focus:border-indigo-400 focus:outline-none",
-          !grade && "text-[var(--text-tertiary)]",
+      {/* 등급 선택 + AI 제안 */}
+      <div className="flex shrink-0 items-center gap-1.5">
+        <select
+          value={grade}
+          onChange={(e) => handleGradeChange(e.target.value as CompetencyGrade)}
+          disabled={isSaving}
+          className={cn(
+            "w-16 rounded-md border px-2 py-1 text-center text-sm",
+            "border-gray-300 bg-[var(--background)] text-[var(--text-primary)]",
+            "dark:border-gray-600",
+            "focus:border-indigo-400 focus:outline-none",
+            !grade && "text-[var(--text-tertiary)]",
+          )}
+        >
+          <option value="">-</option>
+          {GRADES.map((g) => (
+            <option key={g} value={g}>{g}</option>
+          ))}
+        </select>
+        {aiSuggestion && (
+          <button
+            onClick={() => handleGradeChange(aiSuggestion.suggestedGrade)}
+            title={`AI 제안: ${aiSuggestion.suggestedGrade} — ${aiSuggestion.reasoning}`}
+            className="rounded border border-blue-300 bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
+          >
+            AI:{aiSuggestion.suggestedGrade}
+          </button>
         )}
-      >
-        <option value="">-</option>
-        {GRADES.map((g) => (
-          <option key={g} value={g}>{g}</option>
-        ))}
-      </select>
+      </div>
 
       {/* 메모 */}
       <input

@@ -11,13 +11,26 @@ import {
 import { COMPETENCY_ITEMS, COMPETENCY_AREA_LABELS } from "@/lib/domains/student-record";
 import type { ActivityTag, CompetencyItemCode, TagEvaluation } from "@/lib/domains/student-record";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
-import { Check, Trash2, Plus } from "lucide-react";
+import { ActivityTagSuggestionPanel } from "./ActivityTagSuggestionPanel";
+import { Check, Trash2, Plus, Sparkles } from "lucide-react";
+
+/** 진단 탭에 전달할 레코드 요약 */
+export type RecordSummary = {
+  id: string;
+  type: "setek" | "personal_setek" | "changche" | "haengteuk";
+  label: string;
+  content: string;
+  subjectName?: string;
+  grade?: number;
+};
 
 type Props = {
   tags: ActivityTag[];
   studentId: string;
   tenantId: string;
   schoolYear: number;
+  /** 학생의 세특/창체/행특 레코드 목록 (AI 태그 제안용) */
+  records?: RecordSummary[];
 };
 
 const RECORD_TYPE_LABELS: Record<string, string> = {
@@ -47,7 +60,7 @@ function getItemLabel(code: string): string {
   return COMPETENCY_ITEMS.find((i) => i.code === code)?.label ?? code;
 }
 
-export function ActivityTagList({ tags, studentId, tenantId, schoolYear }: Props) {
+export function ActivityTagList({ tags, studentId, tenantId, schoolYear, records = [] }: Props) {
   const [filter, setFilter] = useState<string>("all");
   const [showAddForm, setShowAddForm] = useState(false);
   const queryClient = useQueryClient();
@@ -168,6 +181,16 @@ export function ActivityTagList({ tags, studentId, tenantId, schoolYear }: Props
         </div>
       )}
 
+      {/* 레코드별 AI 태그 제안 */}
+      {records.length > 0 && (
+        <RecordAiAnalysisSection
+          records={records}
+          studentId={studentId}
+          tenantId={tenantId}
+          schoolYear={schoolYear}
+        />
+      )}
+
       {/* 수동 추가 */}
       {showAddForm ? (
         <ManualTagForm
@@ -241,6 +264,62 @@ function ManualTagForm({
           취소
         </button>
       </div>
+    </div>
+  );
+}
+
+// ─── 레코드별 AI 태그 제안 섹션 ─────────────────────
+
+function RecordAiAnalysisSection({
+  records,
+  studentId,
+  tenantId,
+  schoolYear,
+}: {
+  records: RecordSummary[];
+  studentId: string;
+  tenantId: string;
+  schoolYear: number;
+}) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
+        레코드별 AI 분석
+      </p>
+      {records.map((rec) => (
+        <div key={rec.id} className="rounded-md border border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => setExpandedId(expandedId === rec.id ? null : rec.id)}
+            className="flex w-full items-center justify-between px-3 py-2 text-left text-xs hover:bg-[var(--surface-hover)]"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                {RECORD_TYPE_LABELS[rec.type] ?? rec.type}
+              </span>
+              <span className="truncate text-[var(--text-primary)]">{rec.label}</span>
+            </div>
+            <Sparkles size={14} className="shrink-0 text-blue-500" />
+          </button>
+
+          {expandedId === rec.id && (
+            <div className="border-t border-gray-200 px-3 py-2 dark:border-gray-700">
+              <p className="mb-2 text-xs text-[var(--text-tertiary)] line-clamp-3">{rec.content.slice(0, 200)}...</p>
+              <ActivityTagSuggestionPanel
+                studentId={studentId}
+                tenantId={tenantId}
+                schoolYear={schoolYear}
+                recordType={rec.type}
+                recordId={rec.id}
+                content={rec.content}
+                subjectName={rec.subjectName}
+                grade={rec.grade}
+              />
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
