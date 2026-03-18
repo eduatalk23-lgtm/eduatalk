@@ -936,85 +936,64 @@ consultantDiagnosis: Diagnosis | null
 
 #### 구현 우선순위
 
-**P0 (즉시 반영 — 기존 코드/상수 활용)**:
-1. **추천 교과목 표시** — `MAJOR_RECOMMENDED_COURSES` 상수 이미 존재, DiagnosisComparisonView에서 전공 선택 시 일반/진로 추천 과목 자동 표시
-2. **10항목 등급 요약 테이블** — 종합진단 섹션 상단에 AI/컨설턴트 등급 비교표 (컴팩트 10행 테이블)
+**P0 (즉시 반영 — 기존 코드/상수 활용)** ✅ 완료:
+1. ~~**추천 교과목 표시**~~ — DiagnosisComparisonView에 RecommendedCourses 컴포넌트 (일반=파랑/진로=보라)
+2. ~~**10항목 등급 요약 테이블**~~ — GradeSummaryTable (AI vs 컨설턴트 + 확장행)
 
-**P1 (DB 스키마 추가 필요)**:
-3. **항목별 해석 서술(narrative)** — `competency_scores`에 `narrative` text 필드 추가, AI가 항목별 2-3문장 해석 생성
-4. **근거 활동 집계** — 항목별 어떤 activity_tags가 기여했는지 그룹핑 뷰 (태그 count + 대표 근거)
+**P1 (DB 스키마 추가 필요)** ✅ 완료:
+3. ~~**항목별 해석 서술(narrative)**~~ — `narrative` TEXT 컬럼 + AI 생성 + GradeSummaryTable 확장행에 표시
+4. ~~**근거 활동 집계**~~ — 역량별 activityTags 그룹핑 + 근거 카운트 + evidence 상세 표시
 
-**P2 (큰 작업)**:
+**P2 (큰 작업)** — 미착수:
 5. **루브릭 질문별 분석 그리드** (Sheet 4) — 42행 테이블, 질문별 태그 매핑
 6. **인쇄용 보고서 PDF** (Sheet 9+10) — Phase 9 Report 생성과 통합
 
 ---
 
-### Phase 6.2 — 세특 3구간 분리 (학업태도/수행능력/탐구활동)
+### Phase 6.2 — 세특 3구간 분리 (학업태도/수행능력/탐구활동) ✅ 완료
 
 > **목표**: 로드맵 템플릿 패턴에 맞춰 세특 텍스트를 3구간으로 자동 분류
 
-**참고 원본**: 설계 로드맵 템플릿의 과목별 세특 구조:
-```
-과목 세부능력 및 특기사항
-├── 학업태도      — "수업 참여도", "적극적 발표", "성실한 과제 수행"
-├── 학업수행능력   — "개념 이해 우수", "문제 해결력", "높은 성취도"
-└── 탐구활동      — "심화 탐구", "보고서 작성", "독서 연계 확장"
-```
-
-학교활동 요약 문서에서는 이를 **학업역량/진로역량 2열**로 더 축약.
-
-**구현 방향**:
-- AI가 세특 텍스트를 3구간으로 자동 분류
-- 각 구간에 해당하는 역량 항목 자동 매핑
-- 시각적으로 구간 경계 표시 (접이식 섹션)
-
-**의존**: Phase 6.1 (하이라이트 기반)
-**파일 수**: ~4개 (프롬프트 확장 + UI 구간 렌더러)
+**구현 완료**:
+- `AnalyzedSection.sectionText` optional 필드 추가 (하위 호환)
+- AI 프롬프트: 세특 100자↑ → 구간별 원문을 sectionText에 포함 지시
+- 파서: sectionText 추출 + 서버액션 커버리지 40% 미만 폴백
+- `SectionSplitView`: 구간별 색상 블록 (학업태도=파랑/학업수행능력=인디고/탐구활동=에메랄드)
+- 레거시 호환: sectionText 없는 기존 분석 결과는 단일 블록 렌더링
+- **파일 수**: 4개 (types, prompt, action, UI)
 
 ---
 
-### Phase 6.3 — 학년간 후속탐구 연결 (3순위)
+### Phase 6.3 — 학년간 후속탐구 연결 ✅ 완료
 
 > **목표**: 학교활동 요약 문서의 `ㄴ(2학년 수학1)` 패턴 자동 감지 + 스토리라인 연결
 
-**참고 원본**: 학교활동 요약 문서의 탐구 연결 패턴:
-```
-1학년 수학: 연립방정식과 CT 촬영 원리
-  ㄴ(2학년 수학1) 독서 <세계를 바꾼 17가지 방정식> → 푸리에변환
-    ㄴ(2학년 화학Ⅰ) 이온화 방사선과 인체에 미치는 영향
-```
-
-**구현 방향**:
-- AI가 전체 세특 분석 시 학년간 주제 연결 자동 감지
-- 기존 스토리라인 기능과 통합 (storyline_links 활용)
-- "이 탐구는 X학년 Y과목의 탐구와 연결됩니다" 자동 제안
-
-**의존**: Phase 6.1 + 기존 스토리라인 시스템 (Phase 3c)
-**파일 수**: ~5개 (프롬프트 + 연결 감지 액션 + UI)
+**구현 완료**:
+- `inquiryLinking.ts`: 프롬프트+파서 — 3가지 연결 유형 (sequential/parallel/retrospective)
+- `detectInquiryLinks.ts`: Server Action — Gemini fast 호출, 연결 쌍 + 스토리라인 제안 반환
+- `InquiryLinkSuggestions.tsx`: "AI 탐구 연결 감지" 버튼 → 연결 목록 + 스토리라인 자동 생성
+- 기존 `addStorylineLinkAction` 재사용, connection_note에 AI 테마+유형 자동 기록
+- DB 변경 없음, **파일 수**: 3개 (prompt, action, UI) + StudentRecordClient 수정
 
 ---
 
-### Phase 6.5 — 조기 경보 + AI 면접 질문
+### Phase 6.5 — 조기 경보 + AI 면접 질문 ✅ 완료
 
 > **목표**: 생기부 관련 자동 경고 + 면접 예상 질문 AI 생성
 
-| 항목 | 내용 |
-|------|------|
-| **AI** | 규칙 기반 + Claude standard |
-| **의존** | Phase 6.1 |
-| **파일 수** | ~8개 |
+**경고 엔진 (구현 9/11개 룰)**:
+- 기록(4): missing_career_activity, changche_empty, haengteuk_draft, reading_insufficient
+- 이수(1): course_inadequacy (score < 50 → high, < 30 → critical)
+- 스토리라인(2): storyline_weak, storyline_gap
+- 최저(2): min_score_critical, min_score_bottleneck
+- 미구현(2): major_subject_decline (추가 DB 쿼리), min_score_trend_down (다중 시뮬 비교)
+- 순수 함수 엔진 (`warnings/engine.ts`), 클라이언트 useMemo로 계산
+- `RecordWarningPanel`: 카테고리별 그룹핑, 4단계 severity 색상, 제안 표시
 
-**경고 룰** (11개):
-```
-기록:     missing_career_activity, major_subject_decline, changche_empty,
-          haengteuk_draft, reading_insufficient
-이수:     course_inadequacy
-스토리라인: storyline_weak, storyline_gap, storyline_inconsistent
-최저:     min_score_critical, min_score_bottleneck, min_score_trend_down
-```
-
-**면접 질문 유형**: factual(20%), reasoning(30%), application(20%), value(15%), controversial(15%)
+**면접 질문 AI (Gemini fast)**:
+- 5유형 배분: factual(20%), reasoning(30%), application(20%), value(15%), controversial(15%)
+- `InterviewQuestionPanel`: 레코드 선택 → AI 10개 질문 생성 → 질문/답변 확장 카드
+- **파일 수**: 6개 신규 + StudentRecordClient 수정
 
 ---
 
