@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
-import { Menu, User } from "lucide-react";
+import { Menu, User, ChevronDown } from "lucide-react";
 import type { RecordSetek, RecordPersonalSetek } from "@/lib/domains/student-record";
 import {
   recordTabQueryOptions,
@@ -60,28 +60,71 @@ type TocItem = {
   indent?: boolean;
 };
 
-const OFFICIAL_SECTIONS: TocItem[] = [
-  { id: "sec-1", number: "1", label: "인적·학적사항" },
-  { id: "sec-2", number: "2", label: "출결상황" },
-  { id: "sec-3", number: "3", label: "수상경력" },
-  { id: "sec-4", number: "4", label: "자격증 및 인증" },
-  { id: "sec-5", number: "5", label: "학교폭력 조치사항" },
-  { id: "sec-6", number: "6", label: "창의적 체험활동" },
-  { id: "sec-6-volunteer", label: "봉사활동실적", indent: true },
-  { id: "sec-7", number: "7", label: "교과학습발달" },
-  { id: "sec-7-grades", label: "성적", indent: true },
-  { id: "sec-7-setek", label: "세특", indent: true },
-  { id: "sec-7-personal", label: "개인세특", indent: true },
-  { id: "sec-8", number: "8", label: "독서활동" },
-  { id: "sec-9", number: "9", label: "행동특성 및 종합의견" },
+// ─── 4단계 사이드바 그룹 ──────────────────────────────
+
+type StageId = "record" | "diagnosis" | "design" | "strategy";
+
+type StageConfig = {
+  id: StageId;
+  emoji: string;
+  label: string;
+  hasYearSelector: boolean;
+  sections: TocItem[];
+};
+
+const STAGES: StageConfig[] = [
+  {
+    id: "record",
+    emoji: "📋",
+    label: "기록",
+    hasYearSelector: true,
+    sections: [
+      { id: "sec-7-setek", label: "세특" },
+      { id: "sec-6", label: "창체" },
+      { id: "sec-9", label: "행특" },
+      { id: "sec-2", label: "출결" },
+      { id: "sec-7-grades", label: "성적" },
+      { id: "sec-8", label: "독서" },
+      { id: "sec-3", label: "수상·징계" },
+    ],
+  },
+  {
+    id: "diagnosis",
+    emoji: "🔍",
+    label: "진단",
+    hasYearSelector: true,
+    sections: [
+      { id: "sec-diagnosis-competency", label: "역량평가" },
+      { id: "sec-diagnosis-tags", label: "활동태그" },
+      { id: "sec-diagnosis-overall", label: "종합진단" },
+      { id: "sec-diagnosis-adequacy", label: "교과이수적합" },
+    ],
+  },
+  {
+    id: "design",
+    emoji: "📐",
+    label: "설계",
+    hasYearSelector: false,
+    sections: [
+      { id: "sec-storyline", label: "스토리라인" },
+      { id: "sec-roadmap", label: "로드맵" },
+      { id: "sec-compensation", label: "보완전략" },
+    ],
+  },
+  {
+    id: "strategy",
+    emoji: "🎯",
+    label: "전략",
+    hasYearSelector: false,
+    sections: [
+      { id: "sec-applications", label: "지원현황" },
+      { id: "sec-minscore", label: "최저시뮬" },
+    ],
+  },
 ];
 
-const STRATEGY_SECTIONS: TocItem[] = [
-  { id: "sec-storyline", label: "스토리라인" },
-  { id: "sec-roadmap", label: "로드맵" },
-  { id: "sec-applications", label: "지원현황" },
-  { id: "sec-minscore", label: "최저시뮬" },
-];
+/** 모든 섹션 ID 플랫 목록 (IntersectionObserver용) */
+const ALL_SECTION_IDS = STAGES.flatMap((s) => s.sections.map((sec) => sec.id));
 
 // ─── 학년-연도 쌍 타입 ──────────────────────────────────
 
@@ -235,61 +278,81 @@ export function StudentRecordClient({
 
   // ─── Sidebar Content ──────────────────────────────
 
+  // 사이드바 스테이지 접기/펼치기
+  const [expandedStages, setExpandedStages] = useState<Set<StageId>>(
+    () => new Set<StageId>(["record", "diagnosis", "design", "strategy"]),
+  );
+
+  const toggleStage = useCallback((stageId: StageId) => {
+    setExpandedStages((prev) => {
+      const next = new Set(prev);
+      if (next.has(stageId)) next.delete(stageId);
+      else next.add(stageId);
+      return next;
+    });
+  }, []);
+
   const sidebarContent = (
-    <div className="flex flex-col gap-1 p-4">
-      {/* 학년 선택 */}
-      <div className="mb-3">
-        <RecordYearSelector value={viewMode} onChange={setViewMode} studentGrade={studentGrade} />
-      </div>
+    <div className="flex flex-col gap-0.5 p-3">
+      {STAGES.map((stage) => {
+        const isExpanded = expandedStages.has(stage.id);
+        const hasActive = stage.sections.some((s) => s.id === activeSection);
 
-      {/* 공식 기록 TOC */}
-      <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
-        공식 기록
-      </p>
-      {OFFICIAL_SECTIONS.map((item) => (
-        <button
-          key={item.id}
-          onClick={() => scrollToSection(item.id)}
-          className={cn(
-            "flex items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
-            item.indent && "pl-6",
-            activeSection === item.id
-              ? "bg-indigo-50 font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
-              : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]",
-          )}
-        >
-          {item.number && (
-            <span className="inline-flex size-5 flex-shrink-0 items-center justify-center rounded bg-gray-200 text-xs font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-              {item.number}
-            </span>
-          )}
-          {item.indent && <span className="text-[var(--text-tertiary)]">├</span>}
-          <span className="truncate">{item.label}</span>
-        </button>
-      ))}
+        return (
+          <div key={stage.id}>
+            {/* 스테이지 헤더 */}
+            <button
+              onClick={() => toggleStage(stage.id)}
+              className={cn(
+                "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm font-semibold transition-colors",
+                hasActive && !isExpanded
+                  ? "text-indigo-700 dark:text-indigo-300"
+                  : "text-[var(--text-primary)]",
+                "hover:bg-[var(--surface-hover)]",
+              )}
+            >
+              <span>{stage.emoji} {stage.label}</span>
+              <ChevronDown
+                size={14}
+                className={cn(
+                  "text-[var(--text-tertiary)] transition-transform duration-150",
+                  isExpanded && "rotate-180",
+                )}
+              />
+            </button>
 
-      {/* 전략 관리 TOC */}
-      <div className="my-2 border-t border-[var(--border-secondary)]" />
-      <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
-        전략 관리
-      </p>
-      {STRATEGY_SECTIONS.map((item) => (
-        <button
-          key={item.id}
-          onClick={() => scrollToSection(item.id)}
-          className={cn(
-            "rounded-md px-2 py-1.5 text-left text-sm transition-colors",
-            activeSection === item.id
-              ? "bg-indigo-50 font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
-              : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]",
-          )}
-        >
-          {item.label}
-        </button>
-      ))}
+            {/* 펼침 영역 */}
+            {isExpanded && (
+              <div className="flex flex-col gap-0.5 pb-1">
+                {/* 학년 선택 (기록/진단만) */}
+                {stage.hasYearSelector && (
+                  <div className="px-2 py-1">
+                    <RecordYearSelector compact value={viewMode} onChange={setViewMode} studentGrade={studentGrade} />
+                  </div>
+                )}
+                {/* 섹션 목록 */}
+                {stage.sections.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => scrollToSection(item.id)}
+                    className={cn(
+                      "rounded-md px-2 py-1 pl-7 text-left text-sm transition-colors",
+                      activeSection === item.id
+                        ? "bg-indigo-50 font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]",
+                    )}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       {/* PDF 가져오기 */}
-      <div className="mt-4 border-t border-[var(--border-secondary)] pt-4">
+      <div className="mt-3 border-t border-[var(--border-secondary)] pt-3">
         <button
           type="button"
           onClick={() => setImportOpen(true)}
@@ -671,14 +734,35 @@ export function StudentRecordClient({
             )}
           </DocSection>
 
-          {/* ─── 전략 관리 구분선 ─────────────────── */}
-          <div className="my-10 flex items-center gap-4">
-            <div className="h-px flex-1 bg-gray-300 dark:bg-gray-600" />
-            <span className="text-xs font-semibold uppercase tracking-widest text-[var(--text-tertiary)]">
-              전략 관리
-            </span>
-            <div className="h-px flex-1 bg-gray-300 dark:bg-gray-600" />
-          </div>
+          {/* ─── 🔍 진단 스테이지 구분선 ──────────── */}
+          <StageDivider emoji="🔍" label="진단" />
+
+          <StrategySection id="sec-diagnosis-competency" title="역량평가">
+            <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-[var(--text-tertiary)] dark:border-gray-600">
+              역량 평가 UI (Phase 6에서 구현)
+            </div>
+          </StrategySection>
+
+          <StrategySection id="sec-diagnosis-tags" title="활동태그">
+            <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-[var(--text-tertiary)] dark:border-gray-600">
+              활동 태그 분석 UI (Phase 6에서 구현)
+            </div>
+          </StrategySection>
+
+          <StrategySection id="sec-diagnosis-overall" title="종합진단">
+            <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-[var(--text-tertiary)] dark:border-gray-600">
+              종합 진단 UI (Phase 6에서 구현)
+            </div>
+          </StrategySection>
+
+          <StrategySection id="sec-diagnosis-adequacy" title="교과이수적합도">
+            <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-[var(--text-tertiary)] dark:border-gray-600">
+              교과 이수 적합도 UI (Phase 6에서 구현)
+            </div>
+          </StrategySection>
+
+          {/* ─── 📐 설계 스테이지 구분선 ──────────── */}
+          <StageDivider emoji="📐" label="설계" />
 
           {/* ─── 스토리라인 ───────────────────────── */}
           <StrategySection id="sec-storyline" title="스토리라인">
@@ -708,6 +792,9 @@ export function StudentRecordClient({
               />
             ) : null}
           </StrategySection>
+
+          {/* ─── 🎯 전략 스테이지 구분선 ──────────── */}
+          <StageDivider emoji="🎯" label="전략" />
 
           {/* ─── 지원현황 ────────────────────────── */}
           <StrategySection id="sec-applications" title="지원현황">
@@ -996,6 +1083,20 @@ function SectionSkeleton() {
     <div className="space-y-3">
       <div className="h-4 w-1/3 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
       <div className="h-20 w-full animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+    </div>
+  );
+}
+
+// ─── 스테이지 구분선 ──────────────────────────────────
+
+function StageDivider({ emoji, label }: { emoji: string; label: string }) {
+  return (
+    <div className="my-10 flex items-center gap-4">
+      <div className="h-px flex-1 bg-gray-300 dark:bg-gray-600" />
+      <span className="text-xs font-semibold uppercase tracking-widest text-[var(--text-tertiary)]">
+        {emoji} {label}
+      </span>
+      <div className="h-px flex-1 bg-gray-300 dark:bg-gray-600" />
     </div>
   );
 }
