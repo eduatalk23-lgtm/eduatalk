@@ -16,24 +16,24 @@ import type { HighlightTag, AnalyzedSection } from "@/lib/domains/student-record
 /** 역량 영역별 하이라이트 색상 — mark 기본 노란색 오버라이드 필수 */
 const AREA_HIGHLIGHT: Record<CompetencyArea, { mark: string; badge: string; badgeBorder: string }> = {
   academic: {
-    mark: "!bg-blue-100 dark:!bg-blue-900/40 !text-inherit decoration-blue-400",
+    mark: "bg-blue-100 dark:bg-blue-900/40 text-[var(--text-primary)] decoration-blue-400",
     badge: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
     badgeBorder: "border-blue-300 dark:border-blue-700",
   },
   career: {
-    mark: "!bg-purple-100 dark:!bg-purple-900/40 !text-inherit decoration-purple-400",
+    mark: "bg-purple-100 dark:bg-purple-900/40 text-[var(--text-primary)] decoration-purple-400",
     badge: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
     badgeBorder: "border-purple-300 dark:border-purple-700",
   },
   community: {
-    mark: "!bg-green-100 dark:!bg-green-900/40 !text-inherit decoration-green-400",
+    mark: "bg-green-100 dark:bg-green-900/40 text-[var(--text-primary)] decoration-green-400",
     badge: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
     badgeBorder: "border-green-300 dark:border-green-700",
   },
 };
 
 const NEEDS_REVIEW_HIGHLIGHT = {
-  mark: "!bg-yellow-100 dark:!bg-yellow-900/40 !text-inherit decoration-yellow-500",
+  mark: "bg-yellow-100 dark:bg-yellow-900/40 text-[var(--text-primary)] decoration-yellow-500",
   badge: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
   badgeBorder: "border-yellow-300 dark:border-yellow-700",
 };
@@ -199,7 +199,7 @@ function HighlightedSpan({ text, tag }: { text: string; tag: HighlightTag }) {
 
   return (
     <span className="relative inline">
-      <mark
+      <span
         className={cn(
           "cursor-help rounded-sm px-0.5 decoration-2 underline decoration-dotted",
           colors.mark,
@@ -208,7 +208,7 @@ function HighlightedSpan({ text, tag }: { text: string; tag: HighlightTag }) {
         onMouseLeave={() => setShowTooltip(false)}
       >
         {text}
-      </mark>
+      </span>
       {showTooltip && (
         <span className="absolute bottom-full left-0 z-10 mb-1 w-72 rounded-md border border-gray-200 bg-white p-2.5 shadow-lg dark:border-gray-600 dark:bg-gray-800">
           <span className="flex items-center gap-1.5 text-xs font-medium">

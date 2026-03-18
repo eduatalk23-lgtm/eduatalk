@@ -86,6 +86,45 @@ export function CompetencyAnalysisSection({
     onSuccess: () => queryClient.invalidateQueries({ queryKey: studentRecordKeys.diagnosisTab(studentId, schoolYear) }),
   });
 
+  // AI 분석 후 태그 자동 저장 + 등급 prefill
+  async function saveAnalysisResults(recId: string, rec: RecordForHighlight, data: HighlightAnalysisResult) {
+    // 1. 활동 태그 자동 저장 (source=ai, status=suggested)
+    for (const section of data.sections) {
+      for (const tag of section.tags) {
+        await addActivityTagAction({
+          tenant_id: tenantId,
+          student_id: studentId,
+          record_type: rec.type,
+          record_id: recId,
+          competency_item: tag.competencyItem,
+          evaluation: tag.evaluation,
+          evidence_summary: `[AI] ${tag.reasoning}\n근거: "${tag.highlight}"`,
+          source: "ai",
+          status: "suggested",
+        });
+      }
+    }
+
+    // 2. 종합 등급 prefill (source=ai, status=suggested)
+    for (const grade of data.competencyGrades) {
+      const area = COMPETENCY_ITEMS.find((i) => i.code === grade.item)?.area;
+      if (!area) continue;
+      await upsertCompetencyScoreAction({
+        tenant_id: tenantId,
+        student_id: studentId,
+        school_year: schoolYear,
+        scope: "yearly",
+        competency_area: area,
+        competency_item: grade.item,
+        grade_value: grade.grade,
+        notes: `[AI] ${grade.reasoning}`,
+      });
+    }
+
+    // 3. 쿼리 무효화 (태그 + 등급 갱신)
+    queryClient.invalidateQueries({ queryKey: studentRecordKeys.diagnosisTab(studentId, schoolYear) });
+  }
+
   // 개별 레코드 AI 분석
   async function analyzeRecord(rec: RecordForHighlight) {
     setAnalyzingId(rec.id);
@@ -98,6 +137,7 @@ export function CompetencyAnalysisSection({
     });
     if (result.success) {
       setHighlightResults((prev) => new Map(prev).set(rec.id, result.data));
+      await saveAnalysisResults(rec.id, rec, result.data);
     } else {
       setError(result.error);
     }
@@ -118,6 +158,7 @@ export function CompetencyAnalysisSection({
         });
         if (result.success) {
           results.set(rec.id, result.data);
+          await saveAnalysisResults(rec.id, rec, result.data);
         }
       }
       return results;
