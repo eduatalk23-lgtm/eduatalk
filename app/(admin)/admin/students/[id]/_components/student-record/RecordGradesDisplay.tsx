@@ -129,6 +129,10 @@ export function RecordGradesDisplay({ studentId, tenantId, schoolYear, studentGr
     )
   ) : null;
 
+  // Hook은 early return 전에 호출 (Rules of Hooks)
+  const grouped = useMemo(() => classifyScores(scores ?? []), [scores]);
+  const onDel = (id: string) => { if (confirm("삭제하시겠습니까?")) deleteMutation.mutate(id); };
+
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -147,9 +151,6 @@ export function RecordGradesDisplay({ studentId, tenantId, schoolYear, studentGr
       </div>
     );
   }
-
-  const grouped = useMemo(() => classifyScores(scores), [scores]);
-  const onDel = (id: string) => { if (confirm("삭제하시겠습니까?")) deleteMutation.mutate(id); };
 
   // variant별 필터링
   if (variant === "general") {
