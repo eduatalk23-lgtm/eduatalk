@@ -21,11 +21,13 @@ ${COMPETENCY_SCHEMA}
 ## 분석 규칙
 
 1. **원문 정확 인용**: highlight 필드에 원문의 구절을 **그대로** 인용합니다. 단어를 바꾸거나 요약하지 않습니다.
-2. **구간 분류**: 세특 텍스트를 다음 3구간으로 분류합니다:
+2. **구간 분류**: 세특 텍스트를 다음 3구간으로 분류하고, 각 구간의 원문을 sectionText에 포함합니다:
    - "학업태도": 수업 참여, 발표, 과제 성실성, 학습 의지
    - "학업수행능력": 개념 이해, 문제 해결력, 교과 성취도
    - "탐구활동": 심화 탐구, 보고서, 독서 연계, 실험, 프로젝트
-   (창체/행특은 "전체"로 분류)
+   sectionText는 원문을 그대로 인용합니다. 문장 단위로 빠짐없이 포함하되 순서를 바꾸지 마세요.
+   (창체/행특은 "전체"로 분류, sectionText에 전체 텍스트)
+   (100자 미만의 짧은 텍스트는 "전체"로 분류)
 3. **다중 태그**: 하나의 구절이 여러 역량에 해당할 수 있습니다.
 4. **평가 구분**:
    - positive: 해당 역량이 긍정적으로 드러남
@@ -42,6 +44,7 @@ ${COMPETENCY_SCHEMA}
   "sections": [
     {
       "sectionType": "학업태도",
+      "sectionText": "방학 동안 스스로 모의고사를 풀면서 문제 해결과 개념 이해에 몰두함.",
       "tags": [
         {
           "competencyItem": "academic_attitude",
@@ -54,6 +57,7 @@ ${COMPETENCY_SCHEMA}
     },
     {
       "sectionType": "탐구활동",
+      "sectionText": "연립방정식과 CT 촬영 원리에 대해 연구하여 탐구 보고서를 제출함.",
       "tags": [
         {
           "competencyItem": "academic_inquiry",
@@ -90,6 +94,10 @@ export function buildHighlightUserPrompt(input: HighlightAnalysisInput): string 
   if (input.grade) prompt += `- 학년: ${input.grade}학년\n`;
   prompt += `\n## 텍스트 원문\n\n${input.content}\n\n`;
   prompt += `위 텍스트의 핵심 구절을 빠짐없이 분석하여, 각 구절이 어떤 역량에 해당하는지 원문을 정확히 인용하여 JSON으로 응답하세요.`;
+
+  if ((input.recordType === "setek" || input.recordType === "personal_setek") && input.content.length >= 100) {
+    prompt += `\n\n이 텍스트는 교과 세특이므로 3구간(학업태도/학업수행능력/탐구활동)으로 분리하여 각 구간의 원문을 sectionText에 포함하세요. 모든 문장이 빠짐없이 어느 한 구간에 포함되어야 합니다.`;
+  }
 
   return prompt;
 }
@@ -131,6 +139,7 @@ export function parseHighlightResponse(content: string): HighlightAnalysisResult
     if (tags.length > 0) {
       sections.push({
         sectionType: sectionType as AnalyzedSection["sectionType"],
+        ...(typeof s.sectionText === "string" && s.sectionText.length > 0 ? { sectionText: s.sectionText } : {}),
         tags,
         needsReview: s.needsReview === true,
       });

@@ -58,6 +58,8 @@ export interface HighlightTag {
 export interface AnalyzedSection {
   /** 구간 유형 */
   sectionType: "학업태도" | "학업수행능력" | "탐구활동" | "전체";
+  /** 이 구간에 해당하는 원문 텍스트 (Phase 6.2 — 3구간 분리) */
+  sectionText?: string;
   /** 이 구간에서 발견된 역량 태그들 */
   tags: HighlightTag[];
   /** 컨설턴트 확인 필요 여부 */

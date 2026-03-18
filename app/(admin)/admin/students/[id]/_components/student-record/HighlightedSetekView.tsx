@@ -133,6 +133,7 @@ export function HighlightedSetekView({ content, sections, label, defaultExpanded
   const allTags = useMemo(() => sections.flatMap((s) => s.tags), [sections]);
   const segments = useMemo(() => buildSegments(content, allTags), [content, allTags]);
   const hasNeedsReview = sections.some((s) => s.needsReview);
+  const hasSectionText = sections.some((s) => s.sectionText);
 
   return (
     <div className="rounded-lg border border-gray-200 dark:border-gray-700">
@@ -155,33 +156,40 @@ export function HighlightedSetekView({ content, sections, label, defaultExpanded
 
       {expanded && (
         <div className="border-t border-gray-200 dark:border-gray-700">
-          {/* 하이라이트된 원문 */}
-          <div className="px-3 py-3">
-            <p className="text-sm leading-relaxed text-[var(--text-primary)]">
-              {segments.map((seg, i) =>
-                seg.tag ? (
-                  <HighlightedSpan key={i} text={seg.text} tag={seg.tag} />
-                ) : (
-                  <Fragment key={i}>{seg.text}</Fragment>
-                ),
-              )}
-            </p>
-          </div>
-
-          {/* 태그 요약 바 */}
-          {allTags.length > 0 && (
-            <div className="border-t border-gray-100 px-3 py-2 dark:border-gray-700">
-              <div className="flex flex-wrap gap-1.5">
-                {allTags.map((tag, i) => (
-                  <CompetencyBadge key={i} tag={tag} />
-                ))}
+          {hasSectionText ? (
+            /* Phase 6.2: 3구간 분리 렌더링 */
+            <SectionSplitView sections={sections} />
+          ) : (
+            <>
+              {/* 레거시: 단일 블록 렌더링 */}
+              <div className="px-3 py-3">
+                <p className="text-sm leading-relaxed text-[var(--text-primary)]">
+                  {segments.map((seg, i) =>
+                    seg.tag ? (
+                      <HighlightedSpan key={i} text={seg.text} tag={seg.tag} />
+                    ) : (
+                      <Fragment key={i}>{seg.text}</Fragment>
+                    ),
+                  )}
+                </p>
               </div>
-            </div>
-          )}
 
-          {/* 구간별 상세 — 내용 요약 포함 */}
-          {sections.length > 0 && (
-            <SectionDetails sections={sections} />
+              {/* 태그 요약 바 */}
+              {allTags.length > 0 && (
+                <div className="border-t border-gray-100 px-3 py-2 dark:border-gray-700">
+                  <div className="flex flex-wrap gap-1.5">
+                    {allTags.map((tag, i) => (
+                      <CompetencyBadge key={i} tag={tag} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 구간별 상세 */}
+              {sections.length > 0 && (
+                <SectionDetails sections={sections} />
+              )}
+            </>
           )}
         </div>
       )}
@@ -221,6 +229,62 @@ function HighlightedSpan({ text, tag }: { text: string; tag: HighlightTag }) {
         </span>
       )}
     </span>
+  );
+}
+
+// ─── Phase 6.2: 3구간 분리 렌더링 ──────────────
+
+const SECTION_STYLE: Record<string, { label: string; border: string; bg: string }> = {
+  "학업태도": { label: "학업태도", border: "border-l-blue-400", bg: "bg-blue-50/30 dark:bg-blue-900/10" },
+  "학업수행능력": { label: "학업수행능력", border: "border-l-indigo-400", bg: "bg-indigo-50/30 dark:bg-indigo-900/10" },
+  "탐구활동": { label: "탐구활동", border: "border-l-emerald-400", bg: "bg-emerald-50/30 dark:bg-emerald-900/10" },
+  "전체": { label: "전체", border: "border-l-gray-400", bg: "bg-gray-50/30 dark:bg-gray-800/30" },
+};
+
+function SectionSplitView({ sections }: { sections: AnalyzedSection[] }) {
+  return (
+    <div className="flex flex-col gap-2.5 px-3 py-3">
+      {sections.map((sec, i) => {
+        const style = SECTION_STYLE[sec.sectionType] ?? SECTION_STYLE["전체"];
+        const sectionSegments = sec.sectionText ? buildSegments(sec.sectionText, sec.tags) : [];
+
+        return (
+          <div key={i} className={cn("rounded-md border-l-4 pl-3 pr-2 py-2", style.border, style.bg)}>
+            <div className="mb-1.5 flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-[var(--text-primary)]">{style.label}</span>
+              {sec.needsReview && (
+                <span className="rounded bg-yellow-100 px-1 py-0.5 text-[9px] font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+                  확인 要
+                </span>
+              )}
+              <span className="text-[9px] text-[var(--text-tertiary)]">{sec.tags.length}개 태그</span>
+            </div>
+
+            {/* 구간 원문 + 하이라이트 */}
+            {sec.sectionText && (
+              <p className="text-sm leading-relaxed text-[var(--text-primary)]">
+                {sectionSegments.map((seg, j) =>
+                  seg.tag ? (
+                    <HighlightedSpan key={j} text={seg.text} tag={seg.tag} />
+                  ) : (
+                    <Fragment key={j}>{seg.text}</Fragment>
+                  ),
+                )}
+              </p>
+            )}
+
+            {/* 구간별 태그 배지 */}
+            {sec.tags.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {sec.tags.map((tag, j) => (
+                  <CompetencyBadge key={j} tag={tag} compact />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
