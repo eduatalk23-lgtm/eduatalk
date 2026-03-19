@@ -40,6 +40,7 @@ import { RecordGradesDisplay } from "./RecordGradesDisplay";
 import { CompetencyAnalysisSection } from "./CompetencyAnalysisSection";
 import { DiagnosisComparisonView } from "./DiagnosisComparisonView";
 import { CourseAdequacyDisplay } from "./CourseAdequacyDisplay";
+import { StrategyEditor as StrategyEditorPanel } from "./StrategyEditor";
 
 type Subject = {
   id: string;
@@ -881,6 +882,22 @@ export function StudentRecordClient({
                 grade={studentGrade}
               />
             ) : null}
+          </StrategySection>
+
+          {/* ─── 보완전략 ──────────────────────────── */}
+          <StrategySection id="sec-compensation" title="보완전략">
+            {diagnosisLoading ? <SectionSkeleton /> : (
+              <StrategyEditorPanel
+                strategies={diagnosisData?.strategies ?? []}
+                studentId={studentId}
+                tenantId={tenantId}
+                schoolYear={initialSchoolYear}
+                grade={studentGrade}
+                aiScores={diagnosisData?.competencyScores.ai}
+                aiDiagnosis={diagnosisData?.aiDiagnosis}
+                targetMajor={diagnosisData?.targetMajor}
+              />
+            )}
           </StrategySection>
 
           {/* ─── 🎯 전략 스테이지 구분선 ──────────── */}

@@ -3,7 +3,7 @@
 // Phase 5.5a: 태그 제안 + Phase 6.1: 인라인 하이라이트
 // ============================================
 
-import type { CompetencyItemCode, CompetencyGrade } from "../types";
+import type { CompetencyItemCode, CompetencyGrade, StrategyTargetArea, StrategyPriority } from "../types";
 
 /** AI가 제안하는 개별 태그 */
 export interface TagSuggestion {
@@ -84,6 +84,45 @@ export interface HighlightAnalysisResult {
     grade: CompetencyGrade;
     reasoning: string;
   }[];
+  /** 전체 요약 */
+  summary: string;
+}
+
+// ============================================
+// Phase 7: AI 보완전략 제안 타입
+// ============================================
+
+/** AI가 제안하는 보완전략 항목 */
+export interface StrategySuggestion {
+  /** 보완 영역 */
+  targetArea: StrategyTargetArea;
+  /** 보완 전략 내용 */
+  strategyContent: string;
+  /** 우선순위 */
+  priority: StrategyPriority;
+  /** 제안 이유 (진단 근거) */
+  reasoning: string;
+  /** 웹 검색 출처 (Grounding) */
+  sourceUrls?: string[];
+}
+
+/** suggestStrategies 액션의 입력 */
+export interface SuggestStrategiesInput {
+  /** 종합 진단의 약점 */
+  weaknesses: string[];
+  /** 부족 역량 항목 (등급 B- 이하) */
+  weakCompetencies: { item: CompetencyItemCode; grade: CompetencyGrade; label: string }[];
+  /** 학년 */
+  grade: number;
+  /** 추천 전공 계열 */
+  targetMajor?: string;
+  /** 기존 보완전략 (중복 방지) */
+  existingStrategies?: string[];
+}
+
+/** suggestStrategies 액션의 출력 */
+export interface SuggestStrategiesResult {
+  suggestions: StrategySuggestion[];
   /** 전체 요약 */
   summary: string;
 }

@@ -62,6 +62,22 @@
 │          └────┘  └────┘                                             │
 │  ※ 메인 트랙 Phase 3 이후 착수 가능                                 │
 └─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│               에이전트 트랙 (독립, AI SDK v6 기반)                    │
+│               docs/domain-agent-architecture.md 참조                  │
+│                                                                       │
+│  ┌────┐  ┌────┐  ┌────┐  ┌────┐  ┌────┐                           │
+│  │ A  │→│ B  │→│ C  │  │ D  │  │ E  │                              │
+│  │SDK │  │오케│  │CMS │  │입시│  │면접│                              │
+│  │마이│  │스트│  │RAG │  │배치│  │리포│                              │
+│  │그레│  │레이│  │    │  │    │  │트  │                              │
+│  │이션│  │터  │  └────┘  └────┘  └────┘                            │
+│  └────┘  └────┘  ↑C1     ↑8.1    ↑B+D                              │
+│  ※ Phase A: 즉시 착수 가능 / C: CMS C1 의존 / D: Phase 8.1 의존    │
+│  ※ 6개 전문 에이전트 + 1 오케스트레이터 (라우터 패턴)                │
+│  ※ 기술: Vercel AI SDK v6, pgvector, gemini-embedding-001           │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -76,6 +92,7 @@
 | **M4: 대입 전략** | 7~8.6 | 배치분석 + 환산엔진 + 졸업생 DB | 정시 배치표 자동 생성 |
 | **M5: AI 고도화** | 9 | 활동 요약서 + Report 생성 | 수시 Report 자동 발행 |
 | **M-CMS: 탐구 가이드** | C1~C5 | 7,836건 가이드 DB + AI 생성 | Access DB 완전 대체 |
+| **M-Agent: 도메인 에이전트** | A~E | 6개 전문 에이전트 + 오케스트레이터 | 자연어 컨설팅 AI 어시스턴트 |
 
 ---
 
@@ -997,32 +1014,90 @@ consultantDiagnosis: Diagnosis | null
 
 ---
 
-### Phase 7 — 보완전략 + AI 제안
+### Phase 7 — 보완전략 + AI 제안 ✅ 완료
 
 > **목표**: 진단 weaknesses 기반 보완전략 AI 제안 (Gemini Grounding)
+> **완료일**: 2026-03-19
 
 | 항목 | 내용 |
 |------|------|
 | **AI** | Gemini Grounding (웹 검색) |
 | **의존** | Phase 6 |
-| **파일 수** | ~7개 |
+| **파일 수** | 5개 (신규 4 + 수정 1) |
+
+**산출물**:
+- LLM: `llm/prompts/strategyRecommend.ts` + `llm/actions/suggestStrategies.ts` (Gemini fast + Grounding)
+- 타입: `llm/types.ts` 확장 (StrategySuggestion, SuggestStrategiesInput/Result)
+- UI: `StrategyEditor.tsx` — 수동 CRUD + AI 제안(채택/거절) + 우선순위 + 상태추적(planned→in_progress→done)
+- StudentRecordClient `sec-compensation` 섹션 연결
+
+**검증**: ✅ `pnpm build` 성공, 테스트 143개 통과
 
 ---
 
 ### Phase 8.1~8.6 — 대학 입시 DB + 배치 분석
 
-> **목표**: 26,777건 입시 DB + 정시 환산 엔진 + 배치 판정 + 졸업생 검색
+> **목표**: 26,309건 입시 DB + 정시 환산 엔진 + 배치 판정 + 졸업생 검색
 
-| Sub-Phase | 내용 | 의존 |
-|-----------|------|------|
-| **8.1** | Excel 26,777건 이관 + 교과전형 grade_weight JSONB + 진로선택 3단계 | Phase 4 |
-| **8.2** | 정시 환산 엔진 + 결격사유 + 자동 테스트 25+ | 8.1 |
-| **8.3** | data.go.kr API 연동 | 8.1 |
-| **8.4** | 연간 4단계 갱신 + 전형 변경 알림 (push) | 8.1 |
-| **8.5** | 모평 배치 자동 분석 + 가채점/실채점 + 6장 최적 배분 + 충원 시뮬 | 8.2 |
-| **8.6** | 졸업생 SQL 검색 | 8.1 |
+| Sub-Phase | 내용 | 의존 | 상태 |
+|-----------|------|------|------|
+| **8.1** | Excel 26,309건 이관 + 미적분기하 지정 | Phase 4 | ✅ 완료 |
+| **8.2** | 정시 환산 엔진 + 결격사유 + 자동 테스트 | 8.1 | 🔨 엔진 완료, Import 잔여 |
+| **8.3** | data.go.kr API 연동 | 8.1 | 미착수 |
+| **8.4** | 연간 4단계 갱신 + 전형 변경 알림 (push) | 8.1 | 미착수 |
+| **8.5** | 모평 배치 자동 분석 + 가채점/실채점 + 6장 최적 배분 + 충원 시뮬 | 8.2 | 미착수 |
+| **8.6** | 졸업생 SQL 검색 | 8.1 | 미착수 |
 
 **8.5 배치 판정 레벨**: danger < unstable < bold < possible < safe + possible_with_replacement(충원)
+
+---
+
+### Phase 8.1 — 대학 입시 참조 DB ✅ 완료
+
+> **완료일**: 2026-03-19
+
+**데이터 소스** (Google Drive `ㅎ.생기부레벨업/`):
+- `NEW 학생 양식/4. 에듀엣톡_2026학년 수시 Report_sample_*.xlsx` → 추천선택 26,309행
+- `2026학년도 정시 미적분기하 지정.xlsx` → 정시_미기 173행
+
+**DB 마이그레이션**: `20260332000000_university_admissions.sql`
+- `university_admissions`: 26,295건 삽입 (10건 자연키 충돌 스킵)
+  - JSONB 3개: competition_rates, admission_results, replacements (연도 슬라이딩 대응)
+  - 자연키: (data_year, university_name, department_name, admission_type, admission_name)
+- `university_math_requirements`: 139건 삽입
+
+**데이터 정제**:
+- 오타 673건 정규화 (최종등록자퍙균 → 최종등록자평균 등)
+- 정확 중복 3건 제거 (청주대)
+- "-" → null 22,518건
+
+**도메인**: `lib/domains/admission/` — types, repository, import 파이프라인 6개 모듈
+**CLI**: `scripts/import-university-admissions.ts`, `scripts/import-math-requirements.ts`
+**선행작업**: `constants.ts`에 전공 계열 5개 추가 (사회/전기전자/보건/생활과학/농림)
+**테스트**: 32개 (header-detector 10, cleaner 15, transformer 7)
+
+---
+
+### Phase 8.2 — 정시 환산 엔진 🔨 진행중
+
+> **목표**: 고속성장분석기 Excel 핵심 로직 → TypeScript 엔진 + DB 룩업
+
+**완료된 부분**:
+- DB 마이그레이션: `20260332100000_admission_score_engine.sql` — 3 테이블
+  - `university_score_configs` (552행 예정): 대학별 필수/선택/가중택 패턴 + 과목 설정
+  - `university_score_conversions` (~628K행 예정): SUBJECT3 룩업 테이블
+  - `university_score_restrictions` (~586행 예정): 결격사유 3종
+- Calculator 엔진 (`lib/domains/admission/calculator/`): 9개 모듈
+  - types, constants (36과목 + 63패턴 레지스트리), config-parser (필수/선택/가중택)
+  - subject-selector (Math MAX, Inquiry top-N, 대체), mandatory/optional/weighted-scorer
+  - restriction-checker (no_show, grade_sum, subject_req), calculator (파이프라인)
+- 테스트: 38개 (config-parser 17, calculator 통합 21)
+
+**잔여 작업**:
+- Import 파이프라인: COMPUTE/SUBJECT3/RESTRICT 파서 + CLI 스크립트
+- 실제 DB 데이터 import (configs 552, conversions 628K, restrictions 586)
+- Repository 확장 (getScoreConfig, getConversionTable, getRestrictions)
+- Excel 결과와 스팟체크 비교 검증
 
 ---
 
@@ -1071,6 +1146,16 @@ consultantDiagnosis: Diagnosis | null
 [CMS Track — 독립 경로]
 
 (메인 3 완료 후) ──→ C1 ──→ C2 ──→ C3 ──→ C4 ──→ C5
+
+[Agent Track — 독립 경로, docs/domain-agent-architecture.md 참조]
+
+Phase A (AI SDK 마이그레이션, 즉시 착수)
+    ↓
+Phase B (오케스트레이터 + Agent 1·4 래핑)
+    │
+    ├── Phase C (Agent 2: CMS RAG + pgvector) ← CMS C1 의존
+    ├── Phase D (Agent 3: 입시 배치)           ← Phase 8.1 의존
+    └── Phase E (Agent 5·6: 면접·리포트)       ← Phase B + D 이후
 ```
 
 **병렬 가능 조합**:
@@ -1078,6 +1163,7 @@ consultantDiagnosis: Diagnosis | null
 - Phase 6.5 + Phase 7 (모두 Phase 6 이후)
 - Phase 8.3 + Phase 8.4 + Phase 8.6 (모두 Phase 8.1 이후)
 - CMS C1~C5 전체 (메인 트랙과 독립)
+- Agent A~B (메인/CMS 트랙과 독립, 즉시 착수 가능)
 
 ---
 
