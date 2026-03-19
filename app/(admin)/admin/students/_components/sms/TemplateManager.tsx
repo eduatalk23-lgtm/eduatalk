@@ -74,7 +74,8 @@ export function TemplateManager({
     });
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (id: string, name: string) => {
+    if (!window.confirm(`"${name}" 템플릿을 삭제하시겠습니까?`)) return;
     startTransition(async () => {
       await deleteCustomTemplate(id);
       onRefresh();
@@ -196,7 +197,7 @@ export function TemplateManager({
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleDelete(t.id)}
+                  onClick={() => handleDelete(t.id, t.name)}
                   disabled={isPending}
                   className="rounded p-1 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
                 >

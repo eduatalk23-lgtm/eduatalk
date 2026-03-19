@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, useTransition, useMemo } from "react";
-import { Send, ChevronDown, ChevronUp, Loader2, Settings2, AlertTriangle } from "lucide-react";
+import { useState, useCallback, useTransition, useMemo, useEffect, useRef } from "react";
+import { Send, ChevronDown, ChevronUp, Loader2, Settings2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { CombinedTemplateSelector } from "./CombinedTemplateSelector";
 import { TemplateManager } from "./TemplateManager";
@@ -42,7 +42,7 @@ export function SMSPanelContent({
   onRefreshTemplates,
   onRefreshHistory,
 }: SMSPanelContentProps) {
-  const { showSuccess, showError } = useToast();
+  const { showError } = useToast();
   const [isPending, startTransition] = useTransition();
 
   // 수신자 선택
@@ -66,6 +66,8 @@ export function SMSPanelContent({
   const [showHistory, setShowHistory] = useState(false);
   const [showTemplateManager, setShowTemplateManager] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [sendResult, setSendResult] = useState<{ success: number; fail: number } | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const phones: Record<RecipientKey, string | null> = {
     student: phoneData.phone,
@@ -167,6 +169,13 @@ export function SMSPanelContent({
     setShowPreview(true);
   }, [validRecipients, message, showError]);
 
+  const resetForm = useCallback(() => {
+    setMessage("");
+    setSubject("");
+    setSelectedTemplateId("");
+    setTemplateVariables({});
+  }, []);
+
   const handleConfirmSend = useCallback(() => {
     startTransition(async () => {
       let successCount = 0;
@@ -199,16 +208,51 @@ export function SMSPanelContent({
       setShowPreview(false);
 
       if (successCount > 0) {
-        showSuccess(`${successCount}건 발송 완료${failCount > 0 ? `, ${failCount}건 실패` : ""}`);
+        resetForm();
+        setSendResult({ success: successCount, fail: failCount });
         onRefreshHistory();
+        // 스크롤 최상단 이동
+        scrollRef.current?.scrollIntoView({ behavior: "smooth" });
       } else {
         showError("발송에 실패했습니다.");
       }
     });
-  }, [validRecipients, previewMessage, studentId, subject, showSuccess, showError, onRefreshHistory]);
+  }, [validRecipients, previewMessage, studentId, subject, resetForm, showError, onRefreshHistory]);
+
+  // 발송 결과 배너 자동 숨김
+  useEffect(() => {
+    if (!sendResult) return;
+    const timer = setTimeout(() => setSendResult(null), 4000);
+    return () => clearTimeout(timer);
+  }, [sendResult]);
+
+  // 미리보기 모달 열릴 때 ESC로 모달만 닫기 (패널 닫기 방지)
+  useEffect(() => {
+    if (!showPreview) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setShowPreview(false);
+      }
+    };
+    // capture 단계에서 잡아야 SlideOverPanel의 ESC 핸들러보다 먼저 실행
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [showPreview]);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div ref={scrollRef} className="flex flex-col gap-6">
+      {/* 발송 완료 배너 */}
+      {sendResult && (
+        <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
+          <span>
+            {sendResult.success}건 발송 완료
+            {sendResult.fail > 0 && <span className="text-red-600">, {sendResult.fail}건 실패</span>}
+          </span>
+        </div>
+      )}
+
       {/* 1. 수신자 선택 */}
       <section>
         <h3 className="mb-3 text-sm font-semibold text-gray-900">수신자 선택</h3>
@@ -421,7 +465,7 @@ export function SMSPanelContent({
 
       {/* 미리보기 모달 */}
       {showPreview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
           <div className="flex w-full max-w-md flex-col gap-4 rounded-lg bg-white p-6 shadow-xl">
             <h3 className="text-lg font-semibold text-gray-900">발송 미리보기</h3>
 
