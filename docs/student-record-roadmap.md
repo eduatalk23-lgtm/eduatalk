@@ -90,7 +90,7 @@
 | **M2: 컨설팅 도구** | 3.5~4 | 지원전략 + 학부모 뷰 + 최저 시뮬 | 학부모 상담, 수시 전략 수립 |
 | **M3: AI 진단** | 5~6.3 | 역량 태그 + 인라인 하이라이트 + 종합 진단 + 경보 | AI가 세특을 분석하여 역량 근거를 시각적으로 제시, 컨설턴트 검토/확정 |
 | **M4: 대입 전략** | 7~8.6 | 배치분석 + 환산엔진 + 졸업생 DB | 정시 배치표 자동 생성 |
-| **M5: AI 고도화** | 9 | 활동 요약서 + Report 생성 | 수시 Report 자동 발행 |
+| **M5: AI 고도화** | 9 | 활동 요약서 + Report 생성 | 수시 Report 자동 발행 (**9.1 Report 완료**, **9.2 활동 요약서 완료**, **9.3 세특 방향 가이드 완료**, 9.4 미착수) |
 | **M-CMS: 탐구 가이드** | C1~C5 | 7,836건 가이드 DB + AI 생성 | Access DB 완전 대체 |
 | **M-Agent: 도메인 에이전트** | A~E | 6개 전문 에이전트 + 오케스트레이터 | 자연어 컨설팅 AI 어시스턴트 |
 
@@ -961,9 +961,19 @@ consultantDiagnosis: Diagnosis | null
 3. ~~**항목별 해석 서술(narrative)**~~ — `narrative` TEXT 컬럼 + AI 생성 + GradeSummaryTable 확장행에 표시
 4. ~~**근거 활동 집계**~~ — 역량별 activityTags 그룹핑 + 근거 카운트 + evidence 상세 표시
 
-**P2 (큰 작업)** — 미착수:
-5. **루브릭 질문별 분석 그리드** (Sheet 4) — 42행 테이블, 질문별 태그 매핑
-6. **인쇄용 보고서 PDF** (Sheet 9+10) — Phase 9 Report 생성과 통합
+**P2 (Report 통합)** ✅ 완료 (Phase 9.1c):
+5. ~~**인쇄용 보고서 (Sheet 9+10)**~~ — Report에 루브릭 Q&A + evidence_summary + 추천교과목 통합
+6. ~~**10항목 등급 요약 + narrative + 근거 활동**~~ — CompetencySection 상세 확장 (등급표 + 항목별 상세)
+7. ~~**추천 교과목 (일반/진로)**~~ — DiagnosisSection에 MAJOR_RECOMMENDED_COURSES 기반 표시
+
+**P3 (Sheet 4 루브릭 그리드)** ✅ 완료 (Phase 9.1d — 문자열 역매핑):
+8. ~~**루브릭 질문별 분석 그리드**~~ — `rubric-matcher.ts` (evidence_summary → 질문 인덱스 역매핑) + CompetencySection 42행 그리드
+   - DB 변경 없이 기존 evidence_summary "루브릭: ..." 텍스트에서 질문 추출
+   - 정확 매칭 → 접두사 매칭 → 포함 매칭 3단계 fallback
+   - 질문별 긍정/부정 카운트 + 근거 텍스트 표시
+
+**P4 (후속 개선)** — 미착수:
+9. `rubric_question_index` DB 컬럼 추가 + 백필 (역매핑의 DB 정규화 버전)
 
 ---
 
@@ -1042,13 +1052,14 @@ consultantDiagnosis: Diagnosis | null
 | Sub-Phase | 내용 | 의존 | 상태 |
 |-----------|------|------|------|
 | **8.1** | Excel 26,309건 이관 + 미적분기하 지정 | Phase 4 | ✅ 완료 |
-| **8.2** | 정시 환산 엔진 + 결격사유 + 자동 테스트 | 8.1 | 🔨 엔진 완료, Import 잔여 |
-| **8.3** | data.go.kr API 연동 | 8.1 | 미착수 |
-| **8.4** | 연간 4단계 갱신 + 전형 변경 알림 (push) | 8.1 | 미착수 |
+| **8.2** | 정시 환산 엔진 + 결격사유 + 자동 테스트 | 8.1 | ✅ 완료 (엔진+Import+DB) |
+| **8.2b** | PERCENTAGE 경로 (가중택 40개 대학) | 8.2 | ✅ 완료 |
+| **8.3** | 대학 이름 별칭 매핑 (29건) + 검색 확장 | 8.1 | ✅ 완료 |
+| **8.4** | data.go.kr API 연동 + 연간 갱신 + 알림 | 8.1 | ⏸ 보류 (기업 계정 가입 중) |
 | **8.5a** | 배치 판정 엔진 + Admin UI (PlacementDashboard) | 8.2 | ✅ 완료 |
-| **8.5b** | 가채점/실채점 분리 + 6장 최적 배분 시뮬레이션 | 8.5a | 미착수 |
-| **8.5c** | 충원 합격 시뮬레이션 | 8.5a | 미착수 |
-| **8.6** | 졸업생 SQL 검색 | 8.1 | 미착수 |
+| **8.5b** | 가채점/실채점 분리 + 6장 최적 배분 시뮬레이션 | 8.5a | ✅ 완료 |
+| **8.5c** | 충원 합격 시뮬레이션 | 8.5a | ✅ 완료 |
+| **8.6** | 졸업생 입시 DB 검색 (AlumniSearch) | 8.1 | ✅ 완료 |
 
 **8.5 배치 판정 레벨**: danger(위험) < unstable(불안정) < bold(소신) < possible(적정) < safe(안정) + possible_with_replacement(충원, 8.5c)
 
@@ -1080,26 +1091,26 @@ consultantDiagnosis: Diagnosis | null
 
 ---
 
-### Phase 8.2 — 정시 환산 엔진 🔨 진행중
+### Phase 8.2 — 정시 환산 엔진 ✅ 완료
 
-> **목표**: 고속성장분석기 Excel 핵심 로직 → TypeScript 엔진 + DB 룩업
+> **완료일**: 2026-03-19
 
-**완료된 부분**:
-- DB 마이그레이션: `20260332100000_admission_score_engine.sql` — 3 테이블
-  - `university_score_configs` (552행 예정): 대학별 필수/선택/가중택 패턴 + 과목 설정
-  - `university_score_conversions` (~628K행 예정): SUBJECT3 룩업 테이블
-  - `university_score_restrictions` (~586행 예정): 결격사유 3종
-- Calculator 엔진 (`lib/domains/admission/calculator/`): 9개 모듈
-  - types, constants (36과목 + 63패턴 레지스트리), config-parser (필수/선택/가중택)
-  - subject-selector (Math MAX, Inquiry top-N, 대체), mandatory/optional/weighted-scorer
-  - restriction-checker (no_show, grade_sum, subject_req), calculator (파이프라인)
-- 테스트: 38개 (config-parser 17, calculator 통합 21)
+**DB 마이그레이션**:
+- `20260332100000_admission_score_engine.sql` — 3 테이블 (configs 485 + conversions 549K + restrictions 80)
+- `20260332200000_percentage_conversions.sql` — PERCENTAGE 경로 (883K행)
 
-**잔여 작업**:
-- Import 파이프라인: COMPUTE/SUBJECT3/RESTRICT 파서 + CLI 스크립트
-- 실제 DB 데이터 import (configs 552, conversions 628K, restrictions 586)
-- Repository 확장 (getScoreConfig, getConversionTable, getRestrictions)
-- Excel 결과와 스팟체크 비교 검증
+**Calculator 엔진** (`lib/domains/admission/calculator/`): 12개 모듈
+- types, constants (36과목 + 63패턴 레지스트리), config-parser (필수/선택/가중택)
+- subject-selector (Math MAX, Inquiry top-N, 대체), mandatory/optional/weighted/percentage-scorer
+- restriction-checker (no_show, grade_sum, subject_req), calculator (파이프라인, 2경로 분기)
+
+**2경로 구조**:
+- 경로 A (필수/선택): 445개 대학, SUBJECT3 per-subject lookup + 한국사 가감점
+- 경로 B (가중택): 40개 대학, PERCENTAGE 누적백분위 lookup
+
+**Import**: COMPUTE/SUBJECT3/RESTRICT/PERCENTAGE 파서 + CLI 스크립트
+**테스트**: 38개 (config-parser 17, calculator 통합 21)
+**Spot-check**: 10/10 일치/근사 (한국사 가감점 반영 후)
 
 ---
 
@@ -1140,17 +1151,204 @@ consultantDiagnosis: Diagnosis | null
 
 ---
 
+### Phase 8.3 — 대학 이름 별칭 매핑 ✅ 완료
+
+> **완료일**: 2026-03-19
+
+**문제**: `university_admissions`(164개 고유 대학) ↔ `universities`(2,056행) 연결 시 29개 미매칭
+
+**DB 마이그레이션**: `20260332300000_university_name_aliases.sql`
+- `university_name_aliases`: 29행 시드 (alias_name → canonical_name + university_id FK)
+- RLS: `rls_check_is_admin_or_consultant()` 패턴
+- 인덱스: `idx_una_canonical` on canonical_name
+
+**별칭 29건 내역**:
+| 카테고리 | 수 | 예시 |
+|----------|---|------|
+| 영문 약칭 | 6 | KAIST → 한국과학기술원 |
+| 캠퍼스 접미사 | 8 | 강원대학교(춘천) → 강원대학교 |
+| 국립 접두사 | 11 | 공주대학교 → 국립공주대학교 |
+| 개명 | 2 | 경상대학교 → 경상국립대학교 |
+| 특수 | 2 | 가야대학교 → 가야대학교(김해) |
+
+**도메인**:
+- `search/alias-resolver.ts`: `expandAliasNames` 순수 함수 (양방향 해석)
+- `repository.ts`: `resolveUniversityAliases`, `getUniversityInfoMap`, `searchAdmissions` 별칭 `.or()` 통합
+- `types.ts`: `UniversityInfo` + `AdmissionSearchResult.universityInfoMap`
+- `search/actions.ts`: 결과에 `universityInfoMap` 반환
+
+**UI** (`AlumniSearch.tsx`):
+- 공식 이름이 다르면 괄호 표시: "KAIST (한국과학기술원)"
+- 설립유형 배지 (국립/사립)
+- 홈페이지 ExternalLink 아이콘
+
+**테스트**: 9개 (양방향 해석, 캠퍼스 그룹, 국립접두사, 대소문자, 빈배열)
+
+---
+
+### Phase 8.6 — 졸업생 입시 DB 검색 ✅ 완료
+
+> **완료일**: 2026-03-19
+
+**검색 기능** (`lib/domains/admission/search/`):
+- `constants.ts`: 필터 상수 — 지역 74개, 계열 5개, 전형 5개
+- `actions.ts`: `searchAdmissionsAction` Server Action (requireAdminOrConsultant)
+- `repository.ts`: `searchAdmissions` — ilike + eq 필터 + 페이지네이션 (count + data 병렬)
+
+**타입** (`types.ts`):
+- `AdmissionSearchFilter`: universityName, departmentName, region, departmentType, admissionType, dataYear
+- `AdmissionSearchRow`: DB 행 camelCase 매핑 (25개 필드)
+- `AdmissionSearchResult`: rows + total + page + pageSize + totalPages + universityInfoMap
+
+**Query Options** (`lib/query-options/admissionSearch.ts`):
+- `admissionSearchQueryOptions`: enabled:false (수동 refetch), staleTime 5분, gcTime 10분
+
+**UI** (`AlumniSearch.tsx`):
+- `SearchForm`: 대학명/학과명 텍스트 + 지역/계열/전형 드롭다운 + Enter 검색
+- `SearchResults`: 총 N건 + 카드 목록 + 페이지네이션
+- `AdmissionCard`: 펼침식 — 전형 배지(5색) + 메타 그리드(14항목) + 경쟁률/입결/충원 테이블
+- `Pagination`: 최대 5페이지 번호 표시
+
+---
+
 ### Phase 9 — AI 활동 지원 3모드 + Report
 
 > **목표**: AI 활동 요약서 + 세특 방향 가이드 + 수시 Report 자동 생성
 
 | 모드 | 대상 | 출력 | AI |
 |------|------|------|-----|
-| A. 활동 요약서 | 학생 → 교사 제출 | 학생 관점 정리본 | Claude standard |
-| B. 세특 방향 가이드 | 컨설턴트 내부용 | 핵심 역량·키워드 | Claude standard |
+| A. 활동 요약서 ✅ | 학생 → 교사 제출 | 학생 관점 정리본 | Gemini standard |
+| B. 세특 방향 가이드 ✅ | 컨설턴트 내부용 | 핵심 역량·키워드 | Gemini standard |
 | C. 활동 가이드 | 학생 직접 사용 | 탐구 수행 안내서 | 불필요 (DB 원본) |
 
 **수시 Report**: StudentRecordFull → HTML → Word/PDF 자동 생성
+
+---
+
+### Phase 9.1~9.1d — 수시 Report 자동 생성 ✅ 완료
+
+> **완료일**: 2026-03-19 (9.1~9.1d 동일 세션)
+
+**기술 선택**: HTML 인쇄 최적화 + `window.print()` (PDF 저장)
+- npm 의존성 0개 (Vercel Hobby 1GB 제한 호환)
+- 기존 서비스 함수 100% 재사용, 새 DB 테이블 없음
+- 엑셀 진단Report Sheet 4+9+10 **전부 커버**
+
+**서브 Phase 이력**:
+| Phase | 내용 |
+|-------|------|
+| 9.1 | 기본 7개 섹션 (Cover/Score/Competency/Diagnosis/Mock/Application/Strategy) |
+| 9.1b | +StorylineSection, +WarningSection, CompetencySection narrative+evidence 보강, DiagnosisSection 추천전공+이수적합 확장, ApplicationSection 경쟁률+면접+수능최저 |
+| 9.1c | CompetencySection 루브릭 Q&A + evidence_summary 텍스트 표시, DiagnosisSection 추천교과목(일반/진로) |
+| 9.1d | 42행 루브릭 질문별 분석 그리드 (`rubric-matcher.ts` 문자열 역매핑, DB 변경 없음) |
+
+**Server Action** (`lib/domains/student-record/actions/report.ts`):
+- `fetchReportData(studentId)` → `ActionResponse<ReportData>`
+- `requireAdminOrConsultant()` 가드
+- `Promise.all` 병렬 호출: internalAnalysis + internalScores + mockAnalysis + recordTabData×학년 수
+- 2차 병렬: diagnosisData + storylineData + strategyData
+
+**ReportData 타입** (action 파일 인라인 정의):
+- `student`: name, schoolName, grade, className, targetMajor
+- `internalAnalysis`: totalGpa, adjustedGpa, zIndex, subjectStrength
+- `internalScores`: 과목별 상세 (등급, 환산, 조정등급, 추정백분위)
+- `mockAnalysis`: 평균백분위, 표준점수합, 등급합
+- `recordDataByGrade`: 학년별 세특/창체/행특/독서/출결
+- `diagnosisData`: 역량평가(AI/컨설턴트), 진단, 이수적합도, activityTags
+- `storylineData` / `strategyData`: 스토리라인, 지원현황+최저시뮬
+
+**9개 Report 섹션** (`app/.../report/sections/`):
+| # | 컴포넌트 | 주요 내용 | 엑셀 대응 |
+|---|----------|----------|----------|
+| 1 | `CoverSection.tsx` | 학생명, 학교, 학년, 컨설턴트, 날짜 | - |
+| 2 | `ScoreSection.tsx` | GPA 요약(3카드) + 교과군별 + 과목별 상세 | - |
+| 3 | `CompetencySection.tsx` | 10항목 등급요약 + 항목별 narrative + **42행 루브릭 질문별 그리드**(+/-/근거) | **Sheet 4+9** |
+| 4 | `DiagnosisSection.tsx` | 종합등급/방향/강도 + 강점·약점 + 추천전공 + **추천교과목(일반/진로)** + 이수적합도 확장 | **Sheet 10** |
+| 5 | `StorylineSection.tsx` | 스토리라인 카드(강도+키워드+학년별 테마) + 로드맵 테이블 | - |
+| 6 | `MockSection.tsx` | 평균백분위, 표준점수합, 상위3등급합 | - |
+| 7 | `ApplicationSection.tsx` | 지원리스트(경쟁률+면접일) + 면접충돌 + **수능최저 시뮬레이션** | - |
+| 8 | `StrategySection.tsx` | 우선순위/영역/내용/상태 테이블 | - |
+| 9 | `WarningSection.tsx` | 경보 엔진 결과(카테고리별 그룹+severity+제안) | - |
+
+**루브릭 역매핑** (`lib/domains/student-record/rubric-matcher.ts`):
+- `extractRubricQuestion()`: evidence_summary에서 `루브릭: ...` 추출
+- `findRubricQuestionIndex()`: 정확→접두사→포함 3단계 매칭
+- `aggregateTagsByQuestion()`: 항목별 태그를 42개 질문별 집계
+
+**GPA null 처리** (2022 성취평가제):
+- `totalGpa=null` → `adjustedGpa` 표시 + "조정등급 기준" 표기
+- 둘 다 null → "산출 불가", 성취도: `B(≈3등급)` 형식
+
+**인쇄 최적화** (`app/globals.css` + `RoleBasedLayout.tsx`):
+- `@media print`: A4 세로 15mm/12mm, 라이트 강제, nav 숨김
+- `print-break-before` / `print-avoid-break` 클래스
+
+**라우트**: `/admin/students/[id]/report` (새 탭)
+- `StudentRecordClient.tsx`에 "Report 생성" 버튼 (사이드바 하단)
+
+---
+
+### Phase 9.2 — AI 활동 요약서 ✅ 완료
+
+> **완료일**: 2026-03-19
+
+**목적**: 학생이 담임교사에게 제출할 활동 정리본 자동 생성 (학생 관점 1인칭)
+
+**구현**:
+- LLM: Gemini standard (temperature 0.3)
+- 7개 섹션: intro / subject_setek / personal_setek / changche / reading / haengteuk / growth
+- DB: `student_record_activity_summaries` 테이블 (prompt_version: `v1`)
+- 상태: draft → confirmed → published (학생 공개)
+
+**주요 파일**:
+| 파일 | 역할 |
+|------|------|
+| `llm/prompts/activitySummary.ts` | 시스템/사용자 프롬프트 + JSON 파서 |
+| `llm/actions/generateActivitySummary.ts` | Server Action (fetchReportData → Gemini → DB) |
+| `actions/activitySummary.ts` | CRUD (fetch/status/edit/delete) |
+| `ActivitySummaryPanel.tsx` | Admin UI (생성/편집/상태전환/삭제) |
+
+---
+
+### Phase 9.3 — 세특 방향 가이드 ✅ 완료
+
+> **완료일**: 2026-03-19
+
+**목적**: 컨설턴트 내부용 과목별 세특 작성 방향 제안 (학생/학부모 비공개)
+
+**설계 결정**:
+- DB: `student_record_activity_summaries` 재사용 (prompt_version: `guide_v1`, 신규 테이블 X)
+- LLM: Gemini standard (설계 문서의 Claude standard → 프로젝트 Gemini 통일)
+- 입력: RecordTabData(세특+창체) + DiagnosisTabData(역량점수+강점/약점) + StorylineTabData
+- 상태: draft → confirmed만 (published 불필요 — 내부용)
+
+**출력 구조** (과목별 JSON):
+```json
+{
+  "title": "세특 방향 가이드",
+  "guides": [{
+    "subjectName": "수학",
+    "keywords": ["미적분 응용", "실생활 모델링"],
+    "competencyFocus": ["academic_inquiry"],
+    "direction": "서술 방향 3-5문장",
+    "cautions": "주의사항",
+    "teacherPoints": ["교사 전달 포인트"]
+  }],
+  "overallDirection": "전체 방향 요약"
+}
+```
+
+**주요 파일**:
+| 파일 | 역할 |
+|------|------|
+| `types.ts` | `SetekGuideItem` 타입 |
+| `llm/types.ts` | `SetekGuideInput` / `SetekGuideResult` |
+| `llm/prompts/setekGuide.ts` | 시스템/사용자 프롬프트 + JSON 파서 |
+| `llm/actions/generateSetekGuide.ts` | Server Action |
+| `actions/activitySummary.ts` | `fetchSetekGuides()` (prompt_version 필터) |
+| `SetekGuidePanel.tsx` | Admin UI (과목별 카드: 키워드 pill + 방향 + 교사 포인트) |
+
+**StudentRecordClient 위치**: 설계 스테이지 > 활동 요약서 다음 (`sec-setek-guide`)
 
 ---
 
@@ -1200,7 +1398,7 @@ Phase B (오케스트레이터 + Agent 1·4 래핑)
 **병렬 가능 조합**:
 - Phase 3.5 + Phase 4 + Phase 4.5 (모두 Phase 3 이후, 상호 독립)
 - Phase 6.5 + Phase 7 (모두 Phase 6 이후)
-- Phase 8.3 + Phase 8.4 + Phase 8.6 (모두 Phase 8.1 이후)
+- Phase 8.3 ✅ + Phase 8.4 ⏸ + Phase 8.6 ✅ (모두 Phase 8.1 이후)
 - CMS C1~C5 전체 (메인 트랙과 독립)
 - Agent A~B (메인/CMS 트랙과 독립, 즉시 착수 가능)
 
@@ -1215,9 +1413,12 @@ Phase B (오케스트레이터 + Agent 1·4 래핑)
 | `003_extended_features.sql` | 1c | 9 | 메인 |
 | `004_diagnosis.sql` | 5 | 4 | 메인 |
 | `005_admission_db.sql` | 8.1 | 2 | 메인 |
+| `admission_score_engine.sql` | 8.2 | 3 | 메인 |
+| `percentage_conversions.sql` | 8.2b | 1 | 메인 |
+| `university_name_aliases.sql` | 8.3 | 1 | 메인 |
 | `C01_guide_tables.sql` | C1 | 5 | CMS |
 | `C02_guide_feedback.sql` | C4 | 1 | CMS |
-| **총** | | **32** | |
+| **총** | | **37** | |
 
 각 마이그레이션에 대응하는 `down_*.sql` 사전 작성. Supabase 브랜치에서 테스트 후 프로덕션 적용.
 

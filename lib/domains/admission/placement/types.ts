@@ -44,6 +44,23 @@ export interface HistoricalComparison {
   score: number | null;
 }
 
+/** 충원 확률 등급 */
+export type ReplacementProbabilityLevel = "high" | "moderate" | "low" | "none";
+
+/** 충원 분석 정보 (Phase 8.5c) */
+export interface ReplacementInfo {
+  /** 연도별 충원 인원 */
+  historicalCounts: { year: string; count: number }[];
+  /** 평균 충원 인원 */
+  averageCount: number;
+  /** 충원 합격 확률 (0-1) */
+  probability: number;
+  /** 확률 등급 */
+  probabilityLevel: ReplacementProbabilityLevel;
+  /** 안내 메시지 */
+  message: string;
+}
+
 /** 단일 대학 배치 판정 결과 */
 export interface PlacementVerdict {
   universityName: string;
@@ -66,6 +83,8 @@ export interface PlacementVerdict {
   notes: string[];
   /** 원본 환산 결과 */
   calculationResult: ScoreCalculationResult;
+  /** 충원 분석 (데이터 있을 때만, Phase 8.5c) */
+  replacementInfo: ReplacementInfo | null;
 }
 
 /** 배치 분석 필터 */
@@ -94,4 +113,30 @@ export interface PlacementAnalysisResult {
   verdicts: PlacementVerdict[];
   /** 요약 */
   summary: PlacementSummary;
+}
+
+// ============================================
+// Phase 8.5b: 가채점/실채점 비교
+// ============================================
+
+/** 점수 유형 (가채점 / 실채점) */
+export type ExamType = "estimated" | "actual";
+
+/** 배치 분석 스냅샷 */
+export interface PlacementSnapshot {
+  examType: ExamType;
+  analyzedAt: string; // ISO datetime
+  result: PlacementAnalysisResult;
+}
+
+/** 가채점 → 실채점 변동 내역 */
+export interface PlacementChange {
+  universityName: string;
+  departmentName: string;
+  estimatedLevel: PlacementLevel;
+  actualLevel: PlacementLevel;
+  /** 실채점 점수 - 가채점 점수 */
+  scoreDiff: number;
+  /** 판정 레벨 변동 여부 */
+  levelChanged: boolean;
 }

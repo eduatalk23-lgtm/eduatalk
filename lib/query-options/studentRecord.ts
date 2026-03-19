@@ -96,3 +96,24 @@ export function storylineTabQueryOptions(studentId: string, schoolYear: number) 
     enabled: !!studentId,
   });
 }
+
+// ============================================
+// Phase 9.1: Report
+// ============================================
+
+export function reportDataQueryOptions(studentId: string) {
+  return queryOptions({
+    queryKey: [...studentRecordKeys.all, "report", studentId] as const,
+    queryFn: async () => {
+      const { fetchReportData } = await import(
+        "@/lib/domains/student-record/actions/report"
+      );
+      const result = await fetchReportData(studentId);
+      if (!result.success) throw new Error(result.error);
+      return result.data!;
+    },
+    staleTime: 60_000,
+    gcTime: 10 * 60_000,
+    enabled: !!studentId,
+  });
+}

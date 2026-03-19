@@ -127,6 +127,75 @@ export interface RestrictionImportRow {
   description: string | null;
 }
 
+// ── Phase 8.3: 대학 공식 정보 ────────────────
+
+/** universities 테이블의 공식 대학 정보 */
+export interface UniversityInfo {
+  id: number;
+  nameKor: string;
+  nameEng: string | null;
+  homepageUrl: string | null;
+  establishmentType: string | null;
+}
+
+// ── Phase 8.6: 졸업생 DB 검색 타입 ────────────────
+
+/** 검색 필터 */
+export interface AdmissionSearchFilter {
+  universityName?: string;
+  departmentName?: string;
+  region?: string;
+  departmentType?: string;
+  admissionType?: string;
+  dataYear?: number;
+}
+
+/** 페이지네이션 파라미터 */
+export interface PaginationParams {
+  page: number;
+  pageSize: number;
+}
+
+/** DB 행 camelCase 매핑 */
+export interface AdmissionSearchRow {
+  id: string;
+  dataYear: number;
+  region: string | null;
+  universityName: string;
+  departmentType: string | null;
+  departmentName: string;
+  admissionType: string | null;
+  admissionName: string | null;
+  eligibility: string | null;
+  recruitmentCount: string | null;
+  yearChange: string | null;
+  changeDetails: string | null;
+  minScoreCriteria: string | null;
+  selectionMethod: string | null;
+  requiredDocs: string | null;
+  dualApplication: string | null;
+  gradeWeight: string | null;
+  subjectsReflected: string | null;
+  careerSubjects: string | null;
+  notes: string | null;
+  examDate: string | null;
+  competitionRates: CompetitionRates;
+  competitionChange: string | null;
+  admissionResults: AdmissionResults;
+  replacements: Replacements;
+}
+
+/** 페이지네이션 포함 검색 결과 */
+export interface AdmissionSearchResult {
+  rows: AdmissionSearchRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  /** 대학명 → 공식 대학 정보 매핑 (별칭 해석 결과) */
+  universityInfoMap?: Record<string, UniversityInfo | null>;
+}
+
 /** Import 결과 */
 export interface ImportResult {
   total: number;

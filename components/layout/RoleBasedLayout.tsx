@@ -23,16 +23,18 @@ export function RoleBasedLayout({
       <div className="flex flex-col min-h-dvh bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))]">
         {/* TopBar - fixed, 64px */}
         {showSidebar && (
-          <TopBar
-            role={role}
-            dashboardHref={dashboardHref}
-            roleLabel={roleLabel}
-            userName={userName}
-            profileImageUrl={profileImageUrl}
-            userEmail={userEmail}
-            userId={userId}
-            tenantInfo={tenantInfo}
-          />
+          <div className="print:hidden">
+            <TopBar
+              role={role}
+              dashboardHref={dashboardHref}
+              roleLabel={roleLabel}
+              userName={userName}
+              profileImageUrl={profileImageUrl}
+              userEmail={userEmail}
+              userId={userId}
+              tenantInfo={tenantInfo}
+            />
+          </div>
         )}
 
         {/* Main content area */}
@@ -49,13 +51,15 @@ export function RoleBasedLayout({
 
         {/* Mobile Sidebar Drawer */}
         {showSidebar && (
-          <MobileSidebar
-            role={role}
-            dashboardHref={dashboardHref}
-            roleLabel={roleLabel}
-            tenantInfo={tenantInfo}
-            userName={userName}
-          />
+          <div className="print:hidden">
+            <MobileSidebar
+              role={role}
+              dashboardHref={dashboardHref}
+              roleLabel={roleLabel}
+              tenantInfo={tenantInfo}
+              userName={userName}
+            />
+          </div>
         )}
       </div>
     </TopBarCenterSlotProvider>

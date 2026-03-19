@@ -251,6 +251,17 @@ function ApplicationCard({
         </span>
       </div>
 
+      {application.score_type && (
+        <span className={cn(
+          "mt-1 inline-block rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+          application.score_type === "estimated"
+            ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+            : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+        )}>
+          {application.score_type === "estimated" ? "가채점" : "실채점"}
+        </span>
+      )}
+
       {application.interview_date && (
         <p className="mt-1 text-xs text-[var(--text-tertiary)]">
           면접: {application.interview_date}
@@ -325,9 +336,11 @@ function AddApplicationForm({
   const [universityName, setUniversityName] = useState("");
   const [department, setDepartment] = useState("");
   const [interviewDate, setInterviewDate] = useState("");
+  const [scoreType, setScoreType] = useState<string>("");
   const queryClient = useQueryClient();
 
   const isEarly = round.startsWith("early_");
+  const isRegular = round.startsWith("regular_");
   const earlyFull = isEarly && earlyCount >= MAX_EARLY;
 
   const mutation = useMutation({
@@ -342,6 +355,7 @@ function AddApplicationForm({
         university_name: universityName.trim(),
         department: department.trim(),
         interview_date: interviewDate || null,
+        score_type: isRegular && scoreType ? scoreType : null,
       });
       if (!result.success) throw new Error("error" in result ? result.error : "추가 실패");
       return result;
@@ -362,7 +376,7 @@ function AddApplicationForm({
         <p className="mb-2 text-xs text-red-600">수시 6장이 모두 등록되어 있습니다. 정시/기타만 추가 가능합니다.</p>
       )}
       <div className="flex flex-col gap-3">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className={cn("grid grid-cols-2 gap-3", isRegular ? "sm:grid-cols-5" : "sm:grid-cols-4")}>
           <select
             value={round}
             onChange={(e) => setRound(e.target.value)}
@@ -393,6 +407,17 @@ function AddApplicationForm({
             className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
             placeholder="면접일"
           />
+          {isRegular && (
+            <select
+              value={scoreType}
+              onChange={(e) => setScoreType(e.target.value)}
+              className="rounded-md border border-gray-200 bg-white px-2 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            >
+              <option value="">점수 유형</option>
+              <option value="estimated">가채점</option>
+              <option value="actual">실채점</option>
+            </select>
+          )}
         </div>
         <div className="flex justify-end">
           <button

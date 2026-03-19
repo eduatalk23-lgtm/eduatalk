@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
@@ -42,6 +43,10 @@ import { DiagnosisComparisonView } from "./DiagnosisComparisonView";
 import { CourseAdequacyDisplay } from "./CourseAdequacyDisplay";
 import { StrategyEditor as StrategyEditorPanel } from "./StrategyEditor";
 import { PlacementDashboard } from "./PlacementDashboard";
+import { AllocationSimulator } from "./AllocationSimulator";
+import { AlumniSearch } from "./AlumniSearch";
+import { ActivitySummaryPanel } from "./ActivitySummaryPanel";
+import { SetekGuidePanel } from "./SetekGuidePanel";
 
 type Subject = {
   id: string;
@@ -126,6 +131,8 @@ const STAGES: StageConfig[] = [
       { id: "sec-storyline", label: "스토리라인" },
       { id: "sec-roadmap", label: "로드맵" },
       { id: "sec-compensation", label: "보완전략" },
+      { id: "sec-activity-summary", label: "활동 요약서" },
+      { id: "sec-setek-guide", label: "세특 방향 가이드" },
     ],
   },
   {
@@ -137,7 +144,9 @@ const STAGES: StageConfig[] = [
       { id: "sec-applications", label: "지원현황" },
       { id: "sec-minscore", label: "최저시뮬" },
       { id: "sec-placement", label: "배치 분석" },
+      { id: "sec-allocation", label: "배분 시뮬" },
       { id: "sec-interview", label: "면접 질문" },
+      { id: "sec-alumni", label: "졸업생 DB" },
     ],
   },
 ];
@@ -389,6 +398,17 @@ export function StudentRecordClient({
         >
           PDF 가져오기
         </button>
+      </div>
+
+      {/* Report 생성 */}
+      <div className="mt-2">
+        <Link
+          href={`/admin/students/${studentId}/report`}
+          target="_blank"
+          className="block w-full rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-center text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50"
+        >
+          Report 생성
+        </Link>
       </div>
     </div>
   );
@@ -902,6 +922,22 @@ export function StudentRecordClient({
             )}
           </StrategySection>
 
+          {/* ─── 활동 요약서 ──────────────────────── */}
+          <StrategySection id="sec-activity-summary" title="활동 요약서">
+            <ActivitySummaryPanel
+              studentId={studentId}
+              studentGrade={studentGrade}
+            />
+          </StrategySection>
+
+          {/* ─── 세특 방향 가이드 ─────────────────── */}
+          <StrategySection id="sec-setek-guide" title="세특 방향 가이드">
+            <SetekGuidePanel
+              studentId={studentId}
+              studentGrade={studentGrade}
+            />
+          </StrategySection>
+
           {/* ─── 🎯 전략 스테이지 구분선 ──────────── */}
           <StageDivider emoji="🎯" label="전략" />
 
@@ -935,8 +971,21 @@ export function StudentRecordClient({
             <PlacementDashboard studentId={studentId} />
           </StrategySection>
 
+          <StrategySection id="sec-allocation" title="수시 6장 배분 시뮬레이션">
+            {anySuppLoading ? <SectionSkeleton /> : (
+              <AllocationSimulator
+                studentId={studentId}
+                existingApplications={mergedSupplementary.applications}
+              />
+            )}
+          </StrategySection>
+
           <StrategySection id="sec-interview" title="면접 예상 질문">
             <InterviewQuestionPanel records={allRecordSummaries} />
+          </StrategySection>
+
+          <StrategySection id="sec-alumni" title="졸업생 입시 DB 검색">
+            <AlumniSearch />
           </StrategySection>
 
           <div className="h-24" />

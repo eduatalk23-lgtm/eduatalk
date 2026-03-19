@@ -126,3 +126,63 @@ export interface SuggestStrategiesResult {
   /** 전체 요약 */
   summary: string;
 }
+
+// ============================================
+// Phase 9.2: AI 활동 요약서 타입
+// ============================================
+
+/** generateActivitySummary 액션의 입력 */
+export interface ActivitySummaryInput {
+  studentName: string;
+  grade: number;
+  targetMajor?: string;
+  targetGrades: number[];
+  recordDataByGrade: Record<
+    number,
+    {
+      seteks: Array<{ subject_name: string; content: string }>;
+      personalSeteks: Array<{ title: string; content: string }>;
+      changche: Array<{ activity_type: string; content: string }>;
+      haengteuk: { content: string } | null;
+      readings: Array<{ book_title: string; book_author?: string }>;
+    }
+  >;
+  storylines?: Array<{ title: string; keywords: string[] }>;
+}
+
+/** generateActivitySummary 액션의 출력 */
+export interface ActivitySummaryResult {
+  title: string;
+  sections: import("../types").ActivitySummarySection[];
+  fullText: string;
+}
+
+// ============================================
+// Phase 9.3: 세특 방향 가이드 (컨설턴트 내부용)
+// ============================================
+
+/** generateSetekGuide 액션의 입력 */
+export interface SetekGuideInput {
+  studentName: string;
+  grade: number;
+  targetMajor?: string;
+  targetGrades: number[];
+  recordDataByGrade: Record<
+    number,
+    {
+      seteks: Array<{ subject_name: string; content: string }>;
+      changche: Array<{ activity_type: string; content: string }>;
+    }
+  >;
+  competencyScores?: Array<{ item: string; grade: string; narrative?: string }>;
+  storylines?: Array<{ title: string; keywords: string[] }>;
+  strengths?: string[];
+  weaknesses?: string[];
+}
+
+/** generateSetekGuide 액션의 출력 */
+export interface SetekGuideResult {
+  title: string;
+  guides: import("../types").SetekGuideItem[];
+  overallDirection: string;
+}

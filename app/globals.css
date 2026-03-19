@@ -1065,3 +1065,37 @@ input[type="number"] {
   touch-action: pan-y;
 }
 
+/* ============================================
+   Phase 9.1: Report Print Styles
+   ============================================ */
+
+@media print {
+  :root {
+    color-scheme: light !important;
+  }
+  .dark {
+    color-scheme: light !important;
+  }
+  nav,
+  aside,
+  [data-print-hide] {
+    display: none !important;
+  }
+  @page {
+    size: A4 portrait;
+    margin: 15mm 12mm;
+  }
+  .print-break-before {
+    break-before: page;
+  }
+  .print-avoid-break {
+    break-inside: avoid;
+  }
+  body {
+    background: white !important;
+    color: black !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
+

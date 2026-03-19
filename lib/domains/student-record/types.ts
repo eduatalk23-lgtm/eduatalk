@@ -293,6 +293,39 @@ export interface CourseAdequacyResult {
   careerRate: number;
 }
 
+// ============================================
+// Phase 9.2: 활동 요약서
+// ============================================
+
+export type ActivitySummaryStatus = "draft" | "confirmed" | "published";
+
+export interface ActivitySummarySection {
+  sectionType:
+    | "intro"
+    | "subject_setek"
+    | "personal_setek"
+    | "changche"
+    | "haengteuk"
+    | "reading"
+    | "growth";
+  title: string;
+  content: string;
+  relatedSubjects?: string[];
+}
+
+// ============================================
+// Phase 9.3: 세특 방향 가이드 (컨설턴트 내부용)
+// ============================================
+
+export interface SetekGuideItem {
+  subjectName: string;
+  keywords: string[];
+  competencyFocus: string[];
+  direction: string;
+  cautions: string;
+  teacherPoints: string[];
+}
+
 /** Server Action 응답 */
 export interface StudentRecordActionResult {
   success: boolean;

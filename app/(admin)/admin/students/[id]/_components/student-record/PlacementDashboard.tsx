@@ -15,8 +15,9 @@ import type {
   PlacementVerdict,
   PlacementAnalysisResult,
 } from "@/lib/domains/admission";
+import type { ExamType, PlacementSnapshot, PlacementChange, ReplacementInfo } from "@/lib/domains/admission/placement/types";
 import type { MockScoreInput } from "@/lib/domains/admission/placement/score-converter";
-import { filterVerdicts } from "@/lib/domains/admission/placement/engine";
+import { filterVerdicts, compareSnapshots } from "@/lib/domains/admission/placement/engine";
 import { placementAnalysisQueryOptions } from "@/lib/query-options/placement";
 import {
   SCIENCE_INQUIRY,
@@ -35,6 +36,9 @@ const INQUIRY_SUBJECTS = [...SOCIAL_INQUIRY, ...SCIENCE_INQUIRY];
 
 export function PlacementDashboard({ studentId }: PlacementDashboardProps) {
   const [scoreInput, setScoreInput] = useState<MockScoreInput>(createEmptyMockScoreInput);
+  const [examType, setExamType] = useState<ExamType>("estimated");
+  const [estimatedSnapshot, setEstimatedSnapshot] = useState<PlacementSnapshot | null>(null);
+  const [actualSnapshot, setActualSnapshot] = useState<PlacementSnapshot | null>(null);
   const queryClient = useQueryClient();
 
   const suneungScores = useMemo(() => {
@@ -54,8 +58,57 @@ export function PlacementDashboard({ studentId }: PlacementDashboardProps) {
     refetch();
   }, [suneungScores, refetch, queryClient, studentId]);
 
+  // 분석 완료 시 현재 examType에 맞는 스냅샷 저장
+  useMemo(() => {
+    if (!data) return;
+    const snapshot: PlacementSnapshot = {
+      examType,
+      analyzedAt: new Date().toISOString(),
+      result: data,
+    };
+    if (examType === "estimated") {
+      setEstimatedSnapshot(snapshot);
+    } else {
+      setActualSnapshot(snapshot);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
+
+  // 비교 결과
+  const comparisonChanges = useMemo<PlacementChange[] | null>(() => {
+    if (!estimatedSnapshot || !actualSnapshot) return null;
+    return compareSnapshots(estimatedSnapshot, actualSnapshot);
+  }, [estimatedSnapshot, actualSnapshot]);
+
   return (
     <div className="flex flex-col gap-6">
+      {/* 가채점/실채점 토글 */}
+      <div className="flex items-center gap-4">
+        <div className="flex rounded-lg border border-[var(--border-primary)] bg-[var(--surface-secondary)] p-0.5">
+          {(["estimated", "actual"] as const).map((type) => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => setExamType(type)}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                examType === type
+                  ? "bg-[var(--surface-primary)] text-[var(--text-primary)] shadow-sm"
+                  : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]",
+              )}
+            >
+              {type === "estimated" ? "가채점" : "실채점"}
+            </button>
+          ))}
+        </div>
+        {estimatedSnapshot && (
+          <span className="text-xs text-emerald-600">가채점 저장됨</span>
+        )}
+        {actualSnapshot && (
+          <span className="text-xs text-blue-600">실채점 저장됨</span>
+        )}
+      </div>
+
       <ScoreInputForm
         value={scoreInput}
         onChange={setScoreInput}
@@ -71,6 +124,11 @@ export function PlacementDashboard({ studentId }: PlacementDashboardProps) {
       )}
 
       {data && <PlacementResults data={data} />}
+
+      {/* 가채점 ↔ 실채점 비교 뷰 */}
+      {comparisonChanges && comparisonChanges.length > 0 && (
+        <ComparisonView changes={comparisonChanges} />
+      )}
     </div>
   );
 }
@@ -613,8 +671,141 @@ function PlacementCard({ verdict }: { verdict: PlacementVerdict }) {
               ))}
             </div>
           )}
+
+          {/* 충원 분석 */}
+          {verdict.replacementInfo && (
+            <ReplacementSection info={verdict.replacementInfo} />
+          )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── 충원 분석 섹션 ─────────────────────────────
+
+const REPLACEMENT_PROB_COLORS: Record<
+  ReplacementInfo["probabilityLevel"],
+  { bg: string; text: string; darkBg: string; darkText: string }
+> = {
+  high: { bg: "bg-emerald-100", text: "text-emerald-700", darkBg: "dark:bg-emerald-900/30", darkText: "dark:text-emerald-300" },
+  moderate: { bg: "bg-amber-100", text: "text-amber-700", darkBg: "dark:bg-amber-900/30", darkText: "dark:text-amber-300" },
+  low: { bg: "bg-red-100", text: "text-red-700", darkBg: "dark:bg-red-900/30", darkText: "dark:text-red-300" },
+  none: { bg: "bg-gray-100", text: "text-gray-500", darkBg: "dark:bg-gray-800", darkText: "dark:text-gray-400" },
+};
+
+const REPLACEMENT_PROB_LABELS: Record<ReplacementInfo["probabilityLevel"], string> = {
+  high: "높음",
+  moderate: "보통",
+  low: "낮음",
+  none: "없음",
+};
+
+function ReplacementSection({ info }: { info: ReplacementInfo }) {
+  const colors = REPLACEMENT_PROB_COLORS[info.probabilityLevel];
+
+  return (
+    <div className="mt-2 rounded-md border border-[var(--border-secondary)] bg-[var(--surface-secondary)] p-2">
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+          충원
+        </span>
+        <span
+          className={cn(
+            "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+            colors.bg, colors.text, colors.darkBg, colors.darkText,
+          )}
+        >
+          {REPLACEMENT_PROB_LABELS[info.probabilityLevel]}
+          {info.probabilityLevel !== "none" && ` ${Math.round(info.probability * 100)}%`}
+        </span>
+        <span className="text-[10px] text-[var(--text-tertiary)]">{info.message}</span>
+      </div>
+
+      {/* 연도별 충원 인원 */}
+      <div className="mt-1 flex items-center gap-3 text-[10px] text-[var(--text-secondary)]">
+        {info.historicalCounts.map((c) => (
+          <span key={c.year}>{c.year}: {c.count}명</span>
+        ))}
+        <span className="text-[var(--text-tertiary)]">평균 {info.averageCount}명</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── 가채점/실채점 비교 뷰 ──────────────────────
+
+function ComparisonView({ changes }: { changes: PlacementChange[] }) {
+  const levelChanged = changes.filter((c) => c.levelChanged);
+  const improved = changes.filter((c) => c.scoreDiff > 0);
+  const declined = changes.filter((c) => c.scoreDiff < 0);
+
+  return (
+    <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 p-4 dark:border-indigo-800 dark:bg-indigo-950/20">
+      <h4 className="mb-3 text-sm font-medium text-[var(--text-primary)]">
+        가채점 → 실채점 비교
+      </h4>
+
+      {/* 요약 */}
+      <div className="mb-3 flex flex-wrap gap-3 text-xs">
+        <span className="text-[var(--text-secondary)]">총 {changes.length}개 학과</span>
+        <span className="text-emerald-600">상승 {improved.length}</span>
+        <span className="text-red-500">하락 {declined.length}</span>
+        <span className="text-amber-600">레벨 변동 {levelChanged.length}</span>
+      </div>
+
+      {/* 변동 테이블 */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-indigo-200 text-left text-[var(--text-tertiary)] dark:border-indigo-700">
+              <th className="py-1.5 pr-3">대학</th>
+              <th className="py-1.5 pr-3">학과</th>
+              <th className="py-1.5 pr-3 text-center">가채점</th>
+              <th className="py-1.5 pr-3 text-center">실채점</th>
+              <th className="py-1.5 text-right">점수 변동</th>
+            </tr>
+          </thead>
+          <tbody>
+            {changes.map((change, idx) => {
+              const estColors = PLACEMENT_COLORS[change.estimatedLevel];
+              const actColors = PLACEMENT_COLORS[change.actualLevel];
+              return (
+                <tr
+                  key={`${change.universityName}-${change.departmentName}-${idx}`}
+                  className={cn(
+                    "border-b border-indigo-100 last:border-0 dark:border-indigo-800",
+                    change.levelChanged && "bg-amber-50/50 dark:bg-amber-950/10",
+                  )}
+                >
+                  <td className="py-1.5 pr-3 font-medium text-[var(--text-primary)]">
+                    {change.universityName}
+                  </td>
+                  <td className="py-1.5 pr-3 text-[var(--text-secondary)]">
+                    {change.departmentName}
+                  </td>
+                  <td className="py-1.5 pr-3 text-center">
+                    <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-medium", estColors.bg, estColors.text, estColors.darkBg, estColors.darkText)}>
+                      {PLACEMENT_LABELS[change.estimatedLevel]}
+                    </span>
+                  </td>
+                  <td className="py-1.5 pr-3 text-center">
+                    <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-medium", actColors.bg, actColors.text, actColors.darkBg, actColors.darkText)}>
+                      {PLACEMENT_LABELS[change.actualLevel]}
+                    </span>
+                  </td>
+                  <td className={cn(
+                    "py-1.5 text-right tabular-nums font-medium",
+                    change.scoreDiff > 0 ? "text-emerald-600" : change.scoreDiff < 0 ? "text-red-500" : "text-[var(--text-tertiary)]",
+                  )}>
+                    {change.scoreDiff > 0 ? "+" : ""}{change.scoreDiff.toFixed(1)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
