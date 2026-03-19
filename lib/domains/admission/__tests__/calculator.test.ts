@@ -10,22 +10,26 @@ import type { SuneungScores, UniversityScoreConfig, ConversionTable, Restriction
 
 const mockScores: SuneungScores = {
   korean: 133,
+  koreanRaw: 100,        // 원점수 (ConversionTable lookup 키)
   mathCalculus: 121,
+  mathCalculusRaw: 90,   // 원점수
   mathGeometry: null,
+  mathGeometryRaw: null,
   mathStatistics: null,
-  english: 3,
-  history: 1,
-  inquiry: { "정치와법": 65, "사회·문화": 66 },
+  mathStatisticsRaw: null,
+  english: 3,            // 등급 = lookup 키
+  history: 1,            // 등급 = lookup 키
+  inquiry: { "정치와 법": 65, "사회·문화": 66 }, // 원점수 = lookup 키
   foreignLang: null,
 };
 
 const mockTable: ConversionTable = new Map([
-  ["국어-133", 270],
-  ["미적분-121", 240],
-  ["영어-3", 135],
-  ["한국사-1", 10],
-  ["정치와법-65", 130],
-  ["사회·문화-66", 135],
+  ["국어-100", 270],         // 원점수 기반
+  ["수학(미적)-90", 240],     // DB 과목명 + 원점수
+  ["영어-3", 135],           // 등급 기반
+  ["한국사-1", 10],          // 등급 기반
+  ["정치와 법-65", 130],      // 원점수 기반
+  ["사회·문화-66", 135],     // 원점수 기반
 ]);
 
 const baseConfig: UniversityScoreConfig = {
@@ -40,6 +44,7 @@ const baseConfig: UniversityScoreConfig = {
   foreignSubstitute: null,
   bonusRules: {},
   conversionType: "표+변",
+  scoringPath: "subject",
 };
 
 // ── resolveAllSubjects ──────────────────────
@@ -82,7 +87,8 @@ describe("resolveAllSubjects", () => {
 
   it("점수 없는 과목 → 0", () => {
     const emptyScores: SuneungScores = {
-      korean: null, mathCalculus: null, mathGeometry: null, mathStatistics: null,
+      korean: null, koreanRaw: null, mathCalculus: null, mathCalculusRaw: null,
+      mathGeometry: null, mathGeometryRaw: null, mathStatistics: null, mathStatisticsRaw: null,
       english: null, history: null, inquiry: {}, foreignLang: null,
     };
     const resolved = resolveAllSubjects(emptyScores, baseConfig, mockTable);
@@ -180,7 +186,7 @@ describe("checkRestrictions", () => {
     const rules: RestrictionRule[] = [{
       universityName: "서울대", departmentName: "기계공학부",
       restrictionType: "subject_req",
-      ruleConfig: { required_any: ["물리학Ⅰ", "화학Ⅰ"], min_count: 1 },
+      ruleConfig: { required_any: ["물리학 Ⅰ", "화학 Ⅰ"], min_count: 1 },
       description: "물리/화학 중 1과목 이상 필수",
     }];
     const result = checkRestrictions(mockScores, rules);
@@ -190,12 +196,12 @@ describe("checkRestrictions", () => {
   it("지정과목 충족 → eligible", () => {
     const scienceScores: SuneungScores = {
       ...mockScores,
-      inquiry: { "물리학Ⅰ": 65, "화학Ⅰ": 60 },
+      inquiry: { "물리학 Ⅰ": 65, "화학 Ⅰ": 60 },
     };
     const rules: RestrictionRule[] = [{
       universityName: "서울대", departmentName: "기계공학부",
       restrictionType: "subject_req",
-      ruleConfig: { required_any: ["물리학Ⅰ", "화학Ⅰ"], min_count: 1 },
+      ruleConfig: { required_any: ["물리학 Ⅰ", "화학 Ⅰ"], min_count: 1 },
       description: "물리/화학 중 1과목 이상 필수",
     }];
     const result = checkRestrictions(scienceScores, rules);
@@ -210,7 +216,8 @@ describe("calculateUniversityScore", () => {
     const result = calculateUniversityScore(mockScores, baseConfig, mockTable, []);
     expect(result.isEligible).toBe(true);
     expect(result.mandatoryScore).toBe(270 + 240 + 135 + 265); // 국+수+영+탐
-    expect(result.totalScore).toBe(910);
+    expect(result.bonusScore).toBe(10); // 한국사 가감점
+    expect(result.totalScore).toBe(920); // 910 + 한국사 10
   });
 
   it("필수+선택 — 국수 필수, 영탐(1)中택1 선택", () => {
@@ -223,12 +230,12 @@ describe("calculateUniversityScore", () => {
     expect(result.mandatoryScore).toBe(270 + 240);
     // 선택: MAX(영어135, 탐구1 135) = 135
     expect(result.optionalScore).toBe(135);
-    expect(result.totalScore).toBe(645);
+    expect(result.totalScore).toBe(655); // 645 + 한국사 10
   });
 
   it("결격 시 조기 반환 — 점수 0", () => {
     const noMath: SuneungScores = {
-      ...mockScores, mathCalculus: null, mathGeometry: null, mathStatistics: null,
+      ...mockScores, mathCalculus: null, mathCalculusRaw: null, mathGeometry: null, mathGeometryRaw: null, mathStatistics: null, mathStatisticsRaw: null,
     };
     const rules: RestrictionRule[] = [{
       universityName: "테스트대", departmentName: null,
@@ -242,7 +249,8 @@ describe("calculateUniversityScore", () => {
 
   it("모든 점수 null → 0점 (에러 없음)", () => {
     const empty: SuneungScores = {
-      korean: null, mathCalculus: null, mathGeometry: null, mathStatistics: null,
+      korean: null, koreanRaw: null, mathCalculus: null, mathCalculusRaw: null,
+      mathGeometry: null, mathGeometryRaw: null, mathStatistics: null, mathStatisticsRaw: null,
       english: null, history: null, inquiry: {}, foreignLang: null,
     };
     const result = calculateUniversityScore(empty, baseConfig, mockTable, []);

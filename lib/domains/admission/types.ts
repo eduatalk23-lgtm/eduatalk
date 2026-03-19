@@ -84,6 +84,49 @@ export interface YearMapping {
   year2: number;
 }
 
+// ── Phase 8.2 Import 타입 ────────────────
+
+/** 환산 설정 import 행 (COMPUTE 시트 → university_score_configs) */
+export interface ScoreConfigImportRow {
+  university_name: string;
+  mandatory_pattern: string | null;
+  optional_pattern: string | null;
+  weighted_pattern: string | null;
+  inquiry_count: number;
+  math_selection: string;
+  inquiry_selection: string;
+  history_substitute: string | null;
+  foreign_substitute: string | null;
+  bonus_rules: Record<string, unknown>;
+  conversion_type: string;
+  scoring_path: "subject" | "percentage";
+}
+
+/** 환산점수 변환 import 행 (SUBJECT3 시트 → university_score_conversions) */
+export interface ConversionImportRow {
+  university_name: string;
+  subject: string;
+  raw_score: number;
+  converted_score: number;
+}
+
+/** PERCENTAGE 변환 import 행 (PERCENTAGE 시트 → university_percentage_conversions) */
+export interface PercentageConversionImportRow {
+  university_name: string;
+  track: string;
+  percentile: number;
+  converted_score: number;
+}
+
+/** 결격사유 import 행 (RESTRICT 시트 → university_score_restrictions) */
+export interface RestrictionImportRow {
+  university_name: string;
+  department_name: string | null;
+  restriction_type: "no_show" | "grade_sum" | "subject_req";
+  rule_config: Record<string, unknown>;
+  description: string | null;
+}
+
 /** Import 결과 */
 export interface ImportResult {
   total: number;

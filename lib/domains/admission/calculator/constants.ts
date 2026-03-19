@@ -8,13 +8,13 @@ import type { SubjectSlot, ParsedMandatoryPattern, ParsedOptionalPattern, Parsed
 // ── 과목 분류 ──────────────────────────────
 
 export const SCIENCE_INQUIRY = [
-  "물리학Ⅰ", "물리학Ⅱ", "화학Ⅰ", "화학Ⅱ",
-  "생명과학Ⅰ", "생명과학Ⅱ", "지구과학Ⅰ", "지구과학Ⅱ",
+  "물리학 Ⅰ", "물리학 Ⅱ", "화학 Ⅰ", "화학 Ⅱ",
+  "생명과학 Ⅰ", "생명과학 Ⅱ", "지구과학 Ⅰ", "지구과학 Ⅱ",
 ] as const;
 
 export const SOCIAL_INQUIRY = [
-  "생활과윤리", "윤리와사상", "한국지리", "세계지리",
-  "동아시아사", "세계사", "경제", "정치와법", "사회·문화",
+  "생활과 윤리", "윤리와 사상", "한국지리", "세계지리",
+  "동아시아사", "세계사", "경제", "정치와 법", "사회·문화",
 ] as const;
 
 export const ALL_INQUIRY = [...SCIENCE_INQUIRY, ...SOCIAL_INQUIRY] as const;

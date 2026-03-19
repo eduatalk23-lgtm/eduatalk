@@ -4,9 +4,9 @@
 // ============================================
 
 import type { SuneungScores, UniversityScoreConfig, ConversionTable, ResolvedScores, SubjectSlot } from "./types";
-import { SCIENCE_INQUIRY, SOCIAL_INQUIRY, MATH_VARIANTS } from "./constants";
+import { SCIENCE_INQUIRY, SOCIAL_INQUIRY } from "./constants";
 
-/** 변환 테이블에서 과목+점수 → 환산점수 조회 */
+/** 변환 테이블에서 과목+원점수 → 환산점수 조회 */
 function lookup(table: ConversionTable, subject: string, rawScore: number): number {
   return table.get(`${subject}-${rawScore}`) ?? 0;
 }
@@ -19,15 +19,16 @@ function resolveMath(
 ): { variant: string; raw: number; converted: number } {
   const candidates: { variant: string; raw: number; converted: number }[] = [];
 
-  const variants: { key: keyof SuneungScores; name: string; allowed: boolean }[] = [
-    { key: "mathCalculus", name: "미적분", allowed: config.mathSelection !== "na" },
-    { key: "mathGeometry", name: "기하", allowed: config.mathSelection !== "na" },
-    { key: "mathStatistics", name: "확률과통계", allowed: config.mathSelection !== "ga" },
+  // DB/SUBJECT3 과목명에 맞춤: "수학(미적)", "수학(기하)", "수학(확통)"
+  const variants: { rawKey: keyof SuneungScores; name: string; allowed: boolean }[] = [
+    { rawKey: "mathCalculusRaw", name: "수학(미적)", allowed: config.mathSelection !== "na" },
+    { rawKey: "mathGeometryRaw", name: "수학(기하)", allowed: config.mathSelection !== "na" },
+    { rawKey: "mathStatisticsRaw", name: "수학(확통)", allowed: config.mathSelection !== "ga" },
   ];
 
   for (const v of variants) {
     if (!v.allowed) continue;
-    const raw = scores[v.key] as number | null;
+    const raw = scores[v.rawKey] as number | null;
     if (raw == null) continue;
     candidates.push({ variant: v.name, raw, converted: lookup(table, v.name, raw) });
   }
@@ -69,13 +70,13 @@ export function resolveAllSubjects(
   config: UniversityScoreConfig,
   table: ConversionTable,
 ): ResolvedScores {
-  // 국어
-  const koreanConverted = scores.korean != null ? lookup(table, "국어", scores.korean) : 0;
+  // 국어 (원점수로 lookup)
+  const koreanConverted = scores.koreanRaw != null ? lookup(table, "국어", scores.koreanRaw) : 0;
 
-  // 수학 (MAX)
+  // 수학 (MAX, 원점수로 lookup)
   const mathResult = resolveMath(scores, config, table);
 
-  // 영어 (등급 기반)
+  // 영어 (등급 기반 — 등급이 곧 lookup 키)
   const englishConverted = scores.english != null ? lookup(table, "영어", scores.english) : 0;
 
   // 한국사 (등급 기반)

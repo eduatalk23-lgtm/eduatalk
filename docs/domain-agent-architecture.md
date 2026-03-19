@@ -1,0 +1,972 @@
+# 입시 컨설팅 도메인 에이전트 아키텍처
+
+> 작성일: 2026-03-19
+> 버전: 1.0
+> 상태: 설계 완료, 미착수
+> 기반: `student-record-roadmap.md`, `student-record-implementation-plan.md` v5, `student-record-extension-design.md` v6
+
+---
+
+## 1. 개요
+
+### 1.1 목적
+
+TimeLevelUp의 입시 컨설팅 기능을 6개 전문 도메인 에이전트 + 1개 오케스트레이터로 구조화하여,
+컨설턴트와 학생이 자연어로 상호작용할 수 있는 AI 어시스턴트 시스템을 구축한다.
+
+### 1.2 현재 상태 (2026-03-19)
+
+| 영역 | 현황 |
+|------|------|
+| **LLM 프로바이더** | Gemini / Claude / OpenAI 3중 추상화 완성 (자체 구현) |
+| **스트리밍** | SSE 기반 자체 구현 (ReadableStream + TextEncoder) |
+| **검색 전략** | Gemini Grounding (웹 검색) — 전통적 RAG 아님 |
+| **벡터 인프라** | pgvector 미활성화, 임베딩 없음 |
+| **도메인 AI** | plan LLM (콜드스타트, 플랜생성) + student-record LLM (Phase 5~7 완료) + admission (Phase 8.1~8.2 완료) |
+| **Tool Calling** | 미구현 — 에이전트 구축의 핵심 갭 |
+| **멀티턴 대화** | 미구현 — 단발 호출만 |
+
+### 1.3 아키텍처 결정 근거
+
+**현재 Phase에서 RAG 불필요, 에이전트 레이어가 우선:**
+
+| 판단 근거 | 상세 |
+|-----------|------|
+| 도메인 지식 크기 | 42개 루브릭(~800 토큰) + 18개 계열 추천교과(~2,000 토큰) → 컨텍스트에 충분 |
+| 세특 텍스트 길이 | 500자 제한 → 이미 최적 청크 크기, 별도 청킹 불필요 |
+| 학생 수 | 84명 → 시맨틱 캐시 과잉, exact-match 캐시로 충분 |
+| 월 비용 | Gemini Flash로 전체 분석 시 ~$0.25/월 → 예산($30~50) 대비 극도 여유 |
+
+**RAG가 필요해지는 시점:**
+- **C1** (탐구 가이드 DB 이관): 7,836건 비정형 텍스트 → 벡터 검색 필수
+- **Phase 8.1** (대학 입시 DB): 26,777건 입시 데이터 → 하이브리드 검색 필요
+- 졸업생 사례 축적 시 (2,000건+): 유사 프로필 매칭
+
+---
+
+## 2. 전체 아키텍처
+
+### 2.1 에이전트 구조도
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    🎯 Orchestrator (라우터)                      │
+│         "자연어 질문 분석 → 적절한 전문 에이전트로 위임"           │
+│         모델: Gemini Flash (빠른 분류)                           │
+└──────┬────────┬────────┬────────┬────────┬────────┬────────────┘
+       │        │        │        │        │        │
+       ▼        ▼        ▼        ▼        ▼        ▼
+   ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐
+   │ 📊   │ │ 🔬   │ │ 🎓   │ │ 📋   │ │ 🎤   │ │ 📝   │
+   │Agent1│ │Agent2│ │Agent3│ │Agent4│ │Agent5│ │Agent6│
+   │생기부 │ │탐구   │ │입시   │ │전략   │ │면접   │ │리포트 │
+   │분석   │ │가이드 │ │배치   │ │수립   │ │대비   │ │생성   │
+   │      │ │(CMS) │ │      │ │      │ │      │ │      │
+   │Phase │ │C1~C5 │ │Phase │ │Phase │ │Phase │ │Phase │
+   │5~7   │ │      │ │8.1~  │ │7     │ │6.5   │ │9     │
+   └──────┘ └──────┘ └──────┘ └──────┘ └──────┘ └──────┘
+```
+
+### 2.2 에이전트 간 데이터 흐름
+
+```
+Agent 1 (생기부 분석)
+  │ 역량 진단, 강약점
+  ├──────────────────→ Agent 4 (전략): 약점 기반 보완 전략
+  ├──────────────────→ Agent 2 (탐구): 역량 갭에 맞는 가이드 추천
+  ├──────────────────→ Agent 5 (면접): 세특 기반 질문 생성
+  └──────────────────→ Agent 3 (배치): 교과이수적합도 연동
+
+Agent 3 (입시 배치)
+  │ 합격권 분석
+  ├──────────────────→ Agent 4 (전략): 목표 대학 기준 전략 조정
+  └──────────────────→ Agent 5 (면접): 지원 대학별 면접 준비
+
+Agent 2 (탐구 가이드)
+  │ 배정된 가이드
+  └──────────────────→ Agent 1 (생기부): 활동→세특 연결 추적
+
+                    모든 에이전트
+                        │
+                        ▼
+                Agent 6 (리포트): 종합 보고서
+```
+
+---
+
+## 3. 기술 스택 결정
+
+### 3.1 AI SDK 마이그레이션 (Vercel AI SDK v6)
+
+**결정: 기존 자체 구현 → AI SDK v6으로 점진 마이그레이션**
+
+| 현재 자체 구현 | AI SDK v6 대체 | 효과 |
+|--------------|---------------|------|
+| `BaseLLMProvider` 추상화 (~500줄) | `google('gemini-2.0-flash')` 한 줄 | 프로바이더 코드 대폭 감소 |
+| `buildGroundingTools()` (~60줄) | `google.tools.googleSearch({})` | 내장 지원 |
+| `extractJSON()` 수동 파싱 | `generateObject()` + Zod 스키마 | 타입 안전 + 파싱 에러 제거 |
+| SSE 스트리밍 수동 구현 | `streamText().toDataStreamResponse()` | 클라이언트 `useChat()` 연동 |
+| Tool Calling 없음 | `tool()` + `stopWhen` + `ToolLoopAgent` | **에이전트 핵심 기능** |
+| 임베딩 없음 | `embed()` / `embedMany()` | pgvector 연동 내장 |
+
+**유지해야 할 것:**
+- `GeminiQuotaTracker` — AI SDK에 동등 기능 없음 (Free Tier 보호)
+- `GeminiRateLimiter` (4초 간격) — Free Tier 필수
+- 도메인 프롬프트 코드 — SDK와 무관
+- LLM 메트릭스 시스템 — 에이전트용으로 확장
+
+**마이그레이션 코드 비교:**
+
+```typescript
+// === 현재: suggestStrategies.ts (자체 구현) ===
+const provider = getGeminiProvider();
+const result = await provider.createMessage({
+  system: SYSTEM_PROMPT,
+  messages: [{ role: "user", content: userPrompt }],
+  modelTier: "fast",
+  grounding: { enabled: true, mode: "dynamic" },
+});
+const parsed = parseResponse(result.content);
+
+// === AI SDK v6: 동일 기능 ===
+import { generateText } from "ai";
+import { google } from "@ai-sdk/google";
+
+const { text, sources } = await generateText({
+  model: google("gemini-2.0-flash"),
+  tools: { google_search: google.tools.googleSearch({}) },
+  system: SYSTEM_PROMPT,
+  prompt: userPrompt,
+  output: strategySchema,  // Zod → 자동 파싱 + 타입 안전
+});
+```
+
+**패키지:**
+```bash
+pnpm add ai @ai-sdk/google @ai-sdk/anthropic @ai-sdk/openai
+```
+
+### 3.2 임베딩 모델
+
+**결정: `gemini-embedding-001` (768차원)**
+
+| 항목 | 선택 | 근거 |
+|------|------|------|
+| 모델 | `gemini-embedding-001` | 이미 Google 생태계 사용 중, 추가 API 키 불필요 |
+| 차원 | 768 | 10K~50K 스케일에 충분, MRL로 필요 시 1536d 확장 가능 |
+| 비용 | $0.15/1M 토큰 | 7,836건 최초 임베딩 ~$0.01 (사실상 무료) |
+
+> **주의**: `text-embedding-004`는 2026-01-14 deprecated. 반드시 `gemini-embedding-001` 사용.
+
+### 3.3 벡터 검색 (pgvector)
+
+**결정: Supabase pgvector + HNSW 인덱싱**
+
+| 항목 | 선택 | 근거 |
+|------|------|------|
+| 확장 | pgvector (HNSW) | 10K~50K 스케일에 충분, Supabase 기본 제공 |
+| 거리 함수 | 코사인 (`<=>`) | 안전한 기본값, 대부분 임베딩 API와 호환 |
+| HNSW 파라미터 | m=16, ef_construction=64 | 현재 스케일에서 기본값 적절 |
+| 아키텍처 | 도메인 테이블에 임베딩 컬럼 추가 | Supabase 공식 권장, 기존 RLS 정책 유지 |
+| 동기화 | Trigger → pgmq → pg_cron → Edge Function | Supabase 네이티브, 외부 인프라 불필요 |
+
+**하이브리드 검색 (벡터 + SQL 필터):**
+
+```sql
+CREATE OR REPLACE FUNCTION search_guides(
+  query_embedding vector(768),
+  career_filter text DEFAULT NULL,
+  subject_filter text DEFAULT NULL,
+  match_count int DEFAULT 10
+)
+RETURNS TABLE (id uuid, title text, overview text, score float)
+LANGUAGE sql STABLE
+AS $$
+  SELECT g.id, g.title, c.overview,
+    1 - (c.embedding <=> query_embedding) AS score
+  FROM exploration_guides g
+  JOIN exploration_guide_content c ON c.guide_id = g.id
+  WHERE (career_filter IS NULL OR career_filter = ANY(g.career_fields))
+    AND (subject_filter IS NULL OR subject_filter = ANY(g.subject_names))
+    AND g.status = 'published'
+  ORDER BY c.embedding <=> query_embedding
+  LIMIT match_count;
+$$;
+```
+
+### 3.4 한국어 교육 도메인 고려사항
+
+| 이슈 | 대응 |
+|------|------|
+| 세특 500자 제한 | 청킹 불필요 — 원문 그대로 임베딩 (이미 최적 크기) |
+| 교육 전문용어 | `gemini-embedding-001` 다국어 학습 데이터에 포함, 추가 처리 불필요 |
+| STEM 한영 혼용 | 다국어 모델이 자연스럽게 처리 |
+| 한국어 BM25 | `ko_kiwi` 형태소 분석 > `simple` 단순 분리 (하이브리드 검색 시) |
+| 도메인 지식 주입 | 현재 방식 유지 (42개 루브릭 ~800토큰 직접 프롬프트 주입) — 현 스케일에서 RAG보다 효율적 |
+
+---
+
+## 4. 에이전트 상세 설계
+
+### 4.1 Agent 1: 생기부 분석 에이전트 (Record Analyst)
+
+| 항목 | 내용 |
+|------|------|
+| **역할** | 세특/창체/행특/독서 → 역량 진단, 강약점, 스토리라인 분석 |
+| **현재 상태** | Phase 5~7 **구현 완료** — 에이전트 래핑만 필요 |
+| **데이터 소스** | `seteks`, `changche`, `haengteuk`, `reading`, `competency_scores`, `diagnosis`, `storylines`, `strategies` |
+| **벡터화 대상** | 세특 서술 텍스트, 창체 기록 → 임베딩 (Phase 9에서 활성화) |
+| **최적 모델** | Claude standard (서사 분석 강점) |
+| **쿼리 예시** | "이 학생의 2학년 세특에서 탐구역량이 어떻게 드러나?" |
+| **구현 파일** | `lib/domains/student-record/llm/actions/` (suggestTags, analyzeWithHighlight, analyzeCompetency, generateDiagnosis, detectInquiryLinks, generateInterviewQuestions, suggestStrategies) |
+
+**도구(Tools):**
+
+```typescript
+// 기존 구현을 AI SDK tool()로 래핑
+const tools = {
+  analyzeCompetency: tool({
+    description: "전체 세특/창체/행특 → 10개 역량 항목 등급+근거 평가",
+    inputSchema: z.object({
+      studentId: z.string(),
+      grade: z.number().optional(),
+    }),
+    execute: async ({ studentId, grade }) => {
+      // 기존 analyzeCompetency.ts 호출
+    },
+  }),
+  extractHighlights: tool({
+    description: "세특 원문에서 역량별 근거 구절 하이라이트 추출",
+    inputSchema: z.object({
+      content: z.string(),
+      recordType: z.enum(["setek", "changche", "haengteuk"]),
+      subject: z.string().optional(),
+    }),
+    execute: async (input) => {
+      // 기존 analyzeWithHighlight.ts 호출
+    },
+  }),
+  detectStoryline: tool({
+    description: "학년간 후속탐구 연결 감지 + 스토리라인 제안",
+    inputSchema: z.object({ studentId: z.string() }),
+    execute: async ({ studentId }) => {
+      // 기존 detectInquiryLinks.ts 호출
+    },
+  }),
+  getWarnings: tool({
+    description: "현재 경보 항목 조회 (기록 누락, 역량 약점, 최저 미달 등)",
+    inputSchema: z.object({ studentId: z.string() }),
+    execute: async ({ studentId }) => {
+      // 기존 warnings/engine.ts 호출
+    },
+  }),
+};
+```
+
+---
+
+### 4.2 Agent 2: 탐구 가이드 에이전트 (Exploration Guide / CMS)
+
+| 항목 | 내용 |
+|------|------|
+| **역할** | 학생 수준/진로에 맞는 교과 연계 탐구 가이드 추천/생성 |
+| **현재 상태** | 설계 완료 (C1~C5), **미착수** — RAG 핵심 적용처. 메인 트랙 Phase 3 이후 착수 가능 |
+| **데이터 소스** | `exploration_guides` (7,836건), `guide_content`, `guide_reviews`, `guide_assignments` |
+| **참조 설계** | `student-record-extension-design.md` E7, E16 (exploration_guides 3분할: meta/content/review) |
+| **벡터화 대상** | 가이드 overview + theory_sections + setek_examples → 임베딩 (**핵심**) |
+| **최적 모델** | Gemini Flash (검색) + Claude standard (생성) |
+| **쿼리 예시** | "법학 계열 지망인데 수학 세특에 쓸 탐구 주제 추천해줘" |
+
+**도구(Tools):**
+
+```typescript
+const tools = {
+  searchGuides: tool({
+    description: "벡터+SQL 하이브리드 검색으로 관련 탐구 가이드 검색",
+    inputSchema: z.object({
+      query: z.string(),
+      careerField: z.string().optional(),
+      subject: z.string().optional(),
+      difficultyLevel: z.enum(["basic", "intermediate", "advanced"]).optional(),
+      matchCount: z.number().default(10),
+    }),
+    execute: async (input) => {
+      const { embedding } = await embed({
+        model: google("gemini-embedding-001"),
+        value: input.query,
+      });
+      return supabase.rpc("search_guides", {
+        query_embedding: embedding,
+        career_filter: input.careerField,
+        subject_filter: input.subject,
+        match_count: input.matchCount,
+      });
+    },
+  }),
+  checkSchoolUsage: tool({
+    description: "학교별 가이드 사용 이력 확인 (3년 중복 방지)",
+    inputSchema: z.object({
+      guideId: z.string(),
+      schoolId: z.string(),
+    }),
+    execute: async ({ guideId, schoolId }) => {
+      // guide_usage_history 조회
+    },
+  }),
+  generateGuide: tool({
+    description: "5가지 소스에서 새 탐구 가이드 AI 생성",
+    inputSchema: z.object({
+      source: z.enum(["keyword", "pdf", "url", "clone", "enhance"]),
+      input: z.string(),
+      targetCareer: z.string().optional(),
+      targetSubject: z.string().optional(),
+    }),
+    execute: async (input) => {
+      // C3 AI 생성 파이프라인 호출
+    },
+  }),
+  checkSimilarity: tool({
+    description: "기존 가이드와의 유사도 탐지 (중복 방지)",
+    inputSchema: z.object({ guideId: z.string() }),
+    execute: async ({ guideId }) => {
+      // pgvector 코사인 유사도 계산
+    },
+  }),
+};
+```
+
+**pgvector 스키마 (C1에서 함께 생성):**
+
+```sql
+-- exploration_guide_content 테이블에 임베딩 컬럼 추가
+ALTER TABLE exploration_guide_content
+  ADD COLUMN embedding vector(768);
+
+CREATE INDEX idx_guide_content_embedding ON exploration_guide_content
+  USING hnsw (embedding vector_cosine_ops)
+  WITH (m = 16, ef_construction = 64);
+
+-- 임베딩 동기화 트리거 (Supabase 공식 패턴)
+-- INSERT/UPDATE 시 pgmq 큐에 임베딩 작업 등록
+-- pg_cron (10초 폴링) → Edge Function → gemini-embedding-001 호출 → DB 업데이트
+```
+
+---
+
+### 4.3 Agent 3: 입시 배치 에이전트 (Admissions Placement)
+
+| 항목 | 내용 |
+|------|------|
+| **역할** | 내신/모의고사 기반 합격권 분석, 6장 최적 배분 |
+| **현재 상태** | Phase 8.1 **완료** (입시 DB 26,305건), Phase 8.2 엔진 **완료** (Calculator 9모듈 + 테스트 38개). Phase D 즉시 착수 가능 |
+| **데이터 소스** | `university_admissions` (26,305건), `admission_score_configs` (552건), `admission_score_conversions` (628K건), `admission_restrictions` (586건), `applications`, `min_score_targets` |
+| **벡터화 대상** | 불필요 — 순수 구조화 데이터, **결정론적 엔진** 중심 |
+| **최적 모델** | 계산은 코드, LLM은 해석/추천 텍스트 생성만 |
+| **쿼리 예시** | "내신 2.3인데 서울대 경영 학종 가능성은?" |
+| **구현 파일** | `lib/domains/admission/calculator/` (10파일, 63패턴 레지스트리), `lib/domains/admission/import/` (6파일) |
+
+> **핵심**: 이 에이전트는 **LLM 의존도가 가장 낮음**. 계산은 이미 100+ 테스트된 결정론적 엔진,
+> LLM은 결과를 자연어로 설명할 때만 사용.
+
+**도구(Tools):**
+
+```typescript
+const tools = {
+  calculatePlacement: tool({
+    description: "합격 가능성 판정 (소신/적정/안정)",
+    inputSchema: z.object({
+      studentId: z.string(),
+      universityId: z.string(),
+      admissionType: z.string(),
+    }),
+    execute: async (input) => {
+      // Phase 8.5 결정론적 엔진 호출
+    },
+  }),
+  simulateMinScore: tool({
+    description: "수능최저 시뮬레이션 (what-if 시나리오 포함)",
+    inputSchema: z.object({
+      targetId: z.string(),
+      whatIf: z.record(z.string(), z.number()).optional(),
+    }),
+    execute: async (input) => {
+      // 기존 min-score-simulator.ts 호출 (14 tests)
+    },
+  }),
+  optimize6Slots: tool({
+    description: "수시 6장 최적 배분 (소신/적정/안정 분포)",
+    inputSchema: z.object({
+      studentId: z.string(),
+      candidates: z.array(z.object({
+        universityId: z.string(),
+        admissionType: z.string(),
+      })),
+    }),
+    execute: async (input) => {
+      // Phase 8.5 6장 배분 엔진
+    },
+  }),
+  searchAlumni: tool({
+    description: "유사 프로필 졸업생 검색 (SQL 기반)",
+    inputSchema: z.object({
+      gpaRange: z.tuple([z.number(), z.number()]),
+      careerField: z.string().optional(),
+      targetUniversity: z.string().optional(),
+    }),
+    execute: async (input) => {
+      // 기존 alumni-search.ts 호출
+    },
+  }),
+  checkInterviewConflict: tool({
+    description: "면접일 겹침 확인",
+    inputSchema: z.object({ studentId: z.string() }),
+    execute: async ({ studentId }) => {
+      // 기존 interview-conflict-checker.ts 호출 (12 tests)
+    },
+  }),
+};
+```
+
+---
+
+### 4.4 Agent 4: 전략 수립 에이전트 (Strategy Advisor)
+
+| 항목 | 내용 |
+|------|------|
+| **역할** | 진단 결과 → 보완 전략 + 로드맵 + 우선순위 |
+| **현재 상태** | Phase 7 **구현 완료** (Gemini Grounding) — 에이전트 래핑만 필요 |
+| **데이터 소스** | `strategies`, `roadmap_items`, `warnings`, Agent 1 진단 결과 |
+| **구현 파일** | `lib/domains/student-record/llm/actions/suggestStrategies.ts`, `lib/domains/student-record/llm/prompts/strategyRecommend.ts` |
+| **벡터화 대상** | 전략 텍스트 → 임베딩 (유사 전략 재활용, 선택적) |
+| **최적 모델** | Gemini Grounding (웹 검색으로 최신 정보 반영) |
+| **쿼리 예시** | "탐구역량이 약한데 남은 학기에 뭘 해야 해?" |
+
+**도구(Tools):**
+
+```typescript
+const tools = {
+  getWarnings: tool({
+    description: "현재 경보 항목 조회",
+    inputSchema: z.object({ studentId: z.string() }),
+    execute: async ({ studentId }) => {
+      // 기존 warnings/engine.ts
+    },
+  }),
+  getDiagnosis: tool({
+    description: "AI/수동 진단 조회",
+    inputSchema: z.object({
+      studentId: z.string(),
+      source: z.enum(["ai", "manual"]).optional(),
+    }),
+    execute: async (input) => {
+      // 기존 diagnosis-repository.ts
+    },
+  }),
+  suggestStrategies: tool({
+    description: "보완 전략 생성 (Gemini Grounding 웹 검색 포함)",
+    inputSchema: z.object({
+      weaknesses: z.array(z.string()),
+      careerField: z.string().optional(),
+      grade: z.number(),
+    }),
+    execute: async (input) => {
+      // 기존 suggestStrategies.ts 호출
+    },
+  }),
+  updateRoadmap: tool({
+    description: "로드맵 항목 추가/수정",
+    inputSchema: z.object({
+      studentId: z.string(),
+      item: z.object({
+        title: z.string(),
+        targetDate: z.string(),
+        category: z.string(),
+      }),
+    }),
+    execute: async (input) => {
+      // 기존 roadmap-repository.ts
+    },
+  }),
+};
+```
+
+---
+
+### 4.5 Agent 5: 면접 대비 에이전트 (Interview Coach)
+
+| 항목 | 내용 |
+|------|------|
+| **역할** | 생기부 기반 예상 질문 + 답변 가이드 + 모의 면접 |
+| **현재 상태** | Phase 6.5 **기초 구현** — 확장 필요 |
+| **데이터 소스** | 전체 생기부 + `applications` (지원 대학/전형) + `interview_questions` |
+| **벡터화 대상** | 면접 기출 문제 DB (향후 축적 시) |
+| **최적 모델** | Claude standard (추론 + 대화 시뮬레이션) |
+| **쿼리 예시** | "서울대 경영 면접에서 이 세특 내용으로 뭘 물어볼까?" |
+
+**도구(Tools):**
+
+```typescript
+const tools = {
+  generateQuestions: tool({
+    description: "유형별 10문항 생성 (factual/reasoning/application/value/controversial)",
+    inputSchema: z.object({
+      studentId: z.string(),
+      targetUniversity: z.string().optional(),
+      recordIds: z.array(z.string()).optional(),
+    }),
+    execute: async (input) => {
+      // 기존 generateInterviewQuestions.ts
+    },
+  }),
+  evaluateAnswer: tool({
+    description: "학생 답변 피드백 (강점/약점/개선 방향)",
+    inputSchema: z.object({
+      question: z.string(),
+      answer: z.string(),
+      context: z.string(), // 관련 세특 원문
+    }),
+    execute: async (input) => {
+      // 신규 구현 필요
+    },
+  }),
+  simulateInterview: tool({
+    description: "모의 면접 (멀티턴 대화)",
+    inputSchema: z.object({
+      studentId: z.string(),
+      mode: z.enum(["gentle", "challenging"]),
+    }),
+    execute: async (input) => {
+      // 신규 구현 필요 (멀티턴)
+    },
+  }),
+};
+```
+
+---
+
+### 4.6 Agent 6: 리포트 생성 에이전트 (Report Generator)
+
+| 항목 | 내용 |
+|------|------|
+| **역할** | 종합 분석 → 학부모/학생 보고서 자동 생성 |
+| **현재 상태** | Phase 9 설계, **미착수** |
+| **데이터 소스** | Agent 1~5의 결과물 전체 |
+| **벡터화 대상** | 불필요 — 다른 에이전트 출력 조합 |
+| **최적 모델** | Claude standard (긴 문서 생성) |
+| **쿼리 예시** | "김세린 학생 수시 종합 보고서 만들어줘" |
+
+---
+
+## 5. 오케스트레이터 설계
+
+### 5.1 라우터 패턴 (AI SDK v6 ToolLoopAgent)
+
+```typescript
+// lib/agents/orchestrator.ts
+import { ToolLoopAgent, tool, stepCountIs } from "ai";
+import { google } from "@ai-sdk/google";
+import { z } from "zod";
+
+export const orchestrator = new ToolLoopAgent({
+  model: google("gemini-2.0-flash"),  // 빠른 분류용
+  instructions: `당신은 입시 컨설팅 AI 코디네이터입니다.
+사용자 질문을 분석하여 적절한 전문가 에이전트에게 위임하세요.
+
+가용 전문가:
+1. analyzeRecord — 생기부 분석 (역량 진단, 강약점, 하이라이트, 스토리라인)
+2. searchGuides — 탐구 가이드 검색/추천 (교과 연계)
+3. analyzePlacement — 합격권 분석, 6장 배분
+4. suggestStrategy — 보완 전략, 로드맵
+5. prepareInterview — 면접 대비, 예상 질문
+6. generateReport — 종합 보고서 생성
+
+여러 전문가가 필요하면 병렬로 호출하세요.
+질문이 모호하면 사용자에게 구체적으로 물어보세요.`,
+
+  tools: {
+    analyzeRecord: tool({
+      description: "생기부 분석 에이전트에게 위임",
+      inputSchema: z.object({ task: z.string(), studentId: z.string() }),
+      execute: async ({ task, studentId }) => {
+        const result = await recordAnalysisAgent.generate({
+          prompt: task,
+          options: { studentId },
+        });
+        return result.text;
+      },
+    }),
+    searchGuides: tool({
+      description: "탐구 가이드 에이전트에게 위임",
+      inputSchema: z.object({
+        task: z.string(),
+        careerField: z.string().optional(),
+        subject: z.string().optional(),
+      }),
+      execute: async (input) => {
+        const result = await guideSearchAgent.generate({ prompt: input.task });
+        return result.text;
+      },
+    }),
+    // ... 나머지 에이전트 도구
+  },
+  stopWhen: stepCountIs(5),
+});
+```
+
+### 5.2 API Route (스트리밍)
+
+```typescript
+// app/api/agent/route.ts
+import { createAgentUIStreamResponse } from "ai";
+import { orchestrator } from "@/lib/agents/orchestrator";
+
+export const maxDuration = 60;  // Vercel Hobby: 최대 60초
+
+export async function POST(request: Request) {
+  const { messages } = await request.json();
+  // TODO: auth check + studentId 추출
+
+  return createAgentUIStreamResponse({
+    agent: orchestrator,
+    uiMessages: messages,
+  });
+}
+```
+
+### 5.3 클라이언트 UI
+
+```typescript
+// components/agent/AgentChat.tsx
+"use client";
+import { useChat } from "ai/react";
+
+export function AgentChat({ studentId }: { studentId: string }) {
+  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+    api: "/api/agent",
+    body: { studentId },
+  });
+
+  return (
+    <div>
+      {messages.map((m) =>
+        m.parts.map((part, i) => {
+          if (part.type === "text") return <p key={i}>{part.text}</p>;
+          // 도구 실행 중 상태 표시
+          if (part.type === "tool-analyzeRecord" && part.state === "pending")
+            return <div key={i}>생기부 분석 중...</div>;
+          return null;
+        })
+      )}
+      <form onSubmit={handleSubmit}>
+        <input value={input} onChange={handleInputChange} />
+      </form>
+    </div>
+  );
+}
+```
+
+### 5.4 에러 처리 (Graceful Degradation)
+
+```typescript
+// 멀티 에이전트 병렬 실행 시 부분 실패 허용
+const results = await Promise.allSettled(
+  selectedAgents.map((agent) =>
+    executeWithFallback(agent.execute, agent.fallback, task, context)
+  )
+);
+
+// 성공한 결과만 조합하여 응답
+const successful = results
+  .filter((r): r is PromiseFulfilledResult<AgentResult> => r.status === "fulfilled")
+  .map((r) => r.value);
+
+if (successful.length === 0) {
+  return "모든 분석이 실패했습니다. 잠시 후 다시 시도해주세요.";
+}
+```
+
+### 5.5 상태 관리 (서버리스)
+
+| 접근 방식 | 권장 여부 | 근거 |
+|-----------|----------|------|
+| 프론트엔드 주도 (매 요청 시 컨텍스트 전송) | **권장** | 각 분석이 self-contained, 세션 저장 불필요 |
+| DB 세션 저장 | 선택적 | 모의 면접(멀티턴) 시에만 필요 |
+| Vercel KV (Redis) | 불필요 | 현재 스케일에서 과잉 |
+
+---
+
+## 6. 벡터 스토어 설계
+
+### 6.1 도메인별 임베딩 테이블
+
+```sql
+-- [C1 시점] 탐구 가이드 임베딩
+ALTER TABLE exploration_guide_content
+  ADD COLUMN embedding vector(768);
+
+CREATE INDEX idx_guide_embedding ON exploration_guide_content
+  USING hnsw (embedding vector_cosine_ops)
+  WITH (m = 16, ef_construction = 64);
+
+-- [Phase 9 시점] 세특 임베딩 (유사 사례 검색용)
+ALTER TABLE seteks
+  ADD COLUMN embedding vector(768);
+
+CREATE INDEX idx_setek_embedding ON seteks
+  USING hnsw (embedding vector_cosine_ops)
+  WITH (m = 16, ef_construction = 64);
+
+-- [Phase 9 시점] 전략 임베딩 (유사 전략 재활용)
+ALTER TABLE strategies
+  ADD COLUMN embedding vector(768);
+
+CREATE INDEX idx_strategy_embedding ON strategies
+  USING hnsw (embedding vector_cosine_ops)
+  WITH (m = 16, ef_construction = 64);
+```
+
+### 6.2 임베딩 동기화 (Supabase 공식 패턴)
+
+```
+[INSERT/UPDATE on content columns]
+    ↓
+SQL Trigger → pgmq (메시지 큐에 작업 등록)
+    ↓
+pg_cron (10초마다 폴링) → 배치 수집 (10~50건)
+    ↓
+Supabase Edge Function 호출
+    ↓
+gemini-embedding-001 API → 임베딩 벡터 반환
+    ↓
+UPDATE table SET embedding = vector WHERE id = ?
+```
+
+### 6.3 청킹 전략
+
+| 콘텐츠 유형 | 평균 길이 | 청킹 전략 |
+|------------|----------|----------|
+| 세특 레코드 | ~500자 (~200-250 토큰) | **단일 청크** (원문 그대로) |
+| 탐구 가이드 overview | ~1000자 | **단일 청크** |
+| 탐구 가이드 theory_sections | ~2000+자 | 재귀 청킹 (500 토큰, 50 오버랩) |
+| 전략 텍스트 | ~300-500자 | **단일 청크** |
+
+**메타데이터 프리픽스 패턴 (세특):**
+
+```typescript
+function buildEmbeddingInput(record: SetekRecord): string {
+  return [
+    `과목: ${record.subject}`,
+    `학년: ${record.grade}학년`,
+    `유형: ${record.recordType}`,
+    `---`,
+    record.content,
+  ].join("\n");
+}
+```
+
+---
+
+## 7. 파일 구조
+
+```
+lib/agents/                              # 에이전트 레이어 (신규)
+├── orchestrator.ts                      # 오케스트레이터 (라우터)
+├── record-analyst.ts                    # Agent 1: 생기부 분석
+├── guide-search.ts                      # Agent 2: 탐구 가이드
+├── placement.ts                         # Agent 3: 입시 배치
+├── strategy-advisor.ts                  # Agent 4: 전략 수립
+├── interview-coach.ts                   # Agent 5: 면접 대비
+├── report-generator.ts                  # Agent 6: 리포트
+├── tools/                               # 공용 도구 정의
+│   ├── record-tools.ts                  # 기존 Phase 5~6.5 래핑
+│   ├── guide-tools.ts                   # C1~C3 래핑
+│   ├── placement-tools.ts              # Phase 8 래핑
+│   ├── strategy-tools.ts               # Phase 7 래핑
+│   └── interview-tools.ts              # Phase 6.5 래핑
+├── schemas/                             # Zod 출력 스키마
+│   ├── diagnosis.ts
+│   ├── strategy.ts
+│   └── placement.ts
+└── __tests__/
+    ├── orchestrator.test.ts
+    └── tools.test.ts
+
+app/api/agent/
+├── route.ts                             # POST: 에이전트 스트리밍 엔드포인트
+
+components/agent/
+├── AgentChat.tsx                        # 채팅 UI (useChat)
+├── AgentToolProgress.tsx               # 도구 실행 중 프로그레스
+└── AgentResultCard.tsx                 # 에이전트 결과 카드
+```
+
+---
+
+## 8. 구현 로드맵
+
+### Phase A: AI SDK 마이그레이션 (에이전트 기반 구축 전 필수)
+
+> **의존**: 없음 (즉시 착수 가능)
+> **예상 공수**: 2~3일
+
+| 단계 | 작업 | 상세 |
+|------|------|------|
+| A-1 | 패키지 설치 | `pnpm add ai @ai-sdk/google @ai-sdk/anthropic @ai-sdk/openai` |
+| A-2 | 구조화 출력 전환 | `extractJSON()` → `generateObject()` + Zod 스키마 |
+| A-3 | Grounding 전환 | `buildGroundingTools()` → `google.tools.googleSearch({})` |
+| A-4 | 프로바이더 전환 | 자체 추상화 → AI SDK 모델 문자열 |
+| A-5 | 유지 항목 확인 | `GeminiQuotaTracker`, `GeminiRateLimiter` 보존 |
+| A-6 | 테스트 | 기존 143개 테스트 통과 + 빌드 성공 확인 |
+
+**검증 기준:**
+- [ ] 기존 모든 LLM 기능 동일 동작 (suggestTags, analyzeWithHighlight, generateDiagnosis 등)
+- [ ] `pnpm build` 성공
+- [ ] `pnpm test` 143개 통과
+- [ ] Gemini Grounding 웹 검색 동작 확인
+
+---
+
+### Phase B: 에이전트 오케스트레이터 (Agent 1·3·4 래핑)
+
+> **의존**: Phase A
+> **예상 공수**: 3~5일
+
+| 단계 | 작업 | 상세 |
+|------|------|------|
+| B-1 | 에이전트 인프라 | `lib/agents/` 디렉토리 + orchestrator.ts |
+| B-2 | Agent 1 래핑 | 기존 Phase 5~6.5 actions → tool() 래핑 |
+| B-3 | Agent 4 래핑 | 기존 Phase 7 suggestStrategies → tool() 래핑 |
+| B-4 | 오케스트레이터 | 라우터 에이전트 + stopWhen 설정 |
+| B-5 | API Route | `app/api/agent/route.ts` (스트리밍) |
+| B-6 | 채팅 UI | `AgentChat.tsx` (useChat) |
+| B-7 | 에러 처리 | Promise.allSettled + 부분 실패 허용 |
+
+**검증 기준:**
+- [ ] "이 학생의 세특 강약점 분석해줘" → Agent 1 호출 → 구조화 응답
+- [ ] "보완 전략 추천해줘" → Agent 4 호출 → Grounding 포함 전략
+- [ ] 모호한 질문 → 오케스트레이터가 명확화 요청
+- [ ] 스트리밍 응답 동작
+
+---
+
+### Phase C: pgvector + CMS RAG (C1과 동시)
+
+> **의존**: Phase A + CMS C1
+> **예상 공수**: 5~7일 (C1 통합)
+
+| 단계 | 작업 | 상세 |
+|------|------|------|
+| C-1 | pgvector 활성화 | Supabase 대시보드에서 pgvector 확장 활성화 |
+| C-2 | 임베딩 스키마 | exploration_guide_content에 embedding 컬럼 + HNSW 인덱스 |
+| C-3 | 임베딩 파이프라인 | Edge Function + Trigger + pgmq |
+| C-4 | 7,836건 벡터화 | 배치 스크립트 (gemini-embedding-001) |
+| C-5 | search_guides RPC | 하이브리드 검색 함수 |
+| C-6 | Agent 2 구현 | 탐구 가이드 에이전트 + 오케스트레이터 연동 |
+
+**검증 기준:**
+- [ ] "법학 계열 수학 탐구 추천" → 벡터 검색 → 관련 가이드 반환
+- [ ] SQL 필터 (career_fields, subject_names) 정상 동작
+- [ ] 신규 가이드 저장 시 임베딩 자동 생성 (비동기)
+- [ ] 유사도 80%+ 가이드 중복 경고
+
+---
+
+### Phase D: 입시 배치 에이전트 (Phase 8.1~8.2 완료, 즉시 착수 가능)
+
+> **의존**: Phase A (Phase 8.1~8.2 이미 완료)
+> **예상 공수**: 2~3일 (기존 엔진 래핑 중심)
+
+| 단계 | 작업 | 상세 |
+|------|------|------|
+| D-1 | Agent 3 구현 | 결정론적 엔진 → tool() 래핑 |
+| D-2 | 자연어 해석 | "내신 2.3이면 서울대 가능?" → 구조화 파라미터 추출 |
+| D-3 | 6장 배분 도구화 | optimize6Slots tool |
+| D-4 | 오케스트레이터 연동 | 라우터에 Agent 3 추가 |
+
+---
+
+### Phase E: 면접·리포트 확장
+
+> **의존**: Phase B + Phase D
+> **예상 공수**: 3~5일
+
+| 단계 | 작업 | 상세 |
+|------|------|------|
+| E-1 | Agent 5 확장 | 답변 평가 + 모의 면접 (멀티턴) |
+| E-2 | Agent 6 구현 | 종합 리포트 (Agent 1~5 결과 조합) |
+| E-3 | PDF 생성 | HTML → Word/PDF 내보내기 |
+
+---
+
+## 9. 비용 추정
+
+### 에이전트 추가 비용 (기존 대비)
+
+| 항목 | 월 비용 |
+|------|--------|
+| 기존 LLM (84명 전체 분석) | ~$0.25 |
+| 오케스트레이터 라우팅 호출 | +~$0.50 |
+| 7,836건 최초 임베딩 (일회성) | ~$0.01 |
+| 임베딩 검색 쿼리 | ~$0.01/월 |
+| pgvector 저장 | Supabase 기존 플랜 내 |
+| **합계** | **~$1/월** |
+
+> 예산 $30~50 대비 극도의 여유. LLM 캐시 적용 후 전체 시스템 (기존 + 에이전트) 합산 $30~50 범위.
+
+### 인프라 비용
+
+| 항목 | 비용 |
+|------|------|
+| Vercel Hobby | 무료 (Edge Function 60초 제한 주의) |
+| Supabase Free/Pro | 기존 플랜 내 (pgvector 추가 비용 없음) |
+| Gemini API | Free Tier 충분 (분 1,500 임베딩 요청) |
+
+---
+
+## 10. 경쟁사 대비 차별점
+
+| 서비스 | 접근 방식 | TimeLevelUp 차별점 |
+|--------|----------|-------------------|
+| 진학사 학생부 AI | 데이터 기반 점수화 | 3영역×10역량×42루브릭 구조화 분석 + 인라인 하이라이트 |
+| 바이브온 | 합격 확률 예측 | 컨설턴트 워크플로우 통합 (진단→전략→면접→리포트) |
+| 세특PRO | 교사용 세특 작성 | 학생 분석 + 전략 수립 (생성이 아닌 분석) |
+
+**고유 강점**: 6개 전문 에이전트가 상호 연동되는 **통합 컨설팅 파이프라인** — 단일 기능 도구가 아닌 컨설팅 프로세스 전체를 AI가 지원.
+
+---
+
+## 11. 위험 관리
+
+| 위험 | 확률 | 영향 | 대응 |
+|------|------|------|------|
+| AI SDK 마이그레이션 중 기존 기능 깨짐 | 중 | 높음 | 점진 마이그레이션 (파일 단위) + 143개 테스트로 회귀 검증 |
+| 오케스트레이터 오분류 | 중 | 중 | fallback 규칙 (키워드 기반) + 사용자 명시적 에이전트 선택 옵션 |
+| Vercel 60초 타임아웃 (복합 질문) | 중 | 중 | 에이전트 병렬 실행 + 부분 결과 스트리밍 |
+| pgvector 성능 (7,836+ 벡터) | 낮음 | 낮음 | HNSW 인덱스 기본값으로 10K~50K 충분 |
+| 임베딩 모델 deprecated | 낮음 | 중 | MRL 지원으로 차원 변경 없이 모델 교체 가능 |
+
+---
+
+## 12. 의존관계 그래프
+
+```
+[에이전트 트랙]
+
+Phase A (AI SDK 마이그레이션)
+    ↓
+Phase B (오케스트레이터 + Agent 1·4 래핑)
+    │
+    ├── Phase C (Agent 2: 탐구 가이드 + pgvector) ← CMS C1 의존
+    │
+    ├── Phase D (Agent 3: 입시 배치) ← Phase 8.1~8.2 이미 완료
+    │
+    └── Phase E (Agent 5·6: 면접·리포트 확장) ← Phase D 이후
+
+[메인 트랙과의 관계]
+
+Phase A: 독립 착수 가능 (즉시)
+Phase B: Phase A 이후 (메인 트랙 무관)
+Phase C: CMS C1 + Phase A 이후
+Phase D: Phase A 이후 즉시 (Phase 8.1~8.2 완료됨)
+Phase E: Phase B + Phase D 이후
+```

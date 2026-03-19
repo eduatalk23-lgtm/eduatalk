@@ -3,6 +3,7 @@
 > 작성일: 2026-03-17
 > 상태: 설계 확장 (v6 — 컨설팅 현장 피드백 14건 + 안정성/현장 보완 9건)
 > 기반: `student-record-implementation-plan.md` v5
+> 관련: `domain-agent-architecture.md` — CMS C3 유사도 탐지를 pgvector 기반으로 통합, Agent 2 설계 참조
 
 ## 변경 요약
 
@@ -2303,9 +2304,14 @@ Phase 8.2 정시 환산 엔진 (기존 + 🆕 자동 테스트 25+)
 Phase 8.3 data.go.kr API (기존, 변경 없음)
 Phase 8.4 연간 갱신 (기존 + 🆕 4단계 갱신 사이클 UI
           + 🆕 전형 변경 알림 — 목표 대학 전형 변경 시 push)
-Phase 8.5 모평 배치 자동 분석 (기존)
-          + 🆕 가채점/실채점 분리 배치
+Phase 8.5a ✅ 배치 판정 엔진 + Admin UI (PlacementDashboard)
+          - 5단계 판정 (safe/possible/bold/unstable/danger)
+          - 순수 함수 엔진 + 서비스 + Server Action + Query Options
+          - PlacementDashboard: 점수 입력 + 요약바 + 필터 + 카드
+          - StudentRecordClient 전략 섹션 통합, 테스트 25개
+Phase 8.5b 가채점/실채점 분리 배치
           + 🆕 수시 6장 최적 배분 시뮬레이션 엔진
+Phase 8.5c 충원 합격 시뮬레이션
 Phase 8.6 졸업생 검색 (🆕 SQL 기반으로 간소화, Python ML 삭제)
 
 Phase 9   🆕 AI 활동 지원 3모드:

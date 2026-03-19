@@ -41,6 +41,7 @@ import { CompetencyAnalysisSection } from "./CompetencyAnalysisSection";
 import { DiagnosisComparisonView } from "./DiagnosisComparisonView";
 import { CourseAdequacyDisplay } from "./CourseAdequacyDisplay";
 import { StrategyEditor as StrategyEditorPanel } from "./StrategyEditor";
+import { PlacementDashboard } from "./PlacementDashboard";
 
 type Subject = {
   id: string;
@@ -135,6 +136,7 @@ const STAGES: StageConfig[] = [
     sections: [
       { id: "sec-applications", label: "지원현황" },
       { id: "sec-minscore", label: "최저시뮬" },
+      { id: "sec-placement", label: "배치 분석" },
       { id: "sec-interview", label: "면접 질문" },
     ],
   },
@@ -927,6 +929,10 @@ export function StudentRecordClient({
                 tenantId={tenantId}
               />
             ) : null}
+          </StrategySection>
+
+          <StrategySection id="sec-placement" title="정시 배치 분석">
+            <PlacementDashboard studentId={studentId} />
           </StrategySection>
 
           <StrategySection id="sec-interview" title="면접 예상 질문">

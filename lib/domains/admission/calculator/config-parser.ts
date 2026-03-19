@@ -6,9 +6,11 @@
 import type { ParsedMandatoryPattern, ParsedOptionalPattern, ParsedWeightedPattern, SubjectSlot } from "./types";
 import { MANDATORY_PATTERNS, OPTIONAL_PATTERNS, WEIGHTED_PATTERNS } from "./constants";
 
-/** 필수 패턴 파싱 */
-export function parseMandatoryPattern(pattern: string): ParsedMandatoryPattern {
+/** 필수 패턴 파싱 — null/빈 문자열이면 빈 subjects 반환 */
+export function parseMandatoryPattern(pattern: string | null): ParsedMandatoryPattern {
+  if (!pattern) return { subjects: [] };
   const trimmed = pattern.trim();
+  if (!trimmed) return { subjects: [] };
   const exact = MANDATORY_PATTERNS[trimmed];
   if (exact) return exact;
 

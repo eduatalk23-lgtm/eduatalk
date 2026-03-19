@@ -3,6 +3,10 @@
 > 작성일: 2026-02-23
 > 최종 수정: 2026-03-17
 > 상태: 미구현 (계획 v5 — 컨설팅 현장 보완 + 안정성 강화)
+> 관련 문서:
+> - `student-record-roadmap.md` — Phase별 구현 순서 + 의존관계 + 검증 기준 (메인/CMS/에이전트 3트랙)
+> - `student-record-extension-design.md` v6 — 컨설팅 현장 피드백 14건 + 안정성 보완 9건
+> - `domain-agent-architecture.md` — 6개 전문 에이전트 + 오케스트레이터 설계 (AI SDK v6 + pgvector)
 
 ## 1. 개요
 
@@ -146,7 +150,7 @@ TimeLevelUp에 **생기부 기록 + 역량 진단 + 설계 로드맵 + 지원전
 | P3 | 지원전략 메모 | `student_record_diagnosis.strategy_notes` | 지원팁 저장 |
 
 > 지원 결과(applications)는 졸업생 합격 DB로도 활용 — 후배 컨설팅 시 참고자료.
-> 모평 배치 분석은 Phase 8에서 대학 DB 연동 시 자동화. 현재는 수동 메모로 구현.
+> 모평 배치 분석은 Phase 8.5a에서 자동화 완료. PlacementDashboard에서 점수 입력 → 전 대학 환산 → 5단계 배치 판정.
 
 ---
 
@@ -486,7 +490,7 @@ describe('simulateMinScores', () => {
    Phase 1a ← Phase 1c (storyline_links가 seteks 참조)
    Phase 1a ← Phase 5 (activity_tags가 seteks 참조)
    Phase 5  ← Phase 6~7 (진단이 역량 데이터 필요)
-   Phase 8.1 ← Phase 8.2~8.6 (환산 엔진이 입시 DB 필요)
+   Phase 8.1 ← Phase 8.2 ← Phase 8.5a(✅) ← 8.5b/c (환산 엔진 → 배치 판정 → 최적 배분)
 4. 롤백 시: 해당 Phase의 UI 컴포넌트도 함께 비활성화 (feature flag)
 5. 프로덕션 배포 전 Supabase 브랜치에서 마이그레이션 테스트
 ```
@@ -576,7 +580,7 @@ CREATE INDEX idx_usf_subjects ON university_score_formulas
 | D | 종합 진단 생성 | LLM 분석 | Claude standard | provider + LLM cache | 6 | **제안** (컨설턴트 수정) |
 | E | 조기 경보 확장 | 규칙 기반 | - | earlyWarningService | 6.5 | 자동 감지 |
 | F | 보완전략 제안 | LLM + 웹검색 | Gemini Grounding | Grounding + cold start 패턴 | 7 | **제안** (컨설턴트 채택) |
-| G | 모평 배치 분석 | 규칙 기반 | - | - (공식 계산) | 8.5 | 자동 계산 |
+| G | 모평 배치 분석 | 규칙 기반 | - | placement/engine.ts (✅ 8.5a 완료) | 8.5a | 자동 계산 |
 | H | 졸업생 유사도 매칭 | **SQL 기반** | TypeScript + SQL | alumni-search.ts | 8.6 | 검색 |
 | I | 세특 초안 생성 | LLM 생성 | Claude advanced | provider + streaming | 9 | **초안** (컨설턴트 편집) |
 | J | 수시 Report 생성 | 템플릿 + LLM | 전체 통합 | NEISLayoutRenderer + HTML | 9 | 자동 생성 |
@@ -1470,19 +1474,33 @@ lib/domains/student-record/
 └── index.ts                  # Domain barrel
 
 lib/domains/admission/            # Phase 8 대학 입시 도메인
-├── types.ts                      # 대학/전형/입결 타입
-├── repository.ts                 # university_admissions CRUD
-├── calculator.ts                 # [규칙] 정시 환산점수 계산 엔진
-├── eligibility.ts                # [규칙] 결격사유 체크
-├── placement.ts                  # [규칙] 모평 배치 판정 (위험~안정)
-├── alumni-search.ts              # [SQL] 졸업생 유사도 검색 (TypeScript + SQL)
-├── api/
-│   └── datagokr.ts               # data.go.kr API 클라이언트
-├── actions/
-│   ├── search.ts                 # "use server" 대학/입결 검색
-│   ├── placement.ts              # "use server" 배치 분석
-│   └── sync.ts                   # "use server" 데이터 갱신
-└── index.ts
+├── types.ts                      # 대학/전형/입결 JSONB 타입
+├── repository.ts                 # university_admissions CRUD + 일괄 조회 (Phase 8.5a)
+├── index.ts                      # 도메인 barrel (types + placement exports)
+├── calculator/                   # Phase 8.2 정시 환산 엔진
+│   ├── types.ts                  # SuneungScores, UniversityScoreConfig, ConversionTable 등
+│   ├── constants.ts              # 36과목 분류 + 63패턴 레지스트리
+│   ├── config-parser.ts          # 패턴 문자열 → ParsedPattern
+│   ├── subject-selector.ts       # Math MAX, Inquiry top-N, 대체
+│   ├── mandatory-scorer.ts       # 필수 과목 점수
+│   ├── optional-scorer.ts        # 선택 과목 top-N
+│   ├── weighted-scorer.ts        # 가중택 점수
+│   ├── percentage-scorer.ts      # PERCENTAGE lookup (경로 B)
+│   ├── restriction-checker.ts    # 결격사유 3종
+│   └── calculator.ts             # 메인 파이프라인 (calculateBatch)
+├── placement/                    # Phase 8.5a 배치 판정
+│   ├── types.ts                  # PlacementLevel, PlacementVerdict, PlacementAnalysisResult
+│   ├── engine.ts                 # [규칙] 판정 순수 함수 (determineVerdicts, filterVerdicts)
+│   ├── score-converter.ts        # MockScoreInput → SuneungScores 변환
+│   ├── service.ts                # analyzePlacement (일괄 환산 + 입결 비교 + 판정)
+│   └── actions.ts                # "use server" fetchPlacementAnalysis
+├── import/                       # Phase 8.1~8.2 Import 파이프라인
+│   ├── index.ts                  # runAdmissionImport 오케스트레이터
+│   ├── bulk-inserter.ts          # 배치 삽입 (admissions, configs, conversions 등)
+│   └── ...                       # parser 모듈들
+├── alumni-search.ts              # [SQL] 졸업생 유사도 검색 (Phase 8.6)
+└── api/
+    └── datagokr.ts               # data.go.kr API 클라이언트 (Phase 8.3)
 ```
 
 ### 핵심 타입
@@ -1862,7 +1880,9 @@ type StorylineTabData = {
 | **8.2** | 정시 환산 엔진 + 결격사유 + **자동 테스트 (calculator, eligibility)** | **규칙 기반** | - | ~8 |
 | **8.3** | data.go.kr API 연동 | - | - | ~4 |
 | **8.4** | 연간 4단계 갱신 사이클 + **전형 변경 알림** | **Gemini 멀티모달** | - | ~6 |
-| **8.5** | 모평 배치 자동 분석 + **가채점/실채점 분리** + **6장 최적 배분 시뮬레이션** | **규칙 기반** | - | ~6 |
+| **8.5a** | ✅ 배치 판정 엔진 + Admin UI (PlacementDashboard) — 테스트 25개 | **규칙 기반** | - | 완료 |
+| **8.5b** | 가채점/실채점 분리 + 6장 최적 배분 시뮬레이션 | **규칙 기반** | - | ~4 |
+| **8.5c** | 충원 합격 시뮬레이션 | **규칙 기반** | - | ~2 |
 | **8.6** | 졸업생 검색 (**SQL 기반**, Python ML 삭제) | - | - | ~3 |
 | **9** | AI 활동 지원 3모드 + 수시 Report 자동 생성 | **Claude advanced** | - | ~10 |
 | **10** | 버전 이력, 일괄 상태 변경, ML 졸업생 매칭 (규모 확장 시) | - | - | - |
@@ -2153,16 +2173,40 @@ CREATE TABLE IF NOT EXISTS university_score_formulas (
 2. adiga.kr 자료실 PDF (공식 데이터, 표준 형식)
 3. data.go.kr API (메타데이터 보완)
 
-#### 8.5 모평 배치 자동 분석
+#### 8.5a 배치 판정 엔진 + Admin UI ✅ 완료 (2026-03-19)
 
 ```
-8.5.1  학생 모의고사 점수(student_mock_scores) × 대학별 환산 공식 → 환산점수 산출
-8.5.2  환산점수 vs 대학별 기준점(입결) → 배치 판정
-8.5.3  판정 로직: danger(위험) < unstable(불안) < bold(소신) < possible(가능) < safe(안정)
-8.5.4  UI: PlacementAnalysisView — 학생별 모평 기반 배치표 자동 생성
-8.5.5  UI: 대학/학과 필터 + 판정 수준별 색상 표시
-8.5.6  결격사유 자동 경고 (수학 지정과목 미응시, 탐구 과목 제한 등)
+8.5a.1  ✅ PlacementLevel 5단계 타입 + 판정 기준 상수 (types.ts)
+8.5a.2  ✅ 배치 판정 순수 함수 (engine.ts)
+        - parseAdmissionScores: 입결 JSONB → 연도별 점수 파싱 (NaN 제외)
+        - calculateAdmissionAverage: 유효 연도 평균
+        - calculateConfidence: 3개년=80, 2개년=60, 1개년=40 + 편차 보너스
+        - determineLevel: 학생점수/입결평균 비율 → 5단계 판정
+        - determineVerdicts: 환산결과 + 입결 → PlacementVerdict 배열
+        - summarizeVerdicts: 레벨별 카운트 + 결격 수
+        - filterVerdicts: 레벨/지역/계열/검색 필터
+8.5a.3  ✅ MockScoreInput → SuneungScores 변환 (score-converter.ts)
+8.5a.4  ✅ Repository 확장 — 4개 일괄 조회 함수
+        - findAdmissionsWithScores: score_configs 대학의 입결 데이터
+        - getAllConversionTables: 전 대학 ConversionTable Map (549K행)
+        - getAllRestrictions: 전 대학 RestrictionRule Map
+        - getAllPercentageTables: 전 대학 PercentageTable Map (883K행)
+8.5a.5  ✅ analyzePlacement 서비스 (service.ts) — 5 병렬 조회 + calculateBatch + 판정
+8.5a.6  ✅ fetchPlacementAnalysis Server Action (actions.ts)
+8.5a.7  ✅ placementAnalysisQueryOptions (enabled:false, 수동 실행)
+8.5a.8  ✅ PlacementDashboard UI — ScoreInputForm + SummaryBar + 필터 + PlacementCard
+8.5a.9  ✅ StudentRecordClient 전략 섹션 sec-placement 통합
+8.5a.10 ✅ 테스트 25개 통과
 ```
+
+**판정 기준** (입결 3개년 환산점수 평균 대비):
+| Level | 비율 | 라벨 |
+|-------|------|------|
+| safe | ≥ 1.0 | 안정 |
+| possible | ≥ 0.985 | 적정 |
+| bold | ≥ 0.97 | 소신 |
+| unstable | ≥ 0.95 | 불안정 |
+| danger | < 0.95 또는 결격 | 위험 |
 
 ```
 ┌───────────────────────────────────────────────────────────┐
@@ -2179,6 +2223,21 @@ CREATE TABLE IF NOT EXISTS university_score_formulas (
 │                                                             │
 │  ⚠️ 결격: 서울대 기계공학부 (물리+화학 미응시)             │
 └───────────────────────────────────────────────────────────┘
+```
+
+#### 8.5b 가채점/실채점 + 6장 최적 배분 (미착수)
+
+```
+8.5b.1  applications에 score_type 추가 (estimated/actual)
+8.5b.2  가채점→실채점 변동 분석 UI
+8.5b.3  6장 최적 배분 시뮬레이션 엔진
+```
+
+#### 8.5c 충원 합격 시뮬레이션 (미착수)
+
+```
+8.5c.1  충원율 = replacement_count / recruitment_count × 연도별 추세
+8.5c.2  possible_with_replacement 레벨 추가
 ```
 
 #### 8.6 졸업생 합격 DB 검색
@@ -2238,9 +2297,9 @@ CREATE TABLE IF NOT EXISTS university_score_formulas (
 20. Excel 이관: 26,777건 bulk insert → university_admissions 조회 동작
 21. 대학명/학과명 검색 → 3개년 입결 표시 (경쟁률, 등급, 환산점수, 충원)
 22. data.go.kr API: 대학 메타데이터 동기화 → universities/departments 테이블 갱신
-23. 정시 환산: 모의고사 점수 입력 → 대학별 환산점수 산출 → 입결 대비 배치 판정
-24. 결격사유 체크: 수학 지정과목, 탐구 제한, 등급합 → 자동 경고
-25. 모평 배치표: 위험/불안/소신/가능/안정 색상별 표시
+23. ✅ 정시 환산: 모의고사 점수 입력 → 대학별 환산점수 산출 → 입결 대비 배치 판정 (Phase 8.5a)
+24. ✅ 결격사유 체크: 수학 지정과목, 탐구 제한, 등급합 → 자동 경고 (Phase 8.2)
+25. ✅ 모평 배치표: 위험/불안정/소신/적정/안정 색상별 표시 + PlacementDashboard (Phase 8.5a)
 26. 졸업생 검색: "전체 평균 2.5~3.0, 사회계열, 서울권" → 합격자 목록 조회
 27. 연간 갱신: Excel/PDF 업로드 → 파싱 → diff 미리보기 → upsert
 28. 졸업생 매칭: Python ML API 호출 → 유사 졸업생 Top 5 + 합격 대학 표시
@@ -2281,7 +2340,7 @@ CREATE TABLE IF NOT EXISTS university_score_formulas (
 | 8 | P교과분석 (91×16) | ✅ | 성적 추이 차트 (표준백분위/조정등급) | 3 |
 | 9 | **P정성평가 (120×8)** | ✅ | 역량별 루브릭 + 상세 평가 보고서 뷰 → `constants.ts` 루브릭 + CompetencyScoreCard | 5~6 |
 | 10 | P정성평가(총평) (49×15) | ✅ | `diagnosis` | 6 |
-| 11 | **P모평배치 (77×15)** | ✅ | 모평→대학 배치 분석 (위험/불안/소신/가능/안정) → Phase 8 자동화, 현재 메모 | 7→8 |
+| 11 | **P모평배치 (77×15)** | ✅ | 모평→대학 배치 분석 (위험/불안정/소신/적정/안정) → **Phase 8.5a 자동화 완료** (PlacementDashboard) | ✅ 8.5a |
 | 12 | P목표 (136×54) | ✅ | `applications` + `diagnosis.strategy_notes` | 3.5~7 |
 | 13 | P최종선택 (1×1) | ✅ | 빈 시트 | - |
 | 14 | P속지 (44×12) | ✅ | 레이아웃 전용 | 8 (PDF) |

@@ -1045,10 +1045,12 @@ consultantDiagnosis: Diagnosis | null
 | **8.2** | 정시 환산 엔진 + 결격사유 + 자동 테스트 | 8.1 | 🔨 엔진 완료, Import 잔여 |
 | **8.3** | data.go.kr API 연동 | 8.1 | 미착수 |
 | **8.4** | 연간 4단계 갱신 + 전형 변경 알림 (push) | 8.1 | 미착수 |
-| **8.5** | 모평 배치 자동 분석 + 가채점/실채점 + 6장 최적 배분 + 충원 시뮬 | 8.2 | 미착수 |
+| **8.5a** | 배치 판정 엔진 + Admin UI (PlacementDashboard) | 8.2 | ✅ 완료 |
+| **8.5b** | 가채점/실채점 분리 + 6장 최적 배분 시뮬레이션 | 8.5a | 미착수 |
+| **8.5c** | 충원 합격 시뮬레이션 | 8.5a | 미착수 |
 | **8.6** | 졸업생 SQL 검색 | 8.1 | 미착수 |
 
-**8.5 배치 판정 레벨**: danger < unstable < bold < possible < safe + possible_with_replacement(충원)
+**8.5 배치 판정 레벨**: danger(위험) < unstable(불안정) < bold(소신) < possible(적정) < safe(안정) + possible_with_replacement(충원, 8.5c)
 
 ---
 
@@ -1098,6 +1100,43 @@ consultantDiagnosis: Diagnosis | null
 - 실제 DB 데이터 import (configs 552, conversions 628K, restrictions 586)
 - Repository 확장 (getScoreConfig, getConversionTable, getRestrictions)
 - Excel 결과와 스팟체크 비교 검증
+
+---
+
+### Phase 8.5a — 배치 판정 엔진 + Admin UI ✅ 완료
+
+> **완료일**: 2026-03-19
+
+**배치 판정 엔진** (`lib/domains/admission/placement/`):
+- `types.ts`: PlacementLevel(5단계), PlacementVerdict, PlacementAnalysisResult, PlacementFilter
+- `engine.ts`: 순수 함수 — parseAdmissionScores, determineVerdicts, summarizeVerdicts, filterVerdicts
+- `score-converter.ts`: MockScoreInput → SuneungScores 변환 (수학 선택과목/탐구 매핑)
+- `service.ts`: analyzePlacement — 전 대학 일괄 환산 + 입결 비교 + 판정 (Promise.all 5병렬 조회)
+- `actions.ts`: fetchPlacementAnalysis Server Action (requireAdminOrConsultant)
+
+**판정 기준** (입결 3개년 평균 대비):
+| Level | 비율 | 설명 |
+|-------|------|------|
+| safe | ≥ 1.0 | 안정 |
+| possible | ≥ 0.985 | 적정 (70%컷 근방) |
+| bold | ≥ 0.97 | 소신 (85%컷 근방) |
+| unstable | ≥ 0.95 | 불안정 |
+| danger | < 0.95 또는 결격 | 위험 |
+
+**신뢰도**: 3개년=80 / 2개년=60 / 1개년=40 기본점 + 표준편차 보너스(최대 +20)
+
+**Repository 확장** (`repository.ts`):
+- `findAdmissionsWithScores(dataYear)`: score_configs 대학의 입결 일괄 조회
+- `getAllConversionTables(dataYear)`: 전 대학 ConversionTable Map (549K행 페이지네이션)
+- `getAllRestrictions(dataYear)`: 전 대학 RestrictionRule Map
+- `getAllPercentageTables(dataYear)`: 전 대학 PercentageTable Map (883K행 페이지네이션)
+
+**Admin UI**:
+- `PlacementDashboard.tsx`: ScoreInputForm + PlacementSummaryBar + 필터(레벨/지역/계열/검색) + PlacementCard
+- StudentRecordClient 전략 섹션 `sec-placement` 추가
+- Query: `lib/query-options/placement.ts` (enabled:false, 수동 refetch 트리거)
+
+**테스트**: 25개 (parseAdmissionScores 4, calculateAdmissionAverage 2, calculateConfidence 4, determineLevel 6, determineVerdicts 4, summarizeVerdicts 1, filterVerdicts 4)
 
 ---
 
