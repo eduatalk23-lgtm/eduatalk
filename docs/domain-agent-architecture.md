@@ -2,7 +2,7 @@
 
 > 작성일: 2026-03-19
 > 버전: 1.0
-> 상태: 설계 완료, 미착수
+> 상태: 설계 완료, CMS C1 DB 완료 (2026-03-20), Agent 미착수
 > 기반: `student-record-roadmap.md`, `student-record-implementation-plan.md` v5, `student-record-extension-design.md` v6
 
 ---
@@ -270,8 +270,8 @@ const tools = {
 | 항목 | 내용 |
 |------|------|
 | **역할** | 학생 수준/진로에 맞는 교과 연계 탐구 가이드 추천/생성 |
-| **현재 상태** | 설계 완료 (C1~C5), **미착수** — RAG 핵심 적용처. 메인 트랙 Phase 3 이후 착수 가능 |
-| **데이터 소스** | `exploration_guides` (7,836건), `guide_content`, `guide_reviews`, `guide_assignments` |
+| **현재 상태** | **C1 DB 완료** (2026-03-20): 7+2 테이블 + 도메인 `lib/domains/guide/` + Import CLI. RAG 핵심 적용처 |
+| **데이터 소스** | `exploration_guides` (7,836건), `exploration_guide_content`, `exploration_guide_career/subject_mappings`, `exploration_guide_assignments` |
 | **참조 설계** | `student-record-extension-design.md` E7, E16 (exploration_guides 3분할: meta/content/review) |
 | **벡터화 대상** | 가이드 overview + theory_sections + setek_examples → 임베딩 (**핵심**) |
 | **최적 모델** | Gemini Flash (검색) + Claude standard (생성) |
@@ -335,7 +335,7 @@ const tools = {
 };
 ```
 
-**pgvector 스키마 (C1에서 함께 생성):**
+**pgvector 스키마 (C3에서 별도 테이블로 생성 — C1 3분할 설계 반영):**
 
 ```sql
 -- exploration_guide_content 테이블에 임베딩 컬럼 추가
@@ -849,10 +849,10 @@ components/agent/
 
 ---
 
-### Phase C: pgvector + CMS RAG (C1과 동시)
+### Phase C: pgvector + CMS RAG (C1 ✅ 완료, 착수 가능)
 
-> **의존**: Phase A + CMS C1
-> **예상 공수**: 5~7일 (C1 통합)
+> **의존**: Phase A + CMS C1 ✅ (2026-03-20 완료: `20260332500000_cms_guide_tables.sql`)
+> **예상 공수**: 3~5일 (C1 DB 이미 존재, 임베딩+RAG만 추가)
 
 | 단계 | 작업 | 상세 |
 |------|------|------|
@@ -956,7 +956,7 @@ Phase A (AI SDK 마이그레이션)
     ↓
 Phase B (오케스트레이터 + Agent 1·4 래핑)
     │
-    ├── Phase C (Agent 2: 탐구 가이드 + pgvector) ← CMS C1 의존
+    ├── Phase C (Agent 2: 탐구 가이드 + pgvector) ← CMS C1 ✅ 완료
     │
     ├── Phase D (Agent 3: 입시 배치) ← Phase 8.1~8.2 이미 완료
     │
@@ -966,7 +966,7 @@ Phase B (오케스트레이터 + Agent 1·4 래핑)
 
 Phase A: 독립 착수 가능 (즉시)
 Phase B: Phase A 이후 (메인 트랙 무관)
-Phase C: CMS C1 + Phase A 이후
+Phase C: CMS C1 ✅ + Phase A 이후 (C1 완료, A만 대기)
 Phase D: Phase A 이후 즉시 (Phase 8.1~8.2 완료됨)
 Phase E: Phase B + Phase D 이후
 ```

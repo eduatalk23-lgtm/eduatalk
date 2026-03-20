@@ -91,7 +91,7 @@ export function DiagnosisComparisonView({
         recommended_majors: result.data.recommendedMajors,
         strategy_notes: result.data.strategyNotes,
         source: "ai",
-        status: "suggested",
+        status: "draft",
       });
       if (!saveResult.success) throw new Error(saveResult.error);
       return result.data;

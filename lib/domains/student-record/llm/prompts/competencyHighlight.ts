@@ -113,8 +113,15 @@ const VALID_GRADES = new Set(["A+", "A-", "B+", "B", "B-", "C"]);
 
 export function parseHighlightResponse(content: string): HighlightAnalysisResult {
   let jsonStr = content.trim();
+  // 닫는 백틱이 있는 코드블록
   const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (jsonMatch) jsonStr = jsonMatch[1].trim();
+  if (jsonMatch) {
+    jsonStr = jsonMatch[1].trim();
+  } else {
+    // 닫는 백틱 없이 코드블록이 시작된 경우 (LLM 응답 truncation)
+    const openMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*)/);
+    if (openMatch) jsonStr = openMatch[1].trim();
+  }
 
   const parsed = JSON.parse(jsonStr);
 

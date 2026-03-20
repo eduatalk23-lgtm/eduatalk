@@ -39,6 +39,7 @@ import {
   Package,
   Receipt,
   Link2,
+  Compass,
 } from "lucide-react";
 
 export const adminCategories: NavigationCategory[] = [
@@ -293,6 +294,12 @@ export const adminCategories: NavigationCategory[] = [
         label: "학교 관리",
         href: "/admin/schools",
         icon: <School className="w-4 h-4" />,
+      },
+      {
+        id: "admin-guides",
+        label: "탐구 가이드",
+        href: "/admin/guides",
+        icon: <Compass className="w-4 h-4" />,
       },
     ],
   },

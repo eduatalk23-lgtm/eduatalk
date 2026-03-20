@@ -47,6 +47,7 @@ import { AllocationSimulator } from "./AllocationSimulator";
 import { AlumniSearch } from "./AlumniSearch";
 import { ActivitySummaryPanel } from "./ActivitySummaryPanel";
 import { SetekGuidePanel } from "./SetekGuidePanel";
+import { ExplorationGuidePanel } from "./ExplorationGuidePanel";
 
 type Subject = {
   id: string;
@@ -133,6 +134,7 @@ const STAGES: StageConfig[] = [
       { id: "sec-compensation", label: "보완전략" },
       { id: "sec-activity-summary", label: "활동 요약서" },
       { id: "sec-setek-guide", label: "세특 방향 가이드" },
+      { id: "sec-exploration-guide", label: "활동 가이드" },
     ],
   },
   {
@@ -935,6 +937,17 @@ export function StudentRecordClient({
             <SetekGuidePanel
               studentId={studentId}
               studentGrade={studentGrade}
+            />
+          </StrategySection>
+
+          {/* ─── 활동 가이드 (탐구 가이드 배정) ──── */}
+          <StrategySection id="sec-exploration-guide" title="활동 가이드">
+            <ExplorationGuidePanel
+              studentId={studentId}
+              studentGrade={studentGrade}
+              tenantId={tenantId}
+              schoolName={schoolName}
+              schoolYear={initialSchoolYear}
             />
           </StrategySection>
 

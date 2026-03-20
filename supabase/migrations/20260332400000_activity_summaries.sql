@@ -70,6 +70,6 @@ CREATE POLICY "sras_student_select"
 CREATE POLICY "sras_parent_select"
   ON public.student_record_activity_summaries FOR SELECT
   USING (
-    public.rls_check_parent_linked(student_id)
+    public.rls_check_parent_student(student_id)
     AND status = 'published'
   );
