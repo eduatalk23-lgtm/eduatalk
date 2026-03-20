@@ -346,19 +346,16 @@ function CandidateCard({
                 </span>
               </span>
             )}
-            {c.placement_grade && (
-              <span>
-                배치{" "}
-                <span className="font-medium text-[var(--text-primary)]">
-                  {c.placement_grade}
-                </span>
-              </span>
-            )}
             {c.competency_fit_score != null && (
               <span>
                 역량{" "}
-                <span className="font-medium text-[var(--text-primary)]">
-                  {c.competency_fit_score}
+                <span className={cn(
+                  "font-medium",
+                  c.competency_fit_score >= 75 ? "text-emerald-600 dark:text-emerald-400" :
+                  c.competency_fit_score >= 50 ? "text-[var(--text-primary)]" :
+                  "text-amber-600 dark:text-amber-400"
+                )}>
+                  {c.competency_fit_score}점
                 </span>
               </span>
             )}
@@ -388,7 +385,7 @@ function CandidateCard({
                 <p className="mb-1 text-xs font-medium text-[var(--text-secondary)]">
                   추천 근거
                 </p>
-                <p className="text-sm text-[var(--text-primary)]">
+                <p className="whitespace-pre-wrap text-sm text-[var(--text-primary)]">
                   {c.rationale}
                 </p>
               </div>

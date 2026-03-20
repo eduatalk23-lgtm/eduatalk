@@ -9,7 +9,10 @@ import {
   bypassPairsQueryOptions,
   bypassMajorKeys,
 } from "@/lib/query-options/bypassMajor";
-import { generateCandidatesAction } from "@/lib/domains/bypass-major/actions/bypass";
+import {
+  generateCandidatesAction,
+  runBypassPipelineAction,
+} from "@/lib/domains/bypass-major/actions/bypass";
 import type {
   UniversityDepartment,
   BypassCandidateWithDetails,
@@ -17,7 +20,7 @@ import type {
 import { BypassTargetSelector } from "./BypassTargetSelector";
 import { BypassCandidateList } from "./BypassCandidateList";
 import { CurriculumComparisonView } from "./CurriculumComparisonView";
-import { Compass, ListChecks, GitCompare, Wand2 } from "lucide-react";
+import { Compass, ListChecks, GitCompare, Wand2, Zap } from "lucide-react";
 
 interface BypassMajorPanelProps {
   studentId: string;
@@ -90,7 +93,7 @@ export function BypassMajorPanel({
     setTab("candidates");
   }
 
-  // 후보 자동 생성
+  // 후보 자동 생성 (커리큘럼 유사도만)
   function handleGenerate() {
     if (!targetDept) return;
     startGenerate(async () => {
@@ -110,6 +113,31 @@ export function BypassMajorPanel({
         );
       } else {
         setGenerateMsg(res.success ? "생성할 후보가 없습니다." : "생성에 실패했습니다.");
+      }
+    });
+  }
+
+  // 3필터 파이프라인 (커리큘럼 + 역량 매칭)
+  function handlePipeline() {
+    if (!targetDept) return;
+    startGenerate(async () => {
+      setGenerateMsg(null);
+      const res = await runBypassPipelineAction({
+        studentId,
+        tenantId,
+        targetDeptId: targetDept.id,
+        schoolYear,
+      });
+      if (res.success && res.data) {
+        queryClient.invalidateQueries({
+          queryKey: bypassMajorKeys.candidates(studentId, schoolYear),
+        });
+        const d = res.data;
+        setGenerateMsg(
+          `${d.totalGenerated}건 분석 완료 (역량 ${d.withCompetency}건 반영)`,
+        );
+      } else {
+        setGenerateMsg("파이프라인 실행에 실패했습니다.");
       }
     });
   }
@@ -146,6 +174,19 @@ export function BypassMajorPanel({
                 <Wand2 className="h-3.5 w-3.5" />
               )}
               우회학과 추천
+            </button>
+            <button
+              type="button"
+              onClick={handlePipeline}
+              disabled={isGenerating}
+              className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {isGenerating ? (
+                <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              ) : (
+                <Zap className="h-3.5 w-3.5" />
+              )}
+              종합 분석
             </button>
             {generateMsg && (
               <span className="text-xs text-[var(--text-secondary)]">
