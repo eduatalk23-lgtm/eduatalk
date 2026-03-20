@@ -16,6 +16,7 @@ import type {
   DepartmentSearchFilter,
   CurriculumCompareResult,
   DepartmentClassification,
+  UniversityTransferPolicy,
 } from "../types";
 import {
   searchDepartments,
@@ -27,8 +28,10 @@ import {
   saveCandidates,
   compareCurriculum,
   findClassifications,
+  findTransferPolicies,
 } from "../repository";
 import { generateCandidates } from "../candidate-generator";
+import { runBypassPipeline, type PipelineResult } from "../pipeline";
 
 const LOG_CTX = { domain: "bypass-major", action: "bypass" };
 
@@ -229,5 +232,43 @@ export async function addManualCandidateAction(input: {
       candidateDeptId: input.candidateDeptId,
     });
     return createErrorResponse("수동 후보 추가에 실패했습니다.");
+  }
+}
+
+/** 3필터 파이프라인 실행 (커리큘럼 + 배치 + 역량) */
+export async function runBypassPipelineAction(input: {
+  studentId: string;
+  tenantId: string;
+  targetDeptId: string;
+  schoolYear: number;
+}): Promise<ActionResponse<PipelineResult>> {
+  try {
+    const { tenantId } = await requireAdminOrConsultant();
+    const result = await runBypassPipeline({
+      ...input,
+      tenantId: input.tenantId || tenantId!,
+    });
+    return createSuccessResponse(result);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "runBypassPipeline" }, error, {
+      input,
+    });
+    return createErrorResponse("우회학과 파이프라인 실행에 실패했습니다.");
+  }
+}
+
+/** 전과/복수전공 정책 조회 */
+export async function getTransferPoliciesAction(
+  universityName: string,
+): Promise<ActionResponse<UniversityTransferPolicy[]>> {
+  try {
+    await requireAdminOrConsultant();
+    const data = await findTransferPolicies(universityName);
+    return createSuccessResponse(data);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "getTransferPolicies" }, error, {
+      universityName,
+    });
+    return createErrorResponse("전과/복수전공 정보를 불러올 수 없습니다.");
   }
 }

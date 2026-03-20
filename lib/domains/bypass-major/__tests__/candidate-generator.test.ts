@@ -4,13 +4,19 @@ import type {
   BypassMajorPair,
   UniversityDepartment,
 } from "../types";
+import type { CourseWithType } from "../similarity-engine";
+
+/** string[] → CourseWithType[] 헬퍼 */
+function toCourses(names: string[]): CourseWithType[] {
+  return names.map((n) => ({ courseName: n, courseType: null }));
+}
 
 // Mock repository
 vi.mock("../repository", () => ({
   findDepartmentById: vi.fn(),
   findBypassPairs: vi.fn(),
   findDepartmentsByMajorClassification: vi.fn(),
-  fetchCurriculumBatch: vi.fn(),
+  fetchCurriculumWithTypeBatch: vi.fn(),
   findDepartmentByName: vi.fn(),
 }));
 
@@ -22,7 +28,7 @@ import {
   findDepartmentById,
   findBypassPairs,
   findDepartmentsByMajorClassification,
-  fetchCurriculumBatch,
+  fetchCurriculumWithTypeBatch,
 } from "../repository";
 
 const mockedFindDepartmentById = vi.mocked(findDepartmentById);
@@ -30,7 +36,7 @@ const mockedFindBypassPairs = vi.mocked(findBypassPairs);
 const mockedFindDeptsByClassification = vi.mocked(
   findDepartmentsByMajorClassification,
 );
-const mockedFetchCurriculumBatch = vi.mocked(fetchCurriculumBatch);
+const mockedFetchCurriculumWithTypeBatch = vi.mocked(fetchCurriculumWithTypeBatch);
 
 // ── fixtures ──────────────────────────────────────
 
@@ -102,11 +108,11 @@ describe("generateCandidates", () => {
       makePair("p3", null, "미해소학과"), // bypass_department_id 없음 → 건너뜀
     ]);
     mockedFindDeptsByClassification.mockResolvedValue([]);
-    mockedFetchCurriculumBatch.mockResolvedValue(
+    mockedFetchCurriculumWithTypeBatch.mockResolvedValue(
       new Map([
-        ["dept-target", ["미적분", "선형대수", "확률통계"]],
-        ["dept-bypass-1", ["미적분", "선형대수", "이산수학"]],
-        ["dept-bypass-2", ["프로그래밍", "자료구조"]],
+        ["dept-target", toCourses(["미적분", "선형대수", "확률통계"])],
+        ["dept-bypass-1", toCourses(["미적분", "선형대수", "이산수학"])],
+        ["dept-bypass-2", toCourses(["프로그래밍", "자료구조"])],
       ]),
     );
 
@@ -128,11 +134,11 @@ describe("generateCandidates", () => {
       { id: "dept-sim-1" } as UniversityDepartment,
       { id: "dept-sim-2" } as UniversityDepartment,
     ]);
-    mockedFetchCurriculumBatch.mockResolvedValue(
+    mockedFetchCurriculumWithTypeBatch.mockResolvedValue(
       new Map([
-        ["dept-target", ["미적분", "선형대수", "확률통계", "프로그래밍"]],
-        ["dept-sim-1", ["미적분", "선형대수", "확률통계", "이산수학"]], // 높은 유사도
-        ["dept-sim-2", ["경영학원론", "마케팅"]], // 낮은 유사도
+        ["dept-target", toCourses(["미적분", "선형대수", "확률통계", "프로그래밍"])],
+        ["dept-sim-1", toCourses(["미적분", "선형대수", "확률통계", "이산수학"])],
+        ["dept-sim-2", toCourses(["경영학원론", "마케팅"])],
       ]),
     );
 
@@ -153,13 +159,13 @@ describe("generateCandidates", () => {
     mockedFindDeptsByClassification.mockResolvedValue([
       { id: "dept-low" } as UniversityDepartment,
     ]);
-    mockedFetchCurriculumBatch.mockResolvedValue(
+    mockedFetchCurriculumWithTypeBatch.mockResolvedValue(
       new Map([
         [
           "dept-target",
-          Array.from({ length: 50 }, (_, i) => `과목${i}`),
+          toCourses(Array.from({ length: 50 }, (_, i) => `과목${i}`)),
         ],
-        ["dept-low", ["완전다른과목A", "완전다른과목B"]], // 유사도 ~0%
+        ["dept-low", toCourses(["완전다른과목A", "완전다른과목B"])],
       ]),
     );
 
@@ -181,14 +187,13 @@ describe("generateCandidates", () => {
     })) as UniversityDepartment[];
     mockedFindDeptsByClassification.mockResolvedValue(depts);
 
-    const currMap = new Map<string, string[]>();
-    const targetCourses = ["A", "B", "C", "D", "E"];
-    currMap.set("dept-target", targetCourses);
+    const currMap = new Map<string, CourseWithType[]>();
+    const targetNames = ["A", "B", "C", "D", "E"];
+    currMap.set("dept-target", toCourses(targetNames));
     for (let i = 0; i < 5; i++) {
-      // 각각 다른 유사도
-      currMap.set(`dept-${i}`, targetCourses.slice(0, 5 - i));
+      currMap.set(`dept-${i}`, toCourses(targetNames.slice(0, 5 - i)));
     }
-    mockedFetchCurriculumBatch.mockResolvedValue(currMap);
+    mockedFetchCurriculumWithTypeBatch.mockResolvedValue(currMap);
 
     const result = await generateCandidates({
       ...BASE_INPUT,
@@ -210,11 +215,11 @@ describe("generateCandidates", () => {
       { id: "dept-dup" } as UniversityDepartment,
       { id: "dept-other" } as UniversityDepartment,
     ]);
-    mockedFetchCurriculumBatch.mockResolvedValue(
+    mockedFetchCurriculumWithTypeBatch.mockResolvedValue(
       new Map([
-        ["dept-target", ["A", "B", "C"]],
-        ["dept-dup", ["A", "B", "D"]], // 유사도 높음
-        ["dept-other", ["A", "B", "E"]], // 유사도 높음
+        ["dept-target", toCourses(["A", "B", "C"])],
+        ["dept-dup", toCourses(["A", "B", "D"])],
+        ["dept-other", toCourses(["A", "B", "E"])],
       ]),
     );
 
@@ -239,7 +244,7 @@ describe("generateCandidates", () => {
       makeDept("dept-target", { major_classification: null }),
     );
     mockedFindBypassPairs.mockResolvedValue([]);
-    mockedFetchCurriculumBatch.mockResolvedValue(new Map());
+    mockedFetchCurriculumWithTypeBatch.mockResolvedValue(new Map());
 
     const result = await generateCandidates(BASE_INPUT);
 

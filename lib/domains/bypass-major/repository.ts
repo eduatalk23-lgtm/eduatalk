@@ -12,8 +12,12 @@ import type {
   BypassCandidateStatus,
   DepartmentSearchFilter,
   CurriculumCompareResult,
+  UniversityTransferPolicy,
 } from "./types";
-import { calculateCurriculumSimilarity } from "./similarity-engine";
+import {
+  calculateCurriculumSimilarity,
+  type CourseWithType,
+} from "./similarity-engine";
 
 // ============================================================
 // 1. 학과 조회
@@ -285,6 +289,37 @@ export async function fetchCurriculumBatch(
   return map;
 }
 
+/** 복수 학과 교육과정 일괄 조회 (course_type 포함, 가중치 Jaccard용) */
+export async function fetchCurriculumWithTypeBatch(
+  departmentIds: string[],
+): Promise<Map<string, CourseWithType[]>> {
+  if (departmentIds.length === 0) return new Map();
+
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("department_curriculum")
+    .select("department_id, course_name, course_type")
+    .in("department_id", departmentIds);
+
+  if (error) throw error;
+
+  const map = new Map<string, CourseWithType[]>();
+  for (const row of data ?? []) {
+    const entry: CourseWithType = {
+      courseName: row.course_name,
+      courseType: row.course_type,
+    };
+    const existing = map.get(row.department_id);
+    if (existing) {
+      existing.push(entry);
+    } else {
+      map.set(row.department_id, [entry]);
+    }
+  }
+  return map;
+}
+
 /** 이름으로 학과 조회 (대학명 + 학과명) */
 export async function findDepartmentByName(
   universityName: string,
@@ -359,4 +394,26 @@ export async function compareCurriculum(
     totalCoursesA: similarity.totalCoursesA,
     totalCoursesB: similarity.totalCoursesB,
   };
+}
+
+// ============================================================
+// 6. 전과/복수전공 참조 정책
+// ============================================================
+
+/** 대학별 전과/복수전공 정책 조회 */
+export async function findTransferPolicies(
+  universityName: string,
+  dataYear = 2026,
+): Promise<UniversityTransferPolicy[]> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("university_transfer_policies")
+    .select("*")
+    .eq("university_name", universityName)
+    .eq("data_year", dataYear)
+    .order("policy_type");
+
+  if (error) throw error;
+  return data as UniversityTransferPolicy[];
 }

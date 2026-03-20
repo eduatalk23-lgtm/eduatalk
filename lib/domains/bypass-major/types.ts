@@ -195,6 +195,24 @@ export interface AccessClassificationRow {
   소분류명: string;
 }
 
+/** 전과/복수전공 참조 정책 */
+export interface UniversityTransferPolicy {
+  id: number;
+  university_name: string;
+  policy_type: "transfer" | "double_major" | "minor";
+  requirements: string | null;
+  gpa_threshold: number | null;
+  credit_threshold: number | null;
+  restrictions: string | null;
+  notes: string | null;
+  source_url: string | null;
+  data_year: number;
+}
+
+// ------------------------------------
+// 6. Import 관련 타입 (Access DB CSV)
+// ------------------------------------
+
 /** Import 결과 (공통) */
 export interface ImportDepartmentResult {
   total: number;

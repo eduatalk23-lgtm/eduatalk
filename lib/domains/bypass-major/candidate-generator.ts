@@ -4,9 +4,9 @@ import {
   findDepartmentById,
   findBypassPairs,
   findDepartmentsByMajorClassification,
-  fetchCurriculumBatch,
+  fetchCurriculumWithTypeBatch,
 } from "./repository";
-import { calculateCurriculumSimilarity } from "./similarity-engine";
+import { calculateWeightedCurriculumSimilarity } from "./similarity-engine";
 import type {
   BypassMajorCandidate,
   BypassCandidateSource,
@@ -96,12 +96,12 @@ export async function generateCandidates(
     );
   }
 
-  // 4. 교육과정 일괄 조회 (target + 사전매핑 + 동일대분류)
+  // 4. 교육과정 일괄 조회 (target + 사전매핑 + 동일대분류, course_type 포함)
   const allDeptIds = new Set<string>([targetDeptId]);
   for (const c of preMappedCandidates) allDeptIds.add(c.deptId);
   for (const d of similarityCandidateDepts) allDeptIds.add(d.id);
 
-  const curriculumMap = await fetchCurriculumBatch(Array.from(allDeptIds));
+  const curriculumMap = await fetchCurriculumWithTypeBatch(Array.from(allDeptIds));
   const targetCourses = curriculumMap.get(targetDeptId) ?? [];
 
   // 5. 유사도 계산
@@ -114,34 +114,33 @@ export async function generateCandidates(
 
   const scoredMap = new Map<string, ScoredCandidate>();
 
-  // 5a. 사전 매핑 후보 유사도 보강
+  // 5a. 사전 매핑 후보 유사도 보강 (가중치 Jaccard)
   for (const pm of preMappedCandidates) {
     const courses = curriculumMap.get(pm.deptId) ?? [];
-    const sim = calculateCurriculumSimilarity(targetCourses, courses);
+    const sim = calculateWeightedCurriculumSimilarity(targetCourses, courses);
     scoredMap.set(pm.deptId, {
       deptId: pm.deptId,
       source: "pre_mapped",
-      score: sim.overlapScore,
+      score: sim.weightedOverlapScore,
       rationale: pm.rationale,
     });
   }
 
-  // 5b. 동일 대분류 유사도 계산
+  // 5b. 동일 대분류 유사도 계산 (가중치 Jaccard)
   for (const dept of similarityCandidateDepts) {
-    // 사전 매핑에 이미 있으면 건너뜀 (중복 제거)
     if (scoredMap.has(dept.id)) continue;
 
     const courses = curriculumMap.get(dept.id) ?? [];
     if (courses.length === 0) continue;
 
-    const sim = calculateCurriculumSimilarity(targetCourses, courses);
-    if (sim.overlapScore < similarityThreshold) continue;
+    const sim = calculateWeightedCurriculumSimilarity(targetCourses, courses);
+    if (sim.weightedOverlapScore < similarityThreshold) continue;
 
     scoredMap.set(dept.id, {
       deptId: dept.id,
       source: "similarity",
-      score: sim.overlapScore,
-      rationale: `교육과정 유사도 ${sim.overlapScore}% (공통 ${sim.sharedCourses.length}과목)`,
+      score: sim.weightedOverlapScore,
+      rationale: `교육과정 유사도 ${sim.weightedOverlapScore}% (공통 ${sim.sharedCourses.length}과목, 가중치 적용)`,
     });
   }
 

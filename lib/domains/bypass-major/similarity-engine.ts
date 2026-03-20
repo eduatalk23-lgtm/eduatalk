@@ -8,13 +8,38 @@
 export interface SimilarityResult {
   departmentA: string;
   departmentB: string;
-  overlapScore: number; // 0-100
+  overlapScore: number; // 0-100 (비가중)
   sharedCourses: string[];
   uniqueToA: string[];
   uniqueToB: string[];
   totalCoursesA: number;
   totalCoursesB: number;
 }
+
+// ------------------------------------
+// 가중치 Jaccard 타입 + 상수
+// ------------------------------------
+
+export interface CourseWithType {
+  courseName: string;
+  courseType: string | null;
+}
+
+export interface WeightedSimilarityResult extends SimilarityResult {
+  weightedOverlapScore: number; // 가중치 Jaccard 0-100
+  sharedCoursesDetail: { name: string; courseType: string | null; weight: number }[];
+}
+
+/** 과목 유형별 가중치 — 전공필수가 가장 중요 */
+export const COURSE_TYPE_WEIGHTS: Record<string, number> = {
+  "전공필수": 3.0,
+  "전공핵심": 2.5,
+  "전공기초": 2.0,
+  "전공선택": 1.5,
+  "교양필수": 1.0,
+  "교직": 0.5,
+};
+export const DEFAULT_COURSE_TYPE_WEIGHT = 0.5;
 
 /**
  * 과목명 정규화 — 비교용
@@ -93,6 +118,97 @@ export function calculateCurriculumSimilarity(
     departmentB: "",
     overlapScore,
     sharedCourses: shared.sort(),
+    uniqueToA: uniqueToA.sort(),
+    uniqueToB: uniqueToB.sort(),
+    totalCoursesA: mapA.size,
+    totalCoursesB: mapB.size,
+  };
+}
+
+// ============================================================
+// 가중치 Jaccard — course_type 기반 가중치 적용
+// ============================================================
+
+function getCourseWeight(courseType: string | null): number {
+  if (!courseType) return DEFAULT_COURSE_TYPE_WEIGHT;
+  return COURSE_TYPE_WEIGHTS[courseType] ?? DEFAULT_COURSE_TYPE_WEIGHT;
+}
+
+/**
+ * 가중치 Jaccard 유사도 계산
+ *
+ * 공통 과목에 가중치를 부여하여 전공필수 겹침이 교양 겹침보다 높게 반영됨.
+ * 비가중 Jaccard(overlapScore)도 함께 반환하여 하위호환 유지.
+ */
+export function calculateWeightedCurriculumSimilarity(
+  coursesA: CourseWithType[],
+  coursesB: CourseWithType[],
+): WeightedSimilarityResult {
+  // 정규화 맵: normalized → { original, courseType }
+  const mapA = new Map<string, { original: string; courseType: string | null }>();
+  for (const c of coursesA) {
+    const normalized = normalizeCourseNameForComparison(c.courseName);
+    if (normalized && !mapA.has(normalized)) {
+      mapA.set(normalized, { original: c.courseName, courseType: c.courseType });
+    }
+  }
+
+  const mapB = new Map<string, { original: string; courseType: string | null }>();
+  for (const c of coursesB) {
+    const normalized = normalizeCourseNameForComparison(c.courseName);
+    if (normalized && !mapB.has(normalized)) {
+      mapB.set(normalized, { original: c.courseName, courseType: c.courseType });
+    }
+  }
+
+  const shared: string[] = [];
+  const sharedDetail: { name: string; courseType: string | null; weight: number }[] = [];
+  const uniqueToA: string[] = [];
+  const uniqueToB: string[] = [];
+
+  let sharedWeightSum = 0;
+  let totalWeightSum = 0;
+
+  for (const [normalized, entryA] of mapA) {
+    const entryB = mapB.get(normalized);
+    if (entryB) {
+      shared.push(entryA.original);
+      // 공통 과목: 양쪽 가중치 중 큰 값 사용 (전공필수 쪽이 우세)
+      const weight = Math.max(
+        getCourseWeight(entryA.courseType),
+        getCourseWeight(entryB.courseType),
+      );
+      sharedDetail.push({ name: entryA.original, courseType: entryA.courseType, weight });
+      sharedWeightSum += weight;
+      totalWeightSum += weight;
+    } else {
+      uniqueToA.push(entryA.original);
+      totalWeightSum += getCourseWeight(entryA.courseType);
+    }
+  }
+
+  for (const [normalized, entryB] of mapB) {
+    if (!mapA.has(normalized)) {
+      uniqueToB.push(entryB.original);
+      totalWeightSum += getCourseWeight(entryB.courseType);
+    }
+  }
+
+  const unionSize = mapA.size + mapB.size - shared.length;
+  const overlapScore =
+    unionSize > 0 ? Math.round((shared.length / unionSize) * 1000) / 10 : 0;
+  const weightedOverlapScore =
+    totalWeightSum > 0
+      ? Math.round((sharedWeightSum / totalWeightSum) * 1000) / 10
+      : 0;
+
+  return {
+    departmentA: "",
+    departmentB: "",
+    overlapScore,
+    weightedOverlapScore,
+    sharedCourses: shared.sort(),
+    sharedCoursesDetail: sharedDetail.sort((a, b) => b.weight - a.weight),
     uniqueToA: uniqueToA.sort(),
     uniqueToB: uniqueToB.sort(),
     totalCoursesA: mapA.size,
