@@ -1,8 +1,8 @@
 # 입시 컨설팅 도메인 에이전트 아키텍처
 
 > 작성일: 2026-03-19
-> 버전: 2.0 (2026-03-20 Phase A+B+C 완료 반영)
-> 상태: Phase A ✅ + Phase B ✅ + Phase C ✅ — 다음: Phase D·E
+> 버전: 5.0 (2026-03-20 Phase A~E + CMS C2.5+C3 완료)
+> 상태: Phase A~E ✅ + CMS C2.5 ✅ + CMS C3 ✅
 > 기반: `student-record-roadmap.md`, `student-record-implementation-plan.md` v5, `student-record-extension-design.md` v6
 
 ---
@@ -14,16 +14,16 @@
 TimeLevelUp의 입시 컨설팅 기능을 6개 전문 도메인 에이전트 + 1개 오케스트레이터로 구조화하여,
 컨설턴트와 학생이 자연어로 상호작용할 수 있는 AI 어시스턴트 시스템을 구축한다.
 
-### 1.2 현재 상태 (2026-03-20, Phase A+B+C 완료)
+### 1.2 현재 상태 (2026-03-20, Phase A+B+C+D 완료)
 
 | 영역 | 현황 |
 |------|------|
 | **LLM 프로바이더** | ✅ Vercel AI SDK v6 (`ai-sdk.ts` 래퍼) — `generateTextWithRateLimit`, `generateObjectWithRateLimit`, `streamTextWithRateLimit` |
 | **스트리밍** | ✅ AI SDK `streamText` + `toUIMessageStreamResponse()` — `POST /api/agent` |
 | **검색 전략** | ✅ pgvector 하이브리드 검색 (벡터 + SQL 메타데이터 필터) + Gemini Grounding |
-| **벡터 인프라** | ✅ pgvector 활성화, `exploration_guide_content.embedding` vector(768) + HNSW 인덱스 |
-| **도메인 AI** | ✅ plan LLM + student-record LLM + admission + 오케스트레이터 13도구 |
-| **Tool Calling** | ✅ AI SDK `tool()` + `inputSchema` — 13개 도구 등록 |
+| **벡터 인프라** | ✅ pgvector 활성화, `exploration_guide_content.embedding` vector(768), 7,836건 임베딩 완료 |
+| **도메인 AI** | ✅ plan LLM + student-record LLM + admission + 오케스트레이터 25도구 (Agent 1·2·3·4·5·6) |
+| **Tool Calling** | ✅ AI SDK `tool()` + `inputSchema` — 25개 도구 등록 |
 | **멀티턴 대화** | ✅ `useChat` + `DefaultChatTransport` + `stopWhen: stepCountIs(5)` |
 
 ### 1.3 아키텍처 결정 근거
@@ -358,7 +358,7 @@ CREATE INDEX idx_guide_content_embedding ON exploration_guide_content
 | 항목 | 내용 |
 |------|------|
 | **역할** | 내신/모의고사 기반 합격권 분석, 6장 최적 배분 |
-| **현재 상태** | Phase 8.1 **완료** (입시 DB 26,305건), Phase 8.2 엔진 **완료** (Calculator 9모듈 + 테스트 38개). Phase D 즉시 착수 가능 |
+| **현재 상태** | ✅ **Phase D 완료** — 6도구 래핑 (searchAdmissionData, getUniversityScoreInfo, runPlacementAnalysis, filterPlacementResults, simulateCardAllocation, analyzeScoreImpact) |
 | **데이터 소스** | `university_admissions` (26,305건), `admission_score_configs` (552건), `admission_score_conversions` (628K건), `admission_restrictions` (586건), `applications`, `min_score_targets` |
 | **벡터화 대상** | 불필요 — 순수 구조화 데이터, **결정론적 엔진** 중심 |
 | **최적 모델** | 계산은 코드, LLM은 해석/추천 텍스트 생성만 |
@@ -771,16 +771,17 @@ function buildEmbeddingInput(record: SetekRecord): string {
 ```
 lib/agents/                              # 에이전트 레이어
 ├── types.ts                             # ✅ AgentContext, AgentToolResult
-├── orchestrator.ts                      # ✅ createOrchestrator(ctx) → { tools: 13개, systemPrompt }
+├── orchestrator.ts                      # ✅ createOrchestrator(ctx) → { tools: 19개, systemPrompt }
 ├── tools/
 │   ├── data-tools.ts                    # ✅ 읽기 전용 3도구 (records, diagnosis, storylines)
 │   ├── record-tools.ts                  # ✅ Agent 1: 5도구 (tags, competency, highlight, storyline, diagnosis)
 │   ├── strategy-tools.ts               # ✅ Agent 4: 2도구 (strategies + warnings)
 │   ├── guide-tools.ts                   # ✅ Agent 2: 3도구 (search, detail, assignments)
-│   ├── placement-tools.ts              # 🔲 Phase D: Agent 3 입시 배치
-│   └── interview-tools.ts              # 🔲 Phase E: Agent 5 면접 대비
+│   ├── admission-tools.ts              # ✅ Agent 3: 6도구 (search, scoreInfo, placement, filter, allocation, impact)
+│   ├── interview-tools.ts              # ✅ Agent 5: 3도구 (generateInterviewQuestions, evaluateAnswer, getInterviewPrep)
+│   └── report-tools.ts                 # ✅ Agent 6: 3도구 (generateReport, fetchSavedReports, getStudentOverview)
 └── __tests__/
-    └── orchestrator.test.ts             # ✅ 8 tests
+    └── orchestrator.test.ts             # ✅ 11 tests
 
 lib/domains/guide/vector/                # ✅ Phase C 벡터 검색
 ├── embedding-service.ts                 # embedSingleGuide, embedBatchGuides
@@ -796,6 +797,23 @@ app/(admin)/admin/agent/
 components/agent/
 ├── AgentChat.tsx                        # ✅ useChat + DefaultChatTransport
 └── AgentMessageBubble.tsx              # ✅ UIMessage 파트 렌더링 (text + dynamic-tool)
+
+lib/domains/guide/llm/                   # ✅ CMS C3 AI 가이드 생성
+├── types.ts                             # GeneratedGuideOutput/GuideReviewOutput Zod 스키마
+├── prompts/
+│   ├── keyword-guide.ts                 # 키워드→가이드 프롬프트
+│   ├── clone-variant.ts                 # 기존 가이드 변형 프롬프트
+│   └── review.ts                        # AI 품질 리뷰 프롬프트
+└── actions/
+    ├── generateGuide.ts                 # 키워드/클론 생성 Server Action
+    └── reviewGuide.ts                   # AI 품질 리뷰 Server Action
+
+lib/domains/guide/actions/
+└── ai-image.ts                          # ✅ CMS C2.5 Imagen 3 이미지 생성
+
+components/editor/
+├── AiImageDialog.tsx                    # ✅ AI 이미지 프롬프트 다이얼로그
+└── EditorToolbar.tsx                    # ✅ DropdownMenu (업로드/AI 생성)
 
 scripts/
 └── embed-guides.ts                      # ✅ 배치 임베딩 CLI (--dry-run, --limit)
@@ -905,10 +923,12 @@ scripts/
 - `search_guides` RPC: `SECURITY INVOKER` (설계의 `SECURITY DEFINER` 대신 — RLS 자동 적용)
 - 검색 필터: `career_filter bigint` (FK ID), `subject_filter uuid`, `guide_type_filter text` — 설계의 text 배열 대신 정규화된 FK 조인
 
-**검증 완료:**
+**운영 완료:**
 - [x] `pnpm build` 성공
-- [x] 마이그레이션 구문 검증
-- [x] 배치 스크립트 `--dry-run` 동작 확인
+- [x] 마이그레이션 프로덕션 적용 (`apply_migration`)
+- [x] 7,836건 전체 임베딩 완료 (768d, 971초, 실패 0건)
+- [x] RPC 테이블명 수정 (`_career_mappings`, `_subject_mappings`)
+- [x] `providerOptions: { google: { outputDimensionality: 768 } }` 추가 (기본 3072d 대응)
 
 ---
 
@@ -939,16 +959,66 @@ scripts/
 
 ---
 
-### Phase E: 면접·리포트 확장
+### Phase E: 면접·리포트 확장 ✅ 완료 (2026-03-20)
 
 > **의존**: Phase B + Phase D
-> **예상 공수**: 3~5일
+> **완료일**: 2026-03-20
 
-| 단계 | 작업 | 상세 |
+| 단계 | 작업 | 상세 | 상태 |
+|------|------|------|------|
+| E-1 | Agent 5: 면접 코칭 3도구 | generateInterviewQuestions(기록→질문10개), evaluateAnswer(답변평가+피드백), getInterviewPrep(준비현황) | ✅ |
+| E-2 | Agent 6: 리포트 생성 3도구 | generateReport(요약서/가이드 생성), fetchSavedReports(목록), getStudentOverview(종합프로필) | ✅ |
+| E-3 | PDF 생성 | HTML → Word/PDF 내보내기 | 🔲 (별도 Phase) |
+
+**구현 파일:**
+- `lib/agents/tools/interview-tools.ts` — Agent 5: 3도구 (~220줄)
+- `lib/agents/tools/report-tools.ts` — Agent 6: 3도구 (~210줄)
+- `lib/agents/orchestrator.ts` — 시스템 프롬프트 Agent 5·6 섹션 + 규칙 2개 추가
+- 오케스트레이터 도구: 19 → 25개 (3+5+2+3+6+3+3)
+
+---
+
+### CMS C2.5: AI 이미지 생성 — ✅ 완료 (2026-03-20)
+
+| 단계 | 작업 | 상태 |
 |------|------|------|
-| E-1 | Agent 5 확장 | 답변 평가 + 모의 면접 (멀티턴) |
-| E-2 | Agent 6 구현 | 종합 리포트 (Agent 1~5 결과 조합) |
-| E-3 | PDF 생성 | HTML → Word/PDF 내보내기 |
+| C2.5-1 | `lib/domains/guide/actions/ai-image.ts` — Imagen 3 (`imagen-3.0-generate-002`) Server Action | ✅ |
+| C2.5-2 | `components/editor/AiImageDialog.tsx` — 프롬프트 입력 + 비율 선택 (1:1/16:9/9:16/4:3/3:4) | ✅ |
+| C2.5-3 | `EditorToolbar.tsx` — DropdownMenu 분기 (파일 업로드 / AI 이미지 생성) | ✅ |
+| C2.5-4 | prop 전달 체인: EditorToolbar → RichTextEditor → GuideContentEditor → GuideEditorClient | ✅ |
+
+**핵심 파일:**
+- `lib/domains/guide/actions/ai-image.ts` — `generateGuideImageAction()` (Rate Limiter + Quota 재사용)
+- `components/editor/AiImageDialog.tsx` — Dialog UI
+- `components/editor/EditorToolbar.tsx` — DropdownMenu 통합
+
+---
+
+### CMS C3: AI 가이드 생성 — ✅ 완료 (2026-03-20)
+
+> **의존**: CMS C2 + Phase C (임베딩)
+
+| 단계 | 작업 | 상태 |
+|------|------|------|
+| C3-1 | `llm/types.ts` — Zod 스키마 (GeneratedGuideOutput, GuideReviewOutput) + 스코어→상태 매핑 | ✅ |
+| C3-2 | `llm/prompts/` — 키워드/클론/리뷰 3개 프롬프트 | ✅ |
+| C3-3 | `repository.ts` + `types.ts` — GuideUpsertInput AI 필드 (qualityScore, qualityTier, aiModelVersion) | ✅ |
+| C3-4 | `llm/actions/generateGuide.ts` — 키워드/클론 생성 (generateObjectWithRateLimit + SubjectMatcher) | ✅ |
+| C3-5 | `llm/actions/reviewGuide.ts` — AI 품질 리뷰 (4차원 평가, 0~100) → 상태 전환 | ✅ |
+| C3-6 | `/admin/guides/generate` — 2단계 위자드 UI + GuideListClient "AI 생성" 버튼 | ✅ |
+
+**핵심 설계:**
+- **소스 2종**: `ai_keyword` (키워드→가이드), `ai_clone_variant` (기존 가이드→변형)
+- **모델**: Gemini Flash (`fast`) + `zodSchema()` 래핑 — 구조화 출력
+- **매핑**: SubjectMatcher/CareerFieldMatcher (Import 파이프라인 재사용) — AI 출력 과목/계열명 → DB ID
+- **리뷰 워크플로**: draft → ai_reviewing → pending_approval(60+점) / review_failed(60미만)
+- **임베딩**: 생성 완료 후 `embedSingleGuide()` fire-and-forget
+
+**핵심 파일:**
+- `lib/domains/guide/llm/` — types, prompts(3), actions(2)
+- `app/(admin)/admin/guides/generate/` — page + GuideGeneratorClient
+
+**다음 (C3.1):** PDF/URL 추출 소스 + Agent 오케스트레이터 `generateGuide` 도구 등록
 
 ---
 
@@ -962,8 +1032,11 @@ scripts/
 | 오케스트레이터 라우팅 호출 | +~$0.50 |
 | 7,836건 최초 임베딩 (일회성) | ~$0.01 |
 | 임베딩 검색 쿼리 | ~$0.01/월 |
+| CMS C2.5 AI 이미지 (Imagen 3) | ~$0.05/건 (예: 50건/월 = $2.50) |
+| CMS C3 AI 가이드 생성 (Flash) | ~$0.005/건 (예: 100건/월 = $0.50) |
+| CMS C3 AI 리뷰 (Flash) | ~$0.003/건 (예: 100건/월 = $0.30) |
 | pgvector 저장 | Supabase 기존 플랜 내 |
-| **합계** | **~$1/월** |
+| **합계** | **~$4.50/월** |
 
 > 예산 $30~50 대비 극도의 여유. LLM 캐시 적용 후 전체 시스템 (기존 + 에이전트) 합산 $30~50 범위.
 
@@ -1014,7 +1087,7 @@ Phase B (오케스트레이터 + Agent 1·2·4 래핑) ✅ 2026-03-20
     │
     ├── Phase D (Agent 3: 입시 배치) ✅ 2026-03-20
     │
-    └── Phase E (Agent 5·6: 면접·리포트 확장) ← 즉시 착수 가능
+    └── Phase E (Agent 5·6: 면접·리포트 확장) ✅ 2026-03-20
 
 [현재 상태]
 
@@ -1022,5 +1095,10 @@ Phase A: ✅ 완료
 Phase B: ✅ 완료 — 13도구 오케스트레이터 + API + Chat UI + 사이드패널 + 독립페이지
 Phase C: ✅ 완료 — pgvector 마이그레이션 + 임베딩 서비스 + 벡터 검색 + 배치 스크립트
 Phase D: ✅ 완료 — 6도구 (배치분석, 필터, 6장 배분, What-If) + closure 캐시
-Phase E: 🟢 즉시 착수 가능 (Phase B + D 완료)
+Phase E: ✅ 완료 — 6도구 (면접질문, 답변평가, 준비현황, 리포트생성, 목록조회, 학생프로필)
+
+[CMS AI 트랙]
+
+CMS C2.5: ✅ 완료 — Imagen 3 AI 이미지 생성 + 에디터 DropdownMenu 통합
+CMS C3:   ✅ 완료 — AI 가이드 생성 (키워드/클론) + AI 리뷰 + /admin/guides/generate 위자드
 ```
