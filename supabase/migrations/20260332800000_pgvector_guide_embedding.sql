@@ -59,16 +59,16 @@ AS $$
     AND (
       career_filter IS NULL
       OR EXISTS (
-        SELECT 1 FROM exploration_guide_career_fields cf
-        WHERE cf.guide_id = g.id AND cf.career_field_id = career_filter
+        SELECT 1 FROM exploration_guide_career_mappings cm
+        WHERE cm.guide_id = g.id AND cm.career_field_id = career_filter
       )
     )
     -- 과목 필터 (옵션)
     AND (
       subject_filter IS NULL
       OR EXISTS (
-        SELECT 1 FROM exploration_guide_subjects gs
-        WHERE gs.guide_id = g.id AND gs.subject_id = subject_filter
+        SELECT 1 FROM exploration_guide_subject_mappings sm
+        WHERE sm.guide_id = g.id AND sm.subject_id = subject_filter
       )
     )
     -- 유형 필터 (옵션)
