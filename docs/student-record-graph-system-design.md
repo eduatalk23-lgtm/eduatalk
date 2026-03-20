@@ -1,8 +1,9 @@
 # 생기부 그래프 시스템 설계서
 
 > 작성일: 2026-03-21
-> 버전: 1.0
-> 상태: 설계 (구현 전)
+> 버전: 1.1 (2026-03-21 G0+G1 완료 반영)
+> 상태: 구현 진행중 (G0 ✅ + G1 ✅ → G2 다음)
+> 적대적 리뷰 + 수정 로드맵: `student-record-graph-adversarial-review.md`
 > 기반: `student-record-roadmap.md`, `domain-agent-architecture.md`, `bypass-major-adversarial-review.md`
 > 관련: `student-record-implementation-plan.md` v5, `student-record-extension-design.md` v6
 
@@ -581,52 +582,57 @@ topic 형식: "record:{student_id}:{section_type}:{identifier}"
 
 ---
 
-## 10. 구현 로드맵 (안)
+## 10. 구현 로드맵
 
-### Phase G1: 선행 과제 해소 (P0)
+> 원래 설계(v1.0)의 100노드 그래프 UI는 적대적 리뷰(3명 전문가)를 거쳐
+> **기존 문서 뷰 유지 + 점진적 레이어 탭** 방식(v1.1)으로 수정되었다.
+> 상세: `student-record-graph-adversarial-review.md`
 
-```
-G1-1: 가이드 status 워크플로 점검 + 수정
-G1-2: 학생 온보딩 위저드 (target_major + school_name)
-G1-3: 초기 설계 파이프라인 (교과추천 + 가이드매칭 + 세특방향)
-```
+### Phase G0: 즉시 개선 ✅ 완료 (2026-03-21)
 
-### Phase G2: 노드 레이어 뷰
+- 빈 섹션 자동 접기 (DocSection/StrategySection isEmpty)
+- 진행률 대시보드 (사이드바 프로그레스 바)
+- 에러 부분 처리 (전역→부분)
+- useAutoSave 보강 (beforeunload + visibilitychange + 지수 백오프)
 
-```
-G2-1: 노드 카드 컴포넌트 (상태 적응형 4레이어)
-G2-2: 기존 에디터 → 노드 📄 레이어 내부로 리팩토링
-G2-3: 기존 가이드 배정 → 노드 📘 레이어 연결
-G2-4: 기존 세특 방향 가이드 → 노드 📝 레이어 연결
-G2-5: 기존 하이라이트/태그 → 노드 🔍 레이어 연결
-```
+### Phase G1: 세특 레이어 탭 ✅ 완료 (2026-03-21)
 
-### Phase G3: 엣지 + 그래프 시각화
+- SetekEditor 5탭: [📄세특 | 🔍분석 | 📘가이드 | 📝방향 | 💬논의]
+- 서비스 연계: diagnosisData + setekGuides + guideAssignments + 채팅 컨텍스트
+- StudentRecordContext 확장 (activeSubjectId)
+- 추가 쿼리 2개, 마이그레이션 0개
 
-```
-G3-1: 엣지 자동 감지 (THEME_CONVERGENCE, TEACHER_VALIDATION)
-G3-2: 노드 간 연결 UI (🔗 연결된 노드 섹션)
-G3-3: 스토리라인 → 그래프 엣지 통합
-G3-4: 가이드 키워드 반영률 계산
-```
-
-### Phase G4: 채팅/메모 연결 + 역할별 뷰
+### Phase G2: 크로스레퍼런스 + 온보딩 + 가이드 매칭
 
 ```
-G4-1: 채팅 토픽 연결 (영역별)
-G4-2: 메모 → 노드 📝 레이어 연결
-G4-3: 학부모 뷰 (진행률 + 읽기전용)
-G4-4: 학생 뷰 (할 일 목록 + 가이드 진행)
+G2-1: 인라인 크로스레퍼런스 칩 (7종 엣지 표면화)
+G2-2: 사이드 패널 "연결" 앱 (1-hop 관계 탐색)
+G2-3: 학생 온보딩 위저드 (target_major + school_name)
+G2-4: 교과선택 추천 뷰 (MAJOR_RECOMMENDED_COURSES)
+G2-5: 가이드 매칭 보조 (컨설턴트 보조 — 추천→확인→배정)
+G2-6: 같은 학교 주제 중복 체크
+G2-7: 학부모 월간 리포트 생기부 진행률 섹션
 ```
 
-### Phase G5: 고도화
+### Phase G3: 레이어 확대 + 엣지 자동 감지
 
 ```
-G5-1: 대학별 평가 비중 가중치 적용
-G5-2: 문서 모드 ↔ 편집 모드 전환
-G5-3: 독서 추천 AI
-G5-4: 창체 활동 자동 제안 AI
-G5-5: 모바일 최적화
+G3-1: ChangcheEditor 레이어 탭
+G3-2: 행특/독서 간소화 탭
+G3-3: ChatPanelApp 토픽 연결 완성
+G3-4: 메모 영역 태깅
+G3-5: 엣지 자동 감지 (THEME_CONVERGENCE, TEACHER_VALIDATION)
+G3-6: 가이드 키워드 반영률
+```
+
+### Phase G4: 고도화 (데이터 축적 후)
+
+```
+G4-1: 연결 그래프 시각화 (사이드 패널)
+G4-2: 대학별 평가 가중치
+G4-3: 합격 사례 패턴 매칭
+G4-4: 학생 고유성 점수
+G4-5: 불완전함 보존 알림
 ```
 
 ---
