@@ -38,7 +38,10 @@ export function createDataTools(ctx: AgentContext) {
         const year = schoolYear ?? ctx.schoolYear;
         logActionDebug(LOG_CTX, `getStudentRecords: year=${year}`);
         try {
-          const data = await getRecordTabData(ctx.studentId, year, ctx.tenantId!);
+          if (!ctx.tenantId) {
+            return { success: false, error: "테넌트 정보가 없습니다." };
+          }
+          const data = await getRecordTabData(ctx.studentId, year, ctx.tenantId);
           // 요약본으로 변환 (토큰 절약)
           const summary = {
             seteks: data.seteks.map((s) => ({

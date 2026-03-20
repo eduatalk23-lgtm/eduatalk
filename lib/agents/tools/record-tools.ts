@@ -129,9 +129,25 @@ ${competencySchema}
 }
 \`\`\``;
 
-          const recordText = records
+          const MAX_ANALYSIS_INPUT_CHARS = 10000;
+          let rawText = records
             .map((r) => `[${r.label}]\n${r.content}`)
             .join("\n\n---\n\n");
+
+          if (rawText.length > MAX_ANALYSIS_INPUT_CHARS) {
+            const ratio = MAX_ANALYSIS_INPUT_CHARS / rawText.length;
+            rawText = records
+              .map((r) => {
+                const maxLen = Math.max(100, Math.floor(r.content.length * ratio));
+                const truncated = r.content.length > maxLen
+                  ? r.content.slice(0, maxLen) + "…(생략)"
+                  : r.content;
+                return `[${r.label}]\n${truncated}`;
+              })
+              .join("\n\n---\n\n");
+          }
+
+          const recordText = rawText;
           const userPrompt = `## 분석 대상 학생의 생기부 기록 (${records.length}건)\n\n${recordText}\n\n위 생기부 전체 기록을 종합 분석하여 10개 역량 항목의 등급을 JSON으로 제안해주세요.`;
 
           const result = await generateTextWithRateLimit({

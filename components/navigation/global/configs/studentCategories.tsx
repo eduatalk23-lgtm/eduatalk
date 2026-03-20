@@ -41,6 +41,7 @@ import {
   FolderKanban,
   HardDrive,
   MessageSquare,
+  Search,
 } from "lucide-react";
 
 export const studentCategories: NavigationCategory[] = [
@@ -161,7 +162,22 @@ export const studentCategories: NavigationCategory[] = [
     ],
   },
 
-  // 5. 내 파일
+  // 5. 탐구 가이드
+  {
+    id: "guides",
+    label: "탐구 가이드",
+    icon: <Search className="w-4 h-4" />,
+    items: [
+      {
+        id: "guides-main",
+        label: "탐구 가이드",
+        href: "/guides",
+        icon: <Search className="w-4 h-4" />,
+      },
+    ],
+  },
+
+  // 6. 내 파일
   {
     id: "drive",
     label: "내 파일",

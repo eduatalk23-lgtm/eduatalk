@@ -202,7 +202,14 @@ export function createInterviewTools(ctx: AgentContext) {
           const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
           if (jsonMatch) jsonStr = jsonMatch[1].trim();
 
-          const parsed = JSON.parse(jsonStr);
+          let parsed: Record<string, unknown>;
+          try {
+            parsed = JSON.parse(jsonStr);
+          } catch {
+            logActionError(LOG_CTX, `evaluateAnswer JSON 파싱 실패: ${jsonStr.slice(0, 200)}`);
+            return { success: false, error: "AI 응답 형식 오류입니다. 다시 시도해주세요." };
+          }
+
           const score = Math.max(1, Math.min(5, Math.round(Number(parsed.score) || 3)));
 
           return {

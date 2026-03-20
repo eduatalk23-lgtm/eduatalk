@@ -120,3 +120,49 @@ export function allSubjectsQueryOptions() {
     gcTime: 60 * 60_000,
   });
 }
+
+// ============================================
+// 학생 전용 Query Options
+// ============================================
+
+import {
+  fetchMyAssignmentsAction,
+  fetchMyGuideDetailAction,
+  fetchMyCompletionRateAction,
+} from "@/lib/domains/guide/actions/student-guide";
+
+export const studentGuideKeys = {
+  all: ["studentGuide"] as const,
+  assignments: (schoolYear?: number) =>
+    [...studentGuideKeys.all, "assignments", schoolYear] as const,
+  detail: (guideId: string) =>
+    [...studentGuideKeys.all, "detail", guideId] as const,
+  completionRate: () =>
+    [...studentGuideKeys.all, "completionRate"] as const,
+};
+
+export function studentGuideAssignmentsQueryOptions(schoolYear?: number) {
+  return queryOptions({
+    queryKey: studentGuideKeys.assignments(schoolYear),
+    queryFn: () => fetchMyAssignmentsAction(schoolYear),
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
+  });
+}
+
+export function studentGuideDetailQueryOptions(guideId: string) {
+  return queryOptions({
+    queryKey: studentGuideKeys.detail(guideId),
+    queryFn: () => fetchMyGuideDetailAction(guideId),
+    staleTime: 60_000,
+    enabled: !!guideId,
+  });
+}
+
+export function studentGuideCompletionRateQueryOptions() {
+  return queryOptions({
+    queryKey: studentGuideKeys.completionRate(),
+    queryFn: () => fetchMyCompletionRateAction(),
+    staleTime: 30_000,
+  });
+}

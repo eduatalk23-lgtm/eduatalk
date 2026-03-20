@@ -65,10 +65,22 @@ export async function POST(req: Request) {
         stopWhen: stepCountIs(5),
         maxOutputTokens: 8192,
         temperature: 0.3,
+        abortSignal: req.signal,
+        onError: ({ error }) => {
+          logActionError(
+            "agent.stream",
+            error instanceof Error ? error.message : String(error),
+          );
+        },
       });
     });
 
     geminiQuotaTracker.recordRequest();
+
+    logActionDebug(
+      "agent.api",
+      `오케스트레이터 완료: userId=${userId}, studentId=${studentId}`,
+    );
 
     // 6. AI SDK UI Message Stream 응답
     return result.toUIMessageStreamResponse();

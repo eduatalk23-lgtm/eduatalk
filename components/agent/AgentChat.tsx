@@ -35,6 +35,7 @@ export function AgentChat({ studentId, studentName, className }: AgentChatProps)
     messages,
     sendMessage,
     regenerate,
+    stop,
     status,
     error,
     setMessages,
@@ -49,11 +50,12 @@ export function AgentChat({ studentId, studentName, className }: AgentChatProps)
     }
   }, [messages]);
 
-  // 학생 변경 시 대화 초기화
+  // 학생 변경 시 진행중 스트림 중단 + 대화 초기화
   useEffect(() => {
+    stop();
     setMessages([]);
     setInput("");
-  }, [studentId, setMessages]);
+  }, [studentId, stop, setMessages]);
 
   const handleSend = useCallback(async () => {
     const text = input.trim();
@@ -130,7 +132,13 @@ export function AgentChat({ studentId, studentName, className }: AgentChatProps)
       {error && (
         <div className="px-4 py-2 bg-red-50 dark:bg-red-950/20 border-t border-red-200 dark:border-red-800 flex items-center gap-2">
           <p className="text-xs text-red-600 dark:text-red-400 flex-1">
-            {error.message || "에러가 발생했습니다."}
+            {(() => {
+              const status = (error as { status?: number }).status;
+              if (status === 429) return "요청이 너무 빠릅니다. 잠시 후 다시 시도해주세요.";
+              if (status === 401 || status === 403) return "인증이 필요합니다. 페이지를 새로고침 해주세요.";
+              if (status && status >= 500) return "서버 에러가 발생했습니다. 잠시 후 다시 시도해주세요.";
+              return error.message || "에러가 발생했습니다.";
+            })()}
           </p>
           <button
             type="button"

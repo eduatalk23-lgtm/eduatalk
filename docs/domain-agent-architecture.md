@@ -1,8 +1,8 @@
 # 입시 컨설팅 도메인 에이전트 아키텍처
 
 > 작성일: 2026-03-19
-> 버전: 5.2 (2026-03-20 Phase A~E-3 + CMS C2.5+C3+C3.1+C4 완료)
-> 상태: Phase A~E-3 ✅ + CMS C2.5~C4 ✅
+> 버전: 5.4 (2026-03-20 Phase A~E-3 + CMS C1~C5 + 운영 안정화 완료)
+> 상태: Phase A~E-3 ✅ + CMS C1~C5 ✅ + 운영 안정화 ✅
 > 기반: `student-record-roadmap.md`, `student-record-implementation-plan.md` v5, `student-record-extension-design.md` v6
 
 ---
@@ -25,6 +25,7 @@ TimeLevelUp의 입시 컨설팅 기능을 6개 전문 도메인 에이전트 + 1
 | **도메인 AI** | ✅ plan LLM + student-record LLM + admission + 오케스트레이터 26도구 (Agent 1·2·3·4·5·6) |
 | **Tool Calling** | ✅ AI SDK `tool()` + `inputSchema` — 26개 도구 등록 |
 | **멀티턴 대화** | ✅ `useChat` + `DefaultChatTransport` + `stopWhen: stepCountIs(5)` |
+| **운영 안정화** | ✅ 스트림 에러 로깅(`onError`+`abortSignal`) + 부분 실패 허용(`allSettled`) + null 가드 + JSON 파싱 안전성 + 입력 길이 제한 + 에러 분류 UI |
 
 ### 1.3 아키텍처 결정 근거
 
@@ -665,24 +666,33 @@ export function AgentChat({ studentId }: { studentId: string }) {
 }
 ```
 
-### 5.4 에러 처리 (Graceful Degradation)
+### 5.4 에러 처리 (Graceful Degradation) — ✅ 운영 안정화 적용
 
+**P0: API Route 스트림 안전장치** (`app/api/agent/route.ts`)
 ```typescript
-// 멀티 에이전트 병렬 실행 시 부분 실패 허용
-const results = await Promise.allSettled(
-  selectedAgents.map((agent) =>
-    executeWithFallback(agent.execute, agent.fallback, task, context)
-  )
-);
+streamText({
+  // ... 기존 설정
+  abortSignal: req.signal,          // 클라이언트 이탈 시 스트림 중단
+  onError: ({ error }) => {         // 스트림 내부 에러 별도 로깅
+    logActionError("agent.stream", error);
+  },
+});
+```
 
-// 성공한 결과만 조합하여 응답
-const successful = results
-  .filter((r): r is PromiseFulfilledResult<AgentResult> => r.status === "fulfilled")
-  .map((r) => r.value);
-
-if (successful.length === 0) {
-  return "모든 분석이 실패했습니다. 잠시 후 다시 시도해주세요.";
+**P0: 선택적 데이터 부분 실패 허용** (`report-tools.ts` `getStudentOverview`)
+```typescript
+const settled = await Promise.allSettled(promises);
+for (const result of settled) {
+  if (result.status === "rejected") {
+    logActionError(LOG_CTX, result.reason);  // 실패한 항목만 로깅, 나머지 정상 반환
+  }
 }
+```
+
+**P1: 클라이언트 에러 분류** (`AgentChat.tsx`)
+```typescript
+// status code 기반 분류: 429 → 속도 제한, 401/403 → 인증, 500 → 서버
+// 학생 변경 시 stop() 호출로 진행중 스트림 즉시 중단
 ```
 
 ### 5.5 상태 관리 (서버리스)
@@ -1070,7 +1080,34 @@ scripts/
 - **되돌리기**: 대상 버전 내용으로 새 버전 생성 (비파괴적)
 - **목록 기본 필터**: `latestOnly !== false`면 `is_latest = true`
 
-**다음**: Agent 운영 안정화, E-3 (PDF export)
+---
+
+### 운영 안정화 — ✅ 완료 (2026-03-20)
+
+> **의존**: Phase A~E + CMS C1~C5
+> **실제 공수**: ~0.3일
+
+**P0 — 즉시 수정 (3건):**
+
+| # | 파일 | 변경 |
+|---|------|------|
+| P0-1 | `app/api/agent/route.ts` | `onError` 콜백으로 스트림 내부 에러 로깅 + `abortSignal: req.signal` (클라이언트 이탈 시 중단) + 오케스트레이터 시작/완료 로그 쌍 |
+| P0-2 | `lib/agents/tools/report-tools.ts` | `Promise.all` → `Promise.allSettled` — records/diagnosis/storylines 부분 실패 허용 + rejected 개별 로깅 |
+| P0-3 | `lib/agents/tools/data-tools.ts` | `getStudentRecords` tenantId null 가드 추가 (non-null assertion `!` 제거) |
+
+**P1 — 안정화 (4건):**
+
+| # | 파일 | 변경 |
+|---|------|------|
+| P1-1 | `lib/agents/tools/interview-tools.ts` | `evaluateAnswer` JSON.parse try-catch 분리 → "AI 응답 형식 오류" 구체적 에러 반환 |
+| P1-2 | `lib/agents/tools/record-tools.ts` | `analyzeCompetency` 입력 10,000자 초과 시 비례 truncate (`MAX_ANALYSIS_INPUT_CHARS`) |
+| P1-3 | `components/agent/AgentChat.tsx` | studentId 변경 시 `stop()` 호출 — 진행중 스트림 즉시 중단 (이전 학생 데이터 혼입 방지) |
+| P1-4 | `components/agent/AgentChat.tsx` | 에러 메시지 status code 기반 분류 (429→속도제한, 401/403→인증, 500→서버) |
+
+**검증 완료:**
+- [x] `pnpm build` 성공
+- [x] `pnpm test lib/agents` — 11개 통과
+- [x] 수정 파일 새 lint 에러 없음
 
 ---
 
@@ -1156,4 +1193,9 @@ CMS C2.5:  ✅ 완료 — Imagen 3 AI 이미지 생성 + 에디터 DropdownMenu 
 CMS C3:    ✅ 완료 — AI 가이드 생성 (키워드/클론) + AI 리뷰 + /admin/guides/generate 위자드
 CMS C3.1:  ✅ 완료 — PDF/URL 추출 소스 + Agent generateGuide 도구 (26도구)
 CMS C4:    ✅ 완료 — 가이드 버전 관리 (version/is_latest/original_guide_id)
+CMS C5:    ✅ 완료 — 학생 앱 탐구 가이드 뷰 (배정 목록/상세/상태 변경/이행률, setek_examples 서버 제거)
+
+[운영 안정화]
+
+운영 안정화: ✅ 완료 — P0(스트림 에러 로깅+abortSignal, allSettled, null 가드) + P1(JSON 파싱, 입력 제한, stop(), 에러 분류)
 ```

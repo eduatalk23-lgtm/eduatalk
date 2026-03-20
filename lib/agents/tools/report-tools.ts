@@ -242,7 +242,12 @@ export function createReportTools(ctx: AgentContext) {
             );
           }
 
-          await Promise.all(promises);
+          const settled = await Promise.allSettled(promises);
+          for (const result of settled) {
+            if (result.status === "rejected") {
+              logActionError(LOG_CTX, result.reason);
+            }
+          }
 
           return { success: true, data: overview };
         } catch (error) {
