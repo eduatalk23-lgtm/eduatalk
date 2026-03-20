@@ -26,6 +26,7 @@ interface GuideContentEditorProps {
   contentFormat?: string;
   toHtml: (text: string, format?: string) => string;
   onImageInsert: () => Promise<string | null>;
+  onAiImageInsert?: () => Promise<string | null>;
 }
 
 const sectionLabelClass =
@@ -99,6 +100,7 @@ export function GuideContentEditor(props: GuideContentEditorProps) {
           onChange={props.onMotivationChange}
           placeholder="탐구 동기를 입력하세요..."
           onImageInsert={props.onImageInsert}
+          onAiImageInsert={props.onAiImageInsert}
         />
       </ContentSection>
 
@@ -109,6 +111,7 @@ export function GuideContentEditor(props: GuideContentEditorProps) {
           onChange={props.onBookDescriptionChange}
           placeholder="도서 소개를 입력하세요..."
           onImageInsert={props.onImageInsert}
+          onAiImageInsert={props.onAiImageInsert}
         />
       </ContentSection>
 
@@ -180,6 +183,7 @@ export function GuideContentEditor(props: GuideContentEditorProps) {
           onChange={props.onReflectionChange}
           placeholder="탐구 고찰을 입력하세요..."
           onImageInsert={props.onImageInsert}
+          onAiImageInsert={props.onAiImageInsert}
         />
       </ContentSection>
 
@@ -190,6 +194,7 @@ export function GuideContentEditor(props: GuideContentEditorProps) {
           onChange={props.onImpressionChange}
           placeholder="느낀점을 입력하세요..."
           onImageInsert={props.onImageInsert}
+          onAiImageInsert={props.onAiImageInsert}
         />
       </ContentSection>
 
@@ -200,6 +205,7 @@ export function GuideContentEditor(props: GuideContentEditorProps) {
           onChange={props.onSummaryChange}
           placeholder="탐구 요약을 입력하세요..."
           onImageInsert={props.onImageInsert}
+          onAiImageInsert={props.onAiImageInsert}
         />
       </ContentSection>
 
@@ -210,6 +216,7 @@ export function GuideContentEditor(props: GuideContentEditorProps) {
           onChange={props.onFollowUpChange}
           placeholder="후속 탐구를 입력하세요..."
           onImageInsert={props.onImageInsert}
+          onAiImageInsert={props.onAiImageInsert}
         />
       </ContentSection>
 

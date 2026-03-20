@@ -14,6 +14,8 @@ interface RichTextEditorProps {
   editable?: boolean;
   /** 이미지 삽입 핸들러 — 호출 시 URL을 반환하면 에디터에 삽입 */
   onImageInsert?: () => Promise<string | null>;
+  /** AI 이미지 생성 핸들러 */
+  onAiImageInsert?: () => Promise<string | null>;
 }
 
 export function RichTextEditor({
@@ -23,6 +25,7 @@ export function RichTextEditor({
   className,
   editable = true,
   onImageInsert,
+  onAiImageInsert,
 }: RichTextEditorProps) {
   const editor = useEditor({
     extensions: [
@@ -65,7 +68,7 @@ export function RichTextEditor({
       )}
     >
       {editable && editor && (
-        <EditorToolbar editor={editor} onImageInsert={onImageInsert} />
+        <EditorToolbar editor={editor} onImageInsert={onImageInsert} onAiImageInsert={onAiImageInsert} />
       )}
       <EditorContent editor={editor} />
     </div>

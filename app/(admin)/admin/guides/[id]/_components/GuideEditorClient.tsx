@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -19,6 +19,9 @@ import {
   deleteGuideAction,
   uploadGuideImageAction,
 } from "@/lib/domains/guide/actions/crud";
+import { generateGuideImageAction } from "@/lib/domains/guide/actions/ai-image";
+import type { AspectRatio } from "@/lib/domains/guide/actions/ai-image";
+import { AiImageDialog } from "@/components/editor/AiImageDialog";
 import type {
   GuideType,
   GuideStatus,
@@ -89,6 +92,11 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
   // UI 상태
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+
+  // AI 이미지 다이얼로그 상태
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const aiResolveRef = useRef<((url: string | null) => void) | null>(null);
 
   // 가이드 데이터 → 폼 초기화
   useEffect(() => {
@@ -165,6 +173,52 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
       input.click();
     });
   }, [guideId, toast]);
+
+  // AI 이미지 생성 — Promise 패턴 (handleImageInsert와 동일 구조)
+  const handleAiImageInsert = useCallback((): Promise<string | null> => {
+    return new Promise((resolve) => {
+      aiResolveRef.current = resolve;
+      setAiDialogOpen(true);
+    });
+  }, []);
+
+  const handleAiGenerate = useCallback(
+    async (prompt: string, aspectRatio: AspectRatio) => {
+      setIsGeneratingAi(true);
+      try {
+        const targetId = guideId ?? "temp-" + Date.now();
+        const result = await generateGuideImageAction({
+          guideId: targetId,
+          prompt,
+          aspectRatio,
+        });
+
+        if (result.success && result.data) {
+          aiResolveRef.current?.(result.data.url);
+          aiResolveRef.current = null;
+          setAiDialogOpen(false);
+        } else {
+          toast.showError(!result.success ? result.error ?? "생성 실패" : "생성 실패");
+        }
+      } catch {
+        toast.showError("AI 이미지 생성에 실패했습니다.");
+      } finally {
+        setIsGeneratingAi(false);
+      }
+    },
+    [guideId, toast],
+  );
+
+  const handleAiDialogOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open && !isGeneratingAi) {
+        aiResolveRef.current?.(null);
+        aiResolveRef.current = null;
+      }
+      setAiDialogOpen(open);
+    },
+    [isGeneratingAi],
+  );
 
   // 저장
   const handleSave = useCallback(async () => {
@@ -423,9 +477,18 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
             contentFormat={getContentFormat()}
             toHtml={toHtml}
             onImageInsert={handleImageInsert}
+            onAiImageInsert={handleAiImageInsert}
           />
         </div>
       )}
+
+      {/* AI 이미지 생성 다이얼로그 */}
+      <AiImageDialog
+        open={aiDialogOpen}
+        onOpenChange={handleAiDialogOpenChange}
+        onGenerate={handleAiGenerate}
+        isGenerating={isGeneratingAi}
+      />
     </div>
   );
 }

@@ -13,12 +13,16 @@ import {
   Redo,
   ImagePlus,
   Minus,
+  Upload,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { DropdownMenu } from "@/components/ui/DropdownMenu";
 
 interface EditorToolbarProps {
   editor: Editor;
   onImageInsert?: () => Promise<string | null>;
+  onAiImageInsert?: () => Promise<string | null>;
 }
 
 interface ToolbarButtonProps {
@@ -61,10 +65,9 @@ function Separator() {
   );
 }
 
-export function EditorToolbar({ editor, onImageInsert }: EditorToolbarProps) {
-  const handleImageInsert = async () => {
-    if (!onImageInsert) return;
-    const url = await onImageInsert();
+export function EditorToolbar({ editor, onImageInsert, onAiImageInsert }: EditorToolbarProps) {
+  const insertImage = async (handler: () => Promise<string | null>) => {
+    const url = await handler();
     if (url) {
       editor.chain().focus().setImage({ src: url }).run();
     }
@@ -145,9 +148,33 @@ export function EditorToolbar({ editor, onImageInsert }: EditorToolbarProps) {
       {onImageInsert && (
         <>
           <Separator />
-          <ToolbarButton onClick={handleImageInsert} title="이미지 삽입">
-            <ImagePlus className="w-4 h-4" />
-          </ToolbarButton>
+          {onAiImageInsert ? (
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger
+                className={cn(
+                  "p-1.5 rounded transition-colors",
+                  "text-secondary-500 hover:text-secondary-700 dark:text-secondary-400 dark:hover:text-secondary-200 hover:bg-secondary-100 dark:hover:bg-secondary-800",
+                )}
+                title="이미지 삽입"
+              >
+                <ImagePlus className="w-4 h-4" />
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Content align="start">
+                <DropdownMenu.Item onClick={() => insertImage(onImageInsert)}>
+                  <Upload className="w-4 h-4" />
+                  파일 업로드
+                </DropdownMenu.Item>
+                <DropdownMenu.Item onClick={() => insertImage(onAiImageInsert)}>
+                  <Sparkles className="w-4 h-4" />
+                  AI 이미지 생성
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Root>
+          ) : (
+            <ToolbarButton onClick={() => insertImage(onImageInsert)} title="이미지 삽입">
+              <ImagePlus className="w-4 h-4" />
+            </ToolbarButton>
+          )}
         </>
       )}
 
