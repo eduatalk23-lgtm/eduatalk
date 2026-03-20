@@ -26,6 +26,7 @@ import {
   findAllSubjects,
 } from "../repository";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { embedSingleGuide } from "../vector/embedding-service";
 
 const LOG_CTX = { domain: "guide", action: "crud" };
 
@@ -93,6 +94,13 @@ export async function createGuideAction(input: {
       replaceCareerMappings(guide.id, input.careerFieldIds),
     ]);
 
+    // 임베딩 생성 (실패해도 저장은 유지)
+    embedSingleGuide(guide.id).catch((err) => {
+      logActionError({ ...LOG_CTX, action: "createGuide.embedding" }, err, {
+        guideId: guide.id,
+      });
+    });
+
     return createSuccessResponse(guide);
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "createGuide" }, error, {
@@ -126,6 +134,13 @@ export async function updateGuideAction(input: {
       ),
       replaceCareerMappings(input.guideId, input.careerFieldIds),
     ]);
+
+    // 임베딩 갱신 (실패해도 저장은 유지)
+    embedSingleGuide(input.guideId).catch((err) => {
+      logActionError({ ...LOG_CTX, action: "updateGuide.embedding" }, err, {
+        guideId: input.guideId,
+      });
+    });
 
     return createSuccessResponse(guide);
   } catch (error) {

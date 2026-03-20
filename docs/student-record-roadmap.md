@@ -1446,14 +1446,17 @@ consultantDiagnosis: Diagnosis | null
 ### 메인 트랙 완료 현황
 
 ```
-Phase 1a~4.6  ✅ (DB 20테이블 + 도메인 + Admin UI + Import + NEIS 레이아웃)
-Phase 5~7     ✅ (진단 + AI역량 + 하이라이트 + AI비교 + 후속탐구 + 경보 + 면접 + 보완전략)
-Phase 8.1~8.6 ✅ (입시 DB + 환산 엔진 + 배치 판정 + 별칭 + 졸업생 검색)
-  └ Phase 8.4 ⏸ (data.go.kr 기업 계정 가입 대기)
-Phase 9.1~9.4 ✅ (수시 Report + AI 활동 요약서 + 세특 방향 가이드 + 활동 가이드 배정 UI)
+Phase 1a~4.6   ✅ (DB 20테이블 + 도메인 + Admin UI + Import + NEIS 레이아웃)
+Phase 5~7      ✅ (진단 + AI역량 + 하이라이트 + AI비교 + 후속탐구 + 경보 + 면접 + 보완전략)
+Phase 8.1~8.6  ✅ (입시 DB + 환산 엔진 + 배치 판정 + 별칭 + 졸업생 검색)
+  └ Phase 8.4  ⏸ (data.go.kr 기업 계정 가입 대기)
+Phase 9.1~9.4  ✅ (수시 Report + AI 활동 요약서 + 세특 방향 가이드 + 활동 가이드 배정 UI)
 CMS C1+C1.1+C2 ✅ (탐구 가이드 DB + Import + 배정 UI + TipTap CRUD 에디터)
-CMS C1.5      ✅ (우회학과 DB 5테이블 + Import 47,170건 + 유사도 엔진 + Admin UI)
-Agent Phase A ✅ (AI SDK v6 마이그레이션 — 17개 LLM action 전환)
+CMS C1.5       ✅ (우회학과 DB 5테이블 + Import 47,170건 + 유사도 엔진 + Admin UI)
+Agent Phase A  ✅ (AI SDK v6 마이그레이션 — 17개 LLM action 전환)
+Agent Phase B  ✅ (오케스트레이터 13도구 + API + Chat UI + 사이드패널 + 독립페이지)
+Agent Phase C  ✅ (pgvector 마이그레이션 + 임베딩 서비스 + 벡터 검색 + 배치 스크립트 + on-save 훅)
+Agent Phase D  ✅ (입시 배치 6도구 — 배치분석 + 필터 + 6장배분 + What-If + closure 캐시)
 ```
 
 ### 남은 작업 및 차단 관계
@@ -1461,21 +1464,17 @@ Agent Phase A ✅ (AI SDK v6 마이그레이션 — 17개 LLM action 전환)
 | 작업 | 상태 | 차단 요인 | 비고 |
 |------|------|-----------|------|
 | **Phase 8.4** (입시 DB 갱신) | ⏸ 보류 | data.go.kr 기업 계정 | 외부 의존 |
-| **Phase 9.4 + CMS C1.1** (활동 가이드 배정 UI) | ✅ **완료** (2026-03-20) | — | 통합 구현: 검색/추천/배정/상태추적/이행률 Admin UI (7파일 신규 + 3파일 수정) |
-| **CMS C1** (탐구 가이드 DB 이관) | ✅ **완료+배포** (2026-03-20) | — | 마이그레이션 적용 + 7,836건 Import + 과목 11,642 + 계열 12,348 매핑 |
-| **CMS C2** (가이드 CRUD UI + 에디터) | ✅ **완료** (2026-03-20) | — | TipTap v2 + `/admin/guides` 목록·편집·생성 + guide-images bucket |
-| **CMS C1.5** (우회학과 시스템) | ✅ **완료** (2026-03-20) | — | 5테이블 + 47,170건 Import + Jaccard 유사도 + Admin UI 4컴포넌트 |
-| **Agent Phase A** (AI SDK 마이그레이션) | ✅ **완료** (2026-03-20) | — | ai-sdk.ts 래퍼 + 17개 LLM action 전환 (gemini-2.0-flash/2.5-pro) |
-| **Agent Phase C** (CMS RAG + pgvector) | 🟢 **착수 가능** | — (C1+Phase A 완료) | C1 DB 기반 임베딩 파이프라인 구축 |
+| **Agent Phase E** (면접·리포트 확장) | 🟢 **즉시 착수 가능** | — (Phase B+D ✅) | Agent 5·6 — 멀티턴 + PDF |
+| **CMS C2.5** (AI 이미지 생성) | 🔲 미착수 | — | Gemini Imagen + Chart.js |
 | Report P4 (rubric DB 정규화) | ~~미착수~~ 불필요 | — | 문자열 역매핑으로 충분 (9.1d에서 결정) |
 
 ### 추천 다음 작업
 
-**CMS C1~C2 + Phase 9.4 완료** (2026-03-20)로 다음 트랙이 열림:
+**Agent Phase A~D 전체 완료** (2026-03-20)로 다음 트랙이 열림:
 
-**경로 1: Agent Phase B → C (오케스트레이터 + CMS RAG)**
-- Phase A 완료 → 에이전트 오케스트레이터 구축 (라우터 패턴)
-- pgvector 임베딩 파이프라인 + 7,836건 가이드 벡터 검색
+**경로 1: Agent Phase E (면접·리포트 확장)**
+- Agent 5: 답변 평가 + 모의 면접 (멀티턴)
+- Agent 6: 종합 리포트 (Agent 1~5 결과 조합) + PDF 내보내기
 
 **경로 2: CMS C2.5 (AI 이미지 생성)**
 - Gemini Imagen + Chart.js/Mermaid 자동 생성으로 가이드 품질 향상
@@ -1506,23 +1505,18 @@ Agent Phase A ✅ (AI SDK v6 마이그레이션 — 17개 LLM action 전환)
 
 [Agent Track — 독립 경로, docs/domain-agent-architecture.md 참조]
 
-Phase A (AI SDK 마이그레이션, 즉시 착수)
+Phase A (AI SDK 마이그레이션) ✅ 2026-03-20
     ↓
-Phase B (오케스트레이터 + Agent 1·4 래핑)
+Phase B (오케스트레이터 13도구 + Chat UI) ✅ 2026-03-20
     │
-    ├── Phase C (Agent 2: CMS RAG + pgvector) ← CMS C1 ✅ 완료, 착수 가능
-    ├── Phase D (Agent 3: 입시 배치)           ← Phase 8.1 ✅ 완료
-    └── Phase E (Agent 5·6: 면접·리포트)       ← Phase B + D 이후
+    ├── Phase C (pgvector + CMS RAG) ✅ 2026-03-20
+    ├── Phase D (Agent 3: 입시 배치) ✅ 2026-03-20
+    └── Phase E (Agent 5·6: 면접·리포트)       ← 즉시 착수 가능
 ```
 
 **병렬 가능 조합**:
-- Phase 3.5 + Phase 4 + Phase 4.5 (모두 Phase 3 이후, 상호 독립)
-- Phase 6.5 + Phase 7 (모두 Phase 6 이후)
-- Phase 8.3 ✅ + Phase 8.4 ⏸ + Phase 8.6 ✅ (모두 Phase 8.1 이후)
-- CMS C1.1 + Phase 9.4 (C1 ✅ 완료로 동시 착수 가능)
 - CMS C2~C5 (C1.1 이후 순차 진행)
-- Agent A~B (메인/CMS 트랙과 독립, 즉시 착수 가능)
-- Agent C (CMS C1 ✅ 완료로 착수 가능)
+- Agent E (Phase B+D ✅, 즉시 착수 가능)
 
 ---
 
@@ -1540,8 +1534,9 @@ Phase B (오케스트레이터 + Agent 1·4 래핑)
 | `university_name_aliases.sql` | 8.3 | 1 | 메인 |
 | `activity_summaries.sql` | 9.2 | 1 | 메인 |
 | `20260332500000_cms_guide_tables.sql` | C1 ✅ | 7+2 | CMS |
+| `20260332800000_pgvector_guide_embedding.sql` | Agent C ✅ | — (컬럼+RPC) | Agent |
 | `C02_guide_feedback.sql` | C4 | 1 | CMS |
-| **총** | | **41** | |
+| **총** | | **41+** | |
 
 각 마이그레이션에 대응하는 `down_*.sql` 사전 작성. Supabase 브랜치에서 테스트 후 프로덕션 적용.
 

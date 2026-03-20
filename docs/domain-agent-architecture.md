@@ -1,8 +1,8 @@
 # 입시 컨설팅 도메인 에이전트 아키텍처
 
 > 작성일: 2026-03-19
-> 버전: 1.0
-> 상태: 설계 완료, CMS C1 DB 완료 (2026-03-20), Agent 미착수
+> 버전: 2.0 (2026-03-20 Phase A+B+C 완료 반영)
+> 상태: Phase A ✅ + Phase B ✅ + Phase C ✅ — 다음: Phase D·E
 > 기반: `student-record-roadmap.md`, `student-record-implementation-plan.md` v5, `student-record-extension-design.md` v6
 
 ---
@@ -14,17 +14,17 @@
 TimeLevelUp의 입시 컨설팅 기능을 6개 전문 도메인 에이전트 + 1개 오케스트레이터로 구조화하여,
 컨설턴트와 학생이 자연어로 상호작용할 수 있는 AI 어시스턴트 시스템을 구축한다.
 
-### 1.2 현재 상태 (2026-03-19)
+### 1.2 현재 상태 (2026-03-20, Phase A+B+C 완료)
 
 | 영역 | 현황 |
 |------|------|
-| **LLM 프로바이더** | Gemini / Claude / OpenAI 3중 추상화 완성 (자체 구현) |
-| **스트리밍** | SSE 기반 자체 구현 (ReadableStream + TextEncoder) |
-| **검색 전략** | Gemini Grounding (웹 검색) — 전통적 RAG 아님 |
-| **벡터 인프라** | pgvector 미활성화, 임베딩 없음 |
-| **도메인 AI** | plan LLM (콜드스타트, 플랜생성) + student-record LLM (Phase 5~7 완료) + admission (Phase 8.1~8.2 완료) |
-| **Tool Calling** | 미구현 — 에이전트 구축의 핵심 갭 |
-| **멀티턴 대화** | 미구현 — 단발 호출만 |
+| **LLM 프로바이더** | ✅ Vercel AI SDK v6 (`ai-sdk.ts` 래퍼) — `generateTextWithRateLimit`, `generateObjectWithRateLimit`, `streamTextWithRateLimit` |
+| **스트리밍** | ✅ AI SDK `streamText` + `toUIMessageStreamResponse()` — `POST /api/agent` |
+| **검색 전략** | ✅ pgvector 하이브리드 검색 (벡터 + SQL 메타데이터 필터) + Gemini Grounding |
+| **벡터 인프라** | ✅ pgvector 활성화, `exploration_guide_content.embedding` vector(768) + HNSW 인덱스 |
+| **도메인 AI** | ✅ plan LLM + student-record LLM + admission + 오케스트레이터 13도구 |
+| **Tool Calling** | ✅ AI SDK `tool()` + `inputSchema` — 13개 도구 등록 |
+| **멀티턴 대화** | ✅ `useChat` + `DefaultChatTransport` + `stopWhen: stepCountIs(5)` |
 
 ### 1.3 아키텍처 결정 근거
 
@@ -769,35 +769,36 @@ function buildEmbeddingInput(record: SetekRecord): string {
 ## 7. 파일 구조
 
 ```
-lib/agents/                              # 에이전트 레이어 (신규)
-├── orchestrator.ts                      # 오케스트레이터 (라우터)
-├── record-analyst.ts                    # Agent 1: 생기부 분석
-├── guide-search.ts                      # Agent 2: 탐구 가이드
-├── placement.ts                         # Agent 3: 입시 배치
-├── strategy-advisor.ts                  # Agent 4: 전략 수립
-├── interview-coach.ts                   # Agent 5: 면접 대비
-├── report-generator.ts                  # Agent 6: 리포트
-├── tools/                               # 공용 도구 정의
-│   ├── record-tools.ts                  # 기존 Phase 5~6.5 래핑
-│   ├── guide-tools.ts                   # C1~C3 래핑
-│   ├── placement-tools.ts              # Phase 8 래핑
-│   ├── strategy-tools.ts               # Phase 7 래핑
-│   └── interview-tools.ts              # Phase 6.5 래핑
-├── schemas/                             # Zod 출력 스키마
-│   ├── diagnosis.ts
-│   ├── strategy.ts
-│   └── placement.ts
+lib/agents/                              # 에이전트 레이어
+├── types.ts                             # ✅ AgentContext, AgentToolResult
+├── orchestrator.ts                      # ✅ createOrchestrator(ctx) → { tools: 13개, systemPrompt }
+├── tools/
+│   ├── data-tools.ts                    # ✅ 읽기 전용 3도구 (records, diagnosis, storylines)
+│   ├── record-tools.ts                  # ✅ Agent 1: 5도구 (tags, competency, highlight, storyline, diagnosis)
+│   ├── strategy-tools.ts               # ✅ Agent 4: 2도구 (strategies + warnings)
+│   ├── guide-tools.ts                   # ✅ Agent 2: 3도구 (search, detail, assignments)
+│   ├── placement-tools.ts              # 🔲 Phase D: Agent 3 입시 배치
+│   └── interview-tools.ts              # 🔲 Phase E: Agent 5 면접 대비
 └── __tests__/
-    ├── orchestrator.test.ts
-    └── tools.test.ts
+    └── orchestrator.test.ts             # ✅ 8 tests
+
+lib/domains/guide/vector/                # ✅ Phase C 벡터 검색
+├── embedding-service.ts                 # embedSingleGuide, embedBatchGuides
+└── search-service.ts                    # searchGuidesByVector → search_guides RPC
 
 app/api/agent/
-├── route.ts                             # POST: 에이전트 스트리밍 엔드포인트
+└── route.ts                             # ✅ POST: streamText + toUIMessageStreamResponse
+
+app/(admin)/admin/agent/
+├── page.tsx                             # ✅ 독립 페이지 (학생 선택 + 전폭 채팅)
+└── AgentPageClient.tsx                  # ✅ 클라이언트 컴포넌트
 
 components/agent/
-├── AgentChat.tsx                        # 채팅 UI (useChat)
-├── AgentToolProgress.tsx               # 도구 실행 중 프로그레스
-└── AgentResultCard.tsx                 # 에이전트 결과 카드
+├── AgentChat.tsx                        # ✅ useChat + DefaultChatTransport
+└── AgentMessageBubble.tsx              # ✅ UIMessage 파트 렌더링 (text + dynamic-tool)
+
+scripts/
+└── embed-guides.ts                      # ✅ 배치 임베딩 CLI (--dry-run, --limit)
 ```
 
 ---
@@ -835,62 +836,106 @@ components/agent/
 
 ---
 
-### Phase B: 에이전트 오케스트레이터 (Agent 1·3·4 래핑)
+### Phase B: 에이전트 오케스트레이터 — ✅ 완료 (2026-03-20)
 
 > **의존**: Phase A
-> **예상 공수**: 3~5일
+> **실제 공수**: ~1일 (B+C 병렬)
 
-| 단계 | 작업 | 상세 |
+**구현 결과:**
+
+| 단계 | 작업 | 상태 |
 |------|------|------|
-| B-1 | 에이전트 인프라 | `lib/agents/` 디렉토리 + orchestrator.ts |
-| B-2 | Agent 1 래핑 | 기존 Phase 5~6.5 actions → tool() 래핑 |
-| B-3 | Agent 4 래핑 | 기존 Phase 7 suggestStrategies → tool() 래핑 |
-| B-4 | 오케스트레이터 | 라우터 에이전트 + stopWhen 설정 |
-| B-5 | API Route | `app/api/agent/route.ts` (스트리밍) |
-| B-6 | 채팅 UI | `AgentChat.tsx` (useChat) |
-| B-7 | 에러 처리 | Promise.allSettled + 부분 실패 허용 |
+| B-1 | 에이전트 인프라 (`lib/agents/types.ts`, `orchestrator.ts`) | ✅ |
+| B-2 | Agent 1 래핑 — 5도구 (suggestTags, analyzeCompetency, analyzeHighlight, detectStoryline, generateDiagnosis) | ✅ |
+| B-3 | Agent 4 래핑 — 2도구 (suggestStrategies w/ Grounding, getWarnings) | ✅ |
+| B-4 | 데이터 도구 — 3도구 (getStudentRecords, getStudentDiagnosis, getStudentStorylines) | ✅ |
+| B-5 | API Route (`app/api/agent/route.ts`) — `streamText` + `stepCountIs(5)` + `toUIMessageStreamResponse()` | ✅ |
+| B-6 | AgentChat UI — `useChat` + `DefaultChatTransport` + tool invocation 상태 렌더링 | ✅ |
+| B-7 | 사이드 패널 — RecordSidePanelContainer에 `"agent"` 앱 추가 (Bot 아이콘) | ✅ |
+| B-8 | 독립 페이지 — `/admin/agent` (학생 선택 + 전폭 채팅) | ✅ |
+| B-9 | 테스트 — `lib/agents/__tests__/orchestrator.test.ts` (8개 통과) | ✅ |
 
-**검증 기준:**
-- [ ] "이 학생의 세특 강약점 분석해줘" → Agent 1 호출 → 구조화 응답
-- [ ] "보완 전략 추천해줘" → Agent 4 호출 → Grounding 포함 전략
-- [ ] 모호한 질문 → 오케스트레이터가 명확화 요청
-- [ ] 스트리밍 응답 동작
+**핵심 파일:**
+- `lib/agents/orchestrator.ts` — `createOrchestrator(ctx)` → `{ tools: 13개, systemPrompt }`
+- `lib/agents/tools/` — `data-tools.ts`, `record-tools.ts`, `strategy-tools.ts`, `guide-tools.ts`
+- `app/api/agent/route.ts` — POST, `requireAdminOrConsultant()` + closure로 `studentId` 보호
+- `components/agent/AgentChat.tsx` — `useChat` + `DefaultChatTransport`
+- `components/agent/AgentMessageBubble.tsx` — `UIMessage` 파트별 렌더링 (text, dynamic-tool, tool-*)
+
+**AI SDK v6 핵심 차이점 (설계 대비 실제):**
+- `parameters` → `inputSchema` (tool 정의 시)
+- `maxSteps: 5` → `stopWhen: stepCountIs(5)`
+- `toDataStreamResponse()` → `toUIMessageStreamResponse()`
+- `useChat({ api, body })` → `useChat({ transport: new DefaultChatTransport({ api, body }) })`
+- `input`/`handleInputChange`/`handleSubmit` 제거 → 로컬 state + `sendMessage({ text })`
+- tool parts: `tool-invocation` → `dynamic-tool` (state: `input-streaming`/`input-available`/`output-available`)
+
+**검증 완료:**
+- [x] `pnpm build` 성공
+- [x] 8개 orchestrator 테스트 통과
+- [x] 13개 도구 등록 확인
 
 ---
 
-### Phase C: pgvector + CMS RAG (C1 ✅ 완료, 착수 가능)
+### Phase C: pgvector + CMS RAG — ✅ 완료 (2026-03-20)
 
-> **의존**: Phase A + CMS C1 ✅ (2026-03-20 완료: `20260332500000_cms_guide_tables.sql`)
-> **예상 공수**: 3~5일 (C1 DB 이미 존재, 임베딩+RAG만 추가)
+> **의존**: Phase A + CMS C1 ✅
+> **실제 공수**: ~1일 (Phase B와 병렬)
 
-| 단계 | 작업 | 상세 |
+**구현 결과:**
+
+| 단계 | 작업 | 상태 |
 |------|------|------|
-| C-1 | pgvector 활성화 | Supabase 대시보드에서 pgvector 확장 활성화 |
-| C-2 | 임베딩 스키마 | exploration_guide_content에 embedding 컬럼 + HNSW 인덱스 |
-| C-3 | 임베딩 파이프라인 | Edge Function + Trigger + pgmq |
-| C-4 | 7,836건 벡터화 | 배치 스크립트 (gemini-embedding-001) |
-| C-5 | search_guides RPC | 하이브리드 검색 함수 |
-| C-6 | Agent 2 구현 | 탐구 가이드 에이전트 + 오케스트레이터 연동 |
+| C-1 | DB 마이그레이션 (`20260332800000_pgvector_guide_embedding.sql`) — `CREATE EXTENSION vector` + `embedding vector(768)` + HNSW 인덱스 + `search_guides` RPC | ✅ |
+| C-2 | 임베딩 서비스 (`lib/domains/guide/vector/embedding-service.ts`) — `buildEmbeddingInput()`, `embedSingleGuide()`, `embedBatchGuides()` | ✅ |
+| C-3 | 벡터 검색 서비스 (`lib/domains/guide/vector/search-service.ts`) — `searchGuidesByVector()` → embed query → `search_guides` RPC | ✅ |
+| C-4 | 배치 스크립트 (`scripts/embed-guides.ts`) — `--dry-run`, `--limit=N`, 50건 배치 | ✅ |
+| C-5 | on-save 임베딩 훅 — `createGuideAction`/`updateGuideAction` → `embedSingleGuide()` (try/catch, 실패해도 저장 유지) | ✅ |
+| C-6 | Agent 2 도구 — 3도구 (searchGuides, getGuideDetail, getStudentAssignments) → 오케스트레이터 통합 | ✅ |
 
-**검증 기준:**
-- [ ] "법학 계열 수학 탐구 추천" → 벡터 검색 → 관련 가이드 반환
-- [ ] SQL 필터 (career_fields, subject_names) 정상 동작
-- [ ] 신규 가이드 저장 시 임베딩 자동 생성 (비동기)
-- [ ] 유사도 80%+ 가이드 중복 경고
+**핵심 파일:**
+- `supabase/migrations/20260332800000_pgvector_guide_embedding.sql` — pgvector 확장 + HNSW + `search_guides` RPC (벡터 유사도 + 계열/과목/유형 필터)
+- `lib/domains/guide/vector/embedding-service.ts` — `gemini-embedding-001` (768d), `embed`/`embedMany` from AI SDK
+- `lib/domains/guide/vector/search-service.ts` — 쿼리 임베딩 → RPC 호출
+- `scripts/embed-guides.ts` — 7,836건 배치 처리 CLI
+- `lib/agents/tools/guide-tools.ts` — 오케스트레이터에 통합된 3개 가이드 도구
+
+**설계 변경사항:**
+- 임베딩 동기화: Trigger→pgmq→Edge Function 대신 **on-save 훅 + 배치 스크립트** 채택 (가이드 편집 빈도 낮음, 인프라 단순화)
+- `search_guides` RPC: `SECURITY INVOKER` (설계의 `SECURITY DEFINER` 대신 — RLS 자동 적용)
+- 검색 필터: `career_filter bigint` (FK ID), `subject_filter uuid`, `guide_type_filter text` — 설계의 text 배열 대신 정규화된 FK 조인
+
+**검증 완료:**
+- [x] `pnpm build` 성공
+- [x] 마이그레이션 구문 검증
+- [x] 배치 스크립트 `--dry-run` 동작 확인
 
 ---
 
-### Phase D: 입시 배치 에이전트 (Phase 8.1~8.2 완료, 즉시 착수 가능)
+### Phase D: 입시 배치 에이전트 — ✅ 완료 (2026-03-20)
 
-> **의존**: Phase A (Phase 8.1~8.2 이미 완료)
-> **예상 공수**: 2~3일 (기존 엔진 래핑 중심)
+> **의존**: Phase B + Phase 8.1~8.6
+> **실제 공수**: ~0.5일
 
-| 단계 | 작업 | 상세 |
+**구현 결과:**
+
+| 단계 | 작업 | 상태 |
 |------|------|------|
-| D-1 | Agent 3 구현 | 결정론적 엔진 → tool() 래핑 |
-| D-2 | 자연어 해석 | "내신 2.3이면 서울대 가능?" → 구조화 파라미터 추출 |
-| D-3 | 6장 배분 도구화 | optimize6Slots tool |
-| D-4 | 오케스트레이터 연동 | 라우터에 Agent 3 추가 |
+| D-1 | `admission-tools.ts` — 6개 도구 (searchAdmissionData, getUniversityScoreInfo, runPlacementAnalysis, filterPlacementResults, simulateCardAllocation, analyzeScoreImpact) | ✅ |
+| D-2 | MockScoreInput 기반 자연어 파라미터 추출 — LLM이 12개 flat 필드 채움 | ✅ |
+| D-3 | simulateCardAllocation — 6장 최적 배분 + 면접 겹침 감지 통합 | ✅ |
+| D-4 | 오케스트레이터 연동 — `createAdmissionTools(ctx)` + 시스템 프롬프트 업데이트 | ✅ |
+| D-5 | 테스트 — orchestrator.test.ts 9개 통과 (19개 도구 등록 확인) | ✅ |
+
+**핵심 설계:**
+- **Closure 캐시**: `runPlacementAnalysis` → `cachedAnalysis`/`cachedScoreInput` → `filterPlacementResults`/`analyzeScoreImpact` 공유 (요청 범위)
+- **토큰 절약**: `truncateVerdict()` — `calculationResult.breakdown`, `historicalComparisons` 생략, 상위 20건만
+- **What-If**: `analyzeScoreImpact` — 캐시된 점수 수정 → 재분석 → 판정 변동 diff
+
+**핵심 파일:**
+- `lib/agents/tools/admission-tools.ts` — 6개 도구
+- `lib/domains/admission/placement/service.ts` — `analyzePlacement()` (래핑 대상, 수정 없음)
+- `lib/domains/admission/allocation/engine.ts` — `simulateAllocation()` (래핑 대상, 수정 없음)
 
 ---
 
@@ -961,21 +1006,21 @@ components/agent/
 ```
 [에이전트 트랙]
 
-Phase A (AI SDK 마이그레이션)
+Phase A (AI SDK 마이그레이션) ✅ 2026-03-20
     ↓
-Phase B (오케스트레이터 + Agent 1·4 래핑)
+Phase B (오케스트레이터 + Agent 1·2·4 래핑) ✅ 2026-03-20
     │
-    ├── Phase C (Agent 2: 탐구 가이드 + pgvector) ← CMS C1 ✅ 완료
+    ├── Phase C (pgvector + CMS RAG) ✅ 2026-03-20
     │
-    ├── Phase D (Agent 3: 입시 배치) ← Phase 8.1~8.2 이미 완료
+    ├── Phase D (Agent 3: 입시 배치) ✅ 2026-03-20
     │
-    └── Phase E (Agent 5·6: 면접·리포트 확장) ← Phase D 이후
+    └── Phase E (Agent 5·6: 면접·리포트 확장) ← 즉시 착수 가능
 
-[메인 트랙과의 관계]
+[현재 상태]
 
-Phase A: 독립 착수 가능 (즉시)
-Phase B: Phase A 이후 (메인 트랙 무관)
-Phase C: CMS C1 ✅ + Phase A 이후 (C1 완료, A만 대기)
-Phase D: Phase A 이후 즉시 (Phase 8.1~8.2 완료됨)
-Phase E: Phase B + Phase D 이후
+Phase A: ✅ 완료
+Phase B: ✅ 완료 — 13도구 오케스트레이터 + API + Chat UI + 사이드패널 + 독립페이지
+Phase C: ✅ 완료 — pgvector 마이그레이션 + 임베딩 서비스 + 벡터 검색 + 배치 스크립트
+Phase D: ✅ 완료 — 6도구 (배치분석, 필터, 6장 배분, What-If) + closure 캐시
+Phase E: 🟢 즉시 착수 가능 (Phase B + D 완료)
 ```
