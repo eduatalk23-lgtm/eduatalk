@@ -14,7 +14,7 @@
 TimeLevelUp의 입시 컨설팅 기능을 6개 전문 도메인 에이전트 + 1개 오케스트레이터로 구조화하여,
 컨설턴트와 학생이 자연어로 상호작용할 수 있는 AI 어시스턴트 시스템을 구축한다.
 
-### 1.2 현재 상태 (2026-03-20, Phase A+B+C+D 완료)
+### 1.2 현재 상태 (2026-03-20, 전 Phase 완료)
 
 | 영역 | 현황 |
 |------|------|
@@ -214,7 +214,7 @@ $$;
 | 항목 | 내용 |
 |------|------|
 | **역할** | 세특/창체/행특/독서 → 역량 진단, 강약점, 스토리라인 분석 |
-| **현재 상태** | Phase 5~7 **구현 완료** — 에이전트 래핑만 필요 |
+| **현재 상태** | ✅ Phase B 완료 — 5도구 (`lib/agents/tools/record-tools.ts`) |
 | **데이터 소스** | `seteks`, `changche`, `haengteuk`, `reading`, `competency_scores`, `diagnosis`, `storylines`, `strategies` |
 | **벡터화 대상** | 세특 서술 텍스트, 창체 기록 → 임베딩 (Phase 9에서 활성화) |
 | **최적 모델** | Claude standard (서사 분석 강점) |
@@ -224,7 +224,7 @@ $$;
 **도구(Tools):**
 
 ```typescript
-// 기존 구현을 AI SDK tool()로 래핑
+// ✅ 실제 구현: lib/agents/tools/record-tools.ts
 const tools = {
   analyzeCompetency: tool({
     description: "전체 세특/창체/행특 → 10개 역량 항목 등급+근거 평가",
@@ -271,7 +271,7 @@ const tools = {
 | 항목 | 내용 |
 |------|------|
 | **역할** | 학생 수준/진로에 맞는 교과 연계 탐구 가이드 추천/생성 |
-| **현재 상태** | **C1 DB 완료** (2026-03-20): 7+2 테이블 + 도메인 `lib/domains/guide/` + Import CLI. RAG 핵심 적용처 |
+| **현재 상태** | ✅ Phase C + CMS C1~C5 완료 — 4도구 (`lib/agents/tools/guide-tools.ts`) + pgvector RAG |
 | **데이터 소스** | `exploration_guides` (7,836건), `exploration_guide_content`, `exploration_guide_career/subject_mappings`, `exploration_guide_assignments` |
 | **참조 설계** | `student-record-extension-design.md` E7, E16 (exploration_guides 3분할: meta/content/review) |
 | **벡터화 대상** | 가이드 overview + theory_sections + setek_examples → 임베딩 (**핵심**) |
@@ -435,7 +435,7 @@ const tools = {
 | 항목 | 내용 |
 |------|------|
 | **역할** | 진단 결과 → 보완 전략 + 로드맵 + 우선순위 |
-| **현재 상태** | Phase 7 **구현 완료** (Gemini Grounding) — 에이전트 래핑만 필요 |
+| **현재 상태** | ✅ Phase B 완료 — 2도구 (`lib/agents/tools/strategy-tools.ts`) |
 | **데이터 소스** | `strategies`, `roadmap_items`, `warnings`, Agent 1 진단 결과 |
 | **구현 파일** | `lib/domains/student-record/llm/actions/suggestStrategies.ts`, `lib/domains/student-record/llm/prompts/strategyRecommend.ts` |
 | **벡터화 대상** | 전략 텍스트 → 임베딩 (유사 전략 재활용, 선택적) |
@@ -498,7 +498,7 @@ const tools = {
 | 항목 | 내용 |
 |------|------|
 | **역할** | 생기부 기반 예상 질문 + 답변 가이드 + 모의 면접 |
-| **현재 상태** | Phase 6.5 **기초 구현** — 확장 필요 |
+| **현재 상태** | ✅ Phase E 완료 — 3도구 (`lib/agents/tools/interview-tools.ts`) |
 | **데이터 소스** | 전체 생기부 + `applications` (지원 대학/전형) + `interview_questions` |
 | **벡터화 대상** | 면접 기출 문제 DB (향후 축적 시) |
 | **최적 모델** | Claude standard (추론 + 대화 시뮬레이션) |
@@ -523,21 +523,19 @@ const tools = {
     description: "학생 답변 피드백 (강점/약점/개선 방향)",
     inputSchema: z.object({
       question: z.string(),
-      answer: z.string(),
-      context: z.string(), // 관련 세특 원문
+      suggestedAnswer: z.string(),
+      studentAnswer: z.string(),
+      recordContext: z.string().optional(),
     }),
     execute: async (input) => {
-      // 신규 구현 필요
+      // ✅ 구현 완료 — 1-5점 평가 + 강점/약점/개선답변/팁
     },
   }),
-  simulateInterview: tool({
-    description: "모의 면접 (멀티턴 대화)",
-    inputSchema: z.object({
-      studentId: z.string(),
-      mode: z.enum(["gentle", "challenging"]),
-    }),
+  getInterviewPrep: tool({
+    description: "면접 준비 현황 (지원현황 + 면접 겹침 + 기존 질문 수)",
+    inputSchema: z.object({ schoolYear: z.number().optional() }),
     execute: async (input) => {
-      // 신규 구현 필요 (멀티턴)
+      // ✅ 구현 완료 — applications + conflicts + question count
     },
   }),
 };
@@ -550,7 +548,7 @@ const tools = {
 | 항목 | 내용 |
 |------|------|
 | **역할** | 종합 분석 → 학부모/학생 보고서 자동 생성 |
-| **현재 상태** | Phase 9 설계, **미착수** |
+| **현재 상태** | ✅ Phase E 완료 — 3도구 (`lib/agents/tools/report-tools.ts`) + PDF/Word 내보내기 |
 | **데이터 소스** | Agent 1~5의 결과물 전체 |
 | **벡터화 대상** | 불필요 — 다른 에이전트 출력 조합 |
 | **최적 모델** | Claude standard (긴 문서 생성) |
@@ -560,110 +558,58 @@ const tools = {
 
 ## 5. 오케스트레이터 설계
 
-### 5.1 라우터 패턴 (AI SDK v6 ToolLoopAgent)
+### 5.1 라우터 패턴 — ✅ 구현 완료
+
+> **실제 구현**: `lib/agents/orchestrator.ts` — `createOrchestrator(ctx)` 함수형 패턴
+> 초기 설계의 `ToolLoopAgent` 클래스 대신, `streamText` + `tool()` 26개 직접 등록 방식 채택
 
 ```typescript
-// lib/agents/orchestrator.ts
-import { ToolLoopAgent, tool, stepCountIs } from "ai";
-import { google } from "@ai-sdk/google";
-import { z } from "zod";
+// lib/agents/orchestrator.ts (실제 구현)
+export function createOrchestrator(ctx: AgentContext) {
+  const tools = {
+    ...createDataTools(ctx),      // 3도구
+    ...createRecordTools(ctx),    // 5도구
+    ...createStrategyTools(ctx),  // 2도구
+    ...createGuideTools(ctx),     // 4도구
+    ...createAdmissionTools(ctx), // 6도구
+    ...createInterviewTools(ctx), // 3도구
+    ...createReportTools(ctx),    // 3도구
+  };
+  return { tools, systemPrompt };
+}
+```
 
-export const orchestrator = new ToolLoopAgent({
-  model: google("gemini-2.0-flash"),  // 빠른 분류용
-  instructions: `당신은 입시 컨설팅 AI 코디네이터입니다.
-사용자 질문을 분석하여 적절한 전문가 에이전트에게 위임하세요.
+### 5.2 API Route — ✅ 구현 완료
 
-가용 전문가:
-1. analyzeRecord — 생기부 분석 (역량 진단, 강약점, 하이라이트, 스토리라인)
-2. searchGuides — 탐구 가이드 검색/추천 (교과 연계)
-3. analyzePlacement — 합격권 분석, 6장 배분
-4. suggestStrategy — 보완 전략, 로드맵
-5. prepareInterview — 면접 대비, 예상 질문
-6. generateReport — 종합 보고서 생성
+> **실제 구현**: `app/api/agent/route.ts` — `streamText` + `toUIMessageStreamResponse()`
 
-여러 전문가가 필요하면 병렬로 호출하세요.
-질문이 모호하면 사용자에게 구체적으로 물어보세요.`,
-
-  tools: {
-    analyzeRecord: tool({
-      description: "생기부 분석 에이전트에게 위임",
-      inputSchema: z.object({ task: z.string(), studentId: z.string() }),
-      execute: async ({ task, studentId }) => {
-        const result = await recordAnalysisAgent.generate({
-          prompt: task,
-          options: { studentId },
-        });
-        return result.text;
-      },
-    }),
-    searchGuides: tool({
-      description: "탐구 가이드 에이전트에게 위임",
-      inputSchema: z.object({
-        task: z.string(),
-        careerField: z.string().optional(),
-        subject: z.string().optional(),
-      }),
-      execute: async (input) => {
-        const result = await guideSearchAgent.generate({ prompt: input.task });
-        return result.text;
-      },
-    }),
-    // ... 나머지 에이전트 도구
-  },
-  stopWhen: stepCountIs(5),
+```typescript
+// app/api/agent/route.ts (실제 구현)
+const result = await geminiRateLimiter.execute(async () => {
+  return streamText({
+    model: google("gemini-2.0-flash"),
+    system: systemPrompt,
+    messages,
+    tools,
+    stopWhen: stepCountIs(5),
+    abortSignal: req.signal,
+    onError: ({ error }) => { logActionError("agent.stream", error); },
+  });
 });
+return result.toUIMessageStreamResponse();
 ```
 
-### 5.2 API Route (스트리밍)
+### 5.3 클라이언트 UI — ✅ 구현 완료
+
+> **실제 구현**: `components/agent/AgentChat.tsx` — AI SDK v6 `useChat` + `DefaultChatTransport`
 
 ```typescript
-// app/api/agent/route.ts
-import { createAgentUIStreamResponse } from "ai";
-import { orchestrator } from "@/lib/agents/orchestrator";
-
-export const maxDuration = 60;  // Vercel Hobby: 최대 60초
-
-export async function POST(request: Request) {
-  const { messages } = await request.json();
-  // TODO: auth check + studentId 추출
-
-  return createAgentUIStreamResponse({
-    agent: orchestrator,
-    uiMessages: messages,
-  });
-}
-```
-
-### 5.3 클라이언트 UI
-
-```typescript
-// components/agent/AgentChat.tsx
-"use client";
-import { useChat } from "ai/react";
-
-export function AgentChat({ studentId }: { studentId: string }) {
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
-    api: "/api/agent",
-    body: { studentId },
-  });
-
-  return (
-    <div>
-      {messages.map((m) =>
-        m.parts.map((part, i) => {
-          if (part.type === "text") return <p key={i}>{part.text}</p>;
-          // 도구 실행 중 상태 표시
-          if (part.type === "tool-analyzeRecord" && part.state === "pending")
-            return <div key={i}>생기부 분석 중...</div>;
-          return null;
-        })
-      )}
-      <form onSubmit={handleSubmit}>
-        <input value={input} onChange={handleInputChange} />
-      </form>
-    </div>
-  );
-}
+// components/agent/AgentChat.tsx (실제 구현)
+const transport = useMemo(
+  () => new DefaultChatTransport({ api: "/api/agent", body: { studentId, studentName } }),
+  [studentId, studentName],
+);
+const { messages, sendMessage, regenerate, stop, status, error, setMessages } = useChat({ transport });
 ```
 
 ### 5.4 에러 처리 (Graceful Degradation) — ✅ 운영 안정화 적용
