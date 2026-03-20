@@ -2225,7 +2225,7 @@ CREATE TABLE IF NOT EXISTS university_score_formulas (
 └───────────────────────────────────────────────────────────┘
 ```
 
-#### 8.5b 가채점/실채점 + 6장 최적 배분 (미착수)
+#### 8.5b 가채점/실채점 + 6장 최적 배분 (✅ 완료)
 
 ```
 8.5b.1  applications에 score_type 추가 (estimated/actual)
@@ -2233,7 +2233,7 @@ CREATE TABLE IF NOT EXISTS university_score_formulas (
 8.5b.3  6장 최적 배분 시뮬레이션 엔진
 ```
 
-#### 8.5c 충원 합격 시뮬레이션 (미착수)
+#### 8.5c 충원 합격 시뮬레이션 (✅ 완료)
 
 ```
 8.5c.1  충원율 = replacement_count / recruitment_count × 연도별 추세
