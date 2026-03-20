@@ -26,20 +26,36 @@ async function main() {
 
   const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_KEY!);
 
-  // 임베딩이 없는 가이드 조회
-  let query = supabase
-    .from("exploration_guide_content")
-    .select("guide_id")
-    .is("embedding", null);
+  // 임베딩이 없는 가이드 조회 (Supabase 1000건 limit 대응 — 페이지네이션)
+  const allTargets: Array<{ guide_id: string }> = [];
+  const pageSize = 1000;
+  let page = 0;
+  while (true) {
+    let query = supabase
+      .from("exploration_guide_content")
+      .select("guide_id")
+      .is("embedding", null)
+      .range(page * pageSize, (page + 1) * pageSize - 1);
 
-  if (limit) {
-    query = query.limit(limit);
+    if (limit && allTargets.length + pageSize >= limit) {
+      query = query.limit(limit - allTargets.length);
+    }
+
+    const { data, error: fetchError } = await query;
+    if (fetchError) {
+      console.error("❌ 대상 조회 실패:", fetchError.message);
+      process.exit(1);
+    }
+    if (!data || data.length === 0) break;
+    allTargets.push(...data);
+    if (limit && allTargets.length >= limit) break;
+    if (data.length < pageSize) break;
+    page++;
   }
 
-  const { data: targets, error } = await query;
-  if (error) {
-    console.error("❌ 대상 조회 실패:", error.message);
-    process.exit(1);
+  const targets = allTargets;
+  if (targets.length === 0) {
+    // will be caught below
   }
 
   if (!targets || targets.length === 0) {

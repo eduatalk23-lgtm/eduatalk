@@ -3,8 +3,6 @@
 // Phase C: pgvector + gemini-embedding-001
 // ============================================
 
-import "server-only";
-
 import { embed, embedMany } from "ai";
 import { google } from "@ai-sdk/google";
 import { geminiRateLimiter, geminiQuotaTracker } from "@/lib/domains/plan/llm/providers/gemini";
@@ -14,7 +12,13 @@ import type { ExplorationGuideContent, TheorySection } from "../types";
 
 const LOG_TAG = "guide.embedding";
 const EMBEDDING_MODEL = "gemini-embedding-001";
+const EMBEDDING_DIMENSIONS = 768;
 const MAX_INPUT_CHARS = 8000; // gemini-embedding-001 토큰 제한 대비 안전 마진
+
+/** embed/embedMany 공통 provider 옵션 */
+const EMBED_PROVIDER_OPTIONS = {
+  google: { outputDimensionality: EMBEDDING_DIMENSIONS },
+};
 
 /**
  * 가이드 콘텐츠에서 임베딩용 텍스트 생성
@@ -107,6 +111,7 @@ export async function embedSingleGuide(guideId: string): Promise<boolean> {
     return embed({
       model: google.textEmbeddingModel(EMBEDDING_MODEL),
       value: inputText,
+      providerOptions: EMBED_PROVIDER_OPTIONS,
     });
   });
   geminiQuotaTracker.recordRequest();
@@ -207,6 +212,7 @@ export async function embedBatchGuides(
         return embedMany({
           model: google.textEmbeddingModel(EMBEDDING_MODEL),
           values: validItems.map((item) => item.text),
+          providerOptions: EMBED_PROVIDER_OPTIONS,
         });
       });
       geminiQuotaTracker.recordRequest();

@@ -57,6 +57,7 @@ export async function searchGuidesByVector(
       return embed({
         model: google.textEmbeddingModel(EMBEDDING_MODEL),
         value: query,
+        providerOptions: { google: { outputDimensionality: 768 } },
       });
     },
   );
