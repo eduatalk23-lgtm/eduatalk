@@ -931,6 +931,7 @@ export function StudentRecordClient({
             <ActivitySummaryPanel
               studentId={studentId}
               studentGrade={studentGrade}
+              studentName={studentName}
             />
           </StrategySection>
 
@@ -939,6 +940,7 @@ export function StudentRecordClient({
             <SetekGuidePanel
               studentId={studentId}
               studentGrade={studentGrade}
+              studentName={studentName}
             />
           </StrategySection>
 

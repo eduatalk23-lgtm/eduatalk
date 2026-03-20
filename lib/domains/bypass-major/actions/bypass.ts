@@ -23,9 +23,12 @@ import {
   findBypassPairs,
   findCandidates,
   updateCandidateStatus,
+  updateCandidateNotes,
+  saveCandidates,
   compareCurriculum,
   findClassifications,
 } from "../repository";
+import { generateCandidates } from "../candidate-generator";
 
 const LOG_CTX = { domain: "bypass-major", action: "bypass" };
 
@@ -105,7 +108,7 @@ export async function saveCandidateNotesAction(
   try {
     await requireAdminOrConsultant();
     // notes만 업데이트 — status는 변경하지 않음
-    await updateCandidateStatus(candidateId, "candidate", notes);
+    await updateCandidateNotes(candidateId, notes);
     return createSuccessResponse();
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "saveCandidateNotes" }, error, {
@@ -163,5 +166,68 @@ export async function fetchClassificationsAction(): Promise<
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "fetchClassifications" }, error);
     return createErrorResponse("분류 코드를 불러올 수 없습니다.");
+  }
+}
+
+/** 우회학과 후보 자동 생성 */
+export async function generateCandidatesAction(input: {
+  studentId: string;
+  targetDeptId: string;
+  schoolYear: number;
+  tenantId: string;
+}): Promise<
+  ActionResponse<{ totalGenerated: number; preMapped: number; similarity: number }>
+> {
+  try {
+    await requireAdminOrConsultant();
+    const result = await generateCandidates(input);
+    if (result.candidates.length > 0) {
+      await saveCandidates(result.candidates);
+    }
+    return createSuccessResponse(result.stats);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "generateCandidates" }, error, {
+      studentId: input.studentId,
+      targetDeptId: input.targetDeptId,
+    });
+    return createErrorResponse("후보 생성에 실패했습니다.");
+  }
+}
+
+/** 수동 후보 추가 */
+export async function addManualCandidateAction(input: {
+  studentId: string;
+  targetDeptId: string;
+  candidateDeptId: string;
+  schoolYear: number;
+  tenantId: string;
+  notes?: string;
+}): Promise<ActionResponse> {
+  try {
+    await requireAdminOrConsultant();
+    await saveCandidates([
+      {
+        tenant_id: input.tenantId,
+        student_id: input.studentId,
+        target_department_id: input.targetDeptId,
+        candidate_department_id: input.candidateDeptId,
+        source: "manual",
+        curriculum_similarity_score: null,
+        placement_grade: null,
+        competency_fit_score: null,
+        composite_score: null,
+        rationale: "수동 추가",
+        consultant_notes: input.notes ?? null,
+        status: "candidate",
+        school_year: input.schoolYear,
+      },
+    ]);
+    return createSuccessResponse();
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "addManualCandidate" }, error, {
+      studentId: input.studentId,
+      candidateDeptId: input.candidateDeptId,
+    });
+    return createErrorResponse("수동 후보 추가에 실패했습니다.");
   }
 }

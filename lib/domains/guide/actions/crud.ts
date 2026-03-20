@@ -13,6 +13,7 @@ import type {
   GuideUpsertInput,
   GuideContentInput,
   GuideListFilter,
+  GuideVersionItem,
 } from "../types";
 import {
   findGuides,
@@ -24,6 +25,9 @@ import {
   replaceSubjectMappings,
   replaceCareerMappings,
   findAllSubjects,
+  findVersionHistory,
+  createNewVersion,
+  revertToVersion,
 } from "../repository";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { embedSingleGuide } from "../vector/embedding-service";
@@ -216,6 +220,67 @@ export async function uploadGuideImageAction(
       guideId,
     });
     return createErrorResponse("이미지 업로드에 실패했습니다.");
+  }
+}
+
+// ============================================================
+// 버전 관리 (C4)
+// ============================================================
+
+/** 버전 히스토리 조회 */
+export async function getVersionHistoryAction(
+  guideId: string,
+): Promise<ActionResponse<GuideVersionItem[]>> {
+  try {
+    await requireAdminOrConsultant();
+    const data = await findVersionHistory(guideId);
+    return createSuccessResponse(data);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "getVersionHistory" }, error, { guideId });
+    return createErrorResponse("버전 히스토리를 불러올 수 없습니다.");
+  }
+}
+
+/** 새 버전으로 저장 (현재 가이드 복제 → 새 버전) */
+export async function saveAsNewVersionAction(
+  guideId: string,
+): Promise<ActionResponse<ExplorationGuide>> {
+  try {
+    const { userId } = await requireAdminOrConsultant();
+    const newGuide = await createNewVersion(guideId, userId);
+
+    // 임베딩 생성
+    embedSingleGuide(newGuide.id).catch((err) => {
+      logActionError({ ...LOG_CTX, action: "saveAsNewVersion.embedding" }, err, {
+        guideId: newGuide.id,
+      });
+    });
+
+    return createSuccessResponse(newGuide);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "saveAsNewVersion" }, error, { guideId });
+    return createErrorResponse("새 버전 생성에 실패했습니다.");
+  }
+}
+
+/** 특정 버전으로 되돌리기 */
+export async function revertToVersionAction(
+  targetVersionId: string,
+): Promise<ActionResponse<ExplorationGuide>> {
+  try {
+    const { userId } = await requireAdminOrConsultant();
+    const newGuide = await revertToVersion(targetVersionId, userId);
+
+    embedSingleGuide(newGuide.id).catch((err) => {
+      logActionError({ ...LOG_CTX, action: "revertToVersion.embedding" }, err, {
+        guideId: newGuide.id,
+      });
+    });
+
+    return createSuccessResponse(newGuide);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "revertToVersion" }, error, { targetVersionId });
+    return createErrorResponse("버전 되돌리기에 실패했습니다.");
   }
 }
 

@@ -1,7 +1,8 @@
 "use server";
 
 // ============================================
-// C3 — AI 가이드 생성 Server Action
+// C3 + C3.1 — AI 가이드 생성 Server Action
+// 소스: keyword, clone_variant, pdf_extract, url_extract
 // ============================================
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
@@ -30,6 +31,7 @@ import {
   type GuideGenerationInput,
   type GeneratedGuideOutput,
 } from "../types";
+import type { GuideSourceType } from "../../types";
 import {
   KEYWORD_SYSTEM_PROMPT,
   buildKeywordUserPrompt,
@@ -38,10 +40,16 @@ import {
   CLONE_SYSTEM_PROMPT,
   buildCloneUserPrompt,
 } from "../prompts/clone-variant";
+import {
+  EXTRACTION_SYSTEM_PROMPT,
+  buildExtractionUserPrompt,
+} from "../prompts/extraction-guide";
+import { extractTextFromPdfUrl } from "../extract/pdf-extractor";
+import { extractTextFromUrl } from "../extract/url-extractor";
 
 const LOG_CTX = { domain: "guide", action: "generateGuide" };
 const AI_MODEL_VERSION = "gemini-2.0-flash";
-const AI_PROMPT_VERSION = "c3-v1";
+const AI_PROMPT_VERSION = "c3.1-v1";
 
 export async function generateGuideAction(
   input: GuideGenerationInput,
@@ -58,33 +66,12 @@ export async function generateGuideAction(
     }
 
     // 입력 검증 + 프롬프트 빌드
-    let systemPrompt: string;
-    let userPrompt: string;
-    let sourceType: "ai_keyword" | "ai_clone_variant";
-    let parentGuideId: string | undefined;
-
-    if (input.source === "keyword") {
-      if (!input.keyword?.keyword?.trim()) {
-        return createErrorResponse("키워드를 입력해주세요.");
-      }
-      systemPrompt = KEYWORD_SYSTEM_PROMPT;
-      userPrompt = buildKeywordUserPrompt(input.keyword);
-      sourceType = "ai_keyword";
-    } else if (input.source === "clone_variant") {
-      if (!input.clone?.sourceGuideId) {
-        return createErrorResponse("원본 가이드를 선택해주세요.");
-      }
-      const sourceGuide = await findGuideById(input.clone.sourceGuideId);
-      if (!sourceGuide) {
-        return createErrorResponse("원본 가이드를 찾을 수 없습니다.");
-      }
-      systemPrompt = CLONE_SYSTEM_PROMPT;
-      userPrompt = buildCloneUserPrompt(sourceGuide, input.clone);
-      sourceType = "ai_clone_variant";
-      parentGuideId = input.clone.sourceGuideId;
-    } else {
-      return createErrorResponse("지원하지 않는 생성 방식입니다.");
+    const promptResult = await buildPrompt(input);
+    if (!promptResult.ok) {
+      return createErrorResponse(promptResult.error);
     }
+
+    const { systemPrompt, userPrompt, sourceType, parentGuideId } = promptResult;
 
     // AI 생성
     const { object: generated } = await generateObjectWithRateLimit({
@@ -170,7 +157,106 @@ export async function generateGuideAction(
         "AI 요청 한도에 도달했습니다. 잠시 후 다시 시도해주세요.",
       );
     }
+    if (msg.includes("PDF") || msg.includes("페이지")) {
+      return createErrorResponse(msg);
+    }
 
     return createErrorResponse("AI 가이드 생성에 실패했습니다.");
+  }
+}
+
+// ============================================
+// 내부: 소스별 프롬프트 빌드
+// ============================================
+
+type PromptBuildResult =
+  | {
+      ok: true;
+      systemPrompt: string;
+      userPrompt: string;
+      sourceType: GuideSourceType;
+      parentGuideId?: string;
+    }
+  | { ok: false; error: string };
+
+async function buildPrompt(
+  input: GuideGenerationInput,
+): Promise<PromptBuildResult> {
+  switch (input.source) {
+    case "keyword": {
+      if (!input.keyword?.keyword?.trim()) {
+        return { ok: false, error: "키워드를 입력해주세요." };
+      }
+      return {
+        ok: true,
+        systemPrompt: KEYWORD_SYSTEM_PROMPT,
+        userPrompt: buildKeywordUserPrompt(input.keyword),
+        sourceType: "ai_keyword",
+      };
+    }
+
+    case "clone_variant": {
+      if (!input.clone?.sourceGuideId) {
+        return { ok: false, error: "원본 가이드를 선택해주세요." };
+      }
+      const sourceGuide = await findGuideById(input.clone.sourceGuideId);
+      if (!sourceGuide) {
+        return { ok: false, error: "원본 가이드를 찾을 수 없습니다." };
+      }
+      return {
+        ok: true,
+        systemPrompt: CLONE_SYSTEM_PROMPT,
+        userPrompt: buildCloneUserPrompt(sourceGuide, input.clone),
+        sourceType: "ai_clone_variant",
+        parentGuideId: input.clone.sourceGuideId,
+      };
+    }
+
+    case "pdf_extract": {
+      if (!input.pdf?.pdfUrl?.trim()) {
+        return { ok: false, error: "PDF URL을 입력해주세요." };
+      }
+      const pdfResult = await extractTextFromPdfUrl(input.pdf.pdfUrl);
+      return {
+        ok: true,
+        systemPrompt: EXTRACTION_SYSTEM_PROMPT,
+        userPrompt: buildExtractionUserPrompt({
+          extractedText: pdfResult.text,
+          sourceTitle: pdfResult.title,
+          sourceUrl: input.pdf.pdfUrl,
+          sourceType: "pdf",
+          guideType: input.pdf.guideType,
+          targetSubject: input.pdf.targetSubject,
+          targetCareerField: input.pdf.targetCareerField,
+          additionalContext: input.pdf.additionalContext,
+        }),
+        sourceType: "ai_pdf_extract",
+      };
+    }
+
+    case "url_extract": {
+      if (!input.url?.url?.trim()) {
+        return { ok: false, error: "URL을 입력해주세요." };
+      }
+      const urlResult = await extractTextFromUrl(input.url.url);
+      return {
+        ok: true,
+        systemPrompt: EXTRACTION_SYSTEM_PROMPT,
+        userPrompt: buildExtractionUserPrompt({
+          extractedText: urlResult.text,
+          sourceTitle: urlResult.title,
+          sourceUrl: urlResult.url,
+          sourceType: "url",
+          guideType: input.url.guideType,
+          targetSubject: input.url.targetSubject,
+          targetCareerField: input.url.targetCareerField,
+          additionalContext: input.url.additionalContext,
+        }),
+        sourceType: "ai_url_extract",
+      };
+    }
+
+    default:
+      return { ok: false, error: "지원하지 않는 생성 방식입니다." };
   }
 }

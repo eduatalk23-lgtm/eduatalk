@@ -20,6 +20,9 @@ vi.mock("@/lib/domains/guide/repository", () => ({
 vi.mock("@/lib/domains/guide/vector/search-service", () => ({
   searchGuidesByVector: vi.fn(),
 }));
+vi.mock("@/lib/domains/guide/llm/actions/generateGuide", () => ({
+  generateGuideAction: vi.fn(),
+}));
 vi.mock("@/lib/domains/student-record/service", () => ({
   getRecordTabData: vi.fn(),
   getStorylineTabData: vi.fn(),
@@ -35,6 +38,7 @@ vi.mock("@/lib/domains/student-record/diagnosis-repository", () => ({
 }));
 vi.mock("@/lib/domains/student-record/repository", () => ({
   findStorylinesByStudent: vi.fn(),
+  findApplicationsByStudentYear: vi.fn(),
 }));
 vi.mock("@/lib/domains/plan/llm/ai-sdk", () => ({
   generateTextWithRateLimit: vi.fn(),
@@ -60,6 +64,21 @@ vi.mock("@/lib/domains/admission/placement/score-converter", () => ({
 }));
 vi.mock("@/lib/domains/admission/allocation/engine", () => ({
   simulateAllocation: vi.fn(),
+}));
+// Interview mocks (Agent 5)
+vi.mock("@/lib/domains/student-record/interview-conflict-checker", () => ({
+  checkInterviewConflicts: vi.fn(),
+}));
+// Report mocks (Agent 6)
+vi.mock("@/lib/domains/student-record/llm/actions/generateActivitySummary", () => ({
+  generateActivitySummary: vi.fn(),
+}));
+vi.mock("@/lib/domains/student-record/llm/actions/generateSetekGuide", () => ({
+  generateSetekGuide: vi.fn(),
+}));
+vi.mock("@/lib/domains/student-record/actions/activitySummary", () => ({
+  fetchActivitySummaries: vi.fn(),
+  fetchSetekGuides: vi.fn(),
 }));
 
 import { createOrchestrator } from "../orchestrator";
@@ -115,11 +134,12 @@ describe("createOrchestrator", () => {
     expect(tools.getWarnings).toBeDefined();
   });
 
-  it("가이드 도구 3개가 등록된다 (Agent 2)", () => {
+  it("가이드 도구 4개가 등록된다 (Agent 2)", () => {
     const { tools } = createOrchestrator(mockContext);
     expect(tools.searchGuides).toBeDefined();
     expect(tools.getGuideDetail).toBeDefined();
     expect(tools.getStudentAssignments).toBeDefined();
+    expect(tools.generateGuide).toBeDefined();
   });
 
   it("입시 배치 도구 6개가 등록된다 (Agent 3)", () => {
@@ -132,8 +152,22 @@ describe("createOrchestrator", () => {
     expect(tools.analyzeScoreImpact).toBeDefined();
   });
 
-  it("총 19개 도구가 등록된다", () => {
+  it("면접 코칭 도구 3개가 등록된다 (Agent 5)", () => {
     const { tools } = createOrchestrator(mockContext);
-    expect(Object.keys(tools)).toHaveLength(19);
+    expect(tools.generateInterviewQuestions).toBeDefined();
+    expect(tools.evaluateAnswer).toBeDefined();
+    expect(tools.getInterviewPrep).toBeDefined();
+  });
+
+  it("리포트 도구 3개가 등록된다 (Agent 6)", () => {
+    const { tools } = createOrchestrator(mockContext);
+    expect(tools.generateReport).toBeDefined();
+    expect(tools.fetchSavedReports).toBeDefined();
+    expect(tools.getStudentOverview).toBeDefined();
+  });
+
+  it("총 26개 도구가 등록된다", () => {
+    const { tools } = createOrchestrator(mockContext);
+    expect(Object.keys(tools)).toHaveLength(26);
   });
 });

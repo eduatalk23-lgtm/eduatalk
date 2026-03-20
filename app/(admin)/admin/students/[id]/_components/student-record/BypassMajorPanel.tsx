@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo, useTransition } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 import {
   bypassCandidatesQueryOptions,
   bypassPairsQueryOptions,
+  bypassMajorKeys,
 } from "@/lib/query-options/bypassMajor";
+import { generateCandidatesAction } from "@/lib/domains/bypass-major/actions/bypass";
 import type {
   UniversityDepartment,
   BypassCandidateWithDetails,
@@ -15,7 +17,7 @@ import type {
 import { BypassTargetSelector } from "./BypassTargetSelector";
 import { BypassCandidateList } from "./BypassCandidateList";
 import { CurriculumComparisonView } from "./CurriculumComparisonView";
-import { Compass, ListChecks, GitCompare } from "lucide-react";
+import { Compass, ListChecks, GitCompare, Wand2 } from "lucide-react";
 
 interface BypassMajorPanelProps {
   studentId: string;
@@ -27,9 +29,11 @@ type TabKey = "candidates" | "comparison";
 
 export function BypassMajorPanel({
   studentId,
-  // studentGrade, tenantId — reserved for future bypass pipeline integration
+  tenantId,
 }: BypassMajorPanelProps) {
   const schoolYear = calculateSchoolYear();
+  const queryClient = useQueryClient();
+  const [isGenerating, startGenerate] = useTransition();
 
   // 1지망 학과 선택 상태
   const [targetDept, setTargetDept] = useState<UniversityDepartment | null>(
@@ -42,6 +46,8 @@ export function BypassMajorPanel({
     deptIdA: string;
     deptIdB: string;
   } | null>(null);
+  // 생성 결과 메시지
+  const [generateMsg, setGenerateMsg] = useState<string | null>(null);
 
   // ─── 학생별 기존 후보 조회 ─────────────────────────
   const { data: candidatesRes, isLoading: candidatesLoading } = useQuery(
@@ -84,6 +90,30 @@ export function BypassMajorPanel({
     setTab("candidates");
   }
 
+  // 후보 자동 생성
+  function handleGenerate() {
+    if (!targetDept) return;
+    startGenerate(async () => {
+      setGenerateMsg(null);
+      const res = await generateCandidatesAction({
+        studentId,
+        targetDeptId: targetDept.id,
+        schoolYear,
+        tenantId,
+      });
+      if (res.success && res.data) {
+        queryClient.invalidateQueries({
+          queryKey: bypassMajorKeys.candidates(studentId, schoolYear),
+        });
+        setGenerateMsg(
+          `${res.data.totalGenerated}건 생성 (사전매핑 ${res.data.preMapped}, 유사도 ${res.data.similarity})`,
+        );
+      } else {
+        setGenerateMsg(res.success ? "생성할 후보가 없습니다." : "생성에 실패했습니다.");
+      }
+    });
+  }
+
   // 목표 학과에서 탐지된 고유 대학 목록 (요약용)
   const uniqueUniversities = useMemo(() => {
     const set = new Set<string>();
@@ -102,6 +132,28 @@ export function BypassMajorPanel({
           목표 학과 (1지망)
         </label>
         <BypassTargetSelector value={targetDept} onChange={setTargetDept} />
+        {targetDept && (
+          <div className="mt-2 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleGenerate}
+              disabled={isGenerating}
+              className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {isGenerating ? (
+                <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              ) : (
+                <Wand2 className="h-3.5 w-3.5" />
+              )}
+              우회학과 추천
+            </button>
+            {generateMsg && (
+              <span className="text-xs text-[var(--text-secondary)]">
+                {generateMsg}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 사전 매핑 우회학과 요약 */}
@@ -188,6 +240,8 @@ export function BypassMajorPanel({
               studentId={studentId}
               schoolYear={schoolYear}
               onCompare={handleCompare}
+              targetDeptId={targetDept?.id ?? null}
+              tenantId={tenantId}
             />
           )}
         </>

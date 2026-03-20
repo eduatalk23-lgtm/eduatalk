@@ -8,6 +8,7 @@ import { z } from "zod";
 import type { AgentContext } from "../types";
 import { findGuideById, findAssignmentsWithGuides } from "@/lib/domains/guide/repository";
 import { searchGuidesByVector } from "@/lib/domains/guide/vector/search-service";
+import { generateGuideAction } from "@/lib/domains/guide/llm/actions/generateGuide";
 import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
 
 const LOG_CTX = { domain: "agent", action: "guide-tools" };
@@ -138,6 +139,78 @@ export function createGuideTools(ctx: AgentContext) {
     }),
 
     /**
+     * AI 가이드 생성 (키워드/PDF/URL/클론)
+     */
+    generateGuide: tool({
+      description:
+        "새 탐구 가이드를 AI로 생성합니다. 키워드, PDF URL, 웹페이지 URL, 기존 가이드 변형 중 하나를 소스로 사용합니다.",
+      inputSchema: z.object({
+        source: z
+          .enum(["keyword", "pdf_extract", "url_extract", "clone_variant"])
+          .describe("생성 소스: keyword(키워드), pdf_extract(PDF), url_extract(웹페이지), clone_variant(기존 가이드 변형)"),
+        input: z
+          .string()
+          .describe("소스에 따른 입력: keyword→키워드, pdf_extract→PDF URL, url_extract→웹 URL, clone_variant→원본 가이드 ID"),
+        guideType: z
+          .enum(["reading", "topic_exploration", "subject_performance", "experiment", "program"])
+          .default("topic_exploration")
+          .describe("생성할 가이드 유형"),
+        targetSubject: z
+          .string()
+          .optional()
+          .describe("관련 과목명 (한글)"),
+        targetCareerField: z
+          .string()
+          .optional()
+          .describe("관련 계열 (예: 공학계열, 의약계열)"),
+        additionalContext: z
+          .string()
+          .optional()
+          .describe("추가 요청사항"),
+      }),
+      execute: async ({ source, input: inputValue, guideType, targetSubject, targetCareerField, additionalContext }) => {
+        logActionDebug(LOG_CTX, `generateGuide: source=${source}, input=${inputValue.slice(0, 50)}`);
+        try {
+          // 소스별 입력 구성
+          const generationInput = buildGenerationInput(
+            source,
+            inputValue,
+            guideType,
+            targetSubject,
+            targetCareerField,
+            additionalContext,
+          );
+
+          const result = await generateGuideAction(generationInput);
+
+          if (!result.success) {
+            return { success: false, error: result.error ?? "가이드 생성에 실패했습니다." };
+          }
+          if (!result.data) {
+            return { success: false, error: "가이드 생성 결과가 없습니다." };
+          }
+
+          const { guideId, preview } = result.data;
+          return {
+            success: true,
+            data: {
+              guideId,
+              title: preview.title,
+              guideType: preview.guideType,
+              subjects: preview.suggestedSubjects,
+              careerFields: preview.suggestedCareerFields,
+              theorySectionCount: preview.theorySections.length,
+              message: `가이드 "${preview.title}"가 생성되었습니다. /admin/guides/${guideId} 에서 편집할 수 있습니다.`,
+            },
+          };
+        } catch (error) {
+          logActionError(LOG_CTX, error);
+          return { success: false, error: "가이드 생성에 실패했습니다." };
+        }
+      },
+    }),
+
+    /**
      * 학생에게 배정된 가이드 목록
      */
     getStudentAssignments: tool({
@@ -182,4 +255,79 @@ export function createGuideTools(ctx: AgentContext) {
       },
     }),
   };
+}
+
+// ============================================
+// 내부: Agent 도구 입력 → generateGuideAction 입력 변환
+// ============================================
+
+import type { GuideGenerationInput } from "@/lib/domains/guide/llm/types";
+import type { GuideType } from "@/lib/domains/guide/types";
+
+function buildGenerationInput(
+  source: string,
+  inputValue: string,
+  guideType: string,
+  targetSubject?: string,
+  targetCareerField?: string,
+  additionalContext?: string,
+): GuideGenerationInput {
+  const gt = guideType as GuideType;
+
+  switch (source) {
+    case "keyword":
+      return {
+        source: "keyword",
+        keyword: {
+          keyword: inputValue,
+          guideType: gt,
+          targetSubject,
+          targetCareerField,
+          additionalContext,
+        },
+      };
+    case "pdf_extract":
+      return {
+        source: "pdf_extract",
+        pdf: {
+          pdfUrl: inputValue,
+          guideType: gt,
+          targetSubject,
+          targetCareerField,
+          additionalContext,
+        },
+      };
+    case "url_extract":
+      return {
+        source: "url_extract",
+        url: {
+          url: inputValue,
+          guideType: gt,
+          targetSubject,
+          targetCareerField,
+          additionalContext,
+        },
+      };
+    case "clone_variant":
+      return {
+        source: "clone_variant",
+        clone: {
+          sourceGuideId: inputValue,
+          targetSubject,
+          targetCareerField,
+          variationNote: additionalContext,
+        },
+      };
+    default:
+      return {
+        source: "keyword",
+        keyword: {
+          keyword: inputValue,
+          guideType: gt,
+          targetSubject,
+          targetCareerField,
+          additionalContext,
+        },
+      };
+  }
 }

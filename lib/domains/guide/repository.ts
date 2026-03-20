@@ -13,6 +13,7 @@ import type {
   AssignmentWithGuide,
   CareerField,
   AssignmentStatus,
+  GuideVersionItem,
 } from "./types";
 
 // ============================================================
@@ -51,6 +52,10 @@ export async function findGuides(filter: GuideListFilter) {
     query = query.or(
       `title.ilike.%${filter.searchQuery}%,book_title.ilike.%${filter.searchQuery}%`,
     );
+  }
+  // 기본: 최신 버전만 (latestOnly !== false)
+  if (filter.latestOnly !== false) {
+    query = query.eq("is_latest", true);
   }
 
   // subjectId 필터: junction 2단계 쿼리
@@ -161,6 +166,9 @@ export async function createGuide(input: GuideUpsertInput): Promise<ExplorationG
       ai_prompt_version: input.aiPromptVersion ?? null,
       registered_by: input.registeredBy ?? null,
       registered_at: input.registeredBy ? new Date().toISOString() : null,
+      version: input.version ?? 1,
+      is_latest: input.isLatest ?? true,
+      original_guide_id: input.originalGuideId ?? null,
     })
     .select()
     .single();
@@ -196,6 +204,7 @@ export async function updateGuide(
       ...(input.qualityTier !== undefined && { quality_tier: input.qualityTier }),
       ...(input.aiModelVersion !== undefined && { ai_model_version: input.aiModelVersion }),
       ...(input.aiPromptVersion !== undefined && { ai_prompt_version: input.aiPromptVersion }),
+      ...(input.isLatest !== undefined && { is_latest: input.isLatest }),
     })
     .eq("id", guideId)
     .select()
@@ -470,6 +479,129 @@ export async function findAllCareerFields(): Promise<CareerField[]> {
   if (error) throw error;
   return data as CareerField[];
 }
+
+// ============================================================
+// 5. 버전 관리 (C4)
+// ============================================================
+
+/** 버전 히스토리 조회 (original_guide_id 기준) */
+export async function findVersionHistory(
+  guideId: string,
+): Promise<GuideVersionItem[]> {
+  const supabase = await createSupabaseServerClient();
+
+  // 먼저 현재 가이드의 original_guide_id 확인
+  const { data: current, error: curErr } = await supabase
+    .from("exploration_guides")
+    .select("id, original_guide_id")
+    .eq("id", guideId)
+    .single();
+
+  if (curErr || !current) return [];
+
+  // 원본 ID: original_guide_id가 있으면 그것, 없으면 자기 자신
+  const originalId = current.original_guide_id ?? current.id;
+
+  // 동일 체인의 모든 버전 조회
+  const { data, error } = await supabase
+    .from("exploration_guides")
+    .select(
+      "id, version, is_latest, status, source_type, registered_by, quality_score, created_at, updated_at",
+    )
+    .or(`id.eq.${originalId},original_guide_id.eq.${originalId}`)
+    .order("version", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as GuideVersionItem[];
+}
+
+/** 새 버전 생성 (기존 가이드 복제 → version+1, is_latest=true) */
+export async function createNewVersion(
+  sourceGuideId: string,
+  userId: string,
+): Promise<ExplorationGuide> {
+  const supabase = await createSupabaseServerClient();
+
+  // 1. 원본 가이드 조회
+  const source = await findGuideById(sourceGuideId);
+  if (!source) throw new Error("원본 가이드를 찾을 수 없습니다.");
+
+  // 2. 원본 ID 결정
+  const originalId = source.original_guide_id ?? source.id;
+
+  // 3. 이전 버전 is_latest = false
+  const { error: updateErr } = await supabase
+    .from("exploration_guides")
+    .update({ is_latest: false })
+    .eq("id", sourceGuideId);
+  if (updateErr) throw updateErr;
+
+  // 4. 새 가이드 메타 생성
+  const newGuide = await createGuide({
+    guideType: source.guide_type,
+    title: source.title,
+    bookTitle: source.book_title ?? undefined,
+    bookAuthor: source.book_author ?? undefined,
+    bookPublisher: source.book_publisher ?? undefined,
+    bookYear: source.book_year ?? undefined,
+    curriculumYear: source.curriculum_year ?? undefined,
+    subjectSelect: source.subject_select ?? undefined,
+    unitMajor: source.unit_major ?? undefined,
+    unitMinor: source.unit_minor ?? undefined,
+    status: "draft",
+    sourceType: source.source_type,
+    contentFormat: source.content_format,
+    qualityTier: source.quality_tier ?? undefined,
+    registeredBy: userId,
+    version: source.version + 1,
+    isLatest: true,
+    originalGuideId: originalId,
+  });
+
+  // 5. 본문 복제
+  if (source.content) {
+    await upsertGuideContent(newGuide.id, {
+      motivation: source.content.motivation ?? undefined,
+      theorySections: source.content.theory_sections,
+      reflection: source.content.reflection ?? undefined,
+      impression: source.content.impression ?? undefined,
+      summary: source.content.summary ?? undefined,
+      followUp: source.content.follow_up ?? undefined,
+      bookDescription: source.content.book_description ?? undefined,
+      relatedPapers: source.content.related_papers,
+      relatedBooks: source.content.related_books,
+      setekExamples: source.content.setek_examples,
+      guideUrl: source.content.guide_url ?? undefined,
+    });
+  }
+
+  // 6. 매핑 복제
+  await Promise.all([
+    replaceSubjectMappings(
+      newGuide.id,
+      source.subjects.map((s) => ({ subjectId: s.id })),
+    ),
+    replaceCareerMappings(
+      newGuide.id,
+      source.career_fields.map((c) => c.id),
+    ),
+  ]);
+
+  return newGuide;
+}
+
+/** 특정 버전으로 되돌리기 (대상 버전 내용 → 새 버전 생성) */
+export async function revertToVersion(
+  targetVersionId: string,
+  userId: string,
+): Promise<ExplorationGuide> {
+  // 대상 버전의 내용으로 새 버전 생성 (createNewVersion과 동일 흐름)
+  return createNewVersion(targetVersionId, userId);
+}
+
+// ============================================================
+// 6. 참조 테이블 조회
+// ============================================================
 
 /** 전체 과목 목록 (subjects 테이블) */
 export async function findAllSubjects(): Promise<

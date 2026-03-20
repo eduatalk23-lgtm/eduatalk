@@ -10,6 +10,7 @@ import {
   deleteActivitySummary,
 } from "@/lib/domains/student-record/actions/activitySummary";
 import type { SetekGuideItem, ActivitySummaryStatus } from "@/lib/domains/student-record/types";
+import { ReportExportMenu } from "./ReportExportMenu";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   draft: { label: "초안", color: "bg-gray-100 text-gray-600" },
@@ -32,11 +33,13 @@ const COMPETENCY_LABELS: Record<string, string> = {
 interface SetekGuidePanelProps {
   studentId: string;
   studentGrade: number;
+  studentName?: string;
 }
 
 export function SetekGuidePanel({
   studentId,
   studentGrade,
+  studentName = "학생",
 }: SetekGuidePanelProps) {
   const queryClient = useQueryClient();
   const [selectedGrades, setSelectedGrades] = useState<number[]>(
@@ -192,6 +195,21 @@ export function SetekGuidePanel({
                     >
                       {isEditing ? "취소" : "편집"}
                     </button>
+                    <ReportExportMenu
+                      data={{
+                        title: guide.summary_title,
+                        studentName,
+                        targetGrades: guide.target_grades,
+                        createdAt: guide.created_at,
+                        sections: guideItems.map((item, idx) => ({
+                          sectionType: `guide_${idx}`,
+                          title: item.subjectName,
+                          content: `${item.direction}${item.cautions ? `\n\n⚠ ${item.cautions}` : ""}${item.teacherPoints.length > 0 ? `\n\n교사 전달 포인트:\n${item.teacherPoints.map((p) => `· ${p}`).join("\n")}` : ""}`,
+                          relatedSubjects: item.keywords.slice(0, 3),
+                        })),
+                        editedText: guide.edited_text,
+                      }}
+                    />
                     {guide.status === "draft" && (
                       <button
                         type="button"

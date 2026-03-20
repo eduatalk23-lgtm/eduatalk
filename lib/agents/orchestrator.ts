@@ -9,6 +9,8 @@ import { createStrategyTools } from "./tools/strategy-tools";
 import { createDataTools } from "./tools/data-tools";
 import { createGuideTools } from "./tools/guide-tools";
 import { createAdmissionTools } from "./tools/admission-tools";
+import { createInterviewTools } from "./tools/interview-tools";
+import { createReportTools } from "./tools/report-tools";
 
 function buildSystemPrompt(ctx: AgentContext): string {
   return `당신은 대입 컨설팅 AI 어시스턴트입니다. 컨설턴트가 학생의 생기부를 분석하고 전략을 수립하는 것을 도와줍니다.
@@ -35,10 +37,11 @@ function buildSystemPrompt(ctx: AgentContext): string {
 - suggestStrategies: 약점 기반 보완전략 제안 (웹 검색 포함)
 - getWarnings: 역량 경보/주의사항 감지
 
-### 📚 탐구 가이드 도구 (Agent 2: 가이드 RAG 검색)
+### 📚 탐구 가이드 도구 (Agent 2: 가이드 RAG 검색 + AI 생성)
 - searchGuides: 자연어 검색으로 관련 탐구 가이드 찾기
 - getGuideDetail: 특정 가이드 상세 내용 조회
 - getStudentAssignments: 학생에게 배정된 가이드 목록
+- generateGuide: AI로 새 탐구 가이드 생성 (키워드/PDF/URL/클론 소스)
 
 ### 🎓 입시 배치 도구 (Agent 3: 정시 배치 분석)
 - searchAdmissionData: 대학 입시 데이터 검색 (대학명/학과명/지역/계열)
@@ -47,6 +50,16 @@ function buildSystemPrompt(ctx: AgentContext): string {
 - filterPlacementResults: 배치 분석 결과 필터링 (분석 후 사용)
 - simulateCardAllocation: 수시 6장 최적 배분 시뮬레이션
 - analyzeScoreImpact: 과목 점수 변경 영향 분석 (What-If)
+
+### 🎤 면접 코칭 도구 (Agent 5: 면접 시뮬레이션)
+- generateInterviewQuestions: 생기부 기반 면접 예상 질문 10개 생성
+- evaluateAnswer: 학생 답변 평가 + 개선 피드백 (점수/강점/약점/개선답변)
+- getInterviewPrep: 면접 준비 현황 (지원현황/겹침/기존질문수)
+
+### 📄 리포트 도구 (Agent 6: 리포트 생성)
+- generateReport: AI 활동 요약서 또는 세특 방향 가이드 생성 (30-45초 소요)
+- fetchSavedReports: 기존 생성된 리포트 목록 조회
+- getStudentOverview: 학생 종합 프로필 (리포트 생성 전 맥락 구성)
 
 ## 중요 규칙
 
@@ -58,7 +71,10 @@ function buildSystemPrompt(ctx: AgentContext): string {
 6. **도구 조합**: 복합적인 질문에는 여러 도구를 순차적으로 활용하세요.
    예: "세특 강약점 분석" → getStudentRecords → analyzeCompetency → generateDiagnosis
 7. **토큰 절약**: 불필요하게 긴 데이터를 반복하지 마세요. 요약하여 전달하세요.
-8. **배치 분석 워크플로우**: 배치 분석 시 반드시 점수 정보를 확인한 후 runPlacementAnalysis → filterPlacementResults 순서로 사용하세요. 점수가 불완전하면 먼저 사용자에게 요청하세요.`;
+8. **배치 분석 워크플로우**: 배치 분석 시 반드시 점수 정보를 확인한 후 runPlacementAnalysis → filterPlacementResults 순서로 사용하세요. 점수가 불완전하면 먼저 사용자에게 요청하세요.
+9. **면접 시뮬레이션**: generateInterviewQuestions로 질문 생성 후, 직접 면접관 역할로 학생과 대화하세요. 학생이 답변하면 evaluateAnswer로 평가하세요.
+10. **리포트 생성**: generateReport는 30-45초 소요됩니다. 생성 전에 소요 시간을 안내하고, 완료 후 summaryId를 제공하세요.
+11. **가이드 생성**: generateGuide는 PDF/URL 소스의 경우 콘텐츠 추출 + AI 생성으로 시간이 소요될 수 있습니다. 소스 종류를 확인하고 적절한 입력을 전달하세요.`;
 }
 
 export function createOrchestrator(ctx: AgentContext) {
@@ -68,6 +84,8 @@ export function createOrchestrator(ctx: AgentContext) {
     ...createStrategyTools(ctx),
     ...createGuideTools(ctx),
     ...createAdmissionTools(ctx),
+    ...createInterviewTools(ctx),
+    ...createReportTools(ctx),
   };
 
   return {

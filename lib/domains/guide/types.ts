@@ -119,6 +119,9 @@ export interface ExplorationGuide {
   registered_at: string | null;
   ai_model_version: string | null;
   ai_prompt_version: string | null;
+  version: number;
+  is_latest: boolean;
+  original_guide_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -243,8 +246,23 @@ export interface GuideListFilter {
   curriculumYear?: string;
   searchQuery?: string;
   tenantId?: string | null;
+  /** true면 최신 버전만, false면 전체 (기본: true) */
+  latestOnly?: boolean;
   page?: number;
   pageSize?: number;
+}
+
+/** 버전 히스토리 아이템 */
+export interface GuideVersionItem {
+  id: string;
+  version: number;
+  is_latest: boolean;
+  status: GuideStatus;
+  source_type: GuideSourceType;
+  registered_by: string | null;
+  quality_score: number | null;
+  created_at: string;
+  updated_at: string;
 }
 
 /** 가이드 생성/수정 입력 */
@@ -271,6 +289,9 @@ export interface GuideUpsertInput {
   aiModelVersion?: string;
   aiPromptVersion?: string;
   registeredBy?: string;
+  version?: number;
+  isLatest?: boolean;
+  originalGuideId?: string;
 }
 
 /** 가이드 본문 입력 */

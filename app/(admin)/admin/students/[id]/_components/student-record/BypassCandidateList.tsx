@@ -1,12 +1,17 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useState, useTransition, useCallback, useRef, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import {
   updateCandidateStatusAction,
   saveCandidateNotesAction,
+  addManualCandidateAction,
 } from "@/lib/domains/bypass-major/actions/bypass";
+import {
+  departmentSearchQueryOptions,
+  bypassMajorKeys as bpKeys,
+} from "@/lib/query-options/bypassMajor";
 import {
   BYPASS_CANDIDATE_STATUS_LABELS,
   BYPASS_CANDIDATE_SOURCE_LABELS,
@@ -14,8 +19,9 @@ import {
 import type {
   BypassCandidateWithDetails,
   BypassCandidateStatus,
+  UniversityDepartment,
+  DepartmentSearchFilter,
 } from "@/lib/domains/bypass-major/types";
-import { bypassMajorKeys } from "@/lib/query-options/bypassMajor";
 import {
   Star,
   XCircle,
@@ -23,6 +29,9 @@ import {
   ChevronDown,
   MessageSquare,
   GitCompare,
+  Plus,
+  Search,
+  Building2,
 } from "lucide-react";
 
 // ─── 상태 뱃지 색상 ─────────────────────────────────
@@ -50,6 +59,8 @@ interface BypassCandidateListProps {
   studentId: string;
   schoolYear: number;
   onCompare: (candidateDeptId: string, targetDeptId: string) => void;
+  targetDeptId: string | null;
+  tenantId: string;
 }
 
 export function BypassCandidateList({
@@ -57,16 +68,19 @@ export function BypassCandidateList({
   studentId,
   schoolYear,
   onCompare,
+  targetDeptId,
+  tenantId,
 }: BypassCandidateListProps) {
   const queryClient = useQueryClient();
   const [isPending, startTransition] = useTransition();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState("");
+  const [showManualAdd, setShowManualAdd] = useState(false);
 
   const invalidate = () => {
     queryClient.invalidateQueries({
-      queryKey: bypassMajorKeys.candidates(studentId, schoolYear),
+      queryKey: bpKeys.candidates(studentId, schoolYear),
     });
   };
 
@@ -97,9 +111,37 @@ export function BypassCandidateList({
 
   if (candidates.length === 0) {
     return (
-      <p className="py-8 text-center text-sm text-[var(--text-tertiary)]">
-        우회학과 후보가 없습니다. 목표 학과를 선택하면 사전 매핑 후보가 표시됩니다.
-      </p>
+      <div className="flex flex-col items-center gap-3 py-8">
+        <p className="text-sm text-[var(--text-tertiary)]">
+          우회학과 후보가 없습니다. 목표 학과를 선택 후 &ldquo;우회학과 추천&rdquo; 버튼을 눌러주세요.
+        </p>
+        {targetDeptId && (
+          <>
+            {!showManualAdd ? (
+              <button
+                type="button"
+                onClick={() => setShowManualAdd(true)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border-primary)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)]"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                수동 추가
+              </button>
+            ) : (
+              <ManualAddForm
+                studentId={studentId}
+                targetDeptId={targetDeptId}
+                schoolYear={schoolYear}
+                tenantId={tenantId}
+                onSuccess={() => {
+                  setShowManualAdd(false);
+                  invalidate();
+                }}
+                onCancel={() => setShowManualAdd(false)}
+              />
+            )}
+          </>
+        )}
+      </div>
     );
   }
 
@@ -115,7 +157,7 @@ export function BypassCandidateList({
         isPending && "pointer-events-none opacity-60",
       )}
     >
-      {/* 요약 */}
+      {/* 요약 + 수동 추가 */}
       <div className="flex items-center gap-3 text-xs text-[var(--text-secondary)]">
         <span>
           총 <span className="font-semibold text-[var(--text-primary)]">{candidates.length}</span>건
@@ -130,7 +172,32 @@ export function BypassCandidateList({
             제외 {rejected.length}
           </span>
         )}
+        {targetDeptId && (
+          <button
+            type="button"
+            onClick={() => setShowManualAdd(!showManualAdd)}
+            className="ml-auto inline-flex items-center gap-1 rounded-md border border-[var(--border-primary)] px-2 py-0.5 text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)]"
+          >
+            <Plus className="h-3 w-3" />
+            수동 추가
+          </button>
+        )}
       </div>
+
+      {/* 수동 추가 폼 */}
+      {showManualAdd && targetDeptId && (
+        <ManualAddForm
+          studentId={studentId}
+          targetDeptId={targetDeptId}
+          schoolYear={schoolYear}
+          tenantId={tenantId}
+          onSuccess={() => {
+            setShowManualAdd(false);
+            invalidate();
+          }}
+          onCancel={() => setShowManualAdd(false)}
+        />
+      )}
 
       {/* 선별 후보 (상단 고정) */}
       {shortlisted.length > 0 && (
@@ -499,6 +566,174 @@ function RejectedGroup({
             />
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+// ─── 수동 추가 폼 ───────────────────────────────────
+
+function ManualAddForm({
+  studentId,
+  targetDeptId,
+  schoolYear,
+  tenantId,
+  onSuccess,
+  onCancel,
+}: {
+  studentId: string;
+  targetDeptId: string;
+  schoolYear: number;
+  tenantId: string;
+  onSuccess: () => void;
+  onCancel: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [isPending, startTransition] = useTransition();
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<DepartmentSearchFilter>({
+    page: 1,
+    pageSize: 10,
+  });
+  const [isOpen, setIsOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const { data: searchRes, isFetching, refetch } = useQuery(
+    departmentSearchQueryOptions(filter),
+  );
+
+  const results =
+    searchRes?.success === true ? searchRes.data?.data ?? [] : [];
+
+  const debouncedSearch = useCallback(
+    (q: string) => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        if (q.trim().length < 1) return;
+        const newFilter: DepartmentSearchFilter = {
+          query: q.trim(),
+          page: 1,
+          pageSize: 10,
+        };
+        setFilter(newFilter);
+        queryClient.removeQueries({
+          queryKey: bpKeys.search(newFilter),
+        });
+        setTimeout(() => refetch(), 0);
+      }, 300);
+    },
+    [queryClient, refetch],
+  );
+
+  function handleSelect(dept: UniversityDepartment) {
+    setIsOpen(false);
+    setError(null);
+    startTransition(async () => {
+      const res = await addManualCandidateAction({
+        studentId,
+        targetDeptId,
+        candidateDeptId: dept.id,
+        schoolYear,
+        tenantId,
+      });
+      if (res.success) {
+        onSuccess();
+      } else {
+        setError(res.error ?? "추가에 실패했습니다.");
+      }
+    });
+  }
+
+  // 바깥 클릭 시 닫기
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className="rounded-lg border border-[var(--border-primary)] bg-[var(--surface-secondary)] p-3"
+    >
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-xs font-medium text-[var(--text-secondary)]">
+          수동 후보 추가
+        </span>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+        >
+          취소
+        </button>
+      </div>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)]" />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setIsOpen(true);
+            debouncedSearch(e.target.value);
+          }}
+          onFocus={() => query.trim().length >= 1 && setIsOpen(true)}
+          placeholder="대학명 또는 학과명 검색..."
+          disabled={isPending}
+          className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] py-2 pl-8 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+        />
+        {(isFetching || isPending) && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2">
+            <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
+          </span>
+        )}
+      </div>
+
+      {/* 드롭다운 */}
+      {isOpen && query.trim().length >= 1 && (
+        <div className="mt-1 max-h-48 overflow-y-auto rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] shadow-md">
+          {results.length === 0 && !isFetching ? (
+            <p className="px-3 py-2 text-center text-xs text-[var(--text-tertiary)]">
+              검색 결과 없음
+            </p>
+          ) : (
+            results.map((dept) => (
+              <button
+                key={dept.id}
+                type="button"
+                onClick={() => handleSelect(dept)}
+                className="flex w-full items-start gap-2 px-3 py-2 text-left transition-colors hover:bg-[var(--surface-hover)]"
+              >
+                <Building2 className="mt-0.5 h-3 w-3 shrink-0 text-[var(--text-tertiary)]" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-[var(--text-primary)]">
+                    <span className="font-medium">{dept.university_name}</span>{" "}
+                    {dept.department_name}
+                  </p>
+                  {dept.major_classification && (
+                    <span className="text-[10px] text-[var(--text-tertiary)]">
+                      {dept.major_classification}
+                    </span>
+                  )}
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+
+      {error && (
+        <p className="mt-1.5 text-xs text-red-500">{error}</p>
       )}
     </div>
   );

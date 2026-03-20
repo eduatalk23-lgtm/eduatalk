@@ -170,7 +170,7 @@ export async function saveCandidates(
     })),
     {
       onConflict:
-        "tenant_id,student_id,target_department_id,candidate_department_id",
+        "student_id,target_department_id,candidate_department_id,school_year",
     },
   );
 
@@ -192,6 +192,21 @@ export async function updateCandidateStatus(
   const { error } = await supabase
     .from("bypass_major_candidates")
     .update(updates)
+    .eq("id", candidateId);
+
+  if (error) throw error;
+}
+
+/** 후보 메모만 업데이트 (상태 유지) */
+export async function updateCandidateNotes(
+  candidateId: string,
+  notes: string,
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase
+    .from("bypass_major_candidates")
+    .update({ consultant_notes: notes })
     .eq("id", candidateId);
 
   if (error) throw error;
@@ -221,6 +236,73 @@ export async function findClassifications(): Promise<
 // ============================================================
 // 5. 교육과정 비교
 // ============================================================
+
+/** 동일 대분류 학과 목록 (후보 생성용) */
+export async function findDepartmentsByMajorClassification(
+  majorClassification: string,
+  excludeId: string,
+  limit = 200,
+): Promise<UniversityDepartment[]> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("university_departments")
+    .select("*")
+    .eq("major_classification", majorClassification)
+    .neq("id", excludeId)
+    .order("university_name")
+    .order("department_name")
+    .limit(limit);
+
+  if (error) throw error;
+  return data as UniversityDepartment[];
+}
+
+/** 복수 학과 교육과정 일괄 조회 */
+export async function fetchCurriculumBatch(
+  departmentIds: string[],
+): Promise<Map<string, string[]>> {
+  if (departmentIds.length === 0) return new Map();
+
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("department_curriculum")
+    .select("department_id, course_name")
+    .in("department_id", departmentIds);
+
+  if (error) throw error;
+
+  const map = new Map<string, string[]>();
+  for (const row of data ?? []) {
+    const existing = map.get(row.department_id);
+    if (existing) {
+      existing.push(row.course_name);
+    } else {
+      map.set(row.department_id, [row.course_name]);
+    }
+  }
+  return map;
+}
+
+/** 이름으로 학과 조회 (대학명 + 학과명) */
+export async function findDepartmentByName(
+  universityName: string,
+  departmentName: string,
+): Promise<UniversityDepartment | null> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("university_departments")
+    .select("*")
+    .eq("university_name", universityName)
+    .eq("department_name", departmentName)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as UniversityDepartment | null;
+}
 
 /** 두 학과의 교육과정 비교 */
 export async function compareCurriculum(

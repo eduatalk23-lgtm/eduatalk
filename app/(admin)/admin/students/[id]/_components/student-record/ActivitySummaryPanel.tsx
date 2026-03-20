@@ -11,6 +11,7 @@ import {
   deleteActivitySummary,
 } from "@/lib/domains/student-record/actions/activitySummary";
 import type { ActivitySummarySection, ActivitySummaryStatus } from "@/lib/domains/student-record/types";
+import { ReportExportMenu } from "./ReportExportMenu";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   draft: { label: "초안", color: "bg-gray-100 text-gray-600" },
@@ -31,11 +32,13 @@ const SECTION_LABELS: Record<string, string> = {
 interface ActivitySummaryPanelProps {
   studentId: string;
   studentGrade: number;
+  studentName?: string;
 }
 
 export function ActivitySummaryPanel({
   studentId,
   studentGrade,
+  studentName = "학생",
 }: ActivitySummaryPanelProps) {
   const queryClient = useQueryClient();
   const [selectedGrades, setSelectedGrades] = useState<number[]>(
@@ -201,6 +204,16 @@ export function ActivitySummaryPanel({
                     >
                       인쇄
                     </Link>
+                    <ReportExportMenu
+                      data={{
+                        title: summary.summary_title,
+                        studentName,
+                        targetGrades: summary.target_grades,
+                        createdAt: summary.created_at,
+                        sections,
+                        editedText: summary.edited_text,
+                      }}
+                    />
                     {summary.status === "draft" && (
                       <button
                         type="button"

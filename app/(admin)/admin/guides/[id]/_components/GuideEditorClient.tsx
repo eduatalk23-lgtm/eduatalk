@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Trash2, Loader2, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Loader2, Eye, EyeOff, CopyPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
@@ -18,6 +18,8 @@ import {
   updateGuideAction,
   deleteGuideAction,
   uploadGuideImageAction,
+  saveAsNewVersionAction,
+  revertToVersionAction,
 } from "@/lib/domains/guide/actions/crud";
 import { generateGuideImageAction } from "@/lib/domains/guide/actions/ai-image";
 import type { AspectRatio } from "@/lib/domains/guide/actions/ai-image";
@@ -38,6 +40,7 @@ import {
 import { GuideMetaForm } from "./GuideMetaForm";
 import { GuideContentEditor } from "./GuideContentEditor";
 import { GuidePreview } from "./GuidePreview";
+import { GuideVersionHistory } from "./GuideVersionHistory";
 
 interface GuideEditorClientProps {
   /** 편집 시 guideId, 생성 시 undefined */
@@ -299,6 +302,59 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
     isNew, guideId, router, toast, queryClient,
   ]);
 
+  // 새 버전으로 저장
+  const handleSaveAsNewVersion = useCallback(async () => {
+    if (!guideId) return;
+    if (!window.confirm("현재 내용을 새 버전으로 저장하시겠습니까?")) return;
+
+    setSaving(true);
+    try {
+      // 먼저 현재 변경사항 저장
+      await handleSave();
+
+      const result = await saveAsNewVersionAction(guideId);
+      if (result.success && result.data) {
+        toast.showSuccess(`v${result.data.version} 버전이 생성되었습니다.`);
+        queryClient.invalidateQueries({
+          queryKey: explorationGuideKeys.all,
+        });
+        router.push(`/admin/guides/${result.data.id}`);
+      } else {
+        toast.showError(!result.success ? result.error ?? "버전 생성 실패" : "버전 생성 실패");
+      }
+    } catch {
+      toast.showError("새 버전 생성 중 오류가 발생했습니다.");
+    } finally {
+      setSaving(false);
+    }
+  }, [guideId, handleSave, router, toast, queryClient]);
+
+  // 되돌리기
+  const handleRevert = useCallback(
+    async (targetVersionId: string, targetVersion: number) => {
+      if (!window.confirm(`v${targetVersion} 버전으로 되돌리시겠습니까? 현재 내용을 기반으로 새 버전이 생성됩니다.`)) return;
+
+      setSaving(true);
+      try {
+        const result = await revertToVersionAction(targetVersionId);
+        if (result.success && result.data) {
+          toast.showSuccess(`v${result.data.version} 버전으로 되돌렸습니다.`);
+          queryClient.invalidateQueries({
+            queryKey: explorationGuideKeys.all,
+          });
+          router.push(`/admin/guides/${result.data.id}`);
+        } else {
+          toast.showError(!result.success ? result.error ?? "되돌리기 실패" : "되돌리기 실패");
+        }
+      } catch {
+        toast.showError("버전 되돌리기 중 오류가 발생했습니다.");
+      } finally {
+        setSaving(false);
+      }
+    },
+    [router, toast, queryClient],
+  );
+
   // 삭제
   const handleDelete = useCallback(async () => {
     if (!guideId) return;
@@ -364,6 +420,11 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
           <h1 className="text-lg font-bold text-[var(--text-heading)]">
             {isNew ? "새 가이드 작성" : "가이드 편집"}
           </h1>
+          {!isNew && guide && guide.version > 1 && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-secondary-100 dark:bg-secondary-800 text-[var(--text-secondary)]">
+              v{guide.version}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -379,6 +440,17 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
             {showPreview ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             {showPreview ? "편집" : "미리보기"}
           </button>
+          {!isNew && (
+            <button
+              type="button"
+              onClick={handleSaveAsNewVersion}
+              disabled={saving}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-700 text-[var(--text-secondary)] text-sm hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors disabled:opacity-50"
+            >
+              <CopyPlus className="w-4 h-4" />
+              새 버전
+            </button>
+          )}
           {!isNew && (
             <button
               type="button"
@@ -480,6 +552,16 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
             onAiImageInsert={handleAiImageInsert}
           />
         </div>
+      )}
+
+      {/* 버전 히스토리 (편집 모드에서만, v2 이상) */}
+      {!isNew && guide && guide.version > 1 && (
+        <GuideVersionHistory
+          guideId={guideId!}
+          currentVersion={guide.version}
+          onRevert={handleRevert}
+          reverting={saving}
+        />
       )}
 
       {/* AI 이미지 생성 다이얼로그 */}

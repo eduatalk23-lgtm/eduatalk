@@ -6,7 +6,11 @@ import type { GuideType, QualityTier } from "../types";
 // ============================================================
 
 /** 생성 소스 타입 */
-export type GuideGenerationSource = "keyword" | "clone_variant";
+export type GuideGenerationSource =
+  | "keyword"
+  | "clone_variant"
+  | "pdf_extract"
+  | "url_extract";
 
 /** 키워드 기반 생성 입력 */
 export interface KeywordGenerationInput {
@@ -25,11 +29,31 @@ export interface CloneVariantInput {
   variationNote?: string;
 }
 
+/** PDF 추출 기반 생성 입력 */
+export interface PDFExtractionInput {
+  pdfUrl: string;
+  guideType: GuideType;
+  targetSubject?: string;
+  targetCareerField?: string;
+  additionalContext?: string;
+}
+
+/** URL 추출 기반 생성 입력 */
+export interface URLExtractionInput {
+  url: string;
+  guideType: GuideType;
+  targetSubject?: string;
+  targetCareerField?: string;
+  additionalContext?: string;
+}
+
 /** AI 가이드 생성 통합 입력 */
 export interface GuideGenerationInput {
   source: GuideGenerationSource;
   keyword?: KeywordGenerationInput;
   clone?: CloneVariantInput;
+  pdf?: PDFExtractionInput;
+  url?: URLExtractionInput;
 }
 
 // ============================================================
