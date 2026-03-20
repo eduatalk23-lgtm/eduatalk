@@ -223,6 +223,20 @@ export function StudentRecordClient({
     diagnosisTabQueryOptions(studentId, initialSchoolYear, tenantId),
   );
 
+  // G1: 세특 레이어 탭용 추가 데이터
+  const { data: setekGuidesRes } = useQuery({
+    queryKey: ["studentRecord", "setekGuides", studentId],
+    queryFn: () => import("@/lib/domains/student-record/actions/activitySummary").then((m) => m.fetchSetekGuides(studentId)),
+    staleTime: 60_000,
+    enabled: !!studentId,
+  });
+  const { data: guideAssignmentsRes } = useQuery({
+    queryKey: ["explorationGuide", "assignments", studentId, initialSchoolYear],
+    queryFn: () => import("@/lib/domains/guide/actions/assignment").then((m) => m.fetchAssignedGuidesAction(studentId, initialSchoolYear)),
+    staleTime: 60_000,
+    enabled: !!studentId,
+  });
+
   // ─── 학년별 데이터 맵 ─────────────────────────────────
 
   const recordByGrade = useMemo(() => {
@@ -313,6 +327,9 @@ export function StudentRecordClient({
   }, []);
 
   const toggleSidebar = useCallback(() => setSidebarOpen((prev) => !prev), []);
+
+  // G1: 활성 과목 ID (세특 레이어 탭 ↔ 사이드 패널 연결)
+  const [activeSubjectId, setActiveSubjectId] = useState<string | null>(null);
 
   // 전체 치명적 에러 (모든 쿼리 실패) 시에만 페이지 차단
   const allFailed = recordQueries.every((q) => !!q.error)
@@ -578,7 +595,7 @@ export function StudentRecordClient({
       })();
 
   return (
-    <StudentRecordProvider value={{ studentId, tenantId, studentName }}>
+    <StudentRecordProvider value={{ studentId, tenantId, studentName, activeSubjectId, setActiveSubjectId }}>
     <SidePanelProvider storageKey="recordSidePanelApp">
     <RecordLayoutShell
       sidebar={sidebarContent}
@@ -860,6 +877,18 @@ export function StudentRecordClient({
                     personalSeteks={entry?.data.personalSeteks}
                     isLoading={anyRecordLoading}
                     showSectionAnchors={p.grade === visiblePairs[0]?.grade}
+                    diagnosisActivityTags={diagnosisData?.activityTags}
+                    setekGuideItems={(() => {
+                      if (!setekGuidesRes?.success || !setekGuidesRes.data) return undefined;
+                      // summary_sections.guides 배열 추출
+                      const items: Array<{ subjectName: string; keywords: string[]; direction: string; competencyFocus?: string[]; cautions?: string; teacherPoints?: string[] }> = [];
+                      for (const row of setekGuidesRes.data) {
+                        const sections = row.summary_sections as { guides?: Array<{ subjectName: string; keywords: string[]; direction: string; competencyFocus?: string[]; cautions?: string; teacherPoints?: string[] }> } | null;
+                        if (sections?.guides) items.push(...sections.guides);
+                      }
+                      return items.length > 0 ? items : undefined;
+                    })()}
+                    guideAssignments={guideAssignmentsRes?.success ? guideAssignmentsRes.data as Array<{ id: string; guide_id: string; status: string; exploration_guides?: { id: string; title: string; guide_type?: string } }> : undefined}
                   />
                 </div>
               );
@@ -1288,6 +1317,9 @@ function GradesAndSetekSection({
   personalSeteks,
   isLoading,
   showSectionAnchors = true,
+  diagnosisActivityTags,
+  setekGuideItems,
+  guideAssignments,
 }: {
   studentId: string;
   schoolYear: number;
@@ -1298,6 +1330,9 @@ function GradesAndSetekSection({
   personalSeteks?: RecordPersonalSetek[];
   isLoading: boolean;
   showSectionAnchors?: boolean;
+  diagnosisActivityTags?: Array<{ record_type: string; record_id: string; competency_item: string; evaluation: string; evidence_summary?: string | null }>;
+  setekGuideItems?: Array<{ subjectName: string; keywords: string[]; direction: string; competencyFocus?: string[]; cautions?: string; teacherPoints?: string[] }>;
+  guideAssignments?: Array<{ id: string; guide_id: string; status: string; exploration_guides?: { id: string; title: string; guide_type?: string } }>;
 }) {
   // 2022 개정 판별 (2025년 입학생~)
   const enrollmentYear = schoolYear - studentGrade + 1;
@@ -1338,6 +1373,9 @@ function GradesAndSetekSection({
             tenantId={tenantId}
             subjects={subjects}
             grade={studentGrade}
+            diagnosisActivityTags={diagnosisActivityTags}
+            setekGuideItems={setekGuideItems}
+            guideAssignments={guideAssignments}
           />
         )}
       </div>
@@ -1358,6 +1396,9 @@ function GradesAndSetekSection({
             tenantId={tenantId}
             subjects={subjects}
             grade={studentGrade}
+            diagnosisActivityTags={diagnosisActivityTags}
+            setekGuideItems={setekGuideItems}
+            guideAssignments={guideAssignments}
           />
         </div>
       )}
@@ -1378,6 +1419,9 @@ function GradesAndSetekSection({
             tenantId={tenantId}
             subjects={subjects}
             grade={studentGrade}
+            diagnosisActivityTags={diagnosisActivityTags}
+            setekGuideItems={setekGuideItems}
+            guideAssignments={guideAssignments}
           />
         </div>
       )}
