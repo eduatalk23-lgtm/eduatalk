@@ -155,6 +155,10 @@ export async function createGuide(input: GuideUpsertInput): Promise<ExplorationG
       source_reference: input.sourceReference ?? null,
       parent_guide_id: input.parentGuideId ?? null,
       content_format: input.contentFormat ?? "plain",
+      quality_score: input.qualityScore ?? null,
+      quality_tier: input.qualityTier ?? null,
+      ai_model_version: input.aiModelVersion ?? null,
+      ai_prompt_version: input.aiPromptVersion ?? null,
       registered_by: input.registeredBy ?? null,
       registered_at: input.registeredBy ? new Date().toISOString() : null,
     })
@@ -186,6 +190,12 @@ export async function updateGuide(
       ...(input.bookYear !== undefined && { book_year: input.bookYear ?? null }),
       ...(input.status !== undefined && { status: input.status }),
       ...(input.contentFormat !== undefined && { content_format: input.contentFormat }),
+      ...(input.sourceType !== undefined && { source_type: input.sourceType }),
+      ...(input.sourceReference !== undefined && { source_reference: input.sourceReference ?? null }),
+      ...(input.qualityScore !== undefined && { quality_score: input.qualityScore }),
+      ...(input.qualityTier !== undefined && { quality_tier: input.qualityTier }),
+      ...(input.aiModelVersion !== undefined && { ai_model_version: input.aiModelVersion }),
+      ...(input.aiPromptVersion !== undefined && { ai_prompt_version: input.aiPromptVersion }),
     })
     .eq("id", guideId)
     .select()

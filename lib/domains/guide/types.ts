@@ -266,6 +266,10 @@ export interface GuideUpsertInput {
   sourceReference?: string;
   parentGuideId?: string;
   contentFormat?: ContentFormat;
+  qualityScore?: number;
+  qualityTier?: QualityTier;
+  aiModelVersion?: string;
+  aiPromptVersion?: string;
   registeredBy?: string;
 }
 

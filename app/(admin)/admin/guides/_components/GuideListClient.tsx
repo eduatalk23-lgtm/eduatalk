@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Search, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   cmsGuideListQueryOptions,
@@ -124,13 +124,22 @@ export function GuideListClient() {
         </select>
 
         {/* 새 가이드 */}
-        <Link
-          href="/admin/guides/new"
-          className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          새 가이드
-        </Link>
+        <div className="ml-auto flex items-center gap-2">
+          <Link
+            href="/admin/guides/generate"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-primary-300 text-primary-600 text-sm font-medium hover:bg-primary-50 dark:border-primary-600 dark:text-primary-400 dark:hover:bg-primary-900/20 transition-colors"
+          >
+            <Sparkles className="w-4 h-4" />
+            AI 생성
+          </Link>
+          <Link
+            href="/admin/guides/new"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            새 가이드
+          </Link>
+        </div>
       </div>
 
       {/* 결과 수 */}
