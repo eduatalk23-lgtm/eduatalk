@@ -6,7 +6,7 @@
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
-import { getGeminiProvider } from "@/lib/domains/plan/llm/providers";
+import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 import { fetchReportData } from "../../actions/report";
@@ -124,11 +124,10 @@ export async function generateActivitySummary(
       })),
     };
 
-    // Gemini 호출
-    const provider = getGeminiProvider();
+    // AI SDK 호출
     const userPrompt = buildUserPrompt(input);
 
-    const result = await provider.createMessage({
+    const result = await generateTextWithRateLimit({
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt }],
       modelTier: "standard",

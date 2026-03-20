@@ -1,6 +1,6 @@
 "use server";
 
-import { getGeminiProvider } from "../providers/gemini";
+import { generateTextWithRateLimit } from "../ai-sdk";
 import { logActionError } from "@/lib/utils/serverActionLogger";
 import { MetricsBuilder, logRecommendationError } from "../metrics";
 
@@ -70,18 +70,16 @@ export async function searchExternalContentAction(
   }
 
   try {
-    const provider = getGeminiProvider();
-    
     // Construct a specific search prompt
     const userPrompt = `
     Search for the structure/table of contents for: "${query}"
     Subject Context: ${subject || "General Education"}
-    
+
     Find the Table of Contents, Total Pages (for books) or Total Lectures (for online classes).
     Return the parsed structure in the specified JSON format.
     `;
 
-    const response = await provider.createMessage({
+    const response = await generateTextWithRateLimit({
       system: SEARCH_SYSTEM_PROMPT,
       messages: [
         { role: "user", content: userPrompt }

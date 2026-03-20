@@ -804,25 +804,34 @@ components/agent/
 
 ## 8. 구현 로드맵
 
-### Phase A: AI SDK 마이그레이션 (에이전트 기반 구축 전 필수)
+### Phase A: AI SDK 마이그레이션 — ✅ 완료 (2026-03-20)
 
-> **의존**: 없음 (즉시 착수 가능)
-> **예상 공수**: 2~3일
+> **의존**: 없음
+> **실제 공수**: 0.5일
 
-| 단계 | 작업 | 상세 |
+**구현 결과:**
+
+| 단계 | 작업 | 상태 |
 |------|------|------|
-| A-1 | 패키지 설치 | `pnpm add ai @ai-sdk/google @ai-sdk/anthropic @ai-sdk/openai` |
-| A-2 | 구조화 출력 전환 | `extractJSON()` → `generateObject()` + Zod 스키마 |
-| A-3 | Grounding 전환 | `buildGroundingTools()` → `google.tools.googleSearch({})` |
-| A-4 | 프로바이더 전환 | 자체 추상화 → AI SDK 모델 문자열 |
-| A-5 | 유지 항목 확인 | `GeminiQuotaTracker`, `GeminiRateLimiter` 보존 |
-| A-6 | 테스트 | 기존 143개 테스트 통과 + 빌드 성공 확인 |
+| A-1 | 패키지 설치 (`ai@6`, `@ai-sdk/google@3`, `@ai-sdk/anthropic@3`, `@ai-sdk/openai@3`) | ✅ |
+| A-2 | AI SDK 래퍼 생성 (`lib/domains/plan/llm/ai-sdk.ts`) | ✅ |
+| A-3 | student-record 9개 LLM action 전환 | ✅ |
+| A-4 | plan LLM action 전환 (직접 2개 + client.ts 경유 6개) | ✅ |
+| A-5 | client.ts → AI SDK 기반 전환, Provider 타입 하위 호환 유지 | ✅ |
+| A-6 | 빌드 성공 + 기존 테스트 0 regression | ✅ |
 
-**검증 기준:**
-- [ ] 기존 모든 LLM 기능 동일 동작 (suggestTags, analyzeWithHighlight, generateDiagnosis 등)
-- [ ] `pnpm build` 성공
-- [ ] `pnpm test` 143개 통과
-- [ ] Gemini Grounding 웹 검색 동작 확인
+**핵심 파일**: `lib/domains/plan/llm/ai-sdk.ts`
+- `generateTextWithRateLimit()` — `getGeminiProvider().createMessage()` 대체
+- `generateObjectWithRateLimit()` — 구조화 출력 + Zod
+- `streamTextWithRateLimit()` — 스트리밍 대체
+- 모델: fast/standard → `gemini-2.0-flash`, advanced → `gemini-2.5-pro`
+- `GeminiRateLimiter`/`GeminiQuotaTracker` 싱글톤 export 후 직접 통합
+
+**검증 완료:**
+- [x] 기존 모든 LLM 기능 동일 동작
+- [x] `pnpm build` 성공
+- [x] `pnpm test` 147 passed (0 new failures)
+- [x] Gemini Grounding 웹 검색 호환 (`google.tools.googleSearch({})`)
 
 ---
 

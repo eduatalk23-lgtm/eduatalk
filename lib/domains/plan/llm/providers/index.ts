@@ -33,7 +33,7 @@ export { BaseLLMProvider } from "./base";
 
 export { AnthropicProvider, getAnthropicProvider } from "./anthropic";
 export { OpenAIProvider, getOpenAIProvider } from "./openai";
-export { GeminiProvider, getGeminiProvider } from "./gemini";
+export { GeminiProvider, getGeminiProvider, geminiRateLimiter, geminiQuotaTracker } from "./gemini";
 
 // ============================================
 // 설정 내보내기

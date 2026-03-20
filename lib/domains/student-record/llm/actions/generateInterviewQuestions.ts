@@ -6,7 +6,7 @@
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
-import { getGeminiProvider } from "@/lib/domains/plan/llm/providers";
+import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
 import {
   INTERVIEW_SYSTEM_PROMPT,
   buildInterviewUserPrompt,
@@ -31,10 +31,9 @@ export async function generateInterviewQuestions(input: {
       return { success: false, error: "면접 질문 생성에는 최소 30자 이상의 텍스트가 필요합니다." };
     }
 
-    const provider = getGeminiProvider();
     const userPrompt = buildInterviewUserPrompt(input);
 
-    const result = await provider.createMessage({
+    const result = await generateTextWithRateLimit({
       system: INTERVIEW_SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt }],
       modelTier: "fast",

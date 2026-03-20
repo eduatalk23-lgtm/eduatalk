@@ -48,6 +48,7 @@ import { AlumniSearch } from "./AlumniSearch";
 import { ActivitySummaryPanel } from "./ActivitySummaryPanel";
 import { SetekGuidePanel } from "./SetekGuidePanel";
 import { ExplorationGuidePanel } from "./ExplorationGuidePanel";
+import { BypassMajorPanel } from "./BypassMajorPanel";
 
 type Subject = {
   id: string;
@@ -135,6 +136,7 @@ const STAGES: StageConfig[] = [
       { id: "sec-activity-summary", label: "활동 요약서" },
       { id: "sec-setek-guide", label: "세특 방향 가이드" },
       { id: "sec-exploration-guide", label: "활동 가이드" },
+      { id: "sec-bypass-major", label: "우회학과" },
     ],
   },
   {
@@ -948,6 +950,15 @@ export function StudentRecordClient({
               tenantId={tenantId}
               schoolName={schoolName}
               schoolYear={initialSchoolYear}
+            />
+          </StrategySection>
+
+          {/* ─── 우회학과 탐색 (CMS C1.5) ────────── */}
+          <StrategySection id="sec-bypass-major" title="우회학과 탐색">
+            <BypassMajorPanel
+              studentId={studentId}
+              studentGrade={studentGrade}
+              tenantId={tenantId}
             />
           </StrategySection>
 

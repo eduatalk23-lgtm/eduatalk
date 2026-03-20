@@ -171,7 +171,7 @@ class GeminiRateLimiter {
 }
 
 // 싱글톤 Rate Limiter 인스턴스 (Free Tier 기준 4초 간격)
-const geminiRateLimiter = new GeminiRateLimiter(4000);
+export const geminiRateLimiter = new GeminiRateLimiter(4000);
 
 // ============================================
 // Gemini API 일일 할당량 트래커
@@ -303,7 +303,7 @@ export interface GeminiQuotaStatus {
 // 싱글톤 할당량 트래커 인스턴스
 // Pay-as-you-go 티어: 실질적으로 무제한 (비용 기반)
 // Free Tier였다면 20으로 설정
-const geminiQuotaTracker = new GeminiQuotaTracker(10000, 95);
+export const geminiQuotaTracker = new GeminiQuotaTracker(10000, 95);
 
 /**
  * Gemini API 할당량 상태 조회

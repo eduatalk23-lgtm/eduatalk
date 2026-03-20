@@ -7,7 +7,7 @@
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
-import { getGeminiProvider } from "@/lib/domains/plan/llm/providers";
+import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
 import { COMPETENCY_ITEMS, COMPETENCY_AREA_LABELS, MAJOR_RECOMMENDED_COURSES } from "../../constants";
 import type { CompetencyScore, ActivityTag } from "../../types";
 
@@ -88,8 +88,7 @@ ${tagsSummary}
 
 위 데이터를 종합하여 진단 보고서를 JSON으로 작성해주세요.`;
 
-    const provider = getGeminiProvider();
-    const result = await provider.createMessage({
+    const result = await generateTextWithRateLimit({
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
       modelTier: "fast",

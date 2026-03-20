@@ -7,7 +7,7 @@
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
-import { getGeminiProvider } from "@/lib/domains/plan/llm/providers";
+import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
 import { SYSTEM_PROMPT, buildUserPrompt, parseResponse } from "../prompts/strategyRecommend";
 import type { SuggestStrategiesInput, SuggestStrategiesResult } from "../types";
 
@@ -23,10 +23,9 @@ export async function suggestStrategies(
       return { success: false, error: "진단 약점이나 부족 역량 데이터가 없습니다. 먼저 종합 진단을 실행해주세요." };
     }
 
-    const provider = getGeminiProvider();
     const userPrompt = buildUserPrompt(input);
 
-    const result = await provider.createMessage({
+    const result = await generateTextWithRateLimit({
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt }],
       modelTier: "fast",

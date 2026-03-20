@@ -7,7 +7,7 @@
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
-import { getGeminiProvider } from "@/lib/domains/plan/llm/providers";
+import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
 import {
   HIGHLIGHT_SYSTEM_PROMPT,
   buildHighlightUserPrompt,
@@ -27,10 +27,9 @@ export async function analyzeSetekWithHighlight(
       return { success: false, error: "분석할 텍스트가 너무 짧습니다 (20자 이상 필요)." };
     }
 
-    const provider = getGeminiProvider();
     const userPrompt = buildHighlightUserPrompt(input);
 
-    const result = await provider.createMessage({
+    const result = await generateTextWithRateLimit({
       system: HIGHLIGHT_SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt }],
       modelTier: "fast",

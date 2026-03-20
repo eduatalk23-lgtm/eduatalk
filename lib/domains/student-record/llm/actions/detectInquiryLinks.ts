@@ -7,7 +7,7 @@
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
-import { getGeminiProvider } from "@/lib/domains/plan/llm/providers";
+import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
 import {
   INQUIRY_LINK_SYSTEM_PROMPT,
   buildInquiryLinkUserPrompt,
@@ -29,10 +29,9 @@ export async function detectInquiryLinks(
       return { success: false, error: "탐구 연결 감지에는 최소 2건의 기록이 필요합니다." };
     }
 
-    const provider = getGeminiProvider();
     const userPrompt = buildInquiryLinkUserPrompt(records);
 
-    const result = await provider.createMessage({
+    const result = await generateTextWithRateLimit({
       system: INQUIRY_LINK_SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt }],
       modelTier: "fast",

@@ -40,7 +40,6 @@ export { MODEL_CONFIGS } from "./types";
 
 // 클라이언트
 export {
-  getAnthropicClient,
   getModelConfig,
   createMessage,
   streamMessage,
@@ -48,6 +47,13 @@ export {
   estimateTokens,
   estimateCost,
 } from "./client";
+
+// AI SDK v6 래퍼
+export {
+  generateTextWithRateLimit,
+  generateObjectWithRateLimit,
+  streamTextWithRateLimit,
+} from "./ai-sdk";
 
 // 프롬프트
 export {

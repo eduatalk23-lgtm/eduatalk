@@ -7,7 +7,7 @@
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
-import { getGeminiProvider } from "@/lib/domains/plan/llm/providers";
+import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
 import { SYSTEM_PROMPT, buildUserPrompt, parseResponse } from "../prompts/competencyTagging";
 import type { SuggestTagsInput, SuggestTagsResult } from "../types";
 
@@ -23,10 +23,9 @@ export async function suggestCompetencyTags(
       return { success: false, error: "분석할 텍스트가 너무 짧습니다 (20자 이상 필요)." };
     }
 
-    const provider = getGeminiProvider();
     const userPrompt = buildUserPrompt(input);
 
-    const result = await provider.createMessage({
+    const result = await generateTextWithRateLimit({
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt }],
       modelTier: "fast",

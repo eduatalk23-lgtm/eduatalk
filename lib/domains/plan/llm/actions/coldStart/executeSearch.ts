@@ -18,7 +18,7 @@
  */
 
 import type { SearchQuery, ExecuteSearchResult } from "./types";
-import { getGeminiProvider } from "../../providers";
+import { generateTextWithRateLimit } from "../../ai-sdk";
 import { logError } from "@/lib/errors/handler";
 
 /**
@@ -172,22 +172,7 @@ export async function executeWebSearch(
   }
 
   // ────────────────────────────────────────────────────────────────────
-  // 2단계: Gemini Provider 가져오기
-  // ────────────────────────────────────────────────────────────────────
-
-  let provider;
-  try {
-    provider = getGeminiProvider();
-  } catch (error) {
-    logError(error, { source: "executeWebSearch", phase: "provider-init" });
-    return {
-      success: false,
-      error: "AI 서비스를 초기화할 수 없습니다. API 키를 확인해주세요.",
-    };
-  }
-
-  // ────────────────────────────────────────────────────────────────────
-  // 3단계: 검색 요청 생성
+  // 2단계: 검색 요청 생성
   // ────────────────────────────────────────────────────────────────────
 
   const userPrompt = `
@@ -199,15 +184,15 @@ JSON 형식으로만 응답해주세요.
 `;
 
   // ────────────────────────────────────────────────────────────────────
-  // 4단계: API 호출
+  // 3단계: AI SDK API 호출
   // ────────────────────────────────────────────────────────────────────
 
   try {
-    const response = await provider.createMessage({
+    const response = await generateTextWithRateLimit({
       system: COLD_START_SEARCH_PROMPT,
       messages: [{ role: "user", content: userPrompt }],
       temperature: 0.2, // 사실적인 정보 추출을 위해 낮은 temperature
-      maxTokens: 16384, // JSON 응답이 잘리지 않도록 충분한 토큰 확보 (Gemini Flash 최대: 65535)
+      maxTokens: 16384, // JSON 응답이 잘리지 않도록 충분한 토큰 확보
       grounding: { enabled: true, mode: "always" }, // 웹 검색 활성화
     });
 
