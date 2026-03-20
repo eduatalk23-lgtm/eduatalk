@@ -1,7 +1,7 @@
 # 생기부 모형 확장 설계 — 컨설팅 피드백 반영
 
 > 작성일: 2026-03-17
-> 상태: 설계 확장 (v6 — 컨설팅 현장 피드백 14건 + 안정성/현장 보완 9건)
+> 상태: ✅ E1~E25 중 23/25 구현 완료 (미완: E12 입시 갱신 ⏸, E22 재수생 ⏭)
 > 기반: `student-record-implementation-plan.md` v5
 > 관련: `domain-agent-architecture.md` — CMS C3 유사도 탐지를 pgvector 기반으로 통합, Agent 2 설계 참조
 
