@@ -11,6 +11,15 @@ import type {
   StrategyTabData,
   Storyline,
 } from "../types";
+import { MAJOR_RECOMMENDED_COURSES } from "../constants";
+
+/** 학기별 성적 (경보 엔진용 경량 타입) */
+export interface GradeEntry {
+  subjectName: string;
+  grade: number; // 학년
+  semester: number;
+  rankGrade: number | null; // 등급 (1~9)
+}
 
 /** 경고 엔진에 전달할 데이터 */
 export interface WarningCheckInput {
@@ -24,6 +33,10 @@ export interface WarningCheckInput {
   strategyData: StrategyTabData | null;
   /** 학생의 현재 학년 */
   currentGrade: number;
+  /** 내신 성적 (전공교과 하락 감지용, optional) */
+  scores?: GradeEntry[];
+  /** 목표 전공 계열 → MAJOR_RECOMMENDED_COURSES key (optional) */
+  targetMajorField?: string | null;
 }
 
 const MIN_READINGS_PER_GRADE = 2;
@@ -49,6 +62,10 @@ export function computeWarnings(input: WarningCheckInput): RecordWarning[] {
 
   // ─── 최저 관련 ───
   for (const w of checkMinScoreWarnings(input)) push(w);
+
+  // ─── 성적 추이 관련 ───
+  push(checkMajorSubjectDecline(input));
+  push(checkMinScoreTrendDown(input));
 
   return warnings;
 }
@@ -248,4 +265,115 @@ function checkMinScoreWarnings(input: WarningCheckInput): RecordWarning[] {
   }
 
   return warnings;
+}
+
+// ─── 성적 추이 경고 ──────────────────────────────
+
+const MIN_CONSECUTIVE_DECLINE = 2;
+
+/**
+ * 전공교과 성적 하락 감지
+ *
+ * 목표 전공 계열의 추천 과목 중 2학기 연속 등급 하락인 과목을 찾는다.
+ * scores, targetMajorField가 없으면 건너뜀.
+ */
+function checkMajorSubjectDecline(input: WarningCheckInput): RecordWarning | null {
+  const { scores, targetMajorField } = input;
+  if (!scores || scores.length === 0 || !targetMajorField) return null;
+
+  const courseSet = MAJOR_RECOMMENDED_COURSES[targetMajorField];
+  if (!courseSet) return null;
+
+  const majorSubjects = new Set([...courseSet.general, ...courseSet.career]);
+
+  const majorScores = scores.filter(
+    (s) => s.rankGrade != null && majorSubjects.has(s.subjectName),
+  );
+
+  // 과목별 그룹핑
+  const bySubject = new Map<string, GradeEntry[]>();
+  for (const s of majorScores) {
+    const existing = bySubject.get(s.subjectName);
+    if (existing) existing.push(s);
+    else bySubject.set(s.subjectName, [s]);
+  }
+
+  const declining: string[] = [];
+
+  for (const [subjectName, entries] of bySubject) {
+    entries.sort((a, b) => a.grade * 10 + a.semester - (b.grade * 10 + b.semester));
+    if (entries.length < MIN_CONSECUTIVE_DECLINE + 1) continue;
+
+    let consecutiveDeclines = 0;
+    for (let i = 1; i < entries.length; i++) {
+      if (entries[i].rankGrade! > entries[i - 1].rankGrade!) {
+        consecutiveDeclines++;
+      } else {
+        consecutiveDeclines = 0;
+      }
+    }
+    if (consecutiveDeclines >= MIN_CONSECUTIVE_DECLINE) {
+      declining.push(subjectName);
+    }
+  }
+
+  if (declining.length === 0) return null;
+
+  return {
+    ruleId: "major_subject_decline",
+    severity: declining.length >= 2 ? "critical" : "high",
+    category: "record",
+    title: "전공교과 성적 하락",
+    message: `${declining.join(", ")} 과목이 ${MIN_CONSECUTIVE_DECLINE}학기 연속 하락 추세입니다.`,
+    suggestion: "해당 전공교과의 등급 회복이 학종 평가에 중요합니다.",
+  };
+}
+
+/**
+ * 수능최저 충족 추이 하락 감지
+ *
+ * 동일 목표 대학에 대해 이전 시뮬 vs 최신 시뮬을 비교하여
+ * 충족 대학 수가 감소했으면 경보.
+ */
+function checkMinScoreTrendDown(input: WarningCheckInput): RecordWarning | null {
+  const sims = input.strategyData?.minScoreSimulations ?? [];
+  if (sims.length < 2) return null;
+
+  const sorted = [...sims].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
+
+  // target_id별 가장 최근 2건 비교
+  const latestByTarget = new Map<string, { prev: boolean | null; latest: boolean | null }>();
+  for (const sim of sorted) {
+    const existing = latestByTarget.get(sim.target_id);
+    if (!existing) {
+      latestByTarget.set(sim.target_id, { prev: null, latest: sim.is_met });
+    } else {
+      existing.prev = existing.latest;
+      existing.latest = sim.is_met;
+    }
+  }
+
+  let prevMetCount = 0;
+  let latestMetCount = 0;
+  let hasTrend = false;
+
+  for (const { prev, latest } of latestByTarget.values()) {
+    if (prev == null || latest == null) continue;
+    hasTrend = true;
+    if (prev) prevMetCount++;
+    if (latest) latestMetCount++;
+  }
+
+  if (!hasTrend || latestMetCount >= prevMetCount) return null;
+
+  return {
+    ruleId: "min_score_trend_down",
+    severity: prevMetCount - latestMetCount >= 2 ? "critical" : "high",
+    category: "min_score",
+    title: "최저 충족 추이 하락",
+    message: `수능최저 충족 대학이 ${prevMetCount}개 → ${latestMetCount}개로 감소했습니다.`,
+    suggestion: "최근 모의고사 성적을 점검하고 취약 과목을 보강하세요.",
+  };
 }
