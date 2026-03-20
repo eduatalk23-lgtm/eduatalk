@@ -251,10 +251,23 @@ export function StudentRecordClient({
 
   const anyRecordLoading = recordQueries.some((q) => q.isLoading);
   const anySuppLoading = supplementaryQueries.some((q) => q.isLoading);
-  const anyError = recordQueries.find((q) => q.error)?.error
-    ?? supplementaryQueries.find((q) => q.error)?.error
-    ?? storylineError
-    ?? strategyError;
+  // 섹션별 에러 (전역 에러 대신 부분 에러)
+  const recordErrorGrades = useMemo(() => {
+    const errors = new Map<number, Error>();
+    yearGradePairs.forEach((p, i) => {
+      const err = recordQueries[i]?.error;
+      if (err) errors.set(p.grade, err as Error);
+    });
+    return errors;
+  }, [yearGradePairs, recordQueries]);
+  const suppErrorGrades = useMemo(() => {
+    const errors = new Map<number, Error>();
+    yearGradePairs.forEach((p, i) => {
+      const err = supplementaryQueries[i]?.error;
+      if (err) errors.set(p.grade, err as Error);
+    });
+    return errors;
+  }, [yearGradePairs, supplementaryQueries]);
 
   // ─── IntersectionObserver ─────────────────────────
 
@@ -301,11 +314,16 @@ export function StudentRecordClient({
 
   const toggleSidebar = useCallback(() => setSidebarOpen((prev) => !prev), []);
 
-  if (anyError) {
+  // 전체 치명적 에러 (모든 쿼리 실패) 시에만 페이지 차단
+  const allFailed = recordQueries.every((q) => !!q.error)
+    && supplementaryQueries.every((q) => !!q.error)
+    && !!storylineError && !!strategyError;
+  if (allFailed) {
+    const firstError = recordQueries[0]?.error ?? storylineError ?? strategyError;
     return (
       <div className="flex h-full items-center justify-center p-8">
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-400">
-          데이터를 불러오는 중 오류가 발생했습니다: {(anyError as Error).message}
+          데이터를 불러오는 중 오류가 발생했습니다: {(firstError as Error)?.message ?? "알 수 없는 에러"}
         </div>
       </div>
     );
@@ -327,8 +345,72 @@ export function StudentRecordClient({
     });
   }, []);
 
+  // ─── G0-2 진행률 계산 (recordByGrade/suppByGrade 직접 사용) ──
+  const progressCounts = useMemo(() => {
+    let recordFilled = 0;
+    const recordTotal = 7; // sec-1~3, sec-6~9 (sec-4,5 항상 빈)
+    if (recordByGrade.size > 0) recordFilled++; // sec-1 (항상)
+    for (const [, entry] of recordByGrade) {
+      if (entry.data.schoolAttendance) { recordFilled++; break; }
+    }
+    // awards/disciplinary from suppByGrade
+    let hasAwards = false;
+    for (const [, entry] of suppByGrade) {
+      if (entry.data.awards.length > 0 || entry.data.disciplinary.length > 0) { hasAwards = true; break; }
+    }
+    if (hasAwards) recordFilled++;
+    for (const [, entry] of recordByGrade) {
+      if (entry.data.changche.length > 0) { recordFilled++; break; }
+    }
+    for (const [, entry] of recordByGrade) {
+      if (entry.data.seteks.length > 0) { recordFilled++; break; }
+    }
+    let hasReadings = false;
+    for (const [, entry] of recordByGrade) {
+      if (entry.data.readings.length > 0) { hasReadings = true; break; }
+    }
+    if (hasReadings) recordFilled++;
+    for (const [, entry] of recordByGrade) {
+      if (entry.data.haengteuk) { recordFilled++; break; }
+    }
+
+    const diagnosisFilled = diagnosisData ? 1 : 0;
+    const designFilled = [
+      storylineData?.storylines?.length ?? 0,
+      storylineData?.roadmapItems?.length ?? 0,
+    ].filter((n) => n > 0).length;
+    let hasApps = false;
+    for (const [, entry] of suppByGrade) {
+      if (entry.data.applications.length > 0) { hasApps = true; break; }
+    }
+    const strategyFilled = (hasApps ? 1 : 0) + (strategyData?.minScoreTargets?.length ? 1 : 0);
+
+    return { recordFilled, recordTotal, diagnosisFilled, designFilled, strategyFilled };
+  }, [recordByGrade, suppByGrade, diagnosisData, storylineData, strategyData]);
+
   const sidebarContent = (
     <div className="flex flex-col gap-0.5 p-3">
+      {/* 진행률 대시보드 */}
+      <div className="mb-3 rounded-lg bg-[var(--surface-secondary)] px-3 py-2">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-[var(--text-secondary)]">
+          <span>기록 <b className="text-[var(--text-primary)]">{progressCounts.recordFilled}/{progressCounts.recordTotal}</b></span>
+          <span>진단 <b className="text-[var(--text-primary)]">{progressCounts.diagnosisFilled > 0 ? "✓" : "○"}</b></span>
+          <span>설계 <b className="text-[var(--text-primary)]">{progressCounts.designFilled}/7</b></span>
+          <span>전략 <b className="text-[var(--text-primary)]">{progressCounts.strategyFilled}/6</b></span>
+        </div>
+        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+          <div
+            className="h-full rounded-full bg-indigo-500 transition-all"
+            style={{
+              width: `${Math.round(
+                ((progressCounts.recordFilled + progressCounts.diagnosisFilled + progressCounts.designFilled + progressCounts.strategyFilled) /
+                  (progressCounts.recordTotal + 1 + 7 + 6)) * 100,
+              )}%`,
+            }}
+          />
+        </div>
+      </div>
+
       {STAGES.map((stage) => {
         const isExpanded = expandedStages.has(stage.id);
         const hasActive = stage.sections.some((s) => s.id === activeSection);
@@ -1047,30 +1129,79 @@ function GradeLabel({ grade, schoolYear }: { grade: number; schoolYear: number }
 
 // ─── 문서 섹션 래퍼 (공식 기록 1~9) ─────────────────
 
-function DocSection({ id, number, title, children }: {
+function DocSection({ id, number, title, children, isEmpty, emptyLabel }: {
   id: string; number: string; title: string; children: React.ReactNode;
+  isEmpty?: boolean; emptyLabel?: string;
 }) {
+  const [collapsed, setCollapsed] = useState(!!isEmpty);
+
+  // 데이터 상태 변경 시 접기 동기화
+  useEffect(() => {
+    if (isEmpty) setCollapsed(true);
+  }, [isEmpty]);
+
   return (
     <section data-section-id={id} className="mb-6 scroll-mt-4">
-      <h3 className="mb-3 text-sm font-bold text-[var(--text-primary)]">
-        {number}. {title}
-      </h3>
-      {children}
+      <button
+        type="button"
+        onClick={() => setCollapsed((p) => !p)}
+        className="mb-3 flex w-full items-center gap-2 text-left"
+      >
+        <h3 className="text-sm font-bold text-[var(--text-primary)]">
+          {number}. {title}
+        </h3>
+        {isEmpty && !collapsed ? null : isEmpty ? (
+          <span className="text-xs text-[var(--text-tertiary)]">
+            {emptyLabel ?? "해당 없음"}
+          </span>
+        ) : null}
+        <ChevronDown
+          className={cn(
+            "ml-auto h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)] transition-transform",
+            collapsed && "-rotate-90",
+          )}
+        />
+      </button>
+      {!collapsed && children}
     </section>
   );
 }
 
 // ─── 전략 섹션 래퍼 ─────────────────────────────────
 
-function StrategySection({ id, title, children }: {
+function StrategySection({ id, title, children, isEmpty, emptyLabel }: {
   id: string; title: string; children: React.ReactNode;
+  isEmpty?: boolean; emptyLabel?: string;
 }) {
+  const [collapsed, setCollapsed] = useState(!!isEmpty);
+
+  useEffect(() => {
+    if (isEmpty) setCollapsed(true);
+  }, [isEmpty]);
+
   return (
     <section data-section-id={id} className="mb-8 scroll-mt-4">
-      <h3 className="mb-4 border-b border-[var(--border-secondary)] pb-2 text-base font-bold text-[var(--text-primary)]">
-        {title}
-      </h3>
-      {children}
+      <button
+        type="button"
+        onClick={() => setCollapsed((p) => !p)}
+        className="mb-4 flex w-full items-center gap-2 border-b border-[var(--border-secondary)] pb-2 text-left"
+      >
+        <h3 className="text-base font-bold text-[var(--text-primary)]">
+          {title}
+        </h3>
+        {isEmpty && collapsed && (
+          <span className="text-xs text-[var(--text-tertiary)]">
+            {emptyLabel ?? "데이터 없음"}
+          </span>
+        )}
+        <ChevronDown
+          className={cn(
+            "ml-auto h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)] transition-transform",
+            collapsed && "-rotate-90",
+          )}
+        />
+      </button>
+      {!collapsed && children}
     </section>
   );
 }

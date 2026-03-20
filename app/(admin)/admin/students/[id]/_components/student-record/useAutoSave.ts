@@ -9,6 +9,7 @@ type UseAutoSaveOptions<T> = {
   onSave: (data: T) => Promise<{ success: boolean; error?: string }>;
   debounceMs?: number;
   enabled?: boolean;
+  maxRetries?: number;
 };
 
 export function useAutoSave<T>({
@@ -16,17 +17,23 @@ export function useAutoSave<T>({
   onSave,
   debounceMs = 2000,
   enabled = true,
+  maxRetries = 3,
 }: UseAutoSaveOptions<T>) {
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [error, setError] = useState<string | undefined>();
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestDataRef = useRef(data);
   const initialDataRef = useRef(data);
   const isFirstRender = useRef(true);
+  const retryCountRef = useRef(0);
+  const isDirtyRef = useRef(false);
 
   useEffect(() => {
     latestDataRef.current = data;
+    isDirtyRef.current =
+      JSON.stringify(data) !== JSON.stringify(initialDataRef.current);
   });
 
   const save = useCallback(async () => {
@@ -35,19 +42,35 @@ export function useAutoSave<T>({
     try {
       const result = await onSave(latestDataRef.current);
       if (result.success) {
+        retryCountRef.current = 0;
+        isDirtyRef.current = false;
         setStatus("saved");
-        // Reset to idle after 2s
+        setLastSavedAt(new Date());
         savedTimerRef.current = setTimeout(() => setStatus("idle"), 2000);
+      } else if (retryCountRef.current < maxRetries) {
+        // 지수 백오프 재시도
+        retryCountRef.current++;
+        const delay = Math.pow(2, retryCountRef.current) * 1000;
+        timerRef.current = setTimeout(() => { save(); }, delay);
       } else {
+        retryCountRef.current = 0;
         setStatus("error");
         setError(result.error);
       }
     } catch (e) {
-      setStatus("error");
-      setError(e instanceof Error ? e.message : "저장 실패");
+      if (retryCountRef.current < maxRetries) {
+        retryCountRef.current++;
+        const delay = Math.pow(2, retryCountRef.current) * 1000;
+        timerRef.current = setTimeout(() => { save(); }, delay);
+      } else {
+        retryCountRef.current = 0;
+        setStatus("error");
+        setError(e instanceof Error ? e.message : "저장 실패");
+      }
     }
-  }, [onSave]);
+  }, [onSave, maxRetries]);
 
+  // 자동 저장 debounce
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
@@ -56,8 +79,6 @@ export function useAutoSave<T>({
     }
 
     if (!enabled) return;
-
-    // Don't auto-save if data hasn't changed from initial
     if (JSON.stringify(data) === JSON.stringify(initialDataRef.current)) return;
 
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -72,7 +93,30 @@ export function useAutoSave<T>({
     };
   }, [data, debounceMs, enabled, save]);
 
-  // Cleanup on unmount
+  // beforeunload: 미저장 변경사항 경고
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirtyRef.current || status === "saving") {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [status]);
+
+  // visibilitychange: 탭 전환 시 즉시 저장
+  useEffect(() => {
+    const handler = () => {
+      if (document.visibilityState === "hidden" && isDirtyRef.current) {
+        if (timerRef.current) clearTimeout(timerRef.current);
+        save();
+      }
+    };
+    document.addEventListener("visibilitychange", handler);
+    return () => document.removeEventListener("visibilitychange", handler);
+  }, [save]);
+
+  // Cleanup
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -80,5 +124,5 @@ export function useAutoSave<T>({
     };
   }, []);
 
-  return { status, error, saveNow: save };
+  return { status, error, lastSavedAt, saveNow: save };
 }
