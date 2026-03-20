@@ -1013,7 +1013,7 @@ consultantDiagnosis: Diagnosis | null
 - 이수(1): course_inadequacy (score < 50 → high, < 30 → critical)
 - 스토리라인(2): storyline_weak, storyline_gap
 - 최저(2): min_score_critical, min_score_bottleneck
-- 미구현(2): major_subject_decline (전공교과 학기별 성적 추이 DB 쿼리 필요), min_score_trend_down (다중 모의 시뮬 비교 필요) — 기능 영향 낮음, 향후 과제
+- ✅ 전룰 구현 완료 (11/11): major_subject_decline (전공교과 2학기 연속 하락), min_score_trend_down (최저 충족 대학 수 감소) 추가 (2026-03-21)
 - 순수 함수 엔진 (`warnings/engine.ts`), 클라이언트 useMemo로 계산
 - `RecordWarningPanel`: 카테고리별 그룹핑, 4단계 severity 색상, 제안 표시
 
