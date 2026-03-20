@@ -3156,3 +3156,221 @@ type GradeWeight = {
 │  [ 등록 ] [ 포기 (정시 지원) ]      │
 └────────────────────────────────────┘
 ```
+
+---
+
+## E25. 우회학과 탐색 시스템 (CMS C1.5)
+
+> **적대적 리뷰 결과 반영**: `docs/bypass-major-adversarial-review.md` (2026-03-20)
+> **외부 데이터**: `학과조회4.accdb` (188MB, 서울 상위 10개 대학, 2026-01-14)
+
+### E25.1 취지
+
+학생이 **1지망 학과 직접 진입이 어려운 경우**, 커리큘럼 유사성·배치 가능성·역량 매칭을 종합하여
+**대안 학과·학교를 체계적으로 탐색**하는 시스템. 컨설턴트의 30분 수동 비교를 5분으로 줄이는 **1차 필터링 + 근거 정리 도구**.
+
+**핵심 원칙** (적대적 리뷰 합의):
+- 시스템 출력은 **"추천"이 아닌 "탐색 후보"** — 최종 판단은 컨설턴트
+- 컨설턴트가 시스템 추천을 무시하고 **수동 추가/제외** 가능
+- **"왜 이 학과인가"** 설명이 반드시 포함
+
+### E25.2 3단계 필터 파이프라인
+
+```
+[필터 1] 배치 가능성 (입결)
+  │  기존 Phase 8.5 배치 엔진 활용
+  │  university_admissions 26,309건 + PlacementResult
+  │  → 배치 등급(안정/적정/소신/불안/위험) 기준 사전 필터
+  ↓
+[필터 2] 커리큘럼 유사도
+  │  Access DB 기반 학과 커리큘럼 데이터
+  │  대학 교과목 겹침률 + 전공기초 공유률 산출
+  │  → 유사도 점수 (0~100)
+  ↓
+[필터 3] 역량 매칭
+  │  기존 진단 시스템 연동
+  │  student_record_competency_scores + storylines
+  │  → 학과가 중시하는 역량 vs 학생 역량 프로필 교차
+  ↓
+[출력] 탐색 후보 목록
+  ├── 학과별 유사도 점수 + 배치 등급
+  ├── "왜 이 학과인가" 근거 텍스트
+  ├── 전과/복수전공 용이성 참고 정보
+  └── 컨설턴트 커스텀 메모 필드
+```
+
+### E25.3 DB 스키마
+
+#### P0-1 선행: Access DB 구조 조사 후 확정
+
+현시점에서 스키마는 **예상 설계**이며, Access DB 테이블 구조 파악 후 확정한다.
+
+```sql
+-- ============================================================
+-- 1. 대학 학과 마스터 (Access DB → Import)
+-- ============================================================
+
+CREATE TABLE university_departments (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  university_name  text NOT NULL,               -- 서울대, 연세대, ...
+  college_name     text,                         -- 단과대학 (공과대학, 문과대학 ...)
+  department_name  text NOT NULL,                -- 학과명
+  department_code  text,                         -- 학과 코드 (대학별 체계)
+  degree_type      text,                         -- 학사, 석사, ... (default 학사)
+  -- 커리큘럼 핵심 정보
+  required_credits    int,                       -- 졸업 이수 학점
+  major_required      text[],                    -- 전공 필수 교과목명 배열
+  major_elective      text[],                    -- 전공 선택 교과목명 배열
+  major_foundation    text[],                    -- 전공기초 교과목명 배열
+  -- 메타
+  career_field_ids    int[],                     -- 관련 계열 (exploration_guide_career_fields FK)
+  transfer_ease       text CHECK (transfer_ease IN ('easy','moderate','hard','unknown')),
+  double_major_allowed boolean DEFAULT true,
+  source_year         int,                       -- 교육과정 기준 연도
+  legacy_id           int UNIQUE,                -- Access DB 원본 ID
+  created_at          timestamptz DEFAULT now(),
+  updated_at          timestamptz DEFAULT now()
+);
+
+CREATE INDEX idx_ud_university ON university_departments(university_name);
+CREATE INDEX idx_ud_career ON university_departments USING gin(career_field_ids);
+
+-- ============================================================
+-- 2. 학과간 커리큘럼 유사도 (사전 계산 + 캐시)
+-- ============================================================
+
+CREATE TABLE department_curriculum_similarity (
+  dept_a_id       uuid REFERENCES university_departments(id) ON DELETE CASCADE,
+  dept_b_id       uuid REFERENCES university_departments(id) ON DELETE CASCADE,
+  similarity_score numeric(5,2) NOT NULL,        -- 0.00~100.00
+  shared_required  text[],                       -- 겹치는 전공필수 교과목
+  shared_foundation text[],                      -- 겹치는 전공기초 교과목
+  overlap_ratio    numeric(5,4),                 -- Jaccard 계수
+  computed_at      timestamptz DEFAULT now(),
+  PRIMARY KEY (dept_a_id, dept_b_id)
+);
+
+-- ============================================================
+-- 3. 학과별 학종 역량 가중치 (컨설턴트 입력 or AI 생성)
+-- ============================================================
+
+CREATE TABLE department_competency_weights (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  department_id   uuid REFERENCES university_departments(id) ON DELETE CASCADE,
+  competency_item text NOT NULL,                 -- academic_achievement, career_exploration, ...
+  weight          numeric(3,2) DEFAULT 1.0,      -- 가중치 (0~3, 1=보통)
+  source          text CHECK (source IN ('consultant','ai_generated','imported')),
+  notes           text,
+  created_at      timestamptz DEFAULT now(),
+  UNIQUE (department_id, competency_item)
+);
+
+-- ============================================================
+-- 4. 탐색 결과 (학생별 우회학과 후보 관리)
+-- ============================================================
+
+CREATE TABLE bypass_major_candidates (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id       uuid NOT NULL,
+  student_id      uuid NOT NULL REFERENCES students(id) ON UPDATE CASCADE ON DELETE CASCADE,
+  target_dept_id  uuid REFERENCES university_departments(id),   -- 원래 1지망 학과
+  candidate_dept_id uuid REFERENCES university_departments(id), -- 우회 후보 학과
+  -- 점수
+  curriculum_score  numeric(5,2),                -- 커리큘럼 유사도
+  placement_grade   text,                        -- 배치 등급 (안정/적정/소신/불안/위험)
+  competency_score  numeric(5,2),                -- 역량 매칭 점수
+  composite_score   numeric(5,2),                -- 종합 점수
+  -- 근거
+  rationale         text,                        -- "왜 이 학과인가" (AI 또는 수동)
+  source            text CHECK (source IN ('system','consultant')) DEFAULT 'system',
+  -- 컨설턴트 조정
+  consultant_notes  text,
+  is_excluded       boolean DEFAULT false,       -- 컨설턴트가 제외 처리
+  is_pinned         boolean DEFAULT false,       -- 컨설턴트가 고정 (상위 노출)
+  -- 추적
+  school_year       int NOT NULL,
+  created_at        timestamptz DEFAULT now(),
+  updated_at        timestamptz DEFAULT now(),
+  UNIQUE (tenant_id, student_id, candidate_dept_id, school_year)
+);
+
+CREATE INDEX idx_bmc_student ON bypass_major_candidates(student_id, school_year);
+```
+
+### E25.4 도메인 레이어
+
+```
+lib/domains/bypass-major/
+├── types.ts                    -- UniversityDepartment, CurriculumSimilarity, BypassCandidate 등
+├── repository.ts               -- findDepartments, findSimilarDepartments, saveCandidates 등
+├── similarity-engine.ts        -- 커리큘럼 유사도 계산 (Jaccard + 가중치)
+├── bypass-pipeline.ts          -- 3단계 필터 파이프라인 (배치 → 유사도 → 역량)
+├── actions/
+│   └── bypass.ts               -- Server Actions (searchBypassMajors, saveCandidateNotes 등)
+├── import/
+│   ├── access-parser.ts        -- Access DB CSV 파싱 (C1 패턴 재사용)
+│   └── transformer.ts          -- 원본 데이터 → 정규화
+└── __tests__/
+    ├── similarity-engine.test.ts
+    └── bypass-pipeline.test.ts
+```
+
+### E25.5 기존 시스템 연동 포인트
+
+| 기존 시스템 | 연동 방식 | 용도 |
+|-------------|-----------|------|
+| `university_admissions` (26,309건) | dept_name 매칭 | 필터 1: 배치 가능성 판단 |
+| `PlacementResult` (Phase 8.5) | 함수 호출 | 배치 등급 산출 |
+| `CourseAdequacyResult` (Phase 5) | 함수 호출 | 고교 교과 매칭 보조 참고 |
+| `student_record_competency_scores` | JOIN | 필터 3: 역량 매칭 |
+| `student_record_storylines` | JOIN | 스토리라인 일관성 확인 |
+| `exploration_guide_career_fields` | 참조 | 계열 분류 체계 공유 |
+| `university_name_aliases` (Phase 8.3) | 검색 시 | 대학명 퍼지 매칭 |
+
+### E25.6 UI 구조
+
+```
+── 관리자: 우회학과 탐색 ──
+
+(A) 학생 생기부 상세 페이지 내 탭/패널
+StudentRecordClient.tsx
+  └── BypassMajorPanel.tsx                 -- 탐색 결과 + 후보 관리
+      ├── BypassTargetSelector.tsx          -- 1지망 학과 선택
+      ├── BypassCandidateList.tsx           -- 후보 목록 (점수+배치+근거)
+      │   └── BypassCandidateCard.tsx       -- 개별 후보 카드
+      ├── CurriculumComparisonView.tsx      -- 커리큘럼 비교 시각화
+      └── BypassCandidateDetail.tsx         -- 후보 상세 (컨설턴트 메모)
+
+(B) 독립 관리 페이지 (선택)
+/admin/bypass-majors/
+  ├── page.tsx                             -- 대학 학과 마스터 목록
+  └── [id]/page.tsx                        -- 학과 상세 + 커리큘럼 편집
+```
+
+### E25.7 착수 전 필수 (P0 게이트)
+
+| 단계 | 작업 | 차단 해소 대상 | 예상 공수 |
+|------|------|---------------|-----------|
+| **P0-1** | `mdb-tables 학과조회4.accdb` → 테이블 목록 | 전체 스키마 설계 | 0.5일 |
+| **P0-2** | `mdb-schema` → 각 테이블 컬럼·타입 | 타입 매핑 | P0-1 직후 |
+| **P0-3** | `mdb-export` CSV 추출 테스트 (OLE 컬럼 식별) | Import 파이프라인 | 0.5일 |
+| **P0 판정** | DB 구조 확인 후 위 예상 스키마(E25.3) 확정 or 재설계 | 구현 착수 | — |
+
+### E25.8 윤리적 경계
+
+| 시스템이 하는 것 | 시스템이 하지 않는 것 |
+|-----------------|---------------------|
+| 커리큘럼 유사도 기반 "탐색 후보" 제시 | "이 학과에 가라"는 추천 |
+| 배치 가능성 + 역량 매칭 데이터 정리 | 합격 보장 또는 합격 확률 제시 |
+| 컨설턴트가 근거와 함께 학부모에게 설명할 자료 생성 | 학부모에게 직접 추천 발송 |
+| 컨설턴트의 수동 판단을 보조 | 컨설턴트의 전문 판단을 대체 |
+
+### E25.9 리스크 대응
+
+| 리스크 | 대응 |
+|--------|------|
+| 커리큘럼 유사도 오류 → 잘못된 탐색 후보 | 블라인드 테스트(컨설턴트 5명) + 시스템 미추천 학과 수동 추가 허용 |
+| 학과별 학종 가중치 부재 | 1차 출시 시 가중치 없이 배포, 컨설턴트 입력으로 점진 축적 |
+| Access DB 파싱 실패 | P0 게이트로 차단 — 실패 시 CSV 수동 정리 fallback |
+| 대학 교육과정 연간 변경 | source_year 컬럼으로 버전 관리, 연 1회 갱신 프로세스 |
+| "추천"으로 오해 → 법적 리스크 | "탐색 후보" 용어 통일, UI에 면책 고지 표시 |

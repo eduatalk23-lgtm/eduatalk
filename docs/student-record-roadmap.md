@@ -1416,7 +1416,10 @@ consultantDiagnosis: Diagnosis | null
 10. 나침반36.5/          — 학과별 탐구주제 확장 docx (19개 학과)
 ```
 
-##### B. 우회학과 DB (신규 기능)
+##### B. 우회학과 DB (CMS C1.5 — 설계 완료, P0 게이트 대기)
+
+> 설계 문서: `docs/student-record-extension-design.md` E25
+> 적대적 리뷰: `docs/bypass-major-adversarial-review.md` (2026-03-20)
 
 경로: `6. 라이선스 개발_대학교 우회학과/`
 
@@ -1434,6 +1437,19 @@ consultantDiagnosis: Diagnosis | null
 - 성균관대: 학과별 교육과정 로드맵 (2024)
 - 서강대: 요람 (2025)
 - 건국대 GLOCAL: 학사요람 (2025)
+
+**3단계 필터 파이프라인** (적대적 리뷰 합의):
+```
+배치 가능성(입결, Phase 8.5) → 커리큘럼 유사도(Access DB) → 역량 매칭(진단 시스템)
+```
+
+**P0 게이트 (착수 전 필수)**:
+- P0-1: `mdb-tables 학과조회4.accdb` → 테이블 목록 파악 (0.5일)
+- P0-2: `mdb-schema` → 컬럼·타입 매핑
+- P0-3: `mdb-export` CSV 추출 테스트 (OLE 식별)
+- P0 통과 후 E25.3 예상 스키마 확정
+
+**예상 테이블**: university_departments, department_curriculum_similarity, department_competency_weights, bypass_major_candidates (4개)
 
 ---
 
