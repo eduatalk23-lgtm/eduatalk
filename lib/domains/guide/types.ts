@@ -28,11 +28,14 @@ export type GuideStatus = (typeof GUIDE_STATUSES)[number];
 export const GUIDE_SOURCE_TYPES = [
   "imported",
   "manual",
+  "manual_edit",
   "ai_keyword",
   "ai_pdf_extract",
   "ai_url_extract",
   "ai_clone_variant",
+  "ai_improve",
   "ai_hybrid",
+  "revert",
 ] as const;
 export type GuideSourceType = (typeof GUIDE_SOURCE_TYPES)[number];
 
@@ -100,6 +103,7 @@ export interface ExplorationGuide {
   tenant_id: string | null;
   guide_type: GuideType;
   curriculum_year: string | null;
+  subject_area: string | null;
   subject_select: string | null;
   unit_major: string | null;
   unit_minor: string | null;
@@ -122,6 +126,17 @@ export interface ExplorationGuide {
   version: number;
   is_latest: boolean;
   original_guide_id: string | null;
+  /** 직전 부모 버전 ID (트리 간선) */
+  parent_version_id: string | null;
+  /** 버전 생성 사유 (Git commit message) */
+  version_message: string | null;
+  /** AI 리뷰 세부 결과 */
+  review_result: {
+    dimensions: Record<string, number>;
+    feedback: string[];
+    strengths: string[];
+    reviewedAt: string;
+  } | null;
   created_at: string;
   updated_at: string;
 }
@@ -154,9 +169,30 @@ export interface RelatedPaper {
   summary?: string;
 }
 
+/** 유형별 섹션 데이터 (content_sections JSONB) */
+export interface ContentSection {
+  /** SectionDefinition.key와 매칭 */
+  key: string;
+  /** 표시명 */
+  label: string;
+  /** HTML 또는 plain text */
+  content: string;
+  /** 콘텐츠 형식 */
+  content_format: ContentFormat;
+  /** 이미지 (선택) */
+  images?: TheorySectionImage[];
+  /** text_list 타입용 (재료 목록 등) */
+  items?: string[];
+  /** key_value 타입용 (프로그램 개요 등) */
+  metadata?: Record<string, string>;
+  /** 복수 섹션 순서 (content_sections에서 같은 key가 여러 개일 때) */
+  order?: number;
+}
+
 /** exploration_guide_content 테이블 행 */
 export interface ExplorationGuideContent {
   guide_id: string;
+  // 레거시 필드 (기존 가이드 호환)
   motivation: string | null;
   theory_sections: TheorySection[];
   reflection: string | null;
@@ -170,18 +206,23 @@ export interface ExplorationGuideContent {
   guide_url: string | null;
   setek_examples: string[];
   raw_source: unknown | null;
+  // 신규: 유형별 섹션 데이터
+  content_sections: ContentSection[];
   created_at: string;
   updated_at: string;
 }
 
 /** exploration_guide_career_fields 테이블 행 */
-export interface CareerField {
+export interface GuideCareerField {
   id: number;
   code: string;
   name_kor: string;
   sort_order: number;
   created_at: string;
 }
+
+/** @deprecated Use GuideCareerField instead */
+export type CareerField = GuideCareerField;
 
 /** exploration_guide_curriculum_units 테이블 행 */
 export interface CurriculumUnit {
@@ -235,6 +276,7 @@ export interface GuideDetail extends ExplorationGuide {
   content: ExplorationGuideContent | null;
   subjects: Array<{ id: string; name: string }>;
   career_fields: Array<{ id: number; code: string; name_kor: string }>;
+  classifications: Array<{ id: number; mid_name: string; sub_name: string }>;
 }
 
 /** 가이드 목록 필터 */
@@ -243,6 +285,7 @@ export interface GuideListFilter {
   status?: GuideStatus;
   subjectId?: string;
   careerFieldId?: number;
+  classificationId?: number;
   curriculumYear?: string;
   searchQuery?: string;
   tenantId?: string | null;
@@ -252,6 +295,23 @@ export interface GuideListFilter {
   pageSize?: number;
 }
 
+/** AI 추천 주제 (suggested_topics 테이블) */
+export interface SuggestedTopic {
+  id: string;
+  tenant_id: string | null;
+  guide_type: string;
+  subject_name: string | null;
+  career_field: string | null;
+  curriculum_year: number | null;
+  target_major: string | null;
+  title: string;
+  reason: string | null;
+  related_subjects: string[];
+  used_count: number;
+  guide_created_count: number;
+  created_at: string;
+}
+
 /** 버전 히스토리 아이템 */
 export interface GuideVersionItem {
   id: string;
@@ -259,6 +319,8 @@ export interface GuideVersionItem {
   is_latest: boolean;
   status: GuideStatus;
   source_type: GuideSourceType;
+  parent_version_id: string | null;
+  version_message: string | null;
   registered_by: string | null;
   quality_score: number | null;
   created_at: string;
@@ -271,6 +333,7 @@ export interface GuideUpsertInput {
   tenantId?: string | null;
   guideType: GuideType;
   curriculumYear?: string;
+  subjectArea?: string;
   subjectSelect?: string;
   unitMajor?: string;
   unitMinor?: string;
@@ -292,6 +355,10 @@ export interface GuideUpsertInput {
   version?: number;
   isLatest?: boolean;
   originalGuideId?: string;
+  parentVersionId?: string;
+  versionMessage?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  reviewResult?: Record<string, any> | null;
 }
 
 /** 가이드 본문 입력 */
@@ -309,6 +376,8 @@ export interface GuideContentInput {
   guideUrl?: string;
   setekExamples?: string[];
   rawSource?: unknown;
+  /** 신규: 유형별 섹션 데이터 */
+  contentSections?: ContentSection[];
 }
 
 /** 배정 생성 입력 */

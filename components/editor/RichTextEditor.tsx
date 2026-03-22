@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
@@ -28,6 +29,7 @@ export function RichTextEditor({
   onAiImageInsert,
 }: RichTextEditorProps) {
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({
         heading: { levels: [2, 3, 4] },
@@ -57,6 +59,22 @@ export function RichTextEditor({
       },
     },
   });
+
+  // content prop이 변경되면 에디터 내용 동기화
+  const prevContentRef = useRef(content);
+  useEffect(() => {
+    if (!editor) return;
+    if (content === prevContentRef.current) return;
+    prevContentRef.current = content;
+
+    // 에디터가 포커스 중이면 업데이트하지 않음 (타이핑 중 방지)
+    if (editor.isFocused) return;
+
+    const currentHtml = editor.getHTML();
+    if (currentHtml !== content) {
+      editor.commands.setContent(content, { emitUpdate: false });
+    }
+  }, [content, editor]);
 
   return (
     <div

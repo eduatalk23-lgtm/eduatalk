@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type {
   GuideListFilter,
   GuideUpsertInput,
@@ -14,6 +15,8 @@ import type {
   CareerField,
   AssignmentStatus,
   GuideVersionItem,
+  CurriculumUnit,
+  SuggestedTopic,
 } from "./types";
 
 // ============================================================
@@ -53,31 +56,52 @@ export async function findGuides(filter: GuideListFilter) {
       `title.ilike.%${filter.searchQuery}%,book_title.ilike.%${filter.searchQuery}%`,
     );
   }
-  // 기본: 최신 버전만 (latestOnly !== false)
+  // 최신 버전만 (latestOnly !== false 일 때)
   if (filter.latestOnly !== false) {
     query = query.eq("is_latest", true);
   }
 
-  // subjectId 필터: junction 2단계 쿼리
+  // junction 필터: 복수 조건 시 교집합 처리 (Supabase .in() 중복 방지)
+  const junctionIdSets: Set<string>[] = [];
+
   if (filter.subjectId) {
     const { data: mappings } = await supabase
       .from("exploration_guide_subject_mappings")
       .select("guide_id")
       .eq("subject_id", filter.subjectId);
-    const guideIds = mappings?.map((m) => m.guide_id) ?? [];
-    if (guideIds.length === 0) return { data: [], count: 0 };
-    query = query.in("id", guideIds);
+    const ids = new Set((mappings ?? []).map((m) => m.guide_id));
+    if (ids.size === 0) return { data: [], count: 0 };
+    junctionIdSets.push(ids);
   }
 
-  // careerFieldId 필터: junction 2단계 쿼리
   if (filter.careerFieldId) {
     const { data: mappings } = await supabase
       .from("exploration_guide_career_mappings")
       .select("guide_id")
       .eq("career_field_id", filter.careerFieldId);
-    const guideIds = mappings?.map((m) => m.guide_id) ?? [];
-    if (guideIds.length === 0) return { data: [], count: 0 };
-    query = query.in("id", guideIds);
+    const ids = new Set((mappings ?? []).map((m) => m.guide_id));
+    if (ids.size === 0) return { data: [], count: 0 };
+    junctionIdSets.push(ids);
+  }
+
+  if (filter.classificationId) {
+    const { data: mappings } = await supabase
+      .from("exploration_guide_classification_mappings")
+      .select("guide_id")
+      .eq("classification_id", filter.classificationId);
+    const ids = new Set((mappings ?? []).map((m) => m.guide_id));
+    if (ids.size === 0) return { data: [], count: 0 };
+    junctionIdSets.push(ids);
+  }
+
+  // 복수 junction 필터 → 교집합
+  if (junctionIdSets.length > 0) {
+    let intersected = junctionIdSets[0];
+    for (let i = 1; i < junctionIdSets.length; i++) {
+      intersected = new Set([...intersected].filter((id) => junctionIdSets[i].has(id)));
+    }
+    if (intersected.size === 0) return { data: [], count: 0 };
+    query = query.in("id", [...intersected]);
   }
 
   const { data, error, count } = await query;
@@ -111,9 +135,19 @@ export async function findGuideById(guideId: string): Promise<GuideDetail | null
       .eq("guide_id", guideId),
     supabase
       .from("exploration_guide_career_mappings")
-      .select("career_field_id, exploration_guide_career_fields(id, code, name_kor)")
+      .select(
+        "career_field_id, exploration_guide_career_fields(id, code, name_kor)",
+      )
       .eq("guide_id", guideId),
   ]);
+
+  // 분류매핑
+  const { data: classificationData } = await supabase
+    .from("exploration_guide_classification_mappings")
+    .select(
+      "classification_id, department_classification(id, mid_name, sub_name)",
+    )
+    .eq("guide_id", guideId);
 
   return {
     ...(guide as ExplorationGuide),
@@ -129,6 +163,14 @@ export async function findGuideById(guideId: string): Promise<GuideDetail | null
         name_kor: string;
       };
       return { id: c.id, code: c.code, name_kor: c.name_kor };
+    }),
+    classifications: (classificationData ?? []).map((r) => {
+      const dc = r.department_classification as unknown as {
+        id: number;
+        mid_name: string;
+        sub_name: string;
+      };
+      return { id: dc.id, mid_name: dc.mid_name, sub_name: dc.sub_name };
     }),
   };
 }
@@ -147,6 +189,7 @@ export async function createGuide(input: GuideUpsertInput): Promise<ExplorationG
       tenant_id: input.tenantId ?? null,
       guide_type: input.guideType,
       curriculum_year: input.curriculumYear ?? null,
+      subject_area: input.subjectArea ?? null,
       subject_select: input.subjectSelect ?? null,
       unit_major: input.unitMajor ?? null,
       unit_minor: input.unitMinor ?? null,
@@ -169,6 +212,8 @@ export async function createGuide(input: GuideUpsertInput): Promise<ExplorationG
       version: input.version ?? 1,
       is_latest: input.isLatest ?? true,
       original_guide_id: input.originalGuideId ?? null,
+      parent_version_id: input.parentVersionId ?? null,
+      version_message: input.versionMessage ?? null,
     })
     .select()
     .single();
@@ -189,6 +234,7 @@ export async function updateGuide(
       ...(input.guideType !== undefined && { guide_type: input.guideType }),
       ...(input.title !== undefined && { title: input.title }),
       ...(input.curriculumYear !== undefined && { curriculum_year: input.curriculumYear ?? null }),
+      ...(input.subjectArea !== undefined && { subject_area: input.subjectArea ?? null }),
       ...(input.subjectSelect !== undefined && { subject_select: input.subjectSelect ?? null }),
       ...(input.unitMajor !== undefined && { unit_major: input.unitMajor ?? null }),
       ...(input.unitMinor !== undefined && { unit_minor: input.unitMinor ?? null }),
@@ -205,6 +251,9 @@ export async function updateGuide(
       ...(input.aiModelVersion !== undefined && { ai_model_version: input.aiModelVersion }),
       ...(input.aiPromptVersion !== undefined && { ai_prompt_version: input.aiPromptVersion }),
       ...(input.isLatest !== undefined && { is_latest: input.isLatest }),
+      ...(input.parentVersionId !== undefined && { parent_version_id: input.parentVersionId ?? null }),
+      ...(input.versionMessage !== undefined && { version_message: input.versionMessage ?? null }),
+      ...(input.reviewResult !== undefined && { review_result: input.reviewResult }),
     })
     .eq("id", guideId)
     .select()
@@ -240,6 +289,7 @@ export async function upsertGuideByLegacyId(
         tenant_id: input.tenantId ?? null,
         guide_type: input.guideType,
         curriculum_year: input.curriculumYear ?? null,
+        subject_area: input.subjectArea ?? null,
         subject_select: input.subjectSelect ?? null,
         unit_major: input.unitMajor ?? null,
         unit_minor: input.unitMinor ?? null,
@@ -285,6 +335,7 @@ export async function upsertGuideContent(
     guide_url: input.guideUrl ?? null,
     setek_examples: input.setekExamples ?? [],
     raw_source: input.rawSource ?? null,
+    content_sections: input.contentSections ?? [],
   });
 
   if (error) throw error;
@@ -343,6 +394,52 @@ export async function replaceCareerMappings(
       })),
     );
   if (insErr) throw insErr;
+}
+
+/** 소분류 매핑 교체 (DELETE + INSERT) */
+export async function replaceClassificationMappings(
+  guideId: string,
+  classificationIds: number[],
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+
+  const { error: delErr } = await supabase
+    .from("exploration_guide_classification_mappings")
+    .delete()
+    .eq("guide_id", guideId);
+  if (delErr) throw delErr;
+
+  if (classificationIds.length === 0) return;
+
+  const { error: insErr } = await supabase
+    .from("exploration_guide_classification_mappings")
+    .insert(
+      classificationIds.map((clId) => ({
+        guide_id: guideId,
+        classification_id: clId,
+      })),
+    );
+  if (insErr) throw insErr;
+}
+
+/** 가이드의 소분류 매핑 조회 */
+export async function findClassificationMappings(
+  guideId: string,
+): Promise<Array<{ id: number; mid_name: string; sub_name: string }>> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("exploration_guide_classification_mappings")
+    .select("classification_id, department_classification(id, mid_name, sub_name)")
+    .eq("guide_id", guideId);
+
+  if (error) return [];
+  return (data ?? [])
+    .filter((d) => d.department_classification)
+    .map((d) => {
+      const dc = d.department_classification as unknown as { id: number; mid_name: string; sub_name: string };
+      return { id: dc.id, mid_name: dc.mid_name, sub_name: dc.sub_name };
+    });
 }
 
 // ============================================================
@@ -506,7 +603,7 @@ export async function findVersionHistory(
   const { data, error } = await supabase
     .from("exploration_guides")
     .select(
-      "id, version, is_latest, status, source_type, registered_by, quality_score, created_at, updated_at",
+      "id, version, is_latest, status, source_type, parent_version_id, version_message, registered_by, quality_score, created_at, updated_at",
     )
     .or(`id.eq.${originalId},original_guide_id.eq.${originalId}`)
     .order("version", { ascending: false });
@@ -556,6 +653,7 @@ export async function createNewVersion(
     version: source.version + 1,
     isLatest: true,
     originalGuideId: originalId,
+    parentVersionId: sourceGuideId,
   });
 
   // 5. 본문 복제
@@ -575,7 +673,7 @@ export async function createNewVersion(
     });
   }
 
-  // 6. 매핑 복제
+  // 6. 매핑 복제 (과목 + 계열 + 분류)
   await Promise.all([
     replaceSubjectMappings(
       newGuide.id,
@@ -585,6 +683,12 @@ export async function createNewVersion(
       newGuide.id,
       source.career_fields.map((c) => c.id),
     ),
+    source.classifications.length > 0
+      ? replaceClassificationMappings(
+          newGuide.id,
+          source.classifications.map((c) => c.id),
+        )
+      : Promise.resolve(),
   ]);
 
   return newGuide;
@@ -595,13 +699,43 @@ export async function revertToVersion(
   targetVersionId: string,
   userId: string,
 ): Promise<ExplorationGuide> {
-  // 대상 버전의 내용으로 새 버전 생성 (createNewVersion과 동일 흐름)
-  return createNewVersion(targetVersionId, userId);
+  // 대상 버전의 내용으로 새 버전 생성
+  const newGuide = await createNewVersion(targetVersionId, userId);
+
+  // 되돌리기 메타 설정
+  const supabase = await createSupabaseServerClient();
+  const { data: targetVersion } = await supabase
+    .from("exploration_guides")
+    .select("version")
+    .eq("id", targetVersionId)
+    .single();
+
+  await updateGuide(newGuide.id, {
+    sourceType: "revert",
+    versionMessage: `v${targetVersion?.version ?? "?"}로 되돌리기`,
+  });
+
+  return newGuide;
 }
 
 // ============================================================
 // 6. 참조 테이블 조회
 // ============================================================
+
+/** 전체 소분류 목록 (department_classification, sub_name IS NOT NULL) */
+export async function findAllClassifications(): Promise<
+  Array<{ id: number; mid_name: string; sub_name: string }>
+> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("department_classification")
+    .select("id, mid_name, sub_name")
+    .not("sub_name", "is", null)
+    .order("mid_name");
+
+  if (error) throw error;
+  return (data ?? []) as Array<{ id: number; mid_name: string; sub_name: string }>;
+}
 
 /** 전체 과목 목록 (subjects 테이블) */
 export async function findAllSubjects(): Promise<
@@ -615,4 +749,246 @@ export async function findAllSubjects(): Promise<
 
   if (error) throw error;
   return data ?? [];
+}
+
+// ============================================================
+// 7. 키워드 추천 / 자동완성
+// ============================================================
+
+/** 과목명으로 교육과정 단원 목록 조회 */
+export async function findCurriculumUnitsBySubject(
+  subjectName: string,
+): Promise<CurriculumUnit[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("exploration_guide_curriculum_units")
+    .select("*")
+    .eq("subject_name", subjectName)
+    .order("id");
+
+  if (error) throw error;
+  return (data ?? []) as CurriculumUnit[];
+}
+
+/** 가이드 제목 자동완성 (trigram 인덱스 활용) */
+export async function searchGuideTitles(
+  query: string,
+  limit: number = 10,
+): Promise<Array<{ id: string; title: string; guide_type: string }>> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("exploration_guides")
+    .select("id, title, guide_type")
+    .eq("status", "approved")
+    .ilike("title", `%${query}%`)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return (data ?? []) as Array<{
+    id: string;
+    title: string;
+    guide_type: string;
+  }>;
+}
+
+/** 유사 제목 가이드 개수 조회 */
+export async function countSimilarGuides(query: string): Promise<number> {
+  const supabase = await createSupabaseServerClient();
+  const { count, error } = await supabase
+    .from("exploration_guides")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "approved")
+    .ilike("title", `%${query}%`);
+
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/** 학생 진로 정보 간이 조회 */
+export async function fetchStudentCareerInfo(
+  studentId: string,
+): Promise<{
+  target_major: string | null;
+  target_sub_classification_id: number | null;
+} | null> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("students")
+    .select("target_major, target_sub_classification_id")
+    .eq("id", studentId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+/** 분류 기반 인기 가이드 (배정 횟수 집계) */
+export async function findPopularGuidesByClassification(
+  classificationIds: number[],
+  limit: number = 10,
+): Promise<
+  Array<{
+    id: string;
+    title: string;
+    guide_type: string;
+    assignment_count: number;
+  }>
+> {
+  if (classificationIds.length === 0) return [];
+
+  const supabase = await createSupabaseServerClient();
+
+  // Step 1: classification → guide_ids
+  const { data: mappings, error: mapError } = await supabase
+    .from("exploration_guide_classification_mappings")
+    .select("guide_id")
+    .in("classification_id", classificationIds);
+
+  if (mapError) throw mapError;
+  const guideIds = [...new Set((mappings ?? []).map((m) => m.guide_id))];
+  if (guideIds.length === 0) return [];
+
+  // Step 2: guide 메타데이터
+  const { data: guides, error: guideError } = await supabase
+    .from("exploration_guides")
+    .select("id, title, guide_type")
+    .in("id", guideIds)
+    .eq("status", "approved");
+
+  if (guideError) throw guideError;
+  if (!guides || guides.length === 0) return [];
+
+  // Step 3: 배정 횟수 집계
+  const approvedIds = guides.map((g) => g.id);
+  const { data: assignments, error: assignError } = await supabase
+    .from("exploration_guide_assignments")
+    .select("guide_id")
+    .in("guide_id", approvedIds);
+
+  if (assignError) throw assignError;
+
+  const countMap = new Map<string, number>();
+  for (const a of assignments ?? []) {
+    countMap.set(a.guide_id, (countMap.get(a.guide_id) ?? 0) + 1);
+  }
+
+  return guides
+    .map((g) => ({
+      id: g.id,
+      title: g.title,
+      guide_type: g.guide_type ?? "topic_exploration",
+      assignment_count: countMap.get(g.id) ?? 0,
+    }))
+    .sort((a, b) => b.assignment_count - a.assignment_count)
+    .slice(0, limit);
+}
+
+// ============================================================
+// 8. AI 추천 주제 축적 저장소
+// ============================================================
+
+/** 조건으로 축적된 주제 조회 (인기순) */
+export async function findSuggestedTopics(filter: {
+  guideType?: string;
+  subjectName?: string;
+  careerField?: string;
+  curriculumYear?: number;
+  targetMajor?: string;
+  limit?: number;
+}): Promise<SuggestedTopic[]> {
+  const supabase = await createSupabaseServerClient();
+  let query = supabase
+    .from("suggested_topics")
+    .select("*")
+    .order("used_count", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(filter.limit ?? 20);
+
+  if (filter.guideType) {
+    query = query.eq("guide_type", filter.guideType);
+  }
+  if (filter.subjectName) {
+    query = query.eq("subject_name", filter.subjectName);
+  }
+  if (filter.careerField) {
+    query = query.eq("career_field", filter.careerField);
+  }
+  if (filter.curriculumYear) {
+    query = query.eq("curriculum_year", filter.curriculumYear);
+  }
+  if (filter.targetMajor) {
+    query = query.eq("target_major", filter.targetMajor);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []) as SuggestedTopic[];
+}
+
+/** AI 생성 결과 벌크 저장 (중복 무시, RLS 우회) */
+export async function saveSuggestedTopics(
+  topics: Array<{
+    tenantId: string | null;
+    guideType: string;
+    subjectName?: string;
+    careerField?: string;
+    curriculumYear?: number;
+    targetMajor?: string;
+    title: string;
+    reason?: string;
+    relatedSubjects?: string[];
+    aiModelVersion?: string;
+    createdBy?: string;
+  }>,
+): Promise<number> {
+  if (topics.length === 0) return 0;
+
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) return 0;
+  const rows = topics.map((t) => ({
+    tenant_id: t.tenantId,
+    guide_type: t.guideType,
+    subject_name: t.subjectName ?? null,
+    career_field: t.careerField ?? null,
+    curriculum_year: t.curriculumYear ?? null,
+    target_major: t.targetMajor ?? null,
+    title: t.title,
+    reason: t.reason ?? null,
+    related_subjects: t.relatedSubjects ?? [],
+    ai_model_version: t.aiModelVersion ?? null,
+    created_by: t.createdBy ?? null,
+  }));
+
+  // 개별 INSERT (중복 시 skip — UNIQUE 제약으로 보호)
+  let savedCount = 0;
+  for (const row of rows) {
+    const { error: insertErr } = await supabase
+      .from("suggested_topics")
+      .insert(row);
+    if (!insertErr) savedCount++;
+  }
+  return savedCount;
+}
+
+/** 사용 횟수 증가 (+1, RLS 우회) */
+export async function incrementTopicUsedCount(
+  topicId: string,
+): Promise<void> {
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) return;
+
+  const sb = supabase;
+  const { data } = await sb
+    .from("suggested_topics")
+    .select("used_count")
+    .eq("id", topicId)
+    .single();
+
+  if (data) {
+    await sb
+      .from("suggested_topics")
+      .update({ used_count: (data.used_count ?? 0) + 1 })
+      .eq("id", topicId);
+  }
 }

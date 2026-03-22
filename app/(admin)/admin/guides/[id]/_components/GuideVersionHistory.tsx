@@ -2,11 +2,33 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { History, RotateCcw, Loader2, Crown } from "lucide-react";
+import Link from "next/link";
+import { History, RotateCcw, Loader2, Crown, ExternalLink, Sparkles, Pencil, RotateCw, Upload, GitBranch } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { getVersionHistoryAction } from "@/lib/domains/guide/actions/crud";
 import { GUIDE_STATUS_LABELS } from "@/lib/domains/guide/types";
 import type { GuideVersionItem } from "@/lib/domains/guide/types";
+
+function getSourceIcon(sourceType: string) {
+  switch (sourceType) {
+    case "ai_keyword":
+    case "ai_pdf_extract":
+    case "ai_url_extract":
+      return <Sparkles className="w-3.5 h-3.5 text-primary-500" aria-label="AI 생성" />;
+    case "ai_improve":
+      return <Sparkles className="w-3.5 h-3.5 text-success-500" aria-label="AI 리뷰 개선" />;
+    case "ai_clone_variant":
+      return <GitBranch className="w-3.5 h-3.5 text-blue-500" aria-label="클론 변형" />;
+    case "manual_edit":
+      return <Pencil className="w-3.5 h-3.5 text-secondary-500" aria-label="수동 편집" />;
+    case "revert":
+      return <RotateCw className="w-3.5 h-3.5 text-warning-500" aria-label="되돌리기" />;
+    case "imported":
+      return <Upload className="w-3.5 h-3.5 text-secondary-400" aria-label="Import" />;
+    default:
+      return <History className="w-3.5 h-3.5 text-secondary-400" />;
+  }
+}
 
 interface GuideVersionHistoryProps {
   guideId: string;
@@ -75,6 +97,7 @@ export function GuideVersionHistory({
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
+                      {getSourceIcon(v.source_type)}
                       <span className="font-medium">v{v.version}</span>
                       {v.is_latest && (
                         <Crown className="w-3.5 h-3.5 text-primary-500" />
@@ -92,7 +115,12 @@ export function GuideVersionHistory({
                         {GUIDE_STATUS_LABELS[v.status]}
                       </span>
                     </div>
-                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                    {v.version_message && (
+                      <p className="text-xs text-[var(--text-primary)] mt-0.5 truncate">
+                        {v.version_message}
+                      </p>
+                    )}
+                    <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">
                       {new Date(v.created_at).toLocaleDateString("ko-KR", {
                         year: "numeric",
                         month: "short",
@@ -100,20 +128,32 @@ export function GuideVersionHistory({
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
+                      {v.quality_score != null && ` · ${v.quality_score}점`}
                     </p>
                   </div>
 
-                  {!v.is_latest && (
-                    <button
-                      type="button"
-                      onClick={() => onRevert(v.id, v.version)}
-                      disabled={reverting}
-                      className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-secondary-200 dark:border-secondary-600 text-[var(--text-secondary)] hover:bg-secondary-100 dark:hover:bg-secondary-700 transition-colors disabled:opacity-50"
-                    >
-                      <RotateCcw className="w-3 h-3" />
-                      되돌리기
-                    </button>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    {!v.is_latest && (
+                      <Link
+                        href={`/admin/guides/${v.id}`}
+                        className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-secondary-200 dark:border-secondary-600 text-[var(--text-secondary)] hover:bg-secondary-100 dark:hover:bg-secondary-700 transition-colors"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        보기
+                      </Link>
+                    )}
+                    {!v.is_latest && (
+                      <button
+                        type="button"
+                        onClick={() => onRevert(v.id, v.version)}
+                        disabled={reverting}
+                        className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-secondary-200 dark:border-secondary-600 text-[var(--text-secondary)] hover:bg-secondary-100 dark:hover:bg-secondary-700 transition-colors disabled:opacity-50"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        되돌리기
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

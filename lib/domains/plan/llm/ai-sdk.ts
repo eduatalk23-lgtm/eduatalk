@@ -42,8 +42,8 @@ import { logActionDebug, logActionWarn } from "@/lib/utils/serverActionLogger";
 // ============================================
 
 const MODEL_ID_MAP: Record<ModelTier, string> = {
-  fast: "gemini-2.0-flash",
-  standard: "gemini-2.0-flash",
+  fast: "gemini-2.5-flash",
+  standard: "gemini-2.5-flash",
   advanced: "gemini-2.5-pro",
 };
 
@@ -307,6 +307,7 @@ export async function generateObjectWithRateLimit<T>(
       const result = await geminiRateLimiter.execute(async () => {
         return generateObject({
           model: google(modelId),
+          mode: "json",
           system: options.system,
           messages: options.messages.map((m) => ({
             role: m.role,
@@ -315,6 +316,9 @@ export async function generateObjectWithRateLimit<T>(
           schema: options.schema,
           maxOutputTokens: maxTokens,
           temperature,
+          providerOptions: {
+            google: { thinkingConfig: { thinkingBudget: 0 } },
+          },
         });
       });
 

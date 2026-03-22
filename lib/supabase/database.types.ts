@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.4"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       admin_users: {
@@ -592,6 +567,134 @@ export type Database = {
           },
         ]
       }
+      bypass_major_candidates: {
+        Row: {
+          candidate_department_id: string
+          competency_fit_score: number | null
+          composite_score: number | null
+          consultant_notes: string | null
+          created_at: string
+          curriculum_similarity_score: number | null
+          id: string
+          placement_grade: string | null
+          rationale: string | null
+          school_year: number
+          source: string
+          status: string
+          student_id: string
+          target_department_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          candidate_department_id: string
+          competency_fit_score?: number | null
+          composite_score?: number | null
+          consultant_notes?: string | null
+          created_at?: string
+          curriculum_similarity_score?: number | null
+          id?: string
+          placement_grade?: string | null
+          rationale?: string | null
+          school_year: number
+          source?: string
+          status?: string
+          student_id: string
+          target_department_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          candidate_department_id?: string
+          competency_fit_score?: number | null
+          composite_score?: number | null
+          consultant_notes?: string | null
+          created_at?: string
+          curriculum_similarity_score?: number | null
+          id?: string
+          placement_grade?: string | null
+          rationale?: string | null
+          school_year?: number
+          source?: string
+          status?: string
+          student_id?: string
+          target_department_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bypass_major_candidates_candidate_department_id_fkey"
+            columns: ["candidate_department_id"]
+            isOneToOne: false
+            referencedRelation: "university_departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bypass_major_candidates_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bypass_major_candidates_target_department_id_fkey"
+            columns: ["target_department_id"]
+            isOneToOne: false
+            referencedRelation: "university_departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bypass_major_candidates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bypass_major_pairs: {
+        Row: {
+          bypass_department_id: string | null
+          bypass_department_name: string
+          created_at: string
+          department_id: string
+          id: string
+          legacy_management_id: number | null
+        }
+        Insert: {
+          bypass_department_id?: string | null
+          bypass_department_name: string
+          created_at?: string
+          department_id: string
+          id?: string
+          legacy_management_id?: number | null
+        }
+        Update: {
+          bypass_department_id?: string | null
+          bypass_department_name?: string
+          created_at?: string
+          department_id?: string
+          id?: string
+          legacy_management_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bypass_major_pairs_bypass_department_id_fkey"
+            columns: ["bypass_department_id"]
+            isOneToOne: false
+            referencedRelation: "university_departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bypass_major_pairs_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "university_departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_events: {
         Row: {
           calendar_id: string
@@ -818,6 +921,8 @@ export type Database = {
           is_checklist: boolean
           memo_date: string | null
           pinned: boolean
+          record_area_id: string | null
+          record_area_type: string | null
           student_id: string
           tenant_id: string
           title: string | null
@@ -835,6 +940,8 @@ export type Database = {
           is_checklist?: boolean
           memo_date?: string | null
           pinned?: boolean
+          record_area_id?: string | null
+          record_area_type?: string | null
           student_id: string
           tenant_id: string
           title?: string | null
@@ -852,6 +959,8 @@ export type Database = {
           is_checklist?: boolean
           memo_date?: string | null
           pinned?: boolean
+          record_area_id?: string | null
+          record_area_type?: string | null
           student_id?: string
           tenant_id?: string
           title?: string | null
@@ -2598,6 +2707,80 @@ export type Database = {
           },
         ]
       }
+      department_classification: {
+        Row: {
+          created_at: string
+          id: number
+          major_code: string
+          major_name: string
+          mid_code: string | null
+          mid_name: string | null
+          sub_code: string | null
+          sub_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          major_code: string
+          major_name: string
+          mid_code?: string | null
+          mid_name?: string | null
+          sub_code?: string | null
+          sub_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          major_code?: string
+          major_name?: string
+          mid_code?: string | null
+          mid_name?: string | null
+          sub_code?: string | null
+          sub_name?: string | null
+        }
+        Relationships: []
+      }
+      department_curriculum: {
+        Row: {
+          course_name: string
+          course_type: string | null
+          created_at: string
+          department_id: string
+          id: string
+          legacy_id: number | null
+          notes: string | null
+          semester: string | null
+        }
+        Insert: {
+          course_name: string
+          course_type?: string | null
+          created_at?: string
+          department_id: string
+          id?: string
+          legacy_id?: number | null
+          notes?: string | null
+          semester?: string | null
+        }
+        Update: {
+          course_name?: string
+          course_type?: string | null
+          created_at?: string
+          department_id?: string
+          id?: string
+          legacy_id?: number | null
+          notes?: string | null
+          semester?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "department_curriculum_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "university_departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       difficulty_levels: {
         Row: {
           content_type: string
@@ -2852,6 +3035,500 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: true
             referencedRelation: "calendar_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exploration_guide_assignments: {
+        Row: {
+          assigned_by: string | null
+          completed_at: string | null
+          created_at: string
+          grade: number
+          guide_id: string
+          id: string
+          linked_record_id: string | null
+          linked_record_type: string | null
+          notes: string | null
+          school_name: string | null
+          school_year: number
+          status: string
+          storyline_id: string | null
+          student_id: string
+          student_notes: string | null
+          submitted_at: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          completed_at?: string | null
+          created_at?: string
+          grade: number
+          guide_id: string
+          id?: string
+          linked_record_id?: string | null
+          linked_record_type?: string | null
+          notes?: string | null
+          school_name?: string | null
+          school_year: number
+          status?: string
+          storyline_id?: string | null
+          student_id: string
+          student_notes?: string | null
+          submitted_at?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_by?: string | null
+          completed_at?: string | null
+          created_at?: string
+          grade?: number
+          guide_id?: string
+          id?: string
+          linked_record_id?: string | null
+          linked_record_type?: string | null
+          notes?: string | null
+          school_name?: string | null
+          school_year?: number
+          status?: string
+          storyline_id?: string | null
+          student_id?: string
+          student_notes?: string | null
+          submitted_at?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exploration_guide_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exploration_guide_assignments_guide_id_fkey"
+            columns: ["guide_id"]
+            isOneToOne: false
+            referencedRelation: "exploration_guides"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exploration_guide_assignments_storyline_id_fkey"
+            columns: ["storyline_id"]
+            isOneToOne: false
+            referencedRelation: "student_record_storylines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exploration_guide_assignments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exploration_guide_assignments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exploration_guide_career_fields: {
+        Row: {
+          code: string
+          created_at: string
+          id: number
+          name_kor: string
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: never
+          name_kor: string
+          sort_order?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: never
+          name_kor?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      exploration_guide_career_mappings: {
+        Row: {
+          career_field_id: number
+          guide_id: string
+        }
+        Insert: {
+          career_field_id: number
+          guide_id: string
+        }
+        Update: {
+          career_field_id?: number
+          guide_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exploration_guide_career_mappings_career_field_id_fkey"
+            columns: ["career_field_id"]
+            isOneToOne: false
+            referencedRelation: "exploration_guide_career_fields"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exploration_guide_career_mappings_guide_id_fkey"
+            columns: ["guide_id"]
+            isOneToOne: false
+            referencedRelation: "exploration_guides"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exploration_guide_classification_mappings: {
+        Row: {
+          classification_id: number
+          created_at: string
+          guide_id: string
+          id: number
+        }
+        Insert: {
+          classification_id: number
+          created_at?: string
+          guide_id: string
+          id?: number
+        }
+        Update: {
+          classification_id?: number
+          created_at?: string
+          guide_id?: string
+          id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exploration_guide_classification_mapping_classification_id_fkey"
+            columns: ["classification_id"]
+            isOneToOne: false
+            referencedRelation: "department_classification"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exploration_guide_classification_mappings_guide_id_fkey"
+            columns: ["guide_id"]
+            isOneToOne: false
+            referencedRelation: "exploration_guides"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exploration_guide_content: {
+        Row: {
+          book_description: string | null
+          content_sections: Json
+          created_at: string
+          embedding: string | null
+          follow_up: string | null
+          guide_id: string
+          guide_url: string | null
+          image_paths: string[]
+          impression: string | null
+          motivation: string | null
+          raw_source: Json | null
+          reflection: string | null
+          related_books: string[]
+          related_papers: Json
+          setek_examples: string[]
+          summary: string | null
+          theory_sections: Json
+          updated_at: string
+        }
+        Insert: {
+          book_description?: string | null
+          content_sections?: Json
+          created_at?: string
+          embedding?: string | null
+          follow_up?: string | null
+          guide_id: string
+          guide_url?: string | null
+          image_paths?: string[]
+          impression?: string | null
+          motivation?: string | null
+          raw_source?: Json | null
+          reflection?: string | null
+          related_books?: string[]
+          related_papers?: Json
+          setek_examples?: string[]
+          summary?: string | null
+          theory_sections?: Json
+          updated_at?: string
+        }
+        Update: {
+          book_description?: string | null
+          content_sections?: Json
+          created_at?: string
+          embedding?: string | null
+          follow_up?: string | null
+          guide_id?: string
+          guide_url?: string | null
+          image_paths?: string[]
+          impression?: string | null
+          motivation?: string | null
+          raw_source?: Json | null
+          reflection?: string | null
+          related_books?: string[]
+          related_papers?: Json
+          setek_examples?: string[]
+          summary?: string | null
+          theory_sections?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exploration_guide_content_guide_id_fkey"
+            columns: ["guide_id"]
+            isOneToOne: true
+            referencedRelation: "exploration_guides"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exploration_guide_curriculum_units: {
+        Row: {
+          created_at: string
+          curriculum_year: string
+          id: number
+          learning_elements: string | null
+          parent_unit_id: number | null
+          sort_order: number
+          subject_area: string
+          subject_name: string
+          unit_code: string | null
+          unit_name: string
+          unit_type: string
+        }
+        Insert: {
+          created_at?: string
+          curriculum_year: string
+          id?: never
+          learning_elements?: string | null
+          parent_unit_id?: number | null
+          sort_order?: number
+          subject_area: string
+          subject_name: string
+          unit_code?: string | null
+          unit_name: string
+          unit_type: string
+        }
+        Update: {
+          created_at?: string
+          curriculum_year?: string
+          id?: never
+          learning_elements?: string | null
+          parent_unit_id?: number | null
+          sort_order?: number
+          subject_area?: string
+          subject_name?: string
+          unit_code?: string | null
+          unit_name?: string
+          unit_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exploration_guide_curriculum_units_parent_unit_id_fkey"
+            columns: ["parent_unit_id"]
+            isOneToOne: false
+            referencedRelation: "exploration_guide_curriculum_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exploration_guide_subject_mappings: {
+        Row: {
+          curriculum_revision_id: string | null
+          guide_id: string
+          subject_id: string
+        }
+        Insert: {
+          curriculum_revision_id?: string | null
+          guide_id: string
+          subject_id: string
+        }
+        Update: {
+          curriculum_revision_id?: string | null
+          guide_id?: string
+          subject_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exploration_guide_subject_mappings_curriculum_revision_id_fkey"
+            columns: ["curriculum_revision_id"]
+            isOneToOne: false
+            referencedRelation: "curriculum_revisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exploration_guide_subject_mappings_guide_id_fkey"
+            columns: ["guide_id"]
+            isOneToOne: false
+            referencedRelation: "exploration_guides"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exploration_guide_subject_mappings_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exploration_guides: {
+        Row: {
+          ai_model_version: string | null
+          ai_prompt_version: string | null
+          book_author: string | null
+          book_publisher: string | null
+          book_title: string | null
+          book_year: number | null
+          content_format: string
+          created_at: string
+          curriculum_year: string | null
+          guide_type: string
+          id: string
+          is_latest: boolean
+          legacy_id: number | null
+          original_guide_id: string | null
+          parent_guide_id: string | null
+          parent_version_id: string | null
+          quality_score: number | null
+          quality_tier: string | null
+          registered_at: string | null
+          registered_by: string | null
+          review_result: Json | null
+          source_reference: string | null
+          source_type: string
+          status: string
+          subject_area: string | null
+          subject_select: string | null
+          tenant_id: string | null
+          title: string
+          unit_major: string | null
+          unit_minor: string | null
+          updated_at: string
+          version: number
+          version_message: string | null
+        }
+        Insert: {
+          ai_model_version?: string | null
+          ai_prompt_version?: string | null
+          book_author?: string | null
+          book_publisher?: string | null
+          book_title?: string | null
+          book_year?: number | null
+          content_format?: string
+          created_at?: string
+          curriculum_year?: string | null
+          guide_type: string
+          id?: string
+          is_latest?: boolean
+          legacy_id?: number | null
+          original_guide_id?: string | null
+          parent_guide_id?: string | null
+          parent_version_id?: string | null
+          quality_score?: number | null
+          quality_tier?: string | null
+          registered_at?: string | null
+          registered_by?: string | null
+          review_result?: Json | null
+          source_reference?: string | null
+          source_type?: string
+          status?: string
+          subject_area?: string | null
+          subject_select?: string | null
+          tenant_id?: string | null
+          title: string
+          unit_major?: string | null
+          unit_minor?: string | null
+          updated_at?: string
+          version?: number
+          version_message?: string | null
+        }
+        Update: {
+          ai_model_version?: string | null
+          ai_prompt_version?: string | null
+          book_author?: string | null
+          book_publisher?: string | null
+          book_title?: string | null
+          book_year?: number | null
+          content_format?: string
+          created_at?: string
+          curriculum_year?: string | null
+          guide_type?: string
+          id?: string
+          is_latest?: boolean
+          legacy_id?: number | null
+          original_guide_id?: string | null
+          parent_guide_id?: string | null
+          parent_version_id?: string | null
+          quality_score?: number | null
+          quality_tier?: string | null
+          registered_at?: string | null
+          registered_by?: string | null
+          review_result?: Json | null
+          source_reference?: string | null
+          source_type?: string
+          status?: string
+          subject_area?: string | null
+          subject_select?: string | null
+          tenant_id?: string | null
+          title?: string
+          unit_major?: string | null
+          unit_minor?: string | null
+          updated_at?: string
+          version?: number
+          version_message?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exploration_guides_original_guide_id_fkey"
+            columns: ["original_guide_id"]
+            isOneToOne: false
+            referencedRelation: "exploration_guides"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exploration_guides_parent_guide_id_fkey"
+            columns: ["parent_guide_id"]
+            isOneToOne: false
+            referencedRelation: "exploration_guides"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exploration_guides_parent_version_id_fkey"
+            columns: ["parent_version_id"]
+            isOneToOne: false
+            referencedRelation: "exploration_guides"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exploration_guides_registered_by_fkey"
+            columns: ["registered_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exploration_guides_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -9005,6 +9682,85 @@ export type Database = {
         }
         Relationships: []
       }
+      student_record_activity_summaries: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          created_by: string | null
+          edited_text: string | null
+          id: string
+          model_tier: string
+          prompt_version: string
+          school_year: number
+          status: string
+          student_id: string
+          summary_sections: Json
+          summary_text: string
+          summary_title: string
+          target_grades: number[]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          created_by?: string | null
+          edited_text?: string | null
+          id?: string
+          model_tier?: string
+          prompt_version?: string
+          school_year: number
+          status?: string
+          student_id: string
+          summary_sections?: Json
+          summary_text: string
+          summary_title: string
+          target_grades: number[]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          created_by?: string | null
+          edited_text?: string | null
+          id?: string
+          model_tier?: string
+          prompt_version?: string
+          school_year?: number
+          status?: string
+          student_id?: string
+          summary_sections?: Json
+          summary_text?: string
+          summary_title?: string
+          target_grades?: number[]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_record_activity_summaries_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_activity_summaries_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_activity_summaries_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_record_activity_tags: {
         Row: {
           competency_item: string
@@ -9055,6 +9811,73 @@ export type Database = {
           },
           {
             foreignKeyName: "student_record_activity_tags_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_record_analysis_pipelines: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          error_details: Json | null
+          id: string
+          input_snapshot: Json | null
+          started_at: string | null
+          status: string
+          student_id: string
+          task_previews: Json | null
+          tasks: Json
+          tenant_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          error_details?: Json | null
+          id?: string
+          input_snapshot?: Json | null
+          started_at?: string | null
+          status?: string
+          student_id: string
+          task_previews?: Json | null
+          tasks?: Json
+          tenant_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          error_details?: Json | null
+          id?: string
+          input_snapshot?: Json | null
+          started_at?: string | null
+          status?: string
+          student_id?: string
+          task_previews?: Json | null
+          tasks?: Json
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_record_analysis_pipelines_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_analysis_pipelines_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_analysis_pipelines_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -11022,6 +11845,75 @@ export type Database = {
           },
         ]
       }
+      suggested_topics: {
+        Row: {
+          ai_model_version: string | null
+          career_field: string | null
+          created_at: string
+          created_by: string | null
+          curriculum_year: number | null
+          guide_created_count: number
+          guide_type: string
+          id: string
+          reason: string | null
+          related_subjects: string[] | null
+          subject_name: string | null
+          target_major: string | null
+          tenant_id: string | null
+          title: string
+          used_count: number
+        }
+        Insert: {
+          ai_model_version?: string | null
+          career_field?: string | null
+          created_at?: string
+          created_by?: string | null
+          curriculum_year?: number | null
+          guide_created_count?: number
+          guide_type: string
+          id?: string
+          reason?: string | null
+          related_subjects?: string[] | null
+          subject_name?: string | null
+          target_major?: string | null
+          tenant_id?: string | null
+          title: string
+          used_count?: number
+        }
+        Update: {
+          ai_model_version?: string | null
+          career_field?: string | null
+          created_at?: string
+          created_by?: string | null
+          curriculum_year?: number | null
+          guide_created_count?: number
+          guide_type?: string
+          id?: string
+          reason?: string | null
+          related_subjects?: string[] | null
+          subject_name?: string | null
+          target_major?: string | null
+          tenant_id?: string | null
+          title?: string
+          used_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suggested_topics_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suggested_topics_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       system_settings: {
         Row: {
           created_at: string
@@ -11417,6 +12309,96 @@ export type Database = {
         }
         Relationships: []
       }
+      university_admissions: {
+        Row: {
+          admission_name: string | null
+          admission_results: Json
+          admission_type: string | null
+          career_subjects: string | null
+          change_details: string | null
+          competition_change: string | null
+          competition_rates: Json
+          created_at: string
+          data_year: number
+          department_name: string
+          department_type: string | null
+          dual_application: string | null
+          eligibility: string | null
+          exam_date: string | null
+          grade_weight: string | null
+          id: string
+          min_score_criteria: string | null
+          notes: string | null
+          recruitment_count: string | null
+          region: string | null
+          replacements: Json
+          required_docs: string | null
+          selection_method: string | null
+          subjects_reflected: string | null
+          university_name: string
+          updated_at: string
+          year_change: string | null
+        }
+        Insert: {
+          admission_name?: string | null
+          admission_results?: Json
+          admission_type?: string | null
+          career_subjects?: string | null
+          change_details?: string | null
+          competition_change?: string | null
+          competition_rates?: Json
+          created_at?: string
+          data_year: number
+          department_name: string
+          department_type?: string | null
+          dual_application?: string | null
+          eligibility?: string | null
+          exam_date?: string | null
+          grade_weight?: string | null
+          id?: string
+          min_score_criteria?: string | null
+          notes?: string | null
+          recruitment_count?: string | null
+          region?: string | null
+          replacements?: Json
+          required_docs?: string | null
+          selection_method?: string | null
+          subjects_reflected?: string | null
+          university_name: string
+          updated_at?: string
+          year_change?: string | null
+        }
+        Update: {
+          admission_name?: string | null
+          admission_results?: Json
+          admission_type?: string | null
+          career_subjects?: string | null
+          change_details?: string | null
+          competition_change?: string | null
+          competition_rates?: Json
+          created_at?: string
+          data_year?: number
+          department_name?: string
+          department_type?: string | null
+          dual_application?: string | null
+          eligibility?: string | null
+          exam_date?: string | null
+          grade_weight?: string | null
+          id?: string
+          min_score_criteria?: string | null
+          notes?: string | null
+          recruitment_count?: string | null
+          region?: string | null
+          replacements?: Json
+          required_docs?: string | null
+          selection_method?: string | null
+          subjects_reflected?: string | null
+          university_name?: string
+          updated_at?: string
+          year_change?: string | null
+        }
+        Relationships: []
+      }
       university_campuses: {
         Row: {
           address_chi: string | null
@@ -11472,6 +12454,296 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      university_departments: {
+        Row: {
+          campus: string | null
+          classification_code: string | null
+          college_name: string | null
+          created_at: string
+          department_name: string
+          id: string
+          legacy_id: number
+          major_classification: string | null
+          mid_classification: string | null
+          notes: string | null
+          sub_classification: string | null
+          university_name: string
+          updated_at: string
+        }
+        Insert: {
+          campus?: string | null
+          classification_code?: string | null
+          college_name?: string | null
+          created_at?: string
+          department_name: string
+          id?: string
+          legacy_id: number
+          major_classification?: string | null
+          mid_classification?: string | null
+          notes?: string | null
+          sub_classification?: string | null
+          university_name: string
+          updated_at?: string
+        }
+        Update: {
+          campus?: string | null
+          classification_code?: string | null
+          college_name?: string | null
+          created_at?: string
+          department_name?: string
+          id?: string
+          legacy_id?: number
+          major_classification?: string | null
+          mid_classification?: string | null
+          notes?: string | null
+          sub_classification?: string | null
+          university_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      university_math_requirements: {
+        Row: {
+          admission_name: string | null
+          created_at: string
+          data_year: number
+          department_name: string
+          department_type: string | null
+          group_type: string | null
+          id: string
+          korean_req: string | null
+          math_req: string | null
+          recruitment_count: string | null
+          reflected_areas: string | null
+          science_req: string | null
+          special_notes: string | null
+          university_name: string
+          updated_at: string
+          usage_method: string | null
+        }
+        Insert: {
+          admission_name?: string | null
+          created_at?: string
+          data_year: number
+          department_name: string
+          department_type?: string | null
+          group_type?: string | null
+          id?: string
+          korean_req?: string | null
+          math_req?: string | null
+          recruitment_count?: string | null
+          reflected_areas?: string | null
+          science_req?: string | null
+          special_notes?: string | null
+          university_name: string
+          updated_at?: string
+          usage_method?: string | null
+        }
+        Update: {
+          admission_name?: string | null
+          created_at?: string
+          data_year?: number
+          department_name?: string
+          department_type?: string | null
+          group_type?: string | null
+          id?: string
+          korean_req?: string | null
+          math_req?: string | null
+          recruitment_count?: string | null
+          reflected_areas?: string | null
+          science_req?: string | null
+          special_notes?: string | null
+          university_name?: string
+          updated_at?: string
+          usage_method?: string | null
+        }
+        Relationships: []
+      }
+      university_name_aliases: {
+        Row: {
+          alias_name: string
+          alias_type: string
+          canonical_name: string
+          created_at: string
+          id: number
+          university_id: number | null
+        }
+        Insert: {
+          alias_name: string
+          alias_type?: string
+          canonical_name: string
+          created_at?: string
+          id?: never
+          university_id?: number | null
+        }
+        Update: {
+          alias_name?: string
+          alias_type?: string
+          canonical_name?: string
+          created_at?: string
+          id?: never
+          university_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_una_university"
+            columns: ["university_id"]
+            isOneToOne: false
+            referencedRelation: "universities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      university_percentage_conversions: {
+        Row: {
+          converted_score: number
+          created_at: string
+          data_year: number
+          id: string
+          percentile: number
+          track: string
+          university_name: string
+        }
+        Insert: {
+          converted_score: number
+          created_at?: string
+          data_year: number
+          id?: string
+          percentile: number
+          track: string
+          university_name: string
+        }
+        Update: {
+          converted_score?: number
+          created_at?: string
+          data_year?: number
+          id?: string
+          percentile?: number
+          track?: string
+          university_name?: string
+        }
+        Relationships: []
+      }
+      university_score_configs: {
+        Row: {
+          bonus_rules: Json
+          conversion_type: string
+          created_at: string
+          data_year: number
+          foreign_substitute: string | null
+          history_substitute: string | null
+          id: string
+          inquiry_count: number
+          inquiry_selection: string
+          mandatory_pattern: string | null
+          math_selection: string
+          optional_pattern: string | null
+          scoring_path: string
+          university_name: string
+          updated_at: string
+          weighted_pattern: string | null
+        }
+        Insert: {
+          bonus_rules?: Json
+          conversion_type?: string
+          created_at?: string
+          data_year: number
+          foreign_substitute?: string | null
+          history_substitute?: string | null
+          id?: string
+          inquiry_count?: number
+          inquiry_selection?: string
+          mandatory_pattern?: string | null
+          math_selection?: string
+          optional_pattern?: string | null
+          scoring_path?: string
+          university_name: string
+          updated_at?: string
+          weighted_pattern?: string | null
+        }
+        Update: {
+          bonus_rules?: Json
+          conversion_type?: string
+          created_at?: string
+          data_year?: number
+          foreign_substitute?: string | null
+          history_substitute?: string | null
+          id?: string
+          inquiry_count?: number
+          inquiry_selection?: string
+          mandatory_pattern?: string | null
+          math_selection?: string
+          optional_pattern?: string | null
+          scoring_path?: string
+          university_name?: string
+          updated_at?: string
+          weighted_pattern?: string | null
+        }
+        Relationships: []
+      }
+      university_score_conversions: {
+        Row: {
+          converted_score: number
+          created_at: string
+          data_year: number
+          id: string
+          raw_score: number
+          subject: string
+          university_name: string
+        }
+        Insert: {
+          converted_score: number
+          created_at?: string
+          data_year: number
+          id?: string
+          raw_score: number
+          subject: string
+          university_name: string
+        }
+        Update: {
+          converted_score?: number
+          created_at?: string
+          data_year?: number
+          id?: string
+          raw_score?: number
+          subject?: string
+          university_name?: string
+        }
+        Relationships: []
+      }
+      university_score_restrictions: {
+        Row: {
+          created_at: string
+          data_year: number
+          department_name: string | null
+          description: string | null
+          id: string
+          restriction_type: string
+          rule_config: Json
+          university_name: string
+        }
+        Insert: {
+          created_at?: string
+          data_year: number
+          department_name?: string | null
+          description?: string | null
+          id?: string
+          restriction_type: string
+          rule_config?: Json
+          university_name: string
+        }
+        Update: {
+          created_at?: string
+          data_year?: number
+          department_name?: string | null
+          description?: string | null
+          id?: string
+          restriction_type?: string
+          rule_config?: Json
+          university_name?: string
+        }
+        Relationships: []
       }
       user_consents: {
         Row: {
@@ -12893,6 +14165,10 @@ export type Database = {
         Args: { p_block_set_id: string }
         Returns: boolean
       }
+      rls_check_bypass_candidate_access: {
+        Args: { p_student_id: string; p_tenant_id: string }
+        Returns: boolean
+      }
       rls_check_calendar_admin: {
         Args: { p_calendar_id: string }
         Returns: boolean
@@ -12940,6 +14216,10 @@ export type Database = {
         Args: { p_file_id: string }
         Returns: boolean
       }
+      rls_check_guide_access: {
+        Args: { p_tenant_id: string }
+        Returns: boolean
+      }
       rls_check_is_admin: { Args: never; Returns: boolean }
       rls_check_is_admin_or_consultant: { Args: never; Returns: boolean }
       rls_check_is_superadmin: { Args: never; Returns: boolean }
@@ -12980,6 +14260,46 @@ export type Database = {
         }
         Returns: Json
       }
+      search_guides:
+        | {
+            Args: {
+              career_filter?: number
+              guide_type_filter?: string
+              match_count?: number
+              query_embedding: string
+              similarity_threshold?: number
+              subject_filter?: string
+            }
+            Returns: {
+              book_author: string
+              book_title: string
+              guide_id: string
+              guide_type: string
+              motivation: string
+              score: number
+              title: string
+            }[]
+          }
+        | {
+            Args: {
+              career_filter?: number
+              classification_filter?: number
+              guide_type_filter?: string
+              match_count?: number
+              query_embedding: string
+              similarity_threshold?: number
+              subject_filter?: string
+            }
+            Returns: {
+              book_author: string
+              book_title: string
+              guide_id: string
+              guide_type: string
+              motivation: string
+              score: number
+              title: string
+            }[]
+          }
       search_students_admin: {
         Args: {
           p_class?: string
@@ -13214,9 +14534,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       adjustment_type_enum: ["range", "replace", "full"],
@@ -13231,3 +14548,4 @@ export const Constants = {
     },
   },
 } as const
+

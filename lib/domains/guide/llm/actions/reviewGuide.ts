@@ -72,11 +72,17 @@ export async function reviewGuideAction(
     const tier = scoreToQualityTier(review.overallScore);
     const status = scoreToStatus(review.overallScore);
 
-    // 리뷰 결과 저장
+    // 리뷰 결과 저장 (세부 점수 + 피드백 포함)
     await updateGuide(guideId, {
       status,
       qualityScore: review.overallScore,
       qualityTier: tier,
+      reviewResult: {
+        dimensions: review.dimensions,
+        feedback: review.feedback,
+        strengths: review.strengths,
+        reviewedAt: new Date().toISOString(),
+      },
     });
 
     return createSuccessResponse({

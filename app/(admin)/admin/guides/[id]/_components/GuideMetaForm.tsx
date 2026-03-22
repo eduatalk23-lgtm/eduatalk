@@ -18,6 +18,8 @@ interface GuideMetaFormProps {
   onStatusChange: (v: GuideStatus) => void;
   curriculumYear: string;
   onCurriculumYearChange: (v: string) => void;
+  subjectArea: string;
+  onSubjectAreaChange: (v: string) => void;
   subjectSelect: string;
   onSubjectSelectChange: (v: string) => void;
   unitMajor: string;
@@ -34,6 +36,7 @@ interface GuideMetaFormProps {
   onBookYearChange: (v: number | undefined) => void;
   // 매핑
   allSubjects: Array<{ id: string; name: string }>;
+  groupedSubjects?: Array<{ groupName: string; subjects: Array<{ id: string; name: string }> }>;
   selectedSubjectIds: string[];
   onSubjectIdsChange: (ids: string[]) => void;
   careerFields: CareerField[];
@@ -106,48 +109,94 @@ export function GuideMetaForm(props: GuideMetaFormProps) {
         </div>
       </div>
 
-      {/* 교육과정 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div>
-          <label className={labelClass}>교육과정 연도</label>
-          <input
-            type="text"
-            value={props.curriculumYear}
-            onChange={(e) => props.onCurriculumYearChange(e.target.value)}
-            placeholder="예: 2022"
-            className={inputClass}
-          />
-        </div>
-        <div>
-          <label className={labelClass}>교과 선택</label>
-          <input
-            type="text"
-            value={props.subjectSelect}
-            onChange={(e) => props.onSubjectSelectChange(e.target.value)}
-            placeholder="예: 수학"
-            className={inputClass}
-          />
-        </div>
-        <div>
-          <label className={labelClass}>대단원</label>
-          <input
-            type="text"
-            value={props.unitMajor}
-            onChange={(e) => props.onUnitMajorChange(e.target.value)}
-            className={inputClass}
-          />
-        </div>
-        <div>
-          <label className={labelClass}>소단원</label>
-          <input
-            type="text"
-            value={props.unitMinor}
-            onChange={(e) => props.onUnitMinorChange(e.target.value)}
-            className={inputClass}
-          />
-        </div>
+      {/* 교육과정 체계 */}
+      <div className="rounded-lg bg-secondary-50 dark:bg-secondary-800/30 px-3 py-2.5 space-y-2">
+        <span className="text-xs font-medium text-[var(--text-secondary)]">교육과정 체계</span>
+        {(props.curriculumYear || props.subjectArea || props.subjectSelect || props.unitMajor || props.unitMinor) ? (
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            {props.curriculumYear && (
+              <span className="px-2 py-0.5 rounded font-medium bg-secondary-200 text-secondary-700 dark:bg-secondary-700 dark:text-secondary-300">
+                {props.curriculumYear} 개정
+              </span>
+            )}
+            {props.subjectArea && (
+              <>
+                <span className="text-[var(--text-secondary)]">›</span>
+                <span className="px-2 py-0.5 rounded font-medium bg-secondary-100 text-secondary-600 dark:bg-secondary-800 dark:text-secondary-400">
+                  {props.subjectArea}
+                </span>
+              </>
+            )}
+            {props.subjectSelect && (
+              <>
+                <span className="text-[var(--text-secondary)]">›</span>
+                <span className="px-2 py-0.5 rounded font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                  {props.subjectSelect}
+                </span>
+              </>
+            )}
+            {props.unitMajor && (
+              <>
+                <span className="text-[var(--text-secondary)]">›</span>
+                <span className="px-2 py-0.5 rounded font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                  {props.unitMajor}
+                </span>
+              </>
+            )}
+            {props.unitMinor && (
+              <>
+                <span className="text-[var(--text-secondary)]">›</span>
+                <span className="px-2 py-0.5 rounded font-medium bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                  {props.unitMinor}
+                </span>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-xs text-[var(--text-secondary)]">
+              교육과정 정보가 설정되지 않았습니다
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+              <input
+                type="text"
+                value={props.curriculumYear}
+                onChange={(e) => props.onCurriculumYearChange(e.target.value)}
+                placeholder="교육과정 연도"
+                className={cn(inputClass, "text-xs")}
+              />
+              <input
+                type="text"
+                value={props.subjectArea}
+                onChange={(e) => props.onSubjectAreaChange(e.target.value)}
+                placeholder="교과"
+                className={cn(inputClass, "text-xs")}
+              />
+              <input
+                type="text"
+                value={props.subjectSelect}
+                onChange={(e) => props.onSubjectSelectChange(e.target.value)}
+                placeholder="과목"
+                className={cn(inputClass, "text-xs")}
+              />
+              <input
+                type="text"
+                value={props.unitMajor}
+                onChange={(e) => props.onUnitMajorChange(e.target.value)}
+                placeholder="대단원"
+                className={cn(inputClass, "text-xs")}
+              />
+              <input
+                type="text"
+                value={props.unitMinor}
+                onChange={(e) => props.onUnitMinorChange(e.target.value)}
+                placeholder="소단원"
+                className={cn(inputClass, "text-xs")}
+              />
+            </div>
+          </div>
+        )}
       </div>
-
       {/* 독서 정보 — reading 타입일 때만 */}
       {isReading && (
         <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 p-4 space-y-3">
@@ -199,37 +248,46 @@ export function GuideMetaForm(props: GuideMetaFormProps) {
         </div>
       )}
 
-      {/* 과목 매핑 */}
+      {/* 과목 매핑 (교과별 그룹핑) */}
       <div>
         <label className={labelClass}>과목 매핑</label>
-        <div className="flex flex-wrap gap-1.5 p-2 rounded-lg border border-secondary-200 dark:border-secondary-700 min-h-[40px] bg-secondary-50 dark:bg-secondary-800/30">
-          {props.allSubjects.map((subject) => {
-            const selected = props.selectedSubjectIds.includes(subject.id);
-            return (
-              <button
-                key={subject.id}
-                type="button"
-                onClick={() => {
-                  props.onSubjectIdsChange(
-                    selected
-                      ? props.selectedSubjectIds.filter((id) => id !== subject.id)
-                      : [...props.selectedSubjectIds, subject.id],
+        <div className="rounded-lg border border-secondary-200 dark:border-secondary-700 bg-secondary-50 dark:bg-secondary-800/30 p-2 max-h-60 overflow-y-auto space-y-2">
+          {(props.groupedSubjects ?? [{ groupName: "전체", subjects: props.allSubjects }]).map((group) => (
+            <div key={group.groupName}>
+              <p className="text-[10px] font-semibold text-[var(--text-secondary)] px-1 pb-1">
+                {group.groupName}
+              </p>
+              <div className="flex flex-wrap gap-1">
+                {group.subjects.map((subject) => {
+                  const selected = props.selectedSubjectIds.includes(subject.id);
+                  return (
+                    <button
+                      key={subject.id}
+                      type="button"
+                      onClick={() => {
+                        props.onSubjectIdsChange(
+                          selected
+                            ? props.selectedSubjectIds.filter((id) => id !== subject.id)
+                            : [...props.selectedSubjectIds, subject.id],
+                        );
+                      }}
+                      className={cn(
+                        "px-2 py-0.5 rounded-full text-xs font-medium transition-colors",
+                        selected
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 ring-1 ring-emerald-300 dark:ring-emerald-600"
+                          : "bg-secondary-100 text-secondary-500 dark:bg-secondary-800 dark:text-secondary-400 hover:bg-secondary-200 dark:hover:bg-secondary-700",
+                      )}
+                    >
+                      {subject.name}
+                    </button>
                   );
-                }}
-                className={cn(
-                  "px-2 py-0.5 rounded-full text-xs font-medium transition-colors",
-                  selected
-                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 ring-1 ring-emerald-300 dark:ring-emerald-600"
-                    : "bg-secondary-100 text-secondary-500 dark:bg-secondary-800 dark:text-secondary-400 hover:bg-secondary-200 dark:hover:bg-secondary-700",
-                )}
-              >
-                {subject.name}
-              </button>
-            );
-          })}
+                })}
+              </div>
+            </div>
+          ))}
         </div>
         {props.selectedSubjectIds.length > 0 && (
-          <p className="text-xs text-[var(--text-secondary)] mt-1">
+          <p className="text-xs text-[var(--text-secondary)] pt-1">
             {props.selectedSubjectIds.length}개 과목 선택됨
           </p>
         )}

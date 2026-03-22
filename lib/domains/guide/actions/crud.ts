@@ -14,6 +14,9 @@ import type {
   GuideContentInput,
   GuideListFilter,
   GuideVersionItem,
+  CurriculumUnit,
+  GuideType,
+  GuideStatus,
 } from "../types";
 import {
   findGuides,
@@ -24,10 +27,16 @@ import {
   upsertGuideContent,
   replaceSubjectMappings,
   replaceCareerMappings,
+  replaceClassificationMappings,
   findAllSubjects,
   findVersionHistory,
   createNewVersion,
   revertToVersion,
+  findCurriculumUnitsBySubject,
+  searchGuideTitles,
+  countSimilarGuides,
+  fetchStudentCareerInfo,
+  findPopularGuidesByClassification,
 } from "../repository";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { embedSingleGuide } from "../vector/embedding-service";
@@ -76,6 +85,7 @@ export async function createGuideAction(input: {
   content: GuideContentInput;
   subjectIds: string[];
   careerFieldIds: number[];
+  classificationIds?: number[];
 }): Promise<ActionResponse<ExplorationGuide>> {
   try {
     const { userId } = await requireAdminOrConsultant();
@@ -88,7 +98,7 @@ export async function createGuideAction(input: {
       registeredBy: userId,
     });
 
-    // 본문, 과목, 계열 병렬 저장
+    // 본문, 과목, 계열, 소분류 병렬 저장
     await Promise.all([
       upsertGuideContent(guide.id, input.content),
       replaceSubjectMappings(
@@ -96,6 +106,9 @@ export async function createGuideAction(input: {
         input.subjectIds.map((id) => ({ subjectId: id })),
       ),
       replaceCareerMappings(guide.id, input.careerFieldIds),
+      input.classificationIds?.length
+        ? replaceClassificationMappings(guide.id, input.classificationIds)
+        : Promise.resolve(),
     ]);
 
     // 임베딩 생성 (실패해도 저장은 유지)
@@ -121,6 +134,7 @@ export async function updateGuideAction(input: {
   content: GuideContentInput;
   subjectIds: string[];
   careerFieldIds: number[];
+  classificationIds?: number[];
 }): Promise<ActionResponse<ExplorationGuide>> {
   try {
     await requireAdminOrConsultant();
@@ -137,6 +151,9 @@ export async function updateGuideAction(input: {
         input.subjectIds.map((id) => ({ subjectId: id })),
       ),
       replaceCareerMappings(input.guideId, input.careerFieldIds),
+      input.classificationIds != null
+        ? replaceClassificationMappings(input.guideId, input.classificationIds)
+        : Promise.resolve(),
     ]);
 
     // 임베딩 갱신 (실패해도 저장은 유지)
@@ -249,6 +266,12 @@ export async function saveAsNewVersionAction(
     const { userId } = await requireAdminOrConsultant();
     const newGuide = await createNewVersion(guideId, userId);
 
+    // 수동 편집 버전 메타 설정
+    await updateGuide(newGuide.id, {
+      sourceType: "manual_edit",
+      versionMessage: "수동 편집 새 버전",
+    });
+
     // 임베딩 생성
     embedSingleGuide(newGuide.id).catch((err) => {
       logActionError({ ...LOG_CTX, action: "saveAsNewVersion.embedding" }, err, {
@@ -299,5 +322,229 @@ export async function fetchAllSubjectsAction(): Promise<
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "fetchAllSubjects" }, error);
     return createErrorResponse("과목 목록을 불러올 수 없습니다.");
+  }
+}
+
+// ============================================================
+// 키워드 추천 / 자동완성
+// ============================================================
+
+/** 과목별 교육과정 단원 목록 */
+export async function fetchCurriculumUnitsAction(
+  subjectName: string,
+): Promise<ActionResponse<CurriculumUnit[]>> {
+  try {
+    await requireAdminOrConsultant();
+    const data = await findCurriculumUnitsBySubject(subjectName);
+    return createSuccessResponse(data);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "fetchCurriculumUnits" }, error, {
+      subjectName,
+    });
+    return createErrorResponse("교육과정 단원을 불러올 수 없습니다.");
+  }
+}
+
+/** 가이드 제목 자동완성 */
+export async function searchGuideTitlesAction(
+  query: string,
+): Promise<
+  ActionResponse<Array<{ id: string; title: string; guide_type: string }>>
+> {
+  try {
+    await requireAdminOrConsultant();
+    if (query.trim().length < 2) return createSuccessResponse([]);
+    const data = await searchGuideTitles(query, 10);
+    return createSuccessResponse(data);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "searchGuideTitles" }, error, {
+      query,
+    });
+    return createErrorResponse("가이드 검색에 실패했습니다.");
+  }
+}
+
+/** 유사 제목 가이드 개수 */
+export async function countSimilarGuidesAction(
+  query: string,
+): Promise<ActionResponse<number>> {
+  try {
+    await requireAdminOrConsultant();
+    if (query.trim().length < 2) return createSuccessResponse(0);
+    const count = await countSimilarGuides(query);
+    return createSuccessResponse(count);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "countSimilarGuides" }, error, {
+      query,
+    });
+    return createErrorResponse("유사 가이드 확인에 실패했습니다.");
+  }
+}
+
+/** 학생 진로 정보 간이 조회 */
+export async function fetchStudentCareerInfoAction(
+  studentId: string,
+): Promise<
+  ActionResponse<{
+    target_major: string | null;
+    target_sub_classification_id: number | null;
+  }>
+> {
+  try {
+    await requireAdminOrConsultant();
+    const data = await fetchStudentCareerInfo(studentId);
+    if (!data) return createErrorResponse("학생 정보를 찾을 수 없습니다.");
+    return createSuccessResponse(data);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "fetchStudentCareerInfo" }, error, {
+      studentId,
+    });
+    return createErrorResponse("학생 진로 정보를 불러올 수 없습니다.");
+  }
+}
+
+/** 진로 기반 인기 가이드 (target_major → classification → 배정 횟수 정렬) */
+export async function fetchPopularGuidesAction(
+  targetMajor: string,
+  limit?: number,
+): Promise<
+  ActionResponse<
+    Array<{
+      id: string;
+      title: string;
+      guide_type: string;
+      assignment_count: number;
+    }>
+  >
+> {
+  try {
+    await requireAdminOrConsultant();
+
+    // target_major → classification_ids (기존 함수 재사용)
+    const { getSubClassifications } = await import(
+      "@/lib/domains/student/actions/classification"
+    );
+    const classifications = await getSubClassifications(targetMajor);
+    const classificationIds = classifications.map((c) => c.id);
+
+    if (classificationIds.length === 0) return createSuccessResponse([]);
+
+    const data = await findPopularGuidesByClassification(
+      classificationIds,
+      limit,
+    );
+    return createSuccessResponse(data);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "fetchPopularGuides" }, error, {
+      targetMajor,
+    });
+    return createErrorResponse("인기 가이드를 불러올 수 없습니다.");
+  }
+}
+
+// ============================================================
+// 교육과정 인식 과목 + 조건 기반 추천
+// ============================================================
+
+/** 교육과정별 그룹핑된 과목 목록 */
+export async function fetchGroupedSubjectsAction(
+  curriculumRevisionId?: string,
+): Promise<
+  ActionResponse<
+    Array<{ groupName: string; subjects: Array<{ id: string; name: string }> }>
+  >
+> {
+  try {
+    await requireAdminOrConsultant();
+    const { getSubjectGroupsWithSubjects, getActiveCurriculumRevision } =
+      await import("@/lib/data/subjects");
+
+    // 교육과정 미지정 시 active revision 사용
+    let revisionId = curriculumRevisionId;
+    if (!revisionId) {
+      const active = await getActiveCurriculumRevision();
+      revisionId = active?.id;
+    }
+
+    const grouped = await getSubjectGroupsWithSubjects(revisionId);
+    const result = grouped
+      .filter((g) => g.subjects.length > 0)
+      .map((g) => ({
+        groupName: g.name,
+        subjects: g.subjects.map((s) => ({ id: s.id, name: s.name })),
+      }));
+
+    return createSuccessResponse(result);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "fetchGroupedSubjects" }, error);
+    return createErrorResponse("과목 목록을 불러올 수 없습니다.");
+  }
+}
+
+/** 드롭다운 조건 기반 가이드 추천 (교집합 → 점진적 완화 fallback) */
+export async function recommendByFiltersAction(input: {
+  guideType?: string;
+  subjectId?: string;
+  careerFieldId?: number;
+  limit?: number;
+}): Promise<
+  ActionResponse<Array<{ id: string; title: string; guide_type: string }>>
+> {
+  try {
+    await requireAdminOrConsultant();
+
+    const hasFilter = input.guideType || input.subjectId || input.careerFieldId;
+    if (!hasFilter) return createSuccessResponse([]);
+
+
+    const limit = input.limit ?? 10;
+
+    // 필터 조합을 우선순위 순으로 시도 (교집합 → 점진적 완화)
+    const filterCombinations = [
+      // 1. 전체 교집합
+      { guideType: input.guideType, subjectId: input.subjectId, careerFieldId: input.careerFieldId },
+      // 2. 과목 + 유형 (계열 제외)
+      ...(input.subjectId ? [{ guideType: input.guideType, subjectId: input.subjectId, careerFieldId: undefined }] : []),
+      // 3. 계열 + 유형 (과목 제외)
+      ...(input.careerFieldId ? [{ guideType: input.guideType, subjectId: undefined, careerFieldId: input.careerFieldId }] : []),
+      // 4. 과목만
+      ...(input.subjectId ? [{ guideType: undefined, subjectId: input.subjectId, careerFieldId: undefined }] : []),
+      // 5. 계열만
+      ...(input.careerFieldId ? [{ guideType: undefined, subjectId: undefined, careerFieldId: input.careerFieldId }] : []),
+      // 6. 유형만
+      ...(input.guideType ? [{ guideType: input.guideType, subjectId: undefined, careerFieldId: undefined }] : []),
+    ];
+
+    for (const combo of filterCombinations) {
+      if (!combo.guideType && !combo.subjectId && !combo.careerFieldId) continue;
+
+      let result: { data: ExplorationGuide[]; count: number };
+      try {
+        result = await findGuides({
+          guideType: combo.guideType as GuideType | undefined,
+          subjectId: combo.subjectId,
+          careerFieldId: combo.careerFieldId,
+          status: "approved" as GuideStatus,
+          pageSize: limit,
+          page: 1,
+        });
+      } catch {
+        continue;
+      }
+
+      if (result.data && result.data.length > 0) {
+        const titles = result.data.map((g) => ({
+          id: g.id,
+          title: g.title,
+          guide_type: g.guide_type ?? "topic_exploration",
+        }));
+        return createSuccessResponse(titles);
+      }
+    }
+
+    return createSuccessResponse([]);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "recommendByFilters" }, error, input);
+    return createErrorResponse("추천 가이드를 조회할 수 없습니다.");
   }
 }

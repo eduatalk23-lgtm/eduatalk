@@ -12,7 +12,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logActionDebug, logActionError } from "@/lib/utils/serverActionLogger";
 
 const LOG_TAG = "guide.vector-search";
-const EMBEDDING_MODEL = "gemini-embedding-001";
+const EMBEDDING_MODEL = "gemini-embedding-2-preview";
 
 export interface GuideSearchResult {
   guide_id: string;
@@ -29,6 +29,7 @@ export interface SearchGuidesOptions {
   careerFieldId?: number;
   subjectId?: string;
   guideType?: string;
+  classificationId?: number;
   matchCount?: number;
   similarityThreshold?: number;
 }
@@ -45,6 +46,7 @@ export async function searchGuidesByVector(
     careerFieldId,
     subjectId,
     guideType,
+    classificationId,
     matchCount = 10,
     similarityThreshold = 0.3,
   } = options;
@@ -72,6 +74,7 @@ export async function searchGuidesByVector(
     guide_type_filter: guideType ?? null,
     match_count: matchCount,
     similarity_threshold: similarityThreshold,
+    classification_filter: classificationId ?? null,
   });
 
   if (error) {

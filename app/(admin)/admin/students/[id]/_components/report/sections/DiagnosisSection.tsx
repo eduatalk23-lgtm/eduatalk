@@ -19,7 +19,7 @@ export function DiagnosisSection({ diagnosisData }: DiagnosisSectionProps) {
   const hasData = diagnosis || courseAdequacy;
 
   // 추천 전공
-  const recommendedMajors =
+  const recommendedMajors: string[] =
     (consultantDiagnosis?.recommended_majors ?? aiDiagnosis?.recommended_majors) || [];
 
   return (
@@ -141,7 +141,7 @@ export function DiagnosisSection({ diagnosisData }: DiagnosisSectionProps) {
                   <div>
                     <p className="text-xs font-medium text-emerald-700">강점</p>
                     <ul className="list-disc pl-4 pt-1 text-sm text-gray-700">
-                      {diagnosis.strengths.map((s, i) => (
+                      {diagnosis.strengths.map((s: string, i: number) => (
                         <li key={i}>{s}</li>
                       ))}
                     </ul>
@@ -151,7 +151,7 @@ export function DiagnosisSection({ diagnosisData }: DiagnosisSectionProps) {
                   <div>
                     <p className="text-xs font-medium text-red-600">약점</p>
                     <ul className="list-disc pl-4 pt-1 text-sm text-gray-700">
-                      {diagnosis.weaknesses.map((w, i) => (
+                      {diagnosis.weaknesses.map((w: string, i: number) => (
                         <li key={i}>{w}</li>
                       ))}
                     </ul>

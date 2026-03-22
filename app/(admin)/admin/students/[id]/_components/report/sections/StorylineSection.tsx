@@ -81,7 +81,7 @@ export function StorylineSection({
               {/* 키워드 */}
               {sl.keywords.length > 0 && (
                 <div className="flex flex-wrap gap-1 pt-2">
-                  {sl.keywords.map((kw, i) => (
+                  {sl.keywords.map((kw: string, i: number) => (
                     <span
                       key={i}
                       className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600"

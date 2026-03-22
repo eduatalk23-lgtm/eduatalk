@@ -20,12 +20,14 @@ import {
   upsertGuideContent,
   replaceSubjectMappings,
   replaceCareerMappings,
+  replaceClassificationMappings,
   findGuideById,
   findAllSubjects,
   findAllCareerFields,
+  findAllClassifications,
 } from "../../repository";
 import { embedSingleGuide } from "../../vector/embedding-service";
-import { SubjectMatcher, CareerFieldMatcher } from "../../import/subject-matcher";
+import { SubjectMatcher, CareerFieldMatcher, ClassificationMatcher } from "../../import/subject-matcher";
 import {
   generatedGuideSchema,
   type GuideGenerationInput,
@@ -33,7 +35,7 @@ import {
 } from "../types";
 import type { GuideSourceType } from "../../types";
 import {
-  KEYWORD_SYSTEM_PROMPT,
+  buildKeywordSystemPrompt,
   buildKeywordUserPrompt,
 } from "../prompts/keyword-guide";
 import {
@@ -48,7 +50,7 @@ import { extractTextFromPdfUrl } from "../extract/pdf-extractor";
 import { extractTextFromUrl } from "../extract/url-extractor";
 
 const LOG_CTX = { domain: "guide", action: "generateGuide" };
-const AI_MODEL_VERSION = "gemini-2.0-flash";
+const AI_MODEL_VERSION = "gemini-3.1-flash";
 const AI_PROMPT_VERSION = "c3.1-v1";
 
 export async function generateGuideAction(
@@ -83,14 +85,16 @@ export async function generateGuideAction(
       maxTokens: 8192,
     });
 
-    // 과목/계열 이름 → ID 매핑
-    const [allSubjects, allCareerFields] = await Promise.all([
+    // 과목/계열/소분류 이름 → ID 매핑
+    const [allSubjects, allCareerFields, allClassifications] = await Promise.all([
       findAllSubjects(),
       findAllCareerFields(),
+      findAllClassifications(),
     ]);
 
     const subjectMatcher = new SubjectMatcher(allSubjects);
     const careerFieldMatcher = new CareerFieldMatcher(allCareerFields);
+    const classificationMatcher = new ClassificationMatcher(allClassifications);
 
     const matchedSubjectIds = generated.suggestedSubjects
       .map((name) => subjectMatcher.match(name))
@@ -101,6 +105,10 @@ export async function generateGuideAction(
       (name) => careerFieldMatcher.match(name),
     );
 
+    const matchedClassificationIds = classificationMatcher.matchAll(
+      generated.suggestedClassifications ?? [],
+    );
+
     // DB 저장
     const guide = await createGuide({
       guideType: generated.guideType,
@@ -108,6 +116,11 @@ export async function generateGuideAction(
       bookTitle: generated.bookTitle,
       bookAuthor: generated.bookAuthor,
       bookPublisher: generated.bookPublisher,
+      curriculumYear: input.curriculumYear ?? undefined,
+      subjectArea: input.subjectArea ?? undefined,
+      subjectSelect: input.subjectSelect ?? undefined,
+      unitMajor: input.unitMajor ?? undefined,
+      unitMinor: input.unitMinor ?? undefined,
       status: "draft",
       sourceType,
       parentGuideId,
@@ -132,12 +145,24 @@ export async function generateGuideAction(
         bookDescription: generated.bookDescription,
         relatedPapers: generated.relatedPapers,
         setekExamples: generated.setekExamples,
+        // 유형별 섹션 데이터 (신규 구조)
+        contentSections: generated.sections?.map((s) => ({
+          key: s.key,
+          label: s.label,
+          content: s.content,
+          content_format: "html" as const,
+          items: s.items,
+          order: s.order,
+        })),
       }),
       replaceSubjectMappings(
         guide.id,
         matchedSubjectIds.map((id) => ({ subjectId: id })),
       ),
       replaceCareerMappings(guide.id, [...new Set(matchedCareerFieldIds)]),
+      matchedClassificationIds.length > 0
+        ? replaceClassificationMappings(guide.id, matchedClassificationIds)
+        : Promise.resolve(),
     ]);
 
     // 임베딩 (비동기, 실패 무시)
@@ -189,7 +214,7 @@ async function buildPrompt(
       }
       return {
         ok: true,
-        systemPrompt: KEYWORD_SYSTEM_PROMPT,
+        systemPrompt: buildKeywordSystemPrompt(input.keyword.guideType),
         userPrompt: buildKeywordUserPrompt(input.keyword),
         sourceType: "ai_keyword",
       };

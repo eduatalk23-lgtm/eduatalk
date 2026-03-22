@@ -4,9 +4,14 @@ import { useCallback } from "react";
 import { Plus, Trash2, GripVertical } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { RichTextEditor } from "@/components/editor/RichTextEditor";
-import type { TheorySection } from "@/lib/domains/guide/types";
+import type { GuideType, TheorySection } from "@/lib/domains/guide/types";
+import {
+  GUIDE_SECTION_CONFIG,
+  type SectionDefinition,
+} from "@/lib/domains/guide/section-config";
 
 interface GuideContentEditorProps {
+  guideType: GuideType;
   motivation: string;
   onMotivationChange: (v: string) => void;
   theorySections: TheorySection[];
@@ -34,18 +39,47 @@ const sectionLabelClass =
 
 export function GuideContentEditor(props: GuideContentEditorProps) {
   const fmt = props.contentFormat;
+  const sectionConfig = GUIDE_SECTION_CONFIG[props.guideType] ?? GUIDE_SECTION_CONFIG["topic_exploration"];
 
-  const addTheorySection = useCallback(() => {
-    props.onTheorySectionsChange([
-      ...props.theorySections,
-      {
-        order: props.theorySections.length + 1,
-        title: `이론 ${props.theorySections.length + 1}`,
-        content: "",
-        content_format: "html",
-      },
-    ]);
-  }, [props]);
+  // 레거시 필드 매핑: config key → props getter/setter
+  const fieldMap: Record<string, { value: string; onChange: (v: string) => void; placeholder?: string }> = {
+    motivation: { value: props.motivation, onChange: props.onMotivationChange },
+    book_description: { value: props.bookDescription, onChange: props.onBookDescriptionChange },
+    reflection: { value: props.reflection, onChange: props.onReflectionChange },
+    impression: { value: props.impression, onChange: props.onImpressionChange },
+    summary: { value: props.summary, onChange: props.onSummaryChange },
+    follow_up: { value: props.followUp, onChange: props.onFollowUpChange },
+    // 유형별 전용 키 → 레거시 필드 매핑 (하위 호환)
+    // Phase D 완전 리팩토링 시 content_sections 기반으로 전환 예정
+    objective: { value: props.motivation, onChange: props.onMotivationChange },
+    background: { value: props.bookDescription, onChange: props.onBookDescriptionChange },
+    hypothesis: { value: "", onChange: () => {} },  // 신규 키 (차후 content_sections로 전환)
+    materials: { value: "", onChange: () => {} },
+    method: { value: "", onChange: () => {} },
+    results: { value: "", onChange: () => {} },
+    analysis: { value: "", onChange: () => {} },
+    self_assessment: { value: "", onChange: () => {} },
+    curriculum_link: { value: "", onChange: () => {} },
+    overview: { value: props.motivation, onChange: props.onMotivationChange },
+    learning: { value: props.summary, onChange: props.onSummaryChange },
+    deliverables: { value: props.followUp, onChange: props.onFollowUpChange },
+  };
+
+  // 탐구 이론 / 복수 섹션 핸들러
+  const addTheorySection = useCallback(
+    (label: string) => {
+      props.onTheorySectionsChange([
+        ...props.theorySections,
+        {
+          order: props.theorySections.length + 1,
+          title: `${label} ${props.theorySections.length + 1}`,
+          content: "",
+          content_format: "html",
+        },
+      ]);
+    },
+    [props],
+  );
 
   const updateTheorySection = useCallback(
     (index: number, updates: Partial<TheorySection>) => {
@@ -69,6 +103,7 @@ export function GuideContentEditor(props: GuideContentEditorProps) {
     [props],
   );
 
+  // 세특 예시 핸들러
   const addSetekExample = useCallback(() => {
     props.onSetekExamplesChange([...props.setekExamples, ""]);
   }, [props]);
@@ -91,37 +126,46 @@ export function GuideContentEditor(props: GuideContentEditorProps) {
     [props],
   );
 
-  return (
-    <div className="space-y-6">
-      {/* 탐구 동기 */}
-      <ContentSection label="탐구 동기">
+  // Config 기반 섹션 렌더링
+  function renderSection(def: SectionDefinition) {
+    // 복수 섹션 (탐구 이론, 활동 내용 등)
+    if (def.multiple) {
+      return renderMultipleSection(def);
+    }
+
+    // 세특 예시 (text_list)
+    if (def.key === "setek_examples") {
+      return renderSetekExamples(def);
+    }
+
+    // 일반 rich_text 섹션
+    const field = fieldMap[def.key];
+    if (!field) return null;
+
+    return (
+      <ContentSection key={def.key} label={def.label}>
         <RichTextEditor
-          content={props.toHtml(props.motivation, fmt)}
-          onChange={props.onMotivationChange}
-          placeholder="탐구 동기를 입력하세요..."
+          content={props.toHtml(field.value, fmt)}
+          onChange={field.onChange}
+          placeholder={def.placeholder ?? `${def.label}을(를) 입력하세요...`}
           onImageInsert={props.onImageInsert}
           onAiImageInsert={props.onAiImageInsert}
         />
       </ContentSection>
+    );
+  }
 
-      {/* 도서 소개 */}
-      <ContentSection label="도서 소개">
-        <RichTextEditor
-          content={props.toHtml(props.bookDescription, fmt)}
-          onChange={props.onBookDescriptionChange}
-          placeholder="도서 소개를 입력하세요..."
-          onImageInsert={props.onImageInsert}
-          onAiImageInsert={props.onAiImageInsert}
-        />
-      </ContentSection>
-
-      {/* 탐구 이론 섹션들 */}
-      <div className="rounded-xl border border-secondary-200 dark:border-secondary-700 bg-white dark:bg-secondary-900 p-5">
+  function renderMultipleSection(def: SectionDefinition) {
+    return (
+      <div
+        key={def.key}
+        className="rounded-xl border border-secondary-200 dark:border-secondary-700 bg-white dark:bg-secondary-900 p-5"
+      >
         <div className="flex items-center justify-between mb-3">
-          <h3 className={sectionLabelClass}>탐구 이론</h3>
+          <h3 className={sectionLabelClass}>{def.label}</h3>
           <button
             type="button"
-            onClick={addTheorySection}
+            onClick={() => addTheorySection(def.label)}
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-primary-600 bg-primary-50 hover:bg-primary-100 dark:text-primary-400 dark:bg-primary-900/20 dark:hover:bg-primary-900/30 transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -131,7 +175,7 @@ export function GuideContentEditor(props: GuideContentEditorProps) {
 
         {props.theorySections.length === 0 ? (
           <p className="text-sm text-[var(--text-secondary)] py-4 text-center">
-            이론 섹션이 없습니다. &quot;섹션 추가&quot;를 클릭하세요.
+            섹션이 없습니다. &quot;섹션 추가&quot;를 클릭하세요.
           </p>
         ) : (
           <div className="space-y-4">
@@ -161,7 +205,10 @@ export function GuideContentEditor(props: GuideContentEditorProps) {
                   </button>
                 </div>
                 <RichTextEditor
-                  content={props.toHtml(section.content, section.content_format ?? fmt)}
+                  content={props.toHtml(
+                    section.content,
+                    section.content_format ?? fmt,
+                  )}
                   onChange={(html) =>
                     updateTheorySection(index, {
                       content: html,
@@ -175,55 +222,19 @@ export function GuideContentEditor(props: GuideContentEditorProps) {
           </div>
         )}
       </div>
+    );
+  }
 
-      {/* 탐구 고찰 */}
-      <ContentSection label="탐구 고찰">
-        <RichTextEditor
-          content={props.toHtml(props.reflection, fmt)}
-          onChange={props.onReflectionChange}
-          placeholder="탐구 고찰을 입력하세요..."
-          onImageInsert={props.onImageInsert}
-          onAiImageInsert={props.onAiImageInsert}
-        />
-      </ContentSection>
-
-      {/* 느낀점 */}
-      <ContentSection label="느낀점">
-        <RichTextEditor
-          content={props.toHtml(props.impression, fmt)}
-          onChange={props.onImpressionChange}
-          placeholder="느낀점을 입력하세요..."
-          onImageInsert={props.onImageInsert}
-          onAiImageInsert={props.onAiImageInsert}
-        />
-      </ContentSection>
-
-      {/* 탐구 요약 */}
-      <ContentSection label="탐구 요약">
-        <RichTextEditor
-          content={props.toHtml(props.summary, fmt)}
-          onChange={props.onSummaryChange}
-          placeholder="탐구 요약을 입력하세요..."
-          onImageInsert={props.onImageInsert}
-          onAiImageInsert={props.onAiImageInsert}
-        />
-      </ContentSection>
-
-      {/* 후속 탐구 */}
-      <ContentSection label="후속 탐구">
-        <RichTextEditor
-          content={props.toHtml(props.followUp, fmt)}
-          onChange={props.onFollowUpChange}
-          placeholder="후속 탐구를 입력하세요..."
-          onImageInsert={props.onImageInsert}
-          onAiImageInsert={props.onAiImageInsert}
-        />
-      </ContentSection>
-
-      {/* 교과 세특 예시 (컨설턴트 전용) */}
-      <div className="rounded-xl border border-secondary-200 dark:border-secondary-700 bg-white dark:bg-secondary-900 p-5">
+  function renderSetekExamples(def: SectionDefinition) {
+    return (
+      <div
+        key={def.key}
+        className="rounded-xl border border-secondary-200 dark:border-secondary-700 bg-white dark:bg-secondary-900 p-5"
+      >
         <div className="flex items-center justify-between mb-3">
-          <h3 className={sectionLabelClass}>교과 세특 예시 (컨설턴트 전용)</h3>
+          <h3 className={sectionLabelClass}>
+            {def.label} (컨설턴트 전용)
+          </h3>
           <button
             type="button"
             onClick={addSetekExample}
@@ -267,6 +278,14 @@ export function GuideContentEditor(props: GuideContentEditorProps) {
           </div>
         )}
       </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {sectionConfig
+        .sort((a, b) => a.order - b.order)
+        .map((def) => renderSection(def))}
     </div>
   );
 }

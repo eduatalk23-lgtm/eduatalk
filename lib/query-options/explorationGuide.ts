@@ -10,6 +10,13 @@ import {
   listGuidesAction,
   getGuideDetailAction,
   fetchAllSubjectsAction,
+  fetchCurriculumUnitsAction,
+  searchGuideTitlesAction,
+  countSimilarGuidesAction,
+  fetchStudentCareerInfoAction,
+  fetchPopularGuidesAction,
+  fetchGroupedSubjectsAction,
+  recommendByFiltersAction,
 } from "@/lib/domains/guide/actions/crud";
 import type { GuideListFilter } from "@/lib/domains/guide/types";
 
@@ -36,6 +43,25 @@ export const explorationGuideKeys = {
     [...explorationGuideKeys.all, "cmsDetail", guideId] as const,
   allSubjects: () =>
     [...explorationGuideKeys.all, "allSubjects"] as const,
+  autoRecommend: (studentId: string, classificationId?: number | null, subjectName?: string | null) =>
+    [...explorationGuideKeys.all, "autoRecommend", studentId, classificationId, subjectName] as const,
+  // 키워드 추천
+  curriculumUnits: (subjectName: string) =>
+    [...explorationGuideKeys.all, "curriculumUnits", subjectName] as const,
+  titleAutocomplete: (query: string) =>
+    [...explorationGuideKeys.all, "titleAutocomplete", query] as const,
+  similarCount: (query: string) =>
+    [...explorationGuideKeys.all, "similarCount", query] as const,
+  // Phase 2: 학생 진로 기반 인기 가이드
+  studentCareer: (studentId: string) =>
+    [...explorationGuideKeys.all, "studentCareer", studentId] as const,
+  popularGuides: (targetMajor: string) =>
+    [...explorationGuideKeys.all, "popularGuides", targetMajor] as const,
+  // 교육과정 인식 과목 + 조건 추천
+  groupedSubjects: (revisionId?: string) =>
+    [...explorationGuideKeys.all, "groupedSubjects", revisionId] as const,
+  filterRecommend: (filters: { guideType?: string; subjectId?: string; careerFieldId?: number }) =>
+    [...explorationGuideKeys.all, "filterRecommend", filters] as const,
 };
 
 // ============================================
@@ -118,6 +144,80 @@ export function allSubjectsQueryOptions() {
     queryFn: () => fetchAllSubjectsAction(),
     staleTime: Infinity,
     gcTime: 60 * 60_000,
+  });
+}
+
+// ============================================
+// 키워드 추천 Query Options
+// ============================================
+
+export function curriculumUnitsQueryOptions(subjectName: string) {
+  return queryOptions({
+    queryKey: explorationGuideKeys.curriculumUnits(subjectName),
+    queryFn: () => fetchCurriculumUnitsAction(subjectName),
+    staleTime: Infinity,
+    gcTime: 60 * 60_000,
+    enabled: !!subjectName,
+  });
+}
+
+export function titleAutocompleteQueryOptions(query: string) {
+  return queryOptions({
+    queryKey: explorationGuideKeys.titleAutocomplete(query),
+    queryFn: () => searchGuideTitlesAction(query),
+    staleTime: 30_000,
+    enabled: query.trim().length >= 2,
+  });
+}
+
+export function similarGuideCountQueryOptions(query: string) {
+  return queryOptions({
+    queryKey: explorationGuideKeys.similarCount(query),
+    queryFn: () => countSimilarGuidesAction(query),
+    staleTime: 30_000,
+    enabled: query.trim().length >= 2,
+  });
+}
+
+export function studentCareerQueryOptions(studentId: string) {
+  return queryOptions({
+    queryKey: explorationGuideKeys.studentCareer(studentId),
+    queryFn: () => fetchStudentCareerInfoAction(studentId),
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
+    enabled: !!studentId,
+  });
+}
+
+export function popularGuidesQueryOptions(targetMajor: string) {
+  return queryOptions({
+    queryKey: explorationGuideKeys.popularGuides(targetMajor),
+    queryFn: () => fetchPopularGuidesAction(targetMajor),
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
+    enabled: !!targetMajor,
+  });
+}
+
+export function groupedSubjectsQueryOptions(revisionId?: string) {
+  return queryOptions({
+    queryKey: explorationGuideKeys.groupedSubjects(revisionId),
+    queryFn: () => fetchGroupedSubjectsAction(revisionId),
+    staleTime: Infinity,
+    gcTime: 60 * 60_000,
+  });
+}
+
+export function filterRecommendQueryOptions(filters: {
+  guideType?: string;
+  subjectId?: string;
+  careerFieldId?: number;
+}) {
+  return queryOptions({
+    queryKey: explorationGuideKeys.filterRecommend(filters),
+    queryFn: () => recommendByFiltersAction(filters),
+    staleTime: 30_000,
+    enabled: !!(filters.guideType || filters.subjectId || filters.careerFieldId),
   });
 }
 

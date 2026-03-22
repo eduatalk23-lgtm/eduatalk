@@ -1,6 +1,6 @@
 // ============================================
 // 탐구 가이드 임베딩 서비스
-// Phase C: pgvector + gemini-embedding-001
+// Phase C: pgvector + gemini-embedding-2-preview
 // ============================================
 
 import { embed, embedMany } from "ai";
@@ -11,9 +11,9 @@ import { logActionDebug, logActionError, logActionWarn } from "@/lib/utils/serve
 import type { ExplorationGuideContent, TheorySection } from "../types";
 
 const LOG_TAG = "guide.embedding";
-const EMBEDDING_MODEL = "gemini-embedding-001";
+const EMBEDDING_MODEL = "gemini-embedding-2-preview";
 const EMBEDDING_DIMENSIONS = 768;
-const MAX_INPUT_CHARS = 8000; // gemini-embedding-001 토큰 제한 대비 안전 마진
+const MAX_INPUT_CHARS = 8000; // 임베딩 모델 토큰 제한 대비 안전 마진
 
 /** embed/embedMany 공통 provider 옵션 */
 const EMBED_PROVIDER_OPTIONS = {

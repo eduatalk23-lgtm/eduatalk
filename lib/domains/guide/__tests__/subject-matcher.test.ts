@@ -2,8 +2,10 @@ import { describe, it, expect } from "vitest";
 import {
   SubjectMatcher,
   CareerFieldMatcher,
+  ClassificationMatcher,
   type SubjectRecord,
   type CareerFieldRecord,
+  type ClassificationRecord,
 } from "../import/subject-matcher";
 
 const MOCK_SUBJECTS: SubjectRecord[] = [
@@ -113,5 +115,65 @@ describe("CareerFieldMatcher", () => {
   it("중복 제거", () => {
     const ids = matcher.match("의약계열, 의약");
     expect(ids).toEqual([5]);
+  });
+});
+
+// ============================================
+// ClassificationMatcher Tests
+// ============================================
+
+const MOCK_CLASSIFICATIONS: ClassificationRecord[] = [
+  { id: 1, mid_name: "전기ㆍ전자ㆍ컴퓨터", sub_name: "전산학ㆍ컴퓨터공학" },
+  { id: 2, mid_name: "전기ㆍ전자ㆍ컴퓨터", sub_name: "전기ㆍ전자공학" },
+  { id: 3, mid_name: "경영ㆍ경제", sub_name: "경영학" },
+  { id: 4, mid_name: "경영ㆍ경제", sub_name: "경제학" },
+  { id: 5, mid_name: "물리ㆍ과학", sub_name: "물리학" },
+  { id: 6, mid_name: "생물ㆍ화학ㆍ환경", sub_name: "생물학" },
+  { id: 7, mid_name: "생물ㆍ화학ㆍ환경", sub_name: "화학" },
+  { id: 8, mid_name: "수학ㆍ통계", sub_name: "수학" },
+];
+
+describe("ClassificationMatcher", () => {
+  const matcher = new ClassificationMatcher(MOCK_CLASSIFICATIONS);
+
+  it("정규화 정확 매칭 — ㆍ 제거 후 일치", () => {
+    const ids = matcher.match("전산학ㆍ컴퓨터공학");
+    expect(ids).toEqual([1]);
+  });
+
+  it("정규화 정확 매칭 — 가운뎃점 변형(·) 도 매칭", () => {
+    const ids = matcher.match("전산학·컴퓨터공학");
+    expect(ids).toEqual([1]);
+  });
+
+  it("정규화 정확 매칭 — 가운뎃점 없이도 매칭", () => {
+    const ids = matcher.match("전산학컴퓨터공학");
+    expect(ids).toEqual([1]);
+  });
+
+  it("단순 이름 매칭 — 경영학", () => {
+    const ids = matcher.match("경영학");
+    expect(ids).toEqual([3]);
+  });
+
+  it("contains 매칭 — '컴퓨터공학' → 전산학ㆍ컴퓨터공학", () => {
+    const ids = matcher.match("컴퓨터공학");
+    expect(ids).toEqual([1]);
+  });
+
+  it("미매칭 — 존재하지 않는 분류", () => {
+    const ids = matcher.match("우주공학");
+    expect(ids).toEqual([]);
+  });
+
+  it("빈 문자열 → 빈 배열", () => {
+    expect(matcher.match("")).toEqual([]);
+  });
+
+  it("matchAll — 여러 제안 일괄 매칭 + 중복 제거", () => {
+    const ids = matcher.matchAll(["경영학", "경제학", "경영학"]);
+    expect(ids).toContain(3);
+    expect(ids).toContain(4);
+    expect(ids.length).toBe(2); // 중복 제거
   });
 });

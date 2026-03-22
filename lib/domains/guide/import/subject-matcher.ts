@@ -45,16 +45,7 @@ export interface SubjectMatchResult {
   candidates?: Array<{ id: string; name: string; similarity: number }>;
 }
 
-/** 한글 과목명 정규화 (로마숫자, 공백 처리) */
-function normalizeSubjectName(name: string): string {
-  return name
-    .trim()
-    .replace(/\s+/g, "")
-    .replace(/Ⅰ/g, "1")
-    .replace(/Ⅱ/g, "2")
-    .replace(/Ⅲ/g, "3")
-    .replace(/I{1,3}/g, (m) => String(m.length));
-}
+import { normalizeSubjectName } from "@/lib/domains/subject/normalize";
 
 /** 수동 매핑 (Access 과목명 → DB 과목명) */
 const MANUAL_MAPPINGS: Record<string, string> = {
@@ -171,6 +162,70 @@ export interface CareerFieldRecord {
   id: number;
   code: string;
   name_kor: string;
+}
+
+// ============================================
+// 소분류 매칭 (AI suggestedClassifications → department_classifications.id)
+// ============================================
+
+export interface ClassificationRecord {
+  id: number;
+  mid_name: string;
+  sub_name: string;
+}
+
+/** KEDI 소분류명 정규화: 가운뎃점 계열 문자 + 공백 제거 + lowercase */
+function normalizeClassificationName(name: string): string {
+  return name
+    .trim()
+    .replace(/\s+/g, "")
+    .replace(/[ㆍ·‧・]/g, "")
+    .toLowerCase();
+}
+
+export class ClassificationMatcher {
+  private byNormalized: Map<string, ClassificationRecord>;
+  private records: ClassificationRecord[];
+
+  constructor(records: ClassificationRecord[]) {
+    this.records = records;
+    this.byNormalized = new Map();
+    for (const r of records) {
+      this.byNormalized.set(normalizeClassificationName(r.sub_name), r);
+    }
+  }
+
+  /** AI 제안 문자열 배열 → 매칭된 classification ID 배열 (중복 제거) */
+  matchAll(suggestions: string[]): number[] {
+    const ids = new Set<number>();
+    for (const s of suggestions) {
+      for (const id of this.match(s)) {
+        ids.add(id);
+      }
+    }
+    return [...ids];
+  }
+
+  /** 단일 AI 제안 문자열 → 매칭된 classification ID 배열 */
+  match(aiSuggestion: string): number[] {
+    if (!aiSuggestion || !aiSuggestion.trim()) return [];
+
+    const normalized = normalizeClassificationName(aiSuggestion);
+
+    // 1. 정규화 정확 매칭
+    const exact = this.byNormalized.get(normalized);
+    if (exact) return [exact.id];
+
+    // 2. contains 매칭 (sub_name이 suggestion에 포함 or 역방향)
+    const ids: number[] = [];
+    for (const r of this.records) {
+      const rNorm = normalizeClassificationName(r.sub_name);
+      if (rNorm.includes(normalized) || normalized.includes(rNorm)) {
+        ids.push(r.id);
+      }
+    }
+    return [...new Set(ids)];
+  }
 }
 
 export class CareerFieldMatcher {

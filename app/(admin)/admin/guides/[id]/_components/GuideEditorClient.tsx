@@ -4,13 +4,14 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Trash2, Loader2, Eye, EyeOff, CopyPlus } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Loader2, Eye, EyeOff, CopyPlus, Sparkles } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   cmsGuideDetailQueryOptions,
   guideCareerFieldsQueryOptions,
   allSubjectsQueryOptions,
+  groupedSubjectsQueryOptions,
   explorationGuideKeys,
 } from "@/lib/query-options/explorationGuide";
 import {
@@ -41,11 +42,19 @@ import { GuideMetaForm } from "./GuideMetaForm";
 import { GuideContentEditor } from "./GuideContentEditor";
 import { GuidePreview } from "./GuidePreview";
 import { GuideVersionHistory } from "./GuideVersionHistory";
+import { improveGuideAction } from "@/lib/domains/guide/llm/actions/improveGuide";
 
 interface GuideEditorClientProps {
   /** 편집 시 guideId, 생성 시 undefined */
   guideId?: string;
 }
+
+const REVIEW_DIMENSION_LABELS: Record<string, string> = {
+  academicDepth: "학술적 깊이",
+  studentAccessibility: "학생 접근성",
+  structuralCompleteness: "구조적 완성도",
+  practicalRelevance: "실용적 연관성",
+};
 
 export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
   const router = useRouter();
@@ -60,9 +69,11 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
   });
   const { data: careerFieldsRes } = useQuery(guideCareerFieldsQueryOptions());
   const { data: subjectsRes } = useQuery(allSubjectsQueryOptions());
+  const { data: groupedSubjectsRes } = useQuery(groupedSubjectsQueryOptions());
 
   const careerFields = careerFieldsRes?.success ? careerFieldsRes.data ?? [] : [];
   const allSubjects = subjectsRes?.success ? subjectsRes.data ?? [] : [];
+  const groupedSubjects = groupedSubjectsRes?.success ? groupedSubjectsRes.data ?? [] : [];
   const guide = guideRes?.success ? guideRes.data : null;
 
   // 메타 상태
@@ -70,6 +81,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
   const [guideType, setGuideType] = useState<GuideType>("topic_exploration");
   const [status, setStatus] = useState<GuideStatus>("draft");
   const [curriculumYear, setCurriculumYear] = useState("");
+  const [subjectArea, setSubjectArea] = useState("");
   const [subjectSelect, setSubjectSelect] = useState("");
   const [unitMajor, setUnitMajor] = useState("");
   const [unitMinor, setUnitMinor] = useState("");
@@ -94,6 +106,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
 
   // UI 상태
   const [saving, setSaving] = useState(false);
+  const [improving, setImproving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
   // AI 이미지 다이얼로그 상태
@@ -108,6 +121,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
     setGuideType(guide.guide_type);
     setStatus(guide.status);
     setCurriculumYear(guide.curriculum_year ?? "");
+    setSubjectArea(guide.subject_area ?? "");
     setSubjectSelect(guide.subject_select ?? "");
     setUnitMajor(guide.unit_major ?? "");
     setUnitMinor(guide.unit_minor ?? "");
@@ -237,6 +251,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
         title: title.trim(),
         status,
         curriculumYear: curriculumYear || undefined,
+        subjectArea: subjectArea || undefined,
         subjectSelect: subjectSelect || undefined,
         unitMajor: unitMajor || undefined,
         unitMinor: unitMinor || undefined,
@@ -493,6 +508,11 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
           followUp={followUp}
           bookDescription={bookDescription}
           contentFormat={getContentFormat()}
+          curriculumYear={curriculumYear}
+          subjectArea={subjectArea}
+          subjectSelect={subjectSelect}
+          unitMajor={unitMajor}
+          unitMinor={unitMinor}
         />
       ) : (
         <div className="space-y-6">
@@ -506,6 +526,8 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
             onStatusChange={setStatus}
             curriculumYear={curriculumYear}
             onCurriculumYearChange={setCurriculumYear}
+            subjectArea={subjectArea}
+            onSubjectAreaChange={setSubjectArea}
             subjectSelect={subjectSelect}
             onSubjectSelectChange={setSubjectSelect}
             unitMajor={unitMajor}
@@ -521,6 +543,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
             bookYear={bookYear}
             onBookYearChange={setBookYear}
             allSubjects={allSubjects}
+            groupedSubjects={groupedSubjects}
             selectedSubjectIds={selectedSubjectIds}
             onSubjectIdsChange={setSelectedSubjectIds}
             careerFields={careerFields}
@@ -530,6 +553,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
 
           {/* 본문 편집 */}
           <GuideContentEditor
+            guideType={guideType}
             motivation={motivation}
             onMotivationChange={setMotivation}
             theorySections={theorySections}
@@ -551,6 +575,192 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
             onImageInsert={handleImageInsert}
             onAiImageInsert={handleAiImageInsert}
           />
+        </div>
+      )}
+
+      {/* 이전 버전 안내 (is_latest=false) */}
+      {!isNew && guide && !guide.is_latest && (
+        <div className="rounded-xl border border-warning-200 dark:border-warning-700 bg-warning-50 dark:bg-warning-900/10 p-4 flex items-center gap-3">
+          <span className="text-warning-600 dark:text-warning-400 text-sm">
+            이 버전(v{guide.version})은 최신 버전이 아닙니다.
+          </span>
+          {guide.original_guide_id && (
+            <Link
+              href={`/admin/guides/${guide.original_guide_id}`}
+              className="text-xs font-medium text-primary-600 hover:underline"
+            >
+              최신 버전으로 이동 →
+            </Link>
+          )}
+        </div>
+      )}
+
+      {/* AI 리뷰 실행 (리뷰 결과 없을 때 + 최신 버전만) */}
+      {!isNew && guide && !guide.review_result && guide.is_latest && (
+        <div className="rounded-xl border border-secondary-200 dark:border-secondary-700 bg-white dark:bg-secondary-900 p-5">
+          <button
+            type="button"
+            onClick={async () => {
+              if (!guideId) return;
+              setImproving(true);
+              try {
+                const { reviewGuideAction } = await import(
+                  "@/lib/domains/guide/llm/actions/reviewGuide"
+                );
+                const result = await reviewGuideAction(guideId);
+                if (result.success) {
+                  toast.showSuccess(`AI 리뷰 완료: ${result.data?.score}점`);
+                  queryClient.invalidateQueries({
+                    queryKey: explorationGuideKeys.cmsDetail(guideId),
+                  });
+                } else {
+                  toast.showError(!result.success ? result.error ?? "리뷰 실패" : "리뷰 실패");
+                }
+              } catch {
+                toast.showError("AI 리뷰 중 오류가 발생했습니다.");
+              } finally {
+                setImproving(false);
+              }
+            }}
+            disabled={improving}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border border-primary-300 dark:border-primary-600 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors disabled:opacity-50"
+          >
+            {improving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                AI 리뷰 중... (10~20초)
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4" />
+                AI 품질 리뷰 실행
+              </>
+            )}
+          </button>
+          <p className="text-[10px] text-[var(--text-secondary)] text-center pt-1.5">
+            가이드 품질을 4가지 차원(학술적 깊이, 학생 접근성, 구조적 완성도, 실용적 연관성)으로 평가합니다
+          </p>
+        </div>
+      )}
+
+      {/* AI 리뷰 결과 (저장된 결과가 있을 때 — 모든 버전에서 표시) */}
+      {!isNew && guide?.review_result && (
+        <div className="rounded-xl border border-secondary-200 dark:border-secondary-700 bg-white dark:bg-secondary-900 p-5 space-y-4">
+          {/* 헤더 */}
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-[var(--text-heading)]">
+              AI 리뷰 결과
+            </h3>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-[var(--text-secondary)]">
+                {new Date(guide.review_result.reviewedAt).toLocaleDateString("ko-KR")}
+              </span>
+              <span
+                className={cn(
+                  "px-2.5 py-1 rounded-full text-xs font-medium",
+                  (guide.quality_score ?? 0) >= 80
+                    ? "bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-300"
+                    : (guide.quality_score ?? 0) >= 60
+                      ? "bg-warning-100 text-warning-700 dark:bg-warning-900/30 dark:text-warning-300"
+                      : "bg-error-100 text-error-700 dark:bg-error-900/30 dark:text-error-300",
+                )}
+              >
+                {guide.quality_score}점
+              </span>
+            </div>
+          </div>
+
+          {/* 차원별 점수 */}
+          <div className="grid grid-cols-2 gap-2">
+            {Object.entries(guide.review_result.dimensions).map(([key, value]) => (
+              <div
+                key={key}
+                className="flex items-center justify-between px-3 py-1.5 rounded bg-secondary-50 dark:bg-secondary-800/50"
+              >
+                <span className="text-xs text-[var(--text-secondary)]">
+                  {REVIEW_DIMENSION_LABELS[key] ?? key}
+                </span>
+                <span className="text-xs font-medium text-[var(--text-primary)]">
+                  {value as number}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* 강점 */}
+          {guide.review_result.strengths.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-success-600 dark:text-success-400">강점</p>
+              <ul className="list-disc list-inside text-xs text-[var(--text-secondary)] space-y-0.5">
+                {guide.review_result.strengths.map((s: string, i: number) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* 개선 제안 */}
+          {guide.review_result.feedback.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-warning-600 dark:text-warning-400">개선 제안</p>
+              <ul className="list-disc list-inside text-xs text-[var(--text-secondary)] space-y-0.5">
+                {guide.review_result.feedback.map((f: string, i: number) => (
+                  <li key={i}>{f}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* AI 개선 액션 버튼 (최신 버전만) */}
+          {guide.is_latest && (
+          <div className="border-t border-secondary-200 dark:border-secondary-700 pt-4">
+            <button
+              type="button"
+              onClick={async () => {
+                if (!guideId) return;
+                setImproving(true);
+                try {
+                  const result = await improveGuideAction(guideId);
+                  if (result.success && result.data?.guideId) {
+                    toast.showSuccess("개선된 가이드가 새 버전으로 생성되었습니다.");
+                    queryClient.invalidateQueries({
+                      queryKey: explorationGuideKeys.cmsDetail(result.data.guideId),
+                    });
+                    router.push(`/admin/guides/${result.data.guideId}`);
+                  } else {
+                    toast.showError(!result.success ? result.error ?? "개선 실패" : "개선 실패");
+                  }
+                } catch (error) {
+                  const msg = error instanceof Error ? error.message : "";
+                  if (msg.includes("quota") || msg.includes("429")) {
+                    toast.showError("AI 할당량 초과. 내일 다시 시도해주세요.");
+                  } else {
+                    toast.showError("AI 개선 중 오류가 발생했습니다.");
+                  }
+                } finally {
+                  setImproving(false);
+                }
+              }}
+              disabled={improving}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-primary-500 text-white hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {improving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  리뷰 반영 개선 중... (15~30초)
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  AI 리뷰 피드백 반영하여 개선된 버전 생성
+                </>
+              )}
+            </button>
+            <p className="text-[10px] text-[var(--text-secondary)] text-center pt-1.5">
+              위 개선 제안을 반영한 새 버전이 생성됩니다. 원본은 유지됩니다.
+            </p>
+          </div>
+          )}
         </div>
       )}
 

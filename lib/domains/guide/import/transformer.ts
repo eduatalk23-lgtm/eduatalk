@@ -163,6 +163,7 @@ export function transformAccessRow(row: AccessGuideRow): TransformResult {
     legacyId: row.ID,
     guideType,
     curriculumYear: normalizeCurriculumYear(row.개정년도),
+    subjectArea: row.교과선택?.trim() || undefined,
     subjectSelect: row.과목선택?.trim() || undefined,
     unitMajor: row.대단원선택?.trim() || undefined,
     unitMinor: row.소단원선택?.trim() || undefined,
