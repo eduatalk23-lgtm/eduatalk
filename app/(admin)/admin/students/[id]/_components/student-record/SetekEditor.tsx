@@ -12,7 +12,13 @@ import { useAutoSave } from "./useAutoSave";
 import { useStudentRecordContext } from "./StudentRecordContext";
 import { useSidePanel } from "@/components/side-panel";
 import { cn } from "@/lib/cn";
-import { FileText, Search, BookOpen, Compass, MessageSquare } from "lucide-react";
+import { FileText, Search, BookOpen, Compass, MessageSquare, ClipboardList } from "lucide-react";
+import { SetekGuideRecommendations } from "./SetekGuideRecommendations";
+import { SameSchoolSetekInfo } from "./SameSchoolSetekInfo";
+import { CrossReferenceChips } from "./CrossReferenceChips";
+import type { CourseAdequacyResult } from "@/lib/domains/student-record";
+import { calculateReflectionSummary, type ReflectionSummary, type SubjectReflectionRate } from "@/lib/domains/student-record/keyword-match";
+import { InlineAreaMemos } from "./InlineAreaMemos";
 
 type Subject = { id: string; name: string };
 
@@ -35,6 +41,12 @@ interface SetekGuideItemLike {
   teacherPoints?: string[];
 }
 
+type PlannedSubject = {
+  subjectId: string;
+  subjectName: string;
+  semester: number;
+};
+
 type SetekEditorProps = {
   seteks: RecordSetek[];
   studentId: string;
@@ -45,6 +57,14 @@ type SetekEditorProps = {
   diagnosisActivityTags?: ActivityTagLike[];
   setekGuideItems?: SetekGuideItemLike[];
   guideAssignments?: Array<{ id: string; guide_id: string; status: string; exploration_guides?: { id: string; title: string; guide_type?: string } }>;
+  /** confirmed course plans (세특 미존재인 것만 전달) */
+  plannedSubjects?: PlannedSubject[];
+  /** G2-5: 진로 소분류 ID (가이드 자동 추천용) */
+  studentClassificationId?: number | null;
+  /** 학교명 (가이드 배정용) */
+  schoolName?: string | null;
+  /** G2-1: 교과 이수 적합도 (크로스레퍼런스 COURSE_SUPPORTS용) */
+  courseAdequacy?: CourseAdequacyResult | null;
 };
 
 const B = "border border-gray-400 dark:border-gray-500";
@@ -115,6 +135,10 @@ export function SetekEditor({
   diagnosisActivityTags,
   setekGuideItems,
   guideAssignments,
+  plannedSubjects,
+  studentClassificationId,
+  schoolName,
+  courseAdequacy,
 }: SetekEditorProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [activeTab, setActiveTab] = useState<SetekLayerTab>("record");
@@ -122,7 +146,16 @@ export function SetekEditor({
 
   const mergedRows = useMemo(() => mergeSeteksBySemester(seteks, subjects), [seteks, subjects]);
   const existingSubjectIds = new Set(seteks.map((s) => s.subject_id));
-  const availableSubjects = subjects.filter((s) => !existingSubjectIds.has(s.id));
+  const plannedSubjectIds = new Set(plannedSubjects?.map((p) => p.subjectId) ?? []);
+  const availableSubjects = subjects.filter(
+    (s) => !existingSubjectIds.has(s.id) && !plannedSubjectIds.has(s.id),
+  );
+
+  // 세특 미존재인 계획 과목만 필터
+  const pendingPlanned = useMemo(
+    () => (plannedSubjects ?? []).filter((p) => !existingSubjectIds.has(p.subjectId)),
+    [plannedSubjects, existingSubjectIds],
+  );
 
   // 모든 세특 ID (분석 탭 필터용)
   const allSetekIds = useMemo(() => new Set(seteks.map((s) => s.id)), [seteks]);
@@ -142,6 +175,23 @@ export function SetekEditor({
     return setekGuideItems.filter((g) => subjectNames.has(g.subjectName));
   }, [setekGuideItems, subjectNames]);
 
+  // G3-6: 가이드 키워드 반영률 계산
+  const reflectionSummary = useMemo<ReflectionSummary | null>(() => {
+    if (filteredGuideItems.length === 0 || mergedRows.length === 0) return null;
+    const textMap = new Map<string, string>();
+    for (const row of mergedRows) {
+      const combined = row.records.map((r) => r.content ?? "").join(" ");
+      textMap.set(row.displayName, combined);
+    }
+    return calculateReflectionSummary(filteredGuideItems, textMap);
+  }, [filteredGuideItems, mergedRows]);
+
+  // 과목별 반영률 빠른 조회
+  const reflectionBySubject = useMemo(() => {
+    if (!reflectionSummary) return new Map<string, SubjectReflectionRate>();
+    return new Map(reflectionSummary.subjects.map((s) => [s.subjectName, s]));
+  }, [reflectionSummary]);
+
   // 사이드 패널 연결
   const { setActiveSubjectId } = useStudentRecordContext();
   const sidePanel = useSidePanel();
@@ -149,7 +199,7 @@ export function SetekEditor({
   return (
     <div className="flex flex-col gap-3">
       {/* ─── 레이어 탭 바 ───────────────────────── */}
-      <div className="flex gap-1 border-b border-[var(--border-secondary)]">
+      <div className="flex gap-1 overflow-x-auto border-b border-[var(--border-secondary)]">
         {LAYER_TABS.map((tab) => {
           const hasData = tab.key === "record" ? seteks.length > 0
             : tab.key === "analysis" ? filteredTags.length > 0
@@ -191,24 +241,37 @@ export function SetekEditor({
                 </tr>
               </thead>
               <tbody>
-                {mergedRows.length === 0 ? (
+                {mergedRows.length === 0 && pendingPlanned.length === 0 ? (
                   <tr>
                     <td colSpan={3} className={`${B} px-4 py-2 text-center text-xs text-[var(--text-tertiary)]`}>
                       해당 사항 없음
                     </td>
                   </tr>
                 ) : (
-                  mergedRows.map((row) => (
-                    <SetekTableRow
-                      key={row.subjectId}
-                      row={row}
-                      charLimit={charLimit}
-                      studentId={studentId}
-                      schoolYear={schoolYear}
-                      tenantId={tenantId}
-                      grade={grade}
-                    />
-                  ))
+                  <>
+                    {mergedRows.map((row) => (
+                      <SetekTableRow
+                        key={row.subjectId}
+                        row={row}
+                        charLimit={charLimit}
+                        studentId={studentId}
+                        schoolYear={schoolYear}
+                        tenantId={tenantId}
+                        grade={grade}
+                      />
+                    ))}
+                    {pendingPlanned.map((p) => (
+                      <PlannedSubjectRow
+                        key={`planned-${p.subjectId}-${p.semester}`}
+                        planned={p}
+                        studentId={studentId}
+                        schoolYear={schoolYear}
+                        tenantId={tenantId}
+                        grade={grade}
+                        charLimit={charLimit}
+                      />
+                    ))}
+                  </>
                 )}
               </tbody>
             </table>
@@ -239,7 +302,50 @@ export function SetekEditor({
       {/* ─── 🔍 분석 탭 ──────────────────────────── */}
       {activeTab === "analysis" && (
         <div className="flex flex-col gap-3">
-          {filteredTags.length === 0 ? (
+          {/* G3-6: 가이드 키워드 반영률 요약 */}
+          {reflectionSummary && reflectionSummary.totalKeywords > 0 && (
+            <div className="rounded-lg border border-[var(--border-secondary)] p-3">
+              <div className="flex items-center gap-2 pb-2">
+                <span className="text-xs font-semibold text-[var(--text-primary)]">가이드 키워드 반영률</span>
+                <span className="text-[10px] text-[var(--text-tertiary)]">
+                  {reflectionSummary.totalMatched}/{reflectionSummary.totalKeywords}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {reflectionSummary.subjects.map((s) => (
+                  <div key={s.subjectName} className="flex items-center gap-2">
+                    <span className="w-16 shrink-0 truncate text-[11px] text-[var(--text-secondary)]">{s.subjectName}</span>
+                    <div className="flex-1 rounded-full bg-gray-100 dark:bg-gray-800" style={{ height: 6 }}>
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all",
+                          s.rate >= 70 ? "bg-emerald-500" : s.rate >= 40 ? "bg-amber-500" : "bg-red-400",
+                        )}
+                        style={{ width: `${s.rate}%` }}
+                      />
+                    </div>
+                    <span className={cn(
+                      "w-14 shrink-0 text-right text-[10px] font-medium",
+                      s.rate >= 70 ? "text-emerald-600 dark:text-emerald-400" : s.rate >= 40 ? "text-amber-600 dark:text-amber-400" : "text-red-500",
+                    )}>
+                      {s.rate}% ({s.matchedKeywords}/{s.totalKeywords})
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {reflectionSummary.subjects.length > 1 && (
+                <div className="flex items-center gap-2 border-t border-[var(--border-secondary)] pt-1.5 mt-1.5">
+                  <span className="w-16 shrink-0 text-[11px] font-medium text-[var(--text-secondary)]">평균</span>
+                  <div className="flex-1" />
+                  <span className="w-14 shrink-0 text-right text-[10px] font-semibold text-[var(--text-primary)]">
+                    {reflectionSummary.averageRate}%
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {filteredTags.length === 0 && (!reflectionSummary || reflectionSummary.totalKeywords === 0) ? (
             <p className="py-4 text-center text-xs text-[var(--text-tertiary)]">
               AI 분석을 실행하면 이 영역의 역량 태그가 표시됩니다
             </p>
@@ -275,6 +381,32 @@ export function SetekEditor({
               ))}
             </div>
           )}
+
+          {/* G2-6: 같은 학교 동일 과목 세특 참고 */}
+          {schoolName && mergedRows.length > 0 && (
+            <div className="flex flex-col gap-2">
+              {mergedRows.map((row) => (
+                <SameSchoolSetekInfo
+                  key={row.subjectId}
+                  studentId={studentId}
+                  subjectId={row.subjectId}
+                  schoolYear={schoolYear}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* G2-1: 크로스레퍼런스 칩 */}
+          <CrossReferenceChips
+            studentId={studentId}
+            tenantId={tenantId}
+            currentRecordIds={allSetekIds}
+            currentRecordType="setek"
+            currentGrade={grade}
+            subjectName={mergedRows[0]?.displayName}
+            allTags={diagnosisActivityTags as import("@/lib/domains/student-record").ActivityTag[] | undefined}
+            courseAdequacy={courseAdequacy}
+          />
         </div>
       )}
 
@@ -308,6 +440,20 @@ export function SetekEditor({
               </div>
             ))
           )}
+
+          {/* G2-5: 추천 가이드 */}
+          <SetekGuideRecommendations
+            studentId={studentId}
+            schoolYear={schoolYear}
+            studentGrade={grade}
+            schoolName={schoolName ?? undefined}
+            classificationId={studentClassificationId}
+            subjectName={mergedRows[0]?.displayName}
+            assignedGuideIds={new Set(guideAssignments?.map((a) => a.guide_id) ?? [])}
+            onAssigned={() => {
+              // SetekGuideRecommendations 내부에서 이미 invalidation 처리
+            }}
+          />
         </div>
       )}
 
@@ -328,17 +474,47 @@ export function SetekEditor({
                       {COMPETENCY_LABELS[c] ?? c}
                     </span>
                   ))}
+                  {/* G3-6: 반영률 배지 */}
+                  {(() => {
+                    const sr = reflectionBySubject.get(item.subjectName);
+                    if (!sr || sr.totalKeywords === 0) return null;
+                    return (
+                      <span className={cn(
+                        "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                        sr.rate >= 70 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+                          : sr.rate >= 40 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                          : "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-300",
+                      )}>
+                        반영 {sr.rate}%
+                      </span>
+                    );
+                  })()}
                 </div>
                 <p className="mb-2 text-sm text-[var(--text-primary)]">{item.direction}</p>
-                {item.keywords.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {item.keywords.map((kw) => (
-                      <span key={kw} className="rounded-md bg-violet-100 px-1.5 py-0.5 text-[10px] text-violet-700 dark:bg-violet-900/40 dark:text-violet-200">
-                        {kw}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                {item.keywords.length > 0 && (() => {
+                  const sr = reflectionBySubject.get(item.subjectName);
+                  const matchSet = new Set(sr?.details.filter((d) => d.matched).map((d) => d.keyword) ?? []);
+                  return (
+                    <div className="flex flex-wrap gap-1">
+                      {item.keywords.map((kw) => {
+                        const isMatched = matchSet.has(kw);
+                        return (
+                          <span
+                            key={kw}
+                            className={cn(
+                              "rounded-md px-1.5 py-0.5 text-[10px]",
+                              isMatched
+                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200"
+                                : "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-200",
+                            )}
+                          >
+                            {isMatched && "✓ "}{kw}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
                 {item.teacherPoints && item.teacherPoints.length > 0 && (
                   <div className="mt-2 border-t border-violet-200 pt-2 dark:border-violet-800">
                     <p className="mb-1 text-[10px] font-medium text-[var(--text-secondary)]">교사 전달 포인트</p>
@@ -349,6 +525,21 @@ export function SetekEditor({
                 )}
               </div>
             ))
+          )}
+
+          {/* G3-4: 영역별 메모 */}
+          {mergedRows.length > 0 && (
+            <div className="flex flex-col gap-3 border-t border-[var(--border-secondary)] pt-3">
+              {mergedRows.map((row) => (
+                <InlineAreaMemos
+                  key={`memo-${row.subjectId}`}
+                  studentId={studentId}
+                  areaType="setek"
+                  areaId={row.subjectId}
+                  areaLabel={row.displayName}
+                />
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -375,6 +566,82 @@ export function SetekEditor({
         </div>
       )}
     </div>
+  );
+}
+
+// ─── 계획됨 placeholder 행 ──────────────────────────
+
+function PlannedSubjectRow({
+  planned,
+  studentId,
+  schoolYear,
+  tenantId,
+  grade,
+  charLimit,
+}: {
+  planned: PlannedSubject;
+  studentId: string;
+  schoolYear: number;
+  tenantId: string;
+  grade: number;
+  charLimit: number;
+}) {
+  const queryClient = useQueryClient();
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const result = await saveSetekAction({
+        student_id: studentId,
+        school_year: schoolYear,
+        tenant_id: tenantId,
+        grade,
+        semester: planned.semester,
+        subject_id: planned.subjectId,
+        content: "",
+        char_limit: charLimit,
+      });
+      if (!result.success) throw new Error("error" in result ? result.error : "세특 생성 실패");
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: studentRecordKeys.recordTab(studentId, schoolYear),
+      });
+    },
+  });
+
+  return (
+    <tr className="align-top">
+      <td className="border border-dashed border-blue-200 bg-blue-50/30 px-2 py-2 text-center align-middle text-sm text-blue-400 dark:border-blue-800 dark:bg-blue-950/20 dark:text-blue-500">
+        {grade}
+      </td>
+      <td className="border border-dashed border-blue-200 bg-blue-50/30 px-3 py-2 text-center align-middle dark:border-blue-800 dark:bg-blue-950/20">
+        <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
+          {planned.subjectName}
+        </span>
+        <span className="ml-1.5 inline-flex rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:bg-blue-900/40 dark:text-blue-300">
+          계획됨
+        </span>
+      </td>
+      <td className="border border-dashed border-blue-200 bg-blue-50/30 p-2 dark:border-blue-800 dark:bg-blue-950/20">
+        <div className="flex items-center gap-2 py-1">
+          <ClipboardList className="h-4 w-4 shrink-0 text-blue-400" />
+          <span className="text-xs text-blue-500 dark:text-blue-400">
+            수강 계획 확정 · {planned.semester}학기
+          </span>
+          <button
+            onClick={() => createMutation.mutate()}
+            disabled={createMutation.isPending}
+            className="ml-auto rounded-md bg-blue-500 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-600 disabled:opacity-50"
+          >
+            {createMutation.isPending ? "생성 중..." : "세특 생성"}
+          </button>
+        </div>
+        {createMutation.isError && (
+          <p className="mt-1 text-xs text-red-600">{createMutation.error.message}</p>
+        )}
+      </td>
+    </tr>
   );
 }
 

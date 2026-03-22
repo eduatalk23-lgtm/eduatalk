@@ -166,6 +166,8 @@ export interface SetekGuideInput {
   studentName: string;
   grade: number;
   targetMajor?: string;
+  targetSubClassificationName?: string;
+  targetMidName?: string;
   targetGrades: number[];
   recordDataByGrade: Record<
     number,

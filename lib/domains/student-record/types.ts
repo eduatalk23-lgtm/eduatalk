@@ -269,6 +269,8 @@ export interface DiagnosisTabData {
   takenSubjects: string[];
   offeredSubjects: string[] | null;
   targetMajor: string | null;
+  targetSubClassificationId: number | null;
+  targetSubClassificationName: string | null;
 }
 
 /** 교과 이수 적합도 결과 */

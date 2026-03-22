@@ -28,6 +28,8 @@ interface AdminCreateChatModalProps {
   basePath: string;
   /** 위젯 내에서 채팅방 생성 후 이동할 때 사용 (없으면 router.push) */
   onRoomCreated?: (roomId: string) => void;
+  /** 생기부 레이어 탭에서 전달되는 토픽 (자동 주입) */
+  defaultTopic?: string | null;
 }
 
 interface Student {
@@ -76,6 +78,7 @@ export function AdminCreateChatModal({
   onClose,
   basePath,
   onRoomCreated,
+  defaultTopic,
 }: AdminCreateChatModalProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -217,6 +220,7 @@ export function AdminCreateChatModal({
         const { data, error } = await supabase.rpc("start_direct_chat", {
           p_target_user_id: selectedStudentId!,
           p_target_user_type: "student",
+          ...(defaultTopic ? { p_topic: defaultTopic } : {}),
         });
         if (error) throw new Error(error.message);
         return data;
@@ -229,6 +233,7 @@ export function AdminCreateChatModal({
           p_member_types: memberIds.map(() => "student"),
           p_name: groupName.trim(),
           p_history_visible: historyVisible,
+          ...(defaultTopic ? { p_topic: defaultTopic } : {}),
         });
         if (error) throw new Error(error.message);
         return data;

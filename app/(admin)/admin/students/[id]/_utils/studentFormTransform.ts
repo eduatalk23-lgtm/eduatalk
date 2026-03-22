@@ -29,6 +29,8 @@ export function transformStudentToFormData(
       curriculum_revision: "",
       desired_university_ids: [],
       desired_career_field: "",
+      target_major: "",
+      target_sub_classification_id: "",
       // 관리자 전용 필드
       class: "",
       division: "",
@@ -66,6 +68,8 @@ export function transformStudentToFormData(
       studentData.desired_career_field,
       isCareerField
     ) as "" | import("@/app/(student)/settings/types").CareerField,
+    target_major: (studentData as Record<string, unknown>).target_major as string || "",
+    target_sub_classification_id: ((studentData as Record<string, unknown>).target_sub_classification_id as number | null)?.toString() || "",
     // 관리자 전용 필드
     division: studentData.division || "",
     memo: studentData.memo || "",
@@ -123,6 +127,8 @@ export function transformFormDataToUpdatePayload(
       curriculum_revision?: "2009 개정" | "2015 개정" | "2022 개정" | null;
       desired_university_ids?: string[] | null;
       desired_career_field?: string | null;
+      target_major?: string | null;
+      target_sub_classification_id?: number | null;
     };
   } = {};
 
@@ -219,7 +225,9 @@ export function transformFormDataToUpdatePayload(
     shouldInclude("exam_year") ||
     shouldInclude("curriculum_revision") ||
     shouldInclude("desired_university_ids") ||
-    shouldInclude("desired_career_field")
+    shouldInclude("desired_career_field") ||
+    shouldInclude("target_major") ||
+    shouldInclude("target_sub_classification_id")
   ) {
     payload.career = {};
     if (shouldInclude("exam_year")) {
@@ -244,6 +252,14 @@ export function transformFormDataToUpdatePayload(
     if (shouldInclude("desired_career_field")) {
       payload.career.desired_career_field =
         (formData.desired_career_field as string | null) || null;
+    }
+    if (shouldInclude("target_major")) {
+      payload.career.target_major = formData.target_major || null;
+    }
+    if (shouldInclude("target_sub_classification_id")) {
+      payload.career.target_sub_classification_id = formData.target_sub_classification_id
+        ? parseInt(formData.target_sub_classification_id, 10)
+        : null;
     }
   }
 

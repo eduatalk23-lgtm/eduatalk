@@ -133,10 +133,24 @@ export function SetekGuidePanel({
       </div>
 
       {generateMutation.isError && (
-        <p className="text-xs text-red-500">
-          {generateMutation.error?.message ?? "생성 실패"}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="text-xs text-red-500">
+            {generateMutation.error?.message ?? "생성 실패"}
+          </p>
+          <button
+            type="button"
+            onClick={() => generateMutation.mutate()}
+            className="rounded px-2 py-0.5 text-xs font-medium text-violet-600 hover:bg-violet-50 dark:text-violet-400 dark:hover:bg-violet-950/30"
+          >
+            다시 시도
+          </button>
+        </div>
       )}
+
+      {/* 내부 분석용 안내 */}
+      <p className="text-[10px] text-[var(--text-tertiary)]">
+        내부 분석용 — 학생/학부모 미공개 · 확정 전까지 초안 상태
+      </p>
 
       {/* 기존 가이드 목록 */}
       {guides && guides.length > 0 ? (

@@ -41,23 +41,15 @@ export const COURSE_TYPE_WEIGHTS: Record<string, number> = {
 };
 export const DEFAULT_COURSE_TYPE_WEIGHT = 0.5;
 
+import { normalizeSubjectName as _normalizeSubject } from "@/lib/domains/subject/normalize";
+
 /**
  * 과목명 정규화 — 비교용
  *
  * 공백/특수문자 차이, 로마 숫자 등 흡수.
- * course-adequacy.ts의 normalizeSubjectName 패턴 재사용.
+ * 단일 정본: lib/domains/subject/normalize.ts
  */
-export function normalizeCourseNameForComparison(name: string): string {
-  return name
-    .replace(/\s+/g, "")
-    .replace(/[·‧・]/g, "·")
-    .replace(/Ⅰ/g, "1")
-    .replace(/Ⅱ/g, "2")
-    .replace(/\(.*?\)/g, "") // 괄호 내용 제거
-    .replace(/[()[\]]/g, "")
-    .toLowerCase()
-    .trim();
-}
+export const normalizeCourseNameForComparison = _normalizeSubject;
 
 /**
  * Jaccard similarity 기반 교육과정 유사도 계산

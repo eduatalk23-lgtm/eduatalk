@@ -42,9 +42,11 @@ function addRecentStudent(student: RecentStudent) {
 interface StudentSwitcherProps {
   currentStudentId: string | null;
   currentStudentName: string | null;
+  /** 외부 제어: 학생 선택 시 호출. 없으면 캘린더 기본 라우팅 */
+  onSelect?: (studentId: string) => void;
 }
 
-export function StudentSwitcher({ currentStudentId, currentStudentName }: StudentSwitcherProps) {
+export function StudentSwitcher({ currentStudentId, currentStudentName, onSelect: onSelectProp }: StudentSwitcherProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -108,13 +110,17 @@ export function StudentSwitcher({ currentStudentId, currentStudentName }: Studen
       // Navigation — debounced to coalesce rapid switches
       if (navTimerRef.current) clearTimeout(navTimerRef.current);
       navTimerRef.current = setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: adminDockKeys.all });
-        queryClient.invalidateQueries({ queryKey: calendarEventKeys.all });
-        queryClient.invalidateQueries({ queryKey: calendarViewKeys.all });
-        router.push(`/admin/calendar?student=${student.id}`);
+        if (onSelectProp) {
+          onSelectProp(student.id);
+        } else {
+          queryClient.invalidateQueries({ queryKey: adminDockKeys.all });
+          queryClient.invalidateQueries({ queryKey: calendarEventKeys.all });
+          queryClient.invalidateQueries({ queryKey: calendarViewKeys.all });
+          router.push(`/admin/calendar?student=${student.id}`);
+        }
       }, 300);
     },
-    [router, queryClient],
+    [router, queryClient, onSelectProp],
   );
 
   const displayName = currentStudentName ?? '학생 검색...';

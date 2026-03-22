@@ -23,6 +23,8 @@ interface CreateChatModalProps {
   basePath: string;
   /** 위젯 내에서 채팅방 생성 후 이동할 때 사용 (없으면 router.push) */
   onRoomCreated?: (roomId: string) => void;
+  /** 사이드 패널 토픽 연동용 (학생 모달에서는 미사용) */
+  defaultTopic?: string | null;
 }
 
 interface AdminUser {

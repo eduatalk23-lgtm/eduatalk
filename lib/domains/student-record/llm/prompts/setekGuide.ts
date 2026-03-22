@@ -52,7 +52,8 @@ export const SYSTEM_PROMPT = `당신은 입시 컨설턴트의 내부 분석 도
 7. 스토리라인이 있으면 해당 키워드와 자연스럽게 연결합니다.
 8. 역량 진단 결과가 있으면 약한 역량을 보완할 수 있는 방향도 포함합니다.
 9. 세특 데이터가 있는 과목만 가이드를 생성합니다. 데이터 없는 과목은 생략합니다.
-10. JSON으로만 응답합니다.`;
+10. 학생의 목표 학과 분류(소분류)가 있으면, 해당 전공 분야에 특화된 세특 방향을 제시합니다.
+11. JSON으로만 응답합니다.`;
 
 // ============================================
 // 사용자 프롬프트 빌더
@@ -69,6 +70,10 @@ export function buildUserPrompt(input: SetekGuideInput): string {
   prompt += `- 이름: ${input.studentName}\n`;
   prompt += `- 현재 학년: ${input.grade}학년\n`;
   if (input.targetMajor) prompt += `- 희망 전공 계열: ${input.targetMajor}\n`;
+  if (input.targetMidName || input.targetSubClassificationName) {
+    const parts = [input.targetMidName, input.targetSubClassificationName].filter(Boolean);
+    prompt += `- 목표 학과 분류: ${parts.join(" > ")}\n`;
+  }
   prompt += `- 대상 학년: ${input.targetGrades.join(", ")}학년\n\n`;
 
   // 스토리라인

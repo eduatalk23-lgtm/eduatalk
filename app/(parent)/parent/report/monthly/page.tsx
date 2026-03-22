@@ -15,6 +15,8 @@ import { StudentSelector } from "../../_components/StudentSelector";
 import Link from "next/link";
 import { EmptyState } from "@/components/molecules/EmptyState";
 import { getContainerClass } from "@/lib/constants/layout";
+import { fetchParentRecordProgress } from "@/lib/domains/student-record/actions/parentRecord";
+import { StudentRecordProgressSection } from "./_components/StudentRecordProgressSection";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | undefined>>;
@@ -96,7 +98,12 @@ export default async function ParentMonthlyReportPage({ searchParams }: PageProp
   }
 
   try {
-    const reportData = await getMonthlyReportData(supabase, selectedStudentId, monthDate);
+    const [reportData, recordProgressRes] = await Promise.all([
+      getMonthlyReportData(supabase, selectedStudentId, monthDate),
+      fetchParentRecordProgress(selectedStudentId),
+    ]);
+
+    const recordProgress = recordProgressRes.success ? recordProgressRes.data : null;
 
     const hasData =
       reportData.totals.studyMinutes > 0 ||
@@ -142,13 +149,19 @@ export default async function ParentMonthlyReportPage({ searchParams }: PageProp
           </div>
 
           {!hasData ? (
-            <EmptyState
-              title="이번 달 아직 학습 기록이 없습니다"
-              description="학습을 시작하면 월간 리포트가 자동으로 생성됩니다."
-              actionLabel="대시보드로 돌아가기"
-              actionHref="/parent/dashboard"
-              icon="📊"
-            />
+            <div className="flex flex-col gap-8">
+              <EmptyState
+                title="이번 달 아직 학습 기록이 없습니다"
+                description="학습을 시작하면 월간 리포트가 자동으로 생성됩니다."
+                actionLabel="대시보드로 돌아가기"
+                actionHref="/parent/dashboard"
+                icon="📊"
+              />
+              {/* 학습 데이터 없어도 생기부 진행률은 표시 */}
+              {recordProgress && (
+                <StudentRecordProgressSection progress={recordProgress} />
+              )}
+            </div>
           ) : (
             <div className="flex flex-col gap-8">
               {/* 요약 헤더 */}
@@ -188,6 +201,13 @@ export default async function ParentMonthlyReportPage({ searchParams }: PageProp
               {reportData.content.progressList.length > 0 && (
                 <div>
                   <ContentProgressSection progressList={reportData.content.progressList} />
+                </div>
+              )}
+
+              {/* G2-7: 생기부 진행 현황 */}
+              {recordProgress && (
+                <div>
+                  <StudentRecordProgressSection progress={recordProgress} />
                 </div>
               )}
 

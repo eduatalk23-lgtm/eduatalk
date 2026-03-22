@@ -3,6 +3,7 @@
  */
 
 import { logActionDebug } from "@/lib/logging/actionLogger";
+import { CAREER_TIER1 } from "@/lib/constants/career-classification";
 
 /**
  * 학년 문자열에서 숫자 추출
@@ -225,18 +226,10 @@ export const CURRICULUM_REVISION_OPTIONS = [
 ] as const;
 
 /**
- * 희망 진로 계열 선택 옵션
+ * 희망 진로 계열 선택 옵션 — KEDI 7대계열 기반
  */
-export const CAREER_FIELD_OPTIONS = [
-  { value: "인문계열", label: "인문계열" },
-  { value: "사회계열", label: "사회계열" },
-  { value: "자연계열", label: "자연계열" },
-  { value: "공학계열", label: "공학계열" },
-  { value: "의약계열", label: "의약계열" },
-  { value: "예체능계열", label: "예체능계열" },
-  { value: "교육계열", label: "교육계열" },
-  { value: "농업계열", label: "농업계열" },
-  { value: "해양계열", label: "해양계열" },
-  { value: "기타", label: "기타" },
-] as const;
+export const CAREER_FIELD_OPTIONS = CAREER_TIER1.map((t) => ({
+  value: t.code,
+  label: t.label,
+}));
 

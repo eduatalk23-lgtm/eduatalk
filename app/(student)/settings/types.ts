@@ -6,20 +6,13 @@ import type { Student } from "@/lib/data/students";
 import type { StudentProfile } from "@/lib/data/studentProfiles";
 import type { StudentCareerGoal } from "@/lib/data/studentCareerGoals";
 import type { StudentDivision } from "@/lib/constants/students";
+import type { CareerTier1Code } from "@/lib/constants/career-classification";
+import { isCareerTier1Code } from "@/lib/constants/career-classification";
 
 export type Gender = "남" | "여";
 export type CurriculumRevision = "2009 개정" | "2015 개정" | "2022 개정";
-export type CareerField =
-  | "인문계열"
-  | "사회계열"
-  | "자연계열"
-  | "공학계열"
-  | "의약계열"
-  | "예체능계열"
-  | "교육계열"
-  | "농업계열"
-  | "해양계열"
-  | "기타";
+/** 진로 계열 — KEDI 7대계열 코드 */
+export type CareerField = CareerTier1Code;
 
 export type StudentData = Student &
   Partial<StudentProfile> &
@@ -45,8 +38,12 @@ export type StudentFormData = {
   exam_year: string;
   curriculum_revision: CurriculumRevision | "";
   desired_university_ids: string[]; // 희망 대학교 ID 배열 (최대 3개)
-  // 진로 계열 (단일 선택)
+  // 진로 계열 (Tier 1 — KEDI 7대계열 코드)
   desired_career_field: CareerField | "";
+  // 전공 방향 (Tier 2 — MAJOR_RECOMMENDED_COURSES 22개 키)
+  target_major: string;
+  // 세부 전공 (Tier 3 — department_classification.id, 선택적)
+  target_sub_classification_id: string; // 폼에서는 string, 저장 시 int 변환
 };
 
 /**
@@ -67,18 +64,7 @@ export function isCurriculumRevision(
 }
 
 export function isCareerField(value: unknown): value is CareerField {
-  return (
-    value === "인문계열" ||
-    value === "사회계열" ||
-    value === "자연계열" ||
-    value === "공학계열" ||
-    value === "의약계열" ||
-    value === "예체능계열" ||
-    value === "교육계열" ||
-    value === "농업계열" ||
-    value === "해양계열" ||
-    value === "기타"
-  );
+  return isCareerTier1Code(value);
 }
 
 /**

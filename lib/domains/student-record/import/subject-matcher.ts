@@ -6,34 +6,11 @@
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { SubjectMatch, ManualSubjectMapping } from "./types";
+import { normalizeSubjectName } from "@/lib/domains/subject/normalize";
 
 interface DbSubject {
   id: string;
   name: string;
-}
-
-// ============================================
-// 정규화 (과목명 → 비교용 키)
-// ============================================
-
-/** 과목명을 정규화 키로 변환 (공백/특수문자 제거, 로마숫자→아라비아) */
-function normalizeSubjectName(name: string): string {
-  return name
-    .trim()
-    .replace(/\s+/g, "")
-    // 로마숫자 (유니코드)
-    .replace(/Ⅰ/g, "1")
-    .replace(/Ⅱ/g, "2")
-    .replace(/Ⅲ/g, "3")
-    .replace(/Ⅳ/g, "4")
-    // 아스키 로마숫자 (끝자리 대소문자 I/II/III/IV)
-    .replace(/(?<=\D)IV$/i, "4")
-    .replace(/(?<=\D)III$/i, "3")
-    .replace(/(?<=\D)II$/i, "2")
-    .replace(/(?<=\D)I$/i, "1")
-    .replace(/[·‧・]/g, "")
-    .replace(/[()]/g, "")
-    .toLowerCase();
 }
 
 // ============================================

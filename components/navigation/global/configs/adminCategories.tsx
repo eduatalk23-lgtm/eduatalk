@@ -70,6 +70,19 @@ export const adminCategories: NavigationCategory[] = [
     ],
   },
   {
+    id: "admin-record",
+    label: "생기부",
+    icon: <FileText className="w-4 h-4" />,
+    items: [
+      {
+        id: "admin-record-main",
+        label: "학생 생기부",
+        href: "/admin/students",
+        icon: <FileText className="w-4 h-4" />,
+      },
+    ],
+  },
+  {
     id: "admin-students",
     label: "학생 관리",
     icon: <Users className="w-4 h-4" />,

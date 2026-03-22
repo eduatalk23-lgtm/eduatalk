@@ -8,17 +8,7 @@
 
 import { MAJOR_RECOMMENDED_COURSES } from "./constants";
 import type { CourseAdequacyResult } from "./types";
-
-/** 과목명 정규화: 공백/특수문자 차이 흡수 */
-function normalizeSubjectName(name: string): string {
-  return name
-    .replace(/\s+/g, "")
-    .replace(/[·‧・]/g, "·")
-    .replace(/Ⅰ/g, "1")
-    .replace(/Ⅱ/g, "2")
-    .replace(/Ⅲ/g, "3")
-    .toLowerCase();
-}
+import { normalizeSubjectName } from "@/lib/domains/subject/normalize";
 
 /** 과목명 세트 생성 (정규화 기반 비교용) */
 function buildNameSet(names: string[]): Set<string> {

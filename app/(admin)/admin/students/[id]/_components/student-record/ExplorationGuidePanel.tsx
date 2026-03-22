@@ -18,6 +18,8 @@ interface ExplorationGuidePanelProps {
   tenantId: string;
   schoolName?: string;
   schoolYear: number;
+  studentClassificationId?: number;
+  studentClassificationName?: string;
 }
 
 type TabKey = "search" | "assignments";
@@ -27,6 +29,8 @@ export function ExplorationGuidePanel({
   studentGrade,
   schoolName,
   schoolYear,
+  studentClassificationId,
+  studentClassificationName,
 }: ExplorationGuidePanelProps) {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<TabKey>("assignments");
@@ -125,6 +129,8 @@ export function ExplorationGuidePanel({
           onSelectGuide={handleSelectGuide}
           onAssignGuide={(guideId) => handleAssignGuide(guideId)}
           assignedGuideIds={assignedGuideIds}
+          studentClassificationId={studentClassificationId}
+          studentClassificationName={studentClassificationName}
         />
       )}
 

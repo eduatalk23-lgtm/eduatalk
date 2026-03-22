@@ -1,0 +1,82 @@
+"use client";
+
+import { cn } from "@/lib/cn";
+import { ArrowRight, ChevronRight } from "lucide-react";
+import {
+  EDGE_TYPE_META,
+  type ConnectionNode,
+  type CrossRefEdge,
+} from "@/lib/domains/student-record/cross-reference";
+
+const RECORD_TYPE_ICONS: Record<string, string> = {
+  setek: "📄",
+  personal_setek: "📄",
+  changche: "🎯",
+  haengteuk: "💬",
+  reading: "📚",
+  score: "📊",
+};
+
+export function ConnectionNodeCard({
+  node,
+  isHighlighted,
+  onDrillDown,
+}: {
+  node: ConnectionNode;
+  isHighlighted?: boolean;
+  onDrillDown: (nodeKey: string) => void;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-lg border p-3 transition-colors",
+        isHighlighted
+          ? "border-indigo-300 bg-indigo-50/50 dark:border-indigo-700 dark:bg-indigo-950/20"
+          : "border-[var(--border-secondary)]",
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <span className="text-sm">{RECORD_TYPE_ICONS[node.recordType] ?? "📄"}</span>
+        <span className="flex-1 truncate text-xs font-semibold text-[var(--text-primary)]">
+          {node.label}
+        </span>
+        <span className="rounded-full bg-[var(--background-secondary)] px-1.5 py-0.5 text-[10px] text-[var(--text-tertiary)]">
+          {node.edges.length}
+        </span>
+      </div>
+
+      <div className="flex flex-col gap-1 pt-2">
+        {node.edges.map((edge, i) => (
+          <EdgeRow key={`${edge.type}-${edge.targetLabel}-${i}`} edge={edge} onDrillDown={onDrillDown} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EdgeRow({ edge, onDrillDown }: { edge: CrossRefEdge; onDrillDown: (key: string) => void }) {
+  const meta = EDGE_TYPE_META[edge.type];
+  const targetKey = `${edge.targetRecordType}:${edge.targetLabel}`;
+
+  return (
+    <button
+      type="button"
+      onClick={() => onDrillDown(targetKey)}
+      className={cn(
+        "flex items-center gap-1.5 rounded-md border px-2 py-1 text-left text-[11px] transition-colors hover:opacity-80",
+        meta.bgColor,
+        meta.color,
+      )}
+    >
+      <span className="shrink-0 opacity-70">{meta.label}</span>
+      <ArrowRight className="h-2.5 w-2.5 shrink-0 opacity-50" />
+      <span className="flex-1 truncate">{edge.targetLabel}</span>
+      {edge.sharedCompetencies && edge.sharedCompetencies.length > 1 && (
+        <span className="shrink-0 rounded-full bg-white/50 px-1 text-[9px] dark:bg-black/20">
+          {edge.sharedCompetencies.length}
+        </span>
+      )}
+      <ChevronRight className="h-3 w-3 shrink-0 opacity-40" />
+    </button>
+  );
+}

@@ -7,39 +7,10 @@ import type { CompetencyItemCode } from "@/lib/domains/student-record/types";
 
 // ------------------------------------
 // 1. department_classification.mid_name → MAJOR_RECOMMENDED_COURSES key 매핑
+//    → lib/constants/career-classification.ts로 이관 (KEDI_MID_TO_MAJOR)
 // ------------------------------------
 
-/** 대학 학과 중분류 → 고교 추천교과 계열 key */
-export const CLASSIFICATION_TO_CAREER_FIELD: Record<string, string | null> = {
-  "경영ㆍ경제": "경영·경제",
-  "법학": "법·행정",
-  "사회과학": "사회",
-  "언어ㆍ문학": "외국어",
-  "인문학": "사학·철학",
-  "교육": "교육",
-  "간호": "보건",
-  "보건": "보건",
-  "생활과학": "생활과학",
-  "수학ㆍ물리ㆍ천문ㆍ지구": "물리·천문",
-  "화학ㆍ생명과학ㆍ환경": "생명·바이오",
-  "농림ㆍ수산": "농림",
-  "약학": "의학·약학",
-  "의료": "의학·약학",
-  "의료예과": "의학·약학",
-  "건설": "건축·사회시스템",
-  "기계": "기계·자동차·로봇",
-  "교통ㆍ수송": "기계·자동차·로봇",
-  "재료": "화학·신소재·에너지",
-  "화공ㆍ고분자ㆍ에너지": "화학·신소재·에너지",
-  "전기ㆍ전자ㆍ컴퓨터": "컴퓨터·정보",
-  "산업ㆍ안전": "기계·자동차·로봇",
-  // 예체능 — 추천교과 매핑 없음
-  "무용ㆍ체육": null,
-  "미술": null,
-  "음악": null,
-  "연극ㆍ영화": null,
-  "응용예술": null,
-};
+export { KEDI_MID_TO_MAJOR as CLASSIFICATION_TO_CAREER_FIELD } from "@/lib/constants/career-classification";
 
 // ------------------------------------
 // 2. 계열별 역량 기본 가중치 (10개 항목)

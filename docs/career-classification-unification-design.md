@@ -1,10 +1,10 @@
 # 진로 분류 체계 통일 설계서
 
 > 작성일: 2026-03-21
-> 버전: 1.0
-> 상태: 설계
+> 버전: 1.3
+> 상태: Phase C 전체 완료 (C0~C4)
 > 선행: G0 ✅ + G1 ✅ 완료
-> 후속: G2 (온보딩 + 가이드 매칭 + 중복 체크)의 기반
+> 후속: G2 착수 가능
 
 ---
 
@@ -244,58 +244,103 @@ CREATE TABLE exploration_guide_classification_mappings (
 
 ## 6. 구현 로드맵
 
-### Phase C0: 매핑 상수 통일 (0.5일)
+### 핵심 전략 변경 (v1.1)
+
+**원래 설계**: KEDI mid_name을 Tier 2로 사용
+**실제 구현**: `MAJOR_RECOMMENDED_COURSES` 22개 키를 Tier 2로 유지
+
+이유: 22개 키를 직접 lookup하는 핫스팟이 2곳 (`course-adequacy.ts:40`, `warnings/engine.ts:284`)이며,
+LLM 프롬프트(4파일), Agent 도구(1파일), 진단(1파일) 등 총 8파일이 영향 받음.
+**22개 키를 KEDI 체계 내에 편입시켜, 기존 8개 lookup 파일 변경 0으로 달성.**
 
 ```
-C0-1: lib/constants/career-classification.ts 생성 (CAREER_TIER1 + TIER1_TO_TIER2 + TIER2_TO_COURSE_KEY)
-C0-2: CAREER_FIELD_OPTIONS → CAREER_TIER1으로 교체
-C0-3: CLASSIFICATION_TO_CAREER_FIELD → TIER2_TO_COURSE_KEY로 교체
-C0-4: 기존 참조 코드 일괄 업데이트
+CAREER_TIER1 (7대계열 코드) → students.desired_career_field
+    ↓ TIER1_TO_MAJORS 매핑
+MAJOR_RECOMMENDED_COURSES 22개 키 → students.target_major (직접 저장)
+    ↑ KEDI_MID_TO_MAJOR 매핑
+department_classification.mid_name (KEDI 중분류)
 ```
 
-### Phase C1: DB 스키마 + 학생 필드 연결 (0.5일)
+### Phase C0: 매핑 상수 통일 ✅ (완료)
 
 ```
-C1-1: students 테이블에 target_sub_classification_id 컬럼 추가 (FK)
-C1-2: desired_career_field 기존 값 마이그레이션 (10개→7개 정규화)
-C1-3: exploration_guide_classification_mappings 테이블 생성
+✅ C0-1: lib/constants/career-classification.ts 생성
+         (CAREER_TIER1 + TIER1_TO_MAJORS + KEDI_MID_TO_MAJOR + MAJOR_TO_TIER1 + 유틸리티)
+✅ C0-2: CAREER_FIELD_OPTIONS → CAREER_TIER1에서 파생 (studentProfile.ts)
+✅ C0-3: CLASSIFICATION_TO_CAREER_FIELD → KEDI_MID_TO_MAJOR re-export (하위호환 유지)
+✅ C0-4: CareerField 타입 → CareerTier1Code 교체 (settings/types.ts)
+✅ C0-5: guide/types.ts CareerField → GuideCareerField 리네이밍 (deprecated alias 유지)
 ```
 
-### Phase C2: UI — 프로필 3단계 선택 (1일)
+### Phase C1: DB 스키마 + 학생 필드 연결 ✅ (완료)
 
 ```
-C2-1: CareerInfoSection.tsx — 대분류 선택 시 중분류 드롭다운 연동
-C2-2: 중분류 선택 시 소분류 드롭다운 연동 (department_classification 쿼리)
-C2-3: Admin 학생 상세에 target_major + target_sub_classification 설정 UI
+✅ C1-1: 마이그레이션 20260333200000 — desired_career_field 한글→KEDI코드 정규화 + target_sub_classification_id FK 추가
+✅ C1-2: 마이그레이션 20260333300000 — guide_career_fields 영문→KEDI코드 + medical 중복 제거 + classification_mappings 테이블
+✅ C1-3: 마이그레이션 20260333400000 — search_guides RPC에 classification_filter 추가
+✅ C1-4: search-service.ts에 classificationId 옵션 추가
 ```
 
-### Phase C3: 가이드 소분류 태깅 (1일)
+### Phase C2: UI — 프로필 3단계 선택 ✅ (완료)
 
 ```
-C3-1: 가이드 에디터에 소분류 태깅 UI 추가
-C3-2: AI 가이드 생성 시 소분류 자동 태깅
-C3-3: 벡터 검색 RPC에 classification_id 필터 추가
+✅ C2-1: CareerInfoSection.tsx (학생) — Tier 1 대분류 → Tier 2 전공방향 연동 드롭다운
+✅ C2-2: CareerInfoSection.tsx (Admin) — 동일 2단계 연동
+✅ C2-3: dataTransform.ts / SettingsPageClient.tsx / profile.ts / management.ts — target_major 저장 파이프라인
+✅ C2-4: Tier 3 소분류 드롭다운 — getSubClassifications 서버 액션 + 비동기 로드 + target_sub_classification_id 저장
+✅ C2-5: Admin 학생 상세에 동일 3단계 드롭다운
 ```
 
-### Phase C4: 기존 시스템 연결 (1일)
+### Phase C3: 가이드 소분류 태깅 ✅ (완료)
 
 ```
-C4-1: course-adequacy.ts — target_major → TIER2_TO_COURSE_KEY 경유
-C4-2: competency-matcher.ts — Tier 2 키 정규화
-C4-3: SetekEditor 가이드 탭 — 소분류 기반 정밀 필터
-C4-4: 세특 방향 가이드 생성 — 소분류 컨텍스트 프롬프트 주입
+✅ C3-1: 가이드 CRUD 액션에 classificationIds 파라미터 추가 + repository replaceClassificationMappings
+✅ C3-2: AI 가이드 생성 시 소분류 자동 태깅
+         - ClassificationMatcher 클래스 (ㆍ/·/‧/・ 정규화 + 정확/contains 매칭)
+         - generatedGuideSchema에 suggestedClassifications 필드 추가 (optional, max 5)
+         - 3개 프롬프트(keyword/clone/extraction)에 소분류 지시 추가
+         - generateGuideAction: 3-way 병렬 fetch + 매칭 + replaceClassificationMappings 저장
+         - findAllClassifications() 리포지토리 함수 추가
+         - GuideListFilter.classificationId + findGuides 필터 핸들링
+         - ClassificationMatcher 단위 테스트 8개
+✅ C3-3: 벡터 검색 RPC에 classification_filter 파라미터 추가 (마이그레이션 완료)
 ```
+
+### Phase C4: 기존 시스템 연결 ✅ (완료)
+
+```
+✅ C4-1: 탐구 가이드 검색 — 소분류 필터 칩 UI (학생 소분류 자동 적용 + 해제 가능)
+         - GuideSearchSection: classificationId 상태 + 칩 UI + 해제/재적용 버튼
+         - ExplorationGuidePanel: studentClassificationId/Name prop 전달
+         - StudentRecordClient: diagnosisData → ExplorationGuidePanel 연결
+✅ C4-2: 세특 방향 가이드 생성 — 소분류 컨텍스트 프롬프트 주입
+         - ReportData.student에 targetSubClassificationName/targetMidName 추가
+         - SetekGuideInput에 targetSubClassificationName/targetMidName 추가
+         - setekGuide 프롬프트: "목표 학과 분류: 중분류 > 소분류" 주입 + 규칙 10 추가
+         - generateSetekGuide: report → input 소분류 전달
+✅ C4-3: DiagnosisTabData 확장
+         - targetSubClassificationId/targetSubClassificationName 필드 추가
+         - fetchDiagnosisTabData: target_sub_classification_id 쿼리 + 이름 조회
+⬜ C4-4: 온보딩 — 진로계열 선택 시 KEDI 코드 기반 가이드 추천 (별도 작업)
+```
+
+**NOTE**: `course-adequacy.ts`, `warnings/engine.ts`, `competency-matcher.ts` 등 기존 8개 lookup 파일은
+target_major에 MAJOR_RECOMMENDED_COURSES 22개 키가 직접 저장되므로 **변경 불필요**.
 
 ---
 
-## 7. 검증
+## 7. 검증 (Phase C0~C4 전체)
 
-1. `pnpm build` 성공
-2. 기존 테스트 전체 통과 (247+)
-3. 프로필 UI에서 대→중→소 3단계 선택 동작
-4. 김가영 `desired_career_field: "사회계열"` → Tier 1 정규화 확인
-5. 가이드 검색 시 소분류 필터 적용 확인
-6. 교과 추천이 소분류에 따라 달라지는지 확인
+1. ✅ `pnpm build` 성공
+2. ✅ 기존 테스트 통과 (competency-matcher 9/9, guide 21/21 + ClassificationMatcher 8개 포함)
+3. ✅ 프로필 UI: Tier 1 → Tier 2 → Tier 3 3단계 연동 드롭다운 동작
+4. ✅ DB 마이그레이션 3건 작성 (desired_career_field + guide_career_fields + search_guides RPC)
+5. ✅ 기존 8개 lookup 파일 변경 0
+6. ✅ Tier 3 소분류: getSubClassifications 서버 액션 + 비동기 로드
+7. ✅ 가이드 CRUD: classificationIds 저장 파이프라인 (repository + actions)
+8. ✅ AI 가이드 생성 시 소분류 자동 태깅 (C3-2) — ClassificationMatcher + 3개 프롬프트 + 저장
+9. ✅ 세특 방향 가이드 프롬프트 소분류 주입 (C4-2) — ReportData + SetekGuideInput + 프롬프트
+10. ✅ 탐구 가이드 검색 소분류 필터 칩 UI (C4-1) — GuideSearchSection + ExplorationGuidePanel
 
 ---
 

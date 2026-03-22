@@ -187,7 +187,18 @@ export function CompetencyAnalysisSection({
         <span className="text-xs text-[var(--text-tertiary)]">
           {records.length}건 레코드 기반
         </span>
-        {error && <span className="text-xs text-red-500">{error}</span>}
+        {error && (
+          <span className="flex items-center gap-2">
+            <span className="text-xs text-red-500">{error}</span>
+            <button
+              type="button"
+              onClick={() => batchMutation.mutate()}
+              className="rounded px-2 py-0.5 text-xs font-medium text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/30"
+            >
+              다시 시도
+            </button>
+          </span>
+        )}
       </div>
 
       {/* ─── 세특별 하이라이트 뷰 (먼저: 근거를 보고 등급 결정) ── */}

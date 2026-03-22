@@ -21,6 +21,8 @@ interface ParentCreateChatModalProps {
   onClose: () => void;
   basePath: string;
   onRoomCreated?: (roomId: string) => void;
+  /** 사이드 패널 토픽 연동용 (학부모 모달에서는 미사용) */
+  defaultTopic?: string | null;
 }
 
 interface AdminUser {

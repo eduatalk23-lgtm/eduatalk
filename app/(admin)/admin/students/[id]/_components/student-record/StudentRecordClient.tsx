@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import Link from "next/link";
-import { useQuery, useQueries } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { StudentSwitcher } from "@/app/(admin)/admin/calendar/_components/StudentSwitcher";
+import { TopBarCenterSlotPortal } from "@/components/layout/TopBarCenterSlotContext";
+import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
-import { calculateSchoolYear } from "@/lib/utils/schoolYear";
-import { Menu, User, ChevronDown } from "lucide-react";
+import { calculateSchoolYear, gradeToSchoolYear } from "@/lib/utils/schoolYear";
+import { Menu, User, ChevronDown, FileText } from "lucide-react";
 import type { RecordSetek, RecordPersonalSetek } from "@/lib/domains/student-record";
 import {
   recordTabQueryOptions,
@@ -13,6 +16,8 @@ import {
   supplementaryTabQueryOptions,
   strategyTabQueryOptions,
   diagnosisTabQueryOptions,
+  coursePlanTabQueryOptions,
+  studentRecordKeys,
 } from "@/lib/query-options/studentRecord";
 import { RecordLayoutShell } from "./RecordLayoutShell";
 import { SidePanelProvider } from "@/components/side-panel";
@@ -47,8 +52,13 @@ import { AllocationSimulator } from "./AllocationSimulator";
 import { AlumniSearch } from "./AlumniSearch";
 import { ActivitySummaryPanel } from "./ActivitySummaryPanel";
 import { SetekGuidePanel } from "./SetekGuidePanel";
+import { CareerSetupBanner } from "./CareerSetupBanner";
 import { ExplorationGuidePanel } from "./ExplorationGuidePanel";
 import { BypassMajorPanel } from "./BypassMajorPanel";
+import { PipelineSidebarWidget } from "./PipelineSidebarWidget";
+import { DesignPipelineResultsPanel } from "./DesignPipelineResultsPanel";
+
+const CoursePlanEditor = lazy(() => import("./CoursePlanEditor"));
 
 type Subject = {
   id: string;
@@ -130,6 +140,7 @@ const STAGES: StageConfig[] = [
     label: "설계",
     hasYearSelector: false,
     sections: [
+      { id: "sec-course-plan", label: "수강 계획" },
       { id: "sec-storyline", label: "스토리라인" },
       { id: "sec-roadmap", label: "로드맵" },
       { id: "sec-compensation", label: "보완전략" },
@@ -178,11 +189,13 @@ export function StudentRecordClient({
   studentClass,
   studentNumber,
 }: StudentRecordClientProps) {
+  const router = useRouter();
   const [viewMode, setViewMode] = useState<"all" | number>("all");
   const [importOpen, setImportOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeSection, setActiveSection] = useState("sec-1");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
   const currentSchoolYear = calculateSchoolYear();
 
@@ -190,7 +203,7 @@ export function StudentRecordClient({
   const yearGradePairs = useMemo<GradeYearPair[]>(() => {
     const pairs: GradeYearPair[] = [];
     for (let g = 1; g <= studentGrade; g++) {
-      const sy = currentSchoolYear - (studentGrade - g);
+      const sy = gradeToSchoolYear(g, studentGrade, currentSchoolYear);
       pairs.push({ grade: g, schoolYear: sy });
     }
     return pairs;
@@ -222,6 +235,9 @@ export function StudentRecordClient({
   const { data: diagnosisData, isLoading: diagnosisLoading, error: diagnosisError } = useQuery(
     diagnosisTabQueryOptions(studentId, initialSchoolYear, tenantId),
   );
+
+  // P1: 수강 계획 데이터 (세특 placeholder 연동)
+  const { data: coursePlanData } = useQuery(coursePlanTabQueryOptions(studentId));
 
   // G1: 세특 레이어 탭용 추가 데이터
   const { data: setekGuidesRes } = useQuery({
@@ -426,7 +442,21 @@ export function StudentRecordClient({
             }}
           />
         </div>
+        {/* G4-5: 불완전함 보존 알림 */}
+        {((progressCounts.recordFilled + progressCounts.diagnosisFilled + progressCounts.designFilled + progressCounts.strategyFilled) /
+          (progressCounts.recordTotal + 1 + 7 + 6)) >= 0.95 && (
+          <p className="pt-1 text-[9px] text-amber-600 dark:text-amber-400">
+            완벽한 일관성보다 자연스러운 다양성이 설득력 있습니다
+          </p>
+        )}
       </div>
+
+      {/* Phase B: AI 초기 분석 파이프라인 */}
+      <PipelineSidebarWidget
+        studentId={studentId}
+        tenantId={tenantId}
+        hasTargetMajor={!!diagnosisData?.targetMajor}
+      />
 
       {STAGES.map((stage) => {
         const isExpanded = expandedStages.has(stage.id);
@@ -597,6 +627,21 @@ export function StudentRecordClient({
   return (
     <StudentRecordProvider value={{ studentId, tenantId, studentName, activeSubjectId, setActiveSubjectId }}>
     <SidePanelProvider storageKey="recordSidePanelApp">
+    <TopBarCenterSlotPortal>
+      <div className="contents">
+        <div className="flex items-center gap-2 order-2">
+          <FileText className="h-4 w-4 text-[var(--text-tertiary)]" />
+          <span className="text-sm font-semibold text-[var(--text-primary)]">생기부</span>
+        </div>
+        <div className="order-4 ml-auto">
+          <StudentSwitcher
+            currentStudentId={studentId}
+            currentStudentName={studentName ?? null}
+            onSelect={(id) => router.push(`/admin/students/${id}/record`)}
+          />
+        </div>
+      </div>
+    </TopBarCenterSlotPortal>
     <RecordLayoutShell
       sidebar={sidebarContent}
       isSidebarOpen={sidebarOpen}
@@ -681,6 +726,18 @@ export function StudentRecordClient({
               </div>
             </div>
           </div>
+
+          {/* ─── G2-3: 진로 미설정 배너 ──── */}
+          {!diagnosisLoading && diagnosisData && !diagnosisData.targetMajor && (
+            <CareerSetupBanner
+              studentId={studentId}
+              tenantId={tenantId}
+              onComplete={() => {
+                queryClient.invalidateQueries({ queryKey: ["studentRecord", "diagnosis"] });
+                queryClient.invalidateQueries({ queryKey: studentRecordKeys.pipeline(studentId) });
+              }}
+            />
+          )}
 
           {/* ─── 1. 인적·학적사항 (실제 생기부 원본 구조) ──── */}
           <DocSection id="sec-1" number="1" title="인적·학적사항">
@@ -834,6 +891,8 @@ export function StudentRecordClient({
                         schoolYear={p.schoolYear}
                         tenantId={tenantId}
                         grade={p.grade}
+                        diagnosisActivityTags={diagnosisData?.activityTags}
+                        guideAssignments={guideAssignmentsRes?.success ? guideAssignmentsRes.data as Array<{ id: string; guide_id: string; status: string; exploration_guides?: { id: string; title: string; guide_type?: string } }> : undefined}
                       />
                     </div>
                   );
@@ -862,6 +921,16 @@ export function StudentRecordClient({
           <DocSection id="sec-7" number="7" title="교과학습발달상황">
             {visiblePairs.map((p) => {
               const entry = recordByGrade.get(p.grade);
+              // P1: 해당 학년의 confirmed plans
+              const confirmedForGrade = coursePlanData?.plans
+                ?.filter((cp) => cp.plan_status === "confirmed" && cp.grade === p.grade)
+                .map((cp) => ({
+                  subjectId: cp.subject_id,
+                  subjectName: cp.subject.name,
+                  semester: cp.semester,
+                  subjectGroupName: cp.subject.subject_group?.name ?? "",
+                  subjectTypeName: cp.subject.subject_type?.name ?? "",
+                }));
               return (
                 <div key={p.grade} className="mb-8 last:mb-0">
                   {visiblePairs.length > 1 && (
@@ -889,6 +958,11 @@ export function StudentRecordClient({
                       return items.length > 0 ? items : undefined;
                     })()}
                     guideAssignments={guideAssignmentsRes?.success ? guideAssignmentsRes.data as Array<{ id: string; guide_id: string; status: string; exploration_guides?: { id: string; title: string; guide_type?: string } }> : undefined}
+                    confirmedPlansForGrade={confirmedForGrade}
+                    studentClassificationId={diagnosisData?.targetSubClassificationId}
+                    studentClassificationName={diagnosisData?.targetSubClassificationName}
+                    schoolName={schoolName}
+                    courseAdequacy={diagnosisData?.courseAdequacy}
                   />
                 </div>
               );
@@ -905,6 +979,7 @@ export function StudentRecordClient({
                 schoolYear={visiblePairs[0]?.schoolYear ?? initialSchoolYear}
                 tenantId={tenantId}
                 grade={visiblePairs[0]?.grade ?? studentGrade}
+                diagnosisActivityTags={diagnosisData?.activityTags}
               />
             )}
           </DocSection>
@@ -927,6 +1002,7 @@ export function StudentRecordClient({
                         schoolYear={p.schoolYear}
                         tenantId={tenantId}
                         grade={p.grade}
+                        diagnosisActivityTags={diagnosisData?.activityTags}
                       />
                     </div>
                   );
@@ -985,6 +1061,16 @@ export function StudentRecordClient({
 
           {/* ─── 📐 설계 스테이지 구분선 ──────────── */}
           <StageDivider emoji="📐" label="설계" />
+
+          {/* Phase B: AI 초기 분석 결과 패널 */}
+          <DesignPipelineResultsPanel studentId={studentId} tenantId={tenantId} />
+
+          {/* ─── 수강 계획 ──────────────────────────── */}
+          <StrategySection id="sec-course-plan" title="수강 계획">
+            <Suspense fallback={<SectionSkeleton />}>
+              <CoursePlanEditor studentId={studentId} tenantId={tenantId} />
+            </Suspense>
+          </StrategySection>
 
           {/* ─── 스토리라인 ───────────────────────── */}
           <StrategySection id="sec-storyline" title="스토리라인">
@@ -1063,6 +1149,8 @@ export function StudentRecordClient({
               tenantId={tenantId}
               schoolName={schoolName}
               schoolYear={initialSchoolYear}
+              studentClassificationId={diagnosisData?.targetSubClassificationId ?? undefined}
+              studentClassificationName={diagnosisData?.targetSubClassificationName ?? undefined}
             />
           </StrategySection>
 
@@ -1320,6 +1408,11 @@ function GradesAndSetekSection({
   diagnosisActivityTags,
   setekGuideItems,
   guideAssignments,
+  confirmedPlansForGrade,
+  studentClassificationId,
+  studentClassificationName,
+  schoolName,
+  courseAdequacy,
 }: {
   studentId: string;
   schoolYear: number;
@@ -1333,6 +1426,11 @@ function GradesAndSetekSection({
   diagnosisActivityTags?: Array<{ record_type: string; record_id: string; competency_item: string; evaluation: string; evidence_summary?: string | null }>;
   setekGuideItems?: Array<{ subjectName: string; keywords: string[]; direction: string; competencyFocus?: string[]; cautions?: string; teacherPoints?: string[] }>;
   guideAssignments?: Array<{ id: string; guide_id: string; status: string; exploration_guides?: { id: string; title: string; guide_type?: string } }>;
+  confirmedPlansForGrade?: Array<{ subjectId: string; subjectName: string; semester: number; subjectGroupName: string; subjectTypeName: string }>;
+  studentClassificationId?: number | null;
+  studentClassificationName?: string | null;
+  schoolName?: string | null;
+  courseAdequacy?: import("@/lib/domains/student-record").CourseAdequacyResult | null;
 }) {
   // 2022 개정 판별 (2025년 입학생~)
   const enrollmentYear = schoolYear - studentGrade + 1;
@@ -1356,6 +1454,24 @@ function GradesAndSetekSection({
     return { generalSeteks: gen, electiveSeteks: elec, peArtSeteks: peArt };
   }, [seteks, subjects]);
 
+  // P1: confirmed plans를 카테고리별로 분류
+  type PlannedSub = { subjectId: string; subjectName: string; semester: number };
+  const { generalPlanned, electivePlanned, peArtPlanned } = useMemo(() => {
+    if (!confirmedPlansForGrade) return { generalPlanned: [] as PlannedSub[], electivePlanned: [] as PlannedSub[], peArtPlanned: [] as PlannedSub[] };
+    const gen: PlannedSub[] = [];
+    const elec: PlannedSub[] = [];
+    const peArt: PlannedSub[] = [];
+    for (const p of confirmedPlansForGrade) {
+      const groupName = p.subjectGroupName;
+      const typeName = p.subjectTypeName;
+      if (groupName === "교양") { gen.push(p); continue; }
+      if (PE_ART_GROUPS.has(groupName)) { peArt.push(p); continue; }
+      if (ELECTIVE_TYPES.has(typeName)) { elec.push(p); continue; }
+      gen.push(p);
+    }
+    return { generalPlanned: gen, electivePlanned: elec, peArtPlanned: peArt };
+  }, [confirmedPlansForGrade]);
+
   return (
     <>
       {/* ── 일반과목: 성적 → 이수학점 → 세특 ── */}
@@ -1376,6 +1492,10 @@ function GradesAndSetekSection({
             diagnosisActivityTags={diagnosisActivityTags}
             setekGuideItems={setekGuideItems}
             guideAssignments={guideAssignments}
+            plannedSubjects={generalPlanned}
+            studentClassificationId={studentClassificationId}
+            schoolName={schoolName}
+            courseAdequacy={courseAdequacy}
           />
         )}
       </div>
@@ -1386,7 +1506,7 @@ function GradesAndSetekSection({
         <RecordGradesDisplay studentId={studentId} tenantId={tenantId} schoolYear={schoolYear} studentGrade={studentGrade} subjects={subjects} variant="elective" />
       </div>
 
-      {electiveSeteks.length > 0 && (
+      {(electiveSeteks.length > 0 || electivePlanned.length > 0) && (
         <div className="mb-6">
           <SubHeader>세부능력 및 특기사항</SubHeader>
           <SetekEditor
@@ -1399,6 +1519,9 @@ function GradesAndSetekSection({
             diagnosisActivityTags={diagnosisActivityTags}
             setekGuideItems={setekGuideItems}
             guideAssignments={guideAssignments}
+            plannedSubjects={electivePlanned}
+            studentClassificationId={studentClassificationId}
+            schoolName={schoolName}
           />
         </div>
       )}
@@ -1409,7 +1532,7 @@ function GradesAndSetekSection({
         <RecordGradesDisplay studentId={studentId} tenantId={tenantId} schoolYear={schoolYear} studentGrade={studentGrade} subjects={subjects} variant="pe_art" />
       </div>
 
-      {peArtSeteks.length > 0 && (
+      {(peArtSeteks.length > 0 || peArtPlanned.length > 0) && (
         <div className="mb-6">
           <SubHeader>세부능력 및 특기사항</SubHeader>
           <SetekEditor
@@ -1422,6 +1545,9 @@ function GradesAndSetekSection({
             diagnosisActivityTags={diagnosisActivityTags}
             setekGuideItems={setekGuideItems}
             guideAssignments={guideAssignments}
+            plannedSubjects={peArtPlanned}
+            studentClassificationId={studentClassificationId}
+            schoolName={schoolName}
           />
         </div>
       )}

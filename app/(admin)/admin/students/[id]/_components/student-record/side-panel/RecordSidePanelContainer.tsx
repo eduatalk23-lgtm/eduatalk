@@ -27,15 +27,23 @@ const AgentChat = dynamic(
   { ssr: false },
 );
 
+const ConnectionsPanelApp = dynamic(
+  () => import("./ConnectionsPanelApp").then((m) => ({ default: m.ConnectionsPanelApp })),
+  { ssr: false },
+);
+
 export function RecordSidePanelContainer() {
   const { activeApp } = useSidePanel();
-  const { studentId, studentName } = useStudentRecordContext();
+  const { studentId, tenantId, studentName, activeSubjectId } = useStudentRecordContext();
 
   return (
     <>
       <SidePanelContent>
         {activeApp === "memo" && <RecordMemoPanelApp studentId={studentId} />}
-        {activeApp === "chat" && <ChatPanelApp />}
+        {activeApp === "chat" && <ChatPanelApp recordTopic={activeSubjectId} />}
+        {activeApp === "connections" && (
+          <ConnectionsPanelApp studentId={studentId} tenantId={tenantId} />
+        )}
         {activeApp === "agent" && (
           <AgentChat
             studentId={studentId}

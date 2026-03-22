@@ -53,6 +53,7 @@ export function separateStudentFormFields(formData: FormData): {
     "desired_career_field",
     "target_major",
     "target_major_2",
+    "target_sub_classification_id",
     "target_score",
     "target_university_type",
     "notes",

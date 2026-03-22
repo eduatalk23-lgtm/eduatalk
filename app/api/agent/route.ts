@@ -58,7 +58,7 @@ export async function POST(req: Request) {
     // 5. Rate-limited streamText
     const result = await geminiRateLimiter.execute(async () => {
       return streamText({
-        model: google("gemini-2.0-flash"),
+        model: google("gemini-3.1-flash"),
         system: systemPrompt,
         messages,
         tools,

@@ -3,7 +3,7 @@ import { fetchRecordTabData } from "@/lib/domains/student-record/actions/record"
 import { fetchStorylineTabData } from "@/lib/domains/student-record/actions/storyline";
 import { fetchSupplementaryTabData } from "@/lib/domains/student-record/actions/supplementary";
 import { fetchStrategyTabData } from "@/lib/domains/student-record/actions/strategy";
-import { fetchDiagnosisTabData } from "@/lib/domains/student-record/actions/diagnosis";
+import { fetchDiagnosisTabData, fetchCrossRefData } from "@/lib/domains/student-record/actions/diagnosis";
 
 // ============================================
 // Query Key Factory
@@ -21,6 +21,12 @@ export const studentRecordKeys = {
     [...studentRecordKeys.all, "supplementaryTab", studentId, schoolYear] as const,
   strategyTab: (studentId: string, schoolYear: number) =>
     [...studentRecordKeys.all, "strategyTab", studentId, schoolYear] as const,
+  coursePlanTab: (studentId: string) =>
+    [...studentRecordKeys.all, "coursePlanTab", studentId] as const,
+  crossRef: (studentId: string) =>
+    [...studentRecordKeys.all, "crossRef", studentId] as const,
+  pipeline: (studentId: string) =>
+    [...studentRecordKeys.all, "pipeline", studentId] as const,
 };
 
 // ============================================
@@ -69,6 +75,34 @@ export function strategyTabQueryOptions(studentId: string, schoolYear: number) {
   });
 }
 
+export function crossRefQueryOptions(studentId: string, tenantId: string) {
+  return queryOptions({
+    queryKey: studentRecordKeys.crossRef(studentId),
+    queryFn: () => fetchCrossRefData(studentId, tenantId),
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    enabled: !!studentId,
+  });
+}
+
+/** AI 초기 분석 파이프라인 상태 (3초 폴링, running 시에만) */
+export function pipelineStatusQueryOptions(studentId: string) {
+  return queryOptions({
+    queryKey: studentRecordKeys.pipeline(studentId),
+    queryFn: async () => {
+      const { fetchPipelineStatus } = await import(
+        "@/lib/domains/student-record/actions/pipeline"
+      );
+      const result = await fetchPipelineStatus(studentId);
+      if (!result.success) throw new Error(result.error);
+      return result.data;
+    },
+    staleTime: 2_000,
+    gcTime: 5 * 60_000,
+    enabled: !!studentId,
+  });
+}
+
 export function diagnosisTabQueryOptions(
   studentId: string,
   schoolYear: number,
@@ -88,6 +122,27 @@ export function storylineTabQueryOptions(studentId: string, schoolYear: number) 
     queryKey: studentRecordKeys.storylineTab(studentId),
     queryFn: async () => {
       const result = await fetchStorylineTabData(studentId, schoolYear);
+      if (!result.success) throw new Error(result.error);
+      return result.data!;
+    },
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
+    enabled: !!studentId,
+  });
+}
+
+// ============================================
+// 수강 계획 (Course Plan)
+// ============================================
+
+export function coursePlanTabQueryOptions(studentId: string) {
+  return queryOptions({
+    queryKey: studentRecordKeys.coursePlanTab(studentId),
+    queryFn: async () => {
+      const { fetchCoursePlanTabData } = await import(
+        "@/lib/domains/student-record/actions/coursePlan"
+      );
+      const result = await fetchCoursePlanTabData(studentId);
       if (!result.success) throw new Error(result.error);
       return result.data!;
     },

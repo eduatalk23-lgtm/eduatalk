@@ -48,19 +48,19 @@ export type { LLMProvider, ProviderType, GroundingConfig, GroundingMetadata, Web
 const MODEL_CONFIGS_INTERNAL: Record<ModelTier, ModelConfig> = {
   fast: {
     tier: "fast",
-    modelId: "gemini-2.0-flash",
+    modelId: "gemini-3.1-flash",
     maxTokens: 4096,
     temperature: 0.3,
   },
   standard: {
     tier: "standard",
-    modelId: "gemini-2.0-flash",
+    modelId: "gemini-3.1-flash",
     maxTokens: 8192,
     temperature: 0.5,
   },
   advanced: {
     tier: "advanced",
-    modelId: "gemini-2.5-pro",
+    modelId: "gemini-3.1-pro-preview",
     maxTokens: 16384,
     temperature: 0.7,
   },

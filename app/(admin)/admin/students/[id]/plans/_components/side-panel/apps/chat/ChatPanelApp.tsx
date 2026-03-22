@@ -5,6 +5,8 @@
  *
  * ChatPopover의 고정 위치/애니메이션 없이, ChatList + ChatRoom을
  * 사이드 패널(360px)에 맞게 렌더합니다.
+ *
+ * recordTopic이 전달되면 토픽별 필터링 + 배너를 표시합니다.
  */
 
 import { useState, useCallback } from "react";
@@ -19,6 +21,7 @@ import { ChatSidebarTabs } from "@/components/chat/atoms/ChatSidebarTabs";
 import type { ChatSidebarTab } from "@/components/chat/atoms/ChatSidebarTabs";
 import { chatRoomDetailQueryOptions } from "@/lib/query-options/chatRoom";
 import type { ChatUserType } from "@/lib/domains/chat/types";
+import { CHANGCHE_TYPE_LABELS } from "@/lib/domains/student-record";
 
 const CreateChatModal = dynamic(
   () =>
@@ -52,9 +55,22 @@ function toChatUserType(role: string): ChatUserType | null {
   return null;
 }
 
+/** recordTopic → 사람이 읽을 수 있는 라벨 변환 */
+function topicLabel(topic: string): string {
+  // "changche:autonomy" → "자율·자치활동"
+  if (topic.startsWith("changche:")) {
+    const type = topic.slice("changche:".length);
+    return CHANGCHE_TYPE_LABELS[type] ?? type;
+  }
+  if (topic === "haengteuk") return "행동특성 및 종합의견";
+  if (topic === "reading") return "독서활동";
+  // UUID (세특 과목) → 일반 라벨
+  return "세특 과목";
+}
+
 type PanelView = "list" | "room";
 
-export function ChatPanelApp() {
+export function ChatPanelApp({ recordTopic }: { recordTopic?: string | null }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [view, setView] = useState<PanelView>("list");
@@ -116,6 +132,16 @@ export function ChatPanelApp() {
             onChange={setSidebarTab}
             onNewChat={() => setIsCreateModalOpen(true)}
           />
+
+          {/* 토픽 배너 */}
+          {recordTopic && (
+            <div className="border-b border-[var(--border-secondary)] px-3 py-2 bg-indigo-50 dark:bg-indigo-950/20">
+              <span className="text-xs text-indigo-600 dark:text-indigo-400">
+                {topicLabel(recordTopic)}
+              </span>
+            </div>
+          )}
+
           {/* 목록 */}
           <div className="flex-1 overflow-hidden">
             {sidebarTab === "chat" ? (
@@ -125,6 +151,7 @@ export function ChatPanelApp() {
                 hideHeader
                 currentUserId={userId}
                 viewerType={chatUserType}
+                filterTopic={recordTopic}
               />
             ) : (
               <MemberList
@@ -153,6 +180,7 @@ export function ChatPanelApp() {
         onClose={() => setIsCreateModalOpen(false)}
         basePath={basePath}
         onRoomCreated={handleRoomCreated}
+        defaultTopic={recordTopic}
       />
     </div>
   );

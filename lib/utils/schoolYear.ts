@@ -31,3 +31,25 @@ export function calculateSchoolYear(date: Date = new Date()): number {
   }
 }
 
+/**
+ * 학년 → 학년도 변환 (입학년도 역산)
+ *
+ * @param grade - 대상 학년 (1, 2, 3)
+ * @param studentCurrentGrade - 학생의 현재 학년
+ * @param currentSchoolYear - 현재 학년도
+ * @returns 해당 학년의 학년도
+ *
+ * @example
+ * ```ts
+ * // 현재 2학년, 2026학년도인 학생의 1학년 학년도
+ * gradeToSchoolYear(1, 2, 2026); // 2025
+ * ```
+ */
+export function gradeToSchoolYear(
+  grade: number,
+  studentCurrentGrade: number,
+  currentSchoolYear: number,
+): number {
+  return currentSchoolYear - (studentCurrentGrade - grade);
+}
+

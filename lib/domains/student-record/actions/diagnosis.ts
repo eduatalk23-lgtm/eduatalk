@@ -46,7 +46,7 @@ export async function fetchDiagnosisTabData(
         competencyRepo.findActivityTags(studentId, tenantId),
         diagnosisRepo.findDiagnosisPair(studentId, schoolYear, tenantId),
         diagnosisRepo.findStrategies(studentId, schoolYear, tenantId),
-        supabase.from("students").select("target_major, school_name").eq("id", studentId).maybeSingle(),
+        supabase.from("students").select("target_major, school_name, target_sub_classification_id").eq("id", studentId).maybeSingle(),
         supabase.from("student_internal_scores")
           .select("subject:subject_id(name)")
           .eq("student_id", studentId),
@@ -54,6 +54,18 @@ export async function fetchDiagnosisTabData(
 
     const targetMajor = studentResult.data?.target_major ?? null;
     const schoolName = studentResult.data?.school_name ?? null;
+    const targetSubClassificationId = studentResult.data?.target_sub_classification_id ?? null;
+
+    // 소분류 이름 조회
+    let targetSubClassificationName: string | null = null;
+    if (targetSubClassificationId) {
+      const { data: dc } = await supabase
+        .from("department_classifications")
+        .select("sub_name")
+        .eq("id", targetSubClassificationId)
+        .single();
+      targetSubClassificationName = dc?.sub_name ?? null;
+    }
 
     // 이수 과목명 추출 (중복 제거)
     const takenSubjects = [
@@ -101,6 +113,7 @@ export async function fetchDiagnosisTabData(
       aiDiagnosis: diagnosisPair.ai,
       consultantDiagnosis: diagnosisPair.consultant,
       strategies, courseAdequacy, takenSubjects, offeredSubjects, targetMajor,
+      targetSubClassificationId, targetSubClassificationName,
     };
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "fetchDiagnosisTabData" }, error, { studentId, schoolYear });
@@ -110,6 +123,7 @@ export async function fetchDiagnosisTabData(
       aiDiagnosis: null, consultantDiagnosis: null,
       strategies: [], courseAdequacy: null,
       takenSubjects: [], offeredSubjects: null, targetMajor: null,
+      targetSubClassificationId: null, targetSubClassificationName: null,
     };
   }
 }
@@ -301,5 +315,137 @@ export async function deleteStrategyAction(
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "deleteStrategy" }, error);
     return { success: false, error: "보완전략 삭제 중 오류가 발생했습니다." };
+  }
+}
+
+// ============================================
+// G2-1: 크로스레퍼런스 데이터 조회
+// storyline_links + reading_links + reading labels
+// ============================================
+
+export interface CrossRefSourceData {
+  storylineLinks: import("../types").StorylineLink[];
+  readingLinks: import("../types").ReadingLink[];
+  /** reading_id → book title */
+  readingLabelMap: Record<string, string>;
+  /** record_id → display label (세특/창체/행특/독서 등) */
+  recordLabelMap: Record<string, string>;
+  /** G3-5: record_id → content 텍스트 */
+  recordContentMap: Record<string, string>;
+}
+
+export async function fetchCrossRefData(
+  studentId: string,
+  tenantId: string,
+): Promise<CrossRefSourceData> {
+  try {
+    await requireAdminOrConsultant();
+    const supabase = await createSupabaseServerClient();
+
+    const [storylineLinksResult, readingLinksResult, readingsResult, seteksResult, changcheResult, haengteukResult] =
+      await Promise.all([
+        // storyline_links (through storylines)
+        (async () => {
+          const { data: storylines } = await supabase
+            .from("student_record_storylines")
+            .select("id")
+            .eq("student_id", studentId)
+            .eq("tenant_id", tenantId);
+          if (!storylines || storylines.length === 0) return [];
+          const { data } = await supabase
+            .from("student_record_storyline_links")
+            .select("*")
+            .in("storyline_id", storylines.map((s) => s.id))
+            .order("grade")
+            .order("sort_order");
+          return data ?? [];
+        })(),
+        // reading_links
+        (async () => {
+          const { data: readings } = await supabase
+            .from("student_record_reading")
+            .select("id")
+            .eq("student_id", studentId)
+            .eq("tenant_id", tenantId);
+          if (!readings || readings.length === 0) return [];
+          const { data } = await supabase
+            .from("student_record_reading_links")
+            .select("*")
+            .in("reading_id", readings.map((r) => r.id));
+          return data ?? [];
+        })(),
+        // reading labels
+        supabase
+          .from("student_record_reading")
+          .select("id, book_title")
+          .eq("student_id", studentId)
+          .eq("tenant_id", tenantId),
+        // setek labels + content (G3-5)
+        supabase
+          .from("student_record_seteks")
+          .select("id, grade, content, subject:subject_id(name)")
+          .eq("student_id", studentId)
+          .eq("tenant_id", tenantId),
+        // changche labels + content (G3-5)
+        supabase
+          .from("student_record_changche")
+          .select("id, grade, activity_type, content")
+          .eq("student_id", studentId)
+          .eq("tenant_id", tenantId),
+        // G3-5: haengteuk content
+        supabase
+          .from("student_record_haengteuk")
+          .select("id, grade, content")
+          .eq("student_id", studentId)
+          .eq("tenant_id", tenantId),
+      ]);
+
+    // Build reading label map
+    const readingLabelMap: Record<string, string> = {};
+    for (const r of readingsResult.data ?? []) {
+      readingLabelMap[r.id] = r.book_title ?? "독서";
+    }
+
+    // Build record label map
+    const changcheTypeLabels: Record<string, string> = {
+      autonomy: "자율활동", club: "동아리활동", career: "진로활동",
+    };
+    const recordLabelMap: Record<string, string> = {};
+    for (const s of seteksResult.data ?? []) {
+      const subj = s.subject as unknown as { name: string } | null;
+      recordLabelMap[s.id] = `${s.grade}학년 ${subj?.name ?? "과목"} 세특`;
+    }
+    for (const c of changcheResult.data ?? []) {
+      recordLabelMap[c.id] = `${c.grade}학년 ${changcheTypeLabels[c.activity_type] ?? c.activity_type}`;
+    }
+    for (const r of readingsResult.data ?? []) {
+      recordLabelMap[r.id] = r.book_title ?? "독서";
+    }
+    for (const h of haengteukResult.data ?? []) {
+      recordLabelMap[h.id] = `${h.grade}학년 행동특성`;
+    }
+
+    // G3-5: Build record content map
+    const recordContentMap: Record<string, string> = {};
+    for (const s of seteksResult.data ?? []) {
+      if (s.content) recordContentMap[s.id] = s.content as string;
+    }
+    for (const c of changcheResult.data ?? []) {
+      if (c.content) recordContentMap[c.id] = c.content as string;
+    }
+    for (const h of haengteukResult.data ?? []) {
+      if (h.content) recordContentMap[h.id] = h.content as string;
+    }
+
+    return {
+      storylineLinks: storylineLinksResult as import("../types").StorylineLink[],
+      readingLinks: readingLinksResult as import("../types").ReadingLink[],
+      readingLabelMap,
+      recordLabelMap,
+      recordContentMap,
+    };
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "fetchCrossRefData" }, error, { studentId });
+    return { storylineLinks: [], readingLinks: [], readingLabelMap: {}, recordLabelMap: {}, recordContentMap: {} };
   }
 }

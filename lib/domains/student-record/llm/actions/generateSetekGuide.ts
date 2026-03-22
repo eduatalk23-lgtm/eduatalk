@@ -116,6 +116,8 @@ export async function generateSetekGuide(
       studentName: report.student.name ?? "학생",
       grade: studentGrade,
       targetMajor: report.student.targetMajor ?? undefined,
+      targetSubClassificationName: report.student.targetSubClassificationName ?? undefined,
+      targetMidName: report.student.targetMidName ?? undefined,
       targetGrades: grades,
       recordDataByGrade,
       competencyScores: competencyScores.length > 0 ? competencyScores : undefined,

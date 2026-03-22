@@ -33,6 +33,8 @@ export function useStudentSettingsForm({
         curriculum_revision: "",
         desired_university_ids: [],
         desired_career_field: "",
+        target_major: "",
+        target_sub_classification_id: "",
       },
     [initialData]
   );

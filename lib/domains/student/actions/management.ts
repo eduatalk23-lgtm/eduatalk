@@ -588,6 +588,8 @@ export async function updateStudentInfo(
       curriculum_revision?: "2009 개정" | "2015 개정" | "2022 개정" | null;
       desired_university_ids?: string[] | null;
       desired_career_field?: string | null;
+      target_major?: string | null;
+      target_sub_classification_id?: number | null;
     };
   }
 ): Promise<{ success: boolean; error?: string }> {
@@ -824,6 +826,8 @@ export async function updateStudentInfo(
       if (payload.career.curriculum_revision !== undefined) updateData.curriculum_revision = payload.career.curriculum_revision;
       if (payload.career.desired_university_ids !== undefined) updateData.desired_university_ids = payload.career.desired_university_ids ?? [];
       if (payload.career.desired_career_field !== undefined) updateData.desired_career_field = payload.career.desired_career_field;
+      if (payload.career.target_major !== undefined) updateData.target_major = payload.career.target_major;
+      if (payload.career.target_sub_classification_id !== undefined) updateData.target_sub_classification_id = payload.career.target_sub_classification_id;
     }
 
     if (Object.keys(updateData).length > 0) {

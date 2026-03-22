@@ -40,6 +40,8 @@ interface ChatListProps {
   currentUserId?: string;
   /** 현재 사용자 유형 (프로필 팝업 액션 버튼 결정용) */
   viewerType?: ChatUserType;
+  /** 토픽별 채팅방 필터링 (설정 시 해당 토픽만 표시) */
+  filterTopic?: string | null;
 }
 
 function ChatListComponent({
@@ -50,6 +52,7 @@ function ChatListComponent({
   hideHeader = false,
   currentUserId,
   viewerType,
+  filterTopic,
 }: ChatListProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -132,9 +135,15 @@ function ChatListComponent({
     [isMobile]
   );
 
-  // 검색 필터링 (Hook은 조건부 반환 전에 호출)
+  // 검색 + 토픽 필터링 (Hook은 조건부 반환 전에 호출)
   const filteredRooms = useMemo(() => {
-    const rooms = data ?? [];
+    let rooms = data ?? [];
+
+    // 토픽 필터 적용
+    if (filterTopic) {
+      rooms = rooms.filter((r) => r.topic === filterTopic);
+    }
+
     if (!searchQuery.trim()) return rooms;
     const query = searchQuery.toLowerCase();
 
@@ -143,7 +152,7 @@ function ChatListComponent({
         room.type === "direct" ? room.otherUser?.name : room.name;
       return nameToCheck?.toLowerCase().includes(query);
     });
-  }, [data, searchQuery]);
+  }, [data, searchQuery, filterTopic]);
 
   // 로딩 상태: isPending(데이터 없음) 사용 — isLoading(isPending && isFetching)만 쓰면
   // 캐시 제거 후 fetch 시작 전 순간에 빈 상태가 flash됨
@@ -238,6 +247,19 @@ function ChatListComponent({
         ) : filteredRooms.length === 0 && isFetching ? (
           <div className="flex items-center justify-center h-full">
             <Loader2 className="w-6 h-6 animate-spin text-text-tertiary" />
+          </div>
+        ) : filteredRooms.length === 0 && filterTopic ? (
+          <div className="flex flex-col items-center justify-center h-full text-center px-4 gap-3">
+            <p className="text-text-tertiary text-xs">이 영역의 채팅이 없습니다</p>
+            {onNewChat && (
+              <button
+                type="button"
+                onClick={onNewChat}
+                className="text-primary text-sm font-medium hover:underline"
+              >
+                새 채팅 시작
+              </button>
+            )}
           </div>
         ) : filteredRooms.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4 gap-3">

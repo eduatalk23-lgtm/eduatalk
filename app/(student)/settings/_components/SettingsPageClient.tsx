@@ -81,6 +81,8 @@ export default function SettingsPageClient({
           curriculum_revision: "",
           desired_university_ids: [],
           desired_career_field: "",
+          target_major: "",
+          target_sub_classification_id: "",
         });
       } finally {
         setIsLoadingInitialData(false);
@@ -190,6 +192,12 @@ export default function SettingsPageClient({
             "desired_career_field",
             formData.desired_career_field
           );
+        }
+        if (formData.target_major) {
+          formDataObj.append("target_major", formData.target_major);
+        }
+        if (formData.target_sub_classification_id) {
+          formDataObj.append("target_sub_classification_id", formData.target_sub_classification_id);
         }
 
         const result = await updateStudentProfile(formDataObj);

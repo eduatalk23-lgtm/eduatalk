@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useController, useWatch, type Control } from "react-hook-form";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
 import SchoolSelect from "@/components/ui/SchoolSelect";
@@ -9,6 +9,14 @@ import {
   CURRICULUM_REVISION_OPTIONS,
   CAREER_FIELD_OPTIONS,
 } from "@/lib/utils/studentProfile";
+import {
+  TIER1_TO_MAJORS,
+  type CareerTier1Code,
+} from "@/lib/constants/career-classification";
+import {
+  getSubClassifications,
+  type SubClassificationOption,
+} from "@/lib/domains/student/actions/classification";
 import {
   calculateExamYearValue,
   calculateCurriculumRevisionValue,
@@ -47,28 +55,20 @@ export default function CareerInfoSection({
   modalStates,
   setModalState,
 }: CareerInfoSectionProps) {
-  const examYearField = useController({
-    name: "exam_year",
-    control,
-  });
-
-  const curriculumRevisionField = useController({
-    name: "curriculum_revision",
-    control,
-  });
-
-  const desiredUniversityIdsField = useController({
-    name: "desired_university_ids",
-    control,
-  });
-
-  const desiredCareerFieldField = useController({
-    name: "desired_career_field",
-    control,
-  });
+  const examYearField = useController({ name: "exam_year", control });
+  const curriculumRevisionField = useController({ name: "curriculum_revision", control });
+  const desiredUniversityIdsField = useController({ name: "desired_university_ids", control });
+  const desiredCareerFieldField = useController({ name: "desired_career_field", control });
+  const targetMajorField = useController({ name: "target_major", control });
+  const subClassField = useController({ name: "target_sub_classification_id", control });
 
   const gradeValue = useWatch({ name: "grade", control });
   const birthDateValue = useWatch({ name: "birth_date", control });
+  const careerFieldValue = useWatch({ name: "desired_career_field", control });
+  const targetMajorValue = useWatch({ name: "target_major", control });
+
+  // Tier 3 소분류 옵션 (서버에서 비동기 로드)
+  const [subOptions, setSubOptions] = useState<SubClassificationOption[]>([]);
 
   const ids = desiredUniversityIdsField.field.value || [];
   const slotValues = [ids[0] || "", ids[1] || "", ids[2] || ""];
@@ -82,22 +82,54 @@ export default function CareerInfoSection({
     [ids, desiredUniversityIdsField.field]
   );
 
+  // Tier 1 → Tier 2 옵션
+  const majorOptions = useMemo(() => {
+    if (!careerFieldValue) return [];
+    const majors = TIER1_TO_MAJORS[careerFieldValue as CareerTier1Code] ?? [];
+    return majors.map((m) => ({ value: m, label: m }));
+  }, [careerFieldValue]);
+
+  // Tier 2 변경 시 → Tier 3 비동기 로드
+  useEffect(() => {
+    if (!targetMajorValue) {
+      setSubOptions([]);
+      return;
+    }
+    let cancelled = false;
+    getSubClassifications(targetMajorValue).then((data) => {
+      if (!cancelled) setSubOptions(data);
+    });
+    return () => { cancelled = true; };
+  }, [targetMajorValue]);
+
+  // Tier 1 변경 시 Tier 2, Tier 3 초기화
+  const handleCareerFieldChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      desiredCareerFieldField.field.onChange(e);
+      targetMajorField.field.onChange("");
+      subClassField.field.onChange("");
+    },
+    [desiredCareerFieldField.field, targetMajorField.field, subClassField.field]
+  );
+
+  // Tier 2 변경 시 Tier 3 초기화
+  const handleTargetMajorChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      targetMajorField.field.onChange(e);
+      subClassField.field.onChange("");
+    },
+    [targetMajorField.field, subClassField.field]
+  );
+
   const calculatedExamYear = useMemo(
-    () =>
-      gradeValue
-        ? calculateExamYearValue(gradeValue, schoolType || undefined)
-        : null,
+    () => gradeValue ? calculateExamYearValue(gradeValue, schoolType || undefined) : null,
     [gradeValue, schoolType]
   );
 
   const calculatedCurriculum = useMemo(
     () =>
       gradeValue && birthDateValue
-        ? calculateCurriculumRevisionValue(
-            gradeValue,
-            birthDateValue,
-            schoolType || undefined
-          )
+        ? calculateCurriculumRevisionValue(gradeValue, birthDateValue, schoolType || undefined)
         : null,
     [gradeValue, birthDateValue, schoolType]
   );
@@ -110,15 +142,13 @@ export default function CareerInfoSection({
             진로 정보
           </h3>
           <div className="flex flex-col gap-4">
-            {/* 교육과정 / 수능연도 / 진로계열 */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {/* 교육과정 / 수능연도 */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {/* 교육과정 + 자동계산 */}
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
-                    <label className="text-sm font-medium text-gray-700">
-                      교육과정
-                    </label>
+                    <label className="text-sm font-medium text-gray-700">교육과정</label>
                     <button
                       type="button"
                       onClick={() => setModalState("curriculum", true)}
@@ -132,11 +162,7 @@ export default function CareerInfoSection({
                     <input
                       type="checkbox"
                       checked={autoCalculateFlags.curriculum}
-                      onChange={(e) =>
-                        setAutoCalculateFlags({
-                          curriculum: e.target.checked,
-                        })
-                      }
+                      onChange={(e) => setAutoCalculateFlags({ curriculum: e.target.checked })}
                       className="rounded border-gray-300"
                     />
                     <span>자동</span>
@@ -148,18 +174,13 @@ export default function CareerInfoSection({
                   disabled={disabled || autoCalculateFlags.curriculum}
                   options={[
                     { value: "", label: "선택 안 함" },
-                    ...CURRICULUM_REVISION_OPTIONS.map((c) => ({
-                      value: c.value,
-                      label: c.label,
-                    })),
+                    ...CURRICULUM_REVISION_OPTIONS.map((c) => ({ value: c.value, label: c.label })),
                   ]}
                   className="[&>label]:hidden"
                   error={curriculumRevisionField.fieldState.error?.message}
                 />
                 {autoCalculateFlags.curriculum && calculatedCurriculum && (
-                  <p className="text-xs text-gray-500">
-                    자동 계산: {calculatedCurriculum}
-                  </p>
+                  <p className="text-xs text-gray-500">자동 계산: {calculatedCurriculum}</p>
                 )}
               </div>
 
@@ -167,9 +188,7 @@ export default function CareerInfoSection({
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
-                    <label className="text-sm font-medium text-gray-700">
-                      수능연도
-                    </label>
+                    <label className="text-sm font-medium text-gray-700">수능연도</label>
                     <button
                       type="button"
                       onClick={() => setModalState("examYear", true)}
@@ -183,11 +202,7 @@ export default function CareerInfoSection({
                     <input
                       type="checkbox"
                       checked={autoCalculateFlags.examYear}
-                      onChange={(e) =>
-                        setAutoCalculateFlags({
-                          examYear: e.target.checked,
-                        })
-                      }
+                      onChange={(e) => setAutoCalculateFlags({ examYear: e.target.checked })}
                       className="rounded border-gray-300"
                     />
                     <span>자동</span>
@@ -203,27 +218,53 @@ export default function CareerInfoSection({
                   error={examYearField.fieldState.error?.message}
                 />
                 {autoCalculateFlags.examYear && calculatedExamYear && (
-                  <p className="text-xs text-gray-500">
-                    자동 계산: {calculatedExamYear}년
-                  </p>
+                  <p className="text-xs text-gray-500">자동 계산: {calculatedExamYear}년</p>
                 )}
               </div>
+            </div>
 
-              {/* 진로계열 */}
+            {/* 진로계열 (Tier 1) + 전공방향 (Tier 2) */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormSelect
                 {...desiredCareerFieldField.field}
+                onChange={handleCareerFieldChange}
                 label="진로계열"
                 disabled={disabled}
                 options={[
                   { value: "", label: "선택 안 함" },
-                  ...CAREER_FIELD_OPTIONS.map((c) => ({
-                    value: c.value,
-                    label: c.label,
-                  })),
+                  ...CAREER_FIELD_OPTIONS.map((c) => ({ value: c.value, label: c.label })),
                 ]}
                 error={desiredCareerFieldField.fieldState.error?.message}
               />
+              <FormSelect
+                {...targetMajorField.field}
+                onChange={handleTargetMajorChange}
+                label="전공방향"
+                disabled={disabled || !careerFieldValue || majorOptions.length === 0}
+                options={[
+                  { value: "", label: careerFieldValue ? "선택 안 함" : "계열을 먼저 선택하세요" },
+                  ...majorOptions,
+                ]}
+                error={targetMajorField.fieldState.error?.message}
+              />
             </div>
+
+            {/* 세부 전공 (Tier 3) — 전공방향 선택 시만 표시 */}
+            {targetMajorValue && subOptions.length > 0 && (
+              <FormSelect
+                {...subClassField.field}
+                label="세부 전공 (선택)"
+                disabled={disabled}
+                options={[
+                  { value: "", label: "선택 안 함" },
+                  ...subOptions.map((s) => ({
+                    value: String(s.id),
+                    label: s.sub_name,
+                  })),
+                ]}
+                error={subClassField.fieldState.error?.message}
+              />
+            )}
 
             {/* 희망 대학교 — 3슬롯 */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

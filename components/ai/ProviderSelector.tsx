@@ -101,11 +101,11 @@ const PROVIDER_INFO: Record<ProviderType, Omit<ProviderInfo, "available">> = {
   gemini: {
     type: "gemini",
     name: "Google Gemini",
-    description: "Gemini 2.0 Flash, Gemini 1.5 Pro",
+    description: "Gemini 3.1 Flash, Gemini 3.1 Pro",
     models: {
-      fast: { modelId: "gemini-2.0-flash", inputCostPer1M: 0.1, outputCostPer1M: 0.4 },
-      standard: { modelId: "gemini-2.0-flash", inputCostPer1M: 0.1, outputCostPer1M: 0.4 },
-      advanced: { modelId: "gemini-1.5-pro-latest", inputCostPer1M: 1.25, outputCostPer1M: 5.0 },
+      fast: { modelId: "gemini-3.1-flash", inputCostPer1M: 0.1, outputCostPer1M: 0.4 },
+      standard: { modelId: "gemini-3.1-flash", inputCostPer1M: 0.1, outputCostPer1M: 0.4 },
+      advanced: { modelId: "gemini-3.1-pro-preview", inputCostPer1M: 1.25, outputCostPer1M: 5.0 },
     },
   },
 };

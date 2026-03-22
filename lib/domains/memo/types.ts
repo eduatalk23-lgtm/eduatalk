@@ -1,6 +1,17 @@
 /** 캘린더 사이드 패널 메모 시스템 타입 */
 
 export type MemoAuthorRole = "student" | "admin" | "consultant";
+
+/** G3-4: 메모 영역 태깅 타입 */
+export type MemoRecordAreaType = "setek" | "changche" | "haengteuk" | "reading" | "personal_setek";
+
+export const MEMO_AREA_TYPE_LABELS: Record<MemoRecordAreaType, string> = {
+  setek: "세특",
+  changche: "창체",
+  haengteuk: "행특",
+  reading: "독서",
+  personal_setek: "개인세특",
+};
 export type MemoVisibility = "public" | "private";
 
 export const MEMO_COLORS = [
@@ -45,6 +56,10 @@ export interface CalendarMemoRow {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  /** G3-4: 영역 타입 (null=일반 메모) */
+  record_area_type: MemoRecordAreaType | null;
+  /** G3-4: 영역 ID (null=일반 메모) */
+  record_area_id: string | null;
 }
 
 /** 메모 목록 아이템 (작성자 이름 포함) */
@@ -61,6 +76,9 @@ export interface CreateMemoInput {
   memoDate?: string;
   visibility?: MemoVisibility;
   color?: MemoColor;
+  /** G3-4: 영역 태깅 */
+  recordAreaType?: MemoRecordAreaType;
+  recordAreaId?: string;
 }
 
 /** 메모 수정 입력 */

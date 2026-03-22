@@ -13,6 +13,9 @@ export const calendarMemoKeys = {
     [...calendarMemoKeys.student(studentId), "role", role] as const,
   byDate: (studentId: string, date: string) =>
     [...calendarMemoKeys.student(studentId), "date", date] as const,
+  /** G3-4: 영역별 메모 */
+  byArea: (studentId: string, areaType: string, areaId: string) =>
+    [...calendarMemoKeys.student(studentId), "area", areaType, areaId] as const,
 };
 
 // ============================================
@@ -31,6 +34,29 @@ export function studentMemosQueryOptions(studentId: string) {
     staleTime: 30_000, // 30초
     gcTime: 5 * 60_000, // 5분
     enabled: !!studentId,
+  });
+}
+
+/** G3-4: 영역별 메모 목록 */
+export function memosByAreaQueryOptions(
+  studentId: string,
+  areaType: string,
+  areaId: string,
+) {
+  return queryOptions({
+    queryKey: calendarMemoKeys.byArea(studentId, areaType, areaId),
+    queryFn: async () => {
+      const result = await getMemos(studentId, {
+        recordAreaType: areaType,
+        recordAreaId: areaId,
+        limit: 50,
+      });
+      if (!result.success) throw new Error(result.error);
+      return result.data ?? [];
+    },
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
+    enabled: !!studentId && !!areaType && !!areaId,
   });
 }
 

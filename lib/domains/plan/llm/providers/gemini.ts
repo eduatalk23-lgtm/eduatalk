@@ -26,21 +26,21 @@ import { logActionDebug, logActionWarn } from "@/lib/utils/serverActionLogger";
 const GEMINI_MODEL_CONFIGS: Record<ModelTier, ModelConfig> = {
   fast: {
     tier: "fast",
-    modelId: "gemini-flash-latest",
+    modelId: "gemini-3.1-flash",
     maxTokens: 4096,
     temperature: 0.3,
     provider: "gemini",
   },
   standard: {
     tier: "standard",
-    modelId: "gemini-flash-latest",
+    modelId: "gemini-3.1-flash",
     maxTokens: 8192,
     temperature: 0.5,
     provider: "gemini",
   },
   advanced: {
     tier: "advanced",
-    modelId: "gemini-pro-latest",
+    modelId: "gemini-3.1-pro-preview",
     maxTokens: 16384,
     temperature: 0.7,
     provider: "gemini",
@@ -565,10 +565,11 @@ export class GeminiProvider extends BaseLLMProvider {
     if (!grounding?.enabled) return [];
 
     // Gemini 2.0 모델 및 최신 모델(latest) 감지
-    const useGoogleSearch = 
-      modelId?.includes("gemini-2.0") || 
+    const useGoogleSearch =
+      modelId?.includes("gemini-2.0") ||
       modelId?.includes("latest") ||
-      modelId?.includes("gemini-2.5");
+      modelId?.includes("gemini-2.5") ||
+      modelId?.includes("gemini-3.1");
 
     logActionDebug(
       "GeminiProvider.buildGroundingTools",

@@ -37,6 +37,8 @@ export interface ReportData {
     grade: number;
     className: string | null;
     targetMajor: string | null;
+    targetSubClassificationName: string | null;
+    targetMidName: string | null;
   };
   consultantName: string | null;
   generatedAt: string;
@@ -67,7 +69,7 @@ export async function fetchReportData(
     // 학생 기본 정보 조회
     const { data: student, error: studentError } = await supabase
       .from("students")
-      .select("id, grade, class, school_name, target_major, user_profiles(name)")
+      .select("id, grade, class, school_name, target_major, target_sub_classification_id, user_profiles(name)")
       .eq("id", studentId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
@@ -79,6 +81,21 @@ export async function fetchReportData(
     const studentGrade = student.grade ?? 3;
     const studentName =
       (student.user_profiles as unknown as { name: string } | null)?.name ?? null;
+
+    // 소분류 이름 조회
+    let targetSubClassificationName: string | null = null;
+    let targetMidName: string | null = null;
+    if (student.target_sub_classification_id) {
+      const { data: dc } = await supabase
+        .from("department_classifications")
+        .select("mid_name, sub_name")
+        .eq("id", student.target_sub_classification_id)
+        .single();
+      if (dc) {
+        targetSubClassificationName = dc.sub_name;
+        targetMidName = dc.mid_name;
+      }
+    }
 
     // 컨설턴트 이름 조회
     const { data: consultant } = await supabase
@@ -132,6 +149,8 @@ export async function fetchReportData(
         grade: studentGrade,
         className: student.class ?? null,
         targetMajor: student.target_major ?? null,
+        targetSubClassificationName,
+        targetMidName,
       },
       consultantName: consultant?.name ?? null,
       generatedAt: new Date().toISOString(),

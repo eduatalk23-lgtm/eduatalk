@@ -30,6 +30,9 @@ export async function getMemos(
     authorRole?: "student" | "admin";
     memoDate?: string;
     limit?: number;
+    /** G3-4: 영역 필터 */
+    recordAreaType?: string;
+    recordAreaId?: string;
   }
 ): Promise<MemoActionResult<CalendarMemoWithAuthor[]>> {
   try {
@@ -52,6 +55,14 @@ export async function getMemos(
 
     if (options?.memoDate) {
       query = query.eq("memo_date", options.memoDate);
+    }
+
+    // G3-4: 영역 필터
+    if (options?.recordAreaType) {
+      query = query.eq("record_area_type", options.recordAreaType);
+      if (options?.recordAreaId) {
+        query = query.eq("record_area_id", options.recordAreaId);
+      }
     }
 
     if (options?.limit) {
@@ -115,6 +126,8 @@ export async function createMemo(
         memo_date: input.memoDate ?? null,
         visibility,
         color: input.color ?? null,
+        record_area_type: input.recordAreaType ?? null,
+        record_area_id: input.recordAreaId ?? null,
       })
       .select()
       .single();

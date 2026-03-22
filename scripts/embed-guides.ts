@@ -16,12 +16,14 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
 
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
+const forceAll = args.includes("--force");
 const limitArg = args.find((a) => a.startsWith("--limit="));
 const limit = limitArg ? parseInt(limitArg.split("=")[1], 10) : undefined;
 
 async function main() {
   console.log("🔄 가이드 임베딩 배치 처리 시작");
   console.log(`   모드: ${dryRun ? "DRY-RUN (실제 임베딩 없음)" : "LIVE"}`);
+  if (forceAll) console.log(`   ⚠️  FORCE: 기존 임베딩 포함 전체 재생성`);
   if (limit) console.log(`   제한: ${limit}건`);
 
   const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_KEY!);
@@ -33,9 +35,14 @@ async function main() {
   while (true) {
     let query = supabase
       .from("exploration_guide_content")
-      .select("guide_id")
-      .is("embedding", null)
-      .range(page * pageSize, (page + 1) * pageSize - 1);
+      .select("guide_id");
+
+    // --force: 전체 재임베딩, 기본: 임베딩 없는 건만
+    if (!forceAll) {
+      query = query.is("embedding", null);
+    }
+
+    query = query.range(page * pageSize, (page + 1) * pageSize - 1);
 
     if (limit && allTargets.length + pageSize >= limit) {
       query = query.limit(limit - allTargets.length);

@@ -10,22 +10,27 @@ import {
 import { GUIDE_TYPES, GUIDE_TYPE_LABELS } from "@/lib/domains/guide";
 import type { GuideType, GuideListFilter } from "@/lib/domains/guide";
 import { GuideCard } from "./GuideCard";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 
 interface GuideSearchSectionProps {
   onSelectGuide: (guideId: string) => void;
   onAssignGuide: (guideId: string) => void;
   assignedGuideIds: Set<string>;
+  studentClassificationId?: number;
+  studentClassificationName?: string;
 }
 
 export function GuideSearchSection({
   onSelectGuide,
   onAssignGuide,
   assignedGuideIds,
+  studentClassificationId,
+  studentClassificationName,
 }: GuideSearchSectionProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<GuideType | "">("");
   const [selectedCareerFieldId, setSelectedCareerFieldId] = useState<number | undefined>();
+  const [classificationId, setClassificationId] = useState<number | undefined>(studentClassificationId);
   const [page, setPage] = useState(1);
   const [activeFilters, setActiveFilters] = useState<GuideListFilter>({
     status: "approved",
@@ -51,11 +56,12 @@ export function GuideSearchSection({
       ...(searchQuery && { searchQuery }),
       ...(selectedType && { guideType: selectedType }),
       ...(selectedCareerFieldId && { careerFieldId: selectedCareerFieldId }),
+      ...(classificationId && { classificationId }),
     };
     setActiveFilters(filters);
     // refetch after state settles
     setTimeout(() => refetch(), 0);
-  }, [searchQuery, selectedType, selectedCareerFieldId, page, refetch]);
+  }, [searchQuery, selectedType, selectedCareerFieldId, classificationId, page, refetch]);
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
@@ -130,6 +136,37 @@ export function GuideSearchSection({
           검색
         </button>
       </div>
+
+      {/* 소분류 필터 칩 */}
+      {classificationId && studentClassificationName && (
+        <div className="flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+            학과 분류: {studentClassificationName}
+            <button
+              type="button"
+              onClick={() => {
+                setClassificationId(undefined);
+                handleSearch();
+              }}
+              className="ml-0.5 rounded-full p-0.5 hover:bg-blue-100"
+              aria-label="소분류 필터 해제"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        </div>
+      )}
+      {!classificationId && studentClassificationId && studentClassificationName && (
+        <button
+          type="button"
+          onClick={() => {
+            setClassificationId(studentClassificationId);
+          }}
+          className="text-xs text-blue-600 hover:underline"
+        >
+          학생 학과 분류({studentClassificationName}) 필터 적용
+        </button>
+      )}
 
       {/* 결과 */}
       {isLoading && (
