@@ -153,101 +153,70 @@ export function ScoreSection({
         </div>
       )}
 
-      {/* 과목별 상세 */}
+      {/* 과목별 상세 — 학년별 그룹핑, 데이터 있는 컬럼만 표시 */}
       {sorted.length > 0 && (
         <div>
-          <h3 className="mb-2 text-sm font-semibold text-gray-700">
-            과목별 성적
-          </h3>
-          <table className="w-full border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-gray-300 bg-gray-50">
-                <th className="px-2 py-1.5 text-left font-medium text-gray-700">
-                  학년
-                </th>
-                <th className="px-2 py-1.5 text-left font-medium text-gray-700">
-                  학기
-                </th>
-                <th className="px-2 py-1.5 text-left font-medium text-gray-700">
-                  과목
-                </th>
-                <th className="px-2 py-1.5 text-left font-medium text-gray-700">
-                  교과군
-                </th>
-                <th className="px-2 py-1.5 text-center font-medium text-gray-700">
-                  원등급
-                </th>
-                <th className="px-2 py-1.5 text-center font-medium text-gray-700">
-                  9등급 환산
-                </th>
-                <th className="px-2 py-1.5 text-center font-medium text-gray-700">
-                  조정등급
-                </th>
-                <th className="px-2 py-1.5 text-center font-medium text-gray-700">
-                  추정백분위
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map((score) => {
-                const subjectName =
-                  (score.subject as unknown as { name: string } | null)?.name ??
-                  "-";
-                const groupName =
-                  (
-                    score.subject_group as unknown as {
-                      name: string;
-                    } | null
-                  )?.name ?? "-";
+          <h3 className="mb-2 text-sm font-semibold text-gray-700">과목별 성적</h3>
+          {(() => {
+            // 데이터 유무로 컬럼 표시 결정
+            const hasConverted9 = sorted.some((s) => s.converted_grade_9 != null);
+            const hasAdjusted = sorted.some((s) => s.adjusted_grade != null);
+            const hasPercentile = sorted.some((s) => s.estimated_percentile != null);
 
-                // 원등급 표시: 성취도 있으면 5등급 체계, 없으면 9등급
-                let originalDisplay: string;
-                if (score.achievement_level && !score.rank_grade) {
-                  const level = score.achievement_level.toUpperCase();
-                  const approx = GRADE_5_TO_9_MAP[level]?.typical;
-                  originalDisplay = approx
-                    ? `${level}(≈${approx}등급)`
-                    : level;
-                } else if (score.rank_grade != null) {
-                  originalDisplay = `${score.rank_grade}등급`;
-                } else {
-                  originalDisplay = "-";
-                }
+            // 학년별 그룹핑
+            const byGrade = new Map<number, typeof sorted>();
+            for (const s of sorted) {
+              const g = s.grade ?? 0;
+              if (!byGrade.has(g)) byGrade.set(g, []);
+              byGrade.get(g)!.push(s);
+            }
 
-                // 9등급 환산
-                const converted9 =
-                  score.converted_grade_9 != null
-                    ? score.converted_grade_9.toFixed(1)
-                    : "-";
-
-                return (
-                  <tr
-                    key={score.id}
-                    className="border-b border-gray-100"
-                  >
-                    <td className="px-2 py-1.5">{score.grade}</td>
-                    <td className="px-2 py-1.5">{score.semester}</td>
-                    <td className="px-2 py-1.5">{subjectName}</td>
-                    <td className="px-2 py-1.5">{groupName}</td>
-                    <td className="px-2 py-1.5 text-center">
-                      {originalDisplay}
-                    </td>
-                    <td className="px-2 py-1.5 text-center">{converted9}</td>
-                    <td className="px-2 py-1.5 text-center">
-                      {score.adjusted_grade != null
-                        ? score.adjusted_grade.toFixed(2)
-                        : "-"}
-                    </td>
-                    <td className="px-2 py-1.5 text-center">
-                      {score.estimated_percentile != null
-                        ? `${score.estimated_percentile.toFixed(1)}%`
-                        : "-"}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+            return Array.from(byGrade.entries()).map(([grade, scores]) => (
+              <div key={grade} className="mb-4 print-avoid-break">
+                <h4 className="mb-1 text-xs font-semibold text-indigo-600">{grade}학년</h4>
+                <table className="w-full border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-300 bg-gray-50">
+                      <th className="px-2 py-1 text-left font-medium text-gray-600">학기</th>
+                      <th className="px-2 py-1 text-left font-medium text-gray-600">과목</th>
+                      <th className="px-2 py-1 text-left font-medium text-gray-600">교과군</th>
+                      <th className="px-2 py-1 text-center font-medium text-gray-600">등급</th>
+                      {hasConverted9 && <th className="px-2 py-1 text-center font-medium text-gray-600">9등급</th>}
+                      {hasAdjusted && <th className="px-2 py-1 text-center font-medium text-gray-600">조정</th>}
+                      {hasPercentile && <th className="px-2 py-1 text-center font-medium text-gray-600">백분위</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {scores.map((score) => {
+                      const subjectName = (score.subject as unknown as { name: string } | null)?.name ?? "-";
+                      const groupName = (score.subject_group as unknown as { name: string } | null)?.name ?? "-";
+                      let gradeDisplay: string;
+                      if (score.achievement_level && !score.rank_grade) {
+                        const level = score.achievement_level.toUpperCase();
+                        const approx = GRADE_5_TO_9_MAP[level]?.typical;
+                        gradeDisplay = approx ? `${level}(≈${approx})` : level;
+                      } else if (score.rank_grade != null) {
+                        gradeDisplay = `${score.rank_grade}`;
+                      } else {
+                        gradeDisplay = "-";
+                      }
+                      return (
+                        <tr key={score.id} className="border-b border-gray-100">
+                          <td className="px-2 py-1">{score.semester}</td>
+                          <td className="px-2 py-1">{subjectName}</td>
+                          <td className="px-2 py-1 text-gray-500">{groupName}</td>
+                          <td className="px-2 py-1 text-center font-medium">{gradeDisplay}</td>
+                          {hasConverted9 && <td className="px-2 py-1 text-center">{score.converted_grade_9?.toFixed(1) ?? "-"}</td>}
+                          {hasAdjusted && <td className="px-2 py-1 text-center">{score.adjusted_grade?.toFixed(2) ?? "-"}</td>}
+                          {hasPercentile && <td className="px-2 py-1 text-center">{score.estimated_percentile != null ? `${score.estimated_percentile.toFixed(1)}%` : "-"}</td>}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ));
+          })()}
         </div>
       )}
 
