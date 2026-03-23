@@ -51,11 +51,11 @@ import { StrategyEditor as StrategyEditorPanel } from "./StrategyEditor";
 import { PlacementDashboard } from "./PlacementDashboard";
 import { AllocationSimulator } from "./AllocationSimulator";
 import { AlumniSearch } from "./AlumniSearch";
-import { ActivitySummaryPanel } from "./ActivitySummaryPanel";
-import { SetekGuidePanel } from "./SetekGuidePanel";
+const ActivitySummaryPanel = lazy(() => import("./ActivitySummaryPanel").then((m) => ({ default: m.ActivitySummaryPanel })));
+const SetekGuidePanel = lazy(() => import("./SetekGuidePanel").then((m) => ({ default: m.SetekGuidePanel })));
 import { CareerSetupBanner } from "./CareerSetupBanner";
-import { ExplorationGuidePanel } from "./ExplorationGuidePanel";
-import { BypassMajorPanel } from "./BypassMajorPanel";
+const ExplorationGuidePanel = lazy(() => import("./ExplorationGuidePanel").then((m) => ({ default: m.ExplorationGuidePanel })));
+const BypassMajorPanel = lazy(() => import("./BypassMajorPanel").then((m) => ({ default: m.BypassMajorPanel })));
 import { PipelineSidebarWidget } from "./PipelineSidebarWidget";
 import { DesignPipelineResultsPanel } from "./DesignPipelineResultsPanel";
 
@@ -937,6 +937,21 @@ export function StudentRecordClient({
 
           {/* ─── 7. 교과학습발달상황 ─────────────── */}
           <DocSection id="sec-7" number="7" title="교과학습발달상황">
+            {/* 진단 약점 안내 배너 */}
+            {diagnosisData?.consultantDiagnosis?.weaknesses && (diagnosisData.consultantDiagnosis.weaknesses as string[]).length > 0 && (
+              <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/50 px-4 py-2.5 dark:border-amber-800 dark:bg-amber-900/10">
+                <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                  종합진단 약점 — 세특 작성 시 아래 항목을 보완하세요:
+                </p>
+                <ul className="mt-1 flex flex-wrap gap-1.5">
+                  {(diagnosisData.consultantDiagnosis.weaknesses as string[]).map((w) => (
+                    <li key={w} className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                      {w}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {visiblePairs.map((p) => {
               const entry = recordByGrade.get(p.grade);
               // P1: 해당 학년의 confirmed plans
@@ -1139,48 +1154,57 @@ export function StudentRecordClient({
                 aiScores={diagnosisData?.competencyScores.ai}
                 aiDiagnosis={diagnosisData?.aiDiagnosis}
                 targetMajor={diagnosisData?.targetMajor}
+                notTakenSubjects={diagnosisData?.courseAdequacy?.notTaken}
               />
             )}
           </StrategySection>
 
           {/* ─── 활동 요약서 ──────────────────────── */}
           <StrategySection id="sec-activity-summary" title="활동 요약서">
-            <ActivitySummaryPanel
-              studentId={studentId}
-              studentGrade={studentGrade}
-              studentName={studentName}
-            />
+            <Suspense fallback={<SectionSkeleton />}>
+              <ActivitySummaryPanel
+                studentId={studentId}
+                studentGrade={studentGrade}
+                studentName={studentName}
+              />
+            </Suspense>
           </StrategySection>
 
           {/* ─── 세특 방향 가이드 ─────────────────── */}
           <StrategySection id="sec-setek-guide" title="세특 방향 가이드">
-            <SetekGuidePanel
-              studentId={studentId}
-              studentGrade={studentGrade}
-              studentName={studentName}
-            />
+            <Suspense fallback={<SectionSkeleton />}>
+              <SetekGuidePanel
+                studentId={studentId}
+                studentGrade={studentGrade}
+                studentName={studentName}
+              />
+            </Suspense>
           </StrategySection>
 
           {/* ─── 활동 가이드 (탐구 가이드 배정) ──── */}
           <StrategySection id="sec-exploration-guide" title="활동 가이드">
-            <ExplorationGuidePanel
-              studentId={studentId}
-              studentGrade={studentGrade}
-              tenantId={tenantId}
-              schoolName={schoolName}
-              schoolYear={initialSchoolYear}
-              studentClassificationId={diagnosisData?.targetSubClassificationId ?? undefined}
-              studentClassificationName={diagnosisData?.targetSubClassificationName ?? undefined}
-            />
+            <Suspense fallback={<SectionSkeleton />}>
+              <ExplorationGuidePanel
+                studentId={studentId}
+                studentGrade={studentGrade}
+                tenantId={tenantId}
+                schoolName={schoolName}
+                schoolYear={initialSchoolYear}
+                studentClassificationId={diagnosisData?.targetSubClassificationId ?? undefined}
+                studentClassificationName={diagnosisData?.targetSubClassificationName ?? undefined}
+              />
+            </Suspense>
           </StrategySection>
 
           {/* ─── 우회학과 탐색 (CMS C1.5) ────────── */}
           <StrategySection id="sec-bypass-major" title="우회학과 탐색">
-            <BypassMajorPanel
-              studentId={studentId}
-              studentGrade={studentGrade}
-              tenantId={tenantId}
-            />
+            <Suspense fallback={<SectionSkeleton />}>
+              <BypassMajorPanel
+                studentId={studentId}
+                studentGrade={studentGrade}
+                tenantId={tenantId}
+              />
+            </Suspense>
           </StrategySection>
 
           {/* ─── 🎯 전략 스테이지 구분선 ──────────── */}

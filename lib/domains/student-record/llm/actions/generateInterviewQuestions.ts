@@ -23,6 +23,8 @@ export async function generateInterviewQuestions(input: {
   recordType: string;
   subjectName?: string;
   grade?: number;
+  /** 교차 질문 생성용 추가 레코드 (다른 과목/활동) */
+  additionalRecords?: { content: string; recordType: string; subjectName?: string; grade?: number }[];
 }): Promise<{ success: true; data: InterviewQuestionResult } | { success: false; error: string }> {
   try {
     await requireAdminOrConsultant();
@@ -31,7 +33,12 @@ export async function generateInterviewQuestions(input: {
       return { success: false, error: "면접 질문 생성에는 최소 30자 이상의 텍스트가 필요합니다." };
     }
 
-    const userPrompt = buildInterviewUserPrompt(input);
+    const userPrompt = buildInterviewUserPrompt(input)
+      + (input.additionalRecords?.length
+        ? "\n\n## 관련 기록 (교차 질문 참고)\n\n" + input.additionalRecords.map((r) =>
+          `### ${r.subjectName ?? r.recordType} (${r.grade ?? ""}학년)\n${r.content.slice(0, 300)}`
+        ).join("\n\n")
+        : "");
 
     const result = await generateTextWithRateLimit({
       system: INTERVIEW_SYSTEM_PROMPT,

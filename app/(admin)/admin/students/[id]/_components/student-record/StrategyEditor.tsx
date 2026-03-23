@@ -61,6 +61,8 @@ type Props = {
   aiScores?: CompetencyScore[];
   aiDiagnosis?: Diagnosis | null;
   targetMajor?: string | null;
+  /** 미이수 추천 과목 (교과이수적합도) */
+  notTakenSubjects?: string[];
 };
 
 // ─── 메인 컴포넌트 ──────────────────────────────────
@@ -74,6 +76,7 @@ export function StrategyEditor({
   aiScores,
   aiDiagnosis,
   targetMajor,
+  notTakenSubjects,
 }: Props) {
   const queryClient = useQueryClient();
   const [showAddForm, setShowAddForm] = useState(false);
@@ -125,6 +128,7 @@ export function StrategyEditor({
         grade,
         targetMajor: targetMajor ?? undefined,
         existingStrategies,
+        notTakenSubjects: notTakenSubjects ?? undefined,
       });
 
       if (!result.success) throw new Error(result.error);

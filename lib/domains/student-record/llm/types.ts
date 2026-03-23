@@ -118,6 +118,8 @@ export interface SuggestStrategiesInput {
   targetMajor?: string;
   /** 기존 보완전략 (중복 방지) */
   existingStrategies?: string[];
+  /** 미이수 추천 과목 (교과이수적합도 기반) */
+  notTakenSubjects?: string[];
 }
 
 /** suggestStrategies 액션의 출력 */
