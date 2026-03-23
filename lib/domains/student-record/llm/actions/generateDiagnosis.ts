@@ -169,7 +169,7 @@ ${tagsSummary}
       data: {
         overallGrade: !gradeFallback ? (parsed.overallGrade as string) : "B",
         recordDirection: String(parsed.recordDirection ?? "").slice(0, 50),
-        directionStrength: !strengthFallback ? (parsed.directionStrength as string) : "moderate",
+        directionStrength: !strengthFallback ? (parsed.directionStrength as "strong" | "moderate" | "weak") : "moderate",
         strengths: Array.isArray(parsed.strengths) ? parsed.strengths.filter((s): s is string => typeof s === "string" && s.length > 0) : [],
         weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses.filter((s): s is string => typeof s === "string" && s.length > 0) : [],
         recommendedMajors: Array.isArray(parsed.recommendedMajors) ? parsed.recommendedMajors.filter((s): s is string => typeof s === "string" && s.length > 0) : [],
