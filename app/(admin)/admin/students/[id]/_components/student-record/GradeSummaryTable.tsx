@@ -80,9 +80,11 @@ export function GradeSummaryTable({ aiScores, consultantScores, activityTags }: 
                     aria-expanded={hasDetail ? isExpanded : undefined}
                     aria-label={hasDetail ? `${item.label} 상세 ${isExpanded ? "닫기" : "열기"}` : undefined}
                     className={cn(
-                      "border-t border-gray-100 dark:border-gray-800",
+                      "border-t border-gray-100 transition-colors dark:border-gray-800",
                       idx === 0 && "border-t-gray-300 dark:border-t-gray-600",
-                      hasDetail && "cursor-pointer hover:bg-gray-50/50 dark:hover:bg-gray-800/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500",
+                      hasDetail
+                        ? "cursor-pointer hover:bg-indigo-50/40 dark:hover:bg-indigo-900/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
+                        : "opacity-80",
                     )}
                   >
                     <td className="px-3 py-1.5">

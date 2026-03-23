@@ -101,7 +101,7 @@ export function RecordWarningPanel({ warnings }: Props) {
         return (
           <div key={cat}>
             <div className="mb-2 flex items-center gap-1.5">
-              <meta.Icon size={14} className="text-[var(--text-tertiary)]" />
+              <meta.Icon size={14} className="shrink-0 text-[var(--text-tertiary)]" />
               <span className="text-xs font-semibold text-[var(--text-secondary)]">{meta.label}</span>
               <span className="text-[10px] text-[var(--text-tertiary)]">{items.length}건</span>
             </div>

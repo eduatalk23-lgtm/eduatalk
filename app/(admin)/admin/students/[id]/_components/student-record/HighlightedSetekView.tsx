@@ -16,25 +16,25 @@ import type { HighlightTag, AnalyzedSection } from "@/lib/domains/student-record
 /** 역량 영역별 하이라이트 색상 — mark 기본 노란색 오버라이드 필수 */
 const AREA_HIGHLIGHT: Record<CompetencyArea, { mark: string; badge: string; badgeBorder: string }> = {
   academic: {
-    mark: "bg-blue-100 dark:bg-blue-900/40 text-[var(--text-primary)] decoration-blue-400",
-    badge: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+    mark: "bg-blue-100 dark:bg-blue-800/50 text-[var(--text-primary)] decoration-blue-400",
+    badge: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400",
     badgeBorder: "border-blue-300 dark:border-blue-700",
   },
   career: {
-    mark: "bg-purple-100 dark:bg-purple-900/40 text-[var(--text-primary)] decoration-purple-400",
-    badge: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+    mark: "bg-purple-100 dark:bg-purple-800/50 text-[var(--text-primary)] decoration-purple-400",
+    badge: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400",
     badgeBorder: "border-purple-300 dark:border-purple-700",
   },
   community: {
-    mark: "bg-green-100 dark:bg-green-900/40 text-[var(--text-primary)] decoration-green-400",
-    badge: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+    mark: "bg-green-100 dark:bg-green-800/50 text-[var(--text-primary)] decoration-green-400",
+    badge: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400",
     badgeBorder: "border-green-300 dark:border-green-700",
   },
 };
 
 const NEEDS_REVIEW_HIGHLIGHT = {
-  mark: "bg-yellow-100 dark:bg-yellow-900/40 text-[var(--text-primary)] decoration-yellow-500",
-  badge: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+  mark: "bg-yellow-100 dark:bg-yellow-800/50 text-[var(--text-primary)] decoration-yellow-500",
+  badge: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400",
   badgeBorder: "border-yellow-300 dark:border-yellow-700",
 };
 
@@ -332,8 +332,13 @@ function SectionDetails({ sections }: { sections: AnalyzedSection[] }) {
                     <span className="flex-1 text-[var(--text-secondary)] line-clamp-1" title={tag.highlight}>
                       "{tag.highlight.length > 60 ? tag.highlight.slice(0, 60) + "..." : tag.highlight}"
                     </span>
-                    <span className={cn("shrink-0 text-[9px]", evalInfo.dot === "🟢" ? "text-green-600" : evalInfo.dot === "🔴" ? "text-red-600" : "text-yellow-600")}>
-                      {evalInfo.label}
+                    <span className={cn(
+                      "shrink-0 rounded px-1 py-px text-[10px] font-medium",
+                      tag.evaluation === "positive" && "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+                      tag.evaluation === "negative" && "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
+                      tag.evaluation === "needs_review" && "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
+                    )}>
+                      {tag.evaluation === "positive" ? "+" : tag.evaluation === "negative" ? "-" : "?"}
                     </span>
                   </div>
                 );

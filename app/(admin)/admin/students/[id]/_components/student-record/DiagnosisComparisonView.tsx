@@ -205,7 +205,7 @@ export function DiagnosisComparisonView({
             aiGenMutation.mutate();
           }}
           disabled={aiGenMutation.isPending}
-          className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100 disabled:opacity-50 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
+          className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 disabled:opacity-50 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
         >
           <Sparkles size={14} />
           {aiGenMutation.isPending ? "생성 중..." : aiDiagnosis ? "AI 진단 재생성" : "AI 종합 진단 생성"}
@@ -213,7 +213,7 @@ export function DiagnosisComparisonView({
         {aiDiagnosis && (
           <button
             onClick={copyFromAi}
-            className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs text-[var(--text-secondary)] hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800"
+            className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs text-[var(--text-secondary)] hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:border-gray-600 dark:hover:bg-gray-800"
           >
             <Copy size={12} /> AI → 컨설턴트 복사
           </button>
@@ -245,7 +245,9 @@ export function DiagnosisComparisonView({
           </div>
 
           {!aiDiagnosis ? (
-            <p className="text-xs text-[var(--text-tertiary)]">AI 종합 진단을 생성해주세요</p>
+            <div className="rounded-lg border border-dashed border-gray-300 p-4 text-center text-xs text-[var(--text-tertiary)] dark:border-gray-600">
+              상단의 &ldquo;AI 종합 진단 생성&rdquo; 버튼을 눌러 분석을 시작하세요
+            </div>
           ) : (
             <div className="flex flex-col gap-2 text-xs">
               <Row label="종합등급" value={aiDiagnosis.overall_grade} diff={isDiff(aiDiagnosis.overall_grade, grade)} />
@@ -382,7 +384,7 @@ export function DiagnosisComparisonView({
             <div className="flex items-center gap-2 pt-1">
               {consultantDiagnosis?.id && consultantDiagnosis.status !== "confirmed" && (
                 <button onClick={() => confirmMutation.mutate()} disabled={confirmMutation.isPending}
-                  className="rounded border border-green-600 px-3 py-1 text-xs font-medium text-green-700 hover:bg-green-50 disabled:opacity-50 dark:hover:bg-green-900/20">
+                  className="rounded border border-green-600 px-3 py-1 text-xs font-medium text-green-700 hover:bg-green-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 disabled:opacity-50 dark:hover:bg-green-900/20">
                   {confirmMutation.isPending ? "확정 중..." : "확정"}
                 </button>
               )}
