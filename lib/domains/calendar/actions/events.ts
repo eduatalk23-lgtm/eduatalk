@@ -162,9 +162,9 @@ async function _getEventsByCalendar(
     .eq("calendar_id", calendarId)
     .is("deleted_at", null);
 
-  // 시간 범위: 시간 이벤트 OR 종일 이벤트
+  // 시간 범위: 시간 이벤트(overlap) OR 종일 이벤트(overlap)
   query = query.or(
-    `and(is_all_day.eq.false,start_at.gte.${startDate},start_at.lte.${endDate}T23:59:59+09:00),and(is_all_day.eq.true,start_date.gte.${startDate},start_date.lte.${endDate})`
+    `and(is_all_day.eq.false,start_at.lte.${endDate}T23:59:59+09:00,end_at.gte.${startDate}),and(is_all_day.eq.true,start_date.lte.${endDate},end_date.gte.${startDate})`
   );
 
   // eventTypes filter (deprecated, kept for backward compatibility)

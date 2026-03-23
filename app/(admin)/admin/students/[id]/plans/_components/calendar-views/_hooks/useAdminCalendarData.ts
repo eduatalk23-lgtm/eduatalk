@@ -5,6 +5,8 @@
  *
  * Calendar-First: calendar_events 테이블에서 월간 이벤트를 조회하고
  * 날짜별로 그룹핑합니다.
+ *
+ * GCal 패리티: cross-day/all-day 이벤트는 AllDayItem으로 분리 → spanning bar 렌더링
  */
 
 import { useMemo, useCallback } from "react";
@@ -22,9 +24,15 @@ import {
   multiMonthlyCalendarEventsQueryOptions,
   calendarEventKeys,
 } from "@/lib/query-options/calendarEvents";
-import { calendarEventToMonthlyPlan } from "@/lib/domains/calendar/adapters";
+import {
+  calendarEventToMonthlyPlan,
+  calendarEventToAllDayItem,
+  calendarEventToMultiDayBar,
+} from "@/lib/domains/calendar/adapters";
 import { expandRecurringEvents } from "@/lib/domains/calendar/rrule";
+import { classifyEventDuration } from "@/lib/domains/calendar/eventClassification";
 import type { PlansByDate, CalendarPlan } from "../_types/adminCalendar";
+import type { AllDayItem } from "@/lib/query-options/adminDock";
 
 interface UseAdminCalendarDataOptions {
   /** @deprecated calendarId로 필터링되므로 사용되지 않음. 호출부 호환성을 위해 유지. */
@@ -41,10 +49,12 @@ interface UseAdminCalendarDataOptions {
 }
 
 interface UseAdminCalendarDataReturn {
-  /** 날짜별 플랜 맵 */
+  /** 날짜별 플랜 맵 (same-day timed 이벤트만) */
   plansByDate: PlansByDate;
   /** 전체 플랜 목록 */
   plans: CalendarPlan[];
+  /** 날짜별 AllDayItem 맵 (all-day + cross-day → spanning bar용) */
+  allDayItemsByDate: Record<string, AllDayItem[]>;
   /** 로딩 상태 */
   isLoading: boolean;
   /** 에러 상태 */
@@ -62,6 +72,10 @@ interface UseAdminCalendarDataReturn {
  *
  * Calendar-First: calendar_events에서 월간 이벤트를 조회하고 날짜별로 그룹핑합니다.
  * 캘린더 뷰에 맞게 6주 범위(이전 월 마지막 주 ~ 다음 월 첫 주)를 페칭합니다.
+ *
+ * GCal 패리티:
+ * - same-day timed → plansByDate (cell 내부 chip/dot)
+ * - all-day / cross-day → allDayItemsByDate (spanning bar)
  */
 export function useAdminCalendarData({
   currentMonth,
@@ -72,11 +86,9 @@ export function useAdminCalendarData({
   enabled = true,
 }: UseAdminCalendarDataOptions): UseAdminCalendarDataReturn {
   const queryClient = useQueryClient();
-  // visibleCalendarIds가 배열이면 멀티 캘린더 모드 (빈 배열 = 모든 캘린더 숨김)
   const isMultiCalendar = Array.isArray(visibleCalendarIds);
 
   // 캘린더 범위 계산
-  // yearMode: 1/1 ~ 12/31 | 기본: 6주 범위 (이전 월 마지막 주 ~ 다음 월 첫 주)
   const dateRange = useMemo(() => {
     if (yearMode) {
       const year = currentMonth.getFullYear();
@@ -125,26 +137,60 @@ export function useAdminCalendarData({
     [rawEvents, dateRange.start, dateRange.end]
   );
 
-  // CalendarEvent → CalendarPlan 변환
-  const plans = useMemo<CalendarPlan[]>(() => {
-    return expandedEvents.map(calendarEventToMonthlyPlan);
-  }, [expandedEvents]);
+  // GCal 패리티: 이벤트 분류 → plansByDate + allDayItemsByDate
+  const { plans, plansByDate, allDayItemsByDate } = useMemo(() => {
+    const plansByDate: PlansByDate = {};
+    const sameDayPlans: CalendarPlan[] = [];
+    const allDayItems: AllDayItem[] = [];
 
-  // 날짜별 플랜 그룹핑
-  const plansByDate = useMemo<PlansByDate>(() => {
-    const grouped: PlansByDate = {};
+    for (const event of expandedEvents) {
+      const mode = classifyEventDuration(
+        event.start_at,
+        event.end_at,
+        event.is_all_day ?? false,
+      );
 
-    for (const plan of plans) {
-      if (!plan.plan_date) continue;
-
-      if (!grouped[plan.plan_date]) {
-        grouped[plan.plan_date] = [];
+      if (mode === 'cross-day' || event.is_all_day) {
+        // cross-day timed 또는 all-day → AllDayItem (spanning bar)
+        if (event.is_all_day) {
+          allDayItems.push(calendarEventToAllDayItem(event));
+        } else {
+          const bar = calendarEventToMultiDayBar(event);
+          if (bar) allDayItems.push(bar);
+        }
+        // all-day도 plansByDate에는 포함하지 않음 (bar로 표시)
+      } else {
+        // same-day timed → CalendarPlan (cell 내부 chip/dot)
+        const plan = calendarEventToMonthlyPlan(event);
+        sameDayPlans.push(plan);
+        if (!plansByDate[plan.plan_date]) plansByDate[plan.plan_date] = [];
+        plansByDate[plan.plan_date].push(plan);
       }
-      grouped[plan.plan_date].push(plan);
     }
 
-    return grouped;
-  }, [plans]);
+    // allDayItemsByDate: 각 날짜에 해당하는 bar 목록
+    const allDayItemsByDate: Record<string, AllDayItem[]> = {};
+    for (const item of allDayItems) {
+      const start = item.startDate;
+      const end = item.endDate ?? start;
+      if (!start || !end) continue;
+      const d = new Date(start + 'T00:00:00Z');
+      const endD = new Date(end + 'T00:00:00Z');
+      if (isNaN(d.getTime()) || isNaN(endD.getTime())) continue;
+      // 안전 가드: 최대 90일 (무한 루프 방지)
+      const MAX_SPAN = 90;
+      let count = 0;
+      while (d <= endD && count < MAX_SPAN) {
+        const key = d.toISOString().split('T')[0];
+        if (!allDayItemsByDate[key]) allDayItemsByDate[key] = [];
+        allDayItemsByDate[key].push(item);
+        d.setDate(d.getDate() + 1);
+        count++;
+      }
+    }
+
+    return { plans: sameDayPlans, plansByDate, allDayItemsByDate };
+  }, [expandedEvents]);
 
   const query = isMultiCalendar ? multiQuery : singleQuery;
 
@@ -173,6 +219,7 @@ export function useAdminCalendarData({
   return {
     plansByDate,
     plans,
+    allDayItemsByDate,
     isLoading: query.isLoading,
     isError: query.isError,
     error: query.error,

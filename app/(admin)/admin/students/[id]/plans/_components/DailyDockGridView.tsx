@@ -73,7 +73,7 @@ interface DailyDockGridViewProps {
   /** 줌 적용 pxPerMinute (기본 PX_PER_MINUTE) */
   pxPerMinute?: number;
   /** 더블클릭/상세설정 → 이벤트 편집 모달 열기 */
-  onOpenEventEditNew?: (params: { date?: string; startTime?: string; endTime?: string }) => void;
+  onOpenEventEditNew?: (params: { date?: string; endDate?: string; startTime?: string; endTime?: string; title?: string; description?: string; label?: string; subject?: string; rrule?: string | null }) => void;
   /** 상담 편집 모달 열기 */
   onOpenConsultationEditNew?: (params: { date?: string; startTime?: string; endTime?: string; studentId?: string; sessionType?: string; consultationMode?: string; title?: string; description?: string; meetingLink?: string; visitor?: string }) => void;
   /** 캘린더 설정의 기본 이벤트 시간 (분) */
@@ -1151,7 +1151,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
               )}
               {renderEventBlocks(adminBlocks)}
               {nowTop != null && (
-                <div className="absolute left-0 right-0 z-20 pointer-events-none flex items-center" style={{ top: `${nowTop}px` }}>
+                <div className="absolute left-0 right-0 z-[5] pointer-events-none flex items-center" style={{ top: `${nowTop}px` }}>
                   <div className="flex-1 border-t-2 border-red-500 dark:border-red-400" />
                 </div>
               )}
@@ -1185,7 +1185,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
                 </div>
               )}
               {nowTop != null && (
-                <div className="absolute left-0 right-0 z-20 pointer-events-none flex items-center" style={{ top: `${nowTop}px` }}>
+                <div className="absolute left-0 right-0 z-[5] pointer-events-none flex items-center" style={{ top: `${nowTop}px` }}>
                   <div className="flex-1 border-t-2 border-red-500 dark:border-red-400" />
                 </div>
               )}
@@ -1270,7 +1270,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
           {/* 현재 시간 인디케이터 */}
           {nowTop != null && (
             <div
-              className="absolute left-0 right-0 z-20 pointer-events-none flex items-center"
+              className="absolute left-0 right-0 z-[5] pointer-events-none flex items-center"
               style={{ top: `${nowTop}px` }}
             >
               <div className="w-2.5 h-2.5 rounded-full bg-red-500 -ml-1.5 shrink-0" />

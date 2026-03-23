@@ -136,13 +136,15 @@ export const WeeklyGridColumn = memo(forwardRef<HTMLDivElement, WeeklyGridColumn
       return withLevels.map((item) => {
         const pos = computeLayoutPosition(item.level, item.totalLevels, item.expandedSpan);
         const source = planItems.find((p) => p.id === item.id)!;
+        // 방어: endMinutes ≤ startMinutes (overnight 잔여 또는 데이터 오류) → 자정까지 클램프
+        const effectiveEnd = source.endMinutes <= source.startMinutes ? rangeEndMin : source.endMinutes;
         return {
           ...source,
           level: item.level,
           totalLevels: item.totalLevels,
           expandedSpan: item.expandedSpan,
           top: minutesToPx(source.startMinutes, rangeStartMin, ppm),
-          height: (source.endMinutes - source.startMinutes) * ppm,
+          height: (effectiveEnd - source.startMinutes) * ppm,
           left: pos.left,
           width: pos.width,
         };
@@ -271,7 +273,7 @@ export const WeeklyGridColumn = memo(forwardRef<HTMLDivElement, WeeklyGridColumn
         {/* 현재 시간 인디케이터 (오늘 컬럼에서만) */}
         {isToday && nowTop != null && (
           <div
-            className="absolute left-0 right-0 z-20 pointer-events-none flex items-center"
+            className="absolute left-0 right-0 z-[5] pointer-events-none flex items-center"
             style={{ top: `${nowTop}px` }}
           >
             <div className="w-2.5 h-2.5 rounded-full bg-red-500 -ml-1.5 shrink-0" />

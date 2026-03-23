@@ -88,7 +88,7 @@ async function _getCalendarEvents(
     .eq("calendar_id", calendarId)
     .is("deleted_at", null)
     .or(
-      `and(is_all_day.eq.false,start_at.gte.${dateStart},start_at.lt.${dateEnd}),and(is_all_day.eq.true,start_date.gte.${startDate},start_date.lte.${endDate})`
+      `and(is_all_day.eq.false,start_at.lt.${dateEnd},end_at.gt.${dateStart}),and(is_all_day.eq.true,start_date.lte.${endDate},end_date.gte.${startDate})`
     )
     .order("start_at", { ascending: true, nullsFirst: false })
     .order("start_date", { ascending: true, nullsFirst: false });
@@ -137,7 +137,9 @@ export interface CreateCalendarEventInput {
   /** 캘린더 ID */
   calendarId: string;
   title: string;
-  planDate: string;        // YYYY-MM-DD
+  planDate: string;        // YYYY-MM-DD (시작 날짜)
+  /** 종료 날짜 (multi-day 이벤트용, 미지정 시 planDate와 동일) */
+  endDate?: string;        // YYYY-MM-DD
   startTime?: string;      // HH:mm (null이면 종일)
   endTime?: string;        // HH:mm
   isAllDay?: boolean;
@@ -161,6 +163,14 @@ export interface CreateCalendarEventInput {
 async function _createCalendarEvent(
   input: CreateCalendarEventInput,
 ): Promise<{ eventId: string }> {
+  // 서버 검증
+  if (!input.title?.trim()) {
+    throw new AppError("제목은 필수입니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+  }
+  if (!input.calendarId) {
+    throw new AppError("캘린더 ID는 필수입니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+  }
+
   const supabase = await createSupabaseServerClient();
   const currentUser = await getCurrentUser();
 
@@ -212,12 +222,14 @@ async function _createCalendarEvent(
     insertData.reminder_minutes = [input.reminderMinutes];
   }
 
+  const effectiveEndDate = input.endDate ?? input.planDate;
+
   if (isAllDay) {
     insertData.start_date = input.planDate;
-    insertData.end_date = input.planDate;
+    insertData.end_date = effectiveEndDate;
   } else {
     insertData.start_at = toTimestamptz(input.planDate, input.startTime!);
-    insertData.end_at = toTimestamptz(input.planDate, input.endTime ?? input.startTime!);
+    insertData.end_at = toTimestamptz(effectiveEndDate, input.endTime ?? input.startTime!);
   }
 
   const { data, error } = await supabase
@@ -226,9 +238,9 @@ async function _createCalendarEvent(
     .select("id")
     .single();
 
-  if (error) {
+  if (error || !data?.id) {
     throw new AppError(
-      `캘린더 이벤트 생성 실패: ${error.message}`,
+      `캘린더 이벤트 생성 실패: ${error?.message ?? 'ID가 반환되지 않았습니다.'}`,
       ErrorCode.DATABASE_ERROR,
       500,
       true,

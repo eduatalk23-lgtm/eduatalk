@@ -36,6 +36,7 @@ export const AllDayItemBar = memo(function AllDayItemBar({
       data-allday-item
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
+      aria-label={item.label}
       className={cn(
         'h-[22px] px-1.5',
         'flex items-center',

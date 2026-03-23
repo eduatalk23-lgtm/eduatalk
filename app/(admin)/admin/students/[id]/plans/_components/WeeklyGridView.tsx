@@ -72,7 +72,7 @@ interface WeeklyGridViewProps {
   /** 줌 적용 pxPerMinute (기본 PX_PER_MINUTE) */
   pxPerMinute?: number;
   /** 더블클릭/상세설정 → 이벤트 편집 모달 열기 */
-  onOpenEventEditNew?: (params: { date?: string; startTime?: string; endTime?: string }) => void;
+  onOpenEventEditNew?: (params: { date?: string; endDate?: string; startTime?: string; endTime?: string; title?: string; description?: string; label?: string; subject?: string; rrule?: string | null }) => void;
   /** 상담 편집 모달 열기 */
   onOpenConsultationEditNew?: (params: { date?: string; startTime?: string; endTime?: string; studentId?: string; sessionType?: string; consultationMode?: string; title?: string; description?: string; meetingLink?: string; visitor?: string }) => void;
   /** 캘린더 설정의 기본 이벤트 시간 (분) */
@@ -1043,11 +1043,13 @@ export const WeeklyGridView = memo(function WeeklyGridView({
         status: 'pending',
         isCompleted: false,
         planDate: item.startDate,
-        startTime: null,
-        endTime: null,
+        startTime: item.startTime ?? null,
+        endTime: item.endTime ?? null,
         label: item.exclusionType ?? item.label ?? '기타',
         isExclusion: !!item.exclusionType,
         isTask: false,
+        // multi-day timed: 종료 날짜 정보 (팝오버에서 날짜 범위 표시용)
+        endDate: item.endDate,
       };
       showPopover(planItem, anchorRect);
     },
@@ -1699,12 +1701,17 @@ export const WeeklyGridView = memo(function WeeklyGridView({
                 }
               }}
               onClose={closeQuickCreate}
-              onOpenFullModal={(slot) => {
+              onOpenFullModal={(slot, formData) => {
                 if (onOpenEventEditNew && quickCreateState) {
                   onOpenEventEditNew({
                     date: quickCreateState.date,
                     startTime: slot.startTime,
                     endTime: slot.endTime,
+                    title: formData?.title,
+                    description: formData?.description,
+                    label: formData?.label,
+                    subject: formData?.subject,
+                    rrule: formData?.rrule,
                   });
                 } else if (calendarId && quickCreateState) {
                   const params = new URLSearchParams({

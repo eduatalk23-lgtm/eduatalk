@@ -23,9 +23,15 @@ interface EventEditPageProps {
   eventId?: string;
   calendarId?: string;
   initialDate?: string;
+  /** 종료 날짜 초기값 (multi-day 이벤트) */
+  initialEndDate?: string;
   initialStartTime?: string;
   initialEndTime?: string;
   initialSubject?: string;
+  /** 라벨 초기값 */
+  initialLabel?: string;
+  /** 반복 규칙 초기값 */
+  initialRrule?: string | null;
   instanceDate?: string;
   /** 상담 전용: 대상 학생 ID */
   consultationStudentId?: string;
@@ -51,9 +57,12 @@ export function EventEditPage({
   eventId,
   calendarId,
   initialDate,
+  initialEndDate,
   initialStartTime,
   initialEndTime,
   initialSubject,
+  initialLabel,
+  initialRrule,
   instanceDate,
   consultationStudentId,
   consultationSessionType,
@@ -104,9 +113,12 @@ export function EventEditPage({
     eventId,
     calendarId,
     initialDate,
+    initialEndDate,
     initialStartTime,
     initialEndTime,
     initialSubject,
+    initialLabel,
+    initialRrule,
     returnPath,
     instanceDate,
     onSuccessModal,

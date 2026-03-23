@@ -23,9 +23,12 @@ export function EventEditModal({ state, studentId, onClose, onSuccess }: EventEd
         eventId={state.eventId}
         calendarId={state.calendarId}
         initialDate={state.initialDate}
+        initialEndDate={state.initialEndDate}
         initialStartTime={state.initialStartTime}
         initialEndTime={state.initialEndTime}
         initialSubject={state.initialSubject}
+        initialLabel={state.initialLabel}
+        initialRrule={state.initialRrule}
         instanceDate={state.instanceDate}
         consultationStudentId={state.consultationStudentId}
         consultationSessionType={state.consultationSessionType}

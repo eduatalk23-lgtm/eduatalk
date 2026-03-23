@@ -34,7 +34,7 @@ export interface AdminPlanActionsContextValue {
   /** 빈 시간 슬롯에 새 플랜 생성 (UnifiedAddModal 열기) */
   handleCreatePlanAtSlot: (startTime: string, endTime: string) => void;
   /** 더블클릭/InlineQuickCreate → 이벤트 편집 모달 열기 (new) */
-  handleOpenEventEditNew: (params: { date?: string; startTime?: string; endTime?: string }) => void;
+  handleOpenEventEditNew: (params: { date?: string; endDate?: string; startTime?: string; endTime?: string; title?: string; description?: string; label?: string; subject?: string; rrule?: string | null }) => void;
   /** 이벤트 편집 모달 상태 */
   eventEditModalState: EventEditModalState;
   /** 이벤트 편집 모달 닫기 */
@@ -75,13 +75,19 @@ export function AdminPlanActionsProvider({ children }: AdminPlanActionsProviderP
   );
 
   const handleOpenEventEditNew = useCallback(
-    (params: { date?: string; startTime?: string; endTime?: string }) => {
+    (params: { date?: string; endDate?: string; startTime?: string; endTime?: string; title?: string; description?: string; label?: string; subject?: string; rrule?: string | null }) => {
       if (!selectedCalendarId) return;
       eventEditModal.openNew({
         calendarId: selectedCalendarId,
         date: params.date,
+        endDate: params.endDate,
         startTime: params.startTime,
         endTime: params.endTime,
+        title: params.title,
+        description: params.description,
+        label: params.label,
+        subject: params.subject,
+        rrule: params.rrule,
       });
     },
     [eventEditModal, selectedCalendarId]

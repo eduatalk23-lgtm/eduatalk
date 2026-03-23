@@ -149,8 +149,8 @@ export function dailyCalendarEventsQueryOptions(calendarId: string, date: string
         .eq('calendar_id', calendarId)
         .is('deleted_at', null)
         .or(
-          `and(is_all_day.eq.false,start_at.gte.${date}T00:00:00+09:00,start_at.lte.${date}T23:59:59+09:00),` +
-          `and(is_all_day.eq.true,start_date.gte.${date},start_date.lte.${date}),` +
+          `and(is_all_day.eq.false,start_at.lte.${date}T23:59:59+09:00,end_at.gte.${date}T00:00:00+09:00),` +
+          `and(is_all_day.eq.true,start_date.lte.${date},end_date.gte.${date}),` +
           `and(rrule.not.is.null,is_all_day.eq.false,start_at.gte.${cutoff}T00:00:00+09:00,start_at.lte.${date}T23:59:59+09:00),` +
           `and(rrule.not.is.null,is_all_day.eq.true,start_date.gte.${cutoff},start_date.lte.${date})`
         )
@@ -186,8 +186,8 @@ export function weeklyCalendarEventsQueryOptions(
         .eq('calendar_id', calendarId)
         .is('deleted_at', null)
         .or(
-          `and(is_all_day.eq.false,start_at.gte.${weekStart}T00:00:00+09:00,start_at.lte.${weekEnd}T23:59:59+09:00),` +
-          `and(is_all_day.eq.true,start_date.gte.${weekStart},start_date.lte.${weekEnd}),` +
+          `and(is_all_day.eq.false,start_at.lte.${weekEnd}T23:59:59+09:00,end_at.gte.${weekStart}T00:00:00+09:00),` +
+          `and(is_all_day.eq.true,start_date.lte.${weekEnd},end_date.gte.${weekStart}),` +
           `and(rrule.not.is.null,is_all_day.eq.false,start_at.gte.${cutoff}T00:00:00+09:00,start_at.lte.${weekEnd}T23:59:59+09:00),` +
           `and(rrule.not.is.null,is_all_day.eq.true,start_date.gte.${cutoff},start_date.lte.${weekEnd})`
         )
@@ -223,8 +223,8 @@ export function monthlyCalendarEventsQueryOptions(
         .eq('calendar_id', calendarId)
         .is('deleted_at', null)
         .or(
-          `and(is_all_day.eq.false,start_at.gte.${monthStart}T00:00:00+09:00,start_at.lte.${monthEnd}T23:59:59+09:00),` +
-          `and(is_all_day.eq.true,start_date.gte.${monthStart},start_date.lte.${monthEnd}),` +
+          `and(is_all_day.eq.false,start_at.lte.${monthEnd}T23:59:59+09:00,end_at.gte.${monthStart}T00:00:00+09:00),` +
+          `and(is_all_day.eq.true,start_date.lte.${monthEnd},end_date.gte.${monthStart}),` +
           `and(rrule.not.is.null,is_all_day.eq.false,start_at.gte.${cutoff}T00:00:00+09:00,start_at.lte.${monthEnd}T23:59:59+09:00),` +
           `and(rrule.not.is.null,is_all_day.eq.true,start_date.gte.${cutoff},start_date.lte.${monthEnd})`
         )
@@ -344,8 +344,8 @@ export function multiWeeklyCalendarEventsQueryOptions(
         .in('calendar_id', calendarIds)
         .is('deleted_at', null)
         .or(
-          `and(is_all_day.eq.false,start_at.gte.${weekStart}T00:00:00+09:00,start_at.lte.${weekEnd}T23:59:59+09:00),` +
-          `and(is_all_day.eq.true,start_date.gte.${weekStart},start_date.lte.${weekEnd}),` +
+          `and(is_all_day.eq.false,start_at.lte.${weekEnd}T23:59:59+09:00,end_at.gte.${weekStart}T00:00:00+09:00),` +
+          `and(is_all_day.eq.true,start_date.lte.${weekEnd},end_date.gte.${weekStart}),` +
           `and(rrule.not.is.null,is_all_day.eq.false,start_at.gte.${cutoff}T00:00:00+09:00,start_at.lte.${weekEnd}T23:59:59+09:00),` +
           `and(rrule.not.is.null,is_all_day.eq.true,start_date.gte.${cutoff},start_date.lte.${weekEnd})`
         )
@@ -379,8 +379,8 @@ export function multiDailyCalendarEventsQueryOptions(
         .in('calendar_id', calendarIds)
         .is('deleted_at', null)
         .or(
-          `and(is_all_day.eq.false,start_at.gte.${date}T00:00:00+09:00,start_at.lte.${date}T23:59:59+09:00),` +
-          `and(is_all_day.eq.true,start_date.gte.${date},start_date.lte.${date}),` +
+          `and(is_all_day.eq.false,start_at.lte.${date}T23:59:59+09:00,end_at.gte.${date}T00:00:00+09:00),` +
+          `and(is_all_day.eq.true,start_date.lte.${date},end_date.gte.${date}),` +
           `and(rrule.not.is.null,is_all_day.eq.false,start_at.gte.${cutoff}T00:00:00+09:00,start_at.lte.${date}T23:59:59+09:00),` +
           `and(rrule.not.is.null,is_all_day.eq.true,start_date.gte.${cutoff},start_date.lte.${date})`
         )
@@ -416,8 +416,8 @@ export function multiMonthlyCalendarEventsQueryOptions(
         .in('calendar_id', calendarIds)
         .is('deleted_at', null)
         .or(
-          `and(is_all_day.eq.false,start_at.gte.${monthStart}T00:00:00+09:00,start_at.lte.${monthEnd}T23:59:59+09:00),` +
-          `and(is_all_day.eq.true,start_date.gte.${monthStart},start_date.lte.${monthEnd}),` +
+          `and(is_all_day.eq.false,start_at.lte.${monthEnd}T23:59:59+09:00,end_at.gte.${monthStart}T00:00:00+09:00),` +
+          `and(is_all_day.eq.true,start_date.lte.${monthEnd},end_date.gte.${monthStart}),` +
           `and(rrule.not.is.null,is_all_day.eq.false,start_at.gte.${cutoff}T00:00:00+09:00,start_at.lte.${monthEnd}T23:59:59+09:00),` +
           `and(rrule.not.is.null,is_all_day.eq.true,start_date.gte.${cutoff},start_date.lte.${monthEnd})`
         )

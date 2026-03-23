@@ -13,9 +13,13 @@ export interface EventEditModalState {
   eventId?: string;
   calendarId?: string;
   initialDate?: string;
+  /** 종료 날짜 (multi-day 이벤트) */
+  initialEndDate?: string;
   initialStartTime?: string;
   initialEndTime?: string;
   initialSubject?: string;
+  /** 라벨 초기값 (QuickCreate에서 전달) */
+  initialLabel?: string;
   instanceDate?: string;
   /** 상담 전용: 대상 학생 ID (personal mode에서 전달) */
   consultationStudentId?: string;
@@ -23,11 +27,13 @@ export interface EventEditModalState {
   consultationSessionType?: string;
   /** 상담 전용: 상담 방식 초기값 */
   consultationMode?: ConsultationMode;
-  /** 상담 전용: QuickCreate에서 전달된 초기값 */
+  /** QuickCreate에서 전달된 초기값 */
   initialTitle?: string;
   initialDescription?: string;
   initialMeetingLink?: string;
   initialVisitor?: string;
+  /** 반복 규칙 초기값 */
+  initialRrule?: string | null;
 }
 
 const CLOSED_STATE: EventEditModalState = { isOpen: false, mode: 'new', entityType: 'event' };
@@ -35,9 +41,13 @@ const CLOSED_STATE: EventEditModalState = { isOpen: false, mode: 'new', entityTy
 interface OpenNewParams {
   calendarId?: string;
   date?: string;
+  /** 종료 날짜 (multi-day 이벤트) */
+  endDate?: string;
   startTime?: string;
   endTime?: string;
   subject?: string;
+  /** 라벨 초기값 */
+  label?: string;
   /** 상담 모드로 열기 */
   entityType?: EventEditEntityType;
   /** 상담 전용 초기값 */
@@ -49,6 +59,8 @@ interface OpenNewParams {
   description?: string;
   meetingLink?: string;
   visitor?: string;
+  /** 반복 규칙 */
+  rrule?: string | null;
 }
 
 interface OpenEditParams {
@@ -69,9 +81,11 @@ export function useEventEditModal() {
       entityType: params.entityType ?? 'event',
       calendarId: params.calendarId,
       initialDate: params.date,
+      initialEndDate: params.endDate,
       initialStartTime: params.startTime,
       initialEndTime: params.endTime,
       initialSubject: params.subject,
+      initialLabel: params.label,
       consultationStudentId: params.consultationStudentId,
       consultationSessionType: params.consultationSessionType,
       consultationMode: params.consultationMode,
@@ -79,6 +93,7 @@ export function useEventEditModal() {
       initialDescription: params.description,
       initialMeetingLink: params.meetingLink,
       initialVisitor: params.visitor,
+      initialRrule: params.rrule,
     });
   }, []);
 

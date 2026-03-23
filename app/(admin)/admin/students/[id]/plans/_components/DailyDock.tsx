@@ -106,7 +106,7 @@ interface DailyDockProps {
   /** 멀티 캘린더 모드: 표시할 캘린더 ID 목록 */
   visibleCalendarIds?: string[] | null;
   /** 더블클릭/상세설정 → 이벤트 편집 모달 열기 */
-  onOpenEventEditNew?: (params: { date?: string; startTime?: string; endTime?: string }) => void;
+  onOpenEventEditNew?: (params: { date?: string; endDate?: string; startTime?: string; endTime?: string; title?: string; description?: string; label?: string; subject?: string; rrule?: string | null }) => void;
   /** 상담 편집 모달 열기 */
   onOpenConsultationEditNew?: (params: { date?: string; startTime?: string; endTime?: string; studentId?: string; sessionType?: string; consultationMode?: string; title?: string; description?: string; meetingLink?: string; visitor?: string }) => void;
   /** 주간 뷰 커스텀 일수 (2~7, 기본 7) */
@@ -595,13 +595,13 @@ export const DailyDock = memo(function DailyDock({
       {/* 줌 컨트롤 + 분할 뷰 토글 (일간/주간 그리드뷰에서만 표시) */}
       {(calendarView === 'daily' || calendarView === 'weekly' || calendarView === 'biweekly') && (
         <div className="flex items-center gap-1 px-2 pb-1 justify-end">
-          {/* 분할 뷰 토글 (일간 뷰 + 데스크탑에서만) */}
-          {calendarView === 'daily' && !isMobile && (
+          {/* 분할 뷰 토글 (일간 뷰 + 데스크탑에서만) — CSS hidden으로 모바일 숨김 (hydration 안정) */}
+          {calendarView === 'daily' && (
             <button
               type="button"
               onClick={handleToggleSplit}
               className={cn(
-                'p-1 rounded transition-colors mr-1',
+                'p-1 rounded transition-colors mr-1 hidden sm:block',
                 splitByCreator
                   ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200'
                   : 'hover:bg-[rgb(var(--color-secondary-200))] text-[var(--text-secondary)]'

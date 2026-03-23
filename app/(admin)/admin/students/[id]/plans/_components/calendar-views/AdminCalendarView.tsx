@@ -273,6 +273,7 @@ export default function AdminCalendarView({
   const {
     plansByDate: rawPlansByDate,
     plans: rawPlans,
+    allDayItemsByDate,
     isLoading: isPlansLoading,
     isError: isPlansError,
     invalidate: invalidatePlans,
@@ -491,6 +492,7 @@ export default function AdminCalendarView({
             onDateSelect={handleDateSelect}
             onMonthChange={handleMonthChange}
             plansByDate={plansByDate}
+            allDayItemsByDate={allDayItemsByDate}
             exclusionsByDate={exclusionsByDate}
             dailySchedulesByDate={dailySchedulesByDate}
             dateTimeSlots={dateTimeSlots}

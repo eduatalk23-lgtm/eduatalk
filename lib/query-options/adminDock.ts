@@ -438,6 +438,10 @@ export interface AllDayItem {
   endDate?: string;
   /** 멀티데이 이벤트: 총 스팬 일수 */
   spanDays?: number;
+  /** Multi-day timed 이벤트: 시작 시간 (HH:mm) */
+  startTime?: string | null;
+  /** Multi-day timed 이벤트: 종료 시간 (HH:mm) */
+  endTime?: string | null;
 }
 
 export function allDayEventsQueryOptions(

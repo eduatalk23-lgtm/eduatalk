@@ -24,6 +24,7 @@ import {
 
 import { cn } from "@/lib/cn";
 import DroppableAdminDayCell from "./DroppableAdminDayCell";
+import { MonthWeekAllDayRow } from "./MonthWeekAllDayRow";
 import DayPlanPopover from "./DayPlanPopover";
 import { InlineQuickCreate } from "../items/InlineQuickCreate";
 import { EventDetailPopover } from "../items/EventDetailPopover";
@@ -99,6 +100,7 @@ export default function AdminMonthView({
   selectedDate,
   onDateSelect,
   plansByDate,
+  allDayItemsByDate = {},
   exclusionsByDate,
   dailySchedulesByDate,
   dateTimeSlots,
@@ -160,15 +162,30 @@ export default function AdminMonthView({
 
   const weekCount = Math.ceil(calendarDays.length / 7);
 
-  // 날짜별 상태 계산
-  const getDayCellStatus = useCallback(
-    (date: Date): DayCellStatus => {
+  // 주 단위 날짜 배열 + 문자열→Date 맵 (spanning bar + 셀 렌더링용)
+  const { weeks, dateMap } = useMemo(() => {
+    const result: string[][] = [];
+    const map = new Map<string, Date>();
+    for (let i = 0; i < calendarDays.length; i += 7) {
+      const weekSlice = calendarDays.slice(i, i + 7);
+      result.push(weekSlice.map((d) => {
+        const str = format(d, 'yyyy-MM-dd');
+        map.set(str, d);
+        return str;
+      }));
+    }
+    return { weeks: result, dateMap: map };
+  }, [calendarDays]);
+
+  // 날짜별 상태 캐시 (렌더 루프에서 42회 호출 방지)
+  const statusByDate = useMemo(() => {
+    const map = new Map<string, DayCellStatus>();
+    const today = startOfDay(new Date());
+    for (const date of calendarDays) {
       const dateStr = format(date, "yyyy-MM-dd");
       const exclusion = exclusionsByDate[dateStr];
       const dailySchedule = dailySchedulesByDate?.[dateStr];
-      const today = startOfDay(new Date());
-
-      return {
+      map.set(dateStr, {
         isExclusion: !!exclusion,
         exclusionType: exclusion?.exclusion_type,
         exclusionReason: exclusion?.reason || undefined,
@@ -176,59 +193,50 @@ export default function AdminMonthView({
         isSelected: dateStr === selectedDate,
         isCurrentMonth: isSameMonth(date, currentMonth),
         isPast: isBefore(date, today),
-        isDragOver: false, // DnD 컨텍스트에서 관리
-        // 1730 Timetable 주기 정보
+        isDragOver: false,
         weekNumber: dailySchedule?.week_number,
         cycleDayNumber: dailySchedule?.cycle_day_number,
         dayType: dailySchedule?.day_type,
-      };
+      });
+    }
+    return map;
+  }, [calendarDays, currentMonth, selectedDate, exclusionsByDate, dailySchedulesByDate]);
+
+  const getDayCellStatus = useCallback(
+    (date: Date): DayCellStatus => statusByDate.get(format(date, "yyyy-MM-dd")) ?? {
+      isExclusion: false, isToday: false, isSelected: false,
+      isCurrentMonth: false, isPast: false, isDragOver: false,
     },
-    [currentMonth, selectedDate, exclusionsByDate, dailySchedulesByDate]
+    [statusByDate]
   );
 
-  // 날짜별 통계 계산
-  const getDayCellStats = useCallback(
-    (date: Date): DayCellStats => {
+  // 날짜별 통계 캐시
+  const statsByDate = useMemo(() => {
+    const map = new Map<string, DayCellStats>();
+    for (const date of calendarDays) {
       const dateStr = format(date, "yyyy-MM-dd");
       const plans = plansByDate[dateStr] || [];
-
-      // 학습 태스크만 완료 카운트 대상 (일반 이벤트 제외)
       const taskPlans = plans.filter((p) => p.is_task);
       const totalPlans = taskPlans.length;
       const completedPlans = taskPlans.filter((p) => p.status === "completed").length;
       const inProgressPlans = taskPlans.filter((p) => p.status === "in_progress").length;
-      const pendingPlans = taskPlans.filter(
-        (p) => p.status === "pending" || !p.status
-      ).length;
-      const completionRate =
-        totalPlans > 0 ? Math.round((completedPlans / totalPlans) * 100) : 0;
-      const totalEstimatedMinutes = taskPlans.reduce(
-        (sum, p) => sum + (p.estimated_minutes || 0),
-        0
-      );
-
-      // Phase 4: 시간대 유형별 통계 (태스크만)
-      const studySlotPlans = taskPlans.filter(
-        (p) => (p as { time_slot_type?: string }).time_slot_type === "study"
-      ).length;
-      const selfStudySlotPlans = taskPlans.filter(
-        (p) => (p as { time_slot_type?: string }).time_slot_type === "self_study"
-      ).length;
+      const pendingPlans = taskPlans.filter((p) => p.status === "pending" || !p.status).length;
+      const completionRate = totalPlans > 0 ? Math.round((completedPlans / totalPlans) * 100) : 0;
+      const totalEstimatedMinutes = taskPlans.reduce((sum, p) => sum + (p.estimated_minutes || 0), 0);
+      const studySlotPlans = taskPlans.filter((p) => (p as { time_slot_type?: string }).time_slot_type === "study").length;
+      const selfStudySlotPlans = taskPlans.filter((p) => (p as { time_slot_type?: string }).time_slot_type === "self_study").length;
       const noSlotPlans = totalPlans - studySlotPlans - selfStudySlotPlans;
+      map.set(dateStr, { totalPlans, completedPlans, inProgressPlans, pendingPlans, completionRate, totalEstimatedMinutes, studySlotPlans, selfStudySlotPlans, noSlotPlans });
+    }
+    return map;
+  }, [calendarDays, plansByDate]);
 
-      return {
-        totalPlans,
-        completedPlans,
-        inProgressPlans,
-        pendingPlans,
-        completionRate,
-        totalEstimatedMinutes,
-        studySlotPlans,
-        selfStudySlotPlans,
-        noSlotPlans,
-      };
+  const getDayCellStats = useCallback(
+    (date: Date): DayCellStats => statsByDate.get(format(date, "yyyy-MM-dd")) ?? {
+      totalPlans: 0, completedPlans: 0, inProgressPlans: 0, pendingPlans: 0,
+      completionRate: 0, totalEstimatedMinutes: 0, studySlotPlans: 0, selfStudySlotPlans: 0, noSlotPlans: 0,
     },
-    [plansByDate]
+    [statsByDate]
   );
 
   // 날짜 클릭 핸들러 (dateStr을 직접 받음 - 메모이제이션 최적화)
@@ -527,52 +535,71 @@ export default function AdminMonthView({
         ))}
       </div>
 
-      {/* 캘린더 그리드 */}
+      {/* 캘린더 그리드 — 주 단위 컨테이너 (GCal: bar행 + cell행) */}
       <div
         ref={gridContainerRef}
-        className="grid grid-cols-7 gap-px flex-1 bg-[rgb(var(--color-secondary-200))] rounded-lg overflow-hidden"
+        className="flex flex-col gap-px flex-1 bg-[rgb(var(--color-secondary-200))] rounded-lg overflow-hidden"
         onMouseDown={handleGridMouseDown}
         onMouseMove={handleGridMouseMove}
         onMouseUp={handleGridMouseUp}
         onMouseLeave={handleGridMouseLeave}
         onClickCapture={handleGridClickCapture}
         style={{
-          gridTemplateRows: `repeat(${weekCount}, 1fr)`,
           ...(monthDrag ? { userSelect: 'none', WebkitUserSelect: 'none' } as React.CSSProperties : {}),
         }}
       >
-        {calendarDays.map((date) => {
-          const dateStr = format(date, "yyyy-MM-dd");
-          const status = getDayCellStatus(date);
-          const stats = getDayCellStats(date);
-          const plans = plansByDate[dateStr] || [];
-
+        {weeks.map((weekDates, weekIdx) => {
+          // 주별 allDayItems 슬라이스 (MonthWeekAllDayRow에 전체 대신 해당 주만 전달)
+          const weekAllDayItems: Record<string, import('@/lib/query-options/adminDock').AllDayItem[]> = {};
+          for (const d of weekDates) {
+            if (allDayItemsByDate[d]) weekAllDayItems[d] = allDayItemsByDate[d];
+          }
           return (
-            <DroppableAdminDayCell
-              key={dateStr}
-              date={date}
-              status={status}
-              stats={stats}
-              plans={plans}
-              onDateClick={handleDateClick}
-              onPlanClick={handlePlanClick}
-              onContextMenu={handleContextMenu}
-              isSelectionMode={isSelectionMode}
-              selectedPlanIds={selectedPlanIds}
-              onPlanSelect={onPlanSelect}
-              highlightedPlanIds={mergedHighlightedPlanIds}
-              onOverflowClick={handleOverflowClick}
-              onQuickCreate={calendarId ? handleQuickCreate : undefined}
-              onDoubleClick={onDoubleClickDate}
-              isQuickCreateTarget={quickCreateState?.date === dateStr}
-              quickCreateSlot={quickCreateState?.date === dateStr ? quickCreateState.slot : null}
-              isQuickCreateAllDay={quickCreateState?.date === dateStr ? quickCreateState.isAllDay : undefined}
-              isInDragSelection={dragSelectedDates?.has(dateStr) ?? false}
-              showHolidays={showHolidays}
+          <div key={weekIdx} className="flex-1 min-h-0 flex flex-col">
+            {/* Spanning bar 행 */}
+            <MonthWeekAllDayRow
+              weekDates={weekDates}
+              allDayItemsByDate={weekAllDayItems}
               calendarColorMap={calendarColorMap}
-              activeCalendarColor={calendarColorMap.get(calendarId ?? '')}
-              checkedIn={checkInDates?.has(dateStr)}
             />
+            {/* Day cell 행 */}
+            <div className="grid grid-cols-7 gap-px flex-1">
+              {weekDates.map((dateStr) => {
+                const date = dateMap.get(dateStr) ?? new Date(dateStr + 'T00:00:00');
+                const status = getDayCellStatus(date);
+                const stats = getDayCellStats(date);
+                const plans = plansByDate[dateStr] || [];
+
+                return (
+                  <DroppableAdminDayCell
+                    key={dateStr}
+                    date={date}
+                    status={status}
+                    stats={stats}
+                    plans={plans}
+                    onDateClick={handleDateClick}
+                    onPlanClick={handlePlanClick}
+                    onContextMenu={handleContextMenu}
+                    isSelectionMode={isSelectionMode}
+                    selectedPlanIds={selectedPlanIds}
+                    onPlanSelect={onPlanSelect}
+                    highlightedPlanIds={mergedHighlightedPlanIds}
+                    onOverflowClick={handleOverflowClick}
+                    onQuickCreate={calendarId ? handleQuickCreate : undefined}
+                    onDoubleClick={onDoubleClickDate}
+                    isQuickCreateTarget={quickCreateState?.date === dateStr}
+                    quickCreateSlot={quickCreateState?.date === dateStr ? quickCreateState.slot : null}
+                    isQuickCreateAllDay={quickCreateState?.date === dateStr ? quickCreateState.isAllDay : undefined}
+                    isInDragSelection={dragSelectedDates?.has(dateStr) ?? false}
+                    showHolidays={showHolidays}
+                    calendarColorMap={calendarColorMap}
+                    activeCalendarColor={calendarColorMap.get(calendarId ?? '')}
+                    checkedIn={checkInDates?.has(dateStr)}
+                  />
+                );
+              })}
+            </div>
+          </div>
           );
         })}
       </div>

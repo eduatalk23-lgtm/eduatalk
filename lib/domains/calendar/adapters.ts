@@ -275,6 +275,47 @@ export function calendarEventsToAllDayItems(
 }
 
 /**
+ * Multi-day timed event (≥24h) → AllDayItem (spanning bar)
+ *
+ * GCal 패턴: ≥24h timed 이벤트는 상단 all-day 영역에 spanning bar로 표시
+ */
+export function calendarEventToMultiDayBar(
+  event: CalendarEventWithStudyData
+): AllDayItem | null {
+  const startDate = extractDateYMD(event.start_at);
+  const endDate = extractDateYMD(event.end_at);
+
+  // null 안전: timestamps가 없으면 변환 불가
+  if (!startDate || !endDate) return null;
+
+  let spanDays: number | undefined;
+  if (startDate !== endDate) {
+    const s = new Date(startDate + 'T00:00:00');
+    const e = new Date(endDate + 'T00:00:00');
+    spanDays = Math.max(1, Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+  }
+
+  // 시간 정보를 라벨에 포함 (GCal: "제목 · PM 2시 – PM 5시")
+  const startTime = extractTimeHHMM(event.start_at);
+  const endTime = extractTimeHHMM(event.end_at);
+
+  return {
+    id: event.id,
+    type: 'event',
+    label: event.title,
+    exclusionType: null,
+    color: event.color,
+    calendarId: event.calendar_id,
+    startDate,
+    endDate,
+    spanDays,
+    // 시간 정보 보존 (UI에서 표시용)
+    startTime,
+    endTime,
+  };
+}
+
+/**
  * CalendarEvent → OverduePlan (미완료 이벤트)
  *
  * 과거 미완료 study 이벤트를 OverduePlan 형태로 변환합니다.

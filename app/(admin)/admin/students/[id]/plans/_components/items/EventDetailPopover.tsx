@@ -4,7 +4,7 @@ import { memo, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/cn';
 import { Pencil, Trash2, Clock, X, ChevronDown, ChevronRight, Check, XCircle, Repeat, Bell, FileText, EyeOff, Undo2, Users, Video, MapPin, ExternalLink } from 'lucide-react';
-import { formatDurationKo } from '../utils/timeGridUtils';
+import { formatDurationKo, formatTimeKoAmPm, timeToMinutes } from '../utils/timeGridUtils';
 import { getSubjectPalette } from '../utils/subjectColors';
 import { usePopoverPosition } from '../hooks/usePopoverPosition';
 import { useIsMobile } from '@/lib/hooks/useIsMobile';
@@ -150,23 +150,36 @@ export const EventDetailPopover = memo(function EventDetailPopover({
 
   const palette = getSubjectPalette(plan.subject);
 
+  const isMultiDayTimed = !!(plan.endDate && plan.planDate && plan.endDate !== plan.planDate && plan.startTime && plan.endTime);
+
   const durationMin =
     plan.startTime && plan.endTime
       ? (() => {
-          const [sh, sm] = plan.startTime.split(':').map(Number);
-          const [eh, em] = plan.endTime.split(':').map(Number);
-          return eh * 60 + em - (sh * 60 + sm);
+          if (isMultiDayTimed) {
+            // multi-day timed: 날짜 차이 포함 계산
+            const start = new Date(`${plan.planDate}T${plan.startTime}:00`);
+            const end = new Date(`${plan.endDate}T${plan.endTime}:00`);
+            return Math.round((end.getTime() - start.getTime()) / 60000);
+          }
+          const startMin = timeToMinutes(plan.startTime);
+          const endMin = timeToMinutes(plan.endTime);
+          if (endMin === startMin) return 0;
+          return endMin > startMin ? endMin - startMin : (24 * 60 - startMin) + endMin;
         })()
       : plan.estimatedMinutes ?? 0;
 
+  // overnight 여부: 종료 시간 ≤ 시작 시간 (multi-day timed 제외)
+  const isOvernight = !isMultiDayTimed && plan.startTime && plan.endTime
+    && timeToMinutes(plan.endTime) <= timeToMinutes(plan.startTime);
+
   // 날짜 포매팅: 2/24 (월)
-  const dateLabel = plan.planDate
-    ? (() => {
-        const d = new Date(plan.planDate + 'T00:00:00');
-        const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
-        return `${d.getMonth() + 1}/${d.getDate()} (${dayNames[d.getDay()]})`;
-      })()
-    : null;
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+    return `${d.getMonth() + 1}/${d.getDate()} (${dayNames[d.getDay()]})`;
+  };
+  const dateLabel = plan.planDate ? formatDate(plan.planDate) : null;
+  const endDateLabel = isMultiDayTimed && plan.endDate ? formatDate(plan.endDate) : null;
 
   // 제목: title 우선, fallback으로 label
   const displayTitle = plan.title ?? plan.label;
@@ -262,13 +275,21 @@ export const EventDetailPopover = memo(function EventDetailPopover({
           <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
             <Clock className="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0" />
             <span className="tabular-nums">
-              {dateLabel && <span>{dateLabel} </span>}
               {plan.startTime && plan.endTime ? (
-                <span>
-                  {plan.startTime.substring(0, 5)} - {plan.endTime.substring(0, 5)}
-                </span>
+                isMultiDayTimed ? (
+                  <span className="flex flex-col gap-0.5">
+                    <span>{dateLabel} {formatTimeKoAmPm(plan.startTime)}</span>
+                    <span>→ {endDateLabel} {formatTimeKoAmPm(plan.endTime)}</span>
+                  </span>
+                ) : (
+                  <span>
+                    {dateLabel && <span>{dateLabel} </span>}
+                    {formatTimeKoAmPm(plan.startTime)} – {formatTimeKoAmPm(plan.endTime)}
+                    {isOvernight && <span className="text-blue-500"> (다음 날)</span>}
+                  </span>
+                )
               ) : (
-                <span>종일</span>
+                <span>{dateLabel} 종일</span>
               )}
               {durationMin > 0 && (
                 <span className="text-[var(--text-tertiary)]"> ({formatDurationKo(durationMin)})</span>

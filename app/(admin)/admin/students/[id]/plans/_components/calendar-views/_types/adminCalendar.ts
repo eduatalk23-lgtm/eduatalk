@@ -255,6 +255,8 @@ export type AdminMonthViewProps = {
   onDateSelect: (date: string) => void;
   onMonthChange: (date: Date) => void;
   plansByDate: PlansByDate;
+  /** 날짜별 AllDayItem 맵 (all-day + cross-day spanning bar) */
+  allDayItemsByDate?: Record<string, import('@/lib/query-options/adminDock').AllDayItem[]>;
   exclusionsByDate: ExclusionsByDate;
   dailySchedulesByDate: DailySchedulesByDate;
   /** 날짜별 시간대 타임슬롯 */
@@ -281,7 +283,7 @@ export type AdminMonthViewProps = {
   /** 공휴일 표시 여부 (사이드바 토글) */
   showHolidays?: boolean;
   /** 옵션 더보기 → 이벤트 편집 모달 열기 */
-  onOpenEventEditNew?: (params: { date?: string; startTime?: string; endTime?: string }) => void;
+  onOpenEventEditNew?: (params: { date?: string; endDate?: string; startTime?: string; endTime?: string; title?: string; description?: string; label?: string; subject?: string; rrule?: string | null }) => void;
   /** 옵션 더보기 → 상담 편집 모달 열기 */
   onOpenConsultationEditNew?: (params: { date?: string; startTime?: string; endTime?: string; studentId?: string; sessionType?: string; consultationMode?: string; title?: string; description?: string; meetingLink?: string; visitor?: string }) => void;
   /** 출석 체크된 날짜 Set (yyyy-MM-dd) */

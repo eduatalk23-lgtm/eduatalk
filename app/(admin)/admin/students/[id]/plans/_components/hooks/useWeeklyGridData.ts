@@ -14,8 +14,10 @@ import {
   calendarEventsToCustomPlanItems,
   calendarEventsToNonStudyPlanItems,
   calendarEventsToAllDayItems,
+  calendarEventToMultiDayBar,
   extractDateYMD,
 } from '@/lib/domains/calendar/adapters';
+import { classifyEventDuration } from '@/lib/domains/calendar/eventClassification';
 import type {
   DailyPlan,
   AllDayItem,
@@ -113,17 +115,26 @@ export function useWeeklyGridData(
 
   // 5. 날짜별 그룹핑 → 어댑터 적용 → DayColumnData Map
   const dayDataMap = useMemo(() => {
-    // 날짜별 이벤트 그룹핑
+    // 날짜별 이벤트 그룹핑 (GCal 기준: same-day → time grid, cross-day → spanning bar)
     const eventsByDate = new Map<string, CalendarEventWithStudyData[]>();
+    const crossDayEvents: CalendarEventWithStudyData[] = [];
     for (const date of weekDates) {
       eventsByDate.set(date, []);
     }
     for (const event of allEvents) {
-      const dateKey = event.start_date ?? extractDateYMD(event.start_at) ?? '';
-      if (eventsByDate.has(dateKey)) {
+      const displayMode = classifyEventDuration(event.start_at, event.end_at, event.is_all_day ?? false);
+
+      if (displayMode === 'cross-day') {
+        // 날이 넘어가는 timed 이벤트 → spanning bar (all-day 영역)
+        crossDayEvents.push(event);
+        continue;
+      }
+
+      // same-day (종일 포함): 해당 날짜 time grid
+      const dateKey = event.start_date ?? extractDateYMD(event.start_at);
+      if (dateKey && eventsByDate.has(dateKey)) {
         eventsByDate.get(dateKey)!.push(event);
       }
-      // 주 범위 밖 이벤트는 무시 (map.has 가드)
     }
 
     const isLoading = eventsLoading;
@@ -132,12 +143,22 @@ export function useWeeklyGridData(
     const map = new Map<string, DayColumnData>();
     for (const date of weekDates) {
       const dayEvents = eventsByDate.get(date) ?? [];
+      const allDayItems = calendarEventsToAllDayItems(dayEvents);
+
+      // cross-day timed spanning bars 추가
+      for (const cdEvent of crossDayEvents) {
+        const bar = calendarEventToMultiDayBar(cdEvent);
+        if (bar && bar.startDate && bar.endDate && date >= bar.startDate && date <= bar.endDate) {
+          allDayItems.push(bar);
+        }
+      }
+
       map.set(date, {
         date,
         plans: calendarEventsToDailyPlans(dayEvents),
         customItems: calendarEventsToCustomPlanItems(dayEvents),
         nonStudyItems: calendarEventsToNonStudyPlanItems(dayEvents),
-        allDayItems: calendarEventsToAllDayItems(dayEvents),
+        allDayItems,
         isLoading,
       });
     }

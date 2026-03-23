@@ -14,8 +14,10 @@ import {
   calendarEventsToCustomPlanItems,
   calendarEventsToNonStudyPlanItems,
   calendarEventsToAllDayItems,
+  calendarEventToMultiDayBar,
   extractDateYMD,
 } from '@/lib/domains/calendar/adapters';
+import { classifyEventDuration } from '@/lib/domains/calendar/eventClassification';
 import type { DayColumnData } from './useWeeklyGridData';
 import { getTwoWeekDates, getTwoWeekRange } from '../utils/weekDateUtils';
 
@@ -90,12 +92,20 @@ export function useTwoWeekGridData(
   // 5. 날짜별 그룹핑 → DayColumnData Map (14일 전체)
   const dayDataMap = useMemo(() => {
     const eventsByDate = new Map<string, CalendarEventWithStudyData[]>();
+    const crossDayEvents: CalendarEventWithStudyData[] = [];
     for (const date of allDates) {
       eventsByDate.set(date, []);
     }
     for (const event of allEvents) {
-      const dateKey = event.start_date ?? extractDateYMD(event.start_at) ?? '';
-      if (eventsByDate.has(dateKey)) {
+      const displayMode = classifyEventDuration(event.start_at, event.end_at, event.is_all_day ?? false);
+
+      if (displayMode === 'cross-day') {
+        crossDayEvents.push(event);
+        continue;
+      }
+
+      const dateKey = event.start_date ?? extractDateYMD(event.start_at);
+      if (dateKey && eventsByDate.has(dateKey)) {
         eventsByDate.get(dateKey)!.push(event);
       }
     }
@@ -103,12 +113,21 @@ export function useTwoWeekGridData(
     const map = new Map<string, DayColumnData>();
     for (const date of allDates) {
       const dayEvents = eventsByDate.get(date) ?? [];
+      const allDayItems = calendarEventsToAllDayItems(dayEvents);
+
+      for (const cdEvent of crossDayEvents) {
+        const bar = calendarEventToMultiDayBar(cdEvent);
+        if (bar && bar.startDate && bar.endDate && date >= bar.startDate && date <= bar.endDate) {
+          allDayItems.push(bar);
+        }
+      }
+
       map.set(date, {
         date,
         plans: calendarEventsToDailyPlans(dayEvents),
         customItems: calendarEventsToCustomPlanItems(dayEvents),
         nonStudyItems: calendarEventsToNonStudyPlanItems(dayEvents),
-        allDayItems: calendarEventsToAllDayItems(dayEvents),
+        allDayItems,
         isLoading: eventsLoading,
       });
     }

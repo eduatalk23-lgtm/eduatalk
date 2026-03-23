@@ -1,8 +1,6 @@
 'use client';
 
 import { X, Loader2, Trash2 } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
-import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/cn';
 import { TimePickerDropdown } from '../../_components/items/TimePickerDropdown';
 import { RecurrenceSelector } from '../../_components/items/RecurrenceSelector';
@@ -43,6 +41,24 @@ interface EventEditTopBarProps {
   };
 }
 
+/** multi-day 이벤트의 총 소요시간 계산 (분) — 타임존 무관 순수 차이 */
+function computeMultiDayDuration(
+  startDate: string,
+  endDate: string,
+  startTime: string,
+  endTime: string,
+): number {
+  try {
+    // UTC 고정으로 로컬 타임존 영향 제거
+    const start = new Date(`${startDate}T${startTime}:00Z`);
+    const end = new Date(`${endDate}T${endTime}:00Z`);
+    const diff = Math.round((end.getTime() - start.getTime()) / 60000);
+    return diff > 0 ? diff : 0;
+  } catch {
+    return 0;
+  }
+}
+
 export function EventEditTopBar({
   mode,
   isDirty,
@@ -56,19 +72,13 @@ export function EventEditTopBar({
   heading,
   dateTime,
 }: EventEditTopBarProps) {
-  const formatDateDisplay = (d: string) => {
-    try {
-      return format(parseISO(d), 'M월 d일 (E)', { locale: ko });
-    } catch {
-      return d;
-    }
-  };
+  const isMultiDay = dateTime ? dateTime.date !== dateTime.endDate : false;
 
   const durationMinutes = dateTime && !dateTime.isAllDay
-    ? timeToMinutes(dateTime.endTime) - timeToMinutes(dateTime.startTime)
+    ? isMultiDay
+      ? computeMultiDayDuration(dateTime.date, dateTime.endDate, dateTime.startTime, dateTime.endTime)
+      : timeToMinutes(dateTime.endTime) - timeToMinutes(dateTime.startTime)
     : 0;
-
-  const isMultiDay = dateTime ? dateTime.date !== dateTime.endDate : false;
 
   return (
     <div className="sticky top-0 z-10 bg-[var(--background)]">
@@ -136,7 +146,7 @@ export function EventEditTopBar({
           {/* X 버튼과 같은 폭의 spacer → 제목 텍스트와 정렬 */}
           <div className="w-8 shrink-0" />
           <div className="flex flex-col gap-1.5">
-            {/* GCal: [시작날짜] [시작시간] – [종료시간] [종료날짜] [소요시간] */}
+            {/* GCal: [시작날짜] [시작시간] – [종료시간] [종료날짜?] [duration] */}
             <div className="flex items-center gap-2 flex-wrap">
               <input
                 type="date"
@@ -156,19 +166,21 @@ export function EventEditTopBar({
                     value={dateTime.endTime}
                     onChange={dateTime.onEndTimeChange}
                     referenceTime={dateTime.startTime}
-                    minTime={dateTime.startTime}
                     label="종료"
                   />
                 </>
               )}
-              <input
-                type="date"
-                value={dateTime.endDate}
-                onChange={(e) => dateTime.onEndDateChange(e.target.value)}
-                min={dateTime.date}
-                className={controlCls}
-              />
-              {!dateTime.isAllDay && durationMinutes > 0 && !isMultiDay && (
+              {/* 종료 날짜: 시작과 다를 때만 표시 (GCal 패턴) */}
+              {isMultiDay && (
+                <input
+                  type="date"
+                  value={dateTime.endDate}
+                  onChange={(e) => dateTime.onEndDateChange(e.target.value)}
+                  min={dateTime.date}
+                  className={controlCls}
+                />
+              )}
+              {!dateTime.isAllDay && durationMinutes > 0 && (
                 <span className="text-sm text-[var(--text-tertiary)] shrink-0">
                   {formatDurationKo(durationMinutes)}
                 </span>

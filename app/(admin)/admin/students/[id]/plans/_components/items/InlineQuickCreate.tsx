@@ -9,7 +9,7 @@ import { TimePickerDropdown } from './TimePickerDropdown';
 import { cn } from '@/lib/cn';
 import { LABEL_PRESETS, getDefaultIsTask } from '@/lib/domains/calendar/labelPresets';
 import { Loader2, X, Clock, Calendar, FileText } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, addDays } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useToast } from '@/components/ui/ToastProvider';
 import { SUPPORTED_SUBJECT_CATEGORIES } from '@/lib/domains/plan/llm/actions/coldStart/types';
@@ -33,7 +33,7 @@ interface InlineQuickCreateProps {
   planGroupId?: string | null;
   onSuccess: (createdInfo?: { planId: string; startTime: string }) => void;
   onClose: () => void;
-  onOpenFullModal: (slot: EmptySlot) => void;
+  onOpenFullModal: (slot: EmptySlot, formData?: { title?: string; description?: string; label?: string; subject?: string; rrule?: string | null }) => void;
   onOpenConsultationModal?: (slot: EmptySlot, extra?: { studentId?: string; sessionType?: string; consultationMode?: string; title?: string; description?: string; meetingLink?: string; visitor?: string }) => void;
   onPlaceUnfinished?: (slot: EmptySlot) => void;
   onPlaceFromWeekly?: (slot: EmptySlot) => void;
@@ -94,12 +94,16 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
     : slot.endTime;
   const [startTime, setStartTime] = useState(defaultStart);
   const [endTime, setEndTime] = useState(defaultEnd);
+  const [endDate, setEndDate] = useState(planDate);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  const computedMinutes = timeToMinutes(endTime) - timeToMinutes(startTime);
+  const isMultiDay = endDate !== planDate;
+  const computedMinutes = isMultiDay
+    ? Math.round((new Date(`${endDate}T${endTime}:00`).getTime() - new Date(`${planDate}T${startTime}:00`).getTime()) / 60000)
+    : timeToMinutes(endTime) - timeToMinutes(startTime);
 
   // 탭 전환 시 제목 기본값 설정
   const handleTabChange = useCallback((tab: QuickCreateTab) => {
@@ -131,13 +135,22 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
     setEndTime(minutesToTime(newEndMin));
   }, [startTime, endTime]);
 
+  // GCal 패턴: end ≤ start on same date → endDate 다음날 / end > start on next day → endDate 리셋
   const handleEndTimeChange = useCallback((newEnd: string) => {
-    if (timeToMinutes(newEnd) <= timeToMinutes(startTime)) {
-      setEndTime(minutesToTime(timeToMinutes(startTime) + 60));
-    } else {
-      setEndTime(newEnd);
+    setEndTime(newEnd);
+    const endMin = timeToMinutes(newEnd);
+    const startMin = timeToMinutes(startTime);
+    if (!isMultiDay && endMin <= startMin) {
+      // 같은 날인데 end ≤ start → 다음날로 자동 변경
+      try {
+        const nextDay = format(addDays(parseISO(planDate), 1), 'yyyy-MM-dd');
+        setEndDate(nextDay);
+      } catch { /* ignore */ }
+    } else if (isMultiDay && endMin > startMin) {
+      // 다음날인데 end > start → 같은 날로 리셋
+      setEndDate(planDate);
     }
-  }, [startTime]);
+  }, [startTime, isMultiDay, planDate]);
 
   const handleAddTime = useCallback(() => {
     setStartTime(defaultStart);
@@ -163,6 +176,7 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
           title: trimmed,
           description: description.trim() || undefined,
           planDate,
+          endDate: isMultiDay ? endDate : undefined,
           startTime: mode === 'allDay' ? undefined : startTime,
           endTime: mode === 'allDay' ? undefined : endTime,
           isAllDay: mode === 'allDay',
@@ -203,7 +217,7 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
   ];
 
   return (
-    <div className="w-[448px]">
+    <div className="w-full max-w-[448px]">
       {/* 헤더: 닫기 버튼 */}
       <div className="flex items-center justify-end px-5 pt-3 pb-0">
         <button
@@ -321,6 +335,7 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
                       <span className="ml-2">{formatTimeKoAmPm(startTime)}</span>
                       <span className="text-[var(--text-tertiary)]"> – </span>
                       <span>{formatTimeKoAmPm(endTime)}</span>
+                      {isMultiDay && <span className="text-[11px] text-blue-500 ml-0.5">+1</span>}
                     </>
                   )}
                 </div>
@@ -350,7 +365,6 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
                         value={endTime}
                         onChange={handleEndTimeChange}
                         referenceTime={startTime}
-                        minTime={startTime}
                         disabled={isPending}
                       />
                       {computedMinutes > 0 && (
@@ -422,7 +436,13 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
           <button
             type="button"
             onClick={() => {
-              onOpenFullModal(slot);
+              onOpenFullModal(slot, {
+                title: title.trim() || undefined,
+                description: description.trim() || undefined,
+                label: isStudy ? '학습' : selectedLabel,
+                subject: isStudy ? (subject || undefined) : undefined,
+                rrule,
+              });
               onClose();
             }}
             className="px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-100))] rounded-full transition-colors"

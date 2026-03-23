@@ -39,6 +39,8 @@ export interface PlanItemData {
   customRangeDisplay?: string | null;
   estimatedMinutes?: number | null;
   planDate?: string;
+  /** 종료 날짜 (multi-day timed 이벤트의 팝오버 표시용) */
+  endDate?: string;
   startTime?: string | null;
   endTime?: string | null;
   carryoverCount?: number;

@@ -16,6 +16,7 @@ import {
 import { createCalendarEventAction } from '@/lib/domains/admin-plan/actions/calendarEvents';
 import { extractTimeHHMM, extractDateYMD } from '@/lib/domains/calendar/adapters';
 import { getPresetForLabel } from '@/lib/domains/calendar/labelPresets';
+import { timeToMinutes } from '../../_components/utils/timeGridUtils';
 import type { EventEditEntityType } from '../../_components/hooks/useEventEditModal';
 import type { ConsultationMode, NotificationTarget, NotificationChannel } from '@/lib/domains/consulting/types';
 
@@ -89,12 +90,16 @@ interface UseEventEditFormOptions {
   calendarId?: string;
   // Initial values for new mode (from searchParams)
   initialDate?: string;
+  /** 종료 날짜 초기값 (multi-day 이벤트) */
+  initialEndDate?: string;
   initialStartTime?: string;
   initialEndTime?: string;
   initialSubject?: string;
   initialEventType?: ManualEventType;
   initialLabel?: string;
   initialIsTask?: boolean;
+  /** 반복 규칙 초기값 */
+  initialRrule?: string | null;
   returnPath: string;
   instanceDate?: string;
   /** 모달 모드: 저장/삭제 성공 후 콜백 (있으면 router.push 대신 호출) */
@@ -164,11 +169,11 @@ function getDefaultForm(opts: UseEventEditFormOptions): EventEditFormState {
     color: null,
     calendarId: opts.calendarId ?? null,
     date: opts.initialDate ?? today,
-    endDate: opts.initialDate ?? today,
+    endDate: opts.initialEndDate ?? opts.initialDate ?? today,
     startTime: opts.initialStartTime ?? '09:00',
     endTime: opts.initialEndTime ?? '10:00',
     isAllDay: false,
-    rrule: null,
+    rrule: opts.initialRrule ?? null,
     reminderMinutes: [],
     eventType,
     label,
@@ -308,6 +313,20 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
       // 종료 날짜가 시작보다 이전이면 시작으로 보정
       if (key === 'endDate' && typeof value === 'string' && value < next.date) {
         next.endDate = next.date;
+      }
+      // GCal overnight auto-detect
+      if (key === 'endTime' && typeof value === 'string' && !next.isAllDay) {
+        const endMin = timeToMinutes(value);
+        const startMin = timeToMinutes(next.startTime);
+        if (next.endDate === next.date && endMin <= startMin) {
+          // 같은 날 + end ≤ start → endDate 다음날
+          const d = new Date(next.date + 'T00:00:00');
+          d.setDate(d.getDate() + 1);
+          next.endDate = d.toISOString().split('T')[0];
+        } else if (next.endDate > next.date && endMin > startMin) {
+          // 다음날 + end > start → endDate 리셋
+          next.endDate = next.date;
+        }
       }
       return next;
     });
@@ -512,6 +531,7 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
             calendarId: effectiveCalendarId,
             title: form.title.trim(),
             planDate: form.date,
+            endDate: form.endDate !== form.date ? form.endDate : undefined,
             startTime: form.isAllDay ? undefined : form.startTime,
             endTime: form.isAllDay ? undefined : form.endTime,
             isAllDay: form.isAllDay,
@@ -538,16 +558,12 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
               if (form.plannedStartPage != null) extraUpdates.planned_start_page = form.plannedStartPage;
               if (form.plannedEndPage != null) extraUpdates.planned_end_page = form.plannedEndPage;
             }
-            // 다일(multi-day) 이벤트: 종료 날짜가 시작과 다르면 end_at/end_date 보정
-            if (form.endDate !== form.date) {
-              if (form.isAllDay) {
-                extraUpdates.end_date = form.endDate;
-              } else {
-                extraUpdates.end_at = `${form.endDate}T${form.endTime}:00+09:00`;
-              }
-            }
             if (Object.keys(extraUpdates).length > 0) {
-              await updateCalendarEventFull(eventId, extraUpdates);
+              const result = await updateCalendarEventFull(eventId, extraUpdates);
+              if (!result.success) {
+                toast.showError(result.error ?? '일정 부가 정보 저장에 실패했습니다.');
+                return;
+              }
             }
           }
 
