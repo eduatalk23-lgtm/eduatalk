@@ -226,7 +226,7 @@ export function CompetencyAnalysisSection({
       <div className="flex items-center gap-3">
         <button
           onClick={() => batchMutation.mutate()}
-          disabled={batchMutation.isPending || records.length === 0}
+          disabled={batchMutation.isPending || records.length === 0 || analyzingId !== null}
           className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100 disabled:opacity-50 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
         >
           <Sparkles size={14} />
@@ -235,7 +235,7 @@ export function CompetencyAnalysisSection({
             : "AI 역량 종합 분석"}
         </button>
         <span className="text-xs text-[var(--text-tertiary)]">
-          {records.length}건 레코드 기반
+          {records.length > 0 ? `${records.length}건 레코드 기반` : "분석할 레코드가 없습니다"}
         </span>
         {error && (
           <span className="flex items-center gap-2">
@@ -282,7 +282,7 @@ export function CompetencyAnalysisSection({
                   <span className="text-sm text-[var(--text-primary)]">{rec.label}</span>
                   <button
                     onClick={() => analyzeRecord(rec)}
-                    disabled={isAnalyzing || rec.content.trim().length < 20}
+                    disabled={isAnalyzing || batchMutation.isPending || rec.content.trim().length < 20}
                     className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] text-blue-600 hover:bg-blue-50 disabled:opacity-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
                   >
                     {isAnalyzing ? (

@@ -55,6 +55,7 @@ export async function upsertCompetencyScore(
     .single();
 
   if (error) throw error;
+  if (!data) throw new Error("역량 평가 upsert 결과가 비어있습니다.");
   return data.id;
 }
 
@@ -125,6 +126,7 @@ export async function insertActivityTag(
     .single();
 
   if (error) throw error;
+  if (!data) throw new Error("활동 태그 insert 결과가 비어있습니다.");
   return data.id;
 }
 

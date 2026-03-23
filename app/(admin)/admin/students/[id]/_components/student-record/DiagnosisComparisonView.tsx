@@ -304,12 +304,12 @@ export function DiagnosisComparisonView({
             <FormRow label="강점">
               <div className="flex flex-1 flex-col gap-1">
                 <div className="flex flex-wrap gap-1">
-                  {strengths.map((s, i) => {
+                  {strengths.map((s) => {
                     const isMatch = strengthsDiff.match.includes(s);
                     return (
-                      <span key={i} className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px]", isMatch ? "bg-green-50 text-green-700 dark:bg-green-900/20" : "bg-gray-100 dark:bg-gray-700")}>
+                      <span key={s} className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px]", isMatch ? "bg-green-50 text-green-700 dark:bg-green-900/20" : "bg-gray-100 dark:bg-gray-700")}>
                         {isMatch && <Check size={10} />}{s}
-                        <button onClick={() => setStrengths(strengths.filter((_, j) => j !== i))} className="hover:text-red-500" aria-label={`${s} 강점 삭제`}>×</button>
+                        <button onClick={() => setStrengths(strengths.filter((v) => v !== s))} className="hover:text-red-500" aria-label={`${s} 강점 삭제`}>×</button>
                       </span>
                     );
                   })}
@@ -324,12 +324,12 @@ export function DiagnosisComparisonView({
             <FormRow label="약점">
               <div className="flex flex-1 flex-col gap-1">
                 <div className="flex flex-wrap gap-1">
-                  {weaknesses.map((w, i) => {
+                  {weaknesses.map((w) => {
                     const isMatch = weaknessesDiff.match.includes(w);
                     return (
-                      <span key={i} className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px]", isMatch ? "bg-green-50 text-green-700 dark:bg-green-900/20" : "bg-gray-100 dark:bg-gray-700")}>
+                      <span key={w} className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px]", isMatch ? "bg-green-50 text-green-700 dark:bg-green-900/20" : "bg-gray-100 dark:bg-gray-700")}>
                         {isMatch && <Check size={10} />}{w}
-                        <button onClick={() => setWeaknesses(weaknesses.filter((_, j) => j !== i))} className="hover:text-red-500" aria-label={`${w} 약점 삭제`}>×</button>
+                        <button onClick={() => setWeaknesses(weaknesses.filter((v) => v !== w))} className="hover:text-red-500" aria-label={`${w} 약점 삭제`}>×</button>
                       </span>
                     );
                   })}

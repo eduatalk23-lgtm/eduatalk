@@ -19,7 +19,7 @@ export function GradeSummaryTable({ aiScores, consultantScores, activityTags }: 
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const findScore = (scores: CompetencyScore[], code: string) =>
+  const findScore = (scores: CompetencyScore[], code: string): CompetencyScore | undefined =>
     scores.find((s) => s.competency_item === code && s.scope === "yearly");
 
   const tagsByItem = useMemo(() => {
