@@ -8,7 +8,7 @@ import { google } from "@ai-sdk/google";
 import { geminiRateLimiter, geminiQuotaTracker } from "@/lib/domains/plan/llm/providers/gemini";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { logActionDebug, logActionError, logActionWarn } from "@/lib/utils/serverActionLogger";
-import type { ExplorationGuideContent, TheorySection } from "../types";
+import type { ExplorationGuideContent, TheorySection, ContentSection } from "../types";
 
 const LOG_TAG = "guide.embedding";
 const EMBEDDING_MODEL = "gemini-embedding-2-preview";
@@ -38,8 +38,14 @@ export function buildEmbeddingInput(
     parts.push(`동기: ${content.motivation}`);
   }
 
-  // 이론 (2000자 cap)
-  if (content.theory_sections?.length) {
+  // 이론 (2000자 cap) — content_sections 우선, 없으면 레거시 theory_sections
+  if (content.content_sections?.length) {
+    const sectionSummary = content.content_sections
+      .filter((s: ContentSection) => s.key !== "setek_examples")
+      .map((s: ContentSection) => `${s.label}: ${s.content}`)
+      .join("\n");
+    parts.push(`내용: ${sectionSummary.slice(0, 2000)}`);
+  } else if (content.theory_sections?.length) {
     const theorySummary = content.theory_sections
       .map((s: TheorySection) => `${s.title}: ${s.content}`)
       .join("\n");
@@ -103,6 +109,10 @@ export async function embedSingleGuide(guideId: string): Promise<boolean> {
   );
   if (inputText.length < 10) {
     logActionWarn(LOG_TAG, `임베딩 입력 텍스트가 너무 짧음: ${guideId}`);
+    await supabase
+      .from("exploration_guide_content")
+      .update({ embedding_status: "failed" })
+      .eq("guide_id", guideId);
     return false;
   }
 
@@ -116,13 +126,21 @@ export async function embedSingleGuide(guideId: string): Promise<boolean> {
   });
   geminiQuotaTracker.recordRequest();
 
-  // DB 저장
+  // DB 저장 + 상태 마킹
   const { error } = await supabase
     .from("exploration_guide_content")
-    .update({ embedding: JSON.stringify(embedding) })
+    .update({
+      embedding: JSON.stringify(embedding),
+      embedding_status: "completed",
+    })
     .eq("guide_id", guideId);
 
   if (error) {
+    // 실패 마킹
+    await supabase
+      .from("exploration_guide_content")
+      .update({ embedding_status: "failed" })
+      .eq("guide_id", guideId);
     logActionError(LOG_TAG, error instanceof Error ? error.message : String(error));
     return false;
   }
@@ -217,14 +235,21 @@ export async function embedBatchGuides(
       });
       geminiQuotaTracker.recordRequest();
 
-      // 개별 저장
+      // 개별 저장 + 상태 마킹
       for (let j = 0; j < validItems.length; j++) {
         const { error } = await supabase
           .from("exploration_guide_content")
-          .update({ embedding: JSON.stringify(embeddings[j]) })
+          .update({
+            embedding: JSON.stringify(embeddings[j]),
+            embedding_status: "completed",
+          })
           .eq("guide_id", validItems[j].guideId);
 
         if (error) {
+          await supabase
+            .from("exploration_guide_content")
+            .update({ embedding_status: "failed" })
+            .eq("guide_id", validItems[j].guideId);
           logActionError(LOG_TAG, error instanceof Error ? error.message : String(error));
           failed++;
         } else {
@@ -233,6 +258,13 @@ export async function embedBatchGuides(
       }
     } catch (error) {
       logActionError(LOG_TAG, error instanceof Error ? error.message : String(error));
+      // 배치 전체 실패 시 모든 항목 failed 마킹
+      for (const item of validItems) {
+        await supabase
+          .from("exploration_guide_content")
+          .update({ embedding_status: "failed" })
+          .eq("guide_id", item.guideId);
+      }
       failed += validItems.length;
     }
 

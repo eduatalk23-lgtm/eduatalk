@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
+import DOMPurify from "dompurify";
 import { cn } from "@/lib/cn";
 import { EditorToolbar } from "./EditorToolbar";
 
@@ -93,7 +94,7 @@ export function RichTextEditor({
   );
 }
 
-/** 읽기 전용 HTML 렌더러 (에디터 인스턴스 없이) */
+/** 읽기 전용 HTML 렌더러 (에디터 인스턴스 없이, XSS 방어) */
 export function RichTextViewer({
   content,
   className,
@@ -101,6 +102,8 @@ export function RichTextViewer({
   content: string;
   className?: string;
 }) {
+  const sanitized = useMemo(() => DOMPurify.sanitize(content), [content]);
+
   return (
     <div
       className={cn(
@@ -110,7 +113,7 @@ export function RichTextViewer({
         "prose-img:rounded-lg prose-img:max-w-full",
         className,
       )}
-      dangerouslySetInnerHTML={{ __html: content }}
+      dangerouslySetInnerHTML={{ __html: sanitized }}
     />
   );
 }

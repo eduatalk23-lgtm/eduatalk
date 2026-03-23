@@ -92,6 +92,26 @@ export const GUIDE_STATUS_LABELS: Record<GuideStatus, string> = {
   archived: "보관됨",
 };
 
+export const GUIDE_SOURCE_TYPE_LABELS: Record<GuideSourceType, string> = {
+  imported: "임포트",
+  manual: "수동 작성",
+  manual_edit: "수동 편집",
+  ai_keyword: "AI 키워드",
+  ai_pdf_extract: "AI PDF",
+  ai_url_extract: "AI URL",
+  ai_clone_variant: "AI 클론",
+  ai_improve: "AI 개선",
+  ai_hybrid: "AI 하이브리드",
+  revert: "되돌리기",
+};
+
+export const QUALITY_TIER_LABELS: Record<QualityTier, string> = {
+  expert_authored: "전문가 작성",
+  expert_reviewed: "전문가 검토",
+  ai_reviewed_approved: "AI 검토통과",
+  ai_draft: "AI 초안",
+};
+
 // ------------------------------------
 // 3. DB Row 타입 (수동 정의 — 타입 생성 후 교체 가능)
 // ------------------------------------
@@ -291,6 +311,18 @@ export interface GuideListFilter {
   tenantId?: string | null;
   /** true면 최신 버전만, false면 전체 (기본: true) */
   latestOnly?: boolean;
+  /** 교과 그룹의 과목명 배열 (교과 선택 시 → subject_select IN 쿼리) */
+  subjectSelectIn?: string[];
+  /** 과목 (미적분, 확률과통계, ...) — 특정 과목 선택 시 */
+  subjectSelect?: string;
+  /** 대단원 */
+  unitMajor?: string;
+  /** 소단원 */
+  unitMinor?: string;
+  /** 소스 타입 (imported, manual, ai_keyword, ...) */
+  sourceType?: GuideSourceType;
+  /** 품질 등급 (expert_authored, ai_draft, ...) */
+  qualityTier?: QualityTier;
   page?: number;
   pageSize?: number;
 }

@@ -5,6 +5,8 @@ import type { ExplorationGuide } from "@/lib/domains/guide/types";
 import {
   GUIDE_TYPE_LABELS,
   GUIDE_STATUS_LABELS,
+  GUIDE_SOURCE_TYPE_LABELS,
+  QUALITY_TIER_LABELS,
 } from "@/lib/domains/guide/types";
 
 interface GuideListTableProps {
@@ -28,6 +30,26 @@ const TYPE_COLORS: Record<string, string> = {
   subject_performance: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
   experiment: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
   program: "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300",
+};
+
+const SOURCE_COLORS: Record<string, string> = {
+  imported: "text-secondary-600 dark:text-secondary-400",
+  manual: "text-blue-600 dark:text-blue-400",
+  manual_edit: "text-blue-600 dark:text-blue-400",
+  ai_keyword: "text-purple-600 dark:text-purple-400",
+  ai_pdf_extract: "text-purple-600 dark:text-purple-400",
+  ai_url_extract: "text-purple-600 dark:text-purple-400",
+  ai_clone_variant: "text-purple-600 dark:text-purple-400",
+  ai_improve: "text-purple-600 dark:text-purple-400",
+  ai_hybrid: "text-purple-600 dark:text-purple-400",
+  revert: "text-secondary-500 dark:text-secondary-400",
+};
+
+const QUALITY_COLORS: Record<string, string> = {
+  expert_authored: "text-emerald-700 dark:text-emerald-400 font-semibold",
+  expert_reviewed: "text-emerald-600 dark:text-emerald-400",
+  ai_reviewed_approved: "text-blue-600 dark:text-blue-400",
+  ai_draft: "text-yellow-600 dark:text-yellow-400",
 };
 
 export function GuideListTable({
@@ -67,16 +89,16 @@ export function GuideListTable({
             <th className="px-4 py-3 font-medium text-[var(--text-secondary)] w-24">
               유형
             </th>
-            <th className="px-4 py-3 font-medium text-[var(--text-secondary)] w-24">
+            <th className="px-4 py-3 font-medium text-[var(--text-secondary)] w-20">
               상태
             </th>
-            <th className="px-4 py-3 font-medium text-[var(--text-secondary)] w-20">
-              형식
+            <th className="px-4 py-3 font-medium text-[var(--text-secondary)] w-24 hidden md:table-cell">
+              소스
             </th>
-            <th className="px-4 py-3 font-medium text-[var(--text-secondary)] w-28 hidden md:table-cell">
-              도서명
+            <th className="px-4 py-3 font-medium text-[var(--text-secondary)] w-24 hidden md:table-cell">
+              품질
             </th>
-            <th className="px-4 py-3 font-medium text-[var(--text-secondary)] w-28 hidden lg:table-cell">
+            <th className="px-4 py-3 font-medium text-[var(--text-secondary)] w-24 hidden lg:table-cell">
               생성일
             </th>
           </tr>
@@ -92,11 +114,16 @@ export function GuideListTable({
                 <p className="font-medium text-[var(--text-heading)] line-clamp-1">
                   {guide.title}
                 </p>
-                {guide.curriculum_year && (
-                  <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                    {guide.curriculum_year} · {guide.subject_select}
-                  </p>
-                )}
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5 line-clamp-1">
+                  {[
+                    guide.curriculum_year,
+                    guide.subject_area,
+                    guide.subject_select,
+                    guide.book_title,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || "—"}
+                </p>
               </td>
               <td className="px-4 py-3">
                 <span
@@ -118,13 +145,29 @@ export function GuideListTable({
                   {GUIDE_STATUS_LABELS[guide.status]}
                 </span>
               </td>
-              <td className="px-4 py-3 text-xs text-[var(--text-secondary)]">
-                {guide.content_format}
+              <td className="px-4 py-3 hidden md:table-cell">
+                <span
+                  className={cn(
+                    "text-xs",
+                    SOURCE_COLORS[guide.source_type] ?? "",
+                  )}
+                >
+                  {GUIDE_SOURCE_TYPE_LABELS[guide.source_type] ?? guide.source_type}
+                </span>
               </td>
               <td className="px-4 py-3 hidden md:table-cell">
-                <p className="text-xs text-[var(--text-secondary)] line-clamp-1">
-                  {guide.book_title || "-"}
-                </p>
+                {guide.quality_tier ? (
+                  <span
+                    className={cn(
+                      "text-xs",
+                      QUALITY_COLORS[guide.quality_tier] ?? "",
+                    )}
+                  >
+                    {QUALITY_TIER_LABELS[guide.quality_tier]}
+                  </span>
+                ) : (
+                  <span className="text-xs text-secondary-400">—</span>
+                )}
               </td>
               <td className="px-4 py-3 hidden lg:table-cell text-xs text-[var(--text-secondary)]">
                 {new Date(guide.created_at).toLocaleDateString("ko-KR")}

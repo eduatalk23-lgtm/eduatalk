@@ -16,11 +16,17 @@ export interface URLExtractionResult {
 /** 최대 추출 텍스트 길이 */
 const MAX_TEXT_LENGTH = 15_000;
 
-/** 허용 도메인 패턴 (보안) */
+/** 차단 도메인/IP 패턴 (SSRF 방어) */
 const BLOCKED_PATTERNS = [
-  /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/, // 사설 IP
+  /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/, // 사설 IP (RFC 1918)
   /localhost/i,
-  /127\.0\.0\.1/,
+  /127\.\d+\.\d+\.\d+/,       // loopback 전체
+  /^0\.0\.0\.0/,               // 와일드카드
+  /\[?::1\]?/,                 // IPv6 loopback
+  /::ffff:/i,                  // IPv4-mapped IPv6
+  /\[?fe80:/i,                 // IPv6 link-local
+  /169\.254\.\d+\.\d+/,       // AWS/GCP 메타데이터 (link-local)
+  /metadata\.google\.internal/i, // GCP 메타데이터
 ];
 
 /**

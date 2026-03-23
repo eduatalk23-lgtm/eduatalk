@@ -15,7 +15,6 @@ import type {
 import {
   findAssignmentsWithGuides,
   findGuideById,
-  updateAssignmentStatus,
   getCompletionRate,
 } from "../repository";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -85,15 +84,16 @@ export async function updateMyAssignmentStatusAction(
       return createErrorResponse("본인의 배정만 변경할 수 있습니다.");
     }
 
-    await updateAssignmentStatus(assignmentId, status);
+    // 상태 + 노트를 단일 UPDATE로 실행 (레이스 컨디션 방지)
+    const updates: Record<string, unknown> = { status };
+    if (status === "submitted") updates.submitted_at = new Date().toISOString();
+    if (studentNotes !== undefined) updates.student_notes = studentNotes;
 
-    // student_notes 업데이트 (선택)
-    if (studentNotes !== undefined) {
-      await supabase
-        .from("exploration_guide_assignments")
-        .update({ student_notes: studentNotes })
-        .eq("id", assignmentId);
-    }
+    const { error: updateError } = await supabase
+      .from("exploration_guide_assignments")
+      .update(updates)
+      .eq("id", assignmentId);
+    if (updateError) throw updateError;
 
     return createSuccessResponse();
   } catch (error) {

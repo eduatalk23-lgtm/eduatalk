@@ -283,6 +283,10 @@ export function GuideGeneratorClient() {
           : {
               source: "clone_variant",
               curriculumYear: String(curriculumYear),
+              subjectArea: targetSubjectGroup || undefined,
+              subjectSelect: targetSubject || undefined,
+              unitMajor: targetMajorUnit || undefined,
+              unitMinor: targetMinorUnit || undefined,
               clone: {
                 sourceGuideId,
                 targetSubject: cloneTargetSubject || undefined,

@@ -37,6 +37,7 @@ import {
   countSimilarGuides,
   fetchStudentCareerInfo,
   findPopularGuidesByClassification,
+  findLatestVersionId,
 } from "../repository";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { embedSingleGuide } from "../vector/embedding-service";
@@ -546,5 +547,23 @@ export async function recommendByFiltersAction(input: {
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "recommendByFilters" }, error, input);
     return createErrorResponse("추천 가이드를 조회할 수 없습니다.");
+  }
+}
+
+// ============================================================
+// 버전 체인 최신 버전 조회
+// ============================================================
+
+/** 동일 버전 체인의 최신 버전 ID 조회 */
+export async function getLatestVersionIdAction(
+  guideId: string,
+): Promise<ActionResponse<string | null>> {
+  try {
+    await requireAdminOrConsultant();
+    const latestId = await findLatestVersionId(guideId);
+    return createSuccessResponse(latestId);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "getLatestVersionId" }, error, { guideId });
+    return createErrorResponse("최신 버전을 찾을 수 없습니다.");
   }
 }

@@ -21,6 +21,7 @@ import {
   uploadGuideImageAction,
   saveAsNewVersionAction,
   revertToVersionAction,
+  getLatestVersionIdAction,
 } from "@/lib/domains/guide/actions/crud";
 import { generateGuideImageAction } from "@/lib/domains/guide/actions/ai-image";
 import type { AspectRatio } from "@/lib/domains/guide/actions/ai-image";
@@ -584,14 +585,18 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
           <span className="text-warning-600 dark:text-warning-400 text-sm">
             이 버전(v{guide.version})은 최신 버전이 아닙니다.
           </span>
-          {guide.original_guide_id && (
-            <Link
-              href={`/admin/guides/${guide.original_guide_id}`}
-              className="text-xs font-medium text-primary-600 hover:underline"
-            >
-              최신 버전으로 이동 →
-            </Link>
-          )}
+          <button
+            type="button"
+            onClick={async () => {
+              const res = await getLatestVersionIdAction(guide.id);
+              if (res.success && res.data) {
+                router.push(`/admin/guides/${res.data}`);
+              }
+            }}
+            className="text-xs font-medium text-primary-600 hover:underline"
+          >
+            최신 버전으로 이동 →
+          </button>
         </div>
       )}
 

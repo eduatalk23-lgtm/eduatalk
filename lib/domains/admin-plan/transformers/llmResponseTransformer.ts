@@ -242,9 +242,13 @@ export function transformLLMResponseToPlans(
           context?.allocationMap
         );
 
-        // day_type 결정 (날짜 기준 - study_days/review_days 설정 기반)
-        // context.dayTypeMap이 있으면 사용, 없으면 기본값 "학습일"
-        const dayType: DayType = context?.dayTypeMap?.get(item.date) ?? "학습일";
+        // day_type 결정
+        // 1. 아이템 레벨 isReview 플래그 우선 (같은 날짜에 학습+복습 혼재 가능)
+        // 2. context.dayTypeMap 날짜 기반 fallback
+        // 3. 기본값 "학습일"
+        const dayType: DayType = item.isReview
+          ? "복습일"
+          : (context?.dayTypeMap?.get(item.date) ?? "학습일");
 
         // 분할 콘텐츠 판별
         // 1. LLM이 명시적으로 isPartialContent=true를 반환한 경우
@@ -540,7 +544,7 @@ export function batchPlanItemsToAtomicPayloads(
       chapter: null,
       start_time: plan.startTime,
       end_time: plan.endTime,
-      day_type: dayTypeMap?.get(plan.date) ?? "학습일",
+      day_type: plan.isReview ? "복습일" : (dayTypeMap?.get(plan.date) ?? "학습일"),
       week: null,
       day: new Date(plan.date).getDay(),
       is_partial: isPartial,
