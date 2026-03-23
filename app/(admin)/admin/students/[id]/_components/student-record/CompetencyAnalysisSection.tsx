@@ -34,6 +34,7 @@ type Props = {
   studentId: string;
   tenantId: string;
   schoolYear: number;
+  isPipelineRunning?: boolean;
 };
 
 const GRADES: CompetencyGrade[] = ["A+", "A-", "B+", "B", "B-", "C"];
@@ -66,6 +67,7 @@ export function CompetencyAnalysisSection({
   studentId,
   tenantId,
   schoolYear,
+  isPipelineRunning,
 }: Props) {
   const queryClient = useQueryClient();
   const [highlightResults, setHighlightResults] = useState<Map<string, HighlightAnalysisResult>>(new Map());
@@ -108,12 +110,10 @@ export function CompetencyAnalysisSection({
     onSuccess: () => queryClient.invalidateQueries({ queryKey: diagnosisQk }),
   });
 
-  // AI 분석 후 태그 자동 저장 + 등급 prefill (병렬 실행)
-  async function saveAnalysisResults(recId: string, rec: RecordForHighlight, data: HighlightAnalysisResult) {
+  // AI 분석 후 태그만 저장 (등급은 배치 종합 후 별도 저장)
+  async function saveAnalysisTags(recId: string, rec: RecordForHighlight, data: HighlightAnalysisResult) {
     // 0. 기존 AI 태그 삭제 (재분석 시 중복 방지)
     await deleteAiTagsForRecordAction(rec.type, recId, tenantId);
-
-    const promises: Promise<unknown>[] = [];
 
     // 1. 활동 태그 배치 저장 (source=ai, status=suggested) — 1회 DB 호출
     const tagInputs: ActivityTagInsert[] = [];
@@ -133,12 +133,31 @@ export function CompetencyAnalysisSection({
       }
     }
     if (tagInputs.length > 0) {
-      promises.push(addActivityTagsBatchAction(tagInputs));
+      await addActivityTagsBatchAction(tagInputs);
+    }
+  }
+
+  // 다중 레코드의 등급을 종합하여 1회 저장 (최빈값 기반)
+  async function saveAggregatedGrades(allResults: Map<string, HighlightAnalysisResult>) {
+    const gradeVotes = new Map<string, Map<string, number>>(); // item → grade → count
+
+    for (const data of allResults.values()) {
+      for (const g of data.competencyGrades) {
+        if (!gradeVotes.has(g.item)) gradeVotes.set(g.item, new Map());
+        const votes = gradeVotes.get(g.item)!;
+        votes.set(g.grade, (votes.get(g.grade) ?? 0) + 1);
+      }
     }
 
-    // 2. 종합 등급 prefill (source=ai, status=suggested) — 병렬
-    for (const grade of data.competencyGrades) {
-      const area = COMPETENCY_ITEMS.find((i) => i.code === grade.item)?.area;
+    const promises: Promise<unknown>[] = [];
+    for (const [item, votes] of gradeVotes) {
+      // 최빈값 선택
+      let bestGrade = "B";
+      let bestCount = 0;
+      for (const [grade, count] of votes) {
+        if (count > bestCount) { bestGrade = grade; bestCount = count; }
+      }
+      const area = COMPETENCY_ITEMS.find((i) => i.code === item)?.area;
       if (!area) continue;
       promises.push(upsertCompetencyScoreAction({
         tenant_id: tenantId,
@@ -146,17 +165,15 @@ export function CompetencyAnalysisSection({
         school_year: schoolYear,
         scope: "yearly",
         competency_area: area,
-        competency_item: grade.item,
-        grade_value: grade.grade,
-        notes: `[AI] ${grade.reasoning}`,
+        competency_item: item,
+        grade_value: bestGrade as CompetencyGrade,
+        notes: `[AI] ${bestCount}건 레코드 종합`,
         source: "ai",
         status: "suggested",
       }));
     }
-
-    // 3. 병렬 실행 + 쿼리 무효화
     await Promise.allSettled(promises);
-    queryClient.invalidateQueries({ queryKey: studentRecordKeys.diagnosisTab(studentId, schoolYear) });
+    queryClient.invalidateQueries({ queryKey: diagnosisQk });
   }
 
   // 개별 레코드 AI 분석
@@ -171,7 +188,9 @@ export function CompetencyAnalysisSection({
     });
     if (result.success) {
       setHighlightResults((prev) => new Map(prev).set(rec.id, result.data));
-      await saveAnalysisResults(rec.id, rec, result.data);
+      await saveAnalysisTags(rec.id, rec, result.data);
+      // 개별 분석은 등급도 즉시 저장 (단일 레코드이므로 충돌 없음)
+      await saveAggregatedGrades(new Map([[rec.id, result.data]]));
     } else {
       setError(result.error);
     }
@@ -201,7 +220,7 @@ export function CompetencyAnalysisSection({
             });
             if (result.success) {
               results.set(rec.id, result.data);
-              await saveAnalysisResults(rec.id, rec, result.data);
+              await saveAnalysisTags(rec.id, rec, result.data);
             } else {
               failed++;
             }
@@ -213,6 +232,10 @@ export function CompetencyAnalysisSection({
         }
         done += settled.length;
         setBatchProgress({ done, total: eligible.length, failed });
+      }
+      // 전체 레코드 등급 종합 저장
+      if (results.size > 0) {
+        await saveAggregatedGrades(results);
       }
       return results;
     },
@@ -226,7 +249,7 @@ export function CompetencyAnalysisSection({
       <div className="flex items-center gap-3">
         <button
           onClick={() => batchMutation.mutate()}
-          disabled={batchMutation.isPending || records.length === 0 || analyzingId !== null}
+          disabled={batchMutation.isPending || records.length === 0 || analyzingId !== null || isPipelineRunning}
           className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100 disabled:opacity-50 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
         >
           <Sparkles size={14} />
@@ -304,13 +327,18 @@ export function CompetencyAnalysisSection({
 
       {/* ─── 분석 완료 → 종합진단 안내 ── */}
       {batchMutation.isSuccess && (
-        <button
-          onClick={() => document.getElementById("sec-diagnosis-overall")?.scrollIntoView({ behavior: "smooth" })}
-          className="flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50/50 px-4 py-2.5 text-xs text-indigo-700 transition hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-900/10 dark:text-indigo-400"
-        >
-          <ArrowDown size={14} />
-          역량 분석이 완료되었습니다. 종합진단으로 이동하여 AI 진단을 생성하세요.
-        </button>
+        <div className="flex items-center gap-3 rounded-lg border border-indigo-200 bg-indigo-50/50 px-4 py-2.5 dark:border-indigo-800 dark:bg-indigo-900/10">
+          <Check size={14} className="shrink-0 text-indigo-600" />
+          <span className="flex-1 text-xs text-indigo-700 dark:text-indigo-400">
+            역량 분석이 완료되었습니다. 다음 단계로 종합진단을 생성하세요.
+          </span>
+          <button
+            onClick={() => document.getElementById("sec-diagnosis-overall")?.scrollIntoView({ behavior: "smooth" })}
+            className="shrink-0 rounded px-2.5 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-100 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
+          >
+            종합진단으로 이동
+          </button>
+        </div>
       )}
 
       {/* ─── 종합 등급 그리드 (접기 가능 — 상세 비교는 종합진단 섹션에서) ── */}

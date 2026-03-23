@@ -43,10 +43,10 @@ export async function analyzeSetekWithHighlight(
 
     const parsed = parseHighlightResponse(result.content);
 
-    // Phase 6.2: sectionText 검증 — 커버리지 40% 미만이면 폴백
+    // Phase 6.2: sectionText 검증 — 커버리지 70% 미만이면 폴백
     if (input.recordType === "setek" || input.recordType === "personal_setek") {
       const totalCovered = parsed.sections.reduce((sum, s) => sum + (s.sectionText?.length ?? 0), 0);
-      if (totalCovered > 0 && totalCovered < input.content.length * 0.4) {
+      if (totalCovered > 0 && totalCovered < input.content.length * 0.7) {
         for (const s of parsed.sections) {
           delete s.sectionText;
         }

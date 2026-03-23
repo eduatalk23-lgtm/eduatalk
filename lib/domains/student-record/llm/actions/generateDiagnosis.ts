@@ -39,24 +39,37 @@ export async function generateAiDiagnosis(
       return { success: false, error: "역량 등급이나 활동 태그 데이터가 없습니다. 먼저 역량 분석을 실행해주세요." };
     }
 
-    // 역량 등급 요약
+    // 역량 등급 요약 (컨설턴트 등급 우선, 없으면 AI 등급)
     const gradesSummary = COMPETENCY_ITEMS.map((item) => {
-      const score = competencyScores.find((s) => s.competency_item === item.code);
-      return `- ${COMPETENCY_AREA_LABELS[item.area]} > ${item.label}: ${score?.grade_value ?? "미평가"}`;
+      const manualScore = competencyScores.find((s) => s.competency_item === item.code && s.source === "manual");
+      const aiScore = competencyScores.find((s) => s.competency_item === item.code && s.source === "ai");
+      const score = manualScore ?? aiScore;
+      const source = manualScore ? "(컨설턴트)" : aiScore ? "(AI)" : "";
+      return `- ${COMPETENCY_AREA_LABELS[item.area]} > ${item.label}: ${score?.grade_value ?? "미평가"} ${source}`;
     }).join("\n");
 
-    // 활동 태그 요약 (긍정/부정 분류)
-    const positiveTags = activityTags.filter((t) => t.evaluation === "positive");
-    const negativeTags = activityTags.filter((t) => t.evaluation === "negative");
-    const reviewTags = activityTags.filter((t) => t.evaluation === "needs_review");
+    // 활동 태그 요약 — 역량 항목별 그룹핑 (절삭 없이 전체 포함)
+    const tagsByItem = new Map<string, { positive: number; negative: number; needs_review: number; samples: string[] }>();
+    for (const t of activityTags) {
+      const key = t.competency_item;
+      const entry = tagsByItem.get(key) ?? { positive: 0, negative: 0, needs_review: 0, samples: [] };
+      if (t.evaluation === "positive") entry.positive++;
+      else if (t.evaluation === "negative") entry.negative++;
+      else entry.needs_review++;
+      if (entry.samples.length < 2 && t.evidence_summary) {
+        entry.samples.push(t.evidence_summary.replace(/^\[AI\]\s*/, "").split("\n")[0].slice(0, 60));
+      }
+      tagsByItem.set(key, entry);
+    }
 
     const tagsSummary = [
-      `긍정 태그 (${positiveTags.length}건):`,
-      ...positiveTags.slice(0, 15).map((t) => `  - ${COMPETENCY_ITEMS.find((i) => i.code === t.competency_item)?.label ?? t.competency_item}: ${t.evidence_summary?.slice(0, 80) ?? ""}`),
-      negativeTags.length > 0 ? `부정 태그 (${negativeTags.length}건):` : "",
-      ...negativeTags.map((t) => `  - ${COMPETENCY_ITEMS.find((i) => i.code === t.competency_item)?.label ?? t.competency_item}: ${t.evidence_summary?.slice(0, 80) ?? ""}`),
-      reviewTags.length > 0 ? `확인필요 (${reviewTags.length}건):` : "",
-      ...reviewTags.map((t) => `  - ${COMPETENCY_ITEMS.find((i) => i.code === t.competency_item)?.label ?? t.competency_item}: ${t.evidence_summary?.slice(0, 80) ?? ""}`),
+      `활동 태그 분석 (총 ${activityTags.length}건):`,
+      ...Array.from(tagsByItem.entries()).map(([item, stats]) => {
+        const label = COMPETENCY_ITEMS.find((i) => i.code === item)?.label ?? item;
+        const counts = [`+${stats.positive}`, stats.negative > 0 ? `-${stats.negative}` : "", stats.needs_review > 0 ? `?${stats.needs_review}` : ""].filter(Boolean).join(" ");
+        const samples = stats.samples.length > 0 ? ` (예: ${stats.samples.join("; ")})` : "";
+        return `  - ${label}: ${counts}${samples}`;
+      }),
     ].filter(Boolean).join("\n");
 
     const systemPrompt = `당신은 대입 컨설팅 전문가입니다. 학생의 역량 평가 데이터를 종합하여 진단 보고서를 작성합니다.

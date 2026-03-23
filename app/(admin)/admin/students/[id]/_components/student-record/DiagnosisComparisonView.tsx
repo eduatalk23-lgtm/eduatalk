@@ -132,7 +132,7 @@ export function DiagnosisComparisonView({
   const [aiWarnings, setAiWarnings] = useState<string[]>([]);
   const aiGenMutation = useMutation({
     mutationFn: async () => {
-      const result = await generateAiDiagnosis(aiScores, activityTags, { targetMajor: targetMajor ?? undefined, schoolName });
+      const result = await generateAiDiagnosis([...aiScores, ...consultantScores], activityTags, { targetMajor: targetMajor ?? undefined, schoolName });
       if (!result.success) throw new Error(result.error);
 
       // AI 진단 저장

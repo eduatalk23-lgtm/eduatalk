@@ -17,6 +17,7 @@ import {
   strategyTabQueryOptions,
   diagnosisTabQueryOptions,
   coursePlanTabQueryOptions,
+  pipelineStatusQueryOptions,
   studentRecordKeys,
 } from "@/lib/query-options/studentRecord";
 import { RecordLayoutShell } from "./RecordLayoutShell";
@@ -235,6 +236,10 @@ export function StudentRecordClient({
   const { data: diagnosisData, isLoading: diagnosisLoading, error: diagnosisError } = useQuery(
     diagnosisTabQueryOptions(studentId, initialSchoolYear, tenantId),
   );
+
+  // 파이프라인 상태 (수동 분석 중복 방지용)
+  const { data: pipelineData } = useQuery(pipelineStatusQueryOptions(studentId));
+  const isPipelineRunning = pipelineData?.status === "running";
 
   // P1: 수강 계획 데이터 (세특 placeholder 연동)
   const { data: coursePlanData } = useQuery(coursePlanTabQueryOptions(studentId));
@@ -1036,6 +1041,7 @@ export function StudentRecordClient({
                 studentId={studentId}
                 tenantId={tenantId}
                 schoolYear={initialSchoolYear}
+                isPipelineRunning={isPipelineRunning}
               />
             )}
           </StrategySection>
