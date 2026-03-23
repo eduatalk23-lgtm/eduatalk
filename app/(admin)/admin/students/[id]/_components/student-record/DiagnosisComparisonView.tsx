@@ -409,10 +409,10 @@ function TagList({ label, items, matchItems }: { label: string; items: string[];
     <div className="flex gap-2">
       <span className="w-14 shrink-0 text-[var(--text-tertiary)]">{label}</span>
       <div className="flex flex-wrap gap-1">
-        {items.map((s, i) => {
+        {items.map((s) => {
           const isMatch = matchItems?.includes(s);
           return (
-            <span key={i} className={cn("rounded-full px-1.5 py-0.5 text-[10px]", isMatch ? "bg-green-50 text-green-700 dark:bg-green-900/20" : "bg-gray-100 dark:bg-gray-700")}>
+            <span key={s} className={cn("rounded-full px-1.5 py-0.5 text-[10px]", isMatch ? "bg-green-50 text-green-700 dark:bg-green-900/20" : "bg-gray-100 dark:bg-gray-700")}>
               {isMatch && "✓ "}{s}
             </span>
           );
