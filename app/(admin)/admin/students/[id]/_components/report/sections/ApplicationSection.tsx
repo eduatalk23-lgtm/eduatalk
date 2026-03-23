@@ -22,11 +22,42 @@ export function ApplicationSection({ strategyData }: ApplicationSectionProps) {
     minScoreSimulations.map((s) => [s.target_id, s]),
   );
 
+  // 지원 요약 통계
+  const totalApps = applications.length;
+  const suApps = applications.filter((a) => a.round?.startsWith("su")).length;
+  const jungApps = applications.filter((a) => a.round?.startsWith("jung")).length;
+  const metCount = minScoreSimulations.filter((s) => s.is_met === true).length;
+  const notMetCount = minScoreSimulations.filter((s) => s.is_met === false).length;
+
   return (
     <section className="print-break-before">
       <h2 className="border-b-2 border-gray-800 pb-2 text-xl font-bold text-gray-900">
         지원 현황
       </h2>
+
+      {/* 지원 요약 카드 */}
+      {totalApps > 0 && (
+        <div className="mt-4 mb-4 grid grid-cols-4 gap-3 print-avoid-break">
+          <div className="rounded-lg border border-gray-200 p-3 text-center">
+            <p className="text-2xl font-bold text-gray-900">{totalApps}</p>
+            <p className="text-[10px] text-gray-500">총 지원</p>
+          </div>
+          <div className="rounded-lg border border-gray-200 p-3 text-center">
+            <p className="text-2xl font-bold text-indigo-600">{suApps}</p>
+            <p className="text-[10px] text-gray-500">수시</p>
+          </div>
+          <div className="rounded-lg border border-gray-200 p-3 text-center">
+            <p className="text-2xl font-bold text-blue-600">{jungApps}</p>
+            <p className="text-[10px] text-gray-500">정시</p>
+          </div>
+          <div className="rounded-lg border border-gray-200 p-3 text-center">
+            <p className={`text-2xl font-bold ${notMetCount > 0 ? "text-red-600" : metCount > 0 ? "text-emerald-600" : "text-gray-400"}`}>
+              {metCount}/{metCount + notMetCount}
+            </p>
+            <p className="text-[10px] text-gray-500">최저 충족</p>
+          </div>
+        </div>
+      )}
 
       {/* 지원 리스트 */}
       {applications.length === 0 ? (
@@ -146,16 +177,16 @@ export function ApplicationSection({ strategyData }: ApplicationSectionProps) {
                     <td className="px-2 py-1.5 text-center">
                       {sim ? (
                         <span
-                          className={
+                          className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                             sim.is_met
-                              ? "font-semibold text-emerald-600"
-                              : "font-semibold text-red-600"
-                          }
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-red-100 text-red-700"
+                          }`}
                         >
                           {sim.is_met ? "충족" : "미충족"}
                         </span>
                       ) : (
-                        <span className="text-gray-400">미시뮬</span>
+                        <span className="text-gray-400">-</span>
                       )}
                     </td>
                     <td className="px-2 py-1.5 text-center">

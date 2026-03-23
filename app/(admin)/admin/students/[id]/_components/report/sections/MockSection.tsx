@@ -24,57 +24,34 @@ export function MockSection({ mockAnalysis }: MockSectionProps) {
       ) : (
         <div className="space-y-4">
           {recentExam && (
-            <p className="text-sm text-gray-600">
-              최근 시험: {recentExam.examTitle} ({recentExam.examDate})
+            <p className="text-xs text-gray-500">
+              기준 시험: {recentExam.examTitle} ({recentExam.examDate})
             </p>
           )}
 
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-gray-300 bg-gray-50">
-                <th className="px-3 py-2 text-left font-medium text-gray-700">
-                  항목
-                </th>
-                <th className="px-3 py-2 text-right font-medium text-gray-700">
-                  수치
-                </th>
-                <th className="px-3 py-2 text-left font-medium text-gray-700">
-                  설명
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-gray-200">
-                <td className="px-3 py-2 font-medium">평균 백분위</td>
-                <td className="px-3 py-2 text-right">
-                  {avgPercentile != null
-                    ? `${avgPercentile.toFixed(1)}%`
-                    : "-"}
-                </td>
-                <td className="px-3 py-2 text-gray-500">
-                  국/수/탐(상위2) 평균
-                </td>
-              </tr>
-              <tr className="border-b border-gray-200">
-                <td className="px-3 py-2 font-medium">표준점수 합</td>
-                <td className="px-3 py-2 text-right">
-                  {totalStdScore != null ? totalStdScore : "-"}
-                </td>
-                <td className="px-3 py-2 text-gray-500">
-                  국/수/탐(상위2) 합산
-                </td>
-              </tr>
-              <tr className="border-b border-gray-200">
-                <td className="px-3 py-2 font-medium">상위 3개 등급합</td>
-                <td className="px-3 py-2 text-right">
-                  {best3GradeSum != null ? best3GradeSum : "-"}
-                </td>
-                <td className="px-3 py-2 text-gray-500">
-                  국·수·영·탐 중 상위 3개
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <div className="grid grid-cols-3 gap-3 print-avoid-break">
+            <div className="rounded-lg border border-gray-200 p-4 text-center">
+              <p className="text-[10px] font-medium text-gray-500">평균 백분위</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {avgPercentile != null ? `${avgPercentile.toFixed(1)}%` : "-"}
+              </p>
+              <p className="mt-0.5 text-[10px] text-gray-400">국/수/탐(상위2)</p>
+            </div>
+            <div className="rounded-lg border border-gray-200 p-4 text-center">
+              <p className="text-[10px] font-medium text-gray-500">표준점수 합</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {totalStdScore ?? "-"}
+              </p>
+              <p className="mt-0.5 text-[10px] text-gray-400">국/수/탐(상위2)</p>
+            </div>
+            <div className="rounded-lg border border-gray-200 p-4 text-center">
+              <p className="text-[10px] font-medium text-gray-500">상위 3과목 등급합</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {best3GradeSum ?? "-"}
+              </p>
+              <p className="mt-0.5 text-[10px] text-gray-400">국·수·영·탐 중</p>
+            </div>
+          </div>
         </div>
       )}
     </section>

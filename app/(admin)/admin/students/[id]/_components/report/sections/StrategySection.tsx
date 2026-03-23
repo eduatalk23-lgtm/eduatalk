@@ -54,13 +54,15 @@ export function StrategySection({ diagnosisData }: StrategySectionProps) {
               <tr key={s.id} className="border-b border-gray-200">
                 <td className="px-3 py-2">
                   <span
-                    className={
+                    className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                       s.priority === "critical"
-                        ? "font-semibold text-red-600"
+                        ? "bg-red-100 text-red-700"
                         : s.priority === "high"
-                          ? "font-medium text-orange-600"
-                          : "text-gray-700"
-                    }
+                          ? "bg-orange-100 text-orange-700"
+                          : s.priority === "medium"
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-gray-100 text-gray-600"
+                    }`}
                   >
                     {PRIORITY_LABELS[s.priority ?? ""] ?? "-"}
                   </span>
