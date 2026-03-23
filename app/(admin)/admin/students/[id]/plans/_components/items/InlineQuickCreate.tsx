@@ -330,8 +330,12 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
                     <>
                       <span className="ml-2">{formatTimeKoAmPm(startTime)}</span>
                       <span className="text-[var(--text-tertiary)]"> – </span>
+                      {isMultiDay && (
+                        <span className="text-xs text-[var(--text-tertiary)]">
+                          {format(parseISO(endDate), 'M/d', { locale: ko })}{' '}
+                        </span>
+                      )}
                       <span>{formatTimeKoAmPm(endTime)}</span>
-                      {isMultiDay && <span className="text-[11px] text-blue-500 ml-0.5">+1</span>}
                     </>
                   )}
                 </div>
@@ -345,10 +349,14 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
             ) : (
               /* ── 펼친 상태 / 상담 탭 (항상 펼침) ── */
               <div className="space-y-2.5">
-                <div className="flex items-center gap-1.5 flex-nowrap">
-                  <span className="inline-flex items-center px-2.5 py-1 text-sm rounded-md bg-[rgb(var(--color-secondary-100))] text-[var(--text-primary)] whitespace-nowrap shrink-0">
-                    {format(parseISO(planDate), 'M월 d일 (EEE)', { locale: ko })}
-                  </span>
+                {/* GCal: [시작날짜] [시작시간] – [종료시간] [종료날짜] [duration] */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <input
+                    type="date"
+                    value={planDate}
+                    disabled
+                    className="rounded-md border border-[rgb(var(--color-secondary-300))] bg-transparent px-2 py-1 text-xs text-[var(--text-primary)] w-[7.5rem]"
+                  />
                   {mode === 'timed' && (
                     <>
                       <TimePickerDropdown
@@ -363,12 +371,23 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
                         referenceTime={startTime}
                         disabled={isPending}
                       />
-                      {computedMinutes > 0 && (
-                        <span className="text-xs text-[var(--text-tertiary)] whitespace-nowrap shrink-0">
-                          {formatDurationKo(computedMinutes)}
-                        </span>
-                      )}
                     </>
+                  )}
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v >= planDate) setEndDate(v);
+                    }}
+                    min={planDate}
+                    disabled={isPending}
+                    className="rounded-md border border-[rgb(var(--color-secondary-300))] bg-transparent px-2 py-1 text-xs text-[var(--text-primary)] w-[7.5rem]"
+                  />
+                  {mode === 'timed' && computedMinutes > 0 && (
+                    <span className="text-xs text-[var(--text-tertiary)] whitespace-nowrap shrink-0">
+                      {formatDurationKo(computedMinutes)}
+                    </span>
                   )}
                 </div>
 
