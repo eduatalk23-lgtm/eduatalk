@@ -1604,12 +1604,10 @@ function SectionSkeleton() {
 
 function StageDivider({ emoji, label }: { emoji: string; label: string }) {
   return (
-    <div className="my-10 flex items-center gap-4">
-      <div className="h-px flex-1 bg-gray-300 dark:bg-gray-600" />
-      <span className="text-xs font-semibold uppercase tracking-widest text-[var(--text-tertiary)]">
+    <div className="sticky top-0 z-10 -mx-4 my-8 border-y border-gray-200 bg-gray-50/90 px-4 py-2.5 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/90 sm:-mx-6 sm:px-6">
+      <span className="text-xs font-semibold uppercase tracking-widest text-[var(--text-secondary)]">
         {emoji} {label}
       </span>
-      <div className="h-px flex-1 bg-gray-300 dark:bg-gray-600" />
     </div>
   );
 }

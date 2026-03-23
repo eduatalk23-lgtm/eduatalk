@@ -8,6 +8,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
+import { useSidePanel } from "@/components/side-panel";
 import { upsertDiagnosisAction, confirmDiagnosisAction } from "@/lib/domains/student-record/actions/diagnosis";
 import { generateAiDiagnosis } from "@/lib/domains/student-record/llm/actions/generateDiagnosis";
 import { MAJOR_RECOMMENDED_COURSES } from "@/lib/domains/student-record";
@@ -48,6 +49,7 @@ export function DiagnosisComparisonView({
   targetMajor, schoolName,
 }: Props) {
   const queryClient = useQueryClient();
+  const { isPanelOpen } = useSidePanel();
   const qk = studentRecordKeys.diagnosisTab(studentId, schoolYear);
 
   // 컨설턴트 폼 상태 — prop 변경 시 동기화
@@ -232,7 +234,7 @@ export function DiagnosisComparisonView({
       )}
 
       {/* 2열 비교 — 모바일에서는 컨설턴트(편집)를 먼저 표시 */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className={cn("grid grid-cols-1 gap-4", !isPanelOpen && "lg:grid-cols-2")}>
         {/* ─── AI 진단 (읽기전용) — 모바일에서 아래로 ─── */}
         <div className="order-2 rounded-lg border border-blue-200 p-4 lg:order-1 dark:border-blue-800">
           <div className="mb-3 flex items-center gap-2">

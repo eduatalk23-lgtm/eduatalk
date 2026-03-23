@@ -198,31 +198,56 @@ async function executePipelineTasks(
       key: "competency_analysis",
       run: async () => {
         const { analyzeSetekWithHighlight } = await import("../llm/actions/analyzeWithHighlight");
-        // 세특 레코드 조회 → 개별 분석
+        let analyzed = 0;
+
+        // 1. 세특 분석
         const { data: seteks } = await supabase
           .from("student_record_seteks")
           .select("id, content, grade, subject:subject_id(name)")
           .eq("student_id", studentId)
           .eq("tenant_id", tenantId)
           .is("deleted_at", null);
-        let analyzed = 0;
         for (const s of (seteks ?? [])) {
           const content = s.content as string;
           if (!content || content.trim().length < 20) continue;
           const subj = s.subject as unknown as { name: string } | null;
           try {
-            await analyzeSetekWithHighlight({
-              recordType: "setek",
-              content,
-              subjectName: subj?.name,
-              grade: s.grade,
-            });
+            await analyzeSetekWithHighlight({ recordType: "setek", content, subjectName: subj?.name, grade: s.grade });
             analyzed++;
-          } catch {
-            // 개별 실패는 무시, 계속 진행
-          }
+          } catch { /* 개별 실패 무시 */ }
         }
-        return `${analyzed}건 역량 분석 완료`;
+
+        // 2. 창체 분석
+        const { data: changche } = await supabase
+          .from("student_record_changche")
+          .select("id, content, grade, activity_type")
+          .eq("student_id", studentId)
+          .eq("tenant_id", tenantId);
+        for (const c of (changche ?? [])) {
+          const content = c.content as string;
+          if (!content || content.trim().length < 20) continue;
+          try {
+            await analyzeSetekWithHighlight({ recordType: "changche", content, grade: c.grade });
+            analyzed++;
+          } catch { /* 개별 실패 무시 */ }
+        }
+
+        // 3. 행특 분석
+        const { data: haengteuk } = await supabase
+          .from("student_record_haengteuk")
+          .select("id, content, grade")
+          .eq("student_id", studentId)
+          .eq("tenant_id", tenantId);
+        for (const h of (haengteuk ?? [])) {
+          const content = h.content as string;
+          if (!content || content.trim().length < 20) continue;
+          try {
+            await analyzeSetekWithHighlight({ recordType: "haengteuk", content, grade: h.grade });
+            analyzed++;
+          } catch { /* 개별 실패 무시 */ }
+        }
+
+        return `${analyzed}건 역량 분석 완료 (세특+창체+행특)`;
       },
     },
   ];

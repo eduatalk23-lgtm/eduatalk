@@ -68,6 +68,9 @@ export function computeWarnings(input: WarningCheckInput): RecordWarning[] {
   push(checkMajorSubjectDecline(input));
   push(checkMinScoreTrendDown(input));
 
+  // ─── 전략 관련 ───
+  pushAll(checkStrategyWarnings(input));
+
   return warnings;
 }
 
@@ -383,4 +386,39 @@ function checkMinScoreTrendDown(input: WarningCheckInput): RecordWarning | null 
     message: `수능최저 충족 대학이 ${prevMetCount}개 → ${latestMetCount}개로 감소했습니다.`,
     suggestion: "최근 모의고사 성적을 점검하고 취약 과목을 보강하세요.",
   };
+}
+
+// ─── 전략 경고 ──────────────────────────────────
+
+function checkStrategyWarnings(input: WarningCheckInput): RecordWarning[] {
+  const warnings: RecordWarning[] = [];
+
+  // 3학년인데 지원 현황 없음
+  if (input.currentGrade >= 3) {
+    const applications = input.strategyData?.applications ?? [];
+    if (applications.length === 0) {
+      warnings.push({
+        ruleId: "no_applications",
+        severity: "high",
+        category: "strategy",
+        title: "지원 현황 미등록",
+        message: "3학년이지만 수시/정시 지원 현황이 등록되지 않았습니다.",
+        suggestion: "지원 전략 섹션에서 목표 대학을 등록해주세요.",
+      });
+    }
+  }
+
+  // 진단은 있는데 보완전략 없음
+  if (input.diagnosisData?.consultantDiagnosis && input.diagnosisData.strategies.length === 0) {
+    warnings.push({
+      ruleId: "strategy_incomplete",
+      severity: "medium",
+      category: "strategy",
+      title: "보완전략 미수립",
+      message: "종합진단이 완료되었지만 보완전략이 아직 등록되지 않았습니다.",
+      suggestion: "AI 전략 제안을 활용하여 보완전략을 수립해주세요.",
+    });
+  }
+
+  return warnings;
 }

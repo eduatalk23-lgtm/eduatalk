@@ -6,7 +6,7 @@
 
 import { cn } from "@/lib/cn";
 import type { RecordWarning, RecordWarningCategory, RecordWarningRuleId, RecordWarningSeverity } from "@/lib/domains/student-record/warnings/types";
-import { AlertTriangle, BookOpen, GraduationCap, LineChart, CheckCircle, ExternalLink } from "lucide-react";
+import { AlertTriangle, BookOpen, GraduationCap, LineChart, CheckCircle, ExternalLink, Target } from "lucide-react";
 
 /** 경고 ruleId → 이동할 섹션 ID */
 const RULE_SECTION_MAP: Partial<Record<RecordWarningRuleId, string>> = {
@@ -21,6 +21,8 @@ const RULE_SECTION_MAP: Partial<Record<RecordWarningRuleId, string>> = {
   min_score_bottleneck: "sec-min-score",
   min_score_trend_down: "sec-min-score",
   major_subject_decline: "sec-setek",
+  no_applications: "sec-applications",
+  strategy_incomplete: "sec-compensation",
 };
 
 type Props = {
@@ -43,6 +45,7 @@ const CATEGORY_META: Record<RecordWarningCategory, { label: string; Icon: typeof
   course: { label: "이수", Icon: GraduationCap },
   storyline: { label: "스토리라인", Icon: LineChart },
   min_score: { label: "수능최저", Icon: AlertTriangle },
+  strategy: { label: "전략", Icon: Target },
 };
 
 export function RecordWarningPanel({ warnings }: Props) {
@@ -65,7 +68,7 @@ export function RecordWarningPanel({ warnings }: Props) {
 
   // 심각도 순 정렬
   const severityOrder: RecordWarningSeverity[] = ["critical", "high", "medium", "low"];
-  const sortedCategories: RecordWarningCategory[] = ["record", "course", "storyline", "min_score"];
+  const sortedCategories: RecordWarningCategory[] = ["record", "course", "storyline", "min_score", "strategy"];
 
   const criticalCount = warnings.filter((w) => w.severity === "critical").length;
   const highCount = warnings.filter((w) => w.severity === "high").length;

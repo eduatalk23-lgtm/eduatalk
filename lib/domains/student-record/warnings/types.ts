@@ -14,11 +14,13 @@ export type RecordWarningRuleId =
   | "storyline_inconsistent"
   | "min_score_critical"
   | "min_score_bottleneck"
-  | "min_score_trend_down";
+  | "min_score_trend_down"
+  | "no_applications"
+  | "strategy_incomplete";
 
 export type RecordWarningSeverity = "critical" | "high" | "medium" | "low";
 
-export type RecordWarningCategory = "record" | "course" | "storyline" | "min_score";
+export type RecordWarningCategory = "record" | "course" | "storyline" | "min_score" | "strategy";
 
 export interface RecordWarning {
   ruleId: RecordWarningRuleId;
@@ -42,4 +44,6 @@ export const WARNING_LABELS: Record<RecordWarningRuleId, string> = {
   min_score_critical: "최저 미충족 위험",
   min_score_bottleneck: "최저 병목 과목",
   min_score_trend_down: "최저 추이 하락",
+  no_applications: "지원 현황 미등록",
+  strategy_incomplete: "보완전략 미수립",
 };

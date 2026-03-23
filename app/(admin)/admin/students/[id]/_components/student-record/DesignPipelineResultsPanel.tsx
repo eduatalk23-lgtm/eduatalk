@@ -156,22 +156,38 @@ export function DesignPipelineResultsPanel({
       </div>
 
       {completedTasks.length > 0 && (
-        <div className="mt-3 flex items-center justify-end gap-2 border-t border-[var(--border-secondary)] pt-3">
-          <span className="text-[10px] text-[var(--text-tertiary)]">
-            {checkedTasks.size}개 선택됨
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              // 일괄 확정은 각 섹션의 개별 confirm 로직에 위임
-              // 여기서는 결과 리뷰로 스크롤
-              const firstSection = SECTION_SCROLL_MAP[completedTasks[0]];
-              document.getElementById(firstSection)?.scrollIntoView({ behavior: "smooth" });
-            }}
-            className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
-          >
-            선택 항목 리뷰
-          </button>
+        <div className="mt-3 flex flex-col gap-2 border-t border-[var(--border-secondary)] pt-3">
+          {/* 역량 분석 완료 시 종합진단 연계 CTA */}
+          {pipeline.tasks.competency_analysis === "completed" && (
+            <div className="flex items-center gap-2 rounded-md bg-blue-50 px-3 py-2 dark:bg-blue-900/10">
+              <Check className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+              <span className="flex-1 text-xs text-blue-700 dark:text-blue-400">
+                역량 분석이 완료되었습니다. 종합진단을 생성하세요.
+              </span>
+              <button
+                type="button"
+                onClick={() => document.getElementById("sec-diagnosis-overall")?.scrollIntoView({ behavior: "smooth" })}
+                className="shrink-0 rounded px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-800/30"
+              >
+                종합진단으로 이동
+              </button>
+            </div>
+          )}
+          <div className="flex items-center justify-end gap-2">
+            <span className="text-[10px] text-[var(--text-tertiary)]">
+              {checkedTasks.size}개 선택됨
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                const firstSection = SECTION_SCROLL_MAP[completedTasks[0]];
+                document.getElementById(firstSection)?.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
+            >
+              선택 항목 리뷰
+            </button>
+          </div>
         </div>
       )}
     </div>
