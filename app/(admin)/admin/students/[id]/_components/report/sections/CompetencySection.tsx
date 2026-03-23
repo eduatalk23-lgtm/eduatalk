@@ -111,9 +111,9 @@ export function CompetencySection({ diagnosisData }: CompetencySectionProps) {
       ) : (
         <div className="space-y-6 pt-4">
           {/* 역량 시각화 — 레이더 + 도넛 */}
-          <div className="grid grid-cols-2 gap-4 print-avoid-break">
+          <div className="grid grid-cols-2 gap-4 print-avoid-break" style={{ height: 280 }}>
             {/* 레이더 차트 (10개 역량) */}
-            <div>
+            <div style={{ height: 260 }}>
               <h3 className="mb-1 text-center text-xs font-semibold text-gray-600">역량 프로필</h3>
               <ResponsiveContainer width="100%" height={240}>
                 <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
@@ -126,7 +126,7 @@ export function CompetencySection({ diagnosisData }: CompetencySectionProps) {
             </div>
 
             {/* 영역별 도넛 차트 */}
-            <div>
+            <div style={{ height: 260 }}>
               <h3 className="mb-1 text-center text-xs font-semibold text-gray-600">영역별 평균</h3>
               <ResponsiveContainer width="100%" height={240}>
                 <PieChart>

@@ -1097,5 +1097,12 @@ input[type="number"] {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
+  /* recharts SVG 인쇄 보장 */
+  .recharts-responsive-container {
+    min-height: 0 !important;
+  }
+  .recharts-wrapper svg {
+    overflow: visible !important;
+  }
 }
 
