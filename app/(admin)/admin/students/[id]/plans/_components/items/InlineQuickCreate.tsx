@@ -94,15 +94,16 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
     : slot.endTime;
   const [startTime, setStartTime] = useState(defaultStart);
   const [endTime, setEndTime] = useState(defaultEnd);
+  const [startDate, setStartDate] = useState(planDate);
   const [endDate, setEndDate] = useState(planDate);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  const isMultiDay = endDate !== planDate;
+  const isMultiDay = endDate !== startDate;
   const computedMinutes = isMultiDay
-    ? Math.round((new Date(`${endDate}T${endTime}:00`).getTime() - new Date(`${planDate}T${startTime}:00`).getTime()) / 60000)
+    ? Math.round((new Date(`${endDate}T${endTime}:00Z`).getTime() - new Date(`${startDate}T${startTime}:00Z`).getTime()) / 60000)
     : timeToMinutes(endTime) - timeToMinutes(startTime);
 
   // 탭 전환 시 제목 기본값 설정
@@ -140,13 +141,11 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
     setEndTime(newEnd);
     if (!isMultiDay && timeToMinutes(newEnd) <= timeToMinutes(startTime)) {
       try {
-        const nextDay = format(addDays(parseISO(planDate), 1), 'yyyy-MM-dd');
+        const nextDay = format(addDays(parseISO(startDate), 1), 'yyyy-MM-dd');
         setEndDate(nextDay);
       } catch { /* ignore */ }
     }
-    // 참고: isMultiDay일 때 endTime > startTime이어도 리셋하지 않음
-    // → 사용자가 의도적으로 만든 multi-day 이벤트를 보존
-  }, [startTime, isMultiDay, planDate]);
+  }, [startTime, isMultiDay, startDate]);
 
   const handleAddTime = useCallback(() => {
     setStartTime(defaultStart);
@@ -171,7 +170,7 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
           calendarId,
           title: trimmed,
           description: description.trim() || undefined,
-          planDate,
+          planDate: startDate,
           endDate: isMultiDay ? endDate : undefined,
           startTime: mode === 'allDay' ? undefined : startTime,
           endTime: mode === 'allDay' ? undefined : endTime,
@@ -323,7 +322,7 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
                 className="w-full text-left rounded-lg px-2.5 py-1.5 -mx-1 hover:bg-[rgb(var(--color-secondary-100))] transition-colors disabled:opacity-50"
               >
                 <div className="text-sm text-[var(--text-primary)]">
-                  {format(parseISO(planDate), 'M월 d일 (EEE)', { locale: ko })}
+                  {format(parseISO(startDate), 'M월 d일 (EEE)', { locale: ko })}
                   {mode === 'allDay' ? (
                     <span className="ml-2 text-[var(--text-secondary)]">종일</span>
                   ) : (
@@ -348,14 +347,19 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
               </button>
             ) : (
               /* ── 펼친 상태 / 상담 탭 (항상 펼침) ── */
-              <div className="space-y-2.5">
-                {/* GCal: [시작날짜] [시작시간] – [종료시간] [종료날짜] [duration] */}
-                <div className="flex items-center gap-1.5 flex-wrap">
+              <div className="flex flex-col gap-1.5">
+                {/* [시작날짜] [시작시간] – [종료시간] [종료날짜] [duration] — 상세 페이지와 동일 */}
+                <div className="flex items-center gap-2 flex-wrap">
                   <input
                     type="date"
-                    value={planDate}
-                    disabled
-                    className="rounded-md border border-[rgb(var(--color-secondary-300))] bg-transparent px-2 py-1 text-xs text-[var(--text-primary)] w-[7.5rem]"
+                    value={startDate}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setStartDate(v);
+                      if (endDate < v) setEndDate(v);
+                    }}
+                    disabled={isPending}
+                    className="rounded-md border border-[rgb(var(--color-secondary-300))] bg-transparent px-2 py-1.5 text-sm text-[var(--text-primary)] focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   {mode === 'timed' && (
                     <>
@@ -364,7 +368,7 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
                         onChange={handleStartTimeChange}
                         disabled={isPending}
                       />
-                      <span className="text-[var(--text-tertiary)] text-xs shrink-0">–</span>
+                      <span className="text-[var(--text-tertiary)] text-sm shrink-0">–</span>
                       <TimePickerDropdown
                         value={endTime}
                         onChange={handleEndTimeChange}
@@ -378,21 +382,22 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
                     value={endDate}
                     onChange={(e) => {
                       const v = e.target.value;
-                      if (v >= planDate) setEndDate(v);
+                      if (v >= startDate) setEndDate(v);
                     }}
-                    min={planDate}
+                    min={startDate}
                     disabled={isPending}
-                    className="rounded-md border border-[rgb(var(--color-secondary-300))] bg-transparent px-2 py-1 text-xs text-[var(--text-primary)] w-[7.5rem]"
+                    className="rounded-md border border-[rgb(var(--color-secondary-300))] bg-transparent px-2 py-1.5 text-sm text-[var(--text-primary)] focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   {mode === 'timed' && computedMinutes > 0 && (
-                    <span className="text-xs text-[var(--text-tertiary)] whitespace-nowrap shrink-0">
+                    <span className="text-sm text-[var(--text-tertiary)] whitespace-nowrap shrink-0">
                       {formatDurationKo(computedMinutes)}
                     </span>
                   )}
                 </div>
 
-                {/* 종일 체크박스 + 반복 설정 */}
-                <label className="flex items-center gap-2 cursor-pointer">
+                {/* 종일 + 반복 — 상세 페이지와 동일한 크기/간격 */}
+                <div className="flex items-center gap-3 flex-nowrap">
+                <label className="flex items-center gap-1.5 cursor-pointer shrink-0">
                   <input
                     type="checkbox"
                     checked={mode === 'allDay'}
@@ -404,17 +409,18 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
                       }
                     }}
                     disabled={isPending}
-                    className="h-3.5 w-3.5 rounded border-[rgb(var(--color-secondary-300))] text-blue-600 dark:text-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
+                    className="h-4 w-4 rounded border-[rgb(var(--color-secondary-300))] text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-xs text-[var(--text-secondary)]">종일</span>
+                  <span className="text-sm text-[var(--text-secondary)] whitespace-nowrap">종일</span>
                 </label>
 
                 <RecurrenceSelector
                   value={rrule}
                   onChange={setRrule}
-                  eventDate={planDate}
+                  eventDate={startDate}
                   disabled={isPending}
                 />
+                </div>
               </div>
             )}
           </div>
