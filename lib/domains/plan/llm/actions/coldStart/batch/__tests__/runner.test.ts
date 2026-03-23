@@ -278,18 +278,14 @@ describe("runColdStartBatch", () => {
         { onProgress, delayBetweenRequests: 10 }
       );
 
-      expect(onProgress).toHaveBeenCalledTimes(2);
+      // With default concurrency=2, 2 targets fit in 1 chunk → 1 onProgress call
+      expect(onProgress).toHaveBeenCalledTimes(1);
 
-      // 첫 번째 호출 확인
+      // 청크 완료 후 호출 확인
       const firstCall = onProgress.mock.calls[0][0] as BatchProgress;
-      expect(firstCall.currentIndex).toBe(0);
+      expect(firstCall.currentIndex).toBe(1);
       expect(firstCall.total).toBe(2);
-      expect(firstCall.percentComplete).toBe(50);
-
-      // 두 번째 호출 확인
-      const secondCall = onProgress.mock.calls[1][0] as BatchProgress;
-      expect(secondCall.currentIndex).toBe(1);
-      expect(secondCall.percentComplete).toBe(100);
+      expect(firstCall.percentComplete).toBe(100);
     });
 
     it("onError 콜백이 에러 시 호출되어야 함", async () => {
@@ -385,8 +381,10 @@ describe("dryRunBatch", () => {
   it("예상 소요 시간을 계산해야 함", () => {
     const { targets, estimatedDurationMinutes } = dryRunBatch("core");
 
-    // 예상: 항목당 15초 (5초 대기 + 10초 처리)
-    const expectedMinutes = Math.ceil((targets.length * 15) / 60);
+    // 병렬 처리 반영: 청크당 13초 (10초 처리 + 3초 딜레이), 기본 concurrency=2
+    const effectiveConcurrency = 2;
+    const chunksCount = Math.ceil(targets.length / effectiveConcurrency);
+    const expectedMinutes = Math.ceil((chunksCount * 13) / 60);
     expect(estimatedDurationMinutes).toBe(expectedMinutes);
   });
 

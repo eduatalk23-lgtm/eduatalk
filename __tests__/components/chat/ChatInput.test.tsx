@@ -43,7 +43,7 @@ describe("ChatInput", () => {
       const textarea = screen.getByPlaceholderText("메시지를 입력하세요...");
       await user.type(textarea, "Hello{enter}");
 
-      expect(mockOnSend).toHaveBeenCalledWith("Hello");
+      expect(mockOnSend).toHaveBeenCalledWith("Hello", undefined);
     });
 
     it("전송 버튼 클릭으로 전송", async () => {
@@ -56,7 +56,7 @@ describe("ChatInput", () => {
       const button = screen.getByRole("button");
       await user.click(button);
 
-      expect(mockOnSend).toHaveBeenCalledWith("Hello");
+      expect(mockOnSend).toHaveBeenCalledWith("Hello", undefined);
     });
 
     it("전송 후 입력창 초기화", async () => {
@@ -140,7 +140,7 @@ describe("ChatInput", () => {
       // 조합 완료 후 Enter
       fireEvent.keyDown(textarea, { key: "Enter", code: "Enter" });
 
-      expect(mockOnSend).toHaveBeenCalledWith("안녕");
+      expect(mockOnSend).toHaveBeenCalledWith("안녕", undefined);
     });
   });
 

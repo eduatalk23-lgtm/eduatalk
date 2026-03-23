@@ -31,6 +31,8 @@ function chainQuery(data: unknown, count?: number) {
     select: vi.fn().mockReturnValue(chain),
     eq: vi.fn().mockReturnValue(chain),
     is: vi.fn().mockReturnValue(chain),
+    neq: vi.fn().mockReturnValue(chain),
+    gt: vi.fn().mockReturnValue(chain),
     gte: vi.fn().mockReturnValue(chain),
     like: vi.fn().mockReturnValue(chain),
     limit: vi.fn().mockReturnValue(chain),

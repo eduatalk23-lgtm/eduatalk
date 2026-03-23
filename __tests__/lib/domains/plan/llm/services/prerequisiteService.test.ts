@@ -337,9 +337,13 @@ describe("PrerequisiteService", () => {
         error: null,
       });
 
-      // Mock student completed plans
+      // Mock student completed plans: .eq("student_id").eq("is_task", true).is("deleted_at", null)
       mockEq.mockReturnValueOnce({
         eq: vi.fn().mockReturnValue({
+          is: vi.fn().mockReturnValue({
+            data: [], // No completed plans
+            error: null,
+          }),
           not: vi.fn().mockReturnValue({
             data: [], // No completed plans
             error: null,

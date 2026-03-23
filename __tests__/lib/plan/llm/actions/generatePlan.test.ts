@@ -55,18 +55,26 @@ describe("generatePlanWithAI", () => {
 
   describe("Input Validation", () => {
     it("should return error when no contents selected", async () => {
-      // Mock chainable builder
+      // Mock chainable builder (must cover all Supabase query methods used)
       const chainable = {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
         in: vi.fn().mockReturnThis(),
+        is: vi.fn().mockReturnThis(),
+        neq: vi.fn().mockReturnThis(),
+        not: vi.fn().mockReturnThis(),
+        or: vi.fn().mockReturnThis(),
+        gt: vi.fn().mockReturnThis(),
+        gte: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
         limit: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({ data: null }),
         single: vi.fn().mockResolvedValue({
           data: { id: "student-123", tenant_id: "tenant-123" },
         }),
+        insert: vi.fn().mockReturnThis(),
         // Mock return values for list queries
-        then: (resolve: any) => resolve({ data: [] }), 
+        then: (resolve: any) => resolve({ data: [] }),
       };
 
       const mockSupabase = {

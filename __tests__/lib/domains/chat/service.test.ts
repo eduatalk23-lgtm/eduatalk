@@ -10,9 +10,12 @@ vi.mock("@/lib/domains/chat/repository", () => ({
   findBlocksByUser: vi.fn(),
   findMessagesByRoom: vi.fn(),
   findSendersByIds: vi.fn(),
+  findAttachmentsByMessageIds: vi.fn(),
+  findLinkPreviewsByMessageIds: vi.fn(),
   insertMessage: vi.fn(),
   findRoomById: vi.fn(),
   findOtherMemberInDirectRoom: vi.fn(),
+  findMessageById: vi.fn(),
   getSenderInfoForInsert: vi.fn(),
 }));
 
@@ -34,6 +37,8 @@ const mockFindMember = vi.mocked(repository.findMember);
 const mockFindBlocksByUser = vi.mocked(repository.findBlocksByUser);
 const mockFindMessagesByRoom = vi.mocked(repository.findMessagesByRoom);
 const mockFindSendersByIds = vi.mocked(repository.findSendersByIds);
+const mockFindAttachmentsByMessageIds = vi.mocked(repository.findAttachmentsByMessageIds);
+const mockFindLinkPreviewsByMessageIds = vi.mocked(repository.findLinkPreviewsByMessageIds);
 const mockInsertMessage = vi.mocked(repository.insertMessage);
 const mockFindRoomById = vi.mocked(repository.findRoomById);
 const mockFindOtherMemberInDirectRoom = vi.mocked(repository.findOtherMemberInDirectRoom);
@@ -242,6 +247,7 @@ describe("Chat Service", () => {
           last_read_at: new Date().toISOString(),
           is_muted: false,
           left_at: null,
+          visible_from: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         } as ChatRoomMember);
@@ -258,7 +264,7 @@ describe("Chat Service", () => {
           },
         ]);
 
-        // 메시지: user-2의 메시지 포함
+        // 메시지: user-2의 메시지 포함 (denormalized snapshots)
         mockFindMessagesByRoom.mockResolvedValue([
           {
             id: "msg-1",
@@ -267,6 +273,8 @@ describe("Chat Service", () => {
             sender_type: "student",
             message_type: "text",
             content: "Hello from user-1",
+            sender_name: "User 1",
+            sender_profile_url: null,
             is_deleted: false,
             deleted_at: null,
             created_at: "2024-01-01T00:00:00Z",
@@ -279,6 +287,8 @@ describe("Chat Service", () => {
             sender_type: "student",
             message_type: "text",
             content: "Hello from blocked user-2",
+            sender_name: "User 2",
+            sender_profile_url: null,
             is_deleted: false,
             deleted_at: null,
             created_at: "2024-01-01T00:01:00Z",
@@ -286,11 +296,9 @@ describe("Chat Service", () => {
           },
         ] as ChatMessage[]);
 
-        mockFindSendersByIds.mockResolvedValue(
-          new Map([
-            ["user-1_student", { id: "user-1", name: "User 1", profileImageUrl: null }],
-          ])
-        );
+        // Attachments & link previews (empty)
+        mockFindAttachmentsByMessageIds.mockResolvedValue(new Map());
+        mockFindLinkPreviewsByMessageIds.mockResolvedValue(new Map());
 
         const result = await getMessages("user-1", "student", validOptions);
 
@@ -312,13 +320,14 @@ describe("Chat Service", () => {
           last_read_at: new Date().toISOString(),
           is_muted: false,
           left_at: null,
+          visible_from: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         } as ChatRoomMember);
 
         mockFindBlocksByUser.mockResolvedValue([]);
 
-        // 정확히 limit(50)개의 메시지 생성
+        // 정확히 limit(50)개의 메시지 생성 (denormalized snapshots)
         const messages: ChatMessage[] = Array.from({ length: 50 }, (_, i) => ({
           id: `msg-${i}`,
           room_id: "room-1",
@@ -326,6 +335,8 @@ describe("Chat Service", () => {
           sender_type: "student" as const,
           message_type: "text" as const,
           content: `Message ${i}`,
+          sender_name: "User 1",
+          sender_profile_url: null,
           is_deleted: false,
           deleted_at: null,
           created_at: new Date(Date.now() - i * 1000).toISOString(),
@@ -333,11 +344,8 @@ describe("Chat Service", () => {
         }));
 
         mockFindMessagesByRoom.mockResolvedValue(messages);
-        mockFindSendersByIds.mockResolvedValue(
-          new Map([
-            ["user-1_student", { id: "user-1", name: "User 1", profileImageUrl: null }],
-          ])
-        );
+        mockFindAttachmentsByMessageIds.mockResolvedValue(new Map());
+        mockFindLinkPreviewsByMessageIds.mockResolvedValue(new Map());
 
         const result = await getMessages("user-1", "student", validOptions);
 
@@ -355,13 +363,14 @@ describe("Chat Service", () => {
           last_read_at: new Date().toISOString(),
           is_muted: false,
           left_at: null,
+          visible_from: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         } as ChatRoomMember);
 
         mockFindBlocksByUser.mockResolvedValue([]);
 
-        // limit(50)보다 적은 10개 메시지
+        // limit(50)보다 적은 10개 메시지 (denormalized snapshots)
         const messages: ChatMessage[] = Array.from({ length: 10 }, (_, i) => ({
           id: `msg-${i}`,
           room_id: "room-1",
@@ -369,6 +378,8 @@ describe("Chat Service", () => {
           sender_type: "student" as const,
           message_type: "text" as const,
           content: `Message ${i}`,
+          sender_name: "User 1",
+          sender_profile_url: null,
           is_deleted: false,
           deleted_at: null,
           created_at: new Date(Date.now() - i * 1000).toISOString(),
@@ -376,11 +387,8 @@ describe("Chat Service", () => {
         }));
 
         mockFindMessagesByRoom.mockResolvedValue(messages);
-        mockFindSendersByIds.mockResolvedValue(
-          new Map([
-            ["user-1_student", { id: "user-1", name: "User 1", profileImageUrl: null }],
-          ])
-        );
+        mockFindAttachmentsByMessageIds.mockResolvedValue(new Map());
+        mockFindLinkPreviewsByMessageIds.mockResolvedValue(new Map());
 
         const result = await getMessages("user-1", "student", validOptions);
 

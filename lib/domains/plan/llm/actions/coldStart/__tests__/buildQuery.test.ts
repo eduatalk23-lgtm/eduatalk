@@ -38,7 +38,7 @@ describe("buildSearchQuery", () => {
 
       const result = buildSearchQuery(input);
 
-      expect(result.query).toBe("고등학교 영어 심화 인강 추천 강의 목록");
+      expect(result.query).toBe("고등학교 영어 심화 인강 추천 강의 목록 (회차 구성, 총 강의 수, 평균 강의시간 포함)");
       expect(result.context).toBe("영어 심화강의");
     });
 
