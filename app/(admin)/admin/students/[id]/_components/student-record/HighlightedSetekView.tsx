@@ -67,13 +67,18 @@ function buildSegments(content: string, tags: HighlightTag[]): Segment[] {
   type Match = { start: number; end: number; tag: HighlightTag };
   const matches: Match[] = [];
 
+  // 각 태그의 모든 출현 위치 수집
   for (const tag of tags) {
-    const idx = content.indexOf(tag.highlight);
-    if (idx !== -1) {
+    let searchFrom = 0;
+    while (searchFrom < content.length) {
+      const idx = content.indexOf(tag.highlight, searchFrom);
+      if (idx === -1) break;
       matches.push({ start: idx, end: idx + tag.highlight.length, tag });
+      searchFrom = idx + tag.highlight.length;
     }
   }
 
+  // 위치순 정렬 후 겹침 제거
   matches.sort((a, b) => a.start - b.start);
   const filtered: Match[] = [];
   let lastEnd = 0;

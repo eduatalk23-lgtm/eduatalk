@@ -23,6 +23,8 @@ interface DiagnosisGenerationResult {
   weaknesses: string[];
   recommendedMajors: string[];
   strategyNotes: string;
+  /** AI 응답에 fallback이 적용된 경우 경고 메시지 */
+  warnings?: string[];
 }
 
 export async function generateAiDiagnosis(
@@ -130,7 +132,14 @@ ${tagsSummary}
     const emptyStrengths = !Array.isArray(parsed.strengths) || parsed.strengths.length === 0;
     const emptyWeaknesses = !Array.isArray(parsed.weaknesses) || parsed.weaknesses.length === 0;
 
-    if (gradeFallback || strengthFallback || emptyStrengths || emptyWeaknesses) {
+    // fallback 추적
+    const warnings: string[] = [];
+    if (gradeFallback) warnings.push("종합등급이 기본값(B)으로 설정되었습니다");
+    if (strengthFallback) warnings.push("방향 강도가 기본값(보통)으로 설정되었습니다");
+    if (emptyStrengths) warnings.push("강점 항목이 추출되지 않았습니다");
+    if (emptyWeaknesses) warnings.push("약점 항목이 추출되지 않았습니다");
+
+    if (warnings.length > 0) {
       logActionWarn(LOG_CTX, "AI 진단 응답에 fallback 적용", {
         gradeFallback: gradeFallback ? `"${String(parsed.overallGrade)}" → "B"` : null,
         strengthFallback: strengthFallback ? `"${String(parsed.directionStrength)}" → "moderate"` : null,
@@ -148,6 +157,7 @@ ${tagsSummary}
         weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses.filter((s): s is string => typeof s === "string" && s.length > 0) : [],
         recommendedMajors: Array.isArray(parsed.recommendedMajors) ? parsed.recommendedMajors.filter((s): s is string => typeof s === "string" && s.length > 0) : [],
         strategyNotes: String(parsed.strategyNotes ?? ""),
+        ...(warnings.length > 0 ? { warnings } : {}),
       },
     };
   } catch (error) {

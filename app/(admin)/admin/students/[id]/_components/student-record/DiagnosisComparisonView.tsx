@@ -129,6 +129,7 @@ export function DiagnosisComparisonView({
   });
 
   // AI 종합진단 생성
+  const [aiWarnings, setAiWarnings] = useState<string[]>([]);
   const aiGenMutation = useMutation({
     mutationFn: async () => {
       const result = await generateAiDiagnosis(aiScores, activityTags, { targetMajor: targetMajor ?? undefined, schoolName });
@@ -152,7 +153,10 @@ export function DiagnosisComparisonView({
       if (!saveResult.success) throw new Error(saveResult.error);
       return result.data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk }),
+    onSuccess: (data) => {
+      setAiWarnings(data.warnings ?? []);
+      queryClient.invalidateQueries({ queryKey: qk });
+    },
   });
 
   // AI → 컨설턴트 복사
@@ -215,6 +219,11 @@ export function DiagnosisComparisonView({
           </button>
         )}
         {aiGenMutation.isError && <span className="text-xs text-red-500">{aiGenMutation.error.message}</span>}
+        {aiWarnings.length > 0 && (
+          <span className="text-[10px] text-amber-600 dark:text-amber-400">
+            AI 응답 일부가 기본값으로 대체됨: {aiWarnings.join(", ")}
+          </span>
+        )}
       </div>
 
       {/* 10항목 등급 요약 */}

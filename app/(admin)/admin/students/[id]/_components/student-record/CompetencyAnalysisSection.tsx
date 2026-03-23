@@ -179,14 +179,15 @@ export function CompetencyAnalysisSection({
   }
 
   // 전체 레코드 일괄 분석 (동시성 3개 제한)
-  const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0 });
+  const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0, failed: 0 });
   const batchMutation = useMutation({
     mutationFn: async () => {
       const eligible = records.filter((r) => r.content.trim().length >= 20);
-      setBatchProgress({ done: 0, total: eligible.length });
+      setBatchProgress({ done: 0, total: eligible.length, failed: 0 });
       const results = new Map<string, HighlightAnalysisResult>();
       const CONCURRENCY = 3;
       let done = 0;
+      let failed = 0;
 
       for (let i = 0; i < eligible.length; i += CONCURRENCY) {
         const batch = eligible.slice(i, i + CONCURRENCY);
@@ -201,11 +202,17 @@ export function CompetencyAnalysisSection({
             if (result.success) {
               results.set(rec.id, result.data);
               await saveAnalysisResults(rec.id, rec, result.data);
+            } else {
+              failed++;
             }
           }),
         );
+        // rejected promise도 실패로 카운트
+        for (const s of settled) {
+          if (s.status === "rejected") failed++;
+        }
         done += settled.length;
-        setBatchProgress({ done, total: eligible.length });
+        setBatchProgress({ done, total: eligible.length, failed });
       }
       return results;
     },
@@ -240,6 +247,11 @@ export function CompetencyAnalysisSection({
             >
               다시 시도
             </button>
+          </span>
+        )}
+        {batchMutation.isSuccess && batchProgress.failed > 0 && (
+          <span className="text-xs text-amber-600 dark:text-amber-400">
+            {batchProgress.total - batchProgress.failed}건 성공, {batchProgress.failed}건 실패
           </span>
         )}
       </div>
