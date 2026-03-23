@@ -87,13 +87,13 @@ export function GradeSummaryTable({ aiScores, consultantScores, activityTags }: 
                   >
                     <td className="px-3 py-1.5">
                       {idx === 0 && (
-                        <span className="mr-1.5 text-[9px] font-semibold text-[var(--text-tertiary)]">
+                        <span className="mr-1.5 text-[10px] font-semibold text-[var(--text-tertiary)]">
                           {COMPETENCY_AREA_LABELS[area]}
                         </span>
                       )}
                       <span className="text-[var(--text-primary)]">{item.label}</span>
                       {hasDetail && (
-                        <span className="ml-1 text-[9px] text-[var(--text-tertiary)]">{isExpanded ? "▲" : "▼"}</span>
+                        <span className="ml-1 text-[10px] text-[var(--text-tertiary)]">{isExpanded ? "▲" : "▼"}</span>
                       )}
                     </td>
                     <td className="px-2 py-1.5 text-center">
@@ -104,7 +104,7 @@ export function GradeSummaryTable({ aiScores, consultantScores, activityTags }: 
                     </td>
                     <td className="px-2 py-1.5 text-center">
                       {tagCount > 0 && (
-                        <span className="text-[9px] text-[var(--text-tertiary)]">
+                        <span className="text-[10px] text-[var(--text-tertiary)]">
                           {tags!.positive.length > 0 && <span className="text-green-600">+{tags!.positive.length}</span>}
                           {tags!.needs_review.length > 0 && <span className="ml-0.5 text-amber-500">?{tags!.needs_review.length}</span>}
                           {tags!.negative.length > 0 && <span className="ml-0.5 text-red-500">-{tags!.negative.length}</span>}
@@ -148,13 +148,13 @@ function GradeDetail({ aiNarrative, conNarrative, tags }: {
         <div className="flex flex-col gap-1.5">
           {aiNarrative && (
             <div className="flex gap-1.5">
-              <span className="shrink-0 text-[9px] font-medium text-blue-600 dark:text-blue-400">AI</span>
+              <span className="shrink-0 text-[10px] font-medium text-blue-600 dark:text-blue-400">AI</span>
               <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">{aiNarrative}</p>
             </div>
           )}
           {conNarrative && (
             <div className="flex gap-1.5">
-              <span className="shrink-0 text-[9px] font-medium text-[var(--text-secondary)]">컨설턴트</span>
+              <span className="shrink-0 text-[10px] font-medium text-[var(--text-secondary)]">컨설턴트</span>
               <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">{conNarrative}</p>
             </div>
           )}
@@ -163,7 +163,7 @@ function GradeDetail({ aiNarrative, conNarrative, tags }: {
 
       {allTags.length > 0 && (
         <div>
-          <span className="text-[9px] font-medium text-[var(--text-tertiary)]">근거 활동 ({allTags.length}건)</span>
+          <span className="text-[10px] font-medium text-[var(--text-tertiary)]">근거 활동 ({allTags.length}건)</span>
           <div className="mt-1 flex flex-col gap-0.5">
             {allTags.slice(0, 5).map((tag) => (
               <div key={tag.id} className="flex items-start gap-1.5 text-[10px]">
@@ -181,7 +181,7 @@ function GradeDetail({ aiNarrative, conNarrative, tags }: {
               </div>
             ))}
             {allTags.length > 5 && (
-              <span className="text-[9px] text-[var(--text-tertiary)]">외 {allTags.length - 5}건</span>
+              <span className="text-[10px] text-[var(--text-tertiary)]">외 {allTags.length - 5}건</span>
             )}
           </div>
         </div>
@@ -221,17 +221,17 @@ export function RecommendedCourses({ majors }: { majors: string[] }) {
             <span className="text-[10px] font-semibold text-[var(--text-secondary)]">{major}</span>
             {courses.general.length > 0 && (
               <div className="mt-1 flex flex-wrap items-center gap-1">
-                <span className="text-[9px] text-[var(--text-tertiary)]">일반</span>
+                <span className="text-[10px] text-[var(--text-tertiary)]">일반</span>
                 {courses.general.map((c) => (
-                  <span key={c} className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">{c}</span>
+                  <span key={c} className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">{c}</span>
                 ))}
               </div>
             )}
             {courses.career.length > 0 && (
               <div className="mt-1 flex flex-wrap items-center gap-1">
-                <span className="text-[9px] text-[var(--text-tertiary)]">진로</span>
+                <span className="text-[10px] text-[var(--text-tertiary)]">진로</span>
                 {courses.career.map((c) => (
-                  <span key={c} className="rounded bg-purple-50 px-1.5 py-0.5 text-[9px] text-purple-600 dark:bg-purple-900/20 dark:text-purple-400">{c}</span>
+                  <span key={c} className="rounded bg-purple-50 px-1.5 py-0.5 text-[10px] text-purple-600 dark:bg-purple-900/20 dark:text-purple-400">{c}</span>
                 ))}
               </div>
             )}

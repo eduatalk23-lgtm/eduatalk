@@ -16,7 +16,7 @@ import type { CompetencyScore, ActivityTag, CompetencyArea, CompetencyGrade } fr
 import type { HighlightAnalysisResult } from "@/lib/domains/student-record/llm/types";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { HighlightedSetekView, CompetencyBadge } from "./HighlightedSetekView";
-import { Sparkles, ArrowDown, Check, X } from "lucide-react";
+import { Sparkles, ArrowDown, Check, X, ChevronRight } from "lucide-react";
 
 type RecordForHighlight = {
   id: string;
@@ -314,10 +314,11 @@ export function CompetencyAnalysisSection({
       )}
 
       {/* ─── 종합 등급 그리드 (접기 가능 — 상세 비교는 종합진단 섹션에서) ── */}
-      <details className="rounded-lg border border-gray-200 dark:border-gray-700">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-hover)]">
+      <details className="group rounded-lg border border-gray-200 dark:border-gray-700">
+        <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] [&::-webkit-details-marker]:hidden">
+          <ChevronRight size={14} className="shrink-0 text-[var(--text-tertiary)] transition-transform group-open:rotate-90" />
           종합 등급 직접 편집
-          <span className="ml-2 text-[10px] font-normal text-[var(--text-tertiary)]">AI/컨설턴트 비교는 종합진단 섹션 참고</span>
+          <span className="text-[10px] font-normal text-[var(--text-tertiary)]">AI/컨설턴트 비교는 종합진단 섹션 참고</span>
         </summary>
         <div className="border-t border-gray-200 p-4 dark:border-gray-700">
         <div className="flex flex-col gap-3">
@@ -354,7 +355,7 @@ export function CompetencyAnalysisSection({
                             <button
                               type="button"
                               onClick={() => setExpandedTagItem(expandedTagItem === item.code ? null : item.code)}
-                              className="cursor-pointer text-[9px] text-[var(--text-tertiary)] hover:underline"
+                              className="cursor-pointer text-[10px] text-[var(--text-tertiary)] hover:underline"
                             >
                               {stats.positive > 0 && <span className="text-green-600">+{stats.positive}</span>}
                               {stats.needs_review > 0 && <span className="ml-0.5 text-amber-500">?{stats.needs_review}</span>}

@@ -103,7 +103,7 @@ export function RecordWarningPanel({ warnings }: Props) {
             <div className="mb-2 flex items-center gap-1.5">
               <meta.Icon size={14} className="text-[var(--text-tertiary)]" />
               <span className="text-xs font-semibold text-[var(--text-secondary)]">{meta.label}</span>
-              <span className="text-[9px] text-[var(--text-tertiary)]">{items.length}건</span>
+              <span className="text-[10px] text-[var(--text-tertiary)]">{items.length}건</span>
             </div>
             <div className="flex flex-col gap-1.5">
               {sorted.map((w, i) => {
@@ -112,14 +112,14 @@ export function RecordWarningPanel({ warnings }: Props) {
                 return (
                   <div key={i} className={cn("rounded-md border px-3 py-2", style.bg, style.border)}>
                     <div className="flex items-center gap-2">
-                      <span className={cn("rounded px-1.5 py-0.5 text-[9px] font-semibold", style.text)}>
+                      <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-semibold", style.text)}>
                         {SEVERITY_LABEL[w.severity]}
                       </span>
                       <span className="text-xs font-medium text-[var(--text-primary)]">{w.title}</span>
                       {targetSection && (
                         <button
                           onClick={() => document.getElementById(targetSection)?.scrollIntoView({ behavior: "smooth" })}
-                          className="ml-auto shrink-0 inline-flex items-center gap-0.5 text-[9px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+                          className="ml-auto shrink-0 inline-flex items-center gap-0.5 text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
                         >
                           이동 <ExternalLink size={9} />
                         </button>

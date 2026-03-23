@@ -5,7 +5,7 @@
 // Phase 6.1 — AI가 분석한 구절을 원문에서 역량별 색상으로 표시
 // ============================================
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { COMPETENCY_ITEMS, COMPETENCY_AREA_LABELS } from "@/lib/domains/student-record";
 import type { CompetencyArea, CompetencyItemCode } from "@/lib/domains/student-record";
@@ -206,24 +206,36 @@ export function HighlightedSetekView({ content, sections, label, defaultExpanded
 
 function HighlightedSpan({ text, tag }: { text: string; tag: HighlightTag }) {
   const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipBelow, setTooltipBelow] = useState(false);
+  const spanRef = useRef<HTMLSpanElement>(null);
   const colors = getHighlight(tag);
-  const itemLabel = getItemLabel(tag.competencyItem);
   const evalInfo = EVAL_LABELS[tag.evaluation] ?? EVAL_LABELS.positive;
 
+  const handleEnter = () => {
+    if (spanRef.current) {
+      const rect = spanRef.current.getBoundingClientRect();
+      setTooltipBelow(rect.top < 120);
+    }
+    setShowTooltip(true);
+  };
+
   return (
-    <span className="relative inline">
+    <span className="relative inline" ref={spanRef}>
       <span
         className={cn(
           "cursor-help rounded-sm px-0.5 decoration-2 underline decoration-dotted",
           colors.mark,
         )}
-        onMouseEnter={() => setShowTooltip(true)}
+        onMouseEnter={handleEnter}
         onMouseLeave={() => setShowTooltip(false)}
       >
         {text}
       </span>
       {showTooltip && (
-        <span className="absolute bottom-full left-0 z-10 mb-1 w-72 rounded-md border border-gray-200 bg-white p-2.5 shadow-lg dark:border-gray-600 dark:bg-gray-800">
+        <span className={cn(
+          "absolute left-0 z-10 max-w-xs rounded-md border border-gray-200 bg-white p-2.5 shadow-lg dark:border-gray-600 dark:bg-gray-800",
+          tooltipBelow ? "top-full mt-1" : "bottom-full mb-1",
+        )}>
           <span className="flex items-center gap-1.5 text-xs font-medium">
             <CompetencyBadge tag={tag} compact />
             <span className="text-[var(--text-tertiary)]">{evalInfo.label}</span>

@@ -316,7 +316,7 @@ export function DiagnosisComparisonView({
                 </div>
                 <input type="text" value={newStrength} onChange={(e) => setNewStrength(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(strengths, setStrengths, newStrength, setNewStrength); } }}
-                  placeholder="강점 입력 후 Enter" className="rounded border border-gray-300 px-2 py-0.5 text-[10px] dark:border-gray-600" />
+                  placeholder="강점 입력 후 Enter" className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600" />
               </div>
             </FormRow>
 
@@ -336,19 +336,36 @@ export function DiagnosisComparisonView({
                 </div>
                 <input type="text" value={newWeakness} onChange={(e) => setNewWeakness(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(weaknesses, setWeaknesses, newWeakness, setNewWeakness); } }}
-                  placeholder="약점 입력 후 Enter" className="rounded border border-gray-300 px-2 py-0.5 text-[10px] dark:border-gray-600" />
+                  placeholder="약점 입력 후 Enter" className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600" />
               </div>
             </FormRow>
 
-            {/* 추천전공 */}
+            {/* 추천전공 — 선택된 항목 상단 + 나머지 접기 */}
             <FormRow label="추천전공">
-              <div className="flex flex-1 flex-wrap gap-1">
-                {MAJOR_KEYS.map((k) => (
-                  <button key={k} onClick={() => setMajors((p) => p.includes(k) ? p.filter((m) => m !== k) : [...p, k])}
-                    className={cn("rounded-full px-2 py-0.5 text-[9px]", majors.includes(k) ? "bg-indigo-100 font-medium text-indigo-700 dark:bg-indigo-900/30" : "border border-gray-200 text-[var(--text-tertiary)] dark:border-gray-600")}>
-                    {k}
-                  </button>
-                ))}
+              <div className="flex flex-1 flex-col gap-1.5">
+                {majors.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {majors.map((k) => (
+                      <button key={k} onClick={() => setMajors((p) => p.filter((m) => m !== k))}
+                        className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-medium text-indigo-700 dark:bg-indigo-900/30">
+                        {k} ×
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <details className="text-[10px]">
+                  <summary className="cursor-pointer text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]">
+                    전공 계열 선택 ({MAJOR_KEYS.length}개)
+                  </summary>
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {MAJOR_KEYS.filter((k) => !majors.includes(k)).map((k) => (
+                      <button key={k} onClick={() => setMajors((p) => [...p, k])}
+                        className="rounded-full border border-gray-200 px-2 py-0.5 text-[10px] text-[var(--text-tertiary)] hover:border-indigo-300 hover:text-indigo-600 dark:border-gray-600">
+                        {k}
+                      </button>
+                    ))}
+                  </div>
+                </details>
               </div>
             </FormRow>
 
@@ -365,11 +382,11 @@ export function DiagnosisComparisonView({
             <div className="flex items-center gap-2 pt-1">
               {consultantDiagnosis?.id && consultantDiagnosis.status !== "confirmed" && (
                 <button onClick={() => confirmMutation.mutate()} disabled={confirmMutation.isPending}
-                  className="rounded border border-green-600 px-3 py-1 text-xs font-medium text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20">
-                  확정
+                  className="rounded border border-green-600 px-3 py-1 text-xs font-medium text-green-700 hover:bg-green-50 disabled:opacity-50 dark:hover:bg-green-900/20">
+                  {confirmMutation.isPending ? "확정 중..." : "확정"}
                 </button>
               )}
-              <span className="ml-auto text-[10px] text-[var(--text-tertiary)]" aria-live="polite" aria-atomic="true">
+              <span className="ml-auto text-xs text-[var(--text-tertiary)]" aria-live="polite" aria-atomic="true">
                 {autoSaveStatus === "saving" && (
                   <span className="inline-flex items-center gap-1 text-blue-500">
                     <Loader2 size={10} className="animate-spin" /> 저장 중…
@@ -397,7 +414,7 @@ export function DiagnosisComparisonView({
 function Row({ label, value, diff }: { label: string; value: string; diff?: boolean }) {
   return (
     <div className="flex gap-2">
-      <span className="w-14 shrink-0 text-[var(--text-tertiary)]">{label}</span>
+      <span className="w-16 shrink-0 text-[var(--text-tertiary)]">{label}</span>
       <span className={cn("text-[var(--text-primary)]", diff && "font-medium text-amber-600 dark:text-amber-400")}>{value}</span>
       {diff && <span className="text-amber-500" title="AI와 차이 있음">⚡ <span className="sr-only">차이</span></span>}
     </div>
@@ -407,7 +424,7 @@ function Row({ label, value, diff }: { label: string; value: string; diff?: bool
 function TagList({ label, items, matchItems }: { label: string; items: string[]; matchItems?: string[] }) {
   return (
     <div className="flex gap-2">
-      <span className="w-14 shrink-0 text-[var(--text-tertiary)]">{label}</span>
+      <span className="w-16 shrink-0 text-[var(--text-tertiary)]">{label}</span>
       <div className="flex flex-wrap gap-1">
         {items.map((s) => {
           const isMatch = matchItems?.includes(s);
@@ -427,7 +444,7 @@ function TagList({ label, items, matchItems }: { label: string; items: string[];
 function FormRow({ label, children, diff }: { label: string; children: React.ReactNode; diff?: boolean }) {
   return (
     <div className="flex items-start gap-2">
-      <span className={cn("w-14 shrink-0 pt-1 text-xs", diff ? "font-medium text-amber-600 dark:text-amber-400" : "text-[var(--text-tertiary)]")}>
+      <span className={cn("w-16 shrink-0 pt-1 text-xs", diff ? "font-medium text-amber-600 dark:text-amber-400" : "text-[var(--text-tertiary)]")}>
         {label} {diff && <span title="AI와 차이 있음">⚡</span>}
       </span>
       {children}
