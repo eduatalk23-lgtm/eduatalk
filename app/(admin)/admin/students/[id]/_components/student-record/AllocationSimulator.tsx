@@ -74,7 +74,7 @@ export function AllocationSimulator({
     <div className="flex flex-col gap-6">
       {/* 후보 목록 */}
       <div>
-        <div className="mb-2 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between">
           <h4 className="text-sm font-medium text-[var(--text-primary)]">
             후보 대학 ({candidates.length}개)
           </h4>

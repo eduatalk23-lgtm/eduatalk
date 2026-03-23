@@ -279,7 +279,7 @@ function AddTargetForm({
         <button onClick={onClose} className="text-xs text-[var(--text-tertiary)]">취소</button>
       </div>
       <div className="flex flex-col gap-3">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
           <input value={universityName} onChange={(e) => setUniversityName(e.target.value)} placeholder="대학명 *" className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
           <input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="학과 *" className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
         </div>
@@ -363,7 +363,7 @@ function SimulationForm({
         <button onClick={onClose} className="text-xs text-[var(--text-tertiary)]">취소</button>
       </div>
       <div className="flex flex-col gap-3">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
           <input value={examTitle} onChange={(e) => setExamTitle(e.target.value)} placeholder="시험명 (예: 6월 모평) *" className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
           <input type="date" value={examDate} onChange={(e) => setExamDate(e.target.value)} className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900" />
         </div>

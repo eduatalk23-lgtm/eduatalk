@@ -86,9 +86,9 @@ export function AlumniSearch() {
       )}
 
       {hasSearched && !isFetching && data && data.total === 0 && (
-        <p className="text-center text-sm text-[var(--text-tertiary)]">
+        <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-[var(--text-tertiary)] dark:border-gray-600">
           검색 결과가 없습니다.
-        </p>
+        </div>
       )}
     </div>
   );

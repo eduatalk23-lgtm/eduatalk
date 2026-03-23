@@ -91,7 +91,7 @@ export function ApplicationBoard({
 
       {/* 수시 (최대 6장) */}
       <div>
-        <div className="mb-2 flex items-center gap-2">
+        <div className="mb-3 flex items-center gap-2">
           <h3 className="text-sm font-medium text-[var(--text-primary)]">수시</h3>
           <span className={cn(
             "text-xs font-medium",
@@ -126,7 +126,7 @@ export function ApplicationBoard({
 
       {/* 정시 (가/나/다) */}
       <div>
-        <h3 className="mb-2 text-sm font-medium text-[var(--text-primary)]">정시</h3>
+        <h3 className="mb-3 text-sm font-medium text-[var(--text-primary)]">정시</h3>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           {(["regular_ga", "regular_na", "regular_da"] as const).map((round) => {
             const app = regularApps.find((a) => a.round === round);
@@ -156,7 +156,7 @@ export function ApplicationBoard({
       {/* 기타 (추가모집/정원외) */}
       {otherApps.length > 0 && (
         <div>
-          <h3 className="mb-2 text-sm font-medium text-[var(--text-primary)]">기타</h3>
+          <h3 className="mb-3 text-sm font-medium text-[var(--text-primary)]">기타</h3>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {otherApps.map((app) => (
               <ApplicationCard

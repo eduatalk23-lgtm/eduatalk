@@ -66,7 +66,7 @@ export function InterviewQuestionPanel({ records }: Props) {
   });
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       {/* 생성 폼 */}
       <div className="flex items-center gap-3">
         <select
@@ -82,7 +82,7 @@ export function InterviewQuestionPanel({ records }: Props) {
         <button
           onClick={() => mutation.mutate()}
           disabled={!selectedRecordId || mutation.isPending}
-          className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100 disabled:opacity-50 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
+          className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-100 disabled:opacity-50 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
         >
           <Sparkles size={14} />
           {mutation.isPending ? "생성 중..." : "면접 질문 생성"}
