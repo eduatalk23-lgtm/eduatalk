@@ -7,9 +7,8 @@
 
 import { useState, useMemo, Fragment } from "react";
 import { cn } from "@/lib/cn";
-import { COMPETENCY_ITEMS, COMPETENCY_AREA_LABELS } from "@/lib/domains/student-record";
+import { COMPETENCY_ITEMS, COMPETENCY_AREA_LABELS, MAJOR_RECOMMENDED_COURSES } from "@/lib/domains/student-record";
 import type { CompetencyScore, ActivityTag, CompetencyArea } from "@/lib/domains/student-record";
-import { MAJOR_RECOMMENDED_COURSES } from "@/lib/domains/student-record/constants";
 
 // ─── GradeSummaryTable ─────────────────────────
 

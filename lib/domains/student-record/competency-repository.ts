@@ -204,6 +204,7 @@ export async function cleanupOrphanedTags(
     personal_setek: "student_record_seteks",
     changche: "student_record_changche",
     haengteuk: "student_record_haengteuk",
+    reading: "student_record_reading",
   };
 
   const existingIds = new Set<string>();
