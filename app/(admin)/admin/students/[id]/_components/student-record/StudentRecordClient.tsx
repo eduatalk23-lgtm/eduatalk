@@ -304,6 +304,14 @@ export function StudentRecordClient({
     return errors;
   }, [yearGradePairs, supplementaryQueries]);
 
+  // ─── 현재 스테이지 계산 (activeSection → stageId) ────
+  const activeStage = useMemo<StageId>(() => {
+    for (const stage of STAGES) {
+      if (stage.sections.some((s) => s.id === activeSection)) return stage.id;
+    }
+    return "record";
+  }, [activeSection]);
+
   // ─── IntersectionObserver ─────────────────────────
 
   useEffect(() => {
@@ -665,6 +673,29 @@ export function StudentRecordClient({
       onToggleSidebar={toggleSidebar}
       rightPanel={<RecordSidePanelContainer />}
     >
+      {/* ─── 스테이지 탭 바 (데스크톱) ────────────────── */}
+      <div className="hidden shrink-0 border-b border-[var(--border-secondary)] bg-[var(--surface-secondary)] px-4 md:flex">
+        {STAGES.map((stage) => (
+          <button
+            key={stage.id}
+            type="button"
+            onClick={() => {
+              const firstSection = stage.sections[0]?.id;
+              if (firstSection) scrollToSection(firstSection);
+            }}
+            className={cn(
+              "inline-flex items-center gap-1.5 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
+              activeStage === stage.id
+                ? "border-indigo-500 text-indigo-600 dark:text-indigo-400"
+                : "border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]",
+            )}
+          >
+            <span>{stage.emoji}</span>
+            {stage.label}
+          </button>
+        ))}
+      </div>
+
       {/* ─── 메인 문서 스크롤 영역 ────────────────── */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         {/* 모바일 상단 컨트롤 */}
