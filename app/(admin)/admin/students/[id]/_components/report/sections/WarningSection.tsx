@@ -23,6 +23,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   course: "이수",
   storyline: "스토리라인",
   min_score: "수능최저",
+  strategy: "전략",
 };
 
 interface WarningSectionProps {

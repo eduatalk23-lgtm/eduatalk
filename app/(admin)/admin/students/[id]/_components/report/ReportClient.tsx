@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { reportDataQueryOptions } from "@/lib/query-options/studentRecord";
 import { ReportSkeleton } from "./ReportSkeleton";
 import { CoverSection } from "./sections/CoverSection";
+import { ExecutiveSummarySection } from "./sections/ExecutiveSummarySection";
 import { ScoreSection } from "./sections/ScoreSection";
 import { CompetencySection } from "./sections/CompetencySection";
 import { DiagnosisSection } from "./sections/DiagnosisSection";
@@ -56,6 +57,15 @@ export function ReportClient({ studentId }: ReportClientProps) {
         targetMajor={data.student.targetMajor}
         consultantName={data.consultantName}
         generatedAt={data.generatedAt}
+      />
+
+      {/* 1.5 엑서큐티브 요약 */}
+      <ExecutiveSummarySection
+        studentName={data.student.name}
+        targetMajor={data.student.targetMajor}
+        internalAnalysis={data.internalAnalysis}
+        diagnosisData={data.diagnosisData}
+        mockAnalysis={data.mockAnalysis}
       />
 
       {/* 2. 교과 성적 분석 */}
