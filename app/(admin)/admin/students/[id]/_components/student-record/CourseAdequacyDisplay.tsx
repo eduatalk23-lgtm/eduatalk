@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/cn";
-import { calculateCourseAdequacy, MAJOR_RECOMMENDED_COURSES } from "@/lib/domains/student-record";
+import { calculateCourseAdequacy } from "@/lib/domains/student-record";
+import { MAJOR_RECOMMENDED_COURSES_2015, MAJOR_RECOMMENDED_COURSES_2022 } from "@/lib/domains/student-record/constants";
 import type { CourseAdequacyResult } from "@/lib/domains/student-record";
 
 type Props = {
@@ -10,9 +11,11 @@ type Props = {
   takenSubjects: string[];
   offeredSubjects: string[] | null;
   initialMajor: string | null;
+  curriculumYear?: number;
 };
 
-const MAJOR_KEYS = Object.keys(MAJOR_RECOMMENDED_COURSES);
+const MAJOR_KEYS_2015 = Object.keys(MAJOR_RECOMMENDED_COURSES_2015);
+const MAJOR_KEYS_2022 = Object.keys(MAJOR_RECOMMENDED_COURSES_2022);
 
 function ScoreBar({ label, value }: { label: string; value: number }) {
   const color = value >= 70 ? "bg-green-500" : value >= 50 ? "bg-yellow-500" : "bg-red-500";
@@ -27,13 +30,16 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
   );
 }
 
-export function CourseAdequacyDisplay({ initialResult, takenSubjects, offeredSubjects, initialMajor }: Props) {
+export function CourseAdequacyDisplay({ initialResult, takenSubjects, offeredSubjects, initialMajor, curriculumYear }: Props) {
   const [selectedMajor, setSelectedMajor] = useState(initialMajor ?? "");
+  const majorKeys = (curriculumYear ?? 2015) >= 2022 ? MAJOR_KEYS_2022 : MAJOR_KEYS_2015;
 
   const result = useMemo(() => {
     if (!selectedMajor) return null;
-    return calculateCourseAdequacy(selectedMajor, takenSubjects, offeredSubjects);
-  }, [selectedMajor, takenSubjects, offeredSubjects]);
+    // 서버에서 계산한 초기 결과를 전공 미변경 시 재사용
+    if (initialResult && selectedMajor === initialMajor) return initialResult;
+    return calculateCourseAdequacy(selectedMajor, takenSubjects, offeredSubjects, curriculumYear);
+  }, [selectedMajor, initialMajor, initialResult, takenSubjects, offeredSubjects, curriculumYear]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -46,10 +52,13 @@ export function CourseAdequacyDisplay({ initialResult, takenSubjects, offeredSub
           className="flex-1 rounded-md border border-gray-300 bg-[var(--background)] px-3 py-1.5 text-sm dark:border-gray-600"
         >
           <option value="">전공 계열 선택</option>
-          {MAJOR_KEYS.map((key) => (
+          {majorKeys.map((key) => (
             <option key={key} value={key}>{key}</option>
           ))}
         </select>
+        <span className="text-[10px] text-[var(--text-tertiary)]">
+          {(curriculumYear ?? 2015) >= 2022 ? "2022 교육과정" : "2015 교육과정"}
+        </span>
       </div>
 
       {!selectedMajor && (

@@ -93,6 +93,14 @@ export function useAutoSave<T>({
     };
   }, [data, debounceMs, enabled, save]);
 
+  // enabled=false 시 pending timer 즉시 취소 (확정 직후 draft 덮어쓰기 방지)
+  useEffect(() => {
+    if (!enabled && timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, [enabled]);
+
   // beforeunload: 미저장 변경사항 경고
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {

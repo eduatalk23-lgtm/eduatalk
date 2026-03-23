@@ -108,7 +108,7 @@ export function StrategyEditor({
     mutationFn: async () => {
       const weaknesses = aiDiagnosis?.weaknesses as string[] ?? [];
       const weakCompetencies = (aiScores ?? [])
-        .filter((s) => s.source === "ai" && (s.grade_value === "B-" || s.grade_value === "C"))
+        .filter((s) => s.source === "ai" && (s.grade_value === "B" || s.grade_value === "B-" || s.grade_value === "C"))
         .map((s) => ({
           item: s.competency_item as CompetencyItemCode,
           grade: s.grade_value as CompetencyGrade,
@@ -206,7 +206,7 @@ export function StrategyEditor({
 
   // AI 제안 가능 여부
   const canSuggest = (aiDiagnosis?.weaknesses as string[] ?? []).length > 0
-    || (aiScores ?? []).some((s) => s.source === "ai" && (s.grade_value === "B-" || s.grade_value === "C"));
+    || (aiScores ?? []).some((s) => s.source === "ai" && (s.grade_value === "B" || s.grade_value === "B-" || s.grade_value === "C"));
 
   return (
     <div className="flex flex-col gap-4">

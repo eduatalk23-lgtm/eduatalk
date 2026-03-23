@@ -47,12 +47,13 @@ export function computeWarnings(input: WarningCheckInput): RecordWarning[] {
   const warnings: RecordWarning[] = [];
 
   const push = (w: RecordWarning | null) => { if (w) warnings.push(w); };
+  const pushAll = (ws: RecordWarning[]) => { for (const w of ws) warnings.push(w); };
 
   // ─── 기록 관련 ───
-  push(checkMissingCareerActivity(input));
-  push(checkChangcheEmpty(input));
-  push(checkHaengteukDraft(input));
-  push(checkReadingInsufficient(input));
+  pushAll(checkMissingCareerActivity(input));
+  pushAll(checkChangcheEmpty(input));
+  pushAll(checkHaengteukDraft(input));
+  pushAll(checkReadingInsufficient(input));
 
   // ─── 이수 관련 ───
   push(checkCourseInadequacy(input));
@@ -72,27 +73,30 @@ export function computeWarnings(input: WarningCheckInput): RecordWarning[] {
 
 // ─── 기록 경고 ──────────────────────────────────
 
-function checkMissingCareerActivity(input: WarningCheckInput): RecordWarning | null {
+function checkMissingCareerActivity(input: WarningCheckInput): RecordWarning[] {
+  const results: RecordWarning[] = [];
   for (const [grade, data] of input.recordsByGrade) {
     if (grade > input.currentGrade) continue;
     const hasCareer = data.changche.some(
       (c) => c.activity_type === "career" && c.content && c.content.trim().length > 10,
     );
     if (!hasCareer) {
-      return {
+      results.push({
         ruleId: "missing_career_activity",
         severity: grade < input.currentGrade ? "high" : "medium",
         category: "record",
         title: "진로활동 미기록",
         message: `${grade}학년 진로활동 기록이 없습니다.`,
         suggestion: "진로 관련 창체활동을 기록해주세요.",
-      };
+      });
     }
   }
-  return null;
+  return results;
 }
 
-function checkChangcheEmpty(input: WarningCheckInput): RecordWarning | null {
+function checkChangcheEmpty(input: WarningCheckInput): RecordWarning[] {
+  const results: RecordWarning[] = [];
+  const labels: Record<string, string> = { autonomy: "자율", club: "동아리", career: "진로" };
   for (const [grade, data] of input.recordsByGrade) {
     if (grade > input.currentGrade) continue;
     const emptyTypes = ["autonomy", "club", "career"].filter((type) => {
@@ -100,52 +104,53 @@ function checkChangcheEmpty(input: WarningCheckInput): RecordWarning | null {
       return !record || !record.content || record.content.trim().length < 10;
     });
     if (emptyTypes.length > 0) {
-      const labels: Record<string, string> = { autonomy: "자율", club: "동아리", career: "진로" };
-      return {
+      results.push({
         ruleId: "changche_empty",
         severity: grade < input.currentGrade ? "high" : "medium",
         category: "record",
         title: "창체 미작성",
         message: `${grade}학년 ${emptyTypes.map((t) => labels[t] ?? t).join(", ")} 영역이 비어있습니다.`,
         suggestion: "해당 학년의 창체 활동을 기록해주세요.",
-      };
+      });
     }
   }
-  return null;
+  return results;
 }
 
-function checkHaengteukDraft(input: WarningCheckInput): RecordWarning | null {
+function checkHaengteukDraft(input: WarningCheckInput): RecordWarning[] {
+  const results: RecordWarning[] = [];
   for (const [grade, data] of input.recordsByGrade) {
     if (grade >= input.currentGrade) continue; // 이전 학년만 체크
     if (!data.haengteuk || !data.haengteuk.content || data.haengteuk.content.trim().length < 20) {
-      return {
+      results.push({
         ruleId: "haengteuk_draft",
         severity: "high",
         category: "record",
         title: "행특 미확정",
         message: `${grade}학년 행동특성 및 종합의견이 작성되지 않았습니다.`,
         suggestion: "이전 학년 행특을 완성해주세요.",
-      };
+      });
     }
   }
-  return null;
+  return results;
 }
 
-function checkReadingInsufficient(input: WarningCheckInput): RecordWarning | null {
+function checkReadingInsufficient(input: WarningCheckInput): RecordWarning[] {
+  const results: RecordWarning[] = [];
   for (const [grade, data] of input.recordsByGrade) {
     if (grade > input.currentGrade) continue;
     if (data.readings.length < MIN_READINGS_PER_GRADE) {
-      return {
+      results.push({
         ruleId: "reading_insufficient",
         severity: "medium",
         category: "record",
         title: "독서 부족",
         message: `${grade}학년 독서활동이 ${data.readings.length}건입니다 (권장: ${MIN_READINGS_PER_GRADE}권 이상).`,
         suggestion: "전공 관련 독서를 추가로 기록해주세요.",
-      };
+      });
     }
   }
-  return null;
+  return results;
 }
 
 // ─── 이수 경고 ──────────────────────────────────
@@ -305,14 +310,16 @@ function checkMajorSubjectDecline(input: WarningCheckInput): RecordWarning | nul
     if (entries.length < MIN_CONSECUTIVE_DECLINE + 1) continue;
 
     let consecutiveDeclines = 0;
+    let maxConsecutiveDeclines = 0;
     for (let i = 1; i < entries.length; i++) {
       if (entries[i].rankGrade! > entries[i - 1].rankGrade!) {
         consecutiveDeclines++;
       } else {
         consecutiveDeclines = 0;
       }
+      maxConsecutiveDeclines = Math.max(maxConsecutiveDeclines, consecutiveDeclines);
     }
-    if (consecutiveDeclines >= MIN_CONSECUTIVE_DECLINE) {
+    if (maxConsecutiveDeclines >= MIN_CONSECUTIVE_DECLINE) {
       declining.push(subjectName);
     }
   }

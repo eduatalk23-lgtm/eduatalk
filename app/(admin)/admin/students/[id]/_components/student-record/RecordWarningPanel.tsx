@@ -5,8 +5,23 @@
 // ============================================
 
 import { cn } from "@/lib/cn";
-import type { RecordWarning, RecordWarningCategory, RecordWarningSeverity } from "@/lib/domains/student-record/warnings/types";
-import { AlertTriangle, BookOpen, GraduationCap, LineChart, CheckCircle } from "lucide-react";
+import type { RecordWarning, RecordWarningCategory, RecordWarningRuleId, RecordWarningSeverity } from "@/lib/domains/student-record/warnings/types";
+import { AlertTriangle, BookOpen, GraduationCap, LineChart, CheckCircle, ExternalLink } from "lucide-react";
+
+/** 경고 ruleId → 이동할 섹션 ID */
+const RULE_SECTION_MAP: Partial<Record<RecordWarningRuleId, string>> = {
+  missing_career_activity: "sec-changche",
+  changche_empty: "sec-changche",
+  haengteuk_draft: "sec-haengteuk",
+  reading_insufficient: "sec-reading",
+  course_inadequacy: "sec-diagnosis-adequacy",
+  storyline_weak: "sec-storyline",
+  storyline_gap: "sec-storyline",
+  min_score_critical: "sec-min-score",
+  min_score_bottleneck: "sec-min-score",
+  min_score_trend_down: "sec-min-score",
+  major_subject_decline: "sec-setek",
+};
 
 type Props = {
   warnings: RecordWarning[];
@@ -93,6 +108,7 @@ export function RecordWarningPanel({ warnings }: Props) {
             <div className="flex flex-col gap-1.5">
               {sorted.map((w, i) => {
                 const style = SEVERITY_STYLE[w.severity];
+                const targetSection = RULE_SECTION_MAP[w.ruleId];
                 return (
                   <div key={i} className={cn("rounded-md border px-3 py-2", style.bg, style.border)}>
                     <div className="flex items-center gap-2">
@@ -100,6 +116,14 @@ export function RecordWarningPanel({ warnings }: Props) {
                         {SEVERITY_LABEL[w.severity]}
                       </span>
                       <span className="text-xs font-medium text-[var(--text-primary)]">{w.title}</span>
+                      {targetSection && (
+                        <button
+                          onClick={() => document.getElementById(targetSection)?.scrollIntoView({ behavior: "smooth" })}
+                          className="ml-auto shrink-0 inline-flex items-center gap-0.5 text-[9px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+                        >
+                          이동 <ExternalLink size={9} />
+                        </button>
+                      )}
                     </div>
                     <p className="mt-0.5 text-xs text-[var(--text-secondary)]">{w.message}</p>
                     {w.suggestion && (

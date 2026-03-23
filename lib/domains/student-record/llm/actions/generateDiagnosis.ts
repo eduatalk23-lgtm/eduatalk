@@ -6,7 +6,7 @@
 // ============================================
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
-import { logActionError } from "@/lib/logging/actionLogger";
+import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
 import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
 import { COMPETENCY_ITEMS, COMPETENCY_AREA_LABELS, MAJOR_RECOMMENDED_COURSES } from "../../constants";
 import type { CompetencyScore, ActivityTag } from "../../types";
@@ -93,30 +93,60 @@ ${tagsSummary}
       messages: [{ role: "user", content: userPrompt }],
       modelTier: "fast",
       temperature: 0.3,
-      maxTokens: 2000,
+      maxTokens: 3000,
     });
 
     if (!result.content) {
       return { success: false, error: "AI 응답이 비어있습니다." };
     }
 
+    // JSON 추출 — 닫힌 fence → 열린 fence → raw 순서로 시도
     let jsonStr = result.content.trim();
-    const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonMatch) jsonStr = jsonMatch[1].trim();
+    const closedMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (closedMatch) {
+      jsonStr = closedMatch[1].trim();
+    } else {
+      const openMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*)/);
+      if (openMatch) jsonStr = openMatch[1].trim();
+    }
 
-    const parsed = JSON.parse(jsonStr);
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch {
+      return { success: false, error: "AI 응답 파싱에 실패했습니다. 다시 시도해주세요." };
+    }
+
+    if (!parsed || typeof parsed !== "object") {
+      return { success: false, error: "AI 응답 형식이 올바르지 않습니다." };
+    }
+
     const validGrades = new Set(["A+", "A-", "B+", "B", "B-", "C"]);
     const validStrengths = new Set(["strong", "moderate", "weak"]);
+
+    // fallback 발생 시 경고 로깅
+    const gradeFallback = !(typeof parsed.overallGrade === "string" && validGrades.has(parsed.overallGrade));
+    const strengthFallback = !(typeof parsed.directionStrength === "string" && validStrengths.has(parsed.directionStrength));
+    const emptyStrengths = !Array.isArray(parsed.strengths) || parsed.strengths.length === 0;
+    const emptyWeaknesses = !Array.isArray(parsed.weaknesses) || parsed.weaknesses.length === 0;
+
+    if (gradeFallback || strengthFallback || emptyStrengths || emptyWeaknesses) {
+      logActionWarn(LOG_CTX, "AI 진단 응답에 fallback 적용", {
+        gradeFallback: gradeFallback ? `"${String(parsed.overallGrade)}" → "B"` : null,
+        strengthFallback: strengthFallback ? `"${String(parsed.directionStrength)}" → "moderate"` : null,
+        emptyStrengths, emptyWeaknesses,
+      });
+    }
 
     return {
       success: true,
       data: {
-        overallGrade: validGrades.has(parsed.overallGrade) ? parsed.overallGrade : "B",
+        overallGrade: !gradeFallback ? (parsed.overallGrade as string) : "B",
         recordDirection: String(parsed.recordDirection ?? "").slice(0, 50),
-        directionStrength: validStrengths.has(parsed.directionStrength) ? parsed.directionStrength : "moderate",
-        strengths: Array.isArray(parsed.strengths) ? parsed.strengths.map(String) : [],
-        weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses.map(String) : [],
-        recommendedMajors: Array.isArray(parsed.recommendedMajors) ? parsed.recommendedMajors.map(String) : [],
+        directionStrength: !strengthFallback ? (parsed.directionStrength as string) : "moderate",
+        strengths: Array.isArray(parsed.strengths) ? parsed.strengths.filter((s): s is string => typeof s === "string" && s.length > 0) : [],
+        weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses.filter((s): s is string => typeof s === "string" && s.length > 0) : [],
+        recommendedMajors: Array.isArray(parsed.recommendedMajors) ? parsed.recommendedMajors.filter((s): s is string => typeof s === "string" && s.length > 0) : [],
         strategyNotes: String(parsed.strategyNotes ?? ""),
       },
     };
@@ -125,9 +155,6 @@ ${tagsSummary}
     const msg = error instanceof Error ? error.message : String(error);
     if (msg.includes("quota") || msg.includes("rate") || msg.includes("429")) {
       return { success: false, error: "AI 요청 한도에 도달했습니다." };
-    }
-    if (error instanceof SyntaxError || msg.includes("JSON")) {
-      return { success: false, error: "AI 응답 파싱에 실패했습니다. 다시 시도해주세요." };
     }
     return { success: false, error: "종합 진단 생성 중 오류가 발생했습니다." };
   }

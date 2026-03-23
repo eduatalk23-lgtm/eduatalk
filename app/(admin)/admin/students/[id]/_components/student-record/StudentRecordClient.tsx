@@ -600,6 +600,19 @@ export function StudentRecordClient({
     return result;
   }, [recordByGrade, subjects]);
 
+  // ─── 현재 학년 레코드 기반 태그 필터 ─────────────
+  const currentYearTagIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const rec of allRecordSummaries) ids.add(rec.id);
+    return ids;
+  }, [allRecordSummaries]);
+
+  const filteredActivityTags = useMemo(() => {
+    const allTags = diagnosisData?.activityTags ?? [];
+    if (currentYearTagIds.size === 0) return allTags;
+    return allTags.filter((t) => currentYearTagIds.has(t.record_id));
+  }, [diagnosisData?.activityTags, currentYearTagIds]);
+
   // ─── 경고 계산 ─────────────────────────────────
   const warnings = useMemo(() => {
     const recordsMap = new Map<number, import("@/lib/domains/student-record").RecordTabData>();
@@ -1018,7 +1031,7 @@ export function StudentRecordClient({
             {diagnosisLoading || anyRecordLoading ? <SectionSkeleton /> : (
               <CompetencyAnalysisSection
                 competencyScores={[...(diagnosisData?.competencyScores.ai ?? []), ...(diagnosisData?.competencyScores.consultant ?? [])]}
-                activityTags={diagnosisData?.activityTags ?? []}
+                activityTags={filteredActivityTags}
                 records={allRecordSummaries}
                 studentId={studentId}
                 tenantId={tenantId}
@@ -1034,7 +1047,7 @@ export function StudentRecordClient({
                 consultantDiagnosis={diagnosisData?.consultantDiagnosis ?? null}
                 aiScores={diagnosisData?.competencyScores.ai ?? []}
                 consultantScores={diagnosisData?.competencyScores.consultant ?? []}
-                activityTags={diagnosisData?.activityTags ?? []}
+                activityTags={filteredActivityTags}
                 studentId={studentId}
                 tenantId={tenantId}
                 schoolYear={initialSchoolYear}
@@ -1051,6 +1064,7 @@ export function StudentRecordClient({
                 takenSubjects={diagnosisData?.takenSubjects ?? []}
                 offeredSubjects={diagnosisData?.offeredSubjects ?? null}
                 initialMajor={diagnosisData?.targetMajor ?? null}
+                curriculumYear={(initialSchoolYear - studentGrade + 1) >= 2025 ? 2022 : 2015}
               />
             )}
           </StrategySection>

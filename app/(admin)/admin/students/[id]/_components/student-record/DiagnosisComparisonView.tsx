@@ -5,15 +5,17 @@
 // 2열 레이아웃: AI(읽기전용) | 컨설턴트(편집 가능)
 // ============================================
 
-import { useState, useCallback, useMemo, Fragment } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { upsertDiagnosisAction, confirmDiagnosisAction } from "@/lib/domains/student-record/actions/diagnosis";
 import { generateAiDiagnosis } from "@/lib/domains/student-record/llm/actions/generateDiagnosis";
-import { MAJOR_RECOMMENDED_COURSES, COMPETENCY_ITEMS, COMPETENCY_AREA_LABELS } from "@/lib/domains/student-record";
-import type { Diagnosis, CompetencyScore, ActivityTag, CompetencyGrade, CompetencyArea } from "@/lib/domains/student-record";
+import { MAJOR_RECOMMENDED_COURSES } from "@/lib/domains/student-record";
+import type { Diagnosis, CompetencyScore, ActivityTag, CompetencyGrade } from "@/lib/domains/student-record";
+import { GradeSummaryTable, RecommendedCourses } from "./GradeSummaryTable";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
-import { Sparkles, Copy, Check } from "lucide-react";
+import { Sparkles, Copy, Check, Loader2 } from "lucide-react";
+import { useAutoSave } from "./useAutoSave";
 
 type Props = {
   aiDiagnosis: Diagnosis | null;
@@ -72,6 +74,60 @@ export function DiagnosisComparisonView({
     setNotes(consultantDiagnosis?.strategy_notes ?? "");
   }
 
+  // 자동 저장용 데이터 객체
+  const autoSaveData = useMemo(() => ({
+    grade, direction, dirStrength, strengths, weaknesses, majors, notes,
+  }), [grade, direction, dirStrength, strengths, weaknesses, majors, notes]);
+
+  // 확정/진행 상태 ref — 자동저장 핸들러 내부에서 최신 값 참조용
+  const isConfirmedRef = useRef(consultantDiagnosis?.status === "confirmed");
+  const isConfirmingRef = useRef(false);
+  useEffect(() => {
+    isConfirmedRef.current = consultantDiagnosis?.status === "confirmed";
+  }, [consultantDiagnosis?.status]);
+
+  const autoSaveHandler = useCallback(async (data: typeof autoSaveData) => {
+    // 이중 방어: 확정 완료 또는 확정 진행 중이면 autoSave 차단
+    if (isConfirmedRef.current || isConfirmingRef.current) return { success: true };
+
+    const result = await upsertDiagnosisAction({
+      tenant_id: tenantId,
+      student_id: studentId,
+      school_year: schoolYear,
+      overall_grade: data.grade,
+      record_direction: data.direction || null,
+      direction_strength: data.dirStrength,
+      strengths: data.strengths,
+      weaknesses: data.weaknesses,
+      recommended_majors: data.majors,
+      strategy_notes: data.notes || null,
+      source: "manual",
+      status: "draft",
+    });
+    if (result.success) {
+      queryClient.invalidateQueries({ queryKey: qk });
+    }
+    return result;
+  }, [tenantId, studentId, schoolYear, queryClient, qk]);
+
+  const confirmMutation = useMutation({
+    mutationFn: async () => {
+      isConfirmingRef.current = true;
+      if (!consultantDiagnosis?.id) throw new Error("먼저 저장해주세요");
+      const result = await confirmDiagnosisAction(consultantDiagnosis.id);
+      if (!result.success) throw new Error(result.error);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk }),
+    onSettled: () => { isConfirmingRef.current = false; },
+  });
+
+  const { status: autoSaveStatus, error: autoSaveError } = useAutoSave({
+    data: autoSaveData,
+    onSave: autoSaveHandler,
+    debounceMs: 3000,
+    enabled: consultantDiagnosis?.status !== "confirmed" && !confirmMutation.isPending,
+  });
+
   // AI 종합진단 생성
   const aiGenMutation = useMutation({
     mutationFn: async () => {
@@ -95,36 +151,6 @@ export function DiagnosisComparisonView({
       });
       if (!saveResult.success) throw new Error(saveResult.error);
       return result.data;
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk }),
-  });
-
-  // 컨설턴트 저장
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const result = await upsertDiagnosisAction({
-        tenant_id: tenantId,
-        student_id: studentId,
-        school_year: schoolYear,
-        overall_grade: grade,
-        record_direction: direction || null,
-        direction_strength: dirStrength,
-        strengths, weaknesses,
-        recommended_majors: majors,
-        strategy_notes: notes || null,
-        source: "manual",
-        status: "draft",
-      });
-      if (!result.success) throw new Error(result.error);
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk }),
-  });
-
-  const confirmMutation = useMutation({
-    mutationFn: async () => {
-      if (!consultantDiagnosis?.id) throw new Error("먼저 저장해주세요");
-      const result = await confirmDiagnosisAction(consultantDiagnosis.id);
-      if (!result.success) throw new Error(result.error);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: qk }),
   });
@@ -170,12 +196,15 @@ export function DiagnosisComparisonView({
       {/* AI 생성 버튼 */}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => aiGenMutation.mutate()}
+          onClick={() => {
+            if (aiDiagnosis && !window.confirm("기존 AI 진단을 덮어씁니다. 계속하시겠습니까?")) return;
+            aiGenMutation.mutate();
+          }}
           disabled={aiGenMutation.isPending}
           className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100 disabled:opacity-50 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
         >
           <Sparkles size={14} />
-          {aiGenMutation.isPending ? "생성 중..." : "AI 종합 진단 생성"}
+          {aiGenMutation.isPending ? "생성 중..." : aiDiagnosis ? "AI 진단 재생성" : "AI 종합 진단 생성"}
         </button>
         {aiDiagnosis && (
           <button
@@ -193,10 +222,10 @@ export function DiagnosisComparisonView({
         <GradeSummaryTable aiScores={aiScores} consultantScores={consultantScores} activityTags={activityTags} />
       )}
 
-      {/* 2열 비교 */}
+      {/* 2열 비교 — 모바일에서는 컨설턴트(편집)를 먼저 표시 */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* ─── AI 진단 (읽기전용) ─── */}
-        <div className="rounded-lg border border-blue-200 p-4 dark:border-blue-800">
+        {/* ─── AI 진단 (읽기전용) — 모바일에서 아래로 ─── */}
+        <div className="order-2 rounded-lg border border-blue-200 p-4 lg:order-1 dark:border-blue-800">
           <div className="mb-3 flex items-center gap-2">
             <span className="text-sm font-semibold text-blue-700 dark:text-blue-400">AI 분석</span>
             {aiDiagnosis && (
@@ -222,8 +251,8 @@ export function DiagnosisComparisonView({
           )}
         </div>
 
-        {/* ─── 컨설턴트 진단 (편집) ─── */}
-        <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+        {/* ─── 컨설턴트 진단 (편집) — 모바일에서 위로 ─── */}
+        <div className="order-1 rounded-lg border border-gray-200 p-4 lg:order-2 dark:border-gray-700">
           <div className="mb-3 flex items-center gap-2">
             <span className="text-sm font-semibold text-[var(--text-primary)]">컨설턴트 진단</span>
             {consultantDiagnosis && (
@@ -237,7 +266,7 @@ export function DiagnosisComparisonView({
             {/* 종합등급 */}
             <FormRow label="종합등급" diff={isDiff(aiDiagnosis?.overall_grade, grade)}>
               <select value={grade} onChange={(e) => setGrade(e.target.value as CompetencyGrade)}
-                className="w-16 rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600">
+                className="min-h-[32px] w-16 rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600">
                 {GRADES.map((g) => <option key={g} value={g}>{g}</option>)}
               </select>
             </FormRow>
@@ -251,10 +280,11 @@ export function DiagnosisComparisonView({
 
             {/* 강도 */}
             <FormRow label="강도">
-              <div className="flex gap-1">
+              <div className="flex gap-1.5">
                 {STRENGTHS.map((s) => (
                   <button key={s} onClick={() => setDirStrength(s)}
-                    className={cn("rounded px-2 py-0.5 text-[10px] font-medium", dirStrength === s ? "bg-indigo-600 text-white" : "border border-gray-300 dark:border-gray-600")}>
+                    aria-pressed={dirStrength === s}
+                    className={cn("min-h-[32px] rounded px-3 py-1 text-xs font-medium", dirStrength === s ? "bg-indigo-600 text-white" : "border border-gray-300 dark:border-gray-600")}>
                     {STRENGTH_LABELS[s]}
                   </button>
                 ))}
@@ -270,7 +300,7 @@ export function DiagnosisComparisonView({
                     return (
                       <span key={i} className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px]", isMatch ? "bg-green-50 text-green-700 dark:bg-green-900/20" : "bg-gray-100 dark:bg-gray-700")}>
                         {isMatch && <Check size={10} />}{s}
-                        <button onClick={() => setStrengths(strengths.filter((_, j) => j !== i))} className="hover:text-red-500">×</button>
+                        <button onClick={() => setStrengths(strengths.filter((_, j) => j !== i))} className="hover:text-red-500" aria-label={`${s} 강점 삭제`}>×</button>
                       </span>
                     );
                   })}
@@ -290,7 +320,7 @@ export function DiagnosisComparisonView({
                     return (
                       <span key={i} className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px]", isMatch ? "bg-green-50 text-green-700 dark:bg-green-900/20" : "bg-gray-100 dark:bg-gray-700")}>
                         {isMatch && <Check size={10} />}{w}
-                        <button onClick={() => setWeaknesses(weaknesses.filter((_, j) => j !== i))} className="hover:text-red-500">×</button>
+                        <button onClick={() => setWeaknesses(weaknesses.filter((_, j) => j !== i))} className="hover:text-red-500" aria-label={`${w} 약점 삭제`}>×</button>
                       </span>
                     );
                   })}
@@ -322,19 +352,29 @@ export function DiagnosisComparisonView({
                 className="flex-1 resize-none rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600" />
             </FormRow>
 
-            {/* 버튼 */}
+            {/* 버튼 + 자동저장 상태 */}
             <div className="flex items-center gap-2 pt-1">
-              <button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}
-                className="rounded bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
-                {saveMutation.isPending ? "저장 중..." : "저장"}
-              </button>
               {consultantDiagnosis?.id && consultantDiagnosis.status !== "confirmed" && (
                 <button onClick={() => confirmMutation.mutate()} disabled={confirmMutation.isPending}
                   className="rounded border border-green-600 px-3 py-1 text-xs font-medium text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20">
                   확정
                 </button>
               )}
-              {saveMutation.isError && <span className="text-xs text-red-500">{saveMutation.error.message}</span>}
+              <span className="ml-auto text-[10px] text-[var(--text-tertiary)]" aria-live="polite" aria-atomic="true">
+                {autoSaveStatus === "saving" && (
+                  <span className="inline-flex items-center gap-1 text-blue-500">
+                    <Loader2 size={10} className="animate-spin" /> 저장 중…
+                  </span>
+                )}
+                {autoSaveStatus === "saved" && (
+                  <span className="inline-flex items-center gap-1 text-green-600">
+                    <Check size={10} /> 자동 저장됨
+                  </span>
+                )}
+                {autoSaveStatus === "error" && (
+                  <span className="text-red-500">저장 실패: {autoSaveError}</span>
+                )}
+              </span>
             </div>
           </div>
         </div>
@@ -350,7 +390,7 @@ function Row({ label, value, diff }: { label: string; value: string; diff?: bool
     <div className="flex gap-2">
       <span className="w-14 shrink-0 text-[var(--text-tertiary)]">{label}</span>
       <span className={cn("text-[var(--text-primary)]", diff && "font-medium text-amber-600 dark:text-amber-400")}>{value}</span>
-      {diff && <span className="text-amber-500">⚡</span>}
+      {diff && <span className="text-amber-500" title="AI와 차이 있음">⚡ <span className="sr-only">차이</span></span>}
     </div>
   );
 }
@@ -374,229 +414,12 @@ function TagList({ label, items, matchItems }: { label: string; items: string[];
   );
 }
 
-function GradeSummaryTable({ aiScores, consultantScores, activityTags }: {
-  aiScores: CompetencyScore[];
-  consultantScores: CompetencyScore[];
-  activityTags: ActivityTag[];
-}) {
-  const [expanded, setExpanded] = useState<string | null>(null);
-
-  const findScore = (scores: CompetencyScore[], code: string) =>
-    scores.find((s) => s.competency_item === code && s.scope === "yearly");
-
-  // P1-2: 역량별 근거 활동 집계
-  const tagsByItem = useMemo(() => {
-    const map = new Map<string, { positive: ActivityTag[]; negative: ActivityTag[]; needs_review: ActivityTag[] }>();
-    for (const tag of activityTags) {
-      const key = tag.competency_item;
-      const entry = map.get(key) ?? { positive: [], negative: [], needs_review: [] };
-      if (tag.evaluation === "positive") entry.positive.push(tag);
-      else if (tag.evaluation === "negative") entry.negative.push(tag);
-      else entry.needs_review.push(tag);
-      map.set(key, entry);
-    }
-    return map;
-  }, [activityTags]);
-
-  const areas: CompetencyArea[] = ["academic", "career", "community"];
-
-  return (
-    <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-      <table className="w-full text-xs">
-        <thead>
-          <tr className="bg-gray-50 dark:bg-gray-800">
-            <th className="px-3 py-1.5 text-left font-medium text-[var(--text-secondary)]">역량 항목</th>
-            <th className="w-16 px-2 py-1.5 text-center font-medium text-blue-600 dark:text-blue-400">AI</th>
-            <th className="w-16 px-2 py-1.5 text-center font-medium text-[var(--text-secondary)]">컨설턴트</th>
-            <th className="w-14 px-2 py-1.5 text-center font-medium text-[var(--text-tertiary)]">근거</th>
-          </tr>
-        </thead>
-        <tbody>
-          {areas.map((area) => {
-            const items = COMPETENCY_ITEMS.filter((i) => i.area === area);
-            return items.map((item, idx) => {
-              const aiScore = findScore(aiScores, item.code);
-              const conScore = findScore(consultantScores, item.code);
-              const aiGrade = aiScore?.grade_value;
-              const conGrade = conScore?.grade_value;
-              const match = aiGrade && conGrade && aiGrade === conGrade;
-              const differs = aiGrade && conGrade && aiGrade !== conGrade;
-              const isExpanded = expanded === item.code;
-              const tags = tagsByItem.get(item.code);
-              const tagCount = tags ? tags.positive.length + tags.negative.length + tags.needs_review.length : 0;
-              const aiNarrative = aiScore?.narrative;
-              const conNarrative = conScore?.narrative;
-              const hasDetail = aiNarrative || conNarrative || tagCount > 0;
-
-              return (
-                <Fragment key={item.code}>
-                  <tr
-                    onClick={() => hasDetail && setExpanded(isExpanded ? null : item.code)}
-                    className={cn(
-                      "border-t border-gray-100 dark:border-gray-800",
-                      idx === 0 && "border-t-gray-300 dark:border-t-gray-600",
-                      hasDetail && "cursor-pointer hover:bg-gray-50/50 dark:hover:bg-gray-800/50",
-                    )}
-                  >
-                    <td className="px-3 py-1.5">
-                      {idx === 0 && (
-                        <span className="mr-1.5 text-[9px] font-semibold text-[var(--text-tertiary)]">
-                          {COMPETENCY_AREA_LABELS[area]}
-                        </span>
-                      )}
-                      <span className="text-[var(--text-primary)]">{item.label}</span>
-                      {hasDetail && (
-                        <span className="ml-1 text-[9px] text-[var(--text-tertiary)]">{isExpanded ? "▲" : "▼"}</span>
-                      )}
-                    </td>
-                    <td className="px-2 py-1.5 text-center">
-                      <GradeBadge grade={aiGrade} variant={match ? "match" : differs ? "diff" : "default"} />
-                    </td>
-                    <td className="px-2 py-1.5 text-center">
-                      <GradeBadge grade={conGrade} variant={match ? "match" : differs ? "diff" : "default"} />
-                    </td>
-                    <td className="px-2 py-1.5 text-center">
-                      {tagCount > 0 && (
-                        <span className="text-[9px] text-[var(--text-tertiary)]">
-                          {tags!.positive.length > 0 && <span className="text-green-600">+{tags!.positive.length}</span>}
-                          {tags!.needs_review.length > 0 && <span className="ml-0.5 text-amber-500">?{tags!.needs_review.length}</span>}
-                          {tags!.negative.length > 0 && <span className="ml-0.5 text-red-500">-{tags!.negative.length}</span>}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                  {isExpanded && (
-                    <tr>
-                      <td colSpan={4} className="bg-gray-50/50 px-3 py-2 dark:bg-gray-800/30">
-                        <GradeDetail
-                          aiNarrative={aiNarrative ?? null}
-                          conNarrative={conNarrative ?? null}
-                          tags={tags}
-                        />
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              );
-            });
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-/** 확장 행: 해석 서술 + 근거 활동 */
-function GradeDetail({ aiNarrative, conNarrative, tags }: {
-  aiNarrative: string | null;
-  conNarrative: string | null;
-  tags?: { positive: ActivityTag[]; negative: ActivityTag[]; needs_review: ActivityTag[] };
-}) {
-  const allTags = tags ? [...tags.positive, ...tags.needs_review, ...tags.negative] : [];
-
-  return (
-    <div className="flex flex-col gap-2">
-      {/* P1-1: 해석 서술 */}
-      {(aiNarrative || conNarrative) && (
-        <div className="flex flex-col gap-1.5">
-          {aiNarrative && (
-            <div className="flex gap-1.5">
-              <span className="shrink-0 text-[9px] font-medium text-blue-600 dark:text-blue-400">AI</span>
-              <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">{aiNarrative}</p>
-            </div>
-          )}
-          {conNarrative && (
-            <div className="flex gap-1.5">
-              <span className="shrink-0 text-[9px] font-medium text-[var(--text-secondary)]">컨설턴트</span>
-              <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">{conNarrative}</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* P1-2: 근거 활동 집계 */}
-      {allTags.length > 0 && (
-        <div>
-          <span className="text-[9px] font-medium text-[var(--text-tertiary)]">근거 활동 ({allTags.length}건)</span>
-          <div className="mt-1 flex flex-col gap-0.5">
-            {allTags.slice(0, 5).map((tag) => (
-              <div key={tag.id} className="flex items-start gap-1.5 text-[10px]">
-                <span className={cn(
-                  "mt-0.5 shrink-0 rounded px-1 py-px text-[8px] font-medium",
-                  tag.evaluation === "positive" && "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-                  tag.evaluation === "negative" && "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
-                  tag.evaluation === "needs_review" && "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
-                )}>
-                  {tag.evaluation === "positive" ? "+" : tag.evaluation === "negative" ? "-" : "?"}
-                </span>
-                <span className="text-[var(--text-secondary)] line-clamp-1">
-                  {tag.evidence_summary?.replace(/^\[AI\]\s*/, "").split("\n")[0] ?? tag.record_type}
-                </span>
-              </div>
-            ))}
-            {allTags.length > 5 && (
-              <span className="text-[9px] text-[var(--text-tertiary)]">외 {allTags.length - 5}건</span>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function GradeBadge({ grade, variant }: { grade?: string; variant: "match" | "diff" | "default" }) {
-  if (!grade) return <span className="text-[var(--text-tertiary)]">-</span>;
-  return (
-    <span className={cn(
-      "inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold",
-      variant === "match" && "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400",
-      variant === "diff" && "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400",
-      variant === "default" && "text-[var(--text-primary)]",
-    )}>
-      {variant === "match" && "✓ "}{grade}
-    </span>
-  );
-}
-
-function RecommendedCourses({ majors }: { majors: string[] }) {
-  if (majors.length === 0) return null;
-
-  return (
-    <div className="ml-16 flex flex-col gap-2">
-      {majors.map((major) => {
-        const courses = MAJOR_RECOMMENDED_COURSES[major];
-        if (!courses) return null;
-        return (
-          <div key={major} className="rounded border border-gray-100 bg-gray-50/50 px-2.5 py-2 dark:border-gray-700 dark:bg-gray-800/50">
-            <span className="text-[10px] font-semibold text-[var(--text-secondary)]">{major}</span>
-            {courses.general.length > 0 && (
-              <div className="mt-1 flex flex-wrap items-center gap-1">
-                <span className="text-[9px] text-[var(--text-tertiary)]">일반</span>
-                {courses.general.map((c) => (
-                  <span key={c} className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">{c}</span>
-                ))}
-              </div>
-            )}
-            {courses.career.length > 0 && (
-              <div className="mt-1 flex flex-wrap items-center gap-1">
-                <span className="text-[9px] text-[var(--text-tertiary)]">진로</span>
-                {courses.career.map((c) => (
-                  <span key={c} className="rounded bg-purple-50 px-1.5 py-0.5 text-[9px] text-purple-600 dark:bg-purple-900/20 dark:text-purple-400">{c}</span>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 function FormRow({ label, children, diff }: { label: string; children: React.ReactNode; diff?: boolean }) {
   return (
     <div className="flex items-start gap-2">
       <span className={cn("w-14 shrink-0 pt-1 text-xs", diff ? "font-medium text-amber-600 dark:text-amber-400" : "text-[var(--text-tertiary)]")}>
-        {label} {diff && "⚡"}
+        {label} {diff && <span title="AI와 차이 있음">⚡</span>}
       </span>
       {children}
     </div>

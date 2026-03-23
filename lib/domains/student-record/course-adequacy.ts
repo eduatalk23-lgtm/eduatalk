@@ -6,7 +6,7 @@
 // 출력: 적합도 점수 + 이수/미이수 분류 + 안내 메시지
 // ============================================
 
-import { MAJOR_RECOMMENDED_COURSES } from "./constants";
+import { getMajorRecommendedCourses, MAJOR_RECOMMENDED_COURSES } from "./constants";
 import type { CourseAdequacyResult } from "./types";
 import { normalizeSubjectName } from "@/lib/domains/subject/normalize";
 
@@ -21,13 +21,17 @@ function buildNameSet(names: string[]): Set<string> {
  * @param majorCategory - 전공 계열 (MAJOR_RECOMMENDED_COURSES 키)
  * @param takenSubjects - 학생이 이수한 과목명 목록
  * @param offeredSubjects - 학교에서 개설한 과목명 목록 (null이면 필터링 안 함)
+ * @param curriculumYear - 교육과정 연도 (2015 또는 2022, 기본 2015)
  */
 export function calculateCourseAdequacy(
   majorCategory: string,
   takenSubjects: string[],
   offeredSubjects: string[] | null,
+  curriculumYear?: number,
 ): CourseAdequacyResult | null {
-  const recommended = MAJOR_RECOMMENDED_COURSES[majorCategory];
+  const recommended = curriculumYear
+    ? getMajorRecommendedCourses(majorCategory, curriculumYear)
+    : MAJOR_RECOMMENDED_COURSES[majorCategory];
   if (!recommended) return null;
 
   const takenSet = buildNameSet(takenSubjects);

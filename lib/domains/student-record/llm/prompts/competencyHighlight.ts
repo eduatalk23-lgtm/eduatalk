@@ -111,6 +111,8 @@ const VALID_EVALS = new Set(["positive", "negative", "needs_review"]);
 const VALID_SECTIONS = new Set(["학업태도", "학업수행능력", "탐구활동", "전체"]);
 const VALID_GRADES = new Set(["A+", "A-", "B+", "B", "B-", "C"]);
 
+const EMPTY_RESULT: HighlightAnalysisResult = { sections: [], competencyGrades: [], summary: "" };
+
 export function parseHighlightResponse(content: string): HighlightAnalysisResult {
   let jsonStr = content.trim();
   // 닫는 백틱이 있는 코드블록
@@ -123,10 +125,21 @@ export function parseHighlightResponse(content: string): HighlightAnalysisResult
     if (openMatch) jsonStr = openMatch[1].trim();
   }
 
-  const parsed = JSON.parse(jsonStr);
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(jsonStr);
+  } catch {
+    return EMPTY_RESULT;
+  }
+
+  // 필드 타입 가드
+  if (!parsed || typeof parsed !== "object") return EMPTY_RESULT;
+  const rawSections = Array.isArray(parsed.sections) ? parsed.sections : [];
+  const rawGrades = Array.isArray(parsed.competencyGrades) ? parsed.competencyGrades : [];
 
   const sections: AnalyzedSection[] = [];
-  for (const s of parsed.sections ?? []) {
+  for (const s of rawSections) {
+    if (!s || typeof s !== "object") continue;
     const sectionType = VALID_SECTIONS.has(s.sectionType) ? s.sectionType : "전체";
     const tags: HighlightTag[] = [];
 
@@ -153,9 +166,10 @@ export function parseHighlightResponse(content: string): HighlightAnalysisResult
     }
   }
 
-  const competencyGrades = (parsed.competencyGrades ?? [])
-    .filter((g: { item: string; grade: string }) =>
-      VALID_ITEMS.has(g.item) && VALID_GRADES.has(g.grade),
+  const competencyGrades = rawGrades
+    .filter((g: unknown): g is { item: string; grade: string; reasoning?: string } =>
+      !!g && typeof g === "object" && "item" in g && "grade" in g &&
+      VALID_ITEMS.has((g as { item: string }).item) && VALID_GRADES.has((g as { grade: string }).grade),
     )
     .map((g: { item: string; grade: string; reasoning?: string }) => ({
       item: g.item as CompetencyItemCode,
@@ -166,6 +180,6 @@ export function parseHighlightResponse(content: string): HighlightAnalysisResult
   return {
     sections,
     competencyGrades,
-    summary: String(parsed.summary ?? ""),
+    summary: typeof parsed.summary === "string" ? parsed.summary : "",
   };
 }

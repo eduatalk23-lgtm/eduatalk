@@ -46,7 +46,7 @@ export async function fetchDiagnosisTabData(
         competencyRepo.findActivityTags(studentId, tenantId),
         diagnosisRepo.findDiagnosisPair(studentId, schoolYear, tenantId),
         diagnosisRepo.findStrategies(studentId, schoolYear, tenantId),
-        supabase.from("students").select("target_major, school_name, target_sub_classification_id").eq("id", studentId).maybeSingle(),
+        supabase.from("students").select("target_major, school_name, target_sub_classification_id, grade").eq("id", studentId).maybeSingle(),
         supabase.from("student_internal_scores")
           .select("subject:subject_id(name)")
           .eq("student_id", studentId),
@@ -55,17 +55,6 @@ export async function fetchDiagnosisTabData(
     const targetMajor = studentResult.data?.target_major ?? null;
     const schoolName = studentResult.data?.school_name ?? null;
     const targetSubClassificationId = studentResult.data?.target_sub_classification_id ?? null;
-
-    // 소분류 이름 조회
-    let targetSubClassificationName: string | null = null;
-    if (targetSubClassificationId) {
-      const { data: dc } = await supabase
-        .from("department_classifications")
-        .select("sub_name")
-        .eq("id", targetSubClassificationId)
-        .single();
-      targetSubClassificationName = dc?.sub_name ?? null;
-    }
 
     // 이수 과목명 추출 (중복 제거)
     const takenSubjects = [
@@ -79,32 +68,47 @@ export async function fetchDiagnosisTabData(
       ),
     ];
 
-    // 학교 개설 과목 조회 (school_name → school_profiles → school_offered_subjects)
-    let offeredSubjects: string[] | null = null;
-    if (schoolName) {
-      const { data: profile } = await supabase
-        .from("school_profiles")
-        .select("id")
-        .eq("school_name", schoolName)
-        .maybeSingle();
-
-      if (profile) {
+    // 소분류 이름 + 학교 개설 과목 병렬 조회
+    const [targetSubClassificationName, offeredSubjects] = await Promise.all([
+      // 소분류 이름
+      (async (): Promise<string | null> => {
+        if (!targetSubClassificationId) return null;
+        const { data: dc } = await supabase
+          .from("department_classifications")
+          .select("sub_name")
+          .eq("id", targetSubClassificationId)
+          .single();
+        return dc?.sub_name ?? null;
+      })(),
+      // 학교 개설 과목
+      (async (): Promise<string[] | null> => {
+        if (!schoolName) return null;
+        const { data: profile } = await supabase
+          .from("school_profiles")
+          .select("id")
+          .eq("school_name", schoolName)
+          .maybeSingle();
+        if (!profile) return null;
         const { data: offered } = await supabase
           .from("school_offered_subjects")
           .select("subject:subject_id(name)")
           .eq("school_profile_id", profile.id);
-
-        offeredSubjects = (offered ?? [])
+        return (offered ?? [])
           .map((o) => {
             const subj = o.subject as unknown as { name: string } | null;
             return subj?.name;
           })
           .filter((n): n is string => !!n);
-      }
-    }
+      })(),
+    ]);
+
+    // 교육과정 연도 판별: 고1 입학 연도 = schoolYear - grade + 1, 2025 이후면 2022 교육과정
+    const studentGrade = studentResult.data?.grade ?? 1;
+    const enrollmentYear = schoolYear - studentGrade + 1;
+    const curriculumYear = enrollmentYear >= 2025 ? 2022 : 2015;
 
     const courseAdequacy = targetMajor
-      ? calculateCourseAdequacy(targetMajor, takenSubjects, offeredSubjects)
+      ? calculateCourseAdequacy(targetMajor, takenSubjects, offeredSubjects, curriculumYear)
       : null;
 
     return {
@@ -199,6 +203,36 @@ export async function deleteActivityTagAction(
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "deleteActivityTag" }, error);
     return { success: false, error: "활동 태그 삭제 중 오류가 발생했습니다." };
+  }
+}
+
+/** 활동 태그 배치 추가 */
+export async function addActivityTagsBatchAction(
+  inputs: import("../types").ActivityTagInsert[],
+): Promise<StudentRecordActionResult> {
+  try {
+    await requireAdminOrConsultant();
+    const ids = await competencyRepo.insertActivityTags(inputs);
+    return { success: true, id: ids[0] };
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "addActivityTagsBatch" }, error);
+    return { success: false, error: "활동 태그 배치 추가 중 오류가 발생했습니다." };
+  }
+}
+
+/** 특정 레코드의 AI 생성 태그 일괄 삭제 (재분석 전 정리) */
+export async function deleteAiTagsForRecordAction(
+  recordType: string,
+  recordId: string,
+  tenantId: string,
+): Promise<StudentRecordActionResult> {
+  try {
+    await requireAdminOrConsultant();
+    await competencyRepo.deleteAiActivityTagsByRecord(recordType, recordId, tenantId);
+    return { success: true };
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "deleteAiTagsForRecord" }, error);
+    return { success: false, error: "AI 태그 정리 중 오류가 발생했습니다." };
   }
 }
 
