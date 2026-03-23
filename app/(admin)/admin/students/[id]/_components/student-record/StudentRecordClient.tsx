@@ -141,6 +141,7 @@ const STAGES: StageConfig[] = [
     label: "설계",
     hasYearSelector: false,
     sections: [
+      { id: "sec-pipeline-results", label: "AI 분석 결과" },
       { id: "sec-course-plan", label: "수강 계획" },
       { id: "sec-storyline", label: "스토리라인" },
       { id: "sec-roadmap", label: "로드맵" },
@@ -1128,7 +1129,9 @@ export function StudentRecordClient({
           <StageDivider emoji="📐" label="설계" />
 
           {/* Phase B: AI 초기 분석 결과 패널 */}
-          <DesignPipelineResultsPanel studentId={studentId} tenantId={tenantId} />
+          <div data-section-id="sec-pipeline-results">
+            <DesignPipelineResultsPanel studentId={studentId} tenantId={tenantId} />
+          </div>
 
           {/* ─── 설계: 계획 그룹 ──────────────────── */}
           <p className="mt-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">계획</p>
