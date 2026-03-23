@@ -33,9 +33,10 @@ export function StorylineSection({
         <h2 className="border-b-2 border-gray-800 pb-2 text-xl font-bold text-gray-900">
           스토리라인
         </h2>
-        <p className="pt-4 text-sm text-gray-500">
-          등록된 스토리라인이 없습니다.
-        </p>
+        <div className="mt-4 rounded-lg border border-dashed border-gray-300 p-6 text-center">
+          <p className="text-sm text-gray-500">스토리라인이 아직 등록되지 않았습니다.</p>
+          <p className="mt-1 text-xs text-gray-400">3년간 성장 서사를 구성하면 테마별 연결과 로드맵이 표시됩니다.</p>
+        </div>
       </section>
     );
   }

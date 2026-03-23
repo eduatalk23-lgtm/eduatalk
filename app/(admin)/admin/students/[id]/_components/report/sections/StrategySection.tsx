@@ -27,7 +27,10 @@ export function StrategySection({ diagnosisData }: StrategySectionProps) {
       </h2>
 
       {strategies.length === 0 ? (
-        <p className="text-sm text-gray-500">등록된 전략이 없습니다.</p>
+        <div className="mt-4 rounded-lg border border-dashed border-gray-300 p-6 text-center">
+          <p className="text-sm text-gray-500">보완 전략이 아직 수립되지 않았습니다.</p>
+          <p className="mt-1 text-xs text-gray-400">종합 진단 후 AI 전략 제안을 활용하여 보완 전략을 등록하세요.</p>
+        </div>
       ) : (
         <table className="w-full border-collapse text-sm">
           <thead>

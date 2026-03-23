@@ -17,7 +17,10 @@ export function MockSection({ mockAnalysis }: MockSectionProps) {
       </h2>
 
       {!hasData ? (
-        <p className="text-sm text-gray-500">모의고사 데이터가 없습니다.</p>
+        <div className="mt-4 rounded-lg border border-dashed border-gray-300 p-6 text-center">
+          <p className="text-sm text-gray-500">모의고사 데이터가 입력되지 않았습니다.</p>
+          <p className="mt-1 text-xs text-gray-400">모의고사 성적을 입력하면 백분위 추이와 배치 분석이 표시됩니다.</p>
+        </div>
       ) : (
         <div className="space-y-4">
           {recentExam && (

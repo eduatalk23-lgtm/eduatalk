@@ -29,7 +29,10 @@ export function DiagnosisSection({ diagnosisData }: DiagnosisSectionProps) {
       </h2>
 
       {!hasData ? (
-        <p className="pt-4 text-sm text-gray-500">진단 데이터가 없습니다.</p>
+        <div className="mt-4 rounded-lg border border-dashed border-gray-300 p-6 text-center">
+          <p className="text-sm text-gray-500">종합 진단이 아직 수행되지 않았습니다.</p>
+          <p className="mt-1 text-xs text-gray-400">AI 종합 진단을 생성하면 강점/약점 분석, 추천전공, 교과이수적합도가 표시됩니다.</p>
+        </div>
       ) : (
         <div className="space-y-6 pt-4">
           {/* 종합 소견 */}
@@ -173,25 +176,30 @@ export function DiagnosisSection({ diagnosisData }: DiagnosisSectionProps) {
               <h3 className="text-sm font-semibold text-gray-700">
                 교과 이수 적합도
               </h3>
-              <div className="flex items-center gap-3 pt-2">
-                <span className="text-2xl font-bold text-gray-900">
+              <div className="flex items-center gap-4 pt-2">
+                <span className={`text-2xl font-bold ${courseAdequacy.score >= 70 ? "text-emerald-600" : courseAdequacy.score >= 50 ? "text-amber-600" : "text-red-600"}`}>
                   {courseAdequacy.score}점
                 </span>
-                <span className="text-sm text-gray-500">
-                  / 100 ({courseAdequacy.majorCategory})
-                </span>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <span>{courseAdequacy.majorCategory}</span>
+                    <span className="flex-1 h-2.5 overflow-hidden rounded-full bg-gray-200">
+                      <span
+                        className={`block h-full rounded-full transition-all ${courseAdequacy.score >= 70 ? "bg-emerald-500" : courseAdequacy.score >= 50 ? "bg-amber-500" : "bg-red-500"}`}
+                        style={{ width: `${courseAdequacy.score}%` }}
+                      />
+                    </span>
+                    <span>{courseAdequacy.score}%</span>
+                  </div>
+                  <div className="mt-1 flex gap-4 text-[10px] text-gray-500">
+                    <span>일반선택 {courseAdequacy.generalRate}%</span>
+                    <span>진로선택 {courseAdequacy.careerRate}%</span>
+                  </div>
+                </div>
               </div>
 
               {/* 이수율 + 과목 수 */}
               <div className="grid grid-cols-2 gap-3 pt-2 text-xs text-gray-600">
-                <p>
-                  일반선택 이수율:{" "}
-                  {(courseAdequacy.generalRate * 100).toFixed(0)}%
-                </p>
-                <p>
-                  진로선택 이수율:{" "}
-                  {(courseAdequacy.careerRate * 100).toFixed(0)}%
-                </p>
                 <p>
                   추천 과목: {courseAdequacy.totalRecommended}개 (이수 가능{" "}
                   {courseAdequacy.totalAvailable}개)

@@ -30,9 +30,10 @@ export function ApplicationSection({ strategyData }: ApplicationSectionProps) {
 
       {/* 지원 리스트 */}
       {applications.length === 0 ? (
-        <p className="pt-4 text-sm text-gray-500">
-          등록된 지원 정보가 없습니다.
-        </p>
+        <div className="mt-4 rounded-lg border border-dashed border-gray-300 p-6 text-center">
+          <p className="text-sm text-gray-500">지원 현황이 아직 등록되지 않았습니다.</p>
+          <p className="mt-1 text-xs text-gray-400">수시/정시 지원 대학을 등록하면 수능최저 충족 분석과 면접 일정이 표시됩니다.</p>
+        </div>
       ) : (
         <table className="w-full border-collapse pt-4 text-sm">
           <thead>
