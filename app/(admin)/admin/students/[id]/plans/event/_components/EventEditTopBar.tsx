@@ -170,16 +170,14 @@ export function EventEditTopBar({
                   />
                 </>
               )}
-              {/* 종료 날짜: 시작과 다를 때만 표시 (GCal 패턴) */}
-              {isMultiDay && (
-                <input
-                  type="date"
-                  value={dateTime.endDate}
-                  onChange={(e) => dateTime.onEndDateChange(e.target.value)}
-                  min={dateTime.date}
-                  className={controlCls}
-                />
-              )}
+              {/* 종료 날짜: 항상 표시 (multi-day 이벤트 생성 가능하도록) */}
+              <input
+                type="date"
+                value={dateTime.endDate}
+                onChange={(e) => dateTime.onEndDateChange(e.target.value)}
+                min={dateTime.date}
+                className={controlCls}
+              />
               {!dateTime.isAllDay && durationMinutes > 0 && (
                 <span className="text-sm text-[var(--text-tertiary)] shrink-0">
                   {formatDurationKo(durationMinutes)}

@@ -135,21 +135,17 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
     setEndTime(minutesToTime(newEndMin));
   }, [startTime, endTime]);
 
-  // GCal 패턴: end ≤ start on same date → endDate 다음날 / end > start on next day → endDate 리셋
+  // GCal 패턴: end ≤ start on same date → endDate 다음날로 자동 변경
   const handleEndTimeChange = useCallback((newEnd: string) => {
     setEndTime(newEnd);
-    const endMin = timeToMinutes(newEnd);
-    const startMin = timeToMinutes(startTime);
-    if (!isMultiDay && endMin <= startMin) {
-      // 같은 날인데 end ≤ start → 다음날로 자동 변경
+    if (!isMultiDay && timeToMinutes(newEnd) <= timeToMinutes(startTime)) {
       try {
         const nextDay = format(addDays(parseISO(planDate), 1), 'yyyy-MM-dd');
         setEndDate(nextDay);
       } catch { /* ignore */ }
-    } else if (isMultiDay && endMin > startMin) {
-      // 다음날인데 end > start → 같은 날로 리셋
-      setEndDate(planDate);
     }
+    // 참고: isMultiDay일 때 endTime > startTime이어도 리셋하지 않음
+    // → 사용자가 의도적으로 만든 multi-day 이벤트를 보존
   }, [startTime, isMultiDay, planDate]);
 
   const handleAddTime = useCallback(() => {

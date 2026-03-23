@@ -314,19 +314,15 @@ export function useEventEditForm(opts: UseEventEditFormOptions): UseEventEditFor
       if (key === 'endDate' && typeof value === 'string' && value < next.date) {
         next.endDate = next.date;
       }
-      // GCal overnight auto-detect
+      // GCal overnight auto-detect: 같은 날 + end ≤ start → endDate 다음날
       if (key === 'endTime' && typeof value === 'string' && !next.isAllDay) {
-        const endMin = timeToMinutes(value);
-        const startMin = timeToMinutes(next.startTime);
-        if (next.endDate === next.date && endMin <= startMin) {
-          // 같은 날 + end ≤ start → endDate 다음날
-          const d = new Date(next.date + 'T00:00:00');
+        if (next.endDate === next.date && timeToMinutes(value) <= timeToMinutes(next.startTime)) {
+          const d = new Date(next.date + 'T00:00:00Z');
           d.setDate(d.getDate() + 1);
           next.endDate = d.toISOString().split('T')[0];
-        } else if (next.endDate > next.date && endMin > startMin) {
-          // 다음날 + end > start → endDate 리셋
-          next.endDate = next.date;
         }
+        // 참고: endDate > date일 때 endTime > startTime이어도 리셋하지 않음
+        // → 사용자가 수동으로 설정한 multi-day를 보존
       }
       return next;
     });
