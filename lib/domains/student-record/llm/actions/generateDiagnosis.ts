@@ -66,7 +66,11 @@ export async function generateAiDiagnosis(
       `활동 태그 분석 (총 ${activityTags.length}건):`,
       ...Array.from(tagsByItem.entries()).map(([item, stats]) => {
         const label = COMPETENCY_ITEMS.find((i) => i.code === item)?.label ?? item;
-        const counts = [`+${stats.positive}`, stats.negative > 0 ? `-${stats.negative}` : "", stats.needs_review > 0 ? `?${stats.needs_review}` : ""].filter(Boolean).join(" ");
+        const parts: string[] = [];
+        if (stats.positive > 0) parts.push(`긍정 ${stats.positive}건`);
+        if (stats.negative > 0) parts.push(`부정 ${stats.negative}건`);
+        if (stats.needs_review > 0) parts.push(`확인필요 ${stats.needs_review}건`);
+        const counts = parts.join(", ");
         const samples = stats.samples.length > 0 ? ` (예: ${stats.samples.join("; ")})` : "";
         return `  - ${label}: ${counts}${samples}`;
       }),

@@ -149,13 +149,19 @@ export function CompetencyAnalysisSection({
       }
     }
 
+    // 등급 순서 — 동점 시 상위 등급 우선
+    const GRADE_RANK: Record<string, number> = { "A+": 0, "A-": 1, "B+": 2, "B": 3, "B-": 4, "C": 5 };
+
     const promises: Promise<unknown>[] = [];
     for (const [item, votes] of gradeVotes) {
-      // 최빈값 선택
+      // 최빈값 선택 (동점 시 상위 등급 우선)
       let bestGrade = "B";
       let bestCount = 0;
       for (const [grade, count] of votes) {
-        if (count > bestCount) { bestGrade = grade; bestCount = count; }
+        if (count > bestCount || (count === bestCount && (GRADE_RANK[grade] ?? 99) < (GRADE_RANK[bestGrade] ?? 99))) {
+          bestGrade = grade;
+          bestCount = count;
+        }
       }
       const area = COMPETENCY_ITEMS.find((i) => i.code === item)?.area;
       if (!area) continue;
@@ -257,8 +263,12 @@ export function CompetencyAnalysisSection({
             ? `분석 중... ${batchProgress.done}/${batchProgress.total}`
             : "AI 역량 종합 분석"}
         </button>
-        {/* 상태 필 — 레코드 수 / 에러 / 부분 실패를 하나로 */}
-        {error ? (
+        {/* 상태 필 — 파이프라인 / 에러 / 부분 실패를 하나로 */}
+        {isPipelineRunning ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
+            <Loader2 size={12} className="animate-spin" /> AI 초기 분석 파이프라인 진행 중
+          </span>
+        ) : error ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-0.5 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-400">
             {error}
             <button type="button" onClick={() => batchMutation.mutate()}
@@ -300,7 +310,7 @@ export function CompetencyAnalysisSection({
             }
 
             return (
-              <div key={rec.id} className="rounded-lg border border-gray-200 dark:border-gray-700">
+              <div key={rec.id} className={cn("rounded-lg border border-gray-200 dark:border-gray-700", isAnalyzing && "animate-pulse")}>
                 <div className="flex items-center justify-between px-3 py-2">
                   <span className="text-sm text-[var(--text-primary)]">{rec.label}</span>
                   <button
@@ -313,7 +323,7 @@ export function CompetencyAnalysisSection({
                     ) : (
                       <Sparkles size={12} />
                     )}
-                    분석
+                    {isAnalyzing ? "분석 중..." : "분석"}
                   </button>
                 </div>
                 <div className="border-t border-gray-100 px-3 py-2 dark:border-gray-700">
