@@ -217,9 +217,10 @@ export function SetekEditor({
                   ? "border-indigo-500 text-indigo-600 dark:text-indigo-400"
                   : "border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]",
               )}
+              title={tab.label}
             >
-              <tab.icon className="h-3 w-3" />
-              {tab.label}
+              <tab.icon className="h-3.5 w-3.5 shrink-0" />
+              <span className="hidden sm:inline">{tab.label}</span>
               {hasData && tab.key !== "record" && (
                 <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-indigo-500" />
               )}

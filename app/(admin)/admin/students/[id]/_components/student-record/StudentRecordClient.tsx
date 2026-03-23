@@ -428,29 +428,28 @@ export function StudentRecordClient({
 
   const sidebarContent = (
     <div className="flex flex-col gap-0.5 p-3">
-      {/* 진행률 대시보드 */}
-      <div className="mb-3 rounded-lg bg-[var(--surface-secondary)] px-3 py-2">
-        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-[var(--text-secondary)]">
-          <span>기록 <b className="text-[var(--text-primary)]">{progressCounts.recordFilled}/{progressCounts.recordTotal}</b></span>
-          <span>진단 <b className="text-[var(--text-primary)]">{progressCounts.diagnosisFilled > 0 ? "✓" : "○"}</b></span>
-          <span>설계 <b className="text-[var(--text-primary)]">{progressCounts.designFilled}/7</b></span>
-          <span>전략 <b className="text-[var(--text-primary)]">{progressCounts.strategyFilled}/6</b></span>
-        </div>
-        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-          <div
-            className="h-full rounded-full bg-indigo-500 transition-all"
-            style={{
-              width: `${Math.round(
-                ((progressCounts.recordFilled + progressCounts.diagnosisFilled + progressCounts.designFilled + progressCounts.strategyFilled) /
-                  (progressCounts.recordTotal + 1 + 7 + 6)) * 100,
-              )}%`,
-            }}
-          />
+      {/* 진행률 대시보드 — 스테이지별 미니 바 */}
+      <div className="mb-3 rounded-lg bg-[var(--surface-secondary)] px-3 py-2.5">
+        <div className="flex flex-col gap-1.5">
+          {([
+            { label: "📋 기록", filled: progressCounts.recordFilled, total: progressCounts.recordTotal, color: "bg-blue-500" },
+            { label: "🔍 진단", filled: progressCounts.diagnosisFilled, total: 1, color: "bg-purple-500" },
+            { label: "📐 설계", filled: progressCounts.designFilled, total: 7, color: "bg-indigo-500" },
+            { label: "📝 전략", filled: progressCounts.strategyFilled, total: 6, color: "bg-emerald-500" },
+          ] as const).map(({ label, filled, total, color }) => (
+            <div key={label} className="flex items-center gap-2">
+              <span className="w-14 shrink-0 text-[10px] text-[var(--text-secondary)]">{label}</span>
+              <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${total > 0 ? Math.round((filled / total) * 100) : 0}%` }} />
+              </div>
+              <span className="w-8 text-right text-[10px] font-medium text-[var(--text-primary)]">{filled}/{total}</span>
+            </div>
+          ))}
         </div>
         {/* G4-5: 불완전함 보존 알림 */}
         {((progressCounts.recordFilled + progressCounts.diagnosisFilled + progressCounts.designFilled + progressCounts.strategyFilled) /
           (progressCounts.recordTotal + 1 + 7 + 6)) >= 0.95 && (
-          <p className="pt-1 text-[9px] text-amber-600 dark:text-amber-400">
+          <p className="mt-1.5 text-[10px] text-amber-600 dark:text-amber-400">
             완벽한 일관성보다 자연스러운 다양성이 설득력 있습니다
           </p>
         )}
@@ -1100,6 +1099,9 @@ export function StudentRecordClient({
           {/* Phase B: AI 초기 분석 결과 패널 */}
           <DesignPipelineResultsPanel studentId={studentId} tenantId={tenantId} />
 
+          {/* ─── 설계: 계획 그룹 ──────────────────── */}
+          <p className="mt-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">계획</p>
+
           {/* ─── 수강 계획 ──────────────────────────── */}
           <StrategySection id="sec-course-plan" title="수강 계획">
             <Suspense fallback={<SectionSkeleton />}>
@@ -1159,6 +1161,9 @@ export function StudentRecordClient({
             )}
           </StrategySection>
 
+          {/* ─── 설계: AI 리포트 그룹 ────────────── */}
+          <p className="mt-6 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">AI 리포트</p>
+
           {/* ─── 활동 요약서 ──────────────────────── */}
           <StrategySection id="sec-activity-summary" title="활동 요약서">
             <Suspense fallback={<SectionSkeleton />}>
@@ -1180,6 +1185,9 @@ export function StudentRecordClient({
               />
             </Suspense>
           </StrategySection>
+
+          {/* ─── 설계: 가이드 그룹 ─────────────── */}
+          <p className="mt-6 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">가이드</p>
 
           {/* ─── 활동 가이드 (탐구 가이드 배정) ──── */}
           <StrategySection id="sec-exploration-guide" title="활동 가이드">
