@@ -244,12 +244,21 @@ export function DiagnosisComparisonView({
             )}
           </div>
 
-          {!aiDiagnosis ? (
+          {aiGenMutation.isPending ? (
+            <div className="flex flex-col gap-3 animate-pulse">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex gap-2">
+                  <div className="h-4 w-16 shrink-0 rounded bg-blue-100 dark:bg-blue-900/30" />
+                  <div className="h-4 flex-1 rounded bg-gray-100 dark:bg-gray-800" />
+                </div>
+              ))}
+            </div>
+          ) : !aiDiagnosis ? (
             <div className="rounded-lg border border-dashed border-gray-300 p-4 text-center text-xs text-[var(--text-tertiary)] dark:border-gray-600">
               상단의 &ldquo;AI 종합 진단 생성&rdquo; 버튼을 눌러 분석을 시작하세요
             </div>
           ) : (
-            <div className="flex flex-col gap-2 text-xs">
+            <div className="flex flex-col gap-3 text-xs">
               <Row label="종합등급" value={aiDiagnosis.overall_grade} diff={isDiff(aiDiagnosis.overall_grade, grade)} />
               <Row label="방향" value={aiDiagnosis.record_direction ?? "-"} diff={isDiff(aiDiagnosis.record_direction, direction)} />
               <Row label="강도" value={STRENGTH_LABELS[aiDiagnosis.direction_strength ?? "moderate"]} />
@@ -273,7 +282,7 @@ export function DiagnosisComparisonView({
             )}
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-4">
             {/* 종합등급 */}
             <FormRow label="종합등급" diff={isDiff(aiDiagnosis?.overall_grade, grade)}>
               <select value={grade} onChange={(e) => setGrade(e.target.value as CompetencyGrade)}

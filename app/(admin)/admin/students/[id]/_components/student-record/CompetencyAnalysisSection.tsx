@@ -16,7 +16,7 @@ import type { CompetencyScore, ActivityTag, CompetencyArea, CompetencyGrade } fr
 import type { HighlightAnalysisResult } from "@/lib/domains/student-record/llm/types";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { HighlightedSetekView, CompetencyBadge } from "./HighlightedSetekView";
-import { Sparkles, ArrowDown, Check, X, ChevronRight } from "lucide-react";
+import { Sparkles, ArrowDown, Check, X, ChevronRight, Loader2 } from "lucide-react";
 
 type RecordForHighlight = {
   id: string;
@@ -234,32 +234,32 @@ export function CompetencyAnalysisSection({
             ? `분석 중... ${batchProgress.done}/${batchProgress.total}`
             : "AI 역량 종합 분석"}
         </button>
-        <span className="text-xs text-[var(--text-tertiary)]">
-          {records.length > 0 ? `${records.length}건 레코드 기반` : "분석할 레코드가 없습니다"}
-        </span>
-        {error && (
-          <span className="flex items-center gap-2">
-            <span className="text-xs text-red-500">{error}</span>
-            <button
-              type="button"
-              onClick={() => batchMutation.mutate()}
-              className="rounded px-2 py-0.5 text-xs font-medium text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/30"
-            >
-              다시 시도
-            </button>
+        {/* 상태 필 — 레코드 수 / 에러 / 부분 실패를 하나로 */}
+        {error ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-0.5 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-400">
+            {error}
+            <button type="button" onClick={() => batchMutation.mutate()}
+              className="ml-1 font-medium underline hover:no-underline">재시도</button>
           </span>
-        )}
-        {batchMutation.isSuccess && batchProgress.failed > 0 && (
-          <span className="text-xs text-amber-600 dark:text-amber-400">
-            {batchProgress.total - batchProgress.failed}건 성공, {batchProgress.failed}건 실패
+        ) : batchMutation.isSuccess && batchProgress.failed > 0 ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
+            {batchProgress.total - batchProgress.failed}건 성공 · {batchProgress.failed}건 실패
+          </span>
+        ) : batchMutation.isSuccess ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 text-xs text-green-700 dark:bg-green-900/20 dark:text-green-400">
+            <Check size={12} /> {batchProgress.total}건 분석 완료
+          </span>
+        ) : (
+          <span className="text-xs text-[var(--text-tertiary)]">
+            {records.length > 0 ? `${records.length}건 레코드` : "분석할 레코드가 없습니다"}
           </span>
         )}
       </div>
 
       {/* ─── 세특별 하이라이트 뷰 (먼저: 근거를 보고 등급 결정) ── */}
       <div>
-        <h4 className="mb-2 text-sm font-semibold text-[var(--text-primary)]">활동별 역량 분석</h4>
-        <div className="flex flex-col gap-2">
+        <h4 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">활동별 역량 분석</h4>
+        <div className="flex flex-col gap-3">
           {records.map((rec) => {
             const result = highlightResults.get(rec.id);
             const isAnalyzing = analyzingId === rec.id;
@@ -391,18 +391,18 @@ export function CompetencyAnalysisSection({
                                       <button
                                         onClick={() => tagConfirmMutation.mutate(tag.id)}
                                         disabled={tagConfirmMutation.isPending}
-                                        className="rounded p-0.5 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30"
+                                        className="rounded p-1 text-green-600 hover:bg-green-100 disabled:opacity-50 dark:hover:bg-green-900/30"
                                         title="확정"
                                       >
-                                        <Check size={10} />
+                                        {tagConfirmMutation.isPending ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
                                       </button>
                                       <button
                                         onClick={() => tagDeleteMutation.mutate(tag.id)}
                                         disabled={tagDeleteMutation.isPending}
-                                        className="rounded p-0.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30"
+                                        className="rounded p-1 text-red-500 hover:bg-red-100 disabled:opacity-50 dark:hover:bg-red-900/30"
                                         title="거부"
                                       >
-                                        <X size={10} />
+                                        {tagDeleteMutation.isPending ? <Loader2 size={10} className="animate-spin" /> : <X size={10} />}
                                       </button>
                                     </span>
                                   )}

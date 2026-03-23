@@ -9,6 +9,7 @@ import { useState, useMemo, Fragment } from "react";
 import { cn } from "@/lib/cn";
 import { COMPETENCY_ITEMS, COMPETENCY_AREA_LABELS, MAJOR_RECOMMENDED_COURSES } from "@/lib/domains/student-record";
 import type { CompetencyScore, ActivityTag, CompetencyArea } from "@/lib/domains/student-record";
+import { ChevronDown } from "lucide-react";
 
 // ─── GradeSummaryTable ─────────────────────────
 
@@ -95,7 +96,7 @@ export function GradeSummaryTable({ aiScores, consultantScores, activityTags }: 
                       )}
                       <span className="text-[var(--text-primary)]">{item.label}</span>
                       {hasDetail && (
-                        <span className="ml-1 text-[10px] text-[var(--text-tertiary)]">{isExpanded ? "▲" : "▼"}</span>
+                        <ChevronDown size={12} className={cn("ml-1 text-[var(--text-tertiary)] transition-transform", isExpanded && "rotate-180")} />
                       )}
                     </td>
                     <td className="px-2 py-1.5 text-center">
@@ -116,7 +117,7 @@ export function GradeSummaryTable({ aiScores, consultantScores, activityTags }: 
                   </tr>
                   {isExpanded && (
                     <tr>
-                      <td colSpan={4} className="bg-gray-50/50 px-3 py-2 dark:bg-gray-800/30">
+                      <td colSpan={4} className="bg-gray-50/50 px-3 py-2.5 dark:bg-gray-800/30">
                         <GradeDetail
                           aiNarrative={aiNarrative ?? null}
                           conNarrative={conNarrative ?? null}
