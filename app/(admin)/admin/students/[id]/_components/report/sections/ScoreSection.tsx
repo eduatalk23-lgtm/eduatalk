@@ -117,7 +117,7 @@ export function ScoreSection({
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="교과군" tick={{ fontSize: 10 }} />
               <YAxis domain={[0, 9]} tick={{ fontSize: 11 }} label={{ value: "등급", angle: -90, position: "insideLeft", style: { fontSize: 11 } }} />
-              <Tooltip formatter={(value: number, _name: string, props: { payload: { fullName: string } }) => [value, props.payload.fullName]} />
+              <Tooltip formatter={(value: number, _name: string, props: { payload?: { fullName?: string } }) => [value, props.payload?.fullName ?? _name]} />
               <Bar dataKey="평균등급" fill="#818cf8" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
