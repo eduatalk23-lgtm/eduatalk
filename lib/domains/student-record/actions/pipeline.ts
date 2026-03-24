@@ -2,7 +2,8 @@
 
 // ============================================
 // AI 초기 분석 파이프라인
-// Phase B: 5개 AI 태스크 순차 실행 + DB 상태 추적
+// Phase B: 7개 AI 태스크 순차 실행 + DB 상태 추적
+// 순서: 역량→진단→스토리라인→수강→가이드→세특→요약서
 // ============================================
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
@@ -19,8 +20,11 @@ import type {
 import { PIPELINE_TASK_KEYS } from "../pipeline-types";
 import { COMPETENCY_ITEMS } from "../constants";
 import * as competencyRepo from "../competency-repository";
-import type { ActivityTagInsert, CompetencyScoreInsert, CompetencyGrade } from "../types";
+import * as diagnosisRepo from "../diagnosis-repository";
+import * as repository from "../repository";
+import type { ActivityTagInsert, CompetencyScoreInsert, CompetencyGrade, DiagnosisInsert } from "../types";
 import type { HighlightAnalysisResult } from "../llm/types";
+import type { RecordSummary } from "../llm/prompts/inquiryLinking";
 
 const LOG_CTX = { domain: "student-record", action: "pipeline" };
 
@@ -47,11 +51,18 @@ export async function fetchPipelineStatus(
     if (error) throw error;
     if (!data) return createSuccessResponse(null);
 
+    // 하위 호환: 이전 5-task 파이프라인에서 새 키가 누락된 경우 "pending" 기본값
+    const rawTasks = (data.tasks ?? {}) as Record<string, PipelineTaskStatus>;
+    const tasks = {} as Record<PipelineTaskKey, PipelineTaskStatus>;
+    for (const key of PIPELINE_TASK_KEYS) {
+      tasks[key] = rawTasks[key] ?? "pending";
+    }
+
     return createSuccessResponse<PipelineStatus>({
       id: data.id,
       studentId: data.student_id,
       status: data.status,
-      tasks: (data.tasks ?? {}) as Record<PipelineTaskKey, PipelineTaskStatus>,
+      tasks,
       taskPreviews: (data.task_previews ?? {}) as Record<string, string>,
       errorDetails: data.error_details as Record<string, string> | null,
       startedAt: data.started_at,
@@ -167,76 +178,7 @@ async function executePipelineTasks(
   }
 
   const taskRunners: Array<{ key: PipelineTaskKey; run: () => Promise<string> }> = [
-    {
-      key: "course_recommendation",
-      run: async () => {
-        const { generateRecommendationsAction } = await import("./coursePlan");
-        const result = await generateRecommendationsAction(studentId, tenantId);
-        if (!result.success) throw new Error(result.error);
-        const count = Array.isArray(result.data) ? result.data.length : 0;
-        return `${count}개 과목 추천됨`;
-      },
-    },
-    {
-      key: "guide_matching",
-      run: async () => {
-        const { autoRecommendGuidesAction } = await import("@/lib/domains/guide/actions/auto-recommend");
-        const classificationId = snapshot?.target_sub_classification_id as number | null;
-        const result = await autoRecommendGuidesAction({
-          studentId,
-          classificationId,
-        });
-        if (!result.success) throw new Error(result.error);
-        const guides = Array.isArray(result.data) ? result.data : [];
-        // 추천된 가이드를 실제로 배정 (exploration_guide_assignments)
-        let assigned = 0;
-        if (guides.length > 0) {
-          const { data: existing } = await supabase
-            .from("exploration_guide_assignments")
-            .select("guide_id")
-            .eq("student_id", studentId);
-          const existingIds = new Set((existing ?? []).map((a) => a.guide_id));
-          const newGuides = guides.filter((g) => !existingIds.has(g.id));
-          if (newGuides.length > 0) {
-            const currentSchoolYear = calculateSchoolYear();
-            const { error: insertErr } = await supabase
-              .from("exploration_guide_assignments")
-              .insert(newGuides.map((g) => ({
-                tenant_id: tenantId,
-                student_id: studentId,
-                guide_id: g.id,
-                assigned_by: null,
-                school_year: currentSchoolYear,
-                grade: studentGrade,
-                status: "assigned",
-                student_notes: `[AI] 파이프라인 자동 배정 (${g.match_reason})`,
-              })));
-            if (!insertErr) assigned = newGuides.length;
-          }
-        }
-        return `${assigned}건 가이드 배정 (${guides.length}건 추천)`;
-      },
-    },
-    {
-      key: "setek_guide",
-      run: async () => {
-        const { generateSetekGuide } = await import("../llm/actions/generateSetekGuide");
-        const result = await generateSetekGuide(studentId);
-        if (!result.success) throw new Error(result.error);
-        const guides = (result.data as { guides?: Array<{ subjectName: string }> })?.guides;
-        return guides ? `${guides.length}과목 방향 생성` : "세특 방향 생성 완료";
-      },
-    },
-    {
-      key: "activity_summary",
-      run: async () => {
-        const { generateActivitySummary } = await import("../llm/actions/generateActivitySummary");
-        const grades = Array.from({ length: studentGrade }, (_, i) => i + 1);
-        const result = await generateActivitySummary(studentId, grades);
-        if (!result.success) throw new Error(result.error);
-        return "활동 요약서 생성 완료";
-      },
-    },
+    // ── 1. 역량 분석 (가장 먼저: 태그+등급 생성 → 진단/가이드의 입력) ──
     {
       key: "competency_analysis",
       run: async () => {
@@ -385,6 +327,226 @@ async function executePipelineTasks(
         const parts = [`${succeeded}건 성공`];
         if (failed > 0) parts.push(`${failed}건 실패`);
         return `역량 분석 ${parts.join(", ")} (세특+창체+행특)`;
+      },
+    },
+
+    // ── 2. AI 종합 진단 (역량 결과 → 강점/약점/추천전공) ──
+    {
+      key: "ai_diagnosis",
+      run: async () => {
+        const currentSchoolYear = calculateSchoolYear();
+
+        const [scores, tags] = await Promise.all([
+          competencyRepo.findCompetencyScores(studentId, currentSchoolYear, tenantId),
+          competencyRepo.findActivityTags(studentId, tenantId),
+        ]);
+
+        if (scores.length === 0 && tags.length === 0) {
+          return "역량 데이터 없음 — 건너뜀";
+        }
+
+        const { generateAiDiagnosis } = await import("../llm/actions/generateDiagnosis");
+        const result = await generateAiDiagnosis(scores, tags, {
+          targetMajor: (snapshot?.target_major as string) ?? undefined,
+          schoolName: (snapshot?.school_name as string) ?? undefined,
+        });
+        if (!result.success) throw new Error(result.error);
+
+        await diagnosisRepo.upsertDiagnosis({
+          tenant_id: tenantId,
+          student_id: studentId,
+          school_year: currentSchoolYear,
+          overall_grade: result.data.overallGrade,
+          record_direction: result.data.recordDirection,
+          direction_strength: result.data.directionStrength as "strong" | "moderate" | "weak",
+          strengths: result.data.strengths,
+          weaknesses: result.data.weaknesses,
+          recommended_majors: result.data.recommendedMajors,
+          strategy_notes: result.data.strategyNotes,
+          source: "ai",
+          status: "draft",
+        } as DiagnosisInsert);
+
+        return `종합진단 생성 (등급: ${result.data.overallGrade}, 방향: ${result.data.directionStrength})`;
+      },
+    },
+
+    // ── 3. 스토리라인 감지 (학년간 탐구 연결 → 스토리라인 자동 생성) ──
+    {
+      key: "storyline_generation",
+      run: async () => {
+        // 기록 수집
+        const records: RecordSummary[] = [];
+        let idx = 0;
+
+        const { data: seteks } = await supabase
+          .from("student_record_seteks")
+          .select("id, content, grade, subject:subject_id(name)")
+          .eq("student_id", studentId)
+          .eq("tenant_id", tenantId)
+          .is("deleted_at", null)
+          .order("grade");
+        for (const s of (seteks ?? [])) {
+          const content = s.content as string;
+          if (!content || content.trim().length < 20) continue;
+          const subj = s.subject as unknown as { name: string } | null;
+          records.push({ index: idx++, id: s.id, grade: s.grade, subject: subj?.name ?? "과목 미정", type: "setek", content });
+        }
+
+        const { data: changche } = await supabase
+          .from("student_record_changche")
+          .select("id, content, grade, activity_type")
+          .eq("student_id", studentId)
+          .eq("tenant_id", tenantId)
+          .order("grade");
+        for (const c of (changche ?? [])) {
+          const content = c.content as string;
+          if (!content || content.trim().length < 20) continue;
+          records.push({ index: idx++, id: c.id, grade: c.grade, subject: c.activity_type ?? "창체", type: "changche", content });
+        }
+
+        if (records.length < 2) {
+          return "기록 2건 미만 — 건너뜀";
+        }
+
+        const { detectInquiryLinks } = await import("../llm/actions/detectInquiryLinks");
+        const result = await detectInquiryLinks(records);
+        if (!result.success) throw new Error(result.error);
+
+        const { suggestedStorylines, connections } = result.data;
+        if (suggestedStorylines.length === 0) {
+          return "스토리라인 연결 감지되지 않음";
+        }
+
+        // 기존 AI 스토리라인 삭제 (재실행 시 중복 방지)
+        const existingStorylines = await repository.findStorylinesByStudent(studentId, tenantId);
+        const aiStorylines = existingStorylines.filter((s) => s.title.startsWith("[AI]"));
+        for (const existing of aiStorylines) {
+          await repository.deleteStorylineById(existing.id);
+        }
+
+        // sort_order 계산 (수동 스토리라인 뒤에 배치)
+        const manualStorylines = existingStorylines.filter((s) => !s.title.startsWith("[AI]"));
+        const baseSortOrder = manualStorylines.length > 0
+          ? Math.max(...manualStorylines.map((s) => s.sort_order)) + 1
+          : 0;
+
+        let savedCount = 0;
+        for (let i = 0; i < suggestedStorylines.length; i++) {
+          const sl = suggestedStorylines[i];
+          try {
+            const storylineId = await repository.insertStoryline({
+              tenant_id: tenantId,
+              student_id: studentId,
+              title: `[AI] ${sl.title}`,
+              keywords: sl.keywords,
+              strength: "moderate",
+              sort_order: baseSortOrder + i,
+            });
+
+            // 연결된 레코드 링크 저장
+            const linkedIds = new Set<string>();
+            for (const connIdx of sl.connectionIndices) {
+              const conn = connections[connIdx];
+              if (!conn) continue;
+              for (const recIdx of [conn.fromIndex, conn.toIndex]) {
+                const rec = records[recIdx];
+                if (!rec || linkedIds.has(rec.id)) continue;
+                linkedIds.add(rec.id);
+                await repository.insertStorylineLink({
+                  storyline_id: storylineId,
+                  record_type: rec.type,
+                  record_id: rec.id,
+                  grade: rec.grade,
+                  connection_note: conn.reasoning,
+                  sort_order: linkedIds.size - 1,
+                });
+              }
+            }
+            savedCount++;
+          } catch (err) {
+            logActionError({ ...LOG_CTX, action: "pipeline.storyline" }, err, { title: sl.title });
+          }
+        }
+
+        return `${savedCount}건 스토리라인 생성 (${connections.length}건 연결)`;
+      },
+    },
+
+    // ── 4. 수강 추천 (독립) ──
+    {
+      key: "course_recommendation",
+      run: async () => {
+        const { generateRecommendationsAction } = await import("./coursePlan");
+        const result = await generateRecommendationsAction(studentId, tenantId);
+        if (!result.success) throw new Error(result.error);
+        const count = Array.isArray(result.data) ? result.data.length : 0;
+        return `${count}개 과목 추천됨`;
+      },
+    },
+
+    // ── 5. 가이드 매칭 + 배정 (독립) ──
+    {
+      key: "guide_matching",
+      run: async () => {
+        const { autoRecommendGuidesAction } = await import("@/lib/domains/guide/actions/auto-recommend");
+        const classificationId = snapshot?.target_sub_classification_id as number | null;
+        const result = await autoRecommendGuidesAction({
+          studentId,
+          classificationId,
+        });
+        if (!result.success) throw new Error(result.error);
+        const guides = Array.isArray(result.data) ? result.data : [];
+        let assigned = 0;
+        if (guides.length > 0) {
+          const { data: existing } = await supabase
+            .from("exploration_guide_assignments")
+            .select("guide_id")
+            .eq("student_id", studentId);
+          const existingIds = new Set((existing ?? []).map((a) => a.guide_id));
+          const newGuides = guides.filter((g) => !existingIds.has(g.id));
+          if (newGuides.length > 0) {
+            const currentSchoolYear = calculateSchoolYear();
+            const { error: insertErr } = await supabase
+              .from("exploration_guide_assignments")
+              .insert(newGuides.map((g) => ({
+                tenant_id: tenantId,
+                student_id: studentId,
+                guide_id: g.id,
+                assigned_by: null,
+                school_year: currentSchoolYear,
+                grade: studentGrade,
+                status: "assigned",
+                student_notes: `[AI] 파이프라인 자동 배정 (${g.match_reason})`,
+              })));
+            if (!insertErr) assigned = newGuides.length;
+          }
+        }
+        return `${assigned}건 가이드 배정 (${guides.length}건 추천)`;
+      },
+    },
+
+    // ── 6. 세특 방향 가이드 (역량+진단+스토리라인 활용) ──
+    {
+      key: "setek_guide",
+      run: async () => {
+        const { generateSetekGuide } = await import("../llm/actions/generateSetekGuide");
+        const result = await generateSetekGuide(studentId);
+        if (!result.success) throw new Error(result.error);
+        const guides = (result.data as { guides?: Array<{ subjectName: string }> })?.guides;
+        return guides ? `${guides.length}과목 방향 생성` : "세특 방향 생성 완료";
+      },
+    },
+
+    // ── 7. 활동 요약서 (스토리라인 활용) ──
+    {
+      key: "activity_summary",
+      run: async () => {
+        const { generateActivitySummary } = await import("../llm/actions/generateActivitySummary");
+        const grades = Array.from({ length: studentGrade }, (_, i) => i + 1);
+        const result = await generateActivitySummary(studentId, grades);
+        if (!result.success) throw new Error(result.error);
+        return "활동 요약서 생성 완료";
       },
     },
   ];

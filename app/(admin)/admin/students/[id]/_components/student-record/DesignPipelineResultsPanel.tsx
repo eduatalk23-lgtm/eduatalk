@@ -17,11 +17,13 @@ interface DesignPipelineResultsPanelProps {
 }
 
 const SECTION_SCROLL_MAP: Record<PipelineTaskKey, string> = {
+  competency_analysis: "sec-diagnosis-analysis",
+  ai_diagnosis: "sec-diagnosis-overall",
+  storyline_generation: "sec-storyline",
   course_recommendation: "sec-course-plan",
   guide_matching: "sec-exploration-guide",
   setek_guide: "sec-setek-guide",
   activity_summary: "sec-activity-summary",
-  competency_analysis: "sec-diagnosis-analysis",
 };
 
 export function DesignPipelineResultsPanel({

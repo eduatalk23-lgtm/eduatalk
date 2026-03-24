@@ -782,8 +782,7 @@ export function StudentRecordClient({
               studentId={studentId}
               tenantId={tenantId}
               onComplete={() => {
-                queryClient.invalidateQueries({ queryKey: ["studentRecord", "diagnosis"] });
-                queryClient.invalidateQueries({ queryKey: studentRecordKeys.pipeline(studentId) });
+                queryClient.invalidateQueries({ queryKey: studentRecordKeys.all });
               }}
             />
           )}
