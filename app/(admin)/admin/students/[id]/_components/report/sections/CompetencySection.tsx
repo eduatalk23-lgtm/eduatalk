@@ -135,7 +135,7 @@ export function CompetencySection({ diagnosisData }: CompetencySectionProps) {
                     cx="50%" cy="50%"
                     innerRadius={50} outerRadius={80}
                     dataKey="value"
-                    label={({ name, value }: { name: string; value: number }) => `${name} ${value}`}
+                    label={({ name, value }: { name?: string; value: number }) => `${name ?? ""} ${value}`}
                     labelLine={false}
                   >
                     {donutData.map((entry, i) => (
