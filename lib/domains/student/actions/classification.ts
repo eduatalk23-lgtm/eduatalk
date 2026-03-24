@@ -29,7 +29,7 @@ export async function getSubClassifications(
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
-    .from("department_classifications")
+    .from("department_classification")
     .select("id, mid_name, sub_name")
     .in("mid_name", midNames)
     .not("sub_name", "is", null)

@@ -227,7 +227,7 @@ export async function findClassifications(): Promise<
   const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase
-    .from("department_classifications")
+    .from("department_classification")
     .select("*")
     .order("major_code")
     .order("mid_code")

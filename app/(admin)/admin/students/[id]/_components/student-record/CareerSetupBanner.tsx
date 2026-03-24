@@ -23,6 +23,7 @@ export function CareerSetupBanner({ studentId, tenantId, onComplete }: CareerSet
   const [subOptions, setSubOptions] = useState<SubClassificationOption[]>([]);
   const [isPending, startTransition] = useTransition();
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Tier2 options based on Tier1
   const tier2Options = tier1 ? TIER1_TO_MAJORS[tier1] ?? [] : [];
@@ -46,6 +47,7 @@ export function CareerSetupBanner({ studentId, tenantId, onComplete }: CareerSet
   async function handleSave() {
     if (!canSave) return;
     setIsSaving(true);
+    setSaveError(null);
     try {
       const result = await updateStudentInfo(studentId, {
         career: {
@@ -56,7 +58,11 @@ export function CareerSetupBanner({ studentId, tenantId, onComplete }: CareerSet
       });
       if (result.success) {
         onComplete();
+      } else {
+        setSaveError(result.error ?? "저장에 실패했습니다.");
       }
+    } catch {
+      setSaveError("네트워크 오류가 발생했습니다.");
     } finally {
       setIsSaving(false);
     }
@@ -143,6 +149,11 @@ export function CareerSetupBanner({ studentId, tenantId, onComplete }: CareerSet
             ))}
           </select>
         </div>
+
+        {/* Error */}
+        {saveError && (
+          <p className="w-full text-xs text-red-600 dark:text-red-400">{saveError}</p>
+        )}
 
         {/* Actions */}
         <div className="flex gap-2">

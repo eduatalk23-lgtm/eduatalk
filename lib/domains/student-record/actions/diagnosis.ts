@@ -74,7 +74,7 @@ export async function fetchDiagnosisTabData(
       (async (): Promise<string | null> => {
         if (!targetSubClassificationId) return null;
         const { data: dc } = await supabase
-          .from("department_classifications")
+          .from("department_classification")
           .select("sub_name")
           .eq("id", targetSubClassificationId)
           .single();

@@ -144,7 +144,7 @@ export async function fetchReportData(
     let targetMidName: string | null = null;
     if (diagnosisData.targetSubClassificationId) {
       const { data: dc } = await supabase
-        .from("department_classifications")
+        .from("department_classification")
         .select("mid_name")
         .eq("id", diagnosisData.targetSubClassificationId)
         .single();
