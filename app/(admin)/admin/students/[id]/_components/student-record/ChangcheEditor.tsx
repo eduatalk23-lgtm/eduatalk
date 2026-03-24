@@ -15,6 +15,7 @@ import { useSidePanel } from "@/components/side-panel";
 import { cn } from "@/lib/cn";
 import { FileText, Search, BookOpen, MessageSquare, StickyNote } from "lucide-react";
 import { CrossReferenceChips } from "./CrossReferenceChips";
+import { TextSelectionTagger } from "./TextSelectionTagger";
 import { InlineAreaMemos } from "./InlineAreaMemos";
 
 const ACTIVITY_TYPES: ChangcheActivityType[] = ["autonomy", "club", "career"];
@@ -162,6 +163,32 @@ export function ChangcheEditor({
       {/* ─── 🔍 분석 탭 ──────────────────────────── */}
       {activeTab === "analysis" && (
         <div className="flex flex-col gap-2">
+          {/* 컨설턴트 드래그 태깅 */}
+          {changche.filter((c) => c.content?.trim()).length > 0 && (
+            <details className="rounded-lg border border-[var(--border-secondary)]">
+              <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-[var(--text-primary)]">
+                ✏️ 원문 드래그 태깅 <span className="font-normal text-[var(--text-tertiary)]">— 문장을 선택하여 역량 태그 지정</span>
+              </summary>
+              <div className="space-y-2 border-t border-[var(--border-secondary)] px-3 py-2">
+                {changche.filter((c) => c.content?.trim()).map((c) => (
+                  <div key={c.id}>
+                    <div className="mb-1 text-[10px] font-medium text-[var(--text-secondary)]">
+                      {CHANGCHE_TYPE_LABELS[c.activity_type] ?? c.activity_type}
+                    </div>
+                    <TextSelectionTagger
+                      content={c.content}
+                      recordType="changche"
+                      recordId={c.id}
+                      studentId={studentId}
+                      tenantId={tenantId}
+                      schoolYear={schoolYear}
+                    />
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+
           {filteredTags.length === 0 ? (
             <p className="py-4 text-center text-xs text-[var(--text-tertiary)]">
               AI 분석을 실행하면 이 영역의 역량 태그가 표시됩니다

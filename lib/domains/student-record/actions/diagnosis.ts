@@ -236,6 +236,40 @@ export async function deleteAiTagsForRecordAction(
   }
 }
 
+/** 분석 결과 캐시 저장 (UI에서 개별 분석 후 호출) */
+export async function saveAnalysisCacheAction(input: {
+  tenant_id: string;
+  student_id: string;
+  record_type: string;
+  record_id: string;
+  source: "ai" | "consultant";
+  analysis_result: unknown;
+}): Promise<StudentRecordActionResult> {
+  try {
+    await requireAdminOrConsultant();
+    await competencyRepo.upsertAnalysisCache(input);
+    return { success: true };
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "saveAnalysisCache" }, error);
+    return { success: false, error: "분석 캐시 저장 실패" };
+  }
+}
+
+/** 학생의 AI 분석 캐시 조회 (하이라이트 복원) */
+export async function fetchAnalysisCacheAction(
+  studentId: string,
+  tenantId: string,
+): Promise<{ success: true; data: Array<{ record_type: string; record_id: string; source: string; analysis_result: unknown }> } | { success: false; error: string }> {
+  try {
+    await requireAdminOrConsultant();
+    const data = await competencyRepo.findAnalysisCacheByStudent(studentId, tenantId, "ai");
+    return { success: true, data };
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "fetchAnalysisCache" }, error, { studentId });
+    return { success: false, error: "분석 캐시 조회 실패" };
+  }
+}
+
 /** AI 제안 태그 → 확정 */
 export async function confirmActivityTagAction(
   id: string,

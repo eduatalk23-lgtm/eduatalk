@@ -16,6 +16,7 @@ import { FileText, Search, BookOpen, Compass, MessageSquare, ClipboardList } fro
 import { SetekGuideRecommendations } from "./SetekGuideRecommendations";
 import { SameSchoolSetekInfo } from "./SameSchoolSetekInfo";
 import { CrossReferenceChips } from "./CrossReferenceChips";
+import { TextSelectionTagger } from "./TextSelectionTagger";
 import type { CourseAdequacyResult } from "@/lib/domains/student-record";
 import { calculateReflectionSummary, type ReflectionSummary, type SubjectReflectionRate } from "@/lib/domains/student-record/keyword-match";
 import { InlineAreaMemos } from "./InlineAreaMemos";
@@ -344,6 +345,38 @@ export function SetekEditor({
                 </div>
               )}
             </div>
+          )}
+
+          {/* 컨설턴트 드래그 태깅: 원문에서 문장 선택 → 역량 태그 지정 */}
+          {mergedRows.length > 0 && (
+            <details className="rounded-lg border border-[var(--border-secondary)]">
+              <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-[var(--text-primary)]">
+                ✏️ 원문 드래그 태깅 <span className="font-normal text-[var(--text-tertiary)]">— 문장을 선택하여 역량 태그 지정</span>
+              </summary>
+              <div className="space-y-2 border-t border-[var(--border-secondary)] px-3 py-2">
+                {mergedRows.map((row) => {
+                  const combinedContent = row.records.map((r) => r.content).filter(Boolean).join("\n\n");
+                  if (!combinedContent.trim()) return null;
+                  return (
+                    <div key={row.subjectId}>
+                      <div className="mb-1 text-[10px] font-medium text-[var(--text-secondary)]">{row.displayName}</div>
+                      {row.records.filter((r) => r.content?.trim()).map((r) => (
+                        <TextSelectionTagger
+                          key={r.id}
+                          content={r.content}
+                          recordType="setek"
+                          recordId={r.id}
+                          studentId={studentId}
+                          tenantId={tenantId}
+                          schoolYear={schoolYear}
+                          subjectName={row.displayName}
+                        />
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            </details>
           )}
 
           {filteredTags.length === 0 && (!reflectionSummary || reflectionSummary.totalKeywords === 0) ? (

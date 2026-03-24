@@ -5,18 +5,19 @@
 // Phase 6.1 — 종합 등급(상단) + 세특별 하이라이트(중단) + 태그 요약(하단)
 // ============================================
 
-import { useState, useMemo, Fragment } from "react";
+import { useState, useMemo, useEffect, Fragment } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { analyzeSetekWithHighlight } from "@/lib/domains/student-record/llm/actions/analyzeWithHighlight";
-import { upsertCompetencyScoreAction, addActivityTagsBatchAction, deleteAiTagsForRecordAction, confirmActivityTagAction, deleteActivityTagAction } from "@/lib/domains/student-record/actions/diagnosis";
+import { upsertCompetencyScoreAction, addActivityTagsBatchAction, deleteAiTagsForRecordAction, confirmActivityTagAction, deleteActivityTagAction, fetchAnalysisCacheAction, saveAnalysisCacheAction } from "@/lib/domains/student-record/actions/diagnosis";
 import type { ActivityTagInsert } from "@/lib/domains/student-record/types";
 import { COMPETENCY_ITEMS, COMPETENCY_AREA_LABELS } from "@/lib/domains/student-record";
 import type { CompetencyScore, ActivityTag, CompetencyArea, CompetencyGrade } from "@/lib/domains/student-record";
 import type { HighlightAnalysisResult } from "@/lib/domains/student-record/llm/types";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { HighlightedSetekView, CompetencyBadge } from "./HighlightedSetekView";
-import { Sparkles, ArrowDown, Check, X, ChevronRight, Loader2 } from "lucide-react";
+import { HighlightComparisonView } from "./HighlightComparisonView";
+import { Sparkles, ArrowDown, Check, X, ChevronRight, Loader2, GitCompare } from "lucide-react";
 
 type RecordForHighlight = {
   id: string;
@@ -71,11 +72,28 @@ export function CompetencyAnalysisSection({
 }: Props) {
   const queryClient = useQueryClient();
   const [highlightResults, setHighlightResults] = useState<Map<string, HighlightAnalysisResult>>(new Map());
+  const [consultantResults, setConsultantResults] = useState<Map<string, HighlightAnalysisResult>>(new Map());
+  const [comparisonMode, setComparisonMode] = useState(false);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [expandedTagItem, setExpandedTagItem] = useState<string | null>(null);
   const tagStats = useMemo(() => countTagsByItem(activityTags), [activityTags]);
   const diagnosisQk = studentRecordKeys.diagnosisTab(studentId, schoolYear);
+
+  // 캐시에서 하이라이트 복원 (AI + 컨설턴트 양쪽)
+  useEffect(() => {
+    if (highlightResults.size > 0) return;
+    // AI 캐시
+    fetchAnalysisCacheAction(studentId, tenantId).then((res) => {
+      if (!res.success || res.data.length === 0) return;
+      const map = new Map<string, HighlightAnalysisResult>();
+      for (const row of res.data) {
+        map.set(row.record_id, row.analysis_result as HighlightAnalysisResult);
+      }
+      setHighlightResults(map);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentId, tenantId]);
 
   // AI 태그 확인/거부 mutation
   const tagConfirmMutation = useMutation({
@@ -135,6 +153,16 @@ export function CompetencyAnalysisSection({
     if (tagInputs.length > 0) {
       await addActivityTagsBatchAction(tagInputs);
     }
+
+    // 분석 결과 캐시 저장 (하이라이트 영속화)
+    await saveAnalysisCacheAction({
+      tenant_id: tenantId,
+      student_id: studentId,
+      record_type: rec.type,
+      record_id: recId,
+      source: "ai",
+      analysis_result: data,
+    });
   }
 
   // 다중 레코드의 등급을 종합하여 1회 저장 (최빈값 기반)
@@ -291,11 +319,40 @@ export function CompetencyAnalysisSection({
 
       {/* ─── 세특별 하이라이트 뷰 (먼저: 근거를 보고 등급 결정) ── */}
       <div>
-        <h4 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">활동별 역량 분석</h4>
+        <div className="mb-3 flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-[var(--text-primary)]">활동별 역량 분석</h4>
+          {highlightResults.size > 0 && (
+            <button
+              onClick={() => setComparisonMode((v) => !v)}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium transition-colors",
+                comparisonMode
+                  ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400"
+                  : "text-[var(--text-tertiary)] hover:bg-gray-100 dark:hover:bg-gray-800",
+              )}
+            >
+              <GitCompare className="h-3 w-3" />
+              {comparisonMode ? "비교 모드 끄기" : "AI/컨설턴트 비교"}
+            </button>
+          )}
+        </div>
         <div className="flex flex-col gap-3">
           {records.map((rec) => {
             const result = highlightResults.get(rec.id);
+            const conResult = consultantResults.get(rec.id);
             const isAnalyzing = analyzingId === rec.id;
+
+            if (result && comparisonMode) {
+              return (
+                <HighlightComparisonView
+                  key={rec.id}
+                  content={rec.content}
+                  label={rec.label}
+                  aiResult={result}
+                  consultantResult={conResult}
+                />
+              );
+            }
 
             if (result) {
               return (

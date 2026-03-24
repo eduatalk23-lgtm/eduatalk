@@ -227,6 +227,16 @@ async function executePipelineTasks(
             await competencyRepo.insertActivityTags(tagInputs);
           }
 
+          // 분석 결과 캐시 저장 (하이라이트 영속화)
+          await competencyRepo.upsertAnalysisCache({
+            tenant_id: tenantId,
+            student_id: studentId,
+            record_type: recordType,
+            record_id: recordId,
+            source: "ai",
+            analysis_result: result.data,
+          });
+
           allResults.set(recordId, result.data);
           succeeded++;
         }

@@ -252,3 +252,46 @@ export async function deleteAiActivityTagsByRecord(
 
   if (error) throw error;
 }
+
+// ============================================
+// 분석 결과 캐시 (하이라이트 영속화)
+// ============================================
+
+/** 분석 결과 캐시 upsert (AI 또는 컨설턴트) */
+export async function upsertAnalysisCache(input: {
+  tenant_id: string;
+  student_id: string;
+  record_type: string;
+  record_id: string;
+  source: "ai" | "consultant";
+  analysis_result: unknown;
+}): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("student_record_analysis_cache")
+    .upsert(input, {
+      onConflict: "tenant_id,record_type,record_id,source",
+    });
+
+  if (error) throw error;
+}
+
+/** 학생의 전체 AI 분석 캐시 조회 (하이라이트 복원용) */
+export async function findAnalysisCacheByStudent(
+  studentId: string,
+  tenantId: string,
+  source?: "ai" | "consultant",
+): Promise<Array<{ record_type: string; record_id: string; source: string; analysis_result: unknown }>> {
+  const supabase = await createSupabaseServerClient();
+  let query = supabase
+    .from("student_record_analysis_cache")
+    .select("record_type, record_id, source, analysis_result")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId);
+
+  if (source) query = query.eq("source", source);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data ?? [];
+}
