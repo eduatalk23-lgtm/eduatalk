@@ -5,6 +5,7 @@
 
 import type { SuggestStrategiesInput, SuggestStrategiesResult, StrategySuggestion } from "../types";
 import type { StrategyTargetArea, StrategyPriority } from "../../types";
+import { extractJson } from "../extractJson";
 
 // ============================================
 // 시스템 프롬프트
@@ -111,11 +112,7 @@ const VALID_AREAS = new Set<string>([
 const VALID_PRIORITIES = new Set<string>(["critical", "high", "medium", "low"]);
 
 export function parseResponse(content: string, sourceUrls?: string[]): SuggestStrategiesResult {
-  let jsonStr = content.trim();
-  const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (jsonMatch) jsonStr = jsonMatch[1].trim();
-
-  const parsed = JSON.parse(jsonStr);
+  const parsed = extractJson(content);
 
   const suggestions: StrategySuggestion[] = [];
   for (const s of parsed.suggestions ?? []) {

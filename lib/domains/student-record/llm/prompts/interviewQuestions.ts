@@ -2,6 +2,8 @@
 // Phase 6.5 — AI 면접 예상 질문 생성 프롬프트
 // ============================================
 
+import { extractJson } from "../extractJson";
+
 export type InterviewQuestionType = "factual" | "reasoning" | "application" | "value" | "controversial";
 
 export interface GeneratedInterviewQuestion {
@@ -79,11 +81,7 @@ const VALID_TYPES = new Set<string>(["factual", "reasoning", "application", "val
 const VALID_DIFFICULTIES = new Set<string>(["easy", "medium", "hard"]);
 
 export function parseInterviewResponse(content: string): InterviewQuestionResult {
-  let jsonStr = content.trim();
-  const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (jsonMatch) jsonStr = jsonMatch[1].trim();
-
-  const parsed = JSON.parse(jsonStr);
+  const parsed = extractJson(content);
 
   const questions: GeneratedInterviewQuestion[] = (parsed.questions ?? [])
     .filter((q: Record<string, unknown>) =>

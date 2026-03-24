@@ -3,6 +3,8 @@
 // Phase 6.3 — 전 학년 세특에서 탐구 주제 연결 자동 감지
 // ============================================
 
+import { extractJson } from "../extractJson";
+
 export type RecordSummary = {
   index: number;
   id: string;
@@ -90,11 +92,7 @@ ${recordList}
 const VALID_LINK_TYPES = new Set(["sequential", "parallel", "retrospective"]);
 
 export function parseInquiryLinkResponse(content: string, maxIndex: number): InquiryLinkResult {
-  let jsonStr = content.trim();
-  const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (jsonMatch) jsonStr = jsonMatch[1].trim();
-
-  const parsed = JSON.parse(jsonStr);
+  const parsed = extractJson(content);
 
   const connections: InquiryConnection[] = (parsed.connections ?? [])
     .filter((c: Record<string, unknown>) =>

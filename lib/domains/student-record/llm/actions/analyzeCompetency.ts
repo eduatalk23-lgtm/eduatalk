@@ -10,6 +10,7 @@ import { logActionError } from "@/lib/logging/actionLogger";
 import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
 import { COMPETENCY_ITEMS, COMPETENCY_RUBRIC_QUESTIONS } from "../../constants";
 import type { CompetencyItemCode, CompetencyGrade } from "../../types";
+import { extractJson } from "../extractJson";
 
 const LOG_CTX = { domain: "student-record", action: "analyzeCompetency" };
 
@@ -105,12 +106,7 @@ export async function analyzeCompetencyFromRecords(
       return { success: false, error: "AI 응답이 비어있습니다." };
     }
 
-    // JSON 파싱
-    let jsonStr = result.content.trim();
-    const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonMatch) jsonStr = jsonMatch[1].trim();
-
-    const parsed = JSON.parse(jsonStr);
+    const parsed = extractJson(result.content);
     const validCodes = new Set<string>(COMPETENCY_ITEMS.map((i) => i.code));
     const validGrades = new Set<string>(["A+", "A-", "B+", "B", "B-", "C"]);
 

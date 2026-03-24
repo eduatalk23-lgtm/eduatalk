@@ -5,6 +5,7 @@
 
 import type { ActivitySummaryInput, ActivitySummaryResult } from "../types";
 import type { ActivitySummarySection } from "../../types";
+import { extractJson } from "../extractJson";
 
 // ============================================
 // 시스템 프롬프트
@@ -172,11 +173,7 @@ const VALID_SECTION_TYPES = new Set([
 ]);
 
 export function parseResponse(content: string): ActivitySummaryResult {
-  let jsonStr = content.trim();
-  const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (jsonMatch) jsonStr = jsonMatch[1].trim();
-
-  const parsed = JSON.parse(jsonStr);
+  const parsed = extractJson(content);
 
   const sections: ActivitySummarySection[] = [];
   for (const s of parsed.sections ?? []) {

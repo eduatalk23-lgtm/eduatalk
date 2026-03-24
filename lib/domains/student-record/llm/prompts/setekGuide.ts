@@ -5,6 +5,7 @@
 
 import type { SetekGuideInput, SetekGuideResult } from "../types";
 import type { SetekGuideItem } from "../../types";
+import { extractJson } from "../extractJson";
 
 // ============================================
 // 시스템 프롬프트
@@ -138,11 +139,7 @@ export function buildUserPrompt(input: SetekGuideInput): string {
 // ============================================
 
 export function parseResponse(content: string): SetekGuideResult {
-  let jsonStr = content.trim();
-  const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (jsonMatch) jsonStr = jsonMatch[1].trim();
-
-  const parsed = JSON.parse(jsonStr);
+  const parsed = extractJson(content);
 
   const guides: SetekGuideItem[] = [];
   for (const g of parsed.guides ?? []) {
