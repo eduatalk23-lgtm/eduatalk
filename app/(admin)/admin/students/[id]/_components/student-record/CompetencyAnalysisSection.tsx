@@ -80,10 +80,9 @@ export function CompetencyAnalysisSection({
   const tagStats = useMemo(() => countTagsByItem(activityTags), [activityTags]);
   const diagnosisQk = studentRecordKeys.diagnosisTab(studentId, schoolYear);
 
-  // 캐시에서 하이라이트 복원 (AI + 컨설턴트 양쪽)
+  // 캐시에서 AI 하이라이트 복원
   useEffect(() => {
     if (highlightResults.size > 0) return;
-    // AI 캐시
     fetchAnalysisCacheAction(studentId, tenantId).then((res) => {
       if (!res.success || res.data.length === 0) return;
       const map = new Map<string, HighlightAnalysisResult>();
@@ -94,6 +93,40 @@ export function CompetencyAnalysisSection({
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentId, tenantId]);
+
+  // 컨설턴트 태그(source=manual) → HighlightAnalysisResult 형태로 변환 (비교 뷰용)
+  useEffect(() => {
+    const manualTags = activityTags.filter((t) => t.source === "manual");
+    if (manualTags.length === 0) {
+      setConsultantResults(new Map());
+      return;
+    }
+    const map = new Map<string, HighlightAnalysisResult>();
+    const byRecord = new Map<string, typeof manualTags>();
+    for (const tag of manualTags) {
+      const key = tag.record_id;
+      if (!byRecord.has(key)) byRecord.set(key, []);
+      byRecord.get(key)!.push(tag);
+    }
+    for (const [recordId, tags] of byRecord) {
+      // evidence_summary에서 근거 텍스트 추출: [컨설턴트] 근거: "..." 형식
+      const highlightTags = tags.map((t) => {
+        const highlightMatch = t.evidence_summary?.match(/근거:\s*"([^"]+)"/);
+        return {
+          competencyItem: t.competency_item as import("@/lib/domains/student-record").CompetencyItemCode,
+          evaluation: t.evaluation as "positive" | "negative" | "needs_review",
+          highlight: highlightMatch?.[1] ?? t.evidence_summary?.slice(0, 50) ?? "",
+          reasoning: t.evidence_summary ?? "",
+        };
+      });
+      map.set(recordId, {
+        sections: [{ sectionType: "전체" as const, tags: highlightTags, needsReview: false }],
+        competencyGrades: [],
+        summary: `컨설턴트 수동 태그 ${tags.length}건`,
+      });
+    }
+    setConsultantResults(map);
+  }, [activityTags]);
 
   // AI 태그 확인/거부 mutation
   const tagConfirmMutation = useMutation({
