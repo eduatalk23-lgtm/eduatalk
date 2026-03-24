@@ -469,6 +469,7 @@ export function StudentRecordClient({
         studentId={studentId}
         tenantId={tenantId}
         hasTargetMajor={!!diagnosisData?.targetMajor}
+        onReview={() => scrollToSection("sec-pipeline-results")}
       />
 
       {STAGES.map((stage) => {

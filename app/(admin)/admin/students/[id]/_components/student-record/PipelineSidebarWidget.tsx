@@ -17,6 +17,7 @@ interface PipelineSidebarWidgetProps {
   studentId: string;
   tenantId: string;
   hasTargetMajor: boolean;
+  onReview?: () => void;
 }
 
 const TASK_ICONS: Record<PipelineTaskStatus, typeof Check> = {
@@ -30,6 +31,7 @@ export function PipelineSidebarWidget({
   studentId,
   tenantId,
   hasTargetMajor,
+  onReview,
 }: PipelineSidebarWidgetProps) {
   const queryClient = useQueryClient();
   const [collapsed, setCollapsed] = useState(false);
@@ -185,10 +187,7 @@ export function PipelineSidebarWidget({
       {(pipeline.status === "completed" || pipeline.status === "failed") && (
         <button
           type="button"
-          onClick={() => {
-            const target = document.getElementById("sec-course-plan");
-            target?.scrollIntoView({ behavior: "smooth" });
-          }}
+          onClick={() => onReview?.()}
           className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded-md border border-indigo-200 px-2 py-1 text-[10px] font-medium text-indigo-600 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-950/30"
         >
           결과 리뷰
