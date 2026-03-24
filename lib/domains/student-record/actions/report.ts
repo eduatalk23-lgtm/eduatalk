@@ -82,10 +82,6 @@ export async function fetchReportData(
     const studentName =
       (student.user_profiles as unknown as { name: string } | null)?.name ?? null;
 
-    // 소분류 이름 조회 (diagnosisData에서 가져옴)
-    const targetSubClassificationName: string | null = null;
-    const targetMidName: string | null = null;
-
     // 컨설턴트 이름 조회
     const { data: consultant } = await supabase
       .from("user_profiles")
@@ -103,13 +99,11 @@ export async function fetchReportData(
 
     const initialSchoolYear = yearGradePairs[yearGradePairs.length - 1]?.schoolYear ?? currentSchoolYear;
 
-    // 병렬 데이터 수집
-    const [
-      internalAnalysis,
-      internalScores,
-      mockAnalysis,
-      ...recordResults
-    ] = await Promise.all([
+    // 병렬 데이터 수집 (부분 실패 허용 — 성적 데이터 실패가 생기부 분석을 중단시키지 않도록)
+    const EMPTY_INTERNAL: InternalAnalysis = { totalGpa: null, adjustedGpa: null, zIndex: null, subjectStrength: {} };
+    const EMPTY_MOCK: MockAnalysis = { recentExam: null, avgPercentile: null, totalStdScore: null, best3GradeSum: null };
+
+    const settled = await Promise.allSettled([
       getInternalAnalysis(tenantId, studentId),
       getInternalScoresByTerm(studentId, tenantId),
       getMockAnalysis(tenantId, studentId),
@@ -117,6 +111,20 @@ export async function fetchReportData(
         service.getRecordTabData(studentId, p.schoolYear, tenantId),
       ),
     ]);
+
+    const internalAnalysis = settled[0].status === "fulfilled" ? settled[0].value : EMPTY_INTERNAL;
+    const internalScores = settled[1].status === "fulfilled" ? settled[1].value : ([] as InternalScoreWithRelations[]);
+    const mockAnalysis = settled[2].status === "fulfilled" ? settled[2].value : EMPTY_MOCK;
+    const recordResults = settled.slice(3).map((r) =>
+      r.status === "fulfilled" ? r.value : { seteks: [], personalSeteks: [], changche: [], haengteuk: null, readings: [], schoolAttendance: null },
+    );
+
+    // 실패 로그 (디버깅용)
+    for (const [i, s] of settled.entries()) {
+      if (s.status === "rejected") {
+        logActionError({ ...LOG_CTX, action: `fetchReportData.parallel[${i}]` }, s.reason, { studentId });
+      }
+    }
 
     // 2차 병렬: diagnosis, storyline, strategy
     const [diagnosisData, storylineData, strategyData] = await Promise.all([
@@ -130,6 +138,18 @@ export async function fetchReportData(
     yearGradePairs.forEach((p, i) => {
       recordDataByGrade[p.grade] = recordResults[i] as RecordTabData;
     });
+
+    // 소분류 이름은 diagnosisData에서, 중분류 이름은 별도 조회
+    const targetSubClassificationName = diagnosisData.targetSubClassificationName ?? null;
+    let targetMidName: string | null = null;
+    if (diagnosisData.targetSubClassificationId) {
+      const { data: dc } = await supabase
+        .from("department_classifications")
+        .select("mid_name")
+        .eq("id", diagnosisData.targetSubClassificationId)
+        .single();
+      targetMidName = dc?.mid_name ?? null;
+    }
 
     const reportData: ReportData = {
       student: {

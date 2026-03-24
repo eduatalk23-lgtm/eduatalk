@@ -10,12 +10,17 @@ import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { ActionResponse } from "@/lib/types/actionResponse";
 import { createSuccessResponse, createErrorResponse } from "@/lib/types/actionResponse";
+import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 import type {
   PipelineStatus,
   PipelineTaskKey,
   PipelineTaskStatus,
 } from "../pipeline-types";
 import { PIPELINE_TASK_KEYS } from "../pipeline-types";
+import { COMPETENCY_ITEMS } from "../constants";
+import * as competencyRepo from "../competency-repository";
+import type { ActivityTagInsert, CompetencyScoreInsert, CompetencyGrade } from "../types";
+import type { HighlightAnalysisResult } from "../llm/types";
 
 const LOG_CTX = { domain: "student-record", action: "pipeline" };
 
@@ -145,6 +150,18 @@ async function executePipelineTasks(
   const previews: Record<string, string> = {};
   const errors: Record<string, string> = {};
 
+  // studentSnapshot이 없거나 grade가 누락되면 DB 재조회
+  let snapshot = studentSnapshot;
+  if (!snapshot?.grade) {
+    const { data: fresh } = await supabase
+      .from("students")
+      .select("target_major, target_sub_classification_id, grade, school_name")
+      .eq("id", studentId)
+      .single();
+    if (fresh) snapshot = fresh as Record<string, unknown>;
+  }
+  const studentGrade = (snapshot?.grade as number) ?? 3;
+
   for (const key of PIPELINE_TASK_KEYS) {
     tasks[key] = "pending";
   }
@@ -156,21 +173,48 @@ async function executePipelineTasks(
         const { generateRecommendationsAction } = await import("./coursePlan");
         const result = await generateRecommendationsAction(studentId, tenantId);
         if (!result.success) throw new Error(result.error);
-        return `${(result.data as { count?: number })?.count ?? 0}개 과목 추천됨`;
+        const count = Array.isArray(result.data) ? result.data.length : 0;
+        return `${count}개 과목 추천됨`;
       },
     },
     {
       key: "guide_matching",
       run: async () => {
         const { autoRecommendGuidesAction } = await import("@/lib/domains/guide/actions/auto-recommend");
-        const classificationId = studentSnapshot?.target_sub_classification_id as number | null;
+        const classificationId = snapshot?.target_sub_classification_id as number | null;
         const result = await autoRecommendGuidesAction({
           studentId,
           classificationId,
         });
         if (!result.success) throw new Error(result.error);
-        const count = (result.data as { assigned?: number })?.assigned ?? 0;
-        return `${count}건 가이드 배정`;
+        const guides = Array.isArray(result.data) ? result.data : [];
+        // 추천된 가이드를 실제로 배정 (exploration_guide_assignments)
+        let assigned = 0;
+        if (guides.length > 0) {
+          const { data: existing } = await supabase
+            .from("exploration_guide_assignments")
+            .select("guide_id")
+            .eq("student_id", studentId);
+          const existingIds = new Set((existing ?? []).map((a) => a.guide_id));
+          const newGuides = guides.filter((g) => !existingIds.has(g.id));
+          if (newGuides.length > 0) {
+            const currentSchoolYear = calculateSchoolYear();
+            const { error: insertErr } = await supabase
+              .from("exploration_guide_assignments")
+              .insert(newGuides.map((g) => ({
+                tenant_id: tenantId,
+                student_id: studentId,
+                guide_id: g.id,
+                assigned_by: null,
+                school_year: currentSchoolYear,
+                grade: studentGrade,
+                status: "assigned",
+                student_notes: `[AI] 파이프라인 자동 배정 (${g.match_reason})`,
+              })));
+            if (!insertErr) assigned = newGuides.length;
+          }
+        }
+        return `${assigned}건 가이드 배정 (${guides.length}건 추천)`;
       },
     },
     {
@@ -187,8 +231,7 @@ async function executePipelineTasks(
       key: "activity_summary",
       run: async () => {
         const { generateActivitySummary } = await import("../llm/actions/generateActivitySummary");
-        const grade = (studentSnapshot?.grade as number) ?? 1;
-        const grades = Array.from({ length: grade }, (_, i) => i + 1);
+        const grades = Array.from({ length: studentGrade }, (_, i) => i + 1);
         const result = await generateActivitySummary(studentId, grades);
         if (!result.success) throw new Error(result.error);
         return "활동 요약서 생성 완료";
@@ -198,7 +241,53 @@ async function executePipelineTasks(
       key: "competency_analysis",
       run: async () => {
         const { analyzeSetekWithHighlight } = await import("../llm/actions/analyzeWithHighlight");
-        let analyzed = 0;
+        let succeeded = 0;
+        let failed = 0;
+        const allResults = new Map<string, HighlightAnalysisResult>();
+        const currentSchoolYear = calculateSchoolYear();
+
+        // 개별 레코드 분석 + 태그 저장 헬퍼
+        async function analyzeAndSave(
+          recordType: "setek" | "personal_setek" | "changche" | "haengteuk",
+          recordId: string,
+          content: string,
+          grade: number,
+          subjectName?: string,
+        ) {
+          // 기존 AI 태그 정리
+          await competencyRepo.deleteAiActivityTagsByRecord(recordType, recordId, tenantId);
+
+          const result = await analyzeSetekWithHighlight({ recordType, content, subjectName, grade });
+          if (!result.success) {
+            failed++;
+            logActionDebug(LOG_CTX, `competency_analysis: ${recordType} ${recordId} failed — ${result.error}`);
+            return;
+          }
+
+          // 태그 DB 저장
+          const tagInputs: ActivityTagInsert[] = [];
+          for (const section of result.data.sections) {
+            for (const tag of section.tags) {
+              tagInputs.push({
+                tenant_id: tenantId,
+                student_id: studentId,
+                record_type: recordType,
+                record_id: recordId,
+                competency_item: tag.competencyItem,
+                evaluation: tag.evaluation,
+                evidence_summary: `[AI] ${tag.reasoning}\n근거: "${tag.highlight}"`,
+                source: "ai",
+                status: "suggested",
+              });
+            }
+          }
+          if (tagInputs.length > 0) {
+            await competencyRepo.insertActivityTags(tagInputs);
+          }
+
+          allResults.set(recordId, result.data);
+          succeeded++;
+        }
 
         // 1. 세특 분석
         const { data: seteks } = await supabase
@@ -212,9 +301,11 @@ async function executePipelineTasks(
           if (!content || content.trim().length < 20) continue;
           const subj = s.subject as unknown as { name: string } | null;
           try {
-            await analyzeSetekWithHighlight({ recordType: "setek", content, subjectName: subj?.name, grade: s.grade });
-            analyzed++;
-          } catch { /* 개별 실패 무시 */ }
+            await analyzeAndSave("setek", s.id, content, s.grade, subj?.name);
+          } catch (err) {
+            failed++;
+            logActionError({ ...LOG_CTX, action: "pipeline.competency.setek" }, err, { recordId: s.id });
+          }
         }
 
         // 2. 창체 분석
@@ -227,9 +318,11 @@ async function executePipelineTasks(
           const content = c.content as string;
           if (!content || content.trim().length < 20) continue;
           try {
-            await analyzeSetekWithHighlight({ recordType: "changche", content, grade: c.grade });
-            analyzed++;
-          } catch { /* 개별 실패 무시 */ }
+            await analyzeAndSave("changche", c.id, content, c.grade);
+          } catch (err) {
+            failed++;
+            logActionError({ ...LOG_CTX, action: "pipeline.competency.changche" }, err, { recordId: c.id });
+          }
         }
 
         // 3. 행특 분석
@@ -242,12 +335,56 @@ async function executePipelineTasks(
           const content = h.content as string;
           if (!content || content.trim().length < 20) continue;
           try {
-            await analyzeSetekWithHighlight({ recordType: "haengteuk", content, grade: h.grade });
-            analyzed++;
-          } catch { /* 개별 실패 무시 */ }
+            await analyzeAndSave("haengteuk", h.id, content, h.grade);
+          } catch (err) {
+            failed++;
+            logActionError({ ...LOG_CTX, action: "pipeline.competency.haengteuk" }, err, { recordId: h.id });
+          }
         }
 
-        return `${analyzed}건 역량 분석 완료 (세특+창체+행특)`;
+        // 4. 종합 등급 저장 (최빈값 기반)
+        if (allResults.size > 0) {
+          const gradeVotes = new Map<string, Map<string, number>>();
+          for (const data of allResults.values()) {
+            for (const g of data.competencyGrades) {
+              if (!gradeVotes.has(g.item)) gradeVotes.set(g.item, new Map());
+              const votes = gradeVotes.get(g.item)!;
+              votes.set(g.grade, (votes.get(g.grade) ?? 0) + 1);
+            }
+          }
+
+          const GRADE_RANK: Record<string, number> = { "A+": 0, "A-": 1, "B+": 2, "B": 3, "B-": 4, "C": 5 };
+          const scorePromises: Promise<unknown>[] = [];
+          for (const [item, votes] of gradeVotes) {
+            let bestGrade = "B";
+            let bestCount = 0;
+            for (const [grade, count] of votes) {
+              if (count > bestCount || (count === bestCount && (GRADE_RANK[grade] ?? 99) < (GRADE_RANK[bestGrade] ?? 99))) {
+                bestGrade = grade;
+                bestCount = count;
+              }
+            }
+            const area = COMPETENCY_ITEMS.find((i) => i.code === item)?.area;
+            if (!area) continue;
+            scorePromises.push(competencyRepo.upsertCompetencyScore({
+              tenant_id: tenantId,
+              student_id: studentId,
+              school_year: currentSchoolYear,
+              scope: "yearly",
+              competency_area: area,
+              competency_item: item,
+              grade_value: bestGrade as CompetencyGrade,
+              notes: `[AI] ${bestCount}건 레코드 종합`,
+              source: "ai",
+              status: "suggested",
+            } as CompetencyScoreInsert));
+          }
+          await Promise.allSettled(scorePromises);
+        }
+
+        const parts = [`${succeeded}건 성공`];
+        if (failed > 0) parts.push(`${failed}건 실패`);
+        return `역량 분석 ${parts.join(", ")} (세특+창체+행특)`;
       },
     },
   ];
