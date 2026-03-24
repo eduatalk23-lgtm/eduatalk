@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -38,10 +38,10 @@ import { reviewGuideAction } from "@/lib/domains/guide/llm/actions/reviewGuide";
 import {
   suggestTopicsAction,
   fetchSuggestedTopicsAction,
-  incrementTopicUsedCountAction,
 } from "@/lib/domains/guide/llm/actions/suggestTopics";
 import type { SuggestedTopic } from "@/lib/domains/guide/types";
 import type { GeneratedGuideOutput, SuggestedTopicsOutput } from "@/lib/domains/guide/llm/types";
+import type { ModelTier } from "@/lib/domains/plan/llm/types";
 import type { ReviewResult } from "@/lib/domains/guide/llm/actions/reviewGuide";
 import { GuidePreview } from "../../[id]/_components/GuidePreview";
 
@@ -50,14 +50,36 @@ type SourceMode = "keyword" | "clone_variant";
 
 export function GuideGeneratorClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const toast = useToast();
+
+  // URL 쿼리 파라미터에서 프리필 데이터 추출 (주제 관리 페이지에서 전달)
+  const prefill = useMemo(() => {
+    const keyword = searchParams.get("keyword");
+    if (!keyword) return null;
+    return {
+      keyword,
+      guideType: (searchParams.get("guideType") ?? "topic_exploration") as GuideType,
+      subject: searchParams.get("subject"),
+      careerField: searchParams.get("careerField"),
+      curriculumYear: searchParams.get("curriculumYear")
+        ? Number(searchParams.get("curriculumYear"))
+        : null,
+      subjectGroup: searchParams.get("subjectGroup"),
+      majorUnit: searchParams.get("majorUnit"),
+      minorUnit: searchParams.get("minorUnit"),
+      topicId: searchParams.get("topicId"),
+    };
+  }, [searchParams]);
 
   // 참조 데이터
   const { data: careerFieldsRes } = useQuery(guideCareerFieldsQueryOptions());
   const careerFields = careerFieldsRes?.success ? careerFieldsRes.data ?? [] : [];
 
   // 개정교육과정 선택 (기본값: 2022)
-  const [curriculumYear, setCurriculumYear] = useState<number>(2022);
+  const [curriculumYear, setCurriculumYear] = useState<number>(
+    prefill?.curriculumYear ?? 2022,
+  );
   const curriculumRevisionId =
     curriculumYear === 2022
       ? "7606fee5-6405-4410-8ff8-e9ec12ff07e2"
@@ -76,15 +98,28 @@ export function GuideGeneratorClient() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
 
-  // 키워드 입력
-  const [keyword, setKeyword] = useState("");
-  const [guideType, setGuideType] = useState<GuideType>("topic_exploration");
-  const [targetSubjectGroup, setTargetSubjectGroup] = useState("");
-  const [targetSubject, setTargetSubject] = useState("");
-  const [targetMajorUnit, setTargetMajorUnit] = useState("");
-  const [targetMinorUnit, setTargetMinorUnit] = useState("");
-  const [targetCareerField, setTargetCareerField] = useState("");
+  // 키워드 입력 (prefill로 초기값 세팅)
+  const [keyword, setKeyword] = useState(prefill?.keyword ?? "");
+  const [guideType, setGuideType] = useState<GuideType>(
+    prefill?.guideType ?? "topic_exploration",
+  );
+  const [targetSubjectGroup, setTargetSubjectGroup] = useState(
+    prefill?.subjectGroup ?? "",
+  );
+  const [targetSubject, setTargetSubject] = useState(
+    prefill?.subject ?? "",
+  );
+  const [targetMajorUnit, setTargetMajorUnit] = useState(
+    prefill?.majorUnit ?? "",
+  );
+  const [targetMinorUnit, setTargetMinorUnit] = useState(
+    prefill?.minorUnit ?? "",
+  );
+  const [targetCareerField, setTargetCareerField] = useState(
+    prefill?.careerField ?? "",
+  );
   const [additionalContext, setAdditionalContext] = useState("");
+  const [modelTier, setModelTier] = useState<ModelTier>("fast");
 
   // 캐스케이드 필터: 교과 → 과목
   const filteredSubjects = targetSubjectGroup
@@ -272,6 +307,7 @@ export function GuideGeneratorClient() {
               subjectSelect: targetSubject || undefined,
               unitMajor: targetMajorUnit || undefined,
               unitMinor: targetMinorUnit || undefined,
+              modelTier,
               keyword: {
                 keyword,
                 guideType,
@@ -287,6 +323,7 @@ export function GuideGeneratorClient() {
               subjectSelect: targetSubject || undefined,
               unitMajor: targetMajorUnit || undefined,
               unitMinor: targetMinorUnit || undefined,
+              modelTier,
               clone: {
                 sourceGuideId,
                 targetSubject: cloneTargetSubject || undefined,
@@ -312,7 +349,8 @@ export function GuideGeneratorClient() {
   }, [
     sourceMode, keyword, guideType, targetSubject, targetCareerField,
     additionalContext, sourceGuideId, cloneTargetSubject, cloneTargetCareer,
-    variationNote, toast,
+    variationNote, toast, modelTier, curriculumYear, targetSubjectGroup,
+    targetMajorUnit, targetMinorUnit,
   ]);
 
   const handleReview = useCallback(async () => {
@@ -343,7 +381,7 @@ export function GuideGeneratorClient() {
       {/* 헤더 */}
       <div className="flex items-center gap-3">
         <Link
-          href="/admin/guides"
+          href={prefill ? "/admin/guides/topics" : "/admin/guides"}
           className="p-2 rounded-lg hover:bg-secondary-100 dark:hover:bg-secondary-800 transition-colors"
         >
           <ArrowLeft className="w-5 h-5 text-[var(--text-secondary)]" />
@@ -357,6 +395,16 @@ export function GuideGeneratorClient() {
           </p>
         </div>
       </div>
+
+      {/* 주제에서 전달된 프리필 안내 */}
+      {prefill && step === "input" && (
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-700">
+          <Sparkles className="w-4 h-4 text-primary-500 shrink-0" />
+          <p className="text-sm text-primary-700 dark:text-primary-300">
+            <span className="font-medium">&quot;{prefill.keyword}&quot;</span> 주제가 자동으로 입력되었습니다. 필요 시 수정 후 생성하세요.
+          </p>
+        </div>
+      )}
 
       {step === "input" ? (
         <div className="space-y-6">
@@ -708,8 +756,10 @@ export function GuideGeneratorClient() {
                         careerField: targetCareerField || undefined,
                         targetMajor: careerInfo?.target_major || undefined,
                         curriculumYear,
+                        subjectGroup: targetSubjectGroup || undefined,
                         majorUnit: targetMajorUnit || undefined,
                         minorUnit: targetMinorUnit || undefined,
+                        modelTier,
                         existingTitles: [
                           ...filterRecommendations.map((g) => g.title),
                           ...savedTopics.map((t) => t.title),
@@ -760,7 +810,13 @@ export function GuideGeneratorClient() {
                           type="button"
                           onClick={() => {
                             setKeyword(topic.title);
-                            incrementTopicUsedCountAction(topic.id);
+                            // 주제의 교육과정 체계 정보를 폼에 반영
+                            if (topic.subject_group) setTargetSubjectGroup(topic.subject_group);
+                            if (topic.subject_name) setTargetSubject(topic.subject_name);
+                            if (topic.major_unit) setTargetMajorUnit(topic.major_unit);
+                            if (topic.minor_unit) setTargetMinorUnit(topic.minor_unit);
+                            if (topic.career_field) setTargetCareerField(topic.career_field);
+                            // used_count는 generateGuideAction 서버에서 일괄 증가
                           }}
                           title={topic.reason ?? undefined}
                           className={cn(
@@ -774,7 +830,17 @@ export function GuideGeneratorClient() {
                           )}
                         >
                           <span className="inline-flex items-center gap-1.5">
+                            {topic.ai_model_version && (
+                              <span className="shrink-0 px-1 py-0.5 rounded text-[9px] font-semibold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                                AI
+                              </span>
+                            )}
                             <span className="font-medium">{topic.title}</span>
+                            {topic.guide_created_count > 0 && (
+                              <span className="text-[10px] text-green-600 dark:text-green-400">
+                                {topic.guide_created_count}건
+                              </span>
+                            )}
                             {topic.used_count > 0 && (
                               <span className="text-[10px] opacity-60">
                                 {topic.used_count}회
@@ -1004,8 +1070,42 @@ export function GuideGeneratorClient() {
             )}
           </div>
 
-          {/* 생성 버튼 */}
-          <div className="flex justify-end">
+          {/* 모델 선택 + 생성 버튼 */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[var(--text-secondary)]">AI 모델:</span>
+              <div className="inline-flex rounded-lg border border-secondary-200 dark:border-secondary-700 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setModelTier("fast")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium transition-colors",
+                    modelTier === "fast"
+                      ? "bg-primary-500 text-white"
+                      : "bg-white dark:bg-secondary-900 text-[var(--text-secondary)] hover:bg-secondary-50 dark:hover:bg-secondary-800",
+                  )}
+                >
+                  Flash (빠름)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModelTier("advanced")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium transition-colors border-l border-secondary-200 dark:border-secondary-700",
+                    modelTier === "advanced"
+                      ? "bg-info-500 text-white"
+                      : "bg-white dark:bg-secondary-900 text-[var(--text-secondary)] hover:bg-secondary-50 dark:hover:bg-secondary-800",
+                  )}
+                >
+                  Pro (고품질)
+                </button>
+              </div>
+              {modelTier === "advanced" && (
+                <span className="text-[10px] text-info-600 dark:text-info-400">
+                  Thinking 모드 · 크레딧 차감
+                </span>
+              )}
+            </div>
             <button
               type="button"
               onClick={handleGenerate}
@@ -1015,7 +1115,7 @@ export function GuideGeneratorClient() {
               {isGenerating ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  생성 중... (15~30초)
+                  생성 중...{modelTier === "advanced" ? " (30~60초)" : " (15~30초)"}
                 </>
               ) : (
                 <>

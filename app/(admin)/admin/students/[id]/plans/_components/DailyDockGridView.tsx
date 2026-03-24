@@ -146,7 +146,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
   const ppm = ppmProp ?? PX_PER_MINUTE;
   const { pushUndoable } = useUndo();
   const { showToast } = usePlanToast();
-  const { optimisticStatusChange, optimisticTimeChange, revalidate } =
+  const { optimisticStatusChange, optimisticColorChange, optimisticTimeChange, revalidate } =
     useOptimisticCalendarUpdate(calendarId);
   const containerRef = useRef<HTMLDivElement>(null);
   const { pullDistance, pullProgress, isRefreshing: isPtrRefreshing, isPulling } = usePullToRefresh({
@@ -278,9 +278,14 @@ export const DailyDockGridView = memo(function DailyDockGridView({
       handleQuickStatusChange(planId, newStatus, prevStatus, instanceDate);
     },
     onColorChange: async (planId, color) => {
+      const rollback = optimisticColorChange(planId, color);
       const { updateEventColor } = await import('@/lib/domains/calendar/actions/calendarEventActions');
-      await updateEventColor(planId, color);
-      revalidate();
+      const result = await updateEventColor(planId, color);
+      if (result?.success === false) {
+        rollback();
+      } else {
+        revalidate();
+      }
     },
     onDisable: async (id) => {
       const { deleteCalendarEventAction } = await import('@/lib/domains/admin-plan/actions/calendarEvents');

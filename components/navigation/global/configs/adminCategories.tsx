@@ -314,6 +314,12 @@ export const adminCategories: NavigationCategory[] = [
         href: "/admin/guides",
         icon: <Compass className="w-4 h-4" />,
       },
+      {
+        id: "admin-guide-topics",
+        label: "AI 추천 주제",
+        href: "/admin/guides/topics",
+        icon: <Sparkles className="w-4 h-4" />,
+      },
     ],
   },
   {

@@ -50,7 +50,6 @@ import { extractTextFromPdfUrl } from "../extract/pdf-extractor";
 import { extractTextFromUrl } from "../extract/url-extractor";
 
 const LOG_CTX = { domain: "guide", action: "generateGuide" };
-const AI_MODEL_VERSION = "gemini-3.1-flash";
 const AI_PROMPT_VERSION = "c3.1-v1";
 
 export async function generateGuideAction(
@@ -76,13 +75,14 @@ export async function generateGuideAction(
     const { systemPrompt, userPrompt, sourceType, parentGuideId } = promptResult;
 
     // AI 생성
-    const { object: generated } = await generateObjectWithRateLimit({
+    const tier = input.modelTier ?? "fast";
+    const { object: generated, modelId } = await generateObjectWithRateLimit({
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
       schema: zodSchema(generatedGuideSchema),
-      modelTier: "fast",
+      modelTier: tier,
       temperature: 0.5,
-      maxTokens: 8192,
+      maxTokens: tier === "advanced" ? 16384 : 8192,
     });
 
     // 과목/계열/소분류 이름 → ID 매핑
@@ -126,7 +126,7 @@ export async function generateGuideAction(
       parentGuideId,
       contentFormat: "html",
       qualityTier: "ai_draft",
-      aiModelVersion: AI_MODEL_VERSION,
+      aiModelVersion: modelId,
       aiPromptVersion: AI_PROMPT_VERSION,
       registeredBy: userId,
     });
@@ -171,6 +171,28 @@ export async function generateGuideAction(
         guideId: guide.id,
       });
     });
+
+    // guide_created_count + used_count 증가 (키워드 소스 + 비동기, 실패 무시)
+    if (input.source === "keyword" && input.keyword?.keyword) {
+      import("../../repository")
+        .then(async ({ findTopicsByTitle, incrementTopicGuideCreatedCount, incrementTopicUsedCount }) => {
+          const matchingTopics = await findTopicsByTitle(
+            input.keyword!.keyword,
+          );
+          for (const topic of matchingTopics) {
+            await Promise.all([
+              incrementTopicGuideCreatedCount(topic.id),
+              incrementTopicUsedCount(topic.id),
+            ]);
+          }
+        })
+        .catch((err) => {
+          console.error(
+            "[generateGuide] topic count increment failed:",
+            err,
+          );
+        });
+    }
 
     return createSuccessResponse({ guideId: guide.id, preview: generated });
   } catch (error) {

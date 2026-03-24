@@ -336,12 +336,29 @@ export interface SuggestedTopic {
   career_field: string | null;
   curriculum_year: number | null;
   target_major: string | null;
+  subject_group: string | null;
+  major_unit: string | null;
+  minor_unit: string | null;
   title: string;
   reason: string | null;
   related_subjects: string[];
   used_count: number;
   guide_created_count: number;
+  ai_model_version: string | null;
   created_at: string;
+}
+
+/** 주제 목록 필터 (페이지네이션 포함) */
+export interface TopicListFilter {
+  guideType?: string;
+  subjectName?: string;
+  careerField?: string;
+  subjectGroup?: string;
+  majorUnit?: string;
+  minorUnit?: string;
+  searchQuery?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 /** 버전 히스토리 아이템 */

@@ -17,8 +17,9 @@ import {
   fetchPopularGuidesAction,
   fetchGroupedSubjectsAction,
   recommendByFiltersAction,
+  listTopicsAction,
 } from "@/lib/domains/guide/actions/crud";
-import type { GuideListFilter } from "@/lib/domains/guide/types";
+import type { GuideListFilter, TopicListFilter } from "@/lib/domains/guide/types";
 
 // ============================================
 // Query Key Factory
@@ -62,6 +63,9 @@ export const explorationGuideKeys = {
     [...explorationGuideKeys.all, "groupedSubjects", revisionId] as const,
   filterRecommend: (filters: { guideType?: string; subjectId?: string; careerFieldId?: number }) =>
     [...explorationGuideKeys.all, "filterRecommend", filters] as const,
+  // AI 추천 주제 관리
+  topicList: (filters: TopicListFilter) =>
+    [...explorationGuideKeys.all, "topicList", filters] as const,
 };
 
 // ============================================
@@ -218,6 +222,18 @@ export function filterRecommendQueryOptions(filters: {
     queryFn: () => recommendByFiltersAction(filters),
     staleTime: 30_000,
     enabled: !!(filters.guideType || filters.subjectId || filters.careerFieldId),
+  });
+}
+
+// ============================================
+// AI 추천 주제 관리 Query Options
+// ============================================
+
+export function topicListQueryOptions(filters: TopicListFilter) {
+  return queryOptions({
+    queryKey: explorationGuideKeys.topicList(filters),
+    queryFn: () => listTopicsAction(filters),
+    staleTime: 30_000,
   });
 }
 

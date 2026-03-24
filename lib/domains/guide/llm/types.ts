@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { GuideType, QualityTier } from "../types";
+import type { ModelTier } from "@/lib/domains/plan/llm/types";
 
 // ============================================================
 // C3: AI 가이드 생성 입출력 타입
@@ -64,6 +65,8 @@ export interface GuideGenerationInput {
   unitMajor?: string;
   /** 소단원명 (예: "원소의 주기성") */
   unitMinor?: string;
+  /** AI 모델 티어 (fast=Flash, advanced=Pro) — 기본 fast */
+  modelTier?: ModelTier;
 }
 
 // ============================================================

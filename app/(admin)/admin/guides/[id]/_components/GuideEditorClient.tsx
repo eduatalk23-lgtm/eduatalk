@@ -108,7 +108,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
   // UI 상태
   const [saving, setSaving] = useState(false);
   const [improving, setImproving] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
+  const [showPreview, setShowPreview] = useState(!isNew);
 
   // AI 이미지 다이얼로그 상태
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
@@ -434,7 +434,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
             <ArrowLeft className="w-5 h-5 text-[var(--text-secondary)]" />
           </Link>
           <h1 className="text-lg font-bold text-[var(--text-heading)]">
-            {isNew ? "새 가이드 작성" : "가이드 편집"}
+            {isNew ? "새 가이드 작성" : showPreview ? "가이드 미리보기" : "가이드 편집"}
           </h1>
           {!isNew && guide && guide.version > 1 && (
             <span className="text-xs px-2 py-0.5 rounded-full bg-secondary-100 dark:bg-secondary-800 text-[var(--text-secondary)]">
@@ -443,54 +443,64 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setShowPreview((p) => !p)}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm transition-colors",
-              showPreview
-                ? "border-primary-300 bg-primary-50 text-primary-700 dark:border-primary-600 dark:bg-primary-900/30 dark:text-primary-300"
-                : "border-secondary-200 dark:border-secondary-700 text-[var(--text-secondary)] hover:bg-secondary-50 dark:hover:bg-secondary-800",
-            )}
-          >
-            {showPreview ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            {showPreview ? "편집" : "미리보기"}
-          </button>
-          {!isNew && (
+          {showPreview ? (
+            /* 미리보기 모드: 편집 버튼만 */
             <button
               type="button"
-              onClick={handleSaveAsNewVersion}
-              disabled={saving}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-700 text-[var(--text-secondary)] text-sm hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors disabled:opacity-50"
+              onClick={() => setShowPreview(false)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors"
             >
-              <CopyPlus className="w-4 h-4" />
-              새 버전
+              <EyeOff className="w-4 h-4" />
+              편집
             </button>
+          ) : (
+            /* 편집 모드: 전체 액션 버튼 */
+            <>
+              <button
+                type="button"
+                onClick={() => setShowPreview(true)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-700 text-[var(--text-secondary)] text-sm hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors"
+              >
+                <Eye className="w-4 h-4" />
+                미리보기
+              </button>
+              {!isNew && (
+                <button
+                  type="button"
+                  onClick={handleSaveAsNewVersion}
+                  disabled={saving}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-700 text-[var(--text-secondary)] text-sm hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors disabled:opacity-50"
+                >
+                  <CopyPlus className="w-4 h-4" />
+                  새 버전
+                </button>
+              )}
+              {!isNew && (
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={saving}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-200 text-red-600 text-sm hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  삭제
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors disabled:opacity-50"
+              >
+                {saving ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                {saving ? "저장 중..." : "저장"}
+              </button>
+            </>
           )}
-          {!isNew && (
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={saving}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-200 text-red-600 text-sm hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
-            >
-              <Trash2 className="w-4 h-4" />
-              삭제
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors disabled:opacity-50"
-          >
-            {saving ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4" />
-            )}
-            {saving ? "저장 중..." : "저장"}
-          </button>
         </div>
       </div>
 

@@ -17,6 +17,8 @@ import type {
   CurriculumUnit,
   GuideType,
   GuideStatus,
+  SuggestedTopic,
+  TopicListFilter,
 } from "../types";
 import {
   findGuides,
@@ -565,5 +567,41 @@ export async function getLatestVersionIdAction(
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "getLatestVersionId" }, error, { guideId });
     return createErrorResponse("최신 버전을 찾을 수 없습니다.");
+  }
+}
+
+// ============================================================
+// 9. AI 추천 주제 관리
+// ============================================================
+
+/** CMS 주제 목록 (페이지네이션 + 필터) */
+export async function listTopicsAction(
+  filters: TopicListFilter,
+): Promise<ActionResponse<{ data: SuggestedTopic[]; count: number }>> {
+  try {
+    await requireAdminOrConsultant();
+    const { findSuggestedTopicsPaginated } = await import("../repository");
+    const result = await findSuggestedTopicsPaginated(filters);
+    console.log("[listTopics] result count:", result.count, "data:", result.data.length);
+    return createSuccessResponse(result);
+  } catch (error) {
+    console.error("[listTopics] error:", error);
+    logActionError({ ...LOG_CTX, action: "listTopics" }, error, { filters });
+    return createErrorResponse("주제 목록을 불러올 수 없습니다.");
+  }
+}
+
+/** 주제 삭제 */
+export async function deleteTopicAction(
+  topicId: string,
+): Promise<ActionResponse<void>> {
+  try {
+    await requireAdminOrConsultant();
+    const { deleteSuggestedTopic } = await import("../repository");
+    await deleteSuggestedTopic(topicId);
+    return createSuccessResponse(undefined);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "deleteTopic" }, error, { topicId });
+    return createErrorResponse("주제 삭제에 실패했습니다.");
   }
 }

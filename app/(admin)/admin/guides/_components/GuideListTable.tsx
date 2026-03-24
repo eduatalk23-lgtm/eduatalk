@@ -82,98 +82,153 @@ export function GuideListTable({
     <div className="overflow-x-auto rounded-lg border border-secondary-200 dark:border-secondary-700">
       <table className="w-full text-sm">
         <thead>
-          <tr className="bg-secondary-50 dark:bg-secondary-800/50 text-left">
+          <tr className="bg-secondary-50 dark:bg-secondary-800/50 text-left whitespace-nowrap">
             <th className="px-4 py-3 font-medium text-[var(--text-secondary)]">
               제목
             </th>
-            <th className="px-4 py-3 font-medium text-[var(--text-secondary)] w-24">
+            <th className="px-3 py-3 font-medium text-[var(--text-secondary)] w-20">
               유형
             </th>
-            <th className="px-4 py-3 font-medium text-[var(--text-secondary)] w-20">
+            <th className="px-3 py-3 font-medium text-[var(--text-secondary)] w-20">
               상태
             </th>
-            <th className="px-4 py-3 font-medium text-[var(--text-secondary)] w-24 hidden md:table-cell">
+            <th className="px-3 py-3 font-medium text-[var(--text-secondary)] w-20 hidden sm:table-cell">
               소스
             </th>
-            <th className="px-4 py-3 font-medium text-[var(--text-secondary)] w-24 hidden md:table-cell">
+            <th className="px-3 py-3 font-medium text-[var(--text-secondary)] w-20 hidden sm:table-cell">
               품질
             </th>
-            <th className="px-4 py-3 font-medium text-[var(--text-secondary)] w-24 hidden lg:table-cell">
+            <th className="px-3 py-3 font-medium text-[var(--text-secondary)] w-28 hidden md:table-cell">
+              AI 모델
+            </th>
+            <th className="px-3 py-3 font-medium text-[var(--text-secondary)] w-12 hidden md:table-cell text-center">
+              버전
+            </th>
+            <th className="px-3 py-3 font-medium text-[var(--text-secondary)] w-20 hidden lg:table-cell">
               생성일
             </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-secondary-100 dark:divide-secondary-800">
-          {guides.map((guide) => (
-            <tr
-              key={guide.id}
-              onClick={() => onRowClick(guide.id)}
-              className="cursor-pointer hover:bg-secondary-50 dark:hover:bg-secondary-800/30 transition-colors"
-            >
-              <td className="px-4 py-3">
-                <p className="font-medium text-[var(--text-heading)] line-clamp-1">
-                  {guide.title}
-                </p>
-                <p className="text-xs text-[var(--text-secondary)] mt-0.5 line-clamp-1">
-                  {[
-                    guide.curriculum_year,
-                    guide.subject_area,
-                    guide.subject_select,
-                    guide.book_title,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ") || "—"}
-                </p>
-              </td>
-              <td className="px-4 py-3">
-                <span
-                  className={cn(
-                    "inline-block px-2 py-0.5 rounded-full text-xs font-medium",
-                    TYPE_COLORS[guide.guide_type] ?? "",
-                  )}
-                >
-                  {GUIDE_TYPE_LABELS[guide.guide_type]}
-                </span>
-              </td>
-              <td className="px-4 py-3">
-                <span
-                  className={cn(
-                    "inline-block px-2 py-0.5 rounded-full text-xs font-medium",
-                    STATUS_COLORS[guide.status] ?? "",
-                  )}
-                >
-                  {GUIDE_STATUS_LABELS[guide.status]}
-                </span>
-              </td>
-              <td className="px-4 py-3 hidden md:table-cell">
-                <span
-                  className={cn(
-                    "text-xs",
-                    SOURCE_COLORS[guide.source_type] ?? "",
-                  )}
-                >
-                  {GUIDE_SOURCE_TYPE_LABELS[guide.source_type] ?? guide.source_type}
-                </span>
-              </td>
-              <td className="px-4 py-3 hidden md:table-cell">
-                {guide.quality_tier ? (
+          {guides.map((guide) => {
+            const curriculumPath = [
+              guide.subject_area,
+              guide.subject_select,
+              guide.unit_major,
+              guide.unit_minor,
+            ]
+              .filter(Boolean)
+              .join(" > ");
+
+            return (
+              <tr
+                key={guide.id}
+                onClick={() => onRowClick(guide.id)}
+                className="cursor-pointer hover:bg-secondary-50 dark:hover:bg-secondary-800/30 transition-colors"
+              >
+                {/* 제목 + 교육과정 체계 */}
+                <td className="px-4 py-3">
+                  <p className="font-medium text-[var(--text-heading)] line-clamp-1">
+                    {guide.title}
+                  </p>
+                  {curriculumPath ? (
+                    <p className="text-xs text-primary-600 dark:text-primary-400 mt-0.5 line-clamp-1">
+                      {curriculumPath}
+                    </p>
+                  ) : guide.book_title ? (
+                    <p className="text-xs text-[var(--text-secondary)] mt-0.5 line-clamp-1">
+                      {guide.book_title}
+                    </p>
+                  ) : null}
+                </td>
+
+                {/* 유형 */}
+                <td className="px-3 py-3">
                   <span
                     className={cn(
-                      "text-xs",
-                      QUALITY_COLORS[guide.quality_tier] ?? "",
+                      "inline-block px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap",
+                      TYPE_COLORS[guide.guide_type] ?? "",
                     )}
                   >
-                    {QUALITY_TIER_LABELS[guide.quality_tier]}
+                    {GUIDE_TYPE_LABELS[guide.guide_type]}
                   </span>
-                ) : (
-                  <span className="text-xs text-secondary-400">—</span>
-                )}
-              </td>
-              <td className="px-4 py-3 hidden lg:table-cell text-xs text-[var(--text-secondary)]">
-                {new Date(guide.created_at).toLocaleDateString("ko-KR")}
-              </td>
-            </tr>
-          ))}
+                </td>
+
+                {/* 상태 */}
+                <td className="px-3 py-3">
+                  <span
+                    className={cn(
+                      "inline-block px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap",
+                      STATUS_COLORS[guide.status] ?? "",
+                    )}
+                  >
+                    {GUIDE_STATUS_LABELS[guide.status]}
+                  </span>
+                </td>
+
+                {/* 소스 */}
+                <td className="px-3 py-3 hidden sm:table-cell">
+                  <span
+                    className={cn(
+                      "text-xs whitespace-nowrap",
+                      SOURCE_COLORS[guide.source_type] ?? "",
+                    )}
+                  >
+                    {GUIDE_SOURCE_TYPE_LABELS[guide.source_type] ?? guide.source_type}
+                  </span>
+                </td>
+
+                {/* 품질 (등급 + 점수) */}
+                <td className="px-3 py-3 hidden sm:table-cell">
+                  {guide.quality_tier ? (
+                    <div>
+                      <span
+                        className={cn(
+                          "text-xs whitespace-nowrap",
+                          QUALITY_COLORS[guide.quality_tier] ?? "",
+                        )}
+                      >
+                        {QUALITY_TIER_LABELS[guide.quality_tier]}
+                      </span>
+                      {guide.quality_score != null && (
+                        <span className="block text-[10px] text-[var(--text-secondary)]">
+                          {guide.quality_score}점
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-secondary-400">—</span>
+                  )}
+                </td>
+
+                {/* AI 모델 */}
+                <td className="px-3 py-3 hidden md:table-cell whitespace-nowrap">
+                  {guide.ai_model_version ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+                      AI
+                      <span className="text-[10px] opacity-70">
+                        {guide.ai_model_version}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-xs text-secondary-400">—</span>
+                  )}
+                </td>
+
+                {/* 버전 */}
+                <td className="px-3 py-3 hidden md:table-cell text-center">
+                  <span className="text-xs text-[var(--text-secondary)]">
+                    v{guide.version}
+                  </span>
+                </td>
+
+                {/* 생성일 */}
+                <td className="px-3 py-3 hidden lg:table-cell text-xs text-[var(--text-secondary)] whitespace-nowrap">
+                  {new Date(guide.created_at).toLocaleDateString("ko-KR")}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

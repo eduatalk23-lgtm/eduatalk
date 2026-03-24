@@ -61,9 +61,12 @@ export async function suggestTopicsAction(input: {
   careerField?: string;
   targetMajor?: string;
   curriculumYear?: number;
+  subjectGroup?: string;
   majorUnit?: string;
   minorUnit?: string;
   existingTitles?: string[];
+  /** AI 모델 티어 (fast=Flash, advanced=Pro) — 기본 fast */
+  modelTier?: "fast" | "standard" | "advanced";
 }): Promise<ActionResponse<SuggestedTopicsOutput>> {
   try {
     await requireAdminOrConsultant();
@@ -101,7 +104,9 @@ export async function suggestTopicsAction(input: {
     const allExistingTitles = [
       ...(input.existingTitles ?? []),
       ...existing.map((t) => t.title),
-    ].slice(0, 10);
+    ]
+      .map((t) => t.slice(0, 80))
+      .slice(0, 10);
 
     // 프롬프트 조립 (기존 제목을 중복 회피로 전달)
     const userPrompt = buildSuggestTopicPrompt({
@@ -110,13 +115,14 @@ export async function suggestTopicsAction(input: {
     });
 
     // Gemini 호출
-    const { object: result } = await generateObjectWithRateLimit({
+    const tier = input.modelTier ?? "fast";
+    const { object: result, modelId } = await generateObjectWithRateLimit({
       system: SUGGEST_TOPICS_SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt }],
       schema: zodSchema(suggestedTopicsSchema),
-      modelTier: "fast",
+      modelTier: tier,
       temperature: 0.7,
-      maxTokens: 1024,
+      maxTokens: tier === "advanced" ? 4096 : 2048,
     });
 
     // DB에 영구 저장 (중복 무시)
@@ -134,10 +140,13 @@ export async function suggestTopicsAction(input: {
           careerField: input.careerField,
           curriculumYear: input.curriculumYear,
           targetMajor: input.targetMajor,
+          subjectGroup: input.subjectGroup,
+          majorUnit: input.majorUnit,
+          minorUnit: input.minorUnit,
           title: t.title,
           reason: t.reason,
           relatedSubjects: t.relatedSubjects,
-          aiModelVersion: "gemini-3.1-flash",
+          aiModelVersion: modelId,
           createdBy: userId,
         })),
       );

@@ -317,7 +317,11 @@ export async function generateObjectWithRateLimit<T>(
           maxOutputTokens: maxTokens,
           temperature,
           providerOptions: {
-            google: { thinkingConfig: { thinkingBudget: 0 } },
+            google: {
+              thinkingConfig: {
+                thinkingBudget: tier === "advanced" ? 1024 : 0,
+              },
+            },
           },
         });
       });

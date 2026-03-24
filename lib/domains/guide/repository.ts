@@ -879,7 +879,7 @@ export async function findPopularGuidesByClassification(
 // 8. AI 추천 주제 축적 저장소
 // ============================================================
 
-/** 조건으로 축적된 주제 조회 (인기순) */
+/** 조건으로 축적된 주제 조회 (인기순, Admin 권한 검증 후 호출) */
 export async function findSuggestedTopics(filter: {
   guideType?: string;
   subjectName?: string;
@@ -888,8 +888,11 @@ export async function findSuggestedTopics(filter: {
   targetMajor?: string;
   limit?: number;
 }): Promise<SuggestedTopic[]> {
-  const supabase = await createSupabaseServerClient();
-  let query = supabase
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) return [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = supabase as any;
+  let query = sb
     .from("suggested_topics")
     .select("*")
     .order("used_count", { ascending: false })
@@ -909,12 +912,54 @@ export async function findSuggestedTopics(filter: {
     query = query.eq("curriculum_year", filter.curriculumYear);
   }
   if (filter.targetMajor) {
-    query = query.eq("target_major", filter.targetMajor);
+    query = query.or(
+      `target_major.eq.${filter.targetMajor},target_major.is.null`,
+    );
   }
 
   const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as SuggestedTopic[];
+}
+
+/** 조건으로 축적된 주제 페이지네이션 조회 (관리 페이지용, Admin 권한 검증 후 호출) */
+export async function findSuggestedTopicsPaginated(
+  filter: import("./types").TopicListFilter,
+): Promise<{ data: import("./types").SuggestedTopic[]; count: number }> {
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) throw new Error("Admin client unavailable");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = supabase as any;
+  const page = filter.page ?? 1;
+  const pageSize = filter.pageSize ?? 20;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  let query = sb
+    .from("suggested_topics")
+    .select("*", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(from, to);
+
+  if (filter.guideType) query = query.eq("guide_type", filter.guideType);
+  if (filter.subjectName) query = query.eq("subject_name", filter.subjectName);
+  if (filter.careerField) query = query.eq("career_field", filter.careerField);
+  if (filter.subjectGroup) query = query.eq("subject_group", filter.subjectGroup);
+  if (filter.majorUnit) query = query.eq("major_unit", filter.majorUnit);
+  if (filter.minorUnit) query = query.eq("minor_unit", filter.minorUnit);
+  if (filter.searchQuery) {
+    const escaped = filter.searchQuery.replace(/[%_\\]/g, (m) => `\\${m}`);
+    query = query.or(
+      `title.ilike.%${escaped}%,reason.ilike.%${escaped}%`,
+    );
+  }
+
+  const { data, error, count } = await query;
+  if (error) throw error;
+  return {
+    data: (data ?? []) as import("./types").SuggestedTopic[],
+    count: count ?? 0,
+  };
 }
 
 /** AI 생성 결과 벌크 저장 (중복 무시, RLS 우회) */
@@ -926,6 +971,9 @@ export async function saveSuggestedTopics(
     careerField?: string;
     curriculumYear?: number;
     targetMajor?: string;
+    subjectGroup?: string;
+    majorUnit?: string;
+    minorUnit?: string;
     title: string;
     reason?: string;
     relatedSubjects?: string[];
@@ -944,6 +992,9 @@ export async function saveSuggestedTopics(
     career_field: t.careerField ?? null,
     curriculum_year: t.curriculumYear ?? null,
     target_major: t.targetMajor ?? null,
+    subject_group: t.subjectGroup ?? null,
+    major_unit: t.majorUnit ?? null,
+    minor_unit: t.minorUnit ?? null,
     title: t.title,
     reason: t.reason ?? null,
     related_subjects: t.relatedSubjects ?? [],
@@ -1001,4 +1052,74 @@ export async function incrementTopicUsedCount(
         .eq("id", topicId);
     }
   }
+}
+
+/** 가이드 생성 횟수 원자적 증가 */
+export async function incrementTopicGuideCreatedCount(
+  topicId: string,
+): Promise<void> {
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) return;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = supabase as any;
+  const { error } = await sb.rpc("increment_topic_guide_created_count", {
+    p_topic_id: topicId,
+  });
+
+  if (error) {
+    const { data } = await supabase
+      .from("suggested_topics")
+      .select("guide_created_count")
+      .eq("id", topicId)
+      .single();
+
+    if (data) {
+      await supabase
+        .from("suggested_topics")
+        .update({
+          guide_created_count: ((data as { guide_created_count?: number }).guide_created_count ?? 0) + 1,
+        })
+        .eq("id", topicId);
+    }
+  }
+}
+
+/** 주제 삭제 (Admin 권한 검증 후 호출) */
+export async function deleteSuggestedTopic(topicId: string): Promise<void> {
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) throw new Error("Admin client unavailable");
+  const { error } = await supabase
+    .from("suggested_topics")
+    .delete()
+    .eq("id", topicId);
+  if (error) throw error;
+}
+
+/** 제목으로 주제 검색 (guide_created_count 매칭용) */
+export async function findTopicsByTitle(
+  title: string,
+): Promise<import("./types").SuggestedTopic[]> {
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) return [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = supabase as any;
+  // 정확 일치 우선, 없으면 부분 매칭
+  const { data, error } = await sb
+    .from("suggested_topics")
+    .select("*")
+    .eq("title", title);
+  if (error) throw error;
+  if (data && data.length > 0) {
+    return data as import("./types").SuggestedTopic[];
+  }
+  // fallback: 부분 매칭 (키워드가 제목에 포함되거나 반대)
+  const escaped = title.replace(/[%_\\]/g, (m: string) => `\\${m}`);
+  const { data: fuzzy, error: fuzzyErr } = await sb
+    .from("suggested_topics")
+    .select("*")
+    .ilike("title", `%${escaped}%`)
+    .limit(3);
+  if (fuzzyErr) throw fuzzyErr;
+  return (fuzzy ?? []) as import("./types").SuggestedTopic[];
 }

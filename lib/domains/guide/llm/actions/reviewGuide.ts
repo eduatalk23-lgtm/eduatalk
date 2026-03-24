@@ -60,7 +60,7 @@ export async function reviewGuideAction(
     await updateGuide(guideId, { status: "ai_reviewing" });
 
     // AI 리뷰 실행
-    const { object: review } = await generateObjectWithRateLimit({
+    const { object: review, modelId } = await generateObjectWithRateLimit({
       system: REVIEW_SYSTEM_PROMPT,
       messages: [{ role: "user", content: buildReviewUserPrompt(guide) }],
       schema: zodSchema(guideReviewSchema),
@@ -82,6 +82,7 @@ export async function reviewGuideAction(
         feedback: review.feedback,
         strengths: review.strengths,
         reviewedAt: new Date().toISOString(),
+        modelId,
       },
     });
 

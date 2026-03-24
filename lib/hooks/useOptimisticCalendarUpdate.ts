@@ -197,6 +197,16 @@ export function useOptimisticCalendarUpdate(
     [withSnapshot],
   );
 
+  /** 이벤트 색상 즉시 변경 */
+  const optimisticColorChange = useCallback(
+    (eventId: string, color: string | null): RollbackFn => {
+      return withSnapshot((data) =>
+        data.map((e) => (e.id === eventId ? { ...e, color } : e)),
+      );
+    },
+    [withSnapshot],
+  );
+
   /** 같은 날짜 내 시간 즉시 변경 (리사이즈/같은날 드래그) */
   const optimisticTimeChange = useCallback(
     (
@@ -329,6 +339,7 @@ export function useOptimisticCalendarUpdate(
     withSnapshot,
     optimisticStatusChange,
     optimisticDelete,
+    optimisticColorChange,
     optimisticTimeChange,
     optimisticDateMove,
     revalidate,

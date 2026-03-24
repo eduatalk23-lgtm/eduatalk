@@ -91,7 +91,7 @@ export async function improveGuideAction(
     });
 
     // Gemini 호출 (개선 생성)
-    const { object: improved } = await generateObjectWithRateLimit({
+    const { object: improved, modelId } = await generateObjectWithRateLimit({
       system: IMPROVE_SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt }],
       schema: zodSchema(generatedGuideSchema),
@@ -143,6 +143,8 @@ export async function improveGuideAction(
       qualityTier: "ai_draft",
       reviewResult: null,
       versionMessage: `AI 리뷰 피드백 반영 개선 (${guide.quality_score ?? 0}점 → 개선)`,
+      aiModelVersion: modelId,
+      aiPromptVersion: "improve-v1",
     });
 
     return createSuccessResponse({

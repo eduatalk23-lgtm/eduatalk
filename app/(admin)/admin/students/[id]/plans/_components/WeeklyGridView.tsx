@@ -185,7 +185,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
     };
   }, [biweeklyMode, weeklyData, biweeklyData]);
 
-  const { optimisticStatusChange, optimisticTimeChange, optimisticDateMove, revalidate } =
+  const { optimisticStatusChange, optimisticColorChange, optimisticTimeChange, optimisticDateMove, revalidate } =
     useOptimisticCalendarUpdate(calendarId, visibleCalendarIds);
 
   // 공휴일 AllDayItems 주입
@@ -671,9 +671,14 @@ export const WeeklyGridView = memo(function WeeklyGridView({
       handleQuickStatusChange(planId, newStatus, prevStatus, instanceDate);
     },
     onColorChange: async (planId, color) => {
+      const rollback = optimisticColorChange(planId, color);
       const { updateEventColor } = await import('@/lib/domains/calendar/actions/calendarEventActions');
-      await updateEventColor(planId, color);
-      revalidate();
+      const result = await updateEventColor(planId, color);
+      if (result?.success === false) {
+        rollback();
+      } else {
+        revalidate();
+      }
     },
     onDisable: async (id) => {
       const { deleteCalendarEventAction } = await import('@/lib/domains/admin-plan/actions/calendarEvents');
