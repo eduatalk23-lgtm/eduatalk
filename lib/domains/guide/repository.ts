@@ -950,7 +950,9 @@ export async function findShareByToken(
   const supabase = createSupabaseAdminClient();
   if (!supabase) return null;
 
-  const { data, error } = await (supabase as ReturnType<typeof createSupabaseAdminClient> & { from: (t: string) => unknown })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = supabase as any;
+  const { data, error } = await sb
     .from("exploration_guide_shares")
     .select("*")
     .eq("share_token", token)
