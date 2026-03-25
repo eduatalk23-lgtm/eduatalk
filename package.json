@@ -105,7 +105,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "NODE_OPTIONS='--max-old-space-size=8192' next build",
+    "build": "node scripts/inject-sw-version.mjs && NODE_OPTIONS='--max-old-space-size=8192' next build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",

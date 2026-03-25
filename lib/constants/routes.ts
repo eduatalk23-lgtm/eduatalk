@@ -22,6 +22,7 @@ export const PUBLIC_PAGE_PATHS = [
   "/student-setup",
   "/offline",
   "/pay",
+  "/shared",
 ] as const;
 
 /**

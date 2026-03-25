@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import CurriculumCascadeSelect from "@/components/filters/CurriculumCascadeSelect";
 import {
   cmsGuideListQueryOptions,
   groupedSubjectsQueryOptions,
@@ -37,16 +38,11 @@ import {
   GUIDE_STATUSES,
   GUIDE_SOURCE_TYPES,
   QUALITY_TIERS,
+  CURRICULUM_REVISION_IDS,
 } from "@/lib/domains/guide/types";
 import { GuideListTable } from "./GuideListTable";
 
 const PAGE_SIZE = 20;
-
-// 교육과정 revision ID
-const CURRICULUM_REVISION_IDS: Record<string, string> = {
-  "2022": "7606fee5-6405-4410-8ff8-e9ec12ff07e2",
-  "2015": "487cc4d6-62ec-41d6-ba4a-6009b0a08f9e",
-};
 
 const selectClass = cn(
   "px-3 py-2 rounded-lg border text-sm",
@@ -312,112 +308,48 @@ export function GuideListClient() {
 
       {/* 교육과정 캐스캐이딩 필터 (토글) */}
       {showCurriculumFilters && (
-        <div className="flex flex-wrap items-center gap-2 pl-1 border-l-2 border-primary-300 dark:border-primary-700">
-          <select
-            value={filters.curriculumYear ?? ""}
-            onChange={(e) => {
-              setSelectedSubjectArea("");
-              handleFilterChange("curriculumYear", e.target.value);
-            }}
-            className={selectClass}
-          >
-            <option value="">전체 교육과정</option>
-            <option value="2022">2022 개정</option>
-            <option value="2015">2015 개정</option>
-          </select>
-
-          <select
-            value={selectedSubjectArea}
-            onChange={(e) => {
-              const area = e.target.value;
-              setSelectedSubjectArea(area);
-              // 교과 선택 → 해당 그룹의 모든 과목명 배열로 필터
-              const group = groupedSubjects.find((g) => g.groupName === area);
-              const subjectNames = group?.subjects.map((s) => s.name) ?? [];
-              setFilters((prev) => ({
-                ...prev,
-                subjectSelectIn: subjectNames.length > 0 ? subjectNames : undefined,
-                subjectSelect: undefined,
-                unitMajor: undefined,
-                unitMinor: undefined,
-                page: 1,
-              }));
-            }}
-            className={selectClass}
-            disabled={!filters.curriculumYear}
-          >
-            <option value="">
-              {filters.curriculumYear ? "전체 교과" : "교육과정 먼저 선택"}
-            </option>
-            {groupedSubjects.map((g) => (
-              <option key={g.groupName} value={g.groupName}>
-                {g.groupName}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={filters.subjectSelect ?? ""}
-            onChange={(e) => {
-              const subject = e.target.value;
-              setFilters((prev) => ({
-                ...prev,
-                // 특정 과목 선택 시 subjectSelect가 subjectSelectIn을 오버라이드
-                subjectSelect: subject || undefined,
-                subjectSelectIn: subject ? undefined : prev.subjectSelectIn,
-                unitMajor: undefined,
-                unitMinor: undefined,
-                page: 1,
-              }));
-            }}
-            className={selectClass}
-            disabled={!selectedSubjectArea}
-          >
-            <option value="">
-              {selectedSubjectArea ? "전체 과목" : "교과 먼저 선택"}
-            </option>
-            {filteredSubjects.map((s) => (
-              <option key={s.id} value={s.name}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={filters.unitMajor ?? ""}
-            onChange={(e) => handleFilterChange("unitMajor", e.target.value)}
-            className={selectClass}
-            disabled={!filters.subjectSelect || majorUnits.length === 0}
-          >
-            <option value="">
-              {!filters.subjectSelect
-                ? "과목 먼저 선택"
-                : majorUnits.length === 0
-                  ? "단원 정보 없음"
-                  : "전체 대단원"}
-            </option>
-            {majorUnits.map((u) => (
-              <option key={u.id} value={u.unit_name}>
-                {u.unit_name}
-              </option>
-            ))}
-          </select>
-
-          {filters.unitMajor && minorUnits.length > 0 && (
-            <select
-              value={filters.unitMinor ?? ""}
-              onChange={(e) => handleFilterChange("unitMinor", e.target.value)}
-              className={selectClass}
-            >
-              <option value="">전체 소단원</option>
-              {minorUnits.map((u) => (
-                <option key={u.id} value={u.unit_name}>
-                  {u.unit_name}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
+        <CurriculumCascadeSelect
+          placeholderStyle="filter"
+          className="pl-1 border-l-2 border-primary-300 dark:border-primary-700"
+          yearOptions={["2022", "2015"]}
+          groupedSubjects={groupedSubjects}
+          majorUnits={majorUnits}
+          minorUnits={minorUnits}
+          curriculumYear={filters.curriculumYear ?? ""}
+          onCurriculumYearChange={(v) => {
+            setSelectedSubjectArea("");
+            handleFilterChange("curriculumYear", v);
+          }}
+          subjectArea={selectedSubjectArea}
+          onSubjectAreaChange={(v) => {
+            setSelectedSubjectArea(v);
+            const group = groupedSubjects.find((g) => g.groupName === v);
+            const subjectNames = group?.subjects.map((s) => s.name) ?? [];
+            setFilters((prev) => ({
+              ...prev,
+              subjectSelectIn: subjectNames.length > 0 ? subjectNames : undefined,
+              subjectSelect: undefined,
+              unitMajor: undefined,
+              unitMinor: undefined,
+              page: 1,
+            }));
+          }}
+          subjectSelect={filters.subjectSelect ?? ""}
+          onSubjectSelectChange={(v) => {
+            setFilters((prev) => ({
+              ...prev,
+              subjectSelect: v || undefined,
+              subjectSelectIn: v ? undefined : prev.subjectSelectIn,
+              unitMajor: undefined,
+              unitMinor: undefined,
+              page: 1,
+            }));
+          }}
+          unitMajor={filters.unitMajor ?? ""}
+          onUnitMajorChange={(v) => handleFilterChange("unitMajor", v)}
+          unitMinor={filters.unitMinor ?? ""}
+          onUnitMinorChange={(v) => handleFilterChange("unitMinor", v)}
+        />
       )}
 
       {/* 결과 수 + 필터 초기화 */}

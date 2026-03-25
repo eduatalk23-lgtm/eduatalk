@@ -38,12 +38,12 @@ export function RoleBasedLayout({
         )}
 
         {/* Main content area */}
-        <div className={showSidebar ? "flex flex-1 pt-16" : "flex flex-1"}>
+        <div className={showSidebar ? "flex min-h-0 flex-1 pt-16" : "flex min-h-0 flex-1"}>
           <main
             id="main-content"
-            className="flex-1 flex flex-col"
+            className="min-h-0 flex-1 flex flex-col"
           >
-            <div className="flex-1" suppressHydrationWarning>
+            <div className="min-h-0 flex-1" suppressHydrationWarning>
               {children}
             </div>
           </main>

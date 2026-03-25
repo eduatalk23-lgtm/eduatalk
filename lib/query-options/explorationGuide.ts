@@ -16,6 +16,7 @@ import {
   fetchStudentCareerInfoAction,
   fetchPopularGuidesAction,
   fetchGroupedSubjectsAction,
+  fetchAllCurriculumUnitsAction,
   recommendByFiltersAction,
   listTopicsAction,
 } from "@/lib/domains/guide/actions/crud";
@@ -46,6 +47,9 @@ export const explorationGuideKeys = {
     [...explorationGuideKeys.all, "allSubjects"] as const,
   autoRecommend: (studentId: string, classificationId?: number | null, subjectName?: string | null) =>
     [...explorationGuideKeys.all, "autoRecommend", studentId, classificationId, subjectName] as const,
+  // 교육과정 단원 (cascading dropdown)
+  allCurriculumUnits: () =>
+    [...explorationGuideKeys.all, "allCurriculumUnits"] as const,
   // 키워드 추천
   curriculumUnits: (subjectName: string) =>
     [...explorationGuideKeys.all, "curriculumUnits", subjectName] as const,
@@ -146,6 +150,15 @@ export function allSubjectsQueryOptions() {
   return queryOptions({
     queryKey: explorationGuideKeys.allSubjects(),
     queryFn: () => fetchAllSubjectsAction(),
+    staleTime: Infinity,
+    gcTime: 60 * 60_000,
+  });
+}
+
+export function allCurriculumUnitsQueryOptions() {
+  return queryOptions({
+    queryKey: explorationGuideKeys.allCurriculumUnits(),
+    queryFn: () => fetchAllCurriculumUnitsAction(),
     staleTime: Infinity,
     gcTime: 60 * 60_000,
   });

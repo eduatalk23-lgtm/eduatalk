@@ -9,7 +9,7 @@
  * - Per-tag 알림 누적 카운트 (메시지 요약 표시)
  */
 
-const CACHE_NAME = "timelevelup-v1";
+const CACHE_NAME = "timelevelup-a1db8842";
 const OFFLINE_URL = "/offline";
 
 // ============================================
@@ -146,7 +146,8 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
   );
-  self.skipWaiting();
+  // skipWaiting()은 메인 스레드의 SKIP_WAITING 메시지로만 호출
+  // → 사용자가 "새로고침" 버튼을 눌렀을 때만 새 SW 활성화
 });
 
 // ============================================
@@ -493,6 +494,11 @@ async function syncBadgeCount(count) {
 // Message: 메인 스레드 ↔ SW 통신
 // ============================================
 self.addEventListener("message", (event) => {
+  // 메인 스레드에서 업데이트 승인 시 새 SW 활성화
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+    return;
+  }
   if (event.data?.type === "CLEAR_BADGE") {
     event.waitUntil(clearBadge());
   }

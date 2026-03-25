@@ -6,6 +6,25 @@ const withBundleAnalyzer = require("@next/bundle-analyzer")({
 });
 
 const nextConfig: NextConfig = {
+  // SW 캐시 무효화: 브라우저/CDN이 sw.js를 캐싱하지 않도록 설정
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=0, must-revalidate",
+          },
+          {
+            key: "Service-Worker-Allowed",
+            value: "/",
+          },
+        ],
+      },
+    ];
+  },
+
   // @dnd-kit과 React 19 Concurrent Mode 호환성 문제로 비활성화
   // 드래그 중 컴포넌트가 반복적으로 마운트/언마운트되는 문제 방지
   reactStrictMode: false,

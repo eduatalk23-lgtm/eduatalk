@@ -35,6 +35,7 @@ import {
   createNewVersion,
   revertToVersion,
   findCurriculumUnitsBySubject,
+  findAllCurriculumUnits,
   searchGuideTitles,
   countSimilarGuides,
   fetchStudentCareerInfo,
@@ -345,6 +346,20 @@ export async function fetchCurriculumUnitsAction(
       subjectName,
     });
     return createErrorResponse("교육과정 단원을 불러올 수 없습니다.");
+  }
+}
+
+/** 전체 교육과정 단원 목록 (cascading dropdown용) */
+export async function fetchAllCurriculumUnitsAction(): Promise<
+  ActionResponse<CurriculumUnit[]>
+> {
+  try {
+    await requireAdminOrConsultant();
+    const data = await findAllCurriculumUnits();
+    return createSuccessResponse(data);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "fetchAllCurriculumUnits" }, error);
+    return createErrorResponse("교육과정 데이터를 불러올 수 없습니다.");
   }
 }
 

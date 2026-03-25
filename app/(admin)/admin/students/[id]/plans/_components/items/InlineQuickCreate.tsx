@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useState, useTransition, useRef, useEffect, useCallback } from 'react';
+import { memo, useState, useRef, useEffect, useCallback } from 'react';
 import { createCalendarEventAction } from '@/lib/domains/admin-plan/actions/calendarEvents';
 import { type EmptySlot } from '@/lib/domains/admin-plan/utils/emptySlotCalculation';
 import { RecurrenceSelector } from './RecurrenceSelector';
@@ -73,7 +73,7 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
   const [title, setTitle] = useState('');
   const [titleError, setTitleError] = useState<string | null>(null);
   const [description, setDescription] = useState('');
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // ── 일정/학습 전용 상태 ──
@@ -154,7 +154,7 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
   }, [defaultStart, defaultEnd]);
 
   // ── 저장 핸들러 ──
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const trimmed = title.trim();
     if (!trimmed) {
       setTitleError('제목을 입력해주세요');
@@ -164,33 +164,36 @@ export const InlineQuickCreate = memo(function InlineQuickCreate({
     setTitleError(null);
 
     if (!calendarId) return;
-    startTransition(async () => {
-      try {
-        const { eventId } = await createCalendarEventAction({
-          calendarId,
-          title: trimmed,
-          description: description.trim() || undefined,
-          planDate: startDate,
-          endDate: isMultiDay ? endDate : undefined,
-          startTime: mode === 'allDay' ? undefined : startTime,
-          endTime: mode === 'allDay' ? undefined : endTime,
-          isAllDay: mode === 'allDay',
-          subject: isStudy ? (subject || undefined) : undefined,
-          rrule: rrule ?? undefined,
-          eventType: isStudy ? 'study' : 'custom',
-          label: isStudy ? '학습' : selectedLabel,
-          isTask,
-          containerType: 'daily',
-          estimatedMinutes: isStudy && mode !== 'allDay' && computedMinutes > 0 ? computedMinutes : undefined,
-          reminderMinutes: defaultReminderMinutes?.[0] ?? undefined,
-        });
-        toast.showSuccess(rrule ? '반복 이벤트가 생성되었습니다' : `${isStudy ? '학습' : selectedLabel} 일정이 생성되었습니다`);
-        onSuccess(eventId ? { planId: eventId, startTime: mode === 'allDay' ? '00:00' : startTime } : undefined);
-        onClose();
-      } catch (err) {
-        toast.showError(err instanceof Error ? err.message : '이벤트 생성에 실패했습니다');
-      }
-    });
+    // ★ startTransition 대신 직접 async 호출 — RSC 자동 리프레시 방지
+    // (Next.js 15에서 startTransition + server action → 서버 컴포넌트 재실행 → 페이지 깜빡임)
+    setIsPending(true);
+    try {
+      const { eventId } = await createCalendarEventAction({
+        calendarId,
+        title: trimmed,
+        description: description.trim() || undefined,
+        planDate: startDate,
+        endDate: isMultiDay ? endDate : undefined,
+        startTime: mode === 'allDay' ? undefined : startTime,
+        endTime: mode === 'allDay' ? undefined : endTime,
+        isAllDay: mode === 'allDay',
+        subject: isStudy ? (subject || undefined) : undefined,
+        rrule: rrule ?? undefined,
+        eventType: isStudy ? 'study' : 'custom',
+        label: isStudy ? '학습' : selectedLabel,
+        isTask,
+        containerType: 'daily',
+        estimatedMinutes: isStudy && mode !== 'allDay' && computedMinutes > 0 ? computedMinutes : undefined,
+        reminderMinutes: defaultReminderMinutes?.[0] ?? undefined,
+      });
+      toast.showSuccess(rrule ? '반복 이벤트가 생성되었습니다' : `${isStudy ? '학습' : selectedLabel} 일정이 생성되었습니다`);
+      onSuccess(eventId ? { planId: eventId, startTime: mode === 'allDay' ? '00:00' : startTime } : undefined);
+      onClose();
+    } catch (err) {
+      toast.showError(err instanceof Error ? err.message : '이벤트 생성에 실패했습니다');
+    } finally {
+      setIsPending(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

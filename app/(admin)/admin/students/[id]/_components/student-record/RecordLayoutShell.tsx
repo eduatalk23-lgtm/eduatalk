@@ -83,13 +83,16 @@ export function RecordLayoutShell({
 
   const sidebarWidth = isTablet ? SIDEBAR_WIDTH_TABLET : SIDEBAR_WIDTH_DESKTOP;
 
-  // 내부 스크롤만 사용 — html의 scrollbar-gutter: stable 비활성화
+  // 내부 스크롤만 사용 — html/body 브라우저 스크롤 차단 + scrollbar-gutter 비활성화
   useEffect(() => {
     const html = document.documentElement;
-    const prev = html.style.scrollbarGutter;
+    const prevGutter = html.style.scrollbarGutter;
+    const prevOverflow = html.style.overflow;
     html.style.scrollbarGutter = "auto";
+    html.style.overflow = "hidden";
     return () => {
-      html.style.scrollbarGutter = prev;
+      html.style.scrollbarGutter = prevGutter;
+      html.style.overflow = prevOverflow;
     };
   }, []);
 

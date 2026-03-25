@@ -149,14 +149,81 @@ export async function runInitialAnalysisPipeline(
 }
 
 // ============================================
+// 파이프라인 이어서 실행 (실패 태스크 재시도)
+// ============================================
+
+/** 실패한 파이프라인의 failed+pending 태스크만 이어서 실행 */
+export async function resumePipeline(
+  pipelineId: string,
+): Promise<ActionResponse<{ pipelineId: string }>> {
+  try {
+    await requireAdminOrConsultant();
+    const supabase = await createSupabaseServerClient();
+
+    // 파이프라인 조회 + 상태 검증
+    const { data: pipeline, error: fetchErr } = await supabase
+      .from("student_record_analysis_pipelines")
+      .select("*")
+      .eq("id", pipelineId)
+      .single();
+
+    if (fetchErr || !pipeline) {
+      return createErrorResponse("파이프라인을 찾을 수 없습니다");
+    }
+    if (pipeline.status !== "failed") {
+      return createErrorResponse("실패한 파이프라인만 이어서 실행할 수 있습니다");
+    }
+
+    // 상태를 running으로 전환
+    await supabase
+      .from("student_record_analysis_pipelines")
+      .update({ status: "running", completed_at: null })
+      .eq("id", pipelineId);
+
+    // 기존 상태 복원
+    const existingState: ExistingPipelineState = {
+      tasks: (pipeline.tasks ?? {}) as Record<string, PipelineTaskStatus>,
+      previews: (pipeline.task_previews ?? {}) as Record<string, string>,
+      results: (pipeline.task_results ?? {}) as Record<string, unknown>,
+      errors: (pipeline.error_details ?? {}) as Record<string, string>,
+    };
+
+    // 비동기로 태스크 이어서 실행
+    executePipelineTasks(
+      pipelineId,
+      pipeline.student_id,
+      pipeline.tenant_id,
+      pipeline.input_snapshot as Record<string, unknown> | null,
+      existingState,
+    ).catch((err) => {
+      logActionError({ ...LOG_CTX, action: "resumePipelineTasks" }, err, { pipelineId });
+    });
+
+    return createSuccessResponse({ pipelineId });
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "resumePipeline" }, error, { pipelineId });
+    return createErrorResponse("파이프라인 이어서 실행 실패");
+  }
+}
+
+// ============================================
 // 태스크 실행 (내부)
 // ============================================
+
+/** 이어서 실행 시 복원할 기존 파이프라인 상태 */
+interface ExistingPipelineState {
+  tasks: Record<string, PipelineTaskStatus>;
+  previews: Record<string, string>;
+  results: Record<string, unknown>;
+  errors: Record<string, string>;
+}
 
 async function executePipelineTasks(
   pipelineId: string,
   studentId: string,
   tenantId: string,
   studentSnapshot: Record<string, unknown> | null,
+  existingState?: ExistingPipelineState,
 ) {
   const supabase = await createSupabaseServerClient();
   const tasks: Record<string, PipelineTaskStatus> = {};
@@ -165,9 +232,34 @@ async function executePipelineTasks(
   const results: Record<string, any> = {};
   const errors: Record<string, string> = {};
 
+  // 이어서 실행: 기존 완료 태스크의 preview/result 복원
+  if (existingState) {
+    for (const key of PIPELINE_TASK_KEYS) {
+      if (existingState.tasks[key] === "completed") {
+        tasks[key] = "completed";
+        if (existingState.previews[key]) previews[key] = existingState.previews[key];
+        if (existingState.results[key]) results[key] = existingState.results[key];
+      } else {
+        tasks[key] = "pending";
+      }
+    }
+    // 실패 태스크의 이전 에러는 제거 (재시도이므로)
+  } else {
+    for (const key of PIPELINE_TASK_KEYS) {
+      tasks[key] = "pending";
+    }
+  }
+
   // Phase E2: edge_computation에서 수집 → 후속 태스크에서 context별 프롬프트 생성
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let computedEdges: any[] = [];
+
+  // 이어서 실행 시 edge_computation이 이미 완료되었으면 DB에서 엣지 복원
+  if (existingState?.tasks.edge_computation === "completed") {
+    const edgeRepo = await import("../edge-repository");
+    const persistedEdges = await edgeRepo.findEdges(studentId, tenantId);
+    computedEdges = persistedEdges;
+  }
 
   // C2: 태스크 간 공유 레코드 캐시 (중복 DB 조회 방지)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -188,10 +280,6 @@ async function executePipelineTasks(
     if (fresh) snapshot = fresh as Record<string, unknown>;
   }
   const studentGrade = (snapshot?.grade as number) ?? 3;
-
-  for (const key of PIPELINE_TASK_KEYS) {
-    tasks[key] = "pending";
-  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const taskRunners: Array<{ key: PipelineTaskKey; run: () => Promise<string | { preview: string; result: any }> }> = [
@@ -813,6 +901,12 @@ async function executePipelineTasks(
 
   // 순차 실행 (rate limiter가 자동 큐잉)
   for (const { key, run } of taskRunners) {
+    // 이어서 실행: 이미 완료된 태스크는 건너뜀
+    if (tasks[key] === "completed") {
+      logActionDebug(LOG_CTX, `Task ${key} already completed — skipping`);
+      continue;
+    }
+
     // 취소 여부 확인 — 매 태스크 시작 전 DB 상태 체크
     const { data: currentPipeline } = await supabase
       .from("student_record_analysis_pipelines")

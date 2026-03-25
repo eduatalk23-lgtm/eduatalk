@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { pipelineStatusQueryOptions, studentRecordKeys } from "@/lib/query-options/studentRecord";
+import { resumePipeline } from "@/lib/domains/student-record/actions/pipeline";
 import {
   PIPELINE_TASK_KEYS,
   PIPELINE_TASK_LABELS,
@@ -10,7 +11,7 @@ import {
 } from "@/lib/domains/student-record/pipeline-types";
 import { COMPETENCY_ITEMS } from "@/lib/domains/student-record/constants";
 import { cn } from "@/lib/cn";
-import { Check, AlertCircle, RotateCcw, ChevronRight } from "lucide-react";
+import { Check, AlertCircle, RotateCcw, ChevronRight, Play, Circle } from "lucide-react";
 
 /** P2-2: 태스크 결과에서 관련 역량 항목 추출 */
 function extractTaskCompetencies(
@@ -29,7 +30,7 @@ function extractTaskCompetencies(
   }
 
   // setek_guide: guides[].competencyFocus
-  if (key === "setek_guide" && result?.guides) {
+  if (key === "setek_guide" && Array.isArray(result?.guides)) {
     const codes = new Set<string>();
     for (const g of result.guides as Array<{ competencyFocus?: string[] }>) {
       for (const c of g.competencyFocus ?? []) codes.add(c);
@@ -38,7 +39,7 @@ function extractTaskCompetencies(
   }
 
   // ai_strategy: strategies target_area에서 역량 영역 추론
-  if (key === "ai_strategy" && result?.suggestions) {
+  if (key === "ai_strategy" && Array.isArray(result?.suggestions)) {
     const areas = new Set<string>();
     for (const s of result.suggestions as Array<{ targetArea?: string }>) {
       if (s.targetArea) areas.add(s.targetArea);
@@ -85,6 +86,15 @@ export function DesignPipelineResultsPanel({
     },
   });
 
+  const resumeMutation = useMutation({
+    mutationFn: () => resumePipeline(pipeline?.id ?? ""),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: studentRecordKeys.pipeline(studentId),
+      });
+    },
+  });
+
   const [checkedTasks, setCheckedTasks] = useState<Set<PipelineTaskKey>>(
     new Set(PIPELINE_TASK_KEYS),
   );
@@ -100,6 +110,10 @@ export function DesignPipelineResultsPanel({
   const failedTasks = PIPELINE_TASK_KEYS.filter(
     (k) => pipeline.tasks[k] === "failed",
   );
+  const pendingTasks = PIPELINE_TASK_KEYS.filter(
+    (k) => pipeline.tasks[k] === "pending",
+  );
+  const hasUnexecutedTasks = pendingTasks.length > 0 && pipeline.status !== "running";
 
   // 실행 중이면 간단한 진행 표시
   if (pipeline.status === "running") {
@@ -163,10 +177,34 @@ export function DesignPipelineResultsPanel({
 
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold text-[var(--text-primary)]">AI 초기 분석 결과</h4>
-        <span className="text-[10px] text-[var(--text-tertiary)]">
-          내부 분석용 — 확정 전까지 초안 상태
-        </span>
+        {pipeline.status === "failed" ? (
+          <button
+            type="button"
+            onClick={() => resumeMutation.mutate()}
+            disabled={resumeMutation.isPending}
+            className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+          >
+            <Play className="h-3 w-3" />
+            {resumeMutation.isPending ? "재시작 중..." : "이어서 분석"}
+          </button>
+        ) : (
+          <span className="text-[10px] text-[var(--text-tertiary)]">
+            내부 분석용 — 확정 전까지 초안 상태
+          </span>
+        )}
       </div>
+
+      {/* 미실행 태스크가 있는 경우 재분석 안내 */}
+      {hasUnexecutedTasks && pipeline.status === "completed" && (
+        <div className="mt-2 flex items-center justify-between rounded-md bg-amber-50 px-3 py-2 dark:bg-amber-950/20">
+          <span className="text-xs text-amber-700 dark:text-amber-300">
+            {pendingTasks.length}개 태스크가 실행되지 않았습니다
+          </span>
+          <span className="text-[10px] text-amber-600 dark:text-amber-400">
+            사이드바에서 재분석을 실행하세요
+          </span>
+        </div>
+      )}
 
       <div className="mt-3 flex flex-col gap-1.5">
         {PIPELINE_TASK_KEYS.map((key) => {
@@ -174,6 +212,7 @@ export function DesignPipelineResultsPanel({
           const preview = pipeline.taskPreviews[key];
           const isCompleted = status === "completed";
           const isFailed = status === "failed";
+          const isPending = status === "pending";
           const isChecked = checkedTasks.has(key);
 
           return (
@@ -183,6 +222,7 @@ export function DesignPipelineResultsPanel({
                 "flex items-center gap-2 rounded-md px-3 py-2 text-xs",
                 isCompleted && "bg-emerald-50/50 dark:bg-emerald-950/10",
                 isFailed && "bg-red-50/50 dark:bg-red-950/10",
+                isPending && "bg-gray-50/50 dark:bg-gray-950/10",
               )}
             >
               {isCompleted && (
@@ -194,14 +234,20 @@ export function DesignPipelineResultsPanel({
                 />
               )}
               {isFailed && <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />}
+              {isPending && <Circle className="h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)] opacity-40" />}
 
               <span className={cn(
                 "flex-1",
-                isFailed ? "text-red-600 dark:text-red-400" : "text-[var(--text-primary)]",
+                isFailed ? "text-red-600 dark:text-red-400" : isPending ? "text-[var(--text-tertiary)]" : "text-[var(--text-primary)]",
               )}>
                 {PIPELINE_TASK_LABELS[key]}
                 {preview && (
                   <span className="text-[var(--text-tertiary)]"> — {preview}</span>
+                )}
+                {isPending && (
+                  <span className="ml-1.5 rounded bg-gray-100 px-1 py-0.5 text-[9px] font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                    미실행
+                  </span>
                 )}
                 {isFailed && pipeline.errorDetails?.[key] && (
                   <span className="text-red-400"> ({pipeline.errorDetails[key]})</span>
@@ -238,10 +284,11 @@ export function DesignPipelineResultsPanel({
               {isFailed && (
                 <button
                   type="button"
-                  onClick={() => scrollToSection(key)}
-                  className="shrink-0 text-[10px] font-medium text-red-600 hover:text-red-800 dark:text-red-400"
+                  onClick={() => resumeMutation.mutate()}
+                  disabled={resumeMutation.isPending}
+                  className="shrink-0 text-[10px] font-medium text-red-600 hover:text-red-800 disabled:opacity-50 dark:text-red-400"
                 >
-                  재시도
+                  {resumeMutation.isPending ? "재시작 중..." : "재시도"}
                 </button>
               )}
             </div>

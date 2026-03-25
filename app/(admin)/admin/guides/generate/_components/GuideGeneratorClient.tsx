@@ -31,6 +31,7 @@ import { useDebounce } from "@/lib/hooks/useDebounce";
 import {
   GUIDE_TYPES,
   GUIDE_TYPE_LABELS,
+  CURRICULUM_REVISION_IDS,
 } from "@/lib/domains/guide/types";
 import type { GuideType } from "@/lib/domains/guide/types";
 import { generateGuideAction } from "@/lib/domains/guide/llm/actions/generateGuide";
@@ -42,6 +43,7 @@ import {
 import type { SuggestedTopic } from "@/lib/domains/guide/types";
 import type { GeneratedGuideOutput, SuggestedTopicsOutput } from "@/lib/domains/guide/llm/types";
 import type { ModelTier } from "@/lib/domains/plan/llm/types";
+import CurriculumCascadeSelect from "@/components/filters/CurriculumCascadeSelect";
 import type { ReviewResult } from "@/lib/domains/guide/llm/actions/reviewGuide";
 import { GuidePreview } from "../../[id]/_components/GuidePreview";
 
@@ -81,9 +83,7 @@ export function GuideGeneratorClient() {
     prefill?.curriculumYear ?? 2022,
   );
   const curriculumRevisionId =
-    curriculumYear === 2022
-      ? "7606fee5-6405-4410-8ff8-e9ec12ff07e2"
-      : "487cc4d6-62ec-41d6-ba4a-6009b0a08f9e";
+    CURRICULUM_REVISION_IDS[String(curriculumYear)] ?? "";
 
   const { data: groupedSubjectsRes } = useQuery(
     groupedSubjectsQueryOptions(curriculumRevisionId),
@@ -547,115 +547,32 @@ export function GuideGeneratorClient() {
                 {/* ── 교육과정 체계 (캐스케이드) ── */}
                 <div className="rounded-lg border border-secondary-200 dark:border-secondary-700 bg-secondary-50/50 dark:bg-secondary-800/20 p-4 space-y-3">
                   <p className="text-xs font-semibold text-[var(--text-heading)]">교육과정 체계</p>
-
-                  {/* 1단계: 교육과정 → 교과 */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <FormField label="교육과정">
-                      <select
-                        value={curriculumYear}
-                        onChange={(e) => {
-                          setCurriculumYear(Number(e.target.value));
-                          setTargetSubjectGroup("");
-                          setTargetSubject("");
-                          setTargetMajorUnit("");
-                          setTargetMinorUnit("");
-                        }}
-                        className={inputClass}
-                      >
-                        <option value={2022}>2022 개정</option>
-                        <option value={2015}>2015 개정</option>
-                      </select>
-                    </FormField>
-                    <FormField label="교과">
-                      <select
-                        value={targetSubjectGroup}
-                        onChange={(e) => {
-                          setTargetSubjectGroup(e.target.value);
-                          setTargetSubject("");
-                          setTargetMajorUnit("");
-                          setTargetMinorUnit("");
-                        }}
-                        className={inputClass}
-                      >
-                        <option value="">선택 안함</option>
-                        {groupedSubjects.map((g) => (
-                          <option key={g.groupName} value={g.groupName}>
-                            {g.groupName}
-                          </option>
-                        ))}
-                      </select>
-                    </FormField>
-                  </div>
-
-                  {/* 2단계: 과목 → 대단원 */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <FormField label="과목">
-                      <select
-                        value={targetSubject}
-                        onChange={(e) => {
-                          setTargetSubject(e.target.value);
-                          setTargetMajorUnit("");
-                          setTargetMinorUnit("");
-                        }}
-                        className={inputClass}
-                        disabled={!targetSubjectGroup}
-                      >
-                        <option value="">
-                          {targetSubjectGroup ? "선택 안함" : "교과를 먼저 선택"}
-                        </option>
-                        {filteredSubjects.map((s) => (
-                          <option key={s.id} value={s.name}>
-                            {s.name}
-                          </option>
-                        ))}
-                      </select>
-                    </FormField>
-                    <FormField label="대단원">
-                      <select
-                        value={targetMajorUnit}
-                        onChange={(e) => {
-                          setTargetMajorUnit(e.target.value);
-                          setTargetMinorUnit("");
-                        }}
-                        className={inputClass}
-                        disabled={!targetSubject || majorUnits.length === 0}
-                      >
-                        <option value="">
-                          {!targetSubject
-                            ? "과목을 먼저 선택"
-                            : majorUnits.length === 0
-                              ? "단원 정보 없음"
-                              : "선택 안함"}
-                        </option>
-                        {majorUnits.map((u) => (
-                          <option key={u.id} value={u.unit_name}>
-                            {u.unit_name}
-                          </option>
-                        ))}
-                      </select>
-                    </FormField>
-                  </div>
-
-                  {/* 3단계: 소단원 (대단원 선택 시에만) */}
-                  {targetMajorUnit && minorUnits.length > 0 && (
-                    <FormField label="소단원">
-                      <select
-                        value={targetMinorUnit}
-                        onChange={(e) => {
-                          setTargetMinorUnit(e.target.value);
-                          if (e.target.value) setKeyword(e.target.value);
-                        }}
-                        className={inputClass}
-                      >
-                        <option value="">선택 안함</option>
-                        {minorUnits.map((u) => (
-                          <option key={u.id} value={u.unit_name}>
-                            {u.unit_name}
-                          </option>
-                        ))}
-                      </select>
-                    </FormField>
-                  )}
+                  <CurriculumCascadeSelect
+                    placeholderStyle="form"
+                    showSeparators
+                    yearOptions={["2022", "2015"]}
+                    groupedSubjects={groupedSubjects}
+                    majorUnits={majorUnits}
+                    minorUnits={minorUnits}
+                    curriculumYear={String(curriculumYear)}
+                    onCurriculumYearChange={(v) => {
+                      setCurriculumYear(Number(v) || 2022);
+                      // subjectGroup/subject는 컴포넌트 cascade가 리셋하지 않으므로 부모에서 처리
+                      setTargetSubjectGroup("");
+                      setTargetSubject("");
+                    }}
+                    subjectArea={targetSubjectGroup}
+                    onSubjectAreaChange={setTargetSubjectGroup}
+                    subjectSelect={targetSubject}
+                    onSubjectSelectChange={setTargetSubject}
+                    unitMajor={targetMajorUnit}
+                    onUnitMajorChange={setTargetMajorUnit}
+                    unitMinor={targetMinorUnit}
+                    onUnitMinorChange={(v) => {
+                      setTargetMinorUnit(v);
+                      if (v) setKeyword(v);
+                    }}
+                  />
                 </div>
 
                 {/* ── 가이드 설정 ── */}

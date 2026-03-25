@@ -42,6 +42,12 @@ export type GuideSourceType = (typeof GUIDE_SOURCE_TYPES)[number];
 export const CONTENT_FORMATS = ["plain", "html", "json"] as const;
 export type ContentFormat = (typeof CONTENT_FORMATS)[number];
 
+/** 교육과정 개정 연도 → curriculum_revisions UUID */
+export const CURRICULUM_REVISION_IDS: Record<string, string> = {
+  "2022": "7606fee5-6405-4410-8ff8-e9ec12ff07e2",
+  "2015": "487cc4d6-62ec-41d6-ba4a-6009b0a08f9e",
+};
+
 export const QUALITY_TIERS = [
   "expert_authored",
   "expert_reviewed",
@@ -460,7 +466,24 @@ export interface GuideRecommendationFilter {
 }
 
 // ------------------------------------
-// 5. Import 관련 타입
+// 5. 공유 링크 타입
+// ------------------------------------
+
+/** exploration_guide_shares 테이블 행 */
+export interface GuideShare {
+  id: string;
+  guide_id: string;
+  share_token: string;
+  visible_sections: string[];
+  created_by: string | null;
+  is_active: boolean;
+  expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ------------------------------------
+// 6. Import 관련 타입
 // ------------------------------------
 
 /** Access DB에서 추출한 가이드 원본 (52 컬럼) */

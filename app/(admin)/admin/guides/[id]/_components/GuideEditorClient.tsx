@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Trash2, Loader2, Eye, EyeOff, CopyPlus, Sparkles } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Loader2, Eye, EyeOff, CopyPlus, Sparkles, Download, Share2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
@@ -12,6 +12,7 @@ import {
   guideCareerFieldsQueryOptions,
   allSubjectsQueryOptions,
   groupedSubjectsQueryOptions,
+  allCurriculumUnitsQueryOptions,
   explorationGuideKeys,
 } from "@/lib/query-options/explorationGuide";
 import {
@@ -38,12 +39,16 @@ import {
   GUIDE_TYPE_LABELS,
   GUIDE_STATUSES,
   GUIDE_STATUS_LABELS,
+  CURRICULUM_REVISION_IDS,
 } from "@/lib/domains/guide/types";
 import { GuideMetaForm } from "./GuideMetaForm";
 import { GuideContentEditor } from "./GuideContentEditor";
 import { GuidePreview } from "./GuidePreview";
 import { GuideVersionHistory } from "./GuideVersionHistory";
 import { improveGuideAction } from "@/lib/domains/guide/llm/actions/improveGuide";
+import { createShareLinkAction } from "@/lib/domains/guide/actions/share";
+import { GuideExportModal } from "./GuideExportModal";
+import { GuideSharePanel } from "./GuideSharePanel";
 
 interface GuideEditorClientProps {
   /** 편집 시 guideId, 생성 시 undefined */
@@ -63,6 +68,12 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
   const queryClient = useQueryClient();
   const isNew = !guideId;
 
+  // 교육과정 연도 (groupedSubjects 쿼리에 필요하므로 먼저 선언)
+  const [curriculumYear, setCurriculumYear] = useState("");
+  const curriculumRevisionId = curriculumYear
+    ? CURRICULUM_REVISION_IDS[curriculumYear] ?? ""
+    : "";
+
   // 데이터 로딩
   const { data: guideRes, isLoading: loadingGuide } = useQuery({
     ...cmsGuideDetailQueryOptions(guideId ?? ""),
@@ -70,22 +81,48 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
   });
   const { data: careerFieldsRes } = useQuery(guideCareerFieldsQueryOptions());
   const { data: subjectsRes } = useQuery(allSubjectsQueryOptions());
-  const { data: groupedSubjectsRes } = useQuery(groupedSubjectsQueryOptions());
+  const { data: groupedSubjectsRes } = useQuery(
+    groupedSubjectsQueryOptions(curriculumRevisionId || undefined),
+  );
+  const { data: curriculumUnitsRes } = useQuery(allCurriculumUnitsQueryOptions());
 
   const careerFields = careerFieldsRes?.success ? careerFieldsRes.data ?? [] : [];
   const allSubjects = subjectsRes?.success ? subjectsRes.data ?? [] : [];
   const groupedSubjects = groupedSubjectsRes?.success ? groupedSubjectsRes.data ?? [] : [];
+  const allCurriculumUnits = curriculumUnitsRes?.success ? curriculumUnitsRes.data ?? [] : [];
   const guide = guideRes?.success ? guideRes.data : null;
 
   // 메타 상태
   const [title, setTitle] = useState("");
   const [guideType, setGuideType] = useState<GuideType>("topic_exploration");
   const [status, setStatus] = useState<GuideStatus>("draft");
-  const [curriculumYear, setCurriculumYear] = useState("");
   const [subjectArea, setSubjectArea] = useState("");
   const [subjectSelect, setSubjectSelect] = useState("");
   const [unitMajor, setUnitMajor] = useState("");
   const [unitMinor, setUnitMinor] = useState("");
+
+  // 교육과정 단원 파생 (CurriculumCascadeSelect용)
+  const curriculumYearOptions = useMemo(
+    () => [...new Set(allCurriculumUnits.map((u) => u.curriculum_year))].sort(),
+    [allCurriculumUnits],
+  );
+  const majorUnits = useMemo(() => {
+    if (!subjectSelect) return [];
+    return allCurriculumUnits.filter(
+      (u) =>
+        u.subject_name === subjectSelect &&
+        u.unit_type === "major" &&
+        (!curriculumYear || u.curriculum_year === curriculumYear),
+    );
+  }, [allCurriculumUnits, subjectSelect, curriculumYear]);
+  const selectedMajorUnit = useMemo(
+    () => majorUnits.find((u) => u.unit_name === unitMajor),
+    [majorUnits, unitMajor],
+  );
+  const minorUnits = useMemo(() => {
+    if (!selectedMajorUnit) return [];
+    return allCurriculumUnits.filter((u) => u.parent_unit_id === selectedMajorUnit.id);
+  }, [allCurriculumUnits, selectedMajorUnit]);
   const [bookTitle, setBookTitle] = useState("");
   const [bookAuthor, setBookAuthor] = useState("");
   const [bookPublisher, setBookPublisher] = useState("");
@@ -109,6 +146,11 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
   const [saving, setSaving] = useState(false);
   const [improving, setImproving] = useState(false);
   const [showPreview, setShowPreview] = useState(!isNew);
+
+  // 내보내기/공유 상태
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [exportMode, setExportMode] = useState<"download" | "share">("download");
+  const [exporting, setExporting] = useState(false);
 
   // AI 이미지 다이얼로그 상태
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
@@ -397,6 +439,70 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
     }
   }, [guideId, router, toast, queryClient]);
 
+  // 내보내기/공유 핸들러
+  const handleExportConfirm = useCallback(
+    async (
+      selectedKeys: string[],
+      options: {
+        format?: "pdf" | "docx";
+        includeBookInfo: boolean;
+        includeRelatedPapers: boolean;
+        includeRelatedBooks: boolean;
+      },
+    ) => {
+      if (exportMode === "download") {
+        // PDF/DOCX 다운로드
+        if (!guide) return;
+        setExporting(true);
+        try {
+          const { exportGuideAsPdf, exportGuideAsDocx } = await import(
+            "@/lib/domains/guide/export/guide-export"
+          );
+          const exportOptions = {
+            selectedSectionKeys: selectedKeys,
+            includeBookInfo: options.includeBookInfo,
+            includeRelatedPapers: options.includeRelatedPapers,
+            includeRelatedBooks: options.includeRelatedBooks,
+          };
+          if (options.format === "docx") {
+            await exportGuideAsDocx(guide, exportOptions);
+          } else {
+            await exportGuideAsPdf(guide, exportOptions);
+          }
+          toast.showSuccess(`${options.format === "docx" ? "Word" : "PDF"} 파일이 다운로드되었습니다.`);
+          setExportModalOpen(false);
+        } catch {
+          toast.showError("내보내기 중 오류가 발생했습니다.");
+        } finally {
+          setExporting(false);
+        }
+      } else {
+        // 공유 링크 생성
+        if (!guideId) return;
+        setExporting(true);
+        try {
+          const result = await createShareLinkAction(guideId, selectedKeys);
+          if (result.success && result.data) {
+            const url = `${window.location.origin}/shared/guide/${result.data.share_token}`;
+            await navigator.clipboard.writeText(url);
+            toast.showSuccess("공유 링크가 생성되어 클립보드에 복사되었습니다.");
+            queryClient.invalidateQueries({
+              queryKey: [...explorationGuideKeys.all, "shares", guideId],
+            });
+            setExportModalOpen(false);
+          } else {
+            toast.showError(!result.success ? result.error ?? "공유 링크 생성에 실패했습니다." : "공유 링크 생성에 실패했습니다.");
+          }
+        } catch {
+          toast.showError("공유 링크 생성 중 오류가 발생했습니다.");
+        } finally {
+          setExporting(false);
+        }
+      }
+    },
+    [exportMode, guide, guideId, toast, queryClient],
+  );
+
   if (!isNew && loadingGuide) {
     return (
       <div className="flex items-center justify-center py-24 text-sm text-[var(--text-secondary)]">
@@ -443,8 +549,35 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
           )}
         </div>
         <div className="flex items-center gap-2">
+          {/* 내보내기/공유 — 미리보기/편집 모드 공통 (기존 가이드만) */}
+          {!isNew && (
+            <button
+              type="button"
+              onClick={() => {
+                setExportMode("download");
+                setExportModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-700 text-[var(--text-secondary)] text-sm hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              내보내기
+            </button>
+          )}
+          {!isNew && (
+            <button
+              type="button"
+              onClick={() => {
+                setExportMode("share");
+                setExportModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-700 text-[var(--text-secondary)] text-sm hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors"
+            >
+              <Share2 className="w-4 h-4" />
+              공유
+            </button>
+          )}
           {showPreview ? (
-            /* 미리보기 모드: 편집 버튼만 */
+            /* 미리보기 모드: 편집 버튼 */
             <button
               type="button"
               onClick={() => setShowPreview(false)}
@@ -545,6 +678,10 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
             onUnitMajorChange={setUnitMajor}
             unitMinor={unitMinor}
             onUnitMinorChange={setUnitMinor}
+            yearOptions={curriculumYearOptions}
+            groupedSubjects={groupedSubjects}
+            majorUnits={majorUnits}
+            minorUnits={minorUnits}
             bookTitle={bookTitle}
             onBookTitleChange={setBookTitle}
             bookAuthor={bookAuthor}
@@ -554,7 +691,6 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
             bookYear={bookYear}
             onBookYearChange={setBookYear}
             allSubjects={allSubjects}
-            groupedSubjects={groupedSubjects}
             selectedSubjectIds={selectedSubjectIds}
             onSubjectIdsChange={setSelectedSubjectIds}
             careerFields={careerFields}
@@ -788,6 +924,34 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
           reverting={saving}
         />
       )}
+
+      {/* 공유 링크 관리 패널 */}
+      {!isNew && guideId && (
+        <GuideSharePanel
+          guideId={guideId}
+          onCreateNew={() => {
+            setExportMode("share");
+            setExportModalOpen(true);
+          }}
+        />
+      )}
+
+      {/* 내보내기/공유 모달 */}
+      <GuideExportModal
+        open={exportModalOpen}
+        onOpenChange={setExportModalOpen}
+        guideType={guideType}
+        mode={exportMode}
+        onConfirm={handleExportConfirm}
+        isLoading={exporting}
+        hasBookInfo={!!bookTitle}
+        hasRelatedPapers={
+          !!(guide?.content?.related_papers && guide.content.related_papers.length > 0)
+        }
+        hasRelatedBooks={
+          !!(guide?.content?.related_books && guide.content.related_books.length > 0)
+        }
+      />
 
       {/* AI 이미지 생성 다이얼로그 */}
       <AiImageDialog

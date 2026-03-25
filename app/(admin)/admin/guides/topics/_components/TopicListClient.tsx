@@ -24,17 +24,14 @@ import type { TopicListFilter, SuggestedTopic } from "@/lib/domains/guide/types"
 import {
   GUIDE_TYPE_LABELS,
   GUIDE_TYPES,
+  CURRICULUM_REVISION_IDS,
 } from "@/lib/domains/guide/types";
 import { deleteTopicAction } from "@/lib/domains/guide/actions/crud";
 import { TopicListTable } from "./TopicListTable";
 import { useToast } from "@/components/ui/ToastProvider";
+import CurriculumCascadeSelect from "@/components/filters/CurriculumCascadeSelect";
 
 const PAGE_SIZE = 20;
-
-const CURRICULUM_REVISION_IDS: Record<string, string> = {
-  "2022": "7606fee5-6405-4410-8ff8-e9ec12ff07e2",
-  "2015": "487cc4d6-62ec-41d6-ba4a-6009b0a08f9e",
-};
 
 const selectClass = cn(
   "px-3 py-2 rounded-lg border text-sm",
@@ -268,102 +265,41 @@ export function TopicListClient() {
 
       {/* 교육과정 고급 필터 */}
       {showCurriculumFilters && (
-        <div className="flex flex-wrap items-center gap-2 pl-1 border-l-2 border-primary-300 dark:border-primary-700">
-          <select
-            value={selectedCurriculumYear}
-            onChange={(e) => {
-              setSelectedCurriculumYear(e.target.value);
-              setSelectedSubjectArea("");
-              handleFilterChange("subjectName", undefined);
-              handleFilterChange("subjectGroup", undefined);
-              handleFilterChange("majorUnit", undefined);
-              handleFilterChange("minorUnit", undefined);
-            }}
-            className={selectClass}
-          >
-            <option value="">교육과정</option>
-            <option value="2022">2022 개정</option>
-            <option value="2015">2015 개정</option>
-          </select>
-
-          <select
-            value={selectedSubjectArea}
-            onChange={(e) => {
-              const area = e.target.value;
-              setSelectedSubjectArea(area);
-              setFilters((prev) => ({
-                ...prev,
-                subjectGroup: area || undefined,
-                subjectName: undefined,
-                majorUnit: undefined,
-                minorUnit: undefined,
-                page: 1,
-              }));
-            }}
-            className={selectClass}
-            disabled={!selectedCurriculumYear}
-          >
-            <option value="">
-              {selectedCurriculumYear ? "전체 교과" : "교육과정 선택"}
-            </option>
-            {groupedSubjects.map((g) => (
-              <option key={g.groupName} value={g.groupName}>
-                {g.groupName}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={filters.subjectName ?? ""}
-            onChange={(e) => handleFilterChange("subjectName", e.target.value)}
-            className={selectClass}
-            disabled={!selectedSubjectArea}
-          >
-            <option value="">
-              {selectedSubjectArea ? "전체 과목" : "교과 선택"}
-            </option>
-            {filteredSubjects.map((s) => (
-              <option key={s.id} value={s.name}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={filters.majorUnit ?? ""}
-            onChange={(e) => handleFilterChange("majorUnit", e.target.value)}
-            className={selectClass}
-            disabled={!filters.subjectName || majorUnits.length === 0}
-          >
-            <option value="">
-              {!filters.subjectName
-                ? "과목 선택"
-                : majorUnits.length === 0
-                  ? "단원 정보 없음"
-                  : "전체 대단원"}
-            </option>
-            {majorUnits.map((u) => (
-              <option key={u.id} value={u.unit_name}>
-                {u.unit_name}
-              </option>
-            ))}
-          </select>
-
-          {filters.majorUnit && minorUnits.length > 0 && (
-            <select
-              value={filters.minorUnit ?? ""}
-              onChange={(e) => handleFilterChange("minorUnit", e.target.value)}
-              className={selectClass}
-            >
-              <option value="">전체 소단원</option>
-              {minorUnits.map((u) => (
-                <option key={u.id} value={u.unit_name}>
-                  {u.unit_name}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
+        <CurriculumCascadeSelect
+          placeholderStyle="filter"
+          className="pl-1 border-l-2 border-primary-300 dark:border-primary-700"
+          yearOptions={["2022", "2015"]}
+          groupedSubjects={groupedSubjects}
+          majorUnits={majorUnits}
+          minorUnits={minorUnits}
+          curriculumYear={selectedCurriculumYear}
+          onCurriculumYearChange={(v) => {
+            setSelectedCurriculumYear(v);
+            setSelectedSubjectArea("");
+            handleFilterChange("subjectName", undefined);
+            handleFilterChange("subjectGroup", undefined);
+            handleFilterChange("majorUnit", undefined);
+            handleFilterChange("minorUnit", undefined);
+          }}
+          subjectArea={selectedSubjectArea}
+          onSubjectAreaChange={(v) => {
+            setSelectedSubjectArea(v);
+            setFilters((prev) => ({
+              ...prev,
+              subjectGroup: v || undefined,
+              subjectName: undefined,
+              majorUnit: undefined,
+              minorUnit: undefined,
+              page: 1,
+            }));
+          }}
+          subjectSelect={filters.subjectName ?? ""}
+          onSubjectSelectChange={(v) => handleFilterChange("subjectName", v)}
+          unitMajor={filters.majorUnit ?? ""}
+          onUnitMajorChange={(v) => handleFilterChange("majorUnit", v)}
+          unitMinor={filters.minorUnit ?? ""}
+          onUnitMinorChange={(v) => handleFilterChange("minorUnit", v)}
+        />
       )}
 
       {/* 결과 수 + 필터 초기화 */}

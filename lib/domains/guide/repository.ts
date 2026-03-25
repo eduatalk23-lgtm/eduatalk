@@ -786,6 +786,21 @@ export async function findCurriculumUnitsBySubject(
   return (data ?? []) as CurriculumUnit[];
 }
 
+/** 전체 교육과정 단원 목록 (cascading dropdown용, ~836행) */
+export async function findAllCurriculumUnits(): Promise<CurriculumUnit[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("exploration_guide_curriculum_units")
+    .select("*")
+    .order("curriculum_year")
+    .order("subject_area")
+    .order("subject_name")
+    .order("sort_order");
+
+  if (error) throw error;
+  return (data ?? []) as CurriculumUnit[];
+}
+
 /** 가이드 제목 자동완성 (trigram 인덱스 활용) */
 export async function searchGuideTitles(
   query: string,
@@ -920,6 +935,151 @@ export async function findSuggestedTopics(filter: {
   const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as SuggestedTopic[];
+}
+
+// ============================================================
+// 9. 공유 링크 (Guide Shares)
+// ============================================================
+
+import type { GuideShare } from "./types";
+
+/** 토큰으로 활성 공유 조회 (admin client — 인증 불필요) */
+export async function findShareByToken(
+  token: string,
+): Promise<GuideShare | null> {
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) return null;
+
+  const { data, error } = await (supabase as ReturnType<typeof createSupabaseAdminClient> & { from: (t: string) => unknown })
+    .from("exploration_guide_shares")
+    .select("*")
+    .eq("share_token", token)
+    .eq("is_active", true)
+    .single();
+
+  if (error || !data) return null;
+
+  // 만료 확인
+  const share = data as GuideShare;
+  if (share.expires_at && new Date(share.expires_at) < new Date()) return null;
+
+  return share;
+}
+
+/** 가이드의 공유 목록 조회 */
+export async function findSharesByGuideId(
+  guideId: string,
+): Promise<GuideShare[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("exploration_guide_shares")
+    .select("*")
+    .eq("guide_id", guideId)
+    .eq("is_active", true)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as GuideShare[];
+}
+
+/** 공유 링크 생성 */
+export async function createShare(
+  guideId: string,
+  visibleSections: string[],
+  createdBy: string,
+): Promise<GuideShare> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("exploration_guide_shares")
+    .insert({
+      guide_id: guideId,
+      visible_sections: visibleSections,
+      created_by: createdBy,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as GuideShare;
+}
+
+/** 공유 링크 비활성화 */
+export async function revokeShare(shareId: string): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("exploration_guide_shares")
+    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .eq("id", shareId);
+
+  if (error) throw error;
+}
+
+/** 공유 토큰 재생성 */
+export async function regenerateShareToken(
+  shareId: string,
+): Promise<GuideShare> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("exploration_guide_shares")
+    .update({
+      share_token: crypto.randomUUID(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", shareId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as GuideShare;
+}
+
+/** 공유 토큰으로 가이드 상세 조회 (admin client — RLS 바이패스) */
+export async function findGuideByIdPublic(
+  guideId: string,
+): Promise<GuideDetail | null> {
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) return null;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = supabase as any;
+
+  const { data: guide, error: guideErr } = await sb
+    .from("exploration_guides")
+    .select("*")
+    .eq("id", guideId)
+    .single();
+
+  if (guideErr || !guide) return null;
+
+  const [contentRes, subjectRes, careerRes] = await Promise.all([
+    sb
+      .from("exploration_guide_content")
+      .select("*")
+      .eq("guide_id", guideId)
+      .single(),
+    sb
+      .from("exploration_guide_subject_mappings")
+      .select("subject_id, subjects(id, name)")
+      .eq("guide_id", guideId),
+    sb
+      .from("exploration_guide_career_mappings")
+      .select(
+        "career_field_id, exploration_guide_career_fields(id, code, name_kor)",
+      )
+      .eq("guide_id", guideId),
+  ]);
+
+  return {
+    ...guide,
+    content: contentRes.data ?? null,
+    subjects: (subjectRes.data ?? [])
+      .map((m: Record<string, unknown>) => (m as Record<string, Record<string, unknown>>).subjects)
+      .filter(Boolean),
+    career_fields: (careerRes.data ?? [])
+      .map((m: Record<string, unknown>) => (m as Record<string, Record<string, unknown>>).exploration_guide_career_fields)
+      .filter(Boolean),
+    classifications: [],
+  } as GuideDetail;
 }
 
 /** 조건으로 축적된 주제 페이지네이션 조회 (관리 페이지용, Admin 권한 검증 후 호출) */

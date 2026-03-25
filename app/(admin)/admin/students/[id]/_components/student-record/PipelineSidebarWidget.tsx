@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { pipelineStatusQueryOptions, studentRecordKeys } from "@/lib/query-options/studentRecord";
-import { runInitialAnalysisPipeline, cancelPipeline } from "@/lib/domains/student-record/actions/pipeline";
+import { runInitialAnalysisPipeline, cancelPipeline, resumePipeline } from "@/lib/domains/student-record/actions/pipeline";
 import {
   PIPELINE_TASK_KEYS,
   PIPELINE_TASK_LABELS,
@@ -11,7 +11,7 @@ import {
   type PipelineTaskStatus,
 } from "@/lib/domains/student-record/pipeline-types";
 import { cn } from "@/lib/cn";
-import { Sparkles, Check, Loader2, AlertCircle, X, ChevronRight, TriangleAlert } from "lucide-react";
+import { Sparkles, Check, Loader2, AlertCircle, X, ChevronRight, TriangleAlert, RefreshCw, Play } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import { checkPipelineStalenessAction } from "@/lib/domains/student-record/actions/staleness";
 
@@ -38,6 +38,7 @@ export function PipelineSidebarWidget({
   const queryClient = useQueryClient();
   const [collapsed, setCollapsed] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showRerunConfirm, setShowRerunConfirm] = useState(false);
 
   // 파이프라인 상태 폴링
   const { data: pipeline } = useQuery({
@@ -67,6 +68,18 @@ export function PipelineSidebarWidget({
       });
     },
   });
+
+  // 이어서 분석 mutation (실패 파이프라인 재개)
+  const resumeMutation = useMutation({
+    mutationFn: () => resumePipeline(pipeline?.id ?? ""),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: studentRecordKeys.pipeline(studentId),
+      });
+    },
+  });
+
+  const isActionPending = runMutation.isPending || resumeMutation.isPending;
 
   // 완료 후 10초 → badge 축소
   useEffect(() => {
@@ -234,14 +247,61 @@ export function PipelineSidebarWidget({
         })}
       </div>
 
-      {/* Phase E3: stale 경고 */}
+      {/* Phase E3: stale 경고 + 재분석 버튼 */}
       {isPipelineStale && pipeline.status === "completed" && (
-        <div className="mt-1.5 flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1 dark:bg-amber-950/30">
-          <TriangleAlert className="h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400" />
-          <span className="text-xs text-amber-700 dark:text-amber-300">
-            분석 후 기록이 변경되었습니다
-          </span>
+        <div className="mt-1.5 rounded-md bg-amber-50 px-2 py-1.5 dark:bg-amber-950/30">
+          <div className="flex items-center gap-1">
+            <TriangleAlert className="h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span className="text-xs text-amber-700 dark:text-amber-300">
+              분석 후 기록이 변경되었습니다
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => runMutation.mutate()}
+            disabled={isActionPending}
+            className="mt-1 inline-flex w-full items-center justify-center gap-1 rounded-md bg-amber-600 px-2 py-1 text-[10px] font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+          >
+            <RefreshCw className="h-3 w-3" />
+            {runMutation.isPending ? "시작 중..." : "재분석"}
+          </button>
         </div>
+      )}
+
+      {/* 실패 → 이어서 분석 버튼 */}
+      {pipeline.status === "failed" && (
+        <button
+          type="button"
+          onClick={() => resumeMutation.mutate()}
+          disabled={isActionPending}
+          className="mt-1.5 inline-flex w-full items-center justify-center gap-1 rounded-md bg-indigo-600 px-2 py-1 text-[10px] font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+        >
+          <Play className="h-3 w-3" />
+          {resumeMutation.isPending ? "재시작 중..." : "이어서 분석"}
+        </button>
+      )}
+
+      {/* 완료(fresh) → 재분석 버튼 (확인 다이얼로그) */}
+      {pipeline.status === "completed" && !isPipelineStale && (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowRerunConfirm(true)}
+            disabled={isActionPending}
+            className="mt-1.5 inline-flex w-full items-center justify-center gap-1 rounded-md border border-[var(--border-secondary)] px-2 py-1 text-[10px] font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-tertiary)] disabled:opacity-50"
+          >
+            <RefreshCw className="h-3 w-3" />
+            재분석
+          </button>
+          <ConfirmDialog
+            open={showRerunConfirm}
+            onOpenChange={setShowRerunConfirm}
+            title="AI 재분석"
+            description="이미 분석이 완료되었습니다. 새로 분석하시겠습니까? 기존 결과는 이전 파이프라인에 보존됩니다."
+            onConfirm={() => { runMutation.mutate(); setShowRerunConfirm(false); }}
+            isLoading={runMutation.isPending}
+          />
+        </>
       )}
 
       {/* 완료 후 결과 리뷰 링크 */}

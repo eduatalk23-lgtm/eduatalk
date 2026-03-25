@@ -80,7 +80,13 @@ export function strategyTabQueryOptions(studentId: string, schoolYear: number) {
 export function crossRefQueryOptions(studentId: string, tenantId: string) {
   return queryOptions({
     queryKey: studentRecordKeys.crossRef(studentId),
-    queryFn: () => fetchCrossRefData(studentId, tenantId),
+    queryFn: async () => {
+      const data = await fetchCrossRefData(studentId, tenantId);
+      if (!data || typeof data !== "object") {
+        return { storylineLinks: [], readingLinks: [], readingLabelMap: {}, recordLabelMap: {}, recordContentMap: {} };
+      }
+      return data;
+    },
     staleTime: 60_000,
     gcTime: 5 * 60_000,
     enabled: !!studentId,
@@ -128,7 +134,13 @@ export function diagnosisTabQueryOptions(
 ) {
   return queryOptions({
     queryKey: studentRecordKeys.diagnosisTab(studentId, schoolYear),
-    queryFn: () => fetchDiagnosisTabData(studentId, schoolYear, tenantId),
+    queryFn: async () => {
+      const data = await fetchDiagnosisTabData(studentId, schoolYear, tenantId);
+      if (!data || typeof data !== "object") {
+        throw new Error("진단 데이터 조회 실패");
+      }
+      return data;
+    },
     staleTime: 30_000,
     gcTime: 5 * 60_000,
     enabled: !!studentId && !!schoolYear,

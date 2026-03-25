@@ -1,15 +1,24 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useCallback } from "react";
 
 /**
- * Service Worker를 등록하는 훅.
+ * Service Worker를 등록하고 업데이트를 감지하는 훅.
  *
- * 기본적으로 프로덕션에서만 등록합니다.
- * 개발 모드에서 Push 테스트가 필요하면 .env.local에
- * NEXT_PUBLIC_ENABLE_SW_DEV=true 를 추가하세요.
+ * - updateViaCache: "none" — HTTP 캐시를 우회하여 항상 최신 SW 확인
+ * - visibilitychange — iOS 홈 화면 앱 대응: 포그라운드 복귀 시 업데이트 체크
+ * - waiting worker 감지 → "sw-waiting" 이벤트 발행 → UI에서 배너 표시
+ * - controllerchange → 새 SW 활성화 시 페이지 자동 리로드
  */
 export function useServiceWorker() {
+  const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
+
+  const promptUpdate = useCallback((waiting: ServiceWorker) => {
+    window.dispatchEvent(
+      new CustomEvent("sw-waiting", { detail: { waiting } })
+    );
+  }, []);
+
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
       return;
@@ -25,27 +34,33 @@ export function useServiceWorker() {
 
     const registerSW = () => {
       navigator.serviceWorker
-        .register("/sw.js", { scope: "/" })
+        .register("/sw.js", { scope: "/", updateViaCache: "none" })
         .then((registration) => {
-          // SW 업데이트 감지
+          registrationRef.current = registration;
+
+          // 이미 대기 중인 SW가 있으면 즉시 프롬프트
+          if (registration.waiting) {
+            promptUpdate(registration.waiting);
+          }
+
+          // 새 SW 설치 감지
           registration.addEventListener("updatefound", () => {
             const newWorker = registration.installing;
-            if (newWorker) {
-              newWorker.addEventListener("statechange", () => {
-                if (
-                  newWorker.state === "activated" &&
-                  navigator.serviceWorker.controller
-                ) {
-                  // 새 SW 활성화 → 커스텀 이벤트로 UI 알림
-                  window.dispatchEvent(new CustomEvent("sw-updated"));
-                }
-              });
-            }
+            if (!newWorker) return;
+
+            newWorker.addEventListener("statechange", () => {
+              // 새 SW가 installed(대기) 상태 + 기존 controller가 있으면 = 업데이트
+              if (
+                newWorker.state === "installed" &&
+                navigator.serviceWorker.controller
+              ) {
+                promptUpdate(newWorker);
+              }
+            });
           });
         })
         .catch((err) => {
           console.error("[SW] Registration failed:", err);
-          // SW 등록 실패 → 커스텀 이벤트로 UI 알림
           window.dispatchEvent(new CustomEvent("sw-error", { detail: err }));
         });
     };
@@ -56,6 +71,18 @@ export function useServiceWorker() {
     } else {
       setTimeout(registerSW, 3000);
     }
+
+    // controllerchange: SKIP_WAITING 후 새 SW가 활성화되면 페이지 리로드
+    let refreshing = false;
+    const handleControllerChange = () => {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    };
+    navigator.serviceWorker.addEventListener(
+      "controllerchange",
+      handleControllerChange
+    );
 
     // Push 알림 클릭 시 네비게이션 처리
     const handleMessage = (event: MessageEvent) => {
@@ -70,11 +97,21 @@ export function useServiceWorker() {
     };
     navigator.serviceWorker.addEventListener("message", handleMessage);
 
-    // 뱃지 관리: useAppBadge 훅이 visibilitychange + 캐시 변경 감지로 처리
-    // (기존 무조건 clearAppBadge 제거 → 실제 미읽은 수 기반 갱신)
+    // iOS 대응: 앱이 포그라운드로 돌아올 때 업데이트 체크
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && registrationRef.current) {
+        registrationRef.current.update().catch(() => {});
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
+      navigator.serviceWorker.removeEventListener(
+        "controllerchange",
+        handleControllerChange
+      );
       navigator.serviceWorker.removeEventListener("message", handleMessage);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, []);
+  }, [promptUpdate]);
 }
