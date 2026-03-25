@@ -35,8 +35,13 @@ ${COMPETENCY_SCHEMA}
    - negative: 부족함을 시사 (예: "기본 개념 이해가 미흡하여 추가 학습이 필요하다")
    - needs_review: 활동은 언급되나 성과/수준이 불명확할 때 (예: "여러 주제를 살펴봤다" → 깊이 불확실, "관심을 가졌다" → 실행 여부 불명)
 5. **빠짐없이**: 텍스트의 핵심 구절을 모두 분석합니다. 중요한 활동이나 성과를 놓치지 마세요.
-6. **종합 등급**: 분석한 태그들을 종합하여 10개 항목 등급을 제안합니다.
-   근거가 부족한 항목은 등급을 제안하지 않습니다.
+6. **루브릭 기반 등급 (Bottom-Up)**:
+   a) 텍스트에서 근거가 발견된 역량 항목에 대해, 해당 항목의 루브릭 질문을 **개별 평가**합니다.
+   b) 각 루브릭 질문에 A+/A-/B+/B/B-/C 등급과 한 문장 근거를 부여합니다. questionIndex는 위 루브릭 질문의 0-based 순서입니다.
+   c) 텍스트에 전혀 근거가 없는 루브릭 질문은 생략합니다.
+   d) 항목 종합 등급(grade)은 루브릭 질문 등급의 평균을 반올림하여 산출합니다.
+   e) 근거가 부족한 항목은 등급을 제안하지 않습니다.
+7. **제외 항목**: career_course_effort(전공 관련 교과 이수 노력)과 career_course_achievement(전공 관련 교과 성취도)는 성적 데이터로 별도 산정됩니다. 이 두 항목은 텍스트에서 태깅하지 마세요.
 
 ## JSON 출력 형식
 
@@ -71,7 +76,16 @@ ${COMPETENCY_SCHEMA}
     }
   ],
   "competencyGrades": [
-    { "item": "academic_attitude", "grade": "B+", "reasoning": "자기주도적 학습은 보이나 수업 참여 근거 부족" }
+    {
+      "item": "academic_attitude",
+      "grade": "B+",
+      "reasoning": "자기주도적 학습은 보이나 수업 참여 근거 부족",
+      "rubricScores": [
+        { "questionIndex": 0, "grade": "A-", "reasoning": "자발적 학습 의지가 명확히 드러남" },
+        { "questionIndex": 1, "grade": "B+", "reasoning": "자기주도적 노력은 보이나 방법 제시 부족" },
+        { "questionIndex": 2, "grade": "B", "reasoning": "수업 참여에 대한 직접적 근거 미흡" }
+      ]
+    }
   ],
   "summary": "학업 탐구력이 두드러지며 진로 연결이 우수함"
 }
@@ -133,8 +147,12 @@ export function parseHighlightResponse(content: string): HighlightAnalysisResult
     const sectionType = VALID_SECTIONS.has(s.sectionType) ? s.sectionType : "전체";
     const tags: HighlightTag[] = [];
 
+    // F1: 교과 이수/성취도는 성적 데이터로 별도 산정 — AI 추측 무시
+    const EXCLUDED_ITEMS = new Set(["career_course_effort", "career_course_achievement"]);
+
     for (const t of s.tags ?? []) {
       if (!VALID_ITEMS.has(t.competencyItem)) continue;
+      if (EXCLUDED_ITEMS.has(t.competencyItem)) continue;
       if (!VALID_EVALS.has(t.evaluation)) continue;
       if (!t.highlight || typeof t.highlight !== "string") continue;
 
@@ -157,15 +175,33 @@ export function parseHighlightResponse(content: string): HighlightAnalysisResult
   }
 
   const competencyGrades = rawGrades
-    .filter((g: unknown): g is { item: string; grade: string; reasoning?: string } =>
+    .filter((g: unknown): g is { item: string; grade: string; reasoning?: string; rubricScores?: unknown[] } =>
       !!g && typeof g === "object" && "item" in g && "grade" in g &&
       VALID_ITEMS.has((g as { item: string }).item) && VALID_GRADES.has((g as { grade: string }).grade),
     )
-    .map((g: { item: string; grade: string; reasoning?: string }) => ({
-      item: g.item as CompetencyItemCode,
-      grade: g.grade as CompetencyGrade,
-      reasoning: String(g.reasoning ?? ""),
-    }));
+    .map((g: { item: string; grade: string; reasoning?: string; rubricScores?: unknown[] }) => {
+      // 루브릭 질문별 점수 파싱
+      const rubricScores = Array.isArray(g.rubricScores)
+        ? g.rubricScores
+            .filter((rs): rs is { questionIndex: number; grade: string; reasoning?: string } =>
+              !!rs && typeof rs === "object" &&
+              "questionIndex" in rs && typeof (rs as Record<string, unknown>).questionIndex === "number" &&
+              "grade" in rs && VALID_GRADES.has((rs as Record<string, unknown>).grade as string),
+            )
+            .map((rs) => ({
+              questionIndex: rs.questionIndex,
+              grade: rs.grade as CompetencyGrade,
+              reasoning: String(rs.reasoning ?? ""),
+            }))
+        : undefined;
+
+      return {
+        item: g.item as CompetencyItemCode,
+        grade: g.grade as CompetencyGrade,
+        reasoning: String(g.reasoning ?? ""),
+        ...(rubricScores && rubricScores.length > 0 ? { rubricScores } : {}),
+      };
+    });
 
   return {
     sections,

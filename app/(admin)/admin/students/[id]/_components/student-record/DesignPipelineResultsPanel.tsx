@@ -8,8 +8,51 @@ import {
   PIPELINE_TASK_LABELS,
   type PipelineTaskKey,
 } from "@/lib/domains/student-record/pipeline-types";
+import { COMPETENCY_ITEMS } from "@/lib/domains/student-record/constants";
 import { cn } from "@/lib/cn";
 import { Check, AlertCircle, RotateCcw, ChevronRight } from "lucide-react";
+
+/** P2-2: 태스크 결과에서 관련 역량 항목 추출 */
+function extractTaskCompetencies(
+  key: PipelineTaskKey,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  taskResults: Record<string, any> | null,
+  preview: string | undefined,
+): string[] {
+  if (!taskResults) return [];
+  const result = taskResults[key];
+
+  // competency_analysis: 결과에 totalEdges나 preview에서 추출
+  if (key === "competency_analysis" && preview) {
+    // preview: "12건 성공 (세특+창체+행특)" → 역량 전체 관련
+    return [];
+  }
+
+  // setek_guide: guides[].competencyFocus
+  if (key === "setek_guide" && result?.guides) {
+    const codes = new Set<string>();
+    for (const g of result.guides as Array<{ competencyFocus?: string[] }>) {
+      for (const c of g.competencyFocus ?? []) codes.add(c);
+    }
+    return [...codes].slice(0, 4);
+  }
+
+  // ai_strategy: strategies target_area에서 역량 영역 추론
+  if (key === "ai_strategy" && result?.suggestions) {
+    const areas = new Set<string>();
+    for (const s of result.suggestions as Array<{ targetArea?: string }>) {
+      if (s.targetArea) areas.add(s.targetArea);
+    }
+    return [...areas].slice(0, 3);
+  }
+
+  // edge_computation: nodeCount에서 영역 수 표시
+  if (key === "edge_computation" && result?.totalEdges) {
+    return []; // 엣지는 역량 항목보다 영역 수가 의미 있음
+  }
+
+  return [];
+}
 
 interface DesignPipelineResultsPanelProps {
   studentId: string;
@@ -18,12 +61,14 @@ interface DesignPipelineResultsPanelProps {
 
 const SECTION_SCROLL_MAP: Record<PipelineTaskKey, string> = {
   competency_analysis: "sec-diagnosis-analysis",
+  edge_computation: "sec-cross-reference",
   ai_diagnosis: "sec-diagnosis-overall",
   storyline_generation: "sec-storyline",
   course_recommendation: "sec-course-plan",
   guide_matching: "sec-exploration-guide",
   setek_guide: "sec-setek-guide",
   activity_summary: "sec-activity-summary",
+  ai_strategy: "sec-compensation",
 };
 
 export function DesignPipelineResultsPanel({
@@ -84,8 +129,38 @@ export function DesignPipelineResultsPanel({
     el?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // W-4: 미니 대시보드 데이터 추출
+  const taskResults = pipeline.taskResults ?? {};
+  const edgeResult = taskResults.edge_computation;
+  const diagnosisPreview = pipeline.taskPreviews?.ai_diagnosis;
+  const strategyPreview = pipeline.taskPreviews?.ai_strategy;
+
   return (
     <div className="rounded-lg border border-[var(--border-secondary)] bg-white p-4 dark:bg-[var(--surface-primary)]">
+      {/* W-4: 미니 대시보드 (완료 시만) */}
+      {(pipeline.status === "completed" || pipeline.status === "failed") && completedTasks.length > 0 && (
+        <div className="mb-3 grid grid-cols-3 gap-2">
+          <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 px-3 py-2 text-center dark:border-indigo-800 dark:bg-indigo-950/20">
+            <p className="text-lg font-bold text-indigo-700 dark:text-indigo-300">
+              {completedTasks.length}/{PIPELINE_TASK_KEYS.length}
+            </p>
+            <p className="text-[9px] text-indigo-600 dark:text-indigo-400">태스크 완료</p>
+          </div>
+          <div className="rounded-lg border border-teal-200 bg-teal-50/50 px-3 py-2 text-center dark:border-teal-800 dark:bg-teal-950/20">
+            <p className="text-lg font-bold text-teal-700 dark:text-teal-300">
+              {edgeResult?.totalEdges ?? "-"}
+            </p>
+            <p className="text-[9px] text-teal-600 dark:text-teal-400">엣지 감지</p>
+          </div>
+          <div className="rounded-lg border border-amber-200 bg-amber-50/50 px-3 py-2 text-center dark:border-amber-800 dark:bg-amber-950/20">
+            <p className="text-lg font-bold text-amber-700 dark:text-amber-300">
+              {strategyPreview?.match(/(\d+)건/)?.[1] ?? "-"}
+            </p>
+            <p className="text-[9px] text-amber-600 dark:text-amber-400">전략 제안</p>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold text-[var(--text-primary)]">AI 초기 분석 결과</h4>
         <span className="text-[10px] text-[var(--text-tertiary)]">
@@ -131,6 +206,23 @@ export function DesignPipelineResultsPanel({
                 {isFailed && pipeline.errorDetails?.[key] && (
                   <span className="text-red-400"> ({pipeline.errorDetails[key]})</span>
                 )}
+                {/* P2-2: 역량 연결 배지 */}
+                {isCompleted && (() => {
+                  const codes = extractTaskCompetencies(key, pipeline.taskResults, preview);
+                  if (codes.length === 0) return null;
+                  return (
+                    <span className="ml-1.5 inline-flex gap-0.5">
+                      {codes.map((code) => {
+                        const item = COMPETENCY_ITEMS.find((i) => i.code === code);
+                        return (
+                          <span key={code} className="rounded bg-violet-100 px-1 py-0.5 text-[9px] font-medium text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">
+                            {item?.label ?? code}
+                          </span>
+                        );
+                      })}
+                    </span>
+                  );
+                })()}
               </span>
 
               {isCompleted && (
@@ -191,6 +283,27 @@ export function DesignPipelineResultsPanel({
             </button>
           </div>
         </div>
+      )}
+
+      {/* F6: 파이프라인 완료 후 우회학과 분석 CTA */}
+      {completedTasks.length === PIPELINE_TASK_KEYS.length && (
+        <button
+          type="button"
+          onClick={() => {
+            document.getElementById("sec-bypass-major")?.scrollIntoView({ behavior: "smooth" });
+          }}
+          className="mt-3 flex w-full items-center justify-between rounded-lg border border-amber-200 bg-amber-50/50 px-3 py-2 text-left transition-colors hover:bg-amber-50 dark:border-amber-800 dark:bg-amber-950/10 dark:hover:bg-amber-950/20"
+        >
+          <div>
+            <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
+              우회학과 분석도 실행하시겠습니까?
+            </p>
+            <p className="text-[10px] text-amber-600 dark:text-amber-400">
+              목표 전공 대비 교차지원 가능한 학과를 탐색합니다
+            </p>
+          </div>
+          <ChevronRight className="h-4 w-4 shrink-0 text-amber-600" />
+        </button>
       )}
     </div>
   );

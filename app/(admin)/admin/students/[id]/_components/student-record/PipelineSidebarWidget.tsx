@@ -11,7 +11,9 @@ import {
   type PipelineTaskStatus,
 } from "@/lib/domains/student-record/pipeline-types";
 import { cn } from "@/lib/cn";
-import { Sparkles, Check, Loader2, AlertCircle, X, ChevronRight } from "lucide-react";
+import { Sparkles, Check, Loader2, AlertCircle, X, ChevronRight, TriangleAlert } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/Dialog";
+import { checkPipelineStalenessAction } from "@/lib/domains/student-record/actions/staleness";
 
 interface PipelineSidebarWidgetProps {
   studentId: string;
@@ -35,6 +37,7 @@ export function PipelineSidebarWidget({
 }: PipelineSidebarWidgetProps) {
   const queryClient = useQueryClient();
   const [collapsed, setCollapsed] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   // 파이프라인 상태 폴링
   const { data: pipeline } = useQuery({
@@ -80,6 +83,15 @@ export function PipelineSidebarWidget({
       queryClient.invalidateQueries({ queryKey: studentRecordKeys.all });
     }
   }, [pipeline?.status, queryClient]);
+
+  // Phase E3: 파이프라인 완료 후 stale 여부 체크
+  const { data: stalenessData } = useQuery({
+    queryKey: [...studentRecordKeys.pipeline(studentId), "staleness"],
+    queryFn: () => checkPipelineStalenessAction(studentId),
+    enabled: pipeline?.status === "completed",
+    staleTime: 30_000,
+  });
+  const isPipelineStale = stalenessData?.isStale ?? false;
 
   // 진로 미설정 → 표시 안 함 (CareerSetupBanner가 처리)
   if (!hasTargetMajor) return null;
@@ -141,16 +153,55 @@ export function PipelineSidebarWidget({
           {completedCount}/{PIPELINE_TASK_KEYS.length}
         </span>
         {pipeline.status === "running" && (
-          <button
-            type="button"
-            onClick={() => cancelMutation.mutate()}
-            className="rounded p-0.5 text-[var(--text-tertiary)] hover:text-red-500"
-            title="취소"
-          >
-            <X className="h-3 w-3" />
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => setShowCancelConfirm(true)}
+              className="rounded p-0.5 text-[var(--text-tertiary)] hover:text-red-500"
+              title="취소"
+            >
+              <X className="h-3 w-3" />
+            </button>
+            <ConfirmDialog
+              open={showCancelConfirm}
+              onOpenChange={setShowCancelConfirm}
+              title="AI 분석 취소"
+              description="진행 중인 AI 분석을 취소하시겠습니까? 완료된 태스크 결과는 유지됩니다."
+              onConfirm={() => { cancelMutation.mutate(); setShowCancelConfirm(false); }}
+              variant="destructive"
+              isLoading={cancelMutation.isPending}
+            />
+          </>
         )}
       </div>
+
+      {/* U-3: 프로그레스 바 + ETA */}
+      {pipeline.status === "running" && (
+        <div className="mt-1.5 mb-1.5">
+          <div className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+            <div
+              className="h-full rounded-full bg-indigo-500 transition-all duration-500"
+              style={{ width: `${Math.round((completedCount / PIPELINE_TASK_KEYS.length) * 100)}%` }}
+            />
+          </div>
+          <div className="mt-1 flex items-center justify-between text-xs text-[var(--text-tertiary)]">
+            <span>
+              {(() => {
+                const currentTask = PIPELINE_TASK_KEYS.find((k) => pipeline.tasks[k] === "running");
+                return currentTask ? PIPELINE_TASK_LABELS[currentTask] : "대기 중";
+              })()}...
+            </span>
+            {completedCount >= 2 && pipeline.startedAt && (
+              <span>
+                약 {Math.ceil(
+                  ((Date.now() - new Date(pipeline.startedAt).getTime()) / completedCount
+                    * (PIPELINE_TASK_KEYS.length - completedCount)) / 60000
+                )}분 남음
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="mt-1.5 flex flex-col gap-1">
         {PIPELINE_TASK_KEYS.map((key) => {
@@ -182,6 +233,16 @@ export function PipelineSidebarWidget({
           );
         })}
       </div>
+
+      {/* Phase E3: stale 경고 */}
+      {isPipelineStale && pipeline.status === "completed" && (
+        <div className="mt-1.5 flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1 dark:bg-amber-950/30">
+          <TriangleAlert className="h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400" />
+          <span className="text-xs text-amber-700 dark:text-amber-300">
+            분석 후 기록이 변경되었습니다
+          </span>
+        </div>
+      )}
 
       {/* 완료 후 결과 리뷰 링크 */}
       {(pipeline.status === "completed" || pipeline.status === "failed") && (

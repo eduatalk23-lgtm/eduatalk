@@ -596,6 +596,186 @@ body {
   line-height: 1.5;
 }
 
+/* ============================================ */
+/* Report Typography — Modular Scale 1.25× (Major Third) */
+/* Serif: Noto Serif KR (본문/서술), Sans: Geist (수치/차트) */
+/* ============================================ */
+
+.report-typography {
+  --font-report-serif: var(--font-noto-serif), 'Noto Serif KR', Georgia, 'Times New Roman', serif;
+  --font-report-sans: var(--font-geist-sans), system-ui, sans-serif;
+
+  /* 리포트 전체 세리프 기본값 */
+  font-family: var(--font-report-serif);
+  font-size: 15px;
+  line-height: 1.6;
+  color: #1f2937;
+}
+
+/* Tailwind text-sm/text-xs를 리포트 내에서 세리프 + 모듈러 스케일로 강제 오버라이드 */
+.report-typography p,
+.report-typography li,
+.report-typography span:not([class*="font-bold"]):not([class*="font-semibold"]):not([class*="recharts"]):not([class*="report-metric"]):not([class*="report-caption"]) {
+  font-family: var(--font-report-serif);
+}
+
+/* 수치/메트릭/차트/배지/테이블은 산세리프 유지 */
+.report-typography table,
+.report-typography th,
+.report-typography td,
+.report-typography [class*="recharts"],
+.report-typography [class*="font-bold"],
+.report-typography [class*="font-semibold"],
+.report-typography .report-metric,
+.report-typography .report-caption,
+.report-typography footer {
+  font-family: var(--font-report-sans);
+}
+
+/* 인쇄 시 세리프 강제 (Tailwind specificity 대응) */
+@media print {
+  .report-typography p,
+  .report-typography li {
+    font-family: var(--font-report-serif) !important;
+    font-size: 11pt;
+    line-height: 1.5;
+  }
+}
+
+/* 화면에서 섹션 "페이지" 분리 — 인쇄 시에는 print-break-before가 실제 페이지 분리 */
+.report-section-page {
+  position: relative;
+  padding-top: 2.5rem;
+  margin-top: 2.5rem;
+}
+.report-section-page::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40%;
+  height: 1px;
+  background: linear-gradient(to right, transparent, #d1d5db, transparent);
+}
+.report-section-page:first-child {
+  padding-top: 0;
+  margin-top: 0;
+}
+.report-section-page:first-child::before {
+  display: none;
+}
+
+/* 수치/메트릭/차트/배지는 산세리프 유지 */
+.report-typography table,
+.report-typography [class*="recharts"],
+.report-typography [class*="font-bold"],
+.report-typography [class*="font-semibold"],
+.report-typography .report-metric,
+.report-typography .report-caption {
+  font-family: var(--font-report-sans);
+}
+
+.report-page-title {
+  font-family: var(--font-report-serif);
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  color: var(--text-primary, #111);
+}
+.report-section-title {
+  font-family: var(--font-report-serif);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--text-primary, #111);
+}
+.report-subtitle {
+  font-family: var(--font-report-serif);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--text-secondary, #374151);
+}
+.report-body {
+  font-family: var(--font-report-serif);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--text-primary, #1f2937);
+}
+.report-caption {
+  font-family: var(--font-report-sans);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.025em;
+  color: var(--text-tertiary, #6b7280);
+}
+.report-metric {
+  font-family: var(--font-report-sans);
+  font-weight: 700;
+}
+
+/* Report Markdown — AI 생성 텍스트의 마크다운 렌더링 */
+.report-markdown {
+  font-family: var(--font-report-serif);
+  font-size: 13px;
+  line-height: 1.7;
+  color: #374151;
+}
+.report-markdown h3 {
+  font-family: var(--font-report-sans);
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+  margin-top: 1em;
+  margin-bottom: 0.3em;
+}
+.report-markdown h4 {
+  font-family: var(--font-report-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-top: 0.8em;
+  margin-bottom: 0.2em;
+}
+.report-markdown p {
+  margin-bottom: 0.4em;
+}
+.report-markdown strong {
+  font-weight: 700;
+  color: #111827;
+}
+.report-markdown ul,
+.report-markdown ol {
+  padding-left: 1.25em;
+  margin-bottom: 0.4em;
+}
+.report-markdown ul { list-style: disc; }
+.report-markdown ol { list-style: decimal; }
+.report-markdown li {
+  margin-bottom: 0.15em;
+}
+.report-markdown li::marker {
+  color: #9ca3af;
+}
+.report-markdown hr {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 0.8em 0;
+}
+@media print {
+  .report-markdown {
+    font-size: 10pt;
+    line-height: 1.5;
+  }
+  .report-markdown h3 { font-size: 11pt; }
+  .report-markdown h4 { font-size: 10.5pt; }
+}
+
 /* Transition System */
 /* 2025년 웹 트렌드: 짧은 지속시간 (100-300ms), 목적 중심, prefers-reduced-motion 지원 */
 .transition-base {
@@ -1083,7 +1263,10 @@ input[type="number"] {
   }
   @page {
     size: A4 portrait;
-    margin: 15mm 12mm;
+    margin: 15mm 12mm 20mm 12mm;
+  }
+  @page :first {
+    margin-top: 0;
   }
   .print-break-before {
     break-before: page;
@@ -1091,9 +1274,52 @@ input[type="number"] {
   .print-avoid-break {
     break-inside: avoid;
   }
+  /* 리포트 러닝 헤더/푸터 */
+  .print-running-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 4mm 12mm;
+    font-size: 8pt;
+    color: #999;
+    border-bottom: 0.5pt solid #e5e7eb;
+  }
   body {
     background: white !important;
     color: black !important;
+    font-size: 10pt;
+    line-height: 1.5;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+    counter-reset: page;
+  }
+  h1 { font-size: 24pt; break-after: avoid; }
+  h2 { font-size: 14pt; break-after: avoid; }
+  h3 { font-size: 12pt; break-after: avoid; }
+
+  /* 리포트 모듈러 스케일 인쇄 */
+  .report-page-title { font-size: 24pt; }
+  .report-section-title { font-size: 16pt; }
+  .report-subtitle { font-size: 13pt; }
+  .report-body { font-size: 11pt; line-height: 1.5; }
+  .report-caption { font-size: 9pt; }
+  /* 인쇄 시 그림자를 얇은 테두리로 대체 */
+  .shadow-sm, .shadow, [class*="elevation-"] {
+    box-shadow: none !important;
+    border: 0.5pt solid #e5e7eb;
+  }
+  /* 고아/과부 줄 방지 */
+  p { orphans: 3; widows: 3; }
+  /* 배경색 유지 (차트, 배지, 강조 섹션) */
+  .bg-gray-50, .bg-indigo-50, .bg-violet-50, .bg-amber-50,
+  .bg-indigo-100, .bg-violet-100, .bg-amber-100,
+  .bg-emerald-50, .bg-red-50, .bg-blue-50 {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  /* 그라디언트 표지 인쇄 보장 */
+  .bg-gradient-to-br {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
@@ -1103,6 +1329,59 @@ input[type="number"] {
   }
   .recharts-wrapper svg {
     overflow: visible !important;
+  }
+}
+
+/* ============================================ */
+/* Report — CSS A4 페이지 레이아웃 */
+/* 화면: A4 폭 카드 / 인쇄: 실제 A4 페이지 분할 */
+/* ============================================ */
+
+/* ─── 화면: A4 페이지 카드 ─── */
+.report-page {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto 24px;
+  padding: 15mm 12mm 20mm;
+  background: white;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.03);
+}
+
+/* 표지: 패딩 없이 전체 사용 */
+.report-page--cover {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 차트/카드/테이블은 쪼개지 않음 */
+.print-avoid-break {
+  break-inside: avoid;
+}
+
+/* 테이블 헤더 반복 */
+.report-page thead {
+  display: table-header-group;
+}
+.report-page tr {
+  break-inside: avoid;
+}
+
+/* ─── 인쇄: 실제 A4 페이지 분할 ─── */
+@media print {
+  .report-page {
+    width: auto;
+    min-height: auto;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    break-after: page;
+  }
+  .report-page:last-child {
+    break-after: auto;
+  }
+  .report-page--cover {
+    padding: 0;
   }
 }
 

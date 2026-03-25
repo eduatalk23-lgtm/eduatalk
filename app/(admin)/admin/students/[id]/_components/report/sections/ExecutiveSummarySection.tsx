@@ -17,6 +17,12 @@ interface Props {
   internalAnalysis: InternalAnalysis;
   diagnosisData: DiagnosisTabData;
   mockAnalysis: MockAnalysis;
+  /** P3-3 대시보드 확장 */
+  edgeCount?: number;
+  storylineCount?: number;
+  totalActivityCount?: number;
+  /** E-3: 가이드 배정 건수 */
+  guideAssignmentCount?: number;
 }
 
 function getVerdict(gpa: number | null): { label: string; color: string; bg: string } {
@@ -34,6 +40,10 @@ export function ExecutiveSummarySection({
   internalAnalysis,
   diagnosisData,
   mockAnalysis,
+  edgeCount = 0,
+  storylineCount = 0,
+  totalActivityCount = 0,
+  guideAssignmentCount = 0,
 }: Props) {
   const { totalGpa, adjustedGpa, zIndex } = internalAnalysis;
   const primaryGpa = totalGpa ?? adjustedGpa;
@@ -42,6 +52,7 @@ export function ExecutiveSummarySection({
   const diagnosis = diagnosisData.consultantDiagnosis ?? diagnosisData.aiDiagnosis;
   const strengths = (diagnosis?.strengths as string[] | null) ?? [];
   const weaknesses = (diagnosis?.weaknesses as string[] | null) ?? [];
+  const strategies = diagnosisData.strategies ?? [];
   const overallGrade = diagnosis?.overall_grade ?? null;
   const directionStrength = diagnosis?.direction_strength ?? null;
   const courseScore = diagnosisData.courseAdequacy?.score ?? null;
@@ -80,22 +91,26 @@ export function ExecutiveSummarySection({
             label="내신 평균등급"
             value={primaryGpa?.toFixed(2) ?? "-"}
             sub={totalGpa != null ? "석차등급 기준" : adjustedGpa != null ? "조정등급 기준" : undefined}
+            accent="indigo"
           />
           <MetricCard
             label="종합 역량등급"
             value={overallGrade ?? "-"}
             sub={directionStrength ? `방향 강도: ${directionStrength === "strong" ? "강" : directionStrength === "moderate" ? "중" : "약"}` : undefined}
+            accent="indigo"
           />
           <MetricCard
             label="교과이수적합도"
             value={courseScore != null ? `${courseScore}점` : "-"}
             sub={courseScore != null ? `/ 100 (${diagnosisData.courseAdequacy?.majorCategory ?? ""})` : undefined}
             color={courseScore != null ? (courseScore >= 70 ? "text-emerald-600" : courseScore >= 50 ? "text-amber-600" : "text-red-600") : undefined}
+            accent="emerald"
           />
           <MetricCard
             label="모평 백분위"
             value={mockAnalysis.avgPercentile != null ? `${mockAnalysis.avgPercentile.toFixed(1)}%` : "-"}
             sub={mockAnalysis.recentExam?.examTitle ?? undefined}
+            accent="amber"
           />
         </div>
 
@@ -111,7 +126,7 @@ export function ExecutiveSummarySection({
               </RadarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex h-full items-center justify-center rounded border border-dashed border-gray-300 text-xs text-gray-400">
+            <div className="flex h-full items-center justify-center rounded border border-dashed border-gray-300 text-xs text-gray-500">
               역량 분석 후 표시
             </div>
           )}
@@ -135,21 +150,57 @@ export function ExecutiveSummarySection({
           )}
         </div>
       )}
+
+      {/* P3-3: 2행째 보조 지표 */}
+      {(edgeCount > 0 || storylineCount > 0 || totalActivityCount > 0 || strategies.length > 0) && (
+        <div className="mt-3 grid grid-cols-5 gap-2">
+          <MiniMetric label="활동 연결" value={`${edgeCount}개`} />
+          <MiniMetric
+            label="전략 이행률"
+            value={strategies.length > 0
+              ? `${Math.round((strategies.filter((s) => s.status === "done" || s.status === "in_progress").length / strategies.length) * 100)}%`
+              : "-"
+            }
+          />
+          <MiniMetric label="스토리라인" value={`${storylineCount}개`} />
+          <MiniMetric label="활동 총 건수" value={`${totalActivityCount}건`} />
+          <MiniMetric label="배정 가이드" value={`${guideAssignmentCount}건`} />
+        </div>
+      )}
     </section>
   );
 }
 
-function MetricCard({ label, value, sub, color }: {
+function MiniMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border-b border-gray-200 px-2 py-2 text-center">
+      <p className="report-caption">{label}</p>
+      <p className="report-metric mt-0.5 text-sm text-gray-800">{value}</p>
+    </div>
+  );
+}
+
+const METRIC_BORDER: Record<string, string> = {
+  indigo: "border-l-indigo-500",
+  emerald: "border-l-emerald-500",
+  amber: "border-l-amber-500",
+  red: "border-l-red-500",
+  default: "border-l-gray-300",
+};
+
+function MetricCard({ label, value, sub, color, accent }: {
   label: string;
   value: string;
   sub?: string;
   color?: string;
+  accent?: keyof typeof METRIC_BORDER;
 }) {
+  const border = METRIC_BORDER[accent ?? "default"];
   return (
-    <div className="rounded-lg border border-gray-200 px-3 py-2.5">
-      <p className="text-[10px] font-medium text-gray-500">{label}</p>
-      <p className={`mt-0.5 text-xl font-bold ${color ?? "text-gray-900"}`}>{value}</p>
-      {sub && <p className="mt-0.5 text-[10px] text-gray-400">{sub}</p>}
+    <div className={`border-l-4 ${border} bg-white py-3 pl-4 pr-3`}>
+      <p className="report-caption">{label}</p>
+      <p className={`report-metric mt-1 text-2xl ${color ?? "text-gray-900"}`}>{value}</p>
+      {sub && <p className="report-caption mt-1">{sub}</p>}
     </div>
   );
 }

@@ -46,6 +46,7 @@ export async function generateInterviewQuestions(input: {
       modelTier: "fast",
       temperature: 0.4,
       maxTokens: 4000,
+      responseFormat: "json",
     });
 
     if (!result.content) {

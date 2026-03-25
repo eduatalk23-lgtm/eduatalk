@@ -26,6 +26,11 @@ export interface SuggestedStoryline {
   title: string;
   keywords: string[];
   connectionIndices: number[];
+  narrative: string;
+  careerField: string;
+  grade1Theme: string;
+  grade2Theme: string;
+  grade3Theme: string;
 }
 
 export interface InquiryLinkResult {
@@ -47,7 +52,7 @@ ${LINK_TYPE_DESC}
 
 1. **핵심 주제 기반**: 단순히 같은 과목이라서가 아니라, 탐구 주제·키워드가 실제로 연결될 때만 감지합니다.
 2. **구체적 근거**: 어떤 키워드/활동이 연결되는지 명확히 서술합니다.
-3. **스토리라인 제안**: 연결된 탐구들을 묶어 스토리라인(성장 서사)을 제안합니다.
+3. **스토리라인 제안**: 연결된 탐구들을 묶어 스토리라인(성장 서사)을 제안합니다. 각 스토리라인에는 **서사(narrative)**, **진로 분야**, **학년별 테마**를 반드시 포함합니다.
 4. **연결이 없으면 빈 배열**: 억지로 연결하지 않습니다.
 5. **JSON 형식으로만 응답합니다.**
 
@@ -68,11 +73,23 @@ ${LINK_TYPE_DESC}
     {
       "title": "의료영상·방사선 탐구",
       "keywords": ["CT", "푸리에변환", "방사선"],
-      "connectionIndices": [0]
+      "connectionIndices": [0],
+      "narrative": "1학년 수학에서 연립방정식을 CT 스캐닝에 적용하며 의료영상에 관심을 가졌고, 2학년 물리에서 방사선의 원리를 탐구하며 진단기기의 과학적 기반을 이해했다. 3학년에서는 AI 기반 의료영상 분석으로 확장하여 공학적 문제 해결 역량을 보여주었다.",
+      "careerField": "의공학·바이오메디컬",
+      "grade1Theme": "수학적 원리 발견",
+      "grade2Theme": "물리·방사선 심화 탐구",
+      "grade3Theme": "AI 의료영상 응용"
     }
   ]
 }
-\`\`\``;
+\`\`\`
+
+## 스토리라인 필드 설명
+- **narrative**: 학생의 3년간 성장 과정을 2~4문장으로 서술. 학년 간 연결과 심화 과정을 포함.
+- **careerField**: 해당 스토리라인이 가리키는 진로/전공 분야 (예: "법·행정", "의공학·바이오메디컬")
+- **grade1Theme**: 1학년 핵심 테마 (관심·발견 단계). 해당 학년 기록이 없으면 빈 문자열.
+- **grade2Theme**: 2학년 핵심 테마 (탐구·심화 단계). 해당 학년 기록이 없으면 빈 문자열.
+- **grade3Theme**: 3학년 핵심 테마 (주도·실천 단계). 해당 학년 기록이 없으면 빈 문자열.`;
 
 export function buildInquiryLinkUserPrompt(records: RecordSummary[]): string {
   const recordList = records
@@ -121,6 +138,11 @@ export function parseInquiryLinkResponse(content: string, maxIndex: number): Inq
       connectionIndices: Array.isArray(s.connectionIndices)
         ? (s.connectionIndices as unknown[]).filter((i): i is number => typeof i === "number")
         : [],
+      narrative: String(s.narrative ?? ""),
+      careerField: String(s.careerField ?? ""),
+      grade1Theme: String(s.grade1Theme ?? ""),
+      grade2Theme: String(s.grade2Theme ?? ""),
+      grade3Theme: String(s.grade3Theme ?? ""),
     }));
 
   return { connections, suggestedStorylines };

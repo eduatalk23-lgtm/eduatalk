@@ -38,6 +38,7 @@ export async function fetchActivitySummaries(
         "id, school_year, target_grades, summary_title, summary_sections, summary_text, status, edited_text, admin_notes, created_at, updated_at",
       )
       .eq("student_id", studentId)
+      .eq("prompt_version", "v1")
       .order("created_at", { ascending: false });
 
     if (error) {

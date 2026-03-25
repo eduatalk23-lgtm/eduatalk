@@ -10208,6 +10208,7 @@ export type Database = {
           id: string
           narrative: string | null
           notes: string | null
+          rubric_scores: Json | null
           school_year: number
           scope: string
           source: string
@@ -10226,6 +10227,7 @@ export type Database = {
           id?: string
           narrative?: string | null
           notes?: string | null
+          rubric_scores?: Json | null
           school_year: number
           scope?: string
           source?: string
@@ -10244,6 +10246,7 @@ export type Database = {
           id?: string
           narrative?: string | null
           notes?: string | null
+          rubric_scores?: Json | null
           school_year?: number
           scope?: string
           source?: string

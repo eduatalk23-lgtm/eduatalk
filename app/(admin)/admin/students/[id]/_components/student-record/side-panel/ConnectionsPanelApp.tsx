@@ -2,14 +2,17 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { crossRefQueryOptions, diagnosisTabQueryOptions } from "@/lib/query-options/studentRecord";
+import { crossRefQueryOptions, diagnosisTabQueryOptions, edgesQueryOptions } from "@/lib/query-options/studentRecord";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 import {
   buildConnectionGraph,
   EDGE_TYPE_META,
   type ConnectionGraph,
+  type ConnectionNode,
+  type CrossRefEdge,
   type CrossRefEdgeType,
 } from "@/lib/domains/student-record/cross-reference";
+import type { PersistedEdge } from "@/lib/domains/student-record/edge-repository";
 import { useStudentRecordContext } from "../StudentRecordContext";
 import { ConnectionNodeCard } from "./ConnectionNodeCard";
 import { ConnectionEmptyState } from "./ConnectionEmptyState";
@@ -31,13 +34,21 @@ export function ConnectionsPanelApp({
   const [groupBy, setGroupBy] = useState<GroupMode>("node");
   const [focusedNodeKey, setFocusedNodeKey] = useState<string | null>(null);
 
-  // 기존 쿼리 재활용 (캐시 히트)
+  // Phase E4: DB 영속화 엣지 우선 조회
+  const { data: persistedEdges } = useQuery(edgesQueryOptions(studentId, tenantId));
+
+  // Fallback: 런타임 계산용 데이터
   const { data: crossRefData } = useQuery(crossRefQueryOptions(studentId, tenantId));
   const { data: diagnosisData } = useQuery(
     diagnosisTabQueryOptions(studentId, schoolYear, tenantId),
   );
 
   const graph = useMemo<ConnectionGraph | null>(() => {
+    // DB 엣지가 있으면 → DB 기반 그래프
+    if (persistedEdges && persistedEdges.length > 0) {
+      return buildGraphFromPersistedEdges(persistedEdges);
+    }
+    // Fallback: 런타임 계산
     if (!crossRefData || !diagnosisData) return null;
     return buildConnectionGraph({
       allTags: diagnosisData.activityTags,
@@ -48,7 +59,7 @@ export function ConnectionsPanelApp({
       readingLabelMap: new Map(Object.entries(crossRefData.readingLabelMap)),
       recordContentMap: new Map(Object.entries(crossRefData.recordContentMap ?? {})),
     });
-  }, [crossRefData, diagnosisData]);
+  }, [persistedEdges, crossRefData, diagnosisData]);
 
   // 1-hop 드릴다운: focusedNodeKey에 해당하는 노드 찾기
   const focusedNode = useMemo(() => {
@@ -229,4 +240,59 @@ function EdgeTypeGroupView({
       })}
     </div>
   );
+}
+
+// ─── Phase E4: DB 엣지 → ConnectionGraph 변환 ────
+
+function buildGraphFromPersistedEdges(edges: PersistedEdge[]): ConnectionGraph {
+  // source 노드별로 엣지 그룹화
+  const nodeMap = new Map<string, {
+    recordType: string;
+    recordId: string;
+    label: string;
+    grade: number;
+    edges: CrossRefEdge[];
+  }>();
+
+  for (const e of edges) {
+    const key = `${e.source_record_type}:${e.source_record_id}`;
+    const existing = nodeMap.get(key);
+    const edge: CrossRefEdge = {
+      type: e.edge_type,
+      targetRecordType: e.target_record_type as CrossRefEdge["targetRecordType"],
+      targetRecordId: e.target_record_id ?? undefined,
+      targetLabel: e.target_label,
+      reason: e.reason,
+      sharedCompetencies: e.shared_competencies ?? undefined,
+    };
+
+    if (existing) {
+      existing.edges.push(edge);
+    } else {
+      nodeMap.set(key, {
+        recordType: e.source_record_type,
+        recordId: e.source_record_id,
+        label: e.source_label,
+        grade: e.source_grade ?? 0,
+        edges: [edge],
+      });
+    }
+  }
+
+  const nodes: ConnectionNode[] = [...nodeMap.entries()].map(([nodeKey, data]) => ({
+    nodeKey,
+    recordIds: new Set([data.recordId]),
+    recordType: data.recordType as ConnectionNode["recordType"],
+    label: data.label,
+    grade: data.grade,
+    edges: data.edges,
+  }));
+
+  // 엣지 많은 순 정렬
+  nodes.sort((a, b) => b.edges.length - a.edges.length);
+
+  return {
+    nodes,
+    totalEdges: edges.length,
+  };
 }

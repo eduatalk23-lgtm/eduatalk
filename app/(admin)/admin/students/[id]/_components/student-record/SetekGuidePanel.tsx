@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { setekGuideListOptions, setekGuideKeys } from "@/lib/query-options/setekGuide";
+import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { generateSetekGuide } from "@/lib/domains/student-record/llm/actions/generateSetekGuide";
 import {
   updateActivitySummaryStatus,
@@ -54,10 +55,18 @@ export function SetekGuidePanel({
   );
 
   const generateMutation = useMutation({
-    mutationFn: () => generateSetekGuide(studentId, selectedGrades),
+    mutationFn: async () => {
+      const result = await generateSetekGuide(studentId, selectedGrades);
+      if (!result.success) throw new Error(result.error);
+      return result.data;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: setekGuideKeys.list(studentId),
+      });
+      // 파이프라인 상태가 sync되었으므로 UI 갱신
+      queryClient.invalidateQueries({
+        queryKey: studentRecordKeys.pipeline(studentId),
       });
     },
   });

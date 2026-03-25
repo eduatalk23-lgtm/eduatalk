@@ -18,12 +18,15 @@ import {
 } from "../prompts/setekGuide";
 import type { SetekGuideInput, SetekGuideResult } from "../types";
 import type { ActionResponse } from "@/lib/types/actionResponse";
+import { syncPipelineTaskStatus } from "../../actions/pipeline";
 
 const LOG_CTX = { domain: "student-record", action: "generateSetekGuide" };
 
 export async function generateSetekGuide(
   studentId: string,
   targetGrades?: number[],
+  /** Phase E2: 파이프라인에서 전달되는 엣지 프롬프트 섹션 */
+  edgePromptSection?: string,
 ): Promise<ActionResponse<SetekGuideResult & { summaryId: string }>> {
   try {
     const { userId, tenantId } = await requireAdminOrConsultant();
@@ -127,6 +130,7 @@ export async function generateSetekGuide(
       })),
       strengths: strengths && strengths.length > 0 ? strengths : undefined,
       weaknesses: weaknesses && weaknesses.length > 0 ? weaknesses : undefined,
+      edgePromptSection,
     };
 
     // AI SDK 호출
@@ -137,7 +141,8 @@ export async function generateSetekGuide(
       messages: [{ role: "user", content: userPrompt }],
       modelTier: "standard",
       temperature: 0.3,
-      maxTokens: 8192,
+      maxTokens: 16384,
+      responseFormat: "json",
     });
 
     if (!result.content) {
@@ -181,6 +186,9 @@ export async function generateSetekGuide(
       logActionError(LOG_CTX, insertError);
       return { success: false, error: "가이드 저장 실패" };
     }
+
+    // 파이프라인 상태 동기화 (fire-and-forget)
+    syncPipelineTaskStatus(studentId, "setek_guide").catch(() => {});
 
     return {
       success: true,

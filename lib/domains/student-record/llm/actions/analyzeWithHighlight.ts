@@ -35,6 +35,7 @@ export async function analyzeSetekWithHighlight(
       modelTier: "fast",
       temperature: 0.3,
       maxTokens: 4000,
+      responseFormat: "json",
     });
 
     if (!result.content) {

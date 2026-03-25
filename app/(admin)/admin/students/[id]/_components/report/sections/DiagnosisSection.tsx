@@ -1,5 +1,8 @@
 import type { DiagnosisTabData } from "@/lib/domains/student-record/types";
 import { MAJOR_RECOMMENDED_COURSES } from "@/lib/domains/student-record/constants";
+import { Stethoscope } from "lucide-react";
+import { ReportSectionHeader } from "../ReportSectionHeader";
+import { ReportMarkdown } from "../ReportMarkdown";
 
 const STRENGTH_LABELS: Record<string, string> = {
   strong: "강",
@@ -9,9 +12,11 @@ const STRENGTH_LABELS: Record<string, string> = {
 
 interface DiagnosisSectionProps {
   diagnosisData: DiagnosisTabData;
+  /** P2-3: 수강 계획에 등록된 과목 이름 목록 */
+  plannedSubjects?: string[];
 }
 
-export function DiagnosisSection({ diagnosisData }: DiagnosisSectionProps) {
+export function DiagnosisSection({ diagnosisData, plannedSubjects = [] }: DiagnosisSectionProps) {
   const { aiDiagnosis, consultantDiagnosis, courseAdequacy } = diagnosisData;
 
   const diagnosis = consultantDiagnosis ?? aiDiagnosis;
@@ -24,14 +29,12 @@ export function DiagnosisSection({ diagnosisData }: DiagnosisSectionProps) {
 
   return (
     <section className="print-break-before">
-      <h2 className="border-b-2 border-gray-800 pb-2 text-xl font-bold text-gray-900">
-        종합 진단
-      </h2>
+      <ReportSectionHeader icon={Stethoscope} title="종합 진단" subtitle="강점/약점 · 추천전공 · 교과이수적합도" />
 
       {!hasData ? (
         <div className="mt-4 rounded-lg border border-dashed border-gray-300 p-6 text-center">
           <p className="text-sm text-gray-500">종합 진단이 아직 수행되지 않았습니다.</p>
-          <p className="mt-1 text-xs text-gray-400">AI 종합 진단을 생성하면 강점/약점 분석, 추천전공, 교과이수적합도가 표시됩니다.</p>
+          <p className="mt-1 text-xs text-gray-500">AI 종합 진단을 생성하면 강점/약점 분석, 추천전공, 교과이수적합도가 표시됩니다.</p>
         </div>
       ) : (
         <div className="space-y-6 pt-4">
@@ -40,7 +43,7 @@ export function DiagnosisSection({ diagnosisData }: DiagnosisSectionProps) {
             <div className="print-avoid-break">
               <h3 className="text-sm font-semibold text-gray-700">
                 종합 소견{" "}
-                <span className="font-normal text-gray-400">({source})</span>
+                <span className="font-normal text-gray-500">({source})</span>
               </h3>
 
               <div className="grid grid-cols-3 gap-3 pt-2 text-sm">
@@ -101,7 +104,7 @@ export function DiagnosisSection({ diagnosisData }: DiagnosisSectionProps) {
                     <div className="grid grid-cols-2 gap-3 pt-1">
                       {courses.general.length > 0 && (
                         <div>
-                          <p className="text-[10px] font-medium text-blue-600">
+                          <p className="text-xs font-medium text-blue-600">
                             일반선택
                           </p>
                           <div className="flex flex-wrap gap-1 pt-0.5">
@@ -118,7 +121,7 @@ export function DiagnosisSection({ diagnosisData }: DiagnosisSectionProps) {
                       )}
                       {courses.career.length > 0 && (
                         <div>
-                          <p className="text-[10px] font-medium text-purple-600">
+                          <p className="text-xs font-medium text-purple-600">
                             진로선택
                           </p>
                           <div className="flex flex-wrap gap-1 pt-0.5">
@@ -163,9 +166,7 @@ export function DiagnosisSection({ diagnosisData }: DiagnosisSectionProps) {
               </div>
 
               {diagnosis.strategy_notes && (
-                <p className="whitespace-pre-wrap pt-3 text-sm leading-relaxed text-gray-600">
-                  {diagnosis.strategy_notes}
-                </p>
+                <ReportMarkdown className="pt-3">{diagnosis.strategy_notes}</ReportMarkdown>
               )}
             </div>
           )}
@@ -191,7 +192,7 @@ export function DiagnosisSection({ diagnosisData }: DiagnosisSectionProps) {
                     </span>
                     <span>{courseAdequacy.score}%</span>
                   </div>
-                  <div className="mt-1 flex gap-4 text-[10px] text-gray-500">
+                  <div className="mt-1 flex gap-4 text-xs text-gray-500">
                     <span>일반선택 {courseAdequacy.generalRate}%</span>
                     <span>진로선택 {courseAdequacy.careerRate}%</span>
                   </div>
@@ -219,25 +220,44 @@ export function DiagnosisSection({ diagnosisData }: DiagnosisSectionProps) {
                 </div>
               )}
 
-              {/* 미이수 */}
+              {/* 미이수 — P2-3: 수강 계획 상태 배지 */}
               {courseAdequacy.notTaken.length > 0 && (
                 <div className="pt-1">
-                  <p className="text-xs font-medium text-orange-600">
+                  <p className="text-xs font-medium text-amber-600">
                     미이수 추천 과목 ({courseAdequacy.notTaken.length})
                   </p>
-                  <p className="text-xs text-gray-600">
-                    {courseAdequacy.notTaken.join(", ")}
-                  </p>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {courseAdequacy.notTaken.map((subj) => {
+                      const isPlanned = plannedSubjects.some((p) =>
+                        p === subj || p.includes(subj) || subj.includes(p),
+                      );
+                      return (
+                        <span
+                          key={subj}
+                          className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-xs ${
+                            isPlanned
+                              ? "border-green-200 bg-green-50 text-green-700"
+                              : "border-amber-200 bg-amber-50 text-amber-700"
+                          }`}
+                        >
+                          {subj}
+                          <span className="font-semibold">
+                            {isPlanned ? "✓ 수강 예정" : "미계획"}
+                          </span>
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
               {/* 학교 미개설 */}
               {courseAdequacy.notOffered.length > 0 && (
                 <div className="pt-1">
-                  <p className="text-xs font-medium text-gray-400">
+                  <p className="text-xs font-medium text-gray-500">
                     학교 미개설 ({courseAdequacy.notOffered.length})
                   </p>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-gray-500">
                     {courseAdequacy.notOffered.join(", ")}
                   </p>
                 </div>

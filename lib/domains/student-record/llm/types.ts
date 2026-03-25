@@ -78,11 +78,17 @@ export interface HighlightAnalysisInput {
 export interface HighlightAnalysisResult {
   /** 구간별 분석 (학업태도/수행능력/탐구활동) */
   sections: AnalyzedSection[];
-  /** 종합 등급 제안 */
+  /** 종합 등급 제안 (루브릭 기반 bottom-up) */
   competencyGrades: {
     item: CompetencyItemCode;
     grade: CompetencyGrade;
     reasoning: string;
+    /** 개별 루브릭 질문 평가 (Phase: Bottom-Up Evaluation) */
+    rubricScores?: {
+      questionIndex: number;
+      grade: CompetencyGrade;
+      reasoning: string;
+    }[];
   }[];
   /** 전체 요약 */
   summary: string;
@@ -150,6 +156,8 @@ export interface ActivitySummaryInput {
     }
   >;
   storylines?: Array<{ title: string; keywords: string[] }>;
+  /** Phase E2: 영역간 연결 프롬프트 섹션 */
+  edgePromptSection?: string;
 }
 
 /** generateActivitySummary 액션의 출력 */
@@ -182,6 +190,8 @@ export interface SetekGuideInput {
   storylines?: Array<{ title: string; keywords: string[] }>;
   strengths?: string[];
   weaknesses?: string[];
+  /** Phase E2: 영역간 연결 프롬프트 섹션 */
+  edgePromptSection?: string;
 }
 
 /** generateSetekGuide 액션의 출력 */

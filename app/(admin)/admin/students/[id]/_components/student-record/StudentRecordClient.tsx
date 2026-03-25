@@ -8,7 +8,7 @@ import { TopBarCenterSlotPortal } from "@/components/layout/TopBarCenterSlotCont
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { calculateSchoolYear, gradeToSchoolYear } from "@/lib/utils/schoolYear";
-import { Menu, User, ChevronDown, FileText } from "lucide-react";
+import { Menu, User, ChevronDown, FileText, ClipboardList, Search, Compass, Target } from "lucide-react";
 import type { RecordSetek, RecordPersonalSetek } from "@/lib/domains/student-record";
 import {
   recordTabQueryOptions,
@@ -437,28 +437,45 @@ export function StudentRecordClient({
 
   const sidebarContent = (
     <div className="flex flex-col gap-0.5 p-3">
-      {/* 진행률 대시보드 — 스테이지별 미니 바 */}
+      {/* 진행률 대시보드 — 전체 + 스테이지별 미니 바 */}
       <div className="mb-3 rounded-lg bg-[var(--surface-secondary)] px-3 py-2.5">
+        {/* 전체 진행률 */}
+        {(() => {
+          const totalFilled = progressCounts.recordFilled + progressCounts.diagnosisFilled + progressCounts.designFilled + progressCounts.strategyFilled;
+          const totalAll = progressCounts.recordTotal + 1 + 7 + 6;
+          const pct = Math.round((totalFilled / totalAll) * 100);
+          return (
+            <div className="mb-2 flex items-center justify-between pb-1.5 border-b border-[var(--border-secondary)]">
+              <span className="text-xs font-semibold text-[var(--text-primary)]">전체 진행</span>
+              <span className={`text-xs font-bold ${pct >= 80 ? "text-emerald-600" : pct >= 50 ? "text-amber-600" : "text-gray-500"}`}>
+                {pct}% ({totalFilled}/{totalAll})
+              </span>
+            </div>
+          );
+        })()}
         <div className="flex flex-col gap-1.5">
           {([
-            { label: "📋 기록", filled: progressCounts.recordFilled, total: progressCounts.recordTotal, color: "bg-blue-500" },
-            { label: "🔍 진단", filled: progressCounts.diagnosisFilled, total: 1, color: "bg-purple-500" },
-            { label: "📐 설계", filled: progressCounts.designFilled, total: 7, color: "bg-indigo-500" },
-            { label: "📝 전략", filled: progressCounts.strategyFilled, total: 6, color: "bg-emerald-500" },
-          ] as const).map(({ label, filled, total, color }) => (
+            { label: "기록", icon: ClipboardList, filled: progressCounts.recordFilled, total: progressCounts.recordTotal, color: "bg-blue-500" },
+            { label: "진단", icon: Search, filled: progressCounts.diagnosisFilled, total: 1, color: "bg-purple-500" },
+            { label: "설계", icon: Compass, filled: progressCounts.designFilled, total: 7, color: "bg-indigo-500" },
+            { label: "전략", icon: Target, filled: progressCounts.strategyFilled, total: 6, color: "bg-emerald-500" },
+          ] as const).map(({ label, icon: Icon, filled, total, color }) => (
             <div key={label} className="flex items-center gap-2">
-              <span className="w-14 shrink-0 text-[10px] text-[var(--text-secondary)]">{label}</span>
-              <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+              <span className="flex w-14 shrink-0 items-center gap-1 text-xs text-[var(--text-secondary)]">
+                <Icon className="h-3 w-3" />
+                {label}
+              </span>
+              <div className="flex-1 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                 <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${total > 0 ? Math.round((filled / total) * 100) : 0}%` }} />
               </div>
-              <span className="w-8 text-right text-[10px] font-medium text-[var(--text-primary)]">{filled}/{total}</span>
+              <span className="w-8 text-right text-xs font-medium text-[var(--text-primary)]">{filled}/{total}</span>
             </div>
           ))}
         </div>
         {/* G4-5: 불완전함 보존 알림 */}
         {((progressCounts.recordFilled + progressCounts.diagnosisFilled + progressCounts.designFilled + progressCounts.strategyFilled) /
           (progressCounts.recordTotal + 1 + 7 + 6)) >= 0.95 && (
-          <p className="mt-1.5 text-[10px] text-amber-600 dark:text-amber-400">
+          <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">
             완벽한 일관성보다 자연스러운 다양성이 설득력 있습니다
           </p>
         )}
@@ -976,7 +993,7 @@ export function StudentRecordClient({
                 </p>
                 <ul className="mt-1 flex flex-wrap gap-1.5">
                   {(diagnosisData.consultantDiagnosis.weaknesses as string[]).map((w) => (
-                    <li key={w} className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                    <li key={w} className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
                       {w}
                     </li>
                   ))}
@@ -1134,7 +1151,7 @@ export function StudentRecordClient({
           </div>
 
           {/* ─── 설계: 계획 그룹 ──────────────────── */}
-          <p className="mt-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">계획</p>
+          <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">계획</p>
 
           {/* ─── 수강 계획 ──────────────────────────── */}
           <StrategySection id="sec-course-plan" title="수강 계획">
@@ -1153,6 +1170,7 @@ export function StudentRecordClient({
                   storylines={storylineData.storylines}
                   studentId={studentId}
                   tenantId={tenantId}
+                  cachedResult={pipelineData?.taskResults?.storyline_generation ?? null}
                 />
                 {storylineData.storylines.length > 0 && (
                   <div>
@@ -1196,7 +1214,7 @@ export function StudentRecordClient({
           </StrategySection>
 
           {/* ─── 설계: AI 리포트 그룹 ────────────── */}
-          <p className="mt-6 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">AI 리포트</p>
+          <p className="mt-6 text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">AI 리포트</p>
 
           {/* ─── 활동 요약서 ──────────────────────── */}
           <StrategySection id="sec-activity-summary" title="활동 요약서">
@@ -1221,7 +1239,7 @@ export function StudentRecordClient({
           </StrategySection>
 
           {/* ─── 설계: 가이드 그룹 ─────────────── */}
-          <p className="mt-6 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">가이드</p>
+          <p className="mt-6 text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">가이드</p>
 
           {/* ─── 활동 가이드 (탐구 가이드 배정) ──── */}
           <StrategySection id="sec-exploration-guide" title="활동 가이드">

@@ -133,6 +133,16 @@ export type CompetencyItemCode =
 
 export type CompetencyGrade = "A+" | "A-" | "B+" | "B" | "B-" | "C";
 
+/** 개별 루브릭 질문 평가 (competency_scores.rubric_scores JSONB) */
+export interface RubricScoreEntry {
+  /** COMPETENCY_RUBRIC_QUESTIONS[item] 배열 내 0-based 인덱스 */
+  questionIndex: number;
+  /** 개별 루브릭 등급 */
+  grade: CompetencyGrade;
+  /** 한 문장 근거 */
+  reasoning: string;
+}
+
 export type StorylineStrength = "strong" | "moderate" | "weak";
 
 export type RecordType = "setek" | "personal_setek" | "changche" | "haengteuk" | "reading";

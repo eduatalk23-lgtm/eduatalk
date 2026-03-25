@@ -31,6 +31,7 @@ export async function suggestCompetencyTags(
       modelTier: "fast",
       temperature: 0.3,
       maxTokens: 2000,
+      responseFormat: "json",
     });
 
     if (!result.content) {

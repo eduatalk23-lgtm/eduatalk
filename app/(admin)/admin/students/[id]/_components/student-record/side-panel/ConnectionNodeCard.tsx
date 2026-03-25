@@ -56,7 +56,10 @@ export function ConnectionNodeCard({
 
 function EdgeRow({ edge, onDrillDown }: { edge: CrossRefEdge; onDrillDown: (key: string) => void }) {
   const meta = EDGE_TYPE_META[edge.type];
-  const targetKey = `${edge.targetRecordType}:${edge.targetLabel}`;
+  // targetRecordId가 있으면 정확한 nodeKey로 drilldown, 없으면 label fallback
+  const targetKey = edge.targetRecordId
+    ? `${edge.targetRecordType}:${edge.targetRecordId}`
+    : `${edge.targetRecordType}:${edge.targetLabel}`;
 
   return (
     <button

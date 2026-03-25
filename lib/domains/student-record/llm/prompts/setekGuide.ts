@@ -103,6 +103,11 @@ export function buildUserPrompt(input: SetekGuideInput): string {
     prompt += `## 약점 (보완 필요)\n${input.weaknesses.map((w) => `- ${w}`).join("\n")}\n\n`;
   }
 
+  // 영역간 연결 (Phase E2)
+  if (input.edgePromptSection) {
+    prompt += input.edgePromptSection + "\n";
+  }
+
   // 학년별 데이터
   for (const grade of input.targetGrades) {
     const data = input.recordDataByGrade[grade];

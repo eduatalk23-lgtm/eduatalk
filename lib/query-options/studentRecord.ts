@@ -27,6 +27,8 @@ export const studentRecordKeys = {
     [...studentRecordKeys.all, "crossRef", studentId] as const,
   pipeline: (studentId: string) =>
     [...studentRecordKeys.all, "pipeline", studentId] as const,
+  edges: (studentId: string) =>
+    [...studentRecordKeys.all, "edges", studentId] as const,
 };
 
 // ============================================
@@ -79,6 +81,22 @@ export function crossRefQueryOptions(studentId: string, tenantId: string) {
   return queryOptions({
     queryKey: studentRecordKeys.crossRef(studentId),
     queryFn: () => fetchCrossRefData(studentId, tenantId),
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    enabled: !!studentId,
+  });
+}
+
+/** Phase E4: DB 영속화 엣지 조회 */
+export function edgesQueryOptions(studentId: string, tenantId: string) {
+  return queryOptions({
+    queryKey: studentRecordKeys.edges(studentId),
+    queryFn: async () => {
+      const { fetchPersistedEdges } = await import(
+        "@/lib/domains/student-record/actions/diagnosis"
+      );
+      return fetchPersistedEdges(studentId, tenantId);
+    },
     staleTime: 60_000,
     gcTime: 5 * 60_000,
     enabled: !!studentId,

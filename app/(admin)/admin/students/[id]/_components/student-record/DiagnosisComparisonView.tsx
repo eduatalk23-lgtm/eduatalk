@@ -11,6 +11,7 @@ import { cn } from "@/lib/cn";
 import { useSidePanel } from "@/components/side-panel";
 import { upsertDiagnosisAction, confirmDiagnosisAction } from "@/lib/domains/student-record/actions/diagnosis";
 import { generateAiDiagnosis } from "@/lib/domains/student-record/llm/actions/generateDiagnosis";
+import { syncPipelineTaskStatus } from "@/lib/domains/student-record/actions/pipeline";
 import { MAJOR_RECOMMENDED_COURSES } from "@/lib/domains/student-record";
 import type { Diagnosis, CompetencyScore, ActivityTag, CompetencyGrade } from "@/lib/domains/student-record";
 import { GradeSummaryTable, RecommendedCourses } from "./GradeSummaryTable";
@@ -64,8 +65,10 @@ export function DiagnosisComparisonView({
   const [newWeakness, setNewWeakness] = useState("");
 
   // prop 변경 시 폼 동기화 (저장 후 refetch 시)
+  // ⚠️ auto-save 진행 중에는 동기화 억제 — 사용자 편집이 refetch로 덮어써지는 것을 방지
+  const isSavingRef = useRef(false);
   const [prevDiagnosisId, setPrevDiagnosisId] = useState(consultantDiagnosis?.id);
-  if (consultantDiagnosis?.id !== prevDiagnosisId) {
+  if (consultantDiagnosis?.id !== prevDiagnosisId && !isSavingRef.current) {
     setPrevDiagnosisId(consultantDiagnosis?.id);
     setGrade((consultantDiagnosis?.overall_grade as CompetencyGrade) ?? "B");
     setDirection(consultantDiagnosis?.record_direction ?? "");
@@ -92,24 +95,30 @@ export function DiagnosisComparisonView({
     // 이중 방어: 확정 완료 또는 확정 진행 중이면 autoSave 차단
     if (isConfirmedRef.current || isConfirmingRef.current) return { success: true };
 
-    const result = await upsertDiagnosisAction({
-      tenant_id: tenantId,
-      student_id: studentId,
-      school_year: schoolYear,
-      overall_grade: data.grade,
-      record_direction: data.direction || null,
-      direction_strength: data.dirStrength,
-      strengths: data.strengths,
-      weaknesses: data.weaknesses,
-      recommended_majors: data.majors,
-      strategy_notes: data.notes || null,
-      source: "manual",
-      status: "draft",
-    });
-    if (result.success) {
-      queryClient.invalidateQueries({ queryKey: qk });
+    isSavingRef.current = true;
+    try {
+      const result = await upsertDiagnosisAction({
+        tenant_id: tenantId,
+        student_id: studentId,
+        school_year: schoolYear,
+        overall_grade: data.grade,
+        record_direction: data.direction || null,
+        direction_strength: data.dirStrength,
+        strengths: data.strengths,
+        weaknesses: data.weaknesses,
+        recommended_majors: data.majors,
+        strategy_notes: data.notes || null,
+        source: "manual",
+        status: "draft",
+      });
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: qk });
+      }
+      return result;
+    } finally {
+      // 짧은 지연 후 해제 — invalidateQueries 후 refetch가 도착할 시간 확보
+      setTimeout(() => { isSavingRef.current = false; }, 500);
     }
-    return result;
   }, [tenantId, studentId, schoolYear, queryClient, qk]);
 
   const confirmMutation = useMutation({
@@ -158,6 +167,9 @@ export function DiagnosisComparisonView({
     onSuccess: (data) => {
       setAiWarnings(data.warnings ?? []);
       queryClient.invalidateQueries({ queryKey: qk });
+      syncPipelineTaskStatus(studentId, "ai_diagnosis").then(() => {
+        queryClient.invalidateQueries({ queryKey: studentRecordKeys.pipeline(studentId) });
+      }).catch(() => {});
     },
   });
 

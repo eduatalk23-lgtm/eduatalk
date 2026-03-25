@@ -1,10 +1,24 @@
-import type { StorylineTabData } from "@/lib/domains/student-record/types";
+"use client";
 
-const STRENGTH_BADGE: Record<string, { label: string; color: string }> = {
-  strong: { label: "강", color: "text-emerald-700 bg-emerald-50" },
-  moderate: { label: "중", color: "text-amber-700 bg-amber-50" },
-  weak: { label: "약", color: "text-red-600 bg-red-50" },
+import { GitBranch } from "lucide-react";
+import { ReportSectionHeader } from "../ReportSectionHeader";
+import { useMemo } from "react";
+import {
+  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip,
+} from "recharts";
+import type { StorylineTabData, RecordTabData } from "@/lib/domains/student-record/types";
+import { STRENGTH_BADGE } from "../constants";
+import { ReportMarkdown } from "../ReportMarkdown";
+
+// 6색 팔레트: indigo 계열 + semantic
+const RECORD_TYPE_COLORS: Record<string, string> = {
+  세특: "#4f46e5",      // indigo-600
+  개인세특: "#818cf8",   // indigo-400
+  창체: "#059669",      // emerald-600
+  독서: "#f59e0b",      // amber-500
+  행특: "#6b7280",      // gray-500
 };
+const GRADE_COLORS = ["#4f46e5", "#818cf8", "#a5b4fc"]; // indigo 600→400→300
 
 const AREA_LABELS: Record<string, string> = {
   autonomy: "자율·자치",
@@ -19,23 +33,59 @@ const AREA_LABELS: Record<string, string> = {
 interface StorylineSectionProps {
   storylineData: StorylineTabData;
   studentGrade: number;
+  recordDataByGrade?: Record<number, RecordTabData>;
 }
 
 export function StorylineSection({
   storylineData,
   studentGrade,
+  recordDataByGrade,
 }: StorylineSectionProps) {
   const { storylines, roadmapItems } = storylineData;
+
+  // P1-3: 활동 분포 데이터
+  const { typeDistribution, gradeDistribution } = useMemo(() => {
+    if (!recordDataByGrade) return { typeDistribution: [], gradeDistribution: [] };
+
+    const typeCounts: Record<string, number> = { 세특: 0, 개인세특: 0, 창체: 0, 독서: 0, 행특: 0 };
+    const gradeCounts: Array<{ name: string; count: number }> = [];
+
+    for (let g = 1; g <= studentGrade; g++) {
+      const data = recordDataByGrade[g];
+      if (!data) { gradeCounts.push({ name: `${g}학년`, count: 0 }); continue; }
+      const setekCount = (data.seteks ?? []).filter((s) => s.content).length;
+      const personalCount = (data.personalSeteks ?? []).filter((s) => s.content).length;
+      const changcheCount = (data.changche ?? []).filter((c) => c.content).length;
+      const readingCount = (data.readings ?? []).length;
+      const haengteukCount = data.haengteuk?.content ? 1 : 0;
+
+      typeCounts["세특"] += setekCount;
+      typeCounts["개인세특"] += personalCount;
+      typeCounts["창체"] += changcheCount;
+      typeCounts["독서"] += readingCount;
+      typeCounts["행특"] += haengteukCount;
+
+      gradeCounts.push({
+        name: `${g}학년`,
+        count: setekCount + personalCount + changcheCount + readingCount + haengteukCount,
+      });
+    }
+
+    return {
+      typeDistribution: Object.entries(typeCounts)
+        .filter(([, v]) => v > 0)
+        .map(([name, value]) => ({ name, value, color: RECORD_TYPE_COLORS[name] ?? "#6b7280" })),
+      gradeDistribution: gradeCounts,
+    };
+  }, [recordDataByGrade, studentGrade]);
 
   if (storylines.length === 0 && roadmapItems.length === 0) {
     return (
       <section className="print-break-before">
-        <h2 className="border-b-2 border-gray-800 pb-2 text-xl font-bold text-gray-900">
-          스토리라인
-        </h2>
+        <ReportSectionHeader icon={GitBranch} title="스토리라인" subtitle="3년 성장 서사 · 활동 분포 · 로드맵" />
         <div className="mt-4 rounded-lg border border-dashed border-gray-300 p-6 text-center">
           <p className="text-sm text-gray-500">스토리라인이 아직 등록되지 않았습니다.</p>
-          <p className="mt-1 text-xs text-gray-400">3년간 성장 서사를 구성하면 테마별 연결과 로드맵이 표시됩니다.</p>
+          <p className="mt-1 text-xs text-gray-500">3년간 성장 서사를 구성하면 테마별 연결과 로드맵이 표시됩니다.</p>
         </div>
       </section>
     );
@@ -43,9 +93,59 @@ export function StorylineSection({
 
   return (
     <section className="print-break-before">
-      <h2 className="border-b-2 border-gray-800 pb-2 text-xl font-bold text-gray-900">
-        스토리라인
-      </h2>
+      <ReportSectionHeader icon={GitBranch} title="스토리라인" subtitle="3년 성장 서사 · 활동 분포 · 로드맵" />
+
+      {/* P1-3: 활동 분포 시각화 */}
+      {typeDistribution.length > 0 && (
+        <div className="mb-6 grid grid-cols-1 gap-4 print-avoid-break md:grid-cols-2">
+          {/* 유형별 도넛 */}
+          <div>
+            <h3 className="mb-1 text-center text-xs font-semibold text-gray-600">활동 유형 분포</h3>
+            <ResponsiveContainer width="100%" height={180}>
+              <PieChart>
+                <Pie
+                  data={typeDistribution}
+                  cx="50%" cy="50%"
+                  innerRadius={35} outerRadius={65}
+                  dataKey="value"
+                  label={({ name, value }: { name?: string; value: number }) => `${name ?? ""} ${value}`}
+                  labelLine={false}
+                >
+                  {typeDistribution.map((d, i) => (
+                    <Cell key={i} fill={d.color} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={{ fontSize: 11 }} formatter={(v: number) => [`${v}건`, ""]} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="flex flex-wrap justify-center gap-2">
+              {typeDistribution.map((d) => (
+                <span key={d.name} className="flex items-center gap-1 text-xs text-gray-600">
+                  <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: d.color }} />
+                  {d.name} ({d.value})
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* 학년별 활동 건수 바 차트 */}
+          <div>
+            <h3 className="mb-1 text-center text-xs font-semibold text-gray-600">학년별 활동 건수</h3>
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={gradeDistribution} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+                <Tooltip contentStyle={{ fontSize: 11 }} formatter={(v: number) => [`${v}건`, ""]} />
+                <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                  {gradeDistribution.map((_, i) => (
+                    <Cell key={i} fill={GRADE_COLORS[i % GRADE_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       {/* 스토리라인 카드 */}
       <div className="space-y-5 pt-4">
@@ -58,7 +158,7 @@ export function StorylineSection({
           return (
             <div
               key={sl.id}
-              className="rounded-lg border border-gray-200 p-4 print-avoid-break"
+              className="rounded-lg border border-gray-300 p-4 shadow-sm print-avoid-break"
             >
               {/* 제목 + 배지 */}
               <div className="flex items-center gap-2">
@@ -120,17 +220,31 @@ export function StorylineSection({
 
               {/* 서술 */}
               {sl.narrative && (
-                <p className="whitespace-pre-wrap pt-3 text-sm leading-relaxed text-gray-700">
-                  {sl.narrative}
-                </p>
+                <ReportMarkdown className="pt-3">{sl.narrative}</ReportMarkdown>
               )}
 
               {/* 연결된 로드맵 아이템 */}
               {linkedItems.length > 0 && (
                 <div className="pt-3">
-                  <p className="text-xs font-medium text-gray-500">
-                    로드맵 항목
-                  </p>
+                  {/* P3-5: 로드맵 진행률 프로그레스 바 */}
+                  {(() => {
+                    const executed = linkedItems.filter((i) => i.execution_content).length;
+                    const pct = Math.round((executed / linkedItems.length) * 100);
+                    return (
+                      <div className="mb-2 flex items-center gap-2">
+                        <p className="text-xs font-medium text-gray-500">
+                          로드맵 ({executed}/{linkedItems.length})
+                        </p>
+                        <div className="h-2 flex-1 rounded-full bg-gray-200">
+                          <div
+                            className="h-2 rounded-full bg-indigo-500 transition-all"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-semibold text-indigo-600">{pct}%</span>
+                      </div>
+                    );
+                  })()}
                   <table className="w-full border-collapse text-xs">
                     <thead>
                       <tr className="border-b border-gray-200">
@@ -168,9 +282,17 @@ export function StorylineSection({
                               {item.execution_content ?? "-"}
                             </td>
                             <td className="px-2 py-1 text-center">
-                              {item.match_rate != null
-                                ? `${item.match_rate}%`
-                                : "-"}
+                              {item.match_rate != null ? (
+                                <div className="flex items-center gap-1">
+                                  <div className="h-1 w-10 rounded-full bg-gray-200">
+                                    <div
+                                      className={`h-1 rounded-full ${item.match_rate >= 70 ? "bg-emerald-500" : item.match_rate >= 40 ? "bg-amber-500" : "bg-red-400"}`}
+                                      style={{ width: `${item.match_rate}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-xs">{item.match_rate}%</span>
+                                </div>
+                              ) : "-"}
                             </td>
                           </tr>
                         ))}

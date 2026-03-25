@@ -37,6 +37,7 @@ export async function detectInquiryLinks(
       modelTier: "fast",
       temperature: 0.3,
       maxTokens: 3000,
+      responseFormat: "json",
     });
 
     if (!result.content) {

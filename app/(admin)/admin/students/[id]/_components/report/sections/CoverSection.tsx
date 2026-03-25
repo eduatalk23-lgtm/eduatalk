@@ -1,3 +1,5 @@
+import { GraduationCap } from "lucide-react";
+
 interface CoverSectionProps {
   studentName: string | null;
   schoolName: string | null;
@@ -21,24 +23,40 @@ export function CoverSection({
   const dateStr = `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
 
   return (
-    <section className="flex min-h-[60vh] flex-col items-center justify-center text-center print-avoid-break">
-      <h1 className="text-3xl font-bold text-gray-900">수시 컨설팅 Report</h1>
+    <section className="report-typography flex min-h-[80vh] flex-col print-avoid-break">
+      {/* 상단 밴드: 그라디언트 + 세리프 타이포 */}
+      <div className="flex flex-1 flex-col items-center justify-center rounded-b-3xl bg-gradient-to-br from-indigo-600 via-indigo-700 to-indigo-900 px-8 py-16 text-center text-white">
+        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+          <GraduationCap className="h-8 w-8 text-white" />
+        </div>
 
-      <div className="mt-10 space-y-3 text-lg text-gray-700">
-        <p className="text-2xl font-semibold text-gray-900">
-          {studentName ?? "이름 없음"}
+        <p className="report-caption mb-3 uppercase tracking-[0.2em] text-indigo-200">
+          수시 컨설팅
         </p>
-        <p>
-          {schoolName ?? "-"} {grade}학년{className ? ` ${className}반` : ""}
-        </p>
+        <h1 className="report-page-title text-white">Report</h1>
+
+        <div className="mt-10 space-y-3">
+          <p className="report-subtitle font-semibold text-white">
+            {studentName ?? "이름 없음"}
+          </p>
+          <p className="report-body text-indigo-200">
+            {schoolName ?? "-"} · {grade}학년{className ? ` ${className}반` : ""}
+          </p>
+        </div>
+
         {targetMajor && (
-          <p className="text-base text-gray-500">목표 전공: {targetMajor}</p>
+          <div className="report-caption mt-8 rounded-full border border-white/30 bg-white/10 px-6 py-2.5 text-white backdrop-blur">
+            목표 전공: {targetMajor}
+          </div>
         )}
       </div>
 
-      <div className="mt-12 space-y-1 text-sm text-gray-500">
-        {consultantName && <p>담당 컨설턴트: {consultantName}</p>}
-        <p>작성일: {dateStr}</p>
+      {/* 하단: 메타데이터 — 산세리프 */}
+      <div className="flex items-center justify-between px-8 py-6">
+        <span className="report-caption text-gray-400">
+          {consultantName ? `담당 컨설턴트: ${consultantName}` : ""}
+        </span>
+        <span className="report-caption text-gray-400">{dateStr}</span>
       </div>
     </section>
   );

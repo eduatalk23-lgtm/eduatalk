@@ -161,7 +161,11 @@ export function BypassMajorPanel({
         </label>
         <BypassTargetSelector value={targetDept} onChange={setTargetDept} />
         {targetDept && (
-          <div className="mt-2 flex items-center gap-3">
+          <div className="mt-2 flex flex-col gap-2">
+          <p className="text-[10px] text-[var(--text-tertiary)]">
+            <strong>추천</strong>: 커리큘럼 유사도만으로 빠른 후보 생성 · <strong>종합 분석</strong>: 커리큘럼+배치+역량 3중 필터 정밀 분석
+          </p>
+          <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={handleGenerate}
@@ -193,6 +197,7 @@ export function BypassMajorPanel({
                 {generateMsg}
               </span>
             )}
+          </div>
           </div>
         )}
       </div>

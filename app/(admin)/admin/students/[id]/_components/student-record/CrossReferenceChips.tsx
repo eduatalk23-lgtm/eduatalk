@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { crossRefQueryOptions } from "@/lib/query-options/studentRecord";
+import { crossRefQueryOptions, edgesQueryOptions } from "@/lib/query-options/studentRecord";
 import {
   detectAllCrossReferences,
   EDGE_TYPE_META,
@@ -50,12 +50,30 @@ export function CrossReferenceChips({
   courseAdequacy,
 }: CrossReferenceChipsProps) {
   const sidePanel = useSidePanel();
-  // storyline_links + reading_links
+
+  // Phase E4: DB 영속화 엣지 우선 조회
+  const { data: persistedEdges } = useQuery(edgesQueryOptions(studentId, tenantId));
+
+  // Fallback: 런타임 계산용 데이터
   const { data: crossRefData } = useQuery(crossRefQueryOptions(studentId, tenantId));
 
   const edges = useMemo<CrossRefEdge[]>(() => {
-    if (!allTags) return [];
+    // DB 엣지가 있으면 → 현재 영역의 엣지만 필터링
+    if (persistedEdges && persistedEdges.length > 0) {
+      return persistedEdges
+        .filter((e) => currentRecordIds.has(e.source_record_id))
+        .map((e) => ({
+          type: e.edge_type,
+          targetRecordType: e.target_record_type as CrossRefEdge["targetRecordType"],
+          targetRecordId: e.target_record_id ?? undefined,
+          targetLabel: e.target_label,
+          reason: e.reason,
+          sharedCompetencies: e.shared_competencies ?? undefined,
+        }));
+    }
 
+    // Fallback: 런타임 계산
+    if (!allTags) return [];
     const input: CrossRefInput = {
       currentRecordIds,
       currentRecordType,
@@ -69,7 +87,6 @@ export function CrossReferenceChips({
       readingLabelMap: new Map(Object.entries(crossRefData?.readingLabelMap ?? {})),
       recordContentMap: new Map(Object.entries(crossRefData?.recordContentMap ?? {})),
     };
-
     return detectAllCrossReferences(input);
   }, [
     currentRecordIds,
@@ -79,6 +96,7 @@ export function CrossReferenceChips({
     allTags,
     courseAdequacy,
     crossRefData,
+    persistedEdges,
   ]);
 
   if (edges.length === 0) return null;

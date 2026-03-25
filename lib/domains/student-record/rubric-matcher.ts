@@ -5,7 +5,7 @@
 // ============================================
 
 import { COMPETENCY_RUBRIC_QUESTIONS } from "./constants";
-import type { CompetencyItemCode } from "./types";
+import type { CompetencyItemCode, CompetencyGrade } from "./types";
 
 /**
  * evidence_summary에서 "루브릭: ..." 텍스트를 추출
@@ -121,4 +121,251 @@ export function aggregateTagsByQuestion(
   // → Report에서는 항목별 총계와 질문별 합계를 별도 표시
 
   return stats;
+}
+
+// ============================================
+// 루브릭 등급 → 항목 등급 산출 (Bottom-Up)
+// ============================================
+
+const GRADE_TO_NUM: Record<string, number> = {
+  "A+": 5, "A-": 4, "B+": 3, "B": 2, "B-": 1, "C": 0,
+};
+const NUM_TO_GRADE: CompetencyGrade[] = ["C", "B-", "B", "B+", "A-", "A+"];
+
+/**
+ * 루브릭 질문별 등급에서 항목 종합 등급을 산출한다.
+ * 평균 후 반올림 (표준 반올림).
+ * @returns 루브릭 점수가 없으면 null
+ */
+export function deriveItemGradeFromRubrics(
+  rubricScores: { grade: CompetencyGrade }[],
+): CompetencyGrade | null {
+  if (rubricScores.length === 0) return null;
+  const sum = rubricScores.reduce((s, r) => s + (GRADE_TO_NUM[r.grade] ?? 2), 0);
+  const avg = sum / rubricScores.length;
+  const rounded = Math.round(avg);
+  return NUM_TO_GRADE[Math.max(0, Math.min(5, rounded))];
+}
+
+/** 등급을 수치로 변환 (외부에서 비교·정렬용) */
+export function gradeToNum(grade: string): number {
+  return GRADE_TO_NUM[grade] ?? 2;
+}
+
+// ============================================
+// 다중 레코드 루브릭 집계 (공유 유틸리티)
+// pipeline.ts + CompetencyAnalysisSection.tsx 공용
+// ============================================
+
+import { COMPETENCY_ITEMS } from "./constants";
+import type { CompetencyArea } from "./types";
+
+interface CompetencyGradeInput {
+  item: string;
+  grade: string;
+  reasoning?: string;
+  rubricScores?: { questionIndex: number; grade: string; reasoning: string }[];
+}
+
+export interface AggregatedItemGrade {
+  item: string;
+  area: CompetencyArea;
+  finalGrade: CompetencyGrade;
+  rubricScores: { questionIndex: number; grade: CompetencyGrade; reasoning: string }[] | null;
+  recordCount: number;
+  method: "rubric" | "vote";
+}
+
+/**
+ * 다중 레코드의 competencyGrades를 집계하여 항목별 최종 등급을 산출.
+ * 루브릭이 있으면 질문별 최고 등급 → 항목 등급 산출 (bottom-up).
+ * 없으면 기존 최빈값 로직 (폴백).
+ */
+export function aggregateCompetencyGrades(
+  allGrades: CompetencyGradeInput[],
+): AggregatedItemGrade[] {
+  const rubricCollector = new Map<string, Map<number, { grade: string; reasoning: string }[]>>();
+  const gradeVotes = new Map<string, Map<string, number>>();
+
+  for (const g of allGrades) {
+    if (!gradeVotes.has(g.item)) gradeVotes.set(g.item, new Map());
+    const votes = gradeVotes.get(g.item)!;
+    votes.set(g.grade, (votes.get(g.grade) ?? 0) + 1);
+
+    if (g.rubricScores && g.rubricScores.length > 0) {
+      if (!rubricCollector.has(g.item)) rubricCollector.set(g.item, new Map());
+      const itemMap = rubricCollector.get(g.item)!;
+      for (const rs of g.rubricScores) {
+        if (!itemMap.has(rs.questionIndex)) itemMap.set(rs.questionIndex, []);
+        itemMap.get(rs.questionIndex)!.push(rs);
+      }
+    }
+  }
+
+  const results: AggregatedItemGrade[] = [];
+  const allItems = new Set([...rubricCollector.keys(), ...gradeVotes.keys()]);
+
+  for (const item of allItems) {
+    const areaObj = COMPETENCY_ITEMS.find((i) => i.code === item);
+    if (!areaObj) continue;
+
+    const questionMap = rubricCollector.get(item);
+
+    if (questionMap && questionMap.size > 0) {
+      const aggregated: { questionIndex: number; grade: CompetencyGrade; reasoning: string }[] = [];
+      for (const [qIdx, entries] of questionMap) {
+        const best = entries.reduce((a, b) =>
+          gradeToNum(a.grade) >= gradeToNum(b.grade) ? a : b,
+        );
+        aggregated.push({ questionIndex: qIdx, grade: best.grade as CompetencyGrade, reasoning: best.reasoning });
+      }
+      results.push({
+        item,
+        area: areaObj.area as CompetencyArea,
+        finalGrade: deriveItemGradeFromRubrics(aggregated) ?? "B",
+        rubricScores: aggregated,
+        recordCount: questionMap.size,
+        method: "rubric",
+      });
+    } else {
+      const votes = gradeVotes.get(item)!;
+      let bestGrade = "B";
+      let bestCount = 0;
+      for (const [grade, count] of votes) {
+        if (count > bestCount || (count === bestCount && gradeToNum(grade) > gradeToNum(bestGrade))) {
+          bestGrade = grade;
+          bestCount = count;
+        }
+      }
+      results.push({
+        item,
+        area: areaObj.area as CompetencyArea,
+        finalGrade: bestGrade as CompetencyGrade,
+        rubricScores: null,
+        recordCount: bestCount,
+        method: "vote",
+      });
+    }
+  }
+
+  return results;
+}
+
+// ============================================
+// Phase F1: 교과 이수/성취도 결정론적 산정
+// AI 추측 대신 실제 데이터(이수율+성적)로 평가
+// ============================================
+
+import type { CourseAdequacyResult } from "./types";
+
+/** 이수적합도 점수 → 등급 매핑 */
+function scoreToGrade(score: number): CompetencyGrade {
+  if (score >= 85) return "A+";
+  if (score >= 70) return "A-";
+  if (score >= 55) return "B+";
+  if (score >= 40) return "B";
+  if (score >= 25) return "B-";
+  return "C";
+}
+
+/** 평균 석차등급 → 역량 등급 매핑 */
+function rankGradeToCompetencyGrade(avgRank: number): CompetencyGrade {
+  if (avgRank <= 1.5) return "A+";
+  if (avgRank <= 2.5) return "A-";
+  if (avgRank <= 3.5) return "B+";
+  if (avgRank <= 4.5) return "B";
+  if (avgRank <= 6.0) return "B-";
+  return "C";
+}
+
+/**
+ * career_course_effort (교과 이수 노력) 결정론적 산정
+ * courseAdequacy의 이수율 데이터 기반
+ */
+export function computeCourseEffortGrades(
+  courseAdequacy: CourseAdequacyResult,
+): CompetencyGradeInput {
+  const rubricScores: { questionIndex: number; grade: string; reasoning: string }[] = [];
+
+  // Q0: "전공 관련 과목을 적절하게 선택하고 이수한 과목은 얼마나 되는가?"
+  const overallGrade = scoreToGrade(courseAdequacy.score);
+  rubricScores.push({
+    questionIndex: 0,
+    grade: overallGrade,
+    reasoning: `전공 추천 과목 ${courseAdequacy.taken.length}/${courseAdequacy.totalAvailable}개 이수 (${courseAdequacy.score}%)`,
+  });
+
+  // Q1: "이수하기 위하여 추가적인 노력을 하였는가?" → 진로선택 이수율 기반
+  const careerGrade = scoreToGrade(courseAdequacy.careerRate);
+  rubricScores.push({
+    questionIndex: 1,
+    grade: careerGrade,
+    reasoning: `진로선택 이수율 ${courseAdequacy.careerRate}%`,
+  });
+
+  // Q2: "선택과목은 교과목 학습단계에 따라 이수하였는가?" → 기본 B (학년별 순서 추적 미구현)
+  rubricScores.push({
+    questionIndex: 2,
+    grade: "B",
+    reasoning: "학습단계 이수 순서 (기본값)",
+  });
+
+  return {
+    item: "career_course_effort",
+    grade: deriveItemGradeFromRubrics(rubricScores.map((r) => ({ grade: r.grade as CompetencyGrade }))) ?? "B",
+    rubricScores,
+  };
+}
+
+/**
+ * career_course_achievement (교과 성취도) 결정론적 산정
+ * 전공 관련 과목의 실제 성적 기반
+ */
+export function computeCourseAchievementGrades(
+  taken: string[],
+  scores: Array<{ subjectName: string; rankGrade: number }>,
+): CompetencyGradeInput {
+  const rubricScores: { questionIndex: number; grade: string; reasoning: string }[] = [];
+
+  // 전공 관련 과목의 성적만 필터
+  const relevantScores = scores.filter((s) =>
+    taken.some((t) => t === s.subjectName),
+  );
+
+  if (relevantScores.length === 0) {
+    // 성적 데이터 없음 → 기본값
+    rubricScores.push({
+      questionIndex: 0,
+      grade: "B",
+      reasoning: "전공 관련 과목 성적 데이터 없음 (기본값)",
+    });
+    rubricScores.push({
+      questionIndex: 1,
+      grade: "B",
+      reasoning: "일반/진로선택 비교 데이터 없음 (기본값)",
+    });
+    return { item: "career_course_achievement", grade: "B", rubricScores };
+  }
+
+  // Q0: "전공 관련 과목의 성취수준은 적절한가?" → 평균 석차등급
+  const avgRank = relevantScores.reduce((s, r) => s + r.rankGrade, 0) / relevantScores.length;
+  const achievementGrade = rankGradeToCompetencyGrade(avgRank);
+  rubricScores.push({
+    questionIndex: 0,
+    grade: achievementGrade,
+    reasoning: `전공 관련 ${relevantScores.length}과목 평균 ${avgRank.toFixed(1)}등급`,
+  });
+
+  // Q1: "동일 교과 내 일반선택 대비 진로선택 성취수준은?" → 기본 B (세부 구분 미구현)
+  rubricScores.push({
+    questionIndex: 1,
+    grade: achievementGrade, // 같은 등급 사용 (세부 비교 미구현)
+    reasoning: "일반/진로선택 성취 비교 (전체 평균 기준)",
+  });
+
+  return {
+    item: "career_course_achievement",
+    grade: deriveItemGradeFromRubrics(rubricScores.map((r) => ({ grade: r.grade as CompetencyGrade }))) ?? "B",
+    rubricScores,
+  };
 }

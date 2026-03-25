@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
+import { BarChart3 } from "lucide-react";
+import { ReportSectionHeader } from "../ReportSectionHeader";
 import {
-  LineChart, Line, BarChart, Bar,
+  LineChart, Line, BarChart, Bar, ComposedChart,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
 import type { InternalAnalysis } from "@/lib/scores/internalAnalysis";
@@ -69,11 +71,79 @@ export function ScoreSection({
     }));
   }, [subjectGroups]);
 
+  // X-2: 교과군별 개별 차트 데이터 (엑셀 "P교과분석" 시트 재현)
+  const subjectGroupCharts = useMemo(() => {
+    // subject_group별 그룹핑
+    const groups = new Map<string, InternalScoreWithRelations[]>();
+    for (const s of internalScores) {
+      const groupName = s.subject_group?.name ?? s.subject?.name ?? "기타";
+      const list = groups.get(groupName) ?? [];
+      list.push(s);
+      groups.set(groupName, list);
+    }
+
+    // 각 그룹에서 학기별 과목별 데이터 생성
+    const TARGET_GROUPS = ["국어", "영어", "수학", "사회", "과학", "기타"];
+    const result: Array<{
+      groupName: string;
+      data: Array<Record<string, string | number>>;
+      subjects: string[];
+    }> = [];
+
+    for (const targetGroup of TARGET_GROUPS) {
+      // 해당 그룹명을 포함하는 과목들 찾기
+      const groupScores = [...groups.entries()]
+        .filter(([name]) => name.includes(targetGroup) || (targetGroup === "기타" && !TARGET_GROUPS.slice(0, 5).some((g) => name.includes(g))))
+        .flatMap(([, scores]) => scores);
+
+      if (groupScores.length === 0) continue;
+
+      // 학기별 그룹핑
+      const semesterMap = new Map<string, Map<string, number>>();
+      const subjectSet = new Set<string>();
+
+      for (const s of groupScores) {
+        if (!s.grade || !s.semester || s.rank_grade == null) continue;
+        const semKey = `${s.grade}-${s.semester}`;
+        const subName = s.subject?.name ?? "과목";
+        subjectSet.add(subName);
+
+        const sem = semesterMap.get(semKey) ?? new Map();
+        sem.set(subName, s.rank_grade);
+        semesterMap.set(semKey, sem);
+      }
+
+      const semesters = [...semesterMap.keys()].sort();
+      const subjects = [...subjectSet].sort();
+
+      const data = semesters.map((sem) => {
+        const row: Record<string, string | number> = {
+          semester: sem.replace("-", "학년 ") + "학기",
+        };
+        const values = semesterMap.get(sem)!;
+        let sum = 0;
+        let count = 0;
+        for (const subj of subjects) {
+          const val = values.get(subj);
+          if (val != null) {
+            row[subj] = val;
+            sum += val;
+            count++;
+          }
+        }
+        if (count > 0) row["평균"] = Number((sum / count).toFixed(2));
+        return row;
+      });
+
+      result.push({ groupName: targetGroup + " 교과", data, subjects });
+    }
+
+    return result;
+  }, [internalScores]);
+
   return (
     <section className="print-break-before">
-      <h2 className="mb-4 border-b-2 border-gray-800 pb-2 text-xl font-bold text-gray-900">
-        교과 성적 분석
-      </h2>
+      <ReportSectionHeader icon={BarChart3} title="교과 성적 분석" subtitle="내신 추이 · 교과군별 분석" />
 
       {/* GPA 요약 */}
       <div className="mb-6 grid grid-cols-3 gap-4">
@@ -220,10 +290,49 @@ export function ScoreSection({
         </div>
       )}
 
+      {/* X-2: 교과군별 개별 차트 (엑셀 P교과분석 시트) */}
+      {subjectGroupCharts.length > 0 && (
+        <div className="mt-8">
+          <h3 className="report-subtitle mb-4">교과군별 성취도 추이</h3>
+          <div className="grid grid-cols-2 gap-4">
+            {subjectGroupCharts.map(({ groupName, data, subjects }) => (
+              <div key={groupName} className="rounded-lg border border-gray-200 p-3 print-avoid-break">
+                <h4 className="mb-2 text-sm font-semibold text-gray-800">{groupName}</h4>
+                <ResponsiveContainer width="100%" height={160}>
+                  <ComposedChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="semester" tick={{ fontSize: 9 }} />
+                    <YAxis domain={[0, 9]} reversed tick={{ fontSize: 9 }} tickCount={5} />
+                    <Tooltip contentStyle={{ fontSize: 10 }} />
+                    {subjects.map((subj, si) => (
+                      <Bar
+                        key={subj}
+                        dataKey={subj}
+                        fill={si === 0 ? "#d1d5db" : si === 1 ? "#e5e7eb" : "#f3f4f6"}
+                        radius={[2, 2, 0, 0]}
+                        maxBarSize={20}
+                      />
+                    ))}
+                    <Line
+                      type="monotone"
+                      dataKey="평균"
+                      stroke="#f59e0b"
+                      strokeWidth={2}
+                      dot={{ r: 3, fill: "#f59e0b" }}
+                      connectNulls
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {sorted.length === 0 && (
         <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center">
           <p className="text-sm text-gray-500">내신 성적 데이터가 입력되지 않았습니다.</p>
-          <p className="mt-1 text-xs text-gray-400">성적을 입력하면 등급 추이 차트, 교과군별 분석이 자동 생성됩니다.</p>
+          <p className="mt-1 text-xs text-gray-500">성적을 입력하면 등급 추이 차트, 교과군별 분석이 자동 생성됩니다.</p>
         </div>
       )}
     </section>
@@ -240,10 +349,10 @@ function SummaryCard({
   sub?: string | null;
 }) {
   return (
-    <div className="rounded-lg border border-gray-200 p-3 print-avoid-break">
+    <div className="rounded-lg border border-gray-300 p-3 shadow-sm print-avoid-break">
       <p className="text-xs text-gray-500">{label}</p>
       <p className="mt-1 text-lg font-bold text-gray-900">{value}</p>
-      {sub && <p className="mt-0.5 text-xs text-gray-400">{sub}</p>}
+      {sub && <p className="mt-0.5 text-xs text-gray-500">{sub}</p>}
     </div>
   );
 }

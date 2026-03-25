@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { activitySummaryListOptions, activitySummaryKeys } from "@/lib/query-options/activitySummary";
+import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { generateActivitySummary } from "@/lib/domains/student-record/llm/actions/generateActivitySummary";
 import {
   updateActivitySummaryStatus,
@@ -53,10 +54,17 @@ export function ActivitySummaryPanel({
   );
 
   const generateMutation = useMutation({
-    mutationFn: () => generateActivitySummary(studentId, selectedGrades),
+    mutationFn: async () => {
+      const result = await generateActivitySummary(studentId, selectedGrades);
+      if (!result.success) throw new Error(result.error);
+      return result.data;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: activitySummaryKeys.list(studentId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: studentRecordKeys.pipeline(studentId),
       });
     },
   });
@@ -150,7 +158,8 @@ export function ActivitySummaryPanel({
       {summaries && summaries.length > 0 ? (
         <div className="space-y-4">
           {summaries.map((summary) => {
-            const sections = (summary.summary_sections ?? []) as ActivitySummarySection[];
+            const rawSections = summary.summary_sections;
+            const sections = (Array.isArray(rawSections) ? rawSections : []) as ActivitySummarySection[];
             const statusInfo = STATUS_LABELS[summary.status] ?? STATUS_LABELS.draft;
             const displayText = summary.edited_text ?? summary.summary_text;
             const isEditing = editingId === summary.id;

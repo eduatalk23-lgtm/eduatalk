@@ -8,6 +8,7 @@
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
 import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
+import { extractJson } from "../extractJson";
 import { COMPETENCY_ITEMS, COMPETENCY_AREA_LABELS, MAJOR_RECOMMENDED_COURSES } from "../../constants";
 import type { CompetencyScore, ActivityTag } from "../../types";
 
@@ -31,6 +32,8 @@ export async function generateAiDiagnosis(
   competencyScores: CompetencyScore[],
   activityTags: ActivityTag[],
   studentInfo?: { targetMajor?: string; schoolName?: string },
+  /** Phase E2: 엣지 요약 텍스트 (파이프라인에서 전달) */
+  edgeSummarySection?: string,
 ): Promise<{ success: true; data: DiagnosisGenerationResult } | { success: false; error: string }> {
   try {
     await requireAdminOrConsultant();
@@ -104,7 +107,7 @@ ${gradesSummary}
 
 ## 활동 태그 (총 ${activityTags.length}건)
 ${tagsSummary}
-
+${edgeSummarySection ? `\n${edgeSummarySection}\n` : ""}
 위 데이터를 종합하여 진단 보고서를 JSON으로 작성해주세요.`;
 
     const result = await generateTextWithRateLimit({
@@ -113,25 +116,17 @@ ${tagsSummary}
       modelTier: "fast",
       temperature: 0.3,
       maxTokens: 3000,
+      responseFormat: "json",
     });
 
     if (!result.content) {
       return { success: false, error: "AI 응답이 비어있습니다." };
     }
 
-    // JSON 추출 — 닫힌 fence → 열린 fence → raw 순서로 시도
-    let jsonStr = result.content.trim();
-    const closedMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (closedMatch) {
-      jsonStr = closedMatch[1].trim();
-    } else {
-      const openMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*)/);
-      if (openMatch) jsonStr = openMatch[1].trim();
-    }
-
+    // extractJson: 펜스 제거 + trailing comma + truncated JSON 복구
     let parsed: Record<string, unknown>;
     try {
-      parsed = JSON.parse(jsonStr);
+      parsed = extractJson<Record<string, unknown>>(result.content);
     } catch {
       return { success: false, error: "AI 응답 파싱에 실패했습니다. 다시 시도해주세요." };
     }

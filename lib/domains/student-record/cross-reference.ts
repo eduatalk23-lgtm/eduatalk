@@ -23,6 +23,8 @@ export interface CrossRefEdge {
   type: CrossRefEdgeType;
   /** 연결 대상의 record_type */
   targetRecordType: RecordType | "score";
+  /** 대상 레코드 UUID (DB 영속화 / drilldown용) */
+  targetRecordId?: string;
   /** 대상 레코드 label (예: "1학년 수학 세특") */
   targetLabel: string;
   /** 연결 근거 요약 */
@@ -131,23 +133,25 @@ export function detectCompetencyShared(
   }
 
   // record_type 레벨로 병합 (세특 여러 과목 → "세특" 하나로)
-  const byType = new Map<string, Set<string>>();
-  for (const { recordType, competencies } of grouped.values()) {
+  const byType = new Map<string, { competencies: Set<string>; firstRecordId: string }>();
+  for (const [key, { recordType, competencies }] of grouped) {
+    const recordId = key.split(":")[1];
     const existing = byType.get(recordType);
     if (existing) {
-      for (const c of competencies) existing.add(c);
+      for (const c of competencies) existing.competencies.add(c);
     } else {
-      byType.set(recordType, new Set(competencies));
+      byType.set(recordType, { competencies: new Set(competencies), firstRecordId: recordId });
     }
   }
 
   const edges: CrossRefEdge[] = [];
-  for (const [recordType, competencies] of byType) {
+  for (const [recordType, { competencies, firstRecordId }] of byType) {
     if (recordType === currentRecordType) continue;
     const shared = [...competencies];
     edges.push({
       type: "COMPETENCY_SHARED",
       targetRecordType: recordType as RecordType,
+      targetRecordId: firstRecordId,
       targetLabel: RECORD_TYPE_LABELS[recordType] ?? recordType,
       reason: `동일 역량 ${shared.length}개 공유`,
       sharedCompetencies: shared,
@@ -196,6 +200,7 @@ export function detectStorylineEdges(
     edges.push({
       type: isGrowth ? "TEMPORAL_GROWTH" : "CONTENT_REFERENCE",
       targetRecordType: link.record_type as RecordType,
+      targetRecordId: link.record_id,
       targetLabel: label,
       reason: isGrowth
         ? `${Math.min(link.grade, currentGrade)}→${Math.max(link.grade, currentGrade)}학년 심화`
@@ -248,6 +253,7 @@ export function detectReadingEdges(
   return matchingLinks.map((link) => ({
     type: "READING_ENRICHES" as const,
     targetRecordType: "reading" as RecordType,
+    targetRecordId: link.reading_id,
     targetLabel: readingLabelMap.get(link.reading_id) ?? "독서",
     reason: link.connection_note ?? "독서 연결",
   }));
@@ -321,24 +327,25 @@ export function detectThemeConvergence(
   }
 
   // record_type별로 그룹화하여 키워드 교차 매칭
-  const byType = new Map<string, { keywords: Set<string>; labels: string[] }>();
+  const byType = new Map<string, { keywords: Set<string>; labels: string[]; firstId: string }>();
   for (const [id, recordType] of otherRecords) {
     if (recordType === currentRecordType) continue;
     const content = recordContentMap.get(id);
     if (!content) continue;
-    const entry = byType.get(recordType) ?? { keywords: new Set<string>(), labels: [] };
+    const entry = byType.get(recordType) ?? { keywords: new Set<string>(), labels: [], firstId: id };
     for (const kw of extractKeywords(content)) entry.keywords.add(kw);
     entry.labels.push(recordLabelMap.get(id) ?? RECORD_TYPE_LABELS[recordType] ?? recordType);
     byType.set(recordType, entry);
   }
 
   const edges: CrossRefEdge[] = [];
-  for (const [recordType, { keywords, labels }] of byType) {
+  for (const [recordType, { keywords, labels, firstId }] of byType) {
     const shared = [...currentKeywords].filter((kw) => keywords.has(kw));
     if (shared.length >= 3) {
       edges.push({
         type: "THEME_CONVERGENCE",
         targetRecordType: recordType as RecordType,
+        targetRecordId: firstId,
         targetLabel: labels[0] ?? RECORD_TYPE_LABELS[recordType] ?? recordType,
         reason: `공유 키워드 ${shared.length}개: ${shared.slice(0, 3).join(", ")}`,
       });
@@ -374,26 +381,27 @@ export function detectTeacherValidation(
 
   // 현재 영역이 행특이면: 세특/창체에서 행특이 검증하는 키워드 찾기
   if (currentRecordType === "haengteuk") {
-    const otherTexts = new Map<string, string[]>();
+    const otherTexts = new Map<string, { texts: string[]; firstId: string }>();
     for (const [id, content] of recordContentMap) {
       if (currentRecordIds.has(id)) continue;
       const label = recordLabelMap.get(id) ?? "";
       if (label.includes("행동") || label.includes("행특")) continue;
       const type = label.includes("세특") ? "setek" : label.includes("활동") ? "changche" : null;
       if (!type) continue;
-      const arr = otherTexts.get(type) ?? [];
-      arr.push(content);
-      otherTexts.set(type, arr);
+      const entry = otherTexts.get(type) ?? { texts: [], firstId: id };
+      entry.texts.push(content);
+      otherTexts.set(type, entry);
     }
 
     const edges: CrossRefEdge[] = [];
-    for (const [type, texts] of otherTexts) {
+    for (const [type, { texts, firstId }] of otherTexts) {
       const otherKeywords = new Set(extractKeywords(texts.join(" ")));
       const shared = [...haengteukKeywords].filter((kw) => otherKeywords.has(kw));
       if (shared.length >= 2) {
         edges.push({
           type: "TEACHER_VALIDATION",
           targetRecordType: type as RecordType,
+          targetRecordId: firstId,
           targetLabel: RECORD_TYPE_LABELS[type] ?? type,
           reason: `행특에서 입증: ${shared.slice(0, 3).join(", ")}`,
         });
@@ -416,6 +424,7 @@ export function detectTeacherValidation(
     return [{
       type: "TEACHER_VALIDATION",
       targetRecordType: "haengteuk",
+      targetRecordId: haengteukEntries[0]?.id,
       targetLabel: haengteukEntries[0] ? (recordLabelMap.get(haengteukEntries[0].id) ?? "행특") : "행특",
       reason: `행특에서 입증: ${shared.slice(0, 3).join(", ")}`,
     }];

@@ -10,14 +10,19 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { analyzeSetekWithHighlight } from "@/lib/domains/student-record/llm/actions/analyzeWithHighlight";
 import { upsertCompetencyScoreAction, addActivityTagsBatchAction, deleteAiTagsForRecordAction, confirmActivityTagAction, deleteActivityTagAction, fetchAnalysisCacheAction, saveAnalysisCacheAction } from "@/lib/domains/student-record/actions/diagnosis";
-import type { ActivityTagInsert } from "@/lib/domains/student-record/types";
+import { syncPipelineTaskStatus } from "@/lib/domains/student-record/actions/pipeline";
+import type { ActivityTagInsert, RubricScoreEntry } from "@/lib/domains/student-record/types";
 import { COMPETENCY_ITEMS, COMPETENCY_AREA_LABELS } from "@/lib/domains/student-record";
-import type { CompetencyScore, ActivityTag, CompetencyArea, CompetencyGrade } from "@/lib/domains/student-record";
+import type { CompetencyScore, ActivityTag, CompetencyArea, CompetencyGrade, CompetencyItemCode } from "@/lib/domains/student-record";
 import type { HighlightAnalysisResult } from "@/lib/domains/student-record/llm/types";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { HighlightedSetekView, CompetencyBadge } from "./HighlightedSetekView";
 import { HighlightComparisonView } from "./HighlightComparisonView";
+import { RubricGradeGrid } from "./RubricGradeGrid";
 import { Sparkles, ArrowDown, Check, X, ChevronRight, Loader2, GitCompare } from "lucide-react";
+import { useRecharts, ChartLoadingSkeleton } from "@/components/charts/LazyRecharts";
+import { buildRadarData, buildGrowthData } from "@/lib/domains/student-record/chart-data";
+import { COMPETENCY_AREA_LABELS as AREA_LABELS_CHART } from "@/lib/domains/student-record/constants";
 
 type RecordForHighlight = {
   id: string;
@@ -43,6 +48,12 @@ const AREAS: CompetencyArea[] = ["academic", "career", "community"];
 
 function findScore(scores: CompetencyScore[], code: string): string {
   return scores.find((s) => s.competency_item === code && s.scope === "yearly")?.grade_value ?? "";
+}
+
+function findRubricScores(scores: CompetencyScore[], code: string, source: string): RubricScoreEntry[] {
+  const score = scores.find((s) => s.competency_item === code && s.scope === "yearly" && s.source === source);
+  if (!score?.rubric_scores || !Array.isArray(score.rubric_scores)) return [];
+  return score.rubric_scores as unknown as RubricScoreEntry[];
 }
 
 // 태그 통계 + 태그 목록
@@ -145,8 +156,10 @@ export function CompetencyAnalysisSection({
     onSuccess: () => queryClient.invalidateQueries({ queryKey: diagnosisQk }),
   });
 
+  const [expandedRubricItem, setExpandedRubricItem] = useState<string | null>(null);
+
   const gradeMutation = useMutation({
-    mutationFn: async (input: { area: CompetencyArea; item: string; grade: CompetencyGrade }) => {
+    mutationFn: async (input: { area: CompetencyArea; item: string; grade: CompetencyGrade; rubricScores?: RubricScoreEntry[] }) => {
       const result = await upsertCompetencyScoreAction({
         tenant_id: tenantId,
         student_id: studentId,
@@ -155,6 +168,8 @@ export function CompetencyAnalysisSection({
         competency_area: input.area,
         competency_item: input.item,
         grade_value: input.grade,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ...(input.rubricScores && { rubric_scores: input.rubricScores as any }),
       });
       if (!result.success) throw new Error(result.error);
     },
@@ -198,47 +213,29 @@ export function CompetencyAnalysisSection({
     });
   }
 
-  // 다중 레코드의 등급을 종합하여 1회 저장 (최빈값 기반)
+  // 다중 레코드의 등급을 종합하여 1회 저장 (루브릭 기반 bottom-up)
   async function saveAggregatedGrades(allResults: Map<string, HighlightAnalysisResult>) {
-    const gradeVotes = new Map<string, Map<string, number>>(); // item → grade → count
+    const { aggregateCompetencyGrades } = await import("@/lib/domains/student-record/rubric-matcher");
 
-    for (const data of allResults.values()) {
-      for (const g of data.competencyGrades) {
-        if (!gradeVotes.has(g.item)) gradeVotes.set(g.item, new Map());
-        const votes = gradeVotes.get(g.item)!;
-        votes.set(g.grade, (votes.get(g.grade) ?? 0) + 1);
-      }
-    }
+    const allGrades = [...allResults.values()].flatMap((d) => d.competencyGrades);
+    const aggregated = aggregateCompetencyGrades(allGrades);
 
-    // 등급 순서 — 동점 시 상위 등급 우선
-    const GRADE_RANK: Record<string, number> = { "A+": 0, "A-": 1, "B+": 2, "B": 3, "B-": 4, "C": 5 };
-
-    const promises: Promise<unknown>[] = [];
-    for (const [item, votes] of gradeVotes) {
-      // 최빈값 선택 (동점 시 상위 등급 우선)
-      let bestGrade = "B";
-      let bestCount = 0;
-      for (const [grade, count] of votes) {
-        if (count > bestCount || (count === bestCount && (GRADE_RANK[grade] ?? 99) < (GRADE_RANK[bestGrade] ?? 99))) {
-          bestGrade = grade;
-          bestCount = count;
-        }
-      }
-      const area = COMPETENCY_ITEMS.find((i) => i.code === item)?.area;
-      if (!area) continue;
-      promises.push(upsertCompetencyScoreAction({
+    const promises = aggregated.map((ag) =>
+      upsertCompetencyScoreAction({
         tenant_id: tenantId,
         student_id: studentId,
         school_year: schoolYear,
         scope: "yearly",
-        competency_area: area,
-        competency_item: item,
-        grade_value: bestGrade as CompetencyGrade,
-        notes: `[AI] ${bestCount}건 레코드 종합`,
+        competency_area: ag.area,
+        competency_item: ag.item,
+        grade_value: ag.finalGrade,
+        notes: `[AI] ${ag.recordCount}건 ${ag.method === "rubric" ? "루브릭 기반" : "레코드"} 종합`,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        rubric_scores: ag.rubricScores as any,
         source: "ai",
         status: "suggested",
-      }));
-    }
+      }),
+    );
     await Promise.allSettled(promises);
     queryClient.invalidateQueries({ queryKey: diagnosisQk });
   }
@@ -306,12 +303,127 @@ export function CompetencyAnalysisSection({
       }
       return results;
     },
-    onSuccess: (results) => setHighlightResults((prev) => new Map([...prev, ...results])),
+    onSuccess: (results) => {
+      setHighlightResults((prev) => new Map([...prev, ...results]));
+      syncPipelineTaskStatus(studentId, "competency_analysis").then(() => {
+        queryClient.invalidateQueries({ queryKey: studentRecordKeys.pipeline(studentId) });
+      }).catch(() => {});
+    },
     onError: (err: Error) => setError(err.message),
   });
 
+  // W-2: 레이더 차트 데이터
+  const radarData = useMemo(
+    () => buildRadarData(competencyScores.filter((s) => s.source === "ai"), competencyScores.filter((s) => s.source === "manual")),
+    [competencyScores],
+  );
+  const hasRadarData = radarData.some((d) => d.AI > 0 || d.컨설턴트 > 0);
+  const { recharts, loading: chartsLoading } = useRecharts();
+
   return (
     <div className="flex flex-col gap-6">
+      {/* W-2: 역량 레이더 차트 */}
+      {hasRadarData && (
+        <div className="rounded-lg border border-[var(--border-secondary)] bg-white p-4 dark:bg-[var(--surface-primary)]">
+          <h4 className="mb-2 text-sm font-semibold text-[var(--text-primary)]">역량 프로필</h4>
+          {chartsLoading || !recharts ? (
+            <ChartLoadingSkeleton height={220} />
+          ) : (() => {
+            const { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip, Legend } = recharts;
+            return (
+              <ResponsiveContainer width="100%" height={220}>
+                <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="65%">
+                  <PolarGrid stroke="var(--border-secondary, #e5e7eb)" />
+                  <PolarAngleAxis dataKey="item" tick={{ fontSize: 9 }} />
+                  <PolarRadiusAxis angle={90} domain={[0, 5]} tick={{ fontSize: 9 }} tickCount={6} />
+                  <Radar name="AI" dataKey="AI" stroke="#6366f1" fill="#6366f1" fillOpacity={0.15} strokeWidth={1.5} strokeDasharray="5 3" />
+                  <Radar name="컨설턴트" dataKey="컨설턴트" stroke="#10b981" fill="#10b981" fillOpacity={0.2} strokeWidth={2} />
+                  <Tooltip contentStyle={{ fontSize: 11 }} />
+                  <Legend wrapperStyle={{ fontSize: 10 }} iconSize={8} />
+                </RadarChart>
+              </ResponsiveContainer>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* S-2: 역량 성장 추이 라인 차트 */}
+      {hasRadarData && !chartsLoading && recharts && (() => {
+        // records에서 record_id→grade 매핑 구축
+        const recordGradeMap: Record<number, Record<string, number>> = {};
+        for (const rec of records) {
+          if (!rec.grade) continue;
+          // 학년별 항목별 집계
+          for (const tag of activityTags) {
+            if (tag.record_id !== rec.id) continue;
+            const gradeKey = rec.grade;
+            if (!recordGradeMap[gradeKey]) recordGradeMap[gradeKey] = {};
+            const areaMap = recordGradeMap[gradeKey];
+            const item = COMPETENCY_ITEMS.find((i) => i.code === tag.competency_item);
+            if (!item) continue;
+            const areaLabel = AREA_LABELS_CHART[item.area];
+            if (!areaMap[`${areaLabel}_pos`]) areaMap[`${areaLabel}_pos`] = 0;
+            if (!areaMap[`${areaLabel}_tot`]) areaMap[`${areaLabel}_tot`] = 0;
+            areaMap[`${areaLabel}_tot`]++;
+            if (tag.evaluation === "positive") areaMap[`${areaLabel}_pos`]++;
+          }
+        }
+
+        const grades = Object.keys(recordGradeMap).map(Number).sort();
+        if (grades.length < 2) return null;
+
+        const AREA_COLORS_LINE: Record<string, string> = {
+          [AREA_LABELS_CHART.academic]: "#6366f1",
+          [AREA_LABELS_CHART.career]: "#8b5cf6",
+          [AREA_LABELS_CHART.community]: "#10b981",
+        };
+
+        const lineData = grades.map((g) => {
+          const m = recordGradeMap[g] ?? {};
+          const point: Record<string, string | number> = { 학년: `${g}학년` };
+          for (const area of ["academic", "career", "community"] as const) {
+            const label = AREA_LABELS_CHART[area];
+            const pos = m[`${label}_pos`] ?? 0;
+            const tot = m[`${label}_tot`] ?? 0;
+            if (tot > 0) point[label] = Number(((pos / tot) * 5).toFixed(1));
+          }
+          return point;
+        });
+
+        const lines = Object.values(AREA_LABELS_CHART).filter((label) =>
+          lineData.some((d) => label in d),
+        );
+
+        if (lines.length === 0) return null;
+
+        const { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer: RC, Tooltip: TT, Legend: LG } = recharts;
+        return (
+          <div className="rounded-lg border border-[var(--border-secondary)] bg-white p-4 dark:bg-[var(--surface-primary)]">
+            <h4 className="mb-2 text-sm font-semibold text-[var(--text-primary)]">역량 성장 추이</h4>
+            <RC width="100%" height={180}>
+              <LineChart data={lineData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-secondary, #f0f0f0)" />
+                <XAxis dataKey="학년" tick={{ fontSize: 11 }} />
+                <YAxis domain={[0, 5]} tick={{ fontSize: 10 }} tickCount={6} />
+                <TT contentStyle={{ fontSize: 11 }} />
+                <LG wrapperStyle={{ fontSize: 9 }} iconSize={8} />
+                {lines.map((label) => (
+                  <Line
+                    key={label}
+                    type="monotone"
+                    dataKey={label}
+                    stroke={AREA_COLORS_LINE[label] ?? "#6b7280"}
+                    strokeWidth={2}
+                    dot={{ r: 3 }}
+                    connectNulls
+                  />
+                ))}
+              </LineChart>
+            </RC>
+          </div>
+        );
+      })()}
+
       {/* ─── AI 분석 버튼 ──────────────────── */}
       <div className="flex items-center gap-3">
         <button
@@ -464,7 +576,14 @@ export function CompetencyAnalysisSection({
                     return (
                       <Fragment key={item.code}>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-[var(--text-tertiary)]">{item.label}</span>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedRubricItem(expandedRubricItem === item.code ? null : item.code)}
+                            className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:underline"
+                            title="루브릭 펼치기"
+                          >
+                            {item.label}
+                          </button>
                           <select
                             value={currentGrade}
                             onChange={(e) =>
@@ -537,6 +656,21 @@ export function CompetencyAnalysisSection({
                                 </div>
                               );
                             })}
+                          </div>
+                        )}
+                        {expandedRubricItem === item.code && (
+                          <div className="basis-full ml-20 mb-2">
+                            <RubricGradeGrid
+                              itemCode={item.code as CompetencyItemCode}
+                              aiRubricScores={findRubricScores(competencyScores, item.code, "ai")}
+                              consultantRubricScores={findRubricScores(competencyScores, item.code, "manual")}
+                              onConsultantChange={(rubricScores, derivedGrade) => {
+                                if (derivedGrade) {
+                                  gradeMutation.mutate({ area, item: item.code, grade: derivedGrade, rubricScores });
+                                }
+                              }}
+                              disabled={gradeMutation.isPending}
+                            />
                           </div>
                         )}
                       </Fragment>

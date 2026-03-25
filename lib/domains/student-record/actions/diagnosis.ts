@@ -517,3 +517,24 @@ export async function fetchCrossRefData(
     return { storylineLinks: [], readingLinks: [], readingLabelMap: {}, recordLabelMap: {}, recordContentMap: {} };
   }
 }
+
+// ============================================
+// Phase E4: 영속화된 엣지 조회
+// ============================================
+
+import type { PersistedEdge } from "../edge-repository";
+
+/** 학생의 DB 영속화 엣지 목록 조회 */
+export async function fetchPersistedEdges(
+  studentId: string,
+  tenantId: string,
+): Promise<PersistedEdge[]> {
+  try {
+    await requireAdminOrConsultant();
+    const { findEdges } = await import("../edge-repository");
+    return await findEdges(studentId, tenantId);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "fetchPersistedEdges" }, error, { studentId });
+    return [];
+  }
+}

@@ -169,164 +169,153 @@ function ScoreInputForm({
         수능/모평 점수 입력
       </h4>
 
-      <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
-        {/* 국어 */}
-        <div>
-          <label className="mb-1 block text-xs text-[var(--text-tertiary)]">국어 원점수</label>
-          <input
-            type="number"
-            min={0}
-            max={100}
-            value={value.koreanRaw ?? ""}
-            onChange={(e) => update({ koreanRaw: parseNum(e.target.value) })}
-            className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm"
-            placeholder="원점수"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs text-[var(--text-tertiary)]">국어 표준점수</label>
-          <input
-            type="number"
-            value={value.korean ?? ""}
-            onChange={(e) => update({ korean: parseNum(e.target.value) })}
-            className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm"
-            placeholder="표준점수"
-          />
+      {/* F5: 과목-점수 블록 그룹화 */}
+      <div className="flex flex-col gap-3">
+        {/* 주요 과목: 국어 + 수학 */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {/* 국어 블록 */}
+          <fieldset className="rounded-lg border border-[var(--border-secondary)] p-3">
+            <legend className="px-1 text-xs font-semibold text-[var(--text-secondary)]">국어 *</legend>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="mb-1 block text-[10px] text-[var(--text-tertiary)]">원점수</label>
+                <input type="number" min={0} max={100} value={value.koreanRaw ?? ""}
+                  onChange={(e) => update({ koreanRaw: parseNum(e.target.value) })}
+                  className={cn("w-full rounded-md border px-2 py-1.5 text-sm bg-[var(--surface-primary)]",
+                    !hasScores ? "border-amber-300" : "border-[var(--border-primary)]")}
+                  placeholder="0~100" />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] text-[var(--text-tertiary)]">표준점수</label>
+                <input type="number" value={value.korean ?? ""}
+                  onChange={(e) => update({ korean: parseNum(e.target.value) })}
+                  className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm"
+                  placeholder="표준" />
+              </div>
+            </div>
+          </fieldset>
+
+          {/* 수학 블록 */}
+          <fieldset className="rounded-lg border border-[var(--border-secondary)] p-3">
+            <legend className="px-1 text-xs font-semibold text-[var(--text-secondary)]">수학 *</legend>
+            <div className="mb-2">
+              <label className="mb-1 block text-[10px] text-[var(--text-tertiary)]">선택과목</label>
+              <select value={value.mathType}
+                onChange={(e) => update({ mathType: e.target.value as MockScoreInput["mathType"] })}
+                className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm">
+                <option value="미적분">미적분</option>
+                <option value="기하">기하</option>
+                <option value="확률과통계">확률과통계</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="mb-1 block text-[10px] text-[var(--text-tertiary)]">원점수</label>
+                <input type="number" min={0} max={100} value={value.mathRaw ?? ""}
+                  onChange={(e) => update({ mathRaw: parseNum(e.target.value) })}
+                  className={cn("w-full rounded-md border px-2 py-1.5 text-sm bg-[var(--surface-primary)]",
+                    !hasScores ? "border-amber-300" : "border-[var(--border-primary)]")}
+                  placeholder="0~100" />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] text-[var(--text-tertiary)]">표준점수</label>
+                <input type="number" value={value.math ?? ""}
+                  onChange={(e) => update({ math: parseNum(e.target.value) })}
+                  className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm"
+                  placeholder="표준" />
+              </div>
+            </div>
+          </fieldset>
         </div>
 
-        {/* 수학 */}
-        <div>
-          <label className="mb-1 block text-xs text-[var(--text-tertiary)]">수학 선택과목</label>
-          <select
-            value={value.mathType}
-            onChange={(e) => update({ mathType: e.target.value as MockScoreInput["mathType"] })}
-            className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm"
-          >
-            <option value="미적분">미적분</option>
-            <option value="기하">기하</option>
-            <option value="확률과통계">확률과통계</option>
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs text-[var(--text-tertiary)]">수학 원점수</label>
-          <input
-            type="number"
-            min={0}
-            max={100}
-            value={value.mathRaw ?? ""}
-            onChange={(e) => update({ mathRaw: parseNum(e.target.value) })}
-            className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm"
-            placeholder="원점수"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs text-[var(--text-tertiary)]">수학 표준점수</label>
-          <input
-            type="number"
-            value={value.math ?? ""}
-            onChange={(e) => update({ math: parseNum(e.target.value) })}
-            className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm"
-            placeholder="표준점수"
-          />
+        {/* 등급 과목: 영어 + 한국사 + 제2외국어 */}
+        <div className="grid grid-cols-3 gap-3">
+          <fieldset className="rounded-lg border border-[var(--border-secondary)] p-3">
+            <legend className="px-1 text-xs font-semibold text-[var(--text-secondary)]">영어</legend>
+            <select value={value.english ?? ""}
+              onChange={(e) => update({ english: parseInt_(e.target.value) })}
+              className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm">
+              <option value="">선택</option>
+              {[1,2,3,4,5,6,7,8,9].map((g) => <option key={g} value={g}>{g}등급</option>)}
+            </select>
+          </fieldset>
+          <fieldset className="rounded-lg border border-[var(--border-secondary)] p-3">
+            <legend className="px-1 text-xs font-semibold text-[var(--text-secondary)]">한국사</legend>
+            <select value={value.history ?? ""}
+              onChange={(e) => update({ history: parseInt_(e.target.value) })}
+              className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm">
+              <option value="">선택</option>
+              {[1,2,3,4,5,6,7,8,9].map((g) => <option key={g} value={g}>{g}등급</option>)}
+            </select>
+          </fieldset>
+          <fieldset className="rounded-lg border border-[var(--border-secondary)] p-3">
+            <legend className="px-1 text-xs font-semibold text-[var(--text-secondary)]">제2외국어</legend>
+            <select value={value.foreignLang ?? ""}
+              onChange={(e) => update({ foreignLang: parseInt_(e.target.value) })}
+              className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm">
+              <option value="">미응시</option>
+              {[1,2,3,4,5,6,7,8,9].map((g) => <option key={g} value={g}>{g}등급</option>)}
+            </select>
+          </fieldset>
         </div>
 
-        {/* 영어 */}
-        <div>
-          <label className="mb-1 block text-xs text-[var(--text-tertiary)]">영어 등급</label>
-          <select
-            value={value.english ?? ""}
-            onChange={(e) => update({ english: parseInt_(e.target.value) })}
-            className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm"
-          >
-            <option value="">선택</option>
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((g) => (
-              <option key={g} value={g}>{g}등급</option>
-            ))}
-          </select>
-        </div>
+        {/* 탐구 과목: 블록 그룹화 + 중복 선택 방지 */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <fieldset className="rounded-lg border border-[var(--border-secondary)] p-3">
+            <legend className="px-1 text-xs font-semibold text-[var(--text-secondary)]">탐구1</legend>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="mb-1 block text-[10px] text-[var(--text-tertiary)]">과목</label>
+                <select value={value.inquiry1Subject}
+                  onChange={(e) => {
+                    update({ inquiry1Subject: e.target.value });
+                    if (e.target.value && e.target.value === value.inquiry2Subject) {
+                      update({ inquiry1Subject: e.target.value, inquiry2Subject: "" });
+                    }
+                  }}
+                  className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm">
+                  <option value="">선택</option>
+                  {INQUIRY_SUBJECTS.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] text-[var(--text-tertiary)]">원점수</label>
+                <input type="number" min={0} max={50} value={value.inquiry1Raw ?? ""}
+                  onChange={(e) => update({ inquiry1Raw: parseNum(e.target.value) })}
+                  className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm"
+                  placeholder="0~50" />
+              </div>
+            </div>
+          </fieldset>
 
-        {/* 한국사 */}
-        <div>
-          <label className="mb-1 block text-xs text-[var(--text-tertiary)]">한국사 등급</label>
-          <select
-            value={value.history ?? ""}
-            onChange={(e) => update({ history: parseInt_(e.target.value) })}
-            className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm"
-          >
-            <option value="">선택</option>
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((g) => (
-              <option key={g} value={g}>{g}등급</option>
-            ))}
-          </select>
-        </div>
-
-        {/* 탐구1 */}
-        <div>
-          <label className="mb-1 block text-xs text-[var(--text-tertiary)]">탐구1 과목</label>
-          <select
-            value={value.inquiry1Subject}
-            onChange={(e) => update({ inquiry1Subject: e.target.value })}
-            className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm"
-          >
-            <option value="">선택</option>
-            {INQUIRY_SUBJECTS.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs text-[var(--text-tertiary)]">탐구1 원점수</label>
-          <input
-            type="number"
-            min={0}
-            max={50}
-            value={value.inquiry1Raw ?? ""}
-            onChange={(e) => update({ inquiry1Raw: parseNum(e.target.value) })}
-            className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm"
-            placeholder="원점수"
-          />
-        </div>
-
-        {/* 탐구2 */}
-        <div>
-          <label className="mb-1 block text-xs text-[var(--text-tertiary)]">탐구2 과목</label>
-          <select
-            value={value.inquiry2Subject}
-            onChange={(e) => update({ inquiry2Subject: e.target.value })}
-            className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm"
-          >
-            <option value="">선택</option>
-            {INQUIRY_SUBJECTS.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs text-[var(--text-tertiary)]">탐구2 원점수</label>
-          <input
-            type="number"
-            min={0}
-            max={50}
-            value={value.inquiry2Raw ?? ""}
-            onChange={(e) => update({ inquiry2Raw: parseNum(e.target.value) })}
-            className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm"
-            placeholder="원점수"
-          />
-        </div>
-
-        {/* 제2외국어 */}
-        <div>
-          <label className="mb-1 block text-xs text-[var(--text-tertiary)]">제2외국어 등급</label>
-          <select
-            value={value.foreignLang ?? ""}
-            onChange={(e) => update({ foreignLang: parseInt_(e.target.value) })}
-            className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm"
-          >
-            <option value="">미응시</option>
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((g) => (
-              <option key={g} value={g}>{g}등급</option>
-            ))}
-          </select>
+          <fieldset className="rounded-lg border border-[var(--border-secondary)] p-3">
+            <legend className="px-1 text-xs font-semibold text-[var(--text-secondary)]">탐구2</legend>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="mb-1 block text-[10px] text-[var(--text-tertiary)]">과목</label>
+                <select value={value.inquiry2Subject}
+                  onChange={(e) => {
+                    update({ inquiry2Subject: e.target.value });
+                    if (e.target.value && e.target.value === value.inquiry1Subject) {
+                      update({ inquiry2Subject: e.target.value, inquiry1Subject: "" });
+                    }
+                  }}
+                  className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm">
+                  <option value="">선택</option>
+                  {INQUIRY_SUBJECTS.filter((s) => s !== value.inquiry1Subject).map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] text-[var(--text-tertiary)]">원점수</label>
+                <input type="number" min={0} max={50} value={value.inquiry2Raw ?? ""}
+                  onChange={(e) => update({ inquiry2Raw: parseNum(e.target.value) })}
+                  className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--surface-primary)] px-2 py-1.5 text-sm"
+                  placeholder="0~50" />
+              </div>
+            </div>
+          </fieldset>
         </div>
       </div>
 

@@ -6,6 +6,7 @@ import type { ActionResponse } from "@/lib/types/actionResponse";
 import { createSuccessResponse, createErrorResponse } from "@/lib/types/actionResponse";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
+import { syncPipelineTaskStatus } from "./pipeline";
 import * as service from "../course-plan/service";
 import * as repo from "../course-plan/repository";
 import type {
@@ -38,6 +39,8 @@ export async function generateRecommendationsAction(
   try {
     await requireAdminOrConsultant();
     const data = await service.generateAndSaveRecommendations(studentId, tenantId);
+    // 파이프라인 상태 동기화 (fire-and-forget)
+    syncPipelineTaskStatus(studentId, "course_recommendation").catch(() => {});
     return createSuccessResponse(data);
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "generateRecommendationsAction" }, error);

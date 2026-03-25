@@ -19,6 +19,8 @@ import { COMPETENCY_ITEMS } from "@/lib/domains/student-record";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import type { Strategy, StrategyTargetArea, StrategyPriority, StrategyStatus, CompetencyScore, Diagnosis, CompetencyItemCode, CompetencyGrade } from "@/lib/domains/student-record/types";
 import type { StrategySuggestion } from "@/lib/domains/student-record/llm/types";
+import { StrategyMatrix } from "./shared/StrategyMatrix";
+import { ConfirmDialog } from "@/components/ui/Dialog";
 
 // ─── 상수 ────────────────────────────────────────────
 
@@ -81,6 +83,7 @@ export function StrategyEditor({
   const queryClient = useQueryClient();
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // AI 제안 상태
   const [aiSuggestions, setAiSuggestions] = useState<StrategySuggestion[]>([]);
@@ -214,6 +217,11 @@ export function StrategyEditor({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* W-3: 전략 매트릭스 */}
+      {strategies.length > 0 && (
+        <StrategyMatrix strategies={strategies} />
+      )}
+
       {/* ─── 헤더 + 버튼 ──────────────────────── */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-gray-500 dark:text-gray-400">
@@ -316,13 +324,29 @@ export function StrategyEditor({
               onEdit={() => setEditingId(strategy.id)}
               onCancelEdit={() => setEditingId(null)}
               onUpdate={(updates) => updateMutation.mutate({ id: strategy.id, updates })}
-              onDelete={() => deleteMutation.mutate(strategy.id)}
+              onDelete={() => setConfirmDeleteId(strategy.id)}
               onStatusChange={(status) => updateMutation.mutate({ id: strategy.id, updates: { status } })}
               isPending={updateMutation.isPending || deleteMutation.isPending}
             />
           ))}
         </div>
       )}
+
+      {/* U-5: 삭제 확인 다이얼로그 */}
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        onOpenChange={(open) => { if (!open) setConfirmDeleteId(null); }}
+        title="보완전략 삭제"
+        description="이 전략을 삭제하시겠습니까? 되돌릴 수 없습니다."
+        onConfirm={() => {
+          if (confirmDeleteId) {
+            deleteMutation.mutate(confirmDeleteId);
+            setConfirmDeleteId(null);
+          }
+        }}
+        variant="destructive"
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 }

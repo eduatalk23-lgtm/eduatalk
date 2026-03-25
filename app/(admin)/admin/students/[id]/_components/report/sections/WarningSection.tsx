@@ -10,10 +10,12 @@ import type {
   DiagnosisTabData,
   StrategyTabData,
 } from "@/lib/domains/student-record/types";
+import { AlertTriangle } from "lucide-react";
+import { ReportSectionHeader } from "../ReportSectionHeader";
 
 const SEVERITY_STYLES: Record<string, { label: string; color: string }> = {
   critical: { label: "긴급", color: "text-red-700 bg-red-50" },
-  high: { label: "높음", color: "text-orange-700 bg-orange-50" },
+  high: { label: "높음", color: "text-amber-700 bg-amber-50" },
   medium: { label: "보통", color: "text-amber-700 bg-amber-50" },
   low: { label: "낮음", color: "text-gray-600 bg-gray-50" },
 };
@@ -61,12 +63,10 @@ export function WarningSection({
   if (warnings.length === 0) {
     return (
       <section className="print-break-before">
-        <h2 className="border-b-2 border-gray-800 pb-2 text-xl font-bold text-gray-900">
-          점검 사항
-        </h2>
-        <p className="pt-4 text-sm text-emerald-600">
-          특이사항 없음 — 모든 항목이 정상입니다.
-        </p>
+        <ReportSectionHeader icon={AlertTriangle} title="점검 사항" />
+        <div className="mt-4 rounded-lg border border-dashed border-gray-300 p-6 text-center">
+          <p className="text-sm text-emerald-600">특이사항 없음 — 모든 항목이 정상입니다</p>
+        </div>
       </section>
     );
   }
@@ -82,9 +82,7 @@ export function WarningSection({
 
   return (
     <section className="print-break-before">
-      <h2 className="border-b-2 border-gray-800 pb-2 text-xl font-bold text-gray-900">
-        점검 사항
-      </h2>
+      <ReportSectionHeader icon={AlertTriangle} title="점검 사항" />
 
       <div className="space-y-4 pt-4">
         {Object.entries(grouped).map(([category, items]) => (

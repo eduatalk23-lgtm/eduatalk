@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Noto_Serif_KR } from "next/font/google";
 import { QueryClient, dehydrate } from "@tanstack/react-query";
 import "./globals.css";
 import { Providers } from "./providers";
@@ -23,7 +23,15 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
   display: "swap",
-  preload: false, // 모노폰트는 필요시에만 로드
+  preload: false,
+});
+
+const notoSerif = Noto_Serif_KR({
+  variable: "--font-noto-serif",
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  display: "swap",
+  preload: false, // 리포트 전용이므로 lazy
 });
 
 export const metadata: Metadata = {
@@ -223,7 +231,7 @@ export default async function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${notoSerif.variable} antialiased`}
       >
         {/* 인라인 스플래시: JS 번들 로딩 전 즉시 렌더링되어 White Flash 방지 */}
         {/* eslint-disable-next-line react/no-danger */}

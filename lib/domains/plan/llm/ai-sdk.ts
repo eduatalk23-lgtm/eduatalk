@@ -70,6 +70,8 @@ export interface AiSdkOptions {
   maxTokens?: number;
   temperature?: number;
   grounding?: GroundingConfig;
+  /** "json" 설정 시 Gemini JSON 모드 강제 — 유효한 JSON 출력 보장 */
+  responseFormat?: "json" | "text";
 }
 
 export interface AiSdkResult {
@@ -165,6 +167,30 @@ function extractGroundingFromSources(
 }
 
 // ============================================
+// JSON Mode output (Gemini responseMimeType 강제)
+// ============================================
+
+/**
+ * generateText의 output 파라미터로 전달하여 Gemini JSON 모드를 활성화.
+ * AI SDK 내장 json() output과 달리, 파싱 실패 시 throw하지 않고
+ * 텍스트를 그대로 반환하여 extractJson의 fallback 로직을 사용할 수 있게 함.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const jsonModeOutput: any = {
+  name: "json-mode",
+  responseFormat: Promise.resolve({ type: "json" as const }),
+  async parseCompleteOutput({ text }: { text: string }) {
+    return text;
+  },
+  async parsePartialOutput({ text }: { text: string }) {
+    return { partial: text };
+  },
+  createElementStreamTransform() {
+    return new TransformStream();
+  },
+};
+
+// ============================================
 // generateTextWithRateLimit
 // ============================================
 
@@ -215,6 +241,9 @@ export async function generateTextWithRateLimit(
           maxOutputTokens: maxTokens,
           temperature,
           ...(tools && { tools }),
+          ...(options.responseFormat === "json" && {
+            output: jsonModeOutput,
+          }),
         });
       });
 

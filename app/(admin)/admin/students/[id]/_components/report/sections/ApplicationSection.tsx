@@ -1,5 +1,7 @@
 import type { StrategyTabData } from "@/lib/domains/student-record/types";
 import { APPLICATION_ROUND_LABELS } from "@/lib/domains/student-record/constants";
+import { Building2 } from "lucide-react";
+import { ReportSectionHeader } from "../ReportSectionHeader";
 
 const RESULT_LABELS: Record<string, string> = {
   pending: "대기",
@@ -31,30 +33,28 @@ export function ApplicationSection({ strategyData }: ApplicationSectionProps) {
 
   return (
     <section className="print-break-before">
-      <h2 className="border-b-2 border-gray-800 pb-2 text-xl font-bold text-gray-900">
-        지원 현황
-      </h2>
+      <ReportSectionHeader icon={Building2} title="지원 현황" subtitle="수시/정시 지원 · 면접 충돌 · 수능최저" />
 
       {/* 지원 요약 카드 */}
       {totalApps > 0 && (
         <div className="mt-4 mb-4 grid grid-cols-4 gap-3 print-avoid-break">
-          <div className="rounded-lg border border-gray-200 p-3 text-center">
+          <div className="rounded-lg border border-gray-300 p-3 shadow-sm text-center">
             <p className="text-2xl font-bold text-gray-900">{totalApps}</p>
-            <p className="text-[10px] text-gray-500">총 지원</p>
+            <p className="text-xs text-gray-500">총 지원</p>
           </div>
-          <div className="rounded-lg border border-gray-200 p-3 text-center">
+          <div className="rounded-lg border border-gray-300 p-3 shadow-sm text-center">
             <p className="text-2xl font-bold text-indigo-600">{suApps}</p>
-            <p className="text-[10px] text-gray-500">수시</p>
+            <p className="text-xs text-gray-500">수시</p>
           </div>
-          <div className="rounded-lg border border-gray-200 p-3 text-center">
+          <div className="rounded-lg border border-gray-300 p-3 shadow-sm text-center">
             <p className="text-2xl font-bold text-blue-600">{jungApps}</p>
-            <p className="text-[10px] text-gray-500">정시</p>
+            <p className="text-xs text-gray-500">정시</p>
           </div>
-          <div className="rounded-lg border border-gray-200 p-3 text-center">
-            <p className={`text-2xl font-bold ${notMetCount > 0 ? "text-red-600" : metCount > 0 ? "text-emerald-600" : "text-gray-400"}`}>
+          <div className="rounded-lg border border-gray-300 p-3 shadow-sm text-center">
+            <p className={`text-2xl font-bold ${notMetCount > 0 ? "text-red-600" : metCount > 0 ? "text-emerald-600" : "text-gray-500"}`}>
               {metCount}/{metCount + notMetCount}
             </p>
-            <p className="text-[10px] text-gray-500">최저 충족</p>
+            <p className="text-xs text-gray-500">최저 충족</p>
           </div>
         </div>
       )}
@@ -63,9 +63,10 @@ export function ApplicationSection({ strategyData }: ApplicationSectionProps) {
       {applications.length === 0 ? (
         <div className="mt-4 rounded-lg border border-dashed border-gray-300 p-6 text-center">
           <p className="text-sm text-gray-500">지원 현황이 아직 등록되지 않았습니다.</p>
-          <p className="mt-1 text-xs text-gray-400">수시/정시 지원 대학을 등록하면 수능최저 충족 분석과 면접 일정이 표시됩니다.</p>
+          <p className="mt-1 text-xs text-gray-500">수시/정시 지원 대학을 등록하면 수능최저 충족 분석과 면접 일정이 표시됩니다.</p>
         </div>
       ) : (
+        <div className="overflow-x-auto">
         <table className="w-full border-collapse pt-4 text-sm">
           <thead>
             <tr className="border-b border-gray-300 bg-gray-50">
@@ -122,6 +123,7 @@ export function ApplicationSection({ strategyData }: ApplicationSectionProps) {
             ))}
           </tbody>
         </table>
+        </div>
       )}
 
       {/* 면접 일정 충돌 */}
@@ -177,7 +179,7 @@ export function ApplicationSection({ strategyData }: ApplicationSectionProps) {
                     <td className="px-2 py-1.5 text-center">
                       {sim ? (
                         <span
-                          className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                          className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${
                             sim.is_met
                               ? "bg-emerald-100 text-emerald-700"
                               : "bg-red-100 text-red-700"
@@ -186,7 +188,7 @@ export function ApplicationSection({ strategyData }: ApplicationSectionProps) {
                           {sim.is_met ? "충족" : "미충족"}
                         </span>
                       ) : (
-                        <span className="text-gray-400">-</span>
+                        <span className="text-gray-500">-</span>
                       )}
                     </td>
                     <td className="px-2 py-1.5 text-center">
