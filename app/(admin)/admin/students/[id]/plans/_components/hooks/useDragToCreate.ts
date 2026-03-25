@@ -1,8 +1,13 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef, type RefObject } from 'react';
-import { timeToMinutes, minutesToPx } from '../utils/timeGridUtils';
+import { useState, useCallback, useEffect, useRef, useMemo, type RefObject } from 'react';
 import { createDragAutoScroll } from '../utils/dragAutoScroll';
+import {
+  pxToLogicalMinutes,
+  logicalMinutesToPx,
+  EXTENSION_ZONE_END,
+  type LogicalDayConfig,
+} from '../utils/logicalDayUtils';
 
 interface UseDragToCreateInput {
   containerRef: RefObject<HTMLDivElement | null>;
@@ -10,7 +15,9 @@ interface UseDragToCreateInput {
   pxPerMinute: number;
   snapMinutes: number;
   enabled: boolean;
-  /** 드래그 완료 시 호출 (date, startMin, endMin) */
+  /** 새벽 접기 상태 */
+  deadZoneCollapsed: boolean;
+  /** 드래그 완료 시 호출 (date, startLogicalMin, endLogicalMin) — 논리적 분 */
   onDragEnd: (date: string, startMinutes: number, endMinutes: number) => void;
 }
 
@@ -26,6 +33,7 @@ export function useDragToCreate({
   pxPerMinute,
   snapMinutes,
   enabled,
+  deadZoneCollapsed,
   onDragEnd,
 }: UseDragToCreateInput) {
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -38,9 +46,12 @@ export function useDragToCreate({
   const isDraggingRef = useRef(false);
   const autoScrollRef = useRef<ReturnType<typeof createDragAutoScroll> | null>(null);
 
-  const rangeStartMin = timeToMinutes(displayRange.start);
-  const rangeEndMin = timeToMinutes(displayRange.end);
+  const logicalConfig: LogicalDayConfig = useMemo(
+    () => ({ deadZoneCollapsed, pxPerMinute }),
+    [deadZoneCollapsed, pxPerMinute],
+  );
 
+  /** px → 논리적 분 (snap 적용, 클램프) */
   const getMinutesFromY = useCallback(
     (clientY: number, snap: 'floor' | 'ceil' = 'floor'): number => {
       if (!containerRef.current) return 0;
@@ -50,18 +61,18 @@ export function useDragToCreate({
       if (colEl) {
         const colRect = colEl.getBoundingClientRect();
         const offsetY = clientY - colRect.top;
-        const minutes = rangeStartMin + offsetY / pxPerMinute;
-        const snapped = snapFn(minutes / snapMinutes) * snapMinutes;
-        return Math.max(rangeStartMin, Math.min(snapped, rangeEndMin));
+        const logicalMin = pxToLogicalMinutes(offsetY, logicalConfig);
+        const snapped = snapFn(logicalMin / snapMinutes) * snapMinutes;
+        return Math.max(0, Math.min(snapped, EXTENSION_ZONE_END));
       }
       // fallback
       const rect = containerRef.current.getBoundingClientRect();
       const offsetY = clientY - rect.top + containerRef.current.scrollTop;
-      const minutes = rangeStartMin + offsetY / pxPerMinute;
-      const snapped = snapFn(minutes / snapMinutes) * snapMinutes;
-      return Math.max(rangeStartMin, Math.min(snapped, rangeEndMin));
+      const logicalMin = pxToLogicalMinutes(offsetY, logicalConfig);
+      const snapped = snapFn(logicalMin / snapMinutes) * snapMinutes;
+      return Math.max(0, Math.min(snapped, EXTENSION_ZONE_END));
     },
-    [containerRef, rangeStartMin, rangeEndMin, pxPerMinute, snapMinutes],
+    [containerRef, deadZoneCollapsed, pxPerMinute, snapMinutes],
   );
 
   const getDateFromX = useCallback(
@@ -95,7 +106,8 @@ export function useDragToCreate({
       if (!enabled) return;
       // 기존 블록 또는 종일 영역 위에서는 시작하지 않음
       if ((e.target as HTMLElement).closest('[data-grid-block]') ||
-          (e.target as HTMLElement).closest('[data-allday-row]')) return;
+          (e.target as HTMLElement).closest('[data-allday-row]') ||
+          (e.target as HTMLElement).closest('[data-dead-zone-bar]')) return;
       // 시간 거터 무시
       const date = getDateFromX(e.clientX, e.clientY);
       if (!date) return;
@@ -253,9 +265,11 @@ export function useDragToCreate({
         const containerRect = containerRef.current.getBoundingClientRect();
         const colRect = colEl.getBoundingClientRect();
 
+        const topPx = logicalMinutesToPx(dragState.startMinutes, logicalConfig);
+        const bottomPx = logicalMinutesToPx(dragState.endMinutes, logicalConfig);
         return {
-          top: `${minutesToPx(dragState.startMinutes, rangeStartMin, pxPerMinute)}px`,
-          height: `${(dragState.endMinutes - dragState.startMinutes) * pxPerMinute}px`,
+          top: `${topPx}px`,
+          height: `${Math.max(bottomPx - topPx, 2)}px`,
           left: `${colRect.left - containerRect.left + containerRef.current.scrollLeft}px`,
           width: `${colRect.width}px`,
         } as React.CSSProperties;

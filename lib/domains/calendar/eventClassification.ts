@@ -1,12 +1,12 @@
 /**
  * 이벤트 기간 분류 유틸리티
  *
- * GCal 기준:
- * - same-day: 시작/종료가 같은 KST 날짜 → 해당 날짜 time grid 블록
- * - cross-day: 시작/종료가 다른 KST 날짜 → 상단 spanning bar (all-day 영역)
+ * 논리적 하루 기준 (01:00 ~ 다음날 01:00):
+ * - same-day: 시작/종료가 같은 논리적 날짜 → 해당 날짜 time grid 블록
+ * - cross-day: 논리적 하루를 넘김 → 상단 spanning bar (all-day 영역)
  *
- * 예외: 종료가 다음날 정확히 자정(00:00 KST)인 경우 → same-day 취급
- *       (PM 10시 ~ AM 12시(자정) = 시작일 time grid에서 하단까지 표시)
+ * 예외: 종료가 다음날 01:00 미만(00:00~00:59 KST)인 경우 → same-day 취급
+ *       (PM 10시 ~ AM 12:30 = 시작일 time grid 연장 영역에서 표시)
  */
 
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -50,9 +50,11 @@ export function classifyEventDuration(
   // 같은 KST 날짜
   if (startDate === endDate) return 'same-day';
 
-  // 자정 정확 종료: end의 KST 시간이 00:00이고, 시작일 다음날이면 same-day 취급
+  // 논리적 하루 경계: end의 KST 시간이 01:00 이하(00:00~01:00)이고,
+  // 시작일 다음날이면 same-day 취급 (연장 영역에서 표시)
   const endTime = toKSTTimeHHMM(endAt);
-  if (endTime.h === 0 && endTime.m === 0) {
+  const isWithinExtensionZone = endTime.h === 0 || (endTime.h === 1 && endTime.m === 0);
+  if (isWithinExtensionZone) {
     const nextDay = new Date(startDate + 'T00:00:00Z');
     nextDay.setDate(nextDay.getDate() + 1);
     if (endDate === nextDay.toISOString().split('T')[0]) return 'same-day';

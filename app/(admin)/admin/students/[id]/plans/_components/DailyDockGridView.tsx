@@ -34,6 +34,8 @@ import {
   DEFAULT_DISPLAY_RANGE,
   SINGLE_RIGHT_GUTTER_PCT,
 } from './utils/timeGridUtils';
+// DailyDockGridView는 아직 물리적 좌표 사용 — 논리적 전환은 별도 작업
+import { useDeadZoneCollapse } from './hooks/useDeadZoneCollapse';
 import { updateItemTime, updatePlanStatus } from '@/lib/domains/calendar/actions/calendarEventActions';
 import { useOptimisticCalendarUpdate } from '@/lib/hooks/useOptimisticCalendarUpdate';
 import { useUndo } from './UndoSnackbar';
@@ -144,6 +146,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
 }: DailyDockGridViewProps) {
   const router = useRouter();
   const ppm = ppmProp ?? PX_PER_MINUTE;
+  const { isCollapsed: deadZoneCollapsed, toggle: toggleDeadZone } = useDeadZoneCollapse();
   const { pushUndoable } = useUndo();
   const { showToast } = usePlanToast();
   const { optimisticStatusChange, optimisticColorChange, optimisticTimeChange, revalidate } =
@@ -374,6 +377,7 @@ export const DailyDockGridView = memo(function DailyDockGridView({
     displayRange,
     pxPerMinute: ppm,
     snapMinutes: SNAP_MINUTES,
+    deadZoneCollapsed,
     enabled: !!calendarId,
     onDragEnd: useCallback(
       (_date: string, startMin: number, endMin: number) => {

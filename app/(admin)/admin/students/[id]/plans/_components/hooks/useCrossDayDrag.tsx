@@ -1,8 +1,15 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef, type MutableRefObject, type RefObject } from 'react';
-import { timeToMinutes, minutesToPx, minutesToTime } from '../utils/timeGridUtils';
+import { useState, useCallback, useEffect, useRef, useMemo, type MutableRefObject, type RefObject } from 'react';
+import { timeToMinutes, minutesToTime } from '../utils/timeGridUtils';
 import { createDragAutoScroll } from '../utils/dragAutoScroll';
+import {
+  pxToLogicalMinutes,
+  logicalMinutesToPx,
+  resolvePhysicalTime,
+  EXTENSION_ZONE_END,
+  type LogicalDayConfig,
+} from '../utils/logicalDayUtils';
 import { movePlanToDate } from '@/lib/domains/admin-plan/actions/movePlanToDate';
 import { updateItemTime, createRecurringException } from '@/lib/domains/calendar/actions/calendarEventActions';
 import type { PlanItemData } from '@/lib/types/planItem';
@@ -15,6 +22,8 @@ interface UseCrossDayDragInput {
   pxPerMinute: number;
   snapMinutes: number;
   enabled: boolean;
+  /** 새벽 접기 상태 */
+  deadZoneCollapsed: boolean;
   studentId: string;
   calendarId: string;
   onMoveComplete: (sourceDate: string, targetDate: string) => void;
@@ -50,6 +59,7 @@ export function useCrossDayDrag({
   pxPerMinute,
   snapMinutes,
   enabled,
+  deadZoneCollapsed,
   studentId,
   calendarId,
   onMoveComplete,
@@ -61,8 +71,10 @@ export function useCrossDayDrag({
   const [ghost, setGhost] = useState<GhostPosition | null>(null);
   const [draggingPlanId, setDraggingPlanId] = useState<string | null>(null);
 
-  const rangeStartMin = timeToMinutes(displayRange.start);
-  const rangeEndMin = timeToMinutes(displayRange.end);
+  const logicalConfig: LogicalDayConfig = useMemo(
+    () => ({ deadZoneCollapsed, pxPerMinute }),
+    [deadZoneCollapsed, pxPerMinute],
+  );
 
   const dragDataRef = useRef<{
     plan: PlanItemData;
@@ -84,20 +96,30 @@ export function useCrossDayDrag({
     startY: number;
   } | null>(null);
   const DRAG_DISTANCE_THRESHOLD = 5; // px
+  /** biweekly 자동 스크롤: 현재 타겟 주의 스크롤 컨테이너 추적 */
+  const autoScrollContainerRef = useRef<HTMLElement | null>(null);
 
   const getDateFromX = useCallback(
     (clientX: number, clientY?: number): string | null => {
       // clientY가 제공되면 X+Y 모두 확인 (biweekly: 같은 X에 2주치 컬럼이 겹침)
+      // 컬럼 rect를 스크롤 컨테이너의 가시 영역으로 클리핑하여
+      // overflow 밖으로 확장된 컬럼이 매칭되지 않도록 함
       if (clientY != null) {
         for (const [date, el] of columnRefs.current.entries()) {
           const rect = el.getBoundingClientRect();
+          // 가장 가까운 스크롤 영역으로 Y 범위 클리핑
+          const scrollArea = el.closest('[data-scroll-area]') as HTMLElement | null;
+          const areaRect = scrollArea?.getBoundingClientRect();
+          const visibleTop = areaRect ? Math.max(rect.top, areaRect.top) : rect.top;
+          const visibleBottom = areaRect ? Math.min(rect.bottom, areaRect.bottom) : rect.bottom;
+
           if (clientX >= rect.left && clientX <= rect.right &&
-              clientY >= rect.top && clientY <= rect.bottom) {
+              clientY >= visibleTop && clientY <= visibleBottom) {
             return date;
           }
         }
       }
-      // fallback: X만으로 판별
+      // fallback: X만으로 판별 (biweekly에서는 clientY가 항상 제공되므로 미도달)
       for (const [date, el] of columnRefs.current.entries()) {
         const rect = el.getBoundingClientRect();
         if (clientX >= rect.left && clientX <= rect.right) {
@@ -109,19 +131,18 @@ export function useCrossDayDrag({
     [columnRefs],
   );
 
+  /** px → 논리적 분 (snap 적용, 클램프) */
   const getMinutesFromY = useCallback(
     (clientY: number, columnDate: string): number => {
       const colEl = columnRefs.current.get(columnDate);
       if (!colEl) return 0;
-      // colEl.getBoundingClientRect()는 스크롤을 이미 반영한 뷰포트 기준 좌표
-      // scrollTop을 추가하면 이중 계산이 되므로 사용하지 않음
       const rect = colEl.getBoundingClientRect();
       const offsetY = clientY - rect.top;
-      const minutes = rangeStartMin + offsetY / pxPerMinute;
-      const snapped = Math.floor(minutes / snapMinutes) * snapMinutes;
-      return Math.max(rangeStartMin, Math.min(snapped, rangeEndMin));
+      const logicalMin = pxToLogicalMinutes(offsetY, logicalConfig);
+      const snapped = Math.floor(logicalMin / snapMinutes) * snapMinutes;
+      return Math.max(0, Math.min(snapped, EXTENSION_ZONE_END));
     },
-    [columnRefs, rangeStartMin, rangeEndMin, pxPerMinute, snapMinutes],
+    [columnRefs, deadZoneCollapsed, pxPerMinute, snapMinutes],
   );
 
   /** 드래그 활성화 공통 로직 */
@@ -162,10 +183,15 @@ export function useCrossDayDrag({
       const blockRect = blockEl?.getBoundingClientRect();
       const offsetY = blockRect ? clientY - blockRect.top : 0;
 
-      const durationMin =
-        plan.startTime && plan.endTime
-          ? timeToMinutes(plan.endTime) - timeToMinutes(plan.startTime)
-          : plan.estimatedMinutes ?? 60;
+      // 물리적 시간차로 duration 계산 (자정 넘김: 음수면 +24h 보정)
+      let durationMin = plan.estimatedMinutes ?? 60;
+      if (plan.startTime && plan.endTime) {
+        const physStart = timeToMinutes(plan.startTime);
+        const physEnd = timeToMinutes(plan.endTime);
+        let diff = physEnd - physStart;
+        if (diff <= 0) diff += 24 * 60; // 자정 넘김 보정
+        if (diff > 0 && diff < 24 * 60) durationMin = diff;
+      }
 
       if (isTouch) {
         // 터치: 150ms 롱프레스 (GCal 모바일)
@@ -200,40 +226,53 @@ export function useCrossDayDrag({
 
       if (!dragDataRef.current || !isDragging) return;
 
-      // 자동 스크롤 업데이트
-      autoScrollRef.current?.update(e.clientY);
-
       const targetDate = getDateFromX(e.clientX, e.clientY);
       if (!targetDate) return;
 
       const colEl = columnRefs.current.get(targetDate);
       if (!colEl) return;
 
+      // 자동 스크롤: biweekly에서는 타겟 컬럼의 스크롤 컨테이너로 전환
+      const targetScrollArea = colEl.closest('[data-scroll-area]') as HTMLElement | null;
+      if (targetScrollArea && targetScrollArea !== autoScrollContainerRef.current) {
+        autoScrollRef.current?.stop();
+        autoScrollRef.current = createDragAutoScroll(targetScrollArea);
+        autoScrollRef.current.start();
+        autoScrollContainerRef.current = targetScrollArea;
+      }
+      autoScrollRef.current?.update(e.clientY);
+
       const colRect = colEl.getBoundingClientRect();
-      const scrollParent = scrollContainerRef?.current ?? colEl.closest('.overflow-y-auto');
+      const scrollParent = targetScrollArea ?? scrollContainerRef?.current;
       const containerRect = (scrollParent as HTMLElement | null)?.getBoundingClientRect();
 
-      // 드래그 중인 위치에서 시간 계산 (GCal 스타일: 마우스 잡은 위치 유지)
-      // e.clientY - offsetY = 블록의 visual top 기준 Y
+      // 드래그 중인 위치에서 논리적 분 계산 (GCal 스타일: 마우스 잡은 위치 유지)
       const topMinutesRaw = getMinutesFromY(
         e.clientY - dragDataRef.current.offsetY,
         targetDate,
       );
       const snappedTop = Math.floor(topMinutesRaw / snapMinutes) * snapMinutes;
-      const clampedTop = Math.max(rangeStartMin, Math.min(snappedTop, rangeEndMin - dragDataRef.current.sourceDurationMin));
+      const clampedTop = Math.max(0, Math.min(snappedTop, EXTENSION_ZONE_END - dragDataRef.current.sourceDurationMin));
+
+      // 논리적 분 → 물리적 시간으로 변환 (ghost 표시용)
+      const startPhysical = resolvePhysicalTime(targetDate, clampedTop);
+      const endPhysical = resolvePhysicalTime(targetDate, clampedTop + dragDataRef.current.sourceDurationMin);
+
+      const topPx = logicalMinutesToPx(clampedTop, logicalConfig);
+      const bottomPx = logicalMinutesToPx(clampedTop + dragDataRef.current.sourceDurationMin, logicalConfig);
 
       setGhost({
         date: targetDate,
-        top: minutesToPx(clampedTop, rangeStartMin, pxPerMinute),
-        height: dragDataRef.current.sourceHeightPx,
+        top: topPx,
+        height: Math.max(bottomPx - topPx, 2),
         left: colRect.left - (containerRect?.left ?? 0),
         width: colRect.width,
-        startTime: minutesToTime(clampedTop),
-        endTime: minutesToTime(clampedTop + dragDataRef.current.sourceDurationMin),
+        startTime: startPhysical.physicalTimeHHMM,
+        endTime: endPhysical.physicalTimeHHMM,
         plan: dragDataRef.current.plan,
       });
     },
-    [isDragging, activateDrag, getDateFromX, getMinutesFromY, columnRefs, scrollContainerRef, rangeStartMin, rangeEndMin, pxPerMinute, snapMinutes],
+    [isDragging, activateDrag, getDateFromX, getMinutesFromY, columnRefs, scrollContainerRef, deadZoneCollapsed, pxPerMinute, snapMinutes],
   );
 
   const handleMouseUp = useCallback(
@@ -249,6 +288,7 @@ export function useCrossDayDrag({
       // 자동 스크롤 정지
       autoScrollRef.current?.stop();
       autoScrollRef.current = null;
+      autoScrollContainerRef.current = null;
 
       if (!dragDataRef.current || !isDragging) {
         dragDataRef.current = null;
@@ -280,14 +320,19 @@ export function useCrossDayDrag({
 
       if (!targetDate || !data.plan.startTime) return;
 
-      // 드롭 위치의 시간 계산 (GCal 스타일: 잡은 위치 기준 블록 top 유지)
+      // 드롭 위치의 논리적 분 계산 → 물리적 날짜+시간으로 변환
       const dropTopMinutes = getMinutesFromY(e.clientY - data.offsetY, targetDate);
       const newStartMin = Math.round(dropTopMinutes / snapMinutes) * snapMinutes;
-      const clampedStart = Math.max(rangeStartMin, Math.min(newStartMin, rangeEndMin - data.sourceDurationMin));
+      const clampedStart = Math.max(0, Math.min(newStartMin, EXTENSION_ZONE_END - data.sourceDurationMin));
       const newEndMin = clampedStart + data.sourceDurationMin;
 
-      const newStartTime = minutesToTime(clampedStart);
-      const newEndTime = minutesToTime(newEndMin);
+      // 논리적 분 → 물리적 날짜+시간 (연장 영역이면 다음날로 변환)
+      const startPhysical = resolvePhysicalTime(targetDate, clampedStart);
+      const endPhysical = resolvePhysicalTime(targetDate, newEndMin);
+      const newStartTime = startPhysical.physicalTimeHHMM;
+      const newEndTime = endPhysical.physicalTimeHHMM;
+      // 실제 물리적 targetDate (연장 영역이면 다음날)
+      const physicalTargetDate = startPhysical.physicalDate;
 
       // 이전 값 캡처 (undo용)
       const prevDate = data.sourceDate;
@@ -302,7 +347,7 @@ export function useCrossDayDrag({
       const rollback = onBeforeMove?.({
             planId: data.plan.id,
             sourceDate: data.sourceDate,
-            targetDate,
+            targetDate: physicalTargetDate,
             newStartTime,
             newEndTime,
             durationMinutes: data.sourceDurationMin,
@@ -312,8 +357,8 @@ export function useCrossDayDrag({
         if (isRecurringInstance) {
           // 확장 인스턴스: exception 생성 + 시간/날짜 오버라이드
           const parentId = data.plan.recurringEventId ?? data.plan.id;
-          const startAt = `${targetDate}T${newStartTime}:00+09:00`;
-          const endAt = `${targetDate}T${newEndTime}:00+09:00`;
+          const startAt = `${physicalTargetDate}T${newStartTime}:00+09:00`;
+          const endAt = `${endPhysical.physicalDate}T${newEndTime}:00+09:00`;
 
           const result = await createRecurringException({
             parentEventId: parentId,
@@ -321,7 +366,7 @@ export function useCrossDayDrag({
             overrides: {
               start_at: startAt,
               end_at: endAt,
-              start_date: targetDate,
+              start_date: physicalTargetDate,
             },
           });
           if (!result.success) {
@@ -329,7 +374,7 @@ export function useCrossDayDrag({
             onError?.(result.error || '반복 일정 이동에 실패했습니다.');
             return;
           }
-          onMoveComplete(data.sourceDate, targetDate);
+          onMoveComplete(data.sourceDate, physicalTargetDate);
 
           onUndoPush?.({
             type: 'move-to-date',
@@ -343,17 +388,17 @@ export function useCrossDayDrag({
             },
             description: '반복 일정이 이동되었습니다.',
           });
-        } else if (targetDate !== data.sourceDate) {
+        } else if (physicalTargetDate !== data.sourceDate) {
           // 다른 날짜로 이동 (비반복 or exception)
           await movePlanToDate({
             planId: data.plan.id,
             studentId,
-            targetDate,
+            targetDate: physicalTargetDate,
             newStartTime,
             newEndTime,
             estimatedMinutes: data.sourceDurationMin,
           });
-          onMoveComplete(data.sourceDate, targetDate);
+          onMoveComplete(data.sourceDate, physicalTargetDate);
 
           onUndoPush?.({
             type: 'move-to-date',
@@ -374,8 +419,8 @@ export function useCrossDayDrag({
           if (isSameDayRecurring) {
             // 반복 이벤트 가상 인스턴스: exception 생성 (GCal 동작 — "이 이벤트만")
             const parentId = data.plan.recurringEventId ?? data.plan.id;
-            const startAt = `${data.sourceDate}T${newStartTime}:00+09:00`;
-            const endAt = `${data.sourceDate}T${newEndTime}:00+09:00`;
+            const startAt = `${physicalTargetDate}T${newStartTime}:00+09:00`;
+            const endAt = `${endPhysical.physicalDate}T${newEndTime}:00+09:00`;
 
             const result = await createRecurringException({
               parentEventId: parentId,
@@ -394,7 +439,7 @@ export function useCrossDayDrag({
             await updateItemTime({
               studentId,
               calendarId,
-              planDate: data.sourceDate,
+              planDate: physicalTargetDate,
               itemId: data.plan.id,
               itemType: 'plan',
               newStartTime,
@@ -402,7 +447,7 @@ export function useCrossDayDrag({
               estimatedMinutes: data.sourceDurationMin,
             });
           }
-          onMoveComplete(data.sourceDate, data.sourceDate);
+          onMoveComplete(data.sourceDate, physicalTargetDate);
 
           // exception 생성 시 undo 불가 (새 ID로 생성되므로 부모 ID로 되돌릴 수 없음)
           if (!isSameDayRecurring) {
@@ -430,8 +475,7 @@ export function useCrossDayDrag({
       isDragging,
       getDateFromX,
       getMinutesFromY,
-      rangeStartMin,
-      rangeEndMin,
+      deadZoneCollapsed,
       snapMinutes,
       studentId,
       calendarId,
@@ -457,6 +501,7 @@ export function useCrossDayDrag({
           // 자동 스크롤 정지
           autoScrollRef.current?.stop();
           autoScrollRef.current = null;
+          autoScrollContainerRef.current = null;
           // 상태 초기화 (서버 호출 없음)
           setIsDragging(false);
           setGhost(null);
@@ -487,6 +532,7 @@ export function useCrossDayDrag({
       if (dragDataRef.current) {
         autoScrollRef.current?.stop();
         autoScrollRef.current = null;
+        autoScrollContainerRef.current = null;
         dragDataRef.current = null;
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
@@ -533,6 +579,7 @@ export function useCrossDayDrag({
     if (dragDataRef.current) {
       autoScrollRef.current?.stop();
       autoScrollRef.current = null;
+      autoScrollContainerRef.current = null;
       setIsDragging(false);
       setGhost(null);
       setDraggingPlanId(null);

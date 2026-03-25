@@ -16,8 +16,10 @@ import {
   calendarEventsToAllDayItems,
   calendarEventToMultiDayBar,
   extractDateYMD,
+  extractTimeHHMM,
 } from '@/lib/domains/calendar/adapters';
 import { classifyEventDuration } from '@/lib/domains/calendar/eventClassification';
+import { resolveLogicalMinutes, shiftDate } from '../utils/logicalDayUtils';
 import type {
   DailyPlan,
   AllDayItem,
@@ -80,23 +82,33 @@ export function useWeeklyGridData(
     return calendarIdProp;
   }, [calendarIdProp, isMultiCalendar, visibleCalendarIds]);
 
-  // 4a. 단일 캘린더 모드: 기존 쿼리
+  // 3b. 논리적 하루용 fetch 범위 버퍼 (±1일)
+  // 첫날 새벽(01:00 이전) 이벤트 + 마지막날 연장(00:00~01:00) 이벤트 포함
+  const fetchRange = useMemo(() => ({
+    start: shiftDate(weekRange.start, -1),
+    end: shiftDate(weekRange.end, 1),
+  }), [weekRange.start, weekRange.end]);
+
+  // 4a. 단일 캘린더 모드: fetch는 버퍼 범위, 캐시 키는 weekRange (안정적 캐시)
   const singleEventsQuery = useQuery({
     ...weeklyCalendarEventsQueryOptions(
       calendarId ?? '',
-      weekRange.start,
-      weekRange.end,
+      fetchRange.start,
+      fetchRange.end,
     ),
+    // 캐시 키를 weekRange 기준으로 오버라이드 → 주간 네비게이션 시 안정적 캐시 히트
+    queryKey: calendarEventKeys.weekly(calendarId ?? '', weekRange.start, weekRange.end),
     enabled: !!calendarId && !isMultiCalendar,
   });
 
-  // 4b. 멀티 캘린더 모드: IN 쿼리
+  // 4b. 멀티 캘린더 모드: IN 쿼리 (동일 전략)
   const multiEventsQuery = useQuery({
     ...multiWeeklyCalendarEventsQueryOptions(
       visibleCalendarIds ?? [],
-      weekRange.start,
-      weekRange.end,
+      fetchRange.start,
+      fetchRange.end,
     ),
+    queryKey: calendarEventKeys.multiWeekly(visibleCalendarIds ?? [], weekRange.start, weekRange.end),
     enabled: isMultiCalendar,
   });
 
@@ -105,17 +117,19 @@ export function useWeeklyGridData(
     [isMultiCalendar, multiEventsQuery.data, singleEventsQuery.data],
   );
 
-  // RRULE 반복 이벤트 확장
+  // RRULE 반복 이벤트 확장 (버퍼 포함 범위)
   const allEvents = useMemo(
-    () => expandRecurringEvents(rawEvents, weekRange.start, weekRange.end),
-    [rawEvents, weekRange.start, weekRange.end],
+    () => expandRecurringEvents(rawEvents, fetchRange.start, fetchRange.end),
+    [rawEvents, fetchRange.start, fetchRange.end],
   );
 
   const eventsLoading = isMultiCalendar ? multiEventsQuery.isLoading : singleEventsQuery.isLoading;
 
   // 5. 날짜별 그룹핑 → 어댑터 적용 → DayColumnData Map
   const dayDataMap = useMemo(() => {
-    // 날짜별 이벤트 그룹핑 (GCal 기준: same-day → time grid, cross-day → spanning bar)
+    // 논리적 하루 기반 이벤트 그룹핑:
+    // - same-day → time grid (00:00~00:59 이벤트는 전날 컬럼의 연장 영역에 배정)
+    // - cross-day → spanning bar (all-day 영역)
     const eventsByDate = new Map<string, CalendarEventWithStudyData[]>();
     const crossDayEvents: CalendarEventWithStudyData[] = [];
     for (const date of weekDates) {
@@ -125,15 +139,24 @@ export function useWeeklyGridData(
       const displayMode = classifyEventDuration(event.start_at, event.end_at, event.is_all_day ?? false);
 
       if (displayMode === 'cross-day') {
-        // 날이 넘어가는 timed 이벤트 → spanning bar (all-day 영역)
+        // 논리적 하루를 넘는 timed 이벤트 → spanning bar (all-day 영역)
         crossDayEvents.push(event);
         continue;
       }
 
-      // same-day (종일 포함): 해당 날짜 time grid
-      const dateKey = event.start_date ?? extractDateYMD(event.start_at);
-      if (dateKey && eventsByDate.has(dateKey)) {
-        eventsByDate.get(dateKey)!.push(event);
+      // same-day (종일 포함): 논리적 날짜 기반으로 컬럼 배정
+      const physicalDate = event.start_date ?? extractDateYMD(event.start_at);
+      const startTime = extractTimeHHMM(event.start_at);
+
+      if (physicalDate && startTime) {
+        // 00:00~00:59 이벤트 → 전날 컬럼 연장 영역에 배정 (중복 표시 방지)
+        const { logicalDate } = resolveLogicalMinutes(physicalDate, startTime);
+        if (eventsByDate.has(logicalDate)) {
+          eventsByDate.get(logicalDate)!.push(event);
+        }
+      } else if (physicalDate && eventsByDate.has(physicalDate)) {
+        // startTime 없는 경우 (종일 등) → 물리적 날짜 그대로
+        eventsByDate.get(physicalDate)!.push(event);
       }
     }
 

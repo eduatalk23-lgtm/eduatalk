@@ -20,17 +20,32 @@ import { InlineQuickCreate } from './items/InlineQuickCreate';
 import { formatDayHeader } from './utils/weekDateUtils';
 import {
   timeToMinutes,
-  minutesToPx,
   minutesToTime,
-  formatHourLabel,
   assignLevels,
   computeLayoutPosition,
   PX_PER_MINUTE,
   SNAP_MINUTES,
   TIME_GUTTER_WIDTH,
-  DEFAULT_DISPLAY_RANGE,
   SINGLE_RIGHT_GUTTER_PCT,
 } from './utils/timeGridUtils';
+import {
+  resolveLogicalMinutes,
+  resolvePhysicalTime,
+  logicalMinutesToPx,
+  pxToLogicalMinutes,
+  getLogicalDayTotalHeight,
+  getLogicalHourLabels,
+  formatLogicalHourLabel,
+  physicalMinToLogical,
+  LOGICAL_DISPLAY_RANGE,
+  DEAD_ZONE_COLLAPSED_PX,
+  DEAD_ZONE_END,
+  EXTENSION_ZONE_START,
+  EXTENSION_ZONE_END,
+  type LogicalDayConfig,
+} from './utils/logicalDayUtils';
+import { useDeadZoneCollapse } from './hooks/useDeadZoneCollapse';
+import { DeadZoneBar } from './items/DeadZoneBar';
 import { useResizable } from './hooks/useResizable';
 import { usePullToRefresh } from './hooks/usePullToRefresh';
 import { useGridKeyboardNav } from './hooks/useGridKeyboardNav';
@@ -98,7 +113,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
   calendarId: calendarIdProp,
   selectedDate,
   selectedGroupId,
-  displayRange = DEFAULT_DISPLAY_RANGE,
+  displayRange = LOGICAL_DISPLAY_RANGE,
   onEdit,
   onRefresh,
   onDateChange,
@@ -117,6 +132,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
 }: WeeklyGridViewProps) {
   const router = useRouter();
   const ppm = ppmProp ?? PX_PER_MINUTE;
+  const { isCollapsed: deadZoneCollapsed, toggle: toggleDeadZone } = useDeadZoneCollapse();
   const { pushUndoable } = useUndo();
   const { showToast } = usePlanToast();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -132,9 +148,12 @@ export const WeeklyGridView = memo(function WeeklyGridView({
   useGridKeyboardNav(scrollContainerRef);
   const columnRefsMap = useRef(new Map<string, HTMLDivElement>());
 
-  const rangeStartMin = timeToMinutes(displayRange.start);
-  const rangeEndMin = timeToMinutes(displayRange.end);
-  const totalHeight = (rangeEndMin - rangeStartMin) * ppm;
+  // 논리적 하루 설정
+  const logicalConfig: LogicalDayConfig = useMemo(
+    () => ({ deadZoneCollapsed, pxPerMinute: ppm }),
+    [deadZoneCollapsed, ppm],
+  );
+  const totalHeight = getLogicalDayTotalHeight(logicalConfig);
 
   // Calendar-First: Context에서 calendarId 직접 사용 (브릿지 훅 제거)
   const { selectedCalendarId, selectedCalendarSettings, isAdminMode } = useAdminPlanBasic();
@@ -185,7 +204,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
     };
   }, [biweeklyMode, weeklyData, biweeklyData]);
 
-  const { optimisticStatusChange, optimisticColorChange, optimisticTimeChange, optimisticDateMove, revalidate } =
+  const { optimisticStatusChange, optimisticColorChange, optimisticTimeChange, optimisticDateMove, optimisticDelete, revalidate } =
     useOptimisticCalendarUpdate(calendarId, visibleCalendarIds);
 
   // 공휴일 AllDayItems 주입
@@ -221,26 +240,29 @@ export const WeeklyGridView = memo(function WeeklyGridView({
     return allWeekDates.slice(start, start + 3);
   }, [isMobile, allWeekDates, selectedDate, customDayCount, biweeklyMode]);
 
-  // 시간 라벨
-  const hourLabels = useMemo(() => {
-    const labels: number[] = [];
-    const startHour = Math.ceil(rangeStartMin / 60);
-    const endHour = Math.floor(rangeEndMin / 60);
-    for (let h = startHour; h <= endHour; h++) {
-      // 최상단(position 0) 라벨 생략 — 구글 캘린더와 동일
-      if (h * 60 === rangeStartMin) continue;
-      labels.push(h);
-    }
-    return labels;
-  }, [rangeStartMin, rangeEndMin]);
+  // 시간 라벨 (논리적 시간 기반)
+  const hourLabels = useMemo(
+    () => getLogicalHourLabels(deadZoneCollapsed),
+    [deadZoneCollapsed],
+  );
 
-  // 현재 시간 인디케이터
+  // 현재 시간 인디케이터 (논리적 좌표)
   const [nowMinutes, setNowMinutes] = useState<number | null>(null);
+  const [nowLogicalDate, setNowLogicalDate] = useState<string | null>(null);
 
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      setNowMinutes(now.getHours() * 60 + now.getMinutes());
+      const physicalMin = now.getHours() * 60 + now.getMinutes();
+      setNowMinutes(physicalMin);
+      // 논리적 날짜 계산 (00:00~00:59 → 전날)
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      const todayStr = `${yyyy}-${mm}-${dd}`;
+      const timeHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const { logicalDate } = resolveLogicalMinutes(todayStr, timeHHMM);
+      setNowLogicalDate(logicalDate);
     };
     updateTime();
     const timer = setInterval(updateTime, 60000);
@@ -303,8 +325,8 @@ export const WeeklyGridView = memo(function WeeklyGridView({
 
       // 스크롤 위치 결정: 이벤트 기반 or 현재 시각 fallback
       const scrollTarget = targetMinutes != null
-        ? Math.max(0, minutesToPx(targetMinutes, rangeStartMin, ppm) - 30 * ppm)
-        : Math.max(0, minutesToPx(nowMinutes, rangeStartMin, ppm) - 200);
+        ? Math.max(0, logicalMinutesToPx(physicalMinToLogical(targetMinutes), logicalConfig) - 30 * ppm)
+        : Math.max(0, logicalMinutesToPx(physicalMinToLogical(nowMinutes), logicalConfig) - 200);
 
       isSyncingRef.current = true;
       week1GridRef.current.scrollTop = scrollTarget;
@@ -316,12 +338,13 @@ export const WeeklyGridView = memo(function WeeklyGridView({
       return;
     }
 
-    // 기존 단일 주 자동 스크롤
+    // 기존 단일 주 자동 스크롤 (논리적 좌표)
     if (!scrollContainerRef.current) return;
-    const scrollTarget = minutesToPx(nowMinutes, rangeStartMin, ppm) - 200;
+    const logicalNow = physicalMinToLogical(nowMinutes);
+    const scrollTarget = logicalMinutesToPx(logicalNow, logicalConfig) - 200;
     scrollContainerRef.current.scrollTop = Math.max(0, scrollTarget);
     hasScrolledRef.current = true;
-  }, [nowMinutes, rangeStartMin, ppm, biweeklyMode, isAnyLoading, biweeklyWeek1Dates, biweeklyWeek2Dates, getEventStartMinutes]);
+  }, [nowMinutes, logicalConfig, ppm, biweeklyMode, isAnyLoading, biweeklyWeek1Dates, biweeklyWeek2Dates, getEventStartMinutes]);
 
   // ---------- Biweekly 스크롤 동기화 ----------
   useEffect(() => {
@@ -338,7 +361,14 @@ export const WeeklyGridView = memo(function WeeklyGridView({
       // rAF로 감싸서 forced reflow 방지 (scrollTop 직접 대입은 동기 레이아웃 강제)
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
-        target.scrollTop = source.scrollTop;
+        // dead zone 토글 시 높이 불일치 방어: 비율 기반 동기화
+        const sourceMax = source.scrollHeight - source.clientHeight;
+        const targetMax = target.scrollHeight - target.clientHeight;
+        if (sourceMax > 0 && targetMax > 0 && Math.abs(sourceMax - targetMax) > 10) {
+          target.scrollTop = Math.round((source.scrollTop / sourceMax) * targetMax);
+        } else {
+          target.scrollTop = source.scrollTop;
+        }
         requestAnimationFrame(() => { isSyncingRef.current = false; });
       });
     };
@@ -424,14 +454,14 @@ export const WeeklyGridView = memo(function WeeklyGridView({
         for (const p of dd.plans) {
           if (!p.start_time) continue;
           const m = timeToMinutes(p.start_time.substring(0, 5));
-          const px = minutesToPx(m, rangeStartMin, ppm);
+          const px = logicalMinutesToPx(physicalMinToLogical(m), logicalConfig);
           if (px < aboveEdge) aboveMins.push(m);
           else if (px > belowEdge) belowMins.push(m);
         }
         for (const c of dd.customItems) {
           if (!c.startTime) continue;
           const m = timeToMinutes(c.startTime.substring(0, 5));
-          const px = minutesToPx(m, rangeStartMin, ppm);
+          const px = logicalMinutesToPx(physicalMinToLogical(m), logicalConfig);
           if (px < aboveEdge) aboveMins.push(m);
           else if (px > belowEdge) belowMins.push(m);
         }
@@ -448,7 +478,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
 
       return { above: makeHint(aboveMins, 'above'), below: makeHint(belowMins, 'below') };
     },
-    [biweeklyMode, dayDataMap, rangeStartMin, ppm, hintScrollTop, hintContainerHeight],
+    [biweeklyMode, dayDataMap, logicalConfig, ppm, hintScrollTop, hintContainerHeight],
   );
 
   const week1Hints = useMemo(() => computeHints(biweeklyWeek1Dates), [computeHints, biweeklyWeek1Dates]);
@@ -456,7 +486,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
 
   const handleHintClick = useCallback(
     (targetMinutes: number) => {
-      const scrollTarget = Math.max(0, minutesToPx(targetMinutes, rangeStartMin, ppm) - 60 * ppm);
+      const scrollTarget = Math.max(0, logicalMinutesToPx(physicalMinToLogical(targetMinutes), logicalConfig) - 60 * ppm);
       isSyncingRef.current = true;
       if (week1GridRef.current) week1GridRef.current.scrollTop = scrollTarget;
       if (week2GridRef.current) week2GridRef.current.scrollTop = scrollTarget;
@@ -464,7 +494,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
         requestAnimationFrame(() => { isSyncingRef.current = false; });
       });
     },
-    [rangeStartMin, ppm],
+    [logicalConfig, ppm],
   );
 
   // 퀵생성 후 하이라이트 (2초 자동 해제)
@@ -475,10 +505,32 @@ export const WeeklyGridView = memo(function WeeklyGridView({
     return () => clearTimeout(timer);
   }, [newlyCreatedPlanId]);
 
-  const nowTop =
-    nowMinutes != null && nowMinutes >= rangeStartMin && nowMinutes <= rangeEndMin
-      ? minutesToPx(nowMinutes, rangeStartMin, ppm)
-      : null;
+  // 논리적 좌표 기반 nowTop
+  const nowLogicalMinutes = useMemo(() => {
+    if (nowMinutes == null) return null;
+    return physicalMinToLogical(nowMinutes);
+  }, [nowMinutes]);
+
+  const nowTop = useMemo(() => {
+    if (nowLogicalMinutes == null) return null;
+    if (nowLogicalMinutes < 0 || nowLogicalMinutes > EXTENSION_ZONE_END) return null;
+    return logicalMinutesToPx(nowLogicalMinutes, logicalConfig);
+  }, [nowLogicalMinutes, logicalConfig]);
+
+  // 새벽 구간(01:00~07:00) 전체 이벤트 수 (접기 바 배지용)
+  const deadZoneEventCount = useMemo(() => {
+    let count = 0;
+    for (const date of weekDates) {
+      const dd = dayDataMap.get(date);
+      if (!dd) continue;
+      for (const p of dd.plans) {
+        if (!p.start_time) continue;
+        const logMin = physicalMinToLogical(timeToMinutes(p.start_time.substring(0, 5)));
+        if (logMin >= 0 && logMin < DEAD_ZONE_END) count++;
+      }
+    }
+    return count;
+  }, [weekDates, dayDataMap]);
 
   // 주간뷰 리사이즈
   const [resizingPlanId, setResizingPlanId] = useState<string | null>(null);
@@ -495,29 +547,33 @@ export const WeeklyGridView = memo(function WeeklyGridView({
     // 1) DailyPlan (study 이벤트) 검색
     const dailyPlan = dayData.plans.find(p => p.id === resizingPlanId);
     if (dailyPlan && dailyPlan.start_time) {
-      const startMin = timeToMinutes(dailyPlan.start_time.substring(0, 5));
-      const endMin = dailyPlan.end_time ? timeToMinutes(dailyPlan.end_time.substring(0, 5)) : startMin + 60;
-      return { height: (endMin - startMin) * ppm, startMin, endMin, plan: toPlanItemData(dailyPlan, 'plan') };
+      const startLogical = physicalMinToLogical(timeToMinutes(dailyPlan.start_time.substring(0, 5)));
+      const endLogical = physicalMinToLogical(dailyPlan.end_time ? timeToMinutes(dailyPlan.end_time.substring(0, 5)) : timeToMinutes(dailyPlan.start_time.substring(0, 5)) + 60);
+      const topPx = logicalMinutesToPx(startLogical, logicalConfig);
+      const bottomPx = logicalMinutesToPx(endLogical, logicalConfig);
+      return { height: bottomPx - topPx, startMin: startLogical, endMin: endLogical, plan: toPlanItemData(dailyPlan, 'plan') };
     }
 
     // 2) PlanItemData (custom 이벤트) 검색
     const customPlan = dayData.customItems.find(p => p.id === resizingPlanId);
     if (customPlan && customPlan.startTime) {
-      const startMin = timeToMinutes(customPlan.startTime.substring(0, 5));
-      const endMin = customPlan.endTime ? timeToMinutes(customPlan.endTime.substring(0, 5)) : startMin + 60;
-      return { height: (endMin - startMin) * ppm, startMin, endMin, plan: customPlan };
+      const startLogical = physicalMinToLogical(timeToMinutes(customPlan.startTime.substring(0, 5)));
+      const endLogical = physicalMinToLogical(customPlan.endTime ? timeToMinutes(customPlan.endTime.substring(0, 5)) : timeToMinutes(customPlan.startTime.substring(0, 5)) + 60);
+      const topPx = logicalMinutesToPx(startLogical, logicalConfig);
+      const bottomPx = logicalMinutesToPx(endLogical, logicalConfig);
+      return { height: bottomPx - topPx, startMin: startLogical, endMin: endLogical, plan: customPlan };
     }
 
     return null;
-  }, [resizingPlanId, resizingDate, dayDataMap, ppm]);
+  }, [resizingPlanId, resizingDate, dayDataMap, logicalConfig, ppm]);
 
   const { currentHeight: resizeHeight, isResizing, resizeHandleProps: rawResizeHandleProps } = useResizable({
     initialHeight: resizingBlock?.height ?? 60,
     minHeight: SNAP_MINUTES * ppm,
     maxHeight: resizingBlock
       ? resizingEdge === 'top'
-        ? (resizingBlock.startMin - rangeStartMin) * ppm + resizingBlock.height  // top: 위로 확장 한계
-        : totalHeight - (resizingBlock.startMin - rangeStartMin) * ppm           // bottom: 아래로 확장 한계
+        ? logicalMinutesToPx(resizingBlock.startMin, logicalConfig) + resizingBlock.height  // top: 위로 확장 한계
+        : totalHeight - logicalMinutesToPx(resizingBlock.startMin, logicalConfig)           // bottom: 아래로 확장 한계
       : totalHeight,
     snapIncrement: SNAP_MINUTES * ppm,
     edge: resizingEdge,
@@ -541,21 +597,27 @@ export const WeeklyGridView = memo(function WeeklyGridView({
       // resizingBlock.plan은 PlanItemData (study/custom 모두 통합)
       const plan = resizingBlock.plan;
       const prevStartTime = plan.startTime!.substring(0, 5);
-      const prevEndTime = plan.endTime?.substring(0, 5) ?? minutesToTime(resizingBlock.startMin + 60);
+      const prevEndTime = plan.endTime?.substring(0, 5) ?? resolvePhysicalTime(resizingDate, resizingBlock.startMin + 60).physicalTimeHHMM;
       const prevDuration = resizingBlock.height / ppm;
 
-      let newStartTime: string;
-      let newEndTime: string;
+      let newStartLogical: number;
+      let newEndLogical: number;
 
       if (currentEdge === 'top') {
         // 상단 리사이즈: 종료 시간 유지, 시작 시간 변경
-        newEndTime = prevEndTime;
-        newStartTime = minutesToTime(resizingBlock.endMin - newDurationMinutes);
+        newEndLogical = resizingBlock.endMin;
+        newStartLogical = resizingBlock.endMin - newDurationMinutes;
       } else {
         // 하단 리사이즈: 시작 시간 유지, 종료 시간 변경
-        newStartTime = prevStartTime;
-        newEndTime = minutesToTime(resizingBlock.startMin + newDurationMinutes);
+        newStartLogical = resizingBlock.startMin;
+        newEndLogical = resizingBlock.startMin + newDurationMinutes;
       }
+
+      // 논리적 분 → 물리적 날짜+시간
+      const startPhysical = resolvePhysicalTime(resizingDate, newStartLogical);
+      const endPhysical = resolvePhysicalTime(resizingDate, newEndLogical);
+      const newStartTime = startPhysical.physicalTimeHHMM;
+      const newEndTime = endPhysical.physicalTimeHHMM;
 
       // 반복 이벤트 가상 인스턴스: exception 생성 (GCal 동작 — "이 이벤트만")
       const isRecurring = !!(plan.rrule || plan.recurringEventId);
@@ -681,14 +743,19 @@ export const WeeklyGridView = memo(function WeeklyGridView({
       }
     },
     onDisable: async (id) => {
-      const { deleteCalendarEventAction } = await import('@/lib/domains/admin-plan/actions/calendarEvents');
-      await deleteCalendarEventAction(id);
-      revalidate();
-      pushUndoable({
-        type: 'delete-plan',
-        planId: id,
-        description: '비학습 시간이 비활성화되었습니다.',
-      });
+      const rollback = optimisticDelete(id);
+      try {
+        const { deleteCalendarEventAction } = await import('@/lib/domains/admin-plan/actions/calendarEvents');
+        await deleteCalendarEventAction(id);
+        revalidate();
+        pushUndoable({
+          type: 'delete-plan',
+          planId: id,
+          description: '비학습 시간이 비활성화되었습니다.',
+        });
+      } catch {
+        rollback();
+      }
     },
     onConsultationStatusChange: async (eventId: string, status: 'completed' | 'no_show' | 'cancelled' | 'scheduled') => {
       const { updateScheduleStatus } = await import('@/lib/domains/consulting/actions/schedule');
@@ -717,26 +784,30 @@ export const WeeklyGridView = memo(function WeeklyGridView({
     displayRange,
     pxPerMinute: ppm,
     snapMinutes: SNAP_MINUTES,
+    deadZoneCollapsed,
     enabled: !!calendarId && !isPopoverOpen && !quickCreateState && !isResizing,
     onDragEnd: useCallback(
-      (date: string, startMin: number, endMin: number) => {
+      (date: string, startLogicalMin: number, endLogicalMin: number) => {
         if (!calendarId) return;
+        // 논리적 분 → 물리적 날짜+시간
+        const startPhysical = resolvePhysicalTime(date, startLogicalMin);
+        const endPhysical = resolvePhysicalTime(date, endLogicalMin);
         const slot: EmptySlot = {
-          startTime: minutesToTime(startMin),
-          endTime: minutesToTime(endMin),
-          durationMinutes: endMin - startMin,
+          startTime: startPhysical.physicalTimeHHMM,
+          endTime: endPhysical.physicalTimeHHMM,
+          durationMinutes: endLogicalMin - startLogicalMin,
         };
         // 컬럼 위치 기반 virtualRect
         const colEl = scrollContainerRef.current?.querySelector(
           `[data-column-date="${date}"]`,
         ) as HTMLElement | null;
         const colRect = colEl?.getBoundingClientRect();
-        const startPx = minutesToPx(startMin, rangeStartMin, ppm);
+        const startPx = logicalMinutesToPx(startLogicalMin, logicalConfig);
         const containerRect = scrollContainerRef.current?.getBoundingClientRect();
         quickCreateOpenRef.current = true;
         setQuickCreateState({
           slot,
-          date,
+          date: startPhysical.physicalDate,
           virtualRect: {
             x: colRect ? colRect.left + colRect.width / 2 : 56,
             y: containerRect ? containerRect.top + startPx - (scrollContainerRef.current?.scrollTop ?? 0) : 0,
@@ -745,7 +816,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
           },
         });
       },
-      [calendarId, rangeStartMin],
+      [calendarId, logicalConfig],
     ),
   });
 
@@ -763,6 +834,12 @@ export const WeeklyGridView = memo(function WeeklyGridView({
     setQuickCreateState(null);
     clearDragPreview();
   }, [clearDragPreview]);
+
+  // 새벽 접기 토글 (퀵생성/드래그 프리뷰를 먼저 닫아 stale virtualRect 방지)
+  const handleToggleDeadZone = useCallback(() => {
+    closeQuickCreate();
+    toggleDeadZone();
+  }, [closeQuickCreate, toggleDeadZone]);
 
   const handleBlockClick = useCallback(
     (plan: PlanItemData, anchorRect: DOMRect) => {
@@ -799,7 +876,8 @@ export const WeeklyGridView = memo(function WeeklyGridView({
 
   const handleGridClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if ((e.target as HTMLElement).closest('[data-grid-block]')) return;
+      if ((e.target as HTMLElement).closest('[data-grid-block]') ||
+          (e.target as HTMLElement).closest('[data-dead-zone-bar]')) return;
       if (!calendarId) return;
 
       // 이미 열려있으면 닫기만 하고 리턴 (ref로 즉시 확인 → 클로저/리렌더 무관)
@@ -829,13 +907,15 @@ export const WeeklyGridView = memo(function WeeklyGridView({
       const clickDate = columnEl.getAttribute('data-column-date');
       if (!clickDate) return;
 
-      // 클릭 위치 → 시간 계산 (컬럼 기반: biweekly 독립 스크롤에서도 정확)
+      // 클릭 위치 → 논리적 분 → 물리적 시간 (컬럼 기반)
       const colRect = columnEl.getBoundingClientRect();
       const offsetY = e.clientY - colRect.top;
-      const clickedMinutes = rangeStartMin + offsetY / ppm;
-      const snappedStart = Math.floor(clickedMinutes / SNAP_MINUTES) * SNAP_MINUTES;
+      const clickedLogicalMin = pxToLogicalMinutes(offsetY, logicalConfig);
+      const snappedStart = Math.floor(clickedLogicalMin / SNAP_MINUTES) * SNAP_MINUTES;
       const clickDuration = defaultEstimatedMinutes ?? 60;
-      const snappedEnd = Math.min(snappedStart + clickDuration, rangeEndMin);
+      const snappedEnd = Math.min(snappedStart + clickDuration, EXTENSION_ZONE_END);
+      const startPhysical = resolvePhysicalTime(clickDate, snappedStart);
+      const endPhysical = resolvePhysicalTime(clickDate, snappedEnd);
       const clientX = e.clientX;
       const clientY = e.clientY;
 
@@ -843,25 +923,26 @@ export const WeeklyGridView = memo(function WeeklyGridView({
       clickTimerRef.current = setTimeout(() => {
         clickTimerRef.current = null;
         const slot: EmptySlot = {
-          startTime: minutesToTime(snappedStart),
-          endTime: minutesToTime(snappedEnd),
+          startTime: startPhysical.physicalTimeHHMM,
+          endTime: endPhysical.physicalTimeHHMM,
           durationMinutes: snappedEnd - snappedStart,
         };
         quickCreateOpenRef.current = true;
         setQuickCreateState({
           slot,
-          date: clickDate,
+          date: startPhysical.physicalDate,
           virtualRect: { x: clientX, y: clientY, width: 0, height: 0 },
         });
       }, 250);
     },
-    [calendarId, rangeStartMin, rangeEndMin, ppm, closeQuickCreate, closePopover, isPopoverOpen, defaultEstimatedMinutes],
+    [calendarId, logicalConfig, ppm, closeQuickCreate, closePopover, isPopoverOpen, defaultEstimatedMinutes],
   );
 
   // 더블클릭 → 이벤트 편집 모달 (Google Calendar 스타일)
   const handleGridDoubleClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if ((e.target as HTMLElement).closest('[data-grid-block]')) return;
+      if ((e.target as HTMLElement).closest('[data-grid-block]') ||
+          (e.target as HTMLElement).closest('[data-dead-zone-bar]')) return;
       if (!calendarId) return;
 
       // 싱글클릭 퀵생성 타이머 취소
@@ -878,28 +959,30 @@ export const WeeklyGridView = memo(function WeeklyGridView({
 
       const colRect = columnEl.getBoundingClientRect();
       const offsetY = e.clientY - colRect.top;
-      const clickedMinutes = rangeStartMin + offsetY / ppm;
-      const snappedStart = Math.floor(clickedMinutes / SNAP_MINUTES) * SNAP_MINUTES;
+      const clickedLogicalMin = pxToLogicalMinutes(offsetY, logicalConfig);
+      const snappedStart = Math.floor(clickedLogicalMin / SNAP_MINUTES) * SNAP_MINUTES;
       const dbClickDuration = defaultEstimatedMinutes ?? 60;
-      const snappedEnd = Math.min(snappedStart + dbClickDuration, rangeEndMin);
+      const snappedEnd = Math.min(snappedStart + dbClickDuration, EXTENSION_ZONE_END);
+      const dblStartPhysical = resolvePhysicalTime(clickDate, snappedStart);
+      const dblEndPhysical = resolvePhysicalTime(clickDate, snappedEnd);
 
       if (onOpenEventEditNew) {
         onOpenEventEditNew({
-          date: clickDate,
-          startTime: minutesToTime(snappedStart),
-          endTime: minutesToTime(snappedEnd),
+          date: dblStartPhysical.physicalDate,
+          startTime: dblStartPhysical.physicalTimeHHMM,
+          endTime: dblEndPhysical.physicalTimeHHMM,
         });
       } else {
         const params = new URLSearchParams({
-          date: clickDate,
-          startTime: minutesToTime(snappedStart),
-          endTime: minutesToTime(snappedEnd),
+          date: dblStartPhysical.physicalDate,
+          startTime: dblStartPhysical.physicalTimeHHMM,
+          endTime: dblEndPhysical.physicalTimeHHMM,
         });
         if (calendarId) params.set('calendarId', calendarId);
         router.push(`/admin/students/${studentId}/plans/event/new?${params}`);
       }
     },
-    [calendarId, rangeStartMin, rangeEndMin, ppm, studentId, router, onOpenEventEditNew, closeQuickCreate, defaultEstimatedMinutes],
+    [calendarId, logicalConfig, ppm, studentId, router, onOpenEventEditNew, closeQuickCreate, defaultEstimatedMinutes],
   );
 
   // M-1: 모바일 롱프레스 → 전체 편집 모달 (더블클릭 대체)
@@ -920,7 +1003,8 @@ export const WeeklyGridView = memo(function WeeklyGridView({
 
   const handleGridTouchStart = useCallback(
     (e: React.TouchEvent<HTMLDivElement>) => {
-      if ((e.target as HTMLElement).closest('[data-grid-block]')) return;
+      if ((e.target as HTMLElement).closest('[data-grid-block]') ||
+          (e.target as HTMLElement).closest('[data-dead-zone-bar]')) return;
       if (!calendarId || isResizing || isPopoverOpen || quickCreateState || dragState) return;
       if (!e.touches || e.touches.length === 0) return;
 
@@ -947,37 +1031,40 @@ export const WeeklyGridView = memo(function WeeklyGridView({
         }
         closeQuickCreate();
 
-        // 시간 슬롯 계산 (컬럼 기반: biweekly 독립 스크롤에서도 정확)
+        // 시간 슬롯 계산 (컬럼 기반, 논리적 좌표)
         const colEl = scrollContainerRef.current.querySelector(`[data-column-date="${pos.date}"]`) as HTMLElement | null;
         const colRect = colEl?.getBoundingClientRect();
         const offsetY = colRect ? pos.y - colRect.top : 0;
-        const clickedMinutes = rangeStartMin + offsetY / ppm;
-        const snappedStart = Math.floor(clickedMinutes / SNAP_MINUTES) * SNAP_MINUTES;
+        const clickedLogicalMin = pxToLogicalMinutes(offsetY, logicalConfig);
+        const snappedStart = Math.floor(clickedLogicalMin / SNAP_MINUTES) * SNAP_MINUTES;
         const longPressDuration = defaultEstimatedMinutes ?? 60;
-        const snappedEnd = Math.min(snappedStart + longPressDuration, rangeEndMin);
+        const snappedEnd = Math.min(snappedStart + longPressDuration, EXTENSION_ZONE_END);
 
         // 햅틱 피드백 (유효한 슬롯 확인 후)
         if (navigator.vibrate) navigator.vibrate(10);
         longPressActivatedRef.current = true;
 
+        const lpStartPhysical = resolvePhysicalTime(pos.date, snappedStart);
+        const lpEndPhysical = resolvePhysicalTime(pos.date, snappedEnd);
+
         if (onOpenEventEditNew) {
           onOpenEventEditNew({
-            date: pos.date,
-            startTime: minutesToTime(snappedStart),
-            endTime: minutesToTime(snappedEnd),
+            date: lpStartPhysical.physicalDate,
+            startTime: lpStartPhysical.physicalTimeHHMM,
+            endTime: lpEndPhysical.physicalTimeHHMM,
           });
         } else {
           const params = new URLSearchParams({
-            date: pos.date,
-            startTime: minutesToTime(snappedStart),
-            endTime: minutesToTime(snappedEnd),
+            date: lpStartPhysical.physicalDate,
+            startTime: lpStartPhysical.physicalTimeHHMM,
+            endTime: lpEndPhysical.physicalTimeHHMM,
           });
           if (calendarId) params.set('calendarId', calendarId);
           router.push(`/admin/students/${studentId}/plans/event/new?${params}`);
         }
       }, 500);
     },
-    [calendarId, rangeStartMin, rangeEndMin, ppm, studentId, router, onOpenEventEditNew, closeQuickCreate, isResizing, isPopoverOpen, quickCreateState, dragState],
+    [calendarId, logicalConfig, ppm, studentId, router, onOpenEventEditNew, closeQuickCreate, isResizing, isPopoverOpen, quickCreateState, dragState],
   );
 
   const handleGridTouchMove = useCallback(
@@ -1069,6 +1156,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
     displayRange,
     pxPerMinute: ppm,
     snapMinutes: SNAP_MINUTES,
+    deadZoneCollapsed,
     enabled: !!calendarId && !isResizing,
     studentId,
     calendarId: calendarId ?? '',
@@ -1286,6 +1374,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
         aria-label={biweeklyMode ? '2주간 캘린더 그리드' : `주간 캘린더 그리드 (${weekDates.length}일)`}
         aria-colcount={biweeklyMode ? 7 : weekDates.length}
         aria-busy={isAnyLoading}
+        data-scroll-area={!biweeklyMode || undefined}
         className="flex-1 relative overflow-x-hidden scroll-gpu"
         style={{ overflowY: 'auto', scrollbarGutter: 'stable' }}
         onClick={handleGridClick}
@@ -1388,24 +1477,36 @@ export const WeeklyGridView = memo(function WeeklyGridView({
                   {/* 스크롤 가능 시간 그리드 */}
                   <div
                     ref={weekIdx === 0 ? week1GridRef : week2GridRef}
+                    data-scroll-area
                     className="absolute inset-0 overflow-x-hidden scroll-gpu"
                     style={{ overflowY: 'auto', scrollbarGutter: 'stable' }}
                   >
-                    <div className="flex pr-2" style={{ height: `${totalHeight}px` }}>
+                    <div className="flex pr-2 relative" style={{ height: `${totalHeight}px` }}>
+                      {/* 새벽 접기 바 — 전체 너비 1회 */}
+                      <div data-dead-zone-bar className="absolute left-0 right-0 z-[6]" style={{ top: 0 }}>
+                        <DeadZoneBar
+                          eventCount={deadZoneEventCount}
+                          isCollapsed={deadZoneCollapsed}
+                          onToggle={handleToggleDeadZone}
+                          height={deadZoneCollapsed ? DEAD_ZONE_COLLAPSED_PX : 24}
+                        />
+                      </div>
+
                       {/* 시간 거터 */}
                       <div
                         className="shrink-0 relative border-r border-[rgb(var(--color-secondary-200))]"
                         style={{ width: TIME_GUTTER_WIDTH }}
                       >
-                        {hourLabels.map((hour) => {
-                          const top = minutesToPx(hour * 60, rangeStartMin, ppm);
+                        {hourLabels.map((logicalHour) => {
+                          const logicalMin = logicalHour * 60;
+                          const top = logicalMinutesToPx(logicalMin, logicalConfig);
                           return (
-                            <div key={`w${weekIdx}-h${hour}`}>
+                            <div key={`w${weekIdx}-h${logicalHour}`}>
                               <div
                                 className="absolute right-2 text-[11px] text-[var(--text-tertiary)] font-medium tabular-nums -translate-y-1/2"
                                 style={{ top: `${top}px` }}
                               >
-                                {formatHourLabel(hour)}
+                                {formatLogicalHourLabel(logicalHour)}
                               </div>
                               <div
                                 className="absolute h-px bg-[rgb(var(--color-secondary-200))]"
@@ -1414,6 +1515,18 @@ export const WeeklyGridView = memo(function WeeklyGridView({
                             </div>
                           );
                         })}
+
+                        {/* "다음날" 라벨 — 자정 위치 */}
+                        <div
+                          className="absolute right-2 text-[11px] text-orange-500 dark:text-orange-400 font-medium -translate-y-1/2"
+                          style={{ top: `${logicalMinutesToPx(EXTENSION_ZONE_START, logicalConfig)}px` }}
+                        >
+                          다음날
+                        </div>
+                        <div
+                          className="absolute h-px bg-orange-300 dark:bg-orange-600"
+                          style={{ top: `${logicalMinutesToPx(EXTENSION_ZONE_START, logicalConfig)}px`, right: '-4px', width: '12px' }}
+                        />
                       </div>
 
                       {/* 7 컬럼 */}
@@ -1430,9 +1543,11 @@ export const WeeklyGridView = memo(function WeeklyGridView({
                               customItems={dayData?.customItems ?? []}
                               nonStudyItems={dayData?.nonStudyItems ?? []}
                               displayRange={displayRange}
+                              deadZoneCollapsed={deadZoneCollapsed}
+                              onToggleDeadZone={handleToggleDeadZone}
                               isToday={header.isToday}
                               isPast={header.isPast}
-                              nowTop={header.isToday ? nowTop : undefined}
+                              nowTop={(nowLogicalDate === date) ? nowTop : undefined}
                               onBlockClick={handleBlockClick}
                               onEdit={onEdit}
                               searchQuery={searchQuery}
@@ -1474,21 +1589,36 @@ export const WeeklyGridView = memo(function WeeklyGridView({
           </div>
         ) : (
           /* 기존 단일 주 렌더링 */
-          <div className="flex pr-2" style={{ height: `${totalHeight}px` }}>
+          <div className="flex pr-2 relative" style={{ height: `${totalHeight}px` }}>
+            {/* 새벽 접기 바 — 시간 거터 포함 전체 너비 1회만 렌더링 */}
+            <div
+              data-dead-zone-bar
+              className="absolute left-0 right-0 z-[6]"
+              style={{ top: 0 }}
+            >
+              <DeadZoneBar
+                eventCount={deadZoneEventCount}
+                isCollapsed={deadZoneCollapsed}
+                onToggle={handleToggleDeadZone}
+                height={deadZoneCollapsed ? DEAD_ZONE_COLLAPSED_PX : 24}
+              />
+            </div>
+
             {/* 시간 거터 */}
             <div
               className="shrink-0 relative border-r border-[rgb(var(--color-secondary-200))]"
               style={{ width: TIME_GUTTER_WIDTH }}
             >
-              {hourLabels.map((hour) => {
-                const top = minutesToPx(hour * 60, rangeStartMin, ppm);
+              {hourLabels.map((logicalHour) => {
+                const logicalMin = logicalHour * 60;
+                const top = logicalMinutesToPx(logicalMin, logicalConfig);
                 return (
-                  <div key={hour}>
+                  <div key={logicalHour}>
                     <div
                       className="absolute right-2 text-[11px] text-[var(--text-tertiary)] font-medium tabular-nums -translate-y-1/2"
                       style={{ top: `${top}px` }}
                     >
-                      {formatHourLabel(hour)}
+                      {formatLogicalHourLabel(logicalHour)}
                     </div>
                     {/* 시간 눈금 tick mark */}
                     <div
@@ -1498,6 +1628,18 @@ export const WeeklyGridView = memo(function WeeklyGridView({
                   </div>
                 );
               })}
+
+              {/* "다음날" 라벨 — 자정(logicalMin 1380) 위치, 시간 라벨 대체 */}
+              <div
+                className="absolute right-2 text-[11px] text-orange-500 dark:text-orange-400 font-medium -translate-y-1/2"
+                style={{ top: `${logicalMinutesToPx(EXTENSION_ZONE_START, logicalConfig)}px` }}
+              >
+                다음날
+              </div>
+              <div
+                className="absolute h-px bg-orange-300 dark:bg-orange-600"
+                style={{ top: `${logicalMinutesToPx(EXTENSION_ZONE_START, logicalConfig)}px`, right: '-4px', width: '12px' }}
+              />
             </div>
 
             {/* 7개 컬럼 — CSS Grid로 헤더/종일 영역과 컬럼 정렬 일치 */}
@@ -1515,9 +1657,11 @@ export const WeeklyGridView = memo(function WeeklyGridView({
                   customItems={dayData?.customItems ?? []}
                   nonStudyItems={dayData?.nonStudyItems ?? []}
                   displayRange={displayRange}
+                  deadZoneCollapsed={deadZoneCollapsed}
+                  onToggleDeadZone={handleToggleDeadZone}
                   isToday={header.isToday}
                   isPast={header.isPast}
-                  nowTop={header.isToday ? nowTop : undefined}
+                  nowTop={(nowLogicalDate === date) ? nowTop : undefined}
                   onBlockClick={handleBlockClick}
                   onEdit={onEdit}
                   searchQuery={searchQuery}
@@ -1550,8 +1694,12 @@ export const WeeklyGridView = memo(function WeeklyGridView({
             const colRect = colEl.getBoundingClientRect();
             const overlapLeft = previewOverlapLayout ? (previewOverlapLayout.left / 100) * colRect.width : 0;
             const overlapWidth = previewOverlapLayout ? (previewOverlapLayout.width / 100) * colRect.width : colRect.width;
-            const topPx = minutesToPx(dragState.startMinutes, rangeStartMin, ppm);
-            const heightPx = (dragState.endMinutes - dragState.startMinutes) * ppm;
+            const topPx = logicalMinutesToPx(dragState.startMinutes, logicalConfig);
+            const bottomPx = logicalMinutesToPx(dragState.endMinutes, logicalConfig);
+            const heightPx = Math.max(bottomPx - topPx, 2);
+            // 논리적 분 → 물리적 시간 표시 (프리뷰 라벨용)
+            const previewStart = resolvePhysicalTime(dragState.date, dragState.startMinutes);
+            const previewEnd = resolvePhysicalTime(dragState.date, dragState.endMinutes);
             return createPortal(
               <div
                 className="absolute rounded-lg z-[45] pointer-events-none shadow-sm overflow-hidden"
@@ -1568,7 +1716,7 @@ export const WeeklyGridView = memo(function WeeklyGridView({
                 <div className="pl-3 py-0.5 flex flex-col">
                   <span className={cn('text-xs font-medium', previewColors.textIsWhite ? 'text-white' : 'text-gray-900 dark:text-gray-100')}>(제목 없음)</span>
                   <span className={cn('text-[10px]', previewColors.textIsWhite ? 'text-white/70' : 'text-gray-600 dark:text-gray-400')}>
-                    {minutesToTime(dragState.startMinutes)} – {minutesToTime(dragState.endMinutes)}
+                    {previewStart.physicalTimeHHMM} – {previewEnd.physicalTimeHHMM}
                   </span>
                 </div>
               </div>,
@@ -1583,16 +1731,18 @@ export const WeeklyGridView = memo(function WeeklyGridView({
             ) as HTMLElement | null;
             if (!colEl) return null;
             const colRect = colEl.getBoundingClientRect();
-            const startMin = timeToMinutes(quickCreateState.slot.startTime);
-            const endMin = timeToMinutes(quickCreateState.slot.endTime);
+            const startLogical = physicalMinToLogical(timeToMinutes(quickCreateState.slot.startTime));
+            const endLogical = physicalMinToLogical(timeToMinutes(quickCreateState.slot.endTime));
+            const slotTopPx = logicalMinutesToPx(startLogical, logicalConfig);
+            const slotBottomPx = logicalMinutesToPx(endLogical, logicalConfig);
             const blockLeft = previewOverlapLayout ? (previewOverlapLayout.left / 100) * colRect.width : 0;
             const blockWidth = previewOverlapLayout ? (previewOverlapLayout.width / 100) * colRect.width : colRect.width;
             return createPortal(
               <div
                 className="absolute rounded-lg z-[45] pointer-events-none shadow-sm overflow-hidden"
                 style={{
-                  top: `${minutesToPx(startMin, rangeStartMin, ppm)}px`,
-                  height: `${(endMin - startMin) * ppm}px`,
+                  top: `${slotTopPx}px`,
+                  height: `${Math.max(slotBottomPx - slotTopPx, 2)}px`,
                   left: `${blockLeft}px`,
                   width: `${blockWidth}px`,
                   backgroundColor: previewColors.bgHex,
@@ -1699,9 +1849,20 @@ export const WeeklyGridView = memo(function WeeklyGridView({
                 onRefresh();
                 if (createdInfo) {
                   setNewlyCreatedPlanId(createdInfo.planId);
-                  const targetPx = minutesToPx(timeToMinutes(createdInfo.startTime), rangeStartMin, ppm);
+                  const targetPx = logicalMinutesToPx(physicalMinToLogical(timeToMinutes(createdInfo.startTime)), logicalConfig);
+                  const scrollTarget = Math.max(0, targetPx - 100);
                   setTimeout(() => {
-                    scrollContainerRef.current?.scrollTo({ top: Math.max(0, targetPx - 100), behavior: 'smooth' });
+                    if (biweeklyMode) {
+                      // biweekly: 양쪽 주 그리드 동시 스크롤 (sync 리스너 간섭 방지)
+                      isSyncingRef.current = true;
+                      week1GridRef.current?.scrollTo({ top: scrollTarget, behavior: 'smooth' });
+                      week2GridRef.current?.scrollTo({ top: scrollTarget, behavior: 'smooth' });
+                      requestAnimationFrame(() => {
+                        requestAnimationFrame(() => { isSyncingRef.current = false; });
+                      });
+                    } else {
+                      scrollContainerRef.current?.scrollTo({ top: scrollTarget, behavior: 'smooth' });
+                    }
                   }, 300);
                 }
               }}
