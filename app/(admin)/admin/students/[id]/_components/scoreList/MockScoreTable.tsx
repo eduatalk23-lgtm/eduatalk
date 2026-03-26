@@ -59,6 +59,7 @@ export function MockScoreTable({
             <th className="px-3 py-3 text-right font-medium text-gray-600">표준점수</th>
             <th className="px-3 py-3 text-right font-medium text-gray-600">백분위</th>
             <th className="px-3 py-3 text-center font-medium text-gray-600">등급</th>
+            <th className="px-3 py-3 text-center font-medium text-gray-600">수학선택</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
@@ -109,6 +110,9 @@ export function MockScoreTable({
                 >
                   {score.grade_score ?? "-"}
                 </span>
+              </td>
+              <td className="px-3 py-3 text-center text-xs text-gray-600">
+                {score.math_variant ?? "-"}
               </td>
             </tr>
           ))}

@@ -1,11 +1,8 @@
 /**
- * @deprecated 이 컴포넌트는 레거시 스키마를 사용합니다.
- * 새 스키마(student_mock_scores)에 맞춰 재구축이 필요합니다.
- * 
- * 향후 개선 사항:
- * - subject_id, subject_group_id FK 필드 사용
- * - exam_year, exam_month 필드 추가
- * - createMockScore (app/actions/scores-internal.ts) 사용
+ * 모의고사 성적 추가/수정 모달
+ *
+ * per-exam view (/scores/mock/[grade]/[month]/[exam-type])에서 사용됩니다.
+ * subject_group_id/subject_id FK 필드를 사용합니다.
  */
 "use client";
 
@@ -16,6 +13,14 @@ import { MockScore } from "@/lib/data/studentScores";
 import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
 import { addMockScore, updateMockScoreFormAction as updateMockScoreAction } from "@/lib/domains/score";
 import { useToast } from "@/components/ui/ToastProvider";
+import {
+  MOCK_EXAM_TYPES,
+  MOCK_EXAM_MONTHS,
+  MATH_VARIANTS,
+  isGradeOnlyGroup,
+  needsSubjectSelection,
+  isMathGroup,
+} from "@/lib/constants/mock-exam";
 
 type MockScoreFormModalProps = {
   open: boolean;
@@ -26,6 +31,7 @@ type MockScoreFormModalProps = {
   subjectGroups: (SubjectGroup & { subjects: Subject[] })[];
   subjectTypes: SubjectType[];
   editingScore?: MockScore | null;
+  existingScores?: MockScore[];
   onSuccess?: () => void;
 };
 
@@ -37,10 +43,9 @@ type FormErrors = {
   standard_score?: string;
   percentile?: string;
   grade_score?: string;
+  raw_score?: string;
 };
 
-const examTypes = ["평가원", "교육청", "사설"];
-const months = ["3", "4", "5", "6", "7", "8", "9", "10", "11"];
 
 export function MockScoreFormModal({
   open,
@@ -51,6 +56,7 @@ export function MockScoreFormModal({
   subjectGroups,
   subjectTypes,
   editingScore,
+  existingScores,
   onSuccess,
 }: MockScoreFormModalProps) {
   const router = useRouter();
@@ -70,6 +76,8 @@ export function MockScoreFormModal({
     standard_score: "",
     percentile: "",
     grade_score: "",
+    raw_score: "",
+    math_variant: "",
   });
 
   // 편집 모드일 때 초기값 설정
@@ -95,6 +103,8 @@ export function MockScoreFormModal({
         standard_score: editingScore.standard_score?.toString() || "",
         percentile: editingScore.percentile?.toString() || "",
         grade_score: editingScore.grade_score?.toString() || "",
+        raw_score: editingScore.raw_score?.toString() || "",
+        math_variant: (editingScore as Record<string, unknown>).math_variant?.toString() || "",
       });
     } else if (!editingScore && open) {
       // 새로 추가하는 경우 초기화
@@ -107,6 +117,8 @@ export function MockScoreFormModal({
         standard_score: "",
         percentile: "",
         grade_score: "",
+        raw_score: "",
+        math_variant: "",
       });
     }
     // 모달이 닫힐 때 에러 상태 초기화
@@ -141,7 +153,7 @@ export function MockScoreFormModal({
       case "subject_id":
         // 사회/과학일 때만 필수
         const group = subjectGroups.find((g) => g.id === formData.subject_group_id);
-        const needsSubject = group && ["사회", "과학"].includes(group.name);
+        const needsSubject = group && needsSubjectSelection(group.name);
         if (needsSubject && (!value || value === "")) {
           return "과목을 선택해주세요.";
         }
@@ -158,7 +170,7 @@ export function MockScoreFormModal({
       case "standard_score":
         // 영어/한국사가 아닌 경우에만 필수
         const standardGroup = subjectGroups.find((g) => g.id === formData.subject_group_id);
-        const isEnglishOrKoreanHistoryForStandard = standardGroup?.name === "영어" || standardGroup?.name === "한국사";
+        const isEnglishOrKoreanHistoryForStandard = isGradeOnlyGroup(standardGroup?.name ?? "");
         if (!isEnglishOrKoreanHistoryForStandard) {
           if (!value || value === "") {
             return "표준점수를 입력해주세요.";
@@ -172,7 +184,7 @@ export function MockScoreFormModal({
       case "percentile":
         // 영어/한국사가 아닌 경우에만 필수
         const percentileGroup = subjectGroups.find((g) => g.id === formData.subject_group_id);
-        const isEnglishOrKoreanHistoryForPercentile = percentileGroup?.name === "영어" || percentileGroup?.name === "한국사";
+        const isEnglishOrKoreanHistoryForPercentile = isGradeOnlyGroup(percentileGroup?.name ?? "");
         if (!isEnglishOrKoreanHistoryForPercentile) {
           if (!value || value === "") {
             return "백분위를 입력해주세요.";
@@ -180,6 +192,14 @@ export function MockScoreFormModal({
           const percentileNum = Number(value);
           if (isNaN(percentileNum) || percentileNum < 0 || percentileNum > 100) {
             return "백분위는 0~100 사이의 숫자여야 합니다.";
+          }
+        }
+        break;
+      case "raw_score":
+        if (value && value !== "") {
+          const rawNum = Number(value);
+          if (isNaN(rawNum) || rawNum < 0 || rawNum > 300) {
+            return "원점수는 0~300 사이의 숫자여야 합니다.";
           }
         }
         break;
@@ -198,15 +218,14 @@ export function MockScoreFormModal({
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
 
-    // 교과 선택 시 과목 초기화
+    // 교과 선택 시 과목 자동 선택 (첫 번째 과목)
     if (name === "subject_group_id") {
       const group = subjectGroups.find((g) => g.id === value);
-      const needsSubject = group && ["사회", "과학"].includes(group.name);
       const firstSubject = group?.subjects[0];
       setFormData((prev) => ({
         ...prev,
         subject_group_id: value,
-        subject_id: needsSubject ? (firstSubject?.id || "") : "",
+        subject_id: firstSubject?.id || "",
       }));
     }
 
@@ -222,7 +241,7 @@ export function MockScoreFormModal({
     setErrors({});
 
     const group = subjectGroups.find((g) => g.id === formData.subject_group_id);
-    const isEnglishOrKoreanHistory = group?.name === "영어" || group?.name === "한국사";
+    const isEnglishOrKoreanHistory = isGradeOnlyGroup(group?.name ?? "");
 
     const formErrors: FormErrors = {};
 
@@ -244,7 +263,7 @@ export function MockScoreFormModal({
     });
 
     // 사회/과학일 때만 과목 필수
-    const needsSubject = group && ["사회", "과학"].includes(group.name);
+    const needsSubject = group && needsSubjectSelection(group.name);
     if (needsSubject) {
       const subjectError = validateField("subject_id", formData.subject_id);
       if (subjectError) {
@@ -272,35 +291,51 @@ export function MockScoreFormModal({
       return;
     }
 
+    // 중복 점수 체크 (신규 등록 시만)
+    if (!editingScore && existingScores) {
+      const targetSubjectId = formData.subject_id
+        || subjectGroups.find((g) => g.id === formData.subject_group_id)?.subjects[0]?.id
+        || "";
+      const duplicate = existingScores.find((s) =>
+        s.subject_id === targetSubjectId &&
+        s.exam_title.includes(formData.examType) &&
+        s.exam_date?.includes(`-${formData.examRound.padStart(2, "0")}-`)
+      );
+      if (duplicate) {
+        setError(`이 시험의 동일 과목 성적이 이미 등록되어 있습니다. 기존 성적을 수정해주세요.`);
+        return;
+      }
+    }
+
     startTransition(async () => {
       try {
         const group = subjectGroups.find((g) => g.id === formData.subject_group_id);
-        const needsSubject = group && ["사회", "과학"].includes(group.name);
-        const subject = needsSubject && formData.subject_id
+        const subject = formData.subject_id
           ? group?.subjects.find((s) => s.id === formData.subject_id)
-          : null;
+          : group?.subjects[0] ?? null;
 
-        if (!group || (needsSubject && !subject)) {
+        if (!group || !subject) {
           throw new Error("교과 또는 과목을 찾을 수 없습니다.");
         }
+
+        // exam_date/exam_title 구성
+        const currentYear = new Date().getFullYear();
+        const examMonth = formData.examRound.padStart(2, "0");
+        const constructedExamDate = `${currentYear}-${examMonth}-01`;
+        const constructedExamTitle = `${formData.examRound}월 ${formData.examType} 모의고사`;
 
         const submitFormData = new FormData();
         submitFormData.append("grade", formData.grade);
         submitFormData.append("exam_type", formData.examType);
         submitFormData.append("exam_round", formData.examRound);
+        submitFormData.append("exam_date", constructedExamDate);
+        submitFormData.append("exam_title", constructedExamTitle);
         submitFormData.append("subject_group_id", group.id);
-        if (needsSubject && subject) {
-          submitFormData.append("subject_id", subject.id);
-          submitFormData.append("subject_name", subject.name);
-        } else {
-          // 국어/수학/영어는 subject_id를 빈 문자열로 저장
-          submitFormData.append("subject_id", "");
-          submitFormData.append("subject_name", "");
-        }
-        // 하위 호환성을 위해 텍스트 필드도 함께 전달
-        submitFormData.append("subject_group", group.name);
+        submitFormData.append("subject_id", subject.id);
         if (formData.standard_score) submitFormData.append("standard_score", formData.standard_score);
         if (formData.percentile) submitFormData.append("percentile", formData.percentile);
+        if (formData.raw_score) submitFormData.append("raw_score", formData.raw_score);
+        if (formData.math_variant) submitFormData.append("math_variant", formData.math_variant);
         submitFormData.append("grade_score", formData.grade_score);
         // 모달에서 사용할 때는 redirect 방지
         submitFormData.append("skipRedirect", "true");
@@ -330,14 +365,11 @@ export function MockScoreFormModal({
     return group?.subjects || [];
   };
 
-  const shouldShowSubjectSelect = (groupName: string | null): boolean => {
-    if (!groupName) return false;
-    return ["사회", "과학"].includes(groupName);
-  };
-
   const group = subjectGroups.find((g) => g.id === formData.subject_group_id);
-  const isEnglishOrKoreanHistory = group?.name === "영어" || group?.name === "한국사";
-  const needsSubject = shouldShowSubjectSelect(group?.name || null);
+  const groupName = group?.name ?? "";
+  const isEnglishOrKoreanHistory = isGradeOnlyGroup(groupName);
+  const isMath = isMathGroup(groupName);
+  const needsSubject = needsSubjectSelection(groupName);
 
   return (
     <Dialog
@@ -406,7 +438,7 @@ export function MockScoreFormModal({
               }`}
             >
               <option value="">선택하세요</option>
-              {examTypes.map((type) => (
+              {MOCK_EXAM_TYPES.map((type) => (
                 <option key={type} value={type}>
                   {type}
                 </option>
@@ -438,7 +470,7 @@ export function MockScoreFormModal({
               }`}
             >
               <option value="">선택하세요</option>
-              {months.map((month) => (
+              {MOCK_EXAM_MONTHS.map((month) => (
                 <option key={month} value={month}>
                   {month}월
                 </option>
@@ -596,6 +628,56 @@ export function MockScoreFormModal({
             )}
             <p className="text-xs text-gray-500">1등급이 가장 높고, 9등급이 가장 낮습니다.</p>
           </div>
+
+          {/* 원점수 */}
+          <div className="flex flex-col gap-2">
+            <label htmlFor="raw_score" className="block text-sm font-medium text-gray-700">
+              원점수
+              <span className="text-xs text-gray-500 font-normal ml-1">(선택)</span>
+            </label>
+            <input
+              type="number"
+              id="raw_score"
+              name="raw_score"
+              step="0.1"
+              min="0"
+              max="300"
+              value={formData.raw_score}
+              onBlur={handleBlur}
+              onChange={handleChange}
+              placeholder="85"
+              className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 ${
+                errors.raw_score
+                  ? "border-red-300 focus:border-red-500 focus:ring-red-500"
+                  : "border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+              }`}
+            />
+            {errors.raw_score && touched.raw_score && (
+              <p className="text-xs text-red-600">{errors.raw_score}</p>
+            )}
+          </div>
+
+          {/* 수학 선택과목 */}
+          {isMath && (
+            <div className="flex flex-col gap-2">
+              <label htmlFor="math_variant" className="block text-sm font-medium text-gray-700">
+                수학 선택과목
+              </label>
+              <select
+                id="math_variant"
+                name="math_variant"
+                value={formData.math_variant}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500"
+              >
+                <option value="">선택하세요</option>
+                {MATH_VARIANTS.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500">정시 환산 시 수학 선택과목 구분에 사용됩니다.</p>
+            </div>
+          )}
         </div>
 
         <DialogFooter>

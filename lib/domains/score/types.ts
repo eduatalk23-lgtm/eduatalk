@@ -196,6 +196,7 @@ export type CreateMockScoreInput = {
   standard_score?: number | null;
   percentile?: number | null;
   grade_score?: number | null;
+  math_variant?: string | null; // 수학 선택과목 (미적분/기하/확률과통계)
   semester?: number; // 학기 (선택사항, 없으면 exam_date 기준으로 추정)
 };
 
@@ -224,6 +225,6 @@ export type ScoreActionResult = {
 // ============================================
 
 /**
- * 모의고사 유형
+ * 모의고사 유형 (mock-exam.ts 상수에서 파생)
  */
-export type MockExamType = "수능" | "평가원" | "교육청" | "사설";
+export type { MockExamType } from "@/lib/constants/mock-exam";

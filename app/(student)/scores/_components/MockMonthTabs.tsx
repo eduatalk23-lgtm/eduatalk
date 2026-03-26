@@ -1,19 +1,8 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useCallback, useRef, useEffect } from "react";
-
-const months = [
-  { value: "3", label: "3월" },
-  { value: "4", label: "4월" },
-  { value: "5", label: "5월" },
-  { value: "6", label: "6월" },
-  { value: "7", label: "7월" },
-  { value: "8", label: "8월" },
-  { value: "9", label: "9월" },
-  { value: "10", label: "10월" },
-  { value: "11", label: "11월" },
-];
+import { MOCK_EXAM_MONTH_OPTIONS } from "@/lib/constants/mock-exam";
 
 type MockMonthTabsProps = {
   basePath: string; // 예: "/scores/mock/1"
@@ -62,7 +51,7 @@ export function MockMonthTabs({
 
   return (
     <div className="flex gap-2 border-b border-gray-200 overflow-x-auto">
-      {months.map((month) => {
+      {MOCK_EXAM_MONTH_OPTIONS.map((month) => {
         const active = currentMonth === month.value;
         return (
           <button

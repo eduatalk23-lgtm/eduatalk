@@ -8,6 +8,7 @@ import { createMockScoresBatch } from "@/lib/domains/score/actions";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useBeforeUnload } from "@/lib/hooks/useBeforeUnload";
 import { cn } from "@/lib/cn";
+import { isGradeOnlyGroup, isMathGroup, MATH_VARIANTS } from "@/lib/constants/mock-exam";
 
 type MockScoreInputProps = {
   studentId: string;
@@ -73,6 +74,7 @@ export default function MockScoreInput({
       standard_score: null,
       percentile: null,
       raw_score: null,
+      math_variant: null,
     };
     setScores([...scores, newRow]);
     setError(null);
@@ -171,12 +173,19 @@ export default function MockScoreInput({
     };
   }, []);
 
-  // 교과군 변경 시 과목 초기화
+  // 교과군 변경 시 과목 초기화 + 영어/한국사는 표준점수·백분위 클리어
   const handleSubjectGroupChange = (id: string, subjectGroupId: string) => {
+    const groupName = subjectGroups.find((g) => g.id === subjectGroupId)?.name ?? "";
     setScores(
       scores.map((row) =>
         row.id === id
-          ? { ...row, subject_group_id: subjectGroupId, subject_id: "" }
+          ? {
+              ...row,
+              subject_group_id: subjectGroupId,
+              subject_id: "",
+              ...(isGradeOnlyGroup(groupName) ? { standard_score: null, percentile: null } : {}),
+              ...(!isMathGroup(groupName) ? { math_variant: null } : {}),
+            }
           : row
       )
     );
@@ -377,11 +386,17 @@ export default function MockScoreInput({
                     <th className="px-3 py-3 text-left font-medium text-gray-700">
                       원점수
                     </th>
+                    <th className="px-3 py-3 text-left font-medium text-gray-700">
+                      수학선택
+                    </th>
                     <th className="px-3 py-3"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {scores.map((row) => (
+                  {scores.map((row) => {
+                    const rowGroupName = subjectGroups.find((g) => g.id === row.subject_group_id)?.name ?? "";
+                    const isEngOrHistory = isGradeOnlyGroup(rowGroupName);
+                    return (
                     <tr key={row.id} className="border-b border-gray-100">
                       <td className="px-3 py-3">
                         <select
@@ -438,7 +453,7 @@ export default function MockScoreInput({
                       <td className="px-3 py-3">
                         <input
                           type="number"
-                          value={row.standard_score ?? ""}
+                          value={isEngOrHistory ? "" : (row.standard_score ?? "")}
                           onChange={(e) =>
                             updateScoreField(
                               row.id,
@@ -446,15 +461,16 @@ export default function MockScoreInput({
                               e.target.value ? Number(e.target.value) : null
                             )
                           }
+                          disabled={isEngOrHistory}
                           step="1"
-                          placeholder="130"
-                          className="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          placeholder={isEngOrHistory ? "-" : "130"}
+                          className="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400"
                         />
                       </td>
                       <td className="px-3 py-3">
                         <input
                           type="number"
-                          value={row.percentile ?? ""}
+                          value={isEngOrHistory ? "" : (row.percentile ?? "")}
                           onChange={(e) =>
                             updateScoreField(
                               row.id,
@@ -462,11 +478,12 @@ export default function MockScoreInput({
                               e.target.value ? Number(e.target.value) : null
                             )
                           }
+                          disabled={isEngOrHistory}
                           step="0.1"
                           min="0"
                           max="100"
-                          placeholder="95.5"
-                          className="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          placeholder={isEngOrHistory ? "-" : "95.5"}
+                          className="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400"
                         />
                       </td>
                       <td className="px-3 py-3">
@@ -481,9 +498,33 @@ export default function MockScoreInput({
                             )
                           }
                           step="0.1"
-                          placeholder="85.5"
+                          min="0"
+                          max="300"
+                          placeholder="85"
                           className="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                         />
+                      </td>
+                      <td className="px-3 py-3">
+                        {isMathGroup(rowGroupName) ? (
+                          <select
+                            value={row.math_variant ?? ""}
+                            onChange={(e) =>
+                              updateScoreField(
+                                row.id,
+                                "math_variant",
+                                e.target.value || null
+                              )
+                            }
+                            className="w-24 rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          >
+                            <option value="">선택</option>
+                            {MATH_VARIANTS.map((v) => (
+                              <option key={v} value={v}>{v}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="text-xs text-gray-400">-</span>
+                        )}
                       </td>
                       <td className="px-3 py-3">
                         <button
@@ -495,7 +536,8 @@ export default function MockScoreInput({
                         </button>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

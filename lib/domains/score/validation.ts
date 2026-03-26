@@ -3,6 +3,7 @@
  */
 
 import { z } from "zod";
+import { MOCK_EXAM_TYPES } from "@/lib/constants/mock-exam";
 
 // ============================================
 // 기본 필드 스키마
@@ -39,7 +40,7 @@ export const percentileSchema = z
   .optional()
   .nullable();
 
-export const examTypeSchema = z.enum(["수능", "평가원", "교육청", "사설"]);
+export const examTypeSchema = z.enum(["수능", ...MOCK_EXAM_TYPES]);
 
 // ============================================
 // 내신 성적 스키마
@@ -107,10 +108,6 @@ const mockScoreBaseSchema = z.object({
   // FK 필드
   subject_group_id: z.string().uuid().optional().nullable(),
   subject_id: z.string().uuid().optional().nullable(),
-  subject_type_id: z.string().uuid().optional().nullable(),
-  // 텍스트 필드 (deprecated but still validated)
-  subject_group: z.string().min(1, "교과를 선택해주세요").optional().nullable(),
-  subject_name: z.string().optional().nullable(),
   raw_score: rawScoreSchema,
   standard_score: z.number().optional().nullable(),
   percentile: percentileSchema,

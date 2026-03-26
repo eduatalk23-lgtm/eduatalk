@@ -73,6 +73,7 @@ export type MockScoreInputForm = {
   standard_score?: number | null; // 표준점수
   percentile?: number | null; // 백분위
   raw_score?: number | null; // 원점수
+  math_variant?: string | null; // 수학 선택과목 (미적분/기하/확률과통계)
 };
 
 /**

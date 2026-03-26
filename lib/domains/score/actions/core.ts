@@ -583,7 +583,7 @@ async function _createMockScoresBatch(formData: FormData) {
   // FormData에서 값 추출
   const student_id = formData.get("student_id") as string;
   const tenant_id = formData.get("tenant_id") as string;
-  const curriculum_revision_id = formData.get("curriculum_revision_id") as string;
+  let curriculum_revision_id = formData.get("curriculum_revision_id") as string;
 
   // scores 배열 파싱 (JSON 문자열)
   const scoresJson = formData.get("scores") as string;
@@ -601,11 +601,22 @@ async function _createMockScoresBatch(formData: FormData) {
     standard_score?: number | null;
     percentile?: number | null;
     raw_score?: number | null;
+    math_variant?: string | null;
   }> = JSON.parse(scoresJson);
 
   // 필수 필드 검증
-  if (!student_id || !tenant_id || !curriculum_revision_id) {
+  if (!student_id || !tenant_id) {
     throw new AppError("필수 필드가 누락되었습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+  }
+
+  // curriculum_revision_id가 없으면 활성 교육과정에서 자동 조회
+  if (!curriculum_revision_id) {
+    const { getActiveCurriculumRevision } = await import("@/lib/data/subjects");
+    const activeCurriculum = await getActiveCurriculumRevision();
+    if (!activeCurriculum) {
+      throw new AppError("활성 교육과정을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+    }
+    curriculum_revision_id = activeCurriculum.id;
   }
 
   // lib/data/studentScores.ts의 createMockScoresBatch 사용
@@ -701,6 +712,7 @@ export async function createMockScoreAction(
     standard_score: getFormInt(formData, "standard_score"),
     percentile: getFormInt(formData, "percentile"),
     grade_score: getFormInt(formData, "grade_score"),
+    math_variant: getFormString(formData, "math_variant") || undefined,
     semester: getFormInt(formData, "semester") ?? undefined,
   };
 
@@ -746,6 +758,7 @@ export async function updateMockScoreAction(
     standard_score: getFormInt(formData, "standard_score") ?? undefined,
     percentile: getFormInt(formData, "percentile") ?? undefined,
     grade_score: getFormInt(formData, "grade_score") ?? undefined,
+    math_variant: getFormString(formData, "math_variant") || undefined,
     exam_round: getFormString(formData, "exam_round") ?? undefined,
   };
 

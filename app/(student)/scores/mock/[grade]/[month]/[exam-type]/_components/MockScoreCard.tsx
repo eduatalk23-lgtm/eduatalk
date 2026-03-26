@@ -82,6 +82,14 @@ function MockScoreCardComponent({
           </div>
         </>
       )}
+      {score.raw_score !== null && (
+        <div className="flex flex-col gap-1">
+          <span className={cn("text-xs font-medium", textTertiaryVar)}>원점수</span>
+          <span className={cn("text-base font-semibold", textPrimaryVar)}>
+            {score.raw_score}
+          </span>
+        </div>
+      )}
     </>
   );
 
@@ -151,6 +159,22 @@ function MockScoreCardComponent({
               <span className={cn("text-xs", textTertiaryVar)}>백분위</span>
               <p className={cn("text-sm font-medium", textPrimaryVar)}>
                 {score.percentile}%
+              </p>
+            </div>
+          )}
+          {score.raw_score !== null && (
+            <div className="flex flex-col gap-1">
+              <span className={cn("text-xs", textTertiaryVar)}>원점수</span>
+              <p className={cn("text-sm font-medium", textPrimaryVar)}>
+                {score.raw_score}
+              </p>
+            </div>
+          )}
+          {score.math_variant && (
+            <div className="flex flex-col gap-1">
+              <span className={cn("text-xs", textTertiaryVar)}>수학 선택과목</span>
+              <p className={cn("text-sm font-medium", textPrimaryVar)}>
+                {score.math_variant}
               </p>
             </div>
           )}

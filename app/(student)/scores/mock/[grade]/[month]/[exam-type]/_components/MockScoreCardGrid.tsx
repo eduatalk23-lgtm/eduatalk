@@ -25,9 +25,6 @@ type MockScoreCardGridProps = {
 type SortField = "grade" | "examType" | "month" | "grade_score" | "standard_score" | "percentile" | "subject_name";
 type SortOrder = "asc" | "desc";
 
-const examTypes = ["평가원", "교육청", "사설"];
-const months = ["3", "4", "5", "6", "7", "8", "9", "10", "11"];
-
 export function MockScoreCardGrid({
   initialGrade,
   initialExamType,

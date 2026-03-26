@@ -96,6 +96,7 @@ export function MockScoresView({
         subjectGroups={subjectGroups}
         subjectTypes={subjectTypes}
         editingScore={editingScore}
+        existingScores={scores}
         onSuccess={handleModalSuccess}
       />
 

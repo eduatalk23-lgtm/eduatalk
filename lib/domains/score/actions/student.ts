@@ -22,6 +22,7 @@ import { getSubjectGroupById, getActiveCurriculumRevision } from "@/lib/data/sub
 import type { MockScore } from "@/lib/domains/score/types";
 import { AppError, ErrorCode } from "@/lib/errors";
 import { withActionResponse } from "@/lib/utils/serverActionHandler";
+import { isGradeOnlyGroup, needsSubjectSelection, isMathGroup } from "@/lib/constants/mock-exam";
 
 /**
  * 모의고사 성적 등록 (FormData 기반)
@@ -46,36 +47,31 @@ async function _addMockScore(formData: FormData): Promise<void> {
   const grade = Number(formData.get("grade"));
   const subjectGroupId = String(formData.get("subject_group_id") ?? "").trim();
   const subjectId = String(formData.get("subject_id") ?? "").trim();
-  const subjectGroup = String(formData.get("subject_group") ?? "").trim();
-  const subjectName = String(formData.get("subject_name") ?? "").trim();
   const examType = String(formData.get("exam_type") ?? "").trim();
   const standardScoreInput = String(
     formData.get("standard_score") ?? ""
   ).trim();
   const percentileInput = String(formData.get("percentile") ?? "").trim();
   const gradeScoreInput = String(formData.get("grade_score") ?? "").trim();
+  const rawScoreInput = String(formData.get("raw_score") ?? "").trim();
+  const mathVariantInput = String(formData.get("math_variant") ?? "").trim();
   const examRound = String(formData.get("exam_round") ?? "").trim();
 
-  let actualSubjectGroup = subjectGroup;
+  let actualSubjectGroup = "";
   if (subjectGroupId) {
     const group = await getSubjectGroupById(subjectGroupId);
     if (group) {
       actualSubjectGroup = group.name;
     }
   }
-  const isEnglishOrKoreanHistory =
-    actualSubjectGroup === "영어" || actualSubjectGroup === "한국사";
-
-  const needsSubject =
-    actualSubjectGroup === "사회" || actualSubjectGroup === "과학";
 
   if (!grade || !examType || !gradeScoreInput) {
     throw new AppError("필수 필드를 모두 입력해주세요.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
-  if (!subjectGroupId && !subjectGroup) {
+  if (!subjectGroupId) {
     throw new AppError("교과를 선택해주세요.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
-  if (needsSubject && !subjectId && !subjectName) {
+  if (needsSubjectSelection(actualSubjectGroup) && !subjectId) {
     throw new AppError("과목을 선택해주세요.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
 
@@ -88,7 +84,7 @@ async function _addMockScore(formData: FormData): Promise<void> {
     throw new AppError("등급은 1~9 사이의 숫자여야 합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
 
-  if (!isEnglishOrKoreanHistory) {
+  if (!isGradeOnlyGroup(actualSubjectGroup)) {
     if (!standardScoreInput || !percentileInput) {
       throw new AppError("표준점수와 백분위를 모두 입력해주세요.", ErrorCode.VALIDATION_ERROR, 400, true);
     }
@@ -106,6 +102,13 @@ async function _addMockScore(formData: FormData): Promise<void> {
   ) {
     throw new AppError("백분위는 0~100 사이의 숫자여야 합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
+
+  const rawScore = rawScoreInput ? Number(rawScoreInput) : null;
+  if (rawScore !== null && (!Number.isFinite(rawScore) || rawScore < 0 || rawScore > 300)) {
+    throw new AppError("원점수는 0~300 사이의 숫자여야 합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+  }
+
+  const mathVariant = (isMathGroup(actualSubjectGroup) && mathVariantInput) ? mathVariantInput : null;
 
   if (!subjectGroupId || !subjectId) {
     throw new AppError("교과와 과목을 모두 선택해주세요.", ErrorCode.VALIDATION_ERROR, 400, true);
@@ -133,10 +136,11 @@ async function _addMockScore(formData: FormData): Promise<void> {
     subject_group_id: subjectGroupId,
     subject_id: subjectId,
     curriculum_revision_id: curriculumRevision.id,
-    raw_score: null,
+    raw_score: rawScore,
     standard_score: standardScore,
     percentile: percentile,
     grade_score: gradeScore,
+    ...(mathVariant ? { math_variant: mathVariant } : {}),
   });
 
   if (!result.success) {
@@ -157,8 +161,7 @@ async function _addMockScore(formData: FormData): Promise<void> {
       score_type: "mock",
       grade,
       exam_type: examType,
-      subject_group: subjectGroup,
-      subject_name: subjectName,
+      subject_group: actualSubjectGroup,
       grade_score: gradeScore,
     },
     tenantContext.tenantId
@@ -201,36 +204,31 @@ async function _updateMockScoreFormAction(
   const grade = Number(formData.get("grade"));
   const subjectGroupId = String(formData.get("subject_group_id") ?? "").trim();
   const subjectId = String(formData.get("subject_id") ?? "").trim();
-  const subjectGroup = String(formData.get("subject_group") ?? "").trim();
-  const subjectName = String(formData.get("subject_name") ?? "").trim();
   const examType = String(formData.get("exam_type") ?? "").trim();
   const standardScoreInput = String(
     formData.get("standard_score") ?? ""
   ).trim();
   const percentileInput = String(formData.get("percentile") ?? "").trim();
   const gradeScoreInput = String(formData.get("grade_score") ?? "").trim();
+  const rawScoreInput = String(formData.get("raw_score") ?? "").trim();
+  const mathVariantInput = String(formData.get("math_variant") ?? "").trim();
   const examRound = String(formData.get("exam_round") ?? "").trim();
 
-  let actualSubjectGroup = subjectGroup;
+  let actualSubjectGroup = "";
   if (subjectGroupId) {
     const group = await getSubjectGroupById(subjectGroupId);
     if (group) {
       actualSubjectGroup = group.name;
     }
   }
-  const isEnglishOrKoreanHistory =
-    actualSubjectGroup === "영어" || actualSubjectGroup === "한국사";
-
-  const needsSubject =
-    actualSubjectGroup === "사회" || actualSubjectGroup === "과학";
 
   if (!grade || !examType || !gradeScoreInput) {
     throw new AppError("필수 필드를 모두 입력해주세요.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
-  if (!subjectGroupId && !subjectGroup) {
+  if (!subjectGroupId) {
     throw new AppError("교과를 선택해주세요.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
-  if (needsSubject && !subjectId && !subjectName) {
+  if (needsSubjectSelection(actualSubjectGroup) && !subjectId) {
     throw new AppError("과목을 선택해주세요.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
 
@@ -239,7 +237,7 @@ async function _updateMockScoreFormAction(
     throw new AppError("등급은 1~9 사이의 숫자여야 합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
 
-  if (!isEnglishOrKoreanHistory) {
+  if (!isGradeOnlyGroup(actualSubjectGroup)) {
     if (!standardScoreInput || !percentileInput) {
       throw new AppError("표준점수와 백분위를 모두 입력해주세요.", ErrorCode.VALIDATION_ERROR, 400, true);
     }
@@ -247,6 +245,8 @@ async function _updateMockScoreFormAction(
 
   const standardScore = standardScoreInput ? Number(standardScoreInput) : null;
   const percentile = percentileInput ? Number(percentileInput) : null;
+  const rawScore = rawScoreInput ? Number(rawScoreInput) : null;
+  const mathVariant = (isMathGroup(actualSubjectGroup) && mathVariantInput) ? mathVariantInput : null;
 
   const examDate = String(formData.get("exam_date") ?? "").trim();
   const examTitle = String(formData.get("exam_title") ?? "").trim() || examType;
@@ -269,16 +269,11 @@ async function _updateMockScoreFormAction(
     updates.subject_id = subjectId;
   }
 
-  updates.raw_score = null;
-  if (standardScore !== null) {
-    updates.standard_score = standardScore;
-  }
-  if (percentile !== null) {
-    updates.percentile = percentile;
-  }
-  if (gradeScore !== null) {
-    updates.grade_score = gradeScore;
-  }
+  updates.raw_score = rawScore;
+  updates.standard_score = standardScore;
+  updates.percentile = percentile;
+  updates.grade_score = gradeScore;
+  updates.math_variant = mathVariant;
 
   const result = await updateMockScoreData(id, user.userId, user.tenantId || "", updates);
 

@@ -9429,7 +9429,6 @@ export type Database = {
           grade_score: number | null
           id: string
           math_variant: string | null
-          notes: string | null
           percentile: number | null
           raw_score: number | null
           standard_score: number | null
@@ -9448,7 +9447,6 @@ export type Database = {
           grade_score?: number | null
           id?: string
           math_variant?: string | null
-          notes?: string | null
           percentile?: number | null
           raw_score?: number | null
           standard_score?: number | null
@@ -9467,7 +9465,6 @@ export type Database = {
           grade_score?: number | null
           id?: string
           math_variant?: string | null
-          notes?: string | null
           percentile?: number | null
           raw_score?: number | null
           standard_score?: number | null

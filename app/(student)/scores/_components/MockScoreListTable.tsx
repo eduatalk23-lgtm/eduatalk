@@ -33,6 +33,7 @@ type MockScoreRow = {
   grade_score: number | null;
   exam_round: string | null;
   created_at: string | null;
+  math_variant?: string | null;
 };
 
 type MockScoreListTableProps = {
@@ -237,6 +238,9 @@ function MockScoreListTableComponent({
                   </button>
                 </th>
                 <th className={cn(tableHeaderBase, "px-4")}>
+                  수학선택
+                </th>
+                <th className={cn(tableHeaderBase, "px-4")}>
                   작업
                 </th>
               </tr>
@@ -269,6 +273,9 @@ function MockScoreListTableComponent({
                       ) : (
                         <span className={textMuted}>-</span>
                       )}
+                    </td>
+                    <td className={`px-4 py-3 text-xs ${textSecondary}`}>
+                      {score.math_variant ?? "-"}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <div className="flex items-center gap-2">
@@ -319,7 +326,7 @@ function MockScoreListTableComponent({
                   )}
                 </div>
 
-                <div className={cn("grid grid-cols-2 gap-3 border-t pt-3", borderDefault)}>
+                <div className={cn("grid grid-cols-3 gap-3 border-t pt-3", borderDefault)}>
                   <div>
                     <p className={cn("text-xs", textMuted)}>원점수</p>
                     <p className={cn("text-sm font-medium", textPrimary)}>
@@ -332,6 +339,14 @@ function MockScoreListTableComponent({
                       {score.percentile !== null ? `${score.percentile}%` : "-"}
                     </p>
                   </div>
+                  {score.math_variant && (
+                    <div>
+                      <p className={cn("text-xs", textMuted)}>수학선택</p>
+                      <p className={cn("text-sm font-medium", textPrimary)}>
+                        {score.math_variant}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className={cn("flex gap-2 border-t pt-3", borderDefault)}>

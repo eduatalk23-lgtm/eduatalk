@@ -7,6 +7,7 @@ import { getMockScores } from "@/lib/data/studentScores";
 import { getSubjectHierarchyOptimized, getActiveCurriculumRevision } from "@/lib/data/subjects";
 import { MockScoresView } from "./_components/MockScoresView";
 import { getContainerClass } from "@/lib/constants/layout";
+import { MOCK_EXAM_MONTHS, MOCK_EXAM_TYPES } from "@/lib/constants/mock-exam";
 
 type PageProps = {
   params: Promise<{
@@ -18,8 +19,6 @@ type PageProps = {
 };
 
 const validGrades = ["1", "2", "3"];
-const validMonths = ["3", "4", "5", "6", "7", "8", "9", "10", "11"];
-const validExamTypes = ["평가원", "교육청", "사설"];
 
 export default async function MockScoresPage({
   params,
@@ -36,8 +35,8 @@ export default async function MockScoresPage({
   // 유효성 검증
   if (
     !validGrades.includes(grade) ||
-    !validMonths.includes(month) ||
-    !validExamTypes.includes(examType)
+    !(MOCK_EXAM_MONTHS as readonly string[]).includes(month) ||
+    !(MOCK_EXAM_TYPES as readonly string[]).includes(examType)
   ) {
     redirect("/scores/mock/1/3/평가원");
   }

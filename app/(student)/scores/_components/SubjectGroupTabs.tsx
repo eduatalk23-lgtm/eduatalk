@@ -1,9 +1,7 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
-
-const schoolSubjects = ["국어", "수학", "영어", "사회", "과학"];
-const mockSubjects = ["국어", "수학", "영어", "탐구"];
+import { useRouter } from "next/navigation";
+import { SCHOOL_SUBJECT_GROUPS, MOCK_SUBJECT_GROUPS } from "@/lib/constants/mock-exam";
 
 type SubjectGroupTabsProps = {
   type: "school" | "mock";
@@ -19,7 +17,7 @@ export function SubjectGroupTabs({
   additionalParams = [],
 }: SubjectGroupTabsProps) {
   const router = useRouter();
-  const subjects = type === "school" ? schoolSubjects : mockSubjects;
+  const subjects = type === "school" ? SCHOOL_SUBJECT_GROUPS : MOCK_SUBJECT_GROUPS;
 
   const buildHref = (subject: string) => {
     const encodedSubject = encodeURIComponent(subject);

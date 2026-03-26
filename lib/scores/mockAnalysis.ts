@@ -12,6 +12,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { extractJoinResult } from "@/lib/supabase/queryHelpers";
 import { logActionDebug, logActionWarn, logActionError } from "@/lib/utils/serverActionLogger";
+import { SCHOOL_SUBJECT_GROUPS, SUBJECT_SELECTION_GROUPS } from "@/lib/constants/mock-exam";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -50,11 +51,21 @@ type MockScoreWithRelations = {
 /**
  * 모의고사 분석 결과 타입
  */
+export type MockExamSnapshot = {
+  examDate: string;
+  examTitle: string;
+  avgPercentile: number | null;
+  totalStdScore: number | null;
+  best3GradeSum: number | null;
+};
+
 export type MockAnalysis = {
   recentExam: { examDate: string; examTitle: string } | null;
   avgPercentile: number | null; // 국/수/탐(상위2) 평균 백분위
   totalStdScore: number | null; // 국/수/탐(상위2) 표준점수 합
   best3GradeSum: number | null; // 국·수·영·탐 중 상위 3개 등급 합
+  /** 최근 N회 시험 추이 (최신순) */
+  trend: MockExamSnapshot[];
 };
 
 /**
@@ -67,7 +78,7 @@ export type MockAnalysis = {
 function calculateMockStats(
   rows: MockRow[],
   subjectGroupMap: Map<string, string> = new Map()
-): Omit<MockAnalysis, "recentExam"> {
+): Omit<MockAnalysis, "recentExam" | "trend"> {
   // subject_groups 테이블에서 특정 교과군 찾기
   // 기본적으로 "국어", "수학", "사회", "과학", "영어" 교과군을 찾지만,
   // subjectGroupMap을 통해 동적으로 매핑 가능
@@ -82,7 +93,6 @@ function calculateMockStats(
     return foundNames.length > 0 ? foundNames : targetNames;
   };
 
-  // 국어, 수학 교과군 찾기
   const koreanMathNames = findSubjectGroup(["국어", "수학"]);
   const koreanName = koreanMathNames.find((n) => n === "국어") || koreanMathNames[0];
   const mathName = koreanMathNames.find((n) => n === "수학") || koreanMathNames[1];
@@ -94,8 +104,7 @@ function calculateMockStats(
   const math = mathName ? getOne(mathName) : null;
 
   // 탐구(사/과) 중 상위 2과목 백분위 평균
-  // "사회", "과학" 교과군 찾기
-  const inquiryNames = findSubjectGroup(["사회", "과학"]);
+  const inquiryNames = findSubjectGroup([...SUBJECT_SELECTION_GROUPS]);
   const inquiryRows = rows
     .filter(
       (r) =>
@@ -125,8 +134,7 @@ function calculateMockStats(
     inquiryRows.reduce((s, r) => s + (r.standard_score ?? 0), 0);
 
   // 국·수·영·탐 중 상위 3개 등급 합
-  // "국어", "수학", "영어", "사회", "과학" 교과군 찾기
-  const gradeSubjectNames = findSubjectGroup(["국어", "수학", "영어", "사회", "과학"]);
+  const gradeSubjectNames = findSubjectGroup([...SCHOOL_SUBJECT_GROUPS]);
   const gradeCandidates = rows.filter(
     (r) =>
       gradeSubjectNames.includes(r.subject_group_name) &&
@@ -182,6 +190,7 @@ export async function getMockAnalysis(
       avgPercentile: null,
       totalStdScore: null,
       best3GradeSum: null,
+      trend: [],
     };
   }
 
@@ -229,6 +238,7 @@ export async function getMockAnalysis(
       avgPercentile: null,
       totalStdScore: null,
       best3GradeSum: null,
+      trend: [],
     };
   }
 
@@ -242,6 +252,7 @@ export async function getMockAnalysis(
       avgPercentile: null,
       totalStdScore: null,
       best3GradeSum: null,
+      trend: [],
     };
   }
 
@@ -305,11 +316,76 @@ export async function getMockAnalysis(
 
   logActionDebug("mockAnalysis.getMockAnalysis", `계산된 통계: ${JSON.stringify(stats)}`);
 
+  // 최근 5회 시험 추이 수집 (최신 시험 포함)
+  const trend: MockExamSnapshot[] = [{
+    examDate,
+    examTitle,
+    ...stats,
+  }];
+
+  // 과거 시험 조회 (최신 제외, 최대 4건 추가)
+  const { data: pastExams } = await supabase
+    .from("student_mock_scores")
+    .select("exam_date, exam_title")
+    .eq("tenant_id", tenantId)
+    .eq("student_id", studentId)
+    .not("exam_date", "is", null)
+    .lt("exam_date", examDate)
+    .order("exam_date", { ascending: false })
+    .limit(4);
+
+  if (pastExams && pastExams.length > 0) {
+    // 중복 시험 제거 (exam_date + exam_title 기준)
+    const seen = new Set([`${examDate}|${examTitle}`]);
+    const uniqueExams = pastExams.filter((e) => {
+      const key = `${e.exam_date}|${e.exam_title}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    for (const past of uniqueExams) {
+      const { data: pastScores } = await supabase
+        .from("student_mock_scores")
+        .select(`
+          percentile, standard_score, grade_score, subject_id,
+          subject:subjects ( id, name, subject_group_id, subject_group:subject_groups ( id, name ) )
+        `)
+        .eq("tenant_id", tenantId)
+        .eq("student_id", studentId)
+        .eq("exam_date", past.exam_date)
+        .eq("exam_title", past.exam_title)
+        .not("subject_id", "is", null);
+
+      if (pastScores && pastScores.length > 0) {
+        const pastRows: MockRow[] = (pastScores as unknown as MockScoreQueryResult[])
+          .map((score) => {
+            const subj = extractJoinResult(score.subject);
+            return {
+              subject_group_name: subj?.subject_group?.name || "",
+              percentile: score.percentile != null ? Number(score.percentile) : null,
+              standard_score: score.standard_score != null ? Number(score.standard_score) : null,
+              grade_score: score.grade_score != null ? Number(score.grade_score) : null,
+            };
+          })
+          .filter((r) => r.subject_group_name !== "");
+
+        const pastStats = calculateMockStats(pastRows, subjectGroupMap);
+        trend.push({
+          examDate: past.exam_date,
+          examTitle: past.exam_title ?? "",
+          ...pastStats,
+        });
+      }
+    }
+  }
+
   return {
     recentExam: {
       examDate,
       examTitle,
     },
     ...stats,
+    trend,
   };
 }

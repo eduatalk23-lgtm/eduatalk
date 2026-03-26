@@ -1,13 +1,8 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useCallback, useRef, useEffect } from "react";
-
-const examTypes = [
-  { value: "평가원", label: "평가원" },
-  { value: "교육청", label: "교육청" },
-  { value: "사설", label: "사설" },
-];
+import { MOCK_EXAM_TYPE_OPTIONS } from "@/lib/constants/mock-exam";
 
 type MockExamTypeTabsProps = {
   basePath: string; // 예: "/scores/mock/1/3"
@@ -52,7 +47,7 @@ export function MockExamTypeTabs({
 
   return (
     <div className="flex gap-2 border-b border-gray-200">
-      {examTypes.map((examType) => {
+      {MOCK_EXAM_TYPE_OPTIONS.map((examType) => {
         const active = decodeURIComponent(currentExamType) === examType.value;
         return (
           <button

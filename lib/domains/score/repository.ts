@@ -245,6 +245,7 @@ export async function insertMockScore(
     standard_score: input.standard_score ?? null,
     percentile: input.percentile ?? null,
     grade_score: input.grade_score ?? null,
+    ...(input.math_variant ? { math_variant: input.math_variant } : {}),
   };
 
   const { data, error } = await supabase
@@ -281,6 +282,8 @@ export async function updateMockScoreById(
   if (updates.percentile !== undefined) payload.percentile = updates.percentile;
   if (updates.grade_score !== undefined)
     payload.grade_score = updates.grade_score;
+  if (updates.math_variant !== undefined)
+    payload.math_variant = updates.math_variant;
 
   const { error } = await supabase
     .from("student_mock_scores")

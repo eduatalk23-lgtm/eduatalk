@@ -68,6 +68,35 @@ export function MockSection({ mockAnalysis }: MockSectionProps) {
               </div>
             </div>
           )}
+
+          {/* 시험별 추이 */}
+          {mockAnalysis.trend.length > 1 && (
+            <div className="rounded-lg border border-gray-200 print-avoid-break">
+              <p className="report-caption font-semibold px-4 pt-3 pb-2">시험별 추이</p>
+              <table className="w-full text-xs">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-4 py-2 text-left font-medium text-gray-600">시험</th>
+                    <th className="px-4 py-2 text-right font-medium text-gray-600">평균 백분위</th>
+                    <th className="px-4 py-2 text-right font-medium text-gray-600">표준점수 합</th>
+                    <th className="px-4 py-2 text-right font-medium text-gray-600">등급합</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {mockAnalysis.trend.map((snap, i) => (
+                    <tr key={snap.examDate + snap.examTitle} className={i === 0 ? "bg-indigo-50/50" : ""}>
+                      <td className="px-4 py-2 text-gray-700">
+                        {snap.examTitle} <span className="text-gray-400">({snap.examDate})</span>
+                      </td>
+                      <td className="px-4 py-2 text-right font-medium">{snap.avgPercentile != null ? `${snap.avgPercentile.toFixed(1)}%` : "-"}</td>
+                      <td className="px-4 py-2 text-right font-medium">{snap.totalStdScore ?? "-"}</td>
+                      <td className="px-4 py-2 text-right font-medium">{snap.best3GradeSum ?? "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </section>

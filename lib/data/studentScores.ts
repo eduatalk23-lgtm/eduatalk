@@ -465,6 +465,7 @@ export async function createMockScore(score: {
   standard_score?: number | null;
   percentile?: number | null;
   grade_score?: number | null;
+  math_variant?: string | null;
   semester?: number; // 학기 (선택사항, 없으면 exam_date 기준으로 추정)
 }): Promise<{ success: boolean; scoreId?: string; error?: string }> {
   const supabase = await createSupabaseServerClient();
@@ -511,6 +512,7 @@ export async function createMockScore(score: {
     standard_score: score.standard_score ?? null,
     percentile: score.percentile ?? null,
     grade_score: score.grade_score ?? null,
+    ...(score.math_variant ? { math_variant: score.math_variant } : {}),
   };
 
   const result = await createTypedQuery<{ id: string }>(
@@ -571,6 +573,8 @@ export async function updateMockScore(
   if (updates.percentile !== undefined) payload.percentile = updates.percentile;
   if (updates.grade_score !== undefined)
     payload.grade_score = updates.grade_score;
+  if (updates.math_variant !== undefined)
+    payload.math_variant = updates.math_variant;
 
   const result = await createTypedQuery<null>(
     async () => {
@@ -783,6 +787,7 @@ export async function createMockScoresBatch(
     standard_score?: number | null;
     percentile?: number | null;
     raw_score?: number | null;
+    math_variant?: string | null;
   }>,
   commonFields: {
     tenant_id: string;
@@ -839,6 +844,7 @@ export async function createMockScoresBatch(
       standard_score: score.standard_score ?? null,
       percentile: score.percentile ?? null,
       raw_score: score.raw_score ?? null,
+      ...(score.math_variant ? { math_variant: score.math_variant } : {}),
     });
   }
 
