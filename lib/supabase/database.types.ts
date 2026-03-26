@@ -571,13 +571,17 @@ export type Database = {
         Row: {
           candidate_department_id: string
           competency_fit_score: number | null
+          competency_rationale: string | null
           composite_score: number | null
           consultant_notes: string | null
           created_at: string
+          curriculum_rationale: string | null
           curriculum_similarity_score: number | null
           id: string
           placement_grade: string | null
+          placement_rationale: string | null
           rationale: string | null
+          recommendation_source: string | null
           school_year: number
           source: string
           status: string
@@ -589,13 +593,17 @@ export type Database = {
         Insert: {
           candidate_department_id: string
           competency_fit_score?: number | null
+          competency_rationale?: string | null
           composite_score?: number | null
           consultant_notes?: string | null
           created_at?: string
+          curriculum_rationale?: string | null
           curriculum_similarity_score?: number | null
           id?: string
           placement_grade?: string | null
+          placement_rationale?: string | null
           rationale?: string | null
+          recommendation_source?: string | null
           school_year: number
           source?: string
           status?: string
@@ -607,13 +615,17 @@ export type Database = {
         Update: {
           candidate_department_id?: string
           competency_fit_score?: number | null
+          competency_rationale?: string | null
           composite_score?: number | null
           consultant_notes?: string | null
           created_at?: string
+          curriculum_rationale?: string | null
           curriculum_similarity_score?: number | null
           id?: string
           placement_grade?: string | null
+          placement_rationale?: string | null
           rationale?: string | null
+          recommendation_source?: string | null
           school_year?: number
           source?: string
           status?: string
@@ -691,6 +703,84 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "university_departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bypass_recommendation_feedback: {
+        Row: {
+          action: string
+          candidate_id: string | null
+          competency_profile: Json | null
+          consultant_id: string | null
+          created_at: string
+          department_id: string | null
+          id: string
+          mid_classification: string | null
+          reason: string | null
+          student_id: string
+          tenant_id: string
+        }
+        Insert: {
+          action: string
+          candidate_id?: string | null
+          competency_profile?: Json | null
+          consultant_id?: string | null
+          created_at?: string
+          department_id?: string | null
+          id?: string
+          mid_classification?: string | null
+          reason?: string | null
+          student_id: string
+          tenant_id: string
+        }
+        Update: {
+          action?: string
+          candidate_id?: string | null
+          competency_profile?: Json | null
+          consultant_id?: string | null
+          created_at?: string
+          department_id?: string | null
+          id?: string
+          mid_classification?: string | null
+          reason?: string | null
+          student_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bypass_recommendation_feedback_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "bypass_major_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bypass_recommendation_feedback_consultant_id_fkey"
+            columns: ["consultant_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bypass_recommendation_feedback_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "university_departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bypass_recommendation_feedback_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bypass_recommendation_feedback_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -2572,6 +2662,50 @@ export type Database = {
         }
         Relationships: []
       }
+      curriculum_collection_log: {
+        Row: {
+          attempted_at: string
+          completed_at: string | null
+          courses_found: number | null
+          department_id: string
+          error_message: string | null
+          id: string
+          search_query: string | null
+          status: string
+          tier: string
+        }
+        Insert: {
+          attempted_at?: string
+          completed_at?: string | null
+          courses_found?: number | null
+          department_id: string
+          error_message?: string | null
+          id?: string
+          search_query?: string | null
+          status?: string
+          tier: string
+        }
+        Update: {
+          attempted_at?: string
+          completed_at?: string | null
+          courses_found?: number | null
+          department_id?: string
+          error_message?: string | null
+          id?: string
+          search_query?: string | null
+          status?: string
+          tier?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curriculum_collection_log_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "university_departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       curriculum_revisions: {
         Row: {
           created_at: string | null
@@ -2742,6 +2876,8 @@ export type Database = {
       }
       department_curriculum: {
         Row: {
+          collected_at: string | null
+          confidence: number | null
           course_name: string
           course_type: string | null
           created_at: string
@@ -2750,8 +2886,12 @@ export type Database = {
           legacy_id: number | null
           notes: string | null
           semester: string | null
+          source: string
+          stale_at: string | null
         }
         Insert: {
+          collected_at?: string | null
+          confidence?: number | null
           course_name: string
           course_type?: string | null
           created_at?: string
@@ -2760,8 +2900,12 @@ export type Database = {
           legacy_id?: number | null
           notes?: string | null
           semester?: string | null
+          source?: string
+          stale_at?: string | null
         }
         Update: {
+          collected_at?: string | null
+          confidence?: number | null
           course_name?: string
           course_type?: string | null
           created_at?: string
@@ -2770,6 +2914,8 @@ export type Database = {
           legacy_id?: number | null
           notes?: string | null
           semester?: string | null
+          source?: string
+          stale_at?: string | null
         }
         Relationships: [
           {
@@ -3234,6 +3380,7 @@ export type Database = {
           content_sections: Json
           created_at: string
           embedding: string | null
+          embedding_status: string | null
           follow_up: string | null
           guide_id: string
           guide_url: string | null
@@ -3254,6 +3401,7 @@ export type Database = {
           content_sections?: Json
           created_at?: string
           embedding?: string | null
+          embedding_status?: string | null
           follow_up?: string | null
           guide_id: string
           guide_url?: string | null
@@ -3274,6 +3422,7 @@ export type Database = {
           content_sections?: Json
           created_at?: string
           embedding?: string | null
+          embedding_status?: string | null
           follow_up?: string | null
           guide_id?: string
           guide_url?: string | null
@@ -3345,6 +3494,57 @@ export type Database = {
             columns: ["parent_unit_id"]
             isOneToOne: false
             referencedRelation: "exploration_guide_curriculum_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exploration_guide_shares: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          guide_id: string
+          id: string
+          is_active: boolean
+          share_token: string
+          updated_at: string
+          visible_sections: string[]
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          guide_id: string
+          id?: string
+          is_active?: boolean
+          share_token?: string
+          updated_at?: string
+          visible_sections?: string[]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          guide_id?: string
+          id?: string
+          is_active?: boolean
+          share_token?: string
+          updated_at?: string
+          visible_sections?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exploration_guide_shares_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exploration_guide_shares_guide_id_fkey"
+            columns: ["guide_id"]
+            isOneToOne: false
+            referencedRelation: "exploration_guides"
             referencedColumns: ["id"]
           },
         ]
@@ -8544,6 +8744,79 @@ export type Database = {
           },
         ]
       }
+      student_course_plans: {
+        Row: {
+          created_at: string
+          grade: number
+          id: string
+          is_school_offered: boolean | null
+          notes: string | null
+          plan_status: string
+          priority: number | null
+          recommendation_reason: string | null
+          semester: number
+          source: string
+          student_id: string
+          subject_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          grade: number
+          id?: string
+          is_school_offered?: boolean | null
+          notes?: string | null
+          plan_status?: string
+          priority?: number | null
+          recommendation_reason?: string | null
+          semester: number
+          source?: string
+          student_id: string
+          subject_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          grade?: number
+          id?: string
+          is_school_offered?: boolean | null
+          notes?: string | null
+          plan_status?: string
+          priority?: number | null
+          recommendation_reason?: string | null
+          semester?: number
+          source?: string
+          student_id?: string
+          subject_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_course_plans_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_course_plans_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_course_plans_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_custom_contents: {
         Row: {
           chapter_info: Json | null
@@ -9155,6 +9428,7 @@ export type Database = {
           grade: number
           grade_score: number | null
           id: string
+          math_variant: string | null
           notes: string | null
           percentile: number | null
           raw_score: number | null
@@ -9173,6 +9447,7 @@ export type Database = {
           grade: number
           grade_score?: number | null
           id?: string
+          math_variant?: string | null
           notes?: string | null
           percentile?: number | null
           raw_score?: number | null
@@ -9191,6 +9466,7 @@ export type Database = {
           grade?: number
           grade_score?: number | null
           id?: string
+          math_variant?: string | null
           notes?: string | null
           percentile?: number | null
           raw_score?: number | null
@@ -9346,6 +9622,63 @@ export type Database = {
             columns: ["student_id"]
             isOneToOne: true
             referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_placement_snapshots: {
+        Row: {
+          created_at: string
+          data_year: number
+          exam_date: string | null
+          exam_type: string
+          id: string
+          input_scores: Json | null
+          result: Json
+          student_id: string
+          summary: Json | null
+          tenant_id: string
+          verdict_count: number | null
+        }
+        Insert: {
+          created_at?: string
+          data_year?: number
+          exam_date?: string | null
+          exam_type: string
+          id?: string
+          input_scores?: Json | null
+          result: Json
+          student_id: string
+          summary?: Json | null
+          tenant_id: string
+          verdict_count?: number | null
+        }
+        Update: {
+          created_at?: string
+          data_year?: number
+          exam_date?: string | null
+          exam_type?: string
+          id?: string
+          input_scores?: Json | null
+          result?: Json
+          student_id?: string
+          summary?: Json | null
+          tenant_id?: string
+          verdict_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_placement_snapshots_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_placement_snapshots_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -9818,9 +10151,64 @@ export type Database = {
           },
         ]
       }
+      student_record_analysis_cache: {
+        Row: {
+          analysis_result: Json
+          content_hash: string | null
+          created_at: string
+          id: string
+          record_id: string
+          record_type: string
+          source: string
+          student_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          analysis_result: Json
+          content_hash?: string | null
+          created_at?: string
+          id?: string
+          record_id: string
+          record_type: string
+          source?: string
+          student_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          analysis_result?: Json
+          content_hash?: string | null
+          created_at?: string
+          id?: string
+          record_id?: string
+          record_type?: string
+          source?: string
+          student_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_record_analysis_cache_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_analysis_cache_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_record_analysis_pipelines: {
         Row: {
           completed_at: string | null
+          content_hash: string | null
           created_at: string
           created_by: string | null
           error_details: Json | null
@@ -9830,11 +10218,13 @@ export type Database = {
           status: string
           student_id: string
           task_previews: Json | null
+          task_results: Json | null
           tasks: Json
           tenant_id: string
         }
         Insert: {
           completed_at?: string | null
+          content_hash?: string | null
           created_at?: string
           created_by?: string | null
           error_details?: Json | null
@@ -9844,11 +10234,13 @@ export type Database = {
           status?: string
           student_id: string
           task_previews?: Json | null
+          task_results?: Json | null
           tasks?: Json
           tenant_id: string
         }
         Update: {
           completed_at?: string | null
+          content_hash?: string | null
           created_at?: string
           created_by?: string | null
           error_details?: Json | null
@@ -9858,6 +10250,7 @@ export type Database = {
           status?: string
           student_id?: string
           task_previews?: Json | null
+          task_results?: Json | null
           tasks?: Json
           tenant_id?: string
         }
@@ -10391,6 +10784,142 @@ export type Database = {
           },
           {
             foreignKeyName: "student_record_disciplinary_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_record_edge_snapshots: {
+        Row: {
+          computed_at: string
+          edge_count: number
+          edges_json: Json
+          id: string
+          pipeline_id: string
+          student_id: string
+        }
+        Insert: {
+          computed_at?: string
+          edge_count?: number
+          edges_json?: Json
+          id?: string
+          pipeline_id: string
+          student_id: string
+        }
+        Update: {
+          computed_at?: string
+          edge_count?: number
+          edges_json?: Json
+          id?: string
+          pipeline_id?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_record_edge_snapshots_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "student_record_analysis_pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_edge_snapshots_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_record_edges: {
+        Row: {
+          confidence: number
+          created_at: string
+          edge_type: string
+          id: string
+          is_stale: boolean
+          pipeline_id: string | null
+          reason: string
+          shared_competencies: string[] | null
+          snapshot_version: number
+          source_grade: number | null
+          source_label: string
+          source_record_id: string
+          source_record_type: string
+          stale_reason: string | null
+          student_id: string
+          target_grade: number | null
+          target_label: string
+          target_record_id: string | null
+          target_record_type: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string
+          edge_type: string
+          id?: string
+          is_stale?: boolean
+          pipeline_id?: string | null
+          reason?: string
+          shared_competencies?: string[] | null
+          snapshot_version?: number
+          source_grade?: number | null
+          source_label?: string
+          source_record_id: string
+          source_record_type: string
+          stale_reason?: string | null
+          student_id: string
+          target_grade?: number | null
+          target_label?: string
+          target_record_id?: string | null
+          target_record_type: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          edge_type?: string
+          id?: string
+          is_stale?: boolean
+          pipeline_id?: string | null
+          reason?: string
+          shared_competencies?: string[] | null
+          snapshot_version?: number
+          source_grade?: number | null
+          source_label?: string
+          source_record_id?: string
+          source_record_type?: string
+          stale_reason?: string | null
+          student_id?: string
+          target_grade?: number | null
+          target_label?: string
+          target_record_id?: string | null
+          target_record_type?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_record_edges_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "student_record_analysis_pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_edges_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_edges_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -11625,6 +12154,7 @@ export type Database = {
           target_major: string | null
           target_major_2: string | null
           target_score: Json | null
+          target_sub_classification_id: number | null
           target_university_type: string | null
           tenant_id: string
           updated_at: string | null
@@ -11663,6 +12193,7 @@ export type Database = {
           target_major?: string | null
           target_major_2?: string | null
           target_score?: Json | null
+          target_sub_classification_id?: number | null
           target_university_type?: string | null
           tenant_id: string
           updated_at?: string | null
@@ -11701,6 +12232,7 @@ export type Database = {
           target_major?: string | null
           target_major_2?: string | null
           target_score?: Json | null
+          target_sub_classification_id?: number | null
           target_university_type?: string | null
           tenant_id?: string
           updated_at?: string | null
@@ -11718,6 +12250,13 @@ export type Database = {
             columns: ["program_id"]
             isOneToOne: false
             referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "students_target_sub_classification_id_fkey"
+            columns: ["target_sub_classification_id"]
+            isOneToOne: false
+            referencedRelation: "department_classification"
             referencedColumns: ["id"]
           },
           {
@@ -11858,8 +12397,11 @@ export type Database = {
           guide_created_count: number
           guide_type: string
           id: string
+          major_unit: string | null
+          minor_unit: string | null
           reason: string | null
           related_subjects: string[] | null
+          subject_group: string | null
           subject_name: string | null
           target_major: string | null
           tenant_id: string | null
@@ -11875,8 +12417,11 @@ export type Database = {
           guide_created_count?: number
           guide_type: string
           id?: string
+          major_unit?: string | null
+          minor_unit?: string | null
           reason?: string | null
           related_subjects?: string[] | null
+          subject_group?: string | null
           subject_name?: string | null
           target_major?: string | null
           tenant_id?: string | null
@@ -11892,8 +12437,11 @@ export type Database = {
           guide_created_count?: number
           guide_type?: string
           id?: string
+          major_unit?: string | null
+          minor_unit?: string | null
           reason?: string | null
           related_subjects?: string[] | null
+          subject_group?: string | null
           subject_name?: string | null
           target_major?: string | null
           tenant_id?: string | null
@@ -12745,6 +13293,51 @@ export type Database = {
           restriction_type?: string
           rule_config?: Json
           university_name?: string
+        }
+        Relationships: []
+      }
+      university_transfer_policies: {
+        Row: {
+          created_at: string
+          credit_threshold: number | null
+          data_year: number
+          gpa_threshold: number | null
+          id: number
+          notes: string | null
+          policy_type: string
+          requirements: string | null
+          restrictions: string | null
+          source_url: string | null
+          university_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          credit_threshold?: number | null
+          data_year?: number
+          gpa_threshold?: number | null
+          id?: number
+          notes?: string | null
+          policy_type: string
+          requirements?: string | null
+          restrictions?: string | null
+          source_url?: string | null
+          university_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          credit_threshold?: number | null
+          data_year?: number
+          gpa_threshold?: number | null
+          id?: number
+          notes?: string | null
+          policy_type?: string
+          requirements?: string | null
+          restrictions?: string | null
+          source_url?: string | null
+          university_name?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -13943,6 +14536,15 @@ export type Database = {
           user_type: string
         }[]
       }
+      find_popular_guides_by_classification: {
+        Args: { p_classification_ids: number[]; p_limit?: number }
+        Returns: {
+          assignment_count: number
+          guide_type: string
+          id: string
+          title: string
+        }[]
+      }
       generate_plans_atomic: {
         Args: { p_group_id: string; p_plans: Json; p_update_status_to?: string }
         Returns: Json
@@ -14123,6 +14725,14 @@ export type Database = {
         Args: { link_id: string }
         Returns: undefined
       }
+      increment_topic_guide_created_count: {
+        Args: { p_topic_id: string }
+        Returns: undefined
+      }
+      increment_topic_used_count: {
+        Args: { p_topic_id: string }
+        Returns: undefined
+      }
       invite_chat_members: {
         Args: {
           p_member_ids: string[]
@@ -14138,6 +14748,22 @@ export type Database = {
       parse_device_name: { Args: { user_agent_text: string }; Returns: string }
       pin_chat_message: {
         Args: { p_message_id: string; p_room_id: string }
+        Returns: undefined
+      }
+      replace_guide_career_mappings: {
+        Args: { p_career_field_ids: number[]; p_guide_id: string }
+        Returns: undefined
+      }
+      replace_guide_classification_mappings: {
+        Args: { p_classification_ids: number[]; p_guide_id: string }
+        Returns: undefined
+      }
+      replace_guide_subject_mappings: {
+        Args: {
+          p_curriculum_revision_ids?: string[]
+          p_guide_id: string
+          p_subject_ids: string[]
+        }
         Returns: undefined
       }
       rls_check_admin_full_tenant: {
@@ -14551,4 +15177,3 @@ export const Constants = {
     },
   },
 } as const
-
