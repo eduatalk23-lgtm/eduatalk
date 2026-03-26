@@ -844,6 +844,16 @@ export async function updateStudentInfo(
         );
         return { success: false, error: profileCareerError.message || "프로필/진로 정보 업데이트에 실패했습니다." };
       }
+
+      // target_major 변경 시 진로 관련 가이드 배정 stale 처리 (fire-and-forget)
+      if (payload.career?.target_major !== undefined) {
+        void (async () => {
+          try {
+            const { markStudentAssignmentsStale } = await import("@/lib/domains/student-record/stale-detection");
+            await markStudentAssignmentsStale(studentId, tenantContext.tenantId!);
+          } catch { /* fire-and-forget */ }
+        })();
+      }
     }
   }
 

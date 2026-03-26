@@ -244,6 +244,13 @@ export async function generateTextWithRateLimit(
           ...(options.responseFormat === "json" && {
             output: jsonModeOutput,
           }),
+          providerOptions: {
+            google: {
+              thinkingConfig: {
+                thinkingBudget: tier === "advanced" ? 1024 : 0,
+              },
+            },
+          },
         });
       });
 

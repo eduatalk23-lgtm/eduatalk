@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   useSyncExternalStore,
@@ -75,10 +76,14 @@ export function SidePanelProvider({
 }) {
   const lsKey = storageKey ?? LS_KEY_APP;
 
-  const [activeApp, setActiveApp] = useState<SidePanelAppId | null>(() => {
+  // Start with null on both server and client to avoid hydration mismatch,
+  // then restore from localStorage after mount.
+  const [activeApp, setActiveApp] = useState<SidePanelAppId | null>(null);
+
+  useEffect(() => {
     const saved = readLS(lsKey, "");
-    return saved ? (saved as SidePanelAppId) : null;
-  });
+    if (saved) setActiveApp(saved as SidePanelAppId);
+  }, [lsKey]);
 
   const isWideDesktop = useSyncExternalStore(
     subscribeWideDesktop,

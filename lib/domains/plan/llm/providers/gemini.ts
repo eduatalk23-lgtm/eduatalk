@@ -171,7 +171,8 @@ class GeminiRateLimiter {
 }
 
 // 싱글톤 Rate Limiter 인스턴스 (Free Tier 기준 4초 간격)
-export const geminiRateLimiter = new GeminiRateLimiter(4000);
+// 무료 크레딧 = Pay-as-you-go 등급 (1000 RPM)
+export const geminiRateLimiter = new GeminiRateLimiter(100);
 
 // ============================================
 // Gemini API 일일 할당량 트래커

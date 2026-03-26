@@ -359,6 +359,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-noto-serif), 'Noto Serif KR', Georgia, serif;
 
   /* Custom Text Colors */
   --color-text-primary: var(--text-primary);
@@ -640,40 +641,6 @@ body {
     font-size: 11pt;
     line-height: 1.5;
   }
-}
-
-/* 화면에서 섹션 "페이지" 분리 — 인쇄 시에는 print-break-before가 실제 페이지 분리 */
-.report-section-page {
-  position: relative;
-  padding-top: 2.5rem;
-  margin-top: 2.5rem;
-}
-.report-section-page::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 40%;
-  height: 1px;
-  background: linear-gradient(to right, transparent, #d1d5db, transparent);
-}
-.report-section-page:first-child {
-  padding-top: 0;
-  margin-top: 0;
-}
-.report-section-page:first-child::before {
-  display: none;
-}
-
-/* 수치/메트릭/차트/배지는 산세리프 유지 */
-.report-typography table,
-.report-typography [class*="recharts"],
-.report-typography [class*="font-bold"],
-.report-typography [class*="font-semibold"],
-.report-typography .report-metric,
-.report-typography .report-caption {
-  font-family: var(--font-report-sans);
 }
 
 .report-page-title {
@@ -1266,7 +1233,7 @@ input[type="number"] {
     margin: 15mm 12mm 20mm 12mm;
   }
   @page :first {
-    margin-top: 0;
+    margin: 0;
   }
   .print-break-before {
     break-before: page;
@@ -1340,6 +1307,7 @@ input[type="number"] {
 /* ─── 화면: A4 페이지 카드 ─── */
 .report-page {
   width: 210mm;
+  max-width: 100%;
   min-height: 297mm;
   margin: 0 auto 24px;
   padding: 15mm 12mm 20mm;
@@ -1347,9 +1315,18 @@ input[type="number"] {
   box-shadow: 0 1px 8px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.03);
 }
 
-/* 표지: 패딩 없이 전체 사용 */
+@media (max-width: 850px) {
+  .report-page {
+    width: 100%;
+    min-height: auto;
+    padding: 6mm 4mm 8mm;
+  }
+}
+
+/* 표지: 패딩 없이 전체 사용, 자식 h-full 동작을 위해 명시적 높이 */
 .report-page--cover {
   padding: 0;
+  height: 297mm;
   display: flex;
   flex-direction: column;
 }
@@ -1382,6 +1359,7 @@ input[type="number"] {
   }
   .report-page--cover {
     padding: 0;
+    height: 100vh;
   }
 }
 

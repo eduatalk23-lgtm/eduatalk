@@ -82,7 +82,7 @@ export interface DriveFileInsert {
 }
 
 // -- 파일 용처 --
-export type FileContextType = "drive" | "workflow" | "chat" | "distribution";
+export type FileContextType = "drive" | "workflow" | "chat" | "distribution" | "guide";
 
 export interface FileContext {
   id: string;
