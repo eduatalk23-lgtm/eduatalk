@@ -23,6 +23,11 @@ import {
 import { RecordLayoutShell } from "./RecordLayoutShell";
 import { SidePanelProvider } from "@/components/side-panel";
 import { StudentRecordProvider } from "./StudentRecordContext";
+import { LayerViewContainer } from "./layer-view/LayerViewContainer";
+import { useRecordAreas } from "./layer-view/useRecordAreas";
+import { useAreaSummary } from "./layer-view/useAreaSummary";
+import type { LayerId, PerspectiveId, RecordArea } from "./layer-view/types";
+import { ErrorBoundary } from "@/components/errors/ErrorBoundary";
 import { RecordSidePanelContainer } from "./side-panel/RecordSidePanelContainer";
 import { RecordYearSelector } from "./RecordYearSelector";
 import { SetekEditor } from "./SetekEditor";
@@ -193,6 +198,10 @@ export function StudentRecordClient({
 }: StudentRecordClientProps) {
   const router = useRouter();
   const [viewMode, setViewMode] = useState<"all" | number>("all");
+  const [viewType, setViewType] = useState<"document" | "layer">("document");
+  const [selectedLayer, setSelectedLayer] = useState<LayerId>("draft");
+  const [selectedPerspective, setSelectedPerspective] = useState<PerspectiveId>("consultant");
+  const [selectedArea, setSelectedArea] = useState<RecordArea | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeSection, setActiveSection] = useState("sec-1");
@@ -252,11 +261,24 @@ export function StudentRecordClient({
     staleTime: 60_000,
     enabled: !!studentId,
   });
+  const guideSchoolYear = viewMode === "all" ? undefined : viewMode;
   const { data: guideAssignmentsRes } = useQuery({
-    queryKey: ["explorationGuide", "assignments", studentId, initialSchoolYear],
-    queryFn: () => import("@/lib/domains/guide/actions/assignment").then((m) => m.fetchAssignedGuidesAction(studentId, initialSchoolYear)),
+    queryKey: ["explorationGuide", "assignments", studentId, guideSchoolYear ?? "all"],
+    queryFn: () => import("@/lib/domains/guide/actions/assignment").then((m) => m.fetchAssignedGuidesAction(studentId, guideSchoolYear)),
     staleTime: 60_000,
     enabled: !!studentId,
+  });
+
+  // 레이어 뷰: 배정별 결과물 파일 수 (배치)
+  const assignmentIds = useMemo(
+    () => (guideAssignmentsRes?.success && guideAssignmentsRes.data ? guideAssignmentsRes.data.map((a) => a.id) : []),
+    [guideAssignmentsRes],
+  );
+  const { data: fileCountsRes } = useQuery({
+    queryKey: ["explorationGuide", "fileCounts", assignmentIds],
+    queryFn: () => import("@/lib/domains/guide/actions/deliverable").then((m) => m.getAssignmentFileCountsAction(assignmentIds)),
+    staleTime: 60_000,
+    enabled: viewType === "layer" && assignmentIds.length > 0,
   });
 
   // ─── 학년별 데이터 맵 ─────────────────────────────────
@@ -304,6 +326,41 @@ export function StudentRecordClient({
     });
     return errors;
   }, [yearGradePairs, supplementaryQueries]);
+
+  // ─── 레이어 뷰 데이터 ─────────────────────────────────
+  const layerAreas = useRecordAreas(visiblePairs, recordByGrade, subjects);
+  const layerSummaries = useAreaSummary({
+    areas: layerAreas,
+    layer: selectedLayer,
+    perspective: selectedPerspective,
+    recordByGrade,
+    guideAssignments: (guideAssignmentsRes?.success && guideAssignmentsRes.data
+      ? guideAssignmentsRes.data.map((a) => ({
+          id: a.id,
+          status: a.status,
+          target_subject_id: (a as unknown as Record<string, unknown>).target_subject_id as string | null,
+          target_activity_type: (a as unknown as Record<string, unknown>).target_activity_type as string | null,
+          ai_recommendation_reason: (a as unknown as Record<string, unknown>).ai_recommendation_reason as string | null,
+          confirmed_at: (a as unknown as Record<string, unknown>).confirmed_at as string | null,
+        }))
+      : []),
+    activityTags: (diagnosisData?.activityTags ?? []).map((t) => ({
+      record_type: t.record_type,
+      record_id: t.record_id,
+      source: (t as Record<string, unknown>).source as string | undefined,
+      status: (t as Record<string, unknown>).status as string | undefined,
+    })),
+    setekGuides: (setekGuidesRes?.success && setekGuidesRes.data
+      ? setekGuidesRes.data.map((g) => ({
+          subject_id: g.subject_id,
+          source: g.source,
+          status: g.status,
+          direction: g.direction,
+          keywords: g.keywords,
+        }))
+      : []),
+    deliverableFileCounts: fileCountsRes?.success ? fileCountsRes.data : undefined,
+  });
 
   // ─── 현재 스테이지 계산 (activeSection → stageId) ────
   const activeStage = useMemo<StageId>(() => {
@@ -698,6 +755,32 @@ export function StudentRecordClient({
         <div className="flex items-center gap-2 order-2">
           <FileText className="h-4 w-4 text-[var(--text-tertiary)]" />
           <span className="text-sm font-semibold text-[var(--text-primary)]">생기부</span>
+          <div className="ml-2 flex rounded-full bg-[var(--surface-hover)] p-0.5">
+            <button
+              type="button"
+              onClick={() => setViewType("document")}
+              className={cn(
+                "rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
+                viewType === "document"
+                  ? "bg-[var(--surface-primary)] text-[var(--text-primary)] shadow-sm"
+                  : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]",
+              )}
+            >
+              📄 문서
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewType("layer")}
+              className={cn(
+                "rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
+                viewType === "layer"
+                  ? "bg-[var(--surface-primary)] text-[var(--text-primary)] shadow-sm"
+                  : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]",
+              )}
+            >
+              🧩 레이어
+            </button>
+          </div>
         </div>
         <div className="order-4 ml-auto">
           <StudentSwitcher
@@ -714,6 +797,62 @@ export function StudentRecordClient({
       onToggleSidebar={toggleSidebar}
       rightPanel={<RecordSidePanelContainer />}
     >
+      {viewType === "layer" ? (
+        <ErrorBoundary fallback={<div className="py-12 text-center text-sm text-[var(--text-tertiary)]">레이어 뷰를 표시할 수 없습니다. 페이지를 새로고침해주세요.</div>}>
+        <LayerViewContainer
+          areas={layerAreas}
+          summaries={layerSummaries}
+          selectedLayer={selectedLayer}
+          onLayerChange={setSelectedLayer}
+          selectedPerspective={selectedPerspective}
+          onPerspectiveChange={setSelectedPerspective}
+          showGradePrefix={viewMode === "all" && yearGradePairs.length > 1}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          studentGrade={studentGrade}
+          onAreaSelect={setSelectedArea}
+          selectedArea={selectedArea}
+          onAreaBack={() => setSelectedArea(null)}
+          recordByGrade={recordByGrade}
+          guideAssignments={(guideAssignmentsRes?.success && guideAssignmentsRes.data
+            ? guideAssignmentsRes.data.map((a) => ({
+                id: a.id,
+                status: a.status,
+                target_subject_id: (a as unknown as Record<string, unknown>).target_subject_id as string | null,
+                target_activity_type: (a as unknown as Record<string, unknown>).target_activity_type as string | null,
+                ai_recommendation_reason: (a as unknown as Record<string, unknown>).ai_recommendation_reason as string | null,
+                confirmed_at: (a as unknown as Record<string, unknown>).confirmed_at as string | null,
+                exploration_guides: (a as unknown as Record<string, unknown>).exploration_guides as { id: string; title: string; guide_type?: string } | undefined,
+              }))
+            : [])}
+          activityTags={(diagnosisData?.activityTags ?? []).map((t) => ({
+            record_type: t.record_type,
+            record_id: t.record_id,
+            competency_item: (t as unknown as Record<string, unknown>).competency_item as string | undefined,
+            evaluation: (t as unknown as Record<string, unknown>).evaluation as string | undefined,
+            evidence_summary: (t as unknown as Record<string, unknown>).evidence_summary as string | undefined,
+            source: (t as unknown as Record<string, unknown>).source as string | undefined,
+            status: (t as unknown as Record<string, unknown>).status as string | undefined,
+          }))}
+          setekGuides={(setekGuidesRes?.success && setekGuidesRes.data
+            ? setekGuidesRes.data.map((g) => ({
+                subject_id: g.subject_id,
+                source: g.source,
+                status: g.status,
+                direction: g.direction,
+                keywords: g.keywords,
+                competency_focus: g.competency_focus,
+                cautions: g.cautions,
+                teacher_points: g.teacher_points,
+              }))
+            : [])}
+          deliverableFileCounts={fileCountsRes?.success ? fileCountsRes.data : undefined}
+          diagnosisData={diagnosisData}
+          storylineData={storylineData}
+          tenantId={tenantId}
+        />
+        </ErrorBoundary>
+      ) : (<>
       {/* ─── 스테이지 탭 바 (데스크톱) ────────────────── */}
       <div className="hidden shrink-0 border-b border-[var(--border-secondary)] bg-[var(--surface-secondary)] px-4 md:flex">
         {STAGES.map((stage) => (
@@ -1052,12 +1191,15 @@ export function StudentRecordClient({
                     diagnosisActivityTags={diagnosisData?.activityTags}
                     setekGuideItems={(() => {
                       if (!setekGuidesRes?.success || !setekGuidesRes.data) return undefined;
-                      // summary_sections.guides 배열 추출
-                      const items: Array<{ subjectName: string; keywords: string[]; direction: string; competencyFocus?: string[]; cautions?: string; teacherPoints?: string[] }> = [];
-                      for (const row of setekGuidesRes.data) {
-                        const sections = row.summary_sections as { guides?: Array<{ subjectName: string; keywords: string[]; direction: string; competencyFocus?: string[]; cautions?: string; teacherPoints?: string[] }> } | null;
-                        if (sections?.guides) items.push(...sections.guides);
-                      }
+                      // setek_guides 테이블에서 직접 매핑 (과목별 행)
+                      const items = setekGuidesRes.data.map((row) => ({
+                        subjectName: row.subject_id, // subject_id → UI에서 과목명 resolve
+                        keywords: row.keywords ?? [],
+                        direction: row.direction,
+                        competencyFocus: row.competency_focus,
+                        cautions: row.cautions ?? undefined,
+                        teacherPoints: row.teacher_points,
+                      }));
                       return items.length > 0 ? items : undefined;
                     })()}
                     guideAssignments={guideAssignmentsRes?.success ? guideAssignmentsRes.data as Array<{ id: string; guide_id: string; status: string; exploration_guides?: { id: string; title: string; guide_type?: string } }> : undefined}
@@ -1344,6 +1486,7 @@ export function StudentRecordClient({
           <div className="h-24" />
         </div>
       </div>
+      </>)}
 
       {/* ─── Import Dialog ────────────────────────── */}
       <ImportDialog

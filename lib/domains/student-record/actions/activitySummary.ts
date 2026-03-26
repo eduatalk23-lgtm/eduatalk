@@ -53,19 +53,22 @@ export async function fetchActivitySummaries(
   }
 }
 
-/** 학생의 세특 방향 가이드 목록 조회 (prompt_version: guide_v1) */
+/** 학생의 세특 방향 가이드 목록 조회 (setek_guides 테이블) */
 export async function fetchSetekGuides(
   studentId: string,
 ): Promise<ActionResponse<Array<{
   id: string;
   school_year: number;
-  target_grades: number[];
-  summary_title: string;
-  summary_sections: unknown;
-  summary_text: string;
+  subject_id: string;
+  source: string;
   status: string;
-  edited_text: string | null;
-  admin_notes: string | null;
+  direction: string;
+  keywords: string[];
+  competency_focus: string[];
+  cautions: string | null;
+  teacher_points: string[];
+  overall_direction: string | null;
+  confirmed_at: string | null;
   created_at: string;
   updated_at: string;
 }>>> {
@@ -74,12 +77,11 @@ export async function fetchSetekGuides(
     const supabase = await createSupabaseServerClient();
 
     const { data, error } = await supabase
-      .from("student_record_activity_summaries")
+      .from("student_record_setek_guides")
       .select(
-        "id, school_year, target_grades, summary_title, summary_sections, summary_text, status, edited_text, admin_notes, created_at, updated_at",
+        "id, school_year, subject_id, source, status, direction, keywords, competency_focus, cautions, teacher_points, overall_direction, confirmed_at, created_at, updated_at",
       )
       .eq("student_id", studentId)
-      .eq("prompt_version", "guide_v1")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -87,7 +89,7 @@ export async function fetchSetekGuides(
       return { success: false, error: "가이드 조회 실패" };
     }
 
-    return { success: true, data: data ?? [] };
+    return { success: true, data: (data as typeof data) ?? [] };
   } catch (error) {
     logActionError(LOG_CTX, error);
     return { success: false, error: error instanceof Error ? error.message : "가이드 조회 실패" };

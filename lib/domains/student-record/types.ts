@@ -9,21 +9,33 @@ import type { Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/database
 // 1. 기록 (Record) — Phase 1a
 // ============================================
 
-export type RecordSetek = Tables<"student_record_seteks">;
-export type RecordSetekInsert = TablesInsert<"student_record_seteks">;
-export type RecordSetekUpdate = TablesUpdate<"student_record_seteks">;
+// Phase 2.5b: content 4분할 확장 필드 (마이그레이션 적용 후 supabase gen types 재생성 시 제거)
+interface ContentSeparationFields {
+  ai_draft_content?: string | null;
+  ai_draft_at?: string | null;
+  confirmed_content?: string | null;
+  confirmed_at?: string | null;
+  confirmed_by?: string | null;
+  imported_content?: string | null;
+  imported_at?: string | null;
+  imported_content_bytes?: number | null;
+}
 
-export type RecordPersonalSetek = Tables<"student_record_personal_seteks">;
-export type RecordPersonalSetekInsert = TablesInsert<"student_record_personal_seteks">;
-export type RecordPersonalSetekUpdate = TablesUpdate<"student_record_personal_seteks">;
+export type RecordSetek = Tables<"student_record_seteks"> & ContentSeparationFields;
+export type RecordSetekInsert = TablesInsert<"student_record_seteks"> & ContentSeparationFields;
+export type RecordSetekUpdate = TablesUpdate<"student_record_seteks"> & ContentSeparationFields;
 
-export type RecordChangche = Tables<"student_record_changche">;
-export type RecordChangcheInsert = TablesInsert<"student_record_changche">;
-export type RecordChangcheUpdate = TablesUpdate<"student_record_changche">;
+export type RecordPersonalSetek = Tables<"student_record_personal_seteks"> & ContentSeparationFields;
+export type RecordPersonalSetekInsert = TablesInsert<"student_record_personal_seteks"> & ContentSeparationFields;
+export type RecordPersonalSetekUpdate = TablesUpdate<"student_record_personal_seteks"> & ContentSeparationFields;
 
-export type RecordHaengteuk = Tables<"student_record_haengteuk">;
-export type RecordHaengteukInsert = TablesInsert<"student_record_haengteuk">;
-export type RecordHaengteukUpdate = TablesUpdate<"student_record_haengteuk">;
+export type RecordChangche = Tables<"student_record_changche"> & ContentSeparationFields;
+export type RecordChangcheInsert = TablesInsert<"student_record_changche"> & ContentSeparationFields;
+export type RecordChangcheUpdate = TablesUpdate<"student_record_changche"> & ContentSeparationFields;
+
+export type RecordHaengteuk = Tables<"student_record_haengteuk"> & ContentSeparationFields;
+export type RecordHaengteukInsert = TablesInsert<"student_record_haengteuk"> & ContentSeparationFields;
+export type RecordHaengteukUpdate = TablesUpdate<"student_record_haengteuk"> & ContentSeparationFields;
 
 export type RecordReading = Tables<"student_record_reading">;
 export type RecordReadingInsert = TablesInsert<"student_record_reading">;
@@ -337,6 +349,36 @@ export interface SetekGuideItem {
   cautions: string;
   teacherPoints: string[];
 }
+
+/** Phase 2.5c: DB 영속화된 과목별 세특 방향 가이드 (마이그레이션 적용 후 Tables<> 전환) */
+export interface SetekGuideRow {
+  id: string;
+  tenant_id: string;
+  student_id: string;
+  school_year: number;
+  subject_id: string;
+  source: "ai" | "manual";
+  status: "draft" | "confirmed";
+  direction: string;
+  keywords: string[];
+  competency_focus: string[];
+  cautions: string | null;
+  teacher_points: string[];
+  overall_direction: string | null;
+  model_tier: string | null;
+  prompt_version: string | null;
+  confirmed_at: string | null;
+  confirmed_by: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type SetekGuideInsert = Omit<SetekGuideRow, "id" | "created_at" | "updated_at"> & {
+  id?: string;
+  created_at?: string;
+  updated_at?: string;
+};
 
 /** Server Action 응답 */
 export interface StudentRecordActionResult {

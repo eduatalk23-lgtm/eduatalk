@@ -608,3 +608,26 @@ export async function fetchPersistedEdges(
     return [];
   }
 }
+
+/** 학생의 면접 예상 질문 조회 */
+export async function fetchInterviewQuestions(
+  studentId: string,
+): Promise<Array<{ question: string; question_type: string; difficulty: string | null; suggested_answer: string | null }>> {
+  try {
+    const { tenantId } = await requireAdminOrConsultant();
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("student_record_interview_questions")
+      .select("question, question_type, difficulty, suggested_answer")
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId!)
+      .order("question_type")
+      .order("difficulty")
+      .limit(20);
+    if (error) throw error;
+    return data ?? [];
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "fetchInterviewQuestions" }, error, { studentId });
+    return [];
+  }
+}
