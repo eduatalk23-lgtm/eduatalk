@@ -164,7 +164,7 @@ export function ScoreSection({
 
       {/* 등급 추이 차트 — 인쇄 규격: A4 내 고정 높이 */}
       {trendData.length > 1 && (
-        <div className="mb-6 print-avoid-break" style={{ height: 220 }}>
+        <div className="mb-6 h-[220px] print-avoid-break">
           <h3 className="mb-2 text-sm font-semibold text-gray-700">학기별 평균등급 추이</h3>
           <ResponsiveContainer width="100%" height={190}>
             <LineChart data={trendData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
@@ -180,7 +180,7 @@ export function ScoreSection({
 
       {/* 교과군별 성적 바 차트 */}
       {subjectBarData.length > 1 && (
-        <div className="mb-6 print-avoid-break" style={{ height: 220 }}>
+        <div className="mb-6 h-[220px] print-avoid-break">
           <h3 className="mb-2 text-sm font-semibold text-gray-700">교과군별 평균등급</h3>
           <ResponsiveContainer width="100%" height={190}>
             <BarChart data={subjectBarData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>

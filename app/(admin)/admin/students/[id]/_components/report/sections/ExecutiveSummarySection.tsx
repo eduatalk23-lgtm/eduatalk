@@ -84,7 +84,7 @@ export function ExecutiveSummarySection({
       </div>
 
       {/* 핵심 지표 4카드 + 미니 레이더 */}
-      <div className="mt-4 grid grid-cols-5 gap-3" style={{ minHeight: 160 }}>
+      <div className="mt-4 grid min-h-[160px] grid-cols-5 gap-3">
         {/* 카드 4개 */}
         <div className="col-span-3 grid grid-cols-2 gap-3">
           <MetricCard

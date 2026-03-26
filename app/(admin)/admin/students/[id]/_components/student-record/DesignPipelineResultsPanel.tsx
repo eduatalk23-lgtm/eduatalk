@@ -16,12 +16,11 @@ import { Check, AlertCircle, RotateCcw, ChevronRight, Play, Circle } from "lucid
 /** P2-2: 태스크 결과에서 관련 역량 항목 추출 */
 function extractTaskCompetencies(
   key: PipelineTaskKey,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  taskResults: Record<string, any> | null,
+  taskResults: Record<string, unknown> | null,
   preview: string | undefined,
 ): string[] {
   if (!taskResults) return [];
-  const result = taskResults[key];
+  const result = taskResults[key] as Record<string, unknown> | undefined;
 
   // competency_analysis: 결과에 totalEdges나 preview에서 추출
   if (key === "competency_analysis" && preview) {
@@ -67,9 +66,12 @@ const SECTION_SCROLL_MAP: Record<PipelineTaskKey, string> = {
   storyline_generation: "sec-storyline",
   course_recommendation: "sec-course-plan",
   guide_matching: "sec-exploration-guide",
+  bypass_analysis: "sec-bypass-major",
   setek_guide: "sec-setek-guide",
   activity_summary: "sec-activity-summary",
   ai_strategy: "sec-compensation",
+  interview_generation: "sec-interview",
+  roadmap_generation: "sec-storyline",
 };
 
 export function DesignPipelineResultsPanel({
@@ -145,7 +147,7 @@ export function DesignPipelineResultsPanel({
 
   // W-4: 미니 대시보드 데이터 추출
   const taskResults = pipeline.taskResults ?? {};
-  const edgeResult = taskResults.edge_computation;
+  const edgeResult = taskResults.edge_computation as { totalEdges?: number; nodeCount?: number } | undefined;
   const diagnosisPreview = pipeline.taskPreviews?.ai_diagnosis;
   const strategyPreview = pipeline.taskPreviews?.ai_strategy;
 

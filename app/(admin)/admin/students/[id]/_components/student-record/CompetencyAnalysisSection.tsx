@@ -9,16 +9,18 @@ import { useState, useMemo, useEffect, Fragment } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { analyzeSetekWithHighlight } from "@/lib/domains/student-record/llm/actions/analyzeWithHighlight";
-import { upsertCompetencyScoreAction, addActivityTagsBatchAction, deleteAiTagsForRecordAction, confirmActivityTagAction, deleteActivityTagAction, fetchAnalysisCacheAction, saveAnalysisCacheAction } from "@/lib/domains/student-record/actions/diagnosis";
+import { upsertCompetencyScoreAction, addActivityTagsBatchAction, deleteAiTagsForRecordAction, confirmActivityTagAction, deleteActivityTagAction, fetchAnalysisCacheAction, saveAnalysisCacheAction, fetchAnalysisCacheWithHashAction, computeDeterministicCareerGradesAction } from "@/lib/domains/student-record/actions/diagnosis";
+import { computeRecordContentHash } from "@/lib/domains/student-record/content-hash";
 import { syncPipelineTaskStatus } from "@/lib/domains/student-record/actions/pipeline";
 import type { ActivityTagInsert, RubricScoreEntry } from "@/lib/domains/student-record/types";
-import { COMPETENCY_ITEMS, COMPETENCY_AREA_LABELS } from "@/lib/domains/student-record";
+import { COMPETENCY_ITEMS, COMPETENCY_AREA_LABELS, COMPETENCY_RUBRIC_QUESTIONS } from "@/lib/domains/student-record";
+import { deriveItemGradeFromRubrics, aggregateTagsByQuestion } from "@/lib/domains/student-record/rubric-matcher";
 import type { CompetencyScore, ActivityTag, CompetencyArea, CompetencyGrade, CompetencyItemCode } from "@/lib/domains/student-record";
 import type { HighlightAnalysisResult } from "@/lib/domains/student-record/llm/types";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { HighlightedSetekView, CompetencyBadge } from "./HighlightedSetekView";
 import { HighlightComparisonView } from "./HighlightComparisonView";
-import { RubricGradeGrid } from "./RubricGradeGrid";
+
 import { Sparkles, ArrowDown, Check, X, ChevronRight, Loader2, GitCompare } from "lucide-react";
 import { useRecharts, ChartLoadingSkeleton } from "@/components/charts/LazyRecharts";
 import { buildRadarData, buildGrowthData } from "@/lib/domains/student-record/chart-data";
@@ -41,6 +43,9 @@ type Props = {
   tenantId: string;
   schoolYear: number;
   isPipelineRunning?: boolean;
+  /** 증분 분석 캐시 키에 포함 — 변경 시 캐시 자동 무효화 */
+  targetMajor?: string | null;
+  takenSubjects?: string[];
 };
 
 const GRADES: CompetencyGrade[] = ["A+", "A-", "B+", "B", "B-", "C"];
@@ -56,18 +61,52 @@ function findRubricScores(scores: CompetencyScore[], code: string, source: strin
   return score.rubric_scores as unknown as RubricScoreEntry[];
 }
 
-// 태그 통계 + 태그 목록
-type TagStats = { positive: number; negative: number; needs_review: number; tags: ActivityTag[] };
-function countTagsByItem(tags: ActivityTag[]) {
-  const map = new Map<string, TagStats>();
+// 태그 통계 — 학년별/레코드별 그룹핑
+type TagsByRecord = {
+  recordId: string;
+  recordLabel: string;
+  grade: number;
+  tags: ActivityTag[];
+};
+type TagStatsGrouped = {
+  positive: number;
+  negative: number;
+  needs_review: number;
+  recordCount: number;
+  byGrade: Map<number, TagsByRecord[]>;
+};
+type RecordLabelMap = Map<string, { label: string; grade: number }>;
+
+function countTagsByItem(tags: ActivityTag[], recordLabelMap: RecordLabelMap) {
+  const map = new Map<string, TagStatsGrouped>();
   for (const tag of tags) {
     const key = tag.competency_item;
-    const entry = map.get(key) ?? { positive: 0, negative: 0, needs_review: 0, tags: [] };
+    const entry = map.get(key) ?? { positive: 0, negative: 0, needs_review: 0, recordCount: 0, byGrade: new Map<number, TagsByRecord[]>() };
     if (tag.evaluation === "positive") entry.positive++;
     else if (tag.evaluation === "negative") entry.negative++;
     else entry.needs_review++;
-    entry.tags.push(tag);
+
+    // 학년 → 레코드 그룹핑
+    const recInfo = recordLabelMap.get(tag.record_id);
+    const grade = recInfo?.grade ?? 0;
+    const recordLabel = recInfo?.label ?? tag.record_type;
+
+    if (!entry.byGrade.has(grade)) entry.byGrade.set(grade, []);
+    const gradeRecords = entry.byGrade.get(grade)!;
+    let recordGroup = gradeRecords.find((rg: TagsByRecord) => rg.recordId === tag.record_id);
+    if (!recordGroup) {
+      recordGroup = { recordId: tag.record_id, recordLabel, grade, tags: [] };
+      gradeRecords.push(recordGroup);
+    }
+    recordGroup.tags.push(tag);
+
     map.set(key, entry);
+  }
+  // recordCount 계산
+  for (const entry of map.values()) {
+    let count = 0;
+    for (const records of entry.byGrade.values()) count += records.length;
+    entry.recordCount = count;
   }
   return map;
 }
@@ -80,6 +119,8 @@ export function CompetencyAnalysisSection({
   tenantId,
   schoolYear,
   isPipelineRunning,
+  targetMajor,
+  takenSubjects,
 }: Props) {
   const queryClient = useQueryClient();
   const [highlightResults, setHighlightResults] = useState<Map<string, HighlightAnalysisResult>>(new Map());
@@ -88,7 +129,45 @@ export function CompetencyAnalysisSection({
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [expandedTagItem, setExpandedTagItem] = useState<string | null>(null);
-  const tagStats = useMemo(() => countTagsByItem(activityTags), [activityTags]);
+  const [forceReanalyze, setForceReanalyze] = useState(false);
+  const [batchCachedIds, setBatchCachedIds] = useState<Set<string>>(new Set());
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  // 학년 탭
+  const availableGrades = useMemo(() => {
+    const grades = [...new Set(records.map((r) => r.grade ?? 0).filter(Boolean))].sort((a, b) => a - b);
+    return grades.length > 0 ? grades : [0];
+  }, [records]);
+  const [selectedGrade, setSelectedGrade] = useState<number>(() => availableGrades[0]);
+  // 유형 서브탭
+  type RecordTypeFilter = "all" | "setek" | "changche" | "haengteuk";
+  const [selectedType, setSelectedType] = useState<RecordTypeFilter>("all");
+  // 선택 학년의 유형별 건수 + 필터된 레코드
+  const { typeCounts, filteredRecords } = useMemo(() => {
+    const gradeFiltered = records.filter((r) => (r.grade ?? 0) === selectedGrade);
+    const counts = {
+      setek: gradeFiltered.filter((r) => r.type === "setek" || r.type === "personal_setek").length,
+      changche: gradeFiltered.filter((r) => r.type === "changche").length,
+      haengteuk: gradeFiltered.filter((r) => r.type === "haengteuk").length,
+    };
+    const filtered = selectedType === "all"
+      ? gradeFiltered
+      : gradeFiltered.filter((r) =>
+          selectedType === "setek" ? (r.type === "setek" || r.type === "personal_setek") : r.type === selectedType,
+        );
+    return { typeCounts: counts, filteredRecords: filtered };
+  }, [records, selectedGrade, selectedType]);
+  const careerHashCtx = useMemo(() =>
+    targetMajor ? { targetMajor, takenSubjects: takenSubjects ?? [] } : null,
+    [targetMajor, takenSubjects],
+  );
+  const recordLabelMap = useMemo<RecordLabelMap>(() => {
+    const m = new Map<string, { label: string; grade: number }>();
+    for (const r of records) {
+      m.set(r.id, { label: r.subjectName ?? r.label, grade: r.grade ?? 0 });
+    }
+    return m;
+  }, [records]);
+  const tagStats = useMemo(() => countTagsByItem(activityTags, recordLabelMap), [activityTags, recordLabelMap]);
   const diagnosisQk = studentRecordKeys.diagnosisTab(studentId, schoolYear);
 
   // 캐시에서 AI 하이라이트 복원
@@ -157,6 +236,7 @@ export function CompetencyAnalysisSection({
   });
 
   const [expandedRubricItem, setExpandedRubricItem] = useState<string | null>(null);
+  const [expandedRubricQ, setExpandedRubricQ] = useState<string | null>(null); // "item:qi" key
 
   const gradeMutation = useMutation({
     mutationFn: async (input: { area: CompetencyArea; item: string; grade: CompetencyGrade; rubricScores?: RubricScoreEntry[] }) => {
@@ -202,7 +282,7 @@ export function CompetencyAnalysisSection({
       await addActivityTagsBatchAction(tagInputs);
     }
 
-    // 분석 결과 캐시 저장 (하이라이트 영속화)
+    // 분석 결과 캐시 저장 (content_hash 포함 — 증분 분석용)
     await saveAnalysisCacheAction({
       tenant_id: tenantId,
       student_id: studentId,
@@ -210,14 +290,23 @@ export function CompetencyAnalysisSection({
       record_id: recId,
       source: "ai",
       analysis_result: data,
+      content_hash: computeRecordContentHash(rec.content, careerHashCtx),
     });
   }
 
-  // 다중 레코드의 등급을 종합하여 1회 저장 (루브릭 기반 bottom-up)
+  // 다중 레코드의 등급을 종합하여 1회 저장 (AI 텍스트 등급 + 결정론적 이수/성적 등급)
   async function saveAggregatedGrades(allResults: Map<string, HighlightAnalysisResult>) {
     const { aggregateCompetencyGrades } = await import("@/lib/domains/student-record/rubric-matcher");
 
     const allGrades = [...allResults.values()].flatMap((d) => d.competencyGrades);
+
+    // 결정론적 등급: 서버에서 이수율+성적 기반으로 계산 (파이프라인과 동일 로직)
+    const careerRes = await computeDeterministicCareerGradesAction(studentId);
+    if (careerRes.success && careerRes.data.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      allGrades.push(...careerRes.data as any[]);
+    }
+
     const aggregated = aggregateCompetencyGrades(allGrades);
 
     const promises = aggregated.map((ag) =>
@@ -240,6 +329,28 @@ export function CompetencyAnalysisSection({
     queryClient.invalidateQueries({ queryKey: diagnosisQk });
   }
 
+  // 등급 재집계 (캐시에서 복원 — AI 호출 없이 루브릭 등급 재생성)
+  const reaggregateMutation = useMutation({
+    mutationFn: async () => {
+      // 캐시가 없으면 서버에서 조회
+      let results = highlightResults;
+      if (results.size === 0) {
+        const cacheRes = await fetchAnalysisCacheAction(studentId, tenantId);
+        if (cacheRes.success && cacheRes.data.length > 0) {
+          results = new Map<string, HighlightAnalysisResult>();
+          for (const row of cacheRes.data) {
+            results.set(row.record_id, row.analysis_result as HighlightAnalysisResult);
+          }
+          setHighlightResults(results);
+        }
+      }
+      if (results.size === 0) throw new Error("분석 캐시가 없습니다. 먼저 일괄 분석을 실행하세요.");
+      await saveAggregatedGrades(results);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: diagnosisQk }),
+    onError: (err: Error) => setError(err.message),
+  });
+
   // 개별 레코드 AI 분석
   async function analyzeRecord(rec: RecordForHighlight) {
     setAnalyzingId(rec.id);
@@ -249,6 +360,7 @@ export function CompetencyAnalysisSection({
       recordType: rec.type,
       subjectName: rec.subjectName,
       grade: rec.grade,
+      studentId,
     });
     if (result.success) {
       setHighlightResults((prev) => new Map(prev).set(rec.id, result.data));
@@ -261,19 +373,50 @@ export function CompetencyAnalysisSection({
     setAnalyzingId(null);
   }
 
-  // 전체 레코드 일괄 분석 (동시성 3개 제한)
-  const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0, failed: 0 });
+  // 전체 레코드 일괄 분석 (증분: 캐시 히트 시 스킵, 동시성 3개 제한)
+  const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0, failed: 0, skipped: 0 });
   const batchMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (options?: { force?: boolean }) => {
+      const force = options?.force ?? false;
       const eligible = records.filter((r) => r.content.trim().length >= 20);
-      setBatchProgress({ done: 0, total: eligible.length, failed: 0 });
+      setBatchProgress({ done: 0, total: eligible.length, failed: 0, skipped: 0 });
       const results = new Map<string, HighlightAnalysisResult>();
-      const CONCURRENCY = 3;
+      const CONCURRENCY = 5;
       let done = 0;
       let failed = 0;
+      let batchSkipped = 0;
 
-      for (let i = 0; i < eligible.length; i += CONCURRENCY) {
-        const batch = eligible.slice(i, i + CONCURRENCY);
+      // 증분: 배치 캐시 조회 (강제 재분석 시 스킵)
+      const cacheMap = new Map<string, { analysis_result: unknown; content_hash: string | null }>();
+      if (!force) {
+        const cacheRes = await fetchAnalysisCacheWithHashAction(eligible.map((r) => r.id), tenantId);
+        if (cacheRes.success) {
+          for (const entry of cacheRes.data) {
+            cacheMap.set(entry.record_id, entry);
+          }
+        }
+      }
+
+      // 캐시 히트 레코드 먼저 처리 (LLM 호출 X)
+      const toAnalyze: typeof eligible = [];
+      for (const rec of eligible) {
+        if (!force) {
+          const currentHash = computeRecordContentHash(rec.content, careerHashCtx);
+          const cached = cacheMap.get(rec.id);
+          if (cached?.content_hash && cached.content_hash === currentHash) {
+            results.set(rec.id, cached.analysis_result as HighlightAnalysisResult);
+            batchSkipped++;
+            done++;
+            continue;
+          }
+        }
+        toAnalyze.push(rec);
+      }
+      setBatchProgress({ done, total: eligible.length, failed, skipped: batchSkipped });
+
+      // 신규/변경 레코드만 AI 분석
+      for (let i = 0; i < toAnalyze.length; i += CONCURRENCY) {
+        const batch = toAnalyze.slice(i, i + CONCURRENCY);
         const settled = await Promise.allSettled(
           batch.map(async (rec) => {
             const result = await analyzeSetekWithHighlight({
@@ -281,6 +424,7 @@ export function CompetencyAnalysisSection({
               recordType: rec.type,
               subjectName: rec.subjectName,
               grade: rec.grade,
+              studentId,
             });
             if (result.success) {
               results.set(rec.id, result.data);
@@ -290,21 +434,26 @@ export function CompetencyAnalysisSection({
             }
           }),
         );
-        // rejected promise도 실패로 카운트
         for (const s of settled) {
           if (s.status === "rejected") failed++;
         }
         done += settled.length;
-        setBatchProgress({ done, total: eligible.length, failed });
+        setBatchProgress({ done, total: eligible.length, failed, skipped: batchSkipped });
       }
-      // 전체 레코드 등급 종합 저장
+      // 전체 레코드 등급 종합 저장 (캐시 복원 + 신규 분석 합산)
       if (results.size > 0) {
         await saveAggregatedGrades(results);
       }
-      return results;
+      // 캐시 히트된 레코드 ID Set
+      const cachedIds = new Set<string>();
+      for (const rec of eligible) {
+        if (!toAnalyze.includes(rec)) cachedIds.add(rec.id);
+      }
+      return { results, skipped: batchSkipped, cachedIds };
     },
-    onSuccess: (results) => {
+    onSuccess: ({ results, cachedIds }) => {
       setHighlightResults((prev) => new Map([...prev, ...results]));
+      setBatchCachedIds(cachedIds);
       syncPipelineTaskStatus(studentId, "competency_analysis").then(() => {
         queryClient.invalidateQueries({ queryKey: studentRecordKeys.pipeline(studentId) });
       }).catch(() => {});
@@ -424,16 +573,56 @@ export function CompetencyAnalysisSection({
         );
       })()}
 
-      {/* ─── AI 분석 버튼 ──────────────────── */}
+      {/* ─── AI 분석 버튼 + 확인 모달 ──────────────────── */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowConfirmModal(false)}>
+          <div className="mx-4 w-full max-w-sm rounded-xl bg-white p-5 shadow-xl dark:bg-gray-800" onClick={(e) => e.stopPropagation()}>
+            <h3 className="mb-2 text-sm font-semibold text-[var(--text-primary)]">AI 역량 종합 분석</h3>
+            <p className="mb-1 text-xs text-[var(--text-secondary)]">
+              전체 {records.length}건의 레코드에 대해 AI 역량 분석을 실행합니다.
+            </p>
+            <p className="mb-4 text-xs text-[var(--text-tertiary)]">
+              {forceReanalyze
+                ? "캐시를 무시하고 전체 레코드를 재분석합니다. 시간이 오래 걸릴 수 있습니다."
+                : "변경된 레코드만 분석하고, 기존 결과는 캐시에서 복원합니다."}
+            </p>
+            <div className="mb-4">
+              <label className="flex items-center gap-1.5 text-[11px] text-[var(--text-tertiary)] select-none">
+                <input
+                  type="checkbox"
+                  checked={forceReanalyze}
+                  onChange={(e) => setForceReanalyze(e.target.checked)}
+                  className="h-3 w-3 rounded border-gray-300"
+                />
+                캐시 무시 (전체 재분석)
+              </label>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                className="rounded-md px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => { setShowConfirmModal(false); batchMutation.mutate({ force: forceReanalyze }); }}
+                className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+              >
+                분석 시작
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => batchMutation.mutate()}
+          onClick={() => batchMutation.isPending ? undefined : setShowConfirmModal(true)}
           disabled={batchMutation.isPending || records.length === 0 || analyzingId !== null || isPipelineRunning}
           className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100 disabled:opacity-50 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
         >
           <Sparkles size={14} />
           {batchMutation.isPending
-            ? `분석 중... ${batchProgress.done}/${batchProgress.total}`
+            ? `분석 중... ${batchProgress.done}/${batchProgress.total}${batchProgress.skipped > 0 ? ` (캐시 ${batchProgress.skipped})` : ""}`
             : "AI 역량 종합 분석"}
         </button>
         {/* 상태 필 — 파이프라인 / 에러 / 부분 실패를 하나로 */}
@@ -444,16 +633,19 @@ export function CompetencyAnalysisSection({
         ) : error ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-0.5 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-400">
             {error}
-            <button type="button" onClick={() => batchMutation.mutate()}
+            <button type="button" onClick={() => batchMutation.mutate({ force: forceReanalyze })}
               className="ml-1 font-medium underline hover:no-underline">재시도</button>
           </span>
         ) : batchMutation.isSuccess && batchProgress.failed > 0 ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
-            {batchProgress.total - batchProgress.failed}건 성공 · {batchProgress.failed}건 실패
+            {batchProgress.total - batchProgress.failed - batchProgress.skipped}건 분석 · {batchProgress.skipped > 0 ? `${batchProgress.skipped}건 캐시 · ` : ""}{batchProgress.failed}건 실패
           </span>
         ) : batchMutation.isSuccess ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 text-xs text-green-700 dark:bg-green-900/20 dark:text-green-400">
-            <Check size={12} /> {batchProgress.total}건 분석 완료
+            <Check size={12} />
+            {batchProgress.skipped > 0
+              ? `${batchProgress.total - batchProgress.skipped}건 분석 · ${batchProgress.skipped}건 캐시 복원`
+              : `${batchProgress.total}건 분석 완료`}
           </span>
         ) : (
           <span className="text-xs text-[var(--text-tertiary)]">
@@ -462,7 +654,7 @@ export function CompetencyAnalysisSection({
         )}
       </div>
 
-      {/* ─── 세특별 하이라이트 뷰 (먼저: 근거를 보고 등급 결정) ── */}
+      {/* ─── 활동별 역량 분석: 학년 탭 + 유형 섹션 ── */}
       <div>
         <div className="mb-3 flex items-center justify-between">
           <h4 className="text-sm font-semibold text-[var(--text-primary)]">활동별 역량 분석</h4>
@@ -481,11 +673,58 @@ export function CompetencyAnalysisSection({
             </button>
           )}
         </div>
+
+        {/* 학년 탭 */}
+        {availableGrades.length > 1 && (
+          <div className="mb-3 flex gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
+            {availableGrades.map((g) => (
+              <button
+                key={g}
+                onClick={() => { setSelectedGrade(g); setSelectedType("all"); }}
+                className={cn(
+                  "flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  selectedGrade === g
+                    ? "bg-white text-[var(--text-primary)] shadow-sm dark:bg-gray-700"
+                    : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]",
+                )}
+              >
+                {g}학년
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* 유형 서브탭 */}
+        <div className="mb-3 flex gap-1.5">
+          {([
+            { key: "all" as RecordTypeFilter, label: "전체", count: typeCounts.setek + typeCounts.changche + typeCounts.haengteuk },
+            { key: "setek" as RecordTypeFilter, label: "세특", count: typeCounts.setek },
+            { key: "changche" as RecordTypeFilter, label: "창체", count: typeCounts.changche },
+            { key: "haengteuk" as RecordTypeFilter, label: "행특", count: typeCounts.haengteuk },
+          ] as const).filter((t) => t.key === "all" || t.count > 0).map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setSelectedType(t.key)}
+              className={cn(
+                "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+                selectedType === t.key
+                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                  : "text-[var(--text-tertiary)] hover:bg-gray-100 dark:hover:bg-gray-800",
+              )}
+            >
+              {t.label}
+              <span className="ml-1 text-[10px] opacity-60">{t.count}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* 필터된 레코드 렌더링 */}
         <div className="flex flex-col gap-3">
-          {records.map((rec) => {
+          {filteredRecords.map((rec) => {
             const result = highlightResults.get(rec.id);
             const conResult = consultantResults.get(rec.id);
             const isAnalyzing = analyzingId === rec.id;
+            const wasCached = batchCachedIds.has(rec.id);
 
             if (result && comparisonMode) {
               return (
@@ -507,6 +746,8 @@ export function CompetencyAnalysisSection({
                   sections={result.sections}
                   label={rec.label}
                   defaultExpanded={true}
+                  onReanalyze={() => analyzeRecord(rec)}
+                  isReanalyzing={isAnalyzing}
                 />
               );
             }
@@ -514,7 +755,12 @@ export function CompetencyAnalysisSection({
             return (
               <div key={rec.id} className={cn("rounded-lg border border-gray-200 dark:border-gray-700", isAnalyzing && "animate-pulse")}>
                 <div className="flex items-center justify-between px-3 py-2">
-                  <span className="text-sm text-[var(--text-primary)]">{rec.label}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm text-[var(--text-primary)]">{rec.label}</span>
+                    {wasCached && batchMutation.isSuccess && (
+                      <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[9px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">캐시</span>
+                    )}
+                  </div>
                   <button
                     onClick={() => analyzeRecord(rec)}
                     disabled={isAnalyzing || batchMutation.isPending || rec.content.trim().length < 20}
@@ -534,6 +780,9 @@ export function CompetencyAnalysisSection({
               </div>
             );
           })}
+          {filteredRecords.length === 0 && (
+            <p className="py-6 text-center text-xs text-[var(--text-tertiary)]">해당 유형의 레코드가 없습니다</p>
+          )}
         </div>
       </div>
 
@@ -553,44 +802,91 @@ export function CompetencyAnalysisSection({
         </div>
       )}
 
-      {/* ─── 종합 등급 그리드 (접기 가능 — 상세 비교는 종합진단 섹션에서) ── */}
-      <details className="group rounded-lg border border-gray-200 dark:border-gray-700">
-        <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] [&::-webkit-details-marker]:hidden">
-          <ChevronRight size={14} className="shrink-0 text-[var(--text-tertiary)] transition-transform group-open:rotate-90" />
-          종합 등급 직접 편집
-          <span className="text-[10px] font-normal text-[var(--text-tertiary)]">AI/컨설턴트 비교는 종합진단 섹션 참고</span>
-        </summary>
-        <div className="border-t border-gray-200 p-4 dark:border-gray-700">
-        <div className="flex flex-col gap-3">
-          {AREAS.map((area) => {
-            const items = COMPETENCY_ITEMS.filter((i) => i.area === area);
-            return (
-              <div key={area} className="flex items-center gap-3">
-                <span className="w-20 shrink-0 text-xs font-medium text-[var(--text-secondary)]">
-                  {COMPETENCY_AREA_LABELS[area]}
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  {items.map((item) => {
-                    const currentGrade = findScore(competencyScores, item.code);
-                    const stats = tagStats.get(item.code);
-                    return (
-                      <Fragment key={item.code}>
-                        <div className="flex items-center gap-1.5">
+      {/* ─── 종합 등급 + 루브릭 상세 (2레벨 아코디언) ── */}
+      <div className="rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+          <span className="text-sm font-semibold text-[var(--text-primary)]">종합 등급 + 루브릭 상세</span>
+          <span className="text-[10px] text-[var(--text-tertiary)]">항목 클릭 시 루브릭 질문 펼침</span>
+          <span className="flex-1" />
+          {highlightResults.size > 0 && (
+            <button
+              onClick={() => reaggregateMutation.mutate()}
+              disabled={reaggregateMutation.isPending || batchMutation.isPending}
+              className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-[10px] text-[var(--text-secondary)] transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-800"
+            >
+              {reaggregateMutation.isPending ? <Loader2 size={10} className="animate-spin" /> : <ArrowDown size={10} />}
+              등급 재집계
+            </button>
+          )}
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gray-50/80 dark:border-gray-700 dark:bg-gray-800/50">
+                <th className="whitespace-nowrap px-3 py-2 text-left font-medium text-[var(--text-tertiary)]">영역</th>
+                <th className="px-3 py-2 text-left font-medium text-[var(--text-tertiary)]">항목</th>
+                <th className="w-12 whitespace-nowrap px-2 py-2 text-center font-medium text-blue-600 dark:text-blue-400">AI</th>
+                <th className="whitespace-nowrap px-2 py-2 text-center font-medium text-orange-600 dark:text-orange-400">컨설턴트</th>
+                <th className="w-16 whitespace-nowrap px-2 py-2 text-center font-medium text-[var(--text-tertiary)]">근거</th>
+              </tr>
+            </thead>
+            <tbody>
+              {AREAS.map((area) => {
+                const items = COMPETENCY_ITEMS.filter((i) => i.area === area);
+                return items.map((item, idx) => {
+                  const aiGrade = findScore(competencyScores.filter((s) => s.source === "ai"), item.code);
+                  const consultantGrade = findScore(competencyScores.filter((s) => s.source === "manual"), item.code);
+                  const currentGrade = findScore(competencyScores, item.code);
+                  const aiRubrics = findRubricScores(competencyScores, item.code, "ai");
+                  const conRubrics = findRubricScores(competencyScores, item.code, "manual");
+                  const questions = COMPETENCY_RUBRIC_QUESTIONS[item.code as CompetencyItemCode] ?? [];
+                  const aiRubricMap = new Map(aiRubrics.map((r) => [r.questionIndex, r]));
+                  const conRubricMap = new Map(conRubrics.map((r) => [r.questionIndex, r]));
+                  const stats = tagStats.get(item.code);
+                  const isExpanded = expandedRubricItem === item.code;
+
+                  return (
+                    <Fragment key={item.code}>
+                      {/* ── 상위 항목 행 ── */}
+                      <tr className={cn(
+                        "border-b border-gray-100 dark:border-gray-700/50",
+                        idx === items.length - 1 && !isExpanded && "border-b-2 border-gray-200 dark:border-gray-600",
+                        isExpanded && "bg-indigo-50/30 dark:bg-indigo-900/10",
+                      )}>
+                        <td className={cn(
+                          "px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] border-r border-gray-100 dark:border-gray-700/50",
+                          idx > 0 && "text-transparent select-none",
+                        )}>
+                          {idx === 0 ? COMPETENCY_AREA_LABELS[area] : ""}
+                        </td>
+                        <td className="px-3 py-2">
                           <button
                             type="button"
-                            onClick={() => setExpandedRubricItem(expandedRubricItem === item.code ? null : item.code)}
-                            className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:underline"
-                            title="루브릭 펼치기"
+                            onClick={() => setExpandedRubricItem(isExpanded ? null : item.code)}
+                            className={cn(
+                              "flex items-center gap-1 text-xs font-medium transition-colors",
+                              isExpanded ? "text-blue-600 dark:text-blue-400" : "text-[var(--text-primary)] hover:text-blue-600",
+                            )}
                           >
+                            <ChevronRight size={12} className={cn("shrink-0 transition-transform", isExpanded && "rotate-90")} />
                             {item.label}
                           </button>
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          {aiGrade ? (
+                            <span className={cn("text-[11px] font-semibold", aiGrade.startsWith("A") ? "text-blue-600" : aiGrade.startsWith("B") ? "text-green-600" : "text-amber-600")}>
+                              {aiGrade}
+                            </span>
+                          ) : <span className="text-[var(--text-tertiary)]">-</span>}
+                        </td>
+                        <td className="px-2 py-2 text-center">
                           <select
-                            value={currentGrade}
+                            value={consultantGrade || currentGrade}
                             onChange={(e) =>
                               gradeMutation.mutate({ area, item: item.code, grade: e.target.value as CompetencyGrade })
                             }
                             className={cn(
-                              "min-h-[32px] w-16 rounded border px-1.5 py-1 text-center text-xs",
+                              "w-14 rounded border px-1 py-0.5 text-center text-[11px]",
                               "border-gray-300 bg-[var(--background)] dark:border-gray-600",
                               !currentGrade && "text-[var(--text-tertiary)]",
                             )}
@@ -598,91 +894,167 @@ export function CompetencyAnalysisSection({
                             <option value="">-</option>
                             {GRADES.map((g) => <option key={g} value={g}>{g}</option>)}
                           </select>
-                          {stats && stats.tags.length > 0 && (
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          {stats && stats.recordCount > 0 ? (
                             <button
                               type="button"
                               onClick={() => setExpandedTagItem(expandedTagItem === item.code ? null : item.code)}
-                              className="cursor-pointer text-[10px] text-[var(--text-tertiary)] hover:underline"
+                              className="cursor-pointer text-[10px] hover:underline"
                             >
                               {stats.positive > 0 && <span className="text-green-600">+{stats.positive}</span>}
-                              {stats.needs_review > 0 && <span className="ml-0.5 text-amber-500">?{stats.needs_review}</span>}
                               {stats.negative > 0 && <span className="ml-0.5 text-red-500">-{stats.negative}</span>}
                             </button>
-                          )}
-                        </div>
-                        {expandedTagItem === item.code && stats && (
-                          <div className="basis-full ml-20 mb-1 flex flex-col gap-1 rounded border border-gray-100 bg-gray-50/50 p-2 dark:border-gray-700 dark:bg-gray-800/30">
-                            {stats.tags.map((tag) => {
-                              const isSuggested = tag.source === "ai" && tag.status === "suggested";
-                              return (
-                                <div key={tag.id} className="flex items-center gap-2 text-[10px]">
-                                  <span className={cn(
-                                    "shrink-0 rounded px-1 py-px text-[8px] font-medium",
-                                    tag.evaluation === "positive" && "bg-green-100 text-green-700 dark:bg-green-900/30",
-                                    tag.evaluation === "negative" && "bg-red-100 text-red-600 dark:bg-red-900/30",
-                                    tag.evaluation === "needs_review" && "bg-amber-100 text-amber-600 dark:bg-amber-900/30",
-                                  )}>
-                                    {tag.evaluation === "positive" ? "+" : tag.evaluation === "negative" ? "-" : "?"}
-                                  </span>
-                                  <span className="flex-1 text-[var(--text-secondary)] line-clamp-1">
-                                    {tag.evidence_summary?.replace(/^\[AI\]\s*/, "").split("\n")[0] ?? "-"}
-                                  </span>
-                                  {isSuggested && (
-                                    <span className="rounded bg-blue-50 px-1 py-px text-[8px] text-blue-600 dark:bg-blue-900/20">제안</span>
+                          ) : <span className="text-[var(--text-tertiary)]">-</span>}
+                        </td>
+                      </tr>
+                      {/* ── 하위 루브릭 질문 행 (아코디언) + 질문별 근거 ── */}
+                      {isExpanded && (() => {
+                        const qStats = aggregateTagsByQuestion(item.code, activityTags);
+                        return questions.map((q, qi) => {
+                          const aiR = aiRubricMap.get(qi);
+                          const conR = conRubricMap.get(qi);
+                          const qStat = qStats[qi];
+                          const qEvCount = qStat ? qStat.positive + qStat.negative + qStat.needsReview : 0;
+                          const qKey = `${item.code}:${qi}`;
+                          const isQExpanded = expandedRubricQ === qKey;
+                          const noEvidence = !aiR && qEvCount === 0;
+                          return (
+                            <Fragment key={`${item.code}-q${qi}`}>
+                              <tr className={cn(
+                                "border-b border-gray-50 bg-gray-50/40 dark:border-gray-800 dark:bg-gray-800/20",
+                                qi === questions.length - 1 && idx === items.length - 1 && !isQExpanded && "border-b-2 border-gray-200 dark:border-gray-600",
+                              )}>
+                                <td className="border-r border-gray-100 dark:border-gray-700/50" />
+                                <td className="py-1.5 pl-8 pr-3 text-[11px] leading-relaxed text-[var(--text-secondary)]">
+                                  {q}
+                                  {noEvidence && (
+                                    <span className="ml-1.5 rounded bg-gray-100 px-1 py-px text-[8px] text-gray-400 dark:bg-gray-700 dark:text-gray-500">근거없음</span>
                                   )}
-                                  {tag.status === "confirmed" && (
-                                    <span className="rounded bg-green-50 px-1 py-px text-[8px] text-green-600 dark:bg-green-900/20">확정</span>
-                                  )}
-                                  {isSuggested && (
-                                    <span className="flex shrink-0 gap-0.5">
-                                      <button
-                                        onClick={() => tagConfirmMutation.mutate(tag.id)}
-                                        disabled={tagConfirmMutation.isPending}
-                                        className="rounded p-1 text-green-600 hover:bg-green-100 disabled:opacity-50 dark:hover:bg-green-900/30"
-                                        title="확정"
-                                      >
-                                        {tagConfirmMutation.isPending ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
-                                      </button>
-                                      <button
-                                        onClick={() => tagDeleteMutation.mutate(tag.id)}
-                                        disabled={tagDeleteMutation.isPending}
-                                        className="rounded p-1 text-red-500 hover:bg-red-100 disabled:opacity-50 dark:hover:bg-red-900/30"
-                                        title="거부"
-                                      >
-                                        {tagDeleteMutation.isPending ? <Loader2 size={10} className="animate-spin" /> : <X size={10} />}
-                                      </button>
+                                </td>
+                                <td className="px-2 py-1.5 text-center">
+                                  {aiR ? (
+                                    <span className={cn("text-[10px] font-semibold", aiR.grade.startsWith("A") ? "text-blue-600" : aiR.grade.startsWith("B") ? "text-green-600" : "text-amber-600")}>
+                                      {aiR.grade}
                                     </span>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                        {expandedRubricItem === item.code && (
-                          <div className="basis-full ml-20 mb-2">
-                            <RubricGradeGrid
-                              itemCode={item.code as CompetencyItemCode}
-                              aiRubricScores={findRubricScores(competencyScores, item.code, "ai")}
-                              consultantRubricScores={findRubricScores(competencyScores, item.code, "manual")}
-                              onConsultantChange={(rubricScores, derivedGrade) => {
-                                if (derivedGrade) {
-                                  gradeMutation.mutate({ area, item: item.code, grade: derivedGrade, rubricScores });
-                                }
-                              }}
-                              disabled={gradeMutation.isPending}
-                            />
-                          </div>
-                        )}
-                      </Fragment>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
+                                  ) : <span className="text-[10px] text-gray-300">-</span>}
+                                </td>
+                                <td className="px-2 py-1.5 text-center">
+                                  <select
+                                    value={conR?.grade ?? ""}
+                                    onChange={(e) => {
+                                      if (!e.target.value) return;
+                                      const newGrade = e.target.value as CompetencyGrade;
+                                      const updated = [...conRubrics.filter((r) => r.questionIndex !== qi), { questionIndex: qi, grade: newGrade, reasoning: conR?.reasoning ?? "" }];
+                                      const derived = deriveItemGradeFromRubrics(updated);
+                                      gradeMutation.mutate({ area, item: item.code, grade: derived ?? newGrade, rubricScores: updated });
+                                    }}
+                                    disabled={gradeMutation.isPending}
+                                    className={cn(
+                                      "w-14 rounded border px-0.5 py-0.5 text-center text-[10px]",
+                                      "border-gray-200 bg-[var(--background)] dark:border-gray-600",
+                                      !conR?.grade && "text-[var(--text-tertiary)]",
+                                      conR && aiR && conR.grade === aiR.grade && "ring-1 ring-green-300",
+                                    )}
+                                  >
+                                    <option value="">-</option>
+                                    {GRADES.map((g) => <option key={g} value={g}>{g}</option>)}
+                                  </select>
+                                </td>
+                                <td className="px-2 py-1.5 text-center">
+                                  {qEvCount > 0 ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setExpandedRubricQ(isQExpanded ? null : qKey)}
+                                      className="text-[9px] hover:underline"
+                                    >
+                                      {qStat!.positive > 0 && <span className="text-green-600">+{qStat!.positive}</span>}
+                                      {qStat!.negative > 0 && <span className="ml-0.5 text-red-500">-{qStat!.negative}</span>}
+                                      {qStat!.needsReview > 0 && <span className="ml-0.5 text-amber-500">?{qStat!.needsReview}</span>}
+                                    </button>
+                                  ) : null}
+                                </td>
+                              </tr>
+                              {/* 질문별 근거 펼침 */}
+                              {isQExpanded && qStat && qStat.evidences.length > 0 && (
+                                <tr>
+                                  <td className="border-r border-gray-100 dark:border-gray-700/50" />
+                                  <td colSpan={4} className="bg-gray-50/60 py-1.5 pl-10 pr-3 dark:bg-gray-800/30">
+                                    <div className="flex flex-col gap-0.5">
+                                      {qStat.evidences.map((ev, ei) => (
+                                        <p key={ei} className="text-[10px] leading-relaxed text-[var(--text-tertiary)]">
+                                          · {ev.split("\n")[0].slice(0, 100)}{ev.length > 100 ? "…" : ""}
+                                        </p>
+                                      ))}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </Fragment>
+                          );
+                        });
+                      })()}
+                      {/* ── 태그 상세 (펼침) ── */}
+                      {expandedTagItem === item.code && stats && (
+                        <tr>
+                          <td colSpan={5} className="bg-gray-50/50 px-4 py-2 dark:bg-gray-800/30">
+                            <div className="flex flex-col gap-1.5">
+                              {[...stats.byGrade.entries()]
+                                .sort(([a], [b]) => a - b)
+                                .map(([grade, recordGroups]) => (
+                                  <div key={grade}>
+                                    {stats.byGrade.size > 1 && (
+                                      <div className="text-[9px] font-semibold text-[var(--text-tertiary)] mb-0.5">{grade}학년</div>
+                                    )}
+                                    {recordGroups.map((rg) => (
+                                      <div key={rg.recordId} className="mb-1">
+                                        <div className="text-[9px] text-[var(--text-tertiary)] mb-0.5">📄 {rg.recordLabel}</div>
+                                        <div className="ml-4 flex flex-col gap-0.5">
+                                          {rg.tags.map((tag) => {
+                                            const isSuggested = tag.source === "ai" && tag.status === "suggested";
+                                            return (
+                                              <div key={tag.id} className="flex items-center gap-2 text-[10px]">
+                                                <span className={cn(
+                                                  "shrink-0 rounded px-1 py-px text-[8px] font-medium",
+                                                  tag.evaluation === "positive" && "bg-green-100 text-green-700 dark:bg-green-900/30",
+                                                  tag.evaluation === "negative" && "bg-red-100 text-red-600 dark:bg-red-900/30",
+                                                  tag.evaluation === "needs_review" && "bg-amber-100 text-amber-600 dark:bg-amber-900/30",
+                                                )}>
+                                                  {tag.evaluation === "positive" ? "+" : tag.evaluation === "negative" ? "-" : "?"}
+                                                </span>
+                                                <span className="flex-1 text-[var(--text-secondary)] line-clamp-1">
+                                                  {tag.evidence_summary?.replace(/^\[AI\]\s*/, "").split("\n")[0] ?? "-"}
+                                                </span>
+                                                {isSuggested && (
+                                                  <span className="flex shrink-0 gap-0.5">
+                                                    <button onClick={() => tagConfirmMutation.mutate(tag.id)} disabled={tagConfirmMutation.isPending} className="rounded p-1 text-green-600 hover:bg-green-100 disabled:opacity-50" title="확정">
+                                                      {tagConfirmMutation.isPending ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+                                                    </button>
+                                                    <button onClick={() => tagDeleteMutation.mutate(tag.id)} disabled={tagDeleteMutation.isPending} className="rounded p-1 text-red-500 hover:bg-red-100 disabled:opacity-50" title="거부">
+                                                      {tagDeleteMutation.isPending ? <Loader2 size={10} className="animate-spin" /> : <X size={10} />}
+                                                    </button>
+                                                  </span>
+                                                )}
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ))}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                });
+              })}
+            </tbody>
+          </table>
         </div>
-        </div>
-      </details>
+      </div>
 
     </div>
   );

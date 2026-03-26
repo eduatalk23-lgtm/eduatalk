@@ -14,7 +14,7 @@ import { generateAiDiagnosis } from "@/lib/domains/student-record/llm/actions/ge
 import { syncPipelineTaskStatus } from "@/lib/domains/student-record/actions/pipeline";
 import { MAJOR_RECOMMENDED_COURSES } from "@/lib/domains/student-record";
 import type { Diagnosis, CompetencyScore, ActivityTag, CompetencyGrade } from "@/lib/domains/student-record";
-import { GradeSummaryTable, RecommendedCourses } from "./GradeSummaryTable";
+import { RecommendedCourses } from "./GradeSummaryTable";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { Sparkles, Copy, Check, Loader2 } from "lucide-react";
 import { useAutoSave } from "./useAutoSave";
@@ -143,7 +143,7 @@ export function DiagnosisComparisonView({
   const [aiWarnings, setAiWarnings] = useState<string[]>([]);
   const aiGenMutation = useMutation({
     mutationFn: async () => {
-      const result = await generateAiDiagnosis([...aiScores, ...consultantScores], activityTags, { targetMajor: targetMajor ?? undefined, schoolName });
+      const result = await generateAiDiagnosis([...aiScores, ...consultantScores], activityTags, { targetMajor: targetMajor ?? undefined, schoolName, studentId });
       if (!result.success) throw new Error(result.error);
 
       // AI 진단 저장
@@ -239,11 +239,6 @@ export function DiagnosisComparisonView({
           </span>
         )}
       </div>
-
-      {/* 10항목 등급 요약 */}
-      {(aiScores.length > 0 || consultantScores.length > 0) && (
-        <GradeSummaryTable aiScores={aiScores} consultantScores={consultantScores} activityTags={activityTags} />
-      )}
 
       {/* 2열 비교 — 모바일에서는 컨설턴트(편집)를 먼저 표시 */}
       <div className={cn("grid grid-cols-1 gap-4", !isPanelOpen && "lg:grid-cols-2")}>

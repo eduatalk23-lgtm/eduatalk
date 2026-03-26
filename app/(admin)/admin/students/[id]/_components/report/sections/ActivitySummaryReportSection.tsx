@@ -87,14 +87,14 @@ export function ActivitySummaryReportSection({ summaries }: ActivitySummaryRepor
 
   return (
     <section className="print-break-before">
-      <div className="flex items-center gap-2 border-b-2 border-gray-800 pb-2">
-        <ReportSectionHeader icon={FileText} title="활동 요약서" subtitle="7개 영역 AI 서술 요약" />
-        {latest.target_grades.length > 0 && (
+      <ReportSectionHeader icon={FileText} title="활동 요약서" subtitle="7개 영역 AI 서술 요약" />
+      {latest.target_grades.length > 0 && (
+        <div className="-mt-4 mb-4">
           <span className="rounded bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
             {latest.target_grades.sort().map((g) => `${g}학년`).join(" · ")}
           </span>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="mt-4 space-y-4">
         {sections.map((sec, idx) => {

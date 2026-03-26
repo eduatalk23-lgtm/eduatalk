@@ -38,12 +38,6 @@ export function CollapsibleDetail({
       >
         {children}
       </div>
-
-      {/* 인쇄 시 항상 표시 */}
-      <div className="mt-3 hidden print:block">
-        <p className="report-caption mb-2 font-semibold text-gray-600">{title}</p>
-        {children}
-      </div>
     </div>
   );
 }

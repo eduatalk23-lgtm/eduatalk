@@ -227,7 +227,13 @@ export function ImportDialog({
 
       const c = result.data.counts;
       const total = c.seteks + c.changche + c.haengteuk + c.readings + c.attendance + c.awards + c.volunteer;
-      showToast(`생기부 ${total}건 저장 완료`, "success");
+      const hasRecords = c.seteks + c.changche + c.haengteuk > 0;
+      showToast(
+        hasRecords
+          ? `생기부 ${total}건 저장 완료 — 진단 탭에서 역량 분석을 실행하세요 (변경된 레코드만 분석됩니다)`
+          : `생기부 ${total}건 저장 완료`,
+        "success",
+      );
 
       // 캐시 무효화
       queryClient.invalidateQueries({ queryKey: ["studentRecord"] });

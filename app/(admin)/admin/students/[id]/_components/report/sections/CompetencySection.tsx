@@ -276,19 +276,19 @@ export function CompetencySection({ diagnosisData, recordDataByGrade }: Competen
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-gray-300 bg-gray-50">
-                  <th className="px-3 py-1.5 text-left font-medium text-gray-700">
+                  <th className="whitespace-nowrap px-3 py-1.5 text-left font-medium text-gray-700">
                     영역
                   </th>
                   <th className="px-3 py-1.5 text-left font-medium text-gray-700">
                     항목
                   </th>
-                  <th className="w-16 px-2 py-1.5 text-center font-medium text-gray-700">
+                  <th className="w-12 whitespace-nowrap px-2 py-1.5 text-center font-medium text-gray-700">
                     AI
                   </th>
-                  <th className="w-16 px-2 py-1.5 text-center font-medium text-gray-700">
+                  <th className="whitespace-nowrap px-2 py-1.5 text-center font-medium text-gray-700">
                     컨설턴트
                   </th>
-                  <th className="w-20 px-2 py-1.5 text-center font-medium text-gray-700">
+                  <th className="w-20 whitespace-nowrap px-2 py-1.5 text-center font-medium text-gray-700">
                     근거
                   </th>
                 </tr>

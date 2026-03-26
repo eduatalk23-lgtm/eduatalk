@@ -351,7 +351,10 @@ export function StudentRecordClient({
     if (!container) return;
     const target = container.querySelector(`[data-section-id="${sectionId}"]`);
     if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      const containerRect = container.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const offset = targetRect.top - containerRect.top + container.scrollTop;
+      container.scrollTo({ top: offset, behavior: "smooth" });
       setActiveSection(sectionId);
     }
   }, []);
@@ -392,8 +395,11 @@ export function StudentRecordClient({
     });
   }, []);
 
-  // ─── G0-2 진행률 계산 (recordByGrade/suppByGrade 직접 사용) ──
+  // ─── G0-2 진행률 계산 (recordByGrade/suppByGrade + 파이프라인 태스크 상태) ──
   const progressCounts = useMemo(() => {
+    // 파이프라인 태스크 완료 헬퍼
+    const taskDone = (key: string) => pipelineData?.tasks?.[key as keyof typeof pipelineData.tasks] === "completed";
+
     let recordFilled = 0;
     const recordTotal = 7; // sec-1~3, sec-6~9 (sec-4,5 항상 빈)
     if (recordByGrade.size > 0) recordFilled++; // sec-1 (항상)
@@ -422,18 +428,34 @@ export function StudentRecordClient({
     }
 
     const diagnosisFilled = diagnosisData ? 1 : 0;
+
+    // 설계 스테이지: 데이터 존재 + 파이프라인 태스크 완료 (total=7)
     const designFilled = [
-      storylineData?.storylines?.length ?? 0,
-      storylineData?.roadmapItems?.length ?? 0,
+      storylineData?.storylines?.length ?? 0,                  // 스토리라인
+      storylineData?.roadmapItems?.length ?? 0,                // 로드맵
+      taskDone("activity_summary") ? 1 : 0,                    // 활동 요약서
+      taskDone("setek_guide") ? 1 : 0,                         // 세특 방향
+      taskDone("guide_matching") ? 1 : 0,                      // 가이드 배정
+      taskDone("course_recommendation") ? 1 : 0,               // 수강 추천
+      taskDone("bypass_analysis") ? 1 : 0,                     // 우회학과
     ].filter((n) => n > 0).length;
+
+    // 전략 스테이지: 수동 입력 + 파이프라인 태스크 완료 (total=6)
     let hasApps = false;
     for (const [, entry] of suppByGrade) {
       if (entry.data.applications.length > 0) { hasApps = true; break; }
     }
-    const strategyFilled = (hasApps ? 1 : 0) + (strategyData?.minScoreTargets?.length ? 1 : 0);
+    const strategyFilled = [
+      hasApps ? 1 : 0,                                          // 지원 현황
+      strategyData?.minScoreTargets?.length ? 1 : 0,            // 최저 목표
+      taskDone("ai_strategy") ? 1 : 0,                          // 보완전략
+      taskDone("interview_generation") ? 1 : 0,                  // 면접 질문
+      taskDone("roadmap_generation") ? 1 : 0,                    // 로드맵 생성
+      taskDone("ai_diagnosis") ? 1 : 0,                          // 종합 진단
+    ].filter((n) => n > 0).length;
 
     return { recordFilled, recordTotal, diagnosisFilled, designFilled, strategyFilled };
-  }, [recordByGrade, suppByGrade, diagnosisData, storylineData, strategyData]);
+  }, [recordByGrade, suppByGrade, diagnosisData, storylineData, strategyData, pipelineData]);
 
   const sidebarContent = (
     <div className="flex flex-col gap-0.5 p-3">
@@ -1105,6 +1127,8 @@ export function StudentRecordClient({
                 tenantId={tenantId}
                 schoolYear={initialSchoolYear}
                 isPipelineRunning={isPipelineRunning}
+                targetMajor={diagnosisData?.targetMajor}
+                takenSubjects={diagnosisData?.takenSubjects}
               />
             )}
           </StrategySection>
@@ -1170,7 +1194,7 @@ export function StudentRecordClient({
                   storylines={storylineData.storylines}
                   studentId={studentId}
                   tenantId={tenantId}
-                  cachedResult={pipelineData?.taskResults?.storyline_generation ?? null}
+                  cachedResult={(pipelineData?.taskResults?.storyline_generation as import("@/lib/domains/student-record/llm/prompts/inquiryLinking").InquiryLinkResult) ?? null}
                 />
                 {storylineData.storylines.length > 0 && (
                   <div>

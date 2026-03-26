@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { reportDataQueryOptions } from "@/lib/query-options/studentRecord";
 import { ReportSkeleton } from "./ReportSkeleton";
@@ -36,6 +36,7 @@ interface SectionDef {
 export function ReportClient({ studentId }: ReportClientProps) {
   const { data, isLoading, error } = useQuery(reportDataQueryOptions(studentId));
   const contentRef = useRef<HTMLDivElement>(null);
+  const [coverVariant, setCoverVariant] = useState<"A" | "B" | "C" | "D" | "E">("A");
 
   const scrollToSection = (sectionId: string) => {
     const el = contentRef.current?.querySelector(`[data-section-id="${sectionId}"]`);
@@ -58,7 +59,7 @@ export function ReportClient({ studentId }: ReportClientProps) {
   }, 0);
 
   const sections: SectionDef[] = [
-    { id: "cover", title: "표지", content: <CoverSection studentName={data.student.name} schoolName={data.student.schoolName} grade={data.student.grade} className={data.student.className} targetMajor={data.student.targetMajor} consultantName={data.consultantName} generatedAt={data.generatedAt} /> },
+    { id: "cover", title: "표지", content: <CoverSection studentName={data.student.name} schoolName={data.student.schoolName} grade={data.student.grade} className={data.student.className} targetMajor={data.student.targetMajor} consultantName={data.consultantName} generatedAt={data.generatedAt} variant={coverVariant} /> },
     { id: "toc", title: "섹션 목록", content: <TableOfContents /> },
     { id: "exec", title: "엑서큐티브 요약", content: <ExecutiveSummarySection studentName={data.student.name} targetMajor={data.student.targetMajor} internalAnalysis={data.internalAnalysis} diagnosisData={data.diagnosisData} mockAnalysis={data.mockAnalysis} edgeCount={data.edges.length} storylineCount={data.storylineData.storylines.length} totalActivityCount={totalActivityCount} guideAssignmentCount={data.guideAssignmentCount} /> },
     { id: "activity", title: "활동 요약서", content: <ActivitySummaryReportSection summaries={data.activitySummaries} /> },
@@ -78,7 +79,7 @@ export function ReportClient({ studentId }: ReportClientProps) {
   ];
 
   return (
-    <div className="flex h-[calc(100vh-64px)]">
+    <div className="flex h-[calc(100vh-64px)] print:-mt-16">
       {/* ═══ 좌측 TOC 사이드바 ═══ */}
       <aside className="w-56 shrink-0 overflow-y-auto border-r border-gray-200 bg-gray-50/80 print:hidden">
         <div className="px-3 py-4">
@@ -98,7 +99,31 @@ export function ReportClient({ studentId }: ReportClientProps) {
             ))}
           </nav>
 
+          {/* 표지 디자인 선택 */}
           <div className="mt-4 border-t border-gray-200 pt-3">
+            <p className="mb-2 text-xs font-medium text-gray-500">표지 스타일</p>
+            <div className="grid grid-cols-5 gap-1">
+              {(["A", "B", "C", "D", "E"] as const).map((v) => {
+                const labels = { A: "등고선", B: "플로우", C: "격자", D: "도형", E: "호" };
+                return (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setCoverVariant(v)}
+                    className={`rounded px-1.5 py-1.5 text-[10px] font-medium transition-colors ${
+                      coverVariant === v
+                        ? "bg-indigo-600 text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    {labels[v]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-3 border-t border-gray-200 pt-3">
             <button
               type="button"
               onClick={() => window.print()}
@@ -124,6 +149,7 @@ export function ReportClient({ studentId }: ReportClientProps) {
               targetMajor={data.student.targetMajor}
               consultantName={data.consultantName}
               generatedAt={data.generatedAt}
+              variant={coverVariant}
             />
           </div>
 
