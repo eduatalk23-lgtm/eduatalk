@@ -9,9 +9,10 @@
  */
 
 import { useState, useMemo } from "react";
-import { ChevronRight, BookOpen, Lightbulb, ListTree, BookOpenText } from "lucide-react";
+import { ChevronRight, BookOpen, Lightbulb, ListTree, BookOpenText, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { OutlineItem, ContentSection } from "@/lib/domains/guide/types";
+import { normalizeResources, hasResourceUrl } from "@/lib/domains/guide/utils/resource-helpers";
 import DOMPurify from "dompurify";
 
 type ViewMode = "integrated" | "outline_only";
@@ -83,16 +84,27 @@ export function IntegratedGuideView({
         </div>
       )}
 
-      {/* 섹션별 렌더링 */}
+      {/* 섹션별 렌더링 — depth=0 연속 번호 */}
       <div className="space-y-4">
-        {sections.map((sec, i) => (
-          <IntegratedSection
-            key={i}
-            section={sec}
-            defLabel={defLabel}
-            viewMode={viewMode}
-          />
-        ))}
+        {sections.map((sec, i) => {
+          // 이전 섹션들의 depth=0 합산 → 연속 번호
+          const prevDepth0Count = sections
+            .slice(0, i)
+            .reduce(
+              (sum, s) =>
+                sum + (s.outline?.filter((o) => o.depth === 0).length ?? 0),
+              0,
+            );
+          return (
+            <IntegratedSection
+              key={i}
+              section={sec}
+              defLabel={defLabel}
+              viewMode={viewMode}
+              depth0StartIndex={prevDepth0Count}
+            />
+          );
+        })}
       </div>
     </div>
   );
@@ -103,10 +115,13 @@ function IntegratedSection({
   section,
   defLabel,
   viewMode,
+  depth0StartIndex = 0,
 }: {
   section: ContentSection;
   defLabel: string;
   viewMode: ViewMode;
+  /** 이전 섹션들의 depth=0 누적 수 — 연속 번호용 */
+  depth0StartIndex?: number;
 }) {
   const outline = section.outline ?? [];
   const hasOutline = outline.length > 0;
@@ -143,11 +158,11 @@ function IntegratedSection({
       <div className="p-4 space-y-4">
         {groups.map((group, gi) => (
           <div key={gi}>
-            {/* depth=0 대주제 */}
+            {/* depth=0 대주제 — 연속 번호 */}
             <div className="flex items-start gap-2 mb-2">
               <div className="w-6 h-6 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
                 <span className="text-xs font-bold text-primary-600 dark:text-primary-400">
-                  {gi + 1}
+                  {depth0StartIndex + gi + 1}
                 </span>
               </div>
               <h4 className="text-sm font-bold text-[var(--text-heading)] leading-relaxed">
@@ -160,14 +175,14 @@ function IntegratedSection({
 
             {/* depth=1,2 하위 항목 */}
             {group.children.length > 0 && (
-              <div className="ml-8 space-y-0.5 mb-3">
+              <div className="ml-4 sm:ml-8 space-y-0.5 mb-3">
                 {group.children.map((child, ci) => (
                   <div key={ci}>
                     <div
-                      className="flex items-start gap-1.5"
-                      style={{
-                        paddingLeft: `${(child.depth - 1) * 16}px`,
-                      }}
+                      className={cn(
+                        "flex items-start gap-1.5",
+                        child.depth === 2 && "pl-3 sm:pl-4",
+                      )}
                     >
                       <ChevronRight
                         className={cn(
@@ -190,7 +205,8 @@ function IntegratedSection({
                     </div>
                     <TipAndResources
                       item={child}
-                      indent={(child.depth - 1) * 16 + 20}
+                      indent={0}
+                      depthClass={child.depth === 2 ? "pl-3 sm:pl-4" : undefined}
                     />
                   </div>
                 ))}
@@ -199,7 +215,7 @@ function IntegratedSection({
 
             {/* prose 인라인 (전체 보기 모드에서만) */}
             {viewMode === "integrated" && proseChunks[gi] && (
-              <div className="ml-8 rounded-lg bg-blue-50/50 dark:bg-blue-900/10 border-l-2 border-blue-200 dark:border-blue-800 p-3 mb-2">
+              <div className="ml-4 sm:ml-8 rounded-lg bg-blue-50/50 dark:bg-blue-900/10 border-l-2 border-blue-200 dark:border-blue-800 p-3 mb-2">
                 <ProseContent html={proseChunks[gi]} />
               </div>
             )}
@@ -214,17 +230,21 @@ function IntegratedSection({
 function TipAndResources({
   item,
   indent,
+  depthClass,
 }: {
   item: OutlineItem;
   indent: number;
+  depthClass?: string;
 }) {
   if (!item.tip && (!item.resources || item.resources.length === 0))
     return null;
 
   return (
     <div
-      className="flex flex-wrap items-center gap-2 mt-0.5 mb-1"
-      style={{ paddingLeft: `${indent + 32}px` }}
+      className={cn(
+        "flex flex-wrap items-center gap-2 mt-0.5 mb-1 ml-4 sm:ml-8",
+        depthClass,
+      )}
     >
       {item.tip && (
         <span className="inline-flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full">
@@ -232,13 +252,20 @@ function TipAndResources({
           {item.tip}
         </span>
       )}
-      {item.resources?.map((r, i) => (
-        <span
-          key={i}
-          className="inline-flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded-full"
-        >
-          <BookOpen className="w-3 h-3" />
-          {r}
+      {normalizeResources(item.resources).map((res, i) => (
+        <span key={i} className="inline-flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded-full">
+          <BookOpen className="w-3 h-3 flex-shrink-0" />
+          <span>{res.description}</span>
+          {hasResourceUrl(res) && (
+            <a
+              href={res.url!}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-blue-800 dark:hover:text-blue-200"
+            >
+              <ExternalLink className="w-2.5 h-2.5" />
+            </a>
+          )}
         </span>
       ))}
     </div>
@@ -252,7 +279,7 @@ function ProseContent({ html }: { html: string }) {
   if (html.startsWith("<")) {
     return (
       <div
-        className="text-[13px] text-[var(--text-primary)] leading-relaxed prose-sm max-w-none"
+        className="text-[13px] text-[var(--text-primary)] leading-relaxed prose-sm max-w-prose"
         dangerouslySetInnerHTML={{
           __html: typeof window !== "undefined" ? DOMPurify.sanitize(html) : html,
         }}
@@ -261,7 +288,7 @@ function ProseContent({ html }: { html: string }) {
   }
 
   return (
-    <p className="text-[13px] text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap">
+    <p className="text-[13px] text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap max-w-prose">
       {html}
     </p>
   );

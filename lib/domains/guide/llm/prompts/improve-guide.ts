@@ -3,7 +3,7 @@
  * 공통 빌더 기반으로 유형별 섹션 구조 인식
  */
 
-import type { GuideType } from "../../types";
+import type { GuideType, OutlineItem } from "../../types";
 import type { ContentSection } from "../../types";
 import type { StudentProfileContext } from "../types";
 import { buildBaseSystemPrompt } from "./common-prompt-builder";
@@ -16,8 +16,8 @@ const IMPROVE_SPECIFIC_RULES = `
 4. 약점으로 지적된 부분만 **집중 개선**합니다
 5. 이론 섹션 수와 제목은 **유지**합니다 (내용만 개선)
 6. setekExamples(세특 예시)는 **원본 그대로 보존**합니다
-7. 원본에 outline(목차) 데이터가 있으면 **산문 개선에 맞춰 outline도 함께 갱신**합니다
-8. 원본에 outline이 없으면 **새로 생성**합니다 (🗂️[outline 필수] 섹션)
+7. 원본에 outline(목차) 데이터가 있으면 **산문 개선에 맞춰 outline도 함께 갱신**합니다 — [원본 목차] 블록을 참조하여 구조는 유지하되 내용을 보강합니다
+8. 원본에 outline이 없으면 **새로 생성**합니다 (🗂️[outline 필수] 섹션) — 전체 30~60개 항목, depth=0 5개 이상
 
 ## 차원별 개선 기준
 - **학술적 깊이**: 개념 정확성 강화, 학문적 근거 보충, 논리적 전개 보강
@@ -47,6 +47,22 @@ function stripHtml(html: string): string {
     .replace(/<[^>]*>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/** outline 배열을 텍스트로 직렬화 — improve 프롬프트에 원본 목차 전달 */
+function serializeOutline(items: OutlineItem[]): string {
+  if (!items || items.length === 0) return "";
+
+  const lines: string[] = ["[원본 목차]"];
+  for (const item of items) {
+    const indent = item.depth === 0 ? "● " : item.depth === 1 ? "  ├─ " : "    · ";
+    lines.push(`${indent}${item.text}`);
+    if (item.tip) lines.push(`   [TIP] ${item.tip}`);
+    if (item.resources?.length) {
+      for (const r of item.resources) lines.push(`   [참고] ${r}`);
+    }
+  }
+  return lines.join("\n");
 }
 
 export function buildImproveUserPrompt(input: {
@@ -83,6 +99,11 @@ export function buildImproveUserPrompt(input: {
       if (s.key === "setek_examples") continue;
       parts.push(`### ${s.label}`);
       parts.push(stripHtml(s.content).slice(0, 2000));
+      // 원본 outline 전달 — AI가 기존 목차를 보고 갱신할 수 있도록
+      if (s.outline && s.outline.length > 0) {
+        parts.push("");
+        parts.push(serializeOutline(s.outline));
+      }
       parts.push("");
     }
   } else {

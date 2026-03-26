@@ -105,17 +105,40 @@ export interface GuideGenerationInput {
 // Zod 스키마 (generateObjectWithRateLimit용)
 // ============================================================
 
+/** 참고 자료 항목 (AI 생성용) */
+const resourceItemSchema = z.object({
+  description: z
+    .string()
+    .describe(
+      "참고 자료 설명 (1~2문장, 100자 이내). URL 포함 금지. 예: '니켈 촉매의 활성 온도는 300-400°C 범위로 보고됨(김○○, 2022)'",
+    ),
+  consultantHint: z
+    .string()
+    .optional()
+    .describe(
+      "컨설턴트용 검색 안내 (30자 이내). 예: 'RISS: 니켈 촉매 메탄화 활성 온도'",
+    ),
+});
+
 /** 목차형 아웃라인 항목 */
 const outlineItemSchema = z.object({
   depth: z
-    .union([z.literal(0), z.literal(1), z.literal(2)])
+    .enum(["0", "1", "2"])
+    .transform((v): 0 | 1 | 2 => Number(v) as 0 | 1 | 2)
     .describe("계층 깊이: 0=대주제, 1=중주제, 2=세부항목"),
   text: z.string().describe("항목 텍스트"),
-  tip: z.string().optional().describe("컨설턴트 팁/안내"),
-  resources: z
-    .array(z.string())
+  tip: z
+    .string()
     .optional()
-    .describe("참고 자료 (도서명, 논문 키워드, URL 등)"),
+    .describe(
+      "학생 행동 지시 팁 — 전체 outline에서 6~10개 항목에 반드시 포함. 예: '5회 반복 실험하여 표준편차 산출'",
+    ),
+  resources: z
+    .array(resourceItemSchema)
+    .optional()
+    .describe(
+      "참고 자료 — AI가 조사한 내용을 설명 텍스트로 제공 (URL 포함 금지). 전체 outline에서 5~8개 항목에 반드시 포함. 각 항목은 학생에게 추가 맥락을 주는 설명과, 컨설턴트에게 링크 등록을 안내하는 힌트로 구성",
+    ),
 });
 
 const theorySectionSchema = z.object({
@@ -148,7 +171,7 @@ const contentSectionSchema = z.object({
     .array(outlineItemSchema)
     .optional()
     .describe(
-      "목차형 아웃라인 (탐구이론 content_sections에 필수 — 산문 content와 병행)",
+      "목차형 아웃라인 (탐구이론 content_sections에 필수 — 산문 content와 병행). 전체 합산 40개 이상, tip 6개+, resources 5개+ 포함 필수",
     ),
 });
 

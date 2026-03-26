@@ -1203,42 +1203,8 @@ export function GuideGeneratorClient() {
             )}
           </div>
 
-          {/* 모델 선택 + 생성 버튼 */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-[var(--text-secondary)]">AI 모델:</span>
-              <div className="inline-flex rounded-lg border border-secondary-200 dark:border-secondary-700 overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setModelTier("fast")}
-                  className={cn(
-                    "px-3 py-1.5 text-xs font-medium transition-colors",
-                    modelTier === "fast"
-                      ? "bg-primary-500 text-white"
-                      : "bg-white dark:bg-secondary-900 text-[var(--text-secondary)] hover:bg-secondary-50 dark:hover:bg-secondary-800",
-                  )}
-                >
-                  Flash (빠름)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setModelTier("advanced")}
-                  className={cn(
-                    "px-3 py-1.5 text-xs font-medium transition-colors border-l border-secondary-200 dark:border-secondary-700",
-                    modelTier === "advanced"
-                      ? "bg-info-500 text-white"
-                      : "bg-white dark:bg-secondary-900 text-[var(--text-secondary)] hover:bg-secondary-50 dark:hover:bg-secondary-800",
-                  )}
-                >
-                  Pro (고품질)
-                </button>
-              </div>
-              {modelTier === "advanced" && (
-                <span className="text-[10px] text-info-600 dark:text-info-400">
-                  Thinking 모드 · 크레딧 차감
-                </span>
-              )}
-            </div>
+          {/* 생성 버튼 — 모델 고정 (Pro + URL 검증) */}
+          <div className="flex items-center justify-end">
             <button
               type="button"
               onClick={handleGenerate}
@@ -1248,7 +1214,7 @@ export function GuideGeneratorClient() {
               {isGenerating ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  생성 중...{modelTier === "advanced" ? " (30~60초)" : " (15~30초)"}
+                  생성 + URL 검증 중... (60~90초)
                 </>
               ) : (
                 <>
@@ -1286,6 +1252,7 @@ export function GuideGeneratorClient() {
                 content_format: "html" as const,
                 items: s.items,
                 order: s.order,
+                outline: s.outline,
               }))}
               contentFormat="html"
             />

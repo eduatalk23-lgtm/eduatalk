@@ -167,6 +167,16 @@ export interface ExplorationGuide {
   updated_at: string;
 }
 
+/** 참고 자료 항목 — AI가 조사한 설명 + 컨설턴트가 추가하는 링크 */
+export interface ResourceItem {
+  /** AI가 조사하여 작성한 참고 자료 설명 */
+  description: string;
+  /** 컨설턴트가 검증 후 추가하는 URL (초기엔 null) */
+  url?: string | null;
+  /** 컨설턴트에게 보이는 검색/등록 안내 */
+  consultantHint?: string;
+}
+
 /** 목차형 아웃라인 항목 (3-level hierarchy) */
 export interface OutlineItem {
   /** 계층 깊이: 0=대주제, 1=중주제, 2=세부항목 */
@@ -175,8 +185,8 @@ export interface OutlineItem {
   text: string;
   /** 컨설턴트 팁/코멘트 (선택) */
   tip?: string;
-  /** 참고 자료/키워드 (선택) */
-  resources?: string[];
+  /** 참고 자료 — AI가 조사한 설명 + 컨설턴트가 링크 추가 */
+  resources?: (ResourceItem | string)[];
 }
 
 /** theory_sections JSONB 내 개별 섹션 */

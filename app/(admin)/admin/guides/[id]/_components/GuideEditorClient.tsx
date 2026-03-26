@@ -149,6 +149,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
   const [extraSections, setExtraSections] = useState<ContentSection[]>([]);
 
   // UI 상태
+  const [isDirty, setIsDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [improving, setImproving] = useState(false);
   const [improveModelTier, setImproveModelTier] = useState<ModelTier>("fast");
@@ -203,7 +204,15 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
       ]);
       setExtraSections(resolved.filter((s) => !coreKeys.has(s.key)));
     }
+    // 초기화 후 dirty 리셋 (다음 틱에서)
+    const timer = setTimeout(() => setIsDirty(false), 0);
+    return () => clearTimeout(timer);
   }, [guide]);
+
+  // 폼 변경 감지 → isDirty 설정
+  useEffect(() => {
+    if (guide) setIsDirty(true);
+  }, [title, guideType, status, motivation, theorySections, reflection, impression, summary, followUp, bookDescription, setekExamples, extraSections, bookTitle, bookAuthor, bookPublisher]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // plain text → html 변환 (기존 imported 콘텐츠)
   const toHtml = useCallback((text: string, format?: string) => {
@@ -371,6 +380,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
       }
 
       if (result.success) {
+        setIsDirty(false);
         toast.showSuccess(isNew ? "가이드가 생성되었습니다." : "가이드가 저장되었습니다.");
         // 캐시 무효화
         queryClient.invalidateQueries({
@@ -566,8 +576,8 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
 
   return (
     <div className="space-y-6">
-      {/* 헤더 */}
-      <div className="flex items-center justify-between">
+      {/* 헤더 — sticky */}
+      <div className="sticky top-0 z-20 -mx-4 px-4 py-3 bg-white/95 dark:bg-secondary-950/95 backdrop-blur-sm border-b border-transparent [&:not(:first-child)]:border-secondary-200 dark:[&:not(:first-child)]:border-secondary-800 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link
             href="/admin/guides"
@@ -581,6 +591,11 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
           {!isNew && guide && guide.version > 1 && (
             <span className="text-xs px-2 py-0.5 rounded-full bg-secondary-100 dark:bg-secondary-800 text-[var(--text-secondary)]">
               v{guide.version}
+            </span>
+          )}
+          {isDirty && !showPreview && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 font-medium">
+              미저장
             </span>
           )}
         </div>
@@ -903,47 +918,13 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
           {/* AI 개선 액션 버튼 (최신 버전만) */}
           {guide.is_latest && (
           <div className="border-t border-secondary-200 dark:border-secondary-700 pt-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-[var(--text-secondary)]">모델 선택</span>
-              <div className="inline-flex rounded-md overflow-hidden border border-secondary-200 dark:border-secondary-700">
-                <button
-                  type="button"
-                  onClick={() => setImproveModelTier("fast")}
-                  className={cn(
-                    "px-3 py-1.5 text-xs font-medium transition-colors",
-                    improveModelTier === "fast"
-                      ? "bg-primary-500 text-white"
-                      : "bg-white dark:bg-secondary-900 text-[var(--text-secondary)] hover:bg-secondary-50 dark:hover:bg-secondary-800",
-                  )}
-                >
-                  Flash (빠름)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setImproveModelTier("advanced")}
-                  className={cn(
-                    "px-3 py-1.5 text-xs font-medium transition-colors border-l border-secondary-200 dark:border-secondary-700",
-                    improveModelTier === "advanced"
-                      ? "bg-info-500 text-white"
-                      : "bg-white dark:bg-secondary-900 text-[var(--text-secondary)] hover:bg-secondary-50 dark:hover:bg-secondary-800",
-                  )}
-                >
-                  Pro (고품질)
-                </button>
-              </div>
-            </div>
-            {improveModelTier === "advanced" && (
-              <p className="text-[10px] text-info-600 dark:text-info-400 text-right">
-                Thinking 모드 · 크레딧 차감
-              </p>
-            )}
             <button
               type="button"
               onClick={async () => {
                 if (!guideId) return;
                 setImproving(true);
                 try {
-                  const result = await improveGuideAction(guideId, improveModelTier);
+                  const result = await improveGuideAction(guideId);
                   if (result.success && result.data?.guideId) {
                     toast.showSuccess("개선된 가이드가 새 버전으로 생성되었습니다.");
                     queryClient.invalidateQueries({
@@ -970,7 +951,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
               {improving ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  리뷰 반영 개선 중...{improveModelTier === "advanced" ? " (30~60초)" : " (15~30초)"}
+                  리뷰 반영 개선 + URL 검증 중... (60~90초)
                 </>
               ) : (
                 <>

@@ -218,8 +218,8 @@ export function GuideListClient() {
         </div>
       </div>
 
-      {/* 기본 필터 행 */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* 기본 필터 행 — 그리드 반응형 */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-wrap items-center gap-2">
         <select
           value={filters.guideType ?? ""}
           onChange={(e) => handleFilterChange("guideType", e.target.value as GuideType)}

@@ -601,15 +601,33 @@ const PROGRAM_SECTIONS: SectionDefinition[] = [
 ];
 
 // ============================================================
+// 전 유형 공통 섹션 (마지막에 추가)
+// ============================================================
+
+const COMMON_TAIL_SECTIONS: SectionDefinition[] = [
+  {
+    key: "consultant_guide",
+    label: "컨설턴트 편집 가이드",
+    editorType: "rich_text",
+    required: false,
+    order: 99,
+    tier: "core",
+    adminOnly: true,
+    placeholder:
+      "AI가 생성한 편집 가이드: 팩트 체크 항목, 참고 자료 검색 안내, 편집 조언",
+  },
+];
+
+// ============================================================
 // 공개 API
 // ============================================================
 
 export const GUIDE_SECTION_CONFIG: Record<GuideType, SectionDefinition[]> = {
-  reading: READING_SECTIONS,
-  topic_exploration: TOPIC_EXPLORATION_SECTIONS,
-  experiment: EXPERIMENT_SECTIONS,
-  subject_performance: SUBJECT_PERFORMANCE_SECTIONS,
-  program: PROGRAM_SECTIONS,
+  reading: [...READING_SECTIONS, ...COMMON_TAIL_SECTIONS],
+  topic_exploration: [...TOPIC_EXPLORATION_SECTIONS, ...COMMON_TAIL_SECTIONS],
+  experiment: [...EXPERIMENT_SECTIONS, ...COMMON_TAIL_SECTIONS],
+  subject_performance: [...SUBJECT_PERFORMANCE_SECTIONS, ...COMMON_TAIL_SECTIONS],
+  program: [...PROGRAM_SECTIONS, ...COMMON_TAIL_SECTIONS],
 };
 
 /** 유형의 필수 섹션 키 목록 */

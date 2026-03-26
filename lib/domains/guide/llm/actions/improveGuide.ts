@@ -36,7 +36,7 @@ const LOG_CTX = { domain: "guide", action: "improveGuide" };
 
 export async function improveGuideAction(
   guideId: string,
-  modelTier: ModelTier = "fast",
+  _modelTier?: unknown, // 하위 호환 — 무시됨, 항상 advanced 사용
 ): Promise<
   ActionResponse<{ guideId: string; preview: GeneratedGuideOutput }>
 > {
@@ -102,21 +102,56 @@ export async function improveGuideAction(
       qualityScore: guide.quality_score,
     });
 
-    // Gemini 호출 (개선 생성)
-    const { object: improved, modelId } = await generateObjectWithRateLimit({
+    // Gemini 호출 — advanced(2.5-pro) 우선, 과부하 시 fast(2.5-flash) fallback
+    let improved: import("../types").GeneratedGuideOutput;
+    let modelId: string;
+    const improveOpts = {
       system: buildImproveSystemPrompt(guide.guide_type as GuideType),
-      messages: [{ role: "user", content: userPrompt }],
+      messages: [{ role: "user" as const, content: userPrompt }],
       schema: zodSchema(generatedGuideSchema),
-      modelTier,
       temperature: 0.35,
-      maxTokens: modelTier === "advanced" ? 20480 : 14336,
-    });
+      maxTokens: 65536,
+    };
+    try {
+      const result = await generateObjectWithRateLimit({ ...improveOpts, modelTier: "advanced" });
+      improved = result.object;
+      modelId = result.modelId;
+    } catch (primaryError) {
+      const msg = primaryError instanceof Error ? primaryError.message : "";
+      if (msg.includes("high demand") || msg.includes("429") || msg.includes("overloaded")) {
+        const { logActionWarn } = await import("@/lib/logging/actionLogger");
+        logActionWarn(LOG_CTX, "2.5-pro 과부하 → 2.5-flash fallback", { guideId });
+        const result = await generateObjectWithRateLimit({ ...improveOpts, modelTier: "fast", maxTokens: 40960 });
+        improved = result.object;
+        modelId = result.modelId + " (fallback)";
+      } else {
+        throw primaryError;
+      }
+    }
 
     // #7: 개선 결과 검증
     if (improved.sections.length === 0) {
       return createErrorResponse(
         "AI가 개선된 콘텐츠를 생성하지 못했습니다. 다시 시도해주세요.",
       );
+    }
+
+    // outline 밀도 검증 (경고 로그)
+    const contentOutlines = improved.sections
+      .filter((s) => s.key === "content_sections" && s.outline?.length)
+      .flatMap((s) => s.outline ?? []);
+    const outlineStats = {
+      total: contentOutlines.length,
+      depth0: contentOutlines.filter((o) => o.depth === 0).length,
+      tips: contentOutlines.filter((o) => o.tip).length,
+      resources: contentOutlines.filter((o) => o.resources?.length).length,
+    };
+    if (outlineStats.total < 40 || outlineStats.depth0 < 5 || outlineStats.tips < 6 || outlineStats.resources < 5) {
+      const { logActionWarn } = await import("@/lib/logging/actionLogger");
+      logActionWarn(LOG_CTX, `Outline 밀도 미달: total=${outlineStats.total}/40, depth0=${outlineStats.depth0}/5, tips=${outlineStats.tips}/6, resources=${outlineStats.resources}/5`, {
+        guideId,
+        outlineStats,
+      });
     }
 
     // 새 버전 생성

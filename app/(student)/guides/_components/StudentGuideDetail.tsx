@@ -58,7 +58,7 @@ export function StudentGuideDetail({
             : [];
 
           return (
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4 max-w-4xl mx-auto">
               {/* 메타 정보 */}
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <span className="rounded bg-secondary-100 dark:bg-secondary-800 px-2 py-0.5 font-medium text-secondary-600 dark:text-secondary-400">

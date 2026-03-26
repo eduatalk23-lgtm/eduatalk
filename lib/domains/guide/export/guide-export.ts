@@ -242,6 +242,9 @@ export async function exportGuideAsDocx(
       }),
     );
 
+    // depth=0 연속 번호 추적 (content_sections 전체에서 연속)
+    let depth0Counter = 0;
+
     for (const sec of matching) {
       if (sec.label && sec.label !== def.label) {
         children.push(
@@ -264,13 +267,14 @@ export async function exportGuideAsDocx(
 
         for (let gi = 0; gi < groups.length; gi++) {
           const group = groups[gi];
+          depth0Counter++;
 
-          // depth=0 대주제
+          // depth=0 대주제 — 연속 번호
           children.push(
             new Paragraph({
               children: [
                 new TextRun({
-                  text: `${gi + 1}. ${group.heading.text}`,
+                  text: `${depth0Counter}. ${group.heading.text}`,
                   size: 22,
                   bold: true,
                 }),
@@ -471,6 +475,9 @@ function buildGuideHtml(
     html += `<div style="margin-bottom:20px;">`;
     html += `<h2 style="font-size:15px;font-weight:600;border-bottom:1px solid #ddd;padding-bottom:4px;margin-bottom:8px;">${esc(def.label)}</h2>`;
 
+    // depth=0 연속 번호 추적 (HTML export)
+    let htmlDepth0Counter = 0;
+
     for (const sec of matching) {
       if (sec.label && sec.label !== def.label) {
         html += `<p style="font-size:13px;font-weight:600;margin-bottom:4px;">${esc(sec.label)}</p>`;
@@ -486,9 +493,10 @@ function buildGuideHtml(
 
         for (let gi = 0; gi < groups.length; gi++) {
           const group = groups[gi];
-          // 대주제
+          htmlDepth0Counter++;
+          // 대주제 — 연속 번호
           html += `<div style="margin-top:12px;">`;
-          html += `<p style="font-size:14px;font-weight:bold;margin-bottom:4px;"><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#EBF5FF;color:#1A56DB;font-size:11px;font-weight:bold;margin-right:6px;">${gi + 1}</span>${esc(group.heading.text)}</p>`;
+          html += `<p style="font-size:14px;font-weight:bold;margin-bottom:4px;"><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#EBF5FF;color:#1A56DB;font-size:11px;font-weight:bold;margin-right:6px;">${htmlDepth0Counter}</span>${esc(group.heading.text)}</p>`;
           // tip/resources
           html += renderTipResourcesHtml(group.heading);
           // 하위 항목
@@ -639,7 +647,10 @@ function renderTipResourcesHtml(item: OutlineItem, ml = 24): string {
     html += `<div style="margin-left:${ml}px;font-size:11px;color:#D97306;font-style:italic;">💡 ${esc(item.tip)}</div>`;
   }
   if (item.resources?.length) {
-    html += `<div style="margin-left:${ml}px;font-size:11px;color:#1D6FA5;">📚 ${esc(item.resources.join(", "))}</div>`;
+    const descriptions = item.resources.map((r) =>
+      typeof r === "string" ? esc(r) : esc(r.description) + (r.url ? ` <a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer" style="color:#1D6FA5;text-decoration:underline;">🔗</a>` : ""),
+    ).join("<br/>");
+    html += `<div style="margin-left:${ml}px;font-size:11px;color:#1D6FA5;">📚 ${descriptions}</div>`;
   }
   return html;
 }

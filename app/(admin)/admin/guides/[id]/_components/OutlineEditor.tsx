@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback } from "react";
-import { Plus, Trash2, ChevronRight, Lightbulb, BookOpen } from "lucide-react";
+import { Plus, Trash2, ChevronRight, Lightbulb, BookOpen, ExternalLink, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { OutlineItem } from "@/lib/domains/guide/types";
+import { normalizeResources, hasResourceUrl } from "@/lib/domains/guide/utils/resource-helpers";
 
 interface OutlineEditorProps {
   items: OutlineItem[];
@@ -87,11 +88,11 @@ export function OutlineEditor({ items, onChange, readOnly }: OutlineEditorProps)
           className="group flex items-start gap-1"
           style={{ paddingLeft: `${DEPTH_INDENT[item.depth]}px` }}
         >
-          {/* Depth toggle */}
+          {/* Depth toggle — 최소 터치 영역 확보 */}
           <button
             type="button"
             onClick={() => toggleDepth(index)}
-            className="mt-2 flex-shrink-0 p-0.5 rounded hover:bg-secondary-100 dark:hover:bg-secondary-800 transition-colors"
+            className="mt-1 flex-shrink-0 p-1.5 rounded hover:bg-secondary-100 dark:hover:bg-secondary-800 transition-colors"
             title={`깊이: ${item.depth} (클릭하여 변경)`}
           >
             <div className={DEPTH_BULLET[item.depth]} />
@@ -130,30 +131,52 @@ export function OutlineEditor({ items, onChange, readOnly }: OutlineEditorProps)
               </div>
             )}
 
-            {/* Resources */}
+            {/* Resources — 설명 + URL 편집 */}
             {item.resources && item.resources.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-0.5">
-                <BookOpen className="w-3 h-3 text-blue-400 flex-shrink-0 mt-0.5" />
-                {item.resources.map((r, ri) => (
-                  <input
-                    key={ri}
-                    type="text"
-                    value={r}
-                    onChange={(e) => {
-                      const newRes = [...(item.resources ?? [])];
-                      newRes[ri] = e.target.value;
-                      updateItem(index, { resources: newRes.filter(Boolean) });
-                    }}
-                    className="text-xs text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-300 px-1.5 py-0.5 rounded focus:outline-none focus:ring-1 focus:ring-blue-300"
-                    placeholder="참고 자료"
-                  />
+              <div className="space-y-1 mt-1">
+                {normalizeResources(item.resources).map((res, ri) => (
+                  <div key={ri} className="bg-blue-50 dark:bg-blue-900/20 rounded px-2 py-1 space-y-0.5">
+                    <div className="flex items-start gap-1">
+                      <BookOpen className="w-3 h-3 text-blue-400 flex-shrink-0 mt-0.5" />
+                      <input
+                        type="text"
+                        value={res.description}
+                        onChange={(e) => {
+                          const newRes = [...normalizeResources(item.resources)];
+                          newRes[ri] = { ...newRes[ri], description: e.target.value };
+                          updateItem(index, { resources: newRes.filter((r) => r.description) });
+                        }}
+                        className="flex-1 text-xs text-blue-600 dark:text-blue-300 bg-transparent focus:outline-none"
+                        placeholder="참고 자료 설명"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1 ml-4">
+                      <ExternalLink className="w-2.5 h-2.5 text-secondary-400" />
+                      <input
+                        type="url"
+                        value={res.url ?? ""}
+                        onChange={(e) => {
+                          const newRes = [...normalizeResources(item.resources)];
+                          newRes[ri] = { ...newRes[ri], url: e.target.value || null };
+                          updateItem(index, { resources: newRes });
+                        }}
+                        className="flex-1 text-[10px] text-secondary-500 bg-transparent focus:outline-none placeholder:text-secondary-300"
+                        placeholder="링크 URL (선택 — 검수 후 추가)"
+                      />
+                    </div>
+                    {res.consultantHint && (
+                      <p className="ml-4 text-[10px] text-amber-500 dark:text-amber-400">
+                        💡 {res.consultantHint}
+                      </p>
+                    )}
+                  </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-1">
+          {/* Actions — 모바일에서는 항상 표시, 데스크톱에서는 hover/focus 시 표시 */}
+          <div className="flex items-center gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity flex-shrink-0 mt-1">
             <button
               type="button"
               onClick={() => {
@@ -171,7 +194,7 @@ export function OutlineEditor({ items, onChange, readOnly }: OutlineEditorProps)
               )}
               title="팁 토글"
             >
-              <Lightbulb className="w-3 h-3" />
+              <Lightbulb className="w-3.5 h-3.5" />
             </button>
             <button
               type="button"
@@ -183,30 +206,30 @@ export function OutlineEditor({ items, onChange, readOnly }: OutlineEditorProps)
                 }
               }}
               className={cn(
-                "p-1 rounded transition-colors",
+                "p-1.5 rounded transition-colors",
                 item.resources?.length
                   ? "text-blue-500 bg-blue-50"
                   : "text-secondary-400 hover:text-blue-500 hover:bg-blue-50",
               )}
               title="참고자료 토글"
             >
-              <BookOpen className="w-3 h-3" />
+              <BookOpen className="w-3.5 h-3.5" />
             </button>
             <button
               type="button"
               onClick={() => addItem(index, item.depth)}
-              className="p-1 rounded text-secondary-400 hover:text-primary-500 hover:bg-primary-50 transition-colors"
+              className="p-1.5 rounded text-secondary-400 hover:text-primary-500 hover:bg-primary-50 transition-colors"
               title="아래에 항목 추가"
             >
-              <Plus className="w-3 h-3" />
+              <Plus className="w-3.5 h-3.5" />
             </button>
             <button
               type="button"
               onClick={() => removeItem(index)}
-              className="p-1 rounded text-secondary-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+              className="p-1.5 rounded text-secondary-400 hover:text-red-500 hover:bg-red-50 transition-colors"
               title="삭제"
             >
-              <Trash2 className="w-3 h-3" />
+              <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -243,14 +266,28 @@ export function OutlineView({ items }: { items: OutlineItem[] }) {
               </span>
             )}
             {item.resources && item.resources.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-0.5">
-                {item.resources.map((r, j) => (
-                  <span
+              <div className="flex flex-col gap-1 mt-1">
+                {normalizeResources(item.resources).map((res, j) => (
+                  <div
                     key={j}
-                    className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 px-1.5 py-0.5 rounded"
+                    className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 px-2 py-1 rounded"
                   >
-                    {r}
-                  </span>
+                    <div className="flex items-start gap-1">
+                      <BookOpen className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                      <span>{res.description}</span>
+                      {hasResourceUrl(res) && (
+                        <a href={res.url!} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+                          <ExternalLink className="w-3 h-3 text-blue-500" />
+                        </a>
+                      )}
+                    </div>
+                    {!hasResourceUrl(res) && res.consultantHint && (
+                      <div className="flex items-center gap-1 mt-0.5 text-amber-600 dark:text-amber-400">
+                        <AlertCircle className="w-2.5 h-2.5" />
+                        <span className="text-[10px]">{res.consultantHint}</span>
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             )}

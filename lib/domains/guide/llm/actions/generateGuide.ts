@@ -85,16 +85,40 @@ export async function generateGuideAction(
 
     const { systemPrompt, userPrompt, sourceType, parentGuideId } = promptResult;
 
-    // AI 생성
-    const tier = input.modelTier ?? "fast";
-    const { object: generated, modelId } = await generateObjectWithRateLimit({
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-      schema: zodSchema(generatedGuideSchema),
-      modelTier: tier,
-      temperature: 0.5,
-      maxTokens: tier === "advanced" ? 20480 : 14336,
-    });
+    // AI 생성 — advanced(2.5-pro) 우선, 과부하 시 fast(2.5-flash) fallback
+    let generated: import("../types").GeneratedGuideOutput;
+    let modelId: string;
+    try {
+      const result = await generateObjectWithRateLimit({
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+        schema: zodSchema(generatedGuideSchema),
+        modelTier: "advanced",
+        temperature: 0.5,
+        maxTokens: 65536,
+      });
+      generated = result.object;
+      modelId = result.modelId;
+    } catch (primaryError) {
+      // 과부하/rate limit → fast로 fallback
+      const msg = primaryError instanceof Error ? primaryError.message : "";
+      if (msg.includes("high demand") || msg.includes("429") || msg.includes("overloaded")) {
+        const { logActionWarn } = await import("@/lib/logging/actionLogger");
+        logActionWarn(LOG_CTX, "2.5-pro 과부하 → 2.5-flash fallback", { source: input.source });
+        const result = await generateObjectWithRateLimit({
+          system: systemPrompt,
+          messages: [{ role: "user", content: userPrompt }],
+          schema: zodSchema(generatedGuideSchema),
+          modelTier: "fast",
+          temperature: 0.5,
+          maxTokens: 40960,
+        });
+        generated = result.object;
+        modelId = result.modelId + " (fallback)";
+      } else {
+        throw primaryError;
+      }
+    }
 
     // selectedSectionKeys가 있으면 AI 출력을 필터링 (선택하지 않은 섹션 제거)
     // Core 섹션은 항상 포함하여 데이터 무결성 보장
@@ -116,6 +140,24 @@ export async function generateGuideAction(
       return createErrorResponse(
         "AI가 유효한 섹션을 생성하지 못했습니다. 다시 시도해주세요.",
       );
+    }
+
+    // outline 밀도 검증 (경고 로그)
+    const contentOutlines = generated.sections
+      .filter((s) => s.key === "content_sections" && s.outline?.length)
+      .flatMap((s) => s.outline ?? []);
+    const outlineStats = {
+      total: contentOutlines.length,
+      depth0: contentOutlines.filter((o) => o.depth === 0).length,
+      tips: contentOutlines.filter((o) => o.tip).length,
+      resources: contentOutlines.filter((o) => o.resources?.length).length,
+    };
+    if (outlineStats.total < 40 || outlineStats.depth0 < 5 || outlineStats.tips < 6 || outlineStats.resources < 5) {
+      const { logActionWarn } = await import("@/lib/logging/actionLogger");
+      logActionWarn(LOG_CTX, `Outline 밀도 미달: total=${outlineStats.total}/40, depth0=${outlineStats.depth0}/5, tips=${outlineStats.tips}/6, resources=${outlineStats.resources}/5`, {
+        source: input.source,
+        outlineStats,
+      });
     }
 
     // 과목/계열/소분류 이름 → ID 매핑

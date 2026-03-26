@@ -64,9 +64,10 @@ export async function reviewGuideAction(
       system: buildReviewSystemPrompt(guide.guide_type as GuideType),
       messages: [{ role: "user", content: buildReviewUserPrompt(guide) }],
       schema: zodSchema(guideReviewSchema),
-      modelTier: "fast",
+      // 모델 고정: 리뷰는 항상 advanced (2.5-pro) — 깊은 추론 필요
+      modelTier: "advanced",
       temperature: 0.2,
-      maxTokens: 4096,
+      maxTokens: 8192,
     });
 
     const tier = scoreToQualityTier(review.overallScore);

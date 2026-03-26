@@ -74,7 +74,7 @@ export function GuidePreview(props: GuidePreviewProps) {
     GUIDE_SECTION_CONFIG["topic_exploration"];
 
   return (
-    <div className="rounded-xl border border-secondary-200 dark:border-secondary-700 bg-white dark:bg-secondary-900 p-6 space-y-6">
+    <div className="rounded-xl border border-secondary-200 dark:border-secondary-700 bg-white dark:bg-secondary-900 p-4 sm:p-6 space-y-6 max-w-4xl mx-auto">
       {/* 헤더 */}
       <div>
         <div className="flex items-center gap-2 mb-2">
@@ -128,6 +128,25 @@ export function GuidePreview(props: GuidePreviewProps) {
         </div>
       )}
 
+      {/* 섹션 빠른 이동 */}
+      <nav className="flex flex-wrap gap-1.5">
+        {sectionConfig
+          .filter((def) => !def.adminOnly && sections.some((s) => s.key === def.key))
+          .sort((a, b) => a.order - b.order)
+          .map((def) => (
+            <button
+              key={def.key}
+              type="button"
+              onClick={() => {
+                document.getElementById(`preview-${def.key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              className="px-2 py-1 rounded text-xs text-[var(--text-secondary)] hover:bg-secondary-100 dark:hover:bg-secondary-800 transition-colors"
+            >
+              {def.label}
+            </button>
+          ))}
+      </nav>
+
       {/* 섹션 렌더링 */}
       {sectionConfig
         .filter((def) => !def.adminOnly)
@@ -138,7 +157,7 @@ export function GuidePreview(props: GuidePreviewProps) {
             const section = sections.find((s) => s.key === def.key);
             if (!section?.items?.length) return null;
             return (
-              <PreviewBlock key={def.key} label={def.label}>
+              <PreviewBlock key={def.key} label={def.label} sectionKey={def.key}>
                 <ul className="space-y-1">
                   {section.items.map((item, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
@@ -156,7 +175,7 @@ export function GuidePreview(props: GuidePreviewProps) {
             const multiples = sections.filter((s) => s.key === def.key);
             if (multiples.length === 0) return null;
             return (
-              <div key={def.key}>
+              <div key={def.key} id={`preview-${def.key}`} className="scroll-mt-16">
                 <h4 className="text-sm font-semibold text-[var(--text-heading)] mb-2">
                   {def.label}
                 </h4>
@@ -188,13 +207,15 @@ export function GuidePreview(props: GuidePreviewProps) {
 function PreviewBlock({
   label,
   children,
+  sectionKey,
 }: {
   label: string;
   children: React.ReactNode;
+  sectionKey?: string;
 }) {
   if (!children) return null;
   return (
-    <div>
+    <div id={sectionKey ? `preview-${sectionKey}` : undefined} className="scroll-mt-16">
       <h4 className="text-sm font-semibold text-[var(--text-heading)] mb-1.5">
         {label}
       </h4>

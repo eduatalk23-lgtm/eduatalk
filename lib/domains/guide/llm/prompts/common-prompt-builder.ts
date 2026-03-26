@@ -36,10 +36,11 @@ export function buildSectionStructurePrompt(
     GUIDE_SECTION_CONFIG["topic_exploration"];
 
   // selectedKeys가 있으면 해당 섹션 + Core 섹션(항상 포함)
-  const defs = selectedKeys
+  const selectedSet = selectedKeys ? new Set(selectedKeys) : null;
+  const defs = selectedSet
     ? allDefs.filter(
         (d) =>
-          selectedKeys.includes(d.key) ||
+          selectedSet.has(d.key) ||
           (d.tier ?? "core") === "core", // Core는 항상 포함
       )
     : allDefs;
@@ -47,17 +48,15 @@ export function buildSectionStructurePrompt(
   const lines: string[] = [];
   lines.push(`## 가이드 구조 (${GUIDE_TYPE_LABELS[guideType]})`);
   lines.push(
-    "sections 배열의 각 항목은 아래 key와 정확히 일치해야 합니다.\n",
+    "sections 배열에 아래 나열된 **모든 섹션을 빠짐없이** 포함해야 합니다.\n",
   );
 
   for (const def of defs) {
-    const reqTag = def.required ? "(필수)" : "(선택)";
-    const tierTag =
-      def.tier === "type_extension"
-        ? " [유형확장]"
-        : def.tier === "optional"
-          ? " [선택보강]"
-          : "";
+    // 사용자가 명시적으로 선택했거나 Core면 → (필수)로 표시
+    const isUserSelected = selectedSet?.has(def.key);
+    const isCore = (def.tier ?? "core") === "core";
+    const reqTag = isCore || isUserSelected ? "**(필수)**" : "(선택)";
+
     const lengthHint =
       def.minLength && def.maxLength
         ? ` ${def.minLength}~${def.maxLength}자`
@@ -72,9 +71,13 @@ export function buildSectionStructurePrompt(
     const outlineTag = def.outlineRequired ? " 🗂️[outline 필수]" : "";
 
     lines.push(
-      `- key=\`${def.key}\` **${def.label}** ${reqTag}${tierTag}${multiHint}${lengthHint}${outlineTag}${desc}`,
+      `- key=\`${def.key}\` **${def.label}** ${reqTag}${multiHint}${lengthHint}${outlineTag}${desc}`,
     );
   }
+
+  lines.push(
+    "\n⚠️ 위에 나열된 섹션은 컨설턴트가 선택한 것입니다. **(필수)** 표시된 섹션을 하나라도 누락하면 불합격입니다.",
+  );
 
   return lines.join("\n");
 }
@@ -200,6 +203,31 @@ export function buildOutlineFormatPrompt(): string {
 - **depth=1** — 중주제 (예: "가. 핵심 개념 정의", "나. 변수 설계")
 - **depth=2** — 세부항목 (예: "- 엔트로피의 열역학적 정의와 의미", "- 독립변인: 구조 형태")
 
+### ⭐ outline 분량/밀도 기준 (필수 — 미달 시 불합격)
+content_sections **전체를 합산**한 수치이며, 아래 기준을 **반드시** 충족해야 합니다.
+이 기준은 최소 요구사항이므로, 미달 시 출력이 거부됩니다.
+
+| 항목 | 최소 (MUST) | 목표 (SHOULD) |
+|------|-------------|---------------|
+| depth=0 (대주제) | **5개 이상** | 6~8개 |
+| depth=1 (중주제) | 대주제당 **2개 이상** | 3~5개 |
+| depth=2 (세부항목) | 중주제당 **2개 이상** | 3~4개 |
+| **전체 outline 항목 합계** | **40개 이상** | 50~60개 |
+| tip | **6개 이상** | 8~10개 |
+| resources | **5개 이상** | 6~8개 |
+
+⚠️ **자가 검증**: outline 생성 후, 위 표의 "최소(MUST)" 열을 전부 만족하는지 확인하세요.
+하나라도 미달이면 항목을 추가하여 기준을 충족시키세요.
+
+### depth=2 세부항목 작성 기준
+세부항목은 **학생이 바로 조사/실행할 수 있는 구체적 내용**이어야 합니다:
+- ❌ 추상적: "관련 이론 조사"
+- ✅ 구체적: "다르시 법칙: Q = K × A × (Δh/L) — 각 변수의 물리적 의미 정리"
+- ❌ 추상적: "실험 준비물 확인"
+- ✅ 구체적: "투명 아크릴 원통 (직경 8cm, 높이 30cm) × 5개"
+- ❌ 추상적: "데이터 분석"
+- ✅ 구체적: "시료별 평균 침투율, 표준편차, 변이계수(CV) 산출 → 막대그래프 + 오차막대 시각화"
+
 ### outline의 역할
 outline은 **학생이 따라갈 탐구 로드맵(학습 경로)**입니다:
 - "어떤 내용을 조사/탐구/실험하라"는 안내
@@ -207,24 +235,113 @@ outline은 **학생이 따라갈 탐구 로드맵(학습 경로)**입니다:
 - "어떤 자료를 참고하라"는 리소스 안내
 → content(산문)이 "탐구 결과물"이라면, outline은 "탐구 안내서"입니다.
 
-### tip 사용 규칙 (학생 공개)
-tip은 **학생에게 직접 보이는 안내**입니다. 학생이 행동할 수 있는 구체적 지시만 작성합니다 (섹션당 1~3개):
-- 좋은 예: "반드시 본인의 경험과 연결지어 해석할 것"
-- 좋은 예: "5회 이상 반복 실험하여 표준편차 산출"
-- 좋은 예: "교과서 p.142 적분 단원 참조"
-- **금지**: 내부 코멘트, AI 관련 지시, 컨설턴트 메모 (예: "AI 의존도 낮출 것", "이 부분 검수 필요")
-→ 내부 메모는 tip이 아닌 에디터 UI에서 별도로 관리합니다
+### 🔴 tip 사용 규칙 (필수 — 0개는 불합격)
+tip은 **학생에게 직접 보이는 안내**입니다.
+⚠️ **tip이 0개인 outline은 불합격입니다. 반드시 6개 이상 포함하세요.**
+tip을 배치할 위치: 주로 depth=0 또는 depth=1 항목에 붙입니다. depth=2에도 가능합니다.
 
-### resources 사용 규칙
-구체적 참고 자료를 포함합니다:
-- 학술 DB: "RISS 키워드: ○○", "DBPIA 검색어: ○○"
-- 교과서: "교과서 p.142-148 참조"
-- 영상/웹: 관련 YouTube 채널명, 신뢰할 수 있는 웹사이트명
+좋은 예:
+- "반드시 본인의 경험과 연결지어 해석할 것"
+- "5회 이상 반복 실험하여 표준편차 산출 — 확률적 신뢰도 확보"
+- "수학적 의미를 이해한 후 반드시 본인의 언어로 설명할 것"
+- "단순 결론이 아닌 '이 실험의 한계가 실제 현장과 어떻게 다른지' 반드시 서술할 것"
+- "각 경우의 대표적 예시를 반드시 작성하여 비교표에 포함할 것"
+- **금지**: 내부 코멘트, AI 관련 지시, 컨설턴트 메모 (예: "AI 의존도 낮출 것")
+
+### 🔴 resources 사용 규칙 (필수 — 0개는 불합격)
+⚠️ **resources가 0개인 outline은 불합격입니다. 반드시 5개 이상 포함하세요.**
+resources는 \`{description, consultantHint?}\` 구조입니다.
+
+**description** (필수, 1~2문장, **100자 이내**): 학생에게 보이는 추가 맥락. URL 포함 금지.
+**consultantHint** (선택, **30자 이내**): 컨설턴트용 검색 안내.
+
+⚠️ description이 너무 길면 토큰 한도를 초과합니다. **핵심 정보만 간결하게** 작성하세요.
+
+좋은 예:
+- \`{description: "니켈 촉매 활성 온도 300-400°C 범위(김○○, 2022)", consultantHint: "RISS: 니켈 촉매 메탄화"}\`
+- \`{description: "반트호프 방정식으로 K의 온도 의존성을 정량 분석 가능", consultantHint: "Khan Academy: van't Hoff equation"}\`
+- \`{description: "CH₄ 표준 생성 엔탈피 -74.87 kJ/mol (NIST)", consultantHint: "NIST WebBook: CH4 thermochemistry"}\`
+
+나쁜 예:
+- ❌ description이 3문장 이상 → 토큰 초과 위험
+- ❌ \`{description: "RISS에서 검색하세요"}\` → 학생에게 맥락 없음
+- ❌ URL 포함 → 금지
+
+**consultantHint**: 컨설턴트에게만 보이는 검색/링크 등록 안내입니다. 어떤 DB에서 어떤 키워드로 검색하면 관련 자료를 찾을 수 있는지 안내합니다.
+
+### content_sections 간 outline 연속성 (중요)
+복수 content_sections의 outline은 **하나의 연속된 탐구 로드맵**을 이룹니다:
+- 첫 번째 content_section의 depth=0 번호가 "1."부터 시작
+- 다음 content_section은 이전 번호를 이어받아 연속 번호 사용 (예: 이전이 "3."까지 → 다음은 "4."부터)
+- 학생 뷰에서 전체 outline이 합쳐져 하나의 목차로 표시됩니다
 
 ### content(산문)와 outline(목차)의 관계
 - outline의 depth=0 대주제 순서는 산문 content의 단락 순서와 **대응**해야 합니다
 - 산문은 탐구 결과가 서술된 **완성된 글**, 목차는 탐구 경로를 안내하는 **로드맵**
 - 둘은 같은 주제를 다르게 표현: 산문="이렇게 탐구했습니다", 목차="이렇게 탐구하세요"`;
+}
+
+/**
+ * 섹션별 품질 기준 — content_sections 외 다른 섹션도 구조화
+ */
+export function buildSectionQualityPrompt(): string {
+  return `## 섹션별 품질 기준 (content_sections 외)
+
+### motivation (탐구 동기) — 3단계 구조 필수
+탐구 동기는 **3단계 흐름**으로 작성합니다:
+1. **개인 경험/관찰**: 구체적 상황에서 출발 ("○○을 보면서", "○○ 수업 중에")
+2. **궁금증/문제 제기**: 경험에서 자연스럽게 떠오른 질문 ("왜 ○○일까?", "어떻게 ○○할까?")
+3. **탐구 방향 설정**: 질문을 해결할 구체적 접근법 ("○○ 원리를 적용하여 분석하고자")
+→ 세 단계가 **인과적으로 연결**되어야 합니다. 갑작스러운 전환 금지.
+
+### reflection (탐구 고찰) — 4단락 구조 필수
+탐구 고찰은 반드시 아래 **4가지 요소**를 포함합니다 (순서대로):
+1. **핵심 결론 요약**: 탐구를 통해 얻은 가장 중요한 발견 1~2문장
+2. **탐구의 한계**: 모델의 가정, 통제하지 못한 변수, 데이터의 제약 등 구체적으로 명시
+3. **시사점**: 이 결과가 해당 학문/분야에서 갖는 의미, 실용적 가치
+4. **후속 연구 제언**: 한계를 극복하기 위한 구체적 후속 탐구 방향 (주제명 + 방법론)
+→ 단순 "아쉬운 점이 있다"가 아닌, **무엇이** 한계이고 **어떻게** 극복할 수 있는지 구체적으로.
+
+### impression (느낀점) — 성장 서사 필수
+느낀점은 **학습자의 변화와 성장**에 초점을 맞춥니다:
+1. **지적 발견**: 이번 탐구에서 가장 인상 깊었던 깨달음
+2. **역량 성장**: 탐구 과정에서 실제로 기른 능력 (분석력, 융합적 사고, 문제 해결 등)
+3. **진로 연계**: 이 경험이 진로/전공 목표에 미친 구체적 영향
+→ "재미있었다", "흥미로웠다" 등 피상적 감상 금지. 구체적 변화를 서술.
+
+### follow_up (후속 탐구) — 최소 3개, 각각 구체적
+후속 탐구는 **3개 이상** 제안하며, 각 항목에는:
+- **후속 주제명**: 구체적이고 탐구 가능한 주제
+- **방법론 또는 접근법**: 어떻게 탐구할 것인지 (문헌 분석, 실험, 시뮬레이션 등)
+→ "더 깊이 탐구하고 싶다"가 아닌, **무엇을 어떻게** 할 것인지.
+
+### setek_examples (세특 예시) — 서술어 패턴 강화
+세특 예시는 이미 별도 가이드가 있으나, 추가로:
+- 각 예시는 반드시 **"동기 제기 → 탐구 수행 → 확장/성장"** 3박자 압축 서사
+- 각 예시의 첫 문장에 **자기주도성 서술어** 포함: "스스로 ~함", "주도적으로 ~함", "자발적으로 ~함"
+- 탐구 내용의 **구체적 수치/결과**를 1개 이상 포함 (예: "686N의 힘을 정량적으로 계산하고")
+
+### consultant_guide (컨설턴트 편집 가이드) — adminOnly 필수 섹션
+이 섹션은 학생에게 보이지 않으며, 컨설턴트가 가이드를 편집/검수할 때 참고하는 안내서입니다.
+반드시 아래 3가지를 포함합니다:
+
+**1. ⚠️ 팩트 체크 필요 항목**
+가이드에 포함된 수식, 수치, 연구 인용 등에서 검증이 필요한 항목을 나열합니다:
+- 각 항목의 위치 (어떤 섹션의 어떤 내용)
+- 검증 방법 (어떤 자료에서 확인할 수 있는지)
+- 예: "탐구이론 1번 섹션의 ΔH° = -165.0 kJ/mol → NIST Chemistry WebBook에서 확인 필요"
+
+**2. 🔍 참고 자료 검색 안내**
+outline의 각 resource 항목에 대해 컨설턴트가 링크를 찾을 수 있도록 구체적인 검색 방법을 안내합니다:
+- 검색할 DB/사이트 (RISS, Google Scholar, YouTube 등)
+- 추천 검색 키워드
+- 예상되는 자료 유형 (논문, 강의 영상, 시뮬레이션 등)
+
+**3. ✏️ 편집 조언**
+가이드의 전반적인 품질을 높이기 위해 컨설턴트가 수정/보완해야 할 부분을 안내합니다:
+- 학생 수준에 맞게 조정이 필요한 부분
+- 추가 설명이 필요한 어려운 개념
+- 구조적 개선 제안`;
 }
 
 // ============================================================
@@ -270,6 +387,9 @@ export function buildBaseSystemPrompt(
   // 4.5. 목차형 아웃라인 작성 규칙
   parts.push(buildOutlineFormatPrompt());
 
+  // 4.7. 섹션별 품질 기준
+  parts.push(buildSectionQualityPrompt());
+
   // 5. 섹션 간 연계 규칙
   parts.push(SECTION_COHERENCE_RULES);
 
@@ -292,7 +412,20 @@ export function buildBaseSystemPrompt(
 - suggestedSubjects: DB에 저장된 한국 교과 과목명 (예: "물리학Ⅰ", "생명과학Ⅱ", "미적분", "사회·문화")
 - suggestedCareerFields: "공학계열", "의약계열", "자연계열", "인문계열", "사회계열", "교육계열", "예체능계열" 중 선택
 - suggestedClassifications: 관련 KEDI 학과 소분류명. 확실한 것만 최대 5개. 모르면 빈 배열
-- 독서탐구인 경우: 도서명(bookTitle), 저자(bookAuthor), 출판사(bookPublisher) 필수`);
+- 독서탐구인 경우: 도서명(bookTitle), 저자(bookAuthor), 출판사(bookPublisher) 필수
+- consultant_guide 섹션: 반드시 포함. 팩트 체크 항목 + 참고 자료 검색 안내 + 편집 조언 3가지를 모두 포함
+- resources의 description에 **URL을 포함하지 마세요**. 조사한 내용을 설명 텍스트로만 작성합니다
+
+## 🔴 최종 자가 검증 체크리스트 (출력 전 반드시 확인)
+출력하기 전에 아래 항목을 모두 점검하세요. 하나라도 미달이면 수정 후 출력합니다:
+1. [ ] content_sections 전체 outline 합계 ≥ **40개**
+2. [ ] depth=0 대주제 ≥ **5개** (content_sections 전체 합산)
+3. [ ] tip 총 개수 ≥ **6개**
+4. [ ] resources 총 개수 ≥ **5개** (각각 description 필수, URL 없음)
+5. [ ] depth=2 항목이 추상적이지 않고, 수치/공식/구체적 내용을 포함
+6. [ ] 모든 content_sections의 depth=0 번호가 연속 (1→2→...→N)
+7. [ ] 산문(content)과 목차(outline)의 대주제 순서가 대응
+8. [ ] consultant_guide 섹션이 포함되어 있고, 팩트 체크 + 검색 안내 + 편집 조언 3가지 포함`);
 
   return parts.join("\n\n");
 }
