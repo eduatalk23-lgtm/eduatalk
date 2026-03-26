@@ -46,8 +46,7 @@ export function extractJson<T = any>(raw: string): T {
 
   // 3단계: 흔한 AI JSON 오류 정리
   // 3-a: 한줄 주석 제거 (// ...) — 문자열 내부는 보존
-  str = str.replace(/(?<="[^"]*")\s*\/\/[^\n]*/g, "");
-  str = str.replace(/^\s*\/\/[^\n]*/gm, "");
+  str = stripJsonComments(str);
   // 3-b: trailing comma 제거 (,] 또는 ,})
   str = str.replace(/,\s*([}\]])/g, "$1");
 
@@ -69,7 +68,52 @@ export function extractJson<T = any>(raw: string): T {
       lastError = e;
     }
   }
+
+  // 파싱 실패 시 에러 위치 주변 로깅 (운영 디버깅용)
+  if (lastError instanceof SyntaxError) {
+    const posMatch = lastError.message.match(/position (\d+)/);
+    if (posMatch) {
+      const pos = parseInt(posMatch[1], 10);
+      const lastStr = repairTruncatedJson(escapeNewlinesInStrings(str));
+      const around = lastStr.substring(Math.max(0, pos - 80), pos + 80);
+      console.error(`[extractJson] 파싱 실패 — pos=${pos}, len=${lastStr.length}: ...${around}...`);
+    }
+  }
+
   throw lastError;
+}
+
+/**
+ * JSON 문자열 외부의 // 한줄 주석을 제거
+ * 기존 regex lookbehind 방식은 가변 폭 패턴 문제로 동작하지 않아
+ * 문자별 파서로 교체
+ */
+function stripJsonComments(json: string): string {
+  const lines = json.split("\n");
+  const result: string[] = [];
+
+  for (const line of lines) {
+    let inString = false;
+    let escaped = false;
+    let stripped = line;
+
+    for (let i = 0; i < line.length; i++) {
+      if (escaped) { escaped = false; continue; }
+      if (line[i] === "\\") { escaped = true; continue; }
+      if (line[i] === '"') { inString = !inString; continue; }
+      if (!inString && line[i] === "/" && line[i + 1] === "/") {
+        stripped = line.substring(0, i).trimEnd();
+        break;
+      }
+    }
+
+    // 빈 주석 전용 줄은 제거
+    if (stripped.trim().length > 0 || line.trim().length === 0) {
+      result.push(stripped);
+    }
+  }
+
+  return result.join("\n");
 }
 
 /**
@@ -129,15 +173,18 @@ function repairTruncatedJson(json: string): string {
     s += '"';
   }
 
-  // 마지막 불완전 key-value 쌍 제거 (예: ,"key": 또는 ,"key":  로 끝나는 경우)
-  s = s.replace(/,\s*"[^"]*"\s*:\s*$/, "");
+  // 마지막 불완전 key-value 쌍 제거
+  // 패턴: ,"key":값없음 | ,"key"콜론없음 | ,"key":"불완전값"
+  s = s.replace(/,\s*"[^"]*"\s*:?\s*("([^"\\]|\\.)*")?\s*$/, "");
+
+  // { 바로 뒤의 불완전 첫 key도 제거 (예: {"key"} → {})
+  s = s.replace(/(\{)\s*"[^"]*"\s*$/, "$1");
 
   // trailing comma 정리
   s = s.replace(/,\s*$/, "");
 
-  // 열린 괄호 카운트
-  let braces = 0;
-  let brackets = 0;
+  // 중첩 순서를 추적하여 올바른 닫는 괄호 순서 보장
+  const stack: string[] = [];
   let inString = false;
   let escaped = false;
 
@@ -156,20 +203,14 @@ function repairTruncatedJson(json: string): string {
     }
     if (inString) continue;
 
-    if (ch === "{") braces++;
-    else if (ch === "}") braces--;
-    else if (ch === "[") brackets++;
-    else if (ch === "]") brackets--;
+    if (ch === "{") stack.push("}");
+    else if (ch === "[") stack.push("]");
+    else if (ch === "}" || ch === "]") stack.pop();
   }
 
-  // 부족한 닫는 괄호 추가
-  while (brackets > 0) {
-    s += "]";
-    brackets--;
-  }
-  while (braces > 0) {
-    s += "}";
-    braces--;
+  // 스택 역순으로 닫는 괄호 추가 (올바른 중첩 순서)
+  while (stack.length > 0) {
+    s += stack.pop();
   }
 
   return s;

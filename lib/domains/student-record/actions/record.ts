@@ -10,7 +10,7 @@ import {
   createErrorResponse,
 } from "@/lib/types/actionResponse";
 import * as service from "../service";
-import { markRelatedEdgesStale } from "../stale-detection";
+import { markRelatedEdgesStale, markRelatedAssignmentsStale } from "../stale-detection";
 import type {
   RecordTabData,
   RecordSetekInsert,
@@ -57,6 +57,7 @@ export async function saveSetekAction(
     }
     // Phase E3: 관련 엣지 stale 마킹 (fire-and-forget)
     markRelatedEdgesStale(result.id!).catch(() => {});
+    markRelatedAssignmentsStale(result.id!).catch(() => {});
     return createSuccessResponse({ id: result.id! });
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "saveSetekAction" }, error);
@@ -78,6 +79,7 @@ export async function savePersonalSetekAction(
       return createErrorResponse(result.error ?? "개인 세특 저장 실패");
     }
     markRelatedEdgesStale(result.id!).catch(() => {});
+    markRelatedAssignmentsStale(result.id!).catch(() => {});
     return createSuccessResponse({ id: result.id! });
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "savePersonalSetekAction" }, error);
@@ -120,6 +122,7 @@ export async function saveChangcheAction(
       return createErrorResponse(result.error ?? "창체 저장 실패");
     }
     markRelatedEdgesStale(result.id!).catch(() => {});
+    markRelatedAssignmentsStale(result.id!).catch(() => {});
     return createSuccessResponse({ id: result.id! });
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "saveChangcheAction" }, error);
@@ -142,6 +145,7 @@ export async function saveHaengteukAction(
       return createErrorResponse(result.error ?? "행특 저장 실패");
     }
     markRelatedEdgesStale(result.id!).catch(() => {});
+    markRelatedAssignmentsStale(result.id!).catch(() => {});
     return createSuccessResponse({ id: result.id! });
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "saveHaengteukAction" }, error);

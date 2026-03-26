@@ -219,8 +219,18 @@ export async function generateAndSaveRecommendations(
 /**
  * confirmed plans에 대해 빈 세특 자동 생성
  * 이미 존재하는 세특은 skip (중복 방지)
- * @returns 생성된 세특 수
+ * @returns 생성된 세특 수 + 생성된 세특 목록 (가이드 auto-link용)
  */
+export interface SyncSetekResult {
+  count: number;
+  createdSeteks: Array<{
+    id: string;
+    subjectId: string;
+    grade: number;
+    semester: number;
+  }>;
+}
+
 export async function syncConfirmedToSeteks(
   studentId: string,
   tenantId: string,
@@ -228,15 +238,16 @@ export async function syncConfirmedToSeteks(
   currentSchoolYear: number,
   targetGrade?: number,
   targetSemester?: number,
-): Promise<number> {
+): Promise<SyncSetekResult> {
   const supabase = await createSupabaseServerClient();
   const confirmedPlans = await repo.findConfirmedByGradeSemester(
     studentId, targetGrade, targetSemester,
   );
 
-  if (confirmedPlans.length === 0) return 0;
+  if (confirmedPlans.length === 0) return { count: 0, createdSeteks: [] };
 
   let created = 0;
+  const createdSeteks: SyncSetekResult["createdSeteks"] = [];
 
   for (const plan of confirmedPlans) {
     const schoolYear = gradeToSchoolYear(plan.grade, studentGrade, currentSchoolYear);
@@ -268,10 +279,20 @@ export async function syncConfirmedToSeteks(
       char_limit: 500,
     });
 
-    if (result.success) created++;
+    if (result.success) {
+      created++;
+      if (result.id) {
+        createdSeteks.push({
+          id: result.id,
+          subjectId: plan.subject_id,
+          grade: plan.grade,
+          semester: plan.semester,
+        });
+      }
+    }
   }
 
-  return created;
+  return { count: created, createdSeteks };
 }
 
 /**

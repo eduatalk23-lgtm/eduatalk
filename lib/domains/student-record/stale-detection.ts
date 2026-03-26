@@ -20,6 +20,40 @@ export async function markRelatedEdgesStale(recordId: string): Promise<void> {
 }
 
 /**
+ * 레코드 저장 후 관련 가이드 배정을 stale로 마킹 (fire-and-forget safe)
+ * linked_record_id가 일치하는 배정에 is_stale=true 설정
+ */
+export async function markRelatedAssignmentsStale(recordId: string): Promise<void> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    await supabase
+      .from("exploration_guide_assignments")
+      .update({ is_stale: true, stale_reason: "linked_record_updated" })
+      .eq("linked_record_id", recordId)
+      .eq("is_stale", false);
+  } catch {
+    // fire-and-forget
+  }
+}
+
+/**
+ * 학생의 모든 가이드 배정을 stale 처리 (진로 목표 변경 등)
+ */
+export async function markStudentAssignmentsStale(studentId: string, tenantId: string): Promise<void> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    await supabase
+      .from("exploration_guide_assignments")
+      .update({ is_stale: true, stale_reason: "target_major_changed" })
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .eq("is_stale", false);
+  } catch {
+    // fire-and-forget
+  }
+}
+
+/**
  * 파이프라인의 content_hash와 현재 레코드 상태를 비교하여 stale 여부 반환
  */
 export async function checkPipelineStaleness(

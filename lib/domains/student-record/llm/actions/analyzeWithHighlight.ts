@@ -12,13 +12,19 @@ import {
   HIGHLIGHT_SYSTEM_PROMPT,
   buildHighlightUserPrompt,
   parseHighlightResponse,
+  buildBatchHighlightUserPrompt,
+  parseBatchHighlightResponse,
 } from "../prompts/competencyHighlight";
-import type { HighlightAnalysisInput, HighlightAnalysisResult } from "../types";
+import type { HighlightAnalysisInput, HighlightAnalysisResult, BatchHighlightInput, BatchHighlightResult } from "../types";
 
 const LOG_CTX = { domain: "student-record", action: "analyzeWithHighlight" };
 
+/**
+ * careerContext가 없고 studentId가 제공되면 DB에서 자동 조회합니다.
+ * 파이프라인/클라이언트 양쪽에서 동일한 진로 컨텍스트를 사용합니다.
+ */
 export async function analyzeSetekWithHighlight(
-  input: HighlightAnalysisInput,
+  input: HighlightAnalysisInput & { studentId?: string },
 ): Promise<{ success: true; data: HighlightAnalysisResult } | { success: false; error: string }> {
   try {
     await requireAdminOrConsultant();
@@ -27,14 +33,59 @@ export async function analyzeSetekWithHighlight(
       return { success: false, error: "분석할 텍스트가 너무 짧습니다 (20자 이상 필요)." };
     }
 
+    // careerContext 자동 조회: studentId 있고 careerContext 없으면 DB에서 조립
+    if (!input.careerContext && input.studentId) {
+      const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+      const supabase = await createSupabaseServerClient();
+      const { data: student } = await supabase
+        .from("students")
+        .select("target_major")
+        .eq("id", input.studentId)
+        .maybeSingle();
+      const tgtMajor = student?.target_major as string | null;
+      if (tgtMajor) {
+        const { data: scoreRows } = await supabase
+          .from("student_internal_scores")
+          .select("subject:subject_id(name), rank_grade, grade, semester")
+          .eq("student_id", input.studentId)
+          .order("grade")
+          .order("semester");
+        const allRows = scoreRows ?? [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const scores = allRows.map((s: any) => ({
+          subjectName: (s.subject as { name: string } | null)?.name ?? "",
+          rankGrade: (s.rank_grade as number) ?? 5,
+        })).filter((s: { subjectName: string }) => s.subjectName);
+
+        // 학기별 성적 추이 (rank_grade가 있는 과목만)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const gradeTrend = allRows
+          .filter((s: { rank_grade: number | null }) => s.rank_grade != null)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((s: any) => ({
+            grade: (s.grade as number) ?? 1,
+            semester: (s.semester as number) ?? 1,
+            subjectName: (s.subject as { name: string } | null)?.name ?? "",
+            rankGrade: s.rank_grade as number,
+          }));
+
+        input.careerContext = {
+          targetMajor: tgtMajor,
+          takenSubjects: [...new Set(scores.map((s: { subjectName: string }) => s.subjectName))],
+          relevantScores: scores,
+          gradeTrend,
+        };
+      }
+    }
+
     const userPrompt = buildHighlightUserPrompt(input);
 
     const result = await generateTextWithRateLimit({
       system: HIGHLIGHT_SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt }],
-      modelTier: "fast",
+      modelTier: "advanced",
       temperature: 0.3,
-      maxTokens: 4000,
+      maxTokens: 16384,
       responseFormat: "json",
     });
 
@@ -68,6 +119,96 @@ export async function analyzeSetekWithHighlight(
     if (msg.includes("quota") || msg.includes("rate") || msg.includes("429")) {
       return { success: false, error: "AI 요청 한도에 도달했습니다. 잠시 후 다시 시도해주세요." };
     }
+    if (error instanceof SyntaxError) {
+      return { success: false, error: "AI 응답 파싱에 실패했습니다. 다시 시도해주세요." };
+    }
     return { success: false, error: "역량 분석 중 오류가 발생했습니다." };
+  }
+}
+
+// ============================================
+// 배치 분석 (파이프라인 전용)
+// 3-4개 레코드를 1회 LLM 호출로 묶어 처리
+// ============================================
+
+/**
+ * 다중 레코드 배치 분석
+ * careerContext는 파이프라인에서 사전 조회하여 전달
+ * 실패 레코드는 failedIds로 반환 → 호출자가 개별 재시도
+ */
+export async function analyzeSetekBatchWithHighlight(
+  input: BatchHighlightInput,
+): Promise<BatchHighlightResult> {
+  await requireAdminOrConsultant();
+
+  const validRecords = input.records.filter((r) => r.content?.trim().length >= 20);
+  const invalidIds = input.records
+    .filter((r) => !r.content || r.content.trim().length < 20)
+    .map((r) => r.id);
+
+  if (validRecords.length === 0) {
+    return { succeeded: new Map(), failedIds: invalidIds };
+  }
+
+  // 1건이면 단건 함수 위임
+  if (validRecords.length === 1) {
+    const rec = validRecords[0];
+    const result = await analyzeSetekWithHighlight({
+      content: rec.content,
+      recordType: rec.recordType,
+      subjectName: rec.subjectName,
+      grade: rec.grade,
+      careerContext: input.careerContext,
+    });
+    const succeeded = new Map<string, HighlightAnalysisResult>();
+    if (result.success) succeeded.set(rec.id, result.data);
+    return {
+      succeeded,
+      failedIds: [...invalidIds, ...(result.success ? [] : [rec.id])],
+    };
+  }
+
+  const userPrompt = buildBatchHighlightUserPrompt(validRecords, input.careerContext);
+  const maxTokens = Math.min(validRecords.length * 3500, 16384);
+
+  try {
+    const result = await generateTextWithRateLimit({
+      system: HIGHLIGHT_SYSTEM_PROMPT,
+      messages: [{ role: "user", content: userPrompt }],
+      modelTier: "fast",
+      temperature: 0.3,
+      maxTokens,
+      responseFormat: "json",
+    });
+
+    if (!result.content) {
+      return {
+        succeeded: new Map(),
+        failedIds: [...invalidIds, ...validRecords.map((r) => r.id)],
+      };
+    }
+
+    const expectedIds = validRecords.map((r) => r.id);
+    const batchResult = parseBatchHighlightResponse(result.content, expectedIds);
+
+    // Phase 6.2: sectionText 커버리지 검증 (레코드별)
+    for (const [id, data] of batchResult.succeeded) {
+      const rec = validRecords.find((r) => r.id === id);
+      if (rec && (rec.recordType === "setek" || rec.recordType === "personal_setek")) {
+        const totalCovered = data.sections.reduce((sum, s) => sum + (s.sectionText?.length ?? 0), 0);
+        if (totalCovered > 0 && totalCovered < rec.content.length * 0.7) {
+          for (const s of data.sections) delete s.sectionText;
+        }
+      }
+    }
+
+    batchResult.failedIds.push(...invalidIds);
+    return batchResult;
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "analyzeWithHighlight.batch" }, error);
+    return {
+      succeeded: new Map(),
+      failedIds: [...invalidIds, ...validRecords.map((r) => r.id)],
+    };
   }
 }

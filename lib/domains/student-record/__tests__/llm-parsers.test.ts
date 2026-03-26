@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseHighlightResponse } from "../llm/prompts/competencyHighlight";
+import { parseHighlightResponse, parseBatchHighlightResponse, validateHighlightResult } from "../llm/prompts/competencyHighlight";
 
 // ============================================
 // LLM 응답 파서 테스트
@@ -39,22 +39,17 @@ describe("parseHighlightResponse", () => {
 
   // ─── JSON 파싱 안전성 ──────────────────────
 
-  it("malformed JSON → 빈 결과 (crash 안 함)", () => {
+  it("malformed JSON → SyntaxError throw", () => {
     const content = '```json\n{ invalid json }\n```';
-    const result = parseHighlightResponse(content);
-    expect(result.sections).toHaveLength(0);
-    expect(result.competencyGrades).toHaveLength(0);
-    expect(result.summary).toBe("");
+    expect(() => parseHighlightResponse(content)).toThrow(SyntaxError);
   });
 
-  it("빈 문자열 → 빈 결과", () => {
-    const result = parseHighlightResponse("");
-    expect(result.sections).toHaveLength(0);
+  it("빈 문자열 → SyntaxError throw", () => {
+    expect(() => parseHighlightResponse("")).toThrow(SyntaxError);
   });
 
-  it("JSON 아닌 텍스트 → 빈 결과", () => {
-    const result = parseHighlightResponse("이것은 JSON이 아닙니다.");
-    expect(result.sections).toHaveLength(0);
+  it("JSON 아닌 텍스트 → SyntaxError throw", () => {
+    expect(() => parseHighlightResponse("이것은 JSON이 아닙니다.")).toThrow(SyntaxError);
   });
 
   // ─── 필드 타입 가드 ────────────────────────
@@ -148,5 +143,121 @@ describe("parseHighlightResponse", () => {
     });
     const result = parseHighlightResponse(content);
     expect(result.summary).toBe("raw");
+  });
+});
+
+// ============================================
+// validateHighlightResult 단위 테스트
+// ============================================
+
+describe("validateHighlightResult", () => {
+  it("parseHighlightResponse와 동일한 검증 결과", () => {
+    const obj = {
+      sections: [{
+        sectionType: "학업태도",
+        tags: [{ competencyItem: "academic_attitude", evaluation: "positive", highlight: "열심히 참여", reasoning: "태도 우수" }],
+        needsReview: false,
+      }],
+      competencyGrades: [{ item: "academic_attitude", grade: "B+", reasoning: "보통" }],
+      summary: "요약",
+    };
+    const result = validateHighlightResult(obj);
+    expect(result.sections).toHaveLength(1);
+    expect(result.competencyGrades).toHaveLength(1);
+    expect(result.summary).toBe("요약");
+  });
+
+  it("null 입력 → 빈 결과", () => {
+    const result = validateHighlightResult(null as unknown as Record<string, unknown>);
+    expect(result.sections).toHaveLength(0);
+    expect(result.competencyGrades).toHaveLength(0);
+  });
+});
+
+// ============================================
+// parseBatchHighlightResponse 테스트
+// ============================================
+
+describe("parseBatchHighlightResponse", () => {
+  const makeSingleResult = (summary: string) => ({
+    sections: [{
+      sectionType: "전체",
+      tags: [{ competencyItem: "academic_attitude", evaluation: "positive", highlight: "적극적으로 참여", reasoning: "참여도 높음" }],
+      needsReview: false,
+    }],
+    competencyGrades: [{ item: "academic_attitude", grade: "A-", reasoning: "우수" }],
+    summary,
+  });
+
+  it("정상 배치 응답 파싱 (results 래퍼)", () => {
+    const content = JSON.stringify({
+      results: {
+        "rec-1": makeSingleResult("첫째"),
+        "rec-2": makeSingleResult("둘째"),
+      },
+    });
+    const result = parseBatchHighlightResponse(content, ["rec-1", "rec-2"]);
+    expect(result.succeeded.size).toBe(2);
+    expect(result.failedIds).toHaveLength(0);
+    expect(result.succeeded.get("rec-1")!.summary).toBe("첫째");
+    expect(result.succeeded.get("rec-2")!.summary).toBe("둘째");
+  });
+
+  it("results 래퍼 없이 flat 구조도 파싱", () => {
+    const content = JSON.stringify({
+      "rec-1": makeSingleResult("flat"),
+    });
+    const result = parseBatchHighlightResponse(content, ["rec-1"]);
+    expect(result.succeeded.size).toBe(1);
+    expect(result.succeeded.get("rec-1")!.summary).toBe("flat");
+  });
+
+  it("일부 레코드 누락 → failedIds에 포함", () => {
+    const content = JSON.stringify({
+      results: {
+        "rec-1": makeSingleResult("있음"),
+      },
+    });
+    const result = parseBatchHighlightResponse(content, ["rec-1", "rec-2"]);
+    expect(result.succeeded.size).toBe(1);
+    expect(result.failedIds).toEqual(["rec-2"]);
+  });
+
+  it("전체 파싱 실패 → 모든 ID가 failedIds", () => {
+    const result = parseBatchHighlightResponse("not json at all", ["a", "b", "c"]);
+    expect(result.succeeded.size).toBe(0);
+    expect(result.failedIds).toEqual(["a", "b", "c"]);
+  });
+
+  it("개별 레코드 검증 실패 → 해당 ID만 failedIds", () => {
+    const content = JSON.stringify({
+      results: {
+        "rec-1": makeSingleResult("정상"),
+        "rec-2": "not an object",
+      },
+    });
+    const result = parseBatchHighlightResponse(content, ["rec-1", "rec-2"]);
+    expect(result.succeeded.size).toBe(1);
+    expect(result.failedIds).toEqual(["rec-2"]);
+  });
+
+  it("태그 0개 레코드 → 성공 (빈 결과)", () => {
+    const content = JSON.stringify({
+      results: {
+        "rec-1": { sections: [], competencyGrades: [], summary: "" },
+      },
+    });
+    const result = parseBatchHighlightResponse(content, ["rec-1"]);
+    expect(result.succeeded.size).toBe(1);
+    expect(result.succeeded.get("rec-1")!.summary).toContain("근거를 찾지 못했습니다");
+  });
+
+  it("마크다운 fence 래핑된 배치 응답 파싱", () => {
+    const json = JSON.stringify({
+      results: { "rec-1": makeSingleResult("fence") },
+    });
+    const content = "```json\n" + json + "\n```";
+    const result = parseBatchHighlightResponse(content, ["rec-1"]);
+    expect(result.succeeded.size).toBe(1);
   });
 });

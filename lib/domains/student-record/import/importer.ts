@@ -212,6 +212,18 @@ export async function executeImport(
       }
     }
 
+    // Phase 2-1: 임포트 후 가이드 배정 재연결 (fire-and-forget)
+    if (mapped.seteks.items.length > 0) {
+      const sid = mapped.seteks.items[0].student_id;
+      const tid = mapped.seteks.items[0].tenant_id;
+      try {
+        const { relinkAssignmentsAfterImport } = await import("@/lib/domains/guide/repository");
+        await relinkAssignmentsAfterImport(sid, tid);
+      } catch {
+        // 가이드 재연결 실패해도 임포트 성공은 유지
+      }
+    }
+
     return { success: true, counts, skipped };
   } catch (error) {
     const message = error instanceof Error ? error.message : "알 수 없는 오류";

@@ -89,6 +89,13 @@ export function buildUserPrompt(input: SuggestStrategiesInput): string {
     prompt += "\n\n";
   }
 
+  // 루브릭 질문별 약점
+  if (input.rubricWeaknesses && input.rubricWeaknesses.length > 0) {
+    prompt += `## 루브릭 질문별 약점 (B- 이하)\n\n`;
+    prompt += input.rubricWeaknesses.map((s) => `- ${s}`).join("\n");
+    prompt += "\n\n";
+  }
+
   // 미이수 추천 과목
   if (input.notTakenSubjects && input.notTakenSubjects.length > 0) {
     prompt += `## 미이수 추천 과목 (교과이수적합도 부족)\n\n`;
@@ -96,7 +103,7 @@ export function buildUserPrompt(input: SuggestStrategiesInput): string {
     prompt += "\n\n";
   }
 
-  prompt += `위 진단 결과를 바탕으로 구체적인 보완전략을 JSON으로 제안해주세요. 최신 대입 트렌드를 반영하여 실현 가능한 활동을 제안하세요. 미이수 과목이 있다면 해당 과목 이수를 우선적으로 포함하세요.`;
+  prompt += `위 진단 결과를 바탕으로 구체적인 보완전략을 JSON으로 제안해주세요. 루브릭 질문별 약점이 있다면 해당 질문을 보완하는 구체적 활동을 포함하세요. 최신 대입 트렌드를 반영하여 실현 가능한 활동을 제안하세요. 미이수 과목이 있다면 해당 과목 이수를 우선적으로 포함하세요.`;
 
   return prompt;
 }

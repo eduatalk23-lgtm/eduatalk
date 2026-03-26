@@ -20,3 +20,36 @@ export function computeContentHash(
   }
   return (hash >>> 0).toString(36);
 }
+
+/**
+ * DJB2 해시 내부 함수
+ */
+function djb2(input: string): string {
+  let hash = 5381;
+  for (let i = 0; i < input.length; i++) {
+    hash = ((hash << 5) + hash + input.charCodeAt(i)) | 0;
+  }
+  return (hash >>> 0).toString(36);
+}
+
+/** 현재 분석에 사용되는 모델 버전 — 변경 시 캐시 자동 무효화 */
+/** 프롬프트 또는 모델 변경 시 버전 올리면 전체 캐시 자동 무효화 */
+export const ANALYSIS_MODEL_VERSION = "gemini-2.5-pro-v1";
+
+/**
+ * 개별 레코드 content + careerContext + 모델 버전 → DJB2 해시
+ * 증분 분석: 아래 중 하나라도 변경되면 캐시 미스:
+ * - content 텍스트 (임포트 upsert 영향 없음)
+ * - careerContext (target_major, 이수과목)
+ * - 모델 버전 (Gemini 업그레이드 시)
+ */
+export function computeRecordContentHash(
+  content: string,
+  careerContext?: { targetMajor: string; takenSubjects: string[] } | null,
+): string {
+  let payload = `v:${ANALYSIS_MODEL_VERSION}\x00${content}`;
+  if (careerContext) {
+    payload += `\x00career:${careerContext.targetMajor}|${careerContext.takenSubjects.sort().join(",")}`;
+  }
+  return djb2(payload);
+}

@@ -72,6 +72,15 @@ export interface HighlightAnalysisInput {
   recordType: "setek" | "personal_setek" | "changche" | "haengteuk";
   subjectName?: string;
   grade?: number;
+  /** 진로 역량 평가용: 전공(목표학과), 이수 과목, 성적 */
+  careerContext?: {
+    targetMajor: string;
+    takenSubjects: string[];
+    /** 전공 관련 과목 성적 (과목명 → 석차등급) */
+    relevantScores: Array<{ subjectName: string; rankGrade: number }>;
+    /** 학기별 성적 추이 (학업성취도 Q3 평가용) */
+    gradeTrend?: Array<{ grade: number; semester: number; subjectName: string; rankGrade: number }>;
+  };
 }
 
 /** 세특 하이라이트 분석 출력 */
@@ -92,6 +101,31 @@ export interface HighlightAnalysisResult {
   }[];
   /** 전체 요약 */
   summary: string;
+}
+
+// ============================================
+// 배치 하이라이트 분석 타입
+// ============================================
+
+/** analyzeSetekBatchWithHighlight 배치 입력 (파이프라인 전용) */
+export interface BatchHighlightInput {
+  records: Array<{
+    id: string;
+    content: string;
+    recordType: "setek" | "personal_setek" | "changche" | "haengteuk";
+    subjectName?: string;
+    grade?: number;
+  }>;
+  /** 공유 진로 컨텍스트 (동일 학생) */
+  careerContext?: HighlightAnalysisInput["careerContext"];
+}
+
+/** analyzeSetekBatchWithHighlight 배치 출력 */
+export interface BatchHighlightResult {
+  /** 성공한 레코드 (id → result) */
+  succeeded: Map<string, HighlightAnalysisResult>;
+  /** 실패한 레코드 ID 목록 (개별 재시도 대상) */
+  failedIds: string[];
 }
 
 // ============================================
@@ -118,6 +152,8 @@ export interface SuggestStrategiesInput {
   weaknesses: string[];
   /** 부족 역량 항목 (등급 B- 이하) */
   weakCompetencies: { item: CompetencyItemCode; grade: CompetencyGrade; label: string }[];
+  /** 루브릭 질문별 약점 (B- 이하 질문 목록) */
+  rubricWeaknesses?: string[];
   /** 학년 */
   grade: number;
   /** 추천 전공 계열 */

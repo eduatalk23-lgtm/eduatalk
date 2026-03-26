@@ -141,7 +141,7 @@ export async function generateSetekGuide(
       messages: [{ role: "user", content: userPrompt }],
       modelTier: "standard",
       temperature: 0.3,
-      maxTokens: 16384,
+      maxTokens: 32768,
       responseFormat: "json",
     });
 

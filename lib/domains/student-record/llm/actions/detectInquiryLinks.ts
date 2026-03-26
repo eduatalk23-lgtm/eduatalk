@@ -31,12 +31,16 @@ export async function detectInquiryLinks(
 
     const userPrompt = buildInquiryLinkUserPrompt(records);
 
+    // 레코드 20건 이상이면 Pro 모델 사용 (다중 레코드 교차 분석 품질)
+    const tier = records.length >= 20 ? "advanced" : "fast";
+    const maxTokens = records.length >= 20 ? 8000 : 4000;
+
     const result = await generateTextWithRateLimit({
       system: INQUIRY_LINK_SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt }],
-      modelTier: "fast",
+      modelTier: tier,
       temperature: 0.3,
-      maxTokens: 3000,
+      maxTokens,
       responseFormat: "json",
     });
 

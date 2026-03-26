@@ -236,6 +236,22 @@ export async function cleanupOrphanedTags(
 }
 
 /** 특정 레코드의 AI 생성 태그만 삭제 (재분석 전 정리용) */
+/** 학생의 특정 레코드 ID 목록에 대한 AI 태그 일괄 삭제 (배치) */
+export async function deleteAiActivityTagsByRecordIds(
+  recordIds: string[],
+  tenantId: string,
+): Promise<void> {
+  if (recordIds.length === 0) return;
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("student_record_activity_tags")
+    .delete()
+    .in("record_id", recordIds)
+    .eq("tenant_id", tenantId)
+    .eq("source", "ai");
+  if (error) throw error;
+}
+
 export async function deleteAiActivityTagsByRecord(
   recordType: string,
   recordId: string,
@@ -257,7 +273,7 @@ export async function deleteAiActivityTagsByRecord(
 // 분석 결과 캐시 (하이라이트 영속화)
 // ============================================
 
-/** 분석 결과 캐시 upsert (AI 또는 컨설턴트) */
+/** 분석 결과 캐시 upsert (AI 또는 컨설턴트) + 증분 분석용 content_hash */
 export async function upsertAnalysisCache(input: {
   tenant_id: string;
   student_id: string;
@@ -265,6 +281,7 @@ export async function upsertAnalysisCache(input: {
   record_id: string;
   source: "ai" | "consultant";
   analysis_result: unknown;
+  content_hash?: string;
 }): Promise<void> {
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
@@ -276,22 +293,40 @@ export async function upsertAnalysisCache(input: {
   if (error) throw error;
 }
 
-/** 학생의 전체 AI 분석 캐시 조회 (하이라이트 복원용) */
+/** 학생의 전체 AI 분석 캐시 조회 (하이라이트 복원 + 증분 분석용) */
 export async function findAnalysisCacheByStudent(
   studentId: string,
   tenantId: string,
   source?: "ai" | "consultant",
-): Promise<Array<{ record_type: string; record_id: string; source: string; analysis_result: unknown }>> {
+): Promise<Array<{ record_type: string; record_id: string; source: string; analysis_result: unknown; content_hash: string | null }>> {
   const supabase = await createSupabaseServerClient();
   let query = supabase
     .from("student_record_analysis_cache")
-    .select("record_type, record_id, source, analysis_result")
+    .select("record_type, record_id, source, analysis_result, content_hash")
     .eq("student_id", studentId)
     .eq("tenant_id", tenantId);
 
   if (source) query = query.eq("source", source);
 
   const { data, error } = await query;
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** 배치 캐시 조회 — 증분 분석용 (record_id 목록 → content_hash 포함 캐시 Map) */
+export async function findAnalysisCacheByRecordIds(
+  recordIds: string[],
+  tenantId: string,
+  source: "ai" | "consultant" = "ai",
+): Promise<Array<{ record_id: string; analysis_result: unknown; content_hash: string | null }>> {
+  if (recordIds.length === 0) return [];
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("student_record_analysis_cache")
+    .select("record_id, analysis_result, content_hash")
+    .in("record_id", recordIds)
+    .eq("tenant_id", tenantId)
+    .eq("source", source);
   if (error) throw error;
   return data ?? [];
 }

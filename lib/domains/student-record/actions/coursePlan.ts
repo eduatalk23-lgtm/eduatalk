@@ -98,7 +98,7 @@ export async function updateCoursePlanStatusAction(
             .eq("id", plan.student_id)
             .single();
           if (student) {
-            await service.syncConfirmedToSeteks(
+            const syncResult = await service.syncConfirmedToSeteks(
               plan.student_id,
               student.tenant_id,
               student.grade ?? 1,
@@ -106,6 +106,11 @@ export async function updateCoursePlanStatusAction(
               plan.grade,
               plan.semester,
             );
+            // 가이드 auto-link: 생성된 세특과 target_subject_id 매칭
+            if (syncResult.createdSeteks.length > 0) {
+              const { linkAssignmentsToSeteks } = await import("@/lib/domains/guide/repository");
+              await linkAssignmentsToSeteks(plan.student_id, student.tenant_id, syncResult.createdSeteks).catch(() => {});
+            }
           }
         }
       } catch (syncErr) {
@@ -153,7 +158,7 @@ export async function bulkConfirmAction(
         .eq("id", studentId)
         .single();
       if (student) {
-        await service.syncConfirmedToSeteks(
+        const syncResult = await service.syncConfirmedToSeteks(
           studentId,
           student.tenant_id,
           student.grade ?? 1,
@@ -161,6 +166,11 @@ export async function bulkConfirmAction(
           grade,
           semester,
         );
+        // 가이드 auto-link
+        if (syncResult.createdSeteks.length > 0) {
+          const { linkAssignmentsToSeteks } = await import("@/lib/domains/guide/repository");
+          await linkAssignmentsToSeteks(studentId, student.tenant_id, syncResult.createdSeteks).catch(() => {});
+        }
       }
     } catch (syncErr) {
       logActionError({ ...LOG_CTX, action: "bulkConfirmAction.syncSeteks" }, syncErr);

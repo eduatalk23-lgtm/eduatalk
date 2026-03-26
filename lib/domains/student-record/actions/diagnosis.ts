@@ -236,7 +236,7 @@ export async function deleteAiTagsForRecordAction(
   }
 }
 
-/** 분석 결과 캐시 저장 (UI에서 개별 분석 후 호출) */
+/** 분석 결과 캐시 저장 (UI에서 개별 분석 후 호출) + 증분 분석용 content_hash */
 export async function saveAnalysisCacheAction(input: {
   tenant_id: string;
   student_id: string;
@@ -244,6 +244,7 @@ export async function saveAnalysisCacheAction(input: {
   record_id: string;
   source: "ai" | "consultant";
   analysis_result: unknown;
+  content_hash?: string;
 }): Promise<StudentRecordActionResult> {
   try {
     await requireAdminOrConsultant();
@@ -255,11 +256,11 @@ export async function saveAnalysisCacheAction(input: {
   }
 }
 
-/** 학생의 AI 분석 캐시 조회 (하이라이트 복원) */
+/** 학생의 AI 분석 캐시 조회 (하이라이트 복원 + 증분 분석) */
 export async function fetchAnalysisCacheAction(
   studentId: string,
   tenantId: string,
-): Promise<{ success: true; data: Array<{ record_type: string; record_id: string; source: string; analysis_result: unknown }> } | { success: false; error: string }> {
+): Promise<{ success: true; data: Array<{ record_type: string; record_id: string; source: string; analysis_result: unknown; content_hash: string | null }> } | { success: false; error: string }> {
   try {
     await requireAdminOrConsultant();
     const data = await competencyRepo.findAnalysisCacheByStudent(studentId, tenantId, "ai");
@@ -267,6 +268,75 @@ export async function fetchAnalysisCacheAction(
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "fetchAnalysisCache" }, error, { studentId });
     return { success: false, error: "분석 캐시 조회 실패" };
+  }
+}
+
+/** 배치 캐시+해시 조회 — 증분 분석에서 스킵 판별용 */
+export async function fetchAnalysisCacheWithHashAction(
+  recordIds: string[],
+  tenantId: string,
+): Promise<{ success: true; data: Array<{ record_id: string; analysis_result: unknown; content_hash: string | null }> } | { success: false; error: string }> {
+  try {
+    await requireAdminOrConsultant();
+    const data = await competencyRepo.findAnalysisCacheByRecordIds(recordIds, tenantId, "ai");
+    return { success: true, data };
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "fetchAnalysisCacheWithHash" }, error);
+    return { success: false, error: "캐시 조회 실패" };
+  }
+}
+
+/** 결정론적 진로 등급 계산 (이수율+성적 기반) — 클라이언트에서 호출 */
+export async function computeDeterministicCareerGradesAction(
+  studentId: string,
+): Promise<{ success: true; data: Array<{ item: string; grade: string; reasoning?: string; rubricScores?: { questionIndex: number; grade: string; reasoning: string }[] }> } | { success: false; error: string }> {
+  try {
+    await requireAdminOrConsultant();
+    const supabase = await createSupabaseServerClient();
+
+    const { data: student } = await supabase
+      .from("students")
+      .select("target_major, grade")
+      .eq("id", studentId)
+      .maybeSingle();
+
+    const tgtMajor = student?.target_major as string | null;
+    if (!tgtMajor) return { success: true, data: [] };
+
+    const { data: scoreRows } = await supabase
+      .from("student_internal_scores")
+      .select("subject:subject_id(name), rank_grade")
+      .eq("student_id", studentId);
+
+    const subjectScores = (scoreRows ?? [])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((s: any) => ({
+        subjectName: (s.subject as { name: string } | null)?.name ?? "",
+        rankGrade: (s.rank_grade as number) ?? 5,
+      }))
+      .filter((s: { subjectName: string }) => s.subjectName);
+    const takenNames = [...new Set(subjectScores.map((s: { subjectName: string }) => s.subjectName))];
+
+    const { calculateCourseAdequacy } = await import("../course-adequacy");
+    const { computeCourseEffortGrades, computeCourseAchievementGrades } = await import("../rubric-matcher");
+    const { calculateSchoolYear } = await import("@/lib/utils/schoolYear");
+
+    const studentGrade = (student?.grade as number) ?? 3;
+    const enrollYear = calculateSchoolYear() - studentGrade + 1;
+    const curYear = enrollYear >= 2025 ? 2022 : 2015;
+    const adequacy = calculateCourseAdequacy(tgtMajor, takenNames, null, curYear);
+
+    if (!adequacy) return { success: true, data: [] };
+
+    const grades = [
+      computeCourseEffortGrades(adequacy),
+      computeCourseAchievementGrades(adequacy.taken, subjectScores),
+    ];
+
+    return { success: true, data: grades };
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "computeDeterministicCareerGrades" }, error, { studentId });
+    return { success: false, error: "결정론적 등급 계산 실패" };
   }
 }
 

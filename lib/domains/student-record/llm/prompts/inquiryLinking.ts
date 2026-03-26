@@ -91,9 +91,20 @@ ${LINK_TYPE_DESC}
 - **grade2Theme**: 2학년 핵심 테마 (탐구·심화 단계). 해당 학년 기록이 없으면 빈 문자열.
 - **grade3Theme**: 3학년 핵심 테마 (주도·실천 단계). 해당 학년 기록이 없으면 빈 문자열.`;
 
+/** 레코드 수에 따른 콘텐츠 절삭 한도 (토큰 예산 내에서 최대한 확보) */
+function contentLimit(totalRecords: number): number {
+  if (totalRecords <= 10) return 800;
+  if (totalRecords <= 20) return 600;
+  return 500; // 30건+ → 500자
+}
+
 export function buildInquiryLinkUserPrompt(records: RecordSummary[]): string {
+  const limit = contentLimit(records.length);
   const recordList = records
-    .map((r) => `[${r.index}] ${r.grade}학년 ${r.subject} (${r.type}): ${r.content.length > 200 ? r.content.slice(0, 200) + "..." : r.content}`)
+    .map((r) => {
+      const trimmed = r.content.length > limit ? r.content.slice(0, limit) + "..." : r.content;
+      return `[${r.index}] ${r.grade}학년 ${r.subject} (${r.type}): ${trimmed}`;
+    })
     .join("\n\n");
 
   return `## 분석 대상 학생의 전 학년 생기부 기록 (${records.length}건)
@@ -101,7 +112,7 @@ export function buildInquiryLinkUserPrompt(records: RecordSummary[]): string {
 ${recordList}
 
 위 기록들에서 학년간 탐구 주제의 연결관계를 감지하고, 스토리라인을 제안해주세요.
-연결이 있는 경우에만 응답하며, 억지 연결은 하지 마세요.`;
+같은 과목의 학년 간 심화, 다른 과목 간 공통 주제, 창체↔세특 연계 등을 폭넓게 탐색하되, 근거가 약한 억지 연결은 하지 마세요.`;
 }
 
 // ─── 파서 ──────────────────────────────────
