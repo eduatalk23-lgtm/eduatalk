@@ -285,6 +285,17 @@ export interface GuideAssignment {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  /** 대상 과목 (세특 영역 타겟) */
+  target_subject_id: string | null;
+  /** 대상 창체 영역 (autonomy/club/career) */
+  target_activity_type: string | null;
+  /** 연결 레코드 변경 시 stale 마킹 */
+  is_stale: boolean;
+  stale_reason: string | null;
+  /** AI 추천 사유 */
+  ai_recommendation_reason: string | null;
+  /** 컨설턴트 피드백 */
+  feedback_notes: string | null;
 }
 
 // ------------------------------------
@@ -445,6 +456,16 @@ export interface AssignmentCreateInput {
   grade: number;
   schoolName?: string;
   notes?: string;
+  /** 세특 대상 과목 UUID */
+  targetSubjectId?: string;
+  /** 창체 대상 영역 */
+  targetActivityType?: "autonomy" | "club" | "career";
+  /** 연결 레코드 타입 */
+  linkedRecordType?: LinkedRecordType;
+  /** 연결 레코드 ID */
+  linkedRecordId?: string;
+  /** AI 추천 사유 */
+  aiRecommendationReason?: string;
 }
 
 /** 배정 + 가이드 메타 JOIN */

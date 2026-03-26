@@ -15,6 +15,7 @@ import type {
   CareerField,
   GuideListFilter,
   AssignmentStatus,
+  LinkedRecordType,
 } from "../types";
 import {
   findAssignmentsWithGuides,
@@ -80,6 +81,14 @@ export async function assignGuideAction(input: {
   grade: number;
   schoolName?: string;
   notes?: string;
+  /** 세특 대상 과목 UUID */
+  targetSubjectId?: string;
+  /** 창체 대상 영역 */
+  targetActivityType?: "autonomy" | "club" | "career";
+  /** 연결 레코드 타입 */
+  linkedRecordType?: LinkedRecordType;
+  /** 연결 레코드 ID */
+  linkedRecordId?: string;
 }): Promise<ActionResponse<GuideAssignment>> {
   try {
     const { userId, tenantId } = await requireAdminOrConsultant();
@@ -96,6 +105,10 @@ export async function assignGuideAction(input: {
       grade: input.grade,
       schoolName: input.schoolName,
       notes: input.notes,
+      targetSubjectId: input.targetSubjectId,
+      targetActivityType: input.targetActivityType,
+      linkedRecordType: input.linkedRecordType,
+      linkedRecordId: input.linkedRecordId,
     });
     return createSuccessResponse(data);
   } catch (error) {

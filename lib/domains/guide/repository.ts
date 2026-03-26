@@ -454,10 +454,36 @@ export async function findAssignmentsByStudent(
   return data as GuideAssignment[];
 }
 
+/** linked_record_id 실존 검증 (다형 참조, 애플리케이션 레벨) */
+async function validateLinkedRecord(
+  linkedRecordType: string | null | undefined,
+  linkedRecordId: string | null | undefined,
+): Promise<boolean> {
+  if (!linkedRecordType || !linkedRecordId) return true;
+  const tableMap: Record<string, string> = {
+    setek: "student_record_seteks",
+    personal_setek: "student_record_personal_seteks",
+    changche: "student_record_changche",
+    haengteuk: "student_record_haengteuk",
+    reading: "student_record_reading",
+  };
+  const table = tableMap[linkedRecordType];
+  if (!table) return false;
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.from(table).select("id").eq("id", linkedRecordId).limit(1);
+  return (data?.length ?? 0) > 0;
+}
+
 /** 배정 생성 */
 export async function createAssignment(
   input: AssignmentCreateInput,
 ): Promise<GuideAssignment> {
+  // linked_record_id 실존 검증
+  if (input.linkedRecordId) {
+    const valid = await validateLinkedRecord(input.linkedRecordType, input.linkedRecordId);
+    if (!valid) throw new Error("linked_record_id가 유효하지 않습니다.");
+  }
+
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("exploration_guide_assignments")
@@ -470,6 +496,11 @@ export async function createAssignment(
       grade: input.grade,
       school_name: input.schoolName ?? null,
       notes: input.notes ?? null,
+      target_subject_id: input.targetSubjectId ?? null,
+      target_activity_type: input.targetActivityType ?? null,
+      linked_record_type: input.linkedRecordType ?? null,
+      linked_record_id: input.linkedRecordId ?? null,
+      ai_recommendation_reason: input.aiRecommendationReason ?? null,
     })
     .select()
     .single();
@@ -706,6 +737,15 @@ export async function createNewVersion(
         )
       : Promise.resolve(),
   ]);
+
+  // Phase 2-2: 기존 배정을 신규 버전으로 갱신
+  await supabase
+    .from("exploration_guide_assignments")
+    .update({ guide_id: newGuide.id })
+    .eq("guide_id", sourceGuideId)
+    .then(({ error }) => {
+      if (error) console.error("[createNewVersion] 배정 갱신 실패:", error.message);
+    });
 
   return newGuide;
 }
@@ -1284,4 +1324,110 @@ export async function findTopicsByTitle(
     .limit(3);
   if (fuzzyErr) throw fuzzyErr;
   return (fuzzy ?? []) as import("./types").SuggestedTopic[];
+}
+
+// ─── 가이드-영역 자동 연결 ─────────────────────────────
+
+/**
+ * 새로 생성된 세특과 target_subject_id가 매칭되는 배정의
+ * linked_record_id를 자동 설정.
+ */
+export async function linkAssignmentsToSeteks(
+  studentId: string,
+  tenantId: string,
+  createdSeteks: Array<{
+    id: string;
+    subjectId: string;
+    grade: number;
+    semester: number;
+  }>,
+): Promise<number> {
+  const supabase = await createSupabaseServerClient();
+  let linked = 0;
+
+  for (const setek of createdSeteks) {
+    const { data, error } = await supabase
+      .from("exploration_guide_assignments")
+      .update({
+        linked_record_type: "setek" as const,
+        linked_record_id: setek.id,
+      })
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .eq("target_subject_id", setek.subjectId)
+      .is("linked_record_id", null)
+      .neq("status", "cancelled")
+      .select("id");
+
+    if (!error && data) linked += data.length;
+  }
+
+  return linked;
+}
+
+/**
+ * HTML 임포트 후 가이드 배정 재연결.
+ * 1. setek 연결 배정의 linked_record_id → NULL + is_stale=true
+ * 2. target_subject_id 기반으로 새 세특에 재연결
+ * 3. 재연결 성공 시 is_stale 해제
+ */
+export async function relinkAssignmentsAfterImport(
+  studentId: string,
+  tenantId: string,
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+
+  // 1. 기존 setek 연결 해제 + stale 마킹
+  await supabase
+    .from("exploration_guide_assignments")
+    .update({
+      linked_record_id: null,
+      is_stale: true,
+      stale_reason: "import_overwrite",
+    })
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .eq("linked_record_type", "setek")
+    .not("linked_record_id", "is", null);
+
+  // 2. target_subject_id 기반 재연결 시도
+  const { data: assignments } = await supabase
+    .from("exploration_guide_assignments")
+    .select("id, target_subject_id")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .not("target_subject_id", "is", null)
+    .is("linked_record_id", null)
+    .neq("status", "cancelled");
+
+  if (!assignments?.length) return;
+
+  const { data: seteks } = await supabase
+    .from("student_record_seteks")
+    .select("id, subject_id")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .is("deleted_at", null);
+
+  const setekBySubject = new Map<string, string>();
+  for (const s of seteks ?? []) {
+    if (!setekBySubject.has(s.subject_id)) {
+      setekBySubject.set(s.subject_id, s.id);
+    }
+  }
+
+  for (const assignment of assignments) {
+    const setekId = setekBySubject.get(assignment.target_subject_id!);
+    if (setekId) {
+      await supabase
+        .from("exploration_guide_assignments")
+        .update({
+          linked_record_type: "setek" as const,
+          linked_record_id: setekId,
+          is_stale: false,
+          stale_reason: null,
+        })
+        .eq("id", assignment.id);
+    }
+  }
 }
