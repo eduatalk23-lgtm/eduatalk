@@ -32,8 +32,22 @@ import {
 } from "../repository";
 import { generateCandidates } from "../candidate-generator";
 import { runBypassPipeline, type PipelineResult } from "../pipeline";
+import type { DiscoveredDepartment, DiscoveryResult, DiagnosisContext } from "../department-discovery";
 
 const LOG_CTX = { domain: "bypass-major", action: "bypass" };
+
+/** 자동 학과 발견 결과 (UI용 — UniversityDepartment 포함) */
+export interface DiscoverySuggestion {
+  department: UniversityDepartment;
+  matchSource: DiscoveredDepartment["matchSource"];
+  matchConfidence: number;
+}
+export interface DiscoveryActionResult {
+  suggestions: DiscoverySuggestion[];
+  source: DiscoveryResult["source"];
+  recommendedMajors: string[];
+  diagnosisContext: DiagnosisContext | null;
+}
 
 /** 학과 검색 */
 export async function searchDepartmentsAction(
@@ -179,13 +193,21 @@ export async function generateCandidatesAction(input: {
   schoolYear: number;
   tenantId: string;
 }): Promise<
-  ActionResponse<{ totalGenerated: number; preMapped: number; similarity: number }>
+  ActionResponse<{ totalGenerated: number; preMapped: number; similarity: number; noCurriculum?: boolean }>
 > {
   try {
     await requireAdminOrConsultant();
     const result = await generateCandidates(input);
     if (result.candidates.length > 0) {
       await saveCandidates(result.candidates);
+    }
+    // 0건이고 목표 학과 교육과정이 없는 경우 플래그 전달
+    if (result.candidates.length === 0) {
+      const { fetchCurriculumWithTypeBatch } = await import("../repository");
+      const currMap = await fetchCurriculumWithTypeBatch([input.targetDeptId]);
+      if ((currMap.get(input.targetDeptId)?.length ?? 0) === 0) {
+        return createSuccessResponse({ ...result.stats, noCurriculum: true });
+      }
     }
     return createSuccessResponse(result.stats);
   } catch (error) {
@@ -258,6 +280,60 @@ export async function runBypassPipelineAction(input: {
       input,
     });
     return createErrorResponse("우회학과 파이프라인 실행에 실패했습니다.");
+  }
+}
+
+/** 진단/희망학과 기반 목표 학과 자동 발견 */
+export async function discoverTargetDepartmentsAction(
+  studentId: string,
+  schoolYear: number,
+): Promise<ActionResponse<DiscoveryActionResult>> {
+  try {
+    const { tenantId } = await requireAdminOrConsultant();
+    const { discoverDepartmentsFromDiagnosis } = await import("../department-discovery");
+    const discovery = await discoverDepartmentsFromDiagnosis(studentId, tenantId!, schoolYear);
+
+    if (discovery.targetDepartments.length === 0) {
+      return createSuccessResponse({
+        suggestions: [],
+        source: discovery.source,
+        recommendedMajors: discovery.recommendedMajors,
+        diagnosisContext: discovery.diagnosisContext,
+      });
+    }
+
+    // 발견된 학과 ID로 UniversityDepartment 전체 객체 조회
+    const deptIds = discovery.targetDepartments.map((d) => d.departmentId);
+    const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+    const supabase = await createSupabaseServerClient();
+    const { data: depts } = await supabase
+      .from("university_departments")
+      .select("*")
+      .in("id", deptIds);
+
+    const deptMap = new Map((depts ?? []).map((d) => [d.id, d as UniversityDepartment]));
+
+    const suggestions: DiscoverySuggestion[] = [];
+    for (const discovered of discovery.targetDepartments) {
+      const dept = deptMap.get(discovered.departmentId);
+      if (dept) {
+        suggestions.push({
+          department: dept,
+          matchSource: discovered.matchSource,
+          matchConfidence: discovered.matchConfidence,
+        });
+      }
+    }
+
+    return createSuccessResponse({
+      suggestions,
+      source: discovery.source,
+      recommendedMajors: discovery.recommendedMajors,
+      diagnosisContext: discovery.diagnosisContext,
+    });
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "discoverTargetDepartments" }, error, { studentId });
+    return createErrorResponse("목표 학과 자동 발견에 실패했습니다.");
   }
 }
 

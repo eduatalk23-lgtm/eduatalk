@@ -17,10 +17,18 @@ export interface DiscoveredDepartment {
   matchConfidence: number; // 0-100
 }
 
+export interface DiagnosisContext {
+  recordDirection: string | null;
+  directionStrength: string | null;
+  strengths: string[];
+  overallGrade: string | null;
+}
+
 export interface DiscoveryResult {
   targetDepartments: DiscoveredDepartment[];
   source: "diagnosis_recommended" | "student_target" | "none";
   recommendedMajors: string[];
+  diagnosisContext: DiagnosisContext | null;
 }
 
 // ─── 계열 키 → mid_classification 매핑 ──────
@@ -71,10 +79,10 @@ export async function discoverDepartmentsFromDiagnosis(
 ): Promise<DiscoveryResult> {
   const supabase = await createSupabaseServerClient();
 
-  // 1. AI 진단의 recommended_majors 조회
+  // 1. AI 진단의 recommended_majors + 근거 조회
   const { data: diagnosis } = await supabase
     .from("student_record_diagnosis")
-    .select("recommended_majors")
+    .select("recommended_majors, record_direction, direction_strength, strengths, overall_grade")
     .eq("student_id", studentId)
     .eq("tenant_id", tenantId)
     .eq("source", "ai")
@@ -86,6 +94,15 @@ export async function discoverDepartmentsFromDiagnosis(
     ? (diagnosis.recommended_majors as string[])
     : [];
 
+  const diagnosisContext: DiagnosisContext | null = diagnosis
+    ? {
+        recordDirection: (diagnosis.record_direction as string) ?? null,
+        directionStrength: (diagnosis.direction_strength as string) ?? null,
+        strengths: Array.isArray(diagnosis.strengths) ? (diagnosis.strengths as string[]) : [],
+        overallGrade: (diagnosis.overall_grade as string) ?? null,
+      }
+    : null;
+
   // 2. recommended_majors → mid_classification → 대표 학과 검색
   if (recommendedMajors.length > 0) {
     const departments = await findDepartmentsFromMajorKeys(supabase, recommendedMajors);
@@ -94,6 +111,7 @@ export async function discoverDepartmentsFromDiagnosis(
         targetDepartments: departments,
         source: "diagnosis_recommended",
         recommendedMajors,
+        diagnosisContext,
       };
     }
   }
@@ -113,11 +131,12 @@ export async function discoverDepartmentsFromDiagnosis(
         targetDepartments: departments,
         source: "student_target",
         recommendedMajors,
+        diagnosisContext,
       };
     }
   }
 
-  return { targetDepartments: [], source: "none", recommendedMajors };
+  return { targetDepartments: [], source: "none", recommendedMajors, diagnosisContext };
 }
 
 // ─── 헬퍼 ──────────────────────────────────

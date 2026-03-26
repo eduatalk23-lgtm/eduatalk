@@ -104,6 +104,11 @@ export async function generateCandidates(
   const curriculumMap = await fetchCurriculumWithTypeBatch(Array.from(allDeptIds));
   const targetCourses = curriculumMap.get(targetDeptId) ?? [];
 
+  // target 과목이 소량(enrichment 등)이면 threshold 동적 조정
+  const effectiveThreshold = targetCourses.length < 20
+    ? Math.min(similarityThreshold, 3)
+    : similarityThreshold;
+
   // 5. 유사도 계산
   type ScoredCandidate = {
     deptId: string;
@@ -134,7 +139,7 @@ export async function generateCandidates(
     if (courses.length === 0) continue;
 
     const sim = calculateWeightedCurriculumSimilarity(targetCourses, courses);
-    if (sim.weightedOverlapScore < similarityThreshold) continue;
+    if (sim.weightedOverlapScore < effectiveThreshold) continue;
 
     scoredMap.set(dept.id, {
       deptId: dept.id,
@@ -142,6 +147,41 @@ export async function generateCandidates(
       score: sim.weightedOverlapScore,
       rationale: `교육과정 유사도 ${sim.weightedOverlapScore}% (공통 ${sim.sharedCourses.length}과목, 가중치 적용)`,
     });
+  }
+
+  // 5c. Fallback: 유사도 후보 0건 → 동일 mid_classification 학과
+  if (scoredMap.size === 0 && targetDept.mid_classification) {
+    const { createSupabaseServerClient: createClient } = await import("@/lib/supabase/server");
+    const fbSupabase = await createClient();
+    const { data: midDepts } = await fbSupabase
+      .from("university_departments")
+      .select("id, university_name, department_name")
+      .eq("mid_classification", targetDept.mid_classification)
+      .neq("id", targetDeptId)
+      .limit(maxCandidates);
+
+    // fallback 학과들의 교육과정 일괄 조회 (curriculumMap에 없으므로 별도 fetch)
+    const fbDeptIds = (midDepts ?? []).map((d) => d.id);
+    const fbCurrMap = await fetchCurriculumWithTypeBatch(fbDeptIds);
+
+    for (const dept of midDepts ?? []) {
+      const courses = fbCurrMap.get(dept.id) ?? [];
+      let score = 0;
+      let rationale = `동일 중분류(${targetDept.mid_classification}) 학과`;
+      if (courses.length > 0 && targetCourses.length > 0) {
+        const sim = calculateWeightedCurriculumSimilarity(targetCourses, courses);
+        score = sim.weightedOverlapScore;
+        rationale = score > 0
+          ? `교육과정 유사도 ${score}% (공통 ${sim.sharedCourses.length}과목) — ${targetDept.mid_classification}`
+          : rationale;
+      }
+      scoredMap.set(dept.id, {
+        deptId: dept.id,
+        source: "similarity",
+        score,
+        rationale,
+      });
+    }
   }
 
   // 6. 정렬 + 상위 N개 선택
@@ -172,6 +212,8 @@ export async function generateCandidates(
     competency_rationale: null,
     curriculum_rationale: null,
     placement_rationale: null,
+    placement_score: null,
+    placement_source: null,
     recommendation_source: "target_based" as const,
   }));
 

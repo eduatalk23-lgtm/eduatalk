@@ -2,13 +2,20 @@ import { EmptyState } from "../EmptyState";
 import { Route } from "lucide-react";
 import { ReportSectionHeader } from "../ReportSectionHeader";
 
+interface BypassCandidate {
+  candidateDept: string;
+  candidateUniv: string;
+  compositeScore: number | null;
+  rationale: string | null;
+  curriculumSimilarity?: number | null;
+  competencyFit?: number | null;
+  competencyRationale?: string | null;
+  curriculumRationale?: string | null;
+  placementRationale?: string | null;
+}
+
 interface BypassMajorSummarySectionProps {
-  candidates: Array<{
-    candidateDept: string;
-    candidateUniv: string;
-    compositeScore: number | null;
-    rationale: string | null;
-  }>;
+  candidates: BypassCandidate[];
   targetMajor: string | null;
 }
 
@@ -37,34 +44,51 @@ export function BypassMajorSummarySection({ candidates, targetMajor }: BypassMaj
       <div className="space-y-2">
         {candidates.map((c, idx) => {
           const score = c.compositeScore != null ? Math.round(c.compositeScore) : null;
+          const hasAxisData = c.curriculumSimilarity != null || c.competencyFit != null;
           return (
-            <div key={idx} className="flex items-center gap-3 rounded-lg border border-gray-200 px-4 py-3 print-avoid-break">
-              {/* 순위 */}
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
-                {idx + 1}
-              </span>
+            <div key={idx} className="rounded-lg border border-gray-200 px-4 py-3 print-avoid-break">
+              <div className="flex items-center gap-3">
+                {/* 순위 */}
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
+                  {idx + 1}
+                </span>
 
-              {/* 학과 정보 */}
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-gray-900">{c.candidateUniv}</p>
-                <p className="text-xs text-gray-600">{c.candidateDept}</p>
-                {c.rationale && (
-                  <p className="mt-0.5 text-xs text-gray-500">
-                    {c.rationale.length > 60 ? c.rationale.slice(0, 60) + "…" : c.rationale}
-                  </p>
+                {/* 학과 정보 */}
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-gray-900">{c.candidateUniv}</p>
+                  <p className="text-xs text-gray-600">{c.candidateDept}</p>
+                </div>
+
+                {/* 종합 점수 바 */}
+                {score != null && (
+                  <div className="flex w-24 items-center gap-1.5">
+                    <div className="h-1.5 flex-1 rounded-full bg-gray-200">
+                      <div
+                        className={`h-1.5 rounded-full ${score >= 70 ? "bg-emerald-500" : score >= 50 ? "bg-amber-500" : "bg-red-400"}`}
+                        style={{ width: `${Math.min(score, 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-bold text-gray-700">{score}%</span>
+                  </div>
                 )}
               </div>
 
-              {/* 매칭 점수 바 */}
-              {score != null && (
-                <div className="flex w-24 items-center gap-1.5">
-                  <div className="h-1.5 flex-1 rounded-full bg-gray-200">
-                    <div
-                      className={`h-1.5 rounded-full ${score >= 70 ? "bg-emerald-500" : score >= 50 ? "bg-amber-500" : "bg-red-400"}`}
-                      style={{ width: `${Math.min(score, 100)}%` }}
-                    />
-                  </div>
-                  <span className="text-xs font-bold text-gray-700">{score}%</span>
+              {/* 3축 점수 + rationale */}
+              {hasAxisData && (
+                <div className="mt-2 flex flex-wrap gap-3 text-[10px] text-gray-500">
+                  {c.curriculumSimilarity != null && (
+                    <span>유사도 <span className="font-medium text-gray-700">{c.curriculumSimilarity}%</span></span>
+                  )}
+                  {c.competencyFit != null && (
+                    <span>역량 <span className="font-medium text-gray-700">{c.competencyFit}점</span></span>
+                  )}
+                </div>
+              )}
+              {(c.competencyRationale || c.curriculumRationale || c.placementRationale) && (
+                <div className="mt-1.5 space-y-0.5 text-[10px] text-gray-500">
+                  {c.curriculumRationale && <p>{c.curriculumRationale}</p>}
+                  {c.competencyRationale && <p>{c.competencyRationale}</p>}
+                  {c.placementRationale && <p>{c.placementRationale}</p>}
                 </div>
               )}
             </div>

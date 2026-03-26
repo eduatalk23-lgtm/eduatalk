@@ -119,6 +119,8 @@ export interface BypassMajorCandidate {
   competency_rationale: string | null;
   curriculum_rationale: string | null;
   placement_rationale: string | null;
+  placement_score: number | null;
+  placement_source: "mock" | "gpa" | "none" | null;
   recommendation_source: RecommendationSource;
 }
 

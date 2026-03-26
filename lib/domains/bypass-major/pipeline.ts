@@ -9,10 +9,11 @@ import "server-only";
 // ============================================================
 
 import { generateCandidates } from "./candidate-generator";
-import { findDepartmentById, saveCandidates } from "./repository";
-import { calculateCompetencyFitScore, resolveCareerField, getTopCompetencyItems } from "./competency-matcher";
+import { findDepartmentById, saveCandidates, fetchCurriculumSourceBatch } from "./repository";
+import { resolveCareerField, getTopCompetencyItems } from "./competency-matcher";
 import { generateExplanation } from "./explanation-generator";
 import { findCompetencyScores } from "@/lib/domains/student-record/competency-repository";
+import { calculateAverageGrade } from "@/lib/domains/score/service";
 import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
 
 const LOG_CTX = { domain: "bypass-major", action: "pipeline" };
@@ -28,6 +29,8 @@ export interface PipelineInput {
   schoolYear: number;
   maxCandidates?: number;
   similarityThreshold?: number;
+  /** 교육과정 미보유 학과에 대해 enrichment 시도 (기본: true, 최대 3개) */
+  enableEnrichment?: boolean;
 }
 
 export interface PipelineResult {
@@ -35,6 +38,7 @@ export interface PipelineResult {
   preMapped: number;
   similarity: number;
   withCompetency: number;
+  enriched: number;
 }
 
 // ------------------------------------
@@ -54,6 +58,49 @@ export async function runBypassPipeline(
 ): Promise<PipelineResult> {
   logActionDebug(LOG_CTX, `파이프라인 시작: target=${input.targetDeptId}`);
 
+  // Phase 0: 교육과정 미보유 학과 사전 보강 (enrichment)
+  let enrichedCount = 0;
+  if (input.enableEnrichment !== false) {
+    try {
+      const { enrichDepartmentCurriculum, enrichDepartmentsBatch } = await import("./enrichment/service");
+      const { findDepartmentsWithoutCurriculum } = await import("./repository");
+
+      // 0a. 목표 학과 자체 교육과정 확인 + enrichment (비교 기준이 없으면 분석 불가)
+      const { fetchCurriculumWithTypeBatch } = await import("./repository");
+      const targetCurrMap = await fetchCurriculumWithTypeBatch([input.targetDeptId]);
+      if ((targetCurrMap.get(input.targetDeptId)?.length ?? 0) === 0) {
+        logActionDebug(LOG_CTX, `목표 학과 교육과정 0건 — enrichment 시도`);
+        const targetResult = await enrichDepartmentCurriculum(input.targetDeptId, { maxTier: 3 });
+        if (targetResult && !targetResult.cached && targetResult.coursesAdded > 0) {
+          enrichedCount++;
+          logActionDebug(LOG_CTX, `목표 학과 교육과정 확충: ${targetResult.coursesAdded}건 (${targetResult.tier})`);
+        }
+      }
+
+      // 0b. 동일 중분류 우선, fallback 대분류 — 후보 학과 enrichment (최대 3개)
+      const targetDeptForEnrich = await findDepartmentById(input.targetDeptId);
+      if (targetDeptForEnrich?.major_classification) {
+        const noCurrDeptIds = await findDepartmentsWithoutCurriculum(
+          targetDeptForEnrich.major_classification,
+          input.targetDeptId,
+          3,
+          targetDeptForEnrich.mid_classification,
+        );
+        if (noCurrDeptIds.length > 0) {
+          logActionDebug(LOG_CTX, `후보 학과 enrichment 대상: ${noCurrDeptIds.length}개`);
+          const enrichResults = await enrichDepartmentsBatch(noCurrDeptIds, { maxTier: 3 }, 2);
+          enrichedCount += enrichResults.filter((r) => !r.cached && r.coursesAdded > 0).length;
+        }
+      }
+
+      if (enrichedCount > 0) {
+        logActionDebug(LOG_CTX, `enrichment 완료: ${enrichedCount}개 학과 교육과정 확충`);
+      }
+    } catch (err) {
+      logActionDebug(LOG_CTX, `enrichment 스킵: ${err}`);
+    }
+  }
+
   // Phase 1: 커리큘럼 유사도 후보 생성
   const genResult = await generateCandidates({
     studentId: input.studentId,
@@ -66,7 +113,7 @@ export async function runBypassPipeline(
 
   if (genResult.candidates.length === 0) {
     logActionDebug(LOG_CTX, "유사도 후보 0건");
-    return { totalGenerated: 0, preMapped: 0, similarity: 0, withCompetency: 0 };
+    return { totalGenerated: 0, preMapped: 0, similarity: 0, withCompetency: 0, enriched: enrichedCount };
   }
 
   // Phase 2: 역량 적합도 (학생 역량 데이터가 있는 경우)
@@ -85,9 +132,23 @@ export async function runBypassPipeline(
     logActionDebug(LOG_CTX, "역량 데이터 없음 — 스킵");
   }
 
+  // Phase 2b: 내신 평균 등급 조회 (배치 데이터 없는 학생의 실현가능성 근사치)
+  let internalGpaAvg: number | null = null;
+  let hasMockScores = false;
+  try {
+    const { schoolAvg, mockAvg } = await calculateAverageGrade(input.studentId, input.tenantId);
+    internalGpaAvg = schoolAvg;
+    hasMockScores = mockAvg != null;
+    if (internalGpaAvg != null) {
+      logActionDebug(LOG_CTX, `내신 평균 ${internalGpaAvg.toFixed(1)}등급, 모의 ${hasMockScores ? "있음" : "없음"}`);
+    }
+  } catch {
+    logActionDebug(LOG_CTX, "내신 데이터 조회 실패 — 스킵");
+  }
+
   let withCompetencyCount = 0;
 
-  // Phase 3: 후보 학과 정보 일괄 조회 (N+1 방지)
+  // Phase 3: 후보 학과 정보 + 커리큘럼 출처 일괄 조회 (N+1 방지)
   const targetDept = await findDepartmentById(input.targetDeptId);
   const targetDeptName = targetDept?.department_name ?? "";
 
@@ -111,11 +172,19 @@ export async function runBypassPipeline(
     }
   }
 
+  // Phase 3b: 커리큘럼 출처 일괄 조회 (confidence 조정용)
+  const sourceCache = await fetchCurriculumSourceBatch(candidateDeptIds);
+
   const { calculateThreeAxisScore } = await import("./scoring/three-axis-scorer");
 
   for (const candidate of genResult.candidates) {
     const deptInfo = deptCache.get(candidate.candidate_department_id)
       ?? { mid: null, name: "", univ: "" };
+    const sourceInfo = sourceCache.get(candidate.candidate_department_id);
+    const curriculumSource = sourceInfo?.source ?? "import";
+    // candidate-generator가 rationale에 실제 공통과목 수를 포함하므로, 여기서는 0 전달
+    // (sourceInfo.courseCount는 해당 학과의 총 과목 수이지 공통 과목 수가 아님)
+    const sharedCourseCount = 0;
 
     const axisResult = calculateThreeAxisScore({
       candidateDeptName: deptInfo.name,
@@ -123,21 +192,30 @@ export async function runBypassPipeline(
       candidateMidClassification: deptInfo.mid,
       competencyScores,
       curriculumSimilarity: candidate.curriculum_similarity_score,
-      sharedCourseCount: 0,
-      curriculumSource: null, // TODO: enrichment 연동 시 source 전달
+      sharedCourseCount,
+      curriculumSource,
       placementLevel: candidate.placement_grade,
-      internalGpaAvg: null, // TODO: D-3에서 내신 데이터 전달
-      hasMockScores: false,
+      internalGpaAvg,
+      hasMockScores,
     });
 
     candidate.competency_fit_score = axisResult.competencyFit.score;
     candidate.composite_score = axisResult.composite;
     if (axisResult.competencyFit.confidence > 0) withCompetencyCount++;
 
-    // 구조화 사유 저장 (C-0에서 추가한 컬럼)
+    // 배치 축 수치 + 출처 저장
+    candidate.placement_score = axisResult.placementFeasibility.score;
+    candidate.placement_source = candidate.placement_grade
+      ? "mock"
+      : internalGpaAvg != null
+        ? "gpa"
+        : "none";
+
+    // 구조화 사유 저장 + confidence 태그
+    const noData = axisResult.compositeConfidence === 0 ? " [데이터 부족]" : "";
     candidate.competency_rationale = axisResult.competencyFit.reasoning;
     candidate.curriculum_rationale = axisResult.curriculumSimilarity.reasoning;
-    candidate.placement_rationale = axisResult.placementFeasibility.reasoning;
+    candidate.placement_rationale = axisResult.placementFeasibility.reasoning + noData;
 
     // 기존 종합 근거 텍스트도 유지
     candidate.rationale = generateExplanation({
@@ -145,7 +223,7 @@ export async function runBypassPipeline(
       candidateDeptName: deptInfo.name,
       candidateUnivName: deptInfo.univ,
       curriculumSimilarity: candidate.curriculum_similarity_score,
-      sharedCourseCount: 0,
+      sharedCourseCount,
       topSharedCourses: [],
       placementGrade: candidate.placement_grade,
       competencyFitScore: axisResult.competencyFit.score,
@@ -191,5 +269,6 @@ export async function runBypassPipeline(
     preMapped: genResult.stats.preMapped,
     similarity: genResult.stats.similarity,
     withCompetency: withCompetencyCount,
+    enriched: enrichedCount,
   };
 }

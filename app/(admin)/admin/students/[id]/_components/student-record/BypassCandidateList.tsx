@@ -32,7 +32,14 @@ import {
   Plus,
   Search,
   Building2,
+  ArrowUpDown,
 } from "lucide-react";
+import {
+  getUniversityTier,
+  UNIVERSITY_TIER_LABELS,
+  UNIVERSITY_TIER_ORDER,
+  type UniversityTier,
+} from "@/lib/constants/university-tiers";
 
 // ─── 상태 뱃지 색상 ─────────────────────────────────
 
@@ -51,6 +58,21 @@ const SOURCE_COLORS: Record<string, string> = {
   manual:
     "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
 };
+
+const PLACEMENT_LABELS: Record<string, string> = {
+  safe: "안정", possible: "적정", bold: "소신", unstable: "불안정", danger: "위험",
+};
+const PLACEMENT_COLORS: Record<string, string> = {
+  safe: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  possible: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  bold: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  unstable: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
+  danger: "bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400",
+};
+
+type SortKey = "composite" | "similarity" | "competency" | "university";
+type FilterTier = "all" | UniversityTier;
+type GroupMode = "status" | "tier";
 
 // ─── Props ──────────────────────────────────────────
 
@@ -77,6 +99,12 @@ export function BypassCandidateList({
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState("");
   const [showManualAdd, setShowManualAdd] = useState(false);
+
+  // 필터 / 정렬 / 그룹
+  const [sortKey, setSortKey] = useState<SortKey>("composite");
+  const [filterTier, setFilterTier] = useState<FilterTier>("all");
+  const [filterPlacement, setFilterPlacement] = useState<string | null>(null);
+  const [groupMode, setGroupMode] = useState<GroupMode>("status");
 
   const invalidate = () => {
     queryClient.invalidateQueries({
@@ -145,31 +173,134 @@ export function BypassCandidateList({
     );
   }
 
-  // 상태별 그룹 분류
-  const shortlisted = candidates.filter((c) => c.status === "shortlisted");
-  const active = candidates.filter((c) => c.status === "candidate");
-  const rejected = candidates.filter((c) => c.status === "rejected");
+  // ─── 필터링 + 정렬 ─────────────────────────────────
+  const filtered = candidates.filter((c) => {
+    if (filterTier !== "all" && getUniversityTier(c.candidate_department.university_name) !== filterTier) return false;
+    if (filterPlacement && c.placement_grade !== filterPlacement) return false;
+    return true;
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
+    switch (sortKey) {
+      case "composite": return Number(b.composite_score ?? 0) - Number(a.composite_score ?? 0);
+      case "similarity": return Number(b.curriculum_similarity_score ?? 0) - Number(a.curriculum_similarity_score ?? 0);
+      case "competency": return Number(b.competency_fit_score ?? 0) - Number(a.competency_fit_score ?? 0);
+      case "university": return a.candidate_department.university_name.localeCompare(b.candidate_department.university_name);
+      default: return 0;
+    }
+  });
+
+  // 그룹 분류
+  const shortlisted = sorted.filter((c) => c.status === "shortlisted");
+  const active = sorted.filter((c) => c.status === "candidate");
+  const rejected = sorted.filter((c) => c.status === "rejected");
+
+  // 티어별 그룹
+  const tierGroups = groupMode === "tier"
+    ? UNIVERSITY_TIER_ORDER.map((tier) => ({
+        tier,
+        label: UNIVERSITY_TIER_LABELS[tier],
+        items: sorted.filter((c) => getUniversityTier(c.candidate_department.university_name) === tier),
+      })).filter((g) => g.items.length > 0)
+    : null;
+
+  // 배치 등급 종류 (필터 칩용)
+  const availablePlacements = [...new Set(candidates.map((c) => c.placement_grade).filter(Boolean))] as string[];
 
   return (
     <div
       className={cn(
-        "flex flex-col gap-4",
+        "flex flex-col gap-3",
         isPending && "pointer-events-none opacity-60",
       )}
     >
-      {/* 요약 + 수동 추가 */}
+      {/* ─── 필터 바 ─────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2 text-[11px]">
+        {/* 정렬 */}
+        <div className="flex items-center gap-1 rounded-md border border-[var(--border-secondary)] px-2 py-1">
+          <ArrowUpDown className="h-3 w-3 text-[var(--text-tertiary)]" />
+          <select
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value as SortKey)}
+            className="bg-transparent text-[var(--text-secondary)] outline-none"
+          >
+            <option value="composite">종합점수순</option>
+            <option value="similarity">유사도순</option>
+            <option value="competency">역량순</option>
+            <option value="university">대학명순</option>
+          </select>
+        </div>
+
+        {/* 그룹 모드 */}
+        <div className="flex items-center gap-1 rounded-md border border-[var(--border-secondary)] px-2 py-1">
+          <select
+            value={groupMode}
+            onChange={(e) => setGroupMode(e.target.value as GroupMode)}
+            className="bg-transparent text-[var(--text-secondary)] outline-none"
+          >
+            <option value="status">상태별</option>
+            <option value="tier">대학 티어별</option>
+          </select>
+        </div>
+
+        {/* Quick Filter 칩 — 대학 티어 */}
+        <div className="flex items-center gap-1">
+          {(["all", ...UNIVERSITY_TIER_ORDER] as const).map((tier) => {
+            const label = tier === "all" ? "전체" : UNIVERSITY_TIER_LABELS[tier as UniversityTier];
+            const count = tier === "all" ? candidates.length : candidates.filter((c) => getUniversityTier(c.candidate_department.university_name) === tier).length;
+            if (tier !== "all" && count === 0) return null;
+            return (
+              <button
+                key={tier}
+                type="button"
+                onClick={() => setFilterTier(tier as FilterTier)}
+                className={cn(
+                  "rounded-full px-2 py-0.5 transition-colors",
+                  filterTier === tier
+                    ? "bg-primary-100 font-medium text-primary-700 dark:bg-primary-900/40 dark:text-primary-300"
+                    : "bg-[var(--surface-secondary)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]",
+                )}
+              >
+                {label} {count > 0 && <span className="opacity-60">{count}</span>}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 배치 안전도 필터 */}
+        {availablePlacements.length > 0 && (
+          <div className="flex items-center gap-1">
+            <span className="text-[var(--text-tertiary)]">|</span>
+            {availablePlacements.map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setFilterPlacement(filterPlacement === p ? null : p)}
+                className={cn(
+                  "rounded-full px-2 py-0.5 transition-colors",
+                  filterPlacement === p
+                    ? PLACEMENT_COLORS[p]
+                    : "bg-[var(--surface-secondary)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]",
+                )}
+              >
+                {PLACEMENT_LABELS[p] ?? p}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ─── 요약 + 수동 추가 ────────────────────── */}
       <div className="flex items-center gap-3 text-xs text-[var(--text-secondary)]">
         <span>
-          총 <span className="font-semibold text-[var(--text-primary)]">{candidates.length}</span>건
+          {filtered.length !== candidates.length
+            ? <><span className="font-semibold text-[var(--text-primary)]">{filtered.length}</span>/{candidates.length}건</>
+            : <>총 <span className="font-semibold text-[var(--text-primary)]">{candidates.length}</span>건</>
+          }
         </span>
         {shortlisted.length > 0 && (
           <span className="rounded-full bg-blue-100 px-2 py-0.5 font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
             선별 {shortlisted.length}
-          </span>
-        )}
-        {rejected.length > 0 && (
-          <span className="text-[var(--text-tertiary)]">
-            제외 {rejected.length}
           </span>
         )}
         {targetDeptId && (
@@ -199,74 +330,122 @@ export function BypassCandidateList({
         />
       )}
 
-      {/* 선별 후보 (상단 고정) */}
-      {shortlisted.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <h4 className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-            선별된 후보
-          </h4>
-          {shortlisted.map((c) => (
-            <CandidateCard
-              key={c.id}
-              candidate={c}
-              isExpanded={expandedId === c.id}
-              onToggleExpand={() =>
-                setExpandedId(expandedId === c.id ? null : c.id)
-              }
-              onStatusChange={handleStatusChange}
-              onCompare={onCompare}
-              onEditNote={() => startEditNote(c)}
-              isEditingNote={editingNoteId === c.id}
-              noteText={noteText}
-              onNoteTextChange={setNoteText}
-              onSaveNote={() => handleSaveNotes(c.id)}
-              onCancelNote={() => setEditingNoteId(null)}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* 일반 후보 */}
-      {active.length > 0 && (
-        <div className="flex flex-col gap-1.5">
+      {/* ─── 그룹 렌더링 ────────────────────────── */}
+      {groupMode === "tier" && tierGroups ? (
+        /* 대학 티어별 그룹 */
+        tierGroups.map((group) => (
+          <CandidateGroup
+            key={group.tier}
+            heading={`${group.label} (${group.items.length})`}
+            headingColor="text-[var(--text-secondary)]"
+            candidates={group.items}
+            expandedId={expandedId}
+            onToggleExpand={(id) => setExpandedId(expandedId === id ? null : id)}
+            onStatusChange={handleStatusChange}
+            onCompare={onCompare}
+            editingNoteId={editingNoteId}
+            noteText={noteText}
+            onEditNote={startEditNote}
+            onNoteTextChange={setNoteText}
+            onSaveNote={handleSaveNotes}
+            onCancelNote={() => setEditingNoteId(null)}
+          />
+        ))
+      ) : (
+        /* 상태별 그룹 (기본) */
+        <>
           {shortlisted.length > 0 && (
-            <h4 className="text-xs font-semibold text-[var(--text-secondary)]">
-              후보
-            </h4>
-          )}
-          {active.map((c) => (
-            <CandidateCard
-              key={c.id}
-              candidate={c}
-              isExpanded={expandedId === c.id}
-              onToggleExpand={() =>
-                setExpandedId(expandedId === c.id ? null : c.id)
-              }
+            <CandidateGroup
+              heading={`선별된 후보 (${shortlisted.length})`}
+              headingColor="text-blue-600 dark:text-blue-400"
+              candidates={shortlisted}
+              expandedId={expandedId}
+              onToggleExpand={(id) => setExpandedId(expandedId === id ? null : id)}
               onStatusChange={handleStatusChange}
               onCompare={onCompare}
-              onEditNote={() => startEditNote(c)}
-              isEditingNote={editingNoteId === c.id}
+              editingNoteId={editingNoteId}
               noteText={noteText}
+              onEditNote={startEditNote}
               onNoteTextChange={setNoteText}
-              onSaveNote={() => handleSaveNotes(c.id)}
+              onSaveNote={handleSaveNotes}
               onCancelNote={() => setEditingNoteId(null)}
             />
-          ))}
-        </div>
+          )}
+          {active.length > 0 && (
+            <CandidateGroup
+              heading={shortlisted.length > 0 ? `후보 (${active.length})` : undefined}
+              headingColor="text-[var(--text-secondary)]"
+              candidates={active}
+              expandedId={expandedId}
+              onToggleExpand={(id) => setExpandedId(expandedId === id ? null : id)}
+              onStatusChange={handleStatusChange}
+              onCompare={onCompare}
+              editingNoteId={editingNoteId}
+              noteText={noteText}
+              onEditNote={startEditNote}
+              onNoteTextChange={setNoteText}
+              onSaveNote={handleSaveNotes}
+              onCancelNote={() => setEditingNoteId(null)}
+            />
+          )}
+          {rejected.length > 0 && (
+            <RejectedGroup
+              candidates={rejected}
+              expandedId={expandedId}
+              onToggleExpand={(id) => setExpandedId(expandedId === id ? null : id)}
+              onStatusChange={handleStatusChange}
+              onCompare={onCompare}
+            />
+          )}
+        </>
       )}
+    </div>
+  );
+}
 
-      {/* 제외 후보 (접혀있음) */}
-      {rejected.length > 0 && (
-        <RejectedGroup
-          candidates={rejected}
-          expandedId={expandedId}
-          onToggleExpand={(id) =>
-            setExpandedId(expandedId === id ? null : id)
-          }
-          onStatusChange={handleStatusChange}
-          onCompare={onCompare}
-        />
+// ─── 후보 그룹 (공통) ────────────────────────────────
+
+function CandidateGroup({
+  heading, headingColor, candidates: items,
+  expandedId, onToggleExpand, onStatusChange, onCompare,
+  editingNoteId, noteText, onEditNote, onNoteTextChange, onSaveNote, onCancelNote,
+}: {
+  heading?: string;
+  headingColor?: string;
+  candidates: BypassCandidateWithDetails[];
+  expandedId: string | null;
+  onToggleExpand: (id: string) => void;
+  onStatusChange: (id: string, status: BypassCandidateStatus) => void;
+  onCompare: (candidateDeptId: string, targetDeptId: string) => void;
+  editingNoteId: string | null;
+  noteText: string;
+  onEditNote: (c: BypassCandidateWithDetails) => void;
+  onNoteTextChange: (text: string) => void;
+  onSaveNote: (id: string) => void;
+  onCancelNote: () => void;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-1.5">
+      {heading && (
+        <h4 className={cn("text-xs font-semibold", headingColor)}>{heading}</h4>
       )}
+      {items.map((c) => (
+        <CandidateCard
+          key={c.id}
+          candidate={c}
+          isExpanded={expandedId === c.id}
+          onToggleExpand={() => onToggleExpand(c.id)}
+          onStatusChange={onStatusChange}
+          onCompare={onCompare}
+          onEditNote={() => onEditNote(c)}
+          isEditingNote={editingNoteId === c.id}
+          noteText={noteText}
+          onNoteTextChange={onNoteTextChange}
+          onSaveNote={() => onSaveNote(c.id)}
+          onCancelNote={onCancelNote}
+        />
+      ))}
     </div>
   );
 }
@@ -300,6 +479,14 @@ function CandidateCard({
   onSaveNote,
   onCancelNote,
 }: CandidateCardProps) {
+  // Supabase numeric 컬럼은 문자열로 반환될 수 있으므로 명시적 변환
+  const simScore = c.curriculum_similarity_score != null ? Number(c.curriculum_similarity_score) : null;
+  const compScore = c.competency_fit_score != null ? Number(c.competency_fit_score) : null;
+  const totalScore = c.composite_score != null ? Number(c.composite_score) : null;
+  const placeScore = c.placement_score != null ? Number(c.placement_score) : null;
+  const placeSource = c.placement_source as "mock" | "gpa" | "none" | null;
+  const PLACE_SOURCE_LABEL: Record<string, string> = { mock: "모의", gpa: "내신", none: "" };
+
   return (
     <div className="rounded-lg border border-[var(--border-primary)] bg-[var(--surface-primary)] transition-shadow hover:shadow-sm">
       {/* 헤더 */}
@@ -337,34 +524,57 @@ function CandidateCard({
             </span>
           </div>
           {/* 점수 */}
-          <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-[var(--text-secondary)]">
-            {c.curriculum_similarity_score != null && (
-              <span>
-                유사도{" "}
-                <span className="font-medium text-[var(--text-primary)]">
-                  {c.curriculum_similarity_score}%
-                </span>
-              </span>
-            )}
-            {c.competency_fit_score != null && (
-              <span>
-                역량{" "}
-                <span className={cn(
-                  "font-medium",
-                  c.competency_fit_score >= 75 ? "text-emerald-600 dark:text-emerald-400" :
-                  c.competency_fit_score >= 50 ? "text-[var(--text-primary)]" :
-                  "text-amber-600 dark:text-amber-400"
-                )}>
-                  {c.competency_fit_score}점
-                </span>
-              </span>
-            )}
-            {c.composite_score != null && (
+          {/* 점수 + 배치 뱃지 */}
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
+            {totalScore != null && (
               <span className="font-semibold text-indigo-600 dark:text-indigo-400">
-                종합 {c.composite_score}
+                종합 {totalScore}
               </span>
             )}
+            {c.placement_grade && PLACEMENT_LABELS[c.placement_grade] && (
+              <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-medium", PLACEMENT_COLORS[c.placement_grade])}>
+                {PLACEMENT_LABELS[c.placement_grade]}
+              </span>
+            )}
+            <span className="text-[10px] text-[var(--text-tertiary)]">
+              {UNIVERSITY_TIER_LABELS[getUniversityTier(c.candidate_department.university_name)]}
+            </span>
           </div>
+          {/* 3축 미니 바 (펼치지 않아도 한눈에) */}
+          {(simScore != null || compScore != null || placeScore != null) && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px]">
+              {simScore != null && (
+                <div className="flex items-center gap-1">
+                  <span className="w-7 text-[var(--text-tertiary)]">유사</span>
+                  <div className="h-1.5 w-16 rounded-full bg-gray-200 dark:bg-gray-700">
+                    <div className="h-1.5 rounded-full bg-indigo-500" style={{ width: `${Math.min(simScore, 100)}%` }} />
+                  </div>
+                  <span className="w-8 text-right font-medium text-[var(--text-secondary)]">{simScore}%</span>
+                </div>
+              )}
+              {compScore != null && (
+                <div className="flex items-center gap-1">
+                  <span className="w-7 text-[var(--text-tertiary)]">역량</span>
+                  <div className="h-1.5 w-16 rounded-full bg-gray-200 dark:bg-gray-700">
+                    <div className="h-1.5 rounded-full bg-emerald-500" style={{ width: `${Math.min(compScore, 100)}%` }} />
+                  </div>
+                  <span className="w-8 text-right font-medium text-[var(--text-secondary)]">{compScore}점</span>
+                </div>
+              )}
+              {placeScore != null && placeSource !== "none" && (
+                <div className="flex items-center gap-1">
+                  <span className="w-7 text-[var(--text-tertiary)]">배치</span>
+                  <div className="h-1.5 w-16 rounded-full bg-gray-200 dark:bg-gray-700">
+                    <div className="h-1.5 rounded-full bg-amber-500" style={{ width: `${Math.min(placeScore, 100)}%` }} />
+                  </div>
+                  <span className="w-8 text-right font-medium text-[var(--text-secondary)]">{placeScore}점</span>
+                  <span className="text-[9px] text-[var(--text-tertiary)]">
+                    {placeSource ? PLACE_SOURCE_LABEL[placeSource] : ""}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <ChevronDown
@@ -379,17 +589,37 @@ function CandidateCard({
       {isExpanded && (
         <div className="border-t border-[var(--border-secondary)] px-4 py-3">
           <div className="flex flex-col gap-3">
-            {/* 근거 */}
-            {c.rationale && (
-              <div>
-                <p className="mb-1 text-xs font-medium text-[var(--text-secondary)]">
-                  추천 근거
-                </p>
-                <p className="whitespace-pre-wrap text-sm text-[var(--text-primary)]">
-                  {c.rationale}
-                </p>
+            {/* 3축 분석 근거 */}
+            {(c.curriculum_rationale || c.competency_rationale || c.placement_rationale) ? (
+              <div className="flex flex-col gap-2">
+                <p className="text-xs font-medium text-[var(--text-secondary)]">분석 근거</p>
+                <div className="grid gap-1.5 text-xs">
+                  {c.curriculum_rationale && (
+                    <div className="flex items-start gap-2 rounded-md bg-[var(--surface-secondary)] px-2.5 py-1.5">
+                      <span className="shrink-0 font-medium text-indigo-600 dark:text-indigo-400">유사도</span>
+                      <span className="text-[var(--text-secondary)]">{c.curriculum_rationale}</span>
+                    </div>
+                  )}
+                  {c.competency_rationale && (
+                    <div className="flex items-start gap-2 rounded-md bg-[var(--surface-secondary)] px-2.5 py-1.5">
+                      <span className="shrink-0 font-medium text-emerald-600 dark:text-emerald-400">역량</span>
+                      <span className="text-[var(--text-secondary)]">{c.competency_rationale}</span>
+                    </div>
+                  )}
+                  {c.placement_rationale && (
+                    <div className="flex items-start gap-2 rounded-md bg-[var(--surface-secondary)] px-2.5 py-1.5">
+                      <span className="shrink-0 font-medium text-amber-600 dark:text-amber-400">배치</span>
+                      <span className="text-[var(--text-secondary)]">{c.placement_rationale}</span>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
+            ) : c.rationale ? (
+              <div>
+                <p className="mb-1 text-xs font-medium text-[var(--text-secondary)]">추천 근거</p>
+                <p className="whitespace-pre-wrap text-xs text-[var(--text-secondary)]">{c.rationale}</p>
+              </div>
+            ) : null}
 
             {/* 학과 정보 */}
             <div className="grid grid-cols-2 gap-3 text-xs">

@@ -6,6 +6,7 @@ import {
   getCandidatesAction,
   compareCurriculumAction,
   fetchClassificationsAction,
+  discoverTargetDepartmentsAction,
 } from "@/lib/domains/bypass-major/actions/bypass";
 import type { DepartmentSearchFilter } from "@/lib/domains/bypass-major/types";
 
@@ -27,6 +28,8 @@ export const bypassMajorKeys = {
     [...bypassMajorKeys.all, "compare", deptIdA, deptIdB] as const,
   classifications: () =>
     [...bypassMajorKeys.all, "classifications"] as const,
+  discovery: (studentId: string, schoolYear: number) =>
+    [...bypassMajorKeys.all, "discovery", studentId, schoolYear] as const,
 };
 
 // ============================================
@@ -84,6 +87,16 @@ export function curriculumCompareQueryOptions(
     queryFn: () => compareCurriculumAction(deptIdA, deptIdB),
     staleTime: 5 * 60_000,
     enabled: !!deptIdA && !!deptIdB,
+  });
+}
+
+export function discoveryQueryOptions(studentId: string, schoolYear: number) {
+  return queryOptions({
+    queryKey: bypassMajorKeys.discovery(studentId, schoolYear),
+    queryFn: () => discoverTargetDepartmentsAction(studentId, schoolYear),
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
+    enabled: !!studentId && !!schoolYear,
   });
 }
 

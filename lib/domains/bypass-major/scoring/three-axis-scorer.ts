@@ -22,6 +22,7 @@ export interface ThreeAxisResult {
   curriculumSimilarity: AxisScore;  // 유사도: 가중치 Jaccard
   placementFeasibility: AxisScore;  // 실현가능성: 배치 or 내신 근사
   composite: number;                // 가중 평균 (0-100)
+  compositeConfidence: number;      // 0-100 — 0이면 "데이터 부족", >0이면 신뢰할 수 있는 점수
   weights: Weights;
 }
 
@@ -103,7 +104,14 @@ export function calculateThreeAxisScore(input: ScoringInput): ThreeAxisResult {
 
   const composite = totalWeight > 0 ? Math.round((totalScore / totalWeight) * 10) / 10 : 0;
 
-  return { competencyFit, curriculumSimilarity, placementFeasibility, composite, weights };
+  // compositeConfidence: 유효 축의 가중 평균 confidence (0이면 데이터 부족)
+  const axes = [competencyFit, curriculumSimilarity, placementFeasibility];
+  const validAxes = axes.filter((a) => a.confidence > 0);
+  const compositeConfidence = validAxes.length > 0
+    ? Math.round(validAxes.reduce((sum, a) => sum + a.confidence, 0) / validAxes.length)
+    : 0;
+
+  return { competencyFit, curriculumSimilarity, placementFeasibility, composite, compositeConfidence, weights };
 }
 
 // ─── 축별 스코어링 ─────────────────────────
