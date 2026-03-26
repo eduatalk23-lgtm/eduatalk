@@ -248,6 +248,8 @@ export async function addManualCandidateAction(input: {
         competency_rationale: null,
         curriculum_rationale: null,
         placement_rationale: null,
+        placement_score: null,
+        placement_source: null,
         recommendation_source: "target_based",
       },
     ]);
