@@ -67,7 +67,7 @@ describe("mapSeteks", () => {
       school_year: 2024,
       semester: 1,
       subject_id: "subj-kor",
-      content: "뛰어난 작문 능력...",
+      imported_content: "뛰어난 작문 능력...",
       status: "draft",
     });
 
