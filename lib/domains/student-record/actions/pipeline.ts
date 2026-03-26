@@ -2,12 +2,15 @@
 
 // ============================================
 // AI 초기 분석 파이프라인
-// Phase B+E1: 8개 AI 태스크 순차 실행 + DB 상태 추적
-// 순서: 역량→스토리라인→엣지→진단→수강→가이드→세특→요약서
+// Phase B+E1: 9개 AI 태스크 3-Phase 병렬 실행 + DB 상태 추적
+// Phase 1 (순차): 역량→스토리라인→엣지
+// Phase 2 (병렬): 진단, 수강, 가이드배정, 요약서
+// Phase 3 (병렬, 진단 후): 세특방향, 보완전략
 // ============================================
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
+import { createSupabaseAdminClient, type SupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { ActionResponse } from "@/lib/types/actionResponse";
 import { createSuccessResponse, createErrorResponse } from "@/lib/types/actionResponse";
@@ -16,16 +19,54 @@ import type {
   PipelineStatus,
   PipelineTaskKey,
   PipelineTaskStatus,
+  PipelineTaskResults,
+  TaskRunnerOutput,
+  ScoreRowWithSubject,
+  CachedSetek,
+  CachedChangche,
+  CachedHaengteuk,
+  OfferedSubjectRow,
 } from "../pipeline-types";
 import { PIPELINE_TASK_KEYS } from "../pipeline-types";
+import type { PersistedEdge } from "../edge-repository";
+import type { CrossRefEdge } from "../cross-reference";
 import * as competencyRepo from "../competency-repository";
 import * as diagnosisRepo from "../diagnosis-repository";
 import * as repository from "../repository";
 import type { ActivityTagInsert, CompetencyScoreInsert, DiagnosisInsert } from "../types";
-import type { HighlightAnalysisResult } from "../llm/types";
+import type { HighlightAnalysisInput, HighlightAnalysisResult } from "../llm/types";
 import type { RecordSummary } from "../llm/prompts/inquiryLinking";
 
 const LOG_CTX = { domain: "student-record", action: "pipeline" };
+
+/** 레코드 평균 길이 기반 배치 크기 추정 (출력 토큰 제한 방지) */
+function estimateBatchSize(records: Array<{ content: string }>): number {
+  if (records.length <= 2) return records.length;
+  const avgLength = records.reduce((sum, r) => sum + r.content.length, 0) / records.length;
+  if (avgLength > 1000) return 2;
+  if (avgLength > 600) return 3;
+  return 4;
+}
+
+/** 동시성 제한 병렬 실행 (I-9: worker pool 패턴 통일) */
+async function runWithConcurrency<T>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<void>,
+): Promise<void> {
+  if (items.length === 0) return;
+  let idx = 0;
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    async () => {
+      while (idx < items.length) {
+        const i = idx++;
+        await fn(items[i]);
+      }
+    },
+  );
+  await Promise.allSettled(workers);
+}
 
 // ============================================
 // 파이프라인 상태 조회
@@ -63,8 +104,7 @@ export async function fetchPipelineStatus(
       status: data.status,
       tasks,
       taskPreviews: (data.task_previews ?? {}) as Record<string, string>,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      taskResults: (data.task_results ?? {}) as Record<string, any>,
+      taskResults: (data.task_results ?? {}) as PipelineTaskResults,
       errorDetails: data.error_details as Record<string, string> | null,
       startedAt: data.started_at,
       completedAt: data.completed_at,
@@ -225,11 +265,14 @@ async function executePipelineTasks(
   studentSnapshot: Record<string, unknown> | null,
   existingState?: ExistingPipelineState,
 ) {
-  const supabase = await createSupabaseServerClient();
+  // I-7: fire-and-forget에서 request context(cookies) 만료 방지 → Admin Client 사용
+  // 진입점(runInitialAnalysisPipeline/resumePipeline)에서 requireAdminOrConsultant() 이미 검증 완료
+  const admin = createSupabaseAdminClient();
+  if (!admin) throw new Error("Admin client unavailable — SUPABASE_SERVICE_ROLE_KEY missing");
+  const supabase = admin;
   const tasks: Record<string, PipelineTaskStatus> = {};
   const previews: Record<string, string> = {};
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const results: Record<string, any> = {};
+  const results: PipelineTaskResults = {};
   const errors: Record<string, string> = {};
 
   // 이어서 실행: 기존 완료 태스크의 preview/result 복원
@@ -251,8 +294,8 @@ async function executePipelineTasks(
   }
 
   // Phase E2: edge_computation에서 수집 → 후속 태스크에서 context별 프롬프트 생성
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let computedEdges: any[] = [];
+  // DB 복원 시 PersistedEdge[], 그래프 계산 시 CrossRefEdge[]
+  let computedEdges: PersistedEdge[] | CrossRefEdge[] = [];
 
   // 이어서 실행 시 edge_computation이 이미 완료되었으면 DB에서 엣지 복원
   if (existingState?.tasks.edge_computation === "completed") {
@@ -262,12 +305,9 @@ async function executePipelineTasks(
   }
 
   // C2: 태스크 간 공유 레코드 캐시 (중복 DB 조회 방지)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let cachedSeteks: any[] | null = null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let cachedChangche: any[] | null = null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let cachedHaengteuk: any[] | null = null;
+  let cachedSeteks: CachedSetek[] | null = null;
+  let cachedChangche: CachedChangche[] | null = null;
+  let cachedHaengteuk: CachedHaengteuk[] | null = null;
 
   // studentSnapshot이 없거나 grade가 누락되면 DB 재조회
   let snapshot = studentSnapshot;
@@ -281,39 +321,73 @@ async function executePipelineTasks(
   }
   const studentGrade = (snapshot?.grade as number) ?? 3;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const taskRunners: Array<{ key: PipelineTaskKey; run: () => Promise<string | { preview: string; result: any }> }> = [
+  const taskRunners: Array<{ key: PipelineTaskKey; run: () => Promise<TaskRunnerOutput> }> = [
     // ── 1. 역량 분석 (가장 먼저: 태그+등급 생성 → 진단/가이드의 입력) ──
     {
       key: "competency_analysis",
       run: async () => {
         const { analyzeSetekWithHighlight } = await import("../llm/actions/analyzeWithHighlight");
+        const { calculateCourseAdequacy: calcAdequacy } = await import("../course-adequacy");
+        const { computeRecordContentHash } = await import("../content-hash");
         let succeeded = 0;
         let failed = 0;
+        let skipped = 0;
         const allResults = new Map<string, HighlightAnalysisResult>();
         const currentSchoolYear = calculateSchoolYear();
 
-        // 개별 레코드 분석 + 태그 저장 헬퍼
-        async function analyzeAndSave(
+        // 진로 역량 평가용 이수/성적 컨텍스트 사전 조회
+        const tgtMajor = (snapshot?.target_major as string) ?? null;
+        let careerContext: HighlightAnalysisInput["careerContext"] = undefined;
+        let careerScoreRows: ScoreRowWithSubject[] = [];
+
+        if (tgtMajor) {
+          const { data: scoreRows } = await supabase
+            .from("student_internal_scores")
+            .select("subject:subject_id(name), rank_grade, grade, semester")
+            .eq("student_id", studentId)
+            .order("grade")
+            .order("semester");
+          careerScoreRows = (scoreRows ?? []) as ScoreRowWithSubject[];
+          const subjectScores = careerScoreRows
+            .map((s) => ({
+              subjectName: s.subject?.name ?? "",
+              rankGrade: s.rank_grade ?? 5,
+            }))
+            .filter((s) => s.subjectName);
+          const takenNames = [...new Set(subjectScores.map((s) => s.subjectName))];
+
+          // 학기별 성적 추이
+          const gradeTrend = careerScoreRows
+            .filter((s) => s.rank_grade != null)
+            .map((s) => ({
+              grade: s.grade ?? 1,
+              semester: s.semester ?? 1,
+              subjectName: s.subject?.name ?? "",
+              rankGrade: s.rank_grade as number,
+            }));
+
+          careerContext = {
+            targetMajor: tgtMajor,
+            takenSubjects: takenNames,
+            relevantScores: subjectScores,
+            gradeTrend,
+          };
+        }
+
+        // 증분 분석용 캐시 맵 (레코드 목록 확정 후 채움)
+        let cacheMap = new Map<string, { analysis_result: unknown; content_hash: string | null }>();
+
+        const careerHashCtx = careerContext ? { targetMajor: careerContext.targetMajor, takenSubjects: careerContext.takenSubjects } : null;
+
+        // 분석 결과 저장 헬퍼 (배치/개별 양쪽에서 재사용)
+        async function saveAnalysisResult(
           recordType: "setek" | "personal_setek" | "changche" | "haengteuk",
           recordId: string,
           content: string,
-          grade: number,
-          subjectName?: string,
+          data: HighlightAnalysisResult,
         ) {
-          // 기존 AI 태그 정리
-          await competencyRepo.deleteAiActivityTagsByRecord(recordType, recordId, tenantId);
-
-          const result = await analyzeSetekWithHighlight({ recordType, content, subjectName, grade });
-          if (!result.success) {
-            failed++;
-            logActionDebug(LOG_CTX, `competency_analysis: ${recordType} ${recordId} failed — ${result.error}`);
-            return;
-          }
-
-          // 태그 DB 저장
           const tagInputs: ActivityTagInsert[] = [];
-          for (const section of result.data.sections) {
+          for (const section of data.sections) {
             for (const tag of section.tags) {
               tagInputs.push({
                 tenant_id: tenantId,
@@ -332,107 +406,167 @@ async function executePipelineTasks(
             await competencyRepo.insertActivityTags(tagInputs);
           }
 
-          // 분석 결과 캐시 저장 (하이라이트 영속화)
+          const currentHash = computeRecordContentHash(content, careerHashCtx);
           await competencyRepo.upsertAnalysisCache({
             tenant_id: tenantId,
             student_id: studentId,
             record_type: recordType,
             record_id: recordId,
             source: "ai",
-            analysis_result: result.data,
+            analysis_result: data,
+            content_hash: currentHash,
           });
 
-          allResults.set(recordId, result.data);
+          allResults.set(recordId, data);
           succeeded++;
         }
 
-        // 1. 세특 분석 (결과를 캐시에 저장 → storyline_generation에서 재사용)
-        if (!cachedSeteks) {
-          const { data } = await supabase
-            .from("student_record_seteks")
-            .select("id, content, grade, subject:subject_id(name)")
-            .eq("student_id", studentId)
-            .eq("tenant_id", tenantId)
-            .is("deleted_at", null);
-          cachedSeteks = data ?? [];
+        // 1~3. DB 조회 병렬화
+        await Promise.all([
+          (async () => {
+            if (!cachedSeteks) {
+              const { data } = await supabase
+                .from("student_record_seteks")
+                .select("id, content, grade, subject:subject_id(name)")
+                .eq("student_id", studentId)
+                .eq("tenant_id", tenantId)
+                .is("deleted_at", null);
+              cachedSeteks = (data ?? []) as unknown as CachedSetek[];
+            }
+          })(),
+          (async () => {
+            if (!cachedChangche) {
+              const { data } = await supabase
+                .from("student_record_changche")
+                .select("id, content, grade, activity_type")
+                .eq("student_id", studentId)
+                .eq("tenant_id", tenantId);
+              cachedChangche = (data ?? []) as CachedChangche[];
+            }
+          })(),
+          (async () => {
+            if (!cachedHaengteuk) {
+              const { data } = await supabase
+                .from("student_record_haengteuk")
+                .select("id, content, grade")
+                .eq("student_id", studentId)
+                .eq("tenant_id", tenantId);
+              cachedHaengteuk = (data ?? []) as CachedHaengteuk[];
+            }
+          })(),
+        ]);
+
+        // 전체 레코드를 하나의 배열로 구성
+        type AnalysisRecord = { type: "setek" | "changche" | "haengteuk"; id: string; content: string; grade: number; subjectName?: string };
+        const analysisRecords: AnalysisRecord[] = [];
+        for (const s of cachedSeteks!) {
+          if (!s.content || s.content.trim().length < 20) continue;
+          analysisRecords.push({ type: "setek", id: s.id, content: s.content, grade: s.grade, subjectName: s.subject?.name });
         }
-        for (const s of cachedSeteks) {
-          const content = s.content as string;
-          if (!content || content.trim().length < 20) continue;
-          const subj = s.subject as unknown as { name: string } | null;
-          try {
-            await analyzeAndSave("setek", s.id, content, s.grade, subj?.name);
-          } catch (err) {
-            failed++;
-            logActionError({ ...LOG_CTX, action: "pipeline.competency.setek" }, err, { recordId: s.id });
-          }
+        for (const c of cachedChangche!) {
+          if (!c.content || c.content.trim().length < 20) continue;
+          analysisRecords.push({ type: "changche", id: c.id, content: c.content, grade: c.grade });
+        }
+        for (const h of cachedHaengteuk!) {
+          if (!h.content || h.content.trim().length < 20) continue;
+          analysisRecords.push({ type: "haengteuk", id: h.id, content: h.content, grade: h.grade });
         }
 
-        // 2. 창체 분석 (결과를 캐시에 저장 → storyline_generation에서 재사용)
-        if (!cachedChangche) {
-          const { data } = await supabase
-            .from("student_record_changche")
-            .select("id, content, grade, activity_type")
-            .eq("student_id", studentId)
-            .eq("tenant_id", tenantId);
-          cachedChangche = data ?? [];
-        }
-        for (const c of cachedChangche) {
-          const content = c.content as string;
-          if (!content || content.trim().length < 20) continue;
-          try {
-            await analyzeAndSave("changche", c.id, content, c.grade);
-          } catch (err) {
-            failed++;
-            logActionError({ ...LOG_CTX, action: "pipeline.competency.changche" }, err, { recordId: c.id });
-          }
+        // 증분 분석: 배치 캐시 조회 (1회 DB 호출)
+        {
+          const cachedEntries = await competencyRepo.findAnalysisCacheByRecordIds(
+            analysisRecords.map((r) => r.id), tenantId, "ai",
+          );
+          cacheMap = new Map(cachedEntries.map((e) => [e.record_id, e]));
         }
 
-        // 3. 행특 분석 (결과를 캐시에 저장)
-        if (!cachedHaengteuk) {
-          const { data } = await supabase
-            .from("student_record_haengteuk")
-            .select("id, content, grade")
-            .eq("student_id", studentId)
-            .eq("tenant_id", tenantId);
-          cachedHaengteuk = data ?? [];
+        // 캐시 히트 분리 + 미히트 레코드의 AI 태그 배치 삭제
+        const uncachedRecords: AnalysisRecord[] = [];
+        for (const rec of analysisRecords) {
+          const currentHash = computeRecordContentHash(rec.content, careerHashCtx);
+          const cached = cacheMap.get(rec.id);
+          if (cached?.content_hash && cached.content_hash === currentHash) {
+            allResults.set(rec.id, cached.analysis_result as HighlightAnalysisResult);
+            skipped++;
+          } else {
+            uncachedRecords.push(rec);
+          }
         }
-        for (const h of cachedHaengteuk) {
-          const content = h.content as string;
-          if (!content || content.trim().length < 20) continue;
-          try {
-            await analyzeAndSave("haengteuk", h.id, content, h.grade);
-          } catch (err) {
-            failed++;
-            logActionError({ ...LOG_CTX, action: "pipeline.competency.haengteuk" }, err, { recordId: h.id });
+        if (uncachedRecords.length > 0) {
+          await competencyRepo.deleteAiActivityTagsByRecordIds(uncachedRecords.map((r) => r.id), tenantId);
+        }
+
+        // 개별 LLM 호출 (동시성 3, 캐시 미히트 레코드만)
+        // NOTE: 배치 호출(analyzeSetekBatchWithHighlight)은 LLM 품질 문제로 보류
+        if (uncachedRecords.length > 0) {
+          const failedRecords: AnalysisRecord[] = [];
+
+          await runWithConcurrency(uncachedRecords, 3, async (rec) => {
+            try {
+              const result = await analyzeSetekWithHighlight({
+                recordType: rec.type,
+                content: rec.content,
+                subjectName: rec.subjectName,
+                grade: rec.grade,
+                careerContext,
+              });
+              if (result.success) {
+                await saveAnalysisResult(rec.type, rec.id, rec.content, result.data);
+              } else {
+                failedRecords.push(rec);
+                logActionDebug(LOG_CTX, `competency_analysis: ${rec.type} ${rec.id} failed — ${result.error}`);
+              }
+            } catch (err) {
+              failedRecords.push(rec);
+              logActionError({ ...LOG_CTX, action: `pipeline.competency.${rec.type}` }, err, { recordId: rec.id });
+            }
+          });
+
+          // 실패 레코드 재시도 (동시성 1, 10초 대기 후)
+          if (failedRecords.length > 0) {
+            logActionDebug(LOG_CTX, `competency_analysis: ${failedRecords.length}건 재시도 대기 (10초)`);
+            await new Promise((r) => setTimeout(r, 10_000));
+            for (const rec of failedRecords) {
+              try {
+                const result = await analyzeSetekWithHighlight({
+                  recordType: rec.type,
+                  content: rec.content,
+                  subjectName: rec.subjectName,
+                  grade: rec.grade,
+                  careerContext,
+                });
+                if (result.success) {
+                  await saveAnalysisResult(rec.type, rec.id, rec.content, result.data);
+                } else {
+                  failed++;
+                  logActionDebug(LOG_CTX, `competency_analysis: retry ${rec.type} ${rec.id} failed — ${result.error}`);
+                }
+              } catch (err) {
+                failed++;
+                logActionError({ ...LOG_CTX, action: `pipeline.competency.retry.${rec.type}` }, err, { recordId: rec.id });
+              }
+            }
           }
         }
 
         // 4. 루브릭 기반 종합 등급 저장 (Bottom-Up)
-        if (allResults.size > 0) {
+        // AI 텍스트 분석 등급 + 결정론적 등급 병합 (질문별 최고 등급 선택)
+        {
           const {
             aggregateCompetencyGrades,
             computeCourseEffortGrades,
             computeCourseAchievementGrades,
           } = await import("../rubric-matcher");
-          const { calculateCourseAdequacy: calcAdequacy } = await import("../course-adequacy");
 
           const allGrades: Array<{ item: string; grade: string; reasoning?: string; rubricScores?: { questionIndex: number; grade: string; reasoning: string }[] }> =
             [...allResults.values()].flatMap((d) => d.competencyGrades);
 
-          // F1: 교과 이수/성취도 결정론적 산정 (AI 추측 제거)
-          const tgtMajor = (snapshot?.target_major as string) ?? null;
+          // 결정론적 등급: 이수율/성적 기반 (사전 조회한 careerScoreRows 재사용)
           if (tgtMajor) {
-            // 이수 과목 + 성적 조회
-            const { data: scoreRows } = await supabase
-              .from("student_internal_scores")
-              .select("subject:subject_id(name), rank_grade")
-              .eq("student_id", studentId);
-            const subjectScores = (scoreRows ?? [])
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              .map((s: any) => ({
-                subjectName: (s.subject as { name: string } | null)?.name ?? "",
-                rankGrade: (s.rank_grade as number) ?? 5,
+            const subjectScores = careerScoreRows
+              .map((s) => ({
+                subjectName: s.subject?.name ?? "",
+                rankGrade: s.rank_grade ?? 5,
               }))
               .filter((s) => s.subjectName);
             const takenNames = [...new Set(subjectScores.map((s) => s.subjectName))];
@@ -449,30 +583,36 @@ async function executePipelineTasks(
             }
           }
 
-          const aggregated = aggregateCompetencyGrades(allGrades);
+          if (allGrades.length > 0) {
+            const aggregated = aggregateCompetencyGrades(allGrades);
 
-          const scorePromises = aggregated.map((ag) =>
-            competencyRepo.upsertCompetencyScore({
-              tenant_id: tenantId,
-              student_id: studentId,
-              school_year: currentSchoolYear,
-              scope: "yearly",
-              competency_area: ag.area,
-              competency_item: ag.item,
-              grade_value: ag.finalGrade,
-              notes: `[AI] ${ag.recordCount}건 ${ag.method === "rubric" ? "루브릭 기반" : "레코드"} 종합`,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              rubric_scores: ag.rubricScores as any,
-              source: "ai",
-              status: "suggested",
-            } as CompetencyScoreInsert),
-          );
-          await Promise.allSettled(scorePromises);
+            await runWithConcurrency(aggregated, 5, async (ag) => {
+              await competencyRepo.upsertCompetencyScore({
+                tenant_id: tenantId,
+                student_id: studentId,
+                school_year: currentSchoolYear,
+                scope: "yearly",
+                competency_area: ag.area,
+                competency_item: ag.item,
+                grade_value: ag.finalGrade,
+                notes: `[AI] ${ag.recordCount}건 ${ag.method === "rubric" ? "루브릭 기반" : "레코드"} 종합`,
+                rubric_scores: ag.rubricScores as unknown as CompetencyScoreInsert["rubric_scores"],
+                source: "ai",
+                status: "suggested",
+              } as CompetencyScoreInsert);
+            });
+          }
         }
 
-        const parts = [`${succeeded}건 성공`];
+        const total = succeeded + skipped + failed;
+        const allCached = total > 0 && skipped === total;
+        const parts = [`${succeeded}건 분석`];
+        if (skipped > 0) parts.push(`${skipped}건 캐시`);
         if (failed > 0) parts.push(`${failed}건 실패`);
-        return `역량 분석 ${parts.join(", ")} (세특+창체+행특)`;
+        return {
+          preview: `역량 분석 ${parts.join(", ")} (세특+창체+행특)`,
+          result: { allCached },
+        };
       },
     },
 
@@ -491,15 +631,13 @@ async function executePipelineTasks(
             .eq("student_id", studentId)
             .eq("tenant_id", tenantId)
             .is("deleted_at", null);
-          cachedSeteks = data ?? [];
+          cachedSeteks = (data ?? []) as unknown as CachedSetek[];
         }
         // grade 기준 정렬 (원래 order("grade") 대체)
         const sortedSeteks = [...cachedSeteks].sort((a, b) => a.grade - b.grade);
         for (const s of sortedSeteks) {
-          const content = s.content as string;
-          if (!content || content.trim().length < 20) continue;
-          const subj = s.subject as unknown as { name: string } | null;
-          records.push({ index: idx++, id: s.id, grade: s.grade, subject: subj?.name ?? "과목 미정", type: "setek", content });
+          if (!s.content || s.content.trim().length < 20) continue;
+          records.push({ index: idx++, id: s.id, grade: s.grade, subject: s.subject?.name ?? "과목 미정", type: "setek", content: s.content });
         }
 
         if (!cachedChangche) {
@@ -508,13 +646,12 @@ async function executePipelineTasks(
             .select("id, content, grade, activity_type")
             .eq("student_id", studentId)
             .eq("tenant_id", tenantId);
-          cachedChangche = data ?? [];
+          cachedChangche = (data ?? []) as CachedChangche[];
         }
         const sortedChangche = [...cachedChangche].sort((a, b) => a.grade - b.grade);
         for (const c of sortedChangche) {
-          const content = c.content as string;
-          if (!content || content.trim().length < 20) continue;
-          records.push({ index: idx++, id: c.id, grade: c.grade, subject: c.activity_type ?? "창체", type: "changche", content });
+          if (!c.content || c.content.trim().length < 20) continue;
+          records.push({ index: idx++, id: c.id, grade: c.grade, subject: c.activity_type ?? "창체", type: "changche", content: c.content });
         }
 
         if (records.length < 2) {
@@ -530,12 +667,10 @@ async function executePipelineTasks(
           return "스토리라인 연결 감지되지 않음";
         }
 
-        // 기존 AI 스토리라인 삭제 (재실행 시 중복 방지)
+        // 기존 AI 스토리라인 삭제 (재실행 시 중복 방지) — 병렬
         const existingStorylines = await repository.findStorylinesByStudent(studentId, tenantId);
         const aiStorylines = existingStorylines.filter((s) => s.title.startsWith("[AI]"));
-        for (const existing of aiStorylines) {
-          await repository.deleteStorylineById(existing.id);
-        }
+        await Promise.allSettled(aiStorylines.map((s) => repository.deleteStorylineById(s.id)));
 
         // sort_order 계산 (수동 스토리라인 뒤에 배치)
         const manualStorylines = existingStorylines.filter((s) => !s.title.startsWith("[AI]"));
@@ -543,9 +678,9 @@ async function executePipelineTasks(
           ? Math.max(...manualStorylines.map((s) => s.sort_order)) + 1
           : 0;
 
+        // 스토리라인 삽입+링크 병렬 (각 단위 내부는 순차)
         let savedCount = 0;
-        for (let i = 0; i < suggestedStorylines.length; i++) {
-          const sl = suggestedStorylines[i];
+        await Promise.allSettled(suggestedStorylines.map(async (sl, i) => {
           try {
             const storylineId = await repository.insertStoryline({
               tenant_id: tenantId,
@@ -561,7 +696,8 @@ async function executePipelineTasks(
               sort_order: baseSortOrder + i,
             });
 
-            // 연결된 레코드 링크 저장
+            // 연결된 레코드 링크 수집
+            const linkEntries: Array<{ recordType: string; recordId: string; grade: number; note: string; sortOrder: number }> = [];
             const linkedIds = new Set<string>();
             for (const connIdx of sl.connectionIndices) {
               const conn = connections[connIdx];
@@ -570,21 +706,28 @@ async function executePipelineTasks(
                 const rec = records[recIdx];
                 if (!rec || linkedIds.has(rec.id)) continue;
                 linkedIds.add(rec.id);
-                await repository.insertStorylineLink({
-                  storyline_id: storylineId,
-                  record_type: rec.type,
-                  record_id: rec.id,
-                  grade: rec.grade,
-                  connection_note: conn.reasoning,
-                  sort_order: linkedIds.size - 1,
+                linkEntries.push({
+                  recordType: rec.type, recordId: rec.id,
+                  grade: rec.grade, note: conn.reasoning, sortOrder: linkEntries.length,
                 });
               }
             }
+            // 링크 병렬 삽입
+            await Promise.allSettled(linkEntries.map((le) =>
+              repository.insertStorylineLink({
+                storyline_id: storylineId,
+                record_type: le.recordType,
+                record_id: le.recordId,
+                grade: le.grade,
+                connection_note: le.note,
+                sort_order: le.sortOrder,
+              }),
+            ));
             savedCount++;
           } catch (err) {
             logActionError({ ...LOG_CTX, action: "pipeline.storyline" }, err, { title: sl.title });
           }
-        }
+        }));
 
         const preview = `${savedCount}건 스토리라인 생성 (${connections.length}건 연결)`;
         return { preview, result: result.data };
@@ -616,9 +759,8 @@ async function executePipelineTasks(
             .select("subject:subject_id(name)")
             .eq("student_id", studentId);
           const takenSubjects = [...new Set(
-            (scoreRows ?? [])
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              .map((s: any) => (s.subject as { name: string } | null)?.name)
+            ((scoreRows ?? []) as unknown as ScoreRowWithSubject[])
+              .map((s) => s.subject?.name)
               .filter((n): n is string => !!n),
           )];
 
@@ -635,9 +777,8 @@ async function executePipelineTasks(
                 .from("school_offered_subjects")
                 .select("subject:subject_id(name)")
                 .eq("school_profile_id", profile.id);
-              offeredSubjects = (offered ?? [])
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                .map((o: any) => (o.subject as { name: string } | null)?.name)
+              offeredSubjects = ((offered ?? []) as unknown as OfferedSubjectRow[])
+                .map((o) => o.subject?.name)
                 .filter((n): n is string => !!n);
             }
           }
@@ -720,10 +861,47 @@ async function executePipelineTasks(
           const { buildEdgePromptSection } = await import("../edge-summary");
           diagnosisEdgeSection = buildEdgePromptSection(computedEdges, "diagnosis");
         }
+
+        // 보강 컨텍스트: 성적 추이 + 교과이수적합도
+        const { data: trendRows } = await supabase
+          .from("student_internal_scores")
+          .select("subject:subject_id(name), rank_grade, grade, semester")
+          .eq("student_id", studentId)
+          .order("grade")
+          .order("semester");
+        const gradeTrend = ((trendRows ?? []) as unknown as ScoreRowWithSubject[])
+          .filter((s) => s.rank_grade != null)
+          .map((s) => ({
+            grade: s.grade ?? 1,
+            semester: s.semester ?? 1,
+            subjectName: s.subject?.name ?? "",
+            rankGrade: s.rank_grade as number,
+          }));
+
+        const diagTgtMajor = (snapshot?.target_major as string) ?? null;
+        let diagCourseAdequacy = null;
+        if (diagTgtMajor) {
+          const { calculateCourseAdequacy: calcAdq } = await import("../course-adequacy");
+          const takenNames = [...new Set(gradeTrend.map((s) => s.subjectName))];
+          const enrollYear = calculateSchoolYear() - studentGrade + 1;
+          const curYear = enrollYear >= 2025 ? 2022 : 2015;
+          diagCourseAdequacy = calcAdq(diagTgtMajor, takenNames, null, curYear);
+        }
+
         const result = await generateAiDiagnosis(scores, tags, {
-          targetMajor: (snapshot?.target_major as string) ?? undefined,
+          targetMajor: diagTgtMajor ?? undefined,
           schoolName: (snapshot?.school_name as string) ?? undefined,
-        }, diagnosisEdgeSection);
+        }, diagnosisEdgeSection, {
+          gradeTrend,
+          courseAdequacy: diagCourseAdequacy ? {
+            score: diagCourseAdequacy.score,
+            majorCategory: diagCourseAdequacy.majorCategory,
+            taken: diagCourseAdequacy.taken,
+            notTaken: diagCourseAdequacy.notTaken,
+            generalRate: diagCourseAdequacy.generalRate,
+            careerRate: diagCourseAdequacy.careerRate,
+          } : null,
+        });
         if (!result.success) throw new Error(result.error);
 
         await diagnosisRepo.upsertDiagnosis({
@@ -779,18 +957,47 @@ async function executePipelineTasks(
           const newGuides = guides.filter((g) => !existingIds.has(g.id));
           if (newGuides.length > 0) {
             const currentSchoolYear = calculateSchoolYear();
+
+            // area-resolver로 가이드별 대상 영역 도출
+            const { resolveGuideTargetArea } = await import("@/lib/domains/guide/actions/area-resolver");
+            const areaMap = await resolveGuideTargetArea(newGuides.map((g) => g.id));
+
+            // 기존 세특 조회 (auto-link용)
+            const { data: existingSeteks } = await supabase
+              .from("student_record_seteks")
+              .select("id, subject_id")
+              .eq("student_id", studentId)
+              .eq("tenant_id", tenantId)
+              .is("deleted_at", null);
+            const setekBySubject = new Map<string, string>();
+            for (const s of existingSeteks ?? []) {
+              if (!setekBySubject.has(s.subject_id)) {
+                setekBySubject.set(s.subject_id, s.id);
+              }
+            }
+
             const { error: insertErr } = await supabase
               .from("exploration_guide_assignments")
-              .insert(newGuides.map((g) => ({
-                tenant_id: tenantId,
-                student_id: studentId,
-                guide_id: g.id,
-                assigned_by: null,
-                school_year: currentSchoolYear,
-                grade: studentGrade,
-                status: "assigned",
-                student_notes: `[AI] 파이프라인 자동 배정 (${g.match_reason})`,
-              })));
+              .insert(newGuides.map((g) => {
+                const area = areaMap.get(g.id);
+                const targetSubjectId = area?.targetSubjectId ?? null;
+                const setekId = targetSubjectId ? setekBySubject.get(targetSubjectId) ?? null : null;
+                return {
+                  tenant_id: tenantId,
+                  student_id: studentId,
+                  guide_id: g.id,
+                  assigned_by: null,
+                  school_year: currentSchoolYear,
+                  grade: studentGrade,
+                  status: "assigned",
+                  student_notes: `[AI] 파이프라인 자동 배정 (${g.match_reason})`,
+                  target_subject_id: targetSubjectId,
+                  target_activity_type: area?.targetActivityType ?? null,
+                  linked_record_type: setekId ? "setek" : null,
+                  linked_record_id: setekId,
+                  ai_recommendation_reason: g.match_reason,
+                };
+              }));
             if (!insertErr) assigned = newGuides.length;
           }
         }
@@ -840,18 +1047,16 @@ async function executePipelineTasks(
       run: async () => {
         const currentSchoolYear = calculateSchoolYear();
 
-        // 1. 진단에서 약점 추출
-        const diagnosis = await diagnosisRepo.findDiagnosis(
-          studentId, currentSchoolYear, tenantId, "ai",
-        );
+        // 1~3. 진단 + 역량 + 기존 전략 병렬 조회
+        const [diagnosis, aiScores, existingStrategies] = await Promise.all([
+          diagnosisRepo.findDiagnosis(studentId, currentSchoolYear, tenantId, "ai"),
+          competencyRepo.findCompetencyScores(studentId, currentSchoolYear, tenantId, "ai"),
+          diagnosisRepo.findStrategies(studentId, currentSchoolYear, tenantId),
+        ]);
         const weaknesses = (diagnosis?.weaknesses as string[]) ?? [];
 
-        // 2. 부족 역량 (B- 이하)
-        const scores = await competencyRepo.findCompetencyScores(
-          studentId, currentSchoolYear, tenantId, "ai",
-        );
         const { COMPETENCY_ITEMS: CI } = await import("../constants");
-        const weakCompetencies = scores
+        const weakCompetencies = aiScores
           .filter((s) => ["B", "B-", "C"].includes(s.grade_value))
           .map((s) => ({
             item: s.competency_item as import("../types").CompetencyItemCode,
@@ -859,64 +1064,340 @@ async function executePipelineTasks(
             label: CI.find((i) => i.code === s.competency_item)?.label ?? s.competency_item,
           }));
 
-        if (weaknesses.length === 0 && weakCompetencies.length === 0) {
+        // 루브릭 질문별 약점 추출 (B- 이하)
+        const { COMPETENCY_RUBRIC_QUESTIONS: CRQ } = await import("../constants");
+        const rubricWeaknesses: string[] = [];
+        for (const score of aiScores) {
+          const rubrics = Array.isArray(score.rubric_scores) ? score.rubric_scores as Array<{ questionIndex: number; grade: string; reasoning: string }> : [];
+          const questions = CRQ[score.competency_item as import("../types").CompetencyItemCode] ?? [];
+          for (const r of rubrics) {
+            if (["B-", "C"].includes(r.grade) && questions[r.questionIndex]) {
+              const itemLabel = CI.find((i) => i.code === score.competency_item)?.label ?? score.competency_item;
+              rubricWeaknesses.push(`${itemLabel} — "${questions[r.questionIndex]}" (${r.grade}): ${r.reasoning.slice(0, 50)}`);
+            }
+          }
+        }
+
+        if (weaknesses.length === 0 && weakCompetencies.length === 0 && rubricWeaknesses.length === 0) {
           return "약점/부족역량 없음 — 건너뜀";
         }
 
-        // 3. 기존 전략 (중복 방지)
-        const existing = await diagnosisRepo.findStrategies(studentId, currentSchoolYear, tenantId);
-        const existingContents = existing.map((s) => s.strategy_content.slice(0, 60));
+        const existingContents = existingStrategies.map((s) => s.strategy_content.slice(0, 60));
 
         // 4. AI 보완전략 제안
         const { suggestStrategies } = await import("../llm/actions/suggestStrategies");
         const result = await suggestStrategies({
           weaknesses,
           weakCompetencies,
+          rubricWeaknesses,
           grade: studentGrade,
           targetMajor: (snapshot?.target_major as string) ?? undefined,
           existingStrategies: existingContents,
         });
         if (!result.success) throw new Error(result.error);
 
-        // 5. DB 저장
-        let saved = 0;
-        for (const suggestion of result.data.suggestions) {
-          await diagnosisRepo.insertStrategy({
-            student_id: studentId,
-            tenant_id: tenantId,
-            school_year: currentSchoolYear,
-            grade: studentGrade,
-            target_area: suggestion.targetArea,
-            strategy_content: suggestion.strategyContent,
-            priority: suggestion.priority,
-            status: "planned",
-          });
-          saved++;
-        }
+        // 5. DB 저장 — 병렬
+        const strategyResults = await Promise.allSettled(
+          result.data.suggestions.map((suggestion) =>
+            diagnosisRepo.insertStrategy({
+              student_id: studentId,
+              tenant_id: tenantId,
+              school_year: currentSchoolYear,
+              grade: studentGrade,
+              target_area: suggestion.targetArea,
+              strategy_content: suggestion.strategyContent,
+              priority: suggestion.priority,
+              status: "planned",
+            }),
+          ),
+        );
+        const saved = strategyResults.filter((r) => r.status === "fulfilled").length;
 
         return `${saved}건 보완전략 제안됨`;
       },
     },
+
+    // ── 10. 우회학과 분석 (독립, Phase 2) — C-1: 진단 기반 학과 발견 ──
+    {
+      key: "bypass_analysis",
+      run: async () => {
+        const { discoverDepartmentsFromDiagnosis } = await import("@/lib/domains/bypass-major/department-discovery");
+        const currentSchoolYear = calculateSchoolYear();
+
+        const discovery = await discoverDepartmentsFromDiagnosis(studentId, tenantId, currentSchoolYear);
+
+        if (discovery.targetDepartments.length === 0) {
+          return "매칭 학과 없음 — 건너뜀";
+        }
+
+        const { runBypassPipeline } = await import("@/lib/domains/bypass-major/pipeline");
+        let totalGenerated = 0;
+        const targetNames: string[] = [];
+
+        // 발견된 대표 학과별로 우회학과 파이프라인 실행 (최대 3개)
+        for (const target of discovery.targetDepartments.slice(0, 3)) {
+          try {
+            const result = await runBypassPipeline({
+              studentId,
+              tenantId,
+              targetDeptId: target.departmentId,
+              schoolYear: currentSchoolYear,
+            });
+            totalGenerated += result.totalGenerated;
+            targetNames.push(target.midClassification ?? target.departmentName);
+          } catch (err) {
+            logActionError({ ...LOG_CTX, action: "pipeline.bypass.target" }, err, {
+              targetDeptId: target.departmentId,
+            });
+          }
+        }
+
+        // D-3: 모의고사 존재 시 자동 배치 분석 + placement_grade 백필
+        let placementInfo = "";
+        try {
+          const { autoRunPlacement, backfillPlacementGrades } = await import("@/lib/domains/admission/placement/auto-placement");
+          const placementResult = await autoRunPlacement(studentId, tenantId);
+          if (placementResult) {
+            const backfilled = await backfillPlacementGrades(studentId, tenantId, currentSchoolYear);
+            placementInfo = ` + 배치 ${placementResult.verdictCount}개 대학 (${backfilled}건 연동)`;
+          }
+        } catch (err) {
+          logActionDebug(LOG_CTX, `자동 배치 스킵: ${err}`);
+        }
+
+        const sourceLabel = discovery.source === "diagnosis_recommended" ? "AI진단" : "희망학과";
+        return `${totalGenerated}건 우회학과 후보 생성 (${sourceLabel}: ${targetNames.join(", ")})${placementInfo}`;
+      },
+    },
+
+    // ── 11. 면접 예상 질문 생성 (진단 후, Phase 3) ──
+    {
+      key: "interview_generation",
+      run: async () => {
+        // 세특/창체 레코드 수집 (캐시 재사용)
+        if (!cachedSeteks) {
+          const { data } = await supabase
+            .from("student_record_seteks")
+            .select("id, content, grade, subject:subject_id(name)")
+            .eq("student_id", studentId)
+            .eq("tenant_id", tenantId)
+            .is("deleted_at", null);
+          cachedSeteks = (data ?? []) as unknown as CachedSetek[];
+        }
+        if (!cachedChangche) {
+          const { data } = await supabase
+            .from("student_record_changche")
+            .select("id, content, grade, activity_type")
+            .eq("student_id", studentId)
+            .eq("tenant_id", tenantId);
+          cachedChangche = (data ?? []) as CachedChangche[];
+        }
+
+        // 타입 가드: 세특 vs 창체 판별
+        type CachedRecord = CachedSetek | CachedChangche;
+        function isCachedSetek(r: CachedRecord): r is CachedSetek {
+          return "subject" in r;
+        }
+        function getSubjectLabel(r: CachedRecord): string {
+          return isCachedSetek(r) ? (r.subject?.name ?? "과목 미정") : (r.activity_type ?? "기록");
+        }
+        function getRecordType(r: CachedRecord): "setek" | "changche" {
+          return isCachedSetek(r) ? "setek" : "changche";
+        }
+
+        // 가장 긴 세특 레코드 5건 선택 (면접 질문 생성용)
+        const candidateRecords: CachedRecord[] = [...cachedSeteks!, ...cachedChangche!]
+          .filter((r) => r.content && r.content.trim().length >= 50)
+          .sort((a, b) => b.content.length - a.content.length)
+          .slice(0, 5);
+
+        if (candidateRecords.length === 0) return "기록 부족 — 건너뜀";
+
+        const { generateInterviewQuestions } = await import("../llm/actions/generateInterviewQuestions");
+
+        // 메인 레코드 + 추가 레코드로 교차 질문 생성
+        const main = candidateRecords[0];
+        const mainSubject = getSubjectLabel(main);
+        const mainType = getRecordType(main);
+
+        const additionalRecords = candidateRecords.slice(1).map((r) => ({
+          content: r.content,
+          recordType: getRecordType(r),
+          subjectName: getSubjectLabel(r),
+          grade: r.grade,
+        }));
+
+        const result = await generateInterviewQuestions({
+          content: main.content,
+          recordType: mainType,
+          subjectName: mainSubject,
+          grade: main.grade,
+          additionalRecords,
+        });
+
+        if (!result.success) throw new Error(result.error);
+
+        // DB 저장
+        const questions = result.data.questions ?? [];
+        if (questions.length > 0) {
+          const { error: insertErr } = await supabase
+            .from("student_record_interview_questions")
+            .upsert(
+              questions.map((q) => ({
+                student_id: studentId,
+                tenant_id: tenantId,
+                question: q.question,
+                question_type: q.questionType,
+                suggested_answer: q.suggestedAnswer ?? null,
+                difficulty: q.difficulty,
+                source_type: mainType,
+                is_ai_generated: true,
+              })),
+              { onConflict: "student_id,question", ignoreDuplicates: true },
+            );
+          if (insertErr) {
+            logActionError({ ...LOG_CTX, action: "pipeline.interview.insert" }, insertErr, { studentId });
+          }
+        }
+
+        return `${questions.length}건 면접 질문 생성`;
+      },
+    },
+
+    // ── 12. 로드맵 자동 생성 (진단+스토리라인+세특방향 후, Phase 3) ──
+    {
+      key: "roadmap_generation",
+      run: async () => {
+        const currentSchoolYear = calculateSchoolYear();
+
+        // 스토리라인 + 세특방향 + 진단 조회
+        const [storylines, setekGuidesRes, diagnosis] = await Promise.all([
+          repository.findStorylinesByStudent(studentId, tenantId),
+          (async () => {
+            const { fetchSetekGuides } = await import("./activitySummary");
+            return fetchSetekGuides(studentId).catch(() => ({ success: false as const, error: "" }));
+          })(),
+          diagnosisRepo.findDiagnosis(studentId, currentSchoolYear, tenantId, "ai"),
+        ]);
+
+        if (storylines.length === 0 && !diagnosis) {
+          return "스토리라인/진단 없음 — 건너뜀";
+        }
+
+        // 기존 AI 로드맵 항목 삭제 (재실행 시 중복 방지)
+        const existing = await repository.findAllRoadmapItemsByStudent(studentId, tenantId);
+        const aiItems = existing.filter((r) => r.plan_content.startsWith("[AI]"));
+        await Promise.allSettled(aiItems.map((r) => repository.deleteRoadmapItemById(r.id)));
+
+        // 세특 방향 가이드에서 과목별 계획 추출
+        const setekGuides = setekGuidesRes.success && setekGuidesRes.data ? setekGuidesRes.data : [];
+
+        // 로드맵 아이템 생성 로직
+        const roadmapItems: Array<{
+          area: string;
+          plan_content: string;
+          plan_keywords: string[];
+          grade: number;
+          semester: number | null;
+          storyline_id: string | null;
+        }> = [];
+
+        // A. 스토리라인 기반 로드맵 (학년별 테마 → 활동 계획)
+        for (const sl of storylines) {
+          const themes = [
+            { grade: 1, theme: sl.grade_1_theme },
+            { grade: 2, theme: sl.grade_2_theme },
+            { grade: 3, theme: sl.grade_3_theme },
+          ].filter((t) => t.theme && t.grade >= studentGrade);
+
+          for (const { grade, theme } of themes) {
+            roadmapItems.push({
+              area: "setek",
+              plan_content: `[AI] ${sl.title} — ${theme}`,
+              plan_keywords: sl.keywords ?? [],
+              grade,
+              semester: null,
+              storyline_id: sl.id,
+            });
+          }
+        }
+
+        // B. 세특 방향 가이드 기반 로드맵
+        for (const guide of setekGuides) {
+          if (!guide.summary_title) continue;
+          roadmapItems.push({
+            area: "setek",
+            plan_content: `[AI] 세특방향: ${guide.summary_title}`,
+            plan_keywords: [],
+            grade: studentGrade,
+            semester: null,
+            storyline_id: null,
+          });
+        }
+
+        // C. 진단 약점 기반 보완 로드맵
+        const weaknesses = (diagnosis?.weaknesses as string[]) ?? [];
+        for (const weakness of weaknesses.slice(0, 3)) {
+          roadmapItems.push({
+            area: "general",
+            plan_content: `[AI] 보완: ${weakness}`,
+            plan_keywords: [],
+            grade: studentGrade,
+            semester: null,
+            storyline_id: null,
+          });
+        }
+
+        if (roadmapItems.length === 0) return "생성 가능한 로드맵 없음";
+
+        // DB 저장
+        let savedCount = 0;
+        const baseSortOrder = existing.filter((r) => !r.plan_content.startsWith("[AI]")).length;
+
+        await Promise.allSettled(
+          roadmapItems.map((item, i) =>
+            repository.insertRoadmapItem({
+              tenant_id: tenantId,
+              student_id: studentId,
+              school_year: currentSchoolYear,
+              grade: item.grade,
+              semester: item.semester,
+              area: item.area,
+              plan_content: item.plan_content,
+              plan_keywords: item.plan_keywords,
+              storyline_id: item.storyline_id,
+              sort_order: baseSortOrder + i,
+            }).then(() => { savedCount++; }),
+          ),
+        );
+
+        return `${savedCount}건 로드맵 자동 생성`;
+      },
+    },
   ];
 
-  // 순차 실행 (rate limiter가 자동 큐잉)
+  // ── 태스크 실행 헬퍼 ──
+  const taskRunnerMap = new Map<PipelineTaskKey, () => Promise<TaskRunnerOutput>>();
   for (const { key, run } of taskRunners) {
-    // 이어서 실행: 이미 완료된 태스크는 건너뜀
-    if (tasks[key] === "completed") {
-      logActionDebug(LOG_CTX, `Task ${key} already completed — skipping`);
-      continue;
-    }
+    taskRunnerMap.set(key, run);
+  }
 
-    // 취소 여부 확인 — 매 태스크 시작 전 DB 상태 체크
-    const { data: currentPipeline } = await supabase
+  async function checkCancelled(): Promise<boolean> {
+    const { data } = await supabase
       .from("student_record_analysis_pipelines")
       .select("status")
       .eq("id", pipelineId)
       .single();
+    if (data?.status === "cancelled") {
+      logActionDebug(LOG_CTX, `Pipeline ${pipelineId} cancelled`);
+      return true;
+    }
+    return false;
+  }
 
-    if (currentPipeline?.status === "cancelled") {
-      // 남은 태스크를 pending 그대로 두고 즉시 종료
-      logActionDebug(LOG_CTX, `Pipeline ${pipelineId} cancelled — stopping at task ${key}`);
+  async function runTaskWithState(key: PipelineTaskKey): Promise<void> {
+    if (tasks[key] === "completed") {
+      logActionDebug(LOG_CTX, `Task ${key} already completed — skipping`);
       return;
     }
 
@@ -924,7 +1405,8 @@ async function executePipelineTasks(
     await updatePipelineState(supabase, pipelineId, "running", tasks, previews, results, errors);
 
     try {
-      const output = await run();
+      const runner = taskRunnerMap.get(key)!;
+      const output = await runner();
       tasks[key] = "completed";
       if (typeof output === "string") {
         previews[key] = output;
@@ -943,6 +1425,83 @@ async function executePipelineTasks(
     await updatePipelineState(supabase, pipelineId, "running", tasks, previews, results, errors);
   }
 
+  // ── 3-Phase 병렬 실행 ──
+
+  // Phase 1: 순차 (역량 → 스토리라인 → 엣지)
+  const phase1Keys: PipelineTaskKey[] = ["competency_analysis", "storyline_generation", "edge_computation"];
+  for (const key of phase1Keys) {
+    if (await checkCancelled()) return;
+    await runTaskWithState(key);
+  }
+
+  if (await checkCancelled()) return;
+
+  // ── 증분 최적화: 역량 분석 100% 캐시 → 이전 파이프라인 결과로 후속 태스크 스킵 ──
+  const competencyResult = results.competency_analysis as { allCached?: boolean } | undefined;
+  if (competencyResult?.allCached && !existingState) {
+    // 이전 성공 파이프라인의 task_results 조회
+    const { data: prevPipeline } = await supabase
+      .from("student_record_analysis_pipelines")
+      .select("tasks, task_previews, task_results")
+      .eq("student_id", studentId)
+      .eq("status", "completed")
+      .neq("id", pipelineId)
+      .order("completed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (prevPipeline) {
+      const prevTasks = (prevPipeline.tasks ?? {}) as Record<string, string>;
+      const prevPreviews = (prevPipeline.task_previews ?? {}) as Record<string, string>;
+      const prevResults = (prevPipeline.task_results ?? {}) as PipelineTaskResults;
+      const phase23Keys: PipelineTaskKey[] = [
+        "ai_diagnosis", "course_recommendation", "guide_matching", "bypass_analysis",
+        "setek_guide", "activity_summary", "ai_strategy",
+        "interview_generation", "roadmap_generation",
+      ];
+      let allRestored = true;
+      for (const key of phase23Keys) {
+        if (prevTasks[key] === "completed") {
+          tasks[key] = "completed";
+          if (prevPreviews[key]) previews[key] = `[캐시] ${prevPreviews[key]}`;
+          if (prevResults[key]) results[key] = prevResults[key];
+        } else {
+          allRestored = false;
+        }
+      }
+      if (allRestored) {
+        logActionDebug(LOG_CTX, `Pipeline ${pipelineId}: all records cached → restored ${phase23Keys.length} tasks from previous pipeline`);
+        const allCompleted = PIPELINE_TASK_KEYS.every((k) => tasks[k] === "completed");
+        await updatePipelineState(supabase, pipelineId, allCompleted ? "completed" : "failed", tasks, previews, results, errors, true);
+        return;
+      }
+    }
+  }
+
+  // Phase 2+3: 병렬 실행 (12태스크)
+  // Phase 2: 진단 + 독립 태스크 (수강, 가이드, 요약서, 우회학과)
+  // Phase 3: 진단 후 → 세특방향, 보완전략, 면접, 로드맵
+  const diagnosisPromise = runTaskWithState("ai_diagnosis");
+
+  const phase2Independent = [
+    runTaskWithState("course_recommendation"),
+    runTaskWithState("guide_matching"),
+    runTaskWithState("activity_summary"),
+    runTaskWithState("bypass_analysis"),
+  ];
+
+  // 진단 완료 대기 후 Phase 3 시작
+  const phase3AfterDiagnosis = diagnosisPromise.then(() =>
+    Promise.allSettled([
+      runTaskWithState("setek_guide"),
+      runTaskWithState("ai_strategy"),
+      runTaskWithState("interview_generation"),
+      runTaskWithState("roadmap_generation"),
+    ]),
+  );
+
+  await Promise.allSettled([diagnosisPromise, ...phase2Independent, phase3AfterDiagnosis]);
+
   // 최종 상태 결정
   const allCompleted = PIPELINE_TASK_KEYS.every((k) => tasks[k] === "completed");
   const anyFailed = PIPELINE_TASK_KEYS.some((k) => tasks[k] === "failed");
@@ -952,14 +1511,12 @@ async function executePipelineTasks(
 }
 
 async function updatePipelineState(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: SupabaseAdminClient,
   pipelineId: string,
   status: string,
   tasks: Record<string, PipelineTaskStatus>,
   previews: Record<string, string>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  results: Record<string, any>,
+  results: PipelineTaskResults,
   errors: Record<string, string>,
   isFinal = false,
 ) {
@@ -1078,8 +1635,7 @@ export async function saveTaskResult(
   studentId: string,
   tenantId: string,
   taskKey: PipelineTaskKey,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  result: any,
+  result: unknown,
 ): Promise<void> {
   try {
     await requireAdminOrConsultant();
@@ -1096,8 +1652,7 @@ export async function saveTaskResult(
 
     if (existing) {
       // 기존 파이프라인에 결과 머지
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const currentResults = (existing.task_results ?? {}) as Record<string, any>;
+      const currentResults = (existing.task_results ?? {}) as PipelineTaskResults;
       currentResults[taskKey] = result;
 
       await supabase

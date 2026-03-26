@@ -1,7 +1,10 @@
 // ============================================
 // AI 초기 분석 파이프라인 타입
 // Phase B+E1+F3: DB 상태 추적 + 3초 폴링
-// 9개 태스크 순차 실행 (의존성 순서)
+// 3-Phase 병렬 실행 (12 태스크):
+//   Phase 1 (순차): 역량→스토리라인→엣지
+//   Phase 2 (병렬): 진단, 수강, 가이드배정, 요약서, 우회학과
+//   Phase 3 (병렬, 진단 후): 세특방향, 보완전략, 면접질문, 로드맵
 // ============================================
 
 export type PipelineOverallStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
@@ -14,9 +17,12 @@ export const PIPELINE_TASK_KEYS = [
   "ai_diagnosis",            // 4th: 역량+엣지 → 종합진단(강점/약점)
   "course_recommendation",   // 5th: 수강 추천 (독립)
   "guide_matching",          // 6th: 가이드 배정 (독립)
-  "setek_guide",             // 7th: 진단+엣지 → 세특 방향
-  "activity_summary",        // 8th: 스토리라인+엣지 → 활동 요약서
-  "ai_strategy",             // 9th: 진단 약점+부족역량 → 보완전략 자동 제안
+  "bypass_analysis",         // 7th: 우회학과 분석 (독립, Phase 2)
+  "setek_guide",             // 8th: 진단+엣지 → 세특 방향
+  "activity_summary",        // 9th: 스토리라인+엣지 → 활동 요약서
+  "ai_strategy",             // 10th: 진단 약점+부족역량 → 보완전략 자동 제안
+  "interview_generation",    // 11th: 기록+진단 → 면접 예상 질문 생성
+  "roadmap_generation",      // 12th: 진단+스토리라인+세특방향 → 학기별 로드맵
 ] as const;
 
 export type PipelineTaskKey = (typeof PIPELINE_TASK_KEYS)[number];
@@ -28,9 +34,12 @@ export const PIPELINE_TASK_LABELS: Record<PipelineTaskKey, string> = {
   ai_diagnosis: "종합 진단",
   course_recommendation: "수강 추천",
   guide_matching: "가이드 매칭",
+  bypass_analysis: "우회학과 분석",
   setek_guide: "세특 방향",
   activity_summary: "활동 요약서",
   ai_strategy: "보완전략 제안",
+  interview_generation: "면접 질문 생성",
+  roadmap_generation: "로드맵 생성",
 };
 
 export interface PipelineStatus {
@@ -39,11 +48,56 @@ export interface PipelineStatus {
   status: PipelineOverallStatus;
   tasks: Record<PipelineTaskKey, PipelineTaskStatus>;
   taskPreviews: Record<string, string>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  taskResults: Record<string, any>;
+  taskResults: PipelineTaskResults;
   errorDetails: Record<string, string> | null;
   startedAt: string | null;
   completedAt: string | null;
   createdAt: string;
   contentHash?: string | null;
+}
+
+// ============================================
+// 파이프라인 내부 타입 (pipeline.ts 전용)
+// ============================================
+
+/** taskResults 타입 (JSON-serializable) */
+export type PipelineTaskResults = Record<string, unknown>;
+
+/** 태스크 러너 반환 타입 */
+export type TaskRunnerOutput = string | { preview: string; result: unknown };
+
+/** Supabase join 결과: student_internal_scores + subject */
+export interface ScoreRowWithSubject {
+  subject: { name: string } | null;
+  rank_grade: number | null;
+  grade: number;
+  semester: number;
+}
+
+/** 캐시된 세특 쿼리 결과 */
+export interface CachedSetek {
+  id: string;
+  content: string;
+  grade: number;
+  subject: { name: string } | null;
+}
+
+/** 캐시된 창체 쿼리 결과 */
+export interface CachedChangche {
+  id: string;
+  content: string;
+  grade: number;
+  activity_type: string | null;
+}
+
+/** 캐시된 행특 쿼리 결과 */
+export interface CachedHaengteuk {
+  id: string;
+  content: string;
+  grade: number;
+}
+
+/** 개설 과목 쿼리 결과 */
+export interface OfferedSubjectRow {
+  subject: { name: string } | null;
 }
