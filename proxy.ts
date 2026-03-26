@@ -164,6 +164,23 @@ function canAccessPath(role: string, pathname: string): boolean {
 }
 
 /**
+ * 만료된 인증 쿠키를 response에서 삭제
+ * 세션 리프레시 실패 시 호출하여 브라우저 쿠키를 정리.
+ * 이후 요청에서 hasAuthCookies()가 false를 반환하므로
+ * 불필요한 getUser() 네트워크 호출과 자동 리프레시 401을 방지.
+ */
+function clearAuthCookies(request: NextRequest, response: NextResponse): void {
+  const authCookieNames = request.cookies
+    .getAll()
+    .filter((c) => c.name.includes("auth-token"))
+    .map((c) => c.name);
+
+  for (const name of authCookieNames) {
+    response.cookies.set(name, "", { maxAge: 0, path: "/" });
+  }
+}
+
+/**
  * 인증 쿠키 존재 여부 확인
  * Supabase auth 쿠키(sb-*-auth-token)가 있는지 빠르게 판별
  */
@@ -375,14 +392,12 @@ export async function proxy(request: NextRequest) {
     const { user, error, getResponse } = await deduplicatedGetUser(request);
 
     if (error || !user) {
-      const res = getResponse();
       const jsonResponse = NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
-      res.cookies.getAll().forEach((cookie) => {
-        jsonResponse.cookies.set(cookie.name, cookie.value);
-      });
+      // 만료된 쿠키 삭제 → 이후 요청에서 불필요한 리프레시 시도 방지
+      clearAuthCookies(request, jsonResponse);
       return jsonResponse;
     }
 
@@ -413,13 +428,20 @@ export async function proxy(request: NextRequest) {
   let getResponse: () => NextResponse;
 
   if (parsed.needsRefresh && isAuthPage) {
-    // Auth 페이지(로그인/회원가입)에서 만료된 토큰 → 갱신 스킵
+    // Auth 페이지(로그인/회원가입)에서 만료된 토큰 → 갱신 스킵 + 쿠키 정리
     // getUser() 호출 시 stale refresh token 에러 + 쿠키 조작이 발생하여
     // Server Action(signIn)의 쿠키 설정과 충돌 → "unexpected response" 에러 유발
     // 만료된 세션 = 미인증이므로 로그인 페이지를 그대로 표시
     user = null;
     error = null;
-    getResponse = () => NextResponse.next({ request: { headers: request.headers } });
+    getResponse = () => {
+      const res = NextResponse.next({ request: { headers: request.headers } });
+      // 만료된 쿠키 삭제 → 브라우저 클라이언트의 자동 리프레시 401 방지
+      if (hasAuthCookies(request)) {
+        clearAuthCookies(request, res);
+      }
+      return res;
+    };
   } else if (parsed.needsRefresh && !isRSCRequest) {
     // 토큰 리프레시 필요 + 풀 페이지 요청 → deduplicatedGetUser() (동시 요청 중복 방지)
     const result = await deduplicatedGetUser(request);
@@ -451,7 +473,10 @@ export async function proxy(request: NextRequest) {
       if (pathname !== "/") {
         loginUrl.searchParams.set("returnUrl", pathname);
       }
-      return NextResponse.redirect(loginUrl);
+      const redirectResponse = NextResponse.redirect(loginUrl);
+      // 만료된 쿠키 삭제 → /login에서 다시 리프레시 시도하지 않음
+      clearAuthCookies(request, redirectResponse);
+      return redirectResponse;
     }
   }
 
