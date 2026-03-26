@@ -5,7 +5,7 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import type { AgentContext } from "../types";
+import { type AgentContext, truncateWithMarker } from "../types";
 import { generateActivitySummary } from "@/lib/domains/student-record/llm/actions/generateActivitySummary";
 import { generateSetekGuide } from "@/lib/domains/student-record/llm/actions/generateSetekGuide";
 import { fetchActivitySummaries, fetchSetekGuides } from "@/lib/domains/student-record/actions/activitySummary";
@@ -53,12 +53,14 @@ export function createReportTools(ctx: AgentContext) {
               summaryId: data.summaryId,
               title: "title" in data ? data.title : "",
               preview: "fullText" in data
-                ? (data.fullText as string).slice(0, 500)
+                ? (truncateWithMarker(data.fullText as string, 500) ?? "")
                 : "guides" in data
-                  ? (data.guides as Array<{ subjectName: string; direction: string }>)
-                      .map((g) => `[${g.subjectName}] ${g.direction.slice(0, 80)}`)
-                      .join("\n")
-                      .slice(0, 500)
+                  ? (truncateWithMarker(
+                      (data.guides as Array<{ subjectName: string; direction: string }>)
+                        .map((g) => `[${g.subjectName}] ${truncateWithMarker(g.direction, 80) ?? ""}`)
+                        .join("\n"),
+                      500,
+                    ) ?? "")
                   : "",
               sectionCount: "sections" in data
                 ? (data.sections as unknown[]).length
@@ -121,7 +123,7 @@ export function createReportTools(ctx: AgentContext) {
               for (const r of res.data) {
                 results.push({
                   id: r.id,
-                  title: r.summary_title,
+                  title: `[${r.subject_id}] ${truncateWithMarker(r.direction, 50) ?? ""}`,
                   status: r.status,
                   createdAt: r.created_at,
                   reportType: "setek_guide",

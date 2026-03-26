@@ -56,6 +56,13 @@ export interface ReportExportData {
     content: string;
     priority: string;
   }> | null;
+  mockAnalysis?: {
+    recentExamTitle: string;
+    recentExamDate: string;
+    avgPercentile: number | null;
+    totalStdScore: number | null;
+    best3GradeSum: number | null;
+  } | null;
 }
 
 // ============================================
@@ -199,6 +206,21 @@ export async function exportReportAsDocx(data: ReportExportData): Promise<void> 
       }
     }
 
+    // 모의고사 분석
+    if (data.mockAnalysis) {
+      const m = data.mockAnalysis;
+      children.push(new Paragraph({ text: "모의고사 분석", heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 150 } }));
+      children.push(new Paragraph({ children: [new TextRun({ text: `기준 시험: ${m.recentExamTitle} (${m.recentExamDate})`, size: 20, color: "666666" })], spacing: { after: 100 } }));
+      const metrics = [
+        { label: "평균 백분위", value: m.avgPercentile != null ? `${m.avgPercentile.toFixed(1)}%` : "-", basis: "국/수/탐(상위2)" },
+        { label: "표준점수 합", value: m.totalStdScore != null ? String(m.totalStdScore) : "-", basis: "국/수/탐(상위2)" },
+        { label: "상위 3과목 등급합", value: m.best3GradeSum != null ? String(m.best3GradeSum) : "-", basis: "국·수·영·탐 중" },
+      ];
+      for (const mt of metrics) {
+        children.push(new Paragraph({ children: [new TextRun({ text: `${mt.label}: ${mt.value} (${mt.basis})`, size: 22 })], spacing: { after: 60 } }));
+      }
+    }
+
     // 활동 요약서 섹션별 렌더링
     for (const sec of data.sections) {
       const label = SECTION_LABELS[sec.sectionType] ?? sec.title;
@@ -315,6 +337,20 @@ function buildReportHtml(data: ReportExportData): string {
         body += `<p style="font-size:12px;margin-bottom:6px;">${badge} <strong>[${escapeHtml(st.targetArea)}]</strong> ${escapeHtml(st.content)}</p>`;
       }
       body += `</div>`;
+    }
+
+    // 모의고사 분석 섹션
+    if (data.mockAnalysis) {
+      const m = data.mockAnalysis;
+      body += `<div style="margin-bottom:20px;">`;
+      body += `<h2 style="font-size:15px;font-weight:600;border-bottom:1px solid #ddd;padding-bottom:4px;margin-bottom:8px;">모의고사 분석</h2>`;
+      body += `<p style="font-size:12px;color:#666;margin-bottom:8px;">기준 시험: ${escapeHtml(m.recentExamTitle)} (${escapeHtml(m.recentExamDate)})</p>`;
+      body += `<table style="font-size:12px;width:100%;border-collapse:collapse;">`;
+      body += `<tr style="background:#f5f5f5;"><th style="padding:6px 8px;text-align:left;border:1px solid #ddd;">지표</th><th style="padding:6px 8px;text-align:center;border:1px solid #ddd;">값</th><th style="padding:6px 8px;text-align:left;border:1px solid #ddd;">기준</th></tr>`;
+      body += `<tr><td style="padding:6px 8px;border:1px solid #ddd;">평균 백분위</td><td style="padding:6px 8px;text-align:center;border:1px solid #ddd;">${m.avgPercentile != null ? m.avgPercentile.toFixed(1) + "%" : "-"}</td><td style="padding:6px 8px;border:1px solid #ddd;">국/수/탐(상위2)</td></tr>`;
+      body += `<tr><td style="padding:6px 8px;border:1px solid #ddd;">표준점수 합</td><td style="padding:6px 8px;text-align:center;border:1px solid #ddd;">${m.totalStdScore ?? "-"}</td><td style="padding:6px 8px;border:1px solid #ddd;">국/수/탐(상위2)</td></tr>`;
+      body += `<tr><td style="padding:6px 8px;border:1px solid #ddd;">상위 3과목 등급합</td><td style="padding:6px 8px;text-align:center;border:1px solid #ddd;">${m.best3GradeSum ?? "-"}</td><td style="padding:6px 8px;border:1px solid #ddd;">국·수·영·탐 중</td></tr>`;
+      body += `</table></div>`;
     }
 
     // 활동 요약서 섹션

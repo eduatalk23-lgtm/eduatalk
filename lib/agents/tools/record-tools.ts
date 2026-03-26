@@ -6,7 +6,7 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import type { AgentContext } from "../types";
+import { type AgentContext, truncateWithMarker } from "../types";
 import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
 
 // 프롬프트 임포트
@@ -139,9 +139,7 @@ ${competencySchema}
             rawText = records
               .map((r) => {
                 const maxLen = Math.max(100, Math.floor(r.content.length * ratio));
-                const truncated = r.content.length > maxLen
-                  ? r.content.slice(0, maxLen) + "…(생략)"
-                  : r.content;
+                const truncated = truncateWithMarker(r.content, maxLen) ?? r.content;
                 return `[${r.label}]\n${truncated}`;
               })
               .join("\n\n---\n\n");
@@ -166,11 +164,17 @@ ${competencySchema}
           const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
           if (jsonMatch) jsonStr = jsonMatch[1].trim();
 
-          const parsed = JSON.parse(jsonStr);
+          let parsed: Record<string, unknown>;
+          try {
+            parsed = JSON.parse(jsonStr);
+          } catch {
+            logActionError(LOG_CTX, `analyzeCompetency JSON 파싱 실패: ${jsonStr.slice(0, 200)}`);
+            return { success: false, error: "AI 응답 형식 오류입니다. 다시 시도해주세요." };
+          }
           const validCodes = new Set<string>(COMPETENCY_ITEMS.map((i) => i.code));
           const validGrades = new Set<string>(["A+", "A-", "B+", "B", "B-", "C"]);
 
-          const items = (parsed.items ?? [])
+          const items = (Array.isArray(parsed.items) ? parsed.items : [])
             .filter(
               (i: { competencyItem: string; suggestedGrade: string }) =>
                 validCodes.has(i.competencyItem) && validGrades.has(i.suggestedGrade),
@@ -344,15 +348,15 @@ ${competencySchema}
           const tagsSummary = [
             `긍정 태그 (${positiveTags.length}건):`,
             ...positiveTags.slice(0, 15).map((t) =>
-              `  - ${COMPETENCY_ITEMS.find((i) => i.code === t.competency_item)?.label ?? t.competency_item}: ${t.evidence_summary?.slice(0, 80) ?? ""}`,
+              `  - ${COMPETENCY_ITEMS.find((i) => i.code === t.competency_item)?.label ?? t.competency_item}: ${truncateWithMarker(t.evidence_summary, 80) ?? ""}`,
             ),
             negativeTags.length > 0 ? `부정 태그 (${negativeTags.length}건):` : "",
             ...negativeTags.map((t) =>
-              `  - ${COMPETENCY_ITEMS.find((i) => i.code === t.competency_item)?.label ?? t.competency_item}: ${t.evidence_summary?.slice(0, 80) ?? ""}`,
+              `  - ${COMPETENCY_ITEMS.find((i) => i.code === t.competency_item)?.label ?? t.competency_item}: ${truncateWithMarker(t.evidence_summary, 80) ?? ""}`,
             ),
             reviewTags.length > 0 ? `확인필요 (${reviewTags.length}건):` : "",
             ...reviewTags.map((t) =>
-              `  - ${COMPETENCY_ITEMS.find((i) => i.code === t.competency_item)?.label ?? t.competency_item}: ${t.evidence_summary?.slice(0, 80) ?? ""}`,
+              `  - ${COMPETENCY_ITEMS.find((i) => i.code === t.competency_item)?.label ?? t.competency_item}: ${truncateWithMarker(t.evidence_summary, 80) ?? ""}`,
             ),
           ].filter(Boolean).join("\n");
 
@@ -398,18 +402,25 @@ ${tagsSummary}
           const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
           if (jsonMatch) jsonStr = jsonMatch[1].trim();
 
-          const parsed = JSON.parse(jsonStr);
+          let parsed: Record<string, unknown>;
+          try {
+            parsed = JSON.parse(jsonStr);
+          } catch {
+            logActionError(LOG_CTX, `generateDiagnosis JSON 파싱 실패: ${jsonStr.slice(0, 200)}`);
+            return { success: false, error: "AI 응답 형식 오류입니다. 다시 시도해주세요." };
+          }
           const validGrades = new Set(["A+", "A-", "B+", "B", "B-", "C"]);
           const validStrengths = new Set(["strong", "moderate", "weak"]);
+
+          const og = String(parsed.overallGrade ?? "B");
+          const ds = String(parsed.directionStrength ?? "moderate");
 
           return {
             success: true,
             data: {
-              overallGrade: validGrades.has(parsed.overallGrade) ? parsed.overallGrade : "B",
+              overallGrade: validGrades.has(og) ? og : "B",
               recordDirection: String(parsed.recordDirection ?? "").slice(0, 50),
-              directionStrength: validStrengths.has(parsed.directionStrength)
-                ? parsed.directionStrength
-                : "moderate",
+              directionStrength: validStrengths.has(ds) ? ds : "moderate",
               strengths: Array.isArray(parsed.strengths) ? parsed.strengths.map(String) : [],
               weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses.map(String) : [],
               recommendedMajors: Array.isArray(parsed.recommendedMajors)

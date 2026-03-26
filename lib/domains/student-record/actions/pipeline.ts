@@ -1005,7 +1005,7 @@ async function executePipelineTasks(
       },
     },
 
-    // ── 7. 세특 방향 가이드 (진단+엣지 활용) ──
+    // ── 7. 세특 방향 가이드 (진단+엣지+가이드배정 활용) ──
     {
       key: "setek_guide",
       run: async () => {
@@ -1016,14 +1016,18 @@ async function executePipelineTasks(
           const { buildEdgePromptSection } = await import("../edge-summary");
           guideEdgeSection = buildEdgePromptSection(computedEdges, "guide");
         }
-        const result = await generateSetekGuide(studentId, undefined, guideEdgeSection);
+        // Phase 6: 가이드 배정 컨텍스트 → 방향 프롬프트에 투입
+        const { buildGuideContextSection } = await import("../guide-context");
+        const guideContextSection = await buildGuideContextSection(studentId, "guide");
+        const extraSections = [guideEdgeSection, guideContextSection].filter(Boolean).join("\n") || undefined;
+        const result = await generateSetekGuide(studentId, undefined, extraSections);
         if (!result.success) throw new Error(result.error);
         const guides = (result.data as { guides?: Array<{ subjectName: string }> })?.guides;
         return guides ? `${guides.length}과목 방향 생성` : "세특 방향 생성 완료";
       },
     },
 
-    // ── 8. 활동 요약서 (스토리라인+엣지 활용) ──
+    // ── 8. 활동 요약서 (스토리라인+엣지+가이드배정 활용) ──
     {
       key: "activity_summary",
       run: async () => {
@@ -1035,7 +1039,11 @@ async function executePipelineTasks(
           const { buildEdgePromptSection } = await import("../edge-summary");
           summaryEdgeSection = buildEdgePromptSection(computedEdges, "summary");
         }
-        const result = await generateActivitySummary(studentId, grades, summaryEdgeSection);
+        // Phase 6: 가이드 배정 컨텍스트 → 요약서 프롬프트에 투입
+        const { buildGuideContextSection } = await import("../guide-context");
+        const summaryContextSection = await buildGuideContextSection(studentId, "summary");
+        const extraSections = [summaryEdgeSection, summaryContextSection].filter(Boolean).join("\n") || undefined;
+        const result = await generateActivitySummary(studentId, grades, extraSections);
         if (!result.success) throw new Error(result.error);
         return "활동 요약서 생성 완료";
       },
@@ -1132,6 +1140,8 @@ async function executePipelineTasks(
 
         const { runBypassPipeline } = await import("@/lib/domains/bypass-major/pipeline");
         let totalGenerated = 0;
+        let totalEnriched = 0;
+        let totalCompetency = 0;
         const targetNames: string[] = [];
 
         // 발견된 대표 학과별로 우회학과 파이프라인 실행 (최대 3개)
@@ -1144,6 +1154,8 @@ async function executePipelineTasks(
               schoolYear: currentSchoolYear,
             });
             totalGenerated += result.totalGenerated;
+            totalEnriched += result.enriched;
+            totalCompetency += result.withCompetency;
             targetNames.push(target.midClassification ?? target.departmentName);
           } catch (err) {
             logActionError({ ...LOG_CTX, action: "pipeline.bypass.target" }, err, {
@@ -1166,7 +1178,11 @@ async function executePipelineTasks(
         }
 
         const sourceLabel = discovery.source === "diagnosis_recommended" ? "AI진단" : "희망학과";
-        return `${totalGenerated}건 우회학과 후보 생성 (${sourceLabel}: ${targetNames.join(", ")})${placementInfo}`;
+        const extras: string[] = [];
+        if (totalCompetency > 0) extras.push(`역량 ${totalCompetency}건`);
+        if (totalEnriched > 0) extras.push(`확충 ${totalEnriched}건`);
+        const extrasStr = extras.length > 0 ? ` [${extras.join(", ")}]` : "";
+        return `${totalGenerated}건 우회학과 후보 생성 (${sourceLabel}: ${targetNames.join(", ")})${extrasStr}${placementInfo}`;
       },
     },
 
@@ -1324,11 +1340,11 @@ async function executePipelineTasks(
 
         // B. 세특 방향 가이드 기반 로드맵
         for (const guide of setekGuides) {
-          if (!guide.summary_title) continue;
+          if (!guide.direction) continue;
           roadmapItems.push({
             area: "setek",
-            plan_content: `[AI] 세특방향: ${guide.summary_title}`,
-            plan_keywords: [],
+            plan_content: `[AI] 세특방향: ${guide.direction.slice(0, 100)}`,
+            plan_keywords: guide.keywords ?? [],
             grade: studentGrade,
             semester: null,
             storyline_id: null,

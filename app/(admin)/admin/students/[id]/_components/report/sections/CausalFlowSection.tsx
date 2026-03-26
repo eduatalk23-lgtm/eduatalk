@@ -5,17 +5,16 @@ import { PRIORITY_LABELS, PRIORITY_COLORS } from "../constants";
 import { ArrowRightLeft } from "lucide-react";
 import { ReportSectionHeader } from "../ReportSectionHeader";
 
-interface GuideItem {
-  subjectName: string;
-  competencyFocus?: string[];
-  direction?: string;
-}
-
 interface CausalFlowSectionProps {
   diagnosisData: DiagnosisTabData;
   setekGuides: Array<{
-    summary_sections: unknown;
+    id: string;
+    subject_id: string;
+    source: string;
     status: string;
+    direction: string;
+    keywords: string[];
+    overall_direction: string | null;
     created_at: string;
   }>;
 }
@@ -28,14 +27,6 @@ interface CausalChain {
   /** 실행 전략 */
   strategy: { content: string; priority: string } | null;
 }
-
-function parseGuideItems(sections: unknown): GuideItem[] {
-  if (!sections || typeof sections !== "object") return [];
-  const obj = sections as Record<string, unknown>;
-  if (Array.isArray(obj.guides)) return obj.guides as GuideItem[];
-  return [];
-}
-
 
 export function CausalFlowSection({ diagnosisData, setekGuides }: CausalFlowSectionProps) {
   const chains = useMemo(() => {
@@ -54,24 +45,15 @@ export function CausalFlowSection({ diagnosisData, setekGuides }: CausalFlowSect
       }
     }
 
-    // 세특 가이드에서 competencyFocus → 과목/방향 매핑
-    const sorted = [...setekGuides].sort((a, b) => {
-      if (a.status === "confirmed" && b.status !== "confirmed") return -1;
-      if (b.status === "confirmed" && a.status !== "confirmed") return 1;
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-    const guideItems = sorted[0] ? parseGuideItems(sorted[0].summary_sections) : [];
-
-    // competencyCode → guide item 매핑
+    // setek_guides에서 subject_id → 방향 매핑 (subject_id를 임시 subject 이름으로 사용)
     const focusToGuide = new Map<string, { subject: string; direction: string }>();
-    for (const g of guideItems) {
-      for (const code of g.competencyFocus ?? []) {
-        if (!focusToGuide.has(code) && g.direction) {
-          focusToGuide.set(code, {
-            subject: g.subjectName,
-            direction: g.direction.length > 60 ? g.direction.slice(0, 60) + "…" : g.direction,
-          });
-        }
+    for (const g of setekGuides) {
+      if (g.direction) {
+        // 현재 subject_id만 있으므로, 임시로 subject_id를 키로 사용
+        focusToGuide.set(g.subject_id, {
+          subject: g.subject_id,
+          direction: g.direction.length > 60 ? g.direction.slice(0, 60) + "…" : g.direction,
+        });
       }
     }
 

@@ -72,7 +72,8 @@ export function mapSeteks(
       school_year: schoolYear,
       semester,
       subject_id: subjectId,
-      content: comp.content,
+      imported_content: comp.content,
+      imported_at: new Date().toISOString(),
       status: "draft" as const,
     });
   }
@@ -111,7 +112,8 @@ export function mapChangche(
       school_year: schoolYear,
       activity_type: activityType,
       hours: act.hours || null,
-      content: act.content,
+      imported_content: act.content,
+      imported_at: new Date().toISOString(),
       status: "draft" as const,
     });
   }
@@ -137,7 +139,8 @@ export function mapHaengteuk(
       tenant_id: ctx.tenantId,
       grade,
       school_year: schoolYear,
-      content: beh.content,
+      imported_content: beh.content,
+      imported_at: new Date().toISOString(),
       status: "draft" as const,
     };
   });

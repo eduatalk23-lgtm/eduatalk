@@ -57,9 +57,12 @@ export interface ReportData {
   edges: PersistedEdge[];
   setekGuides: Array<{
     id: string;
-    summary_title: string;
-    summary_sections: unknown;
+    subject_id: string;
+    source: string;
     status: string;
+    direction: string;
+    keywords: string[];
+    overall_direction: string | null;
     created_at: string;
   }>;
   plannedSubjects: string[];
@@ -99,7 +102,7 @@ export interface ReportData {
 // ============================================
 
 const EMPTY_INTERNAL: InternalAnalysis = { totalGpa: null, adjustedGpa: null, zIndex: null, subjectStrength: {} };
-const EMPTY_MOCK: MockAnalysis = { recentExam: null, avgPercentile: null, totalStdScore: null, best3GradeSum: null };
+const EMPTY_MOCK: MockAnalysis = { recentExam: null, avgPercentile: null, totalStdScore: null, best3GradeSum: null, trend: [] };
 
 async function fetchStudentInfoAndScores(
   studentId: string,
@@ -205,8 +208,9 @@ async function fetchAnalysisData(
     diagnosisData, storylineData, strategyData, edges,
     targetSubClassificationName, targetMidName,
     setekGuides: (setekGuidesRes.success && setekGuidesRes.data ? setekGuidesRes.data : []).map((g) => ({
-      id: g.id, summary_title: g.summary_title, summary_sections: g.summary_sections,
-      status: g.status, created_at: g.created_at,
+      id: g.id, subject_id: g.subject_id, source: g.source,
+      status: g.status, direction: g.direction, keywords: g.keywords,
+      overall_direction: g.overall_direction, created_at: g.created_at,
     })),
     plannedSubjects: (coursePlanRes.success && coursePlanRes.data
       ? coursePlanRes.data.plans.map((p) => p.subject.name) : []),
@@ -233,9 +237,9 @@ async function fetchSupplementaryData(
     // 우회학과 상위 5개
     supabase
       .from("bypass_major_candidates")
-      .select("composite_score, rationale, candidate_department:candidate_department_id(name, university_name)")
+      .select("composite_score, rationale, curriculum_similarity_score, competency_fit_score, competency_rationale, curriculum_rationale, placement_rationale, candidate_department:candidate_department_id(name, university_name)")
       .eq("student_id", studentId)
-      .order("composite_score", { ascending: false })
+      .order("composite_score", { ascending: false, nullsFirst: false })
       .limit(5),
     // 면접 예상 질문
     supabase
@@ -271,6 +275,11 @@ async function fetchSupplementaryData(
       candidateUniv: dept?.university_name ?? "",
       compositeScore: c.composite_score as number | null,
       rationale: c.rationale as string | null,
+      curriculumSimilarity: c.curriculum_similarity_score as number | null,
+      competencyFit: c.competency_fit_score as number | null,
+      competencyRationale: c.competency_rationale as string | null,
+      curriculumRationale: c.curriculum_rationale as string | null,
+      placementRationale: c.placement_rationale as string | null,
     };
   });
 

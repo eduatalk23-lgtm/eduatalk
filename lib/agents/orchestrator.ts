@@ -1,6 +1,6 @@
 // ============================================
 // Agent 오케스트레이터
-// streamText + tools + maxSteps:5 패턴
+// streamText + tools + maxSteps:7 패턴
 // ============================================
 
 import type { AgentContext } from "./types";
@@ -11,6 +11,7 @@ import { createGuideTools } from "./tools/guide-tools";
 import { createAdmissionTools } from "./tools/admission-tools";
 import { createInterviewTools } from "./tools/interview-tools";
 import { createReportTools } from "./tools/report-tools";
+import { createBypassTools } from "./tools/bypass-tools";
 
 function buildSystemPrompt(ctx: AgentContext): string {
   return `당신은 대입 컨설팅 AI 어시스턴트입니다. 컨설턴트가 학생의 생기부를 분석하고 전략을 수립하는 것을 도와줍니다.
@@ -51,6 +52,11 @@ function buildSystemPrompt(ctx: AgentContext): string {
 - simulateCardAllocation: 수시 6장 최적 배분 시뮬레이션
 - analyzeScoreImpact: 과목 점수 변경 영향 분석 (What-If)
 
+### 🔀 우회학과 분석 도구 (교차지원 분석)
+- searchBypassDepartments: 대학 학과 검색 (목표 학과 찾기)
+- runBypassAnalysis: 3필터 종합 분석 실행 (커리큘럼+역량+배치)
+- getBypassCandidates: 기존 분석 결과 조회 (상위 10개)
+
 ### 🎤 면접 코칭 도구 (Agent 5: 면접 시뮬레이션)
 - generateInterviewQuestions: 생기부 기반 면접 예상 질문 10개 생성
 - evaluateAnswer: 학생 답변 평가 + 개선 피드백 (점수/강점/약점/개선답변)
@@ -86,6 +92,7 @@ export function createOrchestrator(ctx: AgentContext) {
     ...createAdmissionTools(ctx),
     ...createInterviewTools(ctx),
     ...createReportTools(ctx),
+    ...createBypassTools(ctx),
   };
 
   return {

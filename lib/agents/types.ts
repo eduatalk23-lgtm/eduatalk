@@ -23,3 +23,17 @@ export interface AgentToolResult<T = unknown> {
   data?: T;
   error?: string;
 }
+
+/**
+ * 문자열을 maxLen으로 절삭하되, 절삭 시 `[... N자 생략]` 마커를 추가하여
+ * LLM이 불완전한 데이터임을 인지할 수 있게 합니다.
+ */
+export function truncateWithMarker(
+  text: string | null | undefined,
+  maxLen: number,
+): string | null {
+  if (!text) return null;
+  if (text.length <= maxLen) return text;
+  const omitted = text.length - maxLen;
+  return `${text.slice(0, maxLen)}… [${omitted}자 생략]`;
+}

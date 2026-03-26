@@ -80,6 +80,14 @@ vi.mock("@/lib/domains/student-record/actions/activitySummary", () => ({
   fetchActivitySummaries: vi.fn(),
   fetchSetekGuides: vi.fn(),
 }));
+// Bypass mocks
+vi.mock("@/lib/domains/bypass-major/repository", () => ({
+  findCandidates: vi.fn(),
+  searchDepartments: vi.fn(),
+}));
+vi.mock("@/lib/domains/bypass-major/pipeline", () => ({
+  runBypassPipeline: vi.fn(),
+}));
 
 import { createOrchestrator } from "../orchestrator";
 import type { AgentContext } from "../types";
@@ -166,8 +174,15 @@ describe("createOrchestrator", () => {
     expect(tools.getStudentOverview).toBeDefined();
   });
 
-  it("총 26개 도구가 등록된다", () => {
+  it("우회학과 분석 도구 3개가 등록된다", () => {
     const { tools } = createOrchestrator(mockContext);
-    expect(Object.keys(tools)).toHaveLength(26);
+    expect(tools.getBypassCandidates).toBeDefined();
+    expect(tools.searchBypassDepartments).toBeDefined();
+    expect(tools.runBypassAnalysis).toBeDefined();
+  });
+
+  it("총 29개 도구가 등록된다", () => {
+    const { tools } = createOrchestrator(mockContext);
+    expect(Object.keys(tools)).toHaveLength(29);
   });
 });

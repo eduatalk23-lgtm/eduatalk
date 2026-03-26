@@ -3,7 +3,7 @@
 // POST /api/agent
 // ============================================
 
-import { streamText, stepCountIs } from "ai";
+import { streamText, stepCountIs, convertToModelMessages } from "ai";
 import { google } from "@ai-sdk/google";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { createOrchestrator } from "@/lib/agents/orchestrator";
@@ -55,14 +55,17 @@ export async function POST(req: Request) {
     // 4. 오케스트레이터 생성
     const { tools, systemPrompt } = createOrchestrator(ctx);
 
-    // 5. Rate-limited streamText
+    // 5. UIMessages → ModelMessages 변환
+    const modelMessages = await convertToModelMessages(messages);
+
+    // 6. Rate-limited streamText
     const result = await geminiRateLimiter.execute(async () => {
       return streamText({
-        model: google("gemini-3.1-flash"),
+        model: google("gemini-2.5-flash"),
         system: systemPrompt,
-        messages,
+        messages: modelMessages,
         tools,
-        stopWhen: stepCountIs(5),
+        stopWhen: stepCountIs(7),
         maxOutputTokens: 8192,
         temperature: 0.3,
         abortSignal: req.signal,
@@ -82,7 +85,7 @@ export async function POST(req: Request) {
       `오케스트레이터 완료: userId=${userId}, studentId=${studentId}`,
     );
 
-    // 6. AI SDK UI Message Stream 응답
+    // 7. AI SDK UI Message Stream 응답
     return result.toUIMessageStreamResponse();
   } catch (error) {
     logActionError("agent.api", error instanceof Error ? error.message : String(error));

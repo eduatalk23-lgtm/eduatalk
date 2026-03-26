@@ -5,7 +5,7 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import type { AgentContext } from "../types";
+import { type AgentContext, truncateWithMarker } from "../types";
 import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
 import {
   INTERVIEW_SYSTEM_PROMPT,
@@ -182,7 +182,7 @@ export function createInterviewTools(ctx: AgentContext) {
 
           let userPrompt = `## 면접 질문\n${question}\n\n## 모범 답변\n${suggestedAnswer}\n\n## 학생 답변\n${studentAnswer}`;
           if (recordContext) {
-            userPrompt += `\n\n## 관련 생기부 기록\n${recordContext.slice(0, 1000)}`;
+            userPrompt += `\n\n## 관련 생기부 기록\n${truncateWithMarker(recordContext, 1000)}`;
           }
           userPrompt += "\n\n위 답변을 평가하고 JSON으로 피드백을 제공해주세요.";
 

@@ -5,7 +5,7 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import type { AgentContext } from "../types";
+import { type AgentContext, truncateWithMarker } from "../types";
 import { getRecordTabData, getStorylineTabData } from "@/lib/domains/student-record/service";
 import {
   findCompetencyScores,
@@ -21,6 +21,9 @@ import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
 const LOG_CTX = { domain: "agent", action: "data-tools" };
 
 export function createDataTools(ctx: AgentContext) {
+  // 요청 스코프 캐시 — 같은 대화 내 동일 조회 중복 방지
+  const cache = new Map<string, { success: boolean; data?: unknown; error?: string }>();
+
   return {
     /**
      * 학생의 생기부 기록(세특/창체/행특/독서) 조회
@@ -36,6 +39,12 @@ export function createDataTools(ctx: AgentContext) {
       }),
       execute: async ({ schoolYear }) => {
         const year = schoolYear ?? ctx.schoolYear;
+        const cacheKey = `records:${year}`;
+        const cached = cache.get(cacheKey);
+        if (cached) {
+          logActionDebug(LOG_CTX, `getStudentRecords: cache hit (year=${year})`);
+          return cached;
+        }
         logActionDebug(LOG_CTX, `getStudentRecords: year=${year}`);
         try {
           if (!ctx.tenantId) {
@@ -48,29 +57,31 @@ export function createDataTools(ctx: AgentContext) {
               subjectId: s.subject_id,
               grade: s.grade,
               semester: s.semester,
-              content: s.content?.slice(0, 500),
+              content: truncateWithMarker(s.content, 500),
             })),
             personalSeteks: data.personalSeteks.map((s) => ({
               title: s.title,
               grade: s.grade,
-              content: s.content?.slice(0, 500),
+              content: truncateWithMarker(s.content, 500),
             })),
             changche: data.changche.map((c) => ({
               activityType: c.activity_type,
               grade: c.grade,
-              content: c.content?.slice(0, 500),
+              content: truncateWithMarker(c.content, 500),
             })),
             haengteuk: data.haengteuk
-              ? { content: data.haengteuk.content?.slice(0, 500) }
+              ? { content: truncateWithMarker(data.haengteuk.content, 500) }
               : null,
             readings: data.readings.map((r) => ({
               bookTitle: r.book_title,
               author: r.author,
               subjectArea: r.subject_area,
-              notes: r.notes?.slice(0, 300),
+              notes: truncateWithMarker(r.notes, 300),
             })),
           };
-          return { success: true, data: summary };
+          const result = { success: true as const, data: summary };
+          cache.set(cacheKey, result);
+          return result;
         } catch (error) {
           logActionError(LOG_CTX, error);
           return { success: false, error: "생기부 기록 조회에 실패했습니다." };
@@ -92,6 +103,12 @@ export function createDataTools(ctx: AgentContext) {
       }),
       execute: async ({ schoolYear }) => {
         const year = schoolYear ?? ctx.schoolYear;
+        const cacheKey = `diagnosis:${year}`;
+        const cached = cache.get(cacheKey);
+        if (cached) {
+          logActionDebug(LOG_CTX, `getStudentDiagnosis: cache hit (year=${year})`);
+          return cached;
+        }
         logActionDebug(LOG_CTX, `getStudentDiagnosis: year=${year}`);
         try {
           if (!ctx.tenantId) {
@@ -103,8 +120,8 @@ export function createDataTools(ctx: AgentContext) {
             findDiagnosisPair(ctx.studentId, year, ctx.tenantId),
             findStrategies(ctx.studentId, year, ctx.tenantId),
           ]);
-          return {
-            success: true,
+          const result = {
+            success: true as const,
             data: {
               competencyScores: scores.map((s) => ({
                 item: s.competency_item,
@@ -117,14 +134,14 @@ export function createDataTools(ctx: AgentContext) {
                 .slice(0, 10)
                 .map((t) => ({
                   item: t.competency_item,
-                  evidence: t.evidence_summary?.slice(0, 100),
+                  evidence: truncateWithMarker(t.evidence_summary, 100),
                 })),
               negativeTags: tags
                 .filter((t) => t.evaluation === "negative")
                 .slice(0, 10)
                 .map((t) => ({
                   item: t.competency_item,
-                  evidence: t.evidence_summary?.slice(0, 100),
+                  evidence: truncateWithMarker(t.evidence_summary, 100),
                 })),
               aiDiagnosis: diagPair.ai
                 ? {
@@ -143,11 +160,13 @@ export function createDataTools(ctx: AgentContext) {
                 : null,
               strategies: strategies.slice(0, 5).map((s) => ({
                 targetArea: s.target_area,
-                content: s.strategy_content?.slice(0, 200),
+                content: truncateWithMarker(s.strategy_content, 200),
                 status: s.status,
               })),
             },
           };
+          cache.set(cacheKey, result);
+          return result;
         } catch (error) {
           logActionError(LOG_CTX, error);
           return { success: false, error: "진단 데이터 조회에 실패했습니다." };
@@ -169,6 +188,12 @@ export function createDataTools(ctx: AgentContext) {
       }),
       execute: async ({ schoolYear }) => {
         const year = schoolYear ?? ctx.schoolYear;
+        const cacheKey = `storylines:${year}`;
+        const cached = cache.get(cacheKey);
+        if (cached) {
+          logActionDebug(LOG_CTX, `getStudentStorylines: cache hit (year=${year})`);
+          return cached;
+        }
         logActionDebug(LOG_CTX, `getStudentStorylines: year=${year}`);
         try {
           if (!ctx.tenantId) {
@@ -178,8 +203,8 @@ export function createDataTools(ctx: AgentContext) {
             getStorylineTabData(ctx.studentId, year, ctx.tenantId),
             findStorylinesByStudent(ctx.studentId, ctx.tenantId),
           ]);
-          return {
-            success: true,
+          const result = {
+            success: true as const,
             data: {
               storylines: storylines.map((s) => ({
                 id: s.id,
@@ -192,10 +217,12 @@ export function createDataTools(ctx: AgentContext) {
                 grade: r.grade,
                 semester: r.semester,
                 area: r.area,
-                planContent: r.plan_content?.slice(0, 200),
+                planContent: truncateWithMarker(r.plan_content, 200),
               })),
             },
           };
+          cache.set(cacheKey, result);
+          return result;
         } catch (error) {
           logActionError(LOG_CTX, error);
           return { success: false, error: "스토리라인 조회에 실패했습니다." };

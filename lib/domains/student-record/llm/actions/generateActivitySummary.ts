@@ -166,6 +166,7 @@ export async function generateActivitySummary(
         model_tier: "standard",
         prompt_version: "v1",
         status: "draft",
+        source: "ai",
         created_by: userId,
       })
       .select("id")

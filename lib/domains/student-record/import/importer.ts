@@ -56,21 +56,21 @@ export async function executeImport(
   }
 
   try {
-    // 세특 upsert (기존 데이터 있으면 덮어쓰기)
+    // 세특 upsert — imported_content에 저장, content 비어있으면 편집 시작점으로 복사
     for (const setek of mapped.seteks.items) {
-      await repo.upsertSetek(setek);
+      await repo.upsertSetekImport(setek);
       counts.seteks++;
     }
 
     // 창체 upsert
     for (const changche of mapped.changche) {
-      await repo.upsertChangche(changche);
+      await repo.upsertChangcheImport(changche);
       counts.changche++;
     }
 
     // 행특 upsert
     for (const haengteuk of mapped.haengteuk) {
-      await repo.upsertHaengteuk(haengteuk);
+      await repo.upsertHaengteukImport(haengteuk);
       counts.haengteuk++;
     }
 

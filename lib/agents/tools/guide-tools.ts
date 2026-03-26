@@ -5,11 +5,14 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import type { AgentContext } from "../types";
+import { type AgentContext, truncateWithMarker } from "../types";
 import { findGuideById, findAssignmentsWithGuides } from "@/lib/domains/guide/repository";
 import { searchGuidesByVector } from "@/lib/domains/guide/vector/search-service";
 import { generateGuideAction } from "@/lib/domains/guide/llm/actions/generateGuide";
+import { resolveContentSections } from "@/lib/domains/guide/section-config";
+import { loadStudentProfileForGuide } from "@/lib/domains/guide/llm/loaders/student-profile-loader";
 import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
+import type { GuideType } from "@/lib/domains/guide/types";
 
 const LOG_CTX = { domain: "agent", action: "guide-tools" };
 
@@ -76,7 +79,7 @@ export function createGuideTools(ctx: AgentContext) {
                 guideType: r.guide_type,
                 bookTitle: r.book_title,
                 bookAuthor: r.book_author,
-                motivation: r.motivation?.slice(0, 200),
+                motivation: truncateWithMarker(r.motivation, 200),
                 score: r.score,
               })),
               totalFound: results.length,
@@ -117,17 +120,22 @@ export function createGuideTools(ctx: AgentContext) {
               subjects: guide.subjects.map((s) => s.name),
               careerFields: guide.career_fields.map((c) => c.name_kor),
               content: guide.content
-                ? {
-                    motivation: guide.content.motivation,
-                    theorySections: guide.content.theory_sections
-                      .map((s) => ({
-                        title: s.title,
-                        content: s.content?.slice(0, 500),
-                      })),
-                    reflection: guide.content.reflection?.slice(0, 300),
-                    summary: guide.content.summary?.slice(0, 300),
-                    setekExamples: guide.content.setek_examples?.slice(0, 3),
-                  }
+                ? (() => {
+                    const sections = resolveContentSections(
+                      guide.guide_type as GuideType,
+                      guide.content,
+                    );
+                    return {
+                      sections: sections
+                        .filter((s) => s.key !== "setek_examples")
+                        .map((s) => ({
+                          key: s.key,
+                          label: s.label,
+                          content: truncateWithMarker(s.content, 500),
+                        })),
+                      setekExamples: guide.content.setek_examples?.slice(0, 3),
+                    };
+                  })()
                 : null,
             },
           };
@@ -167,10 +175,20 @@ export function createGuideTools(ctx: AgentContext) {
           .string()
           .optional()
           .describe("추가 요청사항"),
+        useStudentProfile: z
+          .boolean()
+          .default(true)
+          .describe("학생 프로필 기반 진로 연계 가이드 생성 여부 (기본: true)"),
       }),
-      execute: async ({ source, input: inputValue, guideType, targetSubject, targetCareerField, additionalContext }) => {
+      execute: async ({ source, input: inputValue, guideType, targetSubject, targetCareerField, additionalContext, useStudentProfile }) => {
         logActionDebug(LOG_CTX, `generateGuide: source=${source}, input=${inputValue.slice(0, 50)}`);
         try {
+          // 학생 프로필 로드 (Agent 컨텍스트에서)
+          const studentProfile =
+            useStudentProfile && ctx.studentId
+              ? await loadStudentProfileForGuide(ctx.studentId)
+              : null;
+
           // 소스별 입력 구성
           const generationInput = buildGenerationInput(
             source,
@@ -180,6 +198,11 @@ export function createGuideTools(ctx: AgentContext) {
             targetCareerField,
             additionalContext,
           );
+
+          // 학생 프로필 주입
+          if (studentProfile) {
+            generationInput.studentProfile = studentProfile;
+          }
 
           const result = await generateGuideAction(generationInput);
 
@@ -199,7 +222,7 @@ export function createGuideTools(ctx: AgentContext) {
               guideType: preview.guideType,
               subjects: preview.suggestedSubjects,
               careerFields: preview.suggestedCareerFields,
-              theorySectionCount: preview.theorySections.length,
+              theorySectionCount: preview.sections.length,
               message: `가이드 "${preview.title}"가 생성되었습니다. /admin/guides/${guideId} 에서 편집할 수 있습니다.`,
             },
           };
@@ -241,7 +264,7 @@ export function createGuideTools(ctx: AgentContext) {
                 guideTitle: a.exploration_guides.title,
                 guideType: a.exploration_guides.guide_type,
                 linkedRecordType: a.linked_record_type,
-                notes: a.notes?.slice(0, 200),
+                notes: truncateWithMarker(a.notes, 200),
               })),
               total: assignments.length,
               completed: assignments.filter((a) => a.status === "completed")
@@ -262,7 +285,6 @@ export function createGuideTools(ctx: AgentContext) {
 // ============================================
 
 import type { GuideGenerationInput } from "@/lib/domains/guide/llm/types";
-import type { GuideType } from "@/lib/domains/guide/types";
 
 function buildGenerationInput(
   source: string,

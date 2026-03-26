@@ -155,31 +155,55 @@ export async function generateSetekGuide(
       return { success: false, error: "AI가 유효한 가이드를 생성하지 못했습니다. 다시 시도해주세요." };
     }
 
-    // DB 저장 — activity_summaries 테이블 재사용 (prompt_version으로 구분)
+    // DB 저장 — setek_guides 테이블에 과목별 행 삽입
     const currentSchoolYear = calculateSchoolYear();
-    const summaryText = parsed.guides
-      .map((g) => `[${g.subjectName}]\n${g.direction}`)
-      .join("\n\n");
+
+    // 과목명 → subject_id 역매핑
+    const nameToSubjectId = new Map<string, string>();
+    for (const [id, name] of subjectMap) nameToSubjectId.set(name, id);
+
+    // 기존 AI 가이드 삭제 (재생성 시 중복 방지)
+    await supabase
+      .from("student_record_setek_guides")
+      .delete()
+      .eq("student_id", studentId)
+      .eq("tenant_id", tenantId)
+      .eq("school_year", currentSchoolYear)
+      .eq("source", "ai");
+
+    const rows = parsed.guides
+      .map((g, i) => {
+        const subjectId = nameToSubjectId.get(g.subjectName);
+        if (!subjectId) return null;
+        return {
+          tenant_id: tenantId,
+          student_id: studentId,
+          school_year: currentSchoolYear,
+          subject_id: subjectId,
+          source: "ai" as const,
+          status: "draft" as const,
+          direction: g.direction,
+          keywords: g.keywords,
+          competency_focus: g.competencyFocus,
+          cautions: g.cautions || null,
+          teacher_points: g.teacherPoints,
+          overall_direction: i === 0 ? parsed.overallDirection : null,
+          model_tier: "standard",
+          prompt_version: "guide_v1",
+          created_by: userId,
+        };
+      })
+      .filter(Boolean);
+
+    if (rows.length === 0) {
+      return { success: false, error: "매칭 가능한 과목이 없습니다." };
+    }
 
     const { data: inserted, error: insertError } = await supabase
-      .from("student_record_activity_summaries")
-      .insert({
-        tenant_id: tenantId,
-        student_id: studentId,
-        school_year: currentSchoolYear,
-        target_grades: grades,
-        summary_title: parsed.title,
-        summary_sections: {
-          guides: parsed.guides,
-          overallDirection: parsed.overallDirection,
-        } as unknown as Record<string, unknown>,
-        summary_text: summaryText,
-        model_tier: "standard",
-        prompt_version: "guide_v1",
-        status: "draft",
-        created_by: userId,
-      })
+      .from("student_record_setek_guides")
+      .insert(rows)
       .select("id")
+      .limit(1)
       .single();
 
     if (insertError || !inserted) {

@@ -65,6 +65,32 @@ export async function upsertSetek(
   return data.id;
 }
 
+/** 임포트 전용 upsert — imported_content에 저장, content 비어있으면 편집 시작점으로 복사 */
+export async function upsertSetekImport(
+  input: RecordSetekInsert,
+): Promise<string> {
+  const supabase = await createSupabaseServerClient();
+
+  // imported_content/imported_at만 upsert (content 건드리지 않음)
+  const { data, error } = await supabase
+    .from("student_record_seteks")
+    .upsert(input, {
+      onConflict: "tenant_id,student_id,school_year,grade,semester,subject_id",
+    })
+    .select("id, content")
+    .single();
+  if (error) throw error;
+
+  // content가 비어있으면 imported_content를 content에 복사 (편집 시작점)
+  if (!data.content && input.imported_content) {
+    await supabase
+      .from("student_record_seteks")
+      .update({ content: input.imported_content })
+      .eq("id", data.id);
+  }
+  return data.id;
+}
+
 export async function updateSetekById(
   id: string,
   updates: RecordSetekUpdate,
@@ -182,6 +208,29 @@ export async function upsertChangche(
   return data.id;
 }
 
+/** 임포트 전용 upsert — imported_content에 저장, content 비어있으면 복사 */
+export async function upsertChangcheImport(
+  input: RecordChangcheInsert,
+): Promise<string> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("student_record_changche")
+    .upsert(input, {
+      onConflict: "tenant_id,student_id,school_year,grade,activity_type",
+    })
+    .select("id, content")
+    .single();
+  if (error) throw error;
+
+  if (!data.content && input.imported_content) {
+    await supabase
+      .from("student_record_changche")
+      .update({ content: input.imported_content })
+      .eq("id", data.id);
+  }
+  return data.id;
+}
+
 // ============================================
 // 4. 행특 (haengteuk)
 // ============================================
@@ -216,6 +265,29 @@ export async function upsertHaengteuk(
     .select("id")
     .single();
   if (error) throw error;
+  return data.id;
+}
+
+/** 임포트 전용 upsert — imported_content에 저장, content 비어있으면 복사 */
+export async function upsertHaengteukImport(
+  input: RecordHaengteukInsert,
+): Promise<string> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("student_record_haengteuk")
+    .upsert(input, {
+      onConflict: "tenant_id,student_id,school_year,grade",
+    })
+    .select("id, content")
+    .single();
+  if (error) throw error;
+
+  if (!data.content && input.imported_content) {
+    await supabase
+      .from("student_record_haengteuk")
+      .update({ content: input.imported_content })
+      .eq("id", data.id);
+  }
   return data.id;
 }
 
