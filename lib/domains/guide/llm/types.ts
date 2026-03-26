@@ -165,7 +165,7 @@ const contentSectionSchema = z.object({
   items: z
     .array(z.string())
     .optional()
-    .describe("목록형 데이터 (재료 목록 등)"),
+    .describe("목록형 데이터 (HTML 태그 없이 순수 텍스트, 학습목표/재료 등)"),
   order: z.number().optional().describe("복수 섹션 순서"),
   outline: z
     .array(outlineItemSchema)
@@ -224,7 +224,7 @@ export const generatedGuideSchema = z.object({
     .array(z.string())
     .max(3)
     .optional()
-    .describe("교과 세특 예시 (0~3개, 각 200자 내외)"),
+    .describe("교과 세특 예시 (0~3개, 각 200~500자, HTML 형식)"),
   suggestedSubjects: z
     .array(z.string())
     .max(5)
