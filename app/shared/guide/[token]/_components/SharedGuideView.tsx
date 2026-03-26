@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import DOMPurify from "dompurify";
 import type { GuideDetail, ContentSection } from "@/lib/domains/guide/types";
 import { GUIDE_TYPE_LABELS } from "@/lib/domains/guide/types";
@@ -8,6 +7,7 @@ import {
   GUIDE_SECTION_CONFIG,
   resolveContentSections,
 } from "@/lib/domains/guide/section-config";
+import { IntegratedGuideView } from "@/components/guide/IntegratedGuideView";
 
 interface SharedGuideViewProps {
   guide: GuideDetail;
@@ -97,6 +97,21 @@ export function SharedGuideView({ guide, visibleSections }: SharedGuideViewProps
           const matching = sections.filter((s) => s.key === def.key);
           if (matching.length === 0) return null;
 
+          // 복수 섹션 (탐구 이론 등) → 통합 뷰
+          if (def.multiple) {
+            return (
+              <section key={def.key}>
+                <h2 className="text-base font-semibold text-gray-900 border-b border-gray-100 pb-1 mb-3">
+                  {def.label}
+                </h2>
+                <IntegratedGuideView
+                  sections={matching}
+                  defLabel={def.label}
+                />
+              </section>
+            );
+          }
+
           return (
             <section key={def.key}>
               <h2 className="text-base font-semibold text-gray-900 border-b border-gray-100 pb-1 mb-3">
@@ -111,7 +126,6 @@ export function SharedGuideView({ guide, visibleSections }: SharedGuideViewProps
                       </p>
                     )}
                     {renderContent(sec)}
-                    {/* 이미지 */}
                     {sec.images?.map((img, j) => (
                       <figure key={j} className="mt-2">
                         {/* eslint-disable-next-line @next/next/no-img-element */}

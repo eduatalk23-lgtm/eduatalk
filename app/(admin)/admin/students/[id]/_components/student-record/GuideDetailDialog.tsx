@@ -12,6 +12,7 @@ import {
   resolveContentSections,
 } from "@/lib/domains/guide/section-config";
 import { RichTextViewer } from "@/components/editor/RichTextEditor";
+import { IntegratedGuideView } from "@/components/guide/IntegratedGuideView";
 
 interface GuideDetailDialogProps {
   guideId: string | null;
@@ -123,7 +124,28 @@ export function GuideDetailDialog({
                 .filter((def) => !def.adminOnly)
                 .sort((a, b) => a.order - b.order)
                 .map((def) => {
-                  // 복수 섹션
+                  // text_list (학습목표 등)
+                  if (def.editorType === "text_list" && def.key !== "setek_examples") {
+                    const section = sections.find((s) => s.key === def.key);
+                    if (!section?.items?.length) return null;
+                    return (
+                      <div key={def.key}>
+                        <h4 className="mb-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                          {def.label}
+                        </h4>
+                        <ul className="space-y-1">
+                          {section.items.map((item, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                              <span className="text-primary-500 mt-0.5 flex-shrink-0">-</span>
+                              {item}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  }
+
+                  // 복수 섹션 → 통합 뷰
                   if (def.multiple) {
                     const multiples = sections.filter((s) => s.key === def.key);
                     if (multiples.length === 0) return null;
@@ -132,21 +154,10 @@ export function GuideDetailDialog({
                         <h4 className="mb-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400">
                           {def.label}
                         </h4>
-                        <div className="flex flex-col gap-2">
-                          {multiples.map((sec, i) => (
-                            <div
-                              key={i}
-                              className="rounded border-l-2 border-blue-300 dark:border-blue-600 bg-gray-50 dark:bg-gray-800/30 p-2.5"
-                            >
-                              {sec.label && sec.label !== def.label && (
-                                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                                  {sec.label}
-                                </p>
-                              )}
-                              {renderContent(sec.content)}
-                            </div>
-                          ))}
-                        </div>
+                        <IntegratedGuideView
+                          sections={multiples}
+                          defLabel={def.label}
+                        />
                       </div>
                     );
                   }

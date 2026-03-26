@@ -56,6 +56,14 @@ export function buildCloneUserPrompt(
         if (text) {
           lines.push(`\n**[${s.label}]**\n${text}...`);
         }
+        // 원본 outline 구조 전달 (클론 시 목차 구조 참고)
+        if (s.outline && s.outline.length > 0) {
+          lines.push(`\n**[${s.label} — 목차 구조]**`);
+          for (const item of s.outline.slice(0, 12)) {
+            const indent = "  ".repeat(item.depth);
+            lines.push(`${indent}- ${item.text}`);
+          }
+        }
       }
     }
   }

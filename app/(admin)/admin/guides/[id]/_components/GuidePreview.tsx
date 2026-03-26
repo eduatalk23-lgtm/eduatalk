@@ -5,9 +5,9 @@ import type { GuideType, TheorySection, ContentSection } from "@/lib/domains/gui
 import {
   GUIDE_SECTION_CONFIG,
   resolveContentSections,
-  type SectionDefinition,
 } from "@/lib/domains/guide/section-config";
 import { RichTextViewer } from "@/components/editor/RichTextEditor";
+import { IntegratedGuideView } from "@/components/guide/IntegratedGuideView";
 
 interface GuidePreviewProps {
   title: string;
@@ -15,7 +15,6 @@ interface GuidePreviewProps {
   bookTitle: string;
   bookAuthor: string;
   bookPublisher: string;
-  /** 레거시 props (하위 호환) */
   motivation: string;
   theorySections: TheorySection[];
   reflection: string;
@@ -24,9 +23,7 @@ interface GuidePreviewProps {
   followUp: string;
   bookDescription: string;
   contentFormat?: string;
-  /** content_sections 기반 (있으면 우선 사용) */
   contentSections?: ContentSection[];
-  // 교육과정 체계
   curriculumYear?: string;
   subjectArea?: string;
   subjectSelect?: string;
@@ -50,7 +47,6 @@ export function GuidePreview(props: GuidePreviewProps) {
     );
   };
 
-  // content_sections 우선, 없으면 레거시에서 변환
   const sections: ContentSection[] = props.contentSections?.length
     ? props.contentSections
     : resolveContentSections(props.guideType, {
@@ -132,12 +128,30 @@ export function GuidePreview(props: GuidePreviewProps) {
         </div>
       )}
 
-      {/* content_sections 기반 렌더링 */}
+      {/* 섹션 렌더링 */}
       {sectionConfig
         .filter((def) => !def.adminOnly)
         .sort((a, b) => a.order - b.order)
         .map((def) => {
-          // 복수 섹션 (탐구 이론/활동 내용 등)
+          // text_list (학습목표 등)
+          if (def.editorType === "text_list" && def.key !== "setek_examples") {
+            const section = sections.find((s) => s.key === def.key);
+            if (!section?.items?.length) return null;
+            return (
+              <PreviewBlock key={def.key} label={def.label}>
+                <ul className="space-y-1">
+                  {section.items.map((item, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
+                      <span className="text-primary-500 mt-0.5">-</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </PreviewBlock>
+            );
+          }
+
+          // 복수 섹션 (탐구 이론 등) → 통합 뷰
           if (def.multiple) {
             const multiples = sections.filter((s) => s.key === def.key);
             if (multiples.length === 0) return null;
@@ -146,21 +160,10 @@ export function GuidePreview(props: GuidePreviewProps) {
                 <h4 className="text-sm font-semibold text-[var(--text-heading)] mb-2">
                   {def.label}
                 </h4>
-                <div className="space-y-3">
-                  {multiples.map((sec, i) => (
-                    <div
-                      key={i}
-                      className="rounded-lg border-l-4 border-blue-300 dark:border-blue-600 bg-secondary-50 dark:bg-secondary-800/30 p-3"
-                    >
-                      {sec.label && sec.label !== def.label && (
-                        <p className="text-xs font-semibold text-[var(--text-secondary)] mb-1">
-                          {sec.label}
-                        </p>
-                      )}
-                      {renderContent(sec.content)}
-                    </div>
-                  ))}
-                </div>
+                <IntegratedGuideView
+                  sections={multiples}
+                  defLabel={def.label}
+                />
               </div>
             );
           }

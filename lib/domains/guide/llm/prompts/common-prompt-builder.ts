@@ -69,9 +69,10 @@ export function buildSectionStructurePrompt(
         ? ` (${def.multipleMin}~${def.multipleMax}개 섹션)`
         : "";
     const desc = def.placeholder ? ` — ${def.placeholder}` : "";
+    const outlineTag = def.outlineRequired ? " 🗂️[outline 필수]" : "";
 
     lines.push(
-      `- key=\`${def.key}\` **${def.label}** ${reqTag}${tierTag}${multiHint}${lengthHint}${desc}`,
+      `- key=\`${def.key}\` **${def.label}** ${reqTag}${tierTag}${multiHint}${lengthHint}${outlineTag}${desc}`,
     );
   }
 
@@ -185,6 +186,47 @@ export function buildStudentProfilePrompt(
   return lines.join("\n");
 }
 
+/**
+ * 목차형 아웃라인 작성 규칙 — 🗂️[outline 필수] 표기된 섹션에 적용
+ */
+export function buildOutlineFormatPrompt(): string {
+  return `## 목차형 아웃라인 (outline) 작성 규칙
+
+🗂️[outline 필수] 표기된 섹션(탐구이론/활동내용)에는 **content(산문)와 outline(목차)를 모두** 생성합니다.
+
+### outline 배열 구조
+각 항목은 \`{depth, text, tip?, resources?}\` 형태입니다:
+- **depth=0** — 대주제 (예: "1. 사전탐구이론", "2. 실험설계")
+- **depth=1** — 중주제 (예: "가. 핵심 개념 정의", "나. 변수 설계")
+- **depth=2** — 세부항목 (예: "- 엔트로피의 열역학적 정의와 의미", "- 독립변인: 구조 형태")
+
+### outline의 역할
+outline은 **학생이 따라갈 탐구 로드맵(학습 경로)**입니다:
+- "어떤 내용을 조사/탐구/실험하라"는 안내
+- "어떤 순서로 진행하라"는 흐름
+- "어떤 자료를 참고하라"는 리소스 안내
+→ content(산문)이 "탐구 결과물"이라면, outline은 "탐구 안내서"입니다.
+
+### tip 사용 규칙 (학생 공개)
+tip은 **학생에게 직접 보이는 안내**입니다. 학생이 행동할 수 있는 구체적 지시만 작성합니다 (섹션당 1~3개):
+- 좋은 예: "반드시 본인의 경험과 연결지어 해석할 것"
+- 좋은 예: "5회 이상 반복 실험하여 표준편차 산출"
+- 좋은 예: "교과서 p.142 적분 단원 참조"
+- **금지**: 내부 코멘트, AI 관련 지시, 컨설턴트 메모 (예: "AI 의존도 낮출 것", "이 부분 검수 필요")
+→ 내부 메모는 tip이 아닌 에디터 UI에서 별도로 관리합니다
+
+### resources 사용 규칙
+구체적 참고 자료를 포함합니다:
+- 학술 DB: "RISS 키워드: ○○", "DBPIA 검색어: ○○"
+- 교과서: "교과서 p.142-148 참조"
+- 영상/웹: 관련 YouTube 채널명, 신뢰할 수 있는 웹사이트명
+
+### content(산문)와 outline(목차)의 관계
+- outline의 depth=0 대주제 순서는 산문 content의 단락 순서와 **대응**해야 합니다
+- 산문은 탐구 결과가 서술된 **완성된 글**, 목차는 탐구 경로를 안내하는 **로드맵**
+- 둘은 같은 주제를 다르게 표현: 산문="이렇게 탐구했습니다", 목차="이렇게 탐구하세요"`;
+}
+
 // ============================================================
 // 마스터 시스템 프롬프트 빌더
 // ============================================================
@@ -225,6 +267,9 @@ export function buildBaseSystemPrompt(
   // 4. 유형별 이론 전개 가이드
   parts.push(THEORY_DEVELOPMENT_HINTS[guideType]);
 
+  // 4.5. 목차형 아웃라인 작성 규칙
+  parts.push(buildOutlineFormatPrompt());
+
   // 5. 섹션 간 연계 규칙
   parts.push(SECTION_COHERENCE_RULES);
 
@@ -241,6 +286,9 @@ export function buildBaseSystemPrompt(
 - 학문적 용어는 처음 등장 시 간단히 설명합니다
 - sections 배열의 key는 위 가이드 구조의 key와 **정확히 일치**해야 합니다
 - 복수 섹션(content_sections)은 key가 동일하고 order로 구분합니다
+- 🗂️[outline 필수] 섹션에는 content(산문 HTML)와 outline(목차 배열)을 **반드시 모두** 포함합니다
+- learning_objectives 섹션은 items[] 배열에 학습목표 3~5개를 포함합니다
+- curriculum_unit 섹션은 content에 관련 교육과정 단원명을 포함합니다
 - suggestedSubjects: DB에 저장된 한국 교과 과목명 (예: "물리학Ⅰ", "생명과학Ⅱ", "미적분", "사회·문화")
 - suggestedCareerFields: "공학계열", "의약계열", "자연계열", "인문계열", "사회계열", "교육계열", "예체능계열" 중 선택
 - suggestedClassifications: 관련 KEDI 학과 소분류명. 확실한 것만 최대 5개. 모르면 빈 배열

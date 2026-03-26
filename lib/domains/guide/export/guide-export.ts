@@ -6,6 +6,7 @@ import type {
   GuideType,
   GuideDetail,
   ContentSection,
+  OutlineItem,
   RelatedPaper,
 } from "../types";
 import { GUIDE_TYPE_LABELS } from "../types";
@@ -13,6 +14,8 @@ import {
   GUIDE_SECTION_CONFIG,
   resolveContentSections,
 } from "../section-config";
+
+export type ExportFormat = "prose" | "outline" | "both";
 
 export interface GuideExportOptions {
   /** 포함할 섹션 키 */
@@ -23,6 +26,8 @@ export interface GuideExportOptions {
   includeRelatedPapers?: boolean;
   /** 관련 도서 포함 */
   includeRelatedBooks?: boolean;
+  /** 내보내기 형식 (기본: both) */
+  exportFormat?: ExportFormat;
 }
 
 // ============================================
@@ -249,26 +254,101 @@ export async function exportGuideAsDocx(
         );
       }
 
-      // text_list 타입 (세특 예시 등)
-      if (sec.items && sec.items.length > 0) {
-        for (const item of sec.items) {
+      // 통합 뷰: outline 대주제별로 하위 항목 + prose 인라인
+      if (sec.outline && sec.outline.length > 0) {
+        const groups = groupOutlineByDepth0(sec.outline);
+        const proseChunks = splitProseForExport(
+          stripHtml(sec.content),
+          groups.length,
+        );
+
+        for (let gi = 0; gi < groups.length; gi++) {
+          const group = groups[gi];
+
+          // depth=0 대주제
           children.push(
             new Paragraph({
-              children: [new TextRun({ text: `• ${item}`, size: 22 })],
-              spacing: { after: 60 },
+              children: [
+                new TextRun({
+                  text: `${gi + 1}. ${group.heading.text}`,
+                  size: 22,
+                  bold: true,
+                }),
+              ],
+              spacing: { before: 200, after: 80 },
             }),
           );
+          pushTipAndResources(children, group.heading, TextRun, Paragraph);
+
+          // depth=1,2 하위 항목
+          for (const child of group.children) {
+            const indent = (child.depth - 1) * 360 + 360;
+            const bullet = child.depth === 1 ? "├─" : "·";
+            const runs: InstanceType<typeof TextRun>[] = [
+              new TextRun({
+                text: `${bullet} ${child.text}`,
+                size: child.depth === 1 ? 21 : 20,
+                bold: child.depth === 1,
+              }),
+            ];
+            children.push(
+              new Paragraph({
+                children: runs,
+                indent: { left: indent },
+                spacing: { after: 30 },
+              }),
+            );
+            pushTipAndResources(children, child, TextRun, Paragraph, indent);
+          }
+
+          // prose 인라인
+          if (proseChunks[gi]) {
+            children.push(
+              new Paragraph({
+                spacing: { before: 60, after: 20 },
+                border: {
+                  left: { style: "single" as const, size: 6, color: "93C5FD" },
+                },
+                indent: { left: 360 },
+                children: [],
+              }),
+            );
+            for (const line of proseChunks[gi].split("\n")) {
+              if (!line.trim()) continue;
+              children.push(
+                new Paragraph({
+                  children: [
+                    new TextRun({ text: line, size: 20, color: "374151" }),
+                  ],
+                  indent: { left: 360 },
+                  spacing: { after: 60 },
+                }),
+              );
+            }
+          }
         }
       } else {
-        const text = stripHtml(sec.content);
-        for (const line of text.split("\n")) {
-          if (!line.trim()) continue;
-          children.push(
-            new Paragraph({
-              children: [new TextRun({ text: line, size: 22 })],
-              spacing: { after: 100 },
-            }),
-          );
+        // outline이 없는 섹션: 기존 prose 렌더링
+        if (sec.items && sec.items.length > 0) {
+          for (const item of sec.items) {
+            children.push(
+              new Paragraph({
+                children: [new TextRun({ text: `• ${item}`, size: 22 })],
+                spacing: { after: 60 },
+              }),
+            );
+          }
+        } else {
+          const text = stripHtml(sec.content);
+          for (const line of text.split("\n")) {
+            if (!line.trim()) continue;
+            children.push(
+              new Paragraph({
+                children: [new TextRun({ text: line, size: 22 })],
+                spacing: { after: 100 },
+              }),
+            );
+          }
         }
       }
     }
@@ -396,16 +476,48 @@ function buildGuideHtml(
         html += `<p style="font-size:13px;font-weight:600;margin-bottom:4px;">${esc(sec.label)}</p>`;
       }
 
-      if (sec.items && sec.items.length > 0) {
-        html += `<ul style="font-size:13px;margin:0 0 8px 16px;">`;
-        for (const item of sec.items) {
-          html += `<li>${esc(item)}</li>`;
+      // 통합 뷰: outline 대주제별로 하위 항목 + prose 인라인
+      if (sec.outline && sec.outline.length > 0) {
+        const groups = groupOutlineByDepth0(sec.outline);
+        const plainProse = sec.content_format === "html" || sec.content.startsWith("<")
+          ? sec.content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()
+          : sec.content;
+        const proseChunks = splitProseForExport(plainProse, groups.length);
+
+        for (let gi = 0; gi < groups.length; gi++) {
+          const group = groups[gi];
+          // 대주제
+          html += `<div style="margin-top:12px;">`;
+          html += `<p style="font-size:14px;font-weight:bold;margin-bottom:4px;"><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#EBF5FF;color:#1A56DB;font-size:11px;font-weight:bold;margin-right:6px;">${gi + 1}</span>${esc(group.heading.text)}</p>`;
+          // tip/resources
+          html += renderTipResourcesHtml(group.heading);
+          // 하위 항목
+          for (const child of group.children) {
+            const ml = (child.depth - 1) * 16 + 24;
+            const fs = child.depth === 1 ? 12 : 11;
+            const fw = child.depth === 1 ? "500" : "normal";
+            html += `<div style="margin-left:${ml}px;font-size:${fs}px;font-weight:${fw};line-height:1.5;color:#374151;">› ${esc(child.text)}</div>`;
+            html += renderTipResourcesHtml(child, ml);
+          }
+          // prose 인라인
+          if (proseChunks[gi]) {
+            html += `<div style="margin:8px 0 4px 24px;padding:8px 12px;border-left:3px solid #93C5FD;background:#F0F7FF;font-size:12px;line-height:1.7;color:#374151;">${esc(proseChunks[gi])}</div>`;
+          }
+          html += `</div>`;
         }
-        html += `</ul>`;
-      } else if (sec.content_format === "html" || sec.content.startsWith("<")) {
-        html += `<div style="font-size:13px;line-height:1.8;">${sec.content}</div>`;
       } else {
-        html += `<p style="font-size:13px;line-height:1.8;white-space:pre-wrap;">${esc(sec.content)}</p>`;
+        // outline이 없는 섹션
+        if (sec.items && sec.items.length > 0) {
+          html += `<ul style="font-size:13px;margin:0 0 8px 16px;">`;
+          for (const item of sec.items) {
+            html += `<li>${esc(item)}</li>`;
+          }
+          html += `</ul>`;
+        } else if (sec.content_format === "html" || sec.content.startsWith("<")) {
+          html += `<div style="font-size:13px;line-height:1.8;">${sec.content}</div>`;
+        } else {
+          html += `<p style="font-size:13px;line-height:1.8;white-space:pre-wrap;">${esc(sec.content)}</p>`;
+        }
       }
 
       // 이미지
@@ -456,6 +568,81 @@ function buildGuideHtml(
 // ============================================
 // 헬퍼
 // ============================================
+
+// ============================================
+// 통합 뷰 헬퍼 (outline 그룹화 + prose 분할)
+// ============================================
+
+interface OutlineGroup {
+  heading: OutlineItem;
+  children: OutlineItem[];
+}
+
+function groupOutlineByDepth0(items: OutlineItem[]): OutlineGroup[] {
+  const groups: OutlineGroup[] = [];
+  let current: OutlineGroup | null = null;
+  for (const item of items) {
+    if (item.depth === 0) {
+      current = { heading: item, children: [] };
+      groups.push(current);
+    } else if (current) {
+      current.children.push(item);
+    }
+  }
+  if (groups.length === 0 && items.length > 0) {
+    groups.push({ heading: { depth: 0, text: items[0].text }, children: items.slice(1) });
+  }
+  return groups;
+}
+
+function splitProseForExport(text: string, groupCount: number): string[] {
+  if (groupCount <= 1) return [text];
+  const paragraphs = text.split(/\n\n+/).filter((p) => p.trim());
+  if (paragraphs.length <= groupCount) {
+    const result: string[] = [];
+    for (let i = 0; i < groupCount; i++) result.push(paragraphs[i] ?? "");
+    return result;
+  }
+  const perGroup = Math.ceil(paragraphs.length / groupCount);
+  const result: string[] = [];
+  for (let i = 0; i < groupCount; i++) {
+    result.push(paragraphs.slice(i * perGroup, (i + 1) * perGroup).join("\n\n"));
+  }
+  return result;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function pushTipAndResources(children: any[], item: OutlineItem, TextRun: any, Paragraph: any, indent = 360) {
+  if (item.tip) {
+    children.push(
+      new Paragraph({
+        children: [new TextRun({ text: `  💡 ${item.tip}`, size: 18, color: "D97306", italics: true })],
+        indent: { left: indent },
+        spacing: { after: 20 },
+      }),
+    );
+  }
+  if (item.resources?.length) {
+    children.push(
+      new Paragraph({
+        children: [new TextRun({ text: `  📚 ${item.resources.join(", ")}`, size: 18, color: "1D6FA5" })],
+        indent: { left: indent },
+        spacing: { after: 20 },
+      }),
+    );
+  }
+}
+
+function renderTipResourcesHtml(item: OutlineItem, ml = 24): string {
+  let html = "";
+  if (item.tip) {
+    html += `<div style="margin-left:${ml}px;font-size:11px;color:#D97306;font-style:italic;">💡 ${esc(item.tip)}</div>`;
+  }
+  if (item.resources?.length) {
+    html += `<div style="margin-left:${ml}px;font-size:11px;color:#1D6FA5;">📚 ${esc(item.resources.join(", "))}</div>`;
+  }
+  return html;
+}
 
 function esc(text: string): string {
   return text

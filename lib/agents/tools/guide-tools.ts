@@ -132,6 +132,11 @@ export function createGuideTools(ctx: AgentContext) {
                           key: s.key,
                           label: s.label,
                           content: truncateWithMarker(s.content, 500),
+                          outline: s.outline?.slice(0, 15).map((item) => ({
+                            depth: item.depth,
+                            text: item.text,
+                            tip: item.tip,
+                          })),
                         })),
                       setekExamples: guide.content.setek_examples?.slice(0, 3),
                     };

@@ -16,6 +16,8 @@ const IMPROVE_SPECIFIC_RULES = `
 4. 약점으로 지적된 부분만 **집중 개선**합니다
 5. 이론 섹션 수와 제목은 **유지**합니다 (내용만 개선)
 6. setekExamples(세특 예시)는 **원본 그대로 보존**합니다
+7. 원본에 outline(목차) 데이터가 있으면 **산문 개선에 맞춰 outline도 함께 갱신**합니다
+8. 원본에 outline이 없으면 **새로 생성**합니다 (🗂️[outline 필수] 섹션)
 
 ## 차원별 개선 기준
 - **학술적 깊이**: 개념 정확성 강화, 학문적 근거 보충, 논리적 전개 보강
@@ -133,6 +135,7 @@ export function buildImproveUserPrompt(input: {
     studentAccessibility: "학생 접근성",
     structuralCompleteness: "구조적 완성도",
     practicalRelevance: "실용적 연관성",
+    outlineQuality: "탐구 로드맵 품질",
   };
 
   for (const [key, score] of Object.entries(input.reviewResult.dimensions)) {

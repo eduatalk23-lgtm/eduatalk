@@ -48,6 +48,7 @@ import { GuideContentEditor } from "./GuideContentEditor";
 import { GuidePreview } from "./GuidePreview";
 import { GuideVersionHistory } from "./GuideVersionHistory";
 import { improveGuideAction } from "@/lib/domains/guide/llm/actions/improveGuide";
+import type { ModelTier } from "@/lib/domains/plan/llm/types";
 import { createShareLinkAction } from "@/lib/domains/guide/actions/share";
 import { GuideExportModal } from "./GuideExportModal";
 import { GuideSharePanel } from "./GuideSharePanel";
@@ -62,6 +63,7 @@ const REVIEW_DIMENSION_LABELS: Record<string, string> = {
   studentAccessibility: "학생 접근성",
   structuralCompleteness: "구조적 완성도",
   practicalRelevance: "실용적 연관성",
+  outlineQuality: "탐구 로드맵 품질",
 };
 
 export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
@@ -149,6 +151,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
   // UI 상태
   const [saving, setSaving] = useState(false);
   const [improving, setImproving] = useState(false);
+  const [improveModelTier, setImproveModelTier] = useState<ModelTier>("fast");
   const [showPreview, setShowPreview] = useState(!isNew);
 
   // 내보내기/공유 상태
@@ -324,7 +327,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
       const allContentSections: ContentSection[] = [];
       if (motivation) allContentSections.push({ key: "motivation", label: "탐구 동기", content: motivation, content_format: "html" });
       for (const ts of theorySections) {
-        allContentSections.push({ key: "content_sections", label: ts.title, content: ts.content, content_format: "html", order: ts.order });
+        allContentSections.push({ key: "content_sections", label: ts.title, content: ts.content, content_format: "html", order: ts.order, outline: ts.outline });
       }
       // type_extension + optional 섹션
       for (const es of extraSections) {
@@ -385,10 +388,10 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
       setSaving(false);
     }
   }, [
-    title, guideType, status, curriculumYear, subjectSelect, unitMajor, unitMinor,
+    title, guideType, status, curriculumYear, subjectArea, subjectSelect, unitMajor, unitMinor,
     bookTitle, bookAuthor, bookPublisher, bookYear,
     motivation, theorySections, reflection, impression, summary, followUp,
-    bookDescription, setekExamples,
+    bookDescription, setekExamples, extraSections,
     selectedSubjectIds, selectedCareerFieldIds,
     isNew, guideId, router, toast, queryClient,
   ]);
@@ -824,7 +827,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
             )}
           </button>
           <p className="text-[10px] text-[var(--text-secondary)] text-center pt-1.5">
-            가이드 품질을 4가지 차원(학술적 깊이, 학생 접근성, 구조적 완성도, 실용적 연관성)으로 평가합니다
+            가이드 품질을 5가지 차원(학술적 깊이, 학생 접근성, 구조적 완성도, 실용적 연관성, 탐구 로드맵 품질)으로 평가합니다
           </p>
         </div>
       )}
@@ -899,14 +902,48 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
 
           {/* AI 개선 액션 버튼 (최신 버전만) */}
           {guide.is_latest && (
-          <div className="border-t border-secondary-200 dark:border-secondary-700 pt-4">
+          <div className="border-t border-secondary-200 dark:border-secondary-700 pt-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-[var(--text-secondary)]">모델 선택</span>
+              <div className="inline-flex rounded-md overflow-hidden border border-secondary-200 dark:border-secondary-700">
+                <button
+                  type="button"
+                  onClick={() => setImproveModelTier("fast")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium transition-colors",
+                    improveModelTier === "fast"
+                      ? "bg-primary-500 text-white"
+                      : "bg-white dark:bg-secondary-900 text-[var(--text-secondary)] hover:bg-secondary-50 dark:hover:bg-secondary-800",
+                  )}
+                >
+                  Flash (빠름)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImproveModelTier("advanced")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium transition-colors border-l border-secondary-200 dark:border-secondary-700",
+                    improveModelTier === "advanced"
+                      ? "bg-info-500 text-white"
+                      : "bg-white dark:bg-secondary-900 text-[var(--text-secondary)] hover:bg-secondary-50 dark:hover:bg-secondary-800",
+                  )}
+                >
+                  Pro (고품질)
+                </button>
+              </div>
+            </div>
+            {improveModelTier === "advanced" && (
+              <p className="text-[10px] text-info-600 dark:text-info-400 text-right">
+                Thinking 모드 · 크레딧 차감
+              </p>
+            )}
             <button
               type="button"
               onClick={async () => {
                 if (!guideId) return;
                 setImproving(true);
                 try {
-                  const result = await improveGuideAction(guideId);
+                  const result = await improveGuideAction(guideId, improveModelTier);
                   if (result.success && result.data?.guideId) {
                     toast.showSuccess("개선된 가이드가 새 버전으로 생성되었습니다.");
                     queryClient.invalidateQueries({
@@ -933,7 +970,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
               {improving ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  리뷰 반영 개선 중... (15~30초)
+                  리뷰 반영 개선 중...{improveModelTier === "advanced" ? " (30~60초)" : " (15~30초)"}
                 </>
               ) : (
                 <>
@@ -942,7 +979,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
                 </>
               )}
             </button>
-            <p className="text-[10px] text-[var(--text-secondary)] text-center pt-1.5">
+            <p className="text-[10px] text-[var(--text-secondary)] text-center">
               위 개선 제안을 반영한 새 버전이 생성됩니다. 원본은 유지됩니다.
             </p>
           </div>

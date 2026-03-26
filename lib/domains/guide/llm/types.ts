@@ -105,10 +105,27 @@ export interface GuideGenerationInput {
 // Zod 스키마 (generateObjectWithRateLimit용)
 // ============================================================
 
+/** 목차형 아웃라인 항목 */
+const outlineItemSchema = z.object({
+  depth: z
+    .union([z.literal(0), z.literal(1), z.literal(2)])
+    .describe("계층 깊이: 0=대주제, 1=중주제, 2=세부항목"),
+  text: z.string().describe("항목 텍스트"),
+  tip: z.string().optional().describe("컨설턴트 팁/안내"),
+  resources: z
+    .array(z.string())
+    .optional()
+    .describe("참고 자료 (도서명, 논문 키워드, URL 등)"),
+});
+
 const theorySectionSchema = z.object({
   order: z.number().describe("섹션 순서 (1부터 시작)"),
   title: z.string().describe("이론 섹션 제목"),
   content: z.string().describe("이론 내용 (HTML 형식, 2000자 이내)"),
+  outline: z
+    .array(outlineItemSchema)
+    .optional()
+    .describe("목차형 아웃라인 (레거시 호환)"),
 });
 
 const relatedPaperSchema = z.object({
@@ -121,12 +138,18 @@ const relatedPaperSchema = z.object({
 const contentSectionSchema = z.object({
   key: z.string().describe("섹션 키 (config의 key와 일치)"),
   label: z.string().describe("섹션 표시명"),
-  content: z.string().describe("섹션 내용 (HTML 형식)"),
+  content: z.string().describe("섹션 내용 (HTML 형식, 산문형)"),
   items: z
     .array(z.string())
     .optional()
     .describe("목록형 데이터 (재료 목록 등)"),
   order: z.number().optional().describe("복수 섹션 순서"),
+  outline: z
+    .array(outlineItemSchema)
+    .optional()
+    .describe(
+      "목차형 아웃라인 (탐구이론 content_sections에 필수 — 산문 content와 병행)",
+    ),
 });
 
 /** AI가 생성하는 가이드 콘텐츠 구조 (유형별 섹션 지원) */
@@ -209,6 +232,11 @@ export const guideReviewSchema = z.object({
     studentAccessibility: z.number().min(0).max(100).describe("학생 접근성"),
     structuralCompleteness: z.number().min(0).max(100).describe("구조적 완성도"),
     practicalRelevance: z.number().min(0).max(100).describe("실용적 연관성"),
+    outlineQuality: z
+      .number()
+      .min(0)
+      .max(100)
+      .describe("탐구 로드맵 품질 (outline 없으면 0)"),
   }),
   feedback: z.array(z.string()).describe("개선 피드백 (구체적 제안)"),
   strengths: z.array(z.string()).describe("강점"),

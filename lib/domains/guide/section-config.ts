@@ -45,6 +45,8 @@ export interface SectionDefinition {
   multipleMax?: number;
   /** 섹션 계층 (기본: core) */
   tier?: SectionTier;
+  /** true면 AI가 이 섹션에 outline 데이터를 반드시 생성 */
+  outlineRequired?: boolean;
 }
 
 // ============================================================
@@ -52,6 +54,25 @@ export interface SectionDefinition {
 // ============================================================
 
 const READING_SECTIONS: SectionDefinition[] = [
+  {
+    key: "learning_objectives",
+    label: "학습목표",
+    editorType: "text_list",
+    required: false,
+    order: 0,
+    tier: "type_extension",
+    placeholder: "이 탐구를 통해 달성할 목표 (3~5개)",
+  },
+  {
+    key: "curriculum_unit",
+    label: "교육과정 단원 연계",
+    editorType: "plain_text",
+    required: false,
+    order: 0.5,
+    tier: "type_extension",
+    adminOnly: true,
+    placeholder: "관련 교육과정 단원명 및 성취기준",
+  },
   {
     key: "motivation",
     label: "탐구 동기",
@@ -87,6 +108,7 @@ const READING_SECTIONS: SectionDefinition[] = [
     multipleMax: 5,
     minLength: 500,
     maxLength: 2000,
+    outlineRequired: true,
   },
   {
     key: "reflection",
@@ -144,6 +166,25 @@ const READING_SECTIONS: SectionDefinition[] = [
 
 const TOPIC_EXPLORATION_SECTIONS: SectionDefinition[] = [
   {
+    key: "learning_objectives",
+    label: "학습목표",
+    editorType: "text_list",
+    required: false,
+    order: 0,
+    tier: "type_extension",
+    placeholder: "이 탐구를 통해 달성할 목표 (3~5개)",
+  },
+  {
+    key: "curriculum_unit",
+    label: "교육과정 단원 연계",
+    editorType: "plain_text",
+    required: false,
+    order: 0.5,
+    tier: "type_extension",
+    adminOnly: true,
+    placeholder: "관련 교육과정 단원명 및 성취기준",
+  },
+  {
     key: "motivation",
     label: "탐구 동기",
     editorType: "rich_text",
@@ -167,6 +208,7 @@ const TOPIC_EXPLORATION_SECTIONS: SectionDefinition[] = [
     multipleMax: 5,
     minLength: 500,
     maxLength: 2000,
+    outlineRequired: true,
   },
   {
     key: "reflection",
@@ -224,6 +266,25 @@ const TOPIC_EXPLORATION_SECTIONS: SectionDefinition[] = [
 
 const EXPERIMENT_SECTIONS: SectionDefinition[] = [
   {
+    key: "learning_objectives",
+    label: "학습목표",
+    editorType: "text_list",
+    required: false,
+    order: 0,
+    tier: "type_extension",
+    placeholder: "이 실험을 통해 달성할 목표 (3~5개)",
+  },
+  {
+    key: "curriculum_unit",
+    label: "교육과정 단원 연계",
+    editorType: "plain_text",
+    required: false,
+    order: 0.5,
+    tier: "type_extension",
+    adminOnly: true,
+    placeholder: "관련 교육과정 단원명 및 성취기준",
+  },
+  {
     key: "motivation",
     label: "실험 목적",
     editorType: "rich_text",
@@ -247,6 +308,7 @@ const EXPERIMENT_SECTIONS: SectionDefinition[] = [
     multipleMax: 5,
     minLength: 500,
     maxLength: 2000,
+    outlineRequired: true,
   },
   {
     key: "hypothesis",
@@ -323,6 +385,25 @@ const EXPERIMENT_SECTIONS: SectionDefinition[] = [
 
 const SUBJECT_PERFORMANCE_SECTIONS: SectionDefinition[] = [
   {
+    key: "learning_objectives",
+    label: "학습목표",
+    editorType: "text_list",
+    required: false,
+    order: 0,
+    tier: "type_extension",
+    placeholder: "이 수행을 통해 달성할 목표 (3~5개)",
+  },
+  {
+    key: "curriculum_unit",
+    label: "교육과정 단원 연계",
+    editorType: "plain_text",
+    required: false,
+    order: 0.5,
+    tier: "type_extension",
+    adminOnly: true,
+    placeholder: "관련 교육과정 단원명 및 성취기준",
+  },
+  {
     key: "motivation",
     label: "탐구 동기",
     editorType: "rich_text",
@@ -346,6 +427,7 @@ const SUBJECT_PERFORMANCE_SECTIONS: SectionDefinition[] = [
     multipleMax: 5,
     minLength: 500,
     maxLength: 2000,
+    outlineRequired: true,
   },
   {
     key: "curriculum_link",
@@ -414,6 +496,15 @@ const SUBJECT_PERFORMANCE_SECTIONS: SectionDefinition[] = [
 
 const PROGRAM_SECTIONS: SectionDefinition[] = [
   {
+    key: "learning_objectives",
+    label: "학습목표",
+    editorType: "text_list",
+    required: false,
+    order: 0,
+    tier: "type_extension",
+    placeholder: "이 프로그램을 통해 달성할 목표 (3~5개)",
+  },
+  {
     key: "overview",
     label: "프로그램 개요",
     editorType: "key_value",
@@ -444,6 +535,7 @@ const PROGRAM_SECTIONS: SectionDefinition[] = [
     multiple: true,
     multipleMin: 1,
     multipleMax: 10,
+    outlineRequired: true,
   },
   {
     key: "deliverables",
@@ -629,6 +721,7 @@ export function legacyToContentSections(
             content_format: "html",
             images: ts.images,
             order: ts.order,
+            outline: ts.outline,
           });
         }
         break;
@@ -698,6 +791,8 @@ export function legacyToContentSections(
       case "overview":
       case "deliverables":
       case "learning":
+      case "learning_objectives":
+      case "curriculum_unit":
         break;
     }
   }

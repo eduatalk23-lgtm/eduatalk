@@ -45,6 +45,18 @@ export function buildEmbeddingInput(
       .map((s: ContentSection) => `${s.label}: ${s.content}`)
       .join("\n");
     parts.push(`내용: ${sectionSummary.slice(0, 2000)}`);
+
+    // outline depth 0~1 텍스트 포함 (목차형 키워드 검색 지원)
+    const outlineTexts = content.content_sections
+      .filter((s: ContentSection) => s.outline && s.outline.length > 0)
+      .flatMap((s: ContentSection) =>
+        (s.outline ?? [])
+          .filter((item) => item.depth <= 1)
+          .map((item) => item.text),
+      );
+    if (outlineTexts.length > 0) {
+      parts.push(`목차: ${outlineTexts.join(", ").slice(0, 800)}`);
+    }
   } else if (content.theory_sections?.length) {
     const theorySummary = content.theory_sections
       .map((s: TheorySection) => `${s.title}: ${s.content}`)

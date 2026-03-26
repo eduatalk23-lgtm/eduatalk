@@ -48,6 +48,14 @@ export function buildReviewSystemPrompt(guideType: GuideType): string {
 - 후속 탐구 방향이 구체적인가
 - 세특 예시가 자기주도성/탐구력 서술어를 포함하는가
 
+### 5. 탐구 로드맵 품질 (outlineQuality, 0~100) — outline이 없으면 0점
+- 목차형 아웃라인(outline)이 존재하는가
+- depth 계층(대주제→중주제→세부항목)이 적절히 분기되는가
+- outline의 대주제 순서와 산문(content) 단락 순서가 일치하는가
+- tip이 학생에게 실질적으로 유용한 안내인가 (행동 가능한 지시)
+- resources가 접근 가능한 참고자료인가 (교과서, RISS, URL 등)
+- 학생이 이 목차를 따라 실제 탐구를 수행할 수 있는가
+
 ## 점수 기준
 - 80점 이상: 바로 사용 가능한 수준
 - 60~79점: 약간의 수정 후 사용 가능
@@ -88,7 +96,19 @@ export function buildReviewUserPrompt(guide: GuideDetail): string {
             lines.push(`- ${ex}`);
           }
         } else if (s.content) {
-          lines.push(`\n### ${s.label}\n${s.content}`);
+          lines.push(`\n### ${s.label} (산문)\n${s.content}`);
+          // outline 데이터가 있으면 리뷰에 포함
+          if (s.outline && s.outline.length > 0) {
+            lines.push(`\n### ${s.label} (목차형 아웃라인)`);
+            for (const item of s.outline) {
+              const indent = "  ".repeat(item.depth);
+              let line = `${indent}- ${item.text}`;
+              if (item.tip) line += ` [TIP: ${item.tip}]`;
+              if (item.resources?.length)
+                line += ` [참고: ${item.resources.join(", ")}]`;
+              lines.push(line);
+            }
+          }
         }
       }
     }

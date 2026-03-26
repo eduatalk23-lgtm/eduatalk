@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback } from "react";
-import { Plus, Trash2, GripVertical } from "lucide-react";
+import { useCallback, useState } from "react";
+import { Plus, Trash2, GripVertical, FileText, List } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { RichTextEditor } from "@/components/editor/RichTextEditor";
 import type { GuideType, TheorySection, ContentSection } from "@/lib/domains/guide/types";
@@ -9,6 +9,7 @@ import {
   GUIDE_SECTION_CONFIG,
   type SectionDefinition,
 } from "@/lib/domains/guide/section-config";
+import { OutlineEditor } from "./OutlineEditor";
 
 interface GuideContentEditorProps {
   guideType: GuideType;
@@ -40,9 +41,12 @@ interface GuideContentEditorProps {
 const sectionLabelClass =
   "text-sm font-semibold text-[var(--text-heading)] mb-2";
 
+type EditMode = "prose" | "outline";
+
 export function GuideContentEditor(props: GuideContentEditorProps) {
   const fmt = props.contentFormat;
   const sectionConfig = GUIDE_SECTION_CONFIG[props.guideType] ?? GUIDE_SECTION_CONFIG["topic_exploration"];
+  const [sectionEditModes, setSectionEditModes] = useState<Record<number, EditMode>>({});
 
   // extraSections 헬퍼: key로 값 읽기/쓰기
   const getExtraValue = (key: string): string => {
@@ -146,6 +150,26 @@ export function GuideContentEditor(props: GuideContentEditorProps) {
     [props],
   );
 
+  // extraSections에서 items 읽기/쓰기 (text_list용)
+  const getExtraItems = (key: string): string[] => {
+    return props.extraSections?.find((s) => s.key === key)?.items ?? [];
+  };
+  const setExtraItems = (key: string, label: string, items: string[]) => {
+    if (!props.onExtraSectionsChange) return;
+    const existing = props.extraSections ?? [];
+    const idx = existing.findIndex((s) => s.key === key);
+    if (idx >= 0) {
+      props.onExtraSectionsChange(
+        existing.map((s, i) => (i === idx ? { ...s, items } : s)),
+      );
+    } else {
+      props.onExtraSectionsChange([
+        ...existing,
+        { key, label, content: "", content_format: "plain", items },
+      ]);
+    }
+  };
+
   // Config 기반 섹션 렌더링
   function renderSection(def: SectionDefinition) {
     // 복수 섹션 (탐구 이론, 활동 내용 등)
@@ -156,6 +180,11 @@ export function GuideContentEditor(props: GuideContentEditorProps) {
     // 세특 예시 (text_list)
     if (def.key === "setek_examples") {
       return renderSetekExamples(def);
+    }
+
+    // 범용 text_list (학습목표 등)
+    if (def.editorType === "text_list" && def.key !== "setek_examples") {
+      return renderTextListSection(def);
     }
 
     // key_value 타입 (프로그램 개요 등) → rich_text로 fallback
@@ -172,6 +201,65 @@ export function GuideContentEditor(props: GuideContentEditorProps) {
           onAiImageInsert={props.onAiImageInsert}
         />
       </ContentSection>
+    );
+  }
+
+  function renderTextListSection(def: SectionDefinition) {
+    const items = getExtraItems(def.key);
+    return (
+      <div
+        key={def.key}
+        className="rounded-xl border border-secondary-200 dark:border-secondary-700 bg-white dark:bg-secondary-900 p-5"
+      >
+        <div className="flex items-center justify-between mb-3">
+          <h3 className={sectionLabelClass}>{def.label}</h3>
+          <button
+            type="button"
+            onClick={() => setExtraItems(def.key, def.label, [...items, ""])}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-primary-600 bg-primary-50 hover:bg-primary-100 dark:text-primary-400 dark:bg-primary-900/20 dark:hover:bg-primary-900/30 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            항목 추가
+          </button>
+        </div>
+        {items.length === 0 ? (
+          <p className="text-sm text-[var(--text-secondary)] py-2 text-center">
+            {def.placeholder ?? "항목이 없습니다."}
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {items.map((item, idx) => (
+              <div key={idx} className="flex gap-2">
+                <input
+                  type="text"
+                  value={item}
+                  onChange={(e) => {
+                    const next = items.map((v, i) => (i === idx ? e.target.value : v));
+                    setExtraItems(def.key, def.label, next);
+                  }}
+                  className={cn(
+                    "flex-1 px-3 py-2 rounded-lg border text-sm",
+                    "border-secondary-200 dark:border-secondary-700",
+                    "bg-white dark:bg-secondary-900",
+                    "text-[var(--text-primary)]",
+                    "focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500",
+                  )}
+                  placeholder={`${def.label} ${idx + 1}`}
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExtraItems(def.key, def.label, items.filter((_, i) => i !== idx))
+                  }
+                  className="self-center p-1.5 rounded text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -199,46 +287,106 @@ export function GuideContentEditor(props: GuideContentEditorProps) {
           </p>
         ) : (
           <div className="space-y-4">
-            {props.theorySections.map((section, index) => (
-              <div
-                key={index}
-                className="rounded-lg border border-secondary-200 dark:border-secondary-700 overflow-hidden"
-              >
-                <div className="flex items-center gap-2 px-3 py-2 bg-secondary-50 dark:bg-secondary-800/50 border-b border-secondary-200 dark:border-secondary-700">
-                  <GripVertical className="w-4 h-4 text-secondary-400 flex-shrink-0" />
-                  <input
-                    type="text"
-                    value={section.title}
-                    onChange={(e) =>
-                      updateTheorySection(index, { title: e.target.value })
-                    }
-                    placeholder="섹션 제목"
-                    className="flex-1 bg-transparent text-sm font-medium text-[var(--text-heading)] focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeTheorySection(index)}
-                    className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                    title="섹션 삭제"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                <RichTextEditor
-                  content={props.toHtml(
-                    section.content,
-                    section.content_format ?? fmt,
+            {props.theorySections.map((section, index) => {
+              const editMode = sectionEditModes[index] ?? "prose";
+              const hasOutline = section.outline && section.outline.length > 0;
+
+              return (
+                <div
+                  key={index}
+                  className="rounded-lg border border-secondary-200 dark:border-secondary-700 overflow-hidden"
+                >
+                  {/* Header: title + mode toggle + delete */}
+                  <div className="flex items-center gap-2 px-3 py-2 bg-secondary-50 dark:bg-secondary-800/50 border-b border-secondary-200 dark:border-secondary-700">
+                    <GripVertical className="w-4 h-4 text-secondary-400 flex-shrink-0" />
+                    <input
+                      type="text"
+                      value={section.title}
+                      onChange={(e) =>
+                        updateTheorySection(index, { title: e.target.value })
+                      }
+                      placeholder="섹션 제목"
+                      className="flex-1 bg-transparent text-sm font-medium text-[var(--text-heading)] focus:outline-none"
+                    />
+                    {/* Prose/Outline toggle */}
+                    {def.outlineRequired && (
+                      <div className="flex rounded-md border border-secondary-200 dark:border-secondary-600 overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSectionEditModes((prev) => ({ ...prev, [index]: "prose" }))
+                          }
+                          className={cn(
+                            "flex items-center gap-1 px-2 py-1 text-xs transition-colors",
+                            editMode === "prose"
+                              ? "bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400"
+                              : "text-secondary-500 hover:bg-secondary-100 dark:hover:bg-secondary-800",
+                          )}
+                          title="산문 편집"
+                        >
+                          <FileText className="w-3 h-3" />
+                          산문
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSectionEditModes((prev) => ({ ...prev, [index]: "outline" }))
+                          }
+                          className={cn(
+                            "flex items-center gap-1 px-2 py-1 text-xs transition-colors border-l border-secondary-200 dark:border-secondary-600",
+                            editMode === "outline"
+                              ? "bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400"
+                              : "text-secondary-500 hover:bg-secondary-100 dark:hover:bg-secondary-800",
+                            hasOutline && editMode !== "outline" && "text-primary-400",
+                          )}
+                          title="목차 편집"
+                        >
+                          <List className="w-3 h-3" />
+                          목차
+                          {hasOutline && (
+                            <span className="ml-0.5 w-1.5 h-1.5 rounded-full bg-primary-400 inline-block" />
+                          )}
+                        </button>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeTheorySection(index)}
+                      className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                      title="섹션 삭제"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Content area: prose or outline */}
+                  {editMode === "prose" ? (
+                    <RichTextEditor
+                      content={props.toHtml(
+                        section.content,
+                        section.content_format ?? fmt,
+                      )}
+                      onChange={(html) =>
+                        updateTheorySection(index, {
+                          content: html,
+                          content_format: "html",
+                        })
+                      }
+                      onImageInsert={props.onImageInsert}
+                    />
+                  ) : (
+                    <div className="p-3">
+                      <OutlineEditor
+                        items={section.outline ?? []}
+                        onChange={(outline) =>
+                          updateTheorySection(index, { outline })
+                        }
+                      />
+                    </div>
                   )}
-                  onChange={(html) =>
-                    updateTheorySection(index, {
-                      content: html,
-                      content_format: "html",
-                    })
-                  }
-                  onImageInsert={props.onImageInsert}
-                />
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

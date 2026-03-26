@@ -93,7 +93,7 @@ export async function generateGuideAction(
       schema: zodSchema(generatedGuideSchema),
       modelTier: tier,
       temperature: 0.5,
-      maxTokens: tier === "advanced" ? 16384 : 12288,
+      maxTokens: tier === "advanced" ? 20480 : 14336,
     });
 
     // selectedSectionKeys가 있으면 AI 출력을 필터링 (선택하지 않은 섹션 제거)
@@ -197,6 +197,7 @@ export async function generateGuideAction(
           content_format: "html" as const,
           items: s.items,
           order: s.order,
+          outline: s.outline,
         })),
       }),
       replaceSubjectMappings(
@@ -379,6 +380,7 @@ interface LegacyBackfill {
     title: string;
     content: string;
     content_format: "html";
+    outline?: import("../../types").OutlineItem[];
   }>;
   reflection: string | undefined;
   impression: string | undefined;
@@ -389,7 +391,7 @@ interface LegacyBackfill {
 }
 
 function sectionsToLegacy(
-  sections: Array<{ key: string; label: string; content: string; items?: string[]; order?: number }>,
+  sections: Array<{ key: string; label: string; content: string; items?: string[]; order?: number; outline?: import("../../types").OutlineItem[] }>,
   _guideType: string,
 ): LegacyBackfill {
   const result: LegacyBackfill = {
@@ -414,6 +416,7 @@ function sectionsToLegacy(
           title: s.label,
           content: s.content,
           content_format: "html",
+          outline: s.outline,
         });
         break;
       case "reflection":

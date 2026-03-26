@@ -29,12 +29,14 @@ import {
 } from "../prompts/improve-guide";
 import { resolveContentSections } from "../../section-config";
 import type { GuideType } from "../../types";
+import type { ModelTier } from "@/lib/domains/plan/llm/types";
 import { getCachedAuthUser } from "@/lib/auth/cachedGetUser";
 
 const LOG_CTX = { domain: "guide", action: "improveGuide" };
 
 export async function improveGuideAction(
   guideId: string,
+  modelTier: ModelTier = "fast",
 ): Promise<
   ActionResponse<{ guideId: string; preview: GeneratedGuideOutput }>
 > {
@@ -105,9 +107,9 @@ export async function improveGuideAction(
       system: buildImproveSystemPrompt(guide.guide_type as GuideType),
       messages: [{ role: "user", content: userPrompt }],
       schema: zodSchema(generatedGuideSchema),
-      modelTier: "fast",
+      modelTier,
       temperature: 0.35,
-      maxTokens: 16384,
+      maxTokens: modelTier === "advanced" ? 20480 : 14336,
     });
 
     // #7: 개선 결과 검증
@@ -149,6 +151,7 @@ export async function improveGuideAction(
         content_format: "html" as const,
         items: s.items,
         order: s.order,
+        outline: s.outline,
       })),
     });
 
@@ -176,11 +179,11 @@ export async function improveGuideAction(
 
 // sections → 레거시 역변환 (improveGuide용)
 function sectionsToLegacyImprove(
-  sections: Array<{ key: string; label: string; content: string; items?: string[]; order?: number }>,
+  sections: Array<{ key: string; label: string; content: string; items?: string[]; order?: number; outline?: import("../../types").OutlineItem[] }>,
 ) {
   const result = {
     motivation: undefined as string | undefined,
-    theorySections: [] as Array<{ order: number; title: string; content: string; content_format: "html" }>,
+    theorySections: [] as Array<{ order: number; title: string; content: string; content_format: "html"; outline?: import("../../types").OutlineItem[] }>,
     reflection: undefined as string | undefined,
     impression: undefined as string | undefined,
     summary: undefined as string | undefined,
@@ -195,6 +198,7 @@ function sectionsToLegacyImprove(
         result.theorySections.push({
           order: s.order ?? result.theorySections.length + 1,
           title: s.label, content: s.content, content_format: "html",
+          outline: s.outline,
         });
         break;
       case "reflection": result.reflection = s.content; break;

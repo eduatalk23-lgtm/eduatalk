@@ -167,6 +167,18 @@ export interface ExplorationGuide {
   updated_at: string;
 }
 
+/** 목차형 아웃라인 항목 (3-level hierarchy) */
+export interface OutlineItem {
+  /** 계층 깊이: 0=대주제, 1=중주제, 2=세부항목 */
+  depth: 0 | 1 | 2;
+  /** 항목 텍스트 */
+  text: string;
+  /** 컨설턴트 팁/코멘트 (선택) */
+  tip?: string;
+  /** 참고 자료/키워드 (선택) */
+  resources?: string[];
+}
+
 /** theory_sections JSONB 내 개별 섹션 */
 export interface TheorySection {
   order: number;
@@ -175,6 +187,8 @@ export interface TheorySection {
   content_format?: ContentFormat;
   image_path?: string;
   images?: TheorySectionImage[];
+  /** 목차형 아웃라인 (산문과 병행) */
+  outline?: OutlineItem[];
 }
 
 /** theory_sections 내 이미지 메타데이터 */
@@ -213,6 +227,8 @@ export interface ContentSection {
   metadata?: Record<string, string>;
   /** 복수 섹션 순서 (content_sections에서 같은 key가 여러 개일 때) */
   order?: number;
+  /** 목차형 아웃라인 데이터 (산문과 병행) */
+  outline?: OutlineItem[];
 }
 
 /** exploration_guide_content 테이블 행 */
