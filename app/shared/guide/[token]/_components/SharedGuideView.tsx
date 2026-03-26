@@ -26,18 +26,28 @@ export function SharedGuideView({ guide, visibleSections }: SharedGuideViewProps
   const renderContent = (sec: ContentSection) => {
     if (sec.items && sec.items.length > 0) {
       return (
-        <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+        <ol className="space-y-2 text-sm text-gray-700">
           {sec.items.map((item, i) => (
-            <li key={i}>{item}</li>
+            <li key={i} className="flex items-start gap-2">
+              <span className="text-gray-400 flex-shrink-0">{i + 1}.</span>
+              {item.startsWith("<") ? (
+                <div
+                  className="prose prose-sm max-w-none flex-1"
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item) }}
+                />
+              ) : (
+                <span className="whitespace-pre-wrap leading-relaxed">{item}</span>
+              )}
+            </li>
           ))}
-        </ul>
+        </ol>
       );
     }
 
     if (isHtml(sec.content)) {
       return (
         <div
-          className="prose prose-sm max-w-none text-gray-700"
+          className="prose prose-sm max-w-none text-gray-700 prose-p:my-2 prose-headings:mt-3 prose-headings:mb-1.5"
           dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(sec.content) }}
         />
       );
@@ -91,7 +101,7 @@ export function SharedGuideView({ guide, visibleSections }: SharedGuideViewProps
 
       {/* 섹션 렌더링 */}
       {config
-        .filter((def) => !def.adminOnly && visibleSections.includes(def.key))
+        .filter((def) => visibleSections.includes(def.key))
         .sort((a, b) => a.order - b.order)
         .map((def) => {
           const matching = sections.filter((s) => s.key === def.key);

@@ -228,7 +228,7 @@ export async function exportGuideAsDocx(
   }
 
   // 섹션별 렌더링
-  for (const def of config.filter((d) => !d.adminOnly).sort((a, b) => a.order - b.order)) {
+  for (const def of config.sort((a, b) => a.order - b.order)) {
     if (!options.selectedSectionKeys.includes(def.key)) continue;
 
     const matching = sections.filter((s) => s.key === def.key);
@@ -466,7 +466,7 @@ function buildGuideHtml(
   }
 
   // 섹션별 렌더링
-  for (const def of config.filter((d) => !d.adminOnly).sort((a, b) => a.order - b.order)) {
+  for (const def of config.sort((a, b) => a.order - b.order)) {
     if (!options.selectedSectionKeys.includes(def.key)) continue;
 
     const matching = sections.filter((s) => s.key === def.key);
@@ -676,12 +676,11 @@ function buildFileName(title: string, ext: string): string {
   return `${safeTitle}_${dateStr}.${ext}`;
 }
 
-/** 가이드에서 내보내기 가능한 섹션 키 목록 (adminOnly 제외) */
+/** 가이드에서 내보내기 가능한 섹션 키 목록 */
 export function getExportableSectionKeys(
   guideType: GuideType,
 ): Array<{ key: string; label: string }> {
   return (GUIDE_SECTION_CONFIG[guideType] ?? [])
-    .filter((d) => !d.adminOnly)
     .sort((a, b) => a.order - b.order)
     .map((d) => ({ key: d.key, label: d.label }));
 }

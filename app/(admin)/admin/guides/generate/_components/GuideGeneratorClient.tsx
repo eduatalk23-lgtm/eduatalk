@@ -387,10 +387,8 @@ export function GuideGeneratorClient() {
       const result = await generateGuideAction(generationInput);
 
       if (result.success && result.data) {
-        setGeneratedGuideId(result.data.guideId);
-        setPreview(result.data.preview);
-        setStep("preview");
-        toast.showSuccess("가이드가 생성되었습니다!");
+        toast.showSuccess("가이드가 생성되었습니다! 편집기로 이동합니다.");
+        router.push(`/admin/guides/${result.data.guideId}`);
       } else {
         toast.showError(!result.success ? result.error ?? "생성 실패" : "생성 실패");
       }
@@ -1203,7 +1201,7 @@ export function GuideGeneratorClient() {
             )}
           </div>
 
-          {/* 생성 버튼 — 모델 고정 (Pro + URL 검증) */}
+          {/* 생성 버튼 */}
           <div className="flex items-center justify-end">
             <button
               type="button"
@@ -1214,7 +1212,7 @@ export function GuideGeneratorClient() {
               {isGenerating ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  생성 + URL 검증 중... (60~90초)
+                  생성 중... (30~60초)
                 </>
               ) : (
                 <>
@@ -1255,6 +1253,7 @@ export function GuideGeneratorClient() {
                 outline: s.outline,
               }))}
               contentFormat="html"
+              showAdminSections
             />
           )}
 

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 /* Tailwind CSS 4 Content Paths - docs 폴더 제외 */
 @source "../app/**/*.{js,ts,jsx,tsx,mdx}";

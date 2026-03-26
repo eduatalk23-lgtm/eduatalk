@@ -401,7 +401,7 @@ export function GuideContentEditor(props: GuideContentEditorProps) {
       >
         <div className="flex items-center justify-between mb-3">
           <h3 className={sectionLabelClass}>
-            {def.label} (컨설턴트 전용)
+            {def.label}
           </h3>
           <button
             type="button"
@@ -418,29 +418,26 @@ export function GuideContentEditor(props: GuideContentEditorProps) {
             세특 예시가 없습니다.
           </p>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {props.setekExamples.map((example, index) => (
-              <div key={index} className="flex gap-2">
-                <textarea
-                  value={example}
-                  onChange={(e) => updateSetekExample(index, e.target.value)}
-                  rows={3}
-                  className={cn(
-                    "flex-1 px-3 py-2 rounded-lg border text-sm resize-none",
-                    "border-secondary-200 dark:border-secondary-700",
-                    "bg-white dark:bg-secondary-900",
-                    "text-[var(--text-primary)]",
-                    "focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500",
-                  )}
-                  placeholder={`세특 예시 ${index + 1}`}
+              <div key={index} className="relative group">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-medium text-[var(--text-secondary)]">
+                    예시 {index + 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeSetekExample(index)}
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <RichTextEditor
+                  content={props.toHtml(example, fmt)}
+                  onChange={(v) => updateSetekExample(index, v)}
+                  placeholder={`세특 예시 ${index + 1} (200~500자)`}
                 />
-                <button
-                  type="button"
-                  onClick={() => removeSetekExample(index)}
-                  className="self-start p-1.5 rounded text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
               </div>
             ))}
           </div>

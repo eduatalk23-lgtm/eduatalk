@@ -279,7 +279,14 @@ function ProseContent({ html }: { html: string }) {
   if (html.startsWith("<")) {
     return (
       <div
-        className="text-[13px] text-[var(--text-primary)] leading-relaxed prose-sm max-w-prose"
+        className={cn(
+          "prose prose-sm max-w-none",
+          "prose-p:text-[var(--text-primary)] prose-p:leading-relaxed prose-p:my-2",
+          "prose-headings:text-[var(--text-heading)] prose-headings:font-semibold prose-headings:mt-3 prose-headings:mb-1.5",
+          "prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5",
+          "prose-strong:text-[var(--text-primary)]",
+          "text-[13px]",
+        )}
         dangerouslySetInnerHTML={{
           __html: typeof window !== "undefined" ? DOMPurify.sanitize(html) : html,
         }}
@@ -288,7 +295,7 @@ function ProseContent({ html }: { html: string }) {
   }
 
   return (
-    <p className="text-[13px] text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap max-w-prose">
+    <p className="text-[13px] text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap max-w-none">
       {html}
     </p>
   );
@@ -303,9 +310,9 @@ function ProseFallback({
   defLabel: string;
 }) {
   return (
-    <div className="rounded-lg border-l-2 border-blue-300 dark:border-blue-600 bg-secondary-50 dark:bg-secondary-800/30 p-3">
+    <div className="rounded-lg border-l-2 border-blue-300 dark:border-blue-600 bg-secondary-50 dark:bg-secondary-800/30 p-4">
       {section.label && section.label !== defLabel && (
-        <p className="text-xs font-semibold text-secondary-500 mb-1.5">
+        <p className="text-xs font-semibold text-secondary-500 mb-2">
           {section.label}
         </p>
       )}

@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/cn";
 import { GUIDE_TYPE_LABELS } from "@/lib/domains/guide/types";
 import type { GuideType, TheorySection, ContentSection } from "@/lib/domains/guide/types";
 import {
@@ -24,6 +25,8 @@ interface GuidePreviewProps {
   bookDescription: string;
   contentFormat?: string;
   contentSections?: ContentSection[];
+  /** admin-only 섹션(consultant_guide 등) 표시 여부 */
+  showAdminSections?: boolean;
   curriculumYear?: string;
   subjectArea?: string;
   subjectSelect?: string;
@@ -38,12 +41,12 @@ export function GuidePreview(props: GuidePreviewProps) {
   const renderContent = (text: string) => {
     if (!text) return null;
     if (isHtml(text)) {
-      return <RichTextViewer content={text} />;
+      return <RichTextViewer content={text} className="prose-p:my-2 prose-headings:mt-3 prose-headings:mb-1.5" />;
     }
     return (
-      <p className="whitespace-pre-wrap text-sm text-[var(--text-primary)] leading-relaxed">
+      <div className="whitespace-pre-wrap text-sm text-[var(--text-primary)] leading-relaxed space-y-2">
         {text}
-      </p>
+      </div>
     );
   };
 
@@ -131,7 +134,7 @@ export function GuidePreview(props: GuidePreviewProps) {
       {/* 섹션 빠른 이동 */}
       <nav className="flex flex-wrap gap-1.5">
         {sectionConfig
-          .filter((def) => !def.adminOnly && sections.some((s) => s.key === def.key))
+          .filter((def) => (props.showAdminSections || !def.adminOnly) && sections.some((s) => s.key === def.key))
           .sort((a, b) => a.order - b.order)
           .map((def) => (
             <button
@@ -143,26 +146,32 @@ export function GuidePreview(props: GuidePreviewProps) {
               className="px-2 py-1 rounded text-xs text-[var(--text-secondary)] hover:bg-secondary-100 dark:hover:bg-secondary-800 transition-colors"
             >
               {def.label}
+              {def.key === "consultant_guide" && " 🔒"}
             </button>
           ))}
       </nav>
 
       {/* 섹션 렌더링 */}
       {sectionConfig
-        .filter((def) => !def.adminOnly)
+        .filter((def) => props.showAdminSections || !def.adminOnly)
         .sort((a, b) => a.order - b.order)
         .map((def) => {
-          // text_list (학습목표 등)
-          if (def.editorType === "text_list" && def.key !== "setek_examples") {
+          // text_list (학습목표, 세특 예시 등)
+          if (def.editorType === "text_list") {
             const section = sections.find((s) => s.key === def.key);
             if (!section?.items?.length) return null;
+            const isSetek = def.key === "setek_examples";
             return (
               <PreviewBlock key={def.key} label={def.label} sectionKey={def.key}>
-                <ul className="space-y-1">
+                <ul className={isSetek ? "space-y-3" : "space-y-1"}>
                   {section.items.map((item, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
-                      <span className="text-primary-500 mt-0.5">-</span>
-                      {item}
+                      <span className="text-primary-500 mt-0.5 flex-shrink-0">{isSetek ? `${i + 1}.` : "-"}</span>
+                      {item.startsWith("<") ? (
+                        <RichTextViewer content={item} className="flex-1 prose-p:my-1" />
+                      ) : (
+                        <span className="whitespace-pre-wrap leading-relaxed">{item}</span>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -187,15 +196,12 @@ export function GuidePreview(props: GuidePreviewProps) {
             );
           }
 
-          // 세특 예시 스킵
-          if (def.key === "setek_examples") return null;
-
           // 단일 섹션
           const section = sections.find((s) => s.key === def.key);
           if (!section?.content) return null;
 
           return (
-            <PreviewBlock key={def.key} label={def.label}>
+            <PreviewBlock key={def.key} label={def.label} consultantOnly={def.key === "consultant_guide"}>
               {renderContent(section.content)}
             </PreviewBlock>
           );
@@ -208,16 +214,29 @@ function PreviewBlock({
   label,
   children,
   sectionKey,
+  consultantOnly,
 }: {
   label: string;
   children: React.ReactNode;
   sectionKey?: string;
+  consultantOnly?: boolean;
 }) {
   if (!children) return null;
   return (
-    <div id={sectionKey ? `preview-${sectionKey}` : undefined} className="scroll-mt-16">
-      <h4 className="text-sm font-semibold text-[var(--text-heading)] mb-1.5">
+    <div
+      id={sectionKey ? `preview-${sectionKey}` : undefined}
+      className={cn(
+        "scroll-mt-16",
+        consultantOnly && "rounded-lg border border-dashed border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-900/10 p-4",
+      )}
+    >
+      <h4 className="text-sm font-semibold text-[var(--text-heading)] mb-2 flex items-center gap-1.5">
         {label}
+        {consultantOnly && (
+          <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded">
+            컨설턴트 전용
+          </span>
+        )}
       </h4>
       {children}
     </div>

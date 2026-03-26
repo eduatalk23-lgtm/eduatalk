@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Trash2, Loader2, Eye, EyeOff, CopyPlus, Sparkles, Download, Share2 } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Loader2, Eye, EyeOff, CopyPlus, Sparkles, Download, Share2, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
@@ -148,6 +148,25 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
   /** 유형 확장/선택 섹션 데이터 (type_extension + optional 키) */
   const [extraSections, setExtraSections] = useState<ContentSection[]>([]);
 
+  // 미리보기용 실시간 contentSections 조합
+  const previewContentSections = useMemo<ContentSection[]>(() => {
+    const all: ContentSection[] = [];
+    if (motivation) all.push({ key: "motivation", label: "탐구 동기", content: motivation, content_format: "html" });
+    for (const ts of theorySections) {
+      all.push({ key: "content_sections", label: ts.title, content: ts.content, content_format: "html", order: ts.order, outline: ts.outline });
+    }
+    for (const es of extraSections) {
+      if (es.content || es.items?.length) all.push(es);
+    }
+    if (reflection) all.push({ key: "reflection", label: "탐구 고찰 및 제언", content: reflection, content_format: "html" });
+    if (impression) all.push({ key: "impression", label: "느낀점", content: impression, content_format: "html" });
+    if (summary) all.push({ key: "summary", label: "탐구 요약", content: summary, content_format: "html" });
+    if (followUp) all.push({ key: "follow_up", label: "후속 탐구", content: followUp, content_format: "html" });
+    if (bookDescription) all.push({ key: "book_description", label: "도서 소개", content: bookDescription, content_format: "html" });
+    if (setekExamples.length > 0) all.push({ key: "setek_examples", label: "세특 예시", content: "", content_format: "plain", items: setekExamples });
+    return all;
+  }, [motivation, theorySections, extraSections, reflection, impression, summary, followUp, bookDescription, setekExamples]);
+
   // UI 상태
   const [isDirty, setIsDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -184,6 +203,13 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
     setSelectedCareerFieldIds(guide.career_fields.map((c) => c.id));
 
     if (guide.content) {
+      // content_sections 우선, 없으면 레거시 fallback
+      const resolved = resolveContentSections(
+        guide.guide_type as GuideType,
+        guide.content,
+      );
+
+      // 레거시 필드 hydrate (content_sections가 없는 기존 가이드 호환)
       setMotivation(guide.content.motivation ?? "");
       setTheorySections(guide.content.theory_sections ?? []);
       setReflection(guide.content.reflection ?? "");
@@ -191,27 +217,28 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
       setSummary(guide.content.summary ?? "");
       setFollowUp(guide.content.follow_up ?? "");
       setBookDescription(guide.content.book_description ?? "");
-      setSetekExamples(guide.content.setek_examples ?? []);
+
+      // setek_examples: content_sections 우선 → 레거시 fallback
+      const resolvedSetek = resolved.find((s) => s.key === "setek_examples");
+      setSetekExamples(resolvedSetek?.items ?? guide.content.setek_examples ?? []);
 
       // type_extension/optional 섹션 (레거시 필드에 매핑되지 않는 키들)
-      const resolved = resolveContentSections(
-        guide.guide_type as GuideType,
-        guide.content,
-      );
       const coreKeys = new Set([
         "motivation", "content_sections", "reflection", "impression",
         "summary", "follow_up", "book_description", "setek_examples",
       ]);
       setExtraSections(resolved.filter((s) => !coreKeys.has(s.key)));
     }
-    // 초기화 후 dirty 리셋 (다음 틱에서)
-    const timer = setTimeout(() => setIsDirty(false), 0);
-    return () => clearTimeout(timer);
+    // 초기화 후 dirty 리셋
+    setIsDirty(false);
+    hydratedRef.current = true;
   }, [guide]);
 
-  // 폼 변경 감지 → isDirty 설정
+  // 폼 변경 감지 → isDirty 설정 (초기 hydrate 이후에만)
+  const hydratedRef = useRef(false);
   useEffect(() => {
-    if (guide) setIsDirty(true);
+    if (!hydratedRef.current) return;
+    setIsDirty(true);
   }, [title, guideType, status, motivation, theorySections, reflection, impression, summary, followUp, bookDescription, setekExamples, extraSections, bookTitle, bookAuthor, bookPublisher]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // plain text → html 변환 (기존 imported 콘텐츠)
@@ -579,12 +606,16 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
       {/* 헤더 — sticky */}
       <div className="sticky top-0 z-20 -mx-4 px-4 py-3 bg-white/95 dark:bg-secondary-950/95 backdrop-blur-sm border-b border-transparent [&:not(:first-child)]:border-secondary-200 dark:[&:not(:first-child)]:border-secondary-800 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link
-            href="/admin/guides"
+          <button
+            type="button"
+            onClick={() => {
+              if (!showPreview && isDirty && !confirm("저장하지 않은 변경사항이 있습니다. 나가시겠습니까?")) return;
+              router.push("/admin/guides");
+            }}
             className="p-2 rounded-lg hover:bg-secondary-100 dark:hover:bg-secondary-800 transition-colors"
           >
             <ArrowLeft className="w-5 h-5 text-[var(--text-secondary)]" />
-          </Link>
+          </button>
           <h1 className="text-lg font-bold text-[var(--text-heading)]">
             {isNew ? "새 가이드 작성" : showPreview ? "가이드 미리보기" : "가이드 편집"}
           </h1>
@@ -672,6 +703,19 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
               )}
               <button
                 type="button"
+                onClick={() => {
+                  if (isDirty) {
+                    if (!confirm("저장하지 않은 변경사항이 있습니다. 나가시겠습니까?")) return;
+                  }
+                  router.push("/admin/guides");
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-700 text-[var(--text-secondary)] text-sm hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors"
+              >
+                <X className="w-4 h-4" />
+                취소
+              </button>
+              <button
+                type="button"
                 onClick={handleSave}
                 disabled={saving}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors disabled:opacity-50"
@@ -703,6 +747,8 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
           followUp={followUp}
           bookDescription={bookDescription}
           contentFormat={getContentFormat()}
+          contentSections={previewContentSections}
+          showAdminSections
           curriculumYear={curriculumYear}
           subjectArea={subjectArea}
           subjectSelect={subjectSelect}
@@ -997,6 +1043,9 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
         mode={exportMode}
         onConfirm={handleExportConfirm}
         isLoading={exporting}
+        availableSectionKeys={previewContentSections
+          .filter((s) => s.content || (s.items && s.items.length > 0))
+          .map((s) => s.key)}
         hasBookInfo={!!bookTitle}
         hasRelatedPapers={
           !!(guide?.content?.related_papers && guide.content.related_papers.length > 0)

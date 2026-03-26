@@ -23,6 +23,8 @@ interface GuideExportModalProps {
     },
   ) => void;
   isLoading?: boolean;
+  /** 실제 콘텐츠가 있는 섹션 키 목록 */
+  availableSectionKeys?: string[];
   /** 독서탐구 도서 정보 존재 여부 */
   hasBookInfo?: boolean;
   /** 관련 논문 존재 여부 */
@@ -40,22 +42,31 @@ export function GuideExportModal({
   mode,
   onConfirm,
   isLoading = false,
+  availableSectionKeys,
   hasBookInfo = false,
   hasRelatedPapers = false,
   hasRelatedBooks = false,
 }: GuideExportModalProps) {
+  const availableSet = useMemo(
+    () => (availableSectionKeys ? new Set(availableSectionKeys) : null),
+    [availableSectionKeys],
+  );
   const sections = useMemo(
     () =>
       (GUIDE_SECTION_CONFIG[guideType] ?? [])
-        .filter((d) => !d.adminOnly)
         .sort((a, b) => a.order - b.order),
     [guideType],
   );
 
   const allKeys = useMemo(() => sections.map((s) => s.key), [sections]);
+  /** 실제 콘텐츠가 있는 섹션 키 */
+  const activeKeys = useMemo(
+    () => (availableSet ? allKeys.filter((k) => availableSet.has(k)) : allKeys),
+    [allKeys, availableSet],
+  );
 
   // 섹션 선택 상태
-  const [selectedKeys, setSelectedKeys] = useState<string[]>(allKeys);
+  const [selectedKeys, setSelectedKeys] = useState<string[]>(activeKeys);
   const [format, setFormat] = useState<"pdf" | "docx">("pdf");
   const [includeBookInfo, setIncludeBookInfo] = useState(true);
   const [includeRelatedPapers, setIncludeRelatedPapers] = useState(false);
@@ -73,19 +84,19 @@ export function GuideExportModal({
           papers?: boolean;
           books?: boolean;
         };
-        // 현재 유효한 키만 필터
-        setSelectedKeys(parsed.keys.filter((k: string) => allKeys.includes(k)));
+        // 현재 유효하고 콘텐츠가 있는 키만 필터
+        setSelectedKeys(parsed.keys.filter((k: string) => activeKeys.includes(k)));
         if (parsed.bookInfo !== undefined) setIncludeBookInfo(parsed.bookInfo);
         if (parsed.papers !== undefined) setIncludeRelatedPapers(parsed.papers);
         if (parsed.books !== undefined) setIncludeRelatedBooks(parsed.books);
       } else {
-        setSelectedKeys(allKeys);
+        setSelectedKeys(activeKeys);
       }
     } catch {
-      setSelectedKeys(allKeys);
+      setSelectedKeys(activeKeys);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, guideType]);
+  }, [open, guideType, activeKeys]);
 
   const toggleKey = useCallback((key: string) => {
     setSelectedKeys((prev) =>
@@ -95,9 +106,9 @@ export function GuideExportModal({
 
   const toggleAll = useCallback(() => {
     setSelectedKeys((prev) =>
-      prev.length === allKeys.length ? [] : [...allKeys],
+      prev.length === activeKeys.length ? [] : [...activeKeys],
     );
-  }, [allKeys]);
+  }, [activeKeys]);
 
   const handleConfirm = () => {
     // localStorage에 선택 저장
@@ -121,7 +132,7 @@ export function GuideExportModal({
     });
   };
 
-  const allSelected = selectedKeys.length === allKeys.length;
+  const allSelected = selectedKeys.length === activeKeys.length;
 
   return (
     <Dialog
@@ -150,22 +161,26 @@ export function GuideExportModal({
 
         {/* 섹션 체크박스 */}
         <div className="space-y-2">
-          {sections.map((def) => (
-            <label key={def.key} className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={selectedKeys.includes(def.key)}
-                onChange={() => toggleKey(def.key)}
-                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              <span className="text-sm text-[var(--text-primary)]">
-                {def.label}
-              </span>
-              {def.required && (
-                <span className="text-[10px] text-primary-500">필수</span>
-              )}
-            </label>
-          ))}
+          {sections.map((def) => {
+            const hasContent = !availableSet || availableSet.has(def.key);
+            return (
+              <label key={def.key} className={`flex items-center gap-2 ${hasContent ? "cursor-pointer" : "cursor-not-allowed opacity-40"}`}>
+                <input
+                  type="checkbox"
+                  checked={selectedKeys.includes(def.key)}
+                  onChange={() => toggleKey(def.key)}
+                  disabled={!hasContent}
+                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 disabled:opacity-50"
+                />
+                <span className="text-sm text-[var(--text-primary)]">
+                  {def.label}
+                </span>
+                {!hasContent && (
+                  <span className="text-[10px] text-[var(--text-secondary)]">내용 없음</span>
+                )}
+              </label>
+            );
+          })}
         </div>
 
         {/* 추가 옵션 */}

@@ -54,12 +54,12 @@ export function GuideDetailDialog({
   const renderContent = (text: string) => {
     if (!text) return null;
     if (text.startsWith("<")) {
-      return <RichTextViewer content={text} />;
+      return <RichTextViewer content={text} className="prose-p:my-2 prose-headings:mt-3 prose-headings:mb-1.5" />;
     }
     return (
-      <p className={cn("whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300")}>
+      <div className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
         {text}
-      </p>
+      </div>
     );
   };
 
@@ -125,7 +125,7 @@ export function GuideDetailDialog({
                 .sort((a, b) => a.order - b.order)
                 .map((def) => {
                   // text_list (학습목표 등)
-                  if (def.editorType === "text_list" && def.key !== "setek_examples") {
+                  if (def.editorType === "text_list") {
                     const section = sections.find((s) => s.key === def.key);
                     if (!section?.items?.length) return null;
                     return (
@@ -161,8 +161,6 @@ export function GuideDetailDialog({
                       </div>
                     );
                   }
-
-                  if (def.key === "setek_examples") return null;
 
                   const section = sections.find((s) => s.key === def.key);
                   if (!section?.content) return null;
