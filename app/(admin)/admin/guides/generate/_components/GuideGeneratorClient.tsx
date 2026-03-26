@@ -12,6 +12,8 @@ import {
   Pencil,
   ClipboardCheck,
   Search,
+  FileText,
+  Globe,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -54,7 +56,7 @@ import type { ReviewResult } from "@/lib/domains/guide/llm/actions/reviewGuide";
 import { GuidePreview } from "../../[id]/_components/GuidePreview";
 
 type Step = "input" | "preview";
-type SourceMode = "keyword" | "clone_variant";
+type SourceMode = "keyword" | "clone_variant" | "pdf_extract" | "url_extract";
 
 export function GuideGeneratorClient() {
   const router = useRouter();
@@ -164,6 +166,9 @@ export function GuideGeneratorClient() {
   const [cloneTargetSubject, setCloneTargetSubject] = useState("");
   const [cloneTargetCareer, setCloneTargetCareer] = useState("");
   const [variationNote, setVariationNote] = useState("");
+
+  // PDF/URL 추출 상태
+  const [extractUrl, setExtractUrl] = useState("");
 
   // 결과
   const [generatedGuideId, setGeneratedGuideId] = useState<string | null>(null);
@@ -320,18 +325,22 @@ export function GuideGeneratorClient() {
         additionalContext,
       ].filter(Boolean).join("\n\n");
 
-      const result = await generateGuideAction(
+      const commonInput = {
+        curriculumYear: String(curriculumYear),
+        subjectArea: targetSubjectGroup || undefined,
+        subjectSelect: targetSubject || undefined,
+        unitMajor: targetMajorUnit || undefined,
+        unitMinor: targetMinorUnit || undefined,
+        modelTier,
+        studentId: selectedStudentId || undefined,
+        selectedSectionKeys: [...selectedSectionKeys],
+      };
+
+      const generationInput =
         sourceMode === "keyword"
           ? {
-              source: "keyword",
-              curriculumYear: String(curriculumYear),
-              subjectArea: targetSubjectGroup || undefined,
-              subjectSelect: targetSubject || undefined,
-              unitMajor: targetMajorUnit || undefined,
-              unitMinor: targetMinorUnit || undefined,
-              modelTier,
-              studentId: selectedStudentId || undefined,
-              selectedSectionKeys: [...selectedSectionKeys],
+              ...commonInput,
+              source: "keyword" as const,
               keyword: {
                 keyword,
                 guideType,
@@ -340,24 +349,42 @@ export function GuideGeneratorClient() {
                 additionalContext: fullContext || undefined,
               },
             }
-          : {
-              source: "clone_variant",
-              curriculumYear: String(curriculumYear),
-              subjectArea: targetSubjectGroup || undefined,
-              subjectSelect: targetSubject || undefined,
-              unitMajor: targetMajorUnit || undefined,
-              unitMinor: targetMinorUnit || undefined,
-              modelTier,
-              studentId: selectedStudentId || undefined,
-              selectedSectionKeys: [...selectedSectionKeys],
-              clone: {
-                sourceGuideId,
-                targetSubject: cloneTargetSubject || undefined,
-                targetCareerField: cloneTargetCareer || undefined,
-                variationNote: variationNote || undefined,
-              },
-            },
-      );
+          : sourceMode === "clone_variant"
+            ? {
+                ...commonInput,
+                source: "clone_variant" as const,
+                clone: {
+                  sourceGuideId,
+                  targetSubject: cloneTargetSubject || undefined,
+                  targetCareerField: cloneTargetCareer || undefined,
+                  variationNote: variationNote || undefined,
+                },
+              }
+            : sourceMode === "pdf_extract"
+              ? {
+                  ...commonInput,
+                  source: "pdf_extract" as const,
+                  pdf: {
+                    pdfUrl: extractUrl,
+                    guideType,
+                    targetSubject: targetSubject || undefined,
+                    targetCareerField: targetCareerField || undefined,
+                    additionalContext: additionalContext || undefined,
+                  },
+                }
+              : {
+                  ...commonInput,
+                  source: "url_extract" as const,
+                  url: {
+                    url: extractUrl,
+                    guideType,
+                    targetSubject: targetSubject || undefined,
+                    targetCareerField: targetCareerField || undefined,
+                    additionalContext: additionalContext || undefined,
+                  },
+                };
+
+      const result = await generateGuideAction(generationInput);
 
       if (result.success && result.data) {
         setGeneratedGuideId(result.data.guideId);
@@ -375,8 +402,8 @@ export function GuideGeneratorClient() {
   }, [
     sourceMode, keyword, guideType, targetSubject, targetCareerField,
     additionalContext, sourceGuideId, cloneTargetSubject, cloneTargetCareer,
-    variationNote, toast, modelTier, curriculumYear, targetSubjectGroup,
-    targetMajorUnit, targetMinorUnit,
+    variationNote, extractUrl, toast, modelTier, curriculumYear, targetSubjectGroup,
+    targetMajorUnit, targetMinorUnit, selectedStudentId, selectedSectionKeys,
   ]);
 
   const handleReview = useCallback(async () => {
@@ -400,7 +427,9 @@ export function GuideGeneratorClient() {
   const canGenerate =
     sourceMode === "keyword"
       ? keyword.trim().length > 0
-      : sourceGuideId.length > 0;
+      : sourceMode === "clone_variant"
+        ? sourceGuideId.length > 0
+        : extractUrl.trim().length > 0; // pdf_extract | url_extract
 
   return (
     <div className="space-y-6">
@@ -449,6 +478,20 @@ export function GuideGeneratorClient() {
               icon={<Copy className="w-4 h-4" />}
               label="기존 가이드 변형"
               description="기존 가이드를 다른 관점으로 변형"
+            />
+            <SourceButton
+              active={sourceMode === "pdf_extract"}
+              onClick={() => setSourceMode("pdf_extract")}
+              icon={<FileText className="w-4 h-4" />}
+              label="PDF 추출"
+              description="PDF 논문/자료에서 가이드 생성"
+            />
+            <SourceButton
+              active={sourceMode === "url_extract"}
+              onClick={() => setSourceMode("url_extract")}
+              icon={<Globe className="w-4 h-4" />}
+              label="URL 추출"
+              description="웹페이지/기사에서 가이드 생성"
             />
           </div>
 
@@ -1095,6 +1138,69 @@ export function GuideGeneratorClient() {
                 </FormField>
               </>
             )}
+
+            {/* PDF/URL 추출 입력 */}
+            {(sourceMode === "pdf_extract" || sourceMode === "url_extract") && (
+              <>
+                <FormField
+                  label={sourceMode === "pdf_extract" ? "PDF URL" : "웹페이지 URL"}
+                  required
+                >
+                  <input
+                    type="url"
+                    value={extractUrl}
+                    onChange={(e) => setExtractUrl(e.target.value)}
+                    placeholder={
+                      sourceMode === "pdf_extract"
+                        ? "https://example.com/paper.pdf"
+                        : "https://example.com/article"
+                    }
+                    className={inputClass}
+                  />
+                </FormField>
+
+                {/* 가이드 설정 (유형/계열) */}
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField label="가이드 유형">
+                    <select
+                      value={guideType}
+                      onChange={(e) => setGuideType(e.target.value as GuideType)}
+                      className={inputClass}
+                    >
+                      {GUIDE_TYPES.map((t) => (
+                        <option key={t} value={t}>
+                          {GUIDE_TYPE_LABELS[t]}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+                  <FormField label="관련 계열">
+                    <select
+                      value={targetCareerField}
+                      onChange={(e) => setTargetCareerField(e.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="">선택 안함</option>
+                      {careerFields.map((c) => (
+                        <option key={c.id} value={c.name_kor}>
+                          {c.name_kor}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+                </div>
+
+                <FormField label="추가 요청사항" optional>
+                  <textarea
+                    value={additionalContext}
+                    onChange={(e) => setAdditionalContext(e.target.value)}
+                    rows={2}
+                    placeholder="원문에서 집중할 부분, 관련 과목 등..."
+                    className={cn(inputClass, "resize-none")}
+                  />
+                </FormField>
+              </>
+            )}
           </div>
 
           {/* 모델 선택 + 생성 버튼 */}
@@ -1173,6 +1279,14 @@ export function GuideGeneratorClient() {
               summary={preview.summary ?? ""}
               followUp={preview.followUp ?? ""}
               bookDescription={preview.bookDescription ?? ""}
+              contentSections={preview.sections.map((s) => ({
+                key: s.key,
+                label: s.label,
+                content: s.content,
+                content_format: "html" as const,
+                items: s.items,
+                order: s.order,
+              }))}
               contentFormat="html"
             />
           )}

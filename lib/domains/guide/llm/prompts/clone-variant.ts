@@ -17,8 +17,9 @@ const CLONE_SPECIFIC_RULES = `
 export function buildCloneSystemPrompt(
   guideType: GuideType,
   studentProfile?: StudentProfileContext,
+  selectedSectionKeys?: string[],
 ): string {
-  return `${buildBaseSystemPrompt(guideType, studentProfile)}\n${CLONE_SPECIFIC_RULES}`;
+  return `${buildBaseSystemPrompt(guideType, studentProfile, selectedSectionKeys)}\n${CLONE_SPECIFIC_RULES}`;
 }
 
 // 하위 호환

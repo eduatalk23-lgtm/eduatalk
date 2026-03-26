@@ -179,8 +179,12 @@ export function createGuideTools(ctx: AgentContext) {
           .boolean()
           .default(true)
           .describe("학생 프로필 기반 진로 연계 가이드 생성 여부 (기본: true)"),
+        selectedSectionKeys: z
+          .array(z.string())
+          .optional()
+          .describe("생성할 섹션 key 목록 (미지정 시 유형 기본 섹션 전체 생성)"),
       }),
-      execute: async ({ source, input: inputValue, guideType, targetSubject, targetCareerField, additionalContext, useStudentProfile }) => {
+      execute: async ({ source, input: inputValue, guideType, targetSubject, targetCareerField, additionalContext, useStudentProfile, selectedSectionKeys }) => {
         logActionDebug(LOG_CTX, `generateGuide: source=${source}, input=${inputValue.slice(0, 50)}`);
         try {
           // 학생 프로필 로드 (Agent 컨텍스트에서)
@@ -202,6 +206,11 @@ export function createGuideTools(ctx: AgentContext) {
           // 학생 프로필 주입
           if (studentProfile) {
             generationInput.studentProfile = studentProfile;
+          }
+
+          // 섹션 선택 주입
+          if (selectedSectionKeys?.length) {
+            generationInput.selectedSectionKeys = selectedSectionKeys;
           }
 
           const result = await generateGuideAction(generationInput);

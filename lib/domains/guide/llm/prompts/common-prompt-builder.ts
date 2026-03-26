@@ -35,9 +35,13 @@ export function buildSectionStructurePrompt(
     GUIDE_SECTION_CONFIG[guideType] ??
     GUIDE_SECTION_CONFIG["topic_exploration"];
 
-  // selectedKeys가 있으면 해당 섹션만 포함
+  // selectedKeys가 있으면 해당 섹션 + Core 섹션(항상 포함)
   const defs = selectedKeys
-    ? allDefs.filter((d) => selectedKeys.includes(d.key))
+    ? allDefs.filter(
+        (d) =>
+          selectedKeys.includes(d.key) ||
+          (d.tier ?? "core") === "core", // Core는 항상 포함
+      )
     : allDefs;
 
   const lines: string[] = [];

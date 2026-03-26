@@ -93,8 +93,30 @@ export async function generateGuideAction(
       schema: zodSchema(generatedGuideSchema),
       modelTier: tier,
       temperature: 0.5,
-      maxTokens: tier === "advanced" ? 16384 : 8192,
+      maxTokens: tier === "advanced" ? 16384 : 12288,
     });
+
+    // selectedSectionKeys가 있으면 AI 출력을 필터링 (선택하지 않은 섹션 제거)
+    // Core 섹션은 항상 포함하여 데이터 무결성 보장
+    if (input.selectedSectionKeys?.length) {
+      const { getCoreSections } = await import("../../section-config");
+      const guideType = generated.guideType as import("../../types").GuideType;
+      const coreKeys = new Set(getCoreSections(guideType).map((s) => s.key));
+      const allowedKeys = new Set([
+        ...coreKeys,
+        ...input.selectedSectionKeys,
+      ]);
+      generated.sections = generated.sections.filter((s) =>
+        allowedKeys.has(s.key),
+      );
+    }
+
+    // 필터링 후 유효성 검증
+    if (generated.sections.length === 0) {
+      return createErrorResponse(
+        "AI가 유효한 섹션을 생성하지 못했습니다. 다시 시도해주세요.",
+      );
+    }
 
     // 과목/계열/소분류 이름 → ID 매핑
     const [allSubjects, allCareerFields, allClassifications] = await Promise.all([
@@ -281,6 +303,7 @@ async function buildPrompt(
         systemPrompt: buildCloneSystemPrompt(
           sourceGuide.guide_type as import("../../types").GuideType,
           input.studentProfile,
+          input.selectedSectionKeys,
         ),
         userPrompt: buildCloneUserPrompt(sourceGuide, input.clone),
         sourceType: "ai_clone_variant",
@@ -298,6 +321,7 @@ async function buildPrompt(
         systemPrompt: buildExtractionSystemPrompt(
           input.pdf.guideType,
           input.studentProfile,
+          input.selectedSectionKeys,
         ),
         userPrompt: buildExtractionUserPrompt({
           extractedText: pdfResult.text,
@@ -323,6 +347,7 @@ async function buildPrompt(
         systemPrompt: buildExtractionSystemPrompt(
           input.url.guideType,
           input.studentProfile,
+          input.selectedSectionKeys,
         ),
         userPrompt: buildExtractionUserPrompt({
           extractedText: urlResult.text,

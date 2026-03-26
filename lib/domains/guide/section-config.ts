@@ -688,6 +688,17 @@ export function legacyToContentSections(
           });
         }
         break;
+
+      // type_extension 키 — 레거시 필드에 대응 없음 (신규 가이드에서만 content_sections에 직접 저장)
+      case "hypothesis":
+      case "materials":
+      case "analysis":
+      case "curriculum_link":
+      case "self_assessment":
+      case "overview":
+      case "deliverables":
+      case "learning":
+        break;
     }
   }
 
