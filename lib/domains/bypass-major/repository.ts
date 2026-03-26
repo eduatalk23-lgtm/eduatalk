@@ -210,8 +210,8 @@ export async function saveCandidates(
       competency_rationale: c.competency_rationale ?? prev.competency_rationale,
       curriculum_rationale: c.curriculum_rationale ?? prev.curriculum_rationale,
       placement_rationale: c.placement_rationale ?? prev.placement_rationale,
-      placement_score: c.placement_score ?? (prev as Record<string, unknown>).placement_score as number | null ?? null,
-      placement_source: c.placement_source ?? (prev as Record<string, unknown>).placement_source as string | null ?? null,
+      placement_score: c.placement_score ?? ((prev as Record<string, unknown>).placement_score as number | null) ?? null,
+      placement_source: c.placement_source ?? ((prev as Record<string, unknown>).placement_source as "mock" | "gpa" | "none" | null) ?? null,
       // 컨설턴트 메모와 상태는 항상 기존 값 유지
       consultant_notes: prev.consultant_notes ?? c.consultant_notes,
       status: prev.status as "candidate" | "shortlisted" | "rejected",

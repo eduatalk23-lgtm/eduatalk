@@ -226,6 +226,64 @@ export async function calculateAverageGrade(
   }
 }
 
+/** 과목그룹별 내신 평균 등급 (국영수/과학/사회 분리) */
+export interface SubjectGroupGpa {
+  korean: number | null;   // 국어
+  math: number | null;     // 수학
+  english: number | null;  // 영어
+  science: number | null;  // 과학
+  social: number | null;   // 사회
+  overall: number | null;  // 전체
+}
+
+export async function calculateSubjectGroupGpa(
+  studentId: string,
+  tenantId?: string | null,
+): Promise<SubjectGroupGpa> {
+  const empty: SubjectGroupGpa = { korean: null, math: null, english: null, science: null, social: null, overall: null };
+  try {
+    if (!tenantId) return empty;
+
+    const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+    const supabase = await createSupabaseServerClient();
+
+    const { data } = await supabase
+      .from("student_internal_scores")
+      .select("rank_grade, subject:subjects!inner(subject_group:subject_groups!inner(name))")
+      .eq("student_id", studentId)
+      .not("rank_grade", "is", null);
+
+    if (!data || data.length === 0) return empty;
+
+    const groups: Record<string, number[]> = {};
+    const allGrades: number[] = [];
+    for (const row of data) {
+      const grade = row.rank_grade as number;
+      // Supabase !inner JOIN은 단일 객체를 반환하지만 타입이 배열일 수 있음
+      const subject = row.subject as unknown as { subject_group: { name: string } } | null;
+      const groupName = subject?.subject_group?.name;
+      if (!groupName || grade == null) continue;
+      allGrades.push(grade);
+      if (!groups[groupName]) groups[groupName] = [];
+      groups[groupName].push(grade);
+    }
+
+    const avg = (arr?: number[]) => arr && arr.length > 0 ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 100) / 100 : null;
+
+    return {
+      korean: avg(groups["국어"]),
+      math: avg(groups["수학"]),
+      english: avg(groups["영어"]),
+      science: avg(groups["과학"]),
+      social: avg(groups["사회(역사/도덕 포함)"]),
+      overall: avg(allGrades),
+    };
+  } catch (error) {
+    logActionError({ domain: "score", action: "calculateSubjectGroupGpa" }, error, { studentId });
+    return empty;
+  }
+}
+
 /**
  * 과목별 성적 추이 조회
  */

@@ -531,11 +531,16 @@ function CandidateCard({
                 종합 {totalScore}
               </span>
             )}
-            {c.placement_grade && PLACEMENT_LABELS[c.placement_grade] && (
-              <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-medium", PLACEMENT_COLORS[c.placement_grade])}>
-                {PLACEMENT_LABELS[c.placement_grade]}
-              </span>
-            )}
+            {(() => {
+              const pg = String(c.placement_grade ?? "");
+              const label = PLACEMENT_LABELS[pg];
+              if (!label) return null;
+              return (
+                <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-medium", PLACEMENT_COLORS[pg])}>
+                  {label}
+                </span>
+              );
+            })()}
             <span className="text-[10px] text-[var(--text-tertiary)]">
               {UNIVERSITY_TIER_LABELS[getUniversityTier(c.candidate_department.university_name)]}
             </span>

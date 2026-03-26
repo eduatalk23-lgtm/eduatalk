@@ -21,6 +21,8 @@ export interface ThreeAxisResult {
   competencyFit: AxisScore;        // 적합도: 역량 + 탐구 키워드
   curriculumSimilarity: AxisScore;  // 유사도: 가중치 Jaccard
   placementFeasibility: AxisScore;  // 실현가능성: 배치 or 내신 근사
+  /** 점수 기반 배치 라벨 (safe/possible/bold/unstable/danger) — 모의 또는 내신 기반 */
+  placementLabel: string | null;
   composite: number;                // 가중 평균 (0-100)
   compositeConfidence: number;      // 0-100 — 0이면 "데이터 부족", >0이면 신뢰할 수 있는 점수
   weights: Weights;
@@ -50,6 +52,16 @@ export interface ScoringInput {
   placementLevel: string | null;    // safe | possible | bold | unstable | danger
   internalGpaAvg: number | null;    // 내신 평균 등급 (1~9, 낮을수록 좋음)
   hasMockScores: boolean;
+  /** 과목그룹별 내신 (국영수/과학/사회) — 계열 맞춤 가중 */
+  subjectGroupGpa?: {
+    korean: number | null;
+    math: number | null;
+    english: number | null;
+    science: number | null;
+    social: number | null;
+  } | null;
+  /** 해당 학과의 입결 평균 등급 (낮을수록 어려움) — 학과별 차등 배치 */
+  admissionAvgGrade?: number | null;
 
   // 가중치 오버라이드
   weights?: Partial<Weights>;
@@ -111,7 +123,13 @@ export function calculateThreeAxisScore(input: ScoringInput): ThreeAxisResult {
     ? Math.round(validAxes.reduce((sum, a) => sum + a.confidence, 0) / validAxes.length)
     : 0;
 
-  return { competencyFit, curriculumSimilarity, placementFeasibility, composite, compositeConfidence, weights };
+  // 배치 점수 → 라벨 역변환 (모의/내신 모두)
+  const pScore = placementFeasibility.score;
+  const placementLabel = placementFeasibility.confidence > 0
+    ? pScore >= 90 ? "safe" : pScore >= 70 ? "possible" : pScore >= 55 ? "bold" : pScore >= 35 ? "unstable" : "danger"
+    : null;
+
+  return { competencyFit, curriculumSimilarity, placementFeasibility, placementLabel, composite, compositeConfidence, weights };
 }
 
 // ─── 축별 스코어링 ─────────────────────────
@@ -179,15 +197,43 @@ function scorePlacementFeasibility(input: ScoringInput): AxisScore {
     };
   }
 
-  // 내신 GPA로 근사 (배치 없을 때)
-  if (input.internalGpaAvg != null) {
-    const rounded = Math.round(input.internalGpaAvg);
-    const score = GPA_TO_SCORE[rounded] ?? 50;
-    return {
-      score,
-      reasoning: `내신 평균 ${input.internalGpaAvg.toFixed(1)}등급 기반 근사 (${score}점)`,
-      confidence: 40,
-    };
+  // 내신 GPA 기반 — 입결 비교 우선, 없으면 절대 등급 변환
+  if (input.subjectGroupGpa || input.internalGpaAvg != null) {
+    const gpa = input.subjectGroupGpa;
+    const mid = input.candidateMidClassification;
+
+    // 계열별 가중 GPA 계산
+    let weightedGpa: number | null = null;
+    let gpaDetail = "";
+
+    if (gpa) {
+      const { avg: wa, detail } = calcWeightedGpa(gpa, mid);
+      weightedGpa = wa;
+      gpaDetail = detail;
+    }
+
+    const effectiveGpa = weightedGpa ?? input.internalGpaAvg;
+    if (effectiveGpa == null) {
+      // GPA 없음 — 아래 "데이터 없음"으로
+    } else if (input.admissionAvgGrade != null && input.admissionAvgGrade > 0) {
+      // 입결 비교: 학생 GPA vs 학과 입결 평균
+      const gap = input.admissionAvgGrade - effectiveGpa; // 양수=여유, 음수=부족
+      const { score, label } = gapToScoreAndLabel(gap);
+      const gpaStr = gpaDetail || `평균 ${effectiveGpa.toFixed(1)}등급`;
+      return {
+        score,
+        reasoning: `내신 ${gpaStr} vs 입결 ${input.admissionAvgGrade.toFixed(1)}등급 → ${gap >= 0 ? "여유" : "부족"} ${Math.abs(gap).toFixed(1)}등급 (${label})`,
+        confidence: 70,
+      };
+    } else {
+      // 입결 없음 — 절대 등급 변환 (기존 방식)
+      const rounded = Math.round(effectiveGpa);
+      const score = GPA_TO_SCORE[rounded] ?? 50;
+      const reasoning = gpaDetail
+        ? `내신 ${gpaDetail} → 가중평균 ${effectiveGpa.toFixed(1)}등급 (${score}점, 입결 미보유)`
+        : `내신 평균 ${effectiveGpa.toFixed(1)}등급 기반 근사 (${score}점, 입결 미보유)`;
+      return { score, reasoning, confidence: 40 };
+    }
   }
 
   // 데이터 없음
@@ -196,4 +242,69 @@ function scorePlacementFeasibility(input: ScoringInput): AxisScore {
     reasoning: "성적 데이터 없음 — 중립 점수",
     confidence: 0,
   };
+}
+
+/** 계열별 과목그룹 가중 GPA 계산 */
+function calcWeightedGpa(
+  gpa: NonNullable<ScoringInput["subjectGroupGpa"]>,
+  mid: string | null,
+): { avg: number | null; detail: string } {
+  // 계열별 과목 가중치 (합계 1.0)
+  type W = { korean: number; math: number; english: number; science: number; social: number };
+  const STEM: W = { korean: 0.10, math: 0.35, english: 0.15, science: 0.30, social: 0.10 };
+  const HUMANITIES: W = { korean: 0.30, math: 0.10, english: 0.30, science: 0.10, social: 0.20 };
+  const BALANCED: W = { korean: 0.20, math: 0.20, english: 0.20, science: 0.20, social: 0.20 };
+
+  const stemMids = new Set([
+    "수학·물리·천문·지구", "화학·생명과학·환경", "전기·전자·컴퓨터",
+    "기계", "화공·고분자·에너지", "재료", "건설", "의료", "약학",
+    "보건", "간호", "농림·수산",
+  ]);
+  const humanitiesMids = new Set([
+    "언어·문학", "인문학", "사회과학", "법학", "교육",
+  ]);
+
+  const w = mid && stemMids.has(mid) ? STEM
+    : mid && humanitiesMids.has(mid) ? HUMANITIES
+    : BALANCED;
+
+  let totalWeight = 0;
+  let totalScore = 0;
+  const parts: string[] = [];
+
+  const entries: [string, number | null, number][] = [
+    ["국", gpa.korean, w.korean],
+    ["수", gpa.math, w.math],
+    ["영", gpa.english, w.english],
+    ["과", gpa.science, w.science],
+    ["사", gpa.social, w.social],
+  ];
+
+  for (const [label, grade, weight] of entries) {
+    if (grade != null) {
+      totalWeight += weight;
+      totalScore += grade * weight;
+      parts.push(`${label}${grade.toFixed(1)}`);
+    }
+  }
+
+  if (totalWeight === 0) return { avg: null, detail: "" };
+  const avg = Math.round((totalScore / totalWeight) * 100) / 100;
+  return { avg, detail: parts.join(" ") };
+}
+
+/**
+ * 입결 대비 갭 → 배치 점수 + 라벨
+ *
+ * gap = 입결평균 - 학생GPA (등급 기준, 양수=여유, 음수=부족)
+ * 예: 입결 2.5, 학생 1.4 → gap=1.1 → 안정
+ *     입결 1.2, 학생 1.4 → gap=-0.2 → 소신
+ */
+function gapToScoreAndLabel(gap: number): { score: number; label: string } {
+  if (gap >= 1.0) return { score: 95, label: "안정" };
+  if (gap >= 0.5) return { score: 85, label: "안정" };
+  if (gap >= 0.0) return { score: 72, label: "적정" };
+  if (gap >= -0.3) return { score: 60, label: "소신" };
+  if (gap >= -0.7) return { score: 45, label: "불안정" };
+  return { score: 25, label: "위험" };
 }

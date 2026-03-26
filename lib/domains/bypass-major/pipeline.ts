@@ -13,7 +13,7 @@ import { findDepartmentById, saveCandidates, fetchCurriculumSourceBatch } from "
 import { resolveCareerField, getTopCompetencyItems } from "./competency-matcher";
 import { generateExplanation } from "./explanation-generator";
 import { findCompetencyScores } from "@/lib/domains/student-record/competency-repository";
-import { calculateAverageGrade } from "@/lib/domains/score/service";
+import { calculateAverageGrade, calculateSubjectGroupGpa, type SubjectGroupGpa } from "@/lib/domains/score/service";
 import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
 
 const LOG_CTX = { domain: "bypass-major", action: "pipeline" };
@@ -132,15 +132,20 @@ export async function runBypassPipeline(
     logActionDebug(LOG_CTX, "역량 데이터 없음 — 스킵");
   }
 
-  // Phase 2b: 내신 평균 등급 조회 (배치 데이터 없는 학생의 실현가능성 근사치)
+  // Phase 2b: 내신 데이터 조회 (전체 평균 + 과목그룹별)
   let internalGpaAvg: number | null = null;
   let hasMockScores = false;
+  let subjectGroupGpa: SubjectGroupGpa | null = null;
   try {
-    const { schoolAvg, mockAvg } = await calculateAverageGrade(input.studentId, input.tenantId);
-    internalGpaAvg = schoolAvg;
-    hasMockScores = mockAvg != null;
+    const [avgResult, groupResult] = await Promise.all([
+      calculateAverageGrade(input.studentId, input.tenantId),
+      calculateSubjectGroupGpa(input.studentId, input.tenantId),
+    ]);
+    internalGpaAvg = avgResult.schoolAvg;
+    hasMockScores = avgResult.mockAvg != null;
+    subjectGroupGpa = groupResult;
     if (internalGpaAvg != null) {
-      logActionDebug(LOG_CTX, `내신 평균 ${internalGpaAvg.toFixed(1)}등급, 모의 ${hasMockScores ? "있음" : "없음"}`);
+      logActionDebug(LOG_CTX, `내신 평균 ${internalGpaAvg.toFixed(1)}등급 (국${groupResult.korean ?? "-"} 수${groupResult.math ?? "-"} 영${groupResult.english ?? "-"} 과${groupResult.science ?? "-"}), 모의 ${hasMockScores ? "있음" : "없음"}`);
     }
   } catch {
     logActionDebug(LOG_CTX, "내신 데이터 조회 실패 — 스킵");
@@ -175,6 +180,44 @@ export async function runBypassPipeline(
   // Phase 3b: 커리큘럼 출처 일괄 조회 (confidence 조정용)
   const sourceCache = await fetchCurriculumSourceBatch(candidateDeptIds);
 
+  // Phase 3c: 입결 평균 등급 일괄 조회 (학과별 차등 배치용)
+  const admissionGradeCache = new Map<string, number>();
+  {
+    const univNames = [...new Set([...deptCache.values()].map((d) => d.univ).filter(Boolean))];
+    if (univNames.length > 0) {
+      const { createSupabaseServerClient: createClient } = await import("@/lib/supabase/server");
+      const admSupabase = await createClient();
+      const { data: admRows } = await admSupabase
+        .from("university_admissions")
+        .select("university_name, department_name, admission_type, admission_results")
+        .in("university_name", univNames)
+        .in("admission_type", ["학생부교과", "학생부종합"]);
+
+      for (const row of admRows ?? []) {
+        const results = row.admission_results as Record<string, { grade?: string }> | null;
+        if (!results) continue;
+        // 최근 3개년 grade 평균
+        const grades: number[] = [];
+        for (const yr of Object.keys(results).sort().reverse().slice(0, 3)) {
+          const g = parseFloat(results[yr]?.grade ?? "");
+          if (!isNaN(g) && g > 0 && g < 10) grades.push(g);
+        }
+        if (grades.length === 0) continue;
+        const avg = grades.reduce((a, b) => a + b, 0) / grades.length;
+        // university_name + department_name → key
+        const key = `${row.university_name}|${row.department_name}`;
+        const existing = admissionGradeCache.get(key);
+        // 여러 전형 중 가장 낮은(어려운) 입결 사용
+        if (!existing || avg < existing) {
+          admissionGradeCache.set(key, Math.round(avg * 100) / 100);
+        }
+      }
+      if (admissionGradeCache.size > 0) {
+        logActionDebug(LOG_CTX, `입결 데이터 ${admissionGradeCache.size}건 로드 (${univNames.length}개 대학)`);
+      }
+    }
+  }
+
   const { calculateThreeAxisScore } = await import("./scoring/three-axis-scorer");
 
   for (const candidate of genResult.candidates) {
@@ -197,19 +240,23 @@ export async function runBypassPipeline(
       placementLevel: candidate.placement_grade,
       internalGpaAvg,
       hasMockScores,
+      subjectGroupGpa,
+      admissionAvgGrade: admissionGradeCache.get(`${deptInfo.univ}|${deptInfo.name}`) ?? null,
     });
 
     candidate.competency_fit_score = axisResult.competencyFit.score;
     candidate.composite_score = axisResult.composite;
     if (axisResult.competencyFit.confidence > 0) withCompetencyCount++;
 
-    // 배치 축 수치 + 출처 저장
+    // 배치 축 수치 + 라벨 + 출처 저장
     candidate.placement_score = axisResult.placementFeasibility.score;
+    // 모의고사 배치판정이 없으면 scorer가 내신 기반으로 산출한 라벨 사용
+    if (!candidate.placement_grade && axisResult.placementLabel) {
+      candidate.placement_grade = axisResult.placementLabel;
+    }
     candidate.placement_source = candidate.placement_grade
-      ? "mock"
-      : internalGpaAvg != null
-        ? "gpa"
-        : "none";
+      ? (hasMockScores ? "mock" : "gpa")
+      : "none";
 
     // 구조화 사유 저장 + confidence 태그
     const noData = axisResult.compositeConfidence === 0 ? " [데이터 부족]" : "";
