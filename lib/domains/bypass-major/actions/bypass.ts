@@ -223,6 +223,10 @@ export async function addManualCandidateAction(input: {
         consultant_notes: input.notes ?? null,
         status: "candidate",
         school_year: input.schoolYear,
+        competency_rationale: null,
+        curriculum_rationale: null,
+        placement_rationale: null,
+        recommendation_source: "target_based",
       },
     ]);
     return createSuccessResponse();

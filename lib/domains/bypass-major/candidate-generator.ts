@@ -169,6 +169,10 @@ export async function generateCandidates(
     consultant_notes: null,
     status: "candidate" as const,
     school_year: schoolYear,
+    competency_rationale: null,
+    curriculum_rationale: null,
+    placement_rationale: null,
+    recommendation_source: "target_based" as const,
   }));
 
   const preMappedCount = top.filter((c) => c.source === "pre_mapped").length;

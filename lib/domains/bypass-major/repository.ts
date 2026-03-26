@@ -39,9 +39,13 @@ export async function searchDepartments(filter: DepartmentSearchFilter) {
     .range(from, to);
 
   if (filter.query) {
-    query = query.or(
-      `department_name.ilike.%${filter.query}%,university_name.ilike.%${filter.query}%`,
-    );
+    // PostgREST 특수문자 이스케이프 (필터 인젝션 방지)
+    const sanitized = filter.query.replace(/[%_.,()]/g, "");
+    if (sanitized.length > 0) {
+      query = query.or(
+        `department_name.ilike.%${sanitized}%,university_name.ilike.%${sanitized}%`,
+      );
+    }
   }
   if (filter.universityName) {
     query = query.eq("university_name", filter.universityName);
@@ -171,6 +175,11 @@ export async function saveCandidates(
       consultant_notes: c.consultant_notes,
       status: c.status,
       school_year: c.school_year,
+      // C-0: 구조화 사유 + 추천 소스
+      competency_rationale: c.competency_rationale ?? null,
+      curriculum_rationale: c.curriculum_rationale ?? null,
+      placement_rationale: c.placement_rationale ?? null,
+      recommendation_source: c.recommendation_source ?? "target_based",
     })),
     {
       onConflict:

@@ -94,6 +94,9 @@ export interface BypassMajorPair {
   created_at: string;
 }
 
+/** 추천 경로 */
+export type RecommendationSource = "target_based" | "diagnosis_based" | "profile_based";
+
 /** bypass_major_candidates 테이블 행 */
 export interface BypassMajorCandidate {
   id: string;
@@ -112,6 +115,11 @@ export interface BypassMajorCandidate {
   school_year: number;
   created_at: string;
   updated_at: string;
+  // C-0: 구조화 사유 + 추천 소스
+  competency_rationale: string | null;
+  curriculum_rationale: string | null;
+  placement_rationale: string | null;
+  recommendation_source: RecommendationSource;
 }
 
 // ------------------------------------

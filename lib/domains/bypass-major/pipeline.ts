@@ -38,43 +38,6 @@ export interface PipelineResult {
 }
 
 // ------------------------------------
-// 배치 판정 점수 정규화 (0-100)
-// ------------------------------------
-
-const PLACEMENT_SCORE_MAP: Record<string, number> = {
-  safe: 100,
-  possible: 80,
-  bold: 60,
-  unstable: 40,
-  danger: 20,
-};
-
-function compositeScore(
-  curriculum: number | null,
-  placement: string | null,
-  competency: number | null,
-): number {
-  const weights = { curriculum: 0.40, placement: 0.30, competency: 0.30 };
-  let score = 0;
-  let totalWeight = 0;
-
-  if (curriculum != null) {
-    score += curriculum * weights.curriculum;
-    totalWeight += weights.curriculum;
-  }
-  if (placement && PLACEMENT_SCORE_MAP[placement] != null) {
-    score += PLACEMENT_SCORE_MAP[placement] * weights.placement;
-    totalWeight += weights.placement;
-  }
-  if (competency != null) {
-    score += competency * weights.competency;
-    totalWeight += weights.competency;
-  }
-
-  return totalWeight > 0 ? Math.round((score / totalWeight) * 10) / 10 : 0;
-}
-
-// ------------------------------------
 // 파이프라인 메인
 // ------------------------------------
 
@@ -122,67 +85,93 @@ export async function runBypassPipeline(
     logActionDebug(LOG_CTX, "역량 데이터 없음 — 스킵");
   }
 
-  // 후보별 학과 mid_classification 조회 캐시
-  const deptCache = new Map<string, { mid: string | null; name: string; univ: string }>();
-
   let withCompetencyCount = 0;
 
-  // Phase 3: 각 후보에 역량 적합도 + 복합 점수 + 근거 텍스트 적용
+  // Phase 3: 후보 학과 정보 일괄 조회 (N+1 방지)
   const targetDept = await findDepartmentById(input.targetDeptId);
   const targetDeptName = targetDept?.department_name ?? "";
 
+  const candidateDeptIds = [...new Set(genResult.candidates.map((c) => c.candidate_department_id))];
+  const deptCache = new Map<string, { mid: string | null; name: string; univ: string }>();
+
+  if (candidateDeptIds.length > 0) {
+    const { createSupabaseServerClient: createClient } = await import("@/lib/supabase/server");
+    const batchSupabase = await createClient();
+    const { data: batchDepts } = await batchSupabase
+      .from("university_departments")
+      .select("id, department_name, university_name, mid_classification")
+      .in("id", candidateDeptIds);
+
+    for (const d of batchDepts ?? []) {
+      deptCache.set(d.id, {
+        mid: d.mid_classification ?? null,
+        name: d.department_name ?? "",
+        univ: d.university_name ?? "",
+      });
+    }
+  }
+
+  const { calculateThreeAxisScore } = await import("./scoring/three-axis-scorer");
+
   for (const candidate of genResult.candidates) {
-    // 후보 학과 정보 조회
-    let deptInfo = deptCache.get(candidate.candidate_department_id);
-    if (!deptInfo) {
-      try {
-        const dept = await findDepartmentById(candidate.candidate_department_id);
-        deptInfo = {
-          mid: dept?.mid_classification ?? null,
-          name: dept?.department_name ?? "",
-          univ: dept?.university_name ?? "",
-        };
-      } catch {
-        deptInfo = { mid: null, name: "", univ: "" };
-      }
-      deptCache.set(candidate.candidate_department_id, deptInfo);
-    }
+    const deptInfo = deptCache.get(candidate.candidate_department_id)
+      ?? { mid: null, name: "", univ: "" };
 
-    // 역량 적합도
-    let fitScore: number | null = null;
-    let highlights: string[] = [];
-    if (competencyScores.length > 0) {
-      const careerField = resolveCareerField(deptInfo.mid);
-      fitScore = calculateCompetencyFitScore(competencyScores, careerField);
-      highlights = getTopCompetencyItems(competencyScores, careerField);
-      if (fitScore != null) withCompetencyCount++;
-    }
+    const axisResult = calculateThreeAxisScore({
+      candidateDeptName: deptInfo.name,
+      candidateUnivName: deptInfo.univ,
+      candidateMidClassification: deptInfo.mid,
+      competencyScores,
+      curriculumSimilarity: candidate.curriculum_similarity_score,
+      sharedCourseCount: 0,
+      curriculumSource: null, // TODO: enrichment 연동 시 source 전달
+      placementLevel: candidate.placement_grade,
+      internalGpaAvg: null, // TODO: D-3에서 내신 데이터 전달
+      hasMockScores: false,
+    });
 
-    candidate.competency_fit_score = fitScore;
+    candidate.competency_fit_score = axisResult.competencyFit.score;
+    candidate.composite_score = axisResult.composite;
+    if (axisResult.competencyFit.confidence > 0) withCompetencyCount++;
 
-    // 복합 점수
-    candidate.composite_score = compositeScore(
-      candidate.curriculum_similarity_score,
-      candidate.placement_grade,
-      fitScore,
-    );
+    // 구조화 사유 저장 (C-0에서 추가한 컬럼)
+    candidate.competency_rationale = axisResult.competencyFit.reasoning;
+    candidate.curriculum_rationale = axisResult.curriculumSimilarity.reasoning;
+    candidate.placement_rationale = axisResult.placementFeasibility.reasoning;
 
-    // 근거 텍스트
-    const sharedCount = candidate.rationale?.match(/공통 (\d+)과목/)?.[1];
+    // 기존 종합 근거 텍스트도 유지
     candidate.rationale = generateExplanation({
       targetDeptName,
       candidateDeptName: deptInfo.name,
       candidateUnivName: deptInfo.univ,
       curriculumSimilarity: candidate.curriculum_similarity_score,
-      sharedCourseCount: sharedCount ? parseInt(sharedCount) : 0,
+      sharedCourseCount: 0,
       topSharedCourses: [],
       placementGrade: candidate.placement_grade,
-      competencyFitScore: fitScore,
-      competencyHighlights: highlights,
+      competencyFitScore: axisResult.competencyFit.score,
+      competencyHighlights: getTopCompetencyItems(competencyScores, resolveCareerField(deptInfo.mid)),
     });
   }
 
-  // Phase 4: 복합 점수로 재정렬 + DB 저장
+  // Phase 4: C-4 피드백 부스트 적용
+  if (targetDept?.mid_classification) {
+    try {
+      const { getFeedbackPatterns } = await import("./feedback/repository");
+      const { applyFeedbackBoost } = await import("./feedback/pattern-matcher");
+
+      const patterns = await getFeedbackPatterns(targetDept.mid_classification);
+      if (patterns.length > 0) {
+        const boostResult = applyFeedbackBoost(genResult.candidates, patterns);
+        if (boostResult.boostedCount > 0) {
+          logActionDebug(LOG_CTX, `피드백 부스트 적용: ${boostResult.boostedCount}건 (최대 ${boostResult.maxBoost}점)`);
+        }
+      }
+    } catch (err) {
+      logActionDebug(LOG_CTX, `피드백 부스트 스킵: ${err}`);
+    }
+  }
+
+  // Phase 5: 복합 점수로 재정렬 + DB 저장
   genResult.candidates.sort((a, b) => (b.composite_score ?? 0) - (a.composite_score ?? 0));
 
   try {
