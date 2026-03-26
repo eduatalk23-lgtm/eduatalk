@@ -4,7 +4,11 @@
  * Google Gemini API를 사용하는 LLM Provider 구현입니다.
  */
 
-import { GoogleGenerativeAI, type GenerativeModel } from "@google/generative-ai";
+import {
+  GoogleGenerativeAI,
+  GoogleGenerativeAIFetchError,
+  type GenerativeModel,
+} from "@google/generative-ai";
 import {
   BaseLLMProvider,
   type ModelTier,
@@ -26,14 +30,14 @@ import { logActionDebug, logActionWarn } from "@/lib/utils/serverActionLogger";
 const GEMINI_MODEL_CONFIGS: Record<ModelTier, ModelConfig> = {
   fast: {
     tier: "fast",
-    modelId: "gemini-3.1-flash",
+    modelId: "gemini-2.5-flash",
     maxTokens: 4096,
     temperature: 0.3,
     provider: "gemini",
   },
   standard: {
     tier: "standard",
-    modelId: "gemini-3.1-flash",
+    modelId: "gemini-2.5-flash",
     maxTokens: 8192,
     temperature: 0.5,
     provider: "gemini",
@@ -362,40 +366,27 @@ export class GeminiProvider extends BaseLLMProvider {
    * @returns Rate Limit 에러인 경우 true, 그렇지 않으면 false
    */
   private isRateLimitError(error: unknown): boolean {
-    if (!(error instanceof Error)) {
-      return false;
+    // 1) Google SDK GoogleGenerativeAIFetchError — status 필드로 직접 판별
+    if (error instanceof GoogleGenerativeAIFetchError) {
+      return error.status === 429;
     }
 
-    const errorMessage = error.message.toLowerCase();
-
-    // 429 에러 코드 감지
-    if (errorMessage.includes("429")) {
-      return true;
+    // 2) 일반 Error — status 필드 확인 (래핑된 에러)
+    if (error instanceof Error && "status" in error) {
+      const status = (error as Error & { status?: number }).status;
+      if (status === 429) return true;
     }
 
-    // 할당량 관련 키워드 감지
-    if (errorMessage.includes("quota")) {
-      return true;
-    }
-
-    // Rate limit 관련 키워드 감지
-    if (errorMessage.includes("rate limit")) {
-      return true;
-    }
-
-    // Too many requests 관련 키워드 감지
-    if (errorMessage.includes("too many requests")) {
-      return true;
-    }
-
-    // GoogleGenerativeAI 에러 메시지 패턴 감지
-    if (errorMessage.includes("exceeded your current quota")) {
-      return true;
-    }
-
-    // Google API 특정 에러 코드
-    if (errorMessage.includes("resource_exhausted")) {
-      return true;
+    // 3) Fallback: 문자열 매칭 (status가 유실된 경우)
+    if (error instanceof Error) {
+      const msg = error.message.toLowerCase();
+      return (
+        msg.includes("429") ||
+        msg.includes("quota") ||
+        msg.includes("rate limit") ||
+        msg.includes("too many requests") ||
+        msg.includes("resource_exhausted")
+      );
     }
 
     return false;

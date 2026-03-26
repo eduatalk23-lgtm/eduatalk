@@ -20,6 +20,22 @@ import {
 } from "./types";
 
 /**
+ * 쿼리 입력값 새니타이징 — 프롬프트 인젝션 및 특수문자 방지
+ *
+ * 1. 제어 문자 및 인젝션 패턴 제거 (```, \n, ##, system:, ignore 등)
+ * 2. 연속 공백 정리
+ * 3. 최대 길이 제한
+ */
+function sanitizeQueryInput(text: string, maxLen = 50): string {
+  return text
+    .replace(/[`#\n\r\t\\|<>{}[\]]/g, "")               // 위험 문자 제거
+    .replace(/\b(system|ignore|forget|override|prompt)\b/gi, "") // 인젝션 키워드 제거
+    .replace(/\s{2,}/g, " ")                              // 연속 공백 정리
+    .trim()
+    .slice(0, maxLen);
+}
+
+/**
  * 검증된 입력값을 웹 검색 쿼리로 변환합니다.
  *
  * @param input - 검증된 입력값 (Task 1의 결과)
@@ -55,17 +71,17 @@ export function buildSearchQuery(input: ValidatedColdStartInput): SearchQuery {
   // 기본 prefix: 고등학교 학습 콘텐츠임을 명시
   queryParts.push("고등학교");
 
-  // 교과 추가 (필수)
-  queryParts.push(input.subjectCategory);
+  // 교과 추가 (필수) — 새니타이징 적용
+  queryParts.push(sanitizeQueryInput(input.subjectCategory));
 
   // 과목 추가 (있으면)
   if (input.subject) {
-    queryParts.push(input.subject);
+    queryParts.push(sanitizeQueryInput(input.subject));
   }
 
   // 난이도 추가 (있으면)
   if (input.difficulty) {
-    queryParts.push(input.difficulty);
+    queryParts.push(sanitizeQueryInput(input.difficulty));
   }
 
   // 콘텐츠 타입에 따른 suffix 추가
@@ -119,11 +135,11 @@ function getContentTypeSuffix(contentType: ContentType | null): string {
 function buildContext(input: ValidatedColdStartInput): string {
   const contextParts: string[] = [];
 
-  // 과목 또는 교과 추가
+  // 과목 또는 교과 추가 — 새니타이징 적용
   if (input.subject) {
-    contextParts.push(input.subject);
+    contextParts.push(sanitizeQueryInput(input.subject));
   } else {
-    contextParts.push(input.subjectCategory);
+    contextParts.push(sanitizeQueryInput(input.subjectCategory));
   }
 
   // 난이도 + 콘텐츠 타입 조합
@@ -204,29 +220,29 @@ export function buildAdvancedSearchQuery(
     queryParts.push("고등학교");
   }
 
-  // 기본 쿼리 부분
-  queryParts.push(input.subjectCategory);
+  // 기본 쿼리 부분 — 새니타이징 적용
+  queryParts.push(sanitizeQueryInput(input.subjectCategory));
 
   if (input.subject) {
-    queryParts.push(input.subject);
+    queryParts.push(sanitizeQueryInput(input.subject));
   }
 
   if (input.difficulty) {
-    queryParts.push(input.difficulty);
+    queryParts.push(sanitizeQueryInput(input.difficulty));
   }
 
   // 콘텐츠 타입 suffix
   const typeSuffix = getContentTypeSuffix(input.contentType);
   queryParts.push(typeSuffix);
 
-  // 추가 키워드
+  // 추가 키워드 — 새니타이징 적용 (사용자 자유 입력)
   if (options.additionalKeywords) {
-    queryParts.push(options.additionalKeywords);
+    queryParts.push(sanitizeQueryInput(options.additionalKeywords, 100));
   }
 
-  // 선호 출판사/플랫폼
+  // 선호 출판사/플랫폼 — 새니타이징 적용
   if (options.preferredPublisher) {
-    queryParts.push(options.preferredPublisher);
+    queryParts.push(sanitizeQueryInput(options.preferredPublisher, 30));
   }
 
   // 맥락 생성

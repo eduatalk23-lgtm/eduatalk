@@ -25,7 +25,7 @@
  * ```
  */
 
-import { generateText, generateObject, streamText } from "ai";
+import { generateText, generateObject, streamText, APICallError } from "ai";
 import { google } from "@ai-sdk/google";
 import type { Schema } from "ai";
 import type { ModelTier } from "./types";
@@ -93,20 +93,34 @@ export interface AiSdkStreamOptions extends AiSdkOptions {
 }
 
 // ============================================
-// Rate Limit 에러 감지 (기존 gemini.ts 로직 재사용)
+// Rate Limit 에러 감지 — 구조적 방식 우선, 문자열 fallback
 // ============================================
 
 function isRateLimitError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-  const msg = error.message.toLowerCase();
-  return (
-    msg.includes("429") ||
-    msg.includes("quota") ||
-    msg.includes("rate limit") ||
-    msg.includes("too many requests") ||
-    msg.includes("exceeded your current quota") ||
-    msg.includes("resource_exhausted")
-  );
+  // 1) AI SDK APICallError — statusCode로 직접 판별 (가장 신뢰도 높음)
+  if (APICallError.isInstance(error)) {
+    return error.statusCode === 429;
+  }
+
+  // 2) Google SDK GoogleGenerativeAIFetchError — status 필드 확인
+  if (error instanceof Error && "status" in error) {
+    const status = (error as Error & { status?: number }).status;
+    if (status === 429) return true;
+  }
+
+  // 3) Fallback: 문자열 매칭 (에러가 래핑되어 status가 유실된 경우)
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    return (
+      msg.includes("429") ||
+      msg.includes("quota") ||
+      msg.includes("rate limit") ||
+      msg.includes("too many requests") ||
+      msg.includes("resource_exhausted")
+    );
+  }
+
+  return false;
 }
 
 function extractRetryDelay(error: unknown, attempt: number): number {
@@ -114,6 +128,18 @@ function extractRetryDelay(error: unknown, attempt: number): number {
   const maxDelay = 60000;
   const exponentialDelay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
 
+  // 1) AI SDK APICallError — responseHeaders에서 Retry-After 추출
+  if (APICallError.isInstance(error) && error.responseHeaders) {
+    const retryAfter = error.responseHeaders["retry-after"];
+    if (retryAfter) {
+      const seconds = parseInt(retryAfter, 10);
+      if (!isNaN(seconds)) {
+        return Math.min(seconds * 1000, maxDelay);
+      }
+    }
+  }
+
+  // 2) Fallback: 에러 메시지에서 retry 시간 추출
   if (error instanceof Error) {
     const retryMatch = error.message.match(
       /retry\s*(?:after|in)\s*(\d+)\s*(?:s|sec|seconds?)/i
