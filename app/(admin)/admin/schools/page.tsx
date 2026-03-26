@@ -11,7 +11,7 @@
  * 주의: 학교 데이터는 외부 데이터 기반으로 읽기 전용입니다.
  */
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   getAllSchoolsAction,
   getSchoolInfoListAction,
@@ -22,6 +22,8 @@ import Button from "@/components/atoms/Button";
 import { useToast } from "@/components/ui/ToastProvider";
 import type { AllSchoolsView, SchoolInfo, UniversityWithCampus } from "@/lib/data/schools";
 import type { SchoolType } from "@/lib/domains/school/types";
+
+type SyncStatus = "idle" | "checking" | "syncing" | "done" | "error";
 
 type TabType = "ALL" | "MIDDLE" | "HIGH" | "UNIVERSITY";
 
@@ -39,6 +41,60 @@ export default function SchoolsPage() {
   const [selectedTab, setSelectedTab] = useState<TabType>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [regionFilter, setRegionFilter] = useState("");
+
+  // 대학 DB 동기화 상태
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
+  const [syncMessage, setSyncMessage] = useState("");
+
+  const handleCheckConnection = useCallback(async () => {
+    setSyncStatus("checking");
+    setSyncMessage("API 연결 확인 중...");
+    try {
+      const res = await fetch("/api/admin/university-sync");
+      const json = await res.json();
+      if (json.data?.success) {
+        setSyncMessage(`연결 성공 — 공시년도: ${json.data.years?.join(", ")}`);
+        setSyncStatus("done");
+      } else {
+        setSyncMessage(json.data?.message ?? "연결 실패");
+        setSyncStatus("error");
+      }
+    } catch {
+      setSyncMessage("API 호출 실패");
+      setSyncStatus("error");
+    }
+  }, []);
+
+  const handleSync = useCallback(async (dryRun = false) => {
+    setSyncStatus("syncing");
+    setSyncMessage(dryRun ? "드라이런 중..." : "동기화 진행 중...");
+    try {
+      const res = await fetch("/api/admin/university-sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dryRun }),
+      });
+      const json = await res.json();
+      const result = json.data;
+      if (result?.success) {
+        const s = result.stats;
+        setSyncMessage(
+          `완료 (${(result.duration / 1000).toFixed(1)}초) — ` +
+          `API ${s.totalFromApi}건, 신규 ${s.inserted}, 갱신 ${s.updated}, ` +
+          `캠퍼스 신규 ${s.campusesInserted}, 캠퍼스 갱신 ${s.campusesUpdated}` +
+          (dryRun ? " (드라이런)" : ""),
+        );
+        setSyncStatus("done");
+        if (!dryRun) loadSchools();
+      } else {
+        setSyncMessage(result?.error ?? "동기화 실패");
+        setSyncStatus("error");
+      }
+    } catch {
+      setSyncMessage("동기화 요청 실패");
+      setSyncStatus("error");
+    }
+  }, []);
 
   // 통계
   const stats = useMemo(() => {
@@ -116,6 +172,57 @@ export default function SchoolsPage() {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* 대학 DB 동기화 (data.go.kr) */}
+      <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-medium text-gray-900">대학 DB 동기화</h3>
+            <p className="mt-1 text-xs text-gray-500">
+              공공데이터포털(data.go.kr) 대학알리미 API에서 최신 대학 정보를 가져옵니다.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCheckConnection}
+              disabled={syncStatus === "checking" || syncStatus === "syncing"}
+            >
+              연결 확인
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleSync(true)}
+              disabled={syncStatus === "checking" || syncStatus === "syncing"}
+            >
+              드라이런
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => handleSync(false)}
+              disabled={syncStatus === "checking" || syncStatus === "syncing"}
+            >
+              {syncStatus === "syncing" ? "동기화 중..." : "동기화 실행"}
+            </Button>
+          </div>
+        </div>
+        {syncMessage && (
+          <div
+            className={`mt-3 rounded-md px-3 py-2 text-xs ${
+              syncStatus === "error"
+                ? "bg-red-50 text-red-700"
+                : syncStatus === "done"
+                  ? "bg-green-50 text-green-700"
+                  : "bg-blue-50 text-blue-700"
+            }`}
+          >
+            {syncMessage}
+          </div>
+        )}
       </div>
 
       {/* 안내 메시지 (상단) */}

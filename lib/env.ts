@@ -40,6 +40,8 @@ const envSchema = z.object({
   BIZPPURIO_SENDER_KEY: z.string().optional(), // 카카오 발신프로필 키 (40자)
   // 뿌리오 카카오 알림톡
   PPURIO_KAKAO_SENDER_PROFILE: z.string().optional(), // 뿌리오 카카오 발신프로필 (예: @에듀엣톡)
+  // 공공데이터포털 (data.go.kr)
+  DATA_GO_KR_API_KEY: z.string().optional(), // 대학알리미 등 공공데이터 API 서비스키
 });
 
 /**
@@ -79,6 +81,8 @@ export const env = (() => {
       BIZPPURIO_SENDER_KEY: process.env.BIZPPURIO_SENDER_KEY,
       // 뿌리오 카카오 알림톡
       PPURIO_KAKAO_SENDER_PROFILE: process.env.PPURIO_KAKAO_SENDER_PROFILE,
+      // 공공데이터포털
+      DATA_GO_KR_API_KEY: process.env.DATA_GO_KR_API_KEY,
     };
 
     // 빌드 시점 체크 (Next.js 빌드 프로세스 감지)
@@ -127,6 +131,8 @@ export const env = (() => {
         BIZPPURIO_SENDER_KEY: envValues.BIZPPURIO_SENDER_KEY,
         // 뿌리오 카카오 알림톡
         PPURIO_KAKAO_SENDER_PROFILE: envValues.PPURIO_KAKAO_SENDER_PROFILE,
+        // 공공데이터포털
+        DATA_GO_KR_API_KEY: envValues.DATA_GO_KR_API_KEY,
       };
     }
 
