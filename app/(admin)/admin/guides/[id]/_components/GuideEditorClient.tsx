@@ -33,7 +33,9 @@ import type {
   GuideUpsertInput,
   GuideContentInput,
   TheorySection,
+  ContentSection,
 } from "@/lib/domains/guide/types";
+import { resolveContentSections } from "@/lib/domains/guide/section-config";
 import {
   GUIDE_TYPES,
   GUIDE_TYPE_LABELS,
@@ -141,6 +143,8 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
   const [followUp, setFollowUp] = useState("");
   const [bookDescription, setBookDescription] = useState("");
   const [setekExamples, setSetekExamples] = useState<string[]>([]);
+  /** 유형 확장/선택 섹션 데이터 (type_extension + optional 키) */
+  const [extraSections, setExtraSections] = useState<ContentSection[]>([]);
 
   // UI 상태
   const [saving, setSaving] = useState(false);
@@ -184,6 +188,17 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
       setFollowUp(guide.content.follow_up ?? "");
       setBookDescription(guide.content.book_description ?? "");
       setSetekExamples(guide.content.setek_examples ?? []);
+
+      // type_extension/optional 섹션 (레거시 필드에 매핑되지 않는 키들)
+      const resolved = resolveContentSections(
+        guide.guide_type as GuideType,
+        guide.content,
+      );
+      const coreKeys = new Set([
+        "motivation", "content_sections", "reflection", "impression",
+        "summary", "follow_up", "book_description", "setek_examples",
+      ]);
+      setExtraSections(resolved.filter((s) => !coreKeys.has(s.key)));
     }
   }, [guide]);
 
@@ -305,6 +320,23 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
         contentFormat: "html",
       };
 
+      // content_sections 조합: core 레거시 필드 + extra 섹션
+      const allContentSections: ContentSection[] = [];
+      if (motivation) allContentSections.push({ key: "motivation", label: "탐구 동기", content: motivation, content_format: "html" });
+      for (const ts of theorySections) {
+        allContentSections.push({ key: "content_sections", label: ts.title, content: ts.content, content_format: "html", order: ts.order });
+      }
+      // type_extension + optional 섹션
+      for (const es of extraSections) {
+        if (es.content || es.items?.length) allContentSections.push(es);
+      }
+      if (reflection) allContentSections.push({ key: "reflection", label: "탐구 고찰 및 제언", content: reflection, content_format: "html" });
+      if (impression) allContentSections.push({ key: "impression", label: "느낀점", content: impression, content_format: "html" });
+      if (summary) allContentSections.push({ key: "summary", label: "탐구 요약", content: summary, content_format: "html" });
+      if (followUp) allContentSections.push({ key: "follow_up", label: "후속 탐구", content: followUp, content_format: "html" });
+      if (bookDescription) allContentSections.push({ key: "book_description", label: "도서 소개", content: bookDescription, content_format: "html" });
+      if (setekExamples.length > 0) allContentSections.push({ key: "setek_examples", label: "세특 예시", content: "", content_format: "plain", items: setekExamples });
+
       const content: GuideContentInput = {
         motivation: motivation || undefined,
         theorySections: theorySections.length > 0 ? theorySections : undefined,
@@ -314,6 +346,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
         followUp: followUp || undefined,
         bookDescription: bookDescription || undefined,
         setekExamples: setekExamples.length > 0 ? setekExamples : undefined,
+        contentSections: allContentSections.length > 0 ? allContentSections : undefined,
       };
 
       let result;
@@ -717,6 +750,8 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
             onBookDescriptionChange={setBookDescription}
             setekExamples={setekExamples}
             onSetekExamplesChange={setSetekExamples}
+            extraSections={extraSections}
+            onExtraSectionsChange={setExtraSections}
             contentFormat={getContentFormat()}
             toHtml={toHtml}
             onImageInsert={handleImageInsert}

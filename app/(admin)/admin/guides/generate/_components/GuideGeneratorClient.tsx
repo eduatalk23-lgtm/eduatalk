@@ -34,6 +34,12 @@ import {
   CURRICULUM_REVISION_IDS,
 } from "@/lib/domains/guide/types";
 import type { GuideType } from "@/lib/domains/guide/types";
+import {
+  GUIDE_SECTION_CONFIG,
+  getCoreSections,
+  getTypeExtensionSections,
+  getOptionalSections,
+} from "@/lib/domains/guide/section-config";
 import { generateGuideAction } from "@/lib/domains/guide/llm/actions/generateGuide";
 import { reviewGuideAction } from "@/lib/domains/guide/llm/actions/reviewGuide";
 import {
@@ -103,6 +109,22 @@ export function GuideGeneratorClient() {
   const [guideType, setGuideType] = useState<GuideType>(
     prefill?.guideType ?? "topic_exploration",
   );
+  // 섹션 선택: Core(항상 ON) + TypeExtension(기본 ON) + Optional(기본 OFF)
+  const [selectedSectionKeys, setSelectedSectionKeys] = useState<Set<string>>(
+    () => {
+      const gt = prefill?.guideType ?? "topic_exploration";
+      const core = getCoreSections(gt).map((s) => s.key);
+      const ext = getTypeExtensionSections(gt).map((s) => s.key);
+      return new Set([...core, ...ext]);
+    },
+  );
+  // guideType 변경 시 selectedSectionKeys 재초기화
+  useEffect(() => {
+    const core = getCoreSections(guideType).map((s) => s.key);
+    const ext = getTypeExtensionSections(guideType).map((s) => s.key);
+    setSelectedSectionKeys(new Set([...core, ...ext]));
+  }, [guideType]);
+
   const [targetSubjectGroup, setTargetSubjectGroup] = useState(
     prefill?.subjectGroup ?? "",
   );
@@ -308,6 +330,8 @@ export function GuideGeneratorClient() {
               unitMajor: targetMajorUnit || undefined,
               unitMinor: targetMinorUnit || undefined,
               modelTier,
+              studentId: selectedStudentId || undefined,
+              selectedSectionKeys: [...selectedSectionKeys],
               keyword: {
                 keyword,
                 guideType,
@@ -324,6 +348,8 @@ export function GuideGeneratorClient() {
               unitMajor: targetMajorUnit || undefined,
               unitMinor: targetMinorUnit || undefined,
               modelTier,
+              studentId: selectedStudentId || undefined,
+              selectedSectionKeys: [...selectedSectionKeys],
               clone: {
                 sourceGuideId,
                 targetSubject: cloneTargetSubject || undefined,
@@ -605,6 +631,90 @@ export function GuideGeneratorClient() {
                     </select>
                   </FormField>
                 </div>
+
+                {/* ── 섹션 선택 ── */}
+                {(() => {
+                  const coreSections = getCoreSections(guideType);
+                  const extSections = getTypeExtensionSections(guideType);
+                  const optSections = getOptionalSections(guideType);
+                  const hasExtOrOpt = extSections.length > 0 || optSections.length > 0;
+
+                  if (!hasExtOrOpt) return null;
+
+                  return (
+                    <div className="rounded-lg border border-secondary-200 dark:border-secondary-700 p-3 space-y-2">
+                      <p className="text-xs font-medium text-[var(--text-secondary)]">
+                        생성 섹션 선택
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {/* Core: 항상 ON, 비활성 */}
+                        {coreSections
+                          .filter((d) => !d.adminOnly)
+                          .map((d) => (
+                            <span
+                              key={d.key}
+                              className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400"
+                            >
+                              {d.label}
+                            </span>
+                          ))}
+                        {/* Type Extension: 기본 ON, 토글 가능 */}
+                        {extSections.map((d) => {
+                          const checked = selectedSectionKeys.has(d.key);
+                          return (
+                            <button
+                              key={d.key}
+                              type="button"
+                              onClick={() => {
+                                setSelectedSectionKeys((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(d.key)) next.delete(d.key);
+                                  else next.add(d.key);
+                                  return next;
+                                });
+                              }}
+                              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium border transition-colors ${
+                                checked
+                                  ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"
+                                  : "bg-secondary-50 text-secondary-400 border-secondary-200 dark:bg-secondary-800/30 dark:text-secondary-500 dark:border-secondary-700 line-through"
+                              }`}
+                            >
+                              {checked ? "✓" : "○"} {d.label}
+                            </button>
+                          );
+                        })}
+                        {/* Optional: 기본 OFF, 토글 가능 */}
+                        {optSections.map((d) => {
+                          const checked = selectedSectionKeys.has(d.key);
+                          return (
+                            <button
+                              key={d.key}
+                              type="button"
+                              onClick={() => {
+                                setSelectedSectionKeys((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(d.key)) next.delete(d.key);
+                                  else next.add(d.key);
+                                  return next;
+                                });
+                              }}
+                              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium border transition-colors ${
+                                checked
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800"
+                                  : "bg-secondary-50 text-secondary-400 border-secondary-200 dark:bg-secondary-800/30 dark:text-secondary-500 dark:border-secondary-700"
+                              }`}
+                            >
+                              {checked ? "✓" : "+"} {d.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-[10px] text-[var(--text-tertiary)]">
+                        고정 섹션은 항상 포함됩니다. 파란색은 유형 확장, 초록색은 선택 보강입니다.
+                      </p>
+                    </div>
+                  );
+                })()}
 
                 {/* 조건 기반 추천 주제 칩 */}
                 {filterRecommendations.length > 0 && (
@@ -1053,15 +1163,15 @@ export function GuideGeneratorClient() {
               bookTitle={preview.bookTitle ?? ""}
               bookAuthor={preview.bookAuthor ?? ""}
               bookPublisher={preview.bookPublisher ?? ""}
-              motivation={preview.motivation}
-              theorySections={preview.theorySections.map((s) => ({
+              motivation={preview.motivation ?? ""}
+              theorySections={(preview.theorySections ?? []).map((s) => ({
                 ...s,
                 content_format: "html" as const,
               }))}
-              reflection={preview.reflection}
-              impression={preview.impression}
-              summary={preview.summary}
-              followUp={preview.followUp}
+              reflection={preview.reflection ?? ""}
+              impression={preview.impression ?? ""}
+              summary={preview.summary ?? ""}
+              followUp={preview.followUp ?? ""}
               bookDescription={preview.bookDescription ?? ""}
               contentFormat="html"
             />

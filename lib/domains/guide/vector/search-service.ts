@@ -48,7 +48,7 @@ export async function searchGuidesByVector(
     guideType,
     classificationId,
     matchCount = 10,
-    similarityThreshold = 0.3,
+    similarityThreshold = 0.45,
   } = options;
 
   logActionDebug(LOG_TAG, `searchGuidesByVector: query="${query.slice(0, 50)}"`);

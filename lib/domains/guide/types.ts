@@ -296,6 +296,10 @@ export interface GuideAssignment {
   ai_recommendation_reason: string | null;
   /** 컨설턴트 피드백 */
   feedback_notes: string | null;
+  /** 컨설턴트 확정 시각 */
+  confirmed_at: string | null;
+  /** 확정한 컨설턴트 UUID */
+  confirmed_by: string | null;
 }
 
 // ------------------------------------

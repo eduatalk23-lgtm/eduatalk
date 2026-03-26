@@ -21,8 +21,8 @@ import {
   scoreToStatus,
   type GuideReviewOutput,
 } from "../types";
-import { REVIEW_SYSTEM_PROMPT, buildReviewUserPrompt } from "../prompts/review";
-import type { QualityTier, GuideStatus } from "../../types";
+import { buildReviewSystemPrompt, buildReviewUserPrompt } from "../prompts/review";
+import type { QualityTier, GuideStatus, GuideType } from "../../types";
 
 const LOG_CTX = { domain: "guide", action: "reviewGuide" };
 
@@ -61,7 +61,7 @@ export async function reviewGuideAction(
 
     // AI 리뷰 실행
     const { object: review, modelId } = await generateObjectWithRateLimit({
-      system: REVIEW_SYSTEM_PROMPT,
+      system: buildReviewSystemPrompt(guide.guide_type as GuideType),
       messages: [{ role: "user", content: buildReviewUserPrompt(guide) }],
       schema: zodSchema(guideReviewSchema),
       modelTier: "fast",

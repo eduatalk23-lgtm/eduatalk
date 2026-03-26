@@ -4,7 +4,7 @@ import { useCallback } from "react";
 import { Plus, Trash2, GripVertical } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { RichTextEditor } from "@/components/editor/RichTextEditor";
-import type { GuideType, TheorySection } from "@/lib/domains/guide/types";
+import type { GuideType, TheorySection, ContentSection } from "@/lib/domains/guide/types";
 import {
   GUIDE_SECTION_CONFIG,
   type SectionDefinition,
@@ -28,6 +28,9 @@ interface GuideContentEditorProps {
   onBookDescriptionChange: (v: string) => void;
   setekExamples: string[];
   onSetekExamplesChange: (v: string[]) => void;
+  /** 유형 확장/선택 섹션 (type_extension + optional) */
+  extraSections?: ContentSection[];
+  onExtraSectionsChange?: (v: ContentSection[]) => void;
   contentFormat?: string;
   toHtml: (text: string, format?: string) => string;
   onImageInsert: () => Promise<string | null>;
@@ -41,28 +44,45 @@ export function GuideContentEditor(props: GuideContentEditorProps) {
   const fmt = props.contentFormat;
   const sectionConfig = GUIDE_SECTION_CONFIG[props.guideType] ?? GUIDE_SECTION_CONFIG["topic_exploration"];
 
-  // 레거시 필드 매핑: config key → props getter/setter
-  const fieldMap: Record<string, { value: string; onChange: (v: string) => void; placeholder?: string }> = {
+  // extraSections 헬퍼: key로 값 읽기/쓰기
+  const getExtraValue = (key: string): string => {
+    return props.extraSections?.find((s) => s.key === key)?.content ?? "";
+  };
+  const setExtraValue = (key: string, label: string, value: string) => {
+    if (!props.onExtraSectionsChange) return;
+    const existing = props.extraSections ?? [];
+    const idx = existing.findIndex((s) => s.key === key);
+    if (idx >= 0) {
+      props.onExtraSectionsChange(
+        existing.map((s, i) => (i === idx ? { ...s, content: value } : s)),
+      );
+    } else {
+      props.onExtraSectionsChange([
+        ...existing,
+        { key, label, content: value, content_format: "html" },
+      ]);
+    }
+  };
+
+  // 코어 필드 매핑 (레거시 props)
+  const coreFieldMap: Record<string, { value: string; onChange: (v: string) => void }> = {
     motivation: { value: props.motivation, onChange: props.onMotivationChange },
     book_description: { value: props.bookDescription, onChange: props.onBookDescriptionChange },
     reflection: { value: props.reflection, onChange: props.onReflectionChange },
     impression: { value: props.impression, onChange: props.onImpressionChange },
     summary: { value: props.summary, onChange: props.onSummaryChange },
     follow_up: { value: props.followUp, onChange: props.onFollowUpChange },
-    // 유형별 전용 키 → 레거시 필드 매핑 (하위 호환)
-    // Phase D 완전 리팩토링 시 content_sections 기반으로 전환 예정
-    objective: { value: props.motivation, onChange: props.onMotivationChange },
-    background: { value: props.bookDescription, onChange: props.onBookDescriptionChange },
-    hypothesis: { value: "", onChange: () => {} },  // 신규 키 (차후 content_sections로 전환)
-    materials: { value: "", onChange: () => {} },
-    method: { value: "", onChange: () => {} },
-    results: { value: "", onChange: () => {} },
-    analysis: { value: "", onChange: () => {} },
-    self_assessment: { value: "", onChange: () => {} },
-    curriculum_link: { value: "", onChange: () => {} },
-    overview: { value: props.motivation, onChange: props.onMotivationChange },
-    learning: { value: props.summary, onChange: props.onSummaryChange },
-    deliverables: { value: props.followUp, onChange: props.onFollowUpChange },
+  };
+
+  // config key → value/onChange 해결 (core → 레거시 props, 나머지 → extraSections)
+  const resolveField = (def: SectionDefinition): { value: string; onChange: (v: string) => void } => {
+    const core = coreFieldMap[def.key];
+    if (core) return core;
+    // type_extension / optional → extraSections 기반
+    return {
+      value: getExtraValue(def.key),
+      onChange: (v: string) => setExtraValue(def.key, def.label, v),
+    };
   };
 
   // 탐구 이론 / 복수 섹션 핸들러
@@ -138,9 +158,9 @@ export function GuideContentEditor(props: GuideContentEditorProps) {
       return renderSetekExamples(def);
     }
 
+    // key_value 타입 (프로그램 개요 등) → rich_text로 fallback
     // 일반 rich_text 섹션
-    const field = fieldMap[def.key];
-    if (!field) return null;
+    const field = resolveField(def);
 
     return (
       <ContentSection key={def.key} label={def.label}>

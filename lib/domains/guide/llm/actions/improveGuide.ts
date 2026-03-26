@@ -24,9 +24,11 @@ import {
 import { generatedGuideSchema } from "../types";
 import type { GeneratedGuideOutput } from "../types";
 import {
-  IMPROVE_SYSTEM_PROMPT,
+  buildImproveSystemPrompt,
   buildImproveUserPrompt,
 } from "../prompts/improve-guide";
+import { resolveContentSections } from "../../section-config";
+import type { GuideType } from "../../types";
 import { getCachedAuthUser } from "@/lib/auth/cachedGetUser";
 
 const LOG_CTX = { domain: "guide", action: "improveGuide" };
@@ -67,10 +69,18 @@ export async function improveGuideAction(
       return createErrorResponse("사용자 정보를 확인할 수 없습니다.");
     }
 
+    // content_sections 우선 해석
+    const contentSections = resolveContentSections(
+      guide.guide_type as GuideType,
+      guide.content,
+    );
+
     // 개선 프롬프트 조립 (#6: qualityScore null 처리)
     const userPrompt = buildImproveUserPrompt({
       title: guide.title,
       guideType: guide.guide_type,
+      contentSections:
+        contentSections.length > 0 ? contentSections : undefined,
       motivation: guide.content.motivation ?? "",
       theorySections: guide.content.theory_sections.map((s) => ({
         title: s.title,
@@ -92,7 +102,7 @@ export async function improveGuideAction(
 
     // Gemini 호출 (개선 생성)
     const { object: improved, modelId } = await generateObjectWithRateLimit({
-      system: IMPROVE_SYSTEM_PROMPT,
+      system: buildImproveSystemPrompt(guide.guide_type as GuideType),
       messages: [{ role: "user", content: userPrompt }],
       schema: zodSchema(generatedGuideSchema),
       modelTier: "fast",
@@ -101,7 +111,7 @@ export async function improveGuideAction(
     });
 
     // #7: 개선 결과 검증
-    if (!improved.motivation || improved.theorySections.length === 0) {
+    if (improved.sections.length === 0) {
       return createErrorResponse(
         "AI가 개선된 콘텐츠를 생성하지 못했습니다. 다시 시도해주세요.",
       );
@@ -110,22 +120,29 @@ export async function improveGuideAction(
     // 새 버전 생성
     const newGuide = await createNewVersion(guideId, user.id);
 
+    // sections → 레거시 역변환 (하위 호환)
+    const legacy = sectionsToLegacyImprove(improved.sections);
+
     // 개선된 콘텐츠 저장
     await upsertGuideContent(newGuide.id, {
-      motivation: improved.motivation,
-      theorySections: improved.theorySections.map((s) => ({
-        ...s,
-        content_format: "html" as const,
-      })),
-      reflection: improved.reflection,
-      impression: improved.impression,
-      summary: improved.summary,
-      followUp: improved.followUp,
-      bookDescription: improved.bookDescription,
+      motivation: legacy.motivation ?? improved.motivation ?? "",
+      theorySections:
+        legacy.theorySections.length > 0
+          ? legacy.theorySections
+          : (improved.theorySections ?? []).map((s) => ({
+              ...s,
+              content_format: "html" as const,
+            })),
+      reflection: legacy.reflection ?? improved.reflection ?? "",
+      impression: legacy.impression ?? improved.impression ?? "",
+      summary: legacy.summary ?? improved.summary ?? "",
+      followUp: legacy.followUp ?? improved.followUp ?? "",
+      bookDescription:
+        legacy.bookDescription ?? improved.bookDescription,
       relatedPapers: improved.relatedPapers,
       // 세특 예시는 원본 보존
       setekExamples: guide.content.setek_examples,
-      contentSections: improved.sections?.map((s) => ({
+      contentSections: improved.sections.map((s) => ({
         key: s.key,
         label: s.label,
         content: s.content,
@@ -155,4 +172,37 @@ export async function improveGuideAction(
     logActionError(LOG_CTX, error, { guideId });
     return createErrorResponse("AI 개선에 실패했습니다.");
   }
+}
+
+// sections → 레거시 역변환 (improveGuide용)
+function sectionsToLegacyImprove(
+  sections: Array<{ key: string; label: string; content: string; items?: string[]; order?: number }>,
+) {
+  const result = {
+    motivation: undefined as string | undefined,
+    theorySections: [] as Array<{ order: number; title: string; content: string; content_format: "html" }>,
+    reflection: undefined as string | undefined,
+    impression: undefined as string | undefined,
+    summary: undefined as string | undefined,
+    followUp: undefined as string | undefined,
+    bookDescription: undefined as string | undefined,
+  };
+
+  for (const s of sections) {
+    switch (s.key) {
+      case "motivation": result.motivation = s.content; break;
+      case "content_sections":
+        result.theorySections.push({
+          order: s.order ?? result.theorySections.length + 1,
+          title: s.label, content: s.content, content_format: "html",
+        });
+        break;
+      case "reflection": result.reflection = s.content; break;
+      case "impression": result.impression = s.content; break;
+      case "summary": result.summary = s.content; break;
+      case "follow_up": result.followUp = s.content; break;
+      case "book_description": result.bookDescription = s.content; break;
+    }
+  }
+  return result;
 }

@@ -39,11 +39,11 @@ import {
   buildKeywordUserPrompt,
 } from "../prompts/keyword-guide";
 import {
-  CLONE_SYSTEM_PROMPT,
+  buildCloneSystemPrompt,
   buildCloneUserPrompt,
 } from "../prompts/clone-variant";
 import {
-  EXTRACTION_SYSTEM_PROMPT,
+  buildExtractionSystemPrompt,
   buildExtractionUserPrompt,
 } from "../prompts/extraction-guide";
 import { extractTextFromPdfUrl } from "../extract/pdf-extractor";
@@ -64,6 +64,17 @@ export async function generateGuideAction(
       return createErrorResponse(
         "오늘의 AI 사용 할당량이 초과되었습니다. 내일 다시 시도해주세요.",
       );
+    }
+
+    // 학생 프로필 자동 로드 (studentId가 있고 studentProfile이 없을 때)
+    if (input.studentId && !input.studentProfile) {
+      const { loadStudentProfileForGuide } = await import(
+        "../loaders/student-profile-loader"
+      );
+      const profile = await loadStudentProfileForGuide(input.studentId);
+      if (profile) {
+        input.studentProfile = profile;
+      }
     }
 
     // 입력 검증 + 프롬프트 빌드
@@ -131,22 +142,33 @@ export async function generateGuideAction(
       registeredBy: userId,
     });
 
+    // sections → 레거시 필드 역변환 (하위 호환 이중 저장)
+    const legacy = sectionsToLegacy(generated.sections, generated.guideType);
+
     await Promise.all([
       upsertGuideContent(guide.id, {
-        motivation: generated.motivation,
-        theorySections: generated.theorySections.map((s) => ({
-          ...s,
-          content_format: "html" as const,
-        })),
-        reflection: generated.reflection,
-        impression: generated.impression,
-        summary: generated.summary,
-        followUp: generated.followUp,
-        bookDescription: generated.bookDescription,
+        // 레거시 backfill (sections 기반 우선, fallback으로 generated 직접 사용)
+        motivation: legacy.motivation ?? generated.motivation ?? "",
+        theorySections:
+          legacy.theorySections.length > 0
+            ? legacy.theorySections
+            : (generated.theorySections ?? []).map((s) => ({
+                ...s,
+                content_format: "html" as const,
+              })),
+        reflection: legacy.reflection ?? generated.reflection ?? "",
+        impression: legacy.impression ?? generated.impression ?? "",
+        summary: legacy.summary ?? generated.summary ?? "",
+        followUp: legacy.followUp ?? generated.followUp ?? "",
+        bookDescription:
+          legacy.bookDescription ?? generated.bookDescription,
         relatedPapers: generated.relatedPapers,
-        setekExamples: generated.setekExamples,
-        // 유형별 섹션 데이터 (신규 구조)
-        contentSections: generated.sections?.map((s) => ({
+        setekExamples:
+          legacy.setekExamples.length > 0
+            ? legacy.setekExamples
+            : generated.setekExamples,
+        // 유형별 섹션 데이터 (신규 구조 — 우선 소스)
+        contentSections: generated.sections.map((s) => ({
           key: s.key,
           label: s.label,
           content: s.content,
@@ -236,7 +258,11 @@ async function buildPrompt(
       }
       return {
         ok: true,
-        systemPrompt: buildKeywordSystemPrompt(input.keyword.guideType),
+        systemPrompt: buildKeywordSystemPrompt(
+          input.keyword.guideType,
+          input.studentProfile,
+          input.selectedSectionKeys,
+        ),
         userPrompt: buildKeywordUserPrompt(input.keyword),
         sourceType: "ai_keyword",
       };
@@ -252,7 +278,10 @@ async function buildPrompt(
       }
       return {
         ok: true,
-        systemPrompt: CLONE_SYSTEM_PROMPT,
+        systemPrompt: buildCloneSystemPrompt(
+          sourceGuide.guide_type as import("../../types").GuideType,
+          input.studentProfile,
+        ),
         userPrompt: buildCloneUserPrompt(sourceGuide, input.clone),
         sourceType: "ai_clone_variant",
         parentGuideId: input.clone.sourceGuideId,
@@ -266,7 +295,10 @@ async function buildPrompt(
       const pdfResult = await extractTextFromPdfUrl(input.pdf.pdfUrl);
       return {
         ok: true,
-        systemPrompt: EXTRACTION_SYSTEM_PROMPT,
+        systemPrompt: buildExtractionSystemPrompt(
+          input.pdf.guideType,
+          input.studentProfile,
+        ),
         userPrompt: buildExtractionUserPrompt({
           extractedText: pdfResult.text,
           sourceTitle: pdfResult.title,
@@ -288,7 +320,10 @@ async function buildPrompt(
       const urlResult = await extractTextFromUrl(input.url.url);
       return {
         ok: true,
-        systemPrompt: EXTRACTION_SYSTEM_PROMPT,
+        systemPrompt: buildExtractionSystemPrompt(
+          input.url.guideType,
+          input.studentProfile,
+        ),
         userPrompt: buildExtractionUserPrompt({
           extractedText: urlResult.text,
           sourceTitle: urlResult.title,
@@ -306,4 +341,80 @@ async function buildPrompt(
     default:
       return { ok: false, error: "지원하지 않는 생성 방식입니다." };
   }
+}
+
+// ============================================
+// 내부: sections → 레거시 필드 역변환
+// ============================================
+
+interface LegacyBackfill {
+  motivation: string | undefined;
+  theorySections: Array<{
+    order: number;
+    title: string;
+    content: string;
+    content_format: "html";
+  }>;
+  reflection: string | undefined;
+  impression: string | undefined;
+  summary: string | undefined;
+  followUp: string | undefined;
+  bookDescription: string | undefined;
+  setekExamples: string[];
+}
+
+function sectionsToLegacy(
+  sections: Array<{ key: string; label: string; content: string; items?: string[]; order?: number }>,
+  _guideType: string,
+): LegacyBackfill {
+  const result: LegacyBackfill = {
+    motivation: undefined,
+    theorySections: [],
+    reflection: undefined,
+    impression: undefined,
+    summary: undefined,
+    followUp: undefined,
+    bookDescription: undefined,
+    setekExamples: [],
+  };
+
+  for (const s of sections) {
+    switch (s.key) {
+      case "motivation":
+        result.motivation = s.content;
+        break;
+      case "content_sections":
+        result.theorySections.push({
+          order: s.order ?? result.theorySections.length + 1,
+          title: s.label,
+          content: s.content,
+          content_format: "html",
+        });
+        break;
+      case "reflection":
+        result.reflection = s.content;
+        break;
+      case "impression":
+        result.impression = s.content;
+        break;
+      case "summary":
+        result.summary = s.content;
+        break;
+      case "follow_up":
+        result.followUp = s.content;
+        break;
+      case "book_description":
+        result.bookDescription = s.content;
+        break;
+      case "setek_examples":
+        if (s.items?.length) {
+          result.setekExamples = s.items;
+        } else if (s.content) {
+          result.setekExamples = [s.content];
+        }
+        break;
+    }
+  }
+
+  return result;
 }

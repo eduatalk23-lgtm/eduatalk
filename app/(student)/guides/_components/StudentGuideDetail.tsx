@@ -9,7 +9,7 @@ import {
 } from "@/lib/query-options/explorationGuide";
 import { updateMyAssignmentStatusAction } from "@/lib/domains/guide/actions/student-guide";
 import { GUIDE_TYPE_LABELS } from "@/lib/domains/guide/types";
-import type { GuideType, TheorySection } from "@/lib/domains/guide/types";
+import type { GuideType } from "@/lib/domains/guide/types";
 import { GUIDE_SECTION_CONFIG, resolveContentSections } from "@/lib/domains/guide/section-config";
 
 interface StudentGuideDetailProps {
@@ -48,32 +48,10 @@ export function StudentGuideDetail({
         const guideType = guide.guide_type as GuideType;
         const sectionConfig = GUIDE_SECTION_CONFIG[guideType] ?? GUIDE_SECTION_CONFIG["topic_exploration"];
 
-        // content_sections가 있으면 우선 사용, 없으면 레거시 필드에서 변환
+        // content_sections 우선, 없으면 레거시 필드에서 변환
         const resolvedSections = guide.content
           ? resolveContentSections(guideType, guide.content)
           : [];
-
-        // 레거시 필드 매핑 (resolvedSections가 비어있을 경우 fallback)
-        const contentFieldMap: Record<string, string | null | undefined> = guide.content ? {
-          motivation: guide.content.motivation,
-          book_description: guide.content.book_description,
-          reflection: guide.content.reflection,
-          impression: guide.content.impression,
-          summary: guide.content.summary,
-          follow_up: guide.content.follow_up,
-          objective: guide.content.motivation,
-          background: guide.content.book_description,
-          overview: guide.content.motivation,
-          learning: guide.content.summary,
-          deliverables: guide.content.follow_up,
-        } : {};
-
-        // resolvedSections에서 key로 content 조회 (있으면 우선)
-        const getContent = (key: string): string | null | undefined => {
-          const section = resolvedSections.find((s) => s.key === key);
-          if (section?.content) return section.content;
-          return contentFieldMap[key];
-        };
 
         return (
         <div className="flex flex-col gap-4">
@@ -152,37 +130,36 @@ export function StudentGuideDetail({
                 .map((def) => {
                   // 복수 섹션
                   if (def.multiple) {
-                    if (guide.content!.theory_sections.length === 0) return null;
+                    const multiples = resolvedSections.filter((s) => s.key === def.key);
+                    if (multiples.length === 0) return null;
                     return (
                       <div key={def.key}>
                         <h4 className="mb-1.5 text-xs font-semibold text-gray-500">
                           {def.label}
                         </h4>
                         <div className="flex flex-col gap-2">
-                          {guide.content!.theory_sections.map(
-                            (sec: TheorySection) => (
-                              <div
-                                key={sec.order}
-                                className="rounded border-l-2 border-blue-300 bg-gray-50 p-2.5 text-sm text-gray-700"
-                              >
-                                {sec.title && (
-                                  <p className="text-xs font-semibold text-gray-500 mb-1">
-                                    {sec.title}
-                                  </p>
-                                )}
-                                {sec.content}
-                              </div>
-                            ),
-                          )}
+                          {multiples.map((sec, i) => (
+                            <div
+                              key={i}
+                              className="rounded border-l-2 border-blue-300 bg-gray-50 p-2.5 text-sm text-gray-700"
+                            >
+                              {sec.label && sec.label !== def.label && (
+                                <p className="text-xs font-semibold text-gray-500 mb-1">
+                                  {sec.label}
+                                </p>
+                              )}
+                              {sec.content}
+                            </div>
+                          ))}
                         </div>
                       </div>
                     );
                   }
 
                   // 일반 섹션
-                  const text = getContent(def.key);
-                  if (!text) return null;
-                  return <ContentBlock key={def.key} label={def.label} text={text} />;
+                  const section = resolvedSections.find((s) => s.key === def.key);
+                  if (!section?.content) return null;
+                  return <ContentBlock key={def.key} label={def.label} text={section.content} />;
                 })}
 
               {guide.content.related_papers.length > 0 && (

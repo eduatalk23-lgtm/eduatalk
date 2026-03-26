@@ -1,29 +1,40 @@
 /**
  * AI 리뷰 기반 가이드 개선 프롬프트
- * 리뷰 피드백을 반영하여 기존 가이드를 개선한다.
+ * 공통 빌더 기반으로 유형별 섹션 구조 인식
  */
 
-export const IMPROVE_SYSTEM_PROMPT = `당신은 한국 고등학교 탐구 가이드 개선 전문가입니다.
-제공된 가이드를 AI 리뷰 피드백에 따라 개선합니다.
+import type { GuideType } from "../../types";
+import type { ContentSection } from "../../types";
+import type { StudentProfileContext } from "../types";
+import { buildBaseSystemPrompt } from "./common-prompt-builder";
 
-## 원칙
-1. 원본 구조(동기→이론→고찰→느낀점→요약→후속)를 **유지**
-2. 리뷰 피드백의 각 항목을 **명확히 반영**하여 개선
-3. 강점으로 지적된 부분은 **보존** (훼손하지 않음)
-4. 약점으로 지적된 부분만 **집중 개선**
-5. 이론 섹션 수와 제목은 **유지** (내용만 개선)
-6. setekExamples(세특 예시)는 **원본 그대로 보존**
+const IMPROVE_SPECIFIC_RULES = `
+## 개선 원칙
+1. 원본의 섹션 구조를 **유지**합니다
+2. 리뷰 피드백의 각 항목을 **명확히 반영**하여 개선합니다
+3. 강점으로 지적된 부분은 **보존**합니다 (훼손하지 않음)
+4. 약점으로 지적된 부분만 **집중 개선**합니다
+5. 이론 섹션 수와 제목은 **유지**합니다 (내용만 개선)
+6. setekExamples(세특 예시)는 **원본 그대로 보존**합니다
 
 ## 차원별 개선 기준
 - **학술적 깊이**: 개념 정확성 강화, 학문적 근거 보충, 논리적 전개 보강
 - **학생 접근성**: 어려운 용어 설명 추가, 비유/예시 보충, 자연스러운 학생 시점
 - **구조적 완성도**: 부족한 섹션 분량 보충, 논리적 흐름 개선
-- **실용적 연관성**: 생기부 활용도 향상, 후속 탐구 구체화, 교과 연계 강화
+- **실용적 연관성**: 생기부 활용도 향상, 후속 탐구 구체화, 교과 연계 강화`;
 
-## 출력 규칙
-- 모든 콘텐츠 필드는 **HTML 형식** (<p>, <ul>, <li>, <strong>, <em> 사용)
-- 한국어로 작성
-- 학문적 용어는 처음 등장 시 간단히 설명`;
+/**
+ * 개선 시스템 프롬프트 (유형별 섹션 구조 인식)
+ */
+export function buildImproveSystemPrompt(
+  guideType: GuideType,
+  studentProfile?: StudentProfileContext,
+): string {
+  return `${buildBaseSystemPrompt(guideType, studentProfile)}\n${IMPROVE_SPECIFIC_RULES}`;
+}
+
+// 하위 호환
+export const IMPROVE_SYSTEM_PROMPT = "";
 
 // #4: 안전한 HTML 스트리핑 (script/style/comment 제거)
 function stripHtml(html: string): string {
@@ -39,6 +50,9 @@ function stripHtml(html: string): string {
 export function buildImproveUserPrompt(input: {
   title: string;
   guideType: string;
+  /** content_sections 기반 (우선) */
+  contentSections?: ContentSection[];
+  /** 레거시 fallback */
   motivation: string;
   theorySections: Array<{ title: string; content: string }>;
   reflection: string;
@@ -56,49 +70,58 @@ export function buildImproveUserPrompt(input: {
 }): string {
   const parts: string[] = [];
 
-  // 원본 가이드 (#3: truncation 한도 확대 — HTML 오버헤드 보상)
   parts.push("## 원본 가이드");
   parts.push(`- **제목**: ${input.title}`);
   parts.push(`- **유형**: ${input.guideType}`);
   parts.push("");
 
-  parts.push("### 탐구 동기");
-  parts.push(stripHtml(input.motivation).slice(0, 1000));
-  parts.push("");
-
-  parts.push("### 탐구 이론");
-  for (const s of input.theorySections) {
-    parts.push(`**${s.title}**`);
-    parts.push(stripHtml(s.content).slice(0, 2000));
+  // content_sections가 있으면 유형별 구조로 전달
+  if (input.contentSections && input.contentSections.length > 0) {
+    for (const s of input.contentSections) {
+      if (s.key === "setek_examples") continue;
+      parts.push(`### ${s.label}`);
+      parts.push(stripHtml(s.content).slice(0, 2000));
+      parts.push("");
+    }
+  } else {
+    // 레거시 fallback
+    parts.push("### 탐구 동기");
+    parts.push(stripHtml(input.motivation).slice(0, 1000));
     parts.push("");
-  }
 
-  parts.push("### 탐구 고찰");
-  parts.push(stripHtml(input.reflection).slice(0, 1000));
-  parts.push("");
+    parts.push("### 탐구 이론");
+    for (const s of input.theorySections) {
+      parts.push(`**${s.title}**`);
+      parts.push(stripHtml(s.content).slice(0, 2000));
+      parts.push("");
+    }
 
-  parts.push("### 느낀점");
-  parts.push(stripHtml(input.impression).slice(0, 600));
-  parts.push("");
-
-  parts.push("### 탐구 요약");
-  parts.push(stripHtml(input.summary).slice(0, 800));
-  parts.push("");
-
-  parts.push("### 후속 탐구");
-  parts.push(stripHtml(input.followUp).slice(0, 600));
-  parts.push("");
-
-  if (input.bookDescription) {
-    parts.push("### 도서 소개");
-    parts.push(stripHtml(input.bookDescription).slice(0, 800));
+    parts.push("### 탐구 고찰");
+    parts.push(stripHtml(input.reflection).slice(0, 1000));
     parts.push("");
+
+    parts.push("### 느낀점");
+    parts.push(stripHtml(input.impression).slice(0, 600));
+    parts.push("");
+
+    parts.push("### 탐구 요약");
+    parts.push(stripHtml(input.summary).slice(0, 800));
+    parts.push("");
+
+    parts.push("### 후속 탐구");
+    parts.push(stripHtml(input.followUp).slice(0, 600));
+    parts.push("");
+
+    if (input.bookDescription) {
+      parts.push("### 도서 소개");
+      parts.push(stripHtml(input.bookDescription).slice(0, 800));
+      parts.push("");
+    }
   }
 
   // AI 리뷰 결과
   parts.push("## AI 리뷰 결과");
 
-  // #6: qualityScore null 처리
   if (input.qualityScore !== null && input.qualityScore !== undefined) {
     parts.push(`- 종합 점수: ${input.qualityScore}/100`);
   } else {
@@ -124,7 +147,6 @@ export function buildImproveUserPrompt(input: {
   }
   parts.push("");
 
-  // #5: 빈 피드백 배열 처리
   parts.push("## 개선 요청");
   if (input.reviewResult.feedback.length > 0) {
     for (const f of input.reviewResult.feedback) {

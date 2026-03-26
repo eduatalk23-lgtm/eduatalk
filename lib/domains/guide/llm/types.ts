@@ -48,6 +48,32 @@ export interface URLExtractionInput {
   additionalContext?: string;
 }
 
+// ============================================================
+// 학생 프로필 컨텍스트 (가이드 생성 시 선택적 주입)
+// ============================================================
+
+/** 가이드 생성 시 학생 진로/역량 맥락 — 없으면 범용 가이드 생성 */
+export interface StudentProfileContext {
+  studentId: string;
+  name: string;
+  /** 희망 전공 (예: "정치·외교") — students.target_major */
+  targetMajor?: string;
+  /** 희망 계열 코드 (예: "SOC") — students.desired_career_field */
+  desiredCareerField?: string;
+  /** 역량 진단 상위 항목 (예: ["탐구력", "진로탐색"]) */
+  topCompetencies?: string[];
+  /** 역량 진단 하위 항목 (보완 필요) */
+  weakCompetencies?: string[];
+  /** 스토리라인 키워드 (예: ["국제인권", "난민정책"]) */
+  storylineKeywords?: string[];
+  /** 전공 권장교과 — getMajorRecommendedCourses() 결과 */
+  recommendedCourses?: {
+    general: string[];
+    career: string[];
+    fusion?: string[];
+  };
+}
+
 /** AI 가이드 생성 통합 입력 */
 export interface GuideGenerationInput {
   source: GuideGenerationSource;
@@ -67,6 +93,12 @@ export interface GuideGenerationInput {
   unitMinor?: string;
   /** AI 모델 티어 (fast=Flash, advanced=Pro) — 기본 fast */
   modelTier?: ModelTier;
+  /** 학생 프로필 (선택) — 있으면 진로 연계 가이드, 없으면 범용 */
+  studentProfile?: StudentProfileContext;
+  /** 학생 ID (선택) — studentProfile이 없으면 이 ID로 자동 로드 */
+  studentId?: string;
+  /** 활성 섹션 키 목록 (선택) — 지정 시 이 섹션들만 AI가 생성 */
+  selectedSectionKeys?: string[];
 }
 
 // ============================================================
@@ -116,27 +148,26 @@ export const generatedGuideSchema = z.object({
   bookAuthor: z.string().optional().describe("도서 저자"),
   bookPublisher: z.string().optional().describe("출판사"),
 
-  // 레거시 필드 (하위 호환)
-  motivation: z.string().describe("탐구 동기 (HTML 형식)"),
+  // 레거시 필드 (하위 호환 — Phase 2 이후 점진 폐기)
+  motivation: z.string().optional().describe("레거시: 탐구 동기 (HTML 형식)"),
   theorySections: z
     .array(theorySectionSchema)
-    .min(2)
-    .max(5)
-    .describe("탐구 이론 섹션 (2~5개)"),
-  reflection: z.string().describe("탐구 고찰 (HTML 형식)"),
-  impression: z.string().describe("느낀점 (HTML 형식)"),
-  summary: z.string().describe("탐구 요약 (HTML 형식)"),
-  followUp: z.string().describe("후속 탐구 (HTML 형식)"),
+    .optional()
+    .describe("레거시: 탐구 이론 섹션"),
+  reflection: z.string().optional().describe("레거시: 탐구 고찰 (HTML 형식)"),
+  impression: z.string().optional().describe("레거시: 느낀점 (HTML 형식)"),
+  summary: z.string().optional().describe("레거시: 탐구 요약 (HTML 형식)"),
+  followUp: z.string().optional().describe("레거시: 후속 탐구 (HTML 형식)"),
   bookDescription: z
     .string()
     .optional()
     .describe("도서 소개 (HTML 형식)"),
 
-  // 신규: 유형별 섹션 배열
+  // 유형별 섹션 배열 (section-config 기반)
   sections: z
     .array(contentSectionSchema)
-    .optional()
-    .describe("유형별 섹션 데이터 (config 기반, 신규 가이드용)"),
+    .min(1)
+    .describe("유형별 섹션 데이터 — section-config의 key와 일치해야 합니다"),
 
   relatedPapers: z
     .array(relatedPaperSchema)

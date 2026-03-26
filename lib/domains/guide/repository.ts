@@ -536,11 +536,17 @@ export async function findAssignmentsWithGuides(
 export async function updateAssignmentStatus(
   assignmentId: string,
   status: AssignmentStatus,
+  /** 확정 시 확정자 UUID */
+  confirmedBy?: string,
 ): Promise<void> {
   const supabase = await createSupabaseServerClient();
   const updates: Record<string, unknown> = { status };
   if (status === "submitted") updates.submitted_at = new Date().toISOString();
-  if (status === "completed") updates.completed_at = new Date().toISOString();
+  if (status === "completed") {
+    updates.completed_at = new Date().toISOString();
+    updates.confirmed_at = new Date().toISOString();
+    if (confirmedBy) updates.confirmed_by = confirmedBy;
+  }
 
   const { error } = await supabase
     .from("exploration_guide_assignments")

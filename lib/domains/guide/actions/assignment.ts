@@ -127,8 +127,8 @@ export async function updateAssignmentStatusAction(
   status: AssignmentStatus,
 ): Promise<ActionResponse> {
   try {
-    await requireAdminOrConsultant();
-    await updateAssignmentStatus(assignmentId, status);
+    const { userId } = await requireAdminOrConsultant();
+    await updateAssignmentStatus(assignmentId, status, userId);
     return createSuccessResponse();
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "updateAssignmentStatus" }, error, {

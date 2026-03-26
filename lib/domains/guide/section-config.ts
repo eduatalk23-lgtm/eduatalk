@@ -16,6 +16,9 @@ export type SectionEditorType =
   | "key_value"
   | "plain_text";
 
+/** 섹션 계층 — Core: 전 유형 공통 필수, type_extension: 유형 선택 시 자동 ON, optional: 선택 보강 */
+export type SectionTier = "core" | "type_extension" | "optional";
+
 export interface SectionDefinition {
   /** DB 저장 키 (content_sections[].key) */
   key: string;
@@ -40,6 +43,8 @@ export interface SectionDefinition {
   /** 복수 섹션 최소/최대 */
   multipleMin?: number;
   multipleMax?: number;
+  /** 섹션 계층 (기본: core) */
+  tier?: SectionTier;
 }
 
 // ============================================================
@@ -53,6 +58,7 @@ const READING_SECTIONS: SectionDefinition[] = [
     editorType: "rich_text",
     required: true,
     order: 1,
+    tier: "core",
     placeholder: "왜 이 책을 읽게 되었는지 학생 시점에서 작성",
     minLength: 150,
     maxLength: 300,
@@ -63,6 +69,7 @@ const READING_SECTIONS: SectionDefinition[] = [
     editorType: "rich_text",
     required: true,
     order: 2,
+    tier: "type_extension",
     placeholder: "핵심 내용과 학문적 가치",
     minLength: 200,
     maxLength: 400,
@@ -73,6 +80,7 @@ const READING_SECTIONS: SectionDefinition[] = [
     editorType: "rich_text",
     required: true,
     order: 3,
+    tier: "core",
     placeholder: "책의 핵심 개념/논점 분석",
     multiple: true,
     multipleMin: 2,
@@ -82,11 +90,12 @@ const READING_SECTIONS: SectionDefinition[] = [
   },
   {
     key: "reflection",
-    label: "탐구 고찰",
+    label: "탐구 고찰 및 제언",
     editorType: "rich_text",
     required: true,
     order: 4,
-    placeholder: "책을 통해 발견한 점, 분석 결과",
+    tier: "core",
+    placeholder: "책을 통해 발견한 점, 분석 결과 및 제언",
     minLength: 200,
     maxLength: 500,
   },
@@ -96,7 +105,8 @@ const READING_SECTIONS: SectionDefinition[] = [
     editorType: "rich_text",
     required: true,
     order: 5,
-    placeholder: "학문적/개인적 감상",
+    tier: "core",
+    placeholder: "학문적/개인적 감상, 학습자로서의 성장",
     minLength: 150,
     maxLength: 300,
   },
@@ -104,8 +114,9 @@ const READING_SECTIONS: SectionDefinition[] = [
     key: "summary",
     label: "탐구 요약",
     editorType: "rich_text",
-    required: true,
+    required: false,
     order: 6,
+    tier: "optional",
     placeholder: "전체 내용 핵심 정리",
     minLength: 200,
     maxLength: 400,
@@ -116,6 +127,7 @@ const READING_SECTIONS: SectionDefinition[] = [
     editorType: "rich_text",
     required: false,
     order: 7,
+    tier: "optional",
     placeholder: "관련 도서, 심화 연구 방향",
   },
   {
@@ -124,8 +136,9 @@ const READING_SECTIONS: SectionDefinition[] = [
     editorType: "text_list",
     required: false,
     order: 8,
+    tier: "core",
     adminOnly: true,
-    placeholder: "교사용 기록 예시 (200자 내외)",
+    placeholder: "교사용 기록 예시 (200~500자)",
   },
 ];
 
@@ -136,6 +149,7 @@ const TOPIC_EXPLORATION_SECTIONS: SectionDefinition[] = [
     editorType: "rich_text",
     required: true,
     order: 1,
+    tier: "core",
     placeholder: "왜 이 주제에 관심을 갖게 되었는지",
     minLength: 150,
     maxLength: 300,
@@ -146,6 +160,7 @@ const TOPIC_EXPLORATION_SECTIONS: SectionDefinition[] = [
     editorType: "rich_text",
     required: true,
     order: 2,
+    tier: "core",
     placeholder: "핵심 개념/이론 전개",
     multiple: true,
     multipleMin: 2,
@@ -155,11 +170,12 @@ const TOPIC_EXPLORATION_SECTIONS: SectionDefinition[] = [
   },
   {
     key: "reflection",
-    label: "탐구 고찰",
+    label: "탐구 고찰 및 제언",
     editorType: "rich_text",
     required: true,
     order: 3,
-    placeholder: "탐구를 통해 발견한 점",
+    tier: "core",
+    placeholder: "탐구를 통해 발견한 점 및 제언",
     minLength: 200,
     maxLength: 500,
   },
@@ -169,7 +185,8 @@ const TOPIC_EXPLORATION_SECTIONS: SectionDefinition[] = [
     editorType: "rich_text",
     required: true,
     order: 4,
-    placeholder: "학문적/개인적 감상",
+    tier: "core",
+    placeholder: "학문적/개인적 감상, 학습자로서의 성장",
     minLength: 150,
     maxLength: 300,
   },
@@ -177,8 +194,9 @@ const TOPIC_EXPLORATION_SECTIONS: SectionDefinition[] = [
     key: "summary",
     label: "탐구 요약",
     editorType: "rich_text",
-    required: true,
+    required: false,
     order: 5,
+    tier: "optional",
     placeholder: "전체 내용 핵심 정리",
     minLength: 200,
     maxLength: 400,
@@ -189,6 +207,7 @@ const TOPIC_EXPLORATION_SECTIONS: SectionDefinition[] = [
     editorType: "rich_text",
     required: false,
     order: 6,
+    tier: "optional",
     placeholder: "심화 탐구 방향",
   },
   {
@@ -197,31 +216,37 @@ const TOPIC_EXPLORATION_SECTIONS: SectionDefinition[] = [
     editorType: "text_list",
     required: false,
     order: 7,
+    tier: "core",
     adminOnly: true,
-    placeholder: "교사용 기록 예시 (200자 내외)",
+    placeholder: "교사용 기록 예시 (200~500자)",
   },
 ];
 
 const EXPERIMENT_SECTIONS: SectionDefinition[] = [
   {
-    key: "objective",
+    key: "motivation",
     label: "실험 목적",
     editorType: "rich_text",
     required: true,
     order: 1,
-    placeholder: "무엇을 검증/관찰하려는지",
+    tier: "core",
+    placeholder: "무엇을 검증/관찰하려는지, 왜 이 실험을 하게 되었는지",
     minLength: 100,
     maxLength: 300,
   },
   {
-    key: "background",
-    label: "배경 이론",
+    key: "content_sections",
+    label: "탐구 이론",
     editorType: "rich_text",
     required: true,
     order: 2,
-    placeholder: "관련 과학 원리, 선행 연구",
-    minLength: 300,
-    maxLength: 1500,
+    tier: "core",
+    placeholder: "배경 이론 → 가설/변인 → 실험 설계 → 데이터 분석 → 가설 검증",
+    multiple: true,
+    multipleMin: 2,
+    multipleMax: 5,
+    minLength: 500,
+    maxLength: 2000,
   },
   {
     key: "hypothesis",
@@ -229,6 +254,7 @@ const EXPERIMENT_SECTIONS: SectionDefinition[] = [
     editorType: "rich_text",
     required: false,
     order: 3,
+    tier: "type_extension",
     placeholder: "예상되는 결과와 근거",
     maxLength: 500,
   },
@@ -238,27 +264,8 @@ const EXPERIMENT_SECTIONS: SectionDefinition[] = [
     editorType: "text_list",
     required: true,
     order: 4,
+    tier: "type_extension",
     placeholder: "실험에 필요한 재료와 기구",
-  },
-  {
-    key: "method",
-    label: "실험 방법",
-    editorType: "rich_text",
-    required: true,
-    order: 5,
-    placeholder: "단계별 실험 절차",
-    minLength: 300,
-    maxLength: 2000,
-  },
-  {
-    key: "results",
-    label: "실험 결과",
-    editorType: "rich_text",
-    required: true,
-    order: 6,
-    placeholder: "관찰/측정 데이터, 표/그래프 가이드",
-    minLength: 200,
-    maxLength: 1500,
   },
   {
     key: "analysis",
@@ -266,17 +273,19 @@ const EXPERIMENT_SECTIONS: SectionDefinition[] = [
     editorType: "rich_text",
     required: true,
     order: 7,
+    tier: "type_extension",
     placeholder: "데이터 해석, 가설 검증 여부",
     minLength: 200,
     maxLength: 1000,
   },
   {
     key: "reflection",
-    label: "탐구 고찰",
+    label: "탐구 고찰 및 제언",
     editorType: "rich_text",
     required: true,
     order: 8,
-    placeholder: "실험의 의의, 한계, 오차 원인",
+    tier: "core",
+    placeholder: "실험의 의의, 한계, 오차 원인 및 제언",
     minLength: 200,
     maxLength: 500,
   },
@@ -286,7 +295,8 @@ const EXPERIMENT_SECTIONS: SectionDefinition[] = [
     editorType: "rich_text",
     required: true,
     order: 9,
-    placeholder: "실험 과정에서 느낀 점",
+    tier: "core",
+    placeholder: "실험 과정에서 느낀 점, 학습자로서의 성장",
     minLength: 150,
     maxLength: 300,
   },
@@ -296,6 +306,7 @@ const EXPERIMENT_SECTIONS: SectionDefinition[] = [
     editorType: "rich_text",
     required: false,
     order: 10,
+    tier: "optional",
     placeholder: "개선된 실험 설계, 변인 변경 방안",
   },
   {
@@ -304,77 +315,79 @@ const EXPERIMENT_SECTIONS: SectionDefinition[] = [
     editorType: "text_list",
     required: false,
     order: 11,
+    tier: "core",
     adminOnly: true,
-    placeholder: "교사용 기록 예시 (200자 내외)",
+    placeholder: "교사용 기록 예시 (200~500자)",
   },
 ];
 
 const SUBJECT_PERFORMANCE_SECTIONS: SectionDefinition[] = [
   {
-    key: "objective",
-    label: "수행 목표",
+    key: "motivation",
+    label: "탐구 동기",
     editorType: "rich_text",
     required: true,
     order: 1,
-    placeholder: "이 수행평가에서 달성할 목표",
+    tier: "core",
+    placeholder: "이 수행평가에서 달성할 목표와 탐구 동기",
     minLength: 100,
     maxLength: 300,
   },
   {
-    key: "background",
-    label: "관련 교과 개념",
+    key: "content_sections",
+    label: "탐구 이론",
     editorType: "rich_text",
     required: true,
     order: 2,
-    placeholder: "교과서 단원 연계 이론",
-    minLength: 300,
-    maxLength: 1500,
+    tier: "core",
+    placeholder: "교과 개념/성취기준 → 수행 방법론 → 수행 결과 → 성취기준 연계 해석",
+    multiple: true,
+    multipleMin: 2,
+    multipleMax: 5,
+    minLength: 500,
+    maxLength: 2000,
   },
   {
-    key: "method",
-    label: "수행 방법",
+    key: "curriculum_link",
+    label: "교과 연계 분석",
     editorType: "rich_text",
     required: true,
     order: 3,
-    placeholder: "조사/발표/보고서 등 수행 절차",
+    tier: "type_extension",
+    placeholder: "교육과정 성취기준과의 연결",
     minLength: 200,
-    maxLength: 1500,
-  },
-  {
-    key: "results",
-    label: "수행 결과",
-    editorType: "rich_text",
-    required: true,
-    order: 4,
-    placeholder: "산출물 내용 정리",
-    minLength: 200,
-    maxLength: 1500,
+    maxLength: 800,
   },
   {
     key: "self_assessment",
     label: "자기 평가",
     editorType: "rich_text",
     required: true,
-    order: 5,
+    order: 4,
+    tier: "type_extension",
     placeholder: "수행 과정 성찰, 역량 분석",
     minLength: 150,
     maxLength: 500,
   },
   {
-    key: "curriculum_link",
-    label: "교과 연계 분석",
+    key: "reflection",
+    label: "탐구 고찰 및 제언",
     editorType: "rich_text",
-    required: false,
-    order: 6,
-    placeholder: "교육과정 성취기준과의 연결",
+    required: true,
+    order: 5,
+    tier: "core",
+    placeholder: "수행 결과 해석, 의미 부여 및 제언",
+    minLength: 200,
+    maxLength: 500,
   },
   {
     key: "impression",
     label: "느낀점",
     editorType: "rich_text",
     required: true,
-    order: 7,
-    placeholder: "수행 과정에서 느낀 점",
+    order: 6,
+    tier: "core",
+    placeholder: "수행 과정에서 느낀 점, 학습자로서의 성장",
     minLength: 150,
     maxLength: 300,
   },
@@ -383,7 +396,8 @@ const SUBJECT_PERFORMANCE_SECTIONS: SectionDefinition[] = [
     label: "후속 활동",
     editorType: "rich_text",
     required: false,
-    order: 8,
+    order: 7,
+    tier: "optional",
     placeholder: "심화 학습 방향",
   },
   {
@@ -391,9 +405,10 @@ const SUBJECT_PERFORMANCE_SECTIONS: SectionDefinition[] = [
     label: "세특 예시",
     editorType: "text_list",
     required: false,
-    order: 9,
+    order: 8,
+    tier: "core",
     adminOnly: true,
-    placeholder: "교사용 기록 예시 (200자 내외)",
+    placeholder: "교사용 기록 예시 (200~500자)",
   },
 ];
 
@@ -404,6 +419,7 @@ const PROGRAM_SECTIONS: SectionDefinition[] = [
     editorType: "key_value",
     required: true,
     order: 1,
+    tier: "type_extension",
     placeholder: "프로그램명, 기관, 기간, 목적",
   },
   {
@@ -412,6 +428,7 @@ const PROGRAM_SECTIONS: SectionDefinition[] = [
     editorType: "rich_text",
     required: true,
     order: 2,
+    tier: "core",
     placeholder: "왜 이 프로그램에 참여했는지",
     minLength: 150,
     maxLength: 300,
@@ -422,6 +439,7 @@ const PROGRAM_SECTIONS: SectionDefinition[] = [
     editorType: "rich_text",
     required: true,
     order: 3,
+    tier: "core",
     placeholder: "주차/세션별 활동 기술",
     multiple: true,
     multipleMin: 1,
@@ -433,6 +451,7 @@ const PROGRAM_SECTIONS: SectionDefinition[] = [
     editorType: "rich_text",
     required: false,
     order: 4,
+    tier: "type_extension",
     placeholder: "보고서, 발표, 작품 등",
   },
   {
@@ -441,7 +460,19 @@ const PROGRAM_SECTIONS: SectionDefinition[] = [
     editorType: "rich_text",
     required: true,
     order: 5,
+    tier: "type_extension",
     placeholder: "프로그램을 통해 얻은 역량/지식",
+    minLength: 200,
+    maxLength: 500,
+  },
+  {
+    key: "reflection",
+    label: "탐구 고찰 및 제언",
+    editorType: "rich_text",
+    required: true,
+    order: 6,
+    tier: "core",
+    placeholder: "프로그램을 통해 발견한 점 및 제언",
     minLength: 200,
     maxLength: 500,
   },
@@ -450,7 +481,8 @@ const PROGRAM_SECTIONS: SectionDefinition[] = [
     label: "느낀점",
     editorType: "rich_text",
     required: true,
-    order: 6,
+    order: 7,
+    tier: "core",
     placeholder: "개인적 성장, 진로 연계",
     minLength: 150,
     maxLength: 300,
@@ -460,7 +492,8 @@ const PROGRAM_SECTIONS: SectionDefinition[] = [
     label: "후속 활동",
     editorType: "rich_text",
     required: false,
-    order: 7,
+    order: 8,
+    tier: "optional",
     placeholder: "관련 후속 프로그램, 심화 활동",
   },
   {
@@ -468,9 +501,10 @@ const PROGRAM_SECTIONS: SectionDefinition[] = [
     label: "세특 예시",
     editorType: "text_list",
     required: false,
-    order: 8,
+    order: 9,
+    tier: "core",
     adminOnly: true,
-    placeholder: "교사용 기록 예시 (200자 내외)",
+    placeholder: "교사용 기록 예시 (200~500자)",
   },
 ];
 
@@ -505,6 +539,40 @@ export function getMultipleSections(
   guideType: GuideType,
 ): SectionDefinition[] {
   return GUIDE_SECTION_CONFIG[guideType].filter((s) => s.multiple);
+}
+
+/** Core 계층 섹션만 반환 (전 유형 공통 필수) */
+export function getCoreSections(guideType: GuideType): SectionDefinition[] {
+  return GUIDE_SECTION_CONFIG[guideType].filter(
+    (s) => (s.tier ?? "core") === "core",
+  );
+}
+
+/** Type Extension 계층 섹션 반환 (유형 선택 시 자동 ON) */
+export function getTypeExtensionSections(
+  guideType: GuideType,
+): SectionDefinition[] {
+  return GUIDE_SECTION_CONFIG[guideType].filter(
+    (s) => s.tier === "type_extension",
+  );
+}
+
+/** Optional 계층 섹션 반환 (컨설턴트 선택) */
+export function getOptionalSections(
+  guideType: GuideType,
+): SectionDefinition[] {
+  return GUIDE_SECTION_CONFIG[guideType].filter(
+    (s) => s.tier === "optional",
+  );
+}
+
+/** 기본 활성 섹션 (Core + Type Extension) — 생성/에디터 기본값 */
+export function getDefaultActiveSections(
+  guideType: GuideType,
+): SectionDefinition[] {
+  return GUIDE_SECTION_CONFIG[guideType].filter(
+    (s) => (s.tier ?? "core") !== "optional",
+  );
 }
 
 // ============================================================

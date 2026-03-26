@@ -165,11 +165,7 @@ export function SetekGuidePanel({
       {guides && guides.length > 0 ? (
         <div className="space-y-4">
           {guides.map((guide) => {
-            const sections = guide.summary_sections as { guides?: SetekGuideItem[]; overallDirection?: string } | null;
-            const guideItems = sections?.guides ?? [];
-            const overallDirection = sections?.overallDirection ?? "";
             const statusInfo = STATUS_LABELS[guide.status] ?? STATUS_LABELS.draft;
-            const displayText = guide.edited_text ?? guide.summary_text;
             const isEditing = editingId === guide.id;
 
             return (
@@ -181,7 +177,7 @@ export function SetekGuidePanel({
                 <div className="flex items-center justify-between border-b border-[var(--border-secondary)] px-4 py-2">
                   <div className="flex items-center gap-2">
                     <h4 className="text-sm font-medium text-[var(--text-primary)]">
-                      {guide.summary_title}
+                      {guide.subject_id}
                     </h4>
                     <span
                       className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${statusInfo.color}`}
@@ -189,7 +185,7 @@ export function SetekGuidePanel({
                       {statusInfo.label}
                     </span>
                     <span className="text-[10px] text-[var(--text-tertiary)]">
-                      {guide.target_grades.join(",")}학년 ·{" "}
+                      {guide.source === "ai" ? "🤖AI" : "👤수동"} ·{" "}
                       {new Date(guide.created_at).toLocaleDateString("ko-KR")}
                     </span>
                   </div>
@@ -210,7 +206,7 @@ export function SetekGuidePanel({
                         if (isEditing) {
                           setEditingId(null);
                         } else {
-                          setEditText(displayText);
+                          setEditText(guide.direction);
                           setEditingId(guide.id);
                         }
                       }}
@@ -220,17 +216,17 @@ export function SetekGuidePanel({
                     </button>
                     <ReportExportMenu
                       data={{
-                        title: guide.summary_title,
+                        title: guide.subject_id,
                         studentName,
-                        targetGrades: guide.target_grades,
+                        targetGrades: [guide.school_year],
                         createdAt: guide.created_at,
-                        sections: guideItems.map((item, idx) => ({
-                          sectionType: `guide_${idx}`,
-                          title: item.subjectName,
-                          content: `${item.direction}${item.cautions ? `\n\n⚠ ${item.cautions}` : ""}${item.teacherPoints.length > 0 ? `\n\n교사 전달 포인트:\n${item.teacherPoints.map((p) => `· ${p}`).join("\n")}` : ""}`,
-                          relatedSubjects: item.keywords.slice(0, 3),
-                        })),
-                        editedText: guide.edited_text,
+                        sections: [{
+                          sectionType: "guide_0",
+                          title: guide.subject_id,
+                          content: `${guide.direction}${guide.cautions ? `\n\n⚠ ${guide.cautions}` : ""}${guide.teacher_points.length > 0 ? `\n\n교사 전달 포인트:\n${guide.teacher_points.map((p: string) => `· ${p}`).join("\n")}` : ""}`,
+                          relatedSubjects: guide.keywords.slice(0, 3),
+                        }],
+                        editedText: undefined,
                       }}
                     />
                     {guide.status === "draft" && (
@@ -268,81 +264,76 @@ export function SetekGuidePanel({
                   ) : (
                     <div className="space-y-4">
                       {/* 전체 방향 */}
-                      {overallDirection && (
+                      {guide.overall_direction && (
                         <div className="rounded-md bg-violet-50 px-3 py-2 dark:bg-violet-950/30">
                           <p className="text-xs font-semibold text-violet-700 dark:text-violet-300">
                             전체 방향
                           </p>
                           <p className="mt-0.5 text-sm text-[var(--text-primary)]">
-                            {overallDirection}
+                            {guide.overall_direction}
                           </p>
                         </div>
                       )}
 
-                      {/* 과목별 가이드 카드 */}
-                      {guideItems.map((item, i) => (
-                        <div
-                          key={i}
-                          className="rounded-lg border border-[var(--border-secondary)] p-3"
-                        >
-                          <div className="flex items-center gap-2">
-                            <h5 className="text-sm font-semibold text-[var(--text-primary)]">
-                              {item.subjectName}
-                            </h5>
-                            {item.competencyFocus.map((cf) => (
-                              <span
-                                key={cf}
-                                className="rounded bg-violet-100 px-1.5 py-0.5 text-[10px] text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
-                              >
-                                {COMPETENCY_LABELS[cf] ?? cf}
-                              </span>
-                            ))}
-                          </div>
-
-                          {/* 키워드 pills */}
-                          <div className="mt-2 flex flex-wrap gap-1">
-                            {item.keywords.map((kw) => (
-                              <span
-                                key={kw}
-                                className="rounded-full bg-[var(--surface-hover)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)]"
-                              >
-                                {kw}
-                              </span>
-                            ))}
-                          </div>
-
-                          {/* 방향 */}
-                          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-[var(--text-primary)]">
-                            {item.direction}
-                          </p>
-
-                          {/* 주의사항 */}
-                          {item.cautions && (
-                            <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">
-                              ⚠ {item.cautions}
-                            </p>
-                          )}
-
-                          {/* 교사 전달 포인트 */}
-                          {item.teacherPoints.length > 0 && (
-                            <div className="mt-2 border-t border-[var(--border-secondary)] pt-2">
-                              <p className="text-[10px] font-medium text-[var(--text-tertiary)]">
-                                교사 전달 포인트
-                              </p>
-                              <ul className="mt-0.5 space-y-0.5">
-                                {item.teacherPoints.map((tp, j) => (
-                                  <li
-                                    key={j}
-                                    className="text-xs text-[var(--text-secondary)]"
-                                  >
-                                    · {tp}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
+                      {/* 과목 가이드 상세 */}
+                      <div className="rounded-lg border border-[var(--border-secondary)] p-3">
+                        <div className="flex items-center gap-2">
+                          <h5 className="text-sm font-semibold text-[var(--text-primary)]">
+                            {guide.subject_id}
+                          </h5>
+                          {guide.competency_focus.map((cf: string) => (
+                            <span
+                              key={cf}
+                              className="rounded bg-violet-100 px-1.5 py-0.5 text-[10px] text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
+                            >
+                              {COMPETENCY_LABELS[cf] ?? cf}
+                            </span>
+                          ))}
                         </div>
-                      ))}
+
+                        {/* 키워드 pills */}
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {guide.keywords.map((kw: string) => (
+                            <span
+                              key={kw}
+                              className="rounded-full bg-[var(--surface-hover)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)]"
+                            >
+                              {kw}
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* 방향 */}
+                        <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-[var(--text-primary)]">
+                          {guide.direction}
+                        </p>
+
+                        {/* 주의사항 */}
+                        {guide.cautions && (
+                          <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">
+                            ⚠ {guide.cautions}
+                          </p>
+                        )}
+
+                        {/* 교사 전달 포인트 */}
+                        {guide.teacher_points.length > 0 && (
+                          <div className="mt-2 border-t border-[var(--border-secondary)] pt-2">
+                            <p className="text-[10px] font-medium text-[var(--text-tertiary)]">
+                              교사 전달 포인트
+                            </p>
+                            <ul className="mt-0.5 space-y-0.5">
+                              {guide.teacher_points.map((tp: string, j: number) => (
+                                <li
+                                  key={j}
+                                  className="text-xs text-[var(--text-secondary)]"
+                                >
+                                  · {tp}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
