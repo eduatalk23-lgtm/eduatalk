@@ -1700,8 +1700,7 @@ async function executePipelineTasks(
 
   // 최종 상태 결정
   const allCompleted = PIPELINE_TASK_KEYS.every((k) => tasks[k] === "completed");
-  const anyFailed = PIPELINE_TASK_KEYS.some((k) => tasks[k] === "failed");
-  const finalStatus = allCompleted ? "completed" : anyFailed ? "failed" : "completed";
+  const finalStatus = allCompleted ? "completed" : "failed";
 
   await updatePipelineState(supabase, pipelineId, finalStatus, tasks, previews, results, errors, true);
 }

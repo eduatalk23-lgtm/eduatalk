@@ -114,4 +114,11 @@ describe("computeCascadeResetKeys", () => {
     const result = computeCascadeResetKeys(["roadmap_generation"]);
     expect(result).toEqual(new Set(["roadmap_generation"]));
   });
+
+  it("setek_guide 재실행 → 본인 + roadmap_generation = 2개", () => {
+    const result = computeCascadeResetKeys(["setek_guide"]);
+    expect(result.size).toBe(2);
+    expect(result.has("setek_guide")).toBe(true);
+    expect(result.has("roadmap_generation")).toBe(true);
+  });
 });

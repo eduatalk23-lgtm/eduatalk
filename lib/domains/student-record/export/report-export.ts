@@ -216,7 +216,10 @@ function buildRoadmapForExport(
   if (!items || items.length === 0) return null;
   const storylineMap = new Map(storylines.map((s) => [s.id, s.title]));
   return items
-    .sort((a, b) => a.grade * 10 + (a.semester ?? 0) - (b.grade * 10 + (b.semester ?? 0)))
+    .sort((a, b) => {
+      if (a.grade !== b.grade) return a.grade - b.grade;
+      return (a.semester ?? 3) - (b.semester ?? 3); // null semester → 학년 끝으로 정렬
+    })
     .map((item) => ({
       grade: item.grade,
       semester: item.semester,

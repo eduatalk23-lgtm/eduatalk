@@ -113,6 +113,7 @@ export const PIPELINE_TASK_DEPENDENTS: Partial<Record<PipelineTaskKey, PipelineT
   edge_computation: ["ai_diagnosis", "setek_guide", "activity_summary"],
   guide_matching: ["setek_guide", "activity_summary", "roadmap_generation"],
   ai_diagnosis: ["setek_guide", "ai_strategy", "interview_generation", "roadmap_generation"],
+  setek_guide: ["roadmap_generation"],
 };
 
 /**

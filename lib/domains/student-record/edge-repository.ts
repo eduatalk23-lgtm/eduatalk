@@ -171,6 +171,22 @@ export async function saveSnapshot(
 // 5. Stale 마킹
 // ============================================
 
+/** 학생의 모든 엣지를 stale로 마킹 (임포트/성적 변동 등 전체 재분석 필요 시) */
+export async function markAllStudentEdgesStale(
+  studentId: string,
+  reason: string,
+): Promise<number> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("student_record_edges")
+    .update({ is_stale: true, stale_reason: reason, updated_at: new Date().toISOString() })
+    .eq("student_id", studentId)
+    .eq("is_stale", false)
+    .select("id");
+  if (error) throw error;
+  return data?.length ?? 0;
+}
+
 /** 특정 레코드와 관련된 엣지를 stale로 마킹 */
 export async function markEdgesStale(
   recordId: string,

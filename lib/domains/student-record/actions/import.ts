@@ -112,10 +112,10 @@ export async function executeImportAction(
       return createErrorResponse(result.error ?? "저장 중 오류가 발생했습니다.");
     }
 
-    // Phase R4: 임포트 후 엣지 stale 마킹 (파이프라인 재분석 필요 알림)
+    // Phase R4: 임포트 후 학생의 전체 엣지 stale 마킹 (파이프라인 재분석 필요 알림)
     try {
-      const { markEdgesStale } = await import("../edge-repository");
-      await markEdgesStale(options.studentId, "import_updated");
+      const { markAllStudentEdgesStale } = await import("../edge-repository");
+      await markAllStudentEdgesStale(options.studentId, "import_updated");
     } catch { /* fire-and-forget */ }
 
     return createSuccessResponse(result);

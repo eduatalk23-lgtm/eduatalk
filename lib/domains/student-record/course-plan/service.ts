@@ -97,10 +97,10 @@ export async function fetchCoursePlanData(
     const transitioned = await syncScoresToCompleted(studentId);
     if (transitioned > 0) {
       finalPlans = await repo.findByStudent(studentId);
-      // 성적 전환 발생 시 엣지 stale 마킹 (파이프라인 재분석 트리거)
+      // 성적 전환 발생 시 학생 전체 엣지 stale 마킹 (파이프라인 재분석 트리거)
       try {
-        const { markEdgesStale } = await import("../edge-repository");
-        await markEdgesStale(studentId, "scores_synced");
+        const { markAllStudentEdgesStale } = await import("../edge-repository");
+        await markAllStudentEdgesStale(studentId, "scores_synced");
       } catch { /* fire-and-forget */ }
     }
   } catch (err) {

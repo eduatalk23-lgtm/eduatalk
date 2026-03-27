@@ -298,8 +298,8 @@ export function detectPlanConflicts(
     const pre = nameToGradeSemester.get(prereq);
     const fol = nameToGradeSemester.get(followup);
     if (!pre || !fol) continue;
-    const preOrder = pre.grade * 10 + pre.semester;
-    const folOrder = fol.grade * 10 + fol.semester;
+    const preOrder = pre.grade * 10 + (pre.semester ?? 0);
+    const folOrder = fol.grade * 10 + (fol.semester ?? 0);
     if (folOrder <= preOrder) {
       conflicts.push({
         type: "prerequisite",
