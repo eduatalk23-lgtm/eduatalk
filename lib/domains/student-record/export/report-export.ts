@@ -72,6 +72,113 @@ export interface ReportExportData {
 }
 
 // ============================================
+// ReportData → ReportExportData 변환
+// ============================================
+
+import type { ReportData } from "../actions/report";
+import { COMPETENCY_ITEMS } from "../constants";
+
+/** ReportData(뷰어 전체 데이터)를 ReportExportData(PDF/Word 내보내기)로 변환 */
+export function buildReportExportData(data: ReportData): ReportExportData {
+  // 진단 (AI 우선, 없으면 컨설턴트)
+  const diag = data.diagnosisData.aiDiagnosis ?? data.diagnosisData.consultantDiagnosis;
+
+  // 역량 등급 (AI 우선)
+  const scores = data.diagnosisData.competencyScores.ai.length > 0
+    ? data.diagnosisData.competencyScores.ai
+    : data.diagnosisData.competencyScores.consultant;
+
+  const competencyScores = scores.map((s) => {
+    const item = COMPETENCY_ITEMS.find((c) => c.code === s.competency_item);
+    return {
+      area: item?.area ?? s.competency_area,
+      label: item?.label ?? s.competency_item,
+      grade: s.grade_value,
+    };
+  });
+
+  // 교과 이수 적합도
+  const ca = data.diagnosisData.courseAdequacy;
+
+  // 보완 전략
+  const strategies = data.diagnosisData.strategies
+    .filter((s) => s.status !== "done")
+    .map((s) => ({
+      targetArea: s.target_area,
+      content: s.strategy_content,
+      priority: s.priority ?? "medium",
+    }));
+
+  // 모의고사
+  const ma = data.mockAnalysis;
+  const mockAnalysis = ma.recentExam ? {
+    recentExamTitle: ma.recentExam.examTitle,
+    recentExamDate: ma.recentExam.examDate,
+    avgPercentile: ma.avgPercentile,
+    totalStdScore: ma.totalStdScore,
+    best3GradeSum: ma.best3GradeSum,
+  } : null;
+
+  // 활동 요약서 섹션 (가장 최신 approved/draft)
+  const latestSummary = data.activitySummaries
+    .filter((s) => s.status === "approved" || s.status === "draft")
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+
+  let sections: ExportSection[] = [];
+  if (latestSummary) {
+    const parsed = latestSummary.summary_sections;
+    if (Array.isArray(parsed)) {
+      sections = (parsed as Array<{ sectionType?: string; title?: string; content?: string; relatedSubjects?: string[] }>)
+        .filter((s) => s.sectionType && s.content)
+        .map((s) => ({
+          sectionType: s.sectionType!,
+          title: SECTION_LABELS[s.sectionType!] ?? s.title ?? s.sectionType!,
+          content: s.content!,
+          relatedSubjects: s.relatedSubjects,
+        }));
+    }
+    if (sections.length === 0 && latestSummary.summary_text) {
+      sections = [{ sectionType: "growth", title: "종합 요약", content: latestSummary.summary_text }];
+    }
+  }
+
+  return {
+    title: "수시 종합 리포트",
+    studentName: data.student.name ?? "학생",
+    targetGrades: [1, 2, 3].filter((g) => g <= data.student.grade),
+    createdAt: data.generatedAt,
+    sections,
+    editedText: latestSummary?.edited_text ?? null,
+    diagnosis: diag ? {
+      overallGrade: diag.overall_grade,
+      recordDirection: diag.record_direction ?? "",
+      directionStrength: diag.direction_strength ?? undefined,
+      directionReasoning: diag.direction_reasoning ?? undefined,
+      strengths: diag.strengths ?? [],
+      weaknesses: diag.weaknesses ?? [],
+      improvements: Array.isArray(diag.improvements)
+        ? (diag.improvements as Array<{ priority: string; area: string; gap?: string; action: string; outcome?: string }>)
+        : undefined,
+      recommendedMajors: diag.recommended_majors ?? [],
+      strategyNotes: diag.strategy_notes ?? undefined,
+    } : null,
+    competencyScores: competencyScores.length > 0 ? competencyScores : null,
+    courseAdequacy: ca ? {
+      score: ca.score,
+      majorCategory: ca.majorCategory,
+      taken: ca.taken,
+      notTaken: ca.notTaken,
+      notOffered: ca.notOffered,
+      generalRate: ca.generalRate,
+      careerRate: ca.careerRate,
+      fusionRate: ca.fusionRate,
+    } : null,
+    strategies: strategies.length > 0 ? strategies : null,
+    mockAnalysis,
+  };
+}
+
+// ============================================
 // PDF 내보내기 (jspdf + html2canvas)
 // ============================================
 

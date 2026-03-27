@@ -4,7 +4,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { reportDataQueryOptions } from "@/lib/query-options/studentRecord";
 import { ReportSkeleton } from "./ReportSkeleton";
-import { Printer } from "lucide-react";
+import { Printer, Download, FileText, FileSpreadsheet, Loader2 } from "lucide-react";
 import { CoverSection } from "./sections/CoverSection";
 import { TableOfContents } from "./sections/TableOfContents";
 import { ExecutiveSummarySection } from "./sections/ExecutiveSummarySection";
@@ -37,6 +37,27 @@ export function ReportClient({ studentId }: ReportClientProps) {
   const { data, isLoading, error } = useQuery(reportDataQueryOptions(studentId));
   const contentRef = useRef<HTMLDivElement>(null);
   const [coverVariant, setCoverVariant] = useState<"A" | "B" | "C" | "D" | "E">("A");
+  const [exporting, setExporting] = useState<"pdf" | "docx" | null>(null);
+
+  async function handleExport(format: "pdf" | "docx") {
+    if (!data) return;
+    setExporting(format);
+    try {
+      const { buildReportExportData, exportReportAsPdf, exportReportAsDocx } = await import(
+        "@/lib/domains/student-record/export/report-export"
+      );
+      const exportData = buildReportExportData(data);
+      if (format === "pdf") {
+        await exportReportAsPdf(exportData);
+      } else {
+        await exportReportAsDocx(exportData);
+      }
+    } catch {
+      alert("내보내기에 실패했습니다. 다시 시도해주세요.");
+    } finally {
+      setExporting(null);
+    }
+  }
 
   const scrollToSection = (sectionId: string) => {
     const el = contentRef.current?.querySelector(`[data-section-id="${sectionId}"]`);
@@ -123,14 +144,32 @@ export function ReportClient({ studentId }: ReportClientProps) {
             </div>
           </div>
 
-          <div className="mt-3 border-t border-gray-200 pt-3">
+          <div className="mt-3 border-t border-gray-200 pt-3 flex flex-col gap-1.5">
             <button
               type="button"
               onClick={() => window.print()}
               className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-700"
             >
               <Printer className="h-3.5 w-3.5" />
-              PDF 내보내기
+              인쇄
+            </button>
+            <button
+              type="button"
+              onClick={() => handleExport("pdf")}
+              disabled={exporting !== null}
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              {exporting === "pdf" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5 text-red-500" />}
+              PDF 다운로드
+            </button>
+            <button
+              type="button"
+              onClick={() => handleExport("docx")}
+              disabled={exporting !== null}
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              {exporting === "docx" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileSpreadsheet className="h-3.5 w-3.5 text-blue-500" />}
+              Word 다운로드
             </button>
           </div>
         </div>
