@@ -45,6 +45,7 @@ export function buildSuggestTopicPrompt(input: {
   majorUnit?: string;
   minorUnit?: string;
   existingTitles?: string[];
+  difficultyLevel?: string;
 }): string {
   const parts: string[] = [];
 
@@ -114,6 +115,18 @@ export function buildSuggestTopicPrompt(input: {
     for (const t of input.existingTitles.slice(0, 5)) {
       parts.push(`- ${t}`);
     }
+  }
+
+  // 난이도 지정
+  if (input.difficultyLevel) {
+    const diffDescriptions: Record<string, string> = {
+      basic: "기초 (고1~2 대상, 교과서 기본 개념 수준)",
+      intermediate: "심화 (고2~3 대상, 교과 심화 + 외부 자료 연계)",
+      advanced: "고급 (고3/상위권 대상, 논문/학술 수준)",
+    };
+    parts.push(`\n## 난이도 지정`);
+    parts.push(`- **모든 주제를 "${diffDescriptions[input.difficultyLevel] ?? input.difficultyLevel}" 수준으로 생성하세요.**`);
+    parts.push(`- difficulty 필드는 모두 "${input.difficultyLevel}"로 설정하세요.`);
   }
 
   parts.push(

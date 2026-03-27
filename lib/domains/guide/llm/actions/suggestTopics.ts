@@ -65,6 +65,8 @@ export async function suggestTopicsAction(input: {
   majorUnit?: string;
   minorUnit?: string;
   existingTitles?: string[];
+  /** 난이도 필터 — 지정 시 해당 난이도의 주제만 생성 */
+  difficultyLevel?: import("../../types").DifficultyLevel;
   /** AI 모델 티어 (fast=Flash, advanced=Pro) — 기본 fast */
   modelTier?: "fast" | "standard" | "advanced";
 }): Promise<ActionResponse<SuggestedTopicsOutput>> {

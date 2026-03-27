@@ -18,8 +18,9 @@ export function buildCloneSystemPrompt(
   guideType: GuideType,
   studentProfile?: StudentProfileContext,
   selectedSectionKeys?: string[],
+  difficultyLevel?: string,
 ): string {
-  return `${buildBaseSystemPrompt(guideType, studentProfile, selectedSectionKeys)}\n${CLONE_SPECIFIC_RULES}`;
+  return `${buildBaseSystemPrompt(guideType, studentProfile, selectedSectionKeys, difficultyLevel)}\n${CLONE_SPECIFIC_RULES}`;
 }
 
 // 하위 호환

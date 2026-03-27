@@ -22,8 +22,9 @@ export function buildExtractionSystemPrompt(
   guideType: GuideType,
   studentProfile?: StudentProfileContext,
   selectedSectionKeys?: string[],
+  difficultyLevel?: string,
 ): string {
-  return `${buildBaseSystemPrompt(guideType, studentProfile, selectedSectionKeys)}\n${EXTRACTION_SPECIFIC_RULES}`;
+  return `${buildBaseSystemPrompt(guideType, studentProfile, selectedSectionKeys, difficultyLevel)}\n${EXTRACTION_SPECIFIC_RULES}`;
 }
 
 // 하위 호환: 기존 코드에서 참조하는 곳용

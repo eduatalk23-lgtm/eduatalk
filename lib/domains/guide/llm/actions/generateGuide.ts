@@ -358,6 +358,7 @@ async function buildPrompt(
           sourceGuide.guide_type as import("../../types").GuideType,
           input.studentProfile,
           input.selectedSectionKeys,
+          input.difficultyLevel,
         ),
         userPrompt: buildCloneUserPrompt(sourceGuide, input.clone),
         sourceType: "ai_clone_variant",
@@ -376,6 +377,7 @@ async function buildPrompt(
           input.pdf.guideType,
           input.studentProfile,
           input.selectedSectionKeys,
+          input.difficultyLevel,
         ),
         userPrompt: buildExtractionUserPrompt({
           extractedText: pdfResult.text,
@@ -402,6 +404,7 @@ async function buildPrompt(
           input.url.guideType,
           input.studentProfile,
           input.selectedSectionKeys,
+          input.difficultyLevel,
         ),
         userPrompt: buildExtractionUserPrompt({
           extractedText: urlResult.text,

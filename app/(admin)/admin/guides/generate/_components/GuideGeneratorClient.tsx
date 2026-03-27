@@ -32,7 +32,8 @@ import {
   GUIDE_TYPE_LABELS,
   CURRICULUM_REVISION_IDS,
 } from "@/lib/domains/guide/types";
-import type { GuideType } from "@/lib/domains/guide/types";
+import type { GuideType, DifficultyLevel } from "@/lib/domains/guide/types";
+import { DIFFICULTY_LEVELS, DIFFICULTY_LABELS } from "@/lib/domains/guide/types";
 import {
   GUIDE_SECTION_CONFIG,
   getCoreSections,
@@ -71,6 +72,7 @@ export function GuideGeneratorClient() {
       majorUnit: searchParams.get("majorUnit"),
       minorUnit: searchParams.get("minorUnit"),
       topicId: searchParams.get("topicId"),
+      difficultyLevel: searchParams.get("difficultyLevel"),
     };
   }, [searchParams]);
 
@@ -133,6 +135,10 @@ export function GuideGeneratorClient() {
     prefill?.careerField ?? "",
   );
   const [additionalContext, setAdditionalContext] = useState("");
+  const [difficultyLevel, setDifficultyLevel] = useState<DifficultyLevel | "">(() => {
+    const v = prefill?.difficultyLevel;
+    return v && DIFFICULTY_LEVELS.includes(v as DifficultyLevel) ? (v as DifficultyLevel) : "";
+  });
   const [modelTier, setModelTier] = useState<ModelTier>("fast");
 
   // 캐스케이드 필터: 교과 → 과목
@@ -318,6 +324,7 @@ export function GuideGeneratorClient() {
         subjectSelect: targetSubject || undefined,
         unitMajor: targetMajorUnit || undefined,
         unitMinor: targetMinorUnit || undefined,
+        difficultyLevel: difficultyLevel || undefined,
         modelTier,
         studentId: selectedStudentId || undefined,
         selectedSectionKeys: [...selectedSectionKeys],
@@ -374,8 +381,8 @@ export function GuideGeneratorClient() {
       const result = await generateGuideAction(generationInput);
 
       if (result.success && result.data) {
-        toast.showSuccess("가이드가 생성되었습니다.");
-        router.push(`/admin/guides/${result.data.guideId}`);
+        toast.showSuccess("가이드가 생성되었습니다. 목록에서 확인하세요.");
+        router.push("/admin/guides");
       } else {
         toast.showError(!result.success ? result.error ?? "생성 실패" : "생성 실패");
       }
@@ -387,8 +394,8 @@ export function GuideGeneratorClient() {
   }, [
     sourceMode, keyword, guideType, targetSubject, targetCareerField,
     additionalContext, sourceGuideId, cloneTargetSubject, cloneTargetCareer,
-    variationNote, extractUrl, toast, modelTier, curriculumYear, targetSubjectGroup,
-    targetMajorUnit, targetMinorUnit, selectedStudentId, selectedSectionKeys,
+    variationNote, extractUrl, toast, difficultyLevel, modelTier, curriculumYear,
+    targetSubjectGroup, targetMajorUnit, targetMinorUnit, selectedStudentId, selectedSectionKeys,
   ]);
 
   const canGenerate =
@@ -445,7 +452,7 @@ export function GuideGeneratorClient() {
 
       <div className="space-y-6">
           {/* 소스 모드 토글 */}
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <SourceButton
               active={sourceMode === "keyword"}
               onClick={() => setSourceMode("keyword")}
@@ -562,7 +569,7 @@ export function GuideGeneratorClient() {
                       type="button"
                       onClick={() => setKeyword(g.title)}
                       className={cn(
-                        "px-2.5 py-1 rounded-full text-xs transition-colors",
+                        "px-2.5 py-1.5 rounded-lg text-xs transition-colors text-left",
                         "border border-secondary-200 dark:border-secondary-700",
                         "hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700",
                         "dark:hover:bg-primary-900/20 dark:hover:border-primary-600 dark:hover:text-primary-300",
@@ -625,8 +632,60 @@ export function GuideGeneratorClient() {
                   />
                 </div>
 
+                {/* ── 키워드/주제 입력 ── */}
+                <FormField label="키워드/주제" required>
+                  <div className="relative" ref={autocompleteRef}>
+                    <input
+                      type="text"
+                      value={keyword}
+                      onChange={(e) => {
+                        setKeyword(e.target.value);
+                        setShowAutocomplete(true);
+                      }}
+                      onFocus={() => {
+                        if (keyword.trim().length >= 2)
+                          setShowAutocomplete(true);
+                      }}
+                      placeholder="추천 주제를 클릭하거나 직접 입력하세요"
+                      className={inputClass}
+                    />
+
+                    {showAutocomplete &&
+                      autocompleteSuggestions.length > 0 &&
+                      keyword.trim().length >= 2 && (
+                        <div className="absolute z-20 w-full top-full border border-secondary-200 dark:border-secondary-700 rounded-lg bg-white dark:bg-secondary-900 shadow-lg max-h-48 overflow-y-auto">
+                          {autocompleteSuggestions.map((g) => (
+                            <button
+                              key={g.id}
+                              type="button"
+                              onClick={() => {
+                                setKeyword(g.title);
+                                setShowAutocomplete(false);
+                              }}
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-secondary-50 dark:hover:bg-secondary-800 border-b border-secondary-100 dark:border-secondary-800 last:border-b-0 flex items-center gap-2"
+                            >
+                              <span className="flex-1 text-[var(--text-primary)] truncate">
+                                {g.title}
+                              </span>
+                              <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-secondary-100 text-secondary-600 dark:bg-secondary-800 dark:text-secondary-400">
+                                {GUIDE_TYPE_LABELS[g.guide_type as GuideType] ?? g.guide_type}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                    {debouncedKeywordForCount.trim().length >= 2 &&
+                      similarCount > 0 && (
+                        <p className="pt-1.5 text-xs text-warning-600 dark:text-warning-400">
+                          이 주제의 기존 가이드: {similarCount}개
+                        </p>
+                      )}
+                  </div>
+                </FormField>
+
                 {/* ── 가이드 설정 ── */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <FormField label="가이드 유형">
                     <select
                       value={guideType}
@@ -636,6 +695,20 @@ export function GuideGeneratorClient() {
                       {GUIDE_TYPES.map((t) => (
                         <option key={t} value={t}>
                           {GUIDE_TYPE_LABELS[t]}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+                  <FormField label="난이도">
+                    <select
+                      value={difficultyLevel}
+                      onChange={(e) => setDifficultyLevel(e.target.value as DifficultyLevel | "")}
+                      className={inputClass}
+                    >
+                      <option value="">AI 자동 판단</option>
+                      {DIFFICULTY_LEVELS.map((d) => (
+                        <option key={d} value={d}>
+                          {DIFFICULTY_LABELS[d]}
                         </option>
                       ))}
                     </select>
@@ -753,7 +826,7 @@ export function GuideGeneratorClient() {
                           type="button"
                           onClick={() => setKeyword(g.title)}
                           className={cn(
-                            "px-2.5 py-1 rounded-full text-xs transition-colors",
+                            "px-2.5 py-1.5 rounded-lg text-xs transition-colors text-left",
                             "border border-secondary-200 dark:border-secondary-700",
                             "hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700",
                             "dark:hover:bg-primary-900/20 dark:hover:border-primary-600 dark:hover:text-primary-300",
@@ -810,6 +883,7 @@ export function GuideGeneratorClient() {
                         subjectGroup: targetSubjectGroup || undefined,
                         majorUnit: targetMajorUnit || undefined,
                         minorUnit: targetMinorUnit || undefined,
+                        difficultyLevel: difficultyLevel || undefined,
                         modelTier,
                         existingTitles: [
                           ...filterRecommendations.map((g) => g.title),
@@ -942,66 +1016,6 @@ export function GuideGeneratorClient() {
                   </div>
                 )}
 
-                {/* 키워드 + 자동완성 + 중복 경고 */}
-                <FormField label="키워드/주제" required>
-                  <div className="relative" ref={autocompleteRef}>
-                    <input
-                      type="text"
-                      value={keyword}
-                      onChange={(e) => {
-                        setKeyword(e.target.value);
-                        setShowAutocomplete(true);
-                      }}
-                      onFocus={() => {
-                        if (keyword.trim().length >= 2)
-                          setShowAutocomplete(true);
-                      }}
-                      placeholder="위 추천 주제를 클릭하거나 직접 입력하세요"
-                      className={inputClass}
-                    />
-
-                    {/* 자동완성 드롭다운 */}
-                    {showAutocomplete &&
-                      autocompleteSuggestions.length > 0 &&
-                      keyword.trim().length >= 2 && (
-                        <div className="absolute z-20 w-full top-full border border-secondary-200 dark:border-secondary-700 rounded-lg bg-white dark:bg-secondary-900 shadow-lg max-h-48 overflow-y-auto">
-                          {autocompleteSuggestions.map((g) => (
-                            <button
-                              key={g.id}
-                              type="button"
-                              onClick={() => {
-                                setKeyword(g.title);
-                                setShowAutocomplete(false);
-                              }}
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-secondary-50 dark:hover:bg-secondary-800 border-b border-secondary-100 dark:border-secondary-800 last:border-b-0 flex items-center gap-2"
-                            >
-                              <span className="flex-1 text-[var(--text-primary)] truncate">
-                                {g.title}
-                              </span>
-                              <span
-                                className={cn(
-                                  "shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium",
-                                  "bg-secondary-100 text-secondary-600 dark:bg-secondary-800 dark:text-secondary-400",
-                                )}
-                              >
-                                {GUIDE_TYPE_LABELS[g.guide_type as GuideType] ??
-                                  g.guide_type}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-
-                    {/* 유사 가이드 중복 경고 */}
-                    {debouncedKeywordForCount.trim().length >= 2 &&
-                      similarCount > 0 && (
-                        <p className="pt-1.5 text-xs text-warning-600 dark:text-warning-400">
-                          이 주제의 기존 가이드: {similarCount}개
-                        </p>
-                      )}
-                  </div>
-                </FormField>
-
                 {/* 추가 맥락 */}
                 <FormField label="추가 요청사항" optional>
                   <textarea
@@ -1073,7 +1087,7 @@ export function GuideGeneratorClient() {
                 </FormField>
 
                 {/* 변형 대상 */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <FormField label="대상 과목">
                     <select
                       value={cloneTargetSubject}
@@ -1089,6 +1103,20 @@ export function GuideGeneratorClient() {
                             </option>
                           ))}
                         </optgroup>
+                      ))}
+                    </select>
+                  </FormField>
+                  <FormField label="난이도">
+                    <select
+                      value={difficultyLevel}
+                      onChange={(e) => setDifficultyLevel(e.target.value as DifficultyLevel | "")}
+                      className={inputClass}
+                    >
+                      <option value="">AI 자동 판단</option>
+                      {DIFFICULTY_LEVELS.map((d) => (
+                        <option key={d} value={d}>
+                          {DIFFICULTY_LABELS[d]}
+                        </option>
                       ))}
                     </select>
                   </FormField>
@@ -1140,8 +1168,8 @@ export function GuideGeneratorClient() {
                   />
                 </FormField>
 
-                {/* 가이드 설정 (유형/계열) */}
-                <div className="grid grid-cols-2 gap-4">
+                {/* 가이드 설정 (유형/난이도/계열) */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <FormField label="가이드 유형">
                     <select
                       value={guideType}
@@ -1151,6 +1179,20 @@ export function GuideGeneratorClient() {
                       {GUIDE_TYPES.map((t) => (
                         <option key={t} value={t}>
                           {GUIDE_TYPE_LABELS[t]}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+                  <FormField label="난이도">
+                    <select
+                      value={difficultyLevel}
+                      onChange={(e) => setDifficultyLevel(e.target.value as DifficultyLevel | "")}
+                      className={inputClass}
+                    >
+                      <option value="">AI 자동 판단</option>
+                      {DIFFICULTY_LEVELS.map((d) => (
+                        <option key={d} value={d}>
+                          {DIFFICULTY_LABELS[d]}
                         </option>
                       ))}
                     </select>
@@ -1185,7 +1227,7 @@ export function GuideGeneratorClient() {
           </div>
 
           {/* 생성 버튼 */}
-          <div className="flex items-center justify-end">
+          <div className="sticky bottom-4 flex items-center justify-end">
             <button
               type="button"
               onClick={handleGenerate}
@@ -1241,7 +1283,7 @@ function SourceButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex-1 flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-colors",
+        "flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-colors",
         active
           ? "border-primary-500 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-600"
           : "border-secondary-200 dark:border-secondary-700 hover:bg-secondary-50 dark:hover:bg-secondary-800",

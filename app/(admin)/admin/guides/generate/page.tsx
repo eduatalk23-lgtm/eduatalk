@@ -6,5 +6,9 @@ export const metadata: Metadata = {
 };
 
 export default function GuideGeneratePage() {
-  return <GuideGeneratorClient />;
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-6">
+      <GuideGeneratorClient />
+    </div>
+  );
 }
