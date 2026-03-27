@@ -101,3 +101,27 @@ export interface CachedHaengteuk {
 export interface OfferedSubjectRow {
   subject: { name: string } | null;
 }
+
+// ============================================
+// 태스크 의존 관계 (순수 함수, 테스트 가능)
+// ============================================
+
+/** 상류 태스크 → 하류 의존 태스크 매핑 */
+export const PIPELINE_TASK_DEPENDENTS: Partial<Record<PipelineTaskKey, PipelineTaskKey[]>> = {
+  competency_analysis: ["storyline_generation", "edge_computation", "ai_diagnosis", "setek_guide", "activity_summary", "ai_strategy", "interview_generation", "roadmap_generation"],
+  storyline_generation: ["edge_computation", "ai_diagnosis", "setek_guide", "activity_summary", "roadmap_generation"],
+  edge_computation: ["ai_diagnosis", "setek_guide", "activity_summary"],
+  ai_diagnosis: ["setek_guide", "ai_strategy", "interview_generation", "roadmap_generation"],
+};
+
+/**
+ * 재실행할 태스크 + cascade 의존 태스크 셋 계산
+ * rerunPipelineTasks에서 사용하는 순수 로직
+ */
+export function computeCascadeResetKeys(taskKeys: PipelineTaskKey[]): Set<PipelineTaskKey> {
+  const toReset = new Set<PipelineTaskKey>(taskKeys);
+  for (const key of taskKeys) {
+    for (const dep of PIPELINE_TASK_DEPENDENTS[key] ?? []) toReset.add(dep);
+  }
+  return toReset;
+}

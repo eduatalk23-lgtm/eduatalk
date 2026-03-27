@@ -27,7 +27,7 @@ import type {
   CachedHaengteuk,
   OfferedSubjectRow,
 } from "../pipeline-types";
-import { PIPELINE_TASK_KEYS } from "../pipeline-types";
+import { PIPELINE_TASK_KEYS, computeCascadeResetKeys } from "../pipeline-types";
 import type { PersistedEdge } from "../edge-repository";
 import type { CrossRefEdge } from "../cross-reference";
 import * as competencyRepo from "../competency-repository";
@@ -274,17 +274,7 @@ export async function rerunPipelineTasks(
 
     // 지정된 태스크 + 의존 태스크를 pending으로 리셋
     const tasks = (pipeline.tasks ?? {}) as Record<string, PipelineTaskStatus>;
-    const DEPENDENTS: Partial<Record<PipelineTaskKey, PipelineTaskKey[]>> = {
-      competency_analysis: ["storyline_generation", "edge_computation", "ai_diagnosis", "setek_guide", "activity_summary", "ai_strategy", "interview_generation", "roadmap_generation"],
-      storyline_generation: ["edge_computation", "ai_diagnosis", "setek_guide", "activity_summary", "roadmap_generation"],
-      edge_computation: ["ai_diagnosis", "setek_guide", "activity_summary"],
-      ai_diagnosis: ["setek_guide", "ai_strategy", "interview_generation", "roadmap_generation"],
-    };
-
-    const toReset = new Set(taskKeys);
-    for (const key of taskKeys) {
-      for (const dep of DEPENDENTS[key] ?? []) toReset.add(dep);
-    }
+    const toReset = computeCascadeResetKeys(taskKeys);
 
     for (const key of toReset) {
       tasks[key] = "pending";
