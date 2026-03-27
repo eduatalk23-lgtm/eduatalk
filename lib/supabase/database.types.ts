@@ -11561,6 +11561,7 @@ export type Database = {
           school_year: number
           semester: number | null
           sort_order: number
+          status: string
           storyline_id: string | null
           student_id: string
           tenant_id: string
@@ -11584,6 +11585,7 @@ export type Database = {
           school_year: number
           semester?: number | null
           sort_order?: number
+          status?: string
           storyline_id?: string | null
           student_id: string
           tenant_id: string
@@ -11607,6 +11609,7 @@ export type Database = {
           school_year?: number
           semester?: number | null
           sort_order?: number
+          status?: string
           storyline_id?: string | null
           student_id?: string
           tenant_id?: string
