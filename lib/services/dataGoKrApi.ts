@@ -1,10 +1,12 @@
 /**
  * 공공데이터포털 (data.go.kr) API 클라이언트
  *
- * 대학알리미 대학공시정보 (BasicInformationService) API 래퍼
- * API 문서: OpenAPI활용가이드_25.한국대학교육협의회(대학공시정보)_v2.00
+ * 대학알리미 대학공시정보 API 래퍼
+ * - BasicInformationService: 대학 기본 정보 (15037507)
+ * - SchoolMajorInfoService: 대학별 학과정보 (15116892)
  *
  * @see https://www.data.go.kr/data/15037507/openapi.do
+ * @see https://www.data.go.kr/data/15116892/openapi.do
  */
 
 import { XMLParser } from "fast-xml-parser";
@@ -18,7 +20,7 @@ const API_BASE =
 
 const SERVICES = {
   BASIC_INFO: "BasicInformationService",
-  STUDENT: "StudentService",
+  SCHOOL_MAJOR: "SchoolMajorInfoService",
 } as const;
 
 const xmlParser = new XMLParser({
@@ -427,6 +429,97 @@ export async function getKeyIndicatorCodes(
     (params ?? {}) as Record<string, string | number | undefined>,
   );
   return result.items;
+}
+
+// ============================================================
+// 타입: SchoolMajorInfoService 응답
+// ============================================================
+
+/** 학과정보 */
+export type SchoolMajorInfo = {
+  svyYr: string;
+  schlNm: string; // 대학명
+  schlKndNm: string; // "대학교" | "전문대학" 등
+  korMjrNm: string; // 학과명 (한글)
+  kediMjrId: string; // KEDI 학과 ID
+  stdClftMjrId: string; // 표준분류 학과 ID
+  clgNm: string; // 단과대명
+  onsfSrsClftNm: string; // 계열명 (인문·사회계열, 자연계열 등)
+  dghtDivNm: string; // 주/야간 구분
+  lsnTrmNm: string; // 수업연한 ("4년" 등)
+  pbnfDgriCrseDivNm: string; // 학위과정 ("학사" 등)
+  schlMjrCharNm: string; // 학과 특성 ("일반과정" | "계약학과" 등)
+  schlMjrStatNm: string; // 학과 상태 ("운영" | "폐과" 등)
+  edcCrseLtrCtnt: string; // 교육과정 ("|"로 구분된 과목 목록)
+  pwayEmplLtrCtnt: string; // 진로/취업 경로 ("|"로 구분)
+  mjrAreaCd: string; // 지역 코드
+  mjrAreaNm: string; // 지역명
+  mjrAreaSignguCd: string; // 시군구 코드
+  mjrAreaSignguNm: string; // 시군구명
+  eschlPscpNum: string; // 재학생 수
+  grdtNum: string; // 졸업생 수
+  mjrUpdtDtm: string; // 학과 정보 수정일
+  lstUpdtDtm: string; // 최종 업데이트일
+};
+
+/** 학과정보 검색 파라미터 */
+export type SchoolMajorSearchParams = PaginationParams & {
+  svyYr: string;
+  schlId?: string;
+  schlKrnNm?: string;
+};
+
+// ============================================================
+// 공개 API: SchoolMajorInfoService
+// ============================================================
+
+/**
+ * 대학별 학과정보 조회
+ */
+export async function getSchoolMajorInfo(
+  params: SchoolMajorSearchParams,
+): Promise<DataGoKrResult<SchoolMajorInfo>> {
+  return fetchApi<SchoolMajorInfo>(
+    SERVICES.SCHOOL_MAJOR,
+    "getSchoolMajorInfo",
+    params as Record<string, string | number | undefined>,
+  );
+}
+
+/**
+ * 대학별 전체 학과정보 조회 (전 페이지 순회)
+ */
+export async function getAllSchoolMajors(
+  svyYr: string,
+  schlKrnNm: string,
+): Promise<SchoolMajorInfo[]> {
+  return fetchAllPages<SchoolMajorInfo>(
+    SERVICES.SCHOOL_MAJOR,
+    "getSchoolMajorInfo",
+    { svyYr, schlKrnNm },
+  );
+}
+
+/**
+ * 학과 교육과정 파싱 ("|"로 구분된 과목 목록 → 배열)
+ */
+export function parseCurriculum(edcCrseLtrCtnt: string): string[] {
+  if (!edcCrseLtrCtnt) return [];
+  return edcCrseLtrCtnt
+    .split(/[|？]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/**
+ * 진로/취업 경로 파싱 ("|"로 구분 → 배열)
+ */
+export function parseCareerPaths(pwayEmplLtrCtnt: string): string[] {
+  if (!pwayEmplLtrCtnt) return [];
+  return pwayEmplLtrCtnt
+    .split("|")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 // ============================================================
