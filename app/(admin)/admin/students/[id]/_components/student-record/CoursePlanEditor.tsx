@@ -56,6 +56,13 @@ export default function CoursePlanEditor({ studentId, tenantId }: CoursePlanEdit
       updateCoursePlanStatusAction(id, status),
     onSuccess: (_, { status }) => {
       invalidate();
+      if (status === "confirmed" || status === "completed") {
+        // 상태 변경은 적합도에 영향 → 진단 탭도 무효화
+        const sy = calculateSchoolYear();
+        queryClient.invalidateQueries({
+          queryKey: studentRecordKeys.diagnosisTab(studentId, sy),
+        });
+      }
       // confirmed 전환 시 빈 세특 생성 → recordTab 무효화
       if (status === "confirmed") {
         queryClient.invalidateQueries({
@@ -87,9 +94,14 @@ export default function CoursePlanEditor({ studentId, tenantId }: CoursePlanEdit
       bulkConfirmAction(studentId, grade, semester),
     onSuccess: (_, { grade }) => {
       invalidate();
+      // 일괄 확정은 적합도에 영향 → 진단 탭도 무효화
+      const currentSy = calculateSchoolYear();
+      queryClient.invalidateQueries({
+        queryKey: studentRecordKeys.diagnosisTab(studentId, currentSy),
+      });
       // 빈 세특이 자동 생성되므로 recordTab도 무효화
       if (data?.studentGrade) {
-        const sy = gradeToSchoolYear(grade, data.studentGrade, calculateSchoolYear());
+        const sy = gradeToSchoolYear(grade, data.studentGrade, currentSy);
         queryClient.invalidateQueries({
           queryKey: studentRecordKeys.recordTab(studentId, sy),
         });
@@ -126,16 +138,18 @@ export default function CoursePlanEditor({ studentId, tenantId }: CoursePlanEdit
     return detectPlanConflicts(data.plans);
   }, [data?.plans]);
 
-  // 적합도 계산
+  // 적합도 계산 (학교 개설 과목 + 교육과정 연도 반영)
   const adequacy = useMemo(() => {
     if (!data?.targetMajor || !data.plans) return null;
+    const offered = data.offeredSubjectNames ?? null;
+    const curYear = data.curriculumYear;
 
     // 이수 과목만
     const completedNames = data.plans
       .filter((p) => p.plan_status === "completed")
       .map((p) => p.subject.name);
     const completedAdequacy = calculateCourseAdequacy(
-      data.targetMajor, completedNames, null,
+      data.targetMajor, completedNames, offered, curYear,
     );
 
     // 이수 + 확정 합산
@@ -143,7 +157,7 @@ export default function CoursePlanEditor({ studentId, tenantId }: CoursePlanEdit
       .filter((p) => p.plan_status === "completed" || p.plan_status === "confirmed")
       .map((p) => p.subject.name);
     const plannedAdequacy = calculateCourseAdequacy(
-      data.targetMajor, plannedNames, null,
+      data.targetMajor, plannedNames, offered, curYear,
     );
 
     return { completed: completedAdequacy, planned: plannedAdequacy };

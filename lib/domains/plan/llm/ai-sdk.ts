@@ -44,7 +44,18 @@ import { logActionDebug, logActionWarn } from "@/lib/utils/serverActionLogger";
 const MODEL_ID_MAP: Record<ModelTier, string> = {
   fast: "gemini-2.5-flash",
   standard: "gemini-2.5-flash",
-  advanced: "gemini-2.5-pro",
+  advanced: "gemini-3.1-pro-preview",
+};
+
+// 과부하(503) 시 순차적으로 다음 모델 시도
+const MODEL_FALLBACK_CHAIN: Record<ModelTier, string[]> = {
+  fast: ["gemini-2.5-flash"],
+  standard: ["gemini-2.5-flash"],
+  advanced: [
+    "gemini-3.1-pro-preview",
+    "gemini-3-pro-preview",
+    "gemini-2.5-pro",
+  ],
 };
 
 const DEFAULT_MAX_TOKENS: Record<ModelTier, number> = {
@@ -106,41 +117,40 @@ const circuitBreakers = new Map<string, CircuitState>();
 const CB_THRESHOLD = 5; // 연속 N회 실패 시 OPEN
 const CB_COOLDOWN_MS = 30_000; // OPEN 후 30초 대기
 
-function getCircuit(tier: string): CircuitState {
-  if (!circuitBreakers.has(tier)) {
-    circuitBreakers.set(tier, { failures: 0, lastFailure: 0, state: "closed" });
+function getCircuit(key: string): CircuitState {
+  if (!circuitBreakers.has(key)) {
+    circuitBreakers.set(key, { failures: 0, lastFailure: 0, state: "closed" });
   }
-  return circuitBreakers.get(tier)!;
+  return circuitBreakers.get(key)!;
 }
 
-function checkCircuitBreaker(tier: string): void {
-  const circuit = getCircuit(tier);
-  if (circuit.state === "closed") return;
+/** Circuit Breaker 체크 — OPEN 상태면 skip (throw 대신 false 반환) */
+function isCircuitOpen(modelId: string): boolean {
+  const circuit = getCircuit(modelId);
+  if (circuit.state === "closed") return false;
 
   const elapsed = Date.now() - circuit.lastFailure;
   if (elapsed >= CB_COOLDOWN_MS) {
-    // cooldown 경과 → half-open (1회 시도 허용)
     circuit.state = "half-open";
-    return;
+    return false;
   }
 
-  // OPEN 상태 → 즉시 거부
-  throw new Error(`[Circuit Breaker] ${tier} 모델 연속 ${circuit.failures}회 실패. ${Math.ceil((CB_COOLDOWN_MS - elapsed) / 1000)}초 후 재시도 가능`);
+  return true;
 }
 
-function recordCircuitSuccess(tier: string): void {
-  const circuit = getCircuit(tier);
+function recordCircuitSuccess(modelId: string): void {
+  const circuit = getCircuit(modelId);
   circuit.failures = 0;
   circuit.state = "closed";
 }
 
-function recordCircuitFailure(tier: string): void {
-  const circuit = getCircuit(tier);
+function recordCircuitFailure(modelId: string): void {
+  const circuit = getCircuit(modelId);
   circuit.failures++;
   circuit.lastFailure = Date.now();
   if (circuit.failures >= CB_THRESHOLD) {
     circuit.state = "open";
-    logActionWarn("ai-sdk.circuitBreaker", `${tier} OPEN — ${circuit.failures}회 연속 실패, ${CB_COOLDOWN_MS / 1000}초 차단`);
+    logActionWarn("ai-sdk.circuitBreaker", `${modelId} OPEN — ${circuit.failures}회 연속 실패, ${CB_COOLDOWN_MS / 1000}초 차단`);
   }
 }
 
@@ -170,6 +180,28 @@ function isRateLimitError(error: unknown): boolean {
       msg.includes("too many requests") ||
       msg.includes("resource_exhausted")
     );
+  }
+
+  return false;
+}
+
+/** 서버 과부하 에러 감지 (503 / high demand) — 폴백 모델 전환 트리거 */
+function isOverloadError(error: unknown): boolean {
+  // 1) AI SDK APICallError — statusCode 503
+  if (APICallError.isInstance(error)) {
+    return error.statusCode === 503;
+  }
+
+  // 2) 래핑된 에러 — status 필드
+  if (error instanceof Error && "status" in error) {
+    const status = (error as Error & { status?: number }).status;
+    if (status === 503) return true;
+  }
+
+  // 3) 문자열 매칭 (AI_RetryError 래핑 등)
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    return msg.includes("high demand") || msg.includes("overloaded");
   }
 
   return false;
@@ -281,18 +313,10 @@ export async function generateTextWithRateLimit(
   options: AiSdkOptions
 ): Promise<AiSdkResult> {
   const tier = options.modelTier ?? "standard";
-  const modelId = MODEL_ID_MAP[tier];
+  const fallbackChain = MODEL_FALLBACK_CHAIN[tier];
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS[tier];
   const temperature = options.temperature ?? DEFAULT_TEMPERATURE[tier];
   const maxRetries = 3;
-
-  // P3-1: Circuit Breaker 체크
-  checkCircuitBreaker(tier);
-
-  logActionDebug(
-    "ai-sdk.generateText",
-    `시작 - model=${modelId}, tier=${tier}, grounding=${options.grounding?.enabled}`
-  );
 
   // Grounding 도구 설정
   const tools =
@@ -302,87 +326,101 @@ export async function generateTextWithRateLimit(
 
   let lastError: Error | null = null;
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      if (attempt > 0) {
-        logActionDebug(
-          "ai-sdk.generateText",
-          `재시도 ${attempt}/${maxRetries}`
-        );
-      }
+  for (const currentModelId of fallbackChain) {
+    if (isCircuitOpen(currentModelId)) {
+      logActionDebug("ai-sdk.generateText", `${currentModelId} circuit open, skip`);
+      continue;
+    }
 
-      const result = await geminiRateLimiter.execute(async () => {
-        return generateText({
-          model: google(modelId),
-          system: options.system,
-          messages: options.messages.map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-          maxOutputTokens: maxTokens,
-          temperature,
-          ...(tools && { tools }),
-          ...(options.responseFormat === "json" && {
-            output: jsonModeOutput,
-          }),
-          providerOptions: {
-            google: {
-              thinkingConfig: {
-                thinkingBudget: tier === "advanced" ? 1024 : 0,
+    logActionDebug(
+      "ai-sdk.generateText",
+      `시작 - model=${currentModelId}, tier=${tier}, grounding=${options.grounding?.enabled}`
+    );
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        if (attempt > 0) {
+          logActionDebug(
+            "ai-sdk.generateText",
+            `재시도 ${attempt}/${maxRetries}`
+          );
+        }
+
+        const result = await geminiRateLimiter.execute(async () => {
+          return generateText({
+            model: google(currentModelId),
+            system: options.system,
+            messages: options.messages.map((m) => ({
+              role: m.role,
+              content: m.content,
+            })),
+            maxOutputTokens: maxTokens,
+            temperature,
+            ...(tools && { tools }),
+            ...(options.responseFormat === "json" && {
+              output: jsonModeOutput,
+            }),
+            providerOptions: {
+              google: {
+                thinkingConfig: {
+                  thinkingBudget: tier === "advanced" ? 1024 : 0,
+                },
               },
             },
-          },
+          });
         });
-      });
 
-      // 성공 시 할당량 + Circuit Breaker 기록
-      geminiQuotaTracker.recordRequest();
-      recordCircuitSuccess(tier);
+        geminiQuotaTracker.recordRequest();
+        recordCircuitSuccess(currentModelId);
 
-      // Grounding 메타데이터 추출
-      const groundingMetadata = options.grounding?.enabled
-        ? extractGroundingFromSources(result)
-        : undefined;
+        const groundingMetadata = options.grounding?.enabled
+          ? extractGroundingFromSources(result)
+          : undefined;
 
-      if (options.grounding?.enabled) {
-        logActionDebug(
-          "ai-sdk.generateText",
-          `Grounding 결과 - hasMetadata=${!!groundingMetadata}, webResults=${groundingMetadata?.webResults?.length ?? 0}`
-        );
+        return {
+          content: result.text,
+          stopReason: result.finishReason ?? null,
+          usage: {
+            inputTokens: result.usage?.inputTokens ?? 0,
+            outputTokens: result.usage?.outputTokens ?? 0,
+          },
+          modelId: currentModelId,
+          provider: "gemini",
+          groundingMetadata,
+        };
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        // 429 Rate Limit → 같은 모델 재시도
+        if (isRateLimitError(error) && attempt < maxRetries) {
+          geminiQuotaTracker.recordRateLimitHit();
+          recordCircuitFailure(currentModelId);
+          const delay = extractRetryDelay(error, attempt);
+          logActionWarn(
+            "ai-sdk.generateText",
+            `Rate limit. ${delay}ms 후 재시도 (${attempt + 1}/${maxRetries})`
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+
+        // 503 과부하 → 다음 폴백 모델로 전환
+        if (isOverloadError(error)) {
+          logActionWarn(
+            "ai-sdk.generateText",
+            `${currentModelId} 과부하 → 다음 모델로 전환`
+          );
+          recordCircuitFailure(currentModelId);
+          break;
+        }
+
+        recordCircuitFailure(currentModelId);
+        throw lastError;
       }
-
-      return {
-        content: result.text,
-        stopReason: result.finishReason ?? null,
-        usage: {
-          inputTokens: result.usage?.inputTokens ?? 0,
-          outputTokens: result.usage?.outputTokens ?? 0,
-        },
-        modelId,
-        provider: "gemini",
-        groundingMetadata,
-      };
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-
-      if (isRateLimitError(error) && attempt < maxRetries) {
-        geminiQuotaTracker.recordRateLimitHit();
-        recordCircuitFailure(tier);
-        const delay = extractRetryDelay(error, attempt);
-        logActionWarn(
-          "ai-sdk.generateText",
-          `Rate limit 에러. ${delay}ms 후 재시도 (${attempt + 1}/${maxRetries}): ${lastError.message}`
-        );
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        continue;
-      }
-
-      recordCircuitFailure(tier);
-      throw lastError;
     }
   }
 
-  throw lastError ?? new Error("[AI SDK] generateText 알 수 없는 에러");
+  throw lastError ?? new Error("[AI SDK] generateText 모든 모델 실패");
 }
 
 // ============================================
@@ -403,83 +441,97 @@ export async function generateObjectWithRateLimit<T>(
   modelId: string;
 }> {
   const tier = options.modelTier ?? "standard";
-  const modelId = MODEL_ID_MAP[tier];
+  const fallbackChain = MODEL_FALLBACK_CHAIN[tier];
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS[tier];
   const temperature = options.temperature ?? DEFAULT_TEMPERATURE[tier];
   const maxRetries = 3;
 
-  checkCircuitBreaker(tier);
-
-  logActionDebug(
-    "ai-sdk.generateObject",
-    `시작 - model=${modelId}, tier=${tier}`
-  );
-
   let lastError: Error | null = null;
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      if (attempt > 0) {
-        logActionDebug(
-          "ai-sdk.generateObject",
-          `재시도 ${attempt}/${maxRetries}`
-        );
-      }
+  for (const currentModelId of fallbackChain) {
+    if (isCircuitOpen(currentModelId)) {
+      logActionDebug("ai-sdk.generateObject", `${currentModelId} circuit open, skip`);
+      continue;
+    }
 
-      const result = await geminiRateLimiter.execute(async () => {
-        return generateObject({
-          model: google(modelId),
-          mode: "json",
-          system: options.system,
-          messages: options.messages.map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-          schema: options.schema,
-          maxOutputTokens: maxTokens,
-          temperature,
-          providerOptions: {
-            google: {
-              thinkingConfig: {
-                thinkingBudget: tier === "advanced" ? 1024 : 0,
+    logActionDebug(
+      "ai-sdk.generateObject",
+      `시작 - model=${currentModelId}, tier=${tier}`
+    );
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        if (attempt > 0) {
+          logActionDebug(
+            "ai-sdk.generateObject",
+            `재시도 ${attempt}/${maxRetries}`
+          );
+        }
+
+        const result = await geminiRateLimiter.execute(async () => {
+          return generateObject({
+            model: google(currentModelId),
+            mode: "json",
+            system: options.system,
+            messages: options.messages.map((m) => ({
+              role: m.role,
+              content: m.content,
+            })),
+            schema: options.schema,
+            maxOutputTokens: maxTokens,
+            temperature,
+            providerOptions: {
+              google: {
+                thinkingConfig: {
+                  thinkingBudget: tier === "advanced" ? 1024 : 0,
+                },
               },
             },
-          },
+          });
         });
-      });
 
-      geminiQuotaTracker.recordRequest();
-      recordCircuitSuccess(tier);
+        geminiQuotaTracker.recordRequest();
+        recordCircuitSuccess(currentModelId);
 
-      return {
-        object: result.object,
-        usage: {
-          inputTokens: result.usage?.inputTokens ?? 0,
-          outputTokens: result.usage?.outputTokens ?? 0,
-        },
-        modelId,
-      };
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
+        return {
+          object: result.object,
+          usage: {
+            inputTokens: result.usage?.inputTokens ?? 0,
+            outputTokens: result.usage?.outputTokens ?? 0,
+          },
+          modelId: currentModelId,
+        };
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
 
-      if (isRateLimitError(error) && attempt < maxRetries) {
-        geminiQuotaTracker.recordRateLimitHit();
-        recordCircuitFailure(tier);
-        const delay = extractRetryDelay(error, attempt);
-        logActionWarn(
-          "ai-sdk.generateObject",
-          `Rate limit 에러. ${delay}ms 후 재시도 (${attempt + 1}/${maxRetries}): ${lastError.message}`
-        );
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        continue;
+        if (isRateLimitError(error) && attempt < maxRetries) {
+          geminiQuotaTracker.recordRateLimitHit();
+          recordCircuitFailure(currentModelId);
+          const delay = extractRetryDelay(error, attempt);
+          logActionWarn(
+            "ai-sdk.generateObject",
+            `Rate limit. ${delay}ms 후 재시도 (${attempt + 1}/${maxRetries})`
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+
+        if (isOverloadError(error)) {
+          logActionWarn(
+            "ai-sdk.generateObject",
+            `${currentModelId} 과부하 → 다음 모델로 전환`
+          );
+          recordCircuitFailure(currentModelId);
+          break;
+        }
+
+        recordCircuitFailure(currentModelId);
+        throw lastError;
       }
-
-      recordCircuitFailure(tier);
-      throw lastError;
     }
   }
 
-  throw lastError ?? new Error("[AI SDK] generateObject 알 수 없는 에러");
+  throw lastError ?? new Error("[AI SDK] generateObject 모든 모델 실패");
 }
 
 // ============================================
@@ -495,17 +547,10 @@ export async function streamTextWithRateLimit(
   options: AiSdkStreamOptions
 ): Promise<AiSdkResult> {
   const tier = options.modelTier ?? "standard";
-  const modelId = MODEL_ID_MAP[tier];
+  const fallbackChain = MODEL_FALLBACK_CHAIN[tier];
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS[tier];
   const temperature = options.temperature ?? DEFAULT_TEMPERATURE[tier];
   const maxRetries = 3;
-
-  checkCircuitBreaker(tier);
-
-  logActionDebug(
-    "ai-sdk.streamText",
-    `시작 - model=${modelId}, tier=${tier}`
-  );
 
   const tools =
     options.grounding?.enabled
@@ -514,78 +559,98 @@ export async function streamTextWithRateLimit(
 
   let lastError: Error | null = null;
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      if (attempt > 0) {
-        logActionDebug(
-          "ai-sdk.streamText",
-          `재시도 ${attempt}/${maxRetries}`
-        );
-      }
+  for (const currentModelId of fallbackChain) {
+    if (isCircuitOpen(currentModelId)) {
+      logActionDebug("ai-sdk.streamText", `${currentModelId} circuit open, skip`);
+      continue;
+    }
 
-      const result = await geminiRateLimiter.execute(async () => {
-        return streamText({
-          model: google(modelId),
-          system: options.system,
-          messages: options.messages.map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-          maxOutputTokens: maxTokens,
-          temperature,
-          ...(tools && { tools }),
+    logActionDebug(
+      "ai-sdk.streamText",
+      `시작 - model=${currentModelId}, tier=${tier}`
+    );
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        if (attempt > 0) {
+          logActionDebug(
+            "ai-sdk.streamText",
+            `재시도 ${attempt}/${maxRetries}`
+          );
+        }
+
+        const result = await geminiRateLimiter.execute(async () => {
+          return streamText({
+            model: google(currentModelId),
+            system: options.system,
+            messages: options.messages.map((m) => ({
+              role: m.role,
+              content: m.content,
+            })),
+            maxOutputTokens: maxTokens,
+            temperature,
+            ...(tools && { tools }),
+          });
         });
-      });
 
-      geminiQuotaTracker.recordRequest();
-      recordCircuitSuccess(tier);
+        geminiQuotaTracker.recordRequest();
+        recordCircuitSuccess(currentModelId);
 
-      let fullContent = "";
+        let fullContent = "";
 
-      for await (const chunk of result.textStream) {
-        fullContent += chunk;
-        options.onText?.(chunk);
+        for await (const chunk of result.textStream) {
+          fullContent += chunk;
+          options.onText?.(chunk);
+        }
+
+        const usage = await result.usage;
+
+        const aiSdkResult: AiSdkResult = {
+          content: fullContent,
+          stopReason: (await result.finishReason) ?? null,
+          usage: {
+            inputTokens: usage?.inputTokens ?? 0,
+            outputTokens: usage?.outputTokens ?? 0,
+          },
+          modelId: currentModelId,
+          provider: "gemini",
+        };
+
+        options.onComplete?.(aiSdkResult);
+        return aiSdkResult;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        if (isRateLimitError(error) && attempt < maxRetries) {
+          geminiQuotaTracker.recordRateLimitHit();
+          recordCircuitFailure(currentModelId);
+          const delay = extractRetryDelay(error, attempt);
+          logActionWarn(
+            "ai-sdk.streamText",
+            `Rate limit. ${delay}ms 후 재시도 (${attempt + 1}/${maxRetries})`
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+
+        if (isOverloadError(error)) {
+          logActionWarn(
+            "ai-sdk.streamText",
+            `${currentModelId} 과부하 → 다음 모델로 전환`
+          );
+          recordCircuitFailure(currentModelId);
+          break;
+        }
+
+        recordCircuitFailure(currentModelId);
+        options.onError?.(lastError);
+        throw lastError;
       }
-
-      // 최종 usage 가져오기
-      const usage = await result.usage;
-
-      const aiSdkResult: AiSdkResult = {
-        content: fullContent,
-        stopReason: (await result.finishReason) ?? null,
-        usage: {
-          inputTokens: usage?.inputTokens ?? 0,
-          outputTokens: usage?.outputTokens ?? 0,
-        },
-        modelId,
-        provider: "gemini",
-      };
-
-      options.onComplete?.(aiSdkResult);
-      return aiSdkResult;
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-
-      if (isRateLimitError(error) && attempt < maxRetries) {
-        geminiQuotaTracker.recordRateLimitHit();
-        recordCircuitFailure(tier);
-        const delay = extractRetryDelay(error, attempt);
-        logActionWarn(
-          "ai-sdk.streamText",
-          `Rate limit 에러. ${delay}ms 후 재시도 (${attempt + 1}/${maxRetries}): ${lastError.message}`
-        );
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        continue;
-      }
-
-      recordCircuitFailure(tier);
-      options.onError?.(lastError);
-      throw lastError;
     }
   }
 
   const finalError =
-    lastError ?? new Error("[AI SDK] streamText 알 수 없는 에러");
+    lastError ?? new Error("[AI SDK] streamText 모든 모델 실패");
   options.onError?.(finalError);
   throw finalError;
 }

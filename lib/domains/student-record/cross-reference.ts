@@ -5,6 +5,7 @@
 
 import type { ActivityTag, StorylineLink, ReadingLink, RecordType } from "./types";
 import type { CourseAdequacyResult } from "./types";
+import { normalizeSubjectName } from "@/lib/domains/subject/normalize";
 
 // ============================================
 // 1. 타입 정의
@@ -222,8 +223,9 @@ export function detectCourseSupports(
 ): CrossRefEdge[] {
   if (!subjectName || !courseAdequacy) return [];
 
+  const normalizedInput = normalizeSubjectName(subjectName);
   const isTaken = courseAdequacy.taken.some(
-    (s) => s === subjectName,
+    (s) => normalizeSubjectName(s) === normalizedInput,
   );
   if (!isTaken) return [];
 

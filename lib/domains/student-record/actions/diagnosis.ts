@@ -102,10 +102,11 @@ export async function fetchDiagnosisTabData(
       })(),
     ]);
 
-    // 교육과정 연도 판별: 고1 입학 연도 = schoolYear - grade + 1, 2025 이후면 2022 교육과정
+    // 교육과정 연도 판별
     const studentGrade = studentResult.data?.grade ?? 1;
     const enrollmentYear = schoolYear - studentGrade + 1;
-    const curriculumYear = enrollmentYear >= 2025 ? 2022 : 2015;
+    const { getCurriculumYear } = await import("@/lib/utils/schoolYear");
+    const curriculumYear = getCurriculumYear(enrollmentYear);
 
     const courseAdequacy = targetMajor
       ? calculateCourseAdequacy(targetMajor, takenSubjects, offeredSubjects, curriculumYear)
@@ -305,7 +306,7 @@ export async function computeDeterministicCareerGradesAction(
 
     const { data: scoreRows } = await supabase
       .from("student_internal_scores")
-      .select("subject:subject_id(name), rank_grade")
+      .select("subject:subject_id(name), rank_grade, grade, semester")
       .eq("student_id", studentId);
 
     const subjectScores = (scoreRows ?? [])
@@ -317,20 +318,33 @@ export async function computeDeterministicCareerGradesAction(
       .filter((s: { subjectName: string }) => s.subjectName);
     const takenNames = [...new Set(subjectScores.map((s: { subjectName: string }) => s.subjectName))];
 
+    // 학년별 이수 데이터 (Q2 학습단계 순서 검증용)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const gradedSubjects = (scoreRows ?? [])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .filter((s: any) => (s.subject as { name: string } | null)?.name && s.grade != null && s.semester != null)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((s: any) => ({
+        subjectName: (s.subject as { name: string })!.name,
+        grade: s.grade as number,
+        semester: s.semester as number,
+      }));
+
     const { calculateCourseAdequacy } = await import("../course-adequacy");
     const { computeCourseEffortGrades, computeCourseAchievementGrades } = await import("../rubric-matcher");
     const { calculateSchoolYear } = await import("@/lib/utils/schoolYear");
 
     const studentGrade = (student?.grade as number) ?? 3;
     const enrollYear = calculateSchoolYear() - studentGrade + 1;
-    const curYear = enrollYear >= 2025 ? 2022 : 2015;
+    const { getCurriculumYear } = await import("@/lib/utils/schoolYear");
+    const curYear = getCurriculumYear(enrollYear);
     const adequacy = calculateCourseAdequacy(tgtMajor, takenNames, null, curYear);
 
     if (!adequacy) return { success: true, data: [] };
 
     const grades = [
-      computeCourseEffortGrades(adequacy),
-      computeCourseAchievementGrades(adequacy.taken, subjectScores),
+      computeCourseEffortGrades(adequacy, gradedSubjects),
+      computeCourseAchievementGrades(adequacy.taken, subjectScores, adequacy),
     ];
 
     return { success: true, data: grades };

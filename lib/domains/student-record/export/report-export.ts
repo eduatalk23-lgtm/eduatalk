@@ -34,9 +34,13 @@ export interface ReportExportData {
   diagnosis?: {
     overallGrade: string;
     recordDirection: string;
+    directionStrength?: string;
+    directionReasoning?: string;
     strengths: string[];
     weaknesses: string[];
+    improvements?: Array<{ priority: string; area: string; gap?: string; action: string; outcome?: string }>;
     recommendedMajors: string[];
+    strategyNotes?: string;
   } | null;
   competencyScores?: Array<{
     area: string;
@@ -48,8 +52,10 @@ export interface ReportExportData {
     majorCategory: string;
     taken: string[];
     notTaken: string[];
+    notOffered: string[];
     generalRate: number;
     careerRate: number;
+    fusionRate: number | null;
   } | null;
   strategies?: Array<{
     targetArea: string;
@@ -177,15 +183,33 @@ export async function exportReportAsDocx(data: ReportExportData): Promise<void> 
     if (data.diagnosis) {
       const d = data.diagnosis;
       children.push(new Paragraph({ text: "종합 진단", heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 150 } }));
-      children.push(new Paragraph({ children: [new TextRun({ text: `종합등급: ${d.overallGrade} · ${d.recordDirection}`, size: 22, bold: true })], spacing: { after: 100 } }));
+      const gradeText = d.directionStrength
+        ? `종합등급: ${d.overallGrade} · ${d.recordDirection} (${d.directionStrength})`
+        : `종합등급: ${d.overallGrade} · ${d.recordDirection}`;
+      children.push(new Paragraph({ children: [new TextRun({ text: gradeText, size: 22, bold: true })], spacing: { after: 80 } }));
+      if (d.directionReasoning) {
+        children.push(new Paragraph({ children: [new TextRun({ text: d.directionReasoning, size: 20, color: "555555", italics: true })], spacing: { after: 100 } }));
+      }
       for (const s of d.strengths) {
         children.push(new Paragraph({ children: [new TextRun({ text: `✅ ${s}`, size: 20 })], spacing: { after: 60 } }));
       }
       for (const w of d.weaknesses) {
         children.push(new Paragraph({ children: [new TextRun({ text: `⚠️ ${w}`, size: 20 })], spacing: { after: 60 } }));
       }
+      if (d.improvements && d.improvements.length > 0) {
+        children.push(new Paragraph({ children: [new TextRun({ text: "개선 전략:", size: 20, bold: true })], spacing: { before: 80, after: 60 } }));
+        for (const imp of d.improvements) {
+          const impText = imp.gap
+            ? `[${imp.priority}] ${imp.area}: ${imp.gap} → ${imp.action}`
+            : `[${imp.priority}] ${imp.area}: ${imp.action}`;
+          children.push(new Paragraph({ children: [new TextRun({ text: impText, size: 20 })], spacing: { after: 40 } }));
+        }
+      }
       if (d.recommendedMajors.length > 0) {
-        children.push(new Paragraph({ children: [new TextRun({ text: `추천 전공: ${d.recommendedMajors.join(", ")}`, size: 20, color: "666666" })], spacing: { after: 150 } }));
+        children.push(new Paragraph({ children: [new TextRun({ text: `추천 전공: ${d.recommendedMajors.join(", ")}`, size: 20, color: "666666" })], spacing: { after: 80 } }));
+      }
+      if (d.strategyNotes) {
+        children.push(new Paragraph({ children: [new TextRun({ text: `후속 조치: ${d.strategyNotes}`, size: 20, color: "555555" })], spacing: { after: 150 } }));
       }
     }
 
@@ -193,9 +217,13 @@ export async function exportReportAsDocx(data: ReportExportData): Promise<void> 
     if (data.courseAdequacy) {
       const ca = data.courseAdequacy;
       children.push(new Paragraph({ text: "교과 이수 적합도", heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 150 } }));
-      children.push(new Paragraph({ children: [new TextRun({ text: `${ca.majorCategory} 계열 · 적합도 ${ca.score}% (일반 ${ca.generalRate}% / 진로 ${ca.careerRate}%)`, size: 22 })], spacing: { after: 80 } }));
+      const rateText = ca.fusionRate != null
+        ? `일반 ${ca.generalRate}% / 진로 ${ca.careerRate}% / 융합 ${ca.fusionRate}%`
+        : `일반 ${ca.generalRate}% / 진로 ${ca.careerRate}%`;
+      children.push(new Paragraph({ children: [new TextRun({ text: `${ca.majorCategory} 계열 · 적합도 ${ca.score}% (${rateText})`, size: 22 })], spacing: { after: 80 } }));
       if (ca.taken.length > 0) children.push(new Paragraph({ children: [new TextRun({ text: `이수: ${ca.taken.join(", ")}`, size: 20 })], spacing: { after: 60 } }));
-      if (ca.notTaken.length > 0) children.push(new Paragraph({ children: [new TextRun({ text: `미이수: ${ca.notTaken.join(", ")}`, size: 20, color: "CC0000" })], spacing: { after: 100 } }));
+      if (ca.notTaken.length > 0) children.push(new Paragraph({ children: [new TextRun({ text: `미이수: ${ca.notTaken.join(", ")}`, size: 20, color: "CC0000" })], spacing: { after: 60 } }));
+      if (ca.notOffered.length > 0) children.push(new Paragraph({ children: [new TextRun({ text: `학교 미개설: ${ca.notOffered.join(", ")}`, size: 20, color: "999999" })], spacing: { after: 100 } }));
     }
 
     // F4: 보완 전략
@@ -288,7 +316,13 @@ function buildReportHtml(data: ReportExportData): string {
       const d = data.diagnosis;
       body += `<div style="margin-bottom:20px;">`;
       body += `<h2 style="font-size:15px;font-weight:600;border-bottom:1px solid #ddd;padding-bottom:4px;margin-bottom:8px;">종합 진단</h2>`;
-      body += `<p style="font-size:13px;margin-bottom:6px;"><strong>종합등급:</strong> ${escapeHtml(d.overallGrade)} · ${escapeHtml(d.recordDirection)}</p>`;
+      const htmlGrade = d.directionStrength
+        ? `${escapeHtml(d.overallGrade)} · ${escapeHtml(d.recordDirection)} (${escapeHtml(d.directionStrength)})`
+        : `${escapeHtml(d.overallGrade)} · ${escapeHtml(d.recordDirection)}`;
+      body += `<p style="font-size:13px;margin-bottom:6px;"><strong>종합등급:</strong> ${htmlGrade}</p>`;
+      if (d.directionReasoning) {
+        body += `<p style="font-size:12px;color:#555;font-style:italic;margin-bottom:8px;">${escapeHtml(d.directionReasoning)}</p>`;
+      }
       if (d.strengths.length > 0) {
         body += `<p style="font-size:13px;margin-bottom:4px;"><strong>강점:</strong></p><ul style="font-size:12px;margin:0 0 8px 16px;">`;
         for (const s of d.strengths) body += `<li>${escapeHtml(s)}</li>`;
@@ -299,8 +333,21 @@ function buildReportHtml(data: ReportExportData): string {
         for (const w of d.weaknesses) body += `<li>${escapeHtml(w)}</li>`;
         body += `</ul>`;
       }
+      if (d.improvements && d.improvements.length > 0) {
+        body += `<p style="font-size:13px;margin-bottom:4px;"><strong>개선 전략:</strong></p><ul style="font-size:12px;margin:0 0 8px 16px;">`;
+        for (const imp of d.improvements) {
+          const impHtml = imp.gap
+            ? `[${escapeHtml(imp.priority)}] ${escapeHtml(imp.area)}: ${escapeHtml(imp.gap)} → ${escapeHtml(imp.action)}`
+            : `[${escapeHtml(imp.priority)}] ${escapeHtml(imp.area)}: ${escapeHtml(imp.action)}`;
+          body += `<li>${impHtml}</li>`;
+        }
+        body += `</ul>`;
+      }
       if (d.recommendedMajors.length > 0) {
         body += `<p style="font-size:12px;color:#666;">추천 전공: ${d.recommendedMajors.map(escapeHtml).join(", ")}</p>`;
+      }
+      if (d.strategyNotes) {
+        body += `<p style="font-size:12px;color:#555;">후속 조치: ${escapeHtml(d.strategyNotes)}</p>`;
       }
       body += `</div>`;
     }
@@ -322,9 +369,13 @@ function buildReportHtml(data: ReportExportData): string {
       const ca = data.courseAdequacy;
       body += `<div style="margin-bottom:20px;">`;
       body += `<h2 style="font-size:15px;font-weight:600;border-bottom:1px solid #ddd;padding-bottom:4px;margin-bottom:8px;">교과 이수 적합도</h2>`;
-      body += `<p style="font-size:13px;margin-bottom:6px;"><strong>${escapeHtml(ca.majorCategory)}</strong> 계열 · 적합도 <strong>${ca.score}%</strong> (일반 ${ca.generalRate}% / 진로 ${ca.careerRate}%)</p>`;
+      const htmlRateText = ca.fusionRate != null
+        ? `일반 ${ca.generalRate}% / 진로 ${ca.careerRate}% / 융합 ${ca.fusionRate}%`
+        : `일반 ${ca.generalRate}% / 진로 ${ca.careerRate}%`;
+      body += `<p style="font-size:13px;margin-bottom:6px;"><strong>${escapeHtml(ca.majorCategory)}</strong> 계열 · 적합도 <strong>${ca.score}%</strong> (${htmlRateText})</p>`;
       if (ca.taken.length > 0) body += `<p style="font-size:12px;">이수: ${ca.taken.map(escapeHtml).join(", ")}</p>`;
       if (ca.notTaken.length > 0) body += `<p style="font-size:12px;color:#c00;">미이수: ${ca.notTaken.map(escapeHtml).join(", ")}</p>`;
+      if (ca.notOffered.length > 0) body += `<p style="font-size:12px;color:#999;">학교 미개설: ${ca.notOffered.map(escapeHtml).join(", ")}</p>`;
       body += `</div>`;
     }
 

@@ -157,7 +157,7 @@ export function gradeToNum(grade: string): number {
 // pipeline.ts + CompetencyAnalysisSection.tsx 공용
 // ============================================
 
-import { COMPETENCY_ITEMS } from "./constants";
+import { COMPETENCY_ITEMS, getMajorRecommendedCourses } from "./constants";
 import type { CompetencyArea } from "./types";
 
 interface CompetencyGradeInput {
@@ -257,6 +257,86 @@ export function aggregateCompetencyGrades(
 // ============================================
 
 import type { CourseAdequacyResult } from "./types";
+import { normalizeSubjectName } from "@/lib/domains/subject/normalize";
+
+/**
+ * 교과 학습단계 선수과목 체인 (2015+2022 통합)
+ * [선수 과목, 후수 과목] — 선수를 먼저(낮은 학년에) 이수해야 정상
+ */
+const LEARNING_SEQUENCE_CHAINS: [string, string][] = [
+  // 수학
+  ["수학1", "수학2"],
+  ["수학2", "미적분"],
+  ["수학2", "확률과통계"],
+  ["수학2", "기하"],
+  ["미적분", "수학과제탐구"],
+  ["미적분", "경제수학"],
+  ["미적분", "인공지능수학"],
+  // 과학
+  ["물리학1", "역학과에너지"],
+  ["물리학1", "전자기와양자"],
+  ["화학1", "화학반응의세계"],
+  ["생명과학1", "세포와물질대사"],
+  ["생명과학1", "생물다양성과생태"],
+  ["지구과학1", "지구시스템과학"],
+  // 2022 과학 (1/2 분리 없음 → 선수 관계 유지)
+  ["물리학", "역학과에너지"],
+  ["물리학", "전자기와양자"],
+  ["화학", "화학반응의세계"],
+  ["생명과학", "세포와물질대사"],
+  ["생명과학", "생물다양성과생태"],
+  ["지구과학", "지구시스템과학"],
+];
+
+/** 학년별 이수 정보 */
+export interface GradedSubject {
+  subjectName: string;
+  grade: number;   // 1, 2, 3
+  semester: number; // 1, 2
+}
+
+/**
+ * 학습단계 이수 순서 검증
+ * @returns { score: 0~100, violations: 위반 목록 }
+ */
+function evaluateLearningSequence(
+  takenSubjects: GradedSubject[],
+): { score: number; violations: string[] } {
+  // 정규화된 과목명 → 최초 이수 시점 매핑
+  const subjectTiming = new Map<string, number>();
+  for (const s of takenSubjects) {
+    const norm = normalizeSubjectName(s.subjectName);
+    const timing = s.grade * 10 + s.semester; // e.g. 1학년 2학기 = 12
+    const existing = subjectTiming.get(norm);
+    if (existing == null || timing < existing) {
+      subjectTiming.set(norm, timing);
+    }
+  }
+
+  let checkedChains = 0;
+  const violations: string[] = [];
+
+  for (const [prereq, followup] of LEARNING_SEQUENCE_CHAINS) {
+    const prereqNorm = normalizeSubjectName(prereq);
+    const followupNorm = normalizeSubjectName(followup);
+
+    const prereqTime = subjectTiming.get(prereqNorm);
+    const followupTime = subjectTiming.get(followupNorm);
+
+    // 둘 다 이수한 경우만 검증 대상
+    if (prereqTime == null || followupTime == null) continue;
+    checkedChains++;
+
+    // 후수 과목이 선수 과목보다 먼저 이수된 경우만 위반 (동일 학기는 허용)
+    if (followupTime < prereqTime) {
+      violations.push(`${prereq} → ${followup}`);
+    }
+  }
+
+  if (checkedChains === 0) return { score: -1, violations: [] }; // 검증 불가
+  const correctRate = ((checkedChains - violations.length) / checkedChains) * 100;
+  return { score: Math.round(correctRate), violations };
+}
 
 /** 이수적합도 점수 → 등급 매핑 */
 function scoreToGrade(score: number): CompetencyGrade {
@@ -281,9 +361,11 @@ function rankGradeToCompetencyGrade(avgRank: number): CompetencyGrade {
 /**
  * career_course_effort (교과 이수 노력) 결정론적 산정
  * courseAdequacy의 이수율 데이터 기반
+ * @param gradedSubjects - 학년/학기별 이수 데이터 (있으면 Q2 학습단계 순서 검증)
  */
 export function computeCourseEffortGrades(
   courseAdequacy: CourseAdequacyResult,
+  gradedSubjects?: GradedSubject[],
 ): CompetencyGradeInput {
   const rubricScores: { questionIndex: number; grade: string; reasoning: string }[] = [];
 
@@ -303,12 +385,21 @@ export function computeCourseEffortGrades(
     reasoning: `진로선택 이수율 ${courseAdequacy.careerRate}%`,
   });
 
-  // Q2: "선택과목은 교과목 학습단계에 따라 이수하였는가?" → 기본 B (학년별 순서 추적 미구현)
-  rubricScores.push({
-    questionIndex: 2,
-    grade: "B",
-    reasoning: "학습단계 이수 순서 (기본값)",
-  });
+  // Q2: "선택과목은 교과목 학습단계에 따라 이수하였는가?"
+  if (gradedSubjects && gradedSubjects.length > 0) {
+    const seq = evaluateLearningSequence(gradedSubjects);
+    if (seq.score >= 0) {
+      const seqGrade = scoreToGrade(seq.score);
+      const reasoning = seq.violations.length > 0
+        ? `학습단계 순서 준수율 ${seq.score}% (위반: ${seq.violations.join(", ")})`
+        : `학습단계 순서 100% 준수`;
+      rubricScores.push({ questionIndex: 2, grade: seqGrade, reasoning });
+    } else {
+      rubricScores.push({ questionIndex: 2, grade: "B", reasoning: "학습단계 체인 해당 과목 없음 (기본값)" });
+    }
+  } else {
+    rubricScores.push({ questionIndex: 2, grade: "B", reasoning: "학년별 이수 데이터 없음 (기본값)" });
+  }
 
   return {
     item: "career_course_effort",
@@ -320,10 +411,12 @@ export function computeCourseEffortGrades(
 /**
  * career_course_achievement (교과 성취도) 결정론적 산정
  * 전공 관련 과목의 실제 성적 기반
+ * @param courseAdequacy - 적합도 결과 (general/career 분류용, 없으면 전체 평균 사용)
  */
 export function computeCourseAchievementGrades(
   taken: string[],
   scores: Array<{ subjectName: string; rankGrade: number }>,
+  courseAdequacy?: CourseAdequacyResult,
 ): CompetencyGradeInput {
   const rubricScores: { questionIndex: number; grade: string; reasoning: string }[] = [];
 
@@ -333,7 +426,6 @@ export function computeCourseAchievementGrades(
   );
 
   if (relevantScores.length === 0) {
-    // 성적 데이터 없음 → 기본값
     rubricScores.push({
       questionIndex: 0,
       grade: "B",
@@ -356,12 +448,41 @@ export function computeCourseAchievementGrades(
     reasoning: `전공 관련 ${relevantScores.length}과목 평균 ${avgRank.toFixed(1)}등급`,
   });
 
-  // Q1: "동일 교과 내 일반선택 대비 진로선택 성취수준은?" → 기본 B (세부 구분 미구현)
-  rubricScores.push({
-    questionIndex: 1,
-    grade: achievementGrade, // 같은 등급 사용 (세부 비교 미구현)
-    reasoning: "일반/진로선택 성취 비교 (전체 평균 기준)",
-  });
+  // Q1: "동일 교과 내 일반선택 대비 진로선택 성취수준은?"
+  if (courseAdequacy) {
+    // constants.ts의 추천 과목 데이터로 general/career 분류
+    const recommended = getMajorRecommendedCourses(courseAdequacy.majorCategory);
+    if (recommended) {
+      const generalSet = new Set(recommended.general.map(normalizeSubjectName));
+      const careerSet = new Set(recommended.career.map(normalizeSubjectName));
+
+      const generalScores = relevantScores.filter((s) => generalSet.has(normalizeSubjectName(s.subjectName)));
+      const careerScores = relevantScores.filter((s) => careerSet.has(normalizeSubjectName(s.subjectName)));
+
+      if (generalScores.length > 0 && careerScores.length > 0) {
+        const generalAvg = generalScores.reduce((s, r) => s + r.rankGrade, 0) / generalScores.length;
+        const careerAvg = careerScores.reduce((s, r) => s + r.rankGrade, 0) / careerScores.length;
+        // 진로선택이 일반선택보다 같거나 좋으면 좋은 평가
+        const comparisonGrade = rankGradeToCompetencyGrade(careerAvg);
+        const delta = generalAvg - careerAvg; // 양수면 진로가 더 좋음
+        const reasoning = delta >= 0
+          ? `진로선택 ${careerAvg.toFixed(1)}등급 ≤ 일반선택 ${generalAvg.toFixed(1)}등급 (우수)`
+          : `진로선택 ${careerAvg.toFixed(1)}등급 > 일반선택 ${generalAvg.toFixed(1)}등급 (${Math.abs(delta).toFixed(1)}등급 차)`;
+        rubricScores.push({ questionIndex: 1, grade: comparisonGrade, reasoning });
+      } else {
+        // 한쪽만 있으면 전체 평균 사용
+        rubricScores.push({
+          questionIndex: 1,
+          grade: achievementGrade,
+          reasoning: `일반선택 ${generalScores.length}개, 진로선택 ${careerScores.length}개 (한쪽 부재 → 전체 평균)`,
+        });
+      }
+    } else {
+      rubricScores.push({ questionIndex: 1, grade: achievementGrade, reasoning: "추천 과목 데이터 없음 (전체 평균)" });
+    }
+  } else {
+    rubricScores.push({ questionIndex: 1, grade: achievementGrade, reasoning: "일반/진로선택 성취 비교 (전체 평균 기준)" });
+  }
 
   return {
     item: "career_course_achievement",

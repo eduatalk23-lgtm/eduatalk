@@ -10,7 +10,7 @@ import {
   matchRecommendationsToSubjects,
   assignGradeSemesters,
 } from "./recommendation";
-import { gradeToSchoolYear } from "@/lib/utils/schoolYear";
+import { gradeToSchoolYear, calculateSchoolYear, getCurriculumYear } from "@/lib/utils/schoolYear";
 import { saveSetek } from "../service";
 import type {
   CoursePlanWithSubject,
@@ -52,12 +52,15 @@ export async function fetchCoursePlanData(
       targetMajor2: null,
       studentGrade: 1,
       offeredSubjects: [],
+      offeredSubjectNames: null,
+      curriculumYear: 2015,
       schoolName: null,
     };
   }
 
   // 학교 개설 과목 조회
   let offeredSubjects: OfferedSubjectInfo[] = [];
+  let offeredSubjectNames: string[] | null = null;
   if (student.school_name && student.tenant_id) {
     const { data: schoolProfile } = await supabase
       .from("school_profiles")
@@ -69,7 +72,7 @@ export async function fetchCoursePlanData(
     if (schoolProfile) {
       const { data: offered } = await supabase
         .from("school_offered_subjects")
-        .select("subject_id, grades, semesters")
+        .select("subject_id, grades, semesters, subject:subject_id(name)")
         .eq("school_profile_id", schoolProfile.id);
 
       offeredSubjects = (offered ?? []).map((o) => ({
@@ -77,6 +80,14 @@ export async function fetchCoursePlanData(
         grades: o.grades ?? [],
         semesters: o.semesters ?? [],
       }));
+      offeredSubjectNames = [...new Set(
+        (offered ?? [])
+          .map((o) => {
+            const subj = o.subject as unknown as { name: string } | null;
+            return subj?.name;
+          })
+          .filter((n): n is string => !!n),
+      )];
     }
   }
 
@@ -91,12 +102,19 @@ export async function fetchCoursePlanData(
     logActionError({ ...LOG_CTX, action: "fetchCoursePlanData.syncScores" }, err);
   }
 
+  // 교육과정 연도 판별
+  const fetchStudentGrade = student.grade ?? 1;
+  const fetchEnrollmentYear = calculateSchoolYear() - fetchStudentGrade + 1;
+  const fetchCurriculumYear = getCurriculumYear(fetchEnrollmentYear);
+
   return {
     plans: finalPlans,
     targetMajor: student.target_major ?? null,
     targetMajor2: (student as Record<string, unknown>).target_major_2 as string | null ?? null,
-    studentGrade: student.grade ?? 1,
+    studentGrade: fetchStudentGrade,
     offeredSubjects,
+    offeredSubjectNames,
+    curriculumYear: fetchCurriculumYear,
     schoolName: student.school_name ?? null,
   };
 }
@@ -125,8 +143,13 @@ export async function generateAndSaveRecommendations(
   const major2 = (student as Record<string, unknown>).target_major_2 as string | null;
   if (major2) majorCategories.push(major2);
 
-  // 1단계: 추천 과목명 추출
-  const recommendations = getRecommendedCourseNames(majorCategories);
+  // 교육과정 연도 판별
+  const studentGrade = student.grade ?? 1;
+  const enrollmentYear = calculateSchoolYear() - studentGrade + 1;
+  const curriculumYear = getCurriculumYear(enrollmentYear);
+
+  // 1단계: 추천 과목명 추출 (교육과정 연도 반영)
+  const recommendations = getRecommendedCourseNames(majorCategories, curriculumYear);
 
   // 2단계: DB subject 매칭
   const { data: allSubjects } = await supabase

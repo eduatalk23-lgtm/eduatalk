@@ -21,6 +21,8 @@ export interface DiagnosisContext {
   recordDirection: string | null;
   directionStrength: string | null;
   strengths: string[];
+  weaknesses: string[];
+  improvements: Array<{ priority: string; area: string; action: string }>;
   overallGrade: string | null;
 }
 
@@ -82,7 +84,7 @@ export async function discoverDepartmentsFromDiagnosis(
   // 1. AI 진단의 recommended_majors + 근거 조회
   const { data: diagnosis } = await supabase
     .from("student_record_diagnosis")
-    .select("recommended_majors, record_direction, direction_strength, strengths, overall_grade")
+    .select("recommended_majors, record_direction, direction_strength, strengths, weaknesses, improvements, overall_grade")
     .eq("student_id", studentId)
     .eq("tenant_id", tenantId)
     .eq("source", "ai")
@@ -99,6 +101,10 @@ export async function discoverDepartmentsFromDiagnosis(
         recordDirection: (diagnosis.record_direction as string) ?? null,
         directionStrength: (diagnosis.direction_strength as string) ?? null,
         strengths: Array.isArray(diagnosis.strengths) ? (diagnosis.strengths as string[]) : [],
+        weaknesses: Array.isArray(diagnosis.weaknesses) ? (diagnosis.weaknesses as string[]) : [],
+        improvements: Array.isArray(diagnosis.improvements)
+          ? (diagnosis.improvements as Array<{ priority: string; area: string; action: string }>)
+          : [],
         overallGrade: (diagnosis.overall_grade as string) ?? null,
       }
     : null;

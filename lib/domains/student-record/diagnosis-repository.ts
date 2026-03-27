@@ -168,21 +168,28 @@ export async function findStrategies(
     .eq("school_year", schoolYear)
     .eq("tenant_id", tenantId)
     .order("grade")
-    .order("priority")
     .order("target_area");
 
   if (error) throw error;
-  return data ?? [];
+
+  // priority를 의미 순서로 정렬 (critical > high > medium > low)
+  const priorityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+  return (data ?? []).sort((a, b) => {
+    if (a.grade !== b.grade) return a.grade - b.grade;
+    const pa = priorityOrder[a.priority ?? "medium"] ?? 2;
+    const pb = priorityOrder[b.priority ?? "medium"] ?? 2;
+    return pa - pb;
+  });
 }
 
-/** 보완전략 추가 */
+/** 보완전략 추가 (reasoning/source_urls는 마이그레이션 적용 후 자동 반영) */
 export async function insertStrategy(
-  input: StrategyInsert,
+  input: StrategyInsert & { reasoning?: string | null; source_urls?: string[] | null },
 ): Promise<string> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("student_record_strategies")
-    .insert(input)
+    .insert(input as StrategyInsert)
     .select("id")
     .single();
 

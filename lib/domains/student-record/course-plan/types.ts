@@ -74,6 +74,10 @@ export interface CoursePlanTabData {
   targetMajor2: string | null;
   studentGrade: number;
   offeredSubjects: OfferedSubjectInfo[];
+  /** 학교 개설 과목명 목록 (적합도 계산용, null이면 학교 미등록) */
+  offeredSubjectNames: string[] | null;
+  /** 적용 교육과정 연도 (2015 또는 2022) */
+  curriculumYear: number;
   schoolName: string | null;
 }
 

@@ -25,6 +25,8 @@ export async function generateInterviewQuestions(input: {
   grade?: number;
   /** 교차 질문 생성용 추가 레코드 (다른 과목/활동) */
   additionalRecords?: { content: string; recordType: string; subjectName?: string; grade?: number }[];
+  /** 진단에서 발견된 약점 (약점 영역 기반 심층 질문 생성용) */
+  diagnosticWeaknesses?: string[];
 }): Promise<{ success: true; data: InterviewQuestionResult } | { success: false; error: string }> {
   try {
     await requireAdminOrConsultant();
@@ -33,12 +35,16 @@ export async function generateInterviewQuestions(input: {
       return { success: false, error: "면접 질문 생성에는 최소 30자 이상의 텍스트가 필요합니다." };
     }
 
-    const userPrompt = buildInterviewUserPrompt(input)
-      + (input.additionalRecords?.length
-        ? "\n\n## 관련 기록 (교차 질문 참고)\n\n" + input.additionalRecords.map((r) =>
-          `### ${r.subjectName ?? r.recordType} (${r.grade ?? ""}학년)\n${r.content.slice(0, 300)}`
-        ).join("\n\n")
-        : "");
+    let userPrompt = buildInterviewUserPrompt(input);
+    if (input.additionalRecords?.length) {
+      userPrompt += "\n\n## 관련 기록 (교차 질문 참고)\n\n" + input.additionalRecords.map((r) =>
+        `### ${r.subjectName ?? r.recordType} (${r.grade ?? ""}학년)\n${r.content.slice(0, 300)}`
+      ).join("\n\n");
+    }
+    if (input.diagnosticWeaknesses?.length) {
+      userPrompt += "\n\n## 진단 약점 영역 (심층 질문 필요)\n" + input.diagnosticWeaknesses.map((w) => `- ${w}`).join("\n")
+        + "\n\n위 약점 영역에 대해 학생이 어떻게 보완했는지, 또는 인식하고 있는지 확인하는 질문을 1~2개 추가로 생성해주세요.";
+    }
 
     const result = await generateTextWithRateLimit({
       system: INTERVIEW_SYSTEM_PROMPT,

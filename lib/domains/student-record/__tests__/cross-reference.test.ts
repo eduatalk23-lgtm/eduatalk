@@ -141,6 +141,7 @@ describe("detectCourseSupports", () => {
     notOffered: [],
     generalRate: 50,
     careerRate: 0,
+    fusionRate: null,
   };
 
   it("이수한 추천 과목이면 COURSE_SUPPORTS 엣지", () => {

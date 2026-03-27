@@ -37,9 +37,14 @@ export function calculateCourseAdequacy(
   const takenSet = buildNameSet(takenSubjects);
   const offeredSet = offeredSubjects ? buildNameSet(offeredSubjects) : null;
 
+  const fusionCourses = "fusion" in recommended && recommended.fusion
+    ? recommended.fusion as string[]
+    : [];
+
   const allRecommended = [
     ...recommended.general.map((s) => ({ name: s, type: "general" as const })),
     ...recommended.career.map((s) => ({ name: s, type: "career" as const })),
+    ...fusionCourses.map((s) => ({ name: s, type: "fusion" as const })),
   ];
 
   const taken: string[] = [];
@@ -50,6 +55,8 @@ export function calculateCourseAdequacy(
   let generalAvailable = 0;
   let careerTaken = 0;
   let careerAvailable = 0;
+  let fusionTaken = 0;
+  let fusionAvailable = 0;
 
   for (const rec of allRecommended) {
     const normalized = normalizeSubjectName(rec.name);
@@ -61,18 +68,20 @@ export function calculateCourseAdequacy(
     }
 
     if (rec.type === "general") generalAvailable++;
-    else careerAvailable++;
+    else if (rec.type === "career") careerAvailable++;
+    else fusionAvailable++;
 
     if (takenSet.has(normalized)) {
       taken.push(rec.name);
       if (rec.type === "general") generalTaken++;
-      else careerTaken++;
+      else if (rec.type === "career") careerTaken++;
+      else fusionTaken++;
     } else {
       notTaken.push(rec.name);
     }
   }
 
-  const totalAvailable = generalAvailable + careerAvailable;
+  const totalAvailable = generalAvailable + careerAvailable + fusionAvailable;
   const totalTaken = taken.length;
   const score = totalAvailable > 0
     ? Math.round((totalTaken / totalAvailable) * 100)
@@ -84,6 +93,9 @@ export function calculateCourseAdequacy(
   const careerRate = careerAvailable > 0
     ? Math.round((careerTaken / careerAvailable) * 100)
     : 0;
+  const fusionRate = fusionAvailable > 0
+    ? Math.round((fusionTaken / fusionAvailable) * 100)
+    : null;
 
   return {
     score,
@@ -95,5 +107,6 @@ export function calculateCourseAdequacy(
     notOffered,
     generalRate,
     careerRate,
+    fusionRate,
   };
 }

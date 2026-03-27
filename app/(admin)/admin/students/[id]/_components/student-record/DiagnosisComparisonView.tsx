@@ -16,6 +16,7 @@ import { fetchPersistedEdges } from "@/lib/domains/student-record/actions/diagno
 import { syncPipelineTaskStatus } from "@/lib/domains/student-record/actions/pipeline";
 import { checkDiagnosisStalenessAction } from "@/lib/domains/student-record/actions/staleness";
 import { MAJOR_RECOMMENDED_COURSES } from "@/lib/domains/student-record";
+import { setekGuideKeys } from "@/lib/query-options/setekGuide";
 import type { Diagnosis, CompetencyScore, ActivityTag, CompetencyGrade } from "@/lib/domains/student-record";
 import { RecommendedCourses } from "./GradeSummaryTable";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
@@ -141,7 +142,12 @@ export function DiagnosisComparisonView({
       const result = await confirmDiagnosisAction(consultantDiagnosis.id);
       if (!result.success) throw new Error(result.error);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk });
+      // 하류 캐시 무효화: 진단 확정 시 세특 방향·전략이 구 진단 기반일 수 있음
+      queryClient.invalidateQueries({ queryKey: setekGuideKeys.list(studentId) });
+      queryClient.invalidateQueries({ queryKey: studentRecordKeys.strategyTab(studentId, schoolYear) });
+    },
     onSettled: () => { isConfirmingRef.current = false; },
   });
 
@@ -201,6 +207,9 @@ export function DiagnosisComparisonView({
     onSuccess: (data) => {
       setAiWarnings(data.warnings ?? []);
       queryClient.invalidateQueries({ queryKey: qk });
+      // 하류 캐시 무효화: 진단 재생성 시 세특 방향·전략이 구 진단 기반일 수 있음
+      queryClient.invalidateQueries({ queryKey: setekGuideKeys.list(studentId) });
+      queryClient.invalidateQueries({ queryKey: studentRecordKeys.strategyTab(studentId, schoolYear) });
       syncPipelineTaskStatus(studentId, "ai_diagnosis").then(() => {
         queryClient.invalidateQueries({ queryKey: studentRecordKeys.pipeline(studentId) });
       }).catch(() => {});

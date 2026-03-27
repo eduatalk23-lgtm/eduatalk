@@ -580,6 +580,8 @@ export type Database = {
           id: string
           placement_grade: string | null
           placement_rationale: string | null
+          placement_score: number | null
+          placement_source: string | null
           rationale: string | null
           recommendation_source: string | null
           school_year: number
@@ -602,6 +604,8 @@ export type Database = {
           id?: string
           placement_grade?: string | null
           placement_rationale?: string | null
+          placement_score?: number | null
+          placement_source?: string | null
           rationale?: string | null
           recommendation_source?: string | null
           school_year: number
@@ -624,6 +628,8 @@ export type Database = {
           id?: string
           placement_grade?: string | null
           placement_rationale?: string | null
+          placement_score?: number | null
+          placement_source?: string | null
           rationale?: string | null
           recommendation_source?: string | null
           school_year?: number
@@ -3187,62 +3193,86 @@ export type Database = {
       }
       exploration_guide_assignments: {
         Row: {
+          ai_recommendation_reason: string | null
           assigned_by: string | null
           completed_at: string | null
+          confirmed_at: string | null
+          confirmed_by: string | null
           created_at: string
+          feedback_notes: string | null
           grade: number
           guide_id: string
           id: string
+          is_stale: boolean
           linked_record_id: string | null
           linked_record_type: string | null
           notes: string | null
           school_name: string | null
           school_year: number
+          stale_reason: string | null
           status: string
           storyline_id: string | null
           student_id: string
           student_notes: string | null
           submitted_at: string | null
+          target_activity_type: string | null
+          target_subject_id: string | null
           tenant_id: string
           updated_at: string
         }
         Insert: {
+          ai_recommendation_reason?: string | null
           assigned_by?: string | null
           completed_at?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
+          feedback_notes?: string | null
           grade: number
           guide_id: string
           id?: string
+          is_stale?: boolean
           linked_record_id?: string | null
           linked_record_type?: string | null
           notes?: string | null
           school_name?: string | null
           school_year: number
+          stale_reason?: string | null
           status?: string
           storyline_id?: string | null
           student_id: string
           student_notes?: string | null
           submitted_at?: string | null
+          target_activity_type?: string | null
+          target_subject_id?: string | null
           tenant_id: string
           updated_at?: string
         }
         Update: {
+          ai_recommendation_reason?: string | null
           assigned_by?: string | null
           completed_at?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
+          feedback_notes?: string | null
           grade?: number
           guide_id?: string
           id?: string
+          is_stale?: boolean
           linked_record_id?: string | null
           linked_record_type?: string | null
           notes?: string | null
           school_name?: string | null
           school_year?: number
+          stale_reason?: string | null
           status?: string
           storyline_id?: string | null
           student_id?: string
           student_notes?: string | null
           submitted_at?: string | null
+          target_activity_type?: string | null
+          target_subject_id?: string | null
           tenant_id?: string
           updated_at?: string
         }
@@ -3250,6 +3280,13 @@ export type Database = {
           {
             foreignKeyName: "exploration_guide_assignments_assigned_by_fkey"
             columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exploration_guide_assignments_confirmed_by_fkey"
+            columns: ["confirmed_by"]
             isOneToOne: false
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
@@ -3273,6 +3310,13 @@ export type Database = {
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exploration_guide_assignments_target_subject_id_fkey"
+            columns: ["target_subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
             referencedColumns: ["id"]
           },
           {
@@ -3600,6 +3644,8 @@ export type Database = {
           content_format: string
           created_at: string
           curriculum_year: string | null
+          difficulty_auto: boolean | null
+          difficulty_level: string | null
           guide_type: string
           id: string
           is_latest: boolean
@@ -3635,6 +3681,8 @@ export type Database = {
           content_format?: string
           created_at?: string
           curriculum_year?: string | null
+          difficulty_auto?: boolean | null
+          difficulty_level?: string | null
           guide_type: string
           id?: string
           is_latest?: boolean
@@ -3670,6 +3718,8 @@ export type Database = {
           content_format?: string
           created_at?: string
           curriculum_year?: string | null
+          difficulty_auto?: boolean | null
+          difficulty_level?: string | null
           guide_type?: string
           id?: string
           is_latest?: boolean
@@ -10022,6 +10072,7 @@ export type Database = {
           model_tier: string
           prompt_version: string
           school_year: number
+          source: string
           status: string
           student_id: string
           summary_sections: Json
@@ -10040,6 +10091,7 @@ export type Database = {
           model_tier?: string
           prompt_version?: string
           school_year: number
+          source?: string
           status?: string
           student_id: string
           summary_sections?: Json
@@ -10058,6 +10110,7 @@ export type Database = {
           model_tier?: string
           prompt_version?: string
           school_year?: number
+          source?: string
           status?: string
           student_id?: string
           summary_sections?: Json
@@ -10518,7 +10571,12 @@ export type Database = {
       student_record_changche: {
         Row: {
           activity_type: string
+          ai_draft_at: string | null
+          ai_draft_content: string | null
           char_limit: number
+          confirmed_at: string | null
+          confirmed_by: string | null
+          confirmed_content: string | null
           content: string
           content_bytes: number | null
           created_at: string
@@ -10526,6 +10584,9 @@ export type Database = {
           grade: number
           hours: number | null
           id: string
+          imported_at: string | null
+          imported_content: string | null
+          imported_content_bytes: number | null
           reviewed_at: string | null
           reviewed_by: string | null
           school_year: number
@@ -10536,7 +10597,12 @@ export type Database = {
         }
         Insert: {
           activity_type: string
+          ai_draft_at?: string | null
+          ai_draft_content?: string | null
           char_limit?: number
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          confirmed_content?: string | null
           content?: string
           content_bytes?: number | null
           created_at?: string
@@ -10544,6 +10610,9 @@ export type Database = {
           grade: number
           hours?: number | null
           id?: string
+          imported_at?: string | null
+          imported_content?: string | null
+          imported_content_bytes?: number | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           school_year: number
@@ -10554,7 +10623,12 @@ export type Database = {
         }
         Update: {
           activity_type?: string
+          ai_draft_at?: string | null
+          ai_draft_content?: string | null
           char_limit?: number
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          confirmed_content?: string | null
           content?: string
           content_bytes?: number | null
           created_at?: string
@@ -10562,6 +10636,9 @@ export type Database = {
           grade?: number
           hours?: number | null
           id?: string
+          imported_at?: string | null
+          imported_content?: string | null
+          imported_content_bytes?: number | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           school_year?: number
@@ -10670,7 +10747,7 @@ export type Database = {
           evaluated_at: string | null
           evaluated_by: string | null
           id: string
-          improvements: Json
+          improvements: Json | null
           overall_grade: string
           recommended_majors: string[]
           record_direction: string | null
@@ -10691,7 +10768,7 @@ export type Database = {
           evaluated_at?: string | null
           evaluated_by?: string | null
           id?: string
-          improvements?: Json
+          improvements?: Json | null
           overall_grade?: string
           recommended_majors?: string[]
           record_direction?: string | null
@@ -10712,7 +10789,7 @@ export type Database = {
           evaluated_at?: string | null
           evaluated_by?: string | null
           id?: string
-          improvements?: Json
+          improvements?: Json | null
           overall_grade?: string
           recommended_majors?: string[]
           record_direction?: string | null
@@ -10736,6 +10813,61 @@ export type Database = {
           },
           {
             foreignKeyName: "student_record_diagnosis_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_record_diagnosis_snapshots: {
+        Row: {
+          created_at: string
+          diagnosis_id: string
+          id: string
+          school_year: number
+          snapshot: Json
+          source: string
+          student_id: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          diagnosis_id: string
+          id?: string
+          school_year: number
+          snapshot: Json
+          source: string
+          student_id: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          diagnosis_id?: string
+          id?: string
+          school_year?: number
+          snapshot?: Json
+          source?: string
+          student_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_record_diagnosis_snapshots_diagnosis_id_fkey"
+            columns: ["diagnosis_id"]
+            isOneToOne: false
+            referencedRelation: "student_record_diagnosis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_diagnosis_snapshots_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_diagnosis_snapshots_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -10932,13 +11064,21 @@ export type Database = {
       }
       student_record_haengteuk: {
         Row: {
+          ai_draft_at: string | null
+          ai_draft_content: string | null
           char_limit: number
+          confirmed_at: string | null
+          confirmed_by: string | null
+          confirmed_content: string | null
           content: string
           content_bytes: number | null
           created_at: string
           deleted_at: string | null
           grade: number
           id: string
+          imported_at: string | null
+          imported_content: string | null
+          imported_content_bytes: number | null
           reviewed_at: string | null
           reviewed_by: string | null
           school_year: number
@@ -10948,13 +11088,21 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_draft_at?: string | null
+          ai_draft_content?: string | null
           char_limit?: number
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          confirmed_content?: string | null
           content?: string
           content_bytes?: number | null
           created_at?: string
           deleted_at?: string | null
           grade: number
           id?: string
+          imported_at?: string | null
+          imported_content?: string | null
+          imported_content_bytes?: number | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           school_year: number
@@ -10964,13 +11112,21 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_draft_at?: string | null
+          ai_draft_content?: string | null
           char_limit?: number
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          confirmed_content?: string | null
           content?: string
           content_bytes?: number | null
           created_at?: string
           deleted_at?: string | null
           grade?: number
           id?: string
+          imported_at?: string | null
+          imported_content?: string | null
+          imported_content_bytes?: number | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           school_year?: number
@@ -11191,13 +11347,21 @@ export type Database = {
       }
       student_record_personal_seteks: {
         Row: {
+          ai_draft_at: string | null
+          ai_draft_content: string | null
           char_limit: number
+          confirmed_at: string | null
+          confirmed_by: string | null
+          confirmed_content: string | null
           content: string
           content_bytes: number | null
           created_at: string
           deleted_at: string | null
           grade: number
           id: string
+          imported_at: string | null
+          imported_content: string | null
+          imported_content_bytes: number | null
           reviewed_at: string | null
           reviewed_by: string | null
           school_year: number
@@ -11209,13 +11373,21 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_draft_at?: string | null
+          ai_draft_content?: string | null
           char_limit?: number
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          confirmed_content?: string | null
           content?: string
           content_bytes?: number | null
           created_at?: string
           deleted_at?: string | null
           grade: number
           id?: string
+          imported_at?: string | null
+          imported_content?: string | null
+          imported_content_bytes?: number | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           school_year: number
@@ -11227,13 +11399,21 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_draft_at?: string | null
+          ai_draft_content?: string | null
           char_limit?: number
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          confirmed_content?: string | null
           content?: string
           content_bytes?: number | null
           created_at?: string
           deleted_at?: string | null
           grade?: number
           id?: string
+          imported_at?: string | null
+          imported_content?: string | null
+          imported_content_bytes?: number | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           school_year?: number
@@ -11456,15 +11636,128 @@ export type Database = {
           },
         ]
       }
+      student_record_setek_guides: {
+        Row: {
+          cautions: string | null
+          competency_focus: string[]
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          created_by: string | null
+          direction: string
+          id: string
+          keywords: string[]
+          model_tier: string | null
+          overall_direction: string | null
+          prompt_version: string | null
+          school_year: number
+          source: string
+          status: string
+          student_id: string
+          subject_id: string
+          teacher_points: string[]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          cautions?: string | null
+          competency_focus?: string[]
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          direction: string
+          id?: string
+          keywords?: string[]
+          model_tier?: string | null
+          overall_direction?: string | null
+          prompt_version?: string | null
+          school_year: number
+          source?: string
+          status?: string
+          student_id: string
+          subject_id: string
+          teacher_points?: string[]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          cautions?: string | null
+          competency_focus?: string[]
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          id?: string
+          keywords?: string[]
+          model_tier?: string | null
+          overall_direction?: string | null
+          prompt_version?: string | null
+          school_year?: number
+          source?: string
+          status?: string
+          student_id?: string
+          subject_id?: string
+          teacher_points?: string[]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_record_setek_guides_confirmed_by_fkey"
+            columns: ["confirmed_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_setek_guides_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_setek_guides_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_setek_guides_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_record_setek_guides_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_record_seteks: {
         Row: {
+          ai_draft_at: string | null
+          ai_draft_content: string | null
           char_limit: number
+          confirmed_at: string | null
+          confirmed_by: string | null
+          confirmed_content: string | null
           content: string
           content_bytes: number | null
           created_at: string
           deleted_at: string | null
           grade: number
           id: string
+          imported_at: string | null
+          imported_content: string | null
+          imported_content_bytes: number | null
           reviewed_at: string | null
           reviewed_by: string | null
           school_year: number
@@ -11477,13 +11770,21 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_draft_at?: string | null
+          ai_draft_content?: string | null
           char_limit?: number
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          confirmed_content?: string | null
           content?: string
           content_bytes?: number | null
           created_at?: string
           deleted_at?: string | null
           grade: number
           id?: string
+          imported_at?: string | null
+          imported_content?: string | null
+          imported_content_bytes?: number | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           school_year: number
@@ -11496,13 +11797,21 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_draft_at?: string | null
+          ai_draft_content?: string | null
           char_limit?: number
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          confirmed_content?: string | null
           content?: string
           content_bytes?: number | null
           created_at?: string
           deleted_at?: string | null
           grade?: number
           id?: string
+          imported_at?: string | null
+          imported_content?: string | null
+          imported_content_bytes?: number | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           school_year?: number
@@ -11658,7 +11967,9 @@ export type Database = {
           grade: number
           id: string
           priority: string | null
+          reasoning: string | null
           school_year: number
+          source_urls: string[] | null
           status: string
           strategy_content: string
           student_id: string
@@ -11672,7 +11983,9 @@ export type Database = {
           grade: number
           id?: string
           priority?: string | null
+          reasoning?: string | null
           school_year: number
+          source_urls?: string[] | null
           status?: string
           strategy_content?: string
           student_id: string
@@ -11686,7 +11999,9 @@ export type Database = {
           grade?: number
           id?: string
           priority?: string | null
+          reasoning?: string | null
           school_year?: number
+          source_urls?: string[] | null
           status?: string
           strategy_content?: string
           student_id?: string
@@ -12397,6 +12712,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           curriculum_year: number | null
+          difficulty_level: string | null
           guide_created_count: number
           guide_type: string
           id: string
@@ -12417,6 +12733,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           curriculum_year?: number | null
+          difficulty_level?: string | null
           guide_created_count?: number
           guide_type: string
           id?: string
@@ -12437,6 +12754,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           curriculum_year?: number | null
+          difficulty_level?: string | null
           guide_created_count?: number
           guide_type?: string
           id?: string
@@ -14513,6 +14831,12 @@ export type Database = {
       extract_school_id_number: {
         Args: { school_id_str: string }
         Returns: number
+      }
+      find_depts_without_curriculum: {
+        Args: { p_exclude: string; p_limit?: number; p_major: string }
+        Returns: {
+          id: string
+        }[]
       }
       find_direct_room_including_left_rpc: {
         Args: {

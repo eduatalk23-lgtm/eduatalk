@@ -394,6 +394,9 @@ async function executePipelineTasks(
   }
   const studentGrade = (snapshot?.grade as number) ?? 3;
 
+  // 공유 변수: edge_computation에서 계산한 courseAdequacy를 ai_diagnosis에서 재사용
+  let sharedCourseAdequacy: import("../types").CourseAdequacyResult | null = null;
+
   const taskRunners: Array<{ key: PipelineTaskKey; run: () => Promise<TaskRunnerOutput> }> = [
     // ── 1. 역량 분석 (가장 먼저: 태그+등급 생성 → 진단/가이드의 입력) ──
     {
@@ -644,15 +647,25 @@ async function executePipelineTasks(
               .filter((s) => s.subjectName);
             const takenNames = [...new Set(subjectScores.map((s) => s.subjectName))];
 
+            const { getCurriculumYear: getCurYearFn } = await import("@/lib/utils/schoolYear");
             const enrollYear = calculateSchoolYear() - studentGrade + 1;
-            const curYear = enrollYear >= 2025 ? 2022 : 2015;
+            const curYear = getCurYearFn(enrollYear);
+            // 역량 등급 산정용: offeredSubjects=null (학교 제약과 무관한 절대 이수 노력 평가)
             const adequacy = calcAdequacy(tgtMajor, takenNames, null, curYear);
 
             if (adequacy) {
-              // 교과 이수 노력 (이수율 기반)
-              allGrades.push(computeCourseEffortGrades(adequacy));
-              // 교과 성취도 (성적 기반)
-              allGrades.push(computeCourseAchievementGrades(adequacy.taken, subjectScores));
+              // 학년별 이수 데이터 구성 (Q2 학습단계 순서 검증용)
+              const gradedSubjects = careerScoreRows
+                .filter((s) => s.subject?.name && s.grade != null && s.semester != null)
+                .map((s) => ({
+                  subjectName: s.subject!.name,
+                  grade: s.grade as number,
+                  semester: s.semester as number,
+                }));
+              // 교과 이수 노력 (이수율 + 학습단계 순서 기반)
+              allGrades.push(computeCourseEffortGrades(adequacy, gradedSubjects));
+              // 교과 성취도 (성적 기반 + 일반/진로 분리)
+              allGrades.push(computeCourseAchievementGrades(adequacy.taken, subjectScores, adequacy));
             }
           }
 
@@ -863,9 +876,11 @@ async function executePipelineTasks(
             }
           }
 
+          const { getCurriculumYear } = await import("@/lib/utils/schoolYear");
           const enrollmentYear = calculateSchoolYear() - studentGrade + 1;
-          const curriculumYear = enrollmentYear >= 2025 ? 2022 : 2015;
+          const curriculumYear = getCurriculumYear(enrollmentYear);
           courseAdequacy = calculateCourseAdequacy(targetMajor, takenSubjects, offeredSubjects, curriculumYear);
+          sharedCourseAdequacy = courseAdequacy;
         }
 
         const graph = buildConnectionGraph({
@@ -961,15 +976,8 @@ async function executePipelineTasks(
             rankGrade: s.rank_grade as number,
           }));
 
-        const diagTgtMajor = (snapshot?.target_major as string) ?? null;
-        let diagCourseAdequacy = null;
-        if (diagTgtMajor) {
-          const { calculateCourseAdequacy: calcAdq } = await import("../course-adequacy");
-          const takenNames = [...new Set(gradeTrend.map((s) => s.subjectName))];
-          const enrollYear = calculateSchoolYear() - studentGrade + 1;
-          const curYear = enrollYear >= 2025 ? 2022 : 2015;
-          diagCourseAdequacy = calcAdq(diagTgtMajor, takenNames, null, curYear);
-        }
+        // edge_computation에서 계산한 courseAdequacy 재사용 (offeredSubjects 포함된 정확한 값)
+        const diagCourseAdequacy = sharedCourseAdequacy;
 
         // P2-1: 엣지의 shared_competencies에서 역량 연결 빈도 집계
         const edgeCompetencyFreq = new Map<string, number>();
@@ -981,7 +989,7 @@ async function executePipelineTasks(
         }
 
         const result = await generateAiDiagnosis(scores, tags, {
-          targetMajor: diagTgtMajor ?? undefined,
+          targetMajor: (snapshot?.target_major as string) ?? undefined,
           schoolName: (snapshot?.school_name as string) ?? undefined,
         }, diagnosisEdgeSection, {
           gradeTrend,
@@ -990,8 +998,10 @@ async function executePipelineTasks(
             majorCategory: diagCourseAdequacy.majorCategory,
             taken: diagCourseAdequacy.taken,
             notTaken: diagCourseAdequacy.notTaken,
+            notOffered: diagCourseAdequacy.notOffered,
             generalRate: diagCourseAdequacy.generalRate,
             careerRate: diagCourseAdequacy.careerRate,
+            fusionRate: diagCourseAdequacy.fusionRate,
           } : null,
         }, edgeCompetencyFreq);
         if (!result.success) throw new Error(result.error);
@@ -1014,7 +1024,10 @@ async function executePipelineTasks(
         } as DiagnosisInsert);
 
         const warnSuffix = result.data.warnings?.length ? ` ⚠️ ${result.data.warnings.join(", ")}` : "";
-        return `종합진단 생성 (등급: ${result.data.overallGrade}, 방향: ${result.data.directionStrength})${warnSuffix}`;
+        return {
+          preview: `종합진단 생성 (등급: ${result.data.overallGrade}, 방향: ${result.data.directionStrength})${warnSuffix}`,
+          result: { weaknesses: result.data.weaknesses, improvements: result.data.improvements },
+        };
       },
     },
 
@@ -1132,7 +1145,7 @@ async function executePipelineTasks(
       },
     },
 
-    // ── 8. 활동 요약서 (스토리라인+엣지+가이드배정 활용) ──
+    // ── 8. 활동 요약서 (진단+엣지+가이드배정 활용, Phase 3 — 진단 후 실행) ──
     {
       key: "activity_summary",
       run: async () => {
@@ -1147,7 +1160,26 @@ async function executePipelineTasks(
         // Phase 6: 가이드 배정 컨텍스트 → 요약서 프롬프트에 투입
         const { buildGuideContextSection } = await import("../guide-context");
         const summaryContextSection = await buildGuideContextSection(studentId, "summary");
-        const extraSections = [summaryEdgeSection, summaryContextSection].filter(Boolean).join("\n") || undefined;
+
+        // 진단 데이터 → 요약서에 강점/약점 맥락 투입
+        let diagnosisSection: string | undefined;
+        const summaryDiag = await diagnosisRepo.findDiagnosis(studentId, calculateSchoolYear(), tenantId, "ai");
+        if (summaryDiag) {
+          const parts: string[] = ["## 종합 진단 요약 (활동 서술에 반영)"];
+          if (summaryDiag.strengths && (summaryDiag.strengths as string[]).length > 0) {
+            parts.push(`강점: ${(summaryDiag.strengths as string[]).join("; ")}`);
+          }
+          if (summaryDiag.weaknesses && (summaryDiag.weaknesses as string[]).length > 0) {
+            parts.push(`보완 필요: ${(summaryDiag.weaknesses as string[]).join("; ")}`);
+          }
+          if (Array.isArray(summaryDiag.improvements) && (summaryDiag.improvements as unknown[]).length > 0) {
+            const imps = summaryDiag.improvements as Array<{ priority: string; area: string; action: string }>;
+            parts.push(`개선 전략: ${imps.map((i) => `[${i.priority}] ${i.area}`).join(", ")}`);
+          }
+          if (parts.length > 1) diagnosisSection = parts.join("\n");
+        }
+
+        const extraSections = [summaryEdgeSection, summaryContextSection, diagnosisSection].filter(Boolean).join("\n") || undefined;
         const result = await generateActivitySummary(studentId, grades, extraSections);
         if (!result.success) throw new Error(result.error);
         return "활동 요약서 생성 완료";
@@ -1195,7 +1227,17 @@ async function executePipelineTasks(
           return "약점/부족역량 없음 — 건너뜀";
         }
 
-        const existingContents = existingStrategies.map((s) => s.strategy_content.slice(0, 60));
+        // 재실행 안전성: 기존 planned 전략 삭제 (in_progress/done은 보존)
+        const plannedStrategies = existingStrategies.filter((s) => s.status === "planned");
+        if (plannedStrategies.length > 0) {
+          await Promise.allSettled(
+            plannedStrategies.map((s) => diagnosisRepo.deleteStrategy(s.id)),
+          );
+        }
+
+        // 삭제 후 남은 전략만으로 중복 체크
+        const keptStrategies = existingStrategies.filter((s) => s.status !== "planned");
+        const existingContents = keptStrategies.map((s) => s.strategy_content.slice(0, 60));
 
         // 4. AI 보완전략 제안
         // P2-1: 진단의 improvements를 시드 데이터로 전달
@@ -1227,6 +1269,8 @@ async function executePipelineTasks(
               strategy_content: suggestion.strategyContent,
               priority: suggestion.priority,
               status: "planned",
+              reasoning: suggestion.reasoning || null,
+              source_urls: suggestion.sourceUrls ?? null,
             }),
           ),
         );
@@ -1354,12 +1398,16 @@ async function executePipelineTasks(
           grade: r.grade,
         }));
 
+        // 진단 약점을 면접 질문에 반영
+        const diagWeaknesses = (results.ai_diagnosis as { weaknesses?: string[] } | undefined)?.weaknesses;
+
         const result = await generateInterviewQuestions({
           content: main.content,
           recordType: mainType,
           subjectName: mainSubject,
           grade: main.grade,
           additionalRecords,
+          diagnosticWeaknesses: diagWeaknesses,
         });
 
         if (!result.success) throw new Error(result.error);
@@ -1449,14 +1497,19 @@ async function executePipelineTasks(
           }
         }
 
-        // B. 세특 방향 가이드 기반 로드맵
+        // B. 세특 방향 가이드 기반 로드맵 (가이드의 school_year → grade 역산)
         for (const guide of setekGuides) {
           if (!guide.direction) continue;
+          // school_year에서 grade 역산: grade = studentGrade - (currentSchoolYear - guide.school_year)
+          const guideGrade = guide.school_year
+            ? studentGrade - (currentSchoolYear - guide.school_year)
+            : studentGrade;
+          const effectiveGrade = (guideGrade >= 1 && guideGrade <= 3) ? guideGrade : studentGrade;
           roadmapItems.push({
             area: "setek",
             plan_content: `[AI] 세특방향: ${guide.direction.slice(0, 100)}`,
             plan_keywords: guide.keywords ?? [],
-            grade: studentGrade,
+            grade: effectiveGrade,
             semester: null,
             storyline_id: null,
           });
@@ -1633,19 +1686,23 @@ async function executePipelineTasks(
   const phase2Independent = [
     runTaskWithState("course_recommendation"),
     runTaskWithState("guide_matching"),
-    runTaskWithState("activity_summary"),
     runTaskWithState("bypass_analysis"),
   ];
 
   // 진단 완료 대기 후 Phase 3 시작
-  const phase3AfterDiagnosis = diagnosisPromise.then(() =>
-    Promise.allSettled([
+  // activity_summary는 진단 강점/약점을 활용하므로 Phase 3으로 이동
+  // roadmap_generation은 setek_guide의 DB 출력에 의존하므로 순차 실행
+  const phase3AfterDiagnosis = diagnosisPromise.then(async () => {
+    // Phase 3a: setek_guide + ai_strategy + interview + activity_summary (병렬)
+    await Promise.allSettled([
       runTaskWithState("setek_guide"),
       runTaskWithState("ai_strategy"),
       runTaskWithState("interview_generation"),
-      runTaskWithState("roadmap_generation"),
-    ]),
-  );
+      runTaskWithState("activity_summary"),
+    ]);
+    // Phase 3b: roadmap (setek_guide DB 쓰기 완료 후)
+    await runTaskWithState("roadmap_generation");
+  });
 
   await Promise.allSettled([diagnosisPromise, ...phase2Independent, phase3AfterDiagnosis]);
 

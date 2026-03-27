@@ -46,8 +46,10 @@ export interface DiagnosisEnrichedContext {
     majorCategory: string;
     taken: string[];
     notTaken: string[];
+    notOffered: string[];
     generalRate: number;
     careerRate: number;
+    fusionRate: number | null;
   } | null;
 }
 
@@ -94,7 +96,7 @@ export async function generateAiDiagnosis(
       let courseAdequacy: DiagnosisEnrichedContext["courseAdequacy"] = null;
       if (studentInfo.targetMajor) {
         const { calculateCourseAdequacy } = await import("../../course-adequacy");
-        const { calculateSchoolYear } = await import("@/lib/utils/schoolYear");
+        const { calculateSchoolYear, getCurriculumYear } = await import("@/lib/utils/schoolYear");
         const { data: student } = await supabase
           .from("students")
           .select("grade")
@@ -102,7 +104,7 @@ export async function generateAiDiagnosis(
           .maybeSingle();
         const studentGrade = (student?.grade as number) ?? 3;
         const enrollYear = calculateSchoolYear() - studentGrade + 1;
-        const curYear = enrollYear >= 2025 ? 2022 : 2015;
+        const curYear = getCurriculumYear(enrollYear);
         const takenNames = [...new Set(gradeTrend.map((s: { subjectName: string }) => s.subjectName))];
         const result = calculateCourseAdequacy(studentInfo.targetMajor, takenNames, null, curYear);
         if (result) {
@@ -111,8 +113,10 @@ export async function generateAiDiagnosis(
             majorCategory: result.majorCategory,
             taken: result.taken,
             notTaken: result.notTaken,
+            notOffered: result.notOffered,
             generalRate: result.generalRate,
             careerRate: result.careerRate,
+            fusionRate: result.fusionRate,
           };
         }
       }
@@ -139,7 +143,7 @@ export async function generateAiDiagnosis(
         for (let qi = 0; qi < questions.length; qi++) {
           const r = rubricMap.get(qi);
           if (r) {
-            line += `\n    Q${qi}. ${questions[qi]} → ${r.grade} ("${r.reasoning.slice(0, 50)}")`;
+            line += `\n    Q${qi}. ${questions[qi]} → ${r.grade} ("${r.reasoning.slice(0, 150)}")`;
           } else {
             line += `\n    Q${qi}. ${questions[qi]} → ⚠ 근거없음`;
             rubricGaps.push(`${item.label} Q${qi}: "${questions[qi]}"`);
@@ -154,10 +158,12 @@ export async function generateAiDiagnosis(
     const tagsByItem = new Map<string, TagItemStats>();
     for (const t of activityTags) {
       const key = t.competency_item;
-      const entry: TagItemStats = tagsByItem.get(key) ?? { positive: 0, negative: 0, needs_review: 0, byType: new Map(), samples: [] as string[] };
+      const entry: TagItemStats = tagsByItem.get(key) ?? { positive: 0, negative: 0, needs_review: 0, confirmed: 0, total: 0, byType: new Map(), samples: [] as string[] };
       if (t.evaluation === "positive") entry.positive++;
       else if (t.evaluation === "negative") entry.negative++;
       else entry.needs_review++;
+      if (t.status === "confirmed") entry.confirmed++;
+      entry.total++;
       entry.byType.set(t.record_type, (entry.byType.get(t.record_type) ?? 0) + 1);
       if (entry.samples.length < 2 && t.evidence_summary) {
         entry.samples.push(t.evidence_summary.replace(/^\[AI\]\s*/, "").split("\n")[0].slice(0, 60));
@@ -174,10 +180,12 @@ export async function generateAiDiagnosis(
         if (stats.negative > 0) parts.push(`부정 ${stats.negative}건`);
         if (stats.needs_review > 0) parts.push(`확인필요 ${stats.needs_review}건`);
         const counts = parts.join(", ");
+        // 확정 비율 (confirmed 태그는 컨설턴트가 검증한 것이므로 신뢰도 높음)
+        const confirmInfo = stats.confirmed > 0 ? ` [확정 ${stats.confirmed}/${stats.total}건]` : "";
         // 레코드 유형별 분포
         const typeBreakdown = [...stats.byType.entries()].map(([type, cnt]) => `${type} ${cnt}`).join(", ");
         const samples = stats.samples.length > 0 ? `\n    예: ${stats.samples.join("; ")}` : "";
-        return `  - ${label}: ${counts} (${typeBreakdown})${samples}`;
+        return `  - ${label}: ${counts}${confirmInfo} (${typeBreakdown})${samples}`;
       }),
     ].filter(Boolean).join("\n");
 
@@ -203,11 +211,14 @@ export async function generateAiDiagnosis(
     let adequacySection = "";
     if (enrichedContext?.courseAdequacy) {
       const ca = enrichedContext.courseAdequacy;
+      const rateDetails = ca.fusionRate != null
+        ? `일반선택 ${ca.generalRate}% / 진로선택 ${ca.careerRate}% / 융합선택 ${ca.fusionRate}%`
+        : `일반선택 ${ca.generalRate}% / 진로선택 ${ca.careerRate}%`;
       adequacySection = `\n## 교과이수적합도
   · 목표전공: ${ca.majorCategory} / 이수율: ${ca.score}%
-  · 일반선택 ${ca.generalRate}% / 진로선택 ${ca.careerRate}%
+  · ${rateDetails}
   · 이수 완료: ${ca.taken.join(", ") || "없음"}
-  · 미이수 추천: ${ca.notTaken.join(", ") || "없음"}`;
+  · 미이수 추천: ${ca.notTaken.join(", ") || "없음"}${ca.notOffered.length > 0 ? `\n  · 학교 미개설: ${ca.notOffered.join(", ")}` : ""}`;
     }
 
     // ── 루브릭 갭 분석 섹션 ──
@@ -253,7 +264,7 @@ improvements의 각 항목 형식:
 
 ## 강점 추출 기준
 - A+ 또는 A- 등급 항목에서 추출 (루브릭 질문별 상위 등급 비율 포함)
-- 긍정 태그가 많은 항목 우선
+- 긍정 태그가 많은 항목 우선 (특히 [확정] 표시된 태그는 컨설턴트가 검증한 것이므로 가중치를 높게 반영)
 - 반드시 3개 이상 작성할 것. 데이터가 있으면 빈 배열은 절대 불가.
 
 ## 약점 추출 기준
@@ -380,7 +391,7 @@ ${edgeSummarySection ? `\n${edgeSummarySection}\n` : ""}
 // P0: 프로그래밍 방식 fallback 생성 함수들
 // ═══════════════════════════════════════════
 
-type TagItemStats = { positive: number; negative: number; needs_review: number; byType: Map<string, number>; samples: string[] };
+type TagItemStats = { positive: number; negative: number; needs_review: number; confirmed: number; total: number; byType: Map<string, number>; samples: string[] };
 
 const IMPROVEMENT_SUGGESTIONS: Record<string, string> = {
   academic_achievement: "전공 핵심 교과 집중 학습 + 내신 등급 향상",

@@ -89,6 +89,9 @@ export function CourseAdequacyDisplay({ initialResult, takenSubjects, offeredSub
             <div className="flex flex-1 flex-col gap-2">
               <ScoreBar label="일반선택" value={result.generalRate} />
               <ScoreBar label="진로선택" value={result.careerRate} />
+              {result.fusionRate != null && (
+                <ScoreBar label="융합선택" value={result.fusionRate} />
+              )}
             </div>
           </div>
 

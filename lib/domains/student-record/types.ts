@@ -315,6 +315,8 @@ export interface CourseAdequacyResult {
   generalRate: number;
   /** 진로선택 이수율 */
   careerRate: number;
+  /** 융합선택 이수율 (2022 교육과정만 해당, 없으면 null) */
+  fusionRate: number | null;
 }
 
 // ============================================

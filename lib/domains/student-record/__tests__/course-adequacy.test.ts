@@ -157,6 +157,7 @@ describe("calculateCourseAdequacy", () => {
     expect(result).toHaveProperty("notOffered");
     expect(result).toHaveProperty("generalRate");
     expect(result).toHaveProperty("careerRate");
+    expect(result).toHaveProperty("fusionRate");
   });
 
   it("교육 계열 — 최소 추천 (일반1 + 진로1)", () => {
@@ -183,5 +184,60 @@ describe("calculateCourseAdequacy", () => {
     // 교육: 2과목 중 1개 이수 = 50%
     const result = calculateCourseAdequacy("교육", ["확률과통계"], null);
     expect(result!.score).toBe(50);
+  });
+
+  // ── 2015 교육과정 fusionRate ──
+
+  it("2015 교육과정 → fusionRate null", () => {
+    const result = calculateCourseAdequacy("수리·통계", ["미적분"], null, 2015);
+    expect(result!.fusionRate).toBeNull();
+  });
+
+  // ── 2022 교육과정 fusion 카테고리 ──
+
+  it("2022 교육과정 — fusion 과목 포함하여 totalRecommended 증가", () => {
+    // 컴퓨터·정보: general=5, career=4, fusion=3 → total=12
+    const result = calculateCourseAdequacy("컴퓨터·정보", [], null, 2022);
+    expect(result!.totalRecommended).toBe(12);
+    expect(result!.fusionRate).toBe(0);
+  });
+
+  it("2022 교육과정 — fusion 과목 이수 시 fusionRate 반영", () => {
+    // 컴퓨터·정보 fusion: [정보과학, 인공지능 기초, 데이터 과학]
+    const result = calculateCourseAdequacy("컴퓨터·정보", [
+      "정보과학", "인공지능 기초",
+    ], null, 2022);
+    expect(result!.fusionRate).toBe(67); // 2/3 ≈ 67%
+    expect(result!.taken).toContain("정보과학");
+    expect(result!.taken).toContain("인공지능 기초");
+  });
+
+  it("2022 교육과정 — fusion 없는 계열은 fusionRate null", () => {
+    // 교육: general + career만 있고 fusion 없음
+    const result = calculateCourseAdequacy("교육", [], null, 2022);
+    expect(result!.fusionRate).toBeNull();
+  });
+
+  it("2022 교육과정 — 전체 이수 시 100% (fusion 포함)", () => {
+    // 경영·경제: general=7, career=3, fusion=2 → total=12
+    const allSubjects = [
+      "미적분", "확률과 통계", "세계지리", "세계사", "경제", "정치와 법", "사회와 문화",
+      "경제수학", "국제 경제", "사회과제 탐구",
+      "금융과 경제생활", "창업과 경영",
+    ];
+    const result = calculateCourseAdequacy("경영·경제", allSubjects, null, 2022);
+    expect(result!.score).toBe(100);
+    expect(result!.fusionRate).toBe(100);
+    expect(result!.taken).toHaveLength(12);
+  });
+
+  it("2022 교육과정 — 학교 미개설 fusion 과목은 분모에서 제외", () => {
+    // 경영·경제 fusion: [금융과 경제생활, 창업과 경영] → 둘 다 미개설
+    const offered = ["미적분", "확률과 통계", "경제", "경제수학"];
+    const taken = ["미적분", "확률과 통계", "경제", "경제수학"];
+    const result = calculateCourseAdequacy("경영·경제", taken, offered, 2022);
+    expect(result!.notOffered).toContain("금융과 경제생활");
+    expect(result!.notOffered).toContain("창업과 경영");
+    expect(result!.fusionRate).toBeNull(); // 분모 0 → null
   });
 });

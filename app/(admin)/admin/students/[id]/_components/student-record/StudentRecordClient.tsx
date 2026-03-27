@@ -1191,15 +1191,16 @@ export function StudentRecordClient({
                     diagnosisActivityTags={diagnosisData?.activityTags}
                     setekGuideItems={(() => {
                       if (!setekGuidesRes?.success || !setekGuidesRes.data) return undefined;
-                      // setek_guides 테이블에서 직접 매핑 (과목별 행)
-                      const items = setekGuidesRes.data.map((row) => ({
-                        subjectName: row.subject_id, // subject_id → UI에서 과목명 resolve
-                        keywords: row.keywords ?? [],
-                        direction: row.direction,
-                        competencyFocus: row.competency_focus,
-                        cautions: row.cautions ?? undefined,
-                        teacherPoints: row.teacher_points,
-                      }));
+                      const subjectMap = new Map(subjects.map((s) => [s.id, s.name]));
+                      const items = setekGuidesRes.data
+                        .map((row) => ({
+                          subjectName: subjectMap.get(row.subject_id) ?? row.subject_id,
+                          keywords: row.keywords ?? [],
+                          direction: row.direction,
+                          competencyFocus: row.competency_focus,
+                          cautions: row.cautions ?? undefined,
+                          teacherPoints: row.teacher_points,
+                        }));
                       return items.length > 0 ? items : undefined;
                     })()}
                     guideAssignments={guideAssignmentsRes?.success ? guideAssignmentsRes.data as Array<{ id: string; guide_id: string; status: string; exploration_guides?: { id: string; title: string; guide_type?: string } }> : undefined}

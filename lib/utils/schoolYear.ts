@@ -53,3 +53,14 @@ export function gradeToSchoolYear(
   return currentSchoolYear - (studentCurrentGrade - grade);
 }
 
+/**
+ * 학생의 입학 연도로부터 적용 교육과정 연도를 결정합니다.
+ * - 2025년 이후 입학 → 2022 개정 교육과정
+ * - 2024년 이하 입학 → 2015 개정 교육과정
+ *
+ * @param enrollmentYear - 고1 입학 연도 (schoolYear - grade + 1)
+ */
+export function getCurriculumYear(enrollmentYear: number): number {
+  return enrollmentYear >= 2025 ? 2022 : 2015;
+}
+
