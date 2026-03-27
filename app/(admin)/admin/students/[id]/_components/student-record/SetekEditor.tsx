@@ -12,7 +12,7 @@ import { useAutoSave } from "./useAutoSave";
 import { useStudentRecordContext } from "./StudentRecordContext";
 import { useSidePanel } from "@/components/side-panel";
 import { cn } from "@/lib/cn";
-import { FileText, Search, BookOpen, Compass, MessageSquare, ClipboardList, PenLine, StickyNote } from "lucide-react";
+import { FileText, Search, BookOpen, Compass, MessageSquare, ClipboardList, PenLine, StickyNote, ChevronDown } from "lucide-react";
 import { SetekGuideRecommendations } from "./SetekGuideRecommendations";
 import { SameSchoolSetekInfo } from "./SameSchoolSetekInfo";
 import { CrossReferenceChips } from "./CrossReferenceChips";
@@ -31,6 +31,8 @@ interface ActivityTagLike {
   competency_item: string;
   evaluation: string;
   evidence_summary?: string | null;
+  source?: string;
+  status?: string;
 }
 
 interface SetekGuideItemLike {
@@ -774,32 +776,12 @@ function SetekTableRow({
       {subjectCell()}
       <td className={`${B} p-2`}>
         {activeTab === "analysis" && (
-          <div className="flex flex-col gap-1.5">
-            {subjectReflection && (
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-[var(--text-tertiary)]">반영률</span>
-                <div className="flex-1 rounded-full bg-gray-100 dark:bg-gray-800" style={{ height: 5 }}>
-                  <div className={cn("h-full rounded-full", subjectReflection.rate >= 70 ? "bg-emerald-500" : subjectReflection.rate >= 40 ? "bg-amber-500" : "bg-red-400")} style={{ width: `${subjectReflection.rate}%` }} />
-                </div>
-                <span className="text-[10px] font-medium text-[var(--text-secondary)]">{subjectReflection.rate}%</span>
-              </div>
-            )}
-            {subjectTags.length > 0 ? (
-              <div className="flex flex-wrap gap-1">
-                {subjectTags.map((t, i) => (
-                  <span key={i} className={cn("rounded px-1.5 py-0.5 text-[10px] font-medium",
-                    t.evaluation === "positive" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                    : t.evaluation === "negative" ? "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                    : "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-                  )}>
-                    {t.competency_item ?? "태그"}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <span className="text-[10px] text-[var(--text-placeholder)]">역량 태그 없음</span>
-            )}
-          </div>
+          <AnalysisExpandableCell
+            subjectTags={subjectTags}
+            subjectReflection={subjectReflection}
+            row={row}
+            studentId={studentId}
+          />
         )}
 
         {activeTab === "guide" && (
@@ -853,41 +835,7 @@ function SetekTableRow({
         )}
 
         {activeTab === "draft" && (
-          <div className="flex flex-col gap-2">
-            {row.records.map((setek) => {
-              const hasDraft = !!setek.ai_draft_content;
-              const hasContent = !!(setek.content && setek.content.trim());
-              const hasConfirmed = !!(setek.confirmed_content && setek.confirmed_content.trim());
-              return (
-                <div key={setek.id} className="flex flex-col gap-1">
-                  {row.records.length > 1 && (
-                    <span className="text-[10px] text-[var(--text-tertiary)]">{setek.semester}학기</span>
-                  )}
-                  {hasDraft && (
-                    <div className="rounded bg-violet-50 p-1.5 dark:bg-violet-900/20">
-                      <span className="text-[9px] font-medium text-violet-600 dark:text-violet-400">🤖 AI 초안</span>
-                      <p className="mt-0.5 text-xs text-violet-700 line-clamp-2 dark:text-violet-300">{setek.ai_draft_content?.slice(0, 100)}...</p>
-                    </div>
-                  )}
-                  {hasContent && (
-                    <div className="rounded bg-blue-50 p-1.5 dark:bg-blue-900/20">
-                      <span className="text-[9px] font-medium text-blue-600 dark:text-blue-400">👤 컨설턴트</span>
-                      <p className="mt-0.5 text-xs text-blue-700 line-clamp-2 dark:text-blue-300">{setek.content?.slice(0, 100)}...</p>
-                    </div>
-                  )}
-                  {hasConfirmed && (
-                    <div className="rounded bg-emerald-50 p-1.5 dark:bg-emerald-900/20">
-                      <span className="text-[9px] font-medium text-emerald-600 dark:text-emerald-400">✅ 확정</span>
-                      <p className="mt-0.5 text-xs text-emerald-700 line-clamp-2 dark:text-emerald-300">{setek.confirmed_content?.slice(0, 100)}...</p>
-                    </div>
-                  )}
-                  {!hasDraft && !hasContent && !hasConfirmed && (
-                    <span className="text-[10px] text-[var(--text-placeholder)]">가안 없음</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <DraftExpandableCell records={row.records} />
         )}
 
         {activeTab === "memo" && (
@@ -1150,4 +1098,199 @@ function AutoResizeTextarea({ onChange, ...props }: React.TextareaHTMLAttributes
   }, []);
   useEffect(resize, [props.value, resize]);
   return <textarea ref={ref} {...props} onChange={(e) => { onChange?.(e); resize(); }} />;
+}
+
+// ─── 🔍분석 탭: 접힘/펼침 3열 셀 ──────────────────────
+
+function AnalysisExpandableCell({
+  subjectTags,
+  subjectReflection,
+  row,
+  studentId,
+}: {
+  subjectTags: ActivityTagLike[];
+  subjectReflection?: SubjectReflectionRate;
+  row: MergedSetekRow;
+  studentId: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  const aiTags = subjectTags.filter((t) => t.source === "ai");
+  const manualTags = subjectTags.filter((t) => t.source === "manual" || !t.source);
+  const confirmedTags = subjectTags.filter((t) => t.status === "confirmed");
+
+  // 역량별 그룹
+  const groupByCompetency = (tags: ActivityTagLike[]) => {
+    const map = new Map<string, ActivityTagLike[]>();
+    for (const t of tags) {
+      const key = t.competency_item || "기타";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(t);
+    }
+    return map;
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {/* 접힌 상태: 1줄 요약 */}
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="flex w-full items-center gap-2 text-left"
+      >
+        <div className="flex flex-1 flex-wrap items-center gap-1">
+          {subjectReflection && (
+            <span className={cn("rounded px-1 py-0.5 text-[9px] font-medium",
+              subjectReflection.rate >= 70 ? "bg-emerald-50 text-emerald-600" : subjectReflection.rate >= 40 ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-600",
+            )}>
+              반영 {subjectReflection.rate}%
+            </span>
+          )}
+          {subjectTags.length > 0 ? subjectTags.slice(0, 4).map((t, i) => (
+            <span key={i} className={cn("rounded px-1 py-0.5 text-[9px] font-medium",
+              EVAL_COLORS[t.evaluation || "needs_review"],
+            )}>
+              {COMPETENCY_LABELS[t.competency_item || ""] || t.competency_item}
+            </span>
+          )) : (
+            <span className="text-[10px] text-[var(--text-placeholder)]">태그 없음</span>
+          )}
+          {subjectTags.length > 4 && (
+            <span className="text-[9px] text-[var(--text-tertiary)]">+{subjectTags.length - 4}</span>
+          )}
+        </div>
+        <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)] transition-transform", expanded && "rotate-180")} />
+      </button>
+
+      {/* 펼친 상태: 3열 */}
+      {expanded && (
+        <div className="mt-1 grid grid-cols-3 gap-2 rounded-lg border border-[var(--border-secondary)] bg-[var(--surface-secondary)] p-2">
+          {/* 🤖 AI 열 */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-1 border-b border-[var(--border-secondary)] pb-1">
+              <span className="text-[10px]">🤖</span>
+              <span className="text-[10px] font-semibold text-[var(--text-primary)]">AI</span>
+              <span className="text-[9px] text-[var(--text-tertiary)]">{aiTags.length}건</span>
+            </div>
+            {aiTags.length > 0 ? [...groupByCompetency(aiTags)].map(([comp, tags]) => (
+              <div key={comp} className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-1">
+                  <span className={cn("rounded px-1 py-0.5 text-[9px] font-medium", EVAL_COLORS[tags[0].evaluation || "needs_review"])}>
+                    {COMPETENCY_LABELS[comp] || comp}
+                  </span>
+                </div>
+                {tags[0].evidence_summary && (
+                  <p className="text-[9px] text-[var(--text-tertiary)] line-clamp-2">{tags[0].evidence_summary}</p>
+                )}
+              </div>
+            )) : (
+              <span className="text-[9px] text-[var(--text-placeholder)]">AI 분석 없음</span>
+            )}
+          </div>
+
+          {/* 👤 컨설턴트 열 */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-1 border-b border-[var(--border-secondary)] pb-1">
+              <span className="text-[10px]">👤</span>
+              <span className="text-[10px] font-semibold text-[var(--text-primary)]">컨설턴트</span>
+              <span className="text-[9px] text-[var(--text-tertiary)]">{manualTags.length}건</span>
+            </div>
+            {manualTags.length > 0 ? [...groupByCompetency(manualTags)].map(([comp, tags]) => (
+              <div key={comp} className="flex items-center gap-1">
+                <span className={cn("rounded px-1 py-0.5 text-[9px] font-medium", EVAL_COLORS[tags[0].evaluation || "needs_review"])}>
+                  {COMPETENCY_LABELS[comp] || comp}
+                </span>
+              </div>
+            )) : (
+              <span className="text-[9px] text-[var(--text-placeholder)]">수동 태그 없음</span>
+            )}
+          </div>
+
+          {/* ✅ 확정 열 */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-1 border-b border-[var(--border-secondary)] pb-1">
+              <span className="text-[10px]">✅</span>
+              <span className="text-[10px] font-semibold text-[var(--text-primary)]">확정</span>
+              <span className="text-[9px] text-[var(--text-tertiary)]">{confirmedTags.length}건</span>
+            </div>
+            {confirmedTags.length > 0 ? [...groupByCompetency(confirmedTags)].map(([comp, tags]) => (
+              <div key={comp} className="flex items-center gap-1">
+                <span className="rounded bg-emerald-50 px-1 py-0.5 text-[9px] font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                  ✅ {COMPETENCY_LABELS[comp] || comp}
+                </span>
+              </div>
+            )) : (
+              <span className="text-[9px] text-[var(--text-placeholder)]">미확정</span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── ✏️가안 탭: 접힘/펼침 3열 셀 ──────────────────────
+
+function DraftExpandableCell({ records }: { records: RecordSetek[] }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const hasAny = records.some((s) => s.ai_draft_content || s.content || s.confirmed_content);
+  const summaryParts: string[] = [];
+  if (records.some((s) => s.ai_draft_content)) summaryParts.push(`AI ${records.filter((s) => s.ai_draft_content).length}건`);
+  if (records.some((s) => s.content?.trim())) summaryParts.push(`가안 ${records.filter((s) => s.content?.trim()).length}건`);
+  if (records.some((s) => s.confirmed_content?.trim())) summaryParts.push(`확정 ${records.filter((s) => s.confirmed_content?.trim()).length}건`);
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <button type="button" onClick={() => setExpanded(!expanded)} className="flex w-full items-center gap-2 text-left">
+        <span className="flex-1 text-[10px] text-[var(--text-secondary)]">
+          {hasAny ? summaryParts.join(" / ") : "가안 없음"}
+        </span>
+        <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)] transition-transform", expanded && "rotate-180")} />
+      </button>
+
+      {expanded && records.map((setek) => (
+        <div key={setek.id} className="flex flex-col gap-1">
+          {records.length > 1 && (
+            <span className="text-[9px] font-medium text-[var(--text-tertiary)]">{setek.semester}학기</span>
+          )}
+          <div className="grid grid-cols-3 gap-2 rounded-lg border border-[var(--border-secondary)] bg-[var(--surface-secondary)] p-2">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1 border-b border-[var(--border-secondary)] pb-1">
+                <span className="text-[10px]">🤖</span>
+                <span className="text-[10px] font-semibold text-[var(--text-primary)]">AI 초안</span>
+              </div>
+              {setek.ai_draft_content ? (
+                <p className="text-[10px] text-violet-700 dark:text-violet-300 line-clamp-4">{setek.ai_draft_content.slice(0, 200)}</p>
+              ) : (
+                <span className="text-[9px] text-[var(--text-placeholder)]">없음</span>
+              )}
+            </div>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1 border-b border-[var(--border-secondary)] pb-1">
+                <span className="text-[10px]">👤</span>
+                <span className="text-[10px] font-semibold text-[var(--text-primary)]">컨설턴트</span>
+              </div>
+              {setek.content?.trim() ? (
+                <p className="text-[10px] text-blue-700 dark:text-blue-300 line-clamp-4">{setek.content.slice(0, 200)}</p>
+              ) : (
+                <span className="text-[9px] text-[var(--text-placeholder)]">미작성</span>
+              )}
+            </div>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1 border-b border-[var(--border-secondary)] pb-1">
+                <span className="text-[10px]">✅</span>
+                <span className="text-[10px] font-semibold text-[var(--text-primary)]">확정</span>
+              </div>
+              {setek.confirmed_content?.trim() ? (
+                <p className="text-[10px] text-emerald-700 dark:text-emerald-300 line-clamp-4">{setek.confirmed_content.slice(0, 200)}</p>
+              ) : (
+                <span className="text-[9px] text-[var(--text-placeholder)]">미확정</span>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
