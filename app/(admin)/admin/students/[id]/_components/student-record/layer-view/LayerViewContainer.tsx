@@ -1,10 +1,10 @@
 "use client";
 
 import type { RecordTabData, DiagnosisTabData, StorylineTabData } from "@/lib/domains/student-record/types";
+import { cn } from "@/lib/cn";
 import type { RecordArea, AreaSummary, LayerId, PerspectiveId, LayerGuideAssignment, LayerActivityTag, LayerSetekGuide } from "./types";
-import { NEIS_SECTIONS } from "./types";
+import { NEIS_SECTIONS, PERSPECTIVE_IDS, PERSPECTIVE_META, FOCUS_RING } from "./types";
 import { LayerBar } from "./LayerBar";
-import { PerspectiveFilter } from "./PerspectiveFilter";
 import { AreaSection } from "./AreaSection";
 import { AreaRow } from "./AreaRow";
 import { RecordYearSelector } from "../RecordYearSelector";
@@ -86,11 +86,39 @@ export function LayerViewContainer({
   const hasAnyRecord = areas.some((a) => a.recordId);
 
   return (
-    <div className="flex flex-col gap-4 p-4">
-      {/* 컨트롤 바: 레이어 + 관점 + 학년 (데이터 있을 때만) */}
-      {hasAnyRecord && <div className="sticky top-0 z-10 space-y-2 rounded-lg border border-[var(--border-secondary)] bg-[var(--surface-primary)] p-3">
-        <div className="flex items-center justify-between gap-3">
+    <div className="flex flex-col gap-3 p-4">
+      {/* 컨트롤 바: 레이어 + 관점 + 학년 한 줄 */}
+      {hasAnyRecord && (
+        <div className="sticky top-0 z-10 flex items-center gap-2 rounded-lg border border-[var(--border-secondary)] bg-[var(--surface-primary)] px-3 py-2">
           <LayerBar selected={selectedLayer} onChange={onLayerChange} />
+          <div className="h-4 w-px bg-[var(--border-secondary)]" />
+          {/* 퍼스펙티브: 인라인 토글 (actual 레이어가 아닐 때) */}
+          {selectedLayer !== "actual" && (
+            <div className="flex items-center gap-0.5">
+              {PERSPECTIVE_IDS.map((id) => {
+                const meta = PERSPECTIVE_META[id];
+                const active = id === selectedPerspective;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => onPerspectiveChange(id)}
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium transition-colors",
+                      FOCUS_RING,
+                      active
+                        ? "bg-emerald-600 text-white dark:bg-emerald-700"
+                        : "text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)]",
+                    )}
+                  >
+                    <span className="text-[10px]">{meta.emoji}</span>
+                    {meta.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <div className="flex-1" />
           <RecordYearSelector
             value={viewMode}
             onChange={onViewModeChange}
@@ -98,12 +126,7 @@ export function LayerViewContainer({
             compact
           />
         </div>
-        <PerspectiveFilter
-          selected={selectedPerspective}
-          onChange={onPerspectiveChange}
-          disabled={selectedLayer === "actual"}
-        />
-      </div>}
+      )}
 
       {/* 영역 목록 (NEIS 섹션별) */}
       {NEIS_SECTIONS.map((section) => {
