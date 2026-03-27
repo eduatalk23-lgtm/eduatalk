@@ -976,8 +976,33 @@ async function executePipelineTasks(
             rankGrade: s.rank_grade as number,
           }));
 
-        // edge_computation에서 계산한 courseAdequacy 재사용 (offeredSubjects 포함된 정확한 값)
-        const diagCourseAdequacy = sharedCourseAdequacy;
+        // edge_computation에서 계산한 courseAdequacy 재사용, 없으면 fallback 계산
+        let diagCourseAdequacy = sharedCourseAdequacy;
+        if (!diagCourseAdequacy && (snapshot?.target_major as string)) {
+          try {
+            const { calculateCourseAdequacy: calcAdequacyFallback } = await import("../course-adequacy");
+            const { getCurriculumYear: getCurrYearFallback } = await import("@/lib/utils/schoolYear");
+            const fbEnrollmentYear = calculateSchoolYear() - studentGrade + 1;
+            const fbCurriculumYear = getCurrYearFallback(fbEnrollmentYear);
+            const fbTargetMajor = snapshot!.target_major as string;
+
+            // 이수과목 조회
+            const { data: fbScoreRows } = await supabase
+              .from("student_internal_scores")
+              .select("subject:subject_id(name)")
+              .eq("student_id", studentId);
+            const fbTakenSubjects = [...new Set(
+              ((fbScoreRows ?? []) as unknown as ScoreRowWithSubject[])
+                .map((s) => s.subject?.name)
+                .filter((n): n is string => !!n),
+            )];
+
+            diagCourseAdequacy = calcAdequacyFallback(fbTargetMajor, fbTakenSubjects, null, fbCurriculumYear);
+            logActionDebug(LOG_CTX, "courseAdequacy fallback 계산 완료 (edge_computation 미실행)", { pipelineId });
+          } catch (fbErr) {
+            logActionError({ ...LOG_CTX, action: "pipeline.diagCourseAdequacyFallback" }, fbErr, { pipelineId });
+          }
+        }
 
         // P2-1: 엣지의 shared_competencies에서 역량 연결 빈도 집계
         const edgeCompetencyFreq = new Map<string, number>();
