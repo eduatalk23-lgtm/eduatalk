@@ -523,6 +523,137 @@ export function parseCareerPaths(pwayEmplLtrCtnt: string): string[] {
 }
 
 // ============================================================
+// 타입: 전국대학별입학정원정보 (tn_pubr_public_univ_mtcltn_api)
+// ============================================================
+
+const ADMISSION_QUOTA_BASE =
+  "http://api.data.go.kr/openapi/tn_pubr_public_univ_mtcltn_api";
+
+/** 입학정원 정보 */
+export type UniversityAdmissionQuota = {
+  crtrYr: string; // 기준년도
+  schlSeNm: string; // 학교구분 ("대학교" | "전문대학" 등)
+  fndnSeNm: string; // 설립구분 ("국립" | "사립" 등)
+  ctpvCd: string; // 시도 코드
+  ctpvNm: string; // 시도명
+  schlNm: string; // 대학명
+  mainBranSchlSeNm: string; // 본분교 ("본교" | "캠퍼스" 등)
+  mtcltnCnt: string; // 입학정원 합계
+  acayAfilMtcltnCnt: string; // 인문계열 정원
+  soctyAfilMtcltnCnt: string; // 사회계열 정원
+  eduAfilMtcltnCnt: string; // 교육계열 정원
+  engrAfilMtcltnCnt: string; // 공학계열 정원
+  scienAfilMtcltnCnt: string; // 자연계열 정원
+  mdsnAfilMtcltnCnt: string; // 의약계열 정원
+  artaphyAfilMtcltnCnt: string; // 예체능계열 정원
+  crtrYmd: string; // 기준일자
+  insttCode: string; // 제공기관 코드
+  insttNm: string; // 제공기관명
+};
+
+/** 입학정원 검색 파라미터 */
+export type AdmissionQuotaSearchParams = PaginationParams & {
+  crtrYr?: string; // 기준년도
+  schlSeNm?: string; // 학교구분
+  fndnSeNm?: string; // 설립구분
+  ctpvNm?: string; // 시도명
+  schlNm?: string; // 대학명
+};
+
+// ============================================================
+// 공개 API: 전국대학별입학정원정보
+// ============================================================
+
+/**
+ * 입학정원 정보 조회
+ * 엔드포인트가 다른 패턴 (api.data.go.kr) — JSON 지원
+ */
+export async function getAdmissionQuotas(
+  params?: AdmissionQuotaSearchParams,
+): Promise<DataGoKrResult<UniversityAdmissionQuota>> {
+  const url = new URL(ADMISSION_QUOTA_BASE);
+  url.searchParams.set("serviceKey", getApiKey());
+  url.searchParams.set("type", "json");
+
+  if (params) {
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined && value !== "") {
+        url.searchParams.set(key, String(value));
+      }
+    }
+  }
+
+  if (!params?.numOfRows) url.searchParams.set("numOfRows", "100");
+  if (!params?.pageNo) url.searchParams.set("pageNo", "1");
+
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    next: { revalidate: 3600 },
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `[data.go.kr] HTTP ${response.status}: ${response.statusText}`,
+    );
+  }
+
+  const json = (await response.json()) as {
+    response: {
+      header: { resultCode: string; resultMsg: string };
+      body: {
+        items: UniversityAdmissionQuota[];
+        totalCount: string;
+        numOfRows: string;
+        pageNo: string;
+      };
+    };
+  };
+
+  const header = json.response.header;
+  if (header.resultCode !== "00") {
+    throw new DataGoKrApiError(header.resultCode, header.resultMsg);
+  }
+
+  const body = json.response.body;
+  const items = body.items ?? [];
+
+  return {
+    items: Array.isArray(items) ? items : [items],
+    totalCount: Number(body.totalCount) || 0,
+    pageNo: Number(body.pageNo) || 1,
+    numOfRows: Number(body.numOfRows) || 100,
+  };
+}
+
+/**
+ * 전체 입학정원 조회 (전 페이지 순회)
+ */
+export async function getAllAdmissionQuotas(
+  crtrYr?: string,
+): Promise<UniversityAdmissionQuota[]> {
+  const allItems: UniversityAdmissionQuota[] = [];
+  let pageNo = 1;
+  const pageSize = 500;
+  let totalCount = Infinity;
+
+  while (allItems.length < totalCount) {
+    const result = await getAdmissionQuotas({
+      crtrYr,
+      numOfRows: pageSize,
+      pageNo,
+    });
+
+    totalCount = result.totalCount;
+    allItems.push(...result.items);
+
+    if (result.items.length < pageSize) break;
+    pageNo++;
+  }
+
+  return allItems;
+}
+
+// ============================================================
 // 유틸: 연결 테스트
 // ============================================================
 
