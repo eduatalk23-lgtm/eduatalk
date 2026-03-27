@@ -631,3 +631,19 @@ export async function fetchInterviewQuestions(
     return [];
   }
 }
+
+/** P2-4: 진단 변경 히스토리 (스냅샷) 조회 */
+export async function findDiagnosisSnapshotsAction(
+  studentId: string,
+  schoolYear: number,
+  source: "ai" | "manual",
+): Promise<Array<{ id: string; snapshot: Record<string, unknown>; created_at: string }>> {
+  try {
+    const { tenantId } = await requireAdminOrConsultant();
+    if (!tenantId) return [];
+    return await diagnosisRepo.findDiagnosisSnapshots(studentId, schoolYear, source, tenantId);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "findDiagnosisSnapshots" }, error, { studentId });
+    return [];
+  }
+}

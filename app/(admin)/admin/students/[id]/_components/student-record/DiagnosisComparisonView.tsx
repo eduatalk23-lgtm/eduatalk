@@ -6,18 +6,22 @@
 // ============================================
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { useSidePanel } from "@/components/side-panel";
 import { upsertDiagnosisAction, confirmDiagnosisAction } from "@/lib/domains/student-record/actions/diagnosis";
 import { generateAiDiagnosis } from "@/lib/domains/student-record/llm/actions/generateDiagnosis";
+import { buildEdgeSummaryForPrompt } from "@/lib/domains/student-record/llm/edge-summary";
+import { fetchPersistedEdges } from "@/lib/domains/student-record/actions/diagnosis";
 import { syncPipelineTaskStatus } from "@/lib/domains/student-record/actions/pipeline";
+import { checkDiagnosisStalenessAction } from "@/lib/domains/student-record/actions/staleness";
 import { MAJOR_RECOMMENDED_COURSES } from "@/lib/domains/student-record";
 import type { Diagnosis, CompetencyScore, ActivityTag, CompetencyGrade } from "@/lib/domains/student-record";
 import { RecommendedCourses } from "./GradeSummaryTable";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
-import { Sparkles, Copy, Check, Loader2 } from "lucide-react";
+import { Sparkles, Copy, Check, Loader2, History } from "lucide-react";
 import { useAutoSave } from "./useAutoSave";
+import { findDiagnosisSnapshotsAction } from "@/lib/domains/student-record/actions/diagnosis";
 
 type Props = {
   aiDiagnosis: Diagnosis | null;
@@ -61,6 +65,12 @@ export function DiagnosisComparisonView({
   const [weaknesses, setWeaknesses] = useState<string[]>(consultantDiagnosis?.weaknesses ?? []);
   const [majors, setMajors] = useState<string[]>(consultantDiagnosis?.recommended_majors ?? []);
   const [notes, setNotes] = useState(consultantDiagnosis?.strategy_notes ?? "");
+  const [improvements, setImprovements] = useState<Array<{ priority: string; area: string; gap: string; action: string; outcome: string }>>(
+    () => {
+      const raw = (consultantDiagnosis as Record<string, unknown> | null)?.improvements;
+      return Array.isArray(raw) ? raw as Array<{ priority: string; area: string; gap: string; action: string; outcome: string }> : [];
+    },
+  );
   const [newStrength, setNewStrength] = useState("");
   const [newWeakness, setNewWeakness] = useState("");
 
@@ -77,12 +87,14 @@ export function DiagnosisComparisonView({
     setWeaknesses(consultantDiagnosis?.weaknesses ?? []);
     setMajors(consultantDiagnosis?.recommended_majors ?? []);
     setNotes(consultantDiagnosis?.strategy_notes ?? "");
+    const rawImp = (consultantDiagnosis as Record<string, unknown> | null)?.improvements;
+    setImprovements(Array.isArray(rawImp) ? rawImp as Array<{ priority: string; area: string; gap: string; action: string; outcome: string }> : []);
   }
 
   // 자동 저장용 데이터 객체
   const autoSaveData = useMemo(() => ({
-    grade, direction, dirStrength, strengths, weaknesses, majors, notes,
-  }), [grade, direction, dirStrength, strengths, weaknesses, majors, notes]);
+    grade, direction, dirStrength, strengths, weaknesses, majors, notes, improvements,
+  }), [grade, direction, dirStrength, strengths, weaknesses, majors, notes, improvements]);
 
   // 확정/진행 상태 ref — 자동저장 핸들러 내부에서 최신 값 참조용
   const isConfirmedRef = useRef(consultantDiagnosis?.status === "confirmed");
@@ -106,11 +118,12 @@ export function DiagnosisComparisonView({
         direction_strength: data.dirStrength,
         strengths: data.strengths,
         weaknesses: data.weaknesses,
+        improvements: data.improvements as unknown as import("@/lib/supabase/types").Json,
         recommended_majors: data.majors,
         strategy_notes: data.notes || null,
         source: "manual",
         status: "draft",
-      });
+      } as import("@/lib/domains/student-record/types").DiagnosisInsert);
       if (result.success) {
         queryClient.invalidateQueries({ queryKey: qk });
       }
@@ -139,14 +152,33 @@ export function DiagnosisComparisonView({
     enabled: consultantDiagnosis?.status !== "confirmed" && !confirmMutation.isPending,
   });
 
+  // 진단 staleness 조회 (엣지 stale + 파이프라인 stale)
+  const { data: diagnosisStaleness } = useQuery({
+    queryKey: ["diagnosis-staleness", studentId],
+    queryFn: () => checkDiagnosisStalenessAction(studentId),
+    staleTime: 30_000,
+    enabled: !!aiDiagnosis,
+  });
+
+  // P2-4: 히스토리 토글
+  const [showHistory, setShowHistory] = useState(false);
+
   // AI 종합진단 생성
   const [aiWarnings, setAiWarnings] = useState<string[]>([]);
   const aiGenMutation = useMutation({
     mutationFn: async () => {
-      const result = await generateAiDiagnosis([...aiScores, ...consultantScores], activityTags, { targetMajor: targetMajor ?? undefined, schoolName, studentId });
+      // P1: 엣지 데이터 자동 조회 → 프롬프트에 연관성 요약 투입
+      const edges = await fetchPersistedEdges(studentId, tenantId);
+      const edgeSummary = buildEdgeSummaryForPrompt(edges) || undefined;
+
+      const result = await generateAiDiagnosis(
+        [...aiScores, ...consultantScores], activityTags,
+        { targetMajor: targetMajor ?? undefined, schoolName, studentId },
+        edgeSummary,
+      );
       if (!result.success) throw new Error(result.error);
 
-      // AI 진단 저장
+      // AI 진단 저장 (direction_reasoning + improvements 신규 컬럼 포함)
       const saveResult = await upsertDiagnosisAction({
         tenant_id: tenantId,
         student_id: studentId,
@@ -154,8 +186,10 @@ export function DiagnosisComparisonView({
         overall_grade: result.data.overallGrade,
         record_direction: result.data.recordDirection,
         direction_strength: result.data.directionStrength,
+        direction_reasoning: result.data.directionReasoning || null,
         strengths: result.data.strengths,
         weaknesses: result.data.weaknesses,
+        improvements: result.data.improvements as unknown as import("@/lib/supabase/database.types").Json,
         recommended_majors: result.data.recommendedMajors,
         strategy_notes: result.data.strategyNotes,
         source: "ai",
@@ -183,6 +217,8 @@ export function DiagnosisComparisonView({
     setWeaknesses(aiDiagnosis.weaknesses ?? []);
     setMajors(aiDiagnosis.recommended_majors ?? []);
     setNotes(aiDiagnosis.strategy_notes ?? "");
+    const rawImp = (aiDiagnosis as Record<string, unknown>).improvements;
+    setImprovements(Array.isArray(rawImp) ? rawImp as Array<{ priority: string; area: string; gap: string; action: string; outcome: string }> : []);
   }, [aiDiagnosis]);
 
   const addTag = (list: string[], setList: (v: string[]) => void, val: string, setVal: (v: string) => void) => {
@@ -232,6 +268,21 @@ export function DiagnosisComparisonView({
             <Copy size={12} /> AI → 컨설턴트 복사
           </button>
         )}
+        {/* P2-4: 히스토리 토글 */}
+        {aiDiagnosis && (
+          <button
+            type="button"
+            onClick={() => setShowHistory((v) => !v)}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition",
+              showHistory
+                ? "border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400"
+                : "border-gray-300 text-[var(--text-secondary)] hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800",
+            )}
+          >
+            <History size={12} /> 이력
+          </button>
+        )}
         {aiGenMutation.isError && <span className="text-xs text-red-500">{aiGenMutation.error.message}</span>}
         {aiWarnings.length > 0 && (
           <span className="text-[10px] text-amber-600 dark:text-amber-400">
@@ -239,6 +290,28 @@ export function DiagnosisComparisonView({
           </span>
         )}
       </div>
+
+      {/* P2-4: 히스토리 패널 */}
+      {showHistory && <DiagnosisHistoryPanel studentId={studentId} schoolYear={schoolYear} />}
+
+      {/* Staleness 경고 배너 */}
+      {diagnosisStaleness?.isStale && (
+        <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-800 dark:bg-amber-900/20">
+          <span className="text-xs text-amber-700 dark:text-amber-400">
+            ⚠ 진단이 최신이 아닐 수 있습니다
+            {diagnosisStaleness.staleEdgeCount > 0 && ` (변경된 연결 ${diagnosisStaleness.staleEdgeCount}건)`}
+            {diagnosisStaleness.pipelineStale && " — 레코드가 변경됨"}
+          </span>
+          <button
+            type="button"
+            onClick={() => aiGenMutation.mutate()}
+            disabled={aiGenMutation.isPending}
+            className="rounded px-2 py-0.5 text-[10px] font-medium text-amber-700 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-800"
+          >
+            재생성
+          </button>
+        </div>
+      )}
 
       {/* 2열 비교 — 모바일에서는 컨설턴트(편집)를 먼저 표시 */}
       <div className={cn("grid grid-cols-1 gap-4", !isPanelOpen && "lg:grid-cols-2")}>
@@ -271,8 +344,17 @@ export function DiagnosisComparisonView({
               <Row label="종합등급" value={aiDiagnosis.overall_grade} diff={isDiff(aiDiagnosis.overall_grade, grade)} />
               <Row label="방향" value={aiDiagnosis.record_direction ?? "-"} diff={isDiff(aiDiagnosis.record_direction, direction)} />
               <Row label="강도" value={STRENGTH_LABELS[aiDiagnosis.direction_strength ?? "moderate"]} />
+              {aiDiagnosis.direction_reasoning && (
+                <Row label="근거" value={aiDiagnosis.direction_reasoning} />
+              )}
               <TagList label="강점" items={aiDiagnosis.strengths ?? []} matchItems={strengthsDiff.match} />
               <TagList label="약점" items={aiDiagnosis.weaknesses ?? []} matchItems={weaknessesDiff.match} />
+              {/* 개선 전략 */}
+              {(() => {
+                const improvements = aiDiagnosis.improvements as Array<{ priority: string; area: string; gap: string; action: string; outcome: string }> | null;
+                if (!Array.isArray(improvements) || improvements.length === 0) return null;
+                return <ImprovementsList items={improvements} />;
+              })()}
               <TagList label="추천전공" items={aiDiagnosis.recommended_majors ?? []} />
               <RecommendedCourses majors={aiDiagnosis.recommended_majors ?? []} />
               {aiDiagnosis.strategy_notes && <Row label="메모" value={aiDiagnosis.strategy_notes} />}
@@ -392,6 +474,43 @@ export function DiagnosisComparisonView({
             {/* 추천 교과목 */}
             <RecommendedCourses majors={majors} />
 
+            {/* 개선 전략 */}
+            <FormRow label="개선전략">
+              <div className="flex flex-1 flex-col gap-1.5">
+                {improvements.map((imp, i) => (
+                  <div key={i} className="flex flex-col gap-1 rounded border border-gray-200 p-1.5 dark:border-gray-700">
+                    <div className="flex items-center gap-1">
+                      <select value={imp.priority} onChange={(e) => {
+                        const next = [...improvements];
+                        next[i] = { ...imp, priority: e.target.value };
+                        setImprovements(next);
+                      }} className="min-h-[24px] rounded border border-gray-300 px-1 py-0.5 text-[10px] dark:border-gray-600">
+                        <option value="높음">높음</option>
+                        <option value="중간">중간</option>
+                        <option value="낮음">낮음</option>
+                      </select>
+                      <input type="text" value={imp.area} placeholder="영역" onChange={(e) => {
+                        const next = [...improvements];
+                        next[i] = { ...imp, area: e.target.value };
+                        setImprovements(next);
+                      }} className="min-w-0 flex-1 rounded border border-gray-300 px-1 py-0.5 text-[10px] dark:border-gray-600" />
+                      <button onClick={() => setImprovements(improvements.filter((_, j) => j !== i))}
+                        className="text-[10px] text-red-400 hover:text-red-600" aria-label="삭제">×</button>
+                    </div>
+                    <input type="text" value={imp.action} placeholder="실행 방안" onChange={(e) => {
+                      const next = [...improvements];
+                      next[i] = { ...imp, action: e.target.value };
+                      setImprovements(next);
+                    }} className="rounded border border-gray-300 px-1 py-0.5 text-[10px] dark:border-gray-600" />
+                  </div>
+                ))}
+                <button onClick={() => setImprovements([...improvements, { priority: "중간", area: "", gap: "", action: "", outcome: "" }])}
+                  className="self-start rounded border border-dashed border-gray-300 px-2 py-0.5 text-[10px] text-[var(--text-tertiary)] hover:border-indigo-300 hover:text-indigo-600 dark:border-gray-600">
+                  + 개선 전략 추가
+                </button>
+              </div>
+            </FormRow>
+
             {/* 메모 */}
             <FormRow label="메모">
               <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
@@ -468,6 +587,108 @@ function FormRow({ label, children, diff }: { label: string; children: React.Rea
         {label} {diff && <span title="AI와 차이 있음">⚡</span>}
       </span>
       {children}
+    </div>
+  );
+}
+
+const PRIORITY_COLORS: Record<string, string> = {
+  "높음": "text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400",
+  "중간": "text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400",
+  "낮음": "text-gray-500 bg-gray-50 dark:bg-gray-800 dark:text-gray-400",
+};
+
+function ImprovementsList({ items }: { items: Array<{ priority: string; area: string; gap: string; action: string; outcome: string }> }) {
+  return (
+    <div className="flex gap-2">
+      <span className="w-16 shrink-0 text-[var(--text-tertiary)]">개선전략</span>
+      <div className="flex flex-1 flex-col gap-1.5">
+        {items.map((imp, i) => (
+          <div key={i} className="rounded border border-gray-200 p-1.5 dark:border-gray-700">
+            <div className="flex items-center gap-1.5">
+              <span className={cn("rounded px-1 py-0.5 text-[9px] font-medium", PRIORITY_COLORS[imp.priority] ?? PRIORITY_COLORS["중간"])}>
+                {imp.priority}
+              </span>
+              <span className="text-[10px] font-medium text-[var(--text-primary)]">{imp.area}</span>
+            </div>
+            {imp.gap && <p className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">{imp.gap}</p>}
+            <p className="mt-0.5 text-[10px] text-blue-600 dark:text-blue-400">{imp.action}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── P2-4: 진단 변경 히스토리 패널 ──────────────────────────
+
+const GRADE_LABELS: Record<string, string> = { "A+": "A+", "A-": "A-", "B+": "B+", B: "B", "B-": "B-", C: "C" };
+
+function DiagnosisHistoryPanel({ studentId, schoolYear }: { studentId: string; schoolYear: number }) {
+  const { data: snapshots, isLoading } = useQuery({
+    queryKey: ["diagnosis-snapshots", studentId, schoolYear],
+    queryFn: () => findDiagnosisSnapshotsAction(studentId, schoolYear, "ai"),
+    staleTime: 60_000,
+  });
+
+  const [selected, setSelected] = useState<number | null>(null);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center rounded-lg border border-[var(--border-secondary)] bg-[var(--surface-secondary)] p-4">
+        <Loader2 className="h-4 w-4 animate-spin text-[var(--text-tertiary)]" />
+      </div>
+    );
+  }
+
+  if (!snapshots?.length) {
+    return (
+      <div className="rounded-lg border border-[var(--border-secondary)] bg-[var(--surface-secondary)] px-3 py-2 text-center text-xs text-[var(--text-tertiary)]">
+        변경 이력이 없습니다 (다음 AI 재생성 시 기록됩니다)
+      </div>
+    );
+  }
+
+  const selectedSnap = selected !== null ? snapshots[selected]?.snapshot : null;
+
+  return (
+    <div className="rounded-lg border border-[var(--border-secondary)] bg-[var(--surface-secondary)] p-3">
+      <p className="mb-2 text-[10px] font-semibold text-[var(--text-primary)]">AI 진단 변경 이력 ({snapshots.length}건)</p>
+
+      {/* 타임라인 */}
+      <div className="flex flex-wrap gap-1.5">
+        {snapshots.map((snap, i) => {
+          const d = new Date(snap.created_at);
+          const grade = (snap.snapshot as Record<string, unknown>).overall_grade as string;
+          return (
+            <button
+              key={snap.id}
+              type="button"
+              onClick={() => setSelected(selected === i ? null : i)}
+              className={cn(
+                "rounded-md border px-2 py-1 text-[10px] transition",
+                selected === i
+                  ? "border-indigo-400 bg-indigo-50 text-indigo-700 dark:border-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-300"
+                  : "border-[var(--border-secondary)] text-[var(--text-secondary)] hover:border-gray-400",
+              )}
+            >
+              {d.getMonth() + 1}/{d.getDate()} {d.getHours()}:{String(d.getMinutes()).padStart(2, "0")}
+              {grade && ` (${GRADE_LABELS[grade] ?? grade})`}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 선택된 스냅샷 상세 */}
+      {selectedSnap && (
+        <div className="mt-2 space-y-1 rounded border border-gray-200 bg-white p-2 text-[10px] dark:border-gray-700 dark:bg-gray-900">
+          <Row label="등급" value={String((selectedSnap as Record<string, unknown>).overall_grade ?? "-")} />
+          <Row label="방향" value={String((selectedSnap as Record<string, unknown>).record_direction ?? "-")} />
+          <Row label="강도" value={STRENGTH_LABELS[String((selectedSnap as Record<string, unknown>).direction_strength ?? "moderate")] ?? "-"} />
+          <TagList label="강점" items={((selectedSnap as Record<string, unknown>).strengths as string[]) ?? []} />
+          <TagList label="약점" items={((selectedSnap as Record<string, unknown>).weaknesses as string[]) ?? []} />
+          <TagList label="추천전공" items={((selectedSnap as Record<string, unknown>).recommended_majors as string[]) ?? []} />
+        </div>
+      )}
     </div>
   );
 }

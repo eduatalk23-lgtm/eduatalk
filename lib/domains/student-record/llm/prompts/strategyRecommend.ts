@@ -96,6 +96,15 @@ export function buildUserPrompt(input: SuggestStrategiesInput): string {
     prompt += "\n\n";
   }
 
+  // 진단 개선 전략 (AI 시드)
+  if (input.diagnosisImprovements && input.diagnosisImprovements.length > 0) {
+    prompt += `## AI 진단 개선 전략 (참고 — 이를 구체화하여 보완전략에 반영)\n\n`;
+    for (const imp of input.diagnosisImprovements) {
+      prompt += `- [${imp.priority}] ${imp.area}: ${imp.gap} → ${imp.action} (기대: ${imp.outcome})\n`;
+    }
+    prompt += "\n";
+  }
+
   // 미이수 추천 과목
   if (input.notTakenSubjects && input.notTakenSubjects.length > 0) {
     prompt += `## 미이수 추천 과목 (교과이수적합도 부족)\n\n`;
@@ -103,7 +112,7 @@ export function buildUserPrompt(input: SuggestStrategiesInput): string {
     prompt += "\n\n";
   }
 
-  prompt += `위 진단 결과를 바탕으로 구체적인 보완전략을 JSON으로 제안해주세요. 루브릭 질문별 약점이 있다면 해당 질문을 보완하는 구체적 활동을 포함하세요. 최신 대입 트렌드를 반영하여 실현 가능한 활동을 제안하세요. 미이수 과목이 있다면 해당 과목 이수를 우선적으로 포함하세요.`;
+  prompt += `위 진단 결과를 바탕으로 구체적인 보완전략을 JSON으로 제안해주세요. "AI 진단 개선 전략"이 있다면 이를 기반으로 구체적 활동/일정/방법을 보강하세요. 루브릭 질문별 약점이 있다면 해당 질문을 보완하는 구체적 활동을 포함하세요. 최신 대입 트렌드를 반영하여 실현 가능한 활동을 제안하세요. 미이수 과목이 있다면 해당 과목 이수를 우선적으로 포함하세요.`;
 
   return prompt;
 }

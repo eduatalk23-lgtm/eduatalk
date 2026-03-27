@@ -247,6 +247,79 @@ export async function resumePipeline(
 }
 
 // ============================================
+// P2-3: 특정 태스크만 재실행
+// ============================================
+
+/** 완료된 파이프라인에서 특정 태스크들만 "pending"으로 리셋 후 재실행 */
+export async function rerunPipelineTasks(
+  pipelineId: string,
+  taskKeys: PipelineTaskKey[],
+): Promise<ActionResponse<{ pipelineId: string }>> {
+  try {
+    await requireAdminOrConsultant();
+    const supabase = await createSupabaseServerClient();
+
+    const { data: pipeline, error: fetchErr } = await supabase
+      .from("student_record_analysis_pipelines")
+      .select("*")
+      .eq("id", pipelineId)
+      .single();
+
+    if (fetchErr || !pipeline) {
+      return createErrorResponse("파이프라인을 찾을 수 없습니다");
+    }
+    if (pipeline.status === "running") {
+      return createErrorResponse("실행 중인 파이프라인은 재실행할 수 없습니다");
+    }
+
+    // 지정된 태스크 + 의존 태스크를 pending으로 리셋
+    const tasks = (pipeline.tasks ?? {}) as Record<string, PipelineTaskStatus>;
+    const DEPENDENTS: Partial<Record<PipelineTaskKey, PipelineTaskKey[]>> = {
+      competency_analysis: ["storyline_generation", "edge_computation", "ai_diagnosis", "setek_guide", "activity_summary", "ai_strategy", "interview_generation", "roadmap_generation"],
+      storyline_generation: ["edge_computation", "ai_diagnosis", "setek_guide", "activity_summary", "roadmap_generation"],
+      edge_computation: ["ai_diagnosis", "setek_guide", "activity_summary"],
+      ai_diagnosis: ["setek_guide", "ai_strategy", "interview_generation", "roadmap_generation"],
+    };
+
+    const toReset = new Set(taskKeys);
+    for (const key of taskKeys) {
+      for (const dep of DEPENDENTS[key] ?? []) toReset.add(dep);
+    }
+
+    for (const key of toReset) {
+      tasks[key] = "pending";
+    }
+
+    await supabase
+      .from("student_record_analysis_pipelines")
+      .update({ status: "running", tasks, completed_at: null })
+      .eq("id", pipelineId);
+
+    const existingState: ExistingPipelineState = {
+      tasks,
+      previews: (pipeline.task_previews ?? {}) as Record<string, string>,
+      results: (pipeline.task_results ?? {}) as Record<string, unknown>,
+      errors: (pipeline.error_details ?? {}) as Record<string, string>,
+    };
+
+    executePipelineTasks(
+      pipelineId,
+      pipeline.student_id,
+      pipeline.tenant_id,
+      pipeline.input_snapshot as Record<string, unknown> | null,
+      existingState,
+    ).catch((err) => {
+      logActionError({ ...LOG_CTX, action: "rerunPipelineTasks" }, err, { pipelineId });
+    });
+
+    return createSuccessResponse({ pipelineId });
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "rerunPipelineTasks" }, error, { pipelineId });
+    return createErrorResponse("태스크 재실행 실패");
+  }
+}
+
+// ============================================
 // 태스크 실행 (내부)
 // ============================================
 
@@ -587,6 +660,12 @@ async function executePipelineTasks(
             const aggregated = aggregateCompetencyGrades(allGrades);
 
             await runWithConcurrency(aggregated, 5, async (ag) => {
+              // P2-2: 루브릭 reasoning 조합 → narrative 생성
+              const narrative = ag.rubricScores
+                ?.filter((rs) => rs.reasoning)
+                .map((rs) => rs.reasoning)
+                .join(" ") || null;
+
               await competencyRepo.upsertCompetencyScore({
                 tenant_id: tenantId,
                 student_id: studentId,
@@ -595,6 +674,7 @@ async function executePipelineTasks(
                 competency_area: ag.area,
                 competency_item: ag.item,
                 grade_value: ag.finalGrade,
+                narrative,
                 notes: `[AI] ${ag.recordCount}건 ${ag.method === "rubric" ? "루브릭 기반" : "레코드"} 종합`,
                 rubric_scores: ag.rubricScores as unknown as CompetencyScoreInsert["rubric_scores"],
                 source: "ai",
@@ -857,9 +937,12 @@ async function executePipelineTasks(
         const { generateAiDiagnosis } = await import("../llm/actions/generateDiagnosis");
         // Phase E2: 엣지 데이터 → 진단 프롬프트에 투입
         let diagnosisEdgeSection: string | undefined;
+        const edgeComputationFailed = tasks.edge_computation === "failed";
         if (computedEdges.length > 0) {
           const { buildEdgePromptSection } = await import("../edge-summary");
           diagnosisEdgeSection = buildEdgePromptSection(computedEdges, "diagnosis");
+        } else if (edgeComputationFailed) {
+          logActionDebug(LOG_CTX, "엣지 계산 실패 → 진단에 연결 분석 미포함", { pipelineId });
         }
 
         // 보강 컨텍스트: 성적 추이 + 교과이수적합도
@@ -888,6 +971,15 @@ async function executePipelineTasks(
           diagCourseAdequacy = calcAdq(diagTgtMajor, takenNames, null, curYear);
         }
 
+        // P2-1: 엣지의 shared_competencies에서 역량 연결 빈도 집계
+        const edgeCompetencyFreq = new Map<string, number>();
+        for (const e of computedEdges) {
+          const comps = "shared_competencies" in e ? e.shared_competencies : ("sharedCompetencies" in e ? (e as { sharedCompetencies?: string[] }).sharedCompetencies : null);
+          for (const c of comps ?? []) {
+            edgeCompetencyFreq.set(c, (edgeCompetencyFreq.get(c) ?? 0) + 1);
+          }
+        }
+
         const result = await generateAiDiagnosis(scores, tags, {
           targetMajor: diagTgtMajor ?? undefined,
           schoolName: (snapshot?.school_name as string) ?? undefined,
@@ -901,7 +993,7 @@ async function executePipelineTasks(
             generalRate: diagCourseAdequacy.generalRate,
             careerRate: diagCourseAdequacy.careerRate,
           } : null,
-        });
+        }, edgeCompetencyFreq);
         if (!result.success) throw new Error(result.error);
 
         await diagnosisRepo.upsertDiagnosis({
@@ -911,15 +1003,18 @@ async function executePipelineTasks(
           overall_grade: result.data.overallGrade,
           record_direction: result.data.recordDirection,
           direction_strength: result.data.directionStrength as "strong" | "moderate" | "weak",
+          direction_reasoning: result.data.directionReasoning || null,
           strengths: result.data.strengths,
           weaknesses: result.data.weaknesses,
+          improvements: result.data.improvements as unknown as import("@/lib/supabase/database.types").Json,
           recommended_majors: result.data.recommendedMajors,
           strategy_notes: result.data.strategyNotes,
           source: "ai",
           status: "draft",
         } as DiagnosisInsert);
 
-        return `종합진단 생성 (등급: ${result.data.overallGrade}, 방향: ${result.data.directionStrength})`;
+        const warnSuffix = result.data.warnings?.length ? ` ⚠️ ${result.data.warnings.join(", ")}` : "";
+        return `종합진단 생성 (등급: ${result.data.overallGrade}, 방향: ${result.data.directionStrength})${warnSuffix}`;
       },
     },
 
@@ -1019,7 +1114,17 @@ async function executePipelineTasks(
         // Phase 6: 가이드 배정 컨텍스트 → 방향 프롬프트에 투입
         const { buildGuideContextSection } = await import("../guide-context");
         const guideContextSection = await buildGuideContextSection(studentId, "guide");
-        const extraSections = [guideEdgeSection, guideContextSection].filter(Boolean).join("\n") || undefined;
+
+        // 진단 improvements → 세특 방향에 보완 우선순위 컨텍스트 제공
+        let improvementsSection: string | undefined;
+        const currentYear = calculateSchoolYear();
+        const diagForGuide = await diagnosisRepo.findDiagnosis(studentId, currentYear, tenantId, "ai");
+        if (diagForGuide && Array.isArray(diagForGuide.improvements) && (diagForGuide.improvements as unknown[]).length > 0) {
+          const imps = diagForGuide.improvements as Array<{ priority: string; area: string; action: string }>;
+          improvementsSection = `## 개선 우선순위 (세특 방향에 반영)\n${imps.map((i) => `- [${i.priority}] ${i.area}: ${i.action}`).join("\n")}`;
+        }
+
+        const extraSections = [guideEdgeSection, guideContextSection, improvementsSection].filter(Boolean).join("\n") || undefined;
         const result = await generateSetekGuide(studentId, undefined, extraSections);
         if (!result.success) throw new Error(result.error);
         const guides = (result.data as { guides?: Array<{ subjectName: string }> })?.guides;
@@ -1093,11 +1198,17 @@ async function executePipelineTasks(
         const existingContents = existingStrategies.map((s) => s.strategy_content.slice(0, 60));
 
         // 4. AI 보완전략 제안
+        // P2-1: 진단의 improvements를 시드 데이터로 전달
+        const diagnosisImprovements = Array.isArray(diagnosis?.improvements)
+          ? (diagnosis.improvements as Array<{ priority: string; area: string; gap: string; action: string; outcome: string }>)
+          : [];
+
         const { suggestStrategies } = await import("../llm/actions/suggestStrategies");
         const result = await suggestStrategies({
           weaknesses,
           weakCompetencies,
           rubricWeaknesses,
+          diagnosisImprovements,
           grade: studentGrade,
           targetMajor: (snapshot?.target_major as string) ?? undefined,
           existingStrategies: existingContents,
@@ -1351,17 +1462,37 @@ async function executePipelineTasks(
           });
         }
 
-        // C. 진단 약점 기반 보완 로드맵
-        const weaknesses = (diagnosis?.weaknesses as string[]) ?? [];
-        for (const weakness of weaknesses.slice(0, 3)) {
-          roadmapItems.push({
-            area: "general",
-            plan_content: `[AI] 보완: ${weakness}`,
-            plan_keywords: [],
-            grade: studentGrade,
-            semester: null,
-            storyline_id: null,
-          });
+        // C. 진단 개선 전략 기반 보완 로드맵 (improvements 우선, fallback: weaknesses)
+        const improvements = Array.isArray(diagnosis?.improvements)
+          ? (diagnosis.improvements as Array<{ priority: string; area: string; action: string }>)
+          : [];
+        if (improvements.length > 0) {
+          // 우선순위순: 높음 → 중간 → 낮음
+          const priorityOrder = { "높음": 0, "중간": 1, "낮음": 2 } as Record<string, number>;
+          const sorted = [...improvements].sort((a, b) => (priorityOrder[a.priority] ?? 2) - (priorityOrder[b.priority] ?? 2));
+          for (const imp of sorted.slice(0, 3)) {
+            roadmapItems.push({
+              area: "general",
+              plan_content: `[AI] [${imp.priority}] ${imp.area}: ${imp.action}`,
+              plan_keywords: [],
+              grade: studentGrade,
+              semester: null,
+              storyline_id: null,
+            });
+          }
+        } else {
+          // fallback: 기존 weaknesses 기반
+          const weaknesses = (diagnosis?.weaknesses as string[]) ?? [];
+          for (const weakness of weaknesses.slice(0, 3)) {
+            roadmapItems.push({
+              area: "general",
+              plan_content: `[AI] 보완: ${weakness}`,
+              plan_keywords: [],
+              grade: studentGrade,
+              semester: null,
+              storyline_id: null,
+            });
+          }
         }
 
         if (roadmapItems.length === 0) return "생성 가능한 로드맵 없음";

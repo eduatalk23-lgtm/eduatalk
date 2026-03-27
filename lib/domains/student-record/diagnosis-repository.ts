@@ -59,11 +59,37 @@ export async function findDiagnosisPair(
   return { ai, consultant };
 }
 
-/** 종합 진단 upsert (UNIQUE: tenant+student+year+source) */
+/** 종합 진단 upsert (UNIQUE: tenant+student+year+source) + 이전 상태 스냅샷 */
 export async function upsertDiagnosis(
   input: DiagnosisInsert,
 ): Promise<string> {
   const supabase = await createSupabaseServerClient();
+
+  // P2-4: 기존 진단이 있으면 스냅샷 생성 (fire-and-forget)
+  const { data: existing } = await supabase
+    .from("student_record_diagnosis")
+    .select("*")
+    .eq("tenant_id", input.tenant_id)
+    .eq("student_id", input.student_id)
+    .eq("school_year", input.school_year)
+    .eq("source", input.source ?? "manual")
+    .maybeSingle();
+
+  if (existing) {
+    // fire-and-forget: 스냅샷 실패해도 upsert 블로킹하지 않음
+    void supabase
+      .from("student_record_diagnosis_snapshots")
+      .insert({
+        diagnosis_id: existing.id,
+        tenant_id: existing.tenant_id,
+        student_id: existing.student_id,
+        school_year: existing.school_year,
+        source: existing.source,
+        snapshot: existing,
+      })
+      .then(() => {}, () => {});
+  }
+
   const { data, error } = await supabase
     .from("student_record_diagnosis")
     .upsert(input, {
@@ -74,6 +100,29 @@ export async function upsertDiagnosis(
 
   if (error) throw error;
   return data.id;
+}
+
+/** 진단 변경 히스토리 조회 (최근 N건) */
+export async function findDiagnosisSnapshots(
+  studentId: string,
+  schoolYear: number,
+  source: "ai" | "manual",
+  tenantId: string,
+  limit = 10,
+): Promise<Array<{ id: string; snapshot: Record<string, unknown>; created_at: string }>> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("student_record_diagnosis_snapshots")
+    .select("id, snapshot, created_at")
+    .eq("student_id", studentId)
+    .eq("school_year", schoolYear)
+    .eq("source", source)
+    .eq("tenant_id", tenantId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return (data ?? []) as Array<{ id: string; snapshot: Record<string, unknown>; created_at: string }>;
 }
 
 /** 종합 진단 수정 */

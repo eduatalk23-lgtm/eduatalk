@@ -154,6 +154,8 @@ export interface SuggestStrategiesInput {
   weakCompetencies: { item: CompetencyItemCode; grade: CompetencyGrade; label: string }[];
   /** 루브릭 질문별 약점 (B- 이하 질문 목록) */
   rubricWeaknesses?: string[];
+  /** 진단에서 생성된 개선 전략 (AI 시드 데이터) */
+  diagnosisImprovements?: Array<{ priority: string; area: string; gap: string; action: string; outcome: string }>;
   /** 학년 */
   grade: number;
   /** 추천 전공 계열 */

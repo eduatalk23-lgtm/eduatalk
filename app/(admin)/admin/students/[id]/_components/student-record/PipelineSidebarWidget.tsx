@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { pipelineStatusQueryOptions, studentRecordKeys } from "@/lib/query-options/studentRecord";
-import { runInitialAnalysisPipeline, cancelPipeline, resumePipeline } from "@/lib/domains/student-record/actions/pipeline";
+import { runInitialAnalysisPipeline, cancelPipeline, resumePipeline, rerunPipelineTasks } from "@/lib/domains/student-record/actions/pipeline";
 import {
   PIPELINE_TASK_KEYS,
   PIPELINE_TASK_LABELS,
@@ -79,7 +79,22 @@ export function PipelineSidebarWidget({
     },
   });
 
-  const isActionPending = runMutation.isPending || resumeMutation.isPending;
+  // P2-3: 개별 태스크 재실행 mutation
+  const [rerunningTask, setRerunningTask] = useState<string | null>(null);
+  const rerunTaskMutation = useMutation({
+    mutationFn: (taskKey: PipelineTaskKey) => {
+      setRerunningTask(taskKey);
+      return rerunPipelineTasks(pipeline?.id ?? "", [taskKey]);
+    },
+    onSettled: () => setRerunningTask(null),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: studentRecordKeys.pipeline(studentId),
+      });
+    },
+  });
+
+  const isActionPending = runMutation.isPending || resumeMutation.isPending || rerunTaskMutation.isPending;
 
   // 완료 후 10초 → badge 축소
   useEffect(() => {
@@ -222,8 +237,10 @@ export function PipelineSidebarWidget({
           const preview = pipeline.taskPreviews[key];
           const Icon = TASK_ICONS[status];
 
+          const canRerun = (status === "completed" || status === "failed") && pipeline.status !== "running";
+
           return (
-            <div key={key} className="flex items-center gap-1.5">
+            <div key={key} className="group flex items-center gap-1.5">
               <Icon
                 className={cn(
                   "h-3 w-3 shrink-0",
@@ -242,6 +259,21 @@ export function PipelineSidebarWidget({
                   <span className="text-[var(--text-tertiary)]"> — {preview}</span>
                 )}
               </span>
+              {canRerun && (
+                <button
+                  type="button"
+                  title={`${PIPELINE_TASK_LABELS[key]} 재실행`}
+                  onClick={() => rerunTaskMutation.mutate(key)}
+                  disabled={isActionPending}
+                  className="shrink-0 rounded p-0.5 text-[var(--text-tertiary)] opacity-0 hover:text-indigo-600 group-hover:opacity-100 disabled:opacity-30"
+                >
+                  {rerunningTask === key ? (
+                    <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-2.5 w-2.5" />
+                  )}
+                </button>
+              )}
             </div>
           );
         })}

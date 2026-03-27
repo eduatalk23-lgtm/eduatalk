@@ -55,6 +55,10 @@ function findScore(scores: CompetencyScore[], code: string): string {
   return scores.find((s) => s.competency_item === code && s.scope === "yearly")?.grade_value ?? "";
 }
 
+function findNarrative(scores: CompetencyScore[], code: string): string | null {
+  return scores.find((s) => s.competency_item === code && s.scope === "yearly")?.narrative ?? null;
+}
+
 function findRubricScores(scores: CompetencyScore[], code: string, source: string): RubricScoreEntry[] {
   const score = scores.find((s) => s.competency_item === code && s.scope === "yearly" && s.source === source);
   if (!score?.rubric_scores || !Array.isArray(score.rubric_scores)) return [];
@@ -910,8 +914,18 @@ export function CompetencyAnalysisSection({
                       </tr>
                       {/* ── 하위 루브릭 질문 행 (아코디언) + 질문별 근거 ── */}
                       {isExpanded && (() => {
+                        const aiNarrative = findNarrative(competencyScores.filter((s) => s.source === "ai"), item.code);
                         const qStats = aggregateTagsByQuestion(item.code, activityTags);
-                        return questions.map((q, qi) => {
+                        return (
+                          <>
+                            {aiNarrative && (
+                              <tr className="bg-blue-50/30 dark:bg-blue-900/10">
+                                <td colSpan={5} className="px-4 py-1.5 text-[10px] leading-relaxed text-blue-700 dark:text-blue-300">
+                                  {aiNarrative}
+                                </td>
+                              </tr>
+                            )}
+                            {questions.map((q, qi) => {
                           const aiR = aiRubricMap.get(qi);
                           const conR = conRubricMap.get(qi);
                           const qStat = qStats[qi];
@@ -992,7 +1006,9 @@ export function CompetencyAnalysisSection({
                               )}
                             </Fragment>
                           );
-                        });
+                        })}
+                          </>
+                        );
                       })()}
                       {/* ── 태그 상세 (펼침) ── */}
                       {expandedTagItem === item.code && stats && (

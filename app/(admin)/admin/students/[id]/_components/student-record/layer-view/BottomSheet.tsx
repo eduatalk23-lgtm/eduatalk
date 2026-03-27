@@ -613,6 +613,7 @@ function DiagnosisCard({ label, source, diagnosis }: {
     overall_grade?: string | null;
     record_direction?: string | null;
     direction_strength?: string | null;
+    direction_reasoning?: string | null;
     strengths?: string[] | null;
     weaknesses?: string[] | null;
     status?: string | null;
@@ -641,6 +642,9 @@ function DiagnosisCard({ label, source, diagnosis }: {
         <p className="mb-1 text-xs leading-relaxed text-[var(--text-secondary)]">
           {summary.length > 200 ? summary.slice(0, 200) + "..." : summary}
         </p>
+      )}
+      {diagnosis.direction_reasoning && (
+        <p className="mb-1 text-[10px] text-[var(--text-tertiary)]">{diagnosis.direction_reasoning}</p>
       )}
       <div className="flex gap-4 text-[10px]">
         {diagnosis.strengths && diagnosis.strengths.length > 0 && (

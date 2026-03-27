@@ -10665,10 +10665,12 @@ export type Database = {
       student_record_diagnosis: {
         Row: {
           created_at: string
+          direction_reasoning: string | null
           direction_strength: string | null
           evaluated_at: string | null
           evaluated_by: string | null
           id: string
+          improvements: Json
           overall_grade: string
           recommended_majors: string[]
           record_direction: string | null
@@ -10684,10 +10686,12 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          direction_reasoning?: string | null
           direction_strength?: string | null
           evaluated_at?: string | null
           evaluated_by?: string | null
           id?: string
+          improvements?: Json
           overall_grade?: string
           recommended_majors?: string[]
           record_direction?: string | null
@@ -10703,10 +10707,12 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          direction_reasoning?: string | null
           direction_strength?: string | null
           evaluated_at?: string | null
           evaluated_by?: string | null
           id?: string
+          improvements?: Json
           overall_grade?: string
           recommended_majors?: string[]
           record_direction?: string | null

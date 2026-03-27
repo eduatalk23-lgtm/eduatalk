@@ -271,6 +271,8 @@ export async function deleteAiActivityTagsByRecord(
 
 // ============================================
 // 분석 결과 캐시 (하이라이트 영속화)
+// ⚠️ analysis_cache.source = "ai" | "consultant" (DB CHECK 제약)
+//    diagnosis/competency_scores.source = "ai" | "manual" 과 별개 도메인
 // ============================================
 
 /** 분석 결과 캐시 upsert (AI 또는 컨설턴트) + 증분 분석용 content_hash */

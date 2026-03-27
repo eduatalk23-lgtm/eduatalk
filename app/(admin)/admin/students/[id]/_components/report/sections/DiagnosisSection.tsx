@@ -165,6 +165,33 @@ export function DiagnosisSection({ diagnosisData, plannedSubjects = [] }: Diagno
                 )}
               </div>
 
+              {/* 개선 전략 */}
+              {(() => {
+                const improvements = diagnosis.improvements as Array<{ priority: string; area: string; gap: string; action: string; outcome: string }> | null;
+                if (!Array.isArray(improvements) || improvements.length === 0) return null;
+                return (
+                  <div className="pt-3">
+                    <p className="text-xs font-medium text-blue-700">개선 전략</p>
+                    <div className="space-y-2 pt-1">
+                      {improvements.map((imp, i) => (
+                        <div key={i} className="rounded border border-gray-200 p-2 text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                              imp.priority === "높음" ? "bg-red-50 text-red-700" :
+                              imp.priority === "중간" ? "bg-amber-50 text-amber-700" :
+                              "bg-gray-100 text-gray-600"
+                            }`}>{imp.priority}</span>
+                            <span className="font-medium text-gray-700">{imp.area}</span>
+                          </div>
+                          {imp.gap && <p className="mt-1 text-xs text-gray-500">{imp.gap}</p>}
+                          <p className="mt-0.5 text-xs text-blue-700">{imp.action}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {diagnosis.strategy_notes && (
                 <ReportMarkdown className="pt-3">{diagnosis.strategy_notes}</ReportMarkdown>
               )}
