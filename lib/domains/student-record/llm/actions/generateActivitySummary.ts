@@ -115,6 +115,21 @@ export async function generateActivitySummary(
       };
     }
 
+    // Q3: 이전 학년 요약 조회 (다학년 비교 성장 서술용)
+    let previousSummaryText: string | undefined;
+    if (grades.length > 0 && grades[0] > 1) {
+      const { data: prevSummaries } = await supabase
+        .from("student_record_activity_summaries")
+        .select("summary_text")
+        .eq("student_id", studentId)
+        .contains("target_grades", [grades[0] - 1])
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (prevSummaries && prevSummaries[0]?.summary_text) {
+        previousSummaryText = prevSummaries[0].summary_text;
+      }
+    }
+
     const input: ActivitySummaryInput = {
       studentName: report.student.name ?? "학생",
       grade: studentGrade,
@@ -126,6 +141,7 @@ export async function generateActivitySummary(
         keywords: sl.keywords,
       })),
       edgePromptSection,
+      previousSummaryText,
     };
 
     // AI SDK 호출

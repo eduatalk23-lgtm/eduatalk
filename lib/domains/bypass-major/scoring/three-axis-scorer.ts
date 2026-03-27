@@ -65,6 +65,10 @@ export interface ScoringInput {
 
   // 가중치 오버라이드
   weights?: Partial<Weights>;
+
+  // O3: 진단 약점 (적합도 감점 반영)
+  diagnosticWeaknesses?: string[];
+  diagnosticImprovements?: Array<{ priority: string; area: string }>;
 }
 
 // ─── 상수 ──────────────────────────────────
@@ -147,12 +151,31 @@ function scoreCompetencyFit(input: ScoringInput): AxisScore {
     return { score: 50, reasoning: "역량 점수 산출 불가", confidence: 0 };
   }
 
-  const reasoning = highlights.length > 0
-    ? `${input.candidateDeptName} 적합: ${highlights.join(", ")} 역량 우수 (${fitScore}점)`
-    : `역량 적합도 ${fitScore}점`;
+  // O3: 진단 약점 관련 감점 (약점이 해당 학과에 중요한 역량이면 감점)
+  let weaknessPenalty = 0;
+  const weaknessNotes: string[] = [];
+  if (input.diagnosticWeaknesses && input.diagnosticWeaknesses.length > 0) {
+    weaknessPenalty = Math.min(15, input.diagnosticWeaknesses.length * 3);
+    weaknessNotes.push(`약점 ${input.diagnosticWeaknesses.length}건 (-${weaknessPenalty})`);
+  }
+  if (input.diagnosticImprovements) {
+    const criticalCount = input.diagnosticImprovements.filter((i) => i.priority === "높음").length;
+    if (criticalCount > 0) {
+      weaknessPenalty += criticalCount * 5;
+      weaknessNotes.push(`높은 우선순위 개선 ${criticalCount}건 (-${criticalCount * 5})`);
+    }
+  }
+
+  const adjustedScore = Math.min(100, Math.max(0, fitScore - weaknessPenalty));
+  const reasoning = [
+    highlights.length > 0
+      ? `${input.candidateDeptName} 적합: ${highlights.join(", ")} 역량 우수 (${fitScore}점)`
+      : `역량 적합도 ${fitScore}점`,
+    ...weaknessNotes,
+  ].join(" · ");
 
   return {
-    score: Math.min(100, Math.max(0, fitScore)),
+    score: adjustedScore,
     reasoning,
     confidence: 80,
   };

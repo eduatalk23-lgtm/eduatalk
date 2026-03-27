@@ -196,6 +196,8 @@ export interface ActivitySummaryInput {
   storylines?: Array<{ title: string; keywords: string[] }>;
   /** Phase E2: 영역간 연결 프롬프트 섹션 */
   edgePromptSection?: string;
+  /** Q3: 이전 학년 요약 (다학년 비교 성장 서술용) */
+  previousSummaryText?: string;
 }
 
 /** generateActivitySummary 액션의 출력 */

@@ -31,6 +31,9 @@ export interface PipelineInput {
   similarityThreshold?: number;
   /** 교육과정 미보유 학과에 대해 enrichment 시도 (기본: true, 최대 3개) */
   enableEnrichment?: boolean;
+  /** O3: 진단 약점 (3축 평가에서 적합도 감점 반영) */
+  diagnosticWeaknesses?: string[];
+  diagnosticImprovements?: Array<{ priority: string; area: string }>;
 }
 
 export interface PipelineResult {
@@ -242,6 +245,8 @@ export async function runBypassPipeline(
       hasMockScores,
       subjectGroupGpa,
       admissionAvgGrade: admissionGradeCache.get(`${deptInfo.univ}|${deptInfo.name}`) ?? null,
+      diagnosticWeaknesses: input.diagnosticWeaknesses,
+      diagnosticImprovements: input.diagnosticImprovements,
     });
 
     candidate.competency_fit_score = axisResult.competencyFit.score;

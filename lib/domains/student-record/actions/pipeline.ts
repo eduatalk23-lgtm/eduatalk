@@ -1322,6 +1322,13 @@ async function executePipelineTasks(
         const targetNames: string[] = [];
 
         // 발견된 대표 학과별로 우회학과 파이프라인 실행 (최대 3개)
+        // O3: 진단 약점을 우회학과 3축 평가에 전달
+        const bypassDiagnosis = await diagnosisRepo.findDiagnosis(studentId, currentSchoolYear, tenantId, "ai");
+        const bypassWeaknesses = (bypassDiagnosis?.weaknesses as string[]) ?? [];
+        const bypassImprovements = Array.isArray(bypassDiagnosis?.improvements)
+          ? (bypassDiagnosis.improvements as Array<{ priority: string; area: string }>)
+          : [];
+
         for (const target of discovery.targetDepartments.slice(0, 3)) {
           try {
             const result = await runBypassPipeline({
@@ -1329,6 +1336,8 @@ async function executePipelineTasks(
               tenantId,
               targetDeptId: target.departmentId,
               schoolYear: currentSchoolYear,
+              diagnosticWeaknesses: bypassWeaknesses.length > 0 ? bypassWeaknesses : undefined,
+              diagnosticImprovements: bypassImprovements.length > 0 ? bypassImprovements : undefined,
             });
             totalGenerated += result.totalGenerated;
             totalEnriched += result.enriched;

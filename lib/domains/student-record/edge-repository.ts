@@ -281,12 +281,39 @@ function graphToEdgeRows(
         edge_type: edge.type,
         reason: edge.reason,
         shared_competencies: edge.sharedCompetencies ?? null,
-        confidence: 1.0,
+        confidence: computeEdgeConfidence(edge),
       });
     }
   }
 
   return rows;
+}
+
+/** Q1: 엣지 타입별 + 근거 강도별 confidence (0.0~1.0) */
+function computeEdgeConfidence(edge: CrossRefEdge): number {
+  // 타입별 기본 confidence
+  const BASE: Record<string, number> = {
+    TEACHER_VALIDATION: 1.0,    // 교사 검증 → 가장 높음
+    COMPETENCY_SHARED: 0.85,    // 같은 역량 공유 → 높음
+    COURSE_SUPPORTS: 0.8,       // 교과 지원 → 높음 (규칙 기반)
+    TEMPORAL_GROWTH: 0.75,      // 시간적 성장 → 중간 (학년 진행)
+    CONTENT_REFERENCE: 0.7,     // 내용 참조 → 중간
+    READING_ENRICHES: 0.65,     // 독서 심화 → 중간
+    THEME_CONVERGENCE: 0.6,     // 주제 수렴 → 낮은 편 (키워드 기반)
+  };
+  let conf = BASE[edge.type] ?? 0.5;
+
+  // 근거 강도 보정: shared_competencies 수 ≥2 → +0.1
+  if (edge.sharedCompetencies && edge.sharedCompetencies.length >= 2) {
+    conf = Math.min(1.0, conf + 0.1);
+  }
+
+  // reason 길이 보정: 짧은 reason → -0.05
+  if (edge.reason.length < 10) {
+    conf = Math.max(0.1, conf - 0.05);
+  }
+
+  return Math.round(conf * 100) / 100;
 }
 
 function resolveTargetGrade(edge: CrossRefEdge): number | null {

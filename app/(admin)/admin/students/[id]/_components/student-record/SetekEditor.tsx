@@ -787,10 +787,55 @@ function SetekInlineEditor({
     enabled: true,
   });
 
+  // H1: AI 초안 생성 + 수용
+  const [draftGenerating, setDraftGenerating] = useState(false);
+  const hasDraft = !!setek.ai_draft_content;
+  const draftContent = setek.ai_draft_content ?? null;
+
+  async function handleGenerateDraft() {
+    setDraftGenerating(true);
+    try {
+      const { generateSetekDraftAction } = await import(
+        "@/lib/domains/student-record/llm/actions/generateSetekDraft"
+      );
+      const subjectName = setek.subject_id;
+      const result = await generateSetekDraftAction(setek.id, {
+        subjectName,
+        grade,
+        existingContent: content || undefined,
+      });
+      if (result.success && result.data) {
+        queryClient.invalidateQueries({ queryKey: studentRecordKeys.recordTab(studentId, schoolYear) });
+      }
+    } finally {
+      setDraftGenerating(false);
+    }
+  }
+
+  async function handleAcceptDraft() {
+    const { acceptAiDraftAction } = await import(
+      "@/lib/domains/student-record/actions/confirm"
+    );
+    const result = await acceptAiDraftAction(setek.id, "setek");
+    if (result.success) {
+      queryClient.invalidateQueries({ queryKey: studentRecordKeys.recordTab(studentId, schoolYear) });
+    }
+  }
+
   return (
     <>
       {showSemesterLabel && (
         <p className="mb-1 text-xs font-medium text-[var(--text-tertiary)]">{setek.semester}학기</p>
+      )}
+      {/* H1: AI 초안 배너 */}
+      {hasDraft && draftContent && !content && (
+        <div className="mb-1 rounded bg-violet-50 p-2 text-xs dark:bg-violet-900/20">
+          <div className="flex items-center justify-between mb-1">
+            <span className="font-medium text-violet-700 dark:text-violet-400">AI 초안</span>
+            <button type="button" onClick={handleAcceptDraft} className="rounded bg-violet-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-violet-700">수용</button>
+          </div>
+          <p className="text-violet-600 dark:text-violet-300 line-clamp-3">{draftContent.slice(0, 200)}...</p>
+        </div>
       )}
       <AutoResizeTextarea
         value={content}
@@ -803,6 +848,16 @@ function SetekInlineEditor({
           <SaveStatusIndicator status={status} error={error} />
           {status === "error" && (
             <button onClick={saveNow} className="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400">재시도</button>
+          )}
+          {!content && !hasDraft && (
+            <button
+              type="button"
+              onClick={handleGenerateDraft}
+              disabled={draftGenerating}
+              className="text-[10px] text-violet-600 hover:text-violet-800 dark:text-violet-400 disabled:opacity-50"
+            >
+              {draftGenerating ? "생성 중..." : "AI 초안 생성"}
+            </button>
           )}
         </div>
         <CharacterCounter content={content} charLimit={charLimit} />
