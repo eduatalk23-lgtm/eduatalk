@@ -93,6 +93,58 @@ export interface AiSdkStreamOptions extends AiSdkOptions {
 }
 
 // ============================================
+// P3-1: Circuit Breaker — 연속 실패 시 빠른 차단
+// ============================================
+
+interface CircuitState {
+  failures: number;
+  lastFailure: number;
+  state: "closed" | "open" | "half-open";
+}
+
+const circuitBreakers = new Map<string, CircuitState>();
+const CB_THRESHOLD = 5; // 연속 N회 실패 시 OPEN
+const CB_COOLDOWN_MS = 30_000; // OPEN 후 30초 대기
+
+function getCircuit(tier: string): CircuitState {
+  if (!circuitBreakers.has(tier)) {
+    circuitBreakers.set(tier, { failures: 0, lastFailure: 0, state: "closed" });
+  }
+  return circuitBreakers.get(tier)!;
+}
+
+function checkCircuitBreaker(tier: string): void {
+  const circuit = getCircuit(tier);
+  if (circuit.state === "closed") return;
+
+  const elapsed = Date.now() - circuit.lastFailure;
+  if (elapsed >= CB_COOLDOWN_MS) {
+    // cooldown 경과 → half-open (1회 시도 허용)
+    circuit.state = "half-open";
+    return;
+  }
+
+  // OPEN 상태 → 즉시 거부
+  throw new Error(`[Circuit Breaker] ${tier} 모델 연속 ${circuit.failures}회 실패. ${Math.ceil((CB_COOLDOWN_MS - elapsed) / 1000)}초 후 재시도 가능`);
+}
+
+function recordCircuitSuccess(tier: string): void {
+  const circuit = getCircuit(tier);
+  circuit.failures = 0;
+  circuit.state = "closed";
+}
+
+function recordCircuitFailure(tier: string): void {
+  const circuit = getCircuit(tier);
+  circuit.failures++;
+  circuit.lastFailure = Date.now();
+  if (circuit.failures >= CB_THRESHOLD) {
+    circuit.state = "open";
+    logActionWarn("ai-sdk.circuitBreaker", `${tier} OPEN — ${circuit.failures}회 연속 실패, ${CB_COOLDOWN_MS / 1000}초 차단`);
+  }
+}
+
+// ============================================
 // Rate Limit 에러 감지 — 구조적 방식 우선, 문자열 fallback
 // ============================================
 
@@ -234,6 +286,9 @@ export async function generateTextWithRateLimit(
   const temperature = options.temperature ?? DEFAULT_TEMPERATURE[tier];
   const maxRetries = 3;
 
+  // P3-1: Circuit Breaker 체크
+  checkCircuitBreaker(tier);
+
   logActionDebug(
     "ai-sdk.generateText",
     `시작 - model=${modelId}, tier=${tier}, grounding=${options.grounding?.enabled}`
@@ -280,8 +335,9 @@ export async function generateTextWithRateLimit(
         });
       });
 
-      // 성공 시 할당량 기록
+      // 성공 시 할당량 + Circuit Breaker 기록
       geminiQuotaTracker.recordRequest();
+      recordCircuitSuccess(tier);
 
       // Grounding 메타데이터 추출
       const groundingMetadata = options.grounding?.enabled
@@ -311,6 +367,7 @@ export async function generateTextWithRateLimit(
 
       if (isRateLimitError(error) && attempt < maxRetries) {
         geminiQuotaTracker.recordRateLimitHit();
+        recordCircuitFailure(tier);
         const delay = extractRetryDelay(error, attempt);
         logActionWarn(
           "ai-sdk.generateText",
@@ -320,6 +377,7 @@ export async function generateTextWithRateLimit(
         continue;
       }
 
+      recordCircuitFailure(tier);
       throw lastError;
     }
   }
@@ -349,6 +407,8 @@ export async function generateObjectWithRateLimit<T>(
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS[tier];
   const temperature = options.temperature ?? DEFAULT_TEMPERATURE[tier];
   const maxRetries = 3;
+
+  checkCircuitBreaker(tier);
 
   logActionDebug(
     "ai-sdk.generateObject",
@@ -389,6 +449,7 @@ export async function generateObjectWithRateLimit<T>(
       });
 
       geminiQuotaTracker.recordRequest();
+      recordCircuitSuccess(tier);
 
       return {
         object: result.object,
@@ -403,6 +464,7 @@ export async function generateObjectWithRateLimit<T>(
 
       if (isRateLimitError(error) && attempt < maxRetries) {
         geminiQuotaTracker.recordRateLimitHit();
+        recordCircuitFailure(tier);
         const delay = extractRetryDelay(error, attempt);
         logActionWarn(
           "ai-sdk.generateObject",
@@ -412,6 +474,7 @@ export async function generateObjectWithRateLimit<T>(
         continue;
       }
 
+      recordCircuitFailure(tier);
       throw lastError;
     }
   }
@@ -436,6 +499,8 @@ export async function streamTextWithRateLimit(
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS[tier];
   const temperature = options.temperature ?? DEFAULT_TEMPERATURE[tier];
   const maxRetries = 3;
+
+  checkCircuitBreaker(tier);
 
   logActionDebug(
     "ai-sdk.streamText",
@@ -473,6 +538,7 @@ export async function streamTextWithRateLimit(
       });
 
       geminiQuotaTracker.recordRequest();
+      recordCircuitSuccess(tier);
 
       let fullContent = "";
 
@@ -502,6 +568,7 @@ export async function streamTextWithRateLimit(
 
       if (isRateLimitError(error) && attempt < maxRetries) {
         geminiQuotaTracker.recordRateLimitHit();
+        recordCircuitFailure(tier);
         const delay = extractRetryDelay(error, attempt);
         logActionWarn(
           "ai-sdk.streamText",
@@ -511,6 +578,7 @@ export async function streamTextWithRateLimit(
         continue;
       }
 
+      recordCircuitFailure(tier);
       options.onError?.(lastError);
       throw lastError;
     }
