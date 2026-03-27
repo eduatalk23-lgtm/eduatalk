@@ -238,3 +238,62 @@ export interface SetekGuideResult {
   guides: import("../types").SetekGuideItem[];
   overallDirection: string;
 }
+
+// ============================================
+// Phase R1: AI 로드맵 생성
+// ============================================
+
+/** generateAiRoadmap 액션의 입력 */
+export interface RoadmapGenerationInput {
+  /** "planning" = 신규학생(기록없음), "analysis" = 기존학생(기록+진단) */
+  mode: "planning" | "analysis";
+  studentName: string;
+  grade: number;
+  targetMajor?: string;
+  targetSubClassificationName?: string;
+  curriculumYear: number;
+
+  // 공통 (planning + analysis)
+  coursePlans?: Array<{
+    subjectName: string;
+    grade: number;
+    semester: number;
+    status: string;
+    subjectType?: string;
+  }>;
+  storylines?: Array<{
+    id: string;
+    title: string;
+    career_field: string | null;
+    keywords: string[];
+    grade_1_theme: string | null;
+    grade_2_theme: string | null;
+    grade_3_theme: string | null;
+  }>;
+  guideAssignments?: string;
+  recommendedCourses?: Array<{ name: string; type: "general" | "career" | "fusion" }>;
+
+  // analysis 모드 전용
+  diagnosisImprovements?: Array<{ priority: string; area: string; action: string }>;
+  diagnosisStrengths?: string[];
+  diagnosisWeaknesses?: string[];
+  setekGuides?: Array<{ subjectName: string; direction: string; keywords: string[] }>;
+  existingActivities?: Array<{ grade: number; area: string; content: string }>;
+}
+
+/** generateAiRoadmap LLM 출력 */
+export interface RoadmapGenerationOutput {
+  items: RoadmapGeneratedItem[];
+  overallStrategy: string;
+}
+
+/** LLM이 생성하는 개별 로드맵 아이템 */
+export interface RoadmapGeneratedItem {
+  area: string;
+  grade: number;
+  semester: number | null;
+  plan_content: string;
+  plan_keywords: string[];
+  storyline_title?: string;
+  rationale: string;
+}

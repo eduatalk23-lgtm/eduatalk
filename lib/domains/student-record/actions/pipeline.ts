@@ -1484,13 +1484,27 @@ async function executePipelineTasks(
       },
     },
 
-    // ── 12. 로드맵 자동 생성 (진단+스토리라인+세특방향 후, Phase 3) ──
+    // ── 12. 로드맵 자동 생성 (LLM 우선, 실패 시 규칙 기반 fallback) ──
     {
       key: "roadmap_generation",
       run: async () => {
-        const currentSchoolYear = calculateSchoolYear();
+        // Phase R1: LLM 기반 로드맵 생성 (planning/analysis 자동 감지)
+        const { generateAiRoadmap } = await import("../llm/actions/generateRoadmap");
+        const hasRecords = cachedSeteks && cachedSeteks.filter((s) => s.content && s.content.trim().length >= 20).length > 0;
+        const llmMode = hasRecords ? "analysis" : "planning";
 
-        // 스토리라인 + 세특방향 + 진단 조회
+        const llmResult = await generateAiRoadmap(studentId, llmMode);
+        if (llmResult.success && llmResult.data) {
+          return {
+            preview: `${llmResult.data.items.length}건 AI 로드맵 (${llmMode})`,
+            result: { mode: llmMode, ...llmResult.data },
+          };
+        }
+
+        // LLM 실패 → 규칙 기반 fallback
+        logActionDebug(LOG_CTX, `roadmap LLM 실패 → rule-based fallback: ${"error" in llmResult ? llmResult.error : "unknown"}`, { pipelineId });
+
+        const currentSchoolYear = calculateSchoolYear();
         const [storylines, setekGuidesRes, diagnosis] = await Promise.all([
           repository.findStorylinesByStudent(studentId, tenantId),
           (async () => {
@@ -1504,119 +1518,52 @@ async function executePipelineTasks(
           return "스토리라인/진단 없음 — 건너뜀";
         }
 
-        // 기존 AI 로드맵 항목 삭제 (재실행 시 중복 방지)
         const existing = await repository.findAllRoadmapItemsByStudent(studentId, tenantId);
         const aiItems = existing.filter((r) => r.plan_content.startsWith("[AI]"));
         await Promise.allSettled(aiItems.map((r) => repository.deleteRoadmapItemById(r.id)));
 
-        // 세특 방향 가이드에서 과목별 계획 추출
         const setekGuides = setekGuidesRes.success && setekGuidesRes.data ? setekGuidesRes.data : [];
+        const roadmapItems: Array<{ area: string; plan_content: string; plan_keywords: string[]; grade: number; semester: number | null; storyline_id: string | null }> = [];
 
-        // 로드맵 아이템 생성 로직
-        const roadmapItems: Array<{
-          area: string;
-          plan_content: string;
-          plan_keywords: string[];
-          grade: number;
-          semester: number | null;
-          storyline_id: string | null;
-        }> = [];
-
-        // A. 스토리라인 기반 로드맵 (학년별 테마 → 활동 계획)
         for (const sl of storylines) {
-          const themes = [
+          for (const { grade, theme } of [
             { grade: 1, theme: sl.grade_1_theme },
             { grade: 2, theme: sl.grade_2_theme },
             { grade: 3, theme: sl.grade_3_theme },
-          ].filter((t) => t.theme && t.grade >= studentGrade);
-
-          for (const { grade, theme } of themes) {
-            roadmapItems.push({
-              area: "setek",
-              plan_content: `[AI] ${sl.title} — ${theme}`,
-              plan_keywords: sl.keywords ?? [],
-              grade,
-              semester: null,
-              storyline_id: sl.id,
-            });
+          ].filter((t) => t.theme && t.grade >= studentGrade)) {
+            roadmapItems.push({ area: "setek", plan_content: `[AI] ${sl.title} — ${theme}`, plan_keywords: sl.keywords ?? [], grade, semester: null, storyline_id: sl.id });
           }
         }
 
-        // B. 세특 방향 가이드 기반 로드맵 (가이드의 school_year → grade 역산)
         for (const guide of setekGuides) {
           if (!guide.direction) continue;
-          // school_year에서 grade 역산: grade = studentGrade - (currentSchoolYear - guide.school_year)
-          const guideGrade = guide.school_year
-            ? studentGrade - (currentSchoolYear - guide.school_year)
-            : studentGrade;
+          const guideGrade = guide.school_year ? studentGrade - (currentSchoolYear - guide.school_year) : studentGrade;
           const effectiveGrade = (guideGrade >= 1 && guideGrade <= 3) ? guideGrade : studentGrade;
-          roadmapItems.push({
-            area: "setek",
-            plan_content: `[AI] 세특방향: ${guide.direction.slice(0, 100)}`,
-            plan_keywords: guide.keywords ?? [],
-            grade: effectiveGrade,
-            semester: null,
-            storyline_id: null,
-          });
+          roadmapItems.push({ area: "setek", plan_content: `[AI] 세특방향: ${guide.direction.slice(0, 100)}`, plan_keywords: guide.keywords ?? [], grade: effectiveGrade, semester: null, storyline_id: null });
         }
 
-        // C. 진단 개선 전략 기반 보완 로드맵 (improvements 우선, fallback: weaknesses)
-        const improvements = Array.isArray(diagnosis?.improvements)
-          ? (diagnosis.improvements as Array<{ priority: string; area: string; action: string }>)
-          : [];
+        const improvements = Array.isArray(diagnosis?.improvements) ? (diagnosis.improvements as Array<{ priority: string; area: string; action: string }>) : [];
         if (improvements.length > 0) {
-          // 우선순위순: 높음 → 중간 → 낮음
           const priorityOrder = { "높음": 0, "중간": 1, "낮음": 2 } as Record<string, number>;
-          const sorted = [...improvements].sort((a, b) => (priorityOrder[a.priority] ?? 2) - (priorityOrder[b.priority] ?? 2));
-          for (const imp of sorted.slice(0, 3)) {
-            roadmapItems.push({
-              area: "general",
-              plan_content: `[AI] [${imp.priority}] ${imp.area}: ${imp.action}`,
-              plan_keywords: [],
-              grade: studentGrade,
-              semester: null,
-              storyline_id: null,
-            });
+          for (const imp of [...improvements].sort((a, b) => (priorityOrder[a.priority] ?? 2) - (priorityOrder[b.priority] ?? 2)).slice(0, 3)) {
+            roadmapItems.push({ area: "general", plan_content: `[AI] [${imp.priority}] ${imp.area}: ${imp.action}`, plan_keywords: [], grade: studentGrade, semester: null, storyline_id: null });
           }
         } else {
-          // fallback: 기존 weaknesses 기반
-          const weaknesses = (diagnosis?.weaknesses as string[]) ?? [];
-          for (const weakness of weaknesses.slice(0, 3)) {
-            roadmapItems.push({
-              area: "general",
-              plan_content: `[AI] 보완: ${weakness}`,
-              plan_keywords: [],
-              grade: studentGrade,
-              semester: null,
-              storyline_id: null,
-            });
+          for (const weakness of ((diagnosis?.weaknesses as string[]) ?? []).slice(0, 3)) {
+            roadmapItems.push({ area: "general", plan_content: `[AI] 보완: ${weakness}`, plan_keywords: [], grade: studentGrade, semester: null, storyline_id: null });
           }
         }
 
         if (roadmapItems.length === 0) return "생성 가능한 로드맵 없음";
 
-        // DB 저장
         let savedCount = 0;
         const baseSortOrder = existing.filter((r) => !r.plan_content.startsWith("[AI]")).length;
-
         await Promise.allSettled(
           roadmapItems.map((item, i) =>
-            repository.insertRoadmapItem({
-              tenant_id: tenantId,
-              student_id: studentId,
-              school_year: currentSchoolYear,
-              grade: item.grade,
-              semester: item.semester,
-              area: item.area,
-              plan_content: item.plan_content,
-              plan_keywords: item.plan_keywords,
-              storyline_id: item.storyline_id,
-              sort_order: baseSortOrder + i,
-            }).then(() => { savedCount++; }),
+            repository.insertRoadmapItem({ tenant_id: tenantId, student_id: studentId, school_year: currentSchoolYear, grade: item.grade, semester: item.semester, area: item.area, plan_content: item.plan_content, plan_keywords: item.plan_keywords, storyline_id: item.storyline_id, sort_order: baseSortOrder + i }).then(() => { savedCount++; }),
           ),
         );
-
-        return `${savedCount}건 로드맵 자동 생성`;
+        return `${savedCount}건 로드맵 생성 (fallback)`;
       },
     },
   ];
