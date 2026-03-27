@@ -1619,8 +1619,9 @@ async function executePipelineTasks(
 
   // ── 3-Phase 병렬 실행 ──
 
-  // Phase 1: 순차 (역량 → 스토리라인 → 엣지)
-  const phase1Keys: PipelineTaskKey[] = ["competency_analysis", "storyline_generation", "edge_computation"];
+  // Phase 1: 순차 (역량 → 스토리라인 → 엣지 → 가이드배정)
+  // guide_matching을 Phase 1 끝으로 이동 — 결과가 setek_guide/activity_summary에 반영되도록
+  const phase1Keys: PipelineTaskKey[] = ["competency_analysis", "storyline_generation", "edge_computation", "guide_matching"];
   for (const key of phase1Keys) {
     if (await checkCancelled()) return;
     await runTaskWithState(key);
@@ -1677,7 +1678,6 @@ async function executePipelineTasks(
 
   const phase2Independent = [
     runTaskWithState("course_recommendation"),
-    runTaskWithState("guide_matching"),
     runTaskWithState("bypass_analysis"),
   ];
 

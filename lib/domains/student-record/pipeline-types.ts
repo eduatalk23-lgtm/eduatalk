@@ -2,9 +2,9 @@
 // AI 초기 분석 파이프라인 타입
 // Phase B+E1+F3: DB 상태 추적 + 3초 폴링
 // 3-Phase 병렬 실행 (12 태스크):
-//   Phase 1 (순차): 역량→스토리라인→엣지
-//   Phase 2 (병렬): 진단, 수강, 가이드배정, 요약서, 우회학과
-//   Phase 3 (병렬, 진단 후): 세특방향, 보완전략, 면접질문, 로드맵
+//   Phase 1 (순차): 역량→스토리라인→엣지→가이드배정
+//   Phase 2 (병렬): 진단, 수강, 우회학과
+//   Phase 3 (병렬, 진단 후): 세특방향, 보완전략, 면접질문, 요약서, 로드맵
 // ============================================
 
 export type PipelineOverallStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
@@ -108,9 +108,10 @@ export interface OfferedSubjectRow {
 
 /** 상류 태스크 → 하류 의존 태스크 매핑 */
 export const PIPELINE_TASK_DEPENDENTS: Partial<Record<PipelineTaskKey, PipelineTaskKey[]>> = {
-  competency_analysis: ["storyline_generation", "edge_computation", "ai_diagnosis", "setek_guide", "activity_summary", "ai_strategy", "interview_generation", "roadmap_generation"],
-  storyline_generation: ["edge_computation", "ai_diagnosis", "setek_guide", "activity_summary", "roadmap_generation"],
+  competency_analysis: ["storyline_generation", "edge_computation", "guide_matching", "ai_diagnosis", "setek_guide", "activity_summary", "ai_strategy", "interview_generation", "roadmap_generation"],
+  storyline_generation: ["edge_computation", "guide_matching", "ai_diagnosis", "setek_guide", "activity_summary", "roadmap_generation"],
   edge_computation: ["ai_diagnosis", "setek_guide", "activity_summary"],
+  guide_matching: ["setek_guide", "activity_summary", "roadmap_generation"],
   ai_diagnosis: ["setek_guide", "ai_strategy", "interview_generation", "roadmap_generation"],
 };
 

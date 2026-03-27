@@ -263,7 +263,7 @@ import { normalizeSubjectName } from "@/lib/domains/subject/normalize";
  * 교과 학습단계 선수과목 체인 (2015+2022 통합)
  * [선수 과목, 후수 과목] — 선수를 먼저(낮은 학년에) 이수해야 정상
  */
-const LEARNING_SEQUENCE_CHAINS: [string, string][] = [
+export const LEARNING_SEQUENCE_CHAINS: [string, string][] = [
   // 수학
   ["수학1", "수학2"],
   ["수학2", "미적분"],

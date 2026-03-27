@@ -7,6 +7,7 @@
 
 import { getMajorRecommendedCourses } from "../constants";
 import { normalizeSubjectName } from "@/lib/domains/subject/normalize";
+import { LEARNING_SEQUENCE_CHAINS } from "../rubric-matcher";
 import type {
   RecommendedCourse,
   MatchedRecommendation,
@@ -204,7 +205,7 @@ export function assignGradeSemesters(
 // ============================================
 
 export interface PlanConflict {
-  type: "overload" | "not_offered" | "duplicate";
+  type: "overload" | "not_offered" | "duplicate" | "prerequisite";
   grade: number;
   semester: number;
   message: string;
@@ -282,6 +283,30 @@ export function detectPlanConflicts(
         semester: dups[0].semester,
         message: `${dups[0].subject.name} — ${dups.length}회 중복`,
         subjectIds: [subjectId],
+      });
+    }
+  }
+
+  // 4. 선수 과목: 후수 과목이 선수 과목보다 빠르거나 같은 학기에 배치됨
+  const nameToGradeSemester = new Map<string, { grade: number; semester: number; id: string }>();
+  for (const p of active) {
+    const norm = normalizeSubjectName(p.subject.name);
+    nameToGradeSemester.set(norm, { grade: p.grade, semester: p.semester, id: p.subject_id });
+  }
+
+  for (const [prereq, followup] of LEARNING_SEQUENCE_CHAINS as [string, string][]) {
+    const pre = nameToGradeSemester.get(prereq);
+    const fol = nameToGradeSemester.get(followup);
+    if (!pre || !fol) continue;
+    const preOrder = pre.grade * 10 + pre.semester;
+    const folOrder = fol.grade * 10 + fol.semester;
+    if (folOrder <= preOrder) {
+      conflicts.push({
+        type: "prerequisite",
+        grade: fol.grade,
+        semester: fol.semester,
+        message: `${followup} — 선수 과목(${prereq}) 이수 전 배치됨`,
+        subjectIds: [fol.id],
       });
     }
   }

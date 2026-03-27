@@ -25,10 +25,11 @@ describe("PIPELINE_TASK_KEYS", () => {
 });
 
 describe("PIPELINE_TASK_DEPENDENTS", () => {
-  it("competency_analysis 재실행 시 하류 8개 태스크 리셋", () => {
+  it("competency_analysis 재실행 시 하류 9개 태스크 리셋", () => {
     const deps = PIPELINE_TASK_DEPENDENTS.competency_analysis!;
-    expect(deps).toHaveLength(8);
+    expect(deps).toHaveLength(9);
     expect(deps).toContain("storyline_generation");
+    expect(deps).toContain("guide_matching");
     expect(deps).toContain("roadmap_generation");
   });
 
@@ -49,8 +50,14 @@ describe("PIPELINE_TASK_DEPENDENTS", () => {
 
   it("독립 태스크(course_recommendation 등)에는 하류 의존이 없다", () => {
     expect(PIPELINE_TASK_DEPENDENTS.course_recommendation).toBeUndefined();
-    expect(PIPELINE_TASK_DEPENDENTS.guide_matching).toBeUndefined();
     expect(PIPELINE_TASK_DEPENDENTS.bypass_analysis).toBeUndefined();
+  });
+
+  it("guide_matching 재실행 시 setek_guide, activity_summary, roadmap 리셋", () => {
+    const deps = PIPELINE_TASK_DEPENDENTS.guide_matching!;
+    expect(deps).toContain("setek_guide");
+    expect(deps).toContain("activity_summary");
+    expect(deps).toContain("roadmap_generation");
   });
 
   it("모든 의존 키가 유효한 PIPELINE_TASK_KEYS여야 한다", () => {
@@ -68,14 +75,14 @@ describe("computeCascadeResetKeys", () => {
     expect(result).toEqual(new Set(["course_recommendation"]));
   });
 
-  it("competency_analysis → 전체 8+1=9개 리셋", () => {
+  it("competency_analysis → 전체 9+1=10개 리셋", () => {
     const result = computeCascadeResetKeys(["competency_analysis"]);
-    expect(result.size).toBe(9);
+    expect(result.size).toBe(10);
     expect(result.has("competency_analysis")).toBe(true);
+    expect(result.has("guide_matching")).toBe(true);
     expect(result.has("roadmap_generation")).toBe(true);
-    // course_recommendation, guide_matching, bypass_analysis은 독립
+    // course_recommendation, bypass_analysis은 독립
     expect(result.has("course_recommendation")).toBe(false);
-    expect(result.has("guide_matching")).toBe(false);
     expect(result.has("bypass_analysis")).toBe(false);
   });
 
