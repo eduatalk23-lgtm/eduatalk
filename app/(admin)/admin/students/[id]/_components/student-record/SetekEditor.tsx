@@ -719,6 +719,36 @@ function SetekTableRow({
 }) {
   const ctx = useStudentRecordContext();
   const sidePanel = useSidePanel();
+  const queryClient = useQueryClient();
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const { removeSetekAction } = await import("@/lib/domains/student-record/actions/record");
+      for (const r of row.records) {
+        const res = await removeSetekAction(r.id);
+        if (!res.success) throw new Error("error" in res ? res.error : "삭제 실패");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: studentRecordKeys.recordTab(studentId, schoolYear) });
+    },
+  });
+
+  const subjectCell = (rowSpan?: number) => (
+    <td rowSpan={rowSpan} className={`${B} px-3 py-2 text-center align-middle text-sm font-medium text-[var(--text-primary)]`}>
+      <div className="flex flex-col items-center gap-0.5">
+        <span>{row.displayName}</span>
+        <button
+          type="button"
+          onClick={() => { if (confirm(`${row.displayName} 세특을 삭제하시겠습니까?`)) deleteMutation.mutate(); }}
+          disabled={deleteMutation.isPending}
+          className="text-[9px] text-red-400 hover:text-red-600 disabled:opacity-50"
+        >
+          {deleteMutation.isPending ? "삭제 중..." : "삭제"}
+        </button>
+      </div>
+    </td>
+  );
 
   // record 탭: 학기별 행 (기존 동작)
   if (activeTab === "record") {
@@ -729,7 +759,7 @@ function SetekTableRow({
             {idx === 0 && (
               <>
                 <td rowSpan={row.records.length} className={`${B} px-2 py-2 text-center align-middle text-sm text-[var(--text-primary)]`}>{grade}</td>
-                <td rowSpan={row.records.length} className={`${B} px-3 py-2 text-center align-middle text-sm font-medium text-[var(--text-primary)]`}>{row.displayName}</td>
+                {subjectCell(row.records.length)}
               </>
             )}
             <td className={`${B} p-1`}>
@@ -748,7 +778,7 @@ function SetekTableRow({
   return (
     <tr className="align-top">
       <td className={`${B} px-2 py-2 text-center align-middle text-sm text-[var(--text-primary)]`}>{grade}</td>
-      <td className={`${B} px-3 py-2 text-center align-middle text-sm font-medium text-[var(--text-primary)]`}>{row.displayName}</td>
+      {subjectCell()}
       <td className={`${B} p-2`}>
         {activeTab === "analysis" && (
           <div className="flex flex-col gap-1.5">

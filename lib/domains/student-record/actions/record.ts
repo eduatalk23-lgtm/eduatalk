@@ -92,6 +92,26 @@ export async function savePersonalSetekAction(
 }
 
 // ============================================
+// 세특 삭제 (소프트 삭제)
+// ============================================
+
+export async function removeSetekAction(
+  id: string,
+): Promise<ActionResponse> {
+  try {
+    await requireAdminOrConsultant();
+    const result = await service.removeSetek(id);
+    if (!result.success) {
+      return createErrorResponse(result.error ?? "세특 삭제 실패");
+    }
+    return createSuccessResponse();
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "removeSetekAction" }, error);
+    return createErrorResponse("세특 삭제 중 오류가 발생했습니다.");
+  }
+}
+
+// ============================================
 // 개인 세특 삭제
 // ============================================
 

@@ -114,6 +114,15 @@ export async function updateSetekById(
   }
 }
 
+export async function deleteSetekById(id: string): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("student_record_seteks")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
+}
+
 // ============================================
 // 2. 개인 세특 (personal_seteks)
 // ============================================

@@ -174,6 +174,16 @@ export async function savePersonalSetek(
   }
 }
 
+export async function removeSetek(id: string): Promise<StudentRecordActionResult> {
+  try {
+    await repository.deleteSetekById(id);
+    return { success: true };
+  } catch (error) {
+    logActionError({ domain: DOMAIN, action: "removeSetek" }, error);
+    return { success: false, error: "세특 삭제 중 오류가 발생했습니다." };
+  }
+}
+
 export async function removePersonalSetek(id: string): Promise<StudentRecordActionResult> {
   try {
     await repository.deletePersonalSetekById(id);
