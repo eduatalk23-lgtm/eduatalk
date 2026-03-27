@@ -298,7 +298,7 @@ ${edgeSummarySection ? `\n${edgeSummarySection}\n` : ""}
     const result = await generateTextWithRateLimit({
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
-      modelTier: "fast",
+      modelTier: "standard", // 10개 역량 종합 → fast보다 높은 티어 사용
       temperature: 0.3,
       maxTokens: 4000,
       responseFormat: "json",

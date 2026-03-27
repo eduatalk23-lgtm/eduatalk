@@ -39,6 +39,10 @@ import { logActionDebug, logActionWarn } from "@/lib/utils/serverActionLogger";
 
 // ============================================
 // ModelTier → AI SDK 모델 매핑
+// fast: 배치 분석, 태그/전략 제안 등 경량 태스크
+// standard: 종합 진단, 세특 방향, 활동 요약 등 다중 입력 합성
+// advanced: 세특 심층 분석 (단일 레코드, 루브릭 채점)
+// ⚠ fast/standard 현재 동일 모델 — standard 전용 모델 출시 시 분리
 // ============================================
 
 const MODEL_ID_MAP: Record<ModelTier, string> = {
