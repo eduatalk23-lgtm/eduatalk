@@ -8,9 +8,16 @@ import {
   removeRoadmapItemAction,
 } from "@/lib/domains/student-record/actions/storyline";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
-import type { RoadmapItem, Storyline, RoadmapArea } from "@/lib/domains/student-record";
+import type { RoadmapItem, Storyline, RoadmapArea, RoadmapItemStatus } from "@/lib/domains/student-record";
 import { cn } from "@/lib/cn";
 import { SaveStatusIndicator } from "./SaveStatusIndicator";
+
+const STATUS_CONFIG: Record<RoadmapItemStatus, { label: string; className: string }> = {
+  planning: { label: "계획", className: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400" },
+  confirmed: { label: "확정", className: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" },
+  in_progress: { label: "진행중", className: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" },
+  completed: { label: "완료", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
+};
 
 const AREA_OPTIONS: { value: RoadmapArea; label: string }[] = [
   { value: "autonomy", label: "자율·자치" },
@@ -164,6 +171,8 @@ function RoadmapItemRow({
 
   const areaLabel = AREA_OPTIONS.find((a) => a.value === item.area)?.label ?? item.area;
   const hasExecution = !!item.execution_content;
+  const itemStatus = ((item as Record<string, unknown>).status as RoadmapItemStatus) ?? (hasExecution ? "completed" : "planning");
+  const statusCfg = STATUS_CONFIG[itemStatus];
 
   const saveStatus = executionMutation.isPending
     ? ("saving" as const)
@@ -180,6 +189,9 @@ function RoadmapItemRow({
           <div className="flex items-center gap-2">
             <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
               {areaLabel}
+            </span>
+            <span className={cn("rounded px-1.5 py-0.5 text-xs font-medium", statusCfg.className)}>
+              {statusCfg.label}
             </span>
             {item.semester && (
               <span className="text-xs text-[var(--text-tertiary)]">{item.semester}학기</span>

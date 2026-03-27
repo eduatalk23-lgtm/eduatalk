@@ -31,7 +31,7 @@ export type {
   // 상수 타입
   RecordStatus, ChangcheActivityType, ApplicationRound, ApplicationResult,
   CompetencyArea, CompetencyItemCode, CompetencyGrade,
-  StorylineStrength, RecordType, RoadmapArea, SchoolCategory,
+  StorylineStrength, RecordType, RoadmapArea, RoadmapItemStatus, SchoolCategory,
   InterviewQuestionType,
   // Phase 5: 진단 타입
   CompetencyScore, CompetencyScoreInsert,

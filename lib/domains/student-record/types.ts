@@ -166,6 +166,8 @@ export type RoadmapArea =
   | "competition" | "external"
   | "volunteer" | "general";
 
+export type RoadmapItemStatus = "planning" | "confirmed" | "in_progress" | "completed";
+
 export type SchoolCategory =
   | "general" | "autonomous_private" | "autonomous_public"
   | "science" | "foreign_lang" | "international"
