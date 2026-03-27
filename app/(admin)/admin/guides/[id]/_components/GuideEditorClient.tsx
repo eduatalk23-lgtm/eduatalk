@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Trash2, Loader2, Eye, EyeOff, CopyPlus, Sparkles, Download, Share2, X } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Loader2, CopyPlus, Sparkles, Download, Share2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
@@ -17,10 +17,10 @@ import {
 } from "@/lib/query-options/explorationGuide";
 import {
   createGuideAction,
-  updateGuideAction,
   deleteGuideAction,
   uploadGuideImageAction,
   saveAsNewVersionAction,
+  saveWithNewVersionAction,
   revertToVersionAction,
   getLatestVersionIdAction,
 } from "@/lib/domains/guide/actions/crud";
@@ -34,6 +34,7 @@ import type {
   GuideContentInput,
   TheorySection,
   ContentSection,
+  DifficultyLevel,
 } from "@/lib/domains/guide/types";
 import { resolveContentSections } from "@/lib/domains/guide/section-config";
 import {
@@ -52,6 +53,7 @@ import type { ModelTier } from "@/lib/domains/plan/llm/types";
 import { createShareLinkAction } from "@/lib/domains/guide/actions/share";
 import { GuideExportModal } from "./GuideExportModal";
 import { GuideSharePanel } from "./GuideSharePanel";
+import { VersionCommitDialog } from "./VersionCommitDialog";
 
 interface GuideEditorClientProps {
   /** 편집 시 guideId, 생성 시 undefined */
@@ -104,6 +106,8 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
   const [subjectSelect, setSubjectSelect] = useState("");
   const [unitMajor, setUnitMajor] = useState("");
   const [unitMinor, setUnitMinor] = useState("");
+  const [difficultyLevel, setDifficultyLevel] = useState<DifficultyLevel | null>(null);
+  const [difficultyAuto, setDifficultyAuto] = useState(true);
 
   // 교육과정 단원 파생 (CurriculumCascadeSelect용)
   const curriculumYearOptions = useMemo(
@@ -172,7 +176,11 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
   const [saving, setSaving] = useState(false);
   const [improving, setImproving] = useState(false);
   const [improveModelTier, setImproveModelTier] = useState<ModelTier>("fast");
-  const [showPreview, setShowPreview] = useState(!isNew);
+  // 모바일 탭 (데스크톱 lg+에서는 항상 양쪽 표시)
+  const [mobileTab, setMobileTab] = useState<"edit" | "preview">(isNew ? "edit" : "edit");
+
+  // 커밋 다이얼로그 상태
+  const [commitDialogOpen, setCommitDialogOpen] = useState(false);
 
   // 내보내기/공유 상태
   const [exportModalOpen, setExportModalOpen] = useState(false);
@@ -201,6 +209,8 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
     setBookYear(guide.book_year ?? undefined);
     setSelectedSubjectIds(guide.subjects.map((s) => s.id));
     setSelectedCareerFieldIds(guide.career_fields.map((c) => c.id));
+    setDifficultyLevel(guide.difficulty_level ?? null);
+    setDifficultyAuto(guide.difficulty_auto ?? true);
 
     if (guide.content) {
       // content_sections 우선, 없으면 레거시 fallback
@@ -218,9 +228,13 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
       setFollowUp(guide.content.follow_up ?? "");
       setBookDescription(guide.content.book_description ?? "");
 
-      // setek_examples: content_sections 우선 → 레거시 fallback
+      // setek_examples: content_sections items 우선 → 레거시 fallback
+      // ⚠️ AI가 items가 아닌 content에 생성할 수 있으므로 빈 배열 체크 필요
       const resolvedSetek = resolved.find((s) => s.key === "setek_examples");
-      setSetekExamples(resolvedSetek?.items ?? guide.content.setek_examples ?? []);
+      const setekItems = resolvedSetek?.items?.length
+        ? resolvedSetek.items
+        : (guide.content.setek_examples ?? []);
+      setSetekExamples(setekItems);
 
       // type_extension/optional 섹션 (레거시 필드에 매핑되지 않는 키들)
       const coreKeys = new Set([
@@ -334,131 +348,134 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
     [isGeneratingAi],
   );
 
-  // 저장
-  const handleSave = useCallback(async () => {
+  // 메타/콘텐츠 조립 헬퍼
+  const buildMetaAndContent = useCallback(() => {
+    const meta: GuideUpsertInput = {
+      guideType,
+      title: title.trim(),
+      status,
+      curriculumYear: curriculumYear || undefined,
+      subjectArea: subjectArea || undefined,
+      subjectSelect: subjectSelect || undefined,
+      unitMajor: unitMajor || undefined,
+      unitMinor: unitMinor || undefined,
+      bookTitle: bookTitle || undefined,
+      bookAuthor: bookAuthor || undefined,
+      bookPublisher: bookPublisher || undefined,
+      bookYear: bookYear || undefined,
+      contentFormat: "html",
+      difficultyLevel: difficultyLevel ?? undefined,
+      difficultyAuto,
+    };
+
+    const allContentSections: ContentSection[] = [];
+    if (motivation) allContentSections.push({ key: "motivation", label: "탐구 동기", content: motivation, content_format: "html" });
+    for (const ts of theorySections) {
+      allContentSections.push({ key: "content_sections", label: ts.title, content: ts.content, content_format: "html", order: ts.order, outline: ts.outline });
+    }
+    for (const es of extraSections) {
+      if (es.content || es.items?.length) allContentSections.push(es);
+    }
+    if (reflection) allContentSections.push({ key: "reflection", label: "탐구 고찰 및 제언", content: reflection, content_format: "html" });
+    if (impression) allContentSections.push({ key: "impression", label: "느낀점", content: impression, content_format: "html" });
+    if (summary) allContentSections.push({ key: "summary", label: "탐구 요약", content: summary, content_format: "html" });
+    if (followUp) allContentSections.push({ key: "follow_up", label: "후속 탐구", content: followUp, content_format: "html" });
+    if (bookDescription) allContentSections.push({ key: "book_description", label: "도서 소개", content: bookDescription, content_format: "html" });
+    if (setekExamples.length > 0) allContentSections.push({ key: "setek_examples", label: "세특 예시", content: "", content_format: "plain", items: setekExamples });
+
+    const content: GuideContentInput = {
+      motivation: motivation || undefined,
+      theorySections: theorySections.length > 0 ? theorySections : undefined,
+      reflection: reflection || undefined,
+      impression: impression || undefined,
+      summary: summary || undefined,
+      followUp: followUp || undefined,
+      bookDescription: bookDescription || undefined,
+      setekExamples: setekExamples.length > 0 ? setekExamples : undefined,
+      contentSections: allContentSections.length > 0 ? allContentSections : undefined,
+    };
+
+    return { meta, content };
+  }, [
+    title, guideType, status, curriculumYear, subjectArea, subjectSelect, unitMajor, unitMinor,
+    bookTitle, bookAuthor, bookPublisher, bookYear,
+    motivation, theorySections, reflection, impression, summary, followUp,
+    bookDescription, setekExamples, extraSections,
+    difficultyLevel, difficultyAuto,
+  ]);
+
+  // 저장 버튼 클릭: 새 가이드면 바로 생성, 기존 가이드면 커밋 다이얼로그 열기
+  const handleSave = useCallback(async (): Promise<boolean> => {
     if (!title.trim()) {
       toast.showError("제목을 입력해주세요.");
-      return;
+      return false;
     }
+
+    if (isNew) {
+      // 첫 생성 (v1) — 커밋 메시지 불필요
+      setSaving(true);
+      try {
+        const { meta, content } = buildMetaAndContent();
+        const result = await createGuideAction({
+          meta,
+          content,
+          subjectIds: selectedSubjectIds,
+          careerFieldIds: selectedCareerFieldIds,
+        });
+        if (result.success && result.data) {
+          setIsDirty(false);
+          toast.showSuccess("가이드가 생성되었습니다.");
+          queryClient.invalidateQueries({ queryKey: explorationGuideKeys.all });
+          router.push(`/admin/guides/${result.data.id}`);
+          return true;
+        } else {
+          toast.showError(!result.success ? result.error ?? "생성에 실패했습니다." : "생성에 실패했습니다.");
+          return false;
+        }
+      } catch {
+        toast.showError("저장 중 오류가 발생했습니다.");
+        return false;
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      // 기존 가이드 → 커밋 다이얼로그 열기
+      setCommitDialogOpen(true);
+      return true;
+    }
+  }, [title, isNew, buildMetaAndContent, selectedSubjectIds, selectedCareerFieldIds, router, toast, queryClient]);
+
+  // 커밋 메시지 확인 후 새 버전으로 저장
+  const handleCommitSave = useCallback(async (versionMessage: string) => {
+    if (!guideId) return;
 
     setSaving(true);
     try {
-      const meta: GuideUpsertInput = {
-        guideType,
-        title: title.trim(),
-        status,
-        curriculumYear: curriculumYear || undefined,
-        subjectArea: subjectArea || undefined,
-        subjectSelect: subjectSelect || undefined,
-        unitMajor: unitMajor || undefined,
-        unitMinor: unitMinor || undefined,
-        bookTitle: bookTitle || undefined,
-        bookAuthor: bookAuthor || undefined,
-        bookPublisher: bookPublisher || undefined,
-        bookYear: bookYear || undefined,
-        contentFormat: "html",
-      };
+      const { meta, content } = buildMetaAndContent();
+      const result = await saveWithNewVersionAction({
+        sourceGuideId: guideId,
+        meta,
+        content,
+        subjectIds: selectedSubjectIds,
+        careerFieldIds: selectedCareerFieldIds,
+        versionMessage,
+      });
 
-      // content_sections 조합: core 레거시 필드 + extra 섹션
-      const allContentSections: ContentSection[] = [];
-      if (motivation) allContentSections.push({ key: "motivation", label: "탐구 동기", content: motivation, content_format: "html" });
-      for (const ts of theorySections) {
-        allContentSections.push({ key: "content_sections", label: ts.title, content: ts.content, content_format: "html", order: ts.order, outline: ts.outline });
-      }
-      // type_extension + optional 섹션
-      for (const es of extraSections) {
-        if (es.content || es.items?.length) allContentSections.push(es);
-      }
-      if (reflection) allContentSections.push({ key: "reflection", label: "탐구 고찰 및 제언", content: reflection, content_format: "html" });
-      if (impression) allContentSections.push({ key: "impression", label: "느낀점", content: impression, content_format: "html" });
-      if (summary) allContentSections.push({ key: "summary", label: "탐구 요약", content: summary, content_format: "html" });
-      if (followUp) allContentSections.push({ key: "follow_up", label: "후속 탐구", content: followUp, content_format: "html" });
-      if (bookDescription) allContentSections.push({ key: "book_description", label: "도서 소개", content: bookDescription, content_format: "html" });
-      if (setekExamples.length > 0) allContentSections.push({ key: "setek_examples", label: "세특 예시", content: "", content_format: "plain", items: setekExamples });
-
-      const content: GuideContentInput = {
-        motivation: motivation || undefined,
-        theorySections: theorySections.length > 0 ? theorySections : undefined,
-        reflection: reflection || undefined,
-        impression: impression || undefined,
-        summary: summary || undefined,
-        followUp: followUp || undefined,
-        bookDescription: bookDescription || undefined,
-        setekExamples: setekExamples.length > 0 ? setekExamples : undefined,
-        contentSections: allContentSections.length > 0 ? allContentSections : undefined,
-      };
-
-      let result;
-      if (isNew) {
-        result = await createGuideAction({
-          meta,
-          content,
-          subjectIds: selectedSubjectIds,
-          careerFieldIds: selectedCareerFieldIds,
-        });
-      } else {
-        result = await updateGuideAction({
-          guideId: guideId!,
-          meta,
-          content,
-          subjectIds: selectedSubjectIds,
-          careerFieldIds: selectedCareerFieldIds,
-        });
-      }
-
-      if (result.success) {
+      if (result.success && result.data) {
         setIsDirty(false);
-        toast.showSuccess(isNew ? "가이드가 생성되었습니다." : "가이드가 저장되었습니다.");
-        // 캐시 무효화
-        queryClient.invalidateQueries({
-          queryKey: explorationGuideKeys.all,
-        });
-        if (isNew && result.data) {
-          router.push(`/admin/guides/${result.data.id}`);
-        }
+        setCommitDialogOpen(false);
+        toast.showSuccess(`v${result.data.version} 버전이 저장되었습니다.`);
+        queryClient.invalidateQueries({ queryKey: explorationGuideKeys.all });
+        router.push(`/admin/guides/${result.data.id}`);
       } else {
-        toast.showError(result.error ?? "저장에 실패했습니다.");
+        toast.showError(!result.success ? result.error ?? "저장에 실패했습니다." : "저장에 실패했습니다.");
       }
     } catch {
       toast.showError("저장 중 오류가 발생했습니다.");
     } finally {
       setSaving(false);
     }
-  }, [
-    title, guideType, status, curriculumYear, subjectArea, subjectSelect, unitMajor, unitMinor,
-    bookTitle, bookAuthor, bookPublisher, bookYear,
-    motivation, theorySections, reflection, impression, summary, followUp,
-    bookDescription, setekExamples, extraSections,
-    selectedSubjectIds, selectedCareerFieldIds,
-    isNew, guideId, router, toast, queryClient,
-  ]);
-
-  // 새 버전으로 저장
-  const handleSaveAsNewVersion = useCallback(async () => {
-    if (!guideId) return;
-    if (!window.confirm("현재 내용을 새 버전으로 저장하시겠습니까?")) return;
-
-    setSaving(true);
-    try {
-      // 먼저 현재 변경사항 저장
-      await handleSave();
-
-      const result = await saveAsNewVersionAction(guideId);
-      if (result.success && result.data) {
-        toast.showSuccess(`v${result.data.version} 버전이 생성되었습니다.`);
-        queryClient.invalidateQueries({
-          queryKey: explorationGuideKeys.all,
-        });
-        router.push(`/admin/guides/${result.data.id}`);
-      } else {
-        toast.showError(!result.success ? result.error ?? "버전 생성 실패" : "버전 생성 실패");
-      }
-    } catch {
-      toast.showError("새 버전 생성 중 오류가 발생했습니다.");
-    } finally {
-      setSaving(false);
-    }
-  }, [guideId, handleSave, router, toast, queryClient]);
+  }, [guideId, buildMetaAndContent, selectedSubjectIds, selectedCareerFieldIds, router, toast, queryClient]);
 
   // 되돌리기
   const handleRevert = useCallback(
@@ -503,7 +520,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
         });
         router.push("/admin/guides");
       } else {
-        toast.showError(result.error ?? "삭제에 실패했습니다.");
+        toast.showError(!result.success ? result.error ?? "삭제에 실패했습니다." : "삭제에 실패했습니다.");
       }
     } catch {
       toast.showError("삭제 중 오류가 발생했습니다.");
@@ -523,6 +540,11 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
         includeRelatedBooks: boolean;
       },
     ) => {
+      // 미저장 상태에서 내보내기/공유 시 경고
+      if (isDirty) {
+        if (!confirm("저장되지 않은 변경사항은 내보내기/공유에 반영되지 않습니다. 계속하시겠습니까?")) return;
+      }
+
       if (exportMode === "download") {
         // PDF/DOCX 다운로드
         if (!guide) return;
@@ -573,7 +595,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
         }
       }
     },
-    [exportMode, guide, guideId, toast, queryClient],
+    [exportMode, guide, guideId, toast, queryClient, isDirty],
   );
 
   if (!isNew && loadingGuide) {
@@ -609,7 +631,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
           <button
             type="button"
             onClick={() => {
-              if (!showPreview && isDirty && !confirm("저장하지 않은 변경사항이 있습니다. 나가시겠습니까?")) return;
+              if (isDirty && !confirm("저장하지 않은 변경사항이 있습니다. 나가시겠습니까?")) return;
               router.push("/admin/guides");
             }}
             className="p-2 rounded-lg hover:bg-secondary-100 dark:hover:bg-secondary-800 transition-colors"
@@ -617,21 +639,48 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
             <ArrowLeft className="w-5 h-5 text-[var(--text-secondary)]" />
           </button>
           <h1 className="text-lg font-bold text-[var(--text-heading)]">
-            {isNew ? "새 가이드 작성" : showPreview ? "가이드 미리보기" : "가이드 편집"}
+            {isNew ? "새 가이드 작성" : "가이드 편집"}
           </h1>
           {!isNew && guide && guide.version > 1 && (
             <span className="text-xs px-2 py-0.5 rounded-full bg-secondary-100 dark:bg-secondary-800 text-[var(--text-secondary)]">
               v{guide.version}
             </span>
           )}
-          {isDirty && !showPreview && (
+          {isDirty && (
             <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 font-medium">
               미저장
             </span>
           )}
         </div>
         <div className="flex items-center gap-2">
-          {/* 내보내기/공유 — 미리보기/편집 모드 공통 (기존 가이드만) */}
+          {/* 모바일 탭 전환 (lg 미만에서만 표시) */}
+          <div className="flex lg:hidden rounded-lg border border-secondary-200 dark:border-secondary-700 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setMobileTab("edit")}
+              className={cn(
+                "px-3 py-1.5 text-xs font-medium transition-colors",
+                mobileTab === "edit"
+                  ? "bg-primary-500 text-white"
+                  : "text-[var(--text-secondary)] hover:bg-secondary-50 dark:hover:bg-secondary-800",
+              )}
+            >
+              편집
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileTab("preview")}
+              className={cn(
+                "px-3 py-1.5 text-xs font-medium transition-colors",
+                mobileTab === "preview"
+                  ? "bg-primary-500 text-white"
+                  : "text-[var(--text-secondary)] hover:bg-secondary-50 dark:hover:bg-secondary-800",
+              )}
+            >
+              미리보기
+            </button>
+          </div>
+          {/* 내보내기/공유 (기존 가이드만) */}
           {!isNew && (
             <button
               type="button"
@@ -642,7 +691,7 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-700 text-[var(--text-secondary)] text-sm hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors"
             >
               <Download className="w-4 h-4" />
-              내보내기
+              <span className="hidden sm:inline">내보내기</span>
             </button>
           )}
           {!isNew && (
@@ -655,108 +704,72 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-700 text-[var(--text-secondary)] text-sm hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors"
             >
               <Share2 className="w-4 h-4" />
-              공유
+              <span className="hidden sm:inline">공유</span>
             </button>
           )}
-          {showPreview ? (
-            /* 미리보기 모드: 편집 버튼 */
+          {/* 새 버전 (기존 가이드만) */}
+          {!isNew && (
             <button
               type="button"
-              onClick={() => setShowPreview(false)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors"
-            >
-              <EyeOff className="w-4 h-4" />
-              편집
-            </button>
-          ) : (
-            /* 편집 모드: 전체 액션 버튼 */
-            <>
-              <button
-                type="button"
-                onClick={() => setShowPreview(true)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-700 text-[var(--text-secondary)] text-sm hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors"
-              >
-                <Eye className="w-4 h-4" />
-                미리보기
-              </button>
-              {!isNew && (
-                <button
-                  type="button"
-                  onClick={handleSaveAsNewVersion}
-                  disabled={saving}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-700 text-[var(--text-secondary)] text-sm hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors disabled:opacity-50"
-                >
-                  <CopyPlus className="w-4 h-4" />
-                  새 버전
-                </button>
-              )}
-              {!isNew && (
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  disabled={saving}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-200 text-red-600 text-sm hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  삭제
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => {
-                  if (isDirty) {
-                    if (!confirm("저장하지 않은 변경사항이 있습니다. 나가시겠습니까?")) return;
+              onClick={() => {
+                if (!window.confirm("현재 내용을 새 버전으로 복제하시겠습니까?")) return;
+                if (!guideId) return;
+                setSaving(true);
+                saveAsNewVersionAction(guideId, "현재 상태 복제").then((result) => {
+                  if (result.success && result.data) {
+                    toast.showSuccess(`v${result.data.version} 버전이 생성되었습니다.`);
+                    queryClient.invalidateQueries({ queryKey: explorationGuideKeys.all });
+                    router.push(`/admin/guides/${result.data.id}`);
+                  } else {
+                    toast.showError(!result.success ? result.error ?? "버전 생성 실패" : "버전 생성 실패");
                   }
-                  router.push("/admin/guides");
-                }}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-700 text-[var(--text-secondary)] text-sm hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors"
-              >
-                <X className="w-4 h-4" />
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors disabled:opacity-50"
-              >
-                {saving ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4" />
-                )}
-                {saving ? "저장 중..." : "저장"}
-              </button>
-            </>
+                }).catch(() => toast.showError("새 버전 생성 중 오류가 발생했습니다."))
+                .finally(() => setSaving(false));
+              }}
+              disabled={saving}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-700 text-[var(--text-secondary)] text-sm hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors disabled:opacity-50"
+            >
+              <CopyPlus className="w-4 h-4" />
+              새 버전
+            </button>
           )}
+          {/* 구분선 — 파괴적 액션 분리 */}
+          {!isNew && (
+            <div className="w-px h-6 bg-secondary-200 dark:bg-secondary-700 mx-0.5 hidden sm:block" />
+          )}
+          {/* 삭제 (기존 가이드만) */}
+          {!isNew && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={saving}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-200 text-red-600 text-sm hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span className="hidden sm:inline">삭제</span>
+            </button>
+          )}
+          {/* 저장 */}
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors disabled:opacity-50"
+          >
+            {saving ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            {saving ? "저장 중..." : "저장"}
+          </button>
         </div>
       </div>
 
-      {showPreview ? (
-        <GuidePreview
-          title={title}
-          guideType={guideType}
-          bookTitle={bookTitle}
-          bookAuthor={bookAuthor}
-          bookPublisher={bookPublisher}
-          motivation={motivation}
-          theorySections={theorySections}
-          reflection={reflection}
-          impression={impression}
-          summary={summary}
-          followUp={followUp}
-          bookDescription={bookDescription}
-          contentFormat={getContentFormat()}
-          contentSections={previewContentSections}
-          showAdminSections
-          curriculumYear={curriculumYear}
-          subjectArea={subjectArea}
-          subjectSelect={subjectSelect}
-          unitMajor={unitMajor}
-          unitMinor={unitMinor}
-        />
-      ) : (
-        <div className="space-y-6">
+      {/* 분할 뷰: 데스크톱 좌우, 모바일 탭 전환 */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* 좌측: 편집 폼 */}
+        <div className={cn("flex-1 min-w-0 space-y-6", mobileTab === "preview" && "hidden lg:block")}>
           {/* 메타 폼 */}
           <GuideMetaForm
             title={title}
@@ -793,6 +806,13 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
             careerFields={careerFields}
             selectedCareerFieldIds={selectedCareerFieldIds}
             onCareerFieldIdsChange={setSelectedCareerFieldIds}
+            difficultyLevel={difficultyLevel}
+            onDifficultyLevelChange={(v) => {
+              setDifficultyLevel(v);
+              setDifficultyAuto(false);
+              setIsDirty(true);
+            }}
+            difficultyAuto={difficultyAuto}
           />
 
           {/* 본문 편집 */}
@@ -822,7 +842,36 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
             onAiImageInsert={handleAiImageInsert}
           />
         </div>
-      )}
+
+        {/* 우측: 실시간 미리보기 */}
+        <div className={cn(
+          "lg:w-[45%] lg:max-w-[560px] lg:shrink-0 lg:sticky lg:top-16 lg:self-start lg:max-h-[calc(100dvh-5rem)] lg:overflow-y-auto",
+          mobileTab === "edit" && "hidden lg:block",
+        )}>
+          <GuidePreview
+            title={title}
+            guideType={guideType}
+            bookTitle={bookTitle}
+            bookAuthor={bookAuthor}
+            bookPublisher={bookPublisher}
+            motivation={motivation}
+            theorySections={theorySections}
+            reflection={reflection}
+            impression={impression}
+            summary={summary}
+            followUp={followUp}
+            bookDescription={bookDescription}
+            contentFormat={getContentFormat()}
+            contentSections={previewContentSections}
+            showAdminSections
+            curriculumYear={curriculumYear}
+            subjectArea={subjectArea}
+            subjectSelect={subjectSelect}
+            unitMajor={unitMajor}
+            unitMinor={unitMinor}
+          />
+        </div>
+      </div>
 
       {/* 이전 버전 안내 (is_latest=false) */}
       {!isNew && guide && !guide.is_latest && (
@@ -1061,6 +1110,14 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
         onOpenChange={handleAiDialogOpenChange}
         onGenerate={handleAiGenerate}
         isGenerating={isGeneratingAi}
+      />
+
+      {/* 커밋 메시지 다이얼로그 */}
+      <VersionCommitDialog
+        open={commitDialogOpen}
+        saving={saving}
+        onConfirm={handleCommitSave}
+        onCancel={() => setCommitDialogOpen(false)}
       />
     </div>
   );

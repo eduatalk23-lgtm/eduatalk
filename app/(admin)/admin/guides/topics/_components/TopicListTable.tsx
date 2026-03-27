@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Trash2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { SuggestedTopic } from "@/lib/domains/guide/types";
-import { GUIDE_TYPE_LABELS } from "@/lib/domains/guide/types";
+import { GUIDE_TYPE_LABELS, DIFFICULTY_LABELS } from "@/lib/domains/guide/types";
 
 const TYPE_COLORS: Record<string, string> = {
   reading:
@@ -17,6 +17,12 @@ const TYPE_COLORS: Record<string, string> = {
     "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
   program:
     "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300",
+};
+
+const DIFFICULTY_COLORS: Record<string, string> = {
+  basic: "bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-300",
+  intermediate: "bg-warning-100 text-warning-700 dark:bg-warning-900/30 dark:text-warning-300",
+  advanced: "bg-error-100 text-error-700 dark:bg-error-900/30 dark:text-error-300",
 };
 
 interface Props {
@@ -66,6 +72,9 @@ export function TopicListTable({ topics, isLoading, onDelete, onGenerateGuide }:
             </th>
             <th className="px-3 py-3 font-medium text-[var(--text-secondary)] w-20 hidden md:table-cell">
               계열
+            </th>
+            <th className="px-3 py-3 font-medium text-[var(--text-secondary)] w-16 hidden md:table-cell">
+              난이도
             </th>
             <th className="px-3 py-3 font-medium text-[var(--text-secondary)] w-14 text-center">
               사용
@@ -135,6 +144,22 @@ export function TopicListTable({ topics, isLoading, onDelete, onGenerateGuide }:
               {/* 계열 */}
               <td className="px-3 py-3 hidden md:table-cell text-xs text-[var(--text-secondary)] whitespace-nowrap">
                 {topic.career_field ?? "—"}
+              </td>
+
+              {/* 난이도 */}
+              <td className="px-3 py-3 hidden md:table-cell">
+                {topic.difficulty_level ? (
+                  <span
+                    className={cn(
+                      "inline-block px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap",
+                      DIFFICULTY_COLORS[topic.difficulty_level] ?? "",
+                    )}
+                  >
+                    {DIFFICULTY_LABELS[topic.difficulty_level as keyof typeof DIFFICULTY_LABELS]}
+                  </span>
+                ) : (
+                  <span className="text-xs text-secondary-400">—</span>
+                )}
               </td>
 
               {/* 사용 횟수 */}

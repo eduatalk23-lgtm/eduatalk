@@ -138,7 +138,10 @@ export function createGuideTools(ctx: AgentContext) {
                             tip: item.tip,
                           })),
                         })),
-                      setekExamples: guide.content.setek_examples?.slice(0, 3),
+                      setekExamples: (
+                        sections.find((s) => s.key === "setek_examples")?.items
+                        ?? guide.content.setek_examples
+                      )?.slice(0, 3),
                     };
                   })()
                 : null,

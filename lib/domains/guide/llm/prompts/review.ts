@@ -45,7 +45,9 @@ export function buildReviewSystemPrompt(guideType: GuideType): string {
 ### 4. 실용적 연관성 (practicalRelevance, 0~100)
 - 생기부 세특/창체에 활용 가능한가
 - 교과 과목과의 연계가 명확한가
-- 후속 탐구 방향이 구체적인가
+- 후속 탐구가 3카테고리(한계 극복형/심화 확장형/융합 확장형)로 구분되어 있는가
+- 후속 탐구의 "한계 극복형"이 고찰의 한계를 직접 참조하는가
+- 각 후속 탐구에 구체적 주제명과 방법론이 포함되어 있는가
 - 세특 예시가 자기주도성/탐구력 서술어를 포함하는가
 
 ### 5. 탐구 로드맵 품질 (outlineQuality, 0~100) — outline이 없으면 0점

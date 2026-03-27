@@ -7,6 +7,7 @@
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
+import { splitSetekExamplesBlob } from "../../section-config";
 import {
   createSuccessResponse,
   createErrorResponse,
@@ -204,6 +205,8 @@ export async function generateGuideAction(
       aiModelVersion: modelId,
       aiPromptVersion: AI_PROMPT_VERSION,
       registeredBy: userId,
+      difficultyLevel: generated.difficultyLevel ?? undefined,
+      difficultyAuto: true,
     });
 
     // sections → 레거시 필드 역변환 (하위 호환 이중 저장)
@@ -232,15 +235,22 @@ export async function generateGuideAction(
             ? legacy.setekExamples
             : generated.setekExamples,
         // 유형별 섹션 데이터 (신규 구조 — 우선 소스)
-        contentSections: generated.sections.map((s) => ({
-          key: s.key,
-          label: s.label,
-          content: s.content,
-          content_format: "html" as const,
-          items: s.items,
-          order: s.order,
-          outline: s.outline,
-        })),
+        contentSections: generated.sections.map((s) => {
+          let items = s.items;
+          if (s.key === "setek_examples" && !s.items?.length) {
+            const split = s.content ? splitSetekExamplesBlob(s.content) : null;
+            items = split ?? generated.setekExamples ?? (s.content ? [s.content] : undefined);
+          }
+          return {
+            key: s.key,
+            label: s.label,
+            content: s.content,
+            content_format: "html" as const,
+            items,
+            order: s.order,
+            outline: s.outline,
+          };
+        }),
       }),
       replaceSubjectMappings(
         guide.id,
@@ -327,6 +337,7 @@ async function buildPrompt(
           input.keyword.guideType,
           input.studentProfile,
           input.selectedSectionKeys,
+          input.difficultyLevel,
         ),
         userPrompt: buildKeywordUserPrompt(input.keyword),
         sourceType: "ai_keyword",

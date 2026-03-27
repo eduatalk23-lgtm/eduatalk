@@ -1,12 +1,14 @@
 "use client";
 
 import { cn } from "@/lib/cn";
-import type { GuideType, GuideStatus, CareerField, CurriculumUnit } from "@/lib/domains/guide/types";
+import type { GuideType, GuideStatus, CareerField, CurriculumUnit, DifficultyLevel } from "@/lib/domains/guide/types";
 import {
   GUIDE_TYPES,
   GUIDE_TYPE_LABELS,
   GUIDE_STATUSES,
   GUIDE_STATUS_LABELS,
+  DIFFICULTY_LEVELS,
+  DIFFICULTY_LABELS,
 } from "@/lib/domains/guide/types";
 import CurriculumCascadeSelect from "@/components/filters/CurriculumCascadeSelect";
 
@@ -48,6 +50,10 @@ interface GuideMetaFormProps {
   careerFields: CareerField[];
   selectedCareerFieldIds: number[];
   onCareerFieldIdsChange: (ids: number[]) => void;
+  // 난이도
+  difficultyLevel: DifficultyLevel | null;
+  onDifficultyLevelChange: (v: DifficultyLevel | null) => void;
+  difficultyAuto?: boolean;
 }
 
 const inputClass = cn(
@@ -84,8 +90,8 @@ export function GuideMetaForm(props: GuideMetaFormProps) {
         />
       </div>
 
-      {/* 유형 + 상태 */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* 유형 + 상태 + 난이도 */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <div>
           <label className={labelClass}>유형</label>
           <select
@@ -113,6 +119,37 @@ export function GuideMetaForm(props: GuideMetaFormProps) {
               </option>
             ))}
           </select>
+        </div>
+        <div>
+          <label className={labelClass}>
+            난이도
+            {props.difficultyAuto && props.difficultyLevel && (
+              <span className="ml-1 text-[10px] text-primary-500 font-normal">AI 추천</span>
+            )}
+          </label>
+          <div className="flex rounded-lg border border-secondary-200 dark:border-secondary-700 overflow-hidden">
+            {DIFFICULTY_LEVELS.map((level) => (
+              <button
+                key={level}
+                type="button"
+                onClick={() => props.onDifficultyLevelChange(
+                  props.difficultyLevel === level ? null : level,
+                )}
+                className={cn(
+                  "flex-1 px-2 py-2 text-xs font-medium transition-colors",
+                  props.difficultyLevel === level
+                    ? level === "basic"
+                      ? "bg-success-500 text-white"
+                      : level === "intermediate"
+                        ? "bg-warning-500 text-white"
+                        : "bg-error-500 text-white"
+                    : "text-[var(--text-secondary)] hover:bg-secondary-50 dark:hover:bg-secondary-800",
+                )}
+              >
+                {DIFFICULTY_LABELS[level]}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

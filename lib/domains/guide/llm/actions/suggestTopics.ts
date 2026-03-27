@@ -86,6 +86,7 @@ export async function suggestTopicsAction(input: {
             title: t.title,
             reason: t.reason ?? "",
             relatedSubjects: t.related_subjects,
+            difficulty: (t.difficulty_level ?? "intermediate") as "basic" | "intermediate" | "advanced",
           })),
         });
       }
@@ -146,6 +147,7 @@ export async function suggestTopicsAction(input: {
           title: t.title,
           reason: t.reason,
           relatedSubjects: t.relatedSubjects,
+          difficultyLevel: t.difficulty,
           aiModelVersion: modelId,
           createdBy: userId,
         })),

@@ -7,12 +7,14 @@ import {
   GUIDE_STATUS_LABELS,
   GUIDE_SOURCE_TYPE_LABELS,
   QUALITY_TIER_LABELS,
+  DIFFICULTY_LABELS,
 } from "@/lib/domains/guide/types";
 
 interface GuideListTableProps {
   guides: ExplorationGuide[];
   isLoading: boolean;
   onRowClick: (id: string) => void;
+  showAllVersions?: boolean;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -52,10 +54,17 @@ const QUALITY_COLORS: Record<string, string> = {
   ai_draft: "text-yellow-600 dark:text-yellow-400",
 };
 
+const DIFFICULTY_COLORS: Record<string, string> = {
+  basic: "bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-300",
+  intermediate: "bg-warning-100 text-warning-700 dark:bg-warning-900/30 dark:text-warning-300",
+  advanced: "bg-error-100 text-error-700 dark:bg-error-900/30 dark:text-error-300",
+};
+
 export function GuideListTable({
   guides,
   isLoading,
   onRowClick,
+  showAllVersions,
 }: GuideListTableProps) {
   if (isLoading) {
     return (
@@ -98,6 +107,9 @@ export function GuideListTable({
             <th className="px-3 py-3 font-medium text-[var(--text-secondary)] w-20 hidden sm:table-cell">
               품질
             </th>
+            <th className="px-3 py-3 font-medium text-[var(--text-secondary)] w-16 hidden md:table-cell">
+              난이도
+            </th>
             <th className="px-3 py-3 font-medium text-[var(--text-secondary)] w-28 hidden md:table-cell">
               AI 모델
             </th>
@@ -126,11 +138,23 @@ export function GuideListTable({
                 onClick={() => onRowClick(guide.id)}
                 className="cursor-pointer hover:bg-secondary-50 dark:hover:bg-secondary-800/30 transition-colors"
               >
-                {/* 제목 + 교육과정 체계 */}
+                {/* 제목 + 교육과정 체계 + 버전 메시지/생성자 */}
                 <td className="px-4 py-3">
-                  <p className="font-medium text-[var(--text-heading)] line-clamp-1">
-                    {guide.title}
-                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <p className={cn(
+                      "font-medium line-clamp-1",
+                      !guide.is_latest && showAllVersions
+                        ? "text-[var(--text-secondary)]"
+                        : "text-[var(--text-heading)]",
+                    )}>
+                      {guide.title}
+                    </p>
+                    {showAllVersions && !guide.is_latest && (
+                      <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-secondary-100 dark:bg-secondary-800 text-[var(--text-secondary)]">
+                        이전
+                      </span>
+                    )}
+                  </div>
                   {curriculumPath ? (
                     <p className="text-xs text-primary-600 dark:text-primary-400 mt-0.5 line-clamp-1">
                       {curriculumPath}
@@ -140,6 +164,13 @@ export function GuideListTable({
                       {guide.book_title}
                     </p>
                   ) : null}
+                  {showAllVersions && (guide.version_message || guide.creator_name) && (
+                    <p className="text-[10px] text-[var(--text-secondary)] mt-0.5 line-clamp-1">
+                      {guide.version_message && <span>{guide.version_message}</span>}
+                      {guide.version_message && guide.creator_name && <span> · </span>}
+                      {guide.creator_name && <span>{guide.creator_name}</span>}
+                    </p>
+                  )}
                 </td>
 
                 {/* 유형 */}
@@ -196,6 +227,22 @@ export function GuideListTable({
                         </span>
                       )}
                     </div>
+                  ) : (
+                    <span className="text-xs text-secondary-400">—</span>
+                  )}
+                </td>
+
+                {/* 난이도 */}
+                <td className="px-3 py-3 hidden md:table-cell">
+                  {guide.difficulty_level ? (
+                    <span
+                      className={cn(
+                        "inline-block px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap",
+                        DIFFICULTY_COLORS[guide.difficulty_level] ?? "",
+                      )}
+                    >
+                      {DIFFICULTY_LABELS[guide.difficulty_level as keyof typeof DIFFICULTY_LABELS]}
+                    </span>
                   ) : (
                     <span className="text-xs text-secondary-400">—</span>
                   )}

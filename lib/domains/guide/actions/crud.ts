@@ -265,15 +265,16 @@ export async function getVersionHistoryAction(
 /** 새 버전으로 저장 (현재 가이드 복제 → 새 버전) */
 export async function saveAsNewVersionAction(
   guideId: string,
+  versionMessage?: string,
 ): Promise<ActionResponse<ExplorationGuide>> {
   try {
     const { userId } = await requireAdminOrConsultant();
-    const newGuide = await createNewVersion(guideId, userId);
+    const newGuide = await createNewVersion(guideId, userId, versionMessage);
 
     // 수동 편집 버전 메타 설정
     await updateGuide(newGuide.id, {
       sourceType: "manual_edit",
-      versionMessage: "수동 편집 새 버전",
+      versionMessage: versionMessage ?? "수동 편집 새 버전",
     });
 
     // 임베딩 생성
@@ -287,6 +288,59 @@ export async function saveAsNewVersionAction(
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "saveAsNewVersion" }, error, { guideId });
     return createErrorResponse("새 버전 생성에 실패했습니다.");
+  }
+}
+
+/** 편집 내용을 새 버전으로 저장 (복제 → 편집 내용 덮어쓰기) */
+export async function saveWithNewVersionAction(input: {
+  sourceGuideId: string;
+  meta: Partial<GuideUpsertInput>;
+  content: GuideContentInput;
+  subjectIds: string[];
+  careerFieldIds: number[];
+  classificationIds?: number[];
+  versionMessage: string;
+}): Promise<ActionResponse<ExplorationGuide>> {
+  try {
+    const { userId } = await requireAdminOrConsultant();
+
+    // 1. 새 버전 생성 (원본 복제)
+    const newGuide = await createNewVersion(input.sourceGuideId, userId, input.versionMessage);
+
+    // 2. 편집 내용으로 덮어쓰기
+    await updateGuide(newGuide.id, {
+      ...input.meta,
+      sourceType: "manual_edit",
+      versionMessage: input.versionMessage,
+      contentFormat: "html",
+    });
+
+    // 3. 본문 + 매핑 갱신
+    await Promise.all([
+      upsertGuideContent(newGuide.id, input.content),
+      replaceSubjectMappings(
+        newGuide.id,
+        input.subjectIds.map((id) => ({ subjectId: id })),
+      ),
+      replaceCareerMappings(newGuide.id, input.careerFieldIds),
+      input.classificationIds != null
+        ? replaceClassificationMappings(newGuide.id, input.classificationIds)
+        : Promise.resolve(),
+    ]);
+
+    // 4. 임베딩 갱신
+    embedSingleGuide(newGuide.id).catch((err) => {
+      logActionError({ ...LOG_CTX, action: "saveWithNewVersion.embedding" }, err, {
+        guideId: newGuide.id,
+      });
+    });
+
+    return createSuccessResponse(newGuide);
+  } catch (error) {
+    logActionError({ ...LOG_CTX, action: "saveWithNewVersion" }, error, {
+      guideId: input.sourceGuideId,
+    });
+    return createErrorResponse("새 버전 저장에 실패했습니다.");
   }
 }
 

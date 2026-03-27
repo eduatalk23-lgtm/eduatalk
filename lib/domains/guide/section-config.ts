@@ -819,14 +819,49 @@ export function legacyToContentSections(
 }
 
 /**
+ * AI가 세특 예시 3개를 1개 HTML 덩어리로 생성했을 때 개별 items로 분리.
+ * 분리 불가능하면 null 반환 (기존 동작 유지).
+ */
+export function splitSetekExamplesBlob(content: string): string[] | null {
+  if (!content || content.length < 50) return null;
+
+  // 패턴: <p><strong>예시 N, <strong>예시 N, 예시 N:, 예시 N(, [예시 N]
+  const pattern = /(?=<p>\s*<strong>\s*예시\s*\d)|(?=<strong>\s*예시\s*\d)|(?=예시\s*\d\s*[\(:：])/gi;
+  const parts = content.split(pattern).filter((p) => p.trim().length > 20);
+
+  if (parts.length >= 2) return parts.map((p) => p.trim());
+
+  // 패턴 2: <p><strong>N. 또는 <p><strong>N)
+  const numPattern = /(?=<p>\s*<strong>\s*\d+[\.\)]\s)/g;
+  const numParts = content.split(numPattern).filter((p) => p.trim().length > 20);
+
+  if (numParts.length >= 2) return numParts.map((p) => p.trim());
+
+  return null;
+}
+
+/**
  * content_sections 배열이 있으면 그대로 사용, 없으면 레거시 변환
+ *
+ * text_list 섹션(setek_examples 등)에서 AI가 items 대신 content에
+ * 데이터를 넣는 경우, 레거시 필드에서 items를 보충하여 정규화합니다.
  */
 export function resolveContentSections(
   guideType: GuideType,
   content: ExplorationGuideContent,
 ): ContentSection[] {
   if (content.content_sections && content.content_sections.length > 0) {
-    return content.content_sections;
+    return content.content_sections.map((s) => {
+      // setek_examples: items 빈 배열 → content 분리 → 레거시 분리 → 레거시 원본
+      if (s.key === "setek_examples" && !s.items?.length) {
+        const items =
+          (s.content ? splitSetekExamplesBlob(s.content) : null) ??
+          (content.setek_examples?.length === 1 ? splitSetekExamplesBlob(content.setek_examples[0]) : null) ??
+          (content.setek_examples?.length ? content.setek_examples : null);
+        if (items) return { ...s, items };
+      }
+      return s;
+    });
   }
   return legacyToContentSections(guideType, content);
 }

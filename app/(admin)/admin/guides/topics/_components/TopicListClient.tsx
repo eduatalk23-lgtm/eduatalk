@@ -20,11 +20,13 @@ import {
   groupedSubjectsQueryOptions,
   curriculumUnitsQueryOptions,
 } from "@/lib/query-options/explorationGuide";
-import type { TopicListFilter, SuggestedTopic } from "@/lib/domains/guide/types";
+import type { TopicListFilter, SuggestedTopic, DifficultyLevel } from "@/lib/domains/guide/types";
 import {
   GUIDE_TYPE_LABELS,
   GUIDE_TYPES,
   CURRICULUM_REVISION_IDS,
+  DIFFICULTY_LEVELS,
+  DIFFICULTY_LABELS,
 } from "@/lib/domains/guide/types";
 import { deleteTopicAction } from "@/lib/domains/guide/actions/crud";
 import { TopicListTable } from "./TopicListTable";
@@ -240,6 +242,19 @@ export function TopicListClient() {
           {careerFields.map((cf) => (
             <option key={cf.id} value={cf.name_kor}>
               {cf.name_kor}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={filters.difficultyLevel ?? ""}
+          onChange={(e) => handleFilterChange("difficultyLevel", e.target.value as DifficultyLevel)}
+          className={selectClass}
+        >
+          <option value="">전체 난이도</option>
+          {DIFFICULTY_LEVELS.map((d) => (
+            <option key={d} value={d}>
+              {DIFFICULTY_LABELS[d]}
             </option>
           ))}
         </select>

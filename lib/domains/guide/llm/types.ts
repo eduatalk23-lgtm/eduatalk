@@ -99,6 +99,8 @@ export interface GuideGenerationInput {
   studentId?: string;
   /** 활성 섹션 키 목록 (선택) — 지정 시 이 섹션들만 AI가 생성 */
   selectedSectionKeys?: string[];
+  /** 난이도 (선택) — AI 생성 시 난이도 기준 적용 */
+  difficultyLevel?: string;
 }
 
 // ============================================================
@@ -240,6 +242,9 @@ export const generatedGuideSchema = z.object({
     .describe(
       "관련 KEDI 학과 소분류명 (예: '전산학ㆍ컴퓨터공학', '경영학', '물리학'). 확실한 것만 최대 5개.",
     ),
+  difficultyLevel: z
+    .enum(["basic", "intermediate", "advanced"])
+    .describe("난이도: basic=교과서 기본 개념(고1~2), intermediate=교과 심화+외부 자료(고2~3), advanced=논문/학술 수준(고3/상위권)"),
 });
 
 export type GeneratedGuideOutput = z.infer<typeof generatedGuideSchema>;
@@ -294,6 +299,9 @@ export const suggestedTopicsSchema = z.object({
           .array(z.string())
           .max(3)
           .describe("연계 가능 과목 (최대 3개)"),
+        difficulty: z
+          .enum(["basic", "intermediate", "advanced"])
+          .describe("난이도: basic=기초(고1~2), intermediate=심화(고2~3), advanced=고급(고3+)"),
       }),
     )
     .min(5)

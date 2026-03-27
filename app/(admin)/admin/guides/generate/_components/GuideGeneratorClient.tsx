@@ -3,14 +3,11 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import {
   ArrowLeft,
   Sparkles,
   Loader2,
   Copy,
-  Pencil,
-  ClipboardCheck,
   Search,
   FileText,
   Globe,
@@ -43,19 +40,14 @@ import {
   getOptionalSections,
 } from "@/lib/domains/guide/section-config";
 import { generateGuideAction } from "@/lib/domains/guide/llm/actions/generateGuide";
-import { reviewGuideAction } from "@/lib/domains/guide/llm/actions/reviewGuide";
 import {
   suggestTopicsAction,
   fetchSuggestedTopicsAction,
 } from "@/lib/domains/guide/llm/actions/suggestTopics";
 import type { SuggestedTopic } from "@/lib/domains/guide/types";
-import type { GeneratedGuideOutput, SuggestedTopicsOutput } from "@/lib/domains/guide/llm/types";
+import type { SuggestedTopicsOutput } from "@/lib/domains/guide/llm/types";
 import type { ModelTier } from "@/lib/domains/plan/llm/types";
 import CurriculumCascadeSelect from "@/components/filters/CurriculumCascadeSelect";
-import type { ReviewResult } from "@/lib/domains/guide/llm/actions/reviewGuide";
-import { GuidePreview } from "../../[id]/_components/GuidePreview";
-
-type Step = "input" | "preview";
 type SourceMode = "keyword" | "clone_variant" | "pdf_extract" | "url_extract";
 
 export function GuideGeneratorClient() {
@@ -101,10 +93,8 @@ export function GuideGeneratorClient() {
     : [];
 
   // 위자드 상태
-  const [step, setStep] = useState<Step>("input");
   const [sourceMode, setSourceMode] = useState<SourceMode>("keyword");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isReviewing, setIsReviewing] = useState(false);
 
   // 키워드 입력 (prefill로 초기값 세팅)
   const [keyword, setKeyword] = useState(prefill?.keyword ?? "");
@@ -170,10 +160,7 @@ export function GuideGeneratorClient() {
   // PDF/URL 추출 상태
   const [extractUrl, setExtractUrl] = useState("");
 
-  // 결과
-  const [generatedGuideId, setGeneratedGuideId] = useState<string | null>(null);
-  const [preview, setPreview] = useState<GeneratedGuideOutput | null>(null);
-  const [reviewResult, setReviewResult] = useState<ReviewResult | null>(null);
+  // 결과 (생성 후 에디터로 즉시 이동하므로 preview 상태 불필요)
 
   // 가이드 검색 (클론용)
   const { data: searchRes } = useQuery({
@@ -387,7 +374,7 @@ export function GuideGeneratorClient() {
       const result = await generateGuideAction(generationInput);
 
       if (result.success && result.data) {
-        toast.showSuccess("가이드가 생성되었습니다! 편집기로 이동합니다.");
+        toast.showSuccess("가이드가 생성되었습니다.");
         router.push(`/admin/guides/${result.data.guideId}`);
       } else {
         toast.showError(!result.success ? result.error ?? "생성 실패" : "생성 실패");
@@ -404,24 +391,6 @@ export function GuideGeneratorClient() {
     targetMajorUnit, targetMinorUnit, selectedStudentId, selectedSectionKeys,
   ]);
 
-  const handleReview = useCallback(async () => {
-    if (!generatedGuideId) return;
-    setIsReviewing(true);
-    try {
-      const result = await reviewGuideAction(generatedGuideId);
-      if (result.success && result.data) {
-        setReviewResult(result.data);
-        toast.showSuccess(`AI 리뷰 완료: ${result.data.score}점`);
-      } else {
-        toast.showError(!result.success ? result.error ?? "리뷰 실패" : "리뷰 실패");
-      }
-    } catch {
-      toast.showError("AI 리뷰에 실패했습니다.");
-    } finally {
-      setIsReviewing(false);
-    }
-  }, [generatedGuideId, toast]);
-
   const canGenerate =
     sourceMode === "keyword"
       ? keyword.trim().length > 0
@@ -429,16 +398,31 @@ export function GuideGeneratorClient() {
         ? sourceGuideId.length > 0
         : extractUrl.trim().length > 0; // pdf_extract | url_extract
 
+  // 사용자가 입력을 시작했는지 (뒤로가기 시 확인용)
+  const hasUserInput =
+    keyword.trim().length > 0 ||
+    sourceGuideId.length > 0 ||
+    extractUrl.trim().length > 0 ||
+    additionalContext.trim().length > 0;
+
+  const backHref = prefill ? "/admin/guides/topics" : "/admin/guides";
+
   return (
     <div className="space-y-6">
       {/* 헤더 */}
       <div className="flex items-center gap-3">
-        <Link
-          href={prefill ? "/admin/guides/topics" : "/admin/guides"}
+        <button
+          type="button"
+          onClick={() => {
+            if (hasUserInput && !prefill) {
+              if (!confirm("입력한 내용이 있습니다. 나가시겠습니까?")) return;
+            }
+            router.push(backHref);
+          }}
           className="p-2 rounded-lg hover:bg-secondary-100 dark:hover:bg-secondary-800 transition-colors"
         >
           <ArrowLeft className="w-5 h-5 text-[var(--text-secondary)]" />
-        </Link>
+        </button>
         <div>
           <h1 className="text-lg font-bold text-[var(--text-heading)]">
             AI 가이드 생성
@@ -450,7 +434,7 @@ export function GuideGeneratorClient() {
       </div>
 
       {/* 주제에서 전달된 프리필 안내 */}
-      {prefill && step === "input" && (
+      {prefill && (
         <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-700">
           <Sparkles className="w-4 h-4 text-primary-500 shrink-0" />
           <p className="text-sm text-primary-700 dark:text-primary-300">
@@ -459,8 +443,7 @@ export function GuideGeneratorClient() {
         </div>
       )}
 
-      {step === "input" ? (
-        <div className="space-y-6">
+      <div className="space-y-6">
           {/* 소스 모드 토글 */}
           <div className="flex gap-2">
             <SourceButton
@@ -1223,158 +1206,6 @@ export function GuideGeneratorClient() {
             </button>
           </div>
         </div>
-      ) : (
-        /* Step 2: Preview */
-        <div className="space-y-6">
-          {preview && (
-            <GuidePreview
-              title={preview.title}
-              guideType={preview.guideType}
-              bookTitle={preview.bookTitle ?? ""}
-              bookAuthor={preview.bookAuthor ?? ""}
-              bookPublisher={preview.bookPublisher ?? ""}
-              motivation={preview.motivation ?? ""}
-              theorySections={(preview.theorySections ?? []).map((s) => ({
-                ...s,
-                content_format: "html" as const,
-              }))}
-              reflection={preview.reflection ?? ""}
-              impression={preview.impression ?? ""}
-              summary={preview.summary ?? ""}
-              followUp={preview.followUp ?? ""}
-              bookDescription={preview.bookDescription ?? ""}
-              contentSections={preview.sections.map((s) => ({
-                key: s.key,
-                label: s.label,
-                content: s.content,
-                content_format: "html" as const,
-                items: s.items,
-                order: s.order,
-                outline: s.outline,
-              }))}
-              contentFormat="html"
-              showAdminSections
-            />
-          )}
-
-          {/* AI 리뷰 결과 */}
-          {reviewResult && (
-            <div className="rounded-xl border border-secondary-200 dark:border-secondary-700 bg-white dark:bg-secondary-900 p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-[var(--text-heading)]">
-                  AI 리뷰 결과
-                </h3>
-                <span
-                  className={cn(
-                    "px-2.5 py-1 rounded-full text-xs font-medium",
-                    reviewResult.score >= 80
-                      ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
-                      : reviewResult.score >= 60
-                        ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300"
-                        : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
-                  )}
-                >
-                  {reviewResult.score}점
-                </span>
-              </div>
-
-              {/* 차원별 점수 */}
-              <div className="grid grid-cols-2 gap-2">
-                {Object.entries(reviewResult.review.dimensions).map(
-                  ([key, value]) => (
-                    <div
-                      key={key}
-                      className="flex items-center justify-between px-3 py-1.5 rounded bg-secondary-50 dark:bg-secondary-800/50"
-                    >
-                      <span className="text-xs text-[var(--text-secondary)]">
-                        {DIMENSION_LABELS[key] ?? key}
-                      </span>
-                      <span className="text-xs font-medium text-[var(--text-primary)]">
-                        {value}
-                      </span>
-                    </div>
-                  ),
-                )}
-              </div>
-
-              {/* 강점 */}
-              {reviewResult.review.strengths.length > 0 && (
-                <div>
-                  <p className="text-xs font-medium text-green-600 dark:text-green-400">
-                    강점
-                  </p>
-                  <ul className="list-disc list-inside text-xs text-[var(--text-secondary)] space-y-0.5">
-                    {reviewResult.review.strengths.map((s, i) => (
-                      <li key={i}>{s}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* 피드백 */}
-              {reviewResult.review.feedback.length > 0 && (
-                <div>
-                  <p className="text-xs font-medium text-yellow-600 dark:text-yellow-400">
-                    개선 제안
-                  </p>
-                  <ul className="list-disc list-inside text-xs text-[var(--text-secondary)] space-y-0.5">
-                    {reviewResult.review.feedback.map((f, i) => (
-                      <li key={i}>{f}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* 액션 버튼 */}
-          <div className="flex items-center gap-3 justify-end">
-            <button
-              type="button"
-              onClick={() => {
-                setStep("input");
-                setPreview(null);
-                setGeneratedGuideId(null);
-                setReviewResult(null);
-              }}
-              className="px-4 py-2 rounded-lg border border-secondary-200 dark:border-secondary-700 text-sm text-[var(--text-secondary)] hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors"
-            >
-              다시 생성
-            </button>
-            <button
-              type="button"
-              onClick={handleReview}
-              disabled={isReviewing || !!reviewResult}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-secondary-200 dark:border-secondary-700 text-sm font-medium text-[var(--text-primary)] hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors disabled:opacity-50"
-            >
-              {isReviewing ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  리뷰 중...
-                </>
-              ) : (
-                <>
-                  <ClipboardCheck className="w-4 h-4" />
-                  AI 리뷰
-                </>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (generatedGuideId) {
-                  router.push(`/admin/guides/${generatedGuideId}`);
-                }
-              }}
-              disabled={!generatedGuideId}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors disabled:opacity-50"
-            >
-              <Pencil className="w-4 h-4" />
-              편집기에서 수정
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -1461,9 +1292,3 @@ function FormField({
   );
 }
 
-const DIMENSION_LABELS: Record<string, string> = {
-  academicDepth: "학술적 깊이",
-  studentAccessibility: "학생 접근성",
-  structuralCompleteness: "구조적 완성도",
-  practicalRelevance: "실용적 연관성",
-};

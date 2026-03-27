@@ -28,6 +28,7 @@ import type {
   GuideStatus,
   GuideSourceType,
   QualityTier,
+  DifficultyLevel,
 } from "@/lib/domains/guide/types";
 import {
   GUIDE_TYPE_LABELS,
@@ -39,6 +40,8 @@ import {
   GUIDE_SOURCE_TYPES,
   QUALITY_TIERS,
   CURRICULUM_REVISION_IDS,
+  DIFFICULTY_LEVELS,
+  DIFFICULTY_LABELS,
 } from "@/lib/domains/guide/types";
 import { GuideListTable } from "./GuideListTable";
 
@@ -287,6 +290,19 @@ export function GuideListClient() {
           ))}
         </select>
 
+        <select
+          value={filters.difficultyLevel ?? ""}
+          onChange={(e) => handleFilterChange("difficultyLevel", e.target.value as DifficultyLevel)}
+          className={selectClass}
+        >
+          <option value="">전체 난이도</option>
+          {DIFFICULTY_LEVELS.map((d) => (
+            <option key={d} value={d}>
+              {DIFFICULTY_LABELS[d]}
+            </option>
+          ))}
+        </select>
+
         {/* 교육과정 필터 토글 */}
         <button
           onClick={() => setShowCurriculumFilters((v) => !v)}
@@ -304,6 +320,23 @@ export function GuideListClient() {
             <ChevronDown className="w-3.5 h-3.5" />
           )}
         </button>
+
+        {/* 모든 버전 표시 토글 */}
+        <label className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-700 text-sm text-[var(--text-secondary)] cursor-pointer hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors select-none">
+          <input
+            type="checkbox"
+            checked={filters.latestOnly === false}
+            onChange={(e) => {
+              setFilters((prev) => ({
+                ...prev,
+                latestOnly: e.target.checked ? false : undefined,
+                page: 1,
+              }));
+            }}
+            className="rounded border-secondary-300 text-primary-500 focus:ring-primary-500/30"
+          />
+          모든 버전
+        </label>
       </div>
 
       {/* 교육과정 캐스캐이딩 필터 (토글) */}
@@ -385,6 +418,7 @@ export function GuideListClient() {
         guides={guides}
         isLoading={isLoading}
         onRowClick={(id) => router.push(`/admin/guides/${id}`)}
+        showAllVersions={filters.latestOnly === false}
       />
 
       {/* 페이지네이션 */}

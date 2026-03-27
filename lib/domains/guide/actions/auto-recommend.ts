@@ -99,6 +99,7 @@ export async function autoRecommendGuidesAction(input: {
       .select("id, title, guide_type, book_title")
       .in("id", candidateIds)
       .eq("status", "approved")
+      .eq("is_latest", true)
       .limit(limit);
 
     const result: RecommendedGuide[] = (guides ?? []).map((g) => ({

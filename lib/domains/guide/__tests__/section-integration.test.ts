@@ -8,6 +8,7 @@ import {
   getRequiredSectionKeys,
   legacyToContentSections,
   resolveContentSections,
+  splitSetekExamplesBlob,
 } from "../section-config";
 import type { GuideType, ExplorationGuideContent } from "../types";
 import { GUIDE_TYPES } from "../types";
@@ -82,13 +83,11 @@ describe("section-config tier", () => {
   });
 
   it.each(GUIDE_TYPES as unknown as GuideType[])(
-    "%s: summary, follow_up은 optional이어야 한다",
+    "%s: summary는 type_extension, follow_up은 optional이어야 한다",
     (guideType) => {
-      const optKeys = getOptionalSections(guideType).map((s) => s.key);
-      // 존재하는 경우에만 optional인지 확인
       const config = GUIDE_SECTION_CONFIG[guideType];
       const summaryDef = config.find((s) => s.key === "summary");
-      if (summaryDef) expect(summaryDef.tier).toBe("optional");
+      if (summaryDef) expect(summaryDef.tier).toBe("type_extension");
       const followDef = config.find((s) => s.key === "follow_up");
       if (followDef) expect(followDef.tier).toBe("optional");
     },
@@ -197,6 +196,84 @@ describe("resolveContentSections", () => {
     expect(result.length).toBeGreaterThan(0);
     expect(result.find((s) => s.key === "motivation")).toBeTruthy();
   });
+
+  it("setek_examples: items 빈 배열이면 레거시 필드에서 보충", () => {
+    const content = makeLegacyContent({
+      setek_examples: ["<p>예시1</p>", "<p>예시2</p>"],
+      content_sections: [
+        { key: "motivation", label: "탐구 동기", content: "<p>동기</p>", content_format: "html" },
+        { key: "setek_examples", label: "세특 예시", content: "<p>예시HTML</p>", content_format: "plain", items: [] },
+      ],
+    });
+    const result = resolveContentSections("topic_exploration", content);
+    const setek = result.find((s) => s.key === "setek_examples");
+    expect(setek).toBeTruthy();
+    expect(setek!.items).toEqual(["<p>예시1</p>", "<p>예시2</p>"]);
+  });
+
+  it("setek_examples: items에 데이터가 있으면 그대로 유지", () => {
+    const content = makeLegacyContent({
+      setek_examples: ["레거시"],
+      content_sections: [
+        { key: "setek_examples", label: "세특 예시", content: "", content_format: "plain", items: ["items에서 온 예시"] },
+      ],
+    });
+    const result = resolveContentSections("topic_exploration", content);
+    const setek = result.find((s) => s.key === "setek_examples");
+    expect(setek!.items).toEqual(["items에서 온 예시"]);
+  });
+});
+
+// ============================================================
+// 3.1. splitSetekExamplesBlob — HTML 덩어리 분리
+// ============================================================
+
+describe("splitSetekExamplesBlob", () => {
+  it("<p><strong>예시 N 패턴으로 3개 분리", () => {
+    const blob = `<p><strong>예시 1 (화학):</strong> 내용1</p><p><strong>예시 2 (물리):</strong> 내용2</p><p><strong>예시 3 (생물):</strong> 내용3</p>`;
+    const result = splitSetekExamplesBlob(blob);
+    expect(result).toHaveLength(3);
+    expect(result![0]).toContain("예시 1");
+    expect(result![2]).toContain("예시 3");
+  });
+
+  it("<strong>예시 N 패턴으로 분리", () => {
+    const blob = `<strong>예시 1:</strong> 첫 번째 충분히 긴 예시 텍스트입니다.<strong>예시 2:</strong> 두 번째 충분히 긴 예시 텍스트입니다.`;
+    const result = splitSetekExamplesBlob(blob);
+    expect(result).toHaveLength(2);
+  });
+
+  it("패턴이 없으면 null 반환", () => {
+    const blob = `<p>단일 텍스트로 되어 있는 세특 예시입니다. 번호 패턴이 없습니다.</p>`;
+    const result = splitSetekExamplesBlob(blob);
+    expect(result).toBeNull();
+  });
+
+  it("너무 짧은 콘텐츠는 null 반환", () => {
+    expect(splitSetekExamplesBlob("짧음")).toBeNull();
+    expect(splitSetekExamplesBlob("")).toBeNull();
+  });
+
+  it("긴 예시 2개 + 짧은 예시 1개 → 긴 것만 분리", () => {
+    const blob = `<p><strong>예시 1:</strong> 충분히 긴 첫 번째 세특 예시 텍스트입니다.</p><p><strong>예시 2:</strong> 짧음</p><p><strong>예시 3:</strong> 충분히 긴 세 번째 세특 예시 텍스트입니다.</p>`;
+    const result = splitSetekExamplesBlob(blob);
+    // 3개로 분리되지만 "짧음" 부분(20자 미만)은 필터됨 → 2개
+    expect(result).not.toBeNull();
+    expect(result!.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("resolveContentSections에서 단일 레거시 항목 자동 분리", () => {
+    const blob = `<p><strong>예시 1:</strong> 첫 번째 충분히 긴 예시</p><p><strong>예시 2:</strong> 두 번째 충분히 긴 예시</p>`;
+    const content = makeLegacyContent({
+      setek_examples: [blob],
+      content_sections: [
+        { key: "setek_examples", label: "세특 예시", content: "", content_format: "plain", items: [] },
+      ],
+    });
+    const result = resolveContentSections("topic_exploration", content);
+    const setek = result.find((s) => s.key === "setek_examples");
+    expect(setek!.items!.length).toBeGreaterThanOrEqual(2);
+  });
 });
 
 // ============================================================
@@ -303,11 +380,12 @@ describe("theory-development-hints", () => {
     },
   );
 
-  it("SECTION_COHERENCE_RULES에 5개 규칙이 포함되어야 한다", () => {
+  it("SECTION_COHERENCE_RULES에 6개 규칙이 포함되어야 한다", () => {
     expect(SECTION_COHERENCE_RULES).toContain("동기 → 이론 연결");
     expect(SECTION_COHERENCE_RULES).toContain("이론 내부 연결");
     expect(SECTION_COHERENCE_RULES).toContain("이론 → 고찰 연결");
     expect(SECTION_COHERENCE_RULES).toContain("고찰 → 느낀점 연결");
+    expect(SECTION_COHERENCE_RULES).toContain("고찰 → 후속 탐구 연결");
     expect(SECTION_COHERENCE_RULES).toContain("전체 → 세특 예시");
   });
 });

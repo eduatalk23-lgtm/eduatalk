@@ -77,6 +77,15 @@ export type LinkedRecordType = (typeof LINKED_RECORD_TYPES)[number];
 export const UNIT_TYPES = ["major", "minor", "standard"] as const;
 export type UnitType = (typeof UNIT_TYPES)[number];
 
+export const DIFFICULTY_LEVELS = ["basic", "intermediate", "advanced"] as const;
+export type DifficultyLevel = (typeof DIFFICULTY_LEVELS)[number];
+
+export const DIFFICULTY_LABELS: Record<DifficultyLevel, string> = {
+  basic: "기초",
+  intermediate: "심화",
+  advanced: "고급",
+};
+
 // ------------------------------------
 // 2. 가이드 타입 (guide_type) 한글 라벨
 // ------------------------------------
@@ -165,6 +174,12 @@ export interface ExplorationGuide {
   } | null;
   created_at: string;
   updated_at: string;
+  /** 난이도 */
+  difficulty_level: DifficultyLevel | null;
+  /** AI 자동 설정 여부 (false=컨설턴트 수동 변경) */
+  difficulty_auto: boolean;
+  /** 생성자 이름 (findGuides 조인 결과) */
+  creator_name?: string | null;
 }
 
 /** 참고 자료 항목 — AI가 조사한 설명 + 컨설턴트가 추가하는 링크 */
@@ -370,6 +385,8 @@ export interface GuideListFilter {
   sourceType?: GuideSourceType;
   /** 품질 등급 (expert_authored, ai_draft, ...) */
   qualityTier?: QualityTier;
+  /** 난이도 */
+  difficultyLevel?: DifficultyLevel;
   page?: number;
   pageSize?: number;
 }
@@ -392,6 +409,7 @@ export interface SuggestedTopic {
   used_count: number;
   guide_created_count: number;
   ai_model_version: string | null;
+  difficulty_level: DifficultyLevel | null;
   created_at: string;
 }
 
@@ -400,6 +418,7 @@ export interface TopicListFilter {
   guideType?: string;
   subjectName?: string;
   careerField?: string;
+  difficultyLevel?: DifficultyLevel;
   subjectGroup?: string;
   majorUnit?: string;
   minorUnit?: string;
@@ -455,6 +474,8 @@ export interface GuideUpsertInput {
   versionMessage?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   reviewResult?: Record<string, any> | null;
+  difficultyLevel?: DifficultyLevel;
+  difficultyAuto?: boolean;
 }
 
 /** 가이드 본문 입력 */

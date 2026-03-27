@@ -17,8 +17,9 @@ export function buildKeywordSystemPrompt(
   guideType: GuideType,
   studentProfile?: StudentProfileContext,
   selectedSectionKeys?: string[],
+  difficultyLevel?: string,
 ): string {
-  return buildBaseSystemPrompt(guideType, studentProfile, selectedSectionKeys);
+  return buildBaseSystemPrompt(guideType, studentProfile, selectedSectionKeys, difficultyLevel);
 }
 
 // 하위 호환: 기존 코드에서 참조하는 곳용

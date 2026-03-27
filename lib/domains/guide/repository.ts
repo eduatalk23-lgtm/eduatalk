@@ -33,7 +33,7 @@ export async function findGuides(filter: GuideListFilter) {
 
   let query = supabase
     .from("exploration_guides")
-    .select("*", { count: "exact" })
+    .select("*, creator:user_profiles!exploration_guides_registered_by_fkey(name)", { count: "exact" })
     .order("created_at", { ascending: false })
     .range(from, to);
 
@@ -78,6 +78,9 @@ export async function findGuides(filter: GuideListFilter) {
   // 최신 버전만 (latestOnly !== false 일 때)
   if (filter.latestOnly !== false) {
     query = query.eq("is_latest", true);
+  }
+  if (filter.difficultyLevel) {
+    query = query.eq("difficulty_level", filter.difficultyLevel);
   }
 
   // junction 필터: 복수 조건 시 교집합 처리 (Supabase .in() 중복 방지)
@@ -126,7 +129,15 @@ export async function findGuides(filter: GuideListFilter) {
   const { data, error, count } = await query;
 
   if (error) throw error;
-  return { data: data as ExplorationGuide[], count: count ?? 0 };
+
+  // creator 조인 결과를 creator_name으로 평탄화
+  const guides = (data ?? []).map((row: Record<string, unknown>) => {
+    const creator = row.creator as { name: string } | null;
+    const { creator: _c, ...rest } = row;
+    return { ...rest, creator_name: creator?.name ?? null } as ExplorationGuide & { creator_name: string | null };
+  });
+
+  return { data: guides, count: count ?? 0 };
 }
 
 /** 가이드 상세 (메타 + 본문 + 과목/계열 매핑) */
@@ -233,6 +244,8 @@ export async function createGuide(input: GuideUpsertInput): Promise<ExplorationG
       original_guide_id: input.originalGuideId ?? null,
       parent_version_id: input.parentVersionId ?? null,
       version_message: input.versionMessage ?? null,
+      difficulty_level: input.difficultyLevel ?? null,
+      difficulty_auto: input.difficultyAuto ?? true,
     })
     .select()
     .single();
@@ -273,6 +286,8 @@ export async function updateGuide(
       ...(input.parentVersionId !== undefined && { parent_version_id: input.parentVersionId ?? null }),
       ...(input.versionMessage !== undefined && { version_message: input.versionMessage ?? null }),
       ...(input.reviewResult !== undefined && { review_result: input.reviewResult }),
+      ...(input.difficultyLevel !== undefined && { difficulty_level: input.difficultyLevel ?? null }),
+      ...(input.difficultyAuto !== undefined && { difficulty_auto: input.difficultyAuto }),
     })
     .eq("id", guideId)
     .select()
@@ -668,6 +683,7 @@ export async function findLatestVersionId(
 export async function createNewVersion(
   sourceGuideId: string,
   userId: string,
+  versionMessage?: string,
 ): Promise<ExplorationGuide> {
   const supabase = await createSupabaseServerClient();
 
@@ -707,6 +723,7 @@ export async function createNewVersion(
     isLatest: true,
     originalGuideId: originalId,
     parentVersionId: sourceGuideId,
+    versionMessage: versionMessage ?? undefined,
   });
 
   // 5. 본문 복제
@@ -723,6 +740,7 @@ export async function createNewVersion(
       relatedBooks: source.content.related_books,
       setekExamples: source.content.setek_examples,
       guideUrl: source.content.guide_url ?? undefined,
+      contentSections: source.content.content_sections,
     });
   }
 
@@ -744,14 +762,7 @@ export async function createNewVersion(
       : Promise.resolve(),
   ]);
 
-  // Phase 2-2: 기존 배정을 신규 버전으로 갱신
-  await supabase
-    .from("exploration_guide_assignments")
-    .update({ guide_id: newGuide.id })
-    .eq("guide_id", sourceGuideId)
-    .then(({ error }) => {
-      if (error) console.error("[createNewVersion] 배정 갱신 실패:", error.message);
-    });
+  // 배정은 기존 버전에 유지 (학생이 배정받은 버전의 콘텐츠가 변경되지 않도록)
 
   return newGuide;
 }
@@ -1155,6 +1166,7 @@ export async function findSuggestedTopicsPaginated(
   if (filter.subjectGroup) query = query.eq("subject_group", filter.subjectGroup);
   if (filter.majorUnit) query = query.eq("major_unit", filter.majorUnit);
   if (filter.minorUnit) query = query.eq("minor_unit", filter.minorUnit);
+  if (filter.difficultyLevel) query = query.eq("difficulty_level", filter.difficultyLevel);
   if (filter.searchQuery) {
     const escaped = filter.searchQuery.replace(/[%_\\]/g, (m) => `\\${m}`);
     query = query.or(
@@ -1185,6 +1197,7 @@ export async function saveSuggestedTopics(
     title: string;
     reason?: string;
     relatedSubjects?: string[];
+    difficultyLevel?: string;
     aiModelVersion?: string;
     createdBy?: string;
   }>,
@@ -1206,6 +1219,7 @@ export async function saveSuggestedTopics(
     title: t.title,
     reason: t.reason ?? null,
     related_subjects: t.relatedSubjects ?? [],
+    difficulty_level: t.difficultyLevel ?? null,
     ai_model_version: t.aiModelVersion ?? null,
     created_by: t.createdBy ?? null,
   }));
