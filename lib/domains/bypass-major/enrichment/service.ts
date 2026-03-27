@@ -66,11 +66,27 @@ export async function enrichDepartmentCurriculum(
   // 3. Tier 순차 시도
   let result: { courses: ParsedCourse[]; confidence: number; tier: CurriculumSource } | null = null;
 
-  // Tier 2: 공공 API (주요교과목명) — TODO: data.go.kr API 연동 시 구현
-  // 현재는 스킵하고 Tier 3로 진행
+  // Tier 2: 공공 API (data.go.kr 학과정보 — 주요교과목명)
   if (maxTier >= 2 && !result) {
-    // 공공 API 연동은 별도 배치 스크립트로 구현 예정
-    await logCollection(supabase, departmentId, "public_api", "skipped", 0, null, "API 연동 미구현");
+    try {
+      const { fetchPublicApiCurriculum } = await import("./tier2-public-api");
+      const apiResult = await fetchPublicApiCurriculum(universityName, departmentName);
+
+      if (apiResult.courses.length > 0) {
+        result = { courses: apiResult.courses, confidence: apiResult.confidence, tier: "public_api" };
+      }
+
+      await logCollection(
+        supabase, departmentId, "public_api",
+        result ? "success" : "failed",
+        result?.courses.length ?? 0,
+        `${universityName} ${departmentName}`,
+        result ? null : "API에서 학과/교육과정 매칭 실패",
+      );
+    } catch (err) {
+      logActionError({ ...LOG_CTX, action: "enrichment.tier2" }, `Tier 2 실패: ${err}`, { departmentId });
+      await logCollection(supabase, departmentId, "public_api", "failed", 0, null, String(err));
+    }
   }
 
   // Tier 3: 웹 검색 + LLM 파싱
