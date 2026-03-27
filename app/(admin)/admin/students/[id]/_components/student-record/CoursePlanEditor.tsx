@@ -264,6 +264,24 @@ export default function CoursePlanEditor({ studentId, tenantId }: CoursePlanEdit
         </div>
       )}
 
+      {/* 수강 확정 → 로드맵 연계 안내 */}
+      {stats.confirmed > 0 && (
+        <div className="flex items-center gap-2 rounded-md border border-violet-200 bg-violet-50/50 px-3 py-2 text-xs text-violet-700 dark:border-violet-800 dark:bg-violet-950/20 dark:text-violet-400">
+          <Info className="h-3.5 w-3.5 shrink-0" />
+          <span>확정 과목 {stats.confirmed}개 — 아래 로드맵 섹션에서 AI 로드맵을 생성하면 수강 계획이 반영됩니다.</span>
+          <button
+            type="button"
+            onClick={() => {
+              const el = document.querySelector("[data-section-id='sec-roadmap']");
+              el?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+            className="shrink-0 rounded bg-violet-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-violet-700"
+          >
+            로드맵 이동
+          </button>
+        </div>
+      )}
+
       {/* 학년별 아코디언 */}
       {[1, 2, 3].map((grade) => {
         const isExpanded = expandedGrades[grade];

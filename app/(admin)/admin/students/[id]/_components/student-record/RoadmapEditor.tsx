@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Sparkles, Loader2 } from "lucide-react";
 import {
   saveRoadmapItemAction,
   updateRoadmapItemAction,
@@ -63,12 +64,64 @@ export function RoadmapEditor({
     },
   });
 
+  // AI 로드맵 생성
+  const generateMutation = useMutation({
+    mutationFn: async () => {
+      const { generateAiRoadmap } = await import(
+        "@/lib/domains/student-record/llm/actions/generateRoadmap"
+      );
+      const result = await generateAiRoadmap(studentId);
+      if (!result.success) throw new Error("error" in result ? result.error : "생성 실패");
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: studentRecordKeys.storylineTab(studentId) });
+    },
+  });
+
+  // AI 생성 항목 수 + 모드 감지
+  const aiItems = roadmapItems.filter((r) => r.plan_content.startsWith("[AI]"));
+  const hasAiItems = aiItems.length > 0;
+
   // Group by grade
   const grades = [1, 2, 3];
   const itemsByGrade = grades.map((g) => roadmapItems.filter((item) => item.grade === g));
 
   return (
     <div className="flex flex-col gap-4">
+      {/* AI 로드맵 생성 + 상태 표시 */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {hasAiItems && (
+            <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-600 dark:bg-violet-900/20 dark:text-violet-400">
+              AI {aiItems.length}건
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            if (hasAiItems && !confirm("기존 AI 로드맵을 대체합니다. 계속하시겠습니까?")) return;
+            generateMutation.mutate();
+          }}
+          disabled={generateMutation.isPending}
+          className="flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-violet-700 disabled:opacity-50"
+        >
+          {generateMutation.isPending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Sparkles className="h-3.5 w-3.5" />
+          )}
+          AI 로드맵 생성
+        </button>
+      </div>
+
+      {generateMutation.isError && (
+        <div className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-400">
+          {generateMutation.error?.message ?? "로드맵 생성에 실패했습니다."}
+        </div>
+      )}
+
       {/* 학년별 그리드 */}
       {grades.map((g, idx) => (
         <div key={g} className="rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">

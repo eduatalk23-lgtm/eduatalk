@@ -68,6 +68,7 @@ export async function fetchSetekGuides(
   cautions: string | null;
   teacher_points: string[];
   overall_direction: string | null;
+  prompt_version: string | null;
   confirmed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -79,7 +80,7 @@ export async function fetchSetekGuides(
     const { data, error } = await supabase
       .from("student_record_setek_guides")
       .select(
-        "id, school_year, subject_id, source, status, direction, keywords, competency_focus, cautions, teacher_points, overall_direction, confirmed_at, created_at, updated_at",
+        "id, school_year, subject_id, source, status, direction, keywords, competency_focus, cautions, teacher_points, overall_direction, prompt_version, confirmed_at, created_at, updated_at",
       )
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });

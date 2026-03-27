@@ -71,7 +71,7 @@ const SECTION_SCROLL_MAP: Record<PipelineTaskKey, string> = {
   activity_summary: "sec-activity-summary",
   ai_strategy: "sec-compensation",
   interview_generation: "sec-interview",
-  roadmap_generation: "sec-storyline",
+  roadmap_generation: "sec-roadmap",
 };
 
 export function DesignPipelineResultsPanel({

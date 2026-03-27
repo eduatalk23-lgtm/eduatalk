@@ -156,10 +156,17 @@ export function SetekGuidePanel({
         </div>
       )}
 
-      {/* 내부 분석용 안내 */}
-      <p className="text-[10px] text-[var(--text-tertiary)]">
-        내부 분석용 — 학생/학부모 미공개 · 확정 전까지 초안 상태
-      </p>
+      {/* 내부 분석용 안내 + 모드 표시 */}
+      <div className="flex items-center gap-2">
+        <p className="text-[10px] text-[var(--text-tertiary)]">
+          내부 분석용 — 학생/학부모 미공개 · 확정 전까지 초안 상태
+        </p>
+        {guides && guides.some((g) => g.prompt_version === "guide_v1_prospective") && (
+          <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
+            계획 기반
+          </span>
+        )}
+      </div>
 
       {/* 기존 가이드 목록 */}
       {guides && guides.length > 0 ? (
