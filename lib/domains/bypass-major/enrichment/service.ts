@@ -230,24 +230,29 @@ export async function enrichDepartmentsBatch(
 
 // ─── 헬퍼 ──────────────────────────────────
 
+/**
+ * source 우선순위 — repository.ts의 sourcePriority()와 동일하게 유지
+ * import(4) > public_api(3) > web_search(2) > ai_inferred(1)
+ */
+const SOURCE_PRIORITY: Record<CurriculumSource, number> = {
+  import: 4,
+  public_api: 3,
+  web_search: 2,
+  ai_inferred: 1,
+};
+
 /** 상위 Tier가 하위 Tier를 교체할 수 있는지 판단 */
 function shouldReplace(existingSource: CurriculumSource | null, newSource: CurriculumSource): boolean {
   if (!existingSource) return true;
-  const priority: Record<CurriculumSource, number> = {
-    import: 4,
-    web_search: 3,
-    public_api: 2,
-    ai_inferred: 1,
-  };
-  return priority[newSource] >= priority[existingSource];
+  return SOURCE_PRIORITY[newSource] >= SOURCE_PRIORITY[existingSource];
 }
 
 /** 교체 대상 source 목록 (자신 이하) */
 function getReplaceSources(tier: CurriculumSource): CurriculumSource[] {
   switch (tier) {
     case "import": return ["import", "public_api", "web_search", "ai_inferred"];
+    case "public_api": return ["public_api", "web_search", "ai_inferred"];
     case "web_search": return ["web_search", "ai_inferred"];
-    case "public_api": return ["public_api", "ai_inferred"];
     case "ai_inferred": return ["ai_inferred"];
   }
 }
