@@ -1164,7 +1164,7 @@ function AnalysisExpandableCell({
 
       {/* 펼친 상태: 3열 */}
       {expanded && (
-        <div className="mt-1 grid grid-cols-3 gap-2 rounded-lg border border-[var(--border-secondary)] bg-[var(--surface-secondary)] p-2">
+        <div className="mt-1 flex flex-col gap-2 rounded-lg border border-[var(--border-secondary)] bg-[var(--surface-secondary)] p-2">
           {/* 🤖 AI 열 */}
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-1 border-b border-[var(--border-secondary)] pb-1">
@@ -1254,7 +1254,7 @@ function DraftExpandableCell({ records }: { records: RecordSetek[] }) {
           {records.length > 1 && (
             <span className="text-[9px] font-medium text-[var(--text-tertiary)]">{setek.semester}학기</span>
           )}
-          <div className="grid grid-cols-3 gap-2 rounded-lg border border-[var(--border-secondary)] bg-[var(--surface-secondary)] p-2">
+          <div className="flex flex-col gap-2 rounded-lg border border-[var(--border-secondary)] bg-[var(--surface-secondary)] p-2">
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-1 border-b border-[var(--border-secondary)] pb-1">
                 <span className="text-[10px]">🤖</span>
