@@ -12,7 +12,7 @@ import { useAutoSave } from "./useAutoSave";
 import { useStudentRecordContext } from "./StudentRecordContext";
 import { useSidePanel } from "@/components/side-panel";
 import { cn } from "@/lib/cn";
-import { FileText, Search, BookOpen, Compass, MessageSquare, ClipboardList } from "lucide-react";
+import { FileText, Search, BookOpen, Compass, MessageSquare, ClipboardList, PenLine, StickyNote } from "lucide-react";
 import { SetekGuideRecommendations } from "./SetekGuideRecommendations";
 import { SameSchoolSetekInfo } from "./SameSchoolSetekInfo";
 import { CrossReferenceChips } from "./CrossReferenceChips";
@@ -23,7 +23,7 @@ import { InlineAreaMemos } from "./InlineAreaMemos";
 
 type Subject = { id: string; name: string };
 
-type SetekLayerTab = "record" | "analysis" | "guide" | "direction" | "chat";
+type SetekLayerTab = "chat" | "guide" | "direction" | "draft" | "neis" | "analysis" | "memo";
 
 interface ActivityTagLike {
   record_type: string;
@@ -107,11 +107,13 @@ function mergeSeteksBySemester(seteks: RecordSetek[], subjects: Subject[]): Merg
 // ─── 메인 컴포넌트 ──────────────────────────────────
 
 const LAYER_TABS: { key: SetekLayerTab; label: string; icon: typeof FileText }[] = [
-  { key: "record", label: "세특", icon: FileText },
-  { key: "analysis", label: "분석", icon: Search },
+  { key: "chat", label: "논의", icon: MessageSquare },
   { key: "guide", label: "가이드", icon: BookOpen },
   { key: "direction", label: "방향", icon: Compass },
-  { key: "chat", label: "논의", icon: MessageSquare },
+  { key: "draft", label: "가안", icon: PenLine },
+  { key: "neis", label: "NEIS", icon: FileText },
+  { key: "analysis", label: "분석", icon: Search },
+  { key: "memo", label: "메모", icon: StickyNote },
 ];
 
 const COMPETENCY_LABELS: Record<string, string> = {
@@ -142,7 +144,7 @@ export function SetekEditor({
   courseAdequacy,
 }: SetekEditorProps) {
   const [showAddForm, setShowAddForm] = useState(false);
-  const [activeTab, setActiveTab] = useState<SetekLayerTab>("record");
+  const [activeTab, setActiveTab] = useState<SetekLayerTab>("neis");
   const charLimit = getCharLimit("setek", schoolYear);
 
   const mergedRows = useMemo(() => mergeSeteksBySemester(seteks, subjects), [seteks, subjects]);
@@ -202,10 +204,12 @@ export function SetekEditor({
       {/* ─── 레이어 탭 바 ───────────────────────── */}
       <div className="flex gap-1 overflow-x-auto border-b border-[var(--border-secondary)]">
         {LAYER_TABS.map((tab) => {
-          const hasData = tab.key === "record" ? seteks.length > 0
+          const hasData = tab.key === "neis" ? seteks.length > 0
+            : tab.key === "draft" ? seteks.some((s) => s.content || s.ai_draft_content)
             : tab.key === "analysis" ? filteredTags.length > 0
             : tab.key === "guide" ? (guideAssignments?.length ?? 0) > 0
             : tab.key === "direction" ? filteredGuideItems.length > 0
+            : tab.key === "memo" ? true
             : false;
           return (
             <button
@@ -222,7 +226,7 @@ export function SetekEditor({
             >
               <tab.icon className="h-3.5 w-3.5 shrink-0" />
               <span className="hidden sm:inline">{tab.label}</span>
-              {hasData && tab.key !== "record" && (
+              {hasData && tab.key !== "neis" && (
                 <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-indigo-500" />
               )}
             </button>
@@ -238,10 +242,12 @@ export function SetekEditor({
               <th className={`${B} w-12 px-2 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>학년</th>
               <th className={`${B} w-28 px-3 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>과 목</th>
               <th className={`${B} px-3 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>
-                {activeTab === "record" ? "세부능력 및 특기사항"
+                {activeTab === "neis" ? "세부능력 및 특기사항"
+                  : activeTab === "draft" ? "세특 가안"
+                  : activeTab === "direction" ? "작성 방향"
+                  : activeTab === "guide" ? "활동 가이드"
                   : activeTab === "analysis" ? "역량 분석"
-                  : activeTab === "guide" ? "배정 가이드"
-                  : activeTab === "direction" ? "세특 방향"
+                  : activeTab === "memo" ? "메모"
                   : "논의"}
               </th>
             </tr>
@@ -288,7 +294,7 @@ export function SetekEditor({
         </table>
       </div>
 
-      {activeTab === "record" && (
+      {activeTab === "neis" && (
         <>
           {showAddForm ? (
             <AddSetekForm
@@ -572,20 +578,7 @@ export function SetekEditor({
             ))
           )}
 
-          {/* G3-4: 영역별 메모 */}
-          {mergedRows.length > 0 && (
-            <div className="flex flex-col gap-3 border-t border-[var(--border-secondary)] pt-3">
-              {mergedRows.map((row) => (
-                <InlineAreaMemos
-                  key={`memo-${row.subjectId}`}
-                  studentId={studentId}
-                  areaType="setek"
-                  areaId={row.subjectId}
-                  areaLabel={row.displayName}
-                />
-              ))}
-            </div>
-          )}
+          {/* 메모는 별도 📋메모 탭으로 분리됨 */}
         </div>
       )}
 
@@ -750,8 +743,8 @@ function SetekTableRow({
     </td>
   );
 
-  // record 탭: 학기별 행 (기존 동작)
-  if (activeTab === "record") {
+  // neis 탭: 학기별 행 (기존 동작)
+  if (activeTab === "neis") {
     return (
       <>
         {row.records.map((setek, idx) => (
@@ -857,6 +850,53 @@ function SetekTableRow({
             <MessageSquare className="h-3 w-3" />
             {row.displayName} 논의
           </button>
+        )}
+
+        {activeTab === "draft" && (
+          <div className="flex flex-col gap-2">
+            {row.records.map((setek) => {
+              const hasDraft = !!setek.ai_draft_content;
+              const hasContent = !!(setek.content && setek.content.trim());
+              const hasConfirmed = !!(setek.confirmed_content && setek.confirmed_content.trim());
+              return (
+                <div key={setek.id} className="flex flex-col gap-1">
+                  {row.records.length > 1 && (
+                    <span className="text-[10px] text-[var(--text-tertiary)]">{setek.semester}학기</span>
+                  )}
+                  {hasDraft && (
+                    <div className="rounded bg-violet-50 p-1.5 dark:bg-violet-900/20">
+                      <span className="text-[9px] font-medium text-violet-600 dark:text-violet-400">🤖 AI 초안</span>
+                      <p className="mt-0.5 text-xs text-violet-700 line-clamp-2 dark:text-violet-300">{setek.ai_draft_content?.slice(0, 100)}...</p>
+                    </div>
+                  )}
+                  {hasContent && (
+                    <div className="rounded bg-blue-50 p-1.5 dark:bg-blue-900/20">
+                      <span className="text-[9px] font-medium text-blue-600 dark:text-blue-400">👤 컨설턴트</span>
+                      <p className="mt-0.5 text-xs text-blue-700 line-clamp-2 dark:text-blue-300">{setek.content?.slice(0, 100)}...</p>
+                    </div>
+                  )}
+                  {hasConfirmed && (
+                    <div className="rounded bg-emerald-50 p-1.5 dark:bg-emerald-900/20">
+                      <span className="text-[9px] font-medium text-emerald-600 dark:text-emerald-400">✅ 확정</span>
+                      <p className="mt-0.5 text-xs text-emerald-700 line-clamp-2 dark:text-emerald-300">{setek.confirmed_content?.slice(0, 100)}...</p>
+                    </div>
+                  )}
+                  {!hasDraft && !hasContent && !hasConfirmed && (
+                    <span className="text-[10px] text-[var(--text-placeholder)]">가안 없음</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {activeTab === "memo" && (
+          <InlineAreaMemos
+            studentId={studentId}
+            areaType="setek"
+            areaId={row.subjectId}
+            areaLabel={row.displayName}
+          />
         )}
       </td>
     </tr>
