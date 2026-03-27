@@ -57,7 +57,7 @@ type SetekEditorProps = {
   grade: number;
   diagnosisActivityTags?: ActivityTagLike[];
   setekGuideItems?: SetekGuideItemLike[];
-  guideAssignments?: Array<{ id: string; guide_id: string; status: string; exploration_guides?: { id: string; title: string; guide_type?: string } }>;
+  guideAssignments?: Array<{ id: string; guide_id: string; status: string; target_subject_id?: string | null; exploration_guides?: { id: string; title: string; guide_type?: string } }>;
   /** confirmed course plans (세특 미존재인 것만 전달) */
   plannedSubjects?: PlannedSubject[];
   /** G2-5: 진로 소분류 ID (가이드 자동 추천용) */
@@ -230,55 +230,66 @@ export function SetekEditor({
         })}
       </div>
 
-      {/* ─── 📄 세특 탭 (기본) ──────────────────── */}
+      {/* ─── 생기부 모형 테이블 (모든 탭에서 유지) ──────────────────── */}
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr>
+              <th className={`${B} w-12 px-2 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>학년</th>
+              <th className={`${B} w-28 px-3 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>과 목</th>
+              <th className={`${B} px-3 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>
+                {activeTab === "record" ? "세부능력 및 특기사항"
+                  : activeTab === "analysis" ? "역량 분석"
+                  : activeTab === "guide" ? "배정 가이드"
+                  : activeTab === "direction" ? "세특 방향"
+                  : "논의"}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {mergedRows.length === 0 && pendingPlanned.length === 0 ? (
+              <tr>
+                <td colSpan={3} className={`${B} px-4 py-2 text-center text-xs text-[var(--text-tertiary)]`}>
+                  해당 사항 없음
+                </td>
+              </tr>
+            ) : (
+              <>
+                {mergedRows.map((row) => (
+                  <SetekTableRow
+                    key={row.subjectId}
+                    row={row}
+                    charLimit={charLimit}
+                    studentId={studentId}
+                    schoolYear={schoolYear}
+                    tenantId={tenantId}
+                    grade={grade}
+                    activeTab={activeTab}
+                    subjectTags={filteredTags.filter((t) => row.records.some((r) => r.id === t.record_id))}
+                    subjectReflection={reflectionBySubject.get(row.displayName)}
+                    subjectGuides={guideAssignments?.filter((a) => a.target_subject_id === row.subjectId) ?? []}
+                    subjectDirection={filteredGuideItems.filter((g) => g.subjectName === row.displayName)}
+                  />
+                ))}
+                {pendingPlanned.map((p) => (
+                  <PlannedSubjectRow
+                    key={`planned-${p.subjectId}-${p.semester}`}
+                    planned={p}
+                    studentId={studentId}
+                    schoolYear={schoolYear}
+                    tenantId={tenantId}
+                    grade={grade}
+                    charLimit={charLimit}
+                  />
+                ))}
+              </>
+            )}
+          </tbody>
+        </table>
+      </div>
+
       {activeTab === "record" && (
         <>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr>
-                  <th className={`${B} w-12 px-2 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>학년</th>
-                  <th className={`${B} w-28 px-3 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>과 목</th>
-                  <th className={`${B} px-3 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>세부능력 및 특기사항</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mergedRows.length === 0 && pendingPlanned.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className={`${B} px-4 py-2 text-center text-xs text-[var(--text-tertiary)]`}>
-                      해당 사항 없음
-                    </td>
-                  </tr>
-                ) : (
-                  <>
-                    {mergedRows.map((row) => (
-                      <SetekTableRow
-                        key={row.subjectId}
-                        row={row}
-                        charLimit={charLimit}
-                        studentId={studentId}
-                        schoolYear={schoolYear}
-                        tenantId={tenantId}
-                        grade={grade}
-                      />
-                    ))}
-                    {pendingPlanned.map((p) => (
-                      <PlannedSubjectRow
-                        key={`planned-${p.subjectId}-${p.semester}`}
-                        planned={p}
-                        studentId={studentId}
-                        schoolYear={schoolYear}
-                        tenantId={tenantId}
-                        grade={grade}
-                        charLimit={charLimit}
-                      />
-                    ))}
-                  </>
-                )}
-              </tbody>
-            </table>
-          </div>
-
           {showAddForm ? (
             <AddSetekForm
               subjects={availableSubjects}
@@ -688,6 +699,11 @@ function SetekTableRow({
   schoolYear,
   tenantId,
   grade,
+  activeTab,
+  subjectTags,
+  subjectReflection,
+  subjectGuides,
+  subjectDirection,
 }: {
   row: MergedSetekRow;
   charLimit: number;
@@ -695,41 +711,125 @@ function SetekTableRow({
   schoolYear: number;
   tenantId: string;
   grade: number;
+  activeTab: SetekLayerTab;
+  subjectTags: ActivityTagLike[];
+  subjectReflection?: SubjectReflectionRate;
+  subjectGuides: Array<{ id: string; status: string; target_subject_id?: string | null; exploration_guides?: { id: string; title: string; guide_type?: string } }>;
+  subjectDirection: SetekGuideItemLike[];
 }) {
-  return (
-    <>
-      {row.records.map((setek, idx) => (
-        <tr key={setek.id} className="align-top">
-          {idx === 0 && (
-            <>
-              {/* 학년 */}
-              <td rowSpan={row.records.length} className={`${B} px-2 py-2 text-center align-middle text-sm text-[var(--text-primary)]`}>
-                {grade}
-              </td>
-              {/* 과목명 */}
-              <td rowSpan={row.records.length} className={`${B} px-3 py-2 text-center align-middle text-sm font-medium text-[var(--text-primary)]`}>
-                {row.displayName}
-              </td>
-            </>
-          )}
-          {/* 세특 내용 */}
-          <td className={`${B} p-1`}>
-            {row.records.length > 1 && (
-              <p className="mb-1 px-1 text-xs font-medium text-[var(--text-tertiary)]">{setek.semester}학기</p>
+  const ctx = useStudentRecordContext();
+  const sidePanel = useSidePanel();
+
+  // record 탭: 학기별 행 (기존 동작)
+  if (activeTab === "record") {
+    return (
+      <>
+        {row.records.map((setek, idx) => (
+          <tr key={setek.id} className="align-top">
+            {idx === 0 && (
+              <>
+                <td rowSpan={row.records.length} className={`${B} px-2 py-2 text-center align-middle text-sm text-[var(--text-primary)]`}>{grade}</td>
+                <td rowSpan={row.records.length} className={`${B} px-3 py-2 text-center align-middle text-sm font-medium text-[var(--text-primary)]`}>{row.displayName}</td>
+              </>
             )}
-            <SetekInlineEditor
-              setek={setek}
-              charLimit={charLimit}
-              studentId={studentId}
-              schoolYear={schoolYear}
-              tenantId={tenantId}
-              grade={grade}
-              showSemesterLabel={false}
-            />
-          </td>
-        </tr>
-      ))}
-    </>
+            <td className={`${B} p-1`}>
+              {row.records.length > 1 && (
+                <p className="mb-1 px-1 text-xs font-medium text-[var(--text-tertiary)]">{setek.semester}학기</p>
+              )}
+              <SetekInlineEditor setek={setek} charLimit={charLimit} studentId={studentId} schoolYear={schoolYear} tenantId={tenantId} grade={grade} showSemesterLabel={false} />
+            </td>
+          </tr>
+        ))}
+      </>
+    );
+  }
+
+  // 비-record 탭: 과목당 1행 (학기 구분 없이 과목 단위)
+  return (
+    <tr className="align-top">
+      <td className={`${B} px-2 py-2 text-center align-middle text-sm text-[var(--text-primary)]`}>{grade}</td>
+      <td className={`${B} px-3 py-2 text-center align-middle text-sm font-medium text-[var(--text-primary)]`}>{row.displayName}</td>
+      <td className={`${B} p-2`}>
+        {activeTab === "analysis" && (
+          <div className="flex flex-col gap-1.5">
+            {subjectReflection && (
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-[var(--text-tertiary)]">반영률</span>
+                <div className="flex-1 rounded-full bg-gray-100 dark:bg-gray-800" style={{ height: 5 }}>
+                  <div className={cn("h-full rounded-full", subjectReflection.rate >= 70 ? "bg-emerald-500" : subjectReflection.rate >= 40 ? "bg-amber-500" : "bg-red-400")} style={{ width: `${subjectReflection.rate}%` }} />
+                </div>
+                <span className="text-[10px] font-medium text-[var(--text-secondary)]">{subjectReflection.rate}%</span>
+              </div>
+            )}
+            {subjectTags.length > 0 ? (
+              <div className="flex flex-wrap gap-1">
+                {subjectTags.map((t, i) => (
+                  <span key={i} className={cn("rounded px-1.5 py-0.5 text-[10px] font-medium",
+                    t.evaluation === "positive" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                    : t.evaluation === "negative" ? "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                    : "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+                  )}>
+                    {t.competency_item ?? "태그"}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <span className="text-[10px] text-[var(--text-placeholder)]">역량 태그 없음</span>
+            )}
+          </div>
+        )}
+
+        {activeTab === "guide" && (
+          <div className="flex flex-col gap-1">
+            {subjectGuides.length > 0 ? subjectGuides.map((g) => (
+              <div key={g.id} className="flex items-center gap-1.5">
+                <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", g.status === "completed" ? "bg-emerald-500" : g.status === "in_progress" ? "bg-amber-500" : "bg-gray-300")} />
+                <span className="truncate text-xs text-[var(--text-primary)]">{g.exploration_guides?.title ?? "가이드"}</span>
+                <span className="shrink-0 text-[10px] text-[var(--text-tertiary)]">{g.status === "completed" ? "완료" : g.status === "in_progress" ? "진행" : "배정"}</span>
+              </div>
+            )) : (
+              <span className="text-[10px] text-[var(--text-placeholder)]">배정된 가이드 없음</span>
+            )}
+          </div>
+        )}
+
+        {activeTab === "direction" && (
+          <div className="flex flex-col gap-1.5">
+            {subjectDirection.length > 0 ? subjectDirection.map((d, i) => (
+              <div key={i} className="flex flex-col gap-1">
+                <p className="text-xs text-[var(--text-primary)] line-clamp-2">{d.direction}</p>
+                {d.keywords.length > 0 && (
+                  <div className="flex flex-wrap gap-0.5">
+                    {d.keywords.slice(0, 5).map((kw) => (
+                      <span key={kw} className="rounded bg-indigo-50 px-1 py-0.5 text-[9px] text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">{kw}</span>
+                    ))}
+                  </div>
+                )}
+                {d.teacherPoints && d.teacherPoints.length > 0 && (
+                  <p className="text-[10px] text-[var(--text-tertiary)]">교사: {d.teacherPoints[0]}</p>
+                )}
+              </div>
+            )) : (
+              <span className="text-[10px] text-[var(--text-placeholder)]">방향 가이드 없음</span>
+            )}
+          </div>
+        )}
+
+        {activeTab === "chat" && (
+          <button
+            type="button"
+            onClick={() => {
+              ctx?.setActiveSubjectId?.(row.subjectId);
+              sidePanel?.openApp?.("chat");
+            }}
+            className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-1 text-xs text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50"
+          >
+            <MessageSquare className="h-3 w-3" />
+            {row.displayName} 논의
+          </button>
+        )}
+      </td>
+    </tr>
   );
 }
 
