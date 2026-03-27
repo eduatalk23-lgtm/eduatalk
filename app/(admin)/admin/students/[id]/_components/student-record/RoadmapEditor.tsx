@@ -171,7 +171,7 @@ function RoadmapItemRow({
 
   const areaLabel = AREA_OPTIONS.find((a) => a.value === item.area)?.label ?? item.area;
   const hasExecution = !!item.execution_content;
-  const itemStatus = ((item as Record<string, unknown>).status as RoadmapItemStatus) ?? (hasExecution ? "completed" : "planning");
+  const itemStatus = (item.status as RoadmapItemStatus) ?? (hasExecution ? "completed" : "planning");
   const statusCfg = STATUS_CONFIG[itemStatus];
 
   const saveStatus = executionMutation.isPending
