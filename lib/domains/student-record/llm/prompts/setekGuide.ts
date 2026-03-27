@@ -39,22 +39,39 @@ export const SYSTEM_PROMPT = `당신은 입시 컨설턴트의 내부 분석 도
 }
 \`\`\`
 
-## 규칙
+## 모드
 
-1. 입력된 세특/창체 데이터에 있는 활동만 기반으로 작성합니다. 없는 활동을 만들어내지 마세요.
-2. 과목별로 5-7개의 핵심 키워드를 추출합니다. 키워드는 세특에 녹일 수 있는 학술적/탐구적 개념입니다.
-3. competencyFocus는 다음 중에서 선택합니다:
+입력에 "모드" 필드가 있습니다:
+- "retrospective" (기본): 기존 세특 기록을 분석하여 방향을 제안합니다.
+- "prospective": 기록이 없는 계획 과목에 대해 미래 세특 작성 방향을 제안합니다.
+
+## 규칙 (공통)
+
+1. competencyFocus는 다음 중에서 선택합니다:
    - academic_achievement, academic_attitude, academic_inquiry
    - career_course_effort, career_course_achievement, career_exploration
    - community_collaboration, community_caring, community_integrity, community_leadership
-4. direction은 구체적인 서술 방향을 제시합니다. "~를 강조", "~와 연결" 등 실행 가능한 지시.
-5. cautions에는 세특 작성 시 피해야 할 점을 명시합니다. 예: "단순 나열 지양", "활동 근거 없는 추상적 서술 주의".
-6. teacherPoints는 담임/교과 교사에게 전달할 핵심 메시지 2-3개입니다.
-7. 스토리라인이 있으면 해당 키워드와 자연스럽게 연결합니다.
-8. 역량 진단 결과가 있으면 약한 역량을 보완할 수 있는 방향도 포함합니다.
-9. 세특 데이터가 있는 과목만 가이드를 생성합니다. 데이터 없는 과목은 생략합니다.
-10. 학생의 목표 학과 분류(소분류)가 있으면, 해당 전공 분야에 특화된 세특 방향을 제시합니다.
-11. JSON으로만 응답합니다.`;
+2. direction은 구체적인 서술 방향을 제시합니다. "~를 강조", "~와 연결" 등 실행 가능한 지시.
+3. cautions에는 세특 작성 시 피해야 할 점을 명시합니다. 예: "단순 나열 지양", "활동 근거 없는 추상적 서술 주의".
+4. teacherPoints는 담임/교과 교사에게 전달할 핵심 메시지 2-3개입니다.
+5. 스토리라인이 있으면 해당 키워드와 자연스럽게 연결합니다.
+6. 역량 진단 결과가 있으면 약한 역량을 보완할 수 있는 방향도 포함합니다.
+7. 학생의 목표 학과 분류(소분류)가 있으면, 해당 전공 분야에 특화된 세특 방향을 제시합니다.
+8. JSON으로만 응답합니다.
+
+## 규칙 (retrospective 전용)
+
+9. 입력된 세특/창체 데이터에 있는 활동만 기반으로 작성합니다. 없는 활동을 만들어내지 마세요.
+10. 과목별로 5-7개의 핵심 키워드를 기존 기록에서 추출합니다.
+11. 세특 데이터가 있는 과목만 가이드를 생성합니다. 데이터 없는 과목은 생략합니다.
+
+## 규칙 (prospective 전용)
+
+12. 계획 과목 목록을 기반으로, 해당 과목에서 수행할 수 있는 탐구 주제와 방향을 제안합니다.
+13. keywords는 해당 과목에서 세특에 녹일 수 있는 탐구적 키워드 5-7개를 제안합니다 (추출이 아닌 제안).
+14. 배정된 탐구 가이드가 있으면, 해당 가이드의 주제를 키워드와 방향에 반영합니다.
+15. 목표 전공과 연결되는 교차 과목 탐구 방향도 포함합니다.
+16. 계획 과목 전체에 대해 가이드를 생성합니다.`;
 
 // ============================================
 // 사용자 프롬프트 빌더
@@ -67,9 +84,12 @@ const CHANGCHE_TYPE_LABELS: Record<string, string> = {
 };
 
 export function buildUserPrompt(input: SetekGuideInput): string {
+  const mode = input.mode ?? "retrospective";
+
   let prompt = `## 학생 정보\n\n`;
   prompt += `- 이름: ${input.studentName}\n`;
   prompt += `- 현재 학년: ${input.grade}학년\n`;
+  prompt += `- 모드: ${mode}\n`;
   if (input.targetMajor) prompt += `- 희망 전공 계열: ${input.targetMajor}\n`;
   if (input.targetMidName || input.targetSubClassificationName) {
     const parts = [input.targetMidName, input.targetSubClassificationName].filter(Boolean);
@@ -86,7 +106,7 @@ export function buildUserPrompt(input: SetekGuideInput): string {
     prompt += "\n";
   }
 
-  // 역량 진단
+  // 역량 진단 (retrospective)
   if (input.competencyScores && input.competencyScores.length > 0) {
     prompt += `## 역량 진단 결과\n\n`;
     for (const cs of input.competencyScores) {
@@ -108,36 +128,62 @@ export function buildUserPrompt(input: SetekGuideInput): string {
     prompt += input.edgePromptSection + "\n";
   }
 
-  // 학년별 데이터
-  for (const grade of input.targetGrades) {
-    const data = input.recordDataByGrade[grade];
-    if (!data) continue;
-
-    prompt += `## ${grade}학년 기록\n\n`;
-
-    const CONTENT_LIMIT = 600;
-
-    if (data.seteks.length > 0) {
-      prompt += `### 교과 세특\n`;
-      for (const s of data.seteks) {
-        const truncated = s.content.slice(0, CONTENT_LIMIT);
-        prompt += `- **${s.subject_name}**: ${truncated}${s.content.length > CONTENT_LIMIT ? "..." : ""}\n`;
-      }
-      prompt += "\n";
-    }
-
-    if (data.changche.length > 0) {
-      prompt += `### 창의적 체험활동\n`;
-      for (const c of data.changche) {
-        const typeLabel = CHANGCHE_TYPE_LABELS[c.activity_type] ?? c.activity_type;
-        const truncated = c.content.slice(0, CONTENT_LIMIT);
-        prompt += `- **[${typeLabel}]**: ${truncated}${c.content.length > CONTENT_LIMIT ? "..." : ""}\n`;
-      }
-      prompt += "\n";
-    }
+  // 가이드 배정 (Phase R2, prospective 특히 유용)
+  if (input.guideAssignments) {
+    prompt += `${input.guideAssignments}\n\n`;
   }
 
-  prompt += `위 기록과 진단 결과를 바탕으로 과목별 세특 방향 가이드를 JSON으로 작성해주세요.`;
+  if (mode === "prospective") {
+    // prospective: 계획 과목 기반
+    if (input.plannedSubjects && input.plannedSubjects.length > 0) {
+      prompt += `## 계획 과목 (세특 미작성, 방향 제안 필요)\n\n`;
+      const grouped = new Map<number, typeof input.plannedSubjects>();
+      for (const ps of input.plannedSubjects) {
+        if (!grouped.has(ps.grade)) grouped.set(ps.grade, []);
+        grouped.get(ps.grade)!.push(ps);
+      }
+      for (const [grade, subjects] of [...grouped.entries()].sort((a, b) => a[0] - b[0])) {
+        prompt += `### ${grade}학년\n`;
+        for (const s of subjects) {
+          const typeLabel = s.subjectType ? ` (${s.subjectType})` : "";
+          prompt += `- ${s.subjectName}${typeLabel} — ${s.semester}학기\n`;
+        }
+        prompt += "\n";
+      }
+    }
+    prompt += `위 계획 과목에 대해 미래 세특 작성 방향을 JSON으로 제안해주세요. 각 과목에서 어떤 탐구 주제를 다루면 좋을지, 어떤 키워드를 세특에 녹이면 좋을지 구체적으로 제시해주세요.`;
+  } else {
+    // retrospective: 기존 기록 분석
+    for (const grade of input.targetGrades) {
+      const data = input.recordDataByGrade[grade];
+      if (!data) continue;
+
+      prompt += `## ${grade}학년 기록\n\n`;
+
+      const CONTENT_LIMIT = 600;
+
+      if (data.seteks.length > 0) {
+        prompt += `### 교과 세특\n`;
+        for (const s of data.seteks) {
+          const truncated = s.content.slice(0, CONTENT_LIMIT);
+          prompt += `- **${s.subject_name}**: ${truncated}${s.content.length > CONTENT_LIMIT ? "..." : ""}\n`;
+        }
+        prompt += "\n";
+      }
+
+      if (data.changche.length > 0) {
+        prompt += `### 창의적 체험활동\n`;
+        for (const c of data.changche) {
+          const typeLabel = CHANGCHE_TYPE_LABELS[c.activity_type] ?? c.activity_type;
+          const truncated = c.content.slice(0, CONTENT_LIMIT);
+          prompt += `- **[${typeLabel}]**: ${truncated}${c.content.length > CONTENT_LIMIT ? "..." : ""}\n`;
+        }
+        prompt += "\n";
+      }
+    }
+    prompt += `위 기록과 진단 결과를 바탕으로 과목별 세특 방향 가이드를 JSON으로 작성해주세요.`;
+  }
+
   return prompt;
 }
 

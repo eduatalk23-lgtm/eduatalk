@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { buildInterviewUserPrompt, parseInterviewResponse } from "../llm/prompts/interviewQuestions";
 import { buildUserPrompt as buildStrategyPrompt, parseResponse as parseStrategyResponse } from "../llm/prompts/strategyRecommend";
 import { buildUserPrompt as buildActivityPrompt } from "../llm/prompts/activitySummary";
+import { buildUserPrompt as buildSetekGuidePrompt } from "../llm/prompts/setekGuide";
 
 describe("buildInterviewUserPrompt", () => {
   it("기본 필드 포함", () => {
@@ -159,5 +160,81 @@ describe("buildActivitySummaryPrompt", () => {
     });
     expect(prompt).toContain("데이터 과학 여정");
     expect(prompt).toContain("통계");
+  });
+});
+
+// ============================================
+// Phase R2: setekGuide prospective 프롬프트 테스트
+// ============================================
+
+describe("buildSetekGuidePrompt (prospective)", () => {
+  it("prospective 모드에서 계획 과목 포함", () => {
+    const prompt = buildSetekGuidePrompt({
+      mode: "prospective",
+      studentName: "김학생",
+      grade: 1,
+      targetMajor: "컴퓨터·정보",
+      targetGrades: [1, 2],
+      recordDataByGrade: {},
+      plannedSubjects: [
+        { subjectName: "통합과학", grade: 1, semester: 1, subjectType: "공통" },
+        { subjectName: "정보", grade: 1, semester: 2, subjectType: "일반선택" },
+      ],
+    });
+    expect(prompt).toContain("prospective");
+    expect(prompt).toContain("## 계획 과목");
+    expect(prompt).toContain("통합과학 (공통)");
+    expect(prompt).toContain("정보 (일반선택)");
+    expect(prompt).toContain("미래 세특 작성 방향");
+    // retrospective 전용 텍스트는 미포함
+    expect(prompt).not.toContain("위 기록과 진단 결과를 바탕으로");
+  });
+
+  it("retrospective 모드에서 기존 기록 포함", () => {
+    const prompt = buildSetekGuidePrompt({
+      mode: "retrospective",
+      studentName: "박학생",
+      grade: 2,
+      targetGrades: [1],
+      recordDataByGrade: {
+        1: {
+          seteks: [{ subject_name: "수학I", content: "확률과 통계 심화 탐구를 진행함" }],
+          changche: [],
+        },
+      },
+    });
+    expect(prompt).toContain("retrospective");
+    expect(prompt).toContain("## 1학년 기록");
+    expect(prompt).toContain("수학I");
+    expect(prompt).toContain("위 기록과 진단 결과를 바탕으로");
+    // prospective 전용 텍스트는 미포함
+    expect(prompt).not.toContain("## 계획 과목");
+  });
+
+  it("mode 미지정 시 retrospective 기본값", () => {
+    const prompt = buildSetekGuidePrompt({
+      studentName: "학생",
+      grade: 1,
+      targetGrades: [1],
+      recordDataByGrade: {
+        1: { seteks: [{ subject_name: "국어", content: "독서 토론 활동에 참여함" }], changche: [] },
+      },
+    });
+    expect(prompt).toContain("retrospective");
+    expect(prompt).toContain("위 기록과 진단 결과를 바탕으로");
+  });
+
+  it("prospective 모드에서 가이드 배정 컨텍스트 포함", () => {
+    const prompt = buildSetekGuidePrompt({
+      mode: "prospective",
+      studentName: "학생",
+      grade: 1,
+      targetGrades: [1],
+      recordDataByGrade: {},
+      plannedSubjects: [{ subjectName: "물리학I", grade: 1, semester: 1 }],
+      guideAssignments: "## 배정된 탐구 가이드\n- [assigned] 빛의 이중성 탐구",
+    });
+    expect(prompt).toContain("## 배정된 탐구 가이드");
+    expect(prompt).toContain("빛의 이중성 탐구");
   });
 });

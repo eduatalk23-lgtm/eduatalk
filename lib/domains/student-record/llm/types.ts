@@ -211,6 +211,8 @@ export interface ActivitySummaryResult {
 
 /** generateSetekGuide 액션의 입력 */
 export interface SetekGuideInput {
+  /** "retrospective" = 기존 기록 분석, "prospective" = 계획 과목 기반 방향 제안 */
+  mode?: "retrospective" | "prospective";
   studentName: string;
   grade: number;
   targetMajor?: string;
@@ -230,6 +232,10 @@ export interface SetekGuideInput {
   weaknesses?: string[];
   /** Phase E2: 영역간 연결 프롬프트 섹션 */
   edgePromptSection?: string;
+  /** Phase R2: prospective 모드에서 사용 — 계획 과목 목록 */
+  plannedSubjects?: Array<{ subjectName: string; grade: number; semester: number; subjectType?: string }>;
+  /** Phase R2: prospective 모드에서 사용 — 가이드 배정 컨텍스트 */
+  guideAssignments?: string;
 }
 
 /** generateSetekGuide 액션의 출력 */

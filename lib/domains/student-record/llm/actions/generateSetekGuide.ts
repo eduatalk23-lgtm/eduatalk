@@ -86,16 +86,14 @@ export async function generateSetekGuide(
       };
     }
 
-    // 데이터 유무 체크
+    // 데이터 유무 → 모드 결정
     const hasAnyData = Object.values(recordDataByGrade).some(
       (d) => d.seteks.length > 0,
     );
 
+    // Phase R2: 기록 없으면 prospective 모드로 전환
     if (!hasAnyData) {
-      return {
-        success: false,
-        error: "세특 기록 데이터가 없습니다. 먼저 세특을 입력해주세요.",
-      };
+      return generateProspectiveSetekGuide(studentId, tenantId, userId, report, grades, edgePromptSection);
     }
 
     // 역량 진단 데이터 변환 (컨설턴트 진단 우선, 없으면 AI 진단)
@@ -231,4 +229,151 @@ export async function generateSetekGuide(
 
     return { success: false, error: "세특 방향 가이드 생성 중 오류가 발생했습니다." };
   }
+}
+
+// ============================================
+// Phase R2: Prospective 모드 — 기록 없이 계획 과목 기반
+// ============================================
+
+async function generateProspectiveSetekGuide(
+  studentId: string,
+  tenantId: string,
+  userId: string,
+  report: import("../../actions/report").ReportData,
+  grades: number[],
+  edgePromptSection?: string,
+): Promise<ActionResponse<SetekGuideResult & { summaryId: string }>> {
+  const { logActionDebug: debug } = await import("@/lib/logging/actionLogger");
+  debug(LOG_CTX, "prospective 모드 — 수강계획 기반 세특 방향 생성", { studentId });
+
+  const supabase = await createSupabaseServerClient();
+  const currentSchoolYear = calculateSchoolYear();
+
+  // 수강 계획 조회
+  const { fetchCoursePlanTabData } = await import("../../actions/coursePlan");
+  const coursePlanRes = await fetchCoursePlanTabData(studentId).catch(() => null);
+  const coursePlanData = coursePlanRes?.success ? coursePlanRes.data : null;
+
+  // 계획 과목 (confirmed + recommended)
+  const plans = coursePlanData?.plans?.filter((p) =>
+    p.plan_status === "confirmed" || p.plan_status === "recommended",
+  ) ?? [];
+
+  if (plans.length === 0) {
+    return { success: false, error: "세특 기록과 수강 계획이 모두 없습니다. 먼저 진로 설정 또는 세특을 입력해주세요." };
+  }
+
+  // 가이드 배정 컨텍스트
+  const { buildGuideContextSection } = await import("../../guide-context");
+  const guideSection = await buildGuideContextSection(studentId, "guide").catch(() => "");
+
+  // 진단 데이터 (있으면 사용)
+  const diagnosis = report.diagnosisData.consultantDiagnosis ?? report.diagnosisData.aiDiagnosis;
+
+  const input: SetekGuideInput = {
+    mode: "prospective",
+    studentName: report.student.name ?? "학생",
+    grade: report.student.grade,
+    targetMajor: report.student.targetMajor ?? undefined,
+    targetSubClassificationName: report.student.targetSubClassificationName ?? undefined,
+    targetMidName: report.student.targetMidName ?? undefined,
+    targetGrades: grades,
+    recordDataByGrade: {},
+    storylines: report.storylineData.storylines.map((sl) => ({
+      title: sl.title,
+      keywords: sl.keywords,
+    })),
+    strengths: (diagnosis?.strengths as string[]) ?? undefined,
+    weaknesses: (diagnosis?.weaknesses as string[]) ?? undefined,
+    edgePromptSection,
+    plannedSubjects: plans.map((p) => ({
+      subjectName: p.subject?.name ?? "과목 미정",
+      grade: p.grade,
+      semester: p.semester,
+      subjectType: p.subject?.subject_type?.name ?? undefined,
+    })),
+    guideAssignments: guideSection || undefined,
+  };
+
+  const userPrompt = buildUserPrompt(input);
+
+  const result = await generateTextWithRateLimit({
+    system: SYSTEM_PROMPT,
+    messages: [{ role: "user", content: userPrompt }],
+    modelTier: "standard",
+    temperature: 0.3,
+    maxTokens: 32768,
+    responseFormat: "json",
+  });
+
+  if (!result.content) {
+    return { success: false, error: "AI 응답이 비어있습니다." };
+  }
+
+  const parsed = parseResponse(result.content);
+  if (parsed.guides.length === 0) {
+    return { success: false, error: "AI가 유효한 가이드를 생성하지 못했습니다." };
+  }
+
+  // 과목명 → subject_id 매핑 (계획 과목에서)
+  const nameToSubjectId = new Map<string, string>();
+  for (const p of plans) {
+    if (p.subject?.name) nameToSubjectId.set(p.subject.name, p.subject_id);
+  }
+
+  // 기존 AI 가이드 삭제
+  await supabase
+    .from("student_record_setek_guides")
+    .delete()
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .eq("school_year", currentSchoolYear)
+    .eq("source", "ai");
+
+  const rows = parsed.guides
+    .map((g, i) => {
+      const subjectId = nameToSubjectId.get(g.subjectName);
+      if (!subjectId) return null;
+      return {
+        tenant_id: tenantId,
+        student_id: studentId,
+        school_year: currentSchoolYear,
+        subject_id: subjectId,
+        source: "ai" as const,
+        status: "draft" as const,
+        direction: g.direction,
+        keywords: g.keywords,
+        competency_focus: g.competencyFocus,
+        cautions: g.cautions || null,
+        teacher_points: g.teacherPoints,
+        overall_direction: i === 0 ? parsed.overallDirection : null,
+        model_tier: "standard",
+        prompt_version: "guide_v1_prospective",
+        created_by: userId,
+      };
+    })
+    .filter(Boolean);
+
+  if (rows.length === 0) {
+    return { success: false, error: "매칭 가능한 과목이 없습니다." };
+  }
+
+  const { data: inserted, error: insertError } = await supabase
+    .from("student_record_setek_guides")
+    .insert(rows)
+    .select("id")
+    .limit(1)
+    .single();
+
+  if (insertError || !inserted) {
+    logActionError(LOG_CTX, insertError);
+    return { success: false, error: "가이드 저장 실패" };
+  }
+
+  syncPipelineTaskStatus(studentId, "setek_guide").catch(() => {});
+
+  return {
+    success: true,
+    data: { ...parsed, summaryId: inserted.id },
+  };
 }
