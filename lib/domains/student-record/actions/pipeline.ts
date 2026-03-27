@@ -1444,6 +1444,14 @@ async function executePipelineTasks(
           if (weakCompetencies.length === 0) weakCompetencies = undefined;
         }
 
+        // Q4: 기존 질문 조회 (중복 방지)
+        const { data: existingQs } = await supabase
+          .from("student_record_interview_questions")
+          .select("question")
+          .eq("student_id", studentId)
+          .limit(15);
+        const existingQuestions = existingQs?.map((q) => q.question).filter(Boolean) ?? [];
+
         const result = await generateInterviewQuestions({
           content: main.content,
           recordType: mainType,
@@ -1453,6 +1461,7 @@ async function executePipelineTasks(
           diagnosticWeaknesses: diagWeaknesses,
           careerContext,
           weakCompetencies,
+          existingQuestions: existingQuestions.length > 0 ? existingQuestions : undefined,
         });
 
         if (!result.success) throw new Error(result.error);

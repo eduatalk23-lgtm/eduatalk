@@ -31,6 +31,8 @@ export async function generateInterviewQuestions(input: {
   careerContext?: { targetMajor?: string; targetSubClassification?: string };
   /** 역량 약점 등급 (B-/C 등급 항목) — 해당 역량 관련 심층 질문 */
   weakCompetencies?: { item: string; label: string; grade: string }[];
+  /** Q4: 기존 생성된 질문 (중복 방지용) */
+  existingQuestions?: string[];
 }): Promise<{ success: true; data: InterviewQuestionResult } | { success: false; error: string }> {
   try {
     await requireAdminOrConsultant();
@@ -59,6 +61,10 @@ export async function generateInterviewQuestions(input: {
     if (input.weakCompetencies?.length) {
       userPrompt += "\n\n## 역량 약점 (등급 B- 이하)\n" + input.weakCompetencies.map((c) => `- ${c.label} (${c.grade})`).join("\n")
         + "\n\n해당 역량에 대한 자기 인식과 극복 노력을 확인하는 질문을 포함해주세요.";
+    }
+    if (input.existingQuestions?.length) {
+      userPrompt += "\n\n## 이미 생성된 질문 (중복 금지)\n" + input.existingQuestions.slice(0, 15).map((q) => `- ${q}`).join("\n")
+        + "\n\n위 질문과 내용이 중복되지 않는 새로운 질문을 생성해주세요.";
     }
 
     const result = await generateTextWithRateLimit({

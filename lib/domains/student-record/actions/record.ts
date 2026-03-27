@@ -10,7 +10,7 @@ import {
   createErrorResponse,
 } from "@/lib/types/actionResponse";
 import * as service from "../service";
-import { markRelatedEdgesStale, markRelatedAssignmentsStale } from "../stale-detection";
+import { markRelatedEdgesStale, markRelatedAssignmentsStale, autoMatchRoadmapOnSetekSave } from "../stale-detection";
 import type {
   RecordTabData,
   RecordSetekInsert,
@@ -58,6 +58,10 @@ export async function saveSetekAction(
     // Phase E3: 관련 엣지 stale 마킹 (fire-and-forget)
     markRelatedEdgesStale(result.id!).catch(() => {});
     markRelatedAssignmentsStale(result.id!).catch(() => {});
+    // H2: 로드맵 자동 매칭 (세특 과목+학년 → roadmap status 전환)
+    if (input.student_id && input.subject_id && input.grade) {
+      autoMatchRoadmapOnSetekSave(input.student_id, input.subject_id, input.grade, input.content ?? "").catch(() => {});
+    }
     return createSuccessResponse({ id: result.id! });
   } catch (error) {
     logActionError({ ...LOG_CTX, action: "saveSetekAction" }, error);

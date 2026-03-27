@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { reportDataQueryOptions } from "@/lib/query-options/studentRecord";
 import { ReportSkeleton } from "./ReportSkeleton";
 import { Printer, Download, FileText, FileSpreadsheet, Loader2 } from "lucide-react";
+import { useToast } from "@/components/ui/ToastProvider";
 import { CoverSection } from "./sections/CoverSection";
 import { TableOfContents } from "./sections/TableOfContents";
 import { ExecutiveSummarySection } from "./sections/ExecutiveSummarySection";
@@ -38,6 +39,7 @@ export function ReportClient({ studentId }: ReportClientProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [coverVariant, setCoverVariant] = useState<"A" | "B" | "C" | "D" | "E">("A");
   const [exporting, setExporting] = useState<"pdf" | "docx" | null>(null);
+  const { showError } = useToast();
 
   async function handleExport(format: "pdf" | "docx") {
     if (!data) return;
@@ -53,7 +55,7 @@ export function ReportClient({ studentId }: ReportClientProps) {
         await exportReportAsDocx(exportData);
       }
     } catch {
-      alert("내보내기에 실패했습니다. 다시 시도해주세요.");
+      showError("내보내기에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setExporting(null);
     }

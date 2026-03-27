@@ -54,6 +54,63 @@ export async function markStudentAssignmentsStale(studentId: string, tenantId: s
 }
 
 /**
+ * 세특 저장 시 관련 로드맵 항목을 자동 매칭 (fire-and-forget safe)
+ * subject_id + grade가 일치하는 planning 상태 항목을 in_progress로 전환
+ */
+export async function autoMatchRoadmapOnSetekSave(
+  studentId: string,
+  subjectId: string,
+  grade: number,
+  content: string,
+): Promise<void> {
+  try {
+    if (!content || content.trim().length < 20) return;
+    const supabase = await createSupabaseServerClient();
+
+    // 과목명 조회
+    const { data: subject } = await supabase
+      .from("subjects")
+      .select("name")
+      .eq("id", subjectId)
+      .maybeSingle();
+    if (!subject?.name) return;
+
+    // 해당 학년의 setek 영역 planning 로드맵 항목 검색
+    const { data: roadmapItems } = await supabase
+      .from("student_record_roadmap_items")
+      .select("id, plan_content, plan_keywords, status")
+      .eq("student_id", studentId)
+      .eq("grade", grade)
+      .eq("area", "setek")
+      .eq("status", "planning");
+
+    if (!roadmapItems || roadmapItems.length === 0) return;
+
+    // plan_content에 과목명이 포함된 항목 찾기
+    const normalizedName = subject.name.replace(/\s/g, "").toLowerCase();
+    const matched = roadmapItems.filter((item) => {
+      const normalizedPlan = item.plan_content.replace(/\s/g, "").toLowerCase();
+      return normalizedPlan.includes(normalizedName);
+    });
+
+    if (matched.length === 0) return;
+
+    // planning → in_progress 전환
+    await Promise.allSettled(
+      matched.map((item) =>
+        supabase
+          .from("student_record_roadmap_items")
+          .update({ status: "in_progress", updated_at: new Date().toISOString() })
+          .eq("id", item.id)
+          .eq("status", "planning"), // 동시 업데이트 방지
+      ),
+    );
+  } catch {
+    // fire-and-forget
+  }
+}
+
+/**
  * 파이프라인의 content_hash와 현재 레코드 상태를 비교하여 stale 여부 반환
  */
 export async function checkPipelineStaleness(

@@ -11,6 +11,7 @@ import {
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import type { RoadmapItem, Storyline, RoadmapArea, RoadmapItemStatus } from "@/lib/domains/student-record";
 import { cn } from "@/lib/cn";
+import { useToast } from "@/components/ui/ToastProvider";
 import { SaveStatusIndicator } from "./SaveStatusIndicator";
 
 const STATUS_CONFIG: Record<RoadmapItemStatus, { label: string; className: string }> = {
@@ -53,6 +54,7 @@ export function RoadmapEditor({
 }: RoadmapEditorProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const queryClient = useQueryClient();
+  const { showError, showSuccess } = useToast();
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -74,8 +76,9 @@ export function RoadmapEditor({
       if (!result.success) throw new Error("error" in result ? result.error : "생성 실패");
       return result.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: studentRecordKeys.storylineTab(studentId) });
+      showSuccess(`AI 로드맵 ${data?.items?.length ?? 0}건 생성 완료`);
     },
   });
 
@@ -200,14 +203,27 @@ function RoadmapItemRow({
 
   const executionMutation = useMutation({
     mutationFn: async () => {
+      const execKeywords = executionContent
+        ? executionContent.split(/[,\s]+/).filter(Boolean).slice(0, 5)
+        : null;
+
+      // U3: plan_keywords ↔ execution_keywords Jaccard 자동 계산
+      let autoMatchRate = matchRate;
+      if (execKeywords && execKeywords.length > 0 && item.plan_keywords && item.plan_keywords.length > 0) {
+        const planSet = new Set(item.plan_keywords.map((k) => k.toLowerCase()));
+        const execSet = new Set(execKeywords.map((k) => k.toLowerCase()));
+        const intersection = [...planSet].filter((k) => execSet.has(k)).length;
+        const union = new Set([...planSet, ...execSet]).size;
+        autoMatchRate = union > 0 ? Math.round((intersection / union) * 100) : 0;
+      }
+
       const result = await updateRoadmapItemAction(item.id, {
         execution_content: executionContent || null,
-        execution_keywords: executionContent
-          ? executionContent.split(/[,\s]+/).filter(Boolean).slice(0, 5)
-          : null,
+        execution_keywords: execKeywords,
         executed_at: executionContent ? new Date().toISOString() : null,
-        match_rate: matchRate,
+        match_rate: autoMatchRate,
         deviation_note: deviationNote || null,
+        status: executionContent ? "completed" : undefined,
       });
       if (!result.success) throw new Error("error" in result ? result.error : "수정 실패");
       return result;

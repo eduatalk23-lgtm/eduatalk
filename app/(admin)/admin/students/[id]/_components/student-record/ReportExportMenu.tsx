@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Download, FileText, FileSpreadsheet, Loader2 } from "lucide-react";
+import { useToast } from "@/components/ui/ToastProvider";
 import type { ReportExportData } from "@/lib/domains/student-record/export/report-export";
 
 interface ReportExportMenuProps {
@@ -12,6 +13,7 @@ export function ReportExportMenu({ data }: ReportExportMenuProps) {
   const [open, setOpen] = useState(false);
   const [exporting, setExporting] = useState<"pdf" | "docx" | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const { showError } = useToast();
 
   // 외부 클릭으로 닫기
   useEffect(() => {
@@ -37,8 +39,7 @@ export function ReportExportMenu({ data }: ReportExportMenuProps) {
         await exportReportAsDocx(data);
       }
     } catch {
-      // 에러는 사용자에게 alert으로 표시
-      alert("내보내기에 실패했습니다. 다시 시도해주세요.");
+      showError("내보내기에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setExporting(null);
       setOpen(false);

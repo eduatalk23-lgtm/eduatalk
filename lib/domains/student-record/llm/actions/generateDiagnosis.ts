@@ -295,10 +295,14 @@ ${trendSection}${adequacySection}${gapSection}
 ${edgeSummarySection ? `\n${edgeSummarySection}\n` : ""}
 위 데이터를 종합하여 진단 보고서를 JSON으로 작성해주세요. 루브릭 질문 단위로 구체적 근거를 포함하세요.`;
 
+    // Q2: 입력 복잡도 기반 모델 선택 — 태그 20개+ 또는 점수 8개+ → standard, 그 외 fast
+    const inputComplexity = competencyScores.length + activityTags.length;
+    const diagModelTier = inputComplexity >= 20 ? "standard" : "fast";
+
     const result = await generateTextWithRateLimit({
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
-      modelTier: "standard", // 10개 역량 종합 → fast보다 높은 티어 사용
+      modelTier: diagModelTier,
       temperature: 0.3,
       maxTokens: 4000,
       responseFormat: "json",

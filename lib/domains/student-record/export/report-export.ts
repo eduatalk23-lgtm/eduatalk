@@ -98,6 +98,12 @@ export interface ReportExportData {
     status: string;
     storylineTitle?: string;
   }> | null;
+  interviewQuestions?: Array<{
+    question: string;
+    questionType: string;
+    difficulty: string;
+    suggestedAnswer: string | null;
+  }> | null;
 }
 
 // ============================================
@@ -206,6 +212,14 @@ export function buildReportExportData(data: ReportData): ReportExportData {
     mockAnalysis,
     edgeSummary: buildEdgeSummaryForExport(data.edges),
     roadmapItems: buildRoadmapForExport(data.storylineData.roadmapItems, data.storylineData.storylines),
+    interviewQuestions: data.interviewQuestions.length > 0
+      ? data.interviewQuestions.map((q) => ({
+          question: q.question,
+          questionType: q.question_type,
+          difficulty: q.difficulty,
+          suggestedAnswer: q.suggested_answer,
+        }))
+      : null,
   };
 }
 
@@ -452,6 +466,18 @@ export async function exportReportAsDocx(data: ReportExportData): Promise<void> 
       }
     }
 
+    // 면접 예상 질문
+    if (data.interviewQuestions && data.interviewQuestions.length > 0) {
+      children.push(new Paragraph({ text: "면접 예상 질문", heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 150 } }));
+      for (const q of data.interviewQuestions) {
+        const diffLabel = q.difficulty === "hard" ? "[심화]" : q.difficulty === "medium" ? "[중간]" : "[기본]";
+        children.push(new Paragraph({ children: [new TextRun({ text: `${diffLabel} Q: ${q.question}`, size: 20, bold: true })], spacing: { after: 40 } }));
+        if (q.suggestedAnswer) {
+          children.push(new Paragraph({ children: [new TextRun({ text: `A: ${q.suggestedAnswer}`, size: 20, color: "555555" })], spacing: { after: 100 } }));
+        }
+      }
+    }
+
     // 활동 요약서 섹션별 렌더링
     for (const sec of data.sections) {
       const label = SECTION_LABELS[sec.sectionType] ?? sec.title;
@@ -631,6 +657,22 @@ function buildReportHtml(data: ReportExportData): string {
         const semLabel = item.semester ? `${item.semester}학기` : "연간";
         const slLabel = item.storylineTitle ? ` <span style="color:#888;">→ ${escapeHtml(item.storylineTitle)}</span>` : "";
         body += `<p style="font-size:12px;margin-bottom:4px;"><strong>[${item.grade}학년 ${semLabel}]</strong> ${escapeHtml(areaLabel)}: ${escapeHtml(item.plan_content)}${slLabel}</p>`;
+      }
+      body += `</div>`;
+    }
+
+    // 면접 예상 질문 섹션
+    if (data.interviewQuestions && data.interviewQuestions.length > 0) {
+      body += `<div style="margin-bottom:20px;">`;
+      body += `<h2 style="font-size:15px;font-weight:600;border-bottom:1px solid #ddd;padding-bottom:4px;margin-bottom:8px;">면접 예상 질문</h2>`;
+      for (const q of data.interviewQuestions) {
+        const diffBadge = q.difficulty === "hard" ? "🔴" : q.difficulty === "medium" ? "🟡" : "🟢";
+        body += `<div style="margin-bottom:10px;">`;
+        body += `<p style="font-size:12px;font-weight:600;margin-bottom:2px;">${diffBadge} ${escapeHtml(q.question)}</p>`;
+        if (q.suggestedAnswer) {
+          body += `<p style="font-size:11px;color:#555;margin-left:16px;">${escapeHtml(q.suggestedAnswer)}</p>`;
+        }
+        body += `</div>`;
       }
       body += `</div>`;
     }

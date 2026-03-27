@@ -966,6 +966,54 @@ export function StudentRecordClient({
             />
           )}
 
+          {/* ─── 온보딩 체크리스트 (진로 설정 완료 + 기록 5건 미만) ──── */}
+          {diagnosisData?.targetMajor && (() => {
+            const hasCoursePlan = (coursePlanData?.plans?.length ?? 0) > 0;
+            const hasStoryline = (storylineData?.storylines?.length ?? 0) > 0;
+            const hasRoadmap = (storylineData?.roadmapItems?.length ?? 0) > 0;
+            const hasGuide = (setekGuidesRes?.success && (setekGuidesRes.data?.length ?? 0) > 0);
+            const totalRecords = Object.values(recordByGrade ?? {}).reduce((sum, d) => {
+              if (!d) return sum;
+              return sum + (d.seteks?.length ?? 0) + (d.changche?.length ?? 0);
+            }, 0);
+            const steps = [
+              { done: true, label: "진로 설정", section: null },
+              { done: hasCoursePlan, label: "수강 계획", section: "sec-course-plan" },
+              { done: hasStoryline, label: "스토리라인", section: "sec-storyline" },
+              { done: hasRoadmap, label: "로드맵", section: "sec-roadmap" },
+              { done: hasGuide, label: "세특 방향", section: "sec-setek-guide" },
+            ];
+            const doneCount = steps.filter((s) => s.done).length;
+            if (doneCount >= 5 || totalRecords >= 5) return null;
+            return (
+              <div className="mb-4 rounded-lg border border-indigo-200 bg-indigo-50/50 p-3 dark:border-indigo-800 dark:bg-indigo-950/20">
+                <p className="mb-2 text-xs font-medium text-indigo-700 dark:text-indigo-400">컨설팅 준비 ({doneCount}/5)</p>
+                <div className="flex gap-1">
+                  {steps.map((step) => (
+                    <button
+                      key={step.label}
+                      type="button"
+                      onClick={() => {
+                        if (step.section) {
+                          document.querySelector(`[data-section-id='${step.section}']`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }
+                      }}
+                      disabled={!step.section}
+                      className={cn(
+                        "flex-1 rounded px-2 py-1.5 text-[10px] font-medium transition",
+                        step.done
+                          ? "bg-indigo-600 text-white"
+                          : "bg-white text-indigo-600 border border-indigo-300 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-700",
+                      )}
+                    >
+                      {step.done ? "✓ " : ""}{step.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* ─── 1. 인적·학적사항 (실제 생기부 원본 구조) ──── */}
           <DocSection id="sec-1" number="1" title="인적·학적사항">
             <div className="overflow-x-auto">
