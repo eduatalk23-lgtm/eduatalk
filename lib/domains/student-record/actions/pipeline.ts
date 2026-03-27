@@ -1290,6 +1290,13 @@ async function executePipelineTasks(
           ),
         );
         const saved = strategyResults.filter((r) => r.status === "fulfilled").length;
+        const strategyFailed = strategyResults.filter((r) => r.status === "rejected");
+        if (strategyFailed.length > 0) {
+          logActionError({ ...LOG_CTX, action: "pipeline.ai_strategy.save" }, new Error(`${strategyFailed.length}건 저장 실패`), {
+            pipelineId,
+            reasons: strategyFailed.map((r) => r.status === "rejected" ? String(r.reason) : "").filter(Boolean).slice(0, 3),
+          });
+        }
 
         return `${saved}건 보완전략 제안됨`;
       },

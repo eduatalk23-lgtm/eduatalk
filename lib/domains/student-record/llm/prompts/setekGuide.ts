@@ -115,11 +115,13 @@ export function buildUserPrompt(input: SetekGuideInput): string {
 
     prompt += `## ${grade}학년 기록\n\n`;
 
+    const CONTENT_LIMIT = 600;
+
     if (data.seteks.length > 0) {
       prompt += `### 교과 세특\n`;
       for (const s of data.seteks) {
-        const truncated = s.content.slice(0, 400);
-        prompt += `- **${s.subject_name}**: ${truncated}${s.content.length > 400 ? "..." : ""}\n`;
+        const truncated = s.content.slice(0, CONTENT_LIMIT);
+        prompt += `- **${s.subject_name}**: ${truncated}${s.content.length > CONTENT_LIMIT ? "..." : ""}\n`;
       }
       prompt += "\n";
     }
@@ -128,8 +130,8 @@ export function buildUserPrompt(input: SetekGuideInput): string {
       prompt += `### 창의적 체험활동\n`;
       for (const c of data.changche) {
         const typeLabel = CHANGCHE_TYPE_LABELS[c.activity_type] ?? c.activity_type;
-        const truncated = c.content.slice(0, 300);
-        prompt += `- **[${typeLabel}]**: ${truncated}${c.content.length > 300 ? "..." : ""}\n`;
+        const truncated = c.content.slice(0, CONTENT_LIMIT);
+        prompt += `- **[${typeLabel}]**: ${truncated}${c.content.length > CONTENT_LIMIT ? "..." : ""}\n`;
       }
       prompt += "\n";
     }

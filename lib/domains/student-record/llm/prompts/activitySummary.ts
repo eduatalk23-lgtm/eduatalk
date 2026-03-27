@@ -116,11 +116,14 @@ export function buildUserPrompt(input: ActivitySummaryInput): string {
 
     prompt += `## ${grade}학년 기록\n\n`;
 
+    // 절삭 한도: 활동 원문을 최대한 보존하여 풍부한 요약 생성
+    const CONTENT_LIMIT = 600;
+
     if (data.seteks.length > 0) {
       prompt += `### 교과 세특\n`;
       for (const s of data.seteks) {
-        const truncated = s.content.slice(0, 300);
-        prompt += `- **${s.subject_name}**: ${truncated}${s.content.length > 300 ? "..." : ""}\n`;
+        const truncated = s.content.slice(0, CONTENT_LIMIT);
+        prompt += `- **${s.subject_name}**: ${truncated}${s.content.length > CONTENT_LIMIT ? "..." : ""}\n`;
       }
       prompt += "\n";
     }
@@ -128,8 +131,8 @@ export function buildUserPrompt(input: ActivitySummaryInput): string {
     if (data.personalSeteks.length > 0) {
       prompt += `### 개인 세특\n`;
       for (const ps of data.personalSeteks) {
-        const truncated = ps.content.slice(0, 300);
-        prompt += `- **${ps.title}**: ${truncated}${ps.content.length > 300 ? "..." : ""}\n`;
+        const truncated = ps.content.slice(0, CONTENT_LIMIT);
+        prompt += `- **${ps.title}**: ${truncated}${ps.content.length > CONTENT_LIMIT ? "..." : ""}\n`;
       }
       prompt += "\n";
     }
@@ -139,15 +142,15 @@ export function buildUserPrompt(input: ActivitySummaryInput): string {
       for (const c of data.changche) {
         const typeLabel =
           CHANGCHE_TYPE_LABELS[c.activity_type] ?? c.activity_type;
-        const truncated = c.content.slice(0, 300);
-        prompt += `- **[${typeLabel}]**: ${truncated}${c.content.length > 300 ? "..." : ""}\n`;
+        const truncated = c.content.slice(0, CONTENT_LIMIT);
+        prompt += `- **[${typeLabel}]**: ${truncated}${c.content.length > CONTENT_LIMIT ? "..." : ""}\n`;
       }
       prompt += "\n";
     }
 
     if (data.haengteuk?.content) {
       prompt += `### 행동특성 및 종합의견\n`;
-      prompt += `${data.haengteuk.content.slice(0, 500)}\n\n`;
+      prompt += `${data.haengteuk.content.slice(0, 800)}\n\n`;
     }
 
     if (data.readings.length > 0) {

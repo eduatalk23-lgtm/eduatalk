@@ -2,6 +2,16 @@
 // E-3 — 리포트 PDF/Word 내보내기
 // ============================================
 
+const EDGE_TYPE_LABELS: Record<string, string> = {
+  COMPETENCY_SHARED: "역량 공유",
+  CONTENT_REFERENCE: "내용 참조",
+  TEMPORAL_GROWTH: "시간적 성장",
+  COURSE_SUPPORTS: "교과 지원",
+  READING_ENRICHES: "독서 심화",
+  THEME_CONVERGENCE: "주제 수렴",
+  TEACHER_VALIDATION: "교사 검증",
+};
+
 const SECTION_LABELS: Record<string, string> = {
   intro: "소개",
   subject_setek: "교과 학습 활동",
@@ -68,6 +78,10 @@ export interface ReportExportData {
     avgPercentile: number | null;
     totalStdScore: number | null;
     best3GradeSum: number | null;
+  } | null;
+  edgeSummary?: {
+    totalEdges: number;
+    byType: Array<{ type: string; count: number; example?: string }>;
   } | null;
 }
 
@@ -175,6 +189,28 @@ export function buildReportExportData(data: ReportData): ReportExportData {
     } : null,
     strategies: strategies.length > 0 ? strategies : null,
     mockAnalysis,
+    edgeSummary: buildEdgeSummaryForExport(data.edges),
+  };
+}
+
+function buildEdgeSummaryForExport(
+  edges: ReportData["edges"],
+): ReportExportData["edgeSummary"] {
+  if (!edges || edges.length === 0) return null;
+  const byType = new Map<string, { count: number; example?: string }>();
+  for (const e of edges) {
+    const existing = byType.get(e.edge_type) ?? { count: 0 };
+    existing.count++;
+    if (!existing.example && e.reason) existing.example = e.reason;
+    byType.set(e.edge_type, existing);
+  }
+  return {
+    totalEdges: edges.length,
+    byType: Array.from(byType.entries()).map(([type, v]) => ({
+      type,
+      count: v.count,
+      example: v.example,
+    })),
   };
 }
 
@@ -356,6 +392,17 @@ export async function exportReportAsDocx(data: ReportExportData): Promise<void> 
       }
     }
 
+    // 활동 연결 분석
+    if (data.edgeSummary && data.edgeSummary.totalEdges > 0) {
+      children.push(new Paragraph({ text: "활동 연결 분석", heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 150 } }));
+      children.push(new Paragraph({ children: [new TextRun({ text: `총 ${data.edgeSummary.totalEdges}개 연결 감지`, size: 20, color: "666666" })], spacing: { after: 80 } }));
+      for (const et of data.edgeSummary.byType) {
+        const typeLabel = EDGE_TYPE_LABELS[et.type] ?? et.type;
+        const exampleText = et.example ? ` — ${et.example.slice(0, 80)}` : "";
+        children.push(new Paragraph({ children: [new TextRun({ text: `${typeLabel}: ${et.count}건${exampleText}`, size: 20 })], spacing: { after: 60 } }));
+      }
+    }
+
     // 활동 요약서 섹션별 렌더링
     for (const sec of data.sections) {
       const label = SECTION_LABELS[sec.sectionType] ?? sec.title;
@@ -509,6 +556,20 @@ function buildReportHtml(data: ReportExportData): string {
       body += `<tr><td style="padding:6px 8px;border:1px solid #ddd;">표준점수 합</td><td style="padding:6px 8px;text-align:center;border:1px solid #ddd;">${m.totalStdScore ?? "-"}</td><td style="padding:6px 8px;border:1px solid #ddd;">국/수/탐(상위2)</td></tr>`;
       body += `<tr><td style="padding:6px 8px;border:1px solid #ddd;">상위 3과목 등급합</td><td style="padding:6px 8px;text-align:center;border:1px solid #ddd;">${m.best3GradeSum ?? "-"}</td><td style="padding:6px 8px;border:1px solid #ddd;">국·수·영·탐 중</td></tr>`;
       body += `</table></div>`;
+    }
+
+    // 활동 연결 분석 섹션
+    if (data.edgeSummary && data.edgeSummary.totalEdges > 0) {
+      body += `<div style="margin-bottom:20px;">`;
+      body += `<h2 style="font-size:15px;font-weight:600;border-bottom:1px solid #ddd;padding-bottom:4px;margin-bottom:8px;">활동 연결 분석</h2>`;
+      body += `<p style="font-size:12px;margin-bottom:8px;">총 ${data.edgeSummary.totalEdges}개 연결 감지</p>`;
+      for (const et of data.edgeSummary.byType) {
+        const typeLabel = EDGE_TYPE_LABELS[et.type] ?? et.type;
+        body += `<p style="font-size:12px;margin-bottom:4px;"><strong>${escapeHtml(typeLabel)}</strong> ${et.count}건`;
+        if (et.example) body += ` <span style="color:#666;">— ${escapeHtml(et.example.slice(0, 80))}</span>`;
+        body += `</p>`;
+      }
+      body += `</div>`;
     }
 
     // 활동 요약서 섹션
