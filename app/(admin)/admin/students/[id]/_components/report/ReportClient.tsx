@@ -106,6 +106,12 @@ export function ReportClient({ studentId }: ReportClientProps) {
         <div className="px-3 py-4">
           <div className="mb-3">
             <p className="text-xs font-bold uppercase tracking-wider text-indigo-500">Report</p>
+            {data.pipelineMeta?.hasStaleEdges && (
+              <div className="mt-1.5 flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1.5 text-[10px] text-amber-700 border border-amber-200">
+                <span className="shrink-0">⚠</span>
+                <span>분석 후 기록이 수정되었습니다. 재분석을 권장합니다.</span>
+              </div>
+            )}
           </div>
           <nav className="flex flex-col gap-0.5">
             {sections.map((sec) => (
@@ -204,6 +210,9 @@ export function ReportClient({ studentId }: ReportClientProps) {
             <div className="pt-4 text-xs text-gray-400">
               {data.pipelineMeta?.startedAt && (
                 <p>AI 분석: {new Date(data.pipelineMeta.startedAt).toLocaleString("ko-KR")}</p>
+              )}
+              {data.pipelineMeta?.hasStaleEdges && (
+                <p className="text-amber-600 font-medium">⚠ 분석 이후 기록이 수정됨 — 재분석 권장</p>
               )}
               <p>리포트 생성: {new Date(data.generatedAt).toLocaleString("ko-KR")}</p>
               <p className="mt-1">본 보고서는 컨설턴트 검토용이며, AI 분석 결과는 확정 전 초안 상태입니다.</p>
