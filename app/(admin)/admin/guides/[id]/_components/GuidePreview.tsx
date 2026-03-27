@@ -77,7 +77,7 @@ export function GuidePreview(props: GuidePreviewProps) {
     GUIDE_SECTION_CONFIG["topic_exploration"];
 
   return (
-    <div className="rounded-xl border border-secondary-200 dark:border-secondary-700 bg-white dark:bg-secondary-900 p-4 sm:p-6 space-y-6 max-w-4xl mx-auto">
+    <div className="rounded-xl border border-secondary-200 dark:border-secondary-700 bg-white dark:bg-secondary-900 p-4 sm:p-6 space-y-6">
       {/* 헤더 */}
       <div>
         <div className="flex items-center gap-2 mb-2">

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Trash2, Loader2, CopyPlus, Sparkles, Download, Share2 } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Loader2, CopyPlus, Sparkles, Download, Share2, Eye, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
@@ -176,8 +176,23 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
   const [saving, setSaving] = useState(false);
   const [improving, setImproving] = useState(false);
   const [improveModelTier, setImproveModelTier] = useState<ModelTier>("fast");
-  // 모바일 탭 (데스크톱 lg+에서는 항상 양쪽 표시)
-  const [mobileTab, setMobileTab] = useState<"edit" | "preview">(isNew ? "edit" : "edit");
+  // 보기/편집 모드 (기존 가이드: 보기 기본, 신규: 편집 기본)
+  const [mode, setMode] = useState<"view" | "edit">(isNew ? "edit" : "view");
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  // 사이드 패널: body 스크롤 잠금 + Escape 키 닫기
+  useEffect(() => {
+    if (!previewOpen) return;
+    document.body.style.overflow = "hidden";
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPreviewOpen(false);
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.body.style.overflow = "";
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [previewOpen]);
 
   // 커밋 다이얼로그 상태
   const [commitDialogOpen, setCommitDialogOpen] = useState(false);
@@ -631,7 +646,11 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
           <button
             type="button"
             onClick={() => {
-              if (isDirty && !confirm("저장하지 않은 변경사항이 있습니다. 나가시겠습니까?")) return;
+              if (mode === "edit" && isDirty && !confirm("저장하지 않은 변경사항이 있습니다. 나가시겠습니까?")) return;
+              if (mode === "edit" && !isNew) {
+                setMode("view");
+                return;
+              }
               router.push("/admin/guides");
             }}
             className="p-2 rounded-lg hover:bg-secondary-100 dark:hover:bg-secondary-800 transition-colors"
@@ -639,239 +658,288 @@ export function GuideEditorClient({ guideId }: GuideEditorClientProps) {
             <ArrowLeft className="w-5 h-5 text-[var(--text-secondary)]" />
           </button>
           <h1 className="text-lg font-bold text-[var(--text-heading)]">
-            {isNew ? "새 가이드 작성" : "가이드 편집"}
+            {isNew ? "새 가이드 작성" : mode === "view" ? (title || "가이드") : "가이드 편집"}
           </h1>
           {!isNew && guide && guide.version > 1 && (
             <span className="text-xs px-2 py-0.5 rounded-full bg-secondary-100 dark:bg-secondary-800 text-[var(--text-secondary)]">
               v{guide.version}
             </span>
           )}
-          {isDirty && (
+          {mode === "edit" && isDirty && (
             <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 font-medium">
               미저장
             </span>
           )}
         </div>
         <div className="flex items-center gap-2">
-          {/* 모바일 탭 전환 (lg 미만에서만 표시) */}
-          <div className="flex lg:hidden rounded-lg border border-secondary-200 dark:border-secondary-700 overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setMobileTab("edit")}
-              className={cn(
-                "px-3 py-1.5 text-xs font-medium transition-colors",
-                mobileTab === "edit"
-                  ? "bg-primary-500 text-white"
-                  : "text-[var(--text-secondary)] hover:bg-secondary-50 dark:hover:bg-secondary-800",
+          {mode === "view" ? (
+            <>
+              {/* 보기 모드 액션들 */}
+              <button
+                type="button"
+                onClick={() => {
+                  setExportMode("download");
+                  setExportModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-700 text-[var(--text-secondary)] text-sm hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">내보내기</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setExportMode("share");
+                  setExportModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-700 text-[var(--text-secondary)] text-sm hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors"
+              >
+                <Share2 className="w-4 h-4" />
+                <span className="hidden sm:inline">공유</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("edit")}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors"
+              >
+                <Sparkles className="w-4 h-4" />
+                편집
+              </button>
+            </>
+          ) : (
+            <>
+              {/* 편집 모드 액션들 */}
+              {/* 미리보기 사이드 패널 토글 */}
+              <button
+                type="button"
+                onClick={() => setPreviewOpen((v) => !v)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm transition-colors",
+                  previewOpen
+                    ? "border-primary-400 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400"
+                    : "border-secondary-200 dark:border-secondary-700 text-[var(--text-secondary)] hover:bg-secondary-50 dark:hover:bg-secondary-800",
+                )}
+              >
+                <Eye className="w-4 h-4" />
+                <span className="hidden sm:inline">미리보기</span>
+              </button>
+              {/* 새 버전 (기존 가이드만) */}
+              {!isNew && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!window.confirm("현재 내용을 새 버전으로 복제하시겠습니까?")) return;
+                    if (!guideId) return;
+                    setSaving(true);
+                    saveAsNewVersionAction(guideId, "현재 상태 복제").then((result) => {
+                      if (result.success && result.data) {
+                        toast.showSuccess(`v${result.data.version} 버전이 생성되었습니다.`);
+                        queryClient.invalidateQueries({ queryKey: explorationGuideKeys.all });
+                        router.push(`/admin/guides/${result.data.id}`);
+                      } else {
+                        toast.showError(!result.success ? result.error ?? "버전 생성 실패" : "버전 생성 실패");
+                      }
+                    }).catch(() => toast.showError("새 버전 생성 중 오류가 발생했습니다."))
+                    .finally(() => setSaving(false));
+                  }}
+                  disabled={saving}
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-700 text-[var(--text-secondary)] text-sm hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors disabled:opacity-50"
+                >
+                  <CopyPlus className="w-4 h-4" />
+                  새 버전
+                </button>
               )}
-            >
-              편집
-            </button>
-            <button
-              type="button"
-              onClick={() => setMobileTab("preview")}
-              className={cn(
-                "px-3 py-1.5 text-xs font-medium transition-colors",
-                mobileTab === "preview"
-                  ? "bg-primary-500 text-white"
-                  : "text-[var(--text-secondary)] hover:bg-secondary-50 dark:hover:bg-secondary-800",
+              {/* 구분선 */}
+              {!isNew && (
+                <div className="w-px h-6 bg-secondary-200 dark:bg-secondary-700 mx-0.5 hidden sm:block" />
               )}
-            >
-              미리보기
-            </button>
+              {/* 삭제 (기존 가이드만) */}
+              {!isNew && (
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={saving}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-200 text-red-600 text-sm hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span className="hidden sm:inline">삭제</span>
+                </button>
+              )}
+              {/* 저장 */}
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors disabled:opacity-50"
+              >
+                {saving ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                {saving ? "저장 중..." : "저장"}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* 보기 모드: 전체 너비 미리보기 */}
+      {mode === "view" && (
+        <GuidePreview
+          title={title}
+          guideType={guideType}
+          bookTitle={bookTitle}
+          bookAuthor={bookAuthor}
+          bookPublisher={bookPublisher}
+          motivation={motivation}
+          theorySections={theorySections}
+          reflection={reflection}
+          impression={impression}
+          summary={summary}
+          followUp={followUp}
+          bookDescription={bookDescription}
+          contentFormat={getContentFormat()}
+          contentSections={previewContentSections}
+          showAdminSections
+          curriculumYear={curriculumYear}
+          subjectArea={subjectArea}
+          subjectSelect={subjectSelect}
+          unitMajor={unitMajor}
+          unitMinor={unitMinor}
+        />
+      )}
+
+      {/* 편집 모드: 폼 + 사이드 패널 미리보기 */}
+      {mode === "edit" && (
+        <>
+          <div className="space-y-6">
+            {/* 메타 폼 */}
+            <GuideMetaForm
+              title={title}
+              onTitleChange={setTitle}
+              guideType={guideType}
+              onGuideTypeChange={setGuideType}
+              status={status}
+              onStatusChange={setStatus}
+              curriculumYear={curriculumYear}
+              onCurriculumYearChange={setCurriculumYear}
+              subjectArea={subjectArea}
+              onSubjectAreaChange={setSubjectArea}
+              subjectSelect={subjectSelect}
+              onSubjectSelectChange={setSubjectSelect}
+              unitMajor={unitMajor}
+              onUnitMajorChange={setUnitMajor}
+              unitMinor={unitMinor}
+              onUnitMinorChange={setUnitMinor}
+              yearOptions={curriculumYearOptions}
+              groupedSubjects={groupedSubjects}
+              majorUnits={majorUnits}
+              minorUnits={minorUnits}
+              bookTitle={bookTitle}
+              onBookTitleChange={setBookTitle}
+              bookAuthor={bookAuthor}
+              onBookAuthorChange={setBookAuthor}
+              bookPublisher={bookPublisher}
+              onBookPublisherChange={setBookPublisher}
+              bookYear={bookYear}
+              onBookYearChange={setBookYear}
+              allSubjects={allSubjects}
+              selectedSubjectIds={selectedSubjectIds}
+              onSubjectIdsChange={setSelectedSubjectIds}
+              careerFields={careerFields}
+              selectedCareerFieldIds={selectedCareerFieldIds}
+              onCareerFieldIdsChange={setSelectedCareerFieldIds}
+              difficultyLevel={difficultyLevel}
+              onDifficultyLevelChange={(v) => {
+                setDifficultyLevel(v);
+                setDifficultyAuto(false);
+                setIsDirty(true);
+              }}
+              difficultyAuto={difficultyAuto}
+            />
+
+            {/* 본문 편집 */}
+            <GuideContentEditor
+              guideType={guideType}
+              motivation={motivation}
+              onMotivationChange={setMotivation}
+              theorySections={theorySections}
+              onTheorySectionsChange={setTheorySections}
+              reflection={reflection}
+              onReflectionChange={setReflection}
+              impression={impression}
+              onImpressionChange={setImpression}
+              summary={summary}
+              onSummaryChange={setSummary}
+              followUp={followUp}
+              onFollowUpChange={setFollowUp}
+              bookDescription={bookDescription}
+              onBookDescriptionChange={setBookDescription}
+              setekExamples={setekExamples}
+              onSetekExamplesChange={setSetekExamples}
+              extraSections={extraSections}
+              onExtraSectionsChange={setExtraSections}
+              contentFormat={getContentFormat()}
+              toHtml={toHtml}
+              onImageInsert={handleImageInsert}
+              onAiImageInsert={handleAiImageInsert}
+            />
           </div>
-          {/* 내보내기/공유 (기존 가이드만) */}
-          {!isNew && (
-            <button
-              type="button"
-              onClick={() => {
-                setExportMode("download");
-                setExportModalOpen(true);
-              }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-700 text-[var(--text-secondary)] text-sm hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">내보내기</span>
-            </button>
+
+          {/* 미리보기 사이드 패널 */}
+          {previewOpen && (
+            <div
+              className="fixed inset-0 z-40 bg-black/20 dark:bg-black/40"
+              onClick={() => setPreviewOpen(false)}
+            />
           )}
-          {!isNew && (
-            <button
-              type="button"
-              onClick={() => {
-                setExportMode("share");
-                setExportModalOpen(true);
-              }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-700 text-[var(--text-secondary)] text-sm hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors"
-            >
-              <Share2 className="w-4 h-4" />
-              <span className="hidden sm:inline">공유</span>
-            </button>
-          )}
-          {/* 새 버전 (기존 가이드만) */}
-          {!isNew && (
-            <button
-              type="button"
-              onClick={() => {
-                if (!window.confirm("현재 내용을 새 버전으로 복제하시겠습니까?")) return;
-                if (!guideId) return;
-                setSaving(true);
-                saveAsNewVersionAction(guideId, "현재 상태 복제").then((result) => {
-                  if (result.success && result.data) {
-                    toast.showSuccess(`v${result.data.version} 버전이 생성되었습니다.`);
-                    queryClient.invalidateQueries({ queryKey: explorationGuideKeys.all });
-                    router.push(`/admin/guides/${result.data.id}`);
-                  } else {
-                    toast.showError(!result.success ? result.error ?? "버전 생성 실패" : "버전 생성 실패");
-                  }
-                }).catch(() => toast.showError("새 버전 생성 중 오류가 발생했습니다."))
-                .finally(() => setSaving(false));
-              }}
-              disabled={saving}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-700 text-[var(--text-secondary)] text-sm hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors disabled:opacity-50"
-            >
-              <CopyPlus className="w-4 h-4" />
-              새 버전
-            </button>
-          )}
-          {/* 구분선 — 파괴적 액션 분리 */}
-          {!isNew && (
-            <div className="w-px h-6 bg-secondary-200 dark:bg-secondary-700 mx-0.5 hidden sm:block" />
-          )}
-          {/* 삭제 (기존 가이드만) */}
-          {!isNew && (
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={saving}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-200 text-red-600 text-sm hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
-            >
-              <Trash2 className="w-4 h-4" />
-              <span className="hidden sm:inline">삭제</span>
-            </button>
-          )}
-          {/* 저장 */}
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors disabled:opacity-50"
-          >
-            {saving ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4" />
+          <aside
+            role="dialog"
+            aria-label="미리보기"
+            className={cn(
+              "fixed inset-y-0 right-0 z-50 w-full md:w-[66vw] md:max-w-4xl bg-white dark:bg-secondary-900 border-l border-secondary-200 dark:border-secondary-700 shadow-2xl transition-transform duration-300 ease-in-out flex flex-col",
+              previewOpen ? "translate-x-0" : "translate-x-full",
             )}
-            {saving ? "저장 중..." : "저장"}
-          </button>
-        </div>
-      </div>
-
-      {/* 분할 뷰: 데스크톱 좌우, 모바일 탭 전환 */}
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* 좌측: 편집 폼 */}
-        <div className={cn("flex-1 min-w-0 space-y-6", mobileTab === "preview" && "hidden lg:block")}>
-          {/* 메타 폼 */}
-          <GuideMetaForm
-            title={title}
-            onTitleChange={setTitle}
-            guideType={guideType}
-            onGuideTypeChange={setGuideType}
-            status={status}
-            onStatusChange={setStatus}
-            curriculumYear={curriculumYear}
-            onCurriculumYearChange={setCurriculumYear}
-            subjectArea={subjectArea}
-            onSubjectAreaChange={setSubjectArea}
-            subjectSelect={subjectSelect}
-            onSubjectSelectChange={setSubjectSelect}
-            unitMajor={unitMajor}
-            onUnitMajorChange={setUnitMajor}
-            unitMinor={unitMinor}
-            onUnitMinorChange={setUnitMinor}
-            yearOptions={curriculumYearOptions}
-            groupedSubjects={groupedSubjects}
-            majorUnits={majorUnits}
-            minorUnits={minorUnits}
-            bookTitle={bookTitle}
-            onBookTitleChange={setBookTitle}
-            bookAuthor={bookAuthor}
-            onBookAuthorChange={setBookAuthor}
-            bookPublisher={bookPublisher}
-            onBookPublisherChange={setBookPublisher}
-            bookYear={bookYear}
-            onBookYearChange={setBookYear}
-            allSubjects={allSubjects}
-            selectedSubjectIds={selectedSubjectIds}
-            onSubjectIdsChange={setSelectedSubjectIds}
-            careerFields={careerFields}
-            selectedCareerFieldIds={selectedCareerFieldIds}
-            onCareerFieldIdsChange={setSelectedCareerFieldIds}
-            difficultyLevel={difficultyLevel}
-            onDifficultyLevelChange={(v) => {
-              setDifficultyLevel(v);
-              setDifficultyAuto(false);
-              setIsDirty(true);
-            }}
-            difficultyAuto={difficultyAuto}
-          />
-
-          {/* 본문 편집 */}
-          <GuideContentEditor
-            guideType={guideType}
-            motivation={motivation}
-            onMotivationChange={setMotivation}
-            theorySections={theorySections}
-            onTheorySectionsChange={setTheorySections}
-            reflection={reflection}
-            onReflectionChange={setReflection}
-            impression={impression}
-            onImpressionChange={setImpression}
-            summary={summary}
-            onSummaryChange={setSummary}
-            followUp={followUp}
-            onFollowUpChange={setFollowUp}
-            bookDescription={bookDescription}
-            onBookDescriptionChange={setBookDescription}
-            setekExamples={setekExamples}
-            onSetekExamplesChange={setSetekExamples}
-            extraSections={extraSections}
-            onExtraSectionsChange={setExtraSections}
-            contentFormat={getContentFormat()}
-            toHtml={toHtml}
-            onImageInsert={handleImageInsert}
-            onAiImageInsert={handleAiImageInsert}
-          />
-        </div>
-
-        {/* 우측: 실시간 미리보기 */}
-        <div className={cn(
-          "lg:w-[45%] lg:max-w-[560px] lg:shrink-0 lg:sticky lg:top-16 lg:self-start lg:max-h-[calc(100dvh-5rem)] lg:overflow-y-auto",
-          mobileTab === "edit" && "hidden lg:block",
-        )}>
-          <GuidePreview
-            title={title}
-            guideType={guideType}
-            bookTitle={bookTitle}
-            bookAuthor={bookAuthor}
-            bookPublisher={bookPublisher}
-            motivation={motivation}
-            theorySections={theorySections}
-            reflection={reflection}
-            impression={impression}
-            summary={summary}
-            followUp={followUp}
-            bookDescription={bookDescription}
-            contentFormat={getContentFormat()}
-            contentSections={previewContentSections}
-            showAdminSections
-            curriculumYear={curriculumYear}
-            subjectArea={subjectArea}
-            subjectSelect={subjectSelect}
-            unitMajor={unitMajor}
-            unitMinor={unitMinor}
-          />
-        </div>
-      </div>
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-secondary-200 dark:border-secondary-700 shrink-0">
+              <h2 className="text-sm font-semibold text-[var(--text-heading)]">미리보기</h2>
+              <button
+                type="button"
+                onClick={() => setPreviewOpen(false)}
+                aria-label="미리보기 닫기"
+                className="p-1.5 rounded-lg hover:bg-secondary-100 dark:hover:bg-secondary-800 transition-colors"
+              >
+                <X className="w-4 h-4 text-[var(--text-secondary)]" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6">
+              <GuidePreview
+                title={title}
+                guideType={guideType}
+                bookTitle={bookTitle}
+                bookAuthor={bookAuthor}
+                bookPublisher={bookPublisher}
+                motivation={motivation}
+                theorySections={theorySections}
+                reflection={reflection}
+                impression={impression}
+                summary={summary}
+                followUp={followUp}
+                bookDescription={bookDescription}
+                contentFormat={getContentFormat()}
+                contentSections={previewContentSections}
+                showAdminSections
+                curriculumYear={curriculumYear}
+                subjectArea={subjectArea}
+                subjectSelect={subjectSelect}
+                unitMajor={unitMajor}
+                unitMinor={unitMinor}
+              />
+            </div>
+          </aside>
+        </>
+      )}
 
       {/* 이전 버전 안내 (is_latest=false) */}
       {!isNew && guide && !guide.is_latest && (
