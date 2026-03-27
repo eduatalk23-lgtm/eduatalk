@@ -12,6 +12,13 @@ const EDGE_TYPE_LABELS: Record<string, string> = {
   TEACHER_VALIDATION: "교사 검증",
 };
 
+const AREA_LABELS: Record<string, string> = {
+  autonomy: "자율·자치", club: "동아리", career: "진로",
+  setek: "세특", personal_setek: "개인세특", reading: "독서",
+  course_selection: "교과선택", competition: "대회", external: "외부활동",
+  volunteer: "봉사", general: "기타",
+};
+
 const SECTION_LABELS: Record<string, string> = {
   intro: "소개",
   subject_setek: "교과 학습 활동",
@@ -83,6 +90,14 @@ export interface ReportExportData {
     totalEdges: number;
     byType: Array<{ type: string; count: number; example?: string }>;
   } | null;
+  roadmapItems?: Array<{
+    grade: number;
+    semester: number | null;
+    area: string;
+    plan_content: string;
+    status: string;
+    storylineTitle?: string;
+  }> | null;
 }
 
 // ============================================
@@ -190,7 +205,26 @@ export function buildReportExportData(data: ReportData): ReportExportData {
     strategies: strategies.length > 0 ? strategies : null,
     mockAnalysis,
     edgeSummary: buildEdgeSummaryForExport(data.edges),
+    roadmapItems: buildRoadmapForExport(data.storylineData.roadmapItems, data.storylineData.storylines),
   };
+}
+
+function buildRoadmapForExport(
+  items: ReportData["storylineData"]["roadmapItems"],
+  storylines: ReportData["storylineData"]["storylines"],
+): ReportExportData["roadmapItems"] {
+  if (!items || items.length === 0) return null;
+  const storylineMap = new Map(storylines.map((s) => [s.id, s.title]));
+  return items
+    .sort((a, b) => a.grade * 10 + (a.semester ?? 0) - (b.grade * 10 + (b.semester ?? 0)))
+    .map((item) => ({
+      grade: item.grade,
+      semester: item.semester,
+      area: item.area,
+      plan_content: item.plan_content,
+      status: item.status ?? "planning",
+      storylineTitle: item.storyline_id ? storylineMap.get(item.storyline_id) ?? undefined : undefined,
+    }));
 }
 
 function buildEdgeSummaryForExport(
@@ -403,6 +437,18 @@ export async function exportReportAsDocx(data: ReportExportData): Promise<void> 
       }
     }
 
+    // 로드맵
+    if (data.roadmapItems && data.roadmapItems.length > 0) {
+      children.push(new Paragraph({ text: "활동 로드맵", heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 150 } }));
+      children.push(new Paragraph({ children: [new TextRun({ text: `총 ${data.roadmapItems.length}개 항목`, size: 20, color: "666666" })], spacing: { after: 80 } }));
+      for (const item of data.roadmapItems) {
+        const areaLabel = AREA_LABELS[item.area] ?? item.area;
+        const semLabel = item.semester ? `${item.semester}학기` : "연간";
+        const slLabel = item.storylineTitle ? ` → ${item.storylineTitle}` : "";
+        children.push(new Paragraph({ children: [new TextRun({ text: `[${item.grade}학년 ${semLabel}] ${areaLabel}: ${item.plan_content}${slLabel}`, size: 20 })], spacing: { after: 60 } }));
+      }
+    }
+
     // 활동 요약서 섹션별 렌더링
     for (const sec of data.sections) {
       const label = SECTION_LABELS[sec.sectionType] ?? sec.title;
@@ -568,6 +614,20 @@ function buildReportHtml(data: ReportExportData): string {
         body += `<p style="font-size:12px;margin-bottom:4px;"><strong>${escapeHtml(typeLabel)}</strong> ${et.count}건`;
         if (et.example) body += ` <span style="color:#666;">— ${escapeHtml(et.example.slice(0, 80))}</span>`;
         body += `</p>`;
+      }
+      body += `</div>`;
+    }
+
+    // 로드맵 섹션
+    if (data.roadmapItems && data.roadmapItems.length > 0) {
+      body += `<div style="margin-bottom:20px;">`;
+      body += `<h2 style="font-size:15px;font-weight:600;border-bottom:1px solid #ddd;padding-bottom:4px;margin-bottom:8px;">활동 로드맵</h2>`;
+      body += `<p style="font-size:12px;color:#666;margin-bottom:8px;">총 ${data.roadmapItems.length}개 항목</p>`;
+      for (const item of data.roadmapItems) {
+        const areaLabel = AREA_LABELS[item.area] ?? item.area;
+        const semLabel = item.semester ? `${item.semester}학기` : "연간";
+        const slLabel = item.storylineTitle ? ` <span style="color:#888;">→ ${escapeHtml(item.storylineTitle)}</span>` : "";
+        body += `<p style="font-size:12px;margin-bottom:4px;"><strong>[${item.grade}학년 ${semLabel}]</strong> ${escapeHtml(areaLabel)}: ${escapeHtml(item.plan_content)}${slLabel}</p>`;
       }
       body += `</div>`;
     }
