@@ -27,6 +27,10 @@ export async function generateInterviewQuestions(input: {
   additionalRecords?: { content: string; recordType: string; subjectName?: string; grade?: number }[];
   /** 진단에서 발견된 약점 (약점 영역 기반 심층 질문 생성용) */
   diagnosticWeaknesses?: string[];
+  /** 진로 컨텍스트: 면접 질문을 진로 적합성 관점에서 생성 */
+  careerContext?: { targetMajor?: string; targetSubClassification?: string };
+  /** 역량 약점 등급 (B-/C 등급 항목) — 해당 역량 관련 심층 질문 */
+  weakCompetencies?: { item: string; label: string; grade: string }[];
 }): Promise<{ success: true; data: InterviewQuestionResult } | { success: false; error: string }> {
   try {
     await requireAdminOrConsultant();
@@ -44,6 +48,17 @@ export async function generateInterviewQuestions(input: {
     if (input.diagnosticWeaknesses?.length) {
       userPrompt += "\n\n## 진단 약점 영역 (심층 질문 필요)\n" + input.diagnosticWeaknesses.map((w) => `- ${w}`).join("\n")
         + "\n\n위 약점 영역에 대해 학생이 어떻게 보완했는지, 또는 인식하고 있는지 확인하는 질문을 1~2개 추가로 생성해주세요.";
+    }
+    if (input.careerContext?.targetMajor) {
+      userPrompt += `\n\n## 진로 정보\n- 목표 전공: ${input.careerContext.targetMajor}`;
+      if (input.careerContext.targetSubClassification) {
+        userPrompt += `\n- 세부 분류: ${input.careerContext.targetSubClassification}`;
+      }
+      userPrompt += "\n\n목표 전공과 관련하여 학생의 진로 적합성을 확인하는 질문도 포함해주세요.";
+    }
+    if (input.weakCompetencies?.length) {
+      userPrompt += "\n\n## 역량 약점 (등급 B- 이하)\n" + input.weakCompetencies.map((c) => `- ${c.label} (${c.grade})`).join("\n")
+        + "\n\n해당 역량에 대한 자기 인식과 극복 노력을 확인하는 질문을 포함해주세요.";
     }
 
     const result = await generateTextWithRateLimit({

@@ -1426,6 +1426,27 @@ async function executePipelineTasks(
         // 진단 약점을 면접 질문에 반영
         const diagWeaknesses = (results.ai_diagnosis as { weaknesses?: string[] } | undefined)?.weaknesses;
 
+        // 진로 컨텍스트
+        const targetMajor = (snapshot?.target_major as string) ?? undefined;
+        const careerContext = targetMajor ? {
+          targetMajor,
+          targetSubClassification: (snapshot as Record<string, unknown>)?.target_sub_classification_name as string | undefined,
+        } : undefined;
+
+        // 역량 약점 (B- 이하)
+        let weakCompetencies: { item: string; label: string; grade: string }[] | undefined;
+        const diagScores = (results.competency_analysis as { competencyScores?: Array<{ competency_item: string; grade_value: string }> } | undefined)?.competencyScores;
+        if (diagScores) {
+          const { COMPETENCY_ITEMS } = await import("../constants");
+          weakCompetencies = diagScores
+            .filter((s) => s.grade_value === "B-" || s.grade_value === "C" || s.grade_value === "C+")
+            .map((s) => {
+              const item = COMPETENCY_ITEMS.find((c) => c.code === s.competency_item);
+              return { item: s.competency_item, label: item?.label ?? s.competency_item, grade: s.grade_value };
+            });
+          if (weakCompetencies.length === 0) weakCompetencies = undefined;
+        }
+
         const result = await generateInterviewQuestions({
           content: main.content,
           recordType: mainType,
@@ -1433,6 +1454,8 @@ async function executePipelineTasks(
           grade: main.grade,
           additionalRecords,
           diagnosticWeaknesses: diagWeaknesses,
+          careerContext,
+          weakCompetencies,
         });
 
         if (!result.success) throw new Error(result.error);
