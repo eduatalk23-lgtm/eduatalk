@@ -71,23 +71,15 @@ export async function upsertSetekImport(
 ): Promise<string> {
   const supabase = await createSupabaseServerClient();
 
-  // imported_content/imported_at만 upsert (content 건드리지 않음)
+  // imported_content/imported_at만 upsert — content(컨설턴트 가안)는 건드리지 않음
   const { data, error } = await supabase
     .from("student_record_seteks")
     .upsert(input, {
       onConflict: "tenant_id,student_id,school_year,grade,semester,subject_id",
     })
-    .select("id, content")
+    .select("id")
     .single();
   if (error) throw error;
-
-  // content가 비어있으면 imported_content를 content에 복사 (편집 시작점)
-  if (!data.content && input.imported_content) {
-    await supabase
-      .from("student_record_seteks")
-      .update({ content: input.imported_content })
-      .eq("id", data.id);
-  }
   return data.id;
 }
 
@@ -227,16 +219,9 @@ export async function upsertChangcheImport(
     .upsert(input, {
       onConflict: "tenant_id,student_id,school_year,grade,activity_type",
     })
-    .select("id, content")
+    .select("id")
     .single();
   if (error) throw error;
-
-  if (!data.content && input.imported_content) {
-    await supabase
-      .from("student_record_changche")
-      .update({ content: input.imported_content })
-      .eq("id", data.id);
-  }
   return data.id;
 }
 
@@ -287,16 +272,9 @@ export async function upsertHaengteukImport(
     .upsert(input, {
       onConflict: "tenant_id,student_id,school_year,grade",
     })
-    .select("id, content")
+    .select("id")
     .single();
   if (error) throw error;
-
-  if (!data.content && input.imported_content) {
-    await supabase
-      .from("student_record_haengteuk")
-      .update({ content: input.imported_content })
-      .eq("id", data.id);
-  }
   return data.id;
 }
 

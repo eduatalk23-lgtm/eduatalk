@@ -38,21 +38,21 @@ const AREA_COLORS: Record<CompetencyArea, { mark: string; badge: string; badgeBo
 const NEGATIVE_MARK = "bg-red-50 dark:bg-red-900/30 text-[var(--text-primary)] decoration-red-400 decoration-wavy";
 const NEEDS_REVIEW_MARK = "bg-yellow-100 dark:bg-yellow-800/50 text-[var(--text-primary)] decoration-yellow-500";
 
-const EVAL_LABELS: Record<string, { label: string; dot: string }> = {
+export const EVAL_LABELS: Record<string, { label: string; dot: string }> = {
   positive: { label: "긍정", dot: "🟢" },
   negative: { label: "부정", dot: "🔴" },
   needs_review: { label: "확인필요", dot: "🟡" },
 };
 
-function getAreaOfItem(code: CompetencyItemCode): CompetencyArea {
+export function getAreaOfItem(code: CompetencyItemCode): CompetencyArea {
   return COMPETENCY_ITEMS.find((i) => i.code === code)?.area ?? "academic";
 }
 
-function getItemLabel(code: CompetencyItemCode): string {
+export function getItemLabel(code: CompetencyItemCode): string {
   return COMPETENCY_ITEMS.find((i) => i.code === code)?.label ?? code;
 }
 
-function getMarkClass(tags: HighlightTag[]): string {
+export function getMarkClass(tags: HighlightTag[]): string {
   if (tags.some((t) => t.evaluation === "negative")) return NEGATIVE_MARK;
   if (tags.every((t) => t.evaluation === "needs_review")) return NEEDS_REVIEW_MARK;
   const primaryArea = getAreaOfItem(tags[0].competencyItem);
@@ -83,10 +83,10 @@ export function CompetencyBadge({ tag }: { tag: HighlightTag }) {
 
 // ─── 멀티 태그 하이라이트 엔진 ──────────────────
 
-type Segment = { text: string; tags: HighlightTag[] };
+export type Segment = { text: string; tags: HighlightTag[] };
 
 /** 퍼지 매칭: 공백/구두점 무시하고 원본 인덱스 반환 */
-function fuzzyIndexOf(content: string, highlight: string): { start: number; end: number } | null {
+export function fuzzyIndexOf(content: string, highlight: string): { start: number; end: number } | null {
   // 1. 정확 매칭
   const exact = content.indexOf(highlight);
   if (exact !== -1) return { start: exact, end: exact + highlight.length };
@@ -114,7 +114,7 @@ function fuzzyIndexOf(content: string, highlight: string): { start: number; end:
 }
 
 /** 겹침 허용 멀티 태그 세그먼트 생성 */
-function buildSegments(content: string, tags: HighlightTag[]): Segment[] {
+export function buildSegments(content: string, tags: HighlightTag[]): Segment[] {
   if (tags.length === 0) return [{ text: content, tags: [] }];
 
   type Match = { start: number; end: number; tag: HighlightTag };
@@ -152,7 +152,7 @@ function buildSegments(content: string, tags: HighlightTag[]): Segment[] {
 
 // ─── 역량 그룹핑 ────────────────────────────────
 
-type CompetencyGroup = {
+export type CompetencyGroup = {
   area: CompetencyArea;
   areaLabel: string;
   items: {
@@ -163,7 +163,7 @@ type CompetencyGroup = {
   totalCount: number;
 };
 
-function groupTagsByCompetency(sections: AnalyzedSection[]): CompetencyGroup[] {
+export function groupTagsByCompetency(sections: AnalyzedSection[]): CompetencyGroup[] {
   const allTags = sections.flatMap((s) => s.tags);
   const itemMap = new Map<CompetencyItemCode, HighlightTag[]>();
 
@@ -473,30 +473,28 @@ function OriginalView({ content, allTags, areaCounts }: { content: string; allTa
 
 // ─── 멀티 태그 하이라이트 스팬 ──────────────────
 
-function MultiTagSpan({ text, tags }: { text: string; tags: HighlightTag[] }) {
+export function MultiTagSpan({ text, tags }: { text: string; tags: HighlightTag[] }) {
   const [showTooltip, setShowTooltip] = useState(false);
-  const [tooltipBelow, setTooltipBelow] = useState(false);
-  const [tooltipRight, setTooltipRight] = useState(false);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLSpanElement>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const handleEnter = () => {
+  const handleEnter = (e: React.MouseEvent) => {
     clearTimeout(hideTimer.current);
-    if (containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      setTooltipBelow(rect.top < 150);
-      setTooltipRight(rect.left > window.innerWidth - 320);
-    }
+    setTooltipPos({ x: e.clientX, y: e.clientY });
     setShowTooltip(true);
   };
 
   const handleLeave = () => {
-    // 팝업으로 마우스 이동할 시간 확보
     hideTimer.current = setTimeout(() => setShowTooltip(false), 150);
   };
 
   const markClass = getMarkClass(tags);
   const hasMultiArea = new Set(tags.map((t) => getAreaOfItem(t.competencyItem))).size > 1;
+
+  // 뷰포트 경계 체크
+  const below = tooltipPos ? tooltipPos.y < 150 : false;
+  const right = tooltipPos ? tooltipPos.x > window.innerWidth - 320 : false;
 
   return (
     <span
@@ -514,13 +512,15 @@ function MultiTagSpan({ text, tags }: { text: string; tags: HighlightTag[] }) {
       >
         {text}
       </span>
-      {showTooltip && (
+      {showTooltip && tooltipPos && (
         <span
-          className={cn(
-            "absolute z-50 w-72 max-h-60 overflow-y-auto rounded-md border border-gray-200 bg-white p-2.5 shadow-lg dark:border-gray-600 dark:bg-gray-800",
-            tooltipBelow ? "top-full mt-1" : "bottom-full mb-1",
-            tooltipRight ? "right-0" : "left-0",
-          )}
+          className="fixed z-[9999] w-72 max-h-60 overflow-y-auto rounded-md border border-gray-200 bg-white p-2.5 shadow-lg dark:border-gray-600 dark:bg-gray-800"
+          style={{
+            top: below ? tooltipPos.y + 12 : undefined,
+            bottom: below ? undefined : window.innerHeight - tooltipPos.y + 12,
+            left: right ? undefined : tooltipPos.x,
+            right: right ? window.innerWidth - tooltipPos.x : undefined,
+          }}
           onMouseEnter={() => clearTimeout(hideTimer.current)}
           onMouseLeave={handleLeave}
         >

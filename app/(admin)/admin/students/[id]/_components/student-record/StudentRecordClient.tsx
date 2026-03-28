@@ -50,6 +50,8 @@ import { MinScorePanel } from "./MinScorePanel";
 import { ImportDialog } from "./ImportDialog";
 import { RecordGradesDisplay } from "./RecordGradesDisplay";
 import { CompetencyAnalysisSection } from "./CompetencyAnalysisSection";
+import { CrossReferenceChips } from "./CrossReferenceChips";
+import { SameSchoolSetekInfo } from "./SameSchoolSetekInfo";
 import { DiagnosisComparisonView } from "./DiagnosisComparisonView";
 import { CourseAdequacyDisplay } from "./CourseAdequacyDisplay";
 import { StrategyEditor as StrategyEditorPanel } from "./StrategyEditor";
@@ -135,6 +137,7 @@ const STAGES: StageConfig[] = [
     hasYearSelector: true,
     sections: [
       { id: "sec-diagnosis-analysis", label: "역량 분석" },
+      { id: "sec-diagnosis-crossref", label: "교차 분석" },
       { id: "sec-diagnosis-overall", label: "종합진단" },
       { id: "sec-diagnosis-adequacy", label: "교과이수적합" },
       { id: "sec-warnings", label: "경보" },
@@ -695,16 +698,19 @@ export function StudentRecordClient({
     const result: { id: string; type: "setek" | "personal_setek" | "changche" | "haengteuk"; label: string; content: string; subjectName?: string; grade?: number }[] = [];
     for (const [g, entry] of recordByGrade) {
       for (const s of entry.data.seteks) {
-        if (s.content) {
+        const text = s.content?.trim() || s.imported_content || "";
+        if (text) {
           const subjectName = subjects.find((sub) => sub.id === s.subject_id)?.name ?? "과목";
-          result.push({ id: s.id, type: "setek", label: `${g}학년 ${subjectName}`, content: s.content, subjectName, grade: g });
+          result.push({ id: s.id, type: "setek", label: `${g}학년 ${subjectName}`, content: text, subjectName, grade: g });
         }
       }
       for (const c of entry.data.changche) {
-        if (c.content) result.push({ id: c.id, type: "changche", label: `${g}학년 ${c.activity_type}`, content: c.content, grade: g });
+        const text = c.content?.trim() || (c as unknown as { imported_content?: string }).imported_content || "";
+        if (text) result.push({ id: c.id, type: "changche", label: `${g}학년 ${c.activity_type}`, content: text, grade: g });
       }
-      if (entry.data.haengteuk?.content) {
-        result.push({ id: entry.data.haengteuk.id, type: "haengteuk", label: `${g}학년 행특`, content: entry.data.haengteuk.content, grade: g });
+      if (entry.data.haengteuk) {
+        const text = entry.data.haengteuk.content?.trim() || (entry.data.haengteuk as unknown as { imported_content?: string }).imported_content || "";
+        if (text) result.push({ id: entry.data.haengteuk.id, type: "haengteuk", label: `${g}학년 행특`, content: text, grade: g });
       }
     }
     return result;
@@ -1000,7 +1006,7 @@ export function StudentRecordClient({
                       }}
                       disabled={!step.section}
                       className={cn(
-                        "flex-1 rounded px-2 py-1.5 text-[10px] font-medium transition",
+                        "flex-1 rounded px-2 py-1.5 text-xs font-medium transition",
                         step.done
                           ? "bg-indigo-600 text-white"
                           : "bg-white text-indigo-600 border border-indigo-300 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-700",
@@ -1321,6 +1327,45 @@ export function StudentRecordClient({
                 targetMajor={diagnosisData?.targetMajor}
                 takenSubjects={diagnosisData?.takenSubjects}
               />
+            )}
+          </StrategySection>
+
+          {/* 동일과목 세특 비교 + 크로스레퍼런스 */}
+          <StrategySection id="sec-diagnosis-crossref" title="교차 분석">
+            {diagnosisLoading || anyRecordLoading ? <SectionSkeleton /> : (
+              <div className="flex flex-col gap-4">
+                {/* 같은 학교 동일 과목 세특 참고 */}
+                {schoolName && allRecordSummaries.filter((r) => r.type === "setek").length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-sm font-semibold text-[var(--text-primary)]">같은 학교 동일 과목 세특</p>
+                    {[...new Set(allRecordSummaries.filter((r) => r.type === "setek").map((r) => r.subjectName))].map((subjectName) => {
+                      const rec = allRecordSummaries.find((r) => r.type === "setek" && r.subjectName === subjectName);
+                      if (!rec) return null;
+                      // subject_id가 필요 — recordByGrade에서 찾기
+                      const setekRecord = [...recordByGrade.values()].flatMap((e) => e.data.seteks).find((s) => s.id === rec.id);
+                      if (!setekRecord) return null;
+                      return (
+                        <SameSchoolSetekInfo
+                          key={setekRecord.subject_id}
+                          studentId={studentId}
+                          subjectId={setekRecord.subject_id}
+                          schoolYear={initialSchoolYear}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+                {/* 크로스레퍼런스 */}
+                <CrossReferenceChips
+                  studentId={studentId}
+                  tenantId={tenantId}
+                  currentRecordIds={currentYearTagIds}
+                  currentRecordType="setek"
+                  currentGrade={studentGrade}
+                  allTags={filteredActivityTags as import("@/lib/domains/student-record").ActivityTag[]}
+                  courseAdequacy={diagnosisData?.courseAdequacy ?? null}
+                />
+              </div>
             )}
           </StrategySection>
 
@@ -1743,7 +1788,7 @@ function GradesAndSetekSection({
   personalSeteks?: RecordPersonalSetek[];
   isLoading: boolean;
   showSectionAnchors?: boolean;
-  diagnosisActivityTags?: Array<{ record_type: string; record_id: string; competency_item: string; evaluation: string; evidence_summary?: string | null }>;
+  diagnosisActivityTags?: Array<{ id: string; record_type: string; record_id: string; competency_item: string; evaluation: string; evidence_summary?: string | null; source?: string; status?: string }>;
   setekGuideItems?: Array<{ subjectName: string; keywords: string[]; direction: string; competencyFocus?: string[]; cautions?: string; teacherPoints?: string[] }>;
   guideAssignments?: Array<{ id: string; guide_id: string; status: string; exploration_guides?: { id: string; title: string; guide_type?: string } }>;
   confirmedPlansForGrade?: Array<{ subjectId: string; subjectName: string; semester: number; subjectGroupName: string; subjectTypeName: string }>;

@@ -8,7 +8,7 @@
 import { useState, useRef, useCallback, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
-import { addActivityTagsBatchAction, saveAnalysisCacheAction } from "@/lib/domains/student-record/actions/diagnosis";
+import { addActivityTagsBatchAction } from "@/lib/domains/student-record/actions/diagnosis";
 import type { ActivityTagInsert } from "@/lib/domains/student-record/types";
 import { COMPETENCY_ITEMS, COMPETENCY_AREA_LABELS } from "@/lib/domains/student-record";
 import type { CompetencyArea } from "@/lib/domains/student-record";
@@ -34,10 +34,19 @@ const EVAL_OPTIONS: Array<{ value: Evaluation; label: string; color: string }> =
   { value: "needs_review", label: "?확인", color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" },
 ];
 
-const AREA_COLORS: Record<CompetencyArea, string> = {
-  academic: "border-blue-300 dark:border-blue-700",
-  career: "border-purple-300 dark:border-purple-700",
-  community: "border-green-300 dark:border-green-700",
+const AREA_COLORS: Record<CompetencyArea, { selected: string; idle: string }> = {
+  academic: {
+    selected: "border-blue-400 bg-blue-50 text-blue-700 dark:border-blue-600 dark:bg-blue-900/30 dark:text-blue-300",
+    idle: "border-transparent bg-gray-50 text-[var(--text-secondary)] hover:bg-blue-50/50 hover:text-blue-600 dark:bg-gray-800 dark:hover:bg-blue-900/20",
+  },
+  career: {
+    selected: "border-purple-400 bg-purple-50 text-purple-700 dark:border-purple-600 dark:bg-purple-900/30 dark:text-purple-300",
+    idle: "border-transparent bg-gray-50 text-[var(--text-secondary)] hover:bg-purple-50/50 hover:text-purple-600 dark:bg-gray-800 dark:hover:bg-purple-900/20",
+  },
+  community: {
+    selected: "border-green-400 bg-green-50 text-green-700 dark:border-green-600 dark:bg-green-900/30 dark:text-green-300",
+    idle: "border-transparent bg-gray-50 text-[var(--text-secondary)] hover:bg-green-50/50 hover:text-green-600 dark:bg-gray-800 dark:hover:bg-green-900/20",
+  },
 };
 
 export function TextSelectionTagger({
@@ -71,12 +80,16 @@ export function TextSelectionTagger({
     if (!containerRef.current.contains(range.commonAncestorContainer)) return;
 
     const rect = range.getBoundingClientRect();
-    const containerRect = containerRef.current.getBoundingClientRect();
 
     setSelectedText(text);
+    // fixed 포지셔닝용 뷰포트 좌표
+    const popW = 320;
+    const below = rect.bottom + 8;
+    const above = rect.top - 8;
+    const useBelow = below + 300 < window.innerHeight;
     setPopoverPos({
-      top: rect.bottom - containerRect.top + 8,
-      left: Math.min(rect.left - containerRect.left, containerRect.width - 280),
+      top: useBelow ? below : above,
+      left: Math.min(Math.max(8, rect.left), window.innerWidth - popW - 8),
     });
     setSelectedItem(null);
     setSelectedEval("positive");
@@ -101,13 +114,14 @@ export function TextSelectionTagger({
         evaluation: selectedEval,
         evidence_summary: `[컨설턴트] 근거: "${selectedText}"`,
         source: "manual",
-        status: "confirmed",
+        status: "suggested",
       };
 
-      await addActivityTagsBatchAction([tagInput]);
+      const res = await addActivityTagsBatchAction([tagInput]);
+      if (!res.success) throw new Error("error" in res ? res.error : "태그 저장 실패");
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: studentRecordKeys.diagnosisTab(studentId, schoolYear) });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["studentRecord", "diagnosisTab", studentId] });
       closePopover();
     },
   });
@@ -129,34 +143,38 @@ export function TextSelectionTagger({
 
       {/* 선택 팝오버 */}
       {popoverPos && (
+        <>
+        {/* 백드롭 */}
+        <div className="fixed inset-0 z-[9998]" onClick={closePopover} />
         <div
-          className="absolute z-50 w-[280px] rounded-lg border border-[var(--border-primary)] bg-[var(--surface-primary)] p-3 shadow-lg"
-          style={{ top: popoverPos.top, left: Math.max(0, popoverPos.left) }}
+          className="fixed z-[9999] w-[320px] rounded-lg border border-gray-200 bg-white p-4 shadow-xl dark:border-gray-600 dark:bg-gray-800"
+          style={{ top: popoverPos.top, left: popoverPos.left }}
+          onMouseUp={(e) => e.stopPropagation()}
         >
           {/* 헤더 */}
-          <div className="mb-2 flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs font-medium text-[var(--text-primary)]">
-              <Tag className="h-3 w-3" />
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-sm font-semibold text-[var(--text-primary)]">
+              <Tag className="h-4 w-4" />
               역량 태그 지정
             </div>
-            <button onClick={closePopover} className="rounded p-0.5 hover:bg-gray-100 dark:hover:bg-gray-800">
-              <X className="h-3 w-3 text-[var(--text-tertiary)]" />
+            <button onClick={closePopover} className="rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-800">
+              <X className="h-4 w-4 text-[var(--text-tertiary)]" />
             </button>
           </div>
 
           {/* 선택된 텍스트 미리보기 */}
-          <div className="mb-2 rounded bg-amber-50 px-2 py-1 text-[10px] text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
-            &ldquo;{selectedText.slice(0, 80)}{selectedText.length > 80 ? "..." : ""}&rdquo;
+          <div className="mb-3 rounded bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+            &ldquo;{selectedText.slice(0, 100)}{selectedText.length > 100 ? "..." : ""}&rdquo;
           </div>
 
           {/* 평가 선택 */}
-          <div className="mb-2 flex gap-1">
+          <div className="mb-3 flex gap-1.5">
             {EVAL_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 onClick={() => setSelectedEval(opt.value)}
                 className={cn(
-                  "flex-1 rounded px-2 py-1 text-[10px] font-medium transition-all",
+                  "flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-all",
                   selectedEval === opt.value ? opt.color : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
                 )}
               >
@@ -166,22 +184,22 @@ export function TextSelectionTagger({
           </div>
 
           {/* 역량 항목 선택 */}
-          <div className="max-h-[200px] overflow-y-auto">
+          <div className="max-h-[240px] overflow-y-auto">
             {(Object.entries(grouped) as [CompetencyArea, typeof COMPETENCY_ITEMS][]).map(([area, items]) => (
-              <div key={area} className="mb-1.5">
-                <div className="mb-0.5 text-[9px] font-semibold uppercase text-[var(--text-tertiary)]">
+              <div key={area} className="mb-2.5">
+                <div className="mb-1 text-xs font-semibold text-[var(--text-tertiary)]">
                   {COMPETENCY_AREA_LABELS[area]}
                 </div>
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1.5">
                   {items.map((item) => (
                     <button
                       key={item.code}
                       onClick={() => setSelectedItem(item.code)}
                       className={cn(
-                        "rounded border px-1.5 py-0.5 text-[10px] transition-all",
+                        "rounded-md border px-2.5 py-1 text-xs font-medium transition-all",
                         selectedItem === item.code
-                          ? `${AREA_COLORS[area]} bg-[var(--surface-secondary)] font-medium text-[var(--text-primary)]`
-                          : "border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]",
+                          ? AREA_COLORS[area].selected
+                          : AREA_COLORS[area].idle,
                       )}
                     >
                       {item.label}
@@ -197,15 +215,16 @@ export function TextSelectionTagger({
             onClick={() => saveMutation.mutate()}
             disabled={!selectedItem || saveMutation.isPending}
             className={cn(
-              "mt-2 flex w-full items-center justify-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium text-white",
+              "mt-3 flex w-full items-center justify-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium text-white",
               selectedItem && !saveMutation.isPending
                 ? "bg-indigo-600 hover:bg-indigo-700"
                 : "cursor-not-allowed bg-gray-400",
             )}
           >
-            {saveMutation.isPending ? "저장 중..." : <><Check className="h-3 w-3" /> 태그 저장</>}
+            {saveMutation.isPending ? "저장 중..." : <><Check className="h-4 w-4" /> 태그 저장</>}
           </button>
         </div>
+        </>
       )}
     </div>
   );

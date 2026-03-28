@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { saveSetekAction } from "@/lib/domains/student-record/actions/record";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
@@ -12,11 +12,14 @@ import { useAutoSave } from "./useAutoSave";
 import { useStudentRecordContext } from "./StudentRecordContext";
 import { useSidePanel } from "@/components/side-panel";
 import { cn } from "@/lib/cn";
-import { FileText, Search, BookOpen, Compass, MessageSquare, ClipboardList, PenLine, StickyNote, ChevronDown } from "lucide-react";
+import { FileText, Search, BookOpen, Compass, MessageSquare, ClipboardList, PenLine, StickyNote, ChevronDown, ArrowDownToLine, Trash2, Check } from "lucide-react";
 import { SetekGuideRecommendations } from "./SetekGuideRecommendations";
-import { SameSchoolSetekInfo } from "./SameSchoolSetekInfo";
-import { CrossReferenceChips } from "./CrossReferenceChips";
+import type { AnalysisTagLike, AnalysisBlockMode, TaggerProps } from "./shared/AnalysisBlocks";
+import { AnalysisBlock, toHighlightTags } from "./shared/AnalysisBlocks";
+import { buildSegments, getAreaOfItem, groupTagsByCompetency, EVAL_LABELS, MultiTagSpan } from "./HighlightedSetekView";
 import { TextSelectionTagger } from "./TextSelectionTagger";
+import type { HighlightTag, AnalyzedSection } from "@/lib/domains/student-record/llm/types";
+import type { CompetencyItemCode, CompetencyArea } from "@/lib/domains/student-record";
 import type { CourseAdequacyResult } from "@/lib/domains/student-record";
 import { calculateReflectionSummary, type ReflectionSummary, type SubjectReflectionRate } from "@/lib/domains/student-record/keyword-match";
 import { InlineAreaMemos } from "./InlineAreaMemos";
@@ -25,15 +28,7 @@ type Subject = { id: string; name: string };
 
 type SetekLayerTab = "chat" | "guide" | "direction" | "draft" | "neis" | "analysis" | "memo";
 
-interface ActivityTagLike {
-  record_type: string;
-  record_id: string;
-  competency_item: string;
-  evaluation: string;
-  evidence_summary?: string | null;
-  source?: string;
-  status?: string;
-}
+type ActivityTagLike = AnalysisTagLike;
 
 interface SetekGuideItemLike {
   subjectName: string;
@@ -185,7 +180,7 @@ export function SetekEditor({
     if (filteredGuideItems.length === 0 || mergedRows.length === 0) return null;
     const textMap = new Map<string, string>();
     for (const row of mergedRows) {
-      const combined = row.records.map((r) => r.content ?? "").join(" ");
+      const combined = row.records.map((r) => r.content?.trim() || r.imported_content || "").join(" ");
       textMap.set(row.displayName, combined);
     }
     return calculateReflectionSummary(filteredGuideItems, textMap);
@@ -207,7 +202,7 @@ export function SetekEditor({
       <div className="flex gap-1 overflow-x-auto border-b border-[var(--border-secondary)]">
         {LAYER_TABS.map((tab) => {
           const hasData = tab.key === "neis" ? seteks.length > 0
-            : tab.key === "draft" ? seteks.some((s) => s.content || s.ai_draft_content)
+            : tab.key === "draft" ? seteks.some((s) => s.content?.trim() || s.ai_draft_content || s.confirmed_content?.trim())
             : tab.key === "analysis" ? filteredTags.length > 0
             : tab.key === "guide" ? (guideAssignments?.length ?? 0) > 0
             : tab.key === "direction" ? filteredGuideItems.length > 0
@@ -320,146 +315,46 @@ export function SetekEditor({
         </>
       )}
 
-      {/* ─── 🔍 분석 탭 ──────────────────────────── */}
-      {activeTab === "analysis" && (
-        <div className="flex flex-col gap-3">
-          {/* G3-6: 가이드 키워드 반영률 요약 */}
-          {reflectionSummary && reflectionSummary.totalKeywords > 0 && (
-            <div className="rounded-lg border border-[var(--border-secondary)] p-3">
-              <div className="flex items-center gap-2 pb-2">
-                <span className="text-xs font-semibold text-[var(--text-primary)]">가이드 키워드 반영률</span>
-                <span className="text-[10px] text-[var(--text-tertiary)]">
-                  {reflectionSummary.totalMatched}/{reflectionSummary.totalKeywords}
+      {/* ─── 🔍 분석 탭: 테이블 하단 — 반영률 요약만 유지 ──────────────────── */}
+      {activeTab === "analysis" && reflectionSummary && reflectionSummary.totalKeywords > 0 && (
+        <div className="rounded-lg border border-[var(--border-secondary)] p-3">
+          <div className="flex items-center gap-2 pb-2">
+            <span className="text-sm font-semibold text-[var(--text-primary)]">가이드 키워드 반영률</span>
+            <span className="text-xs text-[var(--text-tertiary)]">
+              {reflectionSummary.totalMatched}/{reflectionSummary.totalKeywords}
+            </span>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {reflectionSummary.subjects.map((s) => (
+              <div key={s.subjectName} className="flex items-center gap-2">
+                <span className="w-20 shrink-0 truncate text-xs text-[var(--text-secondary)]">{s.subjectName}</span>
+                <div className="flex-1 rounded-full bg-gray-100 dark:bg-gray-800" style={{ height: 6 }}>
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all",
+                      s.rate >= 70 ? "bg-emerald-500" : s.rate >= 40 ? "bg-amber-500" : "bg-red-400",
+                    )}
+                    style={{ width: `${s.rate}%` }}
+                  />
+                </div>
+                <span className={cn(
+                  "w-20 shrink-0 text-right text-xs font-medium",
+                  s.rate >= 70 ? "text-emerald-600 dark:text-emerald-400" : s.rate >= 40 ? "text-amber-600 dark:text-amber-400" : "text-red-500",
+                )}>
+                  {s.rate}% ({s.matchedKeywords}/{s.totalKeywords})
                 </span>
               </div>
-              <div className="flex flex-col gap-1.5">
-                {reflectionSummary.subjects.map((s) => (
-                  <div key={s.subjectName} className="flex items-center gap-2">
-                    <span className="w-16 shrink-0 truncate text-[11px] text-[var(--text-secondary)]">{s.subjectName}</span>
-                    <div className="flex-1 rounded-full bg-gray-100 dark:bg-gray-800" style={{ height: 6 }}>
-                      <div
-                        className={cn(
-                          "h-full rounded-full transition-all",
-                          s.rate >= 70 ? "bg-emerald-500" : s.rate >= 40 ? "bg-amber-500" : "bg-red-400",
-                        )}
-                        style={{ width: `${s.rate}%` }}
-                      />
-                    </div>
-                    <span className={cn(
-                      "w-14 shrink-0 text-right text-[10px] font-medium",
-                      s.rate >= 70 ? "text-emerald-600 dark:text-emerald-400" : s.rate >= 40 ? "text-amber-600 dark:text-amber-400" : "text-red-500",
-                    )}>
-                      {s.rate}% ({s.matchedKeywords}/{s.totalKeywords})
-                    </span>
-                  </div>
-                ))}
-              </div>
-              {reflectionSummary.subjects.length > 1 && (
-                <div className="flex items-center gap-2 border-t border-[var(--border-secondary)] pt-1.5 mt-1.5">
-                  <span className="w-16 shrink-0 text-[11px] font-medium text-[var(--text-secondary)]">평균</span>
-                  <div className="flex-1" />
-                  <span className="w-14 shrink-0 text-right text-[10px] font-semibold text-[var(--text-primary)]">
-                    {reflectionSummary.averageRate}%
-                  </span>
-                </div>
-              )}
+            ))}
+          </div>
+          {reflectionSummary.subjects.length > 1 && (
+            <div className="flex items-center gap-2 border-t border-[var(--border-secondary)] pt-1.5 mt-1.5">
+              <span className="w-20 shrink-0 text-xs font-medium text-[var(--text-secondary)]">평균</span>
+              <div className="flex-1" />
+              <span className="w-20 shrink-0 text-right text-xs font-semibold text-[var(--text-primary)]">
+                {reflectionSummary.averageRate}%
+              </span>
             </div>
           )}
-
-          {/* 컨설턴트 드래그 태깅: 원문에서 문장 선택 → 역량 태그 지정 */}
-          {mergedRows.length > 0 && (
-            <details className="rounded-lg border border-[var(--border-secondary)]">
-              <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-[var(--text-primary)]">
-                ✏️ 원문 드래그 태깅 <span className="font-normal text-[var(--text-tertiary)]">— 문장을 선택하여 역량 태그 지정</span>
-              </summary>
-              <div className="space-y-2 border-t border-[var(--border-secondary)] px-3 py-2">
-                {mergedRows.map((row) => {
-                  const combinedContent = row.records.map((r) => r.content).filter(Boolean).join("\n\n");
-                  if (!combinedContent.trim()) return null;
-                  return (
-                    <div key={row.subjectId}>
-                      <div className="mb-1 text-[10px] font-medium text-[var(--text-secondary)]">{row.displayName}</div>
-                      {row.records.filter((r) => r.content?.trim()).map((r) => (
-                        <TextSelectionTagger
-                          key={r.id}
-                          content={r.content}
-                          recordType="setek"
-                          recordId={r.id}
-                          studentId={studentId}
-                          tenantId={tenantId}
-                          schoolYear={schoolYear}
-                          subjectName={row.displayName}
-                        />
-                      ))}
-                    </div>
-                  );
-                })}
-              </div>
-            </details>
-          )}
-
-          {filteredTags.length === 0 && (!reflectionSummary || reflectionSummary.totalKeywords === 0) ? (
-            <p className="py-4 text-center text-xs text-[var(--text-tertiary)]">
-              AI 분석을 실행하면 이 영역의 역량 태그가 표시됩니다
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {Object.entries(
-                filteredTags.reduce<Record<string, ActivityTagLike[]>>((acc, tag) => {
-                  const key = tag.competency_item;
-                  (acc[key] ??= []).push(tag);
-                  return acc;
-                }, {}),
-              ).map(([item, tags]) => (
-                <div key={item} className="rounded-lg border border-[var(--border-secondary)] p-3">
-                  <div className="mb-1.5 flex items-center gap-2">
-                    <span className="text-xs font-semibold text-[var(--text-primary)]">
-                      {COMPETENCY_LABELS[item] ?? item}
-                    </span>
-                    <span className="text-[10px] text-[var(--text-tertiary)]">{tags.length}건</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {tags.map((tag, i) => (
-                      <span
-                        key={i}
-                        className={cn("inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium", EVAL_COLORS[tag.evaluation] ?? "bg-gray-100 text-gray-600")}
-                        title={tag.evidence_summary ?? undefined}
-                      >
-                        {tag.evaluation === "positive" ? "+" : tag.evaluation === "negative" ? "-" : "?"}{" "}
-                        {tag.evidence_summary?.slice(0, 30) ?? ""}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* G2-6: 같은 학교 동일 과목 세특 참고 */}
-          {schoolName && mergedRows.length > 0 && (
-            <div className="flex flex-col gap-2">
-              {mergedRows.map((row) => (
-                <SameSchoolSetekInfo
-                  key={row.subjectId}
-                  studentId={studentId}
-                  subjectId={row.subjectId}
-                  schoolYear={schoolYear}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* G2-1: 크로스레퍼런스 칩 */}
-          <CrossReferenceChips
-            studentId={studentId}
-            tenantId={tenantId}
-            currentRecordIds={allSetekIds}
-            currentRecordType="setek"
-            currentGrade={grade}
-            subjectName={mergedRows[0]?.displayName}
-            allTags={diagnosisActivityTags as import("@/lib/domains/student-record").ActivityTag[] | undefined}
-            courseAdequacy={courseAdequacy}
-          />
         </div>
       )}
 
@@ -479,11 +374,11 @@ export function SetekEditor({
                     {a.exploration_guides?.title ?? "가이드"}
                   </p>
                   {a.exploration_guides?.guide_type && (
-                    <p className="text-[10px] text-[var(--text-tertiary)]">{a.exploration_guides.guide_type}</p>
+                    <p className="text-xs text-[var(--text-tertiary)]">{a.exploration_guides.guide_type}</p>
                   )}
                 </div>
                 <span className={cn(
-                  "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                  "rounded-full px-2 py-0.5 text-[11px] font-medium",
                   a.status === "completed" ? "bg-emerald-100 text-emerald-700" :
                   a.status === "in_progress" ? "bg-blue-100 text-blue-700" :
                   "bg-gray-100 text-gray-600",
@@ -523,7 +418,7 @@ export function SetekEditor({
                 <div className="mb-2 flex items-center gap-2">
                   <span className="text-sm font-semibold text-violet-700 dark:text-violet-300">{item.subjectName}</span>
                   {item.competencyFocus?.map((c) => (
-                    <span key={c} className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] text-violet-600 dark:bg-violet-900/40 dark:text-violet-300">
+                    <span key={c} className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[11px] text-violet-600 dark:bg-violet-900/40 dark:text-violet-300">
                       {COMPETENCY_LABELS[c] ?? c}
                     </span>
                   ))}
@@ -533,7 +428,7 @@ export function SetekEditor({
                     if (!sr || sr.totalKeywords === 0) return null;
                     return (
                       <span className={cn(
-                        "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                        "rounded-full px-1.5 py-0.5 text-[11px] font-medium",
                         sr.rate >= 70 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
                           : sr.rate >= 40 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
                           : "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-300",
@@ -555,7 +450,7 @@ export function SetekEditor({
                           <span
                             key={kw}
                             className={cn(
-                              "rounded-md px-1.5 py-0.5 text-[10px]",
+                              "rounded-md px-1.5 py-0.5 text-[11px]",
                               isMatched
                                 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200"
                                 : "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-200",
@@ -570,7 +465,7 @@ export function SetekEditor({
                 })()}
                 {item.teacherPoints && item.teacherPoints.length > 0 && (
                   <div className="mt-2 border-t border-violet-200 pt-2 dark:border-violet-800">
-                    <p className="mb-1 text-[10px] font-medium text-[var(--text-secondary)]">교사 전달 포인트</p>
+                    <p className="mb-1 text-xs font-medium text-[var(--text-secondary)]">교사 전달 포인트</p>
                     <ul className="list-inside list-disc text-xs text-[var(--text-secondary)]">
                       {item.teacherPoints.map((tp, j) => <li key={j}>{tp}</li>)}
                     </ul>
@@ -659,7 +554,7 @@ function PlannedSubjectRow({
         <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
           {planned.subjectName}
         </span>
-        <span className="ml-1.5 inline-flex rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:bg-blue-900/40 dark:text-blue-300">
+        <span className="ml-1.5 inline-flex rounded-full bg-blue-100 px-1.5 py-0.5 text-[11px] font-medium text-blue-600 dark:bg-blue-900/40 dark:text-blue-300">
           계획됨
         </span>
       </td>
@@ -737,7 +632,7 @@ function SetekTableRow({
           type="button"
           onClick={() => { if (confirm(`${row.displayName} 세특을 삭제하시겠습니까?`)) deleteMutation.mutate(); }}
           disabled={deleteMutation.isPending}
-          className="text-[9px] text-red-400 hover:text-red-600 disabled:opacity-50"
+          className="text-xs text-red-400 hover:text-red-600 disabled:opacity-50"
         >
           {deleteMutation.isPending ? "삭제 중..." : "삭제"}
         </button>
@@ -781,6 +676,8 @@ function SetekTableRow({
             subjectReflection={subjectReflection}
             row={row}
             studentId={studentId}
+            tenantId={tenantId}
+            schoolYear={schoolYear}
           />
         )}
 
@@ -790,10 +687,10 @@ function SetekTableRow({
               <div key={g.id} className="flex items-center gap-1.5">
                 <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", g.status === "completed" ? "bg-emerald-500" : g.status === "in_progress" ? "bg-amber-500" : "bg-gray-300")} />
                 <span className="truncate text-xs text-[var(--text-primary)]">{g.exploration_guides?.title ?? "가이드"}</span>
-                <span className="shrink-0 text-[10px] text-[var(--text-tertiary)]">{g.status === "completed" ? "완료" : g.status === "in_progress" ? "진행" : "배정"}</span>
+                <span className="shrink-0 text-xs text-[var(--text-tertiary)]">{g.status === "completed" ? "완료" : g.status === "in_progress" ? "진행" : "배정"}</span>
               </div>
             )) : (
-              <span className="text-[10px] text-[var(--text-placeholder)]">배정된 가이드 없음</span>
+              <span className="text-xs text-[var(--text-placeholder)]">배정된 가이드 없음</span>
             )}
           </div>
         )}
@@ -806,16 +703,16 @@ function SetekTableRow({
                 {d.keywords.length > 0 && (
                   <div className="flex flex-wrap gap-0.5">
                     {d.keywords.slice(0, 5).map((kw) => (
-                      <span key={kw} className="rounded bg-indigo-50 px-1 py-0.5 text-[9px] text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">{kw}</span>
+                      <span key={kw} className="rounded bg-indigo-50 px-1.5 py-0.5 text-[11px] text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">{kw}</span>
                     ))}
                   </div>
                 )}
                 {d.teacherPoints && d.teacherPoints.length > 0 && (
-                  <p className="text-[10px] text-[var(--text-tertiary)]">교사: {d.teacherPoints[0]}</p>
+                  <p className="text-xs text-[var(--text-tertiary)]">교사: {d.teacherPoints[0]}</p>
                 )}
               </div>
             )) : (
-              <span className="text-[10px] text-[var(--text-placeholder)]">방향 가이드 없음</span>
+              <span className="text-xs text-[var(--text-placeholder)]">방향 가이드 없음</span>
             )}
           </div>
         )}
@@ -835,7 +732,14 @@ function SetekTableRow({
         )}
 
         {activeTab === "draft" && (
-          <DraftExpandableCell records={row.records} />
+          <DraftExpandableCell
+            records={row.records}
+            studentId={studentId}
+            schoolYear={schoolYear}
+            tenantId={tenantId}
+            grade={grade}
+            charLimit={charLimit}
+          />
         )}
 
         {activeTab === "memo" && (
@@ -870,12 +774,15 @@ function SetekInlineEditor({
   grade: number;
   showSemesterLabel: boolean;
 }) {
-  const [content, setContent] = useState(setek.content ?? "");
+  // content가 비어있으면 imported_content(NEIS 원문)를 표시
+  const displayContent = setek.content?.trim() ? setek.content : (setek.imported_content ?? "");
+  const [content, setContent] = useState(displayContent);
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    setContent(setek.content ?? "");
-  }, [setek.content]);
+    const next = setek.content?.trim() ? setek.content : (setek.imported_content ?? "");
+    setContent(next);
+  }, [setek.content, setek.imported_content]);
 
   const handleSave = useCallback(
     async (data: string) => {
@@ -950,7 +857,7 @@ function SetekInlineEditor({
         <div className="mb-1 rounded bg-violet-50 p-2 text-xs dark:bg-violet-900/20">
           <div className="flex items-center justify-between mb-1">
             <span className="font-medium text-violet-700 dark:text-violet-400">AI 초안</span>
-            <button type="button" onClick={handleAcceptDraft} className="rounded bg-violet-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-violet-700">수용</button>
+            <button type="button" onClick={handleAcceptDraft} className="rounded bg-violet-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-violet-700">수용</button>
           </div>
           <p className="text-violet-600 dark:text-violet-300 line-clamp-3">{draftContent.slice(0, 200)}...</p>
         </div>
@@ -972,7 +879,7 @@ function SetekInlineEditor({
               type="button"
               onClick={handleGenerateDraft}
               disabled={draftGenerating}
-              className="text-[10px] text-violet-600 hover:text-violet-800 dark:text-violet-400 disabled:opacity-50"
+              className="text-xs text-violet-600 hover:text-violet-800 dark:text-violet-400 disabled:opacity-50"
             >
               {draftGenerating ? "생성 중..." : "AI 초안 생성"}
             </button>
@@ -1088,7 +995,7 @@ function AddSetekForm({
   );
 }
 
-function AutoResizeTextarea({ onChange, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+function AutoResizeTextarea({ onChange, className, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const resize = useCallback(() => {
     const el = ref.current;
@@ -1097,142 +1004,337 @@ function AutoResizeTextarea({ onChange, ...props }: React.TextareaHTMLAttributes
     el.style.height = `${el.scrollHeight}px`;
   }, []);
   useEffect(resize, [props.value, resize]);
-  return <textarea ref={ref} {...props} onChange={(e) => { onChange?.(e); resize(); }} />;
+  return <textarea ref={ref} {...props} className={cn("overflow-hidden", className)} onChange={(e) => { onChange?.(e); resize(); }} />;
 }
 
-// ─── 🔍분석 탭: 접힘/펼침 3열 셀 ──────────────────────
+// ─── 🔍분석 탭: 공용 AnalysisBlock 사용 (shared/AnalysisBlocks.tsx) ──
+// (내부 중복 함수 제거됨 — CompactCompetencyView, HighlightedInlineText, AnalysisBlock)
+
+// ─── AnalysisExpandableCell: 3개 독립 블록을 감싸는 셀 ──
 
 function AnalysisExpandableCell({
   subjectTags,
   subjectReflection,
   row,
   studentId,
+  tenantId,
+  schoolYear,
 }: {
   subjectTags: ActivityTagLike[];
   subjectReflection?: SubjectReflectionRate;
   row: MergedSetekRow;
   studentId: string;
+  tenantId: string;
+  schoolYear: number;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [aiMode, setAiMode] = useState<AnalysisBlockMode>("competency");
+  const [consultantMode, setConsultantMode] = useState<AnalysisBlockMode>("tagging");
+  const [confirmedMode, setConfirmedMode] = useState<AnalysisBlockMode>("tagging");
+  const queryClient = useQueryClient();
 
-  const aiTags = subjectTags.filter((t) => t.source === "ai");
-  const manualTags = subjectTags.filter((t) => t.source === "manual" || !t.source);
-  const confirmedTags = subjectTags.filter((t) => t.status === "confirmed");
+  const aiTags = useMemo(() => subjectTags.filter((t) => t.source === "ai"), [subjectTags]);
+  const manualTags = useMemo(() => subjectTags.filter((t) => (t.source === "manual" || !t.source) && t.status !== "confirmed"), [subjectTags]);
+  const confirmedTags = useMemo(() => subjectTags.filter((t) => t.status === "confirmed"), [subjectTags]);
 
-  // 역량별 그룹
-  const groupByCompetency = (tags: ActivityTagLike[]) => {
-    const map = new Map<string, ActivityTagLike[]>();
-    for (const t of tags) {
-      const key = t.competency_item || "기타";
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(t);
-    }
-    return map;
-  };
+  // 분석 원문: content(컨설턴트 가안) → imported_content(NEIS 원문) fallback
+  const combinedContent = useMemo(
+    () => row.records.map((r) => r.content?.trim() || r.imported_content || "").filter(Boolean).join("\n\n"),
+    [row.records],
+  );
+
+  const taggerProps: TaggerProps = useMemo(() => ({
+    studentId, tenantId, schoolYear,
+    records: row.records,
+    displayName: row.displayName,
+    recordType: "setek" as const,
+  }), [studentId, tenantId, schoolYear, row]);
+
+  // prefix 매칭: schoolYear 불일치 방지 (진단 쿼리는 initialSchoolYear 사용)
+  const diagnosisQk = ["studentRecord", "diagnosisTab", studentId] as const;
+
+  // AI 태그 → 컨설턴트로 복사 (중복 방지: competency_item + record_id 기준 이미 있으면 건너뜀)
+  const importAiMutation = useMutation({
+    mutationFn: async () => {
+      const { addActivityTagsBatchAction } = await import("@/lib/domains/student-record/actions/diagnosis");
+      const existingKeys = new Set(manualTags.map((t) => `${t.record_id}:${t.competency_item}:${t.evaluation}`));
+      const inputs = aiTags
+        .filter((t) => !existingKeys.has(`${t.record_id}:${t.competency_item}:${t.evaluation}`))
+        .map((t) => ({
+          tenant_id: tenantId,
+          student_id: studentId,
+          record_type: t.record_type as "setek",
+          record_id: t.record_id,
+          competency_item: t.competency_item,
+          evaluation: t.evaluation as "positive" | "negative" | "needs_review",
+          evidence_summary: t.evidence_summary ?? null,
+          source: "manual" as const,
+          status: "suggested" as const,
+        }));
+      if (inputs.length > 0) {
+        const res = await addActivityTagsBatchAction(inputs);
+        if (!res.success) throw new Error("error" in res ? res.error : "복사 실패");
+      }
+    },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
+  });
+
+  // 컨설턴트 태그 → 확정
+  const importConsultantMutation = useMutation({
+    mutationFn: async () => {
+      const { confirmActivityTagAction } = await import("@/lib/domains/student-record/actions/diagnosis");
+      for (const t of manualTags) {
+        const res = await confirmActivityTagAction(t.id);
+        if (!res.success) throw new Error("error" in res ? res.error : "확정 실패");
+      }
+    },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
+  });
+
+  // 개별 태그 삭제
+  const deleteTagMutation = useMutation({
+    mutationFn: async (tag: ActivityTagLike) => {
+      const { deleteActivityTagAction } = await import("@/lib/domains/student-record/actions/diagnosis");
+      const res = await deleteActivityTagAction(tag.id);
+      if (!res.success) throw new Error("error" in res ? res.error : "삭제 실패");
+    },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
+  });
+
+  // 전체 태그 삭제
+  const deleteAllMutation = useMutation({
+    mutationFn: async (tagsToDelete: ActivityTagLike[]) => {
+      const { deleteActivityTagAction } = await import("@/lib/domains/student-record/actions/diagnosis");
+      for (const t of tagsToDelete) {
+        await deleteActivityTagAction(t.id);
+      }
+    },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
+  });
 
   return (
     <div className="flex flex-col gap-1.5">
-      {/* 접힌 상태: 1줄 요약 */}
+      {/* 접힌 상태: 요약 */}
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
         className="flex w-full items-center gap-2 text-left"
       >
-        <div className="flex flex-1 flex-wrap items-center gap-1">
+        <div className="flex flex-1 flex-wrap items-center gap-1.5">
           {subjectReflection && (
-            <span className={cn("rounded px-1 py-0.5 text-[9px] font-medium",
+            <span className={cn("rounded px-1.5 py-0.5 text-xs font-medium",
               subjectReflection.rate >= 70 ? "bg-emerald-50 text-emerald-600" : subjectReflection.rate >= 40 ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-600",
             )}>
               반영 {subjectReflection.rate}%
             </span>
           )}
           {subjectTags.length > 0 ? subjectTags.slice(0, 4).map((t, i) => (
-            <span key={i} className={cn("rounded px-1 py-0.5 text-[9px] font-medium",
+            <span key={i} className={cn("rounded px-1.5 py-0.5 text-xs font-medium",
               EVAL_COLORS[t.evaluation || "needs_review"],
             )}>
               {COMPETENCY_LABELS[t.competency_item || ""] || t.competency_item}
             </span>
           )) : (
-            <span className="text-[10px] text-[var(--text-placeholder)]">태그 없음</span>
+            <span className="text-sm text-[var(--text-placeholder)]">태그 없음</span>
           )}
           {subjectTags.length > 4 && (
-            <span className="text-[9px] text-[var(--text-tertiary)]">+{subjectTags.length - 4}</span>
+            <span className="text-xs text-[var(--text-tertiary)]">+{subjectTags.length - 4}</span>
           )}
         </div>
         <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)] transition-transform", expanded && "rotate-180")} />
       </button>
 
-      {/* 펼친 상태: 3열 */}
+      {/* 펼친 상태: 3개 독립 블록 */}
       {expanded && (
-        <div className="mt-1 flex flex-col gap-2 rounded-lg border border-[var(--border-secondary)] bg-[var(--surface-secondary)] p-2">
-          {/* 🤖 AI 열 */}
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-1 border-b border-[var(--border-secondary)] pb-1">
-              <span className="text-[10px]">🤖</span>
-              <span className="text-[10px] font-semibold text-[var(--text-primary)]">AI</span>
-              <span className="text-[9px] text-[var(--text-tertiary)]">{aiTags.length}건</span>
-            </div>
-            {aiTags.length > 0 ? [...groupByCompetency(aiTags)].map(([comp, tags]) => (
-              <div key={comp} className="flex flex-col gap-0.5">
-                <div className="flex items-center gap-1">
-                  <span className={cn("rounded px-1 py-0.5 text-[9px] font-medium", EVAL_COLORS[tags[0].evaluation || "needs_review"])}>
-                    {COMPETENCY_LABELS[comp] || comp}
-                  </span>
-                </div>
-                {tags[0].evidence_summary && (
-                  <p className="text-[9px] text-[var(--text-tertiary)] line-clamp-2">{tags[0].evidence_summary}</p>
-                )}
-              </div>
-            )) : (
-              <span className="text-[9px] text-[var(--text-placeholder)]">AI 분석 없음</span>
-            )}
-          </div>
-
-          {/* 👤 컨설턴트 열 */}
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-1 border-b border-[var(--border-secondary)] pb-1">
-              <span className="text-[10px]">👤</span>
-              <span className="text-[10px] font-semibold text-[var(--text-primary)]">컨설턴트</span>
-              <span className="text-[9px] text-[var(--text-tertiary)]">{manualTags.length}건</span>
-            </div>
-            {manualTags.length > 0 ? [...groupByCompetency(manualTags)].map(([comp, tags]) => (
-              <div key={comp} className="flex items-center gap-1">
-                <span className={cn("rounded px-1 py-0.5 text-[9px] font-medium", EVAL_COLORS[tags[0].evaluation || "needs_review"])}>
-                  {COMPETENCY_LABELS[comp] || comp}
-                </span>
-              </div>
-            )) : (
-              <span className="text-[9px] text-[var(--text-placeholder)]">수동 태그 없음</span>
-            )}
-          </div>
-
-          {/* ✅ 확정 열 */}
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-1 border-b border-[var(--border-secondary)] pb-1">
-              <span className="text-[10px]">✅</span>
-              <span className="text-[10px] font-semibold text-[var(--text-primary)]">확정</span>
-              <span className="text-[9px] text-[var(--text-tertiary)]">{confirmedTags.length}건</span>
-            </div>
-            {confirmedTags.length > 0 ? [...groupByCompetency(confirmedTags)].map(([comp, tags]) => (
-              <div key={comp} className="flex items-center gap-1">
-                <span className="rounded bg-emerald-50 px-1 py-0.5 text-[9px] font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                  ✅ {COMPETENCY_LABELS[comp] || comp}
-                </span>
-              </div>
-            )) : (
-              <span className="text-[9px] text-[var(--text-placeholder)]">미확정</span>
-            )}
-          </div>
+        <div className="mt-1 flex flex-col gap-3">
+          <AnalysisBlock
+            label="AI"
+            tags={aiTags}
+            content={combinedContent}
+            mode={aiMode}
+            setMode={setAiMode}
+          />
+          <AnalysisBlock
+            label="컨설턴트"
+            tags={manualTags}
+            content={combinedContent}
+            mode={consultantMode}
+            setMode={setConsultantMode}
+            importAction={aiTags.length > 0 ? () => importAiMutation.mutate() : undefined}
+            importLabel="AI 가져오기"
+            isImporting={importAiMutation.isPending}
+            taggerProps={taggerProps}
+            onDeleteTag={(tag) => { if (confirm("태그를 삭제하시겠습니까?")) deleteTagMutation.mutate(tag); }}
+            onDeleteAll={() => { if (confirm(`컨설턴트 태그 ${manualTags.length}건을 모두 삭제하시겠습니까?`)) deleteAllMutation.mutate(manualTags); }}
+          />
+          <AnalysisBlock
+            label="확정"
+            tags={confirmedTags}
+            content={combinedContent}
+            mode={confirmedMode}
+            setMode={setConfirmedMode}
+            importAction={manualTags.length > 0 ? () => importConsultantMutation.mutate() : undefined}
+            importLabel="컨설턴트 가져오기"
+            isImporting={importConsultantMutation.isPending}
+            taggerProps={taggerProps}
+            onDeleteTag={(tag) => { if (confirm("태그를 삭제하시겠습니까?")) deleteTagMutation.mutate(tag); }}
+            onDeleteAll={() => { if (confirm(`확정 태그 ${confirmedTags.length}건을 모두 삭제하시겠습니까?`)) deleteAllMutation.mutate(confirmedTags); }}
+          />
         </div>
       )}
     </div>
   );
 }
 
-// ─── ✏️가안 탭: 접힘/펼침 3열 셀 ──────────────────────
+// ─── ✏️가안 탭: 독립 3블록 (AI 초안 / 컨설턴트 가안 / 확정본) ──────
 
-function DraftExpandableCell({ records }: { records: RecordSetek[] }) {
+const DRAFT_BLOCK_STYLES = {
+  ai: {
+    border: "border-violet-200 dark:border-violet-800",
+    bg: "bg-violet-50/40 dark:bg-violet-950/20",
+    headerBg: "bg-violet-50 dark:bg-violet-900/30",
+    text: "text-violet-700 dark:text-violet-300",
+  },
+  consultant: {
+    border: "border-blue-200 dark:border-blue-800",
+    bg: "bg-blue-50/40 dark:bg-blue-950/20",
+    headerBg: "bg-blue-50 dark:bg-blue-900/30",
+    text: "text-blue-700 dark:text-blue-300",
+  },
+  confirmed: {
+    border: "border-emerald-200 dark:border-emerald-800",
+    bg: "bg-emerald-50/40 dark:bg-emerald-950/20",
+    headerBg: "bg-emerald-50 dark:bg-emerald-900/30",
+    text: "text-emerald-700 dark:text-emerald-300",
+  },
+};
+
+function DraftBlock({
+  label,
+  style,
+  records,
+  getContent,
+  importAction,
+  importLabel,
+  isImporting,
+  charLimit,
+  editable,
+  onSave,
+}: {
+  label: string;
+  style: typeof DRAFT_BLOCK_STYLES.ai;
+  records: RecordSetek[];
+  getContent: (r: RecordSetek) => string | null | undefined;
+  importAction?: () => void;
+  importLabel?: string;
+  isImporting?: boolean;
+  charLimit?: number;
+  editable?: boolean;
+  onSave?: (recordId: string, content: string) => void;
+}) {
+  return (
+    <div className={cn("rounded-lg border", style.border)}>
+      {/* 헤더 */}
+      <div className="flex items-center justify-between gap-2 border-b px-3 py-2.5" style={{ borderColor: "inherit" }}>
+        <div className="flex items-center gap-2">
+          <span className={cn("text-sm font-semibold", style.text)}>{label}</span>
+          <span className="text-xs text-[var(--text-tertiary)]">
+            {records.filter((r) => getContent(r)?.trim()).length}/{records.length}건
+          </span>
+        </div>
+        {importAction && (
+          <button
+            type="button"
+            onClick={importAction}
+            disabled={isImporting}
+            className="flex items-center gap-1 rounded px-2.5 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-50 dark:text-indigo-400 dark:hover:bg-indigo-900/20"
+          >
+            <ArrowDownToLine className="h-3.5 w-3.5" />
+            {importLabel}
+          </button>
+        )}
+      </div>
+      {/* 본문 */}
+      <div className={cn("flex flex-col gap-2 p-3", style.bg)}>
+        {records.map((setek, idx) => {
+          const text = getContent(setek);
+          return (
+            <div key={setek.id} className={cn("flex flex-col gap-1", idx > 0 && "border-t border-[var(--border-secondary)] pt-2")}>
+              {records.length > 1 && (
+                <span className="text-xs font-semibold text-[var(--text-tertiary)]">{setek.semester}학기</span>
+              )}
+              {editable && onSave ? (
+                <DraftInlineEditor
+                  content={text ?? ""}
+                  charLimit={charLimit}
+                  onSave={(v) => onSave(setek.id, v)}
+                  textColor={style.text}
+                />
+              ) : text?.trim() ? (
+                <p className={cn("whitespace-pre-wrap text-sm leading-relaxed", style.text)}>{text}</p>
+              ) : (
+                <p className="py-2 text-sm text-[var(--text-placeholder)]">없음</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function DraftInlineEditor({
+  content: initialContent,
+  charLimit,
+  onSave,
+  textColor,
+}: {
+  content: string;
+  charLimit?: number;
+  onSave: (v: string) => void;
+  textColor: string;
+}) {
+  const [value, setValue] = useState(initialContent);
+  useEffect(() => { setValue(initialContent); }, [initialContent]);
+  const { status } = useAutoSave({ data: value, onSave: async (d) => { onSave(d); return { success: true }; }, enabled: true });
+
+  return (
+    <div className="flex flex-col gap-1">
+      <AutoResizeTextarea
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        className={cn(
+          "w-full resize-none rounded border border-transparent bg-transparent px-1 py-0.5 text-sm leading-relaxed outline-none transition focus:border-[var(--border-primary)] focus:bg-white dark:focus:bg-gray-900",
+          textColor,
+        )}
+        rows={2}
+      />
+      <div className="flex items-center justify-between">
+        {charLimit && <CharacterCounter content={value} charLimit={charLimit} />}
+        <SaveStatusIndicator status={status} />
+      </div>
+    </div>
+  );
+}
+
+function DraftExpandableCell({
+  records,
+  studentId,
+  schoolYear,
+  tenantId,
+  grade,
+  charLimit,
+}: {
+  records: RecordSetek[];
+  studentId: string;
+  schoolYear: number;
+  tenantId: string;
+  grade: number;
+  charLimit: number;
+}) {
   const [expanded, setExpanded] = useState(false);
+  const queryClient = useQueryClient();
+  const recordQk = ["studentRecord", "recordTab", studentId] as const;
 
   const hasAny = records.some((s) => s.ai_draft_content || s.content || s.confirmed_content);
   const summaryParts: string[] = [];
@@ -1240,57 +1342,93 @@ function DraftExpandableCell({ records }: { records: RecordSetek[] }) {
   if (records.some((s) => s.content?.trim())) summaryParts.push(`가안 ${records.filter((s) => s.content?.trim()).length}건`);
   if (records.some((s) => s.confirmed_content?.trim())) summaryParts.push(`확정 ${records.filter((s) => s.confirmed_content?.trim()).length}건`);
 
+  // AI 초안 → 컨설턴트 가안 수용
+  const acceptAiMutation = useMutation({
+    mutationFn: async () => {
+      const { acceptAiDraftAction } = await import("@/lib/domains/student-record/actions/confirm");
+      for (const r of records) {
+        if (r.ai_draft_content && !r.content?.trim()) {
+          const res = await acceptAiDraftAction(r.id, "setek");
+          if (!res.success) throw new Error("error" in res ? res.error : "수용 실패");
+        }
+      }
+    },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: recordQk }); },
+  });
+
+  // 컨설턴트 가안 → 확정
+  const confirmMutation = useMutation({
+    mutationFn: async () => {
+      const { confirmDraftAction } = await import("@/lib/domains/student-record/actions/confirm");
+      for (const r of records) {
+        if (r.content?.trim()) {
+          const res = await confirmDraftAction(r.id, "setek");
+          if (!res.success) throw new Error("error" in res ? res.error : "확정 실패");
+        }
+      }
+    },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: recordQk }); },
+  });
+
+  // 컨설턴트 가안 저장
+  const handleSaveContent = useCallback(async (recordId: string, content: string) => {
+    const setek = records.find((r) => r.id === recordId);
+    if (!setek) return;
+    await saveSetekAction({
+      student_id: studentId,
+      school_year: schoolYear,
+      tenant_id: tenantId,
+      grade,
+      semester: setek.semester,
+      subject_id: setek.subject_id,
+      content,
+      char_limit: charLimit,
+    });
+    queryClient.invalidateQueries({ queryKey: recordQk });
+  }, [records, studentId, schoolYear, tenantId, grade, charLimit, queryClient, recordQk]);
+
   return (
     <div className="flex flex-col gap-1.5">
+      {/* 접힌 상태 */}
       <button type="button" onClick={() => setExpanded(!expanded)} className="flex w-full items-center gap-2 text-left">
-        <span className="flex-1 text-[10px] text-[var(--text-secondary)]">
+        <span className="flex-1 text-xs text-[var(--text-secondary)]">
           {hasAny ? summaryParts.join(" / ") : "가안 없음"}
         </span>
         <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)] transition-transform", expanded && "rotate-180")} />
       </button>
 
-      {expanded && records.map((setek) => (
-        <div key={setek.id} className="flex flex-col gap-1">
-          {records.length > 1 && (
-            <span className="text-[9px] font-medium text-[var(--text-tertiary)]">{setek.semester}학기</span>
-          )}
-          <div className="flex flex-col gap-2 rounded-lg border border-[var(--border-secondary)] bg-[var(--surface-secondary)] p-2">
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1 border-b border-[var(--border-secondary)] pb-1">
-                <span className="text-[10px]">🤖</span>
-                <span className="text-[10px] font-semibold text-[var(--text-primary)]">AI 초안</span>
-              </div>
-              {setek.ai_draft_content ? (
-                <p className="text-[10px] text-violet-700 dark:text-violet-300 line-clamp-4">{setek.ai_draft_content.slice(0, 200)}</p>
-              ) : (
-                <span className="text-[9px] text-[var(--text-placeholder)]">없음</span>
-              )}
-            </div>
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1 border-b border-[var(--border-secondary)] pb-1">
-                <span className="text-[10px]">👤</span>
-                <span className="text-[10px] font-semibold text-[var(--text-primary)]">컨설턴트</span>
-              </div>
-              {setek.content?.trim() ? (
-                <p className="text-[10px] text-blue-700 dark:text-blue-300 line-clamp-4">{setek.content.slice(0, 200)}</p>
-              ) : (
-                <span className="text-[9px] text-[var(--text-placeholder)]">미작성</span>
-              )}
-            </div>
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1 border-b border-[var(--border-secondary)] pb-1">
-                <span className="text-[10px]">✅</span>
-                <span className="text-[10px] font-semibold text-[var(--text-primary)]">확정</span>
-              </div>
-              {setek.confirmed_content?.trim() ? (
-                <p className="text-[10px] text-emerald-700 dark:text-emerald-300 line-clamp-4">{setek.confirmed_content.slice(0, 200)}</p>
-              ) : (
-                <span className="text-[9px] text-[var(--text-placeholder)]">미확정</span>
-              )}
-            </div>
-          </div>
+      {/* 펼친 상태: 3개 독립 블록 */}
+      {expanded && (
+        <div className="mt-1 flex flex-col gap-3">
+          <DraftBlock
+            label="AI 초안"
+            style={DRAFT_BLOCK_STYLES.ai}
+            records={records}
+            getContent={(r) => r.ai_draft_content}
+          />
+          <DraftBlock
+            label="컨설턴트 가안"
+            style={DRAFT_BLOCK_STYLES.consultant}
+            records={records}
+            getContent={(r) => r.content}
+            editable
+            onSave={handleSaveContent}
+            charLimit={charLimit}
+            importAction={records.some((r) => r.ai_draft_content && !r.content?.trim()) ? () => acceptAiMutation.mutate() : undefined}
+            importLabel="AI 초안 수용"
+            isImporting={acceptAiMutation.isPending}
+          />
+          <DraftBlock
+            label="확정본"
+            style={DRAFT_BLOCK_STYLES.confirmed}
+            records={records}
+            getContent={(r) => r.confirmed_content}
+            importAction={records.some((r) => r.content?.trim()) ? () => confirmMutation.mutate() : undefined}
+            importLabel="가안 확정"
+            isImporting={confirmMutation.isPending}
+          />
         </div>
-      ))}
+      )}
     </div>
   );
 }
