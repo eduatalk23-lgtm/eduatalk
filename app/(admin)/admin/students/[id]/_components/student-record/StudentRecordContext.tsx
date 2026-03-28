@@ -14,6 +14,11 @@ interface StudentRecordContextValue {
   /** G1: 현재 활성 과목 ID (세특 레이어 탭 ↔ 사이드 패널 연결용) */
   activeSubjectId?: string | null;
   setActiveSubjectId?: (id: string | null) => void;
+  /** 컨텍스트 그리드: 활성 과목의 학년도 + 과목명 */
+  activeSchoolYear?: number | null;
+  setActiveSchoolYear?: (year: number | null) => void;
+  activeSubjectName?: string | null;
+  setActiveSubjectName?: (name: string | null) => void;
 }
 
 const StudentRecordContext = createContext<StudentRecordContextValue | null>(null);

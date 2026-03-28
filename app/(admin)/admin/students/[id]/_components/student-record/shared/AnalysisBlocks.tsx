@@ -48,13 +48,13 @@ export type AnalysisBlockMode = "tagging" | "competency" | "original";
 
 // ─── 역량 라벨 ──
 
-const COMPETENCY_LABELS: Record<string, string> = {
+export const COMPETENCY_LABELS: Record<string, string> = {
   academic_achievement: "학업성취도", academic_attitude: "학업태도", academic_inquiry: "탐구력",
   career_course_effort: "과목이수노력", career_course_achievement: "과목성취도", career_exploration: "진로탐색",
   community_collaboration: "협업", community_caring: "배려", community_integrity: "성실성", community_leadership: "리더십",
 };
 
-const EVAL_COLORS: Record<string, string> = {
+export const EVAL_COLORS: Record<string, string> = {
   positive: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
   negative: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
   needs_review: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",

@@ -1,5 +1,5 @@
 /** 사이드 패널에 등록된 앱 ID */
-export type SidePanelAppId = "memo" | "chat" | "connections" | "scores" | "agent";
+export type SidePanelAppId = "memo" | "chat" | "connections" | "scores" | "agent" | "context-grid";
 
 export interface SidePanelAppConfig {
   id: SidePanelAppId;
@@ -13,4 +13,5 @@ export const SIDE_PANEL_APPS: SidePanelAppConfig[] = [
   { id: "chat", label: "채팅", icon: "MessageSquare" },
   { id: "connections", label: "연결", icon: "Network" },
   { id: "agent", label: "AI 어시스턴트", icon: "Bot" },
+  { id: "context-grid", label: "문맥 그리드", icon: "LayoutGrid" },
 ];

@@ -11,7 +11,7 @@ import { FOCUS_RING } from "./types";
 // ── 탭 정의 ──
 
 // 카테고리별 그룹화
-const TAB_GROUPS = [
+export const TAB_GROUPS = [
   {
     label: "현황",
     tabs: [
@@ -47,7 +47,7 @@ const TAB_GROUPS = [
   },
 ] as const;
 
-type TabId =
+export type TabId =
   | "competency" | "guide-rate" | "diff"
   | "summary" | "teacher" | "storyline"
   | "diagnosis" | "edges" | "growth"
@@ -178,7 +178,7 @@ export function BottomSheet({
 
 // ── 탭 콘텐츠 라우터 ──
 
-function TabContent({
+export function TabContent({
   tabId,
   studentId,
   currentArea,

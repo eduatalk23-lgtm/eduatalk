@@ -32,9 +32,14 @@ const ConnectionsPanelApp = dynamic(
   { ssr: false },
 );
 
+const ContextGridPanelApp = dynamic(
+  () => import("./ContextGridPanelApp").then((m) => ({ default: m.ContextGridPanelApp })),
+  { ssr: false },
+);
+
 export function RecordSidePanelContainer() {
   const { activeApp } = useSidePanel();
-  const { studentId, tenantId, studentName, activeSubjectId } = useStudentRecordContext();
+  const { studentId, tenantId, studentName, activeSubjectId, activeSchoolYear, activeSubjectName } = useStudentRecordContext();
 
   return (
     <>
@@ -43,6 +48,15 @@ export function RecordSidePanelContainer() {
         {activeApp === "chat" && <ChatPanelApp recordTopic={activeSubjectId} />}
         {activeApp === "connections" && (
           <ConnectionsPanelApp studentId={studentId} tenantId={tenantId} />
+        )}
+        {activeApp === "context-grid" && (
+          <ContextGridPanelApp
+            studentId={studentId}
+            tenantId={tenantId}
+            activeSubjectId={activeSubjectId}
+            activeSchoolYear={activeSchoolYear}
+            activeSubjectName={activeSubjectName}
+          />
         )}
         {activeApp === "agent" && (
           <AgentChat

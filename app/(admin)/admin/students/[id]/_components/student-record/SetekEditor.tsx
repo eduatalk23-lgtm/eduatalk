@@ -12,7 +12,7 @@ import { useAutoSave } from "./useAutoSave";
 import { useStudentRecordContext } from "./StudentRecordContext";
 import { useSidePanel } from "@/components/side-panel";
 import { cn } from "@/lib/cn";
-import { FileText, Search, BookOpen, Compass, MessageSquare, ClipboardList, PenLine, StickyNote, ChevronDown, ArrowDownToLine, Trash2, Check } from "lucide-react";
+import { FileText, Search, BookOpen, Compass, MessageSquare, ClipboardList, PenLine, StickyNote, ChevronDown, Trash2, Check } from "lucide-react";
 import { SetekGuideRecommendations } from "./SetekGuideRecommendations";
 import type { AnalysisTagLike, AnalysisBlockMode, TaggerProps } from "./shared/AnalysisBlocks";
 import { AnalysisBlock, toHighlightTags } from "./shared/AnalysisBlocks";
@@ -23,10 +23,11 @@ import type { CompetencyItemCode, CompetencyArea } from "@/lib/domains/student-r
 import type { CourseAdequacyResult } from "@/lib/domains/student-record";
 import { calculateReflectionSummary, type ReflectionSummary, type SubjectReflectionRate } from "@/lib/domains/student-record/keyword-match";
 import { InlineAreaMemos } from "./InlineAreaMemos";
+import { MultiRecordDraftBlock, DRAFT_BLOCK_STYLES } from "./shared/DraftBlocks";
 
 type Subject = { id: string; name: string };
 
-type SetekLayerTab = "chat" | "guide" | "direction" | "draft" | "neis" | "analysis" | "memo";
+export type SetekLayerTab = "chat" | "guide" | "direction" | "draft" | "neis" | "analysis" | "memo";
 
 type ActivityTagLike = AnalysisTagLike;
 
@@ -63,13 +64,16 @@ type SetekEditorProps = {
   schoolName?: string | null;
   /** G2-1: 교과 이수 적합도 (크로스레퍼런스 COURSE_SUPPORTS용) */
   courseAdequacy?: CourseAdequacyResult | null;
+  /** 외부 제어 모드: 글로벌 레이어 바에서 탭 동기화 */
+  activeTab?: SetekLayerTab;
+  onTabChange?: (tab: SetekLayerTab) => void;
 };
 
 const B = "border border-gray-400 dark:border-gray-500";
 
 // ─── 과목 합산 유틸 ──────────────────────────────────
 
-type MergedSetekRow = {
+export type MergedSetekRow = {
   /** 과목명 (같은 과목의 1+2학기를 한 행으로 합산) */
   displayName: string;
   /** 원본 세특 레코드들 (1~2개) */
@@ -113,6 +117,11 @@ const LAYER_TABS: { key: SetekLayerTab; label: string; icon: typeof FileText }[]
   { key: "memo", label: "메모", icon: StickyNote },
 ];
 
+const COL_HEADER_LABEL: Record<SetekLayerTab, string> = {
+  neis: "세부능력 및 특기사항", draft: "세특 가안", direction: "작성 방향",
+  guide: "활동 가이드", analysis: "역량 분석", memo: "메모", chat: "논의",
+};
+
 const COMPETENCY_LABELS: Record<string, string> = {
   academic_achievement: "학업성취도", academic_attitude: "학업태도", academic_inquiry: "탐구력",
   career_course_effort: "과목이수노력", career_course_achievement: "과목성취도", career_exploration: "진로탐색",
@@ -139,9 +148,14 @@ export function SetekEditor({
   studentClassificationId,
   schoolName,
   courseAdequacy,
+  activeTab: controlledTab,
+  onTabChange: controlledOnTabChange,
 }: SetekEditorProps) {
   const [showAddForm, setShowAddForm] = useState(false);
-  const [activeTab, setActiveTab] = useState<SetekLayerTab>("neis");
+  const [internalTab, setInternalTab] = useState<SetekLayerTab>("neis");
+  const isControlled = controlledTab !== undefined;
+  const activeTab = controlledTab ?? internalTab;
+  const setActiveTab = controlledOnTabChange ?? setInternalTab;
   const charLimit = getCharLimit("setek", schoolYear);
 
   const mergedRows = useMemo(() => mergeSeteksBySemester(seteks, subjects), [seteks, subjects]);
@@ -198,8 +212,8 @@ export function SetekEditor({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* ─── 레이어 탭 바 ───────────────────────── */}
-      <div className="flex gap-1 overflow-x-auto border-b border-[var(--border-secondary)]">
+      {/* ─── 레이어 탭 바 (글로벌 제어 시 숨김) ───────────────────────── */}
+      {!isControlled && <div className="flex gap-1 overflow-x-auto border-b border-[var(--border-secondary)]">
         {LAYER_TABS.map((tab) => {
           const hasData = tab.key === "neis" ? seteks.length > 0
             : tab.key === "draft" ? seteks.some((s) => s.content?.trim() || s.ai_draft_content || s.confirmed_content?.trim())
@@ -229,35 +243,31 @@ export function SetekEditor({
             </button>
           );
         })}
-      </div>
+      </div>}
 
-      {/* ─── 생기부 모형 테이블 (모든 탭에서 유지) ──────────────────── */}
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr>
+      {/* ─── 생기부 모형 테이블 (과목별 그리드 삽입을 위해 행 사이에 전체폭 div 삽입) ── */}
+      {mergedRows.length === 0 && pendingPlanned.length === 0 ? (
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-sm">
+            <thead><tr>
               <th className={`${B} w-12 px-2 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>학년</th>
               <th className={`${B} w-28 px-3 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>과 목</th>
-              <th className={`${B} px-3 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>
-                {activeTab === "neis" ? "세부능력 및 특기사항"
-                  : activeTab === "draft" ? "세특 가안"
-                  : activeTab === "direction" ? "작성 방향"
-                  : activeTab === "guide" ? "활동 가이드"
-                  : activeTab === "analysis" ? "역량 분석"
-                  : activeTab === "memo" ? "메모"
-                  : "논의"}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {mergedRows.length === 0 && pendingPlanned.length === 0 ? (
-              <tr>
-                <td colSpan={3} className={`${B} px-4 py-2 text-center text-xs text-[var(--text-tertiary)]`}>
-                  해당 사항 없음
-                </td>
-              </tr>
-            ) : (
-              <>
+              <th className={`${B} px-3 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>{COL_HEADER_LABEL[activeTab]}</th>
+            </tr></thead>
+            <tbody><tr><td colSpan={3} className={`${B} px-4 py-2 text-center text-xs text-[var(--text-tertiary)]`}>해당 사항 없음</td></tr></tbody>
+          </table>
+        </div>
+      ) : (
+        <>
+          {/* 헤더 행 */}
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead><tr>
+                <th className={`${B} w-12 px-2 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>학년</th>
+                <th className={`${B} w-28 px-3 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>과 목</th>
+                <th className={`${B} px-3 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>{COL_HEADER_LABEL[activeTab]}</th>
+              </tr></thead>
+              <tbody>
                 {mergedRows.map((row) => (
                   <SetekTableRow
                     key={row.subjectId}
@@ -285,11 +295,12 @@ export function SetekEditor({
                     charLimit={charLimit}
                   />
                 ))}
-              </>
-            )}
-          </tbody>
-        </table>
-      </div>
+              </tbody>
+            </table>
+          </div>
+
+        </>
+      )}
 
       {activeTab === "neis" && (
         <>
@@ -479,27 +490,6 @@ export function SetekEditor({
         </div>
       )}
 
-      {/* ─── 💬 논의 탭 ──────────────────────────── */}
-      {activeTab === "chat" && (
-        <div className="flex flex-col items-center gap-3 py-6">
-          <MessageSquare className="h-8 w-8 text-[var(--text-tertiary)]" />
-          <p className="text-sm text-[var(--text-secondary)]">이 영역에 대해 학생/학부모와 논의</p>
-          <button
-            type="button"
-            onClick={() => {
-              const firstSubject = mergedRows[0];
-              if (firstSubject && setActiveSubjectId) {
-                setActiveSubjectId(firstSubject.subjectId);
-              }
-              sidePanel.openApp("chat");
-            }}
-            className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-          >
-            <MessageSquare className="h-3.5 w-3.5" />
-            채팅 열기
-          </button>
-        </div>
-      )}
     </div>
   );
 }
@@ -624,18 +614,44 @@ function SetekTableRow({
     },
   });
 
+  const isGridActive = ctx?.activeSubjectId === row.subjectId;
+  const toggleContextGrid = () => {
+    if (isGridActive) {
+      ctx?.setActiveSubjectId?.(null);
+      ctx?.setActiveSchoolYear?.(null);
+      ctx?.setActiveSubjectName?.(null);
+    } else {
+      ctx?.setActiveSubjectId?.(row.subjectId);
+      ctx?.setActiveSchoolYear?.(schoolYear);
+      ctx?.setActiveSubjectName?.(row.displayName);
+    }
+  };
+
   const subjectCell = (rowSpan?: number) => (
     <td rowSpan={rowSpan} className={`${B} px-3 py-2 text-center align-middle text-sm font-medium text-[var(--text-primary)]`}>
       <div className="flex flex-col items-center gap-0.5">
         <span>{row.displayName}</span>
-        <button
-          type="button"
-          onClick={() => { if (confirm(`${row.displayName} 세특을 삭제하시겠습니까?`)) deleteMutation.mutate(); }}
-          disabled={deleteMutation.isPending}
-          className="text-xs text-red-400 hover:text-red-600 disabled:opacity-50"
-        >
-          {deleteMutation.isPending ? "삭제 중..." : "삭제"}
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={toggleContextGrid}
+            className={cn(
+              "text-xs transition-colors",
+              isGridActive ? "text-indigo-600 dark:text-indigo-400" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300",
+            )}
+            title={isGridActive ? "그리드 닫기" : "컨텍스트 그리드 열기"}
+          >
+            {isGridActive ? "⤡" : "⤢"}
+          </button>
+          <button
+            type="button"
+            onClick={() => { if (confirm(`${row.displayName} 세특을 삭제하시겠습니까?`)) deleteMutation.mutate(); }}
+            disabled={deleteMutation.isPending}
+            className="text-xs text-red-400 hover:text-red-600 disabled:opacity-50"
+          >
+            {deleteMutation.isPending ? "삭제 중..." : "삭제"}
+          </button>
+        </div>
       </div>
     </td>
   );
@@ -667,90 +683,90 @@ function SetekTableRow({
   // 비-record 탭: 과목당 1행 (학기 구분 없이 과목 단위)
   return (
     <tr className="align-top">
-      <td className={`${B} px-2 py-2 text-center align-middle text-sm text-[var(--text-primary)]`}>{grade}</td>
-      {subjectCell()}
-      <td className={`${B} p-2`}>
-        {activeTab === "analysis" && (
-          <AnalysisExpandableCell
-            subjectTags={subjectTags}
-            subjectReflection={subjectReflection}
-            row={row}
-            studentId={studentId}
-            tenantId={tenantId}
-            schoolYear={schoolYear}
-          />
-        )}
+        <td className={`${B} px-2 py-2 text-center align-middle text-sm text-[var(--text-primary)]`}>{grade}</td>
+        {subjectCell()}
+        <td className={`${B} p-2`}>
+          {activeTab === "analysis" && (
+            <AnalysisExpandableCell
+              subjectTags={subjectTags}
+              subjectReflection={subjectReflection}
+              row={row}
+              studentId={studentId}
+              tenantId={tenantId}
+              schoolYear={schoolYear}
+            />
+          )}
 
-        {activeTab === "guide" && (
-          <div className="flex flex-col gap-1">
-            {subjectGuides.length > 0 ? subjectGuides.map((g) => (
-              <div key={g.id} className="flex items-center gap-1.5">
-                <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", g.status === "completed" ? "bg-emerald-500" : g.status === "in_progress" ? "bg-amber-500" : "bg-gray-300")} />
-                <span className="truncate text-xs text-[var(--text-primary)]">{g.exploration_guides?.title ?? "가이드"}</span>
-                <span className="shrink-0 text-xs text-[var(--text-tertiary)]">{g.status === "completed" ? "완료" : g.status === "in_progress" ? "진행" : "배정"}</span>
-              </div>
-            )) : (
-              <span className="text-xs text-[var(--text-placeholder)]">배정된 가이드 없음</span>
-            )}
-          </div>
-        )}
+          {activeTab === "guide" && (
+            <div className="flex flex-col gap-1">
+              {subjectGuides.length > 0 ? subjectGuides.map((g) => (
+                <div key={g.id} className="flex items-center gap-1.5">
+                  <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", g.status === "completed" ? "bg-emerald-500" : g.status === "in_progress" ? "bg-amber-500" : "bg-gray-300")} />
+                  <span className="truncate text-xs text-[var(--text-primary)]">{g.exploration_guides?.title ?? "가이드"}</span>
+                  <span className="shrink-0 text-xs text-[var(--text-tertiary)]">{g.status === "completed" ? "완료" : g.status === "in_progress" ? "진행" : "배정"}</span>
+                </div>
+              )) : (
+                <span className="text-xs text-[var(--text-placeholder)]">배정된 가이드 없음</span>
+              )}
+            </div>
+          )}
 
-        {activeTab === "direction" && (
-          <div className="flex flex-col gap-1.5">
-            {subjectDirection.length > 0 ? subjectDirection.map((d, i) => (
-              <div key={i} className="flex flex-col gap-1">
-                <p className="text-xs text-[var(--text-primary)] line-clamp-2">{d.direction}</p>
-                {d.keywords.length > 0 && (
-                  <div className="flex flex-wrap gap-0.5">
-                    {d.keywords.slice(0, 5).map((kw) => (
-                      <span key={kw} className="rounded bg-indigo-50 px-1.5 py-0.5 text-[11px] text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">{kw}</span>
-                    ))}
-                  </div>
-                )}
-                {d.teacherPoints && d.teacherPoints.length > 0 && (
-                  <p className="text-xs text-[var(--text-tertiary)]">교사: {d.teacherPoints[0]}</p>
-                )}
-              </div>
-            )) : (
-              <span className="text-xs text-[var(--text-placeholder)]">방향 가이드 없음</span>
-            )}
-          </div>
-        )}
+          {activeTab === "direction" && (
+            <div className="flex flex-col gap-1.5">
+              {subjectDirection.length > 0 ? subjectDirection.map((d, i) => (
+                <div key={i} className="flex flex-col gap-1">
+                  <p className="text-xs text-[var(--text-primary)] line-clamp-2">{d.direction}</p>
+                  {d.keywords.length > 0 && (
+                    <div className="flex flex-wrap gap-0.5">
+                      {d.keywords.slice(0, 5).map((kw) => (
+                        <span key={kw} className="rounded bg-indigo-50 px-1.5 py-0.5 text-[11px] text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">{kw}</span>
+                      ))}
+                    </div>
+                  )}
+                  {d.teacherPoints && d.teacherPoints.length > 0 && (
+                    <p className="text-xs text-[var(--text-tertiary)]">교사: {d.teacherPoints[0]}</p>
+                  )}
+                </div>
+              )) : (
+                <span className="text-xs text-[var(--text-placeholder)]">방향 가이드 없음</span>
+              )}
+            </div>
+          )}
 
-        {activeTab === "chat" && (
-          <button
-            type="button"
-            onClick={() => {
-              ctx?.setActiveSubjectId?.(row.subjectId);
-              sidePanel?.openApp?.("chat");
-            }}
-            className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-1 text-xs text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50"
-          >
-            <MessageSquare className="h-3 w-3" />
-            {row.displayName} 논의
-          </button>
-        )}
+          {activeTab === "chat" && (
+            <button
+              type="button"
+              onClick={() => {
+                ctx?.setActiveSubjectId?.(row.subjectId);
+                sidePanel?.openApp?.("chat");
+              }}
+              className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-1 text-xs text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50"
+            >
+              <MessageSquare className="h-3 w-3" />
+              {row.displayName} 논의
+            </button>
+          )}
 
-        {activeTab === "draft" && (
-          <DraftExpandableCell
-            records={row.records}
-            studentId={studentId}
-            schoolYear={schoolYear}
-            tenantId={tenantId}
-            grade={grade}
-            charLimit={charLimit}
-          />
-        )}
+          {activeTab === "draft" && (
+            <DraftExpandableCell
+              records={row.records}
+              studentId={studentId}
+              schoolYear={schoolYear}
+              tenantId={tenantId}
+              grade={grade}
+              charLimit={charLimit}
+            />
+          )}
 
-        {activeTab === "memo" && (
-          <InlineAreaMemos
-            studentId={studentId}
-            areaType="setek"
-            areaId={row.subjectId}
-            areaLabel={row.displayName}
-          />
-        )}
-      </td>
+          {activeTab === "memo" && (
+            <InlineAreaMemos
+              studentId={studentId}
+              areaType="setek"
+              areaId={row.subjectId}
+              areaLabel={row.displayName}
+            />
+          )}
+        </td>
     </tr>
   );
 }
@@ -1186,136 +1202,7 @@ function AnalysisExpandableCell({
   );
 }
 
-// ─── ✏️가안 탭: 독립 3블록 (AI 초안 / 컨설턴트 가안 / 확정본) ──────
-
-const DRAFT_BLOCK_STYLES = {
-  ai: {
-    border: "border-violet-200 dark:border-violet-800",
-    bg: "bg-violet-50/40 dark:bg-violet-950/20",
-    headerBg: "bg-violet-50 dark:bg-violet-900/30",
-    text: "text-violet-700 dark:text-violet-300",
-  },
-  consultant: {
-    border: "border-blue-200 dark:border-blue-800",
-    bg: "bg-blue-50/40 dark:bg-blue-950/20",
-    headerBg: "bg-blue-50 dark:bg-blue-900/30",
-    text: "text-blue-700 dark:text-blue-300",
-  },
-  confirmed: {
-    border: "border-emerald-200 dark:border-emerald-800",
-    bg: "bg-emerald-50/40 dark:bg-emerald-950/20",
-    headerBg: "bg-emerald-50 dark:bg-emerald-900/30",
-    text: "text-emerald-700 dark:text-emerald-300",
-  },
-};
-
-function DraftBlock({
-  label,
-  style,
-  records,
-  getContent,
-  importAction,
-  importLabel,
-  isImporting,
-  charLimit,
-  editable,
-  onSave,
-}: {
-  label: string;
-  style: typeof DRAFT_BLOCK_STYLES.ai;
-  records: RecordSetek[];
-  getContent: (r: RecordSetek) => string | null | undefined;
-  importAction?: () => void;
-  importLabel?: string;
-  isImporting?: boolean;
-  charLimit?: number;
-  editable?: boolean;
-  onSave?: (recordId: string, content: string) => void;
-}) {
-  return (
-    <div className={cn("rounded-lg border", style.border)}>
-      {/* 헤더 */}
-      <div className="flex items-center justify-between gap-2 border-b px-3 py-2.5" style={{ borderColor: "inherit" }}>
-        <div className="flex items-center gap-2">
-          <span className={cn("text-sm font-semibold", style.text)}>{label}</span>
-          <span className="text-xs text-[var(--text-tertiary)]">
-            {records.filter((r) => getContent(r)?.trim()).length}/{records.length}건
-          </span>
-        </div>
-        {importAction && (
-          <button
-            type="button"
-            onClick={importAction}
-            disabled={isImporting}
-            className="flex items-center gap-1 rounded px-2.5 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-50 dark:text-indigo-400 dark:hover:bg-indigo-900/20"
-          >
-            <ArrowDownToLine className="h-3.5 w-3.5" />
-            {importLabel}
-          </button>
-        )}
-      </div>
-      {/* 본문 */}
-      <div className={cn("flex flex-col gap-2 p-3", style.bg)}>
-        {records.map((setek, idx) => {
-          const text = getContent(setek);
-          return (
-            <div key={setek.id} className={cn("flex flex-col gap-1", idx > 0 && "border-t border-[var(--border-secondary)] pt-2")}>
-              {records.length > 1 && (
-                <span className="text-xs font-semibold text-[var(--text-tertiary)]">{setek.semester}학기</span>
-              )}
-              {editable && onSave ? (
-                <DraftInlineEditor
-                  content={text ?? ""}
-                  charLimit={charLimit}
-                  onSave={(v) => onSave(setek.id, v)}
-                  textColor={style.text}
-                />
-              ) : text?.trim() ? (
-                <p className={cn("whitespace-pre-wrap text-sm leading-relaxed", style.text)}>{text}</p>
-              ) : (
-                <p className="py-2 text-sm text-[var(--text-placeholder)]">없음</p>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function DraftInlineEditor({
-  content: initialContent,
-  charLimit,
-  onSave,
-  textColor,
-}: {
-  content: string;
-  charLimit?: number;
-  onSave: (v: string) => void;
-  textColor: string;
-}) {
-  const [value, setValue] = useState(initialContent);
-  useEffect(() => { setValue(initialContent); }, [initialContent]);
-  const { status } = useAutoSave({ data: value, onSave: async (d) => { onSave(d); return { success: true }; }, enabled: true });
-
-  return (
-    <div className="flex flex-col gap-1">
-      <AutoResizeTextarea
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        className={cn(
-          "w-full resize-none rounded border border-transparent bg-transparent px-1 py-0.5 text-sm leading-relaxed outline-none transition focus:border-[var(--border-primary)] focus:bg-white dark:focus:bg-gray-900",
-          textColor,
-        )}
-        rows={2}
-      />
-      <div className="flex items-center justify-between">
-        {charLimit && <CharacterCounter content={value} charLimit={charLimit} />}
-        <SaveStatusIndicator status={status} />
-      </div>
-    </div>
-  );
-}
+// ─── ✏️가안 탭: DraftExpandableCell (shared/DraftBlocks 사용) ──────
 
 function DraftExpandableCell({
   records,
@@ -1400,13 +1287,13 @@ function DraftExpandableCell({
       {/* 펼친 상태: 3개 독립 블록 */}
       {expanded && (
         <div className="mt-1 flex flex-col gap-3">
-          <DraftBlock
+          <MultiRecordDraftBlock
             label="AI 초안"
             style={DRAFT_BLOCK_STYLES.ai}
             records={records}
             getContent={(r) => r.ai_draft_content}
           />
-          <DraftBlock
+          <MultiRecordDraftBlock
             label="컨설턴트 가안"
             style={DRAFT_BLOCK_STYLES.consultant}
             records={records}
@@ -1418,7 +1305,7 @@ function DraftExpandableCell({
             importLabel="AI 초안 수용"
             isImporting={acceptAiMutation.isPending}
           />
-          <DraftBlock
+          <MultiRecordDraftBlock
             label="확정본"
             style={DRAFT_BLOCK_STYLES.confirmed}
             records={records}

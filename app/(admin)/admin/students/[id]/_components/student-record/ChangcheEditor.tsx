@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { saveChangcheAction } from "@/lib/domains/student-record/actions/record";
 import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { getCharLimit, CHANGCHE_TYPE_LABELS } from "@/lib/domains/student-record";
@@ -13,10 +13,11 @@ import { useAutoSave } from "./useAutoSave";
 import { useStudentRecordContext } from "./StudentRecordContext";
 import { useSidePanel } from "@/components/side-panel";
 import { cn } from "@/lib/cn";
-import { FileText, Search, BookOpen, MessageSquare, StickyNote } from "lucide-react";
-import { CrossReferenceChips } from "./CrossReferenceChips";
-import { TextSelectionTagger } from "./TextSelectionTagger";
+import { FileText, Search, BookOpen, MessageSquare, StickyNote, ChevronDown, PenLine } from "lucide-react";
+import { DraftBlock, DRAFT_BLOCK_STYLES } from "./shared/DraftBlocks";
 import { InlineAreaMemos } from "./InlineAreaMemos";
+import type { AnalysisTagLike, AnalysisBlockMode, TaggerProps } from "./shared/AnalysisBlocks";
+import { AnalysisBlock, COMPETENCY_LABELS, EVAL_COLORS } from "./shared/AnalysisBlocks";
 
 const ACTIVITY_TYPES: ChangcheActivityType[] = ["autonomy", "club", "career"];
 
@@ -24,37 +25,18 @@ const B = "border border-gray-400 dark:border-gray-500";
 
 // ─── 탭 정의 ──────────────────────────────────────
 
-type ChangcheLayerTab = "record" | "analysis" | "guide" | "memo" | "chat";
+type ChangcheLayerTab = "chat" | "guide" | "draft" | "neis" | "analysis" | "memo";
 
 const CHANGCHE_TABS: { key: ChangcheLayerTab; label: string; icon: typeof FileText }[] = [
-  { key: "record", label: "기록", icon: FileText },
-  { key: "analysis", label: "분석", icon: Search },
-  { key: "guide", label: "가이드", icon: BookOpen },
-  { key: "memo", label: "메모", icon: StickyNote },
   { key: "chat", label: "논의", icon: MessageSquare },
+  { key: "guide", label: "가이드", icon: BookOpen },
+  { key: "draft", label: "가안", icon: PenLine },
+  { key: "neis", label: "NEIS", icon: FileText },
+  { key: "analysis", label: "분석", icon: Search },
+  { key: "memo", label: "메모", icon: StickyNote },
 ];
 
-const COMPETENCY_LABELS: Record<string, string> = {
-  academic_achievement: "학업성취도", academic_attitude: "학업태도", academic_inquiry: "탐구력",
-  career_course_effort: "과목이수노력", career_course_achievement: "과목성취도", career_exploration: "진로탐색",
-  community_collaboration: "협업", community_caring: "배려", community_integrity: "성실성", community_leadership: "리더십",
-};
-
-const EVAL_COLORS: Record<string, string> = {
-  positive: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-  negative: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
-  needs_review: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-};
-
 // ─── 타입 ──────────────────────────────────────
-
-interface ActivityTagLike {
-  record_type: string;
-  record_id: string;
-  competency_item: string;
-  evaluation: string;
-  evidence_summary?: string | null;
-}
 
 type ChangcheEditorProps = {
   changche: RecordChangche[];
@@ -62,7 +44,7 @@ type ChangcheEditorProps = {
   schoolYear: number;
   tenantId: string;
   grade: number;
-  diagnosisActivityTags?: ActivityTagLike[];
+  diagnosisActivityTags?: AnalysisTagLike[];
   guideAssignments?: Array<{ id: string; guide_id: string; status: string; exploration_guides?: { id: string; title: string; guide_type?: string } }>;
 };
 
@@ -77,7 +59,7 @@ export function ChangcheEditor({
   diagnosisActivityTags,
   guideAssignments,
 }: ChangcheEditorProps) {
-  const [activeTab, setActiveTab] = useState<ChangcheLayerTab>("record");
+  const [activeTab, setActiveTab] = useState<ChangcheLayerTab>("neis");
 
   // 모든 changche ID (분석 필터용)
   const allChangcheIds = useMemo(() => new Set(changche.map((c) => c.id)), [changche]);
@@ -99,7 +81,8 @@ export function ChangcheEditor({
       {/* ─── 레이어 탭 바 ───────────────────────── */}
       <div className="flex gap-1 overflow-x-auto border-b border-[var(--border-secondary)]">
         {CHANGCHE_TABS.map((tab) => {
-          const hasData = tab.key === "record" ? changche.length > 0
+          const hasData = tab.key === "neis" ? changche.length > 0
+            : tab.key === "draft" ? changche.some((c) => c.content?.trim() || c.ai_draft_content || c.confirmed_content?.trim())
             : tab.key === "analysis" ? filteredTags.length > 0
             : tab.key === "guide" ? (guideAssignments?.length ?? 0) > 0
             : false;
@@ -118,7 +101,7 @@ export function ChangcheEditor({
             >
               <tab.icon className="h-3.5 w-3.5 shrink-0" />
               <span className="hidden sm:inline">{tab.label}</span>
-              {hasData && tab.key !== "record" && (
+              {hasData && tab.key !== "neis" && (
                 <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-indigo-500" />
               )}
             </button>
@@ -126,202 +109,109 @@ export function ChangcheEditor({
         })}
       </div>
 
-      {/* ─── 📄 기록 탭 (기본) ──────────────────── */}
-      {activeTab === "record" && (
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr>
-                <th className={`${B} w-12 px-2 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>학년</th>
-                <th className={`${B} w-24 px-2 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>영역</th>
+      {/* ─── 통합 테이블 (모든 탭에서 유지 — 세특과 동일 패턴) ─── */}
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr>
+              <th className={`${B} w-12 px-2 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>학년</th>
+              <th className={`${B} w-24 px-2 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>영역</th>
+              {activeTab === "neis" && (
                 <th className={`${B} w-12 px-2 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>시간</th>
-                <th className={`${B} px-2 py-1.5 text-left text-xs font-medium text-[var(--text-secondary)]`}>특기사항</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ACTIVITY_TYPES.map((type, idx) => {
-                const existing = changche.find((c) => c.activity_type === type);
-                return (
-                  <ChangcheRow
-                    key={type}
-                    activityType={type}
-                    existing={existing}
-                    studentId={studentId}
-                    schoolYear={schoolYear}
-                    tenantId={tenantId}
-                    grade={grade}
-                    showGrade={idx === 0}
-                    rowSpan={ACTIVITY_TYPES.length}
-                  />
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* ─── 🔍 분석 탭 ──────────────────────────── */}
-      {activeTab === "analysis" && (
-        <div className="flex flex-col gap-2">
-          {/* 컨설턴트 드래그 태깅 */}
-          {changche.filter((c) => c.content?.trim()).length > 0 && (
-            <details className="rounded-lg border border-[var(--border-secondary)]">
-              <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-[var(--text-primary)]">
-                ✏️ 원문 드래그 태깅 <span className="font-normal text-[var(--text-tertiary)]">— 문장을 선택하여 역량 태그 지정</span>
-              </summary>
-              <div className="space-y-2 border-t border-[var(--border-secondary)] px-3 py-2">
-                {changche.filter((c) => c.content?.trim()).map((c) => (
-                  <div key={c.id}>
-                    <div className="mb-1 text-[10px] font-medium text-[var(--text-secondary)]">
-                      {CHANGCHE_TYPE_LABELS[c.activity_type] ?? c.activity_type}
-                    </div>
-                    <TextSelectionTagger
-                      content={c.content}
-                      recordType="changche"
-                      recordId={c.id}
-                      studentId={studentId}
-                      tenantId={tenantId}
-                      schoolYear={schoolYear}
-                    />
-                  </div>
-                ))}
-              </div>
-            </details>
-          )}
-
-          {filteredTags.length === 0 ? (
-            <p className="py-4 text-center text-xs text-[var(--text-tertiary)]">
-              AI 분석을 실행하면 이 영역의 역량 태그가 표시됩니다
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {Object.entries(
-                filteredTags.reduce<Record<string, ActivityTagLike[]>>((acc, tag) => {
-                  const key = tag.competency_item;
-                  (acc[key] ??= []).push(tag);
-                  return acc;
-                }, {}),
-              ).map(([item, tags]) => (
-                <div key={item} className="rounded-lg border border-[var(--border-secondary)] p-3">
-                  <div className="mb-1.5 flex items-center gap-2">
-                    <span className="text-xs font-semibold text-[var(--text-primary)]">
-                      {COMPETENCY_LABELS[item] ?? item}
-                    </span>
-                    <span className="text-[10px] text-[var(--text-tertiary)]">{tags.length}건</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {tags.map((tag, i) => (
-                      <span
-                        key={i}
-                        className={cn("inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium", EVAL_COLORS[tag.evaluation] ?? "bg-gray-100 text-gray-600")}
-                        title={tag.evidence_summary ?? undefined}
-                      >
-                        {tag.evaluation === "positive" ? "+" : tag.evaluation === "negative" ? "-" : "?"}{" "}
-                        {tag.evidence_summary?.slice(0, 30) ?? ""}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* G2-1: 크로스레퍼런스 칩 */}
-          <CrossReferenceChips
-            studentId={studentId}
-            tenantId={tenantId}
-            currentRecordIds={allChangcheIds}
-            currentRecordType="changche"
-            currentGrade={grade}
-            allTags={diagnosisActivityTags as import("@/lib/domains/student-record").ActivityTag[] | undefined}
-          />
-        </div>
-      )}
-
-      {/* ─── 📘 가이드 탭 ──────────────────────────── */}
-      {activeTab === "guide" && (
-        <div className="flex flex-col gap-2">
-          {!guideAssignments || guideAssignments.length === 0 ? (
-            <p className="py-4 text-center text-xs text-[var(--text-tertiary)]">
-              이 영역에 배정된 탐구 가이드가 없습니다
-            </p>
-          ) : (
-            guideAssignments.map((a) => (
-              <div key={a.id} className="flex items-center gap-3 rounded-lg border border-[var(--border-secondary)] p-3">
-                <BookOpen className="h-4 w-4 shrink-0 text-indigo-500" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-[var(--text-primary)] truncate">
-                    {a.exploration_guides?.title ?? "가이드"}
-                  </p>
-                  {a.exploration_guides?.guide_type && (
-                    <p className="text-[10px] text-[var(--text-tertiary)]">{a.exploration_guides.guide_type}</p>
+              )}
+              <th className={`${B} px-2 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]`}>
+                {activeTab === "neis" ? "특기사항"
+                  : activeTab === "draft" ? "가안"
+                  : activeTab === "analysis" ? "역량 분석"
+                  : activeTab === "guide" ? "활동 가이드"
+                  : activeTab === "memo" ? "메모"
+                  : "논의"}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {ACTIVITY_TYPES.map((type, idx) => {
+              const record = changche.find((c) => c.activity_type === type);
+              const typeTags = record ? filteredTags.filter((t) => t.record_id === record.id) : [];
+              return (
+                <tr key={type} className="align-top">
+                  {idx === 0 && (
+                    <td rowSpan={ACTIVITY_TYPES.length} className={`${B} px-2 py-1.5 text-center align-middle text-sm text-[var(--text-primary)]`}>
+                      {grade}
+                    </td>
                   )}
-                </div>
-                <span className={cn(
-                  "rounded-full px-2 py-0.5 text-[10px] font-medium",
-                  a.status === "completed" ? "bg-emerald-100 text-emerald-700" :
-                  a.status === "in_progress" ? "bg-blue-100 text-blue-700" :
-                  "bg-gray-100 text-gray-600",
-                )}>
-                  {a.status === "completed" ? "완료" : a.status === "in_progress" ? "진행중" : "배정됨"}
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* ─── 📝 메모 탭 (G3-4) ──────────────────── */}
-      {activeTab === "memo" && (
-        <div className="flex flex-col gap-4">
-          {ACTIVITY_TYPES.map((type) => (
-            <InlineAreaMemos
-              key={type}
-              studentId={studentId}
-              areaType="changche"
-              areaId={type}
-              areaLabel={CHANGCHE_TYPE_LABELS[type]}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* ─── 💬 논의 탭 ──────────────────────────── */}
-      {activeTab === "chat" && (
-        <div className="flex flex-col items-center gap-3 py-6">
-          <MessageSquare className="h-8 w-8 text-[var(--text-tertiary)]" />
-          <p className="text-sm text-[var(--text-secondary)]">창체 영역에 대해 학생/학부모와 논의</p>
-          <button
-            type="button"
-            onClick={() => {
-              // 창체 첫 번째 영역을 컨텍스트로 설정
-              if (setActiveSubjectId) {
-                setActiveSubjectId(`changche:${ACTIVITY_TYPES[0]}`);
-              }
-              sidePanel.openApp("chat");
-            }}
-            className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-          >
-            <MessageSquare className="h-3.5 w-3.5" />
-            채팅 열기
-          </button>
-        </div>
-      )}
+                  <td className={`${B} px-2 py-1.5 text-center align-middle whitespace-nowrap`}>
+                    <span className="text-xs font-medium text-[var(--text-primary)]">
+                      {CHANGCHE_TYPE_LABELS[type]}
+                    </span>
+                    {activeTab === "neis" && record && <RecordStatusBadge status={record.status} />}
+                  </td>
+                  {activeTab === "neis" && (
+                    <td className={`${B} px-2 py-1.5 text-center align-middle text-sm text-[var(--text-primary)]`}>
+                      {record?.hours ?? "-"}
+                    </td>
+                  )}
+                  <td className={`${B} p-1`}>
+                    {activeTab === "neis" && (
+                      <ChangcheNEISCell activityType={type} existing={record} studentId={studentId} schoolYear={schoolYear} tenantId={tenantId} grade={grade} />
+                    )}
+                    {activeTab === "draft" && (
+                      record ? (
+                        <ChangcheDraftCell record={record} studentId={studentId} schoolYear={schoolYear} tenantId={tenantId} grade={grade} />
+                      ) : <span className="text-xs text-[var(--text-placeholder)]">기록 없음</span>
+                    )}
+                    {activeTab === "analysis" && (
+                      record ? (
+                        <ChangcheAnalysisCell typeTags={typeTags} record={record} activityType={type} studentId={studentId} tenantId={tenantId} schoolYear={schoolYear} />
+                      ) : <span className="text-xs text-[var(--text-placeholder)]">기록 없음</span>
+                    )}
+                    {activeTab === "guide" && (
+                      (() => {
+                        const typeGuides = guideAssignments ?? [];
+                        return typeGuides.length > 0 ? (
+                          <div className="flex flex-col gap-1">
+                            {typeGuides.map((a) => (
+                              <div key={a.id} className="flex items-center gap-1.5">
+                                <span className={cn("h-1.5 w-1.5 rounded-full shrink-0",
+                                  a.status === "completed" ? "bg-emerald-500" : a.status === "in_progress" ? "bg-amber-500" : "bg-gray-300")} />
+                                <span className="truncate text-xs text-[var(--text-primary)]">{a.exploration_guides?.title ?? "가이드"}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : <span className="text-xs text-[var(--text-placeholder)]">배정된 가이드 없음</span>;
+                      })()
+                    )}
+                    {activeTab === "memo" && (
+                      <InlineAreaMemos studentId={studentId} areaType="changche" areaId={type} areaLabel={CHANGCHE_TYPE_LABELS[type]} />
+                    )}
+                    {activeTab === "chat" && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (setActiveSubjectId) { setActiveSubjectId(`changche:${type}`); }
+                          sidePanel.openApp("chat");
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded px-2.5 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/20"
+                      >
+                        <MessageSquare className="h-3.5 w-3.5" />
+                        채팅 열기
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
 
-// ─── ChangcheRow (기존과 동일) ──────────────────────
+// ─── NEIS 셀: 인라인 편집 (테이블 셀 내부 컨텐츠만) ──────────────
 
-function ChangcheRow({
-  activityType,
-  existing,
-  studentId,
-  schoolYear,
-  tenantId,
-  grade,
-  showGrade,
-  rowSpan,
+function ChangcheNEISCell({
+  activityType, existing, studentId, schoolYear, tenantId, grade,
 }: {
   activityType: ChangcheActivityType;
   existing: RecordChangche | undefined;
@@ -329,83 +219,318 @@ function ChangcheRow({
   schoolYear: number;
   tenantId: string;
   grade: number;
-  showGrade?: boolean;
-  rowSpan?: number;
 }) {
   const charLimit = getCharLimit(activityType, schoolYear);
-  const [content, setContent] = useState(existing?.content ?? "");
+  // content가 비어있으면 imported_content(NEIS 원문) 표시 (세특과 동일)
+  const displayContent = existing?.content?.trim() ? existing.content : (existing?.imported_content ?? "");
+  const [content, setContent] = useState(displayContent);
   const queryClient = useQueryClient();
 
-  // Import 등으로 외부에서 데이터가 변경되면 state 동기화
   useEffect(() => {
-    setContent(existing?.content ?? "");
-  }, [existing?.content]);
+    const next = existing?.content?.trim() ? existing.content : (existing?.imported_content ?? "");
+    setContent(next);
+  }, [existing?.content, existing?.imported_content]);
 
-  const handleSave = useCallback(
-    async (data: string) => {
-      const result = await saveChangcheAction(
-        {
-          student_id: studentId,
-          school_year: schoolYear,
-          tenant_id: tenantId,
-          grade,
-          activity_type: activityType,
-          content: data,
-          char_limit: charLimit,
-        },
-        schoolYear,
-      );
-      if (result.success) {
-        queryClient.invalidateQueries({
-          queryKey: studentRecordKeys.recordTab(studentId, schoolYear),
-        });
-      }
-      return { success: result.success, error: !result.success && "error" in result ? result.error : undefined };
-    },
-    [studentId, schoolYear, tenantId, grade, activityType, charLimit, queryClient],
+  const handleSave = useCallback(async (data: string) => {
+    const result = await saveChangcheAction({ student_id: studentId, school_year: schoolYear, tenant_id: tenantId, grade, activity_type: activityType, content: data, char_limit: charLimit }, schoolYear);
+    if (result.success) { queryClient.invalidateQueries({ queryKey: studentRecordKeys.recordTab(studentId, schoolYear) }); }
+    return { success: result.success, error: !result.success && "error" in result ? result.error : undefined };
+  }, [studentId, schoolYear, tenantId, grade, activityType, charLimit, queryClient]);
+
+  const { status, error, saveNow } = useAutoSave({ data: content, onSave: handleSave });
+
+  const hasDraft = !!existing?.ai_draft_content;
+  const draftContent = existing?.ai_draft_content ?? null;
+
+  async function handleAcceptDraft() {
+    if (!existing) return;
+    const { acceptAiDraftAction } = await import("@/lib/domains/student-record/actions/confirm");
+    const result = await acceptAiDraftAction(existing.id, "changche");
+    if (result.success) {
+      queryClient.invalidateQueries({ queryKey: studentRecordKeys.recordTab(studentId, schoolYear) });
+    }
+  }
+
+  return (
+    <div>
+      {/* AI 초안 배너 (세특과 동일) */}
+      {hasDraft && draftContent && !content && (
+        <div className="mb-1 rounded bg-violet-50 p-2 text-xs dark:bg-violet-900/20">
+          <div className="flex items-center justify-between mb-1">
+            <span className="font-medium text-violet-700 dark:text-violet-400">AI 초안</span>
+            <button type="button" onClick={handleAcceptDraft} className="rounded bg-violet-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-violet-700">수용</button>
+          </div>
+          <p className="text-violet-600 dark:text-violet-300 line-clamp-3">{draftContent.slice(0, 200)}...</p>
+        </div>
+      )}
+      <AutoResizeTextarea
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        className="w-full min-h-[4rem] resize-none border-0 bg-transparent p-1 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:outline-none"
+        placeholder={`${CHANGCHE_TYPE_LABELS[activityType]} 활동 내용을 입력하세요...`}
+      />
+      <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-2">
+          <SaveStatusIndicator status={status} error={error} />
+          {status === "error" && (
+            <button onClick={saveNow} className="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400">재시도</button>
+          )}
+        </div>
+        <CharacterCounter content={content} charLimit={charLimit} />
+      </div>
+    </div>
+  );
+}
+
+// ─── 🔍분석 탭: 영역별 AnalysisExpandableCell (세특 과목별과 동일 패턴) ──
+
+function ChangcheAnalysisCell({
+  typeTags,
+  record,
+  activityType,
+  studentId,
+  tenantId,
+  schoolYear,
+}: {
+  typeTags: AnalysisTagLike[];
+  record: RecordChangche;
+  activityType: ChangcheActivityType;
+  studentId: string;
+  tenantId: string;
+  schoolYear: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [aiMode, setAiMode] = useState<AnalysisBlockMode>("competency");
+  const [consultantMode, setConsultantMode] = useState<AnalysisBlockMode>("tagging");
+  const [confirmedMode, setConfirmedMode] = useState<AnalysisBlockMode>("tagging");
+  const queryClient = useQueryClient();
+
+  const aiTags = useMemo(() => typeTags.filter((t) => t.source === "ai"), [typeTags]);
+  const manualTags = useMemo(() => typeTags.filter((t) => (t.source === "manual" || !t.source) && t.status !== "confirmed"), [typeTags]);
+  const confirmedTags = useMemo(() => typeTags.filter((t) => t.status === "confirmed"), [typeTags]);
+
+  const content = useMemo(
+    () => record.content?.trim() || record.imported_content || "",
+    [record],
   );
 
-  const { status, error, saveNow } = useAutoSave({
-    data: content,
-    onSave: handleSave,
+  const taggerProps: TaggerProps = useMemo(() => ({
+    studentId, tenantId, schoolYear,
+    records: [{ id: record.id, content: record.content, imported_content: record.imported_content }],
+    displayName: CHANGCHE_TYPE_LABELS[activityType],
+    recordType: "changche" as const,
+  }), [studentId, tenantId, schoolYear, record, activityType]);
+
+  const diagnosisQk = ["studentRecord", "diagnosisTab", studentId] as const;
+
+  const importAiMutation = useMutation({
+    mutationFn: async () => {
+      const { addActivityTagsBatchAction } = await import("@/lib/domains/student-record/actions/diagnosis");
+      const existingKeys = new Set(manualTags.map((t) => `${t.record_id}:${t.competency_item}:${t.evaluation}`));
+      const inputs = aiTags
+        .filter((t) => !existingKeys.has(`${t.record_id}:${t.competency_item}:${t.evaluation}`))
+        .map((t) => ({
+          tenant_id: tenantId, student_id: studentId,
+          record_type: t.record_type as "changche",
+          record_id: t.record_id, competency_item: t.competency_item,
+          evaluation: t.evaluation as "positive" | "negative" | "needs_review",
+          evidence_summary: t.evidence_summary ?? null,
+          source: "manual" as const, status: "suggested" as const,
+        }));
+      if (inputs.length > 0) {
+        const res = await addActivityTagsBatchAction(inputs);
+        if (!res.success) throw new Error("error" in res ? res.error : "복사 실패");
+      }
+    },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
+  });
+
+  const importConsultantMutation = useMutation({
+    mutationFn: async () => {
+      const { confirmActivityTagAction } = await import("@/lib/domains/student-record/actions/diagnosis");
+      for (const t of manualTags) {
+        const res = await confirmActivityTagAction(t.id);
+        if (!res.success) throw new Error("error" in res ? res.error : "확정 실패");
+      }
+    },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
+  });
+
+  const deleteTagMutation = useMutation({
+    mutationFn: async (tag: AnalysisTagLike) => {
+      const { deleteActivityTagAction } = await import("@/lib/domains/student-record/actions/diagnosis");
+      const res = await deleteActivityTagAction(tag.id);
+      if (!res.success) throw new Error("error" in res ? res.error : "삭제 실패");
+    },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
+  });
+
+  const deleteAllMutation = useMutation({
+    mutationFn: async (tagsToDelete: AnalysisTagLike[]) => {
+      const { deleteActivityTagAction } = await import("@/lib/domains/student-record/actions/diagnosis");
+      for (const t of tagsToDelete) { await deleteActivityTagAction(t.id); }
+    },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: diagnosisQk }); },
   });
 
   return (
-    <tr>
-      {showGrade && (
-        <td rowSpan={rowSpan} className={`${B} px-2 py-1.5 text-center align-middle text-sm text-[var(--text-primary)]`}>
-          {grade}
-        </td>
+    <div className="flex flex-col gap-1.5">
+      {/* 접힌 상태: 요약 */}
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="flex w-full items-center gap-2 text-left"
+      >
+        <div className="flex flex-1 flex-wrap items-center gap-1.5">
+          {typeTags.length > 0 ? typeTags.slice(0, 4).map((t, i) => (
+            <span key={i} className={cn("rounded px-1.5 py-0.5 text-xs font-medium",
+              EVAL_COLORS[t.evaluation || "needs_review"],
+            )}>
+              {COMPETENCY_LABELS[t.competency_item || ""] || t.competency_item}
+            </span>
+          )) : (
+            <span className="text-sm text-[var(--text-placeholder)]">태그 없음</span>
+          )}
+          {typeTags.length > 4 && (
+            <span className="text-xs text-[var(--text-tertiary)]">+{typeTags.length - 4}</span>
+          )}
+        </div>
+        <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)] transition-transform", expanded && "rotate-180")} />
+      </button>
+
+      {/* 펼친 상태: 3개 독립 블록 */}
+      {expanded && (
+        <div className="mt-1 flex flex-col gap-3">
+          <AnalysisBlock
+            label="AI"
+            tags={aiTags}
+            content={content}
+            mode={aiMode}
+            setMode={setAiMode}
+          />
+          <AnalysisBlock
+            label="컨설턴트"
+            tags={manualTags}
+            content={content}
+            mode={consultantMode}
+            setMode={setConsultantMode}
+            importAction={aiTags.length > 0 ? () => importAiMutation.mutate() : undefined}
+            importLabel="AI 가져오기"
+            isImporting={importAiMutation.isPending}
+            taggerProps={taggerProps}
+            onDeleteTag={(tag) => { if (confirm("태그를 삭제하시겠습니까?")) deleteTagMutation.mutate(tag); }}
+            onDeleteAll={() => { if (confirm(`컨설턴트 태그 ${manualTags.length}건을 모두 삭제하시겠습니까?`)) deleteAllMutation.mutate(manualTags); }}
+          />
+          <AnalysisBlock
+            label="확정"
+            tags={confirmedTags}
+            content={content}
+            mode={confirmedMode}
+            setMode={setConfirmedMode}
+            importAction={manualTags.length > 0 ? () => importConsultantMutation.mutate() : undefined}
+            importLabel="컨설턴트 가져오기"
+            isImporting={importConsultantMutation.isPending}
+            taggerProps={taggerProps}
+            onDeleteTag={(tag) => { if (confirm("태그를 삭제하시겠습니까?")) deleteTagMutation.mutate(tag); }}
+            onDeleteAll={() => { if (confirm(`확정 태그 ${confirmedTags.length}건을 모두 삭제하시겠습니까?`)) deleteAllMutation.mutate(confirmedTags); }}
+          />
+        </div>
       )}
-      <td className={`${B} px-2 py-1.5 text-center align-middle whitespace-nowrap`}>
-        <div className="flex flex-col items-center gap-1">
-          <span className="text-xs font-medium text-[var(--text-primary)]">
-            {CHANGCHE_TYPE_LABELS[activityType]}
-          </span>
-          {existing && <RecordStatusBadge status={existing.status} />}
+    </div>
+  );
+}
+
+// ─── ✏️가안 탭: 영역별 접기/펼치기 + 3블록 (AI 초안 / 컨설턴트 가안 / 확정본) ──
+
+
+function ChangcheDraftCell({
+  record,
+  studentId,
+  schoolYear,
+  tenantId,
+  grade,
+}: {
+  record: RecordChangche;
+  studentId: string;
+  schoolYear: number;
+  tenantId: string;
+  grade: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const queryClient = useQueryClient();
+  const charLimit = getCharLimit(record.activity_type as "autonomy" | "club" | "career", schoolYear);
+  const recordQk = studentRecordKeys.recordTab(studentId, schoolYear);
+
+  const hasAny = !!(record.ai_draft_content || record.content?.trim() || record.confirmed_content?.trim());
+  const summaryParts: string[] = [];
+  if (record.ai_draft_content) summaryParts.push("AI");
+  if (record.content?.trim()) summaryParts.push("가안");
+  if (record.confirmed_content?.trim()) summaryParts.push("확정");
+
+  const acceptAiMutation = useMutation({
+    mutationFn: async () => {
+      const { acceptAiDraftAction } = await import("@/lib/domains/student-record/actions/confirm");
+      if (record.ai_draft_content && !record.content?.trim()) {
+        const res = await acceptAiDraftAction(record.id, "changche");
+        if (!res.success) throw new Error("error" in res ? res.error : "수용 실패");
+      }
+    },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: recordQk }); },
+  });
+
+  const confirmMutation = useMutation({
+    mutationFn: async () => {
+      const { confirmDraftAction } = await import("@/lib/domains/student-record/actions/confirm");
+      if (record.content?.trim()) {
+        const res = await confirmDraftAction(record.id, "changche");
+        if (!res.success) throw new Error("error" in res ? res.error : "확정 실패");
+      }
+    },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: recordQk }); },
+  });
+
+  const handleSaveContent = useCallback(async (content: string) => {
+    await saveChangcheAction({
+      student_id: studentId, school_year: schoolYear, tenant_id: tenantId,
+      grade, activity_type: record.activity_type, content, char_limit: charLimit,
+    }, schoolYear);
+    queryClient.invalidateQueries({ queryKey: recordQk });
+  }, [studentId, schoolYear, tenantId, grade, record.activity_type, charLimit, queryClient, recordQk]);
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <button type="button" onClick={() => setExpanded(!expanded)} className="flex w-full items-center gap-2 text-left">
+        <span className="flex-1 text-xs text-[var(--text-secondary)]">
+          {hasAny ? summaryParts.join(" / ") : "가안 없음"}
+        </span>
+        <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)] transition-transform", expanded && "rotate-180")} />
+      </button>
+
+      {expanded && (
+        <div className="mt-1 flex flex-col gap-3">
+          {/* AI 초안 */}
+          <DraftBlock
+            label="AI 초안" style={DRAFT_BLOCK_STYLES.ai}
+            content={record.ai_draft_content}
+          />
+          {/* 컨설턴트 가안 */}
+          <DraftBlock
+            label="컨설턴트 가안" style={DRAFT_BLOCK_STYLES.consultant}
+            content={record.content} editable charLimit={charLimit}
+            onSave={handleSaveContent}
+            importAction={record.ai_draft_content && !record.content?.trim() ? () => acceptAiMutation.mutate() : undefined}
+            importLabel="AI 초안 수용" isImporting={acceptAiMutation.isPending}
+          />
+          {/* 확정본 */}
+          <DraftBlock
+            label="확정본" style={DRAFT_BLOCK_STYLES.confirmed}
+            content={record.confirmed_content}
+            importAction={record.content?.trim() ? () => confirmMutation.mutate() : undefined}
+            importLabel="가안 확정" isImporting={confirmMutation.isPending}
+          />
         </div>
-      </td>
-      <td className={`${B} px-2 py-1.5 text-center align-middle text-sm text-[var(--text-primary)]`}>
-        {existing?.hours ?? "-"}
-      </td>
-      <td className={`${B} p-1 align-top`}>
-        <AutoResizeTextarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          className="w-full min-h-16 resize-none border-0 bg-transparent p-1 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:outline-none"
-          placeholder={`${CHANGCHE_TYPE_LABELS[activityType]} 활동 내용을 입력하세요...`}
-        />
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-2">
-            <SaveStatusIndicator status={status} error={error} />
-            {status === "error" && (
-              <button onClick={saveNow} className="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400">재시도</button>
-            )}
-          </div>
-          <CharacterCounter content={content} charLimit={charLimit} />
-        </div>
-      </td>
-    </tr>
+      )}
+    </div>
   );
 }
 
