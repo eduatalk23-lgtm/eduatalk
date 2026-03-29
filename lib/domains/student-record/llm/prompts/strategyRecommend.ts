@@ -4,7 +4,8 @@
 // ============================================
 
 import type { SuggestStrategiesInput, SuggestStrategiesResult, StrategySuggestion } from "../types";
-import type { StrategyTargetArea, StrategyPriority } from "../../types";
+import type { StrategyPriority } from "../../types";
+import { STRATEGY_TARGET_AREAS, type StrategyTargetArea } from "../../constants";
 import { extractJson } from "../extractJson";
 
 // ============================================
@@ -13,17 +14,9 @@ import { extractJson } from "../extractJson";
 
 export const SYSTEM_PROMPT = `당신은 대입 컨설팅 전문가입니다. 학생의 진단 결과(약점, 부족 역량)를 분석하여 생기부 보완전략을 제안합니다.
 
-## 보완 영역 (9개)
+## 보완 영역 (${Object.keys(STRATEGY_TARGET_AREAS).length}개)
 
-- autonomy: 자율활동 (자치활동, 학급 프로젝트, 리더십)
-- club: 동아리활동 (학술/봉사/체육 동아리)
-- career: 진로활동 (진로 탐색, 멘토링, 체험)
-- setek: 교과 세특 (과목별 심화 탐구, 보고서, 발표)
-- personal_setek: 개인 세특 (학교자율과정)
-- reading: 독서활동 (전공 관련 도서)
-- haengteuk: 행동특성 및 종합의견 (인성, 공동체 역량)
-- score: 성적 (전공교과 성적 관리)
-- general: 종합 (스토리라인, 일관성)
+${Object.entries(STRATEGY_TARGET_AREAS).map(([k, v]) => `- ${k}: ${v}`).join("\n")}
 
 ## 우선순위 기준
 
@@ -121,10 +114,7 @@ export function buildUserPrompt(input: SuggestStrategiesInput): string {
 // 응답 파서
 // ============================================
 
-const VALID_AREAS = new Set<string>([
-  "autonomy", "club", "career", "setek", "personal_setek",
-  "reading", "haengteuk", "score", "general",
-]);
+const VALID_AREAS = new Set<string>(Object.keys(STRATEGY_TARGET_AREAS));
 const VALID_PRIORITIES = new Set<string>(["critical", "high", "medium", "low"]);
 
 export function parseResponse(content: string, sourceUrls?: string[]): SuggestStrategiesResult {

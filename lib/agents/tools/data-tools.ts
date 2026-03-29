@@ -5,7 +5,7 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { type AgentContext, truncateWithMarker } from "../types";
+import { type AgentContext, truncateWithMarker, TOOL_ERRORS } from "../types";
 import { getRecordTabData, getStorylineTabData } from "@/lib/domains/student-record/service";
 import {
   findCompetencyScores,
@@ -20,9 +20,18 @@ import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
 
 const LOG_CTX = { domain: "agent", action: "data-tools" };
 
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5분
+
+interface CacheEntry {
+  success: boolean;
+  data?: unknown;
+  error?: string;
+  cachedAt: number;
+}
+
 export function createDataTools(ctx: AgentContext) {
-  // 요청 스코프 캐시 — 같은 대화 내 동일 조회 중복 방지
-  const cache = new Map<string, { success: boolean; data?: unknown; error?: string }>();
+  // 요청 스코프 캐시 — 동일 조회 중복 방지 (5분 TTL)
+  const cache = new Map<string, CacheEntry>();
 
   return {
     /**
@@ -41,14 +50,14 @@ export function createDataTools(ctx: AgentContext) {
         const year = schoolYear ?? ctx.schoolYear;
         const cacheKey = `records:${year}`;
         const cached = cache.get(cacheKey);
-        if (cached) {
+        if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
           logActionDebug(LOG_CTX, `getStudentRecords: cache hit (year=${year})`);
           return cached;
         }
         logActionDebug(LOG_CTX, `getStudentRecords: year=${year}`);
         try {
           if (!ctx.tenantId) {
-            return { success: false, error: "테넌트 정보가 없습니다." };
+            return TOOL_ERRORS.NO_TENANT;
           }
           const data = await getRecordTabData(ctx.studentId, year, ctx.tenantId);
           // 요약본으로 변환 (토큰 절약)
@@ -57,20 +66,20 @@ export function createDataTools(ctx: AgentContext) {
               subjectId: s.subject_id,
               grade: s.grade,
               semester: s.semester,
-              content: truncateWithMarker(s.content, 500),
+              content: truncateWithMarker(s.content, 300),
             })),
             personalSeteks: data.personalSeteks.map((s) => ({
               title: s.title,
               grade: s.grade,
-              content: truncateWithMarker(s.content, 500),
+              content: truncateWithMarker(s.content, 300),
             })),
             changche: data.changche.map((c) => ({
               activityType: c.activity_type,
               grade: c.grade,
-              content: truncateWithMarker(c.content, 500),
+              content: truncateWithMarker(c.content, 300),
             })),
             haengteuk: data.haengteuk
-              ? { content: truncateWithMarker(data.haengteuk.content, 500) }
+              ? { content: truncateWithMarker(data.haengteuk.content, 300) }
               : null,
             readings: data.readings.map((r) => ({
               bookTitle: r.book_title,
@@ -79,12 +88,18 @@ export function createDataTools(ctx: AgentContext) {
               notes: truncateWithMarker(r.notes, 300),
             })),
           };
-          const result = { success: true as const, data: summary };
-          cache.set(cacheKey, result);
+          const isEmpty = summary.seteks.length === 0 && summary.personalSeteks.length === 0
+            && summary.changche.length === 0 && !summary.haengteuk && summary.readings.length === 0;
+          const result = {
+            success: true as const,
+            data: summary,
+            ...(isEmpty && { actionHint: "이 학생은 아직 생기부 기록이 없습니다. 기록을 먼저 입력하거나 HTML 임포트를 진행하세요. 분석 도구는 기록이 있어야 사용할 수 있습니다." }),
+          };
+          cache.set(cacheKey, { ...result, cachedAt: Date.now() });
           return result;
         } catch (error) {
           logActionError(LOG_CTX, error);
-          return { success: false, error: "생기부 기록 조회에 실패했습니다." };
+          return TOOL_ERRORS.DB_ERROR("생기부 기록");
         }
       },
     }),
@@ -105,21 +120,32 @@ export function createDataTools(ctx: AgentContext) {
         const year = schoolYear ?? ctx.schoolYear;
         const cacheKey = `diagnosis:${year}`;
         const cached = cache.get(cacheKey);
-        if (cached) {
+        if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
           logActionDebug(LOG_CTX, `getStudentDiagnosis: cache hit (year=${year})`);
           return cached;
         }
         logActionDebug(LOG_CTX, `getStudentDiagnosis: year=${year}`);
         try {
           if (!ctx.tenantId) {
-            return { success: false, error: "테넌트 정보가 없습니다." };
+            return TOOL_ERRORS.NO_TENANT;
           }
-          const [scores, tags, diagPair, strategies] = await Promise.all([
+          const [scoresRes, tagsRes, diagRes, stratRes] = await Promise.allSettled([
             findCompetencyScores(ctx.studentId, year, ctx.tenantId),
             findActivityTags(ctx.studentId, ctx.tenantId),
             findDiagnosisPair(ctx.studentId, year, ctx.tenantId),
             findStrategies(ctx.studentId, year, ctx.tenantId),
           ]);
+          const scores = scoresRes.status === "fulfilled" ? scoresRes.value : [];
+          const tags = tagsRes.status === "fulfilled" ? tagsRes.value : [];
+          const diagPair = diagRes.status === "fulfilled" ? diagRes.value : { ai: null, consultant: null };
+          const strategies = stratRes.status === "fulfilled" ? stratRes.value : [];
+          const queryNames = ["competencyScores", "activityTags", "diagnosisPair", "strategies"];
+          const queryResults = [scoresRes, tagsRes, diagRes, stratRes];
+          for (let i = 0; i < queryResults.length; i++) {
+            if (queryResults[i].status === "rejected") {
+              logActionError(LOG_CTX, `${queryNames[i]} 조회 실패: ${(queryResults[i] as PromiseRejectedResult).reason}`);
+            }
+          }
           const result = {
             success: true as const,
             data: {
@@ -165,11 +191,11 @@ export function createDataTools(ctx: AgentContext) {
               })),
             },
           };
-          cache.set(cacheKey, result);
+          cache.set(cacheKey, { ...result, cachedAt: Date.now() });
           return result;
         } catch (error) {
           logActionError(LOG_CTX, error);
-          return { success: false, error: "진단 데이터 조회에 실패했습니다." };
+          return TOOL_ERRORS.DB_ERROR("진단 데이터");
         }
       },
     }),
@@ -190,14 +216,14 @@ export function createDataTools(ctx: AgentContext) {
         const year = schoolYear ?? ctx.schoolYear;
         const cacheKey = `storylines:${year}`;
         const cached = cache.get(cacheKey);
-        if (cached) {
+        if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
           logActionDebug(LOG_CTX, `getStudentStorylines: cache hit (year=${year})`);
           return cached;
         }
         logActionDebug(LOG_CTX, `getStudentStorylines: year=${year}`);
         try {
           if (!ctx.tenantId) {
-            return { success: false, error: "테넌트 정보가 없습니다." };
+            return TOOL_ERRORS.NO_TENANT;
           }
           const [storylineData, storylines] = await Promise.all([
             getStorylineTabData(ctx.studentId, year, ctx.tenantId),
@@ -221,11 +247,11 @@ export function createDataTools(ctx: AgentContext) {
               })),
             },
           };
-          cache.set(cacheKey, result);
+          cache.set(cacheKey, { ...result, cachedAt: Date.now() });
           return result;
         } catch (error) {
           logActionError(LOG_CTX, error);
-          return { success: false, error: "스토리라인 조회에 실패했습니다." };
+          return TOOL_ERRORS.DB_ERROR("스토리라인");
         }
       },
     }),

@@ -4,6 +4,7 @@ import { getAllActiveCurriculumRevisions, getSubjectHierarchyOptimized } from "@
 import { SectionHeader } from "@/components/ui";
 import ScoreInputLayout from "./_components/ScoreInputLayout";
 import { getContainerClass } from "@/lib/constants/layout";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export default async function ScoreInputPage() {
   // 사용자 인증 확인
@@ -11,6 +12,14 @@ export default async function ScoreInputPage() {
   if (!currentUser || currentUser.role !== "student") {
     redirect("/login");
   }
+
+  // 학생의 교육과정 조회
+  const supabase = await createSupabaseServerClient();
+  const { data: studentProfile } = await supabase
+    .from("students")
+    .select("curriculum_revision")
+    .eq("id", currentUser.userId)
+    .maybeSingle();
 
   // 모든 활성 교육과정 조회
   const activeCurricula = await getAllActiveCurriculumRevisions();
@@ -57,6 +66,7 @@ export default async function ScoreInputPage() {
             studentId={currentUser.userId}
             tenantId={currentUser.tenantId || ""}
             curriculumOptions={hierarchies}
+            studentCurriculumRevision={studentProfile?.curriculum_revision ?? null}
           />
         </div>
       </div>

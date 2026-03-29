@@ -162,7 +162,7 @@ function recordCircuitFailure(modelId: string): void {
 // Rate Limit 에러 감지 — 구조적 방식 우선, 문자열 fallback
 // ============================================
 
-function isRateLimitError(error: unknown): boolean {
+export function isRateLimitError(error: unknown): boolean {
   // 1) AI SDK APICallError — statusCode로 직접 판별 (가장 신뢰도 높음)
   if (APICallError.isInstance(error)) {
     return error.statusCode === 429;
@@ -190,7 +190,7 @@ function isRateLimitError(error: unknown): boolean {
 }
 
 /** 서버 과부하 에러 감지 (503 / high demand) — 폴백 모델 전환 트리거 */
-function isOverloadError(error: unknown): boolean {
+export function isOverloadError(error: unknown): boolean {
   // 1) AI SDK APICallError — statusCode 503
   if (APICallError.isInstance(error)) {
     return error.statusCode === 503;

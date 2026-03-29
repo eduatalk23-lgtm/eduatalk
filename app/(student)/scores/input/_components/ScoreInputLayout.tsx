@@ -28,6 +28,7 @@ type ScoreInputLayoutProps = {
   studentId: string;
   tenantId: string;
   curriculumOptions: CurriculumHierarchy[];
+  studentCurriculumRevision?: string | null;
 };
 
 type ScoreType = "internal" | "mock";
@@ -36,6 +37,7 @@ export default function ScoreInputLayout({
   studentId,
   tenantId,
   curriculumOptions,
+  studentCurriculumRevision,
 }: ScoreInputLayoutProps) {
   const searchParams = useSearchParams();
   const tabParam = searchParams?.get("tab");
@@ -44,10 +46,16 @@ export default function ScoreInputLayout({
     return tabParam === "mock" ? "mock" : "internal";
   });
 
-  // 교육과정 선택: 기본값은 첫 번째 (최신순 정렬됨)
-  const [selectedCurriculumId, setSelectedCurriculumId] = useState(
-    curriculumOptions[0]?.curriculum.id ?? ""
-  );
+  // 교육과정 선택: 학생의 교육과정이 있으면 우선 매칭, 없으면 최신순 첫 번째
+  const [selectedCurriculumId, setSelectedCurriculumId] = useState(() => {
+    if (studentCurriculumRevision) {
+      const matched = curriculumOptions.find(
+        (o) => o.curriculum.name === studentCurriculumRevision,
+      );
+      if (matched) return matched.curriculum.id;
+    }
+    return curriculumOptions[0]?.curriculum.id ?? "";
+  });
 
   const selected = curriculumOptions.find(
     (o) => o.curriculum.id === selectedCurriculumId

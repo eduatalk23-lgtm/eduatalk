@@ -6,6 +6,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { type AgentContext, truncateWithMarker } from "../types";
+import { toolError, TOOL_ERRORS } from "../types";
 import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
 import {
   INTERVIEW_SYSTEM_PROMPT,
@@ -37,13 +38,17 @@ export function createInterviewTools(ctx: AgentContext) {
         grade: z.number().optional().describe("학년 필터"),
         schoolYear: z.number().optional().describe("학년도 (기본: 현재)"),
         targetUniversity: z.string().optional().describe("목표 대학 (프롬프트 참고용)"),
+        interviewFormat: z
+          .enum(["서류확인", "제시문", "mmi", "토론"])
+          .optional()
+          .describe("면접 유형. 미지정 시 서류확인 기본. MMI(의약학)/제시문(연세대 등) 학생은 반드시 지정하세요."),
       }),
-      execute: async ({ recordType, subjectName, grade, schoolYear, targetUniversity }) => {
+      execute: async ({ recordType, subjectName, grade, schoolYear, targetUniversity, interviewFormat }) => {
         const year = schoolYear ?? ctx.schoolYear;
         logActionDebug(LOG_CTX, `generateInterviewQuestions: year=${year}`);
         try {
           if (!ctx.tenantId) {
-            return { success: false, error: "테넌트 정보가 없습니다." };
+            return TOOL_ERRORS.NO_TENANT;
           }
 
           // 기록 데이터 조회
@@ -96,10 +101,21 @@ export function createInterviewTools(ctx: AgentContext) {
             grade,
           });
 
-          // 목표 대학 정보 추가
-          const systemPrompt = targetUniversity
-            ? `${INTERVIEW_SYSTEM_PROMPT}\n\n## 추가 정보\n- 목표 대학: ${targetUniversity}\n- 해당 대학 면접 스타일을 참고하여 질문을 생성하세요.`
-            : INTERVIEW_SYSTEM_PROMPT;
+          // 면접 유형 + 목표 대학 정보 추가
+          const FORMAT_GUIDES: Record<string, string> = {
+            "서류확인": "생기부 기반 질문에 집중하세요. 활동 동기·과정·결과를 확인하는 질문을 위주로 생성하세요.",
+            "제시문": "학술 텍스트 기반 논증 질문을 포함하세요. 분석력과 논리력을 평가하는 질문 비중을 높이세요. reasoning/application 유형 비중을 60% 이상으로 조정하세요.",
+            "mmi": "윤리적 딜레마, 상황판단, 인성 관련 질문을 위주로 생성하세요. 의약학 면접 형식입니다. value/controversial 유형 비중을 60% 이상으로 조정하세요.",
+            "토론": "찬반 토론 가능한 주제를 포함하세요. 논리적 반박과 경청 태도를 평가할 수 있는 controversial/reasoning 질문을 위주로 생성하세요.",
+          };
+
+          let systemPrompt = INTERVIEW_SYSTEM_PROMPT;
+          if (interviewFormat) {
+            systemPrompt += `\n\n## 면접 유형: ${interviewFormat}\n${FORMAT_GUIDES[interviewFormat]}`;
+          }
+          if (targetUniversity) {
+            systemPrompt += `\n\n## 목표 대학: ${targetUniversity}\n해당 대학 면접 스타일을 참고하여 질문을 생성하세요.`;
+          }
 
           const result = await generateTextWithRateLimit({
             system: systemPrompt,
@@ -129,7 +145,7 @@ export function createInterviewTools(ctx: AgentContext) {
           };
         } catch (error) {
           logActionError(LOG_CTX, error);
-          return { success: false, error: "면접 질문 생성에 실패했습니다." };
+          return toolError("면접 질문 생성에 실패.", { retryable: true, actionHint: "다시 시도하세요." });
         }
       },
     }),
@@ -224,7 +240,7 @@ export function createInterviewTools(ctx: AgentContext) {
           };
         } catch (error) {
           logActionError(LOG_CTX, error);
-          return { success: false, error: "답변 평가에 실패했습니다." };
+          return toolError("답변 평가에 실패.", { retryable: true, actionHint: "다시 시도하세요." });
         }
       },
     }),
@@ -246,12 +262,12 @@ export function createInterviewTools(ctx: AgentContext) {
         logActionDebug(LOG_CTX, `getInterviewPrep: year=${year}`);
         try {
           if (!ctx.tenantId) {
-            return { success: false, error: "테넌트 정보가 없습니다." };
+            return TOOL_ERRORS.NO_TENANT;
           }
 
           // 지원 현황 + 면접 질문 수 병렬 조회
           const supabase = await createSupabaseServerClient();
-          const [applications, questionCountResult] = await Promise.all([
+          const [appsRes, qCountRes] = await Promise.allSettled([
             findApplicationsByStudentYear(ctx.studentId, year, ctx.tenantId),
             supabase
               .from("student_record_interview_questions")
@@ -259,6 +275,10 @@ export function createInterviewTools(ctx: AgentContext) {
               .eq("student_id", ctx.studentId)
               .eq("tenant_id", ctx.tenantId),
           ]);
+          const applications = appsRes.status === "fulfilled" ? appsRes.value : [];
+          const questionCountResult = qCountRes.status === "fulfilled" ? qCountRes.value : { count: 0 };
+          if (appsRes.status === "rejected") logActionError(LOG_CTX, appsRes.reason);
+          if (qCountRes.status === "rejected") logActionError(LOG_CTX, qCountRes.reason);
 
           // 면접 겹침 체크
           const conflicts = checkInterviewConflicts(applications);
@@ -291,7 +311,7 @@ export function createInterviewTools(ctx: AgentContext) {
           };
         } catch (error) {
           logActionError(LOG_CTX, error);
-          return { success: false, error: "면접 준비 현황 조회에 실패했습니다." };
+          return TOOL_ERRORS.DB_ERROR("면접 준비 현황 ");
         }
       },
     }),

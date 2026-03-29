@@ -6,6 +6,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { type AgentContext, truncateWithMarker } from "../types";
+import { toolError, TOOL_ERRORS } from "../types";
 import { generateActivitySummary } from "@/lib/domains/student-record/llm/actions/generateActivitySummary";
 import { generateSetekGuide } from "@/lib/domains/student-record/llm/actions/generateSetekGuide";
 import { fetchActivitySummaries, fetchSetekGuides } from "@/lib/domains/student-record/actions/activitySummary";
@@ -71,7 +72,7 @@ export function createReportTools(ctx: AgentContext) {
           };
         } catch (error) {
           logActionError(LOG_CTX, error);
-          return { success: false, error: "리포트 생성에 실패했습니다." };
+          return toolError("리포트 생성에 실패.", { retryable: true, actionHint: "다시 시도하세요." });
         }
       },
     }),
@@ -144,7 +145,7 @@ export function createReportTools(ctx: AgentContext) {
           };
         } catch (error) {
           logActionError(LOG_CTX, error);
-          return { success: false, error: "리포트 목록 조회에 실패했습니다." };
+          return TOOL_ERRORS.DB_ERROR("리포트 목록 ");
         }
       },
     }),
@@ -166,7 +167,7 @@ export function createReportTools(ctx: AgentContext) {
         logActionDebug(LOG_CTX, `getStudentOverview: year=${year}`);
         try {
           if (!ctx.tenantId) {
-            return { success: false, error: "테넌트 정보가 없습니다." };
+            return TOOL_ERRORS.NO_TENANT;
           }
 
           // 학생 기본정보 조회
@@ -254,7 +255,7 @@ export function createReportTools(ctx: AgentContext) {
           return { success: true, data: overview };
         } catch (error) {
           logActionError(LOG_CTX, error);
-          return { success: false, error: "학생 프로필 조회에 실패했습니다." };
+          return TOOL_ERRORS.DB_ERROR("학생 프로필 ");
         }
       },
     }),

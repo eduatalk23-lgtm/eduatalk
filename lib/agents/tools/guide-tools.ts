@@ -6,6 +6,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { type AgentContext, truncateWithMarker } from "../types";
+import { toolError, TOOL_ERRORS } from "../types";
 import { findGuideById, findAssignmentsWithGuides } from "@/lib/domains/guide/repository";
 import { searchGuidesByVector } from "@/lib/domains/guide/vector/search-service";
 import { generateGuideAction } from "@/lib/domains/guide/llm/actions/generateGuide";
@@ -87,7 +88,7 @@ export function createGuideTools(ctx: AgentContext) {
           };
         } catch (error) {
           logActionError(LOG_CTX, error);
-          return { success: false, error: "가이드 검색에 실패했습니다." };
+          return toolError("가이드 검색에 실패.", { retryable: true, actionHint: "다시 시도하세요." });
         }
       },
     }),
@@ -149,7 +150,7 @@ export function createGuideTools(ctx: AgentContext) {
           };
         } catch (error) {
           logActionError(LOG_CTX, error);
-          return { success: false, error: "가이드 상세 조회에 실패했습니다." };
+          return TOOL_ERRORS.DB_ERROR("가이드 상세 ");
         }
       },
     }),
@@ -245,7 +246,7 @@ export function createGuideTools(ctx: AgentContext) {
           };
         } catch (error) {
           logActionError(LOG_CTX, error);
-          return { success: false, error: "가이드 생성에 실패했습니다." };
+          return toolError("가이드 생성에 실패.", { retryable: true, actionHint: "다시 시도하세요." });
         }
       },
     }),
@@ -290,7 +291,7 @@ export function createGuideTools(ctx: AgentContext) {
           };
         } catch (error) {
           logActionError(LOG_CTX, error);
-          return { success: false, error: "가이드 배정 목록 조회에 실패했습니다." };
+          return TOOL_ERRORS.DB_ERROR("가이드 배정 목록 ");
         }
       },
     }),

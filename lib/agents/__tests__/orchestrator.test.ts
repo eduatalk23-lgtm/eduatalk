@@ -27,15 +27,7 @@ vi.mock("@/lib/domains/student-record/service", () => ({
   getRecordTabData: vi.fn(),
   getStorylineTabData: vi.fn(),
 }));
-vi.mock("@/lib/domains/student-record/competency-repository", () => ({
-  findCompetencyScores: vi.fn(),
-  findActivityTags: vi.fn(),
-}));
-vi.mock("@/lib/domains/student-record/diagnosis-repository", () => ({
-  findDiagnosisPair: vi.fn(),
-  findDiagnosis: vi.fn(),
-  findStrategies: vi.fn(),
-}));
+// competency-repository와 diagnosis-repository는 하단에서 확장 mock 정의
 vi.mock("@/lib/domains/student-record/repository", () => ({
   findStorylinesByStudent: vi.fn(),
   findApplicationsByStudentYear: vi.fn(),
@@ -88,6 +80,43 @@ vi.mock("@/lib/domains/bypass-major/repository", () => ({
 vi.mock("@/lib/domains/bypass-major/pipeline", () => ({
   runBypassPipeline: vi.fn(),
 }));
+// 세특 초안 + 진단 저장 + 파이프라인 + 수강 mocks
+vi.mock("@/lib/domains/student-record/llm/actions/generateSetekDraft", () => ({
+  generateSetekDraftAction: vi.fn(),
+}));
+vi.mock("@/lib/domains/student-record/diagnosis-repository", () => ({
+  findDiagnosisPair: vi.fn(),
+  findDiagnosis: vi.fn(),
+  findStrategies: vi.fn(),
+  upsertDiagnosis: vi.fn(),
+  insertStrategy: vi.fn(),
+}));
+vi.mock("@/lib/domains/student-record/competency-repository", () => ({
+  findCompetencyScores: vi.fn(),
+  findActivityTags: vi.fn(),
+  upsertCompetencyScore: vi.fn(),
+}));
+vi.mock("@/lib/domains/student-record/actions/pipeline", () => ({
+  fetchPipelineStatus: vi.fn(),
+  runInitialAnalysisPipeline: vi.fn(),
+  rerunPipelineTasks: vi.fn(),
+}));
+vi.mock("@/lib/domains/student-record/course-adequacy", () => ({
+  calculateCourseAdequacy: vi.fn(),
+}));
+vi.mock("@/lib/domains/student-record/actions/coursePlan", () => ({
+  generateRecommendationsAction: vi.fn(),
+}));
+vi.mock("@/lib/domains/student-record/edge-repository", () => ({
+  findEdges: vi.fn(),
+}));
+vi.mock("@/lib/domains/student-record/min-score-simulator", () => ({
+  simulateMinScore: vi.fn(),
+  analyzeSubjectImpact: vi.fn(),
+}));
+vi.mock("@/lib/domains/student-record/course-plan/recommendation", () => ({
+  detectPlanConflicts: vi.fn(),
+}));
 
 import { createOrchestrator } from "../orchestrator";
 import type { AgentContext } from "../types";
@@ -99,6 +128,7 @@ const mockContext: AgentContext = {
   studentId: "test-student-id",
   studentName: "홍길동",
   schoolYear: 2026,
+  uiState: null,
 };
 
 describe("createOrchestrator", () => {
@@ -127,13 +157,25 @@ describe("createOrchestrator", () => {
     expect(tools.getStudentStorylines).toBeDefined();
   });
 
-  it("분석 도구 5개가 등록된다 (Agent 1)", () => {
+  it("분석 도구 5개 + 작성 도구 4개 + 파이프라인 2개 + 수강 2개가 등록된다", () => {
     const { tools } = createOrchestrator(mockContext);
+    // 분석
     expect(tools.suggestTags).toBeDefined();
     expect(tools.analyzeCompetency).toBeDefined();
     expect(tools.analyzeHighlight).toBeDefined();
     expect(tools.detectStoryline).toBeDefined();
     expect(tools.generateDiagnosis).toBeDefined();
+    // 작성
+    expect(tools.generateSetekDraft).toBeDefined();
+    expect(tools.saveDiagnosisResult).toBeDefined();
+    expect(tools.saveCompetencyScore).toBeDefined();
+    expect(tools.saveStrategy).toBeDefined();
+    // 파이프라인
+    expect(tools.getPipelineStatus).toBeDefined();
+    expect(tools.triggerPipeline).toBeDefined();
+    // 수강
+    expect(tools.getCourseAdequacy).toBeDefined();
+    expect(tools.recommendCourses).toBeDefined();
   });
 
   it("전략 도구 2개가 등록된다 (Agent 4)", () => {
@@ -150,7 +192,7 @@ describe("createOrchestrator", () => {
     expect(tools.generateGuide).toBeDefined();
   });
 
-  it("입시 배치 도구 6개가 등록된다 (Agent 3)", () => {
+  it("입시 배치 도구 7개가 등록된다 (Agent 3)", () => {
     const { tools } = createOrchestrator(mockContext);
     expect(tools.searchAdmissionData).toBeDefined();
     expect(tools.getUniversityScoreInfo).toBeDefined();
@@ -158,6 +200,7 @@ describe("createOrchestrator", () => {
     expect(tools.filterPlacementResults).toBeDefined();
     expect(tools.simulateCardAllocation).toBeDefined();
     expect(tools.analyzeScoreImpact).toBeDefined();
+    expect(tools.getUniversityEvalCriteria).toBeDefined();
   });
 
   it("면접 코칭 도구 3개가 등록된다 (Agent 5)", () => {
@@ -181,8 +224,94 @@ describe("createOrchestrator", () => {
     expect(tools.runBypassAnalysis).toBeDefined();
   });
 
-  it("총 29개 도구가 등록된다", () => {
+  it("네비게이션 도구 3개가 등록된다", () => {
     const { tools } = createOrchestrator(mockContext);
-    expect(Object.keys(tools)).toHaveLength(29);
+    expect(tools.navigateToSection).toBeDefined();
+    expect(tools.focusSubject).toBeDefined();
+    expect(tools.switchLayerTab).toBeDefined();
+  });
+
+  it("교차 과목 분석 도구가 등록된다", () => {
+    const { tools } = createOrchestrator(mockContext);
+    expect(tools.crossSubjectAnalysis).toBeDefined();
+  });
+
+  it("총 49개 도구가 등록된다", () => {
+    const { tools } = createOrchestrator(mockContext);
+    expect(Object.keys(tools)).toHaveLength(49);
+  });
+
+  it("uiState가 있으면 시스템 프롬프트에 화면 상태가 포함된다", () => {
+    const ctxWithUI: AgentContext = {
+      ...mockContext,
+      uiState: {
+        activeLayerTab: "analysis",
+        viewMode: "all",
+        activeSection: "sec-diagnosis-analysis",
+        activeStage: "diagnosis",
+        focusedSubject: { subjectId: "sub1", subjectName: "국어", schoolYear: 2026 },
+        sidePanelApp: "agent",
+        bottomSheetOpen: true,
+        topSheetOpen: false,
+      },
+    };
+    const { systemPrompt } = createOrchestrator(ctxWithUI);
+    expect(systemPrompt).toContain("현재 사용자 화면 상태");
+    expect(systemPrompt).toContain("포커스 과목: 국어");
+    expect(systemPrompt).toContain("맥락 인식 규칙");
+  });
+
+  it("uiState가 null이면 화면 상태 블록이 없다", () => {
+    const { systemPrompt } = createOrchestrator(mockContext);
+    expect(systemPrompt).not.toContain("현재 사용자 화면 상태");
+  });
+
+  // ── 도메인 지식 블록 테스트 ──
+
+  it("도메인 지식 블록이 시스템 프롬프트에 포함된다", () => {
+    const ctxWithProfile: AgentContext = {
+      ...mockContext,
+      studentGrade: 2,
+      schoolCategory: "general",
+      targetMajor: "컴퓨터공학",
+    };
+    const { systemPrompt } = createOrchestrator(ctxWithProfile);
+    expect(systemPrompt).toContain("컨설팅 도메인 지식");
+    expect(systemPrompt).toContain("전형별 생기부 전략");
+    expect(systemPrompt).toContain("집중기");
+    expect(systemPrompt).toContain("일반고");
+    expect(systemPrompt).toContain("컴퓨터공학");
+  });
+
+  it("학생 프로필이 없어도 기본 도메인 지식이 포함된다", () => {
+    const { systemPrompt } = createOrchestrator(mockContext);
+    expect(systemPrompt).toContain("전형별 생기부 전략");
+    expect(systemPrompt).toContain("입학사정관 평가 관점");
+    expect(systemPrompt).toContain("참조 지식");
+    expect(systemPrompt).toContain("전형 선택");
+    // 학교 유형 조건부 섹션은 schoolCategory 없을 때 미포함
+    expect(systemPrompt).not.toContain("학교 유형 맥락");
+  });
+
+  it("학생 학년 정보가 시스템 프롬프트에 표시된다", () => {
+    const ctxWithGrade: AgentContext = {
+      ...mockContext,
+      studentGrade: 3,
+      schoolName: "서울고등학교",
+    };
+    const { systemPrompt } = createOrchestrator(ctxWithGrade);
+    expect(systemPrompt).toContain("학년: 3학년");
+    expect(systemPrompt).toContain("서울고등학교");
+    expect(systemPrompt).toContain("완성기");
+  });
+
+  it("희망 전공이 도메인 지식 블록에 반영된다", () => {
+    const ctxWithMajor: AgentContext = {
+      ...mockContext,
+      targetMajor: "경영학",
+    };
+    const { systemPrompt } = createOrchestrator(ctxWithMajor);
+    expect(systemPrompt).toContain("경영학");
+    expect(systemPrompt).toContain("전공 적합성을 우선 고려");
   });
 });

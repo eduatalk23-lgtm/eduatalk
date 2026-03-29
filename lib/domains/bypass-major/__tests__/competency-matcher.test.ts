@@ -12,9 +12,10 @@ describe("resolveCareerField", () => {
     expect(resolveCareerField("의료")).toBe("의학·약학");
   });
 
-  it("예체능 → null", () => {
-    expect(resolveCareerField("미술")).toBeNull();
-    expect(resolveCareerField("음악")).toBeNull();
+  it("예체능 → 매핑된 전공 반환", () => {
+    expect(resolveCareerField("미술")).toBe("미술");
+    expect(resolveCareerField("음악")).toBe("음악");
+    expect(resolveCareerField("무용ㆍ체육")).toBe("체육");
   });
 
   it("null → null", () => {

@@ -245,6 +245,19 @@ export const MAJOR_RECOMMENDED_COURSES_2015: Record<string, { general: string[];
     general: ["미적분", "확률과통계", "생명과학Ⅰ", "화학Ⅰ", "지구과학Ⅰ"],
     career: ["생명과학Ⅱ", "화학Ⅱ", "생활과과학"],
   },
+  // 예체능 계열
+  "음악": {
+    general: ["음악", "생활과윤리"],
+    career: ["음악 감상과 비평"],
+  },
+  "미술": {
+    general: ["미술", "생활과윤리"],
+    career: ["미술 창작", "미술 감상과 비평"],
+  },
+  "체육": {
+    general: ["체육", "운동과건강", "생활과윤리"],
+    career: ["스포츠 생활"],
+  },
 };
 
 // 2022 개정 교육과정 (고1 2025학년도~)
@@ -362,6 +375,22 @@ export const MAJOR_RECOMMENDED_COURSES_2022: Record<string, { general: string[];
     career: ["생물다양성과 생태", "지구시스템과학"],
     fusion: ["생활 속의 바이오"],
   },
+  // 예체능 계열
+  "음악": {
+    general: ["음악", "생활과 윤리"],
+    career: ["음악 감상과 비평"],
+    fusion: ["음악과 미디어"],
+  },
+  "미술": {
+    general: ["미술", "생활과 윤리"],
+    career: ["미술 창작", "미술 감상과 비평"],
+    fusion: ["미술과 매체"],
+  },
+  "체육": {
+    general: ["체육", "운동과 건강", "생활과 윤리"],
+    career: ["스포츠 생활"],
+    fusion: ["스포츠 문화"],
+  },
 };
 
 /** 교육과정 연도별 추천 과목 조회 */
@@ -429,6 +458,43 @@ export const APPLICATION_ROUND_LABELS: Record<string, string> = {
   additional: "추가모집",
   special_quota: "정원외전형",
 };
+
+// ============================================
+// 9. 전형별 역량 분석 힌트 (에이전트 도구용)
+// ============================================
+
+export const ADMISSION_TYPE_HINTS: Record<string, string> = {
+  "종합":
+    "세특 깊이와 스토리라인 일관성에 높은 가중치를 두세요. 역량 분석 시 탐구력(academic_inquiry)과 진로탐색(career_exploration)을 특히 주목하세요.",
+  "교과":
+    "교과 성적 중심 전형입니다. 학업성취도(academic_achievement)와 교과이수노력(career_course_effort)에 집중하세요.",
+  "논술":
+    "논술 전형이므로 역량 분석은 면접 소재 수준으로 간략히 하세요.",
+  "정시":
+    "수능 점수 중심이므로 역량 분석은 면접 대비 관점으로만 수행하세요.",
+};
+
+// ============================================
+// 10. 전략 영역 (9개)
+// ============================================
+
+export const STRATEGY_TARGET_AREAS = {
+  autonomy: "자율활동",
+  club: "동아리활동",
+  career: "진로활동",
+  setek: "교과 세특",
+  personal_setek: "개인 세특",
+  reading: "독서활동",
+  haengteuk: "행동특성 및 종합의견",
+  score: "성적",
+  general: "종합 (스토리라인, 일관성)",
+} as const;
+
+export type StrategyTargetArea = keyof typeof STRATEGY_TARGET_AREAS;
+
+// ============================================
+// 11. 라벨 맵
+// ============================================
 
 export const SCHOOL_CATEGORY_LABELS: Record<string, string> = {
   general: "일반고",

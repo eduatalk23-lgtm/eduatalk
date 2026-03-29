@@ -6,6 +6,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import type { AgentContext } from "../types";
+import { toolError, TOOL_ERRORS } from "../types";
 import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
 
 const LOG_CTX = { domain: "agent", action: "bypass-tools" };
@@ -31,6 +32,9 @@ export function createBypassTools(ctx: AgentContext) {
           const { findCandidates } = await import(
             "@/lib/domains/bypass-major/repository"
           );
+          if (!ctx.tenantId) {
+            return TOOL_ERRORS.NO_TENANT;
+          }
           const candidates = await findCandidates(ctx.studentId, year);
 
           if (candidates.length === 0) {
@@ -62,7 +66,7 @@ export function createBypassTools(ctx: AgentContext) {
           };
         } catch (error) {
           logActionError(LOG_CTX, error);
-          return { success: false, error: "우회학과 후보 조회에 실패했습니다." };
+          return TOOL_ERRORS.DB_ERROR("우회학과 후보 ");
         }
       },
     }),
@@ -110,7 +114,7 @@ export function createBypassTools(ctx: AgentContext) {
           };
         } catch (error) {
           logActionError(LOG_CTX, error);
-          return { success: false, error: "학과 검색에 실패했습니다." };
+          return toolError("학과 검색에 실패.", { retryable: true, actionHint: "다시 시도하세요." });
         }
       },
     }),
@@ -133,9 +137,12 @@ export function createBypassTools(ctx: AgentContext) {
           const { runBypassPipeline } = await import(
             "@/lib/domains/bypass-major/pipeline"
           );
+          if (!ctx.tenantId) {
+            return TOOL_ERRORS.NO_TENANT;
+          }
           const result = await runBypassPipeline({
             studentId: ctx.studentId,
-            tenantId: ctx.tenantId ?? "",
+            tenantId: ctx.tenantId,
             targetDeptId,
             schoolYear: ctx.schoolYear,
           });
@@ -160,7 +167,7 @@ export function createBypassTools(ctx: AgentContext) {
           };
         } catch (error) {
           logActionError(LOG_CTX, error);
-          return { success: false, error: "우회학과 분석 실행에 실패했습니다." };
+          return toolError("우회학과 분석 실행에 실패.", { retryable: true, actionHint: "다시 시도하세요." });
         }
       },
     }),

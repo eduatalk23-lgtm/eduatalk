@@ -6,6 +6,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import type { AgentContext } from "../types";
+import { toolError, TOOL_ERRORS } from "../types";
 import {
   searchAdmissions,
   getScoreConfig,
@@ -24,6 +25,7 @@ import {
 } from "@/lib/domains/admission/placement/types";
 import { simulateAllocation } from "@/lib/domains/admission/allocation/engine";
 import type { AllocationCandidate } from "@/lib/domains/admission/allocation/types";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
 
 const LOG_CTX = { domain: "agent", action: "admission-tools" };
@@ -55,6 +57,8 @@ export function createAdmissionTools(ctx: AgentContext) {
   return {
     /**
      * 대학 입시 데이터 검색
+     * 입시 데이터(university_admissions)는 전역 공개 데이터이므로 tenantId 필터 불필요.
+     * 테넌트별 커스텀 입시 데이터를 도입할 경우 tenantId 필터 추가 필요.
      */
     searchAdmissionData: tool({
       description:
@@ -120,7 +124,7 @@ export function createAdmissionTools(ctx: AgentContext) {
           };
         } catch (error) {
           logActionError(LOG_CTX, error);
-          return { success: false, error: "입시 데이터 검색에 실패했습니다." };
+          return toolError("입시 데이터 검색에 실패.", { retryable: true, actionHint: "다시 시도하세요." });
         }
       },
     }),
@@ -174,7 +178,7 @@ export function createAdmissionTools(ctx: AgentContext) {
           };
         } catch (error) {
           logActionError(LOG_CTX, error);
-          return { success: false, error: "환산 설정 조회에 실패했습니다." };
+          return TOOL_ERRORS.DB_ERROR("환산 설정 ");
         }
       },
     }),
@@ -264,7 +268,7 @@ export function createAdmissionTools(ctx: AgentContext) {
           };
         } catch (error) {
           logActionError(LOG_CTX, error);
-          return { success: false, error: "배치 분석에 실패했습니다." };
+          return toolError("배치 분석에 실패.", { retryable: true, actionHint: "다시 시도하세요." });
         }
       },
     }),
@@ -321,7 +325,7 @@ export function createAdmissionTools(ctx: AgentContext) {
           };
         } catch (error) {
           logActionError(LOG_CTX, error);
-          return { success: false, error: "결과 필터링에 실패했습니다." };
+          return toolError("결과 필터링에 실패.", { retryable: true, actionHint: "다시 시도하세요." });
         }
       },
     }),
@@ -414,7 +418,7 @@ export function createAdmissionTools(ctx: AgentContext) {
           };
         } catch (error) {
           logActionError(LOG_CTX, error);
-          return { success: false, error: "6장 배분 시뮬레이션에 실패했습니다." };
+          return toolError("6장 배분 시뮬레이션에 실패.", { retryable: true, actionHint: "다시 시도하세요." });
         }
       },
     }),
@@ -549,7 +553,184 @@ export function createAdmissionTools(ctx: AgentContext) {
           };
         } catch (error) {
           logActionError(LOG_CTX, error);
-          return { success: false, error: "점수 변경 영향 분석에 실패했습니다." };
+          return toolError("점수 변경 영향 분석에 실패.", { retryable: true, actionHint: "다시 시도하세요." });
+        }
+      },
+    }),
+
+    /**
+     * 대학별 학생부종합전형 평가 기준 조회
+     */
+    getUniversityEvalCriteria: tool({
+      description:
+        "특정 대학의 학생부종합전형 평가 기준(인재상, 서류평가 요소, 면접 형식, 수능최저, 합격 핵심 팁)을 조회합니다. 대학명으로 검색하면 해당 대학의 모든 종합전형 정보를 반환합니다.",
+      inputSchema: z.object({
+        universityName: z
+          .string()
+          .describe("대학명 (예: '서울대학교', '연세대학교')"),
+        admissionName: z
+          .string()
+          .optional()
+          .describe("세부 전형명 필터 (예: '활동우수형', '학업우수전형')"),
+      }),
+      execute: async ({ universityName, admissionName }) => {
+        logActionDebug(LOG_CTX, `getUniversityEvalCriteria: ${universityName}`);
+        try {
+          const supabase = await createSupabaseServerClient();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 마이그레이션 적용 전 타입 미생성
+          let query = (supabase.from as any)("university_evaluation_criteria")
+            .select("*")
+            .ilike("university_name", `%${universityName}%`)
+            .order("admission_name");
+
+          if (admissionName) {
+            query = query.ilike("admission_name", `%${admissionName}%`);
+          }
+
+          const { data, error } = await query;
+
+          if (error) {
+            return {
+              success: true,
+              data: {
+                criteria: [],
+                message: "대학 평가 기준 데이터가 아직 수집되지 않았습니다. 일반적인 학생부종합전형 가이드를 참고하세요.",
+              },
+            };
+          }
+
+          if (!data || data.length === 0) {
+            return {
+              success: true,
+              data: {
+                criteria: [],
+                message: `'${universityName}'의 평가 기준이 아직 수집되지 않았습니다. 일반적인 학생부종합전형 가이드를 참고하세요.`,
+              },
+            };
+          }
+
+          return {
+            success: true,
+            data: {
+              criteria: data.map((row: Record<string, unknown>) => ({
+                universityName: row.university_name,
+                admissionType: row.admission_type,
+                admissionName: row.admission_name,
+                idealStudent: row.ideal_student,
+                evaluationFactors: row.evaluation_factors,
+                documentEvalDetails: row.document_eval_details,
+                interviewFormat: row.interview_format,
+                interviewDetails: row.interview_details,
+                minScoreCriteria: row.min_score_criteria,
+                keyTips: row.key_tips,
+              })),
+              totalCount: data.length,
+            },
+          };
+        } catch (error) {
+          logActionError(LOG_CTX, error);
+          return TOOL_ERRORS.DB_ERROR("대학 평가 기준 ");
+        }
+      },
+    }),
+
+    /**
+     * 면접 기출문제 조회
+     */
+    getInterviewQuestionBank: tool({
+      description:
+        "대학별 면접 기출문제를 조회합니다. 대학명, 학과 계열, 면접 유형으로 검색할 수 있습니다. 면접 코칭 시 실제 기출을 참고하세요.",
+      inputSchema: z.object({
+        universityName: z.string().describe("대학명"),
+        departmentCategory: z.string().optional().describe("학과 계열 (예: '인문계열', '자연계열', '의예과')"),
+        interviewType: z.enum(["서류확인", "제시문", "mmi", "토론"]).optional(),
+      }),
+      execute: async ({ universityName, departmentCategory, interviewType }) => {
+        logActionDebug(LOG_CTX, `getInterviewQuestionBank: ${universityName}`);
+        try {
+          const supabase = await createSupabaseServerClient();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          let query = (supabase.from as any)("university_interview_bank")
+            .select("*")
+            .ilike("university_name", `%${universityName}%`)
+            .order("data_year", { ascending: false });
+
+          if (departmentCategory) query = query.ilike("department_category", `%${departmentCategory}%`);
+          if (interviewType) query = query.eq("interview_type", interviewType);
+
+          const { data, error } = await query.limit(20);
+
+          if (error || !data || data.length === 0) {
+            return { success: true, data: { questions: [], message: `'${universityName}'의 면접 기출이 아직 수집되지 않았습니다.` } };
+          }
+
+          return {
+            success: true,
+            data: {
+              questions: data.map((q: Record<string, unknown>) => ({
+                universityName: q.university_name,
+                admissionName: q.admission_name,
+                departmentCategory: q.department_category,
+                interviewType: q.interview_type,
+                dataYear: q.data_year,
+                questionText: q.question_text,
+                questionContext: q.question_context,
+                answerGuide: q.answer_guide,
+              })),
+              totalCount: data.length,
+            },
+          };
+        } catch (error) {
+          logActionError(LOG_CTX, error);
+          return TOOL_ERRORS.DB_ERROR("면접 기출 ");
+        }
+      },
+    }),
+
+    /**
+     * 모집단위별 면접 분야 조회
+     */
+    getDepartmentInterviewField: tool({
+      description:
+        "대학의 모집단위(학과)별 면접 출제 분야, 면접 시간, 준비 시간을 조회합니다. 서울대 일반전형은 학과별로 면접 분야가 다릅니다.",
+      inputSchema: z.object({
+        universityName: z.string().describe("대학명"),
+        departmentName: z.string().optional().describe("학과명 (미지정 시 전체 조회)"),
+      }),
+      execute: async ({ universityName, departmentName }) => {
+        logActionDebug(LOG_CTX, `getDepartmentInterviewField: ${universityName} ${departmentName ?? "전체"}`);
+        try {
+          const supabase = await createSupabaseServerClient();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          let query = (supabase.from as any)("university_department_interview_fields")
+            .select("*")
+            .ilike("university_name", `%${universityName}%`)
+            .order("college_name");
+
+          if (departmentName) query = query.ilike("department_name", `%${departmentName}%`);
+
+          const { data, error } = await query.limit(30);
+
+          if (error || !data || data.length === 0) {
+            return { success: true, data: { departments: [], message: `'${universityName}'의 모집단위별 면접 분야가 아직 수집되지 않았습니다.` } };
+          }
+
+          return {
+            success: true,
+            data: {
+              departments: data.map((d: Record<string, unknown>) => ({
+                collegeName: d.college_name,
+                departmentName: d.department_name,
+                interviewField: d.interview_field,
+                interviewDuration: d.interview_duration,
+                prepTime: d.prep_time,
+              })),
+              totalCount: data.length,
+            },
+          };
+        } catch (error) {
+          logActionError(LOG_CTX, error);
+          return TOOL_ERRORS.DB_ERROR("모집단위 면접 분야 ");
         }
       },
     }),

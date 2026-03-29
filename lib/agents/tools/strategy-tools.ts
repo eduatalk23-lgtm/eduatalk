@@ -6,6 +6,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import type { AgentContext } from "../types";
+import { toolError, TOOL_ERRORS } from "../types";
 import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
 import {
   SYSTEM_PROMPT as STRATEGY_SYSTEM_PROMPT,
@@ -95,7 +96,7 @@ export function createStrategyTools(ctx: AgentContext) {
           };
         } catch (error) {
           logActionError(LOG_CTX, error);
-          return { success: false, error: "보완전략 제안에 실패했습니다." };
+          return toolError("보완전략 제안에 실패.", { retryable: true, actionHint: "다시 시도하세요." });
         }
       },
     }),
@@ -117,13 +118,17 @@ export function createStrategyTools(ctx: AgentContext) {
         logActionDebug(LOG_CTX, `getWarnings: year=${year}`);
         try {
           if (!ctx.tenantId) {
-            return { success: false, error: "테넌트 정보가 없습니다." };
+            return TOOL_ERRORS.NO_TENANT;
           }
 
-          const [scores, diagnosis] = await Promise.all([
+          const [scoresRes, diagnosisRes] = await Promise.allSettled([
             findCompetencyScores(ctx.studentId, year, ctx.tenantId),
             findDiagnosis(ctx.studentId, year, ctx.tenantId, "ai"),
           ]);
+          const scores = scoresRes.status === "fulfilled" ? scoresRes.value : [];
+          const diagnosis = diagnosisRes.status === "fulfilled" ? diagnosisRes.value : null;
+          if (scoresRes.status === "rejected") logActionError(LOG_CTX, scoresRes.reason);
+          if (diagnosisRes.status === "rejected") logActionError(LOG_CTX, diagnosisRes.reason);
 
           const warnings: Array<{
             level: "critical" | "warning" | "info";
@@ -173,7 +178,7 @@ export function createStrategyTools(ctx: AgentContext) {
           };
         } catch (error) {
           logActionError(LOG_CTX, error);
-          return { success: false, error: "경보 조회에 실패했습니다." };
+          return TOOL_ERRORS.DB_ERROR("경보 ");
         }
       },
     }),

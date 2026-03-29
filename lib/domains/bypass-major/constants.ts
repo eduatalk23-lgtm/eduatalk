@@ -14,6 +14,10 @@ export { KEDI_MID_TO_MAJOR as CLASSIFICATION_TO_CAREER_FIELD } from "@/lib/const
 
 // ------------------------------------
 // 2. 계열별 역량 기본 가중치 (10개 항목)
+// @verified 2026-03-29
+// @methodology 주요 대학 학생부종합전형 평가 가이드북 + 컨설턴트 경험치 기반 추정
+// @calibration 실제 합격 데이터 기반 검증 미완료 — 참고용 가중치
+// @note 학생부종합전형 기준. 교과전형에서는 academic_achievement 일괄 1.8 적용 권장
 // ------------------------------------
 
 export type CompetencyWeights = Record<CompetencyItemCode, number>;
@@ -157,5 +161,21 @@ export const CAREER_FIELD_COMPETENCY_WEIGHTS: Record<string, CompetencyWeights> 
     academic_achievement: 1.0, academic_attitude: 1.0, academic_inquiry: 1.3,
     career_course_effort: 1.0, career_course_achievement: 1.0, career_exploration: 1.0,
     community_collaboration: 0.8, community_caring: 0.5, community_integrity: 1.0, community_leadership: 1.4,
+  },
+  // 예체능 — career_exploration(진로탐색) 공통 중시, 계열별 차별화
+  "음악": {
+    academic_achievement: 0.6, academic_attitude: 1.0, academic_inquiry: 1.2,
+    career_course_effort: 1.5, career_course_achievement: 1.3, career_exploration: 1.8,
+    community_collaboration: 1.5, community_caring: 0.8, community_integrity: 1.0, community_leadership: 0.8,
+  },
+  "미술": {
+    academic_achievement: 0.5, academic_attitude: 1.0, academic_inquiry: 1.5,
+    career_course_effort: 1.3, career_course_achievement: 1.2, career_exploration: 1.8,
+    community_collaboration: 1.0, community_caring: 0.8, community_integrity: 1.0, community_leadership: 0.7,
+  },
+  "체육": {
+    academic_achievement: 0.7, academic_attitude: 1.2, academic_inquiry: 0.8,
+    career_course_effort: 1.5, career_course_achievement: 1.5, career_exploration: 1.5,
+    community_collaboration: 1.8, community_caring: 1.0, community_integrity: 1.2, community_leadership: 1.5,
   },
 };
