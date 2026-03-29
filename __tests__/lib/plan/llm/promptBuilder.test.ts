@@ -199,7 +199,6 @@ describe("SYSTEM_PROMPT", () => {
     expect(SYSTEM_PROMPT).toContain("Few-shot 예시");
     expect(SYSTEM_PROMPT).toContain("예시 1: 취약 과목 집중");
     expect(SYSTEM_PROMPT).toContain("예시 2: 시험 D-7");
-    expect(SYSTEM_PROMPT).toContain("예시 3: 시각형 학습자");
   });
 
   it("JSON 출력 형식 가이드가 있다", () => {

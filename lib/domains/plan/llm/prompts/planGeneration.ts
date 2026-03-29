@@ -43,79 +43,24 @@ export const SYSTEM_PROMPT = `당신은 한국의 대학 입시를 준비하는 
 
 \`\`\`json
 {
-  "weeklyMatrices": [
-    {
-      "weekNumber": 1,
-      "weekStart": "YYYY-MM-DD",
-      "weekEnd": "YYYY-MM-DD",
-      "days": [
-        {
-          "date": "YYYY-MM-DD",
-          "dayOfWeek": 0,
-          "totalMinutes": 180,
-          "plans": [
-            {
-              "date": "YYYY-MM-DD",
-              "dayOfWeek": 0,
-              "slotId": "slot-1",
-              "startTime": "08:00",
-              "endTime": "08:50",
-              "contentId": "content-uuid",
-              "contentTitle": "콘텐츠 제목",
-              "contentType": "book",
-              "subject": "수학",
-              "subjectCategory": "수학 가형",
-              "subjectType": "weakness",
-              "blockIndex": 0,
-              "rangeStart": 1,
-              "rangeEnd": 20,
-              "rangeDisplay": "p.1-20",
-              "estimatedMinutes": 50,
-              "isReview": false,
-              "notes": "집중력이 높은 아침에 수학 배치",
-              "priority": "high"
-            },
-            {
-              "date": "YYYY-MM-DD",
-              "dayOfWeek": 0,
-              "startTime": "09:00",
-              "endTime": "09:30",
-              "contentId": "lecture-uuid",
-              "contentTitle": "영어 강의",
-              "contentType": "lecture",
-              "subject": "영어",
-              "rangeStart": 5,
-              "rangeEnd": 5,
-              "rangeDisplay": "5강 (1/2)",
-              "partIndex": 1,
-              "totalParts": 2,
-              "isPartialContent": true,
-              "estimatedMinutes": 30,
-              "priority": "medium",
-              "notes": "60분 강의 전반부"
-            }
-          ],
-          "dailySummary": "오늘의 핵심: 수학 개념 정리 및 국어 문학 복습"
-        }
+  "weeklyMatrices": [{
+    "weekNumber": 1, "weekStart": "YYYY-MM-DD", "weekEnd": "YYYY-MM-DD",
+    "days": [{
+      "date": "YYYY-MM-DD", "dayOfWeek": 0, "totalMinutes": 180,
+      "plans": [
+        {"date": "YYYY-MM-DD", "dayOfWeek": 0, "slotId": "slot-1", "startTime": "08:00", "endTime": "08:50", "contentId": "content-uuid", "contentTitle": "콘텐츠 제목", "contentType": "book", "subject": "수학", "subjectCategory": "수학 가형", "subjectType": "weakness", "blockIndex": 0, "rangeStart": 1, "rangeEnd": 20, "rangeDisplay": "p.1-20", "estimatedMinutes": 50, "isReview": false, "notes": "집중력이 높은 아침에 수학 배치", "priority": "high"},
+        {"date": "YYYY-MM-DD", "dayOfWeek": 0, "startTime": "09:00", "endTime": "09:30", "contentId": "lecture-uuid", "contentTitle": "영어 강의", "contentType": "lecture", "subject": "영어", "rangeStart": 5, "rangeEnd": 5, "rangeDisplay": "5강 (1/2)", "partIndex": 1, "totalParts": 2, "isPartialContent": true, "estimatedMinutes": 30, "priority": "medium", "notes": "60분 강의 전반부"}
       ],
-      "weeklySummary": "이번 주 목표: 수학 기초 개념 완성, 국어 문학 1회독 완료"
-    }
-  ],
+      "dailySummary": "오늘의 핵심: 수학 개념 정리 및 국어 문학 복습"
+    }],
+    "weeklySummary": "이번 주 목표: 수학 기초 개념 완성"
+  }],
   "totalPlans": 28,
   "recommendations": {
-    "studyTips": [
-      "아침 시간에 수학, 오후에 암기 과목 배치 추천",
-      "50분 학습 후 10분 휴식 권장"
-    ],
-    "warnings": [
-      "하루 6시간 이상 학습은 집중력 저하 우려"
-    ],
-    "suggestedAdjustments": [
-      "영어 학습 시간을 늘리는 것을 권장"
-    ],
-    "focusAreas": [
-      "수학 미적분 파트 집중 필요"
-    ]
+    "studyTips": ["아침 시간에 수학, 오후에 암기 과목 배치 추천"],
+    "warnings": ["하루 6시간 이상 학습은 집중력 저하 우려"],
+    "suggestedAdjustments": ["영어 학습 시간을 늘리는 것을 권장"],
+    "focusAreas": ["수학 미적분 파트 집중 필요"]
   }
 }
 \`\`\`
@@ -258,18 +203,16 @@ export const SYSTEM_PROMPT = `당신은 한국의 대학 입시를 준비하는 
       "dayOfWeek": 1,
       "totalMinutes": 180,
       "plans": [
-        {"startTime": "08:00", "endTime": "09:00", "subject": "수학", "contentId": "math-1", "contentType": "book", "subjectType": "weakness", "blockIndex": 0, "priority": "high", "notes": "오전 집중력 높을 때 취약 과목"},
-        {"startTime": "09:10", "endTime": "09:50", "subject": "수학", "contentId": "math-1", "contentType": "book", "subjectType": "weakness", "blockIndex": 1, "priority": "high", "isReview": false},
-        {"startTime": "14:00", "endTime": "14:50", "subject": "영어", "contentId": "eng-1", "contentType": "lecture", "subjectType": "strategy", "blockIndex": 2, "priority": "medium"},
-        {"startTime": "15:00", "endTime": "15:40", "subject": "국어", "contentId": "kor-1", "contentType": "book", "subjectType": null, "blockIndex": 3, "priority": "medium"}
+        {"date": "2026-01-06", "dayOfWeek": 1, "startTime": "08:00", "endTime": "09:00", "contentId": "math-1", "contentTitle": "수학 기본", "contentType": "book", "subject": "수학", "subjectCategory": "수학1", "subjectType": "weakness", "blockIndex": 0, "rangeStart": 1, "rangeEnd": 20, "rangeDisplay": "p.1-20", "estimatedMinutes": 60, "isReview": false, "priority": "high", "notes": "오전 집중력 높을 때 취약 과목"},
+        {"date": "2026-01-06", "dayOfWeek": 1, "startTime": "14:00", "endTime": "14:50", "contentId": "eng-1", "contentTitle": "영어 강의", "contentType": "lecture", "subject": "영어", "subjectType": "strategy", "blockIndex": 2, "rangeStart": 1, "rangeEnd": 1, "rangeDisplay": "1강", "estimatedMinutes": 50, "priority": "medium"}
       ],
-      "dailySummary": "수학 2시간(취약 집중) + 영어/국어 각 50분"
+      "dailySummary": "수학 1시간(취약 집중) + 영어 50분"
     }],
-    "weeklySummary": "수학 집중 강화 주간: 일일 수학 100분 이상 배치"
+    "weeklySummary": "수학 집중 강화 주간"
   }],
-  "totalPlans": 28,
+  "totalPlans": 14,
   "recommendations": {
-    "studyTips": ["수학은 오전에 집중 배치됨", "50분 학습 후 10분 휴식 권장"],
+    "studyTips": ["수학은 오전에 집중 배치됨"],
     "warnings": [],
     "focusAreas": ["수학 기초 개념 정립"]
   }
@@ -284,42 +227,20 @@ export const SYSTEM_PROMPT = `당신은 한국의 대학 입시를 준비하는 
     "weekNumber": 1,
     "days": [{
       "date": "2026-01-06",
+      "dayOfWeek": 1,
       "totalMinutes": 240,
       "plans": [
-        {"startTime": "08:00", "endTime": "09:30", "subject": "수학", "contentId": "math-1", "contentType": "book", "subjectType": "weakness", "blockIndex": 0, "notes": "핵심 공식 정리 및 빈출 유형", "isReview": true, "priority": "high"},
-        {"startTime": "10:00", "endTime": "11:00", "subject": "영어", "contentId": "eng-1", "contentType": "book", "subjectType": "strategy", "blockIndex": 1, "notes": "단어 암기 및 독해 실전", "isReview": true, "priority": "high"},
-        {"startTime": "14:00", "endTime": "15:00", "subject": "국어", "contentId": "kor-1", "contentType": "book", "subjectType": null, "blockIndex": 2, "notes": "문학 작품 핵심 정리", "isReview": true, "priority": "high"},
-        {"startTime": "19:00", "endTime": "20:00", "subject": "수학", "contentId": "math-1", "contentType": "book", "subjectType": "weakness", "blockIndex": 3, "notes": "오답 노트 복습", "isReview": true, "priority": "high"}
+        {"date": "2026-01-06", "dayOfWeek": 1, "startTime": "08:00", "endTime": "09:30", "contentId": "math-1", "contentTitle": "수학 문제집", "contentType": "book", "subject": "수학", "subjectType": "weakness", "blockIndex": 0, "rangeStart": 50, "rangeEnd": 70, "rangeDisplay": "p.50-70", "estimatedMinutes": 90, "isReview": true, "priority": "high", "notes": "핵심 공식 정리 및 빈출 유형"},
+        {"date": "2026-01-06", "dayOfWeek": 1, "startTime": "10:00", "endTime": "11:00", "contentId": "eng-1", "contentTitle": "영어 교재", "contentType": "book", "subject": "영어", "subjectType": "strategy", "blockIndex": 1, "rangeStart": 30, "rangeEnd": 45, "rangeDisplay": "p.30-45", "estimatedMinutes": 60, "isReview": true, "priority": "high", "notes": "단어 암기 및 독해 실전"}
       ],
       "dailySummary": "D-7: 전 과목 핵심 정리 및 빈출 유형 집중"
     }]
   }],
+  "totalPlans": 14,
   "recommendations": {
-    "studyTips": ["새로운 내용보다 복습에 집중", "컨디션 관리 중요"],
+    "studyTips": ["새로운 내용보다 복습에 집중"],
     "warnings": ["시험 직전이므로 무리하지 마세요"],
     "focusAreas": ["오답 정리", "핵심 공식 암기"]
-  }
-}
-\`\`\`
-
-### 예시 3: 시각형 학습자 (영상 강의 선호)
-입력: 시각형(visual), 강의 콘텐츠 3개, 교재 2개
-\`\`\`json
-{
-  "weeklyMatrices": [{
-    "days": [{
-      "date": "2026-01-06",
-      "plans": [
-        {"startTime": "08:00", "endTime": "09:00", "subject": "수학", "contentId": "video-math", "contentType": "lecture", "subjectType": "weakness", "blockIndex": 0, "contentTitle": "수학 개념 영상", "notes": "시각형 학습자: 영상으로 개념 이해"},
-        {"startTime": "09:10", "endTime": "10:00", "subject": "수학", "contentId": "book-math", "contentType": "book", "subjectType": "weakness", "blockIndex": 1, "contentTitle": "수학 문제집", "notes": "영상 학습 후 문제로 확인"},
-        {"startTime": "14:00", "endTime": "15:00", "subject": "영어", "contentId": "video-eng", "contentType": "lecture", "subjectType": "strategy", "blockIndex": 2, "contentTitle": "영어 강의", "notes": "시각형 학습자: 자막 있는 영상 선호"}
-      ],
-      "dailySummary": "영상 강의 70% + 교재 30% 배치 (시각형 학습자)"
-    }]
-  }],
-  "recommendations": {
-    "studyTips": ["영상 강의는 1.25배속 권장", "노트 필기와 병행하면 효과 UP"],
-    "focusAreas": ["시각 자료 활용 극대화"]
   }
 }
 \`\`\`

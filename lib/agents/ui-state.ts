@@ -62,11 +62,16 @@ export function buildUIContextBlock(uiState: UIStateSnapshot | null): string {
   if (uiState.bottomSheetOpen) lines.push("- 컨텍스트 그리드 바텀시트 열림");
   if (uiState.topSheetOpen) lines.push("- 컨텍스트 탑시트 열림");
 
-  lines.push("");
-  lines.push("## 맥락 인식 규칙");
-  lines.push('- "이 과목", "현재 과목" 등의 지시어는 포커스 과목을 의미합니다.');
-  lines.push('- "지금 보고 있는", "현재 탭" 등은 활성 탭/섹션을 참조합니다.');
-  lines.push("- 포커스 과목이 없으면 사용자에게 어떤 과목을 의미하는지 확인하세요.");
+  // 포커스 과목이 있거나 시트가 열려 있을 때만 맥락 인식 규칙 추가
+  if (uiState.focusedSubject || uiState.bottomSheetOpen) {
+    lines.push("");
+    lines.push("## 맥락 인식 규칙");
+    lines.push('- "이 과목", "현재 과목" 등의 지시어는 포커스 과목을 의미합니다.');
+    lines.push('- "지금 보고 있는", "현재 탭" 등은 활성 탭/섹션을 참조합니다.');
+    if (!uiState.focusedSubject) {
+      lines.push("- 포커스 과목이 없으면 사용자에게 어떤 과목을 의미하는지 확인하세요.");
+    }
+  }
 
   return lines.join("\n");
 }

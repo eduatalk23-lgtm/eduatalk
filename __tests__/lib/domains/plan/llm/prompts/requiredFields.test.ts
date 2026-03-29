@@ -196,25 +196,7 @@ describe("Few-shot examples required fields", () => {
     });
   });
 
-  describe("Example 3: Visual learner", () => {
-    it("should include contentType in example 3", () => {
-      const example = getExampleBlock(3);
-      expect(example).not.toBeNull();
-      expect(example).toContain('"contentType"');
-    });
-
-    it("should include blockIndex in example 3", () => {
-      const example = getExampleBlock(3);
-      expect(example).not.toBeNull();
-      expect(example).toContain('"blockIndex"');
-    });
-
-    it("should include subjectType in example 3", () => {
-      const example = getExampleBlock(3);
-      expect(example).not.toBeNull();
-      expect(example).toContain('"subjectType"');
-    });
-  });
+  // Example 3 (Visual learner) was removed during token optimization — covered by Example 1 contentType/learningStyle rules
 });
 
 // ============================================
