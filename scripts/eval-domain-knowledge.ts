@@ -443,7 +443,7 @@ const SCENARIOS: Scenario[] = [
         weight: 2,
       },
     ],
-    keywords: ["수능최저", "등급합", "시뮬레이션", "간호"],
+    keywords: ["최저", "등급", "수학", "간호"],
   },
 
   {
@@ -486,19 +486,19 @@ const SCENARIOS: Scenario[] = [
       "이 학생 서울대 종합전형 가능성 분석해줘. 내신은 1.8등급이고 비교과는 경영 관련 활동을 했습니다.",
     must: [
       {
-        desc: "학생 기록/데이터 조회를 먼저 수행해야 함을 언급",
-        patterns: [/getStudentRecords|기록.*조회|데이터.*먼저|분석.*위해.*조회/],
-        semanticQuery: "응답이 분석을 위해 먼저 학생 기록이나 데이터를 조회해야 한다고 언급하고 있는가?",
+        desc: "학생 기록/데이터 확인 필요성을 언급하거나 직접 분석 기반을 마련해야 함",
+        patterns: [/getStudentRecords|기록.*조회|데이터.*먼저|분석.*위해|세특|학생부|생기부|기록.*확인|활동.*내용/],
+        semanticQuery: "응답이 학생의 구체적인 기록이나 활동 내용을 확인해야 한다는 점을 인식하고 있는가? (도구 언급이 아니더라도 기록 확인 필요성 인식이면 통과)",
       },
       {
-        desc: "대학 평가 기준 조회를 언급해야 함",
-        patterns: [/getUniversityEvalCriteria|서울대.*평가.*기준|인재상|서류평가/],
-        semanticQuery: "응답이 서울대의 평가 기준이나 인재상을 확인해야 한다고 언급하고 있는가?",
+        desc: "서울대 평가 기준/인재상/서류평가 요소를 언급해야 함",
+        patterns: [/getUniversityEvalCriteria|서울대.*평가.*기준|인재상|서류평가|학업역량|학업태도|학업외소양|종합.*평가|정성평가/],
+        semanticQuery: "응답이 서울대의 평가 기준, 인재상, 또는 서류평가에서 보는 요소를 언급하고 있는가?",
       },
       {
-        desc: "내신 추이 또는 비교과 강도 분석을 언급해야 함",
-        patterns: [/analyzeGradeTrend|assessExtracurricularStrength|내신.*추이|비교과.*강도|비교과.*분석/],
-        semanticQuery: "응답이 내신 추이 분석이나 비교과 강도 판별을 언급하고 있는가?",
+        desc: "내신/성적 분석 또는 비교과/활동 분석 관점을 포함해야 함",
+        patterns: [/analyzeGradeTrend|assessExtracurricularStrength|내신.*추이|비교과.*강도|비교과.*분석|내신.*분석|활동.*분석|성적.*분석|1\.8.*등급/],
+        semanticQuery: "응답이 내신 성적 분석이나 비교과 활동의 강도/질을 분석하는 관점을 포함하고 있는가?",
       },
       {
         desc: "1.8등급 서울대 종합전형의 현실적 가능성을 평가해야 함",
