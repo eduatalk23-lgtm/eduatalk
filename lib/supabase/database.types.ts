@@ -59,6 +59,47 @@ export type Database = {
           },
         ]
       }
+      agent_audit_logs: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          error: string | null
+          id: string
+          message_count: number
+          student_id: string
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+          message_count?: number
+          student_id: string
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+          message_count?: number
+          student_id?: string
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_audit_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_qr_codes: {
         Row: {
           created_at: string | null
@@ -13330,6 +13371,45 @@ export type Database = {
           },
         ]
       }
+      university_department_interview_fields: {
+        Row: {
+          college_name: string | null
+          created_at: string
+          data_year: number
+          department_name: string
+          id: string
+          interview_duration: string | null
+          interview_field: string
+          prep_time: string | null
+          recommended_courses: string[] | null
+          university_name: string
+        }
+        Insert: {
+          college_name?: string | null
+          created_at?: string
+          data_year?: number
+          department_name: string
+          id?: string
+          interview_duration?: string | null
+          interview_field: string
+          prep_time?: string | null
+          recommended_courses?: string[] | null
+          university_name: string
+        }
+        Update: {
+          college_name?: string | null
+          created_at?: string
+          data_year?: number
+          department_name?: string
+          id?: string
+          interview_duration?: string | null
+          interview_field?: string
+          prep_time?: string | null
+          recommended_courses?: string[] | null
+          university_name?: string
+        }
+        Relationships: []
+      }
       university_departments: {
         Row: {
           campus: string | null
@@ -13375,6 +13455,99 @@ export type Database = {
           sub_classification?: string | null
           university_name?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      university_evaluation_criteria: {
+        Row: {
+          admission_name: string | null
+          admission_type: string
+          created_at: string
+          data_year: number
+          document_eval_details: string | null
+          evaluation_factors: Json | null
+          id: string
+          ideal_student: string | null
+          interview_details: string | null
+          interview_format: string | null
+          key_tips: string[] | null
+          min_score_criteria: string | null
+          source_url: string | null
+          university_name: string
+        }
+        Insert: {
+          admission_name?: string | null
+          admission_type: string
+          created_at?: string
+          data_year?: number
+          document_eval_details?: string | null
+          evaluation_factors?: Json | null
+          id?: string
+          ideal_student?: string | null
+          interview_details?: string | null
+          interview_format?: string | null
+          key_tips?: string[] | null
+          min_score_criteria?: string | null
+          source_url?: string | null
+          university_name: string
+        }
+        Update: {
+          admission_name?: string | null
+          admission_type?: string
+          created_at?: string
+          data_year?: number
+          document_eval_details?: string | null
+          evaluation_factors?: Json | null
+          id?: string
+          ideal_student?: string | null
+          interview_details?: string | null
+          interview_format?: string | null
+          key_tips?: string[] | null
+          min_score_criteria?: string | null
+          source_url?: string | null
+          university_name?: string
+        }
+        Relationships: []
+      }
+      university_interview_bank: {
+        Row: {
+          admission_name: string | null
+          answer_guide: string | null
+          created_at: string
+          data_year: number
+          department_category: string | null
+          id: string
+          interview_type: string
+          question_context: string | null
+          question_text: string
+          source: string | null
+          university_name: string
+        }
+        Insert: {
+          admission_name?: string | null
+          answer_guide?: string | null
+          created_at?: string
+          data_year: number
+          department_category?: string | null
+          id?: string
+          interview_type: string
+          question_context?: string | null
+          question_text: string
+          source?: string | null
+          university_name: string
+        }
+        Update: {
+          admission_name?: string | null
+          answer_guide?: string | null
+          created_at?: string
+          data_year?: number
+          department_category?: string | null
+          id?: string
+          interview_type?: string
+          question_context?: string | null
+          question_text?: string
+          source?: string | null
+          university_name?: string
         }
         Relationships: []
       }
@@ -15507,3 +15680,4 @@ export const Constants = {
     },
   },
 } as const
+
