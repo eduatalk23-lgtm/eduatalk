@@ -11,22 +11,44 @@ import { useRef, useEffect, useCallback, useState, useMemo } from "react";
 import { Send, Loader2, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { AgentMessageBubble } from "./AgentMessageBubble";
+import type { UIStateSnapshot } from "@/lib/agents/ui-state";
+import type { AgentAction } from "@/lib/agents/agent-actions";
 
 interface AgentChatProps {
   studentId: string;
   studentName: string;
   className?: string;
+  /** UI 상태 스냅샷 함수 (요청 시점에 호출) */
+  getUIState?: () => UIStateSnapshot;
+  /** 에이전트 네비게이션 액션 콜백 */
+  onAgentAction?: (action: AgentAction) => void;
 }
 
-export function AgentChat({ studentId, studentName, className }: AgentChatProps) {
+export function AgentChat({
+  studentId,
+  studentName,
+  className,
+  getUIState,
+  onAgentAction,
+}: AgentChatProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState("");
+
+  // useRef로 getUIState 참조 → transport useMemo 재생성 방지
+  const getUIStateRef = useRef(getUIState);
+  useEffect(() => {
+    getUIStateRef.current = getUIState;
+  }, [getUIState]);
 
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: "/api/agent",
-        body: { studentId, studentName },
+        body: () => ({
+          studentId,
+          studentName,
+          uiState: getUIStateRef.current?.() ?? null,
+        }),
       }),
     [studentId, studentName],
   );
@@ -75,6 +97,47 @@ export function AgentChat({ studentId, studentName, className }: AgentChatProps)
     [handleSend],
   );
 
+  // UI 상태 기반 동적 추천 질문
+  const suggestions = useMemo(() => {
+    const DEFAULT = [
+      "세특 강약점 분석해줘",
+      "보완 전략 추천해줘",
+      "탐구 가이드 추천해줘",
+    ];
+
+    const uiState = getUIStateRef.current?.();
+    if (!uiState) return DEFAULT;
+
+    const contextual: string[] = [];
+
+    if (uiState.focusedSubject) {
+      const name = uiState.focusedSubject.subjectName;
+      contextual.push(`${name} 세특 분석해줘`);
+      contextual.push(`${name} 보완 전략은?`);
+      contextual.push(`${name} 탐구 가이드 추천해줘`);
+    }
+
+    if (!uiState.focusedSubject && uiState.activeStage === "diagnosis") {
+      contextual.push("약점 역량 보완 방법 알려줘");
+      contextual.push("교차 분석 결과 요약해줘");
+      contextual.push("탐구 가이드 추천해줘");
+    }
+
+    if (!uiState.focusedSubject && uiState.activeStage === "design") {
+      contextual.push("스토리라인 일관성 점검해줘");
+      contextual.push("세특 방향 가이드 생성해줘");
+      contextual.push("탐구 가이드 추천해줘");
+    }
+
+    if (!uiState.focusedSubject && uiState.activeStage === "strategy") {
+      contextual.push("배치 분석 실행해줘");
+      contextual.push("면접 예상 질문 만들어줘");
+      contextual.push("우회학과 분석해줘");
+    }
+
+    return contextual.length > 0 ? contextual : DEFAULT;
+  }, [messages.length]); // eslint-disable-line react-hooks/exhaustive-deps -- 대화 시작 시 + 초기화 시만 재계산
+
   return (
     <div className={cn("flex flex-col h-full", className)}>
       {/* 메시지 영역 */}
@@ -98,11 +161,7 @@ export function AgentChat({ studentId, studentName, className }: AgentChatProps)
               </p>
             </div>
             <div className="flex flex-wrap gap-2 justify-center pt-2">
-              {[
-                "세특 강약점 분석해줘",
-                "보완 전략 추천해줘",
-                "탐구 가이드 추천해줘",
-              ].map((suggestion) => (
+              {suggestions.map((suggestion) => (
                 <button
                   key={suggestion}
                   type="button"
@@ -117,7 +176,11 @@ export function AgentChat({ studentId, studentName, className }: AgentChatProps)
         )}
 
         {messages.map((message) => (
-          <AgentMessageBubble key={message.id} message={message} />
+          <AgentMessageBubble
+            key={message.id}
+            message={message}
+            onAgentAction={onAgentAction}
+          />
         ))}
 
         {isLoading && messages[messages.length - 1]?.role === "user" && (

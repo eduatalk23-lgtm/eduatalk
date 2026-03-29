@@ -11,10 +11,16 @@ import {
   User,
   CheckCircle2,
   Loader2,
+  MapPin,
+  Columns3,
+  ArrowRight,
 } from "lucide-react";
+import DOMPurify from "dompurify";
+import { isAgentAction, type AgentAction } from "@/lib/agents/agent-actions";
 
 interface AgentMessageBubbleProps {
   message: UIMessage;
+  onAgentAction?: (action: AgentAction) => void;
 }
 
 /** 도구 이름 → 한국어 라벨 */
@@ -32,9 +38,19 @@ const TOOL_LABELS: Record<string, string> = {
   searchGuides: "가이드 검색",
   getGuideDetail: "가이드 상세 조회",
   getStudentAssignments: "배정 목록 조회",
+  navigateToSection: "섹션 이동",
+  focusSubject: "과목 포커스",
+  switchLayerTab: "탭 전환",
 };
 
-export function AgentMessageBubble({ message }: AgentMessageBubbleProps) {
+/** 네비게이션 액션 타입별 라벨 */
+const ACTION_LABELS: Record<string, { icon: typeof MapPin; verb: string }> = {
+  navigate_section: { icon: MapPin, verb: "섹션으로 이동" },
+  navigate_tab: { icon: Columns3, verb: "탭 전환" },
+  focus_subject: { icon: ArrowRight, verb: "과목 상세 보기" },
+};
+
+export function AgentMessageBubble({ message, onAgentAction }: AgentMessageBubbleProps) {
   const isUser = message.role === "user";
 
   return (
@@ -82,13 +98,42 @@ export function AgentMessageBubble({ message }: AgentMessageBubbleProps) {
 
           // 도구 호출 파트 (tool-* 또는 dynamic-tool)
           if (part.type.startsWith("tool-") || part.type === "dynamic-tool") {
-            const toolPart = part as { type: string; state?: string; toolName?: string };
+            const toolPart = part as {
+              type: string;
+              state?: string;
+              toolName?: string;
+              result?: Record<string, unknown>;
+              output?: Record<string, unknown>;
+            };
             const toolName = toolPart.type === "dynamic-tool"
               ? (toolPart.toolName ?? "unknown")
               : toolPart.type.replace("tool-", "");
             const isComplete = toolPart.state === "output-available";
             const isRunning = toolPart.state === "input-streaming" || toolPart.state === "input-available";
             const label = TOOL_LABELS[toolName] ?? toolName;
+
+            // 완료된 네비게이션 도구 → 액션 칩 렌더링
+            const toolResult = toolPart.result ?? toolPart.output;
+            const action = toolResult && isAgentAction(toolResult.action) ? toolResult.action : null;
+
+            if (isComplete && action && onAgentAction) {
+              const reason = typeof toolResult?.reason === "string" ? toolResult.reason : "";
+              const actionConfig = ACTION_LABELS[action.type];
+              const Icon = actionConfig?.icon ?? MapPin;
+              const verb = actionConfig?.verb ?? "이동";
+
+              return (
+                <button
+                  key={`action-${i}`}
+                  type="button"
+                  onClick={() => onAgentAction(action)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[rgb(var(--color-primary-50))] dark:bg-[rgb(var(--color-primary-950))] text-[rgb(var(--color-primary-700))] dark:text-[rgb(var(--color-primary-300))] border border-[rgb(var(--color-primary-200))] dark:border-[rgb(var(--color-primary-800))] hover:bg-[rgb(var(--color-primary-100))] dark:hover:bg-[rgb(var(--color-primary-900))] transition-colors cursor-pointer"
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {reason || verb}
+                </button>
+              );
+            }
 
             return (
               <div key={`tool-${i}`} className="flex items-center gap-1.5 pb-0.5">
@@ -125,9 +170,13 @@ function FormattedText({ text }: { text: string }) {
     .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
     .replace(/\n/g, "<br />");
 
+  const sanitized = typeof window !== "undefined"
+    ? DOMPurify.sanitize(formatted, { ALLOWED_TAGS: ["strong", "br"], ALLOWED_ATTR: [] })
+    : formatted;
+
   return (
     <span
-      dangerouslySetInnerHTML={{ __html: formatted }}
+      dangerouslySetInnerHTML={{ __html: sanitized }}
       className="[&>strong]:font-semibold"
     />
   );
