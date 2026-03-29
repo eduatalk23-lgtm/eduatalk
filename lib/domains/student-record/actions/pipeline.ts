@@ -1429,8 +1429,9 @@ async function executePipelineTasks(
           grade: r.grade,
         }));
 
-        // 진단 약점을 면접 질문에 반영
-        const diagWeaknesses = (results.ai_diagnosis as { weaknesses?: string[] } | undefined)?.weaknesses;
+        // 진단 약점을 면접 질문에 반영 (DB에서 조회 — in-memory 결과는 ai_diagnosis 실패 시 undefined)
+        const interviewDiag = await diagnosisRepo.findDiagnosis(studentId, calculateSchoolYear(), tenantId, "ai");
+        const diagWeaknesses = interviewDiag?.weaknesses as string[] | undefined;
 
         // 진로 컨텍스트
         const targetMajor = (snapshot?.target_major as string) ?? undefined;

@@ -107,10 +107,15 @@ export interface OfferedSubjectRow {
 // ============================================
 
 /** 상류 태스크 → 하류 의존 태스크 매핑 */
+/**
+ * 상류 태스크 → 하류 의존 태스크 매핑 (전이적 폐쇄)
+ * computeCascadeResetKeys()가 1단계만 확장하므로, 각 키에 직접+간접 의존 태스크를 모두 나열해야 합니다.
+ * 예: storyline → edge → diagnosis → strategy 이면, storyline 항목에 strategy도 포함
+ */
 export const PIPELINE_TASK_DEPENDENTS: Partial<Record<PipelineTaskKey, PipelineTaskKey[]>> = {
   competency_analysis: ["storyline_generation", "edge_computation", "guide_matching", "ai_diagnosis", "setek_guide", "activity_summary", "ai_strategy", "interview_generation", "roadmap_generation"],
-  storyline_generation: ["edge_computation", "guide_matching", "ai_diagnosis", "setek_guide", "activity_summary", "roadmap_generation"],
-  edge_computation: ["ai_diagnosis", "setek_guide", "activity_summary"],
+  storyline_generation: ["edge_computation", "guide_matching", "ai_diagnosis", "setek_guide", "activity_summary", "ai_strategy", "interview_generation", "roadmap_generation"],
+  edge_computation: ["ai_diagnosis", "setek_guide", "activity_summary", "ai_strategy", "interview_generation", "roadmap_generation"],
   guide_matching: ["setek_guide", "activity_summary", "roadmap_generation"],
   ai_diagnosis: ["setek_guide", "ai_strategy", "interview_generation", "roadmap_generation"],
   setek_guide: ["roadmap_generation"],

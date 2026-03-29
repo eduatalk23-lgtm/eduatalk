@@ -41,11 +41,26 @@ describe("PIPELINE_TASK_DEPENDENTS", () => {
     expect(deps).toContain("roadmap_generation");
   });
 
-  it("edge_computation 재실행 시 ai_diagnosis, setek_guide, activity_summary 리셋", () => {
+  it("edge_computation 재실행 시 전이적 의존 포함 6개 리셋", () => {
     const deps = PIPELINE_TASK_DEPENDENTS.edge_computation!;
+    expect(deps).toHaveLength(6);
     expect(deps).toContain("ai_diagnosis");
     expect(deps).toContain("setek_guide");
     expect(deps).toContain("activity_summary");
+    // 전이적: ai_diagnosis → ai_strategy, interview_generation / setek_guide → roadmap
+    expect(deps).toContain("ai_strategy");
+    expect(deps).toContain("interview_generation");
+    expect(deps).toContain("roadmap_generation");
+  });
+
+  it("storyline_generation 재실행 시 전이적 의존 포함 8개 리셋", () => {
+    const deps = PIPELINE_TASK_DEPENDENTS.storyline_generation!;
+    expect(deps).toHaveLength(8);
+    expect(deps).toContain("edge_computation");
+    expect(deps).toContain("ai_diagnosis");
+    expect(deps).toContain("ai_strategy");
+    expect(deps).toContain("interview_generation");
+    expect(deps).toContain("roadmap_generation");
   });
 
   it("독립 태스크(course_recommendation 등)에는 하류 의존이 없다", () => {
@@ -64,6 +79,23 @@ describe("PIPELINE_TASK_DEPENDENTS", () => {
     for (const [, deps] of Object.entries(PIPELINE_TASK_DEPENDENTS)) {
       for (const dep of deps!) {
         expect(PIPELINE_TASK_KEYS).toContain(dep);
+      }
+    }
+  });
+
+  it("전이적 폐쇄: A→B, B→C이면 A의 의존에 C가 포함되어야 한다", () => {
+    // computeCascadeResetKeys가 1단계만 확장하므로 PIPELINE_TASK_DEPENDENTS가 전이적 폐쇄여야 함
+    for (const [parentKey, deps] of Object.entries(PIPELINE_TASK_DEPENDENTS)) {
+      for (const dep of deps!) {
+        const transitiveDeps = PIPELINE_TASK_DEPENDENTS[dep as PipelineTaskKey];
+        if (transitiveDeps) {
+          for (const transitive of transitiveDeps) {
+            expect(
+              deps!.includes(transitive),
+              `${parentKey} → ${dep} → ${transitive}: ${parentKey}의 의존에 ${transitive}가 누락`,
+            ).toBe(true);
+          }
+        }
       }
     }
   });
@@ -96,13 +128,14 @@ describe("computeCascadeResetKeys", () => {
 
   it("다중 태스크 입력 → 합집합 (중복 제거)", () => {
     const result = computeCascadeResetKeys(["edge_computation", "ai_diagnosis"]);
-    // edge_computation: ai_diagnosis, setek_guide, activity_summary
+    // edge_computation: ai_diagnosis, setek_guide, activity_summary, ai_strategy, interview_generation, roadmap_generation
     // ai_diagnosis: setek_guide, ai_strategy, interview_generation, roadmap_generation
-    // 합: edge_computation, ai_diagnosis, setek_guide, activity_summary, ai_strategy, interview_generation, roadmap_generation
+    // 합: edge_computation + ai_diagnosis + setek_guide + activity_summary + ai_strategy + interview_generation + roadmap_generation
     expect(result.size).toBe(7);
     expect(result.has("edge_computation")).toBe(true);
     expect(result.has("activity_summary")).toBe(true);
     expect(result.has("ai_strategy")).toBe(true);
+    expect(result.has("roadmap_generation")).toBe(true);
   });
 
   it("빈 입력 → 빈 셋", () => {
