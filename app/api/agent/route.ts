@@ -196,16 +196,23 @@ export async function POST(req: Request) {
       );
     }
 
-    const message =
+    const rawMessage =
       error instanceof Error ? error.message : "알 수 없는 에러";
-    const status = message.includes("로그인") || message.includes("UNAUTHORIZED")
+    const status = rawMessage.includes("로그인") || rawMessage.includes("UNAUTHORIZED")
       ? 401
-      : message.includes("권한") || message.includes("FORBIDDEN")
+      : rawMessage.includes("권한") || rawMessage.includes("FORBIDDEN")
         ? 403
         : 500;
 
+    // 클라이언트에 내부 에러 상세 노출 방지
+    const safeMessage = status === 401
+      ? "로그인이 필요합니다."
+      : status === 403
+        ? "접근 권한이 없습니다."
+        : "일시적인 오류가 발생했습니다. 다시 시도해주세요.";
+
     return new Response(
-      JSON.stringify({ error: message }),
+      JSON.stringify({ error: safeMessage }),
       { status, headers: { "Content-Type": "application/json" } },
     );
   }

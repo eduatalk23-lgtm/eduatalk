@@ -68,6 +68,18 @@ export const TOOL_ERRORS = {
 };
 
 /**
+ * LLM 시스템 프롬프트에 사용자 입력을 삽입할 때 인젝션 방어.
+ * 줄바꿈, 백틱, 마크다운 헤더를 이스케이프하고 길이를 제한합니다.
+ */
+export function sanitizeForPrompt(input: string, maxLen = 100): string {
+  return input
+    .replace(/\n/g, " ")
+    .replace(/[`#]/g, "")
+    .slice(0, maxLen)
+    .trim();
+}
+
+/**
  * 문자열을 maxLen으로 절삭하되, 절삭 시 `[... N자 생략]` 마커를 추가하여
  * LLM이 불완전한 데이터임을 인지할 수 있게 합니다.
  */

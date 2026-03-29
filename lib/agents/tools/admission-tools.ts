@@ -72,7 +72,7 @@ export function createAdmissionTools(ctx: AgentContext) {
           .string()
           .optional()
           .describe("학과명 (예: '경영학과')"),
-        region: z.string().optional().describe("지역 (예: '서울')"),
+        region: z.string().max(20).optional().describe("지역 (예: '서울')"),
         departmentType: z
           .enum(["공통", "예체능", "인문", "자연", "통합"])
           .optional()
@@ -136,7 +136,7 @@ export function createAdmissionTools(ctx: AgentContext) {
       description:
         "특정 대학의 정시 환산 설정을 조회합니다. 반영 과목 패턴, 선택/필수 구조, 결격사유, 환산 경로(과목별/백분위) 등을 반환합니다.",
       inputSchema: z.object({
-        universityName: z.string().describe("대학명 (정확한 이름)"),
+        universityName: z.string().max(50).describe("대학명 (정확한 이름)"),
         dataYear: z
           .number()
           .optional()
@@ -282,7 +282,7 @@ export function createAdmissionTools(ctx: AgentContext) {
           .optional()
           .describe("판정 수준 필터 (예: ['safe', 'possible'])"),
         region: z.string().optional().describe("지역 필터"),
-        departmentType: z.string().optional().describe("계열 필터"),
+        departmentType: z.string().max(30).optional().describe("계열 필터"),
         search: z
           .string()
           .optional()
@@ -629,8 +629,8 @@ export function createAdmissionTools(ctx: AgentContext) {
       description:
         "대학별 면접 기출문제를 조회합니다. 대학명, 학과 계열, 면접 유형으로 검색할 수 있습니다. 면접 코칭 시 실제 기출을 참고하세요.",
       inputSchema: z.object({
-        universityName: z.string().describe("대학명"),
-        departmentCategory: z.string().optional().describe("학과 계열 (예: '인문계열', '자연계열', '의예과')"),
+        universityName: z.string().max(50).describe("대학명"),
+        departmentCategory: z.string().max(30).optional().describe("학과 계열 (예: '인문계열', '자연계열', '의예과')"),
         interviewType: z.enum(["서류확인", "제시문", "mmi", "토론"]).optional(),
       }),
       execute: async ({ universityName, departmentCategory, interviewType }) => {
@@ -682,8 +682,8 @@ export function createAdmissionTools(ctx: AgentContext) {
       description:
         "대학의 모집단위(학과)별 면접 출제 분야, 면접 시간, 준비 시간을 조회합니다. 서울대 일반전형은 학과별로 면접 분야가 다릅니다.",
       inputSchema: z.object({
-        universityName: z.string().describe("대학명"),
-        departmentName: z.string().optional().describe("학과명 (미지정 시 전체 조회)"),
+        universityName: z.string().max(50).describe("대학명"),
+        departmentName: z.string().max(50).optional().describe("학과명 (미지정 시 전체 조회)"),
       }),
       execute: async ({ universityName, departmentName }) => {
         logActionDebug(LOG_CTX, `getDepartmentInterviewField: ${universityName} ${departmentName ?? "전체"}`);

@@ -5,7 +5,7 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { type AgentContext, truncateWithMarker } from "../types";
+import { type AgentContext, truncateWithMarker, sanitizeForPrompt } from "../types";
 import { toolError, TOOL_ERRORS } from "../types";
 import { generateTextWithRateLimit } from "@/lib/domains/plan/llm/ai-sdk";
 import {
@@ -34,10 +34,10 @@ export function createInterviewTools(ctx: AgentContext) {
           .enum(["setek", "personal_setek", "changche", "haengteuk"])
           .optional()
           .describe("기록 유형 (기본: setek 우선)"),
-        subjectName: z.string().optional().describe("교과명 필터"),
+        subjectName: z.string().max(50).optional().describe("교과명 필터"),
         grade: z.number().optional().describe("학년 필터"),
         schoolYear: z.number().optional().describe("학년도 (기본: 현재)"),
-        targetUniversity: z.string().optional().describe("목표 대학 (프롬프트 참고용)"),
+        targetUniversity: z.string().max(50).optional().describe("목표 대학 (프롬프트 참고용)"),
         interviewFormat: z
           .enum(["서류확인", "제시문", "mmi", "토론"])
           .optional()
@@ -114,7 +114,7 @@ export function createInterviewTools(ctx: AgentContext) {
             systemPrompt += `\n\n## 면접 유형: ${interviewFormat}\n${FORMAT_GUIDES[interviewFormat]}`;
           }
           if (targetUniversity) {
-            systemPrompt += `\n\n## 목표 대학: ${targetUniversity}\n해당 대학 면접 스타일을 참고하여 질문을 생성하세요.`;
+            systemPrompt += `\n\n## 목표 대학: ${sanitizeForPrompt(targetUniversity, 50)}\n해당 대학 면접 스타일을 참고하여 질문을 생성하세요.`;
           }
 
           const result = await generateTextWithRateLimit({
@@ -157,10 +157,10 @@ export function createInterviewTools(ctx: AgentContext) {
       description:
         "학생의 면접 답변을 평가하고 개선 피드백을 제공합니다. 질문, 모범 답변, 학생 답변을 입력하면 점수(1-5), 강점, 약점, 개선된 답변, 팁을 반환합니다.",
       inputSchema: z.object({
-        question: z.string().describe("면접 질문"),
-        suggestedAnswer: z.string().describe("모범 답변"),
-        studentAnswer: z.string().describe("학생 답변"),
-        recordContext: z.string().optional().describe("관련 생기부 기록 원문 (선택)"),
+        question: z.string().max(500).describe("면접 질문"),
+        suggestedAnswer: z.string().max(2000).describe("모범 답변"),
+        studentAnswer: z.string().max(2000).describe("학생 답변"),
+        recordContext: z.string().max(3000).optional().describe("관련 생기부 기록 원문 (선택)"),
       }),
       execute: async ({ question, suggestedAnswer, studentAnswer, recordContext }) => {
         logActionDebug(LOG_CTX, "evaluateAnswer");
