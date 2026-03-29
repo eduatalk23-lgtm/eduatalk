@@ -10,7 +10,7 @@
 import { Fragment, useMemo, useState, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
-import type { SetekLayerTab, MergedSetekRow } from "./SetekEditor";
+import type { SetekLayerTab, MergedSetekRow, SetekGuideItemLike } from "./SetekEditor";
 import type { AnalysisTagLike, AnalysisBlockMode, TaggerProps } from "./shared/AnalysisBlocks";
 import { AnalysisBlock } from "./shared/AnalysisBlocks";
 import { MultiRecordDraftBlock, DRAFT_BLOCK_STYLES } from "./shared/DraftBlocks";
@@ -20,15 +20,6 @@ import type { RecordSetek } from "@/lib/domains/student-record";
 import type { SubjectReflectionRate } from "@/lib/domains/student-record/keyword-match";
 
 // ─── 타입 ──
-
-interface SetekGuideItemLike {
-  subjectName: string;
-  keywords: string[];
-  direction: string;
-  competencyFocus?: string[];
-  cautions?: string;
-  teacherPoints?: string[];
-}
 
 type GuideAssignmentLike = {
   id: string;

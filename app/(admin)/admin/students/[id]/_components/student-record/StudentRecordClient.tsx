@@ -28,6 +28,9 @@ import { ContextGridBottomSheet } from "./ContextGridBottomSheet";
 import { ContextTopSheet } from "./ContextTopSheet";
 import { ErrorBoundary } from "@/components/errors/ErrorBoundary";
 import { RecordSidePanelContainer } from "./side-panel/RecordSidePanelContainer";
+import { AgentUIBridgeProvider } from "./AgentUIBridge";
+import type { UIStateSnapshot } from "@/lib/agents/ui-state";
+import type { AgentAction } from "@/lib/agents/agent-actions";
 import { RecordYearSelector } from "./RecordYearSelector";
 import { SetekEditor } from "./SetekEditor";
 import { ChangcheEditor } from "./ChangcheEditor";
@@ -72,6 +75,14 @@ type Subject = {
   name: string;
   subject_group?: { name: string } | null;
   subject_type?: { name: string; is_achievement_only: boolean } | null;
+};
+
+export type SubjectNavItem = {
+  subjectId: string;
+  subjectName: string;
+  grade: number;
+  schoolYear: number;
+  category: "general" | "elective" | "pe_art" | "liberal";
 };
 
 type StudentRecordClientProps = {
@@ -243,9 +254,15 @@ export function StudentRecordClient({
   const { data: strategyData, isLoading: strategyLoading, error: strategyError } = useQuery(
     strategyTabQueryOptions(studentId, initialSchoolYear),
   );
-  const { data: diagnosisData, isLoading: diagnosisLoading, error: diagnosisError } = useQuery(
-    diagnosisTabQueryOptions(studentId, initialSchoolYear, tenantId),
-  );
+  // 진단 데이터: 전 학년 prefetch (바텀시트 학년 전환 시 캐시 히트)
+  const diagnosisQueries = useQueries({
+    queries: yearGradePairs.map((p) => diagnosisTabQueryOptions(studentId, p.schoolYear, tenantId)),
+  });
+  // 기존 호환: initialSchoolYear에 해당하는 진단 데이터
+  const initialDiagIdx = yearGradePairs.findIndex((p) => p.schoolYear === initialSchoolYear);
+  const diagnosisData = diagnosisQueries[initialDiagIdx >= 0 ? initialDiagIdx : 0]?.data ?? null;
+  const diagnosisLoading = diagnosisQueries.some((q) => q.isLoading);
+  const diagnosisError = diagnosisQueries.find((q) => q.error)?.error ?? null;
 
   // 파이프라인 상태 (수동 분석 중복 방지용)
   const { data: pipelineData } = useQuery(pipelineStatusQueryOptions(studentId));
@@ -270,6 +287,21 @@ export function StudentRecordClient({
   });
 
   // 레이어 뷰: 배정별 결과물 파일 수 (배치)
+  // setekGuideItems 변환 (GradesAndSetekSection + ContextGridBottomSheet 공용)
+  const transformedSetekGuideItems = useMemo(() => {
+    if (!setekGuidesRes?.success || !setekGuidesRes.data) return undefined;
+    const subjectMap = new Map(subjects.map((s) => [s.id, s.name]));
+    const items = setekGuidesRes.data.map((row) => ({
+      subjectName: subjectMap.get(row.subject_id) ?? row.subject_id,
+      keywords: row.keywords ?? [],
+      direction: row.direction,
+      competencyFocus: row.competency_focus,
+      cautions: row.cautions ?? undefined,
+      teacherPoints: row.teacher_points,
+    }));
+    return items.length > 0 ? items : undefined;
+  }, [setekGuidesRes, subjects]);
+
   const assignmentIds = useMemo(
     () => (guideAssignmentsRes?.success && guideAssignmentsRes.data ? guideAssignmentsRes.data.map((a) => a.id) : []),
     [guideAssignmentsRes],
@@ -282,28 +314,54 @@ export function StudentRecordClient({
   });
 
   // ─── 학년별 데이터 맵 ─────────────────────────────────
-
+  // useQueries는 매 렌더마다 새 배열 참조 → .data만 추출하여 안정적 의존성 확보
+  const recordDataArray = recordQueries.map((q) => q.data);
   const recordByGrade = useMemo(() => {
     const map = new Map<number, { grade: number; schoolYear: number; data: NonNullable<(typeof recordQueries)[0]["data"]> }>();
     yearGradePairs.forEach((p, i) => {
-      const q = recordQueries[i];
-      if (q.data) {
-        map.set(p.grade, { grade: p.grade, schoolYear: p.schoolYear, data: q.data });
+      const d = recordDataArray[i];
+      if (d) {
+        map.set(p.grade, { grade: p.grade, schoolYear: p.schoolYear, data: d });
       }
     });
     return map;
-  }, [yearGradePairs, recordQueries]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recordDataArray 요소별 안정 참조
+  }, [yearGradePairs, ...recordDataArray]);
 
+  // ─── 바텀시트 과목 네비게이션 리스트 ────────────────
+  const subjectNavList = useMemo<SubjectNavItem[]>(() => {
+    const items: SubjectNavItem[] = [];
+    const seen = new Set<string>(); // grade:subjectId 중복 방지
+    for (const [, entry] of recordByGrade) {
+      for (const setek of entry.data.seteks) {
+        const key = `${entry.grade}:${setek.subject_id}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const subj = subjects.find((s) => s.id === setek.subject_id);
+        items.push({
+          subjectId: setek.subject_id,
+          subjectName: subj?.name ?? "알 수 없는 과목",
+          grade: entry.grade,
+          schoolYear: entry.schoolYear,
+          category: classifySubjectId(setek.subject_id, subjects),
+        });
+      }
+    }
+    return items.sort((a, b) => a.grade - b.grade || a.subjectName.localeCompare(b.subjectName, "ko"));
+  }, [recordByGrade, subjects]);
+
+  const suppDataArray = supplementaryQueries.map((q) => q.data);
   const suppByGrade = useMemo(() => {
     const map = new Map<number, { grade: number; schoolYear: number; data: NonNullable<(typeof supplementaryQueries)[0]["data"]> }>();
     yearGradePairs.forEach((p, i) => {
-      const q = supplementaryQueries[i];
-      if (q.data) {
-        map.set(p.grade, { grade: p.grade, schoolYear: p.schoolYear, data: q.data });
+      const d = suppDataArray[i];
+      if (d) {
+        map.set(p.grade, { grade: p.grade, schoolYear: p.schoolYear, data: d });
       }
     });
     return map;
-  }, [yearGradePairs, supplementaryQueries]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- suppDataArray 요소별 안정 참조
+  }, [yearGradePairs, ...suppDataArray]);
 
   // ─── 로딩/에러 상태 ─────────────────────────────────
 
@@ -387,6 +445,79 @@ export function StudentRecordClient({
   const [activeSubjectId, setActiveSubjectId] = useState<string | null>(null);
   const [activeSchoolYear, setActiveSchoolYear] = useState<number | null>(null);
   const [activeSubjectName, setActiveSubjectName] = useState<string | null>(null);
+
+  // ─── Agent UI Bridge ───────────────────────────────
+  const getAgentSnapshot = useCallback((): UIStateSnapshot => ({
+    activeLayerTab: globalSetekTab,
+    viewMode,
+    activeSection,
+    activeStage,
+    focusedSubject: activeSubjectId
+      ? { subjectId: activeSubjectId, subjectName: activeSubjectName ?? "", schoolYear: activeSchoolYear ?? 0 }
+      : null,
+    sidePanelApp: null, // SidePanelContext 내부에서 별도 주입
+    bottomSheetOpen: !!activeSubjectId,
+    topSheetOpen,
+  }), [globalSetekTab, viewMode, activeSection, activeStage, activeSubjectId, activeSubjectName, activeSchoolYear, topSheetOpen]);
+
+  const dispatchAgentAction = useCallback((action: AgentAction) => {
+    switch (action.type) {
+      case "navigate_section":
+        scrollToSection(action.sectionId);
+        break;
+      case "navigate_tab":
+        setGlobalSetekTab(action.tab as typeof globalSetekTab);
+        break;
+      case "focus_subject": {
+        const found = subjects.find((s) => s.name === action.subjectName);
+        if (found) {
+          setActiveSubjectId(found.id);
+          setActiveSchoolYear(action.schoolYear);
+          setActiveSubjectName(found.name);
+        }
+        break;
+      }
+      case "change_view_mode":
+        setViewMode(action.viewMode);
+        break;
+      case "open_side_panel":
+        // SidePanelContext.openApp은 직접 접근 불가 — 무시
+        break;
+    }
+  }, [scrollToSection, subjects]);
+
+  const agentUIBridgeValue = useMemo(() => ({
+    getSnapshot: getAgentSnapshot,
+    dispatchAction: dispatchAgentAction,
+  }), [getAgentSnapshot, dispatchAgentAction]);
+
+  // ─── BroadcastChannel: 팝아웃 에이전트 윈도우 동기화 ──
+  // 송신: UI 상태 변경 → 팝아웃으로 브로드캐스트
+  useEffect(() => {
+    try {
+      const snapshot = getAgentSnapshot();
+      const ch = new BroadcastChannel("agent-ui-state");
+      ch.postMessage(snapshot);
+      ch.close();
+    } catch {
+      // BroadcastChannel 미지원 환경 무시
+    }
+  }, [getAgentSnapshot]);
+
+  // 수신: 팝아웃 에이전트 → 메인 윈도우 네비게이션 액션
+  useEffect(() => {
+    try {
+      const ch = new BroadcastChannel("agent-ui-action");
+      ch.onmessage = (e: MessageEvent) => {
+        if (e.data && typeof e.data === "object" && typeof e.data.type === "string") {
+          dispatchAgentAction(e.data as AgentAction);
+        }
+      };
+      return () => ch.close();
+    } catch {
+      // BroadcastChannel 미지원 환경 무시
+    }
+  }, [dispatchAgentAction]);
 
   // 전체 치명적 에러 (모든 쿼리 실패) 시에만 페이지 차단
   const allFailed = recordQueries.every((q) => !!q.error)
@@ -720,6 +851,7 @@ export function StudentRecordClient({
   return (
     <StudentRecordProvider value={{ studentId, tenantId, studentName, activeSubjectId, setActiveSubjectId, activeSchoolYear, setActiveSchoolYear, activeSubjectName, setActiveSubjectName }}>
     <SidePanelProvider storageKey="recordSidePanelApp">
+    <AgentUIBridgeProvider value={agentUIBridgeValue}>
     <TopBarCenterSlotPortal>
       <div className="contents">
         <div className="flex items-center gap-2 order-2">
@@ -1128,20 +1260,7 @@ export function StudentRecordClient({
                     isLoading={anyRecordLoading}
                     showSectionAnchors={p.grade === visiblePairs[0]?.grade}
                     diagnosisActivityTags={diagnosisData?.activityTags}
-                    setekGuideItems={(() => {
-                      if (!setekGuidesRes?.success || !setekGuidesRes.data) return undefined;
-                      const subjectMap = new Map(subjects.map((s) => [s.id, s.name]));
-                      const items = setekGuidesRes.data
-                        .map((row) => ({
-                          subjectName: subjectMap.get(row.subject_id) ?? row.subject_id,
-                          keywords: row.keywords ?? [],
-                          direction: row.direction,
-                          competencyFocus: row.competency_focus,
-                          cautions: row.cautions ?? undefined,
-                          teacherPoints: row.teacher_points,
-                        }));
-                      return items.length > 0 ? items : undefined;
-                    })()}
+                    setekGuideItems={transformedSetekGuideItems}
                     guideAssignments={guideAssignmentsRes?.success ? guideAssignmentsRes.data as Array<{ id: string; guide_id: string; status: string; exploration_guides?: { id: string; title: string; guide_type?: string } }> : undefined}
                     confirmedPlansForGrade={confirmedForGrade}
                     studentClassificationId={diagnosisData?.targetSubClassificationId}
@@ -1478,13 +1597,19 @@ export function StudentRecordClient({
         subjects={subjects}
       />
     </RecordLayoutShell>
-    <ContextGridBottomSheet onOpenTopSheet={() => setTopSheetOpen(true)} />
+    <ContextGridBottomSheet
+      onOpenTopSheet={() => setTopSheetOpen(true)}
+      guideAssignments={guideAssignmentsRes?.success ? guideAssignmentsRes.data as Array<{ id: string; status: string; target_subject_id?: string | null; exploration_guides?: { id: string; title: string; guide_type?: string } }> : undefined}
+      setekGuideItems={transformedSetekGuideItems}
+      subjectNavList={subjectNavList}
+    />
     <ContextTopSheet
       isOpen={topSheetOpen}
       onClose={() => setTopSheetOpen(false)}
       studentGrade={studentGrade}
       initialSchoolYear={initialSchoolYear}
     />
+    </AgentUIBridgeProvider>
     </SidePanelProvider>
     </StudentRecordProvider>
   );

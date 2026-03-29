@@ -1,12 +1,59 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { ChevronUp, ChevronDown } from "lucide-react";
-import { useParams } from "next/navigation";
+// ============================================
+// ContextTabContent — 13개 맥락 탭 정의 + 컨텐츠 렌더러
+// ContextTopSheet에서 사용. layer-view/BottomSheet.tsx에서 추출.
+// ============================================
+
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/cn";
 import type { RecordTabData, DiagnosisTabData, StorylineTabData } from "@/lib/domains/student-record/types";
-import type { RecordArea, LayerGuideAssignment, LayerActivityTag, LayerSetekGuide } from "./types";
-import { FOCUS_RING } from "./types";
+
+// ── layer-view/types.ts에서 이동한 타입 ──
+
+export interface RecordArea {
+  id: string;
+  sectionNumber: 6 | 7 | 8 | 9;
+  type: "changche" | "setek" | "reading" | "haengteuk";
+  label: string;
+  grade: number;
+  subjectId?: string;
+  activityType?: "autonomy" | "club" | "career";
+  recordId?: string;
+}
+
+export interface LayerGuideAssignment {
+  id: string;
+  status: string;
+  target_subject_id: string | null;
+  target_activity_type: string | null;
+  ai_recommendation_reason: string | null;
+  confirmed_at: string | null;
+  exploration_guides?: { id: string; title: string; guide_type?: string };
+}
+
+export interface LayerActivityTag {
+  id?: string;
+  record_type: string;
+  record_id: string;
+  competency_item?: string;
+  evaluation?: string;
+  evidence_summary?: string;
+  source?: string;
+  status?: string;
+}
+
+export interface LayerSetekGuide {
+  id?: string;
+  subject_id: string;
+  source: string;
+  status: string;
+  direction: string;
+  keywords: string[];
+  competency_focus?: string[];
+  cautions?: string | null;
+  teacher_points?: string[];
+}
 
 // ── 탭 정의 ──
 
@@ -52,130 +99,6 @@ export type TabId =
   | "summary" | "teacher" | "storyline"
   | "diagnosis" | "edges" | "growth"
   | "career-fit" | "course-fit" | "roadmap" | "interview";
-type SheetHeight = "closed" | "peek" | "half" | "full";
-
-const HEIGHT_CLASS: Record<SheetHeight, string> = {
-  closed: "h-10",
-  peek: "h-[30vh]",
-  half: "h-[50vh]",
-  full: "h-[80vh]",
-};
-
-// ── Props ──
-
-interface BottomSheetProps {
-  currentArea?: RecordArea | null;
-  recordByGrade: Map<number, { data: RecordTabData }>;
-  guideAssignments: LayerGuideAssignment[];
-  activityTags: LayerActivityTag[];
-  setekGuides: LayerSetekGuide[];
-  diagnosisData?: DiagnosisTabData | null;
-  storylineData?: StorylineTabData | null;
-  tenantId?: string;
-}
-
-// ── 메인 컴포넌트 ──
-
-export function BottomSheet({
-  currentArea,
-  recordByGrade,
-  guideAssignments,
-  activityTags,
-  setekGuides,
-  diagnosisData,
-  storylineData,
-  tenantId,
-}: BottomSheetProps) {
-  const params = useParams();
-  const studentId = params.id as string;
-  const [height, setHeight] = useState<SheetHeight>("closed");
-  const [activeTab, setActiveTab] = useState<TabId>("competency");
-
-  const isOpen = height !== "closed";
-
-  const cycleHeight = useCallback(() => {
-    const cycle: SheetHeight[] = ["closed", "peek", "half", "full"];
-    const idx = cycle.indexOf(height);
-    setHeight(cycle[(idx + 1) % cycle.length]);
-  }, [height]);
-
-  return (
-    <div
-      className={cn(
-        "mt-4 overflow-hidden rounded-t-lg border border-[var(--border-secondary)] bg-[var(--surface-primary)] transition-all duration-300",
-        HEIGHT_CLASS[height],
-      )}
-    >
-      {/* 핸들 바 */}
-      <button
-        type="button"
-        aria-expanded={isOpen}
-        aria-label={`전체 맥락 패널 (${isOpen ? "열림" : "닫힘"})`}
-        onClick={cycleHeight}
-        onKeyDown={(e) => {
-          const cycle: SheetHeight[] = ["closed", "peek", "half", "full"];
-          const idx = cycle.indexOf(height);
-          if (e.key === "ArrowUp" && idx < cycle.length - 1) { e.preventDefault(); setHeight(cycle[idx + 1]); }
-          if (e.key === "ArrowDown" && idx > 0) { e.preventDefault(); setHeight(cycle[idx - 1]); }
-        }}
-        className={cn("flex w-full items-center justify-center gap-2 border-b border-[var(--border-secondary)] py-2 text-xs text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)]", FOCUS_RING)}
-      >
-        {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
-        <span className="font-medium">전체 맥락</span>
-        {currentArea && isOpen && (
-          <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
-            {currentArea.label}
-          </span>
-        )}
-      </button>
-
-      {isOpen && (
-        <div className="flex h-[calc(100%-40px)] flex-col">
-          {/* 탭 바 (카테고리 그룹) */}
-          <div className="flex items-center gap-0.5 overflow-x-auto border-b border-[var(--border-secondary)] px-3 py-1.5">
-            {TAB_GROUPS.map((group, gi) => (
-              <div key={group.label} className="flex shrink-0 items-center gap-0.5">
-                {gi > 0 && <div className="mx-1 h-4 w-px bg-[var(--border-secondary)]" />}
-                {group.tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActiveTab(tab.id)}
-                    className={cn(
-                      "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
-                      activeTab === tab.id
-                        ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
-                        : "text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)]",
-                    )}
-                  >
-                    {tab.emoji} {tab.label}
-                  </button>
-                ))}
-              </div>
-            ))}
-          </div>
-
-          {/* 탭 콘텐츠 */}
-          <div className="flex-1 overflow-y-auto p-3">
-            <TabContent
-              tabId={activeTab}
-              studentId={studentId}
-              currentArea={currentArea}
-              recordByGrade={recordByGrade}
-              guideAssignments={guideAssignments}
-              activityTags={activityTags}
-              setekGuides={setekGuides}
-              diagnosisData={diagnosisData}
-              storylineData={storylineData}
-              tenantId={tenantId}
-            />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── 탭 콘텐츠 라우터 ──
 
 export function TabContent({

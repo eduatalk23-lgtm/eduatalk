@@ -18,10 +18,10 @@ import {
   storylineTabQueryOptions,
 } from "@/lib/query-options/studentRecord";
 import { calculateSchoolYear, gradeToSchoolYear } from "@/lib/utils/schoolYear";
-import { TAB_GROUPS, TabContent } from "./layer-view/BottomSheet";
-import type { TabId } from "./layer-view/BottomSheet";
+import { TAB_GROUPS, TabContent } from "./ContextTabContent";
+import type { TabId } from "./ContextTabContent";
 import type { RecordTabData } from "@/lib/domains/student-record/types";
-import type { LayerGuideAssignment, LayerActivityTag, LayerSetekGuide } from "./layer-view/types";
+import type { LayerGuideAssignment, LayerActivityTag, LayerSetekGuide } from "./ContextTabContent";
 
 interface ContextTopSheetProps {
   isOpen: boolean;

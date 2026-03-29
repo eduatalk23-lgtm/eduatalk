@@ -31,7 +31,7 @@ export type SetekLayerTab = "chat" | "guide" | "direction" | "draft" | "neis" | 
 
 type ActivityTagLike = AnalysisTagLike;
 
-interface SetekGuideItemLike {
+export interface SetekGuideItemLike {
   subjectName: string;
   keywords: string[];
   direction: string;
