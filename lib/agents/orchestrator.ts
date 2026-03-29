@@ -6,6 +6,7 @@
 import type { AgentContext } from "./types";
 import { buildUIContextBlock } from "./ui-state";
 import { buildDomainKnowledgeBlock } from "./domain-knowledge";
+import { buildGuideContextSection } from "@/lib/domains/student-record/guide-context";
 import { SCHOOL_CATEGORY_LABELS } from "@/lib/domains/student-record/constants";
 import { createRecordTools } from "./tools/record-tools";
 import { createStrategyTools } from "./tools/strategy-tools";
@@ -145,7 +146,7 @@ ${buildStudentInfoSection(ctx)}
    - "저장" 요청 → saveDiagnosisResult/saveCompetencyScore/saveStrategy (요청 시에만)${buildDomainKnowledgeBlock({ studentGrade: ctx.studentGrade, schoolCategory: ctx.schoolCategory, targetMajor: ctx.targetMajor, curriculumRevision: ctx.curriculumRevision })}${buildUIContextBlock(ctx.uiState)}`;
 }
 
-export function createOrchestrator(ctx: AgentContext) {
+export async function createOrchestrator(ctx: AgentContext) {
   const tools = {
     ...createDataTools(ctx),
     ...createRecordTools(ctx),
@@ -158,8 +159,16 @@ export function createOrchestrator(ctx: AgentContext) {
     ...createNavigationTools(),
   };
 
+  // 가이드 배정 문맥 자동 주입 (실패 시 빈 문자열)
+  let guideContextBlock = "";
+  try {
+    guideContextBlock = await buildGuideContextSection(ctx.studentId, "summary");
+  } catch {
+    // graceful — 가이드 배정이 없거나 DB 오류 시 건너뜀
+  }
+
   return {
     tools,
-    systemPrompt: buildSystemPrompt(ctx),
+    systemPrompt: buildSystemPrompt(ctx) + guideContextBlock,
   };
 }

@@ -117,6 +117,9 @@ vi.mock("@/lib/domains/student-record/min-score-simulator", () => ({
 vi.mock("@/lib/domains/student-record/course-plan/recommendation", () => ({
   detectPlanConflicts: vi.fn(),
 }));
+vi.mock("@/lib/domains/student-record/guide-context", () => ({
+  buildGuideContextSection: vi.fn().mockResolvedValue(""),
+}));
 
 import { createOrchestrator } from "../orchestrator";
 import type { AgentContext } from "../types";
@@ -132,33 +135,33 @@ const mockContext: AgentContext = {
 };
 
 describe("createOrchestrator", () => {
-  it("도구와 시스템 프롬프트를 반환한다", () => {
-    const { tools, systemPrompt } = createOrchestrator(mockContext);
+  it("도구와 시스템 프롬프트를 반환한다", async () => {
+    const { tools, systemPrompt } = await createOrchestrator(mockContext);
 
     expect(tools).toBeDefined();
     expect(systemPrompt).toBeDefined();
     expect(typeof systemPrompt).toBe("string");
   });
 
-  it("시스템 프롬프트에 학생 이름이 포함된다", () => {
-    const { systemPrompt } = createOrchestrator(mockContext);
+  it("시스템 프롬프트에 학생 이름이 포함된다", async () => {
+    const { systemPrompt } = await createOrchestrator(mockContext);
     expect(systemPrompt).toContain("홍길동");
   });
 
-  it("시스템 프롬프트에 학년도가 포함된다", () => {
-    const { systemPrompt } = createOrchestrator(mockContext);
+  it("시스템 프롬프트에 학년도가 포함된다", async () => {
+    const { systemPrompt } = await createOrchestrator(mockContext);
     expect(systemPrompt).toContain("2026");
   });
 
-  it("데이터 도구 3개가 등록된다", () => {
-    const { tools } = createOrchestrator(mockContext);
+  it("데이터 도구 3개가 등록된다", async () => {
+    const { tools } = await createOrchestrator(mockContext);
     expect(tools.getStudentRecords).toBeDefined();
     expect(tools.getStudentDiagnosis).toBeDefined();
     expect(tools.getStudentStorylines).toBeDefined();
   });
 
-  it("분석 도구 5개 + 작성 도구 4개 + 파이프라인 2개 + 수강 2개가 등록된다", () => {
-    const { tools } = createOrchestrator(mockContext);
+  it("분석 도구 5개 + 작성 도구 4개 + 파이프라인 2개 + 수강 2개가 등록된다", async () => {
+    const { tools } = await createOrchestrator(mockContext);
     // 분석
     expect(tools.suggestTags).toBeDefined();
     expect(tools.analyzeCompetency).toBeDefined();
@@ -178,22 +181,22 @@ describe("createOrchestrator", () => {
     expect(tools.recommendCourses).toBeDefined();
   });
 
-  it("전략 도구 2개가 등록된다 (Agent 4)", () => {
-    const { tools } = createOrchestrator(mockContext);
+  it("전략 도구 2개가 등록된다 (Agent 4)", async () => {
+    const { tools } = await createOrchestrator(mockContext);
     expect(tools.suggestStrategies).toBeDefined();
     expect(tools.getWarnings).toBeDefined();
   });
 
-  it("가이드 도구 4개가 등록된다 (Agent 2)", () => {
-    const { tools } = createOrchestrator(mockContext);
+  it("가이드 도구 4개가 등록된다 (Agent 2)", async () => {
+    const { tools } = await createOrchestrator(mockContext);
     expect(tools.searchGuides).toBeDefined();
     expect(tools.getGuideDetail).toBeDefined();
     expect(tools.getStudentAssignments).toBeDefined();
     expect(tools.generateGuide).toBeDefined();
   });
 
-  it("입시 배치 도구 7개가 등록된다 (Agent 3)", () => {
-    const { tools } = createOrchestrator(mockContext);
+  it("입시 배치 도구 7개가 등록된다 (Agent 3)", async () => {
+    const { tools } = await createOrchestrator(mockContext);
     expect(tools.searchAdmissionData).toBeDefined();
     expect(tools.getUniversityScoreInfo).toBeDefined();
     expect(tools.runPlacementAnalysis).toBeDefined();
@@ -203,45 +206,45 @@ describe("createOrchestrator", () => {
     expect(tools.getUniversityEvalCriteria).toBeDefined();
   });
 
-  it("면접 코칭 도구 3개가 등록된다 (Agent 5)", () => {
-    const { tools } = createOrchestrator(mockContext);
+  it("면접 코칭 도구 3개가 등록된다 (Agent 5)", async () => {
+    const { tools } = await createOrchestrator(mockContext);
     expect(tools.generateInterviewQuestions).toBeDefined();
     expect(tools.evaluateAnswer).toBeDefined();
     expect(tools.getInterviewPrep).toBeDefined();
   });
 
-  it("리포트 도구 3개가 등록된다 (Agent 6)", () => {
-    const { tools } = createOrchestrator(mockContext);
+  it("리포트 도구 3개가 등록된다 (Agent 6)", async () => {
+    const { tools } = await createOrchestrator(mockContext);
     expect(tools.generateReport).toBeDefined();
     expect(tools.fetchSavedReports).toBeDefined();
     expect(tools.getStudentOverview).toBeDefined();
   });
 
-  it("우회학과 분석 도구 3개가 등록된다", () => {
-    const { tools } = createOrchestrator(mockContext);
+  it("우회학과 분석 도구 3개가 등록된다", async () => {
+    const { tools } = await createOrchestrator(mockContext);
     expect(tools.getBypassCandidates).toBeDefined();
     expect(tools.searchBypassDepartments).toBeDefined();
     expect(tools.runBypassAnalysis).toBeDefined();
   });
 
-  it("네비게이션 도구 3개가 등록된다", () => {
-    const { tools } = createOrchestrator(mockContext);
+  it("네비게이션 도구 3개가 등록된다", async () => {
+    const { tools } = await createOrchestrator(mockContext);
     expect(tools.navigateToSection).toBeDefined();
     expect(tools.focusSubject).toBeDefined();
     expect(tools.switchLayerTab).toBeDefined();
   });
 
-  it("교차 과목 분석 도구가 등록된다", () => {
-    const { tools } = createOrchestrator(mockContext);
+  it("교차 과목 분석 도구가 등록된다", async () => {
+    const { tools } = await createOrchestrator(mockContext);
     expect(tools.crossSubjectAnalysis).toBeDefined();
   });
 
-  it("총 49개 도구가 등록된다", () => {
-    const { tools } = createOrchestrator(mockContext);
+  it("총 49개 도구가 등록된다", async () => {
+    const { tools } = await createOrchestrator(mockContext);
     expect(Object.keys(tools)).toHaveLength(49);
   });
 
-  it("uiState가 있으면 시스템 프롬프트에 화면 상태가 포함된다", () => {
+  it("uiState가 있으면 시스템 프롬프트에 화면 상태가 포함된다", async () => {
     const ctxWithUI: AgentContext = {
       ...mockContext,
       uiState: {
@@ -255,27 +258,27 @@ describe("createOrchestrator", () => {
         topSheetOpen: false,
       },
     };
-    const { systemPrompt } = createOrchestrator(ctxWithUI);
+    const { systemPrompt } = await createOrchestrator(ctxWithUI);
     expect(systemPrompt).toContain("현재 사용자 화면 상태");
     expect(systemPrompt).toContain("포커스 과목: 국어");
     expect(systemPrompt).toContain("맥락 인식 규칙");
   });
 
-  it("uiState가 null이면 화면 상태 블록이 없다", () => {
-    const { systemPrompt } = createOrchestrator(mockContext);
+  it("uiState가 null이면 화면 상태 블록이 없다", async () => {
+    const { systemPrompt } = await createOrchestrator(mockContext);
     expect(systemPrompt).not.toContain("현재 사용자 화면 상태");
   });
 
   // ── 도메인 지식 블록 테스트 ──
 
-  it("도메인 지식 블록이 시스템 프롬프트에 포함된다", () => {
+  it("도메인 지식 블록이 시스템 프롬프트에 포함된다", async () => {
     const ctxWithProfile: AgentContext = {
       ...mockContext,
       studentGrade: 2,
       schoolCategory: "general",
       targetMajor: "컴퓨터공학",
     };
-    const { systemPrompt } = createOrchestrator(ctxWithProfile);
+    const { systemPrompt } = await createOrchestrator(ctxWithProfile);
     expect(systemPrompt).toContain("컨설팅 도메인 지식");
     expect(systemPrompt).toContain("전형별 생기부 전략");
     expect(systemPrompt).toContain("집중기");
@@ -283,8 +286,8 @@ describe("createOrchestrator", () => {
     expect(systemPrompt).toContain("컴퓨터공학");
   });
 
-  it("학생 프로필이 없어도 기본 도메인 지식이 포함된다", () => {
-    const { systemPrompt } = createOrchestrator(mockContext);
+  it("학생 프로필이 없어도 기본 도메인 지식이 포함된다", async () => {
+    const { systemPrompt } = await createOrchestrator(mockContext);
     expect(systemPrompt).toContain("전형별 생기부 전략");
     expect(systemPrompt).toContain("입학사정관 평가 관점");
     expect(systemPrompt).toContain("참조 지식");
@@ -293,24 +296,24 @@ describe("createOrchestrator", () => {
     expect(systemPrompt).not.toContain("학교 유형 맥락");
   });
 
-  it("학생 학년 정보가 시스템 프롬프트에 표시된다", () => {
+  it("학생 학년 정보가 시스템 프롬프트에 표시된다", async () => {
     const ctxWithGrade: AgentContext = {
       ...mockContext,
       studentGrade: 3,
       schoolName: "서울고등학교",
     };
-    const { systemPrompt } = createOrchestrator(ctxWithGrade);
+    const { systemPrompt } = await createOrchestrator(ctxWithGrade);
     expect(systemPrompt).toContain("학년: 3학년");
     expect(systemPrompt).toContain("서울고등학교");
     expect(systemPrompt).toContain("완성기");
   });
 
-  it("희망 전공이 도메인 지식 블록에 반영된다", () => {
+  it("희망 전공이 도메인 지식 블록에 반영된다", async () => {
     const ctxWithMajor: AgentContext = {
       ...mockContext,
       targetMajor: "경영학",
     };
-    const { systemPrompt } = createOrchestrator(ctxWithMajor);
+    const { systemPrompt } = await createOrchestrator(ctxWithMajor);
     expect(systemPrompt).toContain("경영학");
     expect(systemPrompt).toContain("전공 적합성을 우선 고려");
   });

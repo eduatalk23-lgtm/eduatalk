@@ -28,6 +28,8 @@ import {
 import type { RecordSummary } from "@/lib/domains/student-record/llm/prompts/inquiryLinking";
 import { COMPETENCY_ITEMS, COMPETENCY_RUBRIC_QUESTIONS, COMPETENCY_AREA_LABELS, MAJOR_RECOMMENDED_COURSES, ADMISSION_TYPE_HINTS } from "@/lib/domains/student-record/constants";
 import type { CompetencyItemCode, CompetencyGrade } from "@/lib/domains/student-record/types";
+import { determineGradeSystem } from "@/lib/domains/student-record/grade-normalizer";
+import { buildEdgeSummary } from "@/lib/domains/student-record/edge-summary";
 import type { PipelineTaskKey } from "@/lib/domains/student-record/pipeline-types";
 import { generateSetekDraftAction } from "@/lib/domains/student-record/llm/actions/generateSetekDraft";
 import { upsertDiagnosis } from "@/lib/domains/student-record/diagnosis-repository";
@@ -607,7 +609,7 @@ ${tagsSummary}
             targetMajor: input.targetMajor,
             existingContent: input.existingContent,
           });
-          if (!result.success) return { success: false, error: result.error };
+          if (!result.success) return toolError(result.error ?? "세특 초안 생성 실패.", { retryable: true, actionHint: "다시 시도하세요." });
           return {
             success: true,
             data: {
@@ -676,7 +678,7 @@ ${tagsSummary}
         try {
           if (!ctx.tenantId) return TOOL_ERRORS.NO_TENANT;
           const itemDef = COMPETENCY_ITEMS.find((i) => i.code === input.competencyItem);
-          if (!itemDef) return { success: false, error: `알 수 없는 역량 코드: ${input.competencyItem}` };
+          if (!itemDef) return TOOL_ERRORS.INVALID_INPUT(`알 수 없는 역량 코드: ${input.competencyItem}`);
           const id = await upsertCompetencyScore({
             tenant_id: ctx.tenantId,
             student_id: ctx.studentId,
@@ -785,7 +787,7 @@ ${tagsSummary}
               statusResult.data.id,
               taskKeys as PipelineTaskKey[],
             );
-            if (!result.success) return { success: false, error: result.error };
+            if (!result.success) return toolError(result.error ?? "파이프라인 재실행 실패.", { retryable: true, actionHint: "다시 시도하세요." });
             return {
               success: true,
               data: { pipelineId: result.data!.pipelineId, mode: "rerun", tasks: taskKeys },
@@ -793,7 +795,7 @@ ${tagsSummary}
           }
 
           const result = await runInitialAnalysisPipeline(ctx.studentId, ctx.tenantId);
-          if (!result.success) return { success: false, error: result.error };
+          if (!result.success) return toolError(result.error ?? "파이프라인 실행 실패.", { retryable: true, actionHint: "다시 시도하세요." });
           return {
             success: true,
             data: {
@@ -859,7 +861,7 @@ ${tagsSummary}
           );
 
           if (!result) {
-            return { success: false, error: `'${majorCategory}'에 대한 추천 과목 정보가 없습니다.` };
+            return TOOL_ERRORS.RESOURCE_NOT_FOUND(`'${majorCategory}' 추천 과목 정보`);
           }
           return { success: true, data: result };
         } catch (error) {
@@ -881,7 +883,7 @@ ${tagsSummary}
         try {
           if (!ctx.tenantId) return TOOL_ERRORS.NO_TENANT;
           const result = await generateRecommendationsAction(ctx.studentId, ctx.tenantId);
-          if (!result.success) return { success: false, error: result.error };
+          if (!result.success) return toolError(result.error ?? "수강 추천 실패.", { retryable: true, actionHint: "다시 시도하세요." });
           return {
             success: true,
             data: {
@@ -1010,6 +1012,13 @@ ${tagsSummary}
               rankGrade: s.rank_grade,
             }));
 
+          // 등급 체계 정보 (2015: 9등급 / 2022: 5등급)
+          const curriculumYear = ctx.curriculumRevision?.includes("2022") ? 2022 : 2015;
+          const gradeSystem = determineGradeSystem(curriculumYear);
+          const curriculumNote = gradeSystem === 5
+            ? "2022 개정 교육과정: 진로선택/융합선택 과목은 A/B/C 성취평가제입니다. 이 추이 분석은 9등급(석차등급) 과목만 포함합니다."
+            : null;
+
           return {
             success: true,
             data: {
@@ -1018,6 +1027,8 @@ ${tagsSummary}
               subjectGroupTrends,
               riskSubjects,
               totalScoreCount: rows.length,
+              gradeSystem,
+              curriculumNote,
               interpretation: trendPattern === "상승 추이 (등급 개선)"
                 ? "등급이 꾸준히 개선되고 있어 학생부종합전형에서 긍정적으로 평가됩니다."
                 : trendPattern === "하락 추이 (등급 하락)"
@@ -1213,12 +1224,16 @@ ${tagsSummary}
           // stale 엣지 비율
           const staleCount = edges.filter((e) => e.is_stale).length;
 
+          // 구조화된 텍스트 요약 (엣지 타입별 그룹핑 + 예시 쌍)
+          const formattedSummary = buildEdgeSummary(edges);
+
           return {
             success: true,
             data: {
               totalEdges: total,
               distribution,
               narrativeStrength,
+              formattedSummary,
               staleEdges: staleCount,
               staleWarning: staleCount > 0 ? `${staleCount}건의 연결이 기록 변경 후 업데이트되지 않았습니다. 파이프라인 재실행을 권장합니다.` : null,
               interpretation: narrativeStrength === "강함"

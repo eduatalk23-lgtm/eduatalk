@@ -84,7 +84,7 @@ export function createInterviewTools(ctx: AgentContext) {
           }
 
           if (filtered.length === 0) {
-            return { success: false, error: "면접 질문 생성에 사용할 기록이 없습니다. (30자 이상 기록 필요)" };
+            return TOOL_ERRORS.NO_DATA("면접용 기록 (30자 이상)");
           }
 
           // 3000자 cap으로 텍스트 병합
@@ -126,13 +126,13 @@ export function createInterviewTools(ctx: AgentContext) {
           });
 
           if (!result.content) {
-            return { success: false, error: "AI 응답이 비어있습니다." };
+            return TOOL_ERRORS.AI_EMPTY;
           }
 
           const parsed = parseInterviewResponse(result.content);
 
           if (parsed.questions.length === 0) {
-            return { success: false, error: "면접 질문을 생성하지 못했습니다." };
+            return TOOL_ERRORS.AI_EMPTY;
           }
 
           return {
@@ -166,7 +166,7 @@ export function createInterviewTools(ctx: AgentContext) {
         logActionDebug(LOG_CTX, "evaluateAnswer");
         try {
           if (studentAnswer.trim().length < 10) {
-            return { success: false, error: "답변이 너무 짧습니다 (10자 이상 필요)." };
+            return TOOL_ERRORS.INVALID_INPUT("답변이 너무 짧습니다 (10자 이상 필요)");
           }
 
           const systemPrompt = `당신은 대입 면접 평가 전문가입니다. 학생의 면접 답변을 평가하고 개선 피드백을 제공합니다.
@@ -211,7 +211,7 @@ export function createInterviewTools(ctx: AgentContext) {
           });
 
           if (!result.content) {
-            return { success: false, error: "AI 응답이 비어있습니다." };
+            return TOOL_ERRORS.AI_EMPTY;
           }
 
           let jsonStr = result.content.trim();
@@ -223,7 +223,7 @@ export function createInterviewTools(ctx: AgentContext) {
             parsed = JSON.parse(jsonStr);
           } catch {
             logActionError(LOG_CTX, `evaluateAnswer JSON 파싱 실패: ${jsonStr.slice(0, 200)}`);
-            return { success: false, error: "AI 응답 형식 오류입니다. 다시 시도해주세요." };
+            return TOOL_ERRORS.AI_FORMAT;
           }
 
           const score = Math.max(1, Math.min(5, Math.round(Number(parsed.score) || 3)));

@@ -151,10 +151,7 @@ export function createAdmissionTools(ctx: AgentContext) {
           ]);
 
           if (!config) {
-            return {
-              success: false,
-              error: `'${universityName}' 대학의 환산 설정을 찾을 수 없습니다. 정확한 대학명을 확인해주세요.`,
-            };
+            return TOOL_ERRORS.RESOURCE_NOT_FOUND(`'${universityName}' 대학 환산 설정`);
           }
 
           return {
@@ -299,10 +296,7 @@ export function createAdmissionTools(ctx: AgentContext) {
         logActionDebug(LOG_CTX, `filterPlacementResults: levels=${levels?.join(",")}, search=${search}`);
         try {
           if (!cachedAnalysis) {
-            return {
-              success: false,
-              error: "배치 분석 결과가 없습니다. 먼저 runPlacementAnalysis를 실행해주세요.",
-            };
+            return TOOL_ERRORS.NO_DATA("배치 분석 결과. 먼저 runPlacementAnalysis를 실행하세요");
           }
 
           const filtered = filterVerdicts(cachedAnalysis.verdicts, {
@@ -370,10 +364,7 @@ export function createAdmissionTools(ctx: AgentContext) {
         logActionDebug(LOG_CTX, `simulateCardAllocation: ${candidates.length}개 후보`);
         try {
           if (candidates.length < 6) {
-            return {
-              success: false,
-              error: `최소 6개 후보가 필요합니다. 현재 ${candidates.length}개입니다.`,
-            };
+            return TOOL_ERRORS.INVALID_INPUT(`최소 6개 후보가 필요합니다. 현재 ${candidates.length}개`);
           }
 
           const allocationCandidates: AllocationCandidate[] = candidates.map(
@@ -449,10 +440,7 @@ export function createAdmissionTools(ctx: AgentContext) {
         logActionDebug(LOG_CTX, `analyzeScoreImpact: ${targetSubject} → ${improvedScore}`);
         try {
           if (!cachedAnalysis || !cachedScoreInput) {
-            return {
-              success: false,
-              error: "배치 분석 결과가 없습니다. 먼저 runPlacementAnalysis를 실행해주세요.",
-            };
+            return TOOL_ERRORS.NO_DATA("배치 분석 결과. 먼저 runPlacementAnalysis를 실행하세요");
           }
 
           // 점수 수정

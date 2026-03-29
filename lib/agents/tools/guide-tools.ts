@@ -8,6 +8,8 @@ import { z } from "zod";
 import { type AgentContext, truncateWithMarker } from "../types";
 import { toolError, TOOL_ERRORS } from "../types";
 import { findGuideById, findAssignmentsWithGuides } from "@/lib/domains/guide/repository";
+import { calculateReflectionSummary } from "@/lib/domains/student-record/keyword-match";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { searchGuidesByVector } from "@/lib/domains/guide/vector/search-service";
 import { generateGuideAction } from "@/lib/domains/guide/llm/actions/generateGuide";
 import { resolveContentSections } from "@/lib/domains/guide/section-config";
@@ -107,7 +109,7 @@ export function createGuideTools(ctx: AgentContext) {
         try {
           const guide = await findGuideById(guideId);
           if (!guide) {
-            return { success: false, error: "가이드를 찾을 수 없습니다." };
+            return TOOL_ERRORS.RESOURCE_NOT_FOUND("가이드");
           }
 
           return {
@@ -225,10 +227,10 @@ export function createGuideTools(ctx: AgentContext) {
           const result = await generateGuideAction(generationInput);
 
           if (!result.success) {
-            return { success: false, error: result.error ?? "가이드 생성에 실패했습니다." };
+            return toolError(result.error ?? "가이드 생성에 실패했습니다.", { retryable: true, actionHint: "다시 시도하세요." });
           }
           if (!result.data) {
-            return { success: false, error: "가이드 생성 결과가 없습니다." };
+            return TOOL_ERRORS.AI_EMPTY;
           }
 
           const { guideId, preview } = result.data;
@@ -272,6 +274,69 @@ export function createGuideTools(ctx: AgentContext) {
             year,
           );
 
+          // 반영률 계산: 세특 방향 가이드 키워드 vs 실제 세특 텍스트
+          let reflectionSummary: {
+            averageRate: number;
+            subjects: { subjectName: string; rate: number; totalKeywords: number; matchedKeywords: number }[];
+          } | null = null;
+
+          try {
+            const supabase = await createSupabaseServerClient();
+            const [guidesRes, seteksRes] = await Promise.allSettled([
+              supabase
+                .from("setek_direction_guides")
+                .select("subject_id, keywords, subjects(name)")
+                .eq("student_id", ctx.studentId)
+                .eq("school_year", year),
+              supabase
+                .from("student_records")
+                .select("subject_id, content, subjects(name)")
+                .eq("student_id", ctx.studentId)
+                .eq("record_type", "setek")
+                .not("content", "is", null),
+            ]);
+
+            if (guidesRes.status === "fulfilled" && seteksRes.status === "fulfilled") {
+              const guides = guidesRes.value.data ?? [];
+              const seteks = seteksRes.value.data ?? [];
+
+              type JoinRow = { subject_id: string; subjects: { name: string } | { name: string }[] | null };
+              const getName = (row: JoinRow): string => {
+                const s = row.subjects;
+                if (!s) return row.subject_id;
+                return Array.isArray(s) ? (s[0]?.name ?? row.subject_id) : s.name;
+              };
+
+              const guideItems = guides
+                .filter((g: { keywords: string[] | null }) => g.keywords && g.keywords.length > 0)
+                .map((g: JoinRow & { keywords: string[] }) => ({
+                  subjectName: getName(g),
+                  keywords: g.keywords,
+                }));
+
+              const setekTextMap = new Map<string, string>();
+              for (const s of seteks as (JoinRow & { content: string })[]) {
+                const name = getName(s);
+                setekTextMap.set(name, (setekTextMap.get(name) ?? "") + " " + s.content);
+              }
+
+              if (guideItems.length > 0) {
+                const result = calculateReflectionSummary(guideItems, setekTextMap);
+                reflectionSummary = {
+                  averageRate: result.averageRate,
+                  subjects: result.subjects.map((s) => ({
+                    subjectName: s.subjectName,
+                    rate: s.rate,
+                    totalKeywords: s.totalKeywords,
+                    matchedKeywords: s.matchedKeywords,
+                  })),
+                };
+              }
+            }
+          } catch {
+            // 반영률 실패 시 graceful — null 유지
+          }
+
           return {
             success: true,
             data: {
@@ -287,6 +352,7 @@ export function createGuideTools(ctx: AgentContext) {
               total: assignments.length,
               completed: assignments.filter((a) => a.status === "completed")
                 .length,
+              reflectionSummary,
             },
           };
         } catch (error) {

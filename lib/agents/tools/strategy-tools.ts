@@ -56,10 +56,7 @@ export function createStrategyTools(ctx: AgentContext) {
         );
         try {
           if (weaknesses.length === 0 && weakCompetencies.length === 0) {
-            return {
-              success: false,
-              error: "약점이나 부족 역량 데이터가 없습니다. 먼저 진단을 실행해주세요.",
-            };
+            return TOOL_ERRORS.NO_DATA("약점 또는 부족 역량");
           }
 
           const userPrompt = buildStrategyUserPrompt({
@@ -83,7 +80,7 @@ export function createStrategyTools(ctx: AgentContext) {
           });
 
           if (!result.content) {
-            return { success: false, error: "AI 응답이 비어있습니다." };
+            return TOOL_ERRORS.AI_EMPTY;
           }
 
           const sourceUrls = result.groundingMetadata?.webResults

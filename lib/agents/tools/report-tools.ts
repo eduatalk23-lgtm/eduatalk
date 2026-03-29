@@ -43,7 +43,7 @@ export function createReportTools(ctx: AgentContext) {
             : await generateSetekGuide(ctx.studentId, targetGrades);
 
           if (!result.success) {
-            return { success: false, error: result.error };
+            return toolError(result.error ?? "리포트 생성에 실패했습니다.", { retryable: true, actionHint: "다시 시도하세요." });
           }
 
           const data = result.data!;
@@ -180,7 +180,7 @@ export function createReportTools(ctx: AgentContext) {
             .maybeSingle();
 
           if (studentError || !student) {
-            return { success: false, error: "학생 정보를 찾을 수 없습니다." };
+            return TOOL_ERRORS.RESOURCE_NOT_FOUND("학생 정보");
           }
 
           const profile = student.user_profiles as unknown as { name: string | null } | null;

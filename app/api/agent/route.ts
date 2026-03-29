@@ -136,7 +136,7 @@ export async function POST(req: Request) {
     );
 
     // 6. 오케스트레이터 생성
-    const { tools, systemPrompt } = createOrchestrator(ctx);
+    const { tools, systemPrompt } = await createOrchestrator(ctx);
 
     // 7. UIMessages → ModelMessages 변환
     const modelMessages = await convertToModelMessages(messages);

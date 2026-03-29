@@ -60,8 +60,11 @@ export const TOOL_ERRORS = {
   NO_TENANT: toolError("테넌트 정보가 없습니다.", { actionHint: "관리자에게 문의하세요." }),
   NO_DATA: (what: string) => toolError(`${what} 데이터가 없습니다.`, { actionHint: "먼저 데이터를 입력하거나 파이프라인을 실행하세요." }),
   AI_FORMAT: toolError("AI 응답 형식 오류.", { retryable: true, actionHint: "다시 시도하세요." }),
+  AI_EMPTY: toolError("AI 응답이 비어있습니다.", { retryable: true, actionHint: "다시 시도하세요." }),
   AI_RATE_LIMIT: toolError("AI 서비스 요청 한도 초과.", { retryable: true, actionHint: "잠시 후 다시 시도하세요." }),
   DB_ERROR: (what: string) => toolError(`${what} DB 조회 실패.`, { retryable: true, actionHint: "다시 시도하세요." }),
+  INVALID_INPUT: (what: string) => toolError(`잘못된 입력: ${what}`, { actionHint: "입력값을 확인하세요." }),
+  RESOURCE_NOT_FOUND: (what: string) => toolError(`${what}을(를) 찾을 수 없습니다.`, { actionHint: "ID나 이름을 확인하세요." }),
 };
 
 /**
