@@ -7,6 +7,11 @@ const withBundleAnalyzer = require("@next/bundle-analyzer")({
 });
 
 const nextConfig: NextConfig = {
+  // Vercel Hobby 8GB 환경에서 TypeScript 체크 OOM 방지
+  // 타입 체크는 로컬 pnpm build 또는 CI에서 별도 실행
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   // SW 캐시 무효화: 브라우저/CDN이 sw.js를 캐싱하지 않도록 설정
   async headers() {
     return [
