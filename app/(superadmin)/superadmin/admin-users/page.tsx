@@ -84,7 +84,7 @@ export default async function SuperAdminUsersPage() {
   const tenantIds = Array.from(
     new Set(
       (adminUsers || [])
-        .map((au: any) => au.tenant_id)
+        .map((au: { tenant_id: string | null }) => au.tenant_id)
         .filter((tid: string | null) => tid !== null && tid !== undefined)
     )
   );
@@ -119,7 +119,7 @@ export default async function SuperAdminUsersPage() {
 
   // 관리자 목록에 이메일 및 기관 정보 추가
   const adminUsersWithEmail =
-    adminUsers?.map((adminUser: any) => {
+    adminUsers?.map((adminUser: Record<string, unknown>) => {
       const tenantId = adminUser.tenant_id;
       const tenantName = tenantId ? tenantMap.get(tenantId) : null;
 

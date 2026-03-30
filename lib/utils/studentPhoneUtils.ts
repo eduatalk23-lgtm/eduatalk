@@ -163,8 +163,7 @@ export async function getStudentPhonesBatch(
  * 없으면 ghost parent user_profiles를 생성하고 link를 삽입.
  */
 export async function upsertParentContact(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  _supabase: SupabaseClient<any, any, any>,
+  _supabase: SupabaseClient,
   studentId: string,
   tenantId: string,
   relation: "mother" | "father",

@@ -61,9 +61,8 @@ export function useCreateStudentForm({
   );
 
   // zodResolver 타입은 .default() 필드 때문에 input/output 차이가 남
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const form = useForm<CreateStudentFormSchema>({
-    resolver: zodResolver(createStudentFormSchema) as any,
+    resolver: zodResolver(createStudentFormSchema) as ReturnType<typeof zodResolver>,
     defaultValues: defaultValues as Partial<CreateStudentFormSchema>,
     mode: "onChange",
     shouldUnregister: false,

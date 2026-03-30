@@ -7,6 +7,8 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 import { getCachedAuthUser } from "@/lib/auth/cachedGetUser";
 import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import { revalidatePath } from "next/cache";
@@ -188,8 +190,7 @@ export async function generatePlanWithAI(
       },
       scores,
       contents,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      timeSlots: timeSlots as any,
+      timeSlots: timeSlots as unknown as Array<{ type: string; start: string; end: string; label?: string }>,
       learningStats,
       settings: {
         startDate: input.startDate,
@@ -520,7 +521,7 @@ async function loadBlockSets(
   return [];
 }
 
-async function getPlanExclusions(supabase: any, planGroupId: string, _tenantId: string): Promise<any[]> {
+async function getPlanExclusions(supabase: SupabaseServerClient, planGroupId: string, _tenantId: string): Promise<unknown[]> {
   // plan_group → student_id
   const { data: group } = await supabase
     .from("plan_groups")
@@ -545,7 +546,7 @@ async function getPlanExclusions(supabase: any, planGroupId: string, _tenantId: 
 }
 
 async function createPlanGroup(
-  supabase: any, 
+  supabase: SupabaseServerClient,
   studentId: string, 
   tenantId: string, 
   name: string,
@@ -570,7 +571,7 @@ async function createPlanGroup(
 }
 
 async function savePlans(
-  supabase: any,
+  supabase: SupabaseServerClient,
   studentId: string,
   tenantId: string,
   groupId: string,
@@ -578,7 +579,7 @@ async function savePlans(
 ) {
   if (plans.length === 0) return;
 
-  const _dbPlans = toDBPlanDataList({ weeklyMatrices: [{ days: [{ plans }] }] } as any); // Adapt to helper
+  const _dbPlans = toDBPlanDataList({ weeklyMatrices: [{ days: [{ plans }] }] } as unknown as Parameters<typeof toDBPlanDataList>[0]); // Adapt to helper
   // Helper `toDBPlanDataList` takes whole response.
   // Actually we can map manually or use `toDBPlanData`.
   const mappedPlans = plans.map(plan => ({

@@ -252,8 +252,7 @@ export function CompetencyAnalysisSection({
         competency_area: input.area,
         competency_item: input.item,
         grade_value: input.grade,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ...(input.rubricScores && { rubric_scores: input.rubricScores as any }),
+        ...(input.rubricScores && { rubric_scores: input.rubricScores as unknown as Record<string, unknown>[] }),
       });
       if (!result.success) throw new Error(result.error);
     },
@@ -307,8 +306,7 @@ export function CompetencyAnalysisSection({
     // 결정론적 등급: 서버에서 이수율+성적 기반으로 계산 (파이프라인과 동일 로직)
     const careerRes = await computeDeterministicCareerGradesAction(studentId);
     if (careerRes.success && careerRes.data.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      allGrades.push(...careerRes.data as any[]);
+      allGrades.push(...careerRes.data as unknown as typeof allGrades);
     }
 
     const aggregated = aggregateCompetencyGrades(allGrades);
@@ -323,8 +321,7 @@ export function CompetencyAnalysisSection({
         competency_item: ag.item,
         grade_value: ag.finalGrade,
         notes: `[AI] ${ag.recordCount}건 ${ag.method === "rubric" ? "루브릭 기반" : "레코드"} 종합`,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        rubric_scores: ag.rubricScores as any,
+        rubric_scores: ag.rubricScores as unknown as Record<string, unknown>[],
         source: "ai",
         status: "suggested",
       }),

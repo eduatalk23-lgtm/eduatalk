@@ -14,7 +14,7 @@ type PageProps = {
 type HistoryEvent = {
   id: string;
   event_type: string;
-  detail: any;
+  detail: Record<string, string | number | boolean | null | undefined>;
   created_at: string;
 };
 

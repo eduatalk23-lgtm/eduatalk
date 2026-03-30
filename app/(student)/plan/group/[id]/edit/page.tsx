@@ -33,7 +33,7 @@ export default async function EditPlanGroupPage({ params }: EditPlanGroupPagePro
   }
 
   // 수정 권한 확인
-  if (!PlanStatusManager.canEdit(group.status as any)) {
+  if (!PlanStatusManager.canEdit(group.status as Parameters<typeof PlanStatusManager.canEdit>[0])) {
     redirect(`/plan/group/${id}`);
   }
 
@@ -77,7 +77,7 @@ export default async function EditPlanGroupPage({ params }: EditPlanGroupPagePro
           lectures,
           custom,
         }}
-        initialData={initialData as any}
+        initialData={initialData as unknown as Parameters<typeof PlanGroupWizard>[0]["initialData"]}
         isEditMode={true}
       />
     </section>

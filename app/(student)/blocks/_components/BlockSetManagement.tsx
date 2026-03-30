@@ -191,20 +191,22 @@ export default function BlockSetManagement({
       
       // 성공 시 에러 상태 초기화
       setError(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("블록 데이터 로드 실패:", error);
-      
+
       // 네트워크 에러 구분
-      const isNetworkError = 
-        error?.message?.includes("Failed to fetch") ||
-        error?.message?.includes("NetworkError") ||
-        error?.message?.includes("network") ||
-        error?.code === "ECONNABORTED" ||
-        error?.code === "ETIMEDOUT";
-      
+      const errMsg = error instanceof Error ? error.message : "";
+      const errCode = (error as { code?: string })?.code;
+      const isNetworkError =
+        errMsg.includes("Failed to fetch") ||
+        errMsg.includes("NetworkError") ||
+        errMsg.includes("network") ||
+        errCode === "ECONNABORTED" ||
+        errCode === "ETIMEDOUT";
+
       const errorMessage = isNetworkError
         ? "네트워크 연결을 확인해주세요. 잠시 후 다시 시도해주세요."
-        : error?.message || "블록 데이터를 불러오는 중 오류가 발생했습니다.";
+        : errMsg || "블록 데이터를 불러오는 중 오류가 발생했습니다.";
       
       setError(errorMessage);
     } finally {

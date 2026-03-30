@@ -113,8 +113,7 @@ export async function backfillPlacementGrades(
 
   if (!snap?.result) return 0;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const verdicts = (snap.result as any)?.verdicts as Array<{
+  const verdicts = (snap.result as unknown as { verdicts?: Array<{ universityName: string; level: PlacementLevel }> })?.verdicts as Array<{
     universityName: string;
     level: PlacementLevel;
   }> ?? [];

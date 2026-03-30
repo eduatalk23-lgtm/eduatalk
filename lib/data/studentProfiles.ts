@@ -122,10 +122,8 @@ export async function upsertStudentProfile(
   }
 
   // user_profiles 필드 분리
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const profilePayload: Record<string, any> = {};
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const studentPayload: Record<string, any> = {};
+  const profilePayload: Record<string, unknown> = {};
+  const studentPayload: Record<string, unknown> = {};
 
   const userProfileFields = ["phone", "profile_image_url"] as const;
   const studentFields = [

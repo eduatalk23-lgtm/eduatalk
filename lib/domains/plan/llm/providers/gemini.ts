@@ -603,8 +603,7 @@ export class GeminiProvider extends BaseLLMProvider {
    */
   // sdk 타입을 직접 가져다 쓰거나, 구체적인 타입을 정의하는 것이 좋음
   // 여기서는 구조적 타이핑을 위해 Record<string, unknown> 사용 후 타입 가드 또는 캐스팅
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private extractGroundingMetadata(response: any): GroundingMetadata | undefined {
+  private extractGroundingMetadata(response: Record<string, unknown>): GroundingMetadata | undefined {
     const groundingMeta = response.candidates?.[0]?.groundingMetadata;
     if (!groundingMeta) return undefined;
 
@@ -613,16 +612,14 @@ export class GeminiProvider extends BaseLLMProvider {
       groundingMeta.webSearchQueries || groundingMeta.searchQueries || [];
 
     // 웹 검색 결과 추출
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const webResults = (groundingMeta.groundingChunks || []).map((chunk: any) => ({
+    const webResults = (groundingMeta.groundingChunks || []).map((chunk: { web?: { uri?: string; title?: string }; retrievedContext?: { text?: string } }) => ({
       url: chunk.web?.uri || "",
       title: chunk.web?.title || "",
       snippet: chunk.retrievedContext?.text || "",
     }));
 
     // 인용 정보 추출
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const citations = (groundingMeta.groundingSupports || []).flatMap((support: any) =>
+    const citations = (groundingMeta.groundingSupports || []).flatMap((support: { groundingChunkIndices?: number[]; segment?: { startIndex?: number; endIndex?: number } }) =>
        
       (support.groundingChunkIndices || []).map((index: number, _i: number) => ({
         startIndex: support.segment?.startIndex || 0,
@@ -768,8 +765,7 @@ export class GeminiProvider extends BaseLLMProvider {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       let fullContent = "";
       let stopReason: string | null = null;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let lastResponse: any = null;
+      let lastResponse: Record<string, unknown> | null = null;
 
       try {
         if (attempt > 0) {

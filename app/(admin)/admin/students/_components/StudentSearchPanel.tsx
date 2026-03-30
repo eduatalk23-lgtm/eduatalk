@@ -85,8 +85,7 @@ export function StudentSearchPanel({
     if (!value) {
       delete next[key];
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (next as any)[key] = key === "isActive" ? value === "true" : value;
+      (next as Record<string, unknown>)[key] = key === "isActive" ? value === "true" : value;
     }
     onFiltersChange(next);
   };

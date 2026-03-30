@@ -289,7 +289,7 @@ export function HierarchicalFilter({
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
-              handleSubmit(e as any);
+              handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
             }
           }}
           placeholder={contentType === "book" ? "교재명 입력" : "강의명 입력"}

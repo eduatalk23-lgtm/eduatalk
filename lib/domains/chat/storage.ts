@@ -3,15 +3,14 @@
  * Private 버킷용 signed URL 생성 유틸리티
  */
 
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseAdminClient, type SupabaseAdminClient } from "@/lib/supabase/admin";
 
 const STORAGE_BUCKET = "chat-attachments";
 
 /** Signed URL 유효 기간 (초) - 7일 */
 const SIGNED_URL_EXPIRES_IN = 60 * 60 * 24 * 7;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getAdminClient(): any {
+function getAdminClient(): SupabaseAdminClient {
   const client = createSupabaseAdminClient();
   if (!client) throw new Error("Admin client not available");
   return client;

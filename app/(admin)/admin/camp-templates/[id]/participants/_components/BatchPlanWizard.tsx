@@ -45,7 +45,7 @@ type Step3Data = {
   selectedGroupIds: Set<string>; // 플랜 생성할 그룹 ID들
   previewResults?: Record<string, {
     planCount: number;
-    previewData?: any[];
+    previewData?: Record<string, unknown>[];
     error?: string;
   }>;
 };

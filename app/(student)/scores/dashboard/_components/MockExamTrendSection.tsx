@@ -193,7 +193,7 @@ export function MockExamTrendSection({
             }}
           />
           <Tooltip
-            formatter={(value: any) => {
+            formatter={(value: number | string | null) => {
               if (value === null || value === undefined) return "데이터 없음";
               if (metric === "percentile") return `${value}%`;
               if (metric === "grade_score") return `${value}등급`;

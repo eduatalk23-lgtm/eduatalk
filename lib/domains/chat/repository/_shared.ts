@@ -2,7 +2,7 @@
  * Chat Repository 공통 유틸리티 및 상수
  */
 
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseAdminClient, type SupabaseAdminClient } from "@/lib/supabase/admin";
 
 // ============================================
 // 유틸리티 함수
@@ -36,8 +36,7 @@ export function validateCursor(cursor: string | undefined): string | undefined {
  *
  * @throws Error Admin client 초기화 실패 시
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function getAdminClientForChat(): any {
+export function getAdminClientForChat(): SupabaseAdminClient {
   const client = createSupabaseAdminClient();
   if (!client) {
     throw new Error("Admin client initialization failed: Service role key not configured");

@@ -1400,8 +1400,7 @@ export function useChatRoomLogic({
           // React Query 캐시에 새 메시지 추가
           queryClient.setQueryData(
             chatKeys.messages(roomId),
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (old: any) => {
+            (old: { pages: Array<{ data: Array<{ id: string }> }> } | undefined) => {
               if (!old?.pages) return old;
               const firstPage = old.pages[0];
               const existingIds = new Set(firstPage.data.map((m: { id: string }) => m.id));

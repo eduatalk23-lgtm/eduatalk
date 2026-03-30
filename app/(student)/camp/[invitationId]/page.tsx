@@ -86,7 +86,7 @@ export default async function CampParticipationPage({
   }
 
   // Draft 플랜 그룹 조회 (pending 상태일 때만)
-  let draftData: any = undefined;
+  let draftData: Record<string, unknown> | undefined = undefined;
   if (invitation.status === "pending") {
     const { data: draftGroup } = await supabase
       .from("plan_groups")

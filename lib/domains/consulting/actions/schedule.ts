@@ -294,8 +294,7 @@ export async function getConsultationSchedules(
     }
 
     // calendar_events + consultation_event_data → ConsultationSchedule 뷰모델 매핑
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return ((data as any[]) ?? []).map((row) => {
+    return ((data as Record<string, unknown>[]) ?? []).map((row) => {
       // consultation_event_data는 1:1이므로 배열의 첫 번째 또는 단일 객체
       const ced = Array.isArray(row.consultation_event_data)
         ? row.consultation_event_data[0]
@@ -641,8 +640,7 @@ export async function updateScheduleStatus(
     const eventId = scheduleId;
 
     // 취소 시 알림 발송을 위해 일정 정보 조회
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let existingConsult: any = null;
+    let existingConsult: Record<string, unknown> | null = null;
     if (status === "cancelled" && tenantContext?.tenantId) {
       const { data } = await supabase
         .from("consultation_event_data")

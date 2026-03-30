@@ -93,9 +93,10 @@ export function QRCodeScanner({
                     : "출석 체크에 실패했습니다.")
               );
             }
-          } catch (err: any) {
+          } catch (err: unknown) {
+            const errMsg = err instanceof Error ? err.message : undefined;
             setError(
-              err.message ||
+              errMsg ||
                 (mode === "check-out"
                   ? "퇴실 체크 중 오류가 발생했습니다."
                   : "출석 체크 중 오류가 발생했습니다.")
@@ -108,16 +109,17 @@ export function QRCodeScanner({
           // console.debug("[QRCodeScanner] 스캔 중:", errorMessage);
         }
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       let errorMessage = "QR 코드 스캔을 시작할 수 없습니다.";
+      const errMsg = err instanceof Error ? err.message : undefined;
 
-      if (err.message?.includes("Permission denied")) {
+      if (errMsg?.includes("Permission denied")) {
         errorMessage =
           "카메라 권한이 필요합니다. 브라우저 설정에서 카메라 권한을 허용해주세요.";
-      } else if (err.message?.includes("No camera")) {
+      } else if (errMsg?.includes("No camera")) {
         errorMessage = "카메라를 찾을 수 없습니다.";
-      } else if (err.message) {
-        errorMessage = err.message;
+      } else if (errMsg) {
+        errorMessage = errMsg;
       }
 
       setError(errorMessage);

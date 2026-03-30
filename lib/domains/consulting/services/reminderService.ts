@@ -6,6 +6,7 @@
  */
 
 import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
+import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { formatSMSTemplate, type SMSTemplateType } from "@/lib/services/smsTemplates";
 import { getAlimtalkTemplate } from "@/lib/services/alimtalkTemplates";
@@ -23,7 +24,6 @@ type TenantExtended = {
   representative_phone?: string | null;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type EventRow = Record<string, unknown>;
 
 /**
@@ -57,8 +57,7 @@ export async function processConsultationReminders(): Promise<{
     logActionDebug(ACTION_CTX, "리마인더 처리 시작", { targetDate: tomorrow });
 
     // calendar_events + consultation_event_data JOIN으로 내일 예정 상담 조회
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: events, error: queryError } = await (adminClient as any)
+    const { data: events, error: queryError } = await (adminClient as unknown as SupabaseAdminClient)
       .from("calendar_events")
       .select(`
         id, title, description, start_at, end_at, location, tenant_id, student_id,
@@ -102,8 +101,7 @@ export async function processConsultationReminders(): Promise<{
     for (const row of rows) {
       const studentId = row.student_id as string;
       const phoneData = phoneMap.get(studentId);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cd = (row as any).consultation_event_data;
+      const cd = (row as Record<string, unknown>).consultation_event_data as Record<string, unknown> | undefined;
 
       if (!phoneData) {
         logActionDebug(ACTION_CTX, "전화번호 정보 없음, 건너뜀", { studentId });
@@ -160,8 +158,7 @@ export async function processConsultationReminders(): Promise<{
 
       if (anySuccess) {
         // consultation_event_data.reminder_sent 업데이트
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (adminClient as any)
+        await (adminClient as unknown as SupabaseAdminClient)
           .from("consultation_event_data")
           .update({
             reminder_sent: true,
@@ -276,8 +273,7 @@ async function sendReminderNotification(params: {
 }
 
 async function fetchTenantMap(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  client: any,
+  client: SupabaseAdminClient,
   tenantIds: string[]
 ): Promise<Map<string, TenantExtended>> {
   const map = new Map<string, TenantExtended>();
@@ -306,8 +302,7 @@ type StudentPhoneEntry = {
 };
 
 async function fetchStudentPhoneMap(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  _client: any,
+  _client: SupabaseAdminClient,
   studentIds: string[]
 ): Promise<Map<string, StudentPhoneEntry>> {
   const map = new Map<string, StudentPhoneEntry>();

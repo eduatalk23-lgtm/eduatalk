@@ -619,8 +619,8 @@ function splitProseForExport(text: string, groupCount: number): string[] {
   return result;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function pushTipAndResources(children: any[], item: OutlineItem, TextRun: any, Paragraph: any, indent = 360) {
+// docx library classes are dynamically imported, using constructor types
+function pushTipAndResources(children: unknown[], item: OutlineItem, TextRun: new (opts: Record<string, unknown>) => unknown, Paragraph: new (opts: Record<string, unknown>) => unknown, indent = 360) {
   if (item.tip) {
     children.push(
       new Paragraph({

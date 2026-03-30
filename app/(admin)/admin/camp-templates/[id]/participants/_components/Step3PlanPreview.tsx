@@ -31,7 +31,7 @@ type Step3PlanPreviewProps = {
     selectedGroupIds: Set<string>;
     previewResults?: Record<string, {
       planCount: number;
-      previewData?: any[];
+      previewData?: Record<string, unknown>[];
       error?: string;
     }>;
   } | null;
@@ -39,7 +39,7 @@ type Step3PlanPreviewProps = {
     selectedGroupIds: Set<string>;
     previewResults?: Record<string, {
       planCount: number;
-      previewData?: any[];
+      previewData?: Record<string, unknown>[];
       error?: string;
     }>;
   }) => void;
@@ -63,7 +63,7 @@ export function Step3PlanPreview({
   );
   const [previewResults, setPreviewResults] = useState<Record<string, {
     planCount: number;
-    previewData?: any[];
+    previewData?: Record<string, unknown>[];
     error?: string;
   }>>(initialData?.previewResults || {});
 
@@ -109,7 +109,7 @@ export function Step3PlanPreview({
       
       const resultsMap: Record<string, {
         planCount: number;
-        previewData?: any[];
+        previewData?: Record<string, unknown>[];
         error?: string;
       }> = {};
 

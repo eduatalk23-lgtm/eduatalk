@@ -439,7 +439,7 @@ export async function updateBook(
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  const payload: Record<string, any> = {};
+  const payload: Record<string, unknown> = {};
   if (updates.title !== undefined) payload.title = updates.title;
   if (updates.revision !== undefined) payload.revision = updates.revision;
   if (updates.semester !== undefined) payload.semester = updates.semester;
@@ -490,7 +490,7 @@ export async function updateLecture(
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  const payload: Record<string, any> = {};
+  const payload: Record<string, unknown> = {};
   if (updates.title !== undefined) payload.title = updates.title;
   if (updates.revision !== undefined) payload.revision = updates.revision;
   if (updates.semester !== undefined) payload.semester = updates.semester;
@@ -542,7 +542,7 @@ export async function updateCustomContent(
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  const payload: Record<string, any> = {};
+  const payload: Record<string, unknown> = {};
   if (updates.title !== undefined) payload.title = updates.title;
   if (updates.content_type !== undefined) payload.content_type = updates.content_type;
   if (updates.total_page_or_time !== undefined) payload.total_page_or_time = updates.total_page_or_time;

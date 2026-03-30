@@ -272,12 +272,12 @@ async function fetchContentsByTab(
       const countQuery = selectBooks();
       const { count: initialCount, error: countError } = await (countQuery
         .eq("student_id", studentId)
-        .select("*") as any).select("*", { count: "exact", head: true });
+        .select("*") as unknown as { select: (q: string, opts: { count: string; head: boolean }) => Promise<{ count: number | null; error: unknown }> }).select("*", { count: "exact", head: true });
       let count = initialCount;
 
       if (ErrorCodeCheckers.isColumnNotFound(countError)) {
         const countQuery2 = selectBooks();
-        const { count: count2 } = await (countQuery2.select("*") as any).select("*", { count: "exact", head: true });
+        const { count: count2 } = await (countQuery2.select("*") as unknown as { select: (q: string, opts: { count: string; head: boolean }) => Promise<{ count: number | null; error: unknown }> }).select("*", { count: "exact", head: true });
         count = count2;
       }
       
@@ -352,12 +352,12 @@ async function fetchContentsByTab(
       const countQuery = selectLectures();
       const { count: initialCount, error: countError } = await (countQuery
         .eq("student_id", studentId)
-        .select("*") as any).select("*", { count: "exact", head: true });
+        .select("*") as unknown as { select: (q: string, opts: { count: string; head: boolean }) => Promise<{ count: number | null; error: unknown }> }).select("*", { count: "exact", head: true });
       let count = initialCount;
 
       if (ErrorCodeCheckers.isColumnNotFound(countError)) {
         const countQuery2 = selectLectures();
-        const { count: count2 } = await (countQuery2.select("*") as any).select("*", { count: "exact", head: true });
+        const { count: count2 } = await (countQuery2.select("*") as unknown as { select: (q: string, opts: { count: string; head: boolean }) => Promise<{ count: number | null; error: unknown }> }).select("*", { count: "exact", head: true });
         count = count2;
       }
       
@@ -417,12 +417,12 @@ async function fetchContentsByTab(
       const countQuery = selectCustomContents();
       const { count: initialCount, error: countError } = await (countQuery
         .eq("student_id", studentId)
-        .select("*") as any).select("*", { count: "exact", head: true });
+        .select("*") as unknown as { select: (q: string, opts: { count: string; head: boolean }) => Promise<{ count: number | null; error: unknown }> }).select("*", { count: "exact", head: true });
       let count = initialCount;
 
       if (ErrorCodeCheckers.isColumnNotFound(countError)) {
         const countQuery2 = selectCustomContents();
-        const { count: count2 } = await (countQuery2.select("*") as any).select("*", { count: "exact", head: true });
+        const { count: count2 } = await (countQuery2.select("*") as unknown as { select: (q: string, opts: { count: string; head: boolean }) => Promise<{ count: number | null; error: unknown }> }).select("*", { count: "exact", head: true });
         count = count2;
       }
       

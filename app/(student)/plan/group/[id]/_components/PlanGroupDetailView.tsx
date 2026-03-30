@@ -206,7 +206,7 @@ function PlanGroupDetailViewComponent({
         id: c.content_id,
         title: c.contentTitle || "알 수 없음",
         subtitle: c.contentSubtitle,
-        master_content_id: (c as any).master_content_id || null,
+        master_content_id: (c as unknown as { master_content_id?: string }).master_content_id || null,
       }));
     
     const lectures = contentsWithDetails
@@ -215,7 +215,7 @@ function PlanGroupDetailViewComponent({
         id: c.content_id,
         title: c.contentTitle || "알 수 없음",
         subtitle: c.contentSubtitle,
-        master_content_id: (c as any).master_content_id || null,
+        master_content_id: (c as unknown as { master_content_id?: string }).master_content_id || null,
       }));
     
     const custom = contentsWithDetails

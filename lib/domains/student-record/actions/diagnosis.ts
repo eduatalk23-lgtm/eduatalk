@@ -309,25 +309,24 @@ export async function computeDeterministicCareerGradesAction(
       .select("subject:subject_id(name), rank_grade, grade, semester")
       .eq("student_id", studentId);
 
-    const subjectScores = (scoreRows ?? [])
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((s: any) => ({
-        subjectName: (s.subject as { name: string } | null)?.name ?? "",
-        rankGrade: (s.rank_grade as number) ?? 5,
+    type ScoreRow = { subject: { name: string } | null; rank_grade: number | null; grade: number | null; semester: number | null };
+    const typedScoreRows = (scoreRows ?? []) as unknown as ScoreRow[];
+
+    const subjectScores = typedScoreRows
+      .map((s) => ({
+        subjectName: s.subject?.name ?? "",
+        rankGrade: s.rank_grade ?? 5,
       }))
       .filter((s: { subjectName: string }) => s.subjectName);
     const takenNames = [...new Set(subjectScores.map((s: { subjectName: string }) => s.subjectName))];
 
     // 학년별 이수 데이터 (Q2 학습단계 순서 검증용)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const gradedSubjects = (scoreRows ?? [])
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .filter((s: any) => (s.subject as { name: string } | null)?.name && s.grade != null && s.semester != null)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((s: any) => ({
-        subjectName: (s.subject as { name: string })!.name,
-        grade: s.grade as number,
-        semester: s.semester as number,
+    const gradedSubjects = typedScoreRows
+      .filter((s) => s.subject?.name && s.grade != null && s.semester != null)
+      .map((s) => ({
+        subjectName: s.subject!.name,
+        grade: s.grade!,
+        semester: s.semester!,
       }));
 
     const { calculateCourseAdequacy } = await import("../course-adequacy");

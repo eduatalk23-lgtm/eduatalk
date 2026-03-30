@@ -91,8 +91,7 @@ export async function fetchConsultationData(
         .order("sent_at", { ascending: false });
 
       if (logs) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        notificationLogs = (logs as any[]).reduce(
+        notificationLogs = (logs as Array<Record<string, unknown>>).reduce(
           (acc: Record<string, NotificationLogEntry[]>, log) => {
             const key = log.consultation_schedule_id as string;
             if (!acc[key]) acc[key] = [];

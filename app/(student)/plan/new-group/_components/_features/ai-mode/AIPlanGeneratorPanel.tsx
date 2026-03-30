@@ -603,7 +603,7 @@ export function AIPlanGeneratorPanel({
                       </span>
                     </div>
                     <span className={cn("text-sm", textSecondary)}>
-                      {week.days.reduce((sum: number, d: any) => sum + d.plans.length, 0)}개 플랜
+                      {week.days.reduce((sum: number, d: { plans: unknown[] }) => sum + d.plans.length, 0)}개 플랜
                     </span>
                   </div>
                   {week.weeklySummary && (

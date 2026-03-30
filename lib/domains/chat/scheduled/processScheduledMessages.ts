@@ -6,6 +6,7 @@
  */
 
 import { getAdminClientForChat } from "../repository/_shared";
+import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import * as repository from "../repository";
 import { routeNotification } from "@/lib/domains/notification/router";
 import type {
@@ -225,8 +226,7 @@ async function getSenderInfoWithFallback(
  * 예약 메시지의 첨부파일을 실제 메시지에 연결
  */
 async function linkScheduledAttachments(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  client: any,
+  client: SupabaseAdminClient,
   scheduledMessageId: string,
   messageId: string,
   senderId: string
@@ -324,8 +324,7 @@ async function sendScheduledMessagePush(
  * 발송 실패 처리: attempts 초과 시 failed, 아니면 pending으로 복구
  */
 async function handleSendFailure(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  client: any,
+  client: SupabaseAdminClient,
   msg: ScheduledMessage,
   err: unknown
 ): Promise<void> {
@@ -350,8 +349,7 @@ async function handleSendFailure(
 /**
  * 예약 메시지를 failed 상태로 전환
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function markFailed(client: any, id: string, reason: string): Promise<void> {
+async function markFailed(client: SupabaseAdminClient, id: string, reason: string): Promise<void> {
   await client
     .from("scheduled_messages")
     .update({ status: "failed", last_error: reason })

@@ -45,8 +45,7 @@ export type UserProfileFlat = {
  * { id, grade, user_profiles: [{ name, ... }] }
  * → { id, grade, name, phone, is_active, profile_image_url }
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function flattenUserProfile(row: any): Record<string, unknown> & UserProfileFlat {
+export function flattenUserProfile(row: Record<string, unknown> & Partial<UserProfileJoinResult>): Record<string, unknown> & UserProfileFlat {
   if (!row) {
     return { name: null, phone: null, is_active: true, profile_image_url: null } as Record<string, unknown> & UserProfileFlat;
   }
@@ -65,7 +64,6 @@ export function flattenUserProfile(row: any): Record<string, unknown> & UserProf
 /**
  * 배열에 대한 flattenUserProfile 적용
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function flattenUserProfiles(rows: any[] | null): (Record<string, unknown> & UserProfileFlat)[] {
+export function flattenUserProfiles(rows: (Record<string, unknown> & Partial<UserProfileJoinResult>)[] | null): (Record<string, unknown> & UserProfileFlat)[] {
   return (rows ?? []).map(flattenUserProfile);
 }

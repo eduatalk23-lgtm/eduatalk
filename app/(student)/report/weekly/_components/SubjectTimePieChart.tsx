@@ -39,7 +39,7 @@ export function SubjectTimePieChart({ data }: SubjectTimePieChartProps) {
             cx="50%"
             cy="50%"
             labelLine={false}
-            label={(props: any) => {
+            label={(props: { name: string; payload?: { percentage?: number } }) => {
               const { name, payload } = props;
               const percentage = payload?.percentage ?? 0;
               return `${name} ${percentage.toFixed(1)}%`;

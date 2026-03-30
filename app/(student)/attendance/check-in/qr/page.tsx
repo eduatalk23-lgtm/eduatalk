@@ -50,10 +50,10 @@ export default async function QRCheckInPage({
       );
       redirect(`/attendance/check-in?error=${errorMessage}`);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     // 에러 발생 시 에러 메시지와 함께 리다이렉트
     const errorMessage = encodeURIComponent(
-      error.message || "QR 코드 처리 중 오류가 발생했습니다."
+      (error instanceof Error ? error.message : undefined) || "QR 코드 처리 중 오류가 발생했습니다."
     );
     redirect(`/attendance/check-in?error=${errorMessage}`);
   }

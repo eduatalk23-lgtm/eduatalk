@@ -33,8 +33,8 @@ type AdminRescheduleWizardProps = {
     plan_date?: string;
   }>;
   initialDateRange?: { from: string; to: string } | null;
-  timeSlots: any[]; // DB TimeSlot type mismatch with calculateAvailableDates TimeSlot, using any for now or need adapter
-  academySchedules: any[]; 
+  timeSlots: TimeSlot[];
+  academySchedules: AcademySchedule[];
 };
 
 type WizardStep = 1 | 2 | 3;
@@ -65,7 +65,7 @@ export function AdminRescheduleWizard({
   const [placementDateRange, setPlacementDateRange] = useState<DateRange | null>(null);
   const [includeToday, setIncludeToday] = useState(false);
   const [adjustments, setAdjustments] = useState<AdjustmentInput[]>([]);
-  const [previewResult, setPreviewResult] = useState<any>(null);
+  const [previewResult, setPreviewResult] = useState<Record<string, unknown> | null>(null);
   const [completedSteps, setCompletedSteps] = useState<Set<WizardStep>>(
     new Set()
   );
@@ -374,8 +374,8 @@ export function AdminRescheduleWizard({
 function getAvailableSlotsForRange(
   startDateStr: string,
   endDateStr: string,
-  timeSlots: any[], // Generic TimeSlot
-  academySchedules: any[] // Academy Schedule
+  timeSlots: TimeSlot[],
+  academySchedules: AcademySchedule[]
 ): { date: string; startTime: string; endTime: string }[] {
   const result: { date: string; startTime: string; endTime: string }[] = [];
   const start = new Date(startDateStr);

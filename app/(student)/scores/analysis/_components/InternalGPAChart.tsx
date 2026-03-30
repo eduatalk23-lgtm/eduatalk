@@ -189,7 +189,7 @@ export default function InternalGPAChart({ data, scores = [] }: InternalGPAChart
               borderRadius: "8px",
               fontSize: "12px",
             }}
-            formatter={(value: any) => [`${value}등급`, ""]}
+            formatter={(value: number | string) => [`${value}등급`, ""]}
           />
           <Legend
             wrapperStyle={{ fontSize: "12px" }}

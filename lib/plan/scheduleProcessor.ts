@@ -17,6 +17,7 @@ import type {
   ContentIdMap,
   ContentMetadataMap,
   ContentDurationMap,
+  ContentDurationInfo,
   DayType,
   PlanNumberMap,
   UsedBlockIndicesByDateMap,
@@ -202,8 +203,7 @@ export function processDatePlans(
 
   // assignPlanTimes 호출하여 시간 세그먼트 계산
   const dayType = context.dateMetadata.day_type || "학습일";
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const durationMap = contentDurationMap as Map<string, any>;
+  const durationMap = contentDurationMap as Map<string, ContentDurationInfo>;
   const segments = assignPlanTimes(
     plansForAssign,
     context.studyTimeSlots,

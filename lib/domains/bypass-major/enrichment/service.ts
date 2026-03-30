@@ -4,7 +4,7 @@
 // 모든 Tier 결과 DB 저장 + staleness 점검
 // ============================================
 
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseAdminClient, type SupabaseAdminClient } from "@/lib/supabase/admin";
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import type { EnrichmentResult, EnrichmentOptions, CurriculumSource, ParsedCourse } from "./types";
 
@@ -258,10 +258,8 @@ function getReplaceSources(tier: CurriculumSource): CurriculumSource[] {
 }
 
 /** curriculum_collection_log에 수집 이력 기록 */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function logCollection(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: SupabaseAdminClient,
   departmentId: string,
   tier: string,
   status: string,

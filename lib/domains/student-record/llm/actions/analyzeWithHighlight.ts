@@ -50,23 +50,21 @@ export async function analyzeSetekWithHighlight(
           .eq("student_id", input.studentId)
           .order("grade")
           .order("semester");
-        const allRows = scoreRows ?? [];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const scores = allRows.map((s: any) => ({
-          subjectName: (s.subject as { name: string } | null)?.name ?? "",
-          rankGrade: (s.rank_grade as number) ?? 5,
+        type HighlightScoreRow = { subject: { name: string } | null; rank_grade: number | null; grade: number | null; semester: number | null };
+        const allRows = (scoreRows ?? []) as unknown as HighlightScoreRow[];
+        const scores = allRows.map((s) => ({
+          subjectName: s.subject?.name ?? "",
+          rankGrade: s.rank_grade ?? 5,
         })).filter((s: { subjectName: string }) => s.subjectName);
 
         // 학기별 성적 추이 (rank_grade가 있는 과목만)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const gradeTrend = allRows
-          .filter((s: { rank_grade: number | null }) => s.rank_grade != null)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .map((s: any) => ({
-            grade: (s.grade as number) ?? 1,
-            semester: (s.semester as number) ?? 1,
-            subjectName: (s.subject as { name: string } | null)?.name ?? "",
-            rankGrade: s.rank_grade as number,
+          .filter((s) => s.rank_grade != null)
+          .map((s) => ({
+            grade: s.grade ?? 1,
+            semester: s.semester ?? 1,
+            subjectName: s.subject?.name ?? "",
+            rankGrade: s.rank_grade!,
           }));
 
         input.careerContext = {

@@ -27,8 +27,7 @@ export function HabitCard({ habit, today, onEdit }: HabitCardProps) {
   const progress = Math.min(completedCount / habit.targetCount, 1);
 
   // Dynamic icon component
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const IconComponent = (Icons as any)[habit.icon] || Icons.Check;
+  const IconComponent = (Icons as Record<string, React.ComponentType>)[habit.icon] || Icons.Check;
 
   const handleCheckIn = () => {
     startTransition(async () => {

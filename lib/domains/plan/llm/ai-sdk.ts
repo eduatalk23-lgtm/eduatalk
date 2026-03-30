@@ -252,8 +252,7 @@ function extractRetryDelay(error: unknown, attempt: number): number {
 // ============================================
 
 function extractGroundingFromSources(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  result: any
+  result: { sources?: Array<{ sourceType?: string; url?: string; title?: string; snippet?: string }> }
 ): GroundingMetadata | undefined {
   // AI SDK의 sources 필드에서 grounding 정보 추출
   const sources = result.sources;
@@ -289,8 +288,8 @@ function extractGroundingFromSources(
  * AI SDK 내장 json() output과 달리, 파싱 실패 시 throw하지 않고
  * 텍스트를 그대로 반환하여 extractJson의 fallback 로직을 사용할 수 있게 함.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const jsonModeOutput: any = {
+// AI SDK output adapter for Gemini JSON mode - typed as unknown to avoid Output<T> generic
+const jsonModeOutput: unknown = {
   name: "json-mode",
   responseFormat: Promise.resolve({ type: "json" as const }),
   async parseCompleteOutput({ text }: { text: string }) {

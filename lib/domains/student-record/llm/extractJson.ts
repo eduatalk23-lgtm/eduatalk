@@ -7,8 +7,7 @@
  * 3. trailing comma, 주석 등 흔한 AI JSON 오류 정리
  * 4. JSON.parse 시도 → 실패 시 문자열 내 줄바꿈 이스케이프 → 잘린 JSON 복구
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function extractJson<T = any>(raw: string): T {
+export function extractJson<T = unknown>(raw: string): T {
   let str = raw.trim();
 
   // 1단계: 마크다운 코드 펜스 제거

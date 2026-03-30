@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import type {
   UniversityDepartment,
   DepartmentWithCurriculum,
@@ -451,8 +452,7 @@ export async function findDepartmentsWithoutCurriculum(
 }
 
 async function findNoCurrDeptsByFilter(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: SupabaseAdminClient,
   filterCol: string,
   filterVal: string,
   excludeId: string,

@@ -472,8 +472,7 @@ export interface GuideUpsertInput {
   originalGuideId?: string;
   parentVersionId?: string;
   versionMessage?: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  reviewResult?: Record<string, any> | null;
+  reviewResult?: Record<string, unknown> | null;
   difficultyLevel?: DifficultyLevel;
   difficultyAuto?: boolean;
 }

@@ -8,6 +8,7 @@
 import { getCachedUserRole } from "@/lib/auth/getCurrentUserRole";
 import * as repository from "../repository";
 import { getAdminClientForChat } from "../repository/_shared";
+import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import { isUUID } from "@/lib/types/guards";
 import type {
   ChatActionResult,
@@ -511,8 +512,7 @@ export async function deleteScheduledMessageAction(
  * 예약 수 제한 체크
  */
 async function checkScheduleLimits(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  client: any,
+  client: SupabaseAdminClient,
   userId: string,
   roomId: string,
   scheduledAt: string

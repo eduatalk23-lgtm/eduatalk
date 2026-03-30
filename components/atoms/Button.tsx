@@ -105,7 +105,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ) => {
     // 아이콘만 있는 버튼의 경우 aria-label 필수
     const hasOnlyIcon =
-      isValidElement(children) && !Boolean((children.props as any).children);
+      isValidElement(children) && !Boolean((children.props as { children?: unknown }).children);
     const finalAriaLabel =
       ariaLabel || (hasOnlyIcon && !props.title ? "버튼" : undefined);
 

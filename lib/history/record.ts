@@ -75,7 +75,7 @@ export async function recordHistory(
          
         ({ error } = await supabase
           .from("student_history")
-          .insert(fallbackPayload as any));
+          .insert(fallbackPayload as unknown as typeof payload));
       }
 
       if (error) {
@@ -101,7 +101,7 @@ export async function recordHistory(
        
       ({ error } = await adminClient
         .from("student_history")
-        .insert(fallbackPayload as any));
+        .insert(fallbackPayload as unknown as typeof payload));
     }
 
     if (error) {

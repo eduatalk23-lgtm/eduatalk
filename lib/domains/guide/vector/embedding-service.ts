@@ -89,8 +89,7 @@ export function buildEmbeddingInput(
 export async function embedSingleGuide(guideId: string): Promise<boolean> {
   logActionDebug(LOG_TAG, `embedSingleGuide: id=${guideId}`);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = createSupabaseAdminClient() as any;
+  const supabase = createSupabaseAdminClient();
   if (!supabase) {
     logActionError(LOG_TAG, "Admin client 생성 실패");
     return false;
@@ -180,8 +179,7 @@ export async function embedBatchGuides(
       `배치 ${Math.floor(i / batchSize) + 1}: ${batch.length}건`,
     );
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const supabase = createSupabaseAdminClient() as any;
+    const supabase = createSupabaseAdminClient();
     if (!supabase) {
       failed += batch.length;
       continue;
@@ -208,8 +206,7 @@ export async function embedBatchGuides(
     for (const g of guides as Array<{ id: string; title: string }>) {
       guideMap.set(g.id, g.title);
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const contentMap = new Map<string, any>();
+    const contentMap = new Map<string, Record<string, unknown>>();
     for (const c of contents as Array<{ guide_id: string }>) {
       contentMap.set(c.guide_id, c);
     }

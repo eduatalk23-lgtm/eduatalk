@@ -5,6 +5,7 @@
 // ============================================
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 
 // ─── 타입 ──────────────────────────────────
 
@@ -151,8 +152,7 @@ export async function discoverDepartmentsFromDiagnosis(
  * 계열 키 배열 → university_departments에서 중분류별 대표 학과 1개씩 선택.
  * 커리큘럼이 있는 학과를 우선, 없으면 아무 학과나 선택.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function findDepartmentsFromMajorKeys(supabase: any, majorKeys: string[]): Promise<DiscoveredDepartment[]> {
+async function findDepartmentsFromMajorKeys(supabase: SupabaseAdminClient, majorKeys: string[]): Promise<DiscoveredDepartment[]> {
   // 계열 키 → mid_classification 목록 수집
   const midClassifications = new Set<string>();
   for (const key of majorKeys) {
@@ -199,8 +199,7 @@ async function findDepartmentsFromMajorKeys(supabase: any, majorKeys: string[]):
  * department_classification.id → mid_name → university_departments 매칭.
  * 기존 파이프라인의 폴백 경로 (ㆍ vs · 정규화 포함).
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function findDepartmentsFromClassificationId(supabase: any, classificationId: number): Promise<DiscoveredDepartment[]> {
+async function findDepartmentsFromClassificationId(supabase: SupabaseAdminClient, classificationId: number): Promise<DiscoveredDepartment[]> {
   const { data: dc } = await supabase
     .from("department_classification")
     .select("mid_name")

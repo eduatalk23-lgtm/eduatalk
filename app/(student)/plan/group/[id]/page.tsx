@@ -239,7 +239,7 @@ export default async function PlanGroupDetailPage({
         const campConfig = await parseCampConfiguration(
           supabase,
           group,
-          template as any,
+          template as unknown as Parameters<typeof parseCampConfiguration>[2],
           tenantContext?.tenantId || null
         );
 

@@ -3,7 +3,7 @@ type CacheEntry<T> = {
   timestamp: number;
 };
 
-const cache = new Map<string, CacheEntry<any>>();
+const cache = new Map<string, CacheEntry<unknown>>();
 const CACHE_TTL = 5 * 60 * 1000; // 5분 (밀리초)
 
 /**

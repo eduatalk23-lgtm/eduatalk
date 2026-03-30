@@ -111,8 +111,7 @@ export async function getHabitsWithTodayLog(
 
     const habits = (data || []).map((h) => {
       const habit = dbToHabit(h);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const logs = ((h as any).habit_logs || []).map((log: Record<string, unknown>) => dbToHabitLog(log));
+      const logs = ((h as unknown as { habit_logs?: Record<string, unknown>[] }).habit_logs || []).map((log: Record<string, unknown>) => dbToHabitLog(log));
       const todayLog = logs.find((l: { logDate: string }) => l.logDate === today);
 
       return {

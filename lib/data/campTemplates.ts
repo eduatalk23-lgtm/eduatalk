@@ -244,8 +244,7 @@ export async function getCampTemplatesForTenantWithPagination(
     // 전체 개수 조회 (필터 적용된 쿼리 사용)
     const countQuery = buildQuery();
     // Supabase count 쿼리는 타입 정의가 복잡하므로 타입 단언 사용
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { count, error: countError } = await (countQuery.select as any)("*", {
+    const { count, error: countError } = await (countQuery.select as unknown as (q: string, opts: { count: string; head: boolean }) => Promise<{ count: number | null; error: unknown }>)("*", {
       count: "exact",
       head: true,
     });
@@ -850,8 +849,7 @@ export async function getCampInvitationsForTemplateWithPagination(
     // 전체 개수 조회 (필터 적용된 쿼리 사용)
     const countQuery = buildQuery();
     // Supabase count 쿼리는 타입 정의가 복잡하므로 타입 단언 사용
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { count, error: countError } = await (countQuery.select as any)("*", {
+    const { count, error: countError } = await (countQuery.select as unknown as (q: string, opts: { count: string; head: boolean }) => Promise<{ count: number | null; error: unknown }>)("*", {
       count: "exact",
       head: true,
     });

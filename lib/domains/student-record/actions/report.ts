@@ -8,6 +8,8 @@
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { logActionError } from "@/lib/logging/actionLogger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 import { getInternalAnalysis } from "@/lib/scores/internalAnalysis";
 import type { InternalAnalysis } from "@/lib/scores/internalAnalysis";
 import { getMockAnalysis } from "@/lib/scores/mockAnalysis";
@@ -108,8 +110,7 @@ async function fetchStudentInfoAndScores(
   studentId: string,
   tenantId: string,
   userId: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: SupabaseServerClient,
 ) {
   const { data: student, error: studentError } = await supabase
     .from("students")
@@ -178,8 +179,7 @@ async function fetchAnalysisData(
   studentId: string,
   tenantId: string,
   initialSchoolYear: number,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: SupabaseServerClient,
   diagnosisTargetSubClassificationId?: number | null,
 ) {
   const [diagnosisData, storylineData, strategyData, edges, setekGuidesRes, actSummariesRes, coursePlanRes] = await Promise.all([
@@ -229,8 +229,7 @@ async function fetchAnalysisData(
 async function fetchSupplementaryData(
   studentId: string,
   tenantId: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: SupabaseServerClient,
   edges: PersistedEdge[],
 ) {
   const [bypassRes, interviewRes, pipelineRes, guideCountRes] = await Promise.allSettled([

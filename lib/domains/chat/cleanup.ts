@@ -5,7 +5,7 @@
  * 2. 만료 첨부파일: 7일 이상 경과한 모든 첨부파일 (Storage + DB 삭제)
  */
 
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseAdminClient, type SupabaseAdminClient } from "@/lib/supabase/admin";
 import * as repository from "./repository";
 
 const STORAGE_BUCKET = "chat-attachments";
@@ -99,9 +99,8 @@ export async function cleanupChatAttachments(): Promise<CleanupResult> {
 }
 
 /** Storage 파일 + DB 레코드 배치 삭제 */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function deleteAttachmentBatch(
-  supabase: any,
+  supabase: SupabaseAdminClient,
   attachments: Array<{ id: string; storage_path: string; thumbnail_storage_path: string | null }>,
   errors: string[]
 ): Promise<{ dbCount: number; storageCount: number }> {

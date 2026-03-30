@@ -81,15 +81,15 @@ export async function generateAiDiagnosis(
         .eq("student_id", studentInfo.studentId)
         .order("grade")
         .order("semester");
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const gradeTrend = (trendRows ?? [])
-        .filter((s: { rank_grade: number | null }) => s.rank_grade != null)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .map((s: any) => ({
-          grade: (s.grade as number) ?? 1,
-          semester: (s.semester as number) ?? 1,
-          subjectName: (s.subject as { name: string } | null)?.name ?? "",
-          rankGrade: s.rank_grade as number,
+      type TrendRow = { subject: { name: string } | null; rank_grade: number | null; grade: number | null; semester: number | null };
+      const typedTrendRows = (trendRows ?? []) as unknown as TrendRow[];
+      const gradeTrend = typedTrendRows
+        .filter((s) => s.rank_grade != null)
+        .map((s) => ({
+          grade: s.grade ?? 1,
+          semester: s.semester ?? 1,
+          subjectName: s.subject?.name ?? "",
+          rankGrade: s.rank_grade!,
         }));
 
       // 교과이수적합도

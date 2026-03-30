@@ -94,7 +94,7 @@ type Step4ResultsProps = {
       string,
       {
         planCount: number;
-        previewData?: any[];
+        previewData?: Record<string, unknown>[];
         error?: string;
       }
     >;

@@ -84,8 +84,7 @@ export interface PlanItemData {
  * Raw DB 데이터를 PlanItemData로 변환
  */
 export function toPlanItemData(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  raw: any,
+  raw: Record<string, unknown>,
   type: PlanItemType
 ): PlanItemData {
   return {

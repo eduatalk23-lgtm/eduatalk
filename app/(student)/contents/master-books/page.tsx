@@ -205,7 +205,7 @@ export default async function StudentMasterBooksPage({
                         {book.title}
                       </h3>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {(book as any).publisher_name || "출판사 정보 없음"}
+                        {(book as unknown as { publisher_name?: string }).publisher_name || "출판사 정보 없음"}
                       </p>
                     </div>
 

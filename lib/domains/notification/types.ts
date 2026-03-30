@@ -21,6 +21,7 @@ export type NotificationType =
   | "event_reminder"
   // 캠프
   | "camp_invitation"
+  | "camp_invitation_expired"
   | "camp_reminder"
   | "camp_status_change"
   // 관리

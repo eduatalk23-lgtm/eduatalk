@@ -185,8 +185,7 @@ export function HabitFormModal({
             </label>
             <div className="grid grid-cols-6 gap-2">
               {HABIT_ICONS.map(({ name, label }) => {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const IconComponent = (Icons as any)[name];
+                const IconComponent = (Icons as Record<string, React.ComponentType>)[name];
                 return (
                   <button
                     key={name}

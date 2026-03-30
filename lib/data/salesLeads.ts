@@ -16,8 +16,10 @@ const LEAD_SELECT_WITH_RELATIONS = `
 `;
 
 /** Flatten nested user_profiles in PostgREST join results for SalesLeadWithRelations */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function flattenLeadRelations(row: any): SalesLeadWithRelations {
+function flattenLeadRelations(row: Record<string, unknown> & {
+  assigned_admin?: { id: string; user_profiles?: { name: string } | null } | null;
+  student?: { id: string; user_profiles?: { name: string } | null } | null;
+}): SalesLeadWithRelations {
   const { assigned_admin, student, ...rest } = row;
   return {
     ...rest,
@@ -27,7 +29,7 @@ function flattenLeadRelations(row: any): SalesLeadWithRelations {
     student: student
       ? { id: student.id, name: student.user_profiles?.name ?? "" }
       : null,
-  };
+  } as SalesLeadWithRelations;
 }
 
 export async function getSalesLeads(

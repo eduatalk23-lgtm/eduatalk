@@ -50,7 +50,7 @@ export function SubjectGroupManagement({
   // 낙관적 업데이트를 위한 상태
   const [optimisticData, setOptimisticData] = useOptimistic(
     data,
-    (currentData, action: { type: string; payload?: any }) => {
+    (currentData, action: { type: string; payload?: Record<string, unknown> }) => {
       switch (action.type) {
         case "addGroup":
           return [...currentData, action.payload];

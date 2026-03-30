@@ -88,7 +88,7 @@ function DropdownMenuTrigger({
       "aria-haspopup": "true",
       "aria-expanded": open,
       onClick: handleClick,
-    } as any);
+    } as React.HTMLAttributes<HTMLElement>);
   }
 
   return (
@@ -326,7 +326,7 @@ const DropdownMenuItem = React.forwardRef<
       }
       onOpenChange(false);
       if (onClick) {
-        onClick(e as any);
+        onClick(e as React.MouseEvent<HTMLButtonElement>);
       }
     };
 
@@ -360,9 +360,9 @@ const DropdownMenuItem = React.forwardRef<
         ...props,
         ref,
         onClick: handleClick,
-        className: cn(baseClasses, (children.props as any).className),
+        className: cn(baseClasses, (children.props as { className?: string }).className),
         role: "menuitem",
-      } as any);
+      } as React.HTMLAttributes<HTMLElement>);
     }
 
     return (

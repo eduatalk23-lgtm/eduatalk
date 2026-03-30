@@ -257,7 +257,7 @@ export interface GeneratePlanResult {
     searchQueries: string[];
     resultsCount: number;
     savedCount?: number;
-    results: any[]; // WebSearchResult imported locally or any
+    results: Array<{ url: string; title: string; snippet?: string }>;
   };
 }
 

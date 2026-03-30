@@ -41,7 +41,7 @@ async function fetchSubjectGroupName(
     }
 
     // subject_groups는 JOIN 결과이므로 타입 단언 필요
-    const subjectGroup = (subject as any).subject_groups;
+    const subjectGroup = (subject as unknown as SubjectWithGroup).subject_groups;
     return subjectGroup?.name || null;
   } catch (error) {
     logActionDebug({ domain: "data", action: "fetchSubjectGroupName" }, "교과명 조회 실패", { subjectId, error });

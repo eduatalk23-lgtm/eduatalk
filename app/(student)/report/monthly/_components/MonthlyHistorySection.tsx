@@ -4,7 +4,7 @@ type MonthlyHistorySectionProps = {
   events: Array<{
     id: string;
     eventType: string;
-    detail: any;
+    detail: Record<string, string | number | boolean | null | undefined>;
     createdAt: string;
   }>;
 };
@@ -21,10 +21,10 @@ const eventTypeLabels: Record<string, string> = {
   auto_schedule_generated: "학습 플랜 생성",
 };
 
-const formatEventDetail = (eventType: string, detail: any): string => {
+const formatEventDetail = (eventType: string, detail: Record<string, string | number | boolean | null | undefined>): string => {
   switch (eventType) {
     case "study_session":
-      const duration = detail.duration ? Math.floor(detail.duration / 60) : 0;
+      const duration = detail.duration ? Math.floor(Number(detail.duration) / 60) : 0;
       const subject = detail.content_type ? `${detail.content_type}` : "";
       return `${subject} ${duration}분 집중학습`;
     case "goal_progress":

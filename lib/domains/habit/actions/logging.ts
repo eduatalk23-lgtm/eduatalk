@@ -225,8 +225,7 @@ export async function getHabitLog(
       return { success: false, error: error.message };
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((data as any).habits?.student_id !== user.userId) {
+    if ((data as unknown as { habits?: { student_id: string } }).habits?.student_id !== user.userId) {
       return { success: false, error: "권한이 없습니다." };
     }
 

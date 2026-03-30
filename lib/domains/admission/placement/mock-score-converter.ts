@@ -107,8 +107,7 @@ export async function convertMockScoresToSuneung(
 
   // 4. 행별 매핑
   for (const row of rows) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const subjectData = row.subject as any;
+    const subjectData = row.subject as { name?: string; subject_group?: { name?: string } } | null;
     const subjectName: string = subjectData?.name ?? "";
     const groupName: string = subjectData?.subject_group?.name ?? "";
 

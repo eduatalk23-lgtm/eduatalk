@@ -32,7 +32,7 @@ export function normalizeFilters<T extends Record<string, unknown>>(
   const normalized: Partial<T> = {};
   Object.entries(filters).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") {
-      (normalized as any)[key] = value;
+      (normalized as Record<string, unknown>)[key] = value;
     }
   });
   return normalized;

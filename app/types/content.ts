@@ -40,8 +40,8 @@ export type Book = {
   target_exam_type?: string[] | null;
   tags?: string[] | null;
   pdf_url?: string | null;
-  ocr_data?: any | null;
-  page_analysis?: any | null;
+  ocr_data?: Record<string, unknown> | null;
+  page_analysis?: Record<string, unknown> | null;
   overall_difficulty?: number | null;
   is_active?: boolean | null;
   master_content_id?: string | null;
@@ -80,7 +80,7 @@ export type Lecture = {
   total_duration?: number | null;
   video_url?: string | null;
   transcript?: string | null;
-  episode_analysis?: any | null;
+  episode_analysis?: Record<string, unknown> | null;
   overall_difficulty?: number | null;
   target_exam_type?: string[] | null;
   tags?: string[] | null;
