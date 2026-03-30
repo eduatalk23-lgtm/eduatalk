@@ -154,7 +154,9 @@ export default withSentryConfig(withBundleAnalyzer(nextConfig), {
   // 빌드 로그 억제 (CI에서만 표시)
   silent: !process.env.CI,
   // Vercel 배포 시 자동 릴리즈 생성
-  automaticVercelMonitors: true,
+  webpack: {
+    automaticVercelMonitors: true,
+  },
   // 소스맵 설정
   sourcemaps: {
     // 클라이언트 번들에서 소스맵 삭제 (보안)
