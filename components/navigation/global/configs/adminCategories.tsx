@@ -309,6 +309,12 @@ export const adminCategories: NavigationCategory[] = [
         icon: <School className="w-4 h-4" />,
       },
       {
+        id: "admin-school-profiles",
+        label: "학교 개설 과목",
+        href: "/admin/school-profiles",
+        icon: <School className="w-4 h-4" />,
+      },
+      {
         id: "admin-guides",
         label: "탐구 가이드",
         href: "/admin/guides",

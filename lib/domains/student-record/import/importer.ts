@@ -74,33 +74,36 @@ export async function executeImport(
       counts.haengteuk++;
     }
 
-    // 독서/수상/봉사: 덮어쓰기 시 기존 삭제 후 insert, 아니면 중복 체크
-    // 학년별 삭제 대상 수집
-    if (options.overwriteExisting) {
-      const studentId = mapped.readings[0]?.student_id
-        ?? mapped.awards[0]?.student_id
-        ?? mapped.volunteer[0]?.student_id
-        ?? mapped.attendance[0]?.student_id;
-      const tenantId = mapped.readings[0]?.tenant_id
-        ?? mapped.awards[0]?.tenant_id
-        ?? mapped.volunteer[0]?.tenant_id
-        ?? mapped.attendance[0]?.tenant_id;
+    // ── 독서/수상/봉사: insert-first-delete-after 패턴 ──
+    // overwriteExisting=true 시 기존 ID 스냅샷 → insert → 성공 시 old 삭제
+    // 실패 시 old 데이터가 보존되어 데이터 유실 방지
+    const oldIds = { readings: [] as string[], awards: [] as string[], volunteer: [] as string[] };
+    const overwriteStudentId = mapped.readings[0]?.student_id
+      ?? mapped.awards[0]?.student_id
+      ?? mapped.volunteer[0]?.student_id
+      ?? mapped.attendance[0]?.student_id;
+    const overwriteTenantId = mapped.readings[0]?.tenant_id
+      ?? mapped.awards[0]?.tenant_id
+      ?? mapped.volunteer[0]?.tenant_id
+      ?? mapped.attendance[0]?.tenant_id;
 
-      if (studentId && tenantId) {
-        const years = new Set<number>();
-        for (const r of mapped.readings) years.add(r.school_year);
-        for (const a of mapped.awards) years.add(a.school_year);
-        for (const v of mapped.volunteer) years.add(v.school_year);
+    if (options.overwriteExisting && overwriteStudentId && overwriteTenantId) {
+      const years = new Set<number>();
+      for (const r of mapped.readings) years.add(r.school_year);
+      for (const a of mapped.awards) years.add(a.school_year);
+      for (const v of mapped.volunteer) years.add(v.school_year);
 
-        for (const sy of years) {
-          await deleteByStudentYear(supabaseAdmin, "student_record_reading", studentId, sy, tenantId);
-          await deleteByStudentYear(supabaseAdmin, "student_record_awards", studentId, sy, tenantId);
-          await deleteByStudentYear(supabaseAdmin, "student_record_volunteer", studentId, sy, tenantId);
-        }
+      for (const sy of years) {
+        const r = await repo.findReadingsByStudentYear(overwriteStudentId, sy, overwriteTenantId);
+        oldIds.readings.push(...r.map((x) => x.id));
+        const a = await repo.findAwardsByStudentYear(overwriteStudentId, sy, overwriteTenantId);
+        oldIds.awards.push(...a.map((x) => x.id));
+        const v = await repo.findVolunteerByStudentYear(overwriteStudentId, sy, overwriteTenantId);
+        oldIds.volunteer.push(...v.map((x) => x.id));
       }
     }
 
-    // 독서 insert
+    // 독서 insert (덮어쓰기 시에도 삭제 없이 insert — old 삭제는 후단)
     for (const reading of mapped.readings) {
       if (!options.overwriteExisting) {
         const existing = await repo.findReadingsByStudentYear(
@@ -118,7 +121,7 @@ export async function executeImport(
       counts.attendance++;
     }
 
-    // 수상 insert (school_year별 조회 캐싱으로 N+1 방지)
+    // 수상 insert
     if (!options.overwriteExisting) {
       const awardCache = new Map<number, Awaited<ReturnType<typeof repo.findAwardsByStudentYear>>>();
       for (const award of mapped.awards) {
@@ -136,7 +139,7 @@ export async function executeImport(
       }
     }
 
-    // 봉사 insert (school_year별 조회 캐싱으로 N+1 방지)
+    // 봉사 insert
     if (!options.overwriteExisting) {
       const volCache = new Map<number, Awaited<ReturnType<typeof repo.findVolunteerByStudentYear>>>();
       for (const vol of mapped.volunteer) {
@@ -154,60 +157,88 @@ export async function executeImport(
       }
     }
 
-    // 성적 upsert (student_internal_scores)
-    if (mapped.grades.items.length > 0) {
-      if (supabaseAdmin) {
-        // 덮어쓰기 시 기존 성적 삭제
-        if (options.overwriteExisting) {
-          const sid = mapped.grades.items[0].student_id;
-          const tid = mapped.grades.items[0].tenant_id;
-          const gradeYears = new Set(mapped.grades.items.map((g) => `${g.grade}-${g.semester}`));
-          for (const gy of gradeYears) {
-            const [grade, semester] = gy.split("-").map(Number);
-            await supabaseAdmin
-              .from("student_internal_scores")
-              .delete()
-              .eq("student_id", sid)
-              .eq("grade", grade)
-              .eq("semester", semester);
+    // 성적 upsert (student_internal_scores) — insert-first-delete-after
+    // 덮어쓰기 시 기존 성적 ID 스냅샷 → upsert → 성공 후 old 삭제
+    const oldGradeIds: string[] = [];
+    if (mapped.grades.items.length > 0 && supabaseAdmin) {
+      if (options.overwriteExisting) {
+        const sid = mapped.grades.items[0].student_id;
+        const gradeYears = new Set(mapped.grades.items.map((g) => `${g.grade}-${g.semester}`));
+        for (const gy of gradeYears) {
+          const [grade, semester] = gy.split("-").map(Number);
+          const { data: existing } = await supabaseAdmin
+            .from("student_internal_scores")
+            .select("id")
+            .eq("student_id", sid)
+            .eq("grade", grade)
+            .eq("semester", semester);
+          if (existing) oldGradeIds.push(...existing.map((r) => r.id));
+        }
+      }
+
+      for (const g of mapped.grades.items) {
+        const payload = {
+          student_id: g.student_id,
+          tenant_id: g.tenant_id,
+          grade: g.grade,
+          semester: g.semester,
+          credit_hours: g.credit_hours,
+          raw_score: g.raw_score,
+          avg_score: g.avg_score,
+          std_dev: g.std_dev,
+          achievement_level: g.achievement_level,
+          total_students: g.total_students,
+          rank_grade: g.rank_grade,
+          achievement_ratio_a: g.achievement_ratio_a,
+          achievement_ratio_b: g.achievement_ratio_b,
+          achievement_ratio_c: g.achievement_ratio_c,
+          achievement_ratio_d: g.achievement_ratio_d,
+          achievement_ratio_e: g.achievement_ratio_e,
+          subject_id: g.subject_id,
+          subject_group_id: g.subject_group_id,
+          subject_type_id: g.subject_type_id,
+          curriculum_revision_id: g.curriculum_revision_id,
+        };
+
+        const { error } = await supabaseAdmin
+          .from("student_internal_scores")
+          .upsert(payload, { onConflict: "student_id,grade,semester,subject_id", ignoreDuplicates: false });
+
+        if (error) {
+          if (error.code === "42P10" || error.message.includes("unique")) {
+            await supabaseAdmin.from("student_internal_scores").insert(payload);
+          } else {
+            throw error;
           }
         }
-        for (const g of mapped.grades.items) {
-          const payload = {
-            student_id: g.student_id,
-            tenant_id: g.tenant_id,
-            grade: g.grade,
-            semester: g.semester,
-            credit_hours: g.credit_hours,
-            raw_score: g.raw_score,
-            avg_score: g.avg_score,
-            std_dev: g.std_dev,
-            achievement_level: g.achievement_level,
-            total_students: g.total_students,
-            rank_grade: g.rank_grade,
-            achievement_ratio_a: g.achievement_ratio_a,
-            achievement_ratio_b: g.achievement_ratio_b,
-            achievement_ratio_c: g.achievement_ratio_c,
-            achievement_ratio_d: g.achievement_ratio_d,
-            achievement_ratio_e: g.achievement_ratio_e,
-            subject_id: g.subject_id,
-            subject_group_id: g.subject_group_id,
-            subject_type_id: g.subject_type_id,
-            curriculum_revision_id: g.curriculum_revision_id,
-          };
+        counts.grades++;
+      }
+    }
 
-          const { error } = await supabaseAdmin
-            .from("student_internal_scores")
-            .upsert(payload, { onConflict: "student_id,grade,semester,subject_id", ignoreDuplicates: false });
-
-          if (error) {
-            if (error.code === "42P10" || error.message.includes("unique")) {
-              await supabaseAdmin.from("student_internal_scores").insert(payload);
-            } else {
-              throw error;
-            }
-          }
-          counts.grades++;
+    // ── 모든 insert/upsert 성공 → 기존 데이터 삭제 (safe point) ──
+    if (options.overwriteExisting && supabaseAdmin) {
+      if (oldIds.readings.length > 0) {
+        await supabaseAdmin.from("student_record_reading").delete().in("id", oldIds.readings);
+      }
+      if (oldIds.awards.length > 0) {
+        await supabaseAdmin.from("student_record_awards").delete().in("id", oldIds.awards);
+      }
+      if (oldIds.volunteer.length > 0) {
+        await supabaseAdmin.from("student_record_volunteer").delete().in("id", oldIds.volunteer);
+      }
+      // 성적: upsert로 갱신된 레코드는 보존, import에 없던 과목(old)만 삭제
+      if (oldGradeIds.length > 0) {
+        const upsertedSubjectIds = new Set(mapped.grades.items.map((g) => g.subject_id));
+        // upsert 대상이 아닌 기존 성적만 삭제 (grade+semester+subject_id 기준 매칭되지 않은 것)
+        const { data: survivingRows } = await supabaseAdmin
+          .from("student_internal_scores")
+          .select("id, subject_id")
+          .in("id", oldGradeIds);
+        const toDelete = (survivingRows ?? [])
+          .filter((r) => !upsertedSubjectIds.has(r.subject_id))
+          .map((r) => r.id);
+        if (toDelete.length > 0) {
+          await supabaseAdmin.from("student_internal_scores").delete().in("id", toDelete);
         }
       }
     }
@@ -221,6 +252,27 @@ export async function executeImport(
         await relinkAssignmentsAfterImport(sid, tid);
       } catch {
         // 가이드 재연결 실패해도 임포트 성공은 유지
+      }
+    }
+
+    // 임포트 후 학교 개설 과목 자동 수집 (fire-and-forget)
+    if (mapped.seteks.items.length > 0 || mapped.grades.items.length > 0) {
+      const sid = mapped.seteks.items[0]?.student_id ?? mapped.grades.items[0]?.student_id;
+      const tid = mapped.seteks.items[0]?.tenant_id ?? mapped.grades.items[0]?.tenant_id;
+      if (sid && tid) {
+        try {
+          const { data: st } = await supabaseAdmin!
+            .from("students")
+            .select("school_name")
+            .eq("id", sid)
+            .single();
+          if (st?.school_name) {
+            const { autoCollectForSchool } = await import("../actions/schoolProfile");
+            autoCollectForSchool(tid, st.school_name).catch(() => {});
+          }
+        } catch {
+          // 학교 수집 실패해도 임포트 성공 유지
+        }
       }
     }
 
