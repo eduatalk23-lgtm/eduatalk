@@ -5,6 +5,8 @@
  * - syncCalendarEventToGoogle: CRUD 연동 (fire-and-forget)
  */
 
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/lib/supabase/database.types';
 import { google } from 'googleapis';
 import { createAuthenticatedClient } from './oauth';
 import { getTokenByAdminUser, refreshTokenIfNeeded, updateLastSyncAt } from './tokenService';
@@ -15,8 +17,7 @@ import type { EventMetadata } from '@/lib/domains/calendar/types';
 
 const ACTION_CTX = { domain: 'googleCalendar', action: 'calendarEventSync' };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseAny = any;
+type TypedSupabaseClient = SupabaseClient<Database>;
 
 /** calendar_events 행 (필요한 필드만) */
 interface CalendarEventRow {
@@ -118,7 +119,7 @@ function mapAppColorToGoogleColorId(color: string): string {
  * fire-and-forget 패턴: 성공/실패를 반환하되 예외는 throw하지 않음
  */
 export async function syncCalendarEventToGoogle(
-  adminClient: SupabaseAny,
+  adminClient: TypedSupabaseClient,
   eventId: string,
   adminUserId: string,
   action: SyncAction,
@@ -136,10 +137,13 @@ export async function syncCalendarEventToGoogle(
       return { success: false, error: '이벤트를 찾을 수 없습니다.' };
     }
 
+    // metadata는 DB에서 Json으로 반환되지만 실제로는 EventMetadata 구조
+    const typedEvent = event as typeof event & { metadata: EventMetadata | null };
+
     // 2. 토큰 조회
     const token = await getTokenByAdminUser(adminClient, adminUserId);
     if (!token) {
-      await updateMetadataSyncStatus(adminClient, eventId, event.metadata, 'not_applicable');
+      await updateMetadataSyncStatus(adminClient, eventId, typedEvent.metadata, 'not_applicable');
       return { success: true }; // 미연결 → 동기화 불필요
     }
 
@@ -149,11 +153,11 @@ export async function syncCalendarEventToGoogle(
     // 4. 액션별 처리
     switch (action) {
       case 'create':
-        return await createCalendarGoogleEvent(adminClient, event, freshToken);
+        return await createCalendarGoogleEvent(adminClient, typedEvent, freshToken);
       case 'update':
-        return await updateCalendarGoogleEvent(adminClient, event, freshToken);
+        return await updateCalendarGoogleEvent(adminClient, typedEvent, freshToken);
       case 'cancel':
-        return await cancelCalendarGoogleEvent(adminClient, event, freshToken);
+        return await cancelCalendarGoogleEvent(adminClient, typedEvent, freshToken);
     }
   } catch (error) {
     logActionError(ACTION_CTX, error, { eventId, action });
@@ -162,7 +166,7 @@ export async function syncCalendarEventToGoogle(
 }
 
 async function createCalendarGoogleEvent(
-  adminClient: SupabaseAny,
+  adminClient: TypedSupabaseClient,
   event: CalendarEventRow & { metadata: EventMetadata | null },
   token: GoogleOAuthToken,
 ): Promise<{ success: boolean; error?: string }> {
@@ -197,7 +201,7 @@ async function createCalendarGoogleEvent(
 }
 
 async function updateCalendarGoogleEvent(
-  adminClient: SupabaseAny,
+  adminClient: TypedSupabaseClient,
   event: CalendarEventRow & { metadata: EventMetadata | null },
   token: GoogleOAuthToken,
 ): Promise<{ success: boolean; error?: string }> {
@@ -235,7 +239,7 @@ async function updateCalendarGoogleEvent(
 }
 
 async function cancelCalendarGoogleEvent(
-  adminClient: SupabaseAny,
+  adminClient: TypedSupabaseClient,
   event: CalendarEventRow & { metadata: EventMetadata | null },
   token: GoogleOAuthToken,
 ): Promise<{ success: boolean; error?: string }> {
@@ -273,7 +277,7 @@ async function cancelCalendarGoogleEvent(
 
 /** metadata 내 google_sync_status 업데이트 */
 async function updateMetadataSyncStatus(
-  adminClient: SupabaseAny,
+  adminClient: TypedSupabaseClient,
   eventId: string,
   currentMetadata: EventMetadata | null,
   status: EventMetadata['google_sync_status'],

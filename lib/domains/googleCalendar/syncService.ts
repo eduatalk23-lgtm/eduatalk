@@ -7,6 +7,8 @@
  * Phase 4: calendar_events + consultation_event_data 기반으로 전환
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
 import { google } from "googleapis";
 import { createAuthenticatedClient } from "./oauth";
 import { getTokenByAdminUser, refreshTokenIfNeeded, updateLastSyncAt } from "./tokenService";
@@ -17,8 +19,7 @@ import { extractDateYMD, extractTimeHHMM } from "@/lib/domains/calendar/adapters
 
 const ACTION_CTX = { domain: "googleCalendar", action: "sync" };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseAny = any;
+type TypedSupabaseClient = SupabaseClient<Database>;
 
 interface ConsultationEventRow {
   // calendar_events fields
@@ -48,7 +49,7 @@ interface ConsultationEventRow {
  * @param eventId - calendar_events.id
  */
 export async function createGoogleEvent(
-  adminClient: SupabaseAny,
+  adminClient: TypedSupabaseClient,
   eventId: string,
   consultantId: string
 ): Promise<{ success: boolean; error?: string }> {
@@ -118,7 +119,7 @@ export async function createGoogleEvent(
  * Google Calendar 이벤트 업데이트
  */
 export async function updateGoogleEvent(
-  adminClient: SupabaseAny,
+  adminClient: TypedSupabaseClient,
   eventId: string,
   consultantId: string
 ): Promise<{ success: boolean; error?: string }> {
@@ -188,7 +189,7 @@ export async function updateGoogleEvent(
  * Google Calendar 이벤트 삭제 (취소)
  */
 export async function cancelGoogleEvent(
-  adminClient: SupabaseAny,
+  adminClient: TypedSupabaseClient,
   eventId: string,
   consultantId: string
 ): Promise<{ success: boolean; error?: string }> {
@@ -270,7 +271,7 @@ export async function listCalendars(
 // ── 내부 함수 ──
 
 async function fetchEventWithConsultationData(
-  client: SupabaseAny,
+  client: TypedSupabaseClient,
   eventId: string
 ): Promise<ConsultationEventRow | null> {
   const { data, error } = await client
@@ -288,11 +289,13 @@ async function fetchEventWithConsultationData(
     .maybeSingle();
 
   if (error || !data) return null;
-  return data as ConsultationEventRow;
+  // Supabase 타입 시스템은 nested relation을 배열로 추론하지만,
+  // !inner join + maybeSingle()로 실제로는 단일 객체가 반환됨
+  return data as unknown as ConsultationEventRow;
 }
 
 async function fetchConsultantName(
-  client: SupabaseAny,
+  client: TypedSupabaseClient,
   consultantId: string
 ): Promise<string> {
   const { data } = await client
@@ -319,7 +322,7 @@ async function insertGoogleCalendarEvent(
 }
 
 async function updateConsultationSyncStatus(
-  client: SupabaseAny,
+  client: TypedSupabaseClient,
   eventId: string,
   status: "synced" | "failed" | "not_applicable"
 ): Promise<void> {

@@ -7,6 +7,8 @@
  * - 기존 consultation-reminders 패턴 따름
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
 import { NextResponse } from "next/server";
 import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
 import { createGoogleEvent, updateGoogleEvent, cancelGoogleEvent } from "@/lib/domains/googleCalendar";
@@ -16,8 +18,7 @@ import type { SyncAction } from "@/lib/domains/googleCalendar/types";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseAny = any;
+type TypedSupabaseClient = SupabaseClient<Database>;
 
 interface QueueRow {
   id: string;
@@ -29,7 +30,7 @@ interface QueueRow {
   retry_count: number;
 }
 
-function queueTable(client: SupabaseAny) {
+function queueTable(client: TypedSupabaseClient) {
   return client.from("google_calendar_sync_queue");
 }
 

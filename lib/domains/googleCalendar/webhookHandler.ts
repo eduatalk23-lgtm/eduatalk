@@ -4,6 +4,8 @@
  * Phase 5: calendar_events + consultation_event_data 기반으로 전환
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
 import { google } from "googleapis";
 import { createAuthenticatedClient } from "./oauth";
 import {
@@ -15,8 +17,7 @@ import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 
 const ACTION_CTX = { domain: "googleCalendar", action: "webhook" };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseAny = any;
+type TypedSupabaseClient = SupabaseClient<Database>;
 
 interface WebhookNotification {
   channelId: string;
@@ -33,7 +34,7 @@ interface WebhookNotification {
  * 4. 변경 사항을 calendar_events + consultation_event_data에 반영
  */
 export async function processWebhookNotification(
-  adminClient: SupabaseAny,
+  adminClient: TypedSupabaseClient,
   notification: WebhookNotification
 ): Promise<void> {
   try {
@@ -161,7 +162,7 @@ export async function processWebhookNotification(
  * 캘린더 연결 시 또는 webhook 갱신 cron에서 호출
  */
 export async function registerWebhook(
-  adminClient: SupabaseAny,
+  adminClient: TypedSupabaseClient,
   adminUserId: string,
   webhookUrl: string
 ): Promise<{ success: boolean; expiration?: string }> {
@@ -211,7 +212,7 @@ export async function registerWebhook(
  * 주간 cron에서 호출 (Google webhook은 ~7일 만료)
  */
 export async function renewWebhooksForTenant(
-  adminClient: SupabaseAny,
+  adminClient: TypedSupabaseClient,
   tenantId: string,
   webhookUrl: string
 ): Promise<{ renewed: number; failed: number }> {

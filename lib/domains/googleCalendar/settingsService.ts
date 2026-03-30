@@ -3,15 +3,16 @@
  * 설정 UI에서 사용
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
 import { logActionError } from "@/lib/logging/actionLogger";
 import type { GoogleOAuthToken } from "./types";
 
 const ACTION_CTX = { domain: "googleCalendar", action: "settings" };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseAny = any;
+type TypedSupabaseClient = SupabaseClient<Database>;
 
-function tokenTable(client: SupabaseAny) {
+function tokenTable(client: TypedSupabaseClient) {
   return client.from("google_oauth_tokens");
 }
 
@@ -26,7 +27,7 @@ export interface GoogleCalendarConnectionStatus {
 
 /** 관리자의 Google Calendar 연결 상태 조회 */
 export async function getConnectionStatus(
-  client: SupabaseAny,
+  client: TypedSupabaseClient,
   adminUserId: string
 ): Promise<GoogleCalendarConnectionStatus> {
   try {
@@ -74,7 +75,7 @@ export async function getConnectionStatus(
 
 /** 동기화 큐 통계 조회 (status별 COUNT) */
 export async function getSyncQueueStats(
-  client: SupabaseAny,
+  client: TypedSupabaseClient,
   tenantId: string
 ): Promise<{ pending: number; failed: number; completed: number }> {
   const result = { pending: 0, failed: 0, completed: 0 };

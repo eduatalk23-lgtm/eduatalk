@@ -2,22 +2,23 @@
  * Google OAuth 토큰 CRUD + 자동 갱신
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
 import { createOAuth2Client } from "./oauth";
 import type { GoogleOAuthToken } from "./types";
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 
 const ACTION_CTX = { domain: "googleCalendar", action: "token" };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseAny = any;
+type TypedSupabaseClient = SupabaseClient<Database>;
 
-function tokenTable(client: SupabaseAny) {
+function tokenTable(client: TypedSupabaseClient) {
   return client.from("google_oauth_tokens");
 }
 
 /** 관리자의 OAuth 토큰 조회 */
 export async function getTokenByAdminUser(
-  client: SupabaseAny,
+  client: TypedSupabaseClient,
   adminUserId: string
 ): Promise<GoogleOAuthToken | null> {
   const { data, error } = await tokenTable(client)
@@ -35,7 +36,7 @@ export async function getTokenByAdminUser(
 
 /** 테넌트의 활성 토큰 목록 조회 (공용 캘린더 동기화용) */
 export async function getTokensByTenant(
-  client: SupabaseAny,
+  client: TypedSupabaseClient,
   tenantId: string
 ): Promise<GoogleOAuthToken[]> {
   const { data, error } = await tokenTable(client)
@@ -52,7 +53,7 @@ export async function getTokensByTenant(
 
 /** 토큰 저장 (upsert) */
 export async function saveToken(
-  client: SupabaseAny,
+  client: TypedSupabaseClient,
   params: {
     adminUserId: string;
     tenantId: string;
@@ -90,7 +91,7 @@ export async function saveToken(
 
 /** 토큰 삭제 */
 export async function deleteToken(
-  client: SupabaseAny,
+  client: TypedSupabaseClient,
   adminUserId: string
 ): Promise<{ success: boolean }> {
   const { error } = await tokenTable(client)
@@ -106,7 +107,7 @@ export async function deleteToken(
 
 /** 캘린더 ID 업데이트 */
 export async function updateCalendarId(
-  client: SupabaseAny,
+  client: TypedSupabaseClient,
   adminUserId: string,
   calendarId: string
 ): Promise<{ success: boolean }> {
@@ -123,7 +124,7 @@ export async function updateCalendarId(
 
 /** last_sync_at 업데이트 */
 export async function updateLastSyncAt(
-  client: SupabaseAny,
+  client: TypedSupabaseClient,
   adminUserId: string
 ): Promise<void> {
   await tokenTable(client)
@@ -136,7 +137,7 @@ export async function updateLastSyncAt(
  * 만료 5분 전부터 갱신 시도
  */
 export async function refreshTokenIfNeeded(
-  client: SupabaseAny,
+  client: TypedSupabaseClient,
   token: GoogleOAuthToken
 ): Promise<GoogleOAuthToken> {
   const expiresAt = new Date(token.token_expires_at).getTime();

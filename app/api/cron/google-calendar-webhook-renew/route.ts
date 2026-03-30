@@ -13,9 +13,6 @@ import { renewWebhooksForTenant } from "@/lib/domains/googleCalendar/webhookHand
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseAny = any;
-
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
@@ -40,7 +37,7 @@ export async function GET(request: Request) {
     }
 
     // 활성 토큰이 있는 테넌트 목록 조회
-    const { data: tokens, error } = await (adminClient as SupabaseAny)
+    const { data: tokens, error } = await adminClient
       .from("google_oauth_tokens")
       .select("tenant_id")
       .eq("sync_enabled", true);

@@ -6,6 +6,8 @@
  * - 즉시 동기화 시도 → 실패 시 큐에 삽입
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
 import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
 import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { createGoogleEvent, updateGoogleEvent, cancelGoogleEvent } from "./syncService";
@@ -13,10 +15,9 @@ import type { SyncAction } from "./types";
 
 const ACTION_CTX = { domain: "googleCalendar", action: "enqueue" };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseAny = any;
+type TypedSupabaseClient = SupabaseClient<Database>;
 
-function queueTable(client: SupabaseAny) {
+function queueTable(client: TypedSupabaseClient) {
   return client.from("google_calendar_sync_queue");
 }
 
