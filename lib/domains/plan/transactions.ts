@@ -422,20 +422,6 @@ export async function upsertPlanContentsAtomic(
   contents: UpsertPlanContentInput[],
   useAdmin = false
 ): Promise<UpsertPlanContentsResult> {
-  // DEBUG: RPC 호출 전 데이터 확인
-  console.log("[upsertPlanContentsAtomic] RPC 호출 전", {
-    groupId,
-    tenantId,
-    contentsCount: contents.length,
-    useAdmin,
-    sampleContent: contents.length > 0 ? {
-      content_id: contents[0].content_id,
-      content_type: contents[0].content_type,
-      start_range: contents[0].start_range,
-      end_range: contents[0].end_range,
-    } : null,
-  });
-
   const supabase = useAdmin
     ? ensureAdminClient()
     : await createSupabaseServerClient();
@@ -454,12 +440,7 @@ export async function upsertPlanContentsAtomic(
     p_contents: contents as unknown as Json,
   });
 
-  // DEBUG: RPC 호출 결과 확인
-  console.log("[upsertPlanContentsAtomic] RPC 호출 결과", {
-    groupId,
-    data,
-    error: error ? { message: error.message, code: error.code } : null,
-  });
+
 
   if (error) {
     logActionError(
