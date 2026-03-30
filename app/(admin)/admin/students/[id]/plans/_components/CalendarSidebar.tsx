@@ -320,7 +320,12 @@ export function CalendarSidebar() {
               <div className="absolute left-0 top-full mt-1 w-52 bg-[rgb(var(--color-secondary-50))] border border-[rgb(var(--color-secondary-200))] rounded-lg shadow-lg z-50 py-1">
                 <button
                   onClick={() => { openUnifiedModal('quick'); handleCreateMenuClose(); }}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-[rgb(var(--color-secondary-100))] text-left text-[var(--text-secondary)]"
+                  disabled={viewMode === 'student'}
+                  className={cn(
+                    "flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-[rgb(var(--color-secondary-100))] text-left text-[var(--text-secondary)]",
+                    viewMode === 'student' && "opacity-40 cursor-not-allowed hover:bg-transparent"
+                  )}
+                  title={viewMode === 'student' ? '준비 중인 기능입니다' : undefined}
                 >
                   <Plus className="w-4 h-4 text-[var(--text-tertiary)]" />
                   플랜 추가

@@ -532,13 +532,13 @@ function AdminPlanManagementContent({
       },
       {
         key: "n",
-        action: () => canCreatePlans && openUnifiedModal("content"),
+        action: () => canCreatePlans && isAdminMode && openUnifiedModal("content"),
         description: "콘텐츠 플랜 추가",
         category: "modal",
       },
       {
         key: "a",
-        action: () => canCreatePlans && openUnifiedModal("quick"),
+        action: () => canCreatePlans && isAdminMode && openUnifiedModal("quick"),
         description: "빠른 플랜 추가",
         category: "modal",
       },
@@ -589,7 +589,7 @@ function AdminPlanManagementContent({
       },
       {
         key: "q",
-        action: () => canCreatePlans && openUnifiedModal("quick"),
+        action: () => canCreatePlans && isAdminMode && openUnifiedModal("quick"),
         description: "빠른 플랜 추가",
         category: "modal",
       },
