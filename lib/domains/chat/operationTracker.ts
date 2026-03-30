@@ -3,12 +3,12 @@
  *
  * 낙관적 업데이트와 Realtime 이벤트 간의 Race Condition을 방지합니다.
  * - 메시지 전송: tempId → realId 매핑 관리
- * - 리액션: pending 상태 추적으로 중복 카운트 방지
- * - 편집/삭제: 진행 중인 작업 추적
+ * - 리액션: pending 상태 추적으로 중복 카운트 방지 (delta 기반이라 필수)
+ * - 편집/삭제: tracker 불필요 (Realtime이 full state 전달 → 덮어쓰기 멱등)
  */
 
 /** 대기 중인 작업 타입 */
-type PendingOperationType = "send" | "reaction" | "edit" | "delete";
+type PendingOperationType = "send" | "reaction";
 
 /** 대기 중인 작업 정보 */
 interface PendingOperation {
@@ -181,60 +181,6 @@ class OperationTracker {
     }
 
     return { isPending: true, isAdd: operation.isAdd };
-  }
-
-  // ============================================
-  // 편집/삭제
-  // ============================================
-
-  /**
-   * 메시지 편집 시작
-   */
-  startEdit(messageId: string, roomId?: string): void {
-    this.pending.set(`edit:${messageId}`, {
-      type: "edit",
-      startedAt: Date.now(),
-      roomId,
-    });
-  }
-
-  /**
-   * 메시지 편집 완료
-   */
-  completeEdit(messageId: string): void {
-    this.pending.delete(`edit:${messageId}`);
-  }
-
-  /**
-   * 메시지 편집 중인지 확인
-   */
-  isEditPending(messageId: string): boolean {
-    return this.pending.has(`edit:${messageId}`);
-  }
-
-  /**
-   * 메시지 삭제 시작
-   */
-  startDelete(messageId: string, roomId?: string): void {
-    this.pending.set(`delete:${messageId}`, {
-      type: "delete",
-      startedAt: Date.now(),
-      roomId,
-    });
-  }
-
-  /**
-   * 메시지 삭제 완료
-   */
-  completeDelete(messageId: string): void {
-    this.pending.delete(`delete:${messageId}`);
-  }
-
-  /**
-   * 메시지 삭제 중인지 확인
-   */
-  isDeletePending(messageId: string): boolean {
-    return this.pending.has(`delete:${messageId}`);
   }
 
   // ============================================
