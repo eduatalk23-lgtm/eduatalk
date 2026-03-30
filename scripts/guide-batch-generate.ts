@@ -214,9 +214,13 @@ function formatDuration(ms: number): string {
   return m > 0 ? `${m}분 ${s % 60}초` : `${s}초`;
 }
 
-// AI 모델
+// AI 모델 — ai-sdk.ts의 fallback 체인과 동일
 const FAST_MODEL = google("gemini-2.5-flash");
-const ADVANCED_MODEL = google("gemini-3.1-pro-preview");
+const ADVANCED_FALLBACK_CHAIN = [
+  google("gemini-3.1-pro-preview"),
+  google("gemini-3-pro-preview"),
+  google("gemini-2.5-pro"),
+];
 
 /** Rate limit 대응 재시도 래퍼 */
 async function withRetry<T>(
@@ -688,21 +692,37 @@ async function phaseGuides(
       // advanced 우선, fallback to fast
       let generated;
       let modelId: string;
-      try {
-        const result = await withRetry(() =>
-          generateObject({
-            model: ADVANCED_MODEL,
-            system: systemPrompt,
-            messages: [{ role: "user", content: userPrompt }],
-            schema: generatedGuideSchema,
-            temperature: 0.5,
-            maxTokens: 65536,
-          }),
-        );
-        generated = result.object;
-        modelId = "gemini-3.1-pro-preview";
-      } catch {
-        log(`  ⚠ Pro 실패 → Flash fallback`);
+      // Pro fallback 체인: 3.1-pro → 3-pro → 2.5-pro → Flash
+      let proSuccess = false;
+      for (let ci = 0; ci < ADVANCED_FALLBACK_CHAIN.length; ci++) {
+        try {
+          // fallback 체인 내에서는 재시도 1회만 (quota 에러는 재시도 무의미)
+          const result = await withRetry(() =>
+            generateObject({
+              model: ADVANCED_FALLBACK_CHAIN[ci],
+              system: systemPrompt,
+              messages: [{ role: "user", content: userPrompt }],
+              schema: generatedGuideSchema,
+              temperature: 0.5,
+              maxTokens: 65536,
+            }),
+          );
+          generated = result.object;
+          modelId = ["gemini-3.1-pro-preview", "gemini-3-pro-preview", "gemini-2.5-pro"][ci];
+          proSuccess = true;
+          break;
+        } catch (proErr) {
+          const msg = proErr instanceof Error ? proErr.message : "";
+          const isRetryable = msg.includes("429") || msg.includes("503") || msg.includes("overloaded") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("quota");
+          if (isRetryable && ci < ADVANCED_FALLBACK_CHAIN.length - 1) {
+            log(`  ⚠ ${["3.1-pro", "3-pro", "2.5-pro"][ci]} 실패 → 다음 Pro 시도`);
+            continue;
+          }
+          break;
+        }
+      }
+      if (!proSuccess) {
+        log(`  ⚠ Pro 체인 전부 실패 → Flash fallback`);
         const result = await withRetry(() =>
           generateObject({
             model: FAST_MODEL,
@@ -979,7 +999,7 @@ async function phaseReview(
 
       const { object: review } = await withRetry(() =>
         generateObject({
-          model: ADVANCED_MODEL,
+          model: ADVANCED_FALLBACK_CHAIN[0],
           system: buildReviewSystemPrompt(guide.guide_type as GuideType),
           messages: [
             { role: "user", content: buildReviewUserPrompt(guide) },
