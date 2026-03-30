@@ -121,7 +121,7 @@ export function TextSelectionTagger({
       if (!res.success) throw new Error("error" in res ? res.error : "태그 저장 실패");
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["studentRecord", "diagnosisTab", studentId] });
+      await queryClient.invalidateQueries({ queryKey: studentRecordKeys.diagnosisTabPrefix(studentId) });
       closePopover();
     },
   });

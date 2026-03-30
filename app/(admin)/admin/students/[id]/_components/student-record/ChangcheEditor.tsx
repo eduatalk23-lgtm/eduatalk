@@ -321,7 +321,7 @@ function ChangcheAnalysisCell({
     recordType: "changche" as const,
   }), [studentId, tenantId, schoolYear, record, activityType]);
 
-  const diagnosisQk = ["studentRecord", "diagnosisTab", studentId] as const;
+  const diagnosisQk = studentRecordKeys.diagnosisTabPrefix(studentId);
 
   const importAiMutation = useMutation({
     mutationFn: async () => {

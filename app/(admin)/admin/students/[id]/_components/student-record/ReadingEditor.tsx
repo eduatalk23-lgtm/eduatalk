@@ -229,7 +229,7 @@ function ReadingAnalysisCell({
   const manualTags = useMemo(() => bookTags.filter((t) => (t.source === "manual" || !t.source) && t.status !== "confirmed"), [bookTags]);
   const confirmedTags = useMemo(() => bookTags.filter((t) => t.status === "confirmed"), [bookTags]);
 
-  const diagnosisQk = ["studentRecord", "diagnosisTab", studentId] as const;
+  const diagnosisQk = studentRecordKeys.diagnosisTabPrefix(studentId);
 
   const importAiMutation = useMutation({
     mutationFn: async () => {

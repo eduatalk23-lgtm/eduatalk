@@ -9,6 +9,7 @@
 
 import { Fragment, useMemo, useState, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { studentRecordKeys } from "@/lib/query-options/studentRecord";
 import { cn } from "@/lib/cn";
 import type { SetekLayerTab, MergedSetekRow, SetekGuideItemLike } from "./SetekEditor";
 import type { AnalysisTagLike, AnalysisBlockMode, TaggerProps } from "./shared/AnalysisBlocks";
@@ -508,7 +509,7 @@ function AnalysisGridCell({
   schoolYear: number;
 }) {
   const queryClient = useQueryClient();
-  const diagnosisQk = ["studentRecord", "diagnosisTab", studentId] as const;
+  const diagnosisQk = studentRecordKeys.diagnosisTabPrefix(studentId);
 
   const aiTags = useMemo(() => subjectTags.filter((t) => t.source === "ai"), [subjectTags]);
   const manualTags = useMemo(() => subjectTags.filter((t) => (t.source === "manual" || !t.source) && t.status !== "confirmed"), [subjectTags]);

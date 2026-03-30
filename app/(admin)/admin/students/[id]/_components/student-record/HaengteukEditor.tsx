@@ -266,7 +266,7 @@ function HaengteukAnalysisCell({
     recordType: "haengteuk" as const,
   }), [studentId, tenantId, schoolYear, haengteuk]);
 
-  const diagnosisQk = ["studentRecord", "diagnosisTab", studentId] as const;
+  const diagnosisQk = studentRecordKeys.diagnosisTabPrefix(studentId);
 
   const importAiMutation = useMutation({
     mutationFn: async () => {

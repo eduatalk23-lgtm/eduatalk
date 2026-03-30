@@ -15,6 +15,9 @@ export const studentRecordKeys = {
     [...studentRecordKeys.all, "recordTab", studentId, schoolYear] as const,
   diagnosisTab: (studentId: string, schoolYear: number) =>
     [...studentRecordKeys.all, "diagnosisTab", studentId, schoolYear] as const,
+  /** schoolYear 무관 prefix 매칭 — 진단 캐시 전체 무효화용 */
+  diagnosisTabPrefix: (studentId: string) =>
+    [...studentRecordKeys.all, "diagnosisTab", studentId] as const,
   storylineTab: (studentId: string) =>
     [...studentRecordKeys.all, "storylineTab", studentId] as const,
   supplementaryTab: (studentId: string, schoolYear: number) =>

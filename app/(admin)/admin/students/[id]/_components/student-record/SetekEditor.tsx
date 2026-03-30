@@ -1066,8 +1066,7 @@ function AnalysisExpandableCell({
     recordType: "setek" as const,
   }), [studentId, tenantId, schoolYear, row]);
 
-  // prefix 매칭: schoolYear 불일치 방지 (진단 쿼리는 initialSchoolYear 사용)
-  const diagnosisQk = ["studentRecord", "diagnosisTab", studentId] as const;
+  const diagnosisQk = studentRecordKeys.diagnosisTabPrefix(studentId);
 
   // AI 태그 → 컨설턴트로 복사 (중복 방지: competency_item + record_id 기준 이미 있으면 건너뜀)
   const importAiMutation = useMutation({
