@@ -197,7 +197,6 @@ export async function createStudentPlan(
     });
 
     if (result.success) {
-      revalidatePath("/today");
       revalidatePath("/plan");
     }
 
@@ -223,7 +222,6 @@ export async function updateStudentPlan(
     const result = await service.updateStudentPlan(planId, ctx.studentId, updates);
 
     if (result.success) {
-      revalidatePath("/today");
       revalidatePath("/plan");
     }
 
@@ -248,7 +246,6 @@ export async function deleteStudentPlan(
     const result = await service.deleteStudentPlan(planId, ctx.studentId);
 
     if (result.success) {
-      revalidatePath("/today");
       revalidatePath("/plan");
     }
 
@@ -433,7 +430,6 @@ export async function updateProgress(formData: FormData): Promise<void> {
       plan_id: planIdInput,
     });
 
-    revalidatePath("/today");
     redirect("/plan/calendar");
   } catch (error) {
     logActionError(

@@ -1771,7 +1771,6 @@ export async function restoreDeletedCalendarEvents(
     if (error) return { success: false, error: error.message };
 
     revalidatePath(`/admin/students/${studentId}/plans`);
-    revalidatePath('/today');
     revalidatePath('/plan');
 
     // 복원된 이벤트 중 스케줄에 영향을 주는 이벤트가 있으면 캐시 무효화

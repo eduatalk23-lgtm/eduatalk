@@ -274,7 +274,6 @@ export async function movePlanToDate(
     }
 
     revalidatePath(`/admin/students/${existingPlan.student_id}/plans`);
-    revalidatePath("/today");
 
     return { success: true, planId, newDate };
   } catch (error) {
@@ -371,7 +370,6 @@ export async function movePlansToDate(
     for (const studentId of studentIds) {
       revalidatePath(`/admin/students/${studentId}/plans`);
     }
-    revalidatePath("/today");
 
     return {
       success: true,
@@ -461,7 +459,6 @@ export async function reorderPlans(
     for (const studentId of studentIds) {
       revalidatePath(`/admin/students/${studentId}/plans`);
     }
-    revalidatePath("/today");
 
     return { success: true, reorderedCount: planIds.length };
   } catch (error) {
@@ -546,7 +543,6 @@ export async function movePlanToContainer(
     }
 
     revalidatePath(`/admin/students/${existingPlan.student_id}/plans`);
-    revalidatePath("/today");
 
     return { success: true, planId, newDate };
   } catch (error) {
@@ -651,7 +647,6 @@ export async function handlePlanDrop(
     }
 
     revalidatePath(`/admin/students/${existingPlan.student_id}/plans`);
-    revalidatePath("/today");
 
     return { success: true, planId, newDate: finalDate };
   } catch (error) {
@@ -799,7 +794,6 @@ export async function placePlanAtTime(
       }
 
       revalidatePath(`/admin/students/${plan.student_id}/plans`);
-      revalidatePath("/today");
 
       return { success: true, planId, startTime: newStartTime, endTime: newEndTime };
     }

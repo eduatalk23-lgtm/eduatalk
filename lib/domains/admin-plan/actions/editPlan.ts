@@ -200,7 +200,6 @@ export async function adminUpdateStudentPlan(
 
     // 5. 경로 재검증
     revalidatePath(`/admin/students/${studentId}/plans`);
-    revalidatePath('/today');
     revalidatePath('/plan');
 
     return {
@@ -274,7 +273,6 @@ export async function adminBulkUpdatePlans(
 
     // 경로 재검증
     revalidatePath(`/admin/students/${studentId}/plans`);
-    revalidatePath('/today');
     revalidatePath('/plan');
 
     return {

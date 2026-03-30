@@ -386,12 +386,10 @@ describe('경로 재검증', () => {
     const studentId = 'student-123';
     const paths = [
       `/admin/students/${studentId}/plans`,
-      '/today',
       '/plan',
     ];
 
     expect(paths).toContain(`/admin/students/${studentId}/plans`);
-    expect(paths).toContain('/today');
     expect(paths).toContain('/plan');
   });
 });

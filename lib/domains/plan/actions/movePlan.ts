@@ -230,7 +230,6 @@ export async function movePlan(input: MovePlanInput): Promise<MovePlanResult> {
 
     // 6. 캐시 무효화
     revalidatePath("/plan/calendar");
-    revalidatePath("/today");
 
     return {
       success: true,

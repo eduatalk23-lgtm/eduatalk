@@ -246,7 +246,6 @@ export async function createPlanFromContent(
 
     // 경로 재검증
     revalidatePath(`/admin/students/${input.studentId}/plans`);
-    revalidatePath('/today');
     revalidatePath('/plan');
 
     return {
@@ -740,7 +739,6 @@ export async function createPlanFromContentWithScheduler(
 
     // 경로 재검증
     revalidatePath(`/admin/students/${input.studentId}/plans`);
-    revalidatePath('/today');
     revalidatePath('/plan');
 
     logActionDebug(

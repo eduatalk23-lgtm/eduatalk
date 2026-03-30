@@ -145,7 +145,6 @@ export async function copyPlansToDate(
     for (const targetStudentId of targetStudents) {
       revalidatePath(`/admin/students/${targetStudentId}/plans`);
     }
-    revalidatePath('/today');
     revalidatePath('/plan');
 
     return {

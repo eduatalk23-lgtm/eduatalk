@@ -18,7 +18,7 @@ export function QuickPlanWizardWrapper({
 
   const handleSuccess = () => {
     // 성공 시 오늘의 학습 페이지로 이동
-    router.push("/today");
+    router.push("/plan/calendar");
   };
 
   const handleCancel = () => {

@@ -196,7 +196,6 @@ export async function deletePlanGroupAdmin(
 
     // 10. 경로 재검증
     revalidatePath(`/admin/students/${studentId}/plans`);
-    revalidatePath('/today');
     revalidatePath('/plan');
 
     return {
@@ -291,7 +290,6 @@ export async function bulkDeletePlanGroupsAdmin(
 
     // 경로 재검증 (deletePlanGroupAdmin에서도 하지만 확실하게)
     revalidatePath(`/admin/students/${studentId}/plans`);
-    revalidatePath('/today');
     revalidatePath('/plan');
 
     return {
@@ -621,7 +619,6 @@ export async function activatePlanGroupAdmin(
 
     // 5. 경로 재검증
     revalidatePath(`/admin/students/${studentId}/plans`);
-    revalidatePath('/today');
     revalidatePath('/plan');
 
     return {

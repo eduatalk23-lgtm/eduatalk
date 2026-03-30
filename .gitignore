@@ -31,6 +31,9 @@ public/workbox-*.js
 # production
 /build
 
+# sentry
+.sentryclirc
+
 # misc
 .DS_Store
 *.pem

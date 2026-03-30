@@ -210,8 +210,7 @@ const { data } = await supabase.from("students").select("*");
 - `/dashboard` - 학생 대시보드
 - `/admin/dashboard` - 관리자 대시보드
 - `/parent/dashboard` - 부모 대시보드
-- `/today` - 오늘의 학습 계획
-- `/plan` - 학습 계획 관리
+- `/plan` - 학습 계획 관리 (캘린더 기반)
 - `/scores` - 성적 관리
 - `/contents` - 학습 콘텐츠
 - `/analysis` - 학습 분석

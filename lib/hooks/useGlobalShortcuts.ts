@@ -165,7 +165,7 @@ export function useGlobalShortcuts(options: UseGlobalShortcutsOptions = {}) {
               router.push("/plan/quick-create");
               break;
             case "goToToday":
-              router.push("/today");
+              router.push("/plan/calendar");
               break;
             case "goToCalendar":
               router.push("/plan/calendar");

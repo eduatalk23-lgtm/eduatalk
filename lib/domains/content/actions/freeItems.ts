@@ -276,7 +276,6 @@ export async function createFreeLearningItem(
     }
 
     revalidatePath('/plan/calendar');
-    revalidatePath('/today');
 
     return { success: true, data: toFreeLearningItem(data as FreeLearningItemDbRow) };
   } catch (error) {
@@ -406,7 +405,6 @@ export async function updateFreeLearningItem(
     }
 
     revalidatePath('/plan/calendar');
-    revalidatePath('/today');
 
     return { success: true, data: toFreeLearningItem(data as FreeLearningItemDbRow) };
   } catch (error) {
@@ -495,7 +493,6 @@ export async function archiveFreeLearningItem(
     }
 
     revalidatePath('/plan/calendar');
-    revalidatePath('/today');
 
     return { success: true };
   } catch (error) {
@@ -534,7 +531,6 @@ export async function restoreFreeLearningItem(
     }
 
     revalidatePath('/plan/calendar');
-    revalidatePath('/today');
 
     return { success: true };
   } catch (error) {
@@ -569,7 +565,6 @@ export async function deleteFreeLearningItem(
     }
 
     revalidatePath('/plan/calendar');
-    revalidatePath('/today');
 
     return { success: true };
   } catch (error) {

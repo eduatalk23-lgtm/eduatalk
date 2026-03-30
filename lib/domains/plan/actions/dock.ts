@@ -140,7 +140,6 @@ export async function updatePlanStatus(
     }
 
     if (!skipRevalidation) {
-      revalidatePath("/today");
       revalidatePath("/plan");
     }
 
@@ -210,7 +209,6 @@ export async function deletePlan(input: DeletePlanInput): Promise<DeletePlanResu
       if (access.studentId) {
         revalidatePath(`/admin/students/${access.studentId}`);
       }
-      revalidatePath("/today");
       revalidatePath("/plan");
     }
 
@@ -313,7 +311,6 @@ export async function movePlanToContainer(
       if (access.studentId) {
         revalidatePath(`/admin/students/${access.studentId}`);
       }
-      revalidatePath("/today");
       revalidatePath("/plan");
     }
 
@@ -376,7 +373,6 @@ export async function updatePlanRange(
       if (access.studentId) {
         revalidatePath(`/admin/students/${access.studentId}`);
       }
-      revalidatePath("/today");
       revalidatePath("/plan");
     }
 
@@ -443,7 +439,6 @@ export async function deletePlans(
     for (const studentId of studentIds) {
       revalidatePath(`/admin/students/${studentId}`);
     }
-    revalidatePath("/today");
     revalidatePath("/plan");
 
     return { success: true, deletedCount: planIds.length };
@@ -547,7 +542,6 @@ export async function movePlansToContainer(
     for (const studentId of studentIds) {
       revalidatePath(`/admin/students/${studentId}`);
     }
-    revalidatePath("/today");
     revalidatePath("/plan");
 
     return { success: true, movedCount: planIds.length };

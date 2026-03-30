@@ -208,7 +208,6 @@ export async function restoreDeletedPlans(
 
     // 경로 재검증
     revalidatePath(`/admin/students/${studentId}/plans`);
-    revalidatePath('/today');
     revalidatePath('/plan');
 
     return {

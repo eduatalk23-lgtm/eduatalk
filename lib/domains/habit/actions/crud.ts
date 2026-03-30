@@ -219,7 +219,6 @@ export async function createHabit(
     }
 
     revalidatePath("/habits");
-    revalidatePath("/today");
 
     return { success: true, data: dbToHabit(data) };
   } catch (error) {
@@ -289,7 +288,6 @@ export async function updateHabit(
     }
 
     revalidatePath("/habits");
-    revalidatePath("/today");
 
     return { success: true, data: dbToHabit(data) };
   } catch (error) {
@@ -336,7 +334,6 @@ export async function deleteHabit(
     }
 
     revalidatePath("/habits");
-    revalidatePath("/today");
 
     return { success: true };
   } catch (error) {
@@ -373,7 +370,6 @@ export async function reorderHabits(
     await Promise.all(updates);
 
     revalidatePath("/habits");
-    revalidatePath("/today");
 
     return { success: true };
   } catch (error) {

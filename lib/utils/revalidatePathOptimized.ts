@@ -25,22 +25,22 @@ export async function revalidateCurrentPath(
         const refererUrl = new URL(referer);
         const pathname = refererUrl.pathname;
         
-        // 현재 경로가 /today 또는 /camp/today인 경우만 해당 경로 revalidate
-        if (pathname.startsWith("/today") || pathname.startsWith("/camp/today")) {
+        // 현재 경로가 /plan/calendar 또는 /camp/today인 경우만 해당 경로 revalidate
+        if (pathname.startsWith("/plan/calendar") || pathname.startsWith("/camp/today")) {
           revalidatePath(pathname);
         }
       } catch {
         // URL 파싱 실패 시 무시
       }
     }
-    
+
     // 추가 경로 revalidate
     for (const path of additionalPaths) {
       revalidatePath(path);
     }
   } catch (error) {
     // headers() 실패 시 fallback: 모든 경로 revalidate
-    revalidatePath("/today");
+    revalidatePath("/plan/calendar");
     revalidatePath("/camp/today");
     for (const path of additionalPaths) {
       revalidatePath(path);
@@ -68,34 +68,34 @@ export async function revalidateTimerPaths(
         const pathname = refererUrl.pathname;
         
         // 현재 경로만 revalidate
-        if (pathname.startsWith("/today") || pathname.startsWith("/camp/today")) {
+        if (pathname.startsWith("/plan/calendar") || pathname.startsWith("/camp/today")) {
           revalidatePath(pathname);
-          
+
           // 대시보드도 필요한 경우
           if (includeDashboard) {
             revalidatePath("/dashboard");
           }
-          
+
           return;
         }
       } catch {
         // URL 파싱 실패 시 fallback
       }
     }
-    
+
     // Fallback: campMode에 따라 해당 경로만 revalidate
     if (campMode) {
       revalidatePath("/camp/today");
     } else {
-      revalidatePath("/today");
+      revalidatePath("/plan/calendar");
     }
-    
+
     if (includeDashboard) {
       revalidatePath("/dashboard");
     }
   } catch (error) {
     // headers() 실패 시 fallback: 모든 경로 revalidate
-    revalidatePath("/today");
+    revalidatePath("/plan/calendar");
     revalidatePath("/camp/today");
     if (includeDashboard) {
       revalidatePath("/dashboard");

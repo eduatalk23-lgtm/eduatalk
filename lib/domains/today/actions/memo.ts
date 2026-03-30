@@ -113,7 +113,6 @@ export async function savePlanMemo(
       throw error;
     }
 
-    revalidatePath("/today");
     revalidatePath("/camp/today");
     return { success: true };
   } catch (error) {

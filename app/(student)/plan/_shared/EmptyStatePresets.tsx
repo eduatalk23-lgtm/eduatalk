@@ -68,7 +68,7 @@ const PRESETS: Record<PresetType, EmptyStatePreset> = {
     title: "아직 학습 데이터가 없습니다",
     description: "플랜을 완료하면 여기에서 학습 통계를 확인할 수 있습니다.",
     actionLabel: "오늘 할 일 보기",
-    actionHref: "/today",
+    actionHref: "/plan/calendar",
   },
 };
 

@@ -22,7 +22,7 @@ export type DashboardCategory = {
  * href → LucideIcon 매핑 테이블
  */
 const hrefIconMap: Record<string, LucideIcon> = {
-  "/today": CalendarDays,
+  "/plan/calendar": CalendarDays,
   "/plan": ClipboardList,
   "/contents": BookOpen,
   "/camp": Tent,
@@ -33,7 +33,7 @@ const hrefIconMap: Record<string, LucideIcon> = {
  * href → label 매핑 테이블 (서버 컴포넌트에서 사용)
  */
 const hrefLabelMap: Record<string, string> = {
-  "/today": "학습 관리",
+  "/plan/calendar": "학습 관리",
   "/plan": "플랜 관리",
   "/contents": "콘텐츠 관리",
   "/camp": "캠프 관리",

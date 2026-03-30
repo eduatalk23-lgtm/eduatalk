@@ -24,7 +24,7 @@ pnpm analyze      # Bundle analysis (ANALYZE=true next build)
 - `app/` - Next.js App Router pages with role-based route groups
   - `(admin)/` - Admin pages (`/admin/*`)
   - `(parent)/` - Parent pages (`/parent/*`)
-  - `(student)/` - Student pages (`/dashboard`, `/today`, `/plan`, `/scores`, etc.)
+  - `(student)/` - Student pages (`/dashboard`, `/plan`, `/scores`, etc.)
   - `actions/` - Server Actions
   - `api/` - API routes
 - `components/` - Reusable UI components (atoms, molecules, organisms pattern)
@@ -262,6 +262,29 @@ Claude가 작업 수행 시 **반드시** 아래 워크플로우를 따른다.
 | 복잡한 기능 구현 전 | `Plan` |
 | 여러 파일 동시 검색 | `Explore` (thoroughness: very thorough) |
 | 에러 원인 추적 | `Explore` + 자체 분석 |
+
+### 도메인 에이전트 자동 라우팅 (필수)
+
+작업 대상이 아래 도메인에 해당하면 **해당 도메인 에이전트를 자동으로 spawn**하여 위임한다. 사용자가 별도로 에이전트를 지정하지 않아도 자동 적용.
+
+| 대상 경로 / 키워드 | 에이전트 |
+|---|---|
+| `lib/domains/plan/`, 플랜 생성/스케줄링/LLM/Cold Start | `plan-dev` |
+| `lib/domains/student-record/`, 생기부/세특/NEIS/진단/역량/성적 | `record-dev` |
+| `lib/domains/admin-plan/`, 관리자 캘린더/배치 플랜/플랜 위자드 | `admin-plan-dev` |
+| `lib/domains/chat/`, 채팅/메시지/리액션/첨부파일 | `chat-dev` |
+| `lib/domains/admission/`, 입시/배치/배분/수시6장/정시점수 | `admission-dev` |
+| `lib/domains/guide/`, 탐구 가이드/벡터검색/임베딩/배정 | `guide-dev` |
+| `lib/domains/{payment,notification,sms,push,enrollment}/`, 결제/알림/문자 | `ops-dev` |
+| `lib/domains/{content,master-content,content-metadata,drive}/`, 콘텐츠/교재/파일 | `content-dev` |
+| `lib/domains/{calendar,googleCalendar,today,attendance,block,camp}/`, 캘린더/출석/캠프 | `scheduling-dev` |
+| `supabase/migrations/`, RLS/RPC/마이그레이션 | `/project:db` 커맨드 |
+| 크로스 도메인 코드 리뷰 | `/project:review` 커맨드 |
+
+**라우팅 규칙:**
+- 작업이 단일 도메인에 속하고 **3개 이상 파일 수정**이 예상되면 → 해당 에이전트 spawn
+- 단순 수정(1~2파일)이면 → 도메인 CLAUDE.md 자동 적용으로 충분 (에이전트 불필요)
+- 여러 도메인에 걸치면 → 주 도메인 에이전트 spawn + 관련 도메인 CLAUDE.md 참조
 
 ### 사용자 피드백 루프
 

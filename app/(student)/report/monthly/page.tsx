@@ -83,7 +83,7 @@ export default async function MonthlyReportPage({ searchParams }: PageProps) {
             title="이번 달 아직 학습 기록이 없습니다"
             description="학습을 시작하면 월간 리포트가 자동으로 생성됩니다."
             actionLabel="오늘부터 학습 시작하기"
-            actionHref="/today"
+            actionHref="/plan/calendar"
             icon="📊"
           />
         ) : (

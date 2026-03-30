@@ -177,7 +177,7 @@ function isInputElement(element: EventTarget | null): boolean {
  * useKeyboardShortcuts({
  *   shortcuts: [
  *     { key: "g then d", handler: () => router.push("/dashboard"), description: "대시보드로 이동" },
- *     { key: "g then t", handler: () => router.push("/today"), description: "Today로 이동" },
+ *     { key: "g then t", handler: () => router.push("/plan/calendar"), description: "캘린더로 이동" },
  *   ]
  * });
  *
@@ -336,7 +336,7 @@ export function useShortcut(
  * @example
  * useNavigationShortcuts({
  *   "g then d": "/dashboard",
- *   "g then t": "/today",
+ *   "g then t": "/plan/calendar",
  *   "g then p": "/plan",
  * });
  */

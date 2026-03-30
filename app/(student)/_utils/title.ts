@@ -11,7 +11,7 @@ const TITLE_MAP: Record<string, string> = {
   "/scores/school": "내신 성적",
   "/scores/mock": "모의고사 성적",
   "/analysis": "학습 분석",
-  "/today": "오늘의 학습",
+  "/plan/calendar": "학습 캘린더",
 };
 
 /**
@@ -84,7 +84,7 @@ export function getPageTitle(pathname: string): string {
       plan: "학습 계획",
       scores: "성적",
       analysis: "학습 분석",
-      today: "오늘의 학습",
+      today: "학습 캘린더",
     };
     return labelMap[firstSegment] || "페이지";
   }
@@ -103,7 +103,7 @@ export function isSectionRoot(pathname: string): boolean {
     "/plan",
     "/scores",
     "/analysis",
-    "/today",
+    "/plan/calendar",
     "/blocks",
     "/reports",
   ];

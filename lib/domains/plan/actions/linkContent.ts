@@ -315,7 +315,6 @@ export async function linkContentToVirtualPlan(
 
     // 8. 캐시 갱신
     revalidatePath("/plan/calendar");
-    revalidatePath("/today");
 
     return {
       success: true,
@@ -542,7 +541,6 @@ export async function updatePlanContent(
 
     // 10. 캐시 갱신
     revalidatePath("/plan/calendar");
-    revalidatePath("/today");
 
     logActionSuccess(
       { domain: "plan", action: "updatePlanContent" },

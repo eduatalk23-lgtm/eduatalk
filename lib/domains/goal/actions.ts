@@ -6,7 +6,6 @@
  * 학생용 목표 관리 액션을 제공합니다.
  */
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { requireStudent } from "@/lib/auth/guards";
@@ -118,7 +117,6 @@ export async function createGoalAction(formData: FormData): Promise<void> {
     tenantId
   );
 
-  revalidatePath("/today");
   redirect("/plan/calendar");
 }
 
@@ -189,7 +187,6 @@ export async function updateGoalAction(goalId: string, formData: FormData): Prom
     throw new Error(result.error || "목표 수정에 실패했습니다.");
   }
 
-  revalidatePath("/today");
   redirect("/plan/calendar");
 }
 
@@ -205,7 +202,6 @@ export async function deleteGoalAction(goalId: string): Promise<void> {
     throw new Error(result.error || "목표 삭제에 실패했습니다.");
   }
 
-  revalidatePath("/today");
   redirect("/plan/calendar");
 }
 
@@ -332,8 +328,6 @@ export async function recordGoalProgressAction(
       tenantContext.tenantId
     );
 
-    revalidatePath("/today");
-    revalidatePath("/today");
     return { success: true };
   } catch (error) {
     logActionError({ domain: "goal", action: "recordGoalProgressAction" }, error);

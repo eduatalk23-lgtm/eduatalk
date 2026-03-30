@@ -23,6 +23,7 @@ export const PUBLIC_PAGE_PATHS = [
   "/offline",
   "/pay",
   "/shared",
+  "/landing",
 ] as const;
 
 /**
@@ -66,7 +67,6 @@ export const CRON_PATHS = ["/api/cron"] as const;
 export const ROLE_ALLOWED_PATHS: Record<string, readonly string[]> = {
   student: [
     "/dashboard",
-    "/today",
     "/plan",
     "/scores",
     "/analysis",
@@ -104,7 +104,6 @@ export const CRAWLER_DISALLOW_PATHS = [
   "/parent/",
   "/superadmin/",
   "/dashboard",
-  "/today",
   "/plan",
   "/scores",
   "/analysis",

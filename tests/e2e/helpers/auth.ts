@@ -94,7 +94,7 @@ export async function getCurrentUserRole(page: Page): Promise<"admin" | "student
     return "admin";
   } else if (url.includes("/parent")) {
     return "parent";
-  } else if (url.includes("/dashboard") || url.includes("/plan") || url.includes("/today")) {
+  } else if (url.includes("/dashboard") || url.includes("/plan")) {
     return "student";
   }
 
@@ -112,7 +112,6 @@ export async function isLoggedIn(page: Page): Promise<boolean> {
     url.includes("/admin") ||
     url.includes("/dashboard") ||
     url.includes("/plan") ||
-    url.includes("/today") ||
     url.includes("/parent");
 
   return !isOnLoginPage && isOnAuthenticatedPage;

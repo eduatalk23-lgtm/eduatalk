@@ -29,7 +29,7 @@ export interface RevalidatePlanCacheOptions {
  *
  * 무효화되는 경로:
  * - `/plan` - 플랜 목록 페이지
- * - `/today` - 오늘의 학습 페이지
+ * - `/plan/calendar` - 학습 캘린더 페이지
  * - `/plan/calendar` - 플랜 캘린더 페이지 (옵션)
  * - `/plan/group/${groupId}` - 플랜 그룹 상세 페이지 (groupId 제공 시)
  * - `/admin/students/${studentId}/plans` - 관리자 플랜 관리 페이지 (studentId 제공 시)
@@ -64,7 +64,6 @@ export function revalidatePlanCache(options: RevalidatePlanCacheOptions = {}): v
 
   // 기본 경로 (항상 무효화)
   revalidatePath("/plan");
-  revalidatePath("/today");
 
   // 캘린더 페이지 (옵션)
   if (includeCalendar) {

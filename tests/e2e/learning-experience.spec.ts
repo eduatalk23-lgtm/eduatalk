@@ -19,7 +19,7 @@ import { TIMEOUTS, SELECTORS, getToday } from "./fixtures/test-data";
  * 오늘 페이지로 이동
  */
 async function goToTodayPage(page: Page) {
-  await page.goto("/today");
+  await page.goto("/plan/calendar");
   await page.waitForLoadState("networkidle");
 }
 
@@ -35,7 +35,7 @@ async function goToSettingsPage(page: Page) {
  * 특정 플랜 실행 페이지로 이동
  */
 async function goToPlanExecution(page: Page, planId: string) {
-  await page.goto(`/today/plan/${planId}`);
+  await page.goto(`/plan/calendar`);
   await page.waitForLoadState("networkidle");
 }
 
@@ -167,8 +167,8 @@ test.describe("Phase 1: CompletionFlow - 학습 완료 흐름", () => {
     if (await endTodayButton.isVisible()) {
       await endTodayButton.click();
 
-      // /today 페이지로 이동 확인
-      await expect(page).toHaveURL(/\/today/);
+      // /plan/calendar 페이지로 이동 확인
+      await expect(page).toHaveURL(/\/plan\/calendar/);
     }
   });
 });
@@ -425,7 +425,7 @@ test.describe("통합: 학습 경험 전체 흐름", () => {
     await goToTodayPage(page);
 
     // 페이지 로드 확인
-    await expect(page).toHaveURL(/\/today/);
+    await expect(page).toHaveURL(/\/plan\/calendar/);
 
     // 플랜 카드 존재 확인
     const planCards = page.locator(
@@ -567,7 +567,7 @@ test.describe("에러 처리 및 엣지 케이스", () => {
       route.abort("failed");
     });
 
-    await page.goto("/today");
+    await page.goto("/plan/calendar");
 
     // 에러 메시지 또는 재시도 버튼 확인
     const errorUI = page.locator(

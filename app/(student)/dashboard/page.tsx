@@ -34,7 +34,7 @@ type QuickAction = {
 
 const QUICK_ACTIONS: QuickAction[] = [
   {
-    href: "/today",
+    href: "/plan/calendar",
     title: "학습 관리",
     description: "오늘의 학습 계획을 확인하고 실행하세요",
     icon: CalendarDays,

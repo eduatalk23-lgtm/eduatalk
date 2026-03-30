@@ -159,7 +159,6 @@ export async function movePlansToGroup(
 
     // 4. 경로 재검증
     revalidatePath(`/admin/students/${input.studentId}/plans`);
-    revalidatePath('/today');
     revalidatePath('/plan');
 
     return {

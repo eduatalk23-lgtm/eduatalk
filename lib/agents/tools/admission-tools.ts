@@ -11,6 +11,7 @@ import {
   searchAdmissions,
   getScoreConfig,
   getRestrictions,
+  resolveUniversityAliases,
 } from "@/lib/domains/admission/repository";
 import { analyzePlacement } from "@/lib/domains/admission/placement/service";
 import { filterVerdicts } from "@/lib/domains/admission/placement/engine";
@@ -145,14 +146,27 @@ export function createAdmissionTools(ctx: AgentContext) {
       execute: async ({ universityName, dataYear }) => {
         logActionDebug(LOG_CTX, `getUniversityScoreInfo: ${universityName}`);
         try {
-          const [config, restrictions] = await Promise.all([
-            getScoreConfig(universityName, dataYear),
-            getRestrictions(universityName, dataYear),
-          ]);
+          // Try original name first
+          let resolvedName = universityName;
+          let config = await getScoreConfig(resolvedName, dataYear);
+
+          // If not found, try resolved aliases
+          if (!config) {
+            const aliases = await resolveUniversityAliases(universityName);
+            for (const name of aliases) {
+              config = await getScoreConfig(name, dataYear);
+              if (config) {
+                resolvedName = name;
+                break;
+              }
+            }
+          }
 
           if (!config) {
             return TOOL_ERRORS.RESOURCE_NOT_FOUND(`'${universityName}' 대학 환산 설정`);
           }
+
+          const restrictions = await getRestrictions(resolvedName, dataYear);
 
           return {
             success: true,

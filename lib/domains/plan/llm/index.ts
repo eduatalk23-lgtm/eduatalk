@@ -168,13 +168,6 @@ export {
   type RecommendContentResult,
 } from "./actions/recommendContent";
 
-// 향상된 콘텐츠 추천 액션 (Phase 6)
-export {
-  enhancedRecommendContentWithAI,
-  type EnhancedRecommendContentInput,
-  type EnhancedRecommendContentResult,
-} from "./actions/enhancedRecommendContent";
-
 // 플랜 최적화 프롬프트
 export {
   PLAN_OPTIMIZATION_SYSTEM_PROMPT,

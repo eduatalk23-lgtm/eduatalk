@@ -191,7 +191,6 @@ export async function reorderPlansWithTimeRecalculation(
 
     // 캐시 무효화
     revalidatePath(`/admin/students/${studentId}/plans`);
-    revalidatePath("/today");
 
     return {
       success: true,

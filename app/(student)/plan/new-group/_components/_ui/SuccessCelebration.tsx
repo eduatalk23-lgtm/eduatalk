@@ -58,7 +58,7 @@ export function SuccessCelebration({
   };
 
   const handleGoToToday = () => {
-    router.push("/today");
+    router.push("/plan/calendar");
   };
 
   return (

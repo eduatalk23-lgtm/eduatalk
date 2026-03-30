@@ -269,7 +269,6 @@ export async function pauseContent(
     if (studentId) {
       revalidatePath(`/admin/students/${studentId}/plans`);
     }
-    revalidatePath("/today");
 
     return { success: true };
   } catch (error) {

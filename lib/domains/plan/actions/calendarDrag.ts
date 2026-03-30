@@ -195,7 +195,6 @@ export async function rescheduleOnDrop(
     }
 
     revalidatePath("/plan/calendar");
-    revalidatePath("/today");
 
     return { success: true, planId, newDate, newStartTime };
   } catch (error) {
@@ -277,7 +276,6 @@ export async function resizePlanDuration(
     }
 
     revalidatePath("/plan/calendar");
-    revalidatePath("/today");
 
     return { success: true, planId, newStartTime };
   } catch (error) {

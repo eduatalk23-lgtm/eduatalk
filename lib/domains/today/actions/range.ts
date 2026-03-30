@@ -71,7 +71,6 @@ export async function adjustPlanRanges(
       );
     }
 
-    revalidatePath("/today");
     revalidatePath("/camp/today");
     return { success: true };
   } catch (error) {

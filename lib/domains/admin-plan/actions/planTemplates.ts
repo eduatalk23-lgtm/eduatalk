@@ -256,7 +256,6 @@ export async function applyPlanTemplate(
     for (const targetStudentId of students) {
       revalidatePath(`/admin/students/${targetStudentId}/plans`);
     }
-    revalidatePath('/today');
     revalidatePath('/plan');
 
     return {

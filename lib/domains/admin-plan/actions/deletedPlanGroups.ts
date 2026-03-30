@@ -179,7 +179,6 @@ export async function restorePlanGroupAdmin(
 
     // 경로 재검증
     revalidatePath(`/admin/students/${studentId}/plans`);
-    revalidatePath("/today");
     revalidatePath("/plan");
 
     return {
@@ -318,7 +317,6 @@ export async function bulkRestorePlanGroups(
 
     // 경로 재검증
     revalidatePath(`/admin/students/${studentId}/plans`);
-    revalidatePath("/today");
     revalidatePath("/plan");
 
     return {

@@ -76,7 +76,7 @@
       "name": "오늘의 학습",
       "short_name": "오늘",
       "description": "오늘의 학습 계획 확인",
-      "url": "/today",
+      "url": "/plan/calendar",
       "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
     },
     {

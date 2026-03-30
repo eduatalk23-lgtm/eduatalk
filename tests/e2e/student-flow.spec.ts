@@ -33,10 +33,10 @@ async function goToPlanList(page: Page) {
 }
 
 /**
- * 오늘의 학습 페이지로 이동
+ * 학습 캘린더 페이지로 이동
  */
 async function goToTodayPage(page: Page) {
-  await page.goto("/today");
+  await page.goto("/plan/calendar");
   await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
 }
 
@@ -284,7 +284,7 @@ test.describe("Student Flow E2E 테스트", () => {
 
         // 타이머가 시작되거나 학습 상세 페이지로 이동
         const timer = page.locator(SELECTORS.timerDisplay);
-        const detailPage = page.url().includes("/today/plan/");
+        const detailPage = page.url().includes("/plan/calendar");
 
         expect((await timer.count()) > 0 || detailPage).toBe(true);
       }
@@ -296,13 +296,13 @@ test.describe("Student Flow E2E 테스트", () => {
       let resolved = false;
 
       // 지연된 응답 시뮬레이션
-      await page.route("**/api/**/today**", async (route) => {
+      await page.route("**/api/**/plan**", async (route) => {
         await new Promise((resolve) => setTimeout(resolve, 1500));
         resolved = true;
         await route.continue();
       });
 
-      await page.goto("/today");
+      await page.goto("/plan/calendar");
 
       // 초기에는 로딩 상태
       const initialLoading = await checkLoadingState(page);
@@ -318,7 +318,7 @@ test.describe("Student Flow E2E 테스트", () => {
     test("에러 -> 재시도 흐름이 올바르다", async ({ page }) => {
       let attemptCount = 0;
 
-      await page.route("**/api/**/today**", async (route) => {
+      await page.route("**/api/**/plan**", async (route) => {
         attemptCount++;
         if (attemptCount <= 1) {
           await route.fulfill({

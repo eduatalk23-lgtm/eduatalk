@@ -99,7 +99,6 @@ export async function checkInHabit(
     await updateHabitStreak(input.habitId);
 
     revalidatePath("/habits");
-    revalidatePath("/today");
 
     return { success: true, data: log };
   } catch (error) {
@@ -162,7 +161,6 @@ export async function uncheckHabit(
       await updateHabitStreak(habitId);
 
       revalidatePath("/habits");
-      revalidatePath("/today");
 
       return { success: true, data: null };
     } else {
@@ -187,7 +185,6 @@ export async function uncheckHabit(
       await updateHabitStreak(habitId);
 
       revalidatePath("/habits");
-      revalidatePath("/today");
 
       return { success: true, data: dbToHabitLog(data) };
     }

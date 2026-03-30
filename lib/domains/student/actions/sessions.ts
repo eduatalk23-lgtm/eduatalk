@@ -217,7 +217,6 @@ export async function endStudySession(
       );
     }
 
-    revalidatePath("/today");
     return { success: true, durationSeconds: result.durationSeconds };
   } catch (error) {
     console.error("[session]","세션 종료 실패", {
@@ -269,7 +268,6 @@ export async function cancelStudySession(
       return { success: false, error: result.error };
     }
 
-    revalidatePath("/today");
     revalidatePath("/dashboard");
     return { success: true };
   } catch (error) {
@@ -329,7 +327,6 @@ export async function pauseStudySession(
       .eq("id", sessionId)
       .eq("student_id", user.userId);
 
-    revalidatePath("/today");
     revalidatePath("/dashboard");
     return { success: true };
   } catch (error) {
@@ -397,7 +394,6 @@ export async function resumeStudySession(
       .eq("id", sessionId)
       .eq("student_id", user.userId);
 
-    revalidatePath("/today");
     revalidatePath("/dashboard");
     return { success: true };
   } catch (error) {

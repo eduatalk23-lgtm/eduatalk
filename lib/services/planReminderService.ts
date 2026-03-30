@@ -405,7 +405,7 @@ export async function checkAndCreateIncompleteReminder(
     incompletePlans.length === 1
       ? `"${incompletePlans[0].title}" 플랜을 완료해보세요!`
       : `${incompletePlans[0].title} 외 ${incompletePlans.length - 1}개의 플랜이 기다리고 있어요.`,
-    { actionUrl: "/today" }
+    { actionUrl: "/plan/calendar" }
   );
 
   return {
@@ -465,7 +465,7 @@ export async function checkAndCreateDelayedWarning(
     "plan_incomplete_reminder",
     `${delayedPlans.length}개의 플랜이 ${settings.delayedPlanThreshold}일 이상 밀렸어요`,
     `가장 오래된 플랜: "${oldestPlan.title}" (${oldestPlan.daysDelayed}일 전)`,
-    { actionUrl: "/today" }
+    { actionUrl: "/plan/calendar" }
   );
 
   return {
@@ -524,7 +524,7 @@ export async function checkAndCreateWeeklySummary(
       "daily_goal_complete",
       "이번 주 플랜을 모두 완료했어요!",
       "대단해요! 다음 주도 화이팅!",
-      { actionUrl: "/today" }
+      { actionUrl: "/plan/calendar" }
     );
 
     return {
@@ -549,7 +549,7 @@ export async function checkAndCreateWeeklySummary(
     "weekly_plan_summary",
     `이번 주 ${summary.totalIncomplete}개의 플랜이 미완료예요`,
     `과목별: ${subjectList}`,
-    { actionUrl: "/today" }
+    { actionUrl: "/plan/calendar" }
   );
 
   return {

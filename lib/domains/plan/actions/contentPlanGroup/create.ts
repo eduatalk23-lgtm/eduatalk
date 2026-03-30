@@ -602,7 +602,6 @@ export async function createContentPlanGroup(
 
     // 8. 캐시 재검증
     revalidatePath("/plan");
-    revalidatePath("/today");
 
     const studyDaysCount = studyDates.length;
     return {
@@ -905,7 +904,6 @@ export async function addContentToCalendarOnlyGroup(
 
     // 8. 캐시 재검증
     revalidatePath("/plan");
-    revalidatePath("/today");
     revalidatePath(`/plan/group/${input.planGroupId}`);
 
     const studyDaysCount = studyDates.length;
@@ -1222,7 +1220,6 @@ export async function addContentToExistingPlanGroup(
 
     // 8. 캐시 재검증
     revalidatePath("/plan");
-    revalidatePath("/today");
     revalidatePath(`/plan/group/${input.planGroupId}`);
 
     const studyDaysCount = studyDates.length;

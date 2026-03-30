@@ -51,7 +51,7 @@ export function ContentAddHub({
   const handleAdHocAdd = () => {
     // 단발성 추가: Today 페이지의 플랜 추가 모달 열기
     // URL 파라미터로 모달 트리거
-    router.push("/today?addPlan=true");
+    router.push("/plan/calendar");
   };
 
   return (

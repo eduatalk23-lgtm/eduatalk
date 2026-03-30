@@ -386,7 +386,6 @@ export async function movePlanToDate(
     }
 
     revalidatePath("/plan/adjust");
-    revalidatePath("/today");
 
     return { success: true };
   } catch (error) {
@@ -457,7 +456,6 @@ export async function swapPlans(
     }
 
     revalidatePath("/plan/adjust");
-    revalidatePath("/today");
 
     return { success: true };
   } catch (error) {
@@ -609,7 +607,6 @@ export async function autoBalancePlans(
     }
 
     revalidatePath("/plan/adjust");
-    revalidatePath("/today");
 
     return { success: true, movedPlans: movedCount };
   } catch (error) {
@@ -666,7 +663,6 @@ export async function toggleContentPause(
     }
 
     revalidatePath("/plan/adjust");
-    revalidatePath("/today");
 
     return { success: true };
   } catch (error) {
@@ -740,7 +736,6 @@ export async function moveMultiplePlansToDate(
     }
 
     revalidatePath("/plan/adjust");
-    revalidatePath("/today");
 
     return { success: true, movedCount: validPlanIds.length };
   } catch (error) {
@@ -807,7 +802,6 @@ export async function deleteMultiplePlans(
     }
 
     revalidatePath("/plan/adjust");
-    revalidatePath("/today");
 
     return { success: true, deletedCount: validPlanIds.length };
   } catch (error) {
@@ -868,7 +862,6 @@ export async function deletePlan(
     }
 
     revalidatePath("/plan/adjust");
-    revalidatePath("/today");
 
     return { success: true };
   } catch (error) {

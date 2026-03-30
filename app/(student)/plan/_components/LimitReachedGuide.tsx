@@ -40,7 +40,7 @@ export function LimitReachedGuide({
       params.set("contentTitle", selectedContent.title);
       params.set("contentType", selectedContent.type);
     }
-    router.push(`/today?${params.toString()}`);
+    router.push(`/plan/calendar?${params.toString()}`);
   };
 
   return (
