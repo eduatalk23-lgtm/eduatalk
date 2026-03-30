@@ -214,21 +214,29 @@ export async function deleteBlockSet(
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  await createTypedQuery<null>(
-    async () => {
-      return await supabase
-        .from("student_block_sets")
-        .delete()
-        .eq("id", blockSetId)
-        .eq("student_id", studentId);
-    },
-    {
-      context: "[data/blockSets] deleteBlockSet",
-      defaultValue: null,
-    }
-  );
+  // FK 참조 확인: 이 블록 세트를 사용하는 플랜 그룹이 있는지 체크
+  const { count } = await supabase
+    .from("plan_groups")
+    .select("id", { count: "exact", head: true })
+    .eq("block_set_id", blockSetId);
 
-  // delete 쿼리는 data가 null이어도 성공일 수 있음
+  if (count && count > 0) {
+    return {
+      success: false,
+      error: `이 블록 세트를 사용하는 플랜 그룹이 ${count}개 있어 삭제할 수 없습니다. 먼저 해당 플랜 그룹의 블록 세트를 변경해주세요.`,
+    };
+  }
+
+  const { error } = await supabase
+    .from("student_block_sets")
+    .delete()
+    .eq("id", blockSetId)
+    .eq("student_id", studentId);
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
   return { success: true };
 }
 

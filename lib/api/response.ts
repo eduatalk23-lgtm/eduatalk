@@ -236,12 +236,18 @@ export function handleApiError(
       return apiNotFound("요청한 리소스를 찾을 수 없습니다.");
     }
 
-    return apiDatabaseError(supabaseError.message || "데이터베이스 오류가 발생했습니다.");
+    if (process.env.NODE_ENV === "development") {
+      return apiDatabaseError(supabaseError.message || "데이터베이스 오류가 발생했습니다.");
+    }
+    return apiDatabaseError("데이터베이스 오류가 발생했습니다.");
   }
 
   // 일반 Error 객체
   if (error instanceof Error) {
-    return apiInternalError(error.message);
+    if (process.env.NODE_ENV === "development") {
+      return apiInternalError(error.message);
+    }
+    return apiInternalError("서버 오류가 발생했습니다.");
   }
 
   // 알 수 없는 에러

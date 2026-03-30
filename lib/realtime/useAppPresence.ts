@@ -130,7 +130,7 @@ export function useAppPresence(userId: string | null) {
         });
 
         if (navigator.sendBeacon) {
-          const beaconUrl = `/api/presence?userId=${encodeURIComponent(userId)}&status=idle`;
+          const beaconUrl = `/api/presence?status=idle`;
           navigator.sendBeacon(beaconUrl);
           lastWrittenStatus = "idle";
           lastWrittenRoomId = null;
@@ -167,7 +167,7 @@ export function useAppPresence(userId: string | null) {
       // sendBeacon으로 "offline" 상태를 확실히 전달 (async upsert 미완료 방지)
       if (navigator.sendBeacon) {
         navigator.sendBeacon(
-          `/api/presence?userId=${encodeURIComponent(userId)}&status=offline`
+          `/api/presence?status=offline`
         );
       } else {
         upsertPresence("offline");
