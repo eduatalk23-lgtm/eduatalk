@@ -35,8 +35,7 @@ import type {
   SchoolTypeKor,
 } from "@/lib/domains/school/types";
 
-// Re-export types
-export type { School, Region };
+// Note: School, Region 타입은 ../types.ts에서 export됨 (barrel에서 이미 포함)
 
 // 상수
 const SCHOOL_TYPE_REVERSE_MAP: Record<SchoolTypeKor, SchoolType> = {

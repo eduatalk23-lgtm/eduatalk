@@ -72,27 +72,6 @@ export {
 } from "./contentIndividualization";
 export type { ContentProgress as DetailedContentProgress } from "./contentIndividualization";
 
-// Timezone Actions (달력 기반 플랜 생성 시스템)
-export {
-  createTimezone,
-  getTimezones,
-  getTimezone,
-  getTimezoneCalendarData,
-  updateTimezoneStatus,
-  deleteTimezone,
-  activateTimezone,
-} from "./timezone";
-
-// Content Calendar Actions (타임존에 콘텐츠 추가)
-export {
-  addContentToTimezone,
-  generatePlansForContent,
-  updateContentSchedule as updateTimezoneContentSchedule,
-  regeneratePlansForContent,
-  removeContentFromTimezone,
-  getTimezoneContents,
-} from "./content-calendar";
-
 // Review Group Actions (복습 그룹 관리)
 export {
   getReviewGroups,

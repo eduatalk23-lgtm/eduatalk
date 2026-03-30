@@ -16,23 +16,16 @@ import {
   calculateReschedulePreview,
   executeRescheduleOperation,
   type RescheduleContext,
-  type ReschedulePreviewResult,
-  type RescheduleResult,
 } from "@/lib/reschedule/core";
 
 // ============================================
 // 타입 정의 (학생용과 호환성 유지)
 // ============================================
 
-/**
- * 재조정 미리보기 결과 (타입 호환성을 위해 재export)
- */
-export type { ReschedulePreviewResult };
-
-/**
- * 재조정 실행 결과 (타입 호환성을 위해 재export)
- */
-export type { RescheduleResult };
+// Turbopack 호환: "use server" 파일에서 외부 타입 re-export 시
+// `export type { X }` 대신 ReturnType으로 인라인 정의
+export type ReschedulePreviewResult = Awaited<ReturnType<typeof calculateReschedulePreview>>;
+export type RescheduleResult = Awaited<ReturnType<typeof executeRescheduleOperation>>;
 
 // ============================================
 // 미리보기 함수

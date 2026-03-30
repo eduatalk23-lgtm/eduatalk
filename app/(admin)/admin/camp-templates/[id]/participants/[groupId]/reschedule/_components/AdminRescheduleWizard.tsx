@@ -14,7 +14,7 @@ import { AdjustmentStep } from "@/app/(student)/plan/group/[id]/reschedule/_comp
 import { AdminPreviewStep } from "./AdminPreviewStep";
 import type { PlanGroup, PlanContent } from "@/lib/types/plan";
 import type { AdjustmentInput } from "@/lib/reschedule/scheduleEngine";
-import type { ReschedulePreviewResult } from "@/lib/domains/plan";
+import type { ReschedulePreviewResult } from "@/lib/reschedule/core";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
 import { calculateAvailableDates, type TimeSlot, type AcademySchedule, type CalculateOptions } from "@/lib/scheduler/utils/scheduleCalculator";
 import { generatePlanWithAI } from "@/lib/domains/plan/llm/actions/generatePlan";
