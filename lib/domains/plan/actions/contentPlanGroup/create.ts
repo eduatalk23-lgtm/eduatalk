@@ -31,7 +31,7 @@ import {
   distributeDailyAmounts,
 } from "./helpers";
 import { getContentPlanGroupCount, getTemplateSettings } from "./queries";
-import { generatePlansAtomic, type AtomicPlanPayload } from "@/lib/domains/plan/transactions";
+import { generatePlansAtomic, appendPlansToGroupAtomic, type AtomicPlanPayload, type AppendStudentPlanInput } from "@/lib/domains/plan/transactions";
 
 // ============================================
 // Helper Functions
@@ -1048,38 +1048,15 @@ export async function addContentToExistingPlanGroup(
       };
     }
 
-    // 5. plan_contents 생성 (display_order 증가)
-    const { data: newContent, error: pcError } = await supabase
-      .from("plan_contents")
-      .insert({
-        plan_group_id: input.planGroupId,
-        tenant_id: tenantId,
-        content_type: input.content.type === "custom" ? "custom" : input.content.type,
-        content_id: resolvedContentId,
-        content_name: input.content.name,
-        start_range: input.range.start,
-        end_range: input.range.end,
-        subject_name: input.content.subject ?? null,
-        subject_category: input.content.subjectCategory ?? null,
-        display_order: nextDisplayOrder,
-      })
-      .select("id")
-      .single();
-
-    if (pcError || !newContent) {
-      logActionError({ domain: "plan", action: "addContentToExistingPlanGroup" }, pcError, { step: "planContents", planGroupId: input.planGroupId });
-      return { success: false, error: "콘텐츠 연결에 실패했습니다." };
-    }
-
-    // 6. student_plans 생성 (기존 플랜과 별도로 추가)
+    // 5. 플랜 데이터 준비
     const totalAmount = input.range.end - input.range.start + 1;
     const dailyAmounts = distributeDailyAmounts(totalAmount, studyDates.length);
 
     const plans: GeneratedPlan[] = [];
-    const newPlansToInsert: AtomicPlanPayload[] = [];
+    const newPlansToInsert: AppendStudentPlanInput[] = [];
     let currentPosition = input.range.start;
 
-    // 6a. 학습 플랜 준비
+    // 5a. 학습 플랜 준비
     const dateRangeMap = new Map<string, { start: number; end: number; planId: string }>();
 
     for (let index = 0; index < studyDates.length; index++) {
@@ -1109,7 +1086,6 @@ export async function addContentToExistingPlanGroup(
       });
 
       newPlansToInsert.push({
-        plan_group_id: input.planGroupId,
         tenant_id: tenantId,
         student_id: user.userId,
         plan_date: dateStr,
@@ -1128,7 +1104,7 @@ export async function addContentToExistingPlanGroup(
       });
     }
 
-    // 6b. 복습 플랜 준비 (reviewEnabled인 경우)
+    // 5b. 복습 플랜 준비 (reviewEnabled인 경우)
     let reviewDays = 0;
     if (input.studyType.reviewEnabled) {
       const reviewDateInfos = getReviewDates(studyDates, endDate);
@@ -1169,7 +1145,6 @@ export async function addContentToExistingPlanGroup(
         });
 
         newPlansToInsert.push({
-          plan_group_id: input.planGroupId,
           tenant_id: tenantId,
           student_id: user.userId,
           plan_date: reviewDateStr,
@@ -1192,33 +1167,34 @@ export async function addContentToExistingPlanGroup(
       }
     }
 
-    // 6c. 새 플랜만 삽입 (기존 플랜 유지, generatePlansAtomic 대신 직접 삽입)
-    const { error: insertError } = await supabase
-      .from("student_plan")
-      .insert(newPlansToInsert);
-
-    if (insertError) {
-      logActionError({ domain: "plan", action: "addContentToExistingPlanGroup" }, insertError, { step: "plansInsertion", planGroupId: input.planGroupId });
-      // 롤백: 새로 추가한 plan_contents 삭제
-      await supabase.from("plan_contents").delete().eq("id", newContent.id);
-      return { success: false, error: "플랜 생성에 실패했습니다." };
-    }
-
-    // 7. 플랜 그룹 업데이트 (캘린더 전용 해제 + 활성화)
-    const { error: updateError } = await supabase
-      .from("plan_groups")
-      .update({
+    // 6. RPC 트랜잭션으로 원자적 생성 (plan_contents + student_plan + plan_groups 업데이트)
+    const rpcResult = await appendPlansToGroupAtomic(
+      input.planGroupId,
+      {
+        tenant_id: tenantId,
+        content_type: input.content.type === "custom" ? "custom" : input.content.type,
+        content_id: resolvedContentId,
+        content_name: input.content.name,
+        start_range: input.range.start,
+        end_range: input.range.end,
+        subject_name: input.content.subject ?? null,
+        subject_category: input.content.subjectCategory ?? null,
+        display_order: nextDisplayOrder,
+      },
+      newPlansToInsert,
+      {
         is_calendar_only: false,
         content_status: "complete",
         status: "active",
-      })
-      .eq("id", input.planGroupId);
+      }
+    );
 
-    if (updateError) {
-      logActionWarn({ domain: "plan", action: "addContentToExistingPlanGroup" }, "플랜 그룹 업데이트 실패", { planGroupId: input.planGroupId });
+    if (!rpcResult.success) {
+      logActionError({ domain: "plan", action: "addContentToExistingPlanGroup" }, new Error(rpcResult.error ?? "RPC 트랜잭션 실패"), { planGroupId: input.planGroupId });
+      return { success: false, error: rpcResult.error ?? "플랜 생성에 실패했습니다." };
     }
 
-    // 8. 캐시 재검증
+    // 7. 캐시 재검증
     revalidatePath("/plan");
     revalidatePath(`/plan/group/${input.planGroupId}`);
 

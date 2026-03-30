@@ -4,6 +4,7 @@
  * Quick Create Actions
  *
  * 빠른 플랜 생성 관련 서버 액션
+ * RPC 트랜잭션을 통한 원자적 생성
  */
 
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
@@ -25,94 +26,15 @@ import {
 } from "./types";
 import { getAvailableStudyDates, getReviewDates, distributeDailyAmounts } from "./helpers";
 import { getContentPlanGroupCount } from "./queries";
-import { logActionError, logActionSuccess, logActionWarn, logActionDebug } from "@/lib/logging/actionLogger";
+import { logActionError, logActionSuccess, logActionDebug } from "@/lib/logging/actionLogger";
 import { logQuickPlanCreated, logPlansBatchCreated } from "@/lib/domains/admin-plan/actions/planEvent";
 import { selectPlanGroupForCalendar, createPlanGroupForCalendar } from "@/lib/domains/admin-plan/utils/planGroupSelector";
 import { buildPlanCreationHints } from "@/lib/query/keys";
-
-// ============================================
-// Rollback Helper Functions
-// ============================================
-
-/**
- * 빠른 플랜 생성 실패 시 롤백을 수행합니다.
- * 각 삭제 작업의 실패를 로깅하되, 전체 롤백을 계속 진행합니다.
- */
-async function rollbackQuickCreate(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  planGroupId: string,
-  options?: {
-    deleteStudentPlans?: boolean;
-    deletePlanContents?: boolean;
-    deletePlanGroup?: boolean;
-  }
-): Promise<{ success: boolean; errors: string[] }> {
-  const errors: string[] = [];
-  const opts = {
-    deleteStudentPlans: true,
-    deletePlanContents: true,
-    deletePlanGroup: true,
-    ...options,
-  };
-
-  // 1. student_plan 삭제
-  if (opts.deleteStudentPlans) {
-    const { error: spErr } = await supabase
-      .from("student_plan")
-      .delete()
-      .eq("plan_group_id", planGroupId);
-    if (spErr) {
-      errors.push(`student_plan 삭제 실패: ${spErr.message}`);
-      logActionError(
-        { domain: "plan", action: "rollbackQuickCreate" },
-        spErr,
-        { planGroupId, step: "student_plan" }
-      );
-    }
-  }
-
-  // 2. plan_contents 삭제
-  if (opts.deletePlanContents) {
-    const { error: pcErr } = await supabase
-      .from("plan_contents")
-      .delete()
-      .eq("plan_group_id", planGroupId);
-    if (pcErr) {
-      errors.push(`plan_contents 삭제 실패: ${pcErr.message}`);
-      logActionError(
-        { domain: "plan", action: "rollbackQuickCreate" },
-        pcErr,
-        { planGroupId, step: "plan_contents" }
-      );
-    }
-  }
-
-  // 3. plan_groups 삭제
-  if (opts.deletePlanGroup) {
-    const { error: pgErr } = await supabase
-      .from("plan_groups")
-      .delete()
-      .eq("id", planGroupId);
-    if (pgErr) {
-      errors.push(`plan_groups 삭제 실패: ${pgErr.message}`);
-      logActionError(
-        { domain: "plan", action: "rollbackQuickCreate" },
-        pgErr,
-        { planGroupId, step: "plan_groups" }
-      );
-    }
-  }
-
-  if (errors.length > 0) {
-    logActionWarn(
-      { domain: "plan", action: "rollbackQuickCreate" },
-      "롤백 중 일부 실패",
-      { planGroupId, errors }
-    );
-  }
-
-  return { success: errors.length === 0, errors };
-}
+import {
+  quickCreateFromContentAtomic,
+  createQuickPlanAtomic,
+  type QuickCreateStudyPlanInput,
+} from "@/lib/domains/plan/transactions";
 
 // ============================================
 // Helper Functions
@@ -302,80 +224,14 @@ export async function quickCreateFromContent(
       };
     }
 
-    // 3. 플랜그룹 생성
-    const { data: planGroup, error: pgError } = await supabase
-      .from("plan_groups")
-      .insert({
-        tenant_id: tenantId,
-        student_id: user.userId,
-        name: input.content.name,
-        period_start: input.schedule.startDate,
-        period_end: input.schedule.endDate,
-        status: "active",
-        creation_mode: "content_based",
-        study_type: input.schedule.studyType,
-        scheduler_options: {
-          weekdays: input.schedule.weekdays,
-          studyType: input.schedule.studyType,
-          reviewEnabled: input.schedule.reviewEnabled ?? false,
-        },
-      })
-      .select()
-      .single();
-
-    if (pgError || !planGroup) {
-      logActionError(
-        { domain: "plan", action: "quickCreateFromContent" },
-        pgError ?? new Error("planGroup is null"),
-        { userId: user.userId, step: "plan_groups" }
-      );
-      return { success: false, error: "플랜그룹 생성에 실패했습니다." };
-    }
-
-    // 4. plan_contents 생성
-    const { error: pcError } = await supabase.from("plan_contents").insert({
-      plan_group_id: planGroup.id,
-      tenant_id: tenantId,
-      content_type: input.content.type,
-      content_id: resolvedContentId,
-      content_name: input.content.name,
-      start_range: input.range.start,
-      end_range: input.range.end,
-      subject_name: input.content.subject ?? null,
-      subject_category: input.content.subjectCategory ?? null,
-      display_order: 0,
-    });
-
-    if (pcError) {
-      logActionError(
-        { domain: "plan", action: "quickCreateFromContent" },
-        pcError,
-        { planGroupId: planGroup.id, step: "plan_contents" }
-      );
-      // 롤백: plan_group만 삭제 (plan_contents는 생성 실패)
-      const rollback = await rollbackQuickCreate(supabase, planGroup.id, {
-        deleteStudentPlans: false,
-        deletePlanContents: false,
-        deletePlanGroup: true,
-      });
-      if (!rollback.success) {
-        logActionWarn(
-          { domain: "plan", action: "quickCreateFromContent" },
-          "Rollback partial failure",
-          { planGroupId: planGroup.id, errors: rollback.errors }
-        );
-      }
-      return { success: false, error: "콘텐츠 연결에 실패했습니다." };
-    }
-
-    // 5. student_plans 생성
+    // 3. 플랜 데이터 준비
     const totalAmount = input.range.end - input.range.start + 1;
     const dailyAmounts = distributeDailyAmounts(totalAmount, studyDates.length);
 
     const plans: GeneratedPlan[] = [];
     let currentPosition = input.range.start;
 
-    const studentPlansToInsert = studyDates.map((date, index) => {
+    const studyPlansToInsert: QuickCreateStudyPlanInput[] = studyDates.map((date, index) => {
       const amount = dailyAmounts[index];
       const rangeStart = currentPosition;
       const rangeEnd = currentPosition + amount - 1;
@@ -396,7 +252,6 @@ export async function quickCreateFromContent(
         id: planId,
         tenant_id: tenantId,
         student_id: user.userId,
-        plan_group_id: planGroup.id,
         plan_date: date.toISOString().split("T")[0],
         block_index: 0,
         content_type: input.content.type,
@@ -410,38 +265,14 @@ export async function quickCreateFromContent(
         container_type: "daily",
         subject_type: input.schedule.studyType,
         is_active: true,
-        sequence: 1, // 날짜별 첫 번째 플랜
+        sequence: 1,
       };
     });
 
-    const { error: spError } = await supabase
-      .from("student_plan")
-      .insert(studentPlansToInsert);
-
-    if (spError) {
-      logActionError(
-        { domain: "plan", action: "quickCreateFromContent" },
-        spError,
-        { planGroupId: planGroup.id, step: "student_plan" }
-      );
-      // 롤백: plan_contents와 plan_groups 삭제 (student_plan은 생성 실패)
-      const rollback = await rollbackQuickCreate(supabase, planGroup.id, {
-        deleteStudentPlans: false,
-        deletePlanContents: true,
-        deletePlanGroup: true,
-      });
-      if (!rollback.success) {
-        logActionWarn(
-          { domain: "plan", action: "quickCreateFromContent" },
-          "Rollback partial failure",
-          { planGroupId: planGroup.id, errors: rollback.errors }
-        );
-      }
-      return { success: false, error: "플랜 생성에 실패했습니다." };
-    }
-
-    // 6. 복습 플랜 생성 (선택적)
+    // 4. 복습 플랜 데이터 준비 (선택적)
     let reviewDays = 0;
+    const reviewPlansToInsert: QuickCreateStudyPlanInput[] = [];
+
     if (input.schedule.reviewEnabled) {
       const reviewDateInfos = getReviewDates(studyDates, endDate);
       reviewDays = reviewDateInfos.length;
@@ -457,70 +288,106 @@ export async function quickCreateFromContent(
         pos += amount;
       }
 
-      const reviewPlansToInsert = reviewDateInfos
-        .map((reviewInfo) => {
-          let weekRangeStart = Infinity;
-          let weekRangeEnd = 0;
-          for (const planDate of reviewInfo.plansToReview) {
-            const range = dateRangeMap.get(planDate.toISOString().split("T")[0]);
-            if (range) {
-              weekRangeStart = Math.min(weekRangeStart, range.start);
-              weekRangeEnd = Math.max(weekRangeEnd, range.end);
-            }
+      for (const reviewInfo of reviewDateInfos) {
+        let weekRangeStart = Infinity;
+        let weekRangeEnd = 0;
+        for (const planDate of reviewInfo.plansToReview) {
+          const range = dateRangeMap.get(planDate.toISOString().split("T")[0]);
+          if (range) {
+            weekRangeStart = Math.min(weekRangeStart, range.start);
+            weekRangeEnd = Math.max(weekRangeEnd, range.end);
           }
+        }
 
-          if (weekRangeStart === Infinity) return null;
+        if (weekRangeStart === Infinity) continue;
 
-          const reviewPlanId = crypto.randomUUID();
-          plans.push({
-            id: reviewPlanId,
-            date: reviewInfo.date.toISOString().split("T")[0],
-            rangeStart: weekRangeStart,
-            rangeEnd: weekRangeEnd,
-            status: "pending",
-            containerType: "daily",
-            estimatedDuration: Math.ceil((weekRangeEnd - weekRangeStart + 1) * 2),
-          });
+        const reviewPlanId = crypto.randomUUID();
+        plans.push({
+          id: reviewPlanId,
+          date: reviewInfo.date.toISOString().split("T")[0],
+          rangeStart: weekRangeStart,
+          rangeEnd: weekRangeEnd,
+          status: "pending",
+          containerType: "daily",
+          estimatedDuration: Math.ceil((weekRangeEnd - weekRangeStart + 1) * 2),
+        });
 
-          return {
-            id: reviewPlanId,
-            tenant_id: tenantId,
-            student_id: user.userId,
-            plan_group_id: planGroup.id,
-            plan_date: reviewInfo.date.toISOString().split("T")[0],
-            block_index: 0,
-            content_type: input.content.type,
-            content_id: resolvedContentId,
-            content_title: `[복습] ${input.content.name}`,
-            content_subject: input.content.subject ?? null,
-            content_subject_category: input.content.subjectCategory ?? null,
-            planned_start_page_or_time: weekRangeStart,
-            planned_end_page_or_time: weekRangeEnd,
-            status: "pending",
-            container_type: "daily",
-            subject_type: "review",
-            is_active: true,
-            sequence: 1, // 복습은 별도 날짜에 생성
-          };
-        })
-        .filter((p): p is NonNullable<typeof p> => p !== null);
-
-      if (reviewPlansToInsert.length > 0) {
-        await supabase.from("student_plan").insert(reviewPlansToInsert);
+        reviewPlansToInsert.push({
+          id: reviewPlanId,
+          tenant_id: tenantId,
+          student_id: user.userId,
+          plan_date: reviewInfo.date.toISOString().split("T")[0],
+          block_index: 0,
+          content_type: input.content.type,
+          content_id: resolvedContentId,
+          content_title: `[복습] ${input.content.name}`,
+          content_subject: input.content.subject ?? null,
+          content_subject_category: input.content.subjectCategory ?? null,
+          planned_start_page_or_time: weekRangeStart,
+          planned_end_page_or_time: weekRangeEnd,
+          status: "pending",
+          container_type: "daily",
+          subject_type: "review",
+          is_active: true,
+          sequence: 1,
+        });
       }
     }
 
-    // 7. 캐시 재검증
-    revalidatePlanCache({ groupId: planGroup.id, studentId: user.userId });
+    // 5. RPC 트랜잭션으로 원자적 생성
+    const rpcResult = await quickCreateFromContentAtomic(
+      {
+        tenant_id: tenantId,
+        student_id: user.userId,
+        name: input.content.name,
+        period_start: input.schedule.startDate,
+        period_end: input.schedule.endDate,
+        status: "active",
+        creation_mode: "content_based",
+        study_type: input.schedule.studyType,
+        scheduler_options: {
+          weekdays: input.schedule.weekdays,
+          studyType: input.schedule.studyType,
+          reviewEnabled: input.schedule.reviewEnabled ?? false,
+        },
+      },
+      {
+        tenant_id: tenantId,
+        content_type: input.content.type,
+        content_id: resolvedContentId,
+        content_name: input.content.name,
+        start_range: input.range.start,
+        end_range: input.range.end,
+        subject_name: input.content.subject ?? null,
+        subject_category: input.content.subjectCategory ?? null,
+        display_order: 0,
+      },
+      studyPlansToInsert,
+      reviewPlansToInsert
+    );
+
+    if (!rpcResult.success || !rpcResult.group_id) {
+      logActionError(
+        { domain: "plan", action: "quickCreateFromContent" },
+        new Error(rpcResult.error ?? "RPC 트랜잭션 실패"),
+        { userId: user.userId }
+      );
+      return { success: false, error: rpcResult.error ?? "플랜 생성에 실패했습니다." };
+    }
+
+    const planGroupId = rpcResult.group_id;
+
+    // 6. 캐시 재검증
+    revalidatePlanCache({ groupId: planGroupId, studentId: user.userId });
 
     const studyDaysCount = studyDates.length;
     const totalPlansCount = studyDaysCount + reviewDays;
 
-    // 8. 이벤트 로깅 (비동기, 실패해도 플랜 생성에 영향 없음)
+    // 7. 이벤트 로깅 (비동기, 실패해도 플랜 생성에 영향 없음)
     logPlansBatchCreated(
       tenantId,
       user.userId,
-      planGroup.id,
+      planGroupId,
       {
         total_plans: totalPlansCount,
         period_start: input.schedule.startDate,
@@ -535,17 +402,34 @@ export async function quickCreateFromContent(
       logActionError(
         { domain: "plan", action: "quickCreateFromContent" },
         err,
-        { groupId: planGroup.id, step: "event_logging" }
+        { groupId: planGroupId, step: "event_logging" }
       );
     });
 
+    // planGroup 반환: RPC에서 ID만 반환되므로, 입력 데이터로 구성
+    // 실제 소비자(QuickCreateModal)는 planGroup.id만 사용
+    const planGroupReturn = {
+      id: planGroupId,
+      tenant_id: tenantId,
+      student_id: user.userId,
+      name: input.content.name,
+      plan_purpose: null,
+      scheduler_type: null,
+      period_start: input.schedule.startDate,
+      period_end: input.schedule.endDate,
+      target_date: null,
+      block_set_id: null,
+      status: "active" as const,
+      deleted_at: null,
+      template_plan_group_id: planGroupId,
+      study_type: input.schedule.studyType,
+      strategy_days_per_week: null,
+      creation_mode: "content_based" as const,
+    } as ContentPlanGroupResult["planGroup"];
+
     return {
       success: true,
-      planGroup: {
-        ...planGroup,
-        study_type: input.schedule.studyType,
-        creation_mode: "content_based" as const,
-      },
+      planGroup: planGroupReturn,
       plans,
       summary: {
         totalPlans: totalPlansCount,
@@ -555,7 +439,7 @@ export async function quickCreateFromContent(
         estimatedEndDate: studyDates[studyDates.length - 1].toISOString().split("T")[0],
         totalRange: totalAmount,
       },
-      ...buildPlanCreationHints({ studentId: user.userId, groupId: planGroup.id }),
+      ...buildPlanCreationHints({ studentId: user.userId, groupId: planGroupId }),
     };
   } catch (error) {
     logActionError(
@@ -606,43 +490,12 @@ export async function createQuickPlan(
       return { success: false, error: "테넌트 정보가 없습니다. 관리자에게 문의하세요." };
     }
 
-    const supabase = await createSupabaseServerClient();
-
-    // 2. content_id 확보 (자유 학습인 경우 flexible_contents 생성)
+    // 2. content_id 확보 + RPC 옵션 준비
     let resolvedContentId: string | null = null;
-    let flexibleContentId: string | undefined;
     const isFreeLearning = input.isFreeLearning || !input.contentId || input.contentId === "";
 
-    if (isFreeLearning) {
-      // 자유 학습: flexible_contents에 플레이스홀더 생성
-      const { data: flexibleContent, error: fcError } = await supabase
-        .from("flexible_contents")
-        .insert({
-          tenant_id: tenantId,
-          student_id: studentId,
-          content_type: "free",
-          title: input.title,
-          item_type: input.freeLearningType ?? "free",
-          estimated_minutes: input.estimatedMinutes ?? 30,
-          subject: input.subject ?? null,
-        })
-        .select("id")
-        .single();
-
-      if (fcError || !flexibleContent) {
-        logActionError(LOG_CTX, fcError ?? new Error("flexibleContent is null"), {
-          studentId,
-          step: "flexible_contents",
-        });
-        return {
-          success: false,
-          error: fcError?.message ?? "자유 학습 콘텐츠 생성에 실패했습니다.",
-        };
-      }
-      resolvedContentId = flexibleContent.id;
-      flexibleContentId = flexibleContent.id;
-    } else if (input.contentId) {
-      // 기존 콘텐츠 사용: UUID 형식 검증
+    // UUID 형식 검증 (자유 학습이 아닌 경우)
+    if (!isFreeLearning && input.contentId) {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(input.contentId)) {
         return {
@@ -668,11 +521,8 @@ export async function createQuickPlan(
       }
     }
 
-    // 4. Plan Group 확보/생성
-    // - planGroupId가 제공되면 그대로 사용 (캘린더 UI 선택)
-    // - 없으면 캘린더 기반으로 자동 선택/생성 (is_single_content: true)
-    let planGroupId: string;
-    let isNewGroup = false;
+    // 4. Plan Group 확보/생성 (READ operations)
+    let planGroupId: string | undefined;
 
     if (input.planGroupId) {
       // 캘린더 UI에서 선택된 Plan Group 사용
@@ -712,85 +562,79 @@ export async function createQuickPlan(
         });
 
         if (!createResult.success || !createResult.planGroupId) {
-          // 롤백: flexible_contents 삭제
-          if (isFreeLearning && flexibleContentId) {
-            await supabase.from("flexible_contents").delete().eq("id", flexibleContentId);
-          }
           return {
             success: false,
             error: createResult.error ?? "플랜그룹 생성에 실패했습니다.",
           };
         }
         planGroupId = createResult.planGroupId;
-        isNewGroup = true;
         logActionDebug(LOG_CTX, "새 Plan Group 생성", { planGroupId });
       }
     }
 
-    // 5. student_plan 생성 (is_adhoc: true)
+    // 5. RPC 트랜잭션으로 원자적 생성
     const contentType = isFreeLearning
       ? (input.freeLearningType ?? "free")
       : (input.contentType ?? "custom");
 
-    const planData = {
-      student_id: studentId,
-      tenant_id: tenantId,
-      plan_group_id: planGroupId,
-      plan_date: input.planDate,
-      block_index: 0,
-      content_type: contentType,
-      content_id: resolvedContentId,
-      content_title: input.title,
-      container_type: input.containerType ?? "daily",
-      status: "pending",
-      is_virtual: false,
-      is_adhoc: true, // 단발성 마킹
-      flexible_content_id: flexibleContentId ?? null,
-      planned_start_page_or_time: input.rangeStart ?? null,
-      planned_end_page_or_time: input.rangeEnd ?? null,
-      estimated_minutes: input.estimatedMinutes ?? 30,
-      start_time: input.startTime ?? null,
-      end_time: input.endTime ?? null,
-      description: input.description ?? null,
-      tags: input.tags ?? [],
-      color: input.color ?? null,
-      icon: input.icon ?? null,
-      priority: input.priority ?? 0,
-    };
-
-    const { data: plan, error: planError } = await supabase
-      .from("student_plan")
-      .insert(planData)
-      .select("id")
-      .single();
-
-    if (planError || !plan) {
-      logActionError(LOG_CTX, planError ?? new Error("plan is null"), {
+    const rpcResult = await createQuickPlanAtomic(
+      {
+        student_id: studentId,
+        tenant_id: tenantId,
+        plan_date: input.planDate,
+        block_index: 0,
+        content_type: contentType,
+        content_id: resolvedContentId,
+        content_title: input.title,
+        container_type: input.containerType ?? "daily",
+        status: "pending",
+        is_virtual: false,
+        is_adhoc: true,
+        planned_start_page_or_time: input.rangeStart ?? null,
+        planned_end_page_or_time: input.rangeEnd ?? null,
+        estimated_minutes: input.estimatedMinutes ?? 30,
+        start_time: input.startTime ?? null,
+        end_time: input.endTime ?? null,
+        description: input.description ?? null,
+        tags: input.tags ?? [],
+        color: input.color ?? null,
+        icon: input.icon ?? null,
+        priority: input.priority ?? 0,
+      },
+      {
         planGroupId,
-        step: "student_plan",
+        flexibleContent: isFreeLearning
+          ? {
+              tenant_id: tenantId,
+              student_id: studentId,
+              content_type: "free",
+              title: input.title,
+              item_type: input.freeLearningType ?? "free",
+              estimated_minutes: input.estimatedMinutes ?? 30,
+              subject: input.subject ?? null,
+            }
+          : undefined,
+      }
+    );
+
+    if (!rpcResult.success) {
+      logActionError(LOG_CTX, new Error(rpcResult.error ?? "RPC 트랜잭션 실패"), {
+        planGroupId,
+        studentId,
       });
-
-      // 롤백: 새로 생성한 Plan Group과 flexible_contents 삭제
-      if (isNewGroup) {
-        await rollbackQuickCreate(supabase, planGroupId, {
-          deleteStudentPlans: false,
-          deletePlanContents: false,
-          deletePlanGroup: true,
-        });
-      }
-      if (isFreeLearning && flexibleContentId) {
-        await supabase.from("flexible_contents").delete().eq("id", flexibleContentId);
-      }
-
       return {
         success: false,
-        error: planError?.message ?? "플랜 생성에 실패했습니다.",
+        error: rpcResult.error ?? "플랜 생성에 실패했습니다.",
       };
     }
 
+    const resultPlanGroupId = rpcResult.plan_group_id ?? planGroupId!;
+    const resultPlanId = rpcResult.plan_id!;
+    const resultFlexibleContentId = rpcResult.flexible_content_id;
+
     // 6. 캐시 재검증
     revalidatePlanCache({
-      groupId: planGroupId,
+      groupId: resultPlanGroupId,
       studentId,
       includeAdmin: actorType === "admin",
     });
@@ -799,8 +643,8 @@ export async function createQuickPlan(
     logQuickPlanCreated(
       tenantId,
       studentId,
-      plan.id,
-      planGroupId,
+      resultPlanId,
+      resultPlanGroupId,
       {
         title: input.title,
         plan_date: input.planDate,
@@ -811,24 +655,23 @@ export async function createQuickPlan(
       auth.userId,
       actorType
     ).catch((err) => {
-      logActionError(LOG_CTX, err, { planId: plan.id, step: "event_logging" });
+      logActionError(LOG_CTX, err, { planId: resultPlanId, step: "event_logging" });
     });
 
     logActionSuccess(LOG_CTX, {
-      planId: plan.id,
-      planGroupId,
+      planId: resultPlanId,
+      planGroupId: resultPlanGroupId,
       studentId,
       calendarId,
       actorType,
-      isNewGroup,
     });
 
     return {
       success: true,
-      planGroupId,
-      planId: plan.id,
-      flexibleContentId,
-      ...buildPlanCreationHints({ studentId, groupId: planGroupId }),
+      planGroupId: resultPlanGroupId,
+      planId: resultPlanId,
+      flexibleContentId: resultFlexibleContentId,
+      ...buildPlanCreationHints({ studentId, groupId: resultPlanGroupId }),
     };
   } catch (error) {
     logActionError(LOG_CTX, error, { studentId: input.studentId });
@@ -882,43 +725,13 @@ export async function createQuickPlanForStudent(
     { adminRole: auth.adminRole, tenantId }
   );
 
-  const supabase = await createSupabaseServerClient();
-
   try {
-    // 0. content_id 확보 (자유 학습인 경우 flexible_contents 생성)
-    let resolvedContentId: string;
+    // 0. content_id 확보 + RPC 옵션 준비
+    let resolvedContentId: string | null = null;
     const isFreeLearning = input.isFreeLearning || !input.contentId || input.contentId === "";
 
-    if (isFreeLearning) {
-      // 자유 학습: flexible_contents에 플레이스홀더 생성
-      const { data: flexibleContent, error: fcError } = await supabase
-        .from("flexible_contents")
-        .insert({
-          tenant_id: tenantId,
-          student_id: studentId,
-          content_type: "free",
-          title: input.title,
-          item_type: input.freeLearningType ?? "free",
-          estimated_minutes: input.estimatedMinutes ?? 30,
-          subject: input.subject ?? null,
-        })
-        .select("id")
-        .single();
-
-      if (fcError || !flexibleContent) {
-        logActionError(
-          { domain: "plan", action: "createQuickPlanForStudent" },
-          fcError ?? new Error("flexibleContent is null"),
-          { adminUserId: auth.userId, studentId, step: "flexible_contents" }
-        );
-        return {
-          success: false,
-          error: fcError?.message ?? "자유 학습 콘텐츠 생성에 실패했습니다.",
-        };
-      }
-      resolvedContentId = flexibleContent.id;
-    } else {
-      // 기존 콘텐츠 사용: UUID 형식 검증
+    // UUID 형식 검증 (자유 학습이 아닌 경우)
+    if (!isFreeLearning) {
       const contentId = input.contentId as string;
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(contentId)) {
@@ -930,10 +743,10 @@ export async function createQuickPlanForStudent(
       resolvedContentId = contentId;
     }
 
-    // 1. 캘린더 기반 Plan Group 찾기 또는 생성
-    let planGroupId: string;
+    // 1. 캘린더 기반 Plan Group 찾기 (READ operations)
+    let planGroupId: string | undefined;
+    let needsLegacyGroup = false;
 
-    // calendarId가 제공된 경우 캘린더 기반으로 Plan Group 선택
     if (input.calendarId) {
       const plannerCalendarId = input.calendarId;
 
@@ -981,51 +794,19 @@ export async function createQuickPlanForStudent(
         };
       }
     } else {
-      // 레거시 지원: calendarId 없이 호출된 경우 기존 방식으로 생성
-      const { data: planGroup, error: groupError } = await supabase
-        .from("plan_groups")
-        .insert({
-          student_id: studentId,
-          tenant_id: tenantId,
-          name: input.title,
-          plan_purpose: "기타",
-          period_start: input.planDate,
-          period_end: input.planDate,
-          status: "active",
-          plan_mode: "quick",
-          is_single_day: true,
-          creation_mode: isFreeLearning ? "free_learning" : "content_based",
-          last_admin_id: auth.userId,
-          admin_modified_at: new Date().toISOString(),
-        })
-        .select("id")
-        .single();
-
-      if (groupError || !planGroup) {
-        logActionError(
-          { domain: "plan", action: "createQuickPlanForStudent" },
-          groupError ?? new Error("planGroup is null"),
-          { adminUserId: auth.userId, studentId, step: "plan_groups" }
-        );
-        return {
-          success: false,
-          error: groupError?.message ?? "플랜그룹 생성에 실패했습니다.",
-        };
-      }
-      planGroupId = planGroup.id;
+      // 레거시 지원: calendarId 없이 호출된 경우 → RPC에서 그룹 생성
+      needsLegacyGroup = true;
     }
 
-    // 2. student_plan 생성
+    // 2. RPC 트랜잭션으로 원자적 생성
     const contentType = isFreeLearning
       ? input.freeLearningType ?? "free"
       : input.contentType ?? "custom";
 
-    const { data: plan, error: planError } = await supabase
-      .from("student_plan")
-      .insert({
+    const rpcResult = await createQuickPlanAtomic(
+      {
         student_id: studentId,
         tenant_id: tenantId,
-        plan_group_id: planGroupId,
         plan_date: input.planDate,
         block_index: 0,
         content_type: contentType,
@@ -1034,65 +815,70 @@ export async function createQuickPlanForStudent(
         container_type: input.containerType ?? "daily",
         status: "pending",
         is_virtual: false,
-        flexible_content_id: isFreeLearning ? resolvedContentId : null,
+        is_adhoc: false, // admin 플랜은 is_adhoc 사용 안 함
+        flexible_content_id: null,
         planned_start_page_or_time: input.rangeStart ?? null,
         planned_end_page_or_time: input.rangeEnd ?? null,
         estimated_minutes: input.estimatedMinutes ?? null,
         start_time: input.startTime ?? null,
         end_time: input.endTime ?? null,
-      })
-      .select("id")
-      .single();
+      },
+      {
+        planGroupId: planGroupId,
+        flexibleContent: isFreeLearning
+          ? {
+              tenant_id: tenantId,
+              student_id: studentId,
+              content_type: "free",
+              title: input.title,
+              item_type: input.freeLearningType ?? "free",
+              estimated_minutes: input.estimatedMinutes ?? 30,
+              subject: input.subject ?? null,
+            }
+          : undefined,
+        planGroup: needsLegacyGroup
+          ? {
+              student_id: studentId,
+              tenant_id: tenantId,
+              name: input.title,
+              plan_purpose: "기타",
+              period_start: input.planDate,
+              period_end: input.planDate,
+              status: "active",
+              plan_mode: "quick",
+              is_single_day: true,
+              creation_mode: isFreeLearning ? "free_learning" : "content_based",
+              last_admin_id: auth.userId,
+              admin_modified_at: new Date().toISOString(),
+            }
+          : undefined,
+      }
+    );
 
-    if (planError || !plan) {
+    if (!rpcResult.success) {
       logActionError(
         { domain: "plan", action: "createQuickPlanForStudent" },
-        planError ?? new Error("plan is null"),
-        { planGroupId, step: "student_plan" }
+        new Error(rpcResult.error ?? "RPC 트랜잭션 실패"),
+        { planGroupId, studentId }
       );
-      // 롤백: plan_group 삭제 (레거시 방식으로 생성된 경우만)
-      if (!input.calendarId) {
-        const rollback = await rollbackQuickCreate(supabase, planGroupId, {
-          deleteStudentPlans: false,
-          deletePlanContents: false,
-          deletePlanGroup: true,
-        });
-        if (!rollback.success) {
-          logActionWarn(
-            { domain: "plan", action: "createQuickPlanForStudent" },
-            "Rollback partial failure",
-            { planGroupId, errors: rollback.errors }
-          );
-        }
-      }
-      // 자유 학습인 경우 flexible_contents도 삭제
-      if (isFreeLearning) {
-        const { error: fcDeleteError } = await supabase
-          .from("flexible_contents")
-          .delete()
-          .eq("id", resolvedContentId);
-        if (fcDeleteError) {
-          logActionError(
-            { domain: "plan", action: "createQuickPlanForStudent" },
-            fcDeleteError,
-            { resolvedContentId, step: "rollback_flexible_contents" }
-          );
-        }
-      }
       return {
         success: false,
-        error: planError?.message ?? "플랜 생성에 실패했습니다.",
+        error: rpcResult.error ?? "플랜 생성에 실패했습니다.",
       };
     }
 
+    const resultPlanGroupId = rpcResult.plan_group_id ?? planGroupId!;
+    const resultPlanId = rpcResult.plan_id!;
+    const resultFlexibleContentId = rpcResult.flexible_content_id;
+
     // Admin 페이지 캐시 재검증
-    revalidatePlanCache({ groupId: planGroupId, studentId, includeAdmin: true });
+    revalidatePlanCache({ groupId: resultPlanGroupId, studentId, includeAdmin: true });
 
     logActionSuccess(
       { domain: "plan", action: "createQuickPlanForStudent" },
       {
-        planGroupId,
-        planId: plan.id,
+        planGroupId: resultPlanGroupId,
+        planId: resultPlanId,
         studentId,
         adminUserId: auth.userId,
         adminRole: auth.adminRole,
@@ -1104,8 +890,8 @@ export async function createQuickPlanForStudent(
     logQuickPlanCreated(
       tenantId,
       studentId,
-      plan.id,
-      planGroupId,
+      resultPlanId,
+      resultPlanGroupId,
       {
         title: input.title,
         plan_date: input.planDate,
@@ -1121,17 +907,17 @@ export async function createQuickPlanForStudent(
       logActionError(
         { domain: "plan", action: "createQuickPlanForStudent" },
         err,
-        { planId: plan.id, step: "event_logging" }
+        { planId: resultPlanId, step: "event_logging" }
       );
     });
 
     return {
       success: true,
-      planGroupId,
-      planId: plan.id,
-      flexibleContentId: isFreeLearning ? resolvedContentId : undefined,
+      planGroupId: resultPlanGroupId,
+      planId: resultPlanId,
+      flexibleContentId: isFreeLearning ? resultFlexibleContentId : undefined,
       studentId,
-      ...buildPlanCreationHints({ studentId, groupId: planGroupId }),
+      ...buildPlanCreationHints({ studentId, groupId: resultPlanGroupId }),
     };
   } catch (error) {
     logActionError(
